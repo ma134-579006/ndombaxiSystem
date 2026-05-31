@@ -169,6 +169,26 @@ input { font-family: inherit; }
 }
 .icon-btn.on { background: var(--primary); border-color: var(--primary); color: #fff; }
 
+/* Indicador de ligação / sincronização */
+.conn {
+  position: relative; display: inline-flex; align-items: center; gap: 7px;
+  height: 46px; padding: 0 14px; border-radius: 12px; font-size: 13px; font-weight: 700;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+}
+.conn.on { border-color: rgba(34,197,94,.4); color: #bbf7d0; }
+.conn.off { border-color: rgba(245,158,11,.45); color: #fcd9a3; background: rgba(245,158,11,.1); }
+.conn .conn-label { letter-spacing: .3px; }
+.conn .conn-badge {
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  background: var(--warning); color: #20160a; font-size: 11px; font-weight: 900;
+  display: grid; place-items: center;
+}
+@media (max-width: 720px) { .conn .conn-label { display: none; } }
+
+/* Spinner reutilizável */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+
 .pos-body { flex: 1; display: grid; grid-template-columns: 1fr 400px; min-height: 0; }
 .catalog { display: flex; flex-direction: column; min-height: 0; padding: 16px; gap: 14px; }
 .search-bar { display: flex; gap: 10px; }
@@ -246,6 +266,27 @@ input { font-family: inherit; }
 .key.action { background: var(--bg); }
 .key.accent { background: var(--primary); border-color: var(--primary); color: #fff; }
 .key.wide-15 { flex: 1.5; } .key.wide-16 { flex: 1.6; } .key.wide-4 { flex: 4; }
+
+/* ============================================================
+   FILA DE VENDAS OFFLINE
+   ============================================================ */
+.q-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+}
+.q-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.q-ref { font-weight: 800; font-size: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.q-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.q-status { font-size: 11px; font-weight: 800; padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
+.q-status.pending { background: var(--primary-soft); color: #bfdbfe; border: 1px solid rgba(59,130,246,.35); }
+.q-status.syncing { background: var(--success-soft); color: #bbf7d0; border: 1px solid rgba(34,197,94,.35); }
+.q-status.error { background: var(--danger-soft); color: #fecaca; border: 1px solid rgba(239,68,68,.35); }
+.q-body { display: flex; align-items: center; justify-content: space-between; }
+.q-error {
+  font-size: 12px; color: #fecaca; background: var(--danger-soft);
+  border: 1px solid rgba(239,68,68,.3); border-radius: 8px; padding: 8px 10px; word-break: break-word;
+}
+.q-actions { display: flex; gap: 8px; }
 
 /* ============================================================
    MODAL / RECIBO

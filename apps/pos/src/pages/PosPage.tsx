@@ -8,20 +8,29 @@ import { CustomerModal } from '../components/CustomerModal';
 import { FooterCredit } from '../components/FooterCredit';
 import {
   IconCart,
+  IconCloud,
+  IconCloudOff,
   IconCube,
   IconKeyboard,
   IconLogout,
   IconMinus,
   IconPlus,
   IconSearch,
+  IconSync,
   IconTrash,
   IconUser,
 } from '../components/Icons';
 import { ReceiptModal } from '../components/ReceiptModal';
+import { QueueModal } from '../components/QueueModal';
 import { cartTotals, lineGross, type CartLine } from '../pos/cart';
 import { formatKz, formatNumber } from '../format';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { useKeyboard } from '../keyboard/KeyboardProvider';
+import { buildPendingSale, kvGet, kvSet, queueSale } from '../offline/db';
+import { syncController } from '../offline/sync';
+import { useSync } from '../offline/useSync';
+
+const CACHE_PRODUCTS = 'cache:products';
 
 const ROLE_LABELS: Record<string, string> = {
   COMPANY_ADMIN: 'Administrador',
@@ -38,6 +47,7 @@ function grossUnit(p: Product): number {
 export function PosPage() {
   const { user, logout } = useAuth();
   const kbd = useKeyboard();
+  const sync = useSync();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -50,18 +60,29 @@ export function PosPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [showCustomer, setShowCustomer] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
 
   const [emitting, setEmitting] = useState(false);
   const [emitError, setEmitError] = useState<string | null>(null);
-  const [emitted, setEmitted] = useState<{ invoice: EmittedInvoice; customerName: string | null } | null>(null);
+  const [emitted, setEmitted] = useState<
+    { invoice: EmittedInvoice; customerName: string | null; provisional?: boolean } | null
+  >(null);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        setProducts(await api.listProducts());
+        const list = await api.listProducts();
+        setProducts(list);
+        void kvSet(CACHE_PRODUCTS, list); // guarda p/ abrir offline da próxima vez
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : 'Falha ao carregar produtos.');
+        // Sem rede: tenta a cache local para a caixa abrir mesmo offline.
+        const cached = await kvGet<Product[]>(CACHE_PRODUCTS);
+        if (cached && cached.length > 0) {
+          setProducts(cached);
+        } else {
+          setError(e instanceof ApiError ? e.message : 'Falha ao carregar produtos.');
+        }
       } finally {
         setLoading(false);
       }
@@ -108,17 +129,49 @@ export function PosPage() {
 
   const removeLine = (id: string) => setCart((prev) => prev.filter((l) => l.product.id !== id));
 
+  /** Guarda a venda na fila offline e mostra um comprovativo PROVISÓRIO. */
+  const finalizeOffline = async () => {
+    const sale = buildPendingSale(cart, totals, customer ? { id: customer.id, name: customer.name } : null);
+    await queueSale(sale);
+    await syncController.refreshCount();
+    // Recibo provisório: o nº/hash fiscais reais vêm do servidor ao sincronizar.
+    const provisionalInvoice: EmittedInvoice = {
+      id: sale.localRef,
+      number: sale.localRef,
+      hash: '',
+      previousHash: '',
+      netTotal: totals.net,
+      ivaTotal: totals.iva,
+      grossTotal: totals.gross,
+    };
+    setEmitted({ invoice: provisionalInvoice, customerName: customer?.name ?? null, provisional: true });
+  };
+
   const finalize = async () => {
     if (cart.length === 0 || emitting) return;
     setEmitting(true);
     setEmitError(null);
     try {
+      // Sem internet → vai direto para a fila offline (não tenta a rede).
+      if (!sync.online) {
+        await finalizeOffline();
+        return;
+      }
       const invoice = await api.emitInvoice({
         customerId: customer?.id,
         lines: cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity })),
       });
       setEmitted({ invoice, customerName: customer?.name ?? null });
     } catch (e) {
+      // Falha de rede (status 0) → grava offline em vez de perder a venda.
+      if (e instanceof ApiError && e.status === 0) {
+        try {
+          await finalizeOffline();
+          return;
+        } catch {
+          /* cai no erro genérico abaixo */
+        }
+      }
       setEmitError(e instanceof ApiError ? e.message : 'Não foi possível emitir o documento.');
     } finally {
       setEmitting(false);
@@ -143,6 +196,24 @@ export function PosPage() {
             </div>
           </div>
           <span className="spacer" />
+          <button
+            className={`conn ${sync.online ? 'on' : 'off'}`}
+            onClick={() => {
+              if (sync.online && sync.pending > 0) sync.flush();
+              setShowQueue(true);
+            }}
+            title={sync.online ? 'Online — ver fila de vendas' : 'Offline — vendas guardadas localmente'}
+          >
+            {sync.syncing ? (
+              <IconSync size={18} className="spin" />
+            ) : sync.online ? (
+              <IconCloud size={18} />
+            ) : (
+              <IconCloudOff size={18} />
+            )}
+            <span className="conn-label">{sync.online ? 'Online' : 'Offline'}</span>
+            {sync.pending > 0 ? <span className="conn-badge">{sync.pending}</span> : null}
+          </button>
           <button
             className={`icon-btn${kbd.enabled ? ' on' : ''}`}
             onClick={kbd.toggle}
@@ -272,7 +343,11 @@ export function PosPage() {
                 onClick={finalize}
                 disabled={cart.length === 0 || emitting}
               >
-                {emitting ? 'A emitir…' : 'Finalizar venda'}
+                {emitting
+                  ? 'A emitir…'
+                  : sync.online
+                    ? 'Finalizar venda'
+                    : 'Guardar venda (offline)'}
               </button>
             </div>
           </aside>
@@ -304,9 +379,12 @@ export function PosPage() {
           info={receiptInfo}
           identity={identity}
           customerName={emitted.customerName}
+          provisional={emitted.provisional}
           onClose={closeReceipt}
         />
       ) : null}
+
+      {showQueue ? <QueueModal onClose={() => setShowQueue(false)} /> : null}
     </div>
   );
 }

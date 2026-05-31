@@ -80,6 +80,23 @@ class SyncController {
     this.emit({ pending: await countPendingSales() });
   }
 
+  /** Reemite uma venda específica da fila (revisão manual, ex.: corrigir um ERRO). */
+  async retryOne(id: number): Promise<boolean> {
+    const sale = (await listPendingSales()).find((s) => s.id === id);
+    if (!sale) return false;
+    this.emit({ lastError: null });
+    const ok = await this.emitOne(sale);
+    await this.refreshCount();
+    if (ok) this.emit({ lastSyncAt: new Date().toISOString() });
+    return ok;
+  }
+
+  /** Remove uma venda da fila sem a emitir (descartar definitivamente). */
+  async discard(id: number): Promise<void> {
+    await deleteSale(id);
+    await this.refreshCount();
+  }
+
   /** Esvazia a fila: emite cada venda pendente no servidor, por ordem. */
   async flush(): Promise<{ synced: number; failed: number }> {
     if (this.state.syncing) return { synced: 0, failed: 0 };
