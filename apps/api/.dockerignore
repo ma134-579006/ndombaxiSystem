@@ -1,0 +1,5 @@
+# NOTA: a imagem da API constrói-se a partir da RAIZ do repo (ver /.dockerignore).
+# Este ficheiro fica aqui apenas por referência.
+node_modules
+dist
+.env

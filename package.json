@@ -1,0 +1,22 @@
+{
+  "name": "nexus-erp",
+  "version": "3.0.0",
+  "private": true,
+  "description": "NEXUS ERP — Plataforma Enterprise Comercial multi-tenant para Angola (POS · ERP · E-Commerce · OpenManus AI · Super Admin)",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "types:build": "pnpm --filter @nexus/types build",
+    "api:dev": "pnpm types:build && pnpm --filter @nexus/api start:dev",
+    "api:build": "pnpm types:build && pnpm --filter @nexus/api build",
+    "api:test": "pnpm --filter @nexus/api test",
+    "db:generate": "pnpm --filter @nexus/api prisma:generate",
+    "db:migrate": "pnpm --filter @nexus/api prisma:migrate",
+    "db:seed": "pnpm --filter @nexus/api exec prisma db seed",
+    "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker/docker-compose.yml down"
+  }
+}

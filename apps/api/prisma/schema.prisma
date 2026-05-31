@@ -1,0 +1,263 @@
+// NEXUS ERP — Prisma schema (Fase 1: Fundação)
+// Estratégia multi-tenant: SCHEMA-PER-TENANT.
+//   • Este schema gere apenas o schema GLOBAL `nexus_public`.
+//   • Cada empresa (tenant) recebe um schema próprio (tenant_xxxxx) criado
+//     dinamicamente via prisma/tenant_template.sql na altura do onboarding.
+//   • Os dados de um tenant NUNCA vivem aqui — só metadados da plataforma.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["nexus_public"]
+}
+
+// ─────────────────────────────────────────────────────────────
+// PLANOS SaaS (§2.4)
+// ─────────────────────────────────────────────────────────────
+enum PlanTier {
+  STARTER
+  BUSINESS
+  ENTERPRISE
+  WHITE_LABEL
+
+  @@schema("nexus_public")
+}
+
+model Plan {
+  id           String    @id @default(uuid()) @db.Uuid
+  tier         PlanTier  @unique
+  name         String
+  priceUsd     Int // 0 = negociado
+  maxStores    Int // -1 = ilimitado
+  maxUsers     Int // -1 = ilimitado
+  maxProducts  Int // -1 = ilimitado
+  maxTxPerMonth Int // -1 = ilimitado
+  modules      String[] // ex: ["POS","STOCK","ERP","ECOMMERCE","OPENMANUS"]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  companies    Company[]
+
+  @@map("plans")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
+// EMPRESAS / TENANTS (§2.2, §3)
+// ─────────────────────────────────────────────────────────────
+enum CompanyStatus {
+  PENDING // aguarda aprovação do Super Admin
+  ACTIVE
+  SUSPENDED // bloqueado, dados preservados
+  CANCELLED
+
+  @@schema("nexus_public")
+}
+
+model Company {
+  id                String        @id @default(uuid()) @db.Uuid
+  // código curto usado para login tenant-scoped e subdomínio (ex: "continente")
+  code              String        @unique
+  name              String
+  nif               String        @unique // NIF validado junto à AGT
+  iban              String?
+  responsibleName   String
+  responsibleEmail  String
+  responsiblePhone  String?
+  sector            String?
+  status            CompanyStatus @default(PENDING)
+  // nome do schema PostgreSQL isolado deste tenant (ex: "tenant_a1b2c3")
+  schemaName        String        @unique
+  customDomain      String?       @unique // white-label
+  planId            String        @db.Uuid
+  plan              Plan          @relation(fields: [planId], references: [id])
+  approvedAt        DateTime?
+  approvedByAdminId String?       @db.Uuid
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([status])
+  @@map("companies")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
+// UTILIZADORES DA PLATAFORMA — Super Admins (§2)
+// (utilizadores de empresa vivem no schema do tenant)
+// ─────────────────────────────────────────────────────────────
+model PlatformUser {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String // Argon2id
+  name         String
+  role         String   @default("SUPER_ADMIN")
+  twoFaSecret  String? // segredo TOTP (encriptado em repouso na Fase 9)
+  twoFaEnabled Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("platform_users")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
+// REFRESH TOKENS — rotação (§9.1)
+// ─────────────────────────────────────────────────────────────
+enum SubjectType {
+  PLATFORM
+  TENANT
+
+  @@schema("nexus_public")
+}
+
+model RefreshToken {
+  id           String      @id @default(uuid()) @db.Uuid
+  tokenHash    String      @unique // SHA-256 do refresh token
+  subjectType  SubjectType
+  subjectId    String      @db.Uuid // PlatformUser.id ou tenant user id
+  tenantSchema String? // null para PLATFORM
+  userAgent    String?
+  ip           String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?     @db.Uuid // cadeia de rotação
+  createdAt    DateTime    @default(now())
+
+  @@index([subjectType, subjectId])
+  @@map("refresh_tokens")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
+// OPENMANUS AI (§ Fase 7) — provedores de IA configuráveis pelo
+// Super Admin a partir do painel, SEM tocar no código.
+// Um provedor pode servir várias capacidades (chat, voz, imagem...).
+// A api_key é guardada encriptada (AES-256-GCM) — nunca em claro.
+// ─────────────────────────────────────────────────────────────
+model AiProvider {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String // rótulo apresentado no painel (ex: "OpenManus Produção")
+  adapter      String   @default("openai") // openai | openmanus | elevenlabs | anthropic | generic
+  capabilities String[] // CHAT, TTS, STT, IMAGE, VOICE_CALL
+  baseUrl      String // endpoint base da API (ex: https://api.openmanus.ai/v1)
+  apiKeyEnc    String? // chave encriptada em repouso (AES-256-GCM); null = sem auth
+  model        String? // modelo por omissão (chat/imagem)
+  voice        String? // voz por omissão (TTS / chamada)
+  headers      Json? // cabeçalhos extra (esquemas de auth alternativos)
+  settings     Json? // params extra + templates para o adapter "generic"
+  isActive     Boolean  @default(true)
+  isDefault    Boolean  @default(false) // provedor por omissão das suas capacidades
+  priority     Int      @default(100) // desempate quando vários servem a mesma capacidade
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("ai_providers")
+  @@schema("nexus_public")
+}
+
+// Persona / configuração global do assistente (singleton lógico).
+model AiAssistantConfig {
+  id           String   @id @default(uuid()) @db.Uuid
+  displayName  String   @default("Ndombaxi Assistant")
+  persona      String   @default("profissional, calorosa, empática e muito humana")
+  systemPrompt String? // override total do prompt de sistema (opcional)
+  greeting     String? // saudação inicial mostrada/falada ao utilizador
+  locale       String   @default("pt-AO")
+  voiceEnabled Boolean  @default(true)
+  callEnabled  Boolean  @default(true)
+  imageEnabled Boolean  @default(true)
+  chartsEnabled Boolean @default(true)
+  emojiLevel   String   @default("balanced") // none | subtle | balanced | rich
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("ai_assistant_config")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
+// GATEWAYS DE PAGAMENTO (§ Fase 8) — contratos ao nível da
+// plataforma geridos pelo Super Admin (ex.: Multicaixa Express).
+// As credenciais ficam encriptadas (AES-256-GCM), nunca em claro.
+// ─────────────────────────────────────────────────────────────
+model PaymentGatewayConfig {
+  id           String   @id @default(uuid()) @db.Uuid
+  provider     String // EXPRESS | EMIS | PROXYPAY | GENERIC
+  label        String // rótulo no painel (ex: "Multicaixa Express - Contrato 2026")
+  contractRef  String? // referência contratual / nº de adesão
+  merchantId   String? // ID de comerciante atribuído pelo provedor
+  posId        String? // terminal/POS lógico
+  iban         String? // IBAN de liquidação
+  baseUrl      String? // endpoint da API do gateway
+  apiKeyEnc    String? // credenciais encriptadas em repouso
+  settings     Json? // parâmetros extra do contrato
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([provider])
+  @@map("payment_gateways")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
+// CONFIGURAÇÃO FISCAL AGT (§7) — gerida 100% pelo Super Admin no
+// painel, SEM tocar no código. Singleton lógico. Reúne os dados que
+// a AGT fornece quando o software é subscrito/certificado (nº de
+// validação, etc.) e as legendas que têm de constar nos recibos e
+// relatórios. `extraFields` é um saco LIVRE para qualquer exigência
+// futura da AGT — qualquer campo novo é adicionado por interface e
+// passa a aparecer nos recibos/relatórios sem alterar o código.
+// ─────────────────────────────────────────────────────────────
+model AgtFiscalConfig {
+  id                        String    @id @default(uuid()) @db.Uuid
+  subscribed                Boolean   @default(false) // sistema subscrito à AGT
+  subscribedAt              DateTime?
+  environment               String    @default("TEST") // TEST | PRODUCTION
+  softwareCertificateNumber String    @default("0") // nº de validação atribuído pela AGT
+  productId                 String    @default("Ndombaxi System/Ndombaxi") // ProductID SAF-T
+  productVersion            String    @default("3.0.0")
+  sourceId                  String    @default("Ndombaxi")
+  taxAccountingBasis        String    @default("F")
+  taxEntity                 String    @default("Global")
+  saftVersion               String    @default("1.01_01")
+  receiptLegend             String? // rodapé dos recibos (ex.: "Processado por programa validado nº .../AGT")
+  reportFooter              String? // rodapé/observações dos relatórios
+  extraFields               Json      @default("[]") // [{key,label,value,showOnReceipt,showOnReport}] livres
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  @@map("agt_fiscal_config")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
+// AUDITORIA IMUTÁVEL — append-only + hash encadeado (§9.3)
+// ─────────────────────────────────────────────────────────────
+model AuditLog {
+  seq          BigInt   @id @default(autoincrement())
+  timestamp    DateTime @default(now())
+  actorType    String // PLATFORM | TENANT | SYSTEM
+  actorId      String?
+  tenantSchema String?
+  action       String // ex: COMPANY_APPROVED, LOGIN_SUCCESS
+  entity       String? // ex: Company
+  entityId     String?
+  before       Json?
+  after        Json?
+  ip           String?
+  prevHash     String // hash do registo anterior (cadeia inviolável)
+  hash         String // SHA-256(prevHash + payload canónico)
+
+  @@index([tenantSchema])
+  @@index([action])
+  @@map("audit_logs")
+  @@schema("nexus_public")
+}

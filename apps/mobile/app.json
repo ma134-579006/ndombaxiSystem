@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Ndombaxi System",
+    "slug": "ndombaxi-system",
+    "version": "3.0.0",
+    "orientation": "portrait",
+    "scheme": "ndombaxi",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "icon": "./assets/logo.png",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B1221"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ao.nexus.mobile"
+    },
+    "android": {
+      "package": "ao.nexus.mobile"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "apiUrl": "http://localhost:3000"
+    }
+  }
+}

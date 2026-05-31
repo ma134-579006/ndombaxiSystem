@@ -1,0 +1,12 @@
+# Contexto de build da imagem da API (raiz do monorepo).
+# NÃO excluir os package.json dos workspaces (pnpm --frozen-lockfile precisa deles).
+**/node_modules
+**/dist
+**/.expo
+**/.git
+**/*.log
+**/.env
+apps/*/dist
+apps/pos/dist
+apps/store/dist
+apps/web/dist

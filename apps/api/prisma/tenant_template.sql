@@ -1,0 +1,485 @@
+-- NEXUS ERP — Template de schema por tenant (Fase 1: Fundação)
+-- O provisioning service substitui {{SCHEMA}} pelo nome do schema do tenant
+-- (ex: tenant_a1b2c3d4) e executa este DDL ao criar a empresa.
+-- Fases seguintes adicionam: products, sales, invoices, inventory,
+-- customers, employees, reports, etc.
+
+CREATE SCHEMA IF NOT EXISTS "{{SCHEMA}}";
+
+-- ── Lojas da empresa ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stores" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code        TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  address     TEXT,
+  is_default  BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT stores_code_unique UNIQUE (code)
+);
+
+-- ── Utilizadores da empresa (níveis 1..6 do RBAC) ────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."users" (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email          TEXT NOT NULL,
+  password_hash  TEXT NOT NULL,            -- Argon2id
+  name           TEXT NOT NULL,
+  role           TEXT NOT NULL,            -- COMPANY_ADMIN..ATTENDANT
+  pin_hash       TEXT,                     -- PIN 6 dígitos p/ POS (Argon2id)
+  store_id       UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
+  two_fa_secret  TEXT,
+  two_fa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active      BOOLEAN NOT NULL DEFAULT TRUE,
+  failed_logins  INT NOT NULL DEFAULT 0,
+  locked_until   TIMESTAMPTZ,
+  last_login_at  TIMESTAMPTZ,
+  must_reset_pw  BOOLEAN NOT NULL DEFAULT TRUE,  -- credenciais temporárias
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT users_email_unique UNIQUE (email)
+);
+
+CREATE INDEX IF NOT EXISTS users_role_idx ON "{{SCHEMA}}"."users"(role);
+CREATE INDEX IF NOT EXISTS users_store_idx ON "{{SCHEMA}}"."users"(store_id);
+
+-- ════════════════════════════════════════════════════════════
+-- Fase 2 — POS + facturação fiscal AGT (§4, §7)
+-- ════════════════════════════════════════════════════════════
+
+-- ── Categorias de produto ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."product_categories" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL,
+  parent_id   UUID REFERENCES "{{SCHEMA}}"."product_categories"(id) ON DELETE SET NULL,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Produtos ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."products" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code         TEXT NOT NULL,
+  barcode      TEXT,
+  name         TEXT NOT NULL,
+  description  TEXT,
+  category_id  UUID REFERENCES "{{SCHEMA}}"."product_categories"(id) ON DELETE SET NULL,
+  iva_code     TEXT NOT NULL DEFAULT 'NOR',  -- NOR/RED/ISE/OUT (§7.1)
+  unit_price   NUMERIC(14,2) NOT NULL,        -- preço NET (sem IVA), em AOA
+  stock_qty    NUMERIC(14,3) NOT NULL DEFAULT 0,
+  image_url    TEXT,                          -- imagem principal (loja online)
+  gallery      JSONB NOT NULL DEFAULT '[]',   -- imagens adicionais [url, ...]
+  show_online  BOOLEAN NOT NULL DEFAULT TRUE, -- aparece na montra/loja online
+  is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT products_code_unique UNIQUE (code)
+);
+
+-- ── Clientes ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."customers" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tax_id      TEXT,                          -- NIF (NULL = consumidor final)
+  name        TEXT NOT NULL,
+  email       TEXT,
+  phone       TEXT,
+  address     TEXT,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Séries fiscais (numeração sequencial + cadeia de hash) ───
+-- Garante numeração "FT A/2025/0001" sem saltos e o encadeamento
+-- de hash por série (§7). Allocação atómica via UPDATE ... RETURNING.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."fiscal_series" (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  doc_type       TEXT NOT NULL,              -- FT/FS/NC/ND/RC/GR/ORC
+  series         TEXT NOT NULL,              -- ex: "A"
+  year           INT  NOT NULL,
+  last_sequence  INT  NOT NULL DEFAULT 0,
+  last_hash      TEXT NOT NULL DEFAULT '0000000000000000000000000000000000000000000000000000000000000000',
+  is_active      BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fiscal_series_unique UNIQUE (doc_type, series, year)
+);
+
+-- ── Documentos fiscais (facturas) ────────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."invoices" (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  number            TEXT NOT NULL,           -- "FT A/2025/0001"
+  doc_type          TEXT NOT NULL,
+  series            TEXT NOT NULL,
+  year              INT  NOT NULL,
+  sequence          INT  NOT NULL,
+  invoice_date      DATE NOT NULL,
+  system_entry_date TIMESTAMPTZ NOT NULL DEFAULT now(),
+  store_id          UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
+  cashier_id        UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  customer_id       UUID REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE SET NULL,
+  customer_tax_id   TEXT,
+  net_total         NUMERIC(14,2) NOT NULL,
+  iva_total         NUMERIC(14,2) NOT NULL,
+  gross_total       NUMERIC(14,2) NOT NULL,
+  signable_string   TEXT NOT NULL,           -- string assinada (§7)
+  previous_hash     TEXT NOT NULL,
+  hash              TEXT NOT NULL,
+  signature         TEXT,                    -- assinatura RSA-2048 base64 (Fase 9)
+  signature_key_version INT,                  -- versão da chave de assinatura usada
+  status            TEXT NOT NULL DEFAULT 'N', -- N=normal, A=anulado
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT invoices_number_unique UNIQUE (number)
+);
+
+CREATE INDEX IF NOT EXISTS invoices_date_idx ON "{{SCHEMA}}"."invoices"(invoice_date);
+CREATE INDEX IF NOT EXISTS invoices_series_idx ON "{{SCHEMA}}"."invoices"(doc_type, series, year, sequence);
+
+-- ── Chaves de assinatura digital RSA-2048 (§7, requisito AGT) ─
+-- Cada empresa assina os documentos com a sua chave privada. A chave privada
+-- é guardada cifrada (AES-256-GCM via CONFIG_ENCRYPTION_KEY); a pública pode
+-- ser exportada para verificação. Versão incremental permite rotação de chaves
+-- mantendo a verificação dos documentos antigos.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."fiscal_signing_keys" (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key_version       INT  NOT NULL,
+  algorithm         TEXT NOT NULL DEFAULT 'RSA-SHA256',
+  public_key        TEXT NOT NULL,            -- PEM SPKI
+  private_key_enc   TEXT NOT NULL,            -- PEM PKCS8 cifrado (v1:…)
+  is_active         BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fiscal_signing_keys_version_unique UNIQUE (key_version)
+);
+-- Apenas uma chave activa de cada vez.
+CREATE UNIQUE INDEX IF NOT EXISTS fiscal_signing_keys_active_idx
+  ON "{{SCHEMA}}"."fiscal_signing_keys"(is_active) WHERE is_active = TRUE;
+
+-- ── Linhas dos documentos ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."invoice_items" (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  invoice_id       UUID NOT NULL REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE CASCADE,
+  line_number      INT  NOT NULL,
+  product_id       UUID REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE SET NULL,
+  product_code     TEXT NOT NULL,
+  description      TEXT NOT NULL,
+  quantity         NUMERIC(14,3) NOT NULL,
+  unit_price       NUMERIC(14,2) NOT NULL,
+  iva_code         TEXT NOT NULL,
+  iva_rate         NUMERIC(5,2) NOT NULL,
+  discount_rate    NUMERIC(5,4) NOT NULL DEFAULT 0,
+  net_amount       NUMERIC(14,2) NOT NULL,
+  iva_amount       NUMERIC(14,2) NOT NULL,
+  gross_amount     NUMERIC(14,2) NOT NULL,
+  exemption_reason TEXT,
+  exemption_code   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS invoice_items_invoice_idx ON "{{SCHEMA}}"."invoice_items"(invoice_id);
+
+-- ════════════════════════════════════════════════════════════
+-- Fase 3 — ERP base: fornecedores, armazéns, stock, compras (§5)
+-- ════════════════════════════════════════════════════════════
+
+-- ── Fornecedores ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."suppliers" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code        TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  nif         TEXT,
+  email       TEXT,
+  phone       TEXT,
+  address     TEXT,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT suppliers_code_unique UNIQUE (code)
+);
+
+-- ── Armazéns ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."warehouses" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code        TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  store_id    UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
+  is_default  BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT warehouses_code_unique UNIQUE (code)
+);
+
+-- ── Saldos de stock por (produto, armazém) ───────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stock_items" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id   UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,
+  warehouse_id UUID NOT NULL REFERENCES "{{SCHEMA}}"."warehouses"(id) ON DELETE CASCADE,
+  quantity     NUMERIC(14,3) NOT NULL DEFAULT 0,
+  min_qty      NUMERIC(14,3) NOT NULL DEFAULT 0,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT stock_items_unique UNIQUE (product_id, warehouse_id)
+);
+
+-- ── Livro de movimentos de stock (append-only) ───────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stock_movements" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id    UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,
+  warehouse_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."warehouses"(id) ON DELETE CASCADE,
+  type          TEXT NOT NULL,            -- IN/OUT/ADJUST/TRANSFER
+  quantity      NUMERIC(14,3) NOT NULL,   -- sinal: +entrada / -saída
+  unit_cost     NUMERIC(14,2),
+  balance_after NUMERIC(14,3) NOT NULL,
+  reference     TEXT,                     -- ex: "PO FT.../venda"
+  reference_id  UUID,
+  created_by    UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS stock_movements_product_idx ON "{{SCHEMA}}"."stock_movements"(product_id, warehouse_id);
+
+-- ── Encomendas de compra ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."purchase_orders" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  number        TEXT NOT NULL,
+  supplier_id   UUID NOT NULL REFERENCES "{{SCHEMA}}"."suppliers"(id) ON DELETE RESTRICT,
+  warehouse_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."warehouses"(id) ON DELETE RESTRICT,
+  status        TEXT NOT NULL DEFAULT 'DRAFT', -- DRAFT/CONFIRMED/RECEIVED/CANCELLED
+  order_date    DATE NOT NULL DEFAULT CURRENT_DATE,
+  expected_date DATE,
+  net_total     NUMERIC(14,2) NOT NULL DEFAULT 0,
+  iva_total     NUMERIC(14,2) NOT NULL DEFAULT 0,
+  gross_total   NUMERIC(14,2) NOT NULL DEFAULT 0,
+  notes         TEXT,
+  created_by    UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT purchase_orders_number_unique UNIQUE (number)
+);
+
+CREATE INDEX IF NOT EXISTS purchase_orders_supplier_idx ON "{{SCHEMA}}"."purchase_orders"(supplier_id);
+CREATE INDEX IF NOT EXISTS purchase_orders_status_idx ON "{{SCHEMA}}"."purchase_orders"(status);
+
+-- ── Linhas das encomendas de compra ──────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."purchase_order_items" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  po_id         UUID NOT NULL REFERENCES "{{SCHEMA}}"."purchase_orders"(id) ON DELETE CASCADE,
+  line_number   INT  NOT NULL,
+  product_id    UUID REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE SET NULL,
+  product_code  TEXT NOT NULL,
+  description   TEXT NOT NULL,
+  quantity      NUMERIC(14,3) NOT NULL,
+  unit_cost     NUMERIC(14,2) NOT NULL,
+  iva_code      TEXT NOT NULL,
+  iva_rate      NUMERIC(5,2) NOT NULL,
+  net_amount    NUMERIC(14,2) NOT NULL,
+  iva_amount    NUMERIC(14,2) NOT NULL,
+  gross_amount  NUMERIC(14,2) NOT NULL,
+  received_qty  NUMERIC(14,3) NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS purchase_order_items_po_idx ON "{{SCHEMA}}"."purchase_order_items"(po_id);
+
+-- ════════════════════════════════════════════════════════════
+-- Fase 4 — E-Commerce: encomendas online (§6)
+-- ════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."web_orders" (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_number     TEXT NOT NULL,
+  customer_id      UUID REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE SET NULL,
+  customer_name    TEXT NOT NULL,
+  customer_email   TEXT,
+  customer_phone   TEXT,
+  customer_tax_id  TEXT,
+  shipping_address TEXT,
+  -- Localização do cliente (Angola): província / município / bairro
+  province         TEXT,
+  municipality     TEXT,
+  neighborhood     TEXT,
+  payment_method   TEXT,                            -- BANK_TRANSFER/REFERENCE/MULTICAIXA_EXPRESS/CASH
+  status           TEXT NOT NULL DEFAULT 'PENDING', -- PENDING/PAID/SHIPPED/DELIVERED/CANCELLED
+  net_total        NUMERIC(14,2) NOT NULL,
+  iva_total        NUMERIC(14,2) NOT NULL,
+  gross_total      NUMERIC(14,2) NOT NULL,
+  invoice_id       UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT web_orders_number_unique UNIQUE (order_number)
+);
+
+CREATE INDEX IF NOT EXISTS web_orders_status_idx ON "{{SCHEMA}}"."web_orders"(status);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."web_order_items" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id      UUID NOT NULL REFERENCES "{{SCHEMA}}"."web_orders"(id) ON DELETE CASCADE,
+  line_number   INT  NOT NULL,
+  product_id    UUID REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE SET NULL,
+  product_code  TEXT NOT NULL,
+  description   TEXT NOT NULL,
+  quantity      NUMERIC(14,3) NOT NULL,
+  unit_price    NUMERIC(14,2) NOT NULL,
+  iva_code      TEXT NOT NULL,
+  iva_rate      NUMERIC(5,2) NOT NULL,
+  net_amount    NUMERIC(14,2) NOT NULL,
+  iva_amount    NUMERIC(14,2) NOT NULL,
+  gross_amount  NUMERIC(14,2) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS web_order_items_order_idx ON "{{SCHEMA}}"."web_order_items"(order_id);
+
+-- ════════════════════════════════════════════════════════════
+-- Fase 6 — Recursos Humanos & Processamento Salarial (§ RH)
+-- ════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."employees" (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_number  TEXT NOT NULL,
+  full_name        TEXT NOT NULL,
+  tax_id           TEXT,                       -- NIF
+  inss_number      TEXT,                       -- nº de Segurança Social
+  position         TEXT,                       -- função/cargo
+  department       TEXT,
+  store_id         UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
+  hire_date        DATE NOT NULL DEFAULT CURRENT_DATE,
+  termination_date DATE,
+  base_salary      NUMERIC(14,2) NOT NULL DEFAULT 0,
+  taxable_allowances NUMERIC(14,2) NOT NULL DEFAULT 0,  -- subsídios sujeitos
+  exempt_allowances  NUMERIC(14,2) NOT NULL DEFAULT 0,  -- subsídios isentos
+  iban             TEXT,
+  status           TEXT NOT NULL DEFAULT 'ACTIVE',      -- ACTIVE/SUSPENDED/TERMINATED
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT employees_number_unique UNIQUE (employee_number)
+);
+
+CREATE INDEX IF NOT EXISTS employees_status_idx ON "{{SCHEMA}}"."employees"(status);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."payroll_runs" (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  period_year          INT  NOT NULL,
+  period_month         INT  NOT NULL,          -- 1..12
+  status               TEXT NOT NULL DEFAULT 'PROCESSED', -- PROCESSED/PAID/CANCELLED
+  employee_count       INT  NOT NULL DEFAULT 0,
+  gross_total          NUMERIC(16,2) NOT NULL DEFAULT 0,
+  inss_employee_total  NUMERIC(16,2) NOT NULL DEFAULT 0,
+  inss_employer_total  NUMERIC(16,2) NOT NULL DEFAULT 0,
+  irt_total            NUMERIC(16,2) NOT NULL DEFAULT 0,
+  net_total            NUMERIC(16,2) NOT NULL DEFAULT 0,
+  employer_cost_total  NUMERIC(16,2) NOT NULL DEFAULT 0,
+  processed_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  paid_at              TIMESTAMPTZ,
+  CONSTRAINT payroll_runs_period_unique UNIQUE (period_year, period_month)
+);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."payroll_items" (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  run_id             UUID NOT NULL REFERENCES "{{SCHEMA}}"."payroll_runs"(id) ON DELETE CASCADE,
+  employee_id        UUID NOT NULL REFERENCES "{{SCHEMA}}"."employees"(id) ON DELETE CASCADE,
+  employee_number    TEXT NOT NULL,
+  employee_name      TEXT NOT NULL,
+  base_salary        NUMERIC(14,2) NOT NULL,
+  taxable_allowances NUMERIC(14,2) NOT NULL DEFAULT 0,
+  exempt_allowances  NUMERIC(14,2) NOT NULL DEFAULT 0,
+  gross_salary       NUMERIC(14,2) NOT NULL,
+  inss_base          NUMERIC(14,2) NOT NULL,
+  inss_employee      NUMERIC(14,2) NOT NULL,
+  inss_employer      NUMERIC(14,2) NOT NULL,
+  irt_base           NUMERIC(14,2) NOT NULL,
+  irt                NUMERIC(14,2) NOT NULL,
+  other_deductions   NUMERIC(14,2) NOT NULL DEFAULT 0,
+  total_deductions   NUMERIC(14,2) NOT NULL,
+  net_salary         NUMERIC(14,2) NOT NULL,
+  employer_cost      NUMERIC(14,2) NOT NULL,
+  CONSTRAINT payroll_items_run_employee_unique UNIQUE (run_id, employee_id)
+);
+
+CREATE INDEX IF NOT EXISTS payroll_items_run_idx ON "{{SCHEMA}}"."payroll_items"(run_id);
+
+-- ════════════════════════════════════════════════════════════
+-- Fase 8 — White-label / Page Builder (§8) + Pagamentos da loja
+-- ════════════════════════════════════════════════════════════
+
+-- Definições visuais/branding da montra (linha única por tenant).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."site_settings" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  brand_name      TEXT,
+  tagline         TEXT,
+  logo_url        TEXT,
+  favicon_url     TEXT,
+  primary_color   TEXT NOT NULL DEFAULT '#0F62FE',
+  secondary_color TEXT NOT NULL DEFAULT '#1E1E1E',
+  contact_email   TEXT,
+  contact_phone   TEXT,
+  address         TEXT,
+  social          JSONB,                        -- { facebook, instagram, whatsapp, ... }
+  custom_css      TEXT,
+  is_published    BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Páginas construídas no editor (blocos JSON renderizados pelo frontend).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."site_pages" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug          TEXT NOT NULL,
+  title         TEXT NOT NULL,
+  blocks        JSONB NOT NULL DEFAULT '[]',    -- [{ type, props }]
+  is_published  BOOLEAN NOT NULL DEFAULT FALSE,
+  sort_order    INT NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT site_pages_slug_unique UNIQUE (slug)
+);
+
+-- Métodos de pagamento configurados pelo gestor/admin da loja.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."payment_methods" (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type             TEXT NOT NULL,               -- BANK_TRANSFER/REFERENCE/MULTICAIXA_EXPRESS/CASH
+  label            TEXT NOT NULL,
+  instructions     TEXT,
+  bank_name        TEXT,
+  iban             TEXT,
+  account_holder   TEXT,
+  reference_entity TEXT,
+  reference_number TEXT,
+  express_phone    TEXT,
+  is_active        BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order       INT NOT NULL DEFAULT 0,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS payment_methods_active_idx ON "{{SCHEMA}}"."payment_methods"(is_active);
+
+-- Comprovativos de pagamento enviados pelo cliente; o gestor revê e aprova.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."payment_proofs" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id      UUID NOT NULL REFERENCES "{{SCHEMA}}"."web_orders"(id) ON DELETE CASCADE,
+  method_type   TEXT NOT NULL,
+  amount        NUMERIC(14,2),
+  reference     TEXT,                           -- nº de operação/referência indicado pelo cliente
+  file_name     TEXT,
+  file_mime     TEXT,
+  file_url      TEXT,                           -- URL externa OU
+  file_data     TEXT,                           -- conteúdo base64 (comprovativo)
+  status        TEXT NOT NULL DEFAULT 'PENDING',-- PENDING/APPROVED/REJECTED
+  note          TEXT,                           -- nota do gestor na revisão
+  uploaded_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  reviewed_by   UUID,
+  reviewed_at   TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS payment_proofs_order_idx ON "{{SCHEMA}}"."payment_proofs"(order_id);
+CREATE INDEX IF NOT EXISTS payment_proofs_status_idx ON "{{SCHEMA}}"."payment_proofs"(status);
+
+-- Conversa em tempo real entre o cliente e o gestor da loja, por encomenda.
+-- Quando nenhum membro da equipa está online, o OpenManus responde (sender_type=ASSISTANT).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."order_messages" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id     UUID NOT NULL REFERENCES "{{SCHEMA}}"."web_orders"(id) ON DELETE CASCADE,
+  sender_type  TEXT NOT NULL,                 -- CUSTOMER / STAFF / ASSISTANT
+  sender_id    UUID,                          -- users.id quando STAFF
+  sender_name  TEXT NOT NULL,
+  body         TEXT NOT NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS order_messages_order_idx ON "{{SCHEMA}}"."order_messages"(order_id, created_at);

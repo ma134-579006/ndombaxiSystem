@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Prisma
+**/prisma/generated/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+certs/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Tests
+coverage/
+
+# Temp
+pdf_text.txt
+*.tmp
+
+# Local database (dev)
+*.sqlite
+*.sqlite3

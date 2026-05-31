@@ -1,0 +1,39 @@
+# Blueprint para publicar a API no Render (https://render.com) — plano grátis.
+# A base de dados: crie um Postgres grátis no Neon (neon.tech) e cole o
+# DATABASE_URL nas variáveis abaixo. Os frontends (pos/store/web) publicam-se
+# no Cloudflare Pages / Vercel com VITE_API_URL = URL pública desta API.
+services:
+  - type: web
+    name: ndombaxi-api
+    runtime: node
+    plan: free
+    autoDeploy: true
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @nexus/types build &&
+      pnpm --filter @nexus/api exec prisma generate &&
+      pnpm --filter @nexus/api build
+    startCommand: >-
+      pnpm --filter @nexus/api exec prisma db push --skip-generate &&
+      (pnpm --filter @nexus/api prisma:seed || true) &&
+      node apps/api/dist/main.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PREFIX
+        value: ""
+      - key: DATABASE_URL
+        sync: false # cole o DATABASE_URL do Neon
+      - key: CORS_ORIGINS
+        sync: false # ex.: https://caixa.pages.dev,https://loja.pages.dev,https://admin.pages.dev
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CONFIG_ENCRYPTION_KEY
+        generateValue: true
+      - key: SUPER_ADMIN_EMAIL
+        value: admin@ndombaxi.ao
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false

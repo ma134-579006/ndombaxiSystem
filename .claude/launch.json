@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pos",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@nexus/pos", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "store",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@nexus/store", "dev"],
+      "port": 5174
+    }
+  ]
+}

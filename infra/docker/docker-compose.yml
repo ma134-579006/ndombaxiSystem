@@ -1,0 +1,87 @@
+name: nexus-erp
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexus_postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-nexus_erp}
+      POSTGRES_USER: ${DB_USER:-nexus}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nexus_dev_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nexus} -d ${DB_NAME:-nexus_erp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexus_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: nexus_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-nexus}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-nexus_dev_password}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # API totalmente containerizada (opcional). Só arranca com:
+  #   docker compose --profile full up -d --build
+  # Inclui TODAS as dependências na imagem e corre migrações + seed sozinha.
+  api:
+    profiles: ["full"]
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    container_name: nexus_api
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      API_PREFIX: ""
+      DATABASE_URL: postgresql://${DB_USER:-nexus}:${DB_PASSWORD:-nexus_dev_password}@postgres:5432/${DB_NAME:-nexus_erp}?schema=nexus_public
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:3000"
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-ndombaxi-access-secret-change-me-32chars+}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-ndombaxi-refresh-secret-change-me-32chars+}
+      CONFIG_ENCRYPTION_KEY: ${CONFIG_ENCRYPTION_KEY:-dev-ndombaxi-config-encryption-key-32bytes+}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-admin@ndombaxi.ao}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-Ndombaxi!Admin2026}
+      TWOFA_ISSUER: "Ndombaxi System"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:

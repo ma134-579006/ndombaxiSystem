@@ -1,0 +1,24 @@
+import { IsEmail, IsOptional, IsString, Length } from 'class-validator';
+
+export class CreateCustomerDto {
+  @IsOptional()
+  @IsString()
+  @Length(1, 32)
+  taxId?: string;
+
+  @IsString()
+  @Length(1, 200)
+  name!: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+}
