@@ -8,27 +8,45 @@ import React, {
   useState,
 } from 'react';
 import { api, configureApi } from '../api/client';
-import type { PlatformLoginInput, TokenPair } from '../api/types';
+import type { PlatformLoginInput, TenantLoginInput, TokenPair } from '../api/types';
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
+/** Que painel mostrar: plataforma (Super Admin) ou gestor da empresa. */
+export type AuthMode = 'platform' | 'tenant';
+
 const LS_ACCESS = 'ndombaxi.web.access';
 const LS_REFRESH = 'ndombaxi.web.refresh';
+const LS_COMPANY = 'ndombaxi.web.company';
 
 interface AuthContextValue {
   status: AuthStatus;
   user: DecodedJwt | null;
-  login(input: PlatformLoginInput): Promise<void>;
+  mode: AuthMode | null;
+  companyCode: string | null;
+  loginPlatform(input: PlatformLoginInput): Promise<void>;
+  loginTenant(input: TenantLoginInput): Promise<void>;
   logout(): Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Deriva o modo do painel a partir do JWT (subjectType). */
+function modeFromUser(u: DecodedJwt | null): AuthMode | null {
+  if (!u) return null;
+  return u.subjectType === 'PLATFORM' ? 'platform' : 'tenant';
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<DecodedJwt | null>(null);
+  const [companyCode, setCompanyCode] = useState<string | null>(
+    () => localStorage.getItem(LS_COMPANY),
+  );
+
   const accessRef = useRef<string | null>(null);
   const refreshRef = useRef<string | null>(null);
+  const companyRef = useRef<string | undefined>(localStorage.getItem(LS_COMPANY) ?? undefined);
 
   const applyTokens = useCallback((tokens: TokenPair) => {
     accessRef.current = tokens.accessToken;
@@ -50,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     configureApi({
       getAccessToken: () => accessRef.current,
+      getCompanyCode: () => companyRef.current,
       onAuthLost: () => clearSession(),
       refresh: async () => {
         const rt = refreshRef.current;
@@ -93,9 +112,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [applyTokens, clearSession]);
 
-  const login = useCallback(
+  const loginPlatform = useCallback(
     async (input: PlatformLoginInput) => {
+      // Super Admin não usa código de empresa.
+      companyRef.current = undefined;
+      setCompanyCode(null);
+      localStorage.removeItem(LS_COMPANY);
       applyTokens(await api.login(input));
+      setStatus('authed');
+    },
+    [applyTokens],
+  );
+
+  const loginTenant = useCallback(
+    async (input: TenantLoginInput) => {
+      companyRef.current = input.companyCode;
+      setCompanyCode(input.companyCode);
+      localStorage.setItem(LS_COMPANY, input.companyCode);
+      applyTokens(await api.loginTenant(input));
       setStatus('authed');
     },
     [applyTokens],
@@ -114,8 +148,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [clearSession]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, login, logout }),
-    [status, user, login, logout],
+    () => ({
+      status,
+      user,
+      mode: modeFromUser(user),
+      companyCode,
+      loginPlatform,
+      loginTenant,
+      logout,
+    }),
+    [status, user, companyCode, loginPlatform, loginTenant, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

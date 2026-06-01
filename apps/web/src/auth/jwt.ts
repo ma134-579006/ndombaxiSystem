@@ -3,6 +3,9 @@ export interface DecodedJwt {
   email: string;
   role: string;
   subjectType: 'PLATFORM' | 'TENANT';
+  tenantId?: string;
+  tenantSchema?: string;
+  storeId?: string;
   exp?: number;
   iat?: number;
 }

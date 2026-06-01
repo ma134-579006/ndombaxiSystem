@@ -9,6 +9,114 @@ export interface PlatformLoginInput {
   password: string;
   twoFaToken?: string;
 }
+export interface TenantLoginInput {
+  companyCode: string;
+  email: string;
+  password: string;
+  twoFaToken?: string;
+}
+
+// ════════════════════════════════════════════════════════════
+// Back-office do GESTOR da empresa (login tenant)
+// ════════════════════════════════════════════════════════════
+
+/** Código de IVA de Angola (AGT §7.1). */
+export type IvaCode = 'NOR' | 'RED' | 'ISE' | 'OUT';
+export const IVA_RATE: Record<IvaCode, number> = { NOR: 14, RED: 5, ISE: 0, OUT: 0 };
+
+/** Produto tal como devolvido por GET /pos/products (NUMERIC vem como string). */
+export interface ManagerProduct {
+  id: string;
+  code: string;
+  barcode: string | null;
+  name: string;
+  description: string | null;
+  category_id: string | null;
+  iva_code: IvaCode;
+  unit_price: string;
+  stock_qty: string;
+  image_url: string | null;
+  gallery: unknown;
+  show_online: boolean;
+  is_active: boolean;
+}
+export interface CreateProductInput {
+  code: string;
+  name: string;
+  description?: string;
+  ivaCode: IvaCode;
+  unitPrice: number;
+  stockQty?: number;
+  imageUrl?: string;
+  showOnline?: boolean;
+}
+export interface UpdateProductInput {
+  name?: string;
+  description?: string;
+  ivaCode?: IvaCode;
+  unitPrice?: number;
+  stockQty?: number;
+  imageUrl?: string;
+  showOnline?: boolean;
+  isActive?: boolean;
+}
+
+/** Encomenda online (web_orders). Campos snake_case do raw SQL. */
+export type OrderStatus = 'PENDING' | 'PAID' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+export interface WebOrder {
+  id: string;
+  order_number: string;
+  status: OrderStatus;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_tax_id: string | null;
+  province: string | null;
+  municipality: string | null;
+  neighborhood: string | null;
+  payment_method: string | null;
+  net_total: string;
+  iva_total: string;
+  gross_total: string;
+  invoice_id: string | null;
+  created_at: string;
+}
+export interface WebOrderItem {
+  id: string;
+  line_number: number;
+  product_code: string;
+  description: string;
+  quantity: string;
+  unit_price: string;
+  gross_amount: string;
+}
+export interface WebOrderDetail extends WebOrder {
+  items: WebOrderItem[];
+}
+
+/** Branding da montra (site_settings). */
+export interface SiteSettings {
+  id: string;
+  brand_name: string | null;
+  tagline: string | null;
+  logo_url: string | null;
+  primary_color: string;
+  secondary_color: string;
+  contact_email: string | null;
+  contact_phone: string | null;
+  address: string | null;
+  is_published: boolean;
+}
+export interface UpdateSiteSettingsInput {
+  brandName?: string;
+  tagline?: string;
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  address?: string;
+  isPublished?: boolean;
+}
 
 // ── Empresas (tenants) ───────────────────────────────────────
 export type CompanyStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';

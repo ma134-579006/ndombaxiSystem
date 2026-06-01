@@ -1,28 +1,32 @@
 import React from 'react';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
 import { useAuth } from '../auth/AuthContext';
-import { IconBuilding, IconCard, IconCpu, IconLogout, IconReceipt } from './Icons';
+import { IconLogout } from './Icons';
 
-export type Section = 'tenants' | 'ai' | 'fiscal' | 'gateways';
-
-const NAV: { key: Section; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
-  { key: 'tenants', label: 'Empresas', icon: IconBuilding },
-  { key: 'ai', label: 'Inteligência Artificial', icon: IconCpu },
-  { key: 'fiscal', label: 'Fiscal (AGT)', icon: IconReceipt },
-  { key: 'gateways', label: 'Gateways de Pagamento', icon: IconCard },
-];
+/** Item de navegação genérico (serve os dois painéis: plataforma e gestor). */
+export interface NavItem {
+  key: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number }>;
+}
 
 export function Shell({
+  nav,
   section,
   setSection,
+  roleLabel,
+  subtitle,
   children,
 }: {
-  section: Section;
-  setSection(s: Section): void;
+  nav: NavItem[];
+  section: string;
+  setSection(s: string): void;
+  roleLabel: string;
+  subtitle: string;
   children: React.ReactNode;
 }) {
-  const { user, logout } = useAuth();
-  const current = NAV.find((n) => n.key === section);
+  const { user, logout, companyCode } = useAuth();
+  const current = nav.find((n) => n.key === section);
 
   return (
     <div className="admin">
@@ -31,11 +35,11 @@ export function Shell({
           <img src={LOGO_SRC} alt={SYSTEM_NAME} />
           <div>
             <div className="nm">{SYSTEM_NAME}</div>
-            <div className="tg">Administração</div>
+            <div className="tg">{subtitle}</div>
           </div>
         </div>
         <nav className="nav">
-          {NAV.map((n) => {
+          {nav.map((n) => {
             const Icon = n.icon;
             return (
               <button
@@ -57,7 +61,10 @@ export function Shell({
           <span className="spacer" />
           <div className="who">
             <div className="nm">{user?.email}</div>
-            <div className="rl">Super Admin</div>
+            <div className="rl">
+              {roleLabel}
+              {companyCode ? ` · ${companyCode}` : ''}
+            </div>
           </div>
           <button className="icon-btn" onClick={logout} title="Terminar sessão">
             <IconLogout size={20} />

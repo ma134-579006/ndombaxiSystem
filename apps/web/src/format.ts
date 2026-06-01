@@ -11,7 +11,17 @@ const STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Activa',
   SUSPENDED: 'Suspensa',
   CANCELLED: 'Cancelada',
+  PAID: 'Paga',
+  SHIPPED: 'Expedida',
+  DELIVERED: 'Entregue',
 };
 export function statusLabel(s: string): string {
   return STATUS_LABELS[s] ?? s;
+}
+
+/** Formata um montante em Kwanzas (AOA). Aceita number ou string NUMERIC. */
+export function formatKz(value: number | string): string {
+  const n = typeof value === 'string' ? Number(value) : value;
+  if (!Number.isFinite(n)) return '—';
+  return `${n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz`;
 }

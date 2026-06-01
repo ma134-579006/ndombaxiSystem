@@ -6,11 +6,19 @@ import type {
   Company,
   CompanyStatus,
   CreateGatewayInput,
+  CreateProductInput,
   CreateProviderInput,
   Gateway,
+  ManagerProduct,
   PlatformLoginInput,
+  SiteSettings,
+  TenantLoginInput,
   TokenPair,
   UpdateAgtInput,
+  UpdateProductInput,
+  UpdateSiteSettingsInput,
+  WebOrder,
+  WebOrderDetail,
 } from './types';
 
 export class ApiError extends Error {
@@ -22,6 +30,8 @@ export class ApiError extends Error {
 
 export interface AuthHooks {
   getAccessToken(): string | null;
+  /** Código da empresa (X-Tenant-Code) — só no modo gestor. */
+  getCompanyCode?(): string | undefined;
   refresh(): Promise<boolean>;
   onAuthLost(): void;
 }
@@ -53,6 +63,8 @@ async function request<T>(
   if (auth) {
     const token = hooks?.getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
+    const code = hooks?.getCompanyCode?.();
+    if (code) headers['X-Tenant-Code'] = code;
   }
   let res: Response;
   try {
@@ -79,6 +91,9 @@ async function request<T>(
 export const api = {
   login: (input: PlatformLoginInput) =>
     request<TokenPair>('POST', '/auth/super-admin/login', input, { auth: false }),
+  /** Login do gestor da empresa (tenant). */
+  loginTenant: (input: TenantLoginInput) =>
+    request<TokenPair>('POST', '/auth/login', input, { auth: false }),
   refresh: (refreshToken: string) =>
     request<TokenPair>('POST', '/auth/refresh', { refreshToken }, { auth: false }),
   logout: (refreshToken: string) =>
@@ -127,5 +142,27 @@ export const api = {
       request<Gateway>('PATCH', `/super-admin/payment-gateways/${id}`, dto),
     remove: (id: string) =>
       request<{ id: string }>('DELETE', `/super-admin/payment-gateways/${id}`),
+  },
+
+  // ── Back-office do GESTOR da empresa ───────────────────────
+  products: {
+    list: () => request<ManagerProduct[]>('GET', '/pos/products'),
+    create: (dto: CreateProductInput) => request<ManagerProduct>('POST', '/pos/products', dto),
+    update: (id: string, dto: UpdateProductInput) =>
+      request<ManagerProduct>('PATCH', `/pos/products/${id}`, dto),
+  },
+  orders: {
+    list: () => request<WebOrder[]>('GET', '/ecommerce/orders'),
+    get: (id: string) => request<WebOrderDetail>('GET', `/ecommerce/orders/${id}`),
+    pay: (id: string) =>
+      request<{ orderId: string; invoiceNumber: string }>('POST', `/ecommerce/orders/${id}/pay`),
+    ship: (id: string) => request<{ status: string }>('POST', `/ecommerce/orders/${id}/ship`),
+    deliver: (id: string) => request<{ status: string }>('POST', `/ecommerce/orders/${id}/deliver`),
+    cancel: (id: string) => request<{ status: string }>('POST', `/ecommerce/orders/${id}/cancel`),
+  },
+  site: {
+    get: () => request<SiteSettings>('GET', '/site/settings'),
+    update: (dto: UpdateSiteSettingsInput) =>
+      request<SiteSettings>('PATCH', '/site/settings', dto),
   },
 };
