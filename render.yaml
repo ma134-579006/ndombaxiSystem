@@ -1,32 +1,43 @@
-# Blueprint para publicar a API no Render (https://render.com) — plano grátis.
-# A base de dados: crie um Postgres grátis no Neon (neon.tech) e cole o
-# DATABASE_URL nas variáveis abaixo. Os frontends (pos/store/web) publicam-se
-# no Cloudflare Pages / Vercel com VITE_API_URL = URL pública desta API.
+# ════════════════════════════════════════════════════════════
+# Deploy GRÁTIS da API Ndombaxi no Render (https://render.com)
+# ════════════════════════════════════════════════════════════
+# Como usar (resumo — guia completo em DEPLOY.md):
+#   1. Põe este repositório no GitHub.
+#   2. Render → New → Blueprint → escolhe o repo (lê este ficheiro).
+#   3. Preenche as variáveis marcadas "sync: false" (DATABASE_URL do Aiven,
+#      CORS_ORIGINS com os teus domínios .pages.dev, SUPER_ADMIN_PASSWORD).
+#   4. Deploy. A 1.ª vez cria o esquema e semeia sozinha.
+#
+# NOTA HONESTA: o plano free do Render ADORMECE após ~15 min sem uso e
+# demora ~30-50s a acordar no 1.º pedido seguinte (não perde dados).
 services:
   - type: web
     name: ndombaxi-api
     runtime: node
     plan: free
+    region: frankfurt # mais perto de Angola que os EUA
     autoDeploy: true
     buildCommand: >-
       corepack enable &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @nexus/types build &&
+      pnpm --filter @nexus/agt-xml build &&
       pnpm --filter @nexus/api exec prisma generate &&
       pnpm --filter @nexus/api build
     startCommand: >-
-      pnpm --filter @nexus/api exec prisma db push --skip-generate &&
-      (pnpm --filter @nexus/api prisma:seed || true) &&
+      pnpm --filter @nexus/api exec prisma db push --accept-data-loss &&
+      (pnpm --filter @nexus/api exec prisma db seed || true) &&
       node apps/api/dist/main.js
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: API_PREFIX
         value: ""
       - key: DATABASE_URL
-        sync: false # cole o DATABASE_URL do Neon
+        sync: false # cole o Service URI do Aiven (com ?sslmode=require)
       - key: CORS_ORIGINS
-        sync: false # ex.: https://caixa.pages.dev,https://loja.pages.dev,https://admin.pages.dev
+        sync: false # ex.: https://ndombaxi-admin.pages.dev,https://ndombaxi-loja.pages.dev,https://ndombaxi-caixa.pages.dev
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -36,4 +47,4 @@ services:
       - key: SUPER_ADMIN_EMAIL
         value: admin@ndombaxi.ao
       - key: SUPER_ADMIN_PASSWORD
-        sync: false
+        sync: false # defina uma password forte para produção
