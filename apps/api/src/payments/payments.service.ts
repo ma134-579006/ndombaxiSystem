@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { validatePaymentMethod } from './payment-methods';
+import { generateReference, isValidEntity } from './reference';
 import type {
   CreatePaymentMethodDto,
   ReviewProofDto,
@@ -63,6 +64,49 @@ export class PaymentsService {
           : Prisma.sql`SELECT * FROM payment_methods ORDER BY sort_order, label`,
       ),
     );
+  }
+
+  /**
+   * Gera a referência Multicaixa de uma encomenda, a partir do método REFERENCE
+   * configurado pela loja (entidade EMIS do contrato dela). Profissional: a
+   * entidade vem do contrato; a referência é gerada por encomenda com validade.
+   * Devolve null se a loja não tiver um método de referência com entidade.
+   */
+  async generateOrderReference(
+    schema: string,
+    orderId: string,
+  ): Promise<{ entity: string; reference: string; amount: number; expiresAt: string } | null> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const methods = await tx.$queryRaw<PaymentMethodRow[]>(
+        Prisma.sql`SELECT * FROM payment_methods
+                   WHERE is_active = TRUE AND type = 'REFERENCE'
+                   ORDER BY sort_order LIMIT 1`,
+      );
+      const m = methods[0];
+      if (!m || !m.reference_entity || !isValidEntity(m.reference_entity)) return null;
+
+      const order = await tx.$queryRaw<{ gross_total: string; created_at: Date }[]>(
+        Prisma.sql`SELECT gross_total, created_at FROM web_orders WHERE id = ${orderId}::uuid LIMIT 1`,
+      );
+      if (order.length === 0) throw new NotFoundException('Encomenda não encontrada');
+
+      const gen = generateReference(
+        { entity: m.reference_entity },
+        { seq: this.seqFromId(orderId), amount: Number(order[0].gross_total) },
+      );
+      // Persiste a referência gerada na encomenda (campo reutilizável).
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE web_orders SET payment_method = 'REFERENCE', updated_at = now()
+                   WHERE id = ${orderId}::uuid`,
+      );
+      return { entity: gen.entity, reference: gen.reference, amount: gen.amount, expiresAt: gen.expiresAt };
+    });
+  }
+
+  /** Sequencial estável (8 dígitos) a partir do UUID. */
+  private seqFromId(id: string): number {
+    const hex = id.replace(/[^0-9a-f]/gi, '').slice(0, 8);
+    return parseInt(hex, 16) % 100_000_000;
   }
 
   async getMethod(schema: string, id: string): Promise<PaymentMethodRow> {

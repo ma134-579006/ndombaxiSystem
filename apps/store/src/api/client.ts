@@ -58,6 +58,10 @@ export const api = {
     request<CheckoutResult>('POST', `/store/${enc(code)}/checkout`, input),
   track: (code: string, orderId: string) =>
     request<WebOrder>('GET', `/store/${enc(code)}/orders/${enc(orderId)}`),
+  generateReference: (code: string, orderId: string) =>
+    request<{ available: boolean; entity?: string; reference?: string; amount?: number; expiresAt?: string; message?: string }>(
+      'POST', `/store/${enc(code)}/orders/${enc(orderId)}/reference`,
+    ),
   uploadProof: (code: string, orderId: string, input: UploadProofInput) =>
     request<unknown>('POST', `/store/${enc(code)}/orders/${enc(orderId)}/proof`, input),
   payExpress: (code: string, orderId: string, input: ExpressPayInput) =>

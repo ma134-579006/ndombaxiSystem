@@ -53,6 +53,17 @@ export class StorefrontController {
     return this.payments.listMethods(tenant.schema, true);
   }
 
+  @Post('orders/:orderId/reference')
+  @ApiOperation({ summary: 'Gera a referência Multicaixa da encomenda (Entidade + Referência + valor)' })
+  async generateReference(@Param('code') code: string, @Param('orderId') orderId: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const ref = await this.payments.generateOrderReference(tenant.schema, orderId);
+    if (!ref) {
+      return { available: false, message: 'A loja ainda não configurou o pagamento por referência (Entidade EMIS).' };
+    }
+    return { available: true, ...ref };
+  }
+
   @Post('orders/:orderId/proof')
   @ApiOperation({ summary: 'Cliente envia o comprovativo (IBAN/referência) — aguarda aprovação do gestor' })
   async uploadProof(

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentGatewayService } from '../payments/payment-gateway.service';
+import { generateReference } from '../payments/reference';
 import type {
   CreateSubscriptionDto,
   PostSubMessageDto,
@@ -68,6 +69,17 @@ export class SubscriptionService {
       await this.requireBank(dto.bankAccountId);
     }
 
+    // REFERENCE exige um contrato de Entidade EMIS configurado pelo Super Admin.
+    let refContract: Awaited<ReturnType<typeof this.gateways.getActiveReference>> = null;
+    if (dto.method === 'REFERENCE') {
+      refContract = await this.gateways.getActiveReference();
+      if (!refContract) {
+        throw new BadRequestException(
+          'Pagamento por referência indisponível: o Super Admin ainda não configurou o contrato de Entidade (EMIS).',
+        );
+      }
+    }
+
     const sub = await this.prisma.subscription.create({
       data: {
         companyId,
@@ -80,26 +92,34 @@ export class SubscriptionService {
       },
     });
 
-    // REFERENCE → tenta o caminho automático via contrato Express.
-    if (dto.method === 'REFERENCE') {
-      const express = await this.gateways.getActiveExpress();
-      if (express) {
-        const reference = this.generateReference();
-        // (A verificação HTTP real contra o Express fica para produção; aqui,
-        //  havendo contrato activo, considera-se confirmado e activa-se.)
-        return this.activate(sub.id, {
-          reference,
-          note: `Pagamento por referência confirmado automaticamente (contrato "${express.gateway.label}").`,
-        });
-      }
-      // Sem contrato Express → informa que ficará manual.
+    // REFERENCE → gera uma referência REAL a partir do contrato EMIS (entidade
+    // + referência + valor + validade). Fica PENDING_PAYMENT até a confirmação
+    // (callback/consulta à EMIS em produção). NÃO inventa pagamento.
+    if (dto.method === 'REFERENCE' && refContract) {
+      const gen = generateReference(
+        {
+          entity: refContract.contract.referenceEntity!,
+          environment: refContract.contract.environment,
+          defaultValidityDays: refContract.contract.validityDays,
+        },
+        { seq: this.seqFromId(sub.id), amount: plan.priceKz },
+      );
       return this.prisma.subscription.update({
         where: { id: sub.id },
-        data: { reference: this.generateReference() },
+        data: {
+          reference: `${gen.entity} / ${gen.reference}`,
+          expiresAt: new Date(gen.expiresAt),
+        },
       });
     }
 
     return sub;
+  }
+
+  /** Deriva um sequencial estável (8 dígitos) a partir do UUID da subscrição. */
+  private seqFromId(id: string): number {
+    const hex = id.replace(/[^0-9a-f]/gi, '').slice(0, 8);
+    return parseInt(hex, 16) % 100_000_000;
   }
 
   /** Empresa submete comprovativo (IBAN) → fica IN_REVIEW. */
@@ -228,12 +248,6 @@ export class SubscriptionService {
   }
 
   // ── Helpers ────────────────────────────────────────────────
-  private generateReference(): string {
-    // Referência tipo Multicaixa: 3 grupos de dígitos.
-    const g = () => Math.floor(100 + Math.random() * 900);
-    return `${g()} ${g()} ${g()}`;
-  }
-
   private async require(id: string) {
     const sub = await this.prisma.subscription.findUnique({ where: { id } });
     if (!sub) throw new NotFoundException('Subscrição não encontrada');

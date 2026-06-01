@@ -14,10 +14,15 @@ interface GatewayForm {
   iban: string;
   baseUrl: string;
   apiKey: string;
+  referenceEntity: string;
+  environment: 'TEST' | 'PRODUCTION';
+  validityDays: string;
+  callbackUrl: string;
   isActive: boolean;
 }
 const emptyForm = (): GatewayForm => ({
-  provider: 'EXPRESS', label: '', contractRef: '', merchantId: '', posId: '', iban: '', baseUrl: '', apiKey: '', isActive: true,
+  provider: 'EXPRESS', label: '', contractRef: '', merchantId: '', posId: '', iban: '', baseUrl: '', apiKey: '',
+  referenceEntity: '', environment: 'TEST', validityDays: '3', callbackUrl: '', isActive: true,
 });
 
 export function Gateways() {
@@ -43,7 +48,10 @@ export function Gateways() {
   const openEdit = (g: Gateway) =>
     setForm({
       id: g.id, provider: g.provider, label: g.label, contractRef: g.contractRef ?? '', merchantId: g.merchantId ?? '',
-      posId: g.posId ?? '', iban: g.iban ?? '', baseUrl: g.baseUrl ?? '', apiKey: '', isActive: g.isActive,
+      posId: g.posId ?? '', iban: g.iban ?? '', baseUrl: g.baseUrl ?? '', apiKey: '',
+      referenceEntity: g.referenceEntity ?? '', environment: (g.environment as 'TEST' | 'PRODUCTION') ?? 'TEST',
+      validityDays: g.validityDays != null ? String(g.validityDays) : '3', callbackUrl: g.callbackUrl ?? '',
+      isActive: g.isActive,
     });
 
   const save = async () => {
@@ -58,6 +66,13 @@ export function Gateways() {
         isActive: form.isActive,
       };
       if (form.apiKey.trim()) dto.apiKey = form.apiKey.trim();
+      // Contrato de referência (Entidade EMIS) — só relevante p/ REFERENCE/EMIS.
+      if (form.provider === 'REFERENCE' || form.provider === 'EMIS') {
+        if (form.referenceEntity.trim()) dto.referenceEntity = form.referenceEntity.trim();
+        dto.environment = form.environment;
+        if (form.validityDays.trim()) dto.validityDays = Number(form.validityDays) || 3;
+        if (form.callbackUrl.trim()) dto.callbackUrl = form.callbackUrl.trim();
+      }
       if (form.id) await api.gateways.update(form.id, dto);
       else await api.gateways.create(dto as CreateGatewayInput);
       setForm(null);
@@ -134,6 +149,29 @@ export function Gateways() {
           </div>
           <div className="field"><label>URL base da API</label><input value={form.baseUrl} onChange={(e) => setForm({ ...form, baseUrl: e.target.value })} /></div>
           <div className="field"><label>Credencial/segredo {form.id ? '(deixe vazio para manter)' : ''}</label><input type="password" value={form.apiKey} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} placeholder={form.id ? '••••••••' : ''} /></div>
+
+          {(form.provider === 'REFERENCE' || form.provider === 'EMIS') ? (
+            <div style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 12 }}>
+              <strong style={{ fontSize: 14 }}>Pagamento por Referência (contrato EMIS)</strong>
+              <p className="muted" style={{ fontSize: 12, margin: '4px 0 12px' }}>
+                Dados que a EMIS/Multicaixa fornece após o contrato. Com isto, o sistema gera referências automaticamente (como Unitel Money).
+              </p>
+              <div className="grid-2">
+                <div className="field"><label>Entidade (5 dígitos)</label><input value={form.referenceEntity} onChange={(e) => setForm({ ...form, referenceEntity: e.target.value.replace(/\D/g, '').slice(0, 5) })} placeholder="01234" inputMode="numeric" /></div>
+                <div className="field">
+                  <label>Ambiente</label>
+                  <select value={form.environment} onChange={(e) => setForm({ ...form, environment: e.target.value as 'TEST' | 'PRODUCTION' })}>
+                    <option value="TEST">Testes</option>
+                    <option value="PRODUCTION">Produção</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid-2">
+                <div className="field"><label>Validade da referência (dias)</label><input value={form.validityDays} onChange={(e) => setForm({ ...form, validityDays: e.target.value.replace(/\D/g, '') })} inputMode="numeric" placeholder="3" /></div>
+                <div className="field"><label>URL de callback (confirmação)</label><input value={form.callbackUrl} onChange={(e) => setForm({ ...form, callbackUrl: e.target.value })} placeholder="https://…/emis/callback" /></div>
+              </div>
+            </div>
+          ) : null}
           <div className="switch-row"><span>Activo</span><Switch checked={form.isActive} onChange={(v) => setForm({ ...form, isActive: v })} /></div>
           <button className="btn block lg" style={{ marginTop: 12 }} onClick={save} disabled={saving}>{saving ? 'A guardar…' : 'Guardar contrato'}</button>
         </Modal>

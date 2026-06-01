@@ -6,6 +6,14 @@ import { decryptSecret, encryptSecret, maskSecret } from '../common/crypto/secre
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateGatewayDto, UpdateGatewayDto } from './dto/gateway.dto';
 
+/** Dados do contrato de referência (Entidade EMIS) guardados em `settings`. */
+export interface ReferenceSettings {
+  referenceEntity?: string;
+  environment?: 'TEST' | 'PRODUCTION';
+  validityDays?: number;
+  callbackUrl?: string;
+}
+
 /** Vista segura — nunca expõe a credencial em claro. */
 export interface SafeGateway {
   id: string;
@@ -18,6 +26,11 @@ export interface SafeGateway {
   baseUrl: string | null;
   hasApiKey: boolean;
   apiKeyMask: string | null;
+  // Campos de referência (extraídos de settings) — seguros de expor.
+  referenceEntity: string | null;
+  environment: string | null;
+  validityDays: number | null;
+  callbackUrl: string | null;
   settings: unknown;
   isActive: boolean;
   createdAt: Date;
@@ -50,6 +63,19 @@ export class PaymentGatewayService {
     return this.toSafe(await this.require(id));
   }
 
+  /** Funde os campos de referência (entity/env/validade/callback) em settings. */
+  private mergeRefSettings(
+    base: Record<string, unknown> | undefined,
+    dto: Partial<CreateGatewayDto>,
+  ): Prisma.InputJsonValue | undefined {
+    const s: Record<string, unknown> = { ...(base ?? {}), ...(dto.settings ?? {}) };
+    if (dto.referenceEntity !== undefined) s.referenceEntity = dto.referenceEntity;
+    if (dto.environment !== undefined) s.environment = dto.environment;
+    if (dto.validityDays !== undefined) s.validityDays = dto.validityDays;
+    if (dto.callbackUrl !== undefined) s.callbackUrl = dto.callbackUrl;
+    return Object.keys(s).length ? (s as Prisma.InputJsonValue) : undefined;
+  }
+
   async create(dto: CreateGatewayDto): Promise<SafeGateway> {
     const created = await this.prisma.paymentGatewayConfig.create({
       data: {
@@ -61,7 +87,7 @@ export class PaymentGatewayService {
         iban: dto.iban ?? null,
         baseUrl: dto.baseUrl ?? null,
         apiKeyEnc: dto.apiKey ? encryptSecret(dto.apiKey, this.key) : null,
-        settings: (dto.settings ?? undefined) as Prisma.InputJsonValue | undefined,
+        settings: this.mergeRefSettings(undefined, dto),
         isActive: dto.isActive ?? true,
       },
     });
@@ -69,7 +95,7 @@ export class PaymentGatewayService {
   }
 
   async update(id: string, dto: UpdateGatewayDto): Promise<SafeGateway> {
-    await this.require(id);
+    const existing = await this.require(id);
     const updated = await this.prisma.paymentGatewayConfig.update({
       where: { id },
       data: {
@@ -87,7 +113,10 @@ export class PaymentGatewayService {
             : dto.apiKey
               ? encryptSecret(dto.apiKey, this.key)
               : null,
-        settings: (dto.settings ?? undefined) as Prisma.InputJsonValue | undefined,
+        settings: this.mergeRefSettings(
+          (existing.settings as Record<string, unknown> | null) ?? undefined,
+          dto,
+        ),
         isActive: dto.isActive,
       },
     });
@@ -116,6 +145,30 @@ export class PaymentGatewayService {
     };
   }
 
+  /**
+   * Contrato de REFERÊNCIA activo da plataforma (Entidade EMIS). Aceita provider
+   * REFERENCE ou EMIS. Devolve os dados do contrato + credencial desencriptada.
+   * `null` se não houver contrato de referência activo com entidade configurada.
+   */
+  async getActiveReference(): Promise<{
+    gateway: PaymentGatewayConfig;
+    contract: ReferenceSettings;
+    apiKey: string | null;
+  } | null> {
+    const gateway = await this.prisma.paymentGatewayConfig.findFirst({
+      where: { provider: { in: ['REFERENCE', 'EMIS'] }, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!gateway) return null;
+    const contract = (gateway.settings as ReferenceSettings | null) ?? {};
+    if (!contract.referenceEntity) return null; // contrato incompleto
+    return {
+      gateway,
+      contract,
+      apiKey: gateway.apiKeyEnc ? decryptSecret(gateway.apiKeyEnc, this.key) : null,
+    };
+  }
+
   private async require(id: string): Promise<PaymentGatewayConfig> {
     const g = await this.prisma.paymentGatewayConfig.findUnique({ where: { id } });
     if (!g) throw new NotFoundException(`Gateway de pagamento não encontrado: ${id}`);
@@ -123,6 +176,7 @@ export class PaymentGatewayService {
   }
 
   private toSafe(g: PaymentGatewayConfig): SafeGateway {
+    const ref = (g.settings as ReferenceSettings | null) ?? {};
     let mask: string | null = null;
     if (g.apiKeyEnc) {
       try {
@@ -142,6 +196,10 @@ export class PaymentGatewayService {
       baseUrl: g.baseUrl,
       hasApiKey: !!g.apiKeyEnc,
       apiKeyMask: mask,
+      referenceEntity: ref.referenceEntity ?? null,
+      environment: ref.environment ?? null,
+      validityDays: ref.validityDays ?? null,
+      callbackUrl: ref.callbackUrl ?? null,
       settings: g.settings,
       isActive: g.isActive,
       createdAt: g.createdAt,

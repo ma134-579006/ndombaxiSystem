@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CheckoutResult, PaymentMethod } from '../api/types';
 import { IconCheck, IconUpload } from '../components/Icons';
 import { formatKz } from '../format';
 import { useStore } from '../state/StoreContext';
+
+interface GeneratedRef { available: boolean; entity?: string; reference?: string; amount?: number; expiresAt?: string; message?: string }
+function fmtRef(r: string): string { return r.replace(/(\d{3})(?=\d)/g, '$1 ').trim(); }
 
 function fileToBase64(file: File): Promise<{ data: string; name: string; mime: string }> {
   return new Promise((resolve, reject) => {
@@ -40,6 +43,15 @@ export function Confirmation({
 
   const [expressPhone, setExpressPhone] = useState('');
   const [paid, setPaid] = useState<string | null>(null);
+
+  // Pagamento por referência: gera a referência dinâmica da encomenda.
+  const [genRef, setGenRef] = useState<GeneratedRef | null>(null);
+  useEffect(() => {
+    if (type !== 'REFERENCE') return;
+    api.generateReference(code, order.id)
+      .then(setGenRef)
+      .catch(() => setGenRef({ available: false, message: 'Não foi possível gerar a referência agora.' }));
+  }, [type, code, order.id]);
 
   const submitProof = async () => {
     setError(null);
@@ -136,6 +148,16 @@ export function Confirmation({
                 {method?.iban ? `IBAN: ${method.iban}\n` : ''}
                 {method?.account_holder ? `Titular: ${method.account_holder}\n` : ''}
               </>
+            ) : genRef?.available ? (
+              <>
+                {`Entidade: ${genRef.entity}\n`}
+                {`Referência: ${fmtRef(genRef.reference ?? '')}\n`}
+                {genRef.expiresAt ? `Válida até: ${new Date(genRef.expiresAt).toLocaleDateString('pt-PT')}\n` : ''}
+              </>
+            ) : genRef && !genRef.available ? (
+              <>{genRef.message ?? 'Pagamento por referência indisponível.'}{'\n'}</>
+            ) : type === 'REFERENCE' ? (
+              <>{'A gerar a referência…\n'}</>
             ) : (
               <>
                 {method?.reference_entity ? `Entidade: ${method.reference_entity}\n` : ''}

@@ -292,7 +292,7 @@ export interface AssistantConfig {
 }
 
 // ── Gateways de pagamento ────────────────────────────────────
-export const GATEWAY_PROVIDERS = ['EXPRESS', 'EMIS', 'PROXYPAY', 'GENERIC'] as const;
+export const GATEWAY_PROVIDERS = ['EXPRESS', 'EMIS', 'PROXYPAY', 'REFERENCE', 'GENERIC'] as const;
 export interface Gateway {
   id: string;
   provider: string;
@@ -302,6 +302,11 @@ export interface Gateway {
   posId: string | null;
   iban: string | null;
   baseUrl: string | null;
+  // Pagamento por referência (contrato EMIS):
+  referenceEntity?: string | null;
+  environment?: string | null;
+  validityDays?: number | null;
+  callbackUrl?: string | null;
   isActive: boolean;
   hasApiKey?: boolean;
   apiKeyMask?: string | null;
@@ -316,6 +321,10 @@ export interface CreateGatewayInput {
   iban?: string;
   baseUrl?: string;
   apiKey?: string;
+  referenceEntity?: string;
+  environment?: 'TEST' | 'PRODUCTION';
+  validityDays?: number;
+  callbackUrl?: string;
   isActive?: boolean;
 }
 
