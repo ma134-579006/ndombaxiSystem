@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { computeInvoice, InvoiceLineInput, IvaCode } from '@nexus/agt-xml';
+import { allocateDocumentNumber, formatCounterNumber } from '../common/document-counter';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from './stock.service';
 
@@ -48,12 +49,9 @@ export class PurchasingService {
       const { lines, totals } = computeInvoice(lineInputs);
 
       const year = new Date().getFullYear();
-      const countRows = await tx.$queryRaw<{ n: bigint }[]>(
-        Prisma.sql`SELECT COUNT(*)::bigint AS n FROM purchase_orders
-                   WHERE EXTRACT(YEAR FROM order_date) = ${year}`,
-      );
-      const sequence = Number(countRows[0].n) + 1;
-      const number = `PO/${year}/${String(sequence).padStart(4, '0')}`;
+      // Numeração atómica (sem race): contador por (kind, year).
+      const sequence = await allocateDocumentNumber(tx, 'PO', year);
+      const number = formatCounterNumber('PO', year, sequence);
 
       const poRows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO purchase_orders

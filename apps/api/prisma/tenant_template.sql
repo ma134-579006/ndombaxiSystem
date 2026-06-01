@@ -105,6 +105,17 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."fiscal_series" (
   CONSTRAINT fiscal_series_unique UNIQUE (doc_type, series, year)
 );
 
+-- ── Contadores de documentos NÃO fiscais (PO, encomendas web) ─
+-- Numeração sequencial atómica por (kind, year) sem race conditions:
+-- INSERT ... ON CONFLICT DO UPDATE ... RETURNING incrementa e devolve numa
+-- única operação atómica (substitui o frágil COUNT(*)+1).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."document_counters" (
+  kind           TEXT NOT NULL,              -- ex: 'PO', 'WEB'
+  year           INT  NOT NULL,
+  last_sequence  INT  NOT NULL DEFAULT 0,
+  CONSTRAINT document_counters_pk PRIMARY KEY (kind, year)
+);
+
 -- ── Documentos fiscais (facturas) ────────────────────────────
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."invoices" (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),

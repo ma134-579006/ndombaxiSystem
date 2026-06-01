@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { computeInvoice, InvoiceLineInput, IvaCode, resolveRate, round2 } from '@nexus/agt-xml';
+import { allocateDocumentNumber, formatCounterNumber } from '../common/document-counter';
 import { PrismaService } from '../prisma/prisma.service';
 import { CheckoutDto } from './dto/checkout.dto';
 
@@ -84,11 +85,9 @@ export class StorefrontService {
       const { lines, totals } = computeInvoice(lineInputs);
 
       const year = new Date().getFullYear();
-      const countRows = await tx.$queryRaw<{ n: bigint }[]>(
-        Prisma.sql`SELECT COUNT(*)::bigint AS n FROM web_orders
-                   WHERE EXTRACT(YEAR FROM created_at) = ${year}`,
-      );
-      const orderNumber = `WEB/${year}/${String(Number(countRows[0].n) + 1).padStart(4, '0')}`;
+      // Numeração atómica (sem race): contador por (kind, year).
+      const sequence = await allocateDocumentNumber(tx, 'WEB', year);
+      const orderNumber = formatCounterNumber('WEB', year, sequence);
 
       const orderRows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO web_orders
