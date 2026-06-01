@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { KeyboardProvider } from './keyboard/KeyboardProvider';
 import { Shell, type NavItem } from './components/Shell';
 import { IconBuilding, IconCard, IconCpu, IconCube, IconReceipt, IconStore, IconTruck } from './components/Icons';
 import { Login } from './pages/Login';
@@ -63,7 +64,9 @@ function Gate() {
 export function App() {
   return (
     <AuthProvider>
-      <Gate />
+      <KeyboardProvider>
+        <Gate />
+      </KeyboardProvider>
     </AuthProvider>
   );
 }

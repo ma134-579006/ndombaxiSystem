@@ -202,3 +202,36 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .grid-2 { grid-template-columns: 1fr; }
   .hero h1 { font-size: 25px; }
 }
+
+/* ============================================================
+   TECLADO NO ECRÃ (terminais táteis) — tema claro
+   ============================================================ */
+.kbd-overlay { position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; pointer-events: none; }
+.kbd {
+  pointer-events: auto; background: var(--surface); border-top: 1px solid var(--border);
+  padding: 8px 8px 12px; box-shadow: 0 -12px 30px rgba(20,30,50,.18); max-width: 900px; margin: 0 auto;
+  border-radius: 16px 16px 0 0;
+}
+.kbd-bar { display: flex; align-items: center; justify-content: space-between; padding: 2px 6px 6px; }
+.kbd-bar .lbl { color: var(--muted); font-size: 12px; font-weight: 700; }
+.kbd-bar .acts { display: flex; gap: 14px; align-items: center; }
+.kbd-bar .acts button { color: var(--muted); font-size: 13px; font-weight: 700; background: none; border: none; cursor: pointer; }
+.kbd-row { display: flex; gap: 6px; margin-top: 6px; }
+.key {
+  flex: 1; height: 50px; border-radius: 9px; background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border); font-size: 18px; font-weight: 600; display: grid; place-items: center; cursor: pointer;
+  transition: background .08s, transform .04s;
+}
+.key:hover { background: #eef2f9; }
+.key:active { transform: translateY(1px); }
+.key.action { background: #eef2f9; }
+.key.accent { background: var(--accent, #2563eb); border-color: var(--accent, #2563eb); color: #fff; }
+.key.wide-15 { flex: 1.5; } .key.wide-16 { flex: 1.6; } .key.wide-4 { flex: 4; }
+
+.kbd-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 14px 0; padding: 11px 13px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2);
+}
+.kbd-toggle .meta { display: flex; align-items: center; gap: 10px; }
+.kbd-toggle .ttl { font-size: 13px; font-weight: 700; }
+.kbd-toggle .hint { font-size: 11px; color: var(--muted); }

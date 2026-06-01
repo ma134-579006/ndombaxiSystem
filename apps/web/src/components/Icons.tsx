@@ -143,3 +143,16 @@ export const IconEyeOff = svg(
     <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24M2 2l20 20" />
   </>,
 );
+export const IconKeyboard = svg(
+  <>
+    <rect width="20" height="14" x="2" y="5" rx="2" />
+    <path d="M6 9h0M10 9h0M14 9h0M18 9h0M6 13h0M18 13h0M10 13h4" />
+  </>,
+);
+export const IconBackspace = svg(
+  <>
+    <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+    <path d="m15 9-6 6M9 9l6 6" />
+  </>,
+);
+export const IconShift = svg(<path d="m12 3 8 9h-5v7H9v-7H4l8-9z" />);

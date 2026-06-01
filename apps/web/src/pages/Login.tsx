@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useKeyboard } from '../keyboard/KeyboardProvider';
+import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
-import { IconBuilding, IconShield } from '../components/Icons';
+import { IconBuilding, IconKeyboard, IconShield } from '../components/Icons';
+import { Switch } from '../components/ui';
 
 type Profile = 'tenant' | 'platform';
 
 export function Login() {
   const { loginTenant, loginPlatform } = useAuth();
+  const kbd = useKeyboard();
   const [profile, setProfile] = useState<Profile>('tenant');
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
@@ -41,10 +45,6 @@ export function Login() {
     }
   };
 
-  const onEnter = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') void submit();
-  };
-
   return (
     <div className="login">
       <div className="box">
@@ -55,18 +55,10 @@ export function Login() {
         </div>
         <div className="card">
           <div className="seg" style={{ marginBottom: 16 }}>
-            <button
-              className={profile === 'tenant' ? 'on' : ''}
-              onClick={() => setProfile('tenant')}
-              type="button"
-            >
+            <button className={profile === 'tenant' ? 'on' : ''} onClick={() => setProfile('tenant')} type="button">
               <IconBuilding size={16} /> Gestor da empresa
             </button>
-            <button
-              className={profile === 'platform' ? 'on' : ''}
-              onClick={() => setProfile('platform')}
-              type="button"
-            >
+            <button className={profile === 'platform' ? 'on' : ''} onClick={() => setProfile('platform')} type="button">
               <IconShield size={16} /> Super Admin
             </button>
           </div>
@@ -74,49 +66,25 @@ export function Login() {
           {error ? <div className="banner danger" style={{ marginBottom: 14 }}>{error}</div> : null}
 
           {profile === 'tenant' ? (
-            <div className="field">
-              <label>Código da empresa</label>
-              <input
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                placeholder="ex.: novashop"
-                autoFocus
-                onKeyDown={onEnter}
-              />
-            </div>
+            <KeyboardInput label="Código da empresa" value={company} onChange={setCompany} placeholder="ex.: novashop" onSubmit={submit} autoFocus />
           ) : null}
 
-          <div className="field">
-            <label>E-mail</label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={profile === 'tenant' ? 'gestor@empresa.ao' : 'admin@ndombaxi.ao'}
-              autoFocus={profile === 'platform'}
-              onKeyDown={onEnter}
-            />
+          <KeyboardInput label="E-mail" value={email} onChange={setEmail} placeholder={profile === 'tenant' ? 'gestor@empresa.ao' : 'admin@ndombaxi.ao'} onSubmit={submit} />
+          <KeyboardInput label="Palavra-passe" type="password" value={password} onChange={setPassword} placeholder="••••••••" onSubmit={submit} />
+          <KeyboardInput label="Código 2FA (se activo)" value={twoFa} onChange={setTwoFa} placeholder="000000" numeric maxLength={6} onSubmit={submit} />
+
+          {/* Teclado no ecrã — para PCs apenas digitais / terminais táteis */}
+          <div className="kbd-toggle">
+            <div className="meta">
+              <IconKeyboard size={18} />
+              <div>
+                <div className="ttl">Teclado no ecrã</div>
+                <div className="hint">Para PCs/terminais táteis sem teclado físico.</div>
+              </div>
+            </div>
+            <Switch checked={kbd.enabled} onChange={kbd.setEnabled} />
           </div>
-          <div className="field">
-            <label>Palavra-passe</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              onKeyDown={onEnter}
-            />
-          </div>
-          <div className="field">
-            <label>Código 2FA (se activo)</label>
-            <input
-              value={twoFa}
-              onChange={(e) => setTwoFa(e.target.value)}
-              placeholder="000000"
-              inputMode="numeric"
-              maxLength={6}
-              onKeyDown={onEnter}
-            />
-          </div>
+
           <button className="btn lg block" onClick={submit} disabled={loading}>
             {profile === 'tenant' ? <IconBuilding size={18} /> : <IconShield size={18} />}{' '}
             {loading ? 'A entrar…' : 'Entrar'}
