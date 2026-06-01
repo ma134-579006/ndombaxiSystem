@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 import { CashboxService } from './cashbox.service';
 import { InventoryService } from './inventory.service';
 import { TenantAuditService } from './tenant-audit.service';
+import { AlertsService } from './alerts.service';
 import {
+  AlertsController,
   CashboxController,
   InventoryController,
   TenantAuditController,
@@ -14,8 +16,8 @@ import {
  * movimentos de caixa.
  */
 @Module({
-  controllers: [CashboxController, InventoryController, TenantAuditController],
-  providers: [CashboxService, InventoryService, TenantAuditService],
+  controllers: [CashboxController, InventoryController, TenantAuditController, AlertsController],
+  providers: [CashboxService, InventoryService, TenantAuditService, AlertsService],
   exports: [TenantAuditService, CashboxService],
 })
 export class CashboxModule {}

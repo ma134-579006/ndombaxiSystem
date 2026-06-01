@@ -113,6 +113,49 @@ export class InventoryService {
     );
   }
 
+  // ── Lotes & validade (FEFO) ────────────────────────────────
+  /** Regista um lote com validade (e dá entrada de stock se quantidade > 0). */
+  async addBatch(
+    schema: string,
+    dto: { productId: string; warehouseId: string; batchCode?: string; quantity: number; expiryDate?: string },
+    actor: Actor,
+  ): Promise<{ id: string }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`INSERT INTO product_batches (product_id, warehouse_id, batch_code, quantity, expiry_date)
+          VALUES (${dto.productId}::uuid, ${dto.warehouseId}::uuid, ${dto.batchCode ?? null},
+                  ${dto.quantity}, ${dto.expiryDate ?? null}::date)
+          RETURNING id`,
+      );
+      if (dto.quantity > 0) {
+        await StockService.applyMovement(tx, {
+          productId: dto.productId, warehouseId: dto.warehouseId, type: 'IN', quantity: dto.quantity,
+          reference: `Lote ${dto.batchCode ?? ''}`.trim(), createdBy: actor.id ?? null, allowNegative: true,
+        });
+        await this.audit.recordInTx(tx, {
+          actorId: actor.id, actorName: actor.name, action: 'STOCK_IN', entity: 'product_batch', entityId: rows[0].id,
+          details: { productId: dto.productId, quantity: dto.quantity, expiryDate: dto.expiryDate ?? null, batch: dto.batchCode ?? null },
+        });
+      }
+      return rows[0];
+    });
+  }
+
+  /** Lotes a expirar em <= `days` dias (ou já expirados). */
+  expiring(schema: string, days = 30): Promise<unknown[]> {
+    const d = Math.min(Math.max(days, 1), 365);
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(
+        Prisma.sql`SELECT b.id, b.batch_code, b.quantity, b.expiry_date, p.name AS product_name,
+                          (b.expiry_date - CURRENT_DATE) AS days_left
+                   FROM product_batches b JOIN products p ON p.id = b.product_id
+                   WHERE b.quantity > 0 AND b.expiry_date IS NOT NULL
+                     AND b.expiry_date <= CURRENT_DATE + ${d}::int
+                   ORDER BY b.expiry_date ASC LIMIT 100`,
+      ),
+    );
+  }
+
   /**
    * Fecha a contagem: aplica os ajustes (ADJUST) ao stock para cada item com
    * diferença, e marca a folha como CLOSED. Tudo auditado.

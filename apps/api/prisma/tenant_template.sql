@@ -635,3 +635,18 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."loyalty_movements" (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS loyalty_movements_card_idx ON "{{SCHEMA}}"."loyalty_movements"(card_id);
+
+-- ════════════════════════════════════════════════════════════
+-- LOTES & VALIDADE (FEFO — First Expired First Out, p/ alimentos)
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."product_batches" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id   UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,
+  warehouse_id UUID REFERENCES "{{SCHEMA}}"."warehouses"(id) ON DELETE SET NULL,
+  batch_code   TEXT,
+  quantity     NUMERIC(14,3) NOT NULL DEFAULT 0,
+  expiry_date  DATE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS product_batches_expiry_idx ON "{{SCHEMA}}"."product_batches"(expiry_date);
+CREATE INDEX IF NOT EXISTS product_batches_product_idx ON "{{SCHEMA}}"."product_batches"(product_id);

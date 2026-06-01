@@ -8,6 +8,7 @@ import { TenantContext } from '../tenancy/tenant-context';
 import { CashboxService } from './cashbox.service';
 import { InventoryService } from './inventory.service';
 import { TenantAuditService } from './tenant-audit.service';
+import { AlertsService } from './alerts.service';
 import {
   CashMovementDto, CloseSessionDto, CountItemDto, CreateCountDto, OpenSessionDto, StockWriteOffDto,
 } from './dto/cashbox.dto';
@@ -50,11 +51,34 @@ export class CashboxController {
     return this.cash.close(this.ctx.requireTenantSchema(), dto, actor(u));
   }
 
+  @Get('report/x')
+  @ApiOperation({ summary: 'Relatório X — leitura do turno aberto (sem fechar)' })
+  reportX(@CurrentUser() u: JwtPayload) {
+    return this.cash.reportX(this.ctx.requireTenantSchema(), u.sub);
+  }
+
   @Get('sessions')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Histórico de turnos (gestor)' })
   sessions() {
     return this.cash.listSessions(this.ctx.requireTenantSchema());
+  }
+}
+
+/** Centro de alertas do gestor (stock baixo, quebras, turnos por fechar). */
+@ApiTags('alerts')
+@Controller('alerts')
+@Roles(Role.STORE_MANAGER)
+export class AlertsController {
+  constructor(
+    private readonly alerts: AlertsService,
+    private readonly ctx: TenantContext,
+  ) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Alertas operacionais (stock/caixa)' })
+  list() {
+    return this.alerts.list(this.ctx.requireTenantSchema());
   }
 }
 
@@ -102,6 +126,22 @@ export class InventoryController {
   @ApiOperation({ summary: 'Fecha a contagem e aplica os ajustes ao stock (auditado)' })
   closeCount(@Param('id') id: string, @CurrentUser() u: JwtPayload) {
     return this.inv.closeCount(this.ctx.requireTenantSchema(), id, actor(u));
+  }
+
+  // ── Lotes & validade (FEFO) ────────────────────────────────
+  @Post('batches')
+  @ApiOperation({ summary: 'Regista um lote com validade (dá entrada de stock)' })
+  addBatch(
+    @Body() dto: { productId: string; warehouseId: string; batchCode?: string; quantity: number; expiryDate?: string },
+    @CurrentUser() u: JwtPayload,
+  ) {
+    return this.inv.addBatch(this.ctx.requireTenantSchema(), dto, actor(u));
+  }
+
+  @Get('batches/expiring')
+  @ApiOperation({ summary: 'Lotes a expirar (validade próxima)' })
+  expiring(@Query('days') days?: string) {
+    return this.inv.expiring(this.ctx.requireTenantSchema(), days ? Number(days) : 30);
   }
 }
 

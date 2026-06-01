@@ -163,6 +163,44 @@ export class CashboxService {
     });
   }
 
+  /**
+   * Relatório X: leitura do turno ABERTO do funcionário, sem fechar (espreitar
+   * o estado a meio do turno). Mesma agregação do fecho, mas não altera nada.
+   */
+  async reportX(schema: string, userId: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const session = await this.requireOpenSession(tx, userId);
+      const agg = await tx.$queryRaw<{ type: string; payment_type: string | null; total: string; n: number }[]>(
+        Prisma.sql`SELECT type, payment_type, COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS n
+                   FROM cash_movements WHERE session_id = ${session.id}::uuid GROUP BY type, payment_type`,
+      );
+      let salesTotal = 0, cashIn = 0, cashOut = 0, salesCount = 0, cashSales = 0;
+      const byPayment: Record<string, number> = {};
+      for (const r of agg) {
+        const total = Number(r.total);
+        if (r.type === 'SALE') {
+          salesTotal += total; salesCount += r.n;
+          const pt = r.payment_type ?? 'CASH';
+          byPayment[pt] = (byPayment[pt] ?? 0) + total;
+          if (pt === 'CASH') cashSales += total;
+        } else if (r.type === 'CASH_IN') cashIn += total;
+        else if (r.type === 'CASH_OUT') cashOut += total;
+      }
+      const openingFloat = Number(session.opening_float);
+      return {
+        type: 'X',
+        sessionId: session.id,
+        openedByName: session.opened_by_name,
+        openedAt: session.opened_at,
+        now: new Date().toISOString(),
+        openingFloat, salesTotal: round2(salesTotal), salesCount,
+        cashSales: round2(cashSales), cashIn: round2(cashIn), cashOut: round2(cashOut),
+        expectedCash: round2(openingFloat + cashSales + cashIn - cashOut),
+        byPayment,
+      };
+    });
+  }
+
   /** Histórico de turnos (gerente). */
   listSessions(schema: string, limit = 50): Promise<unknown[]> {
     const n = Math.min(Math.max(limit, 1), 200);
