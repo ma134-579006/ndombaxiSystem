@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, DefaultValuePipe, Get, Param, ParseIntPipe, Patch, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { LandingService } from './landing.service';
+import { PlatformDashboardService } from './platform-dashboard.service';
 import { UpdateLandingDto, UpdatePlanDto } from './dto/landing.dto';
 
 /** Landing PÚBLICA — sem autenticação. Conteúdo + planos para a página inicial. */
@@ -56,5 +57,31 @@ export class LandingAdminController {
   @ApiOperation({ summary: 'Edita um plano (preço em Kz, limites, apresentação)' })
   updatePlan(@Param('id') id: string, @Body() dto: UpdatePlanDto) {
     return this.landing.updatePlan(id, dto);
+  }
+}
+
+/** Dashboard GLOBAL da plataforma — só o Super Admin. */
+@ApiTags('super-admin')
+@Controller('super-admin/dashboard')
+@Roles(Role.SUPER_ADMIN)
+export class PlatformDashboardController {
+  constructor(private readonly dash: PlatformDashboardService) {}
+
+  @Get('kpis')
+  @ApiOperation({ summary: 'KPIs globais: empresas, subscrições, receita (Kz)' })
+  kpis() {
+    return this.dash.kpis();
+  }
+
+  @Get('series')
+  @ApiOperation({ summary: 'Série diária: novas empresas + subscrições' })
+  series(@Query('days', new DefaultValuePipe(14), ParseIntPipe) days: number) {
+    return this.dash.series(days);
+  }
+
+  @Get('recent-companies')
+  @ApiOperation({ summary: 'Empresas mais recentes (atividade)' })
+  recent(@Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number) {
+    return this.dash.recentCompanies(limit);
   }
 }

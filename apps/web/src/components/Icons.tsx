@@ -100,6 +100,12 @@ export const IconRefresh = svg(
 export const IconStar = svg(
   <path d="M12 3l2.5 6.5L21 10l-5 4.5L17.5 21 12 17l-5.5 4L8 14.5 3 10l6.5-.5z" />,
 );
+export const IconChart = svg(
+  <>
+    <path d="M3 3v18h18" />
+    <path d="M7 16v-5M12 16V8M17 16v-3" />
+  </>,
+);
 export const IconCube = svg(
   <>
     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { KeyboardProvider } from './keyboard/KeyboardProvider';
 import { Shell, type NavItem } from './components/Shell';
-import { IconBuilding, IconCard, IconCpu, IconCube, IconReceipt, IconStar, IconStore, IconTruck } from './components/Icons';
+import { IconBuilding, IconCard, IconChart, IconCpu, IconCube, IconReceipt, IconStar, IconStore, IconTruck } from './components/Icons';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
 import './landing.css';
@@ -15,8 +15,10 @@ import { Orders } from './sections/Orders';
 import { Storefront } from './sections/Storefront';
 import { PlansAdmin } from './sections/PlansAdmin';
 import { SubsAdmin } from './sections/SubsAdmin';
+import { PlatformDashboard } from './sections/PlatformDashboard';
 
 const PLATFORM_NAV: NavItem[] = [
+  { key: 'dashboard', label: 'Dashboard', icon: IconChart },
   { key: 'tenants', label: 'Empresas', icon: IconBuilding },
   { key: 'subs', label: 'Subscrições & Pagamentos', icon: IconCard },
   { key: 'plans', label: 'Planos & Página inicial', icon: IconStar },
@@ -32,9 +34,10 @@ const TENANT_NAV: NavItem[] = [
 ];
 
 function PlatformPanel() {
-  const [section, setSection] = useState('tenants');
+  const [section, setSection] = useState('dashboard');
   return (
     <Shell nav={PLATFORM_NAV} section={section} setSection={setSection} roleLabel="Super Admin" subtitle="Administração">
+      {section === 'dashboard' ? <PlatformDashboard /> : null}
       {section === 'tenants' ? <Tenants /> : null}
       {section === 'subs' ? <SubsAdmin /> : null}
       {section === 'plans' ? <PlansAdmin /> : null}

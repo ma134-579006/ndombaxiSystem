@@ -14,6 +14,9 @@ import type {
   ManagerProduct,
   SubMessage,
   Subscription,
+  PlatformKpis,
+  PlatformSeriesPoint,
+  RecentCompany,
   PlatformLoginInput,
   PublicLanding,
   PublicPlan,
@@ -107,6 +110,14 @@ export const api = {
   publicLanding: () => request<PublicLanding>('GET', '/public/landing', undefined, { auth: false }),
   registerCompany: (input: RegisterCompanyInput) =>
     request<RegisterCompanyResult>('POST', '/onboarding/register', input, { auth: false }),
+
+  // ── Dashboard global da plataforma (Super Admin) ───────────
+  platformDashboard: {
+    kpis: () => request<PlatformKpis>('GET', '/super-admin/dashboard/kpis'),
+    series: (days = 14) => request<PlatformSeriesPoint[]>('GET', `/super-admin/dashboard/series?days=${days}`),
+    recentCompanies: (limit = 8) =>
+      request<RecentCompany[]>('GET', `/super-admin/dashboard/recent-companies?limit=${limit}`),
+  },
 
   // ── Landing — gestão pelo Super Admin ──────────────────────
   landingAdmin: {

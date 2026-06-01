@@ -4,6 +4,18 @@ export interface TokenPair {
   accessToken: string;
   refreshToken: string;
 }
+
+// ── Dashboard global da plataforma (Super Admin) ───────────
+export interface PlatformKpis {
+  companies: { total: number; pending: number; active: number; suspended: number; newToday: number; new7d: number };
+  subscriptions: { total: number; active: number; inReview: number; pendingPayment: number };
+  revenue: { activeMonthlyKz: number; collectedKz: number; pendingKz: number };
+  plans: { tier: string; name: string; companies: number; priceKz: number }[];
+}
+export interface PlatformSeriesPoint { day: string; companies: number; subscriptions: number }
+export interface RecentCompany {
+  id: string; name: string; code: string; status: string; createdAt: string; plan: { name: string } | null;
+}
 export interface PlatformLoginInput {
   email: string;
   password: string;
