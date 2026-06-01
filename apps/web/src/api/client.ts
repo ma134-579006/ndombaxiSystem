@@ -14,6 +14,9 @@ import type {
   AuditEvent,
   CashSessionRow,
   ManagerProduct,
+  OpsAlert,
+  Promotion,
+  PromotionInput,
   PaymentMethodInput,
   PaymentProof,
   StockCountDetail,
@@ -237,6 +240,15 @@ export const api = {
     update: (dto: UpdateSiteSettingsInput) =>
       request<SiteSettings>('PATCH', '/site/settings', dto),
   },
+  // ── Promoções + Alertas (gerente) ──────────────────────────
+  promotions: {
+    list: () => request<Promotion[]>('GET', '/promotions'),
+    create: (dto: PromotionInput) => request<Promotion>('POST', '/promotions', dto),
+    update: (id: string, dto: Partial<PromotionInput>) => request<Promotion>('PATCH', `/promotions/${id}`, dto),
+    remove: (id: string) => request<{ id: string }>('DELETE', `/promotions/${id}`),
+  },
+  alerts: () => request<OpsAlert[]>('GET', '/alerts'),
+
   // ── Auditoria / Caixa / Inventário (gerente) ───────────────
   audit: {
     list: (action?: string, limit = 150) =>

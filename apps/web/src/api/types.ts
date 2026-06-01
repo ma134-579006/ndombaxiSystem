@@ -334,6 +334,44 @@ export interface StockCountDetail {
   items: StockCountItem[];
 }
 export interface WarehouseRow { id: string; code: string; name: string; is_default: boolean }
+
+// ── Promoções & Alertas ────────────────────────────────────
+export type PromoType = 'PERCENT' | 'AMOUNT' | 'BUY_X_PAY_Y' | 'QTY_TIERED';
+export interface Promotion {
+  id: string;
+  name: string;
+  type: PromoType;
+  scope: string;
+  percent: string | null;
+  amount: string | null;
+  buy_qty: number | null;
+  pay_qty: number | null;
+  min_qty: number | null;
+  tier_percent: string | null;
+  priority: number;
+  is_active: boolean;
+}
+export interface PromotionInput {
+  name: string;
+  type: PromoType;
+  scope?: string;
+  percent?: number;
+  amount?: number;
+  buyQty?: number;
+  payQty?: number;
+  minQty?: number;
+  tierPercent?: number;
+  priority?: number;
+  isActive?: boolean;
+  startTime?: string;
+  endTime?: string;
+}
+export interface OpsAlert {
+  level: 'info' | 'warning' | 'danger';
+  category: 'STOCK' | 'CASH' | 'SALES';
+  title: string;
+  detail: string;
+}
 export interface Company {
   id: string;
   code: string;
