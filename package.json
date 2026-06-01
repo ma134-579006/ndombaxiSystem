@@ -9,10 +9,13 @@
   },
   "packageManager": "pnpm@9.15.9",
   "scripts": {
+    "start": "node scripts/start.mjs",
+    "db:cloud": "node scripts/db-cloud.mjs",
     "types:build": "pnpm --filter @nexus/types build",
     "api:dev": "pnpm types:build && pnpm --filter @nexus/api start:dev",
     "api:build": "pnpm types:build && pnpm --filter @nexus/api build",
     "api:test": "pnpm --filter @nexus/api test",
+    "db:push": "pnpm --filter @nexus/api exec prisma db push",
     "db:generate": "pnpm --filter @nexus/api prisma:generate",
     "db:migrate": "pnpm --filter @nexus/api prisma:migrate",
     "db:seed": "pnpm --filter @nexus/api exec prisma db seed",

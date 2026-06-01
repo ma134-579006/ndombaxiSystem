@@ -8,19 +8,33 @@ Plataforma empresarial para Angola — **POS (caixa)**, **ERP**, **e-commerce**,
 
 ## 🚀 Arrancar num clique
 
-**Pré-requisitos** (instalam-se **uma única vez** — não consigo instalá-los por si porque exigem permissões de administrador):
-
-1. **Docker Desktop** → https://www.docker.com/products/docker-desktop/ (corre a base de dados)
-2. **Node.js 20+** → https://nodejs.org/ e depois, num terminal: `npm i -g pnpm`
-
-Depois:
+**Único pré-requisito:** **Node.js 20+** → https://nodejs.org/ e depois, num terminal: `npm i -g pnpm`.
 
 | Sistema | Como arrancar |
 |---|---|
 | **Windows** | Duplo clique em **`INICIAR.bat`** |
-| **Mac / Linux** | `./iniciar.sh` |
+| **Mac / Linux** | `./iniciar.sh` (ou `pnpm start`) |
 
-O script faz **tudo sozinho**: sobe a base de dados (Docker), instala dependências, cria o esquema, semeia os dados iniciais e abre a API + as 3 aplicações web.
+O arranque é **inteligente e automático** — deteta sozinho a base de dados e faz tudo (instalar, criar esquema, semear, abrir a API + as 3 apps web). A base de dados segue esta ordem, **sem perguntar nada**:
+
+1. **BD na nuvem** já configurada (recomendado, 24/7) → usa-a.
+2. **Docker** presente e a correr → sobe o Postgres local sozinho.
+3. **Nada ainda?** → não dá erro técnico: mostra-lhe **o único passo que falta**.
+
+### 🌐 Base de dados online 24/7 — um só passo (`pnpm db:cloud`)
+
+O único passo que **ninguém** pode automatizar por si (exige o seu login) é criar a base de dados grátis e copiar a *connection string*. Depois disso, tudo é automático:
+
+1. **Aiven** (grátis, **não adormece**, 24/7): https://console.aiven.io → *Create service* → **PostgreSQL** → plano **Free** → copie a **Service URI**.
+   *(Alternativa: **Neon** → https://neon.tech → *New Project* → copie a connection string.)*
+2. No terminal, na pasta do projeto:
+   ```bash
+   pnpm db:cloud "postgres://...a-string-que-copiou..."
+   ```
+   Isto valida a string, escreve-a no `.env` (com `sslmode=require`), **testa a ligação** e cria o esquema + dados iniciais — sozinho.
+3. Arranque tudo: **`pnpm start`** (ou duplo-clique no `INICIAR.bat`). A partir daqui está **online 24/7**.
+
+> Prefere **Docker local** em vez da nuvem? Instale o **Docker Desktop** (https://www.docker.com/products/docker-desktop/), abra-o, e corra o arranque — o resto é automático.
 
 ### Endereços (depois de arrancar)
 | Aplicação | URL |
