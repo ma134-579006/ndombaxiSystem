@@ -15,10 +15,14 @@ export const INSS_EMPLOYEE_RATE = 0.03;
 /** Taxa de INSS a cargo da entidade empregadora (custo da empresa). */
 export const INSS_EMPLOYER_RATE = 0.08;
 
-/** Arredondamento a 2 casas (meio-acima), consistente com o motor fiscal. */
-export function round2(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
-}
+/**
+ * Arredondamento a 2 casas (meio-acima) — fonte única de verdade no motor
+ * fiscal (@nexus/agt-xml), robusto em qualquer magnitude. Reexportado aqui
+ * para que o módulo RH partilhe exactamente a mesma política de arredondamento
+ * das facturas (sem divergências de 0,01).
+ */
+export { round2 } from '@nexus/agt-xml';
+import { round2 } from '@nexus/agt-xml';
 
 /**
  * Escalão da tabela IRT (Grupo A) em vigor para Angola.

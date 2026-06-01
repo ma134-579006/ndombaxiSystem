@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { round2 } from '@nexus/agt-xml';
 import { computePayroll } from './payroll-calc';
 
 export interface PayrollRunRow {
@@ -121,16 +122,15 @@ export class PayrollService {
         employerCostTotal += calc.employerCost;
       }
 
-      const r2 = (v: number) => Math.round(v * 100) / 100;
       const updated = await tx.$queryRaw<PayrollRunRow[]>(
         Prisma.sql`UPDATE payroll_runs
                    SET employee_count = ${employees.length},
-                       gross_total = ${r2(grossTotal)},
-                       inss_employee_total = ${r2(inssEmpTotal)},
-                       inss_employer_total = ${r2(inssEmployerTotal)},
-                       irt_total = ${r2(irtTotal)},
-                       net_total = ${r2(netTotal)},
-                       employer_cost_total = ${r2(employerCostTotal)}
+                       gross_total = ${round2(grossTotal)},
+                       inss_employee_total = ${round2(inssEmpTotal)},
+                       inss_employer_total = ${round2(inssEmployerTotal)},
+                       irt_total = ${round2(irtTotal)},
+                       net_total = ${round2(netTotal)},
+                       employer_cost_total = ${round2(employerCostTotal)}
                    WHERE id = ${runId}::uuid RETURNING *`,
       );
       return updated[0];

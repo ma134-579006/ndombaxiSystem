@@ -6,8 +6,18 @@ export interface CartLine {
   quantity: number;
 }
 
+/**
+ * Arredondamento a 2 casas (meio-acima), robusto em qualquer magnitude —
+ * espelha exactamente o motor fiscal do backend (@nexus/agt-xml money.ts) para
+ * que a pré-visualização do carrinho nunca divirja 0,01 do documento emitido.
+ */
 function round2(n: number): number {
-  return Math.round(n * 100) / 100;
+  if (!Number.isFinite(n)) return 0;
+  if (n === 0) return 0;
+  const sign = n < 0 ? -1 : 1;
+  const abs = Math.abs(n);
+  const rounded = Math.round(Number(`${abs}e2`));
+  return (sign * Number(`${rounded}e-2`)) || 0;
 }
 
 /** Líquido da linha (preço unitário é já o valor antes de IVA). */
