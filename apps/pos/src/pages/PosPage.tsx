@@ -25,7 +25,8 @@ import { QueueModal } from '../components/QueueModal';
 import { ShiftModal } from '../components/ShiftModal';
 import { PaymentModal } from '../components/PaymentModal';
 import { IconReceipt } from '../components/Icons';
-import { cartTotals, lineGross, type CartLine } from '../pos/cart';
+import { cartTotals, cartTotalsWithDiscount, lineGross, type CartLine } from '../pos/cart';
+import { bestPromoForLine, type PromoRow } from '../pos/promo';
 import { formatKz, formatNumber } from '../format';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { useKeyboard } from '../keyboard/KeyboardProvider';
@@ -53,6 +54,7 @@ export function PosPage() {
   const sync = useSync();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [promotions, setPromotions] = useState<PromoRow[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [receiptInfo, setReceiptInfo] = useState<ReceiptFiscalInfo | null>(null);
   const [identity, setIdentity] = useState<DocumentIdentity | null>(null);
@@ -99,6 +101,7 @@ export function PosPage() {
       api.receiptInfo().then(setReceiptInfo).catch(() => undefined);
       api.documentIdentity().then(setIdentity).catch(() => undefined);
       api.currentSession().then(setSession).catch(() => undefined);
+      api.listPromotions().then(setPromotions).catch(() => undefined);
     })();
   }, []);
 
@@ -113,7 +116,26 @@ export function PosPage() {
     );
   }, [products, search]);
 
-  const totals = cartTotals(cart);
+  // Promoções: desconto por linha (em tempo real, espelha o backend).
+  const promoByProduct = useMemo(() => {
+    const out: Record<string, { discount: number; discountRate: number; name: string | null }> = {};
+    for (const l of cart) {
+      const unitGross = grossUnit(l.product);
+      out[l.product.id] = bestPromoForLine(
+        { productId: l.product.id, categoryId: l.product.category_id, unitGross, quantity: l.quantity },
+        promotions,
+      );
+    }
+    return out;
+  }, [cart, promotions]);
+
+  const discountRateByProduct = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const id in promoByProduct) m[id] = promoByProduct[id].discountRate;
+    return m;
+  }, [promoByProduct]);
+
+  const totals = cartTotalsWithDiscount(cart, discountRateByProduct);
 
   const addToCart = (p: Product) => {
     setEmitError(null);
@@ -179,7 +201,10 @@ export function PosPage() {
         paymentType: pay.paymentType,
         tendered: pay.tendered,
         changeGiven: pay.changeGiven,
-        lines: cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity })),
+        lines: cart.map((l) => {
+          const rate = discountRateByProduct[l.product.id] ?? 0;
+          return { productCode: l.product.code, quantity: l.quantity, ...(rate > 0 ? { discountRate: rate } : {}) };
+        }),
       });
       setShowPayment(false);
       setEmitted({ invoice, customerName: customer?.name ?? null });
@@ -332,8 +357,23 @@ export function PosPage() {
                           <IconPlus size={18} />
                         </button>
                       </div>
-                      <span className="cl-total">{formatKz(lineGross(l))}</span>
+                      {(() => {
+                        const promo = promoByProduct[l.product.id];
+                        const gross = lineGross(l);
+                        if (promo && promo.discount > 0) {
+                          return (
+                            <span className="cl-total" style={{ textAlign: 'right' }}>
+                              <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontWeight: 600, fontSize: 12, display: 'block' }}>{formatKz(gross)}</span>
+                              <span style={{ color: 'var(--success)' }}>{formatKz(gross - promo.discount)}</span>
+                            </span>
+                          );
+                        }
+                        return <span className="cl-total">{formatKz(gross)}</span>;
+                      })()}
                     </div>
+                    {promoByProduct[l.product.id]?.name ? (
+                      <div className="cl-promo">🏷️ {promoByProduct[l.product.id].name}</div>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -355,6 +395,12 @@ export function PosPage() {
                   <span>IVA</span>
                   <span>{formatKz(totals.iva)}</span>
                 </div>
+                {totals.discount > 0 ? (
+                  <div className="t-row" style={{ color: 'var(--success)' }}>
+                    <span>🏷️ Desconto promoções</span>
+                    <span>−{formatKz(totals.discount)}</span>
+                  </div>
+                ) : null}
                 <div className="t-row grand">
                   <span>Total</span>
                   <span>{formatKz(totals.gross)}</span>

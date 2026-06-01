@@ -338,3 +338,5 @@ input { font-family: inherit; }
 .quick-cash .qc:hover { border-color: var(--primary); }
 .change-box { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--success); background: var(--surface); font-size: 16px; }
 .change-box strong { font-size: 22px; font-weight: 900; }
+
+.cl-promo { font-size: 11px; color: var(--success); font-weight: 700; margin-top: 4px; }

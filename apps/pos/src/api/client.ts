@@ -1,4 +1,5 @@
 import { API_URL } from '../config';
+import type { PromoRow } from '../pos/promo';
 import type {
   CashSession,
   Customer,
@@ -102,6 +103,7 @@ export const api = {
     request<void>('POST', '/auth/logout', { refreshToken }, { auth: false }),
 
   listProducts: () => request<Product[]>('GET', '/pos/products'),
+  listPromotions: () => request<PromoRow[]>('GET', '/promotions'),
   listCustomers: () => request<Customer[]>('GET', '/pos/customers'),
   createCustomer: (input: { taxId?: string; name: string; phone?: string }) =>
     request<Customer>('POST', '/pos/customers', input),

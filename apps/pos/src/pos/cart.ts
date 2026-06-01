@@ -54,3 +54,23 @@ export function cartTotals(lines: CartLine[]): CartTotals {
   iva = round2(iva);
   return { net, iva, gross: round2(net + iva), count };
 }
+
+/** Totais com desconto por linha (mapa productId → discountRate 0..1). */
+export function cartTotalsWithDiscount(
+  lines: CartLine[],
+  discountRateByProduct: Record<string, number>,
+): CartTotals & { discount: number } {
+  let net = 0, iva = 0, count = 0, grossBefore = 0;
+  for (const l of lines) {
+    const rate = discountRateByProduct[l.product.id] ?? 0;
+    const ln = round2(lineNet(l) * (1 - rate));
+    net += ln;
+    iva += round2((ln * IVA_RATE[l.product.iva_code]) / 100);
+    count += l.quantity;
+    grossBefore += lineGross(l);
+  }
+  net = round2(net);
+  iva = round2(iva);
+  const gross = round2(net + iva);
+  return { net, iva, gross, count, discount: round2(round2(grossBefore) - gross) };
+}
