@@ -9,8 +9,13 @@ import type {
   CreateProductInput,
   CreateProviderInput,
   Gateway,
+  LandingConfig,
   ManagerProduct,
   PlatformLoginInput,
+  PublicLanding,
+  PublicPlan,
+  RegisterCompanyInput,
+  RegisterCompanyResult,
   SiteSettings,
   TenantLoginInput,
   TokenPair,
@@ -94,6 +99,21 @@ export const api = {
   /** Login do gestor da empresa (tenant). */
   loginTenant: (input: TenantLoginInput) =>
     request<TokenPair>('POST', '/auth/login', input, { auth: false }),
+
+  // ── Landing pública (sem auth) ─────────────────────────────
+  publicLanding: () => request<PublicLanding>('GET', '/public/landing', undefined, { auth: false }),
+  registerCompany: (input: RegisterCompanyInput) =>
+    request<RegisterCompanyResult>('POST', '/onboarding/register', input, { auth: false }),
+
+  // ── Landing — gestão pelo Super Admin ──────────────────────
+  landingAdmin: {
+    get: () => request<LandingConfig>('GET', '/super-admin/landing'),
+    update: (dto: Partial<LandingConfig>) =>
+      request<LandingConfig>('PATCH', '/super-admin/landing', dto),
+    listPlans: () => request<PublicPlan[]>('GET', '/super-admin/landing/plans'),
+    updatePlan: (id: string, dto: Partial<PublicPlan>) =>
+      request<PublicPlan>('PATCH', `/super-admin/landing/plans/${id}`, dto),
+  },
   refresh: (refreshToken: string) =>
     request<TokenPair>('POST', '/auth/refresh', { refreshToken }, { auth: false }),
   logout: (refreshToken: string) =>

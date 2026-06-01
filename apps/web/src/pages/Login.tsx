@@ -9,7 +9,7 @@ import { Switch } from '../components/ui';
 
 type Profile = 'tenant' | 'platform';
 
-export function Login() {
+export function Login({ onBack }: { onBack?: () => void }) {
   const { loginTenant, loginPlatform } = useAuth();
   const kbd = useKeyboard();
   const [profile, setProfile] = useState<Profile>('tenant');
@@ -90,6 +90,13 @@ export function Login() {
             {loading ? 'A entrar…' : 'Entrar'}
           </button>
         </div>
+        {onBack ? (
+          <p style={{ textAlign: 'center', marginTop: 14 }}>
+            <a onClick={onBack} style={{ color: 'var(--muted)', fontSize: 13, cursor: 'pointer' }}>
+              ← Voltar à página inicial
+            </a>
+          </p>
+        ) : null}
         <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12 }}>{copyrightLine()}</p>
       </div>
     </div>

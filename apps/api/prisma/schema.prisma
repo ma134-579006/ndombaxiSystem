@@ -32,17 +32,58 @@ model Plan {
   id           String    @id @default(uuid()) @db.Uuid
   tier         PlanTier  @unique
   name         String
-  priceUsd     Int // 0 = negociado
+  priceKz      Int // preço mensal em Kwanzas (AOA). 0 = negociado
   maxStores    Int // -1 = ilimitado
   maxUsers     Int // -1 = ilimitado
   maxProducts  Int // -1 = ilimitado
   maxTxPerMonth Int // -1 = ilimitado
   modules      String[] // ex: ["POS","STOCK","ERP","ECOMMERCE","OPENMANUS"]
+  // Apresentação pública (editável pelo Super Admin):
+  tagline      String? // frase curta do plano (ex.: "Para começar")
+  highlight    Boolean  @default(false) // destaca como "mais popular"
+  sortOrder    Int      @default(0)
+  isPublic     Boolean  @default(true) // aparece na landing pública
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   companies    Company[]
 
   @@map("plans")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
+// LANDING / SITE PÚBLICO — conteúdo da página inicial da plataforma.
+// Singleton lógico editado 100% pelo Super Admin ("deus do sistema"):
+// hero, imagens de fundo, textos, destaques e anúncios/publicidades.
+// ─────────────────────────────────────────────────────────────
+model LandingConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  // Marca
+  brandName       String   @default("Ndombaxi System")
+  // Hero (secção principal)
+  heroTitle       String   @default("O sistema de gestão e vendas para Angola")
+  heroSubtitle    String   @default("POS, stock, facturação AGT, loja online e IA — tudo num só lugar, em Kwanzas.")
+  heroCtaPrimary  String   @default("Criar conta grátis")
+  heroCtaSecondary String  @default("Entrar")
+  // Imagem de fundo do hero (URL ou data-URI). Default = imagem realista incluída.
+  heroImageUrl    String?
+  // Cores da marca
+  primaryColor    String   @default("#2563eb")
+  accentColor     String   @default("#0ea5e9")
+  // Secção de funcionalidades / argumentos (lista JSON [{icon,title,text}])
+  features        Json     @default("[]")
+  // Anúncios / publicidades rotativas (lista JSON [{title,text,imageUrl,ctaLabel,ctaUrl,active}])
+  ads             Json     @default("[]")
+  // Rodapé / contactos
+  footerText      String   @default("© Ndombaxi System — Desenvolvido por Manuel Mbala Tomás Ndombaxi")
+  contactEmail    String?
+  contactPhone    String?
+  // Liga/desliga secções
+  showPricing     Boolean  @default(true)
+  showAds         Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+
+  @@map("landing_config")
   @@schema("nexus_public")
 }
 

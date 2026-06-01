@@ -1,0 +1,171 @@
+/* ============================================================
+   LANDING pública — Ndombaxi System (enterprise, moderna)
+   Fundo realista de comércio angolano + glassmorphism.
+   ============================================================ */
+.lp {
+  --lp-primary: #2563eb;
+  --lp-accent: #0ea5e9;
+  min-height: 100vh;
+  color: #0f1729;
+  background: #0b1221;
+  overflow-x: hidden;
+}
+
+/* ── Barra de topo ──────────────────────────────────────── */
+.lp-nav {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 28px;
+  background: rgba(11, 18, 33, 0.72);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.lp-nav .logo { width: 38px; height: 38px; border-radius: 10px; object-fit: contain; background: #fff1; border: 1px solid #fff2; padding: 3px; }
+.lp-nav .nm { font-weight: 900; font-size: 17px; color: #fff; letter-spacing: .2px; }
+.lp-nav .spacer { flex: 1; }
+.lp-nav button {
+  height: 42px; padding: 0 18px; border-radius: 10px; font-weight: 800; font-size: 14px; cursor: pointer;
+  border: 1px solid transparent; transition: filter .15s, transform .05s;
+}
+.lp-nav button:active { transform: translateY(1px); }
+.lp-nav .ghost { background: transparent; border-color: #ffffff2e; color: #e6ecf5; }
+.lp-nav .ghost:hover { background: #ffffff14; }
+.lp-nav .solid { background: var(--lp-primary); color: #fff; }
+.lp-nav .solid:hover { filter: brightness(1.08); }
+
+/* ── HERO com imagem de fundo realista ──────────────────── */
+.lp-hero {
+  position: relative;
+  min-height: 78vh;
+  display: grid;
+  align-items: center;
+  padding: 64px 28px 80px;
+  background-size: cover;
+  background-position: center;
+  isolation: isolate;
+}
+/* Camadas de gradiente por cima da foto p/ legibilidade */
+.lp-hero::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background:
+    linear-gradient(105deg, rgba(8, 14, 28, 0.92) 0%, rgba(8, 14, 28, 0.72) 42%, rgba(8, 14, 28, 0.28) 100%),
+    radial-gradient(900px 480px at 85% 110%, rgba(14, 165, 233, 0.35), transparent 60%);
+}
+.lp-hero-inner { max-width: 1080px; margin: 0 auto; width: 100%; }
+.lp-hero .badge-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #ffffff1a; border: 1px solid #ffffff2e; color: #cfe0ff;
+  font-size: 13px; font-weight: 700; padding: 7px 14px; border-radius: 999px; margin-bottom: 20px;
+}
+.lp-hero h1 {
+  margin: 0 0 16px; color: #fff; font-weight: 900; letter-spacing: -0.5px;
+  font-size: clamp(32px, 5vw, 56px); line-height: 1.05; max-width: 800px;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.4);
+}
+.lp-hero p.sub {
+  margin: 0 0 30px; color: #cfd8e8; font-size: clamp(16px, 2vw, 20px);
+  max-width: 620px; line-height: 1.5;
+}
+.lp-hero .cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.lp-btn {
+  height: 56px; padding: 0 28px; border-radius: 13px; font-weight: 800; font-size: 16px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 10px; border: 1px solid transparent; transition: filter .15s, transform .05s, box-shadow .2s;
+}
+.lp-btn:active { transform: translateY(1px); }
+.lp-btn.primary { background: linear-gradient(135deg, var(--lp-primary), var(--lp-accent)); color: #fff; box-shadow: 0 14px 36px rgba(37, 99, 235, 0.45); }
+.lp-btn.primary:hover { filter: brightness(1.07); }
+.lp-btn.outline { background: #ffffff10; border-color: #ffffff33; color: #fff; }
+.lp-btn.outline:hover { background: #ffffff1f; }
+
+/* Selos de confiança sob o hero */
+.lp-trust { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 34px; color: #aebcd2; font-size: 13px; font-weight: 600; }
+.lp-trust span { display: inline-flex; align-items: center; gap: 7px; }
+.lp-trust svg { color: #34d399; }
+
+/* ── Secções claras ─────────────────────────────────────── */
+.lp-section { background: #f4f6fb; padding: 76px 28px; }
+.lp-section.alt { background: #fff; }
+.lp-section .wrap { max-width: 1080px; margin: 0 auto; }
+.lp-section h2 { text-align: center; font-size: clamp(26px, 3.4vw, 38px); font-weight: 900; margin: 0 0 8px; color: #0f1729; }
+.lp-section .lead { text-align: center; color: #5a6679; font-size: 17px; margin: 0 auto 44px; max-width: 560px; }
+
+/* Funcionalidades */
+.lp-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.lp-feat {
+  background: #fff; border: 1px solid #e7eaf2; border-radius: 18px; padding: 26px;
+  box-shadow: 0 8px 24px rgba(20, 30, 60, 0.05); transition: transform .15s, box-shadow .2s;
+}
+.lp-feat:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(20, 30, 60, 0.1); }
+.lp-feat .ic {
+  width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--lp-primary), var(--lp-accent)); color: #fff;
+}
+.lp-feat h3 { margin: 0 0 6px; font-size: 18px; font-weight: 800; }
+.lp-feat p { margin: 0; color: #5a6679; font-size: 14px; line-height: 1.55; }
+
+/* ── Planos / preços (Kwanzas) ──────────────────────────── */
+.lp-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 22px; align-items: stretch; }
+.lp-plan {
+  position: relative; background: #fff; border: 1.5px solid #e7eaf2; border-radius: 20px; padding: 30px 26px;
+  display: flex; flex-direction: column; transition: transform .15s, box-shadow .2s, border-color .2s;
+}
+.lp-plan:hover { transform: translateY(-4px); box-shadow: 0 18px 44px rgba(20, 30, 60, 0.1); }
+.lp-plan.highlight { border-color: var(--lp-primary); box-shadow: 0 18px 50px rgba(37, 99, 235, 0.2); }
+.lp-plan .pop {
+  position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--lp-primary), var(--lp-accent)); color: #fff;
+  font-size: 12px; font-weight: 800; padding: 5px 14px; border-radius: 999px; white-space: nowrap;
+}
+.lp-plan .pname { font-size: 20px; font-weight: 900; }
+.lp-plan .ptag { color: #5a6679; font-size: 13px; margin: 2px 0 18px; min-height: 18px; }
+.lp-plan .price { font-size: 34px; font-weight: 900; color: #0f1729; line-height: 1; }
+.lp-plan .price small { font-size: 15px; font-weight: 700; color: #8a96a8; }
+.lp-plan .price.neg { font-size: 24px; }
+.lp-plan ul { list-style: none; padding: 0; margin: 22px 0; display: flex; flex-direction: column; gap: 11px; flex: 1; }
+.lp-plan li { display: flex; align-items: flex-start; gap: 9px; font-size: 14px; color: #2b3648; }
+.lp-plan li svg { color: #16a34a; flex: none; margin-top: 1px; }
+.lp-plan .pick {
+  height: 50px; border-radius: 12px; font-weight: 800; font-size: 15px; cursor: pointer; width: 100%;
+  border: 1px solid var(--lp-primary); background: #fff; color: var(--lp-primary); transition: all .15s;
+}
+.lp-plan .pick:hover { background: var(--lp-primary); color: #fff; }
+.lp-plan.highlight .pick { background: linear-gradient(135deg, var(--lp-primary), var(--lp-accent)); color: #fff; border-color: transparent; }
+.lp-plan.highlight .pick:hover { filter: brightness(1.08); }
+
+/* ── Anúncios / publicidades ────────────────────────────── */
+.lp-ads { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.lp-ad {
+  position: relative; min-height: 180px; border-radius: 18px; overflow: hidden; color: #fff;
+  display: flex; flex-direction: column; justify-content: flex-end; padding: 24px;
+  background: linear-gradient(135deg, #1e293b, #0f172a); background-size: cover; background-position: center;
+}
+.lp-ad::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.72), rgba(0,0,0,.15)); z-index: 0; }
+.lp-ad > * { position: relative; z-index: 1; }
+.lp-ad h4 { margin: 0 0 6px; font-size: 19px; font-weight: 800; }
+.lp-ad p { margin: 0 0 12px; font-size: 14px; opacity: .92; }
+.lp-ad a { align-self: flex-start; background: #fff; color: #0f1729; font-weight: 800; font-size: 13px; padding: 8px 14px; border-radius: 9px; text-decoration: none; }
+
+/* ── Rodapé ─────────────────────────────────────────────── */
+.lp-footer { background: #0b1221; color: #aebcd2; padding: 40px 28px; text-align: center; font-size: 14px; }
+.lp-footer .contacts { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 14px; }
+.lp-footer a { color: #cfe0ff; text-decoration: none; }
+
+/* ── Modais (registo / login chamam o painel existente) ─── */
+.lp-modal-bg { position: fixed; inset: 0; background: rgba(4, 8, 16, 0.7); display: grid; place-items: center; z-index: 100; padding: 20px; overflow:auto; }
+.lp-modal { width: 100%; max-width: 480px; background: #fff; border-radius: 20px; padding: 28px; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+.lp-modal h3 { margin: 0 0 4px; font-size: 22px; font-weight: 900; color: #0f1729; }
+.lp-modal .msub { color: #5a6679; font-size: 14px; margin: 0 0 20px; }
+.lp-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.lp-field label { font-size: 13px; font-weight: 700; color: #2b3648; }
+.lp-field input, .lp-field select {
+  height: 48px; border-radius: 11px; border: 1px solid #d7dce7; padding: 0 14px; font-size: 15px; color: #0f1729; background: #fff; outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.lp-field input:focus, .lp-field select:focus { border-color: var(--lp-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+.lp-modal .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.lp-modal .x { float: right; background: none; border: none; font-size: 22px; cursor: pointer; color: #8a96a8; line-height: 1; }
+.lp-ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 12px; padding: 14px; font-size: 14px; }
+.lp-err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 11px; padding: 11px 14px; font-size: 14px; margin-bottom: 14px; }
+.lp-credlabel { font-size:12px; color:#5a6679; }
+.lp-cred { font-family: ui-monospace, Menlo, monospace; font-weight: 800; font-size: 16px; color:#0f1729; background:#f4f6fb; border:1px dashed #cbd3e1; border-radius:9px; padding:8px 10px; user-select: all; }
+
+@media (max-width: 560px) { .lp-modal .grid2 { grid-template-columns: 1fr; } .lp-hero { min-height: 70vh; } }

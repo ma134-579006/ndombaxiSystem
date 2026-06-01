@@ -21,6 +21,7 @@ import { SiteModule } from './site/site.module';
 import { PaymentsModule } from './payments/payments.module';
 import { FiscalModule } from './fiscal/fiscal.module';
 import { StaffModule } from './staff/staff.module';
+import { LandingModule } from './landing/landing.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
@@ -63,6 +64,7 @@ import { HealthController } from './health.controller';
     PaymentsModule,
     FiscalModule,
     StaffModule,
+    LandingModule,
   ],
   controllers: [HealthController],
   providers: [

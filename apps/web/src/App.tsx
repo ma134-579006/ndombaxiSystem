@@ -4,6 +4,8 @@ import { KeyboardProvider } from './keyboard/KeyboardProvider';
 import { Shell, type NavItem } from './components/Shell';
 import { IconBuilding, IconCard, IconCpu, IconCube, IconReceipt, IconStore, IconTruck } from './components/Icons';
 import { Login } from './pages/Login';
+import { Landing } from './pages/Landing';
+import './landing.css';
 import { Ai } from './sections/Ai';
 import { Fiscal } from './sections/Fiscal';
 import { Gateways } from './sections/Gateways';
@@ -50,6 +52,9 @@ function TenantPanel() {
 
 function Gate() {
   const { status, mode } = useAuth();
+  // Visitantes começam na landing; "Entrar" leva ao login.
+  const [showLogin, setShowLogin] = useState(false);
+
   if (status === 'loading') {
     return (
       <div className="login">
@@ -57,7 +62,9 @@ function Gate() {
       </div>
     );
   }
-  if (status !== 'authed') return <Login />;
+  if (status !== 'authed') {
+    return showLogin ? <Login onBack={() => setShowLogin(false)} /> : <Landing onGoLogin={() => setShowLogin(true)} />;
+  }
   return mode === 'platform' ? <PlatformPanel /> : <TenantPanel />;
 }
 

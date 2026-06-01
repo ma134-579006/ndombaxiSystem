@@ -3,46 +3,63 @@ import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
 
+// Preços mensais em KWANZAS (AOA) — realidade angolana.
 const PLANS = [
   {
     tier: PlanTier.STARTER,
     name: 'Starter',
-    priceUsd: 49,
+    priceKz: 15000,
     maxStores: 1,
     maxUsers: 5,
     maxProducts: 1000,
     maxTxPerMonth: 5000,
     modules: ['POS', 'STOCK'],
+    tagline: 'Para começar o seu negócio',
+    highlight: false,
+    sortOrder: 1,
+    isPublic: true,
   },
   {
     tier: PlanTier.BUSINESS,
     name: 'Business',
-    priceUsd: 149,
+    priceKz: 45000,
     maxStores: 3,
     maxUsers: 20,
     maxProducts: 20000,
     maxTxPerMonth: 50000,
     modules: ['POS', 'STOCK', 'ERP', 'ECOMMERCE'],
+    tagline: 'O mais escolhido pelas lojas',
+    highlight: true,
+    sortOrder: 2,
+    isPublic: true,
   },
   {
     tier: PlanTier.ENTERPRISE,
     name: 'Enterprise',
-    priceUsd: 499,
+    priceKz: 150000,
     maxStores: -1,
     maxUsers: -1,
     maxProducts: -1,
     maxTxPerMonth: -1,
     modules: ['POS', 'STOCK', 'ERP', 'ECOMMERCE', 'OPENMANUS'],
+    tagline: 'Para grandes operações',
+    highlight: false,
+    sortOrder: 3,
+    isPublic: true,
   },
   {
     tier: PlanTier.WHITE_LABEL,
     name: 'White-Label',
-    priceUsd: 0, // negociado
+    priceKz: 0, // negociado
     maxStores: -1,
     maxUsers: -1,
     maxProducts: -1,
     maxTxPerMonth: -1,
     modules: ['POS', 'STOCK', 'ERP', 'ECOMMERCE', 'OPENMANUS', 'WHITE_LABEL'],
+    tagline: 'A sua marca, o nosso motor',
+    highlight: false,
+    sortOrder: 4,
+    isPublic: true,
   },
 ];
 

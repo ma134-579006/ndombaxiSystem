@@ -9,6 +9,67 @@ export interface PlatformLoginInput {
   password: string;
   twoFaToken?: string;
 }
+export type PlanTier = 'STARTER' | 'BUSINESS' | 'ENTERPRISE' | 'WHITE_LABEL';
+
+/** Registo público de empresa (espelha RegisterCompanyDto da API). */
+export interface RegisterCompanyInput {
+  companyCode: string;
+  name: string;
+  nif: string;
+  responsibleName: string;
+  responsibleEmail: string;
+  responsiblePhone?: string;
+  sector?: string;
+  planTier: PlanTier;
+}
+export interface RegisterCompanyResult {
+  companyId: string;
+  companyCode: string;
+  status: string;
+  adminEmail: string;
+  temporaryPassword: string;
+}
+
+/** Plano público (landing) — preço em Kwanzas. */
+export interface PublicPlan {
+  id: string;
+  tier: PlanTier;
+  name: string;
+  priceKz: number;
+  maxStores: number;
+  maxUsers: number;
+  maxProducts: number;
+  maxTxPerMonth: number;
+  modules: string[];
+  tagline: string | null;
+  highlight: boolean;
+  sortOrder: number;
+  isPublic: boolean;
+}
+
+export interface LandingFeature { icon?: string; title: string; text: string }
+export interface LandingAd { title: string; text?: string; imageUrl?: string; ctaLabel?: string; ctaUrl?: string; active?: boolean }
+
+/** Conteúdo da landing pública (editável pelo Super Admin). */
+export interface LandingConfig {
+  brandName: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroCtaPrimary: string;
+  heroCtaSecondary: string;
+  heroImageUrl: string | null;
+  primaryColor: string;
+  accentColor: string;
+  features: LandingFeature[];
+  ads: LandingAd[];
+  footerText: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  showPricing: boolean;
+  showAds: boolean;
+}
+export interface PublicLanding { config: LandingConfig; plans: PublicPlan[] }
+
 export interface TenantLoginInput {
   companyCode: string;
   email: string;
