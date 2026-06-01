@@ -12,6 +12,7 @@ import { Gateways } from './sections/Gateways';
 import { Tenants } from './sections/Tenants';
 import { Products } from './sections/Products';
 import { Orders } from './sections/Orders';
+import { Payments } from './sections/Payments';
 import { Storefront } from './sections/Storefront';
 import { PlansAdmin } from './sections/PlansAdmin';
 import { SubsAdmin } from './sections/SubsAdmin';
@@ -30,6 +31,7 @@ const PLATFORM_NAV: NavItem[] = [
 const TENANT_NAV: NavItem[] = [
   { key: 'products', label: 'Produtos', icon: IconCube },
   { key: 'orders', label: 'Encomendas', icon: IconTruck },
+  { key: 'payments', label: 'Pagamentos', icon: IconCard },
   { key: 'store', label: 'Loja & Marca', icon: IconStore },
 ];
 
@@ -54,6 +56,7 @@ function TenantPanel() {
     <Shell nav={TENANT_NAV} section={section} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
       {section === 'products' ? <Products /> : null}
       {section === 'orders' ? <Orders /> : null}
+      {section === 'payments' ? <Payments /> : null}
       {section === 'store' ? <Storefront /> : null}
     </Shell>
   );

@@ -12,6 +12,9 @@ import type {
   Gateway,
   LandingConfig,
   ManagerProduct,
+  PaymentMethodInput,
+  PaymentProof,
+  StorePaymentMethod,
   SubMessage,
   Subscription,
   PlatformKpis,
@@ -228,5 +231,18 @@ export const api = {
     get: () => request<SiteSettings>('GET', '/site/settings'),
     update: (dto: UpdateSiteSettingsInput) =>
       request<SiteSettings>('PATCH', '/site/settings', dto),
+  },
+  // ── Pagamentos da loja (gerente) ───────────────────────────
+  payments: {
+    listMethods: () => request<StorePaymentMethod[]>('GET', '/payments/methods'),
+    createMethod: (dto: PaymentMethodInput) =>
+      request<StorePaymentMethod>('POST', '/payments/methods', dto),
+    updateMethod: (id: string, dto: PaymentMethodInput) =>
+      request<StorePaymentMethod>('PATCH', `/payments/methods/${id}`, dto),
+    deleteMethod: (id: string) => request<{ id: string }>('DELETE', `/payments/methods/${id}`),
+    listProofs: (status?: string) =>
+      request<PaymentProof[]>('GET', `/payments/proofs${status ? `?status=${status}` : ''}`),
+    reviewProof: (id: string, status: 'APPROVED' | 'REJECTED', note?: string) =>
+      request<PaymentProof>('POST', `/payments/proofs/${id}/review`, { status, note }),
   },
 };

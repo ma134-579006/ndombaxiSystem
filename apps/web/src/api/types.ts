@@ -231,6 +231,50 @@ export interface UpdateSiteSettingsInput {
   isPublished?: boolean;
 }
 
+/** Métodos de pagamento da loja (configurados pelo gerente). */
+export type PaymentMethodType = 'BANK_TRANSFER' | 'REFERENCE' | 'MULTICAIXA_EXPRESS' | 'CASH';
+export interface StorePaymentMethod {
+  id: string;
+  type: PaymentMethodType;
+  label: string;
+  instructions: string | null;
+  bank_name: string | null;
+  iban: string | null;
+  account_holder: string | null;
+  reference_entity: string | null;
+  reference_number: string | null;
+  express_phone: string | null;
+  is_active: boolean;
+  sort_order: number;
+}
+export interface PaymentMethodInput {
+  type: PaymentMethodType;
+  label?: string;
+  instructions?: string;
+  bankName?: string;
+  iban?: string;
+  accountHolder?: string;
+  referenceEntity?: string;
+  referenceNumber?: string;
+  expressPhone?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+/** Comprovativo de pagamento enviado por um cliente da loja. */
+export interface PaymentProof {
+  id: string;
+  order_id: string;
+  method_type: string;
+  amount: string | null;
+  reference: string | null;
+  file_name: string | null;
+  file_mime: string | null;
+  file_url: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  note: string | null;
+  uploaded_at: string;
+}
+
 // ── Empresas (tenants) ───────────────────────────────────────
 export type CompanyStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';
 export interface Plan {
