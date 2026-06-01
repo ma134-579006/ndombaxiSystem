@@ -11,10 +11,15 @@ import type {
   CreateProviderInput,
   Gateway,
   LandingConfig,
+  AuditEvent,
+  CashSessionRow,
   ManagerProduct,
   PaymentMethodInput,
   PaymentProof,
+  StockCountDetail,
+  StockCountRow,
   StorePaymentMethod,
+  WarehouseRow,
   SubMessage,
   Subscription,
   PlatformKpis,
@@ -232,6 +237,28 @@ export const api = {
     update: (dto: UpdateSiteSettingsInput) =>
       request<SiteSettings>('PATCH', '/site/settings', dto),
   },
+  // ── Auditoria / Caixa / Inventário (gerente) ───────────────
+  audit: {
+    list: (action?: string, limit = 150) =>
+      request<AuditEvent[]>('GET', `/audit?${action ? `action=${action}&` : ''}limit=${limit}`),
+    verify: () => request<{ valid: boolean; brokenAtSeq: number | null }>('GET', '/audit/verify'),
+  },
+  cashbox: {
+    sessions: () => request<CashSessionRow[]>('GET', '/cashbox/sessions'),
+  },
+  inventory: {
+    warehouses: () => request<WarehouseRow[]>('GET', '/erp/warehouses'),
+    listCounts: () => request<StockCountRow[]>('GET', '/inventory/counts'),
+    createCount: (warehouseId: string, notes?: string) =>
+      request<{ id: string; reference: string }>('POST', '/inventory/counts', { warehouseId, notes }),
+    getCount: (id: string) => request<StockCountDetail>('GET', `/inventory/counts/${id}`),
+    countItem: (id: string, productId: string, countedQty: number) =>
+      request<void>('POST', `/inventory/counts/${id}/item`, { productId, countedQty }),
+    closeCount: (id: string) => request<{ adjusted: number }>('POST', `/inventory/counts/${id}/close`),
+    writeOff: (productId: string, warehouseId: string, quantity: number, reason: string) =>
+      request<{ balanceAfter: number }>('POST', '/inventory/write-off', { productId, warehouseId, quantity, reason }),
+  },
+
   // ── Pagamentos da loja (gerente) ───────────────────────────
   payments: {
     listMethods: () => request<StorePaymentMethod[]>('GET', '/payments/methods'),

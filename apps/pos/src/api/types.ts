@@ -55,10 +55,15 @@ export interface EmitInvoiceLine {
   discountRate?: number;
 }
 
+export type PaymentType = 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS';
+
 export interface EmitInvoiceInput {
   docType?: string; // default FT
   series?: string; // default A
   customerId?: string;
+  paymentType?: PaymentType;
+  tendered?: number;
+  changeGiven?: number;
   lines: EmitInvoiceLine[];
 }
 
@@ -70,6 +75,34 @@ export interface EmittedInvoice {
   netTotal: number;
   ivaTotal: number;
   grossTotal: number;
+}
+
+/** Turno de caixa aberto. */
+export interface CashSession {
+  id: string;
+  register_code: string | null;
+  opened_by_name: string | null;
+  opened_at: string;
+  opening_float: string;
+  status: string;
+}
+/** Resumo do fecho de turno (para o recibo de fecho). */
+export interface ShiftClose {
+  sessionId: string;
+  openedByName: string | null;
+  openedAt: string;
+  closedAt: string;
+  openingFloat: number;
+  salesTotal: number;
+  cashSales: number;
+  cashIn: number;
+  cashOut: number;
+  expected: number;
+  counted: number;
+  difference: number;
+  verdict: 'OK' | 'QUEBRA' | 'SOBRA';
+  salesCount: number;
+  products: { productCode: string; description: string; quantity: number; grossTotal: number }[];
 }
 
 /** Identidade da empresa (logo + dados) para os documentos. */

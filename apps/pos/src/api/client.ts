@@ -1,11 +1,13 @@
 import { API_URL } from '../config';
 import type {
+  CashSession,
   Customer,
   DocumentIdentity,
   EmitInvoiceInput,
   EmittedInvoice,
   Product,
   ReceiptFiscalInfo,
+  ShiftClose,
   TenantLoginInput,
   TokenPair,
 } from './types';
@@ -105,6 +107,17 @@ export const api = {
     request<Customer>('POST', '/pos/customers', input),
   emitInvoice: (input: EmitInvoiceInput) =>
     request<EmittedInvoice>('POST', '/pos/invoices', input),
+  cancelInvoice: (id: string, reason: string) =>
+    request<{ creditNoteNumber: string; grossTotal: number }>('POST', `/pos/invoices/${id}/cancel`, { reason }),
   receiptInfo: () => request<ReceiptFiscalInfo>('GET', '/fiscal/receipt-info'),
   documentIdentity: () => request<DocumentIdentity>('GET', '/fiscal/document-identity'),
+
+  // ── Turno de caixa ─────────────────────────────────────────
+  currentSession: () => request<CashSession | null>('GET', '/cashbox/session/current'),
+  openSession: (openingFloat: number, registerCode?: string) =>
+    request<{ id: string }>('POST', '/cashbox/session/open', { openingFloat, registerCode }),
+  cashMovement: (type: 'CASH_IN' | 'CASH_OUT', amount: number, reference?: string) =>
+    request<{ id: string }>('POST', '/cashbox/session/movement', { type, amount, reference }),
+  closeSession: (countedCash: number, notes?: string) =>
+    request<ShiftClose>('POST', '/cashbox/session/close', { countedCash, notes }),
 };

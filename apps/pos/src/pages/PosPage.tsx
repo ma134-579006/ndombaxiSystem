@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { Customer, DocumentIdentity, EmittedInvoice, Product, ReceiptFiscalInfo } from '../api/types';
+import type { CashSession, Customer, DocumentIdentity, EmittedInvoice, PaymentType, Product, ReceiptFiscalInfo } from '../api/types';
 import { IVA_RATE } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { LOGO_SRC, SYSTEM_SHORT } from '../brand';
@@ -22,6 +22,9 @@ import {
 } from '../components/Icons';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { QueueModal } from '../components/QueueModal';
+import { ShiftModal } from '../components/ShiftModal';
+import { PaymentModal } from '../components/PaymentModal';
+import { IconReceipt } from '../components/Icons';
 import { cartTotals, lineGross, type CartLine } from '../pos/cart';
 import { formatKz, formatNumber } from '../format';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
@@ -62,6 +65,11 @@ export function PosPage() {
   const [showCustomer, setShowCustomer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
 
+  // Turno de caixa
+  const [session, setSession] = useState<CashSession | null>(null);
+  const [showShift, setShowShift] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+
   const [emitting, setEmitting] = useState(false);
   const [emitError, setEmitError] = useState<string | null>(null);
   const [emitted, setEmitted] = useState<
@@ -90,6 +98,7 @@ export function PosPage() {
       api.listCustomers().then(setCustomers).catch(() => undefined);
       api.receiptInfo().then(setReceiptInfo).catch(() => undefined);
       api.documentIdentity().then(setIdentity).catch(() => undefined);
+      api.currentSession().then(setSession).catch(() => undefined);
     })();
   }, []);
 
@@ -147,30 +156,36 @@ export function PosPage() {
     setEmitted({ invoice: provisionalInvoice, customerName: customer?.name ?? null, provisional: true });
   };
 
+  // "Finalizar venda": offline → fila directa; online → abre o ecrã de pagamento.
   const finalize = async () => {
+    if (cart.length === 0 || emitting) return;
+    if (!sync.online) {
+      setEmitting(true);
+      try { await finalizeOffline(); } finally { setEmitting(false); }
+      return;
+    }
+    setEmitError(null);
+    setShowPayment(true);
+  };
+
+  // Emissão real após escolher o método de pagamento (+ troco).
+  const doEmit = async (pay: { paymentType: PaymentType; tendered?: number; changeGiven?: number }) => {
     if (cart.length === 0 || emitting) return;
     setEmitting(true);
     setEmitError(null);
     try {
-      // Sem internet → vai direto para a fila offline (não tenta a rede).
-      if (!sync.online) {
-        await finalizeOffline();
-        return;
-      }
       const invoice = await api.emitInvoice({
         customerId: customer?.id,
+        paymentType: pay.paymentType,
+        tendered: pay.tendered,
+        changeGiven: pay.changeGiven,
         lines: cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity })),
       });
+      setShowPayment(false);
       setEmitted({ invoice, customerName: customer?.name ?? null });
     } catch (e) {
-      // Falha de rede (status 0) → grava offline em vez de perder a venda.
       if (e instanceof ApiError && e.status === 0) {
-        try {
-          await finalizeOffline();
-          return;
-        } catch {
-          /* cai no erro genérico abaixo */
-        }
+        try { await finalizeOffline(); setShowPayment(false); return; } catch { /* erro genérico */ }
       }
       setEmitError(e instanceof ApiError ? e.message : 'Não foi possível emitir o documento.');
     } finally {
@@ -196,6 +211,14 @@ export function PosPage() {
             </div>
           </div>
           <span className="spacer" />
+          <button
+            className={`conn ${session ? 'on' : 'off'}`}
+            onClick={() => setShowShift(true)}
+            title={session ? 'Turno aberto — clique para fechar' : 'Sem turno — clique para abrir'}
+          >
+            <IconReceipt size={18} />
+            <span className="conn-label">{session ? 'Turno aberto' : 'Abrir turno'}</span>
+          </button>
           <button
             className={`conn ${sync.online ? 'on' : 'off'}`}
             onClick={() => {
@@ -338,17 +361,23 @@ export function PosPage() {
                 </div>
               </div>
 
-              <button
-                className="btn success lg block"
-                onClick={finalize}
-                disabled={cart.length === 0 || emitting}
-              >
-                {emitting
-                  ? 'A emitir…'
-                  : sync.online
-                    ? 'Finalizar venda'
-                    : 'Guardar venda (offline)'}
-              </button>
+              {!session && sync.online ? (
+                <button className="btn lg block" onClick={() => setShowShift(true)}>
+                  <IconReceipt size={18} /> Abrir turno para vender
+                </button>
+              ) : (
+                <button
+                  className="btn success lg block"
+                  onClick={finalize}
+                  disabled={cart.length === 0 || emitting}
+                >
+                  {emitting
+                    ? 'A emitir…'
+                    : sync.online
+                      ? 'Finalizar venda'
+                      : 'Guardar venda (offline)'}
+                </button>
+              )}
             </div>
           </aside>
         </div>
@@ -385,6 +414,24 @@ export function PosPage() {
       ) : null}
 
       {showQueue ? <QueueModal onClose={() => setShowQueue(false)} /> : null}
+
+      {showShift ? (
+        <ShiftModal
+          session={session}
+          onOpened={async () => { setShowShift(false); setSession(await api.currentSession().catch(() => null)); }}
+          onClosed={async () => { setShowShift(false); setSession(null); }}
+          onClose={() => setShowShift(false)}
+        />
+      ) : null}
+
+      {showPayment ? (
+        <PaymentModal
+          total={totals.gross}
+          busy={emitting}
+          onConfirm={doEmit}
+          onClose={() => setShowPayment(false)}
+        />
+      ) : null}
     </div>
   );
 }

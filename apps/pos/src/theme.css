@@ -328,3 +328,13 @@ input { font-family: inherit; }
 .receipt-credit { text-align: center; color: var(--muted); font-size: 11px; padding: 4px 22px 0; }
 .pos-footer { border-top: 1px solid var(--border); background: rgba(19, 28, 46, 0.6); padding: 6px 12px; text-align: center; }
 .pos-footer .footer-credit { margin: 0; font-size: 11px; }
+
+/* ── Pagamento (métodos + troco) ──────────────────────────── */
+.pay-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
+.pay-method { height: 48px; border-radius: 11px; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-weight: 700; font-size: 14px; }
+.pay-method.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.quick-cash { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.quick-cash .qc { padding: 8px 12px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font-weight: 700; font-size: 13px; }
+.quick-cash .qc:hover { border-color: var(--primary); }
+.change-box { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--success); background: var(--surface); font-size: 16px; }
+.change-box strong { font-size: 22px; font-weight: 900; }

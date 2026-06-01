@@ -282,6 +282,58 @@ export interface Plan {
   tier: string;
   name: string;
 }
+
+// ── Caixa / Auditoria / Inventário (gestor) ────────────────
+export interface AuditEvent {
+  seq: number;
+  timestamp: string;
+  actor_name: string | null;
+  action: string;
+  entity: string | null;
+  entity_id: string | null;
+  details: Record<string, unknown> | null;
+}
+export interface CashSessionRow {
+  id: string;
+  register_code: string | null;
+  opened_by_name: string | null;
+  opened_at: string;
+  closed_by_name: string | null;
+  closed_at: string | null;
+  opening_float: string;
+  counted_cash: string | null;
+  expected_cash: string | null;
+  difference: string | null;
+  status: string;
+  total_sales: string;
+  sales_count: number;
+}
+export interface StockCountRow {
+  id: string;
+  reference: string;
+  status: string;
+  created_at: string;
+  closed_at: string | null;
+  warehouse_name: string;
+  items: number;
+}
+export interface StockCountItem {
+  id: string;
+  product_id: string;
+  product_code: string;
+  description: string;
+  system_qty: string;
+  counted_qty: string | null;
+  difference: string | null;
+}
+export interface StockCountDetail {
+  id: string;
+  reference: string;
+  status: string;
+  warehouse_id: string;
+  items: StockCountItem[];
+}
+export interface WarehouseRow { id: string; code: string; name: string; is_default: boolean }
 export interface Company {
   id: string;
   code: string;
