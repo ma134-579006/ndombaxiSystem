@@ -4,6 +4,7 @@ import { computeInvoice, InvoiceLineInput, IvaCode } from '@nexus/agt-xml';
 import { allocateDocumentNumber, formatCounterNumber } from '../common/document-counter';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from './stock.service';
+import { TenantAuditService } from '../cashbox/tenant-audit.service';
 
 export interface CreatePoInput {
   supplierId: string;
@@ -23,7 +24,10 @@ interface ProductRow {
 
 @Injectable()
 export class PurchasingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: TenantAuditService,
+  ) {}
 
   /** Cria uma encomenda de compra em estado DRAFT, com totais (IVA incluído). */
   async create(schema: string, input: CreatePoInput): Promise<{ id: string; number: string }> {
@@ -139,6 +143,16 @@ export class PurchasingService {
         Prisma.sql`UPDATE purchase_orders SET status = 'RECEIVED', updated_at = now()
                    WHERE id = ${poId}::uuid`,
       );
+
+      // Auditoria: entrada de stock (recepção de encomenda de compra).
+      await this.audit.recordInTx(tx, {
+        actorId: receivedBy ?? null,
+        action: 'STOCK_IN',
+        entity: 'purchase_order',
+        entityId: poId,
+        details: { number: po.number, linesReceived: received, warehouseId: po.warehouse_id },
+      });
+
       return { received };
     });
   }

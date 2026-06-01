@@ -494,3 +494,92 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."order_messages" (
 );
 
 CREATE INDEX IF NOT EXISTS order_messages_order_idx ON "{{SCHEMA}}"."order_messages"(order_id, created_at);
+
+-- ════════════════════════════════════════════════════════════
+-- CAIXA (turnos), AUDITORIA do tenant e INVENTÁRIO (enterprise)
+-- ════════════════════════════════════════════════════════════
+
+-- ── Turnos de caixa (abertura/fecho por funcionário) ─────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."cash_sessions" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id        UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
+  register_code   TEXT,                       -- identificação do posto/caixa
+  opened_by       UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  opened_by_name  TEXT,
+  opened_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  opening_float   NUMERIC(14,2) NOT NULL DEFAULT 0,  -- fundo de troco inicial
+  -- fecho:
+  closed_by       UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  closed_by_name  TEXT,
+  closed_at       TIMESTAMPTZ,
+  counted_cash    NUMERIC(14,2),              -- dinheiro físico contado
+  expected_cash   NUMERIC(14,2),              -- esperado = fundo + entradas - saídas
+  difference      NUMERIC(14,2),              -- counted - expected (>0 sobra, <0 quebra)
+  status          TEXT NOT NULL DEFAULT 'OPEN', -- OPEN/CLOSED
+  notes           TEXT,
+  -- totais agregados ao fechar (cache p/ o recibo de fecho):
+  total_sales     NUMERIC(14,2) NOT NULL DEFAULT 0,
+  total_cash_in   NUMERIC(14,2) NOT NULL DEFAULT 0,
+  total_cash_out  NUMERIC(14,2) NOT NULL DEFAULT 0,
+  sales_count     INT NOT NULL DEFAULT 0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS cash_sessions_status_idx ON "{{SCHEMA}}"."cash_sessions"(status);
+CREATE INDEX IF NOT EXISTS cash_sessions_opened_by_idx ON "{{SCHEMA}}"."cash_sessions"(opened_by);
+
+-- ── Movimentos de dinheiro do turno (livro append-only) ──────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."cash_movements" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id    UUID NOT NULL REFERENCES "{{SCHEMA}}"."cash_sessions"(id) ON DELETE CASCADE,
+  type          TEXT NOT NULL,             -- SALE/CASH_IN(reforço)/CASH_OUT(sangria)/REFUND/CHANGE
+  amount        NUMERIC(14,2) NOT NULL,    -- sempre positivo; o type define o sinal
+  payment_type  TEXT,                      -- CASH/CARD/TRANSFER/REFERENCE/EXPRESS
+  tendered      NUMERIC(14,2),             -- dinheiro entregue pelo cliente (venda)
+  change_given  NUMERIC(14,2),             -- troco devolvido
+  reference     TEXT,                      -- ex.: nº da factura
+  reference_id  UUID,                      -- invoice id
+  created_by    UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS cash_movements_session_idx ON "{{SCHEMA}}"."cash_movements"(session_id, created_at);
+
+-- ── Auditoria do tenant (append-only + hash encadeado) ───────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."tenant_audit_log" (
+  seq         BIGSERIAL PRIMARY KEY,
+  timestamp   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  actor_id    UUID,
+  actor_name  TEXT,
+  action      TEXT NOT NULL,             -- ex.: SALE_EMITTED, SALE_CANCELLED, STOCK_IN, STOCK_ADJUST, SHIFT_OPEN, SHIFT_CLOSE
+  entity      TEXT,
+  entity_id   TEXT,
+  details     JSONB,
+  ip          TEXT,
+  prev_hash   TEXT NOT NULL,
+  hash        TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS tenant_audit_action_idx ON "{{SCHEMA}}"."tenant_audit_log"(action);
+CREATE INDEX IF NOT EXISTS tenant_audit_ts_idx ON "{{SCHEMA}}"."tenant_audit_log"(timestamp DESC);
+
+-- ── Contagens de inventário (inventário profissional) ────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stock_counts" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  warehouse_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."warehouses"(id) ON DELETE CASCADE,
+  reference     TEXT,                      -- ex.: "INV/2026/0001"
+  status        TEXT NOT NULL DEFAULT 'DRAFT', -- DRAFT/COUNTING/CLOSED
+  notes         TEXT,
+  created_by    UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  closed_at     TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stock_count_items" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  count_id      UUID NOT NULL REFERENCES "{{SCHEMA}}"."stock_counts"(id) ON DELETE CASCADE,
+  product_id    UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,
+  product_code  TEXT NOT NULL,
+  description   TEXT NOT NULL,
+  system_qty    NUMERIC(14,3) NOT NULL,    -- saldo do sistema no momento
+  counted_qty   NUMERIC(14,3),             -- contagem física
+  difference    NUMERIC(14,3),             -- counted - system
+  CONSTRAINT stock_count_items_unique UNIQUE (count_id, product_id)
+);
+CREATE INDEX IF NOT EXISTS stock_count_items_count_idx ON "{{SCHEMA}}"."stock_count_items"(count_id);

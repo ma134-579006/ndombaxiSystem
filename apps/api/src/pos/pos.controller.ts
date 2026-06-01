@@ -17,7 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { CreateCustomerDto } from './dto/customer.dto';
-import { EmitInvoiceDto } from './dto/emit-invoice.dto';
+import { CancelInvoiceDto, EmitInvoiceDto } from './dto/emit-invoice.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { FiscalSigningService } from './fiscal-signing.service';
 import { InvoiceService } from './invoice.service';
@@ -80,7 +80,21 @@ export class PosController {
       series: dto.series ?? 'A',
       customerId: dto.customerId ?? null,
       cashierId: user.sub,
+      cashierName: user.email,
+      paymentType: dto.paymentType ?? 'CASH',
+      tendered: dto.tendered ?? null,
+      changeGiven: dto.changeGiven ?? null,
       lines: dto.lines,
+    });
+  }
+
+  @Post('invoices/:id/cancel')
+  @Roles(Role.SHIFT_SUPERVISOR)
+  @ApiOperation({ summary: 'Anula uma venda (emite nota de crédito, devolve stock, audita)' })
+  cancelInvoice(@Param('id') id: string, @Body() dto: CancelInvoiceDto, @CurrentUser() user: JwtPayload) {
+    return this.invoices.cancelInvoice(this.ctx.requireTenantSchema(), id, dto.reason, {
+      id: user.sub,
+      name: user.email,
     });
   }
 

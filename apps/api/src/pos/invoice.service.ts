@@ -14,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { FiscalSigningService } from './fiscal-signing.service';
 import { StockService } from '../erp/stock.service';
+import { TenantAuditService } from '../cashbox/tenant-audit.service';
 
 export interface EmitInvoiceInput {
   docType: DocumentType;
@@ -22,6 +23,11 @@ export interface EmitInvoiceInput {
   /** NIF explícito (override); usado quando não há registo de cliente, ex. loja online. */
   customerTaxId?: string | null;
   cashierId?: string | null;
+  cashierName?: string | null;
+  /** Pagamento na caixa (para o turno): tipo + dinheiro entregue + troco. */
+  paymentType?: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS';
+  tendered?: number | null;
+  changeGiven?: number | null;
   lines: { productCode: string; quantity: number; discountRate?: number }[];
 }
 
@@ -49,6 +55,7 @@ export class InvoiceService {
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeService,
     private readonly signing: FiscalSigningService,
+    private readonly audit: TenantAuditService,
   ) {}
 
   /**
@@ -204,6 +211,42 @@ export class InvoiceService {
         }
       }
 
+      // Movimento de caixa: se o caixa tiver um turno aberto, regista a venda
+      // no turno (com tipo de pagamento, dinheiro entregue e troco). Best-effort
+      // dentro da tx — não bloqueia a emissão se não houver turno.
+      if (input.cashierId) {
+        const open = await tx.$queryRaw<{ id: string }[]>(
+          Prisma.sql`SELECT id FROM cash_sessions
+                     WHERE status = 'OPEN' AND opened_by = ${input.cashierId}::uuid
+                     ORDER BY opened_at DESC LIMIT 1`,
+        );
+        if (open[0]) {
+          await tx.$executeRaw(
+            Prisma.sql`INSERT INTO cash_movements
+                (session_id, type, amount, payment_type, tendered, change_given, reference, reference_id, created_by)
+              VALUES (${open[0].id}::uuid, 'SALE', ${totals.grossTotal},
+                      ${input.paymentType ?? 'CASH'}, ${input.tendered ?? null}, ${input.changeGiven ?? null},
+                      ${number}, ${invoiceId}::uuid, ${input.cashierId}::uuid)`,
+          );
+        }
+      }
+
+      // Auditoria do tenant (venda emitida) — na MESMA transacção.
+      await this.audit.recordInTx(tx, {
+        actorId: input.cashierId ?? null,
+        actorName: input.cashierName ?? null,
+        action: 'SALE_EMITTED',
+        entity: 'invoice',
+        entityId: invoiceId,
+        details: {
+          number,
+          grossTotal: totals.grossTotal,
+          ivaTotal: totals.ivaTotal,
+          paymentType: input.paymentType ?? 'CASH',
+          items: lines.length,
+        },
+      });
+
       return {
         id: invoiceId,
         number,
@@ -223,6 +266,114 @@ export class InvoiceService {
       at: new Date().toISOString(),
     });
 
+    return result;
+  }
+
+  /**
+   * Cancela uma venda emitindo uma NOTA DE CRÉDITO (NC) que a estorna: devolve
+   * o stock, regista o estorno no caixa e na auditoria. A factura original NÃO
+   * é apagada (princípio fiscal AGT — nada se apaga, tudo se estorna).
+   */
+  async cancelInvoice(
+    schema: string,
+    invoiceId: string,
+    reason: string,
+    actor: { id?: string | null; name?: string | null },
+  ): Promise<{ creditNoteNumber: string; grossTotal: number }> {
+    const result = await this.prisma.runInTenant(schema, async (tx) => {
+      // 1. Carrega a factura + linhas (bloqueia).
+      const invRows = await tx.$queryRaw<
+        { id: string; number: string; status: string; gross_total: string; net_total: string; iva_total: string; customer_id: string | null; customer_tax_id: string | null }[]
+      >(
+        Prisma.sql`SELECT id, number, status, gross_total, net_total, iva_total, customer_id, customer_tax_id
+                   FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`,
+      );
+      if (!invRows[0]) throw new BadRequestException('Factura não encontrada');
+      const inv = invRows[0];
+      if (inv.status === 'A') throw new BadRequestException('Esta venda já foi anulada.');
+
+      const items = await tx.$queryRaw<
+        { product_id: string | null; product_code: string; description: string; quantity: string }[]
+      >(
+        Prisma.sql`SELECT product_id, product_code, description, quantity
+                   FROM invoice_items WHERE invoice_id = ${invoiceId}::uuid ORDER BY line_number`,
+      );
+
+      // 2. Aloca número de NC na série própria (NC, mesma série/ano).
+      const year = new Date().getFullYear();
+      await tx.$executeRaw(
+        Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
+                   VALUES (${DocumentType.NC}, 'A', ${year}, 0, ${GENESIS_HASH})
+                   ON CONFLICT (doc_type, series, year) DO NOTHING`,
+      );
+      const serie = await tx.$queryRaw<{ last_sequence: number; last_hash: string }[]>(
+        Prisma.sql`SELECT last_sequence, last_hash FROM fiscal_series
+                   WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year} FOR UPDATE`,
+      );
+      const sequence = serie[0].last_sequence + 1;
+      const previousHash = serie[0].last_hash;
+      const ncNumber = formatDocumentNumber({ type: DocumentType.NC, series: 'A', year, sequence });
+      const now = new Date();
+      const docHeader = {
+        invoiceDate: now.toISOString().slice(0, 10),
+        systemEntryDate: now.toISOString(),
+        number: ncNumber,
+        totals: { netTotal: Number(inv.net_total), ivaTotal: Number(inv.iva_total), grossTotal: Number(inv.gross_total), byTaxCode: [] },
+      };
+      const hash = computeDocumentHash(docHeader, previousHash);
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE fiscal_series SET last_sequence = ${sequence}, last_hash = ${hash}
+                   WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year}`,
+      );
+
+      // 3. Marca a factura original como Anulada (status 'A').
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE invoices SET status = 'A' WHERE id = ${invoiceId}::uuid`,
+      );
+
+      // 4. Devolve o stock (movimento IN) ao armazém default.
+      const warehouseId = await StockService.resolveDefaultWarehouse(tx);
+      for (const it of items) {
+        if (!it.product_id) continue;
+        if (warehouseId) {
+          await StockService.applyMovement(tx, {
+            productId: it.product_id, warehouseId, type: 'IN', quantity: Number(it.quantity),
+            reference: `Anulação ${inv.number} (${ncNumber})`, referenceId: invoiceId, createdBy: actor.id ?? null,
+            allowNegative: true,
+          });
+        } else {
+          await tx.$executeRaw(
+            Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${Number(it.quantity)} WHERE id = ${it.product_id}::uuid`,
+          );
+        }
+      }
+
+      // 5. Estorno no caixa (se houver turno aberto do operador).
+      if (actor.id) {
+        const open = await tx.$queryRaw<{ id: string }[]>(
+          Prisma.sql`SELECT id FROM cash_sessions WHERE status = 'OPEN' AND opened_by = ${actor.id}::uuid ORDER BY opened_at DESC LIMIT 1`,
+        );
+        if (open[0]) {
+          await tx.$executeRaw(
+            Prisma.sql`INSERT INTO cash_movements (session_id, type, amount, payment_type, reference, reference_id, created_by)
+              VALUES (${open[0].id}::uuid, 'REFUND', ${Number(inv.gross_total)}, 'CASH', ${ncNumber}, ${invoiceId}::uuid, ${actor.id}::uuid)`,
+          );
+        }
+      }
+
+      // 6. Auditoria.
+      await this.audit.recordInTx(tx, {
+        actorId: actor.id, actorName: actor.name, action: 'SALE_CANCELLED',
+        entity: 'invoice', entityId: invoiceId,
+        details: { originalNumber: inv.number, creditNote: ncNumber, grossTotal: Number(inv.gross_total), reason },
+      });
+
+      return { creditNoteNumber: ncNumber, grossTotal: Number(inv.gross_total) };
+    });
+
+    this.realtime.publish(schema, 'sale.cancelled', {
+      creditNote: result.creditNoteNumber, grossTotal: result.grossTotal, at: new Date().toISOString(),
+    });
     return result;
   }
 }

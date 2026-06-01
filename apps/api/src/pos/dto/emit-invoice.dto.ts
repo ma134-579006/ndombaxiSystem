@@ -3,6 +3,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsEnum,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -46,9 +47,33 @@ export class EmitInvoiceDto {
   @IsString()
   customerId?: string;
 
+  /** Pagamento na caixa (para o turno). */
+  @IsOptional()
+  @IsIn(['CASH', 'CARD', 'TRANSFER', 'REFERENCE', 'EXPRESS'])
+  paymentType?: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS';
+
+  /** Dinheiro entregue pelo cliente (numerário). */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  tendered?: number;
+
+  /** Troco devolvido. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  changeGiven?: number;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => EmitInvoiceLineDto)
   lines!: EmitInvoiceLineDto[];
+}
+
+/** Cancelamento de venda (emite nota de crédito). */
+export class CancelInvoiceDto {
+  @IsString()
+  @Length(1, 200)
+  reason!: string;
 }
