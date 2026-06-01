@@ -583,3 +583,55 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stock_count_items" (
   CONSTRAINT stock_count_items_unique UNIQUE (count_id, product_id)
 );
 CREATE INDEX IF NOT EXISTS stock_count_items_count_idx ON "{{SCHEMA}}"."stock_count_items"(count_id);
+
+-- ════════════════════════════════════════════════════════════
+-- PROMOÇÕES & FIDELIZAÇÃO (retalho enterprise)
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."promotions" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name         TEXT NOT NULL,
+  type         TEXT NOT NULL,             -- PERCENT/AMOUNT/BUY_X_PAY_Y/QTY_TIERED
+  scope        TEXT NOT NULL DEFAULT 'ALL', -- PRODUCT/CATEGORY/ALL
+  target_id    UUID,
+  percent      NUMERIC(5,2),
+  amount       NUMERIC(14,2),
+  buy_qty      INT,
+  pay_qty      INT,
+  min_qty      INT,
+  tier_percent NUMERIC(5,2),
+  priority     INT NOT NULL DEFAULT 0,
+  is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+  starts_at    TIMESTAMPTZ,
+  ends_at      TIMESTAMPTZ,
+  weekdays     INT[],                     -- 0=Dom..6=Sáb
+  start_time   TEXT,                      -- "HH:MM"
+  end_time     TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS promotions_active_idx ON "{{SCHEMA}}"."promotions"(is_active);
+
+-- Cartões de fidelização (ligados opcionalmente a um cliente).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."loyalty_cards" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_code    TEXT NOT NULL,
+  customer_id  UUID REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE SET NULL,
+  holder_name  TEXT,
+  phone        TEXT,
+  points       INT NOT NULL DEFAULT 0,
+  is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT loyalty_cards_code_unique UNIQUE (card_code)
+);
+CREATE INDEX IF NOT EXISTS loyalty_cards_customer_idx ON "{{SCHEMA}}"."loyalty_cards"(customer_id);
+
+-- Livro de pontos (append-only).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."loyalty_movements" (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id    UUID NOT NULL REFERENCES "{{SCHEMA}}"."loyalty_cards"(id) ON DELETE CASCADE,
+  points     INT NOT NULL,                -- +ganho / -resgate
+  reason     TEXT,                        -- "EARN"/"REDEEM"
+  reference  TEXT,                        -- nº da factura
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS loyalty_movements_card_idx ON "{{SCHEMA}}"."loyalty_movements"(card_id);
