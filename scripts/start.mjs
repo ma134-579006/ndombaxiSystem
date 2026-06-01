@@ -158,21 +158,34 @@ async function main() {
   info('A semear dados iniciais (Super Admin + planos)…');
   run('pnpm', ['db:seed'], { inherit: true });
 
+  // Compila a API de forma determinística (build limpo → node dist/main.js).
+  // Importante: o `nest start --watch` tinha uma condição de corrida em
+  // arranques frios (corria `node dist/main` antes do 1.º emit do tsc). O
+  // modo produção é fiável e arranca mais depressa a servir.
+  info('A compilar a API…');
+  const apiBuild = run('pnpm', ['api:build'], { inherit: true });
+  const mainJs = join(ROOT, 'apps', 'api', 'dist', 'main.js');
+  if (apiBuild.code !== 0 || !existsSync(mainJs)) {
+    err('Falha a compilar a API (dist/main.js não foi gerado).');
+    process.exit(1);
+  }
+
   ok('Tudo pronto! A iniciar a API e as aplicações…');
   log('');
 
   // Arranca cada serviço num processo próprio (não bloqueia).
-  const spawnApp = (name, args) => {
-    const p = spawn('pnpm', args, {
-      cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32', detached: false,
+  const spawnApp = (name, cmd, args, opts = {}) => {
+    const p = spawn(cmd, args, {
+      cwd: opts.cwd ?? ROOT, stdio: 'inherit', shell: process.platform === 'win32', detached: false,
     });
     p.on('error', (e) => err(`${name}: ${e.message}`));
     return p;
   };
-  spawnApp('API', ['api:dev']);
-  spawnApp('Caixa', ['--filter', '@nexus/pos', 'dev']);
-  spawnApp('Loja', ['--filter', '@nexus/store', 'dev']);
-  spawnApp('Admin', ['--filter', '@nexus/web', 'dev']);
+  // API em modo produção (determinístico) a partir do dist já compilado.
+  spawnApp('API', 'node', ['dist/main.js'], { cwd: join(ROOT, 'apps', 'api') });
+  spawnApp('Caixa', 'pnpm', ['--filter', '@nexus/pos', 'dev']);
+  spawnApp('Loja', 'pnpm', ['--filter', '@nexus/store', 'dev']);
+  spawnApp('Admin', 'pnpm', ['--filter', '@nexus/web', 'dev']);
 
   log('');
   log(`${c.green}${c.bold}  Endereços (abrem em segundos):${c.reset}`);

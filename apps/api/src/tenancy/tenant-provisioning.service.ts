@@ -29,18 +29,37 @@ export class TenantProvisioningService {
     const template = readFileSync(this.templatePath, 'utf-8');
     const ddl = template.replaceAll('{{SCHEMA}}', schema);
 
-    // Divide em statements e executa em sequência dentro de uma transacção.
-    const statements = ddl
+    // Remove comentários LINHA-A-LINHA *antes* de dividir por ';'. Crítico:
+    // se removêssemos só os statements que começam por '--', um statement
+    // multi-linha precedido de comentário (ex.: a linha de comentário + o
+    // CREATE TABLE seguinte) começava por '--' e era descartado INTEIRO —
+    // foi o que apagava o CREATE SCHEMA e ~metade das tabelas, fazendo o
+    // provisioning falhar com "schema does not exist".
+    const stripped = ddl
+      .split('\n')
+      .map((line) => {
+        const i = line.indexOf('--');
+        return i >= 0 ? line.slice(0, i) : line;
+      })
+      .join('\n');
+
+    const statements = stripped
       .split(';')
       .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith('--'));
+      .filter((s) => s.length > 0);
 
-    await this.prisma.$transaction(async (tx) => {
-      for (const stmt of statements) {
-        await tx.$executeRawUnsafe(stmt);
-      }
-    });
-    this.logger.log(`Tenant schema provisioned: ${schema}`);
+    // Timeout alargado: são ~45 statements DDL e, contra uma BD na nuvem
+    // (ex.: Aiven/Neon), a latência de rede facilmente ultrapassa os 5s por
+    // omissão do Prisma. É uma operação de setup única, por isso 60s é seguro.
+    await this.prisma.$transaction(
+      async (tx) => {
+        for (const stmt of statements) {
+          await tx.$executeRawUnsafe(stmt);
+        }
+      },
+      { timeout: 60_000, maxWait: 10_000 },
+    );
+    this.logger.log(`Tenant schema provisioned: ${schema} (${statements.length} statements)`);
   }
 
   /** Remove completamente o schema do tenant (§2.2 — excluir empresa). */

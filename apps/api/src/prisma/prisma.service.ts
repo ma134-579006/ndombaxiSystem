@@ -41,12 +41,18 @@ export class PrismaService
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
     assertValidSchemaName(schema);
-    return this.$transaction(async (tx) => {
-      // schema já validado contra regex — seguro para interpolação de identifier
-      await tx.$executeRawUnsafe(
-        `SET LOCAL search_path TO "${schema}", nexus_public`,
-      );
-      return fn(tx);
-    });
+    return this.$transaction(
+      async (tx) => {
+        // schema já validado contra regex — seguro para interpolação de identifier
+        await tx.$executeRawUnsafe(
+          `SET LOCAL search_path TO "${schema}", nexus_public`,
+        );
+        return fn(tx);
+      },
+      // Timeout alargado para tolerar a latência de uma BD na nuvem em
+      // operações mais pesadas (SAF-T, processamento salarial). O default do
+      // Prisma (5s) é curto quando a BD não é local.
+      { timeout: 30_000, maxWait: 10_000 },
+    );
   }
 }
