@@ -14,6 +14,12 @@ export interface MovementInput {
   reference?: string | null;
   referenceId?: string | null;
   createdBy?: string | null;
+  /**
+   * Permite que o saldo do armazém fique negativo (sem lançar). Usado pela
+   * emissão fiscal: uma factura legal nunca pode ser bloqueada por falta de
+   * stock — o saldo negativo sinaliza a necessidade de um acerto de inventário.
+   */
+  allowNegative?: boolean;
 }
 
 @Injectable()
@@ -42,7 +48,7 @@ export class StockService {
     );
     const current = Number(rows[0].quantity);
     const balanceAfter = current + m.quantity;
-    if (balanceAfter < 0) {
+    if (balanceAfter < 0 && !m.allowNegative) {
       throw new BadRequestException(
         `Stock insuficiente: saldo ${current}, movimento ${m.quantity}`,
       );
@@ -59,7 +65,33 @@ export class StockService {
                 ${m.unitCost ?? null}, ${balanceAfter}, ${m.reference ?? null},
                 ${m.referenceId ?? null}::uuid, ${m.createdBy ?? null}::uuid)`,
     );
+
+    // Mantém coerente o espelho global products.stock_qty (soma de todos os
+    // armazéns). É a quantidade que o POS/loja online lêem; o detalhe por
+    // armazém vive em stock_items + stock_movements (livro append-only).
+    await tx.$executeRaw(
+      Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${m.quantity}, updated_at = now()
+                 WHERE id = ${m.productId}::uuid`,
+    );
     return balanceAfter;
+  }
+
+  /**
+   * Resolve o armazém destino de uma saída fiscal (venda). Prefere o armazém
+   * por defeito; se não houver default, usa o primeiro armazém activo. Devolve
+   * null quando o tenant ainda não tem armazéns configurados (retrocompat: a
+   * emissão cai no decremento global legado).
+   */
+  static async resolveDefaultWarehouse(
+    tx: Prisma.TransactionClient,
+  ): Promise<string | null> {
+    const rows = await tx.$queryRaw<{ id: string }[]>(
+      Prisma.sql`SELECT id FROM warehouses
+                 WHERE is_active = TRUE
+                 ORDER BY is_default DESC, created_at ASC
+                 LIMIT 1`,
+    );
+    return rows[0]?.id ?? null;
   }
 
   /** Acerto de inventário: fixa o saldo absoluto e regista a diferença como ADJUST. */

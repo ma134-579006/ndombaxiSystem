@@ -7,6 +7,7 @@ dist/
 build/
 .next/
 out/
+*.tsbuildinfo
 
 # Prisma
 **/prisma/generated/
@@ -40,3 +41,9 @@ pdf_text.txt
 # Local database (dev)
 *.sqlite
 *.sqlite3
+
+# Archives (project zip backups)
+*.zip
+
+# Claude scheduler lock
+.claude/scheduled_tasks.lock

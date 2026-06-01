@@ -13,6 +13,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { FiscalSigningService } from './fiscal-signing.service';
+import { StockService } from '../erp/stock.service';
 
 export interface EmitInvoiceInput {
   docType: DocumentType;
@@ -162,6 +163,10 @@ export class InvoiceService {
       );
       const invoiceId = invRows[0].id;
 
+      // Stock: prefere o livro por armazém (stock_items + movimentos). Se o
+      // tenant ainda não tem armazéns, cai no decremento global legado.
+      const warehouseId = await StockService.resolveDefaultWarehouse(tx);
+
       let lineNumber = 0;
       for (const line of lines) {
         lineNumber += 1;
@@ -177,10 +182,26 @@ export class InvoiceService {
                     ${line.ivaAmount}, ${line.grossAmount}, ${line.exemptionReason ?? null},
                     ${line.exemptionCode ?? null})`,
         );
-        await tx.$executeRaw(
-          Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${line.quantity}
-                     WHERE id = ${product.id}::uuid`,
-        );
+        if (warehouseId) {
+          // Saída de stock pela venda. allowNegative: uma factura legal nunca
+          // pode ser bloqueada — saldo negativo fica para acerto de inventário.
+          // applyMovement também actualiza o espelho global products.stock_qty.
+          await StockService.applyMovement(tx, {
+            productId: product.id,
+            warehouseId,
+            type: 'OUT',
+            quantity: -line.quantity,
+            reference: number,
+            referenceId: invoiceId,
+            createdBy: input.cashierId ?? null,
+            allowNegative: true,
+          });
+        } else {
+          await tx.$executeRaw(
+            Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${line.quantity}
+                       WHERE id = ${product.id}::uuid`,
+          );
+        }
       }
 
       return {
