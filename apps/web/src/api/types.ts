@@ -36,6 +36,7 @@ export interface PublicPlan {
   tier: PlanTier;
   name: string;
   priceKz: number;
+  durationMonths: number;
   maxStores: number;
   maxUsers: number;
   maxProducts: number;
@@ -45,6 +46,43 @@ export interface PublicPlan {
   highlight: boolean;
   sortOrder: number;
   isPublic: boolean;
+}
+
+// ── Subscrições & pagamento da plataforma ──────────────────
+export interface BankAccount {
+  id: string;
+  bankName: string;
+  accountHolder: string;
+  iban: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+export type SubStatus = 'PENDING_PAYMENT' | 'IN_REVIEW' | 'ACTIVE' | 'REJECTED' | 'EXPIRED';
+export interface SubMessage {
+  id: string;
+  sender: 'COMPANY' | 'ADMIN';
+  senderName: string | null;
+  body: string;
+  createdAt: string;
+}
+export interface Subscription {
+  id: string;
+  companyId: string;
+  planId: string;
+  method: 'IBAN' | 'REFERENCE';
+  status: SubStatus;
+  amountKz: number;
+  durationMonths: number;
+  bankAccountId: string | null;
+  reference: string | null;
+  startsAt: string | null;
+  expiresAt: string | null;
+  reviewNote: string | null;
+  createdAt: string;
+  plan?: { name: string; tier: string };
+  company?: { name: string; code: string };
+  payments?: { id: string; fileName: string; createdAt: string; amountKz: number | null }[];
+  messages?: SubMessage[];
 }
 
 export interface LandingFeature { icon?: string; title: string; text: string }
@@ -58,6 +96,8 @@ export interface LandingConfig {
   heroCtaPrimary: string;
   heroCtaSecondary: string;
   heroImageUrl: string | null;
+  heroImages: string[];
+  heroIntervalMs: number;
   primaryColor: string;
   accentColor: string;
   features: LandingFeature[];

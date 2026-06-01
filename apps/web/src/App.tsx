@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { KeyboardProvider } from './keyboard/KeyboardProvider';
 import { Shell, type NavItem } from './components/Shell';
-import { IconBuilding, IconCard, IconCpu, IconCube, IconReceipt, IconStore, IconTruck } from './components/Icons';
+import { IconBuilding, IconCard, IconCpu, IconCube, IconReceipt, IconStar, IconStore, IconTruck } from './components/Icons';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
 import './landing.css';
@@ -13,9 +13,13 @@ import { Tenants } from './sections/Tenants';
 import { Products } from './sections/Products';
 import { Orders } from './sections/Orders';
 import { Storefront } from './sections/Storefront';
+import { PlansAdmin } from './sections/PlansAdmin';
+import { SubsAdmin } from './sections/SubsAdmin';
 
 const PLATFORM_NAV: NavItem[] = [
   { key: 'tenants', label: 'Empresas', icon: IconBuilding },
+  { key: 'subs', label: 'Subscrições & Pagamentos', icon: IconCard },
+  { key: 'plans', label: 'Planos & Página inicial', icon: IconStar },
   { key: 'ai', label: 'Inteligência Artificial', icon: IconCpu },
   { key: 'fiscal', label: 'Fiscal (AGT)', icon: IconReceipt },
   { key: 'gateways', label: 'Gateways de Pagamento', icon: IconCard },
@@ -32,6 +36,8 @@ function PlatformPanel() {
   return (
     <Shell nav={PLATFORM_NAV} section={section} setSection={setSection} roleLabel="Super Admin" subtitle="Administração">
       {section === 'tenants' ? <Tenants /> : null}
+      {section === 'subs' ? <SubsAdmin /> : null}
+      {section === 'plans' ? <PlansAdmin /> : null}
       {section === 'ai' ? <Ai /> : null}
       {section === 'fiscal' ? <Fiscal /> : null}
       {section === 'gateways' ? <Gateways /> : null}

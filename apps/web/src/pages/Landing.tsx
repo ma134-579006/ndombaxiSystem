@@ -45,7 +45,14 @@ export function Landing({ onGoLogin }: Props) {
   const cfg = data?.config;
   const primary = cfg?.primaryColor || '#2563eb';
   const accent = cfg?.accentColor || '#0ea5e9';
-  const heroImg = cfg?.heroImageUrl || DEFAULT_HERO;
+  // Carrossel: heroImages (várias, rodam sozinhas) → heroImageUrl → default.
+  const heroImages =
+    cfg?.heroImages && cfg.heroImages.length > 0
+      ? cfg.heroImages
+      : cfg?.heroImageUrl
+        ? [cfg.heroImageUrl]
+        : [DEFAULT_HERO];
+  const heroInterval = cfg?.heroIntervalMs || 5000;
   const plans = data?.plans ?? [];
   const features = cfg?.features?.length ? cfg.features : [];
   const ads = (cfg?.showAds && cfg?.ads?.filter((a) => a.active !== false)) || [];
@@ -66,8 +73,9 @@ export function Landing({ onGoLogin }: Props) {
         <button className="solid" onClick={() => openRegister('BUSINESS')}>Criar conta</button>
       </nav>
 
-      {/* HERO */}
-      <header className="lp-hero" style={{ backgroundImage: `url('${heroImg}')` }}>
+      {/* HERO com carrossel animado de imagens realistas */}
+      <header className="lp-hero">
+        <HeroCarousel images={heroImages} intervalMs={heroInterval} />
         <div className="lp-hero-inner">
           <span className="badge-pill">🇦🇴 Feito para Angola · Conforme AGT</span>
           <h1>{cfg?.heroTitle ?? 'O sistema de gestão e vendas para Angola'}</h1>
@@ -182,6 +190,34 @@ export function Landing({ onGoLogin }: Props) {
           onLogin={onGoLogin}
           loginTenant={loginTenant}
         />
+      )}
+    </div>
+  );
+}
+
+/** Carrossel de fundo do hero — crossfade automático entre imagens. */
+function HeroCarousel({ images, intervalMs }: { images: string[]; intervalMs: number }) {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (images.length < 2) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % images.length), Math.max(2000, intervalMs));
+    return () => clearInterval(t);
+  }, [images.length, intervalMs]);
+  return (
+    <div className="lp-hero-bg" aria-hidden="true">
+      {images.map((src, i) => (
+        <div
+          key={i}
+          className={`lp-hero-slide${i === idx ? ' on' : ''}`}
+          style={{ backgroundImage: `url('${src}')` }}
+        />
+      ))}
+      {images.length > 1 && (
+        <div className="lp-hero-dots">
+          {images.map((_, i) => (
+            <span key={i} className={i === idx ? 'on' : ''} onClick={() => setIdx(i)} />
+          ))}
+        </div>
       )}
     </div>
   );

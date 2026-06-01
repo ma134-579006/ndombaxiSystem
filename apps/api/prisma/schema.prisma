@@ -32,7 +32,9 @@ model Plan {
   id           String    @id @default(uuid()) @db.Uuid
   tier         PlanTier  @unique
   name         String
-  priceKz      Int // preço mensal em Kwanzas (AOA). 0 = negociado
+  priceKz      Int // preço em Kwanzas (AOA) para o período. 0 = negociado
+  // Duração/ciclo do plano em meses (1=mensal, 3=trimestral, 6=semestral, 12=anual)
+  durationMonths Int    @default(1)
   maxStores    Int // -1 = ilimitado
   maxUsers     Int // -1 = ilimitado
   maxProducts  Int // -1 = ilimitado
@@ -46,6 +48,7 @@ model Plan {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   companies    Company[]
+  subscriptions Subscription[]
 
   @@map("plans")
   @@schema("nexus_public")
@@ -65,8 +68,13 @@ model LandingConfig {
   heroSubtitle    String   @default("POS, stock, facturação AGT, loja online e IA — tudo num só lugar, em Kwanzas.")
   heroCtaPrimary  String   @default("Criar conta grátis")
   heroCtaSecondary String  @default("Entrar")
-  // Imagem de fundo do hero (URL ou data-URI). Default = imagem realista incluída.
+  // Imagem de fundo do hero (compat). Preferir heroImages (carrossel animado).
   heroImageUrl    String?
+  // Carrossel do hero: várias imagens realistas que rodam automaticamente
+  // (publicidade em tempo real). Lista JSON de URLs/data-URIs.
+  heroImages      Json     @default("[]")
+  // Intervalo do carrossel em milissegundos (editável pelo Super Admin).
+  heroIntervalMs  Int      @default(5000)
   // Cores da marca
   primaryColor    String   @default("#2563eb")
   accentColor     String   @default("#0ea5e9")
@@ -84,6 +92,114 @@ model LandingConfig {
   updatedAt       DateTime @updatedAt
 
   @@map("landing_config")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
+// SUBSCRIÇÕES & PAGAMENTO DA PLATAFORMA (controlado pelo Super Admin)
+// ─────────────────────────────────────────────────────────────
+
+/// Contas bancárias da plataforma (IBANs de bancos angolanos) p/ transferência.
+/// Geridas pelo Super Admin. O cliente escolhe uma ao pagar por IBAN.
+model PlatformBankAccount {
+  id          String   @id @default(uuid()) @db.Uuid
+  bankName    String // ex.: "BAI", "BFA", "BIC", "Atlântico", "Standard Bank"
+  accountHolder String // titular da conta
+  iban        String // AO06 ... (24 dígitos)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("platform_bank_accounts")
+  @@schema("nexus_public")
+}
+
+enum SubscriptionStatus {
+  PENDING_PAYMENT // criada, à espera de pagamento/comprovativo
+  IN_REVIEW // comprovativo submetido, aguarda aprovação do Super Admin
+  ACTIVE // paga e activa
+  REJECTED // comprovativo rejeitado
+  EXPIRED // período terminou
+
+  @@schema("nexus_public")
+}
+
+enum SubscriptionMethod {
+  IBAN // transferência bancária — exige comprovativo + aprovação
+  REFERENCE // referência Multicaixa — automático via contrato Express
+
+  @@schema("nexus_public")
+}
+
+/// Subscrição de uma empresa a um plano, com o seu ciclo de pagamento.
+model Subscription {
+  id           String             @id @default(uuid()) @db.Uuid
+  companyId    String             @db.Uuid
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  planId       String             @db.Uuid
+  plan         Plan               @relation(fields: [planId], references: [id])
+  method       SubscriptionMethod
+  status       SubscriptionStatus @default(PENDING_PAYMENT)
+  amountKz     Int // valor devido (cópia do preço do plano no momento)
+  durationMonths Int // período contratado
+  // Conta bancária escolhida (se IBAN) / referência gerada (se REFERENCE)
+  bankAccountId String?           @db.Uuid
+  reference    String?
+  // Período de validade quando activa
+  startsAt     DateTime?
+  expiresAt    DateTime?
+  reviewedByAdminId String?       @db.Uuid
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  payments     SubscriptionPayment[]
+  messages     SubscriptionMessage[]
+
+  @@index([companyId])
+  @@index([status])
+  @@map("subscriptions")
+  @@schema("nexus_public")
+}
+
+/// Comprovativo de pagamento submetido pela empresa (ficheiro base64).
+model SubscriptionPayment {
+  id             String       @id @default(uuid()) @db.Uuid
+  subscriptionId String       @db.Uuid
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  fileName       String
+  fileType       String // image/png, application/pdf, ...
+  fileData       String // base64 (data-URI sem o prefixo)
+  amountKz       Int?
+  note           String?
+  createdAt      DateTime     @default(now())
+
+  @@index([subscriptionId])
+  @@map("subscription_payments")
+  @@schema("nexus_public")
+}
+
+enum SubMessageSender {
+  COMPANY
+  ADMIN
+
+  @@schema("nexus_public")
+}
+
+/// Chat entre a empresa e o Super Admin sobre uma subscrição/pagamento.
+model SubscriptionMessage {
+  id             String          @id @default(uuid()) @db.Uuid
+  subscriptionId String          @db.Uuid
+  subscription   Subscription    @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  sender         SubMessageSender
+  senderName     String?
+  body           String
+  createdAt      DateTime        @default(now())
+
+  @@index([subscriptionId])
+  @@map("subscription_messages")
   @@schema("nexus_public")
 }
 
@@ -120,6 +236,7 @@ model Company {
   approvedByAdminId String?       @db.Uuid
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+  subscriptions     Subscription[]
 
   @@index([status])
   @@map("companies")

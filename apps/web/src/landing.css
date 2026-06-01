@@ -40,10 +40,23 @@
   display: grid;
   align-items: center;
   padding: 64px 28px 80px;
-  background-size: cover;
-  background-position: center;
   isolation: isolate;
+  overflow: hidden;
 }
+/* Carrossel de fundo: slides empilhados com crossfade + leve zoom (Ken Burns) */
+.lp-hero-bg { position: absolute; inset: 0; z-index: -2; }
+.lp-hero-slide {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+  opacity: 0;
+  transition: opacity 1.2s ease-in-out;
+  will-change: opacity;
+}
+.lp-hero-slide.on { opacity: 1; animation: lp-kenburns 8s ease-out forwards; }
+@keyframes lp-kenburns { from { transform: scale(1.12); } to { transform: scale(1.0); } }
+.lp-hero-dots { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 2; }
+.lp-hero-dots span { width: 9px; height: 9px; border-radius: 999px; background: #ffffff66; cursor: pointer; transition: background .2s, width .2s; }
+.lp-hero-dots span.on { background: #fff; width: 26px; }
 /* Camadas de gradiente por cima da foto p/ legibilidade */
 .lp-hero::before {
   content: ''; position: absolute; inset: 0; z-index: -1;

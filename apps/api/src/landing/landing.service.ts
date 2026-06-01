@@ -13,6 +13,14 @@ const DEFAULT_FEATURES = [
   { icon: 'chart', title: 'Relatórios em tempo real', text: 'Vendas, lucros e desempenho — em Kwanzas, ao vivo.' },
 ];
 
+/** Carrossel por defeito: imagens realistas de comércio/retalho (editável). */
+const DEFAULT_HERO_IMAGES = [
+  'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=1920&q=80',
+  'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1920&q=80',
+  'https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=1920&q=80',
+  'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?auto=format&fit=crop&w=1920&q=80',
+];
+
 /**
  * Conteúdo da página inicial pública da plataforma (landing).
  * Singleton lógico gerido 100% pelo Super Admin: hero, imagens, textos,
@@ -27,20 +35,24 @@ export class LandingService {
     const existing = await this.prisma.landingConfig.findFirst();
     if (existing) return existing;
     return this.prisma.landingConfig.create({
-      data: { features: DEFAULT_FEATURES as unknown as Prisma.InputJsonValue },
+      data: {
+        features: DEFAULT_FEATURES as unknown as Prisma.InputJsonValue,
+        heroImages: DEFAULT_HERO_IMAGES as unknown as Prisma.InputJsonValue,
+      },
     });
   }
 
   /** Atualização parcial pelo Super Admin. */
   async update(dto: UpdateLandingDto): Promise<LandingConfig> {
     const current = await this.get();
-    const { features, ads, ...rest } = dto;
+    const { features, ads, heroImages, ...rest } = dto;
     return this.prisma.landingConfig.update({
       where: { id: current.id },
       data: {
         ...rest,
         ...(features !== undefined ? { features: features as unknown as Prisma.InputJsonValue } : {}),
         ...(ads !== undefined ? { ads: ads as unknown as Prisma.InputJsonValue } : {}),
+        ...(heroImages !== undefined ? { heroImages: heroImages as unknown as Prisma.InputJsonValue } : {}),
       },
     });
   }

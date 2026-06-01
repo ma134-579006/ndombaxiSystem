@@ -3,6 +3,7 @@ import type {
   AgtConfig,
   AiProvider,
   AssistantConfig,
+  BankAccount,
   Company,
   CompanyStatus,
   CreateGatewayInput,
@@ -11,6 +12,8 @@ import type {
   Gateway,
   LandingConfig,
   ManagerProduct,
+  SubMessage,
+  Subscription,
   PlatformLoginInput,
   PublicLanding,
   PublicPlan,
@@ -113,6 +116,36 @@ export const api = {
     listPlans: () => request<PublicPlan[]>('GET', '/super-admin/landing/plans'),
     updatePlan: (id: string, dto: Partial<PublicPlan>) =>
       request<PublicPlan>('PATCH', `/super-admin/landing/plans/${id}`, dto),
+  },
+
+  // ── Subscrições — pagamento da plataforma ──────────────────
+  // Contas bancárias (público p/ escolher; admin p/ gerir)
+  banks: () => request<BankAccount[]>('GET', '/subscription/bank-accounts', undefined, { auth: false }),
+  // Lado da EMPRESA (gestor)
+  subscription: {
+    mine: () => request<Subscription[]>('GET', '/subscription/mine'),
+    create: (dto: { planId: string; method: 'IBAN' | 'REFERENCE'; bankAccountId?: string }) =>
+      request<Subscription>('POST', '/subscription', dto),
+    get: (id: string) => request<Subscription>('GET', `/subscription/${id}`),
+    submitProof: (id: string, dto: { fileName: string; fileType: string; fileData: string; amountKz?: number; note?: string }) =>
+      request<Subscription>('POST', `/subscription/${id}/proof`, dto),
+    messages: (id: string) => request<SubMessage[]>('GET', `/subscription/${id}/messages`),
+    send: (id: string, body: string) => request<SubMessage>('POST', `/subscription/${id}/messages`, { body }),
+  },
+  // Lado do SUPER ADMIN
+  subsAdmin: {
+    list: (status?: string) =>
+      request<Subscription[]>('GET', `/super-admin/subscriptions${status ? `?status=${status}` : ''}`),
+    get: (id: string) => request<Subscription>('GET', `/super-admin/subscriptions/${id}`),
+    review: (id: string, decision: 'APPROVE' | 'REJECT', note?: string) =>
+      request<Subscription>('PATCH', `/super-admin/subscriptions/${id}/review`, { decision, note }),
+    send: (id: string, body: string) =>
+      request<SubMessage>('POST', `/super-admin/subscriptions/${id}/messages`, { body }),
+    banksAll: () => request<BankAccount[]>('GET', '/super-admin/subscriptions/banks/all'),
+    createBank: (dto: Omit<BankAccount, 'id'>) =>
+      request<BankAccount>('POST', '/super-admin/subscriptions/banks', dto),
+    updateBank: (id: string, dto: Partial<BankAccount>) =>
+      request<BankAccount>('PATCH', `/super-admin/subscriptions/banks/${id}`, dto),
   },
   refresh: (refreshToken: string) =>
     request<TokenPair>('POST', '/auth/refresh', { refreshToken }, { auth: false }),
