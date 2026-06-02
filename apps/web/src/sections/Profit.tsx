@@ -104,6 +104,7 @@ export function Profit() {
           <KpiCard label="Custo das mercadorias" value={kz(sum.costTotal)} sub={`Base tributável ${kz(sum.salesNet)}`} tone="warning" />
           <KpiCard label="Lucro bruto" value={kz(sum.grossProfit)} sub={`Margem ${sum.marginPct}%`} tone="success" />
           <KpiCard label="Lucro líquido" value={kz(sum.netProfit)} sub={`Despesas ${kz(sum.otherExpenses)}`} tone={sum.netProfit >= 0 ? 'success' : 'danger'} />
+          <KpiCard label="Cancelamentos" value={kz(sum.cancelledAmount)} sub={`${sum.cancelledCount} venda(s) anulada(s)`} tone="danger" />
         </div>
       ) : loading ? <div className="card"><div className="loading">A carregar…</div></div> : null}
 

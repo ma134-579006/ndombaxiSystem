@@ -3,13 +3,12 @@ import { api, ApiError } from '../api/client';
 import type {
   DashLowStock,
   DashSalesSeries,
-  DashSalesSummary,
   DashTopProduct,
-  ExpenseSummary,
   OpsAlert,
   ProfitSummary,
   SalesRange,
 } from '../api/types';
+import { AreaChart, type AreaPoint } from '../components/AreaChart';
 import { IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconStar } from '../components/Icons';
 import { formatKz } from '../format';
 
@@ -22,24 +21,29 @@ const RANGES: { key: SalesRange; label: string }[] = [
   { key: '6m', label: '6 meses' },
   { key: '1y', label: '1 ano' },
 ];
+const DAYS: Record<string, number> = { '7d': 7, '1m': 30, '3m': 90, '6m': 180, '1y': 365 };
 
-function todayISO(d = new Date()): string { return d.toISOString().slice(0, 10); }
-function monthStartISO(): string { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10); }
-
-function bucketLabel(iso: string, gran: DashSalesSeries['granularity']): string {
-  const d = new Date(iso);
+function iso(d: Date): string { return d.toISOString().slice(0, 10); }
+function rangeToDates(r: SalesRange): { from: string; to: string } {
+  const today = new Date();
+  if (r === 'today') return { from: iso(today), to: iso(today) };
+  if (r === 'yesterday') { const y = new Date(Date.now() - 86400000); return { from: iso(y), to: iso(y) }; }
+  const d = DAYS[r] ?? 7;
+  return { from: iso(new Date(Date.now() - (d - 1) * 86400000)), to: iso(today) };
+}
+function bucketLabel(isoStr: string, gran: DashSalesSeries['granularity']): string {
+  const d = new Date(isoStr);
   if (gran === 'hour') return `${String(d.getHours()).padStart(2, '0')}h`;
   if (gran === 'month') return d.toLocaleDateString('pt-PT', { month: 'short' });
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-/** Visão geral do gestor: cockpit em tempo real (vendas, lucro, despesas,
- *  gráfico por intervalo, top produtos, stock baixo e alertas). */
+/** Visão geral do gestor: cockpit em tempo real, guiado por intervalo
+ *  (hoje, ontem, 7d, 1m, 3m, 6m, 1 ano) — vendas, cancelamentos, lucro e gastos,
+ *  gráfico moderno, top produtos, stock baixo e alertas. */
 export function Overview() {
   const [range, setRange] = useState<SalesRange>('7d');
-  const [today, setToday] = useState<DashSalesSummary | null>(null);
-  const [profit, setProfit] = useState<ProfitSummary | null>(null);
-  const [expMonth, setExpMonth] = useState<ExpenseSummary | null>(null);
+  const [sum, setSum] = useState<ProfitSummary | null>(null);
   const [series, setSeries] = useState<DashSalesSeries | null>(null);
   const [top, setTop] = useState<DashTopProduct[]>([]);
   const [low, setLow] = useState<DashLowStock[]>([]);
@@ -51,19 +55,16 @@ export function Overview() {
 
   const load = useCallback(async () => {
     setError(null);
-    const t = todayISO();
+    const { from, to } = rangeToDates(range);
     try {
-      const [sToday, sProfit, sExp, sSeries, sTop, sLow, sAlerts] = await Promise.all([
-        api.dashboard.salesToday(),
-        api.profit.summary(t, t),
-        api.expenses.summary(monthStartISO(), t),
+      const [s, ser, t, l, a] = await Promise.all([
+        api.profit.summary(from, to),
         api.dashboard.series(range),
         api.dashboard.topProducts(8),
         api.dashboard.lowStock(),
         api.alerts(),
       ]);
-      setToday(sToday); setProfit(sProfit); setExpMonth(sExp);
-      setSeries(sSeries); setTop(sTop); setLow(sLow); setAlerts(sAlerts);
+      setSum(s); setSeries(ser); setTop(t); setLow(l); setAlerts(a);
       setUpdatedAt(new Date());
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar a visão geral.');
@@ -76,8 +77,13 @@ export function Overview() {
     return () => { if (timer.current) window.clearInterval(timer.current); };
   }, [load]);
 
-  const points = series?.points ?? [];
-  const maxBar = Math.max(1, ...points.map((p) => p.grossTotal));
+  const chartPoints: AreaPoint[] = (series?.points ?? []).map((p) => ({
+    label: bucketLabel(p.bucket, series!.granularity),
+    value: p.grossTotal,
+    sub: p.cancelledTotal,
+  }));
+  const hasCancel = (series?.points ?? []).some((p) => p.cancelledTotal > 0);
+  const rangeLabel = RANGES.find((r) => r.key === range)?.label ?? '';
 
   return (
     <div className="profit-page">
@@ -90,48 +96,42 @@ export function Overview() {
         <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
       </div>
 
-      {error ? <div className="banner danger">{error}</div> : null}
-
-      {/* KPIs principais */}
-      <div className="kpi-grid">
-        <KpiCard tone="primary" icon={<IconCard size={20} />} label="Vendas hoje"
-          value={formatKz(today?.grossTotal ?? 0)} sub={`${today?.invoiceCount ?? 0} venda(s)`} />
-        <KpiCard tone="success" icon={<IconChart size={20} />} label="Lucro bruto hoje"
-          value={formatKz(profit?.grossProfit ?? 0)} sub={`Margem ${profit?.marginPct ?? 0}%`} />
-        <KpiCard tone="danger" icon={<IconReceipt size={20} />} label="Despesas (mês)"
-          value={formatKz(expMonth?.total ?? 0)} sub="desde o início do mês" />
-        <KpiCard tone="violet" icon={<IconStar size={20} />} label="Ticket médio hoje"
-          value={formatKz(today?.averageTicket ?? 0)} sub="por venda" />
+      {/* Selector de intervalo */}
+      <div className="card" style={{ padding: '10px 14px' }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {RANGES.map((r) => (
+            <button key={r.key} className={`chip ${range === r.key ? 'active' : ''}`} onClick={() => setRange(r.key)}>{r.label}</button>
+          ))}
+        </div>
       </div>
 
-      {/* Gráfico de vendas por intervalo */}
+      {error ? <div className="banner danger">{error}</div> : null}
+
+      {/* KPIs do intervalo */}
+      <div className="kpi-grid">
+        <KpiCard tone="primary" icon={<IconCard size={20} />} label={`Vendas · ${rangeLabel}`}
+          value={formatKz(sum?.salesGross ?? 0)} sub={`${sum?.salesCount ?? 0} venda(s) · média ${formatKz(sum?.ticketAvg ?? 0)}`} />
+        <KpiCard tone="danger" icon={<IconReceipt size={20} />} label="Cancelamentos"
+          value={formatKz(sum?.cancelledAmount ?? 0)} sub={`${sum?.cancelledCount ?? 0} venda(s) anulada(s)`} />
+        <KpiCard tone="success" icon={<IconChart size={20} />} label="Lucro líquido"
+          value={formatKz(sum?.netProfit ?? 0)} sub={`Bruto ${formatKz(sum?.grossProfit ?? 0)} · margem ${sum?.marginPct ?? 0}%`} />
+        <KpiCard tone="warning" icon={<IconStar size={20} />} label="Gastos / Despesas"
+          value={formatKz(sum?.otherExpenses ?? 0)} sub="saídas registadas no período" />
+      </div>
+
+      {/* Gráfico de vendas (+ anulados) */}
       <div className="card">
-        <div className="row" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          <h3 style={{ margin: 0 }}>Vendas</h3>
+        <div className="row" style={{ alignItems: 'center' }}>
+          <h3 style={{ margin: 0 }}>Evolução de vendas</h3>
           <span className="spacer" />
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {RANGES.map((r) => (
-              <button key={r.key} className={`chip ${range === r.key ? 'active' : ''}`} onClick={() => setRange(r.key)}>{r.label}</button>
-            ))}
+          <div className="legend-row" style={{ margin: 0 }}>
+            <span><span className="dot" style={{ background: 'var(--primary)' }} /> Vendas</span>
+            {hasCancel ? <span><span className="dot" style={{ background: 'var(--danger)' }} /> Anulado</span> : null}
           </div>
         </div>
-        <div className="muted" style={{ fontSize: 13, margin: '6px 0 4px' }}>
-          Total do período: <strong style={{ color: 'var(--text)' }}>{formatKz(series?.summary.grossTotal ?? 0)}</strong>
-          {' · '}{series?.summary.invoiceCount ?? 0} venda(s)
-        </div>
-        {loading && !series ? <div className="loading">A carregar…</div>
-          : points.length === 0 ? <p className="muted">Sem vendas neste período.</p> : (
-            <div className="bar-chart">
-              {points.map((p) => (
-                <div className="bar-col" key={p.bucket} title={`${bucketLabel(p.bucket, series!.granularity)}\n${formatKz(p.grossTotal)}\n${p.invoiceCount} venda(s)`}>
-                  <div className="bar-stack" style={{ height: `${(p.grossTotal / maxBar) * 100}%` }}>
-                    <div className="bar-seg comp" style={{ height: '100%' }} />
-                  </div>
-                  <span className="bar-x">{bucketLabel(p.bucket, series!.granularity)}</span>
-                </div>
-              ))}
-            </div>
-          )}
+        {loading && !series ? <div className="loading">A carregar…</div> : (
+          <AreaChart points={chartPoints} color="var(--primary)" subColor={hasCancel ? 'var(--danger)' : undefined} format={formatKz} />
+        )}
       </div>
 
       {/* Top produtos + Stock baixo */}

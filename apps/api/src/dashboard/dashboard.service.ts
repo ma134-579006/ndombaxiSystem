@@ -44,6 +44,8 @@ export interface SalesSeriesPoint {
   grossTotal: number;
   ivaTotal: number;
   invoiceCount: number;
+  /** Valor (c/ IVA) anulado nesse balde (status 'A'). */
+  cancelledTotal: number;
 }
 
 export interface SalesSeries {
@@ -109,15 +111,16 @@ export class DashboardService {
     const cfg = RANGE_CONFIG[range] ?? RANGE_CONFIG['7d'];
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<
-        { bucket: Date; gross: string; iva: string; net: string; count: number }[]
+        { bucket: Date; gross: string; iva: string; net: string; count: number; cancelled: string }[]
       >(
         Prisma.sql`SELECT date_trunc(${cfg.granularity}, system_entry_date) AS bucket,
-                          COALESCE(SUM(gross_total), 0) AS gross,
-                          COALESCE(SUM(iva_total), 0) AS iva,
-                          COALESCE(SUM(net_total), 0) AS net,
-                          COUNT(*)::int AS count
+                          COALESCE(SUM(gross_total) FILTER (WHERE status = 'N'), 0) AS gross,
+                          COALESCE(SUM(iva_total) FILTER (WHERE status = 'N'), 0) AS iva,
+                          COALESCE(SUM(net_total) FILTER (WHERE status = 'N'), 0) AS net,
+                          COUNT(*) FILTER (WHERE status = 'N')::int AS count,
+                          COALESCE(SUM(gross_total) FILTER (WHERE status = 'A'), 0) AS cancelled
                    FROM invoices
-                   WHERE status = 'N'
+                   WHERE status IN ('N','A')
                      AND system_entry_date >= ${Prisma.raw(cfg.start)}
                      AND system_entry_date < ${Prisma.raw(cfg.end)}
                    GROUP BY bucket
@@ -129,6 +132,7 @@ export class DashboardService {
         grossTotal: Number(r.gross),
         ivaTotal: Number(r.iva),
         invoiceCount: r.count,
+        cancelledTotal: Number(r.cancelled),
       }));
 
       // Totais do período derivam dos baldes (uma só passagem pela BD).

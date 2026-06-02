@@ -598,6 +598,38 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."receivable_payments" (
 );
 CREATE INDEX IF NOT EXISTS receivable_payments_idx ON "{{SCHEMA}}"."receivable_payments"(receivable_id, paid_at);
 
+-- ── Contas a pagar (fornecedores) ────────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."payables" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  supplier_id     UUID REFERENCES "{{SCHEMA}}"."suppliers"(id) ON DELETE SET NULL,
+  supplier_name   TEXT,
+  reference       TEXT,                          -- nº da ordem de compra / factura do fornecedor
+  original_amount NUMERIC(14,2) NOT NULL CHECK (original_amount >= 0),
+  paid_amount     NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (paid_amount >= 0),
+  due_date        DATE,
+  status          TEXT NOT NULL DEFAULT 'OPEN',  -- OPEN | PARTIAL | PAID | CANCELLED
+  notes           TEXT,
+  created_by      UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_by_name TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS payables_status_idx ON "{{SCHEMA}}"."payables"(status);
+CREATE INDEX IF NOT EXISTS payables_sup_idx    ON "{{SCHEMA}}"."payables"(supplier_id);
+CREATE INDEX IF NOT EXISTS payables_due_idx     ON "{{SCHEMA}}"."payables"(due_date);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."payable_payments" (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  payable_id       UUID NOT NULL REFERENCES "{{SCHEMA}}"."payables"(id) ON DELETE CASCADE,
+  amount           NUMERIC(14,2) NOT NULL CHECK (amount > 0),
+  method           TEXT,                          -- CASH/TRANSFER/REFERENCE/CARD/EXPRESS
+  reference_number TEXT,                          -- nosso comprovativo PG/ANO/0001
+  notes            TEXT,
+  paid_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by       UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_by_name  TEXT
+);
+CREATE INDEX IF NOT EXISTS payable_payments_idx ON "{{SCHEMA}}"."payable_payments"(payable_id, paid_at);
+
 -- ── Auditoria do tenant (append-only + hash encadeado) ───────
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."tenant_audit_log" (
   seq         BIGSERIAL PRIMARY KEY,

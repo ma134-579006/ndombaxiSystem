@@ -112,12 +112,12 @@ export function Expenses() {
   return (
     <div className="profit-page">
       <div className="content-head no-print">
-        <h2>Despesas da empresa</h2>
+        <h2>Gastos da empresa</h2>
         <span className="muted" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 12 }}>
           <span className="live-dot" /> Ao vivo{updatedAt ? ` · ${updatedAt.toLocaleTimeString('pt-PT')}` : ''}
         </span>
         <span className="spacer" />
-        <button className="btn" onClick={openCreate}><IconPlus size={18} /> Nova despesa</button>
+        <button className="btn" onClick={openCreate}><IconPlus size={18} /> Novo gasto</button>
       </div>
 
       {/* Filtros */}
@@ -220,7 +220,7 @@ export function Expenses() {
       </div>
 
       {creating ? (
-        <Modal title="Nova despesa" onClose={() => setCreating(false)}>
+        <Modal title="Novo gasto" onClose={() => setCreating(false)}>
           {formError ? <div className="banner danger" style={{ marginBottom: 12 }}>{formError}</div> : null}
           <div className="grid-2">
             <div className="field">
@@ -235,8 +235,8 @@ export function Expenses() {
             </div>
           </div>
           <div className="field">
-            <label>Descrição</label>
-            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="ex.: Renda do mês de Junho" />
+            <label>Motivo / descrição</label>
+            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="ex.: Táxi, renda, energia, material…" />
           </div>
           <div className="grid-2">
             <div className="field">

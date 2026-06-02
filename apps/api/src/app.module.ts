@@ -28,6 +28,8 @@ import { PromotionsModule } from './promotions/promotions.module';
 import { ProfitModule } from './profit/profit.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { ReceivablesModule } from './receivables/receivables.module';
+import { CashflowModule } from './cashflow/cashflow.module';
+import { PayablesModule } from './payables/payables.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
@@ -77,6 +79,8 @@ import { HealthController } from './health.controller';
     ProfitModule,
     ExpensesModule,
     ReceivablesModule,
+    CashflowModule,
+    PayablesModule,
   ],
   controllers: [HealthController],
   providers: [

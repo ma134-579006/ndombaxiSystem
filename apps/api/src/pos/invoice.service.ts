@@ -364,6 +364,18 @@ export class InvoiceService {
         Prisma.sql`UPDATE invoices SET status = 'A' WHERE id = ${invoiceId}::uuid`,
       );
 
+      // 3b. Se era venda a CRÉDITO, anula a conta a receber (a dívida deixa de
+      // existir). Guarda to_regclass p/ tenants antigos sem a tabela.
+      const hasRec = await tx.$queryRaw<{ reg: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('receivables')::text AS reg`,
+      );
+      if (hasRec[0]?.reg) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE receivables SET status = 'CANCELLED'
+                     WHERE invoice_id = ${invoiceId}::uuid AND status NOT IN ('PAID','CANCELLED')`,
+        );
+      }
+
       // 4. Devolve o stock (movimento IN) ao armazém default.
       const warehouseId = await StockService.resolveDefaultWarehouse(tx);
       for (const it of items) {
@@ -510,6 +522,21 @@ export class InvoiceService {
               VALUES (${open[0].id}::uuid, 'REFUND', ${refundGross}, 'CASH', ${ncNumber}, ${invoiceId}::uuid, ${actor.id}::uuid)`,
           );
         }
+      }
+
+      // Se era venda a crédito, reduz a dívida pelo valor devolvido (nunca abaixo
+      // do que já foi pago; liquida se o saldo ficar a zero). Guarda to_regclass.
+      const hasRec = await tx.$queryRaw<{ reg: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('receivables')::text AS reg`,
+      );
+      if (hasRec[0]?.reg) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE receivables
+                     SET original_amount = GREATEST(paid_amount, ROUND(original_amount - ${refundGross}, 2)),
+                         status = CASE WHEN paid_amount >= GREATEST(paid_amount, ROUND(original_amount - ${refundGross}, 2))
+                                       THEN 'PAID' ELSE status END
+                     WHERE invoice_id = ${invoiceId}::uuid AND status NOT IN ('CANCELLED')`,
+        );
       }
 
       await this.audit.recordInTx(tx, {

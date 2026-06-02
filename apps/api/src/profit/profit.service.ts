@@ -15,6 +15,8 @@ export interface ProfitSummary {
   netProfit: number; // lucro líquido = bruto − despesas
   salesCount: number;
   ticketAvg: number; // venda média
+  cancelledCount: number; // nº de vendas anuladas no período
+  cancelledAmount: number; // valor (c/ IVA) anulado no período
 }
 
 export interface ProfitPoint {
@@ -90,6 +92,16 @@ export class ProfitService {
         otherExpenses = Number(exp[0].total);
       }
 
+      // Vendas anuladas no período (status 'A') — mostradas no dashboard/lucros.
+      const canc = await tx.$queryRaw<{ amount: string; n: string }[]>(
+        Prisma.sql`SELECT COALESCE(SUM(gross_total),0) AS amount, COUNT(*)::int AS n
+                   FROM invoices
+                   WHERE status = 'A' AND doc_type IN ('FT','FS')
+                     AND system_entry_date BETWEEN ${f} AND ${t}`,
+      );
+      const cancelledAmount = Number(canc[0].amount);
+      const cancelledCount = Number(canc[0].n);
+
       const grossProfit = round2(salesNet - costTotal);
       const netProfit = round2(grossProfit - otherExpenses);
       const marginPct = salesNet > 0 ? round2((grossProfit / salesNet) * 100) : 0;
@@ -100,6 +112,7 @@ export class ProfitService {
         salesGross: round2(salesGross), salesNet: round2(salesNet), ivaTotal: round2(ivaTotal),
         costTotal: round2(costTotal), grossProfit, marginPct, otherExpenses: round2(otherExpenses),
         netProfit, salesCount, ticketAvg,
+        cancelledCount, cancelledAmount: round2(cancelledAmount),
       };
     });
   }

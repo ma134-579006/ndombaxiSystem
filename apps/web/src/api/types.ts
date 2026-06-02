@@ -381,7 +381,7 @@ export type SalesRange = 'today' | 'yesterday' | '7d' | '1m' | '3m' | '6m' | '1y
 export interface DashSalesSummary {
   invoiceCount: number; netTotal: number; ivaTotal: number; grossTotal: number; averageTicket: number;
 }
-export interface DashSalesPoint { bucket: string; grossTotal: number; ivaTotal: number; invoiceCount: number }
+export interface DashSalesPoint { bucket: string; grossTotal: number; ivaTotal: number; invoiceCount: number; cancelledTotal: number }
 export interface DashSalesSeries {
   range: SalesRange; granularity: 'hour' | 'day' | 'week' | 'month';
   points: DashSalesPoint[]; summary: DashSalesSummary;
@@ -398,6 +398,7 @@ export interface ProfitSummary {
   costTotal: number; grossProfit: number; marginPct: number;
   otherExpenses: number; netProfit: number;
   salesCount: number; ticketAvg: number;
+  cancelledCount: number; cancelledAmount: number;
 }
 export interface ProfitPoint { bucket: string; salesNet: number; cost: number; profit: number }
 export interface ProfitProduct {
@@ -466,6 +467,36 @@ export interface ReceivablePayment {
 export interface ReceivableDetail extends Receivable { payments: ReceivablePayment[] }
 export interface ReceivableSummary { outstanding: number; overdue: number; openCount: number; overdueCount: number }
 export interface CreateReceivableInput { customerId?: string; customerName: string; amount: number; dueDate?: string; notes?: string }
+
+// ── Contas a pagar (fornecedores) ───────────────────────────
+export type PayableStatus = 'OPEN' | 'PARTIAL' | 'PAID' | 'CANCELLED';
+export interface Payable {
+  id: string; supplier_name: string | null; reference: string | null;
+  original_amount: string; paid_amount: string; outstanding: string;
+  due_date: string | null; status: PayableStatus; days_overdue: number; created_at: string;
+}
+export interface PayablePayment {
+  id: string; amount: string; method: string | null; reference_number: string | null;
+  notes: string | null; paid_at: string; created_by_name: string | null;
+}
+export interface PayableDetail extends Payable { payments: PayablePayment[] }
+export interface PayableSummary { outstanding: number; overdue: number; openCount: number; overdueCount: number }
+export interface CreatePayableInput { supplierId?: string; supplierName: string; amount: number; reference?: string; dueDate?: string; notes?: string }
+export interface RecordPayablePaymentInput { amount: number; method?: 'CASH' | 'TRANSFER' | 'REFERENCE' | 'CARD' | 'EXPRESS'; notes?: string }
+export interface PayableVoucher { referenceNumber: string; amount: number; paidAmount: number; outstanding: number; status: PayableStatus }
+
+// ── Fluxo de caixa (gestor) ─────────────────────────────────
+export interface CashflowSummary {
+  from: string; to: string;
+  salesTotal: number; creditCreated: number; immediateSales: number;
+  debtCollected: number; inflows: number; outflows: number; net: number;
+}
+export interface CashflowPoint { day: string; inflow: number; outflow: number; net: number }
+export interface CashflowForecast {
+  basisDays: number; avgDailyInflow: number; avgDailyOutflow: number;
+  projectedInflow30: number; projectedOutflow30: number;
+  receivablesDueSoon: number; projectedNet30: number;
+}
 export interface RecordPaymentInput { amount: number; method?: 'CASH' | 'TRANSFER' | 'REFERENCE' | 'CARD' | 'EXPRESS'; notes?: string }
 export interface PaymentReceipt { receiptNumber: string; amount: number; paidAmount: number; outstanding: number; status: ReceivableStatus }
 export interface Company {

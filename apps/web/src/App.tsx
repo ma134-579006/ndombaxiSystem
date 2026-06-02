@@ -18,8 +18,10 @@ import { Inventory } from './sections/Inventory';
 import { Promotions } from './sections/Promotions';
 import { Overview } from './sections/Overview';
 import { Profit } from './sections/Profit';
+import { Cashflow } from './sections/Cashflow';
 import { Expenses } from './sections/Expenses';
 import { Receivables } from './sections/Receivables';
+import { Payables } from './sections/Payables';
 import { Storefront } from './sections/Storefront';
 import { PlansAdmin } from './sections/PlansAdmin';
 import { SubsAdmin } from './sections/SubsAdmin';
@@ -44,8 +46,10 @@ const TENANT_NAV: NavItem[] = [
   { key: 'payments', label: 'Pagamentos', icon: IconCard },
   { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart },
   { key: 'profit', label: 'Lucros', icon: IconChart },
-  { key: 'expenses', label: 'Despesas', icon: IconReceipt },
+  { key: 'cashflow', label: 'Fluxo de Caixa', icon: IconChart },
+  { key: 'expenses', label: 'Gastos', icon: IconReceipt },
   { key: 'receivables', label: 'Contas a Receber', icon: IconCard },
+  { key: 'payables', label: 'Contas a Pagar', icon: IconTruck },
   { key: 'store', label: 'Loja & Marca', icon: IconStore },
 ];
 
@@ -76,8 +80,10 @@ function TenantPanel() {
       {section === 'payments' ? <Payments /> : null}
       {section === 'operations' ? <Operations /> : null}
       {section === 'profit' ? <Profit /> : null}
+      {section === 'cashflow' ? <Cashflow /> : null}
       {section === 'expenses' ? <Expenses /> : null}
       {section === 'receivables' ? <Receivables /> : null}
+      {section === 'payables' ? <Payables /> : null}
       {section === 'store' ? <Storefront /> : null}
     </Shell>
   );
