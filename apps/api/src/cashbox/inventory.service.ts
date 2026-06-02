@@ -157,6 +157,76 @@ export class InventoryService {
   }
 
   /**
+   * Transferência de stock entre armazéns (atómica): OUT de origem + IN no
+   * destino, com o mesmo nº de guia. Auditada. Não permite saldo negativo na
+   * origem (transferência é movimento real de mercadoria).
+   */
+  async transfer(
+    schema: string,
+    dto: { productId: string; fromWarehouseId: string; toWarehouseId: string; quantity: number },
+    actor: Actor,
+  ): Promise<{ reference: string }> {
+    if (dto.fromWarehouseId === dto.toWarehouseId) {
+      throw new BadRequestException('Origem e destino têm de ser armazéns diferentes.');
+    }
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const year = new Date().getFullYear();
+      const seq = await allocateDocumentNumber(tx, 'TRF', year);
+      const reference = formatCounterNumber('TRF', year, seq);
+      // saída da origem (bloqueia se não houver stock)
+      await StockService.applyMovement(tx, {
+        productId: dto.productId, warehouseId: dto.fromWarehouseId, type: 'TRANSFER',
+        quantity: -Math.abs(dto.quantity), reference: `${reference} (saída)`, createdBy: actor.id ?? null,
+        allowNegative: false,
+      });
+      // entrada no destino
+      await StockService.applyMovement(tx, {
+        productId: dto.productId, warehouseId: dto.toWarehouseId, type: 'TRANSFER',
+        quantity: Math.abs(dto.quantity), reference: `${reference} (entrada)`, createdBy: actor.id ?? null,
+        allowNegative: true,
+      });
+      await this.audit.recordInTx(tx, {
+        actorId: actor.id, actorName: actor.name, action: 'STOCK_TRANSFER',
+        entity: 'product', entityId: dto.productId,
+        details: { reference, from: dto.fromWarehouseId, to: dto.toWarehouseId, quantity: dto.quantity },
+      });
+      return { reference };
+    });
+  }
+
+  /**
+   * Previsão de reposição: para cada produto, calcula a média diária de vendas
+   * dos últimos `days` dias (a partir dos movimentos OUT) e estima os dias de
+   * stock restantes. Sugere reposição quando dias_restantes <= leadDays.
+   */
+  forecast(schema: string, days = 30, leadDays = 7): Promise<unknown[]> {
+    const d = Math.min(Math.max(days, 7), 180);
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(
+        Prisma.sql`
+          WITH sold AS (
+            SELECT product_id, SUM(-quantity) AS qty_sold
+            FROM stock_movements
+            WHERE type = 'OUT' AND created_at >= now() - (${d}::int || ' days')::interval
+            GROUP BY product_id
+          )
+          SELECT p.id, p.code, p.name, p.stock_qty::float AS stock,
+                 COALESCE(s.qty_sold, 0)::float AS sold,
+                 ROUND((COALESCE(s.qty_sold,0) / ${d}::numeric), 3)::float AS avg_per_day,
+                 CASE WHEN COALESCE(s.qty_sold,0) > 0
+                      THEN ROUND(p.stock_qty / (s.qty_sold / ${d}::numeric), 1)::float
+                      ELSE NULL END AS days_left
+          FROM products p
+          LEFT JOIN sold s ON s.product_id = p.id
+          WHERE p.is_active = TRUE AND COALESCE(s.qty_sold,0) > 0
+            AND (p.stock_qty / NULLIF(s.qty_sold / ${d}::numeric, 0)) <= ${leadDays}::numeric
+          ORDER BY days_left ASC NULLS LAST
+          LIMIT 100`,
+      ),
+    );
+  }
+
+  /**
    * Fecha a contagem: aplica os ajustes (ADJUST) ao stock para cada item com
    * diferença, e marca a folha como CLOSED. Tudo auditado.
    */

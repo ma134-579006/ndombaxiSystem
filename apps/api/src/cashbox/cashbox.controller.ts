@@ -143,6 +143,21 @@ export class InventoryController {
   expiring(@Query('days') days?: string) {
     return this.inv.expiring(this.ctx.requireTenantSchema(), days ? Number(days) : 30);
   }
+
+  @Post('transfer')
+  @ApiOperation({ summary: 'Transferência de stock entre armazéns (guia, auditada)' })
+  transfer(
+    @Body() dto: { productId: string; fromWarehouseId: string; toWarehouseId: string; quantity: number },
+    @CurrentUser() u: JwtPayload,
+  ) {
+    return this.inv.transfer(this.ctx.requireTenantSchema(), dto, actor(u));
+  }
+
+  @Get('forecast')
+  @ApiOperation({ summary: 'Previsão de reposição (produtos a esgotar pela velocidade de venda)' })
+  forecast(@Query('days') days?: string, @Query('leadDays') leadDays?: string) {
+    return this.inv.forecast(this.ctx.requireTenantSchema(), days ? Number(days) : 30, leadDays ? Number(leadDays) : 7);
+  }
 }
 
 /** Auditoria do tenant — só o gestor da empresa. */
