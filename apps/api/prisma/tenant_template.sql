@@ -545,6 +545,24 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."cash_movements" (
 );
 CREATE INDEX IF NOT EXISTS cash_movements_session_idx ON "{{SCHEMA}}"."cash_movements"(session_id, created_at);
 
+-- ── Despesas operacionais (renda, salários, energia…) ────────
+-- Base do LUCRO LÍQUIDO real: lucro bruto − despesas operacionais.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."expenses" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category        TEXT NOT NULL,             -- RENDA/SALARIOS/ENERGIA/AGUA/FORNECEDORES/TRANSPORTE/MARKETING/MANUTENCAO/IMPOSTOS/COMUNICACOES/SEGURANCA/OUTROS
+  description     TEXT,
+  amount          NUMERIC(14,2) NOT NULL CHECK (amount >= 0),
+  supplier        TEXT,                      -- fornecedor / beneficiário
+  payment_method  TEXT,                      -- CASH/TRANSFER/REFERENCE/CARD
+  document_ref    TEXT,                      -- nº de factura/recibo do fornecedor
+  expense_date    DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_by      UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_by_name TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS expenses_date_idx ON "{{SCHEMA}}"."expenses"(expense_date);
+CREATE INDEX IF NOT EXISTS expenses_cat_idx  ON "{{SCHEMA}}"."expenses"(category);
+
 -- ── Auditoria do tenant (append-only + hash encadeado) ───────
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."tenant_audit_log" (
   seq         BIGSERIAL PRIMARY KEY,

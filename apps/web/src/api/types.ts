@@ -389,6 +389,46 @@ export interface ProfitProduct {
   productCode: string; description: string; qty: number;
   salesNet: number; cost: number; profit: number; marginPct: number;
 }
+
+// ── Despesas operacionais (gestor) ──────────────────────────
+export type ExpenseCategory =
+  | 'RENDA' | 'SALARIOS' | 'ENERGIA' | 'AGUA' | 'FORNECEDORES' | 'TRANSPORTE'
+  | 'MARKETING' | 'MANUTENCAO' | 'IMPOSTOS' | 'COMUNICACOES' | 'SEGURANCA' | 'OUTROS';
+
+/** Rótulos PT-PT das categorias (e ordem de apresentação). */
+export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  RENDA: 'Renda', SALARIOS: 'Salários', ENERGIA: 'Energia', AGUA: 'Água',
+  FORNECEDORES: 'Fornecedores', TRANSPORTE: 'Transporte', MARKETING: 'Marketing',
+  MANUTENCAO: 'Manutenção', IMPOSTOS: 'Impostos', COMUNICACOES: 'Comunicações',
+  SEGURANCA: 'Segurança', OUTROS: 'Outros',
+};
+export const EXPENSE_CATEGORIES = Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategory[];
+
+export type ExpensePayment = 'CASH' | 'TRANSFER' | 'REFERENCE' | 'CARD';
+
+export interface Expense {
+  id: string;
+  category: ExpenseCategory;
+  description: string | null;
+  amount: string;
+  supplier: string | null;
+  payment_method: ExpensePayment | null;
+  document_ref: string | null;
+  expense_date: string;
+  created_by_name: string | null;
+  created_at: string;
+}
+export interface ExpenseCategoryTotal { category: ExpenseCategory; total: number; count: number }
+export interface ExpenseSummary { from: string; to: string; total: number; byCategory: ExpenseCategoryTotal[] }
+export interface CreateExpenseInput {
+  category: ExpenseCategory;
+  amount: number;
+  description?: string;
+  supplier?: string;
+  paymentMethod?: ExpensePayment;
+  documentRef?: string;
+  expenseDate?: string;
+}
 export interface Company {
   id: string;
   code: string;

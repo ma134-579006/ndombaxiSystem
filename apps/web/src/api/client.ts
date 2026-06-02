@@ -6,9 +6,12 @@ import type {
   BankAccount,
   Company,
   CompanyStatus,
+  CreateExpenseInput,
   CreateGatewayInput,
   CreateProductInput,
   CreateProviderInput,
+  Expense,
+  ExpenseSummary,
   Gateway,
   LandingConfig,
   AuditEvent,
@@ -266,6 +269,14 @@ export const api = {
       request<ProfitPoint[]>('GET', `/profit/series${qs({ from, to })}`),
     byProduct: (from?: string, to?: string) =>
       request<ProfitProduct[]>('GET', `/profit/by-product${qs({ from, to })}`),
+  },
+  expenses: {
+    list: (from?: string, to?: string, category?: string) =>
+      request<Expense[]>('GET', `/expenses${qs({ from, to, category })}`),
+    summary: (from?: string, to?: string) =>
+      request<ExpenseSummary>('GET', `/expenses/summary${qs({ from, to })}`),
+    create: (dto: CreateExpenseInput) => request<Expense>('POST', '/expenses', dto),
+    remove: (id: string) => request<{ id: string }>('DELETE', `/expenses/${id}`),
   },
 
   // ── Auditoria / Caixa / Inventário (gerente) ───────────────

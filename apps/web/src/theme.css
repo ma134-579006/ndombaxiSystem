@@ -231,6 +231,16 @@ input, textarea, select { font-family: inherit; }
 .ptable th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; padding: 8px 6px; border-bottom: 1px solid var(--border); }
 .ptable td { padding: 9px 6px; border-bottom: 1px solid var(--border-soft, var(--border)); }
 .ptable th:not(:first-child), .ptable td:not(:first-child) { text-align: right; white-space: nowrap; }
+.ptable tfoot td { border-top: 2px solid var(--border); border-bottom: none; }
+
+/* Repartição de despesas por categoria (barras horizontais) */
+.catbars { display: flex; flex-direction: column; gap: 9px; }
+.catbar { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 10px; font-size: 13px; }
+.catbar-name { color: var(--muted); }
+.catbar-track { height: 12px; border-radius: 999px; background: var(--surface-2, rgba(127,127,127,.15)); overflow: hidden; }
+.catbar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--warning), var(--danger)); min-width: 3px; transition: width .4s; }
+.catbar-val { white-space: nowrap; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .catbar { grid-template-columns: 84px 1fr; } .catbar-val { grid-column: 2; text-align: right; } }
 .print-only { display: none; }
 
 /* Impressão: só os dados, fundo branco, esconder navegação */

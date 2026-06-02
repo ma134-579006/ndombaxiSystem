@@ -11,7 +11,7 @@ export interface ProfitSummary {
   costTotal: number; // custo das mercadorias vendidas (CMV)
   grossProfit: number; // lucro bruto = vendas líquidas − custo
   marginPct: number; // margem bruta % sobre vendas líquidas
-  otherExpenses: number; // despesas (sangrias/salários — aproximação)
+  otherExpenses: number; // despesas operacionais reais do período (módulo Despesas)
   netProfit: number; // lucro líquido = bruto − despesas
   salesCount: number;
   ticketAvg: number; // venda média
@@ -75,12 +75,20 @@ export class ProfitService {
       const costTotal = Number(r.cost);
       const salesCount = Number(r.n);
 
-      // Despesas aproximadas: sangrias de caixa no período (saídas de dinheiro).
-      const exp = await tx.$queryRaw<{ total: string }[]>(
-        Prisma.sql`SELECT COALESCE(SUM(amount),0) AS total FROM cash_movements
-                   WHERE type = 'CASH_OUT' AND created_at BETWEEN ${f} AND ${t}`,
+      // Despesas operacionais reais do período (renda, salários, energia…),
+      // registadas no módulo de Despesas. Guarda to_regclass para tenants
+      // antigos que ainda não tenham a tabela `expenses` (devolve 0).
+      let otherExpenses = 0;
+      const hasExpenses = await tx.$queryRaw<{ reg: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('expenses')::text AS reg`,
       );
-      const otherExpenses = Number(exp[0].total);
+      if (hasExpenses[0]?.reg) {
+        const exp = await tx.$queryRaw<{ total: string }[]>(
+          Prisma.sql`SELECT COALESCE(SUM(amount),0) AS total FROM expenses
+                     WHERE expense_date BETWEEN ${f}::date AND ${t}::date`,
+        );
+        otherExpenses = Number(exp[0].total);
+      }
 
       const grossProfit = round2(salesNet - costTotal);
       const netProfit = round2(grossProfit - otherExpenses);
