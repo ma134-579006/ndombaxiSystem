@@ -6,6 +6,8 @@ import { KeyboardInput } from '../keyboard/KeyboardInput';
 
 interface Props {
   total: number;
+  /** Nome do cliente selecionado (obrigatório para venda a crédito). */
+  customerName?: string | null;
   onConfirm(p: { paymentType: PaymentType; tendered?: number; changeGiven?: number }): void;
   onClose(): void;
   busy?: boolean;
@@ -17,16 +19,18 @@ const METHODS: { type: PaymentType; label: string }[] = [
   { type: 'TRANSFER', label: 'Transferência' },
   { type: 'REFERENCE', label: 'Referência' },
   { type: 'EXPRESS', label: 'Express' },
+  { type: 'CREDIT', label: 'A crédito (fiado)' },
 ];
 
 /** Selecção do método + (numerário) dinheiro entregue → troco automático. */
-export function PaymentModal({ total, onConfirm, onClose, busy }: Props) {
+export function PaymentModal({ total, customerName, onConfirm, onClose, busy }: Props) {
   const [type, setType] = useState<PaymentType>('CASH');
   const [tendered, setTendered] = useState('');
 
   const tenderedNum = Number(tendered) || 0;
   const change = useMemo(() => Math.max(0, tenderedNum - total), [tenderedNum, total]);
   const insufficient = type === 'CASH' && tendered !== '' && tenderedNum < total;
+  const creditNoCustomer = type === 'CREDIT' && !customerName;
 
   // Atalhos de notas Kwanza comuns.
   const quick = [total, 1000, 2000, 5000, 10000].filter((v, i, a) => a.indexOf(v) === i);
@@ -75,14 +79,28 @@ export function PaymentModal({ total, onConfirm, onClose, busy }: Props) {
               </strong>
             </div>
           </div>
+        ) : type === 'CREDIT' ? (
+          <div style={{ marginTop: 12 }}>
+            {customerName ? (
+              <p className="muted" style={{ fontSize: 13 }}>
+                Venda a crédito em nome de <strong>{customerName}</strong>. Fica em dívida (vencimento a 30 dias)
+                e aparece em <strong>Contas a Receber</strong>. A factura é emitida normalmente.
+              </p>
+            ) : (
+              <div className="change-box" style={{ borderColor: 'var(--danger)' }}>
+                <span>Cliente</span>
+                <strong style={{ color: 'var(--danger)' }}>Selecione um cliente primeiro</strong>
+              </div>
+            )}
+          </div>
         ) : (
           <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>
             Pagamento por {METHODS.find((m) => m.type === type)?.label}. Confirme após receber o pagamento.
           </p>
         )}
 
-        <button className="btn success lg block" style={{ marginTop: 16 }} onClick={confirm} disabled={busy || insufficient}>
-          {busy ? 'A emitir…' : 'Confirmar e emitir factura'}
+        <button className="btn success lg block" style={{ marginTop: 16 }} onClick={confirm} disabled={busy || insufficient || creditNoCustomer}>
+          {busy ? 'A emitir…' : type === 'CREDIT' ? 'Confirmar venda a crédito' : 'Confirmar e emitir factura'}
         </button>
       </div>
     </div>

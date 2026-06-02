@@ -16,8 +16,10 @@ import { Payments } from './sections/Payments';
 import { Operations } from './sections/Operations';
 import { Inventory } from './sections/Inventory';
 import { Promotions } from './sections/Promotions';
+import { Overview } from './sections/Overview';
 import { Profit } from './sections/Profit';
 import { Expenses } from './sections/Expenses';
+import { Receivables } from './sections/Receivables';
 import { Storefront } from './sections/Storefront';
 import { PlansAdmin } from './sections/PlansAdmin';
 import { SubsAdmin } from './sections/SubsAdmin';
@@ -34,6 +36,7 @@ const PLATFORM_NAV: NavItem[] = [
 ];
 
 const TENANT_NAV: NavItem[] = [
+  { key: 'overview', label: 'Visão geral', icon: IconChart },
   { key: 'products', label: 'Produtos', icon: IconCube },
   { key: 'inventory', label: 'Inventário', icon: IconCube },
   { key: 'orders', label: 'Encomendas', icon: IconTruck },
@@ -42,6 +45,7 @@ const TENANT_NAV: NavItem[] = [
   { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart },
   { key: 'profit', label: 'Lucros', icon: IconChart },
   { key: 'expenses', label: 'Despesas', icon: IconReceipt },
+  { key: 'receivables', label: 'Contas a Receber', icon: IconCard },
   { key: 'store', label: 'Loja & Marca', icon: IconStore },
 ];
 
@@ -61,9 +65,10 @@ function PlatformPanel() {
 }
 
 function TenantPanel() {
-  const [section, setSection] = useState('products');
+  const [section, setSection] = useState('overview');
   return (
     <Shell nav={TENANT_NAV} section={section} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
+      {section === 'overview' ? <Overview /> : null}
       {section === 'products' ? <Products /> : null}
       {section === 'inventory' ? <Inventory /> : null}
       {section === 'orders' ? <Orders /> : null}
@@ -72,6 +77,7 @@ function TenantPanel() {
       {section === 'operations' ? <Operations /> : null}
       {section === 'profit' ? <Profit /> : null}
       {section === 'expenses' ? <Expenses /> : null}
+      {section === 'receivables' ? <Receivables /> : null}
       {section === 'store' ? <Storefront /> : null}
     </Shell>
   );

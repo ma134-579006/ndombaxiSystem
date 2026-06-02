@@ -563,6 +563,41 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."expenses" (
 CREATE INDEX IF NOT EXISTS expenses_date_idx ON "{{SCHEMA}}"."expenses"(expense_date);
 CREATE INDEX IF NOT EXISTS expenses_cat_idx  ON "{{SCHEMA}}"."expenses"(category);
 
+-- ── Contas a receber (venda a crédito / fiado) ───────────────
+-- Quando uma venda no POS é paga "a crédito", cria-se uma conta a receber
+-- ligada à factura e ao cliente. Os pagamentos parciais geram recibos (RC).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."receivables" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id     UUID REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE SET NULL,
+  customer_name   TEXT,
+  invoice_id      UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
+  invoice_number  TEXT,
+  original_amount NUMERIC(14,2) NOT NULL CHECK (original_amount >= 0),
+  paid_amount     NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (paid_amount >= 0),
+  due_date        DATE,
+  status          TEXT NOT NULL DEFAULT 'OPEN',  -- OPEN | PARTIAL | PAID
+  notes           TEXT,
+  created_by      UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_by_name TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS receivables_status_idx ON "{{SCHEMA}}"."receivables"(status);
+CREATE INDEX IF NOT EXISTS receivables_cust_idx   ON "{{SCHEMA}}"."receivables"(customer_id);
+CREATE INDEX IF NOT EXISTS receivables_due_idx    ON "{{SCHEMA}}"."receivables"(due_date);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."receivable_payments" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  receivable_id   UUID NOT NULL REFERENCES "{{SCHEMA}}"."receivables"(id) ON DELETE CASCADE,
+  amount          NUMERIC(14,2) NOT NULL CHECK (amount > 0),
+  method          TEXT,                          -- CASH/TRANSFER/REFERENCE/CARD/EXPRESS
+  receipt_number  TEXT,                          -- nº de recibo RC/ANO/0001
+  notes           TEXT,
+  paid_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by      UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_by_name TEXT
+);
+CREATE INDEX IF NOT EXISTS receivable_payments_idx ON "{{SCHEMA}}"."receivable_payments"(receivable_id, paid_at);
+
 -- ── Auditoria do tenant (append-only + hash encadeado) ───────
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."tenant_audit_log" (
   seq         BIGSERIAL PRIMARY KEY,

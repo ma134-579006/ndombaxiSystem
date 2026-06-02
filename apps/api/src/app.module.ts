@@ -27,6 +27,7 @@ import { CashboxModule } from './cashbox/cashbox.module';
 import { PromotionsModule } from './promotions/promotions.module';
 import { ProfitModule } from './profit/profit.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { ReceivablesModule } from './receivables/receivables.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
@@ -75,6 +76,7 @@ import { HealthController } from './health.controller';
     PromotionsModule,
     ProfitModule,
     ExpensesModule,
+    ReceivablesModule,
   ],
   controllers: [HealthController],
   providers: [

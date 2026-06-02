@@ -198,10 +198,23 @@ input, textarea, select { font-family: inherit; }
 .kpi-card.success::after { background: var(--success); }
 .kpi-card.warning::after { background: var(--warning); }
 .kpi-card.violet::after { background: var(--violet); }
+.kpi-card.danger::after { background: var(--danger); }
 .kpi-ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; color: #fff; background: var(--primary); margin-bottom: 12px; }
 .kpi-card.success .kpi-ic { background: var(--success); }
 .kpi-card.warning .kpi-ic { background: var(--warning); }
 .kpi-card.violet .kpi-ic { background: var(--violet); }
+.kpi-card.danger .kpi-ic { background: var(--danger); }
+
+/* ── Visão geral: listas de stock baixo / alertas ─────────── */
+.minilist { display: flex; flex-direction: column; gap: 8px; }
+.minirow { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2, transparent); }
+.minirow .mr-main { flex: 1; min-width: 0; }
+.minirow .mr-title { font-weight: 600; font-size: 14px; }
+.minirow .mr-sub { font-size: 12px; color: var(--muted); }
+.minirow .mr-val { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.minirow.l-warning { border-left: 3px solid var(--warning); }
+.minirow.l-danger { border-left: 3px solid var(--danger); }
+.minirow.l-info { border-left: 3px solid var(--primary); }
 .kpi-label { font-size: 13px; color: var(--muted); font-weight: 600; }
 .kpi-value { font-size: 28px; font-weight: 900; margin: 2px 0; }
 .kpi-sub { font-size: 12px; color: var(--muted); }

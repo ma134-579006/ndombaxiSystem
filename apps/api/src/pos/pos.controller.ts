@@ -84,6 +84,7 @@ export class PosController {
       paymentType: dto.paymentType ?? 'CASH',
       tendered: dto.tendered ?? null,
       changeGiven: dto.changeGiven ?? null,
+      dueDate: dto.dueDate ?? null,
       lines: dto.lines,
     });
   }

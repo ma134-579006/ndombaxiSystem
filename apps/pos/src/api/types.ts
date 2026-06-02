@@ -55,7 +55,7 @@ export interface EmitInvoiceLine {
   discountRate?: number;
 }
 
-export type PaymentType = 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS';
+export type PaymentType = 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS' | 'CREDIT';
 
 export interface EmitInvoiceInput {
   docType?: string; // default FT
@@ -64,6 +64,8 @@ export interface EmitInvoiceInput {
   paymentType?: PaymentType;
   tendered?: number;
   changeGiven?: number;
+  /** Vencimento da dívida (venda a crédito); default +30 dias no servidor. */
+  dueDate?: string;
   lines: EmitInvoiceLine[];
 }
 

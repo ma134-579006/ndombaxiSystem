@@ -26,9 +26,11 @@ export interface EmitInvoiceInput {
   cashierId?: string | null;
   cashierName?: string | null;
   /** Pagamento na caixa (para o turno): tipo + dinheiro entregue + troco. */
-  paymentType?: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS';
+  paymentType?: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS' | 'CREDIT';
   tendered?: number | null;
   changeGiven?: number | null;
+  /** Vencimento da conta a receber (venda a crédito); default +30 dias. */
+  dueDate?: string | null;
   lines: { productCode: string; quantity: number; discountRate?: number }[];
 }
 
@@ -66,6 +68,10 @@ export class InvoiceService {
    * numa só transacção com o search_path fixado ao schema do tenant.
    */
   async emit(schema: string, input: EmitInvoiceInput): Promise<EmittedInvoice> {
+    // Venda a crédito exige um cliente identificado (a dívida fica em nome dele).
+    if (input.paymentType === 'CREDIT' && !input.customerId) {
+      throw new BadRequestException('Venda a crédito exige selecionar um cliente.');
+    }
     const result = await this.prisma.runInTenant(schema, async (tx) => {
       const codes = input.lines.map((l) => l.productCode);
 
@@ -141,13 +147,15 @@ export class InvoiceService {
         signatureKeyVersion = signed.keyVersion;
       }
 
-      // 5. Cliente (NIF) opcional — override explícito tem prioridade.
+      // 5. Cliente (NIF + nome) opcional — override explícito tem prioridade.
       let customerTaxId: string | null = input.customerTaxId ?? null;
-      if (!customerTaxId && input.customerId) {
-        const cust = await tx.$queryRaw<{ tax_id: string | null }[]>(
-          Prisma.sql`SELECT tax_id FROM customers WHERE id = ${input.customerId}::uuid LIMIT 1`,
+      let customerName: string | null = null;
+      if (input.customerId) {
+        const cust = await tx.$queryRaw<{ tax_id: string | null; name: string | null }[]>(
+          Prisma.sql`SELECT tax_id, name FROM customers WHERE id = ${input.customerId}::uuid LIMIT 1`,
         );
-        customerTaxId = cust[0]?.tax_id ?? null;
+        if (!customerTaxId) customerTaxId = cust[0]?.tax_id ?? null;
+        customerName = cust[0]?.name ?? null;
       }
 
       // 6. Persiste documento + linhas, avança a série e baixa stock.
@@ -231,6 +239,29 @@ export class InvoiceService {
                       ${number}, ${invoiceId}::uuid, ${input.cashierId}::uuid)`,
           );
         }
+      }
+
+      // Venda a crédito (fiado): cria a conta a receber em nome do cliente.
+      // O movimento de caixa acima fica com payment_type='CREDIT', por isso NÃO
+      // conta como numerário no fecho do turno (o dinheiro entra ao liquidar).
+      if (input.paymentType === 'CREDIT' && input.customerId) {
+        const due = (input.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(input.dueDate))
+          ? input.dueDate
+          : new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
+        const recRows = await tx.$queryRaw<{ id: string }[]>(
+          Prisma.sql`INSERT INTO receivables
+              (customer_id, customer_name, invoice_id, invoice_number,
+               original_amount, paid_amount, due_date, status, created_by, created_by_name)
+            VALUES (${input.customerId}::uuid, ${customerName}, ${invoiceId}::uuid, ${number},
+                    ${totals.grossTotal}, 0, ${due}::date, 'OPEN',
+                    ${input.cashierId ?? null}::uuid, ${input.cashierName ?? null})
+            RETURNING id`,
+        );
+        await this.audit.recordInTx(tx, {
+          actorId: input.cashierId ?? null, actorName: input.cashierName ?? null,
+          action: 'RECEIVABLE_CREATED', entity: 'receivable', entityId: recRows[0].id,
+          details: { invoiceNumber: number, customer: customerName, amount: totals.grossTotal, dueDate: due },
+        });
       }
 
       // Auditoria do tenant (venda emitida) — na MESMA transacção.

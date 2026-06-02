@@ -10,8 +10,18 @@ import type {
   CreateGatewayInput,
   CreateProductInput,
   CreateProviderInput,
+  DashLowStock,
+  DashSalesSeries,
+  DashSalesSummary,
+  DashTopProduct,
   Expense,
   ExpenseSummary,
+  PaymentReceipt,
+  Receivable,
+  ReceivableDetail,
+  ReceivableSummary,
+  CreateReceivableInput,
+  RecordPaymentInput,
   Gateway,
   LandingConfig,
   AuditEvent,
@@ -262,6 +272,13 @@ export const api = {
     remove: (id: string) => request<{ id: string }>('DELETE', `/promotions/${id}`),
   },
   alerts: () => request<OpsAlert[]>('GET', '/alerts'),
+  // ── Visão geral do gestor (dashboard em tempo real) ────────
+  dashboard: {
+    salesToday: () => request<DashSalesSummary>('GET', '/dashboard/sales/today'),
+    series: (range = '7d') => request<DashSalesSeries>('GET', `/dashboard/sales/series${qs({ range })}`),
+    topProducts: (limit = 8) => request<DashTopProduct[]>('GET', `/dashboard/top-products${qs({ limit: String(limit) })}`),
+    lowStock: () => request<DashLowStock[]>('GET', '/dashboard/low-stock'),
+  },
   profit: {
     summary: (from?: string, to?: string) =>
       request<ProfitSummary>('GET', `/profit/summary${qs({ from, to })}`),
@@ -277,6 +294,13 @@ export const api = {
       request<ExpenseSummary>('GET', `/expenses/summary${qs({ from, to })}`),
     create: (dto: CreateExpenseInput) => request<Expense>('POST', '/expenses', dto),
     remove: (id: string) => request<{ id: string }>('DELETE', `/expenses/${id}`),
+  },
+  receivables: {
+    list: (filter?: string) => request<Receivable[]>('GET', `/receivables${qs({ filter })}`),
+    summary: () => request<ReceivableSummary>('GET', '/receivables/summary'),
+    get: (id: string) => request<ReceivableDetail>('GET', `/receivables/${id}`),
+    create: (dto: CreateReceivableInput) => request<{ id: string }>('POST', '/receivables', dto),
+    pay: (id: string, dto: RecordPaymentInput) => request<PaymentReceipt>('POST', `/receivables/${id}/payment`, dto),
   },
 
   // ── Auditoria / Caixa / Inventário (gerente) ───────────────

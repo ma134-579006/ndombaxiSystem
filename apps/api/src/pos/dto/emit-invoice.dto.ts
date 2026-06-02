@@ -47,10 +47,15 @@ export class EmitInvoiceDto {
   @IsString()
   customerId?: string;
 
-  /** Pagamento na caixa (para o turno). */
+  /** Pagamento na caixa (para o turno). CREDIT = venda a crédito (fiado). */
   @IsOptional()
-  @IsIn(['CASH', 'CARD', 'TRANSFER', 'REFERENCE', 'EXPRESS'])
-  paymentType?: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS';
+  @IsIn(['CASH', 'CARD', 'TRANSFER', 'REFERENCE', 'EXPRESS', 'CREDIT'])
+  paymentType?: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS' | 'CREDIT';
+
+  /** Vencimento da dívida (venda a crédito). Por omissão, +30 dias. */
+  @IsOptional()
+  @IsString()
+  dueDate?: string;
 
   /** Dinheiro entregue pelo cliente (numerário). */
   @IsOptional()

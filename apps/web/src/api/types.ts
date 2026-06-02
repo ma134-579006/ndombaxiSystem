@@ -376,6 +376,21 @@ export interface OpsAlert {
   detail: string;
 }
 
+// ── Dashboard do gestor (visão geral em tempo real) ─────────
+export type SalesRange = 'today' | 'yesterday' | '7d' | '1m' | '3m' | '6m' | '1y';
+export interface DashSalesSummary {
+  invoiceCount: number; netTotal: number; ivaTotal: number; grossTotal: number; averageTicket: number;
+}
+export interface DashSalesPoint { bucket: string; grossTotal: number; ivaTotal: number; invoiceCount: number }
+export interface DashSalesSeries {
+  range: SalesRange; granularity: 'hour' | 'day' | 'week' | 'month';
+  points: DashSalesPoint[]; summary: DashSalesSummary;
+}
+export interface DashTopProduct { productCode: string; description: string; quantity: number; grossTotal: number }
+export interface DashLowStock {
+  productCode: string; productName: string; warehouseCode: string; quantity: number; minQty: number;
+}
+
 // ── Lucros (gestor) ─────────────────────────────────────────
 export interface ProfitSummary {
   from: string; to: string;
@@ -429,6 +444,30 @@ export interface CreateExpenseInput {
   documentRef?: string;
   expenseDate?: string;
 }
+
+// ── Contas a receber (venda a crédito) ──────────────────────
+export type ReceivableStatus = 'OPEN' | 'PARTIAL' | 'PAID';
+export interface Receivable {
+  id: string;
+  customer_name: string | null;
+  invoice_number: string | null;
+  original_amount: string;
+  paid_amount: string;
+  outstanding: string;
+  due_date: string | null;
+  status: ReceivableStatus;
+  days_overdue: number;
+  created_at: string;
+}
+export interface ReceivablePayment {
+  id: string; amount: string; method: string | null; receipt_number: string | null;
+  notes: string | null; paid_at: string; created_by_name: string | null;
+}
+export interface ReceivableDetail extends Receivable { payments: ReceivablePayment[] }
+export interface ReceivableSummary { outstanding: number; overdue: number; openCount: number; overdueCount: number }
+export interface CreateReceivableInput { customerId?: string; customerName: string; amount: number; dueDate?: string; notes?: string }
+export interface RecordPaymentInput { amount: number; method?: 'CASH' | 'TRANSFER' | 'REFERENCE' | 'CARD' | 'EXPRESS'; notes?: string }
+export interface PaymentReceipt { receiptNumber: string; amount: number; paidAmount: number; outstanding: number; status: ReceivableStatus }
 export interface Company {
   id: string;
   code: string;

@@ -487,6 +487,7 @@ export function PosPage() {
       {showPayment ? (
         <PaymentModal
           total={totals.gross}
+          customerName={customer?.name ?? null}
           busy={emitting}
           onConfirm={doEmit}
           onClose={() => setShowPayment(false)}
