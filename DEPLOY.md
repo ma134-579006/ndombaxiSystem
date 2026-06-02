@@ -52,16 +52,19 @@ Conta em https://dash.cloudflare.com → **Workers & Pages** → **Create** → 
 
 Vais criar **3 projetos** (repete os passos, mudando só 2 campos):
 
+> ⚠️ Usa `--prod=false` no install (o Cloudflare põe `NODE_ENV=production` e sem
+> isso salta o `vite`/`typescript` e o build falha — o mesmo que aconteceu no Render).
+
 | Projeto | App | Build command | Output directory |
 |---|---|---|---|
-| **ndombaxi-admin** ⭐ | web | `npx pnpm@9 install --frozen-lockfile && npx pnpm@9 --filter @nexus/web build` | `apps/web/dist` |
-| **ndombaxi-loja** | store | `npx pnpm@9 install --frozen-lockfile && npx pnpm@9 --filter @nexus/store build` | `apps/store/dist` |
-| **ndombaxi-caixa** | pos | `npx pnpm@9 install --frozen-lockfile && npx pnpm@9 --filter @nexus/pos build` | `apps/pos/dist` |
+| **ndombaxi-admin** ⭐ | web | `npx -y pnpm@9.15.9 install --frozen-lockfile --prod=false && npx -y pnpm@9.15.9 --filter @nexus/web build` | `apps/web/dist` |
+| **ndombaxi-loja** | store | `npx -y pnpm@9.15.9 install --frozen-lockfile --prod=false && npx -y pnpm@9.15.9 --filter @nexus/store build` | `apps/store/dist` |
+| **ndombaxi-caixa** | pos | `npx -y pnpm@9.15.9 install --frozen-lockfile --prod=false && npx -y pnpm@9.15.9 --filter @nexus/pos build` | `apps/pos/dist` |
 
 - **Root directory:** deixa em branco (raiz do repo — é um monorepo pnpm).
 - Em **cada** projeto, em **Environment variables**, adiciona:
   - **VITE_API_URL** = o URL da API do Passo 2 (ex.: `https://ndombaxi-api.onrender.com`)
-  - **NODE_VERSION** = `20`
+  - **NODE_VERSION** = `20.18.1`
   - *(só na loja, opcional)* **VITE_STORE_CODE** = código de uma empresa, p/ loja fixa.
 
 > O **ndombaxi-admin** é o principal: é a página inicial (criar conta + planos), o login, o Super Admin e o painel do gestor.
