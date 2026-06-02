@@ -18,6 +18,9 @@ import type {
   CashflowPoint,
   CashflowSummary,
   CommissionReport,
+  BankTx,
+  ReconSummary,
+  ImportStatementRow,
   Expense,
   ExpenseSummary,
   PaymentReceipt,
@@ -325,6 +328,13 @@ export const api = {
   commissions: {
     report: (from?: string, to?: string) => request<CommissionReport>('GET', `/commissions${qs({ from, to })}`),
     setRate: (userId: string, rate: number) => request<{ userId: string; rate: number }>('POST', `/commissions/${userId}/rate`, { rate }),
+  },
+  reconciliation: {
+    importStatement: (rows: ImportStatementRow[]) => request<{ imported: number; matched: number }>('POST', '/reconciliation/import', { rows }),
+    list: (filter?: string) => request<BankTx[]>('GET', `/reconciliation${qs({ filter })}`),
+    summary: () => request<ReconSummary>('GET', '/reconciliation/summary'),
+    match: (id: string) => request<{ id: string }>('POST', `/reconciliation/${id}/match`, {}),
+    unmatch: (id: string) => request<{ id: string }>('POST', `/reconciliation/${id}/unmatch`),
   },
   cashflow: {
     summary: (from?: string, to?: string) => request<CashflowSummary>('GET', `/cashflow/summary${qs({ from, to })}`),

@@ -512,6 +512,14 @@ export interface CommissionReport {
   from: string; to: string; rows: CommissionRow[]; totalSales: number; totalCommission: number;
 }
 
+// ── Conciliação bancária (gestor) ───────────────────────────
+export interface BankTx {
+  id: string; statement_date: string; description: string | null; amount: string;
+  matched: boolean; matched_type: string | null; matched_ref: string | null;
+}
+export interface ReconSummary { credits: number; debits: number; matchedCount: number; unmatchedCount: number }
+export interface ImportStatementRow { date: string; description?: string; amount: number }
+
 // ── Fluxo de caixa (gestor) ─────────────────────────────────
 export interface CashflowSummary {
   from: string; to: string;

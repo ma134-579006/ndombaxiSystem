@@ -631,6 +631,22 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."payable_payments" (
 );
 CREATE INDEX IF NOT EXISTS payable_payments_idx ON "{{SCHEMA}}"."payable_payments"(payable_id, paid_at);
 
+-- ── Conciliação bancária (extrato importado) ─────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."bank_transactions" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  statement_date  DATE NOT NULL,
+  description     TEXT,
+  amount          NUMERIC(14,2) NOT NULL,        -- positivo=crédito, negativo=débito
+  matched         BOOLEAN NOT NULL DEFAULT FALSE,
+  matched_type    TEXT,                          -- SALE/RECEIVABLE/EXPENSE/PAYABLE/MANUAL
+  matched_ref     TEXT,
+  imported_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by      UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_by_name TEXT
+);
+CREATE INDEX IF NOT EXISTS bank_tx_date_idx ON "{{SCHEMA}}"."bank_transactions"(statement_date);
+CREATE INDEX IF NOT EXISTS bank_tx_matched_idx ON "{{SCHEMA}}"."bank_transactions"(matched);
+
 -- ── Auditoria do tenant (append-only + hash encadeado) ───────
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."tenant_audit_log" (
   seq         BIGSERIAL PRIMARY KEY,
