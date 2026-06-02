@@ -21,6 +21,10 @@ import type {
   BankTx,
   ReconSummary,
   ImportStatementRow,
+  LeaveRow,
+  LeaveEmployee,
+  LeaveSummary,
+  CreateLeaveInput,
   Expense,
   ExpenseSummary,
   PaymentReceipt,
@@ -328,6 +332,13 @@ export const api = {
   commissions: {
     report: (from?: string, to?: string) => request<CommissionReport>('GET', `/commissions${qs({ from, to })}`),
     setRate: (userId: string, rate: number) => request<{ userId: string; rate: number }>('POST', `/commissions/${userId}/rate`, { rate }),
+  },
+  leave: {
+    list: (status?: string) => request<LeaveRow[]>('GET', `/leave${qs({ status })}`),
+    employees: () => request<LeaveEmployee[]>('GET', '/leave/employees'),
+    summary: () => request<LeaveSummary>('GET', '/leave/summary'),
+    create: (dto: CreateLeaveInput) => request<{ id: string }>('POST', '/leave', dto),
+    review: (id: string, decision: 'APPROVED' | 'REJECTED') => request<{ id: string; status: string }>('POST', `/leave/${id}/review`, { decision }),
   },
   reconciliation: {
     importStatement: (rows: ImportStatementRow[]) => request<{ imported: number; matched: number }>('POST', '/reconciliation/import', { rows }),

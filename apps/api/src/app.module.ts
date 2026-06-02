@@ -33,6 +33,7 @@ import { PayablesModule } from './payables/payables.module';
 import { CommissionsModule } from './commissions/commissions.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { ReconciliationModule } from './reconciliation/reconciliation.module';
+import { LeaveModule } from './leave/leave.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
@@ -87,6 +88,7 @@ import { HealthController } from './health.controller';
     CommissionsModule,
     IntegrationsModule,
     ReconciliationModule,
+    LeaveModule,
   ],
   controllers: [HealthController],
   providers: [

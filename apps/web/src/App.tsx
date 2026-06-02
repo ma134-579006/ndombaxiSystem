@@ -24,6 +24,7 @@ import { Expenses } from './sections/Expenses';
 import { Receivables } from './sections/Receivables';
 import { Payables } from './sections/Payables';
 import { Reconciliation } from './sections/Reconciliation';
+import { Leave } from './sections/Leave';
 import { Storefront } from './sections/Storefront';
 import { PlansAdmin } from './sections/PlansAdmin';
 import { SubsAdmin } from './sections/SubsAdmin';
@@ -56,6 +57,7 @@ const TENANT_NAV: NavItem[] = [
   { key: 'receivables', label: 'Contas a Receber', icon: IconCard },
   { key: 'payables', label: 'Contas a Pagar', icon: IconTruck },
   { key: 'reconciliation', label: 'Conciliação', icon: IconCard },
+  { key: 'leave', label: 'Férias', icon: IconBuilding },
   { key: 'store', label: 'Loja & Marca', icon: IconStore },
 ];
 
@@ -93,6 +95,7 @@ function TenantPanel() {
       {section === 'receivables' ? <Receivables /> : null}
       {section === 'payables' ? <Payables /> : null}
       {section === 'reconciliation' ? <Reconciliation /> : null}
+      {section === 'leave' ? <Leave /> : null}
       {section === 'store' ? <Storefront /> : null}
     </Shell>
   );

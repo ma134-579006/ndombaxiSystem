@@ -512,6 +512,18 @@ export interface CommissionReport {
   from: string; to: string; rows: CommissionRow[]; totalSales: number; totalCommission: number;
 }
 
+// ── Férias / ausências (RH) ─────────────────────────────────
+export type LeaveType = 'FERIAS' | 'FALTA' | 'LICENCA' | 'OUTRO';
+export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export interface LeaveRow {
+  id: string; employee_name: string | null; type: LeaveType;
+  start_date: string; end_date: string; days: number; reason: string | null;
+  status: LeaveStatus; reviewed_by_name: string | null; created_at: string;
+}
+export interface LeaveEmployee { id: string; full_name: string }
+export interface LeaveSummary { pending: number; ferasDaysYear: number }
+export interface CreateLeaveInput { employeeId: string; type: LeaveType; startDate: string; endDate: string; reason?: string }
+
 // ── Conciliação bancária (gestor) ───────────────────────────
 export interface BankTx {
   id: string; statement_date: string; description: string | null; amount: string;

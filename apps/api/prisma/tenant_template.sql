@@ -647,6 +647,27 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."bank_transactions" (
 CREATE INDEX IF NOT EXISTS bank_tx_date_idx ON "{{SCHEMA}}"."bank_transactions"(statement_date);
 CREATE INDEX IF NOT EXISTS bank_tx_matched_idx ON "{{SCHEMA}}"."bank_transactions"(matched);
 
+-- ── Férias / ausências (RH) ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."leave_requests" (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id      UUID REFERENCES "{{SCHEMA}}"."employees"(id) ON DELETE CASCADE,
+  employee_name    TEXT,
+  type             TEXT NOT NULL,                 -- FERIAS/FALTA/LICENCA/OUTRO
+  start_date       DATE NOT NULL,
+  end_date         DATE NOT NULL,
+  days             INT NOT NULL DEFAULT 0,
+  reason           TEXT,
+  status           TEXT NOT NULL DEFAULT 'PENDING', -- PENDING/APPROVED/REJECTED
+  reviewed_by      UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  reviewed_by_name TEXT,
+  reviewed_at      TIMESTAMPTZ,
+  created_by       UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_by_name  TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS leave_status_idx ON "{{SCHEMA}}"."leave_requests"(status);
+CREATE INDEX IF NOT EXISTS leave_emp_idx ON "{{SCHEMA}}"."leave_requests"(employee_id);
+
 -- ── Auditoria do tenant (append-only + hash encadeado) ───────
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."tenant_audit_log" (
   seq         BIGSERIAL PRIMARY KEY,
