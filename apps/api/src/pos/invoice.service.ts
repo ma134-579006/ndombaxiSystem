@@ -9,6 +9,7 @@ import {
   GENESIS_HASH,
   InvoiceLineInput,
   IvaCode,
+  round2,
 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
@@ -373,6 +374,124 @@ export class InvoiceService {
 
     this.realtime.publish(schema, 'sale.cancelled', {
       creditNote: result.creditNoteNumber, grossTotal: result.grossTotal, at: new Date().toISOString(),
+    });
+    return result;
+  }
+
+  /**
+   * Devolução PARCIAL: emite uma NC só pelas linhas/quantidades devolvidas,
+   * repõe esse stock e estorna o valor proporcional. A factura mantém-se válida
+   * (não é anulada); valida que não se devolve mais do que o vendido.
+   */
+  async returnItems(
+    schema: string,
+    invoiceId: string,
+    returns: { productCode: string; quantity: number }[],
+    reason: string,
+    actor: { id?: string | null; name?: string | null },
+  ): Promise<{ creditNoteNumber: string; refundTotal: number }> {
+    if (!returns?.length) throw new BadRequestException('Indique os artigos a devolver.');
+
+    const result = await this.prisma.runInTenant(schema, async (tx) => {
+      const invRows = await tx.$queryRaw<{ id: string; number: string; status: string }[]>(
+        Prisma.sql`SELECT id, number, status FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`,
+      );
+      if (!invRows[0]) throw new BadRequestException('Factura não encontrada');
+      if (invRows[0].status === 'A') throw new BadRequestException('Factura já anulada — use a anulação total.');
+      const inv = invRows[0];
+
+      const items = await tx.$queryRaw<
+        { product_id: string | null; product_code: string; description: string; quantity: string;
+          iva_code: string; iva_rate: string; unit_price: string; discount_rate: string }[]
+      >(
+        Prisma.sql`SELECT product_id, product_code, description, quantity, iva_code, iva_rate, unit_price, discount_rate
+                   FROM invoice_items WHERE invoice_id = ${invoiceId}::uuid`,
+      );
+      const byCode = new Map(items.map((i) => [i.product_code, i]));
+
+      // Valida e calcula o valor a estornar (líquido+IVA, respeitando desconto).
+      let refundNet = 0, refundIva = 0;
+      const toRevert: { productId: string | null; qty: number; code: string }[] = [];
+      for (const r of returns) {
+        const it = byCode.get(r.productCode);
+        if (!it) throw new BadRequestException(`Artigo não está na factura: ${r.productCode}`);
+        if (r.quantity <= 0 || r.quantity > Number(it.quantity)) {
+          throw new BadRequestException(`Quantidade a devolver inválida para ${r.productCode} (vendidas ${Number(it.quantity)}).`);
+        }
+        const unitNet = Number(it.unit_price) * (1 - Number(it.discount_rate || 0));
+        const lineNet = round2(unitNet * r.quantity);
+        const lineIva = round2((lineNet * Number(it.iva_rate)) / 100);
+        refundNet += lineNet; refundIva += lineIva;
+        toRevert.push({ productId: it.product_id, qty: r.quantity, code: r.productCode });
+      }
+      refundNet = round2(refundNet);
+      refundIva = round2(refundIva);
+      const refundGross = round2(refundNet + refundIva);
+
+      // Aloca NC.
+      const year = new Date().getFullYear();
+      await tx.$executeRaw(
+        Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
+                   VALUES (${DocumentType.NC}, 'A', ${year}, 0, ${GENESIS_HASH})
+                   ON CONFLICT (doc_type, series, year) DO NOTHING`,
+      );
+      const serie = await tx.$queryRaw<{ last_sequence: number; last_hash: string }[]>(
+        Prisma.sql`SELECT last_sequence, last_hash FROM fiscal_series
+                   WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year} FOR UPDATE`,
+      );
+      const sequence = serie[0].last_sequence + 1;
+      const ncNumber = formatDocumentNumber({ type: DocumentType.NC, series: 'A', year, sequence });
+      const now = new Date();
+      const hash = computeDocumentHash(
+        { invoiceDate: now.toISOString().slice(0, 10), systemEntryDate: now.toISOString(), number: ncNumber,
+          totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] } },
+        serie[0].last_hash,
+      );
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE fiscal_series SET last_sequence = ${sequence}, last_hash = ${hash}
+                   WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year}`,
+      );
+
+      // Repõe o stock dos artigos devolvidos.
+      const warehouseId = await StockService.resolveDefaultWarehouse(tx);
+      for (const r of toRevert) {
+        if (!r.productId) continue;
+        if (warehouseId) {
+          await StockService.applyMovement(tx, {
+            productId: r.productId, warehouseId, type: 'IN', quantity: r.qty,
+            reference: `Devolução ${inv.number} (${ncNumber})`, referenceId: invoiceId, createdBy: actor.id ?? null,
+            allowNegative: true,
+          });
+        } else {
+          await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${r.qty} WHERE id = ${r.productId}::uuid`);
+        }
+      }
+
+      // Estorno no caixa.
+      if (actor.id) {
+        const open = await tx.$queryRaw<{ id: string }[]>(
+          Prisma.sql`SELECT id FROM cash_sessions WHERE status = 'OPEN' AND opened_by = ${actor.id}::uuid ORDER BY opened_at DESC LIMIT 1`,
+        );
+        if (open[0]) {
+          await tx.$executeRaw(
+            Prisma.sql`INSERT INTO cash_movements (session_id, type, amount, payment_type, reference, reference_id, created_by)
+              VALUES (${open[0].id}::uuid, 'REFUND', ${refundGross}, 'CASH', ${ncNumber}, ${invoiceId}::uuid, ${actor.id}::uuid)`,
+          );
+        }
+      }
+
+      await this.audit.recordInTx(tx, {
+        actorId: actor.id, actorName: actor.name, action: 'SALE_RETURNED',
+        entity: 'invoice', entityId: invoiceId,
+        details: { originalNumber: inv.number, creditNote: ncNumber, refundTotal: refundGross,
+                   items: toRevert.map((r) => ({ code: r.code, qty: r.qty })), reason },
+      });
+
+      return { creditNoteNumber: ncNumber, refundTotal: refundGross };
+    });
+
+    this.realtime.publish(schema, 'sale.cancelled', {
+      creditNote: result.creditNoteNumber, grossTotal: result.refundTotal, at: new Date().toISOString(),
     });
     return result;
   }

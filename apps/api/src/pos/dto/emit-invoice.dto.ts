@@ -77,3 +77,26 @@ export class CancelInvoiceDto {
   @Length(1, 200)
   reason!: string;
 }
+
+export class ReturnItemDto {
+  @IsString()
+  @Length(1, 64)
+  productCode!: string;
+
+  @IsNumber()
+  @Min(0.001)
+  quantity!: number;
+}
+
+/** Devolução parcial: artigos/quantidades a devolver + motivo. */
+export class ReturnItemsDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => ReturnItemDto)
+  items!: ReturnItemDto[];
+
+  @IsString()
+  @Length(1, 200)
+  reason!: string;
+}

@@ -17,7 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { CreateCustomerDto } from './dto/customer.dto';
-import { CancelInvoiceDto, EmitInvoiceDto } from './dto/emit-invoice.dto';
+import { CancelInvoiceDto, EmitInvoiceDto, ReturnItemsDto } from './dto/emit-invoice.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { FiscalSigningService } from './fiscal-signing.service';
 import { InvoiceService } from './invoice.service';
@@ -93,6 +93,16 @@ export class PosController {
   @ApiOperation({ summary: 'Anula uma venda (emite nota de crédito, devolve stock, audita)' })
   cancelInvoice(@Param('id') id: string, @Body() dto: CancelInvoiceDto, @CurrentUser() user: JwtPayload) {
     return this.invoices.cancelInvoice(this.ctx.requireTenantSchema(), id, dto.reason, {
+      id: user.sub,
+      name: user.email,
+    });
+  }
+
+  @Post('invoices/:id/return')
+  @Roles(Role.SHIFT_SUPERVISOR)
+  @ApiOperation({ summary: 'Devolução parcial (NC só dos artigos devolvidos, repõe stock)' })
+  returnItems(@Param('id') id: string, @Body() dto: ReturnItemsDto, @CurrentUser() user: JwtPayload) {
+    return this.invoices.returnItems(this.ctx.requireTenantSchema(), id, dto.items, dto.reason, {
       id: user.sub,
       name: user.email,
     });

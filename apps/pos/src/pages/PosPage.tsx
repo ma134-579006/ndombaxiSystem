@@ -27,6 +27,7 @@ import { PaymentModal } from '../components/PaymentModal';
 import { IconReceipt } from '../components/Icons';
 import { cartTotals, cartTotalsWithDiscount, lineGross, type CartLine } from '../pos/cart';
 import { bestPromoForLine, type PromoRow } from '../pos/promo';
+import { useBarcodeScanner } from '../pos/useBarcodeScanner';
 import { formatKz, formatNumber } from '../format';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { useKeyboard } from '../keyboard/KeyboardProvider';
@@ -159,6 +160,19 @@ export function PosPage() {
   };
 
   const removeLine = (id: string) => setCart((prev) => prev.filter((l) => l.product.id !== id));
+
+  // Scanner de código de barras: lê barcode/código e adiciona ao carrinho.
+  useBarcodeScanner((code) => {
+    const found = products.find(
+      (p) => (p.barcode && p.barcode === code) || p.code.toLowerCase() === code.toLowerCase(),
+    );
+    if (found) {
+      addToCart(found);
+    } else {
+      setEmitError(`Código não encontrado: ${code}`);
+      setTimeout(() => setEmitError(null), 2000);
+    }
+  });
 
   /** Guarda a venda na fila offline e mostra um comprovativo PROVISÓRIO. */
   const finalizeOffline = async () => {
