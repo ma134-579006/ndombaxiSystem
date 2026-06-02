@@ -19,8 +19,10 @@ services:
     autoDeploy: true
     # NOTA: não usamos `corepack enable` (tenta criar symlink em /usr/bin, que é
     # read-only no Render → EROFS). Usamos `npx pnpm@9.15.9` (cache gravável).
+    # --prod=false é ESSENCIAL: como NODE_ENV=production, o pnpm saltaria as
+    # devDependencies (typescript, @nestjs/cli, prisma) e o build falharia.
     buildCommand: >-
-      npx -y pnpm@9.15.9 install --frozen-lockfile &&
+      npx -y pnpm@9.15.9 install --frozen-lockfile --prod=false &&
       npx -y pnpm@9.15.9 --filter @nexus/types build &&
       npx -y pnpm@9.15.9 --filter @nexus/agt-xml build &&
       npx -y pnpm@9.15.9 --filter @nexus/api exec prisma generate &&
