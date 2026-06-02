@@ -37,6 +37,7 @@ import type {
   CashSessionRow,
   ManagerProduct,
   OpsAlert,
+  ProfitAbcRow,
   ProfitPoint,
   ProfitProduct,
   ProfitSummary,
@@ -299,6 +300,8 @@ export const api = {
       request<ProfitPoint[]>('GET', `/profit/series${qs({ from, to })}`),
     byProduct: (from?: string, to?: string) =>
       request<ProfitProduct[]>('GET', `/profit/by-product${qs({ from, to })}`),
+    abc: (from?: string, to?: string) =>
+      request<ProfitAbcRow[]>('GET', `/profit/abc${qs({ from, to })}`),
   },
   expenses: {
     list: (from?: string, to?: string, category?: string) =>

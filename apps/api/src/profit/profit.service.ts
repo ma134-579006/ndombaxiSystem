@@ -36,6 +36,15 @@ export interface ProfitProduct {
   marginPct: number;
 }
 
+export interface ProfitAbcRow {
+  productCode: string;
+  description: string;
+  sales: number;
+  sharePct: number;
+  cumulativePct: number;
+  abcClass: 'A' | 'B' | 'C';
+}
+
 /**
  * Lucros da empresa (gestor): vendas, custo (CMV), lucro bruto e líquido,
  * num período [from, to]. Só conta facturas NÃO anuladas (status != 'A').
@@ -157,6 +166,36 @@ export class ProfitService {
           GROUP BY ii.product_code ORDER BY profit DESC LIMIT 100`,
       ),
     );
+  }
+
+  /**
+   * Curva ABC: classifica os produtos por peso nas vendas líquidas do período.
+   * A = até 80% acumulado (estrela), B = até 95%, C = restante (cauda).
+   */
+  async abc(schema: string, from?: string, to?: string): Promise<ProfitAbcRow[]> {
+    const { from: f, to: t } = this.range(from, to);
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{ product_code: string; description: string; sales: number }[]>(
+        Prisma.sql`
+          SELECT ii.product_code AS product_code, MAX(ii.description) AS description,
+                 ROUND(SUM(ii.net_amount), 2)::float AS sales
+          FROM invoices i JOIN invoice_items ii ON ii.invoice_id = i.id
+          WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
+            AND i.system_entry_date BETWEEN ${f} AND ${t}
+          GROUP BY ii.product_code HAVING SUM(ii.net_amount) > 0
+          ORDER BY sales DESC`,
+      );
+      const total = rows.reduce((s, r) => s + Number(r.sales), 0);
+      let cum = 0;
+      return rows.map((r) => {
+        const sales = Number(r.sales);
+        cum += sales;
+        const sharePct = total > 0 ? round2((sales / total) * 100) : 0;
+        const cumulativePct = total > 0 ? round2((cum / total) * 100) : 0;
+        const abcClass: 'A' | 'B' | 'C' = cumulativePct <= 80 ? 'A' : cumulativePct <= 95 ? 'B' : 'C';
+        return { productCode: r.product_code, description: r.description, sales: round2(sales), sharePct, cumulativePct, abcClass };
+      });
+    });
   }
 }
 

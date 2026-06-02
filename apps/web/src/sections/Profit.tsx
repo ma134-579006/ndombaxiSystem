@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { ProfitPoint, ProfitProduct, ProfitSummary } from '../api/types';
+import type { ProfitAbcRow, ProfitPoint, ProfitProduct, ProfitSummary } from '../api/types';
 import { IconChart, IconRefresh } from '../components/Icons';
 
 function kz(n: number): string {
@@ -21,6 +21,7 @@ export function Profit() {
   const [sum, setSum] = useState<ProfitSummary | null>(null);
   const [series, setSeries] = useState<ProfitPoint[]>([]);
   const [products, setProducts] = useState<ProfitProduct[]>([]);
+  const [abc, setAbc] = useState<ProfitAbcRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -29,12 +30,13 @@ export function Profit() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [s, ts, pr] = await Promise.all([
+      const [s, ts, pr, ab] = await Promise.all([
         api.profit.summary(from, to),
         api.profit.series(from, to),
         api.profit.byProduct(from, to),
+        api.profit.abc(from, to),
       ]);
-      setSum(s); setSeries(ts); setProducts(pr); setUpdatedAt(new Date());
+      setSum(s); setSeries(ts); setProducts(pr); setAbc(ab); setUpdatedAt(new Date());
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar lucros.');
     } finally { setLoading(false); }
@@ -156,6 +158,30 @@ export function Profit() {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* Curva ABC */}
+      <div className="card">
+        <h3>Curva ABC (peso nas vendas)</h3>
+        {abc.length === 0 ? <p className="muted">Sem dados.</p> : (
+          <table className="ptable">
+            <thead>
+              <tr><th>Produto</th><th>Vendas</th><th>%</th><th>% acum.</th><th>Classe</th></tr>
+            </thead>
+            <tbody>
+              {abc.slice(0, 100).map((r) => (
+                <tr key={r.productCode}>
+                  <td>{r.description}</td>
+                  <td>{kz(r.sales)}</td>
+                  <td>{r.sharePct}%</td>
+                  <td>{r.cumulativePct}%</td>
+                  <td><span className={`pill ${r.abcClass === 'A' ? 'on' : r.abcClass === 'C' ? 'off' : ''}`}>{r.abcClass}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="muted" style={{ fontSize: 12 }}>A = até 80% das vendas (estrela) · B = 80–95% · C = restante (cauda).</p>
       </div>
     </div>
   );

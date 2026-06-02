@@ -68,6 +68,81 @@ export class AlertsService {
         });
       }
 
+      // ── Monitor de anomalias (OpenManus) ──────────────────────
+      const reg = async (name: string) => {
+        const r = await tx.$queryRaw<{ reg: string | null }[]>(Prisma.sql`SELECT to_regclass(${name})::text AS reg`);
+        return !!r[0]?.reg;
+      };
+
+      // 4. Cancelamentos em excesso por operador (≥3 em 7 dias) — via auditoria.
+      if (await reg('tenant_audit_log')) {
+        const canc = await tx.$queryRaw<{ actor_name: string | null; n: number }[]>(
+          Prisma.sql`SELECT actor_name, COUNT(*)::int AS n FROM tenant_audit_log
+                     WHERE action = 'SALE_CANCELLED' AND timestamp >= now() - interval '7 days'
+                     GROUP BY actor_name HAVING COUNT(*) >= 3 ORDER BY n DESC LIMIT 10`,
+        );
+        for (const c of canc) {
+          alerts.push({
+            level: 'danger', category: 'SALES',
+            title: `Muitos cancelamentos: ${c.actor_name ?? '—'}`,
+            detail: `${c.n} vendas anuladas nos últimos 7 dias — rever`,
+          });
+        }
+      }
+
+      // 5. Descontos elevados (≥30%) nos últimos 7 dias.
+      const disc = await tx.$queryRaw<{ n: number; maxr: string }[]>(
+        Prisma.sql`SELECT COUNT(*)::int AS n, COALESCE(MAX(ii.discount_rate),0) AS maxr
+                   FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
+                   WHERE i.status <> 'A' AND i.system_entry_date >= now() - interval '7 days'
+                     AND ii.discount_rate >= 0.30`,
+      );
+      if (Number(disc[0]?.n ?? 0) > 0) {
+        alerts.push({
+          level: 'warning', category: 'SALES', title: 'Descontos elevados',
+          detail: `${disc[0].n} linha(s) com desconto ≥ 30% (máx ${Math.round(Number(disc[0].maxr) * 100)}%) em 7 dias`,
+        });
+      }
+
+      // 6. Venda abaixo do custo (margem negativa), 30 dias — exige coluna unit_cost.
+      const hasCost = await tx.$queryRaw<{ ok: number }[]>(
+        Prisma.sql`SELECT 1 AS ok FROM information_schema.columns
+                   WHERE table_schema = current_schema() AND table_name = 'invoice_items'
+                     AND column_name = 'unit_cost' LIMIT 1`,
+      );
+      if (hasCost.length > 0) {
+        const below = await tx.$queryRaw<{ description: string; n: number }[]>(
+          Prisma.sql`SELECT MAX(ii.description) AS description, COUNT(*)::int AS n
+                     FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
+                     WHERE i.status <> 'A' AND i.system_entry_date >= now() - interval '30 days'
+                       AND ii.unit_cost > 0 AND (ii.unit_price * (1 - COALESCE(ii.discount_rate,0))) < ii.unit_cost
+                     GROUP BY ii.product_code ORDER BY n DESC LIMIT 10`,
+        );
+        for (const b of below) {
+          alerts.push({
+            level: 'danger', category: 'SALES',
+            title: `Venda abaixo do custo: ${b.description}`,
+            detail: `${b.n} venda(s) em 30 dias com preço abaixo do custo`,
+          });
+        }
+      }
+
+      // 7. Produtos parados (com stock mas sem vendas há 30 dias).
+      const stalled = await tx.$queryRaw<{ n: number }[]>(
+        Prisma.sql`SELECT COUNT(*)::int AS n FROM products p
+                   WHERE p.is_active = TRUE AND p.stock_qty > 0
+                     AND NOT EXISTS (
+                       SELECT 1 FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
+                       WHERE ii.product_code = p.code AND i.status <> 'A'
+                         AND i.system_entry_date >= now() - interval '30 days')`,
+      );
+      if (Number(stalled[0]?.n ?? 0) > 0) {
+        alerts.push({
+          level: 'info', category: 'STOCK', title: 'Produtos parados',
+          detail: `${stalled[0].n} produto(s) com stock sem vendas há 30 dias`,
+        });
+      }
+
       return alerts;
     });
   }

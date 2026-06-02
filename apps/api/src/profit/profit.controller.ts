@@ -34,4 +34,10 @@ export class ProfitController {
   byProduct(@Query('from') from?: string, @Query('to') to?: string) {
     return this.profit.byProduct(this.ctx.requireTenantSchema(), from, to);
   }
+
+  @Get('abc')
+  @ApiOperation({ summary: 'Curva ABC de produtos (peso nas vendas)' })
+  abc(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.profit.abc(this.ctx.requireTenantSchema(), from, to);
+  }
 }

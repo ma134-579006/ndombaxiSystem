@@ -405,6 +405,10 @@ export interface ProfitProduct {
   productCode: string; description: string; qty: number;
   salesNet: number; cost: number; profit: number; marginPct: number;
 }
+export interface ProfitAbcRow {
+  productCode: string; description: string; sales: number;
+  sharePct: number; cumulativePct: number; abcClass: 'A' | 'B' | 'C';
+}
 
 // ── Despesas operacionais (gestor) ──────────────────────────
 export type ExpenseCategory =
