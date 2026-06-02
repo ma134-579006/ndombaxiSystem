@@ -30,6 +30,7 @@ import { ExpensesModule } from './expenses/expenses.module';
 import { ReceivablesModule } from './receivables/receivables.module';
 import { CashflowModule } from './cashflow/cashflow.module';
 import { PayablesModule } from './payables/payables.module';
+import { CommissionsModule } from './commissions/commissions.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
@@ -81,6 +82,7 @@ import { HealthController } from './health.controller';
     ReceivablesModule,
     CashflowModule,
     PayablesModule,
+    CommissionsModule,
   ],
   controllers: [HealthController],
   providers: [

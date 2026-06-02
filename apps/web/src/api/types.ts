@@ -489,6 +489,14 @@ export interface CreatePayableInput { supplierId?: string; supplierName: string;
 export interface RecordPayablePaymentInput { amount: number; method?: 'CASH' | 'TRANSFER' | 'REFERENCE' | 'CARD' | 'EXPRESS'; notes?: string }
 export interface PayableVoucher { referenceNumber: string; amount: number; paidAmount: number; outstanding: number; status: PayableStatus }
 
+// ── Comissões de vendedores (gestor) ────────────────────────
+export interface CommissionRow {
+  userId: string; name: string; rate: number; sales: number; salesCount: number; commission: number;
+}
+export interface CommissionReport {
+  from: string; to: string; rows: CommissionRow[]; totalSales: number; totalCommission: number;
+}
+
 // ── Fluxo de caixa (gestor) ─────────────────────────────────
 export interface CashflowSummary {
   from: string; to: string;

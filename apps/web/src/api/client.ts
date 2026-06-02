@@ -17,6 +17,7 @@ import type {
   CashflowForecast,
   CashflowPoint,
   CashflowSummary,
+  CommissionReport,
   Expense,
   ExpenseSummary,
   PaymentReceipt,
@@ -310,6 +311,10 @@ export const api = {
       request<ExpenseSummary>('GET', `/expenses/summary${qs({ from, to })}`),
     create: (dto: CreateExpenseInput) => request<Expense>('POST', '/expenses', dto),
     remove: (id: string) => request<{ id: string }>('DELETE', `/expenses/${id}`),
+  },
+  commissions: {
+    report: (from?: string, to?: string) => request<CommissionReport>('GET', `/commissions${qs({ from, to })}`),
+    setRate: (userId: string, rate: number) => request<{ userId: string; rate: number }>('POST', `/commissions/${userId}/rate`, { rate }),
   },
   cashflow: {
     summary: (from?: string, to?: string) => request<CashflowSummary>('GET', `/cashflow/summary${qs({ from, to })}`),

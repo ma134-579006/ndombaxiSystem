@@ -19,6 +19,7 @@ import { Promotions } from './sections/Promotions';
 import { Overview } from './sections/Overview';
 import { Profit } from './sections/Profit';
 import { Cashflow } from './sections/Cashflow';
+import { Commissions } from './sections/Commissions';
 import { Expenses } from './sections/Expenses';
 import { Receivables } from './sections/Receivables';
 import { Payables } from './sections/Payables';
@@ -47,6 +48,7 @@ const TENANT_NAV: NavItem[] = [
   { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart },
   { key: 'profit', label: 'Lucros', icon: IconChart },
   { key: 'cashflow', label: 'Fluxo de Caixa', icon: IconChart },
+  { key: 'commissions', label: 'Comissões', icon: IconStar },
   { key: 'expenses', label: 'Gastos', icon: IconReceipt },
   { key: 'receivables', label: 'Contas a Receber', icon: IconCard },
   { key: 'payables', label: 'Contas a Pagar', icon: IconTruck },
@@ -81,6 +83,7 @@ function TenantPanel() {
       {section === 'operations' ? <Operations /> : null}
       {section === 'profit' ? <Profit /> : null}
       {section === 'cashflow' ? <Cashflow /> : null}
+      {section === 'commissions' ? <Commissions /> : null}
       {section === 'expenses' ? <Expenses /> : null}
       {section === 'receivables' ? <Receivables /> : null}
       {section === 'payables' ? <Payables /> : null}
