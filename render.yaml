@@ -17,19 +17,22 @@ services:
     plan: free
     region: frankfurt # mais perto de Angola que os EUA
     autoDeploy: true
+    # NOTA: não usamos `corepack enable` (tenta criar symlink em /usr/bin, que é
+    # read-only no Render → EROFS). Usamos `npx pnpm@9.15.9` (cache gravável).
     buildCommand: >-
-      corepack enable &&
-      pnpm install --frozen-lockfile &&
-      pnpm --filter @nexus/types build &&
-      pnpm --filter @nexus/agt-xml build &&
-      pnpm --filter @nexus/api exec prisma generate &&
-      pnpm --filter @nexus/api build
+      npx -y pnpm@9.15.9 install --frozen-lockfile &&
+      npx -y pnpm@9.15.9 --filter @nexus/types build &&
+      npx -y pnpm@9.15.9 --filter @nexus/agt-xml build &&
+      npx -y pnpm@9.15.9 --filter @nexus/api exec prisma generate &&
+      npx -y pnpm@9.15.9 --filter @nexus/api build
     startCommand: >-
-      pnpm --filter @nexus/api exec prisma db push --accept-data-loss &&
-      (pnpm --filter @nexus/api exec prisma db seed || true) &&
+      npx -y pnpm@9.15.9 --filter @nexus/api exec prisma db push --accept-data-loss &&
+      (npx -y pnpm@9.15.9 --filter @nexus/api exec prisma db seed || true) &&
       node apps/api/dist/main.js
     healthCheckPath: /health
     envVars:
+      - key: NODE_VERSION
+        value: "20.18.1" # fixa Node 20 LTS (o ">=20" do engines apanhava o 26.x)
       - key: NODE_ENV
         value: production
       - key: API_PREFIX
