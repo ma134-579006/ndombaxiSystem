@@ -18,6 +18,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantsService } from './tenants.service';
+import { AuthService } from '../auth/auth.service';
 import { ChangePlanDto, ListTenantsDto } from './dto/list-tenants.dto';
 import { ResetTenantPasswordDto } from './dto/reset-password.dto';
 
@@ -27,7 +28,10 @@ import { ResetTenantPasswordDto } from './dto/reset-password.dto';
 @Roles(Role.SUPER_ADMIN)
 @Controller('super-admin/tenants')
 export class TenantsController {
-  constructor(private readonly tenants: TenantsService) {}
+  constructor(
+    private readonly tenants: TenantsService,
+    private readonly auth: AuthService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Listar empresas com filtros' })
@@ -111,6 +115,16 @@ export class TenantsController {
     @Ip() ip: string,
   ) {
     return this.tenants.exportData(id, { adminId: user.sub, ip });
+  }
+
+  @Post(':id/impersonate')
+  @ApiOperation({ summary: 'Acesso shadow: entrar no painel da empresa (auditado)' })
+  impersonate(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ) {
+    return this.auth.impersonate(id, { adminId: user.sub, ip });
   }
 
   @Delete(':id')

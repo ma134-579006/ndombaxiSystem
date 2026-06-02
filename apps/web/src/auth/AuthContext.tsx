@@ -18,14 +18,22 @@ export type AuthMode = 'platform' | 'tenant';
 const LS_ACCESS = 'ndombaxi.web.access';
 const LS_REFRESH = 'ndombaxi.web.refresh';
 const LS_COMPANY = 'ndombaxi.web.company';
+// Acesso shadow: guarda a sessão de plataforma para restaurar ao sair.
+const LS_SHADOW = 'ndombaxi.web.shadow';
+const LS_PREV_ACCESS = 'ndombaxi.web.prevaccess';
+const LS_PREV_REFRESH = 'ndombaxi.web.prevrefresh';
 
 interface AuthContextValue {
   status: AuthStatus;
   user: DecodedJwt | null;
   mode: AuthMode | null;
   companyCode: string | null;
+  /** Nome da empresa quando em modo shadow (Super Admin dentro de uma empresa). */
+  shadow: string | null;
   loginPlatform(input: PlatformLoginInput): Promise<void>;
   loginTenant(input: TenantLoginInput): Promise<void>;
+  enterShadow(tokens: TokenPair, companyCode: string, companyName: string): void;
+  exitShadow(): void;
   logout(): Promise<void>;
 }
 
@@ -43,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [companyCode, setCompanyCode] = useState<string | null>(
     () => localStorage.getItem(LS_COMPANY),
   );
+  const [shadow, setShadow] = useState<string | null>(() => localStorage.getItem(LS_SHADOW));
 
   const accessRef = useRef<string | null>(null);
   const refreshRef = useRef<string | null>(null);
@@ -61,6 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshRef.current = null;
     localStorage.removeItem(LS_ACCESS);
     localStorage.removeItem(LS_REFRESH);
+    localStorage.removeItem(LS_SHADOW);
+    localStorage.removeItem(LS_PREV_ACCESS);
+    localStorage.removeItem(LS_PREV_REFRESH);
+    setShadow(null);
     setUser(null);
     setStatus('guest');
   }, []);
@@ -135,6 +148,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [applyTokens],
   );
 
+  const enterShadow = useCallback(
+    (tokens: TokenPair, code: string, companyName: string) => {
+      // Preserva a sessão de plataforma actual para restaurar ao sair.
+      if (accessRef.current) localStorage.setItem(LS_PREV_ACCESS, accessRef.current);
+      if (refreshRef.current) localStorage.setItem(LS_PREV_REFRESH, refreshRef.current);
+      companyRef.current = code;
+      setCompanyCode(code);
+      localStorage.setItem(LS_COMPANY, code);
+      applyTokens(tokens);
+      localStorage.setItem(LS_SHADOW, companyName);
+      setShadow(companyName);
+      setStatus('authed');
+    },
+    [applyTokens],
+  );
+
+  const exitShadow = useCallback(() => {
+    const pa = localStorage.getItem(LS_PREV_ACCESS);
+    const pr = localStorage.getItem(LS_PREV_REFRESH);
+    localStorage.removeItem(LS_PREV_ACCESS);
+    localStorage.removeItem(LS_PREV_REFRESH);
+    localStorage.removeItem(LS_SHADOW);
+    localStorage.removeItem(LS_COMPANY);
+    companyRef.current = undefined;
+    setCompanyCode(null);
+    setShadow(null);
+    if (pa && pr) {
+      applyTokens({ accessToken: pa, refreshToken: pr });
+      setStatus('authed');
+    } else {
+      clearSession();
+    }
+  }, [applyTokens, clearSession]);
+
   const logout = useCallback(async () => {
     const rt = refreshRef.current;
     if (rt) {
@@ -153,11 +200,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       mode: modeFromUser(user),
       companyCode,
+      shadow,
       loginPlatform,
       loginTenant,
+      enterShadow,
+      exitShadow,
       logout,
     }),
-    [status, user, companyCode, loginPlatform, loginTenant, logout],
+    [status, user, companyCode, shadow, loginPlatform, loginTenant, enterShadow, exitShadow, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -225,6 +225,8 @@ export const api = {
       request<{ email: string; temporaryPassword: string }>('POST', `/super-admin/tenants/${id}/reset-password`, email ? { email } : {}),
     exportData: (id: string) => request<unknown>('GET', `/super-admin/tenants/${id}/export`),
     remove: (id: string) => request<{ deleted: boolean }>('DELETE', `/super-admin/tenants/${id}`),
+    impersonate: (id: string) =>
+      request<{ tokens: TokenPair; companyCode: string; companyName: string; email: string }>('POST', `/super-admin/tenants/${id}/impersonate`),
   },
 
   ai: {

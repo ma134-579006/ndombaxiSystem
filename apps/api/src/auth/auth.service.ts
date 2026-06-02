@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { JwtPayload, RoleName } from '@nexus/types';
@@ -163,6 +165,53 @@ export class AuthService {
     });
 
     return this.tokens.issuePair(payload, ctx);
+  }
+
+  // ─── Acesso shadow do Super Admin (impersonation, §2.2) ─────
+  /**
+   * O Super Admin entra no painel de uma empresa SEM saber a senha: emite um
+   * par de tokens TENANT em nome do administrador da empresa. Auditado como
+   * SHADOW_ACCESS. Não revela nem altera a senha do utilizador.
+   */
+  async impersonate(
+    companyId: string,
+    ctx: { adminId?: string | null; ip?: string | null },
+  ): Promise<{ tokens: TokenPair; companyCode: string; companyName: string; email: string }> {
+    const company = await this.prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) throw new NotFoundException('Empresa não encontrada');
+
+    const user = await this.tenantUsers.findByEmail(
+      company.schemaName,
+      company.responsibleEmail.toLowerCase(),
+    );
+    if (!user || !user.is_active) {
+      throw new BadRequestException('A empresa não tem um administrador activo para aceder.');
+    }
+
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      subjectType: 'TENANT',
+      tenantId: company.id,
+      tenantSchema: company.schemaName,
+      storeId: user.store_id ?? undefined,
+      twoFaVerified: true,
+    };
+
+    await this.audit.record({
+      actorType: 'PLATFORM',
+      actorId: ctx.adminId ?? null,
+      tenantSchema: company.schemaName,
+      action: 'SHADOW_ACCESS',
+      entity: 'Company',
+      entityId: companyId,
+      after: { impersonated: user.email },
+      ip: ctx.ip,
+    });
+
+    const tokens = await this.tokens.issuePair(payload, { ip: ctx.ip });
+    return { tokens, companyCode: company.code, companyName: company.name, email: user.email };
   }
 
   // ─── Refresh com rotação ────────────────────────────────────

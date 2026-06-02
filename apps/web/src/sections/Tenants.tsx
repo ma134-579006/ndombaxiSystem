@@ -3,6 +3,7 @@ import { api, ApiError } from '../api/client';
 import type { Company, CompanyStatus } from '../api/types';
 import { IconBuilding, IconSearch } from '../components/Icons';
 import { StatusBadge } from '../components/ui';
+import { useAuth } from '../auth/AuthContext';
 import { formatDate } from '../format';
 
 const FILTERS: { key: '' | CompanyStatus; label: string }[] = [
@@ -19,6 +20,7 @@ export function Tenants() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const { enterShadow } = useAuth();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,6 +76,16 @@ export function Tenants() {
       URL.revokeObjectURL(url);
     } catch (e) {
       alert(e instanceof ApiError ? e.message : 'Não foi possível exportar.');
+    } finally { setBusyId(null); }
+  };
+
+  const enterShadowFor = async (c: Company) => {
+    setBusyId(c.id);
+    try {
+      const r = await api.tenants.impersonate(c.id);
+      enterShadow(r.tokens, r.companyCode, r.companyName);
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : 'Não foi possível entrar em modo shadow.');
     } finally { setBusyId(null); }
   };
 
@@ -158,6 +170,11 @@ export function Tenants() {
                 {c.status === 'SUSPENDED' ? (
                   <button className="btn sm success" disabled={busyId === c.id} onClick={() => act(c.id, () => api.tenants.reactivate(c.id))}>
                     Reactivar
+                  </button>
+                ) : null}
+                {c.status === 'ACTIVE' || c.status === 'SUSPENDED' ? (
+                  <button className="btn sm ghost" disabled={busyId === c.id} onClick={() => enterShadowFor(c)} title="Entrar no painel da empresa (shadow)">
+                    Entrar (shadow)
                   </button>
                 ) : null}
                 {c.status !== 'PENDING' && c.status !== 'CANCELLED' ? (

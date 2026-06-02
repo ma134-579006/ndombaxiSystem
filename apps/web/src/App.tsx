@@ -93,7 +93,7 @@ function TenantPanel() {
 }
 
 function Gate() {
-  const { status, mode } = useAuth();
+  const { status, mode, shadow, exitShadow } = useAuth();
   // Visitantes começam na landing; "Entrar" leva ao login.
   const [showLogin, setShowLogin] = useState(false);
 
@@ -107,7 +107,17 @@ function Gate() {
   if (status !== 'authed') {
     return showLogin ? <Login onBack={() => setShowLogin(false)} /> : <Landing onGoLogin={() => setShowLogin(true)} />;
   }
-  return mode === 'platform' ? <PlatformPanel /> : <TenantPanel />;
+  return (
+    <>
+      {shadow ? (
+        <div className="shadow-bar">
+          <span>👁 Modo shadow — a ver o painel de <strong>{shadow}</strong></span>
+          <button className="btn sm" onClick={exitShadow}>Sair do shadow</button>
+        </div>
+      ) : null}
+      {mode === 'platform' ? <PlatformPanel /> : <TenantPanel />}
+    </>
+  );
 }
 
 export function App() {
