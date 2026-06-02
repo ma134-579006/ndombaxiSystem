@@ -366,6 +366,31 @@ model PaymentGatewayConfig {
 }
 
 // ─────────────────────────────────────────────────────────────
+// INTEGRAÇÕES EXTERNAS — configuradas 100% pelo Super Admin no painel
+// (SEM código). Cada integração (AGT SAF-T, Open Finance, Stripe, DocuSign,
+// biometria/ponto) guarda URLs/IDs em `settings` e as credenciais em
+// `secretEnc` (AES-256-GCM). O código tem adaptadores prontos que activam
+// assim que a integração é preenchida e ligada.
+// ─────────────────────────────────────────────────────────────
+model Integration {
+  id          String    @id @default(uuid()) @db.Uuid
+  key         String    @unique // AGT_SAFT | OPEN_FINANCE | STRIPE | DOCUSIGN | BIOMETRIC
+  label       String
+  enabled     Boolean   @default(false)
+  environment String    @default("TEST") // TEST | PRODUCTION
+  baseUrl     String? // endpoint da API externa
+  settings    Json? // campos não-secretos (IDs, refs, opções)
+  secretEnc   String? // credenciais encriptadas em repouso
+  lastStatus  String? // resultado do último teste de ligação
+  lastTestAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("integrations")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
 // CONFIGURAÇÃO FISCAL AGT (§7) — gerida 100% pelo Super Admin no
 // painel, SEM tocar no código. Singleton lógico. Reúne os dados que
 // a AGT fornece quando o software é subscrito/certificado (nº de

@@ -27,6 +27,7 @@ import { Storefront } from './sections/Storefront';
 import { PlansAdmin } from './sections/PlansAdmin';
 import { SubsAdmin } from './sections/SubsAdmin';
 import { PlatformDashboard } from './sections/PlatformDashboard';
+import { Integrations } from './sections/Integrations';
 
 const PLATFORM_NAV: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: IconChart },
@@ -36,6 +37,7 @@ const PLATFORM_NAV: NavItem[] = [
   { key: 'ai', label: 'Inteligência Artificial', icon: IconCpu },
   { key: 'fiscal', label: 'Fiscal (AGT)', icon: IconReceipt },
   { key: 'gateways', label: 'Gateways de Pagamento', icon: IconCard },
+  { key: 'integrations', label: 'Integrações', icon: IconCpu },
 ];
 
 const TENANT_NAV: NavItem[] = [
@@ -66,6 +68,7 @@ function PlatformPanel() {
       {section === 'ai' ? <Ai /> : null}
       {section === 'fiscal' ? <Fiscal /> : null}
       {section === 'gateways' ? <Gateways /> : null}
+      {section === 'integrations' ? <Integrations /> : null}
     </Shell>
   );
 }

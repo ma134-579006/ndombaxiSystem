@@ -33,6 +33,8 @@ import type {
   CreatePayableInput,
   RecordPayablePaymentInput,
   Gateway,
+  Integration,
+  UpdateIntegrationInput,
   LandingConfig,
   AuditEvent,
   CashSessionRow,
@@ -250,6 +252,12 @@ export const api = {
     subscribe: () => request<AgtConfig>('POST', '/super-admin/fiscal/agt/subscribe'),
   },
 
+  integrations: {
+    list: () => request<Integration[]>('GET', '/super-admin/integrations'),
+    update: (key: string, dto: UpdateIntegrationInput) =>
+      request<Integration>('PATCH', `/super-admin/integrations/${key}`, dto),
+    test: (key: string) => request<{ ok: boolean; status: string }>('POST', `/super-admin/integrations/${key}/test`),
+  },
   gateways: {
     list: () => request<Gateway[]>('GET', '/super-admin/payment-gateways'),
     create: (dto: CreateGatewayInput) =>

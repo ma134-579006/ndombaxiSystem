@@ -278,6 +278,21 @@ export interface PaymentProof {
   uploaded_at: string;
 }
 
+// ── Integrações externas (Super Admin) ──────────────────────
+export interface IntegrationField { name: string; label: string }
+export interface Integration {
+  key: string; label: string; description: string;
+  hasBaseUrl: boolean; baseUrlLabel: string;
+  settingsFields: IntegrationField[]; secretLabel: string;
+  enabled: boolean; environment: 'TEST' | 'PRODUCTION';
+  baseUrl: string | null; settings: Record<string, string>;
+  hasSecret: boolean; lastStatus: string | null; lastTestAt: string | null;
+}
+export interface UpdateIntegrationInput {
+  enabled?: boolean; environment?: 'TEST' | 'PRODUCTION';
+  baseUrl?: string; settings?: Record<string, string>; secret?: string;
+}
+
 // ── Empresas (tenants) ───────────────────────────────────────
 export type CompanyStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';
 export interface Plan {
