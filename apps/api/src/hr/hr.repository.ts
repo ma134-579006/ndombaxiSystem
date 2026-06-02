@@ -18,6 +18,7 @@ export interface EmployeeRow {
   taxable_allowances: string;
   exempt_allowances: string;
   iban: string | null;
+  photo_url: string | null;
   status: string;
 }
 
@@ -30,13 +31,13 @@ export class HrRepository {
       const rows = await tx.$queryRaw<EmployeeRow[]>(
         Prisma.sql`INSERT INTO employees
             (employee_number, full_name, tax_id, inss_number, position, department,
-             store_id, hire_date, base_salary, taxable_allowances, exempt_allowances, iban)
+             store_id, hire_date, base_salary, taxable_allowances, exempt_allowances, iban, photo_url)
           VALUES (${input.employeeNumber}, ${input.fullName}, ${input.taxId ?? null},
                   ${input.inssNumber ?? null}, ${input.position ?? null}, ${input.department ?? null},
                   ${input.storeId ?? null}::uuid,
                   ${input.hireDate ?? null}::date,
                   ${input.baseSalary}, ${input.taxableAllowances ?? 0},
-                  ${input.exemptAllowances ?? 0}, ${input.iban ?? null})
+                  ${input.exemptAllowances ?? 0}, ${input.iban ?? null}, ${input.photoUrl ?? null})
           RETURNING *`,
       );
       return rows[0];
@@ -75,6 +76,7 @@ export class HrRepository {
     if (input.exemptAllowances !== undefined)
       sets.push(Prisma.sql`exempt_allowances = ${input.exemptAllowances}`);
     if (input.iban !== undefined) sets.push(Prisma.sql`iban = ${input.iban}`);
+    if (input.photoUrl !== undefined) sets.push(Prisma.sql`photo_url = ${input.photoUrl}`);
 
     if (sets.length === 0) return this.get(schema, id);
     sets.push(Prisma.sql`updated_at = now()`);

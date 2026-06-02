@@ -50,6 +50,11 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsString()
   iban?: string;
+
+  /** Foto do funcionário (URL ou data-URI base64; qualquer formato de imagem). */
+  @IsOptional()
+  @IsString()
+  photoUrl?: string;
 }
 
 export class UpdateEmployeeDto {
@@ -88,4 +93,8 @@ export class UpdateEmployeeDto {
   @IsOptional()
   @IsString()
   iban?: string;
+
+  @IsOptional()
+  @IsString()
+  photoUrl?: string;
 }

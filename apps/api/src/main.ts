@@ -4,15 +4,21 @@ import { ConfigService } from '@nestjs/config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import type { Env } from './config/env.validation';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: false });
+  // bodyParser:false → registamos nós o parser com um limite generoso, porque
+  // logótipos e imagens de produtos são enviados como data-URI base64 (o default
+  // do Express é 100 kB e rejeitava uploads de imagens com 413).
+  const app = await NestFactory.create(AppModule, { bufferLogs: false, bodyParser: false });
   const config = app.get(ConfigService<Env, true>);
   const logger = new Logger('Bootstrap');
 
   app.use(helmet());
+  app.use(json({ limit: '20mb' }));
+  app.use(urlencoded({ extended: true, limit: '20mb' }));
 
   // CORS: aceita a lista explícita do env (CORS_ORIGINS) E, por conveniência,
   // qualquer subdomínio de plataformas de deploy grátis (Cloudflare Pages /

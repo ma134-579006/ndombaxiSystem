@@ -174,6 +174,9 @@ export class IntegrationsService {
     } else if (entry.hasBaseUrl) {
       if (!row.baseUrl) {
         result = { ok: false, status: 'Falta o endpoint (Base URL)' };
+      } else if (!isSafePublicUrl(row.baseUrl)) {
+        // Defesa SSRF: não deixar o servidor sondar alvos internos/privados.
+        result = { ok: false, status: 'URL inválido (use https público, não endereços internos)' };
       } else {
         try {
           const res = await fetch(row.baseUrl, { method: 'GET', signal: AbortSignal.timeout(6000) });
@@ -215,4 +218,25 @@ export class IntegrationsService {
       secret,
     };
   }
+}
+
+/**
+ * Defesa SSRF: só permite testar URLs http(s) com host público — bloqueia
+ * loopback, redes privadas e link-local (ex.: 169.254.169.254 metadata).
+ */
+function isSafePublicUrl(raw: string): boolean {
+  let url: URL;
+  try { url = new URL(raw); } catch { return false; }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+  const host = url.hostname.toLowerCase();
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal') || host.endsWith('.local')) return false;
+  // IPv4 privado / loopback / link-local
+  const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const [a, b] = [Number(m[1]), Number(m[2])];
+    if (a === 127 || a === 10 || a === 0 || (a === 169 && b === 254) || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31)) return false;
+  }
+  // IPv6 loopback / link-local / ULA
+  if (host === '::1' || host.startsWith('fe80') || host.startsWith('fc') || host.startsWith('fd')) return false;
+  return true;
 }

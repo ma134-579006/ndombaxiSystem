@@ -25,6 +25,9 @@ import type {
   LeaveEmployee,
   LeaveSummary,
   CreateLeaveInput,
+  ManagerEmployee,
+  CreateEmployeeInput,
+  UpdateEmployeeInput,
   Expense,
   ExpenseSummary,
   PaymentReceipt,
@@ -332,6 +335,12 @@ export const api = {
   commissions: {
     report: (from?: string, to?: string) => request<CommissionReport>('GET', `/commissions${qs({ from, to })}`),
     setRate: (userId: string, rate: number) => request<{ userId: string; rate: number }>('POST', `/commissions/${userId}/rate`, { rate }),
+  },
+  hr: {
+    employees: (all?: boolean) => request<ManagerEmployee[]>('GET', `/hr/employees${all ? '?all=true' : ''}`),
+    createEmployee: (dto: CreateEmployeeInput) => request<ManagerEmployee>('POST', '/hr/employees', dto),
+    updateEmployee: (id: string, dto: UpdateEmployeeInput) => request<ManagerEmployee>('PATCH', `/hr/employees/${id}`, dto),
+    terminateEmployee: (id: string) => request<ManagerEmployee>('POST', `/hr/employees/${id}/terminate`, {}),
   },
   leave: {
     list: (status?: string) => request<LeaveRow[]>('GET', `/leave${qs({ status })}`),

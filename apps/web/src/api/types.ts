@@ -512,6 +512,22 @@ export interface CommissionReport {
   from: string; to: string; rows: CommissionRow[]; totalSales: number; totalCommission: number;
 }
 
+// ── Funcionários (RH) ───────────────────────────────────────
+export interface ManagerEmployee {
+  id: string; employee_number: string; full_name: string;
+  tax_id: string | null; inss_number: string | null; position: string | null;
+  department: string | null; base_salary: string; iban: string | null;
+  photo_url: string | null; status: string;
+}
+export interface CreateEmployeeInput {
+  employeeNumber: string; fullName: string; position?: string; department?: string;
+  baseSalary: number; iban?: string; taxId?: string; inssNumber?: string; photoUrl?: string;
+}
+export interface UpdateEmployeeInput {
+  fullName?: string; position?: string; department?: string;
+  baseSalary?: number; iban?: string; photoUrl?: string;
+}
+
 // ── Férias / ausências (RH) ─────────────────────────────────
 export type LeaveType = 'FERIAS' | 'FALTA' | 'LICENCA' | 'OUTRO';
 export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED';

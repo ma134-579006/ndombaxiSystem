@@ -359,6 +359,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."employees" (
   taxable_allowances NUMERIC(14,2) NOT NULL DEFAULT 0,  -- subsídios sujeitos
   exempt_allowances  NUMERIC(14,2) NOT NULL DEFAULT 0,  -- subsídios isentos
   iban             TEXT,
+  photo_url        TEXT,                                -- foto do funcionário (data-URI/URL)
   status           TEXT NOT NULL DEFAULT 'ACTIVE',      -- ACTIVE/SUSPENDED/TERMINATED
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
