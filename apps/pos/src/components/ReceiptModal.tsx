@@ -1,4 +1,5 @@
 import React from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import type { DocumentIdentity, EmittedInvoice, ReceiptFiscalInfo } from '../api/types';
 import { copyrightLine } from '../brand';
 import { formatDateTime, formatKz } from '../format';
@@ -17,6 +18,14 @@ interface Props {
 /** Recibo/comprovativo da venda emitida — identidade da empresa + dados fiscais AGT (§7). */
 export function ReceiptModal({ invoice, info, identity, customerName, provisional, onClose }: Props) {
   const hashShort = invoice.hash ? invoice.hash.slice(0, 4) : '----';
+  // Conteúdo do QR de verificação (campos-chave do documento).
+  const qrData = [
+    'Ndombaxi', invoice.number,
+    identity?.nif ? `NIF:${identity.nif}` : '',
+    `Total:${invoice.grossTotal}`, `IVA:${invoice.ivaTotal}`,
+    new Date().toISOString().slice(0, 10),
+    invoice.hash ? `H:${invoice.hash.slice(0, 16)}` : '',
+  ].filter(Boolean).join('|');
   const companyMeta = identity
     ? [identity.nif ? `NIF ${identity.nif}` : '', identity.address ?? ''].filter(Boolean).join(' · ')
     : '';
@@ -85,6 +94,15 @@ export function ReceiptModal({ invoice, info, identity, customerName, provisiona
                 <div>Software certificado AGT nº {info.softwareCertificateNumber}</div>
               ) : null}
               {info.receiptLegend ? <div>{info.receiptLegend}</div> : null}
+            </div>
+          ) : null}
+
+          {!provisional && invoice.hash ? (
+            <div style={{ display: 'grid', placeItems: 'center', gap: 6, padding: '14px 0 4px' }}>
+              <div style={{ background: '#fff', padding: 8, borderRadius: 8 }}>
+                <QRCodeSVG value={qrData} size={116} level="M" />
+              </div>
+              <div className="muted" style={{ fontSize: 11 }}>Verificação · leia o QR</div>
             </div>
           ) : null}
         </div>
