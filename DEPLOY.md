@@ -36,9 +36,9 @@ funcionam em qualquer telemóvel/PC, sem ligar o teu computador.
 2. **New +** → **Blueprint** → escolhe o repositório `ndombaxi-system`.
    O Render lê o `render.yaml` e propõe o serviço **ndombaxi-api**.
 3. Preenche as variáveis que ele pede (as "sync: false"):
-   - **DATABASE_URL** → o teu Service URI do **Aiven** (o mesmo que está em `apps/api/.env`, começa por `postgres://avnadmin:...`).
-   - **SUPER_ADMIN_PASSWORD** → uma password forte (ex.: a tua, ou nova).
-   - **CORS_ORIGINS** → deixa **vazio por agora**; voltamos aqui no Passo 4.
+   - **DATABASE_URL** → o teu Service URI do **Aiven** (o mesmo que está em `apps/api/.env`, começa por `postgres://avnadmin:...`; acrescenta `?sslmode=require` no fim se não tiver).
+   - **SUPER_ADMIN_PASSWORD** → uma password forte (será a do super admin).
+   - **CORS_ORIGINS** → já vem **pré-preenchido** no `render.yaml`; podes deixar como está.
 4. **Apply / Create**. Espera ~3-5 min (1.ª build).
 
 ✅ Confirmação: abre `https://ndombaxi-api.onrender.com/health` → vês `{"status":"ok",...}`.
@@ -52,16 +52,19 @@ Conta em https://dash.cloudflare.com → **Workers & Pages** → **Create** → 
 
 Vais criar **3 projetos** (repete os passos, mudando só 2 campos):
 
-| Projeto | Build command | Output directory |
-|---|---|---|
-| **ndombaxi-admin** | `npx pnpm i && npx pnpm --filter @nexus/web build` | `apps/web/dist` |
-| **ndombaxi-loja** | `npx pnpm i && npx pnpm --filter @nexus/store build` | `apps/store/dist` |
-| **ndombaxi-caixa** | `npx pnpm i && npx pnpm --filter @nexus/pos build` | `apps/pos/dist` |
+| Projeto | App | Build command | Output directory |
+|---|---|---|---|
+| **ndombaxi-admin** ⭐ | web | `npx pnpm@9 install --frozen-lockfile && npx pnpm@9 --filter @nexus/web build` | `apps/web/dist` |
+| **ndombaxi-loja** | store | `npx pnpm@9 install --frozen-lockfile && npx pnpm@9 --filter @nexus/store build` | `apps/store/dist` |
+| **ndombaxi-caixa** | pos | `npx pnpm@9 install --frozen-lockfile && npx pnpm@9 --filter @nexus/pos build` | `apps/pos/dist` |
 
-Em **cada** projeto, antes de "Save and Deploy", abre **Environment variables** e adiciona:
-- **VITE_API_URL** = o URL da API do Passo 2 (ex.: `https://ndombaxi-api.onrender.com`)
+- **Root directory:** deixa em branco (raiz do repo — é um monorepo pnpm).
+- Em **cada** projeto, em **Environment variables**, adiciona:
+  - **VITE_API_URL** = o URL da API do Passo 2 (ex.: `https://ndombaxi-api.onrender.com`)
+  - **NODE_VERSION** = `20`
+  - *(só na loja, opcional)* **VITE_STORE_CODE** = código de uma empresa, p/ loja fixa.
 
-> Nota: também precisas de `corepack`/pnpm. Se o build falhar a achar o pnpm, em **Settings → Build → Build system version** escolhe a v2, e no comando usa `npx pnpm@9 ...`.
+> O **ndombaxi-admin** é o principal: é a página inicial (criar conta + planos), o login, o Super Admin e o painel do gestor.
 
 ✅ Confirmação: cada um dá-te um link tipo `https://ndombaxi-admin.pages.dev`.
 
@@ -69,11 +72,12 @@ Em **cada** projeto, antes de "Save and Deploy", abre **Environment variables** 
 
 ## PASSO 4 — Ligar as pontas (CORS)
 
-1. Junta os 3 links `.pages.dev` separados por vírgula, ex.:
-   `https://ndombaxi-admin.pages.dev,https://ndombaxi-loja.pages.dev,https://ndombaxi-caixa.pages.dev`
-2. Render → o teu serviço `ndombaxi-api` → **Environment** → edita **CORS_ORIGINS** com essa lista → **Save** (a API reinicia sozinha).
+Normalmente **não precisas de fazer nada**: a API já aceita automaticamente
+qualquer domínio `*.pages.dev` e `*.vercel.app`, e o `CORS_ORIGINS` já vem
+pré-preenchido com os 3 nomes sugeridos.
 
-> Mesmo que te esqueças, a API já aceita automaticamente qualquer domínio `*.pages.dev` e `*.vercel.app` — mas preencher é mais seguro.
+> Só se usares **domínio próprio** (ex.: `app.aminhaloja.ao`): Render → serviço
+> `ndombaxi-api` → **Environment** → acrescenta esse domínio ao **CORS_ORIGINS** → **Save**.
 
 ---
 

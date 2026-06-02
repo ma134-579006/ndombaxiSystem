@@ -37,7 +37,9 @@ services:
       - key: DATABASE_URL
         sync: false # cole o Service URI do Aiven (com ?sslmode=require)
       - key: CORS_ORIGINS
-        sync: false # ex.: https://ndombaxi-admin.pages.dev,https://ndombaxi-loja.pages.dev,https://ndombaxi-caixa.pages.dev
+        # Já pré-preenchido. A API também aceita automaticamente qualquer
+        # *.pages.dev — só editas aqui se usares domínio próprio.
+        value: https://ndombaxi-admin.pages.dev,https://ndombaxi-loja.pages.dev,https://ndombaxi-caixa.pages.dev
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
