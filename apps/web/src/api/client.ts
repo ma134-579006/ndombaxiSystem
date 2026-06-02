@@ -219,6 +219,10 @@ export const api = {
     reject: (id: string) => request<Company>('POST', `/super-admin/tenants/${id}/reject`),
     suspend: (id: string) => request<Company>('POST', `/super-admin/tenants/${id}/suspend`),
     reactivate: (id: string) => request<Company>('POST', `/super-admin/tenants/${id}/reactivate`),
+    resetPassword: (id: string, email?: string) =>
+      request<{ email: string; temporaryPassword: string }>('POST', `/super-admin/tenants/${id}/reset-password`, email ? { email } : {}),
+    exportData: (id: string) => request<unknown>('GET', `/super-admin/tenants/${id}/export`),
+    remove: (id: string) => request<{ deleted: boolean }>('DELETE', `/super-admin/tenants/${id}`),
   },
 
   ai: {

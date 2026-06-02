@@ -49,6 +49,47 @@ export function Tenants() {
     }
   };
 
+  const resetPwd = async (c: Company) => {
+    const email = window.prompt(`Repor senha de "${c.name}".\nE-mail do utilizador (vazio = responsável ${c.responsibleEmail}):`, '');
+    if (email === null) return;
+    setBusyId(c.id);
+    try {
+      const r = await api.tenants.resetPassword(c.id, email.trim() || undefined);
+      window.alert(`Senha temporária de ${r.email}:\n\n${r.temporaryPassword}\n\nGuarde-a — só é mostrada agora. Foi também enviada por e-mail.`);
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : 'Não foi possível repor a senha.');
+    } finally { setBusyId(null); }
+  };
+
+  const exportData = async (c: Company) => {
+    setBusyId(c.id);
+    try {
+      const data = await api.tenants.exportData(c.id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${c.code}-dados-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : 'Não foi possível exportar.');
+    } finally { setBusyId(null); }
+  };
+
+  const remove = async (c: Company) => {
+    const typed = window.prompt(`⚠️ ELIMINAR "${c.name}" apaga TODOS os dados (schema) de forma irreversível.\nPara confirmar, escreva o código da empresa: ${c.code}`, '');
+    if (typed === null) return;
+    if (typed.trim() !== c.code) { alert('Código não coincide. Cancelado.'); return; }
+    setBusyId(c.id);
+    try {
+      await api.tenants.remove(c.id);
+      await load();
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : 'Não foi possível eliminar.');
+    } finally { setBusyId(null); }
+  };
+
   return (
     <>
       <div className="content-head">
@@ -117,6 +158,19 @@ export function Tenants() {
                 {c.status === 'SUSPENDED' ? (
                   <button className="btn sm success" disabled={busyId === c.id} onClick={() => act(c.id, () => api.tenants.reactivate(c.id))}>
                     Reactivar
+                  </button>
+                ) : null}
+                {c.status !== 'PENDING' && c.status !== 'CANCELLED' ? (
+                  <button className="btn sm ghost" disabled={busyId === c.id} onClick={() => resetPwd(c)} title="Forçar reset de senha">
+                    Repor senha
+                  </button>
+                ) : null}
+                <button className="btn sm ghost" disabled={busyId === c.id} onClick={() => exportData(c)} title="Exportar dados (RGPD)">
+                  Exportar
+                </button>
+                {c.status === 'SUSPENDED' || c.status === 'CANCELLED' ? (
+                  <button className="btn sm danger" disabled={busyId === c.id} onClick={() => remove(c)} title="Eliminar empresa e dados">
+                    Eliminar
                   </button>
                 ) : null}
               </div>
