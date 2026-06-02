@@ -35,7 +35,7 @@ export class HrRepository {
           VALUES (${input.employeeNumber}, ${input.fullName}, ${input.taxId ?? null},
                   ${input.inssNumber ?? null}, ${input.position ?? null}, ${input.department ?? null},
                   ${input.storeId ?? null}::uuid,
-                  ${input.hireDate ?? null}::date,
+                  COALESCE(${input.hireDate ?? null}::date, CURRENT_DATE),
                   ${input.baseSalary}, ${input.taxableAllowances ?? 0},
                   ${input.exemptAllowances ?? 0}, ${input.iban ?? null}, ${input.photoUrl ?? null})
           RETURNING *`,

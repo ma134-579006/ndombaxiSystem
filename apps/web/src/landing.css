@@ -181,4 +181,11 @@
 .lp-credlabel { font-size:12px; color:#5a6679; }
 .lp-cred { font-family: ui-monospace, Menlo, monospace; font-weight: 800; font-size: 16px; color:#0f1729; background:#f4f6fb; border:1px dashed #cbd3e1; border-radius:9px; padding:8px 10px; user-select: all; }
 
-@media (max-width: 560px) { .lp-modal .grid2 { grid-template-columns: 1fr; } .lp-hero { min-height: 70vh; } }
+@media (max-width: 640px) {
+  .lp-modal .grid2 { grid-template-columns: 1fr; }
+  .lp-hero { min-height: 68vh; padding: 56px 16px 56px; }
+  .lp-nav { gap: 8px; }
+  .lp-nav .nm { font-size: 15px; }
+  .lp-nav button { padding: 8px 12px; font-size: 13px; }
+  .lp-trust { gap: 14px; }
+}

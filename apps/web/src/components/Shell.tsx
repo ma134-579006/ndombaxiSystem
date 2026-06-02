@@ -1,7 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
 import { useAuth } from '../auth/AuthContext';
 import { IconLogout } from './Icons';
+
+/** Hambúrguer (só visível no telemóvel via CSS). */
+function IconMenu({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
 
 /** Item de navegação genérico (serve os dois painéis: plataforma e gestor). */
 export interface NavItem {
@@ -27,10 +36,15 @@ export function Shell({
 }) {
   const { user, logout, companyCode } = useAuth();
   const current = nav.find((n) => n.key === section);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Fecha a gaveta ao mudar de secção (importante no telemóvel).
+  useEffect(() => { setMenuOpen(false); }, [section]);
 
   return (
     <div className="admin">
-      <aside className="sidebar">
+      {menuOpen ? <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} /> : null}
+      <aside className={`sidebar${menuOpen ? ' open' : ''}`}>
         <div className="brand">
           <img src={LOGO_SRC} alt={SYSTEM_NAME} />
           <div>
@@ -57,6 +71,9 @@ export function Shell({
 
       <div className="main">
         <header className="topbar">
+          <button className="menu-toggle" onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
+            <IconMenu size={22} />
+          </button>
           <h1>{current?.label}</h1>
           <span className="spacer" />
           <div className="who">
