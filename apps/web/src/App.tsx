@@ -16,6 +16,7 @@ import { Payments } from './sections/Payments';
 import { Operations } from './sections/Operations';
 import { Inventory } from './sections/Inventory';
 import { Promotions } from './sections/Promotions';
+import { Profit } from './sections/Profit';
 import { Storefront } from './sections/Storefront';
 import { PlansAdmin } from './sections/PlansAdmin';
 import { SubsAdmin } from './sections/SubsAdmin';
@@ -38,6 +39,7 @@ const TENANT_NAV: NavItem[] = [
   { key: 'promotions', label: 'Promoções', icon: IconStar },
   { key: 'payments', label: 'Pagamentos', icon: IconCard },
   { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart },
+  { key: 'profit', label: 'Lucros', icon: IconChart },
   { key: 'store', label: 'Loja & Marca', icon: IconStore },
 ];
 
@@ -66,6 +68,7 @@ function TenantPanel() {
       {section === 'promotions' ? <Promotions /> : null}
       {section === 'payments' ? <Payments /> : null}
       {section === 'operations' ? <Operations /> : null}
+      {section === 'profit' ? <Profit /> : null}
       {section === 'store' ? <Storefront /> : null}
     </Shell>
   );

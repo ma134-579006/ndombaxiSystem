@@ -40,6 +40,12 @@ export class CreateProductDto {
   @Min(0)
   unitPrice!: number;
 
+  /** Custo unitário (para cálculo de lucro), em AOA. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  costPrice?: number;
+
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -80,6 +86,11 @@ export class UpdateProductDto {
   @IsNumber()
   @Min(0)
   unitPrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  costPrice?: number;
 
   @IsOptional()
   @IsNumber()

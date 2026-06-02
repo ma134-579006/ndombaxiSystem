@@ -12,6 +12,7 @@ export interface ProductRow {
   category_id: string | null;
   iva_code: IvaCode;
   unit_price: string; // NUMERIC comes back as string
+  cost_price: string;
   stock_qty: string;
   image_url: string | null;
   gallery: unknown;
@@ -44,6 +45,7 @@ export class PosRepository {
       categoryId?: string | null;
       ivaCode: IvaCode;
       unitPrice: number;
+      costPrice?: number;
       stockQty?: number;
       imageUrl?: string | null;
       gallery?: string[];
@@ -53,11 +55,11 @@ export class PosRepository {
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<ProductRow[]>(
         Prisma.sql`INSERT INTO products
-            (code, barcode, name, description, category_id, iva_code, unit_price, stock_qty,
+            (code, barcode, name, description, category_id, iva_code, unit_price, cost_price, stock_qty,
              image_url, gallery, show_online)
           VALUES (${input.code}, ${input.barcode ?? null}, ${input.name},
                   ${input.description ?? null}, ${input.categoryId ?? null}::uuid,
-                  ${input.ivaCode}, ${input.unitPrice}, ${input.stockQty ?? 0},
+                  ${input.ivaCode}, ${input.unitPrice}, ${input.costPrice ?? 0}, ${input.stockQty ?? 0},
                   ${input.imageUrl ?? null}, ${JSON.stringify(input.gallery ?? [])}::jsonb,
                   ${input.showOnline ?? true})
           RETURNING *`,
@@ -92,6 +94,7 @@ export class PosRepository {
       description?: string | null;
       ivaCode?: IvaCode;
       unitPrice?: number;
+      costPrice?: number;
       stockQty?: number;
       imageUrl?: string | null;
       gallery?: string[];
@@ -104,6 +107,7 @@ export class PosRepository {
     if (input.description !== undefined) sets.push(Prisma.sql`description = ${input.description}`);
     if (input.ivaCode !== undefined) sets.push(Prisma.sql`iva_code = ${input.ivaCode}`);
     if (input.unitPrice !== undefined) sets.push(Prisma.sql`unit_price = ${input.unitPrice}`);
+    if (input.costPrice !== undefined) sets.push(Prisma.sql`cost_price = ${input.costPrice}`);
     if (input.stockQty !== undefined) sets.push(Prisma.sql`stock_qty = ${input.stockQty}`);
     if (input.imageUrl !== undefined) sets.push(Prisma.sql`image_url = ${input.imageUrl}`);
     if (input.gallery !== undefined)

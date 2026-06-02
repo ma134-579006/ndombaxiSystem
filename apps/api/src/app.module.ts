@@ -25,6 +25,7 @@ import { LandingModule } from './landing/landing.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { CashboxModule } from './cashbox/cashbox.module';
 import { PromotionsModule } from './promotions/promotions.module';
+import { ProfitModule } from './profit/profit.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
@@ -71,6 +72,7 @@ import { HealthController } from './health.controller';
     SubscriptionModule,
     CashboxModule,
     PromotionsModule,
+    ProfitModule,
   ],
   controllers: [HealthController],
   providers: [

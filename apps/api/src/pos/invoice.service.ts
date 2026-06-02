@@ -47,6 +47,7 @@ interface ProductForEmission {
   description: string;
   iva_code: IvaCode;
   unit_price: string;
+  cost_price?: string | null;
   exemption_reason?: string | null;
 }
 
@@ -72,7 +73,7 @@ export class InvoiceService {
       const productRows = await tx.$queryRaw<
         (ProductForEmission & { code: string; name: string })[]
       >(
-        Prisma.sql`SELECT id, code, name, description, iva_code, unit_price
+        Prisma.sql`SELECT id, code, name, description, iva_code, unit_price, cost_price
                    FROM products
                    WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE
                    FOR UPDATE`,
@@ -183,12 +184,12 @@ export class InvoiceService {
           Prisma.sql`INSERT INTO invoice_items
               (invoice_id, line_number, product_id, product_code, description, quantity,
                unit_price, iva_code, iva_rate, discount_rate, net_amount, iva_amount, gross_amount,
-               exemption_reason, exemption_code)
+               unit_cost, exemption_reason, exemption_code)
             VALUES (${invoiceId}::uuid, ${lineNumber}, ${product.id}::uuid, ${line.productCode},
                     ${line.description}, ${line.quantity}, ${line.unitPrice}, ${line.ivaCode},
                     ${line.ivaRate}, ${line.discountRate ?? 0}, ${line.netAmount},
-                    ${line.ivaAmount}, ${line.grossAmount}, ${line.exemptionReason ?? null},
-                    ${line.exemptionCode ?? null})`,
+                    ${line.ivaAmount}, ${line.grossAmount}, ${Number(product.cost_price ?? 0)},
+                    ${line.exemptionReason ?? null}, ${line.exemptionCode ?? null})`,
         );
         if (warehouseId) {
           // Saída de stock pela venda. allowNegative: uma factura legal nunca

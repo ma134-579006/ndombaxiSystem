@@ -66,7 +66,8 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."products" (
   description  TEXT,
   category_id  UUID REFERENCES "{{SCHEMA}}"."product_categories"(id) ON DELETE SET NULL,
   iva_code     TEXT NOT NULL DEFAULT 'NOR',  -- NOR/RED/ISE/OUT (§7.1)
-  unit_price   NUMERIC(14,2) NOT NULL,        -- preço NET (sem IVA), em AOA
+  unit_price   NUMERIC(14,2) NOT NULL,        -- preço NET de venda (sem IVA), AOA
+  cost_price   NUMERIC(14,2) NOT NULL DEFAULT 0, -- custo unitário (p/ lucro), AOA
   stock_qty    NUMERIC(14,3) NOT NULL DEFAULT 0,
   image_url    TEXT,                          -- imagem principal (loja online)
   gallery      JSONB NOT NULL DEFAULT '[]',   -- imagens adicionais [url, ...]
@@ -181,6 +182,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."invoice_items" (
   net_amount       NUMERIC(14,2) NOT NULL,
   iva_amount       NUMERIC(14,2) NOT NULL,
   gross_amount     NUMERIC(14,2) NOT NULL,
+  unit_cost        NUMERIC(14,2) NOT NULL DEFAULT 0, -- custo no momento da venda (lucro)
   exemption_reason TEXT,
   exemption_code   TEXT
 );

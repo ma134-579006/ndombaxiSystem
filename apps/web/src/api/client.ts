@@ -15,6 +15,9 @@ import type {
   CashSessionRow,
   ManagerProduct,
   OpsAlert,
+  ProfitPoint,
+  ProfitProduct,
+  ProfitSummary,
   Promotion,
   PromotionInput,
   PaymentMethodInput,
@@ -42,6 +45,14 @@ import type {
   WebOrder,
   WebOrderDetail,
 } from './types';
+
+/** Constrói uma query string a partir de pares definidos (?from=…&to=…). */
+function qs(params: Record<string, string | undefined>): string {
+  const p = new URLSearchParams();
+  for (const k in params) { const v = params[k]; if (v) p.set(k, v); }
+  const s = p.toString();
+  return s ? `?${s}` : '';
+}
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -248,6 +259,14 @@ export const api = {
     remove: (id: string) => request<{ id: string }>('DELETE', `/promotions/${id}`),
   },
   alerts: () => request<OpsAlert[]>('GET', '/alerts'),
+  profit: {
+    summary: (from?: string, to?: string) =>
+      request<ProfitSummary>('GET', `/profit/summary${qs({ from, to })}`),
+    series: (from?: string, to?: string) =>
+      request<ProfitPoint[]>('GET', `/profit/series${qs({ from, to })}`),
+    byProduct: (from?: string, to?: string) =>
+      request<ProfitProduct[]>('GET', `/profit/by-product${qs({ from, to })}`),
+  },
 
   // ── Auditoria / Caixa / Inventário (gerente) ───────────────
   audit: {

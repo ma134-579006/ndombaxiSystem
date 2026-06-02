@@ -147,6 +147,7 @@ export interface ManagerProduct {
   category_id: string | null;
   iva_code: IvaCode;
   unit_price: string;
+  cost_price: string;
   stock_qty: string;
   image_url: string | null;
   gallery: unknown;
@@ -159,6 +160,7 @@ export interface CreateProductInput {
   description?: string;
   ivaCode: IvaCode;
   unitPrice: number;
+  costPrice?: number;
   stockQty?: number;
   imageUrl?: string;
   showOnline?: boolean;
@@ -168,6 +170,7 @@ export interface UpdateProductInput {
   description?: string;
   ivaCode?: IvaCode;
   unitPrice?: number;
+  costPrice?: number;
   stockQty?: number;
   imageUrl?: string;
   showOnline?: boolean;
@@ -371,6 +374,20 @@ export interface OpsAlert {
   category: 'STOCK' | 'CASH' | 'SALES';
   title: string;
   detail: string;
+}
+
+// ── Lucros (gestor) ─────────────────────────────────────────
+export interface ProfitSummary {
+  from: string; to: string;
+  salesGross: number; salesNet: number; ivaTotal: number;
+  costTotal: number; grossProfit: number; marginPct: number;
+  otherExpenses: number; netProfit: number;
+  salesCount: number; ticketAvg: number;
+}
+export interface ProfitPoint { bucket: string; salesNet: number; cost: number; profit: number }
+export interface ProfitProduct {
+  productCode: string; description: string; qty: number;
+  salesNet: number; cost: number; profit: number; marginPct: number;
 }
 export interface Company {
   id: string;

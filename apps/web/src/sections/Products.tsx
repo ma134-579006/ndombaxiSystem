@@ -18,6 +18,7 @@ interface FormState {
   description: string;
   ivaCode: IvaCode;
   unitPrice: string;
+  costPrice: string;
   stockQty: string;
   imageUrl: string;
   showOnline: boolean;
@@ -30,6 +31,7 @@ const EMPTY: FormState = {
   description: '',
   ivaCode: 'NOR',
   unitPrice: '',
+  costPrice: '',
   stockQty: '0',
   imageUrl: '',
   showOnline: true,
@@ -77,6 +79,7 @@ export function Products() {
       description: p.description ?? '',
       ivaCode: p.iva_code,
       unitPrice: p.unit_price,
+      costPrice: p.cost_price ?? '',
       stockQty: p.stock_qty,
       imageUrl: p.image_url ?? '',
       showOnline: p.show_online,
@@ -121,6 +124,7 @@ export function Products() {
           description: form.description.trim() || undefined,
           ivaCode: form.ivaCode,
           unitPrice: price,
+          costPrice: Number(form.costPrice) || 0,
           stockQty: Number(form.stockQty) || 0,
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
@@ -138,6 +142,7 @@ export function Products() {
           description: form.description.trim() || undefined,
           ivaCode: form.ivaCode,
           unitPrice: price,
+          costPrice: Number(form.costPrice) || 0,
           stockQty: Number(form.stockQty) || 0,
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
@@ -248,17 +253,21 @@ export function Products() {
           </div>
           <div className="grid-2">
             <div className="field">
-              <label>Preço (sem IVA)</label>
+              <label>Preço de venda (sem IVA)</label>
               <input value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} inputMode="decimal" placeholder="0" />
             </div>
             <div className="field">
-              <label>IVA</label>
-              <select value={form.ivaCode} onChange={(e) => setForm({ ...form, ivaCode: e.target.value as IvaCode })}>
-                {IVA_OPTIONS.map((c) => (
-                  <option key={c} value={c}>{c} ({IVA_RATE[c]}%)</option>
-                ))}
-              </select>
+              <label>Custo unitário (p/ lucro)</label>
+              <input value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} inputMode="decimal" placeholder="0" />
             </div>
+          </div>
+          <div className="field">
+            <label>IVA</label>
+            <select value={form.ivaCode} onChange={(e) => setForm({ ...form, ivaCode: e.target.value as IvaCode })}>
+              {IVA_OPTIONS.map((c) => (
+                <option key={c} value={c}>{c} ({IVA_RATE[c]}%)</option>
+              ))}
+            </select>
           </div>
           <div className="field">
             <label>Stock</label>
