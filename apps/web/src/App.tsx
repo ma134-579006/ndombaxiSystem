@@ -25,6 +25,8 @@ import { Receivables } from './sections/Receivables';
 import { Payables } from './sections/Payables';
 import { Reconciliation } from './sections/Reconciliation';
 import { Employees } from './sections/Employees';
+import { Payroll } from './sections/Payroll';
+import { Purchasing } from './sections/Purchasing';
 import { Leave } from './sections/Leave';
 import { Team } from './sections/Team';
 import { Stores } from './sections/Stores';
@@ -51,6 +53,7 @@ const TENANT_NAV: NavItem[] = [
   { key: 'stores', label: 'Lojas', icon: IconStore },
   { key: 'products', label: 'Produtos', icon: IconCube },
   { key: 'inventory', label: 'Inventário', icon: IconCube },
+  { key: 'purchasing', label: 'Compras', icon: IconTruck },
   { key: 'orders', label: 'Encomendas', icon: IconTruck },
   { key: 'promotions', label: 'Promoções', icon: IconStar },
   { key: 'payments', label: 'Pagamentos', icon: IconCard },
@@ -63,6 +66,7 @@ const TENANT_NAV: NavItem[] = [
   { key: 'payables', label: 'Contas a Pagar', icon: IconTruck },
   { key: 'reconciliation', label: 'Conciliação', icon: IconCard },
   { key: 'employees', label: 'Funcionários', icon: IconBuilding },
+  { key: 'payroll', label: 'Folha Salarial', icon: IconReceipt },
   { key: 'leave', label: 'Férias', icon: IconBuilding },
   { key: 'store', label: 'Loja & Marca', icon: IconStore },
 ];
@@ -92,6 +96,7 @@ function TenantPanel() {
       {section === 'stores' ? <Stores /> : null}
       {section === 'products' ? <Products /> : null}
       {section === 'inventory' ? <Inventory /> : null}
+      {section === 'purchasing' ? <Purchasing /> : null}
       {section === 'orders' ? <Orders /> : null}
       {section === 'promotions' ? <Promotions /> : null}
       {section === 'payments' ? <Payments /> : null}
@@ -104,6 +109,7 @@ function TenantPanel() {
       {section === 'payables' ? <Payables /> : null}
       {section === 'reconciliation' ? <Reconciliation /> : null}
       {section === 'employees' ? <Employees /> : null}
+      {section === 'payroll' ? <Payroll /> : null}
       {section === 'leave' ? <Leave /> : null}
       {section === 'store' ? <Storefront /> : null}
     </Shell>

@@ -353,6 +353,25 @@ export interface StockCountDetail {
 }
 export interface WarehouseRow { id: string; code: string; name: string; is_default: boolean }
 
+// ── Compras (fornecedores + encomendas de compra) ───────────
+export interface SupplierRow {
+  id: string; code: string; name: string; nif: string | null;
+  email: string | null; phone: string | null; address: string | null; is_active: boolean;
+}
+export interface CreateSupplierInput {
+  code: string; name: string; nif?: string; email?: string; phone?: string; address?: string;
+}
+export interface PurchaseOrderRow {
+  id: string; number: string; supplier_id: string; supplier_name: string;
+  warehouse_id: string; status: string; order_date: string; expected_date: string | null;
+  net_total: string; iva_total: string; gross_total: string; notes: string | null; created_at: string;
+}
+export interface PurchaseOrderLineInput { productCode: string; quantity: number; unitCost: number }
+export interface CreatePurchaseOrderInput {
+  supplierId: string; warehouseId: string; expectedDate?: string; notes?: string;
+  lines: PurchaseOrderLineInput[];
+}
+
 // ── Promoções & Alertas ────────────────────────────────────
 export type PromoType = 'PERCENT' | 'AMOUNT' | 'BUY_X_PAY_Y' | 'QTY_TIERED';
 export interface Promotion {
@@ -565,6 +584,22 @@ export interface LeaveRow {
 export interface LeaveEmployee { id: string; full_name: string }
 export interface LeaveSummary { pending: number; ferasDaysYear: number }
 export interface CreateLeaveInput { employeeId: string; type: LeaveType; startDate: string; endDate: string; reason?: string }
+
+// ── Folha salarial (RH · INSS + IRT) ────────────────────────
+export interface PayrollRun {
+  id: string; period_year: number; period_month: number; status: string;
+  employee_count: number; gross_total: string; inss_employee_total: string;
+  inss_employer_total: string; irt_total: string; net_total: string;
+  employer_cost_total: string; processed_at: string; paid_at: string | null;
+}
+export interface PayrollItem {
+  id: string; employee_number: string; employee_name: string; base_salary: string;
+  taxable_allowances: string; exempt_allowances: string; gross_salary: string;
+  inss_base: string; inss_employee: string; inss_employer: string; irt_base: string;
+  irt: string; other_deductions: string; total_deductions: string;
+  net_salary: string; employer_cost: string;
+}
+export interface PayrollRunDetail { run: PayrollRun; items: PayrollItem[] }
 
 // ── Conciliação bancária (gestor) ───────────────────────────
 export interface BankTx {

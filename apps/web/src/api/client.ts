@@ -69,6 +69,12 @@ import type {
   StockCountRow,
   StorePaymentMethod,
   WarehouseRow,
+  SupplierRow,
+  CreateSupplierInput,
+  PurchaseOrderRow,
+  CreatePurchaseOrderInput,
+  PayrollRun,
+  PayrollRunDetail,
   SubMessage,
   Subscription,
   PlatformKpis,
@@ -360,6 +366,23 @@ export const api = {
     createEmployee: (dto: CreateEmployeeInput) => request<ManagerEmployee>('POST', '/hr/employees', dto),
     updateEmployee: (id: string, dto: UpdateEmployeeInput) => request<ManagerEmployee>('PATCH', `/hr/employees/${id}`, dto),
     terminateEmployee: (id: string) => request<ManagerEmployee>('POST', `/hr/employees/${id}/terminate`, {}),
+    payroll: {
+      listRuns: () => request<PayrollRun[]>('GET', '/hr/payroll/runs'),
+      getRun: (id: string) => request<PayrollRunDetail>('GET', `/hr/payroll/runs/${id}`),
+      process: (year: number, month: number) => request<PayrollRun>('POST', '/hr/payroll/runs', { year, month }),
+      pay: (id: string) => request<PayrollRun>('POST', `/hr/payroll/runs/${id}/pay`, {}),
+    },
+  },
+  // ── Compras: fornecedores + encomendas de compra (gestor) ──
+  purchasing: {
+    listSuppliers: () => request<SupplierRow[]>('GET', '/erp/suppliers'),
+    createSupplier: (dto: CreateSupplierInput) => request<SupplierRow>('POST', '/erp/suppliers', dto),
+    warehouses: () => request<WarehouseRow[]>('GET', '/erp/warehouses'),
+    listOrders: () => request<PurchaseOrderRow[]>('GET', '/erp/purchase-orders'),
+    createOrder: (dto: CreatePurchaseOrderInput) =>
+      request<{ id: string; number: string }>('POST', '/erp/purchase-orders', dto),
+    confirmOrder: (id: string) => request<{ status: string }>('POST', `/erp/purchase-orders/${id}/confirm`, {}),
+    receiveOrder: (id: string) => request<{ received: number }>('POST', `/erp/purchase-orders/${id}/receive`, {}),
   },
   leave: {
     list: (status?: string) => request<LeaveRow[]>('GET', `/leave${qs({ status })}`),
