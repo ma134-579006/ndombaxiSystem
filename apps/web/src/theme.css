@@ -121,12 +121,19 @@ input, textarea, select { font-family: inherit; }
   .topbar .who .nm { max-width: 38vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .content { padding: 14px; }
 }
+@media (max-width: 640px) {
+  /* Formulários de 2 colunas passam a 1 coluna no telemóvel (evita campos
+     espremidos nos modais de Compras, Folha Salarial, Gastos, etc.). */
+  .grid-2 { grid-template-columns: 1fr; }
+}
 @media (max-width: 560px) {
   .topbar .who { display: none; }
   .content-head h2 { font-size: 16px; }
   .ptable { font-size: 12.5px; }
   .ptable th, .ptable td { padding: 7px 5px; }
   .card { overflow-x: auto; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .seg button { padding: 8px 6px; font-size: 12px; }
 }
 .content-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .content-head h2 { margin: 0; font-size: 18px; }
