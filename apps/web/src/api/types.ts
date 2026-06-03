@@ -93,7 +93,7 @@ export interface Subscription {
   createdAt: string;
   plan?: { name: string; tier: string };
   company?: { name: string; code: string };
-  payments?: { id: string; fileName: string; createdAt: string; amountKz: number | null }[];
+  payments?: { id: string; fileName: string; fileType?: string; fileData?: string; createdAt: string; amountKz: number | null; note?: string | null }[];
   messages?: SubMessage[];
 }
 

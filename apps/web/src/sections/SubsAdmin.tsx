@@ -130,12 +130,30 @@ function SubDetail({ sub, onClose, onChanged }: { sub: Subscription; onClose(): 
       <div className="kv"><span className="k">Estado</span><span className="v">{STATUS_LABEL[sub.status]}</span></div>
       {sub.reference ? <div className="kv"><span className="k">Referência</span><span className="v mono">{sub.reference}</span></div> : null}
 
-      {/* Comprovativos */}
+      {/* Comprovativos (imagem) */}
       {sub.payments && sub.payments.length > 0 ? (
         <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 10 }}>
-          <strong style={{ fontSize: 14 }}>Comprovativos</strong>
+          <strong style={{ fontSize: 14 }}>Comprovativo(s) de pagamento</strong>
           {sub.payments.map((p) => (
-            <div className="kv" key={p.id}><span className="k">{p.fileName}</span><span className="v">{p.amountKz ? kz(p.amountKz) : ''}</span></div>
+            <div key={p.id} style={{ marginTop: 8 }}>
+              <div className="kv"><span className="k">{p.fileName}</span><span className="v">{p.amountKz ? kz(p.amountKz) : ''}</span></div>
+              {p.fileData ? (
+                (p.fileType ?? '').startsWith('image') || /\.(png|jpe?g|webp|gif)$/i.test(p.fileName) ? (
+                  <a href={`data:${p.fileType || 'image/jpeg'};base64,${p.fileData}`} target="_blank" rel="noreferrer">
+                    <img
+                      src={`data:${p.fileType || 'image/jpeg'};base64,${p.fileData}`}
+                      alt={p.fileName}
+                      style={{ width: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-2)', marginTop: 4 }}
+                    />
+                  </a>
+                ) : (
+                  <a className="btn sm ghost" href={`data:${p.fileType || 'application/octet-stream'};base64,${p.fileData}`} download={p.fileName} style={{ marginTop: 4 }}>
+                    Abrir comprovativo
+                  </a>
+                )
+              ) : null}
+              {p.note ? <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{p.note}</div> : null}
+            </div>
           ))}
         </div>
       ) : null}

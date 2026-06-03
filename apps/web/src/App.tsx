@@ -31,6 +31,7 @@ import { Assistant } from './sections/Assistant';
 import { Leave } from './sections/Leave';
 import { Team } from './sections/Team';
 import { Stores } from './sections/Stores';
+import { Subscription } from './sections/Subscription';
 import { Storefront } from './sections/Storefront';
 import { PlansAdmin } from './sections/PlansAdmin';
 import { SubsAdmin } from './sections/SubsAdmin';
@@ -52,6 +53,7 @@ const TENANT_NAV: NavItem[] = [
   { key: 'overview', label: 'Visão geral', icon: IconChart },
   { key: 'assistant', label: 'Assistente IA', icon: IconCpu },
   { key: 'team', label: 'Equipa & Acessos', icon: IconShield },
+  { key: 'subscription', label: 'Subscrição & Plano', icon: IconCard },
   { key: 'stores', label: 'Lojas', icon: IconStore },
   { key: 'products', label: 'Produtos', icon: IconCube },
   { key: 'inventory', label: 'Inventário', icon: IconCube },
@@ -96,6 +98,7 @@ function TenantPanel() {
       {section === 'overview' ? <Overview /> : null}
       {section === 'assistant' ? <Assistant /> : null}
       {section === 'team' ? <Team /> : null}
+      {section === 'subscription' ? <Subscription /> : null}
       {section === 'stores' ? <Stores /> : null}
       {section === 'products' ? <Products /> : null}
       {section === 'inventory' ? <Inventory /> : null}
