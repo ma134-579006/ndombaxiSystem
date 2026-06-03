@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
 import { Modal } from '../components/ui';
-import { IconCheck, IconCube, IconPlus, IconTruck } from '../components/Icons';
+import { IconCheck, IconCube, IconPlus, IconTruck, IconTrash } from '../components/Icons';
 import { formatKz } from '../format';
 
 /** Inventário profissional: entrada de stock (custo/lucro), contagens e baixas. */
@@ -15,6 +15,7 @@ export function Inventory() {
   const [openCount, setOpenCount] = useState<StockCountDetail | null>(null);
   const [creating, setCreating] = useState(false);
   const [entering, setEntering] = useState(false);
+  const [writingOff, setWritingOff] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,6 +52,9 @@ export function Inventory() {
         <span className="spacer" />
         <button className="btn" onClick={() => setEntering(true)} disabled={warehouses.length === 0 || products.length === 0}>
           <IconTruck size={16} /> Entrada de stock
+        </button>
+        <button className="btn ghost" onClick={() => setWritingOff(true)} disabled={warehouses.length === 0 || products.length === 0}>
+          <IconTrash size={16} /> Baixa de stock
         </button>
         <button className="btn ghost" onClick={() => setCreating(true)} disabled={warehouses.length === 0}>
           <IconPlus size={16} /> Nova contagem
@@ -99,8 +103,81 @@ export function Inventory() {
           onSaved={() => { setEntering(false); void load(); }}
         />
       ) : null}
+      {writingOff ? (
+        <WriteOffModal
+          products={products}
+          warehouses={warehouses}
+          onClose={() => setWritingOff(false)}
+          onSaved={() => { setWritingOff(false); void load(); }}
+        />
+      ) : null}
       {openCount ? <CountSheet detail={openCount} onClose={() => { setOpenCount(null); void load(); }} /> : null}
     </>
+  );
+}
+
+const WRITEOFF_REASONS = ['Caducidade / validade', 'Dano / quebra', 'Roubo / perda', 'Amostra / oferta', 'Outro'];
+
+/** Baixa de stock: retira unidades por caducidade, dano, perda, etc. (auditado). */
+function WriteOffModal({
+  products, warehouses, onClose, onSaved,
+}: {
+  products: ManagerProduct[];
+  warehouses: WarehouseRow[];
+  onClose(): void;
+  onSaved(): void;
+}) {
+  const [productId, setProductId] = useState(products[0]?.id ?? '');
+  const [warehouseId, setWarehouseId] = useState(warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? '');
+  const [qty, setQty] = useState('');
+  const [reason, setReason] = useState(WRITEOFF_REASONS[0]);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    setErr(null);
+    const q = Number(qty);
+    if (!productId || !warehouseId) { setErr('Escolha o produto e o armazém.'); return; }
+    if (!(q > 0)) { setErr('Indique a quantidade a dar baixa.'); return; }
+    setBusy(true);
+    try {
+      await api.inventory.writeOff(productId, warehouseId, q, note.trim() ? `${reason} — ${note.trim()}` : reason);
+      onSaved();
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao dar baixa.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title="Baixa de stock" onClose={onClose}>
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+        Retira unidades do stock por <strong>caducidade</strong>, dano, perda, etc. Fica registado na auditoria.
+      </p>
+      <div className="grid-2">
+        <div className="field"><label>Produto</label>
+          <select value={productId} onChange={(e) => setProductId(e.target.value)}>
+            {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+          </select></div>
+        <div className="field"><label>Armazém</label>
+          <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
+          </select></div>
+      </div>
+      <div className="grid-2">
+        <div className="field"><label>Quantidade</label>
+          <input inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="ex.: 3" /></div>
+        <div className="field"><label>Motivo</label>
+          <select value={reason} onChange={(e) => setReason(e.target.value)}>
+            {WRITEOFF_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select></div>
+      </div>
+      <div className="field"><label>Nota (opcional)</label>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex.: lote vencido a 30/06" /></div>
+      <button className="btn lg block danger" onClick={submit} disabled={busy}>
+        {busy ? 'A dar baixa…' : 'Confirmar baixa'}
+      </button>
+    </Modal>
   );
 }
 
