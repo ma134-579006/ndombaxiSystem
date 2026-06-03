@@ -80,6 +80,9 @@ import type {
   AssistantMessage,
   AssistantGreeting,
   AssistantChatReply,
+  AssistantTts,
+  AssistantVoiceTurn,
+  AssistantCallSession,
   SubMessage,
   Subscription,
   PlatformKpis,
@@ -386,6 +389,11 @@ export const api = {
     greeting: () => request<AssistantGreeting>('GET', '/ai/greeting'),
     chat: (messages: AssistantMessage[]) =>
       request<AssistantChatReply>('POST', '/ai/chat', { messages, channel: 'chat' }),
+    tts: (text: string, voice?: string) =>
+      request<AssistantTts>('POST', '/ai/voice/tts', { text, voice }),
+    voiceTurn: (audioBase64: string, mimeType?: string) =>
+      request<AssistantVoiceTurn>('POST', '/ai/voice/turn', { audioBase64, mimeType }),
+    callSession: () => request<AssistantCallSession>('GET', '/ai/call/session'),
   },
   // ── Compras: fornecedores + encomendas de compra (gestor) ──
   purchasing: {

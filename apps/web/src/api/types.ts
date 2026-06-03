@@ -623,6 +623,14 @@ export interface AssistantChatReply {
   reply: string; charts: AssistantChartSpec[]; imagePrompts: string[];
   provider: string; model: string | null;
 }
+export interface AssistantTts { audioBase64: string; mimeType: string }
+export interface AssistantVoiceTurn { userText: string; reply: string; audioBase64: string; mimeType: string }
+export interface AssistantCallSession {
+  displayName: string; greeting: string;
+  mode: 'realtime' | 'half-duplex' | 'unavailable';
+  capabilities: { realtime: boolean; tts: boolean; stt: boolean };
+  realtimeBaseUrl: string | null;
+}
 
 // ── Conciliação bancária (gestor) ───────────────────────────
 export interface BankTx {
