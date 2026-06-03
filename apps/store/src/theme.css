@@ -240,3 +240,20 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .kbd-toggle .meta { display: flex; align-items: center; gap: 10px; }
 .kbd-toggle .ttl { font-size: 13px; font-weight: 700; }
 .kbd-toggle .hint { font-size: 11px; color: var(--muted); }
+
+/* ── Conta do cliente (login / encomendas) ──────────────────── */
+.acct-btn { position: relative; width: 48px; height: 48px; border-radius: 13px; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; color: var(--text); }
+.acct-btn.in { border-color: var(--accent); color: var(--accent); }
+.acct-btn .dot { position: absolute; top: -3px; right: -3px; width: 12px; height: 12px; border-radius: 999px; background: var(--success); border: 2px solid var(--surface); }
+.or-sep { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 12px 0; }
+.or-sep::before, .or-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.acct-head { display: flex; align-items: center; gap: 12px; }
+.acct-head .avatar { width: 44px; height: 44px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 14%, white); color: var(--accent); display: grid; place-items: center; flex: none; }
+.my-orders { display: flex; flex-direction: column; gap: 8px; }
+.mo { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); cursor: pointer; transition: border-color .12s, transform .06s; }
+.mo:hover { border-color: var(--accent); }
+.mo:active { transform: translateY(1px); }
+.status-pill.st-PENDING { background: #fff4e5; color: #b45309; }
+.status-pill.st-PAID, .status-pill.st-DELIVERED { background: #e9f7ef; color: #15803d; }
+.status-pill.st-SHIPPED { background: color-mix(in srgb, var(--accent) 12%, white); color: var(--accent); }
+.status-pill.st-CANCELLED { background: #fdeaea; color: #b91c1c; }

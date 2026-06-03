@@ -27,3 +27,7 @@ export const INITIAL_STORE_CODE =
   codeFromPath() ||
   ((import.meta.env.VITE_STORE_CODE as string | undefined)?.trim().toLowerCase() || '') ||
   '';
+
+/** Google OAuth Client ID (login do cliente). Tem de terminar em
+ *  `.apps.googleusercontent.com`. Vazio = botão Google fica oculto. */
+export const GOOGLE_CLIENT_ID = ((import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '').trim();

@@ -3,7 +3,9 @@ import type {
   CatalogResponse,
   CheckoutInput,
   CheckoutResult,
+  CustomerSession,
   ExpressPayInput,
+  MyOrderRow,
   OrderMessage,
   PaymentMethod,
   SiteResponse,
@@ -18,12 +20,15 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, token?: string): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -78,4 +83,11 @@ export const api = {
       `/store/${enc(code)}/orders/${enc(orderId)}/messages`,
       { body: messageBody, senderName },
     ),
+  // ── Conta do cliente ───────────────────────────────────────
+  authEmail: (code: string, email: string, name?: string) =>
+    request<CustomerSession>('POST', `/store/${enc(code)}/auth/email`, { email, name }),
+  authGoogle: (code: string, idToken: string) =>
+    request<CustomerSession>('POST', `/store/${enc(code)}/auth/google`, { idToken }),
+  myOrders: (code: string, token: string) =>
+    request<MyOrderRow[]>('GET', `/store/${enc(code)}/my/orders`, undefined, token),
 };

@@ -1,12 +1,14 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { UploadProofDto } from '../payments/dto/payment.dto';
 import { PaymentsService } from '../payments/payments.service';
 import { SiteService } from '../site/site.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { CustomerEmailLoginDto, CustomerGoogleLoginDto } from './dto/customer-auth.dto';
 import { ExpressPayDto } from './dto/express-pay.dto';
 import { PostMessageDto } from './dto/order-message.dto';
+import { CustomerAuthService } from './customer-auth.service';
 import { OrderChatService } from './order-chat.service';
 import { OrdersService } from './orders.service';
 import { StorefrontService } from './storefront.service';
@@ -24,7 +26,31 @@ export class StorefrontController {
     private readonly site: SiteService,
     private readonly payments: PaymentsService,
     private readonly chat: OrderChatService,
+    private readonly customers: CustomerAuthService,
   ) {}
+
+  // ── Conta do cliente (login simples / Google) ──────────────
+  @Post('auth/email')
+  @ApiOperation({ summary: 'Login/registo rápido do cliente por email' })
+  async authEmail(@Param('code') code: string, @Body() dto: CustomerEmailLoginDto) {
+    const tenant = await this.resolver.resolveByCode(code);
+    return this.customers.emailLogin(tenant.schema, dto.email, dto.name);
+  }
+
+  @Post('auth/google')
+  @ApiOperation({ summary: 'Login do cliente com Google (valida o ID token)' })
+  async authGoogle(@Param('code') code: string, @Body() dto: CustomerGoogleLoginDto) {
+    const tenant = await this.resolver.resolveByCode(code);
+    return this.customers.googleLogin(tenant.schema, dto.idToken);
+  }
+
+  @Get('my/orders')
+  @ApiOperation({ summary: 'Histórico de encomendas do cliente autenticado' })
+  async myOrders(@Param('code') code: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.customers.listOrders(tenant.schema, claims.email);
+  }
 
   // ── White-label / páginas públicas ─────────────────────────
   @Get('site')

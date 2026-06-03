@@ -14,6 +14,8 @@ import {
 } from '../components/Icons';
 import { formatKz } from '../format';
 import { useStore } from '../state/StoreContext';
+import { useCustomer } from '../store/customer';
+import { CustomerModal } from '../components/CustomerModal';
 import { cartCount, cartTotal } from '../store/cart';
 import { Checkout } from '../views/Checkout';
 import { Confirmation } from '../views/Confirmation';
@@ -32,6 +34,13 @@ export function Storefront() {
   const [checkout, setCheckout] = useState<{ result: CheckoutResult; method: PaymentMethod | null } | null>(null);
   const [trackId, setTrackId] = useState<string | null>(null);
   const [savedOrder, setSavedOrder] = useState<{ id: string; orderNumber: string } | null>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const customer = useCustomer(code);
+
+  const openOrder = (orderId: string) => { setAccountOpen(false); setTrackId(orderId); setView('track'); };
+  const accountModal = accountOpen
+    ? <CustomerModal code={code} session={customer} onClose={() => setAccountOpen(false)} onOpenOrder={openOrder} />
+    : null;
 
   useEffect(() => {
     try {
@@ -75,8 +84,9 @@ export function Storefront() {
   if (view === 'checkout') {
     return (
       <>
-        <Header onHome={goHome} onCart={() => setCartOpen(true)} />
+        <Header onHome={goHome} onCart={() => setCartOpen(true)} onAccount={() => setAccountOpen(true)} />
         <Checkout onBack={goHome} onDone={onCheckoutDone} />
+        {accountModal}
         {renderCart()}
       </>
     );
@@ -84,7 +94,7 @@ export function Storefront() {
   if (view === 'confirmation' && checkout) {
     return (
       <>
-        <Header onHome={goHome} onCart={() => setCartOpen(true)} />
+        <Header onHome={goHome} onCart={() => setCartOpen(true)} onAccount={() => setAccountOpen(true)} />
         <Confirmation
           order={checkout.result}
           method={checkout.method}
@@ -94,14 +104,16 @@ export function Storefront() {
           }}
           onContinue={goHome}
         />
+        {accountModal}
       </>
     );
   }
   if (view === 'track' && trackId) {
     return (
       <>
-        <Header onHome={goHome} onCart={() => setCartOpen(true)} />
+        <Header onHome={goHome} onCart={() => setCartOpen(true)} onAccount={() => setAccountOpen(true)} />
         <Track orderId={trackId} onBack={goHome} />
+        {accountModal}
       </>
     );
   }
@@ -177,7 +189,8 @@ export function Storefront() {
 
   return (
     <>
-      <Header onHome={goHome} onCart={() => setCartOpen(true)} />
+      <Header onHome={goHome} onCart={() => setCartOpen(true)} onAccount={() => setAccountOpen(true)} />
+      {accountModal}
       <div className="wrap">
         <section className="hero">
           <h1>{data?.settings.brand_name || data?.storeName || 'Bem-vindo'}</h1>

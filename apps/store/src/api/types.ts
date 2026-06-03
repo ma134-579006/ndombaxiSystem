@@ -136,3 +136,15 @@ export interface ExpressPayInput {
   expressPhone: string;
   reference?: string;
 }
+
+// ── Conta do cliente (login simples / Google) ───────────────
+export interface CustomerInfo { email: string; name: string }
+export interface CustomerSession { token: string; customer: CustomerInfo }
+export interface MyOrderRow {
+  id: string;
+  order_number: string;
+  status: string;
+  payment_method: string | null;
+  gross_total: string;
+  created_at: string;
+}
