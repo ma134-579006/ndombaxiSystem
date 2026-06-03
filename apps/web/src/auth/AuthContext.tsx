@@ -18,6 +18,10 @@ export type AuthMode = 'platform' | 'tenant';
 const LS_ACCESS = 'ndombaxi.web.access';
 const LS_REFRESH = 'ndombaxi.web.refresh';
 const LS_COMPANY = 'ndombaxi.web.company';
+const LS_SESSION_START = 'ndombaxi.web.session_start';
+// Tempo de vida ABSOLUTO da sessão (segurança): após isto, re-login obrigatório,
+// mesmo com refresh token válido. Evita sessões "eternas" guardadas no browser.
+const MAX_SESSION_MS = 12 * 60 * 60 * 1000; // 12 horas
 // Acesso shadow: guarda a sessão de plataforma para restaurar ao sair.
 const LS_SHADOW = 'ndombaxi.web.shadow';
 const LS_PREV_ACCESS = 'ndombaxi.web.prevaccess';
@@ -45,6 +49,12 @@ function modeFromUser(u: DecodedJwt | null): AuthMode | null {
   return u.subjectType === 'PLATFORM' ? 'platform' : 'tenant';
 }
 
+/** A sessão ultrapassou o tempo de vida absoluto? (expira o login guardado) */
+function sessionExpired(): boolean {
+  const started = Number(localStorage.getItem(LS_SESSION_START) || 0);
+  return started > 0 && Date.now() - started > MAX_SESSION_MS;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<DecodedJwt | null>(null);
@@ -70,6 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshRef.current = null;
     localStorage.removeItem(LS_ACCESS);
     localStorage.removeItem(LS_REFRESH);
+    localStorage.removeItem(LS_SESSION_START);
     localStorage.removeItem(LS_SHADOW);
     localStorage.removeItem(LS_PREV_ACCESS);
     localStorage.removeItem(LS_PREV_REFRESH);
@@ -86,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refresh: async () => {
         const rt = refreshRef.current;
         if (!rt) return false;
+        if (sessionExpired()) return false; // sessão expirou → força re-login
         try {
           applyTokens(await api.refresh(rt));
           return true;
@@ -103,6 +115,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const refresh = localStorage.getItem(LS_REFRESH);
       if (!access || !refresh) {
         if (alive) setStatus('guest');
+        return;
+      }
+      if (sessionExpired()) {
+        // Sessão guardada expirou → limpa e pede login outra vez.
+        clearSession();
         return;
       }
       accessRef.current = access;
@@ -131,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       companyRef.current = undefined;
       setCompanyCode(null);
       localStorage.removeItem(LS_COMPANY);
+      localStorage.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(await api.login(input));
       setStatus('authed');
     },
@@ -142,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       companyRef.current = input.companyCode;
       setCompanyCode(input.companyCode);
       localStorage.setItem(LS_COMPANY, input.companyCode);
+      localStorage.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(await api.loginTenant(input));
       setStatus('authed');
     },
@@ -156,6 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       companyRef.current = code;
       setCompanyCode(code);
       localStorage.setItem(LS_COMPANY, code);
+      localStorage.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(tokens);
       localStorage.setItem(LS_SHADOW, companyName);
       setShadow(companyName);

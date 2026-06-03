@@ -17,7 +17,11 @@
   --radius-sm: 11px;
   --shadow: 0 8px 30px rgba(20, 32, 44, 0.08);
   --shadow-lg: 0 24px 60px rgba(20, 32, 44, 0.18);
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Sora', var(--font);
+}
+h1, h2, h3, .hero h1, .header .brand .nm, .totline.grand, .success-head .num, .modal .mh h3 {
+  font-family: var(--font-display); letter-spacing: -0.015em;
 }
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; min-height: 100%; }
@@ -38,10 +42,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   height: 48px; padding: 0 20px; border-radius: 12px; font-size: 15px; font-weight: 700;
-  background: var(--accent); color: #fff; transition: filter .15s, transform .05s, opacity .15s;
+  background: var(--accent); color: #fff; box-shadow: 0 8px 22px -12px var(--accent);
+  transition: filter .15s, transform .05s, box-shadow .15s, opacity .15s;
   white-space: nowrap;
 }
-.btn:hover { filter: brightness(1.07); }
+.btn:hover { filter: brightness(1.07); box-shadow: 0 12px 28px -12px var(--accent); }
 .btn:active { transform: translateY(1px); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .btn.lg { height: 56px; font-size: 16px; }

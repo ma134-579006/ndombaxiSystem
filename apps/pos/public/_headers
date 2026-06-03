@@ -1,0 +1,7 @@
+# POS é offline-first: HTML usa `no-cache` (revalida sempre que há rede, mas
+# pode servir a cópia local quando offline). Assets com hash são imutáveis.
+/*
+  Cache-Control: no-cache
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
