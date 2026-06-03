@@ -55,3 +55,8 @@ services:
         value: admin@ndombaxi.ao
       - key: SUPER_ADMIN_PASSWORD
         sync: false # defina uma password forte para produção
+      # Client ID do Google (público) — verifica o "audience" do login do cliente.
+      # Opcional: o login Google funciona sem isto (o token é validado pelo Google);
+      # com isto, garante que o token foi emitido para esta app.
+      - key: GOOGLE_CLIENT_ID
+        value: 522636462932-tc0tpn8k9uncauv2rietf4mr6f9bt0b8.apps.googleusercontent.com

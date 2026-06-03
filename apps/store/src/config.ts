@@ -28,6 +28,8 @@ export const INITIAL_STORE_CODE =
   ((import.meta.env.VITE_STORE_CODE as string | undefined)?.trim().toLowerCase() || '') ||
   '';
 
-/** Google OAuth Client ID (login do cliente). Tem de terminar em
- *  `.apps.googleusercontent.com`. Vazio = botão Google fica oculto. */
-export const GOOGLE_CLIENT_ID = ((import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '').trim();
+/** Google OAuth Client ID (login do cliente). É PÚBLICO (vai no frontend), por
+ *  isso o valor por omissão está aqui; pode ser sobreposto por VITE_GOOGLE_CLIENT_ID.
+ *  Tem de terminar em `.apps.googleusercontent.com` para o botão aparecer. */
+export const GOOGLE_CLIENT_ID = ((import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)
+  ?? '522636462932-tc0tpn8k9uncauv2rietf4mr6f9bt0b8.apps.googleusercontent.com').trim();
