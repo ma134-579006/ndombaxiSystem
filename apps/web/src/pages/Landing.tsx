@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type {
+  BankAccount,
   LandingConfig,
   PlanTier,
   PublicPlan,
@@ -288,29 +289,7 @@ function RegisterModal({ presetTier, plans, onClose, onLogin, loginTenant }: Reg
   };
 
   if (done) {
-    return (
-      <div className="lp-modal-bg" onClick={onClose}>
-        <div className="lp-modal" onClick={(e) => e.stopPropagation()}>
-          <button className="x" onClick={onClose}>×</button>
-          <h3>Conta criada! 🎉</h3>
-          <p className="msub">
-            A empresa <b>{done.companyCode}</b> foi registada e está <b>a aguardar aprovação</b> da plataforma.
-            Guarde estas credenciais — vai precisar delas para entrar assim que for aprovada:
-          </p>
-          <div className="lp-ok" style={{ marginBottom: 14 }}>
-            <div className="lp-credlabel">Empresa</div>
-            <div className="lp-cred">{done.companyCode}</div>
-            <div className="lp-credlabel" style={{ marginTop: 10 }}>E-mail</div>
-            <div className="lp-cred">{done.adminEmail}</div>
-            <div className="lp-credlabel" style={{ marginTop: 10 }}>Palavra-passe temporária</div>
-            <div className="lp-cred">{done.temporaryPassword}</div>
-          </div>
-          <button className="lp-btn primary" style={{ width: '100%', justifyContent: 'center' }} onClick={onLogin}>
-            Ir para o login
-          </button>
-        </div>
-      </div>
-    );
+    return <SetupSubscription result={done} plans={plans} planTier={planTier} onLogin={onLogin} onClose={onClose} />;
   }
 
   return (
@@ -365,6 +344,133 @@ function RegisterModal({ presetTier, plans, onClose, onLogin, loginTenant }: Reg
         <p style={{ textAlign: 'center', marginTop: 14, fontSize: 13, color: '#5a6679' }}>
           Já tem conta? <a style={{ color: 'var(--lp-primary)', fontWeight: 700, cursor: 'pointer' }} onClick={onLogin}>Entrar</a>
         </p>
+      </div>
+    </div>
+  );
+}
+
+function fileToB64(file: File): Promise<{ data: string; type: string; name: string }> {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => { const s = String(r.result); res({ data: s.includes(',') ? s.slice(s.indexOf(',') + 1) : s, type: file.type || 'image/jpeg', name: file.name }); };
+    r.onerror = () => rej(new Error('read'));
+    r.readAsDataURL(file);
+  });
+}
+
+function Creds({ result }: { result: RegisterCompanyResult }) {
+  return (
+    <div className="lp-ok" style={{ marginTop: 10 }}>
+      <div className="lp-credlabel">Empresa</div><div className="lp-cred">{result.companyCode}</div>
+      <div className="lp-credlabel" style={{ marginTop: 10 }}>E-mail</div><div className="lp-cred">{result.adminEmail}</div>
+      <div className="lp-credlabel" style={{ marginTop: 10 }}>Palavra-passe temporária</div><div className="lp-cred">{result.temporaryPassword}</div>
+    </div>
+  );
+}
+
+/** Passo de subscrição na landing (sem login): escolher plano → IBAN → comprovativo. */
+function SetupSubscription({
+  result, plans, planTier, onLogin, onClose,
+}: {
+  result: RegisterCompanyResult;
+  plans: PublicPlan[];
+  planTier: PlanTier;
+  onLogin(): void;
+  onClose(): void;
+}) {
+  const [banks, setBanks] = useState<BankAccount[]>([]);
+  const [planId, setPlanId] = useState('');
+  const [bankId, setBankId] = useState('');
+  const [sub, setSub] = useState<{ id: string } | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setPlanId((plans.find((p) => p.tier === planTier) ?? plans[0])?.id ?? '');
+    void (async () => {
+      try { const b = await api.banks(); setBanks(b); setBankId(b[0]?.id ?? ''); } catch { /* mostra credenciais à mesma */ }
+    })();
+  }, [plans, planTier]);
+
+  const plan = plans.find((p) => p.id === planId);
+  const bank = banks.find((b) => b.id === bankId);
+
+  const createSub = async () => {
+    setErr(null);
+    if (!planId) { setErr('Escolhe um plano.'); return; }
+    if (!bankId) { setErr('A plataforma ainda não configurou um IBAN. Entra depois e conclui a subscrição.'); return; }
+    setBusy(true);
+    try { setSub(await api.setup.createSubscription(result.setupToken, { planId, method: 'IBAN', bankAccountId: bankId })); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao subscrever.'); }
+    finally { setBusy(false); }
+  };
+
+  const upload = async (file?: File) => {
+    if (!file || !sub) return;
+    if (file.size > 4_000_000) { setErr('Imagem demasiado grande (máx ~4 MB).'); return; }
+    setBusy(true); setErr(null);
+    try { const f = await fileToB64(file); await api.setup.submitProof(result.setupToken, sub.id, { fileName: f.name, fileType: f.type, fileData: f.data }); setSubmitted(true); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao enviar o comprovativo.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="lp-modal-bg" onClick={onClose}>
+      <div className="lp-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="x" onClick={onClose}>×</button>
+        {submitted ? (
+          <>
+            <h3>Comprovativo enviado ✅</h3>
+            <p className="msub">A tua subscrição está <b>em análise</b>. Assim que a plataforma aprovar, a tua conta fica <b>activa</b>. Entra depois com:</p>
+            <Creds result={result} />
+            <button className="lp-btn primary" style={{ width: '100%', justifyContent: 'center', marginTop: 14 }} onClick={onLogin}>Ir para o login</button>
+          </>
+        ) : !sub ? (
+          <>
+            <h3>Conta criada! 🎉 Falta concluir a subscrição</h3>
+            <p className="msub">Escolhe o plano e a conta para transferir. A seguir envias o comprovativo (obrigatório).</p>
+            {err && <div className="lp-err">{err}</div>}
+            <div className="lp-field">
+              <label>Plano</label>
+              <select value={planId} onChange={(e) => setPlanId(e.target.value)}>
+                {plans.map((p) => <option key={p.id} value={p.id}>{p.name}{p.priceKz > 0 ? ` — ${kz(p.priceKz)}/${p.durationMonths}m` : ' — sob consulta'}</option>)}
+              </select>
+            </div>
+            <div className="lp-field">
+              <label>Conta bancária (IBAN da plataforma)</label>
+              <select value={bankId} onChange={(e) => setBankId(e.target.value)}>
+                {banks.length === 0 ? <option value="">(ainda sem IBAN configurado)</option> : null}
+                {banks.map((b) => <option key={b.id} value={b.id}>{b.bankName} — {b.iban}</option>)}
+              </select>
+            </div>
+            <button className="lp-btn primary" style={{ width: '100%', justifyContent: 'center', marginTop: 6 }} onClick={createSub} disabled={busy || !planId}>
+              {busy ? 'A criar…' : `Subscrever ${plan && plan.priceKz > 0 ? `(${kz(plan.priceKz)})` : ''}`}
+            </button>
+            <details style={{ marginTop: 12 }}>
+              <summary className="msub" style={{ cursor: 'pointer' }}>Ver as minhas credenciais de acesso</summary>
+              <Creds result={result} />
+            </details>
+          </>
+        ) : (
+          <>
+            <h3>Paga e envia o comprovativo</h3>
+            <p className="msub">Transfere <b>{plan ? kz(plan.priceKz) : ''}</b> para a conta da plataforma:</p>
+            {bank ? (
+              <div className="lp-ok" style={{ marginBottom: 12 }}>
+                <div className="lp-credlabel">{bank.bankName} · {bank.accountHolder}</div>
+                <div className="lp-cred">{bank.iban}</div>
+              </div>
+            ) : null}
+            {err && <div className="lp-err">{err}</div>}
+            <button className="lp-btn primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => fileRef.current?.click()} disabled={busy}>
+              {busy ? 'A enviar…' : '📷 Enviar comprovativo (foto)'}
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => upload(e.target.files?.[0])} />
+            <p className="msub" style={{ marginTop: 12, fontSize: 12 }}>A plataforma verifica o comprovativo e ativa a tua conta. Podes acompanhar e conversar depois de entrares.</p>
+          </>
+        )}
       </div>
     </div>
   );

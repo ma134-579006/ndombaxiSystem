@@ -4,7 +4,10 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
+import type { Env } from '../config/env.validation';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantProvisioningService } from '../tenancy/tenant-provisioning.service';
 import { TenantUserRepository } from '../tenancy/tenant-user.repository';
@@ -22,6 +25,8 @@ export interface OnboardingResult {
   adminEmail: string;
   // devolvido apenas em dev; em produção vai só por e-mail
   temporaryPassword: string;
+  /** Token curto (7 dias) que autoriza concluir a subscrição na landing (sem login). */
+  setupToken: string;
 }
 
 @Injectable()
@@ -36,6 +41,8 @@ export class OnboardingService {
     private readonly nif: NifService,
     private readonly audit: AuditService,
     private readonly mail: MailService,
+    private readonly jwt: JwtService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   private generateTempPassword(): string {
@@ -135,12 +142,20 @@ export class OnboardingService {
       tempPassword,
     );
 
+    // Token de configuração: autoriza concluir a subscrição (escolher plano +
+    // enviar comprovativo) na própria landing, sem login, durante 7 dias.
+    const setupToken = await this.jwt.signAsync(
+      { sub: company.id, typ: 'setup' },
+      { secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }), expiresIn: '7d' },
+    );
+
     return {
       companyId: company.id,
       companyCode: company.code,
       status: company.status,
       adminEmail,
       temporaryPassword: tempPassword,
+      setupToken,
     };
   }
 }

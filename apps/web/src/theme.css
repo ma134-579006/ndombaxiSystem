@@ -166,6 +166,13 @@ input, textarea, select { font-family: inherit; }
 @media (max-width: 640px) {
   /* Formulários de 2 colunas passam a 1 coluna no telemóvel. */
   .grid-2 { grid-template-columns: 1fr; }
+
+  /* Linhas de lista com botões: deixam de transbordar — o grupo de botões
+     embrulha para baixo e ocupa a largura toda (Empresas, Equipa, etc.). */
+  .list-row { flex-wrap: wrap; }
+  .list-row .row { flex-wrap: wrap; width: 100%; justify-content: flex-start; gap: 8px; }
+  .list-row .row .btn { flex: 1 1 auto; min-width: 104px; }
+  .list-row > div:first-child { flex-basis: 65%; min-width: 60%; }
 }
 @media (max-width: 560px) {
   .topbar .who { display: none; }

@@ -40,6 +40,7 @@ export interface RegisterCompanyResult {
   status: string;
   adminEmail: string;
   temporaryPassword: string;
+  setupToken: string;
 }
 
 /** Plano público (landing) — preço em Kwanzas. */
@@ -354,6 +355,13 @@ export interface StockCountDetail {
 export interface WarehouseRow { id: string; code: string; name: string; is_default: boolean }
 export interface StockEntryInput {
   productId: string; warehouseId: string; quantity: number; unitCost: number; salePrice?: number;
+}
+export interface BatchInput {
+  productId: string; warehouseId: string; batchCode?: string; quantity: number; expiryDate?: string;
+}
+export interface ExpiringBatch {
+  id: string; batch_code: string | null; quantity: string;
+  expiry_date: string; product_name: string; days_left: number;
 }
 
 // ── Conversa das encomendas (admin ↔ cliente) ───────────────

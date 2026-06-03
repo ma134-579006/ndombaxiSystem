@@ -11,6 +11,7 @@ const FILTERS: { key: '' | CompanyStatus; label: string }[] = [
   { key: 'PENDING', label: 'Pendentes' },
   { key: 'ACTIVE', label: 'Activas' },
   { key: 'SUSPENDED', label: 'Suspensas' },
+  { key: 'CANCELLED', label: 'Rejeitadas' },
 ];
 
 export function Tenants() {

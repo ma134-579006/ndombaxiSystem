@@ -68,6 +68,8 @@ import type {
   StockCountDetail,
   StockCountRow,
   StockEntryInput,
+  BatchInput,
+  ExpiringBatch,
   StorePaymentMethod,
   WarehouseRow,
   OrderMessage,
@@ -189,6 +191,14 @@ export const api = {
   publicLanding: () => request<PublicLanding>('GET', '/public/landing', undefined, { auth: false }),
   registerCompany: (input: RegisterCompanyInput) =>
     request<RegisterCompanyResult>('POST', '/onboarding/register', input, { auth: false }),
+
+  // ── Subscrição na landing pós-registo (sem login, via setupToken) ──
+  setup: {
+    createSubscription: (setupToken: string, dto: { planId: string; method: 'IBAN' | 'REFERENCE'; bankAccountId?: string }) =>
+      request<{ id: string; status: string }>('POST', '/onboarding/setup/subscription', { setupToken, ...dto }, { auth: false }),
+    submitProof: (setupToken: string, id: string, dto: { fileName: string; fileType: string; fileData: string; amountKz?: number }) =>
+      request<{ id: string }>('POST', `/onboarding/setup/subscription/${id}/proof`, { setupToken, ...dto }, { auth: false }),
+  },
 
   // ── Dashboard global da plataforma (Super Admin) ───────────
   platformDashboard: {
@@ -462,6 +472,8 @@ export const api = {
       request<{ balanceAfter: number }>('POST', '/inventory/write-off', { productId, warehouseId, quantity, reason }),
     stockEntry: (dto: StockEntryInput) =>
       request<{ balanceAfter: number }>('POST', '/erp/stock/entry', dto),
+    addBatch: (dto: BatchInput) => request<{ id: string }>('POST', '/cashbox/batches', dto),
+    expiringBatches: (days = 60) => request<ExpiringBatch[]>('GET', `/cashbox/batches/expiring?days=${days}`),
   },
 
   // ── Pagamentos da loja (gerente) ───────────────────────────

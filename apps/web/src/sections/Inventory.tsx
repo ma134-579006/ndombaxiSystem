@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
+import type { ExpiringBatch, ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
 import { Modal } from '../components/ui';
-import { IconCheck, IconCube, IconPlus, IconTruck, IconTrash } from '../components/Icons';
-import { formatKz } from '../format';
+import { IconCheck, IconCube, IconPlus, IconTruck, IconTrash, IconReceipt } from '../components/Icons';
+import { formatKz, formatDate } from '../format';
 
 /** Inventário profissional: entrada de stock (custo/lucro), contagens e baixas. */
 export function Inventory() {
@@ -16,16 +16,20 @@ export function Inventory() {
   const [creating, setCreating] = useState(false);
   const [entering, setEntering] = useState(false);
   const [writingOff, setWritingOff] = useState(false);
+  const [batches, setBatches] = useState<ExpiringBatch[]>([]);
+  const [addingBatch, setAddingBatch] = useState(false);
+  const [woInit, setWoInit] = useState<{ productId: string; quantity?: number } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [c, w, p] = await Promise.all([
+      const [c, w, p, b] = await Promise.all([
         api.inventory.listCounts(),
         api.inventory.warehouses(),
         api.products.list(),
+        api.inventory.expiringBatches(60).catch(() => [] as ExpiringBatch[]),
       ]);
-      setCounts(c); setWarehouses(w); setProducts(p); setError(null);
+      setCounts(c); setWarehouses(w); setProducts(p); setBatches(b); setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar.');
     } finally { setLoading(false); }
@@ -56,6 +60,9 @@ export function Inventory() {
         <button className="btn ghost" onClick={() => setWritingOff(true)} disabled={warehouses.length === 0 || products.length === 0}>
           <IconTrash size={16} /> Baixa de stock
         </button>
+        <button className="btn ghost" onClick={() => setAddingBatch(true)} disabled={warehouses.length === 0 || products.length === 0}>
+          <IconReceipt size={16} /> Registar lote
+        </button>
         <button className="btn ghost" onClick={() => setCreating(true)} disabled={warehouses.length === 0}>
           <IconPlus size={16} /> Nova contagem
         </button>
@@ -84,6 +91,37 @@ export function Inventory() {
         ))}
       </div>
 
+      {/* Lotes & validade (FEFO) */}
+      <div className="card">
+        <div className="row" style={{ marginBottom: 6 }}>
+          <h3 style={{ margin: 0 }}>Lotes &amp; validade</h3>
+          <span className="spacer" />
+          <span className="muted" style={{ fontSize: 12 }}>a expirar (60 dias) / expirados</span>
+        </div>
+        {loading ? <div className="loading">A carregar…</div> : batches.length === 0 ? (
+          <div className="empty"><IconReceipt size={36} /><p>Sem lotes a expirar. Use “Registar lote” para controlar validades (FEFO).</p></div>
+        ) : batches.map((b) => {
+          const expired = b.days_left <= 0;
+          const prod = products.find((x) => x.name === b.product_name);
+          return (
+            <div className="list-row" key={b.id}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700 }}>{b.product_name}{b.batch_code ? <span className="muted" style={{ fontWeight: 500 }}> · lote {b.batch_code}</span> : null}</div>
+                <div className="muted" style={{ fontSize: 13 }}>{Number(b.quantity)} un. · validade {formatDate(b.expiry_date)}</div>
+              </div>
+              <span className="badge" style={{ color: expired ? 'var(--danger)' : b.days_left <= 14 ? 'var(--warning)' : 'var(--muted)', borderColor: 'currentColor' }}>
+                {expired ? `Expirado há ${-b.days_left}d` : `faltam ${b.days_left}d`}
+              </span>
+              {prod ? (
+                <button className="btn sm ghost" onClick={() => setWoInit({ productId: prod.id, quantity: Number(b.quantity) })} title="Dar baixa por caducidade">
+                  Baixa
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+
       {creating ? (
         <Modal title="Nova contagem de inventário" onClose={() => setCreating(false)}>
           <p className="muted" style={{ marginTop: 0 }}>Escolha o armazém a inventariar:</p>
@@ -103,12 +141,21 @@ export function Inventory() {
           onSaved={() => { setEntering(false); void load(); }}
         />
       ) : null}
-      {writingOff ? (
+      {writingOff || woInit ? (
         <WriteOffModal
           products={products}
           warehouses={warehouses}
-          onClose={() => setWritingOff(false)}
-          onSaved={() => { setWritingOff(false); void load(); }}
+          initial={woInit ?? undefined}
+          onClose={() => { setWritingOff(false); setWoInit(null); }}
+          onSaved={() => { setWritingOff(false); setWoInit(null); void load(); }}
+        />
+      ) : null}
+      {addingBatch ? (
+        <BatchModal
+          products={products}
+          warehouses={warehouses}
+          onClose={() => setAddingBatch(false)}
+          onSaved={() => { setAddingBatch(false); void load(); }}
         />
       ) : null}
       {openCount ? <CountSheet detail={openCount} onClose={() => { setOpenCount(null); void load(); }} /> : null}
@@ -120,16 +167,17 @@ const WRITEOFF_REASONS = ['Caducidade / validade', 'Dano / quebra', 'Roubo / per
 
 /** Baixa de stock: retira unidades por caducidade, dano, perda, etc. (auditado). */
 function WriteOffModal({
-  products, warehouses, onClose, onSaved,
+  products, warehouses, initial, onClose, onSaved,
 }: {
   products: ManagerProduct[];
   warehouses: WarehouseRow[];
+  initial?: { productId?: string; quantity?: number };
   onClose(): void;
   onSaved(): void;
 }) {
-  const [productId, setProductId] = useState(products[0]?.id ?? '');
+  const [productId, setProductId] = useState(initial?.productId || products[0]?.id || '');
   const [warehouseId, setWarehouseId] = useState(warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? '');
-  const [qty, setQty] = useState('');
+  const [qty, setQty] = useState(initial?.quantity != null ? String(initial.quantity) : '');
   const [reason, setReason] = useState(WRITEOFF_REASONS[0]);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -176,6 +224,73 @@ function WriteOffModal({
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex.: lote vencido a 30/06" /></div>
       <button className="btn lg block danger" onClick={submit} disabled={busy}>
         {busy ? 'A dar baixa…' : 'Confirmar baixa'}
+      </button>
+    </Modal>
+  );
+}
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+/** Registar lote com data de validade (dá entrada de stock). */
+function BatchModal({
+  products, warehouses, onClose, onSaved,
+}: {
+  products: ManagerProduct[];
+  warehouses: WarehouseRow[];
+  onClose(): void;
+  onSaved(): void;
+}) {
+  const [productId, setProductId] = useState(products[0]?.id ?? '');
+  const [warehouseId, setWarehouseId] = useState(warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? '');
+  const [batchCode, setBatchCode] = useState('');
+  const [qty, setQty] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    setErr(null);
+    const q = Number(qty);
+    if (!productId || !warehouseId) { setErr('Escolha o produto e o armazém.'); return; }
+    if (!(q > 0)) { setErr('Indique a quantidade do lote.'); return; }
+    setBusy(true);
+    try {
+      await api.inventory.addBatch({
+        productId, warehouseId, quantity: q,
+        batchCode: batchCode.trim() || undefined,
+        expiryDate: expiryDate || undefined,
+      });
+      onSaved();
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao registar o lote.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title="Registar lote (com validade)" onClose={onClose}>
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+        Dá entrada das unidades e controla a <strong>validade</strong> (FEFO — primeiro a expirar, primeiro a sair).
+      </p>
+      <div className="grid-2">
+        <div className="field"><label>Produto</label>
+          <select value={productId} onChange={(e) => setProductId(e.target.value)}>
+            {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+          </select></div>
+        <div className="field"><label>Armazém</label>
+          <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
+          </select></div>
+      </div>
+      <div className="grid-2">
+        <div className="field"><label>Quantidade</label>
+          <input inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="ex.: 50" /></div>
+        <div className="field"><label>Código do lote (opcional)</label>
+          <input value={batchCode} onChange={(e) => setBatchCode(e.target.value)} placeholder="ex.: L-2026-07" /></div>
+      </div>
+      <div className="field"><label>Data de validade</label>
+        <input type="date" value={expiryDate} min={todayISO()} onChange={(e) => setExpiryDate(e.target.value)} /></div>
+      <button className="btn lg block" style={{ marginTop: 6 }} onClick={submit} disabled={busy}>
+        {busy ? 'A registar…' : 'Registar lote e dar entrada'}
       </button>
     </Modal>
   );
