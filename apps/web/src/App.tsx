@@ -27,6 +27,7 @@ import { Reconciliation } from './sections/Reconciliation';
 import { Employees } from './sections/Employees';
 import { Payroll } from './sections/Payroll';
 import { Purchasing } from './sections/Purchasing';
+import { Assistant } from './sections/Assistant';
 import { Leave } from './sections/Leave';
 import { Team } from './sections/Team';
 import { Stores } from './sections/Stores';
@@ -49,6 +50,7 @@ const PLATFORM_NAV: NavItem[] = [
 
 const TENANT_NAV: NavItem[] = [
   { key: 'overview', label: 'Visão geral', icon: IconChart },
+  { key: 'assistant', label: 'Assistente IA', icon: IconCpu },
   { key: 'team', label: 'Equipa & Acessos', icon: IconShield },
   { key: 'stores', label: 'Lojas', icon: IconStore },
   { key: 'products', label: 'Produtos', icon: IconCube },
@@ -92,6 +94,7 @@ function TenantPanel() {
   return (
     <Shell nav={TENANT_NAV} section={section} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
       {section === 'overview' ? <Overview /> : null}
+      {section === 'assistant' ? <Assistant /> : null}
       {section === 'team' ? <Team /> : null}
       {section === 'stores' ? <Stores /> : null}
       {section === 'products' ? <Products /> : null}

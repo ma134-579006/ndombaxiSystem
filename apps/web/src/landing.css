@@ -8,7 +8,10 @@
   min-height: 100vh;
   color: #0f1729;
   background: #0b1221;
-  overflow-x: hidden;
+  /* `clip` evita scroll horizontal MAS, ao contrário de `hidden`, não cria um
+     contexto de scroll — por isso a barra de topo (.lp-nav) sticky continua
+     fixa ao rolar a página. Com `hidden` a navbar deixava de ficar fixa. */
+  overflow-x: clip;
 }
 
 /* ── Barra de topo ──────────────────────────────────────── */

@@ -601,6 +601,19 @@ export interface PayrollItem {
 }
 export interface PayrollRunDetail { run: PayrollRun; items: PayrollItem[] }
 
+// ── Assistente OpenManus (lado da empresa) ──────────────────
+export type AssistantRole = 'user' | 'assistant' | 'system';
+export interface AssistantMessage { role: AssistantRole; content: string }
+export interface AssistantGreeting { greeting: string; displayName: string }
+export interface AssistantChartSpec {
+  type: string; title?: string; labels?: (string | number)[];
+  series?: { name: string; data: number[] }[];
+}
+export interface AssistantChatReply {
+  reply: string; charts: AssistantChartSpec[]; imagePrompts: string[];
+  provider: string; model: string | null;
+}
+
 // ── Conciliação bancária (gestor) ───────────────────────────
 export interface BankTx {
   id: string; statement_date: string; description: string | null; amount: string;

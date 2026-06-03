@@ -75,6 +75,9 @@ import type {
   CreatePurchaseOrderInput,
   PayrollRun,
   PayrollRunDetail,
+  AssistantMessage,
+  AssistantGreeting,
+  AssistantChatReply,
   SubMessage,
   Subscription,
   PlatformKpis,
@@ -372,6 +375,12 @@ export const api = {
       process: (year: number, month: number) => request<PayrollRun>('POST', '/hr/payroll/runs', { year, month }),
       pay: (id: string) => request<PayrollRun>('POST', `/hr/payroll/runs/${id}/pay`, {}),
     },
+  },
+  // ── Assistente OpenManus da empresa (chat) ────────────────
+  assistant: {
+    greeting: () => request<AssistantGreeting>('GET', '/ai/greeting'),
+    chat: (messages: AssistantMessage[]) =>
+      request<AssistantChatReply>('POST', '/ai/chat', { messages, channel: 'chat' }),
   },
   // ── Compras: fornecedores + encomendas de compra (gestor) ──
   purchasing: {
