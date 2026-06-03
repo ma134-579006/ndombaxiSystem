@@ -70,12 +70,12 @@ export class TenantAuditService {
   }
 
   /** Lista de eventos (gerente), com filtros opcionais. */
-  list(
+  async list(
     schema: string,
     filter: { action?: string; limit?: number } = {},
   ): Promise<unknown[]> {
     const limit = Math.min(Math.max(filter.limit ?? 100, 1), 500);
-    return this.prisma.runInTenant(schema, (tx) =>
+    const rows = (await this.prisma.runInTenant(schema, (tx) =>
       filter.action
         ? tx.$queryRaw(
             Prisma.sql`SELECT seq, timestamp, actor_name, action, entity, entity_id, details
@@ -86,7 +86,9 @@ export class TenantAuditService {
             Prisma.sql`SELECT seq, timestamp, actor_name, action, entity, entity_id, details
                        FROM tenant_audit_log ORDER BY seq DESC LIMIT ${limit}`,
           ),
-    );
+    )) as Array<Record<string, unknown>>;
+    // `seq` é int8 → vem como BigInt, que o JSON não serializa (causava 500).
+    return rows.map((r) => ({ ...r, seq: typeof r.seq === 'bigint' ? Number(r.seq) : r.seq }));
   }
 
   /** Verifica a integridade da cadeia de hashes do tenant. */

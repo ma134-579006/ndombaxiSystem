@@ -472,8 +472,8 @@ export const api = {
       request<{ balanceAfter: number }>('POST', '/inventory/write-off', { productId, warehouseId, quantity, reason }),
     stockEntry: (dto: StockEntryInput) =>
       request<{ balanceAfter: number }>('POST', '/erp/stock/entry', dto),
-    addBatch: (dto: BatchInput) => request<{ id: string }>('POST', '/cashbox/batches', dto),
-    expiringBatches: (days = 60) => request<ExpiringBatch[]>('GET', `/cashbox/batches/expiring?days=${days}`),
+    addBatch: (dto: BatchInput) => request<{ id: string }>('POST', '/inventory/batches', dto),
+    expiringBatches: (days = 60) => request<ExpiringBatch[]>('GET', `/inventory/batches/expiring?days=${days}`),
   },
 
   // ── Pagamentos da loja (gerente) ───────────────────────────
