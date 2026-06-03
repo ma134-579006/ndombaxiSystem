@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { KeyboardProvider } from './keyboard/KeyboardProvider';
 import { Shell, type NavItem } from './components/Shell';
-import { IconBuilding, IconCard, IconChart, IconCpu, IconCube, IconReceipt, IconStar, IconStore, IconTruck } from './components/Icons';
+import { IconBuilding, IconCard, IconChart, IconCpu, IconCube, IconReceipt, IconShield, IconStar, IconStore, IconTruck } from './components/Icons';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
 import './landing.css';
@@ -26,6 +26,8 @@ import { Payables } from './sections/Payables';
 import { Reconciliation } from './sections/Reconciliation';
 import { Employees } from './sections/Employees';
 import { Leave } from './sections/Leave';
+import { Team } from './sections/Team';
+import { Stores } from './sections/Stores';
 import { Storefront } from './sections/Storefront';
 import { PlansAdmin } from './sections/PlansAdmin';
 import { SubsAdmin } from './sections/SubsAdmin';
@@ -45,6 +47,8 @@ const PLATFORM_NAV: NavItem[] = [
 
 const TENANT_NAV: NavItem[] = [
   { key: 'overview', label: 'Visão geral', icon: IconChart },
+  { key: 'team', label: 'Equipa & Acessos', icon: IconShield },
+  { key: 'stores', label: 'Lojas', icon: IconStore },
   { key: 'products', label: 'Produtos', icon: IconCube },
   { key: 'inventory', label: 'Inventário', icon: IconCube },
   { key: 'orders', label: 'Encomendas', icon: IconTruck },
@@ -84,6 +88,8 @@ function TenantPanel() {
   return (
     <Shell nav={TENANT_NAV} section={section} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
       {section === 'overview' ? <Overview /> : null}
+      {section === 'team' ? <Team /> : null}
+      {section === 'stores' ? <Stores /> : null}
       {section === 'products' ? <Products /> : null}
       {section === 'inventory' ? <Inventory /> : null}
       {section === 'orders' ? <Orders /> : null}

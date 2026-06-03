@@ -28,6 +28,13 @@ import type {
   ManagerEmployee,
   CreateEmployeeInput,
   UpdateEmployeeInput,
+  ManagerStore,
+  ManagerStaff,
+  CreateStoreInput,
+  UpdateStoreInput,
+  CreateStaffInput,
+  UpdateStaffInput,
+  CreatedStaff,
   Expense,
   ExpenseSummary,
   PaymentReceipt,
@@ -335,6 +342,18 @@ export const api = {
   commissions: {
     report: (from?: string, to?: string) => request<CommissionReport>('GET', `/commissions${qs({ from, to })}`),
     setRate: (userId: string, rate: number) => request<{ userId: string; rate: number }>('POST', `/commissions/${userId}/rate`, { rate }),
+  },
+  staff: {
+    listStores: () => request<ManagerStore[]>('GET', '/staff/stores'),
+    createStore: (dto: CreateStoreInput) => request<ManagerStore>('POST', '/staff/stores', dto),
+    updateStore: (id: string, dto: UpdateStoreInput) => request<ManagerStore>('PATCH', `/staff/stores/${id}`, dto),
+    listUsers: () => request<ManagerStaff[]>('GET', '/staff/users'),
+    createUser: (dto: CreateStaffInput) => request<CreatedStaff>('POST', '/staff/users', dto),
+    updateUser: (id: string, dto: UpdateStaffInput) => request<ManagerStaff>('PATCH', `/staff/users/${id}`, dto),
+    resetPassword: (id: string, password?: string) =>
+      request<{ temporaryPassword?: string }>('POST', `/staff/users/${id}/reset-password`, password ? { password } : {}),
+    setPin: (id: string, pin: string) => request<{ ok: boolean }>('POST', `/staff/users/${id}/set-pin`, { pin }),
+    deactivate: (id: string) => request<ManagerStaff>('POST', `/staff/users/${id}/deactivate`),
   },
   hr: {
     employees: (all?: boolean) => request<ManagerEmployee[]>('GET', `/hr/employees${all ? '?all=true' : ''}`),

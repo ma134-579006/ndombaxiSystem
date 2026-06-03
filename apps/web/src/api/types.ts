@@ -512,6 +512,32 @@ export interface CommissionReport {
   from: string; to: string; rows: CommissionRow[]; totalSales: number; totalCommission: number;
 }
 
+// ── Equipa (utilizadores/credenciais) + Lojas (RBAC) ────────
+export type StaffRoleName =
+  | 'COMPANY_ADMIN' | 'REGIONAL_MANAGER' | 'STORE_MANAGER'
+  | 'SHIFT_SUPERVISOR' | 'CASHIER' | 'ATTENDANT';
+export const STAFF_ROLE_LABELS: Record<StaffRoleName, string> = {
+  COMPANY_ADMIN: 'Administrador', REGIONAL_MANAGER: 'Gerente regional',
+  STORE_MANAGER: 'Gerente de loja', SHIFT_SUPERVISOR: 'Supervisor de turno',
+  CASHIER: 'Operador de caixa', ATTENDANT: 'Atendente',
+};
+export const STAFF_ROLES = Object.keys(STAFF_ROLE_LABELS) as StaffRoleName[];
+
+export interface ManagerStore {
+  id: string; code: string; name: string; address: string | null;
+  is_default: boolean; is_active: boolean;
+}
+export interface ManagerStaff {
+  id: string; email: string; name: string; role: StaffRoleName;
+  store_id: string | null; two_fa_enabled: boolean; is_active: boolean;
+  must_reset_pw: boolean; has_pin: boolean; last_login_at: string | null;
+}
+export interface CreateStoreInput { code: string; name: string; address?: string; isDefault?: boolean }
+export interface UpdateStoreInput { name?: string; address?: string; isActive?: boolean; isDefault?: boolean }
+export interface CreateStaffInput { name: string; email: string; role: StaffRoleName; storeId?: string; password?: string; pin?: string }
+export interface UpdateStaffInput { name?: string; role?: StaffRoleName; storeId?: string; isActive?: boolean }
+export interface CreatedStaff { user: ManagerStaff; temporaryPassword?: string }
+
 // ── Funcionários (RH) ───────────────────────────────────────
 export interface ManagerEmployee {
   id: string; employee_number: string; full_name: string;
