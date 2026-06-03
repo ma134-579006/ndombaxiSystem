@@ -1,9 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { CreateEmployeeInput, ManagerEmployee } from '../api/types';
-import { IconBuilding, IconEdit, IconImage, IconPlus, IconSearch } from '../components/Icons';
+import {
+  STAFF_ROLES, STAFF_ROLE_LABELS,
+  type CreateEmployeeInput, type ManagerEmployee, type ManagerStaff, type ManagerStore, type StaffRoleName,
+} from '../api/types';
+import { IconBuilding, IconEdit, IconImage, IconPlus, IconSearch, IconShield } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz } from '../format';
+
+const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 
 interface FormState {
   employeeNumber: string; fullName: string; position: string; department: string;
@@ -18,22 +23,40 @@ const EMPTY: FormState = {
  *  aparece no cartão. Criar/editar exige COMPANY_ADMIN (a API valida). */
 export function Employees() {
   const [items, setItems] = useState<ManagerEmployee[]>([]);
+  const [users, setUsers] = useState<ManagerStaff[]>([]);
+  const [stores, setStores] = useState<ManagerStore[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<ManagerEmployee | null>(null);
   const [creating, setCreating] = useState(false);
+  const [accessFor, setAccessFor] = useState<ManagerEmployee | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
-    try { setItems(await api.hr.employees(true)); }
+    try {
+      const [emps, us, st] = await Promise.all([
+        api.hr.employees(true),
+        api.staff.listUsers().catch(() => [] as ManagerStaff[]),
+        api.staff.listStores().catch(() => [] as ManagerStore[]),
+      ]);
+      setItems(emps); setUsers(us); setStores(st);
+    }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao carregar funcionários.'); }
     finally { setLoading(false); }
   }, []);
+
+  const usersByName = useMemo(() => {
+    const m = new Map<string, ManagerStaff>();
+    for (const u of users) m.set(norm(u.name), u);
+    return m;
+  }, [users]);
+  const accessOf = (e: ManagerEmployee) => usersByName.get(norm(e.full_name)) ?? null;
 
   useEffect(() => { void load(); }, [load]);
 
@@ -104,6 +127,10 @@ export function Employees() {
         </div>
       </div>
 
+      <div className="banner info" style={{ marginBottom: 12 }}>
+        Cada funcionário pode ter <strong>acesso ao sistema</strong> (utilizador + cargo + PIN). Liga-se pelo <strong>nome</strong> e cria-se aqui — depois geres tudo em <strong>Equipa &amp; Acessos</strong>.
+      </div>
+      {info ? <div className="banner success">{info}</div> : null}
       {error ? <div className="banner danger">{error}</div> : null}
 
       {loading ? <div className="card"><div className="loading">A carregar…</div></div>
@@ -111,22 +138,36 @@ export function Employees() {
           <div className="card"><div className="empty"><IconBuilding size={40} /><p>Sem funcionários. Crie o primeiro.</p></div></div>
         ) : (
           <div className="pgrid">
-            {filtered.map((e) => (
-              <div className="pcard" key={e.id}>
-                <div className="thumb">
-                  {e.photo_url ? <img src={e.photo_url} alt={e.full_name} /> : <IconBuilding size={30} />}
-                </div>
-                <div className="pinfo">
-                  <div className="pname">{e.full_name}</div>
-                  <div className="pcode">{e.employee_number}{e.position ? ` · ${e.position}` : ''}</div>
-                  <div className="pfoot">
-                    <span className="pprice">{formatKz(Number(e.base_salary))}</span>
-                    <span className={`pill ${e.status === 'ACTIVE' ? 'on' : 'off'}`}>{e.status === 'ACTIVE' ? 'Activo' : e.status === 'TERMINATED' ? 'Cessado' : 'Suspenso'}</span>
+            {filtered.map((e) => {
+              const u = accessOf(e);
+              return (
+                <div className="pcard" key={e.id}>
+                  <div className="thumb">
+                    {e.photo_url ? <img src={e.photo_url} alt={e.full_name} /> : <IconBuilding size={30} />}
                   </div>
-                  <button className="btn sm ghost block" style={{ marginTop: 8 }} onClick={() => openEdit(e)}><IconEdit size={15} /> Editar</button>
+                  <div className="pinfo">
+                    <div className="pname">{e.full_name}</div>
+                    <div className="pcode">{e.employee_number}{e.position ? ` · ${e.position}` : ''}</div>
+                    <div className="pfoot">
+                      <span className="pprice">{formatKz(Number(e.base_salary))}</span>
+                      <span className={`pill ${e.status === 'ACTIVE' ? 'on' : 'off'}`}>{e.status === 'ACTIVE' ? 'Activo' : e.status === 'TERMINATED' ? 'Cessado' : 'Suspenso'}</span>
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      {u ? (
+                        <span className="pill on" title={u.email} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <IconShield size={11} /> {STAFF_ROLE_LABELS[u.role] ?? u.role}{u.has_pin ? ' · PIN' : ''}
+                        </span>
+                      ) : e.status === 'ACTIVE' ? (
+                        <button className="btn sm ghost block" onClick={() => setAccessFor(e)}>
+                          <IconShield size={13} /> Dar acesso ao sistema
+                        </button>
+                      ) : <span className="muted" style={{ fontSize: 12 }}>Sem acesso</span>}
+                    </div>
+                    <button className="btn sm ghost block" style={{ marginTop: 8 }} onClick={() => openEdit(e)}><IconEdit size={15} /> Editar</button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -173,6 +214,86 @@ export function Employees() {
           </button>
         </Modal>
       ) : null}
+
+      {accessFor ? (
+        <AccessModal
+          employee={accessFor}
+          stores={stores}
+          onClose={() => setAccessFor(null)}
+          onCreated={(temp) => {
+            setAccessFor(null);
+            if (temp) setInfo(`Acesso criado. Senha temporária: ${temp} — entrega ao funcionário (só aparece agora).`);
+            else setInfo('Acesso criado.');
+            void load();
+          }}
+        />
+      ) : null}
     </>
+  );
+}
+
+/** Cria um utilizador (acesso ao sistema) ligado a um funcionário (mesmo nome). */
+function AccessModal({
+  employee, stores, onClose, onCreated,
+}: {
+  employee: ManagerEmployee;
+  stores: ManagerStore[];
+  onClose(): void;
+  onCreated(temp?: string): void;
+}) {
+  const guessRole = (): StaffRoleName =>
+    /caixa|operador/i.test(employee.position ?? '') ? 'CASHIER'
+      : /gerente|gestor|manager/i.test(employee.position ?? '') ? 'STORE_MANAGER'
+      : 'ATTENDANT';
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<StaffRoleName>(guessRole());
+  const [storeId, setStoreId] = useState('');
+  const [pin, setPin] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    setErr(null);
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr('Indique um email válido.'); return; }
+    if (pin && !/^\d{6}$/.test(pin)) { setErr('O PIN deve ter 6 dígitos.'); return; }
+    setBusy(true);
+    try {
+      const r = await api.staff.createUser({
+        name: employee.full_name,
+        email: email.trim().toLowerCase(),
+        role,
+        storeId: storeId || undefined,
+        pin: pin || undefined,
+      });
+      onCreated(r.temporaryPassword);
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível criar o acesso (precisa de ser administrador).'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title={`Dar acesso — ${employee.full_name}`} onClose={onClose}>
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+        Cria a conta de acesso deste funcionário. O <strong>papel</strong> define as permissões; um <strong>Operador de caixa</strong> entra no POS com o email + senha (ou PIN).
+      </p>
+      <div className="field"><label>Email (login)</label>
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.ao" inputMode="email" /></div>
+      <div className="grid-2">
+        <div className="field"><label>Papel (permissão)</label>
+          <select value={role} onChange={(e) => setRole(e.target.value as StaffRoleName)}>
+            {STAFF_ROLES.map((r) => <option key={r} value={r}>{STAFF_ROLE_LABELS[r]}</option>)}
+          </select></div>
+        <div className="field"><label>Loja</label>
+          <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+            <option value="">(sem loja específica)</option>
+            {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select></div>
+      </div>
+      <div className="field"><label>PIN do POS (6 dígitos, opcional)</label>
+        <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" placeholder="ex.: 123456" /></div>
+      <button className="btn lg block" style={{ marginTop: 8 }} onClick={submit} disabled={busy}>
+        {busy ? 'A criar…' : 'Criar acesso'}
+      </button>
+    </Modal>
   );
 }
