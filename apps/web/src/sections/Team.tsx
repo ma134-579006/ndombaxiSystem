@@ -70,18 +70,18 @@ export function Team() {
         {loading ? <div className="loading">A carregar…</div>
           : users.length === 0 ? <div className="empty"><IconBuilding size={40} /><p>Sem utilizadores. Cria o primeiro acesso.</p></div>
           : (
-            <table className="ptable">
+            <table className="ptable stack">
               <thead><tr><th>Nome</th><th>Email</th><th>Papel</th><th>Loja</th><th>PIN</th><th>Estado</th><th className="no-print" /></tr></thead>
               <tbody>
                 {users.map((u) => (
                   <tr key={u.id}>
-                    <td>{u.name}</td>
-                    <td>{u.email}</td>
-                    <td><span className="pill"><IconShield size={12} /> {STAFF_ROLE_LABELS[u.role] ?? u.role}</span></td>
-                    <td>{storeName(u.store_id)}</td>
-                    <td>{u.has_pin ? <span className="pill on">Sim</span> : <span className="pill">—</span>}</td>
-                    <td><span className={`pill ${u.is_active ? 'on' : 'off'}`}>{u.is_active ? 'Activo' : 'Inactivo'}</span></td>
-                    <td className="no-print">
+                    <td data-label="Nome">{u.name}</td>
+                    <td data-label="Email">{u.email}</td>
+                    <td data-label="Papel"><span className="pill"><IconShield size={12} /> {STAFF_ROLE_LABELS[u.role] ?? u.role}</span></td>
+                    <td data-label="Loja">{storeName(u.store_id)}</td>
+                    <td data-label="PIN">{u.has_pin ? <span className="pill on">Sim</span> : <span className="pill">—</span>}</td>
+                    <td data-label="Estado"><span className={`pill ${u.is_active ? 'on' : 'off'}`}>{u.is_active ? 'Activo' : 'Inactivo'}</span></td>
+                    <td className="actions no-print">
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                         <button className="btn sm ghost" disabled={busyId === u.id} onClick={() => setEditing(u)} title="Editar papel/loja"><IconEdit size={14} /></button>
                         <button className="btn sm ghost" disabled={busyId === u.id} onClick={() => setPinFor(u)} title="Definir PIN do POS"><IconLock size={14} /></button>

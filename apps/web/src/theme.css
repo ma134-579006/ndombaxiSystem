@@ -173,6 +173,22 @@ input, textarea, select { font-family: inherit; }
   .list-row .row { flex-wrap: wrap; width: 100%; justify-content: flex-start; gap: 8px; }
   .list-row .row .btn { flex: 1 1 auto; min-width: 104px; }
   .list-row > div:first-child { flex-basis: 65%; min-width: 60%; }
+
+  /* Tabelas marcadas .stack viram CARTÕES empilhados no telemóvel (sem scroll
+     horizontal). Cada célula mostra o seu rótulo (data-label). */
+  .ptable.stack { min-width: 0; }
+  .ptable.stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .ptable.stack tbody tr { display: block; border: 1px solid var(--border); border-radius: 12px; padding: 4px 12px; margin-bottom: 10px; background: var(--surface); }
+  .ptable.stack tbody td { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 0; text-align: right; border: none; }
+  .ptable.stack tbody td + td { border-top: 1px solid var(--border-soft); }
+  .ptable.stack tbody td::before { content: attr(data-label); color: var(--muted); font-weight: 600; font-size: 12px; text-align: left; white-space: nowrap; }
+  .ptable.stack tbody td:not([data-label])::before { content: none; }
+  .ptable.stack tbody td.actions { justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+  .ptable.stack tbody td.actions .btn { flex: 1 1 auto; min-width: 96px; }
+  .ptable.stack tfoot { display: block; }
+  .ptable.stack tfoot td { display: flex; justify-content: space-between; border: none; }
+  /* IBAN / códigos longos não quebram o layout */
+  .mono, .lp-cred { overflow-wrap: anywhere; word-break: break-word; }
 }
 @media (max-width: 560px) {
   .topbar .who { display: none; }

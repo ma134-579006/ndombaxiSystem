@@ -132,21 +132,21 @@ function RunSheet({ detail, onClose, onPay }: { detail: PayrollRunDetail; onClos
       </div>
 
       <div style={{ maxHeight: '46vh', overflow: 'auto' }}>
-        <table className="ptable">
+        <table className="ptable stack">
           <thead>
             <tr><th>Trabalhador</th><th>Bruto</th><th>INSS</th><th>IRT</th><th>Líquido</th></tr>
           </thead>
           <tbody>
             {items.map((it) => (
               <tr key={it.id}>
-                <td>
+                <td data-label="Trabalhador">
                   <div style={{ fontWeight: 600 }}>{it.employee_name}</div>
                   <div className="muted" style={{ fontSize: 12 }}>{it.employee_number}</div>
                 </td>
-                <td>{formatKz(it.gross_salary)}</td>
-                <td>{formatKz(it.inss_employee)}</td>
-                <td>{formatKz(it.irt)}</td>
-                <td style={{ fontWeight: 700 }}>{formatKz(it.net_salary)}</td>
+                <td data-label="Bruto">{formatKz(it.gross_salary)}</td>
+                <td data-label="INSS">{formatKz(it.inss_employee)}</td>
+                <td data-label="IRT">{formatKz(it.irt)}</td>
+                <td data-label="Líquido" style={{ fontWeight: 700 }}>{formatKz(it.net_salary)}</td>
               </tr>
             ))}
           </tbody>
