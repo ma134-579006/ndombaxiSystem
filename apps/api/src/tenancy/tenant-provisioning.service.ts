@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { PrismaService, assertValidSchemaName } from '../prisma/prisma.service';
@@ -10,13 +10,36 @@ import { PrismaService, assertValidSchemaName } from '../prisma/prisma.service';
 @Injectable()
 export class TenantProvisioningService {
   private readonly logger = new Logger(TenantProvisioningService.name);
-  private readonly templatePath = join(
-    process.cwd(),
-    'prisma',
-    'tenant_template.sql',
-  );
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Resolve o caminho do tenant_template.sql de forma robusta.
+   *
+   * BUG histórico: usar `join(process.cwd(), 'prisma', ...)` funcionava em dev
+   * (cwd = apps/api) mas FALHAVA em produção — a Render arranca
+   * `node apps/api/dist/main.js` a partir da RAIZ do repo, logo process.cwd()
+   * é a raiz e o template (em apps/api/prisma) não era encontrado →
+   * readFileSync lançava ENOENT → "Falha ao provisionar a empresa".
+   *
+   * Solução: tentar vários candidatos (relativos ao ficheiro compilado e ao
+   * cwd) e usar o primeiro que existir.
+   */
+  private resolveTemplatePath(): string {
+    const candidates = [
+      join(__dirname, '..', '..', 'prisma', 'tenant_template.sql'), // dist/tenancy → apps/api/prisma
+      join(__dirname, '..', 'prisma', 'tenant_template.sql'),
+      join(process.cwd(), 'prisma', 'tenant_template.sql'), // cwd = apps/api (dev)
+      join(process.cwd(), 'apps', 'api', 'prisma', 'tenant_template.sql'), // cwd = raiz do repo
+    ];
+    const found = candidates.find((p) => existsSync(p));
+    if (!found) {
+      throw new Error(
+        `tenant_template.sql não encontrado. Caminhos testados: ${candidates.join(' | ')}`,
+      );
+    }
+    return found;
+  }
 
   /** Gera um nome de schema único: tenant_<8 hex>. */
   generateSchemaName(): string {
@@ -26,7 +49,7 @@ export class TenantProvisioningService {
   /** Cria o schema do tenant aplicando o template DDL. */
   async createTenantSchema(schema: string): Promise<void> {
     assertValidSchemaName(schema);
-    const template = readFileSync(this.templatePath, 'utf-8');
+    const template = readFileSync(this.resolveTemplatePath(), 'utf-8');
     const ddl = template.replaceAll('{{SCHEMA}}', schema);
 
     // Remove comentários LINHA-A-LINHA *antes* de dividir por ';'. Crítico:
