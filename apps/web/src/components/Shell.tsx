@@ -89,7 +89,7 @@ export function Shell({
             <IconLogout size={20} />
           </button>
         </header>
-        <div className="content">{children}</div>
+        <div className="content"><div className="page-anim" key={section}>{children}</div></div>
       </div>
     </div>
   );

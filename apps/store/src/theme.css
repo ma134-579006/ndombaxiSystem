@@ -257,3 +257,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .status-pill.st-PAID, .status-pill.st-DELIVERED { background: #e9f7ef; color: #15803d; }
 .status-pill.st-SHIPPED { background: color-mix(in srgb, var(--accent) 12%, white); color: var(--accent); }
 .status-pill.st-CANCELLED { background: #fdeaea; color: #b91c1c; }
+
+/* Acabamento: foco acessível + entrada suave dos produtos */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@keyframes prod-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) { .product { animation: prod-in .22s ease both; } }
