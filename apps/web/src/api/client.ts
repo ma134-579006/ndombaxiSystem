@@ -67,8 +67,10 @@ import type {
   PaymentProof,
   StockCountDetail,
   StockCountRow,
+  StockEntryInput,
   StorePaymentMethod,
   WarehouseRow,
+  OrderMessage,
   SupplierRow,
   CreateSupplierInput,
   PurchaseOrderRow,
@@ -309,6 +311,9 @@ export const api = {
     ship: (id: string) => request<{ status: string }>('POST', `/ecommerce/orders/${id}/ship`),
     deliver: (id: string) => request<{ status: string }>('POST', `/ecommerce/orders/${id}/deliver`),
     cancel: (id: string) => request<{ status: string }>('POST', `/ecommerce/orders/${id}/cancel`),
+    messages: (id: string) => request<OrderMessage[]>('GET', `/ecommerce/orders/${id}/messages`),
+    reply: (id: string, body: string, senderName?: string) =>
+      request<OrderMessage>('POST', `/ecommerce/orders/${id}/messages`, { body, senderName }),
   },
   site: {
     get: () => request<SiteSettings>('GET', '/site/settings'),
@@ -447,6 +452,8 @@ export const api = {
     closeCount: (id: string) => request<{ adjusted: number }>('POST', `/inventory/counts/${id}/close`),
     writeOff: (productId: string, warehouseId: string, quantity: number, reason: string) =>
       request<{ balanceAfter: number }>('POST', '/inventory/write-off', { productId, warehouseId, quantity, reason }),
+    stockEntry: (dto: StockEntryInput) =>
+      request<{ balanceAfter: number }>('POST', '/erp/stock/entry', dto),
   },
 
   // ── Pagamentos da loja (gerente) ───────────────────────────

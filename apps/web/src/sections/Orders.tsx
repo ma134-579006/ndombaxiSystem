@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
-import { IconTruck } from '../components/Icons';
+import type { OrderMessage, OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
+import { IconCpu, IconTruck } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatDate, formatKz, statusLabel } from '../format';
+
+const CHATTABLE = ['PAID', 'SHIPPED', 'DELIVERED'];
 
 const FILTERS: { key: '' | OrderStatus; label: string }[] = [
   { key: '', label: 'Todas' },
@@ -185,8 +187,87 @@ export function Orders() {
             ) : null}
             {detail.invoice_id ? <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>Factura emitida ✓</span> : null}
           </div>
+
+          {CHATTABLE.includes(detail.status) ? (
+            <OrderChat orderId={detail.id} />
+          ) : (
+            <div className="muted" style={{ fontSize: 12, marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+              💬 A conversa com o cliente abre depois de a encomenda ser <strong>paga/aprovada</strong>.
+            </div>
+          )}
         </Modal>
       ) : null}
     </>
+  );
+}
+
+/** Conversa com o cliente da encomenda (a IA responde quando ninguém está online). */
+function OrderChat({ orderId }: { orderId: string }) {
+  const [messages, setMessages] = useState<OrderMessage[] | null>(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const scroller = useRef<HTMLDivElement | null>(null);
+
+  const load = useCallback(async () => {
+    try { setMessages(await api.orders.messages(orderId)); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao carregar a conversa.'); }
+  }, [orderId]);
+
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
+  }, [messages]);
+
+  const send = async () => {
+    const body = text.trim();
+    if (!body || busy) return;
+    setBusy(true); setErr(null);
+    try {
+      await api.orders.reply(orderId, body);
+      setText('');
+      await load();
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível enviar.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+      <strong style={{ fontSize: 14 }}>💬 Conversa com o cliente</strong>
+      {err ? <div className="banner danger" style={{ margin: '8px 0' }}>{err}</div> : null}
+      <div ref={scroller} style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, margin: '10px 0' }}>
+        {messages == null ? <span className="muted" style={{ fontSize: 13 }}>A carregar…</span>
+          : messages.length === 0 ? <span className="muted" style={{ fontSize: 13 }}>Ainda sem mensagens. Escreve para iniciar.</span>
+          : messages.map((m) => {
+            const staff = m.sender_type === 'STAFF';
+            const ai = m.sender_type === 'ASSISTANT';
+            return (
+              <div key={m.id} style={{ alignSelf: staff ? 'flex-end' : 'flex-start', maxWidth: '82%' }}>
+                <div style={{
+                  background: staff ? 'var(--primary)' : ai ? 'var(--surface-2)' : 'var(--surface)',
+                  color: staff ? '#fff' : 'var(--text)',
+                  border: staff ? 'none' : '1px solid var(--border)',
+                  borderRadius: 12, padding: '8px 12px', fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap',
+                }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, opacity: .8, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {ai ? <IconCpu size={12} /> : null}{m.sender_name}{ai ? ' · IA' : ''}
+                  </div>
+                  {m.body}
+                </div>
+              </div>
+            );
+          })}
+      </div>
+      <div className="row" style={{ gap: 8 }}>
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }}
+          placeholder="Responder ao cliente…"
+          style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '11px 13px', color: 'var(--text)', fontSize: 14 }}
+        />
+        <button className="btn" onClick={send} disabled={busy || !text.trim()}>Enviar</button>
+      </div>
+    </div>
   );
 }

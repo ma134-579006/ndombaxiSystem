@@ -94,6 +94,45 @@ export class StockService {
     return rows[0]?.id ?? null;
   }
 
+  /**
+   * Entrada de stock em lote: dá entrada de `quantity` unidades (movimento IN)
+   * com o `unitCost` indicado e actualiza o custo do produto (e o preço de
+   * venda, se enviado). O lucro é calculado/mostrado no frontend.
+   */
+  async stockEntry(
+    schema: string,
+    input: {
+      productId: string;
+      warehouseId: string;
+      quantity: number;
+      unitCost: number;
+      salePrice?: number | null;
+      createdBy?: string | null;
+    },
+  ): Promise<{ balanceAfter: number }> {
+    if (input.quantity <= 0) throw new BadRequestException('A quantidade tem de ser maior que zero.');
+    if (input.unitCost < 0) throw new BadRequestException('Custo unitário inválido.');
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const balanceAfter = await StockService.applyMovement(tx, {
+        productId: input.productId,
+        warehouseId: input.warehouseId,
+        type: 'IN',
+        quantity: input.quantity,
+        unitCost: input.unitCost,
+        reference: 'Entrada de stock',
+        createdBy: input.createdBy ?? null,
+      });
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE products
+                   SET cost_price = ${input.unitCost},
+                       unit_price = COALESCE(${input.salePrice ?? null}, unit_price),
+                       updated_at = now()
+                   WHERE id = ${input.productId}::uuid`,
+      );
+      return { balanceAfter };
+    });
+  }
+
   /** Acerto de inventário: fixa o saldo absoluto e regista a diferença como ADJUST. */
   async adjust(
     schema: string,

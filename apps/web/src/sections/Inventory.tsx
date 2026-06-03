@@ -1,23 +1,30 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
+import type { ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
 import { Modal } from '../components/ui';
-import { IconCheck, IconCube, IconPlus } from '../components/Icons';
+import { IconCheck, IconCube, IconPlus, IconTruck } from '../components/Icons';
+import { formatKz } from '../format';
 
-/** Inventário profissional: contagens (snapshot→contagem→ajuste) + baixa de stock. */
+/** Inventário profissional: entrada de stock (custo/lucro), contagens e baixas. */
 export function Inventory() {
   const [counts, setCounts] = useState<StockCountRow[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
+  const [products, setProducts] = useState<ManagerProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openCount, setOpenCount] = useState<StockCountDetail | null>(null);
   const [creating, setCreating] = useState(false);
+  const [entering, setEntering] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [c, w] = await Promise.all([api.inventory.listCounts(), api.inventory.warehouses()]);
-      setCounts(c); setWarehouses(w); setError(null);
+      const [c, w, p] = await Promise.all([
+        api.inventory.listCounts(),
+        api.inventory.warehouses(),
+        api.products.list(),
+      ]);
+      setCounts(c); setWarehouses(w); setProducts(p); setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar.');
     } finally { setLoading(false); }
@@ -42,11 +49,19 @@ export function Inventory() {
       <div className="content-head">
         <h2>Inventário</h2>
         <span className="spacer" />
-        <button className="btn" onClick={() => setCreating(true)} disabled={warehouses.length === 0}>
+        <button className="btn" onClick={() => setEntering(true)} disabled={warehouses.length === 0 || products.length === 0}>
+          <IconTruck size={16} /> Entrada de stock
+        </button>
+        <button className="btn ghost" onClick={() => setCreating(true)} disabled={warehouses.length === 0}>
           <IconPlus size={16} /> Nova contagem
         </button>
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
+      {(warehouses.length === 0 || products.length === 0) && !loading ? (
+        <div className="banner" style={{ marginBottom: 12 }}>
+          Para dar entrada de stock precisa de um <strong>armazém</strong> e pelo menos um <strong>produto</strong>.
+        </div>
+      ) : null}
 
       <div className="card">
         <h3>Contagens de inventário</h3>
@@ -76,8 +91,115 @@ export function Inventory() {
         </Modal>
       ) : null}
 
+      {entering ? (
+        <StockEntryModal
+          products={products}
+          warehouses={warehouses}
+          onClose={() => setEntering(false)}
+          onSaved={() => { setEntering(false); void load(); }}
+        />
+      ) : null}
       {openCount ? <CountSheet detail={openCount} onClose={() => { setOpenCount(null); void load(); }} /> : null}
     </>
+  );
+}
+
+/** Entrada de stock em lote com cálculo automático de custo unitário e lucro. */
+function StockEntryModal({
+  products, warehouses, onClose, onSaved,
+}: {
+  products: ManagerProduct[];
+  warehouses: WarehouseRow[];
+  onClose(): void;
+  onSaved(): void;
+}) {
+  const [productId, setProductId] = useState(products[0]?.id ?? '');
+  const [warehouseId, setWarehouseId] = useState(warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? '');
+  const [qty, setQty] = useState('');
+  const [totalCost, setTotalCost] = useState('');
+  const [salePrice, setSalePrice] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const product = useMemo(() => products.find((p) => p.id === productId), [products, productId]);
+  // Preenche o preço de venda com o atual do produto, se ainda vazio.
+  useEffect(() => {
+    if (product && salePrice === '') setSalePrice(product.unit_price || '');
+  }, [product]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const q = Number(qty) || 0;
+  const tc = Number(totalCost) || 0;
+  const sp = Number(salePrice) || 0;
+  const unitCost = q > 0 ? tc / q : 0;
+  const unitProfit = sp - unitCost;
+  const totalProfit = unitProfit * q;
+  const margin = sp > 0 ? (unitProfit / sp) * 100 : 0;
+
+  const submit = async () => {
+    setErr(null);
+    if (!productId || !warehouseId) { setErr('Escolha o produto e o armazém.'); return; }
+    if (!(q > 0)) { setErr('Indique a quantidade.'); return; }
+    if (!(tc >= 0) || totalCost === '') { setErr('Indique o custo total.'); return; }
+    setBusy(true);
+    try {
+      await api.inventory.stockEntry({
+        productId, warehouseId, quantity: q,
+        unitCost: Math.round(unitCost * 100) / 100,
+        salePrice: salePrice !== '' ? sp : undefined,
+      });
+      onSaved();
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao dar entrada.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title="Entrada de stock" onClose={onClose}>
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      <div className="grid-2">
+        <div className="field"><label>Produto</label>
+          <select value={productId} onChange={(e) => { setProductId(e.target.value); setSalePrice(''); }}>
+            {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+          </select></div>
+        <div className="field"><label>Armazém</label>
+          <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
+          </select></div>
+      </div>
+      <div className="grid-2">
+        <div className="field"><label>Quantidade que entrou</label>
+          <input inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="ex.: 10" /></div>
+        <div className="field"><label>Custo total pago (Kz)</label>
+          <input inputMode="decimal" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} placeholder="ex.: 40000" /></div>
+      </div>
+      <div className="field"><label>Preço de venda por unidade (Kz)</label>
+        <input inputMode="decimal" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="ex.: 5000" /></div>
+
+      {/* Cálculo automático */}
+      <div className="kpi-grid" style={{ margin: '6px 0 8px', gridTemplateColumns: '1fr 1fr' }}>
+        <div className="kpi-card">
+          <div className="kpi-label">Custo unitário</div>
+          <div className="kpi-value" style={{ fontSize: 19 }}>{q > 0 ? formatKz(unitCost) : '—'}</div>
+          <div className="kpi-sub">{q > 0 ? `${tc ? formatKz(tc) : '0'} ÷ ${q}` : 'custo total ÷ quantidade'}</div>
+        </div>
+        <div className={`kpi-card ${totalProfit < 0 ? 'danger' : 'success'}`}>
+          <div className="kpi-label">Lucro por unidade</div>
+          <div className="kpi-value" style={{ fontSize: 19, color: q > 0 && sp > 0 ? (unitProfit < 0 ? 'var(--danger)' : 'var(--success)') : undefined }}>
+            {q > 0 && sp > 0 ? formatKz(unitProfit) : '—'}
+          </div>
+          <div className="kpi-sub">{q > 0 && sp > 0 ? `margem ${margin.toFixed(0)}%` : 'preço − custo unitário'}</div>
+        </div>
+      </div>
+      <div className="row" style={{ justifyContent: 'space-between', padding: '4px 2px 10px', fontSize: 14 }}>
+        <span className="muted">Lucro total estimado ({q || 0} un.)</span>
+        <strong style={{ fontSize: 17, color: totalProfit < 0 ? 'var(--danger)' : 'var(--success)' }}>
+          {q > 0 && sp > 0 ? formatKz(totalProfit) : '—'}
+        </strong>
+      </div>
+
+      <button className="btn lg block" onClick={submit} disabled={busy}>
+        {busy ? 'A dar entrada…' : 'Dar entrada e atualizar preços'}
+      </button>
+    </Modal>
   );
 }
 

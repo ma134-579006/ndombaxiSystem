@@ -352,6 +352,16 @@ export interface StockCountDetail {
   items: StockCountItem[];
 }
 export interface WarehouseRow { id: string; code: string; name: string; is_default: boolean }
+export interface StockEntryInput {
+  productId: string; warehouseId: string; quantity: number; unitCost: number; salePrice?: number;
+}
+
+// ── Conversa das encomendas (admin ↔ cliente) ───────────────
+export interface OrderMessage {
+  id: string; order_id: string;
+  sender_type: 'CUSTOMER' | 'STAFF' | 'ASSISTANT' | string;
+  sender_name: string; body: string; created_at: string;
+}
 
 // ── Compras (fornecedores + encomendas de compra) ───────────
 export interface SupplierRow {
