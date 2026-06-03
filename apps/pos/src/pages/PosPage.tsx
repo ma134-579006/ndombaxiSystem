@@ -23,6 +23,7 @@ import {
 import { ReceiptModal } from '../components/ReceiptModal';
 import { QueueModal } from '../components/QueueModal';
 import { ShiftModal } from '../components/ShiftModal';
+import { ThemePicker } from '../components/ThemePicker';
 import { PaymentModal } from '../components/PaymentModal';
 import { IconReceipt } from '../components/Icons';
 import { cartTotals, cartTotalsWithDiscount, lineGross, type CartLine } from '../pos/cart';
@@ -283,6 +284,7 @@ export function PosPage() {
           >
             <IconKeyboard size={22} />
           </button>
+          <ThemePicker />
           <button className="icon-btn" onClick={logout} title="Terminar sessão">
             <IconLogout size={22} />
           </button>

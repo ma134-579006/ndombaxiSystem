@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
 import { useAuth } from '../auth/AuthContext';
 import { IconLogout } from './Icons';
+import { ThemePicker } from './ThemePicker';
 
 /** Hambúrguer (só visível no telemóvel via CSS). */
 function IconMenu({ size = 22 }: { size?: number }) {
@@ -83,6 +84,7 @@ export function Shell({
               {companyCode ? ` · ${companyCode}` : ''}
             </div>
           </div>
+          <ThemePicker />
           <button className="icon-btn" onClick={logout} title="Terminar sessão">
             <IconLogout size={20} />
           </button>
