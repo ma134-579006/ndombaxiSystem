@@ -1,6 +1,7 @@
-// URL base da API e código da loja. O código pode vir de:
-//   • query string ?loja=codigo (subdomínio/links partilháveis)
-//   • variável VITE_STORE_CODE (build dedicado por loja)
+// URL base da API e código da loja. O código pode vir de (por ordem):
+//   • caminho directo  /minha-loja   (LINK PARTILHÁVEL gerado no painel admin)
+//   • query string     ?loja=codigo  (retro-compatível)
+//   • variável         VITE_STORE_CODE (build dedicado por loja)
 // Se faltar, a app pede o código ao utilizador.
 const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 
@@ -9,7 +10,20 @@ export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? 
   '',
 );
 
+/**
+ * Lê o código da loja do 1.º segmento do caminho (ex.: /minha-loja → "minha-loja").
+ * Só aceita segmentos que pareçam um código válido (a–z, 0–9, hífen) — assim
+ * ignora recursos (com extensão) e caminhos que não sejam de loja.
+ */
+function codeFromPath(): string {
+  if (typeof location === 'undefined') return '';
+  const seg = decodeURIComponent(location.pathname.split('/').filter(Boolean)[0] ?? '');
+  if (!/^[a-z0-9-]{2,40}$/i.test(seg)) return '';
+  return seg.trim().toLowerCase();
+}
+
 export const INITIAL_STORE_CODE =
-  params.get('loja')?.trim().toLowerCase() ??
-  (import.meta.env.VITE_STORE_CODE as string | undefined)?.trim().toLowerCase() ??
+  (params.get('loja')?.trim().toLowerCase() || '') ||
+  codeFromPath() ||
+  ((import.meta.env.VITE_STORE_CODE as string | undefined)?.trim().toLowerCase() || '') ||
   '';

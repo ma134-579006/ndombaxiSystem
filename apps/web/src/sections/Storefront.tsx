@@ -3,6 +3,8 @@ import { api, ApiError } from '../api/client';
 import type { SiteSettings, UpdateSiteSettingsInput } from '../api/types';
 import { IconImage, IconStore } from '../components/Icons';
 import { Switch } from '../components/ui';
+import { useAuth } from '../auth/AuthContext';
+import { STORE_URL } from '../config';
 
 export function Storefront() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
@@ -22,6 +24,18 @@ export function Storefront() {
   const [address, setAddress] = useState('');
   const [isPublished, setIsPublished] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const { companyCode } = useAuth();
+  const [copied, setCopied] = useState(false);
+  const storeLink = companyCode ? `${STORE_URL}/${companyCode}` : '';
+  const copyLink = async () => {
+    if (!storeLink) return;
+    try {
+      await navigator.clipboard.writeText(storeLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard indisponível neste contexto */ }
+  };
 
   const hydrate = (s: SiteSettings) => {
     setSettings(s);
@@ -104,6 +118,46 @@ export function Storefront() {
 
       {error ? <div className="banner danger">{error}</div> : null}
       {saved ? <div className="banner success">Definições guardadas.</div> : null}
+
+      {/* Link partilhável directo da loja (sem código) */}
+      <div className="card" style={isPublished ? { borderColor: 'var(--success)' } : undefined}>
+        <h3>🔗 Link da tua loja</h3>
+        <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+          Partilha este link com os teus clientes. Ao abrir, vão <strong>direito à tua loja</strong> — sem precisar de escrever nenhum código.
+        </p>
+        {!isPublished ? (
+          <div className="banner" style={{ marginBottom: 12 }}>
+            A loja está <strong>oculta</strong>. Ativa “Publicar loja online” mais abaixo e guarda — o link passa a abrir para os clientes.
+          </div>
+        ) : null}
+        {storeLink ? (
+          <>
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                readOnly
+                value={storeLink}
+                onFocus={(e) => e.currentTarget.select()}
+                style={{ flex: '1 1 260px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '11px 13px', color: 'var(--text)', fontSize: 14 }}
+              />
+              <button className="btn" onClick={copyLink}>{copied ? '✓ Copiado!' : 'Copiar link'}</button>
+              <a className="btn ghost" href={storeLink} target="_blank" rel="noreferrer">Abrir</a>
+            </div>
+            <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <a
+                className="btn sm ghost"
+                href={`https://wa.me/?text=${encodeURIComponent('Visita a nossa loja online: ' + storeLink)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Partilhar no WhatsApp
+              </a>
+              <span className="muted" style={{ fontSize: 12 }}>Funciona também impresso em QR Code na loja física.</span>
+            </div>
+          </>
+        ) : (
+          <div className="banner danger">Não foi possível obter o código da empresa nesta sessão.</div>
+        )}
+      </div>
 
       <div className="card">
         <h3>Identidade</h3>
