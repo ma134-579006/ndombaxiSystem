@@ -8,6 +8,7 @@ export const THEMES: ThemeDef[] = [
   { id: 'violeta', label: 'Violeta', swatch: '#a78bfa' },
   { id: 'esmeralda', label: 'Esmeralda', swatch: '#34d399' },
   { id: 'indigo', label: 'Índigo', swatch: '#818cf8' },
+  { id: 'neon', label: 'Néon', swatch: 'linear-gradient(120deg, #22d3ee, #a855f7 55%, #ec4899)' },
   { id: 'claro', label: 'Claro', swatch: '#2563eb', light: true },
 ];
 

@@ -11,7 +11,12 @@ export function LoginPage() {
   const { login, companyCode: saved } = useAuth();
   const kbd = useKeyboard();
 
-  const [companyCode, setCompanyCode] = useState(saved ?? '');
+  // Código da empresa: do URL (?empresa= / ?loja=, vindo do painel), senão o guardado.
+  const codeFromUrl = (() => {
+    try { const p = new URLSearchParams(window.location.search); return (p.get('empresa') || p.get('loja') || '').trim(); }
+    catch { return ''; }
+  })();
+  const [companyCode, setCompanyCode] = useState(codeFromUrl || saved || '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [twoFa, setTwoFa] = useState('');

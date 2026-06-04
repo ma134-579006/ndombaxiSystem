@@ -4,10 +4,11 @@ import { useAuth } from '../auth/AuthContext';
 import { useKeyboard } from '../keyboard/KeyboardProvider';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
-import { IconBuilding, IconKeyboard, IconShield } from '../components/Icons';
+import { IconBuilding, IconKeyboard, IconReceipt, IconShield } from '../components/Icons';
 import { Switch } from '../components/ui';
+import { CAIXA_URL } from '../config';
 
-type Profile = 'tenant' | 'platform';
+type Profile = 'tenant' | 'caixa' | 'platform';
 
 export function Login({ onBack }: { onBack?: () => void }) {
   const { loginTenant, loginPlatform } = useAuth();
@@ -22,6 +23,17 @@ export function Login({ onBack }: { onBack?: () => void }) {
 
   const submit = async () => {
     setError(null);
+
+    // A Caixa (POS) é uma aplicação separada — abre-se com o código da empresa.
+    if (profile === 'caixa') {
+      if (!company.trim()) {
+        setError('Indique o código da empresa para abrir a Caixa.');
+        return;
+      }
+      window.location.assign(`${CAIXA_URL}/?empresa=${encodeURIComponent(company.trim().toLowerCase())}`);
+      return;
+    }
+
     if (profile === 'tenant' && !company.trim()) {
       setError('Indique o código da empresa.');
       return;
@@ -56,7 +68,10 @@ export function Login({ onBack }: { onBack?: () => void }) {
         <div className="card">
           <div className="seg" style={{ marginBottom: 16 }}>
             <button className={profile === 'tenant' ? 'on' : ''} onClick={() => setProfile('tenant')} type="button">
-              <IconBuilding size={16} /> Gestor da empresa
+              <IconBuilding size={16} /> Gestor
+            </button>
+            <button className={profile === 'caixa' ? 'on' : ''} onClick={() => setProfile('caixa')} type="button">
+              <IconReceipt size={16} /> Caixa
             </button>
             <button className={profile === 'platform' ? 'on' : ''} onClick={() => setProfile('platform')} type="button">
               <IconShield size={16} /> Super Admin
@@ -65,13 +80,23 @@ export function Login({ onBack }: { onBack?: () => void }) {
 
           {error ? <div className="banner danger" style={{ marginBottom: 14 }}>{error}</div> : null}
 
-          {profile === 'tenant' ? (
+          {profile === 'caixa' ? (
+            <p className="muted" style={{ fontSize: 13, marginTop: 0, marginBottom: 12 }}>
+              Abre o terminal de venda (Caixa) desta empresa. O início de sessão do operador é feito na própria Caixa.
+            </p>
+          ) : null}
+
+          {profile !== 'platform' ? (
             <KeyboardInput label="Código da empresa" value={company} onChange={setCompany} placeholder="ex.: novashop" onSubmit={submit} autoFocus />
           ) : null}
 
-          <KeyboardInput label="E-mail" value={email} onChange={setEmail} placeholder={profile === 'tenant' ? 'gestor@empresa.ao' : 'admin@ndombaxi.ao'} onSubmit={submit} />
-          <KeyboardInput label="Palavra-passe" type="password" value={password} onChange={setPassword} placeholder="••••••••" onSubmit={submit} />
-          <KeyboardInput label="Código 2FA (se activo)" value={twoFa} onChange={setTwoFa} placeholder="000000" numeric maxLength={6} onSubmit={submit} />
+          {profile !== 'caixa' ? (
+            <>
+              <KeyboardInput label="E-mail" value={email} onChange={setEmail} placeholder={profile === 'tenant' ? 'gestor@empresa.ao' : 'admin@ndombaxi.ao'} onSubmit={submit} />
+              <KeyboardInput label="Palavra-passe" type="password" value={password} onChange={setPassword} placeholder="••••••••" onSubmit={submit} />
+              <KeyboardInput label="Código 2FA (se activo)" value={twoFa} onChange={setTwoFa} placeholder="000000" numeric maxLength={6} onSubmit={submit} />
+            </>
+          ) : null}
 
           {/* Teclado no ecrã — para PCs apenas digitais / terminais táteis */}
           <div className="kbd-toggle">
@@ -86,8 +111,8 @@ export function Login({ onBack }: { onBack?: () => void }) {
           </div>
 
           <button className="btn lg block" onClick={submit} disabled={loading}>
-            {profile === 'tenant' ? <IconBuilding size={18} /> : <IconShield size={18} />}{' '}
-            {loading ? 'A entrar…' : 'Entrar'}
+            {profile === 'caixa' ? <IconReceipt size={18} /> : profile === 'tenant' ? <IconBuilding size={18} /> : <IconShield size={18} />}{' '}
+            {profile === 'caixa' ? 'Abrir a Caixa' : loading ? 'A entrar…' : 'Entrar'}
           </button>
         </div>
         {onBack ? (
