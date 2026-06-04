@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { CashSession, ShiftClose } from '../api/types';
+import type { CashSession, ReportX, ShiftClose } from '../api/types';
 import { copyrightLine } from '../brand';
 import { formatKz, formatDateTime } from '../format';
 import { IconCheck, IconClose } from './Icons';
@@ -21,6 +21,14 @@ export function ShiftModal({ session, onOpened, onClosed, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [closeResult, setCloseResult] = useState<ShiftClose | null>(null);
+  const [xReport, setXReport] = useState<ReportX | null>(null);
+
+  const loadX = async () => {
+    setError(null); setBusy(true);
+    try { setXReport(await api.reportX()); }
+    catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível ler o relatório X.'); }
+    finally { setBusy(false); }
+  };
 
   const open = async () => {
     setError(null);
@@ -89,8 +97,46 @@ export function ShiftModal({ session, onOpened, onClosed, onClose }: Props) {
             ) : null}
           </div>
           <div className="receipt-credit">{copyrightLine()}</div>
-          <div className="r-foot">
-            <button className="btn lg block" onClick={onClosed} autoFocus>Concluir</button>
+          <div className="r-foot" style={{ display: 'flex', gap: 10 }}>
+            <button className="btn ghost lg" style={{ flex: 1 }} onClick={() => window.print()}>Imprimir</button>
+            <button className="btn lg" style={{ flex: 1 }} onClick={onClosed} autoFocus>Concluir</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Relatório X (leitura do turno sem fechar) ────────────
+  if (xReport) {
+    const x = xReport;
+    const PT: Record<string, string> = {
+      CASH: 'Numerário', CARD: 'Multicaixa/Cartão', TRANSFER: 'Transferência',
+      REFERENCE: 'Referência', EXPRESS: 'Multicaixa Express', CREDIT: 'A crédito',
+    };
+    return (
+      <div className="modal-bg" onClick={() => setXReport(null)}>
+        <div className="card receipt" onClick={(e) => e.stopPropagation()}>
+          <div className="r-head" style={{ background: 'var(--surface-2)' }}>
+            <div className="num">Relatório X</div>
+            <div className="sub">{x.openedByName} · {formatDateTime()}</div>
+          </div>
+          <div className="r-body">
+            <div className="banner info" style={{ marginBottom: 12, justifyContent: 'center' }}>Leitura do turno (sem fechar)</div>
+            <div className="kv"><span className="k">Fundo inicial</span><span className="v">{formatKz(x.openingFloat)}</span></div>
+            <div className="kv"><span className="k">Vendas (total)</span><span className="v">{formatKz(x.salesTotal)} · {x.salesCount}</span></div>
+            {Object.entries(x.byPayment).map(([pt, v]) => (
+              <div className="kv" key={pt}><span className="k" style={{ paddingLeft: 10 }}>· {PT[pt] ?? pt}</span><span className="v">{formatKz(v)}</span></div>
+            ))}
+            {x.cashIn > 0 ? <div className="kv"><span className="k">Reforços</span><span className="v">{formatKz(x.cashIn)}</span></div> : null}
+            {x.cashOut > 0 ? <div className="kv"><span className="k">Sangrias</span><span className="v">−{formatKz(x.cashOut)}</span></div> : null}
+            <div className="kv" style={{ borderTop: '1px solid var(--border)', marginTop: 6, paddingTop: 10 }}>
+              <span className="k">Esperado em numerário</span><span className="v grand">{formatKz(x.expectedCash)}</span>
+            </div>
+          </div>
+          <div className="receipt-credit">{copyrightLine()}</div>
+          <div className="r-foot" style={{ display: 'flex', gap: 10 }}>
+            <button className="btn ghost lg" style={{ flex: 1 }} onClick={() => window.print()}>Imprimir</button>
+            <button className="btn lg" style={{ flex: 1 }} onClick={() => setXReport(null)} autoFocus>Voltar</button>
           </div>
         </div>
       </div>
@@ -132,8 +178,11 @@ export function ShiftModal({ session, onOpened, onClosed, onClose }: Props) {
         {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
         <KeyboardInput label="Dinheiro contado na gaveta (Kz)" value={counted} onChange={setCounted} numeric placeholder="0" onSubmit={close} />
         <KeyboardInput label="Observações (opcional)" value={notes} onChange={setNotes} placeholder="ex.: nota sobre o turno" />
-        <button className="btn danger lg block" style={{ marginTop: 14 }} onClick={close} disabled={busy}>
-          {busy ? 'A fechar…' : 'Fechar turno e conferir'}
+        <button className="btn ghost lg block" style={{ marginTop: 12 }} onClick={loadX} disabled={busy}>
+          Relatório X (ler sem fechar)
+        </button>
+        <button className="btn danger lg block" style={{ marginTop: 10 }} onClick={close} disabled={busy}>
+          {busy ? 'A fechar…' : 'Fechar turno e conferir (Z)'}
         </button>
       </div>
     </div>

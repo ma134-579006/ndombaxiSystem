@@ -8,6 +8,7 @@ import type {
   EmittedInvoice,
   Product,
   ReceiptFiscalInfo,
+  ReportX,
   ShiftClose,
   TenantLoginInput,
   TokenPair,
@@ -127,4 +128,5 @@ export const api = {
     request<{ id: string }>('POST', '/cashbox/session/movement', { type, amount, reference }),
   closeSession: (countedCash: number, notes?: string) =>
     request<ShiftClose>('POST', '/cashbox/session/close', { countedCash, notes }),
+  reportX: () => request<ReportX>('GET', '/cashbox/report/x'),
 };

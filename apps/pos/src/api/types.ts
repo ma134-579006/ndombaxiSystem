@@ -107,6 +107,23 @@ export interface ShiftClose {
   products: { productCode: string; description: string; quantity: number; grossTotal: number }[];
 }
 
+/** Relatório X — leitura do turno aberto (sem fechar). */
+export interface ReportX {
+  type: 'X';
+  sessionId: string;
+  openedByName: string | null;
+  openedAt: string;
+  now: string;
+  openingFloat: number;
+  salesTotal: number;
+  salesCount: number;
+  cashSales: number;
+  cashIn: number;
+  cashOut: number;
+  expectedCash: number;
+  byPayment: Record<string, number>;
+}
+
 /** Identidade da empresa (logo + dados) para os documentos. */
 export interface DocumentIdentity {
   companyName: string;

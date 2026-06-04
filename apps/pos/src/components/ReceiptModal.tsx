@@ -109,8 +109,11 @@ export function ReceiptModal({ invoice, info, identity, customerName, provisiona
 
         <div className="receipt-credit">{identity?.copyright ?? copyrightLine()}</div>
 
-        <div className="r-foot">
-          <button className="btn lg block" onClick={onClose} autoFocus>
+        <div className="r-foot" style={{ display: 'flex', gap: 10 }}>
+          <button className="btn ghost lg" style={{ flex: 1 }} onClick={() => window.print()}>
+            Imprimir
+          </button>
+          <button className="btn lg" style={{ flex: 1 }} onClick={onClose} autoFocus>
             Nova venda
           </button>
         </div>
