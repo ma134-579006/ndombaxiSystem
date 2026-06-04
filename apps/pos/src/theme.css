@@ -174,9 +174,10 @@ input { font-family: inherit; }
   .login-card .footer-credit { display: none; }
 }
 @media (max-height: 500px) { .login-card .toggle-row { display: none; } }
-/* Landscape muito baixo: campos a 2 colunas. */
-@media (max-height: 460px) and (min-width: 520px) {
-  .login-card .login-fields { flex-flow: row wrap; gap: 10px 12px; }
+/* Ecrã baixo (landscape OU teclado nativo aberto): campos a 2 colunas
+   para caber sem rolar mesmo com metade do ecrã tapada. */
+@media (max-height: 520px) and (min-width: 340px) {
+  .login-card .login-fields { flex-flow: row wrap; gap: 8px 10px; }
   .login-card .login-fields > .field { flex: 1 1 calc(50% - 6px); }
 }
 

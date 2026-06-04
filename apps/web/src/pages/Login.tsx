@@ -87,7 +87,7 @@ export function Login({ onBack }: { onBack?: () => void }) {
           ) : null}
 
           {profile !== 'platform' ? (
-            <KeyboardInput label="Código da empresa" value={company} onChange={setCompany} placeholder="ex.: novashop" onSubmit={submit} autoFocus />
+            <KeyboardInput label="Código da empresa" value={company} onChange={setCompany} placeholder="ex.: novashop" onSubmit={submit} />
           ) : null}
 
           {profile !== 'caixa' ? (

@@ -266,11 +266,12 @@ input, textarea, select { font-family: inherit; }
   .login .kbd-toggle { display: none; }
   .login .box > p { display: none; }            /* voltar + assinatura */
 }
-/* Ecrãs LARGOS e BAIXOS (landscape de telemóvel): os campos passam a
-   2 colunas para metade das linhas — assim cabe sem rolar mesmo a 320px
-   de altura. Só em largura suficiente (≥520px); em portrait fica 1 coluna. */
-@media (max-height: 460px) and (min-width: 520px) {
-  .login .card { display: flex; flex-wrap: wrap; gap: 0 12px; align-items: flex-start; }
+/* Ecrãs BAIXOS (landscape, OU telemóvel com o teclado nativo aberto): os
+   campos passam a 2 colunas para metade das linhas — assim cabe sem rolar
+   mesmo quando o teclado tapa metade do ecrã. Aplica-se a partir de 340px
+   de largura (telemóveis incluídos); em ecrã alto fica 1 coluna. */
+@media (max-height: 520px) and (min-width: 340px) {
+  .login .card { display: flex; flex-wrap: wrap; gap: 0 10px; align-items: flex-start; }
   .login .card > * { flex: 1 1 100%; }              /* seg, banner, botão: linha inteira */
   .login .card .field { flex: 1 1 calc(50% - 6px); } /* campos: meia largura */
 }
