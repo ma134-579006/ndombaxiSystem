@@ -52,10 +52,6 @@ export function Subscription() {
   return (
     <>
       <div className="content-head"><h2>Subscrição &amp; Plano</h2></div>
-      <div className="banner info" style={{ marginBottom: 12 }}>
-        Escolhe o teu plano, paga por transferência para o IBAN da plataforma e <strong>envia o comprovativo</strong>.
-        O Super Admin verifica e <strong>ativa</strong> a tua subscrição. Podes conversar aqui mesmo.
-      </div>
       {error ? <div className="banner danger">{error}</div> : null}
 
       {loading ? <div className="card"><div className="loading">A carregar…</div></div>

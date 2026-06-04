@@ -225,14 +225,49 @@ input, textarea, select { font-family: inherit; }
 .swatch { width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--border); flex: none; padding: 0; cursor: pointer; }
 
 /* ── Login ──────────────────────────────────────────────── */
-.login { min-height: 100vh; display: grid; place-items: center; padding: 24px;
+/* Ocupa o ecrã todo e centra o cartão. Usa 100dvh (altura real do
+   viewport no telemóvel, descontando barras do browser). Centragem
+   "safe": se o conteúdo for mais alto que o ecrã, alinha ao topo e
+   permite rolar (em vez de cortar) — mas em ecrãs normais cabe sem scroll. */
+.login { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column;
+  justify-content: safe center; align-items: center; padding: 24px; overflow-y: auto;
   background: radial-gradient(900px 480px at 15% -10%, rgba(59,130,246,.20), transparent 60%), radial-gradient(700px 460px at 100% 110%, rgba(124,58,237,.18), transparent 55%), linear-gradient(160deg, #0a1020, #0c1426 55%, #080d1a); }
-.login .box { width: 100%; max-width: 410px; }
+.login .box { width: 100%; max-width: 410px; margin: auto; }
 .login .brand { display: flex; flex-direction: column; align-items: center; margin-bottom: 22px; }
 .login .brand img { width: 76px; height: 76px; border-radius: 20px; object-fit: contain; background: var(--surface-2); border: 1px solid var(--border); padding: 8px; margin-bottom: 12px; box-shadow: var(--shadow); }
 .login .brand h1 { margin: 0; font-size: 23px; font-weight: 900; }
 .login .brand .tg { color: var(--muted); font-size: 13px; margin-top: 2px; }
 .login .card { background: linear-gradient(180deg, rgba(255,255,255,.04), transparent 40%), var(--surface); box-shadow: var(--shadow); }
+
+/* Ecrãs baixos (telemóvel pequeno, landscape, janelas curtas): compacta
+   tudo proporcionalmente para caber sem rolar — a logo mantém o rácio
+   (object-fit:contain), só encolhe, nunca distorce. */
+@media (max-height: 760px) {
+  .login { padding: 16px; }
+  .login .brand { margin-bottom: 14px; }
+  .login .brand img { width: 58px; height: 58px; margin-bottom: 8px; border-radius: 16px; padding: 6px; }
+  .login .brand h1 { font-size: 20px; }
+  .login .card { padding: 18px; }
+  .login .card .seg { margin-bottom: 12px !important; }
+  .login .field { margin-bottom: 10px; }
+  .login .kbd-toggle { margin: 10px 0; padding: 9px 12px; }
+  .login .btn.lg { height: 48px; }
+}
+@media (max-height: 620px) {
+  .login { padding: 10px; }
+  .login .brand { margin-bottom: 10px; }
+  .login .brand img { width: 44px; height: 44px; margin-bottom: 6px; border-radius: 13px; padding: 5px; }
+  .login .brand h1 { font-size: 18px; }
+  .login .brand .tg { font-size: 12px; }
+  .login .card { padding: 14px; }
+  .login .card .seg { margin-bottom: 10px !important; }
+  .login .field { margin-bottom: 8px; }
+  .login .field > label { font-size: 12px; }
+  .login .field input { padding: 9px 12px; }
+  .login .kbd-toggle { margin: 8px 0; padding: 8px 11px; }
+  .login .kbd-toggle .hint { display: none; }
+  .login .btn.lg { height: 44px; }
+}
 
 /* ── Modal ──────────────────────────────────────────────── */
 .modal-bg { position: fixed; inset: 0; background: rgba(4,8,16,.72); backdrop-filter: blur(5px); z-index: 60; display: grid; place-items: center; padding: 18px; }

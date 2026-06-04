@@ -127,9 +127,6 @@ export function Employees() {
         </div>
       </div>
 
-      <div className="banner info" style={{ marginBottom: 12 }}>
-        Cada funcionário pode ter <strong>acesso ao sistema</strong> (utilizador + cargo + PIN). Liga-se pelo <strong>nome</strong> e cria-se aqui — depois geres tudo em <strong>Equipa &amp; Acessos</strong>.
-      </div>
       {info ? <div className="banner success">{info}</div> : null}
       {error ? <div className="banner danger">{error}</div> : null}
 

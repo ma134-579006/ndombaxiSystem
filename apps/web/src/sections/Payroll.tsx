@@ -48,10 +48,6 @@ export function Payroll() {
         <button className="btn" onClick={() => setProcessing(true)}><IconPlus size={16} /> Processar folha</button>
       </div>
 
-      <div className="banner" style={{ marginBottom: 12 }}>
-        Cálculo automático conforme a legislação angolana: <strong>INSS 3%</strong> (trabalhador) +
-        <strong> 8%</strong> (empresa) e <strong>IRT</strong> por escalões sobre o salário tributável.
-      </div>
       {error ? <div className="banner danger">{error}</div> : null}
 
       <div className="card">

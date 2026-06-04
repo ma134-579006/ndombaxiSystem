@@ -59,10 +59,6 @@ export function Team() {
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Novo utilizador</button>
       </div>
 
-      <div className="banner info" style={{ marginBottom: 12 }}>
-        Aqui crias os acessos da equipa e defines as <strong>permissões</strong> (papel). Um <strong>Operador de caixa</strong> entra no <strong>POS</strong> (ndombaxi-caixa) com o <strong>código da empresa + email + senha</strong> (ou com o <strong>PIN</strong>). Cada utilizador pode ser ligado a uma <strong>loja</strong>.
-      </div>
-
       {info ? <div className="banner success">{info}</div> : null}
       {error ? <div className="banner danger">{error}</div> : null}
 
