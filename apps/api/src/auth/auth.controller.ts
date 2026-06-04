@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
   HttpStatus,
   Ip,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -16,6 +18,7 @@ import {
   PlatformLoginDto,
   RefreshDto,
   TenantLoginDto,
+  UpdateThemeDto,
 } from './dto/auth.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -70,6 +73,22 @@ export class AuthController {
   @ApiOperation({ summary: 'Revoga o refresh token (logout)' })
   async logout(@Body() dto: RefreshDto): Promise<void> {
     await this.auth.logout(dto.refreshToken);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get('me/preferences')
+  @ApiOperation({ summary: 'Preferências do utilizador autenticado (tema)' })
+  getPreferences(@CurrentUser() user: JwtPayload) {
+    return this.auth.getPreferences(user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Patch('me/preferences')
+  @ApiOperation({ summary: 'Grava preferências do utilizador (tema por perfil)' })
+  setPreferences(@CurrentUser() user: JwtPayload, @Body() dto: UpdateThemeDto) {
+    return this.auth.setPreferences(user, dto.theme);
   }
 
   @UseGuards(JwtAuthGuard)

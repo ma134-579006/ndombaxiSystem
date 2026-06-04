@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."users" (
   last_login_at  TIMESTAMPTZ,
   must_reset_pw  BOOLEAN NOT NULL DEFAULT TRUE,  -- credenciais temporárias
   commission_rate NUMERIC(5,2) NOT NULL DEFAULT 0, -- % de comissão sobre vendas
+  theme          TEXT NOT NULL DEFAULT '',  -- preferência de tema (por utilizador)
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT users_email_unique UNIQUE (email)

@@ -10,6 +10,7 @@ import React, {
 import { api, configureApi } from '../api/client';
 import type { TenantLoginInput, TokenPair } from '../api/types';
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
+import { setTheme } from '../theme';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 
@@ -105,6 +106,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       alive = false;
     };
   }, [applyTokens, clearSession]);
+
+  // Tema por perfil: ao autenticar, aplica o tema guardado na conta.
+  useEffect(() => {
+    if (status !== 'authed') return;
+    let alive = true;
+    void (async () => {
+      try {
+        const { theme } = await api.preferences.get();
+        if (alive) setTheme(theme || '');
+      } catch { /* mantém o tema local */ }
+    })();
+    return () => { alive = false; };
+  }, [status, user]);
 
   const login = useCallback(
     async (input: TenantLoginInput) => {

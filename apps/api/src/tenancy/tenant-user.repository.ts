@@ -121,6 +121,24 @@ export class TenantUserRepository {
     });
   }
 
+  /** Preferência de tema do utilizador (vazio = padrão). */
+  async getTheme(schema: string, id: string): Promise<string> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{ theme: string }[]>(
+        Prisma.sql`SELECT COALESCE(theme, '') AS theme FROM users WHERE id = ${id}::uuid LIMIT 1`,
+      );
+      return rows[0]?.theme ?? '';
+    });
+  }
+
+  async setTheme(schema: string, id: string, theme: string): Promise<void> {
+    await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE users SET theme = ${theme} WHERE id = ${id}::uuid`,
+      );
+    });
+  }
+
   async setTwoFaSecret(
     schema: string,
     id: string,

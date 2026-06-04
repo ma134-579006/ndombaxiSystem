@@ -31,6 +31,46 @@ export class AuthService {
     private readonly audit: AuditService,
   ) {}
 
+  // ─── Preferências do utilizador (tema por perfil) ───────────
+  private static readonly THEME_WHITELIST = new Set([
+    '', 'grafite', 'oceano', 'violeta', 'esmeralda', 'indigo', 'neon', 'claro',
+  ]);
+
+  /** Tema guardado para o utilizador autenticado (vazio = padrão). */
+  async getPreferences(user: JwtPayload): Promise<{ theme: string }> {
+    try {
+      if (user.subjectType === 'PLATFORM') {
+        const pu = await this.prisma.platformUser.findUnique({
+          where: { id: user.sub },
+          select: { theme: true },
+        });
+        return { theme: pu?.theme ?? '' };
+      }
+      const theme = await this.tenantUsers.getTheme(user.tenantSchema!, user.sub);
+      return { theme };
+    } catch {
+      return { theme: '' };
+    }
+  }
+
+  /** Grava o tema do utilizador (ignora valores fora da lista). */
+  async setPreferences(user: JwtPayload, theme: string): Promise<{ theme: string }> {
+    const clean = AuthService.THEME_WHITELIST.has(theme) ? theme : '';
+    try {
+      if (user.subjectType === 'PLATFORM') {
+        await this.prisma.platformUser.update({
+          where: { id: user.sub },
+          data: { theme: clean },
+        });
+      } else {
+        await this.tenantUsers.setTheme(user.tenantSchema!, user.sub, clean);
+      }
+    } catch {
+      /* best-effort — não falha o pedido por causa da preferência */
+    }
+    return { theme: clean };
+  }
+
   // ─── Login do Super Admin (plataforma) ──────────────────────
   async platformLogin(
     dto: PlatformLoginDto,

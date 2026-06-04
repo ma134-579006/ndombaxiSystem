@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { THEMES, getTheme, setTheme } from '../theme';
+import { api } from '../api/client';
 
 function IconPalette({ size = 22 }: { size?: number }) {
   return (
@@ -26,7 +27,10 @@ export function ThemePicker() {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
-  const pick = (id: string) => { setTheme(id); setCurrent(id); setOpen(false); };
+  const pick = (id: string) => {
+    setTheme(id); setCurrent(id); setOpen(false);
+    api.preferences.setTheme(id).catch(() => { /* fica guardado localmente */ });
+  };
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>

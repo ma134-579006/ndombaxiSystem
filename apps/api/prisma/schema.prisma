@@ -253,6 +253,7 @@ model PlatformUser {
   passwordHash String // Argon2id
   name         String
   role         String   @default("SUPER_ADMIN")
+  theme        String   @default("") // preferência de tema do painel
   twoFaSecret  String? // segredo TOTP (encriptado em repouso na Fase 9)
   twoFaEnabled Boolean  @default(false)
   isActive     Boolean  @default(true)

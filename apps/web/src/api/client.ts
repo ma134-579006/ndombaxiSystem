@@ -187,6 +187,13 @@ export const api = {
   loginTenant: (input: TenantLoginInput) =>
     request<TokenPair>('POST', '/auth/login', input, { auth: false }),
 
+  // ── Preferências do utilizador (tema por perfil) ───────────
+  preferences: {
+    get: () => request<{ theme: string }>('GET', '/auth/me/preferences'),
+    setTheme: (theme: string) =>
+      request<{ theme: string }>('PATCH', '/auth/me/preferences', { theme }),
+  },
+
   // ── Landing pública (sem auth) ─────────────────────────────
   publicLanding: () => request<PublicLanding>('GET', '/public/landing', undefined, { auth: false }),
   registerCompany: (input: RegisterCompanyInput) =>

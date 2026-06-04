@@ -52,3 +52,10 @@ export class EnableTwoFaDto {
   @Length(6, 6)
   token!: string;
 }
+
+export class UpdateThemeDto {
+  /** Id do tema (vazio = padrão). Validado/whitelisted no serviço. */
+  @IsString()
+  @Matches(/^[a-z]{0,16}$/)
+  theme!: string;
+}

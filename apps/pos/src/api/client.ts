@@ -101,6 +101,11 @@ export const api = {
     request<TokenPair>('POST', '/auth/refresh', { refreshToken }, { auth: false }),
   logout: (refreshToken: string) =>
     request<void>('POST', '/auth/logout', { refreshToken }, { auth: false }),
+  preferences: {
+    get: () => request<{ theme: string }>('GET', '/auth/me/preferences'),
+    setTheme: (theme: string) =>
+      request<{ theme: string }>('PATCH', '/auth/me/preferences', { theme }),
+  },
 
   listProducts: () => request<Product[]>('GET', '/pos/products'),
   listPromotions: () => request<PromoRow[]>('GET', '/promotions'),
