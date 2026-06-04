@@ -4,6 +4,7 @@ import type { DocumentIdentity, EmittedInvoice, ReceiptFiscalInfo } from '../api
 import { copyrightLine } from '../brand';
 import { formatDateTime, formatKz } from '../format';
 import { IconCheck } from './Icons';
+import { PaperSizeToggle } from './PaperSizeToggle';
 
 interface Props {
   invoice: EmittedInvoice;
@@ -109,6 +110,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, provisiona
 
         <div className="receipt-credit">{identity?.copyright ?? copyrightLine()}</div>
 
+        <PaperSizeToggle />
         <div className="r-foot" style={{ display: 'flex', gap: 10 }}>
           <button className="btn ghost lg" style={{ flex: 1 }} onClick={() => window.print()}>
             Imprimir

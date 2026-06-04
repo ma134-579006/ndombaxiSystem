@@ -5,6 +5,7 @@ import { copyrightLine } from '../brand';
 import { formatKz, formatDateTime } from '../format';
 import { IconCheck, IconClose } from './Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
+import { PaperSizeToggle } from './PaperSizeToggle';
 
 interface Props {
   session: CashSession | null;
@@ -97,6 +98,7 @@ export function ShiftModal({ session, onOpened, onClosed, onClose }: Props) {
             ) : null}
           </div>
           <div className="receipt-credit">{copyrightLine()}</div>
+          <PaperSizeToggle />
           <div className="r-foot" style={{ display: 'flex', gap: 10 }}>
             <button className="btn ghost lg" style={{ flex: 1 }} onClick={() => window.print()}>Imprimir</button>
             <button className="btn lg" style={{ flex: 1 }} onClick={onClosed} autoFocus>Concluir</button>
@@ -134,6 +136,7 @@ export function ShiftModal({ session, onOpened, onClosed, onClose }: Props) {
             </div>
           </div>
           <div className="receipt-credit">{copyrightLine()}</div>
+          <PaperSizeToggle />
           <div className="r-foot" style={{ display: 'flex', gap: 10 }}>
             <button className="btn ghost lg" style={{ flex: 1 }} onClick={() => window.print()}>Imprimir</button>
             <button className="btn lg" style={{ flex: 1 }} onClick={() => setXReport(null)} autoFocus>Voltar</button>
