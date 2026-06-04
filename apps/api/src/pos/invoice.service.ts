@@ -9,6 +9,7 @@ import {
   GENESIS_HASH,
   InvoiceLineInput,
   IvaCode,
+  requiresExemptionReason,
   round2,
 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
@@ -51,7 +52,19 @@ interface ProductForEmission {
   unit_price: string;
   cost_price?: string | null;
   exemption_reason?: string | null;
+  exemption_code?: string | null;
 }
+
+/**
+ * Motivo de isenção por omissão para IVA que o exige (OUT/ISE) quando o
+ * produto não tem um motivo definido. Garante que a venda NUNCA falha — o
+ * motor fiscal exige um motivo nestes códigos. O gestor pode definir o motivo
+ * correto por produto; isto é só a rede de segurança.
+ */
+const DEFAULT_EXEMPTION_REASON: Partial<Record<IvaCode, string>> = {
+  [IvaCode.ISE]: 'Isento de IVA',
+  [IvaCode.OUT]: 'Não sujeito a IVA',
+};
 
 @Injectable()
 export class InvoiceService {
@@ -79,7 +92,8 @@ export class InvoiceService {
       const productRows = await tx.$queryRaw<
         (ProductForEmission & { code: string; name: string })[]
       >(
-        Prisma.sql`SELECT id, code, name, description, iva_code, unit_price, cost_price
+        Prisma.sql`SELECT id, code, name, description, iva_code, unit_price, cost_price,
+                          exemption_reason, exemption_code
                    FROM products
                    WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE
                    FOR UPDATE`,
@@ -92,6 +106,11 @@ export class InvoiceService {
         if (!p) {
           throw new BadRequestException(`Produto não encontrado: ${l.productCode}`);
         }
+        // IVA isento/não-sujeito (ISE/OUT) exige motivo: usa o do produto ou
+        // um motivo por omissão (a venda nunca pode falhar por falta dele).
+        const exemptionReason = requiresExemptionReason(p.iva_code)
+          ? (p.exemption_reason?.trim() || DEFAULT_EXEMPTION_REASON[p.iva_code] || 'Isento')
+          : undefined;
         return {
           productCode: l.productCode,
           description: p.name ?? p.description ?? l.productCode,
@@ -99,6 +118,8 @@ export class InvoiceService {
           unitPrice: Number(p.unit_price),
           ivaCode: p.iva_code,
           discountRate: l.discountRate,
+          exemptionReason,
+          exemptionCode: p.exemption_code ?? undefined,
         };
       });
 

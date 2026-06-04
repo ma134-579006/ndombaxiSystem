@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."products" (
   description  TEXT,
   category_id  UUID REFERENCES "{{SCHEMA}}"."product_categories"(id) ON DELETE SET NULL,
   iva_code     TEXT NOT NULL DEFAULT 'NOR',  -- NOR/RED/ISE/OUT (§7.1)
+  exemption_reason TEXT,                       -- motivo de isenção (obrigatório p/ ISE/OUT)
+  exemption_code   TEXT,                       -- código AGT do motivo (opcional)
   unit_price   NUMERIC(14,2) NOT NULL,        -- preço NET de venda (sem IVA), AOA
   cost_price   NUMERIC(14,2) NOT NULL DEFAULT 0, -- custo unitário (p/ lucro), AOA
   stock_qty    NUMERIC(14,3) NOT NULL DEFAULT 0,
