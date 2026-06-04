@@ -3,6 +3,7 @@ import { useStore } from '../state/StoreContext';
 import { cartCount } from '../store/cart';
 import { useCustomer } from '../store/customer';
 import { IconCart, IconStore } from './Icons';
+import { ThemePicker } from './ThemePicker';
 
 function IconUser({ size = 22 }: { size?: number }) {
   return (
@@ -36,6 +37,7 @@ export function Header({ onHome, onCart, onAccount }: { onHome(): void; onCart()
           </div>
         </div>
         <span className="spacer" />
+        <ThemePicker />
         {onAccount ? (
           <button
             className={`acct-btn${customer ? ' in' : ''}`}

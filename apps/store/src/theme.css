@@ -204,6 +204,38 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .footer .store-info { color: var(--text); font-weight: 700; margin-bottom: 4px; }
 .footer .sig { font-size: 12px; opacity: .85; margin-top: 6px; }
 
+/* ── Seletor de tema (cabeçalho) ────────────────────────── */
+.theme-pick { position: relative; display: inline-flex; }
+.theme-pop {
+  position: absolute; right: 0; top: 56px; min-width: 190px; z-index: 50;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: var(--shadow-lg); padding: 6px;
+}
+.theme-pop .h { font-size: 12px; color: var(--muted); font-weight: 800; padding: 8px 10px 4px; }
+.theme-pop button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 10px; color: var(--text); font-size: 14px; font-weight: 600; }
+.theme-pop button:hover { background: var(--surface-2); }
+.theme-pop button.on { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.theme-pop .sw { width: 20px; height: 20px; border-radius: 6px; border: 1px solid var(--border); flex: none; }
+.theme-pop .ck { margin-left: auto; color: var(--accent); font-weight: 800; }
+
+/* ── Tema NÉON — escuro com brilhos (estilo "Microsoft 365 para Empresas").
+   A cor de destaque (--accent) continua a ser a da marca de cada loja. ── */
+[data-theme="neon"] {
+  --bg: #060713; --surface: #0f1128; --surface-2: #181b3c; --text: #eaf0fa; --muted: #94a3c8; --border: #2e2566;
+  --shadow: 0 10px 34px rgba(0,0,0,.5); --shadow-lg: 0 26px 64px rgba(0,0,0,.6);
+}
+[data-theme="neon"] body {
+  background:
+    radial-gradient(1100px 600px at 100% -8%, rgba(236,72,153,.18), transparent 55%),
+    radial-gradient(950px 560px at -6% 0%, rgba(34,211,238,.15), transparent 52%),
+    radial-gradient(900px 620px at 50% 122%, rgba(124,77,255,.20), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
+}
+[data-theme="neon"] .header { background: rgba(10,11,28,.72); }
+[data-theme="neon"] .btn { box-shadow: 0 8px 24px -8px rgba(124,77,255,.6); }
+[data-theme="neon"] ::-webkit-scrollbar-thumb { background: #2e2566; }
+
 @media (max-width: 560px) {
   .grid-2 { grid-template-columns: 1fr; }
   .hero h1 { font-size: 25px; }
