@@ -466,26 +466,31 @@ input { font-family: inherit; }
 @keyframes prod-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: no-preference) { .prod { animation: prod-in .2s ease both; } }
 
-/* ── IMPRESSÃO de recibos (talão térmico 80mm e A4) ─────────────
-   Imprime SÓ o recibo aberto (a janela .modal-bg), a preto e branco,
-   numa largura de ~76mm (cabe em impressoras térmicas e em A4). */
+/* ── IMPRESSÃO de recibos em IMPRESSORA TÉRMICA (rolo 80mm) ──────
+   @page size 80mm auto = página estreita de altura contínua (talão),
+   em vez de A4. Imprime SÓ o recibo aberto, a preto e branco. */
 @media print {
-  @page { margin: 5mm; }
-  html, body { background: #fff !important; }
+  @page { size: 80mm auto; margin: 0; }
+  html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
   body * { visibility: hidden !important; }
   .modal-bg, .modal-bg * { visibility: visible !important; }
   .modal-bg {
     position: absolute !important; left: 0 !important; top: 0 !important;
-    width: 100% !important; height: auto !important; display: block !important;
+    width: 80mm !important; height: auto !important; display: block !important;
     background: #fff !important; backdrop-filter: none !important; padding: 0 !important; z-index: 0 !important;
   }
   .modal-bg .card, .modal-bg .receipt {
-    box-shadow: none !important; border: none !important;
-    width: 76mm !important; max-width: 76mm !important; margin: 0 auto !important;
-    background: #fff !important;
+    box-shadow: none !important; border: none !important; border-radius: 0 !important;
+    width: 80mm !important; max-width: 80mm !important; min-width: 0 !important; margin: 0 !important;
+    padding: 1.5mm 3mm !important; background: #fff !important; font-size: 12px !important; line-height: 1.35 !important;
   }
-  .modal-bg .card *, .modal-bg .receipt * { color: #000 !important; }
-  .modal-bg .r-head { background: #fff !important; border: none !important; }
-  .modal-bg .r-head .check { display: none !important; } /* ícone colorido não imprime */
+  .modal-bg .card *, .modal-bg .receipt * { color: #000 !important; box-shadow: none !important; }
+  .modal-bg .r-head { background: #fff !important; border: none !important; padding: 0 0 4px !important; }
+  .modal-bg .r-head .check { display: none !important; }    /* ícone colorido não imprime */
+  .modal-bg .r-head .num { font-size: 14px !important; font-weight: 800 !important; }
+  .modal-bg .r-company img, .modal-bg .receipt img { max-height: 16mm !important; width: auto !important; }
+  .modal-bg .kv { padding: 2px 0 !important; font-size: 12px !important; }
+  .modal-bg .kv .v.grand { font-size: 15px !important; font-weight: 900 !important; }
+  .modal-bg .legend { font-size: 10.5px !important; }
   .no-print, .r-foot, .modal-bg .trash { display: none !important; }
 }
