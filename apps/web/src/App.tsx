@@ -15,6 +15,7 @@ import { Orders } from './sections/Orders';
 import { Payments } from './sections/Payments';
 import { Operations } from './sections/Operations';
 import { Inventory } from './sections/Inventory';
+import { StockMovements } from './sections/StockMovements';
 import { Promotions } from './sections/Promotions';
 import { Overview } from './sections/Overview';
 import { Profit } from './sections/Profit';
@@ -55,7 +56,8 @@ const TENANT_NAV: NavItem[] = [
   { key: 'subscription', label: 'Subscrição & Plano', icon: IconCard },
   { key: 'stores', label: 'Lojas', icon: IconStore },
   { key: 'products', label: 'Produtos', icon: IconCube },
-  { key: 'inventory', label: 'Inventário', icon: IconCube },
+  { key: 'inventory', label: 'Entrada stock/Inventário', icon: IconCube },
+  { key: 'stock-movements', label: 'Movimentos de stock', icon: IconChart },
   { key: 'purchasing', label: 'Compras', icon: IconTruck },
   { key: 'orders', label: 'Encomendas', icon: IconTruck },
   { key: 'promotions', label: 'Promoções', icon: IconStar },
@@ -101,6 +103,7 @@ function TenantPanel() {
       {section === 'stores' ? <Stores /> : null}
       {section === 'products' ? <Products /> : null}
       {section === 'inventory' ? <Inventory /> : null}
+      {section === 'stock-movements' ? <StockMovements /> : null}
       {section === 'purchasing' ? <Purchasing /> : null}
       {section === 'orders' ? <Orders /> : null}
       {section === 'promotions' ? <Promotions /> : null}

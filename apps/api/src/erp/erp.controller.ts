@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -62,6 +62,17 @@ export class ErpController {
   @ApiOperation({ summary: 'Produtos abaixo do stock mínimo' })
   listLowStock() {
     return this.repo.listLowStock(this.ctx.requireTenantSchema());
+  }
+
+  @Get('stock/movements')
+  @ApiOperation({ summary: 'Movimentos de stock (consulta com filtros)' })
+  listMovements(
+    @Query('q') q?: string,
+    @Query('warehouseId') warehouseId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.stock.listMovements(this.ctx.requireTenantSchema(), { q, warehouseId, from, to });
   }
 
   @Post('stock/adjust')

@@ -67,6 +67,7 @@ import type {
   PaymentProof,
   StockCountDetail,
   StockCountRow,
+  StockMovementRow,
   StockEntryInput,
   BatchInput,
   ExpiringBatch,
@@ -506,6 +507,15 @@ export const api = {
       request<{ balanceAfter: number }>('POST', '/erp/stock/entry', dto),
     addBatch: (dto: BatchInput) => request<{ id: string }>('POST', '/inventory/batches', dto),
     expiringBatches: (days = 60) => request<ExpiringBatch[]>('GET', `/inventory/batches/expiring?days=${days}`),
+    movements: (f: { q?: string; warehouseId?: string; from?: string; to?: string } = {}) => {
+      const p = new URLSearchParams();
+      if (f.q) p.set('q', f.q);
+      if (f.warehouseId) p.set('warehouseId', f.warehouseId);
+      if (f.from) p.set('from', f.from);
+      if (f.to) p.set('to', f.to);
+      const qs = p.toString();
+      return request<StockMovementRow[]>('GET', `/erp/stock/movements${qs ? '?' + qs : ''}`);
+    },
   },
 
   // ── Pagamentos da loja (gerente) ───────────────────────────

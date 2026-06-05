@@ -359,6 +359,18 @@ export interface StockCountDetail {
   items: StockCountItem[];
 }
 export interface WarehouseRow { id: string; code: string; name: string; is_default: boolean }
+
+/** Movimento de stock (consulta). */
+export interface StockMovementRow {
+  created_at: string;
+  type: string;
+  quantity: string;
+  balance_after: string;
+  reference: string | null;
+  product_name: string;
+  product_code: string;
+  warehouse_name: string | null;
+}
 export interface StockEntryInput {
   productId: string; warehouseId: string; quantity: number; unitCost: number; salePrice?: number;
 }

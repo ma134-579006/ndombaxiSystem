@@ -133,6 +133,34 @@ export class StockService {
     });
   }
 
+  /** Movimentos de stock (livro append-only) com filtros — para consulta. */
+  async listMovements(
+    schema: string,
+    filters: { q?: string; warehouseId?: string; from?: string; to?: string } = {},
+  ): Promise<unknown[]> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const conds: Prisma.Sql[] = [];
+      if (filters.q?.trim()) {
+        const like = `%${filters.q.trim()}%`;
+        conds.push(Prisma.sql`(p.name ILIKE ${like} OR p.code ILIKE ${like})`);
+      }
+      if (filters.warehouseId) conds.push(Prisma.sql`m.warehouse_id = ${filters.warehouseId}::uuid`);
+      if (filters.from && /^\d{4}-\d{2}-\d{2}$/.test(filters.from)) conds.push(Prisma.sql`m.created_at >= ${filters.from}::date`);
+      if (filters.to && /^\d{4}-\d{2}-\d{2}$/.test(filters.to)) conds.push(Prisma.sql`m.created_at < (${filters.to}::date + 1)`);
+      const where = conds.length ? Prisma.sql`WHERE ${Prisma.join(conds, ' AND ')}` : Prisma.empty;
+      return tx.$queryRaw(
+        Prisma.sql`SELECT m.created_at, m.type, m.quantity, m.balance_after, m.reference,
+                          p.name AS product_name, p.code AS product_code, w.name AS warehouse_name
+                   FROM stock_movements m
+                   JOIN products p ON p.id = m.product_id
+                   LEFT JOIN warehouses w ON w.id = m.warehouse_id
+                   ${where}
+                   ORDER BY m.created_at DESC
+                   LIMIT 500`,
+      );
+    });
+  }
+
   /** Acerto de inventário: fixa o saldo absoluto e regista a diferença como ADJUST. */
   async adjust(
     schema: string,
