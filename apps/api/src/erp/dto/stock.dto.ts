@@ -41,4 +41,14 @@ export class StockEntryDto {
   @IsNumber()
   @Min(0)
   salePrice?: number;
+
+  /** Lote (opcional) — código do lote e validade, na mesma entrada. */
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  batchCode?: string;
+
+  @IsOptional()
+  @IsString()
+  expiryDate?: string;
 }

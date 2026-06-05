@@ -108,6 +108,15 @@ export class ErpRepository {
     );
   }
 
+  /** Categorias de produto (para filtros de relatórios). */
+  listCategories(schema: string): Promise<Array<{ id: string; name: string }>> {
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<Array<{ id: string; name: string }>>(
+        Prisma.sql`SELECT id, name FROM product_categories ORDER BY name`,
+      ),
+    );
+  }
+
   /** Produtos abaixo do mínimo (alerta de reposição). */
   listLowStock(schema: string): Promise<StockLevelRow[]> {
     return this.prisma.runInTenant(schema, (tx) =>

@@ -75,6 +75,24 @@ export class ErpController {
     return this.stock.listMovements(this.ctx.requireTenantSchema(), { q, warehouseId, from, to });
   }
 
+  @Get('stock/categories')
+  @ApiOperation({ summary: 'Categorias de produto (para filtros)' })
+  listCategories() {
+    return this.repo.listCategories(this.ctx.requireTenantSchema());
+  }
+
+  @Get('stock/analysis')
+  @ApiOperation({ summary: 'Análise de stock (valor, vendas, previsão) com filtros' })
+  stockAnalysis(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('warehouseId') warehouseId?: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('state') state?: 'all' | 'positive' | 'zero' | 'negative' | 'low',
+  ) {
+    return this.stock.stockAnalysis(this.ctx.requireTenantSchema(), { from, to, warehouseId, categoryId, state });
+  }
+
   @Post('stock/adjust')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Acerto de inventário (define saldo absoluto)' })
@@ -98,6 +116,8 @@ export class ErpController {
       quantity: dto.quantity,
       unitCost: dto.unitCost,
       salePrice: dto.salePrice ?? null,
+      batchCode: dto.batchCode ?? null,
+      expiryDate: dto.expiryDate ?? null,
       createdBy: user.sub,
     });
   }

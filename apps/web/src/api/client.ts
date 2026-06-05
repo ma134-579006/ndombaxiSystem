@@ -68,6 +68,7 @@ import type {
   StockCountDetail,
   StockCountRow,
   StockMovementRow,
+  StockAnalysis,
   StockEntryInput,
   BatchInput,
   ExpiringBatch,
@@ -515,6 +516,17 @@ export const api = {
       if (f.to) p.set('to', f.to);
       const qs = p.toString();
       return request<StockMovementRow[]>('GET', `/erp/stock/movements${qs ? '?' + qs : ''}`);
+    },
+    categories: () => request<{ id: string; name: string }[]>('GET', '/erp/stock/categories'),
+    analysis: (f: { from?: string; to?: string; warehouseId?: string; categoryId?: string; state?: string } = {}) => {
+      const p = new URLSearchParams();
+      if (f.from) p.set('from', f.from);
+      if (f.to) p.set('to', f.to);
+      if (f.warehouseId) p.set('warehouseId', f.warehouseId);
+      if (f.categoryId) p.set('categoryId', f.categoryId);
+      if (f.state) p.set('state', f.state);
+      const qs = p.toString();
+      return request<StockAnalysis>('GET', `/erp/stock/analysis${qs ? '?' + qs : ''}`);
     },
   },
 

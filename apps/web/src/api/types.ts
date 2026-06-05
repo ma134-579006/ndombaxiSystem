@@ -374,9 +374,21 @@ export interface StockMovementRow {
 }
 export interface StockEntryInput {
   productId: string; warehouseId: string; quantity: number; unitCost: number; salePrice?: number;
+  batchCode?: string; expiryDate?: string;
 }
 export interface BatchInput {
   productId: string; warehouseId: string; batchCode?: string; quantity: number; expiryDate?: string;
+}
+export interface StockAnalysisRow {
+  product_id: string; product_code: string; product_name: string;
+  category_name: string | null; store_id: string; store_name: string;
+  cost_price: string; unit_price: string; quantity: string; stock_value: string;
+  units_sold: number; units_in: number; sales_per_day: number; days_left: number | null;
+}
+export interface StockAnalysis {
+  rows: StockAnalysisRow[];
+  summary: { stockValue: number; products: number; positive: number; unitsSold: number; forecastValue: number };
+  period: { from: string; to: string; days: number };
 }
 export interface ExpiringBatch {
   id: string; batch_code: string | null; quantity: string;

@@ -48,7 +48,7 @@ export class PosRepository {
       ivaCode: IvaCode;
       exemptionReason?: string | null;
       exemptionCode?: string | null;
-      unitPrice: number;
+      unitPrice?: number;
       costPrice?: number;
       stockQty?: number;
       /** Lojas onde o produto existe. Vazio/omisso = TODAS as lojas. */
@@ -66,7 +66,7 @@ export class PosRepository {
           VALUES (${input.code}, ${input.barcode ?? null}, ${input.name},
                   ${input.description ?? null}, ${input.categoryId ?? null}::uuid,
                   ${input.ivaCode}, ${input.exemptionReason ?? null}, ${input.exemptionCode ?? null},
-                  ${input.unitPrice}, ${input.costPrice ?? 0}, ${input.stockQty ?? 0},
+                  ${input.unitPrice ?? 0}, ${input.costPrice ?? 0}, ${input.stockQty ?? 0},
                   ${input.imageUrl ?? null}, ${JSON.stringify(input.gallery ?? [])}::jsonb,
                   ${input.showOnline ?? true})
           RETURNING *`,

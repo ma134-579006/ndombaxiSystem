@@ -47,10 +47,11 @@ export class CreateProductDto {
   @Length(0, 20)
   exemptionCode?: string;
 
-  /** Preço unitário NET (sem IVA), em AOA. */
+  /** Preço unitário NET (sem IVA), em AOA. Definido na Entrada de stock. */
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  unitPrice!: number;
+  unitPrice?: number;
 
   /** Custo unitário (para cálculo de lucro), em AOA. */
   @IsOptional()

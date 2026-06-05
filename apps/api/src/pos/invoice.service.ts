@@ -207,10 +207,22 @@ export class InvoiceService {
       );
       const invoiceId = invRows[0].id;
 
+      // Stock partilhado: se a loja do operador não tiver o produto, a saída
+      // sai do stock da loja principal (entrada feita com "Todas as lojas").
+      const defStoreId = await StockService.resolveDefaultWarehouse(tx);
+
       let lineNumber = 0;
       for (const line of lines) {
         lineNumber += 1;
         const product = byCode.get(line.productCode)!;
+        let lineStore = warehouseId;
+        if (input.storeId && defStoreId && input.storeId !== defStoreId) {
+          const has = await tx.$queryRaw<{ n: number }[]>(
+            Prisma.sql`SELECT COUNT(*)::int AS n FROM stock_items
+                       WHERE product_id = ${product.id}::uuid AND warehouse_id = ${input.storeId}::uuid`,
+          );
+          if (!has[0] || has[0].n === 0) lineStore = defStoreId;
+        }
         await tx.$executeRaw(
           Prisma.sql`INSERT INTO invoice_items
               (invoice_id, line_number, product_id, product_code, description, quantity,
@@ -222,13 +234,13 @@ export class InvoiceService {
                     ${line.ivaAmount}, ${line.grossAmount}, ${Number(product.cost_price ?? 0)},
                     ${line.exemptionReason ?? null}, ${line.exemptionCode ?? null})`,
         );
-        if (warehouseId) {
+        if (lineStore) {
           // Saída de stock pela venda. allowNegative: uma factura legal nunca
           // pode ser bloqueada — saldo negativo fica para acerto de inventário.
           // applyMovement também actualiza o espelho global products.stock_qty.
           await StockService.applyMovement(tx, {
             productId: product.id,
-            warehouseId,
+            warehouseId: lineStore,
             type: 'OUT',
             quantity: -line.quantity,
             reference: number,

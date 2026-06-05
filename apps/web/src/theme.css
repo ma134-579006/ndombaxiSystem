@@ -286,6 +286,17 @@ html.kbd-open .login .brand,
 html.kbd-open .login .kbd-toggle,
 html.kbd-open .login .box > p { display: none; }
 
+/* ── Seletor de produto por pesquisa (+ câmara) ─────────── */
+.prod-picker { position: relative; }
+.pp-search, .pp-selected { display: flex; align-items: center; gap: 8px; }
+.pp-search input { flex: 1; background: var(--bg-2); border: 1px solid var(--border); border-radius: 11px; padding: 12px 13px; font-size: 14px; color: var(--text); outline: none; }
+.pp-selected { justify-content: space-between; background: var(--bg-2); border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; font-size: 14px; }
+.pp-list { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 40; max-height: 240px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+.pp-opt { display: flex; justify-content: space-between; gap: 10px; width: 100%; padding: 10px 12px; text-align: left; color: var(--text); font-size: 14px; border-bottom: 1px solid var(--border-soft); }
+.pp-opt:hover { background: var(--surface-2); }
+.pp-cam { margin-top: 8px; display: grid; place-items: center; gap: 6px; }
+.pp-cam video { width: 100%; max-width: 320px; border-radius: 12px; border: 1px solid var(--border); background: #000; }
+
 /* ── Modal ──────────────────────────────────────────────── */
 .modal-bg { position: fixed; inset: 0; background: rgba(4,8,16,.72); backdrop-filter: blur(5px); z-index: 60; display: grid; place-items: center; padding: 18px; }
 .modal { background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 30%), var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 540px; max-height: 92vh; overflow: auto; box-shadow: 0 40px 90px -24px rgba(0,0,0,.75); }

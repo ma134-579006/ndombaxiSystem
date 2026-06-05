@@ -16,6 +16,7 @@ import { Payments } from './sections/Payments';
 import { Operations } from './sections/Operations';
 import { Inventory } from './sections/Inventory';
 import { StockMovements } from './sections/StockMovements';
+import { StockAnalysis } from './sections/StockAnalysis';
 import { Promotions } from './sections/Promotions';
 import { Overview } from './sections/Overview';
 import { Profit } from './sections/Profit';
@@ -58,6 +59,7 @@ const TENANT_NAV: NavItem[] = [
   { key: 'products', label: 'Produtos', icon: IconCube },
   { key: 'inventory', label: 'Entrada stock/Inventário', icon: IconCube },
   { key: 'stock-movements', label: 'Movimentos de stock', icon: IconChart },
+  { key: 'stock-analysis', label: 'Análise de stock', icon: IconChart },
   { key: 'purchasing', label: 'Compras', icon: IconTruck },
   { key: 'orders', label: 'Encomendas', icon: IconTruck },
   { key: 'promotions', label: 'Promoções', icon: IconStar },
@@ -104,6 +106,7 @@ function TenantPanel() {
       {section === 'products' ? <Products /> : null}
       {section === 'inventory' ? <Inventory /> : null}
       {section === 'stock-movements' ? <StockMovements /> : null}
+      {section === 'stock-analysis' ? <StockAnalysis /> : null}
       {section === 'purchasing' ? <Purchasing /> : null}
       {section === 'orders' ? <Orders /> : null}
       {section === 'promotions' ? <Promotions /> : null}

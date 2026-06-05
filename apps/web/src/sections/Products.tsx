@@ -264,16 +264,9 @@ export function Products() {
             <label>Descrição</label>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Opcional" />
           </div>
-          <div className="grid-2">
-            <div className="field">
-              <label>Preço de venda (sem IVA)</label>
-              <input value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} inputMode="decimal" placeholder="0" />
-            </div>
-            <div className="field">
-              <label>Custo unitário (p/ lucro)</label>
-              <input value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} inputMode="decimal" placeholder="0" />
-            </div>
-          </div>
+          <p className="muted" style={{ fontSize: 12, margin: '0 0 4px' }}>
+            O <strong>preço de venda</strong>, o <strong>custo</strong> e o <strong>stock</strong> definem-se na <strong>Entrada stock/Inventário</strong> (ao dar entrada de mercadoria).
+          </p>
           <div className="field">
             <label>IVA</label>
             <select value={form.ivaCode} onChange={(e) => setForm({ ...form, ivaCode: e.target.value as IvaCode })}>
@@ -295,21 +288,6 @@ export function Products() {
               </p>
             </div>
           ) : null}
-          {editing ? (
-            <div className="field">
-              <label>Stock atual</label>
-              <input value={form.stockQty} readOnly disabled />
-              <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-                Gerido em <strong>Entrada stock/Inventário</strong> (entradas/acertos) — o stock é por loja.
-              </p>
-            </div>
-          ) : (
-            <div className="field">
-              <label>Stock inicial</label>
-              <input value={form.stockQty} onChange={(e) => setForm({ ...form, stockQty: e.target.value })} inputMode="numeric" placeholder="0" />
-            </div>
-          )}
-
           {!editing && stores.length > 1 ? (
             <div className="field">
               <div className="switch-row" style={{ padding: 0 }}>

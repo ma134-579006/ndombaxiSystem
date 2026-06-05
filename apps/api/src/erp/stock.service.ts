@@ -104,23 +104,30 @@ export class StockService {
     schema: string,
     input: {
       productId: string;
-      warehouseId: string;
+      warehouseId: string; // id da LOJA, ou 'ALL' = stock partilhado (loja principal)
       quantity: number;
       unitCost: number;
       salePrice?: number | null;
+      batchCode?: string | null;
+      expiryDate?: string | null;
       createdBy?: string | null;
     },
   ): Promise<{ balanceAfter: number }> {
     if (input.quantity <= 0) throw new BadRequestException('A quantidade tem de ser maior que zero.');
     if (input.unitCost < 0) throw new BadRequestException('Custo unitário inválido.');
     return this.prisma.runInTenant(schema, async (tx) => {
+      // "Todas as lojas (stock partilhado)" → entra na loja principal (default).
+      let storeId = input.warehouseId;
+      if (!storeId || storeId === 'ALL') {
+        storeId = (await StockService.resolveDefaultWarehouse(tx)) ?? storeId;
+      }
       const balanceAfter = await StockService.applyMovement(tx, {
         productId: input.productId,
-        warehouseId: input.warehouseId,
+        warehouseId: storeId,
         type: 'IN',
         quantity: input.quantity,
         unitCost: input.unitCost,
-        reference: 'Entrada de stock',
+        reference: input.batchCode ? `Entrada de stock (lote ${input.batchCode})` : 'Entrada de stock',
         createdBy: input.createdBy ?? null,
       });
       await tx.$executeRaw(
@@ -130,6 +137,14 @@ export class StockService {
                        updated_at = now()
                    WHERE id = ${input.productId}::uuid`,
       );
+      // Lote/validade (opcional) — registado na mesma entrada (sem 2º movimento).
+      if (input.batchCode || input.expiryDate) {
+        await tx.$executeRaw(
+          Prisma.sql`INSERT INTO product_batches (product_id, warehouse_id, batch_code, quantity, expiry_date)
+                     VALUES (${input.productId}::uuid, ${storeId}::uuid, ${input.batchCode ?? null},
+                             ${input.quantity}, ${input.expiryDate ? Prisma.sql`${input.expiryDate}::date` : Prisma.sql`NULL`})`,
+        );
+      }
       return { balanceAfter };
     });
   }
@@ -159,6 +174,88 @@ export class StockService {
                    ORDER BY m.created_at DESC
                    LIMIT 500`,
       );
+    });
+  }
+
+  /**
+   * Análise de stock: por produto/loja, calcula stock actual, valor em stock,
+   * unidades vendidas e entradas no período, previsão de venda/dia e dias de
+   * stock restantes. Filtros: período, loja, categoria e estado do stock.
+   */
+  async stockAnalysis(
+    schema: string,
+    filters: {
+      from?: string; to?: string;
+      warehouseId?: string; categoryId?: string;
+      state?: 'all' | 'positive' | 'zero' | 'negative' | 'low';
+    } = {},
+  ): Promise<{
+    rows: Array<Record<string, unknown>>;
+    summary: { stockValue: number; products: number; positive: number; unitsSold: number; forecastValue: number };
+    period: { from: string; to: string; days: number };
+  }> {
+    const to = filters.to && /^\d{4}-\d{2}-\d{2}$/.test(filters.to) ? filters.to : new Date().toISOString().slice(0, 10);
+    const from = filters.from && /^\d{4}-\d{2}-\d{2}$/.test(filters.from)
+      ? filters.from
+      : new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    const days = Math.max(1, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1);
+
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const conds: Prisma.Sql[] = [];
+      if (filters.warehouseId) conds.push(Prisma.sql`si.warehouse_id = ${filters.warehouseId}::uuid`);
+      if (filters.categoryId) conds.push(Prisma.sql`p.category_id = ${filters.categoryId}::uuid`);
+      if (filters.state === 'positive') conds.push(Prisma.sql`si.quantity > 0`);
+      else if (filters.state === 'zero') conds.push(Prisma.sql`si.quantity = 0`);
+      else if (filters.state === 'negative') conds.push(Prisma.sql`si.quantity < 0`);
+      else if (filters.state === 'low') conds.push(Prisma.sql`si.quantity <= si.min_qty`);
+      const where = conds.length ? Prisma.sql`WHERE ${Prisma.join(conds, ' AND ')}` : Prisma.empty;
+
+      const rows = await tx.$queryRaw<Array<Record<string, unknown>>>(
+        Prisma.sql`
+          SELECT p.id AS product_id, p.code AS product_code, p.name AS product_name,
+                 c.name AS category_name,
+                 w.id AS store_id, w.name AS store_name,
+                 p.cost_price, p.unit_price, si.quantity,
+                 (si.quantity * p.cost_price) AS stock_value,
+                 COALESCE(mv.units_sold, 0) AS units_sold,
+                 COALESCE(mv.units_in, 0) AS units_in
+          FROM stock_items si
+          JOIN products p ON p.id = si.product_id
+          JOIN stores w ON w.id = si.warehouse_id
+          LEFT JOIN product_categories c ON c.id = p.category_id
+          LEFT JOIN LATERAL (
+            SELECT SUM(CASE WHEN m.type = 'OUT' THEN -m.quantity ELSE 0 END) AS units_sold,
+                   SUM(CASE WHEN m.type = 'IN'  THEN  m.quantity ELSE 0 END) AS units_in
+            FROM stock_movements m
+            WHERE m.product_id = si.product_id AND m.warehouse_id = si.warehouse_id
+              AND m.created_at >= ${from}::date AND m.created_at < (${to}::date + 1)
+          ) mv ON TRUE
+          ${where}
+          ORDER BY p.name, w.name`,
+      );
+
+      const enriched: Array<Record<string, unknown>> = rows.map((r) => {
+        const qty = Number(r.quantity) || 0;
+        const sold = Number(r.units_sold) || 0;
+        const perDay = sold / days;
+        const daysLeft = perDay > 0 ? qty / perDay : null;
+        return {
+          ...r,
+          sales_per_day: Math.round(perDay * 100) / 100,
+          days_left: daysLeft != null ? Math.round(daysLeft) : null,
+        };
+      });
+
+      const summary = {
+        stockValue: enriched.reduce((s, r) => s + (Number(r.stock_value) || 0), 0),
+        products: new Set(enriched.map((r) => r.product_id)).size,
+        positive: enriched.filter((r) => (Number(r.quantity) || 0) > 0).length,
+        unitsSold: enriched.reduce((s, r) => s + (Number(r.units_sold) || 0), 0),
+        // Previsão = valor de venda das unidades estimadas para os próximos `days` dias.
+        forecastValue: enriched.reduce((s, r) => s + (Number(r.sales_per_day) || 0) * days * (Number(r.unit_price) || 0), 0),
+      };
+
+      return { rows: enriched, summary, period: { from, to, days } };
     });
   }
 

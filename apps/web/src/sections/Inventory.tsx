@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client';
 import type { ExpiringBatch, ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
 import { Modal } from '../components/ui';
+import { ProductPicker } from '../components/ProductPicker';
 import { IconCheck, IconCube, IconPlus, IconTruck, IconTrash, IconReceipt } from '../components/Icons';
 import { formatKz, formatDate } from '../format';
 
@@ -17,7 +18,6 @@ export function Inventory() {
   const [entering, setEntering] = useState(false);
   const [writingOff, setWritingOff] = useState(false);
   const [batches, setBatches] = useState<ExpiringBatch[]>([]);
-  const [addingBatch, setAddingBatch] = useState(false);
   const [woInit, setWoInit] = useState<{ productId: string; quantity?: number } | null>(null);
 
   const load = useCallback(async () => {
@@ -66,9 +66,6 @@ export function Inventory() {
         </button>
         <button className="btn ghost" onClick={() => setWritingOff(true)} disabled={warehouses.length === 0 || products.length === 0}>
           <IconTrash size={16} /> Baixa de stock
-        </button>
-        <button className="btn ghost" onClick={() => setAddingBatch(true)} disabled={warehouses.length === 0 || products.length === 0}>
-          <IconReceipt size={16} /> Registar lote
         </button>
         <button className="btn ghost" onClick={() => setCreating(true)} disabled={warehouses.length === 0}>
           <IconPlus size={16} /> Nova contagem
@@ -157,15 +154,7 @@ export function Inventory() {
           onSaved={() => { setWritingOff(false); setWoInit(null); void load(); }}
         />
       ) : null}
-      {addingBatch ? (
-        <BatchModal
-          products={products}
-          warehouses={warehouses}
-          onClose={() => setAddingBatch(false)}
-          onSaved={() => { setAddingBatch(false); void load(); }}
-        />
-      ) : null}
-      {openCount ? <CountSheet detail={openCount} onClose={() => { setOpenCount(null); void load(); }} /> : null}
+      {openCount ? <CountSheet detail={openCount} products={products} onClose={() => { setOpenCount(null); void load(); }} /> : null}
     </>
   );
 }
@@ -211,9 +200,7 @@ function WriteOffModal({
       </p>
       <div className="grid-2">
         <div className="field"><label>Produto</label>
-          <select value={productId} onChange={(e) => setProductId(e.target.value)}>
-            {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
-          </select></div>
+          <ProductPicker products={products} value={productId} onChange={setProductId} /></div>
         <div className="field"><label>Loja</label>
           <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
@@ -238,71 +225,6 @@ function WriteOffModal({
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-/** Registar lote com data de validade (dá entrada de stock). */
-function BatchModal({
-  products, warehouses, onClose, onSaved,
-}: {
-  products: ManagerProduct[];
-  warehouses: WarehouseRow[];
-  onClose(): void;
-  onSaved(): void;
-}) {
-  const [productId, setProductId] = useState(products[0]?.id ?? '');
-  const [warehouseId, setWarehouseId] = useState(warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? '');
-  const [batchCode, setBatchCode] = useState('');
-  const [qty, setQty] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const submit = async () => {
-    setErr(null);
-    const q = Number(qty);
-    if (!productId || !warehouseId) { setErr('Escolha o produto e a loja.'); return; }
-    if (!(q > 0)) { setErr('Indique a quantidade do lote.'); return; }
-    setBusy(true);
-    try {
-      await api.inventory.addBatch({
-        productId, warehouseId, quantity: q,
-        batchCode: batchCode.trim() || undefined,
-        expiryDate: expiryDate || undefined,
-      });
-      onSaved();
-    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao registar o lote.'); }
-    finally { setBusy(false); }
-  };
-
-  return (
-    <Modal title="Registar lote (com validade)" onClose={onClose}>
-      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
-      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        Dá entrada das unidades e controla a <strong>validade</strong> (FEFO — primeiro a expirar, primeiro a sair).
-      </p>
-      <div className="grid-2">
-        <div className="field"><label>Produto</label>
-          <select value={productId} onChange={(e) => setProductId(e.target.value)}>
-            {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
-          </select></div>
-        <div className="field"><label>Loja</label>
-          <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
-          </select></div>
-      </div>
-      <div className="grid-2">
-        <div className="field"><label>Quantidade</label>
-          <input inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="ex.: 50" /></div>
-        <div className="field"><label>Código do lote (opcional)</label>
-          <input value={batchCode} onChange={(e) => setBatchCode(e.target.value)} placeholder="ex.: L-2026-07" /></div>
-      </div>
-      <div className="field"><label>Data de validade</label>
-        <input type="date" value={expiryDate} min={todayISO()} onChange={(e) => setExpiryDate(e.target.value)} /></div>
-      <button className="btn lg block" style={{ marginTop: 6 }} onClick={submit} disabled={busy}>
-        {busy ? 'A registar…' : 'Registar lote e dar entrada'}
-      </button>
-    </Modal>
-  );
-}
-
 /** Entrada de stock em lote com cálculo automático de custo unitário e lucro. */
 function StockEntryModal({
   products, warehouses, onClose, onSaved,
@@ -312,11 +234,13 @@ function StockEntryModal({
   onClose(): void;
   onSaved(): void;
 }) {
-  const [productId, setProductId] = useState(products[0]?.id ?? '');
+  const [productId, setProductId] = useState('');
   const [warehouseId, setWarehouseId] = useState(warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? '');
   const [qty, setQty] = useState('');
   const [totalCost, setTotalCost] = useState('');
   const [salePrice, setSalePrice] = useState('');
+  const [batchCode, setBatchCode] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -345,6 +269,8 @@ function StockEntryModal({
         productId, warehouseId, quantity: q,
         unitCost: Math.round(unitCost * 100) / 100,
         salePrice: salePrice !== '' ? sp : undefined,
+        batchCode: batchCode.trim() || undefined,
+        expiryDate: expiryDate || undefined,
       });
       onSaved();
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao dar entrada.'); }
@@ -356,11 +282,10 @@ function StockEntryModal({
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
       <div className="grid-2">
         <div className="field"><label>Produto</label>
-          <select value={productId} onChange={(e) => { setProductId(e.target.value); setSalePrice(''); }}>
-            {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
-          </select></div>
+          <ProductPicker products={products} value={productId} onChange={(id) => { setProductId(id); setSalePrice(''); }} /></div>
         <div className="field"><label>Loja</label>
           <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+            <option value="ALL">Todas as lojas (stock partilhado)</option>
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
           </select></div>
       </div>
@@ -372,6 +297,12 @@ function StockEntryModal({
       </div>
       <div className="field"><label>Preço de venda por unidade (Kz)</label>
         <input inputMode="decimal" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="ex.: 5000" /></div>
+      <div className="grid-2">
+        <div className="field"><label>Código do lote (opcional)</label>
+          <input value={batchCode} onChange={(e) => setBatchCode(e.target.value)} placeholder="ex.: L-2026-07" /></div>
+        <div className="field"><label>Validade (opcional)</label>
+          <input type="date" value={expiryDate} min={todayISO()} onChange={(e) => setExpiryDate(e.target.value)} /></div>
+      </div>
 
       {/* Cálculo automático */}
       <div className="kpi-grid" style={{ margin: '6px 0 8px', gridTemplateColumns: '1fr 1fr' }}>
@@ -402,10 +333,61 @@ function StockEntryModal({
   );
 }
 
-function CountSheet({ detail, onClose }: { detail: StockCountDetail; onClose(): void }) {
+function CountSheet({ detail, products, onClose }: { detail: StockCountDetail; products: ManagerProduct[]; onClose(): void }) {
   const [items, setItems] = useState(detail.items);
   const [status, setStatus] = useState(detail.status);
   const [busy, setBusy] = useState(false);
+
+  const costOf = (productId: string) => Number(products.find((p) => p.id === productId)?.cost_price ?? 0);
+
+  const printInventory = () => {
+    const rows = items.map((it) => {
+      const sys = Number(it.system_qty);
+      const cnt = it.counted_qty != null && it.counted_qty !== '' ? Number(it.counted_qty) : null;
+      const diff = cnt != null ? cnt - sys : null;
+      const lossVal = diff != null && diff < 0 ? Math.abs(diff) * costOf(it.product_id) : 0;
+      return { code: it.product_code, name: it.description, sys, cnt, diff, lossVal };
+    });
+    const totalLoss = rows.reduce((s, r) => s + r.lossVal, 0);
+    const divergent = rows.filter((r) => r.diff != null && r.diff !== 0).length;
+    const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+    const fmt = (n: number) => new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 2 }).format(n) + ' Kz';
+    const body = rows.map((r) => `
+      <tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name)}</td>
+        <td class="r">${r.sys}</td>
+        <td class="r">${r.cnt != null ? r.cnt : '—'}</td>
+        <td class="r ${r.diff != null && r.diff < 0 ? 'neg' : r.diff ? 'pos' : ''}">${r.diff != null ? (r.diff > 0 ? '+' : '') + r.diff : '—'}</td>
+        <td class="r neg">${r.lossVal > 0 ? fmt(r.lossVal) : '—'}</td>
+      </tr>`).join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Inventário ${esc(detail.reference)}</title>
+      <style>
+        body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:24px;font-size:13px}
+        h1{font-size:18px;margin:0 0 2px} .sub{color:#666;margin:0 0 14px}
+        table{width:100%;border-collapse:collapse} th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}
+        th{background:#f3f3f3} .r{text-align:right} .neg{color:#c0262c;font-weight:700} .pos{color:#b06a00;font-weight:700}
+        tfoot td{font-weight:700;background:#fafafa}
+        .summary{display:flex;gap:24px;margin:10px 0 16px}
+        .summary div{font-size:13px} .summary b{display:block;font-size:16px}
+      </style></head><body>
+      <h1>Inventário · ${esc(detail.reference)}</h1>
+      <p class="sub">Data: ${new Date().toLocaleString('pt-PT')} · Estado: ${status === 'CLOSED' ? 'Fechada' : 'Em curso'}</p>
+      <div class="summary">
+        <div>Itens<b>${rows.length}</b></div>
+        <div>Divergências<b>${divergent}</b></div>
+        <div>Perda total (a custo)<b class="neg">${fmt(totalLoss)}</b></div>
+      </div>
+      <table>
+        <thead><tr><th>Código</th><th>Produto</th><th class="r">Sistema</th><th class="r">Contado</th><th class="r">Diferença</th><th class="r">Perda (Kz)</th></tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr><td colspan="5" class="r">Perda total</td><td class="r neg">${fmt(totalLoss)}</td></tr></tfoot>
+      </table>
+      <script>window.onload=function(){window.print();}<\/script>
+      </body></html>`;
+    const w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) { alert('Permita popups para imprimir o inventário.'); return; }
+    w.document.write(html); w.document.close();
+  };
 
   const setCounted = async (productId: string, value: string) => {
     const counted = Number(value);
@@ -434,9 +416,11 @@ function CountSheet({ detail, onClose }: { detail: StockCountDetail; onClose(): 
 
   return (
     <Modal title={`Contagem ${detail.reference}`} onClose={onClose}>
-      <div className="row" style={{ gap: 14, marginBottom: 12, fontSize: 13 }}>
+      <div className="row" style={{ gap: 14, marginBottom: 12, fontSize: 13, alignItems: 'center' }}>
         <span className="muted">{counted}/{items.length} contados</span>
         <span style={{ color: divergent ? 'var(--warning)' : 'var(--success)' }}>{divergent} divergências</span>
+        <span className="spacer" />
+        <button className="btn ghost sm" onClick={printInventory}><IconReceipt size={15} /> Imprimir (perdas)</button>
       </div>
       <div style={{ maxHeight: '52vh', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {items.map((it) => {
