@@ -8,6 +8,7 @@ import {
   Ip,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -15,6 +16,7 @@ import type { JwtPayload } from '@nexus/types';
 import { AuthService } from './auth.service';
 import {
   EnableTwoFaDto,
+  PinLoginDto,
   PlatformLoginDto,
   RefreshDto,
   TenantLoginDto,
@@ -53,6 +55,30 @@ export class AuthController {
   ) {
     if (!dto.companyCode && headerCode) dto.companyCode = headerCode;
     return this.auth.tenantLogin(dto, { ip, userAgent: ua });
+  }
+
+  @Public()
+  @Get('operators')
+  @ApiOperation({ summary: 'Lista de operadores (nome) de uma empresa para a caixa' })
+  operators(
+    @Query('companyCode') companyCode?: string,
+    @Headers('x-tenant-code') headerCode?: string,
+  ) {
+    return this.auth.listOperators((companyCode || headerCode || '').toLowerCase());
+  }
+
+  @Public()
+  @Post('login/pin')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login do operador da caixa por nome (id) + PIN' })
+  pinLogin(
+    @Body() dto: PinLoginDto,
+    @Ip() ip: string,
+    @Headers('x-tenant-code') headerCode?: string,
+    @Headers('user-agent') ua?: string,
+  ) {
+    if (!dto.companyCode && headerCode) dto.companyCode = headerCode.toLowerCase();
+    return this.auth.pinLogin(dto, { ip, userAgent: ua });
   }
 
   @Public()

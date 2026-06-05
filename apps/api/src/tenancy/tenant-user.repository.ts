@@ -46,6 +46,19 @@ export class TenantUserRepository {
     });
   }
 
+  /** Operadores (funcionários com acesso por PIN) para o ecrã da caixa. */
+  async listOperators(
+    schema: string,
+  ): Promise<{ id: string; name: string; role: RoleName }[]> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      return tx.$queryRaw<{ id: string; name: string; role: RoleName }[]>(
+        Prisma.sql`SELECT id, name, role FROM users
+                   WHERE is_active = TRUE AND pin_hash IS NOT NULL
+                   ORDER BY name`,
+      );
+    });
+  }
+
   async findById(schema: string, id: string): Promise<TenantUser | null> {
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<TenantUser[]>(

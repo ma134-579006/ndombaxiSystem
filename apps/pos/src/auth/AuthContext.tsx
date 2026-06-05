@@ -23,6 +23,8 @@ interface AuthContextValue {
   user: DecodedJwt | null;
   companyCode: string | null;
   login(input: TenantLoginInput): Promise<void>;
+  /** Login do operador por nome (id) + PIN (estilo Vendus). */
+  loginPin(companyCode: string, userId: string, pin: string): Promise<void>;
   logout(): Promise<void>;
 }
 
@@ -134,6 +136,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [applyTokens],
   );
 
+  const loginPin = useCallback(
+    async (code: string, userId: string, pin: string) => {
+      const tokens = await api.loginPin({ companyCode: code, userId, pin });
+      companyRef.current = code;
+      setCompanyCode(code);
+      localStorage.setItem(LS_COMPANY, code);
+      applyTokens(tokens);
+      setStatus('authed');
+    },
+    [applyTokens],
+  );
+
   const logout = useCallback(async () => {
     const rt = refreshRef.current;
     if (rt) {
@@ -147,8 +161,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [clearSession]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, companyCode, login, logout }),
-    [status, user, companyCode, login, logout],
+    () => ({ status, user, companyCode, login, loginPin, logout }),
+    [status, user, companyCode, login, loginPin, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

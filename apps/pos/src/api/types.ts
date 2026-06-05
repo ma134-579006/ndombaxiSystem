@@ -80,6 +80,9 @@ export interface EmittedInvoice {
 }
 
 /** Turno de caixa aberto. */
+/** Operador da caixa (funcionário com acesso por PIN). */
+export interface Operator { id: string; name: string; role: string }
+
 export interface CashSession {
   id: string;
   register_code: string | null;

@@ -53,6 +53,20 @@ export class EnableTwoFaDto {
   token!: string;
 }
 
+export class PinLoginDto {
+  @IsString()
+  @Matches(/^[a-z0-9-]{2,40}$/)
+  companyCode!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  userId!: string;
+
+  @IsString()
+  @Matches(/^\d{4,8}$/, { message: 'PIN inválido.' })
+  pin!: string;
+}
+
 export class UpdateThemeDto {
   /** Id do tema (vazio = padrão). Validado/whitelisted no serviço. */
   @IsString()

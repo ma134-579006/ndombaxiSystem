@@ -6,6 +6,7 @@ import type {
   DocumentIdentity,
   EmitInvoiceInput,
   EmittedInvoice,
+  Operator,
   Product,
   ReceiptFiscalInfo,
   ReportX,
@@ -98,6 +99,12 @@ async function request<T>(
 export const api = {
   login: (input: TenantLoginInput) =>
     request<TokenPair>('POST', '/auth/login', input, { auth: false }),
+  /** Lista de operadores (nome) de uma empresa, para o ecrã da caixa. */
+  operators: (companyCode: string) =>
+    request<Operator[]>('GET', `/auth/operators?companyCode=${encodeURIComponent(companyCode)}`, undefined, { auth: false }),
+  /** Login do operador por nome (id) + PIN. */
+  loginPin: (input: { companyCode: string; userId: string; pin: string }) =>
+    request<TokenPair>('POST', '/auth/login/pin', input, { auth: false }),
   refresh: (refreshToken: string) =>
     request<TokenPair>('POST', '/auth/refresh', { refreshToken }, { auth: false }),
   logout: (refreshToken: string) =>

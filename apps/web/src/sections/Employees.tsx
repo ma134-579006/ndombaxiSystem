@@ -271,7 +271,7 @@ function AccessModal({
     <Modal title={`Dar acesso — ${employee.full_name}`} onClose={onClose}>
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        Cria a conta de acesso deste funcionário. O <strong>papel</strong> define as permissões; um <strong>Operador de caixa</strong> entra no POS com o email + senha (ou PIN).
+        Cria a conta de acesso deste funcionário. O <strong>papel</strong> define as permissões. Na <strong>caixa</strong>, o operador entra escolhendo o <strong>nome</strong> e digitando o <strong>PIN</strong> — por isso defina um PIN abaixo.
       </p>
       <div className="field"><label>Email (login)</label>
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.ao" inputMode="email" /></div>
@@ -286,7 +286,7 @@ function AccessModal({
             {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select></div>
       </div>
-      <div className="field"><label>PIN do POS (6 dígitos, opcional)</label>
+      <div className="field"><label>PIN da caixa (6 dígitos — necessário para entrar na caixa)</label>
         <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" placeholder="ex.: 123456" /></div>
       <button className="btn lg block" style={{ marginTop: 8 }} onClick={submit} disabled={busy}>
         {busy ? 'A criar…' : 'Criar acesso'}

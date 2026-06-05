@@ -207,6 +207,55 @@ export class AuthService {
     return this.tokens.issuePair(payload, ctx);
   }
 
+  // ─── Caixa: lista de operadores (nomes) por empresa ─────────
+  async listOperators(
+    companyCode: string,
+  ): Promise<{ id: string; name: string; role: string }[]> {
+    const company = await this.prisma.company.findUnique({ where: { code: companyCode } });
+    if (!company || company.status !== 'ACTIVE') return [];
+    return this.tenantUsers.listOperators(company.schemaName);
+  }
+
+  // ─── Caixa: login por NOME (id) + PIN (estilo Vendus) ───────
+  async pinLogin(
+    dto: { companyCode: string; userId: string; pin: string },
+    ctx: RequestCtx,
+  ): Promise<TokenPair> {
+    const company = await this.prisma.company.findUnique({ where: { code: dto.companyCode } });
+    if (!company) throw new UnauthorizedException('Credenciais inválidas');
+    if (company.status !== 'ACTIVE') {
+      throw new ForbiddenException(`Empresa ${company.status.toLowerCase()}`);
+    }
+    const user = await this.tenantUsers.findById(company.schemaName, dto.userId);
+    if (!user || !user.is_active || !user.pin_hash) {
+      throw new UnauthorizedException('Operador inválido ou sem PIN');
+    }
+    if (user.locked_until && user.locked_until > new Date()) {
+      throw new ForbiddenException('Operador temporariamente bloqueado (tentativas falhadas)');
+    }
+    const ok = await this.passwords.verify(user.pin_hash, dto.pin);
+    if (!ok) {
+      await this.tenantUsers.markLoginFailure(company.schemaName, user.id);
+      throw new UnauthorizedException('PIN incorreto');
+    }
+    await this.tenantUsers.markLoginSuccess(company.schemaName, user.id);
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      subjectType: 'TENANT',
+      tenantId: company.id,
+      tenantSchema: company.schemaName,
+      storeId: user.store_id ?? undefined,
+      twoFaVerified: true, // operador de caixa entra por PIN (sem 2FA)
+    };
+    await this.audit.record({
+      actorType: 'TENANT', actorId: user.id, tenantSchema: company.schemaName,
+      action: 'LOGIN_SUCCESS_PIN', entity: 'User', entityId: user.id, ip: ctx.ip,
+    });
+    return this.tokens.issuePair(payload, ctx);
+  }
+
   // ─── Acesso shadow do Super Admin (impersonation, §2.2) ─────
   /**
    * O Super Admin entra no painel de uma empresa SEM saber a senha: emite um
