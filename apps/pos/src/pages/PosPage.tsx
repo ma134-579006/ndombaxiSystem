@@ -248,7 +248,7 @@ export function PosPage() {
           <div className="who">
             <div className="name">{identity?.companyName || `${SYSTEM_SHORT} · Caixa`}</div>
             <div className="role">
-              {user?.email} · {user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
+              {user?.name || user?.email} · {user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
             </div>
           </div>
           <span className="spacer" />

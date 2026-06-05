@@ -8,6 +8,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import type { JwtPayload } from '@nexus/types';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
@@ -84,7 +86,9 @@ export class HrController {
   @Post('payroll/runs/:id/pay')
   @Roles(Role.COMPANY_ADMIN)
   @ApiOperation({ summary: 'Marca a folha salarial como paga' })
-  payRun(@Param('id') id: string) {
-    return this.payroll.markPaid(this.ctx.requireTenantSchema(), id);
+  payRun(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.payroll.markPaid(this.ctx.requireTenantSchema(), id, {
+      id: user.sub, name: user.name ?? user.email ?? null,
+    });
   }
 }

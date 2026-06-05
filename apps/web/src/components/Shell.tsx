@@ -130,7 +130,7 @@ export function Shell({
           <h1>{current?.label}</h1>
           <span className="spacer" />
           <div className="who">
-            <div className="nm">{user?.email}</div>
+            <div className="nm">{user?.name || user?.email}</div>
             <div className="rl">
               {roleLabel}
               {companyCode ? ` · ${companyCode}` : ''}

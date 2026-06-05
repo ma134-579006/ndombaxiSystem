@@ -2,6 +2,7 @@
 export interface DecodedJwt {
   sub: string;
   email: string;
+  name?: string;
   role: string;
   subjectType: 'PLATFORM' | 'TENANT';
   tenantId?: string;

@@ -163,18 +163,44 @@ export class PayrollService {
     });
   }
 
-  /** Marca a folha como paga (idempotente quanto a duplo pagamento). */
-  async markPaid(schema: string, id: string): Promise<PayrollRunRow> {
-    const rows = await this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw<PayrollRunRow[]>(
+  /**
+   * Marca a folha como paga (idempotente quanto a duplo pagamento) e regista
+   * automaticamente o GASTO correspondente (categoria SALARIOS) — assim a folha
+   * salarial fica sincronizada com as Despesas e entra no lucro líquido.
+   */
+  async markPaid(
+    schema: string,
+    id: string,
+    actor?: { id: string | null; name: string | null },
+  ): Promise<PayrollRunRow> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<PayrollRunRow[]>(
         Prisma.sql`UPDATE payroll_runs
                    SET status = 'PAID', paid_at = now()
                    WHERE id = ${id}::uuid AND status = 'PROCESSED' RETURNING *`,
-      ),
-    );
-    if (!rows[0]) {
-      throw new ConflictException('Folha inexistente ou já paga/cancelada.');
-    }
-    return rows[0];
+      );
+      if (!rows[0]) {
+        throw new ConflictException('Folha inexistente ou já paga/cancelada.');
+      }
+      const run = rows[0];
+      // Gasto = custo total para a empresa (salários + encargos patronais).
+      const amount = Number(run.employer_cost_total) || Number(run.gross_total) || 0;
+      const period = `${run.period_year}-${String(run.period_month).padStart(2, '0')}`;
+      // Só cria a despesa se a tabela existir (retrocompat tenants antigos).
+      const hasExpenses = await tx.$queryRaw<{ reg: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('expenses')::text AS reg`,
+      );
+      if (hasExpenses[0]?.reg && amount > 0) {
+        await tx.$executeRaw(
+          Prisma.sql`INSERT INTO expenses
+              (category, description, amount, supplier, payment_method, document_ref,
+               expense_date, created_by, created_by_name)
+            VALUES ('SALARIOS', ${`Pagamento salarial — folha ${period}`}, ${amount},
+                    NULL, NULL, ${`PAYROLL-${period}`},
+                    now()::date, ${actor?.id ?? null}::uuid, ${actor?.name ?? null})`,
+        );
+      }
+      return run;
+    });
   }
 }
