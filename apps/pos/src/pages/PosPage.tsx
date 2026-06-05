@@ -21,6 +21,7 @@ import {
   IconUser,
 } from '../components/Icons';
 import { ReceiptModal } from '../components/ReceiptModal';
+import { BarcodeScanner } from '../components/BarcodeScanner';
 import { QueueModal } from '../components/QueueModal';
 import { ShiftModal } from '../components/ShiftModal';
 import { ThemePicker } from '../components/ThemePicker';
@@ -302,6 +303,11 @@ export function PosPage() {
                   onChange={setSearch}
                 />
               </div>
+              <BarcodeScanner onDetected={(code) => {
+                const found = products.find((p) => (p.barcode && p.barcode === code) || p.code.toLowerCase() === code.toLowerCase());
+                if (found) addToCart(found);
+                else { setSearch(code); setEmitError(`Código não encontrado: ${code}`); setTimeout(() => setEmitError(null), 2500); }
+              }} />
             </div>
 
             {loading ? (
@@ -317,18 +323,27 @@ export function PosPage() {
               </div>
             ) : (
               <div className="grid">
-                {filtered.map((p) => (
-                  <button key={p.id} className="prod" onClick={() => addToCart(p)}>
-                    <div>
-                      <div className="pname">{p.name}</div>
-                      <div className="pcode">{p.code}</div>
-                    </div>
-                    <div className="pfoot">
-                      <span className="pprice">{formatKz(grossUnit(p))}</span>
-                      <span className="iva-badge">{p.iva_code}</span>
-                    </div>
-                  </button>
-                ))}
+                {filtered.map((p) => {
+                  const stock = Number(p.stock_qty);
+                  const out = stock <= 0;
+                  return (
+                    <button key={p.id} className={`prod${out ? ' out' : ''}`} onClick={() => addToCart(p)}>
+                      <div>
+                        <div className="pname">{p.name}</div>
+                        <div className="pcode">{p.code}</div>
+                      </div>
+                      <div className="pstock">
+                        {out
+                          ? <span className="stock-out">Esgotado</span>
+                          : <span className={`stock-ok${stock <= 5 ? ' low' : ''}`}>{formatNumber(stock)} em stock</span>}
+                      </div>
+                      <div className="pfoot">
+                        <span className="pprice">{formatKz(grossUnit(p))}</span>
+                        <span className="iva-badge">{p.iva_code}</span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </section>

@@ -39,6 +39,7 @@ export interface CatalogProduct {
   netPrice: number;
   grossPrice: number;
   inStock: boolean;
+  stockQty?: number;
   imageUrl: string | null;
   gallery: string[];
 }

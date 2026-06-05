@@ -129,6 +129,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .product .ds { color: var(--muted); font-size: 13px; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .product .ft { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
 .product .pr { font-weight: 800; font-size: 17px; }
+.product .stock-tag { font-size: 12px; font-weight: 700; color: var(--success, #16a34a); margin-top: 2px; }
+.product .stock-tag.low { color: #c77700; }
+.product .stock-tag.out { color: var(--danger); }
 .add-btn { width: 40px; height: 40px; border-radius: 11px; background: var(--accent); color: #fff; display: grid; place-items: center; }
 .add-btn:disabled { opacity: .4; }
 

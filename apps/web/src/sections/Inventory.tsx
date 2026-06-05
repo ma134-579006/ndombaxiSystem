@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { ExpiringBatch, ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
+import type { DashLowStock, ExpiringBatch, ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
 import { Modal } from '../components/ui';
 import { ProductPicker } from '../components/ProductPicker';
 import { IconCheck, IconCube, IconPlus, IconTruck, IconTrash, IconReceipt } from '../components/Icons';
@@ -18,18 +18,20 @@ export function Inventory() {
   const [entering, setEntering] = useState(false);
   const [writingOff, setWritingOff] = useState(false);
   const [batches, setBatches] = useState<ExpiringBatch[]>([]);
+  const [lowStock, setLowStock] = useState<DashLowStock[]>([]);
   const [woInit, setWoInit] = useState<{ productId: string; quantity?: number } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [c, w, p, b] = await Promise.all([
+      const [c, w, p, b, ls] = await Promise.all([
         api.inventory.listCounts(),
         api.inventory.warehouses(),
         api.products.list(),
         api.inventory.expiringBatches(60).catch(() => [] as ExpiringBatch[]),
+        api.dashboard.lowStock().catch(() => [] as DashLowStock[]),
       ]);
-      setCounts(c); setWarehouses(w); setProducts(p); setBatches(b); setError(null);
+      setCounts(c); setWarehouses(w); setProducts(p); setBatches(b); setLowStock(ls); setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar.');
     } finally { setLoading(false); }
@@ -77,6 +79,18 @@ export function Inventory() {
           Para dar entrada de stock precisa de uma <strong>loja</strong> e pelo menos um <strong>produto</strong>.
         </div>
       ) : null}
+      {lowStock.length > 0 ? (
+        <div className="banner warning" style={{ marginBottom: 12 }}>
+          ⚠️ <strong>{lowStock.length} produto(s)</strong> abaixo do stock mínimo:{' '}
+          {lowStock.slice(0, 6).map((l) => `${l.productName} (${l.quantity}/${l.minQty})`).join(', ')}
+          {lowStock.length > 6 ? '…' : ''}
+        </div>
+      ) : null}
+      {batches.filter((b) => b.days_left <= 60).length > 0 ? (
+        <div className="banner warning" style={{ marginBottom: 12 }}>
+          ⏰ <strong>{batches.filter((b) => b.days_left <= 60).length} lote(s)</strong> a expirar nos próximos 60 dias — ver secção “Lotes &amp; validade”.
+        </div>
+      ) : null}
 
       <div className="card">
         <h3>Contagens de inventário</h3>
@@ -103,7 +117,7 @@ export function Inventory() {
           <span className="muted" style={{ fontSize: 12 }}>a expirar (60 dias) / expirados</span>
         </div>
         {loading ? <div className="loading">A carregar…</div> : batches.length === 0 ? (
-          <div className="empty"><IconReceipt size={36} /><p>Sem lotes a expirar. Use “Registar lote” para controlar validades (FEFO).</p></div>
+          <div className="empty"><IconReceipt size={36} /><p>Sem lotes a expirar. Indique o lote e a validade na <strong>Entrada de stock</strong> para controlar validades (FEFO).</p></div>
         ) : batches.map((b) => {
           const expired = b.days_left <= 0;
           const prod = products.find((x) => x.name === b.product_name);
@@ -241,6 +255,7 @@ function StockEntryModal({
   const [salePrice, setSalePrice] = useState('');
   const [batchCode, setBatchCode] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
+  const [minQty, setMinQty] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -271,6 +286,7 @@ function StockEntryModal({
         salePrice: salePrice !== '' ? sp : undefined,
         batchCode: batchCode.trim() || undefined,
         expiryDate: expiryDate || undefined,
+        minQty: minQty !== '' ? Number(minQty) : undefined,
       });
       onSaved();
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao dar entrada.'); }
@@ -303,6 +319,8 @@ function StockEntryModal({
         <div className="field"><label>Validade (opcional)</label>
           <input type="date" value={expiryDate} min={todayISO()} onChange={(e) => setExpiryDate(e.target.value)} /></div>
       </div>
+      <div className="field"><label>Stock mínimo (alerta de reposição)</label>
+        <input inputMode="decimal" value={minQty} onChange={(e) => setMinQty(e.target.value)} placeholder="ex.: 5 — avisa quando o stock descer a este nível" /></div>
 
       {/* Cálculo automático */}
       <div className="kpi-grid" style={{ margin: '6px 0 8px', gridTemplateColumns: '1fr 1fr' }}>

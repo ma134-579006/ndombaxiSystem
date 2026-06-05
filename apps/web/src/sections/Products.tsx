@@ -4,6 +4,7 @@ import type { CreateProductInput, IvaCode, ManagerProduct, WarehouseRow } from '
 import { IVA_RATE } from '../api/types';
 import { IconCube, IconEdit, IconImage, IconPlus, IconSearch } from '../components/Icons';
 import { Modal, Switch } from '../components/ui';
+import { BarcodeScanner } from '../components/BarcodeScanner';
 import { formatKz } from '../format';
 
 const IVA_OPTIONS: IvaCode[] = ['NOR', 'RED', 'ISE', 'OUT'];
@@ -14,6 +15,7 @@ function grossUnit(p: ManagerProduct): number {
 
 interface FormState {
   code: string;
+  barcode: string;
   name: string;
   description: string;
   ivaCode: IvaCode;
@@ -30,6 +32,7 @@ interface FormState {
 
 const EMPTY: FormState = {
   code: '',
+  barcode: '',
   name: '',
   description: '',
   ivaCode: 'NOR',
@@ -83,6 +86,7 @@ export function Products() {
   const openEdit = (p: ManagerProduct) => {
     setForm({
       code: p.code,
+      barcode: p.barcode ?? '',
       name: p.name,
       description: p.description ?? '',
       ivaCode: p.iva_code,
@@ -149,6 +153,7 @@ export function Products() {
         }
         const payload: CreateProductInput = {
           code: form.code.trim(),
+          barcode: form.barcode.trim() || undefined,
           name: form.name.trim(),
           description: form.description.trim() || undefined,
           ivaCode: form.ivaCode,
@@ -256,6 +261,13 @@ export function Products() {
               <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="ex.: CAFE-250" />
             </div>
           ) : null}
+          <div className="field">
+            <label>Código de barras (opcional)</label>
+            <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
+              <input style={{ flex: 1 }} value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Escreva ou leia pela câmara" inputMode="numeric" />
+              <BarcodeScanner onDetected={(code) => setForm((f) => ({ ...f, barcode: code }))} />
+            </div>
+          </div>
           <div className="field">
             <label>Nome</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome do produto" />

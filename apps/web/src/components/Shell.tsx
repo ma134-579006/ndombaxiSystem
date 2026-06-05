@@ -18,6 +18,19 @@ export interface NavItem {
   key: string;
   label: string;
   icon: React.ComponentType<{ size?: number }>;
+  /** Sub-opções (menu agrupado). Se presente, o item abre/fecha um grupo. */
+  children?: NavItem[];
+}
+
+/** Seta de expansão dos grupos do menu. */
+function IconChevron({ open }: { open: boolean }) {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
+      strokeLinecap="round" strokeLinejoin="round"
+      style={{ marginLeft: 'auto', transition: 'transform .18s', transform: open ? 'rotate(90deg)' : 'none' }}>
+      <polyline points="9 6 15 12 9 18" />
+    </svg>
+  );
 }
 
 export function Shell({
@@ -36,11 +49,19 @@ export function Shell({
   children: React.ReactNode;
 }) {
   const { user, logout, companyCode } = useAuth();
-  const current = nav.find((n) => n.key === section);
+  // Procura o item activo, mesmo dentro de grupos.
+  const flat = nav.flatMap((n) => (n.children ? n.children : [n]));
+  const current = flat.find((n) => n.key === section);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Grupos abertos (abre automaticamente o que contém a secção activa).
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   // Fecha a gaveta ao mudar de secção (importante no telemóvel).
   useEffect(() => { setMenuOpen(false); }, [section]);
+  useEffect(() => {
+    const g = nav.find((n) => n.children?.some((c) => c.key === section));
+    if (g) setOpenGroups((prev) => (prev[g.key] ? prev : { ...prev, [g.key]: true }));
+  }, [section, nav]);
 
   return (
     <div className="admin">
@@ -56,6 +77,37 @@ export function Shell({
         <nav className="nav">
           {nav.map((n) => {
             const Icon = n.icon;
+            if (n.children && n.children.length) {
+              const open = !!openGroups[n.key];
+              const hasActive = n.children.some((c) => c.key === section);
+              return (
+                <div key={n.key} className="nav-group">
+                  <button
+                    className={`nav-group-head${hasActive ? ' has-active' : ''}`}
+                    onClick={() => setOpenGroups((p) => ({ ...p, [n.key]: !p[n.key] }))}
+                  >
+                    <Icon size={18} /> {n.label}
+                    <IconChevron open={open} />
+                  </button>
+                  {open ? (
+                    <div className="nav-sub">
+                      {n.children.map((c) => {
+                        const CIcon = c.icon;
+                        return (
+                          <button
+                            key={c.key}
+                            className={section === c.key ? 'active' : ''}
+                            onClick={() => setSection(c.key)}
+                          >
+                            <CIcon size={16} /> {c.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            }
             return (
               <button
                 key={n.key}

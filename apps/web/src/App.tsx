@@ -56,10 +56,14 @@ const TENANT_NAV: NavItem[] = [
   { key: 'assistant', label: 'Assistente IA', icon: IconCpu },
   { key: 'subscription', label: 'Subscrição & Plano', icon: IconCard },
   { key: 'stores', label: 'Lojas', icon: IconStore },
-  { key: 'products', label: 'Produtos', icon: IconCube },
-  { key: 'inventory', label: 'Entrada stock/Inventário', icon: IconCube },
-  { key: 'stock-movements', label: 'Movimentos de stock', icon: IconChart },
-  { key: 'stock-analysis', label: 'Análise de stock', icon: IconChart },
+  {
+    key: 'products-group', label: 'Produtos', icon: IconCube, children: [
+      { key: 'products', label: 'Criar produtos', icon: IconCube },
+      { key: 'inventory', label: 'Entrada stock/Inventário', icon: IconTruck },
+      { key: 'stock-analysis', label: 'Análise de stock', icon: IconChart },
+      { key: 'stock-movements', label: 'Movimentos de stock', icon: IconChart },
+    ],
+  },
   { key: 'purchasing', label: 'Compras', icon: IconTruck },
   { key: 'orders', label: 'Encomendas', icon: IconTruck },
   { key: 'promotions', label: 'Promoções', icon: IconStar },

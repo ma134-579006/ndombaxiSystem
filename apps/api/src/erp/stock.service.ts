@@ -110,6 +110,7 @@ export class StockService {
       salePrice?: number | null;
       batchCode?: string | null;
       expiryDate?: string | null;
+      minQty?: number | null;
       createdBy?: string | null;
     },
   ): Promise<{ balanceAfter: number }> {
@@ -137,6 +138,13 @@ export class StockService {
                        updated_at = now()
                    WHERE id = ${input.productId}::uuid`,
       );
+      // Stock mínimo (opcional) — alerta de reposição por loja.
+      if (input.minQty != null && input.minQty >= 0) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE stock_items SET min_qty = ${input.minQty}, updated_at = now()
+                     WHERE product_id = ${input.productId}::uuid AND warehouse_id = ${storeId}::uuid`,
+        );
+      }
       // Lote/validade (opcional) — registado na mesma entrada (sem 2º movimento).
       if (input.batchCode || input.expiryDate) {
         await tx.$executeRaw(

@@ -51,4 +51,10 @@ export class StockEntryDto {
   @IsOptional()
   @IsString()
   expiryDate?: string;
+
+  /** Stock mínimo (alerta de reposição) para esta loja. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  minQty?: number;
 }

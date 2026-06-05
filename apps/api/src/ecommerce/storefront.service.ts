@@ -33,6 +33,7 @@ export interface CatalogProduct {
   netPrice: number;
   grossPrice: number;
   inStock: boolean;
+  stockQty: number;
   imageUrl: string | null;
   gallery: string[];
 }
@@ -63,6 +64,7 @@ export class StorefrontService {
         netPrice,
         grossPrice: round2(netPrice * (1 + rate / 100)),
         inStock: Number(r.stock_qty) > 0,
+        stockQty: Math.max(0, Math.floor(Number(r.stock_qty))),
         imageUrl: r.image_url,
         gallery: Array.isArray(r.gallery) ? (r.gallery as string[]) : [],
       };

@@ -159,6 +159,7 @@ export interface ManagerProduct {
 }
 export interface CreateProductInput {
   code: string;
+  barcode?: string;
   name: string;
   description?: string;
   ivaCode: IvaCode;
@@ -374,7 +375,7 @@ export interface StockMovementRow {
 }
 export interface StockEntryInput {
   productId: string; warehouseId: string; quantity: number; unitCost: number; salePrice?: number;
-  batchCode?: string; expiryDate?: string;
+  batchCode?: string; expiryDate?: string; minQty?: number;
 }
 export interface BatchInput {
   productId: string; warehouseId: string; batchCode?: string; quantity: number; expiryDate?: string;

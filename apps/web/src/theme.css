@@ -138,6 +138,13 @@ input, textarea, select { font-family: inherit; }
 .nav button { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 11px; color: var(--muted); font-size: 14px; font-weight: 600; text-align: left; transition: background .15s, color .15s; }
 .nav button:hover { background: var(--surface); color: var(--text); }
 .nav button.active { background: var(--grad-primary); color: #fff; box-shadow: 0 10px 22px -12px var(--primary); }
+/* Grupos de navegação (sub-opções) */
+.nav-group { display: flex; flex-direction: column; }
+.nav-group-head { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 11px; color: var(--muted); font-size: 14px; font-weight: 600; text-align: left; width: 100%; transition: background .15s, color .15s; }
+.nav-group-head:hover { background: var(--surface); color: var(--text); }
+.nav-group-head.has-active { color: var(--text); }
+.nav-sub { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 4px 12px; padding-left: 10px; border-left: 2px solid var(--border-soft); }
+.nav-sub button { font-size: 13px; padding: 9px 11px; }
 .sidebar .sig { padding: 14px 16px; border-top: 1px solid var(--border-soft); font-size: 11px; color: var(--muted); line-height: 1.5; }
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }

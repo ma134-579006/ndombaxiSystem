@@ -242,6 +242,11 @@ export function Storefront() {
                       <span className="badge out">Esgotado</span>
                     )}
                   </div>
+                  {p.inStock
+                    ? (typeof p.stockQty === 'number'
+                        ? <div className={`stock-tag${p.stockQty <= 5 ? ' low' : ''}`}>{p.stockQty} em stock</div>
+                        : null)
+                    : <div className="stock-tag out">Esgotado</div>}
                 </div>
               </div>
             ))}

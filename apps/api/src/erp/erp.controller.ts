@@ -118,6 +118,7 @@ export class ErpController {
       salePrice: dto.salePrice ?? null,
       batchCode: dto.batchCode ?? null,
       expiryDate: dto.expiryDate ?? null,
+      minQty: dto.minQty ?? null,
       createdBy: user.sub,
     });
   }
