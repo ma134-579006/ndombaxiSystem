@@ -1,6 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { computeInvoice, InvoiceLineInput, IvaCode } from '@nexus/agt-xml';
+import { computeInvoice, InvoiceLineInput, IvaCode, requiresExemptionReason } from '@nexus/agt-xml';
+
+/** Motivo de isenção por omissão p/ IVA que o exige (igual ao do POS/loja). */
+const DEFAULT_EXEMPTION_REASON: Partial<Record<IvaCode, string>> = {
+  [IvaCode.ISE]: 'Isento de IVA',
+  [IvaCode.OUT]: 'Não sujeito a IVA',
+};
 import { allocateDocumentNumber, formatCounterNumber } from '../common/document-counter';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from './stock.service';
@@ -20,6 +26,7 @@ interface ProductRow {
   code: string;
   name: string;
   iva_code: IvaCode;
+  exemption_reason: string | null;
 }
 
 @Injectable()
@@ -34,7 +41,7 @@ export class PurchasingService {
     return this.prisma.runInTenant(schema, async (tx) => {
       const codes = input.lines.map((l) => l.productCode);
       const products = await tx.$queryRaw<ProductRow[]>(
-        Prisma.sql`SELECT id, code, name, iva_code FROM products
+        Prisma.sql`SELECT id, code, name, iva_code, exemption_reason FROM products
                    WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE`,
       );
       const byCode = new Map(products.map((p) => [p.code, p]));
@@ -42,12 +49,16 @@ export class PurchasingService {
       const lineInputs: InvoiceLineInput[] = input.lines.map((l) => {
         const p = byCode.get(l.productCode);
         if (!p) throw new BadRequestException(`Produto não encontrado: ${l.productCode}`);
+        const exemptionReason = requiresExemptionReason(p.iva_code)
+          ? (p.exemption_reason?.trim() || DEFAULT_EXEMPTION_REASON[p.iva_code] || 'Isento')
+          : undefined;
         return {
           productCode: l.productCode,
           description: p.name,
           quantity: l.quantity,
           unitPrice: l.unitCost,
           ivaCode: p.iva_code,
+          exemptionReason,
         };
       });
       const { lines, totals } = computeInvoice(lineInputs);

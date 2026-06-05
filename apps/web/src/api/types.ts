@@ -147,6 +147,8 @@ export interface ManagerProduct {
   description: string | null;
   category_id: string | null;
   iva_code: IvaCode;
+  exemption_reason: string | null;
+  exemption_code: string | null;
   unit_price: string;
   cost_price: string;
   stock_qty: string;
@@ -160,6 +162,8 @@ export interface CreateProductInput {
   name: string;
   description?: string;
   ivaCode: IvaCode;
+  exemptionReason?: string;
+  exemptionCode?: string;
   unitPrice: number;
   costPrice?: number;
   stockQty?: number;
@@ -170,6 +174,8 @@ export interface UpdateProductInput {
   name?: string;
   description?: string;
   ivaCode?: IvaCode;
+  exemptionReason?: string;
+  exemptionCode?: string;
   unitPrice?: number;
   costPrice?: number;
   stockQty?: number;

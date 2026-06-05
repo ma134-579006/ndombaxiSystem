@@ -17,6 +17,7 @@ interface FormState {
   name: string;
   description: string;
   ivaCode: IvaCode;
+  exemptionReason: string;
   unitPrice: string;
   costPrice: string;
   stockQty: string;
@@ -30,6 +31,7 @@ const EMPTY: FormState = {
   name: '',
   description: '',
   ivaCode: 'NOR',
+  exemptionReason: '',
   unitPrice: '',
   costPrice: '',
   stockQty: '0',
@@ -78,6 +80,7 @@ export function Products() {
       name: p.name,
       description: p.description ?? '',
       ivaCode: p.iva_code,
+      exemptionReason: p.exemption_reason ?? '',
       unitPrice: p.unit_price,
       costPrice: p.cost_price ?? '',
       stockQty: p.stock_qty,
@@ -123,6 +126,7 @@ export function Products() {
           name: form.name.trim(),
           description: form.description.trim() || undefined,
           ivaCode: form.ivaCode,
+          exemptionReason: form.exemptionReason.trim(),
           unitPrice: price,
           costPrice: Number(form.costPrice) || 0,
           stockQty: Number(form.stockQty) || 0,
@@ -141,6 +145,7 @@ export function Products() {
           name: form.name.trim(),
           description: form.description.trim() || undefined,
           ivaCode: form.ivaCode,
+          exemptionReason: form.exemptionReason.trim(),
           unitPrice: price,
           costPrice: Number(form.costPrice) || 0,
           stockQty: Number(form.stockQty) || 0,
@@ -269,6 +274,19 @@ export function Products() {
               ))}
             </select>
           </div>
+          {form.ivaCode === 'ISE' || form.ivaCode === 'OUT' ? (
+            <div className="field">
+              <label>Motivo de isenção (obrigatório na factura)</label>
+              <input
+                value={form.exemptionReason}
+                onChange={(e) => setForm({ ...form, exemptionReason: e.target.value })}
+                placeholder={form.ivaCode === 'ISE' ? 'ex.: Isento Artigo 12.º do CIVA' : 'ex.: Não sujeito a IVA'}
+              />
+              <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+                Aparece no recibo. Se deixares vazio, usa-se um motivo padrão.
+              </p>
+            </div>
+          ) : null}
           <div className="field">
             <label>Stock</label>
             <input value={form.stockQty} onChange={(e) => setForm({ ...form, stockQty: e.target.value })} inputMode="numeric" placeholder="0" />

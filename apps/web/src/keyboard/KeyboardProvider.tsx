@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { VirtualKeyboard, type KeyboardLayout } from './VirtualKeyboard';
 
 export interface ActiveField {
@@ -61,6 +61,14 @@ export function KeyboardProvider({ children }: { children: React.ReactNode }) {
     cancelTimer();
     closeTimer.current = window.setTimeout(() => setActive(null), 160);
   }, []);
+
+  // Marca o <html> quando o teclado virtual está aberto, para o CSS dar
+  // espaço por baixo (o teclado é um overlay fixo que tapava o botão).
+  useEffect(() => {
+    const open = enabled && !!active;
+    document.documentElement.classList.toggle('kbd-open', open);
+    return () => document.documentElement.classList.remove('kbd-open');
+  }, [enabled, active]);
 
   const value = useMemo<KeyboardContextValue>(
     () => ({

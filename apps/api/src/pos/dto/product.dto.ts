@@ -35,6 +35,18 @@ export class CreateProductDto {
   @IsEnum(IvaCode)
   ivaCode!: IvaCode;
 
+  /** Motivo de isenção (obrigatório por lei p/ IVA ISE/OUT). */
+  @IsOptional()
+  @IsString()
+  @Length(0, 200)
+  exemptionReason?: string;
+
+  /** Código AGT do motivo de isenção (opcional). */
+  @IsOptional()
+  @IsString()
+  @Length(0, 20)
+  exemptionCode?: string;
+
   /** Preço unitário NET (sem IVA), em AOA. */
   @IsNumber()
   @Min(0)
@@ -81,6 +93,16 @@ export class UpdateProductDto {
   @IsOptional()
   @IsEnum(IvaCode)
   ivaCode?: IvaCode;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 200)
+  exemptionReason?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 20)
+  exemptionCode?: string;
 
   @IsOptional()
   @IsNumber()

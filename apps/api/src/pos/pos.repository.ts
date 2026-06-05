@@ -11,6 +11,8 @@ export interface ProductRow {
   description: string | null;
   category_id: string | null;
   iva_code: IvaCode;
+  exemption_reason: string | null;
+  exemption_code: string | null;
   unit_price: string; // NUMERIC comes back as string
   cost_price: string;
   stock_qty: string;
@@ -44,6 +46,8 @@ export class PosRepository {
       description?: string | null;
       categoryId?: string | null;
       ivaCode: IvaCode;
+      exemptionReason?: string | null;
+      exemptionCode?: string | null;
       unitPrice: number;
       costPrice?: number;
       stockQty?: number;
@@ -55,11 +59,12 @@ export class PosRepository {
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<ProductRow[]>(
         Prisma.sql`INSERT INTO products
-            (code, barcode, name, description, category_id, iva_code, unit_price, cost_price, stock_qty,
-             image_url, gallery, show_online)
+            (code, barcode, name, description, category_id, iva_code, exemption_reason, exemption_code,
+             unit_price, cost_price, stock_qty, image_url, gallery, show_online)
           VALUES (${input.code}, ${input.barcode ?? null}, ${input.name},
                   ${input.description ?? null}, ${input.categoryId ?? null}::uuid,
-                  ${input.ivaCode}, ${input.unitPrice}, ${input.costPrice ?? 0}, ${input.stockQty ?? 0},
+                  ${input.ivaCode}, ${input.exemptionReason ?? null}, ${input.exemptionCode ?? null},
+                  ${input.unitPrice}, ${input.costPrice ?? 0}, ${input.stockQty ?? 0},
                   ${input.imageUrl ?? null}, ${JSON.stringify(input.gallery ?? [])}::jsonb,
                   ${input.showOnline ?? true})
           RETURNING *`,
@@ -93,6 +98,8 @@ export class PosRepository {
       name?: string;
       description?: string | null;
       ivaCode?: IvaCode;
+      exemptionReason?: string | null;
+      exemptionCode?: string | null;
       unitPrice?: number;
       costPrice?: number;
       stockQty?: number;
@@ -106,6 +113,8 @@ export class PosRepository {
     if (input.name !== undefined) sets.push(Prisma.sql`name = ${input.name}`);
     if (input.description !== undefined) sets.push(Prisma.sql`description = ${input.description}`);
     if (input.ivaCode !== undefined) sets.push(Prisma.sql`iva_code = ${input.ivaCode}`);
+    if (input.exemptionReason !== undefined) sets.push(Prisma.sql`exemption_reason = ${input.exemptionReason || null}`);
+    if (input.exemptionCode !== undefined) sets.push(Prisma.sql`exemption_code = ${input.exemptionCode || null}`);
     if (input.unitPrice !== undefined) sets.push(Prisma.sql`unit_price = ${input.unitPrice}`);
     if (input.costPrice !== undefined) sets.push(Prisma.sql`cost_price = ${input.costPrice}`);
     if (input.stockQty !== undefined) sets.push(Prisma.sql`stock_qty = ${input.stockQty}`);

@@ -158,6 +158,15 @@ input { font-family: inherit; }
 .toggle-row .meta .ttl { font-size: 14px; font-weight: 600; }
 .toggle-row .meta .hint { font-size: 12px; color: var(--muted); }
 
+/* Teclado virtual aberto: alinha o login ao topo e esconde o acessório
+   (logo, rodapé, toggle) enquanto se escreve — campos + botão cabem acima
+   do teclado sem rolar. O margin é só rede de segurança. */
+html.kbd-open .login-screen { justify-content: flex-start; }
+html.kbd-open .login-card { margin-bottom: 300px; }
+html.kbd-open .login-card .brand,
+html.kbd-open .login-card .toggle-row,
+html.kbd-open .login-card .footer-credit { display: none; }
+
 /* Campos/botão/rodapé do login encolhem com a altura (scoped .login-card). */
 .login-card .field { gap: clamp(3px, 0.6vh, 6px); }
 .login-card .field > label { font-size: clamp(11px, 1.5vh, 13px); }

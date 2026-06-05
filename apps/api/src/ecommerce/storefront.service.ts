@@ -1,9 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { computeInvoice, InvoiceLineInput, IvaCode, resolveRate, round2 } from '@nexus/agt-xml';
+import { computeInvoice, InvoiceLineInput, IvaCode, requiresExemptionReason, resolveRate, round2 } from '@nexus/agt-xml';
 import { allocateDocumentNumber, formatCounterNumber } from '../common/document-counter';
 import { PrismaService } from '../prisma/prisma.service';
 import { CheckoutDto } from './dto/checkout.dto';
+
+/** Motivo de isenção por omissão p/ IVA que o exige (igual ao do POS). */
+const DEFAULT_EXEMPTION_REASON: Partial<Record<IvaCode, string>> = {
+  [IvaCode.ISE]: 'Isento de IVA',
+  [IvaCode.OUT]: 'Não sujeito a IVA',
+};
 
 interface CatalogRow {
   id: string;
@@ -11,6 +17,8 @@ interface CatalogRow {
   name: string;
   description: string | null;
   iva_code: IvaCode;
+  exemption_reason: string | null;
+  exemption_code: string | null;
   unit_price: string;
   stock_qty: string;
   image_url: string | null;
@@ -66,7 +74,7 @@ export class StorefrontService {
     return this.prisma.runInTenant(schema, async (tx) => {
       const codes = dto.lines.map((l) => l.productCode);
       const products = await tx.$queryRaw<CatalogRow[]>(
-        Prisma.sql`SELECT id, code, name, description, iva_code, unit_price, stock_qty
+        Prisma.sql`SELECT id, code, name, description, iva_code, exemption_reason, exemption_code, unit_price, stock_qty
                    FROM products WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE`,
       );
       const byCode = new Map(products.map((p) => [p.code, p]));
@@ -74,12 +82,18 @@ export class StorefrontService {
       const lineInputs: InvoiceLineInput[] = dto.lines.map((l) => {
         const p = byCode.get(l.productCode);
         if (!p) throw new BadRequestException(`Produto indisponível: ${l.productCode}`);
+        // IVA isento/não-sujeito exige motivo (senão computeInvoice rebenta).
+        const exemptionReason = requiresExemptionReason(p.iva_code)
+          ? (p.exemption_reason?.trim() || DEFAULT_EXEMPTION_REASON[p.iva_code] || 'Isento')
+          : undefined;
         return {
           productCode: l.productCode,
           description: p.name,
           quantity: l.quantity,
           unitPrice: Number(p.unit_price),
           ivaCode: p.iva_code,
+          exemptionReason,
+          exemptionCode: p.exemption_code ?? undefined,
         };
       });
       const { lines, totals } = computeInvoice(lineInputs);
