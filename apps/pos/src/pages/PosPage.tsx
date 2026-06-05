@@ -22,6 +22,7 @@ import {
 } from '../components/Icons';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { BarcodeScanner } from '../components/BarcodeScanner';
+import { SalesHistoryModal } from '../components/SalesHistoryModal';
 import { QueueModal } from '../components/QueueModal';
 import { ShiftModal } from '../components/ShiftModal';
 import { ThemePicker } from '../components/ThemePicker';
@@ -69,6 +70,7 @@ export function PosPage() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [showCustomer, setShowCustomer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
+  const [showSales, setShowSales] = useState(false);
 
   // Turno de caixa
   const [session, setSession] = useState<CashSession | null>(null);
@@ -259,6 +261,10 @@ export function PosPage() {
           >
             <IconReceipt size={18} />
             <span className="conn-label">{session ? 'Turno aberto' : 'Abrir turno'}</span>
+          </button>
+          <button className="conn" onClick={() => setShowSales(true)} title="Histórico de vendas / cancelar">
+            <IconCart size={18} />
+            <span className="conn-label">Vendas</span>
           </button>
           <button
             className={`conn ${sync.online ? 'on' : 'off'}`}
@@ -491,6 +497,13 @@ export function PosPage() {
       ) : null}
 
       {showQueue ? <QueueModal onClose={() => setShowQueue(false)} /> : null}
+
+      {showSales ? (
+        <SalesHistoryModal
+          onClose={() => setShowSales(false)}
+          onChanged={() => { api.listProducts().then(setProducts).catch(() => undefined); }}
+        />
+      ) : null}
 
       {showShift ? (
         <ShiftModal

@@ -55,6 +55,18 @@ export interface EmitInvoiceLine {
   discountRate?: number;
 }
 
+export interface SaleRow {
+  id: string;
+  number: string;
+  doc_type: string;
+  system_entry_date: string;
+  gross_total: string;
+  status: string; // N=normal, A=anulada
+  cashier_name: string | null;
+  customer_name: string | null;
+  items: string;
+}
+
 export type PaymentType = 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS' | 'CREDIT';
 
 export interface EmitInvoiceInput {

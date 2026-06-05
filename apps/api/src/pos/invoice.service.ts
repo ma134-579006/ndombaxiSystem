@@ -338,6 +338,36 @@ export class InvoiceService {
   }
 
   /**
+   * Lista as vendas (facturas FT/FS) num período, com os produtos vendidos,
+   * operador, total e estado. Usado pelo histórico de vendas da caixa, com
+   * possibilidade de filtrar por datas e cancelar.
+   */
+  async listSales(
+    schema: string,
+    filters: { from?: string; to?: string } = {},
+  ): Promise<Array<Record<string, unknown>>> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const conds: Prisma.Sql[] = [Prisma.sql`i.doc_type IN ('FT','FS')`];
+      if (filters.from && /^\d{4}-\d{2}-\d{2}$/.test(filters.from)) conds.push(Prisma.sql`i.system_entry_date >= ${filters.from}::date`);
+      if (filters.to && /^\d{4}-\d{2}-\d{2}$/.test(filters.to)) conds.push(Prisma.sql`i.system_entry_date < (${filters.to}::date + 1)`);
+      const where = Prisma.sql`WHERE ${Prisma.join(conds, ' AND ')}`;
+      return tx.$queryRaw<Array<Record<string, unknown>>>(
+        Prisma.sql`
+          SELECT i.id, i.number, i.doc_type, i.system_entry_date, i.gross_total, i.status,
+                 u.name AS cashier_name, c.name AS customer_name,
+                 COALESCE((SELECT string_agg(ii.description || ' x' || ii.quantity, ', ')
+                           FROM invoice_items ii WHERE ii.invoice_id = i.id), '') AS items
+          FROM invoices i
+          LEFT JOIN users u ON u.id = i.cashier_id
+          LEFT JOIN customers c ON c.id = i.customer_id
+          ${where}
+          ORDER BY i.system_entry_date DESC
+          LIMIT 500`,
+      );
+    });
+  }
+
+  /**
    * Cancela uma venda emitindo uma NOTA DE CRÉDITO (NC) que a estorna: devolve
    * o stock, regista o estorno no caixa e na auditoria. A factura original NÃO
    * é apagada (princípio fiscal AGT — nada se apaga, tudo se estorna).

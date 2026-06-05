@@ -280,6 +280,19 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .scan-box video { width: 100%; border-radius: 12px; background: #000; aspect-ratio: 4/3; object-fit: cover; }
 .scan-hint { color: var(--muted); font-size: 13px; text-align: center; }
 
+/* Histórico de vendas (modal) */
+.sales-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: min(960px, 96vw); max-height: 90vh; display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.sm-head { display: flex; align-items: center; gap: 10px; }
+.sm-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sm-filters label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.sm-filters input[type=date] { background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 7px 9px; color: var(--text); }
+.sm-list { overflow: auto; flex: 1; }
+.sales-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sales-table th, .sales-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.sales-table tr.cancelled { opacity: .55; text-decoration: line-through; }
+.pill { font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); }
+.pill.on { color: var(--success); } .pill.off { color: var(--danger); }
+
 /* Carrinho */
 .cart { border-left: 1px solid var(--border); background: var(--bg-2); display: flex; flex-direction: column; min-height: 0; }
 .cart h2 { margin: 0; padding: 16px 18px; font-size: 18px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:10px;}

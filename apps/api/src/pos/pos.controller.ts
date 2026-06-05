@@ -90,13 +90,20 @@ export class PosController {
     });
   }
 
+  @Get('invoices')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Histórico de vendas (FT/FS) com filtro por datas' })
+  listSales(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.invoices.listSales(this.ctx.requireTenantSchema(), { from, to });
+  }
+
   @Post('invoices/:id/cancel')
   @Roles(Role.SHIFT_SUPERVISOR)
   @ApiOperation({ summary: 'Anula uma venda (emite nota de crédito, devolve stock, audita)' })
   cancelInvoice(@Param('id') id: string, @Body() dto: CancelInvoiceDto, @CurrentUser() user: JwtPayload) {
     return this.invoices.cancelInvoice(this.ctx.requireTenantSchema(), id, dto.reason, {
       id: user.sub,
-      name: user.email,
+      name: user.name ?? user.email,
     });
   }
 
@@ -106,7 +113,7 @@ export class PosController {
   returnItems(@Param('id') id: string, @Body() dto: ReturnItemsDto, @CurrentUser() user: JwtPayload) {
     return this.invoices.returnItems(this.ctx.requireTenantSchema(), id, dto.items, dto.reason, {
       id: user.sub,
-      name: user.email,
+      name: user.name ?? user.email,
     });
   }
 

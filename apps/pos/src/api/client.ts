@@ -10,6 +10,7 @@ import type {
   Product,
   ReceiptFiscalInfo,
   ReportX,
+  SaleRow,
   ShiftClose,
   TenantLoginInput,
   TokenPair,
@@ -124,6 +125,13 @@ export const api = {
     request<EmittedInvoice>('POST', '/pos/invoices', input),
   cancelInvoice: (id: string, reason: string) =>
     request<{ creditNoteNumber: string; grossTotal: number }>('POST', `/pos/invoices/${id}/cancel`, { reason }),
+  listSales: (from?: string, to?: string) => {
+    const p = new URLSearchParams();
+    if (from) p.set('from', from);
+    if (to) p.set('to', to);
+    const qs = p.toString();
+    return request<SaleRow[]>('GET', `/pos/invoices${qs ? '?' + qs : ''}`);
+  },
   receiptInfo: () => request<ReceiptFiscalInfo>('GET', '/fiscal/receipt-info'),
   documentIdentity: () => request<DocumentIdentity>('GET', '/fiscal/document-identity'),
 
