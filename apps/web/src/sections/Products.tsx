@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { CreateProductInput, IvaCode, ManagerProduct } from '../api/types';
+import type { CreateProductInput, IvaCode, ManagerProduct, WarehouseRow } from '../api/types';
 import { IVA_RATE } from '../api/types';
 import { IconCube, IconEdit, IconImage, IconPlus, IconSearch } from '../components/Icons';
 import { Modal, Switch } from '../components/ui';
@@ -21,6 +21,8 @@ interface FormState {
   unitPrice: string;
   costPrice: string;
   stockQty: string;
+  storeIds: string[];
+  allStores: boolean;
   imageUrl: string;
   showOnline: boolean;
   isActive: boolean;
@@ -35,6 +37,8 @@ const EMPTY: FormState = {
   unitPrice: '',
   costPrice: '',
   stockQty: '0',
+  storeIds: [],
+  allStores: true,
   imageUrl: '',
   showOnline: true,
   isActive: true,
@@ -42,6 +46,7 @@ const EMPTY: FormState = {
 
 export function Products() {
   const [products, setProducts] = useState<ManagerProduct[]>([]);
+  const [stores, setStores] = useState<WarehouseRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +71,7 @@ export function Products() {
 
   useEffect(() => {
     void load();
+    api.inventory.warehouses().then(setStores).catch(() => undefined);
   }, [load]);
 
   const openCreate = () => {
@@ -84,6 +90,8 @@ export function Products() {
       unitPrice: p.unit_price,
       costPrice: p.cost_price ?? '',
       stockQty: p.stock_qty,
+      storeIds: [],
+      allStores: true,
       imageUrl: p.image_url ?? '',
       showOnline: p.show_online,
       isActive: p.is_active,
@@ -148,6 +156,7 @@ export function Products() {
           unitPrice: price,
           costPrice: Number(form.costPrice) || 0,
           stockQty: Number(form.stockQty) || 0,
+          storeIds: form.allStores ? undefined : form.storeIds,
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
         };
@@ -291,7 +300,7 @@ export function Products() {
               <label>Stock atual</label>
               <input value={form.stockQty} readOnly disabled />
               <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-                Gerido em <strong>Inventário</strong> (entradas/acertos) — assim o stock por armazém fica sincronizado.
+                Gerido em <strong>Entrada stock/Inventário</strong> (entradas/acertos) — o stock é por loja.
               </p>
             </div>
           ) : (
@@ -300,6 +309,35 @@ export function Products() {
               <input value={form.stockQty} onChange={(e) => setForm({ ...form, stockQty: e.target.value })} inputMode="numeric" placeholder="0" />
             </div>
           )}
+
+          {!editing && stores.length > 1 ? (
+            <div className="field">
+              <div className="switch-row" style={{ padding: 0 }}>
+                <span>Disponível em todas as lojas</span>
+                <Switch checked={form.allStores} onChange={(v) => setForm({ ...form, allStores: v })} />
+              </div>
+              {!form.allStores ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                  {stores.map((s) => {
+                    const on = form.storeIds.includes(s.id);
+                    return (
+                      <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={(e) => setForm({
+                            ...form,
+                            storeIds: e.target.checked ? [...form.storeIds, s.id] : form.storeIds.filter((x) => x !== s.id),
+                          })}
+                        />
+                        {s.name}{s.is_default ? ' (principal)' : ''}
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="switch-row">
             <span>Mostrar na loja online</span>

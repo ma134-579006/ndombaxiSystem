@@ -63,6 +63,12 @@ export class CreateProductDto {
   @Min(0)
   stockQty?: number;
 
+  /** Lojas onde o produto existe (vazio = todas as lojas). */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  storeIds?: string[];
+
   /** Imagem principal mostrada na loja online (URL ou data-URI base64). */
   @IsOptional()
   @IsString()

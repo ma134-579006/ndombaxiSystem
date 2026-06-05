@@ -77,7 +77,7 @@ export function Inventory() {
       {error ? <div className="banner danger">{error}</div> : null}
       {(warehouses.length === 0 || products.length === 0) && !loading ? (
         <div className="banner" style={{ marginBottom: 12 }}>
-          Para dar entrada de stock precisa de um <strong>armazém</strong> e pelo menos um <strong>produto</strong>.
+          Para dar entrada de stock precisa de uma <strong>loja</strong> e pelo menos um <strong>produto</strong>.
         </div>
       ) : null}
 
@@ -131,7 +131,7 @@ export function Inventory() {
 
       {creating ? (
         <Modal title="Nova contagem de inventário" onClose={() => setCreating(false)}>
-          <p className="muted" style={{ marginTop: 0 }}>Escolha o armazém a inventariar:</p>
+          <p className="muted" style={{ marginTop: 0 }}>Escolha a loja a inventariar:</p>
           {warehouses.map((w) => (
             <button key={w.id} className="btn ghost block" style={{ marginBottom: 8 }} onClick={() => create(w.id)}>
               {w.name} {w.is_default ? '(principal)' : ''}
@@ -193,7 +193,7 @@ function WriteOffModal({
   const submit = async () => {
     setErr(null);
     const q = Number(qty);
-    if (!productId || !warehouseId) { setErr('Escolha o produto e o armazém.'); return; }
+    if (!productId || !warehouseId) { setErr('Escolha o produto e a loja.'); return; }
     if (!(q > 0)) { setErr('Indique a quantidade a dar baixa.'); return; }
     setBusy(true);
     try {
@@ -214,7 +214,7 @@ function WriteOffModal({
           <select value={productId} onChange={(e) => setProductId(e.target.value)}>
             {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
           </select></div>
-        <div className="field"><label>Armazém</label>
+        <div className="field"><label>Loja</label>
           <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
           </select></div>
@@ -258,7 +258,7 @@ function BatchModal({
   const submit = async () => {
     setErr(null);
     const q = Number(qty);
-    if (!productId || !warehouseId) { setErr('Escolha o produto e o armazém.'); return; }
+    if (!productId || !warehouseId) { setErr('Escolha o produto e a loja.'); return; }
     if (!(q > 0)) { setErr('Indique a quantidade do lote.'); return; }
     setBusy(true);
     try {
@@ -283,7 +283,7 @@ function BatchModal({
           <select value={productId} onChange={(e) => setProductId(e.target.value)}>
             {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
           </select></div>
-        <div className="field"><label>Armazém</label>
+        <div className="field"><label>Loja</label>
           <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
           </select></div>
@@ -336,7 +336,7 @@ function StockEntryModal({
 
   const submit = async () => {
     setErr(null);
-    if (!productId || !warehouseId) { setErr('Escolha o produto e o armazém.'); return; }
+    if (!productId || !warehouseId) { setErr('Escolha o produto e a loja.'); return; }
     if (!(q > 0)) { setErr('Indique a quantidade.'); return; }
     if (!(tc >= 0) || totalCost === '') { setErr('Indique o custo total.'); return; }
     setBusy(true);
@@ -359,7 +359,7 @@ function StockEntryModal({
           <select value={productId} onChange={(e) => { setProductId(e.target.value); setSalePrice(''); }}>
             {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
           </select></div>
-        <div className="field"><label>Armazém</label>
+        <div className="field"><label>Loja</label>
           <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
           </select></div>

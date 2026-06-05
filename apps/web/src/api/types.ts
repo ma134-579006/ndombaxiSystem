@@ -167,6 +167,7 @@ export interface CreateProductInput {
   unitPrice: number;
   costPrice?: number;
   stockQty?: number;
+  storeIds?: string[];
   imageUrl?: string;
   showOnline?: boolean;
 }

@@ -52,7 +52,7 @@ export function StockMovements() {
         <div className="grid-2">
           <div className="field"><label>Produto (nome ou código)</label>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar produto…" onKeyDown={(e) => { if (e.key === 'Enter') void search(); }} /></div>
-          <div className="field"><label>Armazém / Loja</label>
+          <div className="field"><label>Loja</label>
             <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
               <option value="">Todos</option>
               {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -74,7 +74,7 @@ export function StockMovements() {
           : rows.length === 0 ? <div className="empty"><p>Sem movimentos no período/filtro.</p></div>
           : (
             <table className="ptable stack">
-              <thead><tr><th>Data</th><th>Produto</th><th>Operação</th><th>Qtd</th><th>Saldo</th><th>Armazém</th><th>Observação</th></tr></thead>
+              <thead><tr><th>Data</th><th>Produto</th><th>Operação</th><th>Qtd</th><th>Saldo</th><th>Loja</th><th>Observação</th></tr></thead>
               <tbody>
                 {rows.map((m, i) => (
                   <tr key={i}>
@@ -83,7 +83,7 @@ export function StockMovements() {
                     <td data-label="Operação"><span className={`pill ${TYPE_TONE[m.type] ?? ''}`}>{TYPE_LABEL[m.type] ?? m.type}</span></td>
                     <td data-label="Qtd">{Number(m.quantity) > 0 ? '+' : ''}{Number(m.quantity)}</td>
                     <td data-label="Saldo">{Number(m.balance_after)}</td>
-                    <td data-label="Armazém">{m.warehouse_name ?? '—'}</td>
+                    <td data-label="Loja">{m.warehouse_name ?? '—'}</td>
                     <td data-label="Observação">{m.reference ?? '—'}</td>
                   </tr>
                 ))}
