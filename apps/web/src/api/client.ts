@@ -180,12 +180,37 @@ async function request<T>(
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/** Como request, mas devolve o corpo em texto cru (ex.: XML do SAF-T). */
+async function requestText(path: string, retry = true): Promise<string> {
+  const headers: Record<string, string> = {};
+  const token = hooks?.getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const code = hooks?.getCompanyCode?.();
+  if (code) headers['X-Tenant-Code'] = code;
+  let res: Response;
+  try { res = await fetch(`${API_URL}${path}`, { headers }); }
+  catch { throw new ApiError(0, 'Sem ligação ao servidor.'); }
+  if (res.status === 401 && retry && hooks) {
+    const ok = await hooks.refresh();
+    if (ok) return requestText(path, false);
+    hooks.onAuthLost();
+    throw await parseError(res);
+  }
+  if (!res.ok) throw await parseError(res);
+  return res.text();
+}
+
 export const api = {
   login: (input: PlatformLoginInput) =>
     request<TokenPair>('POST', '/auth/super-admin/login', input, { auth: false }),
   /** Login do gestor da empresa (tenant). */
   loginTenant: (input: TenantLoginInput) =>
     request<TokenPair>('POST', '/auth/login', input, { auth: false }),
+
+  // ── SAF-T (AGT): exporta o XML fiscal mensal ───────────────
+  saft: {
+    export: (year: number, month: number) => requestText(`/pos/saft?year=${year}&month=${month}`),
+  },
 
   // ── Preferências do utilizador (tema por perfil) ───────────
   preferences: {
