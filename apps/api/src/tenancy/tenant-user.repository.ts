@@ -69,6 +69,21 @@ export class TenantUserRepository {
     });
   }
 
+  /** Armazém inicial do tenant (default) — para o livro de stock ter lógica. */
+  async createWarehouse(
+    schema: string,
+    input: { code: string; name: string; isDefault?: boolean },
+  ): Promise<{ id: string }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`INSERT INTO warehouses (code, name, is_default)
+                   VALUES (${input.code}, ${input.name}, ${input.isDefault ?? false})
+                   RETURNING id`,
+      );
+      return rows[0];
+    });
+  }
+
   async createUser(
     schema: string,
     input: CreateTenantUserInput,

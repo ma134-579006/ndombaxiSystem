@@ -129,7 +129,6 @@ export function Products() {
           exemptionReason: form.exemptionReason.trim(),
           unitPrice: price,
           costPrice: Number(form.costPrice) || 0,
-          stockQty: Number(form.stockQty) || 0,
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
           isActive: form.isActive,
@@ -287,10 +286,20 @@ export function Products() {
               </p>
             </div>
           ) : null}
-          <div className="field">
-            <label>Stock</label>
-            <input value={form.stockQty} onChange={(e) => setForm({ ...form, stockQty: e.target.value })} inputMode="numeric" placeholder="0" />
-          </div>
+          {editing ? (
+            <div className="field">
+              <label>Stock atual</label>
+              <input value={form.stockQty} readOnly disabled />
+              <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+                Gerido em <strong>Inventário</strong> (entradas/acertos) — assim o stock por armazém fica sincronizado.
+              </p>
+            </div>
+          ) : (
+            <div className="field">
+              <label>Stock inicial</label>
+              <input value={form.stockQty} onChange={(e) => setForm({ ...form, stockQty: e.target.value })} inputMode="numeric" placeholder="0" />
+            </div>
+          )}
 
           <div className="switch-row">
             <span>Mostrar na loja online</span>

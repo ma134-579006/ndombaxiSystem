@@ -69,7 +69,32 @@ export class PosRepository {
                   ${input.showOnline ?? true})
           RETURNING *`,
       );
-      return rows[0];
+      const product = rows[0];
+
+      // Sincroniza o livro de stock: semeia o saldo inicial no armazém default,
+      // para que stock_items (detalhe por armazém) == products.stock_qty (espelho).
+      // Sem isto, a 1ª venda via applyMovement começaria o stock_items do zero.
+      const initial = Number(input.stockQty ?? 0);
+      if (initial > 0) {
+        const wh = await tx.$queryRaw<{ id: string }[]>(
+          Prisma.sql`SELECT id FROM warehouses WHERE is_active = TRUE
+                     ORDER BY is_default DESC, created_at ASC LIMIT 1`,
+        );
+        const whId = wh[0]?.id;
+        if (whId) {
+          await tx.$executeRaw(
+            Prisma.sql`INSERT INTO stock_items (product_id, warehouse_id, quantity)
+                       VALUES (${product.id}::uuid, ${whId}::uuid, ${initial})
+                       ON CONFLICT (product_id, warehouse_id) DO NOTHING`,
+          );
+          await tx.$executeRaw(
+            Prisma.sql`INSERT INTO stock_movements
+                (product_id, warehouse_id, type, quantity, balance_after, reference)
+              VALUES (${product.id}::uuid, ${whId}::uuid, 'IN', ${initial}, ${initial}, 'Saldo inicial')`,
+          );
+        }
+      }
+      return product;
     });
   }
 
