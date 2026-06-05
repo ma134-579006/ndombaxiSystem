@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { ExpiringBatch, ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
 import { Modal } from '../components/ui';
@@ -37,15 +37,22 @@ export function Inventory() {
 
   useEffect(() => { void load(); }, [load]);
 
+  // Guarda anti-duplo-clique: evita criar 2 contagens (0001+0002) se o
+  // utilizador clicar de novo enquanto a API (lenta no arranque) responde.
+  const creatingRef = useRef(false);
   const create = async (warehouseId: string) => {
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    setCreating(false); // fecha o modal já, para o botão não ser clicável outra vez
     try {
       const r = await api.inventory.createCount(warehouseId);
-      setCreating(false);
       const detail = await api.inventory.getCount(r.id);
       setOpenCount(detail);
       await load();
     } catch (e) {
       alert(e instanceof ApiError ? e.message : 'Falha ao criar contagem.');
+    } finally {
+      creatingRef.current = false;
     }
   };
 
