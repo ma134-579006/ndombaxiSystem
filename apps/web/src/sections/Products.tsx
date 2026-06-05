@@ -153,7 +153,7 @@ export function Products() {
         }
         const payload: CreateProductInput = {
           code: form.code.trim(),
-          barcode: form.barcode.trim() || undefined,
+          barcode: form.code.trim() || undefined,
           name: form.name.trim(),
           description: form.description.trim() || undefined,
           ivaCode: form.ivaCode,
@@ -257,17 +257,16 @@ export function Products() {
 
           {!editing ? (
             <div className="field">
-              <label>Código</label>
-              <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="ex.: CAFE-250" />
+              <label>Código de barras</label>
+              <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
+                <input style={{ flex: 1 }} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Leia o código de barras pela câmara ou escreva" inputMode="text" />
+                <BarcodeScanner onDetected={(code) => setForm((f) => ({ ...f, code }))} />
+              </div>
+              <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+                É o código que identifica o produto (o mesmo que o leitor da caixa lê).
+              </p>
             </div>
           ) : null}
-          <div className="field">
-            <label>Código de barras (opcional)</label>
-            <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
-              <input style={{ flex: 1 }} value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Escreva ou leia pela câmara" inputMode="numeric" />
-              <BarcodeScanner onDetected={(code) => setForm((f) => ({ ...f, barcode: code }))} />
-            </div>
-          </div>
           <div className="field">
             <label>Nome</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome do produto" />
