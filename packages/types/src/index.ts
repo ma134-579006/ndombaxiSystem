@@ -15,6 +15,7 @@ export type SubjectType = 'PLATFORM' | 'TENANT';
 export interface JwtPayload {
   sub: string; // id do utilizador (platform ou tenant)
   email: string;
+  name?: string; // nome do utilizador (identificação no recibo/relatórios)
   role: RoleName;
   subjectType: SubjectType;
   tenantId?: string; // Company.id (apenas TENANT)

@@ -113,12 +113,7 @@ export class OnboardingService {
         storeId: store.id,
         mustResetPw: true,
       });
-      // Armazém principal (default) — para o stock ter lógica desde o início.
-      await this.tenantUsers.createWarehouse(schemaName, {
-        code: 'PRINCIPAL',
-        name: 'Armazém Principal',
-        isDefault: true,
-      });
+      // O local de stock é a LOJA principal (criada acima). Sem "armazém".
     } catch (err) {
       // Rollback: limpa o schema e a empresa se o provisioning falhar
       this.logger.error(

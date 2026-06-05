@@ -51,6 +51,8 @@ export class PosRepository {
       unitPrice: number;
       costPrice?: number;
       stockQty?: number;
+      /** Lojas onde o produto existe. Vazio/omisso = TODAS as lojas. */
+      storeIds?: string[];
       imageUrl?: string | null;
       gallery?: string[];
       showOnline?: boolean;
@@ -71,26 +73,28 @@ export class PosRepository {
       );
       const product = rows[0];
 
-      // Sincroniza o livro de stock: semeia o saldo inicial no armazém default,
-      // para que stock_items (detalhe por armazém) == products.stock_qty (espelho).
-      // Sem isto, a 1ª venda via applyMovement começaria o stock_items do zero.
+      // O produto "existe" nas LOJAS escolhidas (todas, se não especificado):
+      // cria a linha de stock (0) em cada uma. O stock_items usa o id da LOJA.
+      const stores = (input.storeIds && input.storeIds.length)
+        ? input.storeIds.map((id) => ({ id }))
+        : await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM stores WHERE is_active = TRUE`);
+      const defStoreRows = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT id FROM stores WHERE is_active = TRUE ORDER BY is_default DESC, created_at ASC LIMIT 1`,
+      );
+      const defStore = defStoreRows[0]?.id;
       const initial = Number(input.stockQty ?? 0);
-      if (initial > 0) {
-        const wh = await tx.$queryRaw<{ id: string }[]>(
-          Prisma.sql`SELECT id FROM warehouses WHERE is_active = TRUE
-                     ORDER BY is_default DESC, created_at ASC LIMIT 1`,
+      for (const st of stores) {
+        // O stock inicial (se houver) entra na loja principal; as outras ficam a 0.
+        const q = initial > 0 && st.id === defStore ? initial : 0;
+        await tx.$executeRaw(
+          Prisma.sql`INSERT INTO stock_items (product_id, warehouse_id, quantity)
+                     VALUES (${product.id}::uuid, ${st.id}::uuid, ${q})
+                     ON CONFLICT (product_id, warehouse_id) DO NOTHING`,
         );
-        const whId = wh[0]?.id;
-        if (whId) {
+        if (q > 0) {
           await tx.$executeRaw(
-            Prisma.sql`INSERT INTO stock_items (product_id, warehouse_id, quantity)
-                       VALUES (${product.id}::uuid, ${whId}::uuid, ${initial})
-                       ON CONFLICT (product_id, warehouse_id) DO NOTHING`,
-          );
-          await tx.$executeRaw(
-            Prisma.sql`INSERT INTO stock_movements
-                (product_id, warehouse_id, type, quantity, balance_after, reference)
-              VALUES (${product.id}::uuid, ${whId}::uuid, 'IN', ${initial}, ${initial}, 'Saldo inicial')`,
+            Prisma.sql`INSERT INTO stock_movements (product_id, warehouse_id, type, quantity, balance_after, reference)
+                       VALUES (${product.id}::uuid, ${st.id}::uuid, 'IN', ${q}, ${q}, 'Saldo inicial')`,
           );
         }
       }

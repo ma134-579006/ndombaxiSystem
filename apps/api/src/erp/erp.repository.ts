@@ -82,10 +82,13 @@ export class ErpRepository {
     });
   }
 
+  /** Locais de stock = LOJAS (o conceito de armazém foi eliminado; o stock é
+   *  por loja). Devolve as lojas no formato esperado pelos seletores. */
   listWarehouses(schema: string): Promise<WarehouseRow[]> {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<WarehouseRow[]>(
-        Prisma.sql`SELECT * FROM warehouses WHERE is_active = TRUE ORDER BY name`,
+        Prisma.sql`SELECT id, code, name, is_default FROM stores
+                   WHERE is_active = TRUE ORDER BY is_default DESC, name`,
       ),
     );
   }
@@ -99,7 +102,7 @@ export class ErpRepository {
                           si.quantity, si.min_qty
                    FROM stock_items si
                    JOIN products p ON p.id = si.product_id
-                   JOIN warehouses w ON w.id = si.warehouse_id
+                   JOIN stores w ON w.id = si.warehouse_id
                    ORDER BY p.name, w.code`,
       ),
     );
@@ -114,7 +117,7 @@ export class ErpRepository {
                           si.quantity, si.min_qty
                    FROM stock_items si
                    JOIN products p ON p.id = si.product_id
-                   JOIN warehouses w ON w.id = si.warehouse_id
+                   JOIN stores w ON w.id = si.warehouse_id
                    WHERE si.quantity <= si.min_qty
                    ORDER BY p.name`,
       ),

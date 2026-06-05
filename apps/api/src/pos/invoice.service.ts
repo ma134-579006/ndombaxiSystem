@@ -26,6 +26,8 @@ export interface EmitInvoiceInput {
   customerTaxId?: string | null;
   cashierId?: string | null;
   cashierName?: string | null;
+  /** Loja do operador — onde o stock é baixado e a que a factura pertence. */
+  storeId?: string | null;
   /** Pagamento na caixa (para o turno): tipo + dinheiro entregue + troco. */
   paymentType?: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS' | 'CREDIT';
   tendered?: number | null;
@@ -186,24 +188,24 @@ export class InvoiceService {
                    WHERE doc_type = ${input.docType} AND series = ${input.series} AND year = ${year}`,
       );
 
+      // Loja onde a venda ocorre (a do operador; senão a loja principal). O
+      // stock é baixado nesta loja e a factura fica-lhe associada.
+      const warehouseId = input.storeId || (await StockService.resolveDefaultWarehouse(tx));
+
       const invRows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO invoices
-            (number, doc_type, series, year, sequence, invoice_date, system_entry_date,
+            (number, doc_type, series, year, sequence, invoice_date, system_entry_date, store_id,
              cashier_id, customer_id, customer_tax_id,
              net_total, iva_total, gross_total, signable_string, previous_hash, hash,
             signature, signature_key_version)
           VALUES (${number}, ${input.docType}, ${input.series}, ${year}, ${sequence},
-                  ${invoiceDate}::date, ${systemEntryDate}::timestamptz,
+                  ${invoiceDate}::date, ${systemEntryDate}::timestamptz, ${warehouseId ?? null}::uuid,
                   ${input.cashierId ?? null}::uuid, ${input.customerId ?? null}::uuid, ${customerTaxId},
                   ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal},
                   ${signable}, ${previousHash}, ${hash}, ${signature}, ${signatureKeyVersion})
           RETURNING id`,
       );
       const invoiceId = invRows[0].id;
-
-      // Stock: prefere o livro por armazém (stock_items + movimentos). Se o
-      // tenant ainda não tem armazéns, cai no decremento global legado.
-      const warehouseId = await StockService.resolveDefaultWarehouse(tx);
 
       let lineNumber = 0;
       for (const line of lines) {

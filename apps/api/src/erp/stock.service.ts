@@ -85,8 +85,9 @@ export class StockService {
   static async resolveDefaultWarehouse(
     tx: Prisma.TransactionClient,
   ): Promise<string | null> {
+    // O "local de stock" é a LOJA (o conceito de armazém foi eliminado).
     const rows = await tx.$queryRaw<{ id: string }[]>(
-      Prisma.sql`SELECT id FROM warehouses
+      Prisma.sql`SELECT id FROM stores
                  WHERE is_active = TRUE
                  ORDER BY is_default DESC, created_at ASC
                  LIMIT 1`,
@@ -153,7 +154,7 @@ export class StockService {
                           p.name AS product_name, p.code AS product_code, w.name AS warehouse_name
                    FROM stock_movements m
                    JOIN products p ON p.id = m.product_id
-                   LEFT JOIN warehouses w ON w.id = m.warehouse_id
+                   LEFT JOIN stores w ON w.id = m.warehouse_id
                    ${where}
                    ORDER BY m.created_at DESC
                    LIMIT 500`,

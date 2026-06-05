@@ -229,7 +229,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."warehouses" (
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stock_items" (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id   UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,
-  warehouse_id UUID NOT NULL REFERENCES "{{SCHEMA}}"."warehouses"(id) ON DELETE CASCADE,
+  warehouse_id UUID NOT NULL REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE CASCADE,
   quantity     NUMERIC(14,3) NOT NULL DEFAULT 0,
   min_qty      NUMERIC(14,3) NOT NULL DEFAULT 0,
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -240,7 +240,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stock_items" (
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stock_movements" (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id    UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,
-  warehouse_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."warehouses"(id) ON DELETE CASCADE,
+  warehouse_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE CASCADE,
   type          TEXT NOT NULL,            -- IN/OUT/ADJUST/TRANSFER
   quantity      NUMERIC(14,3) NOT NULL,   -- sinal: +entrada / -saída
   unit_cost     NUMERIC(14,2),
@@ -258,7 +258,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."purchase_orders" (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   number        TEXT NOT NULL,
   supplier_id   UUID NOT NULL REFERENCES "{{SCHEMA}}"."suppliers"(id) ON DELETE RESTRICT,
-  warehouse_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."warehouses"(id) ON DELETE RESTRICT,
+  warehouse_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE RESTRICT,
   status        TEXT NOT NULL DEFAULT 'DRAFT', -- DRAFT/CONFIRMED/RECEIVED/CANCELLED
   order_date    DATE NOT NULL DEFAULT CURRENT_DATE,
   expected_date DATE,
@@ -692,7 +692,7 @@ CREATE INDEX IF NOT EXISTS tenant_audit_ts_idx ON "{{SCHEMA}}"."tenant_audit_log
 -- ── Contagens de inventário (inventário profissional) ────────
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stock_counts" (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  warehouse_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."warehouses"(id) ON DELETE CASCADE,
+  warehouse_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE CASCADE,
   reference     TEXT,                      -- ex.: "INV/2026/0001"
   status        TEXT NOT NULL DEFAULT 'DRAFT', -- DRAFT/COUNTING/CLOSED
   notes         TEXT,
@@ -771,7 +771,7 @@ CREATE INDEX IF NOT EXISTS loyalty_movements_card_idx ON "{{SCHEMA}}"."loyalty_m
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."product_batches" (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id   UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,
-  warehouse_id UUID REFERENCES "{{SCHEMA}}"."warehouses"(id) ON DELETE SET NULL,
+  warehouse_id UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
   batch_code   TEXT,
   quantity     NUMERIC(14,3) NOT NULL DEFAULT 0,
   expiry_date  DATE,

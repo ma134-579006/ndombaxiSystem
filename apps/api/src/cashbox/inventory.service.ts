@@ -80,7 +80,7 @@ export class InventoryService {
       tx.$queryRaw(
         Prisma.sql`SELECT sc.id, sc.reference, sc.status, sc.created_at, sc.closed_at, w.name AS warehouse_name,
                           (SELECT COUNT(*)::int FROM stock_count_items WHERE count_id = sc.id) AS items
-                   FROM stock_counts sc JOIN warehouses w ON w.id = sc.warehouse_id
+                   FROM stock_counts sc JOIN stores w ON w.id = sc.warehouse_id
                    ORDER BY sc.created_at DESC LIMIT 100`,
       ),
     );

@@ -186,6 +186,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
+      name: user.name,
       role: user.role,
       subjectType: 'TENANT',
       tenantId: company.id,
@@ -242,6 +243,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
+      name: user.name,
       role: user.role,
       subjectType: 'TENANT',
       tenantId: company.id,
@@ -280,6 +282,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
+      name: user.name,
       role: user.role,
       subjectType: 'TENANT',
       tenantId: company.id,

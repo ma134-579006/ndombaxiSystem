@@ -239,7 +239,7 @@ export class DashboardService {
                           si.quantity, si.min_qty
                    FROM stock_items si
                    JOIN products p ON p.id = si.product_id
-                   JOIN warehouses w ON w.id = si.warehouse_id
+                   JOIN stores w ON w.id = si.warehouse_id
                    WHERE si.quantity <= si.min_qty
                    ORDER BY p.name`,
       );
