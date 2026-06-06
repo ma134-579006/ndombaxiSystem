@@ -122,8 +122,17 @@ export function PosPage() {
 
   useEffect(() => {
     if (!sync.online) return;
-    const t = window.setInterval(() => { void refreshProducts(); }, 15000);
-    return () => window.clearInterval(t);
+    const t = window.setInterval(() => { void refreshProducts(); }, 12000);
+    // Atualiza também ao voltar ao separador / ganhar foco (catálogo sempre fresco).
+    const onVisible = () => { if (document.visibilityState === 'visible') void refreshProducts(); };
+    const onFocus = () => { void refreshProducts(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [sync.online, refreshProducts]);
 
   const filtered = useMemo(() => {
@@ -361,6 +370,9 @@ export function PosPage() {
                 />
               </div>
               <BarcodeScanner continuous onDetected={(code) => scanResolve(code)} />
+              <button className="icon-btn" title="Atualizar produtos" onClick={() => void refreshProducts()}>
+                <IconSync size={20} />
+              </button>
             </div>
 
             {loading ? (

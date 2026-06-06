@@ -5,6 +5,13 @@ import { Modal } from '../components/ui';
 import { IconCheck, IconClose, IconPlus } from '../components/Icons';
 
 function kz(n: number): string { return n.toLocaleString('pt-PT') + ' Kz'; }
+/** Constrói o src do comprovativo: se já vier como data URI completo usa-o tal
+ *  e qual; senão prefixa o data:...;base64,. Evita o prefixo duplicado. */
+function proofSrc(data: string, fileType: string | undefined, fallback: string): string {
+  const d = (data || '').trim();
+  if (d.startsWith('data:')) return d;
+  return `data:${fileType || fallback};base64,${d}`;
+}
 
 const STATUS_LABEL: Record<SubStatus, string> = {
   PENDING_PAYMENT: 'Aguarda pagamento',
@@ -139,15 +146,15 @@ function SubDetail({ sub, onClose, onChanged }: { sub: Subscription; onClose(): 
               <div className="kv"><span className="k">{p.fileName}</span><span className="v">{p.amountKz ? kz(p.amountKz) : ''}</span></div>
               {p.fileData ? (
                 (p.fileType ?? '').startsWith('image') || /\.(png|jpe?g|webp|gif)$/i.test(p.fileName) ? (
-                  <a href={`data:${p.fileType || 'image/jpeg'};base64,${p.fileData}`} target="_blank" rel="noreferrer">
+                  <a href={proofSrc(p.fileData, p.fileType, 'image/jpeg')} target="_blank" rel="noreferrer">
                     <img
-                      src={`data:${p.fileType || 'image/jpeg'};base64,${p.fileData}`}
+                      src={proofSrc(p.fileData, p.fileType, 'image/jpeg')}
                       alt={p.fileName}
                       style={{ width: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-2)', marginTop: 4 }}
                     />
                   </a>
                 ) : (
-                  <a className="btn sm ghost" href={`data:${p.fileType || 'application/octet-stream'};base64,${p.fileData}`} download={p.fileName} style={{ marginTop: 4 }}>
+                  <a className="btn sm ghost" href={proofSrc(p.fileData, p.fileType, 'application/octet-stream')} download={p.fileName} style={{ marginTop: 4 }}>
                     Abrir comprovativo
                   </a>
                 )
