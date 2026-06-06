@@ -503,8 +503,15 @@ html.kbd-open .login-card .footer-credit { display: none; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
   .prod { min-height: 94px; padding: 11px; }
   .topbar-logo { display: none; }
-  .topbar { gap: 8px; }
-  .conn { padding: 0 10px; }
+  /* Topbar com scroll horizontal: TODOS os botões (incl. "Sair") ficam
+     sempre acessíveis no telemóvel, sem serem cortados. */
+  .topbar { gap: 8px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .topbar::-webkit-scrollbar { height: 0; }
+  .topbar .who { display: none; }
+  .topbar .spacer { display: none; }
+  .topbar > * { flex: 0 0 auto; }
+  .icon-btn { width: 42px; height: 42px; }
+  .conn { padding: 0 10px; height: 42px; }
   .totals .t-row.grand { font-size: 19px; }
 }
 

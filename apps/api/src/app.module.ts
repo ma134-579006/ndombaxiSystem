@@ -26,6 +26,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { CashboxModule } from './cashbox/cashbox.module';
 import { PromotionsModule } from './promotions/promotions.module';
 import { ProfitModule } from './profit/profit.module';
+import { ReportsModule } from './reports/reports.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { ReceivablesModule } from './receivables/receivables.module';
 import { CashflowModule } from './cashflow/cashflow.module';
@@ -81,6 +82,7 @@ import { HealthController } from './health.controller';
     CashboxModule,
     PromotionsModule,
     ProfitModule,
+    ReportsModule,
     ExpensesModule,
     ReceivablesModule,
     CashflowModule,

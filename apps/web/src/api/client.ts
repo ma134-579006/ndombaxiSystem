@@ -61,6 +61,10 @@ import type {
   ProfitPoint,
   ProfitProduct,
   ProfitSummary,
+  ReportUserRow,
+  ReportCategoryRow,
+  ReportTaxRow,
+  ReportPaymentRow,
   Promotion,
   PromotionInput,
   PaymentMethodInput,
@@ -391,6 +395,16 @@ export const api = {
       request<ProfitProduct[]>('GET', `/profit/by-product${qs({ from, to })}`),
     abc: (from?: string, to?: string) =>
       request<ProfitAbcRow[]>('GET', `/profit/abc${qs({ from, to })}`),
+  },
+  reports: {
+    salesByUser: (from?: string, to?: string) =>
+      request<ReportUserRow[]>('GET', `/reports/sales-by-user${qs({ from, to })}`),
+    salesByCategory: (from?: string, to?: string) =>
+      request<ReportCategoryRow[]>('GET', `/reports/sales-by-category${qs({ from, to })}`),
+    taxMap: (from?: string, to?: string) =>
+      request<ReportTaxRow[]>('GET', `/reports/tax-map${qs({ from, to })}`),
+    paymentMethods: (from?: string, to?: string) =>
+      request<ReportPaymentRow[]>('GET', `/reports/payment-methods${qs({ from, to })}`),
   },
   expenses: {
     list: (from?: string, to?: string, category?: string) =>

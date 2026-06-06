@@ -17,6 +17,7 @@ import { Operations } from './sections/Operations';
 import { Inventory } from './sections/Inventory';
 import { StockMovements } from './sections/StockMovements';
 import { StockAnalysis } from './sections/StockAnalysis';
+import { Reports } from './sections/Reports';
 import { Promotions } from './sections/Promotions';
 import { Overview } from './sections/Overview';
 import { Profit } from './sections/Profit';
@@ -69,6 +70,7 @@ const TENANT_NAV: NavItem[] = [
   { key: 'promotions', label: 'Promoções', icon: IconStar },
   { key: 'payments', label: 'Pagamentos', icon: IconCard },
   { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart },
+  { key: 'reports', label: 'Relatórios', icon: IconChart },
   { key: 'saft', label: 'Fiscal · SAF-T', icon: IconReceipt },
   { key: 'profit', label: 'Lucros', icon: IconChart },
   { key: 'cashflow', label: 'Fluxo de Caixa', icon: IconChart },
@@ -116,6 +118,7 @@ function TenantPanel() {
       {section === 'promotions' ? <Promotions /> : null}
       {section === 'payments' ? <Payments /> : null}
       {section === 'operations' ? <Operations /> : null}
+      {section === 'reports' ? <Reports /> : null}
       {section === 'saft' ? <Saft /> : null}
       {section === 'profit' ? <Profit /> : null}
       {section === 'cashflow' ? <Cashflow /> : null}

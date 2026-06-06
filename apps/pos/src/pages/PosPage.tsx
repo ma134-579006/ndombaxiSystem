@@ -142,10 +142,16 @@ export function PosPage() {
 
   const totals = cartTotalsWithDiscount(cart, discountRateByProduct);
 
+  const flashError = (m: string) => { setEmitError(m); setTimeout(() => setEmitError(null), 2500); };
+
   const addToCart = (p: Product) => {
     setEmitError(null);
+    const stock = Number(p.stock_qty);
+    if (stock <= 0) { flashError(`"${p.name}" está esgotado.`); return; }
     setCart((prev) => {
       const idx = prev.findIndex((l) => l.product.id === p.id);
+      const current = idx >= 0 ? prev[idx].quantity : 0;
+      if (current + 1 > stock) { flashError(`Stock insuficiente de "${p.name}": só há ${stock}.`); return prev; }
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
@@ -158,7 +164,13 @@ export function PosPage() {
   const changeQty = (id: string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((l) => (l.product.id === id ? { ...l, quantity: l.quantity + delta } : l))
+        .map((l) => {
+          if (l.product.id !== id) return l;
+          const stock = Number(l.product.stock_qty);
+          const next = l.quantity + delta;
+          if (delta > 0 && next > stock) { flashError(`Stock insuficiente de "${l.product.name}": só há ${stock}.`); return l; }
+          return { ...l, quantity: next };
+        })
         .filter((l) => l.quantity > 0),
     );
   };

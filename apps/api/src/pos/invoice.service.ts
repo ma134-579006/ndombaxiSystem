@@ -191,6 +191,54 @@ export class InvoiceService {
       // Loja onde a venda ocorre (a do operador; senão a loja principal). O
       // stock é baixado nesta loja e a factura fica-lhe associada.
       const warehouseId = input.storeId || (await StockService.resolveDefaultWarehouse(tx));
+      const defStoreId = await StockService.resolveDefaultWarehouse(tx);
+
+      // ── Validação de stock e validade ANTES de emitir ─────────────
+      // A venda é bloqueada se não houver stock suficiente ou se o produto só
+      // tiver lotes expirados. Toda a transacção é revertida (nada é gravado).
+      const today = new Date().toISOString().slice(0, 10);
+      for (const line of lines) {
+        const product = byCode.get(line.productCode)!;
+        // Resolve a loja efectiva (igual à baixa de stock, com stock partilhado).
+        let lineStore = warehouseId;
+        if (input.storeId && defStoreId && input.storeId !== defStoreId) {
+          const has = await tx.$queryRaw<{ n: number }[]>(
+            Prisma.sql`SELECT COUNT(*)::int AS n FROM stock_items
+                       WHERE product_id = ${product.id}::uuid AND warehouse_id = ${input.storeId}::uuid`,
+          );
+          if (!has[0] || has[0].n === 0) lineStore = defStoreId;
+        }
+        // Stock disponível (por loja se houver; senão o espelho global).
+        let available: number;
+        if (lineStore) {
+          const si = await tx.$queryRaw<{ quantity: string }[]>(
+            Prisma.sql`SELECT quantity FROM stock_items
+                       WHERE product_id = ${product.id}::uuid AND warehouse_id = ${lineStore}::uuid`,
+          );
+          available = si[0] ? Number(si[0].quantity) : 0;
+        } else {
+          const pr = await tx.$queryRaw<{ stock_qty: string }[]>(
+            Prisma.sql`SELECT stock_qty FROM products WHERE id = ${product.id}::uuid`,
+          );
+          available = pr[0] ? Number(pr[0].stock_qty) : 0;
+        }
+        if (available < line.quantity) {
+          throw new BadRequestException(
+            `Stock insuficiente para "${line.description}": disponível ${available}, pedido ${line.quantity}.`,
+          );
+        }
+        // Validade: se o produto é gerido por lotes e só tem lotes expirados, bloqueia.
+        const batch = await tx.$queryRaw<{ total: string; valid: string }[]>(
+          Prisma.sql`SELECT COALESCE(SUM(quantity),0) AS total,
+                            COALESCE(SUM(quantity) FILTER (WHERE expiry_date IS NULL OR expiry_date >= ${today}::date),0) AS valid
+                     FROM product_batches WHERE product_id = ${product.id}::uuid`,
+        );
+        if (batch[0] && Number(batch[0].total) > 0 && Number(batch[0].valid) <= 0) {
+          throw new BadRequestException(
+            `"${line.description}" está expirado (sem lotes válidos). Venda bloqueada.`,
+          );
+        }
+      }
 
       const invRows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO invoices
@@ -209,7 +257,7 @@ export class InvoiceService {
 
       // Stock partilhado: se a loja do operador não tiver o produto, a saída
       // sai do stock da loja principal (entrada feita com "Todas as lojas").
-      const defStoreId = await StockService.resolveDefaultWarehouse(tx);
+      // defStoreId já resolvido acima (na validação de stock).
 
       let lineNumber = 0;
       for (const line of lines) {
@@ -235,8 +283,8 @@ export class InvoiceService {
                     ${line.exemptionReason ?? null}, ${line.exemptionCode ?? null})`,
         );
         if (lineStore) {
-          // Saída de stock pela venda. allowNegative: uma factura legal nunca
-          // pode ser bloqueada — saldo negativo fica para acerto de inventário.
+          // Saída de stock pela venda. allowNegative:false — a venda é bloqueada
+          // se não houver stock (já validado acima; aqui é a salvaguarda final).
           // applyMovement também actualiza o espelho global products.stock_qty.
           await StockService.applyMovement(tx, {
             productId: product.id,
@@ -246,7 +294,7 @@ export class InvoiceService {
             reference: number,
             referenceId: invoiceId,
             createdBy: input.cashierId ?? null,
-            allowNegative: true,
+            allowNegative: false,
           });
         } else {
           await tx.$executeRaw(

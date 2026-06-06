@@ -391,6 +391,11 @@ export interface StockAnalysis {
   summary: { stockValue: number; products: number; positive: number; unitsSold: number; forecastValue: number };
   period: { from: string; to: string; days: number };
 }
+export interface ReportUserRow { name: string; sales: number; net: number; gross: number }
+export interface ReportCategoryRow { name: string; qty: number; net: number; gross: number }
+export interface ReportTaxRow { rate: number; net: number; iva: number; gross: number }
+export interface ReportPaymentRow { method: string; count: number; total: number }
+
 export interface ExpiringBatch {
   id: string; batch_code: string | null; quantity: string;
   expiry_date: string; product_name: string; days_left: number;
