@@ -270,7 +270,11 @@ export class AuthService {
       where: { companyId },
       select: { status: true, expiresAt: true },
     });
-    if (subs.length === 0) return false;
+    // Só bloqueia se a empresa JÁ teve um plano ATIVADO (com validade) e este
+    // expirou. Empresas sem subscrição ou só com subscrições por aprovar (sem
+    // expiresAt) NÃO são bloqueadas — protege os tenants existentes.
+    const wasActivated = subs.some((s) => s.expiresAt);
+    if (!wasActivated) return false;
     const now = Date.now();
     return !subs.some((s) => s.status === 'ACTIVE' && (!s.expiresAt || s.expiresAt.getTime() > now));
   }

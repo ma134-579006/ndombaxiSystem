@@ -303,7 +303,11 @@ export class OnboardingService {
         select: { status: true, expiresAt: true },
         orderBy: { createdAt: 'desc' },
       });
-      if (subs.length > 0) {
+      // Só "expirado" se já houve um plano ATIVADO (com validade) e este expirou.
+      // Subscrições só por aprovar (sem expiresAt) ou empresas sem subscrição
+      // NÃO bloqueiam — protege os tenants existentes.
+      const wasActivated = subs.some((s) => s.expiresAt);
+      if (wasActivated) {
         const now = Date.now();
         const valid = subs.find((s) => s.status === 'ACTIVE' && (!s.expiresAt || s.expiresAt.getTime() > now));
         expired = !valid;
