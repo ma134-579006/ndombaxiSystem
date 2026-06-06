@@ -43,13 +43,14 @@ export function SalesHistoryModal({ onClose, onChanged }: { onClose(): void; onC
     const reason = window.prompt(`Motivo do cancelamento de ${selectedIds.length} venda(s):`, 'Cancelamento na caixa');
     if (reason == null) return;
     setBusy(true); setErr(null); setMsg(null);
-    let ok = 0;
+    let ok = 0; let lastErr: string | null = null;
     for (const id of selectedIds) {
       try { await api.cancelInvoice(id, reason.trim() || 'Cancelamento na caixa'); ok++; }
-      catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao cancelar uma venda.'); }
+      catch (e) { lastErr = e instanceof ApiError ? e.message : 'Falha ao cancelar uma venda.'; }
     }
     setBusy(false);
-    setMsg(`${ok} venda(s) cancelada(s). Stock e financeiro revertidos (nota de crédito).`);
+    if (ok > 0) setMsg(`${ok} venda(s) cancelada(s). Stock e financeiro revertidos (nota de crédito).`);
+    if (lastErr) setErr(ok > 0 ? `Algumas falharam: ${lastErr}` : lastErr);
     await load();
     onChanged?.();
   };

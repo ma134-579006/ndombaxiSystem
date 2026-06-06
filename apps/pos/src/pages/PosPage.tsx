@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CashSession, Customer, DocumentIdentity, EmittedInvoice, PaymentType, Product, ReceiptFiscalInfo } from '../api/types';
 import { IVA_RATE } from '../api/types';
@@ -109,6 +109,22 @@ export function PosPage() {
       api.listPromotions().then(setPromotions).catch(() => undefined);
     })();
   }, []);
+
+  // Atualização em TEMPO REAL do stock/catálogo: refaz a lista do servidor
+  // (após cada venda/cancelamento e periodicamente), sem o utilizador recarregar.
+  const refreshProducts = useCallback(async () => {
+    try {
+      const list = await api.listProducts();
+      setProducts(list);
+      void kvSet(CACHE_PRODUCTS, list);
+    } catch { /* offline: mantém a cache */ }
+  }, []);
+
+  useEffect(() => {
+    if (!sync.online) return;
+    const t = window.setInterval(() => { void refreshProducts(); }, 15000);
+    return () => window.clearInterval(t);
+  }, [sync.online, refreshProducts]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -238,6 +254,7 @@ export function PosPage() {
       });
       setShowPayment(false);
       setEmitted({ invoice, customerName: customer?.name ?? null });
+      void refreshProducts(); // stock atualiza em tempo real após a venda
     } catch (e) {
       if (e instanceof ApiError && e.status === 0) {
         try { await finalizeOffline(); setShowPayment(false); return; } catch { /* erro genérico */ }
