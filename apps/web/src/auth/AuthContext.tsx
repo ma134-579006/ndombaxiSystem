@@ -162,9 +162,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { alive = false; };
   }, [status, user]);
 
-  // SEGURANÇA: logout automático por INATIVIDADE (20 min) e revalidação ao
-  // voltar à app (foco/separador). Combinado com a sessão por-aba
-  // (sessionStorage), uma aba nova/ligação copiada NÃO herda a sessão → login.
+  // SEGURANÇA: logout só por INATIVIDADE real (20 min) ou sessão absoluta (12h).
+  // NÃO faz refresh forçado ao focar (a API do Render adormece e um refresh
+  // falhado expulsava o utilizador a meio do fluxo). O cliente HTTP já trata o
+  // refresh em cada pedido (401). A sessão é por-aba (sessionStorage).
   useEffect(() => {
     if (status !== 'authed') return;
     let last = Date.now();
@@ -172,21 +173,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
     events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
     const tick = window.setInterval(() => {
-      if (Date.now() - last > IDLE_MS || sessionExpired()) {
-        void logout();
-      }
+      if (Date.now() - last > IDLE_MS || sessionExpired()) void logout();
     }, 30_000);
-    const onFocus = () => {
-      if (sessionExpired()) { void logout(); return; }
-      // Revalida o token; se o refresh falhar, encerra a sessão.
-      const rt = refreshRef.current;
-      if (rt) api.refresh(rt).then(applyTokens).catch(() => clearSession());
-    };
-    window.addEventListener('focus', onFocus);
     return () => {
       events.forEach((e) => window.removeEventListener(e, bump));
       window.clearInterval(tick);
-      window.removeEventListener('focus', onFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
