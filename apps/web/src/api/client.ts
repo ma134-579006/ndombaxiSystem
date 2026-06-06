@@ -239,6 +239,7 @@ export const api = {
   registerSimple: (input: { email?: string; password?: string; googleIdToken?: string; planTier: string }) =>
     request<{ tokens: TokenPair; companyCode: string; setupCompleted: boolean }>('POST', '/onboarding/register-simple', input, { auth: false }),
   onboarding: {
+    myPlan: () => request<{ planId: string; planName: string; priceKz: number } | null>('GET', '/onboarding/my-plan'),
     setupStatus: () => request<{ setupCompleted: boolean }>('GET', '/onboarding/setup-status'),
     completeSetup: (dto: { name: string; companyCode: string; nif: string; logoUrl?: string }) =>
       request<{ ok: true; companyCode: string }>('POST', '/onboarding/complete-setup', dto),

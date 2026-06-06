@@ -33,6 +33,14 @@ export class OnboardingController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Get('my-plan')
+  @ApiOperation({ summary: 'Plano atual da empresa (passo de pagamento do setup)' })
+  myPlan(@CurrentUser() user: JwtPayload) {
+    return this.onboarding.getMyPlan(user.tenantId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('setup-status')
   @ApiOperation({ summary: 'Estado do setup obrigatório da empresa autenticada' })
   setupStatus() {

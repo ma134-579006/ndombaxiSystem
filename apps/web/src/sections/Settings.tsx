@@ -153,16 +153,33 @@ function PasswordsCard() {
 }
 
 function PrinterCard() {
+  const testPrint = () => {
+    const w = window.open('', '_blank', 'width=420,height=600');
+    if (!w) { alert('Permita popups para imprimir a página de teste.'); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Teste de impressão</title>
+      <style>@page{size:80mm auto;margin:0} body{font-family:Arial,sans-serif;width:80mm;margin:0;padding:8px;text-align:center}
+      h2{margin:6px 0} .l{border-top:1px dashed #000;margin:8px 0} small{color:#333}</style></head><body>
+      <h2>Página de teste</h2><div class="l"></div>
+      <p>Se está a ler isto, a impressora está a funcionar.</p>
+      <p>80 mm · ${new Date().toLocaleString('pt-PT')}</p>
+      <div class="l"></div><small>Ndombaxi System</small>
+      <script>window.onload=function(){window.print()}<\/script></body></html>`);
+    w.document.close();
+  };
   return (
     <div className="card">
-      <h3><IconReceipt size={18} /> Impressora & Plano</h3>
+      <h3><IconReceipt size={18} /> Impressora &amp; Plano</h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        <strong>Impressora térmica:</strong> o tamanho do papel (80 mm / 58 mm) escolhe-se no próprio <strong>caixa</strong>, no recibo,
-        no botão de tamanho de papel — fica memorizado nesse dispositivo. Para impressoras de WiFi, ligue-as como impressora do sistema
-        no telemóvel/computador; ao tocar em <strong>Imprimir</strong> o recibo sai nelas.
+        <strong>Impressora térmica (80/58 mm):</strong> o tamanho do papel escolhe-se no <strong>caixa</strong>, no recibo (botão de tamanho de papel) — fica memorizado nesse dispositivo.
       </p>
-      <p className="muted">
-        <strong>Plano e pagamentos:</strong> faça a gestão do plano e do comprovativo de pagamento na secção <strong>Subscrição &amp; Plano</strong>.
+      <ol className="muted" style={{ fontSize: 13, paddingLeft: 18, margin: '0 0 10px' }}>
+        <li><strong>Impressora WiFi/rede:</strong> ligue-a uma vez como impressora do sistema (Definições → Impressoras no telemóvel/PC, “Adicionar impressora” → WiFi/IP).</li>
+        <li>No caixa/relatórios, toque em <strong>Imprimir</strong> e escolha essa impressora — fica como predefinida.</li>
+        <li>Use o botão abaixo para confirmar que imprime.</li>
+      </ol>
+      <button className="btn ghost" onClick={testPrint}>🖨 Imprimir página de teste</button>
+      <p className="muted" style={{ marginTop: 12 }}>
+        <strong>Plano e pagamentos:</strong> faça a gestão do plano e do comprovativo na secção <strong>Subscrição &amp; Plano</strong>.
       </p>
     </div>
   );

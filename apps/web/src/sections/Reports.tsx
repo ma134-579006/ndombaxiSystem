@@ -71,7 +71,7 @@ export function Reports() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const csvExport = () => {
+  const buildCsv = (): { name: string; csv: string } => {
     let headers: string[] = []; let rows: (string | number)[][] = [];
     if (tab === 'product') { headers = ['Produto', 'Qt', 'Vendas', 'Custo', 'Lucro', 'Margem%']; rows = byProduct.map((p) => [p.description, p.qty, p.salesNet, p.cost, p.profit, p.marginPct]); }
     else if (tab === 'user') { headers = ['Utilizador', 'Vendas', 'Líquido', 'Total']; rows = byUser.map((r) => [r.name, r.sales, r.net, r.gross]); }
@@ -84,11 +84,33 @@ export function Reports() {
     else if (tab === 'documents') { headers = ['Documento', 'Tipo', 'Data', 'NIF', 'Loja', 'Operador', 'Base', 'IVA', 'Total', 'Estado']; rows = docs.map((d) => [d.number, d.doc_type, fmtDT(d.system_entry_date), d.customer_tax_id ?? '', d.store_name ?? '', d.cashier_name ?? '', d.net_total, d.iva_total, d.gross_total, d.status === 'A' ? 'Anulada' : 'Válida']); }
     else if (tab === 'cashbox') { headers = ['Fecho', 'Loja', 'Abertura por', 'Fundo', 'Vendas', 'Suprimentos', 'Sangrias', 'Contado', 'Esperado', 'Diferença']; rows = sessions.map((s) => [fmtDT(s.closed_at), s.store_name ?? '', s.opened_by_name ?? '', s.opening_float, s.total_sales, s.total_cash_in, s.total_cash_out, s.counted_cash, s.expected_cash, s.difference]); }
     const csv = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
+    return { name: `relatorio-${tab}-${from}-a-${to}.csv`, csv };
+  };
+
+  const csvExport = () => {
+    const { name, csv } = buildCsv();
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `relatorio-${tab}-${from}-a-${to}.csv`;
+    a.download = name;
     a.click();
+  };
+
+  const emailExport = async () => {
+    const { name, csv } = buildCsv();
+    const title = TABS.find((t) => t.key === tab)?.label ?? 'Relatório';
+    const subject = `Relatório ${title} (${from} a ${to})`;
+    const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean; share?: (d: unknown) => Promise<void> };
+    try {
+      const file = new File(['﻿' + csv], name, { type: 'text/csv' });
+      if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+        await nav.share({ files: [file], title: subject, text: subject });
+        return;
+      }
+    } catch { /* cai para mailto */ }
+    // Fallback: descarrega o CSV e abre o cliente de e-mail (anexar o ficheiro).
+    csvExport();
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent('Segue em anexo o relatório (ficheiro descarregado: ' + name + ').')}`;
   };
 
   const groups = ['Vendas', 'Contabilidade', 'Caixa'];
@@ -99,6 +121,7 @@ export function Reports() {
         <h2>Relatórios</h2>
         <span className="spacer" />
         <button className="btn sm ghost" onClick={csvExport}>⬇ CSV/Excel</button>
+        <button className="btn sm ghost" onClick={() => void emailExport()}>✉ E-mail</button>
         <button className="btn sm ghost" onClick={() => window.print()}>🖨 Imprimir/PDF</button>
       </div>
 

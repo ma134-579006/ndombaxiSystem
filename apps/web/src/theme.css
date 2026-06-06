@@ -145,6 +145,11 @@ input, textarea, select { font-family: inherit; }
 .link-2fa { background: none; border: none; color: var(--muted); font-size: clamp(11px, 1.5vh, 13px); cursor: pointer; padding: 2px 0; margin-bottom: clamp(4px, 1vh, 10px); text-decoration: underline; align-self: flex-start; }
 .link-2fa:hover { color: var(--text); }
 .login .google-row { display: flex; flex-direction: column; align-items: center; }
+/* Indicador de passos do setup obrigatório (2 passos) */
+.steps-bar { display: flex; gap: 6px; margin: 0 0 12px; }
+.steps-bar span { flex: 1; height: 4px; border-radius: 999px; background: var(--border); }
+.steps-bar span.on { background: var(--primary); }
+.steps-bar span.done { background: var(--success); }
 /* Em ecrãs baixos esconde o "ou" + botão Google para o login NUNCA rolar. */
 @media (max-height: 600px) { .login .google-row { display: none; } }
 /* Grupos de navegação (sub-opções) */

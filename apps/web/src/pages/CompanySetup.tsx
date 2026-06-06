@@ -1,14 +1,115 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { IconBuilding, IconImage, IconLogout } from '../components/Icons';
+import type { BankAccount } from '../api/types';
+import { IconBuilding, IconCard, IconImage, IconLogout, IconCheck } from '../components/Icons';
 
 /**
- * Setup OBRIGATÓRIO da empresa (pós-registo/pós-pagamento): logótipo, nome,
- * código da loja e NIF. Enquanto não for concluído, o painel fica bloqueado.
+ * Setup OBRIGATÓRIO da empresa, em 2 passos (estilo Vendus / onboarding pro):
+ *   1) Pagamento — IBAN da plataforma + upload do comprovativo (screenshot).
+ *   2) Dados — logótipo, nome, código da loja e NIF.
+ * Só depois de ambos é que o painel desbloqueia.
  */
 export function CompanySetup({ onDone }: { onDone(): void }) {
   const { logout } = useAuth();
+  const [step, setStep] = useState<'pay' | 'data'>('pay');
+  return (
+    <div className="login">
+      <div className="box" style={{ maxWidth: 480 }}>
+        <div className="brand">
+          <div style={{ width: 56, height: 56, borderRadius: 16, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', marginBottom: 10 }}>
+            <IconBuilding size={28} />
+          </div>
+          <h1>Ativar a sua empresa</h1>
+          <div className="tg">Passo {step === 'pay' ? '1 de 2 — Pagamento' : '2 de 2 — Dados da empresa'}</div>
+        </div>
+        <div className="steps-bar"><span className={step === 'pay' ? 'on' : 'done'} /><span className={step === 'data' ? 'on' : ''} /></div>
+        {step === 'pay'
+          ? <PayStep onNext={() => setStep('data')} />
+          : <DataStep onDone={onDone} onBack={() => setStep('pay')} />}
+        <p style={{ textAlign: 'center', marginTop: 12 }}>
+          <a onClick={() => void logout()} style={{ color: 'var(--muted)', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <IconLogout size={15} /> Terminar sessão
+          </a>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PayStep({ onNext }: { onNext(): void }) {
+  const [banks, setBanks] = useState<BankAccount[]>([]);
+  const [plan, setPlan] = useState<{ planId: string; planName: string; priceKz: number } | null>(null);
+  const [file, setFile] = useState<{ name: string; type: string; data: string } | null>(null);
+  const [amount, setAmount] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.banks().then(setBanks).catch(() => undefined);
+    api.onboarding.myPlan().then(setPlan).catch(() => undefined);
+  }, []);
+
+  const onFile = (f?: File) => {
+    if (!f) return;
+    if (f.size > 4_000_000) { setErr('Imagem demasiado grande (máx. ~4 MB).'); return; }
+    const r = new FileReader();
+    r.onload = () => setFile({ name: f.name, type: f.type, data: String(r.result) });
+    r.readAsDataURL(f);
+  };
+
+  const submit = async () => {
+    setErr(null);
+    if (!file) { setErr('Carregue o comprovativo (screenshot) do pagamento.'); return; }
+    setBusy(true);
+    try {
+      // Garante uma subscrição (usa o plano escolhido no registo) e anexa o comprovativo.
+      let subs = await api.subscription.mine().catch(() => []);
+      let sub = subs.find((s) => s.status !== 'CANCELLED');
+      if (!sub) {
+        if (!plan) { setErr('Plano não encontrado. Contacte o suporte.'); setBusy(false); return; }
+        sub = await api.subscription.create({ planId: plan.planId, method: 'IBAN', bankAccountId: banks[0]?.id });
+      }
+      await api.subscription.submitProof(sub.id, { fileName: file.name, fileType: file.type, fileData: file.data, amountKz: amount ? Number(amount) : undefined });
+      onNext();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Não foi possível enviar o comprovativo.');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="card">
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+        {plan ? <>Plano <strong>{plan.planName}</strong>{plan.priceKz > 0 ? <> — {plan.priceKz.toLocaleString('pt-PT')} Kz</> : null}. </> : null}
+        Faça a transferência para uma das contas e anexe o comprovativo.
+      </p>
+      {banks.length > 0 ? (
+        <div className="banner info" style={{ display: 'block', marginBottom: 12 }}>
+          {banks.map((b) => (
+            <div key={b.id} style={{ marginBottom: 6 }}>
+              <strong>{b.bankName}</strong> · {b.accountHolder}<br />
+              <span style={{ fontFamily: 'monospace' }}>{b.iban}</span>
+            </div>
+          ))}
+        </div>
+      ) : <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>Contas bancárias serão indicadas pelo suporte.</div>}
+
+      <div className="field"><label>Valor pago (Kz, opcional)</label>
+        <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="ex.: 15000" /></div>
+      <label className="btn ghost block" style={{ marginBottom: 10 }}>
+        <IconImage size={16} /> {file ? `Comprovativo: ${file.name}` : 'Carregar comprovativo (screenshot)'}
+        <input ref={fileRef} type="file" accept="image/*,application/pdf" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+      </label>
+      <button className="btn lg block" onClick={submit} disabled={busy}>
+        <IconCard size={18} /> {busy ? 'A enviar…' : 'Enviar comprovativo e continuar'}
+      </button>
+    </div>
+  );
+}
+
+function DataStep({ onDone, onBack }: { onDone(): void; onBack(): void }) {
   const [name, setName] = useState('');
   const [companyCode, setCompanyCode] = useState('');
   const [nif, setNif] = useState('');
@@ -40,44 +141,28 @@ export function CompanySetup({ onDone }: { onDone(): void }) {
   };
 
   return (
-    <div className="login">
-      <div className="box" style={{ maxWidth: 460 }}>
-        <div className="brand">
-          <div style={{ width: 56, height: 56, borderRadius: 16, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', marginBottom: 10 }}>
-            <IconBuilding size={28} />
-          </div>
-          <h1>Configure a sua empresa</h1>
-          <div className="tg">Passo obrigatório para começar a usar o sistema</div>
+    <div className="card">
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      <div className="row" style={{ gap: 14, alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ width: 64, height: 64, borderRadius: 14, border: '1px solid var(--border)', display: 'grid', placeItems: 'center', overflow: 'hidden', background: 'var(--surface-2)' }}>
+          {logoUrl ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <IconImage size={26} />}
         </div>
-        <div className="card">
-          {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
-
-          <div className="row" style={{ gap: 14, alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ width: 64, height: 64, borderRadius: 14, border: '1px solid var(--border)', display: 'grid', placeItems: 'center', overflow: 'hidden', background: 'var(--surface-2)' }}>
-              {logoUrl ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <IconImage size={26} />}
-            </div>
-            <label className="btn ghost sm">
-              <IconImage size={15} /> {logoUrl ? 'Trocar logótipo' : 'Carregar logótipo'}
-              <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onLogo(e.target.files?.[0])} />
-            </label>
-          </div>
-
-          <div className="field"><label>Nome da empresa</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Nova Shop, Lda" /></div>
-          <div className="field"><label>Código da loja (para login e link da loja online)</label>
-            <input value={companyCode} onChange={(e) => setCompanyCode(e.target.value.toLowerCase())} placeholder="ex.: novashop" /></div>
-          <div className="field"><label>NIF da empresa</label>
-            <input value={nif} onChange={(e) => setNif(e.target.value)} placeholder="5XXXXXXXX" inputMode="numeric" /></div>
-
-          <button className="btn lg block" onClick={submit} disabled={busy}>
-            {busy ? 'A concluir…' : 'Concluir e entrar'}
-          </button>
-        </div>
-        <p style={{ textAlign: 'center', marginTop: 12 }}>
-          <a onClick={() => void logout()} style={{ color: 'var(--muted)', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <IconLogout size={15} /> Terminar sessão
-          </a>
-        </p>
+        <label className="btn ghost sm">
+          <IconImage size={15} /> {logoUrl ? 'Trocar logótipo' : 'Carregar logótipo'}
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onLogo(e.target.files?.[0])} />
+        </label>
+      </div>
+      <div className="field"><label>Nome da empresa</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Nova Shop, Lda" /></div>
+      <div className="field"><label>Código da loja (login e link da loja online)</label>
+        <input value={companyCode} onChange={(e) => setCompanyCode(e.target.value.toLowerCase())} placeholder="ex.: novashop" /></div>
+      <div className="field"><label>NIF da empresa</label>
+        <input value={nif} onChange={(e) => setNif(e.target.value)} placeholder="5XXXXXXXX" inputMode="numeric" /></div>
+      <div className="row" style={{ gap: 10 }}>
+        <button className="btn ghost" onClick={onBack} disabled={busy}>← Voltar</button>
+        <button className="btn lg" style={{ flex: 1 }} onClick={submit} disabled={busy}>
+          <IconCheck size={18} /> {busy ? 'A concluir…' : 'Concluir e entrar'}
+        </button>
       </div>
     </div>
   );
