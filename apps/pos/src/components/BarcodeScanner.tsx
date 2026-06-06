@@ -6,9 +6,28 @@ import React, { useEffect, useRef, useState } from 'react';
  * erradas). Modo `continuous`: fica a ler produto após produto (com
  * arrefecimento para o mesmo código), ideal para a caixa.
  */
+/** Bip curto ao reconhecer um produto. */
+function beep() {
+  try {
+    const Ctx = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext });
+    const AC = Ctx.AudioContext || Ctx.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'square'; o.frequency.value = 880;
+    o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.18, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    o.start();
+    o.stop(ctx.currentTime + 0.18);
+    o.onended = () => ctx.close().catch(() => undefined);
+  } catch { /* sem áudio */ }
+}
+
 export function BarcodeScanner({
   onDetected, continuous = false,
-}: { onDetected(code: string): void; continuous?: boolean }) {
+}: { onDetected(code: string): boolean | void; continuous?: boolean }) {
   const [scanning, setScanning] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [last, setLast] = useState<string | null>(null);
@@ -56,8 +75,16 @@ export function BarcodeScanner({
               if (candRef.current.n >= 2 && cooled) {
                 cooldownRef.current[raw] = now;
                 candRef.current = { v: '', n: 0 };
+                const matched = onDetected(raw) === true;
+                if (matched) {
+                  // Encontrou um produto cadastrado → bip e FECHA a câmara.
+                  setLast(raw);
+                  beep();
+                  stop();
+                  return;
+                }
+                // Código não associado a nenhum produto → continua a ler.
                 setLast(raw);
-                onDetected(raw);
                 if (!continuous) { stop(); return; }
               }
             }
@@ -83,7 +110,7 @@ export function BarcodeScanner({
           <div className="scan-box" onClick={(e) => e.stopPropagation()}>
             <video ref={videoRef} playsInline muted />
             <div className="scan-hint">
-              {continuous ? 'Aponte ao código — lê automaticamente. Continue a ler os produtos.' : 'Aponte a câmara ao código de barras…'}
+              Aponte ao código de barras — ao reconhecer o produto, faz um bip, adiciona e fecha automaticamente.
             </div>
             {last ? <div className="scan-last">✓ Lido: {last}</div> : null}
             <button className="btn ghost block" onClick={stop}>{continuous ? 'Concluir' : 'Cancelar'}</button>

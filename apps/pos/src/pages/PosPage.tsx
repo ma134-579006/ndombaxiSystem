@@ -207,19 +207,20 @@ export function PosPage() {
    * procura por código de barras / código EXACTO; lança ao carrinho e LIMPA a
    * pesquisa (auto-enter), pronto para a próxima leitura.
    */
-  const scanResolve = (raw: string) => {
+  const scanResolve = (raw: string): boolean => {
     const code = raw.trim();
-    if (!code) return;
+    if (!code) return false;
     const found = products.find(
       (p) => (p.barcode && p.barcode === code) || p.code.toLowerCase() === code.toLowerCase(),
     );
     if (found) {
       addToCart(found);
       setSearch(''); // limpa o campo para a próxima leitura
-    } else {
-      setSearch(code);
-      flashError(`Código não encontrado: ${code}`);
+      return true;   // encontrou produto → a câmara faz bip e fecha
     }
+    setSearch(code);
+    flashError(`Código não encontrado: ${code}`);
+    return false;
   };
 
   /** Enter na pesquisa = auto-enter: resolve por código exacto ou, se houver só
