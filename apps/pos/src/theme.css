@@ -553,3 +553,43 @@ html.kbd-open .login-card .footer-credit { display: none; }
   .modal-bg .legend { font-size: 10.5px !important; }
   .no-print, .r-foot, .modal-bg .trash { display: none !important; }
 }
+
+/* ============================================================
+   POLISH ENTERPRISE (2026-06) — refina o terminal de caixa sem
+   mudar as cores. Camada final (sobrepõe-se por ordem de cascata).
+   ============================================================ */
+:root {
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(0,0,0,.2), 0 12px 30px -14px rgba(0,0,0,.55);
+}
+body { line-height: 1.5; }
+
+/* Topbar mais leve e nítida */
+.topbar { padding: 12px 20px; }
+.topbar .who .name { letter-spacing: -0.01em; }
+
+/* Cartões de produto: elevação subtil + raio coerente */
+.prod { border-radius: 14px; transition: transform .08s ease, border-color .15s ease, box-shadow .18s ease; }
+.prod:hover { border-color: var(--primary); box-shadow: 0 10px 24px -16px rgba(0,0,0,.7); transform: translateY(-1px); }
+.prod .pname { letter-spacing: -0.01em; }
+.prod .pprice { letter-spacing: -0.01em; }
+
+/* Pesquisa + botões mais polidos */
+.search-bar input { border-radius: 12px; }
+.btn { border-radius: 12px; font-weight: 650; letter-spacing: .01em; }
+.btn.lg { border-radius: 13px; }
+.icon-btn, .conn { border-radius: 12px; }
+
+/* Carrinho: cabeçalho e totais com melhor hierarquia */
+.cart h2 { letter-spacing: -0.01em; }
+.totals .t-row { font-size: 14px; }
+.totals .t-row.grand { letter-spacing: -0.02em; }
+.cart-line { border-radius: 12px; transition: background .12s; }
+
+/* Recibo: cantos e profundidade mais premium */
+.receipt { border-radius: 18px; }
+
+/* Tabela do histórico de vendas com hover de linha */
+.sales-table tbody tr { transition: background .12s; }
+.sales-table tbody tr:hover td { background: rgba(255,255,255,.03); }
+.sales-table th { text-transform: uppercase; letter-spacing: .05em; font-size: 11px; color: var(--muted); }
