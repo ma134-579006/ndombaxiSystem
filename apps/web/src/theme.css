@@ -145,6 +145,12 @@ input, textarea, select { font-family: inherit; }
 .link-2fa { background: none; border: none; color: var(--muted); font-size: clamp(11px, 1.5vh, 13px); cursor: pointer; padding: 2px 0; margin-bottom: clamp(4px, 1vh, 10px); text-decoration: underline; align-self: flex-start; }
 .link-2fa:hover { color: var(--text); }
 .login .google-row { display: flex; flex-direction: column; align-items: center; }
+/* Chat de aprovação (empresa ↔ super admin) */
+.chat-box { max-height: 38vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 8px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; }
+.chat-msg { max-width: 82%; padding: 8px 11px; border-radius: 12px; font-size: 13px; }
+.chat-msg .cm-who { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.chat-msg.me { align-self: flex-end; background: var(--primary-soft); border: 1px solid rgba(59,130,246,.35); }
+.chat-msg.them { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
 /* Indicador de passos do setup obrigatório (2 passos) */
 .steps-bar { display: flex; gap: 6px; margin: 0 0 12px; }
 .steps-bar span { flex: 1; height: 4px; border-radius: 999px; background: var(--border); }

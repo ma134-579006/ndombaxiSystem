@@ -140,7 +140,9 @@ export class AuthService {
     if (!company) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    if (company.status !== 'ACTIVE') {
+    // PENDING é permitido entrar (vê o ecrã de "aguarda aprovação" + chat);
+    // só SUSPENDED/CANCELLED é que bloqueiam totalmente.
+    if (company.status === 'SUSPENDED' || company.status === 'CANCELLED') {
       throw new ForbiddenException(`Company is ${company.status.toLowerCase()}`);
     }
 
@@ -225,7 +227,7 @@ export class AuthService {
 
     const company = await this.prisma.company.findUnique({ where: { code: dto.companyCode } });
     if (!company) throw new UnauthorizedException('Empresa não encontrada.');
-    if (company.status !== 'ACTIVE') throw new ForbiddenException(`Empresa ${company.status.toLowerCase()}`);
+    if (company.status === 'SUSPENDED' || company.status === 'CANCELLED') throw new ForbiddenException(`Empresa ${company.status.toLowerCase()}`);
 
     const user = await this.tenantUsers.findByEmail(company.schemaName, profile.email);
     if (!user || !user.is_active) {

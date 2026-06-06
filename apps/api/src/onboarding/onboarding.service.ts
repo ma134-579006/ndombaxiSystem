@@ -280,15 +280,26 @@ export class OnboardingService {
     return { planId: company.plan.id, planName: company.plan.name, priceKz: Number(company.plan.priceKz) };
   }
 
-  /** Estado do setup obrigatório do tenant autenticado. */
-  async getSetupStatus(schema: string): Promise<{ setupCompleted: boolean }> {
+  /** Estado do setup + aprovação do tenant autenticado. */
+  async getSetupStatus(
+    tenantId: string | undefined,
+    schema: string,
+  ): Promise<{ setupCompleted: boolean; status: string; approved: boolean }> {
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<{ setup_completed: boolean }[]>(
         Prisma.sql`SELECT setup_completed FROM site_settings LIMIT 1`,
       ),
     );
-    // Sem linha → assume concluído (empresas antigas), não bloqueia.
-    return { setupCompleted: rows[0]?.setup_completed ?? true };
+    let status = 'ACTIVE';
+    if (tenantId) {
+      const c = await this.prisma.company.findUnique({ where: { id: tenantId }, select: { status: true } });
+      status = c?.status ?? 'ACTIVE';
+    }
+    return {
+      setupCompleted: rows[0]?.setup_completed ?? true,
+      status,
+      approved: status === 'ACTIVE',
+    };
   }
 
   /**
@@ -315,9 +326,11 @@ export class OnboardingService {
     });
     if (clash) throw new ConflictException('Já existe uma empresa com este código ou NIF.');
 
+    // NÃO ativa a empresa aqui: fica PENDING até o Super Admin aprovar a
+    // subscrição/pagamento. Só guarda os dados (nome, código, NIF).
     await this.prisma.company.update({
       where: { id: tenantId },
-      data: { name: dto.name.trim(), code, nif: dto.nif, status: 'ACTIVE' },
+      data: { name: dto.name.trim(), code, nif: dto.nif },
     });
 
     await this.prisma.runInTenant(schema, async (tx) => {

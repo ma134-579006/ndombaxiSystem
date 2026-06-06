@@ -6,6 +6,7 @@ import { IconBuilding, IconCard, IconChart, IconCpu, IconCube, IconReceipt, Icon
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
 import { CompanySetup } from './pages/CompanySetup';
+import { PendingApproval } from './pages/PendingApproval';
 import { Register } from './pages/Register';
 import { api } from './api/client';
 import './landing.css';
@@ -108,20 +109,23 @@ function PlatformPanel() {
 
 function TenantPanel() {
   const [section, setSection] = useState('overview');
-  // Setup obrigatório: até estar concluído, o painel fica bloqueado.
-  const [setupOk, setSetupOk] = useState<boolean | null>(null);
+  // Gate de 3 vias: setup obrigatório → aprovação do Super Admin → painel.
+  const [gate, setGate] = useState<{ setupCompleted: boolean; approved: boolean } | null>(null);
   React.useEffect(() => {
     let alive = true;
     api.onboarding.setupStatus()
-      .then((s) => { if (alive) setSetupOk(s.setupCompleted); })
-      .catch(() => { if (alive) setSetupOk(true); }); // em erro não bloqueia
+      .then((s) => { if (alive) setGate({ setupCompleted: s.setupCompleted, approved: s.approved }); })
+      .catch(() => { if (alive) setGate({ setupCompleted: true, approved: true }); }); // em erro não bloqueia
     return () => { alive = false; };
   }, []);
-  if (setupOk === null) {
+  if (gate === null) {
     return <div className="login"><span className="muted">A carregar…</span></div>;
   }
-  if (!setupOk) {
-    return <CompanySetup onDone={() => { setSetupOk(true); window.location.reload(); }} />;
+  if (!gate.setupCompleted) {
+    return <CompanySetup onDone={() => setGate({ setupCompleted: true, approved: false })} />;
+  }
+  if (!gate.approved) {
+    return <PendingApproval onApproved={() => { setGate({ setupCompleted: true, approved: true }); window.location.reload(); }} />;
   }
   return (
     <Shell nav={TENANT_NAV} section={section} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">

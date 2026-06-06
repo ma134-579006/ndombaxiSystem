@@ -42,9 +42,9 @@ export class OnboardingController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get('setup-status')
-  @ApiOperation({ summary: 'Estado do setup obrigatório da empresa autenticada' })
-  setupStatus() {
-    return this.onboarding.getSetupStatus(this.ctx.requireTenantSchema());
+  @ApiOperation({ summary: 'Estado do setup + aprovação da empresa autenticada' })
+  setupStatus(@CurrentUser() user: JwtPayload) {
+    return this.onboarding.getSetupStatus(user.tenantId, this.ctx.requireTenantSchema());
   }
 
   @UseGuards(JwtAuthGuard)
