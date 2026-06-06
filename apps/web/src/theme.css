@@ -139,8 +139,14 @@ input, textarea, select { font-family: inherit; }
 .nav button:hover { background: var(--surface); color: var(--text); }
 .nav button.active { background: var(--grad-primary); color: #fff; box-shadow: 0 10px 22px -12px var(--primary); }
 /* Separador "ou" no login (entre palavra-passe e Google) */
-.or-sep { display: flex; align-items: center; gap: 10px; margin: 14px 0 12px; color: var(--muted); font-size: 12px; }
+.or-sep { display: flex; align-items: center; gap: 10px; margin: clamp(6px, 1.2vh, 12px) 0; color: var(--muted); font-size: 12px; }
 .or-sep::before, .or-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+/* Link compacto "Tenho código 2FA" (poupa altura no login) */
+.link-2fa { background: none; border: none; color: var(--muted); font-size: clamp(11px, 1.5vh, 13px); cursor: pointer; padding: 2px 0; margin-bottom: clamp(4px, 1vh, 10px); text-decoration: underline; align-self: flex-start; }
+.link-2fa:hover { color: var(--text); }
+.login .google-row { display: flex; flex-direction: column; align-items: center; }
+/* Em ecrãs baixos esconde o "ou" + botão Google para o login NUNCA rolar. */
+@media (max-height: 600px) { .login .google-row { display: none; } }
 /* Grupos de navegação (sub-opções) */
 .nav-group { display: flex; flex-direction: column; }
 .nav-group-head { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 11px; color: var(--muted); font-size: 14px; font-weight: 600; text-align: left; width: 100%; transition: background .15s, color .15s; }
@@ -294,6 +300,7 @@ html.kbd-open .login { justify-content: flex-start; }
 html.kbd-open .login .box { padding-bottom: 300px; }
 html.kbd-open .login .brand,
 html.kbd-open .login .kbd-toggle,
+html.kbd-open .login .google-row,
 html.kbd-open .login .box > p { display: none; }
 
 /* ── Seletor de produto por pesquisa (+ câmara) ─────────── */

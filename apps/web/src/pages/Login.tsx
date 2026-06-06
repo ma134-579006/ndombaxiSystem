@@ -19,6 +19,7 @@ export function Login({ onBack }: { onBack?: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [twoFa, setTwoFa] = useState('');
+  const [show2fa, setShow2fa] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -111,7 +112,11 @@ export function Login({ onBack }: { onBack?: () => void }) {
             <>
               <KeyboardInput label="E-mail" value={email} onChange={setEmail} placeholder={profile === 'tenant' ? 'gestor@empresa.ao' : 'admin@ndombaxi.ao'} onSubmit={submit} />
               <KeyboardInput label="Palavra-passe" type="password" value={password} onChange={setPassword} placeholder="••••••••" onSubmit={submit} />
-              <KeyboardInput label="Código 2FA (se activo)" value={twoFa} onChange={setTwoFa} placeholder="000000" numeric maxLength={6} onSubmit={submit} />
+              {show2fa ? (
+                <KeyboardInput label="Código 2FA" value={twoFa} onChange={setTwoFa} placeholder="000000" numeric maxLength={6} onSubmit={submit} />
+              ) : (
+                <button type="button" className="link-2fa" onClick={() => setShow2fa(true)}>Tenho código 2FA</button>
+              )}
             </>
           ) : null}
 
@@ -133,13 +138,10 @@ export function Login({ onBack }: { onBack?: () => void }) {
           </button>
 
           {profile === 'tenant' ? (
-            <>
+            <div className="google-row">
               <div className="or-sep"><span>ou</span></div>
               <GoogleSignInButton onCredential={onGoogle} />
-              <p className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>
-                Indique o código da empresa e use a sua conta Google (tem de já existir nesta empresa).
-              </p>
-            </>
+            </div>
           ) : null}
         </div>
         {onBack ? (
