@@ -44,16 +44,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const applyTokens = useCallback((tokens: TokenPair) => {
     accessRef.current = tokens.accessToken;
     refreshRef.current = tokens.refreshToken;
-    localStorage.setItem(LS_ACCESS, tokens.accessToken);
-    localStorage.setItem(LS_REFRESH, tokens.refreshToken);
+    // Tokens em sessionStorage (por-aba): nova aba/ligação copiada NÃO herda a
+    // sessão → exige novo login do operador (PIN). Mais seguro.
+    sessionStorage.setItem(LS_ACCESS, tokens.accessToken);
+    sessionStorage.setItem(LS_REFRESH, tokens.refreshToken);
     setUser(decodeJwt(tokens.accessToken));
   }, []);
 
   const clearSession = useCallback(() => {
     accessRef.current = null;
     refreshRef.current = null;
-    localStorage.removeItem(LS_ACCESS);
-    localStorage.removeItem(LS_REFRESH);
+    sessionStorage.removeItem(LS_ACCESS);
+    sessionStorage.removeItem(LS_REFRESH);
     setUser(null);
     setStatus('guest');
   }, []);
@@ -81,8 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const access = localStorage.getItem(LS_ACCESS);
-      const refresh = localStorage.getItem(LS_REFRESH);
+      const access = sessionStorage.getItem(LS_ACCESS);
+      const refresh = sessionStorage.getItem(LS_REFRESH);
       if (!access || !refresh) {
         if (alive) setStatus('guest');
         return;

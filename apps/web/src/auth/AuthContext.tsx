@@ -23,6 +23,7 @@ const LS_SESSION_START = 'ndombaxi.web.session_start';
 // Tempo de vida ABSOLUTO da sessão (segurança): após isto, re-login obrigatório,
 // mesmo com refresh token válido. Evita sessões "eternas" guardadas no browser.
 const MAX_SESSION_MS = 12 * 60 * 60 * 1000; // 12 horas
+const IDLE_MS = 20 * 60 * 1000; // logout automático após 20 min de inatividade
 // Acesso shadow: guarda a sessão de plataforma para restaurar ao sair.
 const LS_SHADOW = 'ndombaxi.web.shadow';
 const LS_PREV_ACCESS = 'ndombaxi.web.prevaccess';
@@ -54,7 +55,7 @@ function modeFromUser(u: DecodedJwt | null): AuthMode | null {
 
 /** A sessão ultrapassou o tempo de vida absoluto? (expira o login guardado) */
 function sessionExpired(): boolean {
-  const started = Number(localStorage.getItem(LS_SESSION_START) || 0);
+  const started = Number(sessionStorage.getItem(LS_SESSION_START) || 0);
   return started > 0 && Date.now() - started > MAX_SESSION_MS;
 }
 
@@ -62,31 +63,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<DecodedJwt | null>(null);
   const [companyCode, setCompanyCode] = useState<string | null>(
-    () => localStorage.getItem(LS_COMPANY),
+    () => sessionStorage.getItem(LS_COMPANY),
   );
-  const [shadow, setShadow] = useState<string | null>(() => localStorage.getItem(LS_SHADOW));
+  const [shadow, setShadow] = useState<string | null>(() => sessionStorage.getItem(LS_SHADOW));
 
   const accessRef = useRef<string | null>(null);
   const refreshRef = useRef<string | null>(null);
-  const companyRef = useRef<string | undefined>(localStorage.getItem(LS_COMPANY) ?? undefined);
+  const companyRef = useRef<string | undefined>(sessionStorage.getItem(LS_COMPANY) ?? undefined);
 
   const applyTokens = useCallback((tokens: TokenPair) => {
     accessRef.current = tokens.accessToken;
     refreshRef.current = tokens.refreshToken;
-    localStorage.setItem(LS_ACCESS, tokens.accessToken);
-    localStorage.setItem(LS_REFRESH, tokens.refreshToken);
+    sessionStorage.setItem(LS_ACCESS, tokens.accessToken);
+    sessionStorage.setItem(LS_REFRESH, tokens.refreshToken);
     setUser(decodeJwt(tokens.accessToken));
   }, []);
 
   const clearSession = useCallback(() => {
     accessRef.current = null;
     refreshRef.current = null;
-    localStorage.removeItem(LS_ACCESS);
-    localStorage.removeItem(LS_REFRESH);
-    localStorage.removeItem(LS_SESSION_START);
-    localStorage.removeItem(LS_SHADOW);
-    localStorage.removeItem(LS_PREV_ACCESS);
-    localStorage.removeItem(LS_PREV_REFRESH);
+    sessionStorage.removeItem(LS_ACCESS);
+    sessionStorage.removeItem(LS_REFRESH);
+    sessionStorage.removeItem(LS_SESSION_START);
+    sessionStorage.removeItem(LS_SHADOW);
+    sessionStorage.removeItem(LS_PREV_ACCESS);
+    sessionStorage.removeItem(LS_PREV_REFRESH);
     setShadow(null);
     setUser(null);
     setStatus('guest');
@@ -114,8 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const access = localStorage.getItem(LS_ACCESS);
-      const refresh = localStorage.getItem(LS_REFRESH);
+      const access = sessionStorage.getItem(LS_ACCESS);
+      const refresh = sessionStorage.getItem(LS_REFRESH);
       if (!access || !refresh) {
         if (alive) setStatus('guest');
         return;
@@ -161,13 +162,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { alive = false; };
   }, [status, user]);
 
+  // SEGURANÇA: logout automático por INATIVIDADE (20 min) e revalidação ao
+  // voltar à app (foco/separador). Combinado com a sessão por-aba
+  // (sessionStorage), uma aba nova/ligação copiada NÃO herda a sessão → login.
+  useEffect(() => {
+    if (status !== 'authed') return;
+    let last = Date.now();
+    const bump = () => { last = Date.now(); };
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
+    const tick = window.setInterval(() => {
+      if (Date.now() - last > IDLE_MS || sessionExpired()) {
+        void logout();
+      }
+    }, 30_000);
+    const onFocus = () => {
+      if (sessionExpired()) { void logout(); return; }
+      // Revalida o token; se o refresh falhar, encerra a sessão.
+      const rt = refreshRef.current;
+      if (rt) api.refresh(rt).then(applyTokens).catch(() => clearSession());
+    };
+    window.addEventListener('focus', onFocus);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, bump));
+      window.clearInterval(tick);
+      window.removeEventListener('focus', onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
   const loginPlatform = useCallback(
     async (input: PlatformLoginInput) => {
       // Super Admin não usa código de empresa.
       companyRef.current = undefined;
       setCompanyCode(null);
-      localStorage.removeItem(LS_COMPANY);
-      localStorage.setItem(LS_SESSION_START, String(Date.now()));
+      sessionStorage.removeItem(LS_COMPANY);
+      sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(await api.login(input));
       setStatus('authed');
     },
@@ -178,8 +208,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (input: TenantLoginInput) => {
       companyRef.current = input.companyCode;
       setCompanyCode(input.companyCode);
-      localStorage.setItem(LS_COMPANY, input.companyCode);
-      localStorage.setItem(LS_SESSION_START, String(Date.now()));
+      sessionStorage.setItem(LS_COMPANY, input.companyCode);
+      sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(await api.loginTenant(input));
       setStatus('authed');
     },
@@ -191,8 +221,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (tokens: TokenPair, code: string) => {
       companyRef.current = code;
       setCompanyCode(code);
-      localStorage.setItem(LS_COMPANY, code);
-      localStorage.setItem(LS_SESSION_START, String(Date.now()));
+      sessionStorage.setItem(LS_COMPANY, code);
+      sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(tokens);
       setStatus('authed');
     },
@@ -203,8 +233,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (companyCode: string, idToken: string) => {
       companyRef.current = companyCode;
       setCompanyCode(companyCode);
-      localStorage.setItem(LS_COMPANY, companyCode);
-      localStorage.setItem(LS_SESSION_START, String(Date.now()));
+      sessionStorage.setItem(LS_COMPANY, companyCode);
+      sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(await api.loginGoogle(companyCode, idToken));
       setStatus('authed');
     },
@@ -214,14 +244,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const enterShadow = useCallback(
     (tokens: TokenPair, code: string, companyName: string) => {
       // Preserva a sessão de plataforma actual para restaurar ao sair.
-      if (accessRef.current) localStorage.setItem(LS_PREV_ACCESS, accessRef.current);
-      if (refreshRef.current) localStorage.setItem(LS_PREV_REFRESH, refreshRef.current);
+      if (accessRef.current) sessionStorage.setItem(LS_PREV_ACCESS, accessRef.current);
+      if (refreshRef.current) sessionStorage.setItem(LS_PREV_REFRESH, refreshRef.current);
       companyRef.current = code;
       setCompanyCode(code);
-      localStorage.setItem(LS_COMPANY, code);
-      localStorage.setItem(LS_SESSION_START, String(Date.now()));
+      sessionStorage.setItem(LS_COMPANY, code);
+      sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(tokens);
-      localStorage.setItem(LS_SHADOW, companyName);
+      sessionStorage.setItem(LS_SHADOW, companyName);
       setShadow(companyName);
       setStatus('authed');
     },
@@ -229,12 +259,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const exitShadow = useCallback(() => {
-    const pa = localStorage.getItem(LS_PREV_ACCESS);
-    const pr = localStorage.getItem(LS_PREV_REFRESH);
-    localStorage.removeItem(LS_PREV_ACCESS);
-    localStorage.removeItem(LS_PREV_REFRESH);
-    localStorage.removeItem(LS_SHADOW);
-    localStorage.removeItem(LS_COMPANY);
+    const pa = sessionStorage.getItem(LS_PREV_ACCESS);
+    const pr = sessionStorage.getItem(LS_PREV_REFRESH);
+    sessionStorage.removeItem(LS_PREV_ACCESS);
+    sessionStorage.removeItem(LS_PREV_REFRESH);
+    sessionStorage.removeItem(LS_SHADOW);
+    sessionStorage.removeItem(LS_COMPANY);
     companyRef.current = undefined;
     setCompanyCode(null);
     setShadow(null);
