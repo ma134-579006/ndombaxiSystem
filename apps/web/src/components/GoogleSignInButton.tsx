@@ -1,10 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { GOOGLE_CLIENT_ID } from '../config';
 
 interface GoogleIdApi {
   accounts: {
     id: {
-      initialize(cfg: { client_id: string; callback: (r: { credential: string }) => void }): void;
+      initialize(cfg: Record<string, unknown>): void;
       renderButton(el: HTMLElement, opts: Record<string, unknown>): void;
     };
   };
@@ -19,37 +19,58 @@ function loadGsi(): Promise<void> {
     s.src = 'https://accounts.google.com/gsi/client';
     s.async = true; s.defer = true;
     s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Falha ao carregar o Google.'));
+    s.onerror = () => reject(new Error('load'));
     document.head.appendChild(s);
   });
   return scriptPromise;
 }
 
 /**
- * Botão "Entrar com Google" (Google Identity Services). Devolve o ID token
- * via onCredential; o backend verifica-o. Renderiza o botão oficial da Google.
+ * Botão "Entrar com Google" (Google Identity Services). Devolve o ID token via
+ * onCredential. RESILIENTE: se o Google não carregar/renderizar (ex.: domínio
+ * não autorizado no Google Cloud), mostra um aviso em vez de ficar em branco —
+ * o utilizador continua a poder usar o e-mail.
  */
 export function GoogleSignInButton({ onCredential }: { onCredential(idToken: string): void }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const cbRef = useRef(onCredential);
   cbRef.current = onCredential;
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     loadGsi().then(() => {
       if (cancelled || !ref.current) return;
       const g = (window as unknown as { google?: GoogleIdApi }).google;
-      if (!g) return;
-      g.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: (r) => { if (r?.credential) cbRef.current(r.credential); },
-      });
-      g.accounts.id.renderButton(ref.current, {
-        theme: 'outline', size: 'large', width: 280, text: 'continue_with', shape: 'pill',
-      });
-    }).catch(() => undefined);
+      if (!g) { setFailed(true); return; }
+      try {
+        g.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: (r: { credential?: string }) => { if (r?.credential) cbRef.current(r.credential); },
+          // Se o domínio não estiver autorizado, a Google chama este callback.
+          error_callback: () => setFailed(true),
+          use_fedcm_for_prompt: false,
+        });
+        g.accounts.id.renderButton(ref.current, {
+          theme: 'outline', size: 'large', width: 280, text: 'continue_with', shape: 'pill',
+        });
+        // Se em 3s o botão não renderizou (origem não autorizada), mostra aviso.
+        window.setTimeout(() => {
+          if (!cancelled && ref.current && ref.current.childElementCount === 0) setFailed(true);
+        }, 3000);
+      } catch {
+        setFailed(true);
+      }
+    }).catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
   }, []);
 
-  return <div ref={ref} style={{ display: 'flex', justifyContent: 'center' }} />;
+  if (failed) {
+    return (
+      <div className="muted" style={{ fontSize: 12, textAlign: 'center', maxWidth: 300 }}>
+        Entrar com Google indisponível neste momento. Use o <strong>e-mail e palavra-passe</strong> acima.
+      </div>
+    );
+  }
+  return <div ref={ref} style={{ display: 'flex', justifyContent: 'center', minHeight: 44 }} />;
 }
