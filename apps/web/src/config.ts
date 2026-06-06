@@ -19,4 +19,4 @@ export const CAIXA_URL = ((import.meta.env.VITE_CAIXA_URL as string | undefined)
 
 /** Google Sign-In Client ID (público). Configurável via VITE_GOOGLE_CLIENT_ID. */
 export const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)
-  ?? '522636462932-tc0tpn8k9uncauv2rietf4mr6f9bt0b8.apps.googleusercontent.com';
+  ?? '585772503915-1jp1is4d5pfndnc28vu69bp83k7o515b.apps.googleusercontent.com';

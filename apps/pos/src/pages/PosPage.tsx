@@ -236,6 +236,22 @@ export function PosPage() {
   // Leitor de código de barras FÍSICO (keyboard-wedge): lê e lança ao carrinho.
   useBarcodeScanner((code) => scanResolve(code));
 
+  // AUTO-ENTER no campo de pesquisa: assim que o que está escrito corresponder
+  // EXACTAMENTE ao código de barras / código de um produto (scanner que NÃO
+  // envia Enter, ou digitação), lança automaticamente e limpa o campo — sem o
+  // utilizador clicar/Enter. (A pesquisa por NOME continua manual, para não
+  // lançar produtos errados.)
+  useEffect(() => {
+    const q = search.trim();
+    if (!q) return;
+    const t = window.setTimeout(() => {
+      const exact = products.find((p) => (p.barcode && p.barcode === q) || p.code.toLowerCase() === q.toLowerCase());
+      if (exact) { addToCart(exact); setSearch(''); }
+    }, 140);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, products]);
+
   /** Guarda a venda na fila offline e mostra um comprovativo PROVISÓRIO. */
   const finalizeOffline = async () => {
     const sale = buildPendingSale(cart, totals, customer ? { id: customer.id, name: customer.name } : null);
