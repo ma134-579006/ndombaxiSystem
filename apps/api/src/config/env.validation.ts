@@ -38,6 +38,12 @@ export const envSchema = z.object({
     .string()
     .min(32)
     .default('dev-only-config-encryption-key-change-me-32+'),
+
+  // Google Sign-In (OAuth) — Client ID público; o backend verifica o ID token
+  // contra as chaves públicas da Google (não precisa de Client Secret).
+  GOOGLE_CLIENT_ID: z
+    .string()
+    .default('522636462932-tc0tpn8k9uncauv2rietf4mr6f9bt0b8.apps.googleusercontent.com'),
 });
 
 export type Env = z.infer<typeof envSchema>;

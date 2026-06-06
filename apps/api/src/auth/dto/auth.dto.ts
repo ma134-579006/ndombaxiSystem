@@ -67,6 +67,16 @@ export class PinLoginDto {
   pin!: string;
 }
 
+export class GoogleLoginDto {
+  @IsString()
+  @Matches(/^[a-z0-9-]{2,40}$/)
+  companyCode!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  idToken!: string;
+}
+
 export class UpdateThemeDto {
   /** Id do tema (vazio = padrão). Validado/whitelisted no serviço. */
   @IsString()

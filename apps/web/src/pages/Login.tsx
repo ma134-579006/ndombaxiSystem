@@ -6,12 +6,13 @@ import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
 import { IconBuilding, IconKeyboard, IconReceipt, IconShield } from '../components/Icons';
 import { Switch } from '../components/ui';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { CAIXA_URL } from '../config';
 
 type Profile = 'tenant' | 'caixa' | 'platform';
 
 export function Login({ onBack }: { onBack?: () => void }) {
-  const { loginTenant, loginPlatform } = useAuth();
+  const { loginTenant, loginPlatform, loginGoogle } = useAuth();
   const kbd = useKeyboard();
   const [profile, setProfile] = useState<Profile>('tenant');
   const [company, setCompany] = useState('');
@@ -20,6 +21,22 @@ export function Login({ onBack }: { onBack?: () => void }) {
   const [twoFa, setTwoFa] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const onGoogle = async (idToken: string) => {
+    setError(null);
+    if (!company.trim()) {
+      setError('Indique primeiro o código da empresa para entrar com Google.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await loginGoogle(company.trim().toLowerCase(), idToken);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível entrar com Google.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const submit = async () => {
     setError(null);
@@ -114,6 +131,16 @@ export function Login({ onBack }: { onBack?: () => void }) {
             {profile === 'caixa' ? <IconReceipt size={18} /> : profile === 'tenant' ? <IconBuilding size={18} /> : <IconShield size={18} />}{' '}
             {profile === 'caixa' ? 'Abrir a Caixa' : loading ? 'A entrar…' : 'Entrar'}
           </button>
+
+          {profile === 'tenant' ? (
+            <>
+              <div className="or-sep"><span>ou</span></div>
+              <GoogleSignInButton onCredential={onGoogle} />
+              <p className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>
+                Indique o código da empresa e use a sua conta Google (tem de já existir nesta empresa).
+              </p>
+            </>
+          ) : null}
         </div>
         {onBack ? (
           <p style={{ textAlign: 'center', marginTop: 14 }}>

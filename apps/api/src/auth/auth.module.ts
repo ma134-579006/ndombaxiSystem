@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { PasswordService } from './password.service';
 import { TwoFaService } from './twofa.service';
 import { TokenService } from './token.service';
+import { GoogleAuthService } from './google-auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -16,6 +17,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     PasswordService,
     TwoFaService,
     TokenService,
+    GoogleAuthService,
     JwtStrategy,
   ],
   exports: [AuthService, PasswordService, TokenService],

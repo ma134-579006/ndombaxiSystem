@@ -138,6 +138,9 @@ input, textarea, select { font-family: inherit; }
 .nav button { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 11px; color: var(--muted); font-size: 14px; font-weight: 600; text-align: left; transition: background .15s, color .15s; }
 .nav button:hover { background: var(--surface); color: var(--text); }
 .nav button.active { background: var(--grad-primary); color: #fff; box-shadow: 0 10px 22px -12px var(--primary); }
+/* Separador "ou" no login (entre palavra-passe e Google) */
+.or-sep { display: flex; align-items: center; gap: 10px; margin: 14px 0 12px; color: var(--muted); font-size: 12px; }
+.or-sep::before, .or-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 /* Grupos de navegação (sub-opções) */
 .nav-group { display: flex; flex-direction: column; }
 .nav-group-head { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 11px; color: var(--muted); font-size: 14px; font-weight: 600; text-align: left; width: 100%; transition: background .15s, color .15s; }

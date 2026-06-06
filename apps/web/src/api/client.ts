@@ -213,6 +213,9 @@ export const api = {
   /** Login do gestor da empresa (tenant). */
   loginTenant: (input: TenantLoginInput) =>
     request<TokenPair>('POST', '/auth/login', input, { auth: false }),
+  /** Login do gestor com Google (ID token) + código da empresa. */
+  loginGoogle: (companyCode: string, idToken: string) =>
+    request<TokenPair>('POST', '/auth/login/google', { companyCode, idToken }, { auth: false }),
 
   // ── SAF-T (AGT): exporta o XML fiscal mensal ───────────────
   saft: {

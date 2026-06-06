@@ -13,6 +13,7 @@ import { Role } from '../rbac/roles.enum';
 import { PasswordService } from './password.service';
 import { TwoFaService } from './twofa.service';
 import { TokenService, TokenPair } from './token.service';
+import { GoogleAuthService } from './google-auth.service';
 import { PlatformLoginDto, TenantLoginDto } from './dto/auth.dto';
 
 interface RequestCtx {
@@ -29,6 +30,7 @@ export class AuthService {
     private readonly twoFa: TwoFaService,
     private readonly tokens: TokenService,
     private readonly audit: AuditService,
+    private readonly google: GoogleAuthService,
   ) {}
 
   // ─── Preferências do utilizador (tema por perfil) ───────────
@@ -205,6 +207,48 @@ export class AuthService {
       ip: ctx.ip,
     });
 
+    return this.tokens.issuePair(payload, ctx);
+  }
+
+  /**
+   * Login com Google (aditivo ao login por palavra-passe). O utilizador escolhe
+   * a empresa (companyCode) e autentica-se com a conta Google; verificamos o ID
+   * token e emparelhamos pelo e-mail com um utilizador existente da empresa.
+   */
+  async googleLogin(
+    dto: { companyCode: string; idToken: string },
+    ctx: RequestCtx,
+  ): Promise<TokenPair> {
+    if (!dto.companyCode) throw new UnauthorizedException('Indique a empresa.');
+    const profile = await this.google.verify(dto.idToken);
+    if (!profile.email) throw new UnauthorizedException('Conta Google sem e-mail.');
+
+    const company = await this.prisma.company.findUnique({ where: { code: dto.companyCode } });
+    if (!company) throw new UnauthorizedException('Empresa não encontrada.');
+    if (company.status !== 'ACTIVE') throw new ForbiddenException(`Empresa ${company.status.toLowerCase()}`);
+
+    const user = await this.tenantUsers.findByEmail(company.schemaName, profile.email);
+    if (!user || !user.is_active) {
+      throw new UnauthorizedException('Esta conta Google não está associada a nenhum utilizador desta empresa.');
+    }
+
+    await this.tenantUsers.markLoginSuccess(company.schemaName, user.id);
+
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      subjectType: 'TENANT',
+      tenantId: company.id,
+      tenantSchema: company.schemaName,
+      storeId: user.store_id ?? undefined,
+      twoFaVerified: !user.two_fa_enabled, // Google já é 2º fator forte
+    };
+    await this.audit.record({
+      actorType: 'TENANT', actorId: user.id, tenantSchema: company.schemaName,
+      action: 'LOGIN_SUCCESS_GOOGLE', entity: 'User', entityId: user.id, ip: ctx.ip,
+    });
     return this.tokens.issuePair(payload, ctx);
   }
 

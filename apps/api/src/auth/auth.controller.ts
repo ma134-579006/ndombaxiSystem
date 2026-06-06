@@ -16,6 +16,7 @@ import type { JwtPayload } from '@nexus/types';
 import { AuthService } from './auth.service';
 import {
   EnableTwoFaDto,
+  GoogleLoginDto,
   PinLoginDto,
   PlatformLoginDto,
   RefreshDto,
@@ -79,6 +80,20 @@ export class AuthController {
   ) {
     if (!dto.companyCode && headerCode) dto.companyCode = headerCode.toLowerCase();
     return this.auth.pinLogin(dto, { ip, userAgent: ua });
+  }
+
+  @Public()
+  @Post('login/google')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login de empresa com Google (ID token) + companyCode' })
+  googleLogin(
+    @Body() dto: GoogleLoginDto,
+    @Ip() ip: string,
+    @Headers('x-tenant-code') headerCode?: string,
+    @Headers('user-agent') ua?: string,
+  ) {
+    if (!dto.companyCode && headerCode) dto.companyCode = headerCode.toLowerCase();
+    return this.auth.googleLogin(dto, { ip, userAgent: ua });
   }
 
   @Public()

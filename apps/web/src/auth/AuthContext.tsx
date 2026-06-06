@@ -37,6 +37,7 @@ interface AuthContextValue {
   shadow: string | null;
   loginPlatform(input: PlatformLoginInput): Promise<void>;
   loginTenant(input: TenantLoginInput): Promise<void>;
+  loginGoogle(companyCode: string, idToken: string): Promise<void>;
   enterShadow(tokens: TokenPair, companyCode: string, companyName: string): void;
   exitShadow(): void;
   logout(): Promise<void>;
@@ -184,6 +185,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [applyTokens],
   );
 
+  const loginGoogle = useCallback(
+    async (companyCode: string, idToken: string) => {
+      companyRef.current = companyCode;
+      setCompanyCode(companyCode);
+      localStorage.setItem(LS_COMPANY, companyCode);
+      localStorage.setItem(LS_SESSION_START, String(Date.now()));
+      applyTokens(await api.loginGoogle(companyCode, idToken));
+      setStatus('authed');
+    },
+    [applyTokens],
+  );
+
   const enterShadow = useCallback(
     (tokens: TokenPair, code: string, companyName: string) => {
       // Preserva a sessão de plataforma actual para restaurar ao sair.
@@ -240,11 +253,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       shadow,
       loginPlatform,
       loginTenant,
+      loginGoogle,
       enterShadow,
       exitShadow,
       logout,
     }),
-    [status, user, companyCode, shadow, loginPlatform, loginTenant, enterShadow, exitShadow, logout],
+    [status, user, companyCode, shadow, loginPlatform, loginTenant, loginGoogle, enterShadow, exitShadow, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
