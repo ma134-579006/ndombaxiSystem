@@ -456,6 +456,14 @@ html.kbd-open .login .box > p { display: none; }
   .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
   .kpi-card { border: 1px solid #ccc; }
   .kpi-value, .kpi-label, .kpi-sub, .ptable td, .ptable th, h2, h3 { color: #000 !important; }
+  /* Cabeçalho/rodapé AGT dos relatórios impressos (logo+nome+NIF / morada+contacto+dizeres) */
+  .doc-print-head { text-align: center; margin-bottom: 14px; color: #000; border-bottom: 2px solid #000; padding-bottom: 10px; }
+  .doc-print-head .dph-logo { max-height: 18mm; width: auto; display: block; margin: 0 auto 6px; }
+  .doc-print-head .dph-co { font-size: 18px; font-weight: 800; }
+  .doc-print-head .dph-nif { font-size: 12px; }
+  .doc-print-head .dph-title { font-size: 15px; font-weight: 700; margin-top: 8px; }
+  .doc-print-head .dph-period { font-size: 12px; color: #333; }
+  .doc-print-foot { margin-top: 16px; padding-top: 10px; border-top: 1px solid #999; text-align: center; font-size: 11px; color: #333; line-height: 1.5; }
 }
 
 /* ============================================================

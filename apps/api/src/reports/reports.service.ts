@@ -56,6 +56,69 @@ export class ReportsService {
     );
   }
 
+  /** Vendas por loja (multi-loja). */
+  async salesByStore(schema: string, from?: string, to?: string) {
+    const { from: f, to: t } = this.range(from, to);
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(Prisma.sql`
+        SELECT COALESCE(w.name, '—') AS name,
+               COUNT(DISTINCT i.id)::int AS sales,
+               ROUND(SUM(ii.net_amount), 2)::float AS net,
+               ROUND(SUM(ii.gross_amount), 2)::float AS gross
+        FROM invoices i
+        JOIN invoice_items ii ON ii.invoice_id = i.id
+        LEFT JOIN stores w ON w.id = i.store_id
+        WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
+          AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
+        GROUP BY w.name ORDER BY gross DESC`),
+    );
+  }
+
+  /** Listagem de documentos (facturas/NC) por período, loja e tipo. */
+  async documents(
+    schema: string,
+    filters: { from?: string; to?: string; storeId?: string; docType?: string } = {},
+  ) {
+    const { from: f, to: t } = this.range(filters.from, filters.to);
+    return this.prisma.runInTenant(schema, (tx) => {
+      const conds: Prisma.Sql[] = [
+        Prisma.sql`i.system_entry_date >= ${f}::date`,
+        Prisma.sql`i.system_entry_date < (${t}::date + 1)`,
+      ];
+      if (filters.storeId) conds.push(Prisma.sql`i.store_id = ${filters.storeId}::uuid`);
+      if (filters.docType) conds.push(Prisma.sql`i.doc_type = ${filters.docType}`);
+      return tx.$queryRaw(Prisma.sql`
+        SELECT i.number, i.doc_type, i.system_entry_date, i.gross_total, i.net_total, i.iva_total,
+               i.status, i.customer_tax_id, w.name AS store_name, u.name AS cashier_name
+        FROM invoices i
+        LEFT JOIN stores w ON w.id = i.store_id
+        LEFT JOIN users u ON u.id = i.cashier_id
+        WHERE ${Prisma.join(conds, ' AND ')}
+        ORDER BY i.system_entry_date DESC LIMIT 1000`);
+    });
+  }
+
+  /** Resumo de fecho de caixa: turnos fechados no período. */
+  async cashSessions(schema: string, from?: string, to?: string) {
+    const { from: f, to: t } = this.range(from, to);
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const has = await tx.$queryRaw<{ reg: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('cash_sessions')::text AS reg`,
+      );
+      if (!has[0]?.reg) return [];
+      return tx.$queryRaw(Prisma.sql`
+        SELECT cs.opened_at, cs.closed_at, cs.opened_by_name, cs.closed_by_name,
+               cs.opening_float, cs.total_sales, cs.total_cash_in, cs.total_cash_out,
+               cs.counted_cash, cs.expected_cash, cs.difference, cs.sales_count,
+               w.name AS store_name
+        FROM cash_sessions cs
+        LEFT JOIN stores w ON w.id = cs.store_id
+        WHERE cs.status = 'CLOSED'
+          AND cs.closed_at >= ${f}::date AND cs.closed_at < (${t}::date + 1)
+        ORDER BY cs.closed_at DESC LIMIT 500`);
+    });
+  }
+
   /** Mapa de impostos (IVA) por taxa. */
   async taxMap(schema: string, from?: string, to?: string) {
     const { from: f, to: t } = this.range(from, to);

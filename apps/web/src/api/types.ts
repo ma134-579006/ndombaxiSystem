@@ -403,6 +403,16 @@ export interface ReportUserRow { name: string; sales: number; net: number; gross
 export interface ReportCategoryRow { name: string; qty: number; net: number; gross: number }
 export interface ReportTaxRow { rate: number; net: number; iva: number; gross: number }
 export interface ReportPaymentRow { method: string; count: number; total: number }
+export interface ReportDocRow {
+  number: string; doc_type: string; system_entry_date: string;
+  gross_total: string; net_total: string; iva_total: string; status: string;
+  customer_tax_id: string | null; store_name: string | null; cashier_name: string | null;
+}
+export interface ReportCashSession {
+  opened_at: string; closed_at: string; opened_by_name: string | null; closed_by_name: string | null;
+  opening_float: string; total_sales: string; total_cash_in: string; total_cash_out: string;
+  counted_cash: string; expected_cash: string; difference: string; sales_count: number; store_name: string | null;
+}
 
 export interface ExpiringBatch {
   id: string; batch_code: string | null; quantity: string;

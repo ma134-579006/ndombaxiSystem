@@ -26,6 +26,29 @@ export class ReportsController {
     return this.reports.salesByCategory(this.ctx.requireTenantSchema(), from, to);
   }
 
+  @Get('sales-by-store')
+  @ApiOperation({ summary: 'Vendas por loja' })
+  salesByStore(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.salesByStore(this.ctx.requireTenantSchema(), from, to);
+  }
+
+  @Get('documents')
+  @ApiOperation({ summary: 'Listagem de documentos (faturas/NC) por período/loja/tipo' })
+  documents(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('storeId') storeId?: string,
+    @Query('docType') docType?: string,
+  ) {
+    return this.reports.documents(this.ctx.requireTenantSchema(), { from, to, storeId, docType });
+  }
+
+  @Get('cash-sessions')
+  @ApiOperation({ summary: 'Resumo de fecho de caixa (turnos fechados)' })
+  cashSessions(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.cashSessions(this.ctx.requireTenantSchema(), from, to);
+  }
+
   @Get('tax-map')
   @ApiOperation({ summary: 'Mapa de impostos (IVA) por taxa' })
   taxMap(@Query('from') from?: string, @Query('to') to?: string) {
