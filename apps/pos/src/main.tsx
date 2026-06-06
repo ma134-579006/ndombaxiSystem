@@ -5,6 +5,7 @@ import './theme.css';
 import { initTheme } from './theme';
 import { initPaper } from './print';
 import { initAutoUpdate } from './autoUpdate';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 initTheme();
 initPaper();
@@ -17,6 +18,8 @@ if (!container) throw new Error('Elemento #root não encontrado');
 
 createRoot(container).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );

@@ -252,7 +252,7 @@ function AccessModal({
   const submit = async () => {
     setErr(null);
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr('Indique um email válido.'); return; }
-    if (pin && !/^\d{6}$/.test(pin)) { setErr('O PIN deve ter 6 dígitos.'); return; }
+    if (!/^\d{6}$/.test(pin)) { setErr('Defina o PIN de 6 dígitos — é necessário para o funcionário aparecer e entrar na caixa.'); return; }
     setBusy(true);
     try {
       const r = await api.staff.createUser({
