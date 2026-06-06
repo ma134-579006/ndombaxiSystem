@@ -18,6 +18,7 @@ import { Inventory } from './sections/Inventory';
 import { StockMovements } from './sections/StockMovements';
 import { StockAnalysis } from './sections/StockAnalysis';
 import { Reports } from './sections/Reports';
+import { Settings } from './sections/Settings';
 import { Promotions } from './sections/Promotions';
 import { Overview } from './sections/Overview';
 import { Profit } from './sections/Profit';
@@ -83,6 +84,7 @@ const TENANT_NAV: NavItem[] = [
   { key: 'payroll', label: 'Folha Salarial', icon: IconReceipt },
   { key: 'leave', label: 'Férias', icon: IconBuilding },
   { key: 'store', label: 'Loja & Marca', icon: IconStore },
+  { key: 'settings', label: 'Configurações', icon: IconBuilding },
 ];
 
 function PlatformPanel() {
@@ -131,6 +133,7 @@ function TenantPanel() {
       {section === 'payroll' ? <Payroll /> : null}
       {section === 'leave' ? <Leave /> : null}
       {section === 'store' ? <Storefront /> : null}
+      {section === 'settings' ? <Settings /> : null}
     </Shell>
   );
 }
