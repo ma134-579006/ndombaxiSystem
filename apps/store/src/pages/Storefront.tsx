@@ -16,6 +16,7 @@ import { formatKz } from '../format';
 import { useStore } from '../state/StoreContext';
 import { useCustomer } from '../store/customer';
 import { CustomerModal } from '../components/CustomerModal';
+import { BarcodeScanner } from '../components/BarcodeScanner';
 import { cartCount, cartTotal } from '../store/cart';
 import { Checkout } from '../views/Checkout';
 import { Confirmation } from '../views/Confirmation';
@@ -56,9 +57,22 @@ export function Storefront() {
     const q = search.trim().toLowerCase();
     if (!q) return products;
     return products.filter(
-      (p) => p.name.toLowerCase().includes(q) || (p.description ?? '').toLowerCase().includes(q),
+      (p) => p.name.toLowerCase().includes(q)
+        || (p.description ?? '').toLowerCase().includes(q)
+        || p.code.toLowerCase().includes(q),
     );
   }, [products, search]);
+
+  // Câmara: ao reconhecer um código de barras associado a um produto da loja,
+  // adiciona ao carrinho (se houver stock); devolve true para a câmara fechar.
+  const scanResolve = (raw: string): boolean => {
+    const c = raw.trim();
+    if (!c) return false;
+    const p = products.find((x) => x.code.toLowerCase() === c.toLowerCase());
+    if (p && p.inStock) { addToCart(p); return true; }
+    setSearch(c); // não existe / sem stock → fica na pesquisa
+    return false;
+  };
 
   const total = cartTotal(cart);
   const count = cartCount(cart);
@@ -213,7 +227,8 @@ export function Storefront() {
 
           <div className="search">
             <IconSearch size={20} />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar produtos…" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar por nome ou código de barras…" />
+            <BarcodeScanner onDetected={(code) => scanResolve(code)} />
           </div>
         </section>
 

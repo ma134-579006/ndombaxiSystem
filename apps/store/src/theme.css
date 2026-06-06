@@ -113,6 +113,29 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   padding: 0 16px 0 46px; font-size: 15px; outline: none;
 }
 .search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, white); }
+.search input { padding-right: 56px; }
+.scan-btn {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.scan-btn:hover { border-color: var(--accent); }
+
+/* ── Câmara (overlay de leitura de código) ──────────────── */
+.scan-overlay {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.7);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.scan-box {
+  background: var(--surface); border-radius: 16px; padding: 14px; width: min(420px, 92vw);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.scan-box video { width: 100%; border-radius: 12px; background: #000; aspect-ratio: 3/4; object-fit: cover; }
+.scan-hint { font-size: 13px; color: var(--muted); text-align: center; }
+.scan-cancel {
+  height: 44px; border-radius: 12px; border: 1px solid var(--border); background: transparent;
+  cursor: pointer; font-size: 15px;
+}
 
 /* ── Grelha de produtos ─────────────────────────────────── */
 .products { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); padding: 18px 0 40px; }

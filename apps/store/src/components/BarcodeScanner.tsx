@@ -2,17 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { beep } from '../beep';
 
 /**
- * Botão + leitor de código de barras pela CÂMARA do telemóvel (BarcodeDetector
- * nativo). Ao detectar, chama onDetected(code). Se o browser não suportar,
- * mostra aviso. Reutilizável (criar produto, caixa, etc.).
+ * Leitor de código de barras pela CÂMARA do telemóvel (BarcodeDetector nativo)
+ * para a loja online. Ao reconhecer um código associado a um produto, faz BIP,
+ * adiciona/encontra e FECHA a câmara automaticamente. Se o código não existir,
+ * continua a ler. Precisão: só aceita depois de 2 leituras iguais seguidas.
+ *
+ * `onDetected(code)` deve devolver `true` se o código corresponde a um produto
+ * (para fazer bip + fechar); caso contrário a câmara continua a ler.
  */
-export function BarcodeScanner({
-  onDetected, label = '📷 Ler código', title = 'Ler código de barras pela câmara',
-}: {
-  onDetected(code: string): void;
-  label?: string;
-  title?: string;
-}) {
+export function BarcodeScanner({ onDetected }: { onDetected(code: string): boolean | void }) {
   const [scanning, setScanning] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -31,7 +29,7 @@ export function BarcodeScanner({
   const start = async () => {
     setErr(null);
     const BD = (window as unknown as { BarcodeDetector?: new (o?: unknown) => { detect(s: unknown): Promise<{ rawValue: string }[]> } }).BarcodeDetector;
-    if (!BD) { setErr('Este browser não lê códigos pela câmara — escreva o código manualmente.'); return; }
+    if (!BD) { setErr('Este telemóvel não lê códigos pela câmara — procure pelo nome.'); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       streamRef.current = stream;
@@ -39,7 +37,7 @@ export function BarcodeScanner({
       await new Promise((r) => setTimeout(r, 50));
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => undefined); }
       const detector = new BD({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'] } as unknown);
-      let cand = ''; let n = 0; // confiança: 2 leituras iguais seguidas
+      let cand = ''; let cn = 0;
       const tick = async () => {
         if (!streamRef.current || !videoRef.current) return;
         try {
@@ -47,8 +45,12 @@ export function BarcodeScanner({
           if (codes && codes.length) {
             const raw = String(codes[0].rawValue).trim();
             if (raw) {
-              if (cand === raw) n += 1; else { cand = raw; n = 1; }
-              if (n >= 2) { beep(); onDetected(raw); stop(); return; }
+              if (cand === raw) cn += 1; else { cand = raw; cn = 1; }
+              if (cn >= 2) {
+                const matched = onDetected(raw) === true;
+                if (matched) { beep(); stop(); return; }
+                cand = ''; cn = 0; // não encontrado → continua a ler
+              }
             }
           }
         } catch { /* frame sem código */ }
@@ -62,17 +64,20 @@ export function BarcodeScanner({
   };
 
   return (
-    <div>
-      <button type="button" className="btn sm ghost" title={title} onClick={() => (scanning ? stop() : start())}>
-        {scanning ? 'Parar câmara' : label}
+    <>
+      <button type="button" className="scan-btn" title="Procurar produto pela câmara" onClick={() => (scanning ? stop() : start())}>
+        <span style={{ fontSize: 20 }}>{scanning ? '✕' : '📷'}</span>
       </button>
       {err ? <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{err}</div> : null}
       {scanning ? (
-        <div className="pp-cam" style={{ marginTop: 6 }}>
-          <video ref={videoRef} playsInline muted />
-          <div className="muted" style={{ fontSize: 12 }}>Aponte a câmara ao código de barras…</div>
+        <div className="scan-overlay" onClick={stop}>
+          <div className="scan-box" onClick={(e) => e.stopPropagation()}>
+            <video ref={videoRef} playsInline muted />
+            <div className="scan-hint">Aponte ao código de barras — faz um bip e adiciona ao reconhecer o produto.</div>
+            <button type="button" className="scan-cancel" onClick={stop}>Cancelar</button>
+          </div>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

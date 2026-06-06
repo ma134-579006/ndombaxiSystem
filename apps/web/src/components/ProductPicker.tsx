@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ManagerProduct } from '../api/types';
+import { beep } from '../beep';
 
 /**
  * Seletor de produto por PESQUISA (nome ou código de barras) — substitui os
@@ -46,6 +47,18 @@ export function ProductPicker({
 
   const pick = (p: ManagerProduct) => { onChange(p.id); setOpen(false); setQ(''); };
 
+  // Auto-enter por TEXTO: ao escrever/colar um código de barras exacto,
+  // selecciona o produto automaticamente (sem clicar), e dá um bip.
+  useEffect(() => {
+    const t = q.trim();
+    if (!t || selected) return;
+    const exact = products.find(
+      (p) => (p.barcode && p.barcode === t) || p.code.toLowerCase() === t.toLowerCase(),
+    );
+    if (exact) { beep(); pick(exact); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, products]);
+
   const startScan = async () => {
     setErr(null);
     const BD = (window as unknown as { BarcodeDetector?: new (o?: unknown) => { detect(s: unknown): Promise<{ rawValue: string }[]> } }).BarcodeDetector;
@@ -68,8 +81,12 @@ export function ProductPicker({
               if (cand === raw) cn += 1; else { cand = raw; cn = 1; }
               if (cn >= 2) {
                 const p = products.find((x) => x.barcode === raw || x.code === raw);
-                if (p) { pick(p); stopScan(); return; }
-                setQ(raw); stopScan(); return;
+                if (p) {
+                  // Encontrou produto cadastrado → bip, selecciona e FECHA a câmara.
+                  beep(); pick(p); stopScan(); return;
+                }
+                // Código não associado a nenhum produto → continua a ler.
+                cand = ''; cn = 0;
               }
             }
           }
