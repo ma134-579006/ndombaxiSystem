@@ -119,6 +119,24 @@ export class ReportsService {
     });
   }
 
+  /** Vendas por marca (campo brand do produto). */
+  async salesByBrand(schema: string, from?: string, to?: string) {
+    const { from: f, to: t } = this.range(from, to);
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(Prisma.sql`
+        SELECT COALESCE(NULLIF(p.brand, ''), 'Sem marca') AS name,
+               ROUND(SUM(ii.quantity), 3)::float AS qty,
+               ROUND(SUM(ii.net_amount), 2)::float AS net,
+               ROUND(SUM(ii.gross_amount), 2)::float AS gross
+        FROM invoices i
+        JOIN invoice_items ii ON ii.invoice_id = i.id
+        LEFT JOIN products p ON p.id = ii.product_id
+        WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
+          AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
+        GROUP BY COALESCE(NULLIF(p.brand, ''), 'Sem marca') ORDER BY gross DESC`),
+    );
+  }
+
   /** Mapa de impostos (IVA) por taxa. */
   async taxMap(schema: string, from?: string, to?: string) {
     const { from: f, to: t } = this.range(from, to);

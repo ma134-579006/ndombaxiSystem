@@ -247,10 +247,13 @@ input, textarea, select { font-family: inherit; }
    Quanto mais baixo o ecrã, mais compacto fica — a logo só encolhe
    (object-fit:contain), nunca distorce. */
 .login { height: 100vh; height: 100dvh; display: flex; flex-direction: column;
-  justify-content: safe center; align-items: center; overflow-y: auto;
+  justify-content: safe center; align-items: center; overflow: hidden;
   padding: clamp(6px, 1.6vh, 24px) 18px;
   background: radial-gradient(900px 480px at 15% -10%, rgba(59,130,246,.20), transparent 60%), radial-gradient(700px 460px at 100% 110%, rgba(124,58,237,.18), transparent 55%), linear-gradient(160deg, #0a1020, #0c1426 55%, #080d1a); }
-.login .box { width: 100%; max-width: 410px; margin: auto; }
+/* A PÁGINA nunca rola (overflow hidden). A caixa absorve excesso só em ecrãs
+   minúsculos (scroll interno discreto), mantendo o login sempre "justo". */
+.login .box { width: 100%; max-width: 410px; margin: auto; max-height: 100%; overflow-y: auto; scrollbar-width: none; }
+.login .box::-webkit-scrollbar { width: 0; height: 0; }
 .login .brand { display: flex; flex-direction: column; align-items: center; margin-bottom: clamp(6px, 2vh, 22px); }
 .login .brand img { width: clamp(36px, 7.5vh, 76px); height: clamp(36px, 7.5vh, 76px); border-radius: clamp(11px, 2vh, 20px); object-fit: contain; background: var(--surface-2); border: 1px solid var(--border); padding: clamp(3px, 0.9vh, 8px); margin-bottom: clamp(4px, 1.2vh, 12px); box-shadow: var(--shadow); }
 .login .brand h1 { margin: 0; font-size: clamp(16px, 2.8vh, 23px); font-weight: 900; line-height: 1.1; }

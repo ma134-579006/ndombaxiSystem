@@ -422,6 +422,8 @@ export const api = {
       request<ReportPaymentRow[]>('GET', `/reports/payment-methods${qs({ from, to })}`),
     salesByStore: (from?: string, to?: string) =>
       request<ReportUserRow[]>('GET', `/reports/sales-by-store${qs({ from, to })}`),
+    salesByBrand: (from?: string, to?: string) =>
+      request<ReportCategoryRow[]>('GET', `/reports/sales-by-brand${qs({ from, to })}`),
     documents: (f: { from?: string; to?: string; storeId?: string; docType?: string } = {}) =>
       request<ReportDocRow[]>('GET', `/reports/documents${qs(f as Record<string, string>)}`),
     cashSessions: (from?: string, to?: string) =>

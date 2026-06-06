@@ -32,6 +32,11 @@ export class CreateProductDto {
   @IsString()
   categoryId?: string;
 
+  @IsOptional()
+  @IsString()
+  @Length(0, 80)
+  brand?: string;
+
   @IsEnum(IvaCode)
   ivaCode!: IvaCode;
 
@@ -100,6 +105,11 @@ export class UpdateProductDto {
   @IsOptional()
   @IsEnum(IvaCode)
   ivaCode?: IvaCode;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 80)
+  brand?: string;
 
   @IsOptional()
   @IsString()

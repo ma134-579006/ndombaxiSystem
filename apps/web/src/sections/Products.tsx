@@ -18,6 +18,7 @@ interface FormState {
   barcode: string;
   name: string;
   description: string;
+  brand: string;
   ivaCode: IvaCode;
   exemptionReason: string;
   unitPrice: string;
@@ -35,6 +36,7 @@ const EMPTY: FormState = {
   barcode: '',
   name: '',
   description: '',
+  brand: '',
   ivaCode: 'NOR',
   exemptionReason: '',
   unitPrice: '',
@@ -89,6 +91,7 @@ export function Products() {
       barcode: p.barcode ?? '',
       name: p.name,
       description: p.description ?? '',
+      brand: p.brand ?? '',
       ivaCode: p.iva_code,
       exemptionReason: p.exemption_reason ?? '',
       unitPrice: p.unit_price,
@@ -137,6 +140,7 @@ export function Products() {
         await api.products.update(editing.id, {
           name: form.name.trim(),
           description: form.description.trim() || undefined,
+          brand: form.brand.trim(),
           ivaCode: form.ivaCode,
           exemptionReason: form.exemptionReason.trim(),
           unitPrice: price,
@@ -156,6 +160,7 @@ export function Products() {
           barcode: form.code.trim() || undefined,
           name: form.name.trim(),
           description: form.description.trim() || undefined,
+          brand: form.brand.trim() || undefined,
           ivaCode: form.ivaCode,
           exemptionReason: form.exemptionReason.trim(),
           unitPrice: price,
@@ -274,6 +279,10 @@ export function Products() {
           <div className="field">
             <label>Descrição</label>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Opcional" />
+          </div>
+          <div className="field">
+            <label>Marca (opcional)</label>
+            <input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="ex.: Coca-Cola, Nestlé" />
           </div>
           <p className="muted" style={{ fontSize: 12, margin: '0 0 4px' }}>
             O <strong>preço de venda</strong>, o <strong>custo</strong> e o <strong>stock</strong> definem-se na <strong>Entrada stock/Inventário</strong> (ao dar entrada de mercadoria).

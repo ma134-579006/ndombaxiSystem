@@ -43,6 +43,12 @@ export class ReportsController {
     return this.reports.documents(this.ctx.requireTenantSchema(), { from, to, storeId, docType });
   }
 
+  @Get('sales-by-brand')
+  @ApiOperation({ summary: 'Vendas por marca' })
+  salesByBrand(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.salesByBrand(this.ctx.requireTenantSchema(), from, to);
+  }
+
   @Get('cash-sessions')
   @ApiOperation({ summary: 'Resumo de fecho de caixa (turnos fechados)' })
   cashSessions(@Query('from') from?: string, @Query('to') to?: string) {

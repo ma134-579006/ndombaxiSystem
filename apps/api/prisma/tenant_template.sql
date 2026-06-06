@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."products" (
   name         TEXT NOT NULL,
   description  TEXT,
   category_id  UUID REFERENCES "{{SCHEMA}}"."product_categories"(id) ON DELETE SET NULL,
+  brand        TEXT,                          -- marca do produto (para relatórios "por marca")
   iva_code     TEXT NOT NULL DEFAULT 'NOR',  -- NOR/RED/ISE/OUT (§7.1)
   exemption_reason TEXT,                       -- motivo de isenção (obrigatório p/ ISE/OUT)
   exemption_code   TEXT,                       -- código AGT do motivo (opcional)

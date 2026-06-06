@@ -7,12 +7,13 @@ import type {
 import { IconChart } from '../components/Icons';
 import { formatKz } from '../format';
 
-type Tab = 'product' | 'user' | 'store' | 'category' | 'evolution' | 'tax' | 'payments' | 'documents' | 'cashbox';
+type Tab = 'product' | 'user' | 'store' | 'category' | 'brand' | 'evolution' | 'tax' | 'payments' | 'documents' | 'cashbox';
 const TABS: { key: Tab; label: string; group: string }[] = [
   { key: 'product', label: 'Por produto', group: 'Vendas' },
   { key: 'user', label: 'Por utilizador', group: 'Vendas' },
   { key: 'store', label: 'Por loja', group: 'Vendas' },
   { key: 'category', label: 'Por categoria', group: 'Vendas' },
+  { key: 'brand', label: 'Por marca', group: 'Vendas' },
   { key: 'evolution', label: 'Evolução temporal', group: 'Vendas' },
   { key: 'documents', label: 'Documentos', group: 'Contabilidade' },
   { key: 'tax', label: 'Mapa de IVA', group: 'Contabilidade' },
@@ -41,6 +42,7 @@ export function Reports() {
   const [byUser, setByUser] = useState<ReportUserRow[]>([]);
   const [byStore, setByStore] = useState<ReportUserRow[]>([]);
   const [byCategory, setByCategory] = useState<ReportCategoryRow[]>([]);
+  const [byBrand, setByBrand] = useState<ReportCategoryRow[]>([]);
   const [series, setSeries] = useState<ProfitPoint[]>([]);
   const [tax, setTax] = useState<ReportTaxRow[]>([]);
   const [payments, setPayments] = useState<ReportPaymentRow[]>([]);
@@ -56,6 +58,7 @@ export function Reports() {
       else if (tab === 'user') setByUser(await api.reports.salesByUser(from, to));
       else if (tab === 'store') setByStore(await api.reports.salesByStore(from, to));
       else if (tab === 'category') setByCategory(await api.reports.salesByCategory(from, to));
+      else if (tab === 'brand') setByBrand(await api.reports.salesByBrand(from, to));
       else if (tab === 'evolution') setSeries(await api.profit.series(from, to));
       else if (tab === 'tax') setTax(await api.reports.taxMap(from, to));
       else if (tab === 'payments') setPayments(await api.reports.paymentMethods(from, to));
@@ -74,6 +77,7 @@ export function Reports() {
     else if (tab === 'user') { headers = ['Utilizador', 'Vendas', 'Líquido', 'Total']; rows = byUser.map((r) => [r.name, r.sales, r.net, r.gross]); }
     else if (tab === 'store') { headers = ['Loja', 'Vendas', 'Líquido', 'Total']; rows = byStore.map((r) => [r.name, r.sales, r.net, r.gross]); }
     else if (tab === 'category') { headers = ['Categoria', 'Qt', 'Líquido', 'Total']; rows = byCategory.map((r) => [r.name, r.qty, r.net, r.gross]); }
+    else if (tab === 'brand') { headers = ['Marca', 'Qt', 'Líquido', 'Total']; rows = byBrand.map((r) => [r.name, r.qty, r.net, r.gross]); }
     else if (tab === 'evolution') { headers = ['Data', 'Vendas', 'Custo', 'Lucro']; rows = series.map((p) => [p.bucket, p.salesNet, p.cost, p.profit]); }
     else if (tab === 'tax') { headers = ['Taxa IVA%', 'Base', 'IVA', 'Total']; rows = tax.map((r) => [r.rate, r.net, r.iva, r.gross]); }
     else if (tab === 'payments') { headers = ['Método', 'Nº', 'Total']; rows = payments.map((r) => [PAY_LABEL[r.method] ?? r.method, r.count, r.total]); }
@@ -156,6 +160,10 @@ export function Reports() {
             {tab === 'category' ? (
               <Table head={['Categoria', 'Quantidade', 'Líquido', 'Total']}
                 rows={byCategory.map((r) => [r.name, String(r.qty), formatKz(r.net), formatKz(r.gross)])} />
+            ) : null}
+            {tab === 'brand' ? (
+              <Table head={['Marca', 'Quantidade', 'Líquido', 'Total']}
+                rows={byBrand.map((r) => [r.name, String(r.qty), formatKz(r.net), formatKz(r.gross)])} />
             ) : null}
             {tab === 'evolution' ? (
               <Table head={['Data', 'Vendas', 'Custo', 'Lucro']}

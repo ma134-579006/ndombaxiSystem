@@ -10,6 +10,7 @@ export interface ProductRow {
   name: string;
   description: string | null;
   category_id: string | null;
+  brand: string | null;
   iva_code: IvaCode;
   exemption_reason: string | null;
   exemption_code: string | null;
@@ -45,6 +46,7 @@ export class PosRepository {
       name: string;
       description?: string | null;
       categoryId?: string | null;
+      brand?: string | null;
       ivaCode: IvaCode;
       exemptionReason?: string | null;
       exemptionCode?: string | null;
@@ -61,10 +63,10 @@ export class PosRepository {
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<ProductRow[]>(
         Prisma.sql`INSERT INTO products
-            (code, barcode, name, description, category_id, iva_code, exemption_reason, exemption_code,
+            (code, barcode, name, description, category_id, brand, iva_code, exemption_reason, exemption_code,
              unit_price, cost_price, stock_qty, image_url, gallery, show_online)
           VALUES (${input.code}, ${input.barcode ?? null}, ${input.name},
-                  ${input.description ?? null}, ${input.categoryId ?? null}::uuid,
+                  ${input.description ?? null}, ${input.categoryId ?? null}::uuid, ${input.brand ?? null},
                   ${input.ivaCode}, ${input.exemptionReason ?? null}, ${input.exemptionCode ?? null},
                   ${input.unitPrice ?? 0}, ${input.costPrice ?? 0}, ${input.stockQty ?? 0},
                   ${input.imageUrl ?? null}, ${JSON.stringify(input.gallery ?? [])}::jsonb,
@@ -126,6 +128,7 @@ export class PosRepository {
     input: {
       name?: string;
       description?: string | null;
+      brand?: string | null;
       ivaCode?: IvaCode;
       exemptionReason?: string | null;
       exemptionCode?: string | null;
@@ -141,6 +144,7 @@ export class PosRepository {
     const sets: Prisma.Sql[] = [];
     if (input.name !== undefined) sets.push(Prisma.sql`name = ${input.name}`);
     if (input.description !== undefined) sets.push(Prisma.sql`description = ${input.description}`);
+    if (input.brand !== undefined) sets.push(Prisma.sql`brand = ${input.brand || null}`);
     if (input.ivaCode !== undefined) sets.push(Prisma.sql`iva_code = ${input.ivaCode}`);
     if (input.exemptionReason !== undefined) sets.push(Prisma.sql`exemption_reason = ${input.exemptionReason || null}`);
     if (input.exemptionCode !== undefined) sets.push(Prisma.sql`exemption_code = ${input.exemptionCode || null}`);

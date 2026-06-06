@@ -146,6 +146,7 @@ export interface ManagerProduct {
   name: string;
   description: string | null;
   category_id: string | null;
+  brand: string | null;
   iva_code: IvaCode;
   exemption_reason: string | null;
   exemption_code: string | null;
@@ -162,6 +163,7 @@ export interface CreateProductInput {
   barcode?: string;
   name: string;
   description?: string;
+  brand?: string;
   ivaCode: IvaCode;
   exemptionReason?: string;
   exemptionCode?: string;
@@ -175,6 +177,7 @@ export interface CreateProductInput {
 export interface UpdateProductInput {
   name?: string;
   description?: string;
+  brand?: string;
   ivaCode?: IvaCode;
   exemptionReason?: string;
   exemptionCode?: string;
