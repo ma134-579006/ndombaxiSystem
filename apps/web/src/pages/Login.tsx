@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { useKeyboard } from '../keyboard/KeyboardProvider';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
-import { IconBuilding, IconKeyboard, IconReceipt, IconShield } from '../components/Icons';
-import { Switch } from '../components/ui';
+import { IconBuilding, IconReceipt, IconShield } from '../components/Icons';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { CAIXA_URL } from '../config';
 
@@ -13,7 +11,6 @@ type Profile = 'tenant' | 'caixa' | 'platform';
 
 export function Login({ onBack }: { onBack?: () => void }) {
   const { loginTenant, loginPlatform, loginGoogle } = useAuth();
-  const kbd = useKeyboard();
   const [profile, setProfile] = useState<Profile>('tenant');
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
@@ -119,18 +116,6 @@ export function Login({ onBack }: { onBack?: () => void }) {
               )}
             </>
           ) : null}
-
-          {/* Teclado no ecrã — para PCs apenas digitais / terminais táteis */}
-          <div className="kbd-toggle">
-            <div className="meta">
-              <IconKeyboard size={18} />
-              <div>
-                <div className="ttl">Teclado no ecrã</div>
-                <div className="hint">Para PCs/terminais táteis sem teclado físico.</div>
-              </div>
-            </div>
-            <Switch checked={kbd.enabled} onChange={kbd.setEnabled} />
-          </div>
 
           <button className="btn lg block" onClick={submit} disabled={loading}>
             {profile === 'caixa' ? <IconReceipt size={18} /> : profile === 'tenant' ? <IconBuilding size={18} /> : <IconShield size={18} />}{' '}
