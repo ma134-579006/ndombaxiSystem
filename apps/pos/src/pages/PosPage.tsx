@@ -258,7 +258,7 @@ export function PosPage() {
     <div className="app-bg">
       <div className="pos">
         <header className="topbar">
-          <img className="topbar-logo" src={LOGO_SRC} alt={SYSTEM_SHORT} />
+          <img className="topbar-logo" src={identity?.logoUrl || LOGO_SRC} alt={identity?.companyName || SYSTEM_SHORT} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
           <div className="who">
             <div className="name">{identity?.companyName || `${SYSTEM_SHORT} · Caixa`}</div>
             <div className="role">
@@ -503,6 +503,7 @@ export function PosPage() {
           info={receiptInfo}
           identity={identity}
           customerName={emitted.customerName}
+          operatorName={user?.name || user?.email}
           provisional={emitted.provisional}
           onClose={closeReceipt}
         />

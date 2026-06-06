@@ -51,6 +51,11 @@ export class UpdateSiteSettingsDto {
   address?: string;
 
   @IsOptional()
+  @IsString()
+  @Length(0, 500)
+  receiptMessage?: string;
+
+  @IsOptional()
   @IsObject()
   social?: Record<string, string>;
 

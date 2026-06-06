@@ -1,7 +1,6 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { DocumentIdentity, EmittedInvoice, ReceiptFiscalInfo } from '../api/types';
-import { copyrightLine } from '../brand';
 import { formatDateTime, formatKz } from '../format';
 import { IconCheck } from './Icons';
 import { PaperSizeToggle } from './PaperSizeToggle';
@@ -11,17 +10,19 @@ interface Props {
   info: ReceiptFiscalInfo | null;
   identity?: DocumentIdentity | null;
   customerName?: string | null;
+  /** Nome do operador (funcionário) que emitiu — impresso no recibo. */
+  operatorName?: string | null;
   /** Venda guardada offline: comprovativo PROVISÓRIO (sem nº fiscal ainda). */
   provisional?: boolean;
   onClose(): void;
 }
 
 /** Recibo/comprovativo da venda emitida — identidade da empresa + dados fiscais AGT (§7). */
-export function ReceiptModal({ invoice, info, identity, customerName, provisional, onClose }: Props) {
+export function ReceiptModal({ invoice, info, identity, customerName, operatorName, provisional, onClose }: Props) {
   const hashShort = invoice.hash ? invoice.hash.slice(0, 4) : '----';
   // Conteúdo do QR de verificação (campos-chave do documento).
   const qrData = [
-    'Ndombaxi', invoice.number,
+    identity?.companyName || identity?.brandName || 'Documento', invoice.number,
     identity?.nif ? `NIF:${identity.nif}` : '',
     `Total:${invoice.grossTotal}`, `IVA:${invoice.ivaTotal}`,
     new Date().toISOString().slice(0, 10),
@@ -67,6 +68,12 @@ export function ReceiptModal({ invoice, info, identity, customerName, provisiona
             <span className="k">Cliente</span>
             <span className="v">{customerName || 'Consumidor final'}</span>
           </div>
+          {operatorName ? (
+            <div className="kv">
+              <span className="k">Operador</span>
+              <span className="v">{operatorName}</span>
+            </div>
+          ) : null}
           <div className="kv">
             <span className="k">Base tributável</span>
             <span className="v">{formatKz(invoice.netTotal)}</span>
@@ -108,7 +115,16 @@ export function ReceiptModal({ invoice, info, identity, customerName, provisiona
           ) : null}
         </div>
 
-        <div className="receipt-credit">{identity?.copyright ?? copyrightLine()}</div>
+        {identity && (identity.address || identity.phone || identity.email || identity.receiptMessage) ? (
+          <div className="r-foot-company">
+            {identity.address ? <div>{identity.address}</div> : null}
+            {(identity.phone || identity.email) ? (
+              <div>{[identity.phone, identity.email].filter(Boolean).join(' · ')}</div>
+            ) : null}
+            {identity.receiptMessage ? <div className="r-foot-msg">{identity.receiptMessage}</div> : null}
+            <div className="r-foot-thanks">Obrigado pela preferência!</div>
+          </div>
+        ) : null}
 
         <PaperSizeToggle />
         <div className="r-foot" style={{ display: 'flex', gap: 10 }}>

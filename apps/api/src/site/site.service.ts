@@ -20,6 +20,7 @@ export interface SiteSettingsRow {
   contact_email: string | null;
   contact_phone: string | null;
   address: string | null;
+  receipt_message: string | null;
   social: unknown;
   custom_css: string | null;
   is_published: boolean;
@@ -71,6 +72,7 @@ export class SiteService {
     if (dto.contactEmail !== undefined) sets.push(Prisma.sql`contact_email = ${dto.contactEmail}`);
     if (dto.contactPhone !== undefined) sets.push(Prisma.sql`contact_phone = ${dto.contactPhone}`);
     if (dto.address !== undefined) sets.push(Prisma.sql`address = ${dto.address}`);
+    if (dto.receiptMessage !== undefined) sets.push(Prisma.sql`receipt_message = ${dto.receiptMessage}`);
     if (dto.social !== undefined)
       sets.push(Prisma.sql`social = ${JSON.stringify(dto.social)}::jsonb`);
     if (dto.customCss !== undefined) sets.push(Prisma.sql`custom_css = ${dto.customCss}`);

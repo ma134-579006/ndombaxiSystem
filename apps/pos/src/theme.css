@@ -401,6 +401,9 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .footer-credit.compact { margin: 0; font-size: 11px; opacity: 0.85; }
 .topbar-credit { color: var(--muted); font-size: 11px; opacity: 0.8; white-space: nowrap; }
 .receipt-credit { text-align: center; color: var(--muted); font-size: 11px; padding: 4px 22px 0; }
+.r-foot-company { text-align: center; color: var(--muted); font-size: 12px; padding: 12px 22px 0; line-height: 1.5; border-top: 1px dashed var(--border); margin-top: 8px; }
+.r-foot-company .r-foot-msg { margin-top: 6px; font-style: italic; }
+.r-foot-company .r-foot-thanks { margin-top: 6px; font-weight: 700; color: var(--text); }
 .pos-footer { border-top: 1px solid var(--border); background: rgba(19, 28, 46, 0.6); padding: 6px 12px; text-align: center; }
 .pos-footer .footer-credit { margin: 0; font-size: 11px; }
 

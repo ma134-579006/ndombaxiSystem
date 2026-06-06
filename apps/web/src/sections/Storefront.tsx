@@ -22,6 +22,7 @@ export function Storefront() {
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [receiptMessage, setReceiptMessage] = useState('');
   const [isPublished, setIsPublished] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -47,6 +48,7 @@ export function Storefront() {
     setContactEmail(s.contact_email ?? '');
     setContactPhone(s.contact_phone ?? '');
     setAddress(s.address ?? '');
+    setReceiptMessage(s.receipt_message ?? '');
     setIsPublished(s.is_published);
   };
 
@@ -88,6 +90,7 @@ export function Storefront() {
         contactEmail,
         contactPhone,
         address,
+        receiptMessage,
         isPublished,
       };
       hydrate(await api.site.update(dto));
@@ -219,6 +222,13 @@ export function Storefront() {
         <div className="field">
           <label>Morada</label>
           <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, bairro, município" />
+        </div>
+        <div className="field">
+          <label>Dizeres do recibo (rodapé)</label>
+          <textarea value={receiptMessage} onChange={(e) => setReceiptMessage(e.target.value)} placeholder="Ex.: Os bens/serviços foram colocados à disposição do adquirente. Obrigado pela preferência." rows={2} />
+          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+            Aparece no rodapé dos recibos impressos (com a morada e o contacto da empresa). O logótipo e o nome vão no topo.
+          </p>
         </div>
       </div>
 

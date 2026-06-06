@@ -99,6 +99,7 @@ import type {
   PlatformLoginInput,
   PublicLanding,
   PublicPlan,
+  DocumentIdentity,
   RegisterCompanyInput,
   RegisterCompanyResult,
   SiteSettings,
@@ -371,6 +372,7 @@ export const api = {
     update: (dto: UpdateSiteSettingsInput) =>
       request<SiteSettings>('PATCH', '/site/settings', dto),
   },
+  branding: () => request<DocumentIdentity>('GET', '/fiscal/document-identity'),
   // ── Promoções + Alertas (gerente) ──────────────────────────
   promotions: {
     list: () => request<Promotion[]>('GET', '/promotions'),

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
 import { useAuth } from '../auth/AuthContext';
+import { api } from '../api/client';
 import { IconLogout } from './Icons';
 import { ThemePicker } from './ThemePicker';
 
@@ -49,6 +50,20 @@ export function Shell({
   children: React.ReactNode;
 }) {
   const { user, logout, companyCode } = useAuth();
+  // Branding por empresa (tenant): logo + nome da própria empresa. Para o
+  // super-admin (plataforma) mantém-se a marca do sistema.
+  const isTenant = user?.subjectType === 'TENANT';
+  const [brand, setBrand] = useState<{ name: string; logo: string | null } | null>(null);
+  useEffect(() => {
+    if (!isTenant) { setBrand(null); return; }
+    let alive = true;
+    api.branding()
+      .then((b) => { if (alive) setBrand({ name: b.brandName || b.companyName || SYSTEM_NAME, logo: b.logoUrl }); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [isTenant]);
+  const brandName = brand?.name || SYSTEM_NAME;
+  const brandLogo = brand?.logo || LOGO_SRC;
   // Procura o item activo, mesmo dentro de grupos.
   const flat = nav.flatMap((n) => (n.children ? n.children : [n]));
   const current = flat.find((n) => n.key === section);
@@ -68,9 +83,9 @@ export function Shell({
       {menuOpen ? <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} /> : null}
       <aside className={`sidebar${menuOpen ? ' open' : ''}`}>
         <div className="brand">
-          <img src={LOGO_SRC} alt={SYSTEM_NAME} />
+          <img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
           <div>
-            <div className="nm">{SYSTEM_NAME}</div>
+            <div className="nm">{brandName}</div>
             <div className="tg">{subtitle}</div>
           </div>
         </div>

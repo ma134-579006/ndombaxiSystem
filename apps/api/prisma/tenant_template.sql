@@ -430,6 +430,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."site_settings" (
   address         TEXT,
   social          JSONB,                        -- { facebook, instagram, whatsapp, ... }
   custom_css      TEXT,
+  receipt_message TEXT,                        -- dizeres livres no rodapé do recibo/relatório
   is_published    BOOLEAN NOT NULL DEFAULT FALSE,
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );

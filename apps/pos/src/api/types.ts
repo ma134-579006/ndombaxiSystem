@@ -148,6 +148,7 @@ export interface DocumentIdentity {
   address: string | null;
   phone: string | null;
   email: string | null;
+  receiptMessage?: string | null;
   copyright: string;
 }
 

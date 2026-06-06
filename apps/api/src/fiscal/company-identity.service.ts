@@ -12,6 +12,8 @@ export interface DocumentIdentity {
   address: string | null;
   phone: string | null;
   email: string | null;
+  /** Dizeres livres configuráveis pela empresa para o rodapé do recibo. */
+  receiptMessage: string | null;
   /** Assinatura permanente do sistema (autoria). */
   copyright: string;
 }
@@ -22,6 +24,7 @@ interface SiteIdentityRow {
   address: string | null;
   contact_phone: string | null;
   contact_email: string | null;
+  receipt_message: string | null;
 }
 
 /**
@@ -46,7 +49,7 @@ export class CompanyIdentityService {
 
     const siteRows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<SiteIdentityRow[]>(
-        Prisma.sql`SELECT brand_name, logo_url, address, contact_phone, contact_email
+        Prisma.sql`SELECT brand_name, logo_url, address, contact_phone, contact_email, receipt_message
                    FROM site_settings LIMIT 1`,
       ),
     );
@@ -60,6 +63,7 @@ export class CompanyIdentityService {
       address: s?.address ?? null,
       phone: s?.contact_phone ?? company?.responsiblePhone ?? null,
       email: s?.contact_email ?? company?.responsibleEmail ?? null,
+      receiptMessage: s?.receipt_message ?? null,
       copyright: copyrightLine(),
     };
   }

@@ -229,6 +229,7 @@ export interface SiteSettings {
   contact_email: string | null;
   contact_phone: string | null;
   address: string | null;
+  receipt_message: string | null;
   is_published: boolean;
 }
 export interface UpdateSiteSettingsInput {
@@ -240,6 +241,7 @@ export interface UpdateSiteSettingsInput {
   contactEmail?: string;
   contactPhone?: string;
   address?: string;
+  receiptMessage?: string;
   isPublished?: boolean;
 }
 
@@ -391,6 +393,12 @@ export interface StockAnalysis {
   summary: { stockValue: number; products: number; positive: number; unitsSold: number; forecastValue: number };
   period: { from: string; to: string; days: number };
 }
+export interface DocumentIdentity {
+  companyName: string; nif: string; brandName: string | null; logoUrl: string | null;
+  address: string | null; phone: string | null; email: string | null;
+  receiptMessage?: string | null; copyright: string;
+}
+
 export interface ReportUserRow { name: string; sales: number; net: number; gross: number }
 export interface ReportCategoryRow { name: string; qty: number; net: number; gross: number }
 export interface ReportTaxRow { rate: number; net: number; iva: number; gross: number }
