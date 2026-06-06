@@ -169,14 +169,16 @@ export function PosPage() {
 
   const flashError = (m: string) => { setEmitError(m); setTimeout(() => setEmitError(null), 2500); };
 
-  const addToCart = (p: Product) => {
+  /** Lança o produto no carrinho. Devolve `true` SÓ se foi realmente lançado
+   *  (não esgotado / com stock) — para o campo de pesquisa só limpar nesse caso. */
+  const addToCart = (p: Product): boolean => {
     setEmitError(null);
     const stock = Number(p.stock_qty);
-    if (stock <= 0) { flashError(`"${p.name}" está esgotado.`); return; }
+    if (stock <= 0) { flashError(`"${p.name}" está esgotado.`); return false; }
+    const current = cart.find((l) => l.product.id === p.id)?.quantity ?? 0;
+    if (current + 1 > stock) { flashError(`Stock insuficiente de "${p.name}": só há ${stock}.`); return false; }
     setCart((prev) => {
       const idx = prev.findIndex((l) => l.product.id === p.id);
-      const current = idx >= 0 ? prev[idx].quantity : 0;
-      if (current + 1 > stock) { flashError(`Stock insuficiente de "${p.name}": só há ${stock}.`); return prev; }
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
@@ -184,6 +186,7 @@ export function PosPage() {
       }
       return [...prev, { product: p, quantity: 1 }];
     });
+    return true;
   };
 
   const changeQty = (id: string, delta: number) => {
@@ -214,9 +217,11 @@ export function PosPage() {
       (p) => (p.barcode && p.barcode === code) || p.code.toLowerCase() === code.toLowerCase(),
     );
     if (found) {
-      addToCart(found);
-      setSearch(''); // limpa o campo para a próxima leitura
-      return true;   // encontrou produto → a câmara faz bip e fecha
+      // Regra: só limpa o campo DEPOIS de lançar mesmo o produto no carrinho.
+      const added = addToCart(found);
+      if (added) { setSearch(''); return true; } // câmara faz bip e fecha só aqui
+      setSearch(code); // encontrado mas não lançado (esgotado) → mantém o código
+      return false;
     }
     setSearch(code);
     flashError(`Código não encontrado: ${code}`);
@@ -229,8 +234,8 @@ export function PosPage() {
     const q = search.trim();
     if (!q) return;
     const exact = products.find((p) => (p.barcode && p.barcode === q) || p.code.toLowerCase() === q.toLowerCase());
-    if (exact) { addToCart(exact); setSearch(''); return; }
-    if (filtered.length === 1) { addToCart(filtered[0]); setSearch(''); return; }
+    if (exact) { if (addToCart(exact)) setSearch(''); return; }
+    if (filtered.length === 1) { if (addToCart(filtered[0])) setSearch(''); return; }
     flashError('Vários resultados — toque no produto ou leia o código.');
   };
 
@@ -247,7 +252,7 @@ export function PosPage() {
     if (!q) return;
     const t = window.setTimeout(() => {
       const exact = products.find((p) => (p.barcode && p.barcode === q) || p.code.toLowerCase() === q.toLowerCase());
-      if (exact) { addToCart(exact); setSearch(''); }
+      if (exact && addToCart(exact)) setSearch('');
     }, 140);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
