@@ -240,7 +240,7 @@ export const api = {
     request<{ tokens: TokenPair; companyCode: string; setupCompleted: boolean }>('POST', '/onboarding/register-simple', input, { auth: false }),
   onboarding: {
     myPlan: () => request<{ planId: string; planName: string; priceKz: number } | null>('GET', '/onboarding/my-plan'),
-    setupStatus: () => request<{ setupCompleted: boolean; status: string; approved: boolean }>('GET', '/onboarding/setup-status'),
+    setupStatus: () => request<{ setupCompleted: boolean; status: string; approved: boolean; expired: boolean; expiresAt: string | null }>('GET', '/onboarding/setup-status'),
     completeSetup: (dto: { name: string; companyCode: string; nif: string; logoUrl?: string }) =>
       request<{ ok: true; companyCode: string }>('POST', '/onboarding/complete-setup', dto),
   },

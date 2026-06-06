@@ -7,6 +7,7 @@ import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
 import { CompanySetup } from './pages/CompanySetup';
 import { PendingApproval } from './pages/PendingApproval';
+import { PlanExpired } from './pages/PlanExpired';
 import { Register } from './pages/Register';
 import { api } from './api/client';
 import './landing.css';
@@ -109,23 +110,26 @@ function PlatformPanel() {
 
 function TenantPanel() {
   const [section, setSection] = useState('overview');
-  // Gate de 3 vias: setup obrigatório → aprovação do Super Admin → painel.
-  const [gate, setGate] = useState<{ setupCompleted: boolean; approved: boolean } | null>(null);
+  // Gate: setup obrigatório → aprovação do Super Admin → plano válido → painel.
+  const [gate, setGate] = useState<{ setupCompleted: boolean; approved: boolean; expired: boolean } | null>(null);
   React.useEffect(() => {
     let alive = true;
     api.onboarding.setupStatus()
-      .then((s) => { if (alive) setGate({ setupCompleted: s.setupCompleted, approved: s.approved }); })
-      .catch(() => { if (alive) setGate({ setupCompleted: true, approved: true }); }); // em erro não bloqueia
+      .then((s) => { if (alive) setGate({ setupCompleted: s.setupCompleted, approved: s.approved, expired: s.expired }); })
+      .catch(() => { if (alive) setGate({ setupCompleted: true, approved: true, expired: false }); }); // em erro não bloqueia
     return () => { alive = false; };
   }, []);
   if (gate === null) {
     return <div className="login"><span className="muted">A carregar…</span></div>;
   }
   if (!gate.setupCompleted) {
-    return <CompanySetup onDone={() => setGate({ setupCompleted: true, approved: false })} />;
+    return <CompanySetup onDone={() => setGate({ setupCompleted: true, approved: false, expired: false })} />;
   }
   if (!gate.approved) {
-    return <PendingApproval onApproved={() => { setGate({ setupCompleted: true, approved: true }); window.location.reload(); }} />;
+    return <PendingApproval onApproved={() => window.location.reload()} />;
+  }
+  if (gate.expired) {
+    return <PlanExpired onResolved={() => window.location.reload()} />;
   }
   return (
     <Shell nav={TENANT_NAV} section={section} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">

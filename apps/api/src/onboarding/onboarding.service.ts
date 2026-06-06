@@ -284,21 +284,39 @@ export class OnboardingService {
   async getSetupStatus(
     tenantId: string | undefined,
     schema: string,
-  ): Promise<{ setupCompleted: boolean; status: string; approved: boolean }> {
+  ): Promise<{ setupCompleted: boolean; status: string; approved: boolean; expired: boolean; expiresAt: string | null }> {
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<{ setup_completed: boolean }[]>(
         Prisma.sql`SELECT setup_completed FROM site_settings LIMIT 1`,
       ),
     );
     let status = 'ACTIVE';
+    let expired = false;
+    let expiresAt: string | null = null;
     if (tenantId) {
       const c = await this.prisma.company.findUnique({ where: { id: tenantId }, select: { status: true } });
       status = c?.status ?? 'ACTIVE';
+      // Validade do plano: só bloqueia se a empresa JÁ teve subscrições e nenhuma
+      // está válida agora (empresas legadas sem subscrição NÃO são bloqueadas).
+      const subs = await this.prisma.subscription.findMany({
+        where: { companyId: tenantId },
+        select: { status: true, expiresAt: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (subs.length > 0) {
+        const now = Date.now();
+        const valid = subs.find((s) => s.status === 'ACTIVE' && (!s.expiresAt || s.expiresAt.getTime() > now));
+        expired = !valid;
+        const latestActive = subs.find((s) => s.status === 'ACTIVE' && s.expiresAt);
+        expiresAt = latestActive?.expiresAt ? latestActive.expiresAt.toISOString() : null;
+      }
     }
     return {
       setupCompleted: rows[0]?.setup_completed ?? true,
       status,
       approved: status === 'ACTIVE',
+      expired,
+      expiresAt,
     };
   }
 

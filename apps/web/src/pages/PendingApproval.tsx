@@ -9,7 +9,14 @@ import { IconLogout, IconReceipt } from '../components/Icons';
  * do Super Admin. Mostra o estado e o CHAT com o administrador (via subscrição).
  * Faz polling: assim que for aprovada, entra automaticamente no painel.
  */
-export function PendingApproval({ onApproved }: { onApproved(): void }) {
+export function PendingApproval({
+  onApproved, title = 'Conta em aprovação', subtitle = 'O administrador está a validar o seu pagamento', intro,
+}: {
+  onApproved(): void;
+  title?: string;
+  subtitle?: string;
+  intro?: React.ReactNode;
+}) {
   const { logout, user } = useAuth();
   const [sub, setSub] = useState<Subscription | null>(null);
   const [msgs, setMsgs] = useState<SubMessage[]>([]);
@@ -25,10 +32,10 @@ export function PendingApproval({ onApproved }: { onApproved(): void }) {
       setSub(s);
       if (s) setMsgs(await api.subscription.messages(s.id).catch(() => []));
     } catch { /* mantém */ }
-    // Verifica aprovação (status da empresa).
+    // Resolve quando a empresa está aprovada E com plano válido (não expirado).
     try {
       const st = await api.onboarding.setupStatus();
-      if (st.approved) onApproved();
+      if (st.approved && !st.expired) onApproved();
     } catch { /* ignora */ }
   };
 
@@ -57,13 +64,12 @@ export function PendingApproval({ onApproved }: { onApproved(): void }) {
           <div style={{ width: 56, height: 56, borderRadius: 16, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', marginBottom: 10 }}>
             <IconReceipt size={26} />
           </div>
-          <h1>Conta em aprovação</h1>
-          <div className="tg">O administrador está a validar o seu pagamento</div>
+          <h1>{title}</h1>
+          <div className="tg">{subtitle}</div>
         </div>
         <div className="card">
           <div className="banner info" style={{ marginBottom: 12 }}>
-            A sua conta foi criada e o comprovativo enviado. Assim que o <strong>Super Admin</strong> aprovar,
-            o painel desbloqueia automaticamente (esta página atualiza sozinha).
+            {intro ?? <>A sua conta foi criada e o comprovativo enviado. Assim que o <strong>Super Admin</strong> aprovar, o painel desbloqueia automaticamente (esta página atualiza sozinha).</>}
           </div>
           {sub ? (
             <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>

@@ -193,18 +193,39 @@ export function PosPage() {
 
   const removeLine = (id: string) => setCart((prev) => prev.filter((l) => l.product.id !== id));
 
-  // Scanner de código de barras: lê barcode/código e adiciona ao carrinho.
-  useBarcodeScanner((code) => {
+  /**
+   * Resolve um código lido (leitor físico, câmara ou Enter na pesquisa):
+   * procura por código de barras / código EXACTO; lança ao carrinho e LIMPA a
+   * pesquisa (auto-enter), pronto para a próxima leitura.
+   */
+  const scanResolve = (raw: string) => {
+    const code = raw.trim();
+    if (!code) return;
     const found = products.find(
       (p) => (p.barcode && p.barcode === code) || p.code.toLowerCase() === code.toLowerCase(),
     );
     if (found) {
       addToCart(found);
+      setSearch(''); // limpa o campo para a próxima leitura
     } else {
-      setEmitError(`Código não encontrado: ${code}`);
-      setTimeout(() => setEmitError(null), 2000);
+      setSearch(code);
+      flashError(`Código não encontrado: ${code}`);
     }
-  });
+  };
+
+  /** Enter na pesquisa = auto-enter: resolve por código exacto ou, se houver só
+   *  1 resultado filtrado, lança esse. */
+  const onSearchEnter = () => {
+    const q = search.trim();
+    if (!q) return;
+    const exact = products.find((p) => (p.barcode && p.barcode === q) || p.code.toLowerCase() === q.toLowerCase());
+    if (exact) { addToCart(exact); setSearch(''); return; }
+    if (filtered.length === 1) { addToCart(filtered[0]); setSearch(''); return; }
+    flashError('Vários resultados — toque no produto ou leia o código.');
+  };
+
+  // Leitor de código de barras FÍSICO (keyboard-wedge): lê e lança ao carrinho.
+  useBarcodeScanner((code) => scanResolve(code));
 
   /** Guarda a venda na fila offline e mostra um comprovativo PROVISÓRIO. */
   const finalizeOffline = async () => {
@@ -336,13 +357,10 @@ export function PosPage() {
                   placeholder="Procurar produto por nome, código ou código de barras…"
                   value={search}
                   onChange={setSearch}
+                  onSubmit={onSearchEnter}
                 />
               </div>
-              <BarcodeScanner onDetected={(code) => {
-                const found = products.find((p) => (p.barcode && p.barcode === code) || p.code.toLowerCase() === code.toLowerCase());
-                if (found) addToCart(found);
-                else { setSearch(code); setEmitError(`Código não encontrado: ${code}`); setTimeout(() => setEmitError(null), 2500); }
-              }} />
+              <BarcodeScanner continuous onDetected={(code) => scanResolve(code)} />
             </div>
 
             {loading ? (

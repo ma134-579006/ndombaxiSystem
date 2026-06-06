@@ -37,7 +37,7 @@ export function CompanySetup({ onDone }: { onDone(): void }) {
   );
 }
 
-function PayStep({ onNext }: { onNext(): void }) {
+export function PayStep({ onNext }: { onNext(): void }) {
   const [banks, setBanks] = useState<BankAccount[]>([]);
   const [plan, setPlan] = useState<{ planId: string; planName: string; priceKz: number } | null>(null);
   const [file, setFile] = useState<{ name: string; type: string; data: string } | null>(null);
@@ -64,9 +64,10 @@ function PayStep({ onNext }: { onNext(): void }) {
     if (!file) { setErr('Carregue o comprovativo (screenshot) do pagamento.'); return; }
     setBusy(true);
     try {
-      // Garante uma subscrição (usa o plano escolhido no registo) e anexa o comprovativo.
-      let subs = await api.subscription.mine().catch(() => []);
-      let sub = subs.find((s) => s.status !== 'CANCELLED');
+      // Reaproveita uma subscrição PENDENTE; se só existir ACTIVE/EXPIRED/REJEITADA
+      // (ex.: renovação), cria uma NOVA para o super admin aprovar.
+      const subs = await api.subscription.mine().catch(() => []);
+      let sub = subs.find((s) => s.status === 'PENDING_PAYMENT' || s.status === 'IN_REVIEW');
       if (!sub) {
         if (!plan) { setErr('Plano não encontrado. Contacte o suporte.'); setBusy(false); return; }
         sub = await api.subscription.create({ planId: plan.planId, method: 'IBAN', bankAccountId: banks[0]?.id });

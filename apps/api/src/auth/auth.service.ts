@@ -263,6 +263,18 @@ export class AuthService {
     return this.tenantUsers.listOperators(company.schemaName);
   }
 
+  /** Plano expirado? True só se a empresa já teve subscrições e nenhuma é válida
+   *  agora (empresas legadas sem subscrição NÃO são bloqueadas). */
+  private async isPlanExpired(companyId: string): Promise<boolean> {
+    const subs = await this.prisma.subscription.findMany({
+      where: { companyId },
+      select: { status: true, expiresAt: true },
+    });
+    if (subs.length === 0) return false;
+    const now = Date.now();
+    return !subs.some((s) => s.status === 'ACTIVE' && (!s.expiresAt || s.expiresAt.getTime() > now));
+  }
+
   // ─── Caixa: login por NOME (id) + PIN (estilo Vendus) ───────
   async pinLogin(
     dto: { companyCode: string; userId: string; pin: string },
@@ -272,6 +284,10 @@ export class AuthService {
     if (!company) throw new UnauthorizedException('Credenciais inválidas');
     if (company.status !== 'ACTIVE') {
       throw new ForbiddenException(`Empresa ${company.status.toLowerCase()}`);
+    }
+    // Plano expirado → bloqueia o caixa (acesso geral). O gestor renova no painel.
+    if (await this.isPlanExpired(company.id)) {
+      throw new ForbiddenException('Plano expirado. O gestor deve renovar no painel de gestão.');
     }
     const user = await this.tenantUsers.findById(company.schemaName, dto.userId);
     if (!user || !user.is_active || !user.pin_hash) {

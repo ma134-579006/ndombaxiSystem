@@ -56,16 +56,22 @@ export function ProductPicker({
       setScanning(true);
       await new Promise((r) => setTimeout(r, 50));
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => undefined); }
-      const detector = new BD({ formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e', 'qr_code'] } as unknown);
+      const detector = new BD({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'] } as unknown);
+      let cand = ''; let cn = 0; // confiança: 2 leituras iguais seguidas
       const tick = async () => {
         if (!streamRef.current || !videoRef.current) return;
         try {
           const codes = await detector.detect(videoRef.current);
           if (codes && codes.length) {
             const raw = String(codes[0].rawValue).trim();
-            const p = products.find((x) => x.barcode === raw || x.code === raw);
-            if (p) { pick(p); stopScan(); return; }
-            setQ(raw); // não encontrou: deixa o código na pesquisa
+            if (raw) {
+              if (cand === raw) cn += 1; else { cand = raw; cn = 1; }
+              if (cn >= 2) {
+                const p = products.find((x) => x.barcode === raw || x.code === raw);
+                if (p) { pick(p); stopScan(); return; }
+                setQ(raw); stopScan(); return;
+              }
+            }
           }
         } catch { /* frame sem código */ }
         rafRef.current = requestAnimationFrame(tick);

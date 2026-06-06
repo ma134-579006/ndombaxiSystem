@@ -279,6 +279,7 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .scan-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; width: min(420px, 94vw); display: flex; flex-direction: column; gap: 10px; }
 .scan-box video { width: 100%; border-radius: 12px; background: #000; aspect-ratio: 4/3; object-fit: cover; }
 .scan-hint { color: var(--muted); font-size: 13px; text-align: center; }
+.scan-last { text-align: center; font-size: 13px; font-weight: 700; color: var(--success); }
 
 /* Histórico de vendas (modal) */
 .sales-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: min(960px, 96vw); max-height: 90vh; display: flex; flex-direction: column; gap: 10px; padding: 16px; }

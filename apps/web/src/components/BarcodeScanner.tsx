@@ -37,15 +37,18 @@ export function BarcodeScanner({
       setScanning(true);
       await new Promise((r) => setTimeout(r, 50));
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => undefined); }
-      const detector = new BD({ formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e', 'qr_code'] } as unknown);
+      const detector = new BD({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'] } as unknown);
+      let cand = ''; let n = 0; // confiança: 2 leituras iguais seguidas
       const tick = async () => {
         if (!streamRef.current || !videoRef.current) return;
         try {
           const codes = await detector.detect(videoRef.current);
           if (codes && codes.length) {
-            onDetected(String(codes[0].rawValue).trim());
-            stop();
-            return;
+            const raw = String(codes[0].rawValue).trim();
+            if (raw) {
+              if (cand === raw) n += 1; else { cand = raw; n = 1; }
+              if (n >= 2) { onDetected(raw); stop(); return; }
+            }
           }
         } catch { /* frame sem código */ }
         rafRef.current = requestAnimationFrame(tick);
