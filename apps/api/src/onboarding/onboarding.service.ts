@@ -12,8 +12,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TenantProvisioningService } from '../tenancy/tenant-provisioning.service';
 import { TenantUserRepository } from '../tenancy/tenant-user.repository';
 import { PasswordService } from '../auth/password.service';
+import { GoogleAuthService } from '../auth/google-auth.service';
+import { TokenService, TokenPair } from '../auth/token.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../common/mail/mail.service';
+import { Prisma } from '@prisma/client';
+import type { JwtPayload } from '@nexus/types';
 import { Role } from '../rbac/roles.enum';
 import { NifService } from './nif.service';
 import { RegisterCompanyDto } from './dto/register-company.dto';
@@ -43,6 +47,8 @@ export class OnboardingService {
     private readonly mail: MailService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService<Env, true>,
+    private readonly google: GoogleAuthService,
+    private readonly tokens: TokenService,
   ) {}
 
   private generateTempPassword(): string {
@@ -158,5 +164,177 @@ export class OnboardingService {
       temporaryPassword: tempPassword,
       setupToken,
     };
+  }
+
+  /** Marca o estado de setup de um tenant (linha única em site_settings). */
+  private async setSetupCompleted(schema: string, value: boolean): Promise<void> {
+    await this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT id FROM site_settings LIMIT 1`,
+      );
+      if (rows[0]) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE site_settings SET setup_completed = ${value}, updated_at = now()
+                     WHERE id = ${rows[0].id}::uuid`,
+        );
+      } else {
+        await tx.$executeRaw(
+          Prisma.sql`INSERT INTO site_settings (setup_completed) VALUES (${value})`,
+        );
+      }
+    });
+  }
+
+  /**
+   * Registo SIMPLES (estilo loja online): a empresa cria conta só com EMAIL +
+   * palavra-passe própria OU Google. Fica em estado PENDING com código/NIF
+   * provisórios; o setup obrigatório (nome, código, NIF, logo) é concluído
+   * depois (após o pagamento) antes de poder usar o painel. Devolve tokens
+   * (auto-login) para a empresa concluir o setup.
+   */
+  async registerSimple(
+    dto: { email?: string; password?: string; googleIdToken?: string; planTier: string },
+    ctx: { ip?: string | null; userAgent?: string | null },
+  ): Promise<{ tokens: TokenPair; companyCode: string; setupCompleted: false }> {
+    let email: string;
+    let displayName: string;
+    let passwordHash: string;
+
+    if (dto.googleIdToken) {
+      const profile = await this.google.verify(dto.googleIdToken);
+      email = profile.email;
+      displayName = profile.name || email.split('@')[0];
+      passwordHash = await this.passwords.hash(randomBytes(18).toString('base64url'));
+    } else {
+      if (!dto.email || !dto.password || dto.password.length < 8) {
+        throw new BadRequestException('Indique um e-mail e uma palavra-passe (mín. 8 caracteres).');
+      }
+      email = dto.email.toLowerCase();
+      displayName = email.split('@')[0];
+      passwordHash = await this.passwords.hash(dto.password);
+    }
+
+    const existing = await this.prisma.company.findFirst({ where: { responsibleEmail: email } });
+    if (existing) {
+      throw new ConflictException('Já existe uma conta com este e-mail. Inicie sessão.');
+    }
+
+    const plan = await this.prisma.plan.findUnique({ where: { tier: dto.planTier as never } });
+    if (!plan) throw new BadRequestException('Plano inexistente.');
+
+    const schemaName = this.provisioning.generateSchemaName();
+    const rnd = randomBytes(4).toString('hex');
+    const tempCode = `emp-${rnd}`;
+    const tempNif = `TMP${Date.now()}${rnd}`.slice(0, 18);
+
+    const company = await this.prisma.company.create({
+      data: {
+        code: tempCode,
+        name: displayName,
+        nif: tempNif,
+        responsibleName: displayName,
+        responsibleEmail: email,
+        planId: plan.id,
+        schemaName,
+        status: 'PENDING',
+      },
+    });
+
+    let adminUserId: string;
+    try {
+      await this.provisioning.createTenantSchema(schemaName);
+      const store = await this.tenantUsers.createStore(schemaName, {
+        code: 'LOJA-001', name: `${displayName} — Loja Principal`, isDefault: true,
+      });
+      const admin = await this.tenantUsers.createUser(schemaName, {
+        email, passwordHash, name: displayName, role: Role.COMPANY_ADMIN,
+        storeId: store.id, mustResetPw: false,
+      });
+      adminUserId = admin.id;
+      await this.setSetupCompleted(schemaName, false); // exige setup obrigatório
+    } catch (err) {
+      this.logger.error(`Falha no provisioning de ${schemaName}; a reverter`, err instanceof Error ? err.stack : undefined);
+      await this.provisioning.dropTenantSchema(schemaName).catch(() => undefined);
+      await this.prisma.company.delete({ where: { id: company.id } }).catch(() => undefined);
+      throw new BadRequestException('Falha ao criar a conta. Tente novamente.');
+    }
+
+    await this.audit.record({
+      actorType: 'SYSTEM', tenantSchema: schemaName, action: 'COMPANY_REGISTERED_SIMPLE',
+      entity: 'Company', entityId: company.id, after: { email, via: dto.googleIdToken ? 'google' : 'password' },
+    });
+
+    const payload: JwtPayload = {
+      sub: adminUserId, email, name: displayName, role: Role.COMPANY_ADMIN,
+      subjectType: 'TENANT', tenantId: company.id, tenantSchema: schemaName, twoFaVerified: true,
+    };
+    const tokens = await this.tokens.issuePair(payload, ctx);
+    return { tokens, companyCode: company.code, setupCompleted: false };
+  }
+
+  /** Estado do setup obrigatório do tenant autenticado. */
+  async getSetupStatus(schema: string): Promise<{ setupCompleted: boolean }> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ setup_completed: boolean }[]>(
+        Prisma.sql`SELECT setup_completed FROM site_settings LIMIT 1`,
+      ),
+    );
+    // Sem linha → assume concluído (empresas antigas), não bloqueia.
+    return { setupCompleted: rows[0]?.setup_completed ?? true };
+  }
+
+  /**
+   * Conclui o setup obrigatório: define nome, código (único), NIF (validado AGT)
+   * e logótipo; activa a empresa e desbloqueia o painel.
+   */
+  async completeSetup(
+    tenantId: string | undefined,
+    schema: string,
+    dto: { name: string; companyCode: string; nif: string; logoUrl?: string },
+  ): Promise<{ ok: true; companyCode: string }> {
+    if (!tenantId) throw new BadRequestException('Sessão inválida.');
+    const code = dto.companyCode.trim().toLowerCase();
+    if (!/^[a-z0-9-]{2,40}$/.test(code)) {
+      throw new BadRequestException('Código inválido (use minúsculas, dígitos e hífens).');
+    }
+    if (!dto.name?.trim()) throw new BadRequestException('Indique o nome da empresa.');
+
+    const nifCheck = await this.nif.validateWithAgt(dto.nif);
+    if (!nifCheck.valid) throw new BadRequestException(nifCheck.reason ?? 'NIF inválido.');
+
+    const clash = await this.prisma.company.findFirst({
+      where: { OR: [{ code }, { nif: dto.nif }], NOT: { id: tenantId } },
+    });
+    if (clash) throw new ConflictException('Já existe uma empresa com este código ou NIF.');
+
+    await this.prisma.company.update({
+      where: { id: tenantId },
+      data: { name: dto.name.trim(), code, nif: dto.nif, status: 'ACTIVE' },
+    });
+
+    await this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT id FROM site_settings LIMIT 1`,
+      );
+      if (rows[0]) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE site_settings SET brand_name = ${dto.name.trim()},
+                       logo_url = COALESCE(${dto.logoUrl ?? null}, logo_url),
+                       setup_completed = TRUE, updated_at = now()
+                     WHERE id = ${rows[0].id}::uuid`,
+        );
+      } else {
+        await tx.$executeRaw(
+          Prisma.sql`INSERT INTO site_settings (brand_name, logo_url, setup_completed)
+                     VALUES (${dto.name.trim()}, ${dto.logoUrl ?? null}, TRUE)`,
+        );
+      }
+    });
+
+    await this.audit.record({
+      actorType: 'TENANT', tenantSchema: schema, action: 'COMPANY_SETUP_COMPLETED',
+      entity: 'Company', entityId: tenantId, after: { code, name: dto.name },
+    });
+    return { ok: true, companyCode: code };
   }
 }

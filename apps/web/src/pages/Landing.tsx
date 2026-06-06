@@ -26,9 +26,10 @@ function FeatureIcon() {
 
 interface Props {
   onGoLogin(): void; // abre o painel de login normal
+  onGoRegister?(): void; // abre o registo simples (email/Google)
 }
 
-export function Landing({ onGoLogin }: Props) {
+export function Landing({ onGoLogin, onGoRegister }: Props) {
   const { loginTenant } = useAuth();
   const [data, setData] = useState<{ config: LandingConfig; plans: PublicPlan[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,6 +60,8 @@ export function Landing({ onGoLogin }: Props) {
   const ads = (cfg?.showAds && cfg?.ads?.filter((a) => a.active !== false)) || [];
 
   const openRegister = (tier: PlanTier) => {
+    // Novo fluxo simples (email/Google) quando disponível; senão, modal antigo.
+    if (onGoRegister) { onGoRegister(); return; }
     setPresetTier(tier);
     setShowRegister(true);
   };

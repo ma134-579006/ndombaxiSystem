@@ -5,6 +5,9 @@ import { Shell, type NavItem } from './components/Shell';
 import { IconBuilding, IconCard, IconChart, IconCpu, IconCube, IconReceipt, IconStar, IconStore, IconTruck } from './components/Icons';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
+import { CompanySetup } from './pages/CompanySetup';
+import { Register } from './pages/Register';
+import { api } from './api/client';
 import './landing.css';
 import { Ai } from './sections/Ai';
 import { Fiscal } from './sections/Fiscal';
@@ -105,6 +108,21 @@ function PlatformPanel() {
 
 function TenantPanel() {
   const [section, setSection] = useState('overview');
+  // Setup obrigatório: até estar concluído, o painel fica bloqueado.
+  const [setupOk, setSetupOk] = useState<boolean | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    api.onboarding.setupStatus()
+      .then((s) => { if (alive) setSetupOk(s.setupCompleted); })
+      .catch(() => { if (alive) setSetupOk(true); }); // em erro não bloqueia
+    return () => { alive = false; };
+  }, []);
+  if (setupOk === null) {
+    return <div className="login"><span className="muted">A carregar…</span></div>;
+  }
+  if (!setupOk) {
+    return <CompanySetup onDone={() => { setSetupOk(true); window.location.reload(); }} />;
+  }
   return (
     <Shell nav={TENANT_NAV} section={section} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
       {section === 'overview' ? <Overview /> : null}
@@ -140,8 +158,8 @@ function TenantPanel() {
 
 function Gate() {
   const { status, mode, shadow, exitShadow } = useAuth();
-  // Visitantes começam na landing; "Entrar" leva ao login.
-  const [showLogin, setShowLogin] = useState(false);
+  // Visitantes: landing → login/registo.
+  const [view, setView] = useState<'landing' | 'login' | 'register'>('landing');
 
   if (status === 'loading') {
     return (
@@ -151,7 +169,9 @@ function Gate() {
     );
   }
   if (status !== 'authed') {
-    return showLogin ? <Login onBack={() => setShowLogin(false)} /> : <Landing onGoLogin={() => setShowLogin(true)} />;
+    if (view === 'login') return <Login onBack={() => setView('landing')} onRegister={() => setView('register')} />;
+    if (view === 'register') return <Register onBack={() => setView('login')} />;
+    return <Landing onGoLogin={() => setView('login')} onGoRegister={() => setView('register')} />;
   }
   return (
     <>

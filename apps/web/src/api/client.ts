@@ -233,6 +233,14 @@ export const api = {
   publicLanding: () => request<PublicLanding>('GET', '/public/landing', undefined, { auth: false }),
   registerCompany: (input: RegisterCompanyInput) =>
     request<RegisterCompanyResult>('POST', '/onboarding/register', input, { auth: false }),
+  // Registo simples (email+senha OU Google) + setup obrigatório
+  registerSimple: (input: { email?: string; password?: string; googleIdToken?: string; planTier: string }) =>
+    request<{ tokens: TokenPair; companyCode: string; setupCompleted: boolean }>('POST', '/onboarding/register-simple', input, { auth: false }),
+  onboarding: {
+    setupStatus: () => request<{ setupCompleted: boolean }>('GET', '/onboarding/setup-status'),
+    completeSetup: (dto: { name: string; companyCode: string; nif: string; logoUrl?: string }) =>
+      request<{ ok: true; companyCode: string }>('POST', '/onboarding/complete-setup', dto),
+  },
 
   // ── Subscrição na landing pós-registo (sem login, via setupToken) ──
   setup: {

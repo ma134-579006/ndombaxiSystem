@@ -38,6 +38,7 @@ interface AuthContextValue {
   loginPlatform(input: PlatformLoginInput): Promise<void>;
   loginTenant(input: TenantLoginInput): Promise<void>;
   loginGoogle(companyCode: string, idToken: string): Promise<void>;
+  adoptSession(tokens: TokenPair, companyCode: string): void;
   enterShadow(tokens: TokenPair, companyCode: string, companyName: string): void;
   exitShadow(): void;
   logout(): Promise<void>;
@@ -185,6 +186,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [applyTokens],
   );
 
+  // Adota uma sessão já emitida (ex.: após registo simples) — auto-login.
+  const adoptSession = useCallback(
+    (tokens: TokenPair, code: string) => {
+      companyRef.current = code;
+      setCompanyCode(code);
+      localStorage.setItem(LS_COMPANY, code);
+      localStorage.setItem(LS_SESSION_START, String(Date.now()));
+      applyTokens(tokens);
+      setStatus('authed');
+    },
+    [applyTokens],
+  );
+
   const loginGoogle = useCallback(
     async (companyCode: string, idToken: string) => {
       companyRef.current = companyCode;
@@ -254,11 +268,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loginPlatform,
       loginTenant,
       loginGoogle,
+      adoptSession,
       enterShadow,
       exitShadow,
       logout,
     }),
-    [status, user, companyCode, shadow, loginPlatform, loginTenant, loginGoogle, enterShadow, exitShadow, logout],
+    [status, user, companyCode, shadow, loginPlatform, loginTenant, loginGoogle, adoptSession, enterShadow, exitShadow, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

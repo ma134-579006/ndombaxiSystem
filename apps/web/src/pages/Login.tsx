@@ -9,7 +9,7 @@ import { CAIXA_URL } from '../config';
 
 type Profile = 'tenant' | 'caixa' | 'platform';
 
-export function Login({ onBack }: { onBack?: () => void }) {
+export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?: () => void }) {
   const { loginTenant, loginPlatform, loginGoogle } = useAuth();
   const [profile, setProfile] = useState<Profile>('tenant');
   const [company, setCompany] = useState('');
@@ -129,8 +129,15 @@ export function Login({ onBack }: { onBack?: () => void }) {
             </div>
           ) : null}
         </div>
+        {profile === 'tenant' && onRegister ? (
+          <p style={{ textAlign: 'center', marginTop: 12 }}>
+            <a onClick={onRegister} style={{ color: 'var(--primary)', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
+              Não tem conta? Criar conta de empresa
+            </a>
+          </p>
+        ) : null}
         {onBack ? (
-          <p style={{ textAlign: 'center', marginTop: 14 }}>
+          <p style={{ textAlign: 'center', marginTop: 6 }}>
             <a onClick={onBack} style={{ color: 'var(--muted)', fontSize: 13, cursor: 'pointer' }}>
               ← Voltar à página inicial
             </a>
