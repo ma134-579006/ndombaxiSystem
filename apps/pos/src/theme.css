@@ -502,16 +502,25 @@ html.kbd-open .login-card .footer-credit { display: none; }
    visíveis); o carrinho fica em baixo, limitado em altura e com scroll próprio;
    o cabeçalho fica compacto (no máximo 2 linhas) SEM esconder a identidade. */
 @media (max-width: 820px) {
-  /* Empilhado: METADES EQUILIBRADAS — produtos em cima, carrinho em baixo, com a
-     MESMA altura; cada um faz scroll por dentro (nada quebra o ecrã). */
-  .pos-body { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; min-height: 0; }
-  .catalog, .cart { min-height: 0; }
-  .cart { border-left: none; border-top: 1px solid var(--border); }
-  .cart h2 { padding: 10px 14px; font-size: 16px; }
-  .cart-lines { max-height: none; flex: 1; }
-  .cart-foot { padding: 10px 14px; }
-  .catalog { padding: 10px; gap: 10px; }
-  .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  /* TELEMÓVEL/TABLET (retrato): UMA coluna que ROLA — primeiro todos os produtos,
+     depois o carrinho com TODAS as linhas (com +/−); o Total + botão Pagar ficam
+     FIXOS no fundo (sticky). Tudo aparece, nada corta, adapta-se a qualquer ecrã. */
+  .pos-body { display: block; grid-template-columns: none; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .catalog { display: block; padding: 10px; }
+  .search-bar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-bottom: 8px; }
+  .grid { display: grid; overflow: visible; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .cart { border-left: none; border-top: 6px solid var(--bg); background: var(--bg-2); }
+  .cart h2 { padding: 10px 14px; font-size: 16px; position: sticky; top: 0; background: var(--bg-2); z-index: 4; }
+  .cart-lines { overflow: visible; max-height: none; padding: 10px 12px; gap: 8px; }
+  .stepper button { width: 34px; height: 34px; font-size: 17px; }
+  /* Total + Pagar SEMPRE visíveis no fundo do ecrã enquanto se rola. */
+  .cart-foot {
+    position: sticky; bottom: 0; z-index: 6; padding: 10px 14px; gap: 8px;
+    background: var(--bg-2); border-top: 1px solid var(--border); box-shadow: 0 -10px 24px rgba(0,0,0,.28);
+  }
+  .totals .t-row { font-size: 13px; padding: 1px 0; }
+  .totals .t-row.grand { font-size: 19px; padding-top: 4px; }
+  .cart-foot .btn.lg { height: 48px; font-size: 15px; }
   .topbar { padding: 10px 12px; gap: 10px; }
   .topbar .who .name { font-size: 14px; }
 }
