@@ -192,3 +192,32 @@
   .lp-nav button { padding: 8px 12px; font-size: 13px; }
   .lp-trust { gap: 14px; }
 }
+
+/* ── Polimento / micro-animações (nível enterprise) ─────────────
+   Entradas suaves no hero (acima da dobra) + realce vivo nos CTAs e cartões.
+   Tudo respeita prefers-reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes lp-rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+  .lp-hero .badge-pill { animation: lp-rise .6s .05s both; }
+  .lp-hero h1 { animation: lp-rise .7s .15s both; }
+  .lp-hero p.sub { animation: lp-rise .7s .28s both; }
+  .lp-hero .cta-row { animation: lp-rise .7s .42s both; }
+  .lp-hero .lp-trust { animation: lp-rise .7s .55s both; }
+
+  /* CTA principal com brilho subtil ao passar o rato. */
+  .lp-hero .cta-row .btn-primary { position: relative; overflow: hidden; }
+  .lp-hero .cta-row .btn-primary::after {
+    content: ''; position: absolute; top: 0; left: -120%; width: 60%; height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent);
+    transform: skewX(-18deg); transition: left .6s ease;
+  }
+  .lp-hero .cta-row .btn-primary:hover::after { left: 130%; }
+
+  /* Realce mais "vivo" nos cartões. */
+  .lp-feat:hover { transform: translateY(-6px); box-shadow: 0 22px 50px rgba(20,30,60,.14); }
+  .lp-plan:hover { transform: translateY(-6px); }
+}
+
+/* CTA: leve elevação ao premir/hover (sem depender de motion). */
+.lp-hero .cta-row .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(37,99,235,.34); }
+.lp-hero .cta-row .btn-primary:active { transform: translateY(0); }
