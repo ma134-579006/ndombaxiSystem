@@ -18,6 +18,27 @@ export class AdjustStockDto {
   reason?: string;
 }
 
+/** Transferência de stock entre duas LOJAS (saída na origem, entrada no destino). */
+export class TransferStockDto {
+  @IsString()
+  productId!: string;
+
+  @IsString()
+  fromStoreId!: string;
+
+  @IsString()
+  toStoreId!: string;
+
+  @IsNumber()
+  @Min(0.001)
+  quantity!: number;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 200)
+  note?: string;
+}
+
 /** Entrada de stock em lote: dá entrada de N unidades a um custo unitário e
  *  (opcionalmente) actualiza o preço de venda. */
 export class StockEntryDto {

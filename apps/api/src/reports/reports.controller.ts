@@ -16,14 +16,14 @@ export class ReportsController {
 
   @Get('sales-by-user')
   @ApiOperation({ summary: 'Vendas por utilizador/operador' })
-  salesByUser(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.reports.salesByUser(this.ctx.requireTenantSchema(), from, to);
+  salesByUser(@Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    return this.reports.salesByUser(this.ctx.requireTenantSchema(), from, to, storeId);
   }
 
   @Get('sales-by-category')
   @ApiOperation({ summary: 'Vendas por categoria de produto' })
-  salesByCategory(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.reports.salesByCategory(this.ctx.requireTenantSchema(), from, to);
+  salesByCategory(@Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    return this.reports.salesByCategory(this.ctx.requireTenantSchema(), from, to, storeId);
   }
 
   @Get('sales-by-store')
@@ -45,8 +45,8 @@ export class ReportsController {
 
   @Get('sales-by-brand')
   @ApiOperation({ summary: 'Vendas por marca' })
-  salesByBrand(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.reports.salesByBrand(this.ctx.requireTenantSchema(), from, to);
+  salesByBrand(@Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    return this.reports.salesByBrand(this.ctx.requireTenantSchema(), from, to, storeId);
   }
 
   @Get('cash-sessions')
@@ -57,8 +57,8 @@ export class ReportsController {
 
   @Get('tax-map')
   @ApiOperation({ summary: 'Mapa de impostos (IVA) por taxa' })
-  taxMap(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.reports.taxMap(this.ctx.requireTenantSchema(), from, to);
+  taxMap(@Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    return this.reports.taxMap(this.ctx.requireTenantSchema(), from, to, storeId);
   }
 
   @Get('payment-methods')

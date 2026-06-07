@@ -17,6 +17,7 @@ export function Inventory() {
   const [creating, setCreating] = useState(false);
   const [entering, setEntering] = useState(false);
   const [writingOff, setWritingOff] = useState(false);
+  const [transferring, setTransferring] = useState(false);
   const [batches, setBatches] = useState<ExpiringBatch[]>([]);
   const [lowStock, setLowStock] = useState<DashLowStock[]>([]);
   const [woInit, setWoInit] = useState<{ productId: string; quantity?: number } | null>(null);
@@ -69,6 +70,11 @@ export function Inventory() {
         <button className="btn ghost" onClick={() => setWritingOff(true)} disabled={warehouses.length === 0 || products.length === 0}>
           <IconTrash size={16} /> Baixa de stock
         </button>
+        {warehouses.length > 1 ? (
+          <button className="btn ghost" onClick={() => setTransferring(true)} disabled={products.length === 0}>
+            <IconTruck size={16} /> Transferir entre lojas
+          </button>
+        ) : null}
         <button className="btn ghost" onClick={() => setCreating(true)} disabled={warehouses.length === 0}>
           <IconPlus size={16} /> Nova contagem
         </button>
@@ -168,8 +174,83 @@ export function Inventory() {
           onSaved={() => { setWritingOff(false); setWoInit(null); void load(); }}
         />
       ) : null}
+      {transferring ? (
+        <TransferModal
+          products={products}
+          warehouses={warehouses}
+          onClose={() => setTransferring(false)}
+          onSaved={() => { setTransferring(false); void load(); }}
+        />
+      ) : null}
       {openCount ? <CountSheet detail={openCount} products={products} onClose={() => { setOpenCount(null); void load(); }} /> : null}
     </>
+  );
+}
+
+/** Transferência de stock entre duas lojas. */
+function TransferModal({
+  products, warehouses, onClose, onSaved,
+}: {
+  products: ManagerProduct[];
+  warehouses: WarehouseRow[];
+  onClose(): void;
+  onSaved(): void;
+}) {
+  const [productId, setProductId] = useState('');
+  const [fromStoreId, setFromStoreId] = useState(warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? '');
+  const [toStoreId, setToStoreId] = useState(warehouses.find((w) => !w.is_default)?.id ?? '');
+  const [qty, setQty] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  const q = Number(qty) || 0;
+  const submit = async () => {
+    setErr(null); setOk(null);
+    if (!productId) { setErr('Escolha o produto.'); return; }
+    if (!fromStoreId || !toStoreId) { setErr('Escolha as lojas de origem e destino.'); return; }
+    if (fromStoreId === toStoreId) { setErr('A origem e o destino têm de ser lojas diferentes.'); return; }
+    if (!(q > 0)) { setErr('Indique a quantidade a transferir.'); return; }
+    setBusy(true);
+    try {
+      const r = await api.inventory.transfer({ productId, fromStoreId, toStoreId, quantity: q, note: note.trim() || undefined });
+      setOk(`Transferido. Saldo origem: ${r.fromBalance} · destino: ${r.toBalance}.`);
+      setTimeout(onSaved, 900);
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao transferir.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title="Transferir stock entre lojas" onClose={onClose}>
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      {ok ? <div className="banner success" style={{ marginBottom: 12 }}>{ok}</div> : null}
+      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+        Move unidades de uma loja para outra. O total da empresa não muda — só a distribuição por loja. Fica registado na auditoria.
+      </p>
+      <div className="field"><label>Produto</label>
+        <ProductPicker products={products} value={productId} onChange={setProductId} /></div>
+      <div className="grid-2">
+        <div className="field"><label>De (origem)</label>
+          <select value={fromStoreId} onChange={(e) => setFromStoreId(e.target.value)}>
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
+          </select></div>
+        <div className="field"><label>Para (destino)</label>
+          <select value={toStoreId} onChange={(e) => setToStoreId(e.target.value)}>
+            <option value="">Escolher…</option>
+            {warehouses.filter((w) => w.id !== fromStoreId).map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
+          </select></div>
+      </div>
+      <div className="grid-2">
+        <div className="field"><label>Quantidade</label>
+          <input inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="ex.: 5" /></div>
+        <div className="field"><label>Nota (opcional)</label>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex.: reposição loja talatona" /></div>
+      </div>
+      <button className="btn lg block" onClick={submit} disabled={busy}>
+        {busy ? 'A transferir…' : 'Confirmar transferência'}
+      </button>
+    </Modal>
   );
 }
 

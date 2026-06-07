@@ -7,7 +7,7 @@ import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { CreateSupplierDto } from './dto/supplier.dto';
 import { CreateWarehouseDto } from './dto/warehouse.dto';
-import { AdjustStockDto, StockEntryDto } from './dto/stock.dto';
+import { AdjustStockDto, StockEntryDto, TransferStockDto } from './dto/stock.dto';
 import { CreatePurchaseOrderDto } from './dto/purchase-order.dto';
 import { ErpRepository } from './erp.repository';
 import { StockService } from './stock.service';
@@ -102,6 +102,20 @@ export class ErpController {
       warehouseId: dto.warehouseId,
       newQuantity: dto.newQuantity,
       reason: dto.reason,
+      createdBy: user.sub,
+    });
+  }
+
+  @Post('stock/transfer')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Transfere stock de uma loja para outra' })
+  transferStock(@Body() dto: TransferStockDto, @CurrentUser() user: JwtPayload) {
+    return this.stock.transfer(this.ctx.requireTenantSchema(), {
+      productId: dto.productId,
+      fromStoreId: dto.fromStoreId,
+      toStoreId: dto.toStoreId,
+      quantity: dto.quantity,
+      note: dto.note ?? null,
       createdBy: user.sub,
     });
   }

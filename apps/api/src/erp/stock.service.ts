@@ -269,6 +269,42 @@ export class StockService {
     });
   }
 
+  /**
+   * Transferência de stock entre duas LOJAS: saída (TRANSFER) na loja de origem
+   * e entrada (TRANSFER) na loja de destino, na MESMA transacção. O total global
+   * (products.stock_qty) não muda — só muda a distribuição por loja.
+   */
+  async transfer(
+    schema: string,
+    input: {
+      productId: string;
+      fromStoreId: string;
+      toStoreId: string;
+      quantity: number;
+      note?: string | null;
+      createdBy?: string | null;
+    },
+  ): Promise<{ fromBalance: number; toBalance: number }> {
+    if (input.quantity <= 0) throw new BadRequestException('A quantidade tem de ser maior que zero.');
+    if (input.fromStoreId === input.toStoreId) throw new BadRequestException('Escolha lojas diferentes para a transferência.');
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const ref = input.note?.trim() ? `Transferência — ${input.note.trim()}` : 'Transferência entre lojas';
+      // Saída na origem (bloqueia se não houver stock suficiente).
+      const fromBalance = await StockService.applyMovement(tx, {
+        productId: input.productId, warehouseId: input.fromStoreId,
+        type: 'TRANSFER', quantity: -input.quantity,
+        reference: ref, createdBy: input.createdBy ?? null, allowNegative: false,
+      });
+      // Entrada no destino.
+      const toBalance = await StockService.applyMovement(tx, {
+        productId: input.productId, warehouseId: input.toStoreId,
+        type: 'TRANSFER', quantity: input.quantity,
+        reference: ref, createdBy: input.createdBy ?? null, allowNegative: true,
+      });
+      return { fromBalance, toBalance };
+    });
+  }
+
   /** Acerto de inventário: fixa o saldo absoluto e regista a diferença como ADJUST. */
   async adjust(
     schema: string,

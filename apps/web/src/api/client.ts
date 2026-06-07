@@ -415,18 +415,18 @@ export const api = {
       request<ProfitAbcRow[]>('GET', `/profit/abc${qs({ from, to })}`),
   },
   reports: {
-    salesByUser: (from?: string, to?: string) =>
-      request<ReportUserRow[]>('GET', `/reports/sales-by-user${qs({ from, to })}`),
-    salesByCategory: (from?: string, to?: string) =>
-      request<ReportCategoryRow[]>('GET', `/reports/sales-by-category${qs({ from, to })}`),
-    taxMap: (from?: string, to?: string) =>
-      request<ReportTaxRow[]>('GET', `/reports/tax-map${qs({ from, to })}`),
+    salesByUser: (from?: string, to?: string, storeId?: string) =>
+      request<ReportUserRow[]>('GET', `/reports/sales-by-user${qs({ from, to, storeId })}`),
+    salesByCategory: (from?: string, to?: string, storeId?: string) =>
+      request<ReportCategoryRow[]>('GET', `/reports/sales-by-category${qs({ from, to, storeId })}`),
+    taxMap: (from?: string, to?: string, storeId?: string) =>
+      request<ReportTaxRow[]>('GET', `/reports/tax-map${qs({ from, to, storeId })}`),
     paymentMethods: (from?: string, to?: string) =>
       request<ReportPaymentRow[]>('GET', `/reports/payment-methods${qs({ from, to })}`),
     salesByStore: (from?: string, to?: string) =>
       request<ReportUserRow[]>('GET', `/reports/sales-by-store${qs({ from, to })}`),
-    salesByBrand: (from?: string, to?: string) =>
-      request<ReportCategoryRow[]>('GET', `/reports/sales-by-brand${qs({ from, to })}`),
+    salesByBrand: (from?: string, to?: string, storeId?: string) =>
+      request<ReportCategoryRow[]>('GET', `/reports/sales-by-brand${qs({ from, to, storeId })}`),
     documents: (f: { from?: string; to?: string; storeId?: string; docType?: string } = {}) =>
       request<ReportDocRow[]>('GET', `/reports/documents${qs(f as Record<string, string>)}`),
     cashSessions: (from?: string, to?: string) =>
@@ -546,6 +546,8 @@ export const api = {
       request<{ balanceAfter: number }>('POST', '/inventory/write-off', { productId, warehouseId, quantity, reason }),
     stockEntry: (dto: StockEntryInput) =>
       request<{ balanceAfter: number }>('POST', '/erp/stock/entry', dto),
+    transfer: (dto: { productId: string; fromStoreId: string; toStoreId: string; quantity: number; note?: string }) =>
+      request<{ fromBalance: number; toBalance: number }>('POST', '/erp/stock/transfer', dto),
     addBatch: (dto: BatchInput) => request<{ id: string }>('POST', '/inventory/batches', dto),
     expiringBatches: (days = 60) => request<ExpiringBatch[]>('GET', `/inventory/batches/expiring?days=${days}`),
     movements: (f: { q?: string; warehouseId?: string; from?: string; to?: string } = {}) => {

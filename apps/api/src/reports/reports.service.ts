@@ -19,8 +19,13 @@ export class ReportsService {
     return { from: fromD, to: toD };
   }
 
+  /** Condição opcional de loja (multi-loja). */
+  private storeCond(storeId?: string): Prisma.Sql {
+    return storeId ? Prisma.sql` AND i.store_id = ${storeId}::uuid` : Prisma.empty;
+  }
+
   /** Vendas por utilizador (operador): nº de vendas e total faturado. */
-  async salesByUser(schema: string, from?: string, to?: string) {
+  async salesByUser(schema: string, from?: string, to?: string, storeId?: string) {
     const { from: f, to: t } = this.range(from, to);
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
@@ -33,12 +38,13 @@ export class ReportsService {
         LEFT JOIN users u ON u.id = i.cashier_id
         WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
           AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
+          ${this.storeCond(storeId)}
         GROUP BY u.name ORDER BY gross DESC`),
     );
   }
 
   /** Vendas por categoria de produto. */
-  async salesByCategory(schema: string, from?: string, to?: string) {
+  async salesByCategory(schema: string, from?: string, to?: string, storeId?: string) {
     const { from: f, to: t } = this.range(from, to);
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
@@ -52,6 +58,7 @@ export class ReportsService {
         LEFT JOIN product_categories c ON c.id = p.category_id
         WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
           AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
+          ${this.storeCond(storeId)}
         GROUP BY c.name ORDER BY gross DESC`),
     );
   }
@@ -120,7 +127,7 @@ export class ReportsService {
   }
 
   /** Vendas por marca (campo brand do produto). */
-  async salesByBrand(schema: string, from?: string, to?: string) {
+  async salesByBrand(schema: string, from?: string, to?: string, storeId?: string) {
     const { from: f, to: t } = this.range(from, to);
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
@@ -133,12 +140,13 @@ export class ReportsService {
         LEFT JOIN products p ON p.id = ii.product_id
         WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
           AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
+          ${this.storeCond(storeId)}
         GROUP BY COALESCE(NULLIF(p.brand, ''), 'Sem marca') ORDER BY gross DESC`),
     );
   }
 
   /** Mapa de impostos (IVA) por taxa. */
-  async taxMap(schema: string, from?: string, to?: string) {
+  async taxMap(schema: string, from?: string, to?: string, storeId?: string) {
     const { from: f, to: t } = this.range(from, to);
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
@@ -150,6 +158,7 @@ export class ReportsService {
         JOIN invoice_items ii ON ii.invoice_id = i.id
         WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
           AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
+          ${this.storeCond(storeId)}
         GROUP BY ii.iva_rate ORDER BY ii.iva_rate`),
     );
   }

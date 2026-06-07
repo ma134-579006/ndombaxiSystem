@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type {
-  DocumentIdentity, ProfitPoint, ProfitProduct, ReportCashSession, ReportCategoryRow,
+  DocumentIdentity, ManagerStore, ProfitPoint, ProfitProduct, ReportCashSession, ReportCategoryRow,
   ReportDocRow, ReportPaymentRow, ReportTaxRow, ReportUserRow,
 } from '../api/types';
 import { IconChart } from '../components/Icons';
@@ -34,9 +34,14 @@ export function Reports() {
   const [from, setFrom] = useState(todayISO(new Date(Date.now() - 29 * 86400000)));
   const [to, setTo] = useState(todayISO());
   const [docType, setDocType] = useState('');
+  const [storeId, setStoreId] = useState('');
+  const [stores, setStores] = useState<ManagerStore[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [brand, setBrand] = useState<DocumentIdentity | null>(null);
+
+  // Tabs que suportam filtro por loja (multi-loja).
+  const STORE_FILTERABLE: Tab[] = ['user', 'category', 'brand', 'tax', 'documents'];
 
   const [byProduct, setByProduct] = useState<ProfitProduct[]>([]);
   const [byUser, setByUser] = useState<ReportUserRow[]>([]);
@@ -50,24 +55,26 @@ export function Reports() {
   const [sessions, setSessions] = useState<ReportCashSession[]>([]);
 
   useEffect(() => { api.branding().then(setBrand).catch(() => undefined); }, []);
+  useEffect(() => { api.staff.listStores().then(setStores).catch(() => undefined); }, []);
+  const sid = storeId || undefined;
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
       if (tab === 'product') setByProduct(await api.profit.byProduct(from, to));
-      else if (tab === 'user') setByUser(await api.reports.salesByUser(from, to));
+      else if (tab === 'user') setByUser(await api.reports.salesByUser(from, to, sid));
       else if (tab === 'store') setByStore(await api.reports.salesByStore(from, to));
-      else if (tab === 'category') setByCategory(await api.reports.salesByCategory(from, to));
-      else if (tab === 'brand') setByBrand(await api.reports.salesByBrand(from, to));
+      else if (tab === 'category') setByCategory(await api.reports.salesByCategory(from, to, sid));
+      else if (tab === 'brand') setByBrand(await api.reports.salesByBrand(from, to, sid));
       else if (tab === 'evolution') setSeries(await api.profit.series(from, to));
-      else if (tab === 'tax') setTax(await api.reports.taxMap(from, to));
+      else if (tab === 'tax') setTax(await api.reports.taxMap(from, to, sid));
       else if (tab === 'payments') setPayments(await api.reports.paymentMethods(from, to));
-      else if (tab === 'documents') setDocs(await api.reports.documents({ from, to, docType: docType || undefined }));
+      else if (tab === 'documents') setDocs(await api.reports.documents({ from, to, storeId: sid, docType: docType || undefined }));
       else if (tab === 'cashbox') setSessions(await api.reports.cashSessions(from, to));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar o relatório.');
     } finally { setLoading(false); }
-  }, [tab, from, to, docType]);
+  }, [tab, from, to, docType, sid]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -141,6 +148,13 @@ export function Reports() {
             <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></div>
           <div className="field" style={{ margin: 0 }}><label>Data final</label>
             <input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></div>
+          {stores.length > 1 && STORE_FILTERABLE.includes(tab) ? (
+            <div className="field" style={{ margin: 0 }}><label>Loja</label>
+              <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                <option value="">Todas as lojas</option>
+                {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select></div>
+          ) : null}
           {tab === 'documents' ? (
             <div className="field" style={{ margin: 0 }}><label>Tipo de documento</label>
               <select value={docType} onChange={(e) => setDocType(e.target.value)}>
