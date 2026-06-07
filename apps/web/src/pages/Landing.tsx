@@ -11,10 +11,17 @@ import type {
 import { LOGO_SRC } from '../brand';
 import { IconBuilding, IconCheck, IconShield } from '../components/Icons';
 
-/** Imagem de fundo realista (comércio/loja angolana) — usada se o Super Admin
- *  não definir uma própria. Unsplash, tema retalho/mercado. */
-const DEFAULT_HERO =
-  'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=1920&q=80';
+/** Imagens de fundo realistas (comércio/retalho/POS/negócio) — usadas no
+ *  carrossel quando o Super Admin não define as suas. Unsplash, alta qualidade. */
+const DEFAULT_HERO_IMAGES = [
+  'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=1920&q=80', // mercado/retalho
+  'https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&w=1920&q=80',   // pagamento POS/cartão
+  'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1920&q=80', // loja moderna
+  'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1920&q=80',   // mercado fresco
+  'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1920&q=80', // supermercado prateleiras
+  'https://images.unsplash.com/photo-1567448400815-59d5a71b1a6c?auto=format&fit=crop&w=1920&q=80', // caixa/balcão atendimento
+];
+const DEFAULT_HERO = DEFAULT_HERO_IMAGES[0];
 
 function kz(n: number): string {
   return n.toLocaleString('pt-PT', { maximumFractionDigits: 0 }) + ' Kz';
@@ -53,7 +60,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       ? cfg.heroImages
       : cfg?.heroImageUrl
         ? [cfg.heroImageUrl]
-        : [DEFAULT_HERO];
+        : DEFAULT_HERO_IMAGES;
   const heroInterval = cfg?.heroIntervalMs || 5000;
   const plans = data?.plans ?? [];
   const features = cfg?.features?.length ? cfg.features : [];

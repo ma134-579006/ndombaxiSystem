@@ -105,6 +105,7 @@ export class CashboxService {
 
       let salesTotal = 0, cashIn = 0, cashOut = 0, salesCount = 0;
       let cashSales = 0; // só vendas pagas em numerário entram no esperado físico
+      let cashRefunds = 0; // reembolsos em numerário SAEM da gaveta (anulações/devoluções)
       for (const r of agg) {
         const total = Number(r.total);
         if (r.type === 'SALE') {
@@ -112,10 +113,14 @@ export class CashboxService {
           if ((r.payment_type ?? 'CASH') === 'CASH') cashSales += total;
         } else if (r.type === 'CASH_IN') cashIn += total;
         else if (r.type === 'CASH_OUT') cashOut += total;
+        else if (r.type === 'REFUND') {
+          if ((r.payment_type ?? 'CASH') === 'CASH') cashRefunds += total;
+        }
       }
 
       const openingFloat = Number(session.opening_float);
-      const expected = round2(openingFloat + cashSales + cashIn - cashOut);
+      // Esperado = fundo + vendas em numerário + reforços − sangrias − reembolsos.
+      const expected = round2(openingFloat + cashSales + cashIn - cashOut - cashRefunds);
       const counted = round2(dto.countedCash);
       const difference = round2(counted - expected);
       // estado: OK | quebra (falta) | sobra
@@ -134,7 +139,7 @@ export class CashboxService {
       await this.audit.recordInTx(tx, {
         actorId: actor.id, actorName: actor.name, action: 'SHIFT_CLOSE',
         entity: 'cash_session', entityId: session.id,
-        details: { openingFloat, cashSales, cashIn, cashOut, expected, counted, difference, verdict, salesCount },
+        details: { openingFloat, cashSales, cashIn, cashOut, cashRefunds, expected, counted, difference, verdict, salesCount },
       });
 
       // Produtos vendidos no turno (para o recibo de fecho).
@@ -154,6 +159,7 @@ export class CashboxService {
         openedAt: session.opened_at,
         closedAt: new Date().toISOString(),
         openingFloat, salesTotal: round2(salesTotal), cashSales, cashIn, cashOut,
+        cashRefunds: round2(cashRefunds),
         expected, counted, difference, verdict, salesCount,
         products: products.map((p) => ({
           productCode: p.product_code, description: p.description,
@@ -174,7 +180,7 @@ export class CashboxService {
         Prisma.sql`SELECT type, payment_type, COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS n
                    FROM cash_movements WHERE session_id = ${session.id}::uuid GROUP BY type, payment_type`,
       );
-      let salesTotal = 0, cashIn = 0, cashOut = 0, salesCount = 0, cashSales = 0;
+      let salesTotal = 0, cashIn = 0, cashOut = 0, salesCount = 0, cashSales = 0, cashRefunds = 0;
       const byPayment: Record<string, number> = {};
       for (const r of agg) {
         const total = Number(r.total);
@@ -185,6 +191,9 @@ export class CashboxService {
           if (pt === 'CASH') cashSales += total;
         } else if (r.type === 'CASH_IN') cashIn += total;
         else if (r.type === 'CASH_OUT') cashOut += total;
+        else if (r.type === 'REFUND') {
+          if ((r.payment_type ?? 'CASH') === 'CASH') cashRefunds += total;
+        }
       }
       const openingFloat = Number(session.opening_float);
       return {
@@ -195,7 +204,8 @@ export class CashboxService {
         now: new Date().toISOString(),
         openingFloat, salesTotal: round2(salesTotal), salesCount,
         cashSales: round2(cashSales), cashIn: round2(cashIn), cashOut: round2(cashOut),
-        expectedCash: round2(openingFloat + cashSales + cashIn - cashOut),
+        cashRefunds: round2(cashRefunds),
+        expectedCash: round2(openingFloat + cashSales + cashIn - cashOut - cashRefunds),
         byPayment,
       };
     });
