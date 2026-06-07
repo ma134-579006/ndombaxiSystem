@@ -9,6 +9,7 @@ export interface JwtPayload {
     tenantId?: string;
     tenantSchema?: string;
     storeId?: string;
+    storeName?: string;
     twoFaVerified: boolean;
 }
 /** Formato padronizado de erro da API (regra #6 do Prompt Mestre). */

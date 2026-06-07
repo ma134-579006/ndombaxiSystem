@@ -156,6 +156,7 @@ export interface ManagerProduct {
   image_url: string | null;
   gallery: unknown;
   show_online: boolean;
+  shared_stock: boolean;
   is_active: boolean;
 }
 export interface CreateProductInput {
@@ -171,6 +172,7 @@ export interface CreateProductInput {
   costPrice?: number;
   stockQty?: number;
   storeIds?: string[];
+  sharedStock?: boolean;
   imageUrl?: string;
   showOnline?: boolean;
 }
@@ -186,6 +188,7 @@ export interface UpdateProductInput {
   stockQty?: number;
   imageUrl?: string;
   showOnline?: boolean;
+  sharedStock?: boolean;
   isActive?: boolean;
 }
 

@@ -21,6 +21,7 @@ export interface JwtPayload {
   tenantId?: string; // Company.id (apenas TENANT)
   tenantSchema?: string; // schema PostgreSQL do tenant
   storeId?: string;
+  storeName?: string; // nome da loja do operador (mostrado no caixa)
   twoFaVerified: boolean;
 }
 

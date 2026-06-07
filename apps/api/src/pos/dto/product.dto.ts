@@ -75,6 +75,12 @@ export class CreateProductDto {
   @IsString({ each: true })
   storeIds?: string[];
 
+  /** TRUE = stock central partilhado (vendível por qualquer loja do mesmo pool).
+   *  FALSE/omisso = stock por loja (cada loja gere o seu saldo). */
+  @IsOptional()
+  @IsBoolean()
+  sharedStock?: boolean;
+
   /** Imagem principal mostrada na loja online (URL ou data-URI base64). */
   @IsOptional()
   @IsString()
@@ -148,6 +154,10 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   showOnline?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  sharedStock?: boolean;
 
   @IsOptional()
   @IsBoolean()

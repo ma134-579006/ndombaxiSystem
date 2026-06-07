@@ -257,7 +257,7 @@ export class AuthService {
   // ─── Caixa: lista de operadores (nomes) por empresa ─────────
   async listOperators(
     companyCode: string,
-  ): Promise<{ id: string; name: string; role: string }[]> {
+  ): Promise<{ id: string; name: string; role: string; store_id: string | null; store_name: string | null }[]> {
     const company = await this.prisma.company.findUnique({ where: { code: companyCode } });
     if (!company || company.status !== 'ACTIVE') return [];
     return this.tenantUsers.listOperators(company.schemaName);
@@ -315,6 +315,7 @@ export class AuthService {
       tenantId: company.id,
       tenantSchema: company.schemaName,
       storeId: user.store_id ?? undefined,
+      storeName: user.store_name ?? undefined,
       twoFaVerified: true, // operador de caixa entra por PIN (sem 2FA)
     };
     await this.audit.record({
@@ -505,6 +506,7 @@ export class AuthService {
       tenantId: company.id,
       tenantSchema: company.schemaName,
       storeId: u.store_id ?? undefined,
+      storeName: u.store_name ?? undefined,
       twoFaVerified: !u.two_fa_enabled,
     };
   }

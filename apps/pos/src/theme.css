@@ -213,6 +213,8 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .topbar .who { line-height: 1.15; }
 .topbar .who .name { font-weight: 800; font-size: 15px; }
 .topbar .who .role { color: var(--muted); font-size: 12px; }
+.topbar .who .store-tag { color: var(--primary); font-size: 11px; font-weight: 800; margin-top: 1px; }
+.op-card .op-store { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
 .icon-btn {
   width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center;
   background: var(--surface); border: 1px solid var(--border); color: var(--text);
@@ -506,13 +508,14 @@ html.kbd-open .login-card .footer-credit { display: none; }
 @media (max-width: 480px) {
   .grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
   .prod { min-height: 94px; padding: 11px; }
-  .topbar-logo { display: none; }
-  /* Topbar com scroll horizontal: TODOS os botões (incl. "Sair") ficam
-     sempre acessíveis no telemóvel, sem serem cortados. */
-  .topbar { gap: 8px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .topbar::-webkit-scrollbar { height: 0; }
-  .topbar .who { display: none; }
-  .topbar .spacer { display: none; }
+  /* Topbar RESPONSIVO sem ocultar nada: a identidade (logo, empresa, operador,
+     loja) fica na 1.ª linha; os botões passam para a linha seguinte e quebram
+     conforme o espaço. Nada de scroll horizontal nem informação escondida. */
+  .topbar { gap: 8px 10px; flex-wrap: wrap; }
+  .topbar-logo { width: 32px; height: 32px; }
+  .topbar .who { flex: 1 1 auto; min-width: 0; }
+  .topbar .who .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62vw; }
+  .topbar .spacer { flex-basis: 100%; height: 0; }
   .topbar > * { flex: 0 0 auto; }
   .icon-btn { width: 42px; height: 42px; }
   .conn { padding: 0 10px; height: 42px; }

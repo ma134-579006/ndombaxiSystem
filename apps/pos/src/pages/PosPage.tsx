@@ -333,6 +333,7 @@ export function PosPage() {
             <div className="role">
               {user?.name || user?.email} · {user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
             </div>
+            {user?.storeName ? <div className="store-tag">🏪 {user.storeName}</div> : null}
           </div>
           <span className="spacer" />
           <button

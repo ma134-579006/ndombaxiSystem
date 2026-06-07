@@ -93,7 +93,7 @@ export interface EmittedInvoice {
 
 /** Turno de caixa aberto. */
 /** Operador da caixa (funcionário com acesso por PIN). */
-export interface Operator { id: string; name: string; role: string }
+export interface Operator { id: string; name: string; role: string; store_id?: string | null; store_name?: string | null }
 
 export interface CashSession {
   id: string;

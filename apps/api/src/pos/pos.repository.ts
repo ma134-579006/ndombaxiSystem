@@ -20,6 +20,7 @@ export interface ProductRow {
   image_url: string | null;
   gallery: unknown;
   show_online: boolean;
+  shared_stock: boolean;
   is_active: boolean;
 }
 
@@ -55,39 +56,46 @@ export class PosRepository {
       stockQty?: number;
       /** Lojas onde o produto existe. Vazio/omisso = TODAS as lojas. */
       storeIds?: string[];
+      /** TRUE = stock central partilhado; FALSE = stock por loja. */
+      sharedStock?: boolean;
+      /** Loja onde entra o stock inicial (stock por loja). Default = loja principal. */
+      initialStoreId?: string | null;
       imageUrl?: string | null;
       gallery?: string[];
       showOnline?: boolean;
     },
   ): Promise<ProductRow> {
     return this.prisma.runInTenant(schema, async (tx) => {
+      const shared = input.sharedStock ?? false;
       const rows = await tx.$queryRaw<ProductRow[]>(
         Prisma.sql`INSERT INTO products
             (code, barcode, name, description, category_id, brand, iva_code, exemption_reason, exemption_code,
-             unit_price, cost_price, stock_qty, image_url, gallery, show_online)
+             unit_price, cost_price, stock_qty, shared_stock, image_url, gallery, show_online)
           VALUES (${input.code}, ${input.barcode ?? null}, ${input.name},
                   ${input.description ?? null}, ${input.categoryId ?? null}::uuid, ${input.brand ?? null},
                   ${input.ivaCode}, ${input.exemptionReason ?? null}, ${input.exemptionCode ?? null},
-                  ${input.unitPrice ?? 0}, ${input.costPrice ?? 0}, ${input.stockQty ?? 0},
+                  ${input.unitPrice ?? 0}, ${input.costPrice ?? 0}, ${input.stockQty ?? 0}, ${shared},
                   ${input.imageUrl ?? null}, ${JSON.stringify(input.gallery ?? [])}::jsonb,
                   ${input.showOnline ?? true})
           RETURNING *`,
       );
       const product = rows[0];
 
-      // O produto "existe" nas LOJAS escolhidas (todas, se não especificado):
-      // cria a linha de stock (0) em cada uma. O stock_items usa o id da LOJA.
-      const stores = (input.storeIds && input.storeIds.length)
-        ? input.storeIds.map((id) => ({ id }))
-        : await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM stores WHERE is_active = TRUE`);
+      // Cria a linha de saldo (0) em TODAS as lojas activas, para o produto poder
+      // ser gerido em qualquer loja. O stock_items usa o id da LOJA.
+      const stores = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT id FROM stores WHERE is_active = TRUE`,
+      );
       const defStoreRows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`SELECT id FROM stores WHERE is_active = TRUE ORDER BY is_default DESC, created_at ASC LIMIT 1`,
       );
       const defStore = defStoreRows[0]?.id;
+      // Stock inicial: partilhado → pool central (loja principal); por loja → a loja
+      // de quem criou (initialStoreId) ou, em falta, a loja principal.
+      const initStore = shared ? defStore : (input.initialStoreId || defStore);
       const initial = Number(input.stockQty ?? 0);
       for (const st of stores) {
-        // O stock inicial (se houver) entra na loja principal; as outras ficam a 0.
-        const q = initial > 0 && st.id === defStore ? initial : 0;
+        const q = initial > 0 && st.id === initStore ? initial : 0;
         await tx.$executeRaw(
           Prisma.sql`INSERT INTO stock_items (product_id, warehouse_id, quantity)
                      VALUES (${product.id}::uuid, ${st.id}::uuid, ${q})
@@ -104,10 +112,26 @@ export class PosRepository {
     });
   }
 
-  listProducts(schema: string): Promise<ProductRow[]> {
+  /**
+   * Lista produtos activos com o stock EFECTIVO da loja indicada (caixa):
+   *  - shared_stock = TRUE  → stock central partilhado (products.stock_qty global);
+   *  - shared_stock = FALSE → saldo da loja do operador (stock_items dessa loja).
+   * storeId omisso (gestor/admin) → mostra o stock_qty global.
+   */
+  listProducts(schema: string, storeId?: string | null): Promise<ProductRow[]> {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<ProductRow[]>(
-        Prisma.sql`SELECT * FROM products WHERE is_active = TRUE ORDER BY name`,
+        Prisma.sql`
+          SELECT p.id, p.code, p.barcode, p.name, p.description, p.category_id, p.brand,
+                 p.iva_code, p.exemption_reason, p.exemption_code, p.unit_price, p.cost_price,
+                 CASE WHEN p.shared_stock OR ${storeId ?? null}::uuid IS NULL
+                      THEN p.stock_qty ELSE COALESCE(si.quantity, 0) END AS stock_qty,
+                 p.image_url, p.gallery, p.show_online, p.shared_stock, p.is_active
+          FROM products p
+          LEFT JOIN stock_items si
+                 ON si.product_id = p.id AND si.warehouse_id = ${storeId ?? null}::uuid
+          WHERE p.is_active = TRUE
+          ORDER BY p.name`,
       ),
     );
   }
@@ -138,6 +162,7 @@ export class PosRepository {
       imageUrl?: string | null;
       gallery?: string[];
       showOnline?: boolean;
+      sharedStock?: boolean;
       isActive?: boolean;
     },
   ): Promise<ProductRow> {
@@ -155,6 +180,7 @@ export class PosRepository {
     if (input.gallery !== undefined)
       sets.push(Prisma.sql`gallery = ${JSON.stringify(input.gallery)}::jsonb`);
     if (input.showOnline !== undefined) sets.push(Prisma.sql`show_online = ${input.showOnline}`);
+    if (input.sharedStock !== undefined) sets.push(Prisma.sql`shared_stock = ${input.sharedStock}`);
     if (input.isActive !== undefined) sets.push(Prisma.sql`is_active = ${input.isActive}`);
 
     if (sets.length === 0) return this.getProduct(schema, id);

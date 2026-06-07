@@ -8,6 +8,7 @@ export interface DecodedJwt {
   tenantId?: string;
   tenantSchema?: string;
   storeId?: string;
+  storeName?: string;
   twoFaVerified?: boolean;
   exp?: number;
   iat?: number;

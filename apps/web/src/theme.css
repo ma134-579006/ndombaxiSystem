@@ -135,7 +135,9 @@ input, textarea, select { font-family: inherit; }
 .sidebar .brand .nm { font-weight: 800; font-size: 15px; line-height: 1.1; }
 .sidebar .brand .tg { font-size: 11px; color: var(--muted); }
 .nav { padding: 8px; display: flex; flex-direction: column; gap: 3px; flex: 1; overflow: auto; }
-.nav button { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 11px; color: var(--muted); font-size: 14px; font-weight: 600; text-align: left; transition: background .15s, color .15s; }
+.nav button { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 11px; color: var(--muted); font-size: 14px; font-weight: 600; text-align: left; transition: background .15s, color .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Salvaguarda geral: nenhum botão/separador quebra o texto em várias linhas. */
+.btn, .nav-group-head, .nav-sub button, .seg button, .chip, .tab, .pill { white-space: nowrap; }
 .nav button:hover { background: var(--surface); color: var(--text); }
 .nav button.active { background: var(--grad-primary); color: #fff; box-shadow: 0 10px 22px -12px var(--primary); }
 /* Separador "ou" no login (entre palavra-passe e Google) */
@@ -166,6 +168,23 @@ input, textarea, select { font-family: inherit; }
 .nav-sub { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 4px 12px; padding-left: 10px; border-left: 2px solid var(--border-soft); }
 .nav-sub button { font-size: 13px; padding: 9px 11px; }
 .sidebar .sig { padding: 14px 16px; border-top: 1px solid var(--border-soft); font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* Painel lateral SEMPRE escuro (preto moderno, nível enterprise), mesmo no tema
+   claro. Redefine as variáveis localmente para os filhos lerem bem sobre escuro. */
+.sidebar {
+  --text: #eef2fb;
+  --muted: #9fb0cf;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.10);
+  --border: rgba(255, 255, 255, 0.10);
+  --border-soft: rgba(255, 255, 255, 0.06);
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(59,130,246,.10), transparent 60%),
+    linear-gradient(180deg, #0c1326 0%, #070b16 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  color: var(--text);
+}
+.sidebar .brand .nm { color: var(--text); }
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--border-soft); background: var(--glass); backdrop-filter: blur(14px) saturate(140%); position: sticky; top: 0; z-index: 30; }

@@ -26,6 +26,7 @@ interface FormState {
   stockQty: string;
   storeIds: string[];
   allStores: boolean;
+  sharedStock: boolean;
   imageUrl: string;
   showOnline: boolean;
   isActive: boolean;
@@ -44,6 +45,7 @@ const EMPTY: FormState = {
   stockQty: '0',
   storeIds: [],
   allStores: true,
+  sharedStock: false,
   imageUrl: '',
   showOnline: true,
   isActive: true,
@@ -99,6 +101,7 @@ export function Products() {
       stockQty: p.stock_qty,
       storeIds: [],
       allStores: true,
+      sharedStock: p.shared_stock,
       imageUrl: p.image_url ?? '',
       showOnline: p.show_online,
       isActive: p.is_active,
@@ -147,6 +150,7 @@ export function Products() {
           costPrice: Number(form.costPrice) || 0,
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
+          sharedStock: form.sharedStock,
           isActive: form.isActive,
         });
       } else {
@@ -166,7 +170,7 @@ export function Products() {
           unitPrice: price,
           costPrice: Number(form.costPrice) || 0,
           stockQty: Number(form.stockQty) || 0,
-          storeIds: form.allStores ? undefined : form.storeIds,
+          sharedStock: form.sharedStock,
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
         };
@@ -308,32 +312,17 @@ export function Products() {
               </p>
             </div>
           ) : null}
-          {!editing && stores.length > 1 ? (
+          {stores.length > 1 ? (
             <div className="field">
               <div className="switch-row" style={{ padding: 0 }}>
-                <span>Disponível em todas as lojas</span>
-                <Switch checked={form.allStores} onChange={(v) => setForm({ ...form, allStores: v })} />
+                <span>Stock central partilhado</span>
+                <Switch checked={form.sharedStock} onChange={(v) => setForm({ ...form, sharedStock: v })} />
               </div>
-              {!form.allStores ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-                  {stores.map((s) => {
-                    const on = form.storeIds.includes(s.id);
-                    return (
-                      <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={on}
-                          onChange={(e) => setForm({
-                            ...form,
-                            storeIds: e.target.checked ? [...form.storeIds, s.id] : form.storeIds.filter((x) => x !== s.id),
-                          })}
-                        />
-                        {s.name}{s.is_default ? ' (principal)' : ''}
-                      </label>
-                    );
-                  })}
-                </div>
-              ) : null}
+              <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+                {form.sharedStock
+                  ? 'Stock único partilhado por todas as lojas — qualquer loja vende do mesmo saldo.'
+                  : 'Stock por loja — cada loja gere e vê o seu próprio stock. Dê entrada de stock em cada loja.'}
+              </p>
             </div>
           ) : null}
 

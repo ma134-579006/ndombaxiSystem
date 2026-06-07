@@ -55,6 +55,7 @@ interface ProductForEmission {
   cost_price?: string | null;
   exemption_reason?: string | null;
   exemption_code?: string | null;
+  shared_stock?: boolean;
 }
 
 /**
@@ -95,7 +96,7 @@ export class InvoiceService {
         (ProductForEmission & { code: string; name: string })[]
       >(
         Prisma.sql`SELECT id, code, name, description, iva_code, unit_price, cost_price,
-                          exemption_reason, exemption_code
+                          exemption_reason, exemption_code, shared_stock
                    FROM products
                    WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE
                    FOR UPDATE`,
@@ -188,10 +189,21 @@ export class InvoiceService {
                    WHERE doc_type = ${input.docType} AND series = ${input.series} AND year = ${year}`,
       );
 
-      // Loja onde a venda ocorre (a do operador; senão a loja principal). O
-      // stock é baixado nesta loja e a factura fica-lhe associada.
+      // Loja onde a venda ocorre (a do operador; senão a loja principal). A
+      // factura fica associada a esta loja.
       const warehouseId = input.storeId || (await StockService.resolveDefaultWarehouse(tx));
       const defStoreId = await StockService.resolveDefaultWarehouse(tx);
+
+      /**
+       * Resolve, por produto, DE ONDE sai o stock:
+       *  - shared_stock = TRUE  → pool central (loja principal); valida pelo global.
+       *  - shared_stock = FALSE → loja do operador (a do JWT); valida por essa loja.
+       */
+      const resolveLine = (p: ProductForEmission) => {
+        const shared = !!p.shared_stock;
+        const store = shared ? defStoreId : (input.storeId || defStoreId);
+        return { shared, store };
+      };
 
       // ── Validação de stock e validade ANTES de emitir ─────────────
       // A venda é bloqueada se não houver stock suficiente ou se o produto só
@@ -199,28 +211,20 @@ export class InvoiceService {
       const today = new Date().toISOString().slice(0, 10);
       for (const line of lines) {
         const product = byCode.get(line.productCode)!;
-        // Resolve a loja efectiva (igual à baixa de stock, com stock partilhado).
-        let lineStore = warehouseId;
-        if (input.storeId && defStoreId && input.storeId !== defStoreId) {
-          const has = await tx.$queryRaw<{ n: number }[]>(
-            Prisma.sql`SELECT COUNT(*)::int AS n FROM stock_items
-                       WHERE product_id = ${product.id}::uuid AND warehouse_id = ${input.storeId}::uuid`,
-          );
-          if (!has[0] || has[0].n === 0) lineStore = defStoreId;
-        }
-        // Stock disponível (por loja se houver; senão o espelho global).
+        const { shared, store: lineStore } = resolveLine(product);
+        // Stock disponível: partilhado → global; por loja → saldo da loja (0 se sem linha).
         let available: number;
-        if (lineStore) {
+        if (shared || !lineStore) {
+          const pr = await tx.$queryRaw<{ stock_qty: string }[]>(
+            Prisma.sql`SELECT stock_qty FROM products WHERE id = ${product.id}::uuid`,
+          );
+          available = pr[0] ? Number(pr[0].stock_qty) : 0;
+        } else {
           const si = await tx.$queryRaw<{ quantity: string }[]>(
             Prisma.sql`SELECT quantity FROM stock_items
                        WHERE product_id = ${product.id}::uuid AND warehouse_id = ${lineStore}::uuid`,
           );
           available = si[0] ? Number(si[0].quantity) : 0;
-        } else {
-          const pr = await tx.$queryRaw<{ stock_qty: string }[]>(
-            Prisma.sql`SELECT stock_qty FROM products WHERE id = ${product.id}::uuid`,
-          );
-          available = pr[0] ? Number(pr[0].stock_qty) : 0;
         }
         if (available < line.quantity) {
           throw new BadRequestException(
@@ -263,14 +267,7 @@ export class InvoiceService {
       for (const line of lines) {
         lineNumber += 1;
         const product = byCode.get(line.productCode)!;
-        let lineStore = warehouseId;
-        if (input.storeId && defStoreId && input.storeId !== defStoreId) {
-          const has = await tx.$queryRaw<{ n: number }[]>(
-            Prisma.sql`SELECT COUNT(*)::int AS n FROM stock_items
-                       WHERE product_id = ${product.id}::uuid AND warehouse_id = ${input.storeId}::uuid`,
-          );
-          if (!has[0] || has[0].n === 0) lineStore = defStoreId;
-        }
+        const { shared, store: lineStore } = resolveLine(product);
         await tx.$executeRaw(
           Prisma.sql`INSERT INTO invoice_items
               (invoice_id, line_number, product_id, product_code, description, quantity,
@@ -283,9 +280,10 @@ export class InvoiceService {
                     ${line.exemptionReason ?? null}, ${line.exemptionCode ?? null})`,
         );
         if (lineStore) {
-          // Saída de stock pela venda. allowNegative:false — a venda é bloqueada
-          // se não houver stock (já validado acima; aqui é a salvaguarda final).
-          // applyMovement também actualiza o espelho global products.stock_qty.
+          // Saída de stock pela venda. applyMovement também actualiza o espelho
+          // global products.stock_qty. Stock partilhado: o pool central pode ficar
+          // negativo (allowNegative) — representa stock localizado noutra loja; o
+          // global já foi validado. Stock por loja: bloqueia (já validado acima).
           await StockService.applyMovement(tx, {
             productId: product.id,
             warehouseId: lineStore,
@@ -294,7 +292,7 @@ export class InvoiceService {
             reference: number,
             referenceId: invoiceId,
             createdBy: input.cashierId ?? null,
-            allowNegative: false,
+            allowNegative: shared,
           });
         } else {
           await tx.$executeRaw(
@@ -429,9 +427,9 @@ export class InvoiceService {
     const result = await this.prisma.runInTenant(schema, async (tx) => {
       // 1. Carrega a factura + linhas (bloqueia).
       const invRows = await tx.$queryRaw<
-        { id: string; number: string; status: string; gross_total: string; net_total: string; iva_total: string; customer_id: string | null; customer_tax_id: string | null }[]
+        { id: string; number: string; status: string; gross_total: string; net_total: string; iva_total: string; customer_id: string | null; customer_tax_id: string | null; store_id: string | null }[]
       >(
-        Prisma.sql`SELECT id, number, status, gross_total, net_total, iva_total, customer_id, customer_tax_id
+        Prisma.sql`SELECT id, number, status, gross_total, net_total, iva_total, customer_id, customer_tax_id, store_id
                    FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`,
       );
       if (!invRows[0]) throw new BadRequestException('Factura não encontrada');
@@ -439,10 +437,12 @@ export class InvoiceService {
       if (inv.status === 'A') throw new BadRequestException('Esta venda já foi anulada.');
 
       const items = await tx.$queryRaw<
-        { product_id: string | null; product_code: string; description: string; quantity: string }[]
+        { product_id: string | null; product_code: string; description: string; quantity: string; shared_stock: boolean | null }[]
       >(
-        Prisma.sql`SELECT product_id, product_code, description, quantity
-                   FROM invoice_items WHERE invoice_id = ${invoiceId}::uuid ORDER BY line_number`,
+        Prisma.sql`SELECT ii.product_id, ii.product_code, ii.description, ii.quantity, p.shared_stock
+                   FROM invoice_items ii
+                   LEFT JOIN products p ON p.id = ii.product_id
+                   WHERE ii.invoice_id = ${invoiceId}::uuid ORDER BY ii.line_number`,
       );
 
       // 2. Aloca número de NC na série própria (NC, mesma série/ano).
@@ -489,10 +489,12 @@ export class InvoiceService {
         );
       }
 
-      // 4. Devolve o stock (movimento IN) ao armazém default.
-      const warehouseId = await StockService.resolveDefaultWarehouse(tx);
+      // 4. Devolve o stock (movimento IN) à loja certa: partilhado → pool central
+      //    (loja principal); por loja → a loja onde a venda foi feita (store_id).
+      const defWh = await StockService.resolveDefaultWarehouse(tx);
       for (const it of items) {
         if (!it.product_id) continue;
+        const warehouseId = it.shared_stock ? defWh : (inv.store_id || defWh);
         if (warehouseId) {
           await StockService.applyMovement(tx, {
             productId: it.product_id, warehouseId, type: 'IN', quantity: Number(it.quantity),
@@ -550,8 +552,8 @@ export class InvoiceService {
     if (!returns?.length) throw new BadRequestException('Indique os artigos a devolver.');
 
     const result = await this.prisma.runInTenant(schema, async (tx) => {
-      const invRows = await tx.$queryRaw<{ id: string; number: string; status: string }[]>(
-        Prisma.sql`SELECT id, number, status FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`,
+      const invRows = await tx.$queryRaw<{ id: string; number: string; status: string; store_id: string | null }[]>(
+        Prisma.sql`SELECT id, number, status, store_id FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`,
       );
       if (!invRows[0]) throw new BadRequestException('Factura não encontrada');
       if (invRows[0].status === 'A') throw new BadRequestException('Factura já anulada — use a anulação total.');
@@ -559,16 +561,19 @@ export class InvoiceService {
 
       const items = await tx.$queryRaw<
         { product_id: string | null; product_code: string; description: string; quantity: string;
-          iva_code: string; iva_rate: string; unit_price: string; discount_rate: string }[]
+          iva_code: string; iva_rate: string; unit_price: string; discount_rate: string; shared_stock: boolean | null }[]
       >(
-        Prisma.sql`SELECT product_id, product_code, description, quantity, iva_code, iva_rate, unit_price, discount_rate
-                   FROM invoice_items WHERE invoice_id = ${invoiceId}::uuid`,
+        Prisma.sql`SELECT ii.product_id, ii.product_code, ii.description, ii.quantity, ii.iva_code,
+                          ii.iva_rate, ii.unit_price, ii.discount_rate, p.shared_stock
+                   FROM invoice_items ii
+                   LEFT JOIN products p ON p.id = ii.product_id
+                   WHERE ii.invoice_id = ${invoiceId}::uuid`,
       );
       const byCode = new Map(items.map((i) => [i.product_code, i]));
 
       // Valida e calcula o valor a estornar (líquido+IVA, respeitando desconto).
       let refundNet = 0, refundIva = 0;
-      const toRevert: { productId: string | null; qty: number; code: string }[] = [];
+      const toRevert: { productId: string | null; qty: number; code: string; sharedStock: boolean }[] = [];
       for (const r of returns) {
         const it = byCode.get(r.productCode);
         if (!it) throw new BadRequestException(`Artigo não está na factura: ${r.productCode}`);
@@ -579,7 +584,7 @@ export class InvoiceService {
         const lineNet = round2(unitNet * r.quantity);
         const lineIva = round2((lineNet * Number(it.iva_rate)) / 100);
         refundNet += lineNet; refundIva += lineIva;
-        toRevert.push({ productId: it.product_id, qty: r.quantity, code: r.productCode });
+        toRevert.push({ productId: it.product_id, qty: r.quantity, code: r.productCode, sharedStock: !!it.shared_stock });
       }
       refundNet = round2(refundNet);
       refundIva = round2(refundIva);
@@ -609,10 +614,12 @@ export class InvoiceService {
                    WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year}`,
       );
 
-      // Repõe o stock dos artigos devolvidos.
-      const warehouseId = await StockService.resolveDefaultWarehouse(tx);
+      // Repõe o stock dos artigos devolvidos na loja certa (partilhado → central;
+      // por loja → a loja onde a venda foi feita).
+      const defWh = await StockService.resolveDefaultWarehouse(tx);
       for (const r of toRevert) {
         if (!r.productId) continue;
+        const warehouseId = r.sharedStock ? defWh : (inv.store_id || defWh);
         if (warehouseId) {
           await StockService.applyMovement(tx, {
             productId: r.productId, warehouseId, type: 'IN', quantity: r.qty,

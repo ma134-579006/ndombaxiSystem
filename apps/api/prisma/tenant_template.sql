@@ -74,6 +74,9 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."products" (
   unit_price   NUMERIC(14,2) NOT NULL,        -- preço NET de venda (sem IVA), AOA
   cost_price   NUMERIC(14,2) NOT NULL DEFAULT 0, -- custo unitário (p/ lucro), AOA
   stock_qty    NUMERIC(14,3) NOT NULL DEFAULT 0,
+  -- TRUE = stock central partilhado (1 pool = stock_qty, vendível por qualquer loja);
+  -- FALSE = stock por loja (cada loja vê/baixa o seu próprio saldo em stock_items).
+  shared_stock BOOLEAN NOT NULL DEFAULT FALSE,
   image_url    TEXT,                          -- imagem principal (loja online)
   gallery      JSONB NOT NULL DEFAULT '[]',   -- imagens adicionais [url, ...]
   show_online  BOOLEAN NOT NULL DEFAULT TRUE, -- aparece na montra/loja online

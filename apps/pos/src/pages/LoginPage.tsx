@@ -95,6 +95,7 @@ export function LoginPage() {
                   <button key={o.id} className="op-card" onClick={() => { setSelected(o); setPin(''); setError(null); }}>
                     <span className="op-ini">{o.name.slice(0, 1).toUpperCase()}</span>
                     <span className="op-name">{o.name}</span>
+                    {o.store_name ? <span className="op-store">{o.store_name}</span> : null}
                   </button>
                 ))}
               </div>

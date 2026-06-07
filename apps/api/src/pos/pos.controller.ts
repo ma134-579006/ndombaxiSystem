@@ -37,16 +37,21 @@ export class PosController {
 
   // ── Catálogo de produtos ───────────────────────────────────
   @Get('products')
-  @ApiOperation({ summary: 'Lista produtos activos do tenant' })
-  listProducts() {
-    return this.repo.listProducts(this.ctx.requireTenantSchema());
+  @ApiOperation({ summary: 'Lista produtos activos com o stock efectivo da loja do operador' })
+  listProducts(@CurrentUser() user: JwtPayload) {
+    // O caixa vê o stock da SUA loja (stock por loja); gestor/admin sem loja vê o global.
+    return this.repo.listProducts(this.ctx.requireTenantSchema(), user.storeId ?? null);
   }
 
   @Post('products')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Cria um produto (com imagens p/ a loja online)' })
-  createProduct(@Body() dto: CreateProductDto) {
-    return this.repo.createProduct(this.ctx.requireTenantSchema(), dto);
+  createProduct(@Body() dto: CreateProductDto, @CurrentUser() user: JwtPayload) {
+    // O stock inicial por loja entra na loja de quem cria (se tiver loja atribuída).
+    return this.repo.createProduct(this.ctx.requireTenantSchema(), {
+      ...dto,
+      initialStoreId: user.storeId ?? null,
+    });
   }
 
   @Patch('products/:id')

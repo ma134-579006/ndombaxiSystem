@@ -11,6 +11,7 @@ export interface TenantUser {
   role: RoleName;
   pin_hash: string | null;
   store_id: string | null;
+  store_name: string | null;
   two_fa_secret: string | null;
   two_fa_enabled: boolean;
   is_active: boolean;
@@ -49,12 +50,14 @@ export class TenantUserRepository {
   /** Operadores (funcionários com acesso por PIN) para o ecrã da caixa. */
   async listOperators(
     schema: string,
-  ): Promise<{ id: string; name: string; role: RoleName }[]> {
+  ): Promise<{ id: string; name: string; role: RoleName; store_id: string | null; store_name: string | null }[]> {
     return this.prisma.runInTenant(schema, async (tx) => {
-      return tx.$queryRaw<{ id: string; name: string; role: RoleName }[]>(
-        Prisma.sql`SELECT id, name, role FROM users
-                   WHERE is_active = TRUE AND pin_hash IS NOT NULL
-                   ORDER BY name`,
+      return tx.$queryRaw<{ id: string; name: string; role: RoleName; store_id: string | null; store_name: string | null }[]>(
+        Prisma.sql`SELECT u.id, u.name, u.role, u.store_id, s.name AS store_name
+                   FROM users u
+                   LEFT JOIN stores s ON s.id = u.store_id
+                   WHERE u.is_active = TRUE AND u.pin_hash IS NOT NULL
+                   ORDER BY s.name NULLS FIRST, u.name`,
       );
     });
   }
@@ -62,7 +65,10 @@ export class TenantUserRepository {
   async findById(schema: string, id: string): Promise<TenantUser | null> {
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<TenantUser[]>(
-        Prisma.sql`SELECT * FROM users WHERE id = ${id}::uuid LIMIT 1`,
+        Prisma.sql`SELECT u.*, s.name AS store_name
+                   FROM users u
+                   LEFT JOIN stores s ON s.id = u.store_id
+                   WHERE u.id = ${id}::uuid LIMIT 1`,
       );
       return rows[0] ?? null;
     });
