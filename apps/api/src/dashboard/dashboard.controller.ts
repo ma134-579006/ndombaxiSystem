@@ -27,6 +27,12 @@ export class DashboardController {
     return this.dashboard.salesToday(this.ctx.requireTenantSchema());
   }
 
+  @Get('sales/by-store')
+  @ApiOperation({ summary: 'Vendas de hoje por loja (multi-loja, tempo real)' })
+  salesByStore() {
+    return this.dashboard.salesTodayByStore(this.ctx.requireTenantSchema());
+  }
+
   @Get('sales/by-day')
   @ApiOperation({ summary: 'Vendas por dia (série temporal)' })
   @ApiQuery({ name: 'days', required: false, example: 30 })

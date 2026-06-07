@@ -74,7 +74,7 @@ export function StockMovements() {
           : rows.length === 0 ? <div className="empty"><p>Sem movimentos no período/filtro.</p></div>
           : (
             <table className="ptable stack">
-              <thead><tr><th>Data</th><th>Produto</th><th>Operação</th><th>Qtd</th><th>Saldo</th><th>Loja</th><th>Observação</th></tr></thead>
+              <thead><tr><th>Data/Hora</th><th>Produto</th><th>Operação</th><th>Qtd</th><th>Saldo</th><th>Loja</th><th>Funcionário</th><th>Observação</th></tr></thead>
               <tbody>
                 {rows.map((m, i) => (
                   <tr key={i}>
@@ -84,6 +84,7 @@ export function StockMovements() {
                     <td data-label="Qtd">{Number(m.quantity) > 0 ? '+' : ''}{Number(m.quantity)}</td>
                     <td data-label="Saldo">{Number(m.balance_after)}</td>
                     <td data-label="Loja">{m.warehouse_name ?? '—'}</td>
+                    <td data-label="Funcionário">{m.created_by ?? '—'}</td>
                     <td data-label="Observação">{m.reference ?? '—'}</td>
                   </tr>
                 ))}

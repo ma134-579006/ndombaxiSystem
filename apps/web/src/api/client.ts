@@ -11,6 +11,7 @@ import type {
   CreateProductInput,
   CreateProviderInput,
   DashLowStock,
+  DashStoreSales,
   DashSalesSeries,
   DashSalesSummary,
   DashTopProduct,
@@ -401,6 +402,7 @@ export const api = {
     series: (range = '7d') => request<DashSalesSeries>('GET', `/dashboard/sales/series${qs({ range })}`),
     topProducts: (limit = 8) => request<DashTopProduct[]>('GET', `/dashboard/top-products${qs({ limit: String(limit) })}`),
     lowStock: () => request<DashLowStock[]>('GET', '/dashboard/low-stock'),
+    salesByStore: () => request<DashStoreSales[]>('GET', '/dashboard/sales/by-store'),
   },
   profit: {
     summary: (from?: string, to?: string) =>

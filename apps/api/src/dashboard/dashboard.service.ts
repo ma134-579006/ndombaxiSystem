@@ -179,6 +179,36 @@ export class DashboardService {
     });
   }
 
+  /**
+   * Vendas de HOJE por LOJA (multi-loja): o gestor vê em tempo real o que se
+   * passa em cada loja (principal e secundárias). Lojas sem vendas aparecem a 0.
+   */
+  async salesTodayByStore(schema: string): Promise<
+    { storeId: string; storeName: string; isDefault: boolean; invoiceCount: number; grossTotal: number }[]
+  > {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<
+        { store_id: string; store_name: string; is_default: boolean; count: number; gross: string }[]
+      >(
+        Prisma.sql`SELECT s.id AS store_id, s.name AS store_name, s.is_default,
+                          COUNT(i.id) FILTER (WHERE i.status = 'N')::int AS count,
+                          COALESCE(SUM(i.gross_total) FILTER (WHERE i.status = 'N'), 0) AS gross
+                   FROM stores s
+                   LEFT JOIN invoices i ON i.store_id = s.id AND i.invoice_date = CURRENT_DATE
+                   WHERE s.is_active = TRUE
+                   GROUP BY s.id, s.name, s.is_default
+                   ORDER BY s.is_default DESC, s.name`,
+      );
+      return rows.map((r) => ({
+        storeId: r.store_id,
+        storeName: r.store_name,
+        isDefault: r.is_default,
+        invoiceCount: r.count,
+        grossTotal: Number(r.gross),
+      }));
+    });
+  }
+
   /** Vendas dos últimos `days` dias, agrupadas por dia (para o gráfico). */
   async salesByDay(schema: string, days = 30): Promise<SalesByDay[]> {
     const span = Math.min(Math.max(days, 1), 365);

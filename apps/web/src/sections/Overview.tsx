@@ -3,13 +3,14 @@ import { api, ApiError } from '../api/client';
 import type {
   DashLowStock,
   DashSalesSeries,
+  DashStoreSales,
   DashTopProduct,
   OpsAlert,
   ProfitSummary,
   SalesRange,
 } from '../api/types';
 import { AreaChart, type AreaPoint } from '../components/AreaChart';
-import { IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconStar } from '../components/Icons';
+import { IconBuilding, IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconStar } from '../components/Icons';
 import { formatKz } from '../format';
 
 const RANGES: { key: SalesRange; label: string }[] = [
@@ -47,6 +48,7 @@ export function Overview() {
   const [series, setSeries] = useState<DashSalesSeries | null>(null);
   const [top, setTop] = useState<DashTopProduct[]>([]);
   const [low, setLow] = useState<DashLowStock[]>([]);
+  const [byStore, setByStore] = useState<DashStoreSales[]>([]);
   const [alerts, setAlerts] = useState<OpsAlert[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,14 +59,15 @@ export function Overview() {
     setError(null);
     const { from, to } = rangeToDates(range);
     try {
-      const [s, ser, t, l, a] = await Promise.all([
+      const [s, ser, t, l, a, bs] = await Promise.all([
         api.profit.summary(from, to),
         api.dashboard.series(range),
         api.dashboard.topProducts(8),
         api.dashboard.lowStock(),
         api.alerts(),
+        api.dashboard.salesByStore().catch(() => [] as DashStoreSales[]),
       ]);
-      setSum(s); setSeries(ser); setTop(t); setLow(l); setAlerts(a);
+      setSum(s); setSeries(ser); setTop(t); setLow(l); setAlerts(a); setByStore(bs);
       setUpdatedAt(new Date());
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar a visão geral.');
@@ -133,6 +136,29 @@ export function Overview() {
           <AreaChart points={chartPoints} color="var(--primary)" subColor={hasCancel ? 'var(--danger)' : undefined} format={formatKz} />
         )}
       </div>
+
+      {/* Vendas de HOJE por loja (multi-loja, tempo real) */}
+      {byStore.length > 1 ? (
+        <div className="card">
+          <div className="row" style={{ alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>Lojas hoje (ao vivo)</h3>
+            <span className="spacer" />
+            <span className="muted" style={{ fontSize: 12 }}>
+              Total {formatKz(byStore.reduce((t, s) => t + s.grossTotal, 0))}
+            </span>
+          </div>
+          <div className="kpi-grid" style={{ marginTop: 10 }}>
+            {byStore.map((s) => (
+              <div className={`kpi-card ${s.isDefault ? 'primary' : ''}`} key={s.storeId}>
+                <div className="kpi-ic"><IconBuilding size={20} /></div>
+                <div className="kpi-label">{s.storeName}{s.isDefault ? ' · principal' : ''}</div>
+                <div className="kpi-value" style={{ fontSize: 22 }}>{formatKz(s.grossTotal)}</div>
+                <div className="kpi-sub">{s.invoiceCount} venda(s) hoje</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* Top produtos + Stock baixo */}
       <div className="cols-2">

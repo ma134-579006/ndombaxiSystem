@@ -174,10 +174,12 @@ export class StockService {
       const where = conds.length ? Prisma.sql`WHERE ${Prisma.join(conds, ' AND ')}` : Prisma.empty;
       return tx.$queryRaw(
         Prisma.sql`SELECT m.created_at, m.type, m.quantity, m.balance_after, m.reference,
-                          p.name AS product_name, p.code AS product_code, w.name AS warehouse_name
+                          p.name AS product_name, p.code AS product_code, w.name AS warehouse_name,
+                          u.name AS created_by
                    FROM stock_movements m
                    JOIN products p ON p.id = m.product_id
                    LEFT JOIN stores w ON w.id = m.warehouse_id
+                   LEFT JOIN users u ON u.id = m.created_by
                    ${where}
                    ORDER BY m.created_at DESC
                    LIMIT 500`,

@@ -380,6 +380,7 @@ export interface StockMovementRow {
   product_name: string;
   product_code: string;
   warehouse_name: string | null;
+  created_by: string | null;
 }
 export interface StockEntryInput {
   productId: string; warehouseId: string; quantity: number; unitCost: number; salePrice?: number;
@@ -502,6 +503,9 @@ export interface DashSalesSeries {
 export interface DashTopProduct { productCode: string; description: string; quantity: number; grossTotal: number }
 export interface DashLowStock {
   productCode: string; productName: string; warehouseCode: string; quantity: number; minQty: number;
+}
+export interface DashStoreSales {
+  storeId: string; storeName: string; isDefault: boolean; invoiceCount: number; grossTotal: number;
 }
 
 // ── Lucros (gestor) ─────────────────────────────────────────
