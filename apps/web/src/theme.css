@@ -169,9 +169,10 @@ input, textarea, select { font-family: inherit; }
 .nav-sub button { font-size: 13px; padding: 9px 11px; }
 .sidebar .sig { padding: 14px 16px; border-top: 1px solid var(--border-soft); font-size: 11px; color: var(--muted); line-height: 1.5; }
 
-/* Painel lateral SEMPRE escuro (preto moderno, nível enterprise), mesmo no tema
-   claro. Redefine as variáveis localmente para os filhos lerem bem sobre escuro. */
-.sidebar {
+/* Painel lateral preto moderno (nível enterprise) APENAS no tema CLARO — nos
+   temas escuros mantém-se o aspeto do próprio tema. Redefine as variáveis
+   localmente para os filhos lerem bem sobre o fundo escuro. */
+[data-theme="claro"] .sidebar {
   --text: #eef2fb;
   --muted: #9fb0cf;
   --surface: rgba(255, 255, 255, 0.06);
@@ -184,7 +185,7 @@ input, textarea, select { font-family: inherit; }
   border-right: 1px solid rgba(255, 255, 255, 0.07);
   color: var(--text);
 }
-.sidebar .brand .nm { color: var(--text); }
+[data-theme="claro"] .sidebar .brand .nm { color: var(--text); }
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--border-soft); background: var(--glass); backdrop-filter: blur(14px) saturate(140%); position: sticky; top: 0; z-index: 30; }
