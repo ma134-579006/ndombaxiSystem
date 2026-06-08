@@ -67,6 +67,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       ? cfg.heroImages
       : DEFAULT_HERO_IMAGES;
   const heroInterval = cfg?.heroIntervalMs || 5000;
+  const trialDays = cfg?.trialDays ?? 14;
   const plans = data?.plans ?? [];
   const features = cfg?.features?.length ? cfg.features : [];
   const ads = (cfg?.showAds && cfg?.ads?.filter((a) => a.active !== false)) || [];
@@ -93,7 +94,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       <header className="lp-hero">
         <HeroCarousel images={heroImages} intervalMs={heroInterval} />
         <div className="lp-hero-inner">
-          <span className="badge-pill">🇦🇴 Feito para Angola · Conforme AGT</span>
+          <span className="badge-pill">🎁 {trialDays} dias grátis · sem cartão · cancele quando quiser</span>
           <h1>{cfg?.heroTitle ?? 'O sistema de gestão e vendas para Angola'}</h1>
           <p className="sub">
             {cfg?.heroSubtitle ??
@@ -101,16 +102,16 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           </p>
           <div className="cta-row">
             <button className="lp-btn primary" onClick={() => openRegister('BUSINESS')}>
-              {cfg?.heroCtaPrimary ?? 'Criar conta grátis'}
+              {cfg?.heroCtaPrimary ?? `Começar grátis — ${trialDays} dias`}
             </button>
             <button className="lp-btn outline" onClick={onGoLogin}>
               {cfg?.heroCtaSecondary ?? 'Entrar'}
             </button>
           </div>
           <div className="lp-trust">
+            <span><IconCheck size={15} /> {trialDays} dias grátis para testar</span>
             <span><IconCheck size={15} /> Facturação certificada AGT</span>
             <span><IconCheck size={15} /> Funciona offline na caixa</span>
-            <span><IconCheck size={15} /> Loja online incluída</span>
           </div>
         </div>
       </header>
@@ -139,7 +140,9 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
         <section className="lp-section alt">
           <div className="wrap">
             <h2>Planos simples, preços em Kwanzas</h2>
-            <p className="lead">Escolha o plano do seu tamanho. Cancele quando quiser.</p>
+            <p className="lead">
+              Comece com <strong>{trialDays} dias grátis</strong> em qualquer plano — sem cartão. Só paga se quiser continuar.
+            </p>
             <div className="lp-plans">
               {plans.map((p) => (
                 <div className={`lp-plan${p.highlight ? ' highlight' : ''}`} key={p.id}>
