@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CashSession, Customer, DocumentIdentity, EmittedInvoice, PaymentType, Product, ReceiptFiscalInfo } from '../api/types';
 import { IVA_RATE } from '../api/types';
@@ -50,6 +50,46 @@ const ROLE_LABELS: Record<string, string> = {
 
 function grossUnit(p: Product): number {
   return Number(p.unit_price) * (1 + IVA_RATE[p.iva_code] / 100);
+}
+
+/** Menu do operador (canto superior direito): avatar + seta → nome, email e
+ *  terminar sessão. Fecha ao clicar fora. */
+function OperatorMenu({ photo, name, email, role, onLogout }: {
+  photo: string | null; name: string; email: string; role: string; onLogout(): void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  return (
+    <div ref={ref} className="op-menu">
+      <button className="op-menu-btn" onClick={() => setOpen((v) => !v)} title={name} aria-label="Conta do operador">
+        {photo ? <img className="op-avatar" src={photo} alt={name} />
+          : <span className="op-avatar op-avatar-ph"><IconUser size={18} /></span>}
+        <span className={`op-caret${open ? ' up' : ''}`}>▾</span>
+      </button>
+      {open ? (
+        <div className="op-menu-pop">
+          <div className="op-menu-head">
+            {photo ? <img className="op-avatar lg" src={photo} alt={name} />
+              : <span className="op-avatar lg op-avatar-ph"><IconUser size={22} /></span>}
+            <div style={{ minWidth: 0 }}>
+              <div className="op-menu-name">{name}</div>
+              {email ? <div className="op-menu-email">{email}</div> : null}
+              <div className="op-menu-role">{role}</div>
+            </div>
+          </div>
+          <button className="op-menu-item danger" onClick={() => { setOpen(false); onLogout(); }}>
+            <IconLogout size={17} /> Terminar sessão
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function PosPage() {
@@ -339,14 +379,8 @@ export function PosPage() {
       <div className="pos">
         <header className="topbar">
           <img className="topbar-logo" src={identity?.logoUrl || LOGO_SRC} alt={identity?.companyName || SYSTEM_SHORT} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
-          {operatorPhoto
-            ? <img className="op-avatar" src={operatorPhoto} alt={user?.name || ''} />
-            : <span className="op-avatar op-avatar-ph" title={user?.name || ''}><IconUser size={18} /></span>}
           <div className="who">
             <div className="name">{identity?.companyName || `${SYSTEM_SHORT} · Caixa`}</div>
-            <div className="role">
-              {user?.name || user?.email} · {user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
-            </div>
             {user?.storeName ? <div className="store-tag">🏪 {user.storeName}</div> : null}
           </div>
           <span className="spacer" />
@@ -388,9 +422,13 @@ export function PosPage() {
             <IconKeyboard size={22} />
           </button>
           <ThemePicker />
-          <button className="icon-btn" onClick={logout} title="Terminar sessão">
-            <IconLogout size={22} />
-          </button>
+          <OperatorMenu
+            photo={operatorPhoto}
+            name={user?.name || user?.email || 'Operador'}
+            email={user?.email || ''}
+            role={user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
+            onLogout={logout}
+          />
         </header>
 
         <div className="pos-body">

@@ -30,6 +30,10 @@ const DEFAULT_HERO = DEFAULT_HERO_IMAGES[0];
 function kz(n: number): string {
   return n.toLocaleString('pt-PT', { maximumFractionDigits: 0 }) + ' Kz';
 }
+/** Duração do ciclo do plano: 1 → "mês", N → "N meses". */
+function dur(months: number): string {
+  return months <= 1 ? 'mês' : `${months} meses`;
+}
 
 function FeatureIcon() {
   return <IconCheck size={24} />;
@@ -152,7 +156,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
                   {p.tier === 'FREE' ? (
                     <div className="price">Grátis<small> · {trialDays} dias</small></div>
                   ) : p.priceKz > 0 ? (
-                    <div className="price">{kz(p.priceKz)}<small> /mês</small></div>
+                    <div className="price">{kz(p.priceKz)}<small> /{dur(p.durationMonths)}</small></div>
                   ) : (
                     <div className="price neg">Sob consulta</div>
                   )}
@@ -353,7 +357,7 @@ function RegisterModal({ presetTier, plans, onClose, onLogin, loginTenant }: Reg
           <select value={planTier} onChange={(e) => setPlanTier(e.target.value as PlanTier)}>
             {plans.map((p) => (
               <option key={p.id} value={p.tier}>
-                {p.name}{p.tier === 'FREE' ? ' — Grátis (teste)' : p.priceKz > 0 ? ` — ${kz(p.priceKz)}/mês` : ' — sob consulta'}
+                {p.name}{p.tier === 'FREE' ? ' — Grátis (teste)' : p.priceKz > 0 ? ` — ${kz(p.priceKz)}/${dur(p.durationMonths)}` : ' — sob consulta'}
               </option>
             ))}
           </select>

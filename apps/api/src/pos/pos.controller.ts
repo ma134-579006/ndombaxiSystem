@@ -23,6 +23,7 @@ import { FiscalSigningService } from './fiscal-signing.service';
 import { InvoiceService } from './invoice.service';
 import { PosRepository } from './pos.repository';
 import { SaftService } from './saft.service';
+import { PlanLimitsService } from '../plans/plan-limits.service';
 
 @ApiTags('pos')
 @Controller('pos')
@@ -33,6 +34,7 @@ export class PosController {
     private readonly saft: SaftService,
     private readonly signing: FiscalSigningService,
     private readonly ctx: TenantContext,
+    private readonly planLimits: PlanLimitsService,
   ) {}
 
   // ── Catálogo de produtos ───────────────────────────────────
@@ -46,9 +48,11 @@ export class PosController {
   @Post('products')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Cria um produto (com imagens p/ a loja online)' })
-  createProduct(@Body() dto: CreateProductDto, @CurrentUser() user: JwtPayload) {
+  async createProduct(@Body() dto: CreateProductDto, @CurrentUser() user: JwtPayload) {
+    const schema = this.ctx.requireTenantSchema();
+    await this.planLimits.assertCanCreate(schema, 'products'); // limite do plano
     // O stock inicial por loja entra na loja de quem cria (se tiver loja atribuída).
-    return this.repo.createProduct(this.ctx.requireTenantSchema(), {
+    return this.repo.createProduct(schema, {
       ...dto,
       initialStoreId: user.storeId ?? null,
     });

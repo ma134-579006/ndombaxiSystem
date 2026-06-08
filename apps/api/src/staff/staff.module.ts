@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { StaffController } from './staff.controller';
 import { StaffRepository } from './staff.repository';
 import { StaffService } from './staff.service';
+import { PlanLimitsService } from '../plans/plan-limits.service';
 
 /**
  * Gestão de equipa (funcionários) e lojas da empresa. Usa PasswordService
@@ -11,7 +12,7 @@ import { StaffService } from './staff.service';
 @Module({
   imports: [AuthModule],
   controllers: [StaffController],
-  providers: [StaffService, StaffRepository],
+  providers: [StaffService, StaffRepository, PlanLimitsService],
   exports: [StaffService],
 })
 export class StaffModule {}

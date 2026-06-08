@@ -7,6 +7,7 @@ import { CreateStaffDto, ResetPasswordDto, SetPinDto, UpdateStaffDto } from './d
 import { CreateStoreDto, UpdateStoreDto } from './dto/store.dto';
 import { assertAssignableRole } from './staff.roles';
 import { StaffRepository, type StaffRow, type StoreRow } from './staff.repository';
+import { PlanLimitsService } from '../plans/plan-limits.service';
 
 /** Actor que executa a operação (do JWT). */
 export interface StaffActor {
@@ -31,6 +32,7 @@ export class StaffService {
     private readonly repo: StaffRepository,
     private readonly passwords: PasswordService,
     private readonly audit: AuditService,
+    private readonly planLimits: PlanLimitsService,
   ) {}
 
   private generateTempPassword(): string {
@@ -43,6 +45,7 @@ export class StaffService {
   }
 
   async createStore(schema: string, actor: StaffActor, dto: CreateStoreDto): Promise<StoreRow> {
+    await this.planLimits.assertCanCreate(schema, 'stores');
     const store = await this.repo.createStore(schema, {
       code: dto.code,
       name: dto.name,
@@ -72,6 +75,7 @@ export class StaffService {
   }
 
   async createStaff(schema: string, actor: StaffActor, dto: CreateStaffDto): Promise<CreatedStaff> {
+    await this.planLimits.assertCanCreate(schema, 'users');
     const role = assertAssignableRole(actor.role as Role, dto.role);
     const email = dto.email.toLowerCase();
     if (await this.repo.existsByEmail(schema, email)) {
