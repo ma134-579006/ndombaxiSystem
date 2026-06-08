@@ -149,7 +149,9 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
                   {p.highlight && <span className="pop">⭐ Mais popular</span>}
                   <div className="pname">{p.name}</div>
                   <div className="ptag">{p.tagline ?? ''}</div>
-                  {p.priceKz > 0 ? (
+                  {p.tier === 'FREE' ? (
+                    <div className="price">Grátis<small> · {trialDays} dias</small></div>
+                  ) : p.priceKz > 0 ? (
                     <div className="price">{kz(p.priceKz)}<small> /mês</small></div>
                   ) : (
                     <div className="price neg">Sob consulta</div>
@@ -163,7 +165,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
                     ))}
                   </ul>
                   <button className="pick" onClick={() => openRegister(p.tier)}>
-                    {p.priceKz > 0 ? 'Começar agora' : 'Falar connosco'}
+                    {p.tier === 'FREE' ? 'Começar grátis' : p.priceKz > 0 ? 'Começar agora' : 'Falar connosco'}
                   </button>
                 </div>
               ))}
@@ -351,7 +353,7 @@ function RegisterModal({ presetTier, plans, onClose, onLogin, loginTenant }: Reg
           <select value={planTier} onChange={(e) => setPlanTier(e.target.value as PlanTier)}>
             {plans.map((p) => (
               <option key={p.id} value={p.tier}>
-                {p.name}{p.priceKz > 0 ? ` — ${kz(p.priceKz)}/mês` : ' — sob consulta'}
+                {p.name}{p.tier === 'FREE' ? ' — Grátis (teste)' : p.priceKz > 0 ? ` — ${kz(p.priceKz)}/mês` : ' — sob consulta'}
               </option>
             ))}
           </select>

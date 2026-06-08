@@ -21,7 +21,7 @@ export interface PlatformLoginInput {
   password: string;
   twoFaToken?: string;
 }
-export type PlanTier = 'STARTER' | 'BUSINESS' | 'ENTERPRISE' | 'WHITE_LABEL';
+export type PlanTier = 'FREE' | 'STARTER' | 'BUSINESS' | 'ENTERPRISE' | 'WHITE_LABEL';
 
 /** Registo público de empresa (espelha RegisterCompanyDto da API). */
 export interface RegisterCompanyInput {
