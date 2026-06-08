@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Header,
   Param,
@@ -63,6 +64,13 @@ export class PosController {
   @ApiOperation({ summary: 'Actualiza um produto (imagens, preço, visibilidade online)' })
   updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     return this.repo.updateProduct(this.ctx.requireTenantSchema(), id, dto);
+  }
+
+  @Delete('products/:id')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Elimina um produto (se sem vendas; senão desativa)' })
+  deleteProduct(@Param('id') id: string) {
+    return this.repo.deleteProduct(this.ctx.requireTenantSchema(), id);
   }
 
   // ── Clientes ───────────────────────────────────────────────

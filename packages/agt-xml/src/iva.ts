@@ -6,6 +6,8 @@
 export enum IvaCode {
   /** Normal rate. */
   NOR = 'NOR',
+  /** Intermediate rate (taxa intermédia, 7%). */
+  INT = 'INT',
   /** Reduced rate. */
   RED = 'RED',
   /** Exempt (isento). */
@@ -17,6 +19,7 @@ export enum IvaCode {
 /** Statutory IVA percentage per code (whole-number percent, e.g. 14 = 14%). */
 export const IVA_RATE: Record<IvaCode, number> = {
   [IvaCode.NOR]: 14,
+  [IvaCode.INT]: 7,
   [IvaCode.RED]: 5,
   [IvaCode.ISE]: 0,
   [IvaCode.OUT]: 0,

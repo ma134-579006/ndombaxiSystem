@@ -136,8 +136,8 @@ export interface TenantLoginInput {
 // ════════════════════════════════════════════════════════════
 
 /** Código de IVA de Angola (AGT §7.1). */
-export type IvaCode = 'NOR' | 'RED' | 'ISE' | 'OUT';
-export const IVA_RATE: Record<IvaCode, number> = { NOR: 14, RED: 5, ISE: 0, OUT: 0 };
+export type IvaCode = 'NOR' | 'INT' | 'RED' | 'ISE' | 'OUT';
+export const IVA_RATE: Record<IvaCode, number> = { NOR: 14, INT: 7, RED: 5, ISE: 0, OUT: 0 };
 
 /** Produto tal como devolvido por GET /pos/products (NUMERIC vem como string). */
 export interface ManagerProduct {

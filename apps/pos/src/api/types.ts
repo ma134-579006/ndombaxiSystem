@@ -13,11 +13,12 @@ export interface TenantLoginInput {
 }
 
 /** Códigos de IVA de Angola (AGT §7.1) — fixos pela autoridade tributária. */
-export type IvaCode = 'NOR' | 'RED' | 'ISE' | 'OUT';
+export type IvaCode = 'NOR' | 'INT' | 'RED' | 'ISE' | 'OUT';
 
 /** Percentagem legal por código (14 = 14%). */
 export const IVA_RATE: Record<IvaCode, number> = {
   NOR: 14,
+  INT: 7,
   RED: 5,
   ISE: 0,
   OUT: 0,

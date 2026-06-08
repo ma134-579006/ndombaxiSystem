@@ -7,7 +7,7 @@ import { Modal, Switch } from '../components/ui';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { formatKz } from '../format';
 
-const IVA_OPTIONS: IvaCode[] = ['NOR', 'RED', 'ISE', 'OUT'];
+const IVA_OPTIONS: IvaCode[] = ['NOR', 'INT', 'RED', 'ISE', 'OUT'];
 
 function grossUnit(p: ManagerProduct): number {
   return Number(p.unit_price) * (1 + IVA_RATE[p.iva_code] / 100);
@@ -63,6 +63,34 @@ export function Products() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  const toggleSel = (id: string) => setSelected((prev) => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+
+  const bulkDeactivate = async () => {
+    setBusy(true); setError(null);
+    try {
+      for (const id of selected) await api.products.update(id, { isActive: false });
+      setSelected(new Set()); await load();
+    } catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao desativar.'); }
+    finally { setBusy(false); }
+  };
+
+  const bulkDelete = async () => {
+    if (!window.confirm(`Eliminar ${selected.size} produto(s)? Produtos com vendas associadas são apenas desativados.`)) return;
+    setBusy(true); setError(null);
+    let del = 0, deact = 0;
+    try {
+      for (const id of selected) { const r = await api.products.remove(id); if (r.deleted) del++; else deact++; }
+      setSelected(new Set()); await load();
+      setError(null);
+      if (deact > 0) setError(`${del} eliminado(s); ${deact} com vendas foram desativados.`);
+    } catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao eliminar.'); }
+    finally { setBusy(false); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -212,6 +240,16 @@ export function Products() {
         </div>
       </div>
 
+      {selected.size > 0 ? (
+        <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
+          <strong>{selected.size} selecionado(s)</strong>
+          <span className="spacer" />
+          <button className="btn sm ghost" onClick={() => setSelected(new Set())} disabled={busy}>Limpar</button>
+          <button className="btn sm warn" onClick={bulkDeactivate} disabled={busy}>Desativar</button>
+          <button className="btn sm danger" onClick={bulkDelete} disabled={busy}>Eliminar</button>
+        </div>
+      ) : null}
+
       {error ? <div className="banner danger">{error}</div> : null}
 
       {loading ? (
@@ -226,7 +264,10 @@ export function Products() {
       ) : (
         <div className="pgrid">
           {filtered.map((p) => (
-            <div className="pcard" key={p.id}>
+            <div className={`pcard${selected.has(p.id) ? ' sel' : ''}`} key={p.id}>
+              <label className="pcard-check" onClick={(e) => e.stopPropagation()}>
+                <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSel(p.id)} />
+              </label>
               <div className="thumb">
                 {p.image_url ? <img src={p.image_url} alt={p.name} /> : <IconImage size={30} />}
               </div>

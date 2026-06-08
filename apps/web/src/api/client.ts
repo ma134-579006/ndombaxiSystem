@@ -369,6 +369,8 @@ export const api = {
     create: (dto: CreateProductInput) => request<ManagerProduct>('POST', '/pos/products', dto),
     update: (id: string, dto: UpdateProductInput) =>
       request<ManagerProduct>('PATCH', `/pos/products/${id}`, dto),
+    remove: (id: string) =>
+      request<{ deleted: boolean; deactivated: boolean }>('DELETE', `/pos/products/${id}`),
   },
   orders: {
     list: () => request<WebOrder[]>('GET', '/ecommerce/orders'),

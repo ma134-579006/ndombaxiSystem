@@ -196,6 +196,28 @@ export class PosRepository {
     return rows[0];
   }
 
+  /**
+   * Elimina um produto. Se já tiver VENDAS associadas (invoice_items), não pode
+   * ser apagado (integridade fiscal) → é apenas DESATIVADO. Caso contrário,
+   * remove o produto e os seus saldos/movimentos/lotes de stock.
+   */
+  async deleteProduct(schema: string, id: string): Promise<{ deleted: boolean; deactivated: boolean }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const refs = await tx.$queryRaw<{ n: number }[]>(
+        Prisma.sql`SELECT COUNT(*)::int AS n FROM invoice_items WHERE product_id = ${id}::uuid`,
+      );
+      if ((refs[0]?.n ?? 0) > 0) {
+        await tx.$executeRaw(Prisma.sql`UPDATE products SET is_active = FALSE, updated_at = now() WHERE id = ${id}::uuid`);
+        return { deleted: false, deactivated: true };
+      }
+      await tx.$executeRaw(Prisma.sql`DELETE FROM stock_movements WHERE product_id = ${id}::uuid`);
+      await tx.$executeRaw(Prisma.sql`DELETE FROM stock_items WHERE product_id = ${id}::uuid`);
+      await tx.$executeRaw(Prisma.sql`DELETE FROM product_batches WHERE product_id = ${id}::uuid`);
+      await tx.$executeRaw(Prisma.sql`DELETE FROM products WHERE id = ${id}::uuid`);
+      return { deleted: true, deactivated: false };
+    });
+  }
+
   // ── Clientes ───────────────────────────────────────────────
   createCustomer(
     schema: string,
