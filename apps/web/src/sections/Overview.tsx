@@ -13,7 +13,7 @@ import type {
 } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { AreaChart, type AreaPoint } from '../components/AreaChart';
-import { RankBarChart, type RankBar } from '../components/RankBarChart';
+import { ColumnChart, type ColumnPoint } from '../components/ColumnChart';
 import { IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconStar } from '../components/Icons';
 import { formatKz } from '../format';
 
@@ -186,8 +186,8 @@ export function Overview() {
             </span>
           </div>
           <div style={{ marginTop: 14 }}>
-            <RankBarChart
-              data={byStore.map((s): RankBar => ({ label: `${s.storeName}${s.isDefault ? ' · principal' : ''}`, value: s.grossTotal, hint: `${s.invoiceCount} venda(s)` }))}
+            <ColumnChart
+              data={byStore.map((s): ColumnPoint => ({ label: `${s.storeName}${s.isDefault ? ' · principal' : ''}`, value: s.grossTotal, hint: `${s.invoiceCount} venda(s)` }))}
               format={formatKz}
             />
           </div>
@@ -198,20 +198,20 @@ export function Overview() {
       <div className="cols-2">
         <div className="card">
           <h3>🏆 Produtos que mais vendem</h3>
-          <RankBarChart color="var(--primary)" format={formatKz}
-            data={top.map((p): RankBar => ({ label: p.description, value: p.grossTotal, hint: `${p.quantity} un.` }))} />
+          <ColumnChart color="var(--primary)" format={formatKz}
+            data={top.map((p): ColumnPoint => ({ label: p.description, value: p.grossTotal, hint: `${p.quantity} un.` }))} />
         </div>
         <div className="card">
           <h3>👤 Funcionários que mais vendem</h3>
-          <RankBarChart color="var(--accent)" format={formatKz}
-            data={byUser.map((u): RankBar => ({ label: u.name, value: u.gross, hint: `${u.sales} venda(s)` }))} />
+          <ColumnChart color="var(--accent)" format={formatKz}
+            data={byUser.map((u): ColumnPoint => ({ label: u.name, value: u.gross, hint: `${u.sales} venda(s)` }))} />
         </div>
       </div>
       <div className="cols-2">
         <div className="card">
           <h3>🤝 Clientes que mais compram</h3>
-          <RankBarChart color="var(--success)" format={formatKz}
-            data={byCustomer.map((cst): RankBar => ({ label: cst.name, value: cst.gross, hint: `${cst.sales} compra(s)` }))} />
+          <ColumnChart color="var(--success)" format={formatKz}
+            data={byCustomer.map((cst): ColumnPoint => ({ label: cst.name, value: cst.gross, hint: `${cst.sales} compra(s)` }))} />
         </div>
 
         <div className="card">

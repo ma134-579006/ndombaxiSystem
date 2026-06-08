@@ -232,6 +232,10 @@ input, textarea, select { font-family: inherit; }
 @media (prefers-reduced-motion: no-preference) {
   @keyframes rank-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   .rankbar-fill { transform-origin: left; animation: rank-grow .6s cubic-bezier(.2,.7,.3,1) both; }
+  @keyframes col-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+}
+@media (prefers-reduced-motion: reduce) {
+  svg [style*="col-grow"] { animation: none !important; }
 }
 /* O wrapper de animação preenche a área de conteúdo, para páginas de altura
    total (ex.: Assistente IA) caberem 100% sem provocar scroll na página. */
