@@ -47,7 +47,7 @@ export function Subscription() {
 
   const active = subs.find((s) => s.status === 'ACTIVE');
   const pending = subs.find((s) => s.status === 'PENDING_PAYMENT' || s.status === 'IN_REVIEW');
-  const current = active ?? pending ?? null;
+  const [changing, setChanging] = useState(false);
 
   return (
     <>
@@ -55,8 +55,12 @@ export function Subscription() {
       {error ? <div className="banner danger">{error}</div> : null}
 
       {loading ? <div className="card"><div className="loading">A carregar…</div></div>
-        : active ? <ActiveCard sub={active} />
         : pending ? <PayAndChat sub={pending} banks={banks} onChanged={load} />
+        : active ? (
+          changing
+            ? <CreateForm plans={plans} banks={banks} onCreated={() => { setChanging(false); void load(); }} onCancel={() => setChanging(false)} />
+            : <ActiveCard sub={active} onChange={() => setChanging(true)} />
+        )
         : <CreateForm plans={plans} banks={banks} onCreated={load} />}
 
       {/* Histórico */}
@@ -78,24 +82,29 @@ export function Subscription() {
   );
 }
 
-function ActiveCard({ sub }: { sub: Sub }) {
+function ActiveCard({ sub, onChange }: { sub: Sub; onChange(): void }) {
+  // Trial = subscrição grátis (0 Kz, sem ciclo de meses).
+  const isTrial = sub.amountKz === 0 && (sub.durationMonths ?? 0) === 0;
   return (
     <div className="card" style={{ borderColor: 'var(--success)' }}>
-      <div className="row" style={{ gap: 12 }}>
+      <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div className="kpi-ic" style={{ background: 'var(--success)', marginBottom: 0 }}><IconCheck size={20} /></div>
-        <div>
-          <h3 style={{ margin: 0 }}>{sub.plan?.name ?? 'Plano'} — Activa</h3>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{ margin: 0 }}>{isTrial ? '🎁 Teste grátis — Ativo' : `${sub.plan?.name ?? 'Plano'} — Activa`}</h3>
           <div className="muted" style={{ fontSize: 13 }}>
-            {kz(sub.amountKz)} / {sub.durationMonths} meses
-            {sub.expiresAt ? ` · válida até ${new Date(sub.expiresAt).toLocaleDateString('pt-PT')}` : ''}
+            {isTrial ? 'Período de teste gratuito' : `${kz(sub.amountKz)} / ${sub.durationMonths} meses`}
+            {sub.expiresAt ? ` · válido até ${new Date(sub.expiresAt).toLocaleDateString('pt-PT')}` : ''}
           </div>
         </div>
+        <button className="btn" onClick={onChange}>
+          <IconCard size={16} /> {isTrial ? 'Escolher um plano' : 'Trocar de plano'}
+        </button>
       </div>
     </div>
   );
 }
 
-function CreateForm({ plans, banks, onCreated }: { plans: PublicPlan[]; banks: BankAccount[]; onCreated(): void }) {
+function CreateForm({ plans, banks, onCreated, onCancel }: { plans: PublicPlan[]; banks: BankAccount[]; onCreated(): void; onCancel?: () => void }) {
   const [planId, setPlanId] = useState(plans[0]?.id ?? '');
   const [method, setMethod] = useState<'IBAN' | 'REFERENCE'>('IBAN');
   const [bankAccountId, setBankAccountId] = useState(banks[0]?.id ?? '');
@@ -120,7 +129,14 @@ function CreateForm({ plans, banks, onCreated }: { plans: PublicPlan[]; banks: B
 
   return (
     <div className="card">
-      <h3>Escolher plano</h3>
+      <div className="row" style={{ alignItems: 'center' }}>
+        <h3 style={{ margin: 0 }}>Escolher plano</h3>
+        <span className="spacer" />
+        {onCancel ? <button className="btn sm ghost" onClick={onCancel}>Cancelar</button> : null}
+      </div>
+      <p className="muted" style={{ fontSize: 13, margin: '6px 0 12px' }}>
+        Pode trocar de plano a qualquer momento, mesmo com um plano ativo. O novo plano fica ativo após o Super Admin aprovar o pagamento.
+      </p>
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
       <div className="pgrid" style={{ marginBottom: 14 }}>
         {plans.map((p) => (
