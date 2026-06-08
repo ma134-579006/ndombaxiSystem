@@ -104,4 +104,30 @@ export class HrRepository {
     if (!rows[0]) throw new NotFoundException(`Trabalhador não encontrado: ${id}`);
     return rows[0];
   }
+
+  /**
+   * Elimina um trabalhador. Se já tiver registos de folha salarial associados,
+   * não pode ser apagado (histórico) → fica apenas CESSADO. Caso contrário, é
+   * removido definitivamente.
+   */
+  async remove(schema: string, id: string): Promise<{ deleted: boolean; deactivated: boolean }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const hasTbl = await tx.$queryRaw<{ reg: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('payroll_items')::text AS reg`,
+      );
+      let refs = 0;
+      if (hasTbl[0]?.reg) {
+        const r = await tx.$queryRaw<{ n: number }[]>(
+          Prisma.sql`SELECT COUNT(*)::int AS n FROM payroll_items WHERE employee_id = ${id}::uuid`,
+        );
+        refs = r[0]?.n ?? 0;
+      }
+      if (refs > 0) {
+        await tx.$executeRaw(Prisma.sql`UPDATE employees SET status = 'TERMINATED', termination_date = COALESCE(termination_date, CURRENT_DATE), updated_at = now() WHERE id = ${id}::uuid`);
+        return { deleted: false, deactivated: true };
+      }
+      await tx.$executeRaw(Prisma.sql`DELETE FROM employees WHERE id = ${id}::uuid`);
+      return { deleted: true, deactivated: false };
+    });
+  }
 }

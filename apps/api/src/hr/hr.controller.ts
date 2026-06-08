@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -61,6 +62,13 @@ export class HrController {
   @ApiOperation({ summary: 'Cessa o contrato de um trabalhador' })
   terminateEmployee(@Param('id') id: string, @Body('date') date?: string) {
     return this.employees.terminate(this.ctx.requireTenantSchema(), id, date);
+  }
+
+  @Delete('employees/:id')
+  @Roles(Role.COMPANY_ADMIN)
+  @ApiOperation({ summary: 'Elimina um trabalhador (cessa se tiver histórico de folha)' })
+  removeEmployee(@Param('id') id: string) {
+    return this.employees.remove(this.ctx.requireTenantSchema(), id);
   }
 
   // ── Processamento salarial ─────────────────────────────────

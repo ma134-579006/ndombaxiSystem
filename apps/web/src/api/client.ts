@@ -465,6 +465,7 @@ export const api = {
     createEmployee: (dto: CreateEmployeeInput) => request<ManagerEmployee>('POST', '/hr/employees', dto),
     updateEmployee: (id: string, dto: UpdateEmployeeInput) => request<ManagerEmployee>('PATCH', `/hr/employees/${id}`, dto),
     terminateEmployee: (id: string) => request<ManagerEmployee>('POST', `/hr/employees/${id}/terminate`, {}),
+    removeEmployee: (id: string) => request<{ deleted: boolean; deactivated: boolean }>('DELETE', `/hr/employees/${id}`),
     payroll: {
       listRuns: () => request<PayrollRun[]>('GET', '/hr/payroll/runs'),
       getRun: (id: string) => request<PayrollRunDetail>('GET', `/hr/payroll/runs/${id}`),

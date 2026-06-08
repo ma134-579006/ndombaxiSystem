@@ -36,6 +36,24 @@ export function Employees() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const bulkDeactivate = async () => {
+    setBulkBusy(true); setError(null);
+    try { for (const id of selected) await api.hr.terminateEmployee(id); setSelected(new Set()); await load(); }
+    catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao cessar.'); } finally { setBulkBusy(false); }
+  };
+  const bulkDelete = async () => {
+    if (!window.confirm(`Eliminar ${selected.size} funcionário(s)? Os que têm histórico de folha são apenas cessados.`)) return;
+    setBulkBusy(true); setError(null);
+    let del = 0, deact = 0;
+    try {
+      for (const id of selected) { const r = await api.hr.removeEmployee(id); if (r.deleted) del++; else deact++; }
+      setSelected(new Set()); await load();
+      if (deact > 0) setInfo(`${del} eliminado(s); ${deact} com histórico foram cessados.`);
+    } catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao eliminar.'); } finally { setBulkBusy(false); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -127,6 +145,16 @@ export function Employees() {
         </div>
       </div>
 
+      {selected.size > 0 ? (
+        <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
+          <strong>{selected.size} selecionado(s)</strong>
+          <span className="spacer" />
+          <button className="btn sm ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy}>Limpar</button>
+          <button className="btn sm warn" onClick={bulkDeactivate} disabled={bulkBusy}>Desativar</button>
+          <button className="btn sm danger" onClick={bulkDelete} disabled={bulkBusy}>Eliminar</button>
+        </div>
+      ) : null}
+
       {info ? <div className="banner success">{info}</div> : null}
       {error ? <div className="banner danger">{error}</div> : null}
 
@@ -138,7 +166,10 @@ export function Employees() {
             {filtered.map((e) => {
               const u = accessOf(e);
               return (
-                <div className="pcard" key={e.id}>
+                <div className={`pcard${selected.has(e.id) ? ' sel' : ''}`} key={e.id}>
+                  <label className="pcard-check" onClick={(ev) => ev.stopPropagation()}>
+                    <input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSel(e.id)} />
+                  </label>
                   <div className="thumb">
                     {e.photo_url ? <img src={e.photo_url} alt={e.full_name} /> : <IconBuilding size={30} />}
                   </div>
