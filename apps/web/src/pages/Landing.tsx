@@ -20,6 +20,10 @@ const DEFAULT_HERO_IMAGES = [
   'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1920&q=80',   // mercado fresco
   'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1920&q=80', // supermercado prateleiras
   'https://images.unsplash.com/photo-1567448400815-59d5a71b1a6c?auto=format&fit=crop&w=1920&q=80', // caixa/balcão atendimento
+  'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1920&q=80', // armazém/logística
+  'https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?auto=format&fit=crop&w=1920&q=80',   // pagamento móvel/POS
+  'https://images.unsplash.com/photo-1521335629791-ce4aec67dd15?auto=format&fit=crop&w=1920&q=80', // loja de roupa
+  'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=1920&q=80', // boutique moderna
 ];
 const DEFAULT_HERO = DEFAULT_HERO_IMAGES[0];
 
@@ -55,12 +59,13 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
   const primary = cfg?.primaryColor || '#2563eb';
   const accent = cfg?.accentColor || '#0ea5e9';
   // Carrossel: heroImages (várias, rodam sozinhas) → heroImageUrl → default.
+  // Carrossel: usa as imagens do Super Admin SÓ se forem várias (≥2); caso
+  // contrário usa o conjunto profissional por defeito — para rodar SEMPRE
+  // (antes, com 1 só imagem configurada, ficava parado).
   const heroImages =
-    cfg?.heroImages && cfg.heroImages.length > 0
+    cfg?.heroImages && cfg.heroImages.length >= 2
       ? cfg.heroImages
-      : cfg?.heroImageUrl
-        ? [cfg.heroImageUrl]
-        : DEFAULT_HERO_IMAGES;
+      : DEFAULT_HERO_IMAGES;
   const heroInterval = cfg?.heroIntervalMs || 5000;
   const plans = data?.plans ?? [];
   const features = cfg?.features?.length ? cfg.features : [];

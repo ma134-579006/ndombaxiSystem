@@ -201,6 +201,9 @@ input, textarea, select { font-family: inherit; }
 .icon-btn { width: 42px; height: 42px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text); display: grid; place-items: center; transition: background .15s, border-color .15s; }
 .icon-btn:hover { background: var(--surface-2); border-color: #34456a; }
 .content { flex: 1; overflow: auto; padding: 24px; }
+/* O wrapper de animação preenche a área de conteúdo, para páginas de altura
+   total (ex.: Assistente IA) caberem 100% sem provocar scroll na página. */
+.content > .page-anim { height: 100%; }
 
 /* ── Responsivo / telemóvel ─────────────────────────────────── */
 .menu-toggle { display: none; width: 40px; height: 40px; border-radius: 11px; align-items: center; justify-content: center; color: var(--text); border: 1px solid var(--border); background: var(--surface); flex: none; }

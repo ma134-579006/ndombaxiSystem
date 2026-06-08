@@ -118,7 +118,7 @@ export function Assistant() {
   const voiceOk = micSupported();
 
   return (
-    <>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div className="content-head">
         <h2>Assistente IA <span className="muted" style={{ fontWeight: 500, fontSize: 14 }}>· {name}</span></h2>
         <span className="spacer" />
@@ -129,7 +129,7 @@ export function Assistant() {
         ) : null}
       </div>
 
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 190px)', minHeight: 420, padding: 0, overflow: 'hidden' }}>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, padding: 0, overflow: 'hidden' }}>
         <div ref={scroller} style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {turns.map((t, i) => <Bubble key={i} turn={t} onSpeak={voiceOk ? () => speak(t.content) : undefined} />)}
           {busy ? (
@@ -181,7 +181,7 @@ export function Assistant() {
       </div>
 
       {callOpen ? <CallOverlay onClose={() => setCallOpen(false)} /> : null}
-    </>
+    </div>
   );
 }
 
