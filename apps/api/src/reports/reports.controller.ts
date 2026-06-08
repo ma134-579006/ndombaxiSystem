@@ -1,6 +1,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { JwtPayload } from '@nexus/types';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { effectiveStoreId } from '../auth/store-scope';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { ReportsService } from './reports.service';
@@ -16,37 +19,38 @@ export class ReportsController {
 
   @Get('sales-by-user')
   @ApiOperation({ summary: 'Vendas por utilizador/operador' })
-  salesByUser(@Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
-    return this.reports.salesByUser(this.ctx.requireTenantSchema(), from, to, storeId);
+  salesByUser(@CurrentUser() user: JwtPayload, @Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    return this.reports.salesByUser(this.ctx.requireTenantSchema(), from, to, effectiveStoreId(user, storeId));
   }
 
   @Get('sales-by-category')
   @ApiOperation({ summary: 'Vendas por categoria de produto' })
-  salesByCategory(@Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
-    return this.reports.salesByCategory(this.ctx.requireTenantSchema(), from, to, storeId);
+  salesByCategory(@CurrentUser() user: JwtPayload, @Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    return this.reports.salesByCategory(this.ctx.requireTenantSchema(), from, to, effectiveStoreId(user, storeId));
   }
 
   @Get('sales-by-store')
   @ApiOperation({ summary: 'Vendas por loja' })
-  salesByStore(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.reports.salesByStore(this.ctx.requireTenantSchema(), from, to);
+  salesByStore(@CurrentUser() user: JwtPayload, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.salesByStore(this.ctx.requireTenantSchema(), from, to, effectiveStoreId(user, undefined));
   }
 
   @Get('documents')
   @ApiOperation({ summary: 'Listagem de documentos (faturas/NC) por período/loja/tipo' })
   documents(
+    @CurrentUser() user: JwtPayload,
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('storeId') storeId?: string,
     @Query('docType') docType?: string,
   ) {
-    return this.reports.documents(this.ctx.requireTenantSchema(), { from, to, storeId, docType });
+    return this.reports.documents(this.ctx.requireTenantSchema(), { from, to, storeId: effectiveStoreId(user, storeId), docType });
   }
 
   @Get('sales-by-brand')
   @ApiOperation({ summary: 'Vendas por marca' })
-  salesByBrand(@Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
-    return this.reports.salesByBrand(this.ctx.requireTenantSchema(), from, to, storeId);
+  salesByBrand(@CurrentUser() user: JwtPayload, @Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    return this.reports.salesByBrand(this.ctx.requireTenantSchema(), from, to, effectiveStoreId(user, storeId));
   }
 
   @Get('cash-sessions')
@@ -57,8 +61,8 @@ export class ReportsController {
 
   @Get('tax-map')
   @ApiOperation({ summary: 'Mapa de impostos (IVA) por taxa' })
-  taxMap(@Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
-    return this.reports.taxMap(this.ctx.requireTenantSchema(), from, to, storeId);
+  taxMap(@CurrentUser() user: JwtPayload, @Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    return this.reports.taxMap(this.ctx.requireTenantSchema(), from, to, effectiveStoreId(user, storeId));
   }
 
   @Get('payment-methods')

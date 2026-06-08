@@ -5,10 +5,12 @@ import type {
   DashSalesSeries,
   DashStoreSales,
   DashTopProduct,
+  ManagerStore,
   OpsAlert,
   ProfitSummary,
   SalesRange,
 } from '../api/types';
+import { useAuth } from '../auth/AuthContext';
 import { AreaChart, type AreaPoint } from '../components/AreaChart';
 import { IconBuilding, IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconStar } from '../components/Icons';
 import { formatKz } from '../format';
@@ -43,6 +45,12 @@ function bucketLabel(isoStr: string, gran: DashSalesSeries['granularity']): stri
  *  (hoje, ontem, 7d, 1m, 3m, 6m, 1 ano) — vendas, cancelamentos, lucro e gastos,
  *  gráfico moderno, top produtos, stock baixo e alertas. */
 export function Overview() {
+  const { user } = useAuth();
+  // Só o ADMIN DA EMPRESA (gestor principal) vê todas as lojas e o seletor.
+  const isAdmin = user?.role === 'COMPANY_ADMIN';
+  const [stores, setStores] = useState<ManagerStore[]>([]);
+  const [storeId, setStoreId] = useState('');
+  const sid = storeId || undefined;
   const [range, setRange] = useState<SalesRange>('7d');
   const [sum, setSum] = useState<ProfitSummary | null>(null);
   const [series, setSeries] = useState<DashSalesSeries | null>(null);
@@ -60,10 +68,10 @@ export function Overview() {
     const { from, to } = rangeToDates(range);
     try {
       const [s, ser, t, l, a, bs] = await Promise.all([
-        api.profit.summary(from, to),
-        api.dashboard.series(range),
-        api.dashboard.topProducts(8),
-        api.dashboard.lowStock(),
+        api.profit.summary(from, to, sid),
+        api.dashboard.series(range, sid),
+        api.dashboard.topProducts(8, sid),
+        api.dashboard.lowStock(sid),
         api.alerts(),
         api.dashboard.salesByStore().catch(() => [] as DashStoreSales[]),
       ]);
@@ -72,7 +80,9 @@ export function Overview() {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar a visão geral.');
     } finally { setLoading(false); }
-  }, [range]);
+  }, [range, sid]);
+
+  useEffect(() => { if (isAdmin) api.staff.listStores().then(setStores).catch(() => undefined); }, [isAdmin]);
 
   useEffect(() => {
     void load();
@@ -99,13 +109,23 @@ export function Overview() {
         <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
       </div>
 
-      {/* Selector de intervalo */}
-      <div className="card" style={{ padding: '10px 14px' }}>
+      {/* Selector de intervalo (+ loja, para o admin que vê todas) */}
+      <div className="card" style={{ padding: '10px 14px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {RANGES.map((r) => (
             <button key={r.key} className={`chip ${range === r.key ? 'active' : ''}`} onClick={() => setRange(r.key)}>{r.label}</button>
           ))}
         </div>
+        {isAdmin && stores.length > 1 ? (
+          <>
+            <span className="spacer" />
+            <select className="seg-select" value={storeId} onChange={(e) => setStoreId(e.target.value)}
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px', color: 'var(--text)' }}>
+              <option value="">Todas as lojas</option>
+              {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </>
+        ) : null}
       </div>
 
       {error ? <div className="banner danger">{error}</div> : null}

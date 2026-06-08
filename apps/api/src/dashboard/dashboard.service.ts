@@ -107,8 +107,9 @@ export class DashboardService {
    * adequada — horária para o(s) dia(s), diária/semanal/mensal para janelas
    * mais largas — agrupando por `system_entry_date` (timestamp da emissão).
    */
-  async salesSeries(schema: string, range: SalesRange = '7d'): Promise<SalesSeries> {
+  async salesSeries(schema: string, range: SalesRange = '7d', storeId?: string): Promise<SalesSeries> {
     const cfg = RANGE_CONFIG[range] ?? RANGE_CONFIG['7d'];
+    const store = storeId ? Prisma.sql` AND store_id = ${storeId}::uuid` : Prisma.empty;
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<
         { bucket: Date; gross: string; iva: string; net: string; count: number; cancelled: string }[]
@@ -123,6 +124,7 @@ export class DashboardService {
                    WHERE status IN ('N','A')
                      AND system_entry_date >= ${Prisma.raw(cfg.start)}
                      AND system_entry_date < ${Prisma.raw(cfg.end)}
+                     ${store}
                    GROUP BY bucket
                    ORDER BY bucket`,
       );
@@ -163,7 +165,8 @@ export class DashboardService {
   }
 
   /** Resumo de vendas do dia (KPIs do topo do dashboard). */
-  async salesToday(schema: string): Promise<SalesSummary> {
+  async salesToday(schema: string, storeId?: string): Promise<SalesSummary> {
+    const store = storeId ? Prisma.sql` AND store_id = ${storeId}::uuid` : Prisma.empty;
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<
         { count: number; net: string; iva: string; gross: string }[]
@@ -173,7 +176,7 @@ export class DashboardService {
                           COALESCE(SUM(iva_total), 0) AS iva,
                           COALESCE(SUM(gross_total), 0) AS gross
                    FROM invoices
-                   WHERE invoice_date = CURRENT_DATE AND status = 'N'`,
+                   WHERE invoice_date = CURRENT_DATE AND status = 'N'${store}`,
       );
       return this.toSummary(rows[0]);
     });
@@ -183,9 +186,10 @@ export class DashboardService {
    * Vendas de HOJE por LOJA (multi-loja): o gestor vê em tempo real o que se
    * passa em cada loja (principal e secundárias). Lojas sem vendas aparecem a 0.
    */
-  async salesTodayByStore(schema: string): Promise<
+  async salesTodayByStore(schema: string, storeId?: string): Promise<
     { storeId: string; storeName: string; isDefault: boolean; invoiceCount: number; grossTotal: number }[]
   > {
+    const store = storeId ? Prisma.sql` AND s.id = ${storeId}::uuid` : Prisma.empty;
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<
         { store_id: string; store_name: string; is_default: boolean; count: number; gross: string }[]
@@ -195,7 +199,7 @@ export class DashboardService {
                           COALESCE(SUM(i.gross_total) FILTER (WHERE i.status = 'N'), 0) AS gross
                    FROM stores s
                    LEFT JOIN invoices i ON i.store_id = s.id AND i.invoice_date = CURRENT_DATE
-                   WHERE s.is_active = TRUE
+                   WHERE s.is_active = TRUE${store}
                    GROUP BY s.id, s.name, s.is_default
                    ORDER BY s.is_default DESC, s.name`,
       );
@@ -234,8 +238,9 @@ export class DashboardService {
   }
 
   /** Produtos mais vendidos por valor bruto. */
-  async topProducts(schema: string, limit = 10): Promise<TopProduct[]> {
+  async topProducts(schema: string, limit = 10, storeId?: string): Promise<TopProduct[]> {
     const n = Math.min(Math.max(limit, 1), 100);
+    const store = storeId ? Prisma.sql` AND i.store_id = ${storeId}::uuid` : Prisma.empty;
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<
         { product_code: string; description: string; qty: string; gross: string }[]
@@ -243,7 +248,7 @@ export class DashboardService {
         Prisma.sql`SELECT ii.product_code, MAX(ii.description) AS description,
                           SUM(ii.quantity) AS qty, SUM(ii.gross_amount) AS gross
                    FROM invoice_items ii
-                   JOIN invoices i ON i.id = ii.invoice_id AND i.status = 'N'
+                   JOIN invoices i ON i.id = ii.invoice_id AND i.status = 'N'${store}
                    GROUP BY ii.product_code
                    ORDER BY gross DESC
                    LIMIT ${n}`,
@@ -258,9 +263,10 @@ export class DashboardService {
   }
 
   /** Produtos abaixo do stock mínimo (alerta de reposição). */
-  async lowStock(schema: string): Promise<
+  async lowStock(schema: string, storeId?: string): Promise<
     { productCode: string; productName: string; warehouseCode: string; quantity: number; minQty: number }[]
   > {
+    const store = storeId ? Prisma.sql` AND si.warehouse_id = ${storeId}::uuid` : Prisma.empty;
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<
         { product_code: string; product_name: string; warehouse_code: string; quantity: string; min_qty: string }[]
@@ -270,7 +276,7 @@ export class DashboardService {
                    FROM stock_items si
                    JOIN products p ON p.id = si.product_id
                    JOIN stores w ON w.id = si.warehouse_id
-                   WHERE si.quantity <= si.min_qty
+                   WHERE si.quantity <= si.min_qty${store}
                    ORDER BY p.name`,
       );
       return rows.map((r) => ({

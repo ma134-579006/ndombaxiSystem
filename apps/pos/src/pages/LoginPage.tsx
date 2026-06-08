@@ -93,7 +93,9 @@ export function LoginPage() {
               <div className="op-grid">
                 {operators.map((o) => (
                   <button key={o.id} className="op-card" onClick={() => { setSelected(o); setPin(''); setError(null); }}>
-                    <span className="op-ini">{o.name.slice(0, 1).toUpperCase()}</span>
+                    {o.photo_url
+                      ? <img className="op-ini op-photo" src={o.photo_url} alt={o.name} />
+                      : <span className="op-ini">{o.name.slice(0, 1).toUpperCase()}</span>}
                     <span className="op-name">{o.name}</span>
                     {o.store_name ? <span className="op-store">{o.store_name}</span> : null}
                   </button>

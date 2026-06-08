@@ -398,19 +398,19 @@ export const api = {
   alerts: () => request<OpsAlert[]>('GET', '/alerts'),
   // ── Visão geral do gestor (dashboard em tempo real) ────────
   dashboard: {
-    salesToday: () => request<DashSalesSummary>('GET', '/dashboard/sales/today'),
-    series: (range = '7d') => request<DashSalesSeries>('GET', `/dashboard/sales/series${qs({ range })}`),
-    topProducts: (limit = 8) => request<DashTopProduct[]>('GET', `/dashboard/top-products${qs({ limit: String(limit) })}`),
-    lowStock: () => request<DashLowStock[]>('GET', '/dashboard/low-stock'),
+    salesToday: (storeId?: string) => request<DashSalesSummary>('GET', `/dashboard/sales/today${qs({ storeId })}`),
+    series: (range = '7d', storeId?: string) => request<DashSalesSeries>('GET', `/dashboard/sales/series${qs({ range, storeId })}`),
+    topProducts: (limit = 8, storeId?: string) => request<DashTopProduct[]>('GET', `/dashboard/top-products${qs({ limit: String(limit), storeId })}`),
+    lowStock: (storeId?: string) => request<DashLowStock[]>('GET', `/dashboard/low-stock${qs({ storeId })}`),
     salesByStore: () => request<DashStoreSales[]>('GET', '/dashboard/sales/by-store'),
   },
   profit: {
-    summary: (from?: string, to?: string) =>
-      request<ProfitSummary>('GET', `/profit/summary${qs({ from, to })}`),
-    series: (from?: string, to?: string) =>
-      request<ProfitPoint[]>('GET', `/profit/series${qs({ from, to })}`),
-    byProduct: (from?: string, to?: string) =>
-      request<ProfitProduct[]>('GET', `/profit/by-product${qs({ from, to })}`),
+    summary: (from?: string, to?: string, storeId?: string) =>
+      request<ProfitSummary>('GET', `/profit/summary${qs({ from, to, storeId })}`),
+    series: (from?: string, to?: string, storeId?: string) =>
+      request<ProfitPoint[]>('GET', `/profit/series${qs({ from, to, storeId })}`),
+    byProduct: (from?: string, to?: string, storeId?: string) =>
+      request<ProfitProduct[]>('GET', `/profit/by-product${qs({ from, to, storeId })}`),
     abc: (from?: string, to?: string) =>
       request<ProfitAbcRow[]>('GET', `/profit/abc${qs({ from, to })}`),
   },

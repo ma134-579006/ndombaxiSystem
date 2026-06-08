@@ -14,6 +14,15 @@ function IconMenu({ size = 22 }: { size?: number }) {
   );
 }
 
+/** Ícone de utilizador (placeholder do avatar quando não há foto). */
+function IconUser({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+    </svg>
+  );
+}
+
 /** Item de navegação genérico (serve os dois painéis: plataforma e gestor). */
 export interface NavItem {
   key: string;
@@ -62,6 +71,20 @@ export function Shell({
       .catch(() => undefined);
     return () => { alive = false; };
   }, [isTenant]);
+  // Foto do funcionário logado (do RH), ligada pelo nome. Sem foto → ícone.
+  const [avatar, setAvatar] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isTenant || !user?.name) { setAvatar(null); return; }
+    let alive = true;
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    api.hr.employees(true)
+      .then((list) => {
+        const me = list.find((e) => norm(e.full_name) === norm(user.name || ''));
+        if (alive) setAvatar(me?.photo_url ?? null);
+      })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [isTenant, user?.name]);
   const brandName = brand?.name || SYSTEM_NAME;
   const brandLogo = brand?.logo || LOGO_SRC;
   // Procura o item activo, mesmo dentro de grupos.
@@ -144,6 +167,9 @@ export function Shell({
           </button>
           <h1>{current?.label}</h1>
           <span className="spacer" />
+          {avatar
+            ? <img className="who-avatar" src={avatar} alt={user?.name || ''} />
+            : <span className="who-avatar who-avatar-ph" title={user?.name || ''}><IconUser size={18} /></span>}
           <div className="who">
             <div className="nm">{user?.name || user?.email}</div>
             <div className="rl">

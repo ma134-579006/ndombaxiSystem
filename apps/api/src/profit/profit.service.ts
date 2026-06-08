@@ -63,7 +63,12 @@ export class ProfitService {
     return { from: fromD, to: toD };
   }
 
-  async summary(schema: string, from?: string, to?: string): Promise<ProfitSummary> {
+  /** Condição opcional de loja (multi-loja). */
+  private storeCond(storeId?: string): Prisma.Sql {
+    return storeId ? Prisma.sql` AND i.store_id = ${storeId}::uuid` : Prisma.empty;
+  }
+
+  async summary(schema: string, from?: string, to?: string, storeId?: string): Promise<ProfitSummary> {
     const { from: f, to: t } = this.range(from, to);
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<
@@ -77,7 +82,8 @@ export class ProfitService {
                  COUNT(DISTINCT i.id) AS n
           FROM invoices i JOIN invoice_items ii ON ii.invoice_id = i.id
           WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
-            AND i.system_entry_date BETWEEN ${f} AND ${t}`,
+            AND i.system_entry_date BETWEEN ${f} AND ${t}
+            ${this.storeCond(storeId)}`,
       );
       const r = rows[0];
       const salesNet = Number(r.sales_net);
@@ -89,11 +95,13 @@ export class ProfitService {
       // Despesas operacionais reais do período (renda, salários, energia…),
       // registadas no módulo de Despesas. Guarda to_regclass para tenants
       // antigos que ainda não tenham a tabela `expenses` (devolve 0).
+      // As despesas operacionais são da EMPRESA (sem loja). Numa vista por loja
+      // (storeId), não as subtraímos para não distorcer o lucro dessa loja.
       let otherExpenses = 0;
       const hasExpenses = await tx.$queryRaw<{ reg: string | null }[]>(
         Prisma.sql`SELECT to_regclass('expenses')::text AS reg`,
       );
-      if (hasExpenses[0]?.reg) {
+      if (!storeId && hasExpenses[0]?.reg) {
         const exp = await tx.$queryRaw<{ total: string }[]>(
           Prisma.sql`SELECT COALESCE(SUM(amount),0) AS total FROM expenses
                      WHERE expense_date BETWEEN ${f}::date AND ${t}::date`,
@@ -104,9 +112,10 @@ export class ProfitService {
       // Vendas anuladas no período (status 'A') — mostradas no dashboard/lucros.
       const canc = await tx.$queryRaw<{ amount: string; n: string }[]>(
         Prisma.sql`SELECT COALESCE(SUM(gross_total),0) AS amount, COUNT(*)::int AS n
-                   FROM invoices
-                   WHERE status = 'A' AND doc_type IN ('FT','FS')
-                     AND system_entry_date BETWEEN ${f} AND ${t}`,
+                   FROM invoices i
+                   WHERE i.status = 'A' AND i.doc_type IN ('FT','FS')
+                     AND i.system_entry_date BETWEEN ${f} AND ${t}
+                     ${this.storeCond(storeId)}`,
       );
       const cancelledAmount = Number(canc[0].amount);
       const cancelledCount = Number(canc[0].n);
@@ -127,7 +136,7 @@ export class ProfitService {
   }
 
   /** Série temporal (granularidade automática: dia até 60d, senão semana). */
-  async series(schema: string, from?: string, to?: string): Promise<ProfitPoint[]> {
+  async series(schema: string, from?: string, to?: string, storeId?: string): Promise<ProfitPoint[]> {
     const { from: f, to: t } = this.range(from, to);
     const spanDays = Math.ceil((t.getTime() - f.getTime()) / 86400000);
     const gran = spanDays <= 62 ? 'day' : spanDays <= 366 ? 'week' : 'month';
@@ -141,13 +150,14 @@ export class ProfitService {
           FROM invoices i JOIN invoice_items ii ON ii.invoice_id = i.id
           WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
             AND i.system_entry_date BETWEEN ${f} AND ${t}
+            ${this.storeCond(storeId)}
           GROUP BY 1 ORDER BY 1`,
       ),
     );
   }
 
   /** Lucro por produto (top, ordenado por lucro). */
-  async byProduct(schema: string, from?: string, to?: string): Promise<ProfitProduct[]> {
+  async byProduct(schema: string, from?: string, to?: string, storeId?: string): Promise<ProfitProduct[]> {
     const { from: f, to: t } = this.range(from, to);
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<ProfitProduct[]>(
@@ -163,6 +173,7 @@ export class ProfitService {
           FROM invoices i JOIN invoice_items ii ON ii.invoice_id = i.id
           WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
             AND i.system_entry_date BETWEEN ${f} AND ${t}
+            ${this.storeCond(storeId)}
           GROUP BY ii.product_code ORDER BY profit DESC LIMIT 100`,
       ),
     );
@@ -172,7 +183,7 @@ export class ProfitService {
    * Curva ABC: classifica os produtos por peso nas vendas líquidas do período.
    * A = até 80% acumulado (estrela), B = até 95%, C = restante (cauda).
    */
-  async abc(schema: string, from?: string, to?: string): Promise<ProfitAbcRow[]> {
+  async abc(schema: string, from?: string, to?: string, storeId?: string): Promise<ProfitAbcRow[]> {
     const { from: f, to: t } = this.range(from, to);
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{ product_code: string; description: string; sales: number }[]>(
@@ -182,6 +193,7 @@ export class ProfitService {
           FROM invoices i JOIN invoice_items ii ON ii.invoice_id = i.id
           WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
             AND i.system_entry_date BETWEEN ${f} AND ${t}
+            ${this.storeCond(storeId)}
           GROUP BY ii.product_code HAVING SUM(ii.net_amount) > 0
           ORDER BY sales DESC`,
       );

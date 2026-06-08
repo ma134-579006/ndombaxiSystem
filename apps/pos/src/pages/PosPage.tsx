@@ -53,9 +53,20 @@ function grossUnit(p: Product): number {
 }
 
 export function PosPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, companyCode } = useAuth();
   const kbd = useKeyboard();
   const sync = useSync();
+  const [operatorPhoto, setOperatorPhoto] = useState<string | null>(null);
+
+  // Foto do operador logado (do RH) para o cabeçalho — sem foto fica o ícone.
+  useEffect(() => {
+    if (!companyCode || !user?.sub) return;
+    let alive = true;
+    api.operators(companyCode)
+      .then((ops) => { if (alive) setOperatorPhoto(ops.find((o) => o.id === user.sub)?.photo_url ?? null); })
+      .catch(() => { /* sem rede → ícone */ });
+    return () => { alive = false; };
+  }, [companyCode, user?.sub]);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [promotions, setPromotions] = useState<PromoRow[]>([]);
@@ -328,6 +339,9 @@ export function PosPage() {
       <div className="pos">
         <header className="topbar">
           <img className="topbar-logo" src={identity?.logoUrl || LOGO_SRC} alt={identity?.companyName || SYSTEM_SHORT} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
+          {operatorPhoto
+            ? <img className="op-avatar" src={operatorPhoto} alt={user?.name || ''} />
+            : <span className="op-avatar op-avatar-ph" title={user?.name || ''}><IconUser size={18} /></span>}
           <div className="who">
             <div className="name">{identity?.companyName || `${SYSTEM_SHORT} · Caixa`}</div>
             <div className="role">

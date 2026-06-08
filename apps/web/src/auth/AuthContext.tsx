@@ -10,7 +10,7 @@ import React, {
 import { api, configureApi } from '../api/client';
 import type { PlatformLoginInput, TenantLoginInput, TokenPair } from '../api/types';
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
-import { setTheme } from '../theme';
+import { setTheme, DEFAULT_THEME } from '../theme';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 /** Que painel mostrar: plataforma (Super Admin) ou gestor da empresa. */
@@ -154,7 +154,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       try {
         const { theme } = await api.preferences.get();
-        if (alive) setTheme(theme || '');
+        // Sem preferência guardada no servidor → CLARO (tema por defeito).
+        if (alive) setTheme(theme || DEFAULT_THEME);
       } catch {
         /* sem rede / sem preferência → mantém o tema local */
       }

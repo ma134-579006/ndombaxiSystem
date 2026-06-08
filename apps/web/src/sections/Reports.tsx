@@ -4,6 +4,7 @@ import type {
   DocumentIdentity, ManagerStore, ProfitPoint, ProfitProduct, ReportCashSession, ReportCategoryRow,
   ReportDocRow, ReportPaymentRow, ReportTaxRow, ReportUserRow,
 } from '../api/types';
+import { useAuth } from '../auth/AuthContext';
 import { IconChart } from '../components/Icons';
 import { formatKz } from '../format';
 
@@ -54,8 +55,11 @@ export function Reports() {
   const [docs, setDocs] = useState<ReportDocRow[]>([]);
   const [sessions, setSessions] = useState<ReportCashSession[]>([]);
 
+  const { user } = useAuth();
+  // Só o ADMIN DA EMPRESA (gestor principal) vê todas as lojas e o seletor.
+  const isAdmin = user?.role === 'COMPANY_ADMIN';
   useEffect(() => { api.branding().then(setBrand).catch(() => undefined); }, []);
-  useEffect(() => { api.staff.listStores().then(setStores).catch(() => undefined); }, []);
+  useEffect(() => { if (isAdmin) api.staff.listStores().then(setStores).catch(() => undefined); }, [isAdmin]);
   const sid = storeId || undefined;
 
   const load = useCallback(async () => {
@@ -148,7 +152,7 @@ export function Reports() {
             <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></div>
           <div className="field" style={{ margin: 0 }}><label>Data final</label>
             <input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></div>
-          {stores.length > 1 && STORE_FILTERABLE.includes(tab) ? (
+          {isAdmin && stores.length > 1 && STORE_FILTERABLE.includes(tab) ? (
             <div className="field" style={{ margin: 0 }}><label>Loja</label>
               <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
                 <option value="">Todas as lojas</option>

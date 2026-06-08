@@ -63,8 +63,8 @@ export class ReportsService {
     );
   }
 
-  /** Vendas por loja (multi-loja). */
-  async salesByStore(schema: string, from?: string, to?: string) {
+  /** Vendas por loja (multi-loja). storeId restringe a uma loja (permissões). */
+  async salesByStore(schema: string, from?: string, to?: string, storeId?: string) {
     const { from: f, to: t } = this.range(from, to);
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
@@ -77,6 +77,7 @@ export class ReportsService {
         LEFT JOIN stores w ON w.id = i.store_id
         WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
           AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
+          ${this.storeCond(storeId)}
         GROUP BY w.name ORDER BY gross DESC`),
     );
   }

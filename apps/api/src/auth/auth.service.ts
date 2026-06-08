@@ -257,7 +257,7 @@ export class AuthService {
   // ─── Caixa: lista de operadores (nomes) por empresa ─────────
   async listOperators(
     companyCode: string,
-  ): Promise<{ id: string; name: string; role: string; store_id: string | null; store_name: string | null }[]> {
+  ): Promise<{ id: string; name: string; role: string; store_id: string | null; store_name: string | null; photo_url: string | null }[]> {
     const company = await this.prisma.company.findUnique({ where: { code: companyCode } });
     if (!company || company.status !== 'ACTIVE') return [];
     return this.tenantUsers.listOperators(company.schemaName);

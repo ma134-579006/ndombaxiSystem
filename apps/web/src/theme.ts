@@ -24,9 +24,14 @@ export const THEMES: ThemeDef[] = [
 ];
 
 const LS_KEY = 'ndombaxi.theme';
+/** Tema por defeito (até o utilizador escolher outro): CLARO. */
+export const DEFAULT_THEME = 'claro';
 
 export function getTheme(): string {
-  try { return localStorage.getItem(LS_KEY) ?? ''; } catch { return ''; }
+  try {
+    const v = localStorage.getItem(LS_KEY);
+    return v === null ? DEFAULT_THEME : v; // null = nunca escolheu → claro
+  } catch { return DEFAULT_THEME; }
 }
 
 export function applyTheme(id: string): void {

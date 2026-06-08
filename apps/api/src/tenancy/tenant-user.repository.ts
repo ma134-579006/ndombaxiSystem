@@ -50,12 +50,15 @@ export class TenantUserRepository {
   /** Operadores (funcionários com acesso por PIN) para o ecrã da caixa. */
   async listOperators(
     schema: string,
-  ): Promise<{ id: string; name: string; role: RoleName; store_id: string | null; store_name: string | null }[]> {
+  ): Promise<{ id: string; name: string; role: RoleName; store_id: string | null; store_name: string | null; photo_url: string | null }[]> {
     return this.prisma.runInTenant(schema, async (tx) => {
-      return tx.$queryRaw<{ id: string; name: string; role: RoleName; store_id: string | null; store_name: string | null }[]>(
-        Prisma.sql`SELECT u.id, u.name, u.role, u.store_id, s.name AS store_name
+      // Foto: liga ao registo de RH (employees) pelo nome normalizado (sem FK).
+      return tx.$queryRaw<{ id: string; name: string; role: RoleName; store_id: string | null; store_name: string | null; photo_url: string | null }[]>(
+        Prisma.sql`SELECT u.id, u.name, u.role, u.store_id, s.name AS store_name,
+                          e.photo_url
                    FROM users u
                    LEFT JOIN stores s ON s.id = u.store_id
+                   LEFT JOIN employees e ON lower(btrim(e.full_name)) = lower(btrim(u.name))
                    WHERE u.is_active = TRUE AND u.pin_hash IS NOT NULL
                    ORDER BY s.name NULLS FIRST, u.name`,
       );

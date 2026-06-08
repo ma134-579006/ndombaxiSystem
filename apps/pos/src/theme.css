@@ -217,6 +217,12 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .topbar .who .role { color: var(--muted); font-size: 12px; }
 .topbar .who .store-tag { color: var(--primary); font-size: 11px; font-weight: 800; margin-top: 1px; }
 .op-card .op-store { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+/* Avatar do operador no cabeçalho (foto do RH ou ícone). */
+.op-avatar { width: 38px; height: 38px; border-radius: 10px; object-fit: cover; flex: none;
+  border: 1px solid var(--border); background: var(--surface-2); }
+.op-avatar-ph { display: grid; place-items: center; color: var(--muted); }
+/* Foto no cartão de operador (login) — substitui a inicial, mesmo tamanho. */
+.op-card .op-ini.op-photo { object-fit: cover; padding: 0; }
 .icon-btn {
   width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center;
   background: var(--surface); border: 1px solid var(--border); color: var(--text);
