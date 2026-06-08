@@ -240,6 +240,10 @@ input, textarea, select { font-family: inherit; }
 /* O wrapper de animação preenche a área de conteúdo, para páginas de altura
    total (ex.: Assistente IA) caberem 100% sem provocar scroll na página. */
 .content > .page-anim { height: 100%; }
+/* Notas/avisos informativos no topo das páginas do gestor são desnecessários —
+   ocultam-se. Mantêm-se os de ERRO (danger), SUCESSO e ALERTA (warning). */
+.content .banner.info,
+.content .banner:not(.danger):not(.success):not(.warning) { display: none; }
 
 /* ── Responsivo / telemóvel ─────────────────────────────────── */
 .menu-toggle { display: none; width: 40px; height: 40px; border-radius: 11px; align-items: center; justify-content: center; color: var(--text); border: 1px solid var(--border); background: var(--surface); flex: none; }
@@ -334,8 +338,7 @@ input, textarea, select { font-family: inherit; }
   background: radial-gradient(900px 480px at 15% -10%, rgba(59,130,246,.20), transparent 60%), radial-gradient(700px 460px at 100% 110%, rgba(124,58,237,.18), transparent 55%), linear-gradient(160deg, #0a1020, #0c1426 55%, #080d1a); }
 /* A PÁGINA nunca rola (overflow hidden). A caixa absorve excesso só em ecrãs
    minúsculos (scroll interno discreto), mantendo o login sempre "justo". */
-.login .box { width: 100%; max-width: 410px; margin: auto; max-height: 100%; overflow-y: auto; scrollbar-width: none; }
-.login .box::-webkit-scrollbar { width: 0; height: 0; }
+.login .box { width: 100%; max-width: 410px; margin: auto; max-height: 100%; overflow: hidden; }
 .login .brand { display: flex; flex-direction: column; align-items: center; margin-bottom: clamp(6px, 2vh, 22px); }
 .login .brand img { width: clamp(36px, 7.5vh, 76px); height: clamp(36px, 7.5vh, 76px); border-radius: clamp(11px, 2vh, 20px); object-fit: contain; background: var(--surface-2); border: 1px solid var(--border); padding: clamp(3px, 0.9vh, 8px); margin-bottom: clamp(4px, 1.2vh, 12px); box-shadow: var(--shadow); }
 .login .brand h1 { margin: 0; font-size: clamp(16px, 2.8vh, 23px); font-weight: 900; line-height: 1.1; }

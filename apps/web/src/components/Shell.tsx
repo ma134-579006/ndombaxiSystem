@@ -137,15 +137,21 @@ export function Shell({
 
   // Fecha a gaveta ao mudar de secção (importante no telemóvel).
   useEffect(() => { setMenuOpen(false); }, [section]);
+  // Fecha os grupos abertos ao clicar FORA da barra lateral.
+  const asideRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    const g = nav.find((n) => n.children?.some((c) => c.key === section));
-    if (g) setOpenGroups((prev) => (prev[g.key] ? prev : { ...prev, [g.key]: true }));
-  }, [section, nav]);
+    if (!Object.values(openGroups).some(Boolean)) return;
+    const onDoc = (e: MouseEvent) => {
+      if (asideRef.current && !asideRef.current.contains(e.target as Node)) setOpenGroups({});
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [openGroups]);
 
   return (
     <div className="admin">
       {menuOpen ? <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} /> : null}
-      <aside className={`sidebar${menuOpen ? ' open' : ''}`}>
+      <aside ref={asideRef} className={`sidebar${menuOpen ? ' open' : ''}`}>
         <div className="brand">
           <img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
           <div>
@@ -163,7 +169,7 @@ export function Shell({
                 <div key={n.key} className="nav-group">
                   <button
                     className={`nav-group-head${hasActive ? ' has-active' : ''}`}
-                    onClick={() => setOpenGroups((p) => ({ ...p, [n.key]: !p[n.key] }))}
+                    onClick={() => setOpenGroups((p) => (p[n.key] ? {} : { [n.key]: true }))}
                   >
                     <Icon size={18} /> {n.label}
                     <IconChevron open={open} />
@@ -176,7 +182,7 @@ export function Shell({
                           <button
                             key={c.key}
                             className={section === c.key ? 'active' : ''}
-                            onClick={() => setSection(c.key)}
+                            onClick={() => { setSection(c.key); setOpenGroups({}); }}
                           >
                             <CIcon size={16} /> {c.label}
                           </button>
