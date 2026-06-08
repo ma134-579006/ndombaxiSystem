@@ -419,6 +419,8 @@ export const api = {
       request<ReportUserRow[]>('GET', `/reports/sales-by-user${qs({ from, to, storeId })}`),
     salesByCategory: (from?: string, to?: string, storeId?: string) =>
       request<ReportCategoryRow[]>('GET', `/reports/sales-by-category${qs({ from, to, storeId })}`),
+    salesByCustomer: (from?: string, to?: string, storeId?: string) =>
+      request<ReportUserRow[]>('GET', `/reports/sales-by-customer${qs({ from, to, storeId })}`),
     taxMap: (from?: string, to?: string, storeId?: string) =>
       request<ReportTaxRow[]>('GET', `/reports/tax-map${qs({ from, to, storeId })}`),
     paymentMethods: (from?: string, to?: string) =>

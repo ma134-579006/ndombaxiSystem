@@ -633,12 +633,12 @@ export interface ManagerStore {
 export interface ManagerStaff {
   id: string; email: string; name: string; role: StaffRoleName;
   store_id: string | null; two_fa_enabled: boolean; is_active: boolean;
-  must_reset_pw: boolean; has_pin: boolean; last_login_at: string | null;
+  must_reset_pw: boolean; has_pin: boolean; photo_url: string | null; last_login_at: string | null;
 }
 export interface CreateStoreInput { code: string; name: string; address?: string; isDefault?: boolean }
 export interface UpdateStoreInput { name?: string; address?: string; isActive?: boolean; isDefault?: boolean }
 export interface CreateStaffInput { name: string; email: string; role: StaffRoleName; storeId?: string; password?: string; pin?: string }
-export interface UpdateStaffInput { name?: string; role?: StaffRoleName; storeId?: string; isActive?: boolean }
+export interface UpdateStaffInput { name?: string; role?: StaffRoleName; storeId?: string; isActive?: boolean; photoUrl?: string }
 export interface CreatedStaff { user: ManagerStaff; temporaryPassword?: string }
 
 // ── Funcionários (RH) ───────────────────────────────────────

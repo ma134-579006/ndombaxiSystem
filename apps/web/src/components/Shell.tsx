@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
@@ -20,6 +20,51 @@ function IconUser({ size = 18 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
     </svg>
+  );
+}
+
+function IconGear({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+/** Menu da conta do gestor (canto superior direito): avatar + seta → nome,
+ *  email, Configurações e Terminar sessão. Fecha ao clicar fora. */
+function ManagerMenu({ photo, name, email, role, onSettings, onLogout }: {
+  photo: string | null; name: string; email: string; role: string; onSettings(): void; onLogout(): void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  return (
+    <div ref={ref} className="acct">
+      <button className="acct-btn" onClick={() => setOpen((v) => !v)} title={name} aria-label="Conta">
+        {photo ? <img className="acct-av" src={photo} alt={name} /> : <span className="acct-av acct-av-ph"><IconUser size={18} /></span>}
+        <span className={`acct-caret${open ? ' up' : ''}`}>▾</span>
+      </button>
+      {open ? (
+        <div className="acct-pop">
+          <div className="acct-head">
+            {photo ? <img className="acct-av lg" src={photo} alt={name} /> : <span className="acct-av lg acct-av-ph"><IconUser size={22} /></span>}
+            <div style={{ minWidth: 0 }}>
+              <div className="acct-name">{name}</div>
+              {email ? <div className="acct-email">{email}</div> : null}
+              <div className="acct-role">{role}</div>
+            </div>
+          </div>
+          <button className="acct-item" onClick={() => { setOpen(false); onSettings(); }}><IconGear size={17} /> Configurações</button>
+          <button className="acct-item danger" onClick={() => { setOpen(false); onLogout(); }}><IconLogout size={17} /> Terminar sessão</button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -71,20 +116,16 @@ export function Shell({
       .catch(() => undefined);
     return () => { alive = false; };
   }, [isTenant]);
-  // Foto do funcionário logado (do RH), ligada pelo nome. Sem foto → ícone.
+  // Foto do utilizador logado (avatar do menu da conta). Sem foto → ícone.
   const [avatar, setAvatar] = useState<string | null>(null);
   useEffect(() => {
-    if (!isTenant || !user?.name) { setAvatar(null); return; }
+    if (!isTenant || !user?.sub) { setAvatar(null); return; }
     let alive = true;
-    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
-    api.hr.employees(true)
-      .then((list) => {
-        const me = list.find((e) => norm(e.full_name) === norm(user.name || ''));
-        if (alive) setAvatar(me?.photo_url ?? null);
-      })
+    api.staff.listUsers()
+      .then((list) => { const me = list.find((u) => u.id === user.sub); if (alive) setAvatar(me?.photo_url ?? null); })
       .catch(() => undefined);
     return () => { alive = false; };
-  }, [isTenant, user?.name]);
+  }, [isTenant, user?.sub]);
   const brandName = brand?.name || SYSTEM_NAME;
   const brandLogo = brand?.logo || LOGO_SRC;
   // Procura o item activo, mesmo dentro de grupos.
@@ -167,20 +208,15 @@ export function Shell({
           </button>
           <h1>{current?.label}</h1>
           <span className="spacer" />
-          {avatar
-            ? <img className="who-avatar" src={avatar} alt={user?.name || ''} />
-            : <span className="who-avatar who-avatar-ph" title={user?.name || ''}><IconUser size={18} /></span>}
-          <div className="who">
-            <div className="nm">{user?.name || user?.email}</div>
-            <div className="rl">
-              {roleLabel}
-              {companyCode ? ` · ${companyCode}` : ''}
-            </div>
-          </div>
           <ThemePicker />
-          <button className="icon-btn" onClick={logout} title="Terminar sessão">
-            <IconLogout size={20} />
-          </button>
+          <ManagerMenu
+            photo={avatar}
+            name={user?.name || user?.email || 'Gestor'}
+            email={user?.email || ''}
+            role={`${roleLabel}${companyCode ? ` · ${companyCode}` : ''}`}
+            onSettings={() => setSection('profile')}
+            onLogout={logout}
+          />
         </header>
         <div className="content"><div className="page-anim" key={section}>{children}</div></div>
       </div>

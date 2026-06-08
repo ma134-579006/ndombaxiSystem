@@ -43,6 +43,26 @@ export class ReportsService {
     );
   }
 
+  /** Clientes que mais compram (top, por total faturado). */
+  async salesByCustomer(schema: string, from?: string, to?: string, storeId?: string) {
+    const { from: f, to: t } = this.range(from, to);
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(Prisma.sql`
+        SELECT COALESCE(NULLIF(c.name, ''), 'Consumidor final') AS name,
+               COUNT(DISTINCT i.id)::int AS sales,
+               ROUND(SUM(ii.net_amount), 2)::float AS net,
+               ROUND(SUM(ii.gross_amount), 2)::float AS gross
+        FROM invoices i
+        JOIN invoice_items ii ON ii.invoice_id = i.id
+        LEFT JOIN customers c ON c.id = i.customer_id
+        WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
+          AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
+          ${this.storeCond(storeId)}
+        GROUP BY COALESCE(NULLIF(c.name, ''), 'Consumidor final')
+        ORDER BY gross DESC LIMIT 8`),
+    );
+  }
+
   /** Vendas por categoria de produto. */
   async salesByCategory(schema: string, from?: string, to?: string, storeId?: string) {
     const { from: f, to: t } = this.range(from, to);

@@ -55,7 +55,7 @@ export class TenantUserRepository {
       // Foto: liga ao registo de RH (employees) pelo nome normalizado (sem FK).
       return tx.$queryRaw<{ id: string; name: string; role: RoleName; store_id: string | null; store_name: string | null; photo_url: string | null }[]>(
         Prisma.sql`SELECT u.id, u.name, u.role, u.store_id, s.name AS store_name,
-                          e.photo_url
+                          COALESCE(u.photo_url, e.photo_url) AS photo_url
                    FROM users u
                    LEFT JOIN stores s ON s.id = u.store_id
                    LEFT JOIN employees e ON lower(btrim(e.full_name)) = lower(btrim(u.name))

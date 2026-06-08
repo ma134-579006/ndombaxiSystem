@@ -29,6 +29,12 @@ export class ReportsController {
     return this.reports.salesByCategory(this.ctx.requireTenantSchema(), from, to, effectiveStoreId(user, storeId));
   }
 
+  @Get('sales-by-customer')
+  @ApiOperation({ summary: 'Clientes que mais compram' })
+  salesByCustomer(@CurrentUser() user: JwtPayload, @Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    return this.reports.salesByCustomer(this.ctx.requireTenantSchema(), from, to, effectiveStoreId(user, storeId));
+  }
+
   @Get('sales-by-store')
   @ApiOperation({ summary: 'Vendas por loja' })
   salesByStore(@CurrentUser() user: JwtPayload, @Query('from') from?: string, @Query('to') to?: string) {

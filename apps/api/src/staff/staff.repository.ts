@@ -24,13 +24,14 @@ export interface StaffRow {
   is_active: boolean;
   must_reset_pw: boolean;
   has_pin: boolean;
+  photo_url: string | null;
   last_login_at: Date | null;
   created_at: Date;
 }
 
 /** Colunas seguras de um funcionário (nunca devolve segredos). */
 const SAFE_USER_COLS = Prisma.sql`id, email, name, role, store_id, two_fa_enabled,
-  is_active, must_reset_pw, (pin_hash IS NOT NULL) AS has_pin, last_login_at, created_at`;
+  is_active, must_reset_pw, (pin_hash IS NOT NULL) AS has_pin, photo_url, last_login_at, created_at`;
 
 /**
  * Acesso aos dados de equipa (users) e lojas (stores) do tenant.
@@ -153,13 +154,14 @@ export class StaffRepository {
   async updateStaff(
     schema: string,
     id: string,
-    input: { name?: string; role?: string; storeId?: string | null; isActive?: boolean },
+    input: { name?: string; role?: string; storeId?: string | null; isActive?: boolean; photoUrl?: string | null },
   ): Promise<StaffRow> {
     const sets: Prisma.Sql[] = [];
     if (input.name !== undefined) sets.push(Prisma.sql`name = ${input.name}`);
     if (input.role !== undefined) sets.push(Prisma.sql`role = ${input.role}`);
     if (input.storeId !== undefined) sets.push(Prisma.sql`store_id = ${input.storeId}::uuid`);
     if (input.isActive !== undefined) sets.push(Prisma.sql`is_active = ${input.isActive}`);
+    if (input.photoUrl !== undefined) sets.push(Prisma.sql`photo_url = ${input.photoUrl}`);
     if (sets.length === 0) return this.getStaff(schema, id);
     sets.push(Prisma.sql`updated_at = now()`);
 

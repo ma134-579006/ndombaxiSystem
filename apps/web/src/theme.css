@@ -199,9 +199,40 @@ input, textarea, select { font-family: inherit; }
 .topbar .who-avatar { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; flex: none;
   border: 1px solid var(--border); background: var(--surface-2); }
 .topbar .who-avatar-ph { display: grid; place-items: center; color: var(--muted); }
+
+/* Menu da conta (avatar + seta → nome/email/configurações/sair) */
+.acct { position: relative; }
+.acct-btn { display: inline-flex; align-items: center; gap: 4px; background: transparent; border: none; cursor: pointer; padding: 0; }
+.acct-av { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; flex: none; border: 1px solid var(--border); background: var(--surface-2); }
+.acct-av.lg { width: 44px; height: 44px; border-radius: 12px; }
+.acct-av-ph { display: grid; place-items: center; color: var(--muted); }
+.acct-caret { color: var(--muted); font-size: 12px; transition: transform .15s; }
+.acct-caret.up { transform: rotate(180deg); }
+.acct-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; width: 260px; max-width: 84vw;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 8px; }
+.acct-head { display: flex; gap: 12px; align-items: center; padding: 8px 8px 12px; border-bottom: 1px solid var(--border); }
+.acct-name { font-weight: 800; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acct-email { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acct-role { font-size: 11px; color: var(--primary); font-weight: 700; margin-top: 2px; }
+.acct-item { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 8px; padding: 11px 10px;
+  border-radius: 10px; background: transparent; border: none; color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer; text-align: left; }
+.acct-item:hover { background: var(--surface-2); }
+.acct-item.danger { color: var(--danger); }
 .icon-btn { width: 42px; height: 42px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text); display: grid; place-items: center; transition: background .15s, border-color .15s; }
 .icon-btn:hover { background: var(--surface-2); border-color: #34456a; }
 .content { flex: 1; overflow: auto; padding: 24px; }
+/* Gráfico de ranking (barras horizontais) — top produtos/funcionários/clientes/lojas */
+.rankchart { display: flex; flex-direction: column; gap: 12px; }
+.rankrow-head { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 5px; }
+.rankrow-head .rl { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.rankrow-head .rv { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rankbar-track { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.rankbar-fill { height: 100%; border-radius: 999px; }
+.rankrow-hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rank-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .rankbar-fill { transform-origin: left; animation: rank-grow .6s cubic-bezier(.2,.7,.3,1) both; }
+}
 /* O wrapper de animação preenche a área de conteúdo, para páginas de altura
    total (ex.: Assistente IA) caberem 100% sem provocar scroll na página. */
 .content > .page-anim { height: 100%; }

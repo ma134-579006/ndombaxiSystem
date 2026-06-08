@@ -123,6 +123,7 @@ export class StaffService {
       role,
       storeId: dto.storeId,
       isActive: dto.isActive,
+      photoUrl: dto.photoUrl,
     });
   }
 

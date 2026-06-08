@@ -24,6 +24,7 @@ import { StockMovements } from './sections/StockMovements';
 import { StockAnalysis } from './sections/StockAnalysis';
 import { Reports } from './sections/Reports';
 import { Settings } from './sections/Settings';
+import { Profile } from './sections/Profile';
 import { Promotions } from './sections/Promotions';
 import { Overview } from './sections/Overview';
 import { Profit } from './sections/Profit';
@@ -172,6 +173,7 @@ function TenantPanel() {
       {section === 'leave' ? <Leave /> : null}
       {section === 'store' ? <Storefront /> : null}
       {section === 'settings' ? <Settings /> : null}
+      {section === 'profile' ? <Profile /> : null}
     </Shell>
   );
 }

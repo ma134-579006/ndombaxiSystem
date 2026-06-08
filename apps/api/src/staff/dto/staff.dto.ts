@@ -46,6 +46,10 @@ export class UpdateStaffDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  photoUrl?: string;
 }
 
 export class ResetPasswordDto {

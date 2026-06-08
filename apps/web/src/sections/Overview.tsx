@@ -8,11 +8,13 @@ import type {
   ManagerStore,
   OpsAlert,
   ProfitSummary,
+  ReportUserRow,
   SalesRange,
 } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { AreaChart, type AreaPoint } from '../components/AreaChart';
-import { IconBuilding, IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconStar } from '../components/Icons';
+import { RankBarChart, type RankBar } from '../components/RankBarChart';
+import { IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconStar } from '../components/Icons';
 import { formatKz } from '../format';
 
 const RANGES: { key: SalesRange; label: string }[] = [
@@ -57,6 +59,8 @@ export function Overview() {
   const [top, setTop] = useState<DashTopProduct[]>([]);
   const [low, setLow] = useState<DashLowStock[]>([]);
   const [byStore, setByStore] = useState<DashStoreSales[]>([]);
+  const [byUser, setByUser] = useState<ReportUserRow[]>([]);
+  const [byCustomer, setByCustomer] = useState<ReportUserRow[]>([]);
   const [storeDays, setStoreDays] = useState(1); // 1=hoje, 7, 30
   const [alerts, setAlerts] = useState<OpsAlert[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -68,15 +72,17 @@ export function Overview() {
     setError(null);
     const { from, to } = rangeToDates(range);
     try {
-      const [s, ser, t, l, a, bs] = await Promise.all([
+      const [s, ser, t, l, a, bs, bu, bc] = await Promise.all([
         api.profit.summary(from, to, sid),
         api.dashboard.series(range, sid),
         api.dashboard.topProducts(8, sid),
         api.dashboard.lowStock(sid),
         api.alerts(),
         api.dashboard.salesByStore(storeDays).catch(() => [] as DashStoreSales[]),
+        api.reports.salesByUser(from, to, sid).catch(() => [] as ReportUserRow[]),
+        api.reports.salesByCustomer(from, to, sid).catch(() => [] as ReportUserRow[]),
       ]);
-      setSum(s); setSeries(ser); setTop(t); setLow(l); setAlerts(a); setByStore(bs);
+      setSum(s); setSeries(ser); setTop(t); setLow(l); setAlerts(a); setByStore(bs); setByUser(bu); setByCustomer(bc);
       setUpdatedAt(new Date());
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar a visão geral.');
@@ -179,44 +185,33 @@ export function Overview() {
               Total {formatKz(byStore.reduce((t, s) => t + s.grossTotal, 0))}
             </span>
           </div>
-          {(() => {
-            const max = Math.max(1, ...byStore.map((s) => s.grossTotal));
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
-                {byStore.map((s) => (
-                  <div key={s.storeId}>
-                    <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
-                      <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <IconBuilding size={15} /> {s.storeName}{s.isDefault ? ' · principal' : ''}
-                      </span>
-                      <span style={{ fontWeight: 800 }}>{formatKz(s.grossTotal)} <span className="muted" style={{ fontWeight: 500 }}>· {s.invoiceCount} venda(s)</span></span>
-                    </div>
-                    <div style={{ height: 10, borderRadius: 999, background: 'var(--surface-2)', overflow: 'hidden' }}>
-                      <div style={{ width: `${Math.max(2, (s.grossTotal / max) * 100)}%`, height: '100%', borderRadius: 999,
-                        background: s.isDefault ? 'var(--grad-primary)' : 'var(--primary)', transition: 'width .5s ease' }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
+          <div style={{ marginTop: 14 }}>
+            <RankBarChart
+              data={byStore.map((s): RankBar => ({ label: `${s.storeName}${s.isDefault ? ' · principal' : ''}`, value: s.grossTotal, hint: `${s.invoiceCount} venda(s)` }))}
+              format={formatKz}
+            />
+          </div>
         </div>
       ) : null}
 
-      {/* Top produtos + Stock baixo */}
+      {/* Gráficos de ranking — produtos, funcionários, clientes */}
       <div className="cols-2">
         <div className="card">
-          <h3>Produtos mais vendidos</h3>
-          {top.length === 0 ? <p className="muted">Ainda sem vendas.</p> : (
-            <table className="ptable">
-              <thead><tr><th>Produto</th><th>Qt</th><th>Total</th></tr></thead>
-              <tbody>
-                {top.map((p) => (
-                  <tr key={p.productCode}><td>{p.description}</td><td>{p.quantity}</td><td>{formatKz(p.grossTotal)}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <h3>🏆 Produtos que mais vendem</h3>
+          <RankBarChart color="var(--primary)" format={formatKz}
+            data={top.map((p): RankBar => ({ label: p.description, value: p.grossTotal, hint: `${p.quantity} un.` }))} />
+        </div>
+        <div className="card">
+          <h3>👤 Funcionários que mais vendem</h3>
+          <RankBarChart color="var(--accent)" format={formatKz}
+            data={byUser.map((u): RankBar => ({ label: u.name, value: u.gross, hint: `${u.sales} venda(s)` }))} />
+        </div>
+      </div>
+      <div className="cols-2">
+        <div className="card">
+          <h3>🤝 Clientes que mais compram</h3>
+          <RankBarChart color="var(--success)" format={formatKz}
+            data={byCustomer.map((cst): RankBar => ({ label: cst.name, value: cst.gross, hint: `${cst.sales} compra(s)` }))} />
         </div>
 
         <div className="card">
