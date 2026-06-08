@@ -110,7 +110,8 @@ input, textarea, select { font-family: inherit; }
 
 .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 11px; border-radius: 999px; border: 1px solid; }
 .badge .dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; }
-.banner { display: flex; gap: 10px; align-items: center; border-radius: 12px; padding: 12px 14px; font-size: 14px; font-weight: 600; border: 1px solid var(--border); background: var(--surface-2); }
+.banner { display: flex; gap: 10px; align-items: flex-start; border-radius: 12px; padding: 12px 14px; font-size: 14px; font-weight: 600; line-height: 1.45; border: 1px solid var(--border); background: var(--surface-2); overflow-wrap: anywhere; word-break: break-word; }
+.banner > svg { flex: none; margin-top: 1px; }
 .banner.danger { background: rgba(239,68,68,.13); border-color: rgba(239,68,68,.4); color: #fecaca; }
 .banner.success { background: rgba(16,185,129,.13); border-color: rgba(16,185,129,.4); color: #a7f3d0; }
 .banner.info { background: var(--primary-soft); border-color: rgba(59,130,246,.4); color: #bfdbfe; }
@@ -248,11 +249,18 @@ input, textarea, select { font-family: inherit; }
 @media (max-width: 560px) {
   .topbar .who { display: none; }
   .content-head h2 { font-size: 17px; }
+  /* Título ocupa a linha toda; os botões de ação descem e partilham a linha
+     seguinte (não se "partem" nem cortam o texto). */
+  .content-head { gap: 8px; }
+  .content-head h2 { flex: 1 1 100%; }
+  .content-head .spacer { display: none; }
+  .content-head .btn { flex: 1 1 auto; justify-content: center; }
   .ptable { font-size: 12.5px; }
   .ptable th, .ptable td { padding: 7px 5px; }
   .card { overflow-x: auto; padding: 16px; }
   .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
   .seg button { padding: 8px 6px; font-size: 12px; }
+  .banner { padding: 10px 12px; font-size: 13px; }
 }
 .content-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
 .content-head h2 { margin: 0; font-size: 19px; font-weight: 800; }
@@ -738,4 +746,15 @@ body { line-height: 1.5; font-feature-settings: 'cv02','cv03','cv04','ss01'; }
   .kpi-card:hover { transform: translateY(-2px); }
   /* Botões: feedback de toque consistente. */
   .btn:active { transform: translateY(1px); }
+  /* Entrada escalonada e elegante dos cartões (sensação premium). */
+  @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .kpi-grid > .kpi-card, .pgrid > .pcard { animation: rise-in .4s cubic-bezier(.2,.7,.3,1) both; }
+  .kpi-grid > .kpi-card:nth-child(2), .pgrid > .pcard:nth-child(2) { animation-delay: .05s; }
+  .kpi-grid > .kpi-card:nth-child(3), .pgrid > .pcard:nth-child(3) { animation-delay: .1s; }
+  .kpi-grid > .kpi-card:nth-child(4), .pgrid > .pcard:nth-child(4) { animation-delay: .15s; }
+  .kpi-grid > .kpi-card:nth-child(n+5) { animation-delay: .2s; }
+  /* Acento de cor subtil no topo dos KPIs. */
+  .kpi-card { position: relative; overflow: hidden; }
+  .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--grad-primary); opacity: .85; }
 }
