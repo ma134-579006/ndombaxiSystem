@@ -222,6 +222,10 @@ export class OnboardingService {
     const plan = await this.prisma.plan.findUnique({ where: { tier: dto.planTier as never } });
     if (!plan) throw new BadRequestException('Plano inexistente.');
 
+    // Período de teste grátis (dias) definido pelo Super Admin (default 14).
+    const cfg = await this.prisma.landingConfig.findFirst({ select: { trialDays: true } });
+    const trialDays = Math.max(1, cfg?.trialDays ?? 14);
+
     const schemaName = this.provisioning.generateSchemaName();
     const rnd = randomBytes(4).toString('hex');
     const tempCode = `emp-${rnd}`;
@@ -236,7 +240,9 @@ export class OnboardingService {
         responsibleEmail: email,
         planId: plan.id,
         schemaName,
-        status: 'PENDING',
+        // Acesso IMEDIATO com período de teste grátis (ativa já; bloqueia ao fim
+        // do trial até renovar). Empresas existentes sem subscrição não são afectadas.
+        status: 'ACTIVE',
       },
     });
 
@@ -259,9 +265,25 @@ export class OnboardingService {
       throw new BadRequestException('Falha ao criar a conta. Tente novamente.');
     }
 
+    // Subscrição de TESTE GRÁTIS: activa já, válida por `trialDays` dias. Ao
+    // expirar, isPlanExpired/getSetupStatus bloqueiam a empresa (caixa + gestor)
+    // e mostram a página de renovação. (Empresas antigas sem subscrição NÃO são
+    // afectadas — o guard `wasActivated` protege-as.)
+    const trialExpiresAt = new Date(Date.now() + trialDays * 86400000);
+    await this.prisma.subscription.create({
+      data: {
+        companyId: company.id, planId: plan.id, method: 'IBAN',
+        status: 'ACTIVE', amountKz: 0, durationMonths: 0,
+        startsAt: new Date(), expiresAt: trialExpiresAt,
+        reviewNote: `Período de teste grátis (${trialDays} dias)`,
+      },
+    }).catch((e) => {
+      this.logger.error('Falha ao criar subscrição de teste', e instanceof Error ? e.stack : undefined);
+    });
+
     await this.audit.record({
       actorType: 'SYSTEM', tenantSchema: schemaName, action: 'COMPANY_REGISTERED_SIMPLE',
-      entity: 'Company', entityId: company.id, after: { email, via: dto.googleIdToken ? 'google' : 'password' },
+      entity: 'Company', entityId: company.id, after: { email, via: dto.googleIdToken ? 'google' : 'password', trialDays },
     });
 
     const payload: JwtPayload = {

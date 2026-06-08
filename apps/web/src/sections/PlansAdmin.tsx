@@ -172,6 +172,7 @@ function LandingEditor({ cfg, onSaved }: { cfg: LandingConfig; onSaved(c: Landin
   const [primaryColor, setPrimaryColor] = useState(cfg.primaryColor);
   const [contactEmail, setContactEmail] = useState(cfg.contactEmail ?? '');
   const [contactPhone, setContactPhone] = useState(cfg.contactPhone ?? '');
+  const [trialDays, setTrialDays] = useState(String(cfg.trialDays ?? 14));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -186,6 +187,7 @@ function LandingEditor({ cfg, onSaved }: { cfg: LandingConfig; onSaved(c: Landin
         primaryColor,
         contactEmail,
         contactPhone,
+        trialDays: Math.max(1, Number(trialDays) || 14),
         heroImages: heroImages.split('\n').map((s) => s.trim()).filter(Boolean),
       });
       onSaved(c);
@@ -218,6 +220,13 @@ function LandingEditor({ cfg, onSaved }: { cfg: LandingConfig; onSaved(c: Landin
       <div className="field">
         <label>Imagens de fundo (carrossel) — uma URL por linha</label>
         <textarea value={heroImages} onChange={(e) => setHeroImages(e.target.value)} style={{ minHeight: 90 }} placeholder="https://..." />
+      </div>
+      <div className="field">
+        <label>Período de teste grátis (dias) — para cada nova empresa</label>
+        <input type="number" min={1} value={trialDays} onChange={(e) => setTrialDays(e.target.value)} />
+        <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+          Ao fim destes dias, a empresa é bloqueada até renovar o plano.
+        </p>
       </div>
       <div className="grid-2">
         <div className="field">

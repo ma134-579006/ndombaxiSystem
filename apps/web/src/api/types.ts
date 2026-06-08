@@ -120,6 +120,7 @@ export interface LandingConfig {
   contactPhone: string | null;
   showPricing: boolean;
   showAds: boolean;
+  trialDays: number;
 }
 export interface PublicLanding { config: LandingConfig; plans: PublicPlan[] }
 

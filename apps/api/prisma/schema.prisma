@@ -89,6 +89,9 @@ model LandingConfig {
   // Liga/desliga secções
   showPricing     Boolean  @default(true)
   showAds         Boolean  @default(true)
+  // Dias do período de TESTE GRÁTIS dado a cada nova empresa (editável pelo
+  // Super Admin). Ao fim destes dias a empresa é bloqueada até renovar.
+  trialDays       Int      @default(14)
   updatedAt       DateTime @updatedAt
 
   @@map("landing_config")

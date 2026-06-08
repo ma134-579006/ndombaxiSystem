@@ -31,6 +31,7 @@ export class UpdateLandingDto {
   @IsOptional() @IsString() contactPhone?: string;
   @IsOptional() @IsBoolean() showPricing?: boolean;
   @IsOptional() @IsBoolean() showAds?: boolean;
+  @IsOptional() @IsInt() @Min(1) trialDays?: number;
 }
 
 /** Atualização de um plano (preço em Kz + apresentação) pelo Super Admin. */

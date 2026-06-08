@@ -13,6 +13,22 @@ import { IconBuilding, IconCard, IconImage, IconLogout, IconCheck } from '../com
 export function CompanySetup({ onDone }: { onDone(): void }) {
   const { logout } = useAuth();
   const [step, setStep] = useState<'pay' | 'data'>('pay');
+  // Período de TESTE GRÁTIS: se já existe uma subscrição ativa válida (trial),
+  // não se pede pagamento — vai direto aos dados da empresa.
+  const [trial, setTrial] = useState(false);
+  const [checked, setChecked] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    api.subscription.mine()
+      .then((subs) => {
+        const active = subs.some((s) => s.status === 'ACTIVE' && (!s.expiresAt || new Date(s.expiresAt) > new Date()));
+        if (alive) { setTrial(active); if (active) setStep('data'); }
+      })
+      .catch(() => undefined)
+      .finally(() => { if (alive) setChecked(true); });
+    return () => { alive = false; };
+  }, []);
+  if (!checked) return <div className="login"><div className="box" style={{ maxWidth: 480 }}><div className="card"><div className="loading">A preparar…</div></div></div></div>;
   return (
     <div className="login">
       <div className="box" style={{ maxWidth: 480 }}>
@@ -21,12 +37,12 @@ export function CompanySetup({ onDone }: { onDone(): void }) {
             <IconBuilding size={28} />
           </div>
           <h1>Ativar a sua empresa</h1>
-          <div className="tg">Passo {step === 'pay' ? '1 de 2 — Pagamento' : '2 de 2 — Dados da empresa'}</div>
+          <div className="tg">{trial ? '🎁 Teste grátis ativo — só faltam os dados da empresa' : `Passo ${step === 'pay' ? '1 de 2 — Pagamento' : '2 de 2 — Dados da empresa'}`}</div>
         </div>
-        <div className="steps-bar"><span className={step === 'pay' ? 'on' : 'done'} /><span className={step === 'data' ? 'on' : ''} /></div>
+        {!trial ? <div className="steps-bar"><span className={step === 'pay' ? 'on' : 'done'} /><span className={step === 'data' ? 'on' : ''} /></div> : null}
         {step === 'pay'
           ? <PayStep onNext={() => setStep('data')} />
-          : <DataStep onDone={onDone} onBack={() => setStep('pay')} />}
+          : <DataStep onDone={onDone} onBack={trial ? undefined : () => setStep('pay')} />}
         <p style={{ textAlign: 'center', marginTop: 12 }}>
           <a onClick={() => void logout()} style={{ color: 'var(--muted)', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <IconLogout size={15} /> Terminar sessão
@@ -110,7 +126,7 @@ export function PayStep({ onNext }: { onNext(): void }) {
   );
 }
 
-function DataStep({ onDone, onBack }: { onDone(): void; onBack(): void }) {
+function DataStep({ onDone, onBack }: { onDone(): void; onBack?: () => void }) {
   const [name, setName] = useState('');
   const [companyCode, setCompanyCode] = useState('');
   const [nif, setNif] = useState('');
@@ -160,7 +176,7 @@ function DataStep({ onDone, onBack }: { onDone(): void; onBack(): void }) {
       <div className="field"><label>NIF da empresa</label>
         <input value={nif} onChange={(e) => setNif(e.target.value)} placeholder="5XXXXXXXX" inputMode="numeric" /></div>
       <div className="row" style={{ gap: 10 }}>
-        <button className="btn ghost" onClick={onBack} disabled={busy}>← Voltar</button>
+        {onBack ? <button className="btn ghost" onClick={onBack} disabled={busy}>← Voltar</button> : null}
         <button className="btn lg" style={{ flex: 1 }} onClick={submit} disabled={busy}>
           <IconCheck size={18} /> {busy ? 'A concluir…' : 'Concluir e entrar'}
         </button>
