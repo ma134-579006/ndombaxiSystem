@@ -496,7 +496,7 @@ export type SalesRange = 'today' | 'yesterday' | '7d' | '1m' | '3m' | '6m' | '1y
 export interface DashSalesSummary {
   invoiceCount: number; netTotal: number; ivaTotal: number; grossTotal: number; averageTicket: number;
 }
-export interface DashSalesPoint { bucket: string; grossTotal: number; ivaTotal: number; invoiceCount: number; cancelledTotal: number }
+export interface DashSalesPoint { bucket: string; grossTotal: number; ivaTotal: number; invoiceCount: number; cancelledTotal: number; expenseTotal: number }
 export interface DashSalesSeries {
   range: SalesRange; granularity: 'hour' | 'day' | 'week' | 'month';
   points: DashSalesPoint[]; summary: DashSalesSummary;

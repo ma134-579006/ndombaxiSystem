@@ -57,6 +57,7 @@ export function Overview() {
   const [top, setTop] = useState<DashTopProduct[]>([]);
   const [low, setLow] = useState<DashLowStock[]>([]);
   const [byStore, setByStore] = useState<DashStoreSales[]>([]);
+  const [storeDays, setStoreDays] = useState(1); // 1=hoje, 7, 30
   const [alerts, setAlerts] = useState<OpsAlert[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,14 +74,14 @@ export function Overview() {
         api.dashboard.topProducts(8, sid),
         api.dashboard.lowStock(sid),
         api.alerts(),
-        api.dashboard.salesByStore().catch(() => [] as DashStoreSales[]),
+        api.dashboard.salesByStore(storeDays).catch(() => [] as DashStoreSales[]),
       ]);
       setSum(s); setSeries(ser); setTop(t); setLow(l); setAlerts(a); setByStore(bs);
       setUpdatedAt(new Date());
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar a visão geral.');
     } finally { setLoading(false); }
-  }, [range, sid]);
+  }, [range, sid, storeDays]);
 
   useEffect(() => { if (isAdmin) api.staff.listStores().then(setStores).catch(() => undefined); }, [isAdmin]);
 
@@ -94,8 +95,10 @@ export function Overview() {
     label: bucketLabel(p.bucket, series!.granularity),
     value: p.grossTotal,
     sub: p.cancelledTotal,
+    sub2: p.expenseTotal ?? 0,
   }));
   const hasCancel = (series?.points ?? []).some((p) => p.cancelledTotal > 0);
+  const hasExpense = (series?.points ?? []).some((p) => (p.expenseTotal ?? 0) > 0);
   const rangeLabel = RANGES.find((r) => r.key === range)?.label ?? '';
 
   return (
@@ -150,33 +153,53 @@ export function Overview() {
           <div className="legend-row" style={{ margin: 0 }}>
             <span><span className="dot" style={{ background: 'var(--primary)' }} /> Vendas</span>
             {hasCancel ? <span><span className="dot" style={{ background: 'var(--danger)' }} /> Anulado</span> : null}
+            {hasExpense ? <span><span className="dot" style={{ background: 'var(--warning)' }} /> Gastos</span> : null}
           </div>
         </div>
         {loading && !series ? <div className="loading">A carregar…</div> : (
-          <AreaChart points={chartPoints} color="var(--primary)" subColor={hasCancel ? 'var(--danger)' : undefined} format={formatKz} />
+          <AreaChart points={chartPoints} color="var(--primary)"
+            subColor={hasCancel ? 'var(--danger)' : undefined}
+            sub2Color={hasExpense ? 'var(--warning)' : undefined}
+            subLabel="Anulado" sub2Label="Gastos" format={formatKz} />
         )}
       </div>
 
-      {/* Vendas de HOJE por loja (multi-loja, tempo real) */}
+      {/* Vendas por loja (multi-loja, tempo real) — período selecionável */}
       {byStore.length > 1 ? (
         <div className="card">
-          <div className="row" style={{ alignItems: 'center' }}>
-            <h3 style={{ margin: 0 }}>Lojas hoje (ao vivo)</h3>
+          <div className="row" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <h3 style={{ margin: 0 }}><span className="live-dot" /> Lojas ao vivo</h3>
             <span className="spacer" />
-            <span className="muted" style={{ fontSize: 12 }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[{ d: 1, l: 'Hoje' }, { d: 7, l: '7 dias' }, { d: 30, l: '30 dias' }].map((o) => (
+                <button key={o.d} className={`chip ${storeDays === o.d ? 'active' : ''}`} onClick={() => setStoreDays(o.d)}>{o.l}</button>
+              ))}
+            </div>
+            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
               Total {formatKz(byStore.reduce((t, s) => t + s.grossTotal, 0))}
             </span>
           </div>
-          <div className="kpi-grid" style={{ marginTop: 10 }}>
-            {byStore.map((s) => (
-              <div className={`kpi-card ${s.isDefault ? 'primary' : ''}`} key={s.storeId}>
-                <div className="kpi-ic"><IconBuilding size={20} /></div>
-                <div className="kpi-label">{s.storeName}{s.isDefault ? ' · principal' : ''}</div>
-                <div className="kpi-value" style={{ fontSize: 22 }}>{formatKz(s.grossTotal)}</div>
-                <div className="kpi-sub">{s.invoiceCount} venda(s) hoje</div>
+          {(() => {
+            const max = Math.max(1, ...byStore.map((s) => s.grossTotal));
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
+                {byStore.map((s) => (
+                  <div key={s.storeId}>
+                    <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                      <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <IconBuilding size={15} /> {s.storeName}{s.isDefault ? ' · principal' : ''}
+                      </span>
+                      <span style={{ fontWeight: 800 }}>{formatKz(s.grossTotal)} <span className="muted" style={{ fontWeight: 500 }}>· {s.invoiceCount} venda(s)</span></span>
+                    </div>
+                    <div style={{ height: 10, borderRadius: 999, background: 'var(--surface-2)', overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.max(2, (s.grossTotal / max) * 100)}%`, height: '100%', borderRadius: 999,
+                        background: s.isDefault ? 'var(--grad-primary)' : 'var(--primary)', transition: 'width .5s ease' }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       ) : null}
 

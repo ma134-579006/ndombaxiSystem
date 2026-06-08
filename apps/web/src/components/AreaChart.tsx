@@ -1,6 +1,6 @@
 import React, { useId, useMemo, useState } from 'react';
 
-export interface AreaPoint { label: string; value: number; sub?: number }
+export interface AreaPoint { label: string; value: number; sub?: number; sub2?: number }
 
 interface Props {
   points: AreaPoint[];
@@ -9,6 +9,11 @@ interface Props {
   color?: string;
   /** Cor da 2ª série opcional (linha fina, ex.: cancelamentos). */
   subColor?: string;
+  /** Cor da 3ª série opcional (ex.: gastos). */
+  sub2Color?: string;
+  /** Rótulos das séries para o tooltip. */
+  subLabel?: string;
+  sub2Label?: string;
   format?: (n: number) => string;
 }
 
@@ -17,7 +22,7 @@ interface Props {
  * linha suave, grelha subtil, rótulos de eixo e tooltip ao passar o rato.
  * Responsivo via viewBox (escala com o contentor).
  */
-export function AreaChart({ points, height = 220, color = 'var(--primary)', subColor, format = (n) => String(n) }: Props) {
+export function AreaChart({ points, height = 220, color = 'var(--primary)', subColor, sub2Color, subLabel = 'Anulado', sub2Label = 'Gastos', format = (n) => String(n) }: Props) {
   const uid = useId().replace(/:/g, '');
   const [hover, setHover] = useState<number | null>(null);
 
@@ -28,7 +33,7 @@ export function AreaChart({ points, height = 220, color = 'var(--primary)', subC
   const innerH = H - padT - padB;
 
   const max = useMemo(() => {
-    const vals = points.flatMap((p) => [p.value, p.sub ?? 0]);
+    const vals = points.flatMap((p) => [p.value, p.sub ?? 0, p.sub2 ?? 0]);
     return Math.max(1, ...vals);
   }, [points]);
 
@@ -44,6 +49,10 @@ export function AreaChart({ points, height = 220, color = 'var(--primary)', subC
   const subPath = useMemo(
     () => (subColor ? points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(p.sub ?? 0).toFixed(1)}`).join(' ') : ''),
     [points, subColor, max],
+  );
+  const sub2Path = useMemo(
+    () => (sub2Color ? points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(p.sub2 ?? 0).toFixed(1)}`).join(' ') : ''),
+    [points, sub2Color, max],
   );
 
   // Linhas de grelha (4 níveis).
@@ -75,6 +84,7 @@ export function AreaChart({ points, height = 220, color = 'var(--primary)', subC
         <path d={areaPath} fill={`url(#g-${uid})`} />
         <path d={linePath} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
         {subColor ? <path d={subPath} fill="none" stroke={subColor} strokeWidth="2" strokeDasharray="4 4" opacity="0.9" /> : null}
+        {sub2Color ? <path d={sub2Path} fill="none" stroke={sub2Color} strokeWidth="2" strokeDasharray="2 3" opacity="0.9" /> : null}
 
         {/* pontos + captura de hover por coluna */}
         {points.map((p, i) => (
@@ -101,7 +111,8 @@ export function AreaChart({ points, height = 220, color = 'var(--primary)', subC
         <div className="chart-tip">
           <strong>{points[hover].label}</strong>
           <span>{format(points[hover].value)}</span>
-          {subColor && points[hover].sub != null ? <span style={{ color: subColor }}>Anulado: {format(points[hover].sub ?? 0)}</span> : null}
+          {subColor && points[hover].sub != null ? <span style={{ color: subColor }}>{subLabel}: {format(points[hover].sub ?? 0)}</span> : null}
+          {sub2Color && points[hover].sub2 != null ? <span style={{ color: sub2Color }}>{sub2Label}: {format(points[hover].sub2 ?? 0)}</span> : null}
         </div>
       ) : null}
     </div>

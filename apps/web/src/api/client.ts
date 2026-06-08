@@ -402,7 +402,7 @@ export const api = {
     series: (range = '7d', storeId?: string) => request<DashSalesSeries>('GET', `/dashboard/sales/series${qs({ range, storeId })}`),
     topProducts: (limit = 8, storeId?: string) => request<DashTopProduct[]>('GET', `/dashboard/top-products${qs({ limit: String(limit), storeId })}`),
     lowStock: (storeId?: string) => request<DashLowStock[]>('GET', `/dashboard/low-stock${qs({ storeId })}`),
-    salesByStore: () => request<DashStoreSales[]>('GET', '/dashboard/sales/by-store'),
+    salesByStore: (days = 1) => request<DashStoreSales[]>('GET', `/dashboard/sales/by-store${qs({ days: String(days) })}`),
   },
   profit: {
     summary: (from?: string, to?: string, storeId?: string) =>

@@ -33,9 +33,10 @@ export class DashboardController {
   }
 
   @Get('sales/by-store')
-  @ApiOperation({ summary: 'Vendas de hoje por loja (multi-loja, tempo real)' })
-  salesByStore(@CurrentUser() user: JwtPayload) {
-    return this.dashboard.salesTodayByStore(this.ctx.requireTenantSchema(), effectiveStoreId(user, undefined));
+  @ApiOperation({ summary: 'Vendas por loja num período (multi-loja, tempo real)' })
+  @ApiQuery({ name: 'days', required: false, example: 1 })
+  salesByStore(@CurrentUser() user: JwtPayload, @Query('days', new DefaultValuePipe(1), ParseIntPipe) days: number) {
+    return this.dashboard.salesTodayByStore(this.ctx.requireTenantSchema(), effectiveStoreId(user, undefined), days);
   }
 
   @Get('sales/by-day')

@@ -46,6 +46,8 @@ export interface SalesSeriesPoint {
   invoiceCount: number;
   /** Valor (c/ IVA) anulado nesse balde (status 'A'). */
   cancelledTotal: number;
+  /** Gastos/despesas registados nesse balde (módulo Despesas). */
+  expenseTotal: number;
 }
 
 export interface SalesSeries {
@@ -129,12 +131,33 @@ export class DashboardService {
                    ORDER BY bucket`,
       );
 
+      // Gastos/despesas por balde (mesmo intervalo/granularidade). Só a nível de
+      // EMPRESA (não há gasto por loja); numa vista por loja não se mostram.
+      const expByBucket = new Map<string, number>();
+      if (!storeId) {
+        const hasExp = await tx.$queryRaw<{ reg: string | null }[]>(
+          Prisma.sql`SELECT to_regclass('expenses')::text AS reg`,
+        );
+        if (hasExp[0]?.reg) {
+          const exp = await tx.$queryRaw<{ bucket: Date; total: string }[]>(
+            Prisma.sql`SELECT date_trunc(${cfg.granularity}, expense_date) AS bucket,
+                              COALESCE(SUM(amount),0) AS total
+                       FROM expenses
+                       WHERE expense_date >= (${Prisma.raw(cfg.start)})::date
+                         AND expense_date < (${Prisma.raw(cfg.end)})::date + 1
+                       GROUP BY bucket`,
+          );
+          for (const e of exp) expByBucket.set(new Date(e.bucket).toISOString(), Number(e.total));
+        }
+      }
+
       const points: SalesSeriesPoint[] = rows.map((r) => ({
         bucket: r.bucket.toISOString(),
         grossTotal: Number(r.gross),
         ivaTotal: Number(r.iva),
         invoiceCount: r.count,
         cancelledTotal: Number(r.cancelled),
+        expenseTotal: expByBucket.get(r.bucket.toISOString()) ?? 0,
       }));
 
       // Totais do período derivam dos baldes (uma só passagem pela BD).
@@ -186,10 +209,13 @@ export class DashboardService {
    * Vendas de HOJE por LOJA (multi-loja): o gestor vê em tempo real o que se
    * passa em cada loja (principal e secundárias). Lojas sem vendas aparecem a 0.
    */
-  async salesTodayByStore(schema: string, storeId?: string): Promise<
+  async salesTodayByStore(schema: string, storeId?: string, days = 1): Promise<
     { storeId: string; storeName: string; isDefault: boolean; invoiceCount: number; grossTotal: number }[]
   > {
     const store = storeId ? Prisma.sql` AND s.id = ${storeId}::uuid` : Prisma.empty;
+    const d = Math.min(Math.max(Math.trunc(days), 1), 366);
+    // Janela: últimos `days` dias (1 = hoje).
+    const since = Prisma.sql`(CURRENT_DATE - ${d - 1}::int)`;
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<
         { store_id: string; store_name: string; is_default: boolean; count: number; gross: string }[]
@@ -198,7 +224,7 @@ export class DashboardService {
                           COUNT(i.id) FILTER (WHERE i.status = 'N')::int AS count,
                           COALESCE(SUM(i.gross_total) FILTER (WHERE i.status = 'N'), 0) AS gross
                    FROM stores s
-                   LEFT JOIN invoices i ON i.store_id = s.id AND i.invoice_date = CURRENT_DATE
+                   LEFT JOIN invoices i ON i.store_id = s.id AND i.invoice_date >= ${since}
                    WHERE s.is_active = TRUE${store}
                    GROUP BY s.id, s.name, s.is_default
                    ORDER BY s.is_default DESC, s.name`,
