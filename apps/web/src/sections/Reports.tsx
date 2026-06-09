@@ -6,6 +6,9 @@ import type {
 } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { IconChart } from '../components/Icons';
+import { AreaChart } from '../components/AreaChart';
+import { ColumnChart } from '../components/ColumnChart';
+import { DonutChart } from '../components/DonutChart';
 import { formatKz } from '../format';
 
 type Tab = 'product' | 'user' | 'store' | 'category' | 'brand' | 'evolution' | 'tax' | 'payments' | 'documents' | 'cashbox';
@@ -126,6 +129,28 @@ export function Reports() {
 
   const groups = ['Vendas', 'Contabilidade', 'Caixa'];
 
+  // Mini-dashboard por relatório (tempo real): o tipo de gráfico varia conforme
+  // os dados — COLUNAS (rankings), ROSCA (composição/quota) e ÁREA (evolução).
+  const reportChart: React.ReactNode = (() => {
+    if (tab === 'product' && byProduct.length)
+      return <ColumnChart data={byProduct.slice(0, 8).map((p) => ({ label: p.description, value: p.salesNet, hint: `${p.qty} un. · lucro ${formatKz(p.profit)}` }))} format={formatKz} />;
+    if (tab === 'user' && byUser.length)
+      return <ColumnChart data={byUser.slice(0, 8).map((r) => ({ label: r.name, value: r.gross, hint: `${r.sales} venda(s)` }))} color="var(--accent)" format={formatKz} />;
+    if (tab === 'store' && byStore.length)
+      return <ColumnChart data={byStore.map((r) => ({ label: r.name, value: r.gross, hint: `${r.sales} venda(s)` }))} format={formatKz} />;
+    if (tab === 'category' && byCategory.length)
+      return <DonutChart data={byCategory.slice(0, 9).map((r) => ({ label: r.name, value: r.gross }))} centerLabel="Total" format={formatKz} />;
+    if (tab === 'brand' && byBrand.length)
+      return <DonutChart data={byBrand.slice(0, 9).map((r) => ({ label: r.name, value: r.gross }))} centerLabel="Total" format={formatKz} />;
+    if (tab === 'evolution' && series.length)
+      return <AreaChart points={series.map((p) => ({ label: p.bucket, value: p.salesNet, sub: p.cost }))} subColor="var(--warning)" subLabel="Custo" format={formatKz} />;
+    if (tab === 'tax' && tax.length)
+      return <DonutChart data={tax.map((r) => ({ label: `IVA ${r.rate}%`, value: r.iva }))} centerLabel="IVA total" format={formatKz} />;
+    if (tab === 'payments' && payments.length)
+      return <DonutChart data={payments.map((r) => ({ label: PAY_LABEL[r.method] ?? r.method, value: r.total }))} centerLabel="Total" format={formatKz} />;
+    return null;
+  })();
+
   return (
     <div className="reports-page">
       <div className="content-head no-print">
@@ -182,6 +207,16 @@ export function Reports() {
         <div className="dph-title">{TABS.find((t) => t.key === tab)?.label}</div>
         <div className="dph-period">Período: {new Date(from).toLocaleDateString('pt-PT')} a {new Date(to).toLocaleDateString('pt-PT')}</div>
       </div>
+
+      {!loading && reportChart ? (
+        <div className="card no-print" style={{ marginBottom: 12 }}>
+          <h3 style={{ marginTop: 0 }}>
+            {TABS.find((t) => t.key === tab)?.label}
+            <span className="muted" style={{ fontWeight: 500, fontSize: 13 }}> · vista gráfica</span>
+          </h3>
+          {reportChart}
+        </div>
+      ) : null}
 
       <div className="card">
         {loading ? <div className="loading">A carregar…</div> : (

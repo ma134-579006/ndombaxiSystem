@@ -566,18 +566,20 @@ html.kbd-open .login-card .footer-credit { display: none; }
      cabeçalho + a barra de pesquisa + os totais/“Finalizar venda” ficam sempre à vista. */
   .pos { height: 100dvh; }
   .pos-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-  /* Painel de PRODUTOS: pesquisa fixa em cima, grelha rola por dentro. */
-  .catalog { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; padding: 10px; gap: 10px; }
+  /* Painel de PRODUTOS: pesquisa fixa em cima, grelha rola por dentro.
+     Produtos e carrinho partilham o ecrã em partes IGUAIS (50/50). */
+  .catalog { display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; padding: 10px; gap: 10px; }
   .search-bar { position: static; flex: none; }
   .grid {
     display: grid; flex: 1 1 auto; min-height: 0; align-content: start;
     overflow: auto; -webkit-overflow-scrolling: touch;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;
   }
-  /* Painel do CARRINHO: cabeçalho fixo, linhas rolam, totais/botão fixos no fundo. */
+  /* Painel do CARRINHO: mesma altura dos produtos; cabeçalho fixo, linhas rolam,
+     totais/botão fixos no fundo. */
   .cart {
-    flex: 0 0 auto; max-height: 46vh; min-height: 150px;
-    display: flex; flex-direction: column; min-height: 0;
+    flex: 1 1 0; min-height: 0;
+    display: flex; flex-direction: column;
     border-left: none; border-top: 6px solid var(--bg); background: var(--bg-2);
   }
   .cart h2 { flex: none; position: static; padding: 10px 14px; font-size: 16px; }
