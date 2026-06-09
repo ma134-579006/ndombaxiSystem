@@ -25,7 +25,10 @@ async function bootstrap(): Promise<void> {
   // Vercel / Netlify) — assim não é preciso reconfigurar a cada novo deploy.
   // Pedidos sem Origin (curl, apps mobile) são sempre permitidos.
   const allowList = config.get('CORS_ORIGINS', { infer: true }) as string[];
-  const allowHostSuffixes = ['.pages.dev', '.vercel.app', '.netlify.app'];
+  // Domínio(s) próprio(s) da plataforma: apex exacto + qualquer subdomínio
+  // (www., loja., caixa., …) — assim não é preciso reconfigurar a cada subdomínio.
+  const allowHosts = ['ndombaxisystem.com'];
+  const allowHostSuffixes = ['.pages.dev', '.vercel.app', '.netlify.app', '.ndombaxisystem.com'];
   app.enableCors({
     credentials: true,
     origin(origin, callback) {
@@ -33,7 +36,7 @@ async function bootstrap(): Promise<void> {
       if (allowList.includes(origin)) return callback(null, true);
       try {
         const host = new URL(origin).hostname;
-        if (allowHostSuffixes.some((suf) => host.endsWith(suf))) {
+        if (allowHosts.includes(host) || allowHostSuffixes.some((suf) => host.endsWith(suf))) {
           return callback(null, true);
         }
       } catch {
