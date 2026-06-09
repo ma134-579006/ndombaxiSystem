@@ -516,6 +516,30 @@ html.kbd-open .login-card .footer-credit { display: none; }
 [data-theme="claro"] .banner.success { background: #e8f6ef; border-color: #bfe6d0; color: #15803d; }
 [data-theme="claro"] ::-webkit-scrollbar-thumb { background: #cdd5e3; }
 
+/* Tema PROFISSIONAL — claro, neutro, enterprise. */
+[data-theme="profissional"] {
+  --bg: #f5f6f9; --bg-2: #eceef3; --surface: #ffffff; --surface-2: #f6f8fb; --border: #e2e6ee; --border-soft: #e6eaf2;
+  --primary: #4f46e5; --primary-700: #4338ca; --primary-soft: rgba(79,70,229,.12);
+  --grad-primary: linear-gradient(135deg, #6366f1, #4338ca);
+  --text: #0f172a; --muted: #5b667a; --glass: rgba(255,255,255,.82);
+  --shadow: 0 14px 32px -16px rgba(15,23,42,.20);
+  --app-bg: radial-gradient(1100px 540px at 12% -8%, rgba(79,70,229,.07), transparent 60%), linear-gradient(160deg, #f7f8fc, #f1f3f8);
+}
+[data-theme="profissional"] .banner.danger { background: #fdeced; border-color: #f6c6c9; color: #b42318; }
+[data-theme="profissional"] .banner.success { background: #e8f6ef; border-color: #bfe6d0; color: #15803d; }
+[data-theme="profissional"] ::-webkit-scrollbar-thumb { background: #cdd5e3; }
+
+/* Tema APPLE DARK — preto profundo, alto contraste, acento azul Apple. */
+[data-theme="apple"] {
+  --bg: #000000; --bg-2: #0a0a0c; --surface: #1c1c1e; --surface-2: #2c2c2e; --border: #3a3a3c; --border-soft: rgba(255,255,255,.08);
+  --primary: #0a84ff; --primary-700: #0060df; --primary-soft: rgba(10,132,255,.22); --accent: #64d2ff;
+  --grad-primary: linear-gradient(135deg, #0a84ff, #0060df);
+  --text: #f5f5f7; --muted: #a1a1a6; --glass: rgba(28,28,30,.66);
+  --shadow: 0 18px 44px -20px rgba(0,0,0,.72);
+  --app-bg: radial-gradient(1100px 560px at 100% -10%, rgba(10,132,255,.12), transparent 55%), radial-gradient(900px 520px at -6% 0%, rgba(94,92,230,.10), transparent 52%), #000;
+}
+[data-theme="apple"] ::-webkit-scrollbar-thumb { background: #3a3a3c; }
+
 .theme-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; width: 200px; max-height: 70vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 13px; box-shadow: var(--shadow); padding: 6px; }
 .theme-menu-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); padding: 7px 9px 4px; }
 .theme-opt { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px; border-radius: 10px; color: var(--text); font-size: 14px; font-weight: 600; text-align: left; background: transparent; border: none; cursor: pointer; transition: background .12s; }
@@ -536,20 +560,31 @@ html.kbd-open .login-card .footer-credit { display: none; }
    visíveis); o carrinho fica em baixo, limitado em altura e com scroll próprio;
    o cabeçalho fica compacto (no máximo 2 linhas) SEM esconder a identidade. */
 @media (max-width: 820px) {
-  /* TELEMÓVEL/TABLET (retrato): UMA coluna que ROLA — primeiro todos os produtos,
-     depois o carrinho com TODAS as linhas (com +/−); o Total + botão Pagar ficam
-     FIXOS no fundo (sticky). Tudo aparece, nada corta, adapta-se a qualquer ecrã. */
-  .pos-body { display: block; grid-template-columns: none; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-  .catalog { display: block; padding: 10px; }
-  .search-bar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-bottom: 8px; }
-  .grid { display: grid; overflow: visible; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-  .cart { border-left: none; border-top: 6px solid var(--bg); background: var(--bg-2); }
-  .cart h2 { padding: 10px 14px; font-size: 16px; position: sticky; top: 0; background: var(--bg-2); z-index: 4; }
-  .cart-lines { overflow: visible; max-height: none; padding: 10px 12px; gap: 8px; }
+  /* TELEMÓVEL/TABLET: ecrã FIXO (não rola a página). Painel de produtos e painel
+     do carrinho ficam fixos; o scroll acontece SÓ dentro do conteúdo de cada um:
+     a lista de produtos rola por si, as linhas do carrinho rolam por si, e o
+     cabeçalho + a barra de pesquisa + os totais/“Finalizar venda” ficam sempre à vista. */
+  .pos { height: 100dvh; }
+  .pos-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  /* Painel de PRODUTOS: pesquisa fixa em cima, grelha rola por dentro. */
+  .catalog { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; padding: 10px; gap: 10px; }
+  .search-bar { position: static; flex: none; }
+  .grid {
+    display: grid; flex: 1 1 auto; min-height: 0; align-content: start;
+    overflow: auto; -webkit-overflow-scrolling: touch;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;
+  }
+  /* Painel do CARRINHO: cabeçalho fixo, linhas rolam, totais/botão fixos no fundo. */
+  .cart {
+    flex: 0 0 auto; max-height: 46vh; min-height: 150px;
+    display: flex; flex-direction: column; min-height: 0;
+    border-left: none; border-top: 6px solid var(--bg); background: var(--bg-2);
+  }
+  .cart h2 { flex: none; position: static; padding: 10px 14px; font-size: 16px; }
+  .cart-lines { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px; gap: 8px; }
   .stepper button { width: 34px; height: 34px; font-size: 17px; }
-  /* Total + Pagar SEMPRE visíveis no fundo do ecrã enquanto se rola. */
   .cart-foot {
-    position: sticky; bottom: 0; z-index: 6; padding: 10px 14px; gap: 8px;
+    flex: none; padding: 10px 14px; gap: 8px;
     background: var(--bg-2); border-top: 1px solid var(--border); box-shadow: 0 -10px 24px rgba(0,0,0,.28);
   }
   .totals .t-row { font-size: 13px; padding: 1px 0; }
@@ -575,6 +610,8 @@ html.kbd-open .login-card .footer-credit { display: none; }
   .icon-btn { width: 40px; height: 40px; }
   .conn { padding: 0 9px; height: 40px; }
   .totals .t-row.grand { font-size: 19px; }
+  /* Avatar do operador encostado à direita, com folga dos restantes botões. */
+  .topbar .op-menu { margin-left: auto; }
 }
 /* Ecrãs MUITO pequenos: encolhe os botões para uma só linha e mantém o catálogo
    utilizável. Adapta-se até aos telemóveis mais pequenos. */

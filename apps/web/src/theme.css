@@ -540,24 +540,43 @@ html.kbd-open .login .box > p { display: none; }
 @media (max-width: 640px) { .catbar { grid-template-columns: 84px 1fr; } .catbar-val { grid-column: 2; text-align: right; } }
 .print-only { display: none; }
 
-/* Impressão: só os dados, fundo branco, esconder navegação */
+/* Impressão A4 — RELATÓRIO PROFISSIONAL (estilo Primavera): folha branca,
+   sem "cara de app" (nada de cartões/sombras/cores), tabelas com grelha completa
+   e cabeçalho sombreado que se repete em cada página. */
 @media print {
+  @page { size: A4; margin: 14mm 12mm; }
   body { background: #fff !important; }
-  .no-print, .sidebar, .topbar { display: none !important; }
+  .no-print, .sidebar, .topbar, .theme-menu, .content-head, .seg, .tabbar, .page-anim { display: none !important; }
   .print-only { display: block; }
-  .print-header { margin-bottom: 16px; color: #000; }
-  body, .admin, .main, .content { background: #fff !important; color: #000 !important; }
-  .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
-  .kpi-card { border: 1px solid #ccc; }
-  .kpi-value, .kpi-label, .kpi-sub, .ptable td, .ptable th, h2, h3 { color: #000 !important; }
-  /* Cabeçalho/rodapé AGT dos relatórios impressos (logo+nome+NIF / morada+contacto+dizeres) */
-  .doc-print-head { text-align: center; margin-bottom: 14px; color: #000; border-bottom: 2px solid #000; padding-bottom: 10px; }
+  body, .admin, .main, .content { background: #fff !important; color: #000 !important; font-family: Arial, Helvetica, sans-serif; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Cartões deixam de ser cartões: só o conteúdo, direto na folha. */
+  .card { box-shadow: none !important; border: none !important; background: #fff !important; padding: 0 !important; margin: 0 0 10px !important; border-radius: 0 !important; break-inside: auto; }
+  .card > h3 { font-size: 13px; font-weight: 700; margin: 12px 0 6px; color: #000 !important; }
+  /* KPIs: faixa compacta com grelha (resumo no topo do relatório). */
+  .kpi-grid { display: flex !important; flex-wrap: wrap; gap: 0; border: 1px solid #333; margin-bottom: 10px; }
+  .kpi-card { border: none !important; border-right: 1px solid #bbb; border-radius: 0 !important; padding: 6px 12px !important; flex: 1 1 auto; box-shadow: none !important; background: #fff !important; }
+  .kpi-card:last-child { border-right: none; }
+  .kpi-value, .kpi-label, .kpi-sub, h2, h3 { color: #000 !important; }
+  .kpi-value { font-size: 15px !important; }
+  /* Tabelas tipo relatório: grelha completa, cabeçalho cinza, repete por página. */
+  .ptable { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 0 !important; }
+  .ptable thead { display: table-header-group; }
+  .ptable tr { break-inside: avoid; }
+  .ptable th { background: #e9e9e9 !important; color: #000 !important; border: 1px solid #333; padding: 5px 7px; text-align: left; font-weight: 700; text-transform: none; letter-spacing: 0; }
+  .ptable td { border: 1px solid #9a9a9a; padding: 4px 7px; color: #000 !important; }
+  .ptable tbody tr:nth-child(even) td { background: #f6f6f6 !important; }
+  .ptable tfoot td, .ptable tfoot th { border: 1px solid #333; font-weight: 800; background: #eaeaea !important; }
+  .pill, .badge { border: 1px solid #999 !important; color: #000 !important; background: #fff !important; }
+  /* Cabeçalho do documento: logo + empresa + NIF + título + período. */
+  .doc-print-head { text-align: center; margin-bottom: 12px; color: #000; border-bottom: 2px solid #000; padding-bottom: 10px; }
   .doc-print-head .dph-logo { max-height: 18mm; width: auto; display: block; margin: 0 auto 6px; }
   .doc-print-head .dph-co { font-size: 18px; font-weight: 800; }
   .doc-print-head .dph-nif { font-size: 12px; }
-  .doc-print-head .dph-title { font-size: 15px; font-weight: 700; margin-top: 8px; }
-  .doc-print-head .dph-period { font-size: 12px; color: #333; }
-  .doc-print-foot { margin-top: 16px; padding-top: 10px; border-top: 1px solid #999; text-align: center; font-size: 11px; color: #333; line-height: 1.5; }
+  .doc-print-head .dph-title { font-size: 14px; font-weight: 700; margin-top: 8px; text-transform: uppercase; letter-spacing: .04em; }
+  .doc-print-head .dph-period { font-size: 11px; color: #333; margin-top: 2px; }
+  /* Rodapé: morada + contactos + dizeres da empresa, em cada página. */
+  .doc-print-foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #999; text-align: center; font-size: 10.5px; color: #333; line-height: 1.5; }
 }
 
 /* ============================================================
@@ -642,6 +661,44 @@ html.kbd-open .login .box > p { display: none; }
 [data-theme="claro"] .pill.off { color: #b42318; border-color: #f6c6c9; }
 [data-theme="claro"] .ptable tbody tr:hover { background: rgba(20,30,60,.03); }
 [data-theme="claro"] ::-webkit-scrollbar-thumb { background: #cdd5e3; }
+
+/* Tema PROFISSIONAL — claro, neutro, enterprise (slate + índigo). */
+[data-theme="profissional"] {
+  --bg: #f5f6f9; --bg-2: #eceef3; --surface: #ffffff; --surface-2: #f6f8fb; --border: #e2e6ee;
+  --border-soft: rgba(15,23,42,.07);
+  --primary: #4f46e5; --primary-700: #4338ca; --primary-soft: rgba(79,70,229,.12); --accent: #0891b2; --accent-2: #4f46e5;
+  --text: #0f172a; --muted: #5b667a;
+  --grad-primary: linear-gradient(135deg, #6366f1, #4338ca);
+  --grad-accent: linear-gradient(120deg, #4f46e5, #0891b2);
+  --shadow: 0 20px 44px -22px rgba(15,23,42,.20); --shadow-sm: 0 6px 16px -8px rgba(15,23,42,.12);
+  --glass: rgba(255,255,255,.80);
+  --app-bg: radial-gradient(1100px 600px at 100% -8%, rgba(79,70,229,.06), transparent 55%), radial-gradient(900px 520px at -6% 0%, rgba(8,145,178,.05), transparent 52%), var(--bg);
+}
+/* Profissional partilha os ajustes de contraste do tema claro. */
+[data-theme="profissional"] .banner { background: var(--surface-2); border-color: var(--border); }
+[data-theme="profissional"] .banner.danger { background: #fdeced; border-color: #f6c6c9; color: #b42318; }
+[data-theme="profissional"] .banner.success { background: #e8f6ef; border-color: #bfe6d0; color: #15803d; }
+[data-theme="profissional"] .banner.info { background: #eef0fe; border-color: #cdd2fb; color: #4338ca; }
+[data-theme="profissional"] .banner.warning { background: #fef6e7; border-color: #f5d98b; color: #92520a; }
+[data-theme="profissional"] .pill.on { color: #15803d; border-color: #bfe6d0; }
+[data-theme="profissional"] .pill.off { color: #b42318; border-color: #f6c6c9; }
+[data-theme="profissional"] .ptable tbody tr:hover { background: rgba(15,23,42,.03); }
+[data-theme="profissional"] ::-webkit-scrollbar-thumb { background: #cdd5e3; }
+
+/* Tema APPLE DARK — preto profundo, alto contraste, acento azul Apple. */
+[data-theme="apple"] {
+  --bg: #000000; --bg-2: #0a0a0c; --surface: #1c1c1e; --surface-2: #2c2c2e; --border: #3a3a3c;
+  --border-soft: rgba(255,255,255,.08);
+  --primary: #0a84ff; --primary-700: #0060df; --primary-soft: rgba(10,132,255,.22); --accent: #64d2ff; --accent-2: #5e5ce6; --violet: #bf5af2;
+  --text: #f5f5f7; --muted: #a1a1a6;
+  --grad-primary: linear-gradient(135deg, #0a84ff, #0060df);
+  --grad-accent: linear-gradient(120deg, #64d2ff, #0a84ff 60%, #5e5ce6);
+  --glass: rgba(28,28,30,.66);
+  --shadow: 0 22px 54px -22px rgba(0,0,0,.72); --shadow-sm: 0 8px 22px -10px rgba(0,0,0,.6);
+  --app-bg: radial-gradient(1200px 640px at 100% -10%, rgba(10,132,255,.12), transparent 55%), radial-gradient(900px 520px at -6% 0%, rgba(94,92,230,.10), transparent 52%), var(--bg);
+}
+[data-theme="apple"] .card { border-color: #2c2c2e; box-shadow: 0 1px 0 0 rgba(255,255,255,.03) inset, 0 18px 44px -24px rgba(0,0,0,.7); }
+[data-theme="apple"] ::-webkit-scrollbar-thumb { background: #3a3a3c; }
 
 /* ── Seletor de tema (menu no topo) ─────────────────────────── */
 .theme-menu {

@@ -9,11 +9,15 @@ export const THEMES: ThemeDef[] = [
   { id: 'esmeralda', label: 'Esmeralda', swatch: '#34d399' },
   { id: 'indigo', label: 'Índigo', swatch: '#818cf8' },
   { id: 'neon', label: 'Néon', swatch: 'linear-gradient(120deg, #22d3ee, #a855f7 55%, #ec4899)' },
+  { id: 'apple', label: 'Apple Dark', swatch: 'linear-gradient(135deg, #0a84ff, #5e5ce6)' },
   { id: 'claro', label: 'Claro', swatch: '#2563eb', light: true },
+  { id: 'profissional', label: 'Profissional', swatch: 'linear-gradient(135deg, #6366f1, #0891b2)', light: true },
 ];
 
 const LS_KEY = 'ndombaxi.theme';
-export function getTheme(): string { try { return localStorage.getItem(LS_KEY) ?? ''; } catch { return ''; } }
+/** Padrão (até escolher): CLARO — alinhado com o painel. */
+export const DEFAULT_THEME = 'claro';
+export function getTheme(): string { try { const v = localStorage.getItem(LS_KEY); return v === null ? DEFAULT_THEME : v; } catch { return DEFAULT_THEME; } }
 export function applyTheme(id: string): void {
   const el = document.documentElement;
   if (id) el.setAttribute('data-theme', id); else el.removeAttribute('data-theme');

@@ -20,7 +20,9 @@ export const THEMES: ThemeDef[] = [
   { id: 'esmeralda', label: 'Esmeralda', swatch: '#34d399' },
   { id: 'indigo', label: 'Índigo', swatch: '#818cf8' },
   { id: 'neon', label: 'Néon', swatch: 'linear-gradient(120deg, #22d3ee, #a855f7 55%, #ec4899)' },
+  { id: 'apple', label: 'Apple Dark', swatch: 'linear-gradient(135deg, #0a84ff, #5e5ce6)' },
   { id: 'claro', label: 'Claro', swatch: '#2563eb', light: true },
+  { id: 'profissional', label: 'Profissional', swatch: 'linear-gradient(135deg, #6366f1, #0891b2)', light: true },
 ];
 
 const LS_KEY = 'ndombaxi.theme';
