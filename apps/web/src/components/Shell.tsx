@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
 import { IconLogout } from './Icons';
 import { ThemePicker } from './ThemePicker';
+import { PrintBrandHead, PrintBrandFoot } from './PrintBrand';
 
 /** Hambúrguer (só visível no telemóvel via CSS). */
 function IconMenu({ size = 22 }: { size?: number }) {
@@ -224,7 +225,11 @@ export function Shell({
             onLogout={logout}
           />
         </header>
-        <div className="content"><div className="page-anim" key={section}>{children}</div></div>
+        <div className="content"><div className="page-anim" key={section}>
+          <PrintBrandHead title={current?.label} />
+          {children}
+          <PrintBrandFoot />
+        </div></div>
       </div>
     </div>
   );

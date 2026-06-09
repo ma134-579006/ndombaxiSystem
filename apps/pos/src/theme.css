@@ -566,8 +566,9 @@ html.kbd-open .login-card .footer-credit { display: none; }
      cabeçalho + a barra de pesquisa + os totais/“Finalizar venda” ficam sempre à vista. */
   .pos { height: 100dvh; }
   .pos-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-  /* Painel de PRODUTOS: pesquisa fixa em cima, grelha rola por dentro.
-     Produtos e carrinho partilham o ecrã em partes IGUAIS (50/50). */
+  /* Ecrã dividido em TRÊS partes IGUAIS e fixas (1/3 cada), cada uma com o seu
+     próprio scroll: ① produtos · ② carrinho (linhas) · ③ consumidor final +
+     totais + finalizar. Nada quebra; adapta-se a qualquer altura de ecrã. */
   .catalog { display: flex; flex-direction: column; min-height: 0; flex: 1 1 0; padding: 10px; gap: 10px; }
   .search-bar { position: static; flex: none; }
   .grid {
@@ -575,18 +576,18 @@ html.kbd-open .login-card .footer-credit { display: none; }
     overflow: auto; -webkit-overflow-scrolling: touch;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;
   }
-  /* Painel do CARRINHO: mesma altura dos produtos; cabeçalho fixo, linhas rolam,
-     totais/botão fixos no fundo. */
+  /* ② + ③ — o painel .cart ocupa 2/3 e divide-se ao meio por dentro. */
   .cart {
-    flex: 1 1 0; min-height: 0;
+    flex: 2 1 0; min-height: 0;
     display: flex; flex-direction: column;
     border-left: none; border-top: 6px solid var(--bg); background: var(--bg-2);
   }
-  .cart h2 { flex: none; position: static; padding: 10px 14px; font-size: 16px; }
-  .cart-lines { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px; gap: 8px; }
+  .cart h2 { flex: none; position: static; padding: 8px 14px; font-size: 15px; }
+  .cart-lines { flex: 1 1 0; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px; gap: 8px; }
   .stepper button { width: 34px; height: 34px; font-size: 17px; }
   .cart-foot {
-    flex: none; padding: 10px 14px; gap: 8px;
+    flex: 1 1 0; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch;
+    padding: 10px 14px; gap: 8px;
     background: var(--bg-2); border-top: 1px solid var(--border); box-shadow: 0 -10px 24px rgba(0,0,0,.28);
   }
   .totals .t-row { font-size: 13px; padding: 1px 0; }

@@ -202,7 +202,11 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           {cfg?.contactEmail && <a href={`mailto:${cfg.contactEmail}`}>{cfg.contactEmail}</a>}
           {cfg?.contactPhone && <a href={`tel:${cfg.contactPhone}`}>{cfg.contactPhone}</a>}
         </div>
-        <div>{cfg?.footerText ?? '© Ndombaxi System — Desenvolvido por Manuel Mbala Tomás Ndombaxi'}</div>
+        <div className="lp-credits">
+          <span className="lp-credits-rights">© {new Date().getFullYear()} — Direitos reservados a <strong>Manuel Mbala Ndombaxi</strong></span>
+          <span className="lp-credits-sep" aria-hidden="true" />
+          <span className="lp-credits-sponsor">Patrocinado pela <strong>Loja das Mulheres</strong></span>
+        </div>
       </footer>
 
       {loading && null}

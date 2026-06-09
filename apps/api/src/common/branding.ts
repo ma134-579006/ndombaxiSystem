@@ -14,7 +14,7 @@ export const AUTHOR = 'Manuel Mbala Tomás Ndombaxi';
 
 /** Linha de direitos de autor com o ano corrente. */
 export function copyrightLine(year: number = new Date().getFullYear()): string {
-  return `© ${year} ${SYSTEM_NAME} — Todos os direitos reservados. Desenvolvido por ${AUTHOR}.`;
+  return `© ${year} ${SYSTEM_NAME} — Todos os direitos reservados.`;
 }
 
 /** Bloco de identidade reutilizável (ex.: respostas de API, arranque). */

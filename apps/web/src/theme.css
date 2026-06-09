@@ -559,7 +559,10 @@ html.kbd-open .login .box > p { display: none; }
 @media print {
   @page { size: A4; margin: 14mm 12mm; }
   body { background: #fff !important; }
-  .no-print, .sidebar, .topbar, .theme-menu, .content-head, .seg, .tabbar, .page-anim { display: none !important; }
+  .no-print, .sidebar, .topbar, .theme-menu, .content-head, .seg, .tabbar { display: none !important; }
+  .page-anim { animation: none !important; height: auto !important; }
+  .content { overflow: visible !important; height: auto !important; padding: 0 !important; }
+  .admin, .main { display: block !important; height: auto !important; overflow: visible !important; }
   .print-only { display: block; }
   body, .admin, .main, .content { background: #fff !important; color: #000 !important; font-family: Arial, Helvetica, sans-serif; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -588,6 +591,10 @@ html.kbd-open .login .box > p { display: none; }
   .doc-print-head .dph-nif { font-size: 12px; }
   .doc-print-head .dph-title { font-size: 14px; font-weight: 700; margin-top: 8px; text-transform: uppercase; letter-spacing: .04em; }
   .doc-print-head .dph-period { font-size: 11px; color: #333; margin-top: 2px; }
+  /* Linha de subtítulo (título da vista + período) sob o cabeçalho. */
+  .doc-print-sub { text-align: center; margin: -4px 0 10px; font-size: 12px; color: #000; }
+  .doc-print-sub .dph-title { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .doc-print-sub .dph-period { color: #333; }
   /* Rodapé: morada + contactos + dizeres da empresa, em cada página. */
   .doc-print-foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #999; text-align: center; font-size: 10.5px; color: #333; line-height: 1.5; }
 }

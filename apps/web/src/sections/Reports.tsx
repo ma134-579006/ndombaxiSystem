@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type {
-  DocumentIdentity, ManagerStore, ProfitPoint, ProfitProduct, ReportCashSession, ReportCategoryRow,
+  ManagerStore, ProfitPoint, ProfitProduct, ReportCashSession, ReportCategoryRow,
   ReportDocRow, ReportPaymentRow, ReportTaxRow, ReportUserRow,
 } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
@@ -42,7 +42,6 @@ export function Reports() {
   const [stores, setStores] = useState<ManagerStore[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [brand, setBrand] = useState<DocumentIdentity | null>(null);
 
   // Tabs que suportam filtro por loja (multi-loja).
   const STORE_FILTERABLE: Tab[] = ['user', 'category', 'brand', 'tax', 'documents'];
@@ -61,7 +60,6 @@ export function Reports() {
   const { user } = useAuth();
   // Só o ADMIN DA EMPRESA (gestor principal) vê todas as lojas e o seletor.
   const isAdmin = user?.role === 'COMPANY_ADMIN';
-  useEffect(() => { api.branding().then(setBrand).catch(() => undefined); }, []);
   useEffect(() => { if (isAdmin) api.staff.listStores().then(setStores).catch(() => undefined); }, [isAdmin]);
   const sid = storeId || undefined;
 
@@ -199,13 +197,10 @@ export function Reports() {
 
       {error ? <div className="banner danger no-print">{error}</div> : null}
 
-      {/* Cabeçalho AGT (só na impressão): logo + nome + NIF da empresa */}
-      <div className="print-only doc-print-head">
-        {brand?.logoUrl ? <img src={brand.logoUrl} alt="" className="dph-logo" /> : null}
-        <div className="dph-co">{brand?.companyName || brand?.brandName || ''}</div>
-        {brand?.nif ? <div className="dph-nif">NIF: {brand.nif}</div> : null}
-        <div className="dph-title">{TABS.find((t) => t.key === tab)?.label}</div>
-        <div className="dph-period">Período: {new Date(from).toLocaleDateString('pt-PT')} a {new Date(to).toLocaleDateString('pt-PT')}</div>
+      {/* Título + período (só na impressão — o cabeçalho da empresa vem do Shell) */}
+      <div className="print-only doc-print-sub">
+        <span className="dph-title">{TABS.find((t) => t.key === tab)?.label}</span>
+        <span className="dph-period"> · Período: {new Date(from).toLocaleDateString('pt-PT')} a {new Date(to).toLocaleDateString('pt-PT')}</span>
       </div>
 
       {!loading && reportChart ? (
@@ -267,12 +262,7 @@ export function Reports() {
         )}
       </div>
 
-      {/* Rodapé AGT (só na impressão): morada, contacto e dizeres da empresa */}
-      <div className="print-only doc-print-foot">
-        {brand?.address ? <div>{brand.address}</div> : null}
-        {(brand?.phone || brand?.email) ? <div>{[brand?.phone, brand?.email].filter(Boolean).join(' · ')}</div> : null}
-        {brand?.receiptMessage ? <div>{brand.receiptMessage}</div> : null}
-      </div>
+      {/* Rodapé da empresa na impressão: vem do Shell (PrintBrandFoot). */}
     </div>
   );
 }

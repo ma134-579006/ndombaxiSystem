@@ -165,6 +165,25 @@
 .lp-footer { background: #0b1221; color: #aebcd2; padding: 40px 28px; text-align: center; font-size: 14px; }
 .lp-footer .contacts { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 14px; }
 .lp-footer a { color: #cfe0ff; text-decoration: none; }
+/* Créditos: cartão pill elegante com gradiente subtil e separador. */
+.lp-credits {
+  display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center;
+  margin-top: 6px; padding: 12px 22px; border-radius: 999px;
+  background: linear-gradient(120deg, rgba(59,130,246,.12), rgba(124,58,237,.10));
+  border: 1px solid rgba(125,160,255,.22);
+  box-shadow: 0 10px 30px -18px rgba(59,130,246,.45);
+  font-size: 13px; letter-spacing: .01em;
+}
+.lp-credits strong {
+  background: linear-gradient(120deg, #7db0ff, #b794f6);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  font-weight: 800;
+}
+.lp-credits-sep { width: 5px; height: 5px; border-radius: 999px; background: #5d7bb0; opacity: .7; flex: none; }
+@media (max-width: 560px) {
+  .lp-credits { flex-direction: column; gap: 6px; border-radius: 18px; }
+  .lp-credits-sep { display: none; }
+}
 
 /* ── Modais (registo / login chamam o painel existente) ─── */
 .lp-modal-bg { position: fixed; inset: 0; background: rgba(4, 8, 16, 0.7); display: grid; place-items: center; z-index: 100; padding: 20px; overflow:auto; }
