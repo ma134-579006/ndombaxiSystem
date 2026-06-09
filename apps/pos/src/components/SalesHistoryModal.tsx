@@ -91,13 +91,13 @@ export function SalesHistoryModal({ onClose, onChanged }: { onClose(): void; onC
                   const cancelled = r.status === 'A';
                   return (
                     <tr key={r.id} className={cancelled ? 'cancelled' : ''}>
-                      <td>{!cancelled ? <input type="checkbox" checked={!!sel[r.id]} onChange={(e) => setSel((s) => ({ ...s, [r.id]: e.target.checked }))} /> : null}</td>
-                      <td>{r.number}</td>
-                      <td>{fmtDateTime(r.system_entry_date)}</td>
-                      <td style={{ maxWidth: 280 }}>{r.items || '—'}</td>
-                      <td>{r.cashier_name || '—'}</td>
-                      <td style={{ fontWeight: 700 }}>{formatKz(Number(r.gross_total))}</td>
-                      <td>{cancelled ? <span className="pill off">Anulada</span> : <span className="pill on">Válida</span>}</td>
+                      <td className="sel-cell">{!cancelled ? <input type="checkbox" checked={!!sel[r.id]} onChange={(e) => setSel((s) => ({ ...s, [r.id]: e.target.checked }))} /> : null}</td>
+                      <td data-label="Documento">{r.number}</td>
+                      <td data-label="Data">{fmtDateTime(r.system_entry_date)}</td>
+                      <td data-label="Produtos" style={{ maxWidth: 280 }}>{r.items || '—'}</td>
+                      <td data-label="Operador">{r.cashier_name || '—'}</td>
+                      <td data-label="Total" style={{ fontWeight: 700 }}>{formatKz(Number(r.gross_total))}</td>
+                      <td data-label="Estado">{cancelled ? <span className="pill off">Anulada</span> : <span className="pill on">Válida</span>}</td>
                     </tr>
                   );
                 })}

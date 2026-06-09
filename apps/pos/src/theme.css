@@ -319,6 +319,16 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .sales-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .sales-table th, .sales-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 .sales-table tr.cancelled { opacity: .55; text-decoration: line-through; }
+/* Telemóvel: cada venda vira um cartão (rótulos à esquerda), em vez de tabela larga. */
+@media (max-width: 640px) {
+  .sales-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .sales-table tbody tr { display: block; border: 1px solid var(--border); border-radius: 12px; padding: 6px 12px; margin-bottom: 10px; background: var(--surface); position: relative; }
+  .sales-table tbody td { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 7px 0; border: none; text-align: right; }
+  .sales-table tbody td + td { border-top: 1px solid var(--border); }
+  .sales-table tbody td::before { content: attr(data-label); color: var(--muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; text-align: left; }
+  .sales-table tbody td.sel-cell { position: absolute; top: 8px; right: 10px; padding: 0; border: none; }
+  .sales-table tbody td.sel-cell::before { content: none; }
+}
 .pill { font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); }
 .pill.on { color: var(--success); } .pill.off { color: var(--danger); }
 
