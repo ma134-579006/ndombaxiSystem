@@ -91,17 +91,17 @@ export function Commissions() {
         <h3>Por vendedor</h3>
         {loading ? <div className="loading">A carregar…</div>
           : (rep?.rows.length ?? 0) === 0 ? <p className="muted">Sem vendas com vendedor no período.</p> : (
-            <table className="ptable">
+            <table className="ptable stack">
               <thead>
                 <tr><th>Vendedor</th><th>Vendas</th><th>Nº</th><th>% comissão</th><th>Comissão</th></tr>
               </thead>
               <tbody>
                 {rep!.rows.map((r) => (
                   <tr key={r.userId}>
-                    <td>{r.name}</td>
-                    <td>{formatKz(r.sales)}</td>
-                    <td>{r.salesCount}</td>
-                    <td className="no-print" style={{ width: 110 }}>
+                    <td data-label="Vendedor">{r.name}</td>
+                    <td data-label="Vendas">{formatKz(r.sales)}</td>
+                    <td data-label="Nº">{r.salesCount}</td>
+                    <td data-label="% comissão" className="no-print" style={{ width: 110 }}>
                       <input
                         style={{ width: 70, textAlign: 'right' }}
                         value={rates[r.userId] ?? String(r.rate)}
@@ -112,8 +112,8 @@ export function Commissions() {
                         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                       /> %
                     </td>
-                    <td className="print-only">{r.rate}%</td>
-                    <td style={{ fontWeight: 700, color: 'var(--success)' }}>{formatKz(r.commission)}</td>
+                    <td data-label="% comissão" className="print-only">{r.rate}%</td>
+                    <td data-label="Comissão" style={{ fontWeight: 700, color: 'var(--success)' }}>{formatKz(r.commission)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -94,7 +94,7 @@ export function Payables() {
         {loading ? <div className="loading">A carregar…</div>
           : rows.length === 0 ? <div className="empty"><IconTruck size={40} /><p>Sem contas a pagar neste filtro.</p></div>
           : (
-            <table className="ptable">
+            <table className="ptable stack">
               <thead>
                 <tr><th>Fornecedor</th><th>Referência</th><th>Original</th><th>Pago</th><th>Saldo</th><th>Vencimento</th><th>Estado</th><th className="no-print" /></tr>
               </thead>
@@ -103,14 +103,14 @@ export function Payables() {
                   const st = statusInfo(p);
                   return (
                     <tr key={p.id}>
-                      <td>{p.supplier_name || '—'}</td>
-                      <td>{p.reference || '—'}</td>
-                      <td>{formatKz(Number(p.original_amount))}</td>
-                      <td>{formatKz(Number(p.paid_amount))}</td>
-                      <td style={{ fontWeight: 700 }}>{formatKz(Number(p.outstanding))}</td>
-                      <td>{p.due_date ? new Date(p.due_date).toLocaleDateString('pt-PT') : '—'}</td>
-                      <td><span className={`pill ${st.cls}`}>{st.label}</span></td>
-                      <td className="no-print">
+                      <td data-label="Fornecedor">{p.supplier_name || '—'}</td>
+                      <td data-label="Referência">{p.reference || '—'}</td>
+                      <td data-label="Original">{formatKz(Number(p.original_amount))}</td>
+                      <td data-label="Pago">{formatKz(Number(p.paid_amount))}</td>
+                      <td data-label="Saldo" style={{ fontWeight: 700 }}>{formatKz(Number(p.outstanding))}</td>
+                      <td data-label="Vencimento">{p.due_date ? new Date(p.due_date).toLocaleDateString('pt-PT') : '—'}</td>
+                      <td data-label="Estado"><span className={`pill ${st.cls}`}>{st.label}</span></td>
+                      <td className="actions no-print">
                         {p.status !== 'PAID' && p.status !== 'CANCELLED' ? (
                           <button className="btn sm" onClick={() => setPaying(p)}>Pagar</button>
                         ) : null}

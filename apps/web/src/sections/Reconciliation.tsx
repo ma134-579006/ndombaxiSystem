@@ -168,22 +168,22 @@ export function Reconciliation() {
         {loading ? <div className="loading">A carregar…</div>
           : rows.length === 0 ? <div className="empty"><IconCard size={40} /><p>Sem movimentos. Carregue um extrato CSV.</p></div>
           : (
-            <table className="ptable">
+            <table className="ptable stack">
               <thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Estado</th><th className="no-print" /></tr></thead>
               <tbody>
                 {rows.map((t) => {
                   const amt = Number(t.amount);
                   return (
                     <tr key={t.id}>
-                      <td>{new Date(t.statement_date).toLocaleDateString('pt-PT')}</td>
-                      <td>{t.description || '—'}</td>
-                      <td style={{ fontWeight: 700, color: amt >= 0 ? 'var(--success)' : 'var(--danger)' }}>{formatKz(amt)}</td>
-                      <td>
+                      <td data-label="Data">{new Date(t.statement_date).toLocaleDateString('pt-PT')}</td>
+                      <td data-label="Descrição">{t.description || '—'}</td>
+                      <td data-label="Valor" style={{ fontWeight: 700, color: amt >= 0 ? 'var(--success)' : 'var(--danger)' }}>{formatKz(amt)}</td>
+                      <td data-label="Estado">
                         {t.matched
                           ? <span className="pill on">{t.matched_type ? (TYPE_LABEL[t.matched_type] ?? t.matched_type) : 'Conciliado'}</span>
                           : <span className="pill off">Por conciliar</span>}
                       </td>
-                      <td className="no-print">
+                      <td className="actions no-print">
                         <button className="btn sm ghost" disabled={busy} onClick={() => toggle(t)}>
                           {t.matched ? 'Desfazer' : 'Conciliar'}
                         </button>

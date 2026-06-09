@@ -99,7 +99,7 @@ export function Receivables() {
         {loading ? <div className="loading">A carregar…</div>
           : rows.length === 0 ? <div className="empty"><IconCard size={40} /><p>Sem contas a receber neste filtro.</p></div>
           : (
-            <table className="ptable">
+            <table className="ptable stack">
               <thead>
                 <tr><th>Cliente</th><th>Factura</th><th>Original</th><th>Pago</th><th>Saldo</th><th>Vencimento</th><th>Estado</th><th className="no-print" /></tr>
               </thead>
@@ -108,14 +108,14 @@ export function Receivables() {
                   const st = statusInfo(r);
                   return (
                     <tr key={r.id}>
-                      <td>{r.customer_name || '—'}</td>
-                      <td>{r.invoice_number || '—'}</td>
-                      <td>{formatKz(Number(r.original_amount))}</td>
-                      <td>{formatKz(Number(r.paid_amount))}</td>
-                      <td style={{ fontWeight: 700 }}>{formatKz(Number(r.outstanding))}</td>
-                      <td>{r.due_date ? new Date(r.due_date).toLocaleDateString('pt-PT') : '—'}</td>
-                      <td><span className={`pill ${st.cls}`}>{st.label}</span></td>
-                      <td className="no-print">
+                      <td data-label="Cliente">{r.customer_name || '—'}</td>
+                      <td data-label="Factura">{r.invoice_number || '—'}</td>
+                      <td data-label="Original">{formatKz(Number(r.original_amount))}</td>
+                      <td data-label="Pago">{formatKz(Number(r.paid_amount))}</td>
+                      <td data-label="Saldo" style={{ fontWeight: 700 }}>{formatKz(Number(r.outstanding))}</td>
+                      <td data-label="Vencimento">{r.due_date ? new Date(r.due_date).toLocaleDateString('pt-PT') : '—'}</td>
+                      <td data-label="Estado"><span className={`pill ${st.cls}`}>{st.label}</span></td>
+                      <td className="actions no-print">
                         {r.status !== 'PAID' ? (
                           <button className="btn sm" onClick={() => setPaying(r)}>Receber</button>
                         ) : null}

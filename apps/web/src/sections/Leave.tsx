@@ -81,22 +81,22 @@ export function Leave() {
         {loading ? <div className="loading">A carregar…</div>
           : rows.length === 0 ? <div className="empty"><IconBuilding size={40} /><p>Sem pedidos neste filtro.</p></div>
           : (
-            <table className="ptable">
+            <table className="ptable stack">
               <thead><tr><th>Funcionário</th><th>Tipo</th><th>Período</th><th>Dias</th><th>Motivo</th><th>Estado</th><th className="no-print" /></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
-                    <td>{r.employee_name || '—'}</td>
-                    <td>{TYPE_LABEL[r.type] ?? r.type}</td>
-                    <td>{new Date(r.start_date).toLocaleDateString('pt-PT')} – {new Date(r.end_date).toLocaleDateString('pt-PT')}</td>
-                    <td>{r.days}</td>
-                    <td>{r.reason || '—'}</td>
-                    <td>
+                    <td data-label="Funcionário">{r.employee_name || '—'}</td>
+                    <td data-label="Tipo">{TYPE_LABEL[r.type] ?? r.type}</td>
+                    <td data-label="Período">{new Date(r.start_date).toLocaleDateString('pt-PT')} – {new Date(r.end_date).toLocaleDateString('pt-PT')}</td>
+                    <td data-label="Dias">{r.days}</td>
+                    <td data-label="Motivo">{r.reason || '—'}</td>
+                    <td data-label="Estado">
                       <span className={`pill ${r.status === 'APPROVED' ? 'on' : r.status === 'REJECTED' ? 'off' : ''}`}>
                         {r.status === 'APPROVED' ? 'Aprovado' : r.status === 'REJECTED' ? 'Rejeitado' : 'Pendente'}
                       </span>
                     </td>
-                    <td className="no-print">
+                    <td className="actions no-print">
                       {r.status === 'PENDING' ? (
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button className="btn sm success" disabled={busy} onClick={() => review(r.id, 'APPROVED')}>Aprovar</button>

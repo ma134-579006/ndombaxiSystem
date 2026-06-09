@@ -249,11 +249,11 @@ function sumTax(rows: ReportTaxRow[], k: 'net' | 'iva' | 'gross'): number {
 function Table({ head, rows, foot }: { head: string[]; rows: string[][]; foot?: string[] }) {
   if (rows.length === 0) return <div className="empty"><IconChart size={36} /><p>Sem dados no período.</p></div>;
   return (
-    <table className="ptable">
+    <table className="ptable stack">
       <thead><tr>{head.map((h, i) => <th key={i} style={i > 0 ? { textAlign: 'right' } : undefined}>{h}</th>)}</tr></thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={i}>{r.map((c, j) => <td key={j} style={j > 0 ? { textAlign: 'right' } : undefined}>{c}</td>)}</tr>
+          <tr key={i}>{r.map((c, j) => <td key={j} data-label={head[j]} style={j > 0 ? { textAlign: 'right' } : undefined}>{c}</td>)}</tr>
         ))}
       </tbody>
       {foot ? <tfoot><tr>{foot.map((c, j) => <th key={j} style={j > 0 ? { textAlign: 'right' } : undefined}>{c}</th>)}</tr></tfoot> : null}

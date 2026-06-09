@@ -193,20 +193,20 @@ export function Expenses() {
           : list.length === 0 ? (
             <div className="empty"><IconReceipt size={40} /><p>Sem despesas no período. Registe a primeira.</p></div>
           ) : (
-            <table className="ptable">
+            <table className="ptable stack">
               <thead>
                 <tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Fornecedor</th><th>Pagamento</th><th>Valor</th><th className="no-print" /></tr>
               </thead>
               <tbody>
                 {list.map((e) => (
                   <tr key={e.id}>
-                    <td>{new Date(e.expense_date).toLocaleDateString('pt-PT')}</td>
-                    <td><span className="pill">{EXPENSE_CATEGORY_LABELS[e.category] ?? e.category}</span></td>
-                    <td>{e.description || '—'}{e.document_ref ? <span className="muted"> · {e.document_ref}</span> : null}</td>
-                    <td>{e.supplier || '—'}</td>
-                    <td>{e.payment_method ? PAYMENT_LABELS[e.payment_method] : '—'}</td>
-                    <td style={{ fontWeight: 700 }}>{formatKz(Number(e.amount))}</td>
-                    <td className="no-print">
+                    <td data-label="Data">{new Date(e.expense_date).toLocaleDateString('pt-PT')}</td>
+                    <td data-label="Categoria"><span className="pill">{EXPENSE_CATEGORY_LABELS[e.category] ?? e.category}</span></td>
+                    <td data-label="Descrição">{e.description || '—'}{e.document_ref ? <span className="muted"> · {e.document_ref}</span> : null}</td>
+                    <td data-label="Fornecedor">{e.supplier || '—'}</td>
+                    <td data-label="Pagamento">{e.payment_method ? PAYMENT_LABELS[e.payment_method] : '—'}</td>
+                    <td data-label="Valor" style={{ fontWeight: 700 }}>{formatKz(Number(e.amount))}</td>
+                    <td className="actions no-print">
                       <button className="btn sm ghost" title="Eliminar" onClick={() => void remove(e.id)}><IconTrash size={15} /></button>
                     </td>
                   </tr>

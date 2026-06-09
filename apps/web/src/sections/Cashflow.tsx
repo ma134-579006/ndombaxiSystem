@@ -105,7 +105,7 @@ export function Cashflow() {
         {/* Composição do período */}
         <div className="card">
           <h3>Composição do período</h3>
-          <table className="ptable">
+          <table className="ptable kv">
             <tbody>
               <tr><td>Vendas (c/ IVA)</td><td>{formatKz(sum?.salesTotal ?? 0)}</td></tr>
               <tr><td>− Vendas a crédito (não entraram)</td><td>{formatKz(-(sum?.creditCreated ?? 0))}</td></tr>
@@ -124,7 +124,7 @@ export function Cashflow() {
         <div className="card">
           <h3>Previsão — próximos 30 dias</h3>
           <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>Baseada na média diária dos últimos {fc?.basisDays ?? 30} dias e nas dívidas a vencer.</p>
-          <table className="ptable">
+          <table className="ptable kv">
             <tbody>
               <tr><td>Entrada média/dia</td><td>{formatKz(fc?.avgDailyInflow ?? 0)}</td></tr>
               <tr><td>Saída média/dia</td><td>{formatKz(fc?.avgDailyOutflow ?? 0)}</td></tr>

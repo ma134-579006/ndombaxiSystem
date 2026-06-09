@@ -86,15 +86,24 @@ export function Inventory() {
         </div>
       ) : null}
       {lowStock.length > 0 ? (
-        <div className="banner warning" style={{ marginBottom: 12 }}>
-          ⚠️ <strong>{lowStock.length} produto(s)</strong> abaixo do stock mínimo:{' '}
-          {lowStock.slice(0, 6).map((l) => `${l.productName} (${l.quantity}/${l.minQty})`).join(', ')}
-          {lowStock.length > 6 ? '…' : ''}
+        <div className="banner warning" style={{ marginBottom: 12, flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+            <span>⚠️</span><span>{lowStock.length} produto(s) abaixo do stock mínimo</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {lowStock.slice(0, 10).map((l, i) => (
+              <span key={`${l.productCode}-${i}`} className="alert-chip" title={`${l.productName} — ${l.quantity}/${l.minQty}`}>
+                {l.productName} · {l.quantity}/{l.minQty}
+              </span>
+            ))}
+            {lowStock.length > 10 ? <span className="alert-chip">+{lowStock.length - 10}</span> : null}
+          </div>
         </div>
       ) : null}
       {batches.filter((b) => b.days_left <= 60).length > 0 ? (
         <div className="banner warning" style={{ marginBottom: 12 }}>
-          ⏰ <strong>{batches.filter((b) => b.days_left <= 60).length} lote(s)</strong> a expirar nos próximos 60 dias — ver secção “Lotes &amp; validade”.
+          <span>⏰</span>
+          <span><strong>{batches.filter((b) => b.days_left <= 60).length} lote(s)</strong> a expirar nos próximos 60 dias — ver a secção “Lotes &amp; validade” abaixo.</span>
         </div>
       ) : null}
 

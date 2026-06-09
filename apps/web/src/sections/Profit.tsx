@@ -140,19 +140,19 @@ export function Profit() {
       <div className="card">
         <h3>Lucro por produto</h3>
         {products.length === 0 ? <p className="muted">Sem dados.</p> : (
-          <table className="ptable">
+          <table className="ptable stack">
             <thead>
               <tr><th>Produto</th><th>Qt</th><th>Vendas</th><th>Custo</th><th>Lucro</th><th>Margem</th></tr>
             </thead>
             <tbody>
               {products.map((p) => (
                 <tr key={p.productCode}>
-                  <td>{p.description}</td>
-                  <td>{p.qty}</td>
-                  <td>{kz(p.salesNet)}</td>
-                  <td>{kz(p.cost)}</td>
-                  <td style={{ color: p.profit >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>{kz(p.profit)}</td>
-                  <td>{p.marginPct}%</td>
+                  <td data-label="Produto">{p.description}</td>
+                  <td data-label="Qt">{p.qty}</td>
+                  <td data-label="Vendas">{kz(p.salesNet)}</td>
+                  <td data-label="Custo">{kz(p.cost)}</td>
+                  <td data-label="Lucro" style={{ color: p.profit >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>{kz(p.profit)}</td>
+                  <td data-label="Margem">{p.marginPct}%</td>
                 </tr>
               ))}
             </tbody>
@@ -164,18 +164,18 @@ export function Profit() {
       <div className="card">
         <h3>Curva ABC (peso nas vendas)</h3>
         {abc.length === 0 ? <p className="muted">Sem dados.</p> : (
-          <table className="ptable">
+          <table className="ptable stack">
             <thead>
               <tr><th>Produto</th><th>Vendas</th><th>%</th><th>% acum.</th><th>Classe</th></tr>
             </thead>
             <tbody>
               {abc.slice(0, 100).map((r) => (
                 <tr key={r.productCode}>
-                  <td>{r.description}</td>
-                  <td>{kz(r.sales)}</td>
-                  <td>{r.sharePct}%</td>
-                  <td>{r.cumulativePct}%</td>
-                  <td><span className={`pill ${r.abcClass === 'A' ? 'on' : r.abcClass === 'C' ? 'off' : ''}`}>{r.abcClass}</span></td>
+                  <td data-label="Produto">{r.description}</td>
+                  <td data-label="Vendas">{kz(r.sales)}</td>
+                  <td data-label="%">{r.sharePct}%</td>
+                  <td data-label="% acum.">{r.cumulativePct}%</td>
+                  <td data-label="Classe"><span className={`pill ${r.abcClass === 'A' ? 'on' : r.abcClass === 'C' ? 'off' : ''}`}>{r.abcClass}</span></td>
                 </tr>
               ))}
             </tbody>
