@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { AdminChat, SupportMsg } from '../api/types';
 import { IconRefresh } from '../components/Icons';
+import { MsgBody } from '../components/SupportChat';
 
 const STATUS_LABEL: Record<string, string> = { BOT: 'Com o bot', HUMAN: '🔔 Aguarda equipa', CLOSED: 'Fechada' };
 
@@ -101,9 +102,9 @@ export function SupportAdmin() {
                   <div key={m.id} className={`sc-msg ${m.sender === 'ADMIN' ? 'me' : m.sender === 'VISITOR' ? 'bot' : 'adm'}`}
                     style={{ alignSelf: m.sender === 'ADMIN' ? 'flex-end' : 'flex-start' }}>
                     <span className="sc-who" style={{ color: m.sender === 'ADMIN' ? '#fff' : undefined }}>
-                      {m.sender === 'ADMIN' ? 'Eu (Super Admin)' : m.sender === 'BOT' ? 'Bot' : active.visitor_name || 'Visitante'}
+                      {m.sender === 'ADMIN' ? 'Eu (Super Admin)' : m.sender === 'BOT' ? 'Bot 🤖' : active.visitor_name || 'Visitante'}
                     </span>
-                    {m.body}
+                    <MsgBody body={m.body} />
                   </div>
                 ))}
               </div>

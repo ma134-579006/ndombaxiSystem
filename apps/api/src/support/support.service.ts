@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiConfigService } from '../ai/ai-config.service';
 import { AiProviderClient, type ChatTurn } from '../ai/ai-provider.client';
+import { fallbackAnswer, predict } from './neural-bot';
 
 /**
  * SUPORTE DA PLATAFORMA (landing):
@@ -93,7 +94,13 @@ export class SupportService implements OnModuleInit {
     return { chatId: rows[0].id, greeting };
   }
 
-  async sendVisitorMessage(chatId: string, body: string): Promise<{ reply: string; escalated: boolean }> {
+  /** Confiança mínima para o modelo local responder sozinho. */
+  private static readonly BOT_MIN_CONFIDENCE = 0.45;
+
+  async sendVisitorMessage(
+    chatId: string,
+    body: string,
+  ): Promise<{ reply: string; imageSvg: string | null; escalated: boolean }> {
     const text = (body ?? '').trim().slice(0, 1500);
     if (!text) throw new BadRequestException('Mensagem vazia.');
     const chat = await this.getChat(chatId);
@@ -109,40 +116,50 @@ export class SupportService implements OnModuleInit {
     // Já em modo humano → não responde o bot; o Super Admin verá a mensagem.
     if (chat.status === 'HUMAN') {
       await this.bumpUnread(chatId);
-      return { reply: '', escalated: true };
+      return { reply: '', imageSvg: null, escalated: true };
     }
 
-    // Histórico (últimas 12 mensagens) para contexto do bot.
-    const history = await this.prisma.$queryRaw<SupportMessage[]>(
-      Prisma.sql`SELECT id, sender, body, created_at FROM public.support_messages
-                 WHERE chat_id = ${chatId}::uuid ORDER BY created_at DESC LIMIT 12`,
-    );
-    const turns: ChatTurn[] = history.reverse().map((m) => ({
-      role: m.sender === 'VISITOR' ? 'user' as const : 'assistant' as const,
-      content: m.body,
-    }));
-
+    // ── 1.º CÉREBRO LOCAL: modelo de ML treinado em Python (ml/bot) ──
+    // Classifica a intenção; responde com o conhecimento treinado e, quando
+    // ajuda, com um GUIA VISUAL (SVG). Escala SÓ se o visitante pedir humano.
     let reply: string;
+    let imageSvg: string | null = null;
     let escalated = false;
-    try {
-      const resolved = await this.aiCfg.resolveForCapability('CHAT');
-      if (!resolved) throw new Error('sem provedor');
-      const r = await this.ai.chat(resolved.provider, resolved.apiKey, turns, KNOWLEDGE);
-      reply = (r.text || '').trim();
-      if (!reply) throw new Error('resposta vazia');
-      if (reply.includes('[CHAMAR_ADMIN]')) {
-        escalated = true;
-        reply = reply.replace('[CHAMAR_ADMIN]', '').trim()
-          + '\n\n🔔 Chamei a nossa equipa — o Super Admin vai responder-te aqui mesmo, em breve.';
-      }
-    } catch {
-      // Sem IA configurada/disponível → escala logo para humano (nunca deixa sem resposta).
+    const pred = predict(text);
+
+    if (pred?.escalate) {
+      // O visitante PEDIU um humano — única via de escalação.
       escalated = true;
-      reply = 'Obrigado pela mensagem! 🙏 Chamei a nossa equipa — o Super Admin vai responder-te aqui mesmo, em breve.';
+      reply = pred.answer;
+    } else if (pred && pred.confidence >= SupportService.BOT_MIN_CONFIDENCE) {
+      reply = pred.answer;
+      imageSvg = pred.imageSvg;
+    } else {
+      // ── 2.º reforço: provedor de IA externo (se configurado) ──
+      try {
+        const resolved = await this.aiCfg.resolveForCapability('CHAT');
+        if (!resolved) throw new Error('sem provedor');
+        const history = await this.prisma.$queryRaw<SupportMessage[]>(
+          Prisma.sql`SELECT id, sender, body, created_at FROM public.support_messages
+                     WHERE chat_id = ${chatId}::uuid ORDER BY created_at DESC LIMIT 12`,
+        );
+        const turns: ChatTurn[] = history.reverse().map((m) => ({
+          role: m.sender === 'VISITOR' ? 'user' as const : 'assistant' as const,
+          content: m.body.replace(/\[\[SVG\]\][\s\S]*?\[\[\/SVG\]\]/g, '').trim(),
+        }));
+        const r = await this.ai.chat(resolved.provider, resolved.apiKey, turns, KNOWLEDGE);
+        reply = (r.text || '').trim().replace('[CHAMAR_ADMIN]', '').trim();
+        if (!reply) throw new Error('resposta vazia');
+      } catch {
+        // ── 3.º recurso: resposta-guia (NUNCA escala sem o cliente pedir) ──
+        reply = fallbackAnswer();
+      }
     }
 
+    // Guarda a resposta (com a imagem embebida, para o histórico mostrar igual).
+    const stored = imageSvg ? `${reply}\n[[SVG]]${imageSvg}[[/SVG]]` : reply;
     await this.prisma.$executeRaw(
-      Prisma.sql`INSERT INTO public.support_messages (chat_id, sender, body) VALUES (${chatId}::uuid, 'BOT', ${reply})`,
+      Prisma.sql`INSERT INTO public.support_messages (chat_id, sender, body) VALUES (${chatId}::uuid, 'BOT', ${stored})`,
     );
     if (escalated) {
       await this.prisma.$executeRaw(
@@ -154,7 +171,7 @@ export class SupportService implements OnModuleInit {
         Prisma.sql`UPDATE public.support_chats SET last_msg_at = now() WHERE id = ${chatId}::uuid`,
       );
     }
-    return { reply, escalated };
+    return { reply, imageSvg, escalated };
   }
 
   async listMessages(chatId: string, afterIso?: string): Promise<SupportMessage[]> {

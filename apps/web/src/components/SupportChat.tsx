@@ -4,6 +4,19 @@ import type { SupportMsg } from '../api/types';
 
 const LS_CHAT = 'ndombaxi.support.chat';
 
+/** O corpo pode trazer um guia visual: texto + [[SVG]]<svg…>[[/SVG]].
+ *  (O SVG vem da NOSSA API — gerado pelo bot, fonte confiável.) */
+export function MsgBody({ body }: { body: string }) {
+  const m = body.match(/^([\s\S]*?)\[\[SVG\]\]([\s\S]*?)\[\[\/SVG\]\]/);
+  if (!m) return <>{body}</>;
+  return (
+    <>
+      {m[1].trim()}
+      <span className="sc-img" dangerouslySetInnerHTML={{ __html: m[2] }} />
+    </>
+  );
+}
+
 /**
  * Chat de suporte flutuante (landing): balão no canto → conversa com o
  * assistente IA do sistema; se o bot não souber (ou o visitante pedir),
@@ -69,7 +82,10 @@ export function SupportChat() {
     setBusy(true);
     try {
       const r = await api.support.send(chatId, text);
-      if (r.reply) setMsgs((p) => [...p, { id: `b${Date.now()}`, sender: 'BOT', body: r.reply, created_at: new Date().toISOString() }]);
+      if (r.reply) {
+        const body = r.imageSvg ? `${r.reply}\n[[SVG]]${r.imageSvg}[[/SVG]]` : r.reply;
+        setMsgs((p) => [...p, { id: `b${Date.now()}`, sender: 'BOT', body, created_at: new Date().toISOString() }]);
+      }
       if (r.escalated) setHuman(true);
       scrollDown();
     } catch {
@@ -101,7 +117,7 @@ export function SupportChat() {
             {msgs.map((m) => (
               <div key={m.id} className={`sc-msg ${m.sender === 'VISITOR' ? 'me' : m.sender === 'ADMIN' ? 'adm' : 'bot'}`}>
                 {m.sender === 'ADMIN' ? <span className="sc-who">Equipa Ndombaxi</span> : null}
-                {m.body}
+                <MsgBody body={m.body} />
               </div>
             ))}
             {busy ? <div className="sc-msg bot sc-typing">a escrever…</div> : null}

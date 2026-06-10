@@ -984,3 +984,7 @@ body { line-height: 1.5; font-feature-settings: 'cv02','cv03','cv04','ss01'; }
   width: 34px; height: 34px; border-radius: 999px; display: grid; place-items: center; flex: none;
   background: var(--grad-primary); color: #fff; font-weight: 800; font-size: 14px;
 }
+
+/* Guia visual (SVG) dentro das bolhas do chat de suporte. */
+.sc-img { display: block; margin-top: 10px; border-radius: 12px; overflow: hidden; background: #fff; }
+.sc-img svg { display: block; width: 100%; height: auto; }
