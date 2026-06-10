@@ -3,6 +3,7 @@ import { api, ApiError } from '../api/client';
 import type { DashLowStock, ExpiringBatch, ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
 import { Modal } from '../components/ui';
 import { ProductPicker } from '../components/ProductPicker';
+import { BarcodeScanner } from '../components/BarcodeScanner';
 import { IconCheck, IconCube, IconPlus, IconTruck, IconTrash, IconReceipt } from '../components/Icons';
 import { formatKz, formatDate } from '../format';
 
@@ -445,6 +446,27 @@ function CountSheet({ detail, products, onClose }: { detail: StockCountDetail; p
   const [items, setItems] = useState(detail.items);
   const [status, setStatus] = useState(detail.status);
   const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState('');
+  const [flashId, setFlashId] = useState<string | null>(null);
+
+  // Pesquisa por nome OU código de barras (à medida que escreve).
+  const norm = (s: string) => s.toLowerCase().trim();
+  const filtered = q.trim()
+    ? items.filter((it) => norm(it.description).includes(norm(q)) || norm(it.product_code).includes(norm(q)))
+    : items;
+
+  // Scanner pela câmara (igual ao caixa): encontra o produto e realça-o.
+  const onScan = (code: string) => {
+    const hit = items.find((it) => it.product_code === code)
+      ?? items.find((it) => norm(it.product_code) === norm(code));
+    if (hit) {
+      setQ(code);
+      setFlashId(hit.id);
+      window.setTimeout(() => setFlashId(null), 2400);
+    } else {
+      setQ(code); // mostra "sem resultados" — produto não está nesta contagem
+    }
+  };
 
   const costOf = (productId: string) => Number(products.find((p) => p.id === productId)?.cost_price ?? 0);
 
@@ -524,27 +546,52 @@ function CountSheet({ detail, products, onClose }: { detail: StockCountDetail; p
 
   return (
     <Modal title={`Contagem ${detail.reference}`} onClose={onClose}>
-      <div className="row" style={{ gap: 14, marginBottom: 12, fontSize: 13, alignItems: 'center' }}>
-        <span className="muted">{counted}/{items.length} contados</span>
-        <span style={{ color: divergent ? 'var(--warning)' : 'var(--success)' }}>{divergent} divergências</span>
+      {/* Estado + imprimir (linha 1, embrulha em ecrãs estreitos) */}
+      <div className="row" style={{ gap: 12, marginBottom: 10, fontSize: 13, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span className="pill">{counted}/{items.length} contados</span>
+        <span className={`pill ${divergent ? '' : 'on'}`} style={divergent ? { color: 'var(--warning)', borderColor: 'currentColor' } : undefined}>
+          {divergent} divergências
+        </span>
         <span className="spacer" />
         <button className="btn ghost sm" onClick={printInventory}><IconReceipt size={15} /> Imprimir (perdas)</button>
       </div>
-      <div style={{ maxHeight: '52vh', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {items.map((it) => {
+
+      {/* Pesquisa por nome/código + leitor pela câmara (linha 2) */}
+      <div className="row" style={{ gap: 8, marginBottom: 10, alignItems: 'stretch', flexWrap: 'wrap' }}>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Procurar produto por nome ou código de barras…"
+          style={{ flex: '1 1 200px', minWidth: 0, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', color: 'var(--text)', fontSize: 14 }}
+        />
+        {q ? <button className="btn sm ghost" onClick={() => setQ('')}>Limpar</button> : null}
+        <BarcodeScanner onDetected={onScan} />
+      </div>
+
+      <div style={{ maxHeight: '46vh', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {filtered.length === 0 ? (
+          <div className="empty" style={{ padding: '22px 0' }}>
+            <p className="muted" style={{ margin: 0 }}>Nenhum produto corresponde a «{q}».</p>
+          </div>
+        ) : filtered.map((it) => {
           const diff = it.difference != null && it.counted_qty != null && it.counted_qty !== '' ? Number(it.difference) : null;
           return (
-            <div key={it.id} className="list-row" style={{ padding: '8px 0' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{it.description}</div>
+            <div key={it.id} className="list-row" style={{
+              padding: '8px 10px', flexWrap: 'wrap', borderRadius: 10,
+              background: flashId === it.id ? 'var(--primary-soft)' : undefined,
+              border: flashId === it.id ? '1px solid var(--primary)' : '1px solid transparent',
+              transition: 'background .4s, border-color .4s',
+            }}>
+              <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.description}</div>
                 <div className="muted" style={{ fontSize: 12 }}>{it.product_code} · sistema {Number(it.system_qty)}</div>
               </div>
               {diff != null && diff !== 0 ? (
-                <span style={{ fontSize: 12, fontWeight: 700, color: diff < 0 ? 'var(--danger)' : 'var(--warning)' }}>{diff > 0 ? '+' : ''}{diff}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: diff < 0 ? 'var(--danger)' : 'var(--warning)', flex: 'none' }}>{diff > 0 ? '+' : ''}{diff}</span>
               ) : null}
               <input
                 disabled={status === 'CLOSED'}
-                style={{ width: 90, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 9, padding: '8px 10px', color: 'var(--text)', textAlign: 'right' }}
+                style={{ width: 86, flex: 'none', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 9, padding: '8px 10px', color: 'var(--text)', textAlign: 'right' }}
                 inputMode="decimal" placeholder="—"
                 defaultValue={it.counted_qty ?? ''}
                 onBlur={(e) => setCounted(it.product_id, e.target.value)}

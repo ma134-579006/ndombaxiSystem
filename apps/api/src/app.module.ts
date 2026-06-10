@@ -30,6 +30,7 @@ import { ReportsModule } from './reports/reports.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { ReceivablesModule } from './receivables/receivables.module';
 import { CashflowModule } from './cashflow/cashflow.module';
+import { SupportModule } from './support/support.module';
 import { PayablesModule } from './payables/payables.module';
 import { CommissionsModule } from './commissions/commissions.module';
 import { IntegrationsModule } from './integrations/integrations.module';
@@ -86,6 +87,7 @@ import { HealthController } from './health.controller';
     ExpensesModule,
     ReceivablesModule,
     CashflowModule,
+    SupportModule,
     PayablesModule,
     CommissionsModule,
     IntegrationsModule,

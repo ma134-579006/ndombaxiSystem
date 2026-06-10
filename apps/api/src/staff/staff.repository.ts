@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -101,6 +101,40 @@ export class StaffRepository {
       );
       if (!rows[0]) throw new NotFoundException(`Loja não encontrada: ${id}`);
       return rows[0];
+    });
+  }
+
+  /**
+   * Elimina uma loja. A loja PRINCIPAL nunca pode ser eliminada. Se a loja
+   * tiver histórico (vendas, stock, movimentos ou funcionários atribuídos),
+   * não é apagada — fica apenas DESATIVADA (preserva o histórico fiscal).
+   */
+  async removeStore(schema: string, id: string): Promise<{ deleted: boolean; deactivated: boolean }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const store = await tx.$queryRaw<StoreRow[]>(
+        Prisma.sql`SELECT * FROM stores WHERE id = ${id}::uuid LIMIT 1`,
+      );
+      if (!store[0]) throw new NotFoundException(`Loja não encontrada: ${id}`);
+      if (store[0].is_default) {
+        throw new BadRequestException('A loja principal não pode ser eliminada nem desativada em massa.');
+      }
+      // Histórico? (qualquer referência impede o DELETE)
+      const refs = await tx.$queryRaw<{ n: number }[]>(
+        Prisma.sql`SELECT (
+            (SELECT COUNT(*) FROM invoices WHERE store_id = ${id}::uuid) +
+            (SELECT COUNT(*) FROM stock_movements WHERE warehouse_id = ${id}::uuid) +
+            (SELECT COUNT(*) FROM users WHERE store_id = ${id}::uuid)
+          )::int AS n`,
+      );
+      if ((refs[0]?.n ?? 0) > 0) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE stores SET is_active = FALSE, updated_at = now() WHERE id = ${id}::uuid`,
+        );
+        return { deleted: false, deactivated: true };
+      }
+      await tx.$executeRaw(Prisma.sql`DELETE FROM stock_items WHERE warehouse_id = ${id}::uuid`);
+      await tx.$executeRaw(Prisma.sql`DELETE FROM stores WHERE id = ${id}::uuid`);
+      return { deleted: true, deactivated: false };
     });
   }
 

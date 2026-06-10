@@ -113,6 +113,11 @@ import type {
   UpdateSiteSettingsInput,
   WebOrder,
   WebOrderDetail,
+  SupportMsg,
+  SiteFeedback,
+  SiteFeedbackAdmin,
+  AdminChat,
+  FeedbackStats,
 } from './types';
 
 /** Constrói uma query string a partir de pares definidos (?from=…&to=…). */
@@ -234,6 +239,30 @@ export const api = {
 
   // ── Landing pública (sem auth) ─────────────────────────────
   publicLanding: () => request<PublicLanding>('GET', '/public/landing', undefined, { auth: false }),
+
+  // ── Suporte (chat com o assistente do sistema) + comentários públicos ──
+  support: {
+    start: (name?: string) =>
+      request<{ chatId: string; greeting: string }>('POST', '/public/support/chats', { name }, { auth: false }),
+    send: (chatId: string, body: string) =>
+      request<{ reply: string; escalated: boolean }>('POST', `/public/support/chats/${chatId}/messages`, { body }, { auth: false }),
+    messages: (chatId: string, after?: string) =>
+      request<SupportMsg[]>('GET', `/public/support/chats/${chatId}/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`, undefined, { auth: false }),
+    feedbackList: () => request<SiteFeedback[]>('GET', '/public/support/feedback', undefined, { auth: false }),
+    feedbackAdd: (name: string, body: string) =>
+      request<{ id: string }>('POST', '/public/support/feedback', { name, body }, { auth: false }),
+    feedbackVote: (id: string, dir: 'up' | 'down') =>
+      request<{ likes: number; dislikes: number }>('POST', `/public/support/feedback/${id}/vote`, { dir }, { auth: false }),
+    admin: {
+      notifications: () => request<{ unreadChats: number; humanWaiting: number; newFeedback: number }>('GET', '/super-admin/support/notifications'),
+      chats: () => request<AdminChat[]>('GET', '/super-admin/support/chats'),
+      messages: (chatId: string) => request<SupportMsg[]>('GET', `/super-admin/support/chats/${chatId}/messages`),
+      reply: (chatId: string, body: string) => request<void>('POST', `/super-admin/support/chats/${chatId}/messages`, { body }),
+      read: (chatId: string) => request<void>('POST', `/super-admin/support/chats/${chatId}/read`),
+      close: (chatId: string) => request<void>('POST', `/super-admin/support/chats/${chatId}/close`),
+      feedback: () => request<{ items: SiteFeedbackAdmin[]; stats: FeedbackStats }>('GET', '/super-admin/support/feedback'),
+    },
+  },
   registerCompany: (input: RegisterCompanyInput) =>
     request<RegisterCompanyResult>('POST', '/onboarding/register', input, { auth: false }),
   // Registo simples (email+senha OU Google) + setup obrigatório
@@ -452,6 +481,7 @@ export const api = {
     listStores: () => request<ManagerStore[]>('GET', '/staff/stores'),
     createStore: (dto: CreateStoreInput) => request<ManagerStore>('POST', '/staff/stores', dto),
     updateStore: (id: string, dto: UpdateStoreInput) => request<ManagerStore>('PATCH', `/staff/stores/${id}`, dto),
+    deleteStore: (id: string) => request<{ deleted: boolean; deactivated: boolean }>('DELETE', `/staff/stores/${id}`),
     listUsers: () => request<ManagerStaff[]>('GET', '/staff/users'),
     createUser: (dto: CreateStaffInput) => request<CreatedStaff>('POST', '/staff/users', dto),
     updateUser: (id: string, dto: UpdateStaffInput) => request<ManagerStaff>('PATCH', `/staff/users/${id}`, dto),

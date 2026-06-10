@@ -647,6 +647,7 @@ export interface ManagerEmployee {
   tax_id: string | null; inss_number: string | null; position: string | null;
   department: string | null; base_salary: string; iban: string | null;
   photo_url: string | null; status: string;
+  bonus?: string; absence_discount_pct?: string;
 }
 export interface CreateEmployeeInput {
   employeeNumber: string; fullName: string; position?: string; department?: string;
@@ -655,6 +656,10 @@ export interface CreateEmployeeInput {
 export interface UpdateEmployeeInput {
   fullName?: string; position?: string; department?: string;
   baseSalary?: number; iban?: string; photoUrl?: string;
+  /** Bónus mensal (Kz) — entra na folha como subsídio sujeito. */
+  bonus?: number;
+  /** Dias de falta injustificada no mês → desconto automático na folha (base÷30 por dia). */
+  absenceDays?: number;
 }
 
 // ── Férias / ausências (RH) ─────────────────────────────────
@@ -865,4 +870,17 @@ export interface UpdateAgtInput {
   receiptLegend?: string;
   reportFooter?: string;
   extraFields?: AgtExtraField[];
+}
+
+// ── Suporte (chat do site) + comentários públicos ───────────
+export interface SupportMsg { id: string; sender: 'VISITOR' | 'BOT' | 'ADMIN'; body: string; created_at: string }
+export interface SiteFeedback { id: string; author_name: string; body: string; likes: number; dislikes: number; created_at: string }
+export interface SiteFeedbackAdmin extends SiteFeedback { seen_by_admin: boolean }
+export interface AdminChat {
+  id: string; visitor_name: string | null; status: 'BOT' | 'HUMAN' | 'CLOSED' | string;
+  unread_admin: number; last_msg_at: string; created_at: string; last_body: string | null;
+}
+export interface FeedbackStats {
+  total: number; positive: number; negative: number; neutral: number;
+  perDay: { day: string; count: number }[];
 }

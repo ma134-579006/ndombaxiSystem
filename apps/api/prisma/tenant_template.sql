@@ -366,6 +366,8 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."employees" (
   base_salary      NUMERIC(14,2) NOT NULL DEFAULT 0,
   taxable_allowances NUMERIC(14,2) NOT NULL DEFAULT 0,  -- subsídios sujeitos
   exempt_allowances  NUMERIC(14,2) NOT NULL DEFAULT 0,  -- subsídios isentos
+  bonus            NUMERIC(14,2) NOT NULL DEFAULT 0,    -- bónus (sujeito a INSS/IRT)
+  absence_discount_pct NUMERIC(5,2) NOT NULL DEFAULT 0, -- % de desconto por faltas
   iban             TEXT,
   photo_url        TEXT,                                -- foto do funcionário (data-URI/URL)
   status           TEXT NOT NULL DEFAULT 'ACTIVE',      -- ACTIVE/SUSPENDED/TERMINATED

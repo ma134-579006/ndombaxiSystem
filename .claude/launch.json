@@ -2,22 +2,22 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@nexus/web", "preview", "--", "--port", "5175", "--strictPort"],
+      "port": 5175
+    },
+    {
       "name": "pos",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@nexus/pos", "dev"],
-      "port": 5173
+      "runtimeArgs": ["--filter", "@nexus/pos", "preview", "--", "--port", "5176", "--strictPort"],
+      "port": 5176
     },
     {
       "name": "store",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@nexus/store", "dev"],
-      "port": 5174
-    },
-    {
-      "name": "web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@nexus/web", "dev"],
-      "port": 5175
+      "runtimeArgs": ["--filter", "@nexus/store", "preview", "--", "--port", "5177", "--strictPort"],
+      "port": 5177
     }
   ]
 }

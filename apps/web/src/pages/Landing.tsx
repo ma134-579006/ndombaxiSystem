@@ -10,6 +10,8 @@ import type {
 } from '../api/types';
 import { LOGO_SRC } from '../brand';
 import { IconBuilding, IconCheck, IconShield } from '../components/Icons';
+import { SupportChat } from '../components/SupportChat';
+import { FeedbackSection } from '../components/FeedbackSection';
 
 /** Imagens de fundo realistas (comércio/retalho/POS/negócio) — usadas no
  *  carrossel quando o Super Admin não define as suas. Unsplash, alta qualidade. */
@@ -195,6 +197,12 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           </div>
         </section>
       )}
+
+      {/* COMENTÁRIOS DA COMUNIDADE */}
+      <FeedbackSection />
+
+      {/* CHAT DE SUPORTE (balão flutuante) */}
+      <SupportChat />
 
       {/* RODAPÉ */}
       <footer className="lp-footer">

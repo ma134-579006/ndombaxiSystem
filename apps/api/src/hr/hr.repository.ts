@@ -20,6 +20,8 @@ export interface EmployeeRow {
   iban: string | null;
   photo_url: string | null;
   status: string;
+  bonus: string;
+  absence_discount_pct: string;
 }
 
 @Injectable()
@@ -77,6 +79,13 @@ export class HrRepository {
       sets.push(Prisma.sql`exempt_allowances = ${input.exemptAllowances}`);
     if (input.iban !== undefined) sets.push(Prisma.sql`iban = ${input.iban}`);
     if (input.photoUrl !== undefined) sets.push(Prisma.sql`photo_url = ${input.photoUrl}`);
+    if (input.bonus !== undefined) sets.push(Prisma.sql`bonus = ${input.bonus}`);
+    if (input.absenceDays !== undefined) {
+      // Lei Geral do Trabalho: cada dia de falta injustificada desconta o
+      // salário diário (base ÷ 30) → percentagem = dias/30 (máx. 100%).
+      const pct = Math.min(100, Math.round((input.absenceDays / 30) * 100 * 100) / 100);
+      sets.push(Prisma.sql`absence_discount_pct = ${pct}`);
+    }
 
     if (sets.length === 0) return this.get(schema, id);
     sets.push(Prisma.sql`updated_at = now()`);

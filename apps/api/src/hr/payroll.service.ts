@@ -71,10 +71,12 @@ export class PayrollService {
           base_salary: string;
           taxable_allowances: string;
           exempt_allowances: string;
+          bonus: string;
+          absence_discount_pct: string;
         }[]
       >(
         Prisma.sql`SELECT id, employee_number, full_name, base_salary,
-                          taxable_allowances, exempt_allowances
+                          taxable_allowances, exempt_allowances, bonus, absence_discount_pct
                    FROM employees WHERE status = 'ACTIVE' ORDER BY full_name`,
       );
       if (employees.length === 0) {
@@ -95,10 +97,15 @@ export class PayrollService {
       let employerCostTotal = 0;
 
       for (const e of employees) {
+        const base = Number(e.base_salary);
+        const pct = Math.max(0, Math.min(100, Number(e.absence_discount_pct) || 0));
         const calc = computePayroll({
-          baseSalary: Number(e.base_salary),
-          taxableAllowances: Number(e.taxable_allowances),
+          baseSalary: base,
+          // Bónus entra como subsídio sujeito (INSS/IRT).
+          taxableAllowances: Number(e.taxable_allowances) + (Number(e.bonus) || 0),
           exemptAllowances: Number(e.exempt_allowances),
+          // Desconto por faltas: % sobre o salário base.
+          otherDeductions: Math.round((base * pct / 100) * 100) / 100,
         });
 
         await tx.$executeRaw(

@@ -134,6 +134,7 @@ export class ErpController {
       expiryDate: dto.expiryDate ?? null,
       minQty: dto.minQty ?? null,
       createdBy: user.sub,
+      createdByName: user.name ?? null,
     });
   }
 

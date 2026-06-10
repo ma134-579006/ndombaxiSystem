@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -45,6 +45,13 @@ export class StaffController {
   @ApiOperation({ summary: 'Actualiza uma loja' })
   updateStore(@Param('id') id: string, @Body() dto: UpdateStoreDto) {
     return this.staff.updateStore(this.ctx.requireTenantSchema(), id, dto);
+  }
+
+  @Delete('stores/:id')
+  @Roles(Role.COMPANY_ADMIN)
+  @ApiOperation({ summary: 'Elimina uma loja (com historico fica apenas desativada; a principal nunca)' })
+  removeStore(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.staff.removeStore(this.ctx.requireTenantSchema(), this.actor(user), id);
   }
 
   // ── Funcionários ───────────────────────────────────────────

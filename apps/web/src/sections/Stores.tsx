@@ -4,13 +4,18 @@ import type { CreateStoreInput, ManagerStore } from '../api/types';
 import { IconPlus, IconRefresh, IconStore, IconEdit } from '../components/Icons';
 import { Modal, Switch } from '../components/ui';
 
-/** Lojas da empresa (multi-loja / lojas filhas). Criar/editar exige administrador. */
+/** Lojas da empresa (multi-loja / lojas filhas). Criar/editar exige administrador.
+ *  Suporta seleção em massa → Desativar / Eliminar (a principal nunca; com
+ *  histórico fica apenas desativada — igual ao padrão dos Produtos). */
 export function Stores() {
   const [items, setItems] = useState<ManagerStore[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [editing, setEditing] = useState<ManagerStore | null>(null);
   const [creating, setCreating] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -19,6 +24,41 @@ export function Stores() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
+
+  const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const bulkDeactivate = async () => {
+    setBulkBusy(true); setError(null); setInfo(null);
+    let done = 0, skipped = 0;
+    try {
+      for (const id of selected) {
+        const st = items.find((s) => s.id === id);
+        if (!st || st.is_default) { skipped++; continue; } // a principal nunca
+        await api.staff.updateStore(id, { isActive: false });
+        done++;
+      }
+      setSelected(new Set()); await load();
+      setInfo(`${done} loja(s) desativada(s).${skipped ? ` A loja principal não pode ser desativada (${skipped} ignorada).` : ''}`);
+    } catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao desativar.'); }
+    finally { setBulkBusy(false); }
+  };
+
+  const bulkDelete = async () => {
+    if (!window.confirm(`Eliminar ${selected.size} loja(s)? As que têm vendas/stock/equipa ficam apenas desativadas.`)) return;
+    setBulkBusy(true); setError(null); setInfo(null);
+    let del = 0, deact = 0, skipped = 0;
+    try {
+      for (const id of selected) {
+        const st = items.find((s) => s.id === id);
+        if (!st || st.is_default) { skipped++; continue; }
+        const r = await api.staff.deleteStore(id);
+        if (r.deleted) del++; else deact++;
+      }
+      setSelected(new Set()); await load();
+      setInfo(`${del} eliminada(s)${deact ? `; ${deact} com histórico ficaram desativadas` : ''}.${skipped ? ' A loja principal foi ignorada.' : ''}`);
+    } catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao eliminar.'); }
+    finally { setBulkBusy(false); }
+  };
 
   return (
     <>
@@ -30,6 +70,17 @@ export function Stores() {
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Nova loja</button>
       </div>
 
+      {selected.size > 0 ? (
+        <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px', marginBottom: 12 }}>
+          <strong>{selected.size} selecionada(s)</strong>
+          <span className="spacer" />
+          <button className="btn sm ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy}>Limpar</button>
+          <button className="btn sm warn" onClick={bulkDeactivate} disabled={bulkBusy}>Desativar</button>
+          <button className="btn sm danger" onClick={bulkDelete} disabled={bulkBusy}>Eliminar</button>
+        </div>
+      ) : null}
+
+      {info ? <div className="banner success">{info}</div> : null}
       {error ? <div className="banner danger">{error}</div> : null}
 
       {loading ? <div className="card"><div className="loading">A carregar…</div></div>
@@ -38,7 +89,12 @@ export function Stores() {
         ) : (
           <div className="pgrid">
             {items.map((s) => (
-              <div className="pcard" key={s.id}>
+              <div className={`pcard${selected.has(s.id) ? ' sel' : ''}`} key={s.id}>
+                {!s.is_default ? (
+                  <label className="pcard-check" onClick={(ev) => ev.stopPropagation()}>
+                    <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggleSel(s.id)} />
+                  </label>
+                ) : null}
                 <div className="thumb"><IconStore size={30} /></div>
                 <div className="pinfo">
                   <div className="pname">{s.name} {s.is_default ? <span className="pill on">Principal</span> : null}</div>

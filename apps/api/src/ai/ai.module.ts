@@ -12,6 +12,6 @@ import { AssistantService } from './assistant.service';
 @Module({
   controllers: [AiController, AiAdminController],
   providers: [AiConfigService, AiProviderClient, AssistantService],
-  exports: [AiConfigService, AssistantService],
+  exports: [AiConfigService, AiProviderClient, AssistantService],
 })
 export class AiModule {}

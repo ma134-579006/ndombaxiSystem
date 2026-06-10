@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantAuditService } from '../cashbox/tenant-audit.service';
 
 export type MovementType = 'IN' | 'OUT' | 'ADJUST' | 'TRANSFER';
 
@@ -24,7 +25,10 @@ export interface MovementInput {
 
 @Injectable()
 export class StockService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: TenantAuditService,
+  ) {}
 
   /**
    * Aplica um movimento de stock dentro de uma transacção já existente:
@@ -112,6 +116,7 @@ export class StockService {
       expiryDate?: string | null;
       minQty?: number | null;
       createdBy?: string | null;
+      createdByName?: string | null;
     },
   ): Promise<{ balanceAfter: number }> {
     if (input.quantity <= 0) throw new BadRequestException('A quantidade tem de ser maior que zero.');
@@ -153,6 +158,19 @@ export class StockService {
                              ${input.quantity}, ${input.expiryDate ? Prisma.sql`${input.expiryDate}::date` : Prisma.sql`NULL`})`,
         );
       }
+      // Auditoria: entrada de stock fica registada com data e funcionário.
+      await this.audit.recordInTx(tx, {
+        actorId: input.createdBy ?? null,
+        actorName: input.createdByName ?? null,
+        action: 'STOCK_ENTRY',
+        entity: 'product',
+        entityId: input.productId,
+        details: {
+          storeId, quantity: input.quantity, unitCost: input.unitCost,
+          salePrice: input.salePrice ?? null, batchCode: input.batchCode ?? null,
+          expiryDate: input.expiryDate ?? null, balanceAfter,
+        },
+      });
       return { balanceAfter };
     });
   }

@@ -23,7 +23,7 @@ const LS_SESSION_START = 'ndombaxi.web.session_start';
 // Tempo de vida ABSOLUTO da sessão (segurança): após isto, re-login obrigatório,
 // mesmo com refresh token válido. Evita sessões "eternas" guardadas no browser.
 const MAX_SESSION_MS = 12 * 60 * 60 * 1000; // 12 horas
-const IDLE_MS = 20 * 60 * 1000; // logout automático após 20 min de inatividade
+const IDLE_MS = 15 * 60 * 1000; // logout automático SÓ após 15 min de inatividade
 // Acesso shadow: guarda a sessão de plataforma para restaurar ao sair.
 const LS_SHADOW = 'ndombaxi.web.shadow';
 const LS_PREV_ACCESS = 'ndombaxi.web.prevaccess';

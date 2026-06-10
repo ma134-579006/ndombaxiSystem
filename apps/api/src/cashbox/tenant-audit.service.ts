@@ -39,8 +39,25 @@ export class TenantAuditService {
     return createHash('sha256').update(canonical).digest('hex');
   }
 
+  /** A auditoria mostra o NOME do funcionário. Se só houver o email (tokens
+   *  antigos sem `name` no JWT), resolve o nome real na tabela users. */
+  private async resolveActorName(tx: Prisma.TransactionClient, e: TenantAuditEntry): Promise<string | null> {
+    const n = e.actorName ?? null;
+    if (n && !n.includes('@')) return n;
+    if (e.actorId) {
+      try {
+        const rows = await tx.$queryRaw<{ name: string | null }[]>(
+          Prisma.sql`SELECT name FROM users WHERE id = ${e.actorId}::uuid LIMIT 1`,
+        );
+        if (rows[0]?.name) return rows[0].name;
+      } catch { /* sem tabela users neste contexto — mantém o que veio */ }
+    }
+    return n;
+  }
+
   /** Grava dentro de uma transacção já existente (search_path do tenant fixado). */
   async recordInTx(tx: Prisma.TransactionClient, e: TenantAuditEntry): Promise<void> {
+    e = { ...e, actorName: await this.resolveActorName(tx, e) };
     const last = await tx.$queryRaw<{ hash: string }[]>(
       Prisma.sql`SELECT hash FROM tenant_audit_log ORDER BY seq DESC LIMIT 1`,
     );

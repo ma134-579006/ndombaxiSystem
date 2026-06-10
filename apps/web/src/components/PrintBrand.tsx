@@ -8,7 +8,9 @@ let pending: Promise<DocumentIdentity | null> | null = null;
 function loadBranding(): Promise<DocumentIdentity | null> {
   if (cached) return Promise.resolve(cached);
   if (!pending) {
-    pending = api.branding().then((b) => { cached = b; return b; }).catch(() => null);
+    pending = api.branding()
+      .then((b) => { cached = b; return b; })
+      .catch(() => { pending = null; return null; }); // falhou → tenta de novo na próxima montagem
   }
   return pending;
 }

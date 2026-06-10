@@ -6,6 +6,55 @@ import { IconLogout } from './Icons';
 import { ThemePicker } from './ThemePicker';
 import { PrintBrandHead, PrintBrandFoot } from './PrintBrand';
 
+/** Sino de notificações (Super Admin): conversas por responder + comentários
+ *  novos do site — com badge e dropdown estilo rede social. */
+function NotifyBell({ onGo }: { onGo(section: string): void }) {
+  const [n, setN] = useState<{ unreadChats: number; humanWaiting: number; newFeedback: number } | null>(null);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const tick = () => { api.support.admin.notifications().then((r) => { if (alive) setN(r); }).catch(() => undefined); };
+    tick();
+    const t = window.setInterval(tick, 20000);
+    return () => { alive = false; window.clearInterval(t); };
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  const total = (n?.unreadChats ?? 0) + (n?.newFeedback ?? 0);
+  return (
+    <div className="noti-wrap" ref={ref}>
+      <button className="icon-btn noti-btn" onClick={() => setOpen((v) => !v)} title="Notificações" aria-label="Notificações">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+        </svg>
+        {total > 0 ? <span className="noti-badge">{total > 99 ? '99+' : total}</span> : null}
+      </button>
+      {open ? (
+        <div className="noti-pop">
+          <div className="noti-head">Notificações</div>
+          <button className="noti-item" onClick={() => { setOpen(false); onGo('support'); }}>
+            💬 <span style={{ flex: 1, textAlign: 'left' }}>
+              {n?.unreadChats ? <><strong>{n.unreadChats}</strong> conversa(s) por responder{n.humanWaiting ? ` · ${n.humanWaiting} à espera da equipa` : ''}</> : 'Sem conversas novas'}
+            </span>
+            {n?.unreadChats ? <span className="noti-badge inline">{n.unreadChats}</span> : null}
+          </button>
+          <button className="noti-item" onClick={() => { setOpen(false); onGo('feedback'); }}>
+            ⭐ <span style={{ flex: 1, textAlign: 'left' }}>
+              {n?.newFeedback ? <><strong>{n.newFeedback}</strong> comentário(s) novo(s) no site</> : 'Sem comentários novos'}
+            </span>
+            {n?.newFeedback ? <span className="noti-badge inline">{n.newFeedback}</span> : null}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** Hambúrguer (só visível no telemóvel via CSS). */
 function IconMenu({ size = 22 }: { size?: number }) {
   return (
@@ -215,6 +264,7 @@ export function Shell({
           </button>
           <h1>{current?.label}</h1>
           <span className="spacer" />
+          {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
           <ThemePicker />
           <ManagerMenu
             photo={avatar}

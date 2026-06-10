@@ -43,6 +43,25 @@ export function Storefront() {
     ? <CustomerModal code={code} session={customer} onClose={() => setAccountOpen(false)} onOpenOrder={openOrder} />
     : null;
 
+  // CONTA OBRIGATÓRIA (estilo marketplace): sem login, o visitante pode VER os
+  // produtos e a montra — mas finalizar compra, histórico de encomendas e chat
+  // exigem conta. Sem conta → abre o login/registo do cliente.
+  const [gateMsg, setGateMsg] = useState<string | null>(null);
+  const requireAccount = (msg: string, then: () => void) => {
+    if (customer) { setGateMsg(null); then(); return; }
+    setGateMsg(msg);
+    setAccountOpen(true);
+  };
+  useEffect(() => { if (customer) setGateMsg(null); }, [customer]);
+  // Vistas protegidas: se a sessão não existir, volta ao catálogo.
+  useEffect(() => {
+    if (!customer && (view === 'checkout' || view === 'track')) {
+      setView('catalog');
+      setAccountOpen(true);
+      setGateMsg('Entre na sua conta para continuar.');
+    }
+  }, [customer, view]);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(lastOrderKey(code));
@@ -186,10 +205,10 @@ export function Storefront() {
                 </div>
                 <button
                   className="btn lg block"
-                  onClick={() => {
+                  onClick={() => requireAccount('Crie uma conta ou entre para finalizar a compra.', () => {
                     setCartOpen(false);
                     setView('checkout');
-                  }}
+                  })}
                 >
                   Finalizar compra
                 </button>
@@ -210,14 +229,25 @@ export function Storefront() {
           <h1>{data?.settings.brand_name || data?.storeName || 'Bem-vindo'}</h1>
           <p>{data?.settings.tagline || 'Os melhores produtos, entregues em Angola.'}</p>
 
+          {gateMsg && !customer ? (
+            <div className="banner danger" style={{ marginTop: 12 }}>{gateMsg}</div>
+          ) : null}
+          {!customer ? (
+            <div className="banner info" style={{ marginTop: 12, cursor: 'pointer' }} onClick={() => setAccountOpen(true)}>
+              👤 <strong>Crie a sua conta grátis</strong> — para comprar, acompanhar encomendas e falar com a loja.
+              <span className="spacer" />
+              <IconChevronRight size={18} />
+            </div>
+          ) : null}
+
           {savedOrder ? (
             <div
               className="banner info"
               style={{ marginTop: 16, cursor: 'pointer' }}
-              onClick={() => {
+              onClick={() => requireAccount('Entre na sua conta para acompanhar as suas encomendas.', () => {
                 setTrackId(savedOrder.id);
                 setView('track');
-              }}
+              })}
             >
               Acompanhar a sua encomenda {savedOrder.orderNumber}
               <span className="spacer" />

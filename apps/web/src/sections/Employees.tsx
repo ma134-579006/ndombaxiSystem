@@ -13,10 +13,12 @@ const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 interface FormState {
   employeeNumber: string; fullName: string; position: string; department: string;
   baseSalary: string; iban: string; taxId: string; inssNumber: string; photoUrl: string;
+  bonus: string; absenceDays: string;
 }
 const EMPTY: FormState = {
   employeeNumber: '', fullName: '', position: '', department: '',
   baseSalary: '', iban: '', taxId: '', inssNumber: '', photoUrl: '',
+  bonus: '', absenceDays: '',
 };
 
 /** Funcionários (RH): ficha com foto (qualquer formato), criar/editar; a foto
@@ -80,10 +82,15 @@ export function Employees() {
 
   const openCreate = () => { setForm(EMPTY); setFormError(null); setCreating(true); };
   const openEdit = (e: ManagerEmployee) => {
+    // pct guardada → dias de falta (pct = dias/30×100); arredonda a 0,5 dia.
+    const pct = Number(e.absence_discount_pct ?? 0);
+    const days = pct > 0 ? Math.round((pct / 100) * 30 * 2) / 2 : 0;
     setForm({
       employeeNumber: e.employee_number, fullName: e.full_name, position: e.position ?? '',
       department: e.department ?? '', baseSalary: e.base_salary, iban: e.iban ?? '',
       taxId: e.tax_id ?? '', inssNumber: e.inss_number ?? '', photoUrl: e.photo_url ?? '',
+      bonus: Number(e.bonus ?? 0) > 0 ? String(Number(e.bonus)) : '',
+      absenceDays: days > 0 ? String(days) : '',
     });
     setFormError(null); setEditing(e);
   };
@@ -108,6 +115,8 @@ export function Employees() {
           fullName: form.fullName.trim(), position: form.position.trim() || undefined,
           department: form.department.trim() || undefined, baseSalary: salary,
           iban: form.iban.trim() || undefined, photoUrl: form.photoUrl || undefined,
+          bonus: Number(form.bonus) || 0,
+          absenceDays: Number(form.absenceDays) || 0,
         });
       } else {
         if (!form.employeeNumber.trim()) { setFormError('Indique o nº de funcionário.'); setSaving(false); return; }
@@ -235,6 +244,26 @@ export function Employees() {
               <div className="field"><label>Nº Segurança Social</label>
                 <input value={form.inssNumber} onChange={(e) => setForm({ ...form, inssNumber: e.target.value })} /></div>
             </div>
+          ) : null}
+
+          {editing ? (
+            <>
+              <div className="grid-2">
+                <div className="field"><label>Bónus mensal (Kz)</label>
+                  <input value={form.bonus} onChange={(e) => setForm({ ...form, bonus: e.target.value })} inputMode="decimal" placeholder="0" /></div>
+                <div className="field"><label>Faltas no mês (dias)</label>
+                  <input value={form.absenceDays} onChange={(e) => setForm({ ...form, absenceDays: e.target.value })} inputMode="decimal" placeholder="0" /></div>
+              </div>
+              {Number(form.absenceDays) > 0 && Number(form.baseSalary) > 0 ? (
+                <div className="banner warning" style={{ marginBottom: 12, fontSize: 13 }}>
+                  <span>📉</span>
+                  <span>
+                    Desconto na folha: <strong>{Number(form.absenceDays)} dia(s) × {formatKz(Number(form.baseSalary) / 30)}</strong> (salário diário)
+                    {' '}= <strong>{formatKz(Math.min(Number(form.baseSalary), (Number(form.baseSalary) / 30) * Number(form.absenceDays)))}</strong> — aplicado automaticamente ao processar a folha salarial.
+                  </span>
+                </div>
+              ) : null}
+            </>
           ) : null}
 
           <button className="btn lg block" style={{ marginTop: 14 }} onClick={save} disabled={saving}>

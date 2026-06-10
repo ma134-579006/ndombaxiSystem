@@ -69,6 +69,24 @@ export class StaffService {
     return this.repo.updateStore(schema, id, dto);
   }
 
+  /** Elimina (sem histórico) ou desativa (com histórico) uma loja. */
+  async removeStore(
+    schema: string,
+    actor: StaffActor,
+    id: string,
+  ): Promise<{ deleted: boolean; deactivated: boolean }> {
+    const result = await this.repo.removeStore(schema, id);
+    await this.audit.record({
+      actorType: 'TENANT',
+      actorId: actor.sub,
+      tenantSchema: schema,
+      action: result.deleted ? 'STORE_DELETED' : 'STORE_DEACTIVATED',
+      entity: 'Store',
+      entityId: id,
+    });
+    return result;
+  }
+
   // ── Funcionários ───────────────────────────────────────────
   listStaff(schema: string): Promise<StaffRow[]> {
     return this.repo.listStaff(schema);

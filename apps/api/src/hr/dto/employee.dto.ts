@@ -97,4 +97,17 @@ export class UpdateEmployeeDto {
   @IsOptional()
   @IsString()
   photoUrl?: string;
+
+  /** Bónus mensal (Kz) — entra na folha como subsídio sujeito (INSS/IRT). */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  bonus?: number;
+
+  /** Dias de falta injustificada no mês. O desconto segue a Lei Geral do
+   *  Trabalho: cada dia desconta o salário diário (base ÷ 30). */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  absenceDays?: number;
 }

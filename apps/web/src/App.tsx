@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { loadSection, restoreDrafts, saveSection, startDraftCapture } from './workspace';
 import { KeyboardProvider } from './keyboard/KeyboardProvider';
 import { Shell, type NavItem } from './components/Shell';
 import { IconBuilding, IconCard, IconChart, IconCpu, IconCube, IconReceipt, IconStar, IconStore, IconTruck } from './components/Icons';
@@ -12,6 +13,8 @@ import { Register } from './pages/Register';
 import { api } from './api/client';
 import './landing.css';
 import { Ai } from './sections/Ai';
+import { SupportAdmin } from './sections/SupportAdmin';
+import { FeedbackAdmin } from './sections/FeedbackAdmin';
 import { Fiscal } from './sections/Fiscal';
 import { Gateways } from './sections/Gateways';
 import { Tenants } from './sections/Tenants';
@@ -52,6 +55,8 @@ const PLATFORM_NAV: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: IconChart },
   { key: 'tenants', label: 'Empresas', icon: IconBuilding },
   { key: 'subs', label: 'Subscrições & Pagamentos', icon: IconCard },
+  { key: 'support', label: 'Suporte do site', icon: IconCpu },
+  { key: 'feedback', label: 'Comentários do site', icon: IconStar },
   { key: 'plans', label: 'Planos & Página inicial', icon: IconStar },
   { key: 'ai', label: 'Inteligência Artificial', icon: IconCpu },
   { key: 'fiscal', label: 'Fiscal (AGT)', icon: IconReceipt },
@@ -105,13 +110,30 @@ const TENANT_NAV: NavItem[] = [
   { key: 'settings', label: 'Configurações', icon: IconBuilding },
 ];
 
+/** Página + rascunhos por utilizador: restaura onde o utilizador estava
+ *  (mesmo após logout por inatividade) e o que estava a escrever. */
+function useWorkspace(defaultSection: string): [string, (s: string) => void] {
+  const { user } = useAuth();
+  const uid = user?.sub ?? 'anon';
+  const [section, setSectionState] = useState(() => loadSection(uid) ?? defaultSection);
+  const setSection = (s: string) => { setSectionState(s); saveSection(uid, s); };
+  useEffect(() => startDraftCapture(uid, () => section), [uid]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const t = window.setTimeout(() => restoreDrafts(uid, section), 350); // após o render/fetchs
+    return () => window.clearTimeout(t);
+  }, [uid, section]);
+  return [section, setSection];
+}
+
 function PlatformPanel() {
-  const [section, setSection] = useState('dashboard');
+  const [section, setSection] = useWorkspace('dashboard');
   return (
     <Shell nav={PLATFORM_NAV} section={section} setSection={setSection} roleLabel="Super Admin" subtitle="Administração">
       {section === 'dashboard' ? <PlatformDashboard /> : null}
       {section === 'tenants' ? <Tenants /> : null}
       {section === 'subs' ? <SubsAdmin /> : null}
+      {section === 'support' ? <SupportAdmin /> : null}
+      {section === 'feedback' ? <FeedbackAdmin /> : null}
       {section === 'plans' ? <PlansAdmin /> : null}
       {section === 'ai' ? <Ai /> : null}
       {section === 'fiscal' ? <Fiscal /> : null}
@@ -122,7 +144,7 @@ function PlatformPanel() {
 }
 
 function TenantPanel() {
-  const [section, setSection] = useState('overview');
+  const [section, setSection] = useWorkspace('overview');
   // Gate: setup obrigatório → aprovação do Super Admin → plano válido → painel.
   const [gate, setGate] = useState<{ setupCompleted: boolean; approved: boolean; expired: boolean } | null>(null);
   React.useEffect(() => {
@@ -180,8 +202,17 @@ function TenantPanel() {
 
 function Gate() {
   const { status, mode, shadow, exitShadow } = useAuth();
-  // Visitantes: landing → login/registo.
-  const [view, setView] = useState<'landing' | 'login' | 'register'>('landing');
+  // Visitantes novos: landing. Quem JÁ entrou antes neste browser (ou acabou de
+  // fazer logout) vai direto ao ECRÃ DE LOGIN — nunca volta a cair na landing.
+  const [view, setView] = useState<'landing' | 'login' | 'register'>(
+    () => { try { return localStorage.getItem('ndombaxi.web.hadSession') ? 'login' : 'landing'; } catch { return 'landing'; } },
+  );
+  useEffect(() => {
+    if (status === 'authed') {
+      try { localStorage.setItem('ndombaxi.web.hadSession', '1'); } catch { /* ignora */ }
+      setView('login'); // quando a sessão cair, aterra no login
+    }
+  }, [status]);
 
   if (status === 'loading') {
     return (
