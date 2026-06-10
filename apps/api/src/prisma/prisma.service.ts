@@ -15,6 +15,26 @@ export function assertValidSchemaName(schema: string): void {
   }
 }
 
+/**
+ * Garante um POOL CONTIDO de ligações: o Postgres gerido (Aiven) tem poucas
+ * "slots"; durante um deploy correm 2 instâncias em simultâneo e, sem limite,
+ * o pool por omissão do Prisma esgota-as — a instância nova não consegue
+ * arrancar e o deploy fica preso na versão antiga. `connection_limit` no URL
+ * resolve de raiz (cada instância usa no máximo 5 ligações).
+ */
+function withPoolLimits(url: string | undefined): string | undefined {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    if (!u.searchParams.has('connection_limit')) u.searchParams.set('connection_limit', '5');
+    if (!u.searchParams.has('pool_timeout')) u.searchParams.set('pool_timeout', '30');
+    if (!u.searchParams.has('connect_timeout')) u.searchParams.set('connect_timeout', '20');
+    return u.toString();
+  } catch {
+    return url; // URL inválido → deixa o Prisma reportar o erro original
+  }
+}
+
 @Injectable()
 export class PrismaService
   extends PrismaClient
@@ -22,9 +42,13 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
 
+  constructor() {
+    super({ datasources: { db: { url: withPoolLimits(process.env.DATABASE_URL) } } });
+  }
+
   async onModuleInit(): Promise<void> {
     await this.$connect();
-    this.logger.log('Prisma connected to PostgreSQL');
+    this.logger.log('Prisma connected to PostgreSQL (pool contido: máx. 5 ligações)');
   }
 
   async onModuleDestroy(): Promise<void> {
