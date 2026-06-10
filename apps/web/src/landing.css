@@ -240,3 +240,83 @@
 /* CTA: leve elevação ao premir/hover (sem depender de motion). */
 .lp-hero .cta-row .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(37,99,235,.34); }
 .lp-hero .cta-row .btn-primary:active { transform: translateY(0); }
+
+/* ════════════════════════════════════════════════════════════
+   DESIGN 2.0 — "Meta-level": aurora viva no hero, títulos com
+   gradiente animado, cartões com borda-gradiente, revelação ao
+   rolar (scroll-driven animations, CSS puro — progressivo).
+   ════════════════════════════════════════════════════════════ */
+
+/* Aurora: dois "blobs" de luz a flutuar por cima do hero. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-hero::after {
+    content: ''; position: absolute; inset: -20% -10%; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(34% 42% at 18% 22%, rgba(56,189,248,.28), transparent 70%),
+      radial-gradient(30% 38% at 84% 70%, rgba(168,85,247,.26), transparent 70%),
+      radial-gradient(26% 30% at 60% 12%, rgba(37,99,235,.22), transparent 70%);
+    filter: blur(42px); mix-blend-mode: screen;
+    animation: lp-aurora 16s ease-in-out infinite alternate;
+  }
+  @keyframes lp-aurora {
+    0%   { transform: translate3d(0,0,0) scale(1); }
+    50%  { transform: translate3d(3%, -2%, 0) scale(1.06); }
+    100% { transform: translate3d(-3%, 2%, 0) scale(1.02); }
+  }
+}
+
+/* Título do hero: palavra-chave com gradiente vivo animado. */
+.lp-hero h1 { background: linear-gradient(92deg, #fff 30%, #9fd2ff 55%, #d7b8ff 75%, #fff 95%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+@media (prefers-reduced-motion: no-preference) {
+  .lp-hero h1 { animation: lp-rise .7s .15s both, lp-sheen 7s 1.2s ease-in-out infinite; }
+  @keyframes lp-sheen { 0%,100% { background-position: 0% 0; } 50% { background-position: 100% 0; } }
+}
+
+/* Títulos das secções: sublinhado-gradiente elegante. */
+.lp-section h2 { position: relative; padding-bottom: 14px; }
+.lp-section h2::after {
+  content: ''; position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  width: 64px; height: 4px; border-radius: 999px;
+  background: linear-gradient(90deg, var(--lp-primary, #2563eb), #a855f7);
+}
+
+/* Cartões de funcionalidades: borda-gradiente + ícone flutuante no hover. */
+.lp-feat { position: relative; background-clip: padding-box; }
+.lp-feat:hover { border-color: transparent; }
+.lp-feat:hover::before {
+  content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: inherit;
+  background: linear-gradient(135deg, #3b82f6, #22d3ee 45%, #a855f7);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-feat:hover .ic { animation: lp-float 1.6s ease-in-out infinite; }
+  @keyframes lp-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+}
+
+/* Revelação ao rolar (Chrome/Edge modernos; resto ignora sem efeito). */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .lp-feat, .lp-plan, .lp-section .lead, .lp-ann {
+      animation: lp-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 38%;
+    }
+    @keyframes lp-reveal {
+      from { opacity: 0; transform: translateY(26px) scale(.985); }
+      to   { opacity: 1; transform: none; }
+    }
+  }
+}
+
+/* Planos: o destaque pulsa suavemente (chama o olhar sem cansar). */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-plan.featured { animation: lp-glow 3.2s ease-in-out infinite; }
+  @keyframes lp-glow {
+    0%,100% { box-shadow: 0 18px 44px rgba(37,99,235,.18); }
+    50%     { box-shadow: 0 22px 56px rgba(124,58,237,.32); }
+  }
+}
+
+/* Contraste: o login abre num modal sobre fundo escuro — a marca tem de ser
+   sempre legível, independentemente do tema (claro/escuro). */
+.lp-modal-bg .login .brand h1 { color: #fff; }
+.lp-modal-bg .login .brand .tg { color: #aebcd2; }

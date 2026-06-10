@@ -341,7 +341,9 @@ input, textarea, select { font-family: inherit; }
 .login { height: 100vh; height: 100dvh; display: flex; flex-direction: column;
   justify-content: safe center; align-items: center; overflow: hidden;
   padding: clamp(6px, 1.6vh, 24px) 18px;
-  background: radial-gradient(900px 480px at 15% -10%, rgba(59,130,246,.20), transparent 60%), radial-gradient(700px 460px at 100% 110%, rgba(124,58,237,.18), transparent 55%), linear-gradient(160deg, #0a1020, #0c1426 55%, #080d1a); }
+  /* Segue o TEMA (claro/escuro): luzes de cor por cima do fundo do tema —
+     assim o texto (var(--text)) é sempre legível. */
+  background: radial-gradient(900px 480px at 15% -10%, var(--primary-soft), transparent 60%), radial-gradient(700px 460px at 100% 110%, rgba(124,58,237,.12), transparent 55%), var(--app-bg); }
 /* A PÁGINA nunca rola (overflow hidden). A caixa absorve excesso só em ecrãs
    minúsculos (scroll interno discreto), mantendo o login sempre "justo". */
 .login .box { width: 100%; max-width: 410px; margin: auto; max-height: 100%; overflow: hidden; }
@@ -882,3 +884,60 @@ body { line-height: 1.5; font-feature-settings: 'cv02','cv03','cv04','ss01'; }
   .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
     background: var(--grad-primary); opacity: .85; }
 }
+
+/* ════════════════════════════════════════════════════════════
+   DESIGN 2.0 (2026-06-10) — login com aurora + glass, painel com
+   micro-interações premium. Aditivo, respeita todos os temas e
+   prefers-reduced-motion.
+   ════════════════════════════════════════════════════════════ */
+
+/* LOGIN: aurora de fundo (duas luzes a flutuar) + cartão glass. */
+.login { position: relative; isolation: isolate; overflow: hidden; }
+.login::before, .login::after {
+  content: ''; position: absolute; z-index: -1; width: 46vmax; height: 46vmax; border-radius: 50%;
+  filter: blur(70px); opacity: .5; pointer-events: none;
+}
+.login::before { top: -18vmax; left: -12vmax; background: radial-gradient(circle, var(--primary-soft), transparent 65%); }
+.login::after { bottom: -20vmax; right: -14vmax; background: radial-gradient(circle, rgba(168,85,247,.18), transparent 65%); }
+@media (prefers-reduced-motion: no-preference) {
+  .login::before { animation: aur-a 14s ease-in-out infinite alternate; }
+  .login::after  { animation: aur-b 18s ease-in-out infinite alternate; }
+  @keyframes aur-a { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(6vmax,4vmax,0) scale(1.15); } }
+  @keyframes aur-b { from { transform: translate3d(0,0,0) scale(1.1); } to { transform: translate3d(-5vmax,-4vmax,0) scale(.95); } }
+  .login .box { animation: login-in .55s cubic-bezier(.2,.7,.3,1) both; }
+  @keyframes login-in { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: none; } }
+}
+.login .card { backdrop-filter: blur(14px); border: 1px solid var(--border); }
+
+/* BOTÕES: varrimento de brilho no hover (só botões primários). */
+.btn:not(.ghost):not(.sm) { position: relative; overflow: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .btn:not(.ghost):not(.sm)::after {
+    content: ''; position: absolute; top: 0; left: -130%; width: 55%; height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent);
+    transform: skewX(-18deg); transition: left .55s ease; pointer-events: none;
+  }
+  .btn:not(.ghost):not(.sm):hover::after { left: 140%; }
+}
+
+/* KPI cards: faixa-gradiente no topo + elevação no hover. */
+.kpi-card { position: relative; overflow: hidden; transition: transform .18s ease, box-shadow .22s ease; }
+.kpi-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--grad-accent); opacity: 0; transition: opacity .2s;
+}
+.kpi-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.kpi-card:hover::before { opacity: 1; }
+
+/* Cartões: elevação subtil no hover (sensação viva, não intrusiva). */
+.card { transition: box-shadow .22s ease, border-color .2s ease; }
+.card:hover { border-color: var(--border); box-shadow: var(--shadow); }
+
+/* Topbar: vidro com blur (premium, mantém leitura). */
+.topbar { backdrop-filter: blur(12px); }
+
+/* Sidebar: item ativo com brilho do tema. */
+.nav button.active { box-shadow: 0 6px 22px -8px var(--primary); }
+
+/* Tabelas: linha realçada acompanha o cursor com transição suave. */
+.ptable tbody tr { transition: background .14s ease; }

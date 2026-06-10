@@ -712,3 +712,53 @@ body { line-height: 1.5; }
   .modal-bg > .card, .sales-modal, .scan-box, .receipt { animation: pos-in .22s cubic-bezier(.2,.7,.3,1) both; }
   .cart-line { animation: pos-in .16s ease both; }
 }
+
+/* ════════════════════════════════════════════════════════════
+   DESIGN 2.0 (2026-06-10) — caixa premium: login com aurora,
+   produtos vivos, botão de venda com brilho. Aditivo e seguro.
+   ════════════════════════════════════════════════════════════ */
+
+/* Login da caixa: aurora suave de fundo + entrada do cartão. */
+.login-page, .login { position: relative; isolation: isolate; overflow: hidden; }
+.login-page::before, .login::before {
+  content: ''; position: absolute; z-index: -1; top: -22vmax; left: -14vmax; width: 50vmax; height: 50vmax;
+  border-radius: 50%; filter: blur(70px); opacity: .5; pointer-events: none;
+  background: radial-gradient(circle, var(--primary-soft), transparent 65%);
+}
+.login-page::after, .login::after {
+  content: ''; position: absolute; z-index: -1; bottom: -24vmax; right: -16vmax; width: 50vmax; height: 50vmax;
+  border-radius: 50%; filter: blur(70px); opacity: .45; pointer-events: none;
+  background: radial-gradient(circle, rgba(168,85,247,.16), transparent 65%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .login-page::before, .login::before { animation: pos-aur 15s ease-in-out infinite alternate; }
+  .login-page::after, .login::after { animation: pos-aur 19s ease-in-out infinite alternate-reverse; }
+  @keyframes pos-aur { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(5vmax,3vmax,0) scale(1.12); } }
+  .login-card { animation: pos-login-in .5s cubic-bezier(.2,.7,.3,1) both; }
+  @keyframes pos-login-in { from { opacity: 0; transform: translateY(16px) scale(.985); } to { opacity: 1; transform: none; } }
+}
+
+/* Produtos: cartão vivo — eleva no hover, "afunda" ao tocar (tátil). */
+.prod { transition: transform .14s ease, box-shadow .2s ease, border-color .2s ease; }
+.prod:hover { transform: translateY(-3px); border-color: var(--primary); box-shadow: 0 12px 28px -12px var(--primary-soft), var(--shadow); }
+.prod:active { transform: scale(.97); }
+
+/* Botão grande (Finalizar venda): brilho a varrer no hover. */
+@media (prefers-reduced-motion: no-preference) {
+  .btn.lg { position: relative; overflow: hidden; }
+  .btn.lg::after {
+    content: ''; position: absolute; top: 0; left: -130%; width: 55%; height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.30), transparent);
+    transform: skewX(-18deg); transition: left .55s ease; pointer-events: none;
+  }
+  .btn.lg:hover::after { left: 140%; }
+}
+
+/* Linhas do carrinho: entrada animada quando se adiciona um item. */
+@media (prefers-reduced-motion: no-preference) {
+  .cart-line { animation: line-in .22s ease both; }
+  @keyframes line-in { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+}
+
+/* Topbar de vidro. */
+.topbar { backdrop-filter: blur(12px); }
