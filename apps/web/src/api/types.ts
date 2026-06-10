@@ -754,7 +754,7 @@ export interface Company {
 }
 
 // ── IA ───────────────────────────────────────────────────────
-export const AI_ADAPTERS = ['openmanus', 'openai', 'anthropic', 'elevenlabs', 'generic'] as const;
+export const AI_ADAPTERS = ['openmanus', 'openai', 'openclaw', 'anthropic', 'elevenlabs', 'generic'] as const;
 export const AI_CAPABILITIES = ['CHAT', 'TTS', 'STT', 'IMAGE', 'VOICE_CALL'] as const;
 
 export interface AiProvider {

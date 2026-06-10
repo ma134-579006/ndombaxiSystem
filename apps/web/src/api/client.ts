@@ -244,8 +244,8 @@ export const api = {
   support: {
     start: (name?: string) =>
       request<{ chatId: string; greeting: string }>('POST', '/public/support/chats', { name }, { auth: false }),
-    send: (chatId: string, body: string) =>
-      request<{ reply: string; imageSvg: string | null; escalated: boolean }>('POST', `/public/support/chats/${chatId}/messages`, { body }, { auth: false }),
+    send: (chatId: string, body: string, history?: { role: 'user' | 'assistant'; content: string }[]) =>
+      request<{ reply: string; imageSvg: string | null; escalated: boolean }>('POST', `/public/support/chats/${chatId}/messages`, { body, history }, { auth: false }),
     messages: (chatId: string, after?: string) =>
       request<SupportMsg[]>('GET', `/public/support/chats/${chatId}/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`, undefined, { auth: false }),
     feedbackList: () => request<SiteFeedback[]>('GET', '/public/support/feedback', undefined, { auth: false }),

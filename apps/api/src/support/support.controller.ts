@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, Length } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, Length } from 'class-validator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
@@ -13,6 +13,11 @@ class StartChatDto {
 class MessageDto {
   @IsString() @Length(1, 3000)
   body!: string;
+
+  /** Histórico vindo do navegador (o servidor não guarda conversas do bot).
+   *  Cada item {role:'user'|'assistant', content:string} — saneado no serviço. */
+  @IsOptional() @IsArray() @ArrayMaxSize(12)
+  history?: { role: 'user' | 'assistant'; content: string }[];
 }
 class FeedbackDto {
   @IsOptional() @IsString() @Length(0, 80)
@@ -43,7 +48,7 @@ export class PublicSupportController {
   @Post('chats/:id/messages')
   @ApiOperation({ summary: 'Envia mensagem; o bot responde (ou escala para o Super Admin)' })
   send(@Param('id') id: string, @Body() dto: MessageDto) {
-    return this.support.sendVisitorMessage(id, dto.body);
+    return this.support.sendVisitorMessage(id, dto.body, dto.history);
   }
 
   @Public()

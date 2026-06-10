@@ -206,7 +206,7 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .pos { height: 100%; display: flex; flex-direction: column; }
 .topbar {
   display: flex; align-items: center; gap: 14px; padding: 12px 18px;
-  border-bottom: 1px solid var(--border); background: var(--glass); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border); background: var(--glass); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   position: relative; z-index: 60; /* fica acima do catálogo (menu de tema não fica atrás) */
 }
 .topbar .logo {
@@ -310,7 +310,7 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .scan-last { text-align: center; font-size: 13px; font-weight: 700; color: var(--success); }
 
 /* Histórico de vendas (modal) */
-.sales-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: min(960px, 96vw); max-height: 90vh; display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.sales-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: min(960px, 96vw); max-height: 90vh; max-height: 90dvh; display: flex; flex-direction: column; gap: 10px; padding: 16px; }
 .sm-head { display: flex; align-items: center; gap: 10px; }
 .sm-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .sm-filters label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
@@ -761,4 +761,40 @@ body { line-height: 1.5; }
 }
 
 /* Topbar de vidro. */
-.topbar { backdrop-filter: blur(12px); }
+.topbar { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+
+/* ════════════════════════════════════════════════════════════
+   iPHONE / SAFARI (iOS) — endurecimento responsivo do CAIXA
+   ════════════════════════════════════════════════════════════ */
+
+/* Safari iOS antigo (sem dvh): altura "cheia" correta sem a barra de
+   endereço a tapar o botão "Finalizar venda". */
+@supports (-webkit-touch-callout: none) and (not (height: 100dvh)) {
+  .app-bg, .login-screen { height: -webkit-fill-available; }
+  .pos { height: 100%; }
+}
+
+/* Scroll com inércia nativa do iOS nas áreas internas. */
+.grid, .cart-lines, .cart-foot, .sm-list, .modal-bg { -webkit-overflow-scrolling: touch; }
+
+/* Notch / Dynamic Island (viewport-fit=cover): zonas seguras — env() vale 0
+   nos restantes dispositivos, por isso o design não muda fora do iPhone. */
+.topbar { padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
+@media (max-width: 820px) {
+  .topbar { padding-top: calc(10px + env(safe-area-inset-top, 0px)); }
+  .cart-foot { padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 480px) {
+  .topbar { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+}
+
+/* Toques: sem "flash" cinzento nem duplo-toque-zoom (vendas rápidas). */
+button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+/* Ecrãs MUITO estreitos: catálogo a 1 coluna, controlos mínimos. */
+@media (max-width: 250px) {
+  .grid { grid-template-columns: 1fr; }
+  .topbar .who { display: none; }
+  .icon-btn { width: 32px; height: 32px; }
+  .conn { padding: 0 6px; height: 32px; }
+}

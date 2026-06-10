@@ -3,6 +3,21 @@ import { api } from '../api/client';
 import type { SupportMsg } from '../api/types';
 
 const LS_CHAT = 'ndombaxi.support.chat';
+const LS_MSGS = 'ndombaxi.support.msgs';
+const LS_HUMAN = 'ndombaxi.support.human';
+
+/** PRIVACIDADE: o servidor não guarda conversas do bot — o histórico vive
+ *  apenas aqui, no navegador do visitante. */
+function loadLocalMsgs(): SupportMsg[] {
+  try {
+    const raw = localStorage.getItem(LS_MSGS);
+    const arr = raw ? (JSON.parse(raw) as SupportMsg[]) : [];
+    return Array.isArray(arr) ? arr.slice(-120) : [];
+  } catch { return []; }
+}
+function saveLocalMsgs(msgs: SupportMsg[]) {
+  try { localStorage.setItem(LS_MSGS, JSON.stringify(msgs.slice(-120))); } catch { /* ignora */ }
+}
 
 /** O corpo pode trazer um guia visual: texto + [[SVG]]<svg…>[[/SVG]].
  *  (O SVG vem da NOSSA API — gerado pelo bot, fonte confiável.) */
@@ -27,27 +42,39 @@ export function SupportChat() {
   const [chatId, setChatId] = useState<string | null>(() => {
     try { return localStorage.getItem(LS_CHAT); } catch { return null; }
   });
-  const [msgs, setMsgs] = useState<SupportMsg[]>([]);
+  const [msgs, setMsgsRaw] = useState<SupportMsg[]>(() => loadLocalMsgs());
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [human, setHuman] = useState(false);
+  const [human, setHuman] = useState(() => {
+    try { return localStorage.getItem(LS_HUMAN) === '1'; } catch { return false; }
+  });
   const scroller = useRef<HTMLDivElement | null>(null);
+
+  // Guarda o histórico SEMPRE no navegador (o servidor não o guarda).
+  const setMsgs = (updater: React.SetStateAction<SupportMsg[]>) => {
+    setMsgsRaw((prev) => {
+      const next = typeof updater === 'function' ? (updater as (p: SupportMsg[]) => SupportMsg[])(prev) : updater;
+      saveLocalMsgs(next);
+      return next;
+    });
+  };
+
+  const markHuman = () => {
+    setHuman(true);
+    try { localStorage.setItem(LS_HUMAN, '1'); } catch { /* ignora */ }
+  };
 
   const scrollDown = () => {
     window.setTimeout(() => scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' }), 60);
   };
 
-  // Abre/recupera a conversa quando o painel abre.
+  // Abre/recupera a conversa quando o painel abre (histórico vem do navegador).
   useEffect(() => {
     if (!open) return;
     let alive = true;
     void (async () => {
+      if (chatId) { scrollDown(); return; }
       try {
-        if (chatId) {
-          const m = await api.support.messages(chatId);
-          if (alive) { setMsgs(m); scrollDown(); }
-          return;
-        }
         const r = await api.support.start();
         if (!alive) return;
         setChatId(r.chatId);
@@ -60,13 +87,13 @@ export function SupportChat() {
     return () => { alive = false; };
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Quando a conversa está com humanos, vai buscando respostas novas (polling).
+  // Quando a conversa está com humanos, vai buscando respostas da EQUIPA (polling).
   useEffect(() => {
     if (!open || !chatId || !human) return;
     const t = window.setInterval(async () => {
       try {
         const last = msgs[msgs.length - 1]?.created_at;
-        const news = await api.support.messages(chatId, last);
+        const news = (await api.support.messages(chatId, last)).filter((n) => n.sender === 'ADMIN');
         if (news.length) { setMsgs((p) => [...p, ...news.filter((n) => !p.some((x) => x.id === n.id))]); scrollDown(); }
       } catch { /* offline — tenta no próximo tick */ }
     }, 6000);
@@ -77,16 +104,25 @@ export function SupportChat() {
     const text = input.trim();
     if (!text || !chatId || busy) return;
     setInput('');
+    // Contexto para a IA: últimos turnos guardados APENAS no navegador.
+    const history = msgs
+      .filter((m) => m.sender === 'VISITOR' || m.sender === 'BOT')
+      .slice(-10)
+      .map((m) => ({
+        role: m.sender === 'VISITOR' ? ('user' as const) : ('assistant' as const),
+        content: m.body.replace(/\[\[SVG\]\][\s\S]*?\[\[\/SVG\]\]/g, '').trim().slice(0, 600),
+      }))
+      .filter((t) => t.content.length > 0);
     setMsgs((p) => [...p, { id: `v${Date.now()}`, sender: 'VISITOR', body: text, created_at: new Date().toISOString() }]);
     scrollDown();
     setBusy(true);
     try {
-      const r = await api.support.send(chatId, text);
+      const r = await api.support.send(chatId, text, history);
       if (r.reply) {
         const body = r.imageSvg ? `${r.reply}\n[[SVG]]${r.imageSvg}[[/SVG]]` : r.reply;
         setMsgs((p) => [...p, { id: `b${Date.now()}`, sender: 'BOT', body, created_at: new Date().toISOString() }]);
       }
-      if (r.escalated) setHuman(true);
+      if (r.escalated) markHuman();
       scrollDown();
     } catch {
       setMsgs((p) => [...p, { id: `e${Date.now()}`, sender: 'BOT', body: 'Falha ao enviar. Verifica a internet e tenta de novo.', created_at: new Date().toISOString() }]);

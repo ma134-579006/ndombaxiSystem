@@ -9,7 +9,7 @@ export const AI_CAPABILITIES = ['CHAT', 'TTS', 'STT', 'IMAGE', 'VOICE_CALL'] as 
 export type AiCapability = (typeof AI_CAPABILITIES)[number];
 
 /** Adaptadores suportados (protocolos de chamada conhecidos + genérico). */
-export const AI_ADAPTERS = ['openai', 'openmanus', 'anthropic', 'elevenlabs', 'generic'] as const;
+export const AI_ADAPTERS = ['openai', 'openmanus', 'openclaw', 'anthropic', 'elevenlabs', 'generic'] as const;
 export type AiAdapter = (typeof AI_ADAPTERS)[number];
 
 export type EmojiLevel = 'none' | 'subtle' | 'balanced' | 'rich';

@@ -41,6 +41,21 @@ funcionam em qualquer telemóvel/PC, sem ligar o teu computador.
    - **CORS_ORIGINS** → já vem **pré-preenchido** no `render.yaml`; podes deixar como está.
 4. **Apply / Create**. Espera ~3-5 min (1.ª build).
 
+> 🤖 **(Opcional) Bot de suporte com OpenClaw** — o bot da landing pode usar um
+> gateway [OpenClaw](https://github.com/openclaw/openclaw) como reforço de IA.
+> Acrescenta no Render (Environment):
+> - `OPENCLAW_BASE_URL` → URL do teu gateway (ex.: `https://o-teu-gateway:18789`)
+> - `OPENCLAW_TOKEN` → o token do gateway (`gateway.auth.token`)
+> - `OPENCLAW_MODEL` → opcional (por omissão `openclaw`)
+>
+> No OpenClaw ativa o endpoint OpenAI-compatível:
+> `gateway.http.endpoints.chatCompletions.enabled = true`.
+> O bot é **limitado** (por omissão: 6 chamadas/min por conversa, 300/dia no
+> total, 400 tokens por resposta — ajustável via `SUPPORT_AI_MAX_PER_CHAT_MIN`,
+> `SUPPORT_AI_MAX_PER_DAY`, `SUPPORT_AI_MAX_TOKENS`) e **não guarda conversas**:
+> o histórico do chat vive só no navegador do visitante; só quando o visitante
+> pede um humano é que as mensagens seguintes ficam registadas para o Super Admin.
+
 ✅ Confirmação: abre `https://ndombaxi-api.onrender.com/health` → vês `{"status":"ok",...}`.
    **Copia este URL** (o teu pode ter um sufixo diferente) — é o teu **API_URL**.
 

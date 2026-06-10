@@ -51,6 +51,22 @@ export class AiProviderClient {
       return { text: String(text), model: body.model, raw: json };
     }
 
+    if (adapter === 'openclaw') {
+      // Gateway OpenClaw (github.com/openclaw/openclaw) — endpoint OpenAI-compatível
+      // /v1/chat/completions com Authorization: Bearer <token do gateway>.
+      // SEM campo `user` → cada pedido é stateless (o gateway não retém sessão).
+      const body = {
+        model: provider.model ?? 'openclaw',
+        messages: [{ role: 'system', content: systemPrompt }, ...messages.filter((m) => m.role !== 'system')],
+        temperature: (settings.temperature as number) ?? 0.3,
+        max_completion_tokens: (settings.maxTokens as number) ?? 400,
+        stream: false,
+      };
+      const json = await this.post(provider, apiKey, this.path(provider, 'chatPath', '/v1/chat/completions'), body);
+      const text = this.dig(json, ['choices', '0', 'message', 'content']) ?? '';
+      return { text: String(text), model: body.model, raw: json };
+    }
+
     // openai / openmanus / generic (assume OpenAI-compatible por omissão)
     const path = this.path(provider, 'chatPath', '/chat/completions');
     const body = {

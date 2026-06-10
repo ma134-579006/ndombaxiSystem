@@ -39,6 +39,20 @@ export const envSchema = z.object({
     .min(32)
     .default('dev-only-config-encryption-key-change-me-32+'),
 
+  // OpenClaw (github.com/openclaw/openclaw) — gateway com endpoint
+  // OpenAI-compatível. Se OPENCLAW_BASE_URL estiver definido, o bot de
+  // suporte usa-o como reforço de IA (stateless — nada fica guardado lá).
+  OPENCLAW_BASE_URL: z.string().url().optional(),
+  OPENCLAW_TOKEN: z.string().optional(),
+  OPENCLAW_MODEL: z.string().default('openclaw'),
+
+  // Limites do bot de suporte (proteção de custos e abuso):
+  //   • máx. de chamadas à IA externa por conversa/minuto e por dia (global)
+  //   • máx. de tokens por resposta
+  SUPPORT_AI_MAX_PER_CHAT_MIN: z.coerce.number().int().positive().default(6),
+  SUPPORT_AI_MAX_PER_DAY: z.coerce.number().int().positive().default(300),
+  SUPPORT_AI_MAX_TOKENS: z.coerce.number().int().positive().default(400),
+
   // Google Sign-In (OAuth) — Client ID público; o backend verifica o ID token
   // contra as chaves públicas da Google (não precisa de Client Secret).
   GOOGLE_CLIENT_ID: z
