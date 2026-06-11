@@ -37,12 +37,25 @@ function stripAccents(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
+/** Trigramas de caracteres com fronteiras (#produto# → c3:#pr, c3:pro, …) —
+ *  IGUAL ao treino (ml/bot/nlp.py). Dão TOLERÂNCIA A ERROS DE ESCRITA:
+ *  "prodto" partilha trigramas com "produto" e continua a ser entendido. */
+function charTrigrams(tok: string): string[] {
+  if (tok.length < 4) return [];
+  const padded = `#${tok}#`;
+  const out: string[] = [];
+  for (let i = 0; i + 2 < padded.length; i++) out.push(`c3:${padded.slice(i, i + 3)}`);
+  return out;
+}
+
 function tokenize(s: string): string[] {
   const norm = stripAccents(s.toLowerCase()).replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
   const toks = norm.split(' ').filter((t) => t.length > 1 && !STOPWORDS.has(t));
   const bigrams: string[] = [];
   for (let i = 0; i + 1 < toks.length; i++) bigrams.push(`${toks[i]}_${toks[i + 1]}`);
-  return [...toks, ...bigrams];
+  const chars: string[] = [];
+  for (const t of toks) chars.push(...charTrigrams(t));
+  return [...toks, ...bigrams, ...chars];
 }
 
 /** TF-IDF (tf = 1+log(c); norma L2) — igual ao treino. */

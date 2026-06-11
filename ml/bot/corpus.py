@@ -123,6 +123,7 @@ INTENTS: list[dict] = [
     },
     {
         "id": "criar_produto",
+        "image": "criar_produto",
         "examples": [
             "como crio um produto", "adicionar artigo novo", "cadastrar produto",
             "como ponho o codigo de barras", "criar produto com foto", "novo produto na loja",
@@ -131,6 +132,7 @@ INTENTS: list[dict] = [
     },
     {
         "id": "loja_online",
+        "image": "loja_online",
         "examples": [
             "como funciona a loja online", "os clientes podem comprar pela internet",
             "ativar loja virtual", "ecommerce do sistema", "vender online", "site da minha loja",

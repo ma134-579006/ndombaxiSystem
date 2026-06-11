@@ -37,11 +37,25 @@ def normalize(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def char_trigrams(tok: str) -> list[str]:
+    """Trigramas de caracteres com fronteiras (#produto# → #pr, pro, rod, …).
+    Dão TOLERÂNCIA A ERROS DE ESCRITA: "prodto" partilha trigramas com
+    "produto", por isso a pergunta continua a ser entendida."""
+    if len(tok) < 4:
+        return []
+    padded = f"#{tok}#"
+    return [f"c3:{padded[i:i+3]}" for i in range(len(padded) - 2)]
+
+
 def tokenize(s: str) -> list[str]:
     toks = [t for t in normalize(s).split() if len(t) > 1 and t not in STOPWORDS]
     # n-gramas: unigramas + bigramas (capturam "criar conta", "folha salarial"…)
     bigrams = [f"{a}_{b}" for a, b in zip(toks, toks[1:])]
-    return toks + bigrams
+    # trigramas de caracteres (robustez a typos)
+    chars: list[str] = []
+    for t in toks:
+        chars.extend(char_trigrams(t))
+    return toks + bigrams + chars
 
 
 class TfidfVectorizer:

@@ -19,15 +19,21 @@ function saveLocalMsgs(msgs: SupportMsg[]) {
   try { localStorage.setItem(LS_MSGS, JSON.stringify(msgs.slice(-120))); } catch { /* ignora */ }
 }
 
-/** O corpo pode trazer um guia visual: texto + [[SVG]]<svg…>[[/SVG]].
- *  (O SVG vem da NOSSA API — gerado pelo bot, fonte confiável.) */
+/** O corpo pode trazer um guia visual: texto + [[SVG]]…[[/SVG]].
+ *  O conteúdo é um SCREENSHOT REAL do sistema com marcações (URL /guides/…)
+ *  ou, em versões antigas, um SVG inline (vem da NOSSA API — fonte confiável). */
 export function MsgBody({ body }: { body: string }) {
   const m = body.match(/^([\s\S]*?)\[\[SVG\]\]([\s\S]*?)\[\[\/SVG\]\]/);
   if (!m) return <>{body}</>;
+  const guide = m[2].trim();
   return (
     <>
       {m[1].trim()}
-      <span className="sc-img" dangerouslySetInnerHTML={{ __html: m[2] }} />
+      {guide.startsWith('/guides/') ? (
+        <span className="sc-img"><img src={guide} alt="Guia visual do sistema" loading="lazy" /></span>
+      ) : guide.startsWith('<svg') ? (
+        <span className="sc-img" dangerouslySetInnerHTML={{ __html: guide }} />
+      ) : null}
     </>
   );
 }

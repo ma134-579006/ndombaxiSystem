@@ -988,8 +988,8 @@ body { line-height: 1.5; font-feature-settings: 'cv02','cv03','cv04','ss01'; }
 }
 
 /* Guia visual (SVG) dentro das bolhas do chat de suporte. */
-.sc-img { display: block; margin-top: 10px; border-radius: 12px; overflow: hidden; background: #fff; }
-.sc-img svg { display: block; width: 100%; height: auto; }
+.sc-img { display: block; margin-top: 10px; border-radius: 12px; overflow: hidden; background: #fff; border: 1px solid var(--border, #e2e6ee); }
+.sc-img svg, .sc-img img { display: block; width: 100%; height: auto; }
 
 /* ════════════════════════════════════════════════════════════
    iPHONE / SAFARI (iOS) — endurecimento responsivo
