@@ -54,10 +54,21 @@ export class AiAdminController {
   }
 
   @Post('providers/:id/test')
-  @ApiOperation({ summary: 'Testar conectividade ao provedor' })
+  @ApiOperation({ summary: 'Testar o provedor com uma CONVERSA real (mostra o erro exato)' })
   async testProvider(@Param('id') id: string) {
     const r = await this.cfg.resolveProviderWithKey(id);
-    return this.client.ping(r.provider, r.apiKey);
+    try {
+      const chat = await this.client.chat(
+        r.provider,
+        r.apiKey,
+        [{ role: 'user', content: 'Responde apenas com a palavra: ok' }],
+        'És um teste de ligação. Responde apenas: ok',
+      );
+      return { ok: true, status: 200, reply: (chat.text || '').slice(0, 120), model: chat.model };
+    } catch (e) {
+      // devolve o erro REAL do provedor (status + corpo) para diagnóstico
+      return { ok: false, status: 0, error: e instanceof Error ? e.message : String(e) };
+    }
   }
 
   // ── Persona do assistente ──────────────────────────────────
