@@ -127,11 +127,31 @@ export function SupportChat() {
       if (r.reply) {
         const body = r.imageSvg ? `${r.reply}\n[[SVG]]${r.imageSvg}[[/SVG]]` : r.reply;
         setMsgs((p) => [...p, { id: `b${Date.now()}`, sender: 'BOT', body, created_at: new Date().toISOString() }]);
+      } else if (r.escalated && !human) {
+        // 1.ª vez em modo humano: explica o silêncio do bot (a equipa responde aqui).
+        setMsgs((p) => [...p, { id: `h${Date.now()}`, sender: 'BOT', body: '✅ A nossa equipa foi chamada e vai responder aqui mesmo. Se preferires voltar ao assistente automático, toca em ⟳ (nova conversa) no topo.', created_at: new Date().toISOString() }]);
       }
       if (r.escalated) markHuman();
       scrollDown();
     } catch {
       setMsgs((p) => [...p, { id: `e${Date.now()}`, sender: 'BOT', body: 'Falha ao enviar. Verifica a internet e tenta de novo.', created_at: new Date().toISOString() }]);
+    } finally { setBusy(false); }
+  };
+
+  /** Recomeça do zero: novo chat com o BOT (sai do modo humano). */
+  const resetChat = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      setHuman(false);
+      try { localStorage.removeItem(LS_HUMAN); localStorage.removeItem(LS_CHAT); localStorage.removeItem(LS_MSGS); } catch { /* ignora */ }
+      const r = await api.support.start();
+      setChatId(r.chatId);
+      try { localStorage.setItem(LS_CHAT, r.chatId); } catch { /* ignora */ }
+      setMsgs([{ id: 'g', sender: 'BOT', body: r.greeting, created_at: new Date().toISOString() }]);
+      scrollDown();
+    } catch {
+      setMsgs([{ id: 'e', sender: 'BOT', body: 'Não consegui ligar ao suporte agora. Tenta novamente daqui a pouco.', created_at: new Date().toISOString() }]);
     } finally { setBusy(false); }
   };
 
@@ -154,6 +174,9 @@ export function SupportChat() {
               <div className="sc-title">Assistente Ndombaxi</div>
               <div className="sc-sub">{human ? 'Equipa chamada — respondemos aqui' : 'Responde na hora · IA'}</div>
             </div>
+            <button className="sc-reset" onClick={() => void resetChat()} title="Nova conversa (volta ao assistente)" aria-label="Nova conversa">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
+            </button>
           </div>
           <div className="sc-body" ref={scroller}>
             {msgs.map((m) => (
