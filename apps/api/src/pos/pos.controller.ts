@@ -26,6 +26,15 @@ import { PosRepository } from './pos.repository';
 import { SaftService } from './saft.service';
 import { PlanLimitsService } from '../plans/plan-limits.service';
 
+/** Gera um código de barras EAN-13 interno (prefixo 200 = uso interno GS1)
+ *  com dígito de controlo válido — usado quando o produto é criado sem código. */
+function generateEan13(): string {
+  const base = `200${String(Date.now()).slice(-7)}${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`;
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += Number(base[i]) * (i % 2 === 0 ? 1 : 3);
+  return base + String((10 - (sum % 10)) % 10);
+}
+
 @ApiTags('pos')
 @Controller('pos')
 export class PosController {
@@ -52,9 +61,15 @@ export class PosController {
   async createProduct(@Body() dto: CreateProductDto, @CurrentUser() user: JwtPayload) {
     const schema = this.ctx.requireTenantSchema();
     await this.planLimits.assertCanCreate(schema, 'products'); // limite do plano
+    // Código de barras OPCIONAL: vazio → o sistema gera um EAN-13 interno.
+    const code = dto.code?.trim() || generateEan13();
+    // IVA "Automático" → usa o IVA padrão configurado pelo gestor.
+    const ivaCode = dto.ivaCode === 'AUTO' ? await this.repo.defaultIvaCode(schema) : dto.ivaCode;
     // O stock inicial por loja entra na loja de quem cria (se tiver loja atribuída).
     return this.repo.createProduct(schema, {
       ...dto,
+      code,
+      ivaCode,
       initialStoreId: user.storeId ?? null,
     });
   }
@@ -62,8 +77,10 @@ export class PosController {
   @Patch('products/:id')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Actualiza um produto (imagens, preço, visibilidade online)' })
-  updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
-    return this.repo.updateProduct(this.ctx.requireTenantSchema(), id, dto);
+  async updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+    const schema = this.ctx.requireTenantSchema();
+    const ivaCode = dto.ivaCode === 'AUTO' ? await this.repo.defaultIvaCode(schema) : dto.ivaCode;
+    return this.repo.updateProduct(schema, id, { ...dto, ivaCode });
   }
 
   @Delete('products/:id')

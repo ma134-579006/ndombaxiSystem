@@ -103,7 +103,7 @@ export function PosPage() {
     if (!companyCode || !user?.sub) return;
     let alive = true;
     api.operators(companyCode)
-      .then((ops) => { if (alive) setOperatorPhoto(ops.find((o) => o.id === user.sub)?.photo_url ?? null); })
+      .then((r) => { if (alive) setOperatorPhoto(r.operators.find((o) => o.id === user.sub)?.photo_url ?? null); })
       .catch(() => { /* sem rede → ícone */ });
     return () => { alive = false; };
   }, [companyCode, user?.sub]);

@@ -68,9 +68,12 @@ export class PinLoginDto {
 }
 
 export class GoogleLoginDto {
+  /** Opcional — a empresa é encontrada pelo e-mail da conta Google;
+   *  só é preciso para desempatar quando o e-mail existe em várias. */
+  @IsOptional()
   @IsString()
   @Matches(/^[a-z0-9-]{2,40}$/)
-  companyCode!: string;
+  companyCode?: string;
 
   @IsString()
   @IsNotEmpty()

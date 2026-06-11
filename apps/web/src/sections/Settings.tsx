@@ -34,6 +34,7 @@ function BrandingCard() {
   const [contactEmail, setContactEmail] = useState('');
   const [address, setAddress] = useState('');
   const [receiptMessage, setReceiptMessage] = useState('');
+  const [defaultIva, setDefaultIva] = useState('NOR');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -44,6 +45,7 @@ function BrandingCard() {
       setS(x); setBrandName(x.brand_name ?? ''); setLogoUrl(x.logo_url ?? '');
       setContactPhone(x.contact_phone ?? ''); setContactEmail(x.contact_email ?? '');
       setAddress(x.address ?? ''); setReceiptMessage(x.receipt_message ?? '');
+      setDefaultIva(x.default_iva_code || 'NOR');
     }).catch((e) => setErr(e instanceof ApiError ? e.message : 'Falha ao carregar.'));
   }, []);
 
@@ -58,7 +60,7 @@ function BrandingCard() {
   const save = async () => {
     setBusy(true); setMsg(null); setErr(null);
     try {
-      await api.site.update({ brandName: brandName.trim() || undefined, logoUrl: logoUrl || undefined, contactPhone, contactEmail, address, receiptMessage });
+      await api.site.update({ brandName: brandName.trim() || undefined, logoUrl: logoUrl || undefined, contactPhone, contactEmail, address, receiptMessage, defaultIvaCode: defaultIva });
       setMsg('Guardado. Aparece no admin, no caixa e nos recibos.');
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao guardar.'); }
     finally { setBusy(false); }
@@ -93,6 +95,17 @@ function BrandingCard() {
       <div className="field"><label>Dizeres do recibo (rodapé)</label>
         <textarea value={receiptMessage} onChange={(e) => setReceiptMessage(e.target.value)} rows={2}
           placeholder="Ex.: Os bens/serviços foram colocados à disposição do adquirente. Obrigado!" /></div>
+      <div className="field"><label>IVA padrão (usado quando o produto escolhe «Automático»)</label>
+        <select value={defaultIva} onChange={(e) => setDefaultIva(e.target.value)}>
+          <option value="NOR">NOR (14%)</option>
+          <option value="INT">INT (7%)</option>
+          <option value="RED">RED (5%)</option>
+          <option value="ISE">ISE (0% — isento)</option>
+          <option value="OUT">OUT (0% — não sujeito)</option>
+        </select>
+        <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+          Ao criar produtos com IVA «Automático», é esta taxa que fica aplicada.
+        </p></div>
       <button className="btn" onClick={save} disabled={busy}>{busy ? 'A guardar…' : 'Guardar'}</button>
     </div>
   );

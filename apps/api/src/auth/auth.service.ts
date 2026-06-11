@@ -129,17 +129,63 @@ export class AuthService {
     return this.tokens.issuePair(payload, ctx);
   }
 
-  // ─── Login de utilizador de empresa (tenant) ────────────────
-  async tenantLogin(dto: TenantLoginDto, ctx: RequestCtx): Promise<TokenPair> {
-    if (!dto.companyCode) {
-      throw new UnauthorizedException('Company code is required');
-    }
-    const company = await this.prisma.company.findUnique({
-      where: { code: dto.companyCode },
+  // ─── Resolução de empresa por código OU e-mail ──────────────
+  /**
+   * O código da empresa deixou de ser pedido no login: a empresa é encontrada
+   * pelo E-MAIL do utilizador (responsável ou qualquer utilizador ativo).
+   * Devolve TODOS os candidatos — quem chama decide o que fazer se houver
+   * mais do que um (o mesmo e-mail pode existir em várias empresas).
+   */
+  private async companiesForEmail(email: string) {
+    const v = email.trim().toLowerCase();
+    const seen = new Set<string>();
+    const out: Awaited<ReturnType<typeof this.prisma.company.findMany>> = [];
+    const byResponsible = await this.prisma.company.findMany({
+      where: { responsibleEmail: { equals: v, mode: 'insensitive' }, status: { notIn: ['SUSPENDED', 'CANCELLED'] } },
+      take: 10,
     });
-    if (!company) {
-      throw new UnauthorizedException('Invalid credentials');
+    for (const c of byResponsible) { seen.add(c.id); out.push(c); }
+    // procura também nos utilizadores de cada empresa (operadores/equipa)
+    const all = await this.prisma.company.findMany({
+      where: { status: { notIn: ['SUSPENDED', 'CANCELLED'] } },
+      take: 100,
+    });
+    for (const c of all) {
+      if (seen.has(c.id)) continue;
+      try {
+        const u = await this.tenantUsers.findByEmail(c.schemaName, v);
+        if (u && u.is_active) { seen.add(c.id); out.push(c); }
+      } catch { /* schema indisponível — ignora */ }
     }
+    return out;
+  }
+
+  /** Empresa por código (compatibilidade) ou, sem código, pelo e-mail dado. */
+  private async resolveCompany(companyCode: string | undefined, email: string) {
+    if (companyCode) {
+      const c = await this.prisma.company.findUnique({ where: { code: companyCode.toLowerCase() } });
+      if (!c) throw new UnauthorizedException('Invalid credentials');
+      return c;
+    }
+    const candidates = await this.companiesForEmail(email);
+    if (candidates.length === 0) throw new UnauthorizedException('Invalid credentials');
+    if (candidates.length > 1) {
+      // o frontend mostra um seletor e repete o pedido com companyCode
+      throw new BadRequestException({
+        message: 'Este e-mail existe em várias empresas. Escolhe a empresa.',
+        error: 'ChooseCompany',
+        companies: candidates.map((c) => ({ code: c.code, name: c.name })),
+      });
+    }
+    return candidates[0];
+  }
+
+  // ─── Login de utilizador de empresa (tenant) ────────────────
+  async tenantLogin(
+    dto: TenantLoginDto,
+    ctx: RequestCtx,
+  ): Promise<TokenPair & { companyCode: string; companyName: string }> {
+    const company = await this.resolveCompany(dto.companyCode, dto.email);
     // PENDING é permitido entrar (vê o ecrã de "aguarda aprovação" + chat);
     // só SUSPENDED/CANCELLED é que bloqueiam totalmente.
     if (company.status === 'SUSPENDED' || company.status === 'CANCELLED') {
@@ -209,24 +255,25 @@ export class AuthService {
       ip: ctx.ip,
     });
 
-    return this.tokens.issuePair(payload, ctx);
+    const pair = await this.tokens.issuePair(payload, ctx);
+    // o frontend já não pede o código — devolvemos o resolvido (X-Tenant-Code)
+    return { ...pair, companyCode: company.code, companyName: company.name };
   }
 
   /**
-   * Login com Google (aditivo ao login por palavra-passe). O utilizador escolhe
-   * a empresa (companyCode) e autentica-se com a conta Google; verificamos o ID
-   * token e emparelhamos pelo e-mail com um utilizador existente da empresa.
+   * Login com Google (aditivo ao login por palavra-passe). A empresa é
+   * encontrada automaticamente pelo e-mail da conta Google (o companyCode é
+   * opcional — só usado para desempatar quando o e-mail existe em várias).
+   * Usado no painel do gestor E na caixa.
    */
   async googleLogin(
-    dto: { companyCode: string; idToken: string },
+    dto: { companyCode?: string; idToken: string },
     ctx: RequestCtx,
-  ): Promise<TokenPair> {
-    if (!dto.companyCode) throw new UnauthorizedException('Indique a empresa.');
+  ): Promise<TokenPair & { companyCode: string; companyName: string }> {
     const profile = await this.google.verify(dto.idToken);
     if (!profile.email) throw new UnauthorizedException('Conta Google sem e-mail.');
 
-    const company = await this.prisma.company.findUnique({ where: { code: dto.companyCode } });
-    if (!company) throw new UnauthorizedException('Empresa não encontrada.');
+    const company = await this.resolveCompany(dto.companyCode, profile.email);
     if (company.status === 'SUSPENDED' || company.status === 'CANCELLED') throw new ForbiddenException(`Empresa ${company.status.toLowerCase()}`);
 
     const user = await this.tenantUsers.findByEmail(company.schemaName, profile.email);
@@ -251,16 +298,39 @@ export class AuthService {
       actorType: 'TENANT', actorId: user.id, tenantSchema: company.schemaName,
       action: 'LOGIN_SUCCESS_GOOGLE', entity: 'User', entityId: user.id, ip: ctx.ip,
     });
-    return this.tokens.issuePair(payload, ctx);
+    const pair = await this.tokens.issuePair(payload, ctx);
+    return { ...pair, companyCode: company.code, companyName: company.name };
   }
 
   // ─── Caixa: lista de operadores (nomes) por empresa ─────────
-  async listOperators(
-    companyCode: string,
-  ): Promise<{ id: string; name: string; role: string; store_id: string | null; store_name: string | null; photo_url: string | null }[]> {
-    const company = await this.prisma.company.findUnique({ where: { code: companyCode } });
-    if (!company || company.status !== 'ACTIVE') return [];
-    return this.tenantUsers.listOperators(company.schemaName);
+  /**
+   * `identifier` aceita o CÓDIGO da empresa (compatibilidade) ou o E-MAIL
+   * registado (responsável ou de qualquer utilizador ativo). Devolve também
+   * o código/nome resolvidos — a caixa usa-os no login por PIN — ou a lista
+   * de empresas quando o e-mail existe em várias (`choices`).
+   */
+  async listOperators(identifier: string): Promise<{
+    companyCode: string | null;
+    companyName: string | null;
+    operators: { id: string; name: string; role: string; store_id: string | null; store_name: string | null; photo_url: string | null }[];
+    choices?: { code: string; name: string }[];
+  }> {
+    const v = identifier.trim().toLowerCase();
+    if (!v) return { companyCode: null, companyName: null, operators: [] };
+    let company = await this.prisma.company.findUnique({ where: { code: v } });
+    if (!company && v.includes('@')) {
+      const candidates = (await this.companiesForEmail(v)).filter((c) => c.status === 'ACTIVE');
+      if (candidates.length > 1) {
+        return {
+          companyCode: null, companyName: null, operators: [],
+          choices: candidates.map((c) => ({ code: c.code, name: c.name })),
+        };
+      }
+      company = candidates[0] ?? null;
+    }
+    if (!company || company.status !== 'ACTIVE') return { companyCode: null, companyName: null, operators: [] };
+    const operators = await this.tenantUsers.listOperators(company.schemaName);
+    return { companyCode: company.code, companyName: company.name, operators };
   }
 
   /** Plano expirado? True só se a empresa já teve subscrições e nenhuma é válida

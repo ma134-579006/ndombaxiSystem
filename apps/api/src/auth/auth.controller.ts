@@ -60,12 +60,13 @@ export class AuthController {
 
   @Public()
   @Get('operators')
-  @ApiOperation({ summary: 'Lista de operadores (nome) de uma empresa para a caixa' })
+  @ApiOperation({ summary: 'Operadores da empresa para a caixa (por e-mail registado ou código)' })
   operators(
+    @Query('company') company?: string,
     @Query('companyCode') companyCode?: string,
     @Headers('x-tenant-code') headerCode?: string,
   ) {
-    return this.auth.listOperators((companyCode || headerCode || '').toLowerCase());
+    return this.auth.listOperators((company || companyCode || headerCode || '').toLowerCase());
   }
 
   @Public()

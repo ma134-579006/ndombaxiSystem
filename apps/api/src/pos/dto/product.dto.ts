@@ -1,7 +1,7 @@
 import {
   IsArray,
   IsBoolean,
-  IsEnum,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -10,10 +10,17 @@ import {
 } from 'class-validator';
 import { IvaCode } from '@nexus/agt-xml';
 
+/** Códigos de IVA aceites nos formulários: os da AGT + 'AUTO' (usa o IVA
+ *  padrão configurado pelo gestor em Configurações). */
+const IVA_CHOICES = [...Object.values(IvaCode), 'AUTO'] as const;
+
 export class CreateProductDto {
+  /** Código de barras / código do produto. OPCIONAL — vazio gera um EAN-13
+   *  interno automaticamente. */
+  @IsOptional()
   @IsString()
   @Length(1, 64)
-  code!: string;
+  code?: string;
 
   @IsOptional()
   @IsString()
@@ -37,8 +44,8 @@ export class CreateProductDto {
   @Length(0, 80)
   brand?: string;
 
-  @IsEnum(IvaCode)
-  ivaCode!: IvaCode;
+  @IsIn(IVA_CHOICES as unknown as string[])
+  ivaCode!: IvaCode | 'AUTO';
 
   /** Motivo de isenção (obrigatório por lei p/ IVA ISE/OUT). */
   @IsOptional()
@@ -109,8 +116,8 @@ export class UpdateProductDto {
   description?: string;
 
   @IsOptional()
-  @IsEnum(IvaCode)
-  ivaCode?: IvaCode;
+  @IsIn(IVA_CHOICES as unknown as string[])
+  ivaCode?: IvaCode | 'AUTO';
 
   @IsOptional()
   @IsString()

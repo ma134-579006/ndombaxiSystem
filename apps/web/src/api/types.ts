@@ -125,10 +125,18 @@ export interface LandingConfig {
 export interface PublicLanding { config: LandingConfig; plans: PublicPlan[] }
 
 export interface TenantLoginInput {
-  companyCode: string;
+  /** Opcional — a empresa é encontrada pelo e-mail; só é preciso para
+   *  desempatar quando o mesmo e-mail existe em várias empresas. */
+  companyCode?: string;
   email: string;
   password: string;
   twoFaToken?: string;
+}
+
+/** Resposta de login do tenant: tokens + empresa resolvida pelo e-mail. */
+export interface TenantTokenPair extends TokenPair {
+  companyCode: string;
+  companyName: string;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -161,12 +169,13 @@ export interface ManagerProduct {
   is_active: boolean;
 }
 export interface CreateProductInput {
-  code: string;
+  /** Código de barras — opcional: vazio gera um EAN-13 automaticamente. */
+  code?: string;
   barcode?: string;
   name: string;
   description?: string;
   brand?: string;
-  ivaCode: IvaCode;
+  ivaCode: IvaCode | 'AUTO';
   exemptionReason?: string;
   exemptionCode?: string;
   unitPrice: number;
@@ -181,7 +190,7 @@ export interface UpdateProductInput {
   name?: string;
   description?: string;
   brand?: string;
-  ivaCode?: IvaCode;
+  ivaCode?: IvaCode | 'AUTO';
   exemptionReason?: string;
   exemptionCode?: string;
   unitPrice?: number;
@@ -237,12 +246,14 @@ export interface SiteSettings {
   contact_phone: string | null;
   address: string | null;
   receipt_message: string | null;
+  default_iva_code: string;
   is_published: boolean;
 }
 export interface UpdateSiteSettingsInput {
   brandName?: string;
   tagline?: string;
   logoUrl?: string;
+  defaultIvaCode?: string;
   primaryColor?: string;
   secondaryColor?: string;
   contactEmail?: string;

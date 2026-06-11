@@ -9,67 +9,95 @@ import { CAIXA_URL } from '../config';
 
 type Profile = 'tenant' | 'caixa' | 'platform';
 
+/** Lista de empresas devolvida quando o e-mail existe em várias. */
+interface CompanyChoice { code: string; name: string }
+function choicesFrom(e: unknown): CompanyChoice[] | null {
+  if (e instanceof ApiError && e.data && typeof e.data === 'object') {
+    const d = e.data as { error?: string; companies?: CompanyChoice[] };
+    if (d.error === 'ChooseCompany' && Array.isArray(d.companies) && d.companies.length) return d.companies;
+  }
+  return null;
+}
+
+/**
+ * Login SEM código de empresa: o gestor entra só com e-mail + palavra-passe
+ * (ou Google) — a empresa é encontrada pelo e-mail. Se o mesmo e-mail existir
+ * em várias empresas, aparece um seletor. A Caixa abre-se com o e-mail
+ * registado da empresa (ou o código antigo, que continua a funcionar).
+ */
 export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?: () => void }) {
   const { loginTenant, loginPlatform, loginGoogle } = useAuth();
   const [profile, setProfile] = useState<Profile>('tenant');
-  const [company, setCompany] = useState('');
+  const [caixaId, setCaixaId] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [twoFa, setTwoFa] = useState('');
   const [show2fa, setShow2fa] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Várias empresas para o mesmo e-mail → o utilizador escolhe. */
+  const [choices, setChoices] = useState<CompanyChoice[] | null>(null);
+  /** Pedido pendente a repetir com o companyCode escolhido. */
+  const [pending, setPending] = useState<{ kind: 'password' | 'google'; idToken?: string } | null>(null);
 
-  const onGoogle = async (idToken: string) => {
+  const onGoogle = async (idToken: string, companyCode?: string) => {
     setError(null);
-    if (!company.trim()) {
-      setError('Indique primeiro o código da empresa para entrar com Google.');
-      return;
-    }
     setLoading(true);
     try {
-      await loginGoogle(company.trim().toLowerCase(), idToken);
+      await loginGoogle(idToken, companyCode);
     } catch (e) {
+      const c = choicesFrom(e);
+      if (c) { setChoices(c); setPending({ kind: 'google', idToken }); return; }
       setError(e instanceof ApiError ? e.message : 'Não foi possível entrar com Google.');
     } finally {
       setLoading(false);
     }
   };
 
-  const submit = async () => {
+  const submit = async (companyCode?: string) => {
     setError(null);
+    setChoices(null);
 
-    // A Caixa (POS) é uma aplicação separada — abre-se com o código da empresa.
+    // A Caixa (POS) é uma aplicação separada — abre-se com o e-mail registado
+    // da empresa (ou o código antigo; a própria Caixa resolve).
     if (profile === 'caixa') {
-      if (!company.trim()) {
-        setError('Indique o código da empresa para abrir a Caixa.');
+      if (!caixaId.trim()) {
+        setError('Indica o e-mail registado da empresa (ou o código) para abrir a Caixa.');
         return;
       }
-      window.location.assign(`${CAIXA_URL}/?empresa=${encodeURIComponent(company.trim().toLowerCase())}`);
+      window.location.assign(`${CAIXA_URL}/?empresa=${encodeURIComponent(caixaId.trim().toLowerCase())}`);
       return;
     }
 
-    if (profile === 'tenant' && !company.trim()) {
-      setError('Indique o código da empresa.');
-      return;
-    }
     if (!email.trim() || !password) {
-      setError('Indique o e-mail e a palavra-passe.');
+      setError('Indica o e-mail e a palavra-passe.');
       return;
     }
     setLoading(true);
     try {
       const twoFaToken = twoFa.trim() || undefined;
       if (profile === 'tenant') {
-        await loginTenant({ companyCode: company.trim(), email: email.trim(), password, twoFaToken });
+        await loginTenant({ companyCode, email: email.trim(), password, twoFaToken });
       } else {
         await loginPlatform({ email: email.trim(), password, twoFaToken });
       }
     } catch (e) {
+      const c = choicesFrom(e);
+      if (c) { setChoices(c); setPending({ kind: 'password' }); return; }
       setError(e instanceof ApiError ? e.message : 'Não foi possível entrar.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const pickCompany = async (code: string) => {
+    setChoices(null);
+    if (pending?.kind === 'google' && pending.idToken) {
+      await onGoogle(pending.idToken, code);
+    } else {
+      await submit(code);
+    }
+    setPending(null);
   };
 
   return (
@@ -82,50 +110,64 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
         </div>
         <div className="card">
           <div className="seg" style={{ marginBottom: 16 }}>
-            <button className={profile === 'tenant' ? 'on' : ''} onClick={() => setProfile('tenant')} type="button">
+            <button className={profile === 'tenant' ? 'on' : ''} onClick={() => { setProfile('tenant'); setError(null); setChoices(null); }} type="button">
               <IconBuilding size={16} /> Gestor
             </button>
-            <button className={profile === 'caixa' ? 'on' : ''} onClick={() => setProfile('caixa')} type="button">
+            <button className={profile === 'caixa' ? 'on' : ''} onClick={() => { setProfile('caixa'); setError(null); setChoices(null); }} type="button">
               <IconReceipt size={16} /> Caixa
             </button>
-            <button className={profile === 'platform' ? 'on' : ''} onClick={() => setProfile('platform')} type="button">
+            <button className={profile === 'platform' ? 'on' : ''} onClick={() => { setProfile('platform'); setError(null); setChoices(null); }} type="button">
               <IconShield size={16} /> Super Admin
             </button>
           </div>
 
           {error ? <div className="banner danger" style={{ marginBottom: 14 }}>{error}</div> : null}
 
+          {choices ? (
+            <div style={{ marginBottom: 12 }}>
+              <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+                Este e-mail existe em várias empresas — escolhe qual queres abrir:
+              </p>
+              {choices.map((c) => (
+                <button key={c.code} className="btn ghost block" style={{ marginBottom: 8 }} onClick={() => void pickCompany(c.code)} disabled={loading}>
+                  <IconBuilding size={16} /> {c.name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           {profile === 'caixa' ? (
-            <p className="muted" style={{ fontSize: 13, marginTop: 0, marginBottom: 12 }}>
-              Abre o terminal de venda (Caixa) desta empresa. O início de sessão do operador é feito na própria Caixa.
-            </p>
-          ) : null}
-
-          {profile !== 'platform' ? (
-            <KeyboardInput label="Código da empresa" value={company} onChange={setCompany} placeholder="ex.: novashop" onSubmit={submit} />
-          ) : null}
-
-          {profile !== 'caixa' ? (
             <>
-              <KeyboardInput label="E-mail" value={email} onChange={setEmail} placeholder={profile === 'tenant' ? 'gestor@empresa.ao' : 'admin@ndombaxi.ao'} onSubmit={submit} />
-              <KeyboardInput label="Palavra-passe" type="password" value={password} onChange={setPassword} placeholder="••••••••" onSubmit={submit} />
+              <p className="muted" style={{ fontSize: 13, marginTop: 0, marginBottom: 12 }}>
+                Abre o terminal de venda (Caixa). O início de sessão do operador é feito na própria Caixa — por nome + PIN ou com Google.
+              </p>
+              <KeyboardInput label="E-mail registado da empresa" value={caixaId} onChange={setCaixaId} placeholder="gestor@empresa.ao" onSubmit={() => void submit()} />
+            </>
+          ) : null}
+
+          {profile !== 'caixa' && !choices ? (
+            <>
+              <KeyboardInput label="E-mail" value={email} onChange={setEmail} placeholder={profile === 'tenant' ? 'gestor@empresa.ao' : 'admin@ndombaxi.ao'} onSubmit={() => void submit()} />
+              <KeyboardInput label="Palavra-passe" type="password" value={password} onChange={setPassword} placeholder="••••••••" onSubmit={() => void submit()} />
               {show2fa ? (
-                <KeyboardInput label="Código 2FA" value={twoFa} onChange={setTwoFa} placeholder="000000" numeric maxLength={6} onSubmit={submit} />
+                <KeyboardInput label="Código 2FA" value={twoFa} onChange={setTwoFa} placeholder="000000" numeric maxLength={6} onSubmit={() => void submit()} />
               ) : (
                 <button type="button" className="link-2fa" onClick={() => setShow2fa(true)}>Tenho código 2FA</button>
               )}
             </>
           ) : null}
 
-          <button className="btn lg block" onClick={submit} disabled={loading}>
-            {profile === 'caixa' ? <IconReceipt size={18} /> : profile === 'tenant' ? <IconBuilding size={18} /> : <IconShield size={18} />}{' '}
-            {profile === 'caixa' ? 'Abrir a Caixa' : loading ? 'A entrar…' : 'Entrar'}
-          </button>
+          {!choices ? (
+            <button className="btn lg block" onClick={() => void submit()} disabled={loading}>
+              {profile === 'caixa' ? <IconReceipt size={18} /> : profile === 'tenant' ? <IconBuilding size={18} /> : <IconShield size={18} />}{' '}
+              {profile === 'caixa' ? 'Abrir a Caixa' : loading ? 'A entrar…' : 'Entrar'}
+            </button>
+          ) : null}
 
-          {profile === 'tenant' ? (
+          {profile === 'tenant' && !choices ? (
             <div className="google-row">
               <div className="or-sep"><span>ou</span></div>
-              <GoogleSignInButton onCredential={onGoogle} />
+              <GoogleSignInButton onCredential={(t) => void onGoogle(t)} />
             </div>
           ) : null}
         </div>

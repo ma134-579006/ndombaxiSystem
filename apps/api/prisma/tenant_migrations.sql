@@ -35,5 +35,6 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."employees"     ADD COLUMN IF NOT EXISTS taxa
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."employees"     ADD COLUMN IF NOT EXISTS exempt_allowances NUMERIC(14,2) NOT NULL DEFAULT 0;
 -- Dizeres livres do recibo/relatório (rodapé configurável pela empresa).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings"  ADD COLUMN IF NOT EXISTS receipt_message TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings"  ADD COLUMN IF NOT EXISTS default_iva_code TEXT NOT NULL DEFAULT 'NOR';
 -- Setup obrigatório concluído? Empresas existentes = TRUE (não afeta); novos registos põem FALSE.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings"  ADD COLUMN IF NOT EXISTS setup_completed BOOLEAN NOT NULL DEFAULT TRUE;

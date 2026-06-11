@@ -4,12 +4,13 @@ import type { Operator } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { LOGO_SRC, SYSTEM_MODULE, SYSTEM_NAME } from '../brand';
 import { FooterCredit } from '../components/FooterCredit';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { IconBuilding, IconKeyboard } from '../components/Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { useKeyboard } from '../keyboard/KeyboardProvider';
 
 export function LoginPage() {
-  const { loginPin, companyCode: saved } = useAuth();
+  const { loginPin, loginGoogle, companyCode: saved } = useAuth();
   const kbd = useKeyboard();
 
   const codeFromUrl = (() => {
@@ -17,7 +18,12 @@ export function LoginPage() {
     catch { return ''; }
   })();
 
+  // Aceita o E-MAIL registado da empresa (novo) ou o código antigo.
   const [company, setCompany] = useState(codeFromUrl || saved || '');
+  /** Código REAL resolvido pela API (o que o login por PIN usa). */
+  const [resolvedCode, setResolvedCode] = useState<string>(saved || '');
+  const [companyName, setCompanyName] = useState<string>('');
+  const [choices, setChoices] = useState<{ code: string; name: string }[] | null>(null);
   const [step, setStep] = useState<'company' | 'operator'>('company');
   const [operators, setOperators] = useState<Operator[]>([]);
   const [selected, setSelected] = useState<Operator | null>(null);
@@ -25,21 +31,44 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadOperators = async () => {
+  const loadOperators = async (identifier?: string) => {
     setError(null);
-    const code = company.trim().toLowerCase();
-    if (!code) { setError('Indique o código da empresa.'); return; }
+    const id = (identifier ?? company).trim().toLowerCase();
+    if (!id) { setError('Indique o e-mail registado da empresa (ou o código).'); return; }
     setLoading(true);
     try {
-      const ops = await api.operators(code);
-      if (!ops.length) {
+      const r = await api.operators(id);
+      if (r.choices && r.choices.length) {
+        // o mesmo e-mail existe em várias empresas → o operador escolhe
+        setChoices(r.choices);
+        return;
+      }
+      setChoices(null);
+      if (!r.companyCode) {
+        setError('Empresa não encontrada. Confirma o e-mail registado (ou o código) — e se a conta já foi aprovada.');
+        return;
+      }
+      if (!r.operators.length) {
         setError('Esta empresa ainda não tem operadores com PIN. Peça ao gestor para criar acessos (Funcionários → Dar acesso, com PIN).');
         return;
       }
-      setOperators(ops);
+      setResolvedCode(r.companyCode);
+      setCompanyName(r.companyName ?? '');
+      setOperators(r.operators);
       setStep('operator');
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível ligar. Verifique a internet e o código.');
+      setError(e instanceof ApiError ? e.message : 'Não foi possível ligar. Verifique a internet e o e-mail/código.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onGoogle = async (idToken: string) => {
+    setError(null); setLoading(true);
+    try {
+      await loginGoogle(idToken);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível entrar com Google.');
     } finally {
       setLoading(false);
     }
@@ -50,7 +79,7 @@ export function LoginPage() {
     if (!/^\d{4,8}$/.test(pin)) { setError('Digite o PIN (4 a 8 dígitos).'); return; }
     setLoading(true); setError(null);
     try {
-      await loginPin(company.trim().toLowerCase(), selected.id, pin);
+      await loginPin(resolvedCode, selected.id, pin);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'PIN incorreto.');
       setPin('');
@@ -59,7 +88,7 @@ export function LoginPage() {
     }
   };
 
-  const backToCompany = () => { setStep('company'); setSelected(null); setPin(''); setError(null); };
+  const backToCompany = () => { setStep('company'); setSelected(null); setPin(''); setError(null); setChoices(null); };
 
   return (
     <div className="app-bg">
@@ -75,21 +104,38 @@ export function LoginPage() {
 
           {step === 'company' ? (
             <div className="login-fields">
-              <KeyboardInput
-                label="Código da empresa"
-                icon={<IconBuilding size={18} />}
-                placeholder="codigo-da-empresa"
-                value={company}
-                onChange={setCompany}
-                onSubmit={loadOperators}
-              />
-              <button className="btn lg block" style={{ marginTop: 4 }} onClick={loadOperators} disabled={loading}>
-                {loading ? 'A procurar…' : 'Continuar'}
-              </button>
+              {choices ? (
+                <>
+                  <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>Este e-mail existe em várias empresas — escolhe:</p>
+                  {choices.map((c) => (
+                    <button key={c.code} className="btn ghost block" style={{ marginBottom: 8 }} onClick={() => void loadOperators(c.code)} disabled={loading}>
+                      <IconBuilding size={16} /> {c.name}
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <KeyboardInput
+                    label="E-mail registado da empresa (ou código)"
+                    icon={<IconBuilding size={18} />}
+                    placeholder="gestor@empresa.ao"
+                    value={company}
+                    onChange={setCompany}
+                    onSubmit={() => void loadOperators()}
+                  />
+                  <button className="btn lg block" style={{ marginTop: 4 }} onClick={() => void loadOperators()} disabled={loading}>
+                    {loading ? 'A procurar…' : 'Continuar'}
+                  </button>
+                  <div className="or-sep"><span>ou</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <GoogleSignInButton onCredential={(t) => void onGoogle(t)} />
+                  </div>
+                </>
+              )}
             </div>
           ) : !selected ? (
             <>
-              <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>Quem está na caixa?</p>
+              <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>{companyName ? `${companyName} — quem está na caixa?` : 'Quem está na caixa?'}</p>
               <div className="op-grid">
                 {operators.map((o) => (
                   <button key={o.id} className="op-card" onClick={() => { setSelected(o); setPin(''); setError(null); }}>

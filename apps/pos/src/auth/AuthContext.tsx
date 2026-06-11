@@ -23,6 +23,7 @@ interface AuthContextValue {
   user: DecodedJwt | null;
   companyCode: string | null;
   login(input: TenantLoginInput): Promise<void>;
+  loginGoogle(idToken: string): Promise<void>;
   /** Login do operador por nome (id) + PIN (estilo Vendus). */
   loginPin(companyCode: string, userId: string, pin: string): Promise<void>;
   logout(): Promise<void>;
@@ -138,6 +139,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [applyTokens],
   );
 
+  const loginGoogle = useCallback(
+    async (idToken: string) => {
+      // A empresa é encontrada pelo e-mail da conta Google; a API devolve o
+      // código resolvido (fica guardado para o PIN/troca de operador).
+      const r = await api.loginGoogle(idToken);
+      companyRef.current = r.companyCode;
+      setCompanyCode(r.companyCode);
+      localStorage.setItem(LS_COMPANY, r.companyCode);
+      applyTokens(r);
+      setStatus('authed');
+    },
+    [applyTokens],
+  );
+
   const loginPin = useCallback(
     async (code: string, userId: string, pin: string) => {
       const tokens = await api.loginPin({ companyCode: code, userId, pin });
@@ -163,8 +178,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [clearSession]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, companyCode, login, loginPin, logout }),
-    [status, user, companyCode, login, loginPin, logout],
+    () => ({ status, user, companyCode, login, loginGoogle, loginPin, logout }),
+    [status, user, companyCode, login, loginGoogle, loginPin, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

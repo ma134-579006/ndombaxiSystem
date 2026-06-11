@@ -38,7 +38,7 @@ INTENTS: list[dict] = [
             "inscrever a empresa", "quero experimentar o sistema", "como adquirir o sistema",
             "quero usar o ndombaxi na minha empresa", "como faco parte", "quero comecar",
         ],
-        "answer": "Criar a conta da tua empresa é simples:\n1. Vai a https://ndombaxisystem.com e clica em **Criar conta**.\n2. Preenche os dados da empresa (nome, NIF, código único, responsável).\n3. Escolhe o plano e vê o IBAN para a transferência.\n4. Envia o comprovativo (foto/imagem) ali mesmo.\n5. A nossa equipa aprova e recebes acesso — há **teste grátis** para começares já!\nA senha temporária aparece no fim do registo (guarda-a).",
+        "answer": "Criar a conta da tua empresa é simples:\n1. Vai a https://ndombaxisystem.com e clica em **Criar conta**.\n2. Indica o teu **e-mail** e cria a **palavra-passe** (só isso — sem códigos).\n3. Escolhe o plano e vê o IBAN para a transferência.\n4. Envia o comprovativo (foto/imagem) ali mesmo.\n5. A nossa equipa aprova e recebes acesso — há **teste grátis** para começares já!",
         "image": "criar_conta",
     },
     {
@@ -57,7 +57,7 @@ INTENTS: list[dict] = [
             "esqueci a senha", "entrar na conta da empresa", "login do administrador",
             "como acedo ao painel de gestao", "senha errada nao entra", "recuperar palavra passe",
         ],
-        "answer": "Para entrar no painel do gestor:\n1. Vai a https://ndombaxisystem.com e clica **Entrar**.\n2. Escolhe o perfil **Gestor**.\n3. Indica o **código da empresa**, o teu **email** e a **palavra-passe** (ou usa o botão Google).\nSe esqueceste a senha, o administrador da empresa pode repô-la em **Configurações → equipa**. Se és o administrador e perdeste o acesso, pede aqui para falar com a equipa.",
+        "answer": "Para entrar no painel do gestor:\n1. Vai a https://ndombaxisystem.com e clica **Entrar**.\n2. Escolhe o perfil **Gestor**.\n3. Indica o teu **e-mail** e a **palavra-passe** — ou toca em **Continuar com o Google**. Sem códigos: o sistema encontra a tua empresa pelo e-mail.\nSe esqueceste a senha, o administrador da empresa pode repô-la em **Configurações**. Se és o administrador e perdeste o acesso, pede aqui para falar com a equipa.",
     },
     {
         "id": "login_caixa",
@@ -66,7 +66,7 @@ INTENTS: list[dict] = [
             "o operador nao aparece na caixa", "entrar na caixa pin", "abrir o pos",
             "como o funcionario entra na caixa", "caixa pede pin qual e",
         ],
-        "answer": "No caixa (https://caixa.ndombaxisystem.com) o operador entra SEM email:\n1. Indica o **código da empresa**.\n2. **Toca no seu nome** na lista de operadores.\n3. Digita o **PIN de 6 dígitos**.\nO PIN é definido pelo gestor em **Funcionários → Dar acesso ao sistema** (ou Editar). Se o nome não aparece, o funcionário ainda não tem PIN definido.",
+        "answer": "No caixa (https://caixa.ndombaxisystem.com):\n1. Escreve o **e-mail registado da empresa** (o do gestor) — ou entra direto com o botão **Google**.\n2. **Toca no teu nome** na lista de operadores.\n3. Digita o teu **PIN**.\nO PIN é definido pelo gestor em **Funcionários → Dar acesso ao sistema**. Se o teu nome não aparece, ainda não tens PIN definido.",
         "image": "login_caixa",
     },
     {
@@ -128,7 +128,7 @@ INTENTS: list[dict] = [
             "como crio um produto", "adicionar artigo novo", "cadastrar produto",
             "como ponho o codigo de barras", "criar produto com foto", "novo produto na loja",
         ],
-        "answer": "Criar produto (painel → **Produtos → Novo**):\n1. O **código é o código de barras** — usa o scanner 📷 para ler direto da embalagem.\n2. Nome, preço de venda, IVA (14%, 7%, 5%, isento) e foto.\n3. Escolhe as lojas onde existe e o stock inicial.\n4. Liga **Mostrar online** para aparecer na loja da internet.\nO motivo de isenção aparece automaticamente quando o IVA é isento/não sujeito.",
+        "answer": "Criar produto (painel → **Produtos → Novo produto**):\n1. **Código de barras é opcional** — lê com o scanner 📷 ou deixa vazio e o sistema **gera um automaticamente**.\n2. Nome, foto e IVA — escolhe **Automático** para usar o IVA padrão da empresa (muda-se em Configurações), ou 14%/7%/5%/isento.\n3. Escolhe as lojas onde existe.\n4. Liga **Mostrar online** para aparecer na loja da internet.\nIsento? O motivo legal vai sozinho no recibo — não precisas de escrever nada.",
     },
     {
         "id": "loja_online",

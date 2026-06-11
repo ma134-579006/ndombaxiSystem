@@ -26,6 +26,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Internal server error';
     let error = 'InternalServerError';
+    /** Campos extra SEGUROS vindos da exceção (ex.: ChooseCompany → companies). */
+    let extra: Record<string, unknown> = {};
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
@@ -36,6 +38,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
         const body = res as Record<string, unknown>;
         message = (body.message as string | string[]) ?? exception.message;
         error = (body.error as string) ?? exception.name;
+        // preserva os restantes campos definidos explicitamente pelo código
+        // (são dados nossos, não internos) — ex.: a lista de empresas
+        const { message: _m, error: _e, statusCode: _s, ...rest } = body;
+        extra = rest;
       }
     } else if (isDatabaseError(exception)) {
       // Erros da base de dados → mensagem amigável. NUNCA devolver a mensagem
@@ -60,7 +66,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
     }
 
-    const payload: ApiError = {
+    const payload: ApiError & Record<string, unknown> = {
+      ...extra,
       statusCode,
       message,
       error,

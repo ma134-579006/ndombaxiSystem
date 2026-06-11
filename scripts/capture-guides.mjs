@@ -169,11 +169,12 @@ const CAPTURES = {
     await page.setViewport({ width: 1120, height: 700, deviceScaleFactor: 1.5 });
     await page.goto(POS, { waitUntil: 'domcontentloaded' });
     await waitEval(page, () => !!document.querySelector('.input-wrap input'), 15000);
-    await page.type('.input-wrap input', COMPANY, { delay: 25 });
+    await page.type('.input-wrap input', process.env.GUIDE_COMPANY_EMAIL ?? 'gestor@empresa.ao', { delay: 25 });
     await sleep(500);
     await annotate(page, [
-      { sel: '.input-wrap', label: '1. Escreve o CÓDIGO da tua empresa' },
-      { text: 'Continuar', label: '2. «Continuar» → escolhe o teu NOME e digita o PIN de 6 dígitos', labelBelow: true },
+      { sel: '.input-wrap', label: '1. Escreve o E-MAIL registado da empresa', labelRight: true },
+      { text: 'Continuar', label: '2. «Continuar» → escolhe o teu NOME e digita o PIN', labelRight: true },
+      { text: 'Google', label: '3. Ou entra direto com a tua conta Google', labelRight: true },
     ]);
     await shot(page, 'login-caixa');
     await page.close();

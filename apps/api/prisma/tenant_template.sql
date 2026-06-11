@@ -438,6 +438,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."site_settings" (
   social          JSONB,                        -- { facebook, instagram, whatsapp, ... }
   custom_css      TEXT,
   receipt_message TEXT,                        -- dizeres livres no rodapé do recibo/relatório
+  default_iva_code TEXT NOT NULL DEFAULT 'NOR', -- IVA aplicado quando o produto escolhe 'Automático'
   setup_completed BOOLEAN NOT NULL DEFAULT TRUE, -- false até a empresa concluir o setup obrigatório (logo/nome/código/NIF)
   is_published    BOOLEAN NOT NULL DEFAULT FALSE,
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()

@@ -96,6 +96,15 @@ export interface EmittedInvoice {
 /** Operador da caixa (funcionário com acesso por PIN). */
 export interface Operator { id: string; name: string; role: string; store_id?: string | null; store_name?: string | null; photo_url?: string | null }
 
+/** Resposta do /auth/operators: empresa resolvida (por e-mail ou código) +
+ *  operadores; `choices` quando o e-mail existe em várias empresas. */
+export interface OperatorsResponse {
+  companyCode: string | null;
+  companyName: string | null;
+  operators: Operator[];
+  choices?: { code: string; name: string }[];
+}
+
 export interface CashSession {
   id: string;
   register_code: string | null;

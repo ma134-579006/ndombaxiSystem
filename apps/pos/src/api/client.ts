@@ -7,6 +7,7 @@ import type {
   EmitInvoiceInput,
   EmittedInvoice,
   Operator,
+  OperatorsResponse,
   Product,
   ReceiptFiscalInfo,
   ReportX,
@@ -100,9 +101,12 @@ async function request<T>(
 export const api = {
   login: (input: TenantLoginInput) =>
     request<TokenPair>('POST', '/auth/login', input, { auth: false }),
-  /** Lista de operadores (nome) de uma empresa, para o ecrã da caixa. */
-  operators: (companyCode: string) =>
-    request<Operator[]>('GET', `/auth/operators?companyCode=${encodeURIComponent(companyCode)}`, undefined, { auth: false }),
+  /** Operadores da empresa — aceita o E-MAIL registado ou o código. */
+  operators: (identifier: string) =>
+    request<OperatorsResponse>('GET', `/auth/operators?company=${encodeURIComponent(identifier)}`, undefined, { auth: false }),
+  /** Login com Google (a empresa é encontrada pelo e-mail da conta). */
+  loginGoogle: (idToken: string, companyCode?: string) =>
+    request<TokenPair & { companyCode: string; companyName: string }>('POST', '/auth/login/google', { idToken, companyCode }, { auth: false }),
   /** Login do operador por nome (id) + PIN. */
   loginPin: (input: { companyCode: string; userId: string; pin: string }) =>
     request<TokenPair>('POST', '/auth/login/pin', input, { auth: false }),

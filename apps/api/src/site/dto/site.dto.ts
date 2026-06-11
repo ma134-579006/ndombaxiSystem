@@ -2,6 +2,7 @@ import {
   IsArray,
   IsBoolean,
   IsHexColor,
+  IsIn,
   IsInt,
   IsObject,
   IsOptional,
@@ -54,6 +55,11 @@ export class UpdateSiteSettingsDto {
   @IsString()
   @Length(0, 500)
   receiptMessage?: string;
+
+  /** IVA aplicado quando o produto escolhe "Automático" (padrão da empresa). */
+  @IsOptional()
+  @IsIn(['NOR', 'INT', 'RED', 'ISE', 'OUT'])
+  defaultIvaCode?: string;
 
   @IsOptional()
   @IsObject()

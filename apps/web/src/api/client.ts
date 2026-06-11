@@ -107,6 +107,7 @@ import type {
   RegisterCompanyResult,
   SiteSettings,
   TenantLoginInput,
+  TenantTokenPair,
   TokenPair,
   UpdateAgtInput,
   UpdateProductInput,
@@ -129,7 +130,12 @@ function qs(params: Record<string, string | undefined>): string {
 }
 
 export class ApiError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(
+    public readonly status: number,
+    message: string,
+    /** Corpo completo do erro (ex.: ChooseCompany traz a lista de empresas). */
+    public readonly data?: unknown,
+  ) {
     super(message);
     this.name = 'ApiError';
   }
@@ -149,14 +155,16 @@ export function configureApi(h: AuthHooks): void {
 
 async function parseError(res: Response): Promise<ApiError> {
   let message = `Erro ${res.status}`;
+  let data: unknown;
   try {
     const j = (await res.json()) as { message?: string | string[] };
+    data = j;
     if (Array.isArray(j.message)) message = j.message.join('; ');
     else if (j.message) message = j.message;
   } catch {
     /* sem corpo */
   }
-  return new ApiError(res.status, message);
+  return new ApiError(res.status, message, data);
 }
 
 async function request<T>(
@@ -218,12 +226,13 @@ async function requestText(path: string, retry = true): Promise<string> {
 export const api = {
   login: (input: PlatformLoginInput) =>
     request<TokenPair>('POST', '/auth/super-admin/login', input, { auth: false }),
-  /** Login do gestor da empresa (tenant). */
+  /** Login do gestor da empresa (tenant) — só e-mail + palavra-passe;
+   *  a API resolve a empresa e devolve o código. */
   loginTenant: (input: TenantLoginInput) =>
-    request<TokenPair>('POST', '/auth/login', input, { auth: false }),
-  /** Login do gestor com Google (ID token) + código da empresa. */
-  loginGoogle: (companyCode: string, idToken: string) =>
-    request<TokenPair>('POST', '/auth/login/google', { companyCode, idToken }, { auth: false }),
+    request<TenantTokenPair>('POST', '/auth/login', input, { auth: false }),
+  /** Login do gestor com Google (ID token); a empresa vem do e-mail Google. */
+  loginGoogle: (idToken: string, companyCode?: string) =>
+    request<TenantTokenPair>('POST', '/auth/login/google', { companyCode, idToken }, { auth: false }),
 
   // ── SAF-T (AGT): exporta o XML fiscal mensal ───────────────
   saft: {

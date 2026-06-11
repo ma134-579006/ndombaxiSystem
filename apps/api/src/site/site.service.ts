@@ -21,6 +21,7 @@ export interface SiteSettingsRow {
   contact_phone: string | null;
   address: string | null;
   receipt_message: string | null;
+  default_iva_code: string;
   social: unknown;
   custom_css: string | null;
   is_published: boolean;
@@ -73,6 +74,7 @@ export class SiteService {
     if (dto.contactPhone !== undefined) sets.push(Prisma.sql`contact_phone = ${dto.contactPhone}`);
     if (dto.address !== undefined) sets.push(Prisma.sql`address = ${dto.address}`);
     if (dto.receiptMessage !== undefined) sets.push(Prisma.sql`receipt_message = ${dto.receiptMessage}`);
+    if (dto.defaultIvaCode !== undefined) sets.push(Prisma.sql`default_iva_code = ${dto.defaultIvaCode}`);
     if (dto.social !== undefined)
       sets.push(Prisma.sql`social = ${JSON.stringify(dto.social)}::jsonb`);
     if (dto.customCss !== undefined) sets.push(Prisma.sql`custom_css = ${dto.customCss}`);

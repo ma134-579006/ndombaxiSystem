@@ -38,7 +38,7 @@ interface AuthContextValue {
   shadow: string | null;
   loginPlatform(input: PlatformLoginInput): Promise<void>;
   loginTenant(input: TenantLoginInput): Promise<void>;
-  loginGoogle(companyCode: string, idToken: string): Promise<void>;
+  loginGoogle(idToken: string, companyCode?: string): Promise<void>;
   adoptSession(tokens: TokenPair, companyCode: string): void;
   enterShadow(tokens: TokenPair, companyCode: string, companyName: string): void;
   exitShadow(): void;
@@ -198,11 +198,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginTenant = useCallback(
     async (input: TenantLoginInput) => {
-      companyRef.current = input.companyCode;
-      setCompanyCode(input.companyCode);
-      sessionStorage.setItem(LS_COMPANY, input.companyCode);
+      // O código deixou de ser pedido: a API resolve a empresa pelo e-mail
+      // e devolve o código (necessário para o cabeçalho X-Tenant-Code).
+      const r = await api.loginTenant(input);
+      const code = input.companyCode ?? r.companyCode;
+      companyRef.current = code;
+      setCompanyCode(code);
+      sessionStorage.setItem(LS_COMPANY, code);
       sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
-      applyTokens(await api.loginTenant(input));
+      applyTokens(r);
       setStatus('authed');
     },
     [applyTokens],
@@ -222,12 +226,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const loginGoogle = useCallback(
-    async (companyCode: string, idToken: string) => {
-      companyRef.current = companyCode;
-      setCompanyCode(companyCode);
-      sessionStorage.setItem(LS_COMPANY, companyCode);
+    async (idToken: string, companyCode?: string) => {
+      const r = await api.loginGoogle(idToken, companyCode);
+      const code = companyCode ?? r.companyCode;
+      companyRef.current = code;
+      setCompanyCode(code);
+      sessionStorage.setItem(LS_COMPANY, code);
       sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
-      applyTokens(await api.loginGoogle(companyCode, idToken));
+      applyTokens(r);
       setStatus('authed');
     },
     [applyTokens],

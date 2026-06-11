@@ -39,6 +39,17 @@ export class PosRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   // ── Produtos ───────────────────────────────────────────────
+  /** IVA padrão da empresa (Configurações) — usado pelo IVA "Automático". */
+  async defaultIvaCode(schema: string): Promise<IvaCode> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ default_iva_code: string }[]>(
+        Prisma.sql`SELECT default_iva_code FROM site_settings LIMIT 1`,
+      ),
+    ).catch(() => [] as { default_iva_code: string }[]);
+    const v = rows[0]?.default_iva_code;
+    return (['NOR', 'INT', 'RED', 'ISE', 'OUT'].includes(v ?? '') ? v : 'NOR') as IvaCode;
+  }
+
   createProduct(
     schema: string,
     input: {

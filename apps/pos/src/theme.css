@@ -628,6 +628,10 @@ html.kbd-open .login-card .footer-credit { display: none; }
   .grid { gap: 7px; }
 }
 
+/* Separador "ou" no login (entre e-mail/código e o botão Google) */
+.or-sep { display: flex; align-items: center; gap: 10px; margin: 10px 0 8px; color: var(--muted); font-size: 12px; }
+.or-sep::before, .or-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
 /* Foco acessível só por teclado (WCAG) */
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 /* Entrada suave dos cartões de produto */

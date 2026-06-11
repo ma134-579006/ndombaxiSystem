@@ -19,8 +19,7 @@ interface FormState {
   name: string;
   description: string;
   brand: string;
-  ivaCode: IvaCode;
-  exemptionReason: string;
+  ivaCode: IvaCode | 'AUTO';
   unitPrice: string;
   costPrice: string;
   stockQty: string;
@@ -38,8 +37,7 @@ const EMPTY: FormState = {
   name: '',
   description: '',
   brand: '',
-  ivaCode: 'NOR',
-  exemptionReason: '',
+  ivaCode: 'AUTO',
   unitPrice: '',
   costPrice: '',
   stockQty: '0',
@@ -123,7 +121,6 @@ export function Products() {
       description: p.description ?? '',
       brand: p.brand ?? '',
       ivaCode: p.iva_code,
-      exemptionReason: p.exemption_reason ?? '',
       unitPrice: p.unit_price,
       costPrice: p.cost_price ?? '',
       stockQty: p.stock_qty,
@@ -173,7 +170,6 @@ export function Products() {
           description: form.description.trim() || undefined,
           brand: form.brand.trim(),
           ivaCode: form.ivaCode,
-          exemptionReason: form.exemptionReason.trim(),
           unitPrice: price,
           costPrice: Number(form.costPrice) || 0,
           imageUrl: form.imageUrl || undefined,
@@ -182,19 +178,14 @@ export function Products() {
           isActive: form.isActive,
         });
       } else {
-        if (!form.code.trim()) {
-          setFormError('Indique o código do produto.');
-          setSaving(false);
-          return;
-        }
+        // Código de barras OPCIONAL — vazio: o sistema gera um EAN-13 interno.
         const payload: CreateProductInput = {
-          code: form.code.trim(),
+          code: form.code.trim() || undefined,
           barcode: form.code.trim() || undefined,
           name: form.name.trim(),
           description: form.description.trim() || undefined,
           brand: form.brand.trim() || undefined,
           ivaCode: form.ivaCode,
-          exemptionReason: form.exemptionReason.trim(),
           unitPrice: price,
           costPrice: Number(form.costPrice) || 0,
           stockQty: Number(form.stockQty) || 0,
@@ -307,13 +298,13 @@ export function Products() {
 
           {!editing ? (
             <div className="field">
-              <label>Código de barras</label>
+              <label>Código de barras (opcional)</label>
               <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
-                <input style={{ flex: 1 }} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Leia o código de barras pela câmara ou escreva" inputMode="text" />
+                <input style={{ flex: 1 }} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Leia pela câmara, escreva — ou deixe vazio" inputMode="text" />
                 <BarcodeScanner onDetected={(code) => setForm((f) => ({ ...f, code }))} />
               </div>
               <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-                É o código que identifica o produto (o mesmo que o leitor da caixa lê).
+                Se deixares vazio, o sistema <strong>gera automaticamente</strong> um código de barras (EAN-13) para este produto.
               </p>
             </div>
           ) : null}
@@ -334,25 +325,16 @@ export function Products() {
           </p>
           <div className="field">
             <label>IVA</label>
-            <select value={form.ivaCode} onChange={(e) => setForm({ ...form, ivaCode: e.target.value as IvaCode })}>
+            <select value={form.ivaCode} onChange={(e) => setForm({ ...form, ivaCode: e.target.value as IvaCode | 'AUTO' })}>
+              <option value="AUTO">Automático (padrão da empresa — configurável em Configurações)</option>
               {IVA_OPTIONS.map((c) => (
                 <option key={c} value={c}>{c} ({IVA_RATE[c]}%)</option>
               ))}
             </select>
+            <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+              Isento/não sujeito? O motivo legal vai automaticamente no recibo — não precisas de escrever nada.
+            </p>
           </div>
-          {form.ivaCode === 'ISE' || form.ivaCode === 'OUT' ? (
-            <div className="field">
-              <label>Motivo de isenção (obrigatório na factura)</label>
-              <input
-                value={form.exemptionReason}
-                onChange={(e) => setForm({ ...form, exemptionReason: e.target.value })}
-                placeholder={form.ivaCode === 'ISE' ? 'ex.: Isento Artigo 12.º do CIVA' : 'ex.: Não sujeito a IVA'}
-              />
-              <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-                Aparece no recibo. Se deixares vazio, usa-se um motivo padrão.
-              </p>
-            </div>
-          ) : null}
           {stores.length > 1 ? (
             <div className="field">
               <div className="switch-row" style={{ padding: 0 }}>
