@@ -1,3 +1,4 @@
+import { confirmDialog, toast } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { AI_ADAPTERS, AI_CAPABILITIES, type AiProvider, type AssistantConfig, type CreateProviderInput } from '../api/types';
@@ -60,7 +61,7 @@ export function Ai() {
   const saveProvider = async () => {
     if (!form) return;
     if (!form.name.trim() || !form.baseUrl.trim() || form.capabilities.length === 0) {
-      alert('Indique nome, URL base e pelo menos uma capacidade.');
+      toast.error('Indique nome, URL base e pelo menos uma capacidade.');
       return;
     }
     setSaving(true);
@@ -76,28 +77,28 @@ export function Ai() {
       setForm(null);
       await load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Não foi possível guardar o provedor.');
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível guardar o provedor.');
     } finally {
       setSaving(false);
     }
   };
 
   const removeProvider = async (p: AiProvider) => {
-    if (!window.confirm(`Remover o provedor "${p.name}"?`)) return;
+    if (!(await confirmDialog({ message: `Remover o provedor "${p.name}"?`, danger: true }))) return;
     try {
       await api.ai.deleteProvider(p.id);
       await load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Não foi possível remover.');
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível remover.');
     }
   };
 
   const testProvider = async (p: AiProvider) => {
     try {
       const r = await api.ai.testProvider(p.id);
-      alert(r.ok ? `✓ ${p.name} respondeu.` : `Resposta: ${JSON.stringify(r)}`);
+      toast.error(r.ok ? `✓ ${p.name} respondeu.` : `Resposta: ${JSON.stringify(r)}`);
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Teste falhou.');
+      toast.error(e instanceof ApiError ? e.message : 'Teste falhou.');
     }
   };
 
@@ -107,7 +108,7 @@ export function Ai() {
     try {
       setAssistant(await api.ai.updateAssistant(assistant));
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Não foi possível guardar a persona.');
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível guardar a persona.');
     } finally {
       setSavingA(false);
     }

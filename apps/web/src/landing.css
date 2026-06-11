@@ -375,6 +375,31 @@
 .sc-foot button { width: 44px; height: 44px; border-radius: 11px; border: none; cursor: pointer; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #2563eb, #7c3aed); }
 .sc-foot button:disabled { opacity: .45; cursor: default; }
 
+/* ── Lightbox dos guias visuais (clicar na imagem → maximiza) ── */
+.sc-img.zoomable { position: relative; cursor: zoom-in; }
+.sc-img-zoom {
+  position: absolute; right: 8px; bottom: 8px; width: 30px; height: 30px; border-radius: 9px;
+  background: rgba(15,23,41,.78); color: #fff; display: grid; place-items: center;
+  box-shadow: 0 4px 12px rgba(8,14,28,.4); pointer-events: none;
+}
+.sc-lightbox {
+  position: fixed; inset: 0; z-index: 2147483000; cursor: zoom-out;
+  background: rgba(5,9,18,.88); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px));
+  animation: sc-in .18s ease both;
+}
+.sc-lightbox img {
+  max-width: min(96vw, 1280px); max-height: 88vh; max-height: 88dvh; cursor: default;
+  border-radius: 14px; box-shadow: 0 40px 120px rgba(0,0,0,.7); background: #fff;
+}
+.sc-lightbox-x {
+  position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); right: 16px;
+  width: 42px; height: 42px; border-radius: 999px; border: 1px solid #ffffff2e; cursor: pointer;
+  background: #ffffff1c; color: #fff; display: grid; place-items: center; transition: background .15s;
+}
+.sc-lightbox-x:hover { background: #ffffff33; }
+.sc-lightbox-hint { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); color: #b8c4d8; font-size: 12.5px; }
+
 /* Comentários */
 .fb-form { max-width: 620px; margin: 0 auto 34px; display: flex; flex-direction: column; gap: 10px; }
 .fb-form input, .fb-form textarea {

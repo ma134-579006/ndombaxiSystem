@@ -5,6 +5,7 @@ import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
 import { IconBuilding, IconReceipt, IconShield } from '../components/Icons';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { LoginShowcase } from '../components/LoginShowcase';
 import { CAIXA_URL } from '../config';
 
 type Profile = 'tenant' | 'caixa' | 'platform';
@@ -102,6 +103,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
 
   return (
     <div className="login">
+      <LoginShowcase />
       <div className="box">
         <div className="brand">
           <img src={LOGO_SRC} alt={SYSTEM_NAME} />

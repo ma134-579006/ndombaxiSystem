@@ -1,3 +1,4 @@
+import { confirmDialog } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CreateProductInput, IvaCode, ManagerProduct, WarehouseRow } from '../api/types';
@@ -78,7 +79,7 @@ export function Products() {
   };
 
   const bulkDelete = async () => {
-    if (!window.confirm(`Eliminar ${selected.size} produto(s)? Produtos com vendas associadas são apenas desativados.`)) return;
+    if (!(await confirmDialog({ message: `Eliminar ${selected.size} produto(s)? Produtos com vendas associadas são apenas desativados.`, danger: true }))) return;
     setBusy(true); setError(null);
     let del = 0, deact = 0;
     try {

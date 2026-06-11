@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { LOGO_SRC, SYSTEM_MODULE, SYSTEM_NAME } from '../brand';
 import { FooterCredit } from '../components/FooterCredit';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { LoginShowcase } from '../components/LoginShowcase';
 import { IconBuilding, IconKeyboard } from '../components/Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { useKeyboard } from '../keyboard/KeyboardProvider';
@@ -93,6 +94,7 @@ export function LoginPage() {
   return (
     <div className="app-bg">
       <div className="login-screen">
+        <LoginShowcase />
         <div className="card login-card">
           <div className="brand">
             <img className="brand-logo" src={LOGO_SRC} alt={SYSTEM_NAME} />

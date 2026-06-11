@@ -12,6 +12,8 @@ import { PlanExpired } from './pages/PlanExpired';
 import { Register } from './pages/Register';
 import { api } from './api/client';
 import './landing.css';
+import { SupportChat } from './components/SupportChat';
+import { FeedbackHost } from './components/feedback';
 import { Ai } from './sections/Ai';
 import { SupportAdmin } from './sections/SupportAdmin';
 import { FeedbackAdmin } from './sections/FeedbackAdmin';
@@ -196,17 +198,24 @@ function TenantPanel() {
       {section === 'store' ? <Storefront /> : null}
       {section === 'settings' ? <Settings /> : null}
       {section === 'profile' ? <Profile /> : null}
+      {/* O mesmo assistente IA da landing, disponível dentro do painel. */}
+      <SupportChat />
     </Shell>
   );
 }
 
 function Gate() {
   const { status, mode, shadow, exitShadow } = useAuth();
-  // Visitantes novos: landing. Quem JÁ entrou antes neste browser (ou acabou de
-  // fazer logout) vai direto ao ECRÃ DE LOGIN — nunca volta a cair na landing.
-  const [view, setView] = useState<'landing' | 'login' | 'register'>(
-    () => { try { return localStorage.getItem('ndombaxi.web.hadSession') ? 'login' : 'landing'; } catch { return 'landing'; } },
-  );
+  // O domínio principal (ndombaxisystem.com) abre SEMPRE a landing — o login
+  // direto vive em admin.ndombaxisystem.com (e nos previews .pages.dev /
+  // localhost, onde quem já entrou antes vai direto ao ecrã de login).
+  const isAdminHost = /^admin\./i.test(window.location.hostname)
+    || window.location.hostname.endsWith('.pages.dev')
+    || window.location.hostname === 'localhost';
+  const [view, setView] = useState<'landing' | 'login' | 'register'>(() => {
+    if (!isAdminHost) return 'landing';
+    try { return localStorage.getItem('ndombaxi.web.hadSession') ? 'login' : 'landing'; } catch { return 'landing'; }
+  });
   useEffect(() => {
     if (status === 'authed') {
       try { localStorage.setItem('ndombaxi.web.hadSession', '1'); } catch { /* ignora */ }
@@ -244,6 +253,8 @@ export function App() {
     <AuthProvider>
       <KeyboardProvider>
         <Gate />
+        {/* Toasts + diálogos de confirmação enterprise (todo o painel). */}
+        <FeedbackHost />
       </KeyboardProvider>
     </AuthProvider>
   );

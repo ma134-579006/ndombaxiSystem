@@ -1,3 +1,4 @@
+import { confirmDialog } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { OpsAlert, Promotion, PromotionInput, PromoType } from '../api/types';
@@ -45,7 +46,7 @@ export function Promotions() {
     await load();
   };
   const remove = async (p: Promotion) => {
-    if (!window.confirm(`Remover "${p.name}"?`)) return;
+    if (!(await confirmDialog({ message: `Remover "${p.name}"?`, danger: true }))) return;
     await api.promotions.remove(p.id).catch(() => undefined);
     await load();
   };

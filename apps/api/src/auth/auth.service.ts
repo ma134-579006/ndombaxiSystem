@@ -153,8 +153,8 @@ export class AuthService {
     for (const c of all) {
       if (seen.has(c.id)) continue;
       try {
-        const u = await this.tenantUsers.findByEmail(c.schemaName, v);
-        if (u && u.is_active) { seen.add(c.id); out.push(c); }
+        // sonda leve (colunas explícitas — forma estável entre schemas)
+        if (await this.tenantUsers.emailExists(c.schemaName, v)) { seen.add(c.id); out.push(c); }
       } catch { /* schema indisponível — ignora */ }
     }
     return out;

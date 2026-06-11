@@ -1,3 +1,4 @@
+import { confirmDialog } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CreateStoreInput, ManagerStore } from '../api/types';
@@ -44,7 +45,7 @@ export function Stores() {
   };
 
   const bulkDelete = async () => {
-    if (!window.confirm(`Eliminar ${selected.size} loja(s)? As que têm vendas/stock/equipa ficam apenas desativadas.`)) return;
+    if (!(await confirmDialog({ message: `Eliminar ${selected.size} loja(s)? As que têm vendas/stock/equipa ficam apenas desativadas.`, danger: true }))) return;
     setBulkBusy(true); setError(null); setInfo(null);
     let del = 0, deact = 0, skipped = 0;
     try {

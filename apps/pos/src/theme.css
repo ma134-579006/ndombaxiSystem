@@ -802,3 +802,31 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
   .icon-btn { width: 32px; height: 32px; }
   .conn { padding: 0 6px; height: 32px; }
 }
+
+/* ════════════════════════════════════════════════════════════
+   VÍDEO DE FUNDO do login — filmagem real (POS/pagamento) em
+   loop ATRÁS do cartão, com véu para leitura. Não altera a
+   estrutura do login (camada fixa por baixo).
+   ════════════════════════════════════════════════════════════ */
+.login { position: relative; isolation: isolate; }
+.login-video { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
+.login-video video {
+  width: 100%; height: 100%; object-fit: cover;
+  filter: saturate(1.08) brightness(.92);
+}
+.login-video-veil {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(90% 90% at 50% 42%, rgba(7,11,22,.38) 0%, rgba(7,11,22,.66) 62%, rgba(7,11,22,.85) 100%),
+    linear-gradient(180deg, rgba(7,11,22,.55), rgba(7,11,22,.35) 40%, rgba(7,11,22,.72));
+}
+/* o cartão ganha vidro sobre o vídeo, sem mudar o layout */
+.login .card { -webkit-backdrop-filter: blur(14px) saturate(130%); backdrop-filter: blur(14px) saturate(130%); }
+.login .brand h1, .login .brand .tg { text-shadow: 0 2px 18px rgba(0,0,0,.55); }
+@media (prefers-reduced-motion: reduce) { .login-video video { display: none; } }
+
+/* POS: o contentor do login é .login-screen */
+.login-screen { position: relative; isolation: isolate; }
+.login-screen > .login-video { position: absolute; inset: 0; z-index: -1; }
+.login-card { -webkit-backdrop-filter: blur(14px) saturate(130%); backdrop-filter: blur(14px) saturate(130%);
+  background: color-mix(in srgb, var(--surface) 84%, transparent); }

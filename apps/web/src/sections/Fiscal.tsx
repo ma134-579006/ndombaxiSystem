@@ -1,3 +1,4 @@
+import { confirmDialog, toast } from '../components/feedback';
 import React, { useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { AgtConfig, AgtExtraField, UpdateAgtInput } from '../api/types';
@@ -54,18 +55,18 @@ export function Fiscal() {
       setCfg(await api.fiscal.update(dto));
       setOk(true);
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Não foi possível guardar.');
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível guardar.');
     } finally {
       setSaving(false);
     }
   };
 
   const subscribe = async () => {
-    if (!window.confirm('Marcar o sistema como subscrito à AGT?')) return;
+    if (!(await confirmDialog({ message: 'Marcar o sistema como subscrito à AGT?' }))) return;
     try {
       setCfg(await api.fiscal.subscribe());
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Operação falhou.');
+      toast.error(e instanceof ApiError ? e.message : 'Operação falhou.');
     }
   };
 

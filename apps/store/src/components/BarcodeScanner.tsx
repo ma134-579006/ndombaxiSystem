@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { isTouchDevice, makeDetector } from '../scan/decoder';
 import { beep } from '../beep';
 
 /**
@@ -28,22 +29,20 @@ export function BarcodeScanner({ onDetected }: { onDetected(code: string): boole
 
   const start = async () => {
     setErr(null);
-    const BD = (window as unknown as { BarcodeDetector?: new (o?: unknown) => { detect(s: unknown): Promise<{ rawValue: string }[]> } }).BarcodeDetector;
-    if (!BD) { setErr('Este telemóvel não lê códigos pela câmara — procure pelo nome.'); return; }
     try {
+      const detect = await makeDetector(); // nativo ou ZXing (iPhone)
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       streamRef.current = stream;
       setScanning(true);
       await new Promise((r) => setTimeout(r, 50));
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => undefined); }
-      const detector = new BD({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'] } as unknown);
+
       let cand = ''; let cn = 0;
       const tick = async () => {
         if (!streamRef.current || !videoRef.current) return;
         try {
-          const codes = await detector.detect(videoRef.current);
-          if (codes && codes.length) {
-            const raw = String(codes[0].rawValue).trim();
+          const raw = await detect(videoRef.current);
+          {
             if (raw) {
               if (cand === raw) cn += 1; else { cand = raw; cn = 1; }
               if (cn >= 2) {
@@ -62,6 +61,9 @@ export function BarcodeScanner({ onDetected }: { onDetected(code: string): boole
       setScanning(false);
     }
   };
+
+  // Computadores: sem câmara — pesquisa-se pelo nome/código.
+  if (!isTouchDevice()) return null;
 
   return (
     <>

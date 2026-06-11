@@ -1,3 +1,4 @@
+import { confirmDialog } from '../components/feedback';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import {
@@ -47,7 +48,7 @@ export function Employees() {
     catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao cessar.'); } finally { setBulkBusy(false); }
   };
   const bulkDelete = async () => {
-    if (!window.confirm(`Eliminar ${selected.size} funcionário(s)? Os que têm histórico de folha são apenas cessados.`)) return;
+    if (!(await confirmDialog({ message: `Eliminar ${selected.size} funcionário(s)? Os que têm histórico de folha são apenas cessados.`, danger: true }))) return;
     setBulkBusy(true); setError(null);
     let del = 0, deact = 0;
     try {

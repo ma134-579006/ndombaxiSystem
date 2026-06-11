@@ -1048,3 +1048,132 @@ button, .btn, .chip, .tab, .nav button { -webkit-tap-highlight-color: transparen
   .icon-btn { width: 34px; height: 34px; border-radius: 9px; }
   .btn { padding: 0 10px; font-size: 12px; }
 }
+
+/* ════════════════════════════════════════════════════════════
+   FEEDBACK enterprise — toasts + diálogo de confirmação
+   (substituem alert()/confirm() nativos em todo o painel)
+   ════════════════════════════════════════════════════════════ */
+.fb-toasts {
+  position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: 14px; z-index: 2147482000;
+  display: flex; flex-direction: column; gap: 10px; pointer-events: none; max-width: min(420px, calc(100vw - 28px));
+}
+.fb-toast {
+  pointer-events: auto; cursor: pointer; position: relative; overflow: hidden;
+  display: flex; align-items: flex-start; gap: 11px; padding: 13px 16px 15px;
+  border-radius: 14px; font-size: 14px; font-weight: 600; line-height: 1.4; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: 0 18px 50px -12px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.18);
+  animation: fb-in .28s cubic-bezier(.2,.7,.3,1) both;
+}
+.fb-toast.leaving { animation: fb-out .3s ease both; }
+@keyframes fb-in { from { opacity: 0; transform: translateX(26px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes fb-out { to { opacity: 0; transform: translateX(26px) scale(.97); } }
+.fb-toast-ic { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: #fff; margin-top: 1px; }
+.fb-toast.success .fb-toast-ic { background: linear-gradient(135deg, #16a34a, #22c55e); }
+.fb-toast.error .fb-toast-ic { background: linear-gradient(135deg, #dc2626, #ef4444); }
+.fb-toast.warning .fb-toast-ic { background: linear-gradient(135deg, #d97706, #f59e0b); }
+.fb-toast.info .fb-toast-ic { background: var(--grad-primary, linear-gradient(135deg, #2563eb, #3b82f6)); }
+.fb-toast-tx { flex: 1; padding-top: 4px; word-break: break-word; }
+.fb-toast-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; transform-origin: left; animation: fb-bar linear both; opacity: .85; }
+.fb-toast.success .fb-toast-bar { background: #22c55e; }
+.fb-toast.error .fb-toast-bar { background: #ef4444; }
+.fb-toast.warning .fb-toast-bar { background: #f59e0b; }
+.fb-toast.info .fb-toast-bar { background: var(--primary, #3b82f6); }
+@keyframes fb-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+.fb-confirm-bg {
+  position: fixed; inset: 0; z-index: 2147482500; display: grid; place-items: center; padding: 18px;
+  background: rgba(4,8,16,.66); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+  animation: fb-fade .16s ease both;
+}
+@keyframes fb-fade { from { opacity: 0; } to { opacity: 1; } }
+.fb-confirm {
+  width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 18px; padding: 24px 22px 18px; text-align: center;
+  box-shadow: 0 40px 110px -20px rgba(0,0,0,.7); animation: fb-pop .24s cubic-bezier(.2,.7,.3,1) both;
+}
+@keyframes fb-pop { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+.fb-confirm-ic {
+  width: 52px; height: 52px; border-radius: 16px; margin: 0 auto 12px; display: grid; place-items: center; color: #fff;
+  background: var(--grad-primary, linear-gradient(135deg, #2563eb, #3b82f6)); box-shadow: 0 10px 26px -10px var(--primary, #2563eb);
+}
+.fb-confirm-ic.danger { background: linear-gradient(135deg, #dc2626, #f87171); box-shadow: 0 10px 26px -10px #ef4444; }
+.fb-confirm h4 { margin: 0 0 6px; font-size: 17px; font-weight: 800; }
+.fb-confirm p { margin: 0 0 18px; color: var(--muted); font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+.fb-confirm-row { display: flex; gap: 10px; }
+.fb-confirm-row .btn { flex: 1; }
+@media (max-width: 480px) {
+  .fb-toasts { left: 14px; right: 14px; max-width: none; }
+}
+
+/* ════════════════════════════════════════════════════════════
+   SUPORTE estilo MESSENGER (Super Admin) — lista → página do chat
+   ════════════════════════════════════════════════════════════ */
+.msgr-list { padding: 0 !important; overflow: hidden; }
+.msgr-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px;
+  background: transparent; border: none; border-bottom: 1px solid var(--border-soft);
+  color: var(--text); cursor: pointer; text-align: left; transition: background .12s;
+}
+.msgr-row:hover { background: var(--surface-2); }
+.msgr-row:last-child { border-bottom: none; }
+.msgr-row .fb-avatar { width: 46px; height: 46px; font-size: 17px; }
+.fb-avatar.hot { box-shadow: 0 0 0 3px var(--warning, #f59e0b); }
+.msgr-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.msgr-row-top { display: flex; align-items: baseline; gap: 10px; }
+.msgr-row-top strong { font-size: 14.5px; }
+.msgr-row-top strong.unread { font-weight: 900; }
+.msgr-when { margin-left: auto; flex: none; font-size: 11.5px; color: var(--muted); }
+.msgr-snippet { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msgr-snippet.unread { color: var(--text); font-weight: 700; }
+
+/* página do chat (ocupa o conteúdo todo, com cabeçalho fixo e composer fixo) */
+.msgr-chat { display: flex; flex-direction: column; height: 100%; min-height: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.content > .page-anim .msgr-chat { height: 100%; }
+.msgr-chat-head { display: flex; align-items: center; gap: 11px; padding: 10px 14px;
+  border-bottom: 1px solid var(--border); background: var(--surface); flex: none; }
+.msgr-back { width: 40px; height: 40px; border-radius: 999px; border: none; background: transparent;
+  color: var(--primary); display: grid; place-items: center; cursor: pointer; flex: none; }
+.msgr-back:hover { background: var(--surface-2); }
+.msgr-chat-who { display: flex; flex-direction: column; min-width: 0; }
+.msgr-chat-who strong { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msgr-status { font-size: 11.5px; color: var(--muted); }
+.msgr-status.hot { color: var(--warning, #f59e0b); font-weight: 800; }
+.msgr-chat-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 14px; display: flex; flex-direction: column; gap: 8px; background: var(--bg-2); }
+.msgr-chat-foot { display: flex; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border); background: var(--surface); flex: none; }
+.msgr-chat-foot input { flex: 1; min-width: 0; background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 11px 16px; color: var(--text); font-size: 15px; outline: none; }
+.msgr-chat-foot input:focus { border-color: var(--primary); }
+.msgr-chat-foot .btn { border-radius: 999px; width: 46px; height: 46px; padding: 0; flex: none; }
+
+/* Sino de notificações: em ecrã pequeno o popup ocupa a largura toda (não quebra) */
+@media (max-width: 640px) {
+  .noti-pop { position: fixed; left: 10px; right: 10px; top: calc(64px + env(safe-area-inset-top, 0px));
+    width: auto; max-width: none; }
+  .acct-pop { max-width: calc(100vw - 20px); }
+}
+
+/* ════════════════════════════════════════════════════════════
+   VÍDEO DE FUNDO do login — filmagem real (POS/pagamento) em
+   loop ATRÁS do cartão, com véu para leitura. Não altera a
+   estrutura do login (camada fixa por baixo).
+   ════════════════════════════════════════════════════════════ */
+.login { position: relative; isolation: isolate; }
+.login-video { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
+.login-video video {
+  width: 100%; height: 100%; object-fit: cover;
+  filter: saturate(1.08) brightness(.92);
+}
+.login-video-veil {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(90% 90% at 50% 42%, rgba(7,11,22,.38) 0%, rgba(7,11,22,.66) 62%, rgba(7,11,22,.85) 100%),
+    linear-gradient(180deg, rgba(7,11,22,.55), rgba(7,11,22,.35) 40%, rgba(7,11,22,.72));
+}
+/* o cartão ganha vidro sobre o vídeo, sem mudar o layout */
+.login .card { -webkit-backdrop-filter: blur(14px) saturate(130%); backdrop-filter: blur(14px) saturate(130%); }
+.login .brand h1, .login .brand .tg { text-shadow: 0 2px 18px rgba(0,0,0,.55); }
+@media (prefers-reduced-motion: reduce) { .login-video video { display: none; } }

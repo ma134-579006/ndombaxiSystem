@@ -1,3 +1,4 @@
+import { confirmDialog, toast } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Company, CompanyStatus } from '../api/types';
@@ -40,13 +41,13 @@ export function Tenants() {
   }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const act = async (id: string, fn: () => Promise<Company>, confirmMsg?: string) => {
-    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    if (confirmMsg && !(await confirmDialog({ message: confirmMsg }))) return;
     setBusyId(id);
     try {
       await fn();
       await load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Operação falhou.');
+      toast.error(e instanceof ApiError ? e.message : 'Operação falhou.');
     } finally {
       setBusyId(null);
     }
@@ -58,9 +59,9 @@ export function Tenants() {
     setBusyId(c.id);
     try {
       const r = await api.tenants.resetPassword(c.id, email.trim() || undefined);
-      window.alert(`Senha temporária de ${r.email}:\n\n${r.temporaryPassword}\n\nGuarde-a — só é mostrada agora. Foi também enviada por e-mail.`);
+      toast.success(`Senha temporária de ${r.email}:\n\n${r.temporaryPassword}\n\nGuarde-a — só é mostrada agora. Foi também enviada por e-mail.`);
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Não foi possível repor a senha.');
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível repor a senha.');
     } finally { setBusyId(null); }
   };
 
@@ -76,7 +77,7 @@ export function Tenants() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Não foi possível exportar.');
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível exportar.');
     } finally { setBusyId(null); }
   };
 
@@ -86,20 +87,20 @@ export function Tenants() {
       const r = await api.tenants.impersonate(c.id);
       enterShadow(r.tokens, r.companyCode, r.companyName);
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Não foi possível entrar em modo shadow.');
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível entrar em modo shadow.');
     } finally { setBusyId(null); }
   };
 
   const remove = async (c: Company) => {
     const typed = window.prompt(`⚠️ ELIMINAR "${c.name}" apaga TODOS os dados (schema) de forma irreversível.\nPara confirmar, escreva o código da empresa: ${c.code}`, '');
     if (typed === null) return;
-    if (typed.trim() !== c.code) { alert('Código não coincide. Cancelado.'); return; }
+    if (typed.trim() !== c.code) { toast.error('Código não coincide. Cancelado.'); return; }
     setBusyId(c.id);
     try {
       await api.tenants.remove(c.id);
       await load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Não foi possível eliminar.');
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível eliminar.');
     } finally { setBusyId(null); }
   };
 

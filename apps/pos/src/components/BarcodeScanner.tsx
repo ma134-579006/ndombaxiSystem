@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { isTouchDevice, makeDetector } from '../scan/decoder';
 
 /**
- * Leitor de código de barras pela CÂMARA (BarcodeDetector nativo).
+ * Leitor de código de barras pela CÂMARA — universal: BarcodeDetector nativo
+ * (Chrome/Android) com fallback ZXing no iPhone/Safari. Só aparece em ecrãs
+ * TÁTEIS (nos computadores usa-se o leitor físico/pesquisa).
  * Precisão: só aceita um código depois de o LER 2x IGUAL (evita leituras
  * erradas). Modo `continuous`: fica a ler produto após produto (com
  * arrefecimento para o mesmo código), ideal para a caixa.
@@ -50,22 +53,19 @@ export function BarcodeScanner({
 
   const start = async () => {
     setErr(null); setLast(null);
-    const BD = (window as unknown as { BarcodeDetector?: new (o?: unknown) => { detect(s: unknown): Promise<{ rawValue: string; format?: string }[]> } }).BarcodeDetector;
-    if (!BD) { setErr('Este dispositivo não lê códigos pela câmara — use o leitor físico ou a pesquisa.'); return; }
     try {
+      // Universal: nativo (Chrome/Android) ou ZXing (iPhone/Safari).
+      const detect = await makeDetector();
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       streamRef.current = stream;
       setScanning(true);
       await new Promise((r) => setTimeout(r, 50));
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => undefined); }
-      // Só formatos de retalho lineares (sem QR) — reduz leituras erradas.
-      const detector = new BD({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'] } as unknown);
       const tick = async () => {
         if (!streamRef.current || !videoRef.current) return;
         try {
-          const codes = await detector.detect(videoRef.current);
-          if (codes && codes.length) {
-            const raw = String(codes[0].rawValue).trim();
+          const raw = await detect(videoRef.current);
+          {
             if (raw) {
               // Confiança: precisa de 2 frames iguais seguidos.
               if (candRef.current.v === raw) candRef.current.n += 1;
@@ -98,6 +98,9 @@ export function BarcodeScanner({
       setScanning(false);
     }
   };
+
+  // Computadores: sem câmara — usa-se o leitor físico USB ou a pesquisa.
+  if (!isTouchDevice()) return null;
 
   return (
     <>

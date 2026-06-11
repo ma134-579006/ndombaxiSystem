@@ -1,3 +1,4 @@
+import { confirmDialog, toast } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { PaymentMethodInput, PaymentMethodType, PaymentProof, StorePaymentMethod } from '../api/types';
@@ -44,14 +45,14 @@ export function Payments() {
       await api.payments.reviewProof(id, status);
       await load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Falha ao rever.');
+      toast.error(e instanceof ApiError ? e.message : 'Falha ao rever.');
     }
   };
 
   const remove = async (m: StorePaymentMethod) => {
-    if (!window.confirm(`Remover "${m.label}"?`)) return;
+    if (!(await confirmDialog({ message: `Remover "${m.label}"?`, danger: true }))) return;
     try { await api.payments.deleteMethod(m.id); await load(); }
-    catch (e) { alert(e instanceof ApiError ? e.message : 'Falha ao remover.'); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao remover.'); }
   };
 
   return (

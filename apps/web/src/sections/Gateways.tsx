@@ -1,3 +1,4 @@
+import { confirmDialog, toast } from '../components/feedback';
 import React, { useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { GATEWAY_PROVIDERS, type CreateGatewayInput, type Gateway } from '../api/types';
@@ -56,7 +57,7 @@ export function Gateways() {
 
   const save = async () => {
     if (!form) return;
-    if (!form.label.trim()) { alert('Indique um rótulo para o contrato.'); return; }
+    if (!form.label.trim()) { toast.error('Indique um rótulo para o contrato.'); return; }
     setSaving(true);
     try {
       const dto: Partial<CreateGatewayInput> = {
@@ -78,19 +79,19 @@ export function Gateways() {
       setForm(null);
       await load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Não foi possível guardar.');
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível guardar.');
     } finally {
       setSaving(false);
     }
   };
 
   const remove = async (g: Gateway) => {
-    if (!window.confirm(`Remover o contrato "${g.label}"?`)) return;
+    if (!(await confirmDialog({ message: `Remover o contrato "${g.label}"?`, danger: true }))) return;
     try {
       await api.gateways.remove(g.id);
       await load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Não foi possível remover.');
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível remover.');
     }
   };
 

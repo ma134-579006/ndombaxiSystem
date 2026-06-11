@@ -1,3 +1,4 @@
+import { confirmDialog } from '../components/feedback';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import {
@@ -101,7 +102,7 @@ export function Expenses() {
   };
 
   const remove = async (id: string) => {
-    if (!window.confirm('Eliminar esta despesa? A ação fica registada na auditoria.')) return;
+    if (!(await confirmDialog({ message: 'Eliminar esta despesa? A ação fica registada na auditoria.', danger: true }))) return;
     try { await api.expenses.remove(id); await load(); }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível eliminar.'); }
   };

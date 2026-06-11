@@ -1,3 +1,4 @@
+import { confirmDialog, toast } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { PayrollRun, PayrollRunDetail } from '../api/types';
@@ -31,13 +32,13 @@ export function Payroll() {
 
   const open = async (id: string) => {
     try { setDetail(await api.hr.payroll.getRun(id)); }
-    catch (e) { alert(e instanceof ApiError ? e.message : 'Falha ao abrir folha.'); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao abrir folha.'); }
   };
 
   const pay = async (id: string) => {
-    if (!window.confirm('Marcar esta folha como paga?')) return;
+    if (!(await confirmDialog({ message: 'Marcar esta folha como paga?' }))) return;
     try { await api.hr.payroll.pay(id); await load(); setDetail(null); }
-    catch (e) { alert(e instanceof ApiError ? e.message : 'Falha ao marcar como paga.'); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao marcar como paga.'); }
   };
 
   return (

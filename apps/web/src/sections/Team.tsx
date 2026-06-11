@@ -1,3 +1,4 @@
+import { confirmDialog } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import {
@@ -33,7 +34,7 @@ export function Team() {
   useEffect(() => { void load(); }, [load]);
 
   const resetPwd = async (u: ManagerStaff) => {
-    if (!window.confirm(`Repor a senha de ${u.name}?`)) return;
+    if (!(await confirmDialog({ message: `Repor a senha de ${u.name}?` }))) return;
     setBusyId(u.id);
     try {
       const r = await api.staff.resetPassword(u.id);
@@ -43,7 +44,7 @@ export function Team() {
   };
 
   const deactivate = async (u: ManagerStaff) => {
-    if (!window.confirm(`Desativar ${u.name}? Deixa de poder entrar.`)) return;
+    if (!(await confirmDialog({ message: `Desativar ${u.name}? Deixa de poder entrar.`, danger: true }))) return;
     setBusyId(u.id);
     try { await api.staff.deactivate(u.id); await load(); }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível desativar.'); }

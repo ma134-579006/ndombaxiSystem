@@ -38,6 +38,18 @@ export interface CreateTenantUserInput {
 export class TenantUserRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Sonda LEVE: o e-mail existe (ativo) neste tenant? Colunas explícitas —
+   *  a forma do resultado é estável entre schemas (evita o erro 0A000
+   *  "cached plan must not change result type" ao percorrer tenants). */
+  async emailExists(schema: string, email: string): Promise<boolean> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT id FROM users WHERE email = ${email} AND is_active = TRUE LIMIT 1`,
+      ),
+    );
+    return rows.length > 0;
+  }
+
   async findByEmail(schema: string, email: string): Promise<TenantUser | null> {
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<TenantUser[]>(

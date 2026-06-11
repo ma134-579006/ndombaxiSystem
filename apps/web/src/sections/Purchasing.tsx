@@ -1,3 +1,4 @@
+import { toast } from '../components/feedback';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type {
@@ -45,8 +46,8 @@ export function Purchasing() {
   useEffect(() => { void load(); }, [load]);
 
   const act = async (fn: () => Promise<unknown>, ok?: string) => {
-    try { await fn(); if (ok) alert(ok); await load(); }
-    catch (e) { alert(e instanceof ApiError ? e.message : 'Operação falhou.'); }
+    try { await fn(); if (ok) toast.error(ok); await load(); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Operação falhou.'); }
   };
 
   return (
@@ -224,7 +225,7 @@ function OrderModal({
       });
       await onSaved();
       onClose();
-      alert(`Encomenda ${r.number} criada (rascunho). Confirme e depois rececione para dar entrada em stock.`);
+      toast.success(`Encomenda ${r.number} criada (rascunho). Confirme e depois rececione para dar entrada em stock.`);
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao criar encomenda.'); }
     finally { setBusy(false); }
   };

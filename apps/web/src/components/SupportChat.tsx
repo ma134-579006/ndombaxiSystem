@@ -19,10 +19,31 @@ function saveLocalMsgs(msgs: SupportMsg[]) {
   try { localStorage.setItem(LS_MSGS, JSON.stringify(msgs.slice(-120))); } catch { /* ignora */ }
 }
 
+/** LIGHTBOX: clica no guia visual → abre maximizado por cima de tudo
+ *  (fundo escuro, fecha com clique, ✕ ou tecla Esc). */
+function GuideLightbox({ src, onClose }: { src: string; onClose(): void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+  }, [onClose]);
+  return (
+    <div className="sc-lightbox" onClick={onClose} role="dialog" aria-label="Guia visual ampliado">
+      <button className="sc-lightbox-x" onClick={onClose} aria-label="Fechar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+      </button>
+      <img src={src} alt="Guia visual do sistema (ampliado)" onClick={(e) => e.stopPropagation()} />
+      <div className="sc-lightbox-hint">Toca fora da imagem para fechar</div>
+    </div>
+  );
+}
+
 /** O corpo pode trazer um guia visual: texto + [[SVG]]…[[/SVG]].
  *  O conteúdo é um SCREENSHOT REAL do sistema com marcações (URL /guides/…)
  *  ou, em versões antigas, um SVG inline (vem da NOSSA API — fonte confiável). */
 export function MsgBody({ body }: { body: string }) {
+  const [zoom, setZoom] = useState(false);
   const m = body.match(/^([\s\S]*?)\[\[SVG\]\]([\s\S]*?)\[\[\/SVG\]\]/);
   if (!m) return <>{body}</>;
   const guide = m[2].trim();
@@ -30,7 +51,15 @@ export function MsgBody({ body }: { body: string }) {
     <>
       {m[1].trim()}
       {guide.startsWith('/guides/') ? (
-        <span className="sc-img"><img src={guide} alt="Guia visual do sistema" loading="lazy" /></span>
+        <>
+          <span className="sc-img zoomable" onClick={() => setZoom(true)} title="Toca para ampliar">
+            <img src={guide} alt="Guia visual do sistema" loading="lazy" />
+            <span className="sc-img-zoom" aria-hidden>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3M11 8v6M8 11h6" /></svg>
+            </span>
+          </span>
+          {zoom ? <GuideLightbox src={guide} onClose={() => setZoom(false)} /> : null}
+        </>
       ) : guide.startsWith('<svg') ? (
         <span className="sc-img" dangerouslySetInnerHTML={{ __html: guide }} />
       ) : null}

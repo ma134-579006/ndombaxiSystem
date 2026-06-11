@@ -1,3 +1,4 @@
+import { confirmDialog, toast } from '../components/feedback';
 import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { ManagerStaff, SiteSettings } from '../api/types';
@@ -120,7 +121,7 @@ function PasswordsCard() {
   useEffect(() => { api.staff.listUsers().then(setUsers).catch((e) => setErr(e instanceof ApiError ? e.message : 'Falha ao carregar.')); }, []);
 
   const reset = async (u: ManagerStaff) => {
-    if (!window.confirm(`Repor a senha de ${u.name}? Será gerada uma senha temporária.`)) return;
+    if (!(await confirmDialog({ message: `Repor a senha de ${u.name}? Será gerada uma senha temporária.` }))) return;
     setBusyId(u.id); setResult(null); setErr(null);
     try {
       const r = await api.staff.resetPassword(u.id);
@@ -168,7 +169,7 @@ function PasswordsCard() {
 function PrinterCard() {
   const testPrint = () => {
     const w = window.open('', '_blank', 'width=420,height=600');
-    if (!w) { alert('Permita popups para imprimir a página de teste.'); return; }
+    if (!w) { toast.error('Permita popups para imprimir a página de teste.'); return; }
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Teste de impressão</title>
       <style>@page{size:80mm auto;margin:0} body{font-family:Arial,sans-serif;width:80mm;margin:0;padding:8px;text-align:center}
       h2{margin:6px 0} .l{border-top:1px dashed #000;margin:8px 0} small{color:#333}</style></head><body>

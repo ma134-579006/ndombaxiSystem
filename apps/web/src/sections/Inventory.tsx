@@ -1,3 +1,4 @@
+import { confirmDialog, toast } from '../components/feedback';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { DashLowStock, ExpiringBatch, ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
@@ -54,7 +55,7 @@ export function Inventory() {
       setOpenCount(detail);
       await load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Falha ao criar contagem.');
+      toast.error(e instanceof ApiError ? e.message : 'Falha ao criar contagem.');
     } finally {
       creatingRef.current = false;
     }
@@ -515,7 +516,7 @@ function CountSheet({ detail, products, onClose }: { detail: StockCountDetail; p
       <script>window.onload=function(){window.print();}<\/script>
       </body></html>`;
     const w = window.open('', '_blank', 'width=900,height=700');
-    if (!w) { alert('Permita popups para imprimir o inventário.'); return; }
+    if (!w) { toast.error('Permita popups para imprimir o inventário.'); return; }
     w.document.write(html); w.document.close();
   };
 
@@ -529,15 +530,15 @@ function CountSheet({ detail, products, onClose }: { detail: StockCountDetail; p
   };
 
   const close = async () => {
-    if (!window.confirm('Fechar a contagem e aplicar os ajustes ao stock?')) return;
+    if (!(await confirmDialog({ message: 'Fechar a contagem e aplicar os ajustes ao stock?' }))) return;
     setBusy(true);
     try {
       const r = await api.inventory.closeCount(detail.id);
-      alert(`Contagem fechada. ${r.adjusted} produto(s) ajustado(s).`);
+      toast.error(`Contagem fechada. ${r.adjusted} produto(s) ajustado(s).`);
       setStatus('CLOSED');
       onClose();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Falha ao fechar.');
+      toast.error(e instanceof ApiError ? e.message : 'Falha ao fechar.');
     } finally { setBusy(false); }
   };
 

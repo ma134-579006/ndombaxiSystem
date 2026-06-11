@@ -29,6 +29,12 @@ function withPoolLimits(url: string | undefined): string | undefined {
     if (!u.searchParams.has('connection_limit')) u.searchParams.set('connection_limit', '5');
     if (!u.searchParams.has('pool_timeout')) u.searchParams.set('pool_timeout', '30');
     if (!u.searchParams.has('connect_timeout')) u.searchParams.set('connect_timeout', '20');
+    // MULTI-TENANT: a mesma ligação salta entre schemas (search_path) e cada
+    // tenant tem tabelas com formas ligeiramente diferentes (drift natural das
+    // migrações). Com cache de prepared statements, o PostgreSQL rebenta com
+    // `0A000: cached plan must not change result type` (ex.: login por e-mail
+    // que percorre os tenants). Desligar a cache resolve DE RAIZ.
+    if (!u.searchParams.has('statement_cache_size')) u.searchParams.set('statement_cache_size', '0');
     return u.toString();
   } catch {
     return url; // URL inválido → deixa o Prisma reportar o erro original
