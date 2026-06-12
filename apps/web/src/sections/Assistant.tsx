@@ -1,17 +1,42 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { AssistantCallSession, AssistantChartSpec, AssistantMessage } from '../api/types';
+import type { AgentEvent, AssistantCallSession } from '../api/types';
 import { IconCpu } from '../components/Icons';
 import { micSupported, playBase64Audio, startRecording, stopAudio, type Recorder } from '../components/voice';
 
-interface Turn { role: 'user' | 'assistant'; content: string; charts?: AssistantChartSpec[]; error?: boolean }
+/**
+ * AGENTE IA do gestor — design estilo claude.ai, responsivo:
+ *   • coluna central de conversa limpa (utilizador à direita, agente em texto);
+ *   • PAINEL DE ATIVIDADE em tempo real (cada ferramenta que o agente executa
+ *     aparece ao vivo, com estado e resultado) — lateral no desktop, gaveta
+ *     no telemóvel;
+ *   • anexos: planilhas XLSX, PDFs, imagens geradas, guias (lightbox) e
+ *     botões WhatsApp prontos a enviar;
+ *   • chamada de voz com a voz feminina natural (Gemini TTS).
+ */
+
+interface Attachment { file?: { kind: string; name: string; base64: string; mime: string }; imageBase64?: string; guideUrl?: string; waLink?: string }
+interface Turn { role: 'user' | 'assistant'; content: string; attachments?: Attachment[]; error?: boolean }
+interface Step { tool: string; args?: Record<string, unknown>; summary?: string; done: boolean }
 
 const SUGGESTIONS = [
-  'Qual foi o produto mais vendido esta semana?',
-  'Mostra o fluxo de caixa deste mês.',
-  'Quantos clientes compraram mais de 3 vezes?',
-  'Que produtos estão quase em rutura?',
+  'Como estão as vendas desta semana?',
+  'Verifica se há indícios de roubo ou quebras este mês',
+  'Quem é o funcionário com melhor desempenho?',
+  'Cria uma planilha com o top 10 de produtos do mês',
+  'Há erros de cálculo ou diferenças nos fechos de caixa?',
 ];
+
+const TOOL_LABEL: Record<string, string> = {
+  resumo_vendas: '📊 A analisar vendas', top_produtos: '🏆 Top produtos',
+  desempenho_funcionarios: '👥 Desempenho dos funcionários', detetar_anomalias: '🕵️ Auditoria anti-fraude',
+  stock_critico: '📦 Stock crítico', lucro_resumo: '💰 Lucro', gastos_resumo: '🧾 Gastos',
+  listar_funcionarios: '👥 Funcionários', listar_clientes: '🤝 Clientes', mapa_iva: '🏛️ Mapa de IVA',
+  atualizar_preco_produto: '✏️ A alterar preço', criar_cliente: '➕ A criar cliente',
+  criar_despesa: '➕ A registar despesa', ajustar_stock_minimo: '✏️ Stock mínimo',
+  criar_planilha: '📗 A criar planilha', criar_pdf: '📄 A criar PDF', criar_imagem: '🎨 A gerar imagem',
+  mostrar_guia: '🖼️ Guia visual', enviar_whatsapp: '💬 WhatsApp',
+};
 
 const IconMic = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -26,66 +51,69 @@ const IconPhone = ({ size = 18 }: { size?: number }) => (
 const IconStop = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
 );
-const IconSpeaker = ({ size = 15 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a9 9 0 0 1 0 14" />
-  </svg>
+const IconSend = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 14-7-4 14-3.5-5.5L5 12Z" /></svg>
 );
 
-/** Limpa o texto para leitura por voz (sem blocos de gráfico/imagem nem **). */
 function stripForSpeech(text: string): string {
-  return text.replace(/```(chart|image)\s*\n[\s\S]*?```/g, '').replace(/\*\*/g, '').trim();
+  return text.replace(/```[\s\S]*?```/g, '').replace(/\*\*/g, '').trim();
 }
 function voiceError(e: unknown): string {
-  return e instanceof ApiError && e.status === 400
-    ? 'A voz precisa de um provedor (TTS/STT) configurado pelo Super Admin em **Inteligência Artificial**.'
-    : (e instanceof ApiError ? e.message : 'Falha de voz. Tenta novamente.');
+  return e instanceof ApiError ? e.message : 'Falha de voz. Tenta novamente.';
 }
 
 export function Assistant() {
   const [name, setName] = useState('Assistente');
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [steps, setSteps] = useState<Step[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
+  const [actOpen, setActOpen] = useState(false); // gaveta de atividade (mobile)
   const recRef = useRef<Recorder | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     void (async () => {
-      try {
-        const g = await api.assistant.greeting();
-        setName(g.displayName);
-        setTurns([{ role: 'assistant', content: g.greeting }]);
-      } catch {
-        setTurns([{ role: 'assistant', content: 'Olá! 👋 Sou o seu assistente. Em que posso ajudar?' }]);
-      }
+      try { const g = await api.assistant.greeting(); setName(g.displayName); } catch { /* default */ }
     })();
   }, []);
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' });
-  }, [turns, busy]);
+  }, [turns, steps, busy]);
 
   const send = async (text: string) => {
     const content = text.trim();
     if (!content || busy) return;
-    const history: AssistantMessage[] = [
+    const history = [
       ...turns.filter((t) => !t.error).map((t) => ({ role: t.role, content: t.content })),
-      { role: 'user', content },
+      { role: 'user' as const, content },
     ];
     setTurns((p) => [...p, { role: 'user', content }]);
     setInput('');
     setBusy(true);
+    setSteps([]);
+    const attachments: Attachment[] = [];
+    let finalText = '';
     try {
-      const r = await api.assistant.chat(history);
-      setTurns((p) => [...p, { role: 'assistant', content: r.reply, charts: r.charts }]);
+      const stream = api.agentStream(history, (e: AgentEvent) => {
+        if (e.type === 'step_start') setSteps((p) => [...p, { tool: e.tool ?? '?', args: e.args, done: false }]);
+        else if (e.type === 'step_done') setSteps((p) => p.map((s, i) => (i === p.length - 1 && !s.done ? { ...s, done: true, summary: e.summary } : s)));
+        else if (e.type === 'attachment') attachments.push({ file: e.file, imageBase64: e.imageBase64, guideUrl: e.guideUrl, waLink: e.waLink });
+        else if (e.type === 'text') finalText = e.text ?? '';
+        else if (e.type === 'error') { finalText = e.text ?? 'Falha no agente.'; }
+      });
+      await stream.done;
+      setTurns((p) => [...p, { role: 'assistant', content: finalText || '✓ Feito.', attachments }]);
     } catch (e) {
-      const msg = e instanceof ApiError && e.status === 400
-        ? 'O assistente ainda não tem um provedor de IA configurado. O Super Admin pode activá-lo em **Inteligência Artificial** no painel da plataforma.'
-        : (e instanceof ApiError ? e.message : 'Não consegui responder agora. Tenta novamente.');
-      setTurns((p) => [...p, { role: 'assistant', content: msg, error: true }]);
+      setTurns((p) => [...p, {
+        role: 'assistant', error: true,
+        content: e instanceof ApiError && e.status === 400
+          ? 'O agente precisa de um provedor de IA configurado (Super Admin → Inteligência Artificial).'
+          : (e instanceof ApiError ? e.message : 'Não consegui responder agora. Tenta novamente.'),
+      }]);
     } finally { setBusy(false); }
   };
 
@@ -97,124 +125,153 @@ export function Assistant() {
       setBusy(true);
       try {
         const { base64, mimeType } = await rec.stop();
-        const r = await api.assistant.voiceTurn(base64, mimeType);
-        setTurns((p) => [...p, { role: 'user', content: r.userText }, { role: 'assistant', content: r.reply }]);
-        if (r.audioBase64) playBase64Audio(r.audioBase64, r.mimeType);
+        const r = await api.assistant.stt(base64, mimeType);
+        setBusy(false);
+        if (r.text.trim()) await send(r.text.trim());
       } catch (e) {
+        setBusy(false);
         setTurns((p) => [...p, { role: 'assistant', content: voiceError(e), error: true }]);
-      } finally { setBusy(false); }
+      }
     } else {
       stopAudio();
       try { recRef.current = await startRecording(); setRecording(true); }
-      catch { setTurns((p) => [...p, { role: 'assistant', content: 'Não consegui aceder ao microfone. Permite o acesso no navegador.', error: true }]); }
+      catch { setTurns((p) => [...p, { role: 'assistant', content: 'Permite o acesso ao microfone no navegador.', error: true }]); }
     }
   };
 
-  const speak = async (text: string) => {
-    try { const a = await api.assistant.tts(stripForSpeech(text)); playBase64Audio(a.audioBase64, a.mimeType); }
-    catch { /* sem TTS configurado — silencioso */ }
-  };
-
   const voiceOk = micSupported();
+  const empty = turns.length === 0;
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div className="content-head">
-        <h2>Assistente IA <span className="muted" style={{ fontWeight: 500, fontSize: 14 }}>· {name}</span></h2>
-        <span className="spacer" />
-        {voiceOk ? (
-          <button className="btn" onClick={() => setCallOpen(true)} title="Falar por chamada de voz">
-            <IconPhone size={16} /> Chamada
-          </button>
-        ) : null}
-      </div>
-
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, padding: 0, overflow: 'hidden' }}>
-        <div ref={scroller} style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {turns.map((t, i) => <Bubble key={i} turn={t} onSpeak={voiceOk ? () => speak(t.content) : undefined} />)}
-          {busy ? (
-            <div style={{ alignSelf: 'flex-start', color: 'var(--muted)', fontSize: 13, padding: '6px 2px' }}>
-              <span className="live-dot" /> a pensar…
-            </div>
-          ) : null}
-          {turns.length <= 1 && !busy ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-              {SUGGESTIONS.map((s) => (
-                <button key={s} className="chip" onClick={() => void send(s)}>{s}</button>
-              ))}
-            </div>
-          ) : null}
+    <div className="agent">
+      {/* coluna principal (estilo claude.ai) */}
+      <div className="agent-main">
+        <div ref={scroller} className="agent-scroll">
+          <div className="agent-col">
+            {empty ? (
+              <div className="agent-hero">
+                <div className="agent-hero-ic"><IconCpu size={30} /></div>
+                <h2>Olá! Sou o {name}.</h2>
+                <p>Analiso as vendas, deteto quebras e indícios de fraude, crio planilhas, PDFs e imagens, ensino com screenshots reais e contacto a equipa por WhatsApp — tudo com os dados reais da tua empresa.</p>
+                <div className="agent-sugs">
+                  {SUGGESTIONS.map((s) => <button key={s} className="agent-sug" onClick={() => void send(s)}>{s}</button>)}
+                </div>
+              </div>
+            ) : null}
+            {turns.map((t, i) => <AgentTurn key={i} turn={t} />)}
+            {busy ? <LiveSteps steps={steps} /> : null}
+          </div>
         </div>
 
-        <div style={{ borderTop: '1px solid var(--border)', padding: 12, display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-          {voiceOk ? (
-            <button
-              onClick={toggleMic}
-              disabled={busy}
-              title={recording ? 'Parar e enviar' : 'Falar'}
-              style={{
-                height: 44, width: 44, flex: 'none', borderRadius: 12, display: 'grid', placeItems: 'center',
-                background: recording ? 'var(--danger)' : 'var(--surface)', color: recording ? '#fff' : 'var(--text)',
-                border: `1px solid ${recording ? 'var(--danger)' : 'var(--border)'}`,
-                animation: recording ? 'live-pulse 1.4s infinite' : undefined,
-              }}
-            >
-              {recording ? <IconStop size={18} /> : <IconMic size={20} />}
-            </button>
-          ) : null}
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(input); } }}
-            placeholder={recording ? 'A ouvir… toca no quadrado para enviar' : 'Escreve ou toca no microfone…'}
-            rows={1}
-            style={{
-              flex: 1, resize: 'none', maxHeight: 120, background: 'var(--surface)',
-              border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px',
-              color: 'var(--text)', fontFamily: 'inherit', fontSize: 14,
-            }}
-          />
-          <button className="btn" onClick={() => void send(input)} disabled={busy || !input.trim()} style={{ height: 44 }}>
-            Enviar
-          </button>
+        {/* compositor */}
+        <div className="agent-composer-wrap">
+          <div className="agent-composer">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(input); } }}
+              placeholder={recording ? 'A ouvir… toca no quadrado para enviar' : `Pergunta ao ${name} ou pede uma ação…`}
+              rows={1}
+            />
+            <div className="agent-composer-row">
+              <span className="agent-hint">O agente usa dados reais · nunca elimina nada · ações ficam na auditoria</span>
+              <span className="spacer" />
+              {voiceOk ? (
+                <button className={`agent-iconbtn${recording ? ' rec' : ''}`} onClick={() => void toggleMic()} disabled={busy} title={recording ? 'Enviar' : 'Falar'}>
+                  {recording ? <IconStop size={16} /> : <IconMic size={17} />}
+                </button>
+              ) : null}
+              {voiceOk ? (
+                <button className="agent-iconbtn" onClick={() => setCallOpen(true)} title="Chamada de voz"><IconPhone size={16} /></button>
+              ) : null}
+              <button className="agent-sendbtn" onClick={() => void send(input)} disabled={busy || !input.trim()} title="Enviar"><IconSend /></button>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* painel de ATIVIDADE (desktop fixo · mobile gaveta) */}
+      <aside className={`agent-activity${actOpen ? ' open' : ''}`}>
+        <div className="agent-activity-head">
+          <span className="agent-activity-dot" /> Atividade do agente
+          <span className="spacer" />
+          <button className="agent-iconbtn only-mobile" onClick={() => setActOpen(false)} aria-label="Fechar">✕</button>
+        </div>
+        <div className="agent-activity-body">
+          {steps.length === 0 ? <p className="muted" style={{ fontSize: 13 }}>Quando o agente executar ferramentas (analisar vendas, criar ficheiros, alterar dados…), vês aqui cada passo em tempo real.</p> : null}
+          {steps.map((s, i) => (
+            <div key={i} className={`agent-step${s.done ? ' done' : ''}`}>
+              <span className="agent-step-ic">{s.done ? '✓' : <span className="agent-spin" />}</span>
+              <div className="agent-step-tx">
+                <strong>{TOOL_LABEL[s.tool] ?? s.tool}</strong>
+                {s.args && Object.keys(s.args).length ? <span className="agent-step-args">{Object.entries(s.args).map(([k, v]) => `${k}: ${String(v)}`).join(' · ').slice(0, 90)}</span> : null}
+                {s.summary ? <span className="agent-step-sum">{s.summary.slice(0, 220)}</span> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      </aside>
+      <button className={`agent-activity-fab only-mobile${steps.length && busy ? ' busy' : ''}`} onClick={() => setActOpen(true)} title="Atividade do agente">
+        ⚡{steps.length ? <span className="noti-badge">{steps.length}</span> : null}
+      </button>
 
       {callOpen ? <CallOverlay onClose={() => setCallOpen(false)} /> : null}
     </div>
   );
 }
 
-function Bubble({ turn, onSpeak }: { turn: Turn; onSpeak?: () => void }) {
-  const isUser = turn.role === 'user';
+/** Passos ao vivo também na conversa (enquanto o agente trabalha). */
+function LiveSteps({ steps }: { steps: Step[] }) {
+  const cur = steps[steps.length - 1];
   return (
-    <div style={{ alignSelf: isUser ? 'flex-end' : 'flex-start', maxWidth: '82%' }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexDirection: isUser ? 'row-reverse' : 'row' }}>
-        {!isUser ? (
-          <div style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--primary-soft)', color: 'var(--primary)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <IconCpu size={17} />
-          </div>
-        ) : null}
-        <div style={{
-          background: isUser ? 'var(--primary)' : turn.error ? 'var(--danger-soft, #2a1418)' : 'var(--surface)',
-          color: isUser ? '#fff' : 'var(--text)',
-          border: isUser ? 'none' : '1px solid var(--border)',
-          borderRadius: 14, padding: '10px 14px', fontSize: 14, lineHeight: 1.5,
-        }}>
-          {renderRich(turn.content)}
-          {turn.charts?.map((c, i) => <MiniChart key={i} spec={c} />)}
-          {!isUser && !turn.error && onSpeak ? (
-            <button onClick={onSpeak} title="Ouvir" style={{ marginTop: 6, color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
-              <IconSpeaker size={14} /> Ouvir
-            </button>
-          ) : null}
-        </div>
-      </div>
+    <div className="agent-live">
+      <span className="agent-spin" />
+      {cur ? <span>{TOOL_LABEL[cur.tool] ?? cur.tool}{cur.done ? ' ✓' : '…'}</span> : <span>a pensar…</span>}
     </div>
   );
 }
 
-/** Chamada de voz: toca para falar, o assistente responde por voz (half-duplex). */
+function AgentTurn({ turn }: { turn: Turn }) {
+  const [zoom, setZoom] = useState<string | null>(null);
+  if (turn.role === 'user') {
+    return <div className="agent-user"><div className="agent-user-b">{turn.content}</div></div>;
+  }
+  return (
+    <div className={`agent-ai${turn.error ? ' err' : ''}`}>
+      <div className="agent-ai-av"><IconCpu size={15} /></div>
+      <div className="agent-ai-b">
+        {renderRich(turn.content)}
+        {turn.attachments?.map((a, i) => (
+          <div key={i} className="agent-attach">
+            {a.file ? (
+              <a className="agent-file" download={a.file.name} href={`data:${a.file.mime};base64,${a.file.base64}`}>
+                <span className="agent-file-ic">{a.file.kind === 'xlsx' ? '📗' : '📄'}</span>
+                <span><strong>{a.file.name}</strong><em>Toca para descarregar</em></span>
+              </a>
+            ) : null}
+            {a.imageBase64 ? (
+              <img className="agent-img" src={`data:image/png;base64,${a.imageBase64}`} alt="Imagem gerada" onClick={() => setZoom(`data:image/png;base64,${a.imageBase64}`)} />
+            ) : null}
+            {a.guideUrl ? (
+              <img className="agent-img" src={a.guideUrl} alt="Guia do sistema" onClick={() => setZoom(a.guideUrl!)} />
+            ) : null}
+            {a.waLink ? (
+              <a className="agent-wa" href={a.waLink} target="_blank" rel="noreferrer">💬 Enviar no WhatsApp</a>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {zoom ? (
+        <div className="sc-lightbox" onClick={() => setZoom(null)}>
+          <img src={zoom} alt="ampliado" onClick={(e) => e.stopPropagation()} />
+          <div className="sc-lightbox-hint">Toca fora da imagem para fechar</div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Chamada de voz half-duplex — voz feminina natural (Gemini "Leda"). */
 function CallOverlay({ onClose }: { onClose(): void }) {
   const [session, setSession] = useState<AssistantCallSession | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -228,7 +285,7 @@ function CallOverlay({ onClose }: { onClose(): void }) {
       try {
         const s = await api.assistant.callSession();
         setSession(s);
-        if (s.mode === 'unavailable') { setErr('A chamada por voz precisa de um provedor de voz (TTS/STT) configurado pelo Super Admin.'); setStatus('idle'); return; }
+        if (s.mode === 'unavailable') { setErr('A chamada por voz precisa de um provedor de IA configurado.'); setStatus('idle'); return; }
         if (s.greeting) {
           setTranscript([{ who: 'ai', text: s.greeting }]);
           try {
@@ -239,9 +296,7 @@ function CallOverlay({ onClose }: { onClose(): void }) {
           } catch { setStatus('idle'); }
         } else setStatus('idle');
       } catch (e) {
-        setErr(e instanceof ApiError && e.status === 400
-          ? 'A chamada por voz precisa de um provedor de voz configurado pelo Super Admin.'
-          : 'Não foi possível iniciar a chamada.');
+        setErr(e instanceof ApiError ? e.message : 'Não foi possível iniciar a chamada.');
         setStatus('idle');
       }
     })();
@@ -287,9 +342,7 @@ function CallOverlay({ onClose }: { onClose(): void }) {
           </div>
           <h3 style={{ margin: '0 0 2px' }}>{session?.displayName ?? 'Assistente'}</h3>
           <div className="muted" style={{ fontSize: 13, marginBottom: 16 }}>{label}</div>
-
           {err ? <div className="banner danger" style={{ marginBottom: 14, textAlign: 'left' }}>{err}</div> : null}
-
           <div ref={tr} style={{ maxHeight: 200, overflowY: 'auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 16px' }}>
             {transcript.map((t, i) => (
               <div key={i} style={{ alignSelf: t.who === 'you' ? 'flex-end' : 'flex-start', maxWidth: '85%', background: t.who === 'you' ? 'var(--primary)' : 'var(--surface-2)', color: t.who === 'you' ? '#fff' : 'var(--text)', padding: '8px 12px', borderRadius: 12, fontSize: 14 }}>
@@ -297,7 +350,6 @@ function CallOverlay({ onClose }: { onClose(): void }) {
               </div>
             ))}
           </div>
-
           <button
             onClick={talk}
             disabled={status === 'connecting' || status === 'thinking' || !!err}
@@ -311,7 +363,6 @@ function CallOverlay({ onClose }: { onClose(): void }) {
           >
             {status === 'listening' ? <IconStop size={26} /> : <IconMic size={28} />}
           </button>
-
           <div style={{ marginTop: 18 }}>
             <button className="btn ghost" onClick={onClose}>Terminar chamada</button>
           </div>
@@ -333,25 +384,5 @@ function renderInline(line: string): React.ReactNode {
     p.startsWith('**') && p.endsWith('**')
       ? <strong key={i}>{p.slice(2, -2)}</strong>
       : <React.Fragment key={i}>{p}</React.Fragment>,
-  );
-}
-
-function MiniChart({ spec }: { spec: AssistantChartSpec }) {
-  const s = spec.series?.[0];
-  if (!s || !spec.labels?.length) return null;
-  const max = Math.max(1, ...s.data);
-  return (
-    <div style={{ marginTop: 10, background: 'var(--bg-2, #0e1626)', borderRadius: 10, padding: 12 }}>
-      {spec.title ? <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13 }}>{spec.title}</div> : null}
-      <div className="catbars">
-        {spec.labels.map((lab, i) => (
-          <div className="catbar" key={i}>
-            <span className="catbar-name">{String(lab)}</span>
-            <div className="catbar-track"><div className="catbar-fill" style={{ width: `${(Number(s.data[i] ?? 0) / max) * 100}%` }} /></div>
-            <span className="catbar-val">{s.data[i]}</span>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }

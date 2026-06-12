@@ -895,3 +895,50 @@ export interface FeedbackStats {
   total: number; positive: number; negative: number; neutral: number;
   perDay: { day: string; count: number }[];
 }
+
+/** Evento em tempo real do AGENTE IA (painel de atividade estilo Claude). */
+export interface AgentEvent {
+  type: 'step_start' | 'step_done' | 'text' | 'attachment' | 'done' | 'error';
+  tool?: string;
+  args?: Record<string, unknown>;
+  summary?: string;
+  text?: string;
+  file?: { kind: string; name: string; base64: string; mime: string };
+  imageBase64?: string;
+  guideUrl?: string;
+  waLink?: string;
+}
+
+/** Cliente do tenant (tabela customers — partilhada com o caixa). */
+export interface CustomerRow {
+  id: string;
+  name: string;
+  tax_id?: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  is_active: boolean;
+  created_at?: string;
+}
+
+/** Câmara de vigilância configurada. */
+export interface CameraRow {
+  id: string;
+  name: string;
+  stream_url: string;
+  snapshot_url: string | null;
+  kind: string;
+  notes: string | null;
+  record: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+export interface CameraInput {
+  name: string;
+  streamUrl: string;
+  snapshotUrl?: string;
+  kind?: string;
+  notes?: string;
+  record?: boolean;
+  isActive?: boolean;
+}

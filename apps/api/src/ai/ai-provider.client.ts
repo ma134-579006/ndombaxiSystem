@@ -12,6 +12,17 @@ export interface ChatReply {
   raw?: unknown;
 }
 
+/** Mensagem do loop de AGENTE (function-calling, formato OpenAI-compatível). */
+export interface AgentToolCall { id: string; name: string; argsJson: string }
+export interface AgentMessage {
+  role: 'user' | 'assistant' | 'tool';
+  content: string;
+  toolCalls?: AgentToolCall[];
+  toolCallId?: string;
+  name?: string;
+}
+export interface AgentReply { text: string | null; toolCalls: AgentToolCall[]; model: string | null }
+
 /**
  * Cliente HTTP agnóstico ao provedor. Traduz pedidos do assistente para o
  * protocolo do adapter configurado pelo Super Admin (sem mudanças de código):
@@ -78,6 +89,47 @@ export class AiProviderClient {
     const responsePath = (settings.responsePath as string) ?? 'choices.0.message.content';
     const text = this.dig(json, responsePath.split('.')) ?? '';
     return { text: String(text), model: body.model, raw: json };
+  }
+
+  /**
+   * Conversa de AGENTE com FERRAMENTAS (function-calling), protocolo
+   * OpenAI-compatível — funciona com Gemini (endpoint compat), OpenClaw,
+   * OpenAI e OpenManus. Devolve texto OU pedidos de ferramentas.
+   */
+  async chatTools(
+    provider: AiProvider,
+    apiKey: string | null,
+    messages: AgentMessage[],
+    systemPrompt: string,
+    tools: { name: string; description: string; parameters: Record<string, unknown> }[],
+  ): Promise<AgentReply> {
+    const settings = (provider.settings ?? {}) as Record<string, unknown>;
+    const wire = messages.map((m) => {
+      if (m.role === 'tool') return { role: 'tool', tool_call_id: m.toolCallId, name: m.name, content: m.content };
+      if (m.role === 'assistant' && m.toolCalls?.length) {
+        return {
+          role: 'assistant',
+          content: m.content || null,
+          tool_calls: m.toolCalls.map((t) => ({ id: t.id, type: 'function', function: { name: t.name, arguments: t.argsJson } })),
+        };
+      }
+      return { role: m.role, content: m.content };
+    });
+    const body = {
+      model: provider.model ?? (provider.adapter === 'openclaw' ? 'openclaw' : 'gpt-4o-mini'),
+      messages: [{ role: 'system', content: systemPrompt }, ...wire],
+      temperature: (settings.temperature as number) ?? 0.3,
+      tools: tools.map((t) => ({ type: 'function', function: t })),
+    };
+    const path = this.path(provider, 'chatPath', provider.adapter === 'openclaw' ? '/v1/chat/completions' : '/chat/completions');
+    const json = await this.post(provider, apiKey, path, body);
+    const msg = this.dig(json, ['choices', '0', 'message']) as
+      | { content?: string | null; tool_calls?: { id?: string; function?: { name?: string; arguments?: string } }[] }
+      | undefined;
+    const toolCalls = (msg?.tool_calls ?? [])
+      .filter((t) => t.function?.name)
+      .map((t, i) => ({ id: t.id ?? `call_${i}`, name: String(t.function!.name), argsJson: t.function?.arguments ?? '{}' }));
+    return { text: msg?.content ?? null, toolCalls, model: body.model };
   }
 
   /** Texto → áudio (base64). */

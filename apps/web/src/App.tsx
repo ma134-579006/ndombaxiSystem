@@ -43,7 +43,10 @@ import { Reconciliation } from './sections/Reconciliation';
 import { Employees } from './sections/Employees';
 import { Payroll } from './sections/Payroll';
 import { Purchasing } from './sections/Purchasing';
+import { Accounting } from './sections/Accounting';
 import { Assistant } from './sections/Assistant';
+import { Cameras } from './sections/Cameras';
+import { Customers } from './sections/Customers';
 import { Leave } from './sections/Leave';
 import { Stores } from './sections/Stores';
 import { Subscription } from './sections/Subscription';
@@ -104,6 +107,14 @@ const TENANT_NAV: NavItem[] = [
       { key: 'employees', label: 'Funcionários', icon: IconBuilding },
       { key: 'payroll', label: 'Folha Salarial', icon: IconReceipt },
       { key: 'leave', label: 'Férias', icon: IconBuilding },
+    ],
+  },
+  { key: 'customers', label: 'Clientes', icon: IconBuilding },
+  { key: 'accounting', label: 'Contabilidade', icon: IconReceipt },
+  {
+    key: 'cameras-group', label: 'Câmaras', icon: IconCpu, children: [
+      { key: 'cameras-config', label: 'Configurar', icon: IconCpu },
+      { key: 'cameras-live', label: 'Abrir', icon: IconCpu },
     ],
   },
   { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart },
@@ -182,6 +193,10 @@ function TenantPanel() {
       {section === 'orders' ? <Orders /> : null}
       {section === 'promotions' ? <Promotions /> : null}
       {section === 'payments' ? <Payments /> : null}
+      {section === 'customers' ? <Customers /> : null}
+      {section === 'accounting' ? <Accounting /> : null}
+      {section === 'cameras-config' ? <Cameras mode="config" /> : null}
+      {section === 'cameras-live' ? <Cameras mode="live" /> : null}
       {section === 'operations' ? <Operations /> : null}
       {section === 'reports' ? <Reports /> : null}
       {section === 'saft' ? <Saft /> : null}

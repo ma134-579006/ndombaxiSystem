@@ -683,6 +683,18 @@ CREATE INDEX IF NOT EXISTS leave_status_idx ON "{{SCHEMA}}"."leave_requests"(sta
 CREATE INDEX IF NOT EXISTS leave_emp_idx ON "{{SCHEMA}}"."leave_requests"(employee_id);
 
 -- ── Auditoria do tenant (append-only + hash encadeado) ───────
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."cameras" (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  stream_url TEXT NOT NULL,            -- HLS (.m3u8), MJPEG ou MP4 acessível por HTTP(S)
+  snapshot_url TEXT,                   -- URL de fotograma JPEG (para gravacao por instantaneos)
+  kind TEXT NOT NULL DEFAULT 'AUTO',   -- AUTO | HLS | MJPEG | MP4
+  notes TEXT,
+  record BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."tenant_audit_log" (
   seq         BIGSERIAL PRIMARY KEY,
   timestamp   TIMESTAMPTZ NOT NULL DEFAULT now(),

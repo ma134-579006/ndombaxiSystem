@@ -59,6 +59,15 @@ export const INTEGRATION_CATALOG: IntegrationCatalogEntry[] = [
     secretLabel: 'Chave privada / secret',
   },
   {
+    key: 'WHATSAPP', label: 'WhatsApp — Mensagens',
+    description: 'Envio de mensagens WhatsApp a funcionários e clientes (Meta Cloud API). Sem token, o assistente gera links wa.me prontos a enviar.',
+    hasBaseUrl: false, baseUrlLabel: '',
+    settingsFields: [
+      { name: 'phoneNumberId', label: 'Phone Number ID (Meta)' },
+    ],
+    secretLabel: 'Access token (Meta Cloud API)',
+  },
+  {
     key: 'BIOMETRIC', label: 'Ponto biométrico',
     description: 'Controlo de assiduidade por dispositivo biométrico.',
     hasBaseUrl: true, baseUrlLabel: 'Endpoint do dispositivo/ponte',

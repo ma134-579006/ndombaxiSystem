@@ -106,6 +106,10 @@ import type {
   RegisterCompanyInput,
   RegisterCompanyResult,
   SiteSettings,
+  AgentEvent,
+  CameraInput,
+  CameraRow,
+  CustomerRow,
   TenantLoginInput,
   TenantTokenPair,
   TokenPair,
@@ -244,6 +248,45 @@ export const api = {
     get: () => request<{ theme: string }>('GET', '/auth/me/preferences'),
     setTheme: (theme: string) =>
       request<{ theme: string }>('PATCH', '/auth/me/preferences', { theme }),
+  },
+
+  // ── AGENTE IA (ferramentas reais + eventos em tempo real) ──
+  /**
+   * Stream SSE do agente: emite cada passo (ferramenta), anexos e o texto
+   * final em tempo real. Devolve uma função para cancelar.
+   */
+  agentStream: (
+    messages: { role: 'user' | 'assistant'; content: string }[],
+    onEvent: (e: AgentEvent) => void,
+  ): { cancel(): void; done: Promise<void> } => {
+    const ctrl = new AbortController();
+    const done = (async () => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const token = hooks?.getAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const code = hooks?.getCompanyCode?.();
+      if (code) headers['X-Tenant-Code'] = code;
+      const res = await fetch(`${API_URL}/ai/agent/chat`, {
+        method: 'POST', headers, body: JSON.stringify({ messages }), signal: ctrl.signal,
+      });
+      if (!res.ok || !res.body) throw await parseError(res);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      for (;;) {
+        const { done: end, value } = await reader.read();
+        if (end) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buf.indexOf('\n\n')) >= 0) {
+          const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
+          const line = chunk.split('\n').find((l) => l.startsWith('data: '));
+          if (!line) continue;
+          try { onEvent(JSON.parse(line.slice(6)) as AgentEvent); } catch { /* evento malformado */ }
+        }
+      }
+    })();
+    return { cancel: () => ctrl.abort(), done };
   },
 
   // ── Landing pública (sem auth) ─────────────────────────────
@@ -519,10 +562,40 @@ export const api = {
       request<AssistantChatReply>('POST', '/ai/chat', { messages, channel: 'chat' }),
     tts: (text: string, voice?: string) =>
       request<AssistantTts>('POST', '/ai/voice/tts', { text, voice }),
+    stt: (audioBase64: string, mimeType?: string) =>
+      request<{ text: string }>('POST', '/ai/voice/stt', { audioBase64, mimeType }),
     voiceTurn: (audioBase64: string, mimeType?: string) =>
       request<AssistantVoiceTurn>('POST', '/ai/voice/turn', { audioBase64, mimeType }),
     callSession: () => request<AssistantCallSession>('GET', '/ai/call/session'),
   },
+  // ── Clientes da empresa (mesma tabela que o caixa usa) ─────
+  customers: {
+    list: () => request<CustomerRow[]>('GET', '/pos/customers'),
+    create: (input: { name: string; taxId?: string; email?: string; phone?: string; address?: string }) =>
+      request<CustomerRow>('POST', '/pos/customers', input),
+  },
+
+  // ── Câmaras de vigilância ───────────────────────────────────
+  cameras: {
+    list: () => request<CameraRow[]>('GET', '/cameras'),
+    create: (input: CameraInput) => request<CameraRow>('POST', '/cameras', input),
+    update: (id: string, input: Partial<CameraInput>) => request<CameraRow>('PATCH', `/cameras/${id}`, input),
+    test: (id: string) => request<{ ok: boolean; status: number; contentType: string | null; kind: string }>('POST', `/cameras/${id}/test`),
+    days: (id: string) => request<{ days: string[] }>('GET', `/cameras/${id}/recordings`),
+    frames: (id: string, day: string) => request<{ frames: string[] }>('GET', `/cameras/${id}/recordings/${day}`),
+    /** Fotograma gravado com autenticação → object URL para <img>. */
+    frameUrl: async (id: string, day: string, file: string): Promise<string> => {
+      const headers: Record<string, string> = {};
+      const token = hooks?.getAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const code = hooks?.getCompanyCode?.();
+      if (code) headers['X-Tenant-Code'] = code;
+      const res = await fetch(`${API_URL}/cameras/${id}/recordings/${day}/${file}`, { headers });
+      if (!res.ok) throw await parseError(res);
+      return URL.createObjectURL(await res.blob());
+    },
+  },
+
   // ── Compras: fornecedores + encomendas de compra (gestor) ──
   purchasing: {
     listSuppliers: () => request<SupplierRow[]>('GET', '/erp/suppliers'),

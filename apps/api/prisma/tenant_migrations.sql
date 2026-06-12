@@ -38,3 +38,16 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings"  ADD COLUMN IF NOT EXISTS rec
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings"  ADD COLUMN IF NOT EXISTS default_iva_code TEXT NOT NULL DEFAULT 'NOR';
 -- Setup obrigatório concluído? Empresas existentes = TRUE (não afeta); novos registos põem FALSE.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings"  ADD COLUMN IF NOT EXISTS setup_completed BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- Câmaras de vigilância (config + gravação por instantâneos)
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."cameras" (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  stream_url TEXT NOT NULL,
+  snapshot_url TEXT,
+  kind TEXT NOT NULL DEFAULT 'AUTO',
+  notes TEXT,
+  record BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

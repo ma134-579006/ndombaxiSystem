@@ -62,3 +62,29 @@ export function isTouchDevice(): boolean {
   try { return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1; }
   catch { return false; }
 }
+
+/** Detector de QR CODE (para configurar câmaras por QR). */
+export async function makeQrDetector(): Promise<FrameDetector> {
+  const BD = (window as unknown as { BarcodeDetector?: new (o?: unknown) => NativeDetector }).BarcodeDetector;
+  if (BD) {
+    const d = new BD({ formats: ['qr_code'] } as unknown);
+    return async (video) => {
+      try { const c = await d.detect(video); return c?.length ? String(c[0].rawValue).trim() || null : null; }
+      catch { return null; }
+    };
+  }
+  const [{ BrowserQRCodeReader }] = await Promise.all([import('@zxing/browser')]);
+  const reader = new BrowserQRCodeReader();
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let lastTry = 0;
+  return async (video) => {
+    const now = Date.now();
+    if (now - lastTry < 200 || !video.videoWidth || !ctx) return null;
+    lastTry = now;
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    try { return String(reader.decodeFromCanvas(canvas).getText()).trim() || null; }
+    catch { return null; }
+  };
+}

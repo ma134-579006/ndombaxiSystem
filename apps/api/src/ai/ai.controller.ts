@@ -1,7 +1,9 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AgentService } from './agent.service';
 import { AssistantService } from './assistant.service';
 import { ChatDto, ImageDto, SttDto, TtsDto } from './dto/chat.dto';
 
@@ -15,7 +17,36 @@ import { ChatDto, ImageDto, SttDto, TtsDto } from './dto/chat.dto';
 @ApiBearerAuth()
 @Controller('ai')
 export class AiController {
-  constructor(private readonly assistant: AssistantService) {}
+  constructor(
+    private readonly assistant: AssistantService,
+    private readonly agent: AgentService,
+  ) {}
+
+  /**
+   * AGENTE com ferramentas reais — stream de eventos (SSE) em tempo real:
+   * cada passo (ferramenta + resultado), anexos e o texto final, para o
+   * painel de atividade do frontend.
+   */
+  @Post('agent/chat')
+  @ApiOperation({ summary: 'Agente IA do gestor (ferramentas reais, eventos SSE em tempo real)' })
+  async agentChat(@Body() dto: ChatDto, @CurrentUser() user: JwtPayload, @Res() res: Response) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+    const send = (e: unknown) => res.write(`data: ${JSON.stringify(e)}\n\n`);
+    try {
+      await this.agent.run(
+        user,
+        dto.messages.map((m) => ({ role: m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: m.content })),
+        send,
+      );
+    } catch (e) {
+      send({ type: 'error', text: e instanceof Error ? e.message : 'Falha no agente.' });
+    } finally {
+      res.end();
+    }
+  }
 
   @Get('greeting')
   @ApiOperation({ summary: 'Saudação inicial do assistente' })

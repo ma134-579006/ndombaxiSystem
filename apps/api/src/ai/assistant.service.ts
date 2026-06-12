@@ -73,22 +73,74 @@ export class AssistantService {
     };
   }
 
-  /** Texto → áudio (voz humana) usando o provedor TTS configurado. */
-  async speak(text: string, voice?: string) {
-    const resolved = await this.cfg.resolveForCapability('TTS');
-    if (!resolved) {
-      throw new BadRequestException('Nenhum provedor de IA com capacidade TTS está configurado.');
-    }
-    return this.client.tts(resolved.provider, resolved.apiKey, text, voice);
+  /** Chave Gemini (quando o provedor CHAT é o endpoint Google) — permite voz
+   *  e transcrição SEM provedores TTS/STT dedicados. */
+  private async geminiKey(): Promise<string | null> {
+    const r = await this.cfg.resolveForCapability('CHAT');
+    return r?.apiKey && r.provider.baseUrl.includes('googleapis') ? r.apiKey : null;
   }
 
-  /** Áudio → texto (transcrição) usando o provedor STT configurado. */
+  /** PCM 16-bit mono → WAV (o Gemini TTS devolve PCM cru; o browser quer WAV). */
+  private pcmToWav(pcmBase64: string, sampleRate = 24000): string {
+    const pcm = Buffer.from(pcmBase64, 'base64');
+    const header = Buffer.alloc(44);
+    header.write('RIFF', 0); header.writeUInt32LE(36 + pcm.length, 4); header.write('WAVE', 8);
+    header.write('fmt ', 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20);
+    header.writeUInt16LE(1, 22); header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(sampleRate * 2, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34);
+    header.write('data', 36); header.writeUInt32LE(pcm.length, 40);
+    return Buffer.concat([header, pcm]).toString('base64');
+  }
+
+  /** Texto → áudio: provedor TTS dedicado OU a voz FEMININA natural do
+   *  Gemini (voz "Leda") usando a chave já configurada. */
+  async speak(text: string, voice?: string) {
+    const resolved = await this.cfg.resolveForCapability('TTS');
+    if (resolved) return this.client.tts(resolved.provider, resolved.apiKey, text, voice);
+    const key = await this.geminiKey();
+    if (!key) throw new BadRequestException('Nenhum provedor de IA com capacidade TTS está configurado.');
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: text.slice(0, 1200) }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice || 'Leda' } } },
+        },
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) throw new BadRequestException(`TTS Gemini falhou (${res.status}).`);
+    const json = (await res.json()) as { candidates?: { content?: { parts?: { inlineData?: { data?: string; mimeType?: string } }[] } }[] };
+    const part = json.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData;
+    if (!part?.data) throw new BadRequestException('TTS Gemini sem áudio.');
+    const rate = Number((part.mimeType ?? '').match(/rate=(\d+)/)?.[1] ?? 24000);
+    return { audioBase64: this.pcmToWav(part.data, rate), mimeType: 'audio/wav' };
+  }
+
+  /** Áudio → texto: provedor STT dedicado OU transcrição multimodal Gemini. */
   async transcribe(audioBase64: string, mimeType?: string) {
     const resolved = await this.cfg.resolveForCapability('STT');
-    if (!resolved) {
-      throw new BadRequestException('Nenhum provedor de IA com capacidade STT está configurado.');
-    }
-    return this.client.stt(resolved.provider, resolved.apiKey, audioBase64, mimeType);
+    if (resolved) return this.client.stt(resolved.provider, resolved.apiKey, audioBase64, mimeType);
+    const key = await this.geminiKey();
+    if (!key) throw new BadRequestException('Nenhum provedor de IA com capacidade STT está configurado.');
+    const mt = (mimeType ?? 'audio/webm').split(';')[0];
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { text: 'Transcreve EXATAMENTE o que é dito neste áudio, em português. Responde só com a transcrição, sem comentários.' },
+          { inlineData: { mimeType: mt, data: audioBase64 } },
+        ] }],
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) throw new BadRequestException(`STT Gemini falhou (${res.status}).`);
+    const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+    const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join(' ').trim() ?? '';
+    return { text };
   }
 
   /** Geração de imagem a partir de um prompt. */
@@ -119,8 +171,9 @@ export class AssistantService {
   async callSession() {
     const c = await this.cfg.getAssistantConfig();
     const call = await this.cfg.resolveForCapability('VOICE_CALL');
-    const tts = await this.cfg.resolveForCapability('TTS');
-    const stt = await this.cfg.resolveForCapability('STT');
+    const gem = await this.geminiKey();
+    const tts = (await this.cfg.resolveForCapability('TTS')) ?? (gem ? { gemini: true } : null);
+    const stt = (await this.cfg.resolveForCapability('STT')) ?? (gem ? { gemini: true } : null);
     if (!c.callEnabled) {
       throw new BadRequestException('As chamadas com o assistente estão desativadas na configuração.');
     }

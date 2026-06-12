@@ -17,6 +17,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HrModule } from './hr/hr.module';
 import { AiModule } from './ai/ai.module';
+import { CamerasModule } from './cameras/cameras.module';
 import { SiteModule } from './site/site.module';
 import { PaymentsModule } from './payments/payments.module';
 import { FiscalModule } from './fiscal/fiscal.module';
@@ -74,6 +75,7 @@ import { HealthController } from './health.controller';
     DashboardModule,
     HrModule,
     AiModule,
+    CamerasModule,
     SiteModule,
     PaymentsModule,
     FiscalModule,
