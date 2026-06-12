@@ -6,10 +6,12 @@ import { formatKz } from '../format';
 import { useStore } from '../state/StoreContext';
 import { cartTotal } from '../store/cart';
 
+// As 21 províncias de Angola (reforma da divisão político-administrativa de 2024:
+// Cuando Cubango → Cuando + Cubango; novas Icolo e Bengo e Moxico Leste).
 const PROVINCES = [
-  'Bengo', 'Benguela', 'Bié', 'Cabinda', 'Cuando Cubango', 'Cuanza Norte', 'Cuanza Sul',
-  'Cunene', 'Huambo', 'Huíla', 'Luanda', 'Lunda Norte', 'Lunda Sul', 'Malanje', 'Moxico',
-  'Namibe', 'Uíge', 'Zaire',
+  'Bengo', 'Benguela', 'Bié', 'Cabinda', 'Cuando', 'Cuanza Norte', 'Cuanza Sul', 'Cubango',
+  'Cunene', 'Huambo', 'Huíla', 'Icolo e Bengo', 'Luanda', 'Lunda Norte', 'Lunda Sul', 'Malanje',
+  'Moxico', 'Moxico Leste', 'Namibe', 'Uíge', 'Zaire',
 ];
 
 const PM_DESC: Record<string, string> = {
@@ -17,6 +19,15 @@ const PM_DESC: Record<string, string> = {
   REFERENCE: 'Pagamento por referência',
   MULTICAIXA_EXPRESS: 'Multicaixa Express',
   CASH: 'Numerário (na entrega/levantamento)',
+};
+
+// Numerário na entrega — opção SEMPRE disponível mesmo que a loja ainda não
+// tenha configurado métodos eletrónicos, para o cliente nunca ficar "sem forma
+// de pagamento" no checkout (era o sintoma reportado: só aparecia numerário na confirmação).
+const CASH_FALLBACK: PaymentMethod = {
+  id: '__cash__', type: 'CASH', label: 'Numerário', instructions: null,
+  bank_name: null, iban: null, account_holder: null, reference_entity: null,
+  reference_number: null, express_phone: null, is_active: true, sort_order: 99,
 };
 
 export function Checkout({
@@ -27,7 +38,10 @@ export function Checkout({
   onDone(result: CheckoutResult, method: PaymentMethod | null): void;
 }) {
   const { code, data, cart } = useStore();
-  const methods = data?.paymentMethods ?? [];
+  const configured = data?.paymentMethods ?? [];
+  // Nunca deixar o cliente sem forma de pagamento: se a loja não configurou
+  // métodos, oferecemos "Numerário" por omissão.
+  const methods = configured.length > 0 ? configured : [CASH_FALLBACK];
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');

@@ -4,9 +4,11 @@ import { App } from './App';
 import './theme.css';
 import { initTheme } from './theme';
 import { initAutoUpdate } from './autoUpdate';
+import { initScrollReveal } from './scrollReveal';
 
 initTheme();
 initAutoUpdate(); // recarrega sozinho quando há nova versão publicada
+initScrollReveal(); // conteúdo materializa-se ao rolar (efeito de catálogo premium)
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Elemento #root não encontrado');

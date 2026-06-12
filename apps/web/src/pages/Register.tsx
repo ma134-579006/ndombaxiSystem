@@ -5,6 +5,7 @@ import type { PublicPlan } from '../api/types';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
 import { IconBuilding } from '../components/Icons';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { LoginShowcase } from '../components/LoginShowcase';
 
 /**
  * Criar conta de empresa — registo SIMPLES: só email + palavra-passe própria,
@@ -48,11 +49,12 @@ export function Register({ onBack }: { onBack?: () => void }) {
 
   return (
     <div className="login">
+      <LoginShowcase />
       <div className="box">
         <div className="brand">
           <img src={LOGO_SRC} alt={SYSTEM_NAME} />
-          <h1>Criar conta de empresa</h1>
-          <div className="tg">Comece grátis — configure os detalhes a seguir</div>
+          <h1>{SYSTEM_NAME}</h1>
+          <div className="tg">Criar conta de empresa — comece grátis</div>
         </div>
         <div className="card">
           {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
