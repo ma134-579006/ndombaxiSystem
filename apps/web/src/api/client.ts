@@ -580,7 +580,7 @@ export const api = {
     list: () => request<CameraRow[]>('GET', '/cameras'),
     create: (input: CameraInput) => request<CameraRow>('POST', '/cameras', input),
     update: (id: string, input: Partial<CameraInput>) => request<CameraRow>('PATCH', `/cameras/${id}`, input),
-    test: (id: string) => request<{ ok: boolean; status: number; contentType: string | null; kind: string }>('POST', `/cameras/${id}/test`),
+    test: (id: string) => request<{ ok: boolean; status: number; contentType: string | null; kind: string; warning?: string; secure?: boolean }>('POST', `/cameras/${id}/test`),
     days: (id: string) => request<{ days: string[] }>('GET', `/cameras/${id}/recordings`),
     frames: (id: string, day: string) => request<{ frames: string[] }>('GET', `/cameras/${id}/recordings/${day}`),
     /** Fotograma gravado com autenticação → object URL para <img>. */
@@ -591,6 +591,21 @@ export const api = {
       const code = hooks?.getCompanyCode?.();
       if (code) headers['X-Tenant-Code'] = code;
       const res = await fetch(`${API_URL}/cameras/${id}/recordings/${day}/${file}`, { headers });
+      if (!res.ok) throw await parseError(res);
+      return URL.createObjectURL(await res.blob());
+    },
+    /**
+     * Fotograma AO VIVO via PROXY autenticado do servidor (resolve mixed-content
+     * — site HTTPS ↔ câmara HTTP — e CORS). Para câmaras com URL de fotograma:
+     * o player faz polling disto a cada ~1.5 s = vídeo fluido sem expor a câmara.
+     */
+    liveSnapshotUrl: async (id: string): Promise<string> => {
+      const headers: Record<string, string> = {};
+      const token = hooks?.getAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const code = hooks?.getCompanyCode?.();
+      if (code) headers['X-Tenant-Code'] = code;
+      const res = await fetch(`${API_URL}/cameras/${id}/live?snapshot=1`, { headers });
       if (!res.ok) throw await parseError(res);
       return URL.createObjectURL(await res.blob());
     },

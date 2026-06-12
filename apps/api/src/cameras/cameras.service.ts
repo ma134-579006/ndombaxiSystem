@@ -92,22 +92,42 @@ export class CamerasService {
     return rows[0];
   }
 
-  /** Teste de ligação real: tenta obter o stream/snapshot (cabeçalhos). */
-  async test(schema: string, id: string): Promise<{ ok: boolean; status: number; contentType: string | null; kind: string }> {
+  /**
+   * Teste de ligação REAL. Além de verificar que a câmara responde, classifica
+   * o conteúdo: uma causa MUITO comum de "teste OK mas não abre" é o utilizador
+   * colar a página/portal do fabricante (HTML) em vez da URL do STREAM — o teste
+   * antigo dava "OK" a qualquer 200. Agora distingue stream de página e avisa.
+   */
+  async test(schema: string, id: string): Promise<{ ok: boolean; status: number; contentType: string | null; kind: string; warning?: string; secure: boolean }> {
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<CameraRow[]>(Prisma.sql`SELECT * FROM cameras WHERE id = ${id}::uuid LIMIT 1`),
     );
     const cam = rows[0];
     if (!cam) throw new NotFoundException('Câmara não encontrada.');
     const url = cam.snapshot_url || cam.stream_url;
+    const secure = /^https:/i.test(cam.stream_url);
     try {
       const res = await fetch(url, { method: 'GET', headers: { range: 'bytes=0-512' }, signal: AbortSignal.timeout(8000) });
-      const ct = res.headers.get('content-type');
-      // não consumir o stream inteiro
+      const ct = (res.headers.get('content-type') ?? '').toLowerCase();
       try { await res.body?.cancel(); } catch { /* ok */ }
-      return { ok: res.ok, status: res.status, contentType: ct, kind: cam.kind === 'AUTO' ? detectKind(cam.stream_url) : cam.kind };
+      const looksPage = /text\/html|application\/xhtml|application\/json|text\/plain/.test(ct);
+      const isStream = /(video\/|image\/|multipart\/x-mixed-replace|application\/(vnd\.apple\.mpegurl|x-mpegurl|mpegurl|octet-stream|dash\+xml|mp4))/.test(ct);
+      let warning: string | undefined;
+      if (looksPage) {
+        warning = 'A URL devolveu uma PÁGINA WEB, não um stream de vídeo. Cola a URL do STREAM da câmara (HLS .m3u8, MJPEG ou MP4) — não a página nem o link da app do fabricante.';
+      } else if (res.ok && ct && !isStream) {
+        warning = `A câmara respondeu mas o conteúdo «${ct}» não parece um stream de vídeo. Confirma a URL.`;
+      }
+      return {
+        ok: res.ok && !looksPage,
+        status: res.status,
+        contentType: ct || null,
+        kind: cam.kind === 'AUTO' ? detectKind(cam.stream_url) : cam.kind,
+        warning,
+        secure,
+      };
     } catch {
-      return { ok: false, status: 0, contentType: null, kind: cam.kind };
+      return { ok: false, status: 0, contentType: null, kind: cam.kind, secure };
     }
   }
 }

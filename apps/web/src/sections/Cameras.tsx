@@ -66,8 +66,9 @@ function CamRow({ cam, onEdit, onChanged }: { cam: CameraRow; onEdit(): void; on
     setBusy(true);
     try {
       const r = await api.cameras.test(cam.id);
-      if (r.ok) toast.success(`«${cam.name}» respondeu (${r.contentType ?? 'stream'} · ${r.kind}). ✅`);
-      else toast.error(`«${cam.name}» não respondeu (HTTP ${r.status}). Confirma a URL e a rede.`);
+      if (r.warning) toast.warning(r.warning);
+      else if (r.ok) toast.success(`«${cam.name}» respondeu (${r.contentType ?? 'stream'} · ${r.kind}). ✅`);
+      else toast.error(`«${cam.name}» não respondeu (HTTP ${r.status || 'sem ligação'}). Confirma a URL e a rede.`);
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Teste falhou.'); }
     finally { setBusy(false); }
   };
@@ -225,18 +226,40 @@ function CamerasLive({ rows, loading, error }: { rows: CameraRow[]; loading: boo
   );
 }
 
-/** Player universal: HLS (hls.js), MP4 (<video>) ou MJPEG (<img> via proxy). */
+/**
+ * Player universal e RESILIENTE:
+ *   • HLS (.m3u8) → hls.js (ligação direta — ideal quando o stream é HTTPS).
+ *   • MP4 → <video>.
+ *   • MJPEG → <img>.
+ *   • Quando ligar direto NÃO é possível (stream HTTP numa página HTTPS =
+ *     "mixed-content", ou câmara sem CORS) e existe uma URL de fotograma, o
+ *     player passa a buscar fotogramas AO VIVO pelo PROXY do servidor (polling
+ *     ~1.5 s) — o browser fala HTTPS com a nossa API e a API fala com a câmara.
+ *   • As falhas mostram a CAUSA real (mixed-content, CORS, sem sinal), não um
+ *     "sem sinal" genérico.
+ */
 function LivePlayer({ cam, thumb = false }: { cam: CameraRow; thumb?: boolean }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [snap, setSnap] = useState<string | null>(null);
   const kind = cam.kind !== 'AUTO' ? cam.kind
     : cam.stream_url.toLowerCase().includes('.m3u8') ? 'HLS'
     : /\.(mp4|webm)/i.test(cam.stream_url) ? 'MP4' : 'MJPEG';
-  // liga DIRETO à câmara (LAN do gestor) — o proxy /live fica para redes remotas
-  const src = cam.stream_url;
+  const pageSecure = typeof location !== 'undefined' && location.protocol === 'https:';
+  const streamHttp = /^http:\/\//i.test(cam.stream_url);
+  const mixed = pageSecure && streamHttp; // o navegador bloqueia HTTP numa página HTTPS
+  // Vê pelo servidor (fotograma ao vivo) quando ligar direto não dá — desde que
+  // haja uma URL de fotograma para o servidor ir buscar.
+  const useProxy = (kind === 'MJPEG' || mixed) && !!cam.snapshot_url;
+  const h = thumb ? 170 : 'min(62vh, 560px)';
 
+  // HLS via hls.js (ligação direta).
   useEffect(() => {
-    if (kind !== 'HLS' || !videoRef.current) return;
+    if (useProxy || kind !== 'HLS' || !videoRef.current) return;
+    if (mixed) {
+      setFailed('O stream é HTTP e a página é segura (HTTPS) — o navegador bloqueia (mixed-content). Usa um stream HTTPS no DVR, OU define uma «URL de fotograma» para ver via servidor.');
+      return;
+    }
     let hls: { destroy(): void } | null = null;
     let alive = true;
     void (async () => {
@@ -245,28 +268,59 @@ function LivePlayer({ cam, thumb = false }: { cam: CameraRow; thumb?: boolean })
       const { default: Hls } = await import('hls.js');
       if (!alive) return;
       if (Hls.isSupported()) {
-        const h = new Hls({ maxBufferLength: 10 });
-        h.loadSource(cam.stream_url);
-        h.attachMedia(v);
-        h.on(Hls.Events.ERROR, (_e: unknown, d: { fatal?: boolean }) => { if (d?.fatal) setFailed(true); });
-        hls = h;
-      } else setFailed(true);
+        const hh = new Hls({ maxBufferLength: 10 });
+        hh.loadSource(cam.stream_url);
+        hh.attachMedia(v);
+        hh.on(Hls.Events.ERROR, (_e: unknown, d: { fatal?: boolean }) => {
+          if (d?.fatal) setFailed('Sem sinal — a câmara não respondeu ou o stream está protegido por CORS. Define uma «URL de fotograma» para ver via servidor.');
+        });
+        hls = hh;
+      } else setFailed('O navegador não suporta este tipo de stream.');
     })();
     return () => { alive = false; hls?.destroy(); };
   }, [cam.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const h = thumb ? 170 : 'min(62vh, 560px)';
-  if (failed) return <div className="empty" style={{ height: h, display: 'grid', placeItems: 'center' }}><p>Sem sinal — verifica a câmara/rede.</p></div>;
+  // Fotograma AO VIVO via proxy (polling) — resolve mixed-content/CORS.
+  useEffect(() => {
+    if (!useProxy) return;
+    let alive = true; let obj: string | null = null; let timer = 0;
+    const tick = async () => {
+      try {
+        const u = await api.cameras.liveSnapshotUrl(cam.id);
+        if (!alive) { URL.revokeObjectURL(u); return; }
+        if (obj) URL.revokeObjectURL(obj);
+        obj = u; setSnap(u); setFailed(null);
+      } catch {
+        if (alive) setFailed('Não foi possível obter imagem da câmara (via servidor). Confirma a «URL de fotograma».');
+      }
+      if (alive) timer = window.setTimeout(() => void tick(), 1500);
+    };
+    void tick();
+    return () => { alive = false; window.clearTimeout(timer); if (obj) URL.revokeObjectURL(obj); };
+  }, [cam.id, useProxy]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (failed) return (
+    <div className="empty" style={{ height: h, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 14 }}>
+      <p style={{ fontSize: 13, lineHeight: 1.5, margin: 0 }}>⚠️ {failed}</p>
+    </div>
+  );
+
+  if (useProxy) {
+    return snap
+      ? <img src={snap} alt={cam.name} style={{ width: '100%', height: h, objectFit: 'cover', borderRadius: 12, background: '#000' }} />
+      : <div className="empty" style={{ height: h, display: 'grid', placeItems: 'center' }}><p>a ligar à câmara…</p></div>;
+  }
   if (kind === 'MJPEG') {
-    return <img src={src} alt={cam.name} style={{ width: '100%', height: h, objectFit: 'cover', borderRadius: 12, background: '#000' }} onError={() => setFailed(true)} />;
+    return <img src={cam.stream_url} alt={cam.name} style={{ width: '100%', height: h, objectFit: 'cover', borderRadius: 12, background: '#000' }}
+      onError={() => setFailed('Sem sinal — não foi possível carregar o stream MJPEG. Se a câmara é HTTP, define uma «URL de fotograma» para ver via servidor.')} />;
   }
   return (
     <video
       ref={videoRef}
-      src={kind === 'MP4' ? src : undefined}
+      src={kind === 'MP4' ? cam.stream_url : undefined}
       muted autoPlay playsInline controls={!thumb}
       style={{ width: '100%', height: h, objectFit: 'cover', borderRadius: 12, background: '#000' }}
-      onError={() => setFailed(true)}
+      onError={() => setFailed('Sem sinal — verifica a câmara/rede.')}
     />
   );
 }
