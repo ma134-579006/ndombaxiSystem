@@ -293,20 +293,9 @@
   @keyframes lp-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 }
 
-/* Revelação ao rolar (Chrome/Edge modernos; resto ignora sem efeito). */
-@media (prefers-reduced-motion: no-preference) {
-  @supports (animation-timeline: view()) {
-    .lp-feat, .lp-plan, .lp-section .lead, .lp-ann {
-      animation: lp-reveal linear both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 38%;
-    }
-    @keyframes lp-reveal {
-      from { opacity: 0; transform: translateY(26px) scale(.985); }
-      to   { opacity: 1; transform: none; }
-    }
-  }
-}
+/* (Removida a revelação ligada ao scroll — aparecia/desaparecia ao rolar, dando
+   ar de "site a carregar". A entrada suave (uma só vez) é feita pelo
+   scrollReveal.ts global, mais profissional.) */
 
 /* Planos: o destaque pulsa suavemente (chama o olhar sem cansar). */
 @media (prefers-reduced-motion: no-preference) {
@@ -326,7 +315,7 @@
    CHAT DE SUPORTE flutuante + COMENTÁRIOS da comunidade
    ════════════════════════════════════════════════════════════ */
 .sc-fab {
-  position: fixed; right: 22px; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); z-index: 90;
+  position: fixed; right: 22px; bottom: calc(30px + env(safe-area-inset-bottom, 0px)); z-index: 90;
   width: 58px; height: 58px; border-radius: 999px; border: none; cursor: pointer;
   display: grid; place-items: center; color: #fff;
   background: linear-gradient(135deg, #2563eb, #7c3aed);
@@ -340,6 +329,12 @@
     box-shadow: 0 0 0 0 rgba(37,99,235,.45); animation: sc-pulse 2.6s ease-out infinite;
   }
   @keyframes sc-pulse { 0% { box-shadow: 0 0 0 0 rgba(37,99,235,.45); } 70% { box-shadow: 0 0 0 16px rgba(37,99,235,0); } 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); } }
+}
+/* Telemóvel: sobe bem o botão do bot para não tapar os botões inferiores
+   (ex.: enviar/chamada no Assistente). */
+@media (max-width: 640px) {
+  .sc-fab { right: 16px; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); width: 52px; height: 52px; }
+  .sc-panel { bottom: calc(148px + env(safe-area-inset-bottom, 0px)); }
 }
 .sc-panel {
   position: fixed; right: 22px; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); z-index: 90;

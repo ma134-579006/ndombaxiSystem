@@ -761,15 +761,14 @@ html.kbd-open .login .box > p { display: none; }
 @media (prefers-reduced-motion: reduce) { .page-anim { animation: none; } }
 
 /* ── SCROLL-REVEAL global ────────────────────────────────────────
-   Os blocos materializam-se ao entrar no ecrã (rolar para baixo) e recuam ao
-   sair (rolar para cima). Ativado por scrollReveal.ts, que põe .reveal-ready no
-   <html> e alterna data-reveal "in"/"out". Sem .reveal-ready nada é escondido
-   (sem flash se o JS não correr). Respeita prefers-reduced-motion. */
+   Os blocos aparecem UMA vez, com uma subida subtil e rápida, quando entram no
+   ecrã (scrollReveal.ts marca data-reveal="in" e deixa de observar — nunca mais
+   desaparecem ao rolar para cima). Sem .reveal-ready nada é escondido (sem flash
+   se o JS não correr). Respeita prefers-reduced-motion. */
 .reveal-ready [data-reveal] {
   opacity: 0;
-  transform: translateY(28px) scale(.99);
-  transition: opacity .6s cubic-bezier(.16, 1, .3, 1), transform .6s cubic-bezier(.16, 1, .3, 1);
-  will-change: opacity, transform;
+  transform: translateY(12px);
+  transition: opacity .32s ease-out, transform .32s ease-out;
 }
 .reveal-ready [data-reveal="in"] { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {

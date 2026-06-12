@@ -15,7 +15,7 @@
 // e contextos onde a animação atrapalha (login, modais — têm a sua própria).
 const SELECTOR =
   '.card, .kpi-card, .pcard, .ptable, .minilist, .content-head, .chart-card, .bar-card, ' +
-  '.lp-section, .lp-trust, .lp-feature, .lp-plan, section';
+  '.lp-section, .lp-trust, .lp-feat, .lp-plan, section';
 const SKIP = '.login, .modal-bg, .modal, .sidebar, .topbar, .shadow-bar';
 
 let io: IntersectionObserver | null = null;
@@ -40,11 +40,15 @@ export function initScrollReveal(): void {
   io = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {
-        (e.target as HTMLElement).dataset.reveal = e.isIntersecting ? 'in' : 'out';
+        if (e.isIntersecting) {
+          // Revela UMA vez e deixa de observar — nunca volta a esconder ao
+          // rolar para cima (evita o efeito de "aparecer/desaparecer").
+          (e.target as HTMLElement).dataset.reveal = 'in';
+          io?.unobserve(e.target);
+        }
       }
     },
-    // Revela quando ~entra; recolhe quando claramente fora (transição suave).
-    { threshold: 0.06, rootMargin: '-4% 0px -6% 0px' },
+    { threshold: 0.04, rootMargin: '0px 0px -4% 0px' },
   );
 
   // O CSS só esconde os alvos quando esta classe existe → sem flash se algo falhar.
