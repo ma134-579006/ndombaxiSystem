@@ -357,7 +357,20 @@ export class AgentToolsService {
     if (!resolved?.apiKey || !resolved.provider.baseUrl.includes('googleapis')) {
       return { result: 'Geração de imagens precisa do provedor Gemini configurado no painel de IA.' };
     }
-    for (const model of ['gemini-2.5-flash-image', 'gemini-2.0-flash-preview-image-generation']) {
+    // descobre os modelos de imagem REALMENTE disponíveis nesta chave
+    let candidates = ['gemini-2.5-flash-image', 'gemini-2.5-flash-image-preview', 'gemini-2.0-flash-preview-image-generation'];
+    try {
+      const ml = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
+        headers: { 'x-goog-api-key': resolved.apiKey }, signal: AbortSignal.timeout(15_000),
+      });
+      if (ml.ok) {
+        const j = (await ml.json()) as { models?: { name?: string }[] };
+        const avail = (j.models ?? []).map((m) => String(m.name ?? '').replace('models/', '')).filter((n) => n.includes('image'));
+        if (avail.length) candidates = [...avail.filter((a) => candidates.includes(a)), ...avail.filter((a) => !candidates.includes(a))];
+      }
+    } catch { /* usa a lista fixa */ }
+    let lastErr = '';
+    for (const model of candidates.slice(0, 4)) {
       try {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
           method: 'POST',
@@ -365,13 +378,14 @@ export class AgentToolsService {
           body: JSON.stringify({ contents: [{ parts: [{ text: descricao }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } }),
           signal: AbortSignal.timeout(60_000),
         });
-        if (!res.ok) continue;
+        if (!res.ok) { lastErr = `${model}: ${res.status} ${(await res.text().catch(() => '')).slice(0, 120)}`; continue; }
         const json = (await res.json()) as { candidates?: { content?: { parts?: { inlineData?: { data?: string } }[] } }[] };
         const data = json.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData?.data;
         if (data) return { result: `Imagem gerada (${model}) — anexada.`, imageBase64: data };
-      } catch { /* tenta o próximo modelo */ }
+        lastErr = `${model}: sem imagem na resposta`;
+      } catch (e) { lastErr = `${model}: ${(e as Error).message?.slice(0, 80)}`; }
     }
-    return { result: 'O modelo de imagens não respondeu (quota/modelo indisponível). Tenta de novo daqui a pouco.' };
+    return { result: `Não consegui gerar a imagem agora (${lastErr || 'modelos indisponíveis'}). A quota grátis de imagens pode ter limites por minuto — tenta daqui a pouco.` };
   }
 
   /** WhatsApp: Meta Cloud API quando configurado; senão link wa.me pronto. */

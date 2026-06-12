@@ -126,21 +126,25 @@ export class AssistantService {
     const key = await this.geminiKey();
     if (!key) throw new BadRequestException('Nenhum provedor de IA com capacidade STT está configurado.');
     const mt = (mimeType ?? 'audio/webm').split(';')[0];
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
-        contents: [{ parts: [
-          { text: 'Transcreve EXATAMENTE o que é dito neste áudio, em português. Responde só com a transcrição, sem comentários.' },
-          { inlineData: { mimeType: mt, data: audioBase64 } },
-        ] }],
-      }),
-      signal: AbortSignal.timeout(45_000),
-    });
-    if (!res.ok) throw new BadRequestException(`STT Gemini falhou (${res.status}).`);
-    const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-    const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join(' ').trim() ?? '';
-    return { text };
+    let lastStatus = 0;
+    for (const model of ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']) {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { text: 'Transcreve EXATAMENTE o que é dito neste áudio, em português. Responde só com a transcrição, sem comentários.' },
+            { inlineData: { mimeType: mt, data: audioBase64 } },
+          ] }],
+        }),
+        signal: AbortSignal.timeout(60_000),
+      });
+      if (!res.ok) { lastStatus = res.status; continue; }
+      const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+      const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join(' ').trim() ?? '';
+      if (text) return { text };
+    }
+    throw new BadRequestException(`STT Gemini falhou (${lastStatus || 'sem texto'}).`);
   }
 
   /** Geração de imagem a partir de um prompt. */

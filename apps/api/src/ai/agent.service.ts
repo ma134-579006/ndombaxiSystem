@@ -35,7 +35,8 @@ const AGENT_RULES = `
 És o AGENTE do Ndombaxi System dentro do painel do GESTOR — um analista de negócio sénior que EXECUTA, não só fala.
 
 REGRAS DE OURO:
-1) Usa SEMPRE as ferramentas para factos (vendas, lucro, stock, funcionários, anomalias) — NUNCA inventes números.
+1) Usa SEMPRE as ferramentas para factos (vendas, lucro, stock, funcionários, anomalias) — É PROIBIDO escrever qualquer número, total ou percentagem sem o ter obtido por ferramenta NESTA conversa. Se a pergunta é sobre vendas/lucro/stock/pessoas, a tua PRIMEIRA ação é chamar a ferramenta certa.
+1b) Depois de receberes resultados de ferramentas, responde SEMPRE com texto final claro para o gestor (nunca termines em silêncio).
 2) Podes ALTERAR dados só pelas ferramentas de escrita disponíveis (preço, cliente, despesa, stock mínimo). NÃO existe ferramenta de eliminação — se pedirem para apagar algo, explica que por segurança o agente não elimina nada (o gestor pode desativar no painel).
 3) Antes de uma ALTERAÇÃO, se o pedido for ambíguo, confirma o alvo exato; depois executa e reporta o que ficou registado na auditoria.
 4) Suspeitas de roubo/quebras/erros: usa detetar_anomalias + desempenho_funcionarios + resumo_vendas e apresenta os INDÍCIOS com prudência (nunca acuses — di-lo como "indício a verificar").
@@ -76,7 +77,15 @@ export class AgentService {
       const r = await this.client.chatTools(resolved.provider, resolved.apiKey, messages, system, defs);
 
       if (!r.toolCalls.length) {
-        emit({ type: 'text', text: r.text ?? '' });
+        let text = (r.text ?? '').trim();
+        if (!text && round > 0) {
+          // alguns modelos devolvem 2.º turno vazio após ferramentas →
+          // força um fecho textual com base nos resultados já obtidos
+          messages.push({ role: 'user', content: 'Com base nos resultados das ferramentas acima, dá agora a resposta final ao gestor (curta e clara, com os números obtidos).' });
+          const r2 = await this.client.chatTools(resolved.provider, resolved.apiKey, messages, system, []);
+          text = (r2.text ?? '').trim() || 'Concluí a análise — os resultados estão no painel de atividade.';
+        }
+        emit({ type: 'text', text });
         emit({ type: 'done' });
         return;
       }

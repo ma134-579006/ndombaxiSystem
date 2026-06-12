@@ -109,7 +109,8 @@ export class AiProviderClient {
       if (m.role === 'assistant' && m.toolCalls?.length) {
         return {
           role: 'assistant',
-          content: m.content || null,
+          // Gemini (OpenAI-compat) rejeita content null → string vazia
+          content: m.content || '',
           tool_calls: m.toolCalls.map((t) => ({ id: t.id, type: 'function', function: { name: t.name, arguments: t.argsJson } })),
         };
       }
@@ -118,8 +119,9 @@ export class AiProviderClient {
     const body = {
       model: provider.model ?? (provider.adapter === 'openclaw' ? 'openclaw' : 'gpt-4o-mini'),
       messages: [{ role: 'system', content: systemPrompt }, ...wire],
-      temperature: (settings.temperature as number) ?? 0.3,
+      temperature: (settings.temperature as number) ?? 0.2,
       tools: tools.map((t) => ({ type: 'function', function: t })),
+      tool_choice: 'auto',
     };
     const path = this.path(provider, 'chatPath', provider.adapter === 'openclaw' ? '/v1/chat/completions' : '/chat/completions');
     const json = await this.post(provider, apiKey, path, body);
