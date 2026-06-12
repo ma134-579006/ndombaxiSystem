@@ -804,26 +804,62 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
 }
 
 /* ════════════════════════════════════════════════════════════
-   VÍDEO DE FUNDO do login — filmagem real (POS/pagamento) em
-   loop ATRÁS do cartão, com véu para leitura. Não altera a
-   estrutura do login (camada fixa por baixo).
+   VÍDEO DE FUNDO do login — ENTERPRISE: 2 filmagens reais em
+   crossfade (tecnologia ↔ compra), duotone azul-ciano, grelha
+   digital, varrimento e scanline. Camada fixa por baixo do login.
    ════════════════════════════════════════════════════════════ */
 .login { position: relative; isolation: isolate; }
-.login-video { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
+.login-video { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: #050b18; }
 .login-video video {
-  width: 100%; height: 100%; object-fit: cover;
-  filter: saturate(1.08) brightness(.92);
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  /* base para o duotone: tira o "castanho" e prepara o tom técnico */
+  filter: grayscale(.62) brightness(.78) contrast(1.16) saturate(1.05);
 }
-.login-video-veil {
-  position: absolute; inset: 0;
+/* crossfade 22 s entre tecnologia (A) e compra (B) */
+.login-video .lv-a { animation: lv-xa 22s ease-in-out infinite; }
+.login-video .lv-b { opacity: 0; animation: lv-xb 22s ease-in-out infinite; }
+@keyframes lv-xa { 0%, 41% { opacity: 1; } 50%, 91% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes lv-xb { 0%, 41% { opacity: 0; } 50%, 91% { opacity: 1; } 100% { opacity: 0; } }
+
+/* DUOTONE tecnológico: azul-profundo → ciano (cores de tecnologia) */
+.lv-tone { position: absolute; inset: 0; mix-blend-mode: color;
+  background: linear-gradient(135deg, #0b3aa8 0%, #0e63d8 45%, #06b6d4 100%); }
+.lv-tone::after { content: ''; position: absolute; inset: 0; mix-blend-mode: screen; opacity: .34;
+  background: radial-gradient(60% 70% at 78% 22%, rgba(6,182,212,.55), transparent 65%),
+              radial-gradient(50% 60% at 14% 80%, rgba(99,102,241,.45), transparent 65%); }
+
+/* grelha digital (HUD) */
+.lv-grid { position: absolute; inset: 0; opacity: .16;
   background:
-    radial-gradient(90% 90% at 50% 42%, rgba(7,11,22,.38) 0%, rgba(7,11,22,.66) 62%, rgba(7,11,22,.85) 100%),
-    linear-gradient(180deg, rgba(7,11,22,.55), rgba(7,11,22,.35) 40%, rgba(7,11,22,.72));
-}
-/* o cartão ganha vidro sobre o vídeo, sem mudar o layout */
+    linear-gradient(rgba(125,211,252,.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125,211,252,.45) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(80% 80% at 50% 50%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(80% 80% at 50% 50%, #000 30%, transparent 100%); }
+
+/* varrimento de luz diagonal (a cada ciclo) */
+.lv-sweep { position: absolute; inset: -20%; pointer-events: none; opacity: .5;
+  background: linear-gradient(100deg, transparent 42%, rgba(125,211,252,.16) 50%, transparent 58%);
+  animation: lv-sweep 11s ease-in-out infinite; }
+@keyframes lv-sweep { 0%, 12% { transform: translateX(-55%); } 55%, 100% { transform: translateX(55%); } }
+
+/* scanline fina a descer (toque "ecrã técnico") */
+.lv-scan { position: absolute; left: 0; right: 0; top: -4px; height: 3px; opacity: .55;
+  background: linear-gradient(90deg, transparent, rgba(103,232,249,.8), transparent);
+  box-shadow: 0 0 18px rgba(103,232,249,.55);
+  animation: lv-scan 7.5s linear infinite; }
+@keyframes lv-scan { from { transform: translateY(0); } to { transform: translateY(110vh); } }
+
+/* véu para leitura (mais frio, sem castanhos) */
+.login-video-veil { position: absolute; inset: 0;
+  background:
+    radial-gradient(90% 90% at 50% 42%, rgba(4,10,24,.36) 0%, rgba(4,10,24,.62) 62%, rgba(4,10,24,.84) 100%),
+    linear-gradient(180deg, rgba(4,10,24,.5), rgba(4,10,24,.3) 40%, rgba(4,10,24,.7)); }
+
+/* cartão em vidro sobre o vídeo, sem mudar o layout */
 .login .card { -webkit-backdrop-filter: blur(14px) saturate(130%); backdrop-filter: blur(14px) saturate(130%); }
 .login .brand h1, .login .brand .tg { text-shadow: 0 2px 18px rgba(0,0,0,.55); }
-@media (prefers-reduced-motion: reduce) { .login-video video { display: none; } }
+@media (prefers-reduced-motion: reduce) { .login-video video, .lv-sweep, .lv-scan { display: none; } }
 
 /* POS: o contentor do login é .login-screen */
 .login-screen { position: relative; isolation: isolate; }
