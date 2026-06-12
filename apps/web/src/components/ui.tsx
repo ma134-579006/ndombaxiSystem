@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { statusLabel } from '../format';
 import { IconClose } from './Icons';
 
@@ -38,7 +39,10 @@ export function Modal({
   onClose(): void;
   children: React.ReactNode;
 }) {
-  return (
+  // Portal para o <body>: o modal sai de qualquer stacking context local (cartões
+  // com transform, painéis animados, etc.), por isso fica SEMPRE à frente e um
+  // modal aberto sobre outro nunca cai para trás.
+  return createPortal(
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="mh">
@@ -50,6 +54,7 @@ export function Modal({
         </div>
         <div className="mb">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

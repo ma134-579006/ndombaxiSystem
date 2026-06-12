@@ -416,7 +416,7 @@ html.kbd-open .login .box > p { display: none; }
 .pp-cam video { width: 100%; max-width: 320px; border-radius: 12px; border: 1px solid var(--border); background: #000; }
 
 /* ── Modal ──────────────────────────────────────────────── */
-.modal-bg { position: fixed; inset: 0; background: rgba(4,8,16,.72); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); z-index: 60; display: grid; place-items: center; padding: 18px; }
+.modal-bg { position: fixed; inset: 0; background: rgba(4,8,16,.72); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); z-index: 1000; display: grid; place-items: center; padding: 18px; }
 .modal { background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 30%), var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 540px; max-height: 92vh; max-height: 92dvh; overflow: auto; box-shadow: 0 40px 90px -24px rgba(0,0,0,.75); }
 .modal .mh { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-soft); }
 .modal .mh h3 { margin: 0; font-size: 17px; font-weight: 700; }
@@ -432,7 +432,7 @@ html.kbd-open .login .box > p { display: none; }
 /* ============================================================
    TECLADO NO ECRÃ (PCs apenas digitais / terminais táteis)
    ============================================================ */
-.kbd-overlay { position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; pointer-events: none; }
+.kbd-overlay { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1200; pointer-events: none; }
 .kbd {
   pointer-events: auto; background: var(--surface-2); border-top: 1px solid var(--border);
   padding: 8px 8px 12px; box-shadow: 0 -12px 30px rgba(0,0,0,.45); max-width: 900px; margin: 0 auto;

@@ -360,7 +360,9 @@ html.kbd-open .login-card .footer-credit { display: none; }
 /* ============================================================
    TECLADO NO ECRÃ
    ============================================================ */
-.kbd-overlay { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; pointer-events: none; }
+/* Teclado no ecrã ACIMA de tudo (modais incluidos) — senao aparecia por baixo
+   da janela/modal onde se escreve e nao deixava escrever. */
+.kbd-overlay { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1200; pointer-events: none; }
 .kbd {
   pointer-events: auto; background: var(--surface-2); border-top: 1px solid var(--border);
   padding: 8px 8px 12px; box-shadow: 0 -12px 30px rgba(0,0,0,.4);
