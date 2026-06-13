@@ -1311,6 +1311,11 @@ button, .btn, .chip, .tab, .nav button { -webkit-tap-highlight-color: transparen
 .agent-step-tx strong { font-size: 13px; }
 .agent-step-args { font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; }
 .agent-step-sum { font-size: 12px; color: var(--muted); line-height: 1.45; }
+/* pré-visualização ao vivo (canvas) na tela secundária */
+.agent-preview { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; border-top: 1px dashed var(--border); animation: fb-in .25s ease both; }
+.agent-preview-h { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.agent-preview .agent-attach { margin-top: 0; }
+.agent-preview .agent-img { width: 100%; border-radius: 12px; cursor: zoom-in; }
 .agent-activity-fab { display: none; }
 .only-mobile { display: none; }
 

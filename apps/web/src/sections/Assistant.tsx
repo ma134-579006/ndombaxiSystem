@@ -66,6 +66,7 @@ export function Assistant() {
   const [name, setName] = useState('Assistente');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
+  const [liveAtts, setLiveAtts] = useState<Attachment[]>([]); // previews ao vivo na tela secundária
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -95,13 +96,18 @@ export function Assistant() {
     setInput('');
     setBusy(true);
     setSteps([]);
+    setLiveAtts([]);
     const attachments: Attachment[] = [];
     let finalText = '';
     try {
       const stream = api.agentStream(history, (e: AgentEvent) => {
         if (e.type === 'step_start') setSteps((p) => [...p, { tool: e.tool ?? '?', args: e.args, done: false }]);
         else if (e.type === 'step_done') setSteps((p) => p.map((s, i) => (i === p.length - 1 && !s.done ? { ...s, done: true, summary: e.summary } : s)));
-        else if (e.type === 'attachment') attachments.push({ file: e.file, imageBase64: e.imageBase64, guideUrl: e.guideUrl, waLink: e.waLink });
+        else if (e.type === 'attachment') {
+          const att = { file: e.file, imageBase64: e.imageBase64, guideUrl: e.guideUrl, waLink: e.waLink };
+          attachments.push(att);
+          setLiveAtts((p) => [...p, att]); // mostra o preview na tela secundária imediatamente
+        }
         else if (e.type === 'text') finalText = e.text ?? '';
         else if (e.type === 'error') { finalText = e.text ?? 'Falha no agente.'; }
       });
@@ -209,6 +215,7 @@ export function Assistant() {
               </div>
             </div>
           ))}
+          {liveAtts.length ? <ActivityPreviews atts={liveAtts} /> : null}
         </div>
       </aside>
       <button className={`agent-activity-fab only-mobile${steps.length && busy ? ' busy' : ''}`} onClick={() => setActOpen(true)} title="Atividade do agente">
@@ -227,6 +234,45 @@ function LiveSteps({ steps }: { steps: Step[] }) {
     <div className="agent-live">
       <span className="agent-spin" />
       {cur ? <span>{TOOL_LABEL[cur.tool] ?? cur.tool}{cur.done ? ' ✓' : '…'}</span> : <span>a pensar…</span>}
+    </div>
+  );
+}
+
+/**
+ * PRÉ-VISUALIZAÇÃO ao vivo na tela secundária (estilo "canvas" do Claude):
+ * à medida que o agente gera artefactos (imagem, guia, planilha, PDF), mostra-os
+ * aqui imediatamente — antes mesmo de terminar a resposta.
+ */
+function ActivityPreviews({ atts }: { atts: Attachment[] }) {
+  const [zoom, setZoom] = useState<string | null>(null);
+  return (
+    <div className="agent-preview">
+      <div className="agent-preview-h">Pré-visualização</div>
+      {atts.map((a, i) => (
+        <div key={i} className="agent-attach">
+          {a.imageBase64 ? (
+            <img className="agent-img" src={`data:image/png;base64,${a.imageBase64}`} alt="Imagem gerada" onClick={() => setZoom(`data:image/png;base64,${a.imageBase64}`)} />
+          ) : null}
+          {a.guideUrl ? (
+            <img className="agent-img" src={a.guideUrl} alt="Guia do sistema" onClick={() => setZoom(a.guideUrl!)} />
+          ) : null}
+          {a.file ? (
+            <a className="agent-file" download={a.file.name} href={`data:${a.file.mime};base64,${a.file.base64}`}>
+              <span className="agent-file-ic">{a.file.kind === 'xlsx' ? '📗' : '📄'}</span>
+              <span><strong>{a.file.name}</strong><em>Toca para descarregar</em></span>
+            </a>
+          ) : null}
+          {a.waLink ? (
+            <a className="agent-wa" href={a.waLink} target="_blank" rel="noreferrer">💬 Enviar no WhatsApp</a>
+          ) : null}
+        </div>
+      ))}
+      {zoom ? (
+        <div className="sc-lightbox" onClick={() => setZoom(null)}>
+          <img src={zoom} alt="ampliado" onClick={(e) => e.stopPropagation()} />
+          <div className="sc-lightbox-hint">Toca fora da imagem para fechar</div>
+        </div>
+      ) : null}
     </div>
   );
 }
