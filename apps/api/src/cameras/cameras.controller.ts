@@ -14,14 +14,26 @@ class CameraDto {
   @IsString() @Length(1, 120)
   name!: string;
 
-  @IsString() @Length(8, 500)
-  streamUrl!: string;
+  @IsOptional() @IsString() @Length(0, 500)
+  streamUrl?: string;
 
   @IsOptional() @IsString() @Length(0, 500)
   snapshotUrl?: string;
 
   @IsOptional() @IsIn(['AUTO', 'HLS', 'MJPEG', 'MP4'])
   kind?: string;
+
+  @IsOptional() @IsIn(['STREAM', 'P2P'])
+  connType?: string;
+
+  @IsOptional() @IsString() @Length(0, 120)
+  deviceSn?: string;
+
+  @IsOptional() @IsString() @Length(0, 500)
+  appIos?: string;
+
+  @IsOptional() @IsString() @Length(0, 500)
+  appAndroid?: string;
 
   @IsOptional() @IsString() @Length(0, 300)
   notes?: string;
@@ -34,7 +46,7 @@ class CameraUpdateDto {
   @IsOptional() @IsString() @Length(1, 120)
   name?: string;
 
-  @IsOptional() @IsString() @Length(8, 500)
+  @IsOptional() @IsString() @Length(0, 500)
   streamUrl?: string;
 
   @IsOptional() @IsString() @Length(0, 500)
@@ -42,6 +54,18 @@ class CameraUpdateDto {
 
   @IsOptional() @IsIn(['AUTO', 'HLS', 'MJPEG', 'MP4'])
   kind?: string;
+
+  @IsOptional() @IsIn(['STREAM', 'P2P'])
+  connType?: string;
+
+  @IsOptional() @IsString() @Length(0, 120)
+  deviceSn?: string;
+
+  @IsOptional() @IsString() @Length(0, 500)
+  appIos?: string;
+
+  @IsOptional() @IsString() @Length(0, 500)
+  appAndroid?: string;
 
   @IsOptional() @IsString() @Length(0, 300)
   notes?: string;
@@ -128,6 +152,7 @@ export class CamerasController {
     const cam = cams.find((c) => c.id === id);
     if (!cam) { res.status(404).json({ message: 'Câmara não encontrada.' }); return; }
     const url = snapshot === '1' && cam.snapshot_url ? cam.snapshot_url : cam.stream_url;
+    if (!url) { res.status(400).json({ message: 'Câmara de nuvem (P2P) não tem stream HTTP — vê-se na app pelo Guia (3 QR).' }); return; }
     try {
       const upstream = await fetch(url, { signal: AbortSignal.timeout(15_000) });
       if (!upstream.ok || !upstream.body) { res.status(502).json({ message: `Câmara respondeu ${upstream.status}.` }); return; }

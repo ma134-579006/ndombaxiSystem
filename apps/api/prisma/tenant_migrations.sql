@@ -51,3 +51,11 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."cameras" (
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Ligação por NUVEM/P2P (DVR XMEye/Danale e afins): guarda o SN do equipamento
+-- e os links das apps para gerar o «Guia» de 3 QR (iOS/Android/SN).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."cameras" ADD COLUMN IF NOT EXISTS conn_type   TEXT NOT NULL DEFAULT 'STREAM';
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."cameras" ADD COLUMN IF NOT EXISTS device_sn   TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."cameras" ADD COLUMN IF NOT EXISTS app_ios     TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."cameras" ADD COLUMN IF NOT EXISTS app_android TEXT;
+-- streams de nuvem não têm URL HTTP → permite stream_url vazio para conn_type='P2P'
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."cameras" ALTER COLUMN stream_url DROP NOT NULL;

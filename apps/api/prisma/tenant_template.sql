@@ -686,9 +686,13 @@ CREATE INDEX IF NOT EXISTS leave_emp_idx ON "{{SCHEMA}}"."leave_requests"(employ
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."cameras" (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  stream_url TEXT NOT NULL,            -- HLS (.m3u8), MJPEG ou MP4 acessível por HTTP(S)
+  stream_url TEXT,                     -- HLS (.m3u8), MJPEG ou MP4 por HTTP(S); NULL p/ nuvem/P2P
   snapshot_url TEXT,                   -- URL de fotograma JPEG (para gravacao por instantaneos)
   kind TEXT NOT NULL DEFAULT 'AUTO',   -- AUTO | HLS | MJPEG | MP4
+  conn_type TEXT NOT NULL DEFAULT 'STREAM', -- STREAM (HTTP) | P2P (nuvem, app + QR)
+  device_sn TEXT,                      -- SN do DVR/NVR para apps de nuvem (XMEye/Danale...)
+  app_ios TEXT,                        -- link da app iOS (QR de instalacao)
+  app_android TEXT,                    -- link da app Android (QR de instalacao)
   notes TEXT,
   record BOOLEAN NOT NULL DEFAULT FALSE,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,

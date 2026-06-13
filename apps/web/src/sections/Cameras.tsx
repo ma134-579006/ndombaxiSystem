@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { api, ApiError } from '../api/client';
 import type { CameraRow } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
@@ -62,6 +63,7 @@ export function Cameras({ mode }: { mode: 'config' | 'live' }) {
 
 function CamRow({ cam, onEdit, onChanged }: { cam: CameraRow; onEdit(): void; onChanged(): void }) {
   const [busy, setBusy] = useState(false);
+  const [guide, setGuide] = useState(false);
   const test = async () => {
     setBusy(true);
     try {
@@ -85,13 +87,76 @@ function CamRow({ cam, onEdit, onChanged }: { cam: CameraRow; onEdit(): void; on
       <div style={{ flex: 1, minWidth: 0 }}>
         <strong style={{ fontSize: 14 }}>{cam.name}</strong>
         <span className={`pill ${cam.is_active ? 'on' : 'off'}`} style={{ marginLeft: 8 }}>{cam.is_active ? 'Ativa' : 'Desativada'}</span>
+        {cam.conn_type === 'P2P' ? <span className="pill on" style={{ marginLeft: 6 }}>☁️ Nuvem</span> : null}
         {cam.record ? <span className="pill" style={{ marginLeft: 6, color: 'var(--danger)' }}>● REC</span> : null}
-        <div className="muted" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cam.stream_url}</div>
+        <div className="muted" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cam.conn_type === 'P2P' ? `SN: ${cam.device_sn ?? '—'}` : cam.stream_url}</div>
       </div>
       <div className="row" style={{ gap: 8 }}>
-        <button className="btn sm ghost" onClick={() => void test()} disabled={busy}>Testar</button>
+        {cam.conn_type === 'P2P'
+          ? <button className="btn sm" onClick={() => setGuide(true)}>Guia (3 QR)</button>
+          : <button className="btn sm ghost" onClick={() => void test()} disabled={busy}>Testar</button>}
         <button className="btn sm ghost" onClick={onEdit}>Editar</button>
         <button className="btn sm ghost" onClick={() => void toggle()} disabled={busy}>{cam.is_active ? 'Desativar' : 'Reativar'}</button>
+      </div>
+      {guide ? <CamGuide cam={cam} onClose={() => setGuide(false)} /> : null}
+    </div>
+  );
+}
+
+/** Miniatura para câmaras de nuvem (não há stream HTTP — vê-se na app). */
+function P2PThumb() {
+  return (
+    <div className="empty" style={{ height: 170, display: 'grid', placeItems: 'center', background: '#0b1220', borderRadius: 12, color: '#9fb0c8' }}>
+      <div style={{ textAlign: 'center' }}><div style={{ fontSize: 34 }}>☁️📹</div><div style={{ fontSize: 12, marginTop: 4 }}>Câmara de nuvem — toca para o Guia (3 QR)</div></div>
+    </div>
+  );
+}
+
+/**
+ * GUIA da câmara de nuvem (igual ao ecrã do DVR): 3 QR — iOS, Android e SN.
+ * O utilizador ESCOLHE um: instala a app (iOS/Android) ou lê o SN para adicionar
+ * o aparelho. O QR do SN é gerado a partir do número de série guardado.
+ */
+function CamGuide({ cam, onClose }: { cam: CameraRow; onClose(): void }) {
+  const APP_IOS = cam.app_ios || 'https://apps.apple.com/app/xmeye/id898682121';
+  const APP_ANDROID = cam.app_android || 'https://play.google.com/store/apps/details?id=com.xm.csee';
+  const tiles: { key: string; label: string; value: string; hint: string }[] = [
+    { key: 'ios', label: 'iOS', value: APP_IOS, hint: 'iPhone/iPad — instalar a app' },
+    { key: 'android', label: 'Android', value: APP_ANDROID, hint: 'Android — instalar a app' },
+    { key: 'sn', label: 'SN', value: cam.device_sn || '', hint: 'Adicionar o aparelho (nº de série)' },
+  ];
+  const [sel, setSel] = useState<string>('');
+  const chosen = tiles.find((t) => t.key === sel);
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
+        <div className="mh"><h3>Guia — {cam.name}</h3><span className="spacer" /><button className="btn sm ghost" onClick={onClose}>Fechar</button></div>
+        <div className="mb">
+          <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+            Escolhe <strong>uma</strong> opção e lê o QR com o teu telemóvel: instala a app (iOS ou Android) e depois lê o <strong>SN</strong> para adicionar a câmara.
+          </p>
+          <div className="cam-guide-grid">
+            {tiles.map((t) => (
+              <button key={t.key} className={`cam-guide-tile${sel === t.key ? ' on' : ''}`} onClick={() => setSel(t.key)} disabled={!t.value}>
+                <span className="cam-guide-lbl">{t.label}</span>
+                <span className="cam-guide-qr">
+                  {t.value ? <QRCodeSVG value={t.value} size={150} includeMargin /> : <span className="muted" style={{ fontSize: 12 }}>sem SN</span>}
+                </span>
+                <span className="muted" style={{ fontSize: 11.5 }}>{t.hint}</span>
+              </button>
+            ))}
+          </div>
+          {chosen ? (
+            <div className="banner info" style={{ marginTop: 14 }}>
+              <div>
+                <strong>Escolheste: {chosen.label}.</strong>{' '}
+                {chosen.key === 'sn'
+                  ? <>Na app oficial, toca em «Adicionar dispositivo» e lê este QR (SN: <code>{chosen.value}</code>).</>
+                  : <>Lê este QR para instalar a app. Depois volta e escolhe «SN» para adicionar a câmara.</>}
+              </div>
+            </div>
+          ) : <p className="muted" style={{ fontSize: 12.5, marginBottom: 0 }}>⚠️ Tens de escolher uma das três opções.</p>}
+        </div>
       </div>
     </div>
   );
@@ -100,9 +165,13 @@ function CamRow({ cam, onEdit, onChanged }: { cam: CameraRow; onEdit(): void; on
 /** Formulário (manual ou por QR). O QR pode conter a URL direta ou um JSON
  *  {"name":…,"stream":…,"snapshot":…} (formato comum em apps de DVR). */
 function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): void; onSaved(): void }) {
+  const [connType, setConnType] = useState<'STREAM' | 'P2P'>((cam?.conn_type as 'STREAM' | 'P2P') ?? 'P2P');
   const [name, setName] = useState(cam?.name ?? '');
   const [streamUrl, setStreamUrl] = useState(cam?.stream_url ?? '');
   const [snapshotUrl, setSnapshotUrl] = useState(cam?.snapshot_url ?? '');
+  const [deviceSn, setDeviceSn] = useState(cam?.device_sn ?? '');
+  const [appIos, setAppIos] = useState(cam?.app_ios ?? '');
+  const [appAndroid, setAppAndroid] = useState(cam?.app_android ?? '');
   const [record, setRecord] = useState(cam?.record ?? false);
   const [notes, setNotes] = useState(cam?.notes ?? '');
   const [saving, setSaving] = useState(false);
@@ -121,6 +190,17 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
   useEffect(() => () => stopScan(), []);
 
   const applyQr = (raw: string) => {
+    // Nuvem/P2P: o QR do DVR ("SN") contém o número de série do equipamento.
+    if (connType === 'P2P') {
+      try {
+        const j = JSON.parse(raw) as { sn?: string; serial?: string; deviceId?: string; id?: string; name?: string };
+        const sn = j.sn ?? j.serial ?? j.deviceId ?? j.id;
+        if (sn) { setDeviceSn(String(sn)); if (j.name && !name) setName(j.name); toast.success('SN lido do QR. ✅'); return; }
+      } catch { /* não é JSON → trata como SN em texto */ }
+      setDeviceSn(raw.trim());
+      toast.success('SN lido do QR. ✅');
+      return;
+    }
     try {
       const j = JSON.parse(raw) as { name?: string; stream?: string; streamUrl?: string; url?: string; snapshot?: string; snapshotUrl?: string };
       const su = j.stream ?? j.streamUrl ?? j.url;
@@ -155,10 +235,14 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
   };
 
   const save = async () => {
-    if (!name.trim() || !streamUrl.trim()) { toast.warning('Dá um nome e a URL do stream.'); return; }
+    if (!name.trim()) { toast.warning('Dá um nome à câmara.'); return; }
+    if (connType === 'P2P' && !deviceSn.trim()) { toast.warning('Indica o SN do DVR (lê o QR «SN» do equipamento ou escreve-o).'); return; }
+    if (connType === 'STREAM' && !streamUrl.trim()) { toast.warning('Cola a URL do stream (HLS/MJPEG/MP4).'); return; }
     setSaving(true);
     try {
-      const input = { name: name.trim(), streamUrl: streamUrl.trim(), snapshotUrl: snapshotUrl.trim() || undefined, record, notes: notes.trim() || undefined };
+      const input = connType === 'P2P'
+        ? { name: name.trim(), connType, deviceSn: deviceSn.trim(), appIos: appIos.trim() || undefined, appAndroid: appAndroid.trim() || undefined, notes: notes.trim() || undefined }
+        : { name: name.trim(), connType, streamUrl: streamUrl.trim(), snapshotUrl: snapshotUrl.trim() || undefined, record, notes: notes.trim() || undefined };
       if (cam) await api.cameras.update(cam.id, input);
       else await api.cameras.create(input);
       toast.success(`Câmara «${name.trim()}» ${cam ? 'atualizada' : 'ligada'}. ✅`);
@@ -169,24 +253,46 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
 
   return (
     <Modal title={cam ? 'Editar câmara' : 'Ligar câmara'} onClose={onClose}>
+      {/* Tipo de ligação: NUVEM/P2P (a maioria dos DVR AHD com "Nuvem") ou STREAM HTTP. */}
+      <div className="seg block" style={{ marginBottom: 12 }}>
+        <button className={connType === 'P2P' ? 'on' : ''} onClick={() => setConnType('P2P')}>☁️ Nuvem / P2P (app + QR)</button>
+        <button className={connType === 'STREAM' ? 'on' : ''} onClick={() => setConnType('STREAM')}>🔗 Stream HTTP</button>
+      </div>
+
       <button className="btn ghost block" style={{ marginBottom: 12 }} onClick={() => (scanning ? stopScan() : void startScan())}>
-        {scanning ? '✕ Parar leitura' : '🔳 Ler QR code da câmara/DVR'}
+        {scanning ? '✕ Parar leitura' : connType === 'P2P' ? '🔳 Ler QR «SN» do DVR' : '🔳 Ler QR code da câmara/DVR'}
       </button>
       {scanning ? (
         <div className="pp-cam" style={{ marginBottom: 12 }}>
           <video ref={videoRef} playsInline muted />
-          <div className="muted" style={{ fontSize: 12 }}>Aponta ao QR do equipamento ou da app do DVR…</div>
+          <div className="muted" style={{ fontSize: 12 }}>{connType === 'P2P' ? 'Aponta ao QR «SN» no ecrã do DVR…' : 'Aponta ao QR do equipamento ou da app do DVR…'}</div>
         </div>
       ) : null}
       <div className="field"><label>Nome</label>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex.: Entrada da loja" /></div>
-      <div className="field"><label>URL do stream (HLS .m3u8 · MJPEG · MP4)</label>
-        <input value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)} placeholder="http://192.168.1.50:8080/video.m3u8" />
-        <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>RTSP? Ativa o serviço HTTP/HLS no DVR/NVR (quase todos têm) e cola aqui essa URL.</p></div>
-      <div className="field"><label>URL de fotograma JPEG (opcional — necessária p/ gravar)</label>
-        <input value={snapshotUrl} onChange={(e) => setSnapshotUrl(e.target.value)} placeholder="http://192.168.1.50:8080/snapshot.jpg" /></div>
-      <div className="switch-row"><span>Gravar (1 fotograma/min · retenção 30 dias)</span>
-        <Switch checked={record} onChange={setRecord} /></div>
+
+      {connType === 'P2P' ? (
+        <>
+          <div className="field"><label>SN — número de série do DVR/câmara</label>
+            <input value={deviceSn} onChange={(e) => setDeviceSn(e.target.value)} placeholder="ex.: 4F2A1B9C8D7E6F50" />
+            <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>É o código que está no QR «SN» do ecrã do DVR (ou na etiqueta do aparelho). Com ele geramos o «Guia» de 3 QR.</p></div>
+          <div className="field"><label>App iOS (opcional — link do QR)</label>
+            <input value={appIos} onChange={(e) => setAppIos(e.target.value)} placeholder="por omissão: XMEye (App Store)" /></div>
+          <div className="field"><label>App Android (opcional — link do QR)</label>
+            <input value={appAndroid} onChange={(e) => setAppAndroid(e.target.value)} placeholder="por omissão: XMEye (Google Play)" /></div>
+        </>
+      ) : (
+        <>
+          <div className="field"><label>URL do stream (HLS .m3u8 · MJPEG · MP4)</label>
+            <input value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)} placeholder="http://192.168.1.50:8080/video.m3u8" />
+            <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>RTSP? Ativa o serviço HTTP/HLS no DVR/NVR (quase todos têm) e cola aqui essa URL.</p></div>
+          <div className="field"><label>URL de fotograma JPEG (opcional — necessária p/ gravar)</label>
+            <input value={snapshotUrl} onChange={(e) => setSnapshotUrl(e.target.value)} placeholder="http://192.168.1.50:8080/snapshot.jpg" /></div>
+          <div className="switch-row"><span>Gravar (1 fotograma/min · retenção 30 dias)</span>
+            <Switch checked={record} onChange={setRecord} /></div>
+        </>
+      )}
+
       <div className="field"><label>Notas (opcional)</label>
         <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="localização, credenciais do DVR…" /></div>
       <button className="btn lg block" onClick={() => void save()} disabled={saving}>{saving ? 'A guardar…' : cam ? 'Guardar alterações' : 'Ligar câmara'}</button>
@@ -210,18 +316,19 @@ function CamerasLive({ rows, loading, error }: { rows: CameraRow[]; loading: boo
           <div className="pgrid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
             {rows.map((c) => (
               <button key={c.id} className="card" style={{ padding: 10, textAlign: 'left', cursor: 'pointer' }} onClick={() => setOpen(c)}>
-                <LivePlayer cam={c} thumb />
+                {c.conn_type === 'P2P' ? <P2PThumb /> : <LivePlayer cam={c} thumb />}
                 <div className="row" style={{ marginTop: 8, gap: 8 }}>
                   <strong style={{ fontSize: 14 }}>📹 {c.name}</strong>
+                  {c.conn_type === 'P2P' ? <span className="pill on">☁️ Nuvem</span> : null}
                   {c.record ? <span className="pill" style={{ color: 'var(--danger)' }}>● REC</span> : null}
                   <span className="spacer" />
-                  <span className="muted" style={{ fontSize: 12 }}>ampliar →</span>
+                  <span className="muted" style={{ fontSize: 12 }}>{c.conn_type === 'P2P' ? 'abrir Guia →' : 'ampliar →'}</span>
                 </div>
               </button>
             ))}
           </div>
         )}
-      {open ? <CamViewer cam={open} onClose={() => setOpen(null)} /> : null}
+      {open ? (open.conn_type === 'P2P' ? <CamGuide cam={open} onClose={() => setOpen(null)} /> : <CamViewer cam={open} onClose={() => setOpen(null)} />) : null}
     </>
   );
 }

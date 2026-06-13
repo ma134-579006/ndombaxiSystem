@@ -6,9 +6,13 @@ import { AuditService } from '../audit/audit.service';
 export interface CameraRow {
   id: string;
   name: string;
-  stream_url: string;
+  stream_url: string | null;
   snapshot_url: string | null;
   kind: string;
+  conn_type: string;
+  device_sn: string | null;
+  app_ios: string | null;
+  app_android: string | null;
   notes: string | null;
   record: boolean;
   is_active: boolean;
@@ -17,13 +21,21 @@ export interface CameraRow {
 
 export interface CameraInput {
   name: string;
-  streamUrl: string;
+  streamUrl?: string | null;
   snapshotUrl?: string | null;
   kind?: string;
+  connType?: string;
+  deviceSn?: string | null;
+  appIos?: string | null;
+  appAndroid?: string | null;
   notes?: string | null;
   record?: boolean;
   isActive?: boolean;
 }
+
+/** Links por omissão das apps de nuvem mais comuns nestes DVR AHD ("Nuvem"). */
+const DEFAULT_APP_IOS = 'https://apps.apple.com/app/xmeye/id898682121';
+const DEFAULT_APP_ANDROID = 'https://play.google.com/store/apps/details?id=com.xm.csee';
 
 const KINDS = new Set(['AUTO', 'HLS', 'MJPEG', 'MP4']);
 
@@ -61,15 +73,27 @@ export class CamerasService {
   async create(schema: string, actorId: string, input: CameraInput): Promise<CameraRow> {
     const name = (input.name ?? '').trim().slice(0, 120);
     if (!name) throw new BadRequestException('Dá um nome à câmara.');
-    const streamUrl = this.validateUrl(input.streamUrl ?? '');
+    const connType = input.connType === 'P2P' ? 'P2P' : 'STREAM';
+    let streamUrl: string | null = null;
+    let deviceSn: string | null = null;
+    let appIos: string | null = null;
+    let appAndroid: string | null = null;
+    if (connType === 'P2P') {
+      deviceSn = (input.deviceSn ?? '').trim().slice(0, 120);
+      if (!deviceSn) throw new BadRequestException('Indica o SN (número de série) do DVR/câmara da nuvem.');
+      appIos = (input.appIos?.trim() || DEFAULT_APP_IOS).slice(0, 500);
+      appAndroid = (input.appAndroid?.trim() || DEFAULT_APP_ANDROID).slice(0, 500);
+    } else {
+      streamUrl = this.validateUrl(input.streamUrl ?? '');
+    }
     const kind = KINDS.has(input.kind ?? '') ? input.kind! : 'AUTO';
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<CameraRow[]>(Prisma.sql`
-        INSERT INTO cameras (name, stream_url, snapshot_url, kind, notes, record)
-        VALUES (${name}, ${streamUrl}, ${input.snapshotUrl?.trim() || null}, ${kind}, ${input.notes?.trim() || null}, ${input.record ?? false})
+        INSERT INTO cameras (name, stream_url, snapshot_url, kind, conn_type, device_sn, app_ios, app_android, notes, record)
+        VALUES (${name}, ${streamUrl}, ${input.snapshotUrl?.trim() || null}, ${kind}, ${connType}, ${deviceSn}, ${appIos}, ${appAndroid}, ${input.notes?.trim() || null}, ${input.record ?? false})
         RETURNING *`),
     );
-    await this.audit.record({ actorType: 'TENANT', actorId, tenantSchema: schema, action: 'CAMERA_CREATED', entity: 'Camera', entityId: rows[0].id, after: { name, streamUrl } });
+    await this.audit.record({ actorType: 'TENANT', actorId, tenantSchema: schema, action: 'CAMERA_CREATED', entity: 'Camera', entityId: rows[0].id, after: { name, connType, streamUrl, deviceSn } });
     return rows[0];
   }
 
@@ -77,7 +101,11 @@ export class CamerasService {
   async update(schema: string, actorId: string, id: string, input: Partial<CameraInput>): Promise<CameraRow> {
     const sets: Prisma.Sql[] = [];
     if (input.name !== undefined) sets.push(Prisma.sql`name = ${input.name.trim().slice(0, 120)}`);
-    if (input.streamUrl !== undefined) sets.push(Prisma.sql`stream_url = ${this.validateUrl(input.streamUrl)}`);
+    if (input.connType !== undefined) sets.push(Prisma.sql`conn_type = ${input.connType === 'P2P' ? 'P2P' : 'STREAM'}`);
+    if (input.streamUrl !== undefined) sets.push(Prisma.sql`stream_url = ${input.streamUrl ? this.validateUrl(input.streamUrl) : null}`);
+    if (input.deviceSn !== undefined) sets.push(Prisma.sql`device_sn = ${input.deviceSn?.trim().slice(0, 120) || null}`);
+    if (input.appIos !== undefined) sets.push(Prisma.sql`app_ios = ${input.appIos?.trim().slice(0, 500) || null}`);
+    if (input.appAndroid !== undefined) sets.push(Prisma.sql`app_android = ${input.appAndroid?.trim().slice(0, 500) || null}`);
     if (input.snapshotUrl !== undefined) sets.push(Prisma.sql`snapshot_url = ${input.snapshotUrl?.trim() || null}`);
     if (input.kind !== undefined && KINDS.has(input.kind)) sets.push(Prisma.sql`kind = ${input.kind}`);
     if (input.notes !== undefined) sets.push(Prisma.sql`notes = ${input.notes?.trim() || null}`);
@@ -104,8 +132,22 @@ export class CamerasService {
     );
     const cam = rows[0];
     if (!cam) throw new NotFoundException('Câmara não encontrada.');
-    const url = cam.snapshot_url || cam.stream_url;
-    const secure = /^https:/i.test(cam.stream_url);
+    // Câmara de NUVEM/P2P: não há URL HTTP para testar — confirma só o SN e
+    // orienta o utilizador a abrir pelo «Guia» (3 QR) na app oficial.
+    if (cam.conn_type === 'P2P') {
+      return {
+        ok: !!cam.device_sn,
+        status: cam.device_sn ? 200 : 0,
+        contentType: null,
+        kind: 'P2P',
+        warning: cam.device_sn
+          ? 'Câmara de nuvem (P2P): vê-se na app oficial. Abre o «Guia» e escolhe iOS, Android ou lê o QR do SN.'
+          : 'Falta o SN do equipamento.',
+        secure: true,
+      };
+    }
+    const url = cam.snapshot_url || cam.stream_url || '';
+    const secure = /^https:/i.test(cam.stream_url ?? '');
     try {
       const res = await fetch(url, { method: 'GET', headers: { range: 'bytes=0-512' }, signal: AbortSignal.timeout(8000) });
       const ct = (res.headers.get('content-type') ?? '').toLowerCase();
@@ -122,7 +164,7 @@ export class CamerasService {
         ok: res.ok && !looksPage,
         status: res.status,
         contentType: ct || null,
-        kind: cam.kind === 'AUTO' ? detectKind(cam.stream_url) : cam.kind,
+        kind: cam.kind === 'AUTO' ? detectKind(cam.stream_url ?? '') : cam.kind,
         warning,
         secure,
       };

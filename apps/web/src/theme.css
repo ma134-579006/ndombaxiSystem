@@ -1317,6 +1317,20 @@ button, .btn, .chip, .tab, .nav button { -webkit-tap-highlight-color: transparen
 .agent-preview .agent-attach { margin-top: 0; }
 .agent-preview .agent-img { width: 100%; border-radius: 12px; cursor: zoom-in; }
 .agent-activity-fab { display: none; }
+
+/* Guia de câmara de nuvem (3 QR: iOS/Android/SN) */
+.cam-guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.cam-guide-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 10px;
+  border: 2px solid var(--border); border-radius: 14px; background: var(--surface); cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .08s; }
+.cam-guide-tile:hover:not(:disabled) { border-color: var(--primary); transform: translateY(-2px); }
+.cam-guide-tile.on { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+.cam-guide-tile:disabled { opacity: .5; cursor: not-allowed; }
+.cam-guide-lbl { font-weight: 800; font-size: 15px; }
+.cam-guide-qr { width: 158px; height: 158px; display: grid; place-items: center; background: #fff; border-radius: 10px; padding: 4px; }
+.cam-guide-qr svg { display: block; }
+@media (max-width: 560px) {
+  .cam-guide-grid { grid-template-columns: 1fr; }
+}
 .only-mobile { display: none; }
 
 @media (max-width: 1024px) {

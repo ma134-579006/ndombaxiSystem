@@ -925,9 +925,13 @@ export interface CustomerRow {
 export interface CameraRow {
   id: string;
   name: string;
-  stream_url: string;
+  stream_url: string | null;
   snapshot_url: string | null;
   kind: string;
+  conn_type: string;
+  device_sn: string | null;
+  app_ios: string | null;
+  app_android: string | null;
   notes: string | null;
   record: boolean;
   is_active: boolean;
@@ -935,9 +939,13 @@ export interface CameraRow {
 }
 export interface CameraInput {
   name: string;
-  streamUrl: string;
+  streamUrl?: string;
   snapshotUrl?: string;
   kind?: string;
+  connType?: string;
+  deviceSn?: string;
+  appIos?: string;
+  appAndroid?: string;
   notes?: string;
   record?: boolean;
   isActive?: boolean;
