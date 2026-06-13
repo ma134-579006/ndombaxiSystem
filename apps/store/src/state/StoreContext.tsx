@@ -85,10 +85,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     void load();
   }, [load]);
 
-  // Aplica a cor da marca da loja como cor de destaque.
+  // Identidade visual estilo AliExpress: a cor de destaque (--accent) é o
+  // laranja-vermelho da plataforma e NÃO é sobreposta pela marca da loja, para
+  // a montra ter sempre o mesmo aspeto AliExpress. A cor da loja fica em
+  // --brand (logótipo/detalhes) para quem a quiser usar.
   useEffect(() => {
-    const accent = data?.settings.primary_color;
-    if (accent) document.documentElement.style.setProperty('--accent', accent);
+    const brand = data?.settings.primary_color;
+    if (brand) document.documentElement.style.setProperty('--brand', brand);
   }, [data]);
 
   // Persiste o carrinho.
