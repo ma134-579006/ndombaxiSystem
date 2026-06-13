@@ -53,22 +53,26 @@ export class AssistantService {
 
   /** Conversa de texto: responde com Markdown rico + gráficos/imagens estruturados. */
   async chat(messages: ChatTurn[], ctx: PromptContext = {}): Promise<ChatResult> {
-    const resolved = await this.cfg.resolveForCapability('CHAT');
-    if (!resolved) {
+    const persona = await this.persona();
+    const systemPrompt = buildSystemPrompt(persona, ctx);
+    // Failover: tenta o provedor principal e, se falhar (quota/token), o seguinte.
+    let usedProvider = '';
+    const reply = await this.cfg.runWithFailover('CHAT', (provider, apiKey) => {
+      usedProvider = provider.name;
+      return this.client.chat(provider, apiKey, messages, systemPrompt);
+    });
+    if (!reply) {
       throw new BadRequestException(
         'Nenhum provedor de IA com capacidade CHAT está configurado. O Super Admin pode adicioná-lo no painel.',
       );
     }
-    const persona = await this.persona();
-    const systemPrompt = buildSystemPrompt(persona, ctx);
-    const reply = await this.client.chat(resolved.provider, resolved.apiKey, messages, systemPrompt);
 
     const { charts, imagePrompts } = this.extractBlocks(reply.text);
     return {
       reply: reply.text,
       charts,
       imagePrompts,
-      provider: resolved.provider.name,
+      provider: usedProvider,
       model: reply.model,
     };
   }

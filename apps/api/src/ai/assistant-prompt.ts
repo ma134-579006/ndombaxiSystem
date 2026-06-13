@@ -123,20 +123,24 @@ export interface ProviderLike {
  * prefere os marcados como `isDefault`, depois menor `priority`, depois mais
  * antigo (estável). Devolve `null` se nenhum servir.
  */
+export function resolveAllProviders<T extends ProviderLike>(
+  providers: T[],
+  capability: AiCapability,
+): T[] {
+  return providers
+    .filter((p) => p.isActive && p.capabilities.includes(capability))
+    .sort((a, b) => {
+      if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      return a.id.localeCompare(b.id);
+    });
+}
+
 export function resolveProvider<T extends ProviderLike>(
   providers: T[],
   capability: AiCapability,
 ): T | null {
-  const eligible = providers.filter(
-    (p) => p.isActive && p.capabilities.includes(capability),
-  );
-  if (eligible.length === 0) return null;
-  eligible.sort((a, b) => {
-    if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
-    if (a.priority !== b.priority) return a.priority - b.priority;
-    return a.id.localeCompare(b.id);
-  });
-  return eligible[0];
+  return resolveAllProviders(providers, capability)[0] ?? null;
 }
 
 export function isAiCapability(value: string): value is AiCapability {

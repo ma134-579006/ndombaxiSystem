@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { JwtPayload } from '@nexus/types';
 import { AiConfigService } from './ai-config.service';
-import { AiProviderClient, type AgentMessage } from './ai-provider.client';
+import { AiProviderClient, type AgentMessage, type AgentReply } from './ai-provider.client';
 import { AgentToolsService, type ToolOutcome } from './agent-tools.service';
 
 /**
@@ -63,8 +63,19 @@ export class AgentService {
   ): Promise<void> {
     const schema = user.tenantSchema;
     if (!schema) throw new BadRequestException('O agente só está disponível dentro de uma empresa.');
-    const resolved = await this.cfg.resolveForCapability('CHAT');
-    if (!resolved) throw new BadRequestException('Nenhum provedor de IA configurado (painel do Super Admin → Inteligência Artificial).');
+    const providers = await this.cfg.resolveAllForCapability('CHAT');
+    if (providers.length === 0) throw new BadRequestException('Nenhum provedor de IA configurado (painel do Super Admin → Inteligência Artificial).');
+    // Failover: começa no provedor preferido; se falhar (quota/token), migra para
+    // o seguinte e mantém-se nele para os turnos seguintes.
+    let pi = 0;
+    const callTools = async (msgs: AgentMessage[], toolDefs: typeof defs): Promise<AgentReply> => {
+      let lastErr: unknown = null;
+      for (let i = pi; i < providers.length; i++) {
+        try { const r = await this.client.chatTools(providers[i].provider, providers[i].apiKey, msgs, system, toolDefs); pi = i; return r; }
+        catch (e) { lastErr = e; }
+      }
+      throw lastErr ?? new Error('Todos os provedores de IA falharam.');
+    };
 
     const persona = await this.cfg.getAssistantConfig();
     const system = `${persona.persona ? persona.persona + '\n' : ''}${AGENT_RULES}\nEMPRESA: ${user.tenantSchema} · UTILIZADOR: ${user.name ?? user.email} (${user.role}). Data de hoje: ${new Date().toLocaleDateString('pt-PT')}.`;
@@ -74,7 +85,7 @@ export class AgentService {
     const actor = { id: user.sub, email: user.email };
 
     for (let round = 0; round < MAX_ROUNDS; round++) {
-      const r = await this.client.chatTools(resolved.provider, resolved.apiKey, messages, system, defs);
+      const r = await callTools(messages, defs);
 
       if (!r.toolCalls.length) {
         let text = (r.text ?? '').trim();
@@ -82,7 +93,7 @@ export class AgentService {
           // alguns modelos devolvem 2.º turno vazio após ferramentas →
           // força um fecho textual com base nos resultados já obtidos
           messages.push({ role: 'user', content: 'Com base nos resultados das ferramentas acima, dá agora a resposta final ao gestor (curta e clara, com os números obtidos).' });
-          const r2 = await this.client.chatTools(resolved.provider, resolved.apiKey, messages, system, []);
+          const r2 = await callTools(messages, []);
           text = (r2.text ?? '').trim() || 'Concluí a análise — os resultados estão no painel de atividade.';
         }
         emit({ type: 'text', text });

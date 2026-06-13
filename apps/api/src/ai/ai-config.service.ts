@@ -5,7 +5,7 @@ import type { Env } from '../config/env.validation';
 import { PrismaService } from '../prisma/prisma.service';
 import { decryptSecret, encryptSecret, maskSecret } from '../common/crypto/secret-box';
 import type { AiCapability } from './assistant-prompt';
-import { resolveProvider } from './assistant-prompt';
+import { resolveAllProviders, resolveProvider } from './assistant-prompt';
 import type { CreateAiProviderDto, UpdateAiProviderDto } from './dto/provider.dto';
 import type { UpdateAssistantConfigDto } from './dto/assistant-config.dto';
 
@@ -118,6 +118,44 @@ export class AiConfigService {
       provider: chosen,
       apiKey: chosen.apiKeyEnc ? decryptSecret(chosen.apiKeyEnc, this.key) : null,
     };
+  }
+
+  /**
+   * TODOS os provedores activos para uma capacidade, por ordem de preferência
+   * (default → priority), já com a chave desencriptada. Serve o FAILOVER: se o
+   * 1.º falhar (quota/token), o chamador passa ao 2.º, etc.
+   */
+  async resolveAllForCapability(
+    capability: AiCapability,
+  ): Promise<{ provider: AiProvider; apiKey: string | null }[]> {
+    const all = await this.prisma.aiProvider.findMany();
+    return resolveAllProviders(all, capability).map((provider) => ({
+      provider,
+      apiKey: provider.apiKeyEnc ? decryptSecret(provider.apiKeyEnc, this.key) : null,
+    }));
+  }
+
+  /**
+   * Executa `fn` no primeiro provedor da capacidade que tiver SUCESSO. Se um
+   * provedor falhar (quota esgotada, token inválido, erro de rede), migra
+   * automaticamente para o seguinte. Lança o último erro se todos falharem.
+   */
+  async runWithFailover<R>(
+    capability: AiCapability,
+    fn: (provider: AiProvider, apiKey: string | null) => Promise<R>,
+  ): Promise<R | null> {
+    const providers = await this.resolveAllForCapability(capability);
+    if (providers.length === 0) return null;
+    let lastErr: unknown = null;
+    for (const { provider, apiKey } of providers) {
+      try {
+        return await fn(provider, apiKey);
+      } catch (e) {
+        lastErr = e;
+        // tenta o próximo provedor (failover)
+      }
+    }
+    throw lastErr ?? new Error('Todos os provedores de IA falharam.');
   }
 
   /** Carrega um provedor por id já com a chave desencriptada (uso interno/teste). */
