@@ -3,7 +3,9 @@
    A cor de destaque (--accent) vem da marca de cada loja.
    ============================================================ */
 :root {
-  --accent: #0f62fe;
+  --accent: #ff4d2d;          /* laranja-vermelho estilo AliExpress */
+  --accent-2: #ff6a00;
+  --price: #e62e04;           /* vermelho dos preços */
   --bg: #f4f6fb;
   --surface: #ffffff;
   --surface-2: #f7f9fc;
@@ -139,26 +141,38 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   cursor: pointer; font-size: 15px;
 }
 
-/* ── Grelha de produtos ─────────────────────────────────── */
-.products { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); padding: 18px 0 40px; }
+/* ── Grelha de produtos (estilo AliExpress: densa, cartões compactos) ── */
+.products { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); padding: 14px 0 40px; }
 .product {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden; display: flex; flex-direction: column;
   transition: transform .12s, box-shadow .12s; text-align: left;
 }
-.product:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
-.product .ph { aspect-ratio: 4/3; background: var(--surface-2); display: grid; place-items: center; color: #c2cad6; overflow: hidden; }
+.product:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+/* Imagem QUADRADA (como AliExpress). */
+.product .ph { aspect-ratio: 1/1; background: var(--surface-2); display: grid; place-items: center; color: #c2cad6; overflow: hidden; width: 100%; border: none; padding: 0; }
 .product .ph img { width: 100%; height: 100%; object-fit: cover; }
-.product .body { padding: 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.product .nm { font-weight: 700; font-size: 15px; line-height: 1.3; }
-.product .ds { color: var(--muted); font-size: 13px; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.product .ft { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
-.product .pr { font-weight: 800; font-size: 17px; }
-.product .stock-tag { font-size: 12px; font-weight: 700; color: var(--success, #16a34a); margin-top: 2px; }
+.product .body { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.product .nm { font-weight: 600; font-size: 13.5px; line-height: 1.3; color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding: 0; }
+/* Descrição escondida nos cartões (declutter AliExpress) — vê-se ao abrir. */
+.product .ds { display: none; }
+.product .ft { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; margin-top: auto; }
+/* Preço grande e VERMELHO, com "Kz" pequeno. */
+.product .pr { font-weight: 900; font-size: 18px; color: var(--price); line-height: 1; }
+.product .stock-tag { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 1px; }
 .product .stock-tag.low { color: #c77700; }
 .product .stock-tag.out { color: var(--danger); }
-.add-btn { width: 40px; height: 40px; border-radius: 11px; background: var(--accent); color: #fff; display: grid; place-items: center; }
+/* Botão redondo laranja (carrinho rápido). */
+.add-btn { width: 34px; height: 34px; border-radius: 999px; background: var(--accent); color: #fff; display: grid; place-items: center; flex: none;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 45%, transparent); }
 .add-btn:disabled { opacity: .4; }
+.product .badge.out { font-size: 11px; font-weight: 800; color: var(--danger); }
+/* Telemóvel: exatamente 2 colunas, bem juntas (como a app AliExpress). */
+@media (max-width: 560px) {
+  .products { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .product .pr { font-size: 16px; }
+}
 
 .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
 .empty svg { color: #c2cad6; }
