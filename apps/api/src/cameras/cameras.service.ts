@@ -83,6 +83,8 @@ export class CamerasService {
       if (!deviceSn) throw new BadRequestException('Indica o SN (número de série) do DVR/câmara da nuvem.');
       appIos = (input.appIos?.trim() || DEFAULT_APP_IOS).slice(0, 500);
       appAndroid = (input.appAndroid?.trim() || DEFAULT_APP_ANDROID).slice(0, 500);
+      // URL de vídeo é OPCIONAL no P2P (para ver ao vivo no painel via DDNS).
+      if (input.streamUrl?.trim()) streamUrl = this.validateUrl(input.streamUrl);
     } else {
       streamUrl = this.validateUrl(input.streamUrl ?? '');
     }

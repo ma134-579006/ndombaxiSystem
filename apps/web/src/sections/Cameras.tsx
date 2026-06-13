@@ -5,7 +5,7 @@ import type { CameraRow } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
 import { IconPlus } from '../components/Icons';
 import { Modal, Switch } from '../components/ui';
-import { makeQrDetector } from '../scan/decoder';
+import { decodeQrFromImage, makeQrDetector } from '../scan/decoder';
 
 /**
  * CÂMARAS de vigilância:
@@ -17,6 +17,9 @@ import { makeQrDetector } from '../scan/decoder';
  *     autenticado da API) + rever gravações por dia.
  * Nota: câmaras RTSP precisam que o DVR/NVR exponha HTTP/HLS (a maioria tem).
  */
+
+/** Tem fonte de vídeo para ver no painel (URL de stream ou de fotograma)? */
+const hasStream = (c: CameraRow): boolean => !!(c.stream_url || c.snapshot_url);
 
 export function Cameras({ mode }: { mode: 'config' | 'live' }) {
   const [rows, setRows] = useState<CameraRow[]>([]);
@@ -92,9 +95,8 @@ function CamRow({ cam, onEdit, onChanged }: { cam: CameraRow; onEdit(): void; on
         <div className="muted" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cam.conn_type === 'P2P' ? `SN: ${cam.device_sn ?? '—'}` : cam.stream_url}</div>
       </div>
       <div className="row" style={{ gap: 8 }}>
-        {cam.conn_type === 'P2P'
-          ? <button className="btn sm" onClick={() => setGuide(true)}>Guia (3 QR)</button>
-          : <button className="btn sm ghost" onClick={() => void test()} disabled={busy}>Testar</button>}
+        {cam.conn_type === 'P2P' ? <button className="btn sm" onClick={() => setGuide(true)}>Guia (3 QR)</button> : null}
+        {(cam.conn_type !== 'P2P' || hasStream(cam)) ? <button className="btn sm ghost" onClick={() => void test()} disabled={busy}>Testar</button> : null}
         <button className="btn sm ghost" onClick={onEdit}>Editar</button>
         <button className="btn sm ghost" onClick={() => void toggle()} disabled={busy}>{cam.is_active ? 'Desativar' : 'Reativar'}</button>
       </div>
@@ -176,9 +178,11 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
   const [notes, setNotes] = useState(cam?.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [decoding, setDecoding] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const stopScan = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -216,6 +220,37 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
     else toast.warning(`O QR não contém uma URL HTTP(S): «${raw.slice(0, 60)}»`);
   };
 
+  /** Classifica e aplica vários QR (foto do «Guia»): iOS, Android e SN. */
+  const applyGuideQrs = (values: string[]) => {
+    let snFound = '', iosFound = '', androidFound = '';
+    for (const raw of values) {
+      const v = raw.trim();
+      const low = v.toLowerCase();
+      if (/apps\.apple\.com|itunes\.apple\.com/.test(low)) { iosFound = v; continue; }
+      if (/play\.google\.com|market:\/\/|android/.test(low)) { androidFound = v; continue; }
+      // SN: pode ser JSON {sn:…} ou texto/serial
+      try { const j = JSON.parse(v) as { sn?: string; serial?: string; deviceId?: string }; const sn = j.sn ?? j.serial ?? j.deviceId; if (sn) { snFound = String(sn); continue; } } catch { /* texto */ }
+      if (!/^https?:\/\//i.test(v)) snFound = v;
+    }
+    if (snFound) setDeviceSn(snFound);
+    if (iosFound) setAppIos(iosFound);
+    if (androidFound) setAppAndroid(androidFound);
+    const got = [snFound && 'SN', iosFound && 'iOS', androidFound && 'Android'].filter(Boolean).join(', ');
+    if (got) toast.success(`Lido do Guia: ${got}. ✅`);
+    else toast.warning('Não consegui ler QR nesta imagem. Tenta uma foto mais nítida e de frente.');
+  };
+
+  const onPickPhoto = async (file?: File) => {
+    if (!file) return;
+    setDecoding(true);
+    try {
+      const values = await decodeQrFromImage(file);
+      if (values.length === 0) { toast.warning('Nenhum QR detetado na imagem. Aproxima e foca o ecrã do DVR.'); return; }
+      applyGuideQrs(values);
+    } catch { toast.error('Falha ao ler a imagem.'); }
+    finally { setDecoding(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
+
   const startScan = async () => {
     try {
       const detect = await makeQrDetector();
@@ -241,7 +276,8 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
     setSaving(true);
     try {
       const input = connType === 'P2P'
-        ? { name: name.trim(), connType, deviceSn: deviceSn.trim(), appIos: appIos.trim() || undefined, appAndroid: appAndroid.trim() || undefined, notes: notes.trim() || undefined }
+        ? { name: name.trim(), connType, deviceSn: deviceSn.trim(), appIos: appIos.trim() || undefined, appAndroid: appAndroid.trim() || undefined,
+            streamUrl: streamUrl.trim() || undefined, snapshotUrl: snapshotUrl.trim() || undefined, record, notes: notes.trim() || undefined }
         : { name: name.trim(), connType, streamUrl: streamUrl.trim(), snapshotUrl: snapshotUrl.trim() || undefined, record, notes: notes.trim() || undefined };
       if (cam) await api.cameras.update(cam.id, input);
       else await api.cameras.create(input);
@@ -259,9 +295,17 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
         <button className={connType === 'STREAM' ? 'on' : ''} onClick={() => setConnType('STREAM')}>🔗 Stream HTTP</button>
       </div>
 
-      <button className="btn ghost block" style={{ marginBottom: 12 }} onClick={() => (scanning ? stopScan() : void startScan())}>
-        {scanning ? '✕ Parar leitura' : connType === 'P2P' ? '🔳 Ler QR «SN» do DVR' : '🔳 Ler QR code da câmara/DVR'}
-      </button>
+      <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+        <button className="btn ghost" style={{ flex: 1 }} onClick={() => (scanning ? stopScan() : void startScan())}>
+          {scanning ? '✕ Parar' : '🔳 Ler QR (câmara)'}
+        </button>
+        {connType === 'P2P' ? (
+          <button className="btn ghost" style={{ flex: 1 }} onClick={() => fileRef.current?.click()} disabled={decoding}>
+            {decoding ? 'A ler foto…' : '🖼️ Carregar foto do Guia'}
+          </button>
+        ) : null}
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => void onPickPhoto(e.target.files?.[0])} />
       {scanning ? (
         <div className="pp-cam" style={{ marginBottom: 12 }}>
           <video ref={videoRef} playsInline muted />
@@ -280,6 +324,17 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
             <input value={appIos} onChange={(e) => setAppIos(e.target.value)} placeholder="por omissão: XMEye (App Store)" /></div>
           <div className="field"><label>App Android (opcional — link do QR)</label>
             <input value={appAndroid} onChange={(e) => setAppAndroid(e.target.value)} placeholder="por omissão: XMEye (Google Play)" /></div>
+          <div className="banner info" style={{ margin: '4px 0 12px', fontSize: 12.5 }}>
+            <div>📺 <strong>Ver ao vivo no painel</strong>: cola a URL de vídeo do DVR (HLS/MJPEG/foto JPEG). Como o painel está na nuvem,
+              o DVR tem de estar acessível pela internet — abre a <strong>porta</strong> do DVR no router e usa o teu <strong>IP público</strong> ou um <strong>DDNS</strong>.
+              Sem isto, vê-se na app oficial pelo Guia (3 QR).</div>
+          </div>
+          <div className="field"><label>URL de vídeo ao vivo (HLS .m3u8 · MJPEG · MP4) — opcional</label>
+            <input value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)} placeholder="http://SEU-DDNS:porta/...m3u8" /></div>
+          <div className="field"><label>URL de fotograma JPEG (opcional — p/ ver e gravar via servidor)</label>
+            <input value={snapshotUrl} onChange={(e) => setSnapshotUrl(e.target.value)} placeholder="http://SEU-DDNS:porta/snapshot.jpg" /></div>
+          <div className="switch-row"><span>Gravar (1 fotograma/min · retenção 30 dias)</span>
+            <Switch checked={record} onChange={setRecord} /></div>
         </>
       ) : (
         <>
@@ -316,19 +371,19 @@ function CamerasLive({ rows, loading, error }: { rows: CameraRow[]; loading: boo
           <div className="pgrid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
             {rows.map((c) => (
               <button key={c.id} className="card" style={{ padding: 10, textAlign: 'left', cursor: 'pointer' }} onClick={() => setOpen(c)}>
-                {c.conn_type === 'P2P' ? <P2PThumb /> : <LivePlayer cam={c} thumb />}
+                {hasStream(c) ? <LivePlayer cam={c} thumb /> : <P2PThumb />}
                 <div className="row" style={{ marginTop: 8, gap: 8 }}>
                   <strong style={{ fontSize: 14 }}>📹 {c.name}</strong>
                   {c.conn_type === 'P2P' ? <span className="pill on">☁️ Nuvem</span> : null}
                   {c.record ? <span className="pill" style={{ color: 'var(--danger)' }}>● REC</span> : null}
                   <span className="spacer" />
-                  <span className="muted" style={{ fontSize: 12 }}>{c.conn_type === 'P2P' ? 'abrir Guia →' : 'ampliar →'}</span>
+                  <span className="muted" style={{ fontSize: 12 }}>{hasStream(c) ? 'ampliar →' : 'abrir Guia →'}</span>
                 </div>
               </button>
             ))}
           </div>
         )}
-      {open ? (open.conn_type === 'P2P' ? <CamGuide cam={open} onClose={() => setOpen(null)} /> : <CamViewer cam={open} onClose={() => setOpen(null)} />) : null}
+      {open ? (hasStream(open) ? <CamViewer cam={open} onClose={() => setOpen(null)} /> : <CamGuide cam={open} onClose={() => setOpen(null)} />) : null}
     </>
   );
 }

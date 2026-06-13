@@ -56,6 +56,42 @@ export async function makeDetector(): Promise<FrameDetector> {
   };
 }
 
+/**
+ * Descodifica TODOS os QR de uma IMAGEM (ex.: foto do «Guia» do DVR, que tem 3).
+ *   • Chrome/Android → BarcodeDetector deteta vários QR de uma vez.
+ *   • iPhone/Safari  → ZXing (um QR; o utilizador pode recortar/aproximar).
+ * Devolve a lista de conteúdos lidos (sem repetidos).
+ */
+export async function decodeQrFromImage(file: File): Promise<string[]> {
+  const bitmap = await createImageBitmap(file);
+  const out = new Set<string>();
+  const BD = (window as unknown as { BarcodeDetector?: new (o?: unknown) => NativeDetector }).BarcodeDetector;
+  if (BD) {
+    try {
+      const d = new BD({ formats: ['qr_code'] } as unknown);
+      const codes = await d.detect(bitmap as unknown);
+      for (const c of codes ?? []) { const v = String(c.rawValue).trim(); if (v) out.add(v); }
+    } catch { /* cai para ZXing */ }
+  }
+  if (out.size === 0) {
+    // ZXing sobre canvas (um QR de cada vez)
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width; canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (ctx) {
+      ctx.drawImage(bitmap, 0, 0);
+      try {
+        const { BrowserQRCodeReader } = await import('@zxing/browser');
+        const reader = new BrowserQRCodeReader();
+        const r = reader.decodeFromCanvas(canvas);
+        const v = String(r.getText()).trim(); if (v) out.add(v);
+      } catch { /* sem QR legível */ }
+    }
+  }
+  bitmap.close?.();
+  return [...out];
+}
+
 /** Ecrã tátil (telemóvel/tablet)? Nos COMPUTADORES a câmara não deve abrir —
  *  usa-se o leitor físico USB ou a pesquisa. */
 export function isTouchDevice(): boolean {
