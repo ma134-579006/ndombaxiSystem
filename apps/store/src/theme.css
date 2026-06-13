@@ -77,7 +77,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
 
-.banner { display: flex; gap: 10px; align-items: center; border-radius: 12px; padding: 12px 14px; font-size: 14px; font-weight: 600; }
+.banner { display: flex; gap: 10px; align-items: flex-start; border-radius: 12px; padding: 12px 14px; font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; word-break: break-word; }
+.banner > svg { flex: none; margin-top: 1px; }
+@media (max-width: 560px) { .banner { padding: 10px 12px; font-size: 13px; } }
 .banner.danger { background: #fdeaea; color: #b91c1c; }
 .banner.info { background: color-mix(in srgb, var(--accent) 10%, white); color: var(--accent); }
 .banner.success { background: #e9f7ef; color: #15803d; }
