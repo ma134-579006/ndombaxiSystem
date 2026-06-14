@@ -36,6 +36,7 @@ export function Employees() {
   const [editing, setEditing] = useState<ManagerEmployee | null>(null);
   const [creating, setCreating] = useState(false);
   const [accessFor, setAccessFor] = useState<ManagerEmployee | null>(null);
+  const [manageFor, setManageFor] = useState<{ user: ManagerStaff; name: string } | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -192,9 +193,12 @@ export function Employees() {
                     </div>
                     <div style={{ marginTop: 8 }}>
                       {u ? (
-                        <span className="pill on" title={u.email} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          <IconShield size={11} /> {STAFF_ROLE_LABELS[u.role] ?? u.role}{u.has_pin ? ' · PIN' : ''}
-                        </span>
+                        <div className="row" style={{ gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <span className="pill on" title={u.email} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <IconShield size={11} /> {STAFF_ROLE_LABELS[u.role] ?? u.role}{u.has_pin ? ' · PIN' : ''}
+                          </span>
+                          <button className="btn sm ghost" onClick={() => setManageFor({ user: u, name: e.full_name })}>Gerir acesso</button>
+                        </div>
                       ) : e.status === 'ACTIVE' ? (
                         <button className="btn sm ghost block" onClick={() => setAccessFor(e)}>
                           <IconShield size={13} /> Dar acesso ao sistema
@@ -286,7 +290,99 @@ export function Employees() {
           }}
         />
       ) : null}
+
+      {manageFor ? (
+        <ManageAccessModal
+          user={manageFor.user}
+          name={manageFor.name}
+          stores={stores}
+          onClose={() => setManageFor(null)}
+          onInfo={(m) => setInfo(m)}
+          onChanged={() => { setManageFor(null); void load(); }}
+        />
+      ) : null}
     </>
+  );
+}
+
+/** Gere o acesso de quem JÁ tem conta: repor senha (admin), definir/alterar PIN
+ *  (caixa) e mudar papel/loja. O gerente regional e o gerente de loja usam isto
+ *  para entrar tanto no painel como na caixa. */
+function ManageAccessModal({
+  user, name, stores, onClose, onInfo, onChanged,
+}: {
+  user: ManagerStaff;
+  name: string;
+  stores: ManagerStore[];
+  onClose(): void;
+  onInfo(m: string): void;
+  onChanged(): void;
+}) {
+  const [role, setRole] = useState<StaffRoleName>(user.role as StaffRoleName);
+  const [storeId, setStoreId] = useState(user.store_id ?? '');
+  const [pin, setPin] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const resetPwd = async () => {
+    setErr(null); setBusy('pwd');
+    try {
+      const r = await api.staff.resetPassword(user.id);
+      onInfo(r.temporaryPassword
+        ? `Nova senha de ${name}: ${r.temporaryPassword} — entrega-a (só aparece agora). Entra no painel com o email + esta senha.`
+        : 'Senha reposta.');
+      onClose();
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falhou.'); }
+    finally { setBusy(null); }
+  };
+
+  const savePin = async () => {
+    setErr(null);
+    if (!/^\d{6}$/.test(pin)) { setErr('O PIN da caixa tem de ter 6 dígitos.'); return; }
+    setBusy('pin');
+    try { await api.staff.setPin(user.id, pin); onInfo(`PIN da caixa de ${name} atualizado.`); onChanged(); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Falhou.'); }
+    finally { setBusy(null); }
+  };
+
+  const saveRole = async () => {
+    setErr(null); setBusy('role');
+    try { await api.staff.updateUser(user.id, { role, storeId: storeId || undefined }); onInfo(`Permissões de ${name} atualizadas.`); onChanged(); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Falhou.'); }
+    finally { setBusy(null); }
+  };
+
+  return (
+    <Modal title={`Gerir acesso — ${name}`} onClose={onClose}>
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+        Este utilizador entra no <strong>painel</strong> com o email + senha e na <strong>caixa</strong> com o nome + PIN.
+        Aqui podes repor a senha, alterar o PIN e mudar o papel/loja.
+      </p>
+
+      <div className="field"><label>Papel (permissão)</label>
+        <select value={role} onChange={(e) => setRole(e.target.value as StaffRoleName)}>
+          {STAFF_ROLES.map((r) => <option key={r} value={r}>{STAFF_ROLE_LABELS[r]}</option>)}
+        </select></div>
+      <div className="field"><label>Loja</label>
+        <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+          <option value="">(sem loja específica)</option>
+          {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select></div>
+      <button className="btn ghost block" style={{ marginBottom: 16 }} onClick={saveRole} disabled={busy !== null}>
+        {busy === 'role' ? 'A guardar…' : 'Guardar papel/loja'}
+      </button>
+
+      <div className="field"><label>Novo PIN da caixa (6 dígitos)</label>
+        <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" placeholder="ex.: 123456" /></div>
+      <button className="btn ghost block" style={{ marginBottom: 16 }} onClick={savePin} disabled={busy !== null}>
+        {busy === 'pin' ? 'A guardar…' : 'Definir/alterar PIN da caixa'}
+      </button>
+
+      <button className="btn block" onClick={resetPwd} disabled={busy !== null}>
+        {busy === 'pwd' ? 'A repor…' : '🔑 Repor senha do painel (gera nova)'}
+      </button>
+    </Modal>
   );
 }
 

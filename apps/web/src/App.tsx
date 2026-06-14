@@ -69,16 +69,18 @@ const PLATFORM_NAV: NavItem[] = [
   { key: 'integrations', label: 'Integrações', icon: IconCpu },
 ];
 
+// min: nível mínimo de papel (0=mais poder). 1=COMPANY_ADMIN, 2=REGIONAL_MANAGER,
+// 3=STORE_MANAGER. Omisso → 3 (visível a gerente de loja e acima).
 const TENANT_NAV: NavItem[] = [
   { key: 'overview', label: 'Visão geral', icon: IconChart },
-  { key: 'assistant', label: 'Assistente IA', icon: IconCpu },
-  { key: 'subscription', label: 'Subscrição & Plano', icon: IconCard },
+  { key: 'assistant', label: 'Assistente IA', icon: IconCpu, min: 2 },
+  { key: 'subscription', label: 'Subscrição & Plano', icon: IconCard, min: 1 },
   {
     key: 'stores-group', label: 'Lojas', icon: IconStore, children: [
-      { key: 'stores', label: 'Criar lojas', icon: IconStore },
-      { key: 'store', label: 'Loja & Marca', icon: IconStore },
+      { key: 'stores', label: 'Criar lojas', icon: IconStore, min: 2 },
+      { key: 'store', label: 'Loja & Marca', icon: IconStore, min: 1 },
       { key: 'orders', label: 'Encomendas', icon: IconTruck },
-      { key: 'commissions', label: 'Comissões', icon: IconStar },
+      { key: 'commissions', label: 'Comissões', icon: IconStar, min: 2 },
     ],
   },
   {
@@ -87,12 +89,12 @@ const TENANT_NAV: NavItem[] = [
       { key: 'inventory', label: 'Entrada stock/Inventário', icon: IconTruck },
       { key: 'stock-analysis', label: 'Análise de stock', icon: IconChart },
       { key: 'stock-movements', label: 'Movimentos de stock', icon: IconChart },
-      { key: 'purchasing', label: 'Compras', icon: IconTruck },
+      { key: 'purchasing', label: 'Compras', icon: IconTruck, min: 2 },
       { key: 'promotions', label: 'Promoções', icon: IconStar },
     ],
   },
   {
-    key: 'movements-group', label: 'Movimentações', icon: IconCard, children: [
+    key: 'movements-group', label: 'Movimentações', icon: IconCard, min: 2, children: [
       { key: 'payments', label: 'Pagamentos', icon: IconCard },
       { key: 'profit', label: 'Lucros', icon: IconChart },
       { key: 'expenses', label: 'Gastos', icon: IconReceipt },
@@ -105,23 +107,40 @@ const TENANT_NAV: NavItem[] = [
   {
     key: 'users-group', label: 'Usuários', icon: IconBuilding, children: [
       { key: 'employees', label: 'Funcionários', icon: IconBuilding },
-      { key: 'payroll', label: 'Folha Salarial', icon: IconReceipt },
+      { key: 'payroll', label: 'Folha Salarial', icon: IconReceipt, min: 2 },
       { key: 'leave', label: 'Férias', icon: IconBuilding },
     ],
   },
   { key: 'customers', label: 'Clientes', icon: IconBuilding },
-  { key: 'accounting', label: 'Contabilidade', icon: IconReceipt },
+  { key: 'accounting', label: 'Contabilidade', icon: IconReceipt, min: 2 },
   {
     key: 'cameras-group', label: 'Câmaras', icon: IconCpu, children: [
-      { key: 'cameras-config', label: 'Configurar', icon: IconCpu },
+      { key: 'cameras-config', label: 'Configurar', icon: IconCpu, min: 1 },
       { key: 'cameras-live', label: 'Abrir', icon: IconCpu },
     ],
   },
   { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart },
   { key: 'reports', label: 'Relatórios', icon: IconChart },
-  { key: 'saft', label: 'Fiscal · SAF-T', icon: IconReceipt },
-  { key: 'settings', label: 'Configurações', icon: IconBuilding },
+  { key: 'saft', label: 'Fiscal · SAF-T', icon: IconReceipt, min: 1 },
+  { key: 'settings', label: 'Configurações', icon: IconBuilding, min: 1 },
 ];
+
+/** Nível numérico de cada papel (espelha o backend; menor = mais poder). */
+const ROLE_LEVEL: Record<string, number> = {
+  SUPER_ADMIN: 0, COMPANY_ADMIN: 1, REGIONAL_MANAGER: 2, STORE_MANAGER: 3,
+  SHIFT_SUPERVISOR: 4, CASHIER: 5, ATTENDANT: 6,
+};
+
+/** Filtra a navegação pelo papel: mostra só o que o nível permite (e grupos
+ *  ficam visíveis se tiverem pelo menos um sub-item permitido). */
+function navForRole(items: NavItem[], role: string | undefined): NavItem[] {
+  const level = ROLE_LEVEL[role ?? ''] ?? 3;
+  const ok = (it: NavItem) => level <= (it.min ?? 3);
+  return items
+    .filter(ok)
+    .map((it) => (it.children ? { ...it, children: it.children.filter(ok) } : it))
+    .filter((it) => !it.children || it.children.length > 0);
+}
 
 /** Página + rascunhos por utilizador: restaura onde o utilizador estava
  *  (mesmo após logout por inatividade) e o que estava a escrever. */
@@ -157,7 +176,13 @@ function PlatformPanel() {
 }
 
 function TenantPanel() {
+  const { user } = useAuth();
   const [section, setSection] = useWorkspace('overview');
+  const nav = React.useMemo(() => navForRole(TENANT_NAV, user?.role), [user?.role]);
+  // se a secção guardada já não é permitida ao papel, volta à visão geral
+  const allowed = React.useMemo(() => new Set(nav.flatMap((n) => (n.children ? n.children.map((c) => c.key) : [n.key]))), [nav]);
+  const safeSection = allowed.has(section) ? section : 'overview';
+  React.useEffect(() => { if (section !== safeSection) setSection(safeSection); }, [section, safeSection]); // eslint-disable-line react-hooks/exhaustive-deps
   // Gate: setup obrigatório → aprovação do Super Admin → plano válido → painel.
   const [gate, setGate] = useState<{ setupCompleted: boolean; approved: boolean; expired: boolean } | null>(null);
   React.useEffect(() => {
@@ -180,7 +205,7 @@ function TenantPanel() {
     return <PlanExpired onResolved={() => window.location.reload()} />;
   }
   return (
-    <Shell nav={TENANT_NAV} section={section} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
+    <Shell nav={nav} section={safeSection} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
       {section === 'overview' ? <Overview /> : null}
       {section === 'assistant' ? <Assistant /> : null}
       {section === 'subscription' ? <Subscription /> : null}

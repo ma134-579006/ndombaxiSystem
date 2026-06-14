@@ -125,6 +125,9 @@ export interface NavItem {
   icon: React.ComponentType<{ size?: number }>;
   /** Sub-opções (menu agrupado). Se presente, o item abre/fecha um grupo. */
   children?: NavItem[];
+  /** Nível mínimo de papel para ver o item (0=mais poder). Omisso = visível a
+   *  gerente de loja e acima. Itens sensíveis (subscrição, fiscal) usam 1. */
+  min?: number;
 }
 
 /** Seta de expansão dos grupos do menu. */
