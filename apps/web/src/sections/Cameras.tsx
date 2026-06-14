@@ -179,6 +179,7 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [decoding, setDecoding] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -289,68 +290,69 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
 
   return (
     <Modal title={cam ? 'Editar câmara' : 'Ligar câmara'} onClose={onClose}>
-      {/* Tipo de ligação: NUVEM/P2P (a maioria dos DVR AHD com "Nuvem") ou STREAM HTTP. */}
-      <div className="seg block" style={{ marginBottom: 12 }}>
-        <button className={connType === 'P2P' ? 'on' : ''} onClick={() => setConnType('P2P')}>☁️ Nuvem / P2P (app + QR)</button>
-        <button className={connType === 'STREAM' ? 'on' : ''} onClick={() => setConnType('STREAM')}>🔗 Stream HTTP</button>
-      </div>
-
-      <div className="row" style={{ gap: 8, marginBottom: 12 }}>
-        <button className="btn ghost" style={{ flex: 1 }} onClick={() => (scanning ? stopScan() : void startScan())}>
-          {scanning ? '✕ Parar' : '🔳 Ler QR (câmara)'}
+      {/* Passo único: ler o QR do DVR. Tudo o resto é automático/opcional. */}
+      <div className="row" style={{ gap: 8, marginBottom: 10 }}>
+        <button className="btn" style={{ flex: 1 }} onClick={() => (scanning ? stopScan() : void startScan())}>
+          {scanning ? '✕ Parar' : '🔳 Ler QR do DVR'}
         </button>
-        {connType === 'P2P' ? (
-          <button className="btn ghost" style={{ flex: 1 }} onClick={() => fileRef.current?.click()} disabled={decoding}>
-            {decoding ? 'A ler foto…' : '🖼️ Carregar foto do Guia'}
-          </button>
-        ) : null}
+        <button className="btn ghost" style={{ flex: 1 }} onClick={() => fileRef.current?.click()} disabled={decoding}>
+          {decoding ? 'A ler…' : '🖼️ Foto do Guia'}
+        </button>
       </div>
       <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => void onPickPhoto(e.target.files?.[0])} />
       {scanning ? (
         <div className="pp-cam" style={{ marginBottom: 12 }}>
           <video ref={videoRef} playsInline muted />
-          <div className="muted" style={{ fontSize: 12 }}>{connType === 'P2P' ? 'Aponta ao QR «SN» no ecrã do DVR…' : 'Aponta ao QR do equipamento ou da app do DVR…'}</div>
+          <div className="muted" style={{ fontSize: 12 }}>Aponta ao QR do ecrã do DVR…</div>
         </div>
       ) : null}
-      <div className="field"><label>Nome</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex.: Entrada da loja" /></div>
 
-      {connType === 'P2P' ? (
-        <>
-          <div className="field"><label>SN — número de série do DVR/câmara</label>
-            <input value={deviceSn} onChange={(e) => setDeviceSn(e.target.value)} placeholder="ex.: 4F2A1B9C8D7E6F50" />
-            <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>É o código que está no QR «SN» do ecrã do DVR (ou na etiqueta do aparelho). Com ele geramos o «Guia» de 3 QR.</p></div>
-          <div className="field"><label>App iOS (opcional — link do QR)</label>
-            <input value={appIos} onChange={(e) => setAppIos(e.target.value)} placeholder="por omissão: XMEye (App Store)" /></div>
-          <div className="field"><label>App Android (opcional — link do QR)</label>
-            <input value={appAndroid} onChange={(e) => setAppAndroid(e.target.value)} placeholder="por omissão: XMEye (Google Play)" /></div>
-          <div className="banner info" style={{ margin: '4px 0 12px', fontSize: 12.5 }}>
-            <div>📺 <strong>Ver ao vivo no painel</strong>: cola a URL de vídeo do DVR (HLS/MJPEG/foto JPEG). Como o painel está na nuvem,
-              o DVR tem de estar acessível pela internet — abre a <strong>porta</strong> do DVR no router e usa o teu <strong>IP público</strong> ou um <strong>DDNS</strong>.
-              Sem isto, vê-se na app oficial pelo Guia (3 QR).</div>
+      {connType === 'P2P' && deviceSn ? (
+        <div className="banner success" style={{ marginBottom: 12, fontSize: 13 }}><div>✅ Câmara lida — SN <code>{deviceSn}</code>. Dá-lhe um nome e guarda.</div></div>
+      ) : null}
+
+      <div className="field"><label>Nome</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex.: Entrada da loja" autoFocus /></div>
+
+      {/* SN manual só quando ainda não foi lido (recurso) */}
+      {connType === 'P2P' && !deviceSn ? (
+        <div className="field"><label>SN do DVR (ou lê o QR acima)</label>
+          <input value={deviceSn} onChange={(e) => setDeviceSn(e.target.value)} placeholder="ex.: 4F2A1B9C8D7E6F50" /></div>
+      ) : null}
+
+      <button className="btn ghost sm" style={{ marginBottom: advanced ? 12 : 0 }} onClick={() => setAdvanced((a) => !a)}>
+        {advanced ? '▾ Ocultar opções avançadas' : '▸ Opções avançadas (ver no painel, gravar)'}
+      </button>
+
+      {advanced ? (
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12 }}>
+          <div className="seg block" style={{ marginBottom: 12 }}>
+            <button className={connType === 'P2P' ? 'on' : ''} onClick={() => setConnType('P2P')}>☁️ Nuvem (QR/SN)</button>
+            <button className={connType === 'STREAM' ? 'on' : ''} onClick={() => setConnType('STREAM')}>🔗 URL de stream</button>
           </div>
-          <div className="field"><label>URL de vídeo ao vivo (HLS .m3u8 · MJPEG · MP4) — opcional</label>
+          <div className="banner info" style={{ margin: '0 0 12px', fontSize: 12.5 }}>
+            <div>📺 Para ver <strong>dentro do painel</strong> (e gravar), o DVR tem de estar acessível pela internet: cola aqui a URL de vídeo/fotograma (HLS/MJPEG/JPEG) com o teu <strong>IP público</strong> ou <strong>DDNS</strong>. Caso contrário, vê-se na app oficial pelo botão <strong>Guia</strong>.</div>
+          </div>
+          <div className="field"><label>URL de vídeo (HLS .m3u8 · MJPEG · MP4)</label>
             <input value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)} placeholder="http://SEU-DDNS:porta/...m3u8" /></div>
-          <div className="field"><label>URL de fotograma JPEG (opcional — p/ ver e gravar via servidor)</label>
+          <div className="field"><label>URL de fotograma JPEG (p/ ver e gravar via servidor)</label>
             <input value={snapshotUrl} onChange={(e) => setSnapshotUrl(e.target.value)} placeholder="http://SEU-DDNS:porta/snapshot.jpg" /></div>
           <div className="switch-row"><span>Gravar (1 fotograma/min · retenção 30 dias)</span>
             <Switch checked={record} onChange={setRecord} /></div>
-        </>
-      ) : (
-        <>
-          <div className="field"><label>URL do stream (HLS .m3u8 · MJPEG · MP4)</label>
-            <input value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)} placeholder="http://192.168.1.50:8080/video.m3u8" />
-            <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>RTSP? Ativa o serviço HTTP/HLS no DVR/NVR (quase todos têm) e cola aqui essa URL.</p></div>
-          <div className="field"><label>URL de fotograma JPEG (opcional — necessária p/ gravar)</label>
-            <input value={snapshotUrl} onChange={(e) => setSnapshotUrl(e.target.value)} placeholder="http://192.168.1.50:8080/snapshot.jpg" /></div>
-          <div className="switch-row"><span>Gravar (1 fotograma/min · retenção 30 dias)</span>
-            <Switch checked={record} onChange={setRecord} /></div>
-        </>
-      )}
+          {connType === 'P2P' ? (
+            <>
+              <div className="field"><label>App iOS (link do QR)</label>
+                <input value={appIos} onChange={(e) => setAppIos(e.target.value)} placeholder="por omissão: XMEye (App Store)" /></div>
+              <div className="field"><label>App Android (link do QR)</label>
+                <input value={appAndroid} onChange={(e) => setAppAndroid(e.target.value)} placeholder="por omissão: XMEye (Google Play)" /></div>
+            </>
+          ) : null}
+          <div className="field"><label>Notas</label>
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="localização, credenciais do DVR…" /></div>
+        </div>
+      ) : null}
 
-      <div className="field"><label>Notas (opcional)</label>
-        <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="localização, credenciais do DVR…" /></div>
-      <button className="btn lg block" onClick={() => void save()} disabled={saving}>{saving ? 'A guardar…' : cam ? 'Guardar alterações' : 'Ligar câmara'}</button>
+      <button className="btn lg block" style={{ marginTop: 14 }} onClick={() => void save()} disabled={saving}>{saving ? 'A guardar…' : cam ? 'Guardar alterações' : 'Ligar câmara'}</button>
     </Modal>
   );
 }
