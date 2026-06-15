@@ -268,6 +268,15 @@ input, textarea, select { font-family: inherit; }
   .topbar h1 { font-size: 17px; }
   .topbar .who .nm { max-width: 38vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .content { padding: 16px 14px; }
+  /* Tabelas largas (não-empilhadas) rolam DENTRO do cartão em vez de serem
+     cortadas pela guarda anti-fuga (overflow-x:clip do body). As que empilham
+     (.ptable.stack ≤640) viram cartões e não precisam. */
+  .ptable:not(.stack) { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+}
+/* Faixa tablet: as tabelas que só empilham ≤640 ainda são tabelas aqui — deixa
+   rolar para não serem cortadas pela guarda. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .ptable.stack { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 @media (max-width: 640px) {
   /* Formulários de 2 colunas passam a 1 coluna no telemóvel. */
