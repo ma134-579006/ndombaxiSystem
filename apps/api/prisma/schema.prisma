@@ -346,6 +346,26 @@ model AiAssistantConfig {
 }
 
 // ─────────────────────────────────────────────────────────────
+// CONFIGURAÇÃO DE E-MAIL (SMTP) — gerida pelo Super Admin (sem
+// mexer nas env do Render). A password fica encriptada (AES-256-GCM).
+// Fallback: se não houver linha activa, usa as env SMTP_*.
+// ─────────────────────────────────────────────────────────────
+model MailConfig {
+  id          String   @id @default("singleton")
+  host        String?
+  port        Int      @default(465)
+  secure      Boolean  @default(true)
+  username    String?
+  passwordEnc String? // AES-256-GCM
+  fromAddr    String?
+  enabled     Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+
+  @@map("mail_config")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
 // GATEWAYS DE PAGAMENTO (§ Fase 8) — contratos ao nível da
 // plataforma geridos pelo Super Admin (ex.: Multicaixa Express).
 // As credenciais ficam encriptadas (AES-256-GCM), nunca em claro.

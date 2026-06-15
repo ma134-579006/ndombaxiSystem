@@ -54,6 +54,8 @@ import type {
   Integration,
   UpdateIntegrationInput,
   LandingConfig,
+  MailConfigInput,
+  MailConfigView,
   AuditEvent,
   CashSessionRow,
   ManagerProduct,
@@ -357,6 +359,13 @@ export const api = {
     series: (days = 14) => request<PlatformSeriesPoint[]>('GET', `/super-admin/dashboard/series?days=${days}`),
     recentCompanies: (limit = 8) =>
       request<RecentCompany[]>('GET', `/super-admin/dashboard/recent-companies?limit=${limit}`),
+  },
+
+  // ── E-mail (SMTP) — gestão pelo Super Admin ────────────────
+  mailAdmin: {
+    get: () => request<MailConfigView>('GET', '/super-admin/mail'),
+    save: (dto: MailConfigInput) => request<MailConfigView>('PUT', '/super-admin/mail', dto),
+    test: (to: string) => request<{ ok: boolean; message: string }>('POST', '/super-admin/mail/test', { to }),
   },
 
   // ── Landing — gestão pelo Super Admin ──────────────────────

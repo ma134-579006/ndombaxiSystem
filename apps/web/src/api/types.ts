@@ -124,6 +124,16 @@ export interface LandingConfig {
 }
 export interface PublicLanding { config: LandingConfig; plans: PublicPlan[] }
 
+export interface MailConfigView {
+  host: string | null; port: number; secure: boolean;
+  username: string | null; fromAddr: string | null; enabled: boolean;
+  hasPassword: boolean; passwordMask: string | null; source: 'db' | 'env' | 'none';
+}
+export interface MailConfigInput {
+  host?: string; port?: number; secure?: boolean; username?: string;
+  password?: string; fromAddr?: string; enabled?: boolean;
+}
+
 export interface TenantLoginInput {
   /** Opcional — a empresa é encontrada pelo e-mail; só é preciso para
    *  desempatar quando o mesmo e-mail existe em várias empresas. */

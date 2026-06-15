@@ -55,6 +55,7 @@ import { PlansAdmin } from './sections/PlansAdmin';
 import { SubsAdmin } from './sections/SubsAdmin';
 import { PlatformDashboard } from './sections/PlatformDashboard';
 import { Integrations } from './sections/Integrations';
+import { MailSettings } from './sections/MailSettings';
 
 const PLATFORM_NAV: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: IconChart },
@@ -67,6 +68,7 @@ const PLATFORM_NAV: NavItem[] = [
   { key: 'fiscal', label: 'Fiscal (AGT)', icon: IconReceipt },
   { key: 'gateways', label: 'Gateways de Pagamento', icon: IconCard },
   { key: 'integrations', label: 'Integrações', icon: IconCpu },
+  { key: 'mail', label: 'E-mail (SMTP)', icon: IconReceipt },
 ];
 
 // min: nível mínimo de papel (0=mais poder). 1=COMPANY_ADMIN, 2=REGIONAL_MANAGER,
@@ -171,6 +173,7 @@ function PlatformPanel() {
       {section === 'fiscal' ? <Fiscal /> : null}
       {section === 'gateways' ? <Gateways /> : null}
       {section === 'integrations' ? <Integrations /> : null}
+      {section === 'mail' ? <MailSettings /> : null}
     </Shell>
   );
 }

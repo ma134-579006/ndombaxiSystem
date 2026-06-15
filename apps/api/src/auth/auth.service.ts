@@ -193,8 +193,9 @@ export class AuthService {
    */
   async requestPasswordReset(email: string, kind: 'PASSWORD' | 'PIN', companyCode?: string): Promise<{ ok: true; emailConfigured: boolean }> {
     const e = email.trim().toLowerCase();
-    if (!/^\S+@\S+\.\S+$/.test(e) || !this.mail.enabled) {
-      return { ok: true, emailConfigured: this.mail.enabled };
+    const emailConfigured = await this.mail.isEnabled();
+    if (!/^\S+@\S+\.\S+$/.test(e) || !emailConfigured) {
+      return { ok: true, emailConfigured };
     }
     try {
       // Super Admin (plataforma) — apenas senha
