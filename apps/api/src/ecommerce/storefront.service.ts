@@ -23,6 +23,7 @@ interface CatalogRow {
   stock_qty: string;
   image_url: string | null;
   gallery: unknown;
+  category?: string | null;
 }
 
 export interface CatalogProduct {
@@ -36,6 +37,7 @@ export interface CatalogProduct {
   stockQty: number;
   imageUrl: string | null;
   gallery: string[];
+  category: string | null;
 }
 
 @Injectable()
@@ -46,11 +48,12 @@ export class StorefrontService {
   async catalog(schema: string): Promise<CatalogProduct[]> {
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<CatalogRow[]>(
-        Prisma.sql`SELECT id, code, name, description, iva_code, unit_price, stock_qty,
-                          image_url, gallery
-                   FROM products
-                   WHERE is_active = TRUE AND show_online = TRUE
-                   ORDER BY name`,
+        Prisma.sql`SELECT p.id, p.code, p.name, p.description, p.iva_code, p.unit_price, p.stock_qty,
+                          p.image_url, p.gallery, pc.name AS category
+                   FROM products p
+                   LEFT JOIN product_categories pc ON pc.id = p.category_id
+                   WHERE p.is_active = TRUE AND p.show_online = TRUE
+                   ORDER BY p.name`,
       ),
     );
     return rows.map((r) => {
@@ -67,6 +70,7 @@ export class StorefrontService {
         stockQty: Math.max(0, Math.floor(Number(r.stock_qty))),
         imageUrl: r.image_url,
         gallery: Array.isArray(r.gallery) ? (r.gallery as string[]) : [],
+        category: r.category ?? null,
       };
     });
   }

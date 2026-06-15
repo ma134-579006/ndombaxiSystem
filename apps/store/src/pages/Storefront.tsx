@@ -32,6 +32,7 @@ export function Storefront() {
   const [modal, setModal] = useState<CatalogProduct | null>(null);
   const [modalQty, setModalQty] = useState(1);
   const [search, setSearch] = useState('');
+  const [cat, setCat] = useState('');
   const [checkout, setCheckout] = useState<{ result: CheckoutResult; method: PaymentMethod | null } | null>(null);
   const [trackId, setTrackId] = useState<string | null>(null);
   const [savedOrder, setSavedOrder] = useState<{ id: string; orderNumber: string } | null>(null);
@@ -72,15 +73,21 @@ export function Storefront() {
   }, [code, view]);
 
   const products = data?.products ?? [];
+  // Categorias presentes no catálogo (tira de filtros estilo AliExpress).
+  const categories = useMemo(
+    () => [...new Set(products.map((p) => p.category).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b)),
+    [products],
+  );
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) => p.name.toLowerCase().includes(q)
+    return products.filter((p) => {
+      if (cat && p.category !== cat) return false;
+      if (!q) return true;
+      return p.name.toLowerCase().includes(q)
         || (p.description ?? '').toLowerCase().includes(q)
-        || p.code.toLowerCase().includes(q),
-    );
-  }, [products, search]);
+        || p.code.toLowerCase().includes(q);
+    });
+  }, [products, search, cat]);
 
   // Câmara: ao reconhecer um código de barras associado a um produto da loja,
   // adiciona ao carrinho (se houver stock); devolve true para a câmara fechar.
@@ -260,6 +267,15 @@ export function Storefront() {
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar por nome ou código de barras…" />
             <BarcodeScanner onDetected={(code) => scanResolve(code)} />
           </div>
+
+          {categories.length > 0 ? (
+            <div className="cats">
+              <button className={`chip${cat === '' ? ' active' : ''}`} onClick={() => setCat('')}>Todos</button>
+              {categories.map((c) => (
+                <button key={c} className={`chip${cat === c ? ' active' : ''}`} onClick={() => setCat(c)}>{c}</button>
+              ))}
+            </div>
+          ) : null}
         </section>
 
         {filtered.length === 0 ? (

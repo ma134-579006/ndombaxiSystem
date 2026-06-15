@@ -42,6 +42,7 @@ export interface CatalogProduct {
   stockQty?: number;
   imageUrl: string | null;
   gallery: string[];
+  category?: string | null;
 }
 
 export interface CatalogResponse {

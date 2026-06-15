@@ -58,6 +58,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .btn.soft { background: color-mix(in srgb, var(--accent) 12%, white); color: var(--accent); }
 .btn.success { background: var(--success); }
 
+/* Tira de categorias (filtros) estilo AliExpress — rola na horizontal. */
+.cats { display: flex; gap: 8px; margin: 12px 0 2px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.cats::-webkit-scrollbar { display: none; }
+.cats .chip { flex: 0 0 auto; }
 .chip {
   padding: 8px 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border);
   font-size: 14px; font-weight: 600; color: var(--muted);
