@@ -237,6 +237,12 @@ export const api = {
   /** Login do gestor com Google (ID token); a empresa vem do e-mail Google. */
   loginGoogle: (idToken: string, companyCode?: string) =>
     request<TenantTokenPair>('POST', '/auth/login/google', { companyCode, idToken }, { auth: false }),
+  /** Esqueci a senha — envia link de recuperação por e-mail. */
+  forgotPassword: (email: string, companyCode?: string) =>
+    request<{ ok: boolean; emailConfigured: boolean }>('POST', '/auth/forgot-password', { email, kind: 'PASSWORD', companyCode }, { auth: false }),
+  /** Define a nova senha a partir do token recebido por e-mail. */
+  resetPassword: (token: string, secret: string) =>
+    request<{ ok: boolean; kind: string }>('POST', '/auth/reset-password', { token, secret }, { auth: false }),
 
   // ── SAF-T (AGT): exporta o XML fiscal mensal ───────────────
   saft: {

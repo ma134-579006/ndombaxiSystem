@@ -188,6 +188,25 @@ export class TenantUserRepository {
     });
   }
 
+  /** Define a senha (recuperação por e-mail). Desbloqueia o utilizador. */
+  async setPasswordHash(schema: string, id: string, passwordHash: string): Promise<void> {
+    await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE users SET password_hash = ${passwordHash}, must_reset_pw = FALSE,
+                   failed_logins = 0, locked_until = NULL, updated_at = now() WHERE id = ${id}::uuid`,
+      );
+    });
+  }
+
+  /** Define o PIN da caixa (recuperação por e-mail). */
+  async setPinHash(schema: string, id: string, pinHash: string): Promise<void> {
+    await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE users SET pin_hash = ${pinHash}, updated_at = now() WHERE id = ${id}::uuid`,
+      );
+    });
+  }
+
   async setTwoFaSecret(
     schema: string,
     id: string,

@@ -16,10 +16,12 @@ import type { JwtPayload } from '@nexus/types';
 import { AuthService } from './auth.service';
 import {
   EnableTwoFaDto,
+  ForgotPasswordDto,
   GoogleLoginDto,
   PinLoginDto,
   PlatformLoginDto,
   RefreshDto,
+  ResetPasswordDto,
   TenantLoginDto,
   UpdateThemeDto,
 } from './dto/auth.dto';
@@ -42,6 +44,22 @@ export class AuthController {
     @Headers('user-agent') ua?: string,
   ) {
     return this.auth.platformLogin(dto, { ip, userAgent: ua });
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Esqueci a senha/PIN — envia link de recuperação por e-mail' })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.requestPasswordReset(dto.email, dto.kind === 'PIN' ? 'PIN' : 'PASSWORD', dto.companyCode);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Define a nova senha/PIN a partir do token do e-mail' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.performPasswordReset(dto.token, dto.secret);
   }
 
   @Public()

@@ -14,7 +14,9 @@ import { PasswordService } from './password.service';
 import { TwoFaService } from './twofa.service';
 import { TokenService, TokenPair } from './token.service';
 import { GoogleAuthService } from './google-auth.service';
+import { MailService } from '../common/mail/mail.service';
 import { PlatformLoginDto, TenantLoginDto } from './dto/auth.dto';
+import { createHash, randomBytes } from 'crypto';
 
 interface RequestCtx {
   ip?: string | null;
@@ -31,6 +33,7 @@ export class AuthService {
     private readonly tokens: TokenService,
     private readonly audit: AuditService,
     private readonly google: GoogleAuthService,
+    private readonly mail: MailService,
   ) {}
 
   // ─── Preferências do utilizador (tema por perfil) ───────────
@@ -178,6 +181,99 @@ export class AuthService {
       });
     }
     return candidates[0];
+  }
+
+  // ─── Recuperação de senha/PIN ("esqueci-me") ────────────────
+  private get frontendWeb(): string { return process.env.PUBLIC_WEB_URL || 'https://ndombaxisystem.com'; }
+  private get frontendCaixa(): string { return process.env.PUBLIC_CAIXA_URL || 'https://caixa.ndombaxisystem.com'; }
+
+  /**
+   * Pede a recuperação de senha (painel) ou PIN (caixa). Por segurança responde
+   * SEMPRE ok (não revela se o e-mail existe). Envia um link com token (1h).
+   */
+  async requestPasswordReset(email: string, kind: 'PASSWORD' | 'PIN', companyCode?: string): Promise<{ ok: true; emailConfigured: boolean }> {
+    const e = email.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(e) || !this.mail.enabled) {
+      return { ok: true, emailConfigured: this.mail.enabled };
+    }
+    try {
+      // Super Admin (plataforma) — apenas senha
+      if (kind === 'PASSWORD') {
+        const pu = await this.prisma.platformUser.findUnique({ where: { email: e } });
+        if (pu) {
+          await this.createAndSendReset({ email: e, scope: 'PLATFORM', userId: pu.id, kind });
+          return { ok: true, emailConfigured: true };
+        }
+      }
+      // Utilizador de empresa (tenant)
+      const companies = companyCode
+        ? [await this.prisma.company.findUnique({ where: { code: companyCode.toLowerCase() } })]
+        : await this.companiesForEmail(e);
+      for (const c of companies) {
+        if (!c) continue;
+        const u = await this.tenantUsers.findByEmail(c.schemaName, e).catch(() => null);
+        if (u) {
+          await this.createAndSendReset({ email: e, scope: 'TENANT', companyCode: c.code, tenantSchema: c.schemaName, userId: u.id, kind });
+          break;
+        }
+      }
+    } catch { /* nunca revela o motivo */ }
+    return { ok: true, emailConfigured: true };
+  }
+
+  private async createAndSendReset(p: {
+    email: string; scope: 'PLATFORM' | 'TENANT'; companyCode?: string; tenantSchema?: string; userId: string; kind: 'PASSWORD' | 'PIN';
+  }): Promise<void> {
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    await this.prisma.passwordReset.create({
+      data: {
+        email: p.email, scope: p.scope, companyCode: p.companyCode ?? null, tenantSchema: p.tenantSchema ?? null,
+        userId: p.userId, kind: p.kind, tokenHash, expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+    const base = p.kind === 'PIN' ? this.frontendCaixa : this.frontendWeb;
+    const what = p.kind === 'PIN' ? 'PIN da caixa' : 'senha';
+    const url = `${base.replace(/\/+$/, '')}/?reset=${token}&k=${p.kind === 'PIN' ? 'pin' : 'pw'}`;
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#16202c">
+        <h2 style="color:#0f62fe">Ndombaxi System</h2>
+        <p>Recebemos um pedido para recuperar a tua <strong>${what}</strong>.</p>
+        <p>Clica no botão abaixo (válido por <strong>1 hora</strong>):</p>
+        <p style="text-align:center;margin:24px 0">
+          <a href="${url}" style="background:#0f62fe;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700">Definir nova ${what}</a>
+        </p>
+        <p style="font-size:13px;color:#6b7686">Se não foste tu, ignora este e-mail — nada muda. Link: ${url}</p>
+      </div>`;
+    await this.mail.sendHtml(p.email, `Recuperar ${what} — Ndombaxi System`, html);
+  }
+
+  /** Aplica a nova senha/PIN a partir do token recebido por e-mail. */
+  async performPasswordReset(token: string, secret: string): Promise<{ ok: true; kind: 'PASSWORD' | 'PIN' }> {
+    if (!token || !secret) throw new BadRequestException('Dados incompletos.');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const pr = await this.prisma.passwordReset.findFirst({
+      where: { tokenHash, usedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!pr) throw new BadRequestException('Link inválido ou expirado. Pede um novo.');
+    const kind = pr.kind as 'PASSWORD' | 'PIN';
+    if (kind === 'PIN') {
+      if (!/^\d{6}$/.test(secret)) throw new BadRequestException('O PIN tem de ter 6 dígitos.');
+    } else if (secret.length < 6) {
+      throw new BadRequestException('A senha tem de ter pelo menos 6 caracteres.');
+    }
+    const hash = await this.passwords.hash(secret);
+    if (pr.scope === 'PLATFORM' && pr.userId) {
+      await this.prisma.platformUser.update({ where: { id: pr.userId }, data: { passwordHash: hash } });
+    } else if (pr.scope === 'TENANT' && pr.tenantSchema && pr.userId) {
+      if (kind === 'PIN') await this.tenantUsers.setPinHash(pr.tenantSchema, pr.userId, hash);
+      else await this.tenantUsers.setPasswordHash(pr.tenantSchema, pr.userId, hash);
+    } else {
+      throw new BadRequestException('Pedido inválido.');
+    }
+    await this.prisma.passwordReset.update({ where: { id: pr.id }, data: { usedAt: new Date() } });
+    return { ok: true, kind };
   }
 
   // ─── Login de utilizador de empresa (tenant) ────────────────

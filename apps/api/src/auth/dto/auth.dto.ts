@@ -1,11 +1,33 @@
 import {
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   Length,
   Matches,
 } from 'class-validator';
+
+export class ForgotPasswordDto {
+  @IsEmail()
+  email!: string;
+
+  /** PASSWORD (painel) ou PIN (caixa). */
+  @IsOptional() @IsIn(['PASSWORD', 'PIN'])
+  kind?: string;
+
+  @IsOptional() @IsString()
+  companyCode?: string;
+}
+
+export class ResetPasswordDto {
+  @IsString() @IsNotEmpty()
+  token!: string;
+
+  /** Nova senha (>=6) ou PIN (6 dígitos), conforme o tipo do token. */
+  @IsString() @Length(4, 100)
+  secret!: string;
+}
 
 export class PlatformLoginDto {
   @IsEmail()

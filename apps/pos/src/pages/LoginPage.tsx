@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Operator } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
@@ -31,6 +31,12 @@ export function LoginPage() {
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forgot, setForgot] = useState(false);
+  // Link de recuperação do PIN: ?reset=<token>&k=pin
+  const resetToken = useMemo(() => {
+    try { const p = new URLSearchParams(window.location.search); return p.get('k') === 'pin' ? p.get('reset') : null; }
+    catch { return null; }
+  }, []);
 
   const loadOperators = async (identifier?: string) => {
     setError(null);
@@ -104,7 +110,9 @@ export function LoginPage() {
 
           {error ? <div className="banner danger" style={{ marginBottom: 14 }}>{error}</div> : null}
 
-          {step === 'company' ? (
+          {resetToken ? (
+            <PinResetView token={resetToken} />
+          ) : step === 'company' ? (
             <div className="login-fields">
               {choices ? (
                 <>
@@ -172,6 +180,7 @@ export function LoginPage() {
               <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => { setSelected(null); setPin(''); setError(null); }}>
                 ← Trocar operador
               </button>
+              <button type="button" className="link-2fa" style={{ marginTop: 10 }} onClick={() => setForgot(true)}>Esqueci o PIN</button>
             </div>
           )}
 
@@ -193,6 +202,79 @@ export function LoginPage() {
           <FooterCredit />
         </div>
       </div>
+      {forgot ? <ForgotPinModal defaultEmail={company} onClose={() => setForgot(false)} /> : null}
+    </div>
+  );
+}
+
+/** Pede o e-mail e envia o link de recuperação do PIN. */
+function ForgotPinModal({ defaultEmail, onClose }: { defaultEmail?: string; onClose(): void }) {
+  const [email, setEmail] = useState(defaultEmail && /@/.test(defaultEmail) ? defaultEmail : '');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [warn, setWarn] = useState<string | null>(null);
+  const submit = async () => {
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setWarn('Indica o teu e-mail.'); return; }
+    setBusy(true); setWarn(null);
+    try {
+      const r = await api.forgotPin(email.trim().toLowerCase());
+      if (!r.emailConfigured) setWarn('O envio de e-mail ainda não está configurado. Pede ao gestor para repor o teu PIN (Funcionários → Gerir acesso).');
+      else setDone(true);
+    } catch { setDone(true); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+        <div className="mh"><h3>Recuperar PIN</h3><span className="spacer" /><button className="btn sm ghost" onClick={onClose}>Fechar</button></div>
+        <div className="mb">
+          {done ? (
+            <div className="banner success"><div>Se existir uma conta com esse e-mail, enviámos um link para definires um novo PIN. Vê a tua caixa de entrada.</div></div>
+          ) : (
+            <>
+              {warn ? <div className="banner danger" style={{ marginBottom: 12 }}>{warn}</div> : null}
+              <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Escreve o teu e-mail. Enviamos um link (1 hora) para definires um novo PIN.</p>
+              <div className="field"><label>E-mail</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.ao" inputMode="email" /></div>
+              <button className="btn lg block" onClick={() => void submit()} disabled={busy}>{busy ? 'A enviar…' : 'Enviar link'}</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Define o novo PIN (6 dígitos) a partir do token do e-mail. */
+function PinResetView({ token }: { token: string }) {
+  const [pin, setPin] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+  const submit = async () => {
+    setErr(null);
+    if (!/^\d{6}$/.test(pin)) { setErr('O PIN tem de ter 6 dígitos.'); return; }
+    if (pin !== confirm) { setErr('Os PIN não coincidem.'); return; }
+    setBusy(true);
+    try { await api.resetPin(token, pin); setOk(true); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível. Pede um novo link.'); }
+    finally { setBusy(false); }
+  };
+  if (ok) {
+    return (
+      <div className="banner success">
+        <div>✅ PIN definido. Já podes <a style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 700 }} onClick={() => location.assign(location.pathname)}>entrar na caixa</a>.</div>
+      </div>
+    );
+  }
+  return (
+    <div className="login-fields">
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>Define o teu novo PIN da caixa (6 dígitos).</p>
+      <KeyboardInput label="Novo PIN" type="password" value={pin} onChange={(v) => setPin(v.replace(/\D/g, '').slice(0, 6))} numeric maxLength={6} placeholder="••••••" onSubmit={() => void submit()} />
+      <KeyboardInput label="Confirmar PIN" type="password" value={confirm} onChange={(v) => setConfirm(v.replace(/\D/g, '').slice(0, 6))} numeric maxLength={6} placeholder="••••••" onSubmit={() => void submit()} />
+      <button className="btn lg block" onClick={() => void submit()} disabled={busy}>{busy ? 'A guardar…' : 'Definir PIN'}</button>
     </div>
   );
 }

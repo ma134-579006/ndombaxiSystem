@@ -110,6 +110,12 @@ export const api = {
   /** Login do operador por nome (id) + PIN. */
   loginPin: (input: { companyCode: string; userId: string; pin: string }) =>
     request<TokenPair>('POST', '/auth/login/pin', input, { auth: false }),
+  /** Esqueci o PIN — envia link de recuperação por e-mail. */
+  forgotPin: (email: string, companyCode?: string) =>
+    request<{ ok: boolean; emailConfigured: boolean }>('POST', '/auth/forgot-password', { email, kind: 'PIN', companyCode }, { auth: false }),
+  /** Define o novo PIN a partir do token recebido por e-mail. */
+  resetPin: (token: string, secret: string) =>
+    request<{ ok: boolean; kind: string }>('POST', '/auth/reset-password', { token, secret }, { auth: false }),
   refresh: (refreshToken: string) =>
     request<TokenPair>('POST', '/auth/refresh', { refreshToken }, { auth: false }),
   logout: (refreshToken: string) =>

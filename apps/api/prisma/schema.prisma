@@ -449,3 +449,23 @@ model AuditLog {
   @@map("audit_logs")
   @@schema("nexus_public")
 }
+
+/// Tokens de recuperação de senha/PIN (esqueci-me) — válidos por 1h, uso único.
+model PasswordReset {
+  id           String    @id @default(uuid())
+  email        String
+  scope        String // PLATFORM | TENANT
+  companyCode  String?
+  tenantSchema String?
+  userId       String?
+  kind         String // PASSWORD | PIN
+  tokenHash    String // SHA-256 do token (o token em claro só vai no email)
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([email])
+  @@index([tokenHash])
+  @@map("password_resets")
+  @@schema("nexus_public")
+}

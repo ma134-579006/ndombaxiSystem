@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ApiError } from '../api/client';
+import React, { useMemo, useState } from 'react';
+import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
@@ -28,6 +28,12 @@ function choicesFrom(e: unknown): CompanyChoice[] | null {
  */
 export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?: () => void }) {
   const { loginTenant, loginPlatform, loginGoogle } = useAuth();
+  // Recuperação por e-mail: link no e-mail traz ?reset=<token>&k=pw
+  const resetToken = useMemo(() => {
+    const p = new URLSearchParams(location.search);
+    return p.get('k') !== 'pin' ? p.get('reset') : null;
+  }, []);
+  const [forgot, setForgot] = useState(false);
   const [profile, setProfile] = useState<Profile>('tenant');
   const [caixaId, setCaixaId] = useState('');
   const [email, setEmail] = useState('');
@@ -101,6 +107,22 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
     setPending(null);
   };
 
+  if (resetToken) {
+    return (
+      <div className="login">
+        <LoginShowcase />
+        <div className="box">
+          <div className="brand">
+            <img src={LOGO_SRC} alt={SYSTEM_NAME} />
+            <h1>{SYSTEM_NAME}</h1>
+            <div className="tg">Nova palavra-passe</div>
+          </div>
+          <div className="card"><ResetView token={resetToken} kind="pw" /></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="login">
       <LoginShowcase />
@@ -156,6 +178,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
               ) : (
                 <button type="button" className="link-2fa" onClick={() => setShow2fa(true)}>Tenho código 2FA</button>
               )}
+              <button type="button" className="link-2fa" style={{ marginLeft: 12 }} onClick={() => setForgot(true)}>Esqueci a senha</button>
             </>
           ) : null}
 
@@ -189,6 +212,84 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
         ) : null}
         <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12 }}>{copyrightLine()}</p>
       </div>
+      {forgot ? <ForgotModal onClose={() => setForgot(false)} /> : null}
     </div>
+  );
+}
+
+/** Pede o e-mail e envia o link de recuperação da senha. */
+function ForgotModal({ onClose }: { onClose(): void }) {
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [warn, setWarn] = useState<string | null>(null);
+  const submit = async () => {
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setWarn('Indica um e-mail válido.'); return; }
+    setBusy(true); setWarn(null);
+    try {
+      const r = await api.forgotPassword(email.trim().toLowerCase());
+      if (!r.emailConfigured) setWarn('O envio de e-mail ainda não está configurado nesta plataforma. Pede ao administrador para repor a tua senha.');
+      else setDone(true);
+    } catch { setDone(true); /* não revela */ }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+        <div className="mh"><h3>Recuperar senha</h3><span className="spacer" /><button className="btn sm ghost" onClick={onClose}>Fechar</button></div>
+        <div className="mb">
+          {done ? (
+            <div className="banner success"><div>Se existir uma conta com esse e-mail, enviámos um link para repor a senha. Verifica a tua caixa de entrada (e o spam).</div></div>
+          ) : (
+            <>
+              {warn ? <div className="banner danger" style={{ marginBottom: 12 }}>{warn}</div> : null}
+              <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Escreve o teu e-mail. Enviamos um link (válido 1 hora) para definires uma nova senha.</p>
+              <div className="field"><label>E-mail</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="gestor@empresa.ao" inputMode="email" /></div>
+              <button className="btn lg block" onClick={() => void submit()} disabled={busy}>{busy ? 'A enviar…' : 'Enviar link de recuperação'}</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Define a nova senha (ou PIN) a partir do token do e-mail. */
+export function ResetView({ token, kind }: { token: string; kind: 'pw' | 'pin' }) {
+  const [secret, setSecret] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+  const isPin = kind === 'pin';
+  const submit = async () => {
+    setErr(null);
+    if (isPin ? !/^\d{6}$/.test(secret) : secret.length < 6) { setErr(isPin ? 'O PIN tem de ter 6 dígitos.' : 'A senha tem de ter pelo menos 6 caracteres.'); return; }
+    if (secret !== confirm) { setErr('Os campos não coincidem.'); return; }
+    setBusy(true);
+    try { await api.resetPassword(token, secret); setOk(true); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível repor. Pede um novo link.'); }
+    finally { setBusy(false); }
+  };
+  if (ok) {
+    return (
+      <div className="banner success">
+        <div>✅ {isPin ? 'PIN' : 'Senha'} definido(a). Já podes <a style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 700 }} onClick={() => location.assign(location.pathname)}>entrar</a>.</div>
+      </div>
+    );
+  }
+  return (
+    <>
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Define a tua nova {isPin ? 'PIN da caixa (6 dígitos)' : 'palavra-passe'}.</p>
+      <div className="field"><label>{isPin ? 'Novo PIN' : 'Nova senha'}</label>
+        <input type={isPin ? 'text' : 'password'} inputMode={isPin ? 'numeric' : undefined} maxLength={isPin ? 6 : undefined}
+          value={secret} onChange={(e) => setSecret(isPin ? e.target.value.replace(/\D/g, '').slice(0, 6) : e.target.value)} placeholder={isPin ? '000000' : '••••••••'} /></div>
+      <div className="field"><label>Confirmar</label>
+        <input type={isPin ? 'text' : 'password'} inputMode={isPin ? 'numeric' : undefined} maxLength={isPin ? 6 : undefined}
+          value={confirm} onChange={(e) => setConfirm(isPin ? e.target.value.replace(/\D/g, '').slice(0, 6) : e.target.value)} placeholder={isPin ? '000000' : '••••••••'} /></div>
+      <button className="btn lg block" onClick={() => void submit()} disabled={busy}>{busy ? 'A guardar…' : `Definir ${isPin ? 'PIN' : 'senha'}`}</button>
+    </>
   );
 }
