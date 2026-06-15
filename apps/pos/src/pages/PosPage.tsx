@@ -131,8 +131,14 @@ export function PosPage() {
   const [emitting, setEmitting] = useState(false);
   const [emitError, setEmitError] = useState<string | null>(null);
   const [emitted, setEmitted] = useState<
-    { invoice: EmittedInvoice; customerName: string | null; provisional?: boolean } | null
+    { invoice: EmittedInvoice; customerName: string | null; items?: { description: string; quantity: number; unitPrice: number; total: number }[]; provisional?: boolean } | null
   >(null);
+
+  // Constrói as linhas de artigos (descrição, qt, preço unit. c/IVA, total) para a fatura.
+  const buildItems = (lines: CartLine[]) => lines.map((l) => {
+    const total = lineGross(l);
+    return { description: l.product.name, quantity: l.quantity, unitPrice: l.quantity ? Math.round((total / l.quantity) * 100) / 100 : total, total };
+  });
 
   useEffect(() => {
     (async () => {
@@ -324,7 +330,7 @@ export function PosPage() {
       ivaTotal: totals.iva,
       grossTotal: totals.gross,
     };
-    setEmitted({ invoice: provisionalInvoice, customerName: customer?.name ?? null, provisional: true });
+    setEmitted({ invoice: provisionalInvoice, customerName: customer?.name ?? null, items: buildItems(cart), provisional: true });
   };
 
   // "Finalizar venda": offline → fila directa; online → abre o ecrã de pagamento.
@@ -356,7 +362,7 @@ export function PosPage() {
         }),
       });
       setShowPayment(false);
-      setEmitted({ invoice, customerName: customer?.name ?? null });
+      setEmitted({ invoice, customerName: customer?.name ?? null, items: buildItems(cart) });
       void refreshProducts(); // stock atualiza em tempo real após a venda
     } catch (e) {
       if (e instanceof ApiError && e.status === 0) {
@@ -626,6 +632,7 @@ export function PosPage() {
           identity={identity}
           customerName={emitted.customerName}
           operatorName={user?.name || user?.email}
+          items={emitted.items}
           provisional={emitted.provisional}
           onClose={closeReceipt}
         />

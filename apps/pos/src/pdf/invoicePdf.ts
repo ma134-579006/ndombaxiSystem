@@ -9,12 +9,13 @@ export interface InvoicePdfArgs {
   info?: ReceiptFiscalInfo | null;
   customerName?: string | null;
   operatorName?: string | null;
+  items?: { description: string; quantity: number; unitPrice: number; total: number }[];
   provisional?: boolean;
 }
 
 /** Gera uma FATURA A4 profissional (logo, NIF, totais, QR) em PDF. */
 export async function buildInvoicePdf(a: InvoicePdfArgs): Promise<jsPDF> {
-  const { invoice, identity, info, customerName, operatorName, provisional } = a;
+  const { invoice, identity, info, customerName, operatorName, items, provisional } = a;
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const M = 48; // margem
@@ -61,6 +62,33 @@ export async function buildInvoicePdf(a: InvoicePdfArgs): Promise<jsPDF> {
     doc.text(operatorName, W / 2, y + 15);
   }
   y += 44;
+
+  // ── Tabela de ARTIGOS ──
+  if (items && items.length) {
+    const cQt = W - M - 230, cPr = W - M - 130, cTot = W - M; // colunas (direita)
+    doc.setFillColor(20, 24, 32); doc.rect(M, y - 14, W - 2 * M, 24, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+    doc.text('Artigo', M + 10, y + 2);
+    doc.text('Qt', cQt, y + 2, { align: 'right' });
+    doc.text('Preço', cPr, y + 2, { align: 'right' });
+    doc.text('Total', cTot - 10, y + 2, { align: 'right' });
+    y += 24;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    let alt = false;
+    for (const it of items) {
+      if (y > doc.internal.pageSize.getHeight() - 150) { doc.addPage(); y = 54; }
+      if (alt) { doc.setFillColor(247, 249, 252); doc.rect(M, y - 13, W - 2 * M, 22, 'F'); }
+      alt = !alt;
+      doc.setTextColor(30, 36, 46);
+      const name = doc.splitTextToSize(it.description, cQt - M - 24)[0] ?? it.description;
+      doc.text(String(name), M + 10, y + 2);
+      doc.text(String(it.quantity), cQt, y + 2, { align: 'right' });
+      doc.text(formatKz(it.unitPrice), cPr, y + 2, { align: 'right' });
+      doc.text(formatKz(it.total), cTot - 10, y + 2, { align: 'right' });
+      y += 22;
+    }
+    y += 16;
+  }
 
   // ── Tabela de totais ──
   const rows: [string, string][] = [

@@ -6,6 +6,9 @@ import { IconCheck } from './Icons';
 import { PaperSizeToggle } from './PaperSizeToggle';
 import { buildInvoicePdf, invoiceFileName } from '../pdf/invoicePdf';
 
+/** Linha de artigo da fatura (para a tabela no recibo/PDF). */
+export interface ReceiptItem { description: string; quantity: number; unitPrice: number; total: number }
+
 interface Props {
   invoice: EmittedInvoice;
   info: ReceiptFiscalInfo | null;
@@ -13,13 +16,15 @@ interface Props {
   customerName?: string | null;
   /** Nome do operador (funcionário) que emitiu — impresso no recibo. */
   operatorName?: string | null;
+  /** Artigos vendidos (descrição, quantidade, preço, total) — listados na fatura. */
+  items?: ReceiptItem[];
   /** Venda guardada offline: comprovativo PROVISÓRIO (sem nº fiscal ainda). */
   provisional?: boolean;
   onClose(): void;
 }
 
 /** Recibo/comprovativo da venda emitida — identidade da empresa + dados fiscais AGT (§7). */
-export function ReceiptModal({ invoice, info, identity, customerName, operatorName, provisional, onClose }: Props) {
+export function ReceiptModal({ invoice, info, identity, customerName, operatorName, items, provisional, onClose }: Props) {
   const hashShort = invoice.hash ? invoice.hash.slice(0, 4) : '----';
   // Conteúdo do QR de verificação (campos-chave do documento).
   const qrData = [
@@ -41,6 +46,10 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
     if (identity?.nif) linhas.push(`NIF: ${identity.nif}`);
     linhas.push('', `${provisional ? 'Comprovativo' : 'Fatura'}: ${invoice.number}`, `Data: ${formatDateTime()}`);
     if (customerName) linhas.push(`Cliente: ${customerName}`);
+    if (items && items.length) {
+      linhas.push('', '*Artigos:*');
+      for (const it of items) linhas.push(`• ${it.quantity}× ${it.description} — ${formatKz(it.total)}`);
+    }
     linhas.push(
       '',
       `Base tributável: ${formatKz(invoice.netTotal)}`,
@@ -64,7 +73,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
   };
 
   const [pdfBusy, setPdfBusy] = useState(false);
-  const makePdf = () => buildInvoicePdf({ invoice, identity, info, customerName, operatorName, provisional });
+  const makePdf = () => buildInvoicePdf({ invoice, identity, info, customerName, operatorName, items, provisional });
 
   const downloadPdf = async () => {
     setPdfBusy(true);
@@ -137,6 +146,23 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
               <span className="v">{operatorName}</span>
             </div>
           ) : null}
+
+          {items && items.length ? (
+            <table className="r-items">
+              <thead><tr><th>Artigo</th><th>Qt</th><th>Preço</th><th>Total</th></tr></thead>
+              <tbody>
+                {items.map((it, i) => (
+                  <tr key={i}>
+                    <td>{it.description}</td>
+                    <td style={{ textAlign: 'center' }}>{it.quantity}</td>
+                    <td style={{ textAlign: 'right' }}>{formatKz(it.unitPrice)}</td>
+                    <td style={{ textAlign: 'right' }}>{formatKz(it.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+
           <div className="kv">
             <span className="k">Base tributável</span>
             <span className="v">{formatKz(invoice.netTotal)}</span>
