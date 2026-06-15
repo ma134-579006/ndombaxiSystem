@@ -3,6 +3,7 @@ import type {
   CatalogResponse,
   CheckoutInput,
   CheckoutResult,
+  CustomerProfile,
   CustomerSession,
   ExpressPayInput,
   MyOrderRow,
@@ -90,4 +91,8 @@ export const api = {
     request<CustomerSession>('POST', `/store/${enc(code)}/auth/google`, { idToken }),
   myOrders: (code: string, token: string) =>
     request<MyOrderRow[]>('GET', `/store/${enc(code)}/my/orders`, undefined, token),
+  myProfile: (code: string, token: string) =>
+    request<CustomerProfile>('GET', `/store/${enc(code)}/my/profile`, undefined, token),
+  updateProfile: (code: string, token: string, profile: Partial<CustomerProfile>) =>
+    request<CustomerProfile>('PUT', `/store/${enc(code)}/my/profile`, profile, token),
 };

@@ -6,6 +6,11 @@
 -- a tabelas que já existiam. Tudo IF NOT EXISTS → seguro de repetir.
 -- ════════════════════════════════════════════════════════════
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."products"      ADD COLUMN IF NOT EXISTS cost_price NUMERIC(14,2) NOT NULL DEFAULT 0;
+-- Perfil completo do cliente (loja online) — para não repetir dados no checkout
+-- e sincronizar com o caixa/gestor.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS province     TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS municipality TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS neighborhood TEXT;
 -- Stock por LOJA (elimina armazém): o warehouse_id passa a guardar o id da LOJA.
 -- Remove as FKs antigas que apontavam para warehouses (o repoint dos dados é feito
 -- pelo script de migração; novas linhas usam o id da loja).

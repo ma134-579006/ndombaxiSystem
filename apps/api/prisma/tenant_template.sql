@@ -95,6 +95,9 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."customers" (
   email       TEXT,
   phone       TEXT,
   address     TEXT,
+  province     TEXT,                          -- perfil do cliente da loja online
+  municipality TEXT,
+  neighborhood TEXT,
   is_active   BOOLEAN NOT NULL DEFAULT TRUE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()

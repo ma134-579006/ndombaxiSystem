@@ -141,6 +141,12 @@ export interface ExpressPayInput {
 // ── Conta do cliente (login simples / Google) ───────────────
 export interface CustomerInfo { email: string; name: string }
 export interface CustomerSession { token: string; customer: CustomerInfo }
+export interface CustomerProfile {
+  name: string; email: string;
+  phone: string | null; address: string | null;
+  province: string | null; municipality: string | null; neighborhood: string | null;
+  taxId: string | null;
+}
 export interface MyOrderRow {
   id: string;
   order_number: string;

@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CheckoutResult, PaymentMethod } from '../api/types';
 import { IconChevronLeft } from '../components/Icons';
 import { formatKz } from '../format';
 import { useStore } from '../state/StoreContext';
 import { cartTotal } from '../store/cart';
+import { useCustomer } from '../store/customer';
 
 // As 21 províncias de Angola (reforma da divisão político-administrativa de 2024:
 // Cuando Cubango → Cuando + Cubango; novas Icolo e Bengo e Moxico Leste).
@@ -54,6 +55,32 @@ export function Checkout({
   const [methodId, setMethodId] = useState<string>(() => methods[0]?.id ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(true); // mostra/esconde o formulário de dados
+
+  const session = useCustomer(code);
+
+  // Cliente com sessão: traz o PERFIL guardado no registo e pré-preenche tudo —
+  // assim não precisa de reintroduzir nome, telefone, bairro, etc.
+  useEffect(() => {
+    if (!session?.token) return;
+    setEmail((v) => v || session.customer.email);
+    setName((v) => v || session.customer.name);
+    let alive = true;
+    void api.myProfile(code, session.token).then((p) => {
+      if (!alive || !p) return;
+      if (p.name) setName(p.name);
+      if (p.email) setEmail(p.email);
+      if (p.phone) setPhone(p.phone);
+      if (p.taxId) setNif(p.taxId);
+      if (p.province) setProvince(p.province);
+      if (p.municipality) setMunicipality(p.municipality);
+      if (p.neighborhood) setNeighborhood(p.neighborhood);
+      if (p.address) setAddress(p.address);
+      // perfil completo → colapsa o formulário (só confirmar e pagar)
+      if (p.name && p.province && p.municipality && p.neighborhood) setEditing(false);
+    }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [code, session?.token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const total = useMemo(() => cartTotal(cart), [cart]);
   const selected = methods.find((m) => m.id === methodId) ?? null;
@@ -95,8 +122,29 @@ export function Checkout({
 
       {error ? <div className="banner danger" style={{ marginBottom: 16 }}>{error}</div> : null}
 
+      {!editing ? (
+        <div className="card">
+          <div className="kv" style={{ alignItems: 'flex-start' }}>
+            <div>
+              <h3 style={{ margin: '0 0 6px' }}>Entrega para {name}</h3>
+              <div className="muted" style={{ fontSize: 14, lineHeight: 1.5 }}>
+                {[neighborhood, municipality, province].filter(Boolean).join(', ')}
+                {address ? <><br />{address}</> : null}
+                {phone ? <><br />📞 {phone}</> : null}
+                {email ? <><br />✉️ {email}</> : null}
+              </div>
+            </div>
+            <button className="btn ghost" onClick={() => setEditing(true)}>Editar</button>
+          </div>
+          <div className="banner success" style={{ marginTop: 12, fontSize: 13 }}>
+            <div>✅ Dados do teu registo — não precisas de os reintroduzir. Confirma e paga.</div>
+          </div>
+        </div>
+      ) : (
+      <>
       <div className="card">
         <h3>Os seus dados</h3>
+        {session ? <div className="banner info" style={{ marginBottom: 12, fontSize: 13 }}><div>Os dados ficam guardados na tua conta para as próximas compras.</div></div> : null}
         <div className="field">
           <label>Nome completo *</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="O seu nome" />
@@ -143,6 +191,8 @@ export function Checkout({
           <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, nº, referência" />
         </div>
       </div>
+      </>
+      )}
 
       {methods.length > 0 ? (
         <div className="card">

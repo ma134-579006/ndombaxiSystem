@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Put } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
+import { CustomerProfileDto } from './dto/customer-profile.dto';
 import { UploadProofDto } from '../payments/dto/payment.dto';
 import { PaymentsService } from '../payments/payments.service';
 import { SiteService } from '../site/site.service';
@@ -50,6 +51,22 @@ export class StorefrontController {
     const tenant = await this.resolver.resolveByCode(code);
     const claims = await this.customers.verify(tenant.schema, auth);
     return this.customers.listOrders(tenant.schema, claims.email);
+  }
+
+  @Get('my/profile')
+  @ApiOperation({ summary: 'Perfil guardado do cliente (pré-preenche o checkout)' })
+  async myProfile(@Param('code') code: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.customers.getProfile(tenant.schema, claims.email);
+  }
+
+  @Put('my/profile')
+  @ApiOperation({ summary: 'Atualiza o perfil do cliente (nome, telefone, morada, localização)' })
+  async updateMyProfile(@Param('code') code: string, @Body() dto: CustomerProfileDto, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.customers.updateProfile(tenant.schema, claims.email, claims.name, dto);
   }
 
   // ── White-label / páginas públicas ─────────────────────────
@@ -145,7 +162,16 @@ export class StorefrontController {
   @ApiOperation({ summary: 'Cria uma encomenda online (PENDING)' })
   async checkout(@Param('code') code: string, @Body() dto: CheckoutDto) {
     const tenant = await this.resolver.resolveByCode(code);
-    return this.storefront.checkout(tenant.schema, dto);
+    const result = await this.storefront.checkout(tenant.schema, dto);
+    // Lembra/atualiza o perfil do cliente (e sincroniza com o caixa/gestor):
+    // assim, na próxima compra os dados já vêm preenchidos.
+    if (dto.customerEmail) {
+      await this.customers.upsertCustomer(tenant.schema, dto.customerEmail.trim().toLowerCase(), dto.customerName, {
+        phone: dto.customerPhone, address: dto.shippingAddress, province: dto.province,
+        municipality: dto.municipality, neighborhood: dto.neighborhood, taxId: dto.customerTaxId,
+      }).catch(() => undefined);
+    }
+    return result;
   }
 
   @Get('orders/:orderId')

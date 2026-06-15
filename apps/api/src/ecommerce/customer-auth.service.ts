@@ -15,6 +15,27 @@ export interface CustomerSession {
   customer: { email: string; name: string };
 }
 
+export interface CustomerProfile {
+  name: string;
+  email: string;
+  phone: string | null;
+  address: string | null;
+  province: string | null;
+  municipality: string | null;
+  neighborhood: string | null;
+  taxId: string | null;
+}
+
+export interface CustomerProfileInput {
+  name?: string;
+  phone?: string | null;
+  address?: string | null;
+  province?: string | null;
+  municipality?: string | null;
+  neighborhood?: string | null;
+  taxId?: string | null;
+}
+
 interface CustomerClaims {
   sub: string;
   email: string;
@@ -51,22 +72,50 @@ export class CustomerAuthService {
     );
   }
 
-  /** Cria/atualiza o registo do cliente (por email) — para histórico/CRM. */
-  private async upsertCustomer(schema: string, email: string, name: string): Promise<void> {
+  /** Cria/atualiza o registo do cliente (por email) — para histórico/CRM e
+   *  para sincronizar com o caixa/gestor. Guarda também o PERFIL (telefone,
+   *  morada, província/município/bairro, NIF) quando vier, sem apagar o que já
+   *  existe (COALESCE: só sobrepõe com valor novo não vazio). */
+  async upsertCustomer(schema: string, email: string, name: string, p: CustomerProfileInput = {}): Promise<void> {
+    const v = (s?: string | null) => (s && s.trim() ? s.trim() : null);
     await this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`SELECT id FROM customers WHERE lower(email) = ${email} LIMIT 1`,
       );
       if (rows[0]) {
-        await tx.$executeRaw(
-          Prisma.sql`UPDATE customers SET name = ${name}, updated_at = now() WHERE id = ${rows[0].id}::uuid`,
-        );
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE customers SET
+            name = ${name},
+            phone        = COALESCE(${v(p.phone)}, phone),
+            address      = COALESCE(${v(p.address)}, address),
+            province     = COALESCE(${v(p.province)}, province),
+            municipality = COALESCE(${v(p.municipality)}, municipality),
+            neighborhood = COALESCE(${v(p.neighborhood)}, neighborhood),
+            tax_id       = COALESCE(${v(p.taxId)}, tax_id),
+            updated_at = now()
+          WHERE id = ${rows[0].id}::uuid`);
       } else {
-        await tx.$executeRaw(
-          Prisma.sql`INSERT INTO customers (name, email) VALUES (${name}, ${email})`,
-        );
+        await tx.$executeRaw(Prisma.sql`
+          INSERT INTO customers (name, email, phone, address, province, municipality, neighborhood, tax_id)
+          VALUES (${name}, ${email}, ${v(p.phone)}, ${v(p.address)}, ${v(p.province)}, ${v(p.municipality)}, ${v(p.neighborhood)}, ${v(p.taxId)})`);
       }
     });
+  }
+
+  /** Perfil guardado do cliente (para pré-preencher o checkout). */
+  async getProfile(schema: string, email: string): Promise<CustomerProfile> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<CustomerProfile[]>(Prisma.sql`
+        SELECT name, email, phone, address, province, municipality, neighborhood, tax_id AS "taxId"
+        FROM customers WHERE lower(email) = ${email} LIMIT 1`),
+    );
+    return rows[0] ?? { name: '', email, phone: null, address: null, province: null, municipality: null, neighborhood: null, taxId: null };
+  }
+
+  /** Atualiza o perfil do cliente (a partir da "A minha conta"). */
+  async updateProfile(schema: string, email: string, name: string, p: CustomerProfileInput): Promise<CustomerProfile> {
+    await this.upsertCustomer(schema, email, (p.name?.trim() || name).slice(0, 120), p);
+    return this.getProfile(schema, email);
   }
 
   async emailLogin(schema: string, email: string, name?: string): Promise<CustomerSession> {
