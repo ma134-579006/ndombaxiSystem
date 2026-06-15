@@ -68,26 +68,34 @@ export class AgentService {
     // Failover: começa no provedor preferido; se falhar (quota/token), migra para
     // o seguinte e mantém-se nele para os turnos seguintes.
     let pi = 0;
-    // Erro TRANSITÓRIO do provedor (sobrecarga) — vale a pena repetir o MESMO
-    // provedor antes de migrar (o Gemini grátis devolve 503/UNAVAILABLE com
-    // frequência quando está cheio).
-    const isTransient = (e: unknown): boolean => {
+    // SOBRECARGA temporária (503/500/UNAVAILABLE) → vale a pena repetir o MESMO
+    // provedor com backoff. QUOTA esgotada (429/RESOURCE_EXHAUSTED) ou token
+    // inválido → NÃO adianta repetir: salta JÁ para o provedor seguinte.
+    const retrySame = (e: unknown): boolean => {
       const m = (e as Error)?.message ?? '';
-      return /\b(503|429|500|502|504)\b|unavailable|overloaded|temporarily|rate.?limit|try again/i.test(m);
+      return /\b(500|502|503|504)\b|unavailable|overloaded|temporar|try again/i.test(m)
+        && !/\b429\b|quota|resource_exhausted|rate.?limit/i.test(m);
     };
+    const isQuota = (e: unknown): boolean => /\b429\b|quota|resource_exhausted|rate.?limit/i.test((e as Error)?.message ?? '');
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const callTools = async (msgs: AgentMessage[], toolDefs: typeof defs): Promise<AgentReply> => {
       let lastErr: unknown = null;
+      let allQuota = true;
       for (let i = pi; i < providers.length; i++) {
-        // até 3 tentativas no mesmo provedor para erros transitórios (backoff)
         for (let attempt = 0; attempt < 3; attempt++) {
           try { const r = await this.client.chatTools(providers[i].provider, providers[i].apiKey, msgs, system, toolDefs); pi = i; return r; }
           catch (e) {
             lastErr = e;
-            if (attempt < 2 && isTransient(e)) { await sleep(700 * (attempt + 1)); continue; }
-            break; // erro não-transitório ou esgotou tentativas → tenta o próximo provedor
+            if (!isQuota(e)) allQuota = false;
+            if (attempt < 2 && retrySame(e)) { await sleep(700 * (attempt + 1)); continue; }
+            break; // quota/token/esgotou tentativas → próximo provedor
           }
         }
+      }
+      // Mensagem clara para o gestor: se TODOS falharam por quota, é preciso uma
+      // 2.ª chave DIFERENTE (não basta repetir a mesma conta Gemini).
+      if (allQuota) {
+        throw new BadRequestException('A quota das chaves de IA configuradas está esgotada. Adicione no Super Admin → Inteligência Artificial uma 2.ª chave DIFERENTE (ex.: Groq grátis, ou outra conta), para o assistente alternar automaticamente.');
       }
       throw lastErr ?? new Error('Todos os provedores de IA falharam.');
     };
