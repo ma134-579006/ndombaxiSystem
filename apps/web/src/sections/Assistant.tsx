@@ -33,6 +33,7 @@ const TOOL_LABEL: Record<string, string> = {
   stock_critico: '📦 Stock crítico', lucro_resumo: '💰 Lucro', gastos_resumo: '🧾 Gastos',
   listar_funcionarios: '👥 Funcionários', listar_clientes: '🤝 Clientes', mapa_iva: '🏛️ Mapa de IVA',
   atualizar_preco_produto: '✏️ A alterar preço', criar_cliente: '➕ A criar cliente',
+  criar_produto: '🛒 A criar produto',
   criar_despesa: '➕ A registar despesa', ajustar_stock_minimo: '✏️ Stock mínimo',
   criar_planilha: '📗 A criar planilha', criar_pdf: '📄 A criar PDF', criar_imagem: '🎨 A gerar imagem',
   mostrar_guia: '🖼️ Guia visual', enviar_whatsapp: '💬 WhatsApp',

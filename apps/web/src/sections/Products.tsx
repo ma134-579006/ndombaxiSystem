@@ -3,9 +3,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CreateProductInput, IvaCode, ManagerProduct, WarehouseRow } from '../api/types';
 import { IVA_RATE } from '../api/types';
-import { IconCube, IconEdit, IconImage, IconPlus, IconSearch } from '../components/Icons';
+import { IconCube, IconEdit, IconImage, IconPlus, IconSearch, IconTruck } from '../components/Icons';
 import { Modal, Switch } from '../components/ui';
 import { BarcodeScanner } from '../components/BarcodeScanner';
+import { StockEntryModal } from './Inventory';
 import { formatKz } from '../format';
 
 const IVA_OPTIONS: IvaCode[] = ['NOR', 'INT', 'RED', 'ISE', 'OUT'];
@@ -64,6 +65,7 @@ export function Products() {
   const [formError, setFormError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [entering, setEntering] = useState(false);
 
   const toggleSel = (id: string) => setSelected((prev) => {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
@@ -215,6 +217,9 @@ export function Products() {
       <div className="content-head">
         <h2>Catálogo de produtos</h2>
         <span className="spacer" />
+        <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
+          <IconTruck size={16} /> Entrada de stock
+        </button>
         <button className="btn" onClick={openCreate}>
           <IconPlus size={18} /> Novo produto
         </button>
@@ -322,7 +327,7 @@ export function Products() {
             <input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="ex.: Coca-Cola, Nestlé" />
           </div>
           <p className="muted" style={{ fontSize: 12, margin: '0 0 4px' }}>
-            O <strong>preço de venda</strong>, o <strong>custo</strong> e o <strong>stock</strong> definem-se na <strong>Entrada stock/Inventário</strong> (ao dar entrada de mercadoria).
+            O <strong>preço de venda</strong>, o <strong>custo</strong> e o <strong>stock</strong> definem-se no botão <strong>Entrada de stock</strong> (aqui em cima) ao dar entrada de mercadoria.
           </p>
           <div className="field">
             <label>IVA</label>
@@ -365,6 +370,15 @@ export function Products() {
             {saving ? 'A guardar…' : editing ? 'Guardar alterações' : 'Criar produto'}
           </button>
         </Modal>
+      ) : null}
+
+      {entering ? (
+        <StockEntryModal
+          products={products}
+          warehouses={stores}
+          onClose={() => setEntering(false)}
+          onSaved={() => { setEntering(false); void load(); }}
+        />
       ) : null}
     </>
   );

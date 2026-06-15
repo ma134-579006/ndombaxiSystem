@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
+import { PosModule } from '../pos/pos.module';
 import { AgentService } from './agent.service';
 import { AgentToolsService } from './agent-tools.service';
 import { AiAdminController } from './ai-admin.controller';
@@ -14,7 +15,7 @@ import { AssistantService } from './assistant.service';
  * pelo Super Admin), o cliente HTTP agnóstico e o assistente profissional.
  */
 @Module({
-  imports: [AuditModule, IntegrationsModule],
+  imports: [AuditModule, IntegrationsModule, PosModule],
   controllers: [AiController, AiAdminController],
   providers: [AiConfigService, AiProviderClient, AssistantService, AgentService, AgentToolsService],
   exports: [AiConfigService, AiProviderClient, AssistantService],

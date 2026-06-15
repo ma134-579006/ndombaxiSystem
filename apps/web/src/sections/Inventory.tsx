@@ -66,9 +66,7 @@ export function Inventory() {
       <div className="content-head">
         <h2>Inventário</h2>
         <span className="spacer" />
-        <button className="btn" onClick={() => setEntering(true)} disabled={warehouses.length === 0 || products.length === 0}>
-          <IconTruck size={16} /> Entrada de stock
-        </button>
+        <span className="muted" style={{ fontSize: 12.5, marginRight: 4 }}>A entrada de stock está em <strong>Produtos → Criar</strong>.</span>
         <button className="btn ghost" onClick={() => setWritingOff(true)} disabled={warehouses.length === 0 || products.length === 0}>
           <IconTrash size={16} /> Baixa de stock
         </button>
@@ -332,7 +330,7 @@ function WriteOffModal({
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 /** Entrada de stock em lote com cálculo automático de custo unitário e lucro. */
-function StockEntryModal({
+export function StockEntryModal({
   products, warehouses, onClose, onSaved,
 }: {
   products: ManagerProduct[];

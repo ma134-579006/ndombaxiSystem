@@ -5,6 +5,8 @@ import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { IntegrationsService } from '../integrations/integrations.service';
+import { IvaCode } from '@nexus/agt-xml';
+import { PosRepository } from '../pos/pos.repository';
 import { AiConfigService } from './ai-config.service';
 
 /**
@@ -51,6 +53,7 @@ export class AgentToolsService {
     private readonly audit: AuditService,
     private readonly integrations: IntegrationsService,
     private readonly aiCfg: AiConfigService,
+    private readonly pos: PosRepository,
   ) {}
 
   /** Definições (function-calling, formato OpenAI/Gemini). */
@@ -71,6 +74,7 @@ export class AgentToolsService {
       // ── escrita RESTRITA (nunca elimina; tudo auditado) ──
       { name: 'atualizar_preco_produto', description: 'ALTERA o preço de venda de um produto (não elimina nada; fica auditado). Confirma sempre com o gestor antes de usar.', parameters: { type: 'object', properties: { produto: str('Nome ou código do produto'), novo_preco: num('Novo preço de venda em Kz (sem IVA)') }, required: ['produto', 'novo_preco'] } },
       { name: 'criar_cliente', description: 'Cria um cliente novo (auditado).', parameters: { type: 'object', properties: { nome: str('Nome'), telefone: str('Telefone (opcional)'), email: str('Email (opcional)') }, required: ['nome'] } },
+      { name: 'criar_produto', description: 'CRIA um produto novo no catálogo (gravado na base de dados, com stock inicial em todas as lojas, auditado; NUNCA elimina). Usa quando o gestor pedir para cadastrar/criar/adicionar um produto.', parameters: { type: 'object', properties: { nome: str('Nome do produto'), preco: num('Preço de venda em Kz (sem IVA)'), custo: num('Preço de custo em Kz (opcional)'), stock_inicial: num('Quantidade de stock inicial (opcional, default 0)'), codigo: str('Código/código de barras (opcional — gerado se faltar)'), iva: str("Código de IVA: NOR (14%), INT, RED, ISE (isento), OUT (não sujeito). Default = o padrão da empresa.") }, required: ['nome', 'preco'] } },
       { name: 'criar_despesa', description: 'Regista uma despesa/gasto (auditado).', parameters: { type: 'object', properties: { descricao: str('Descrição'), valor: num('Valor em Kz'), categoria: str('Categoria (opcional, ex.: RENDA, AGUA_LUZ, OUTROS)') }, required: ['descricao', 'valor'] } },
       { name: 'ajustar_stock_minimo', description: 'Define o stock mínimo de alerta de um produto (auditado).', parameters: { type: 'object', properties: { produto: str('Nome ou código'), minimo: num('Stock mínimo') }, required: ['produto', 'minimo'] } },
       // ── saídas ──
@@ -99,6 +103,7 @@ export class AgentToolsService {
         case 'mapa_iva': return await this.mapaIva(schema, Number(args?.ano), Number(args?.mes));
         case 'atualizar_preco_produto': return await this.atualizarPreco(schema, actor, String(args?.produto ?? ''), Number(args?.novo_preco));
         case 'criar_cliente': return await this.criarCliente(schema, actor, args);
+        case 'criar_produto': return await this.criarProduto(schema, actor, args);
         case 'criar_despesa': return await this.criarDespesa(schema, actor, args);
         case 'ajustar_stock_minimo': return await this.ajustarMinimo(schema, actor, String(args?.produto ?? ''), Number(args?.minimo));
         case 'criar_planilha': return this.planilha(args);
@@ -274,6 +279,36 @@ export class AgentToolsService {
       INSERT INTO customers (name, phone, email) VALUES (${nome}, ${String(args?.telefone ?? '') || null}, ${String(args?.email ?? '') || null}) RETURNING id`);
     await this.audit.record({ actorType: 'TENANT', actorId: actor.id, tenantSchema: schema, action: 'AGENT_CREATE_CUSTOMER', entity: 'Customer', entityId: rows[0].id, after: { nome, by: 'assistente IA' } });
     return { result: `Cliente «${nome}» criado. ✅` };
+  }
+
+  /** CRIA um produto REAL no catálogo (reutiliza a criação oficial: grava em
+   *  products + stock_items em todas as lojas + movimento de saldo inicial). */
+  private async criarProduto(schema: string, actor: { id: string; email: string }, args: Record<string, unknown>): Promise<ToolOutcome> {
+    const nome = String(args?.nome ?? '').trim().slice(0, 200);
+    const preco = Number(args?.preco);
+    if (!nome) return { result: 'Falta o nome do produto. Nada criado.' };
+    if (!Number.isFinite(preco) || preco < 0) return { result: 'Preço inválido. Indica o preço de venda em Kz. Nada criado.' };
+    const custo = Number(args?.custo);
+    const stockInicial = Number(args?.stock_inicial);
+    // IVA: usa o indicado se válido, senão o padrão da empresa.
+    const ivaIn = String(args?.iva ?? '').toUpperCase().trim();
+    const ivaCode: IvaCode = ['NOR', 'INT', 'RED', 'ISE', 'OUT'].includes(ivaIn)
+      ? (ivaIn as IvaCode)
+      : await this.pos.defaultIvaCode(schema);
+    // Código: o indicado ou um EAN-13 interno (prefixo 200 = uso interno GS1).
+    const code = String(args?.codigo ?? '').trim()
+      || `200${String(Date.now()).slice(-7)}${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`;
+    const product = await this.pos.createProduct(schema, {
+      code,
+      name: nome,
+      ivaCode,
+      unitPrice: preco,
+      costPrice: Number.isFinite(custo) && custo > 0 ? custo : 0,
+      stockQty: Number.isFinite(stockInicial) && stockInicial > 0 ? stockInicial : 0,
+    });
+    await this.audit.record({ actorType: 'TENANT', actorId: actor.id, tenantSchema: schema, action: 'AGENT_CREATE_PRODUCT', entity: 'Product', entityId: product.id, after: { nome, preco, code, ivaCode, by: 'assistente IA', user: actor.email } });
+    const extra = (Number.isFinite(stockInicial) && stockInicial > 0) ? `, stock inicial ${stockInicial}` : '';
+    return { result: `Produto «${nome}» criado no catálogo (código ${code}, preço ${fmtKz(preco)}, IVA ${ivaCode}${extra}). Já aparece no caixa, na loja e no inventário. ✅` };
   }
 
   private async criarDespesa(schema: string, actor: { id: string; email: string }, args: Record<string, unknown>): Promise<ToolOutcome> {

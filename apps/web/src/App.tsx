@@ -86,7 +86,7 @@ const TENANT_NAV: NavItem[] = [
   {
     key: 'products-group', label: 'Produtos', icon: IconCube, children: [
       { key: 'products', label: 'Criar produtos', icon: IconCube },
-      { key: 'inventory', label: 'Entrada stock/Inventário', icon: IconTruck },
+      { key: 'inventory', label: 'Inventário', icon: IconTruck },
       { key: 'stock-analysis', label: 'Análise de stock', icon: IconChart },
       { key: 'stock-movements', label: 'Movimentos de stock', icon: IconChart },
       { key: 'purchasing', label: 'Compras', icon: IconTruck, min: 2 },
