@@ -1318,6 +1318,21 @@ button, .btn, .chip, .tab, .nav button { -webkit-tap-highlight-color: transparen
 .agent-preview .agent-img { width: 100%; border-radius: 12px; cursor: zoom-in; }
 .agent-activity-fab { display: none; }
 
+/* Botões flutuantes (mensagem/atividade) NUNCA por cima de um modal/gaveta:
+   escondem-se quando há um overlay aberto, para não tapar o X de fechar.
+   (:has é suportado nos navegadores atuais; onde não for, mantém-se o
+   comportamento anterior — os modais já ficam por cima pelo z-index.) */
+body:has(.modal-bg) .sc-fab,
+body:has(.modal-bg) .agent-activity-fab,
+body:has(.lp-modal-bg) .sc-fab,
+body:has(.lp-modal-bg) .agent-activity-fab,
+body:has(.sidebar-overlay) .sc-fab,
+body:has(.sidebar-overlay) .agent-activity-fab,
+body:has(.agent-activity.open) .sc-fab,
+body:has(.agent-activity.open) .agent-activity-fab {
+  display: none !important;
+}
+
 /* Guia de câmara de nuvem (3 QR: iOS/Android/SN) */
 .cam-guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .cam-guide-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 10px;

@@ -223,9 +223,11 @@ export function Assistant() {
           {liveAtts.length ? <ActivityPreviews atts={liveAtts} /> : null}
         </div>
       </aside>
-      <button className={`agent-activity-fab only-mobile${steps.length && busy ? ' busy' : ''}`} onClick={() => setActOpen(true)} title="Atividade do agente">
-        ⚡{steps.length ? <span className="noti-badge">{steps.length}</span> : null}
-      </button>
+      {!actOpen ? (
+        <button className={`agent-activity-fab only-mobile${steps.length && busy ? ' busy' : ''}`} onClick={() => setActOpen(true)} title="Atividade do agente">
+          ⚡{steps.length ? <span className="noti-badge">{steps.length}</span> : null}
+        </button>
+      ) : null}
 
       {callOpen ? <CallOverlay onClose={() => setCallOpen(false)} /> : null}
     </div>
