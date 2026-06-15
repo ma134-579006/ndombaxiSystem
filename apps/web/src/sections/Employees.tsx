@@ -321,16 +321,21 @@ function ManageAccessModal({
   const [role, setRole] = useState<StaffRoleName>(user.role as StaffRoleName);
   const [storeId, setStoreId] = useState(user.store_id ?? '');
   const [pin, setPin] = useState('');
+  const [newPwd, setNewPwd] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const resetPwd = async () => {
-    setErr(null); setBusy('pwd');
+    setErr(null);
+    if (newPwd && newPwd.length < 6) { setErr('A senha tem de ter pelo menos 6 caracteres (ou deixa vazio para gerar automática).'); return; }
+    setBusy('pwd');
     try {
-      const r = await api.staff.resetPassword(user.id);
-      onInfo(r.temporaryPassword
-        ? `Nova senha de ${name}: ${r.temporaryPassword} — entrega-a (só aparece agora). Entra no painel com o email + esta senha.`
-        : 'Senha reposta.');
+      const r = await api.staff.resetPassword(user.id, newPwd || undefined);
+      onInfo(newPwd
+        ? `Senha de ${name} definida. Entra no painel com o email + a senha que escolheste.`
+        : r.temporaryPassword
+          ? `Nova senha de ${name}: ${r.temporaryPassword} — entrega-a (só aparece agora). Entra no painel com o email + esta senha.`
+          : 'Senha reposta.');
       onClose();
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falhou.'); }
     finally { setBusy(null); }
@@ -379,8 +384,10 @@ function ManageAccessModal({
         {busy === 'pin' ? 'A guardar…' : 'Definir/alterar PIN da caixa'}
       </button>
 
+      <div className="field"><label>Nova senha do painel (deixa vazio para gerar automática)</label>
+        <input value={newPwd} onChange={(e) => setNewPwd(e.target.value)} type="text" placeholder="define uma senha ou deixa vazio" autoComplete="new-password" /></div>
       <button className="btn block" onClick={resetPwd} disabled={busy !== null}>
-        {busy === 'pwd' ? 'A repor…' : '🔑 Repor senha do painel (gera nova)'}
+        {busy === 'pwd' ? 'A guardar…' : newPwd ? '🔑 Definir esta senha' : '🔑 Repor senha (gera nova)'}
       </button>
     </Modal>
   );
@@ -403,6 +410,7 @@ function AccessModal({
   const [role, setRole] = useState<StaffRoleName>(guessRole());
   const [storeId, setStoreId] = useState('');
   const [pin, setPin] = useState('');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -410,6 +418,7 @@ function AccessModal({
     setErr(null);
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr('Indique um email válido.'); return; }
     if (!/^\d{6}$/.test(pin)) { setErr('Defina o PIN de 6 dígitos — é necessário para o funcionário aparecer e entrar na caixa.'); return; }
+    if (password && password.length < 6) { setErr('A senha do painel tem de ter pelo menos 6 caracteres (ou deixa vazio para gerar automática).'); return; }
     setBusy(true);
     try {
       const r = await api.staff.createUser({
@@ -418,6 +427,7 @@ function AccessModal({
         role,
         storeId: storeId || undefined,
         pin: pin || undefined,
+        password: password || undefined,
       });
       onCreated(r.temporaryPassword);
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível criar o acesso (precisa de ser administrador).'); }
@@ -445,6 +455,8 @@ function AccessModal({
       </div>
       <div className="field"><label>PIN da caixa (6 dígitos — necessário para entrar na caixa)</label>
         <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" placeholder="ex.: 123456" /></div>
+      <div className="field"><label>Senha do painel (opcional — vazio gera automática)</label>
+        <input value={password} onChange={(e) => setPassword(e.target.value)} type="text" placeholder="define uma senha ou deixa vazio" autoComplete="new-password" /></div>
       <button className="btn lg block" style={{ marginTop: 8 }} onClick={submit} disabled={busy}>
         {busy ? 'A criar…' : 'Criar acesso'}
       </button>
