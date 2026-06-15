@@ -115,11 +115,15 @@ export function Assistant() {
       await stream.done;
       setTurns((p) => [...p, { role: 'assistant', content: finalText || '✓ Feito.', attachments }]);
     } catch (e) {
+      const msg = e instanceof ApiError ? e.message : '';
+      const transient = /\b(503|429|500|502|504)\b|unavailable|overloaded|sobrecarregad|temporar/i.test(msg);
       setTurns((p) => [...p, {
         role: 'assistant', error: true,
         content: e instanceof ApiError && e.status === 400
           ? 'O agente precisa de um provedor de IA configurado (Super Admin → Inteligência Artificial).'
-          : (e instanceof ApiError ? e.message : 'Não consegui responder agora. Tenta novamente.'),
+          : transient
+            ? '⏳ O serviço de IA está sobrecarregado neste momento. Espera uns segundos e tenta de novo. (Se acontecer muito, o Super Admin pode adicionar uma 2.ª chave de IA para alternância automática.)'
+            : (msg || 'Não consegui responder agora. Tenta novamente.'),
       }]);
     } finally { setBusy(false); }
   };

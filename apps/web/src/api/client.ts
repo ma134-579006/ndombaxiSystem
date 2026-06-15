@@ -267,14 +267,24 @@ export const api = {
   ): { cancel(): void; done: Promise<void> } => {
     const ctrl = new AbortController();
     const done = (async () => {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      const token = hooks?.getAccessToken();
-      if (token) headers.Authorization = `Bearer ${token}`;
-      const code = hooks?.getCompanyCode?.();
-      if (code) headers['X-Tenant-Code'] = code;
-      const res = await fetch(`${API_URL}/ai/agent/chat`, {
-        method: 'POST', headers, body: JSON.stringify({ messages }), signal: ctrl.signal,
-      });
+      const call = () => {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        const token = hooks?.getAccessToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const code = hooks?.getCompanyCode?.();
+        if (code) headers['X-Tenant-Code'] = code;
+        return fetch(`${API_URL}/ai/agent/chat`, {
+          method: 'POST', headers, body: JSON.stringify({ messages }), signal: ctrl.signal,
+        });
+      };
+      let res = await call();
+      // Sessão expirada a meio da conversa → renova o token e tenta outra vez
+      // (igual ao request normal), em vez de mostrar "Authentication required".
+      if (res.status === 401 && hooks) {
+        const ok = await hooks.refresh();
+        if (ok) res = await call();
+        else hooks.onAuthLost();
+      }
       if (!res.ok || !res.body) throw await parseError(res);
       const reader = res.body.getReader();
       const decoder = new TextDecoder();

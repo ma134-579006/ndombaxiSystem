@@ -68,11 +68,26 @@ export class AgentService {
     // Failover: começa no provedor preferido; se falhar (quota/token), migra para
     // o seguinte e mantém-se nele para os turnos seguintes.
     let pi = 0;
+    // Erro TRANSITÓRIO do provedor (sobrecarga) — vale a pena repetir o MESMO
+    // provedor antes de migrar (o Gemini grátis devolve 503/UNAVAILABLE com
+    // frequência quando está cheio).
+    const isTransient = (e: unknown): boolean => {
+      const m = (e as Error)?.message ?? '';
+      return /\b(503|429|500|502|504)\b|unavailable|overloaded|temporarily|rate.?limit|try again/i.test(m);
+    };
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const callTools = async (msgs: AgentMessage[], toolDefs: typeof defs): Promise<AgentReply> => {
       let lastErr: unknown = null;
       for (let i = pi; i < providers.length; i++) {
-        try { const r = await this.client.chatTools(providers[i].provider, providers[i].apiKey, msgs, system, toolDefs); pi = i; return r; }
-        catch (e) { lastErr = e; }
+        // até 3 tentativas no mesmo provedor para erros transitórios (backoff)
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try { const r = await this.client.chatTools(providers[i].provider, providers[i].apiKey, msgs, system, toolDefs); pi = i; return r; }
+          catch (e) {
+            lastErr = e;
+            if (attempt < 2 && isTransient(e)) { await sleep(700 * (attempt + 1)); continue; }
+            break; // erro não-transitório ou esgotou tentativas → tenta o próximo provedor
+          }
+        }
       }
       throw lastErr ?? new Error('Todos os provedores de IA falharam.');
     };
