@@ -180,6 +180,13 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
   const [scanning, setScanning] = useState(false);
   const [decoding, setDecoding] = useState(false);
   const [advanced, setAdvanced] = useState(false);
+  // Construtor "por IP" (DVR na rede / DDNS) — gera a URL sem app externa
+  const [ipBrand, setIpBrand] = useState<'generic' | 'hikvision' | 'dahua' | 'xmeye'>('xmeye');
+  const [ipHost, setIpHost] = useState('');
+  const [ipPort, setIpPort] = useState('80');
+  const [ipChannel, setIpChannel] = useState('1');
+  const [ipUser, setIpUser] = useState('admin');
+  const [ipPass, setIpPass] = useState('');
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -250,6 +257,32 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
       applyGuideQrs(values);
     } catch { toast.error('Falha ao ler a imagem.'); }
     finally { setDecoding(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
+
+  /** Constrói a URL de fotograma/stream a partir do IP+credenciais do DVR,
+   *  por marca. Vê-se no painel pelo proxy (sem app externa) se o DVR estiver
+   *  acessível (porta aberta no router + IP público/DDNS). */
+  const buildFromIp = () => {
+    const host = ipHost.trim();
+    if (!host) { toast.warning('Indica o IP/host do DVR (ex.: 41.x.x.x ou meu-ddns.com).'); return; }
+    const port = (ipPort.trim() || '80');
+    const ch = Math.max(1, Number(ipChannel) || 1);
+    const cred = ipUser.trim() ? `${encodeURIComponent(ipUser.trim())}:${encodeURIComponent(ipPass)}@` : '';
+    const base = `http://${cred}${host}:${port}`;
+    let snap = '', stream = '';
+    if (ipBrand === 'hikvision') {
+      snap = `${base}/ISAPI/Streaming/channels/${ch}01/picture`;
+    } else if (ipBrand === 'dahua') {
+      snap = `${base}/cgi-bin/snapshot.cgi?channel=${ch}`;
+    } else if (ipBrand === 'xmeye') {
+      snap = `${base}/webcapture.jpg?command=snap&channel=${ch - 1}`;
+    } else {
+      stream = `${base}/video.mjpg`;
+    }
+    if (snap) setSnapshotUrl(snap);
+    if (stream) setStreamUrl(stream);
+    setConnType('STREAM');
+    toast.success('URL gerada a partir do IP. Toca em «Testar» para confirmar o sinal. ✅');
   };
 
   const startScan = async () => {
@@ -332,6 +365,34 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
           </div>
           <div className="banner info" style={{ margin: '0 0 12px', fontSize: 12.5 }}>
             <div>📺 Para ver <strong>dentro do painel</strong> (e gravar), o DVR tem de estar acessível pela internet: cola aqui a URL de vídeo/fotograma (HLS/MJPEG/JPEG) com o teu <strong>IP público</strong> ou <strong>DDNS</strong>. Caso contrário, vê-se na app oficial pelo botão <strong>Guia</strong>.</div>
+          </div>
+          <div style={{ border: '1px dashed var(--border)', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+            <strong style={{ fontSize: 13 }}>📡 Configurar por IP (DVR na rede)</strong>
+            <p className="muted" style={{ fontSize: 12, margin: '4px 0 10px' }}>Preenche os dados do DVR e gera a URL automaticamente (sem app externa).</p>
+            <div className="grid-2">
+              <div className="field"><label>Marca</label>
+                <select value={ipBrand} onChange={(e) => setIpBrand(e.target.value as typeof ipBrand)}>
+                  <option value="xmeye">XMEye / AHD genérico</option>
+                  <option value="hikvision">Hikvision</option>
+                  <option value="dahua">Dahua</option>
+                  <option value="generic">Genérico (MJPEG)</option>
+                </select></div>
+              <div className="field"><label>Canal</label>
+                <input value={ipChannel} onChange={(e) => setIpChannel(e.target.value.replace(/\D/g, '') || '1')} inputMode="numeric" placeholder="1" /></div>
+            </div>
+            <div className="grid-2">
+              <div className="field"><label>IP / DDNS</label>
+                <input value={ipHost} onChange={(e) => setIpHost(e.target.value)} placeholder="41.x.x.x ou meu-ddns.com" /></div>
+              <div className="field"><label>Porta</label>
+                <input value={ipPort} onChange={(e) => setIpPort(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="80" /></div>
+            </div>
+            <div className="grid-2">
+              <div className="field"><label>Utilizador</label>
+                <input value={ipUser} onChange={(e) => setIpUser(e.target.value)} placeholder="admin" /></div>
+              <div className="field"><label>Palavra-passe do DVR</label>
+                <input value={ipPass} onChange={(e) => setIpPass(e.target.value)} type="password" placeholder="••••••" /></div>
+            </div>
+            <button className="btn ghost block" onClick={buildFromIp}>⚙️ Gerar URL a partir do IP</button>
           </div>
           <div className="field"><label>URL de vídeo (HLS .m3u8 · MJPEG · MP4)</label>
             <input value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)} placeholder="http://SEU-DDNS:porta/...m3u8" /></div>
