@@ -27,6 +27,7 @@ h1, h2, h3, .hero h1, .header .brand .nm, .totline.grand, .success-head .num, .m
 }
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; min-height: 100%; }
+html, body { overflow-x: clip; max-width: 100%; } /* anti-fuga horizontal no telemóvel */
 body { font-family: var(--font); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
 img { display: block; max-width: 100%; }

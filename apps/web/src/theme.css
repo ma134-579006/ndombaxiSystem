@@ -37,6 +37,12 @@
 }
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
+/* Guarda anti-fuga horizontal no telemóvel: nada empurra a página para os lados.
+   `clip` (≠ hidden) não cria contentor de scroll, por isso a sidebar/topbar
+   sticky continuam a funcionar. */
+html, body { overflow-x: clip; max-width: 100%; }
+/* Média nunca ultrapassa o ecrã. */
+img, svg, video, canvas { max-width: 100%; }
 body {
   font-family: var(--font);
   background: var(--app-bg);
