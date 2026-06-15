@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { GOOGLE_CLIENT_ID } from '../config';
 import { setSession, clearSession } from '../store/customer';
-import type { CustomerSession, MyOrderRow } from '../api/types';
+import type { CustomerProfile, CustomerSession, MyOrderRow } from '../api/types';
 import { formatKz } from '../format';
 import { IconClose, IconStore } from './Icons';
 
@@ -123,6 +123,64 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
   );
 }
 
+/** Editor do PERFIL do cliente — preenche uma vez e o checkout não pede de novo. */
+function ProfileEditor({ code, token }: { code: string; token: string }) {
+  const [p, setP] = useState<CustomerProfile | null>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api.myProfile(code, token).then((r) => { if (alive) { setP(r); if (!(r.province && r.municipality && r.neighborhood)) setOpen(true); } }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [code, token]);
+
+  if (!p) return null;
+  const set = (k: keyof CustomerProfile, v: string) => setP({ ...p, [k]: v });
+  const complete = !!(p.province && p.municipality && p.neighborhood);
+
+  const save = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await api.updateProfile(code, token, {
+        name: p.name ?? undefined, phone: p.phone ?? undefined, address: p.address ?? undefined,
+        province: p.province ?? undefined, municipality: p.municipality ?? undefined,
+        neighborhood: p.neighborhood ?? undefined, taxId: p.taxId ?? undefined,
+      });
+      setP(r); setMsg('Dados guardados ✅'); setOpen(false);
+    } catch { setMsg('Não foi possível guardar.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div className="acct-head" style={{ padding: 0, border: 'none' }}>
+        <h4 style={{ margin: 0 }}>Os meus dados</h4>
+        <span style={{ flex: 1 }} />
+        <button className="btn ghost" onClick={() => setOpen((o) => !o)}>{open ? 'Fechar' : complete ? 'Editar' : 'Preencher'}</button>
+      </div>
+      {!open ? (
+        <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
+          {complete ? `${p.neighborhood}, ${p.municipality}, ${p.province}${p.phone ? ` · ${p.phone}` : ''}` : 'Preenche os teus dados de entrega — assim não os repetes em cada compra.'}
+        </p>
+      ) : (
+        <div style={{ marginTop: 8 }}>
+          {msg ? <div className="banner success" style={{ marginBottom: 10, fontSize: 13 }}><div>{msg}</div></div> : null}
+          <div className="field"><label>Nome</label><input value={p.name ?? ''} onChange={(e) => set('name', e.target.value)} /></div>
+          <div className="field"><label>Telefone</label><input value={p.phone ?? ''} onChange={(e) => set('phone', e.target.value)} placeholder="9XX XXX XXX" inputMode="tel" /></div>
+          <div className="field"><label>Província</label><input value={p.province ?? ''} onChange={(e) => set('province', e.target.value)} placeholder="Luanda" /></div>
+          <div className="field"><label>Município</label><input value={p.municipality ?? ''} onChange={(e) => set('municipality', e.target.value)} placeholder="Belas" /></div>
+          <div className="field"><label>Bairro</label><input value={p.neighborhood ?? ''} onChange={(e) => set('neighborhood', e.target.value)} placeholder="Talatona" /></div>
+          <div className="field"><label>Morada (opcional)</label><input value={p.address ?? ''} onChange={(e) => set('address', e.target.value)} placeholder="Rua, nº, referência" /></div>
+          <div className="field"><label>NIF (opcional)</label><input value={p.taxId ?? ''} onChange={(e) => set('taxId', e.target.value)} placeholder="NIF para factura" /></div>
+          <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A guardar…' : 'Guardar dados'}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Account({
   code, session, onClose, onOpenOrder,
 }: {
@@ -152,6 +210,8 @@ function Account({
         </div>
         <button className="btn ghost" onClick={() => { clearSession(code); onClose(); }}>Sair</button>
       </div>
+
+      <ProfileEditor code={code} token={session.token} />
 
       <h4 style={{ margin: '18px 0 8px' }}>As minhas encomendas</h4>
       {err ? <div className="banner danger">{err}</div>
