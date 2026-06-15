@@ -116,13 +116,18 @@ export class AiProviderClient {
       }
       return { role: m.role, content: m.content };
     });
-    const body = {
+    const body: Record<string, unknown> = {
       model: provider.model ?? (provider.adapter === 'openclaw' ? 'openclaw' : 'gpt-4o-mini'),
       messages: [{ role: 'system', content: systemPrompt }, ...wire],
       temperature: (settings.temperature as number) ?? 0.2,
-      tools: tools.map((t) => ({ type: 'function', function: t })),
-      tool_choice: 'auto',
     };
+    // SÓ envia tools/tool_choice quando há ferramentas. Com a lista vazia (turno
+    // de fecho textual), o Gemini rejeita: "Function calling config is set
+    // without function_declarations" → enviar tool_choice sem tools é inválido.
+    if (tools.length > 0) {
+      body.tools = tools.map((t) => ({ type: 'function', function: t }));
+      body.tool_choice = 'auto';
+    }
     const path = this.path(provider, 'chatPath', provider.adapter === 'openclaw' ? '/v1/chat/completions' : '/chat/completions');
     const json = await this.post(provider, apiKey, path, body);
     const msg = this.dig(json, ['choices', '0', 'message']) as
@@ -131,7 +136,7 @@ export class AiProviderClient {
     const toolCalls = (msg?.tool_calls ?? [])
       .filter((t) => t.function?.name)
       .map((t, i) => ({ id: t.id ?? `call_${i}`, name: String(t.function!.name), argsJson: t.function?.arguments ?? '{}' }));
-    return { text: msg?.content ?? null, toolCalls, model: body.model };
+    return { text: msg?.content ?? null, toolCalls, model: String(body.model ?? '') || null };
   }
 
   /** Texto → áudio (base64). */
