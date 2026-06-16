@@ -87,7 +87,7 @@ export class AgentToolsService {
   }
 
   /** Executa uma ferramenta no schema do tenant. NUNCA elimina nada. */
-  async execute(schema: string, actor: { id: string; email: string }, name: string, args: Record<string, unknown>): Promise<ToolOutcome> {
+  async execute(schema: string, actor: { id: string; email: string; storeId?: string | null }, name: string, args: Record<string, unknown>): Promise<ToolOutcome> {
     const days = Math.min(365, Math.max(1, Number(args?.dias ?? 0) || 0));
     try {
       switch (name) {
@@ -283,7 +283,7 @@ export class AgentToolsService {
 
   /** CRIA um produto REAL no catálogo (reutiliza a criação oficial: grava em
    *  products + stock_items em todas as lojas + movimento de saldo inicial). */
-  private async criarProduto(schema: string, actor: { id: string; email: string }, args: Record<string, unknown>): Promise<ToolOutcome> {
+  private async criarProduto(schema: string, actor: { id: string; email: string; storeId?: string | null }, args: Record<string, unknown>): Promise<ToolOutcome> {
     const nome = String(args?.nome ?? '').trim().slice(0, 200);
     const preco = Number(args?.preco);
     if (!nome) return { result: 'Falta o nome do produto. Nada criado.' };
@@ -305,6 +305,10 @@ export class AgentToolsService {
       unitPrice: preco,
       costPrice: Number.isFinite(custo) && custo > 0 ? custo : 0,
       stockQty: Number.isFinite(stockInicial) && stockInicial > 0 ? stockInicial : 0,
+      // Mesma regra do formulário: o stock inicial entra na LOJA de quem cria
+      // (se tiver loja atribuída); sem loja → loja principal. Evita o stock ir
+      // para a loja principal e o gestor/operador de outra loja ver 0.
+      initialStoreId: actor.storeId ?? null,
     });
     await this.audit.record({ actorType: 'TENANT', actorId: actor.id, tenantSchema: schema, action: 'AGENT_CREATE_PRODUCT', entity: 'Product', entityId: product.id, after: { nome, preco, code, ivaCode, by: 'assistente IA', user: actor.email } });
     const extra = (Number.isFinite(stockInicial) && stockInicial > 0) ? `, stock inicial ${stockInicial}` : '';

@@ -105,7 +105,7 @@ export class AgentService {
 
     const messages: AgentMessage[] = history.slice(-16).map((h) => ({ role: h.role, content: h.content.slice(0, 4000) }));
     const defs = this.tools.defs();
-    const actor = { id: user.sub, email: user.email };
+    const actor = { id: user.sub, email: user.email, storeId: user.storeId ?? null };
 
     for (let round = 0; round < MAX_ROUNDS; round++) {
       const r = await callTools(messages, defs);
