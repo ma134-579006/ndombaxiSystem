@@ -438,11 +438,16 @@ button, .btn, .add-btn, .chip, .product { -webkit-tap-highlight-color: transpare
    ASPETO TECNOLÓGICO (cards · produtos · fotos) — mantém a
    identidade laranja AliExpress (usa --accent/--accent-2).
    ============================================================ */
-.card { position: relative; }
+.card {
+  position: relative;
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
+  box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+}
 .card::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 2;
   background: linear-gradient(120deg, var(--accent), var(--accent-2));
-  opacity: .9; border-radius: var(--radius) var(--radius) 0 0; pointer-events: none;
+  opacity: 1; border-radius: var(--radius) var(--radius) 0 0; pointer-events: none;
+  box-shadow: 0 0 12px -1px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .product { position: relative; }
 .product::before {

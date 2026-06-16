@@ -889,11 +889,16 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
    (recibo a preto/branco). Usa --primary/--grad-primary.
    ============================================================ */
 @media screen {
-  .card:not(.receipt) { position: relative; }
+  .card:not(.receipt) {
+    position: relative;
+    border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+    box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
+  }
   .card:not(.receipt)::before {
-    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
-    background: var(--grad-primary); opacity: .85; pointer-events: none;
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 2;
+    background: var(--grad-primary); opacity: 1; pointer-events: none;
     border-radius: var(--radius) var(--radius) 0 0;
+    box-shadow: 0 0 12px -1px color-mix(in srgb, var(--primary) 75%, transparent);
   }
   .op-card { position: relative; transition: border-color .14s, transform .06s, box-shadow .18s; }
   .op-card:hover {
