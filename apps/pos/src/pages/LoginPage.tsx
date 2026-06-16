@@ -41,7 +41,7 @@ export function LoginPage() {
   const loadOperators = async (identifier?: string) => {
     setError(null);
     const id = (identifier ?? company).trim().toLowerCase();
-    if (!id) { setError('Indique o e-mail registado da empresa (ou o código).'); return; }
+    if (!id) { setError('Indique o e-mail registado da empresa.'); return; }
     setLoading(true);
     try {
       const r = await api.operators(id);
@@ -52,7 +52,7 @@ export function LoginPage() {
       }
       setChoices(null);
       if (!r.companyCode) {
-        setError('Empresa não encontrada. Confirma o e-mail registado (ou o código) — e se a conta já foi aprovada.');
+        setError('Empresa não encontrada. Confirma o e-mail registado — e se a conta já foi aprovada.');
         return;
       }
       if (!r.operators.length) {
@@ -126,7 +126,7 @@ export function LoginPage() {
               ) : (
                 <>
                   <KeyboardInput
-                    label="E-mail registado da empresa (ou código)"
+                    label="E-mail registado da empresa"
                     icon={<IconBuilding size={18} />}
                     placeholder="gestor@empresa.ao"
                     value={company}

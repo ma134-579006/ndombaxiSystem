@@ -341,7 +341,7 @@ export const api = {
   onboarding: {
     myPlan: () => request<{ planId: string; planName: string; priceKz: number } | null>('GET', '/onboarding/my-plan'),
     setupStatus: () => request<{ setupCompleted: boolean; status: string; approved: boolean; expired: boolean; expiresAt: string | null }>('GET', '/onboarding/setup-status'),
-    completeSetup: (dto: { name: string; companyCode: string; nif: string; logoUrl?: string }) =>
+    completeSetup: (dto: { name: string; companyCode?: string; nif: string; logoUrl?: string }) =>
       request<{ ok: true; companyCode: string }>('POST', '/onboarding/complete-setup', dto),
   },
 

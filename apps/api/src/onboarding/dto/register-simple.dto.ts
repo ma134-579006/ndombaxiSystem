@@ -27,9 +27,11 @@ export class CompleteSetupDto {
   @Length(2, 120)
   name!: string;
 
+  /** Código da loja (slug). Opcional: se omitido, é gerado a partir do nome. */
+  @IsOptional()
   @IsString()
   @Matches(/^[a-z0-9-]{2,40}$/, { message: 'Código: minúsculas, dígitos e hífens.' })
-  companyCode!: string;
+  companyCode?: string;
 
   @IsString()
   @Matches(/^\d{9,10}$/, { message: 'NIF inválido.' })

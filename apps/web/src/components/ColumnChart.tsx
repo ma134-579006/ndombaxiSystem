@@ -38,7 +38,7 @@ export function ColumnChart({
 
   return (
     <div style={{ width: '100%' }}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none"
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" className="chart-svg"
         onMouseLeave={() => setHover(null)} style={{ display: 'block', overflow: 'visible' }}>
         <defs>
           <linearGradient id={`c-${uid}`} x1="0" y1="0" x2="0" y2="1">

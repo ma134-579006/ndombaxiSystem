@@ -882,3 +882,28 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
 .login-screen > .login-video { position: absolute; inset: 0; z-index: -1; }
 .login-card { -webkit-backdrop-filter: blur(14px) saturate(130%); backdrop-filter: blur(14px) saturate(130%);
   background: color-mix(in srgb, var(--surface) 84%, transparent); }
+
+/* ============================================================
+   ASPETO TECNOLÓGICO (cards · operadores · fotos) — SÓ no ECRÃ.
+   Envolto em @media screen para NÃO afetar a impressão térmica
+   (recibo a preto/branco). Usa --primary/--grad-primary.
+   ============================================================ */
+@media screen {
+  .card:not(.receipt) { position: relative; }
+  .card:not(.receipt)::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+    background: var(--grad-primary); opacity: .85; pointer-events: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .op-card { position: relative; transition: border-color .14s, transform .06s, box-shadow .18s; }
+  .op-card:hover {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--primary) 30%, transparent),
+      0 14px 36px -18px color-mix(in srgb, var(--primary) 70%, transparent);
+  }
+  .op-avatar, .op-ini, .op-photo {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--primary) 45%, transparent),
+      0 0 14px -4px color-mix(in srgb, var(--primary) 60%, transparent);
+  }
+}

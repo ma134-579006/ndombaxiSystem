@@ -128,7 +128,6 @@ export function PayStep({ onNext }: { onNext(): void }) {
 
 function DataStep({ onDone, onBack }: { onDone(): void; onBack?: () => void }) {
   const [name, setName] = useState('');
-  const [companyCode, setCompanyCode] = useState('');
   const [nif, setNif] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [busy, setBusy] = useState(false);
@@ -146,11 +145,11 @@ function DataStep({ onDone, onBack }: { onDone(): void; onBack?: () => void }) {
   const submit = async () => {
     setErr(null);
     if (!name.trim()) { setErr('Indique o nome da empresa.'); return; }
-    if (!/^[a-z0-9-]{2,40}$/.test(companyCode.trim().toLowerCase())) { setErr('Código inválido (minúsculas, dígitos e hífens).'); return; }
     if (!/^\d{9,10}$/.test(nif.trim())) { setErr('NIF inválido (9 a 10 dígitos).'); return; }
     setBusy(true);
     try {
-      await api.onboarding.completeSetup({ name: name.trim(), companyCode: companyCode.trim().toLowerCase(), nif: nif.trim(), logoUrl: logoUrl || undefined });
+      // O código da loja é gerado automaticamente a partir do nome (no servidor).
+      await api.onboarding.completeSetup({ name: name.trim(), nif: nif.trim(), logoUrl: logoUrl || undefined });
       onDone();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Não foi possível concluir o setup.');
@@ -171,8 +170,6 @@ function DataStep({ onDone, onBack }: { onDone(): void; onBack?: () => void }) {
       </div>
       <div className="field"><label>Nome da empresa</label>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Nova Shop, Lda" /></div>
-      <div className="field"><label>Código da loja (login e link da loja online)</label>
-        <input value={companyCode} onChange={(e) => setCompanyCode(e.target.value.toLowerCase())} placeholder="ex.: novashop" /></div>
       <div className="field"><label>NIF da empresa</label>
         <input value={nif} onChange={(e) => setNif(e.target.value)} placeholder="5XXXXXXXX" inputMode="numeric" /></div>
       <div className="row" style={{ gap: 10 }}>

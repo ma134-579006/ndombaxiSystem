@@ -69,7 +69,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
     // da empresa (ou o código antigo; a própria Caixa resolve).
     if (profile === 'caixa') {
       if (!caixaId.trim()) {
-        setError('Indica o e-mail registado da empresa (ou o código) para abrir a Caixa.');
+        setError('Indica o e-mail registado da empresa para abrir a Caixa.');
         return;
       }
       window.location.assign(`${CAIXA_URL}/?empresa=${encodeURIComponent(caixaId.trim().toLowerCase())}`);

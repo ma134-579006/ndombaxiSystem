@@ -64,7 +64,7 @@ export function AreaChart({ points, height = 220, color = 'var(--primary)', subC
 
   return (
     <div style={{ width: '100%' }}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none"
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" className="chart-svg"
         onMouseLeave={() => setHover(null)}
         style={{ display: 'block', overflow: 'visible' }}>
         <defs>

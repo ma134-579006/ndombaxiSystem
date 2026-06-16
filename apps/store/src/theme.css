@@ -433,3 +433,31 @@ button, .btn, .add-btn, .chip, .product { -webkit-tap-highlight-color: transpare
   .header .bar { gap: 8px; }
   .hero h1 { font-size: 24px; }
 }
+
+/* ============================================================
+   ASPETO TECNOLÓGICO (cards · produtos · fotos) — mantém a
+   identidade laranja AliExpress (usa --accent/--accent-2).
+   ============================================================ */
+.card { position: relative; }
+.card::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  opacity: .9; border-radius: var(--radius) var(--radius) 0 0; pointer-events: none;
+}
+.product { position: relative; }
+.product::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; z-index: 2;
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  opacity: 0; transition: opacity .2s; border-radius: 14px 14px 0 0; pointer-events: none;
+}
+.product:hover::before { opacity: .95; }
+.product:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow: var(--shadow), 0 14px 40px -20px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.acct-head .avatar, .cl .thumb {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 0 14px -4px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+@media (prefers-reduced-motion: reduce) { .product::before { transition: none; } }

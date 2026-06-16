@@ -346,29 +346,67 @@ export class OnboardingService {
     };
   }
 
+  /** Converte um nome em slug (sem acentos, minúsculas, hífens) — base do código. */
+  private slugify(name: string): string {
+    const base = name
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '') // remove acentos/diacríticos
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 32);
+    return base.length >= 2 ? base : `empresa-${randomBytes(2).toString('hex')}`;
+  }
+
+  /** Gera um código de loja único a partir do nome (sufixo aleatório se colidir). */
+  private async generateUniqueCode(name: string, excludeId: string): Promise<string> {
+    const base = this.slugify(name);
+    let code = base;
+    for (let i = 0; i < 30; i++) {
+      const clash = await this.prisma.company.findFirst({
+        where: { code, NOT: { id: excludeId } },
+        select: { id: true },
+      });
+      if (!clash) return code;
+      code = `${base}-${randomBytes(2).toString('hex')}`.slice(0, 40);
+    }
+    return `${base}-${randomBytes(4).toString('hex')}`.slice(0, 40);
+  }
+
   /**
-   * Conclui o setup obrigatório: define nome, código (único), NIF (validado AGT)
-   * e logótipo; activa a empresa e desbloqueia o painel.
+   * Conclui o setup obrigatório: define nome, código (gerado do nome se omitido),
+   * NIF (validado AGT) e logótipo; activa a empresa e desbloqueia o painel.
    */
   async completeSetup(
     tenantId: string | undefined,
     schema: string,
-    dto: { name: string; companyCode: string; nif: string; logoUrl?: string },
+    dto: { name: string; companyCode?: string; nif: string; logoUrl?: string },
   ): Promise<{ ok: true; companyCode: string }> {
     if (!tenantId) throw new BadRequestException('Sessão inválida.');
-    const code = dto.companyCode.trim().toLowerCase();
-    if (!/^[a-z0-9-]{2,40}$/.test(code)) {
-      throw new BadRequestException('Código inválido (use minúsculas, dígitos e hífens).');
-    }
     if (!dto.name?.trim()) throw new BadRequestException('Indique o nome da empresa.');
 
     const nifCheck = await this.nif.validateWithAgt(dto.nif);
     if (!nifCheck.valid) throw new BadRequestException(nifCheck.reason ?? 'NIF inválido.');
 
-    const clash = await this.prisma.company.findFirst({
-      where: { OR: [{ code }, { nif: dto.nif }], NOT: { id: tenantId } },
+    // Código da loja: o utilizador já não o escreve — é gerado a partir do nome
+    // (slug único). Mantém-se aceitar um código explícito (compatibilidade/API).
+    let code: string;
+    const explicit = (dto.companyCode ?? '').trim().toLowerCase();
+    if (explicit) {
+      if (!/^[a-z0-9-]{2,40}$/.test(explicit)) {
+        throw new BadRequestException('Código inválido (use minúsculas, dígitos e hífens).');
+      }
+      const clash = await this.prisma.company.findFirst({ where: { code: explicit, NOT: { id: tenantId } } });
+      if (clash) throw new ConflictException('Já existe uma empresa com este código.');
+      code = explicit;
+    } else {
+      code = await this.generateUniqueCode(dto.name, tenantId);
+    }
+
+    const nifClash = await this.prisma.company.findFirst({
+      where: { nif: dto.nif, NOT: { id: tenantId } },
     });
-    if (clash) throw new ConflictException('Já existe uma empresa com este código ou NIF.');
+    if (nifClash) throw new ConflictException('Já existe uma empresa com este NIF.');
 
     // NÃO ativa a empresa aqui: fica PENDING até o Super Admin aprovar a
     // subscrição/pagamento. Só guarda os dados (nome, código, NIF).
