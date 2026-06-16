@@ -127,7 +127,7 @@ export class ErpRepository {
                    FROM stock_items si
                    JOIN products p ON p.id = si.product_id
                    JOIN stores w ON w.id = si.warehouse_id
-                   WHERE si.quantity <= si.min_qty
+                   WHERE p.is_active = TRUE AND si.min_qty > 0 AND si.quantity <= si.min_qty
                    ORDER BY p.name`,
       ),
     );
