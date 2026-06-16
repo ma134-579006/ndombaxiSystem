@@ -96,14 +96,20 @@ const TENANT_NAV: NavItem[] = [
     ],
   },
   {
-    key: 'movements-group', label: 'Movimentações', icon: IconCard, min: 2, children: [
-      { key: 'payments', label: 'Pagamentos', icon: IconCard },
-      { key: 'profit', label: 'Lucros', icon: IconChart },
-      { key: 'expenses', label: 'Gastos', icon: IconReceipt },
-      { key: 'cashflow', label: 'Fluxo de Caixa', icon: IconChart },
-      { key: 'reconciliation', label: 'Conciliação', icon: IconCard },
-      { key: 'payables', label: 'Contas a Pagar', icon: IconTruck },
-      { key: 'receivables', label: 'Contas a Receber', icon: IconCard },
+    // Grupo sem `min` próprio (default 3) para o gerente de loja continuar a ver
+    // Caixa & Auditoria e Relatórios; os itens financeiros mantêm min:2 (ocultos
+    // ao gerente de loja, como antes).
+    key: 'movements-group', label: 'Movimentações', icon: IconCard, children: [
+      { key: 'payments', label: 'Pagamentos', icon: IconCard, min: 2 },
+      { key: 'profit', label: 'Lucros', icon: IconChart, min: 2 },
+      { key: 'expenses', label: 'Gastos', icon: IconReceipt, min: 2 },
+      { key: 'cashflow', label: 'Fluxo de Caixa', icon: IconChart, min: 2 },
+      { key: 'reconciliation', label: 'Conciliação', icon: IconCard, min: 2 },
+      { key: 'payables', label: 'Contas a Pagar', icon: IconTruck, min: 2 },
+      { key: 'receivables', label: 'Contas a Receber', icon: IconCard, min: 2 },
+      { key: 'accounting', label: 'Contabilidade', icon: IconReceipt, min: 2 },
+      { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart },
+      { key: 'reports', label: 'Relatórios', icon: IconChart },
     ],
   },
   {
@@ -114,15 +120,12 @@ const TENANT_NAV: NavItem[] = [
     ],
   },
   { key: 'customers', label: 'Clientes', icon: IconBuilding },
-  { key: 'accounting', label: 'Contabilidade', icon: IconReceipt, min: 2 },
   {
     key: 'cameras-group', label: 'Câmaras', icon: IconCpu, children: [
       { key: 'cameras-config', label: 'Configurar', icon: IconCpu, min: 1 },
       { key: 'cameras-live', label: 'Abrir', icon: IconCpu },
     ],
   },
-  { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart },
-  { key: 'reports', label: 'Relatórios', icon: IconChart },
   { key: 'saft', label: 'Fiscal · SAF-T', icon: IconReceipt, min: 1 },
   { key: 'settings', label: 'Configurações', icon: IconBuilding, min: 1 },
 ];

@@ -1454,3 +1454,9 @@ body:has(.agent-activity.open) .agent-activity-fab {
   .scan-frame::after { animation: none; }
   .kpi-card:hover { transform: none; }
 }
+
+/* Telemóvel: desliga o vidro (blur) dos cards — poupa GPU em aparelhos fracos;
+   o aspeto tech (fio de acento + borda + brilho) mantém-se. */
+@media (max-width: 640px) {
+  .card, .kpi-card, .pcard { backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
