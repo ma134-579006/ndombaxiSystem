@@ -4,14 +4,13 @@ import type { Operator } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { LOGO_SRC, SYSTEM_MODULE, SYSTEM_NAME } from '../brand';
 import { FooterCredit } from '../components/FooterCredit';
-import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { IconBuilding, IconKeyboard } from '../components/Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { useKeyboard } from '../keyboard/KeyboardProvider';
 
 export function LoginPage() {
-  const { loginPin, loginGoogle, companyCode: saved } = useAuth();
+  const { loginPin, companyCode: saved } = useAuth();
   const kbd = useKeyboard();
 
   const codeFromUrl = (() => {
@@ -65,17 +64,6 @@ export function LoginPage() {
       setStep('operator');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Não foi possível ligar. Verifique a internet e o e-mail/código.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onGoogle = async (idToken: string) => {
-    setError(null); setLoading(true);
-    try {
-      await loginGoogle(idToken);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível entrar com Google.');
     } finally {
       setLoading(false);
     }
@@ -136,10 +124,6 @@ export function LoginPage() {
                   <button className="btn lg block" style={{ marginTop: 4 }} onClick={() => void loadOperators()} disabled={loading}>
                     {loading ? 'A procurar…' : 'Continuar'}
                   </button>
-                  <div className="or-sep"><span>ou</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <GoogleSignInButton onCredential={(t) => void onGoogle(t)} />
-                  </div>
                 </>
               )}
             </div>

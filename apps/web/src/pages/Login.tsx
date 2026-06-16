@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { decodeJwt } from '../auth/jwt';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
 import { IconBuilding, IconReceipt, IconShield } from '../components/Icons';
@@ -59,6 +60,15 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
     } finally {
       setLoading(false);
     }
+  };
+
+  /** Abrir a Caixa com Google: identifica a empresa pelo e-mail da conta Google
+   *  e salta para o terminal (o operador entra na Caixa com nome+PIN). */
+  const onGoogleCaixa = (idToken: string) => {
+    setError(null);
+    const email = decodeJwt(idToken)?.email;
+    if (!email) { setError('Não foi possível ler a conta Google. Usa o e-mail registado.'); return; }
+    window.location.assign(`${CAIXA_URL}/?empresa=${encodeURIComponent(email.toLowerCase())}`);
   };
 
   const submit = async (companyCode?: string) => {
@@ -163,7 +173,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
           {profile === 'caixa' ? (
             <>
               <p className="muted" style={{ fontSize: 13, marginTop: 0, marginBottom: 12 }}>
-                Abre o terminal de venda (Caixa). O início de sessão do operador é feito na própria Caixa — por nome + PIN ou com Google.
+                Abre o terminal de venda (Caixa). O início de sessão do operador é feito na própria Caixa por nome + PIN.
               </p>
               <KeyboardInput label="E-mail registado da empresa" value={caixaId} onChange={setCaixaId} placeholder="gestor@empresa.ao" onSubmit={() => void submit()} />
             </>
@@ -193,6 +203,13 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
             <div className="google-row">
               <div className="or-sep"><span>ou</span></div>
               <GoogleSignInButton onCredential={(t) => void onGoogle(t)} />
+            </div>
+          ) : null}
+
+          {profile === 'caixa' ? (
+            <div className="google-row">
+              <div className="or-sep"><span>ou abre com</span></div>
+              <GoogleSignInButton onCredential={(t) => onGoogleCaixa(t)} />
             </div>
           ) : null}
         </div>

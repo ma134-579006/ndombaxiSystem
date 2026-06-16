@@ -17,7 +17,7 @@ import { micSupported, playBase64Audio, startRecording, stopAudio, type Recorder
 
 interface Attachment { file?: { kind: string; name: string; base64: string; mime: string }; imageBase64?: string; guideUrl?: string; waLink?: string }
 interface Turn { role: 'user' | 'assistant'; content: string; attachments?: Attachment[]; error?: boolean }
-interface Step { tool: string; args?: Record<string, unknown>; summary?: string; done: boolean }
+interface Step { tool: string; args?: Record<string, unknown>; summary?: string; done: boolean; atts?: Attachment[] }
 
 const SUGGESTIONS = [
   'Como estão as vendas desta semana?',
@@ -67,7 +67,6 @@ export function Assistant() {
   const [name, setName] = useState('Assistente');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
-  const [liveAtts, setLiveAtts] = useState<Attachment[]>([]); // previews ao vivo na tela secundária
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -97,17 +96,20 @@ export function Assistant() {
     setInput('');
     setBusy(true);
     setSteps([]);
-    setLiveAtts([]);
     const attachments: Attachment[] = [];
     let finalText = '';
     try {
       const stream = api.agentStream(history, (e: AgentEvent) => {
-        if (e.type === 'step_start') setSteps((p) => [...p, { tool: e.tool ?? '?', args: e.args, done: false }]);
+        if (e.type === 'step_start') setSteps((p) => [...p, { tool: e.tool ?? '?', args: e.args, done: false, atts: [] }]);
         else if (e.type === 'step_done') setSteps((p) => p.map((s, i) => (i === p.length - 1 && !s.done ? { ...s, done: true, summary: e.summary } : s)));
         else if (e.type === 'attachment') {
           const att = { file: e.file, imageBase64: e.imageBase64, guideUrl: e.guideUrl, waLink: e.waLink };
           attachments.push(att);
-          setLiveAtts((p) => [...p, att]); // mostra o preview na tela secundária imediatamente
+          // anexa o artefacto ao passo atual (ou cria um passo "artefacto" se não houver)
+          setSteps((p) => {
+            if (!p.length) return [{ tool: 'artefacto', done: true, atts: [att] }];
+            return p.map((s, i) => (i === p.length - 1 ? { ...s, atts: [...(s.atts ?? []), att] } : s));
+          });
         }
         else if (e.type === 'text') finalText = e.text ?? '';
         else if (e.type === 'error') { finalText = e.text ?? 'Falha no agente.'; }
@@ -201,26 +203,23 @@ export function Assistant() {
         </div>
       </div>
 
-      {/* painel de ATIVIDADE (desktop fixo · mobile gaveta) */}
+      {/* CANVAS ao vivo: tudo o que o agente faz, em tempo real (desktop fixo · mobile gaveta) */}
       <aside className={`agent-activity${actOpen ? ' open' : ''}`}>
         <div className="agent-activity-head">
-          <span className="agent-activity-dot" /> Atividade do agente
+          <span className={`agent-activity-dot${busy ? ' live' : ''}`} />
+          {busy ? 'A trabalhar ao vivo' : 'Atividade do agente'}
+          {steps.length ? <span className="agent-activity-count">{steps.filter((s) => s.done).length}/{steps.length}</span> : null}
           <span className="spacer" />
           <button className="agent-iconbtn only-mobile" onClick={() => setActOpen(false)} aria-label="Fechar">✕</button>
         </div>
         <div className="agent-activity-body">
-          {steps.length === 0 ? <p className="muted" style={{ fontSize: 13 }}>Quando o agente executar ferramentas (analisar vendas, criar ficheiros, alterar dados…), vês aqui cada passo em tempo real.</p> : null}
-          {steps.map((s, i) => (
-            <div key={i} className={`agent-step${s.done ? ' done' : ''}`}>
-              <span className="agent-step-ic">{s.done ? '✓' : <span className="agent-spin" />}</span>
-              <div className="agent-step-tx">
-                <strong>{TOOL_LABEL[s.tool] ?? s.tool}</strong>
-                {s.args && Object.keys(s.args).length ? <span className="agent-step-args">{Object.entries(s.args).map(([k, v]) => `${k}: ${String(v)}`).join(' · ').slice(0, 90)}</span> : null}
-                {s.summary ? <span className="agent-step-sum">{s.summary.slice(0, 220)}</span> : null}
-              </div>
+          {steps.length === 0 ? (
+            <div className="agent-canvas-empty">
+              <div className="agent-canvas-empty-ic"><IconCpu size={26} /></div>
+              <p className="muted" style={{ fontSize: 13, margin: 0 }}>Aqui vês <strong>em tempo real</strong> tudo o que o assistente faz: cada análise, ficheiro, imagem ou alteração — passo a passo, com o resultado à vista.</p>
             </div>
-          ))}
-          {liveAtts.length ? <ActivityPreviews atts={liveAtts} /> : null}
+          ) : null}
+          {steps.map((s, i) => <ActivityCard key={i} step={s} running={busy && i === steps.length - 1 && !s.done} />)}
         </div>
       </aside>
       {!actOpen ? (
@@ -246,34 +245,50 @@ function LiveSteps({ steps }: { steps: Step[] }) {
 }
 
 /**
- * PRÉ-VISUALIZAÇÃO ao vivo na tela secundária (estilo "canvas" do Claude):
- * à medida que o agente gera artefactos (imagem, guia, planilha, PDF), mostra-os
- * aqui imediatamente — antes mesmo de terminar a resposta.
+ * CARTÃO de AÇÃO ao vivo (estilo "canvas"): mostra graficamente cada passo do
+ * agente — ícone, estado (a correr / concluído), dados de entrada, resumo do
+ * resultado e miniaturas dos artefactos gerados (imagem/guia/planilha/PDF).
  */
-function ActivityPreviews({ atts }: { atts: Attachment[] }) {
+function ActivityCard({ step, running }: { step: Step; running: boolean }) {
   const [zoom, setZoom] = useState<string | null>(null);
+  const label = TOOL_LABEL[step.tool] ?? step.tool;
+  const m = /^(\p{Emoji})\s*(.*)$/u.exec(label);
+  const icon = m ? m[1] : '⚙️';
+  const title = m ? m[2] : label;
+  const atts = step.atts ?? [];
   return (
-    <div className="agent-preview">
-      <div className="agent-preview-h">Pré-visualização</div>
-      {atts.map((a, i) => (
-        <div key={i} className="agent-attach">
-          {a.imageBase64 ? (
-            <img className="agent-img" src={`data:image/png;base64,${a.imageBase64}`} alt="Imagem gerada" onClick={() => setZoom(`data:image/png;base64,${a.imageBase64}`)} />
-          ) : null}
-          {a.guideUrl ? (
-            <img className="agent-img" src={a.guideUrl} alt="Guia do sistema" onClick={() => setZoom(a.guideUrl!)} />
-          ) : null}
-          {a.file ? (
-            <a className="agent-file" download={a.file.name} href={`data:${a.file.mime};base64,${a.file.base64}`}>
-              <span className="agent-file-ic">{a.file.kind === 'xlsx' ? '📗' : '📄'}</span>
-              <span><strong>{a.file.name}</strong><em>Toca para descarregar</em></span>
-            </a>
-          ) : null}
-          {a.waLink ? (
-            <a className="agent-wa" href={a.waLink} target="_blank" rel="noreferrer">💬 Enviar no WhatsApp</a>
-          ) : null}
+    <div className={`agent-card${step.done ? ' done' : ''}${running ? ' running' : ''}`}>
+      <div className="agent-card-h">
+        <span className="agent-card-ic">{icon}</span>
+        <span className="agent-card-ttl">{title}</span>
+        <span className="agent-card-st">{step.done ? '✓' : <span className="agent-spin" />}</span>
+      </div>
+      {running ? <div className="agent-card-bar"><span /></div> : null}
+      {step.args && Object.keys(step.args).length ? (
+        <div className="agent-card-args">
+          {Object.entries(step.args).slice(0, 6).map(([k, v]) => (
+            <span key={k} className="agent-chip"><em>{k}</em> {String(v).slice(0, 28)}</span>
+          ))}
         </div>
-      ))}
+      ) : null}
+      {step.summary ? <div className="agent-card-sum">{step.summary.slice(0, 240)}</div> : null}
+      {atts.length ? (
+        <div className="agent-card-atts">
+          {atts.map((a, i) => (
+            <React.Fragment key={i}>
+              {a.imageBase64 ? <img className="agent-thumb" src={`data:image/png;base64,${a.imageBase64}`} alt="Imagem gerada" onClick={() => setZoom(`data:image/png;base64,${a.imageBase64}`)} /> : null}
+              {a.guideUrl ? <img className="agent-thumb" src={a.guideUrl} alt="Guia" onClick={() => setZoom(a.guideUrl!)} /> : null}
+              {a.file ? (
+                <a className="agent-file" download={a.file.name} href={`data:${a.file.mime};base64,${a.file.base64}`}>
+                  <span className="agent-file-ic">{a.file.kind === 'xlsx' ? '📗' : '📄'}</span>
+                  <span><strong>{a.file.name}</strong><em>Descarregar</em></span>
+                </a>
+              ) : null}
+              {a.waLink ? <a className="agent-wa" href={a.waLink} target="_blank" rel="noreferrer">💬 Enviar no WhatsApp</a> : null}
+            </React.Fragment>
+          ))}
+        </div>
+      ) : null}
       {zoom ? (
         <div className="sc-lightbox" onClick={() => setZoom(null)}>
           <img src={zoom} alt="ampliado" onClick={(e) => e.stopPropagation()} />
