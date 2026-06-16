@@ -412,6 +412,9 @@ html.kbd-open .login-card .footer-credit { display: none; }
    MODAL / RECIBO
    ============================================================ */
 .modal-bg { position: fixed; inset: 0; background: rgba(4,8,16,.66); display: grid; place-items: center; z-index: 70; padding: 20px; }
+/* Conteúdo de modal nunca corta em ecrãs baixos (ex.: pagamento no telemóvel
+   deitado) — rola por dentro. */
+.modal-bg > .card { max-height: calc(100dvh - 40px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .receipt { width: 100%; max-width: 420px; max-height: 90vh; overflow: auto; padding: 0; }
 .receipt .r-head {
   background: var(--success-soft); border-bottom: 1px solid rgba(34,197,94,.3);
@@ -596,14 +599,16 @@ html.kbd-open .login-card .footer-credit { display: none; }
   .cart h2 { flex: none; position: static; padding: 8px 14px; font-size: 15px; }
   .cart-lines { flex: 1 1 0; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px; gap: 8px; }
   .stepper button { width: 34px; height: 34px; font-size: 17px; }
+  /* Rodapé (totais + Finalizar) com ALTURA NATURAL — nunca encolhe; é a lista
+     do carrinho que cede o espaço e rola. Assim o botão fica sempre inteiro. */
   .cart-foot {
-    flex: 1 1 0; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch;
-    padding: 10px 14px; gap: 8px;
+    flex: 0 0 auto; padding: 10px 14px; gap: 8px;
     background: var(--bg-2); border-top: 1px solid var(--border); box-shadow: 0 -10px 24px rgba(0,0,0,.28);
   }
+  .cart-foot > * { flex: none; }            /* totais e botão não encolhem */
   .totals .t-row { font-size: 13px; padding: 1px 0; }
   .totals .t-row.grand { font-size: 19px; padding-top: 4px; }
-  .cart-foot .btn.lg { height: 48px; font-size: 15px; }
+  .cart-foot .btn.lg { height: 50px; min-height: 50px; font-size: 15px; flex: none; }
   .topbar { padding: 10px 12px; gap: 10px; }
   .topbar .who .name { font-size: 14px; }
 }
