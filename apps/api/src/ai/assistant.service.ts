@@ -100,8 +100,12 @@ export class AssistantService {
    *  Gemini (voz "Leda") usando a chave já configurada. */
   async speak(text: string, voice?: string) {
     const resolved = await this.cfg.resolveForCapability('TTS');
-    if (resolved) return this.client.tts(resolved.provider, resolved.apiKey, text, voice);
-    const key = await this.geminiKey();
+    // Provedor OpenAI-compat DEDICADO (não Gemini) → usa /audio/speech.
+    if (resolved && !resolved.provider.baseUrl.includes('googleapis')) {
+      return this.client.tts(resolved.provider, resolved.apiKey, text, voice);
+    }
+    // Gemini (googleapis) NÃO tem /audio/speech (dava 404) → TTS nativo do Gemini.
+    const key = (resolved?.provider.baseUrl.includes('googleapis') ? resolved.apiKey : null) ?? await this.geminiKey();
     if (!key) throw new BadRequestException('Nenhum provedor de IA com capacidade TTS está configurado.');
     const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent', {
       method: 'POST',
@@ -126,8 +130,12 @@ export class AssistantService {
   /** Áudio → texto: provedor STT dedicado OU transcrição multimodal Gemini. */
   async transcribe(audioBase64: string, mimeType?: string) {
     const resolved = await this.cfg.resolveForCapability('STT');
-    if (resolved) return this.client.stt(resolved.provider, resolved.apiKey, audioBase64, mimeType);
-    const key = await this.geminiKey();
+    // Provedor OpenAI-compat DEDICADO (não Gemini) → usa /audio/transcriptions.
+    if (resolved && !resolved.provider.baseUrl.includes('googleapis')) {
+      return this.client.stt(resolved.provider, resolved.apiKey, audioBase64, mimeType);
+    }
+    // Gemini (googleapis) não tem /audio/transcriptions → transcrição multimodal nativa.
+    const key = (resolved?.provider.baseUrl.includes('googleapis') ? resolved.apiKey : null) ?? await this.geminiKey();
     if (!key) throw new BadRequestException('Nenhum provedor de IA com capacidade STT está configurado.');
     const mt = (mimeType ?? 'audio/webm').split(';')[0];
     let lastStatus = 0;

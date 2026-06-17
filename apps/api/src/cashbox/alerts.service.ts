@@ -128,9 +128,12 @@ export class AlertsService {
       }
 
       // 7. Produtos parados (com stock mas sem vendas há 30 dias).
+      //    SÓ conta produtos que JÁ EXISTEM há ≥30 dias — senão um produto (ou
+      //    empresa) recém-criado dava um alerta falso de "parado há 30 dias".
       const stalled = await tx.$queryRaw<{ n: number }[]>(
         Prisma.sql`SELECT COUNT(*)::int AS n FROM products p
                    WHERE p.is_active = TRUE AND p.stock_qty > 0
+                     AND p.created_at <= now() - interval '30 days'
                      AND NOT EXISTS (
                        SELECT 1 FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
                        WHERE ii.product_code = p.code AND i.status <> 'A'
