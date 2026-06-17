@@ -3,6 +3,8 @@ import { api, ApiError } from '../api/client';
 import type { PlatformKpis, PlatformSeriesPoint, RecentCompany } from '../api/types';
 import { StatusBadge } from '../components/ui';
 import { IconBuilding, IconCard, IconRefresh, IconStar } from '../components/Icons';
+import { AreaChart } from '../components/AreaChart';
+import { DonutChart } from '../components/DonutChart';
 import { formatDate } from '../format';
 
 function kz(n: number): string {
@@ -41,8 +43,6 @@ export function PlatformDashboard() {
     return () => { if (timer.current) window.clearInterval(timer.current); };
   }, [load]);
 
-  const maxBar = Math.max(1, ...series.map((p) => p.companies + p.subscriptions));
-
   return (
     <>
       <div className="content-head">
@@ -68,37 +68,61 @@ export function PlatformDashboard() {
           sub={kpis ? `${kpis.companies.newToday} hoje` : ''} tone="violet" />
       </div>
 
-      {/* Gráfico: novas empresas + subscrições por dia */}
+      {/* Gráfico: novas empresas + subscrições por dia (área com brilho) */}
       <div className="card">
         <h3>Crescimento (últimos 14 dias)</h3>
         {series.length === 0 ? (
           <p className="muted">Sem dados ainda.</p>
         ) : (
-          <div className="bar-chart">
-            {series.map((p) => {
-              const total = p.companies + p.subscriptions;
-              return (
-                <div className="bar-col" key={p.day} title={`${p.day}: ${p.companies} empresas, ${p.subscriptions} subscrições`}>
-                  <div className="bar-stack" style={{ height: `${(total / maxBar) * 100}%` }}>
-                    <div className="bar-seg subs" style={{ flex: p.subscriptions }} />
-                    <div className="bar-seg comp" style={{ flex: p.companies }} />
-                  </div>
-                  <span className="bar-x">{p.day.slice(8)}</span>
-                </div>
-              );
-            })}
-          </div>
+          <AreaChart
+            points={series.map((p) => ({ label: p.day.slice(8), value: p.companies, sub: p.subscriptions }))}
+            height={240}
+            color="var(--primary)"
+            subColor="var(--accent)"
+            subLabel="Subscrições"
+            format={(n) => String(Math.round(n))}
+          />
         )}
         <div className="legend-row">
-          <span><span className="dot comp" /> Empresas</span>
-          <span><span className="dot subs" /> Subscrições</span>
+          <span><span className="dot" style={{ background: 'var(--primary)' }} /> Empresas novas</span>
+          <span><span className="dot" style={{ background: 'var(--accent)' }} /> Subscrições</span>
         </div>
       </div>
 
       <div className="cols-2">
-        {/* Planos */}
+        {/* Empresas por plano (donut) */}
         <div className="card">
           <h3>Empresas por plano</h3>
+          {kpis && kpis.plans.some((p) => p.companies > 0) ? (
+            <DonutChart
+              data={kpis.plans.filter((p) => p.companies > 0).map((p) => ({ label: p.name, value: p.companies }))}
+              centerLabel="Empresas"
+              format={(n) => String(n)}
+            />
+          ) : <p className="muted">Sem empresas em planos ainda.</p>}
+        </div>
+
+        {/* Estado das subscrições (donut) */}
+        <div className="card">
+          <h3>Estado das subscrições</h3>
+          {kpis && (kpis.subscriptions.active + kpis.subscriptions.inReview + kpis.subscriptions.pendingPayment) > 0 ? (
+            <DonutChart
+              data={[
+                { label: 'Activas', value: kpis.subscriptions.active },
+                { label: 'Em revisão', value: kpis.subscriptions.inReview },
+                { label: 'Por pagar', value: kpis.subscriptions.pendingPayment },
+              ].filter((d) => d.value > 0)}
+              centerLabel="Subscrições"
+              format={(n) => String(n)}
+            />
+          ) : <p className="muted">Sem subscrições ainda.</p>}
+        </div>
+      </div>
+
+      <div className="cols-2">
+        {/* Receita por plano (ranking) */}
+        <div className="card">
+          <h3>Planos</h3>
           {kpis?.plans.map((p) => (
             <div className="list-row" key={p.tier}>
               <div style={{ flex: 1 }}>
