@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { AgentEvent, AssistantCallSession } from '../api/types';
+import type { AgentEvent } from '../api/types';
 import { IconCpu } from '../components/Icons';
-import { micSupported, playBase64Audio, startRecording, stopAudio, type Recorder } from '../components/voice';
+import { micSupported, playBase64Audio, startRecording, startVoiceCall, stopAudio, type Recorder, type VoiceCall } from '../components/voice';
 
 /**
  * AGENTE IA do gestor — design estilo claude.ai, responsivo:
@@ -340,100 +340,161 @@ function AgentTurn({ turn }: { turn: Turn }) {
 }
 
 /** Chamada de voz half-duplex — voz feminina natural (Gemini "Leda"). */
+/**
+ * Chamada de voz AO VIVO estilo ChatGPT: escuta contínua com deteção de fim de
+ * fala (envia sozinho quando paras de falar), supressão de eco/ruído (filtra
+ * vozes de fundo) e o assistente em pausa enquanto fala (não se ouve a si). Sem
+ * botão de "enviar".
+ */
 function CallOverlay({ onClose }: { onClose(): void }) {
-  const [session, setSession] = useState<AssistantCallSession | null>(null);
+  const [displayName, setDisplayName] = useState('Assistente');
   const [err, setErr] = useState<string | null>(null);
-  const [status, setStatus] = useState<'connecting' | 'idle' | 'listening' | 'thinking' | 'speaking'>('connecting');
+  const [status, setStatus] = useState<'connecting' | 'listening' | 'thinking' | 'speaking' | 'error'>('connecting');
+  const [hearing, setHearing] = useState(false);
+  const [level, setLevel] = useState(0);
+  const [muted, setMuted] = useState(false);
   const [transcript, setTranscript] = useState<{ who: 'you' | 'ai'; text: string }[]>([]);
-  const recRef = useRef<Recorder | null>(null);
+  const engineRef = useRef<VoiceCall | null>(null);
+  const busyRef = useRef(false);
+  const mutedRef = useRef(false);
   const tr = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    let alive = true;
+    const resume = () => { if (alive) engineRef.current?.setPaused(mutedRef.current); };
+
+    const process = async (audio: { base64: string; mimeType: string }) => {
+      if (!alive || busyRef.current) return;
+      busyRef.current = true;
+      engineRef.current?.setPaused(true);
+      setHearing(false); setStatus('thinking');
+      try {
+        const r = await api.assistant.voiceTurn(audio.base64, audio.mimeType);
+        if (!alive) return;
+        setTranscript((p) => [...p, { who: 'you', text: r.userText }, { who: 'ai', text: r.reply }]);
+        if (r.audioBase64) {
+          setStatus('speaking');
+          const a = playBase64Audio(r.audioBase64, r.mimeType);
+          a.onended = () => { if (!alive) return; setStatus('listening'); busyRef.current = false; resume(); };
+        } else { setStatus('listening'); busyRef.current = false; resume(); }
+      } catch (e) {
+        if (!alive) return;
+        setErr(voiceError(e)); setStatus('listening'); busyRef.current = false; resume();
+      }
+    };
+
     void (async () => {
       try {
         const s = await api.assistant.callSession();
-        setSession(s);
-        if (s.mode === 'unavailable') { setErr('A chamada por voz precisa de um provedor de IA configurado.'); setStatus('idle'); return; }
+        if (!alive) return;
+        setDisplayName(s.displayName ?? 'Assistente');
+        if (s.mode === 'unavailable') {
+          setErr('A chamada por voz precisa de um provedor de IA configurado (Super Admin → Inteligência Artificial).');
+          setStatus('error'); return;
+        }
+        if (s.greeting) setTranscript([{ who: 'ai', text: s.greeting }]);
+        try {
+          engineRef.current = await startVoiceCall({
+            onUtterance: (a) => void process(a),
+            onState: (st) => { if (alive) setHearing(st === 'recording'); },
+            onLevel: (l) => { if (alive) setLevel(l); },
+            onError: () => { /* silencioso */ },
+          });
+        } catch {
+          setErr('Permite o acesso ao microfone no navegador para a chamada.'); setStatus('error'); return;
+        }
+        // saudação falada (motor em pausa enquanto fala p/ não se ouvir)
         if (s.greeting) {
-          setTranscript([{ who: 'ai', text: s.greeting }]);
+          busyRef.current = true; engineRef.current.setPaused(true); setStatus('speaking');
           try {
-            const a = await api.assistant.tts(s.greeting);
-            setStatus('speaking');
-            const audio = playBase64Audio(a.audioBase64, a.mimeType);
-            audio.onended = () => setStatus('idle');
-          } catch { setStatus('idle'); }
-        } else setStatus('idle');
+            const g = await api.assistant.tts(s.greeting);
+            if (!alive) return;
+            const a = playBase64Audio(g.audioBase64, g.mimeType);
+            a.onended = () => { if (!alive) return; setStatus('listening'); busyRef.current = false; resume(); };
+          } catch { setStatus('listening'); busyRef.current = false; resume(); }
+        } else setStatus('listening');
       } catch (e) {
-        setErr(e instanceof ApiError ? e.message : 'Não foi possível iniciar a chamada.');
-        setStatus('idle');
+        if (!alive) return;
+        setErr(e instanceof ApiError ? e.message : 'Não foi possível iniciar a chamada.'); setStatus('error');
       }
     })();
-    return () => { stopAudio(); recRef.current?.cancel(); };
+    return () => { alive = false; stopAudio(); engineRef.current?.stop(); engineRef.current = null; };
   }, []);
 
   useEffect(() => { tr.current?.scrollTo({ top: tr.current.scrollHeight }); }, [transcript, status]);
 
-  const talk = async () => {
-    if (status === 'connecting' || status === 'thinking') return;
-    if (status === 'listening') {
-      const rec = recRef.current; recRef.current = null; setStatus('thinking');
-      if (!rec) { setStatus('idle'); return; }
-      try {
-        const { base64, mimeType } = await rec.stop();
-        const r = await api.assistant.voiceTurn(base64, mimeType);
-        setTranscript((p) => [...p, { who: 'you', text: r.userText }, { who: 'ai', text: r.reply }]);
-        if (r.audioBase64) {
-          setStatus('speaking');
-          const audio = playBase64Audio(r.audioBase64, r.mimeType);
-          audio.onended = () => setStatus('idle');
-        } else setStatus('idle');
-      } catch (e) { setErr(voiceError(e)); setStatus('idle'); }
-    } else {
-      stopAudio(); setErr(null);
-      try { recRef.current = await startRecording(); setStatus('listening'); }
-      catch { setErr('Permite o acesso ao microfone no navegador.'); }
-    }
+  const toggleMute = () => {
+    const m = !muted; setMuted(m); mutedRef.current = m;
+    engineRef.current?.setPaused(m || busyRef.current);
   };
 
   const label = status === 'connecting' ? 'A ligar…'
-    : status === 'listening' ? 'A ouvir… toca para enviar'
-    : status === 'thinking' ? 'A pensar…'
     : status === 'speaking' ? 'A falar…'
-    : 'Toca para falar';
+    : status === 'thinking' ? 'A pensar…'
+    : status === 'error' ? 'Indisponível'
+    : muted ? 'Microfone desligado'
+    : hearing ? 'A ouvir…'
+    : 'À escuta — pode falar';
+
+  // cor do "orb" por estado
+  const glow = status === 'speaking' ? 'var(--accent, var(--primary))'
+    : status === 'thinking' ? 'var(--warning)'
+    : status === 'error' ? 'var(--danger)'
+    : 'var(--success)';
+  const scale = 1 + (status === 'listening' && !muted ? Math.min(0.28, level * 0.28) : status === 'speaking' ? 0.12 : 0);
 
   return (
     <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, textAlign: 'center' }}>
-        <div className="mb" style={{ padding: 24 }}>
-          <div style={{ width: 84, height: 84, borderRadius: 999, margin: '0 auto 12px', display: 'grid', placeItems: 'center', background: 'var(--primary-soft)', color: 'var(--primary)', animation: status === 'speaking' || status === 'listening' ? 'live-pulse 1.6s infinite' : undefined }}>
-            <IconCpu size={40} />
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440, textAlign: 'center' }}>
+        <div className="mb" style={{ padding: '28px 24px' }}>
+          <h3 style={{ margin: '0 0 2px' }}>{displayName}</h3>
+          <div className="muted" style={{ fontSize: 13, marginBottom: 20 }}>{label}</div>
+
+          {/* Orb ao vivo (reage ao nível de voz) */}
+          <div style={{ position: 'relative', width: 168, height: 168, margin: '0 auto 22px', display: 'grid', placeItems: 'center' }}>
+            <div style={{ position: 'absolute', inset: 0, borderRadius: 999, background: `radial-gradient(circle at 50% 40%, ${glow}, transparent 70%)`, opacity: .35,
+              transform: `scale(${1 + (status === 'speaking' ? 0.25 : level * 0.5)})`, transition: 'transform .12s ease', filter: 'blur(6px)' }} />
+            <div style={{
+              width: 132, height: 132, borderRadius: 999, display: 'grid', placeItems: 'center', color: '#fff',
+              background: 'var(--grad-primary, var(--primary))',
+              boxShadow: `0 0 0 1px color-mix(in srgb, ${glow} 50%, transparent), 0 0 46px -6px ${glow}`,
+              transform: `scale(${scale})`, transition: 'transform .1s ease',
+              animation: status === 'thinking' ? 'live-pulse 1.2s infinite' : undefined,
+            }}>
+              <IconCpu size={46} />
+            </div>
           </div>
-          <h3 style={{ margin: '0 0 2px' }}>{session?.displayName ?? 'Assistente'}</h3>
-          <div className="muted" style={{ fontSize: 13, marginBottom: 16 }}>{label}</div>
+
           {err ? <div className="banner danger" style={{ marginBottom: 14, textAlign: 'left' }}>{err}</div> : null}
-          <div ref={tr} style={{ maxHeight: 200, overflowY: 'auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 16px' }}>
+
+          <div ref={tr} style={{ maxHeight: 180, overflowY: 'auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 18px' }}>
             {transcript.map((t, i) => (
               <div key={i} style={{ alignSelf: t.who === 'you' ? 'flex-end' : 'flex-start', maxWidth: '85%', background: t.who === 'you' ? 'var(--primary)' : 'var(--surface-2)', color: t.who === 'you' ? '#fff' : 'var(--text)', padding: '8px 12px', borderRadius: 12, fontSize: 14 }}>
                 {t.text}
               </div>
             ))}
           </div>
-          <button
-            onClick={talk}
-            disabled={status === 'connecting' || status === 'thinking' || !!err}
-            style={{
-              width: 76, height: 76, borderRadius: 999, display: 'grid', placeItems: 'center', margin: '0 auto',
-              background: status === 'listening' ? 'var(--danger)' : 'var(--grad-primary, var(--primary))', color: '#fff',
-              border: 'none', boxShadow: '0 10px 26px -10px var(--primary)',
-              animation: status === 'listening' ? 'live-pulse 1.2s infinite' : undefined,
-            }}
-            title={status === 'listening' ? 'Enviar' : 'Falar'}
-          >
-            {status === 'listening' ? <IconStop size={26} /> : <IconMic size={28} />}
-          </button>
-          <div style={{ marginTop: 18 }}>
-            <button className="btn ghost" onClick={onClose}>Terminar chamada</button>
+
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', alignItems: 'center' }}>
+            <button
+              onClick={toggleMute}
+              disabled={status === 'connecting' || status === 'error'}
+              title={muted ? 'Ligar microfone' : 'Desligar microfone'}
+              style={{ width: 60, height: 60, borderRadius: 999, display: 'grid', placeItems: 'center', cursor: 'pointer',
+                background: muted ? 'var(--danger)' : 'var(--surface-2)', color: muted ? '#fff' : 'var(--text)', border: '1px solid var(--border)' }}
+            >
+              <IconMic size={24} />
+            </button>
+            <button
+              onClick={onClose}
+              title="Terminar chamada"
+              style={{ width: 66, height: 66, borderRadius: 999, display: 'grid', placeItems: 'center', cursor: 'pointer',
+                background: 'var(--danger)', color: '#fff', border: 'none', boxShadow: '0 10px 26px -10px var(--danger)', transform: 'rotate(135deg)' }}
+            >
+              <IconPhone size={26} />
+            </button>
           </div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 14 }}>Fala normalmente — eu respondo quando terminares. 🎙️</div>
         </div>
       </div>
     </div>
