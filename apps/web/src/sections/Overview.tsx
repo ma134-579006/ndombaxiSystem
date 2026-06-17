@@ -8,12 +8,15 @@ import type {
   ManagerStore,
   OpsAlert,
   ProfitSummary,
+  ReportCategoryRow,
+  ReportPaymentRow,
   ReportUserRow,
   SalesRange,
 } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { AreaChart, type AreaPoint } from '../components/AreaChart';
 import { ColumnChart, type ColumnPoint } from '../components/ColumnChart';
+import { DonutChart } from '../components/DonutChart';
 import { IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconStar } from '../components/Icons';
 import { formatKz } from '../format';
 
@@ -27,6 +30,10 @@ const RANGES: { key: SalesRange; label: string }[] = [
   { key: '1y', label: '1 ano' },
 ];
 const DAYS: Record<string, number> = { '7d': 7, '1m': 30, '3m': 90, '6m': 180, '1y': 365 };
+const PAY_PT: Record<string, string> = {
+  CASH: 'Numerário', CARD: 'Multicaixa/Cartão', TRANSFER: 'Transferência',
+  REFERENCE: 'Referência', EXPRESS: 'Multicaixa Express', CREDIT: 'A crédito',
+};
 
 function iso(d: Date): string { return d.toISOString().slice(0, 10); }
 function rangeToDates(r: SalesRange): { from: string; to: string } {
@@ -61,6 +68,8 @@ export function Overview() {
   const [byStore, setByStore] = useState<DashStoreSales[]>([]);
   const [byUser, setByUser] = useState<ReportUserRow[]>([]);
   const [byCustomer, setByCustomer] = useState<ReportUserRow[]>([]);
+  const [byCategory, setByCategory] = useState<ReportCategoryRow[]>([]);
+  const [byPayment, setByPayment] = useState<ReportPaymentRow[]>([]);
   const [storeDays, setStoreDays] = useState(1); // 1=hoje, 7, 30
   const [alerts, setAlerts] = useState<OpsAlert[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +81,7 @@ export function Overview() {
     setError(null);
     const { from, to } = rangeToDates(range);
     try {
-      const [s, ser, t, l, a, bs, bu, bc] = await Promise.all([
+      const [s, ser, t, l, a, bs, bu, bc, cat, pay] = await Promise.all([
         api.profit.summary(from, to, sid),
         api.dashboard.series(range, sid),
         api.dashboard.topProducts(8, sid),
@@ -81,8 +90,11 @@ export function Overview() {
         api.dashboard.salesByStore(storeDays).catch(() => [] as DashStoreSales[]),
         api.reports.salesByUser(from, to, sid).catch(() => [] as ReportUserRow[]),
         api.reports.salesByCustomer(from, to, sid).catch(() => [] as ReportUserRow[]),
+        api.reports.salesByCategory(from, to, sid).catch(() => [] as ReportCategoryRow[]),
+        api.reports.paymentMethods(from, to).catch(() => [] as ReportPaymentRow[]),
       ]);
       setSum(s); setSeries(ser); setTop(t); setLow(l); setAlerts(a); setByStore(bs); setByUser(bu); setByCustomer(bc);
+      setByCategory(cat); setByPayment(pay);
       setUpdatedAt(new Date());
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar a visão geral.');
@@ -168,6 +180,26 @@ export function Overview() {
             sub2Color={hasExpense ? 'var(--warning)' : undefined}
             subLabel="Anulado" sub2Label="Gastos" format={formatKz} />
         )}
+      </div>
+
+      {/* Composição (donuts, estilo enterprise como no super admin) */}
+      <div className="cols-2">
+        <div className="card">
+          <h3>Vendas por categoria</h3>
+          {byCategory.some((c) => c.gross > 0) ? (
+            <DonutChart
+              data={byCategory.filter((c) => c.gross > 0).slice(0, 8).map((c) => ({ label: c.name || 'Sem categoria', value: c.gross }))}
+              centerLabel="Vendas" format={formatKz} />
+          ) : <p className="muted">Sem vendas por categoria no período.</p>}
+        </div>
+        <div className="card">
+          <h3>Métodos de pagamento</h3>
+          {byPayment.some((p) => p.total > 0) ? (
+            <DonutChart
+              data={byPayment.filter((p) => p.total > 0).map((p) => ({ label: PAY_PT[p.method] ?? p.method, value: p.total }))}
+              centerLabel="Recebido" format={formatKz} />
+          ) : <p className="muted">Sem pagamentos no período.</p>}
+        </div>
       </div>
 
       {/* Vendas por loja (multi-loja, tempo real) — período selecionável */}
