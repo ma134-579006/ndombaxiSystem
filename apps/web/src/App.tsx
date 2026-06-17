@@ -185,8 +185,14 @@ function TenantPanel() {
   const { user } = useAuth();
   const [section, setSection] = useWorkspace('overview');
   const nav = React.useMemo(() => navForRole(TENANT_NAV, user?.role), [user?.role]);
-  // se a secção guardada já não é permitida ao papel, volta à visão geral
-  const allowed = React.useMemo(() => new Set(nav.flatMap((n) => (n.children ? n.children.map((c) => c.key) : [n.key]))), [nav]);
+  // se a secção guardada já não é permitida ao papel, volta à visão geral.
+  // 'profile' não está na navegação (abre-se pelo menu da conta) → incluir aqui,
+  // senão o guarda redirecionava o "Configurações do perfil" para a visão geral.
+  const allowed = React.useMemo(() => {
+    const s = new Set(nav.flatMap((n) => (n.children ? n.children.map((c) => c.key) : [n.key])));
+    s.add('profile');
+    return s;
+  }, [nav]);
   const safeSection = allowed.has(section) ? section : 'overview';
   React.useEffect(() => { if (section !== safeSection) setSection(safeSection); }, [section, safeSection]); // eslint-disable-line react-hooks/exhaustive-deps
   // Gate: setup obrigatório → aprovação do Super Admin → plano válido → painel.
