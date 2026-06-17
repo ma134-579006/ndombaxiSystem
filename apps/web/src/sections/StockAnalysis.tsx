@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { StockAnalysis as StockAnalysisData, WarehouseRow } from '../api/types';
 import { IconSearch, IconCube } from '../components/Icons';
@@ -72,7 +73,7 @@ export function StockAnalysis() {
       <div className="content-head">
         <h2>Análise de stock</h2>
         <span className="spacer" />
-        {data ? <button className="btn ghost sm no-print" onClick={() => window.print()}>Imprimir</button> : null}
+        {data ? <button className="btn ghost sm no-print" onClick={() => void printSectionReport()}>Imprimir</button> : null}
       </div>
 
       {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}

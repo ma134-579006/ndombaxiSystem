@@ -1,4 +1,5 @@
 import { confirmDialog } from '../components/feedback';
+import { printSectionReport } from "../pdf/printDoc";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import {
@@ -147,7 +148,7 @@ export function Expenses() {
           </div>
           <span className="spacer" />
           <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
-          <button className="btn sm" onClick={() => window.print()}>🖨 Imprimir</button>
+          <button className="btn sm" onClick={() => void printSectionReport()}>🖨 Imprimir</button>
         </div>
       </div>
 

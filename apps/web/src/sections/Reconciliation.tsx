@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { BankTx, ImportStatementRow, ReconSummary } from '../api/types';
 import { IconCard, IconRefresh } from '../components/Icons';
@@ -120,7 +121,7 @@ export function Reconciliation() {
           <input type="file" accept=".csv,.txt" hidden onChange={(e) => onFile(e.target.files?.[0])} />
         </label>
         <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
-        <button className="btn sm" onClick={() => window.print()}>🖨 Imprimir</button>
+        <button className="btn sm" onClick={() => void printSectionReport()}>🖨 Imprimir</button>
       </div>
 
       <div className="banner info no-print" style={{ marginBottom: 12 }}>

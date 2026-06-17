@@ -1,4 +1,5 @@
 import { confirmDialog, toast } from '../components/feedback';
+import { printReportPdf } from "../pdf/printDoc";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { DashLowStock, ExpiringBatch, ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
@@ -479,43 +480,25 @@ function CountSheet({ detail, products, onClose }: { detail: StockCountDetail; p
     });
     const totalLoss = rows.reduce((s, r) => s + r.lossVal, 0);
     const divergent = rows.filter((r) => r.diff != null && r.diff !== 0).length;
-    const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
-    const fmt = (n: number) => new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 2 }).format(n) + ' Kz';
-    const body = rows.map((r) => `
-      <tr>
-        <td>${esc(r.code)}</td><td>${esc(r.name)}</td>
-        <td class="r">${r.sys}</td>
-        <td class="r">${r.cnt != null ? r.cnt : '—'}</td>
-        <td class="r ${r.diff != null && r.diff < 0 ? 'neg' : r.diff ? 'pos' : ''}">${r.diff != null ? (r.diff > 0 ? '+' : '') + r.diff : '—'}</td>
-        <td class="r neg">${r.lossVal > 0 ? fmt(r.lossVal) : '—'}</td>
-      </tr>`).join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Inventário ${esc(detail.reference)}</title>
-      <style>
-        body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:24px;font-size:13px}
-        h1{font-size:18px;margin:0 0 2px} .sub{color:#666;margin:0 0 14px}
-        table{width:100%;border-collapse:collapse} th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}
-        th{background:#f3f3f3} .r{text-align:right} .neg{color:#c0262c;font-weight:700} .pos{color:#b06a00;font-weight:700}
-        tfoot td{font-weight:700;background:#fafafa}
-        .summary{display:flex;gap:24px;margin:10px 0 16px}
-        .summary div{font-size:13px} .summary b{display:block;font-size:16px}
-      </style></head><body>
-      <h1>Inventário · ${esc(detail.reference)}</h1>
-      <p class="sub">Data: ${new Date().toLocaleString('pt-PT')} · Estado: ${status === 'CLOSED' ? 'Fechada' : 'Em curso'}</p>
-      <div class="summary">
-        <div>Itens<b>${rows.length}</b></div>
-        <div>Divergências<b>${divergent}</b></div>
-        <div>Perda total (a custo)<b class="neg">${fmt(totalLoss)}</b></div>
-      </div>
-      <table>
-        <thead><tr><th>Código</th><th>Produto</th><th class="r">Sistema</th><th class="r">Contado</th><th class="r">Diferença</th><th class="r">Perda (Kz)</th></tr></thead>
-        <tbody>${body}</tbody>
-        <tfoot><tr><td colspan="5" class="r">Perda total</td><td class="r neg">${fmt(totalLoss)}</td></tr></tfoot>
-      </table>
-      <script>window.onload=function(){window.print();}<\/script>
-      </body></html>`;
-    const w = window.open('', '_blank', 'width=900,height=700');
-    if (!w) { toast.error('Permita popups para imprimir o inventário.'); return; }
-    w.document.write(html); w.document.close();
+    const fmt = (n: number) => new Intl.NumberFormat("pt-PT", { maximumFractionDigits: 2 }).format(n) + " Kz";
+    void printReportPdf({
+      title: `Inventário · ${detail.reference}`,
+      subtitle: `Estado: ${status === "CLOSED" ? "Fechada" : "Em curso"}`,
+      summary: [
+        ["Itens", String(rows.length)],
+        ["Divergências", String(divergent)],
+        ["Perda total (a custo)", fmt(totalLoss)],
+      ],
+      tables: [{
+        columns: ["Código", "Produto", "Sistema", "Contado", "Diferença", "Perda (Kz)"],
+        rows: rows.map((r) => [
+          r.code, r.name, String(r.sys),
+          r.cnt != null ? String(r.cnt) : "—",
+          r.diff != null ? (r.diff > 0 ? "+" : "") + r.diff : "—",
+          r.lossVal > 0 ? fmt(r.lossVal) : "—",
+        ]),
+      }],
+    });
   };
 
   const setCounted = async (productId: string, value: string) => {

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { ProfitAbcRow, ProfitPoint, ProfitProduct, ProfitSummary } from '../api/types';
 import { IconChart, IconRefresh } from '../components/Icons';
@@ -51,7 +52,7 @@ export function Profit() {
 
   const maxBar = Math.max(1, ...series.map((p) => Math.max(p.salesNet, p.cost)));
 
-  const print = () => window.print();
+  const print = () => void printSectionReport();
 
   const setPreset = (days: number) => {
     setFrom(todayISO(new Date(Date.now() - (days - 1) * 86400000)));

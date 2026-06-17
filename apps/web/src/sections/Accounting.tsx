@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { ExpenseSummary, ProfitSummary, ReportTaxRow } from '../api/types';
 import { formatKz } from '../format';
@@ -60,7 +61,7 @@ export function Accounting() {
         <div className="row" style={{ gap: 8 }}>
           <button className="btn sm ghost" onClick={() => setOffset((o) => o - 1)}>← mês anterior</button>
           {offset < 0 ? <button className="btn sm ghost" onClick={() => setOffset((o) => o + 1)}>mês seguinte →</button> : null}
-          <button className="btn sm" onClick={() => window.print()}>🖨️ Imprimir</button>
+          <button className="btn sm" onClick={() => void printSectionReport()}>🖨️ Imprimir</button>
         </div>
       </div>
       {error ? <div className="banner danger">{error}</div> : null}

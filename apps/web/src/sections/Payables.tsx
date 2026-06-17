@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type {
   CreatePayableInput,
@@ -60,7 +61,7 @@ export function Payables() {
         <h2>Contas a pagar</h2>
         <span className="spacer" />
         <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
-        <button className="btn sm" onClick={() => window.print()}>🖨 Imprimir</button>
+        <button className="btn sm" onClick={() => void printSectionReport()}>🖨 Imprimir</button>
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Nova conta</button>
       </div>
 

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type {
   ManagerStore, ProfitPoint, ProfitProduct, ReportCashSession, ReportCategoryRow,
@@ -156,7 +157,7 @@ export function Reports() {
         <span className="spacer" />
         <button className="btn sm ghost" onClick={csvExport}>⬇ CSV/Excel</button>
         <button className="btn sm ghost" onClick={() => void emailExport()}>✉ E-mail</button>
-        <button className="btn sm ghost" onClick={() => window.print()}>🖨 Imprimir/PDF</button>
+        <button className="btn sm ghost" onClick={() => void printSectionReport()}>🖨 Imprimir/PDF</button>
       </div>
 
       <div className="card no-print" style={{ marginBottom: 12 }}>

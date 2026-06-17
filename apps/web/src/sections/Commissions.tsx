@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { CommissionReport } from '../api/types';
 import { IconChart, IconRefresh } from '../components/Icons';
@@ -52,7 +53,7 @@ export function Commissions() {
         <h2>Comissões de vendedores</h2>
         <span className="spacer" />
         <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
-        <button className="btn sm" onClick={() => window.print()}>🖨 Imprimir</button>
+        <button className="btn sm" onClick={() => void printSectionReport()}>🖨 Imprimir</button>
       </div>
 
       <div className="card no-print">

@@ -1,4 +1,5 @@
 import { confirmDialog, toast } from '../components/feedback';
+import { printSectionReport } from "../pdf/printDoc";
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { PayrollRun, PayrollRunDetail } from '../api/types';
@@ -151,7 +152,7 @@ function RunSheet({ detail, onClose, onPay }: { detail: PayrollRunDetail; onClos
       </div>
 
       <div className="row" style={{ gap: 10, marginTop: 14 }}>
-        <button className="btn ghost" onClick={() => window.print()}>🖨 Imprimir</button>
+        <button className="btn ghost" onClick={() => void printSectionReport()}>🖨 Imprimir</button>
         <span className="spacer" />
         {run.status === 'PROCESSED' ? (
           <button className="btn" onClick={() => onPay(run.id)}><IconCheck size={16} /> Marcar como paga</button>

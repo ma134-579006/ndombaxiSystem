@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { StockMovementRow, WarehouseRow } from '../api/types';
 import { IconSearch } from '../components/Icons';
@@ -43,7 +44,7 @@ export function StockMovements() {
       <div className="content-head">
         <h2>Movimentos de stock</h2>
         <span className="spacer" />
-        <button className="btn ghost sm no-print" onClick={() => window.print()}>Imprimir</button>
+        <button className="btn ghost sm no-print" onClick={() => void printSectionReport()}>Imprimir</button>
       </div>
 
       {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
