@@ -912,3 +912,14 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
       0 0 14px -4px color-mix(in srgb, var(--primary) 60%, transparent);
   }
 }
+
+/* WORDMARK premium "Ndombaxi System" (gradiente do logo) — consistente com web. */
+@media screen {
+  .login .brand h1, .login-card .brand h1 {
+    background: linear-gradient(100deg, #22d3ee 0%, #5b95ff 46%, #a855f7 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+    font-weight: 900; letter-spacing: -.015em; text-shadow: none;
+    filter: drop-shadow(0 2px 16px rgba(91,149,255,.45));
+  }
+}

@@ -1494,3 +1494,18 @@ body:has(.agent-activity.open) .agent-activity-fab {
 @media (max-width: 640px) {
   .card, .kpi-card, .pcard { backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+
+/* ============================================================
+   WORDMARK "Ndombaxi System" — premium (gradiente do logo).
+   Texto em ciano→azul→violeta com brilho subtil; tipografia
+   display. Marca enterprise no login, criar conta e landing.
+   ============================================================ */
+.login .brand h1 {
+  background: linear-gradient(100deg, #22d3ee 0%, #4f8cff 46%, #a855f7 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  font-family: var(--font-display); font-weight: 900; letter-spacing: -.015em;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 16px rgba(79, 140, 255, .45));
+}
+.login .brand img { filter: drop-shadow(0 10px 26px rgba(0,0,0,.55)) drop-shadow(0 0 18px rgba(34,211,238,.35)); }
