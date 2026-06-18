@@ -66,6 +66,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
     }
 
+    // Erros de validação chegam como ARRAY (class-validator). Junta numa frase
+    // única e amigável — o cliente nunca recebe um array (que renderiza mal).
+    if (Array.isArray(message)) {
+      const parts = [...new Set(message.filter(Boolean))];
+      message = parts.length ? parts.join(' · ') : 'Verifique os dados introduzidos.';
+    }
+
     const payload: ApiError & Record<string, unknown> = {
       ...extra,
       statusCode,
