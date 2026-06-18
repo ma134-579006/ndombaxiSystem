@@ -3,6 +3,7 @@ import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
+import { PasswordField } from '../components/PasswordField';
 import { CAIXA_URL } from '../config';
 
 /** Lista de empresas devolvida quando o e-mail existe em várias. */
@@ -107,9 +108,8 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
                     onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
 
                   <label className="auth-label">Senha</label>
-                  <input className="auth-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••" autoComplete="current-password"
-                    onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+                  <PasswordField value={password} onChange={setPassword} placeholder="••••••••"
+                    autoComplete="current-password" onEnter={() => void submit()} />
 
                   {show2fa ? (
                     <>
@@ -217,11 +217,11 @@ export function ResetView({ token, kind }: { token: string; kind: 'pw' | 'pin' }
       {err ? <div className="auth-error">{err}</div> : null}
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Define a tua nova {isPin ? 'PIN da caixa (6 dígitos)' : 'palavra-passe'}.</p>
       <label className="auth-label">{isPin ? 'Novo PIN' : 'Nova senha'}</label>
-      <input className="auth-input" type={isPin ? 'text' : 'password'} inputMode={isPin ? 'numeric' : undefined} maxLength={isPin ? 6 : undefined}
-        value={secret} onChange={(e) => setSecret(isPin ? e.target.value.replace(/\D/g, '').slice(0, 6) : e.target.value)} placeholder={isPin ? '000000' : '••••••••'} />
+      <PasswordField value={secret} onChange={setSecret} placeholder={isPin ? '000000' : '••••••••'}
+        digitsOnly={isPin} inputMode={isPin ? 'numeric' : undefined} maxLength={isPin ? 6 : undefined} />
       <label className="auth-label">Confirmar</label>
-      <input className="auth-input" type={isPin ? 'text' : 'password'} inputMode={isPin ? 'numeric' : undefined} maxLength={isPin ? 6 : undefined}
-        value={confirm} onChange={(e) => setConfirm(isPin ? e.target.value.replace(/\D/g, '').slice(0, 6) : e.target.value)} placeholder={isPin ? '000000' : '••••••••'} />
+      <PasswordField value={confirm} onChange={setConfirm} placeholder={isPin ? '000000' : '••••••••'}
+        digitsOnly={isPin} inputMode={isPin ? 'numeric' : undefined} maxLength={isPin ? 6 : undefined} />
       <button className="auth-btn" onClick={() => void submit()} disabled={busy}>{busy ? 'A guardar…' : `Definir ${isPin ? 'PIN' : 'senha'}`}</button>
     </>
   );

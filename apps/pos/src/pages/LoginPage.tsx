@@ -3,6 +3,7 @@ import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
+import { PasswordField } from '../components/PasswordField';
 
 /**
  * Login da CAIXA — mesmo design escuro do gestor. O FUNCIONÁRIO entra com o seu
@@ -62,10 +63,8 @@ export function LoginPage() {
                 onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
 
               <label className="auth-label">PIN</label>
-              <input className="auth-input" type="password" value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                placeholder="••••" inputMode="numeric" maxLength={8} autoComplete="current-password"
-                onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+              <PasswordField value={pin} onChange={setPin} placeholder="••••" digitsOnly
+                inputMode="numeric" maxLength={8} autoComplete="current-password" onEnter={() => void submit()} />
 
               <div className="auth-sublinks">
                 <span />
@@ -154,11 +153,9 @@ function PinResetView({ token }: { token: string }) {
       {err ? <div className="auth-error">{err}</div> : null}
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Define o teu novo PIN da caixa (6 dígitos).</p>
       <label className="auth-label">Novo PIN</label>
-      <input className="auth-input" type="password" inputMode="numeric" maxLength={6} value={pin}
-        onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" />
+      <PasswordField value={pin} onChange={setPin} digitsOnly inputMode="numeric" maxLength={6} placeholder="••••••" />
       <label className="auth-label">Confirmar PIN</label>
-      <input className="auth-input" type="password" inputMode="numeric" maxLength={6} value={confirm}
-        onChange={(e) => setConfirm(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" />
+      <PasswordField value={confirm} onChange={setConfirm} digitsOnly inputMode="numeric" maxLength={6} placeholder="••••••" />
       <button className="auth-btn" onClick={() => void submit()} disabled={busy}>{busy ? 'A guardar…' : 'Definir PIN'}</button>
     </>
   );

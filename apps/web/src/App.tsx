@@ -177,6 +177,7 @@ function PlatformPanel() {
       {section === 'gateways' ? <Gateways /> : null}
       {section === 'integrations' ? <Integrations /> : null}
       {section === 'mail' ? <MailSettings /> : null}
+      {section === 'profile' ? <Profile /> : null}
     </Shell>
   );
 }

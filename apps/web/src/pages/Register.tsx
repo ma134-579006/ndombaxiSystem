@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import type { PublicPlan } from '../api/types';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
+import { PasswordField } from '../components/PasswordField';
 
 /**
  * Criar conta de empresa — registo SIMPLES (só email + palavra-passe ou Google).
@@ -68,9 +69,8 @@ export function Register({ onBack }: { onBack?: () => void }) {
             onKeyDown={(e) => { if (e.key === 'Enter') void submitEmail(); }} />
 
           <label className="auth-label">Palavra-passe</label>
-          <input className="auth-input" value={password} onChange={(e) => setPassword(e.target.value)}
-            placeholder="mín. 8 caracteres" type="password" autoComplete="new-password"
-            onKeyDown={(e) => { if (e.key === 'Enter') void submitEmail(); }} />
+          <PasswordField value={password} onChange={setPassword} placeholder="mín. 8 caracteres"
+            autoComplete="new-password" onEnter={() => void submitEmail()} />
 
           <div style={{ height: 18 }} />
           <button className="auth-btn" onClick={submitEmail} disabled={loading}>{loading ? 'A criar…' : 'Criar conta'}</button>

@@ -967,3 +967,10 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
     linear-gradient(0deg, rgba(7,10,20,.5), rgba(7,10,20,0) 40%); }
   .auth-panel { width: 100%; }
 }
+
+/* Campo de PIN com botão "olho" */
+.auth-pass { position: relative; }
+.auth-pass .auth-input { padding-right: 48px; }
+.auth-eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px;
+  display: grid; place-items: center; border: none; background: transparent; color: #8ea6ff; cursor: pointer; border-radius: 8px; }
+.auth-eye:hover { color: #fff; background: rgba(255,255,255,.06); }
