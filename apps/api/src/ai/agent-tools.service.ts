@@ -130,10 +130,10 @@ export class AgentToolsService {
   private async resumoVendas(schema: string, dias: number): Promise<ToolOutcome> {
     const tot = await this.q<{ n: number; total: number; iva: number }>(schema, Prisma.sql`
       SELECT COUNT(*)::int AS n, COALESCE(SUM(gross_total),0)::float AS total, COALESCE(SUM(iva_total),0)::float AS iva
-      FROM invoices WHERE status = 'ISSUED' AND doc_type IN ('FT','FS','FR') AND issued_at > now() - (${dias} || ' days')::interval`);
+      FROM invoices WHERE status = 'N' AND doc_type IN ('FT','FS','FR') AND system_entry_date > now() - (${dias} || ' days')::interval`);
     const porDia = await this.q<{ dia: string; total: number; n: number }>(schema, Prisma.sql`
-      SELECT to_char(issued_at::date,'YYYY-MM-DD') AS dia, COALESCE(SUM(gross_total),0)::float AS total, COUNT(*)::int AS n
-      FROM invoices WHERE status = 'ISSUED' AND doc_type IN ('FT','FS','FR') AND issued_at > now() - (${dias} || ' days')::interval
+      SELECT to_char(system_entry_date::date,'YYYY-MM-DD') AS dia, COALESCE(SUM(gross_total),0)::float AS total, COUNT(*)::int AS n
+      FROM invoices WHERE status = 'N' AND doc_type IN ('FT','FS','FR') AND system_entry_date > now() - (${dias} || ' days')::interval
       GROUP BY 1 ORDER BY 1`);
     const t = tot[0];
     const ticket = t.n ? t.total / t.n : 0;
@@ -144,18 +144,19 @@ export class AgentToolsService {
     const rows = await this.q<{ description: string; qty: number; total: number }>(schema, Prisma.sql`
       SELECT ii.description, SUM(ii.quantity)::float AS qty, SUM(ii.gross_amount)::float AS total
       FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
-      WHERE i.status='ISSUED' AND i.doc_type IN ('FT','FS','FR') AND i.issued_at > now() - (${dias} || ' days')::interval
+      WHERE i.status='N' AND i.doc_type IN ('FT','FS','FR') AND i.system_entry_date > now() - (${dias} || ' days')::interval
       GROUP BY ii.description ORDER BY total DESC LIMIT ${Math.min(50, limite)}`);
     return { result: rows.length ? `Top produtos (${dias}d): ` + rows.map((r, i) => `${i + 1}. ${r.description}: ${r.qty} un, ${fmtKz(r.total)}`).join(' · ') : 'Sem vendas no período.' };
   }
 
   private async desempenho(schema: string, dias: number): Promise<ToolOutcome> {
     const rows = await this.q<{ cashier_name: string; n: number; total: number; canc: number }>(schema, Prisma.sql`
-      SELECT COALESCE(cashier_name,'(sem nome)') AS cashier_name, COUNT(*) FILTER (WHERE status='ISSUED')::int AS n,
-             COALESCE(SUM(gross_total) FILTER (WHERE status='ISSUED'),0)::float AS total,
-             COUNT(*) FILTER (WHERE status='CANCELLED')::int AS canc
-      FROM invoices WHERE doc_type IN ('FT','FS','FR') AND issued_at > now() - (${dias} || ' days')::interval
-      GROUP BY 1 ORDER BY total DESC`);
+      SELECT COALESCE(u.name,'(sem nome)') AS cashier_name, COUNT(*) FILTER (WHERE i.status='N')::int AS n,
+             COALESCE(SUM(i.gross_total) FILTER (WHERE i.status='N'),0)::float AS total,
+             COUNT(*) FILTER (WHERE i.status='A')::int AS canc
+      FROM invoices i LEFT JOIN users u ON u.id = i.cashier_id
+      WHERE i.doc_type IN ('FT','FS','FR') AND i.system_entry_date > now() - (${dias} || ' days')::interval
+      GROUP BY u.name ORDER BY total DESC`);
     return { result: rows.length ? `Desempenho por operador (${dias}d): ` + rows.map((r) => `${r.cashier_name}: ${fmtKz(r.total)} em ${r.n} vendas${r.canc ? `, ${r.canc} canceladas` : ''}`).join(' · ') : 'Sem atividade no período.' };
   }
 
@@ -163,8 +164,10 @@ export class AgentToolsService {
     const findings: string[] = [];
     // 1. cancelamentos por operador (rácio alto = indício)
     const canc = await this.q<{ cashier_name: string; canc: number; tot: number }>(schema, Prisma.sql`
-      SELECT COALESCE(cashier_name,'?') AS cashier_name, COUNT(*) FILTER (WHERE status='CANCELLED')::int AS canc, COUNT(*)::int AS tot
-      FROM invoices WHERE issued_at > now() - (${dias} || ' days')::interval GROUP BY 1 HAVING COUNT(*) FILTER (WHERE status='CANCELLED') > 0`);
+      SELECT COALESCE(u.name,'?') AS cashier_name, COUNT(*) FILTER (WHERE i.status='A')::int AS canc, COUNT(*)::int AS tot
+      FROM invoices i LEFT JOIN users u ON u.id = i.cashier_id
+      WHERE i.system_entry_date > now() - (${dias} || ' days')::interval
+      GROUP BY u.name HAVING COUNT(*) FILTER (WHERE i.status='A') > 0`);
     for (const c of canc) {
       const pct = Math.round((c.canc / Math.max(1, c.tot)) * 100);
       if (pct >= 15 || c.canc >= 5) findings.push(`⚠️ ${c.cashier_name}: ${c.canc} cancelamentos em ${c.tot} docs (${pct}%) — rever os motivos um a um`);
@@ -172,8 +175,8 @@ export class AgentToolsService {
     // 2. vendas fora de horas (22h-06h)
     const noturnas = await this.q<{ n: number; total: number }>(schema, Prisma.sql`
       SELECT COUNT(*)::int AS n, COALESCE(SUM(gross_total),0)::float AS total FROM invoices
-      WHERE status='ISSUED' AND issued_at > now() - (${dias} || ' days')::interval
-        AND (EXTRACT(hour FROM issued_at) >= 22 OR EXTRACT(hour FROM issued_at) < 6)`);
+      WHERE status='N' AND system_entry_date > now() - (${dias} || ' days')::interval
+        AND (EXTRACT(hour FROM system_entry_date) >= 22 OR EXTRACT(hour FROM system_entry_date) < 6)`);
     if (noturnas[0]?.n > 0) findings.push(`🌙 ${noturnas[0].n} vendas fora de horas (22h-06h) no valor de ${fmtKz(noturnas[0].total)} — confirma se a loja opera nesse horário`);
     // 3. diferenças de fecho de caixa
     const fechos = await this.q<{ opened_by_name: string; diff: number; closed_at: Date }>(schema, Prisma.sql`
@@ -212,7 +215,7 @@ export class AgentToolsService {
     const v = await this.q<{ receita: number; custo: number }>(schema, Prisma.sql`
       SELECT COALESCE(SUM(ii.gross_amount),0)::float AS receita, COALESCE(SUM(ii.quantity * COALESCE(ii.unit_cost,0)),0)::float AS custo
       FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
-      WHERE i.status='ISSUED' AND i.doc_type IN ('FT','FS','FR') AND i.issued_at > now() - (${dias} || ' days')::interval`);
+      WHERE i.status='N' AND i.doc_type IN ('FT','FS','FR') AND i.system_entry_date > now() - (${dias} || ' days')::interval`);
     const g = await this.q<{ gastos: number }>(schema, Prisma.sql`
       SELECT COALESCE(SUM(amount),0)::float AS gastos FROM expenses WHERE expense_date > now() - (${dias} || ' days')::interval`).catch(() => [{ gastos: 0 }]);
     const bruto = v[0].receita - v[0].custo;
@@ -248,7 +251,7 @@ export class AgentToolsService {
     const rows = await this.q<{ iva_code: string; base: number; iva: number }>(schema, Prisma.sql`
       SELECT ii.iva_code, COALESCE(SUM(ii.net_amount),0)::float AS base, COALESCE(SUM(ii.iva_amount),0)::float AS iva
       FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
-      WHERE i.status='ISSUED' AND EXTRACT(year FROM i.issued_at)=${y} AND EXTRACT(month FROM i.issued_at)=${m}
+      WHERE i.status='N' AND EXTRACT(year FROM i.system_entry_date)=${y} AND EXTRACT(month FROM i.system_entry_date)=${m}
       GROUP BY 1 ORDER BY 1`);
     return { result: rows.length ? `Mapa de IVA ${String(m).padStart(2, '0')}/${y}: ` + rows.map((r) => `${r.iva_code}: base ${fmtKz(r.base)}, IVA ${fmtKz(r.iva)}`).join(' · ') : `Sem documentos em ${String(m).padStart(2, '0')}/${y}.` };
   }

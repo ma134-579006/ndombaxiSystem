@@ -55,11 +55,15 @@ export class AssistantService {
   async chat(messages: ChatTurn[], ctx: PromptContext = {}): Promise<ChatResult> {
     const persona = await this.persona();
     const systemPrompt = buildSystemPrompt(persona, ctx);
+    // Na VOZ/CHAMADA: respostas curtas e diretas → gera menos texto, responde
+    // mais depressa (menos "a pensar") e o áudio sai mais rápido.
+    const voice = ctx.channel === 'voice' || ctx.channel === 'call';
+    const opts = voice ? { maxTokens: 220, temperature: 0.4 } : undefined;
     // Failover: tenta o provedor principal e, se falhar (quota/token), o seguinte.
     let usedProvider = '';
     const reply = await this.cfg.runWithFailover('CHAT', (provider, apiKey) => {
       usedProvider = provider.name;
-      return this.client.chat(provider, apiKey, messages, systemPrompt);
+      return this.client.chat(provider, apiKey, messages, systemPrompt, opts);
     });
     if (!reply) {
       throw new BadRequestException(

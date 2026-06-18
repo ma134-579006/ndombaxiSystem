@@ -42,9 +42,11 @@ export class AiProviderClient {
     apiKey: string | null,
     messages: ChatTurn[],
     systemPrompt: string,
+    opts?: { maxTokens?: number; temperature?: number },
   ): Promise<ChatReply> {
     const settings = (provider.settings ?? {}) as Record<string, unknown>;
     const adapter = provider.adapter;
+    const maxTokens = opts?.maxTokens ?? (settings.maxTokens as number) ?? 700;
 
     if (adapter === 'anthropic') {
       const body = {
@@ -83,7 +85,8 @@ export class AiProviderClient {
     const body = {
       model: provider.model ?? 'gpt-4o-mini',
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
-      temperature: (settings.temperature as number) ?? 0.7,
+      temperature: opts?.temperature ?? (settings.temperature as number) ?? 0.7,
+      max_tokens: maxTokens,
     };
     const json = await this.post(provider, apiKey, path, body);
     const responsePath = (settings.responsePath as string) ?? 'choices.0.message.content';
