@@ -1,15 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { decodeJwt } from '../auth/jwt';
-import { KeyboardInput } from '../keyboard/KeyboardInput';
-import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
-import { IconBuilding, IconReceipt, IconShield } from '../components/Icons';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { CAIXA_URL } from '../config';
-
-type Profile = 'tenant' | 'caixa' | 'platform';
 
 /** Lista de empresas devolvida quando o e-mail existe em várias. */
 interface CompanyChoice { code: string; name: string }
@@ -22,213 +16,135 @@ function choicesFrom(e: unknown): CompanyChoice[] | null {
 }
 
 /**
- * Login SEM código de empresa: o gestor entra só com e-mail + palavra-passe
- * (ou Google) — a empresa é encontrada pelo e-mail. Se o mesmo e-mail existir
- * em várias empresas, aparece um seletor. A Caixa abre-se com o e-mail
- * registado da empresa (ou o código antigo, que continua a funcionar).
+ * Login ÚNICO (escuro, fixo): gestor de empresa E super admin entram no mesmo
+ * formulário — o sistema descobre sozinho quem é (tenta empresa pelo e-mail e,
+ * se não for, tenta plataforma). Sem escolher perfil. A Caixa abre-se por um
+ * link próprio. Vídeo enterprise à direita.
  */
 export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?: () => void }) {
   const { loginTenant, loginPlatform, loginGoogle } = useAuth();
-  // Recuperação por e-mail: link no e-mail traz ?reset=<token>&k=pw
   const resetToken = useMemo(() => {
     const p = new URLSearchParams(location.search);
     return p.get('k') !== 'pin' ? p.get('reset') : null;
   }, []);
   const [forgot, setForgot] = useState(false);
-  const [profile, setProfile] = useState<Profile>('tenant');
-  const [caixaId, setCaixaId] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [twoFa, setTwoFa] = useState('');
   const [show2fa, setShow2fa] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** Várias empresas para o mesmo e-mail → o utilizador escolhe. */
   const [choices, setChoices] = useState<CompanyChoice[] | null>(null);
-  /** Pedido pendente a repetir com o companyCode escolhido. */
   const [pending, setPending] = useState<{ kind: 'password' | 'google'; idToken?: string } | null>(null);
 
   const onGoogle = async (idToken: string, companyCode?: string) => {
-    setError(null);
-    setLoading(true);
+    setError(null); setLoading(true);
     try {
       await loginGoogle(idToken, companyCode);
     } catch (e) {
       const c = choicesFrom(e);
       if (c) { setChoices(c); setPending({ kind: 'google', idToken }); return; }
       setError(e instanceof ApiError ? e.message : 'Não foi possível entrar com Google.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  /** Abrir a Caixa com Google: identifica a empresa pelo e-mail da conta Google
-   *  e salta para o terminal (o operador entra na Caixa com nome+PIN). */
-  const onGoogleCaixa = (idToken: string) => {
-    setError(null);
-    const email = decodeJwt(idToken)?.email;
-    if (!email) { setError('Não foi possível ler a conta Google. Usa o e-mail registado.'); return; }
-    window.location.assign(`${CAIXA_URL}/?empresa=${encodeURIComponent(email.toLowerCase())}`);
-  };
-
+  /** Entra discernindo o perfil: 1) tenta como empresa (gestor) pelo e-mail;
+   *  2) se não houver empresa, tenta como super admin (plataforma). */
   const submit = async (companyCode?: string) => {
-    setError(null);
-    setChoices(null);
-
-    // A Caixa (POS) é uma aplicação separada — abre-se com o e-mail registado
-    // da empresa (ou o código antigo; a própria Caixa resolve).
-    if (profile === 'caixa') {
-      if (!caixaId.trim()) {
-        setError('Indica o e-mail registado da empresa para abrir a Caixa.');
-        return;
-      }
-      window.location.assign(`${CAIXA_URL}/?empresa=${encodeURIComponent(caixaId.trim().toLowerCase())}`);
-      return;
-    }
-
-    if (!email.trim() || !password) {
-      setError('Indica o e-mail e a palavra-passe.');
-      return;
-    }
+    setError(null); setChoices(null);
+    if (!email.trim() || !password) { setError('Indica o e-mail e a palavra-passe.'); return; }
     setLoading(true);
+    const twoFaToken = twoFa.trim() || undefined;
     try {
-      const twoFaToken = twoFa.trim() || undefined;
-      if (profile === 'tenant') {
-        await loginTenant({ companyCode, email: email.trim(), password, twoFaToken });
-      } else {
-        await loginPlatform({ email: email.trim(), password, twoFaToken });
-      }
+      await loginTenant({ companyCode, email: email.trim(), password, twoFaToken });
     } catch (e) {
       const c = choicesFrom(e);
-      if (c) { setChoices(c); setPending({ kind: 'password' }); return; }
-      setError(e instanceof ApiError ? e.message : 'Não foi possível entrar.');
-    } finally {
-      setLoading(false);
-    }
+      if (c) { setChoices(c); setPending({ kind: 'password' }); setLoading(false); return; }
+      try {
+        await loginPlatform({ email: email.trim(), password, twoFaToken });
+      } catch {
+        setError(e instanceof ApiError ? e.message : 'E-mail ou palavra-passe incorretos.');
+      }
+    } finally { setLoading(false); }
   };
 
   const pickCompany = async (code: string) => {
     setChoices(null);
-    if (pending?.kind === 'google' && pending.idToken) {
-      await onGoogle(pending.idToken, code);
-    } else {
-      await submit(code);
-    }
+    if (pending?.kind === 'google' && pending.idToken) await onGoogle(pending.idToken, code);
+    else await submit(code);
     setPending(null);
   };
 
-  if (resetToken) {
-    return (
-      <div className="login">
-        <LoginShowcase />
-        <div className="box">
-          <div className="brand">
-            <img src={LOGO_SRC} alt={SYSTEM_NAME} />
-            <h1>{SYSTEM_NAME}</h1>
-            <div className="tg">Nova palavra-passe</div>
-          </div>
-          <div className="card"><ResetView token={resetToken} kind="pw" /></div>
-        </div>
-      </div>
-    );
-  }
+  const openCaixa = () => window.location.assign(`${CAIXA_URL}/`);
 
   return (
-    <div className="login">
-      <LoginShowcase />
-      <div className="box">
-        <div className="brand">
-          <img src={LOGO_SRC} alt={SYSTEM_NAME} />
-          <h1>{SYSTEM_NAME}</h1>
-          <div className="tg">Painel de Gestão</div>
-        </div>
-        <div className="card">
-          <div className="seg" style={{ marginBottom: 16 }}>
-            <button className={profile === 'tenant' ? 'on' : ''} onClick={() => { setProfile('tenant'); setError(null); setChoices(null); }} type="button">
-              <IconBuilding size={16} /> Gestor
-            </button>
-            <button className={profile === 'caixa' ? 'on' : ''} onClick={() => { setProfile('caixa'); setError(null); setChoices(null); }} type="button">
-              <IconReceipt size={16} /> Caixa
-            </button>
-            <button className={profile === 'platform' ? 'on' : ''} onClick={() => { setProfile('platform'); setError(null); setChoices(null); }} type="button">
-              <IconShield size={16} /> Super Admin
-            </button>
-          </div>
-
-          {error ? <div className="banner danger" style={{ marginBottom: 14 }}>{error}</div> : null}
-
-          {choices ? (
-            <div style={{ marginBottom: 12 }}>
-              <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-                Este e-mail existe em várias empresas — escolhe qual queres abrir:
-              </p>
-              {choices.map((c) => (
-                <button key={c.code} className="btn ghost block" style={{ marginBottom: 8 }} onClick={() => void pickCompany(c.code)} disabled={loading}>
-                  <IconBuilding size={16} /> {c.name}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {profile === 'caixa' ? (
+    <div className="auth">
+      <div className="auth-panel">
+        <div className="auth-form">
+          {resetToken ? (
             <>
-              <p className="muted" style={{ fontSize: 13, marginTop: 0, marginBottom: 12 }}>
-                Abre o terminal de venda (Caixa). O início de sessão do operador é feito na própria Caixa por nome + PIN.
-              </p>
-              <KeyboardInput label="E-mail registado da empresa" value={caixaId} onChange={setCaixaId} placeholder="gestor@empresa.ao" onSubmit={() => void submit()} />
+              <h1 className="auth-title">Nova palavra-passe</h1>
+              <ResetView token={resetToken} kind="pw" />
             </>
-          ) : null}
-
-          {profile !== 'caixa' && !choices ? (
+          ) : (
             <>
-              <KeyboardInput label="E-mail" value={email} onChange={setEmail} placeholder={profile === 'tenant' ? 'gestor@empresa.ao' : 'admin@ndombaxi.ao'} onSubmit={() => void submit()} />
-              <KeyboardInput label="Palavra-passe" type="password" value={password} onChange={setPassword} placeholder="••••••••" onSubmit={() => void submit()} />
-              {show2fa ? (
-                <KeyboardInput label="Código 2FA" value={twoFa} onChange={setTwoFa} placeholder="000000" numeric maxLength={6} onSubmit={() => void submit()} />
+              <h1 className="auth-title">Inicie sessão</h1>
+
+              {error ? <div className="auth-error">{error}</div> : null}
+
+              {choices ? (
+                <div className="auth-choices">
+                  <p>Este e-mail existe em várias empresas — escolhe:</p>
+                  {choices.map((c) => (
+                    <button key={c.code} className="auth-choice" onClick={() => void pickCompany(c.code)} disabled={loading}>{c.name}</button>
+                  ))}
+                </div>
               ) : (
-                <button type="button" className="link-2fa" onClick={() => setShow2fa(true)}>Tenho código 2FA</button>
+                <>
+                  <label className="auth-label">E-mail</label>
+                  <input className="auth-input" value={email} onChange={(e) => setEmail(e.target.value)}
+                    placeholder="exemplo@empresa.ao" inputMode="email" autoComplete="username"
+                    onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+
+                  <label className="auth-label">Senha</label>
+                  <input className="auth-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••" autoComplete="current-password"
+                    onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+
+                  {show2fa ? (
+                    <>
+                      <label className="auth-label">Código 2FA</label>
+                      <input className="auth-input" value={twoFa} onChange={(e) => setTwoFa(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="000000" inputMode="numeric" maxLength={6}
+                        onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+                    </>
+                  ) : null}
+
+                  <div className="auth-sublinks">
+                    {!show2fa ? <a onClick={() => setShow2fa(true)}>Tenho código 2FA</a> : <span />}
+                    <a onClick={() => setForgot(true)}>Esqueci a senha</a>
+                  </div>
+
+                  <button className="auth-btn" onClick={() => void submit()} disabled={loading}>
+                    {loading ? 'A entrar…' : 'Entrar'}
+                  </button>
+
+                  <a className="auth-caixa" onClick={openCaixa}>Entrar na Caixa (terminal de venda) →</a>
+
+                  <div className="auth-or"><span>ou</span></div>
+                  <div className="auth-google"><GoogleSignInButton onCredential={(t) => void onGoogle(t)} /></div>
+
+                  {onRegister ? (
+                    <p className="auth-foot">Ainda não tem conta? <a onClick={onRegister}>Criar conta</a></p>
+                  ) : null}
+                  {onBack ? <p className="auth-foot"><a onClick={onBack}>← Voltar à página inicial</a></p> : null}
+                </>
               )}
-              <button type="button" className="link-2fa" style={{ marginLeft: 12 }} onClick={() => setForgot(true)}>Esqueci a senha</button>
             </>
-          ) : null}
-
-          {!choices ? (
-            <button className="btn lg block" onClick={() => void submit()} disabled={loading}>
-              {profile === 'caixa' ? <IconReceipt size={18} /> : profile === 'tenant' ? <IconBuilding size={18} /> : <IconShield size={18} />}{' '}
-              {profile === 'caixa' ? 'Abrir a Caixa' : loading ? 'A entrar…' : 'Entrar'}
-            </button>
-          ) : null}
-
-          {profile === 'tenant' && !choices ? (
-            <div className="google-row">
-              <div className="or-sep"><span>ou</span></div>
-              <GoogleSignInButton onCredential={(t) => void onGoogle(t)} />
-            </div>
-          ) : null}
-
-          {profile === 'caixa' ? (
-            <div className="google-row">
-              <div className="or-sep"><span>ou abre com</span></div>
-              <GoogleSignInButton onCredential={(t) => onGoogleCaixa(t)} />
-            </div>
-          ) : null}
+          )}
         </div>
-        {profile === 'tenant' && onRegister ? (
-          <p style={{ textAlign: 'center', marginTop: 12 }}>
-            <a onClick={onRegister} style={{ color: 'var(--primary)', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
-              Não tem conta? Criar conta de empresa
-            </a>
-          </p>
-        ) : null}
-        {onBack ? (
-          <p style={{ textAlign: 'center', marginTop: 6 }}>
-            <a onClick={onBack} style={{ color: 'var(--muted)', fontSize: 13, cursor: 'pointer' }}>
-              ← Voltar à página inicial
-            </a>
-          </p>
-        ) : null}
-        <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12 }}>{copyrightLine()}</p>
       </div>
+      <div className="auth-media"><LoginShowcase /></div>
       {forgot ? <ForgotModal onClose={() => setForgot(false)} /> : null}
     </div>
   );
@@ -245,9 +161,9 @@ function ForgotModal({ onClose }: { onClose(): void }) {
     setBusy(true); setWarn(null);
     try {
       const r = await api.forgotPassword(email.trim().toLowerCase());
-      if (!r.emailConfigured) setWarn('O envio de e-mail ainda não está configurado nesta plataforma. Pede ao administrador para repor a tua senha.');
+      if (!r.emailConfigured) setWarn('O envio de e-mail ainda não está configurado. Pede ao administrador para repor a tua senha.');
       else setDone(true);
-    } catch { setDone(true); /* não revela */ }
+    } catch { setDone(true); }
     finally { setBusy(false); }
   };
   return (
@@ -262,7 +178,7 @@ function ForgotModal({ onClose }: { onClose(): void }) {
               {warn ? <div className="banner danger" style={{ marginBottom: 12 }}>{warn}</div> : null}
               <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Escreve o teu e-mail. Enviamos um link (válido 1 hora) para definires uma nova senha.</p>
               <div className="field"><label>E-mail</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="gestor@empresa.ao" inputMode="email" /></div>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="exemplo@empresa.ao" inputMode="email" /></div>
               <button className="btn lg block" onClick={() => void submit()} disabled={busy}>{busy ? 'A enviar…' : 'Enviar link de recuperação'}</button>
             </>
           )}
@@ -298,15 +214,15 @@ export function ResetView({ token, kind }: { token: string; kind: 'pw' | 'pin' }
   }
   return (
     <>
-      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      {err ? <div className="auth-error">{err}</div> : null}
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Define a tua nova {isPin ? 'PIN da caixa (6 dígitos)' : 'palavra-passe'}.</p>
-      <div className="field"><label>{isPin ? 'Novo PIN' : 'Nova senha'}</label>
-        <input type={isPin ? 'text' : 'password'} inputMode={isPin ? 'numeric' : undefined} maxLength={isPin ? 6 : undefined}
-          value={secret} onChange={(e) => setSecret(isPin ? e.target.value.replace(/\D/g, '').slice(0, 6) : e.target.value)} placeholder={isPin ? '000000' : '••••••••'} /></div>
-      <div className="field"><label>Confirmar</label>
-        <input type={isPin ? 'text' : 'password'} inputMode={isPin ? 'numeric' : undefined} maxLength={isPin ? 6 : undefined}
-          value={confirm} onChange={(e) => setConfirm(isPin ? e.target.value.replace(/\D/g, '').slice(0, 6) : e.target.value)} placeholder={isPin ? '000000' : '••••••••'} /></div>
-      <button className="btn lg block" onClick={() => void submit()} disabled={busy}>{busy ? 'A guardar…' : `Definir ${isPin ? 'PIN' : 'senha'}`}</button>
+      <label className="auth-label">{isPin ? 'Novo PIN' : 'Nova senha'}</label>
+      <input className="auth-input" type={isPin ? 'text' : 'password'} inputMode={isPin ? 'numeric' : undefined} maxLength={isPin ? 6 : undefined}
+        value={secret} onChange={(e) => setSecret(isPin ? e.target.value.replace(/\D/g, '').slice(0, 6) : e.target.value)} placeholder={isPin ? '000000' : '••••••••'} />
+      <label className="auth-label">Confirmar</label>
+      <input className="auth-input" type={isPin ? 'text' : 'password'} inputMode={isPin ? 'numeric' : undefined} maxLength={isPin ? 6 : undefined}
+        value={confirm} onChange={(e) => setConfirm(isPin ? e.target.value.replace(/\D/g, '').slice(0, 6) : e.target.value)} placeholder={isPin ? '000000' : '••••••••'} />
+      <button className="auth-btn" onClick={() => void submit()} disabled={busy}>{busy ? 'A guardar…' : `Definir ${isPin ? 'PIN' : 'senha'}`}</button>
     </>
   );
 }

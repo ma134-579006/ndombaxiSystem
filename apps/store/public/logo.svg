@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="ndbx" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#163a6b"/>
+      <stop offset="1" stop-color="#08203a"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="120" height="120" rx="30" fill="url(#ndbx)"/>
+  <rect x="38" y="36" width="16" height="52" fill="#ffffff"/>
+  <rect x="66" y="36" width="16" height="52" fill="#ffffff"/>
+  <polygon points="38,36 54,36 82,88 66,88" fill="#ffffff"/>
+</svg>

@@ -2,14 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { PublicPlan } from '../api/types';
-import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
-import { IconBuilding } from '../components/Icons';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 
 /**
- * Criar conta de empresa — registo SIMPLES: só email + palavra-passe própria,
- * ou conta Google. Depois de entrar, o setup obrigatório pede nome/código/NIF/logo.
+ * Criar conta de empresa — registo SIMPLES (só email + palavra-passe ou Google).
+ * Mesmo design escuro do login (formulário à esquerda, vídeo à direita).
  */
 export function Register({ onBack }: { onBack?: () => void }) {
   const { adoptSession } = useAuth();
@@ -48,41 +46,42 @@ export function Register({ onBack }: { onBack?: () => void }) {
   };
 
   return (
-    <div className="login">
-      <LoginShowcase />
-      <div className="box">
-        <div className="brand">
-          <img src={LOGO_SRC} alt={SYSTEM_NAME} />
-          <h1>{SYSTEM_NAME}</h1>
-          <div className="tg">Criar conta de empresa — comece grátis</div>
-        </div>
-        <div className="card">
-          {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
+    <div className="auth">
+      <div className="auth-panel">
+        <div className="auth-form">
+          <h1 className="auth-title">Criar conta</h1>
+
+          {error ? <div className="auth-error">{error}</div> : null}
 
           {plans.length > 0 ? (
-            <div className="field"><label>Plano</label>
-              <select value={planTier} onChange={(e) => setPlanTier(e.target.value)}>
+            <>
+              <label className="auth-label">Plano</label>
+              <select className="auth-input" value={planTier} onChange={(e) => setPlanTier(e.target.value)}>
                 {plans.map((p) => <option key={p.tier} value={p.tier}>{p.name}</option>)}
-              </select></div>
+              </select>
+            </>
           ) : null}
 
-          <div className="field"><label>E-mail</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@empresa.ao" type="email" /></div>
-          <div className="field"><label>Palavra-passe</label>
-            <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="mín. 8 caracteres" type="password" /></div>
+          <label className="auth-label">E-mail</label>
+          <input className="auth-input" value={email} onChange={(e) => setEmail(e.target.value)}
+            placeholder="voce@empresa.ao" type="email" autoComplete="username"
+            onKeyDown={(e) => { if (e.key === 'Enter') void submitEmail(); }} />
 
-          <button className="btn lg block" onClick={submitEmail} disabled={loading}>
-            <IconBuilding size={18} /> {loading ? 'A criar…' : 'Criar conta'}
-          </button>
+          <label className="auth-label">Palavra-passe</label>
+          <input className="auth-input" value={password} onChange={(e) => setPassword(e.target.value)}
+            placeholder="mín. 8 caracteres" type="password" autoComplete="new-password"
+            onKeyDown={(e) => { if (e.key === 'Enter') void submitEmail(); }} />
 
-          <div className="or-sep"><span>ou</span></div>
-          <div className="google-row"><GoogleSignInButton onCredential={onGoogle} /></div>
+          <div style={{ height: 18 }} />
+          <button className="auth-btn" onClick={submitEmail} disabled={loading}>{loading ? 'A criar…' : 'Criar conta'}</button>
+
+          <div className="auth-or"><span>ou</span></div>
+          <div className="auth-google"><GoogleSignInButton onCredential={onGoogle} /></div>
+
+          {onBack ? <p className="auth-foot"><a onClick={onBack}>← Já tenho conta — entrar</a></p> : null}
         </div>
-        <p style={{ textAlign: 'center', marginTop: 12 }}>
-          <a onClick={onBack} style={{ color: 'var(--muted)', fontSize: 13, cursor: 'pointer' }}>← Já tenho conta — entrar</a>
-        </p>
-        <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12 }}>{copyrightLine()}</p>
       </div>
+      <div className="auth-media"><LoginShowcase /></div>
     </div>
   );
 }
