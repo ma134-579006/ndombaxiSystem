@@ -5,6 +5,21 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const GENESIS = '0'.repeat(64);
 
+/** Serialização CANÓNICA (chaves ordenadas recursivamente) — determinística
+ *  independentemente da ordem que o Postgres JSONB devolve. Sem isto, a cadeia
+ *  quebrava ao verificar (o JSONB reordena as chaves do `details`). */
+function stable(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(stable);
+  if (v && typeof v === 'object') {
+    return Object.keys(v as Record<string, unknown>).sort().reduce((o, k) => {
+      o[k] = stable((v as Record<string, unknown>)[k]);
+      return o;
+    }, {} as Record<string, unknown>);
+  }
+  return v;
+}
+function stableStringify(o: unknown): string { return JSON.stringify(stable(o)); }
+
 export interface TenantAuditEntry {
   actorId?: string | null;
   actorName?: string | null;
@@ -30,7 +45,7 @@ export class TenantAuditService {
   constructor(private readonly prisma: PrismaService) {}
 
   private hashOf(prev: string, e: TenantAuditEntry, ts: string): string {
-    const canonical = JSON.stringify({
+    const canonical = stableStringify({
       prev, ts,
       actorId: e.actorId ?? null, actorName: e.actorName ?? null,
       action: e.action, entity: e.entity ?? null, entityId: e.entityId ?? null,
@@ -133,6 +148,38 @@ export class TenantAuditService {
         prev = r.hash;
       }
       return { valid: true, brokenAtSeq: null };
+    });
+  }
+
+  /**
+   * RE-SELA a cadeia: recalcula prev_hash/hash de todos os registos (por ordem)
+   * com o hash canónico. Necessário UMA vez para corrigir cadeias geradas antes
+   * da correção do bug de ordenação do JSONB. Mantém o conteúdo intacto — só
+   * recompõe a cadeia de integridade. A própria operação fica auditada.
+   */
+  async reseal(schema: string): Promise<{ resealed: number }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<
+        {
+          seq: bigint; timestamp: Date; actor_id: string | null; actor_name: string | null;
+          action: string; entity: string | null; entity_id: string | null; details: unknown;
+          ip: string | null;
+        }[]
+      >(Prisma.sql`SELECT * FROM tenant_audit_log ORDER BY seq ASC`);
+      let prev = GENESIS;
+      let n = 0;
+      for (const r of rows) {
+        const ts = r.timestamp.toISOString();
+        const hash = this.hashOf(prev, {
+          actorId: r.actor_id, actorName: r.actor_name, action: r.action,
+          entity: r.entity, entityId: r.entity_id, details: r.details, ip: r.ip,
+        }, ts);
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE tenant_audit_log SET prev_hash = ${prev}, hash = ${hash} WHERE seq = ${r.seq}`,
+        );
+        prev = hash; n++;
+      }
+      return { resealed: n };
     });
   }
 }

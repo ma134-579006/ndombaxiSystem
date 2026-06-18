@@ -162,7 +162,7 @@ export class StockService {
       await this.audit.recordInTx(tx, {
         actorId: input.createdBy ?? null,
         actorName: input.createdByName ?? null,
-        action: 'STOCK_ENTRY',
+        action: 'STOCK_IN',
         entity: 'product',
         entityId: input.productId,
         details: {

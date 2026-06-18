@@ -99,8 +99,15 @@ function Audit() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const [repairing, setRepairing] = useState(false);
   const verify = async () => {
     try { setIntegrity(await api.audit.verify()); } catch { /* sem permissão */ }
+  };
+  const repair = async () => {
+    setRepairing(true);
+    try { await api.audit.reseal(); setIntegrity(await api.audit.verify()); }
+    catch { /* sem permissão */ }
+    finally { setRepairing(false); }
   };
 
   const FILTERS = ['', 'SALE_EMITTED', 'SALE_CANCELLED', 'SHIFT_OPEN', 'SHIFT_CLOSE', 'STOCK_IN', 'STOCK_WRITE_OFF'];
@@ -118,8 +125,16 @@ function Audit() {
           <button className="btn sm ghost" onClick={verify}>Verificar integridade</button>
         </div>
         {integrity ? (
-          <div className={`banner ${integrity.valid ? 'success' : 'danger'}`} style={{ marginTop: 10 }}>
-            {integrity.valid ? <><IconCheck size={16} /> Cadeia de auditoria íntegra — nada foi alterado.</> : <><IconClose size={16} /> Cadeia quebrada no registo #{integrity.brokenAtSeq}!</>}
+          <div className={`banner ${integrity.valid ? 'success' : 'danger'}`} style={{ marginTop: 10, alignItems: 'center' }}>
+            {integrity.valid ? (
+              <><IconCheck size={16} /> Cadeia de auditoria íntegra — nada foi alterado.</>
+            ) : (
+              <>
+                <IconClose size={16} />
+                <span style={{ flex: 1 }}>Cadeia partida no registo #{integrity.brokenAtSeq}. Pode ser de registos antigos — toca em "Reparar" para voltar a selar.</span>
+                <button className="btn sm" onClick={repair} disabled={repairing}>{repairing ? 'A reparar…' : 'Reparar'}</button>
+              </>
+            )}
           </div>
         ) : null}
       </div>

@@ -686,6 +686,7 @@ export const api = {
     list: (action?: string, limit = 150) =>
       request<AuditEvent[]>('GET', `/audit?${action ? `action=${action}&` : ''}limit=${limit}`),
     verify: () => request<{ valid: boolean; brokenAtSeq: number | null }>('GET', '/audit/verify'),
+    reseal: () => request<{ resealed: number }>('POST', '/audit/verify/reseal'),
   },
   cashbox: {
     sessions: () => request<CashSessionRow[]>('GET', '/cashbox/sessions'),

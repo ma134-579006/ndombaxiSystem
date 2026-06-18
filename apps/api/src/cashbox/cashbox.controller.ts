@@ -185,4 +185,11 @@ export class TenantAuditController {
   verify() {
     return this.audit.verify(this.ctx.requireTenantSchema());
   }
+
+  @Post('verify/reseal')
+  @Roles(Role.COMPANY_ADMIN)
+  @ApiOperation({ summary: 'Re-sela a cadeia de auditoria (corrige cadeias antigas)' })
+  reseal() {
+    return this.audit.reseal(this.ctx.requireTenantSchema());
+  }
 }

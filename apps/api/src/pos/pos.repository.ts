@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantAuditService } from '../cashbox/tenant-audit.service';
 import { IvaCode } from '@nexus/agt-xml';
 
 export interface ProductRow {
@@ -36,7 +37,10 @@ export interface CustomerRow {
 
 @Injectable()
 export class PosRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: TenantAuditService,
+  ) {}
 
   // ── Produtos ───────────────────────────────────────────────
   /** IVA padrão da empresa (Configurações) — usado pelo IVA "Automático". */
@@ -117,6 +121,11 @@ export class PosRepository {
             Prisma.sql`INSERT INTO stock_movements (product_id, warehouse_id, type, quantity, balance_after, reference)
                        VALUES (${product.id}::uuid, ${st.id}::uuid, 'IN', ${q}, ${q}, 'Saldo inicial')`,
           );
+          // Auditoria: o stock inicial fica registado como "Entrada de stock".
+          await this.audit.recordInTx(tx, {
+            action: 'STOCK_IN', entity: 'product', entityId: product.id,
+            details: { quantity: q, reference: 'Saldo inicial', storeId: st.id, balanceAfter: q },
+          });
         }
       }
       return product;
