@@ -22,6 +22,7 @@ import {
   PlatformLoginDto,
   RefreshDto,
   ResetPasswordDto,
+  StaffPinLoginDto,
   TenantLoginDto,
   UpdateThemeDto,
 } from './dto/auth.dto';
@@ -99,6 +100,18 @@ export class AuthController {
   ) {
     if (!dto.companyCode && headerCode) dto.companyCode = headerCode.toLowerCase();
     return this.auth.pinLogin(dto, { ip, userAgent: ua });
+  }
+
+  @Public()
+  @Post('login/staff')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login da caixa por E-MAIL do funcionário + PIN (descobre empresa+loja)' })
+  staffLogin(
+    @Body() dto: StaffPinLoginDto,
+    @Ip() ip: string,
+    @Headers('user-agent') ua?: string,
+  ) {
+    return this.auth.staffPinLogin(dto, { ip, userAgent: ua });
   }
 
   @Public()

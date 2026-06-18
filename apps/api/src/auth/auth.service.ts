@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import type { JwtPayload, RoleName } from '@nexus/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { TenantUserRepository } from '../tenancy/tenant-user.repository';
+import { TenantUserRepository, type TenantUser } from '../tenancy/tenant-user.repository';
 import { AuditService } from '../audit/audit.service';
 import { Role } from '../rbac/roles.enum';
 import { PasswordService } from './password.service';
@@ -490,6 +490,53 @@ export class AuthService {
       action: 'LOGIN_SUCCESS_PIN', entity: 'User', entityId: user.id, ip: ctx.ip,
     });
     return this.tokens.issuePair(payload, ctx);
+  }
+
+  /**
+   * Login da CAIXA pelo E-MAIL DO FUNCIONÁRIO + PIN (sem escolher empresa nem
+   * operador): o sistema descobre a empresa e a loja a que o funcionário pertence.
+   */
+  async staffPinLogin(
+    dto: { email: string; pin: string },
+    ctx: RequestCtx,
+  ): Promise<TokenPair & { companyCode: string }> {
+    const email = dto.email.trim().toLowerCase();
+    const companies = await this.companiesForEmail(email);
+    // Encontra a empresa onde este e-mail é um utilizador COM PIN (operador).
+    let match: { company: (typeof companies)[number]; user: TenantUser } | null = null;
+    for (const c of companies) {
+      const u = await this.tenantUsers.findByEmail(c.schemaName, email).catch(() => null);
+      if (u && u.is_active && u.pin_hash) { match = { company: c, user: u }; break; }
+    }
+    if (!match) throw new UnauthorizedException('Funcionário não encontrado ou sem PIN definido. Fala com o gestor.');
+    const { company, user } = match;
+    if (company.status !== 'ACTIVE') throw new ForbiddenException(`Empresa ${company.status.toLowerCase()}`);
+    if (await this.isPlanExpired(company.id)) {
+      throw new ForbiddenException('Plano expirado. O gestor deve renovar no painel de gestão.');
+    }
+    if (user.locked_until && user.locked_until > new Date()) {
+      throw new ForbiddenException('Operador temporariamente bloqueado (tentativas falhadas)');
+    }
+    const ok = await this.passwords.verify(user.pin_hash!, dto.pin);
+    if (!ok) {
+      await this.tenantUsers.markLoginFailure(company.schemaName, user.id);
+      throw new UnauthorizedException('PIN incorreto');
+    }
+    await this.tenantUsers.markLoginSuccess(company.schemaName, user.id);
+    // store_name (join) p/ mostrar a loja no recibo/topo
+    const full = await this.tenantUsers.findById(company.schemaName, user.id).catch(() => null);
+    const payload: JwtPayload = {
+      sub: user.id, email: user.email, name: user.name, role: user.role,
+      subjectType: 'TENANT', tenantId: company.id, tenantSchema: company.schemaName,
+      storeId: user.store_id ?? undefined, storeName: full?.store_name ?? undefined,
+      twoFaVerified: true,
+    };
+    await this.audit.record({
+      actorType: 'TENANT', actorId: user.id, tenantSchema: company.schemaName,
+      action: 'LOGIN_SUCCESS_PIN', entity: 'User', entityId: user.id, ip: ctx.ip,
+    });
+    const tokens = await this.tokens.issuePair(payload, ctx);
+    return { ...tokens, companyCode: company.code };
   }
 
   // ─── Acesso shadow do Super Admin (impersonation, §2.2) ─────

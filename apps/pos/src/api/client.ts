@@ -110,6 +110,9 @@ export const api = {
   /** Login do operador por nome (id) + PIN. */
   loginPin: (input: { companyCode: string; userId: string; pin: string }) =>
     request<TokenPair>('POST', '/auth/login/pin', input, { auth: false }),
+  /** Login da caixa por E-MAIL do funcionário + PIN (descobre empresa+loja). */
+  staffLogin: (email: string, pin: string) =>
+    request<TokenPair & { companyCode: string }>('POST', '/auth/login/staff', { email, pin }, { auth: false }),
   /** Esqueci o PIN — envia link de recuperação por e-mail. */
   forgotPin: (email: string, companyCode?: string) =>
     request<{ ok: boolean; emailConfigured: boolean }>('POST', '/auth/forgot-password', { email, kind: 'PIN', companyCode }, { auth: false }),

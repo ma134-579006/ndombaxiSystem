@@ -26,6 +26,7 @@ interface AuthContextValue {
   loginGoogle(idToken: string): Promise<void>;
   /** Login do operador por nome (id) + PIN (estilo Vendus). */
   loginPin(companyCode: string, userId: string, pin: string): Promise<void>;
+  loginStaff(email: string, pin: string): Promise<void>;
   logout(): Promise<void>;
 }
 
@@ -165,6 +166,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [applyTokens],
   );
 
+  const loginStaff = useCallback(
+    async (email: string, pin: string) => {
+      const r = await api.staffLogin(email.trim().toLowerCase(), pin);
+      companyRef.current = r.companyCode;
+      setCompanyCode(r.companyCode);
+      localStorage.setItem(LS_COMPANY, r.companyCode);
+      applyTokens(r);
+      setStatus('authed');
+    },
+    [applyTokens],
+  );
+
   const logout = useCallback(async () => {
     const rt = refreshRef.current;
     if (rt) {
@@ -178,8 +191,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [clearSession]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, companyCode, login, loginGoogle, loginPin, logout }),
-    [status, user, companyCode, login, loginGoogle, loginPin, logout],
+    () => ({ status, user, companyCode, login, loginGoogle, loginPin, loginStaff, logout }),
+    [status, user, companyCode, login, loginGoogle, loginPin, loginStaff, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

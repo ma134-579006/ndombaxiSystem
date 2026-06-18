@@ -89,6 +89,16 @@ export class PinLoginDto {
   pin!: string;
 }
 
+export class StaffPinLoginDto {
+  /** E-mail do FUNCIONÁRIO (não da empresa). O sistema descobre a empresa+loja. */
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @Matches(/^\d{4,8}$/, { message: 'PIN inválido.' })
+  pin!: string;
+}
+
 export class GoogleLoginDto {
   /** Opcional — a empresa é encontrada pelo e-mail da conta Google;
    *  só é preciso para desempatar quando o e-mail existe em várias. */
