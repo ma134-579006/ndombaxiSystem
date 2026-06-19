@@ -67,7 +67,7 @@ export function Inventory() {
       <div className="content-head">
         <h2>Inventário</h2>
         <span className="spacer" />
-        <span className="muted" style={{ fontSize: 12.5, marginRight: 4 }}>A entrada de stock está em <strong>Produtos → Criar</strong>.</span>
+        <span className="muted" style={{ fontSize: 12.5, marginRight: 4 }}>Para repor mercadoria, usa <strong>Adicionar stock</strong> em <strong>Produtos</strong>.</span>
         <button className="btn ghost" onClick={() => setWritingOff(true)} disabled={warehouses.length === 0 || products.length === 0}>
           <IconTrash size={16} /> Baixa de stock
         </button>
@@ -133,7 +133,7 @@ export function Inventory() {
           <span className="muted" style={{ fontSize: 12 }}>a expirar (60 dias) / expirados</span>
         </div>
         {loading ? <div className="loading">A carregar…</div> : batches.length === 0 ? (
-          <div className="empty"><IconReceipt size={36} /><p>Sem lotes a expirar. Indique o lote e a validade na <strong>Entrada de stock</strong> para controlar validades (FEFO).</p></div>
+          <div className="empty"><IconReceipt size={36} /><p>Sem lotes a expirar. Indique o lote e a validade em <strong>Adicionar stock</strong> para controlar validades (FEFO).</p></div>
         ) : batches.map((b) => {
           const expired = b.days_left <= 0;
           const prod = products.find((x) => x.name === b.product_name);
@@ -146,9 +146,9 @@ export function Inventory() {
               <span className="badge" style={{ color: expired ? 'var(--danger)' : b.days_left <= 14 ? 'var(--warning)' : 'var(--muted)', borderColor: 'currentColor' }}>
                 {expired ? `Expirado há ${-b.days_left}d` : `faltam ${b.days_left}d`}
               </span>
-              {prod ? (
-                <button className="btn sm ghost" onClick={() => setWoInit({ productId: prod.id, quantity: Number(b.quantity) })} title="Dar baixa por caducidade">
-                  Baixa
+              {prod && expired ? (
+                <button className="btn sm ghost" onClick={() => setWoInit({ productId: prod.id, quantity: Number(b.quantity) })} title="Dar baixa por caducidade (produto caducado)">
+                  Baixa por caducidade
                 </button>
               ) : null}
             </div>
@@ -385,7 +385,7 @@ export function StockEntryModal({
   };
 
   return (
-    <Modal title="Entrada de stock" onClose={onClose}>
+    <Modal title="Adicionar stock" onClose={onClose}>
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
       <div className="grid-2">
         <div className="field"><label>Produto</label>

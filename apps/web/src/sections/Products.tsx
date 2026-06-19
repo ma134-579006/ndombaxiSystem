@@ -25,6 +25,7 @@ interface FormState {
   unitPrice: string;
   costPrice: string;
   stockQty: string;
+  purchaseTotal: string;
   storeIds: string[];
   allStores: boolean;
   sharedStock: boolean;
@@ -43,6 +44,7 @@ const EMPTY: FormState = {
   unitPrice: '',
   costPrice: '',
   stockQty: '0',
+  purchaseTotal: '',
   storeIds: [],
   allStores: true,
   sharedStock: false,
@@ -181,6 +183,11 @@ export function Products() {
           isActive: form.isActive,
         });
       } else {
+        // Custo unitário = valor de compra (total) ÷ quantidade; se não houver
+        // quantidade/valor de compra, cai no custo unitário escrito (se houver).
+        const qInit = Number(form.stockQty) || 0;
+        const buyTotal = Number(form.purchaseTotal) || 0;
+        const unitCost = qInit > 0 && buyTotal > 0 ? Math.round((buyTotal / qInit) * 100) / 100 : (Number(form.costPrice) || 0);
         // Código de barras OPCIONAL — vazio: o sistema gera um EAN-13 interno.
         const payload: CreateProductInput = {
           code: form.code.trim() || undefined,
@@ -190,8 +197,8 @@ export function Products() {
           brand: form.brand.trim() || undefined,
           ivaCode: form.ivaCode,
           unitPrice: price,
-          costPrice: Number(form.costPrice) || 0,
-          stockQty: Number(form.stockQty) || 0,
+          costPrice: unitCost,
+          stockQty: qInit,
           sharedStock: form.sharedStock,
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
@@ -212,13 +219,23 @@ export function Products() {
     ? products.filter((p) => p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q))
     : products;
 
+  // Stock inicial (criar): valores computados em tempo real, como na entrada de stock.
+  const siQty = Number(form.stockQty) || 0;
+  const siBuy = Number(form.purchaseTotal) || 0;
+  const siUnitCost = siQty > 0 && siBuy > 0 ? siBuy / siQty : (Number(form.costPrice) || 0);
+  const siSale = Number(form.unitPrice) || 0;
+  const siUnitProfit = siSale - siUnitCost;
+  const siTotalProfit = siUnitProfit * siQty;
+  const siMargin = siSale > 0 ? (siUnitProfit / siSale) * 100 : 0;
+  const kz = (n: number) => n.toLocaleString('pt-PT', { maximumFractionDigits: 2 }) + ' Kz';
+
   return (
     <>
       <div className="content-head">
         <h2>Catálogo de produtos</h2>
         <span className="spacer" />
         <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
-          <IconTruck size={16} /> Entrada de stock
+          <IconTruck size={16} /> Adicionar stock
         </button>
         <button className="btn" onClick={openCreate}>
           <IconPlus size={18} /> Novo produto
@@ -326,9 +343,32 @@ export function Products() {
             <label>Marca (opcional)</label>
             <input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="ex.: Coca-Cola, Nestlé" />
           </div>
-          <p className="muted" style={{ fontSize: 12, margin: '0 0 4px' }}>
-            O <strong>preço de venda</strong>, o <strong>custo</strong> e o <strong>stock</strong> definem-se no botão <strong>Entrada de stock</strong> (aqui em cima) ao dar entrada de mercadoria.
-          </p>
+          <div className="field">
+            <label>Preço de venda (Kz, sem IVA)</label>
+            <input inputMode="decimal" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="0" />
+          </div>
+          {!editing ? (
+            <div className="card" style={{ background: 'var(--surface-2)', padding: 12, margin: '0 0 12px' }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>Stock inicial (opcional)</div>
+              <div className="field">
+                <label>Quantidade</label>
+                <input inputMode="decimal" value={form.stockQty} onChange={(e) => setForm({ ...form, stockQty: e.target.value })} placeholder="0" />
+              </div>
+              <div className="field">
+                <label>Valor de compra (total da quantidade, Kz)</label>
+                <input inputMode="decimal" value={form.purchaseTotal} onChange={(e) => setForm({ ...form, purchaseTotal: e.target.value })} placeholder="0" />
+              </div>
+              <div className="kv"><span className="k">Custo unitário</span><span className="v">{kz(siUnitCost)}</span></div>
+              <div className="kv"><span className="k">Lucro unitário</span><span className="v" style={{ color: siUnitProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>{kz(siUnitProfit)}</span></div>
+              <div className="kv"><span className="k">Lucro total</span><span className="v" style={{ color: siTotalProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>{kz(siTotalProfit)}</span></div>
+              <div className="kv"><span className="k">Margem</span><span className="v">{siMargin.toFixed(1)}%</span></div>
+            </div>
+          ) : (
+            <div className="field">
+              <label>Custo unitário (Kz)</label>
+              <input inputMode="decimal" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} placeholder="0" />
+            </div>
+          )}
           <div className="field">
             <label>IVA</label>
             <select value={form.ivaCode} onChange={(e) => setForm({ ...form, ivaCode: e.target.value as IvaCode | 'AUTO' })}>

@@ -34,6 +34,19 @@ export class InventoryService {
         createdBy: actor.id ?? null,
         allowNegative: false,
       });
+      // Coordena com os LOTES: abate primeiro os de validade mais próxima (FEFO),
+      // para o lote caducado SAIR da lista de validades após a baixa.
+      let remaining = Math.abs(dto.quantity);
+      const lots = await tx.$queryRaw<{ id: string; quantity: number }[]>(Prisma.sql`
+        SELECT id, quantity::float AS quantity FROM product_batches
+        WHERE product_id = ${dto.productId}::uuid AND warehouse_id = ${dto.warehouseId}::uuid AND quantity > 0
+        ORDER BY expiry_date ASC NULLS LAST`);
+      for (const lot of lots) {
+        if (remaining <= 0) break;
+        const take = Math.min(remaining, lot.quantity);
+        await tx.$executeRaw(Prisma.sql`UPDATE product_batches SET quantity = quantity - ${take} WHERE id = ${lot.id}::uuid`);
+        remaining -= take;
+      }
       await this.audit.recordInTx(tx, {
         actorId: actor.id, actorName: actor.name, action: 'STOCK_WRITE_OFF',
         entity: 'product', entityId: dto.productId,
