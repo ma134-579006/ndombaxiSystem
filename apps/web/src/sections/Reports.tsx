@@ -12,8 +12,9 @@ import { ColumnChart } from '../components/ColumnChart';
 import { DonutChart } from '../components/DonutChart';
 import { formatKz } from '../format';
 
-type Tab = 'product' | 'user' | 'store' | 'category' | 'brand' | 'evolution' | 'tax' | 'payments' | 'documents' | 'cashbox';
+type Tab = 'all' | 'product' | 'user' | 'store' | 'category' | 'brand' | 'evolution' | 'tax' | 'payments' | 'documents' | 'cashbox';
 const TABS: { key: Tab; label: string; group: string }[] = [
+  { key: 'all', label: 'Tudo (resumo)', group: 'Vendas' },
   { key: 'product', label: 'Por produto', group: 'Vendas' },
   { key: 'user', label: 'Por utilizador', group: 'Vendas' },
   { key: 'store', label: 'Por loja', group: 'Vendas' },
@@ -45,7 +46,7 @@ export function Reports() {
   const [error, setError] = useState<string | null>(null);
 
   // Tabs que suportam filtro por loja (multi-loja).
-  const STORE_FILTERABLE: Tab[] = ['user', 'category', 'brand', 'tax', 'documents'];
+  const STORE_FILTERABLE: Tab[] = ['all', 'user', 'category', 'brand', 'tax', 'documents'];
 
   const [byProduct, setByProduct] = useState<ProfitProduct[]>([]);
   const [byUser, setByUser] = useState<ReportUserRow[]>([]);
@@ -67,7 +68,19 @@ export function Reports() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      if (tab === 'product') setByProduct(await api.profit.byProduct(from, to));
+      if (tab === 'all') {
+        const [p, u, s, c, b, ev, pay] = await Promise.all([
+          api.profit.byProduct(from, to),
+          api.reports.salesByUser(from, to, sid),
+          api.reports.salesByStore(from, to),
+          api.reports.salesByCategory(from, to, sid),
+          api.reports.salesByBrand(from, to, sid),
+          api.profit.series(from, to),
+          api.reports.paymentMethods(from, to),
+        ]);
+        setByProduct(p); setByUser(u); setByStore(s); setByCategory(c); setByBrand(b); setSeries(ev); setPayments(pay);
+      }
+      else if (tab === 'product') setByProduct(await api.profit.byProduct(from, to));
       else if (tab === 'user') setByUser(await api.reports.salesByUser(from, to, sid));
       else if (tab === 'store') setByStore(await api.reports.salesByStore(from, to));
       else if (tab === 'category') setByCategory(await api.reports.salesByCategory(from, to, sid));
@@ -214,6 +227,26 @@ export function Reports() {
         </div>
       ) : null}
 
+      {tab === 'all' ? (
+        loading ? <div className="card"><div className="loading">A carregar…</div></div> : (
+          <>
+            <ReportCard title="Por produto"><Table head={['Produto', 'Qt', 'Vendas', 'Custo', 'Lucro', 'Margem']}
+              rows={byProduct.map((p) => [p.description, String(p.qty), formatKz(p.salesNet), formatKz(p.cost), formatKz(p.profit), `${p.marginPct}%`])} /></ReportCard>
+            <ReportCard title="Por utilizador"><Table head={['Utilizador', 'Nº vendas', 'Líquido', 'Total faturado']}
+              rows={byUser.map((r) => [r.name, String(r.sales), formatKz(r.net), formatKz(r.gross)])} /></ReportCard>
+            <ReportCard title="Por loja"><Table head={['Loja', 'Nº vendas', 'Líquido', 'Total faturado']}
+              rows={byStore.map((r) => [r.name, String(r.sales), formatKz(r.net), formatKz(r.gross)])} /></ReportCard>
+            <ReportCard title="Por categoria"><Table head={['Categoria', 'Quantidade', 'Líquido', 'Total']}
+              rows={byCategory.map((r) => [r.name, String(r.qty), formatKz(r.net), formatKz(r.gross)])} /></ReportCard>
+            <ReportCard title="Por marca"><Table head={['Marca', 'Quantidade', 'Líquido', 'Total']}
+              rows={byBrand.map((r) => [r.name, String(r.qty), formatKz(r.net), formatKz(r.gross)])} /></ReportCard>
+            <ReportCard title="Evolução temporal"><Table head={['Data', 'Vendas', 'Custo', 'Lucro']}
+              rows={series.map((p) => [p.bucket, formatKz(p.salesNet), formatKz(p.cost), formatKz(p.profit)])} /></ReportCard>
+            <ReportCard title="Métodos de pagamento"><Table head={['Método de pagamento', 'Nº', 'Total']}
+              rows={payments.map((r) => [PAY_LABEL[r.method] ?? r.method, String(r.count), formatKz(r.total)])} /></ReportCard>
+          </>
+        )
+      ) : (
       <div className="card">
         {loading ? <div className="loading">A carregar…</div> : (
           <>
@@ -262,8 +295,18 @@ export function Reports() {
           </>
         )}
       </div>
+      )}
 
       {/* Rodapé da empresa na impressão: vem do Shell (PrintBrandFoot). */}
+    </div>
+  );
+}
+
+function ReportCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="card">
+      <h3 style={{ marginTop: 0 }}>{title}</h3>
+      {children}
     </div>
   );
 }
