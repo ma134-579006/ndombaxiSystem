@@ -2,7 +2,7 @@ import { confirmDialog, toast } from '../components/feedback';
 import { printSectionReport } from "../pdf/printDoc";
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { PayrollRun, PayrollRunDetail } from '../api/types';
+import type { ManagerEmployee, PayrollRun, PayrollRunDetail } from '../api/types';
 import { Modal } from '../components/ui';
 import { IconPlus, IconReceipt, IconCheck } from '../components/Icons';
 import { formatKz } from '../format';
@@ -84,13 +84,25 @@ function ProcessModal({ onClose, onDone }: { onClose(): void; onDone(run: Payrol
   const now = new Date();
   const [year, setYear] = useState(String(now.getFullYear()));
   const [month, setMonth] = useState(String(now.getMonth() + 1));
+  const [emps, setEmps] = useState<ManagerEmployee[]>([]);
+  const [adj, setAdj] = useState<Record<string, { bonus: string; absenceDays: string }>>({});
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  useEffect(() => { api.hr.employees().then(setEmps).catch(() => setEmps([])); }, []);
+
+  const setField = (id: string, k: 'bonus' | 'absenceDays', v: string) =>
+    setAdj((p) => ({ ...p, [id]: { bonus: '', absenceDays: '', ...p[id], [k]: v.replace(/[^\d.]/g, '') } }));
+
   const submit = async () => {
     setBusy(true); setErr(null);
-    try { const run = await api.hr.payroll.process(Number(year), Number(month)); await onDone(run); }
-    catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao processar.'); }
+    try {
+      const adjustments = Object.entries(adj)
+        .map(([employeeId, v]) => ({ employeeId, bonus: Number(v.bonus) || 0, absenceDays: Number(v.absenceDays) || 0 }))
+        .filter((a) => a.bonus > 0 || a.absenceDays > 0);
+      const run = await api.hr.payroll.process(Number(year), Number(month), adjustments);
+      await onDone(run);
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao processar.'); }
     finally { setBusy(false); }
   };
 
@@ -98,7 +110,7 @@ function ProcessModal({ onClose, onDone }: { onClose(): void; onDone(run: Payrol
     <Modal title="Processar folha salarial" onClose={onClose}>
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
       <p className="muted" style={{ marginTop: 0 }}>
-        Calcula a folha de todos os trabalhadores activos para o período escolhido. Cada período só pode ser processado uma vez.
+        Escolhe o período e, se houver, indica o <strong>bónus</strong> e os <strong>dias de falta</strong> de cada trabalhador para esta folha. Cada período só pode ser processado uma vez.
       </p>
       <div className="grid-2">
         <div className="field"><label>Mês</label>
@@ -108,6 +120,32 @@ function ProcessModal({ onClose, onDone }: { onClose(): void; onDone(run: Payrol
         <div className="field"><label>Ano</label>
           <input inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} /></div>
       </div>
+
+      {emps.length ? (
+        <div style={{ maxHeight: '42vh', overflow: 'auto', margin: '4px 0 6px' }}>
+          <table className="ptable stack">
+            <thead><tr><th>Trabalhador</th><th>Bónus (Kz)</th><th>Faltas (dias)</th></tr></thead>
+            <tbody>
+              {emps.map((e) => (
+                <tr key={e.id}>
+                  <td data-label="Trabalhador"><div style={{ fontWeight: 600 }}>{e.full_name}</div></td>
+                  <td data-label="Bónus (Kz)">
+                    <input inputMode="decimal" value={adj[e.id]?.bonus ?? ''} placeholder="0"
+                      onChange={(ev) => setField(e.id, 'bonus', ev.target.value)}
+                      style={{ width: 100, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 8px', color: 'var(--text)' }} />
+                  </td>
+                  <td data-label="Faltas (dias)">
+                    <input inputMode="numeric" value={adj[e.id]?.absenceDays ?? ''} placeholder="0"
+                      onChange={(ev) => setField(e.id, 'absenceDays', ev.target.value)}
+                      style={{ width: 80, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 8px', color: 'var(--text)' }} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
       <button className="btn lg block" style={{ marginTop: 6 }} onClick={submit} disabled={busy}>
         {busy ? 'A processar…' : 'Processar folha'}
       </button>

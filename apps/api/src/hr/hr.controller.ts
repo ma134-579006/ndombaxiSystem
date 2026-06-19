@@ -88,7 +88,7 @@ export class HrController {
   @Roles(Role.COMPANY_ADMIN)
   @ApiOperation({ summary: 'Processa a folha salarial de um período (INSS + IRT)' })
   processRun(@Body() dto: ProcessPayrollDto) {
-    return this.payroll.process(this.ctx.requireTenantSchema(), dto.year, dto.month);
+    return this.payroll.process(this.ctx.requireTenantSchema(), dto.year, dto.month, dto.adjustments ?? []);
   }
 
   @Post('payroll/runs/:id/pay')

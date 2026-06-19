@@ -68,7 +68,10 @@ export class HrRepository {
 
   async update(schema: string, id: string, input: UpdateEmployeeDto): Promise<EmployeeRow> {
     const sets: Prisma.Sql[] = [];
+    if (input.employeeNumber !== undefined) sets.push(Prisma.sql`employee_number = ${input.employeeNumber}`);
     if (input.fullName !== undefined) sets.push(Prisma.sql`full_name = ${input.fullName}`);
+    if (input.taxId !== undefined) sets.push(Prisma.sql`tax_id = ${input.taxId}`);
+    if (input.inssNumber !== undefined) sets.push(Prisma.sql`inss_number = ${input.inssNumber}`);
     if (input.position !== undefined) sets.push(Prisma.sql`position = ${input.position}`);
     if (input.department !== undefined) sets.push(Prisma.sql`department = ${input.department}`);
     if (input.storeId !== undefined) sets.push(Prisma.sql`store_id = ${input.storeId}::uuid`);

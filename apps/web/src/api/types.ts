@@ -675,11 +675,11 @@ export interface CreateEmployeeInput {
   baseSalary: number; iban?: string; taxId?: string; inssNumber?: string; photoUrl?: string;
 }
 export interface UpdateEmployeeInput {
-  fullName?: string; position?: string; department?: string;
+  employeeNumber?: string; fullName?: string; position?: string; department?: string;
+  taxId?: string; inssNumber?: string;
   baseSalary?: number; iban?: string; photoUrl?: string;
-  /** Bónus mensal (Kz) — entra na folha como subsídio sujeito. */
+  /** Bónus/faltas movidos para a folha salarial (no pagamento). Mantidos por compat. */
   bonus?: number;
-  /** Dias de falta injustificada no mês → desconto automático na folha (base÷30 por dia). */
   absenceDays?: number;
 }
 

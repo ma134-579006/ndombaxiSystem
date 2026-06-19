@@ -49,8 +49,14 @@ export class PayrollService {
    * persiste o cabeçalho da folha + linhas e os totais agregados. Falha se já
    * existir folha PROCESSED/PAID para o mesmo período (unicidade ano+mês).
    */
-  async process(schema: string, year: number, month: number): Promise<PayrollRunRow> {
+  async process(
+    schema: string,
+    year: number,
+    month: number,
+    adjustments: { employeeId: string; bonus?: number; absenceDays?: number }[] = [],
+  ): Promise<PayrollRunRow> {
     if (month < 1 || month > 12) throw new BadRequestException('Mês inválido (1–12).');
+    const adjByEmp = new Map(adjustments.map((a) => [a.employeeId, a]));
 
     return this.prisma.runInTenant(schema, async (tx) => {
       const existing = await tx.$queryRaw<{ id: string; status: string }[]>(
@@ -98,11 +104,17 @@ export class PayrollService {
 
       for (const e of employees) {
         const base = Number(e.base_salary);
-        const pct = Math.max(0, Math.min(100, Number(e.absence_discount_pct) || 0));
+        // Bónus e faltas vêm do PAGAMENTO (ajustes desta folha); na falta deles,
+        // cai no valor antigo guardado na ficha (retrocompatível).
+        const adj = adjByEmp.get(e.id);
+        const bonus = adj?.bonus != null ? adj.bonus : (Number(e.bonus) || 0);
+        const pct = adj?.absenceDays != null
+          ? Math.max(0, Math.min(100, Math.round((adj.absenceDays / 30) * 100 * 100) / 100))
+          : Math.max(0, Math.min(100, Number(e.absence_discount_pct) || 0));
         const calc = computePayroll({
           baseSalary: base,
           // Bónus entra como subsídio sujeito (INSS/IRT).
-          taxableAllowances: Number(e.taxable_allowances) + (Number(e.bonus) || 0),
+          taxableAllowances: Number(e.taxable_allowances) + bonus,
           exemptAllowances: Number(e.exempt_allowances),
           // Desconto por faltas: % sobre o salário base.
           otherDeductions: Math.round((base * pct / 100) * 100) / 100,

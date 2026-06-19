@@ -576,7 +576,8 @@ export const api = {
     payroll: {
       listRuns: () => request<PayrollRun[]>('GET', '/hr/payroll/runs'),
       getRun: (id: string) => request<PayrollRunDetail>('GET', `/hr/payroll/runs/${id}`),
-      process: (year: number, month: number) => request<PayrollRun>('POST', '/hr/payroll/runs', { year, month }),
+      process: (year: number, month: number, adjustments?: { employeeId: string; bonus?: number; absenceDays?: number }[]) =>
+        request<PayrollRun>('POST', '/hr/payroll/runs', { year, month, adjustments }),
       pay: (id: string) => request<PayrollRun>('POST', `/hr/payroll/runs/${id}/pay`, {}),
     },
   },

@@ -114,11 +114,12 @@ export function Employees() {
     try {
       if (editing) {
         await api.hr.updateEmployee(editing.id, {
+          employeeNumber: form.employeeNumber.trim() || undefined,
           fullName: form.fullName.trim(), position: form.position.trim() || undefined,
           department: form.department.trim() || undefined, baseSalary: salary,
           iban: form.iban.trim() || undefined, photoUrl: form.photoUrl || undefined,
-          bonus: Number(form.bonus) || 0,
-          absenceDays: Number(form.absenceDays) || 0,
+          taxId: form.taxId.trim() || undefined,
+          inssNumber: form.inssNumber.trim() || undefined,
         });
       } else {
         if (!form.employeeNumber.trim()) { setFormError('Indique o nº de funcionário.'); setSaving(false); return; }
@@ -224,10 +225,8 @@ export function Employees() {
             <input type="file" accept="image/*" hidden onChange={(ev) => onPickPhoto(ev.target.files?.[0])} />
           </label>
 
-          {!editing ? (
-            <div className="field"><label>Nº de funcionário</label>
-              <input value={form.employeeNumber} onChange={(e) => setForm({ ...form, employeeNumber: e.target.value })} placeholder="ex.: F-001" /></div>
-          ) : null}
+          <div className="field"><label>Nº de funcionário</label>
+            <input value={form.employeeNumber} onChange={(e) => setForm({ ...form, employeeNumber: e.target.value })} placeholder="ex.: F-001" /></div>
           <div className="field"><label>Nome completo</label>
             <input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>
           <div className="grid-2">
@@ -242,34 +241,15 @@ export function Employees() {
             <div className="field"><label>IBAN</label>
               <input value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} placeholder="AO06…" /></div>
           </div>
-          {!editing ? (
-            <div className="grid-2">
-              <div className="field"><label>NIF</label>
-                <input value={form.taxId} onChange={(e) => setForm({ ...form, taxId: e.target.value })} /></div>
-              <div className="field"><label>Nº Segurança Social</label>
-                <input value={form.inssNumber} onChange={(e) => setForm({ ...form, inssNumber: e.target.value })} /></div>
-            </div>
-          ) : null}
-
-          {editing ? (
-            <>
-              <div className="grid-2">
-                <div className="field"><label>Bónus mensal (Kz)</label>
-                  <input value={form.bonus} onChange={(e) => setForm({ ...form, bonus: e.target.value })} inputMode="decimal" placeholder="0" /></div>
-                <div className="field"><label>Faltas no mês (dias)</label>
-                  <input value={form.absenceDays} onChange={(e) => setForm({ ...form, absenceDays: e.target.value })} inputMode="decimal" placeholder="0" /></div>
-              </div>
-              {Number(form.absenceDays) > 0 && Number(form.baseSalary) > 0 ? (
-                <div className="banner warning" style={{ marginBottom: 12, fontSize: 13 }}>
-                  <span>📉</span>
-                  <span>
-                    Desconto na folha: <strong>{Number(form.absenceDays)} dia(s) × {formatKz(Number(form.baseSalary) / 30)}</strong> (salário diário)
-                    {' '}= <strong>{formatKz(Math.min(Number(form.baseSalary), (Number(form.baseSalary) / 30) * Number(form.absenceDays)))}</strong> — aplicado automaticamente ao processar a folha salarial.
-                  </span>
-                </div>
-              ) : null}
-            </>
-          ) : null}
+          <div className="grid-2">
+            <div className="field"><label>NIF</label>
+              <input value={form.taxId} onChange={(e) => setForm({ ...form, taxId: e.target.value })} /></div>
+            <div className="field"><label>Nº Segurança Social</label>
+              <input value={form.inssNumber} onChange={(e) => setForm({ ...form, inssNumber: e.target.value })} /></div>
+          </div>
+          <p className="muted" style={{ fontSize: 12, margin: '0 0 4px' }}>
+            O <strong>bónus</strong> e as <strong>faltas</strong> definem-se ao <strong>processar a folha salarial</strong> (no pagamento), não aqui.
+          </p>
 
           <button className="btn lg block" style={{ marginTop: 14 }} onClick={save} disabled={saving}>
             {saving ? 'A guardar…' : editing ? 'Guardar alterações' : 'Criar funcionário'}
