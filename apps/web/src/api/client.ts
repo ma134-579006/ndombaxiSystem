@@ -719,6 +719,7 @@ export const api = {
       return request<StockMovementRow[]>('GET', `/erp/stock/movements${qs ? '?' + qs : ''}`);
     },
     categories: () => request<{ id: string; name: string }[]>('GET', '/erp/stock/categories'),
+    createCategory: (name: string) => request<{ id: string; name: string }>('POST', '/erp/stock/categories', { name }),
     analysis: (f: { from?: string; to?: string; warehouseId?: string; categoryId?: string; state?: string } = {}) => {
       const p = new URLSearchParams();
       if (f.from) p.set('from', f.from);

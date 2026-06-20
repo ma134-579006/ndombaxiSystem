@@ -117,6 +117,21 @@ export class ErpRepository {
     );
   }
 
+  /** Cria (ou reutiliza, sem duplicar) uma categoria de produto pelo nome. */
+  createCategory(schema: string, name: string): Promise<{ id: string; name: string }> {
+    const clean = name.trim();
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const found = await tx.$queryRaw<{ id: string; name: string }[]>(
+        Prisma.sql`SELECT id, name FROM product_categories WHERE lower(name) = lower(${clean}) LIMIT 1`,
+      );
+      if (found[0]) return found[0];
+      const rows = await tx.$queryRaw<{ id: string; name: string }[]>(
+        Prisma.sql`INSERT INTO product_categories (name) VALUES (${clean}) RETURNING id, name`,
+      );
+      return rows[0];
+    });
+  }
+
   /** Produtos abaixo do mínimo (alerta de reposição). */
   listLowStock(schema: string): Promise<StockLevelRow[]> {
     return this.prisma.runInTenant(schema, (tx) =>

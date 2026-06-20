@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -79,6 +79,15 @@ export class ErpController {
   @ApiOperation({ summary: 'Categorias de produto (para filtros)' })
   listCategories() {
     return this.repo.listCategories(this.ctx.requireTenantSchema());
+  }
+
+  @Post('stock/categories')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Cria uma categoria de produto' })
+  createCategory(@Body() body: { name?: string }) {
+    const name = (body?.name ?? '').trim();
+    if (!name) throw new BadRequestException('Indique o nome da categoria.');
+    return this.repo.createCategory(this.ctx.requireTenantSchema(), name);
   }
 
   @Get('stock/analysis')

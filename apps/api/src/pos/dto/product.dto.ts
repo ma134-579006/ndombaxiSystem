@@ -116,6 +116,10 @@ export class UpdateProductDto {
   description?: string;
 
   @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsOptional()
   @IsIn(IVA_CHOICES as unknown as string[])
   ivaCode?: IvaCode | 'AUTO';
 

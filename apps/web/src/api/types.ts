@@ -184,6 +184,7 @@ export interface CreateProductInput {
   barcode?: string;
   name: string;
   description?: string;
+  categoryId?: string;
   brand?: string;
   ivaCode: IvaCode | 'AUTO';
   exemptionReason?: string;
@@ -199,6 +200,7 @@ export interface CreateProductInput {
 export interface UpdateProductInput {
   name?: string;
   description?: string;
+  categoryId?: string;
   brand?: string;
   ivaCode?: IvaCode | 'AUTO';
   exemptionReason?: string;

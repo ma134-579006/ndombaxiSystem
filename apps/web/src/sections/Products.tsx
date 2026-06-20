@@ -26,6 +26,7 @@ interface FormState {
   costPrice: string;
   stockQty: string;
   purchaseTotal: string;
+  categoryId: string;
   storeIds: string[];
   allStores: boolean;
   sharedStock: boolean;
@@ -45,6 +46,7 @@ const EMPTY: FormState = {
   costPrice: '',
   stockQty: '0',
   purchaseTotal: '',
+  categoryId: '',
   storeIds: [],
   allStores: true,
   sharedStock: false,
@@ -56,6 +58,8 @@ const EMPTY: FormState = {
 export function Products() {
   const [products, setProducts] = useState<ManagerProduct[]>([]);
   const [stores, setStores] = useState<WarehouseRow[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [newCategory, setNewCategory] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -110,7 +114,19 @@ export function Products() {
   useEffect(() => {
     void load();
     api.inventory.warehouses().then(setStores).catch(() => undefined);
+    api.inventory.categories().then(setCategories).catch(() => undefined);
   }, [load]);
+
+  const addCategory = async () => {
+    const name = newCategory.trim();
+    if (!name) return;
+    try {
+      const cat = await api.inventory.createCategory(name);
+      setCategories((p) => (p.some((c) => c.id === cat.id) ? p : [...p, cat].sort((a, b) => a.name.localeCompare(b.name))));
+      setForm((f) => ({ ...f, categoryId: cat.id }));
+      setNewCategory('');
+    } catch { /* ignora */ }
+  };
 
   const openCreate = () => {
     setForm(EMPTY);
@@ -129,6 +145,8 @@ export function Products() {
       unitPrice: p.unit_price,
       costPrice: p.cost_price ?? '',
       stockQty: p.stock_qty,
+      purchaseTotal: '',
+      categoryId: p.category_id ?? '',
       storeIds: [],
       allStores: true,
       sharedStock: p.shared_stock,
@@ -173,6 +191,7 @@ export function Products() {
         await api.products.update(editing.id, {
           name: form.name.trim(),
           description: form.description.trim() || undefined,
+          categoryId: form.categoryId || undefined,
           brand: form.brand.trim(),
           ivaCode: form.ivaCode,
           unitPrice: price,
@@ -194,6 +213,7 @@ export function Products() {
           barcode: form.code.trim() || undefined,
           name: form.name.trim(),
           description: form.description.trim() || undefined,
+          categoryId: form.categoryId || undefined,
           brand: form.brand.trim() || undefined,
           ivaCode: form.ivaCode,
           unitPrice: price,
@@ -342,6 +362,18 @@ export function Products() {
           <div className="field">
             <label>Marca (opcional)</label>
             <input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="ex.: Coca-Cola, Nestlé" />
+          </div>
+          <div className="field">
+            <label>Categoria (opcional)</label>
+            <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
+              <option value="">— Sem categoria —</option>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <div className="row" style={{ gap: 8, marginTop: 6 }}>
+              <input style={{ flex: 1 }} value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Nova categoria…"
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void addCategory(); } }} />
+              <button type="button" className="btn sm ghost" onClick={() => void addCategory()} disabled={!newCategory.trim()}>+ Criar</button>
+            </div>
           </div>
           <div className="field">
             <label>Preço de venda (Kz, sem IVA)</label>

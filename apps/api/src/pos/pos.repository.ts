@@ -172,6 +172,7 @@ export class PosRepository {
     input: {
       name?: string;
       description?: string | null;
+      categoryId?: string | null;
       brand?: string | null;
       ivaCode?: IvaCode;
       exemptionReason?: string | null;
@@ -189,6 +190,7 @@ export class PosRepository {
     const sets: Prisma.Sql[] = [];
     if (input.name !== undefined) sets.push(Prisma.sql`name = ${input.name}`);
     if (input.description !== undefined) sets.push(Prisma.sql`description = ${input.description}`);
+    if (input.categoryId !== undefined) sets.push(Prisma.sql`category_id = ${input.categoryId || null}::uuid`);
     if (input.brand !== undefined) sets.push(Prisma.sql`brand = ${input.brand || null}`);
     if (input.ivaCode !== undefined) sets.push(Prisma.sql`iva_code = ${input.ivaCode}`);
     if (input.exemptionReason !== undefined) sets.push(Prisma.sql`exemption_reason = ${input.exemptionReason || null}`);
