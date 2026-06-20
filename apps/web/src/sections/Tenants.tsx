@@ -118,7 +118,7 @@ export function Tenants() {
         </div>
       </div>
 
-      <div className="card" style={{ padding: '2px 14px' }}>
+      <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
         <div className="row">
           <IconSearch size={18} />
           <input

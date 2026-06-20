@@ -539,7 +539,7 @@ function CountSheet({ detail, products, onClose }: { detail: StockCountDetail; p
       </div>
 
       {/* Pesquisa por nome/código + leitor pela câmara (linha 2) */}
-      <div className="row" style={{ gap: 8, marginBottom: 10, alignItems: 'stretch', flexWrap: 'wrap' }}>
+      <div className="row toolbar-sticky" style={{ gap: 8, alignItems: 'stretch', flexWrap: 'wrap' }}>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}

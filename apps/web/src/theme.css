@@ -250,7 +250,9 @@ input, textarea, select { font-family: inherit; }
 }
 /* O wrapper de animação preenche a área de conteúdo, para páginas de altura
    total (ex.: Assistente IA) caberem 100% sem provocar scroll na página. */
-.content > .page-anim { height: 100%; }
+/* min-height (não height fixo) para o wrapper CRESCER com o conteúdo — assim o
+   position:sticky do cabeçalho/pesquisa funciona em TODA a rolagem (não descola). */
+.content > .page-anim { min-height: 100%; }
 /* Notas/avisos informativos no topo das páginas do gestor são desnecessários —
    ocultam-se. Mantêm-se os de ERRO (danger), SUCESSO e ALERTA (warning). */
 .content .banner.info,
