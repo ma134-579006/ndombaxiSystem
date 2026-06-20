@@ -327,4 +327,33 @@ export class PosRepository {
       return { deleted: true, deactivated: false };
     });
   }
+
+  // ── Rascunho do carrinho por operador (cross-device) ───────
+  /** Lê o rascunho do carrinho guardado para um operador (ou null). */
+  async getCartDraft(schema: string, userId: string): Promise<unknown | null> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{ cart_draft: unknown | null }[]>(
+        Prisma.sql`SELECT cart_draft FROM users WHERE id = ${userId}::uuid LIMIT 1`,
+      );
+      return rows[0]?.cart_draft ?? null;
+    });
+  }
+
+  /** Guarda (substitui) o rascunho do carrinho do operador. */
+  async saveCartDraft(schema: string, userId: string, draft: unknown): Promise<void> {
+    await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE users SET cart_draft = ${JSON.stringify(draft)}::jsonb, updated_at = now() WHERE id = ${userId}::uuid`,
+      );
+    });
+  }
+
+  /** Limpa o rascunho do carrinho do operador (após finalizar/limpar). */
+  async clearCartDraft(schema: string, userId: string): Promise<void> {
+    await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE users SET cart_draft = NULL, updated_at = now() WHERE id = ${userId}::uuid`,
+      );
+    });
+  }
 }

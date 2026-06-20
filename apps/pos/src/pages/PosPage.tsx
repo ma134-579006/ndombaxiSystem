@@ -313,11 +313,54 @@ export function PosPage() {
         if (qty !== l.quantity || fresh !== l.product) changed = true;
         out.push({ product: fresh, quantity: qty });
       }
-      if (changed) window.setTimeout(() => flashError('Carrinho ajustado ao stock atual (outro caixa pode ter vendido).'), 0);
+      // Ajuste SILENCIOSO ao stock atual (o utilizador não precisa de ver o aviso).
       return changed ? out : prev;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
+
+  // HIDRATAÇÃO CROSS-DEVICE: ao ligar (em QUALQUER dispositivo), recupera do
+  // SERVIDOR o carrinho por finalizar deste operador. O catálogo é necessário
+  // para reconstruir as linhas; o stock é reconfirmado (clamp ao disponível).
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current || products.length === 0) return;
+    hydratedRef.current = true;
+    (async () => {
+      try {
+        const draft = await api.getCartDraft();
+        if (draft && Array.isArray(draft.lines) && draft.lines.length) {
+          const lines: CartLine[] = [];
+          for (const d of draft.lines) {
+            const p = products.find((x) => x.id === d.productId);
+            if (!p) continue;
+            const stock = Number(p.stock_qty);
+            if (stock <= 0) continue;
+            lines.push({ product: p, quantity: Math.min(d.quantity, stock) });
+          }
+          if (lines.length) setCart(lines);
+          if (draft.customerId) {
+            const c = customers.find((x) => x.id === draft.customerId);
+            if (c) setCustomer(c);
+          }
+        }
+      } catch { /* offline → mantém o cache local deste dispositivo */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products]);
+
+  // Sincroniza o carrinho para o SERVIDOR (debounce) → segue o operador para
+  // outro dispositivo. Offline mantém só o cache local; volta a sincronizar online.
+  const saveTimer = useRef<number | null>(null);
+  useEffect(() => {
+    if (!hydratedRef.current || !sync.online) return;
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      if (cart.length === 0) void api.clearCartDraft().catch(() => undefined);
+      else void api.saveCartDraft(cart.map((l) => ({ productId: l.product.id, quantity: l.quantity })), customer?.id ?? null).catch(() => undefined);
+    }, 700);
+    return () => { if (saveTimer.current) window.clearTimeout(saveTimer.current); };
+  }, [cart, customer, sync.online]);
 
   /**
    * Resolve um código lido (leitor físico, câmara ou Enter na pesquisa):
@@ -436,6 +479,7 @@ export function PosPage() {
     setCart([]);
     setCartSel(new Set());
     setCustomer(null);
+    void api.clearCartDraft().catch(() => undefined); // venda concluída → limpa o rascunho no servidor
   };
 
   return (

@@ -64,3 +64,7 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."cameras" ADD COLUMN IF NOT EXISTS app_ios   
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."cameras" ADD COLUMN IF NOT EXISTS app_android TEXT;
 -- streams de nuvem não têm URL HTTP → permite stream_url vazio para conn_type='P2P'
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."cameras" ALTER COLUMN stream_url DROP NOT NULL;
+
+-- Rascunho do carrinho por operador (persiste no servidor → segue o utilizador
+-- para QUALQUER dispositivo onde se ligar; sobrevive a queda de energia).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS cart_draft JSONB;

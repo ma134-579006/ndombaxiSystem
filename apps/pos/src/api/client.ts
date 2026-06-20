@@ -145,6 +145,12 @@ export const api = {
     const qs = p.toString();
     return request<SaleRow[]>('GET', `/pos/invoices${qs ? '?' + qs : ''}`);
   },
+  // Rascunho do carrinho por operador (guardado no servidor → cross-device).
+  getCartDraft: () =>
+    request<{ lines: { productId: string; quantity: number }[]; customerId?: string | null } | null>('GET', '/pos/cart-draft'),
+  saveCartDraft: (lines: { productId: string; quantity: number }[], customerId?: string | null) =>
+    request<void>('POST', '/pos/cart-draft', { lines, customerId: customerId ?? null }),
+  clearCartDraft: () => request<void>('DELETE', '/pos/cart-draft'),
   receiptInfo: () => request<ReceiptFiscalInfo>('GET', '/fiscal/receipt-info'),
   documentIdentity: () => request<DocumentIdentity>('GET', '/fiscal/document-identity'),
 

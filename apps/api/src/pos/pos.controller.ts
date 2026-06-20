@@ -18,6 +18,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
+import { SaveCartDraftDto } from './dto/cart-draft.dto';
 import { CancelInvoiceDto, EmitInvoiceDto, ReturnItemsDto } from './dto/emit-invoice.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { FiscalSigningService } from './fiscal-signing.service';
@@ -116,6 +117,28 @@ export class PosController {
   @ApiOperation({ summary: 'Elimina (ou desativa, se tiver faturas) um cliente' })
   removeCustomer(@Param('id') id: string) {
     return this.repo.removeCustomer(this.ctx.requireTenantSchema(), id);
+  }
+
+  // ── Rascunho do carrinho (cross-device, por operador) ──────
+  @Get('cart-draft')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Lê o rascunho do carrinho do operador (segue-o em qualquer dispositivo)' })
+  getCartDraft(@CurrentUser() user: JwtPayload) {
+    return this.repo.getCartDraft(this.ctx.requireTenantSchema(), user.sub);
+  }
+
+  @Post('cart-draft')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Guarda o rascunho do carrinho do operador' })
+  saveCartDraft(@Body() dto: SaveCartDraftDto, @CurrentUser() user: JwtPayload) {
+    return this.repo.saveCartDraft(this.ctx.requireTenantSchema(), user.sub, dto);
+  }
+
+  @Delete('cart-draft')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Limpa o rascunho do carrinho do operador' })
+  clearCartDraft(@CurrentUser() user: JwtPayload) {
+    return this.repo.clearCartDraft(this.ctx.requireTenantSchema(), user.sub);
   }
 
   // ── Emissão fiscal ─────────────────────────────────────────

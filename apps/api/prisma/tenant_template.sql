@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."users" (
   commission_rate NUMERIC(5,2) NOT NULL DEFAULT 0, -- % de comissão sobre vendas
   theme          TEXT NOT NULL DEFAULT '',  -- preferência de tema (por utilizador)
   photo_url      TEXT,                      -- foto/avatar do utilizador (data-URI ou URL)
+  cart_draft     JSONB,                     -- rascunho do carrinho do operador (persiste em qualquer dispositivo)
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT users_email_unique UNIQUE (email)
