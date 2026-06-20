@@ -27,6 +27,9 @@ export function Stores() {
   useEffect(() => { void load(); }, [load]);
 
   const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const selectable = items.filter((s) => !s.is_default); // a principal nunca é selecionável
+  const allSel = selectable.length > 0 && selectable.every((s) => selected.has(s.id));
+  const toggleAll = () => setSelected(allSel ? new Set() : new Set(selectable.map((s) => s.id)));
 
   const bulkDeactivate = async () => {
     setBulkBusy(true); setError(null); setInfo(null);
@@ -66,6 +69,11 @@ export function Stores() {
       <div className="content-head">
         <h2>Lojas da empresa</h2>
         <span className="muted" style={{ fontSize: 13 }}>{items.length} loja(s)</span>
+        {selectable.length > 0 ? (
+          <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer', marginLeft: 8 }}>
+            <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todas" /> Todas
+          </label>
+        ) : null}
         <span className="spacer" />
         <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Nova loja</button>

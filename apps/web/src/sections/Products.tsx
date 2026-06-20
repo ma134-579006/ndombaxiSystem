@@ -238,6 +238,8 @@ export function Products() {
   const filtered = q
     ? products.filter((p) => p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q))
     : products;
+  const allSel = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
+  const toggleAll = () => setSelected(allSel ? new Set() : new Set(filtered.map((p) => p.id)));
 
   // Stock inicial (criar): valores computados em tempo real, como na entrada de stock.
   const siQty = Number(form.stockQty) || 0;
@@ -262,7 +264,7 @@ export function Products() {
         </button>
       </div>
 
-      <div className="card" style={{ padding: '2px 14px' }}>
+      <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
         <div className="row">
           <IconSearch size={18} />
           <input
@@ -271,6 +273,11 @@ export function Products() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Procurar por nome ou código…"
           />
+          {filtered.length > 0 ? (
+            <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}>
+              <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /> Todos
+            </label>
+          ) : null}
         </div>
       </div>
 

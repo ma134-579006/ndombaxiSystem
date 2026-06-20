@@ -28,6 +28,11 @@ export function Promotions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const allSel = promos.length > 0 && promos.every((p) => selected.has(p.id));
+  const toggleAll = () => setSelected(allSel ? new Set() : new Set(promos.map((p) => p.id)));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,6 +54,12 @@ export function Promotions() {
     if (!(await confirmDialog({ message: `Remover "${p.name}"?`, danger: true }))) return;
     await api.promotions.remove(p.id).catch(() => undefined);
     await load();
+  };
+  const bulkDelete = async () => {
+    if (!(await confirmDialog({ message: `Eliminar ${selected.size} promoção(ões)?`, danger: true }))) return;
+    setBulkBusy(true);
+    try { for (const id of selected) await api.promotions.remove(id).catch(() => undefined); setSelected(new Set()); await load(); }
+    finally { setBulkBusy(false); }
   };
 
   return (
@@ -78,12 +89,28 @@ export function Promotions() {
         </div>
       ) : null}
 
+      {selected.size > 0 ? (
+        <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
+          <strong>{selected.size} selecionada(s)</strong>
+          <span className="spacer" style={{ flex: 1 }} />
+          <button className="btn sm danger" onClick={() => void bulkDelete()} disabled={bulkBusy}>Eliminar selecionadas</button>
+        </div>
+      ) : null}
+
       <div className="card">
-        <h3>Promoções</h3>
+        <div className="row" style={{ alignItems: 'center' }}>
+          <h3 style={{ margin: 0, flex: 1 }}>Promoções</h3>
+          {promos.length > 0 ? (
+            <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}>
+              <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todas" /> Todas
+            </label>
+          ) : null}
+        </div>
         {loading ? <div className="loading">A carregar…</div> : promos.length === 0 ? (
           <div className="empty"><IconStar size={40} /><p>Sem promoções. Crie campanhas como “3x2” ou “10% às quartas”.</p></div>
         ) : promos.map((p) => (
           <div className="list-row" key={p.id}>
+            <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSel(p.id)} aria-label={`Selecionar ${p.name}`} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700 }}>{p.name} <span className="muted" style={{ fontWeight: 500 }}>· {TYPE_LABEL[p.type]}</span></div>
               <div className="muted" style={{ fontSize: 13 }}>{describe(p)}</div>

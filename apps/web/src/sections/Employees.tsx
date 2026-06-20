@@ -144,6 +144,8 @@ export function Employees() {
 
   const q = search.trim().toLowerCase();
   const filtered = q ? items.filter((e) => e.full_name.toLowerCase().includes(q) || e.employee_number.toLowerCase().includes(q)) : items;
+  const allSel = filtered.length > 0 && filtered.every((e) => selected.has(e.id));
+  const toggleAll = () => setSelected(allSel ? new Set() : new Set(filtered.map((e) => e.id)));
 
   return (
     <>
@@ -153,11 +155,16 @@ export function Employees() {
         <button className="btn" onClick={openCreate}><IconPlus size={18} /> Novo funcionário</button>
       </div>
 
-      <div className="card" style={{ padding: '2px 14px' }}>
+      <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
         <div className="row">
           <IconSearch size={18} />
           <input style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
             value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar por nome ou nº…" />
+          {filtered.length > 0 ? (
+            <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}>
+              <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /> Todos
+            </label>
+          ) : null}
         </div>
       </div>
 

@@ -268,6 +268,10 @@ input, textarea, select { font-family: inherit; }
   .topbar h1 { font-size: 17px; }
   .topbar .who .nm { max-width: 38vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .content { padding: 16px 14px; }
+  /* No telemóvel a padding do .content é menor → alinha o full-bleed do
+     cabeçalho fixo e desativa o sticky da pesquisa (evita sobreposição). */
+  .content-head { margin: -16px -14px 12px; padding: 14px 14px 10px; }
+  .toolbar-sticky { position: static; margin: 0; padding: 0; }
   /* Tabelas largas (não-empilhadas) rolam DENTRO do cartão em vez de serem
      cortadas pela guarda anti-fuga (overflow-x:clip do body). As que empilham
      (.ptable.stack ≤640) viram cartões e não precisam. */
@@ -321,8 +325,15 @@ input, textarea, select { font-family: inherit; }
   .seg button { padding: 8px 6px; font-size: 12px; }
   .banner { padding: 10px 12px; font-size: 13px; }
 }
-.content-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+/* Cabeçalho da página (título + ação «Novo/Adicionar») FIXO ao topo: não rola
+   com a lista. Margens negativas cobrem a padding do .content (full-bleed). */
+.content-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 25; background: var(--bg);
+  margin: -24px -24px 14px; padding: 18px 24px 12px; }
 .content-head h2 { margin: 0; font-size: 19px; font-weight: 800; }
+/* Barra de pesquisa/ferramentas que cola logo abaixo do cabeçalho. */
+.toolbar-sticky { position: sticky; top: 64px; z-index: 24; background: var(--bg);
+  margin: 0 -24px 14px; padding: 4px 24px 8px; }
 
 /* ── Segmented control ──────────────────────────────────── */
 .seg { display: flex; gap: 4px; padding: 4px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 13px; }
@@ -1522,18 +1533,20 @@ body:has(.agent-activity.open) .agent-activity-fab {
     linear-gradient(90deg, #0a0e1a 0%, #0a0e1a 24%, rgba(10,14,26,.92) 38%, rgba(10,14,26,.55) 55%, rgba(10,14,26,.12) 74%, rgba(10,14,26,0) 88%),
     linear-gradient(0deg, rgba(7,10,20,.45), rgba(7,10,20,0) 35%); }
 .auth-panel { position: relative; z-index: 2; width: clamp(360px, 46%, 600px); flex: none; display: flex; align-items: center; justify-content: center;
-  padding: 28px clamp(22px, 4vw, 60px); overflow-y: auto; background: transparent; }
+  padding: clamp(12px, 3dvh, 28px) clamp(22px, 4vw, 60px); overflow-y: auto; background: transparent; }
+/* O formulário ADAPTA-SE 100% à altura do ecrã (qualquer ângulo) sem scroll:
+   alturas e espaçamentos seguem a altura visível (dvh) com limites mínimos. */
 .auth-form { width: 100%; max-width: 380px; }
-.auth-title { margin: 0 0 22px; font-family: var(--font-display, inherit); font-size: clamp(26px, 4.2vh, 34px); font-weight: 800; letter-spacing: -.02em; color: #fff; }
-.auth-label { display: block; font-size: 13px; color: #9fb0cc; margin: 14px 0 6px; font-weight: 600; }
-.auth-input { width: 100%; height: 50px; border-radius: 12px; border: 1px solid #232d44; background: #121a2e; color: #fff;
+.auth-title { margin: 0 0 clamp(12px, 2.6dvh, 22px); font-family: var(--font-display, inherit); font-size: clamp(22px, 4.2dvh, 34px); font-weight: 800; letter-spacing: -.02em; color: #fff; }
+.auth-label { display: block; font-size: 13px; color: #9fb0cc; margin: clamp(8px, 1.6dvh, 14px) 0 clamp(4px, .8dvh, 6px); font-weight: 600; }
+.auth-input { width: 100%; height: clamp(42px, 6.6dvh, 50px); border-radius: 12px; border: 1px solid #232d44; background: #121a2e; color: #fff;
   padding: 0 15px; font-size: 15px; outline: none; transition: border-color .15s, box-shadow .15s; }
 .auth-input::placeholder { color: #5d6b85; }
 .auth-input:focus { border-color: #7b5cff; box-shadow: 0 0 0 3px rgba(123,92,255,.22); }
-.auth-sublinks { display: flex; justify-content: space-between; align-items: center; margin: 12px 2px 18px; font-size: 13px; }
+.auth-sublinks { display: flex; justify-content: space-between; align-items: center; margin: clamp(8px, 1.4dvh, 12px) 2px clamp(12px, 2dvh, 18px); font-size: 13px; }
 .auth-sublinks a { color: #8ea6ff; cursor: pointer; text-decoration: none; }
 .auth-sublinks a:hover { text-decoration: underline; }
-.auth-btn { width: 100%; height: 52px; border: none; border-radius: 12px; cursor: pointer; color: #fff;
+.auth-btn { width: 100%; height: clamp(44px, 7dvh, 52px); border: none; border-radius: 12px; cursor: pointer; color: #fff;
   font-size: 16px; font-weight: 800; letter-spacing: .2px;
   background: linear-gradient(135deg, #7b5cff 0%, #b15cff 50%, #e35ad6 100%);
   box-shadow: 0 12px 30px -10px rgba(150,80,230,.6); transition: filter .15s, transform .06s; }
@@ -1542,10 +1555,10 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .auth-btn:disabled { opacity: .65; cursor: default; }
 .auth-caixa { display: block; text-align: center; margin: 14px 0 4px; color: #9fb0cc; font-size: 13.5px; cursor: pointer; text-decoration: none; }
 .auth-caixa:hover { color: #fff; }
-.auth-or { display: flex; align-items: center; gap: 12px; color: #5d6b85; font-size: 12px; margin: 16px 0; }
+.auth-or { display: flex; align-items: center; gap: 12px; color: #5d6b85; font-size: 12px; margin: clamp(10px, 2dvh, 16px) 0; }
 .auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: #232d44; }
 .auth-google { display: flex; justify-content: center; }
-.auth-foot { text-align: center; margin: 16px 0 0; font-size: 13.5px; color: #9fb0cc; }
+.auth-foot { text-align: center; margin: clamp(10px, 2dvh, 16px) 0 0; font-size: 13.5px; color: #9fb0cc; }
 .auth-foot a { color: #8ea6ff; cursor: pointer; font-weight: 600; text-decoration: none; }
 .auth-foot a:hover { text-decoration: underline; }
 .auth-error { background: rgba(239,68,68,.14); border: 1px solid rgba(239,68,68,.4); color: #fecaca;

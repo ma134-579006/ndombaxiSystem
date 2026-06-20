@@ -22,6 +22,9 @@ export function Customers() {
   const [editing, setEditing] = useState<CustomerRow | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const toggleSel = (id: string) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const load = async () => {
     setLoading(true);
@@ -64,9 +67,20 @@ export function Customers() {
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível eliminar.'); }
   };
 
+  const bulkDelete = async () => {
+    if (!(await confirmDialog({ message: `Eliminar ${selected.size} cliente(s)? Os que têm faturas são apenas desativados.`, danger: true }))) return;
+    setBulkBusy(true);
+    try { for (const id of selected) await api.customers.remove(id); setSelected(new Set()); toast.success('Clientes processados.'); await load(); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível eliminar.'); }
+    finally { setBulkBusy(false); }
+  };
+
   const filtered = q.trim()
     ? rows.filter((r) => `${r.name} ${r.phone ?? ''} ${r.email ?? ''} ${r.tax_id ?? ''}`.toLowerCase().includes(q.trim().toLowerCase()))
     : rows;
+
+  const allSel = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
+  const toggleAll = () => setSelected(allSel ? new Set() : new Set(filtered.map((c) => c.id)));
 
   const totalSpent = useMemo(() => rows.reduce((s, r) => s + (r.total_spent ?? 0), 0), [rows]);
   const withPurchases = useMemo(() => rows.filter((r) => (r.purchases ?? 0) > 0).length, [rows]);
@@ -85,7 +99,7 @@ export function Customers() {
         <div className="kpi-card success"><div className="kpi-label">Faturado a clientes</div><div className="kpi-value" style={{ fontSize: 22 }}>{formatKz(totalSpent)}</div><div className="kpi-sub">soma das compras identificadas</div></div>
       </div>
 
-      <div className="card" style={{ padding: '2px 14px' }}>
+      <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
         <div className="row">
           <IconSearch size={18} />
           <input
@@ -95,11 +109,25 @@ export function Customers() {
         </div>
       </div>
 
+      {selected.size > 0 ? (
+        <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
+          <strong>{selected.size} selecionado(s)</strong>
+          <span className="spacer" style={{ flex: 1 }} />
+          <button className="btn sm danger" onClick={() => void bulkDelete()} disabled={bulkBusy}>Eliminar selecionados</button>
+        </div>
+      ) : null}
+
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? <div className="loading" style={{ padding: 26 }}>A carregar…</div>
           : filtered.length === 0 ? <div className="empty" style={{ padding: 30 }}><p>{q ? 'Sem resultados.' : 'Ainda não há clientes — cria o primeiro ou regista-os no caixa durante a venda.'}</p></div>
-          : filtered.map((c) => (
+          : <>
+            <div className="list-row" style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
+              <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" />
+              <span className="muted" style={{ fontSize: 12.5 }}>Selecionar todos ({filtered.length})</span>
+            </div>
+            {filtered.map((c) => (
             <div key={c.id} className="list-row" style={{ padding: '12px 16px' }}>
+              <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSel(c.id)} aria-label={`Selecionar ${c.name}`} />
               <span className="fb-avatar">{c.name.slice(0, 1).toUpperCase()}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ fontSize: 14 }}>{c.name}</strong>
@@ -122,6 +150,7 @@ export function Customers() {
               </div>
             </div>
           ))}
+          </>}
       </div>
 
       {open ? (

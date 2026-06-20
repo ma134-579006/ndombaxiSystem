@@ -52,6 +52,9 @@ export function Expenses() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const load = useCallback(async () => {
     setError(null);
@@ -106,6 +109,16 @@ export function Expenses() {
     if (!(await confirmDialog({ message: 'Eliminar esta despesa? A ação fica registada na auditoria.', danger: true }))) return;
     try { await api.expenses.remove(id); await load(); }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível eliminar.'); }
+  };
+
+  const allSel = list.length > 0 && list.every((e) => selected.has(e.id));
+  const toggleAll = () => setSelected(allSel ? new Set() : new Set(list.map((e) => e.id)));
+  const bulkDelete = async () => {
+    if (!(await confirmDialog({ message: `Eliminar ${selected.size} despesa(s)? A ação fica registada na auditoria.`, danger: true }))) return;
+    setBulkBusy(true);
+    try { for (const id of selected) await api.expenses.remove(id); setSelected(new Set()); await load(); }
+    catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível eliminar.'); }
+    finally { setBulkBusy(false); }
   };
 
   const total = summary?.total ?? 0;
@@ -188,6 +201,14 @@ export function Expenses() {
         </div>
       </div>
 
+      {selected.size > 0 ? (
+        <div className="card no-print" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
+          <strong>{selected.size} selecionada(s)</strong>
+          <span className="spacer" style={{ flex: 1 }} />
+          <button className="btn sm danger" onClick={() => void bulkDelete()} disabled={bulkBusy}>Eliminar selecionadas</button>
+        </div>
+      ) : null}
+
       {/* Lista de despesas */}
       <div className="card">
         <h3>Lançamentos</h3>
@@ -197,11 +218,12 @@ export function Expenses() {
           ) : (
             <table className="ptable stack">
               <thead>
-                <tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Fornecedor</th><th>Pagamento</th><th>Valor</th><th className="no-print" /></tr>
+                <tr><th className="no-print"><input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todas" /></th><th>Data</th><th>Categoria</th><th>Descrição</th><th>Fornecedor</th><th>Pagamento</th><th>Valor</th><th className="no-print" /></tr>
               </thead>
               <tbody>
                 {list.map((e) => (
                   <tr key={e.id}>
+                    <td className="no-print" data-label="Sel."><input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSel(e.id)} aria-label="Selecionar despesa" /></td>
                     <td data-label="Data">{new Date(e.expense_date).toLocaleDateString('pt-PT')}</td>
                     <td data-label="Categoria"><span className="pill">{EXPENSE_CATEGORY_LABELS[e.category] ?? e.category}</span></td>
                     <td data-label="Descrição">{e.description || '—'}{e.document_ref ? <span className="muted"> · {e.document_ref}</span> : null}</td>
@@ -215,7 +237,7 @@ export function Expenses() {
                 ))}
               </tbody>
               <tfoot>
-                <tr><td colSpan={5} style={{ textAlign: 'right', fontWeight: 700 }}>Total</td><td style={{ fontWeight: 800 }}>{formatKz(total)}</td><td className="no-print" /></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'right', fontWeight: 700 }}>Total</td><td style={{ fontWeight: 800 }}>{formatKz(total)}</td><td className="no-print" /></tr>
               </tfoot>
             </table>
           )}
