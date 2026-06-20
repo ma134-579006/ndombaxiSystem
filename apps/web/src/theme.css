@@ -270,8 +270,10 @@ input, textarea, select { font-family: inherit; }
   .topbar h1 { font-size: 17px; }
   .topbar .who .nm { max-width: 38vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .content { padding: 16px 14px; }
-  /* No telemóvel a padding do .content é menor → alinha o full-bleed do bloco fixo. */
+  /* No telemóvel a padding do .content é menor → alinha o full-bleed dos blocos fixos. */
+  .content-head { margin: -16px -14px 12px; padding: 12px 14px 8px; }
   .sticky-top { margin: -16px -14px 12px; padding: 10px 14px 6px; }
+  .sticky-top > .content-head { margin: 0; padding: 0; }
   /* Tabelas largas (não-empilhadas) rolam DENTRO do cartão em vez de serem
      cortadas pela guarda anti-fuga (overflow-x:clip do body). As que empilham
      (.ptable.stack ≤640) viram cartões e não precisam. */
@@ -325,18 +327,20 @@ input, textarea, select { font-family: inherit; }
   .seg button { padding: 8px 6px; font-size: 12px; }
   .banner { padding: 10px 12px; font-size: 13px; }
 }
-.content-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+/* Cabeçalho da página FIXO ao topo da área de conteúdo (todas as secções): o
+   título + ação «Novo/Adicionar» não rolam. Full-bleed (margens negativas
+   cobrem a padding do .content) para a lista passar por baixo sem bordas. */
+.content-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 20; background: var(--bg);
+  margin: -24px -24px 16px; padding: 16px 24px 12px; }
 .content-head h2 { margin: 0; font-size: 19px; font-weight: 800; }
-/* Bloco superior FIXO ao topo da área de conteúdo: cabeçalho + barra de pesquisa
-   (+ barra de seleção) num ÚNICO sticky — movem-se como um todo, sem sobreposições.
-   As margens negativas cobrem a padding do .content (full-bleed) para a lista
-   passar por baixo sem aparecer nas bordas. */
+/* Páginas com pesquisa/seleção: cabeçalho + pesquisa (+ barra de seleção) num
+   ÚNICO sticky — movem-se como um bloco, sem sobreposições. */
 .sticky-top { position: sticky; top: 0; z-index: 25; background: var(--bg);
   margin: -24px -24px 14px; padding: 12px 24px 8px; }
-.sticky-top > .content-head { margin-bottom: 10px; }
-.sticky-top > .toolbar-sticky,
-.sticky-top > .card { margin-bottom: 0; }
+.sticky-top > .content-head { position: static; z-index: auto; margin: 0; padding: 0; background: transparent; }
 .sticky-top > * + * { margin-top: 10px; }
+.sticky-top > .card { margin-bottom: 0; }
 .toolbar-sticky { margin: 0; }
 
 /* ── Segmented control ──────────────────────────────────── */
