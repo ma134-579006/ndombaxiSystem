@@ -599,6 +599,9 @@ export const api = {
     list: () => request<CustomerRow[]>('GET', '/pos/customers'),
     create: (input: { name: string; taxId?: string; email?: string; phone?: string; address?: string }) =>
       request<CustomerRow>('POST', '/pos/customers', input),
+    update: (id: string, input: { name?: string; taxId?: string; email?: string; phone?: string; address?: string; province?: string; municipality?: string }) =>
+      request<CustomerRow>('PATCH', `/pos/customers/${id}`, input),
+    remove: (id: string) => request<{ deleted: boolean; deactivated: boolean }>('DELETE', `/pos/customers/${id}`),
   },
 
   // ── Câmaras de vigilância ───────────────────────────────────

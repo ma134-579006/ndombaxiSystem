@@ -262,11 +262,69 @@ export class PosRepository {
     });
   }
 
+  /** Lista clientes com ESTATÍSTICAS de compra (nº compras, total gasto, última
+   *  compra) — só faturas válidas (status 'N'). Partilhado com caixa/loja online. */
   listCustomers(schema: string): Promise<CustomerRow[]> {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<CustomerRow[]>(
-        Prisma.sql`SELECT * FROM customers WHERE is_active = TRUE ORDER BY name`,
+        Prisma.sql`SELECT c.*,
+                          COALESCE(s.purchases, 0)::int AS purchases,
+                          COALESCE(s.total_spent, 0)::float AS total_spent,
+                          s.last_purchase
+                   FROM customers c
+                   LEFT JOIN (
+                     SELECT customer_id, COUNT(*)::int AS purchases,
+                            SUM(gross_total)::float AS total_spent,
+                            MAX(system_entry_date) AS last_purchase
+                     FROM invoices WHERE status = 'N' AND customer_id IS NOT NULL
+                     GROUP BY customer_id
+                   ) s ON s.customer_id = c.id
+                   WHERE c.is_active = TRUE ORDER BY c.name`,
       ),
     );
+  }
+
+  async updateCustomer(
+    schema: string,
+    id: string,
+    input: { name?: string; taxId?: string | null; email?: string | null; phone?: string | null;
+             address?: string | null; province?: string | null; municipality?: string | null },
+  ): Promise<CustomerRow> {
+    const sets: Prisma.Sql[] = [];
+    if (input.name !== undefined) sets.push(Prisma.sql`name = ${input.name}`);
+    if (input.taxId !== undefined) sets.push(Prisma.sql`tax_id = ${input.taxId || null}`);
+    if (input.email !== undefined) sets.push(Prisma.sql`email = ${input.email || null}`);
+    if (input.phone !== undefined) sets.push(Prisma.sql`phone = ${input.phone || null}`);
+    if (input.address !== undefined) sets.push(Prisma.sql`address = ${input.address || null}`);
+    if (input.province !== undefined) sets.push(Prisma.sql`province = ${input.province || null}`);
+    if (input.municipality !== undefined) sets.push(Prisma.sql`municipality = ${input.municipality || null}`);
+    if (sets.length === 0) {
+      const cur = await this.prisma.runInTenant(schema, (tx) =>
+        tx.$queryRaw<CustomerRow[]>(Prisma.sql`SELECT * FROM customers WHERE id = ${id}::uuid`));
+      if (!cur[0]) throw new NotFoundException('Cliente não encontrado.');
+      return cur[0];
+    }
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<CustomerRow[]>(
+        Prisma.sql`UPDATE customers SET ${Prisma.join(sets, ', ')} WHERE id = ${id}::uuid RETURNING *`,
+      ),
+    );
+    if (!rows[0]) throw new NotFoundException('Cliente não encontrado.');
+    return rows[0];
+  }
+
+  /** Elimina o cliente; se tiver faturas associadas, apenas desativa (integridade). */
+  async removeCustomer(schema: string, id: string): Promise<{ deleted: boolean; deactivated: boolean }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const used = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT id FROM invoices WHERE customer_id = ${id}::uuid LIMIT 1`,
+      );
+      if (used[0]) {
+        await tx.$executeRaw(Prisma.sql`UPDATE customers SET is_active = FALSE WHERE id = ${id}::uuid`);
+        return { deleted: false, deactivated: true };
+      }
+      await tx.$executeRaw(Prisma.sql`DELETE FROM customers WHERE id = ${id}::uuid`);
+      return { deleted: true, deactivated: false };
+    });
   }
 }

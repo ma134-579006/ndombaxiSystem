@@ -17,7 +17,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
-import { CreateCustomerDto } from './dto/customer.dto';
+import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { CancelInvoiceDto, EmitInvoiceDto, ReturnItemsDto } from './dto/emit-invoice.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { FiscalSigningService } from './fiscal-signing.service';
@@ -102,6 +102,20 @@ export class PosController {
   @ApiOperation({ summary: 'Cria um cliente' })
   createCustomer(@Body() dto: CreateCustomerDto) {
     return this.repo.createCustomer(this.ctx.requireTenantSchema(), dto);
+  }
+
+  @Patch('customers/:id')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Actualiza um cliente' })
+  updateCustomer(@Param('id') id: string, @Body() dto: UpdateCustomerDto) {
+    return this.repo.updateCustomer(this.ctx.requireTenantSchema(), id, dto);
+  }
+
+  @Delete('customers/:id')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Elimina (ou desativa, se tiver faturas) um cliente' })
+  removeCustomer(@Param('id') id: string) {
+    return this.repo.removeCustomer(this.ctx.requireTenantSchema(), id);
   }
 
   // ── Emissão fiscal ─────────────────────────────────────────

@@ -929,8 +929,14 @@ export interface CustomerRow {
   email: string | null;
   phone: string | null;
   address: string | null;
+  province?: string | null;
+  municipality?: string | null;
   is_active: boolean;
   created_at?: string;
+  /** Estatísticas de compra (sincronizadas com a caixa/loja). */
+  purchases?: number;
+  total_spent?: number;
+  last_purchase?: string | null;
 }
 
 /** Câmara de vigilância configurada. */
