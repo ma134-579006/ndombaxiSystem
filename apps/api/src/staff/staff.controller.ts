@@ -104,4 +104,11 @@ export class StaffController {
   deactivate(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.staff.deactivate(this.ctx.requireTenantSchema(), this.actor(user), id);
   }
+
+  @Post('users/:id/unlock')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Desbloqueia o acesso (bloqueio temporário por tentativas falhadas)' })
+  unlock(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.staff.unlock(this.ctx.requireTenantSchema(), this.actor(user), id);
+  }
 }

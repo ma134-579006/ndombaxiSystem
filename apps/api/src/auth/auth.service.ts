@@ -23,6 +23,13 @@ interface RequestCtx {
   userAgent?: string | null;
 }
 
+/** Mensagem amigável de bloqueio temporário, com o tempo que falta. */
+function lockMessage(until: Date): string {
+  const secs = Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000));
+  const human = secs >= 60 ? `${Math.ceil(secs / 60)} min` : `${secs} s`;
+  return `Conta bloqueada temporariamente por tentativas falhadas. Tente novamente dentro de ${human} ou peça ao gestor para desbloquear o acesso.`;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -299,9 +306,7 @@ export class AuthService {
     }
 
     if (user.locked_until && user.locked_until > new Date()) {
-      throw new ForbiddenException(
-        'Account temporarily locked due to failed login attempts',
-      );
+      throw new ForbiddenException(lockMessage(user.locked_until));
     }
 
     const passwordOk = await this.passwords.verify(
@@ -465,7 +470,7 @@ export class AuthService {
       throw new UnauthorizedException('Operador inválido ou sem PIN');
     }
     if (user.locked_until && user.locked_until > new Date()) {
-      throw new ForbiddenException('Operador temporariamente bloqueado (tentativas falhadas)');
+      throw new ForbiddenException(lockMessage(user.locked_until));
     }
     const ok = await this.passwords.verify(user.pin_hash, dto.pin);
     if (!ok) {
@@ -515,7 +520,7 @@ export class AuthService {
       throw new ForbiddenException('Plano expirado. O gestor deve renovar no painel de gestão.');
     }
     if (user.locked_until && user.locked_until > new Date()) {
-      throw new ForbiddenException('Operador temporariamente bloqueado (tentativas falhadas)');
+      throw new ForbiddenException(lockMessage(user.locked_until));
     }
     const ok = await this.passwords.verify(user.pin_hash!, dto.pin);
     if (!ok) {

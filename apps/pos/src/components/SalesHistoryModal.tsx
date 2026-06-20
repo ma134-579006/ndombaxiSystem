@@ -11,7 +11,7 @@ const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('pt
  * uma/várias (ou todas) e cancelar (estorna stock + financeiro via nota de
  * crédito, 100% registado). Fecha por cima de tudo.
  */
-export function SalesHistoryModal({ onClose, onChanged }: { onClose(): void; onChanged?(): void }) {
+export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { onClose(): void; onChanged?(): void; canCancel?: boolean }) {
   const [from, setFrom] = useState(todayISO());
   const [to, setTo] = useState(todayISO());
   const [rows, setRows] = useState<SaleRow[]>([]);
@@ -69,9 +69,13 @@ export function SalesHistoryModal({ onClose, onChanged }: { onClose(): void; onC
           <label>até <input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></label>
           <button className="btn sm" onClick={() => void load()} disabled={loading}>{loading ? 'A carregar…' : 'Filtrar'}</button>
           <span style={{ flex: 1 }} />
-          <button className="btn sm danger" onClick={cancelSelected} disabled={busy || selectedIds.length === 0}>
-            {busy ? 'A cancelar…' : `Cancelar selecionadas (${selectedIds.length})`}
-          </button>
+          {canCancel ? (
+            <button className="btn sm danger" onClick={cancelSelected} disabled={busy || selectedIds.length === 0}>
+              {busy ? 'A cancelar…' : `Cancelar selecionadas (${selectedIds.length})`}
+            </button>
+          ) : (
+            <span className="muted" style={{ fontSize: 12.5 }}>🔒 Só o gerente/gestor pode cancelar vendas.</span>
+          )}
         </div>
 
         {err ? <div className="banner danger">{err}</div> : null}
@@ -82,7 +86,7 @@ export function SalesHistoryModal({ onClose, onChanged }: { onClose(): void; onC
             <table className="sales-table">
               <thead>
                 <tr>
-                  <th><input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todas" /></th>
+                  {canCancel ? <th><input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todas" /></th> : null}
                   <th>Documento</th><th>Data</th><th>Produtos</th><th>Operador</th><th>Total</th><th>Estado</th>
                 </tr>
               </thead>
@@ -91,7 +95,7 @@ export function SalesHistoryModal({ onClose, onChanged }: { onClose(): void; onC
                   const cancelled = r.status === 'A';
                   return (
                     <tr key={r.id} className={cancelled ? 'cancelled' : ''}>
-                      <td className="sel-cell">{!cancelled ? <input type="checkbox" checked={!!sel[r.id]} onChange={(e) => setSel((s) => ({ ...s, [r.id]: e.target.checked }))} /> : null}</td>
+                      {canCancel ? <td className="sel-cell">{!cancelled ? <input type="checkbox" checked={!!sel[r.id]} onChange={(e) => setSel((s) => ({ ...s, [r.id]: e.target.checked }))} /> : null}</td> : null}
                       <td data-label="Documento">{r.number}</td>
                       <td data-label="Data">{fmtDateTime(r.system_entry_date)}</td>
                       <td data-label="Produtos" style={{ maxWidth: 280 }}>{r.items || '—'}</td>

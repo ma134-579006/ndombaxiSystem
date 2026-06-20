@@ -26,12 +26,13 @@ export interface StaffRow {
   has_pin: boolean;
   photo_url: string | null;
   last_login_at: Date | null;
+  locked_until: Date | null;
   created_at: Date;
 }
 
 /** Colunas seguras de um funcionário (nunca devolve segredos). */
 const SAFE_USER_COLS = Prisma.sql`id, email, name, role, store_id, two_fa_enabled,
-  is_active, must_reset_pw, (pin_hash IS NOT NULL) AS has_pin, photo_url, last_login_at, created_at`;
+  is_active, must_reset_pw, (pin_hash IS NOT NULL) AS has_pin, photo_url, last_login_at, locked_until, created_at`;
 
 /**
  * Acesso aos dados de equipa (users) e lojas (stores) do tenant.
@@ -228,6 +229,15 @@ export class StaffRepository {
     await this.prisma.runInTenant(schema, (tx) =>
       tx.$executeRaw(
         Prisma.sql`UPDATE users SET pin_hash = ${pinHash}, updated_at = now() WHERE id = ${id}::uuid`,
+      ),
+    );
+  }
+
+  /** Desbloqueio imediato pelo gestor (limpa bloqueio temporário e contador). */
+  async clearLockout(schema: string, id: string): Promise<void> {
+    await this.prisma.runInTenant(schema, (tx) =>
+      tx.$executeRaw(
+        Prisma.sql`UPDATE users SET failed_logins = 0, locked_until = NULL, updated_at = now() WHERE id = ${id}::uuid`,
       ),
     );
   }

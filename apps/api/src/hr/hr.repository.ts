@@ -30,11 +30,20 @@ export class HrRepository {
 
   create(schema: string, input: CreateEmployeeDto): Promise<EmployeeRow> {
     return this.prisma.runInTenant(schema, async (tx) => {
+      // Nº de funcionário ATRIBUÍDO automaticamente quando não é indicado:
+      // procura o maior número existente e gera o seguinte (F-001, F-002, …).
+      let employeeNumber = input.employeeNumber?.trim();
+      if (!employeeNumber) {
+        const seq = await tx.$queryRaw<{ next: number }[]>(
+          Prisma.sql`SELECT COALESCE(MAX(NULLIF(regexp_replace(employee_number, '\D', '', 'g'), '')::int), 0) + 1 AS next FROM employees`,
+        );
+        employeeNumber = `F-${String(seq[0]?.next ?? 1).padStart(3, '0')}`;
+      }
       const rows = await tx.$queryRaw<EmployeeRow[]>(
         Prisma.sql`INSERT INTO employees
             (employee_number, full_name, tax_id, inss_number, position, department,
              store_id, hire_date, base_salary, taxable_allowances, exempt_allowances, iban, photo_url)
-          VALUES (${input.employeeNumber}, ${input.fullName}, ${input.taxId ?? null},
+          VALUES (${employeeNumber}, ${input.fullName}, ${input.taxId ?? null},
                   ${input.inssNumber ?? null}, ${input.position ?? null}, ${input.department ?? null},
                   ${input.storeId ?? null}::uuid,
                   COALESCE(${input.hireDate ?? null}::date, CURRENT_DATE),
@@ -110,6 +119,19 @@ export class HrRepository {
                    SET status = 'TERMINATED',
                        termination_date = COALESCE(${date ?? null}::date, CURRENT_DATE),
                        updated_at = now()
+                   WHERE id = ${id}::uuid RETURNING *`,
+      ),
+    );
+    if (!rows[0]) throw new NotFoundException(`Trabalhador não encontrado: ${id}`);
+    return rows[0];
+  }
+
+  /** Reativa um trabalhador cessado/suspenso (repõe o acesso/estado ACTIVE). */
+  async reactivate(schema: string, id: string): Promise<EmployeeRow> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<EmployeeRow[]>(
+        Prisma.sql`UPDATE employees
+                   SET status = 'ACTIVE', termination_date = NULL, updated_at = now()
                    WHERE id = ${id}::uuid RETURNING *`,
       ),
     );

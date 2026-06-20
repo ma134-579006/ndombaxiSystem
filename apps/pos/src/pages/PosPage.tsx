@@ -117,7 +117,15 @@ export function PosPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
-  const [cart, setCart] = useState<CartLine[]>([]);
+  // Carrinho PERSISTENTE por operador (sobrevive a quebra de energia / fecho
+  // acidental, até ser finalizado ou limpo pelo MESMO funcionário). Multiutilizador:
+  // cada operador tem a sua chave, e o stock é sempre reconfirmado no servidor.
+  const cartKey = user?.sub ? `pos:cart:${user.sub}` : null;
+  const [cart, setCart] = useState<CartLine[]>(() => {
+    try { const raw = cartKey ? localStorage.getItem(cartKey) : null; return raw ? (JSON.parse(raw) as CartLine[]) : []; }
+    catch { return []; }
+  });
+  const [cartSel, setCartSel] = useState<Set<string>>(new Set());
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [showCustomer, setShowCustomer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
@@ -262,6 +270,55 @@ export function PosPage() {
 
   const removeLine = (id: string) => setCart((prev) => prev.filter((l) => l.product.id !== id));
 
+  // Só o gerente/gestor pode cancelar vendas.
+  const canCancel = ['COMPANY_ADMIN', 'STORE_MANAGER'].includes(user?.role ?? '');
+
+  // ── Limpar carrinho (selecionar cada linha ou tudo) ──────────
+  const toggleCartSel = (id: string) =>
+    setCartSel((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const allCartSel = cart.length > 0 && cart.every((l) => cartSel.has(l.product.id));
+  const toggleAllCart = () => setCartSel(allCartSel ? new Set() : new Set(cart.map((l) => l.product.id)));
+  const clearCart = () => {
+    if (cartSel.size > 0) {
+      setCart((prev) => prev.filter((l) => !cartSel.has(l.product.id)));
+      setCartSel(new Set());
+    } else {
+      setCart([]);
+    }
+  };
+
+  // Persiste o carrinho do operador (ou limpa a chave quando esvazia).
+  useEffect(() => {
+    if (!cartKey) return;
+    try {
+      if (cart.length) localStorage.setItem(cartKey, JSON.stringify(cart));
+      else localStorage.removeItem(cartKey);
+    } catch { /* storage cheio/indisponível — ignora */ }
+  }, [cart, cartKey]);
+
+  // Reconcilia o carrinho com o STOCK ATUAL (ex.: outro caixa vendeu entretanto):
+  // remove o que esgotou/saiu do catálogo e ajusta quantidades ao disponível.
+  useEffect(() => {
+    if (products.length === 0) return;
+    setCart((prev) => {
+      if (prev.length === 0) return prev;
+      let changed = false;
+      const out: CartLine[] = [];
+      for (const l of prev) {
+        const fresh = products.find((p) => p.id === l.product.id);
+        if (!fresh) { changed = true; continue; }
+        const stock = Number(fresh.stock_qty);
+        if (stock <= 0) { changed = true; continue; }
+        const qty = Math.min(l.quantity, stock);
+        if (qty !== l.quantity || fresh !== l.product) changed = true;
+        out.push({ product: fresh, quantity: qty });
+      }
+      if (changed) window.setTimeout(() => flashError('Carrinho ajustado ao stock atual (outro caixa pode ter vendido).'), 0);
+      return changed ? out : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products]);
+
   /**
    * Resolve um código lido (leitor físico, câmara ou Enter na pesquisa):
    * procura por código de barras / código EXACTO; lança ao carrinho e LIMPA a
@@ -377,6 +434,7 @@ export function PosPage() {
   const closeReceipt = () => {
     setEmitted(null);
     setCart([]);
+    setCartSel(new Set());
     setCustomer(null);
   };
 
@@ -511,9 +569,20 @@ export function PosPage() {
               </div>
             ) : (
               <div className="cart-lines">
+                <div className="row" style={{ gap: 8, alignItems: 'center', padding: '0 2px 6px' }}>
+                  <label className="row" style={{ gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={allCartSel} onChange={toggleAllCart} aria-label="Selecionar tudo" />
+                    Selecionar tudo
+                  </label>
+                  <span className="spacer" style={{ flex: 1 }} />
+                  <button className="btn sm ghost" onClick={clearCart}>
+                    {cartSel.size > 0 ? `Limpar (${cartSel.size})` : 'Limpar tudo'}
+                  </button>
+                </div>
                 {cart.map((l) => (
                   <div className="cart-line" key={l.product.id}>
                     <div className="cl-top">
+                      <input type="checkbox" style={{ marginRight: 8 }} checked={cartSel.has(l.product.id)} onChange={() => toggleCartSel(l.product.id)} aria-label={`Selecionar ${l.product.name}`} />
                       <div>
                         <div className="cl-name">{l.product.name}</div>
                         <div className="cl-sub">
@@ -642,6 +711,7 @@ export function PosPage() {
 
       {showSales ? (
         <SalesHistoryModal
+          canCancel={canCancel}
           onClose={() => setShowSales(false)}
           onChanged={() => { api.listProducts().then(setProducts).catch(() => undefined); }}
         />
@@ -650,6 +720,7 @@ export function PosPage() {
       {showShift ? (
         <ShiftModal
           session={session}
+          cartCount={cart.length}
           onOpened={async () => { setShowShift(false); setSession(await api.currentSession().catch(() => null)); }}
           onClosed={async () => { setShowShift(false); setSession(null); }}
           onClose={() => setShowShift(false)}

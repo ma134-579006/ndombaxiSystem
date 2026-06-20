@@ -9,13 +9,15 @@ import { PaperSizeToggle } from './PaperSizeToggle';
 
 interface Props {
   session: CashSession | null;
+  /** Nº de artigos no carrinho — impede o fecho com venda por finalizar. */
+  cartCount?: number;
   onOpened(): void;
   onClosed(): void;
   onClose(): void;
 }
 
 /** Abertura / fecho de turno de caixa, com conferência de dinheiro (quebra/sobra). */
-export function ShiftModal({ session, onOpened, onClosed, onClose }: Props) {
+export function ShiftModal({ session, cartCount = 0, onOpened, onClosed, onClose }: Props) {
   const [openingFloat, setOpeningFloat] = useState('');
   const [counted, setCounted] = useState('');
   const [notes, setNotes] = useState('');
@@ -47,6 +49,10 @@ export function ShiftModal({ session, onOpened, onClosed, onClose }: Props) {
 
   const close = async () => {
     setError(null);
+    if (cartCount > 0) {
+      setError(`Tem ${cartCount} artigo(s) no carrinho por finalizar. Finalize a venda (ou limpe o carrinho) antes de fechar o turno.`);
+      return;
+    }
     if (counted.trim() === '') {
       setError('Indique o valor contado em dinheiro.');
       return;
@@ -179,12 +185,17 @@ export function ShiftModal({ session, onOpened, onClosed, onClose }: Props) {
           Aberto por {session.opened_by_name} · {new Date(session.opened_at).toLocaleString('pt-PT')}
         </p>
         {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
+        {cartCount > 0 ? (
+          <div className="banner warn" style={{ marginBottom: 12 }}>
+            ⚠️ Há {cartCount} artigo(s) no carrinho por finalizar. Finalize a venda (ou limpe o carrinho) antes de fechar o turno.
+          </div>
+        ) : null}
         <KeyboardInput label="Dinheiro contado na gaveta (Kz)" value={counted} onChange={setCounted} numeric placeholder="0" onSubmit={close} />
         <KeyboardInput label="Observações (opcional)" value={notes} onChange={setNotes} placeholder="ex.: nota sobre o turno" />
         <button className="btn ghost lg block" style={{ marginTop: 12 }} onClick={loadX} disabled={busy}>
           Relatório X (ler sem fechar)
         </button>
-        <button className="btn danger lg block" style={{ marginTop: 10 }} onClick={close} disabled={busy}>
+        <button className="btn danger lg block" style={{ marginTop: 10 }} onClick={close} disabled={busy || cartCount > 0}>
           {busy ? 'A fechar…' : 'Fechar turno e conferir (Z)'}
         </button>
       </div>

@@ -174,6 +174,21 @@ export class StaffService {
     return { ok: true };
   }
 
+  /** Desbloqueia o acesso de um funcionário bloqueado por tentativas falhadas. */
+  async unlock(schema: string, actor: StaffActor, id: string): Promise<StaffRow> {
+    await this.repo.getStaff(schema, id); // 404 se não existir
+    await this.repo.clearLockout(schema, id);
+    await this.audit.record({
+      actorType: 'TENANT',
+      actorId: actor.sub,
+      tenantSchema: schema,
+      action: 'STAFF_UNLOCKED',
+      entity: 'User',
+      entityId: id,
+    });
+    return this.repo.getStaff(schema, id);
+  }
+
   async deactivate(schema: string, actor: StaffActor, id: string): Promise<StaffRow> {
     if (actor.sub === id) {
       throw new BadRequestException('Não pode desactivar a sua própria conta.');

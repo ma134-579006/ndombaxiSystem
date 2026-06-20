@@ -48,6 +48,11 @@ export function Employees() {
     try { for (const id of selected) await api.hr.terminateEmployee(id); setSelected(new Set()); await load(); }
     catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao cessar.'); } finally { setBulkBusy(false); }
   };
+  const bulkActivate = async () => {
+    setBulkBusy(true); setError(null);
+    try { for (const id of selected) await api.hr.reactivateEmployee(id); setSelected(new Set()); await load(); setInfo('Acesso restabelecido (funcionário ativo).'); }
+    catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao ativar.'); } finally { setBulkBusy(false); }
+  };
   const bulkDelete = async () => {
     if (!(await confirmDialog({ message: `Eliminar ${selected.size} funcionário(s)? Os que têm histórico de folha são apenas cessados.`, danger: true }))) return;
     setBulkBusy(true); setError(null);
@@ -122,9 +127,8 @@ export function Employees() {
           inssNumber: form.inssNumber.trim() || undefined,
         });
       } else {
-        if (!form.employeeNumber.trim()) { setFormError('Indique o nº de funcionário.'); setSaving(false); return; }
         const payload: CreateEmployeeInput = {
-          employeeNumber: form.employeeNumber.trim(), fullName: form.fullName.trim(),
+          fullName: form.fullName.trim(),
           position: form.position.trim() || undefined, department: form.department.trim() || undefined,
           baseSalary: salary, iban: form.iban.trim() || undefined,
           taxId: form.taxId.trim() || undefined, inssNumber: form.inssNumber.trim() || undefined,
@@ -157,15 +161,21 @@ export function Employees() {
         </div>
       </div>
 
-      {selected.size > 0 ? (
-        <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
-          <strong>{selected.size} selecionado(s)</strong>
-          <span className="spacer" />
-          <button className="btn sm ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy}>Limpar</button>
-          <button className="btn sm warn" onClick={bulkDeactivate} disabled={bulkBusy}>Desativar</button>
-          <button className="btn sm danger" onClick={bulkDelete} disabled={bulkBusy}>Eliminar</button>
-        </div>
-      ) : null}
+      {selected.size > 0 ? (() => {
+        // Se TODOS os selecionados já estão inativos → oferece "Ativar" (repõe acesso).
+        const selRows = items.filter((e) => selected.has(e.id));
+        const allInactive = selRows.length > 0 && selRows.every((e) => e.status !== 'ACTIVE');
+        return (
+          <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
+            <strong>{selected.size} selecionado(s)</strong>
+            <span className="spacer" />
+            {allInactive
+              ? <button className="btn sm success" onClick={bulkActivate} disabled={bulkBusy}>Ativar</button>
+              : <button className="btn sm warn" onClick={bulkDeactivate} disabled={bulkBusy}>Desativar</button>}
+            <button className="btn sm danger" onClick={bulkDelete} disabled={bulkBusy}>Eliminar</button>
+          </div>
+        );
+      })() : null}
 
       {info ? <div className="banner success">{info}</div> : null}
       {error ? <div className="banner danger">{error}</div> : null}
@@ -225,8 +235,12 @@ export function Employees() {
             <input type="file" accept="image/*" hidden onChange={(ev) => onPickPhoto(ev.target.files?.[0])} />
           </label>
 
-          <div className="field"><label>Nº de funcionário</label>
-            <input value={form.employeeNumber} onChange={(e) => setForm({ ...form, employeeNumber: e.target.value })} placeholder="ex.: F-001" /></div>
+          {editing ? (
+            <div className="field"><label>Nº de funcionário</label>
+              <input value={form.employeeNumber} onChange={(e) => setForm({ ...form, employeeNumber: e.target.value })} placeholder="ex.: F-001" /></div>
+          ) : (
+            <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>O <strong>nº de funcionário</strong> é atribuído automaticamente.</p>
+          )}
           <div className="field"><label>Nome completo</label>
             <input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>
           <div className="grid-2">
@@ -337,9 +351,27 @@ function ManageAccessModal({
     finally { setBusy(null); }
   };
 
+  const isLocked = !!user.locked_until && new Date(user.locked_until) > new Date();
+  const unlock = async () => {
+    setErr(null); setBusy('unlock');
+    try { await api.staff.unlock(user.id); onInfo(`Acesso de ${name} desbloqueado.`); onChanged(); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Falhou.'); }
+    finally { setBusy(null); }
+  };
+
   return (
     <Modal title={`Gerir acesso — ${name}`} onClose={onClose}>
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      {isLocked ? (
+        <div className="banner warn" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ flex: 1 }}>🔒 Acesso bloqueado temporariamente (tentativas falhadas).</span>
+          <button className="btn sm" onClick={unlock} disabled={busy !== null}>{busy === 'unlock' ? 'A desbloquear…' : 'Desbloquear agora'}</button>
+        </div>
+      ) : (
+        <button className="btn ghost block" style={{ marginBottom: 16 }} onClick={unlock} disabled={busy !== null}>
+          {busy === 'unlock' ? 'A desbloquear…' : '🔓 Desbloquear acesso (se bloqueado)'}
+        </button>
+      )}
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
         Este utilizador entra no <strong>painel</strong> com o email + senha e na <strong>caixa</strong> com o nome + PIN.
         Aqui podes repor a senha, alterar o PIN e mudar o papel/loja.

@@ -566,12 +566,14 @@ export const api = {
       request<{ temporaryPassword?: string }>('POST', `/staff/users/${id}/reset-password`, password ? { password } : {}),
     setPin: (id: string, pin: string) => request<{ ok: boolean }>('POST', `/staff/users/${id}/set-pin`, { pin }),
     deactivate: (id: string) => request<ManagerStaff>('POST', `/staff/users/${id}/deactivate`),
+    unlock: (id: string) => request<ManagerStaff>('POST', `/staff/users/${id}/unlock`),
   },
   hr: {
     employees: (all?: boolean) => request<ManagerEmployee[]>('GET', `/hr/employees${all ? '?all=true' : ''}`),
     createEmployee: (dto: CreateEmployeeInput) => request<ManagerEmployee>('POST', '/hr/employees', dto),
     updateEmployee: (id: string, dto: UpdateEmployeeInput) => request<ManagerEmployee>('PATCH', `/hr/employees/${id}`, dto),
     terminateEmployee: (id: string) => request<ManagerEmployee>('POST', `/hr/employees/${id}/terminate`, {}),
+    reactivateEmployee: (id: string) => request<ManagerEmployee>('POST', `/hr/employees/${id}/reactivate`, {}),
     removeEmployee: (id: string) => request<{ deleted: boolean; deactivated: boolean }>('DELETE', `/hr/employees/${id}`),
     payroll: {
       listRuns: () => request<PayrollRun[]>('GET', '/hr/payroll/runs'),

@@ -146,8 +146,8 @@ export class PosController {
   }
 
   @Post('invoices/:id/cancel')
-  @Roles(Role.CASHIER)
-  @ApiOperation({ summary: 'Anula uma venda (emite nota de crédito, devolve stock, audita)' })
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Anula uma venda (só gerente/gestor; NC, devolve stock, audita)' })
   cancelInvoice(@Param('id') id: string, @Body() dto: CancelInvoiceDto, @CurrentUser() user: JwtPayload) {
     return this.invoices.cancelInvoice(this.ctx.requireTenantSchema(), id, dto.reason, {
       id: user.sub,

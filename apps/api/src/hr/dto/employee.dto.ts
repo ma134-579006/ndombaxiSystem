@@ -1,9 +1,11 @@
 import { IsDateString, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
 
 export class CreateEmployeeDto {
+  /** Opcional: se vazio, o sistema atribui automaticamente (F-001, F-002, …). */
+  @IsOptional()
   @IsString()
   @Length(1, 32)
-  employeeNumber!: string;
+  employeeNumber?: string;
 
   @IsString()
   @Length(1, 200)

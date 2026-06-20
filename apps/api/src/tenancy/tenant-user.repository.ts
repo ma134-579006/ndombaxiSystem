@@ -145,11 +145,14 @@ export class TenantUserRepository {
   }
 
   /**
-   * Regista tentativa falhada e aplica bloqueio progressivo (§9.1):
-   * 5 falhas → 15min, depois 1h, depois permanente.
+   * Regista tentativa falhada e aplica bloqueio TEMPORÁRIO progressivo:
+   * a partir da 4.ª falha bloqueia 30s e DUPLICA a cada falha seguinte
+   * (30s → 1m → 2m → 4m …), com tecto de 30 minutos. O gestor pode
+   * desbloquear de imediato (clearLockout) sem esperar o tempo.
+   * Devolve o instante de desbloqueio (ou null se ainda não bloqueou).
    */
-  async markLoginFailure(schema: string, id: string): Promise<void> {
-    await this.prisma.runInTenant(schema, async (tx) => {
+  async markLoginFailure(schema: string, id: string): Promise<Date | null> {
+    return this.prisma.runInTenant(schema, async (tx) => {
       await tx.$executeRaw(
         Prisma.sql`UPDATE users SET failed_logins = failed_logins + 1 WHERE id = ${id}::uuid`,
       );
@@ -157,16 +160,22 @@ export class TenantUserRepository {
         Prisma.sql`SELECT failed_logins FROM users WHERE id = ${id}::uuid`,
       );
       const fails = rows[0]?.failed_logins ?? 0;
-      let lockMs: number | null = null;
-      if (fails >= 10) lockMs = 100 * 365 * 24 * 60 * 60 * 1000; // ~permanente
-      else if (fails >= 7) lockMs = 60 * 60 * 1000; // 1h
-      else if (fails >= 5) lockMs = 15 * 60 * 1000; // 15min
-      if (lockMs !== null) {
-        const until = new Date(Date.now() + lockMs);
-        await tx.$executeRaw(
-          Prisma.sql`UPDATE users SET locked_until = ${until} WHERE id = ${id}::uuid`,
-        );
-      }
+      if (fails < 4) return null; // só bloqueia a partir da 4.ª tentativa
+      const lockMs = Math.min(30_000 * 2 ** (fails - 4), 30 * 60 * 1000);
+      const until = new Date(Date.now() + lockMs);
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE users SET locked_until = ${until} WHERE id = ${id}::uuid`,
+      );
+      return until;
+    });
+  }
+
+  /** Desbloqueio imediato pelo gestor: limpa o bloqueio temporário e o contador. */
+  async clearLockout(schema: string, id: string): Promise<void> {
+    await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE users SET failed_logins = 0, locked_until = NULL, updated_at = now() WHERE id = ${id}::uuid`,
+      );
     });
   }
 

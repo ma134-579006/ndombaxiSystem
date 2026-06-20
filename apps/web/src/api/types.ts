@@ -657,6 +657,7 @@ export interface ManagerStaff {
   id: string; email: string; name: string; role: StaffRoleName;
   store_id: string | null; two_fa_enabled: boolean; is_active: boolean;
   must_reset_pw: boolean; has_pin: boolean; photo_url: string | null; last_login_at: string | null;
+  locked_until: string | null;
 }
 export interface CreateStoreInput { code: string; name: string; address?: string; isDefault?: boolean }
 export interface UpdateStoreInput { name?: string; address?: string; isActive?: boolean; isDefault?: boolean }
@@ -673,7 +674,7 @@ export interface ManagerEmployee {
   bonus?: string; absence_discount_pct?: string;
 }
 export interface CreateEmployeeInput {
-  employeeNumber: string; fullName: string; position?: string; department?: string;
+  employeeNumber?: string; fullName: string; position?: string; department?: string;
   baseSalary: number; iban?: string; taxId?: string; inssNumber?: string; photoUrl?: string;
 }
 export interface UpdateEmployeeInput {

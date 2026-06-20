@@ -64,6 +64,13 @@ export class HrController {
     return this.employees.terminate(this.ctx.requireTenantSchema(), id, date);
   }
 
+  @Post('employees/:id/reactivate')
+  @Roles(Role.COMPANY_ADMIN)
+  @ApiOperation({ summary: 'Reativa um trabalhador cessado/suspenso (repõe acesso)' })
+  reactivateEmployee(@Param('id') id: string) {
+    return this.employees.reactivate(this.ctx.requireTenantSchema(), id);
+  }
+
   @Delete('employees/:id')
   @Roles(Role.COMPANY_ADMIN)
   @ApiOperation({ summary: 'Elimina um trabalhador (cessa se tiver histórico de folha)' })
