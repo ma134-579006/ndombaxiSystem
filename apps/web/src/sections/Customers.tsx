@@ -87,35 +87,38 @@ export function Customers() {
 
   return (
     <>
-      <div className="content-head">
-        <h2>Clientes <span className="muted" style={{ fontWeight: 500, fontSize: 14 }}>· {rows.length} registados</span></h2>
-        <span className="spacer" />
-        <button className="btn" onClick={openCreate}><IconPlus size={17} /> Novo cliente</button>
+      <div className="sticky-top">
+        <div className="content-head">
+          <h2>Clientes <span className="muted" style={{ fontWeight: 500, fontSize: 14 }}>· {rows.length} registados</span></h2>
+          <span className="spacer" />
+          <button className="btn" onClick={openCreate}><IconPlus size={17} /> Novo cliente</button>
+        </div>
+
+        <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
+          <div className="row">
+            <IconSearch size={18} />
+            <input
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
+              value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar por nome, telefone, email ou NIF…"
+            />
+          </div>
+        </div>
+
+        {selected.size > 0 ? (
+          <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
+            <strong>{selected.size} selecionado(s)</strong>
+            <span className="spacer" style={{ flex: 1 }} />
+            <button className="btn sm danger" onClick={() => void bulkDelete()} disabled={bulkBusy}>Eliminar selecionados</button>
+          </div>
+        ) : null}
       </div>
+
       {error ? <div className="banner danger">{error}</div> : null}
 
       <div className="kpi-grid">
         <div className="kpi-card"><div className="kpi-label">Clientes</div><div className="kpi-value">{rows.length}</div><div className="kpi-sub">{withPurchases} já compraram</div></div>
         <div className="kpi-card success"><div className="kpi-label">Faturado a clientes</div><div className="kpi-value" style={{ fontSize: 22 }}>{formatKz(totalSpent)}</div><div className="kpi-sub">soma das compras identificadas</div></div>
       </div>
-
-      <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
-        <div className="row">
-          <IconSearch size={18} />
-          <input
-            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
-            value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar por nome, telefone, email ou NIF…"
-          />
-        </div>
-      </div>
-
-      {selected.size > 0 ? (
-        <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
-          <strong>{selected.size} selecionado(s)</strong>
-          <span className="spacer" style={{ flex: 1 }} />
-          <button className="btn sm danger" onClick={() => void bulkDelete()} disabled={bulkBusy}>Eliminar selecionados</button>
-        </div>
-      ) : null}
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? <div className="loading" style={{ padding: 26 }}>A carregar…</div>

@@ -106,28 +106,30 @@ export function Tenants() {
 
   return (
     <>
-      <div className="content-head">
-        <h2>Empresas registadas</h2>
-        <span className="spacer" />
-        <div className="wrapcols">
-          {FILTERS.map((f) => (
-            <button key={f.label} className={`chip${filter === f.key ? ' active' : ''}`} onClick={() => setFilter(f.key)}>
-              {f.label}
-            </button>
-          ))}
+      <div className="sticky-top">
+        <div className="content-head">
+          <h2>Empresas registadas</h2>
+          <span className="spacer" />
+          <div className="wrapcols">
+            {FILTERS.map((f) => (
+              <button key={f.label} className={`chip${filter === f.key ? ' active' : ''}`} onClick={() => setFilter(f.key)}>
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
-        <div className="row">
-          <IconSearch size={18} />
-          <input
-            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') void load(); }}
-            placeholder="Procurar por nome, código ou NIF… (Enter)"
-          />
+        <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
+          <div className="row">
+            <IconSearch size={18} />
+            <input
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void load(); }}
+              placeholder="Procurar por nome, código ou NIF… (Enter)"
+            />
+          </div>
         </div>
       </div>
 

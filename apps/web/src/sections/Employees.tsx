@@ -149,40 +149,42 @@ export function Employees() {
 
   return (
     <>
-      <div className="content-head">
-        <h2>Funcionários</h2>
-        <span className="spacer" />
-        <button className="btn" onClick={openCreate}><IconPlus size={18} /> Novo funcionário</button>
-      </div>
-
-      <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
-        <div className="row">
-          <IconSearch size={18} />
-          <input style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
-            value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar por nome ou nº…" />
-          {filtered.length > 0 ? (
-            <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}>
-              <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /> Todos
-            </label>
-          ) : null}
+      <div className="sticky-top">
+        <div className="content-head">
+          <h2>Funcionários</h2>
+          <span className="spacer" />
+          <button className="btn" onClick={openCreate}><IconPlus size={18} /> Novo funcionário</button>
         </div>
-      </div>
 
-      {selected.size > 0 ? (() => {
-        // Se TODOS os selecionados já estão inativos → oferece "Ativar" (repõe acesso).
-        const selRows = items.filter((e) => selected.has(e.id));
-        const allInactive = selRows.length > 0 && selRows.every((e) => e.status !== 'ACTIVE');
-        return (
-          <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
-            <strong>{selected.size} selecionado(s)</strong>
-            <span className="spacer" />
-            {allInactive
-              ? <button className="btn sm success" onClick={bulkActivate} disabled={bulkBusy}>Ativar</button>
-              : <button className="btn sm warn" onClick={bulkDeactivate} disabled={bulkBusy}>Desativar</button>}
-            <button className="btn sm danger" onClick={bulkDelete} disabled={bulkBusy}>Eliminar</button>
+        <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
+          <div className="row">
+            <IconSearch size={18} />
+            <input style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
+              value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar por nome ou nº…" />
+            {filtered.length > 0 ? (
+              <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /> Todos
+              </label>
+            ) : null}
           </div>
-        );
-      })() : null}
+        </div>
+
+        {selected.size > 0 ? (() => {
+          // Se TODOS os selecionados já estão inativos → oferece "Ativar" (repõe acesso).
+          const selRows = items.filter((e) => selected.has(e.id));
+          const allInactive = selRows.length > 0 && selRows.every((e) => e.status !== 'ACTIVE');
+          return (
+            <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
+              <strong>{selected.size} selecionado(s)</strong>
+              <span className="spacer" />
+              {allInactive
+                ? <button className="btn sm success" onClick={bulkActivate} disabled={bulkBusy}>Ativar</button>
+                : <button className="btn sm warn" onClick={bulkDeactivate} disabled={bulkBusy}>Desativar</button>}
+              <button className="btn sm danger" onClick={bulkDelete} disabled={bulkBusy}>Eliminar</button>
+            </div>
+          );
+        })() : null}
+      </div>
 
       {info ? <div className="banner success">{info}</div> : null}
       {error ? <div className="banner danger">{error}</div> : null}

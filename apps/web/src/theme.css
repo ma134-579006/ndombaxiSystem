@@ -270,10 +270,8 @@ input, textarea, select { font-family: inherit; }
   .topbar h1 { font-size: 17px; }
   .topbar .who .nm { max-width: 38vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .content { padding: 16px 14px; }
-  /* No telemóvel a padding do .content é menor → alinha o full-bleed do
-     cabeçalho fixo e desativa o sticky da pesquisa (evita sobreposição). */
-  .content-head { margin: -16px -14px 12px; padding: 14px 14px 10px; }
-  .toolbar-sticky { position: static; margin: 0; padding: 0; }
+  /* No telemóvel a padding do .content é menor → alinha o full-bleed do bloco fixo. */
+  .sticky-top { margin: -16px -14px 12px; padding: 10px 14px 6px; }
   /* Tabelas largas (não-empilhadas) rolam DENTRO do cartão em vez de serem
      cortadas pela guarda anti-fuga (overflow-x:clip do body). As que empilham
      (.ptable.stack ≤640) viram cartões e não precisam. */
@@ -327,15 +325,19 @@ input, textarea, select { font-family: inherit; }
   .seg button { padding: 8px 6px; font-size: 12px; }
   .banner { padding: 10px 12px; font-size: 13px; }
 }
-/* Cabeçalho da página (título + ação «Novo/Adicionar») FIXO ao topo: não rola
-   com a lista. Margens negativas cobrem a padding do .content (full-bleed). */
-.content-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  position: sticky; top: 0; z-index: 25; background: var(--bg);
-  margin: -24px -24px 14px; padding: 18px 24px 12px; }
+.content-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
 .content-head h2 { margin: 0; font-size: 19px; font-weight: 800; }
-/* Barra de pesquisa/ferramentas que cola logo abaixo do cabeçalho. */
-.toolbar-sticky { position: sticky; top: 64px; z-index: 24; background: var(--bg);
-  margin: 0 -24px 14px; padding: 4px 24px 8px; }
+/* Bloco superior FIXO ao topo da área de conteúdo: cabeçalho + barra de pesquisa
+   (+ barra de seleção) num ÚNICO sticky — movem-se como um todo, sem sobreposições.
+   As margens negativas cobrem a padding do .content (full-bleed) para a lista
+   passar por baixo sem aparecer nas bordas. */
+.sticky-top { position: sticky; top: 0; z-index: 25; background: var(--bg);
+  margin: -24px -24px 14px; padding: 12px 24px 8px; }
+.sticky-top > .content-head { margin-bottom: 10px; }
+.sticky-top > .toolbar-sticky,
+.sticky-top > .card { margin-bottom: 0; }
+.sticky-top > * + * { margin-top: 10px; }
+.toolbar-sticky { margin: 0; }
 
 /* ── Segmented control ──────────────────────────────────── */
 .seg { display: flex; gap: 4px; padding: 4px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 13px; }

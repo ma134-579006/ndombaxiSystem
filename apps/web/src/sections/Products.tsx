@@ -253,43 +253,45 @@ export function Products() {
 
   return (
     <>
-      <div className="content-head">
-        <h2>Catálogo de produtos</h2>
-        <span className="spacer" />
-        <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
-          <IconTruck size={16} /> Adicionar stock
-        </button>
-        <button className="btn" onClick={openCreate}>
-          <IconPlus size={18} /> Novo produto
-        </button>
-      </div>
-
-      <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
-        <div className="row">
-          <IconSearch size={18} />
-          <input
-            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Procurar por nome ou código…"
-          />
-          {filtered.length > 0 ? (
-            <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}>
-              <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /> Todos
-            </label>
-          ) : null}
-        </div>
-      </div>
-
-      {selected.size > 0 ? (
-        <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
-          <strong>{selected.size} selecionado(s)</strong>
+      <div className="sticky-top">
+        <div className="content-head">
+          <h2>Catálogo de produtos</h2>
           <span className="spacer" />
-          <button className="btn sm ghost" onClick={() => setSelected(new Set())} disabled={busy}>Limpar</button>
-          <button className="btn sm warn" onClick={bulkDeactivate} disabled={busy}>Desativar</button>
-          <button className="btn sm danger" onClick={bulkDelete} disabled={busy}>Eliminar</button>
+          <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
+            <IconTruck size={16} /> Adicionar stock
+          </button>
+          <button className="btn" onClick={openCreate}>
+            <IconPlus size={18} /> Novo produto
+          </button>
         </div>
-      ) : null}
+
+        <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
+          <div className="row">
+            <IconSearch size={18} />
+            <input
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Procurar por nome ou código…"
+            />
+            {filtered.length > 0 ? (
+              <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /> Todos
+              </label>
+            ) : null}
+          </div>
+        </div>
+
+        {selected.size > 0 ? (
+          <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
+            <strong>{selected.size} selecionado(s)</strong>
+            <span className="spacer" />
+            <button className="btn sm ghost" onClick={() => setSelected(new Set())} disabled={busy}>Limpar</button>
+            <button className="btn sm warn" onClick={bulkDeactivate} disabled={busy}>Desativar</button>
+            <button className="btn sm danger" onClick={bulkDelete} disabled={busy}>Eliminar</button>
+          </div>
+        ) : null}
+      </div>
 
       {error ? <div className="banner danger">{error}</div> : null}
 
