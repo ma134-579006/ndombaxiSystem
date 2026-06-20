@@ -721,6 +721,8 @@ export function PosPage() {
         <ShiftModal
           session={session}
           cartCount={cart.length}
+          identity={identity}
+          operatorName={user?.name || user?.email}
           onOpened={async () => { setShowShift(false); setSession(await api.currentSession().catch(() => null)); }}
           onClosed={async () => { setShowShift(false); setSession(null); }}
           onClose={() => setShowShift(false)}

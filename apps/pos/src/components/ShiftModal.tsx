@@ -1,23 +1,40 @@
 import React, { useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { CashSession, ReportX, ShiftClose } from '../api/types';
+import type { CashSession, DocumentIdentity, ReportX, ShiftClose } from '../api/types';
 import { copyrightLine } from '../brand';
 import { formatKz, formatDateTime } from '../format';
 import { IconCheck, IconClose } from './Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { PaperSizeToggle } from './PaperSizeToggle';
+import { buildShiftClosePdf, shiftFileName } from '../pdf/shiftPdf';
 
 interface Props {
   session: CashSession | null;
   /** Nº de artigos no carrinho — impede o fecho com venda por finalizar. */
   cartCount?: number;
+  identity?: DocumentIdentity | null;
+  operatorName?: string | null;
   onOpened(): void;
   onClosed(): void;
   onClose(): void;
 }
 
 /** Abertura / fecho de turno de caixa, com conferência de dinheiro (quebra/sobra). */
-export function ShiftModal({ session, cartCount = 0, onOpened, onClosed, onClose }: Props) {
+export function ShiftModal({ session, cartCount = 0, identity, operatorName, onOpened, onClosed, onClose }: Props) {
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const savePdf = async (r: ShiftClose) => {
+    setPdfBusy(true);
+    try {
+      const doc = await buildShiftClosePdf({ result: r, identity, operatorName });
+      const name = shiftFileName(r);
+      try {
+        const url = doc.output('bloburl');
+        const w = window.open(url as unknown as string, '_blank');
+        if (!w) doc.save(name);
+      } catch { doc.save(name); }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Não foi possível gerar o PDF.'); }
+    finally { setPdfBusy(false); }
+  };
   const [openingFloat, setOpeningFloat] = useState('');
   const [counted, setCounted] = useState('');
   const [notes, setNotes] = useState('');
@@ -105,9 +122,10 @@ export function ShiftModal({ session, cartCount = 0, onOpened, onClosed, onClose
           </div>
           <div className="receipt-credit">{copyrightLine()}</div>
           <PaperSizeToggle />
-          <div className="r-foot" style={{ display: 'flex', gap: 10 }}>
-            <button className="btn ghost lg" style={{ flex: 1 }} onClick={() => window.print()}>Imprimir</button>
-            <button className="btn lg" style={{ flex: 1 }} onClick={onClosed} autoFocus>Concluir</button>
+          <div className="r-foot" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button className="btn ghost lg" style={{ flex: '1 1 30%' }} onClick={() => window.print()} title="Impressora térmica (80/58mm)">Imprimir (térmica)</button>
+            <button className="btn ghost lg" style={{ flex: '1 1 30%' }} onClick={() => void savePdf(r)} disabled={pdfBusy}>{pdfBusy ? 'A gerar…' : 'Guardar PDF (A4)'}</button>
+            <button className="btn lg" style={{ flex: '1 1 30%' }} onClick={onClosed} autoFocus>Concluir</button>
           </div>
         </div>
       </div>
