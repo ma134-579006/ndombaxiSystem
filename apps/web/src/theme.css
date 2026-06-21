@@ -241,7 +241,7 @@ input, textarea, select { font-family: inherit; }
 .acct-item.danger { color: var(--danger); }
 .icon-btn { width: 42px; height: 42px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text); display: grid; place-items: center; transition: background .15s, border-color .15s; }
 .icon-btn:hover { background: var(--surface-2); border-color: #34456a; }
-.content { flex: 1; overflow-y: auto; overflow-x: clip; padding: 8px 24px 24px; }
+.content { flex: 1; overflow-y: auto; overflow-x: clip; padding: 0 24px 24px; }
 /* Gráfico de ranking (barras horizontais) — top produtos/funcionários/clientes/lojas */
 .rankchart { display: flex; flex-direction: column; gap: 12px; }
 .rankrow-head { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 5px; }
@@ -284,7 +284,7 @@ input, textarea, select { font-family: inherit; }
   .topbar { padding: 12px 14px; }
   .topbar h1 { font-size: 17px; }
   .topbar .who .nm { max-width: 38vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .content { padding: 8px 14px 16px; }
+  .content { padding: 0 14px 16px; }
   /* No telemóvel o full-bleed alinha com a padding lateral menor (14px). */
   .content-head { margin: 0 0 10px; padding: 0 0 8px; }
   .sticky-top { margin: 0 -14px 12px; padding: 0 14px; }
