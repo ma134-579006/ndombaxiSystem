@@ -40,7 +40,11 @@ html, body, #root { height: 100%; margin: 0; }
 /* Guarda anti-fuga horizontal no telemóvel: nada empurra a página para os lados.
    `clip` (≠ hidden) não cria contentor de scroll, por isso a sidebar/topbar
    sticky continuam a funcionar. */
-html, body { overflow-x: clip; max-width: 100%; }
+html, body, #root { overflow-x: clip; max-width: 100%; }
+/* Camadas estruturais nunca excedem a largura visível (garantia extra em ecrãs
+   muito estreitos): o conteúdo flex encolhe (min-width:0) em vez de empurrar. */
+.admin, .main, .content, .page-anim { max-width: 100%; min-width: 0; }
+.main { overflow-x: clip; }
 /* Média nunca ultrapassa o ecrã. */
 img, svg, video, canvas { max-width: 100%; }
 body {
@@ -237,7 +241,7 @@ input, textarea, select { font-family: inherit; }
 .acct-item.danger { color: var(--danger); }
 .icon-btn { width: 42px; height: 42px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text); display: grid; place-items: center; transition: background .15s, border-color .15s; }
 .icon-btn:hover { background: var(--surface-2); border-color: #34456a; }
-.content { flex: 1; overflow: auto; padding: 24px; }
+.content { flex: 1; overflow-y: auto; overflow-x: clip; padding: 24px; }
 /* Gráfico de ranking (barras horizontais) — top produtos/funcionários/clientes/lojas */
 .rankchart { display: flex; flex-direction: column; gap: 12px; }
 .rankrow-head { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 5px; }
