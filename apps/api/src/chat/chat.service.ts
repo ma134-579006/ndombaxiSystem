@@ -24,7 +24,7 @@ export interface ChatContactRow {
   last_at: Date | null;
 }
 
-const ONLINE = Prisma.sql`(u.last_seen_at IS NOT NULL AND u.last_seen_at > now() - interval '40 seconds')`;
+const ONLINE = Prisma.sql`(u.last_seen_at IS NOT NULL AND u.last_seen_at > now() - interval '25 seconds')`;
 
 /**
  * Chat interno da empresa em modo 1:1 (DM): cada um sabe COM QUEM fala. Mostra

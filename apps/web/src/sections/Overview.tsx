@@ -77,6 +77,16 @@ export function Overview() {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const timer = useRef<number | null>(null);
 
+  // Alertas dispensados (limpar notificações), guardados por dispositivo.
+  const ALERTS_LS = 'ndombaxi.alerts.dismissed';
+  const alertKey = (a: OpsAlert) => `${a.category}|${a.title}|${a.detail}`;
+  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(ALERTS_LS) || '[]') as string[]); } catch { return new Set(); }
+  });
+  const persistDismissed = (s: Set<string>) => { try { localStorage.setItem(ALERTS_LS, JSON.stringify([...s])); } catch { /* */ } };
+  const dismissAlert = (a: OpsAlert) => setDismissed((p) => { const n = new Set(p); n.add(alertKey(a)); persistDismissed(n); return n; });
+  const clearAllAlerts = () => setDismissed((p) => { const n = new Set(p); for (const a of alerts) n.add(alertKey(a)); persistDismissed(n); return n; });
+
   const load = useCallback(async () => {
     setError(null);
     const { from, to } = rangeToDates(range);
@@ -268,22 +278,34 @@ export function Overview() {
       </div>
 
       {/* Alertas operacionais */}
-      <div className="card">
-        <h3>Alertas operacionais</h3>
-        {alerts.length === 0 ? <p className="muted">Sem alertas. Tudo em ordem ✓</p> : (
-          <div className="minilist">
-            {alerts.map((a, i) => (
-              <div className={`minirow l-${a.level}`} key={i}>
-                <div className="mr-main">
-                  <div className="mr-title">{a.title}</div>
-                  <div className="mr-sub">{a.detail}</div>
-                </div>
-                <span className={`pill ${a.level === 'danger' ? 'off' : 'on'}`}>{a.category}</span>
+      {(() => {
+        const visibleAlerts = alerts.filter((a) => !dismissed.has(alertKey(a)));
+        return (
+          <div className="card">
+            <div className="row" style={{ alignItems: 'center', marginBottom: 6 }}>
+              <h3 style={{ margin: 0 }}>Alertas operacionais</h3>
+              <span className="spacer" style={{ flex: 1 }} />
+              {visibleAlerts.length > 0 ? (
+                <button className="btn sm ghost" onClick={clearAllAlerts}>Limpar tudo</button>
+              ) : null}
+            </div>
+            {visibleAlerts.length === 0 ? <p className="muted">Sem alertas. Tudo em ordem ✓</p> : (
+              <div className="minilist">
+                {visibleAlerts.map((a, i) => (
+                  <div className={`minirow l-${a.level}`} key={i}>
+                    <div className="mr-main">
+                      <div className="mr-title">{a.title}</div>
+                      <div className="mr-sub">{a.detail}</div>
+                    </div>
+                    <span className={`pill ${a.level === 'danger' ? 'off' : 'on'}`}>{a.category}</span>
+                    <button className="btn sm ghost" title="Limpar" onClick={() => dismissAlert(a)} style={{ marginLeft: 8, padding: '4px 9px' }}>✕</button>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
     </div>
   );
 }

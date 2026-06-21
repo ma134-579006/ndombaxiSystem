@@ -32,16 +32,22 @@ export function ChatModal({ meId, onClose, onRead }: { meId?: string; onClose():
   const loadContacts = async () => { try { setContacts(await api.chatContacts()); } catch { /* offline */ } };
   const loadMsgs = async (p: ChatContact) => { try { setMsgs(await api.chatMessages(p.id)); } catch { /* offline */ } };
 
-  useEffect(() => { void loadContacts(); const t = window.setInterval(loadContacts, 8000); return () => window.clearInterval(t); }, []);
+  useEffect(() => { void loadContacts(); const t = window.setInterval(loadContacts, 5000); return () => window.clearInterval(t); }, []);
   useEffect(() => {
     if (!peer) return;
     void loadMsgs(peer);
     void api.chatMarkRead(peer.id).then(() => onRead?.()).catch(() => undefined);
-    const t = window.setInterval(() => peer && loadMsgs(peer), 4000);
+    const t = window.setInterval(() => { if (peer) { void loadMsgs(peer); void loadContacts(); } }, 3000);
     return () => window.clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peer?.id]);
   useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }); }, [msgs]);
+  useEffect(() => {
+    if (!peer) return;
+    const fresh = contacts.find((c) => c.id === peer.id);
+    if (fresh && (fresh.online !== peer.online || fresh.last_seen_at !== peer.last_seen_at)) setPeer(fresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts]);
 
   const send = async () => {
     const body = text.trim();

@@ -37,16 +37,24 @@ export function ChatModal({ meId, title, onClose, onRead }: { meId?: string; tit
   const loadContacts = async () => { try { setContacts(await api.chat.contacts()); } catch { /* offline */ } };
   const loadMsgs = async (p: ChatContact) => { try { setMsgs(await api.chat.messages(p.id)); } catch { /* offline */ } };
 
-  useEffect(() => { void loadContacts(); const t = window.setInterval(loadContacts, 8000); return () => window.clearInterval(t); }, []);
+  useEffect(() => { void loadContacts(); const t = window.setInterval(loadContacts, 5000); return () => window.clearInterval(t); }, []);
   useEffect(() => {
     if (!peer) return;
     void loadMsgs(peer);
     void api.chat.markRead(peer.id).then(() => onRead?.()).catch(() => undefined);
-    const t = window.setInterval(() => peer && loadMsgs(peer), 4000);
+    // Conversa + presença em tempo (quase) real: recarrega mensagens e contactos.
+    const t = window.setInterval(() => { if (peer) { void loadMsgs(peer); void loadContacts(); } }, 3000);
     return () => window.clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peer?.id]);
   useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }); }, [msgs]);
+  // Mantém o estado online/offline do contacto em conversa sempre atualizado.
+  useEffect(() => {
+    if (!peer) return;
+    const fresh = contacts.find((c) => c.id === peer.id);
+    if (fresh && (fresh.online !== peer.online || fresh.last_seen_at !== peer.last_seen_at || fresh.unread !== peer.unread)) setPeer(fresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts]);
 
   const openPeer = (c: ChatContact) => { setSelMode(false); setSel(new Set()); setPeer(c); };
   const send = async () => {

@@ -149,7 +149,7 @@ export function PosPage() {
     let alive = true;
     const tick = () => { api.chatUnread().then((r) => { if (alive) setChatUnread(r.count); }).catch(() => undefined); };
     tick();
-    const t = window.setInterval(tick, 15000);
+    const t = window.setInterval(tick, 10000);
     return () => { alive = false; window.clearInterval(t); };
   }, []);
 
