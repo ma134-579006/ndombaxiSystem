@@ -28,7 +28,8 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
     finally { setLoading(false); }
   }, [from, to]);
 
-  useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Filtra AUTOMATICAMENTE ao mudar as datas (sem botão "Filtrar").
+  useEffect(() => { void load(); }, [load]);
 
   const active = rows.filter((r) => r.status !== 'A');
   const allSel = active.length > 0 && active.every((r) => sel[r.id]);
@@ -67,7 +68,7 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
         <div className="sm-filters">
           <label>De <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></label>
           <label>até <input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></label>
-          <button className="btn sm" onClick={() => void load()} disabled={loading}>{loading ? 'A carregar…' : 'Filtrar'}</button>
+          {loading ? <span className="muted" style={{ fontSize: 12.5 }}>A carregar…</span> : null}
           <span style={{ flex: 1 }} />
           {canCancel ? (
             <button className="btn sm danger" onClick={cancelSelected} disabled={busy || selectedIds.length === 0}>

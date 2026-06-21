@@ -613,16 +613,18 @@ export function PosPage() {
               </div>
             ) : (
               <div className="cart-lines">
-                <div className="row" style={{ gap: 8, alignItems: 'center', padding: '0 2px 6px' }}>
-                  <label className="row" style={{ gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={allCartSel} onChange={toggleAllCart} aria-label="Selecionar tudo" />
-                    Selecionar tudo
-                  </label>
-                  <span className="spacer" style={{ flex: 1 }} />
-                  <button className="btn sm ghost" onClick={clearCart}>
-                    {cartSel.size > 0 ? `Limpar (${cartSel.size})` : 'Limpar tudo'}
-                  </button>
-                </div>
+                {/* Barra de seleção só aparece DEPOIS de marcar ≥1 produto —
+                    não estraga a estética do carrinho ao lançar. */}
+                {cartSel.size > 0 ? (
+                  <div className="row" style={{ gap: 8, alignItems: 'center', padding: '0 2px 6px' }}>
+                    <label className="row" style={{ gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={allCartSel} onChange={toggleAllCart} aria-label="Selecionar tudo" />
+                      Selecionar tudo
+                    </label>
+                    <span className="spacer" style={{ flex: 1 }} />
+                    <button className="btn sm ghost" onClick={clearCart}>Limpar ({cartSel.size})</button>
+                  </div>
+                ) : null}
                 {cart.map((l) => (
                   <div className="cart-line" key={l.product.id}>
                     <div className="cl-top">

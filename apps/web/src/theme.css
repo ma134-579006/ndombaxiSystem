@@ -253,6 +253,11 @@ input, textarea, select { font-family: inherit; }
 /* min-height (não height fixo) para o wrapper CRESCER com o conteúdo — assim o
    position:sticky do cabeçalho/pesquisa funciona em TODA a rolagem (não descola). */
 .content > .page-anim { min-height: 100%; }
+/* Páginas "app" de altura total (Assistente IA): a área de conteúdo NÃO rola — o
+   próprio painel gere a rolagem interna, mantendo o compositor (caixa de enviar)
+   sempre FIXO no fundo, como o chat do suporte. */
+.content:has(.agent) { overflow: hidden; padding: 0; }
+.content > .page-anim:has(.agent) { height: 100%; min-height: 0; }
 /* Notas/avisos informativos no topo das páginas do gestor são desnecessários —
    ocultam-se. Mantêm-se os de ERRO (danger), SUCESSO e ALERTA (warning). */
 .content .banner.info,
@@ -1561,6 +1566,10 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .auth-input::placeholder { color: #5d6b85; }
 .auth-input:focus { border-color: #7b5cff; box-shadow: 0 0 0 3px rgba(123,92,255,.22); }
 .auth-sublinks { display: flex; justify-content: space-between; align-items: center; margin: clamp(8px, 1.4dvh, 12px) 2px clamp(12px, 2dvh, 18px); font-size: 13px; }
+.auth-remember { display: inline-flex; align-items: center; gap: 7px; color: #9fb0cc; cursor: pointer; user-select: none; }
+.auth-remember input { width: 16px; height: 16px; accent-color: #7b5cff; cursor: pointer; }
+.auth-2fa-link { display: inline-block; margin: -6px 2px clamp(12px, 2dvh, 18px); font-size: 13px; color: #8ea6ff; cursor: pointer; }
+.auth-2fa-link:hover { text-decoration: underline; }
 .auth-sublinks a { color: #8ea6ff; cursor: pointer; text-decoration: none; }
 .auth-sublinks a:hover { text-decoration: underline; }
 .auth-btn { width: 100%; height: clamp(44px, 7dvh, 52px); border: none; border-radius: 12px; cursor: pointer; color: #fff;

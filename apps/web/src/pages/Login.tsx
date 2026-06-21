@@ -29,7 +29,8 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
     return p.get('k') !== 'pin' ? p.get('reset') : null;
   }, []);
   const [forgot, setForgot] = useState(false);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => { try { return localStorage.getItem('ndx:remember_email') ?? ''; } catch { return ''; } });
+  const [remember, setRemember] = useState(() => { try { return !!localStorage.getItem('ndx:remember_email'); } catch { return false; } });
   const [password, setPassword] = useState('');
   const [twoFa, setTwoFa] = useState('');
   const [show2fa, setShow2fa] = useState(false);
@@ -54,6 +55,8 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   const submit = async (companyCode?: string) => {
     setError(null); setChoices(null);
     if (!email.trim() || !password) { setError('Indica o e-mail e a palavra-passe.'); return; }
+    // "Lembrar-me": guarda só o e-mail (nunca a senha) para pré-preencher.
+    try { if (remember) localStorage.setItem('ndx:remember_email', email.trim()); else localStorage.removeItem('ndx:remember_email'); } catch { /* storage indisponível */ }
     setLoading(true);
     const twoFaToken = twoFa.trim() || undefined;
     try {
@@ -104,12 +107,12 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
                 <>
                   <label className="auth-label">E-mail</label>
                   <input className="auth-input" value={email} onChange={(e) => setEmail(e.target.value)}
-                    placeholder="exemplo@empresa.ao" inputMode="email" autoComplete="username"
+                    placeholder="exemplo@empresa.ao" inputMode="email" autoComplete="off" name="ndx-user" autoCorrect="off" autoCapitalize="off" spellCheck={false}
                     onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
 
                   <label className="auth-label">Senha</label>
                   <PasswordField value={password} onChange={setPassword} placeholder="••••••••"
-                    autoComplete="current-password" onEnter={() => void submit()} />
+                    autoComplete="off" onEnter={() => void submit()} />
 
                   {show2fa ? (
                     <>
@@ -121,9 +124,10 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
                   ) : null}
 
                   <div className="auth-sublinks">
-                    {!show2fa ? <a onClick={() => setShow2fa(true)}>Tenho código 2FA</a> : <span />}
+                    <label className="auth-remember"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Lembrar-me</label>
                     <a onClick={() => setForgot(true)}>Esqueci a senha</a>
                   </div>
+                  {!show2fa ? <a className="auth-2fa-link" onClick={() => setShow2fa(true)}>Tenho código 2FA</a> : null}
 
                   <button className="auth-btn" onClick={() => void submit()} disabled={loading}>
                     {loading ? 'A entrar…' : 'Entrar'}
