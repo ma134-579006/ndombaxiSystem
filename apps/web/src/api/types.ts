@@ -664,7 +664,8 @@ export interface UpdateStoreInput { name?: string; address?: string; isActive?: 
 export interface CreateStaffInput { name: string; email: string; role: StaffRoleName; storeId?: string; password?: string; pin?: string }
 export interface UpdateStaffInput { name?: string; role?: StaffRoleName; storeId?: string; isActive?: boolean; photoUrl?: string }
 export interface CreatedStaff { user: ManagerStaff; temporaryPassword?: string }
-export interface ChatMessage { id: string; sender_id: string | null; sender_name: string; sender_role: string; body: string; created_at: string }
+export interface ChatMessage { id: string; sender_id: string | null; recipient_id: string | null; sender_name: string; sender_role: string; body: string; created_at: string }
+export interface ChatContact { id: string; name: string; role: string; online: boolean; last_seen_at: string | null; unread: number; last_at: string | null }
 
 // ── Funcionários (RH) ───────────────────────────────────────
 export interface ManagerEmployee {

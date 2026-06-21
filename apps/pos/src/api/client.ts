@@ -2,6 +2,7 @@ import { API_URL } from '../config';
 import type { PromoRow } from '../pos/promo';
 import type {
   CashSession,
+  ChatContact,
   ChatMessage,
   Customer,
   DocumentIdentity,
@@ -165,9 +166,11 @@ export const api = {
     request<ShiftClose>('POST', '/cashbox/session/close', { countedCash, notes }),
   reportX: () => request<ReportX>('GET', '/cashbox/report/x'),
 
-  // ── Chat de equipa (caixa ↔ gerente) ───────────────────────
-  chatList: () => request<ChatMessage[]>('GET', '/chat/messages'),
-  chatSend: (body: string) => request<ChatMessage>('POST', '/chat/messages', { body }),
+  // ── Chat de equipa 1:1 (caixa ↔ gerente) ───────────────────
+  chatContacts: () => request<ChatContact[]>('GET', '/chat/contacts'),
+  chatMessages: (peer: string) => request<ChatMessage[]>('GET', `/chat/messages?peer=${encodeURIComponent(peer)}`),
+  chatSend: (recipientId: string, body: string) => request<ChatMessage>('POST', '/chat/messages', { recipientId, body }),
+  chatMarkRead: (peerId: string) => request<{ ok: boolean }>('POST', '/chat/read', { peerId }),
+  chatDelete: (ids: string[]) => request<{ deleted: number }>('POST', '/chat/delete', { ids }),
   chatUnread: () => request<{ count: number }>('GET', '/chat/unread'),
-  chatMarkRead: () => request<{ ok: boolean }>('POST', '/chat/read'),
 };

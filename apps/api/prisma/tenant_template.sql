@@ -814,11 +814,22 @@ CREATE INDEX IF NOT EXISTS product_batches_product_idx ON "{{SCHEMA}}"."product_
 -- CHAT DE EQUIPA (gerente ↔ caixa) — canal interno por empresa
 -- ════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."staff_messages" (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  sender_id   UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
-  sender_name TEXT NOT NULL,
-  sender_role TEXT NOT NULL,
-  body        TEXT NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sender_id    UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  recipient_id UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,  -- destinatário (DM); NULL = canal de equipa (legado)
+  sender_name  TEXT NOT NULL,
+  sender_role  TEXT NOT NULL,
+  body         TEXT NOT NULL,
+  deleted_at   TIMESTAMPTZ,                                                   -- apagada (soft-delete)
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS staff_messages_created_idx ON "{{SCHEMA}}"."staff_messages"(created_at);
+CREATE INDEX IF NOT EXISTS staff_messages_pair_idx ON "{{SCHEMA}}"."staff_messages"(sender_id, recipient_id, created_at);
+
+-- Leitura por conversa (1:1): última vez que cada utilizador leu o par.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."staff_chat_reads" (
+  user_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE CASCADE,
+  peer_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE CASCADE,
+  read_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, peer_id)
+);

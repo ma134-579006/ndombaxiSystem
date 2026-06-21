@@ -113,9 +113,13 @@ export interface CashSession {
   opening_float: string;
   status: string;
 }
-/** Mensagem do chat de equipa (caixa ↔ gerente). */
+/** Mensagem do chat de equipa 1:1 (caixa ↔ gerente). */
 export interface ChatMessage {
-  id: string; sender_id: string | null; sender_name: string; sender_role: string; body: string; created_at: string;
+  id: string; sender_id: string | null; recipient_id: string | null; sender_name: string; sender_role: string; body: string; created_at: string;
+}
+/** Contacto da equipa (com presença online + não-lidas). */
+export interface ChatContact {
+  id: string; name: string; role: string; online: boolean; last_seen_at: string | null; unread: number; last_at: string | null;
 }
 /** Resumo do fecho de turno (para o recibo de fecho). */
 export interface ShiftClose {

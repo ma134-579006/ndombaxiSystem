@@ -569,10 +569,12 @@ export const api = {
     unlock: (id: string) => request<ManagerStaff>('POST', `/staff/users/${id}/unlock`),
   },
   chat: {
-    list: () => request<ChatMessage[]>('GET', '/chat/messages'),
-    send: (body: string) => request<ChatMessage>('POST', '/chat/messages', { body }),
+    contacts: () => request<ChatContact[]>('GET', '/chat/contacts'),
+    messages: (peer: string) => request<ChatMessage[]>('GET', `/chat/messages?peer=${encodeURIComponent(peer)}`),
+    send: (recipientId: string, body: string) => request<ChatMessage>('POST', '/chat/messages', { recipientId, body }),
+    markRead: (peerId: string) => request<{ ok: boolean }>('POST', '/chat/read', { peerId }),
+    remove: (ids: string[]) => request<{ deleted: number }>('POST', '/chat/delete', { ids }),
     unread: () => request<{ count: number }>('GET', '/chat/unread'),
-    markRead: () => request<{ ok: boolean }>('POST', '/chat/read'),
   },
   hr: {
     employees: (all?: boolean) => request<ManagerEmployee[]>('GET', `/hr/employees${all ? '?all=true' : ''}`),

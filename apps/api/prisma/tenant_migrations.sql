@@ -72,3 +72,7 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS cart_draft J
 -- Chat de equipa (gerente ↔ caixa): marca a última leitura por utilizador para o
 -- indicador de mensagens não-lidas (badge estilo rede social).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS chat_read_at TIMESTAMPTZ;
+-- Chat 1:1 (DM): destinatário, soft-delete e presença (online/offline).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."staff_messages" ADD COLUMN IF NOT EXISTS recipient_id UUID;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."staff_messages" ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
