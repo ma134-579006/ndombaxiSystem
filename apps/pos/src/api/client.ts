@@ -2,6 +2,7 @@ import { API_URL } from '../config';
 import type { PromoRow } from '../pos/promo';
 import type {
   CashSession,
+  ChatMessage,
   Customer,
   DocumentIdentity,
   EmitInvoiceInput,
@@ -163,4 +164,10 @@ export const api = {
   closeSession: (countedCash: number, notes?: string) =>
     request<ShiftClose>('POST', '/cashbox/session/close', { countedCash, notes }),
   reportX: () => request<ReportX>('GET', '/cashbox/report/x'),
+
+  // ── Chat de equipa (caixa ↔ gerente) ───────────────────────
+  chatList: () => request<ChatMessage[]>('GET', '/chat/messages'),
+  chatSend: (body: string) => request<ChatMessage>('POST', '/chat/messages', { body }),
+  chatUnread: () => request<{ count: number }>('GET', '/chat/unread'),
+  chatMarkRead: () => request<{ ok: boolean }>('POST', '/chat/read'),
 };

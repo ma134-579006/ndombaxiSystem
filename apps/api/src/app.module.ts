@@ -22,6 +22,7 @@ import { SiteModule } from './site/site.module';
 import { PaymentsModule } from './payments/payments.module';
 import { FiscalModule } from './fiscal/fiscal.module';
 import { StaffModule } from './staff/staff.module';
+import { ChatModule } from './chat/chat.module';
 import { LandingModule } from './landing/landing.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { CashboxModule } from './cashbox/cashbox.module';
@@ -95,6 +96,7 @@ import { HealthController } from './health.controller';
     IntegrationsModule,
     ReconciliationModule,
     LeaveModule,
+    ChatModule,
   ],
   controllers: [HealthController],
   providers: [

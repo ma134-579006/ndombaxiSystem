@@ -25,6 +25,7 @@ import { BarcodeScanner } from '../components/BarcodeScanner';
 import { SalesHistoryModal } from '../components/SalesHistoryModal';
 import { QueueModal } from '../components/QueueModal';
 import { ShiftModal } from '../components/ShiftModal';
+import { ChatModal } from '../components/ChatModal';
 import { ThemePicker } from '../components/ThemePicker';
 import { PaymentModal } from '../components/PaymentModal';
 import { IconReceipt } from '../components/Icons';
@@ -54,8 +55,8 @@ function grossUnit(p: Product): number {
 
 /** Menu do operador (canto superior direito): avatar + seta → nome, email e
  *  terminar sessão. Fecha ao clicar fora. */
-function OperatorMenu({ photo, name, email, role, onLogout }: {
-  photo: string | null; name: string; email: string; role: string; onLogout(): void;
+function OperatorMenu({ photo, name, email, role, unread, onChat, onLogout }: {
+  photo: string | null; name: string; email: string; role: string; unread: number; onChat(): void; onLogout(): void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -70,6 +71,7 @@ function OperatorMenu({ photo, name, email, role, onLogout }: {
       <button className="op-menu-btn" onClick={() => setOpen((v) => !v)} title={name} aria-label="Conta do operador">
         {photo ? <img className="op-avatar" src={photo} alt={name} />
           : <span className="op-avatar op-avatar-ph"><IconUser size={18} /></span>}
+        {unread > 0 ? <span className="op-badge">{unread > 99 ? '99+' : unread}</span> : null}
         <span className={`op-caret${open ? ' up' : ''}`}>▾</span>
       </button>
       {open ? (
@@ -83,6 +85,10 @@ function OperatorMenu({ photo, name, email, role, onLogout }: {
               <div className="op-menu-role">{role}</div>
             </div>
           </div>
+          <button className="op-menu-item" onClick={() => { setOpen(false); onChat(); }}>
+            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💬</span> Chat com gerente
+            {unread > 0 ? <span className="op-item-badge">{unread > 99 ? '99+' : unread}</span> : null}
+          </button>
           <button className="op-menu-item danger" onClick={() => { setOpen(false); onLogout(); }}>
             <IconLogout size={17} /> Terminar sessão
           </button>
@@ -135,6 +141,17 @@ export function PosPage() {
   const [session, setSession] = useState<CashSession | null>(null);
   const [showShift, setShowShift] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+
+  // Chat de equipa (caixa ↔ gerente): badge de não-lidas + janela.
+  const [showChat, setShowChat] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const tick = () => { api.chatUnread().then((r) => { if (alive) setChatUnread(r.count); }).catch(() => undefined); };
+    tick();
+    const t = window.setInterval(tick, 15000);
+    return () => { alive = false; window.clearInterval(t); };
+  }, []);
 
   const [emitting, setEmitting] = useState(false);
   const [emitError, setEmitError] = useState<string | null>(null);
@@ -535,6 +552,8 @@ export function PosPage() {
             name={user?.name || user?.email || 'Operador'}
             email={user?.email || ''}
             role={user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
+            unread={chatUnread}
+            onChat={() => setShowChat(true)}
             onLogout={logout}
           />
         </header>
@@ -773,6 +792,10 @@ export function PosPage() {
           onClosed={async () => { setShowShift(false); setSession(null); }}
           onClose={() => setShowShift(false)}
         />
+      ) : null}
+
+      {showChat ? (
+        <ChatModal meId={user?.sub} onClose={() => setShowChat(false)} onRead={() => setChatUnread(0)} />
       ) : null}
 
       {showPayment ? (

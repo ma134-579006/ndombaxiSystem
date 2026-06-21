@@ -809,3 +809,16 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."product_batches" (
 );
 CREATE INDEX IF NOT EXISTS product_batches_expiry_idx ON "{{SCHEMA}}"."product_batches"(expiry_date);
 CREATE INDEX IF NOT EXISTS product_batches_product_idx ON "{{SCHEMA}}"."product_batches"(product_id);
+
+-- ════════════════════════════════════════════════════════════
+-- CHAT DE EQUIPA (gerente ↔ caixa) — canal interno por empresa
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."staff_messages" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sender_id   UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  sender_name TEXT NOT NULL,
+  sender_role TEXT NOT NULL,
+  body        TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS staff_messages_created_idx ON "{{SCHEMA}}"."staff_messages"(created_at);

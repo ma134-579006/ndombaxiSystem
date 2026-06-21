@@ -230,7 +230,13 @@ html.kbd-open .login-card .footer-credit { display: none; }
 
 /* Menu do operador (avatar + seta → nome/email/sair) */
 .op-menu { position: relative; }
-.op-menu-btn { display: inline-flex; align-items: center; gap: 4px; background: transparent; border: none; cursor: pointer; padding: 0; }
+.op-menu-btn { display: inline-flex; align-items: center; gap: 4px; background: transparent; border: none; cursor: pointer; padding: 0; position: relative; }
+/* Badge de mensagens não-lidas (estilo rede social) sobre o avatar do operador. */
+.op-badge { position: absolute; top: -5px; right: 12px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
+  background: #ef4444; color: #fff; font-size: 10.5px; font-weight: 800; line-height: 1; display: grid; place-items: center;
+  box-shadow: 0 0 0 2px var(--bg-2, var(--bg)); }
+.op-item-badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: #ef4444; color: #fff; font-size: 11px; font-weight: 800; display: inline-grid; place-items: center; }
 .op-caret { color: var(--muted); font-size: 12px; transition: transform .15s; }
 .op-caret.up { transform: rotate(180deg); }
 .op-menu-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; width: 260px; max-width: 80vw;

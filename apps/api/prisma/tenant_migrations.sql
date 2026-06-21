@@ -68,3 +68,7 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."cameras" ALTER COLUMN stream_url DROP NOT NU
 -- Rascunho do carrinho por operador (persiste no servidor → segue o utilizador
 -- para QUALQUER dispositivo onde se ligar; sobrevive a queda de energia).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS cart_draft JSONB;
+
+-- Chat de equipa (gerente ↔ caixa): marca a última leitura por utilizador para o
+-- indicador de mensagens não-lidas (badge estilo rede social).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS chat_read_at TIMESTAMPTZ;

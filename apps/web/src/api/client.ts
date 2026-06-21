@@ -568,6 +568,12 @@ export const api = {
     deactivate: (id: string) => request<ManagerStaff>('POST', `/staff/users/${id}/deactivate`),
     unlock: (id: string) => request<ManagerStaff>('POST', `/staff/users/${id}/unlock`),
   },
+  chat: {
+    list: () => request<ChatMessage[]>('GET', '/chat/messages'),
+    send: (body: string) => request<ChatMessage>('POST', '/chat/messages', { body }),
+    unread: () => request<{ count: number }>('GET', '/chat/unread'),
+    markRead: () => request<{ ok: boolean }>('POST', '/chat/read'),
+  },
   hr: {
     employees: (all?: boolean) => request<ManagerEmployee[]>('GET', `/hr/employees${all ? '?all=true' : ''}`),
     createEmployee: (dto: CreateEmployeeInput) => request<ManagerEmployee>('POST', '/hr/employees', dto),

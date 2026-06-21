@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { IconLogout } from './Icons';
 import { ThemePicker } from './ThemePicker';
 import { PrintBrandHead, PrintBrandFoot } from './PrintBrand';
+import { ChatModal } from './ChatModal';
 
 /** Sino de notificações (Super Admin): conversas por responder + comentários
  *  novos do site — com badge e dropdown estilo rede social. */
@@ -83,8 +84,8 @@ function IconGear({ size = 17 }: { size?: number }) {
 
 /** Menu da conta do gestor (canto superior direito): avatar + seta → nome,
  *  email, Configurações e Terminar sessão. Fecha ao clicar fora. */
-function ManagerMenu({ photo, name, email, role, onSettings, onLogout }: {
-  photo: string | null; name: string; email: string; role: string; onSettings(): void; onLogout(): void;
+function ManagerMenu({ photo, name, email, role, unread, onChat, onSettings, onLogout }: {
+  photo: string | null; name: string; email: string; role: string; unread: number; onChat(): void; onSettings(): void; onLogout(): void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -98,6 +99,7 @@ function ManagerMenu({ photo, name, email, role, onSettings, onLogout }: {
     <div ref={ref} className="acct">
       <button className="acct-btn" onClick={() => setOpen((v) => !v)} title={name} aria-label="Conta">
         {photo ? <img className="acct-av" src={photo} alt={name} /> : <span className="acct-av acct-av-ph"><IconUser size={18} /></span>}
+        {unread > 0 ? <span className="acct-badge">{unread > 99 ? '99+' : unread}</span> : null}
         <span className={`acct-caret${open ? ' up' : ''}`}>▾</span>
       </button>
       {open ? (
@@ -110,6 +112,10 @@ function ManagerMenu({ photo, name, email, role, onSettings, onLogout }: {
               <div className="acct-role">{role}</div>
             </div>
           </div>
+          <button className="acct-item" onClick={() => { setOpen(false); onChat(); }}>
+            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💬</span> Chat com caixa
+            {unread > 0 ? <span className="acct-item-badge">{unread > 99 ? '99+' : unread}</span> : null}
+          </button>
           <button className="acct-item" onClick={() => { setOpen(false); onSettings(); }}><IconGear size={17} /> Configurações</button>
           <button className="acct-item danger" onClick={() => { setOpen(false); onLogout(); }}><IconLogout size={17} /> Terminar sessão</button>
         </div>
@@ -187,6 +193,18 @@ export function Shell({
   const [menuOpen, setMenuOpen] = useState(false);
   // Grupos abertos (abre automaticamente o que contém a secção activa).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  // Chat de equipa (gestor ↔ caixa): badge de não-lidas + janela.
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
+  useEffect(() => {
+    if (!isTenant) return;
+    let alive = true;
+    const tick = () => { api.chat.unread().then((r) => { if (alive) setChatUnread(r.count); }).catch(() => undefined); };
+    tick();
+    const t = window.setInterval(tick, 15000);
+    return () => { alive = false; window.clearInterval(t); };
+  }, [isTenant]);
 
   // Fecha a gaveta ao mudar de secção (importante no telemóvel).
   useEffect(() => { setMenuOpen(false); }, [section]);
@@ -274,6 +292,8 @@ export function Shell({
             name={user?.name || user?.email || 'Gestor'}
             email={user?.email || ''}
             role={`${roleLabel}${companyCode ? ` · ${companyCode}` : ''}`}
+            unread={isTenant ? chatUnread : 0}
+            onChat={() => setChatOpen(true)}
             onSettings={() => setSection('profile')}
             onLogout={logout}
           />
@@ -284,6 +304,9 @@ export function Shell({
           <PrintBrandFoot />
         </div></div>
       </div>
+      {chatOpen ? (
+        <ChatModal meId={user?.sub} title="Chat com a caixa" onClose={() => setChatOpen(false)} onRead={() => setChatUnread(0)} />
+      ) : null}
     </div>
   );
 }
