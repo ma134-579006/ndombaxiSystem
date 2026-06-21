@@ -241,7 +241,7 @@ input, textarea, select { font-family: inherit; }
 .acct-item.danger { color: var(--danger); }
 .icon-btn { width: 42px; height: 42px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text); display: grid; place-items: center; transition: background .15s, border-color .15s; }
 .icon-btn:hover { background: var(--surface-2); border-color: #34456a; }
-.content { flex: 1; overflow-y: auto; overflow-x: clip; padding: 24px; }
+.content { flex: 1; overflow-y: auto; overflow-x: clip; padding: 8px 24px 24px; }
 /* Gráfico de ranking (barras horizontais) — top produtos/funcionários/clientes/lojas */
 .rankchart { display: flex; flex-direction: column; gap: 12px; }
 .rankrow-head { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 5px; }
@@ -284,10 +284,10 @@ input, textarea, select { font-family: inherit; }
   .topbar { padding: 12px 14px; }
   .topbar h1 { font-size: 17px; }
   .topbar .who .nm { max-width: 38vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .content { padding: 16px 14px; }
-  /* No telemóvel a padding do .content é menor → alinha o full-bleed dos blocos fixos. */
-  .content-head { margin: 0 0 10px; padding: 4px 0 8px; }
-  .sticky-top { margin: -16px -14px 12px; padding: 10px 14px 6px; }
+  .content { padding: 8px 14px 16px; }
+  /* No telemóvel o full-bleed alinha com a padding lateral menor (14px). */
+  .content-head { margin: 0 0 10px; padding: 0 0 8px; }
+  .sticky-top { margin: 0 -14px 12px; padding: 0 14px; }
   .sticky-top > .content-head { margin: 0; padding: 0; }
   /* Tabelas largas (não-empilhadas) rolam DENTRO do cartão em vez de serem
      cortadas pela guarda anti-fuga (overflow-x:clip do body). As que empilham
@@ -350,12 +350,13 @@ input, textarea, select { font-family: inherit; }
    Largura igual à das listas → o fundo cobre os itens ao rolar, sem espreitar. */
 .content-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   position: sticky; top: -1px; z-index: 20; background: var(--bg);
-  margin: 0 0 12px; padding: 6px 0 10px; }
+  margin: 0 0 12px; padding: 0 0 10px; }
 .content-head h2 { margin: 0; font-size: 19px; font-weight: 800; }
 /* Páginas com pesquisa/seleção: cabeçalho + pesquisa (+ barra de seleção) num
-   ÚNICO sticky — movem-se como um bloco, sem sobreposições. */
+   ÚNICO sticky — movem-se como um bloco, sem sobreposições. Sem margem-topo
+   negativa (causava sobreposição); o pequeno espaço ao topo é o padding do .content. */
 .sticky-top { position: sticky; top: 0; z-index: 25; background: var(--bg);
-  margin: -24px -24px 14px; padding: 12px 24px 8px; }
+  margin: 0 -24px 14px; padding: 0 24px; }
 .sticky-top > .content-head { position: static; z-index: auto; margin: 0; padding: 0; background: transparent; }
 .sticky-top > * + * { margin-top: 10px; }
 .sticky-top > .card { margin-bottom: 0; }
