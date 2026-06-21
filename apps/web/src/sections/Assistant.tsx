@@ -78,8 +78,18 @@ export function Assistant() {
   useEffect(() => {
     void (async () => {
       try { const g = await api.assistant.greeting(); setName(g.displayName); } catch { /* default */ }
+      // MEMÓRIA: retoma a conversa anterior deste utilizador (guardada no servidor).
+      try {
+        const h = await api.assistant.history();
+        if (h.length) setTurns(h.map((m) => ({ role: m.role, content: m.content })));
+      } catch { /* sem histórico */ }
     })();
   }, []);
+
+  const clearConversation = async () => {
+    try { await api.assistant.clearHistory(); } catch { /* */ }
+    setTurns([]); setSteps([]);
+  };
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' });
@@ -161,6 +171,11 @@ export function Assistant() {
       <div className="agent-main">
         <div ref={scroller} className="agent-scroll">
           <div className="agent-col">
+            {!empty ? (
+              <div className="row" style={{ justifyContent: 'flex-end', position: 'sticky', top: 0, zIndex: 2, paddingBottom: 4 }}>
+                <button className="btn sm ghost" onClick={() => void clearConversation()} title="Apagar a memória e começar uma conversa nova">🗑 Nova conversa</button>
+              </div>
+            ) : null}
             {empty ? (
               <div className="agent-hero">
                 <div className="agent-hero-ic"><IconCpu size={30} /></div>

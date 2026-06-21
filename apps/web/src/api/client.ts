@@ -594,6 +594,8 @@ export const api = {
   // ── Assistente OpenManus da empresa (chat) ────────────────
   assistant: {
     greeting: () => request<AssistantGreeting>('GET', '/ai/greeting'),
+    history: () => request<{ id: string; role: 'user' | 'assistant'; content: string; created_at: string }[]>('GET', '/ai/history'),
+    clearHistory: () => request<{ ok: boolean }>('POST', '/ai/history/clear'),
     chat: (messages: AssistantMessage[]) =>
       request<AssistantChatReply>('POST', '/ai/chat', { messages, channel: 'chat' }),
     tts: (text: string, voice?: string) =>

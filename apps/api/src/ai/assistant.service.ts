@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { AiConfigService } from './ai-config.service';
 import { AiProviderClient, type ChatTurn } from './ai-provider.client';
+import { AiMemoryService } from './ai-memory.service';
 import { buildSystemPrompt, type AssistantPersona, type PromptContext } from './assistant-prompt';
 
 export interface ChartSpec {
@@ -23,6 +24,7 @@ export class AssistantService {
   constructor(
     private readonly cfg: AiConfigService,
     private readonly client: AiProviderClient,
+    private readonly memory: AiMemoryService,
   ) {}
 
   /** Persona efectiva a partir da configuração global do assistente. */
@@ -176,9 +178,23 @@ export class AssistantService {
    * Turno de voz completo: transcreve o áudio do utilizador, conversa e
    * devolve a resposta em texto + áudio (para uma experiência de chamada).
    */
-  async voiceTurn(audioBase64: string, mimeType: string | undefined, ctx: PromptContext = {}) {
+  async voiceTurn(
+    audioBase64: string,
+    mimeType: string | undefined,
+    ctx: PromptContext = {},
+    mem?: { schema?: string; userId?: string },
+  ) {
     const { text: userText } = await this.transcribe(audioBase64, mimeType);
-    const result = await this.chat([{ role: 'user', content: userText }], { ...ctx, channel: 'voice' });
+    // MEMÓRIA: na chamada, o assistente lembra-se das conversas anteriores
+    // (contexto cortado a um orçamento menor — voz precisa de ser rápida/barata).
+    let turns: ChatTurn[] = [{ role: 'user', content: userText }];
+    if (mem?.schema && mem?.userId) {
+      const prior = await this.memory.context(mem.schema, mem.userId, 5000);
+      turns = [...prior, { role: 'user', content: userText }];
+      await this.memory.append(mem.schema, mem.userId, 'user', userText);
+    }
+    const result = await this.chat(turns, { ...ctx, channel: 'voice' });
+    if (mem?.schema && mem?.userId) await this.memory.append(mem.schema, mem.userId, 'assistant', result.reply);
     const audio = await this.speak(result.reply);
     return { userText, reply: result.reply, audioBase64: audio.audioBase64, mimeType: audio.mimeType };
   }

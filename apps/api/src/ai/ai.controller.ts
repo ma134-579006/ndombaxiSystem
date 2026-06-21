@@ -5,6 +5,7 @@ import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AgentService } from './agent.service';
 import { AssistantService } from './assistant.service';
+import { AiMemoryService } from './ai-memory.service';
 import { ChatDto, ImageDto, SttDto, TtsDto } from './dto/chat.dto';
 
 /**
@@ -20,6 +21,7 @@ export class AiController {
   constructor(
     private readonly assistant: AssistantService,
     private readonly agent: AgentService,
+    private readonly memory: AiMemoryService,
   ) {}
 
   /**
@@ -78,7 +80,21 @@ export class AiController {
   @Post('voice/turn')
   @ApiOperation({ summary: 'Turno de voz completo (áudio→resposta falada)' })
   voiceTurn(@Body() dto: SttDto, @CurrentUser() user: JwtPayload) {
-    return this.assistant.voiceTurn(dto.audioBase64, dto.mimeType, { userRole: user?.role });
+    return this.assistant.voiceTurn(dto.audioBase64, dto.mimeType, { userRole: user?.role }, { schema: user?.tenantSchema, userId: user?.sub });
+  }
+
+  @Get('history')
+  @ApiOperation({ summary: 'Histórico do assistente (memória) do utilizador' })
+  history(@CurrentUser() user: JwtPayload) {
+    if (!user?.tenantSchema) return [];
+    return this.memory.history(user.tenantSchema, user.sub);
+  }
+
+  @Post('history/clear')
+  @ApiOperation({ summary: 'Limpa a memória do assistente do utilizador (nova conversa)' })
+  clearHistory(@CurrentUser() user: JwtPayload) {
+    if (!user?.tenantSchema) return { ok: true };
+    return this.memory.clear(user.tenantSchema, user.sub);
   }
 
   @Post('image')

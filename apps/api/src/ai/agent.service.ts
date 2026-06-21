@@ -3,6 +3,7 @@ import type { JwtPayload } from '@nexus/types';
 import { AiConfigService } from './ai-config.service';
 import { AiProviderClient, type AgentMessage, type AgentReply } from './ai-provider.client';
 import { AgentToolsService, type ToolOutcome } from './agent-tools.service';
+import { AiMemoryService } from './ai-memory.service';
 
 /**
  * AGENTE IA do gestor — nível enterprise:
@@ -50,6 +51,7 @@ export class AgentService {
     private readonly cfg: AiConfigService,
     private readonly client: AiProviderClient,
     private readonly tools: AgentToolsService,
+    private readonly memory: AiMemoryService,
   ) {}
 
   /**
@@ -103,7 +105,13 @@ export class AgentService {
     const persona = await this.cfg.getAssistantConfig();
     const system = `${persona.persona ? persona.persona + '\n' : ''}${AGENT_RULES}\nEMPRESA: ${user.tenantSchema} · UTILIZADOR: ${user.name ?? user.email} (${user.role}). Data de hoje: ${new Date().toLocaleDateString('pt-PT')}.`;
 
-    const messages: AgentMessage[] = history.slice(-16).map((h) => ({ role: h.role, content: h.content.slice(0, 4000) }));
+    // MEMÓRIA POR UTILIZADOR: guarda a nova pergunta e constrói o contexto a
+    // partir do histórico GUARDADO (cortado ao orçamento de token), em vez de
+    // depender da conversa toda enviada pelo frontend.
+    const newUserMsg = [...history].reverse().find((h) => h.role === 'user')?.content ?? '';
+    if (newUserMsg) await this.memory.append(schema, user.sub, 'user', newUserMsg);
+    const ctxMsgs = await this.memory.context(schema, user.sub, 12000);
+    const messages: AgentMessage[] = (ctxMsgs.length ? ctxMsgs : history.slice(-16)).map((h) => ({ role: h.role, content: h.content.slice(0, 4000) }));
     const defs = this.tools.defs();
     const actor = { id: user.sub, email: user.email, storeId: user.storeId ?? null };
 
@@ -119,6 +127,7 @@ export class AgentService {
           const r2 = await callTools(messages, []);
           text = (r2.text ?? '').trim() || 'Concluí a análise — os resultados estão no painel de atividade.';
         }
+        if (text) await this.memory.append(schema, user.sub, 'assistant', text);
         emit({ type: 'text', text });
         emit({ type: 'done' });
         return;
@@ -143,7 +152,9 @@ export class AgentService {
         messages.push({ role: 'tool', toolCallId: call.id, name: call.name, content: out.result.slice(0, 6000) });
       }
     }
-    emit({ type: 'text', text: 'Cheguei ao limite de passos desta análise — pede-me para continuar que retomo daqui.' });
+    const limitMsg = 'Cheguei ao limite de passos desta análise — pede-me para continuar que retomo daqui.';
+    await this.memory.append(schema, user.sub, 'assistant', limitMsg);
+    emit({ type: 'text', text: limitMsg });
     emit({ type: 'done' });
   }
 }

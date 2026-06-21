@@ -833,3 +833,15 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."staff_chat_reads" (
   read_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, peer_id)
 );
+
+-- ════════════════════════════════════════════════════════════
+-- MEMÓRIA do ASSISTENTE IA (histórico por utilizador, p/ contexto e token mgmt)
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."ai_messages" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE CASCADE,
+  role        TEXT NOT NULL,            -- user | assistant
+  content     TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ai_messages_user_idx ON "{{SCHEMA}}"."ai_messages"(user_id, created_at);

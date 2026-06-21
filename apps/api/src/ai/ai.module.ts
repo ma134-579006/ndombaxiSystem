@@ -8,6 +8,7 @@ import { AiAdminController } from './ai-admin.controller';
 import { AiController } from './ai.controller';
 import { AiConfigService } from './ai-config.service';
 import { AiProviderClient } from './ai-provider.client';
+import { AiMemoryService } from './ai-memory.service';
 import { AssistantService } from './assistant.service';
 
 /**
@@ -17,7 +18,7 @@ import { AssistantService } from './assistant.service';
 @Module({
   imports: [AuditModule, IntegrationsModule, PosModule],
   controllers: [AiController, AiAdminController],
-  providers: [AiConfigService, AiProviderClient, AssistantService, AgentService, AgentToolsService],
-  exports: [AiConfigService, AiProviderClient, AssistantService],
+  providers: [AiConfigService, AiProviderClient, AiMemoryService, AssistantService, AgentService, AgentToolsService],
+  exports: [AiConfigService, AiProviderClient, AssistantService, AiMemoryService],
 })
 export class AiModule {}
