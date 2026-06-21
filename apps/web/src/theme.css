@@ -343,7 +343,7 @@ input, textarea, select { font-family: inherit; }
    cobrem a padding do .content) para a lista passar por baixo sem bordas. */
 .content-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   position: sticky; top: 0; z-index: 20; background: var(--bg);
-  margin: -24px -24px 16px; padding: 16px 24px 12px; }
+  margin: -24px -24px 6px; padding: 14px 24px 8px; }
 .content-head h2 { margin: 0; font-size: 19px; font-weight: 800; }
 /* Páginas com pesquisa/seleção: cabeçalho + pesquisa (+ barra de seleção) num
    ÚNICO sticky — movem-se como um bloco, sem sobreposições. */
