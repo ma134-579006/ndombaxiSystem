@@ -282,7 +282,7 @@ input, textarea, select { font-family: inherit; }
   .topbar .who .nm { max-width: 38vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .content { padding: 16px 14px; }
   /* No telemóvel a padding do .content é menor → alinha o full-bleed dos blocos fixos. */
-  .content-head { margin: -16px -14px 12px; padding: 12px 14px 8px; }
+  .content-head { margin: 0 0 10px; padding: 4px 0 8px; }
   .sticky-top { margin: -16px -14px 12px; padding: 10px 14px 6px; }
   .sticky-top > .content-head { margin: 0; padding: 0; }
   /* Tabelas largas (não-empilhadas) rolam DENTRO do cartão em vez de serem
@@ -341,9 +341,12 @@ input, textarea, select { font-family: inherit; }
 /* Cabeçalho da página FIXO ao topo da área de conteúdo (todas as secções): o
    título + ação «Novo/Adicionar» não rolam. Full-bleed (margens negativas
    cobrem a padding do .content) para a lista passar por baixo sem bordas. */
+/* Sticky SEM margens negativas: a margem-topo negativa encolhia o espaço
+   ocupado e fazia o conteúdo seguinte SOBREPOR-SE ao cabeçalho (folga + corte).
+   Largura igual à das listas → o fundo cobre os itens ao rolar, sem espreitar. */
 .content-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  position: sticky; top: 0; z-index: 20; background: var(--bg);
-  margin: -24px -24px 6px; padding: 14px 24px 8px; }
+  position: sticky; top: -1px; z-index: 20; background: var(--bg);
+  margin: 0 0 12px; padding: 6px 0 10px; }
 .content-head h2 { margin: 0; font-size: 19px; font-weight: 800; }
 /* Páginas com pesquisa/seleção: cabeçalho + pesquisa (+ barra de seleção) num
    ÚNICO sticky — movem-se como um bloco, sem sobreposições. */
