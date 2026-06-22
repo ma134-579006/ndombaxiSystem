@@ -5,7 +5,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
-import { RegisterConsumptionDto } from './dto/self-consumption.dto';
+import { RegisterConsumptionDto, RegisterConsumptionsDto } from './dto/self-consumption.dto';
 import { SelfConsumptionService } from './self-consumption.service';
 
 /**
@@ -29,6 +29,17 @@ export class SelfConsumptionController {
       this.ctx.requireTenantSchema(),
       { userId: user.sub, name: user.name ?? user.email ?? null, storeId: user.storeId ?? null },
       { productId: dto.productId, quantity: dto.quantity },
+    );
+  }
+
+  @Post('bulk')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Regista vários consumos próprios de uma vez (carrinho)' })
+  registerMany(@Body() dto: RegisterConsumptionsDto, @CurrentUser() user: JwtPayload) {
+    return this.consumption.registerMany(
+      this.ctx.requireTenantSchema(),
+      { userId: user.sub, name: user.name ?? user.email ?? null, storeId: user.storeId ?? null },
+      dto.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
     );
   }
 

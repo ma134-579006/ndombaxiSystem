@@ -188,5 +188,7 @@ export const api = {
   // ── Consumo próprio (desconta no salário) ──────────────────
   registerConsumption: (productId: string, quantity: number) =>
     request<SelfConsumption & { employeeLinked: boolean }>('POST', '/hr/self-consumption', { productId, quantity }),
+  registerConsumptions: (items: { productId: string; quantity: number }[]) =>
+    request<{ registered: number; total: number; employeeLinked: boolean }>('POST', '/hr/self-consumption/bulk', { items }),
   myConsumptions: () => request<SelfConsumption[]>('GET', '/hr/self-consumption/mine'),
 };

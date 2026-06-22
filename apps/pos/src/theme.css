@@ -460,6 +460,26 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .consume-item .nm { font-weight: 700; font-size: 14.5px; }
 .consume-item .meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
 .consume-item .price { margin-left: auto; font-weight: 800; white-space: nowrap; }
+.consume-item.sel { border-color: var(--primary, #4f7cff); background: var(--surface); }
+.consume-item .consume-add { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+  font-size: 18px; font-weight: 800; background: var(--surface); border: 1px solid var(--border); color: var(--primary, #4f7cff); }
+.consume-item.sel .consume-add { background: var(--primary, #4f7cff); border-color: var(--primary, #4f7cff); color: #fff; }
+/* Carrinho de seleção (vários consumos) */
+.consume-cart { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; padding: 12px; margin-bottom: 14px; }
+.consume-cart-head { font-size: 12.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 2px 2px 8px; }
+.consume-cart-row { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-bottom: 1px solid var(--border-soft); }
+.consume-cart-row:last-of-type { border-bottom: none; }
+.consume-cart-row .nm { font-weight: 700; font-size: 13.5px; }
+.consume-cart-row .meta { color: var(--muted); font-size: 11.5px; margin-top: 1px; }
+.consume-stepper { display: flex; align-items: center; gap: 4px; flex: none; }
+.consume-stepper button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 17px; line-height: 1; cursor: pointer; }
+.consume-stepper input { width: 44px; height: 30px; text-align: center; font-size: 14px; font-weight: 700;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); }
+.consume-rm { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--muted); cursor: pointer; font-size: 13px; }
+.consume-rm:hover { border-color: var(--danger, #ef4444); color: var(--danger, #ef4444); }
+.consume-cart-foot { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .consume-detail { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
 .consume-detail .dname { font-weight: 800; font-size: 16px; }
 .consume-detail .dmeta { color: var(--muted); font-size: 12.5px; margin: 3px 0 14px; }

@@ -15,16 +15,17 @@ const IS_MOBILE = typeof navigator !== 'undefined' && (
   (navigator.maxTouchPoints > 1 && typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches)
 );
 
+interface CartLine { product: Product; qty: number }
+
 /**
  * Consumo próprio do operador de caixa: pesquisa por nome ou código de barras
- * (com câmara para telemóveis), escolhe o produto e a quantidade; o sistema
- * regista o consumo e desconta-o automaticamente no salário (RH).
+ * (câmara no telemóvel), SELECIONA VÁRIOS produtos (carrinho) e regista tudo de
+ * uma vez; o sistema baixa o stock e desconta no salário (RH).
  */
 export function SelfConsumptionModal({ products, onClose }: { products: Product[]; onClose(): void }) {
   const [search, setSearch] = useState('');
   const [scan, setScan] = useState(false);
-  const [selected, setSelected] = useState<Product | null>(null);
-  const [qty, setQty] = useState(1);
+  const [cart, setCart] = useState<CartLine[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -43,25 +44,40 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
     ).slice(0, 60);
   }, [products, search]);
 
+  const addToCart = (p: Product) => {
+    setErr(null); setMsg(null);
+    setCart((prev) => {
+      const i = prev.findIndex((l) => l.product.id === p.id);
+      if (i >= 0) { const n = [...prev]; n[i] = { ...n[i], qty: n[i].qty + 1 }; return n; }
+      return [...prev, { product: p, qty: 1 }];
+    });
+  };
+  const setQty = (id: string, qty: number) =>
+    setCart((prev) => prev.map((l) => (l.product.id === id ? { ...l, qty: Math.max(1, qty) } : l)));
+  const removeLine = (id: string) => setCart((prev) => prev.filter((l) => l.product.id !== id));
+
   const pickByCode = (code: string): boolean => {
     const c = code.trim().toLowerCase();
     const p = products.find((x) => (x.barcode ?? '').toLowerCase() === c || x.code.toLowerCase() === c);
-    if (p) { setSelected(p); setQty(1); setScan(false); setErr(null); return true; }
+    if (p) { addToCart(p); return true; }
     setErr(`Sem produto para o código ${code}.`);
     return false;
   };
 
-  const register = async () => {
-    if (!selected || busy) return;
-    if (!Number.isFinite(qty) || qty <= 0) { setErr('Quantidade inválida.'); return; }
+  const cartTotal = cart.reduce((s, l) => s + grossUnit(l.product) * l.qty, 0);
+  const cartCount = cart.reduce((s, l) => s + l.qty, 0);
+  const inCart = (id: string) => cart.some((l) => l.product.id === id);
+
+  const registerAll = async () => {
+    if (cart.length === 0 || busy) return;
     setBusy(true); setErr(null); setMsg(null);
     try {
-      const r = await api.registerConsumption(selected.id, qty);
-      setMsg(`Registado: ${qty}× ${selected.name} (${formatKz(r.total)}).${r.employeeLinked ? ' Será descontado no teu salário.' : ' ⚠ Sem ficha de funcionário associada — fala com o gestor.'}`);
-      setSelected(null); setQty(1); setSearch('');
+      const r = await api.registerConsumptions(cart.map((l) => ({ productId: l.product.id, quantity: l.qty })));
+      setMsg(`${r.registered} consumo(s) registado(s) — ${formatKz(r.total)}.${r.employeeLinked ? ' Será descontado no teu salário.' : ' ⚠ Sem ficha de funcionário associada — fala com o gestor.'}`);
+      setCart([]); setSearch('');
       loadMine();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'Não foi possível registar o consumo.');
+      setErr(e instanceof ApiError ? e.message : 'Não foi possível registar os consumos.');
     } finally { setBusy(false); }
   };
 
@@ -75,65 +91,75 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
           <button className="x" onClick={onClose} aria-label="Fechar">✕</button>
         </div>
 
-        {/* Pesquisa FIXA no topo (não rola com a lista) — escondida no detalhe */}
-        {!selected ? (
-          <div className="consume-search">
-            <div className="field">
-              <span aria-hidden style={{ opacity: .7 }}>🔎</span>
-              <input value={search} onChange={(e) => setSearch(e.target.value)}
-                placeholder="Pesquisar por nome ou código de barras…" autoFocus />
-            </div>
-            {IS_MOBILE ? (
-              <button className={`consume-cam${scan ? ' on' : ''}`} onClick={() => setScan((v) => !v)} title="Ler com a câmara">📷</button>
-            ) : null}
+        {/* Pesquisa FIXA no topo (não rola com a lista) */}
+        <div className="consume-search">
+          <div className="field">
+            <span aria-hidden style={{ opacity: .7 }}>🔎</span>
+            <input value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Pesquisar por nome ou código de barras…" autoFocus />
           </div>
-        ) : null}
+          {IS_MOBILE ? (
+            <button className={`consume-cam${scan ? ' on' : ''}`} onClick={() => setScan((v) => !v)} title="Ler com a câmara">📷</button>
+          ) : null}
+        </div>
 
         <div className="consume-body">
           {msg ? <div className="banner success" style={{ marginBottom: 12 }}>{msg}</div> : null}
           {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
 
-          {selected ? (
-            <div className="consume-detail">
-              <div className="dname">{selected.name}</div>
-              <div className="dmeta">{selected.code}{selected.barcode ? ` · ${selected.barcode}` : ''} · {formatKz(grossUnit(selected))} /un</div>
-              <div className="consume-qty">
-                <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Menos">−</button>
-                <input inputMode="numeric" value={qty}
-                  onChange={(e) => setQty(Math.max(1, Number(e.target.value.replace(/\D/g, '')) || 1))} />
-                <button onClick={() => setQty((q) => q + 1)} aria-label="Mais">+</button>
-                <span className="tot">{formatKz(grossUnit(selected) * qty)}</span>
-              </div>
-              <div className="row" style={{ gap: 10, marginTop: 16 }}>
-                <button className="btn ghost" onClick={() => setSelected(null)}>Voltar</button>
-                <button className="btn block" disabled={busy} onClick={() => void register()}>
-                  {busy ? 'A registar…' : 'Registar consumo'}
-                </button>
-              </div>
+          {scan && IS_MOBILE ? (
+            <div style={{ marginBottom: 14 }}>
+              <BarcodeScanner continuous onDetected={(code) => pickByCode(code)} />
             </div>
-          ) : (
-            <>
-              {scan && IS_MOBILE ? (
-                <div style={{ marginBottom: 14 }}>
-                  <BarcodeScanner continuous onDetected={(code) => pickByCode(code)} />
-                </div>
-              ) : null}
+          ) : null}
 
-              <div className="consume-list">
-                {filtered.length === 0 ? (
-                  <div className="consume-empty">Sem produtos para esta pesquisa.</div>
-                ) : filtered.map((p) => (
-                  <button key={p.id} className="consume-item" onClick={() => { setSelected(p); setQty(1); setErr(null); }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="nm">{p.name}</div>
-                      <div className="meta">{p.code}{p.barcode ? ` · ${p.barcode}` : ''} · stock {Number(p.stock_qty)}</div>
-                    </div>
-                    <span className="price">{formatKz(grossUnit(p))}</span>
-                  </button>
-                ))}
+          {/* Carrinho de seleção (vários produtos) */}
+          {cart.length > 0 ? (
+            <div className="consume-cart">
+              <div className="consume-cart-head">Selecionados ({cart.length})</div>
+              {cart.map((l) => (
+                <div key={l.product.id} className="consume-cart-row">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="nm">{l.product.name}</div>
+                    <div className="meta">{formatKz(grossUnit(l.product))} /un</div>
+                  </div>
+                  <div className="consume-stepper">
+                    <button onClick={() => setQty(l.product.id, l.qty - 1)} aria-label="Menos">−</button>
+                    <input inputMode="numeric" value={l.qty}
+                      onChange={(e) => setQty(l.product.id, Number(e.target.value.replace(/\D/g, '')) || 1)} />
+                    <button onClick={() => setQty(l.product.id, l.qty + 1)} aria-label="Mais">+</button>
+                  </div>
+                  <strong style={{ width: 92, textAlign: 'right' }}>{formatKz(grossUnit(l.product) * l.qty)}</strong>
+                  <button className="consume-rm" onClick={() => removeLine(l.product.id)} aria-label="Remover">✕</button>
+                </div>
+              ))}
+              <div className="consume-cart-foot">
+                <button className="btn ghost sm" onClick={() => setCart([])}>Limpar</button>
+                <span className="spacer" />
+                <span className="muted" style={{ fontSize: 13 }}>Total</span>
+                <strong style={{ fontSize: 18 }}>{formatKz(cartTotal)}</strong>
               </div>
-            </>
-          )}
+              <button className="btn block" style={{ marginTop: 10 }} disabled={busy} onClick={() => void registerAll()}>
+                {busy ? 'A registar…' : `Registar consumo (${cartCount})`}
+              </button>
+            </div>
+          ) : null}
+
+          {/* Lista de produtos — toca para adicionar */}
+          <div className="consume-list">
+            {filtered.length === 0 ? (
+              <div className="consume-empty">Sem produtos para esta pesquisa.</div>
+            ) : filtered.map((p) => (
+              <button key={p.id} className={`consume-item${inCart(p.id) ? ' sel' : ''}`} onClick={() => addToCart(p)}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="nm">{p.name}</div>
+                  <div className="meta">{p.code}{p.barcode ? ` · ${p.barcode}` : ''} · stock {Number(p.stock_qty)}</div>
+                </div>
+                <span className="price">{formatKz(grossUnit(p))}</span>
+                <span className="consume-add" aria-hidden>{inCart(p.id) ? '✓' : '+'}</span>
+              </button>
+            ))}
+          </div>
 
           {mine.length > 0 ? (
             <div className="consume-mine">

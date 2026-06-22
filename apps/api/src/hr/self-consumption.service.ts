@@ -95,6 +95,68 @@ export class SelfConsumptionService {
     });
   }
 
+  /**
+   * Regista VÁRIOS consumos de uma só vez (carrinho), numa transacção única:
+   * resolve o funcionário uma vez, baixa o stock e cria os lançamentos PENDING.
+   */
+  async registerMany(
+    schema: string,
+    actor: ConsumptionActor,
+    items: { productId: string; quantity: number }[],
+  ): Promise<{ registered: number; total: number; employeeLinked: boolean }> {
+    const clean = (items ?? []).filter((i) => i.productId && Number(i.quantity) > 0);
+    if (clean.length === 0) throw new BadRequestException('Sem itens para registar.');
+
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const emp = await this.resolveEmployee(tx, actor.userId, actor.name);
+      let total = 0;
+      let registered = 0;
+
+      for (const it of clean) {
+        const qty = Number(it.quantity);
+        const prods = await tx.$queryRaw<
+          { id: string; code: string; name: string; unit_price: string; iva_code: string; shared_stock: boolean }[]
+        >(
+          Prisma.sql`SELECT id, code, name, unit_price, iva_code, shared_stock
+                     FROM products WHERE id = ${it.productId}::uuid LIMIT 1`,
+        );
+        const p = prods[0];
+        if (!p) continue; // ignora produtos inexistentes (não falha o lote)
+
+        const rate = isIvaCode(p.iva_code) ? IVA_RATE[p.iva_code as IvaCode] : 0;
+        const unitGross = Math.round(Number(p.unit_price) * (1 + rate / 100) * 100) / 100;
+        const lineTotal = Math.round(unitGross * qty * 100) / 100;
+
+        if (!p.shared_stock && actor.storeId) {
+          await StockService.applyMovement(tx, {
+            productId: p.id, warehouseId: actor.storeId, type: 'OUT', quantity: -qty,
+            reference: 'CONSUMO PRÓPRIO', createdBy: actor.userId ?? null, allowNegative: true,
+          });
+        } else {
+          await tx.$executeRaw(
+            Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${qty}, updated_at = now()
+                       WHERE id = ${p.id}::uuid`,
+          );
+        }
+
+        await tx.$executeRaw(
+          Prisma.sql`INSERT INTO employee_consumptions
+              (user_id, employee_id, staff_name, product_id, product_code, description,
+               quantity, unit_price, total, reason, status, store_id)
+            VALUES (${actor.userId ?? null}::uuid, ${emp?.id ?? null}::uuid,
+                    ${emp?.full_name ?? actor.name ?? 'Funcionário'}, ${p.id}::uuid,
+                    ${p.code}, ${p.name}, ${qty}, ${unitGross}, ${lineTotal},
+                    'SELF_CONSUMPTION', 'PENDING', ${actor.storeId ?? null}::uuid)`,
+        );
+        total += lineTotal;
+        registered += 1;
+      }
+
+      if (registered === 0) throw new NotFoundException('Nenhum produto válido para registar.');
+      return { registered, total: Math.round(total * 100) / 100, employeeLinked: !!emp };
+    });
+  }
+
   /** Encontra o funcionário ligado ao login; tenta auto-ligar por nome único. */
   private async resolveEmployee(
     tx: Prisma.TransactionClient,
