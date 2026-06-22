@@ -27,6 +27,7 @@ import { QueueModal } from '../components/QueueModal';
 import { ShiftModal } from '../components/ShiftModal';
 import { ChatModal } from '../components/ChatModal';
 import { CustomerChatModal } from '../components/CustomerChatModal';
+import { SelfConsumptionModal } from '../components/SelfConsumptionModal';
 import { ThemePicker } from '../components/ThemePicker';
 import { PaymentModal } from '../components/PaymentModal';
 import { IconReceipt } from '../components/Icons';
@@ -67,8 +68,8 @@ function grossUnit(p: Product): number {
 
 /** Menu do operador (canto superior direito): avatar + seta → nome, email e
  *  terminar sessão. Fecha ao clicar fora. */
-function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustChat, onChat, onCustChat, onLogout }: {
-  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; canCustChat: boolean; onChat(): void; onCustChat(): void; onLogout(): void;
+function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustChat, onChat, onCustChat, onSelfConsumption, onLogout }: {
+  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; canCustChat: boolean; onChat(): void; onCustChat(): void; onSelfConsumption(): void; onLogout(): void;
 }) {
   const totalBadge = unread + (canCustChat ? custUnread : 0);
   const [open, setOpen] = useState(false);
@@ -108,6 +109,9 @@ function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustCha
               {custUnread > 0 ? <span className="op-item-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
             </button>
           ) : null}
+          <button className="op-menu-item" onClick={() => { setOpen(false); onSelfConsumption(); }}>
+            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛒</span> Consumo próprio
+          </button>
           <button className="op-menu-item danger" onClick={() => { setOpen(false); onLogout(); }}>
             <IconLogout size={17} /> Terminar sessão
           </button>
@@ -166,6 +170,7 @@ export function PosPage() {
   const [chatUnread, setChatUnread] = useState(0);
   const [showCustChat, setShowCustChat] = useState(false);
   const [custUnread, setCustUnread] = useState(0);
+  const [showConsumption, setShowConsumption] = useState(false);
   // O operador de caixa não tem chat com clientes — só supervisor e acima.
   const custChatAllowed = canChatCustomers(user?.role);
   useEffect(() => {
@@ -583,6 +588,7 @@ export function PosPage() {
             canCustChat={canChatCustomers(user?.role)}
             onChat={() => setShowChat(true)}
             onCustChat={() => setShowCustChat(true)}
+            onSelfConsumption={() => setShowConsumption(true)}
             onLogout={logout}
           />
         </header>
@@ -829,6 +835,10 @@ export function PosPage() {
 
       {showCustChat && custChatAllowed ? (
         <CustomerChatModal onClose={() => setShowCustChat(false)} onRead={() => setCustUnread(0)} />
+      ) : null}
+
+      {showConsumption ? (
+        <SelfConsumptionModal products={products} onClose={() => setShowConsumption(false)} />
       ) : null}
 
       {showPayment ? (

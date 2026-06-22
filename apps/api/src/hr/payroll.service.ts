@@ -89,6 +89,23 @@ export class PayrollService {
         throw new BadRequestException('Sem trabalhadores activos para processar.');
       }
 
+      // Consumo próprio por descontar (status PENDING) por funcionário → entra
+      // nesta folha como "outros descontos" (motivo: consumo próprio). Guardado
+      // contra tenants antigos sem a tabela.
+      const consumptionByEmp = new Map<string, number>();
+      const hasConsumptions = await tx.$queryRaw<{ reg: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('employee_consumptions')::text AS reg`,
+      );
+      if (hasConsumptions[0]?.reg) {
+        const cons = await tx.$queryRaw<{ employee_id: string; total: string }[]>(
+          Prisma.sql`SELECT employee_id, COALESCE(SUM(total), 0)::text AS total
+                     FROM employee_consumptions
+                     WHERE status = 'PENDING' AND employee_id IS NOT NULL
+                     GROUP BY employee_id`,
+        );
+        for (const c of cons) consumptionByEmp.set(c.employee_id, Number(c.total) || 0);
+      }
+
       const runRows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO payroll_runs (period_year, period_month, status)
                    VALUES (${year}, ${month}, 'PROCESSED') RETURNING id`,
@@ -111,16 +128,19 @@ export class PayrollService {
         const pct = adj?.absenceDays != null
           ? Math.max(0, Math.min(100, Math.round((adj.absenceDays / 30) * 100 * 100) / 100))
           : Math.max(0, Math.min(100, Number(e.absence_discount_pct) || 0));
+        // Outros descontos = desconto por faltas + consumo próprio do funcionário.
+        const absenceDeduction = Math.round((base * pct / 100) * 100) / 100;
+        const consumption = consumptionByEmp.get(e.id) ?? 0;
         const calc = computePayroll({
           baseSalary: base,
           // Bónus entra como subsídio sujeito (INSS/IRT).
           taxableAllowances: Number(e.taxable_allowances) + bonus,
           exemptAllowances: Number(e.exempt_allowances),
-          // Desconto por faltas: % sobre o salário base.
-          otherDeductions: Math.round((base * pct / 100) * 100) / 100,
+          // Desconto por faltas + consumo próprio.
+          otherDeductions: Math.round((absenceDeduction + consumption) * 100) / 100,
         });
 
-        await tx.$executeRaw(
+        const itemRows = await tx.$queryRaw<{ id: string }[]>(
           Prisma.sql`INSERT INTO payroll_items
               (run_id, employee_id, employee_number, employee_name, base_salary,
                taxable_allowances, exempt_allowances, gross_salary, inss_base,
@@ -130,8 +150,17 @@ export class PayrollService {
                     ${calc.baseSalary}, ${calc.taxableAllowances}, ${calc.exemptAllowances},
                     ${calc.grossSalary}, ${calc.inssBase}, ${calc.inssEmployee},
                     ${calc.inssEmployer}, ${calc.irtBase}, ${calc.irt}, ${calc.otherDeductions},
-                    ${calc.totalDeductions}, ${calc.netSalary}, ${calc.employerCost})`,
+                    ${calc.totalDeductions}, ${calc.netSalary}, ${calc.employerCost})
+            RETURNING id`,
         );
+        // Marca os consumos próprios como descontados nesta linha da folha.
+        if (consumption > 0 && hasConsumptions[0]?.reg) {
+          await tx.$executeRaw(
+            Prisma.sql`UPDATE employee_consumptions
+                       SET status = 'DEDUCTED', payroll_item_id = ${itemRows[0].id}::uuid
+                       WHERE employee_id = ${e.id}::uuid AND status = 'PENDING'`,
+          );
+        }
 
         grossTotal += calc.grossSalary;
         inssEmpTotal += calc.inssEmployee;

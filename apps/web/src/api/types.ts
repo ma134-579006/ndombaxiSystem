@@ -719,6 +719,12 @@ export interface PayrollItem {
   net_salary: string; employer_cost: string;
 }
 export interface PayrollRunDetail { run: PayrollRun; items: PayrollItem[] }
+/** Consumo próprio de um funcionário (descontado no salário). */
+export interface EmployeeConsumption {
+  id: string; staff_name: string; product_code: string; description: string;
+  quantity: string; unit_price: string; total: string; reason: string;
+  status: string; created_at: string;
+}
 
 // ── Assistente OpenManus (lado da empresa) ──────────────────
 export type AssistantRole = 'user' | 'assistant' | 'system';

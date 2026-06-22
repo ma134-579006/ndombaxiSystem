@@ -27,6 +27,7 @@ import type {
   LeaveSummary,
   CreateLeaveInput,
   ManagerEmployee,
+  EmployeeConsumption,
   CreateEmployeeInput,
   UpdateEmployeeInput,
   ManagerStore,
@@ -602,6 +603,8 @@ export const api = {
         request<PayrollRun>('POST', '/hr/payroll/runs', { year, month, adjustments }),
       pay: (id: string) => request<PayrollRun>('POST', `/hr/payroll/runs/${id}/pay`, {}),
     },
+    consumptions: (status?: string) =>
+      request<EmployeeConsumption[]>('GET', `/hr/self-consumption${status ? `?status=${status}` : ''}`),
   },
   // ── Assistente OpenManus da empresa (chat) ────────────────
   assistant: {

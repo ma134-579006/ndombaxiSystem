@@ -129,6 +129,11 @@ export interface CustomerChatMessage {
 export interface CustomerContact {
   id: string; name: string; email: string | null; phone: string | null; online: boolean; last_seen_at: string | null; unread: number; last_at: string | null;
 }
+/** Consumo próprio do funcionário (descontado no salário em RH). */
+export interface SelfConsumption {
+  id: string; product_code: string; description: string; quantity: string; unit_price: string;
+  total: string; reason: string; status: string; created_at: string;
+}
 /** Resumo do fecho de turno (para o recibo de fecho). */
 export interface ShiftClose {
   sessionId: string;

@@ -16,6 +16,7 @@ import type {
   ReceiptFiscalInfo,
   ReportX,
   SaleRow,
+  SelfConsumption,
   ShiftClose,
   TenantLoginInput,
   TokenPair,
@@ -183,4 +184,9 @@ export const api = {
   custChatMarkRead: (customerId: string) => request<{ ok: boolean }>('POST', '/ecommerce/customer-chat/read', { customerId }),
   custChatDelete: (ids: string[]) => request<{ deleted: number }>('POST', '/ecommerce/customer-chat/delete', { ids }),
   custChatUnread: () => request<{ count: number }>('GET', '/ecommerce/customer-chat/unread'),
+
+  // ── Consumo próprio (desconta no salário) ──────────────────
+  registerConsumption: (productId: string, quantity: number) =>
+    request<SelfConsumption & { employeeLinked: boolean }>('POST', '/hr/self-consumption', { productId, quantity }),
+  myConsumptions: () => request<SelfConsumption[]>('GET', '/hr/self-consumption/mine'),
 };

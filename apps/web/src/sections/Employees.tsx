@@ -3,11 +3,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import {
   STAFF_ROLES, STAFF_ROLE_LABELS,
-  type CreateEmployeeInput, type ManagerEmployee, type ManagerStaff, type ManagerStore, type StaffRoleName,
+  type CreateEmployeeInput, type EmployeeConsumption, type ManagerEmployee, type ManagerStaff, type ManagerStore, type StaffRoleName,
 } from '../api/types';
 import { IconBuilding, IconEdit, IconImage, IconPlus, IconSearch, IconShield } from '../components/Icons';
 import { Modal } from '../components/ui';
-import { formatKz } from '../format';
+import { formatDate, formatKz } from '../format';
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -232,6 +232,8 @@ export function Employees() {
             })}
           </div>
         )}
+
+      <ConsumptionsPanel />
 
       {creating || editing ? (
         <Modal title={editing ? 'Editar funcionário' : 'Novo funcionário'} onClose={close}>
@@ -482,5 +484,60 @@ function AccessModal({
         {busy ? 'A criar…' : 'Criar acesso'}
       </button>
     </Modal>
+  );
+}
+
+/**
+ * Consumo próprio dos funcionários (em especial o caixa): lançamentos
+ * registados no terminal que são descontados no salário (motivo: consumo
+ * próprio). Mostra o que está por descontar e o histórico já processado.
+ */
+function ConsumptionsPanel() {
+  const [rows, setRows] = useState<EmployeeConsumption[] | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { api.hr.consumptions().then(setRows).catch(() => setRows([])); }, []);
+  if (rows == null) return null;
+  const pending = rows.filter((r) => r.status === 'PENDING');
+  const pendingTotal = pending.reduce((s, r) => s + Number(r.total), 0);
+  if (rows.length === 0) return null;
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <div className="row" style={{ alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen((v) => !v)}>
+        <h3 style={{ margin: 0 }}>🛒 Consumo próprio</h3>
+        <span className="spacer" />
+        <span className="muted" style={{ fontSize: 13 }}>
+          {pending.length} por descontar · <strong>{formatKz(pendingTotal)}</strong>
+        </span>
+        <span style={{ marginLeft: 10 }}>{open ? '▾' : '▸'}</span>
+      </div>
+      {open ? (
+        <div style={{ marginTop: 12, overflowX: 'auto' }}>
+          <table className="table" style={{ width: '100%' }}>
+            <thead><tr>
+              <th style={{ textAlign: 'left' }}>Funcionário</th>
+              <th style={{ textAlign: 'left' }}>Produto</th>
+              <th style={{ textAlign: 'right' }}>Qtd</th>
+              <th style={{ textAlign: 'right' }}>Total</th>
+              <th style={{ textAlign: 'left' }}>Motivo</th>
+              <th style={{ textAlign: 'left' }}>Estado</th>
+              <th style={{ textAlign: 'left' }}>Data</th>
+            </tr></thead>
+            <tbody>
+              {rows.slice(0, 100).map((r) => (
+                <tr key={r.id}>
+                  <td>{r.staff_name}</td>
+                  <td>{r.description}</td>
+                  <td style={{ textAlign: 'right' }}>{Number(r.quantity)}</td>
+                  <td style={{ textAlign: 'right' }}>{formatKz(r.total)}</td>
+                  <td>Consumo próprio</td>
+                  <td>{r.status === 'DEDUCTED' ? 'Descontado' : 'Pendente'}</td>
+                  <td>{formatDate(r.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </div>
   );
 }
