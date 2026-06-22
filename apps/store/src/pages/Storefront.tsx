@@ -17,6 +17,7 @@ import { useCustomer } from '../store/customer';
 import { CustomerModal } from '../components/CustomerModal';
 import { ProductCard } from '../components/ProductCard';
 import { Typewriter } from '../components/Typewriter';
+import { LiveLocation } from '../components/LiveLocation';
 import { ProductPage } from './ProductPage';
 import { cartCount, cartTotal } from '../store/cart';
 import { Checkout } from '../views/Checkout';
@@ -142,11 +143,13 @@ export function Storefront() {
   if (view === 'confirmation' && checkout) {
     return (<><Header onHome={goHome} onCart={() => setCartOpen(true)} onAccount={() => setAccountOpen(true)} />
       <Confirmation order={checkout.result} method={checkout.method}
-        onTrack={() => { setTrackId(checkout.result.id); setView('track'); }} onContinue={goHome} />{accountModal}</>);
+        onTrack={() => { setTrackId(checkout.result.id); setView('track'); }} onContinue={goHome} />{accountModal}
+      <LiveLocation code={code} orderId={checkout.result.id} token={customer?.token} /></>);
   }
   if (view === 'track' && trackId) {
     return (<><Header onHome={goHome} onCart={() => setCartOpen(true)} onAccount={() => setAccountOpen(true)} />
-      <Track orderId={trackId} onBack={goHome} />{accountModal}</>);
+      <Track orderId={trackId} onBack={goHome} />{accountModal}
+      <LiveLocation code={code} orderId={trackId} token={customer?.token} /></>);
   }
   if (view === 'product' && selected) {
     const related = products.filter((p) => p.code !== selected.code && (!selected.category || p.category === selected.category)).slice(0, 12);

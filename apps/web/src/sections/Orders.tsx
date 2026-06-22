@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { OrderMessage, OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
+import type { OrderLocation, OrderMessage, OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
 import { IconCpu, IconTruck } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatDate, formatKz, statusLabel } from '../format';
@@ -42,6 +42,7 @@ export function Orders() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showGeo, setShowGeo] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,6 +63,7 @@ export function Orders() {
   const open = async (id: string) => {
     setDetailLoading(true);
     setActionError(null);
+    setShowGeo(false);
     try {
       setDetail(await api.orders.get(id));
     } catch (e) {
@@ -203,6 +205,13 @@ export function Orders() {
             {detail.invoice_id ? <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>Factura emitida ✓</span> : null}
           </div>
 
+          <div style={{ marginTop: 12 }}>
+            <button className="btn ghost block" onClick={() => setShowGeo((v) => !v)}>
+              📍 {showGeo ? 'Ocultar localização' : 'Ver localização do cliente (GPS em tempo real)'}
+            </button>
+            {showGeo ? <LiveOrderMap orderId={detail.id} /> : null}
+          </div>
+
           {CHATTABLE.includes(detail.status) ? (
             <OrderChat orderId={detail.id} />
           ) : (
@@ -213,6 +222,88 @@ export function Orders() {
         </Modal>
       ) : null}
     </>
+  );
+}
+
+/** Há quanto tempo foi a última leitura GPS (texto curto). */
+function sinceLabel(iso: string | null): string {
+  if (!iso) return 'sem leitura';
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 10) return 'agora mesmo';
+  if (s < 60) return `há ${s}s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `há ${m} min`;
+  const h = Math.round(m / 60);
+  return `há ${h} h`;
+}
+
+/**
+ * Mapa Google AO VIVO com a posição exata do cliente (entrega). Atualiza a cada
+ * 4s (polling) e mostra precisão + última leitura. Sem chave de API: usa o embed
+ * público do Google Maps centrado nas coordenadas GPS.
+ */
+function LiveOrderMap({ orderId }: { orderId: string }) {
+  const [loc, setLoc] = useState<OrderLocation | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [, force] = useState(0); // re-render p/ atualizar "há X min"
+
+  useEffect(() => {
+    let alive = true;
+    const tick = () => {
+      api.orders.location(orderId).then((r) => { if (alive) { setLoc(r); setErr(null); } })
+        .catch((e) => { if (alive) setErr(e instanceof ApiError ? e.message : 'Falha ao obter localização.'); });
+    };
+    tick();
+    const t = window.setInterval(tick, 4000);
+    const c = window.setInterval(() => force((n) => n + 1), 1000);
+    return () => { alive = false; window.clearInterval(t); window.clearInterval(c); };
+  }, [orderId]);
+
+  if (err) return <div className="banner danger" style={{ marginTop: 10 }}>{err}</div>;
+  if (!loc) return <div className="loading" style={{ marginTop: 10 }}>A obter localização…</div>;
+
+  const has = loc.lat != null && loc.lng != null;
+  if (!has) {
+    return (
+      <div className="banner info" style={{ marginTop: 10 }}>
+        <div>
+          {loc.consent
+            ? '📡 À espera do sinal GPS do cliente. A posição aparece quando o cliente tiver a loja aberta com o GPS ligado.'
+            : '⚠️ Este cliente ainda não partilhou a localização GPS desta encomenda.'}
+        </div>
+      </div>
+    );
+  }
+
+  const q = `${loc.lat},${loc.lng}`;
+  const embed = `https://www.google.com/maps?q=${q}&z=18&hl=pt&output=embed`;
+  const open = `https://www.google.com/maps/search/?api=1&query=${q}`;
+  const dir = `https://www.google.com/maps/dir/?api=1&destination=${q}`;
+  const fresh = loc.updatedAt && Date.now() - new Date(loc.updatedAt).getTime() < 15000;
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="row" style={{ alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+        <span className="badge" style={{ color: fresh ? 'var(--success)' : 'var(--muted)', borderColor: fresh ? 'var(--success)' : 'var(--muted)' }}>
+          <span className="dot" /> {fresh ? 'Ao vivo' : 'Última posição'}
+        </span>
+        <span className="muted" style={{ fontSize: 12.5 }}>
+          Atualizado {sinceLabel(loc.updatedAt)}{loc.accuracy != null ? ` · precisão ±${Math.round(loc.accuracy)} m` : ''}
+        </span>
+      </div>
+      <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', height: 320 }}>
+        <iframe
+          key={q} title="Localização do cliente" src={embed}
+          width="100%" height="100%" style={{ border: 0, display: 'block' }}
+          loading="lazy" referrerPolicy="no-referrer-when-downgrade"
+        />
+      </div>
+      <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+        <a className="btn" href={dir} target="_blank" rel="noreferrer">🧭 Como chegar</a>
+        <a className="btn ghost" href={open} target="_blank" rel="noreferrer">Abrir no Google Maps</a>
+        <span className="muted" style={{ fontSize: 11.5, alignSelf: 'center' }}>{q}</span>
+      </div>
+    </div>
   );
 }
 

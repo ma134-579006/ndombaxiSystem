@@ -65,6 +65,8 @@ export const api = {
     request<CheckoutResult>('POST', `/store/${enc(code)}/checkout`, input),
   track: (code: string, orderId: string) =>
     request<WebOrder>('GET', `/store/${enc(code)}/orders/${enc(orderId)}`),
+  updateLocation: (code: string, orderId: string, token: string, body: { lat: number; lng: number; accuracy?: number }) =>
+    request<{ ok: true }>('POST', `/store/${enc(code)}/orders/${enc(orderId)}/location`, body, token),
   generateReference: (code: string, orderId: string) =>
     request<{ available: boolean; entity?: string; reference?: string; amount?: number; expiresAt?: string; message?: string }>(
       'POST', `/store/${enc(code)}/orders/${enc(orderId)}/reference`,

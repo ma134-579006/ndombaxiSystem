@@ -6,6 +6,7 @@ import { formatKz } from '../format';
 import { useStore } from '../state/StoreContext';
 import { cartTotal } from '../store/cart';
 import { useCustomer } from '../store/customer';
+import { getHighAccuracyPosition, GeoError } from '../store/geo';
 
 // As 21 províncias de Angola (reforma da divisão político-administrativa de 2024:
 // Cuando Cubango → Cuando + Cubango; novas Icolo e Bengo e Moxico Leste).
@@ -56,6 +57,7 @@ export function Checkout({
   // escolher (IBAN/transferência, Multicaixa Express, Referência ou Numerário).
   const [methodId, setMethodId] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(true); // mostra/esconde o formulário de dados
 
@@ -97,6 +99,21 @@ export function Checkout({
       setError('Escolha a forma de pagamento (IBAN/transferência, Multicaixa Express, Referência ou Numerário).');
       return;
     }
+
+    // GPS OBRIGATÓRIO para a entrega: pedimos a localização ANTES de criar a
+    // encomenda. Se o cliente recusar/falhar, a encomenda NÃO é criada (cancelada).
+    setError(null);
+    setLocating(true);
+    let fix;
+    try {
+      fix = await getHighAccuracyPosition();
+    } catch (e) {
+      setLocating(false);
+      setError(e instanceof GeoError ? e.message : 'É obrigatório partilhar a localização GPS para concluir a encomenda.');
+      return;
+    }
+    setLocating(false);
+
     setSubmitting(true);
     try {
       const result = await api.checkout(code, {
@@ -109,6 +126,10 @@ export function Checkout({
         municipality: municipality.trim(),
         neighborhood: neighborhood.trim(),
         paymentMethod: selected?.type,
+        geoLat: fix.lat,
+        geoLng: fix.lng,
+        geoAccuracy: fix.accuracy,
+        geoConsent: true,
         lines: cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity })),
       });
       onDone(result, selected);
@@ -224,8 +245,11 @@ export function Checkout({
           <span className="k">Total a pagar</span>
           <span className="v" style={{ fontSize: 22, fontWeight: 900 }}>{formatKz(total)}</span>
         </div>
-        <button className="btn lg block" onClick={submit} disabled={submitting || cart.length === 0}>
-          {submitting ? 'A processar…' : 'Confirmar encomenda'}
+        <div className="banner info" style={{ margin: '12px 0', fontSize: 13 }}>
+          <div>📍 <strong>Localização GPS obrigatória</strong> — ao confirmar, o telemóvel vai pedir acesso à sua localização para a loja entregar no sítio certo. Sem permissão, a encomenda não é criada.</div>
+        </div>
+        <button className="btn lg block" onClick={submit} disabled={submitting || locating || cart.length === 0}>
+          {locating ? '📍 A obter localização GPS…' : submitting ? 'A processar…' : 'Confirmar encomenda'}
         </button>
       </div>
     </div>

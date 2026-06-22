@@ -21,6 +21,21 @@ export class CheckoutLineDto {
   quantity!: number;
 }
 
+export class CustomerLocationDto {
+  @IsNumber()
+  @Min(-90)
+  lat!: number;
+
+  @IsNumber()
+  @Min(-180)
+  lng!: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  accuracy?: number;
+}
+
 export class CheckoutDto {
   @IsString()
   @Length(1, 200)
@@ -63,6 +78,27 @@ export class CheckoutDto {
   @IsOptional()
   @IsString()
   paymentMethod?: string;
+
+  /** Localização GPS do cliente (entrega) — capturada no checkout. */
+  @IsOptional()
+  @IsNumber()
+  @Min(-90)
+  geoLat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(-180)
+  geoLng?: number;
+
+  /** Precisão do GPS em metros (quanto menor, mais exato). */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  geoAccuracy?: number;
+
+  /** O cliente autorizou a partilha da localização para entrega. */
+  @IsOptional()
+  geoConsent?: boolean;
 
   @IsArray()
   @ArrayMinSize(1)

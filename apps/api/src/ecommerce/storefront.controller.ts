@@ -5,7 +5,7 @@ import { CustomerProfileDto } from './dto/customer-profile.dto';
 import { UploadProofDto } from '../payments/dto/payment.dto';
 import { PaymentsService } from '../payments/payments.service';
 import { SiteService } from '../site/site.service';
-import { CheckoutDto } from './dto/checkout.dto';
+import { CheckoutDto, CustomerLocationDto } from './dto/checkout.dto';
 import { CustomerEmailLoginDto, CustomerGoogleLoginDto } from './dto/customer-auth.dto';
 import { ExpressPayDto } from './dto/express-pay.dto';
 import { PostMessageDto } from './dto/order-message.dto';
@@ -224,5 +224,18 @@ export class StorefrontController {
   async track(@Param('code') code: string, @Param('orderId') orderId: string) {
     const tenant = await this.resolver.resolveByCode(code);
     return this.orders.get(tenant.schema, orderId);
+  }
+
+  @Post('orders/:orderId/location')
+  @ApiOperation({ summary: 'Cliente envia a sua localização GPS (entrega, tempo real)' })
+  async updateLocation(
+    @Param('code') code: string,
+    @Param('orderId') orderId: string,
+    @Body() dto: CustomerLocationDto,
+    @Headers('authorization') auth?: string,
+  ) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.orders.updateLocation(tenant.schema, orderId, dto, claims.email);
   }
 }

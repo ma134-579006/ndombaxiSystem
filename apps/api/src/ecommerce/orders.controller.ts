@@ -62,6 +62,13 @@ export class OrdersController {
     return this.orders.confirmReferencePayment(this.ctx.requireTenantSchema(), dto);
   }
 
+  @Get(':id/location')
+  @Roles(Role.SHIFT_SUPERVISOR)
+  @ApiOperation({ summary: 'Localização GPS atual do cliente — supervisor, gestor e gerente' })
+  location(@Param('id') id: string) {
+    return this.orders.getLocation(this.ctx.requireTenantSchema(), id);
+  }
+
   @Post(':id/ship')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Marca encomenda como expedida' })

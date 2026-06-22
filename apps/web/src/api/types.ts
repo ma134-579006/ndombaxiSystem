@@ -248,6 +248,24 @@ export interface WebOrderDetail extends WebOrder {
   items: WebOrderItem[];
 }
 
+/** Localização GPS do cliente de uma encomenda (entrega, tempo real). */
+export interface OrderLocation {
+  orderId: string;
+  orderNumber: string;
+  status: OrderStatus;
+  customerName: string;
+  customerPhone: string | null;
+  province: string | null;
+  municipality: string | null;
+  neighborhood: string | null;
+  shippingAddress: string | null;
+  lat: number | null;
+  lng: number | null;
+  accuracy: number | null;
+  consent: boolean;
+  updatedAt: string | null;
+}
+
 /** Branding da montra (site_settings). */
 export interface SiteSettings {
   id: string;

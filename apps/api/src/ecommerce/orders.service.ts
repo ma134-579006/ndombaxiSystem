@@ -223,6 +223,74 @@ export class OrdersService {
     return { orderId: order.id, invoiceNumber: paid.invoiceNumber, status: 'PAID', alreadyPaid: false };
   }
 
+  /**
+   * Atualiza a localização GPS do cliente de uma encomenda (tempo real). Só
+   * permite enquanto a encomenda está ativa (PENDING/PAID/SHIPPED). Se `email`
+   * for fornecido, confirma que a encomenda pertence a esse cliente.
+   */
+  async updateLocation(
+    schema: string,
+    orderId: string,
+    input: { lat: number; lng: number; accuracy?: number },
+    email?: string,
+  ): Promise<{ ok: true }> {
+    if (!Number.isFinite(input.lat) || !Number.isFinite(input.lng)) {
+      throw new BadRequestException('Coordenadas inválidas.');
+    }
+    await this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{ status: string; customer_email: string | null }[]>(
+        Prisma.sql`SELECT status, customer_email FROM web_orders WHERE id = ${orderId}::uuid FOR UPDATE`,
+      );
+      if (rows.length === 0) throw new NotFoundException('Encomenda não encontrada');
+      if (email && rows[0].customer_email && rows[0].customer_email.toLowerCase() !== email.toLowerCase()) {
+        throw new NotFoundException('Encomenda não encontrada');
+      }
+      // Só rastreia enquanto faz sentido para a entrega.
+      if (!['PENDING', 'PAID', 'SHIPPED'].includes(rows[0].status)) return;
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE web_orders
+                   SET geo_lat = ${input.lat}, geo_lng = ${input.lng},
+                       geo_accuracy = ${Number.isFinite(input.accuracy) ? input.accuracy : null},
+                       geo_consent = TRUE, geo_updated_at = now(), updated_at = now()
+                   WHERE id = ${orderId}::uuid`,
+      );
+    });
+    return { ok: true };
+  }
+
+  /** Lê a localização GPS atual do cliente (back-office da entrega). */
+  async getLocation(schema: string, orderId: string): Promise<{
+    orderId: string; orderNumber: string; status: string;
+    customerName: string; customerPhone: string | null;
+    province: string | null; municipality: string | null; neighborhood: string | null; shippingAddress: string | null;
+    lat: number | null; lng: number | null; accuracy: number | null; consent: boolean; updatedAt: string | null;
+  }> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{
+        id: string; order_number: string; status: string; customer_name: string; customer_phone: string | null;
+        province: string | null; municipality: string | null; neighborhood: string | null; shipping_address: string | null;
+        geo_lat: string | null; geo_lng: string | null; geo_accuracy: string | null; geo_consent: boolean; geo_updated_at: Date | null;
+      }[]>(
+        Prisma.sql`SELECT id, order_number, status, customer_name, customer_phone,
+                          province, municipality, neighborhood, shipping_address,
+                          geo_lat, geo_lng, geo_accuracy, geo_consent, geo_updated_at
+                   FROM web_orders WHERE id = ${orderId}::uuid LIMIT 1`,
+      ),
+    );
+    const r = rows[0];
+    if (!r) throw new NotFoundException('Encomenda não encontrada');
+    return {
+      orderId: r.id, orderNumber: r.order_number, status: r.status,
+      customerName: r.customer_name, customerPhone: r.customer_phone,
+      province: r.province, municipality: r.municipality, neighborhood: r.neighborhood, shippingAddress: r.shipping_address,
+      lat: r.geo_lat != null ? Number(r.geo_lat) : null,
+      lng: r.geo_lng != null ? Number(r.geo_lng) : null,
+      accuracy: r.geo_accuracy != null ? Number(r.geo_accuracy) : null,
+      consent: !!r.geo_consent,
+      updatedAt: r.geo_updated_at ? r.geo_updated_at.toISOString() : null,
+    };
+  }
+
   /** Transições logísticas simples PAID → SHIPPED → DELIVERED. */
   async setStatus(schema: string, orderId: string, next: 'SHIPPED' | 'DELIVERED' | 'CANCELLED'): Promise<void> {
     const allowed: Record<string, string[]> = {

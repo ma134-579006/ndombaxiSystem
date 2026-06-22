@@ -80,6 +80,11 @@ export interface CheckoutInput {
   municipality: string;
   neighborhood: string;
   paymentMethod?: string;
+  /** Localização GPS do cliente (entrega) — obrigatória na loja. */
+  geoLat?: number;
+  geoLng?: number;
+  geoAccuracy?: number;
+  geoConsent?: boolean;
   lines: CheckoutLine[];
 }
 

@@ -329,6 +329,12 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."web_orders" (
   iva_total        NUMERIC(14,2) NOT NULL,
   gross_total      NUMERIC(14,2) NOT NULL,
   invoice_id       UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
+  -- Localização GPS do cliente (entrega) — capturada no checkout e em tempo real
+  geo_lat          NUMERIC(10,7),
+  geo_lng          NUMERIC(10,7),
+  geo_accuracy     NUMERIC(8,2),
+  geo_updated_at   TIMESTAMPTZ,
+  geo_consent      BOOLEAN NOT NULL DEFAULT FALSE,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT web_orders_number_unique UNIQUE (order_number)

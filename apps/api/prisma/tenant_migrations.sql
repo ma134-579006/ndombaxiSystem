@@ -112,3 +112,12 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."employee_consumptions" (
 );
 CREATE INDEX IF NOT EXISTS emp_consumption_user_idx   ON "{{SCHEMA}}"."employee_consumptions"(user_id);
 CREATE INDEX IF NOT EXISTS emp_consumption_status_idx ON "{{SCHEMA}}"."employee_consumptions"(status);
+
+-- Localização GPS do cliente por encomenda (entrega): capturada no checkout
+-- (consentimento obrigatório) e atualizada em tempo real enquanto a encomenda
+-- está ativa, para o gestor/gerente/supervisor ver a posição exata na entrega.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS geo_lat        NUMERIC(10,7);
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS geo_lng        NUMERIC(10,7);
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS geo_accuracy   NUMERIC(8,2);
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS geo_updated_at TIMESTAMPTZ;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS geo_consent    BOOLEAN NOT NULL DEFAULT FALSE;

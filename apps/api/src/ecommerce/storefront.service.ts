@@ -109,16 +109,21 @@ export class StorefrontService {
       const sequence = await allocateDocumentNumber(tx, 'WEB', year);
       const orderNumber = formatCounterNumber('WEB', year, sequence);
 
+      const hasGeo = Number.isFinite(dto.geoLat) && Number.isFinite(dto.geoLng);
       const orderRows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO web_orders
             (order_number, customer_name, customer_email, customer_phone, customer_tax_id,
              shipping_address, province, municipality, neighborhood, payment_method,
-             status, net_total, iva_total, gross_total)
+             status, net_total, iva_total, gross_total,
+             geo_lat, geo_lng, geo_accuracy, geo_consent, geo_updated_at)
           VALUES (${orderNumber}, ${dto.customerName}, ${dto.customerEmail ?? null},
                   ${dto.customerPhone ?? null}, ${dto.customerTaxId ?? null},
                   ${dto.shippingAddress ?? null}, ${dto.province}, ${dto.municipality},
                   ${dto.neighborhood}, ${dto.paymentMethod ?? null}, 'PENDING',
-                  ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal})
+                  ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal},
+                  ${hasGeo ? dto.geoLat : null}, ${hasGeo ? dto.geoLng : null},
+                  ${hasGeo && Number.isFinite(dto.geoAccuracy) ? dto.geoAccuracy : null},
+                  ${dto.geoConsent === true}, ${hasGeo ? Prisma.sql`now()` : Prisma.sql`NULL`})
           RETURNING id`,
       );
       const orderId = orderRows[0].id;

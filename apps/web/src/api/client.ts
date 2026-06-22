@@ -121,6 +121,7 @@ import type {
   UpdateSiteSettingsInput,
   WebOrder,
   WebOrderDetail,
+  OrderLocation,
   SupportMsg,
   SiteFeedback,
   SiteFeedbackAdmin,
@@ -494,6 +495,7 @@ export const api = {
     confirmReference: (input: { entity?: string; reference: string; amount?: number }) =>
       request<{ orderId: string; invoiceNumber: string | null; status: string; alreadyPaid: boolean }>(
         'POST', '/ecommerce/orders/reference/confirm', input),
+    location: (id: string) => request<OrderLocation>('GET', `/ecommerce/orders/${id}/location`),
   },
   site: {
     get: () => request<SiteSettings>('GET', '/site/settings'),
