@@ -25,6 +25,12 @@ export class OrdersController {
     return this.orders.list(this.ctx.requireTenantSchema());
   }
 
+  @Get('count/pending')
+  @ApiOperation({ summary: 'Nº de encomendas novas por tratar (sino de notificações)' })
+  pendingCount() {
+    return this.orders.pendingCount(this.ctx.requireTenantSchema());
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalhe de uma encomenda' })
   get(@Param('id') id: string) {

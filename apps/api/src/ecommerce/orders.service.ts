@@ -31,6 +31,16 @@ export class OrdersService {
     );
   }
 
+  /** Encomendas NOVAS por tratar (PENDING) — para o sino de notificações. */
+  async pendingCount(schema: string): Promise<{ count: number }> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ n: number }[]>(
+        Prisma.sql`SELECT COUNT(*)::int AS n FROM web_orders WHERE status = 'PENDING'`,
+      ),
+    );
+    return { count: rows[0]?.n ?? 0 };
+  }
+
   async get(schema: string, orderId: string) {
     return this.prisma.runInTenant(schema, async (tx) => {
       const order = await tx.$queryRaw<OrderRow[]>(

@@ -480,6 +480,7 @@ export const api = {
   },
   orders: {
     list: () => request<WebOrder[]>('GET', '/ecommerce/orders'),
+    pendingCount: () => request<{ count: number }>('GET', '/ecommerce/orders/count/pending'),
     get: (id: string) => request<WebOrderDetail>('GET', `/ecommerce/orders/${id}`),
     pay: (id: string) =>
       request<{ orderId: string; invoiceNumber: string }>('POST', `/ecommerce/orders/${id}/pay`),

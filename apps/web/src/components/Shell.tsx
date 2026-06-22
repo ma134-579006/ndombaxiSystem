@@ -56,6 +56,30 @@ function NotifyBell({ onGo }: { onGo(section: string): void }) {
   );
 }
 
+/** Sino de ENCOMENDAS (gestor): avisa quando há encomendas novas (PENDING) da
+ *  loja online. Badge estilo rede social; clicar abre a secção Encomendas. */
+function OrdersBell({ onGo }: { onGo(): void }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const tick = () => { api.orders.pendingCount().then((r) => { if (alive) setN(r.count); }).catch(() => undefined); };
+    tick();
+    const t = window.setInterval(tick, 15000);
+    const onFocus = () => tick();
+    window.addEventListener('focus', onFocus);
+    return () => { alive = false; window.clearInterval(t); window.removeEventListener('focus', onFocus); };
+  }, []);
+  return (
+    <button className="icon-btn noti-btn" onClick={onGo}
+      title={n > 0 ? `${n} encomenda(s) nova(s) da loja` : 'Encomendas da loja'} aria-label="Encomendas da loja">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+      </svg>
+      {n > 0 ? <span className="noti-badge">{n > 99 ? '99+' : n}</span> : null}
+    </button>
+  );
+}
+
 /** Hambúrguer (só visível no telemóvel via CSS). */
 function IconMenu({ size = 22 }: { size?: number }) {
   return (
@@ -286,6 +310,7 @@ export function Shell({
           <h1>{current?.label}</h1>
           <span className="spacer" />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
+          {isTenant ? <OrdersBell onGo={() => setSection('orders')} /> : null}
           <ThemePicker />
           <ManagerMenu
             photo={avatar}
