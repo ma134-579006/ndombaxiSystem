@@ -4,6 +4,7 @@ import { cartCount } from '../store/cart';
 import { useCustomer } from '../store/customer';
 import { IconCart, IconSearch, IconStore } from './Icons';
 import { BarcodeScanner } from './BarcodeScanner';
+import { ThemePicker } from './ThemePicker';
 
 function IconUser({ size = 22 }: { size?: number }) {
   return (
@@ -59,6 +60,7 @@ export function Header({ onHome, onCart, onAccount, search, onSearchChange, onSe
         ) : <span className="spacer" />}
 
         <div className="ax-actions">
+          <ThemePicker />
           {onAccount ? (
             <button className={`ax-icon-btn${customer ? ' in' : ''}`} onClick={onAccount}
               title={customer ? customer.customer.name : 'Entrar / Minhas encomendas'} aria-label="Conta">

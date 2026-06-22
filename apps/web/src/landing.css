@@ -79,7 +79,12 @@
   display: inline-flex; align-items: center; gap: 8px;
   background: #ffffff1a; border: 1px solid #ffffff2e; color: #cfe0ff;
   font-size: 13px; font-weight: 700; padding: 7px 14px; border-radius: 999px; margin-bottom: 20px;
+  min-height: 32px; /* nao "salta" enquanto a frase se escreve/apaga */
 }
+/* Cursor da animação de auto-escrita (typewriter) */
+.tw-caret { display: inline-block; margin-left: 1px; font-weight: 400; animation: tw-blink 1s steps(1) infinite; }
+@keyframes tw-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tw-caret { animation: none; } }
 .lp-hero h1 {
   margin: 0 0 16px; color: #fff; font-weight: 900; letter-spacing: -0.5px;
   font-size: clamp(32px, 5vw, 56px); line-height: 1.05; max-width: 800px;

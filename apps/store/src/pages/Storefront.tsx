@@ -16,6 +16,7 @@ import { useStore } from '../state/StoreContext';
 import { useCustomer } from '../store/customer';
 import { CustomerModal } from '../components/CustomerModal';
 import { ProductCard } from '../components/ProductCard';
+import { Typewriter } from '../components/Typewriter';
 import { ProductPage } from './ProductPage';
 import { cartCount, cartTotal } from '../store/cart';
 import { Checkout } from '../views/Checkout';
@@ -241,7 +242,7 @@ export function Storefront() {
           <section className="ax-hero">
             <div className="ax-hero-tx">
               <h1>{data?.settings.brand_name || storeName}</h1>
-              <p>{data?.settings.tagline || 'Os melhores produtos, entregues em todo o Angola.'}</p>
+              <p><Typewriter text={data?.settings.tagline || 'Os melhores produtos, entregues em todo o Angola.'} /></p>
               <button className="btn lg" onClick={() => { setCat(''); setQuery(''); setView('results'); }}>Ver todos os produtos</button>
             </div>
             <div className="ax-hero-badges">

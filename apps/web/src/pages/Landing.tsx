@@ -10,6 +10,7 @@ import type {
 } from '../api/types';
 import { LOGO_SRC } from '../brand';
 import { IconBuilding, IconCheck, IconShield } from '../components/Icons';
+import { Typewriter } from '../components/Typewriter';
 import { SupportChat } from '../components/SupportChat';
 import { FeedbackSection } from '../components/FeedbackSection';
 
@@ -100,7 +101,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       <header className="lp-hero">
         <HeroCarousel images={heroImages} intervalMs={heroInterval} />
         <div className="lp-hero-inner">
-          <span className="badge-pill">🎁 {trialDays} dias grátis · sem cartão · cancele quando quiser</span>
+          <span className="badge-pill">🎁 <Typewriter text={`${trialDays} dias grátis · sem cartão · cancele quando quiser`} /></span>
           <h1>{cfg?.heroTitle ?? 'O sistema de gestão e vendas para Angola'}</h1>
           <p className="sub">
             {cfg?.heroSubtitle ??

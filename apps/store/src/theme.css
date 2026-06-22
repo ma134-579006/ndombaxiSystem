@@ -631,9 +631,32 @@ button, .btn, .add-btn, .chip, .product { -webkit-tap-highlight-color: transpare
 .ax-footer .store-info { font-weight: 800; color: var(--text); font-size: 15px; }
 .ax-footer .sig { margin-top: 8px; font-size: 12px; }
 
+/* Câmara DENTRO da pill de pesquisa (corrige o botao absoluto que partia o layout) */
+.ax-search-cam { display: inline-flex; align-items: center; flex: none; }
+.ax-search-cam .scan-btn { position: static; transform: none; width: 38px; height: 38px; border: none; background: transparent; color: var(--muted); }
+.ax-search-cam .scan-btn:hover { border: none; color: var(--accent); }
+
+/* Cursor da animação de auto-escrita (typewriter) */
+.tw-caret { display: inline-block; margin-left: 1px; font-weight: 400; animation: tw-blink 1s steps(1) infinite; }
+@keyframes tw-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tw-caret { animation: none; } }
+
 @media (max-width: 760px) {
-  .ax-bar { flex-wrap: wrap; gap: 10px; }
+  .ax-bar { flex-wrap: wrap; gap: 10px 8px; padding: 10px 14px; }
   .ax-search { order: 3; flex-basis: 100%; max-width: none; }
-  .ax-catbar { top: 0; }
+  .ax-catbar { position: static; top: auto; }   /* nao colar (o header passa a 2 linhas) */
+  .ax-catbar-in { padding: 9px 14px; }
   .ax-icon-btn .lbl { display: none; }
+  .ax-icon-btn { padding: 6px 8px; }
+  .ax-brand-tx .tg { display: none; }
+  .ax-brand img { height: 34px; }
+  .ax-brand-tx .nm { font-size: 16px; }
+  .ax-hero { flex-direction: column; align-items: flex-start; padding: 22px 18px; margin: 14px 0; gap: 14px; }
+  .ax-section { margin: 20px 0; }
+  .ax-section-title { font-size: 17px; }
+  .ax-pdp-price .val { font-size: 30px; }
+}
+@media (max-width: 380px) {
+  .ax-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .ax-price .val { font-size: 18px; }
 }

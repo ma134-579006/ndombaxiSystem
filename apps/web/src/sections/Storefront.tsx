@@ -182,8 +182,9 @@ export function Storefront() {
           <input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="ex.: NovaShop" />
         </div>
         <div className="field">
-          <label>Slogan</label>
-          <input value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="ex.: As melhores ofertas de Luanda" />
+          <label>Slogan (texto animado do topo da loja)</label>
+          <input value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="ex.: Os melhores produtos, entregues em todo o Angola" />
+          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>Aparece no banner da loja com animação de auto-escrita. Vazio → texto padrão.</p>
         </div>
       </div>
 
