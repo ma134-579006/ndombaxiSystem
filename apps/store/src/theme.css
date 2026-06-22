@@ -546,6 +546,28 @@ button, .btn, .add-btn, .chip, .product { -webkit-tap-highlight-color: transpare
 
 .ax-account-cta { margin-top: 14px; cursor: pointer; align-items: center; }
 
+/* Notas/CTA (criar conta, acompanhar encomenda) — robusto e 100% responsivo */
+.ax-cta { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
+  margin-top: 12px; padding: 13px 15px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, white); color: var(--text); }
+.ax-cta:hover { background: color-mix(in srgb, var(--accent) 13%, white); }
+.ax-cta .ic { flex: none; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-size: 19px;
+  background: color-mix(in srgb, var(--accent) 16%, white); }
+.ax-cta .tx { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.4; }
+.ax-cta .tx strong { color: var(--accent); }
+.ax-cta .chev { flex: none; color: var(--accent); }
+.ax-cta.danger { border-color: #f3b4b4; background: #fdeaea; }
+.ax-cta.danger .ic { background: #f7caca; }
+
+/* Toast de "adicionado ao carrinho" — não bloqueia a navegação */
+.ax-toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 90;
+  display: flex; align-items: center; gap: 9px; max-width: calc(100vw - 32px);
+  background: #16202c; color: #fff; padding: 12px 18px; border-radius: 999px; font-size: 14px; font-weight: 700;
+  box-shadow: 0 14px 34px -10px rgba(0,0,0,.5); animation: ax-toast-in .18s ease; }
+.ax-toast .v { font-weight: 900; color: #ffd9cf; }
+@keyframes ax-toast-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .ax-toast { animation: none; } }
+
 /* Secções */
 .ax-section { margin: 26px 0; }
 .ax-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
@@ -569,18 +591,23 @@ button, .btn, .add-btn, .chip, .product { -webkit-tap-highlight-color: transpare
 .ax-card-img img { width: 100%; height: 100%; object-fit: cover; }
 .ax-out { position: absolute; top: 8px; left: 8px; background: rgba(22,32,44,.82); color: #fff; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 7px; }
 .ax-out.lg { font-size: 14px; padding: 6px 12px; top: 12px; left: 12px; }
-.ax-card-body { position: relative; padding: 10px 11px 12px; display: flex; flex-direction: column; gap: 6px; }
+.ax-card-body { position: relative; flex: 1; padding: 10px 11px 12px; display: flex; flex-direction: column; gap: 6px; }
 .ax-card-name { font-size: 13.5px; line-height: 1.35; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; }
 .ax-price { display: flex; align-items: baseline; gap: 2px; color: var(--accent); font-weight: 900; }
 .ax-price .cur { font-size: 12px; }
 .ax-price .val { font-size: 20px; letter-spacing: -.02em; }
 .ax-card-tags { display: flex; flex-wrap: wrap; gap: 5px; }
-.ax-tag { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+.ax-tag { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ax-tag.ship { color: #15803d; background: #e9f7ef; border-color: #cdeede; }
 .ax-tag.low { color: #b45309; background: #fff5e6; border-color: #ffe3b8; }
-.ax-add { position: absolute; right: 10px; bottom: 12px; width: 34px; height: 34px; border-radius: 999px; border: none; cursor: pointer;
+/* Rodapé do cartão: preço à esquerda, "+" à direita — NUNCA sobrepõe (sem absolute) */
+.ax-card-foot { display: flex; align-items: center; gap: 8px; margin-top: auto; }
+.ax-card-foot .ax-price { flex: 1; min-width: 0; }
+.ax-card-foot .ax-price .val { overflow: hidden; text-overflow: ellipsis; }
+.ax-add { flex: none; width: 34px; height: 34px; border-radius: 999px; border: none; cursor: pointer;
   background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 16px -6px var(--accent); }
 .ax-add:hover { filter: brightness(1.07); }
+.ax-add:active { transform: scale(.94); }
 
 /* Resultados */
 .ax-results-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 16px 0 14px; }

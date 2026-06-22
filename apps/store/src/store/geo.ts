@@ -14,19 +14,40 @@ const MSG: Record<GeoErrorKind, string> = {
   timeout: 'Demorou a obter o GPS. Verifique o sinal e tente novamente.',
 };
 
-/** Pede UMA posição de alta precisão (para o checkout). Rejeita com GeoError. */
-export function getHighAccuracyPosition(timeoutMs = 20000): Promise<GeoFix> {
+/**
+ * Pede UMA posição (para o checkout). Tenta ALTA PRECISÃO (GPS) primeiro; se
+ * demorar/falhar o sinal (típico em interiores), faz fallback para precisão
+ * normal para não bloquear o cliente. PERMISSION_DENIED falha de imediato.
+ * Funciona em Chrome/Edge/Firefox/Safari (Windows, macOS, iOS, Android).
+ * Deve ser chamada DENTRO do gesto do utilizador (clique) — é o que fazemos.
+ */
+export function getHighAccuracyPosition(timeoutMs = 15000): Promise<GeoFix> {
   return new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       reject(new GeoError('unsupported', MSG.unsupported));
       return;
     }
+    // A Geolocation só funciona em contexto seguro (HTTPS). Em produção é HTTPS.
+    if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      reject(new GeoError('unavailable', 'A localização só funciona em ligação segura (HTTPS).'));
+      return;
+    }
+    const ok = (pos: GeolocationPosition) =>
+      resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy ?? 0 });
+    const fail = (err: GeolocationPositionError) => {
+      const kind: GeoErrorKind = err.code === err.PERMISSION_DENIED ? 'denied'
+        : err.code === err.TIMEOUT ? 'timeout' : 'unavailable';
+      reject(new GeoError(kind, MSG[kind]));
+    };
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy ?? 0 }),
+      ok,
       (err) => {
-        const kind: GeoErrorKind = err.code === err.PERMISSION_DENIED ? 'denied'
-          : err.code === err.TIMEOUT ? 'timeout' : 'unavailable';
-        reject(new GeoError(kind, MSG[kind]));
+        // Se o utilizador RECUSOU, não insistir. Caso contrário (timeout/sem
+        // sinal de GPS), tentar uma vez com precisão normal para não bloquear.
+        if (err.code === err.PERMISSION_DENIED) { fail(err); return; }
+        navigator.geolocation.getCurrentPosition(ok, fail, {
+          enableHighAccuracy: false, timeout: 12000, maximumAge: 60000,
+        });
       },
       { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 },
     );

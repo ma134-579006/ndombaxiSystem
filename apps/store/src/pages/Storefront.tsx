@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { CatalogProduct, CheckoutResult, PaymentMethod } from '../api/types';
 import { copyrightLine } from '../brand';
 import { Header } from '../components/Header';
@@ -48,7 +48,21 @@ export function Storefront() {
   const [trackId, setTrackId] = useState<string | null>(null);
   const [savedOrder, setSavedOrder] = useState<{ id: string; orderNumber: string } | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customer = useCustomer(code);
+
+  // Adiciona ao carrinho SEM abrir a gaveta (no telemóvel abrir a cada produto
+  // impedia continuar a comprar). Mostra um toast breve como confirmação.
+  const addWithToast = (p: CatalogProduct, qty = 1) => {
+    addToCart(p, qty);
+    setToast(p.name);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 1600);
+  };
+  const toastNode = toast ? (
+    <div className="ax-toast"><span aria-hidden>🛒</span> <span className="v">{toast}</span> <span>no carrinho</span></div>
+  ) : null;
 
   const openOrder = (orderId: string) => { setAccountOpen(false); setTrackId(orderId); setView('track'); };
   const accountModal = accountOpen
@@ -157,9 +171,10 @@ export function Storefront() {
       <ProductPage product={selected} storeName={storeName}
         related={related.length ? related : products.filter((p) => p.code !== selected.code).slice(0, 12)}
         onBack={() => setView(query || cat ? 'results' : 'home')}
-        onAdd={(p, q) => { addToCart(p, q); setCartOpen(true); }}
+        onAdd={(p, q) => addWithToast(p, q)}
         onBuyNow={buyNow} onOpen={openProduct} />
       {renderCart()}
+      {toastNode}
       <FooterBar />
     </>);
   }
@@ -257,15 +272,18 @@ export function Storefront() {
 
           {gateMsg && !customer ? <div className="banner danger" style={{ marginTop: 12 }}>{gateMsg}</div> : null}
           {!customer ? (
-            <div className="banner info ax-account-cta" onClick={() => setAccountOpen(true)}>
-              👤 <strong>Crie a sua conta grátis</strong> — para comprar, acompanhar encomendas e falar com a loja.
-              <span className="spacer" /><IconChevronRight size={18} />
-            </div>
+            <button className="ax-cta" onClick={() => setAccountOpen(true)}>
+              <span className="ic" aria-hidden>👤</span>
+              <span className="tx"><strong>Crie a sua conta grátis</strong> — para comprar, acompanhar encomendas e falar com a loja.</span>
+              <span className="chev" aria-hidden><IconChevronRight size={18} /></span>
+            </button>
           ) : null}
           {savedOrder ? (
-            <div className="banner info ax-account-cta" onClick={() => requireAccount('Entre na sua conta para acompanhar as suas encomendas.', () => { setTrackId(savedOrder.id); setView('track'); })}>
-              📦 Acompanhar a sua encomenda {savedOrder.orderNumber}<span className="spacer" /><IconChevronRight size={18} />
-            </div>
+            <button className="ax-cta" onClick={() => requireAccount('Entre na sua conta para acompanhar as suas encomendas.', () => { setTrackId(savedOrder.id); setView('track'); })}>
+              <span className="ic" aria-hidden>📦</span>
+              <span className="tx">Acompanhar a sua encomenda <strong>{savedOrder.orderNumber}</strong></span>
+              <span className="chev" aria-hidden><IconChevronRight size={18} /></span>
+            </button>
           ) : null}
 
           {/* Destaques (carrossel horizontal) */}
@@ -276,7 +294,7 @@ export function Storefront() {
                 <button className="ax-link" onClick={() => { setCat(''); setQuery(''); setView('results'); }}>Ver mais <IconChevronRight size={15} /></button>
               </div>
               <div className="ax-rail">
-                {featured.map((p) => <div className="ax-rail-item" key={p.code}><ProductCard product={p} onOpen={openProduct} onAdd={(x) => { addToCart(x); setCartOpen(true); }} /></div>)}
+                {featured.map((p) => <div className="ax-rail-item" key={p.code}><ProductCard product={p} onOpen={openProduct} onAdd={(x) => addWithToast(x)} /></div>)}
               </div>
             </section>
           ) : null}
@@ -288,7 +306,7 @@ export function Storefront() {
               <div className="empty"><IconImage size={48} /><p>A loja ainda não tem produtos visíveis.</p></div>
             ) : (
               <div className="ax-grid">
-                {products.map((p) => <ProductCard key={p.code} product={p} onOpen={openProduct} onAdd={(x) => { addToCart(x); setCartOpen(true); }} />)}
+                {products.map((p) => <ProductCard key={p.code} product={p} onOpen={openProduct} onAdd={(x) => addWithToast(x)} />)}
               </div>
             )}
           </section>
@@ -296,6 +314,7 @@ export function Storefront() {
 
         <FooterBar />
         {renderCart()}
+        {toastNode}
       </>
     );
   }
@@ -330,13 +349,14 @@ export function Storefront() {
           <div className="empty"><IconImage size={48} /><p>Nenhum produto encontrado.</p></div>
         ) : (
           <div className="ax-grid">
-            {results.map((p) => <ProductCard key={p.code} product={p} onOpen={openProduct} onAdd={(x) => { addToCart(x); setCartOpen(true); }} />)}
+            {results.map((p) => <ProductCard key={p.code} product={p} onOpen={openProduct} onAdd={(x) => addWithToast(x)} />)}
           </div>
         )}
       </div>
 
       <FooterBar />
       {renderCart()}
+      {toastNode}
     </>
   );
 }
