@@ -12,8 +12,10 @@ import { PasswordField } from '../components/PasswordField';
  */
 export function LoginPage() {
   const { loginStaff, loginGoogle } = useAuth();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => { try { return localStorage.getItem('ndx:caixa_remember_email') ?? ''; } catch { return ''; } });
+  const [remember, setRemember] = useState(() => { try { return !!localStorage.getItem('ndx:caixa_remember_email'); } catch { return false; } });
   const [pin, setPin] = useState('');
+  const [emailRO, setEmailRO] = useState(true); // anti-autofill (editável após focar)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forgot, setForgot] = useState(false);
@@ -27,6 +29,7 @@ export function LoginPage() {
     setError(null);
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setError('Indica o teu e-mail de funcionário.'); return; }
     if (!/^\d{4,8}$/.test(pin)) { setError('Digite o PIN (4 a 8 dígitos).'); return; }
+    try { if (remember) localStorage.setItem('ndx:caixa_remember_email', email.trim()); else localStorage.removeItem('ndx:caixa_remember_email'); } catch { /* */ }
     setLoading(true);
     try {
       await loginStaff(email, pin);
@@ -59,15 +62,19 @@ export function LoginPage() {
 
               <label className="auth-label">E-mail do funcionário</label>
               <input className="auth-input" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="voce@empresa.ao" inputMode="email" autoComplete="username"
+                placeholder="voce@empresa.ao" inputMode="email" type="text"
+                autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                name="ndx_field_acct" id="ndx_field_acct"
+                data-lpignore="true" data-1p-ignore data-form-type="other" data-bwignore="true"
+                readOnly={emailRO} onFocus={() => setEmailRO(false)} onPointerDown={() => setEmailRO(false)}
                 onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
 
               <label className="auth-label">PIN</label>
               <PasswordField value={pin} onChange={setPin} placeholder="••••" digitsOnly
-                inputMode="numeric" maxLength={8} autoComplete="current-password" onEnter={() => void submit()} />
+                inputMode="numeric" maxLength={8} autoComplete="off" onEnter={() => void submit()} />
 
               <div className="auth-sublinks">
-                <span />
+                <label className="auth-remember"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Lembrar-me</label>
                 <a onClick={() => setForgot(true)}>Esqueci o PIN</a>
               </div>
 

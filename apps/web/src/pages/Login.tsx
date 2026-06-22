@@ -31,6 +31,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   const [forgot, setForgot] = useState(false);
   const [email, setEmail] = useState(() => { try { return localStorage.getItem('ndx:remember_email') ?? ''; } catch { return ''; } });
   const [remember, setRemember] = useState(() => { try { return !!localStorage.getItem('ndx:remember_email'); } catch { return false; } });
+  const [emailRO, setEmailRO] = useState(true); // anti-autofill (editável após focar)
   const [password, setPassword] = useState('');
   const [twoFa, setTwoFa] = useState('');
   const [show2fa, setShow2fa] = useState(false);
@@ -107,7 +108,11 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
                 <>
                   <label className="auth-label">E-mail</label>
                   <input className="auth-input" value={email} onChange={(e) => setEmail(e.target.value)}
-                    placeholder="exemplo@empresa.ao" inputMode="email" autoComplete="off" name="ndx-user" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                    placeholder="exemplo@empresa.ao" inputMode="email" type="text"
+                    autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                    name="ndx_field_acct" id="ndx_field_acct"
+                    data-lpignore="true" data-1p-ignore data-form-type="other" data-bwignore="true"
+                    readOnly={emailRO} onFocus={() => setEmailRO(false)} onPointerDown={() => setEmailRO(false)}
                     onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
 
                   <label className="auth-label">Senha</label>

@@ -12,6 +12,9 @@ export function PasswordField(props: {
   onEnter?(): void;
 }) {
   const [show, setShow] = useState(false);
+  // Anti-autofill: começa readOnly (o browser não preenche ao carregar) e fica
+  // editável ao focar — sem quebrar o React (estado, não removeAttribute).
+  const [ro, setRo] = useState(true);
   return (
     <div className="auth-pass">
       <input
@@ -20,7 +23,18 @@ export function PasswordField(props: {
         value={props.value}
         inputMode={props.inputMode}
         maxLength={props.maxLength}
-        autoComplete={props.autoComplete}
+        autoComplete={props.autoComplete ?? 'off'}
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        name="ndx_field_secret"
+        data-lpignore="true"
+        data-1p-ignore
+        data-form-type="other"
+        data-bwignore="true"
+        readOnly={ro}
+        onFocus={() => setRo(false)}
+        onPointerDown={() => setRo(false)}
         placeholder={props.placeholder}
         onChange={(e) => props.onChange(props.digitsOnly ? e.target.value.replace(/\D/g, '').slice(0, props.maxLength ?? 8) : e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && props.onEnter) props.onEnter(); }}

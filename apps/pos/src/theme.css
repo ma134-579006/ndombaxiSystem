@@ -949,6 +949,8 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
 .auth-input::placeholder { color: #5d6b85; }
 .auth-input:focus { border-color: #7b5cff; box-shadow: 0 0 0 3px rgba(123,92,255,.22); }
 .auth-sublinks { display: flex; justify-content: space-between; align-items: center; margin: 12px 2px 18px; font-size: 13px; }
+.auth-remember { display: inline-flex; align-items: center; gap: 7px; color: #9fb0cc; cursor: pointer; user-select: none; }
+.auth-remember input { width: 16px; height: 16px; accent-color: #7b5cff; cursor: pointer; }
 .auth-sublinks a { color: #8ea6ff; cursor: pointer; text-decoration: none; }
 .auth-sublinks a:hover { text-decoration: underline; }
 .auth-btn { width: 100%; height: 52px; border: none; border-radius: 12px; cursor: pointer; color: #fff;
