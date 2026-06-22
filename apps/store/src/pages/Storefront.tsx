@@ -19,7 +19,7 @@ import { ProductCard } from '../components/ProductCard';
 import { Typewriter } from '../components/Typewriter';
 import { LiveLocation } from '../components/LiveLocation';
 import { ProductPage } from './ProductPage';
-import { cartCount, cartTotal } from '../store/cart';
+import { cartTotal } from '../store/cart';
 import { Checkout } from '../views/Checkout';
 import { Confirmation } from '../views/Confirmation';
 import { Track } from '../views/Track';
@@ -41,7 +41,6 @@ export function Storefront() {
   const [cartOpen, setCartOpen] = useState(false);
   const [selected, setSelected] = useState<CatalogProduct | null>(null);
   const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');       // pesquisa submetida (resultados)
   const [cat, setCat] = useState('');
   const [sort, setSort] = useState<Sort>('relevance');
   const [checkout, setCheckout] = useState<{ result: CheckoutResult; method: PaymentMethod | null } | null>(null);
@@ -99,7 +98,7 @@ export function Storefront() {
   const featured = useMemo(() => products.filter((p) => p.inStock).slice(0, 12), [products]);
 
   const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = search.trim().toLowerCase();
     let list = products.filter((p) => {
       if (cat && p.category !== cat) return false;
       if (!q) return true;
@@ -111,24 +110,21 @@ export function Storefront() {
     else if (sort === 'price-desc') list = [...list].sort((a, b) => b.grossPrice - a.grossPrice);
     else if (sort === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name));
     return list;
-  }, [products, query, cat, sort]);
+  }, [products, search, cat, sort]);
 
   const total = cartTotal(cart);
-  const count = cartCount(cart);
 
   const goHome = () => { setView('home'); setCartOpen(false); };
-  const doSearch = () => { setQuery(search); setCat(''); setView('results'); window.scrollTo({ top: 0 }); };
-  const openCategory = (c: string) => { setCat(c); setQuery(''); setSearch(''); setView('results'); window.scrollTo({ top: 0 }); };
+  const openCategory = (c: string) => { setCat(c); setSearch(''); setView('results'); window.scrollTo({ top: 0 }); };
   const openProduct = (p: CatalogProduct) => { setSelected(p); setView('product'); };
 
-  const scanResolve = (raw: string): boolean => {
-    const c = raw.trim();
-    if (!c) return false;
-    const p = products.find((x) => x.code.toLowerCase() === c.toLowerCase());
-    if (p && p.inStock) { addToCart(p); setCartOpen(true); return true; }
-    setSearch(c); setQuery(c); setView('results');
-    return false;
-  };
+  // Pesquisa AUTOMÁTICA: ao escrever, mostra os resultados; ao limpar (sem
+  // categoria) volta à página inicial. Não interfere com produto/checkout.
+  useEffect(() => {
+    if (search.trim() && view === 'home') setView('results');
+    else if (!search.trim() && !cat && view === 'results') setView('home');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   const onCheckoutDone = (result: CheckoutResult, method: PaymentMethod | null) => {
     setCheckout({ result, method });
@@ -146,7 +142,7 @@ export function Storefront() {
     onHome: goHome,
     onCart: () => setCartOpen(true),
     onAccount: () => setAccountOpen(true),
-    search, onSearchChange: setSearch, onSearchSubmit: doSearch, onScan: scanResolve,
+    search, onSearchChange: setSearch, onSearchSubmit: () => undefined,
   };
 
   // ── Vistas dedicadas (checkout/confirmação/track) ──
@@ -170,7 +166,7 @@ export function Storefront() {
     return (<><Header {...headerProps} />{accountModal}
       <ProductPage product={selected} storeName={storeName}
         related={related.length ? related : products.filter((p) => p.code !== selected.code).slice(0, 12)}
-        onBack={() => setView(query || cat ? 'results' : 'home')}
+        onBack={() => setView(search.trim() || cat ? 'results' : 'home')}
         onAdd={(p, q) => addWithToast(p, q)}
         onBuyNow={buyNow} onOpen={openProduct} />
       {renderCart()}
@@ -250,7 +246,7 @@ export function Storefront() {
         {/* Tira de categorias estilo AliExpress */}
         {categories.length > 0 ? (
           <div className="ax-catbar"><div className="wrap ax-catbar-in">
-            <button className="ax-catchip" onClick={() => { setCat(''); setQuery(''); setView('results'); }}>Todos os produtos</button>
+            <button className="ax-catchip" onClick={() => { setCat(''); setSearch(''); setView('results'); }}>Todos os produtos</button>
             {categories.map((c) => <button key={c} className="ax-catchip" onClick={() => openCategory(c)}>{c}</button>)}
           </div></div>
         ) : null}
@@ -261,7 +257,7 @@ export function Storefront() {
             <div className="ax-hero-tx">
               <h1>{data?.settings.brand_name || storeName}</h1>
               <p><Typewriter text={data?.settings.tagline || 'Os melhores produtos, entregues em todo o Angola.'} /></p>
-              <button className="btn lg" onClick={() => { setCat(''); setQuery(''); setView('results'); }}>Ver todos os produtos</button>
+              <button className="btn lg" onClick={() => { setCat(''); setSearch(''); setView('results'); }}>Ver todos os produtos</button>
             </div>
             <div className="ax-hero-badges">
               <div className="b"><span>🚚</span> Envio nacional</div>
@@ -291,7 +287,7 @@ export function Storefront() {
             <section className="ax-section">
               <div className="ax-section-head">
                 <h2 className="ax-section-title">⚡ Em destaque</h2>
-                <button className="ax-link" onClick={() => { setCat(''); setQuery(''); setView('results'); }}>Ver mais <IconChevronRight size={15} /></button>
+                <button className="ax-link" onClick={() => { setCat(''); setSearch(''); setView('results'); }}>Ver mais <IconChevronRight size={15} /></button>
               </div>
               <div className="ax-rail">
                 {featured.map((p) => <div className="ax-rail-item" key={p.code}><ProductCard product={p} onOpen={openProduct} onAdd={(x) => addWithToast(x)} /></div>)}
@@ -328,14 +324,14 @@ export function Storefront() {
       {categories.length > 0 ? (
         <div className="ax-catbar"><div className="wrap ax-catbar-in">
           <button className={`ax-catchip${cat === '' ? ' on' : ''}`} onClick={() => { setCat(''); }}>Todos</button>
-          {categories.map((c) => <button key={c} className={`ax-catchip${cat === c ? ' on' : ''}`} onClick={() => { setCat(c); setQuery(''); setSearch(''); }}>{c}</button>)}
+          {categories.map((c) => <button key={c} className={`ax-catchip${cat === c ? ' on' : ''}`} onClick={() => { setCat(c); setSearch(''); }}>{c}</button>)}
         </div></div>
       ) : null}
 
       <div className="wrap">
         <div className="ax-results-head">
           <div className="ax-results-title">
-            {query ? <>Resultados para “<strong>{query}</strong>”</> : cat ? <>{cat}</> : 'Todos os produtos'}
+            {search.trim() ? <>Resultados para “<strong>{search.trim()}</strong>”</> : cat ? <>{cat}</> : 'Todos os produtos'}
             <span className="ax-results-count">{results.length} produto(s)</span>
           </div>
           <div className="ax-sort">

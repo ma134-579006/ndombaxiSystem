@@ -3,7 +3,6 @@ import { useStore } from '../state/StoreContext';
 import { cartCount } from '../store/cart';
 import { useCustomer } from '../store/customer';
 import { IconCart, IconSearch, IconStore } from './Icons';
-import { BarcodeScanner } from './BarcodeScanner';
 import { ThemePicker } from './ThemePicker';
 
 function IconUser({ size = 22 }: { size?: number }) {
@@ -14,16 +13,26 @@ function IconUser({ size = 22 }: { size?: number }) {
   );
 }
 
-/** Cabeçalho estilo AliExpress: marca + barra de pesquisa grande (com câmara e
- *  botão laranja) + conta + carrinho. A pesquisa só aparece quando há handlers. */
-export function Header({ onHome, onCart, onAccount, search, onSearchChange, onSearchSubmit, onScan }: {
+/** Ícone de pesquisa por imagem (lente sobre foto) — estilo Google Lens. */
+function IconImageSearch({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9V6a2 2 0 0 1 2-2h3" /><path d="M21 9V6a2 2 0 0 0-2-2h-3" />
+      <path d="M3 15v3a2 2 0 0 0 2 2h3" /><circle cx="12" cy="12" r="3.2" /><path d="m20.5 20.5-2.3-2.3" />
+    </svg>
+  );
+}
+
+/** Cabeçalho estilo AliExpress: marca + barra de pesquisa AUTOMÁTICA (filtra ao
+ *  escrever, sem botão) + pesquisa por imagem + conta + carrinho. */
+export function Header({ onHome, onCart, onAccount, search, onSearchChange, onSearchSubmit, onImageSearch }: {
   onHome(): void;
   onCart(): void;
   onAccount?(): void;
   search?: string;
   onSearchChange?(v: string): void;
   onSearchSubmit?(): void;
-  onScan?(code: string): boolean;
+  onImageSearch?(): void;
 }) {
   const { data, cart, code } = useStore();
   const customer = useCustomer(code);
@@ -47,15 +56,20 @@ export function Header({ onHome, onCart, onAccount, search, onSearchChange, onSe
         </div>
 
         {showSearch ? (
-          <form className="ax-search" onSubmit={(e) => { e.preventDefault(); onSearchSubmit?.(); }}>
+          <form className="ax-search" onSubmit={(e) => e.preventDefault()} role="search">
+            <span className="ax-search-ic" aria-hidden><IconSearch size={19} /></span>
             <input
               value={value}
               onChange={(e) => change(e.target.value)}
               placeholder="Procurar produtos…"
               aria-label="Procurar"
+              autoComplete="off"
             />
-            {onScan ? <span className="ax-search-cam"><BarcodeScanner onDetected={onScan} /></span> : null}
-            <button type="submit" className="ax-search-btn" aria-label="Pesquisar"><IconSearch size={20} /></button>
+            {onImageSearch ? (
+              <button type="button" className="ax-search-cam" onClick={onImageSearch} title="Pesquisar por imagem (foto)" aria-label="Pesquisar por imagem">
+                <IconImageSearch size={20} />
+              </button>
+            ) : null}
           </form>
         ) : <span className="spacer" />}
 
