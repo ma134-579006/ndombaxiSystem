@@ -8,6 +8,13 @@ function grossUnit(p: Product): number {
   return Number(p.unit_price) * (1 + IVA_RATE[p.iva_code] / 100);
 }
 
+/** A câmara/scanner só faz sentido no telemóvel/tablet (tem câmara traseira e
+ *  ecrã tátil). No desktop usa-se a pesquisa por nome/código. */
+const IS_MOBILE = typeof navigator !== 'undefined' && (
+  /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile|BlackBerry/i.test(navigator.userAgent) ||
+  (navigator.maxTouchPoints > 1 && typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches)
+);
+
 /**
  * Consumo próprio do operador de caixa: pesquisa por nome ou código de barras
  * (com câmara para telemóveis), escolhe o produto e a quantidade; o sistema
@@ -76,7 +83,9 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
               <input value={search} onChange={(e) => setSearch(e.target.value)}
                 placeholder="Pesquisar por nome ou código de barras…" autoFocus />
             </div>
-            <button className={`consume-cam${scan ? ' on' : ''}`} onClick={() => setScan((v) => !v)} title="Ler com a câmara">📷</button>
+            {IS_MOBILE ? (
+              <button className={`consume-cam${scan ? ' on' : ''}`} onClick={() => setScan((v) => !v)} title="Ler com a câmara">📷</button>
+            ) : null}
           </div>
         ) : null}
 
@@ -104,7 +113,7 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
             </div>
           ) : (
             <>
-              {scan ? (
+              {scan && IS_MOBILE ? (
                 <div style={{ marginBottom: 14 }}>
                   <BarcodeScanner continuous onDetected={(code) => pickByCode(code)} />
                 </div>

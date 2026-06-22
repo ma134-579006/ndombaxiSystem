@@ -21,6 +21,7 @@ const seenLabel = (c: { online: boolean; last_seen_at: string | null }) => {
  *  selecionar/eliminar mensagens (estilo rede social). Guardado no servidor. */
 export function ChatModal({ meId, onClose, onRead }: { meId?: string; onClose(): void; onRead?(): void }) {
   const [contacts, setContacts] = useState<ChatContact[]>([]);
+  const [search, setSearch] = useState('');
   const [peer, setPeer] = useState<ChatContact | null>(null);
   const [msgs, setMsgs] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
@@ -62,6 +63,11 @@ export function ChatModal({ meId, onClose, onRead }: { meId?: string; onClose():
     try { await api.chatDelete([...sel]); setSel(new Set()); setSelMode(false); if (peer) await loadMsgs(peer); } catch { /* */ }
   };
 
+  const q = search.trim().toLowerCase();
+  const shownContacts = q
+    ? contacts.filter((c) => c.name.toLowerCase().includes(q) || (ROLE_LABEL[c.role] ?? c.role).toLowerCase().includes(q))
+    : contacts;
+
   return (
     <div className="modal-bg" onClick={onClose}>
       <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', maxHeight: 'calc(100dvh - 40px)', overflow: 'hidden' }}>
@@ -72,10 +78,20 @@ export function ChatModal({ meId, onClose, onRead }: { meId?: string; onClose():
               <span className="spacer" style={{ flex: 1 }} />
               <button className="trash" onClick={onClose} aria-label="Fechar"><IconClose size={22} /></button>
             </div>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', flex: 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-2, var(--bg-2))', border: '1px solid var(--border)', borderRadius: 12, padding: '0 12px' }}>
+                <span aria-hidden style={{ opacity: .7 }}>🔎</span>
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar por nome…"
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 14, padding: '10px 0' }} />
+                {search ? <button onClick={() => setSearch('')} aria-label="Limpar" style={{ background: 'transparent', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 16 }}>✕</button> : null}
+              </div>
+            </div>
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-              {contacts.length === 0 ? (
-                <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>Sem ninguém para conversar.</div>
-              ) : contacts.map((c) => (
+              {shownContacts.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
+                  {contacts.length === 0 ? 'Sem ninguém para conversar.' : 'Ninguém com esse nome.'}
+                </div>
+              ) : shownContacts.map((c) => (
                 <button key={c.id} onClick={() => { setSelMode(false); setSel(new Set()); setPeer(c); }}
                   style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text)' }}>
                   <span style={{ position: 'relative', width: 38, height: 38, borderRadius: 999, background: 'var(--surface-2, var(--bg-2))', display: 'grid', placeItems: 'center', fontWeight: 800, flex: 'none' }}>
