@@ -52,7 +52,9 @@ export function Checkout({
   const [municipality, setMunicipality] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const [address, setAddress] = useState('');
-  const [methodId, setMethodId] = useState<string>(() => methods[0]?.id ?? '');
+  // Forma de pagamento OBRIGATÓRIA: começa sem seleção — o cliente tem de
+  // escolher (IBAN/transferência, Multicaixa Express, Referência ou Numerário).
+  const [methodId, setMethodId] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(true); // mostra/esconde o formulário de dados
@@ -89,6 +91,10 @@ export function Checkout({
     setError(null);
     if (!name.trim() || !province.trim() || !municipality.trim() || !neighborhood.trim()) {
       setError('Preencha o nome e a localização (província, município e bairro).');
+      return;
+    }
+    if (!selected) {
+      setError('Escolha a forma de pagamento (IBAN/transferência, Multicaixa Express, Referência ou Numerário).');
       return;
     }
     setSubmitting(true);

@@ -26,6 +26,7 @@ import { SalesHistoryModal } from '../components/SalesHistoryModal';
 import { QueueModal } from '../components/QueueModal';
 import { ShiftModal } from '../components/ShiftModal';
 import { ChatModal } from '../components/ChatModal';
+import { CustomerChatModal } from '../components/CustomerChatModal';
 import { ThemePicker } from '../components/ThemePicker';
 import { PaymentModal } from '../components/PaymentModal';
 import { IconReceipt } from '../components/Icons';
@@ -55,9 +56,10 @@ function grossUnit(p: Product): number {
 
 /** Menu do operador (canto superior direito): avatar + seta → nome, email e
  *  terminar sessão. Fecha ao clicar fora. */
-function OperatorMenu({ photo, name, email, role, unread, onChat, onLogout }: {
-  photo: string | null; name: string; email: string; role: string; unread: number; onChat(): void; onLogout(): void;
+function OperatorMenu({ photo, name, email, role, unread, custUnread, onChat, onCustChat, onLogout }: {
+  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; onChat(): void; onCustChat(): void; onLogout(): void;
 }) {
+  const totalBadge = unread + custUnread;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -71,7 +73,7 @@ function OperatorMenu({ photo, name, email, role, unread, onChat, onLogout }: {
       <button className="op-menu-btn" onClick={() => setOpen((v) => !v)} title={name} aria-label="Conta do operador">
         {photo ? <img className="op-avatar" src={photo} alt={name} />
           : <span className="op-avatar op-avatar-ph"><IconUser size={18} /></span>}
-        {unread > 0 ? <span className="op-badge">{unread > 99 ? '99+' : unread}</span> : null}
+        {totalBadge > 0 ? <span className="op-badge">{totalBadge > 99 ? '99+' : totalBadge}</span> : null}
         <span className={`op-caret${open ? ' up' : ''}`}>▾</span>
       </button>
       {open ? (
@@ -88,6 +90,10 @@ function OperatorMenu({ photo, name, email, role, unread, onChat, onLogout }: {
           <button className="op-menu-item" onClick={() => { setOpen(false); onChat(); }}>
             <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💬</span> Chat com gerente
             {unread > 0 ? <span className="op-item-badge">{unread > 99 ? '99+' : unread}</span> : null}
+          </button>
+          <button className="op-menu-item" onClick={() => { setOpen(false); onCustChat(); }}>
+            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛍️</span> Chat com clientes
+            {custUnread > 0 ? <span className="op-item-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
           </button>
           <button className="op-menu-item danger" onClick={() => { setOpen(false); onLogout(); }}>
             <IconLogout size={17} /> Terminar sessão
@@ -145,9 +151,14 @@ export function PosPage() {
   // Chat de equipa (caixa ↔ gerente): badge de não-lidas + janela.
   const [showChat, setShowChat] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
+  const [showCustChat, setShowCustChat] = useState(false);
+  const [custUnread, setCustUnread] = useState(0);
   useEffect(() => {
     let alive = true;
-    const tick = () => { api.chatUnread().then((r) => { if (alive) setChatUnread(r.count); }).catch(() => undefined); };
+    const tick = () => {
+      api.chatUnread().then((r) => { if (alive) setChatUnread(r.count); }).catch(() => undefined);
+      api.custChatUnread().then((r) => { if (alive) setCustUnread(r.count); }).catch(() => undefined);
+    };
     tick();
     const t = window.setInterval(tick, 10000);
     return () => { alive = false; window.clearInterval(t); };
@@ -553,7 +564,9 @@ export function PosPage() {
             email={user?.email || ''}
             role={user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
             unread={chatUnread}
+            custUnread={custUnread}
             onChat={() => setShowChat(true)}
+            onCustChat={() => setShowCustChat(true)}
             onLogout={logout}
           />
         </header>
@@ -796,6 +809,10 @@ export function PosPage() {
 
       {showChat ? (
         <ChatModal meId={user?.sub} onClose={() => setShowChat(false)} onRead={() => setChatUnread(0)} />
+      ) : null}
+
+      {showCustChat ? (
+        <CustomerChatModal onClose={() => setShowCustChat(false)} onRead={() => setCustUnread(0)} />
       ) : null}
 
       {showPayment ? (

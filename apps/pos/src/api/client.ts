@@ -5,6 +5,8 @@ import type {
   ChatContact,
   ChatMessage,
   Customer,
+  CustomerChatMessage,
+  CustomerContact,
   DocumentIdentity,
   EmitInvoiceInput,
   EmittedInvoice,
@@ -173,4 +175,12 @@ export const api = {
   chatMarkRead: (peerId: string) => request<{ ok: boolean }>('POST', '/chat/read', { peerId }),
   chatDelete: (ids: string[]) => request<{ deleted: number }>('POST', '/chat/delete', { ids }),
   chatUnread: () => request<{ count: number }>('GET', '/chat/unread'),
+
+  // ── Chat com clientes da loja (caixa) ──────────────────────
+  custChatContacts: () => request<CustomerContact[]>('GET', '/ecommerce/customer-chat/contacts'),
+  custChatMessages: (customer: string) => request<CustomerChatMessage[]>('GET', `/ecommerce/customer-chat/messages?customer=${encodeURIComponent(customer)}`),
+  custChatSend: (customerId: string, body: string) => request<CustomerChatMessage>('POST', '/ecommerce/customer-chat/messages', { customerId, body }),
+  custChatMarkRead: (customerId: string) => request<{ ok: boolean }>('POST', '/ecommerce/customer-chat/read', { customerId }),
+  custChatDelete: (ids: string[]) => request<{ deleted: number }>('POST', '/ecommerce/customer-chat/delete', { ids }),
+  custChatUnread: () => request<{ count: number }>('GET', '/ecommerce/customer-chat/unread'),
 };
