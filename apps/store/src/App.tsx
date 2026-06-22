@@ -4,6 +4,7 @@ import { IconKeyboard, IconStore } from './components/Icons';
 import { KeyboardProvider, useKeyboard } from './keyboard/KeyboardProvider';
 import { KeyboardInput } from './keyboard/KeyboardInput';
 import { Storefront } from './pages/Storefront';
+import { StoreChat } from './components/StoreChat';
 import { StoreProvider, useStore } from './state/StoreContext';
 
 function Gate() {
@@ -77,7 +78,12 @@ function Gate() {
     );
   }
 
-  return <Storefront />;
+  return (
+    <>
+      <Storefront />
+      <StoreChat code={code} />
+    </>
+  );
 }
 
 export function App() {

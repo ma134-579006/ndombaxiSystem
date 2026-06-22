@@ -76,3 +76,7 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS chat_read_at
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."staff_messages" ADD COLUMN IF NOT EXISTS recipient_id UUID;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."staff_messages" ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+-- Chat com clientes da loja: presença e leitura (staff/cliente).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS staff_read_at TIMESTAMPTZ;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS customer_read_at TIMESTAMPTZ;

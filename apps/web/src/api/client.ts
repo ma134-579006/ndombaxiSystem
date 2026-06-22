@@ -569,6 +569,14 @@ export const api = {
     deactivate: (id: string) => request<ManagerStaff>('POST', `/staff/users/${id}/deactivate`),
     unlock: (id: string) => request<ManagerStaff>('POST', `/staff/users/${id}/unlock`),
   },
+  customerChat: {
+    contacts: () => request<CustomerContact[]>('GET', '/ecommerce/customer-chat/contacts'),
+    messages: (customer: string) => request<CustomerChatMessage[]>('GET', `/ecommerce/customer-chat/messages?customer=${encodeURIComponent(customer)}`),
+    send: (customerId: string, body: string) => request<CustomerChatMessage>('POST', '/ecommerce/customer-chat/messages', { customerId, body }),
+    markRead: (customerId: string) => request<{ ok: boolean }>('POST', '/ecommerce/customer-chat/read', { customerId }),
+    remove: (ids: string[]) => request<{ deleted: number }>('POST', '/ecommerce/customer-chat/delete', { ids }),
+    unread: () => request<{ count: number }>('GET', '/ecommerce/customer-chat/unread'),
+  },
   chat: {
     contacts: () => request<ChatContact[]>('GET', '/chat/contacts'),
     messages: (peer: string) => request<ChatMessage[]>('GET', `/chat/messages?peer=${encodeURIComponent(peer)}`),

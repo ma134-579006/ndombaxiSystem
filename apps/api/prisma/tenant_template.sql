@@ -845,3 +845,18 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."ai_messages" (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS ai_messages_user_idx ON "{{SCHEMA}}"."ai_messages"(user_id, created_at);
+
+-- ════════════════════════════════════════════════════════════
+-- CHAT com CLIENTES da loja online (livre, sem precisar de encomenda)
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."customer_messages" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE CASCADE,
+  sender_type  TEXT NOT NULL,            -- CUSTOMER | STAFF
+  sender_id    UUID,                     -- users.id quando STAFF
+  sender_name  TEXT NOT NULL,
+  body         TEXT NOT NULL,
+  deleted_at   TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS customer_messages_idx ON "{{SCHEMA}}"."customer_messages"(customer_id, created_at);

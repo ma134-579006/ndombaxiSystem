@@ -141,6 +141,9 @@ export interface ExpressPayInput {
 
 // ── Conta do cliente (login simples / Google) ───────────────
 export interface CustomerInfo { email: string; name: string }
+export interface StoreChatMessage {
+  id: string; customer_id: string; sender_type: 'CUSTOMER' | 'STAFF'; sender_id: string | null; sender_name: string; body: string; created_at: string;
+}
 export interface CustomerSession { token: string; customer: CustomerInfo }
 export interface CustomerProfile {
   name: string; email: string;

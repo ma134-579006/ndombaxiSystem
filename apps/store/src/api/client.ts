@@ -10,6 +10,7 @@ import type {
   OrderMessage,
   PaymentMethod,
   SiteResponse,
+  StoreChatMessage,
   UploadProofInput,
   WebOrder,
 } from './types';
@@ -95,4 +96,9 @@ export const api = {
     request<CustomerProfile>('GET', `/store/${enc(code)}/my/profile`, undefined, token),
   updateProfile: (code: string, token: string, profile: Partial<CustomerProfile>) =>
     request<CustomerProfile>('PUT', `/store/${enc(code)}/my/profile`, profile, token),
+  // Chat livre com a loja (cliente autenticado).
+  chatThread: (code: string, token: string) =>
+    request<{ messages: StoreChatMessage[]; staffOnline: boolean }>('GET', `/store/${enc(code)}/chat`, undefined, token),
+  chatSend: (code: string, token: string, body: string) =>
+    request<StoreChatMessage>('POST', `/store/${enc(code)}/chat`, { body }, token),
 };

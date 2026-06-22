@@ -254,6 +254,29 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .gate .card { max-width: 420px; width: 100%; text-align: center; margin: auto; }
 .gate .logo { width: clamp(48px, 8vh, 64px); height: clamp(48px, 8vh, 64px); border-radius: clamp(14px, 2.2vh, 18px); background: var(--accent); color: #fff; display: grid; place-items: center; margin: 0 auto clamp(8px, 1.6vh, 14px); }
 
+/* ── Chat flutuante com a loja ──────────────────────────── */
+.store-chat-fab { position: fixed; right: 18px; bottom: 18px; z-index: 80; width: 54px; height: 54px; border-radius: 999px;
+  background: var(--accent); color: #fff; border: none; cursor: pointer; display: grid; place-items: center;
+  box-shadow: 0 12px 30px -8px rgba(0,0,0,.45); }
+.store-chat-fab:active { transform: translateY(1px); }
+.store-chat { position: fixed; right: 18px; bottom: 84px; z-index: 81; width: min(380px, calc(100vw - 24px));
+  height: min(560px, calc(100dvh - 120px)); background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 30px 70px -20px rgba(0,0,0,.55); }
+.store-chat-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.store-chat-dot { width: 10px; height: 10px; border-radius: 999px; flex: none; }
+.store-chat-x { background: transparent; border: none; cursor: pointer; color: var(--muted); font-size: 18px; }
+.store-chat-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.store-msg { align-self: flex-start; max-width: 84%; }
+.store-msg.mine { align-self: flex-end; }
+.store-msg-from { font-size: 11px; color: var(--muted); margin: 0 0 2px 4px; }
+.store-msg-b { background: var(--surface-2, #eef1f6); color: var(--text); padding: 8px 12px; border-radius: 14px; font-size: 14px; line-height: 1.4; word-break: break-word; }
+.store-msg.mine .store-msg-b { background: var(--accent); color: #fff; }
+.store-msg-t { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.store-msg.mine .store-msg-t { text-align: right; }
+.store-chat-foot { display: flex; gap: 8px; align-items: flex-end; padding: 10px; border-top: 1px solid var(--border); }
+.store-chat-foot textarea { flex: 1; resize: none; min-height: 42px; max-height: 110px; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--bg, #fff); color: var(--text); font-size: 14px; font-family: inherit; }
+
 /* ── Rodapé (assinatura) ────────────────────────────────── */
 .footer { border-top: 1px solid var(--border); background: var(--surface); margin-top: 30px; }
 .footer .in { padding: 22px 20px; text-align: center; color: var(--muted); font-size: 13px; }

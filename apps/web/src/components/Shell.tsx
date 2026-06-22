@@ -6,6 +6,7 @@ import { IconLogout } from './Icons';
 import { ThemePicker } from './ThemePicker';
 import { PrintBrandHead, PrintBrandFoot } from './PrintBrand';
 import { ChatModal } from './ChatModal';
+import { CustomerChatModal } from './CustomerChatModal';
 
 /** Sino de notificações (Super Admin): conversas por responder + comentários
  *  novos do site — com badge e dropdown estilo rede social. */
@@ -221,10 +222,16 @@ export function Shell({
   // Chat de equipa (gestor ↔ caixa): badge de não-lidas + janela.
   const [chatOpen, setChatOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
+  // Chat com clientes da loja online.
+  const [custChatOpen, setCustChatOpen] = useState(false);
+  const [custUnread, setCustUnread] = useState(0);
   useEffect(() => {
     if (!isTenant) return;
     let alive = true;
-    const tick = () => { api.chat.unread().then((r) => { if (alive) setChatUnread(r.count); }).catch(() => undefined); };
+    const tick = () => {
+      api.chat.unread().then((r) => { if (alive) setChatUnread(r.count); }).catch(() => undefined);
+      api.customerChat.unread().then((r) => { if (alive) setCustUnread(r.count); }).catch(() => undefined);
+    };
     tick();
     const t = window.setInterval(tick, 10000);
     return () => { alive = false; window.clearInterval(t); };
@@ -311,6 +318,15 @@ export function Shell({
           <span className="spacer" />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
           {isTenant ? <OrdersBell onGo={() => setSection('orders')} /> : null}
+          {isTenant ? (
+            <button className="icon-btn noti-btn" onClick={() => setCustChatOpen(true)}
+              title={custUnread > 0 ? `${custUnread} mensagem(ns) de clientes` : 'Conversas com clientes'} aria-label="Conversas com clientes">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z" />
+              </svg>
+              {custUnread > 0 ? <span className="noti-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
+            </button>
+          ) : null}
           <ThemePicker />
           <ManagerMenu
             photo={avatar}
@@ -331,6 +347,9 @@ export function Shell({
       </div>
       {chatOpen ? (
         <ChatModal meId={user?.sub} title="Chat com a caixa" onClose={() => setChatOpen(false)} onRead={() => setChatUnread(0)} />
+      ) : null}
+      {custChatOpen ? (
+        <CustomerChatModal onClose={() => setCustChatOpen(false)} onRead={() => setCustUnread(0)} />
       ) : null}
     </div>
   );

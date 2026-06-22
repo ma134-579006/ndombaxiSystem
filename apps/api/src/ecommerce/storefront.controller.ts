@@ -11,6 +11,7 @@ import { ExpressPayDto } from './dto/express-pay.dto';
 import { PostMessageDto } from './dto/order-message.dto';
 import { CustomerAuthService } from './customer-auth.service';
 import { OrderChatService } from './order-chat.service';
+import { CustomerChatService } from './customer-chat.service';
 import { OrdersService } from './orders.service';
 import { StorefrontService } from './storefront.service';
 import { TenantResolverService } from './tenant-resolver.service';
@@ -27,8 +28,26 @@ export class StorefrontController {
     private readonly site: SiteService,
     private readonly payments: PaymentsService,
     private readonly chat: OrderChatService,
+    private readonly customerChat: CustomerChatService,
     private readonly customers: CustomerAuthService,
   ) {}
+
+  // ── Chat livre com a loja (cliente autenticado, sem encomenda) ─
+  @Get('chat')
+  @ApiOperation({ summary: 'Conversa livre do cliente com a loja (+ equipa online)' })
+  async chatThread(@Param('code') code: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.customerChat.customerThread(tenant.schema, claims.email);
+  }
+
+  @Post('chat')
+  @ApiOperation({ summary: 'Cliente envia mensagem livre à loja' })
+  async chatSend(@Param('code') code: string, @Body() dto: PostMessageDto, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.customerChat.customerSend(tenant.schema, claims.email, claims.name, dto.body);
+  }
 
   // ── Conta do cliente (login simples / Google) ──────────────
   @Post('auth/email')
