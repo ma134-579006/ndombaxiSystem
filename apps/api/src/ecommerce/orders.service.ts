@@ -165,6 +165,64 @@ export class OrdersService {
     return { orderId, invoiceNumber: paid.invoiceNumber, verified: true };
   }
 
+  /**
+   * Reconhecimento AUTOMÁTICO de um pagamento por REFERÊNCIA Multicaixa (EMIS).
+   * Chamado pelo callback da EMIS (ou por confirmação do gestor): localiza a
+   * encomenda PENDING com aquela entidade+referência, valida o valor, regista o
+   * comprovativo já APROVADO e emite a factura — a encomenda fica PAID SEM
+   * aprovação manual ("done" → aprovação automática).
+   *
+   * Idempotente: se a encomenda já estiver paga, devolve o estado sem duplicar.
+   */
+  async confirmReferencePayment(
+    schema: string,
+    input: { entity?: string; reference: string; amount?: number },
+  ): Promise<{ orderId: string; invoiceNumber: string | null; status: string; alreadyPaid: boolean }> {
+    const reference = String(input.reference ?? '').replace(/\D/g, '');
+    if (!reference) throw new BadRequestException('Referência em falta.');
+
+    // Localiza a encomenda por referência (e entidade, se fornecida).
+    const orders = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<(OrderRow & { gross_total: string })[]>(
+        input.entity
+          ? Prisma.sql`SELECT id, order_number, status, customer_tax_id, invoice_id, gross_total
+                       FROM web_orders
+                       WHERE payment_reference = ${reference} AND payment_entity = ${String(input.entity)}
+                       ORDER BY created_at DESC LIMIT 1`
+          : Prisma.sql`SELECT id, order_number, status, customer_tax_id, invoice_id, gross_total
+                       FROM web_orders
+                       WHERE payment_reference = ${reference}
+                       ORDER BY created_at DESC LIMIT 1`,
+      ),
+    );
+    const order = orders[0];
+    if (!order) throw new NotFoundException('Nenhuma encomenda corresponde a esta referência.');
+
+    // Já paga (callback repetido) → idempotente.
+    if (order.status !== 'PENDING') {
+      return { orderId: order.id, invoiceNumber: null, status: order.status, alreadyPaid: true };
+    }
+
+    // Valida o valor pago (tolerância de 1 Kwanza para arredondamentos).
+    if (typeof input.amount === 'number' && Number.isFinite(input.amount)) {
+      const expected = Number(order.gross_total);
+      if (Math.abs(expected - input.amount) > 1) {
+        throw new BadRequestException(
+          `Valor pago (${input.amount}) não corresponde ao total da encomenda (${expected}).`,
+        );
+      }
+    }
+
+    // Regista o comprovativo já aprovado (trilho de auditoria) e emite a factura.
+    await this.payments.recordReferenceProof(schema, order.id, {
+      amount: Number(order.gross_total),
+      reference,
+      note: `Pagamento por referência reconhecido automaticamente (entidade ${input.entity ?? '—'}; ref ${reference}).`,
+    });
+    const paid = await this.pay(schema, order.id);
+    return { orderId: order.id, invoiceNumber: paid.invoiceNumber, status: 'PAID', alreadyPaid: false };
+  }
+
   /** Transições logísticas simples PAID → SHIPPED → DELIVERED. */
   async setStatus(schema: string, orderId: string, next: 'SHIPPED' | 'DELIVERED' | 'CANCELLED'): Promise<void> {
     const allowed: Record<string, string[]> = {

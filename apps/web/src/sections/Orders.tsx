@@ -151,6 +151,10 @@ export function Orders() {
             <span className="v">{[detail.neighborhood, detail.municipality, detail.province].filter(Boolean).join(', ') || '—'}</span>
           </div>
           <div className="kv"><span className="k">Pagamento</span><span className="v">{detail.payment_method || '—'}</span></div>
+          {detail.payment_reference ? (
+            <div className="kv"><span className="k">Referência</span>
+              <span className="v">{detail.payment_entity ? `Ent. ${detail.payment_entity} · ` : ''}{detail.payment_reference}</span></div>
+          ) : null}
 
           <div style={{ borderTop: '1px solid var(--border)', margin: '12px 0', paddingTop: 10 }}>
             <strong style={{ fontSize: 14 }}>Artigos</strong>
@@ -170,6 +174,17 @@ export function Orders() {
                 <button className="btn success" disabled={busy} onClick={() => act(() => api.orders.pay(detail.id))}>
                   Confirmar pagamento
                 </button>
+                {detail.payment_reference ? (
+                  <button className="btn" disabled={busy}
+                    title="Reconhece o pagamento por referência e aprova a encomenda automaticamente"
+                    onClick={() => act(() => api.orders.confirmReference({
+                      entity: detail.payment_entity ?? undefined,
+                      reference: detail.payment_reference!,
+                      amount: Number(detail.gross_total),
+                    }))}>
+                    Confirmar referência paga
+                  </button>
+                ) : null}
                 <button className="btn ghost" disabled={busy} onClick={() => act(() => api.orders.cancel(detail.id))}>
                   Cancelar
                 </button>

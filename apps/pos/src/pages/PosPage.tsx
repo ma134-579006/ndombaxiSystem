@@ -50,16 +50,27 @@ const ROLE_LABELS: Record<string, string> = {
   ATTENDANT: 'Atendedor',
 };
 
+/** Nível de cada papel (0 = mais poder), igual ao backend (rbac/roles.enum). */
+const ROLE_LEVEL: Record<string, number> = {
+  SUPER_ADMIN: 0, COMPANY_ADMIN: 1, REGIONAL_MANAGER: 2, STORE_MANAGER: 3,
+  SHIFT_SUPERVISOR: 4, CASHIER: 5, ATTENDANT: 6,
+};
+
+/** Chat com clientes da loja: só supervisor e acima (NÃO o operador de caixa). */
+function canChatCustomers(role?: string): boolean {
+  return (ROLE_LEVEL[role ?? ''] ?? 6) <= ROLE_LEVEL.SHIFT_SUPERVISOR;
+}
+
 function grossUnit(p: Product): number {
   return Number(p.unit_price) * (1 + IVA_RATE[p.iva_code] / 100);
 }
 
 /** Menu do operador (canto superior direito): avatar + seta → nome, email e
  *  terminar sessão. Fecha ao clicar fora. */
-function OperatorMenu({ photo, name, email, role, unread, custUnread, onChat, onCustChat, onLogout }: {
-  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; onChat(): void; onCustChat(): void; onLogout(): void;
+function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustChat, onChat, onCustChat, onLogout }: {
+  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; canCustChat: boolean; onChat(): void; onCustChat(): void; onLogout(): void;
 }) {
-  const totalBadge = unread + custUnread;
+  const totalBadge = unread + (canCustChat ? custUnread : 0);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -91,10 +102,12 @@ function OperatorMenu({ photo, name, email, role, unread, custUnread, onChat, on
             <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💬</span> Chat com gerente
             {unread > 0 ? <span className="op-item-badge">{unread > 99 ? '99+' : unread}</span> : null}
           </button>
-          <button className="op-menu-item" onClick={() => { setOpen(false); onCustChat(); }}>
-            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛍️</span> Chat com clientes
-            {custUnread > 0 ? <span className="op-item-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
-          </button>
+          {canCustChat ? (
+            <button className="op-menu-item" onClick={() => { setOpen(false); onCustChat(); }}>
+              <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛍️</span> Chat com clientes
+              {custUnread > 0 ? <span className="op-item-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
+            </button>
+          ) : null}
           <button className="op-menu-item danger" onClick={() => { setOpen(false); onLogout(); }}>
             <IconLogout size={17} /> Terminar sessão
           </button>
@@ -153,16 +166,18 @@ export function PosPage() {
   const [chatUnread, setChatUnread] = useState(0);
   const [showCustChat, setShowCustChat] = useState(false);
   const [custUnread, setCustUnread] = useState(0);
+  // O operador de caixa não tem chat com clientes — só supervisor e acima.
+  const custChatAllowed = canChatCustomers(user?.role);
   useEffect(() => {
     let alive = true;
     const tick = () => {
       api.chatUnread().then((r) => { if (alive) setChatUnread(r.count); }).catch(() => undefined);
-      api.custChatUnread().then((r) => { if (alive) setCustUnread(r.count); }).catch(() => undefined);
+      if (custChatAllowed) api.custChatUnread().then((r) => { if (alive) setCustUnread(r.count); }).catch(() => undefined);
     };
     tick();
     const t = window.setInterval(tick, 10000);
     return () => { alive = false; window.clearInterval(t); };
-  }, []);
+  }, [custChatAllowed]);
 
   const [emitting, setEmitting] = useState(false);
   const [emitError, setEmitError] = useState<string | null>(null);
@@ -565,6 +580,7 @@ export function PosPage() {
             role={user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
             unread={chatUnread}
             custUnread={custUnread}
+            canCustChat={canChatCustomers(user?.role)}
             onChat={() => setShowChat(true)}
             onCustChat={() => setShowCustChat(true)}
             onLogout={logout}
@@ -811,7 +827,7 @@ export function PosPage() {
         <ChatModal meId={user?.sub} onClose={() => setShowChat(false)} onRead={() => setChatUnread(0)} />
       ) : null}
 
-      {showCustChat ? (
+      {showCustChat && custChatAllowed ? (
         <CustomerChatModal onClose={() => setShowCustChat(false)} onRead={() => setCustUnread(0)} />
       ) : null}
 

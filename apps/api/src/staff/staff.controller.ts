@@ -34,15 +34,15 @@ export class StaffController {
   }
 
   @Post('stores')
-  @Roles(Role.COMPANY_ADMIN)
-  @ApiOperation({ summary: 'Cria uma loja' })
+  @Roles(Role.REGIONAL_MANAGER)
+  @ApiOperation({ summary: 'Cria uma loja (gerente regional e admin; o gerente de loja não pode)' })
   createStore(@Body() dto: CreateStoreDto, @CurrentUser() user: JwtPayload) {
     return this.staff.createStore(this.ctx.requireTenantSchema(), this.actor(user), dto);
   }
 
   @Patch('stores/:id')
-  @Roles(Role.COMPANY_ADMIN)
-  @ApiOperation({ summary: 'Actualiza uma loja' })
+  @Roles(Role.REGIONAL_MANAGER)
+  @ApiOperation({ summary: 'Actualiza uma loja (gerente regional e admin)' })
   updateStore(@Param('id') id: string, @Body() dto: UpdateStoreDto) {
     return this.staff.updateStore(this.ctx.requireTenantSchema(), id, dto);
   }

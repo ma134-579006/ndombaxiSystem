@@ -45,14 +45,21 @@ export class OrdersController {
   }
 
   @Post('proofs/:proofId/approve')
-  @Roles(Role.STORE_MANAGER)
-  @ApiOperation({ summary: 'Aprova o comprovativo (transferência/referência) e emite a factura' })
+  @Roles(Role.SHIFT_SUPERVISOR)
+  @ApiOperation({ summary: 'Aprova o comprovativo (transferência/referência) e emite a factura — supervisor, gestor e gerente' })
   approveProof(
     @Param('proofId') proofId: string,
     @Body('note') note: string | undefined,
     @CurrentUser() user: JwtPayload,
   ) {
     return this.orders.approveProofAndPay(this.ctx.requireTenantSchema(), proofId, user?.sub, note);
+  }
+
+  @Post('reference/confirm')
+  @Roles(Role.SHIFT_SUPERVISOR)
+  @ApiOperation({ summary: 'Confirma manualmente um pagamento por referência → aprova a encomenda automaticamente' })
+  confirmReference(@Body() dto: { entity?: string; reference: string; amount?: number }) {
+    return this.orders.confirmReferencePayment(this.ctx.requireTenantSchema(), dto);
   }
 
   @Post(':id/ship')

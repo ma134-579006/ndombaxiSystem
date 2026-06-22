@@ -7,6 +7,7 @@ import { ThemePicker } from './ThemePicker';
 import { PrintBrandHead, PrintBrandFoot } from './PrintBrand';
 import { ChatModal } from './ChatModal';
 import { CustomerChatModal } from './CustomerChatModal';
+import { CAIXA_URL } from '../config';
 
 /** Sino de notificações (Super Admin): conversas por responder + comentários
  *  novos do site — com badge e dropdown estilo rede social. */
@@ -109,10 +110,10 @@ function IconGear({ size = 17 }: { size?: number }) {
 
 /** Menu da conta do gestor (canto superior direito): avatar + seta → nome,
  *  email, Configurações e Terminar sessão. Fecha ao clicar fora. */
-function ManagerMenu({ photo, name, email, role, unread, custUnread, onChat, onCustChat, onSettings, onLogout }: {
-  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; onChat(): void; onCustChat(): void; onSettings(): void; onLogout(): void;
+function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat, canOpenCash, onOpenCash, onChat, onCustChat, onSettings, onLogout }: {
+  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; canCustChat: boolean; canOpenCash: boolean; onOpenCash(): void; onChat(): void; onCustChat(): void; onSettings(): void; onLogout(): void;
 }) {
-  const totalBadge = unread + custUnread;
+  const totalBadge = unread + (canCustChat ? custUnread : 0);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -138,20 +139,37 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, onChat, onC
               <div className="acct-role">{role}</div>
             </div>
           </div>
+          {canOpenCash ? (
+            <button className="acct-item" onClick={() => { setOpen(false); onOpenCash(); }}>
+              <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛒</span> Abrir caixa
+            </button>
+          ) : null}
           <button className="acct-item" onClick={() => { setOpen(false); onChat(); }}>
             <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💬</span> Chat com caixa
             {unread > 0 ? <span className="acct-item-badge">{unread > 99 ? '99+' : unread}</span> : null}
           </button>
-          <button className="acct-item" onClick={() => { setOpen(false); onCustChat(); }}>
-            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛍️</span> Chat com clientes
-            {custUnread > 0 ? <span className="acct-item-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
-          </button>
+          {canCustChat ? (
+            <button className="acct-item" onClick={() => { setOpen(false); onCustChat(); }}>
+              <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛍️</span> Chat com clientes
+              {custUnread > 0 ? <span className="acct-item-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
+            </button>
+          ) : null}
           <button className="acct-item" onClick={() => { setOpen(false); onSettings(); }}><IconGear size={17} /> Configurações</button>
           <button className="acct-item danger" onClick={() => { setOpen(false); onLogout(); }}><IconLogout size={17} /> Terminar sessão</button>
         </div>
       ) : null}
     </div>
   );
+}
+
+/** Nível de cada papel (0 = mais poder), igual ao backend (rbac/roles.enum). */
+const ROLE_LEVEL: Record<string, number> = {
+  SUPER_ADMIN: 0, COMPANY_ADMIN: 1, REGIONAL_MANAGER: 2, STORE_MANAGER: 3,
+  SHIFT_SUPERVISOR: 4, CASHIER: 5, ATTENDANT: 6,
+};
+/** Chat com clientes: só supervisor e acima (NÃO operador de caixa nem atendente). */
+function canChatCustomers(role?: string): boolean {
+  return (ROLE_LEVEL[role ?? ''] ?? 6) <= ROLE_LEVEL.SHIFT_SUPERVISOR;
 }
 
 /** Item de navegação genérico (serve os dois painéis: plataforma e gestor). */
@@ -227,20 +245,21 @@ export function Shell({
   // Chat de equipa (gestor ↔ caixa): badge de não-lidas + janela.
   const [chatOpen, setChatOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
-  // Chat com clientes da loja online.
+  // Chat com clientes da loja online — só supervisor e acima.
   const [custChatOpen, setCustChatOpen] = useState(false);
   const [custUnread, setCustUnread] = useState(0);
+  const custChatAllowed = canChatCustomers(user?.role);
   useEffect(() => {
     if (!isTenant) return;
     let alive = true;
     const tick = () => {
       api.chat.unread().then((r) => { if (alive) setChatUnread(r.count); }).catch(() => undefined);
-      api.customerChat.unread().then((r) => { if (alive) setCustUnread(r.count); }).catch(() => undefined);
+      if (custChatAllowed) api.customerChat.unread().then((r) => { if (alive) setCustUnread(r.count); }).catch(() => undefined);
     };
     tick();
     const t = window.setInterval(tick, 10000);
     return () => { alive = false; window.clearInterval(t); };
-  }, [isTenant]);
+  }, [isTenant, custChatAllowed]);
 
   // Fecha a gaveta ao mudar de secção (importante no telemóvel).
   useEffect(() => { setMenuOpen(false); }, [section]);
@@ -331,6 +350,15 @@ export function Shell({
             role={`${roleLabel}${companyCode ? ` · ${companyCode}` : ''}`}
             unread={isTenant ? chatUnread : 0}
             custUnread={isTenant ? custUnread : 0}
+            canCustChat={isTenant && custChatAllowed}
+            canOpenCash={isTenant && (ROLE_LEVEL[user?.role ?? ''] ?? 9) <= ROLE_LEVEL.SHIFT_SUPERVISOR}
+            onOpenCash={() => {
+              const p = new URLSearchParams();
+              p.set('staff', user?.email || '');
+              if (user?.name) p.set('nome', user.name);
+              if (companyCode) p.set('empresa', companyCode);
+              window.open(`${CAIXA_URL}/?${p.toString()}`, '_blank', 'noopener');
+            }}
             onChat={() => setChatOpen(true)}
             onCustChat={() => setCustChatOpen(true)}
             onSettings={() => setSection('profile')}
@@ -346,7 +374,7 @@ export function Shell({
       {chatOpen ? (
         <ChatModal meId={user?.sub} title="Chat com a caixa" onClose={() => setChatOpen(false)} onRead={() => setChatUnread(0)} />
       ) : null}
-      {custChatOpen ? (
+      {custChatOpen && custChatAllowed ? (
         <CustomerChatModal onClose={() => setCustChatOpen(false)} onRead={() => setCustUnread(0)} />
       ) : null}
     </div>

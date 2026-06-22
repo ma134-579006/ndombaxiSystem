@@ -965,6 +965,14 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
 .auth-google { display: flex; justify-content: center; }
 .auth-error { background: rgba(239,68,68,.14); border: 1px solid rgba(239,68,68,.4); color: #fecaca;
   border-radius: 11px; padding: 11px 13px; font-size: 13.5px; font-weight: 600; margin-bottom: 14px; }
+
+/* «Abrir caixa» — cartão de perfil identificado, só PIN */
+.handoff-card { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 22px; }
+.handoff-avatar { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 26px; font-weight: 800; color: #fff; letter-spacing: .5px; margin-bottom: 14px;
+  background: linear-gradient(135deg, #4f7cff, #7c4dff); box-shadow: 0 8px 26px rgba(79,124,255,.45); }
+.handoff-name { font-size: 17px; font-weight: 700; color: #fff; }
+.handoff-email { font-size: 13px; color: #8794ad; margin-top: 2px; }
 .auth-media { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #050b18; }
 .auth-media .login-video { z-index: 0; }
 .auth-media .login-video-veil { display: none; }

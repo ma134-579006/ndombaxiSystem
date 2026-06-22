@@ -322,6 +322,8 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."web_orders" (
   municipality     TEXT,
   neighborhood     TEXT,
   payment_method   TEXT,                            -- BANK_TRANSFER/REFERENCE/MULTICAIXA_EXPRESS/CASH
+  payment_entity    TEXT,                           -- Entidade EMIS (5 díg.) da referência gerada
+  payment_reference TEXT,                           -- Referência Multicaixa gerada para esta encomenda
   status           TEXT NOT NULL DEFAULT 'PENDING', -- PENDING/PAID/SHIPPED/DELIVERED/CANCELLED
   net_total        NUMERIC(14,2) NOT NULL,
   iva_total        NUMERIC(14,2) NOT NULL,
@@ -374,6 +376,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."employees" (
   absence_discount_pct NUMERIC(5,2) NOT NULL DEFAULT 0, -- % de desconto por faltas
   iban             TEXT,
   photo_url        TEXT,                                -- foto do funcionário (data-URI/URL)
+  user_id          UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL, -- login associado (p/ consumo próprio)
   status           TEXT NOT NULL DEFAULT 'ACTIVE',      -- ACTIVE/SUSPENDED/TERMINATED
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -381,6 +384,27 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."employees" (
 );
 
 CREATE INDEX IF NOT EXISTS employees_status_idx ON "{{SCHEMA}}"."employees"(status);
+
+-- Consumo próprio dos funcionários (descontado no salário em RH).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."employee_consumptions" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  employee_id     UUID REFERENCES "{{SCHEMA}}"."employees"(id) ON DELETE SET NULL,
+  staff_name      TEXT NOT NULL,
+  product_id      UUID REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE SET NULL,
+  product_code    TEXT NOT NULL,
+  description     TEXT NOT NULL,
+  quantity        NUMERIC(14,3) NOT NULL,
+  unit_price      NUMERIC(14,2) NOT NULL,
+  total           NUMERIC(14,2) NOT NULL,
+  reason          TEXT NOT NULL DEFAULT 'SELF_CONSUMPTION',
+  status          TEXT NOT NULL DEFAULT 'PENDING',
+  payroll_item_id UUID,
+  store_id        UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS emp_consumption_user_idx   ON "{{SCHEMA}}"."employee_consumptions"(user_id);
+CREATE INDEX IF NOT EXISTS emp_consumption_status_idx ON "{{SCHEMA}}"."employee_consumptions"(status);
 
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."payroll_runs" (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),

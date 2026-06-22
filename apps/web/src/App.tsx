@@ -72,16 +72,18 @@ const PLATFORM_NAV: NavItem[] = [
 ];
 
 // min: nível mínimo de papel (0=mais poder). 1=COMPANY_ADMIN, 2=REGIONAL_MANAGER,
-// 3=STORE_MANAGER. Omisso → 3 (visível a gerente de loja e acima).
+// 3=STORE_MANAGER, 4=SHIFT_SUPERVISOR. Omisso → 3 (visível a gerente de loja e acima).
+// O supervisor (4) entra no painel mas só vê monitorização/aprovação (min:4); o
+// CRUD do sistema continua reservado a gerente de loja e acima (backend e nav).
 const TENANT_NAV: NavItem[] = [
-  { key: 'overview', label: 'Visão geral', icon: IconChart },
+  { key: 'overview', label: 'Visão geral', icon: IconChart, min: 4 },
   { key: 'assistant', label: 'Assistente IA', icon: IconCpu, min: 2 },
   { key: 'subscription', label: 'Subscrição & Plano', icon: IconCard, min: 1 },
   {
     key: 'stores-group', label: 'Lojas', icon: IconStore, children: [
       { key: 'stores', label: 'Criar lojas', icon: IconStore, min: 2 },
       { key: 'store', label: 'Loja & Marca', icon: IconStore, min: 1 },
-      { key: 'orders', label: 'Encomendas', icon: IconTruck },
+      { key: 'orders', label: 'Encomendas', icon: IconTruck, min: 4 },
       { key: 'commissions', label: 'Comissões', icon: IconStar, min: 2 },
     ],
   },
@@ -89,7 +91,7 @@ const TENANT_NAV: NavItem[] = [
     key: 'products-group', label: 'Produtos', icon: IconCube, children: [
       { key: 'products', label: 'Criar produtos', icon: IconCube },
       { key: 'inventory', label: 'Inventário', icon: IconTruck },
-      { key: 'stock-analysis', label: 'Análise de stock', icon: IconChart },
+      { key: 'stock-analysis', label: 'Análise de stock', icon: IconChart, min: 4 },
       { key: 'stock-movements', label: 'Movimentos de stock', icon: IconChart },
       { key: 'purchasing', label: 'Compras', icon: IconTruck, min: 2 },
       { key: 'promotions', label: 'Promoções', icon: IconStar },
@@ -108,7 +110,7 @@ const TENANT_NAV: NavItem[] = [
       { key: 'payables', label: 'Contas a Pagar', icon: IconTruck, min: 2 },
       { key: 'receivables', label: 'Contas a Receber', icon: IconCard, min: 2 },
       { key: 'accounting', label: 'Contabilidade', icon: IconReceipt, min: 2 },
-      { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart },
+      { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart, min: 4 },
       { key: 'reports', label: 'Relatórios', icon: IconChart },
     ],
   },

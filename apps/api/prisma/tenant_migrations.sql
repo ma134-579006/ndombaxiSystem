@@ -80,3 +80,35 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS last_seen_at
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS staff_read_at TIMESTAMPTZ;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS customer_read_at TIMESTAMPTZ;
+
+-- Pagamento por referência Multicaixa nas encomendas online: guarda a entidade
+-- EMIS e a referência gerada → permite reconhecer o pagamento (callback EMIS) e
+-- aprovar a encomenda automaticamente.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS payment_entity    TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS payment_reference TEXT;
+CREATE INDEX IF NOT EXISTS web_orders_reference_idx ON "{{SCHEMA}}"."web_orders"(payment_reference);
+
+-- Liga um utilizador (login) ao seu registo de funcionário em RH, para que o
+-- consumo próprio seja descontado no salário certo.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."employees" ADD COLUMN IF NOT EXISTS user_id UUID;
+
+-- Consumo próprio dos funcionários (descontado no salário em RH).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."employee_consumptions" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  employee_id     UUID REFERENCES "{{SCHEMA}}"."employees"(id) ON DELETE SET NULL,
+  staff_name      TEXT NOT NULL,
+  product_id      UUID REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE SET NULL,
+  product_code    TEXT NOT NULL,
+  description     TEXT NOT NULL,
+  quantity        NUMERIC(14,3) NOT NULL,
+  unit_price      NUMERIC(14,2) NOT NULL,   -- preço c/ IVA no momento (AOA)
+  total           NUMERIC(14,2) NOT NULL,   -- quantity * unit_price
+  reason          TEXT NOT NULL DEFAULT 'SELF_CONSUMPTION',
+  status          TEXT NOT NULL DEFAULT 'PENDING', -- PENDING (por descontar) / DEDUCTED (já na folha)
+  payroll_item_id UUID,                     -- ligado quando processado na folha
+  store_id        UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS emp_consumption_user_idx   ON "{{SCHEMA}}"."employee_consumptions"(user_id);
+CREATE INDEX IF NOT EXISTS emp_consumption_status_idx ON "{{SCHEMA}}"."employee_consumptions"(status);

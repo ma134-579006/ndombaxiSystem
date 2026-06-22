@@ -24,6 +24,16 @@ export function LoginPage() {
     try { const p = new URLSearchParams(window.location.search); return p.get('k') === 'pin' ? p.get('reset') : null; }
     catch { return null; }
   }, []);
+  // «Abrir caixa» a partir do painel do gestor: ?staff=<email>&nome=<nome>.
+  // O perfil já vem identificado; pede-se APENAS o PIN (sem login tradicional).
+  const handoff = useMemo(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const em = (p.get('staff') || '').trim().toLowerCase();
+      if (!em || !/^\S+@\S+\.\S+$/.test(em)) return null;
+      return { email: em, name: (p.get('nome') || p.get('name') || '').trim() };
+    } catch { return null; }
+  }, []);
 
   const submit = async () => {
     setError(null);
@@ -55,6 +65,8 @@ export function LoginPage() {
               <h1 className="auth-title">Novo PIN</h1>
               <PinResetView token={resetToken} />
             </>
+          ) : handoff ? (
+            <OpenCashHandoff email={handoff.email} name={handoff.name} />
           ) : (
             <>
               <h1 className="auth-title">Entrar na Caixa</h1>
@@ -91,6 +103,58 @@ export function LoginPage() {
       <div className="auth-media"><LoginShowcase /></div>
       {forgot ? <ForgotPinModal defaultEmail={email} onClose={() => setForgot(false)} /> : null}
     </div>
+  );
+}
+
+/**
+ * «Abrir caixa» a partir do painel do gestor/gerente: o perfil já chega
+ * identificado pela URL; pede-se APENAS o PIN. Sem escolher empresa nem digitar
+ * o e-mail — entra direto na caixa com o próprio perfil. Bonito e responsivo.
+ */
+function OpenCashHandoff({ email, name }: { email: string; name: string }) {
+  const { loginStaff } = useAuth();
+  const [pin, setPin] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const initials = (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0]?.toUpperCase()).join('') || '👤';
+
+  const submit = async () => {
+    setError(null);
+    if (!/^\d{4,8}$/.test(pin)) { setError('Digite o seu PIN (4 a 8 dígitos).'); return; }
+    setLoading(true);
+    try {
+      await loginStaff(email, pin);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'PIN incorreto.');
+      setPin('');
+    } finally { setLoading(false); }
+  };
+
+  const otherAccount = () => { try { window.location.assign(window.location.pathname); } catch { /* */ } };
+
+  return (
+    <>
+      <div className="handoff-card">
+        <div className="handoff-avatar" aria-hidden>{initials}</div>
+        <h1 className="auth-title" style={{ marginBottom: 2 }}>Abrir caixa</h1>
+        <div className="handoff-name">{name || email}</div>
+        {name ? <div className="handoff-email">{email}</div> : null}
+      </div>
+
+      {error ? <div className="auth-error">{error}</div> : null}
+
+      <label className="auth-label">PIN da caixa</label>
+      <PasswordField value={pin} onChange={setPin} placeholder="••••" digitsOnly
+        inputMode="numeric" maxLength={8} autoComplete="off" onEnter={() => void submit()} />
+
+      <button className="auth-btn" onClick={() => void submit()} disabled={loading} style={{ marginTop: 14 }}>
+        {loading ? 'A entrar…' : 'Entrar na caixa'}
+      </button>
+
+      <div className="auth-sublinks" style={{ justifyContent: 'center', marginTop: 14 }}>
+        <a onClick={otherAccount}>Entrar com outra conta</a>
+      </div>
+    </>
   );
 }
 

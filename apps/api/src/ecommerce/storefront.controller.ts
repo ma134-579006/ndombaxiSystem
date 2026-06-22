@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, Param, Post, Put, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { CustomerProfileDto } from './dto/customer-profile.dto';
@@ -146,6 +146,32 @@ export class StorefrontController {
   ) {
     const tenant = await this.resolver.resolveByCode(code);
     return this.orders.payByExpress(tenant.schema, orderId, dto);
+  }
+
+  /**
+   * Callback da EMIS para PAGAMENTO POR REFERÊNCIA confirmado ("done").
+   * A EMIS é configurada (portal do contrato) para POST nesta URL, específica
+   * da empresa: `…/store/<código>/payments/reference/callback`. Protegido por um
+   * segredo partilhado no cabeçalho `x-emis-secret` (env EMIS_CALLBACK_SECRET).
+   * Quando o pagamento é reconhecido, a encomenda é APROVADA automaticamente
+   * (emite factura, fica PAID) sem intervenção do gestor.
+   */
+  @Post('payments/reference/callback')
+  @ApiOperation({ summary: 'Callback EMIS: referência paga → aprova a encomenda automaticamente' })
+  async referenceCallback(
+    @Param('code') code: string,
+    @Body() dto: { entity?: string; reference: string; amount?: number },
+    @Headers('x-emis-secret') secret?: string,
+  ) {
+    const expected = process.env.EMIS_CALLBACK_SECRET;
+    if (!expected) {
+      throw new ServiceUnavailableException('Callback de referência não configurado (EMIS_CALLBACK_SECRET).');
+    }
+    if (!secret || secret !== expected) {
+      throw new ForbiddenException('Segredo de callback inválido.');
+    }
+    const tenant = await this.resolver.resolveByCode(code);
+    return this.orders.confirmReferencePayment(tenant.schema, dto);
   }
 
   // ── Conversa com a loja (depois de aprovada) ───────────────

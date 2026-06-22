@@ -94,9 +94,12 @@ export class PaymentsService {
         { entity: m.reference_entity },
         { seq: this.seqFromId(orderId), amount: Number(order[0].gross_total) },
       );
-      // Persiste a referência gerada na encomenda (campo reutilizável).
+      // Persiste a referência gerada na encomenda → permite reconhecer depois o
+      // pagamento (callback EMIS) e aprovar a encomenda automaticamente.
       await tx.$executeRaw(
-        Prisma.sql`UPDATE web_orders SET payment_method = 'REFERENCE', updated_at = now()
+        Prisma.sql`UPDATE web_orders
+                   SET payment_method = 'REFERENCE', payment_entity = ${gen.entity},
+                       payment_reference = ${gen.reference}, updated_at = now()
                    WHERE id = ${orderId}::uuid`,
       );
       return { entity: gen.entity, reference: gen.reference, amount: gen.amount, expiresAt: gen.expiresAt };
@@ -223,6 +226,28 @@ export class PaymentsService {
         Prisma.sql`INSERT INTO payment_proofs
             (order_id, method_type, amount, reference, status, note, reviewed_at)
           VALUES (${orderId}::uuid, 'MULTICAIXA_EXPRESS', ${input.amount ?? null},
+                  ${input.reference ?? null}, 'APPROVED', ${input.note ?? null}, now())
+          RETURNING id, order_id, method_type, amount, reference, file_name, file_mime,
+                    file_url, status, note, uploaded_at, reviewed_by, reviewed_at`,
+      );
+      return rows[0];
+    });
+  }
+
+  /**
+   * Regista um comprovativo de REFERÊNCIA Multicaixa já APROVADO (reconhecido
+   * automaticamente pelo callback EMIS). Trilho de auditoria do pagamento.
+   */
+  async recordReferenceProof(
+    schema: string,
+    orderId: string,
+    input: { amount?: number; reference?: string; note?: string },
+  ): Promise<PaymentProofRow> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<PaymentProofRow[]>(
+        Prisma.sql`INSERT INTO payment_proofs
+            (order_id, method_type, amount, reference, status, note, reviewed_at)
+          VALUES (${orderId}::uuid, 'REFERENCE', ${input.amount ?? null},
                   ${input.reference ?? null}, 'APPROVED', ${input.note ?? null}, now())
           RETURNING id, order_id, method_type, amount, reference, file_name, file_mime,
                     file_url, status, note, uploaded_at, reviewed_by, reviewed_at`,

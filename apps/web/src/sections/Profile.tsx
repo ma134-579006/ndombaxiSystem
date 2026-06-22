@@ -3,12 +3,29 @@ import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { DocumentIdentity } from '../api/types';
 import { IconCheck, IconImage } from '../components/Icons';
+import { CAIXA_URL } from '../config';
+
+/** Nível de cada papel (0 = mais poder), igual ao backend. */
+const ROLE_LEVEL: Record<string, number> = {
+  SUPER_ADMIN: 0, COMPANY_ADMIN: 1, REGIONAL_MANAGER: 2, STORE_MANAGER: 3,
+  SHIFT_SUPERVISOR: 4, CASHIER: 5, ATTENDANT: 6,
+};
 
 /** Configurações da conta do gestor: foto, nome, NIF da empresa, alterar
  *  palavra-passe e PIN. Página bonita e 100% responsiva. */
 export function Profile() {
-  const { user } = useAuth();
+  const { user, companyCode } = useAuth();
   const uid = user?.sub || '';
+  // «Abrir caixa»: disponível para gestor/gerente/admin/supervisor (não atendente/operador).
+  const isTenant = user?.subjectType === 'TENANT';
+  const canOpenCash = isTenant && (ROLE_LEVEL[user?.role ?? ''] ?? 9) <= ROLE_LEVEL.SHIFT_SUPERVISOR;
+  const openCash = () => {
+    const params = new URLSearchParams();
+    params.set('staff', user?.email || '');
+    if (user?.name) params.set('nome', user.name);
+    if (companyCode) params.set('empresa', companyCode);
+    window.open(`${CAIXA_URL}/?${params.toString()}`, '_blank', 'noopener');
+  };
   const [name, setName] = useState(user?.name || '');
   const [photo, setPhoto] = useState<string | null>(null);
   const [brand, setBrand] = useState<DocumentIdentity | null>(null);
@@ -68,6 +85,20 @@ export function Profile() {
       <div className="content-head"><h2>Configurações da conta</h2></div>
       {msg ? <div className="banner success">{msg}</div> : null}
       {err ? <div className="banner danger">{err}</div> : null}
+
+      {canOpenCash ? (
+        <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ width: 52, height: 52, borderRadius: 14, flex: 'none', display: 'grid', placeItems: 'center', fontSize: 26, background: 'linear-gradient(135deg, var(--primary), #7c4dff)', boxShadow: '0 6px 20px rgba(79,124,255,.35)' }}>🛒</div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <h3 style={{ margin: '0 0 2px' }}>Abrir caixa</h3>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+              Entra no terminal de venda com o teu próprio perfil — só te pede o PIN, sem login tradicional.
+              {' '}Define primeiro o teu PIN da caixa em <strong>Segurança</strong>.
+            </p>
+          </div>
+          <button className="btn lg" onClick={openCash} style={{ flex: 'none' }}>🛒 Abrir caixa</button>
+        </div>
+      ) : null}
 
       <div className="cols-2">
         {/* Perfil: foto + nome + email + NIF */}

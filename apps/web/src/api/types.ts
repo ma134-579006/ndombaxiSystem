@@ -227,6 +227,8 @@ export interface WebOrder {
   municipality: string | null;
   neighborhood: string | null;
   payment_method: string | null;
+  payment_entity?: string | null;
+  payment_reference?: string | null;
   net_total: string;
   iva_total: string;
   gross_total: string;

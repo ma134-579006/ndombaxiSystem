@@ -490,6 +490,9 @@ export const api = {
     messages: (id: string) => request<OrderMessage[]>('GET', `/ecommerce/orders/${id}/messages`),
     reply: (id: string, body: string, senderName?: string) =>
       request<OrderMessage>('POST', `/ecommerce/orders/${id}/messages`, { body, senderName }),
+    confirmReference: (input: { entity?: string; reference: string; amount?: number }) =>
+      request<{ orderId: string; invoiceNumber: string | null; status: string; alreadyPaid: boolean }>(
+        'POST', '/ecommerce/orders/reference/confirm', input),
   },
   site: {
     get: () => request<SiteSettings>('GET', '/site/settings'),
