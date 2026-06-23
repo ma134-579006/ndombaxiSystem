@@ -167,19 +167,19 @@ export class StorefrontController {
     @Body() dto: { entity?: string; reference: string; amount?: number },
     @Headers('x-emis-secret') secret?: string,
   ) {
-    // Segredo do callback configurável NO PAINEL (Super Admin → Gateways: contrato
-    // EMIS/REFERÊNCIA → credencial). Fallback para a env EMIS_CALLBACK_SECRET.
-    const ref = await this.gateways.getActiveReference().catch(() => null);
-    const expected = ref?.apiKey || process.env.EMIS_CALLBACK_SECRET;
+    const tenant = await this.resolver.resolveByCode(code);
+    // Segredo do callback é do GESTOR (encomendas), definido na Loja → Pagamentos
+    // (método Referência). NÃO usa o EMIS da plataforma (esse é dos planos).
+    // Fallback para a env EMIS_CALLBACK_SECRET.
+    const expected = (await this.payments.getReferenceCallbackSecret(tenant.schema)) || process.env.EMIS_CALLBACK_SECRET;
     if (!expected) {
       throw new ServiceUnavailableException(
-        'Callback de referência não configurado. Defina a credencial do contrato EMIS/Referência no painel (Super Admin → Gateways).',
+        'Callback de referência não configurado. Defina o "Segredo do callback EMIS" na Loja → Pagamentos (método Referência).',
       );
     }
     if (!secret || secret !== expected) {
       throw new ForbiddenException('Segredo de callback inválido.');
     }
-    const tenant = await this.resolver.resolveByCode(code);
     return this.orders.confirmReferencePayment(tenant.schema, dto);
   }
 

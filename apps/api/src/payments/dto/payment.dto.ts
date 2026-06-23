@@ -48,6 +48,11 @@ export class CreatePaymentMethodDto {
   @IsString()
   expressPhone?: string;
 
+  /** Segredo do callback EMIS do GESTOR (encomendas). Write-only. */
+  @IsOptional()
+  @IsString()
+  callbackSecret?: string;
+
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

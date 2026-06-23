@@ -692,3 +692,28 @@ button, .btn, .add-btn, .chip, .product { -webkit-tap-highlight-color: transpare
   .ax-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .ax-price .val { font-size: 18px; }
 }
+
+/* ============================================================
+   COMPATIBILIDADE — navegadores antigos (sem color-mix/aspect-ratio).
+   color-mix só existe desde Chrome 111 / Safari 16.2 (fim 2022); sem isto
+   as cores "desapareciam". Fallbacks sólidos via @supports not.
+   ============================================================ */
+@supports not (color-mix(in srgb, red, blue)) {
+  .btn.soft, .banner.info, .status-pill.st-SHIPPED, .ax-sort-chip.on,
+  .chip.active, .cats .chip.active { background: #fff0ec; color: var(--accent); }
+  .ax-cta { background: #fff4f0; border-color: #f7c4b6; }
+  .ax-cta:hover { background: #ffe9e2; }
+  .ax-cta .ic { background: #ffe0d6; }
+  .ax-search-cam:hover, .theme-pop button.on { background: #fff0ec; }
+  .acct-head .avatar { background: #ffe6de; color: var(--accent); }
+  .ax-card:hover { border-color: #f3b8a8; }
+  .search input:focus, .ax-search input:focus, .pay-opt.active,
+  .btn:focus-visible { box-shadow: 0 0 0 3px rgba(255,77,45,.18); }
+  .add-btn, .ax-add { box-shadow: 0 4px 12px rgba(255,77,45,.4); }
+}
+@supports not (aspect-ratio: 1 / 1) {
+  .ax-card-img, .ax-gallery-main, .product .ph { min-height: 180px; }
+  .ax-card-img img, .ax-gallery-main img, .product .ph img { max-height: 260px; }
+  .modal-img { min-height: 200px; }
+  .scan-box video { min-height: 300px; }
+}

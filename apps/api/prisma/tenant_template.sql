@@ -503,6 +503,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."payment_methods" (
   reference_entity TEXT,
   reference_number TEXT,
   express_phone    TEXT,
+  callback_secret  TEXT,                        -- segredo do callback EMIS do GESTOR (encomendas)
   is_active        BOOLEAN NOT NULL DEFAULT TRUE,
   sort_order       INT NOT NULL DEFAULT 0,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),

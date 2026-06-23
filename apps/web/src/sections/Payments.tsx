@@ -129,6 +129,7 @@ function MethodEditor({ method, onClose, onSaved }: { method: StorePaymentMethod
   const [iban, setIban] = useState(method?.iban ?? '');
   const [accountHolder, setAccountHolder] = useState(method?.account_holder ?? '');
   const [referenceEntity, setReferenceEntity] = useState(method?.reference_entity ?? '');
+  const [callbackSecret, setCallbackSecret] = useState(''); // write-only (nunca devolvido)
   const [expressPhone, setExpressPhone] = useState(method?.express_phone ?? '');
   const [isActive, setIsActive] = useState(method?.is_active ?? true);
   const [saving, setSaving] = useState(false);
@@ -145,7 +146,7 @@ function MethodEditor({ method, onClose, onSaved }: { method: StorePaymentMethod
         isActive,
       };
       if (type === 'BANK_TRANSFER') { dto.bankName = bankName.trim(); dto.iban = iban.trim().replace(/\s/g, ''); dto.accountHolder = accountHolder.trim(); }
-      if (type === 'REFERENCE') { dto.referenceEntity = referenceEntity.trim(); }
+      if (type === 'REFERENCE') { dto.referenceEntity = referenceEntity.trim(); if (callbackSecret.trim()) dto.callbackSecret = callbackSecret.trim(); }
       if (type === 'MULTICAIXA_EXPRESS') { dto.expressPhone = expressPhone.trim(); }
       if (method) await api.payments.updateMethod(method.id, dto);
       else await api.payments.createMethod(dto);
@@ -188,6 +189,10 @@ function MethodEditor({ method, onClose, onSaved }: { method: StorePaymentMethod
           <label>Entidade (5 dígitos, do contrato EMIS da loja)</label>
           <input className="mono" value={referenceEntity} onChange={(e) => setReferenceEntity(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="01234" inputMode="numeric" />
           <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>Com a entidade, o sistema gera a referência de cada encomenda automaticamente.</p>
+          <label style={{ marginTop: 10 }}>Segredo do callback EMIS (auto-aprovação) — opcional</label>
+          <input className="mono" type="password" value={callbackSecret} onChange={(e) => setCallbackSecret(e.target.value)}
+            placeholder={method ? '•••••• (deixar vazio para manter)' : 'segredo partilhado com a EMIS'} autoComplete="new-password" />
+          <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>Quando a EMIS confirmar o pagamento (callback), a encomenda é aprovada automaticamente. Este segredo é só desta loja (diferente do contrato de planos do Super Admin).</p>
         </div>
       ) : null}
 

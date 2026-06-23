@@ -121,3 +121,7 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS geo_lng
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS geo_accuracy   NUMERIC(8,2);
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS geo_updated_at TIMESTAMPTZ;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS geo_consent    BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Segredo do callback EMIS do GESTOR (encomendas) — separado do contrato EMIS da
+-- plataforma (planos). Configurado pelo gestor em Loja → Pagamentos (referência).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."payment_methods" ADD COLUMN IF NOT EXISTS callback_secret TEXT;

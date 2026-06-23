@@ -55,15 +55,35 @@ export interface PaymentProofRow {
 export class PaymentsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Remove o segredo do callback antes de devolver (nunca exposto na API). */
+  private strip(row: PaymentMethodRow): PaymentMethodRow {
+    const r = row as PaymentMethodRow & { callback_secret?: string | null };
+    if (r && 'callback_secret' in r) { delete r.callback_secret; }
+    return r;
+  }
+
   // ── Métodos de pagamento (back-office do gestor) ────────────
-  listMethods(schema: string, onlyActive = false): Promise<PaymentMethodRow[]> {
-    return this.prisma.runInTenant(schema, (tx) =>
+  async listMethods(schema: string, onlyActive = false): Promise<PaymentMethodRow[]> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<PaymentMethodRow[]>(
         onlyActive
           ? Prisma.sql`SELECT * FROM payment_methods WHERE is_active = TRUE ORDER BY sort_order, label`
           : Prisma.sql`SELECT * FROM payment_methods ORDER BY sort_order, label`,
       ),
     );
+    return rows.map((r) => this.strip(r));
+  }
+
+  /** Segredo do callback EMIS do GESTOR (encomendas) — uso interno no callback. */
+  async getReferenceCallbackSecret(schema: string): Promise<string | null> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ callback_secret: string | null }[]>(
+        Prisma.sql`SELECT callback_secret FROM payment_methods
+                   WHERE type = 'REFERENCE' AND is_active = TRUE AND callback_secret IS NOT NULL AND callback_secret <> ''
+                   ORDER BY sort_order LIMIT 1`,
+      ),
+    );
+    return rows[0]?.callback_secret?.trim() || null;
   }
 
   /**
@@ -119,7 +139,7 @@ export class PaymentsService {
       ),
     );
     if (!rows[0]) throw new NotFoundException(`Método de pagamento não encontrado: ${id}`);
-    return rows[0];
+    return this.strip(rows[0]);
   }
 
   async createMethod(schema: string, dto: CreatePaymentMethodDto): Promise<PaymentMethodRow> {
@@ -129,14 +149,14 @@ export class PaymentsService {
       const rows = await tx.$queryRaw<PaymentMethodRow[]>(
         Prisma.sql`INSERT INTO payment_methods
             (type, label, instructions, bank_name, iban, account_holder,
-             reference_entity, reference_number, express_phone, is_active, sort_order)
+             reference_entity, reference_number, express_phone, callback_secret, is_active, sort_order)
           VALUES (${m.type}, ${m.label}, ${m.instructions ?? null}, ${m.bankName ?? null},
                   ${m.iban ?? null}, ${m.accountHolder ?? null}, ${m.referenceEntity ?? null},
-                  ${m.referenceNumber ?? null}, ${m.expressPhone ?? null},
+                  ${m.referenceNumber ?? null}, ${m.expressPhone ?? null}, ${dto.callbackSecret?.trim() || null},
                   ${dto.isActive ?? true}, ${dto.sortOrder ?? 0})
           RETURNING *`,
       );
-      return rows[0];
+      return this.strip(rows[0]);
     });
   }
 
@@ -168,12 +188,13 @@ export class PaymentsService {
             reference_entity = ${m.referenceEntity ?? null},
             reference_number = ${m.referenceNumber ?? null},
             express_phone = ${m.expressPhone ?? null},
+            ${dto.callbackSecret !== undefined ? Prisma.sql`callback_secret = ${dto.callbackSecret.trim() || null},` : Prisma.empty}
             is_active = ${dto.isActive ?? current.is_active},
             sort_order = ${dto.sortOrder ?? current.sort_order},
             updated_at = now()
           WHERE id = ${id}::uuid RETURNING *`,
       );
-      return rows[0];
+      return this.strip(rows[0]);
     });
   }
 

@@ -1071,3 +1071,14 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
 .auth-eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px;
   display: grid; place-items: center; border: none; background: transparent; color: #8ea6ff; cursor: pointer; border-radius: 8px; }
 .auth-eye:hover { color: #fff; background: rgba(255,255,255,.06); }
+
+/* ============================================================
+   COMPATIBILIDADE — navegadores antigos (sem color-mix/aspect-ratio).
+   ============================================================ */
+@supports not (color-mix(in srgb, red, blue)) {
+  /* cartão de login translúcido sobre o vídeo → fundo sólido legível */
+  .login-card { background: rgba(17, 26, 46, 0.92); }
+}
+@supports not (aspect-ratio: 4 / 3) {
+  .scan-box video { min-height: 300px; }
+}

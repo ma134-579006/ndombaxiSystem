@@ -321,6 +321,8 @@ export interface PaymentMethodInput {
   referenceEntity?: string;
   referenceNumber?: string;
   expressPhone?: string;
+  /** Segredo do callback EMIS do gestor (write-only). */
+  callbackSecret?: string;
   isActive?: boolean;
   sortOrder?: number;
 }
