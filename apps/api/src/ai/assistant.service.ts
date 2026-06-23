@@ -83,6 +83,41 @@ export class AssistantService {
     };
   }
 
+  /**
+   * Pesquisa VISUAL (estilo Google Lens): dada uma FOTO e o catálogo da loja,
+   * devolve os códigos dos produtos cujo aspeto mais se parece com a imagem,
+   * por ordem de semelhança. Usa o provedor de IA com visão (failover). Devolve
+   * [] se nenhum provedor estiver disponível ou nada combinar.
+   */
+  async visualSearchCodes(
+    products: { code: string; name: string; category?: string | null }[],
+    imageDataUrl: string,
+  ): Promise<string[]> {
+    if (products.length === 0) return [];
+    const list = products
+      .slice(0, 250)
+      .map((p) => `${p.code} | ${p.name}${p.category ? ` (${p.category})` : ''}`)
+      .join('\n');
+    const system =
+      'És um motor de pesquisa visual de uma loja online (como o Google Lens). ' +
+      'Recebes uma FOTO de um produto e a lista de produtos da loja (formato "código | nome"). ' +
+      'Identifica os produtos da lista cujo aspeto/tipo/categoria mais se assemelham ao objeto principal da foto. ' +
+      'Responde APENAS com um array JSON dos códigos, do mais parecido para o menos (máx. 12). Se nada combinar, responde [].';
+    const user = `Produtos da loja:\n${list}\n\nDevolve só o array JSON de códigos dos mais semelhantes à foto.`;
+    const reply = await this.cfg.runWithFailover('CHAT', (provider, apiKey) =>
+      this.client.chatVision(provider, apiKey, system, user, imageDataUrl),
+    );
+    if (!reply) return [];
+    const m = reply.match(/\[[\s\S]*\]/);
+    if (!m) return [];
+    try {
+      const arr = JSON.parse(m[0]);
+      return Array.isArray(arr) ? arr.map((x) => String(x).trim()).filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+
   /** Chave Gemini (quando o provedor CHAT é o endpoint Google) — permite voz
    *  e transcrição SEM provedores TTS/STT dedicados. */
   private async geminiKey(): Promise<string | null> {

@@ -5,7 +5,8 @@ import { CustomerProfileDto } from './dto/customer-profile.dto';
 import { UploadProofDto } from '../payments/dto/payment.dto';
 import { PaymentsService } from '../payments/payments.service';
 import { SiteService } from '../site/site.service';
-import { CheckoutDto, CustomerLocationDto } from './dto/checkout.dto';
+import { CheckoutDto, CustomerLocationDto, VisualSearchDto } from './dto/checkout.dto';
+import { AssistantService } from '../ai/assistant.service';
 import { CustomerEmailLoginDto, CustomerGoogleLoginDto } from './dto/customer-auth.dto';
 import { ExpressPayDto } from './dto/express-pay.dto';
 import { PostMessageDto } from './dto/order-message.dto';
@@ -30,6 +31,7 @@ export class StorefrontController {
     private readonly chat: OrderChatService,
     private readonly customerChat: CustomerChatService,
     private readonly customers: CustomerAuthService,
+    private readonly assistant: AssistantService,
   ) {}
 
   // ── Chat livre com a loja (cliente autenticado, sem encomenda) ─
@@ -201,6 +203,30 @@ export class StorefrontController {
     const tenant = await this.resolver.resolveByCode(code);
     const products = await this.storefront.catalog(tenant.schema);
     return { store: tenant.name, products };
+  }
+
+  @Post('visual-search')
+  @ApiOperation({ summary: 'Pesquisa por imagem (Google Lens): produtos semelhantes à foto' })
+  async visualSearch(@Param('code') code: string, @Body() dto: VisualSearchDto) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const products = await this.storefront.catalog(tenant.schema);
+    try {
+      const dataUrl = dto.imageBase64.startsWith('data:')
+        ? dto.imageBase64
+        : `data:${dto.mimeType || 'image/jpeg'};base64,${dto.imageBase64}`;
+      const codes = await this.assistant.visualSearchCodes(
+        products.map((p) => ({ code: p.code, name: p.name, category: p.category })),
+        dataUrl,
+      );
+      if (codes.length === 0) {
+        return { available: true, products: [], message: 'Não encontrámos produtos parecidos com a imagem.' };
+      }
+      const byCode = new Map(products.map((p) => [p.code, p]));
+      const matched = codes.map((c) => byCode.get(c)).filter((p): p is (typeof products)[number] => !!p);
+      return { available: true, products: matched };
+    } catch {
+      return { available: false, products: [], message: 'Pesquisa por imagem indisponível de momento.' };
+    }
   }
 
   @Post('checkout')

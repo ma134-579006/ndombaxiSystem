@@ -1,5 +1,6 @@
 import { API_URL } from '../config';
 import type {
+  CatalogProduct,
   CatalogResponse,
   CheckoutInput,
   CheckoutResult,
@@ -63,6 +64,9 @@ export const api = {
     request<PaymentMethod[]>('GET', `/store/${enc(code)}/payment-methods`),
   checkout: (code: string, input: CheckoutInput) =>
     request<CheckoutResult>('POST', `/store/${enc(code)}/checkout`, input),
+  visualSearch: (code: string, imageBase64: string, mimeType?: string) =>
+    request<{ available: boolean; products: CatalogProduct[]; message?: string }>(
+      'POST', `/store/${enc(code)}/visual-search`, { imageBase64, mimeType }),
   track: (code: string, orderId: string) =>
     request<WebOrder>('GET', `/store/${enc(code)}/orders/${enc(orderId)}`),
   updateLocation: (code: string, orderId: string, token: string, body: { lat: number; lng: number; accuracy?: number }) =>

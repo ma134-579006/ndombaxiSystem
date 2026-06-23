@@ -21,6 +21,17 @@ export class CheckoutLineDto {
   quantity!: number;
 }
 
+export class VisualSearchDto {
+  /** Imagem em base64 (data-URI ou só o base64). */
+  @IsString()
+  @Length(16, 12_000_000)
+  imageBase64!: string;
+
+  @IsOptional()
+  @IsString()
+  mimeType?: string;
+}
+
 export class CustomerLocationDto {
   @IsNumber()
   @Min(-90)

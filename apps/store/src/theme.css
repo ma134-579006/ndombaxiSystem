@@ -664,6 +664,10 @@ button, .btn, .add-btn, .chip, .product { -webkit-tap-highlight-color: transpare
 .ax-search-cam .scan-btn { position: static; transform: none; width: 38px; height: 38px; border: none; background: transparent; color: var(--muted); }
 .ax-search-cam .scan-btn:hover { border: none; color: var(--accent); }
 
+/* Spinner (análise da pesquisa por imagem) */
+.ax-spin { width: 34px; height: 34px; border-radius: 999px; border: 3px solid var(--border); border-top-color: var(--accent); animation: ax-spin .8s linear infinite; margin: 0 auto 10px; }
+@keyframes ax-spin { to { transform: rotate(360deg); } }
+
 /* Cursor da animação de auto-escrita (typewriter) */
 .tw-caret { display: inline-block; margin-left: 1px; font-weight: 400; animation: tw-blink 1s steps(1) infinite; }
 @keyframes tw-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }

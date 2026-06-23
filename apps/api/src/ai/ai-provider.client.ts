@@ -95,6 +95,41 @@ export class AiProviderClient {
   }
 
   /**
+   * Pesquisa VISUAL: envia uma imagem + texto e devolve a resposta do modelo.
+   * Protocolo OpenAI-compatível (Gemini via endpoint compat, OpenAI, OpenManus).
+   * Conteúdo multimodal (texto + image_url data-URI).
+   */
+  async chatVision(
+    provider: AiProvider,
+    apiKey: string | null,
+    systemPrompt: string,
+    userText: string,
+    imageDataUrl: string,
+    opts?: { maxTokens?: number; temperature?: number },
+  ): Promise<string> {
+    const settings = (provider.settings ?? {}) as Record<string, unknown>;
+    const path = this.path(provider, 'chatPath', '/chat/completions');
+    const body = {
+      model: provider.model ?? 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: userText },
+            { type: 'image_url', image_url: { url: imageDataUrl } },
+          ],
+        },
+      ],
+      temperature: opts?.temperature ?? 0.1,
+      max_tokens: opts?.maxTokens ?? (settings.maxTokens as number) ?? 300,
+    };
+    const json = await this.post(provider, apiKey, path, body);
+    const responsePath = (settings.responsePath as string) ?? 'choices.0.message.content';
+    return String(this.dig(json, responsePath.split('.')) ?? '');
+  }
+
+  /**
    * Conversa de AGENTE com FERRAMENTAS (function-calling), protocolo
    * OpenAI-compatível — funciona com Gemini (endpoint compat), OpenClaw,
    * OpenAI e OpenManus. Devolve texto OU pedidos de ferramentas.

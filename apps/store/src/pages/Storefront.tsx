@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { CatalogProduct, CheckoutResult, PaymentMethod } from '../api/types';
+import { api } from '../api/client';
 import { copyrightLine } from '../brand';
 import { Header } from '../components/Header';
 import {
   IconCart,
+  IconChevronLeft,
   IconChevronRight,
   IconClose,
   IconImage,
@@ -24,7 +26,7 @@ import { Checkout } from '../views/Checkout';
 import { Confirmation } from '../views/Confirmation';
 import { Track } from '../views/Track';
 
-type View = 'home' | 'results' | 'product' | 'checkout' | 'confirmation' | 'track';
+type View = 'home' | 'results' | 'product' | 'visual' | 'checkout' | 'confirmation' | 'track';
 type Sort = 'relevance' | 'price-asc' | 'price-desc' | 'name';
 const lastOrderKey = (code: string) => `ndombaxi.store.lastorder.${code}`;
 
@@ -62,6 +64,33 @@ export function Storefront() {
   const toastNode = toast ? (
     <div className="ax-toast"><span aria-hidden>🛒</span> <span className="v">{toast}</span> <span>no carrinho</span></div>
   ) : null;
+
+  // ── Pesquisa por imagem (estilo Google Lens) ──
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [imgSearching, setImgSearching] = useState(false);
+  const [imgResults, setImgResults] = useState<CatalogProduct[] | null>(null);
+  const [imgMsg, setImgMsg] = useState<string | null>(null);
+  const onImageSearch = () => fileRef.current?.click();
+  const onImagePicked = async (file?: File) => {
+    if (!file) return;
+    setView('visual'); setImgSearching(true); setImgResults(null); setImgMsg(null);
+    window.scrollTo({ top: 0 });
+    try {
+      const dataUrl: string = await new Promise((res, rej) => {
+        const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file);
+      });
+      const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+      const r = await api.visualSearch(code, base64, file.type || 'image/jpeg');
+      setImgResults(r.products || []);
+      if (!r.products?.length) setImgMsg(r.message || 'Sem produtos parecidos com a imagem.');
+      if (!r.available) setImgMsg(r.message || 'Pesquisa por imagem indisponível de momento.');
+    } catch {
+      setImgResults([]); setImgMsg('Não foi possível processar a imagem. Tenta outra foto.');
+    } finally {
+      setImgSearching(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
 
   const openOrder = (orderId: string) => { setAccountOpen(false); setTrackId(orderId); setView('track'); };
   const accountModal = accountOpen
@@ -142,7 +171,7 @@ export function Storefront() {
     onHome: goHome,
     onCart: () => setCartOpen(true),
     onAccount: () => setAccountOpen(true),
-    search, onSearchChange: setSearch, onSearchSubmit: () => undefined,
+    search, onSearchChange: setSearch, onSearchSubmit: () => undefined, onImageSearch,
   };
 
   // ── Vistas dedicadas (checkout/confirmação/track) ──
@@ -174,10 +203,41 @@ export function Storefront() {
       <FooterBar />
     </>);
   }
+  if (view === 'visual') {
+    return (
+      <>
+        <Header {...headerProps} />
+        {accountModal}
+        <div className="wrap">
+          <button className="ax-back" onClick={goHome} style={{ marginTop: 14 }}><IconChevronLeft size={18} /> Voltar à loja</button>
+          <div className="ax-results-head">
+            <div className="ax-results-title">📷 Pesquisa por imagem
+              {imgResults ? <span className="ax-results-count">{imgResults.length} produto(s)</span> : null}</div>
+          </div>
+          {imgSearching ? (
+            <div className="empty"><div className="ax-spin" /><p>A analisar a imagem e a procurar produtos parecidos…</p></div>
+          ) : imgResults && imgResults.length > 0 ? (
+            <div className="ax-grid">
+              {imgResults.map((p) => <ProductCard key={p.code} product={p} onOpen={openProduct} onAdd={(x) => addWithToast(x)} />)}
+            </div>
+          ) : (
+            <div className="empty"><IconImage size={48} /><p>{imgMsg || 'Sem resultados.'}</p>
+              <button className="btn" style={{ marginTop: 12 }} onClick={onImageSearch}>Tentar outra foto</button></div>
+          )}
+        </div>
+        <FooterBar />
+        {renderCart()}
+        {toastNode}
+      </>
+    );
+  }
 
   function FooterBar() {
     const s = data?.settings;
     return (
+      <>
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+        onChange={(e) => void onImagePicked(e.target.files?.[0] ?? undefined)} />
       <footer className="ax-footer">
         <div className="wrap in">
           <div className="store-info">{s?.brand_name || storeName}</div>
@@ -187,6 +247,7 @@ export function Storefront() {
           <div className="sig">{copyrightLine()}</div>
         </div>
       </footer>
+      </>
     );
   }
 
