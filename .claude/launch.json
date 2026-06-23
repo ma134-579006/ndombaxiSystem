@@ -40,6 +40,16 @@
         "preview"
       ],
       "port": 5174
+    },
+    {
+      "name": "store-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@nexus/store",
+        "dev"
+      ],
+      "port": 5174
     }
   ]
 }

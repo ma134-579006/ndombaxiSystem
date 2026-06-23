@@ -192,7 +192,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .empty svg { color: #c2cad6; }
 
 /* ── Carrinho (gaveta) ──────────────────────────────────── */
-.drawer-bg { position: fixed; inset: 0; background: rgba(15,23,35,.45); z-index: 50; display: flex; justify-content: flex-end; }
+.drawer-bg { position: fixed; inset: 0; background: rgba(15,23,35,.45); z-index: 150; display: flex; justify-content: flex-end; }
 .drawer { width: 100%; max-width: 420px; background: var(--bg); height: 100%; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); }
 .drawer .dh { display: flex; align-items: center; gap: 10px; padding: 18px 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
 .drawer .dh h2 { margin: 0; font-size: 18px; }
@@ -211,7 +211,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .totline.grand { color: var(--text); font-size: 22px; font-weight: 900; }
 
 /* ── Modal genérico ─────────────────────────────────────── */
-.modal-bg { position: fixed; inset: 0; background: rgba(15,23,35,.5); z-index: 60; display: grid; place-items: center; padding: 18px; }
+.modal-bg { position: fixed; inset: 0; background: rgba(15,23,35,.5); z-index: 160; display: grid; place-items: center; padding: 18px; }
 .modal { background: var(--surface); border-radius: var(--radius); width: 100%; max-width: 460px; max-height: 92vh; overflow: auto; box-shadow: var(--shadow-lg); }
 .modal .mh { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
 .modal .mh h3 { margin: 0; font-size: 18px; }
