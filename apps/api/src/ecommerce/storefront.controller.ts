@@ -4,6 +4,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { CustomerProfileDto } from './dto/customer-profile.dto';
 import { UploadProofDto } from '../payments/dto/payment.dto';
 import { PaymentsService } from '../payments/payments.service';
+import { PaymentGatewayService } from '../payments/payment-gateway.service';
 import { SiteService } from '../site/site.service';
 import { CheckoutDto, CustomerLocationDto, VisualSearchDto } from './dto/checkout.dto';
 import { AssistantService } from '../ai/assistant.service';
@@ -32,6 +33,7 @@ export class StorefrontController {
     private readonly customerChat: CustomerChatService,
     private readonly customers: CustomerAuthService,
     private readonly assistant: AssistantService,
+    private readonly gateways: PaymentGatewayService,
   ) {}
 
   // ── Chat livre com a loja (cliente autenticado, sem encomenda) ─
@@ -165,9 +167,14 @@ export class StorefrontController {
     @Body() dto: { entity?: string; reference: string; amount?: number },
     @Headers('x-emis-secret') secret?: string,
   ) {
-    const expected = process.env.EMIS_CALLBACK_SECRET;
+    // Segredo do callback configurável NO PAINEL (Super Admin → Gateways: contrato
+    // EMIS/REFERÊNCIA → credencial). Fallback para a env EMIS_CALLBACK_SECRET.
+    const ref = await this.gateways.getActiveReference().catch(() => null);
+    const expected = ref?.apiKey || process.env.EMIS_CALLBACK_SECRET;
     if (!expected) {
-      throw new ServiceUnavailableException('Callback de referência não configurado (EMIS_CALLBACK_SECRET).');
+      throw new ServiceUnavailableException(
+        'Callback de referência não configurado. Defina a credencial do contrato EMIS/Referência no painel (Super Admin → Gateways).',
+      );
     }
     if (!secret || secret !== expected) {
       throw new ForbiddenException('Segredo de callback inválido.');
