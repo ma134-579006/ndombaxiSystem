@@ -115,23 +115,34 @@ export function Checkout({
     setLocating(false);
 
     setSubmitting(true);
+    const base = {
+      customerName: name.trim(),
+      customerPhone: phone.trim() || undefined,
+      customerEmail: email.trim() || undefined,
+      customerTaxId: nif.trim() || undefined,
+      shippingAddress: address.trim() || undefined,
+      province: province.trim(),
+      municipality: municipality.trim(),
+      neighborhood: neighborhood.trim(),
+      paymentMethod: selected?.type,
+      lines: cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity })),
+    };
     try {
-      const result = await api.checkout(code, {
-        customerName: name.trim(),
-        customerPhone: phone.trim() || undefined,
-        customerEmail: email.trim() || undefined,
-        customerTaxId: nif.trim() || undefined,
-        shippingAddress: address.trim() || undefined,
-        province: province.trim(),
-        municipality: municipality.trim(),
-        neighborhood: neighborhood.trim(),
-        paymentMethod: selected?.type,
-        geoLat: fix.lat,
-        geoLng: fix.lng,
-        geoAccuracy: fix.accuracy,
-        geoConsent: true,
-        lines: cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity })),
-      });
+      let result;
+      try {
+        // Tenta COM o GPS (API atual).
+        result = await api.checkout(code, { ...base, geoLat: fix.lat, geoLng: fix.lng, geoAccuracy: fix.accuracy, geoConsent: true });
+      } catch (e) {
+        // Resiliência: se a API ainda não conhecer os campos GPS, conclui a
+        // encomenda à mesma (não perde a venda). O GPS passa a ser guardado
+        // automaticamente assim que a API for atualizada.
+        const msg = e instanceof ApiError ? e.message : '';
+        if (/geo(lat|lng|accuracy|consent)|should not exist/i.test(msg)) {
+          result = await api.checkout(code, base);
+        } else {
+          throw e;
+        }
+      }
       onDone(result, selected);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Não foi possível concluir a encomenda.');
