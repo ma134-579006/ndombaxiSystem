@@ -11,6 +11,8 @@ RUN corepack enable && apt-get update \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /repo
 COPY . .
+# Normaliza o entrypoint (Windows pode gravar CRLF / sem bit +x) para arrancar no Linux.
+RUN sed -i 's/\r$//' apps/api/docker-entrypoint.sh && chmod +x apps/api/docker-entrypoint.sh
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @nexus/types build \
  && pnpm --filter @nexus/agt-xml build \
@@ -26,4 +28,5 @@ WORKDIR /repo
 COPY --from=build /repo /repo
 WORKDIR /repo/apps/api
 EXPOSE 3000
-ENTRYPOINT ["./docker-entrypoint.sh"]
+# Invoca via sh (não depende do bit de execução) — robusto em qualquer host.
+ENTRYPOINT ["sh", "docker-entrypoint.sh"]
