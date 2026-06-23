@@ -13,6 +13,7 @@ WORKDIR /repo
 COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @nexus/types build \
+ && pnpm --filter @nexus/agt-xml build \
  && pnpm --filter @nexus/api exec prisma generate \
  && pnpm --filter @nexus/api build
 
