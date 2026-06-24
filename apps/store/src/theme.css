@@ -53,7 +53,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .btn:active { transform: translateY(1px); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .btn.lg { height: 56px; font-size: 16px; }
-.btn.block { width: 100%; }
+.btn.block { width: 100%; white-space: normal; height: auto; min-height: 48px; padding-top: 6px; padding-bottom: 6px; line-height: 1.25; }
 .btn.ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
 .btn.soft { background: color-mix(in srgb, var(--accent) 12%, white); color: var(--accent); }
 .btn.success { background: var(--success); }

@@ -83,7 +83,7 @@ input, textarea, select { font-family: inherit; }
 .btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
 .btn.sm { height: 36px; padding: 0 13px; font-size: 13px; border-radius: 10px; box-shadow: none; }
 .btn.lg { height: 52px; font-size: 15px; border-radius: 13px; }
-.btn.block { width: 100%; }
+.btn.block { width: 100%; white-space: normal; height: auto; min-height: 44px; padding-top: 6px; padding-bottom: 6px; line-height: 1.25; }
 .btn.ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text); box-shadow: none; }
 .btn.ghost:hover { background: var(--surface-2); filter: none; }
 .btn.success { background: var(--success); box-shadow: 0 8px 20px -10px var(--success); }

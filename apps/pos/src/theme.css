@@ -84,7 +84,7 @@ input { font-family: inherit; }
 .btn.danger { background: var(--danger); }
 .btn.ghost { background: transparent; border-color: var(--border); color: var(--text); }
 .btn.lg { height: 60px; font-size: 17px; }
-.btn.block { width: 100%; }
+.btn.block { width: 100%; white-space: normal; height: auto; min-height: 44px; padding-top: 6px; padding-bottom: 6px; line-height: 1.25; }
 
 /* ── Inputs ───────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 6px; }
