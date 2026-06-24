@@ -249,10 +249,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .bubble.me { align-self: flex-end; background: var(--accent); color: #fff; }
 .bubble.them { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--border); }
 .bubble .who { font-size: 11px; font-weight: 700; opacity: .8; margin-bottom: 2px; display: flex; align-items: center; gap: 5px; }
-.composer { display: flex; gap: 8px; margin-top: 12px; }
-.composer input { flex: 1; height: 48px; border: 1px solid var(--border); border-radius: 12px; padding: 0 14px; font-size: 15px; outline: none; }
+/* Ações da confirmação: lado a lado quando há espaço, empilham no telemóvel. */
+.conf-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.conf-actions .btn { flex: 1 1 160px; white-space: normal; height: auto; min-height: 48px; padding-top: 8px; padding-bottom: 8px; line-height: 1.2; }
+
+.composer { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+.composer input { flex: 1 1 auto; min-width: 0; height: 48px; border: 1px solid var(--border); border-radius: 12px; padding: 0 14px; font-size: 15px; outline: none; }
 .composer input:focus { border-color: var(--accent); }
-.composer .send { width: 48px; height: 48px; border-radius: 12px; background: var(--accent); color: #fff; display: grid; place-items: center; }
+.composer .send { flex: none; width: 48px; height: 48px; border-radius: 12px; background: var(--accent); color: #fff; display: grid; place-items: center; }
 
 /* ── Gate (código da loja) ──────────────────────────────── */
 .gate { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column;

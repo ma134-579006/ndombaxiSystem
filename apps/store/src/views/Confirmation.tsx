@@ -190,9 +190,9 @@ export function Confirmation({
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 12 }}>
-        <button className="btn ghost block" onClick={onContinue}>Continuar a comprar</button>
-        <button className="btn block" onClick={onTrack}>Acompanhar encomenda</button>
+      <div className="conf-actions">
+        <button className="btn ghost" onClick={onContinue}>Continuar a comprar</button>
+        <button className="btn" onClick={onTrack}>Acompanhar encomenda</button>
       </div>
     </div>
   );
