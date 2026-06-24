@@ -511,8 +511,8 @@ function ConsumptionsPanel() {
         <span style={{ marginLeft: 10 }}>{open ? '▾' : '▸'}</span>
       </div>
       {open ? (
-        <div style={{ marginTop: 12, overflowX: 'auto' }}>
-          <table className="table" style={{ width: '100%' }}>
+        <div style={{ marginTop: 12 }}>
+          <table className="ptable stack" style={{ width: '100%' }}>
             <thead><tr>
               <th style={{ textAlign: 'left' }}>Funcionário</th>
               <th style={{ textAlign: 'left' }}>Produto</th>
@@ -525,13 +525,13 @@ function ConsumptionsPanel() {
             <tbody>
               {rows.slice(0, 100).map((r) => (
                 <tr key={r.id}>
-                  <td>{r.staff_name}</td>
-                  <td>{r.description}</td>
-                  <td style={{ textAlign: 'right' }}>{Number(r.quantity)}</td>
-                  <td style={{ textAlign: 'right' }}>{formatKz(r.total)}</td>
-                  <td>Consumo próprio</td>
-                  <td>{r.status === 'DEDUCTED' ? 'Descontado' : 'Pendente'}</td>
-                  <td>{formatDate(r.created_at)}</td>
+                  <td data-label="Funcionário">{r.staff_name}</td>
+                  <td data-label="Produto">{r.description}</td>
+                  <td data-label="Qtd" style={{ textAlign: 'right' }}>{Number(r.quantity)}</td>
+                  <td data-label="Total" style={{ textAlign: 'right' }}>{formatKz(r.total)}</td>
+                  <td data-label="Motivo">Consumo próprio</td>
+                  <td data-label="Estado">{r.status === 'DEDUCTED' ? 'Descontado' : 'Pendente'}</td>
+                  <td data-label="Data">{formatDate(r.created_at)}</td>
                 </tr>
               ))}
             </tbody>
