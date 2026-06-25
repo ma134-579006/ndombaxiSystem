@@ -57,7 +57,7 @@ export const envSchema = z.object({
   // contra as chaves públicas da Google (não precisa de Client Secret).
   GOOGLE_CLIENT_ID: z
     .string()
-    .default('585772503915-1jp1is4d5pfndnc28vu69bp83k7o515b.apps.googleusercontent.com'),
+    .default('522636462932-m67fvuutei11ug355aion1sh00h1k2br.apps.googleusercontent.com'),
 });
 
 export type Env = z.infer<typeof envSchema>;

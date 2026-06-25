@@ -32,4 +32,4 @@ export const INITIAL_STORE_CODE =
  *  isso o valor por omissão está aqui; pode ser sobreposto por VITE_GOOGLE_CLIENT_ID.
  *  Tem de terminar em `.apps.googleusercontent.com` para o botão aparecer. */
 export const GOOGLE_CLIENT_ID = ((import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)
-  ?? '585772503915-1jp1is4d5pfndnc28vu69bp83k7o515b.apps.googleusercontent.com').trim();
+  ?? '522636462932-m67fvuutei11ug355aion1sh00h1k2br.apps.googleusercontent.com').trim();
