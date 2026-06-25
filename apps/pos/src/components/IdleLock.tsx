@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import { LOGO_SRC, SYSTEM_SHORT } from '../brand';
+import { LOGO_SRC, SYSTEM_NAME } from '../brand';
 import { useAuth } from '../auth/AuthContext';
 
-const IDLE_MS = 5 * 60 * 1000; // 5 minutos sem atividade → bloqueia
+const IDLE_MS = 2.5 * 60 * 1000; // 2 min e meio sem atividade → bloqueia (não faz logout)
 const WEEKDAYS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
@@ -77,18 +77,19 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
 
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
   const dateLabel = `${WEEKDAYS[now.getDay()]}, ${now.getDate()} de ${MONTHS[now.getMonth()]} de ${now.getFullYear()}`;
 
   return (
     <div className="lock-screen" role="dialog" aria-modal="true" aria-label="Ecrã bloqueado">
       <div className="lock-aurora" aria-hidden />
       <header className="lock-top">
-        <img className="lock-logo" src={LOGO_SRC} alt={SYSTEM_SHORT} />
-        <span className="lock-sys">{SYSTEM_SHORT}</span>
+        <img className="lock-logo" src={LOGO_SRC} alt={SYSTEM_NAME} />
+        <span className="lock-sys">{SYSTEM_NAME}</span>
       </header>
 
       <div className="lock-clock">
-        <div className="lock-time">{hh}:{mm}</div>
+        <div className="lock-time">{hh}:{mm}<span className="lock-secs">:{ss}</span></div>
         <div className="lock-date">{dateLabel}</div>
       </div>
 

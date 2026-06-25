@@ -1172,3 +1172,5 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
 .seg { display: inline-flex; gap: 4px; background: var(--surface-2, rgba(255,255,255,.05)); border: 1px solid var(--border); border-radius: 10px; padding: 3px; flex-wrap: wrap; }
 .seg button { border: none; background: transparent; color: var(--muted); font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 8px; cursor: pointer; }
 .seg button.on { background: var(--primary); color: #fff; }
+
+.lock-secs { font-size: .42em; font-weight: 300; opacity: .7; vertical-align: baseline; letter-spacing: 1px; }

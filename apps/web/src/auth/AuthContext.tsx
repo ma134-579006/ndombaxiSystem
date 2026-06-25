@@ -23,7 +23,6 @@ const LS_SESSION_START = 'ndombaxi.web.session_start';
 // Tempo de vida ABSOLUTO da sessão (segurança): após isto, re-login obrigatório,
 // mesmo com refresh token válido. Evita sessões "eternas" guardadas no browser.
 const MAX_SESSION_MS = 12 * 60 * 60 * 1000; // 12 horas
-const IDLE_MS = 15 * 60 * 1000; // logout automático SÓ após 15 min de inatividade
 // Acesso shadow: guarda a sessão de plataforma para restaurar ao sair.
 const LS_SHADOW = 'ndombaxi.web.shadow';
 const LS_PREV_ACCESS = 'ndombaxi.web.prevaccess';
@@ -163,23 +162,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { alive = false; };
   }, [status, user]);
 
-  // SEGURANÇA: logout só por INATIVIDADE real (20 min) ou sessão absoluta (12h).
-  // NÃO faz refresh forçado ao focar (a API do Render adormece e um refresh
-  // falhado expulsava o utilizador a meio do fluxo). O cliente HTTP já trata o
-  // refresh em cada pedido (401). A sessão é por-aba (sessionStorage).
+  // SEGURANÇA: NÃO há logout por inatividade — a inatividade apenas BLOQUEIA o
+  // ecrã (ver IdleLock), preservando a sessão e o trabalho em curso. Aqui só se
+  // verifica o tempo de vida ABSOLUTO da sessão (12h) → re-login obrigatório.
   useEffect(() => {
     if (status !== 'authed') return;
-    let last = Date.now();
-    const bump = () => { last = Date.now(); };
-    const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
-    events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
     const tick = window.setInterval(() => {
-      if (Date.now() - last > IDLE_MS || sessionExpired()) void logout();
+      if (sessionExpired()) void logout();
     }, 30_000);
-    return () => {
-      events.forEach((e) => window.removeEventListener(e, bump));
-      window.clearInterval(tick);
-    };
+    return () => window.clearInterval(tick);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
