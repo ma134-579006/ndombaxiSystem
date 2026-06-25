@@ -3,6 +3,7 @@ import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { BankAccount } from '../api/types';
 import { IconBuilding, IconCard, IconImage, IconLogout, IconCheck } from '../components/Icons';
+import { ScreenKeyboard } from '../components/ScreenKeyboard';
 
 /**
  * Setup OBRIGATÓRIO da empresa, em 2 passos (estilo Vendus / onboarding pro):
@@ -31,6 +32,7 @@ export function CompanySetup({ onDone }: { onDone(): void }) {
   if (!checked) return <div className="login"><div className="box" style={{ maxWidth: 480 }}><div className="card"><div className="loading">A preparar…</div></div></div></div>;
   return (
     <div className="login">
+      <ScreenKeyboard />
       <div className="box" style={{ maxWidth: 480 }}>
         <div className="brand">
           <div style={{ width: 56, height: 56, borderRadius: 16, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', marginBottom: 10 }}>

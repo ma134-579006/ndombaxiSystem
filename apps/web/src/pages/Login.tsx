@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
+import { ScreenKeyboard } from '../components/ScreenKeyboard';
 import { CAIXA_URL } from '../config';
 
 /** Lista de empresas devolvida quando o e-mail existe em várias. */
@@ -84,6 +85,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
 
   return (
     <div className="auth">
+      <ScreenKeyboard />
       <div className="auth-panel">
         <div className="auth-form">
           {resetToken ? (

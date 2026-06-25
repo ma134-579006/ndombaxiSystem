@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
+import { ScreenKeyboard } from '../components/ScreenKeyboard';
 
 /**
  * Login da CAIXA — mesmo design escuro do gestor. O FUNCIONÁRIO entra com o seu
@@ -58,6 +59,7 @@ export function LoginPage() {
 
   return (
     <div className="auth">
+      <ScreenKeyboard />
       <div className="auth-panel">
         <div className="auth-form">
           {resetToken ? (

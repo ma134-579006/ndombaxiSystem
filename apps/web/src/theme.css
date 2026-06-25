@@ -1631,3 +1631,25 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .auth-eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px;
   display: grid; place-items: center; border: none; background: transparent; color: #8ea6ff; cursor: pointer; border-radius: 8px; }
 .auth-eye:hover { color: #fff; background: rgba(255,255,255,.06); }
+
+/* ============================================================
+   TECLADO NO ECRÃ autónomo (logins / criar conta) — botão flutuante
+   (fora do fluxo, não causa scroll) + teclado fixo. Escondido <=560px.
+   ============================================================ */
+.oskb-toggle { position: fixed; right: 16px; bottom: 16px; z-index: 120; display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  box-shadow: 0 10px 26px -12px rgba(0,0,0,.5); cursor: pointer; font-size: 13px; font-weight: 700; }
+.oskb-toggle:hover { border-color: var(--primary); color: var(--primary); }
+.oskb-toggle.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.oskb { position: fixed; left: 0; right: 0; bottom: 0; z-index: 121; background: var(--surface-2, #0c1426);
+  border-top: 1px solid var(--border); box-shadow: 0 -12px 40px -10px rgba(0,0,0,.5); padding: 8px clamp(8px,2vw,16px) 12px;
+  display: flex; flex-direction: column; gap: 6px; }
+.oskb-bar { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; font-weight: 700; color: var(--muted); padding: 2px 2px 4px; }
+.oskb-x { background: transparent; border: none; color: var(--muted); cursor: pointer; font-weight: 700; font-size: 13px; }
+.oskb-row { display: flex; gap: 6px; justify-content: center; }
+.oskb-k { flex: 1 1 0; min-width: 0; max-width: 56px; height: 44px; border-radius: 9px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 16px; font-weight: 600; cursor: pointer; display: grid; place-items: center; }
+.oskb-k:active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.oskb-k.wide { max-width: 64px; }
+.oskb-k.space { max-width: 220px; flex: 2 1 0; font-size: 13px; }
+@media (max-width: 560px) { .oskb-toggle, .oskb { display: none !important; } }
