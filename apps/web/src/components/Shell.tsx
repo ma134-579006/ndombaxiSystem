@@ -82,6 +82,79 @@ function OrdersBell({ onGo }: { onGo(): void }) {
   );
 }
 
+const fmtKz = (v: number) => `${Math.round(v).toLocaleString('pt-PT')} Kz`;
+
+/** Sino de pedidos de ADIANTAMENTO SALARIAL (gestor/gerente): badge com o nº de
+ *  pendentes + dropdown responsivo para Aceitar/Rejeitar cada pedido. */
+function AdvancesBell() {
+  const [items, setItems] = useState<import('../api/types').SalaryAdvanceReq[]>([]);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  const load = () => { api.advances.pending().then(setItems).catch(() => undefined); };
+  useEffect(() => {
+    let alive = true;
+    const tick = () => { api.advances.pending().then((r) => { if (alive) setItems(r); }).catch(() => undefined); };
+    tick();
+    const t = window.setInterval(tick, 20000);
+    const onFocus = () => tick();
+    window.addEventListener('focus', onFocus);
+    return () => { alive = false; window.clearInterval(t); window.removeEventListener('focus', onFocus); };
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const review = async (id: string, decision: 'APPROVED' | 'REJECTED') => {
+    setBusy(id);
+    try {
+      await api.advances.review(id, decision);
+      setItems((prev) => prev.filter((i) => i.id !== id));
+    } catch { load(); } finally { setBusy(null); }
+  };
+
+  const n = items.length;
+  return (
+    <div ref={ref} className="acct" style={{ position: 'relative' }}>
+      <button className="icon-btn noti-btn" onClick={() => setOpen((v) => !v)}
+        title={n > 0 ? `${n} pedido(s) de adiantamento` : 'Adiantamentos salariais'} aria-label="Adiantamentos salariais">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 12h.01M18 12h.01" />
+        </svg>
+        {n > 0 ? <span className="noti-badge">{n > 99 ? '99+' : n}</span> : null}
+      </button>
+      {open ? (
+        <div className="noti-pop">
+          <div className="noti-pop-head">💸 Pedidos de adiantamento {n > 0 ? `(${n})` : ''}</div>
+          {n === 0 ? (
+            <div className="noti-pop-empty">Sem pedidos pendentes.</div>
+          ) : items.map((a) => (
+            <div key={a.id} className="noti-item">
+              <div className="noti-item-top">
+                <strong className="noti-name">{a.staff_name}</strong>
+                <strong className="noti-amt">{fmtKz(Number(a.amount))}</strong>
+              </div>
+              <div className="noti-meta">
+                {a.monthly_pay ? `Salário ${fmtKz(Number(a.monthly_pay))}` : 'Salário n/d'}
+                {' · '}{new Date(a.requested_at).toLocaleDateString('pt-PT')}
+                {a.reason ? ` · ${a.reason}` : ''}
+              </div>
+              <div className="noti-actions">
+                <button className="btn sm ok" disabled={busy === a.id} onClick={() => void review(a.id, 'APPROVED')}>Aceitar</button>
+                <button className="btn sm ghost danger" disabled={busy === a.id} onClick={() => void review(a.id, 'REJECTED')}>Rejeitar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** Hambúrguer (só visível no telemóvel via CSS). */
 function IconMenu({ size = 22 }: { size?: number }) {
   return (
@@ -342,6 +415,7 @@ export function Shell({
           <span className="spacer" />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
           {isTenant ? <OrdersBell onGo={() => setSection('orders')} /> : null}
+          {isTenant && (ROLE_LEVEL[user?.role ?? ''] ?? 9) <= ROLE_LEVEL.STORE_MANAGER ? <AdvancesBell /> : null}
           <ThemePicker />
           <ManagerMenu
             photo={avatar}

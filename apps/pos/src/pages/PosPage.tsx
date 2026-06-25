@@ -28,6 +28,7 @@ import { ShiftModal } from '../components/ShiftModal';
 import { ChatModal } from '../components/ChatModal';
 import { CustomerChatModal } from '../components/CustomerChatModal';
 import { SelfConsumptionModal } from '../components/SelfConsumptionModal';
+import { SalaryAdvanceModal } from '../components/SalaryAdvanceModal';
 import { ThemePicker } from '../components/ThemePicker';
 import { PaymentModal } from '../components/PaymentModal';
 import { IconReceipt } from '../components/Icons';
@@ -68,8 +69,8 @@ function grossUnit(p: Product): number {
 
 /** Menu do operador (canto superior direito): avatar + seta → nome, email e
  *  terminar sessão. Fecha ao clicar fora. */
-function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustChat, onChat, onCustChat, onSelfConsumption, onLogout }: {
-  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; canCustChat: boolean; onChat(): void; onCustChat(): void; onSelfConsumption(): void; onLogout(): void;
+function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustChat, onChat, onCustChat, onSelfConsumption, onSalaryAdvance, onLogout }: {
+  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; canCustChat: boolean; onChat(): void; onCustChat(): void; onSelfConsumption(): void; onSalaryAdvance(): void; onLogout(): void;
 }) {
   const totalBadge = unread + (canCustChat ? custUnread : 0);
   const [open, setOpen] = useState(false);
@@ -111,6 +112,9 @@ function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustCha
           ) : null}
           <button className="op-menu-item" onClick={() => { setOpen(false); onSelfConsumption(); }}>
             <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛒</span> Consumo próprio
+          </button>
+          <button className="op-menu-item" onClick={() => { setOpen(false); onSalaryAdvance(); }}>
+            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💸</span> Adiantamento salário
           </button>
           <button className="op-menu-item danger" onClick={() => { setOpen(false); onLogout(); }}>
             <IconLogout size={17} /> Terminar sessão
@@ -171,6 +175,7 @@ export function PosPage() {
   const [showCustChat, setShowCustChat] = useState(false);
   const [custUnread, setCustUnread] = useState(0);
   const [showConsumption, setShowConsumption] = useState(false);
+  const [showAdvance, setShowAdvance] = useState(false);
   // O operador de caixa não tem chat com clientes — só supervisor e acima.
   const custChatAllowed = canChatCustomers(user?.role);
   useEffect(() => {
@@ -589,6 +594,7 @@ export function PosPage() {
             onChat={() => setShowChat(true)}
             onCustChat={() => setShowCustChat(true)}
             onSelfConsumption={() => setShowConsumption(true)}
+            onSalaryAdvance={() => setShowAdvance(true)}
             onLogout={logout}
           />
         </header>
@@ -839,6 +845,9 @@ export function PosPage() {
 
       {showConsumption ? (
         <SelfConsumptionModal products={products} onClose={() => setShowConsumption(false)} />
+      ) : null}
+      {showAdvance ? (
+        <SalaryAdvanceModal onClose={() => setShowAdvance(false)} />
       ) : null}
 
       {showPayment ? (

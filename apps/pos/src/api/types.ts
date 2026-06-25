@@ -134,6 +134,17 @@ export interface SelfConsumption {
   id: string; product_code: string; description: string; quantity: string; unit_price: string;
   total: string; reason: string; status: string; created_at: string;
 }
+/** Adiantamento salarial do funcionário. */
+export interface SalaryAdvance {
+  id: string; staff_name: string; amount: string; reason: string | null;
+  status: string; requested_at: string; reviewer_name: string | null;
+  reviewed_at: string | null; review_note: string | null;
+  period_year: number | null; period_month: number | null;
+}
+/** Limite disponível para adiantamento (salário − por descontar). */
+export interface AdvanceLimit {
+  monthlyPay: number; outstanding: number; available: number; employeeLinked: boolean;
+}
 /** Resumo do fecho de turno (para o recibo de fecho). */
 export interface ShiftClose {
   sessionId: string;

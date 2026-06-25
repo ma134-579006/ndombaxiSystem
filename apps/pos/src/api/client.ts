@@ -16,6 +16,8 @@ import type {
   ReceiptFiscalInfo,
   ReportX,
   SaleRow,
+  SalaryAdvance,
+  AdvanceLimit,
   SelfConsumption,
   ShiftClose,
   TenantLoginInput,
@@ -191,4 +193,10 @@ export const api = {
   registerConsumptions: (items: { productId: string; quantity: number }[]) =>
     request<{ registered: number; total: number; employeeLinked: boolean }>('POST', '/hr/self-consumption/bulk', { items }),
   myConsumptions: () => request<SelfConsumption[]>('GET', '/hr/self-consumption/mine'),
+
+  // ── Adiantamento salarial (pede → gestor aprova → desconta na folha) ──
+  advanceLimit: () => request<AdvanceLimit>('GET', '/hr/salary-advance/limit'),
+  requestAdvance: (amount: number, reason?: string) =>
+    request<SalaryAdvance>('POST', '/hr/salary-advance', { amount, reason }),
+  myAdvances: () => request<SalaryAdvance[]>('GET', '/hr/salary-advance/mine'),
 };

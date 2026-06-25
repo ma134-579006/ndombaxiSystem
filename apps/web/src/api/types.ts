@@ -266,6 +266,17 @@ export interface OrderLocation {
   updatedAt: string | null;
 }
 
+/** Pedido de adiantamento salarial (vista do gestor — sino de notificações). */
+export interface SalaryAdvanceReq {
+  id: string;
+  staff_name: string;
+  amount: string;
+  reason: string | null;
+  status: string;
+  requested_at: string;
+  monthly_pay: string | null;
+}
+
 /** Branding da montra (site_settings). */
 export interface SiteSettings {
   id: string;

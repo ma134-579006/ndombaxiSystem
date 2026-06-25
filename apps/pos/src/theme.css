@@ -1104,3 +1104,22 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
 .oskb-k.wide { max-width: 64px; }
 .oskb-k.space { max-width: 220px; flex: 2 1 0; font-size: 13px; }
 @media (max-width: 560px) { .oskb-toggle, .oskb { display: none !important; } }
+
+/* ===== Adiantamento salarial (modal do operador) ===== */
+.adv-card { background: var(--surface-2, rgba(255,255,255,.04)); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; }
+.adv-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; padding: 3px 0; color: var(--muted); }
+.adv-row strong { color: var(--text); }
+.adv-row.big { border-top: 1px dashed var(--border); margin-top: 6px; padding-top: 8px; font-size: 15px; }
+.adv-row.big strong { color: var(--primary); font-size: 18px; }
+.adv-label { display: block; font-size: 12.5px; font-weight: 700; color: var(--muted); margin: 10px 2px 5px; }
+.adv-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.adv-chip { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.adv-chip:hover { border-color: var(--primary); color: var(--primary); }
+.adv-hist { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.adv-hist .nm { font-weight: 700; }
+.adv-hist .meta { font-size: 12px; color: var(--muted); }
+.adv-badge { flex: none; font-size: 11.5px; font-weight: 700; padding: 4px 9px; border-radius: 999px; white-space: normal; text-align: right; max-width: 46%; }
+.adv-badge.warn { background: rgba(245,158,11,.15); color: #f59e0b; }
+.adv-badge.success { background: rgba(34,197,94,.15); color: #22c55e; }
+.adv-badge.danger { background: rgba(239,68,68,.15); color: #ef4444; }
+.adv-badge.muted { background: rgba(148,163,184,.15); color: var(--muted); }

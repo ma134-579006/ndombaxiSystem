@@ -412,6 +412,29 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."employee_consumptions" (
 CREATE INDEX IF NOT EXISTS emp_consumption_user_idx   ON "{{SCHEMA}}"."employee_consumptions"(user_id);
 CREATE INDEX IF NOT EXISTS emp_consumption_status_idx ON "{{SCHEMA}}"."employee_consumptions"(status);
 
+-- Adiantamento salarial (pedido do funcionário → aprovação do gestor → desconto na folha).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."salary_advances" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  employee_id     UUID REFERENCES "{{SCHEMA}}"."employees"(id) ON DELETE SET NULL,
+  staff_name      TEXT NOT NULL,
+  amount          NUMERIC(14,2) NOT NULL,
+  reason          TEXT,
+  status          TEXT NOT NULL DEFAULT 'PENDING', -- PENDING/APPROVED/REJECTED/DEDUCTED
+  requested_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  reviewed_by     UUID,
+  reviewer_name   TEXT,
+  reviewed_at     TIMESTAMPTZ,
+  review_note     TEXT,
+  payroll_item_id UUID,
+  period_year     INT,
+  period_month    INT,
+  store_id        UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS salary_advance_user_idx   ON "{{SCHEMA}}"."salary_advances"(user_id);
+CREATE INDEX IF NOT EXISTS salary_advance_status_idx ON "{{SCHEMA}}"."salary_advances"(status);
+
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."payroll_runs" (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   period_year          INT  NOT NULL,

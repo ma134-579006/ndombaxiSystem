@@ -106,6 +106,22 @@ export class PayrollService {
         for (const c of cons) consumptionByEmp.set(c.employee_id, Number(c.total) || 0);
       }
 
+      // Adiantamentos salariais APROVADOS por descontar → entram nesta folha
+      // (motivo: adiantamento). Descontados no mês do pagamento (este run).
+      const advanceByEmp = new Map<string, number>();
+      const hasAdvances = await tx.$queryRaw<{ reg: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('salary_advances')::text AS reg`,
+      );
+      if (hasAdvances[0]?.reg) {
+        const advs = await tx.$queryRaw<{ employee_id: string; total: string }[]>(
+          Prisma.sql`SELECT employee_id, COALESCE(SUM(amount), 0)::text AS total
+                     FROM salary_advances
+                     WHERE status = 'APPROVED' AND employee_id IS NOT NULL
+                     GROUP BY employee_id`,
+        );
+        for (const a of advs) advanceByEmp.set(a.employee_id, Number(a.total) || 0);
+      }
+
       const runRows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO payroll_runs (period_year, period_month, status)
                    VALUES (${year}, ${month}, 'PROCESSED') RETURNING id`,
@@ -131,13 +147,14 @@ export class PayrollService {
         // Outros descontos = desconto por faltas + consumo próprio do funcionário.
         const absenceDeduction = Math.round((base * pct / 100) * 100) / 100;
         const consumption = consumptionByEmp.get(e.id) ?? 0;
+        const advance = advanceByEmp.get(e.id) ?? 0;
         const calc = computePayroll({
           baseSalary: base,
           // Bónus entra como subsídio sujeito (INSS/IRT).
           taxableAllowances: Number(e.taxable_allowances) + bonus,
           exemptAllowances: Number(e.exempt_allowances),
-          // Desconto por faltas + consumo próprio.
-          otherDeductions: Math.round((absenceDeduction + consumption) * 100) / 100,
+          // Desconto por faltas + consumo próprio + adiantamento salarial.
+          otherDeductions: Math.round((absenceDeduction + consumption + advance) * 100) / 100,
         });
 
         const itemRows = await tx.$queryRaw<{ id: string }[]>(
@@ -159,6 +176,15 @@ export class PayrollService {
             Prisma.sql`UPDATE employee_consumptions
                        SET status = 'DEDUCTED', payroll_item_id = ${itemRows[0].id}::uuid
                        WHERE employee_id = ${e.id}::uuid AND status = 'PENDING'`,
+          );
+        }
+        // Marca os adiantamentos APROVADOS como descontados no mês exato do pagamento.
+        if (advance > 0 && hasAdvances[0]?.reg) {
+          await tx.$executeRaw(
+            Prisma.sql`UPDATE salary_advances
+                       SET status = 'DEDUCTED', payroll_item_id = ${itemRows[0].id}::uuid,
+                           period_year = ${year}, period_month = ${month}
+                       WHERE employee_id = ${e.id}::uuid AND status = 'APPROVED'`,
           );
         }
 

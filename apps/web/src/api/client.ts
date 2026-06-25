@@ -122,6 +122,7 @@ import type {
   WebOrder,
   WebOrderDetail,
   OrderLocation,
+  SalaryAdvanceReq,
   SupportMsg,
   SiteFeedback,
   SiteFeedbackAdmin,
@@ -496,6 +497,12 @@ export const api = {
       request<{ orderId: string; invoiceNumber: string | null; status: string; alreadyPaid: boolean }>(
         'POST', '/ecommerce/orders/reference/confirm', input),
     location: (id: string) => request<OrderLocation>('GET', `/ecommerce/orders/${id}/location`),
+  },
+  advances: {
+    pending: () => request<SalaryAdvanceReq[]>('GET', '/hr/salary-advance/pending'),
+    pendingCount: () => request<{ count: number }>('GET', '/hr/salary-advance/pending/count'),
+    review: (id: string, decision: 'APPROVED' | 'REJECTED', note?: string) =>
+      request<{ id: string; status: string }>('POST', `/hr/salary-advance/${id}/review`, { decision, note }),
   },
   site: {
     get: () => request<SiteSettings>('GET', '/site/settings'),

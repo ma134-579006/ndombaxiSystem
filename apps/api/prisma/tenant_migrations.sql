@@ -125,3 +125,28 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS geo_con
 -- Segredo do callback EMIS do GESTOR (encomendas) — separado do contrato EMIS da
 -- plataforma (planos). Configurado pelo gestor em Loja → Pagamentos (referência).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."payment_methods" ADD COLUMN IF NOT EXISTS callback_secret TEXT;
+
+-- Adiantamento salarial: o funcionário pede um adiantamento (1..salário); o
+-- gestor aprova/rejeita; ao processar a folha do mês do pagamento, o valor
+-- aprovado é descontado (other_deductions) e fica DEDUCTED no mês exato.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."salary_advances" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  employee_id     UUID REFERENCES "{{SCHEMA}}"."employees"(id) ON DELETE SET NULL,
+  staff_name      TEXT NOT NULL,
+  amount          NUMERIC(14,2) NOT NULL,
+  reason          TEXT,
+  status          TEXT NOT NULL DEFAULT 'PENDING', -- PENDING/APPROVED/REJECTED/DEDUCTED
+  requested_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  reviewed_by     UUID,
+  reviewer_name   TEXT,
+  reviewed_at     TIMESTAMPTZ,
+  review_note     TEXT,
+  payroll_item_id UUID,
+  period_year     INT,
+  period_month    INT,
+  store_id        UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS salary_advance_user_idx   ON "{{SCHEMA}}"."salary_advances"(user_id);
+CREATE INDEX IF NOT EXISTS salary_advance_status_idx ON "{{SCHEMA}}"."salary_advances"(status);
