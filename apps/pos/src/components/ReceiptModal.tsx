@@ -20,12 +20,17 @@ interface Props {
   items?: ReceiptItem[];
   /** Venda guardada offline: comprovativo PROVISÓRIO (sem nº fiscal ainda). */
   provisional?: boolean;
+  /** Reimpressão (2ª via) de um documento já emitido. */
+  reprint?: boolean;
+  /** Data a mostrar (na 2ª via, a data ORIGINAL do documento). */
+  dateLabel?: string;
   onClose(): void;
 }
 
 /** Recibo/comprovativo da venda emitida — identidade da empresa + dados fiscais AGT (§7). */
-export function ReceiptModal({ invoice, info, identity, customerName, operatorName, items, provisional, onClose }: Props) {
+export function ReceiptModal({ invoice, info, identity, customerName, operatorName, items, provisional, reprint, dateLabel, onClose }: Props) {
   const hashShort = invoice.hash ? invoice.hash.slice(0, 4) : '----';
+  const shownDate = dateLabel ?? formatDateTime();
   // Conteúdo do QR de verificação (campos-chave do documento).
   const qrData = [
     identity?.companyName || identity?.brandName || 'Documento', invoice.number,
@@ -44,7 +49,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
     const empresa = identity?.companyName || identity?.brandName || 'Fatura';
     const linhas: string[] = [`*${empresa}*`];
     if (identity?.nif) linhas.push(`NIF: ${identity.nif}`);
-    linhas.push('', `${provisional ? 'Comprovativo' : 'Fatura'}: ${invoice.number}`, `Data: ${formatDateTime()}`);
+    linhas.push('', `${provisional ? 'Comprovativo' : reprint ? 'Fatura (2ª via)' : 'Fatura'}: ${invoice.number}`, `Data: ${shownDate}`);
     if (customerName) linhas.push(`Cliente: ${customerName}`);
     if (items && items.length) {
       linhas.push('', '*Artigos:*');
@@ -121,8 +126,8 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
           <div className="check" style={provisional ? { background: 'var(--warning)', color: '#20160a' } : undefined}>
             <IconCheck size={30} />
           </div>
-          <div className="num">{invoice.number}</div>
-          <div className="sub">{formatDateTime()}</div>
+          <div className="num">{invoice.number}{reprint ? ' · 2ª via' : ''}</div>
+          <div className="sub">{shownDate}</div>
         </div>
 
         <div className="r-body">

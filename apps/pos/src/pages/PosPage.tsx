@@ -29,7 +29,6 @@ import { ChatModal } from '../components/ChatModal';
 import { CustomerChatModal } from '../components/CustomerChatModal';
 import { SelfConsumptionModal } from '../components/SelfConsumptionModal';
 import { SalaryAdvanceModal } from '../components/SalaryAdvanceModal';
-import { DocumentoModal } from '../components/DocumentoModal';
 import { IdleLock } from '../components/IdleLock';
 import { ThemePicker } from '../components/ThemePicker';
 import { PaymentModal } from '../components/PaymentModal';
@@ -184,7 +183,6 @@ export function PosPage() {
   const [custUnread, setCustUnread] = useState(0);
   const [showConsumption, setShowConsumption] = useState(false);
   const [showAdvance, setShowAdvance] = useState(false);
-  const [showDocumento, setShowDocumento] = useState(false);
   // O operador de caixa não tem chat com clientes — só supervisor e acima.
   const custChatAllowed = canChatCustomers(user?.role);
   useEffect(() => {
@@ -604,7 +602,7 @@ export function PosPage() {
             onCustChat={() => setShowCustChat(true)}
             onSelfConsumption={() => setShowConsumption(true)}
             onSalaryAdvance={() => setShowAdvance(true)}
-            onDocumento={() => setShowDocumento(true)}
+            onDocumento={() => setShowSales(true)}
             onLogout={logout}
           />
         </header>
@@ -858,9 +856,6 @@ export function PosPage() {
       ) : null}
       {showAdvance ? (
         <SalaryAdvanceModal onClose={() => setShowAdvance(false)} />
-      ) : null}
-      {showDocumento ? (
-        <DocumentoModal products={products} onClose={() => setShowDocumento(false)} />
       ) : null}
       <IdleLock
         photo={operatorPhoto}

@@ -16,6 +16,7 @@ import type {
   ReceiptFiscalInfo,
   ReportX,
   SaleRow,
+  SaleDetail,
   SalaryAdvance,
   AdvanceLimit,
   ConsumptionLimit,
@@ -153,6 +154,7 @@ export const api = {
     const qs = p.toString();
     return request<SaleRow[]>('GET', `/pos/invoices${qs ? '?' + qs : ''}`);
   },
+  getSale: (id: string) => request<SaleDetail>('GET', `/pos/invoices/${id}`),
   // Rascunho do carrinho por operador (guardado no servidor → cross-device).
   getCartDraft: () =>
     request<{ lines: { productId: string; quantity: number }[]; customerId?: string | null } | null>('GET', '/pos/cart-draft'),

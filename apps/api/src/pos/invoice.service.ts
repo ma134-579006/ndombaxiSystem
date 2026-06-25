@@ -416,6 +416,55 @@ export class InvoiceService {
   }
 
   /**
+   * Detalhe completo de um documento já emitido — para REIMPRESSÃO (2ª via) de
+   * vendas/documentos de hoje ou de dias anteriores que não foram impressos.
+   * Nada se altera; é uma cópia fiel do documento fiscal original.
+   */
+  async getSaleDetail(schema: string, id: string): Promise<{
+    invoice: { id: string; number: string; hash: string; previousHash: string; netTotal: number; ivaTotal: number; grossTotal: number };
+    docType: string; date: string; operationDate: string | null; status: string;
+    customerName: string | null; cashierName: string | null;
+    items: { description: string; quantity: number; unitPrice: number; total: number }[];
+  }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{
+        id: string; number: string; doc_type: string; status: string; hash: string; previous_hash: string;
+        net_total: string; iva_total: string; gross_total: string; system_entry_date: Date; operation_date: Date | null;
+        customer_name: string | null; cashier_name: string | null;
+      }[]>(
+        Prisma.sql`SELECT i.id, i.number, i.doc_type, i.status, i.hash, i.previous_hash,
+                          i.net_total, i.iva_total, i.gross_total, i.system_entry_date, i.operation_date,
+                          c.name AS customer_name, u.name AS cashier_name
+                   FROM invoices i
+                   LEFT JOIN customers c ON c.id = i.customer_id
+                   LEFT JOIN users u ON u.id = i.cashier_id
+                   WHERE i.id = ${id}::uuid LIMIT 1`,
+      );
+      const inv = rows[0];
+      if (!inv) throw new BadRequestException('Documento não encontrado.');
+      const items = await tx.$queryRaw<{ description: string; quantity: string; gross_amount: string }[]>(
+        Prisma.sql`SELECT description, quantity, gross_amount FROM invoice_items
+                   WHERE invoice_id = ${id}::uuid ORDER BY line_number`,
+      );
+      return {
+        invoice: {
+          id: inv.id, number: inv.number, hash: inv.hash, previousHash: inv.previous_hash,
+          netTotal: Number(inv.net_total), ivaTotal: Number(inv.iva_total), grossTotal: Number(inv.gross_total),
+        },
+        docType: inv.doc_type, status: inv.status,
+        date: inv.system_entry_date.toISOString(),
+        operationDate: inv.operation_date ? inv.operation_date.toISOString().slice(0, 10) : null,
+        customerName: inv.customer_name, cashierName: inv.cashier_name,
+        items: items.map((it) => {
+          const total = Number(it.gross_amount);
+          const qty = Number(it.quantity);
+          return { description: it.description, quantity: qty, unitPrice: qty ? Math.round((total / qty) * 100) / 100 : total, total };
+        }),
+      };
+    });
+  }
+
+  /**
    * Cancela uma venda emitindo uma NOTA DE CRÉDITO (NC) que a estorna: devolve
    * o stock, regista o estorno no caixa e na auditoria. A factura original NÃO
    * é apagada (princípio fiscal AGT — nada se apaga, tudo se estorna).

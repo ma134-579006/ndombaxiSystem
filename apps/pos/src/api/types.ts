@@ -70,6 +70,18 @@ export interface SaleRow {
 
 export type PaymentType = 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS' | 'CREDIT';
 
+/** Detalhe de um documento já emitido (para reimpressão / 2ª via). */
+export interface SaleDetail {
+  invoice: { id: string; number: string; hash: string; previousHash: string; netTotal: number; ivaTotal: number; grossTotal: number };
+  docType: string;
+  date: string;
+  operationDate: string | null;
+  status: string;
+  customerName: string | null;
+  cashierName: string | null;
+  items: { description: string; quantity: number; unitPrice: number; total: number }[];
+}
+
 export interface EmitInvoiceInput {
   docType?: string; // default FT
   series?: string; // default A

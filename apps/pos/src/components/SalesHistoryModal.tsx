@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { SaleRow } from '../api/types';
+import type { DocumentIdentity, ReceiptFiscalInfo, SaleDetail, SaleRow } from '../api/types';
 import { formatKz } from '../format';
+import { ReceiptModal } from './ReceiptModal';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('pt-PT'); } catch { return s; } };
@@ -20,6 +21,21 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  // Reimpressão (2ª via): dados fiscais + identidade + documento a mostrar.
+  const [info, setInfo] = useState<ReceiptFiscalInfo | null>(null);
+  const [identity, setIdentity] = useState<DocumentIdentity | null>(null);
+  const [printing, setPrinting] = useState<SaleDetail | null>(null);
+  const [printId, setPrintId] = useState<string | null>(null);
+  useEffect(() => {
+    api.receiptInfo().then(setInfo).catch(() => undefined);
+    api.documentIdentity().then(setIdentity).catch(() => undefined);
+  }, []);
+  const reprint = async (id: string) => {
+    setPrintId(id); setErr(null);
+    try { setPrinting(await api.getSale(id)); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível abrir o documento.'); }
+    finally { setPrintId(null); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true); setErr(null);
@@ -57,6 +73,7 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
   };
 
   return (
+    <>
     <div className="scan-overlay" onClick={onClose}>
       <div className="sales-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sm-head">
@@ -88,7 +105,7 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
               <thead>
                 <tr>
                   {canCancel ? <th><input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todas" /></th> : null}
-                  <th>Documento</th><th>Data</th><th>Produtos</th><th>Operador</th><th>Total</th><th>Estado</th>
+                  <th>Documento</th><th>Data</th><th>Produtos</th><th>Operador</th><th>Total</th><th>Estado</th><th>2ª via</th>
                 </tr>
               </thead>
               <tbody>
@@ -103,6 +120,11 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
                       <td data-label="Operador">{r.cashier_name || '—'}</td>
                       <td data-label="Total" style={{ fontWeight: 700 }}>{formatKz(Number(r.gross_total))}</td>
                       <td data-label="Estado">{cancelled ? <span className="pill off">Anulada</span> : <span className="pill on">Válida</span>}</td>
+                      <td data-label="2ª via">
+                        <button className="btn sm ghost" onClick={() => void reprint(r.id)} disabled={printId === r.id} title="Imprimir 2ª via">
+                          {printId === r.id ? '…' : '🖨 Imprimir'}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -112,5 +134,20 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
         </div>
       </div>
     </div>
+
+    {printing ? (
+      <ReceiptModal
+        invoice={printing.invoice}
+        info={info}
+        identity={identity}
+        customerName={printing.customerName}
+        operatorName={printing.cashierName}
+        items={printing.items}
+        reprint
+        dateLabel={new Date(printing.operationDate ? printing.operationDate + 'T00:00:00' : printing.date).toLocaleString('pt-PT')}
+        onClose={() => setPrinting(null)}
+      />
+    ) : null}
+    </>
   );
 }

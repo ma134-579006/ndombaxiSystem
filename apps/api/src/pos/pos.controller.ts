@@ -169,6 +169,13 @@ export class PosController {
     return this.invoices.listSales(this.ctx.requireTenantSchema(), { from, to });
   }
 
+  @Get('invoices/:id')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Detalhe de um documento para REIMPRESSÃO (2ª via)' })
+  getSale(@Param('id') id: string) {
+    return this.invoices.getSaleDetail(this.ctx.requireTenantSchema(), id);
+  }
+
   @Post('invoices/:id/cancel')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Anula uma venda (só gerente/gestor; NC, devolve stock, audita)' })
