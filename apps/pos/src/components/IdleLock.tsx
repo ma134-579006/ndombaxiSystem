@@ -41,6 +41,13 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
     };
   }, [locked, arm]);
 
+  // Bloqueio manual (sub-botão "Bloquear" do perfil) via evento global.
+  useEffect(() => {
+    const lockNow = () => setLocked(true);
+    window.addEventListener('ndx-lock', lockNow);
+    return () => window.removeEventListener('ndx-lock', lockNow);
+  }, []);
+
   // Relógio em tempo real (só corre enquanto bloqueado).
   useEffect(() => {
     if (!locked) return;

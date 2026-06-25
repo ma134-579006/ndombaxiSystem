@@ -121,6 +121,9 @@ function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustCha
           <button className="op-menu-item" onClick={() => { setOpen(false); onDocumento(); }}>
             <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>📄</span> Documento
           </button>
+          <button className="op-menu-item" onClick={() => { setOpen(false); window.dispatchEvent(new Event('ndx-lock')); }}>
+            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🔒</span> Bloquear
+          </button>
           <button className="op-menu-item danger" onClick={() => { setOpen(false); onLogout(); }}>
             <IconLogout size={17} /> Terminar sessão
           </button>
