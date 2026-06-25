@@ -261,6 +261,10 @@ export const api = {
       request<{ theme: string }>('PATCH', '/auth/me/preferences', { theme }),
   },
 
+  // Desbloqueio do ecrã de bloqueio do painel (re-verifica a palavra-passe do próprio).
+  verifyPassword: (password: string) =>
+    request<{ ok: boolean }>('POST', '/auth/verify-password', { password }),
+
   // ── AGENTE IA (ferramentas reais + eventos em tempo real) ──
   /**
    * Stream SSE do agente: emite cada passo (ferramenta), anexos e o texto

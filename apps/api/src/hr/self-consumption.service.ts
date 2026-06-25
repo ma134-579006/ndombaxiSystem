@@ -4,6 +4,9 @@ import { IVA_RATE, IvaCode, isIvaCode } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../erp/stock.service';
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+const fmtKz = (n: number) => `${n.toLocaleString('pt-PT')} Kz`;
+
 export interface ConsumptionRow {
   id: string;
   user_id: string | null;
@@ -37,6 +40,62 @@ export interface ConsumptionActor {
 export class SelfConsumptionService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Limite de consumo do MÊS CORRENTE: salário mensal − consumo já registado
+   * neste mês. O funcionário nunca pode exceder o salário; ao atingir o limite
+   * fica bloqueado até ao mês seguinte. Sincroniza com RH (salário do employee).
+   */
+  private async monthlyCap(
+    tx: Prisma.TransactionClient,
+    employeeId: string,
+  ): Promise<{ monthlyPay: number; consumed: number; available: number }> {
+    const rows = await tx.$queryRaw<{ pay: string; consumed: string }[]>(
+      Prisma.sql`SELECT
+          (COALESCE(e.base_salary,0)+COALESCE(e.taxable_allowances,0)+COALESCE(e.exempt_allowances,0))::text AS pay,
+          COALESCE((SELECT SUM(c.total) FROM employee_consumptions c
+                    WHERE c.employee_id = e.id
+                      AND c.created_at >= date_trunc('month', now())),0)::text AS consumed
+        FROM employees e WHERE e.id = ${employeeId}::uuid`,
+    );
+    const monthlyPay = round2(Number(rows[0]?.pay) || 0);
+    const consumed = round2(Number(rows[0]?.consumed) || 0);
+    const available = Math.max(0, round2(monthlyPay - consumed));
+    return { monthlyPay, consumed, available };
+  }
+
+  /** Valida que o consumo cabe no limite do mês; lança erro claro caso contrário. */
+  private assertWithinCap(
+    cap: { monthlyPay: number; consumed: number; available: number },
+    amount: number,
+  ): void {
+    if (cap.monthlyPay <= 0) {
+      throw new BadRequestException('O teu salário ainda não está definido em RH. Fala com o gestor.');
+    }
+    if (cap.available <= 0) {
+      throw new BadRequestException(
+        `Atingiste o limite de consumo deste mês (salário ${fmtKz(cap.monthlyPay)}). Só podes voltar a consumir no próximo mês.`,
+      );
+    }
+    if (round2(amount) > cap.available) {
+      throw new BadRequestException(
+        `Este consumo (${fmtKz(round2(amount))}) excede o que ainda podes consumir este mês (${fmtKz(cap.available)}).`,
+      );
+    }
+  }
+
+  /** Limite disponível do funcionário (para a aba do operador no POS). */
+  async limit(
+    schema: string,
+    actor: ConsumptionActor,
+  ): Promise<{ monthlyPay: number; consumed: number; available: number; employeeLinked: boolean }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const emp = await this.resolveEmployee(tx, actor.userId, actor.name);
+      if (!emp) return { monthlyPay: 0, consumed: 0, available: 0, employeeLinked: false };
+      const cap = await this.monthlyCap(tx, emp.id);
+      return { ...cap, employeeLinked: true };
+    });
+  }
+
   async register(
     schema: string,
     actor: ConsumptionActor,
@@ -62,6 +121,9 @@ export class SelfConsumptionService {
       const total = Math.round(unitGross * qty * 100) / 100;
 
       const emp = await this.resolveEmployee(tx, actor.userId, actor.name);
+      if (!emp) throw new BadRequestException('Sem ficha de funcionário associada. Fala com o gestor para te registar em RH.');
+      // Limite do mês: nunca pode exceder o salário mensal (bloqueia até ao mês seguinte).
+      this.assertWithinCap(await this.monthlyCap(tx, emp.id), total);
 
       // Baixa de stock: por loja (movimento auditável) ou no espelho global.
       if (!p.shared_stock && actor.storeId) {
@@ -109,6 +171,10 @@ export class SelfConsumptionService {
 
     return this.prisma.runInTenant(schema, async (tx) => {
       const emp = await this.resolveEmployee(tx, actor.userId, actor.name);
+      if (!emp) throw new BadRequestException('Sem ficha de funcionário associada. Fala com o gestor para te registar em RH.');
+      const cap = await this.monthlyCap(tx, emp.id);
+      if (cap.monthlyPay <= 0) throw new BadRequestException('O teu salário ainda não está definido em RH. Fala com o gestor.');
+      if (cap.available <= 0) throw new BadRequestException(`Atingiste o limite de consumo deste mês (salário ${fmtKz(cap.monthlyPay)}). Só podes voltar a consumir no próximo mês.`);
       let total = 0;
       let registered = 0;
 
@@ -126,6 +192,13 @@ export class SelfConsumptionService {
         const rate = isIvaCode(p.iva_code) ? IVA_RATE[p.iva_code as IvaCode] : 0;
         const unitGross = Math.round(Number(p.unit_price) * (1 + rate / 100) * 100) / 100;
         const lineTotal = Math.round(unitGross * qty * 100) / 100;
+
+        // Não deixa o total do carrinho exceder o limite do mês (salário restante).
+        if (round2(total + lineTotal) > cap.available) {
+          throw new BadRequestException(
+            `Este consumo excede o que ainda podes consumir este mês (${fmtKz(cap.available)}). Reduz a quantidade ou aguarda o próximo mês.`,
+          );
+        }
 
         if (!p.shared_stock && actor.storeId) {
           await StockService.applyMovement(tx, {

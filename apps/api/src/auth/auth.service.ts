@@ -662,6 +662,36 @@ export class AuthService {
     });
   }
 
+  /**
+   * Re-verifica o PIN do PRÓPRIO utilizador (ecrã de bloqueio do POS). Não emite
+   * tokens nem mexe na sessão — apenas confirma a identidade para desbloquear.
+   */
+  async verifyPin(user: JwtPayload, pin: string): Promise<{ ok: boolean }> {
+    if (user.subjectType !== 'TENANT' || !user.tenantSchema) return { ok: false };
+    const u = await this.tenantUsers.findById(user.tenantSchema, user.sub).catch(() => null);
+    if (!u || !u.is_active || !u.pin_hash) return { ok: false };
+    return { ok: await this.passwords.verify(u.pin_hash, (pin ?? '').trim()) };
+  }
+
+  /**
+   * Re-verifica a palavra-passe do PRÓPRIO utilizador (ecrã de bloqueio do
+   * painel). Suporta gestor (tenant) e super admin (plataforma).
+   */
+  async verifyPassword(user: JwtPayload, password: string): Promise<{ ok: boolean }> {
+    const pw = password ?? '';
+    if (user.subjectType === 'PLATFORM') {
+      const pu = await this.prisma.platformUser.findUnique({ where: { id: user.sub } }).catch(() => null);
+      if (!pu || !pu.isActive) return { ok: false };
+      return { ok: await this.passwords.verify(pu.passwordHash, pw) };
+    }
+    if (user.tenantSchema) {
+      const u = await this.tenantUsers.findById(user.tenantSchema, user.sub).catch(() => null);
+      if (!u || !u.is_active) return { ok: false };
+      return { ok: await this.passwords.verify(u.password_hash, pw) };
+    }
+    return { ok: false };
+  }
+
   // ─── Helpers ────────────────────────────────────────────────
   private checkTwoFa(
     enabled: boolean,

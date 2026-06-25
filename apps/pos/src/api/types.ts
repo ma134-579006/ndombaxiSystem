@@ -79,6 +79,8 @@ export interface EmitInvoiceInput {
   changeGiven?: number;
   /** Vencimento da dívida (venda a crédito); default +30 dias no servidor. */
   dueDate?: string;
+  /** Documento retroativo: data da compra ORIGINAL (YYYY-MM-DD). A data fiscal continua a ser hoje. */
+  operationDate?: string;
   lines: EmitInvoiceLine[];
 }
 
@@ -145,6 +147,10 @@ export interface SalaryAdvance {
 export interface AdvanceLimit {
   monthlyPay: number; outstanding: number; available: number; employeeLinked: boolean;
 }
+/** Limite de consumo do mês (salário − consumido este mês). */
+export interface ConsumptionLimit {
+  monthlyPay: number; consumed: number; available: number; employeeLinked: boolean;
+}
 /** Resumo do fecho de turno (para o recibo de fecho). */
 export interface ShiftClose {
   sessionId: string;
@@ -154,8 +160,13 @@ export interface ShiftClose {
   openingFloat: number;
   salesTotal: number;
   cashSales: number;
+  cardSales: number;
   cashIn: number;
   cashOut: number;
+  cashRefunds: number;
+  advancesPaid: number;
+  pendingAdvances: { staffName: string; amount: number }[];
+  breakReason: string | null;
   expected: number;
   counted: number;
   difference: number;
@@ -175,8 +186,11 @@ export interface ReportX {
   salesTotal: number;
   salesCount: number;
   cashSales: number;
+  cardSales: number;
   cashIn: number;
   cashOut: number;
+  cashRefunds: number;
+  advancesApproved: number;
   expectedCash: number;
   byPayment: Record<string, number>;
 }

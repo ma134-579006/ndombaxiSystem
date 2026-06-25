@@ -43,6 +43,15 @@ export class SelfConsumptionController {
     );
   }
 
+  @Get('limit')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Limite de consumo do mês (salário − consumido este mês)' })
+  limit(@CurrentUser() user: JwtPayload) {
+    return this.consumption.limit(this.ctx.requireTenantSchema(), {
+      userId: user.sub, name: user.name ?? user.email ?? null, storeId: user.storeId ?? null,
+    });
+  }
+
   @Get('mine')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Os meus consumos próprios (recentes)' })

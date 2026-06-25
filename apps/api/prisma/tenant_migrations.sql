@@ -150,3 +150,14 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."salary_advances" (
 );
 CREATE INDEX IF NOT EXISTS salary_advance_user_idx   ON "{{SCHEMA}}"."salary_advances"(user_id);
 CREATE INDEX IF NOT EXISTS salary_advance_status_idx ON "{{SCHEMA}}"."salary_advances"(status);
+
+-- Levantamento do adiantamento APROVADO pela caixa: quando o fecho reconcilia o
+-- numerário, os adiantamentos aprovados e ainda não levantados são contabilizados
+-- como saída legítima da gaveta (não dão quebra) e ficam marcados como levantados.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."salary_advances" ADD COLUMN IF NOT EXISTS disbursed_at         TIMESTAMPTZ;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."salary_advances" ADD COLUMN IF NOT EXISTS disbursed_session_id UUID;
+
+-- "Documento" retroativo (POS): emite-se a fatura/recibo HOJE (mantém a cadeia
+-- fiscal/hash AGT), mas regista-se a DATA DA OPERAÇÃO/COMPRA original (ex.: dia
+-- sem luz) para constar no documento. invoice_date continua a ser a data fiscal.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS operation_date DATE;

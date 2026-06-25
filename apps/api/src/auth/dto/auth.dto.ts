@@ -118,3 +118,17 @@ export class UpdateThemeDto {
   @Matches(/^[a-z]{0,16}$/)
   theme!: string;
 }
+
+/** Desbloqueio do ecrã de bloqueio do POS (re-verifica o PIN do próprio utilizador). */
+export class VerifyPinDto {
+  @IsString()
+  @Matches(/^\d{4,8}$/, { message: 'PIN inválido.' })
+  pin!: string;
+}
+
+/** Desbloqueio do ecrã de bloqueio do painel (re-verifica a palavra-passe). */
+export class VerifyPasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  password!: string;
+}

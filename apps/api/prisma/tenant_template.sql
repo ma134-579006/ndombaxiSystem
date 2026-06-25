@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."invoices" (
   year              INT  NOT NULL,
   sequence          INT  NOT NULL,
   invoice_date      DATE NOT NULL,
+  operation_date    DATE,                  -- data da compra original (documento retroativo)
   system_entry_date TIMESTAMPTZ NOT NULL DEFAULT now(),
   store_id          UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
   cashier_id        UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
@@ -430,6 +431,8 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."salary_advances" (
   period_year     INT,
   period_month    INT,
   store_id        UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
+  disbursed_at    TIMESTAMPTZ,
+  disbursed_session_id UUID,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS salary_advance_user_idx   ON "{{SCHEMA}}"."salary_advances"(user_id);

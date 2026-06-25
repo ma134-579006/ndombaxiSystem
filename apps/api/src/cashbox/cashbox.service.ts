@@ -5,6 +5,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TenantAuditService } from './tenant-audit.service';
 import type { CashMovementDto, CloseSessionDto, OpenSessionDto } from './dto/cashbox.dto';
 
+const fmtKz = (n: number) => `${n.toLocaleString('pt-PT')} Kz`;
+
 interface Actor { id?: string | null; name?: string | null }
 
 interface SessionRow {
@@ -118,13 +120,45 @@ export class CashboxService {
         }
       }
 
+      // Vendas em CARTÃO/Multicaixa TPA (não entram no esperado físico da gaveta).
+      const cardSales = round2(salesTotal - cashSales);
+
+      // Adiantamentos APROVADOS pelo gestor e ainda não levantados: o caixa pode
+      // levantar esse dinheiro da gaveta — é uma saída LEGÍTIMA, por isso reduz o
+      // esperado (não dá quebra). Marca-os como levantados neste fecho.
+      const advRows = await tx.$queryRaw<{ id: string; staff_name: string; amount: string }[]>(
+        Prisma.sql`SELECT id, staff_name, amount FROM salary_advances
+                   WHERE user_id = ${actor.id ?? null}::uuid AND status = 'APPROVED' AND disbursed_at IS NULL`,
+      );
+      const advancesPaid = round2(advRows.reduce((s, r) => s + Number(r.amount), 0));
+      if (advRows.length > 0) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE salary_advances SET disbursed_at = now(), disbursed_session_id = ${session.id}::uuid
+                     WHERE user_id = ${actor.id ?? null}::uuid AND status = 'APPROVED' AND disbursed_at IS NULL`,
+        );
+      }
+      // Adiantamentos ainda POR APROVAR: se o caixa levantou dinheiro sem aprovação,
+      // isso aparece como quebra — guardamos o motivo para mostrar no fecho.
+      const pendRows = await tx.$queryRaw<{ staff_name: string; amount: string }[]>(
+        Prisma.sql`SELECT staff_name, amount FROM salary_advances
+                   WHERE user_id = ${actor.id ?? null}::uuid AND status = 'PENDING'`,
+      );
+      const pendingAdvances = pendRows.map((r) => ({ staffName: r.staff_name, amount: round2(Number(r.amount)) }));
+
       const openingFloat = Number(session.opening_float);
-      // Esperado = fundo + vendas em numerário + reforços − sangrias − reembolsos.
-      const expected = round2(openingFloat + cashSales + cashIn - cashOut - cashRefunds);
+      // Esperado = fundo + vendas em numerário + reforços − sangrias − reembolsos
+      //            − adiantamentos aprovados levantados.
+      const expected = round2(openingFloat + cashSales + cashIn - cashOut - cashRefunds - advancesPaid);
       const counted = round2(dto.countedCash);
       const difference = round2(counted - expected);
       // estado: OK | quebra (falta) | sobra
       const verdict = difference === 0 ? 'OK' : difference < 0 ? 'QUEBRA' : 'SOBRA';
+      // Motivo provável da quebra (ex.: levantamento de adiantamento sem aprovação).
+      let breakReason: string | null = null;
+      if (verdict === 'QUEBRA' && pendingAdvances.length > 0) {
+        const tot = round2(pendingAdvances.reduce((s, a) => s + a.amount, 0));
+        breakReason = `Há ${pendingAdvances.length} adiantamento(s) POR APROVAR (${fmtKz(tot)}). Se levantaste dinheiro sem o gestor aprovar, isso causa esta quebra — pede a aprovação primeiro.`;
+      }
 
       await tx.$executeRaw(
         Prisma.sql`UPDATE cash_sessions SET
@@ -132,14 +166,14 @@ export class CashboxService {
             closed_at = now(), counted_cash = ${counted}, expected_cash = ${expected},
             difference = ${difference}, notes = ${dto.notes ?? null},
             total_sales = ${round2(salesTotal)}, total_cash_in = ${round2(cashIn)},
-            total_cash_out = ${round2(cashOut)}, sales_count = ${salesCount}
+            total_cash_out = ${round2(cashOut + advancesPaid)}, sales_count = ${salesCount}
           WHERE id = ${session.id}::uuid`,
       );
 
       await this.audit.recordInTx(tx, {
         actorId: actor.id, actorName: actor.name, action: 'SHIFT_CLOSE',
         entity: 'cash_session', entityId: session.id,
-        details: { openingFloat, cashSales, cashIn, cashOut, cashRefunds, expected, counted, difference, verdict, salesCount },
+        details: { openingFloat, cashSales, cardSales, cashIn, cashOut, cashRefunds, advancesPaid, expected, counted, difference, verdict, salesCount },
       });
 
       // Produtos vendidos no turno (para o recibo de fecho).
@@ -158,8 +192,8 @@ export class CashboxService {
         openedByName: session.opened_by_name,
         openedAt: session.opened_at,
         closedAt: new Date().toISOString(),
-        openingFloat, salesTotal: round2(salesTotal), cashSales, cashIn, cashOut,
-        cashRefunds: round2(cashRefunds),
+        openingFloat, salesTotal: round2(salesTotal), cashSales, cardSales, cashIn, cashOut,
+        cashRefunds: round2(cashRefunds), advancesPaid, pendingAdvances, breakReason,
         expected, counted, difference, verdict, salesCount,
         products: products.map((p) => ({
           productCode: p.product_code, description: p.description,
@@ -196,6 +230,13 @@ export class CashboxService {
         }
       }
       const openingFloat = Number(session.opening_float);
+      const cardSales = round2(salesTotal - cashSales);
+      // Adiantamentos aprovados por levantar (reduzem o esperado no fecho).
+      const advAgg = await tx.$queryRaw<{ total: string }[]>(
+        Prisma.sql`SELECT COALESCE(SUM(amount),0)::text AS total FROM salary_advances
+                   WHERE user_id = ${userId}::uuid AND status = 'APPROVED' AND disbursed_at IS NULL`,
+      );
+      const advancesApproved = round2(Number(advAgg[0]?.total) || 0);
       return {
         type: 'X',
         sessionId: session.id,
@@ -203,9 +244,9 @@ export class CashboxService {
         openedAt: session.opened_at,
         now: new Date().toISOString(),
         openingFloat, salesTotal: round2(salesTotal), salesCount,
-        cashSales: round2(cashSales), cashIn: round2(cashIn), cashOut: round2(cashOut),
-        cashRefunds: round2(cashRefunds),
-        expectedCash: round2(openingFloat + cashSales + cashIn - cashOut - cashRefunds),
+        cashSales: round2(cashSales), cardSales, cashIn: round2(cashIn), cashOut: round2(cashOut),
+        cashRefunds: round2(cashRefunds), advancesApproved,
+        expectedCash: round2(openingFloat + cashSales + cashIn - cashOut - cashRefunds - advancesApproved),
         byPayment,
       };
     });

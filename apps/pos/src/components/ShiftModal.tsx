@@ -102,14 +102,19 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
             </div>
             <div className="kv"><span className="k">Fundo inicial</span><span className="v">{formatKz(r.openingFloat)}</span></div>
             <div className="kv"><span className="k">Vendas (total)</span><span className="v">{formatKz(r.salesTotal)} · {r.salesCount}</span></div>
-            <div className="kv"><span className="k">Vendas em numerário</span><span className="v">{formatKz(r.cashSales)}</span></div>
+            <div className="kv"><span className="k" style={{ paddingLeft: 10 }}>· em numerário</span><span className="v">{formatKz(r.cashSales)}</span></div>
+            {r.cardSales > 0 ? <div className="kv"><span className="k" style={{ paddingLeft: 10 }}>· em cartão/Multicaixa (TPA)</span><span className="v">{formatKz(r.cardSales)}</span></div> : null}
             {r.cashIn > 0 ? <div className="kv"><span className="k">Reforços</span><span className="v">{formatKz(r.cashIn)}</span></div> : null}
             {r.cashOut > 0 ? <div className="kv"><span className="k">Sangrias</span><span className="v">−{formatKz(r.cashOut)}</span></div> : null}
+            {r.cashRefunds > 0 ? <div className="kv"><span className="k">Reembolsos</span><span className="v">−{formatKz(r.cashRefunds)}</span></div> : null}
+            {r.advancesPaid > 0 ? <div className="kv"><span className="k">Adiantamentos levantados (aprovados)</span><span className="v">−{formatKz(r.advancesPaid)}</span></div> : null}
             <div className="kv" style={{ borderTop: '1px solid var(--border)', marginTop: 6, paddingTop: 10 }}>
-              <span className="k">Esperado na gaveta</span><span className="v">{formatKz(r.expected)}</span>
+              <span className="k">Esperado na gaveta (só dinheiro)</span><span className="v">{formatKz(r.expected)}</span>
             </div>
             <div className="kv"><span className="k">Contado (físico)</span><span className="v">{formatKz(r.counted)}</span></div>
             <div className="kv"><span className="k">Diferença</span><span className="v" style={{ color: tone }}>{formatKz(r.difference)}</span></div>
+            {r.cardSales > 0 ? <div className="legend" style={{ textAlign: 'left', marginTop: 8 }}>As vendas em <strong>cartão/TPA</strong> ({formatKz(r.cardSales)}) não entram na gaveta — não contam para a quebra.</div> : null}
+            {r.breakReason ? <div className="banner danger" style={{ marginTop: 10, fontSize: 13 }}>⚠️ {r.breakReason}</div> : null}
 
             {r.products.length > 0 ? (
               <div className="legend" style={{ textAlign: 'left' }}>
@@ -155,9 +160,11 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
             ))}
             {x.cashIn > 0 ? <div className="kv"><span className="k">Reforços</span><span className="v">{formatKz(x.cashIn)}</span></div> : null}
             {x.cashOut > 0 ? <div className="kv"><span className="k">Sangrias</span><span className="v">−{formatKz(x.cashOut)}</span></div> : null}
+            {x.advancesApproved > 0 ? <div className="kv"><span className="k">Adiantamentos aprovados (a levantar)</span><span className="v">−{formatKz(x.advancesApproved)}</span></div> : null}
             <div className="kv" style={{ borderTop: '1px solid var(--border)', marginTop: 6, paddingTop: 10 }}>
               <span className="k">Esperado em numerário</span><span className="v grand">{formatKz(x.expectedCash)}</span>
             </div>
+            {x.cardSales > 0 ? <div className="legend" style={{ textAlign: 'left', marginTop: 8 }}>Cartão/TPA: <strong>{formatKz(x.cardSales)}</strong> (não entra na gaveta).</div> : null}
           </div>
           <div className="receipt-credit">{copyrightLine()}</div>
           <PaperSizeToggle />

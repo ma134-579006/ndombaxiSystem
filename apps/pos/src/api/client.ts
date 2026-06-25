@@ -18,6 +18,7 @@ import type {
   SaleRow,
   SalaryAdvance,
   AdvanceLimit,
+  ConsumptionLimit,
   SelfConsumption,
   ShiftClose,
   TenantLoginInput,
@@ -187,12 +188,16 @@ export const api = {
   custChatDelete: (ids: string[]) => request<{ deleted: number }>('POST', '/ecommerce/customer-chat/delete', { ids }),
   custChatUnread: () => request<{ count: number }>('GET', '/ecommerce/customer-chat/unread'),
 
+  // ── Desbloqueio do ecrã de bloqueio (re-verifica o PIN do próprio caixa) ──
+  verifyPin: (pin: string) => request<{ ok: boolean }>('POST', '/auth/verify-pin', { pin }),
+
   // ── Consumo próprio (desconta no salário) ──────────────────
   registerConsumption: (productId: string, quantity: number) =>
     request<SelfConsumption & { employeeLinked: boolean }>('POST', '/hr/self-consumption', { productId, quantity }),
   registerConsumptions: (items: { productId: string; quantity: number }[]) =>
     request<{ registered: number; total: number; employeeLinked: boolean }>('POST', '/hr/self-consumption/bulk', { items }),
   myConsumptions: () => request<SelfConsumption[]>('GET', '/hr/self-consumption/mine'),
+  consumptionLimit: () => request<ConsumptionLimit>('GET', '/hr/self-consumption/limit'),
 
   // ── Adiantamento salarial (pede → gestor aprova → desconta na folha) ──
   advanceLimit: () => request<AdvanceLimit>('GET', '/hr/salary-advance/limit'),

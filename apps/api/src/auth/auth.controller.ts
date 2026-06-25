@@ -25,6 +25,8 @@ import {
   StaffPinLoginDto,
   TenantLoginDto,
   UpdateThemeDto,
+  VerifyPasswordDto,
+  VerifyPinDto,
 } from './dto/auth.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -162,6 +164,22 @@ export class AuthController {
   @ApiOperation({ summary: 'Grava preferências do utilizador (tema por perfil)' })
   setPreferences(@CurrentUser() user: JwtPayload, @Body() dto: UpdateThemeDto) {
     return this.auth.setPreferences(user, dto.theme);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('verify-pin')
+  @ApiOperation({ summary: 'Re-verifica o PIN do próprio utilizador (desbloqueio do POS)' })
+  verifyPin(@CurrentUser() user: JwtPayload, @Body() dto: VerifyPinDto) {
+    return this.auth.verifyPin(user, dto.pin);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('verify-password')
+  @ApiOperation({ summary: 'Re-verifica a palavra-passe do próprio utilizador (desbloqueio do painel)' })
+  verifyPassword(@CurrentUser() user: JwtPayload, @Body() dto: VerifyPasswordDto) {
+    return this.auth.verifyPassword(user, dto.password);
   }
 
   @UseGuards(JwtAuthGuard)

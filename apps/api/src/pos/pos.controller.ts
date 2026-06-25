@@ -157,6 +157,7 @@ export class PosController {
       tendered: dto.tendered ?? null,
       changeGiven: dto.changeGiven ?? null,
       dueDate: dto.dueDate ?? null,
+      operationDate: dto.operationDate ?? null,
       lines: dto.lines,
     });
   }

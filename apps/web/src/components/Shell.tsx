@@ -7,6 +7,7 @@ import { ThemePicker } from './ThemePicker';
 import { PrintBrandHead, PrintBrandFoot } from './PrintBrand';
 import { ChatModal } from './ChatModal';
 import { CustomerChatModal } from './CustomerChatModal';
+import { IdleLock } from './IdleLock';
 import { Modal } from './ui';
 import type { SalaryAdvanceReq } from '../api/types';
 import { CAIXA_URL } from '../config';
@@ -454,6 +455,11 @@ export function Shell({
       {advancesOpen && advancesAllowed ? (
         <AdvancesModal items={advances.items} onReview={advances.review} onClose={() => setAdvancesOpen(false)} />
       ) : null}
+      <IdleLock
+        photo={avatar}
+        name={user?.name || user?.email || 'Utilizador'}
+        role={`${roleLabel}${companyCode ? ` · ${companyCode}` : ''}`}
+      />
     </div>
   );
 }

@@ -57,6 +57,12 @@ export class EmitInvoiceDto {
   @IsString()
   dueDate?: string;
 
+  /** Documento retroativo: data da compra ORIGINAL (YYYY-MM-DD). A data fiscal continua a ser hoje. */
+  @IsOptional()
+  @IsString()
+  @Length(10, 10)
+  operationDate?: string;
+
   /** Dinheiro entregue pelo cliente (numerário). */
   @IsOptional()
   @IsNumber()

@@ -34,6 +34,8 @@ export interface EmitInvoiceInput {
   changeGiven?: number | null;
   /** Vencimento da conta a receber (venda a crédito); default +30 dias. */
   dueDate?: string | null;
+  /** Documento retroativo: data da compra ORIGINAL (a data fiscal continua a ser hoje). */
+  operationDate?: string | null;
   lines: { productCode: string; quantity: number; discountRate?: number }[];
 }
 
@@ -246,12 +248,12 @@ export class InvoiceService {
 
       const invRows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO invoices
-            (number, doc_type, series, year, sequence, invoice_date, system_entry_date, store_id,
+            (number, doc_type, series, year, sequence, invoice_date, operation_date, system_entry_date, store_id,
              cashier_id, customer_id, customer_tax_id,
              net_total, iva_total, gross_total, signable_string, previous_hash, hash,
             signature, signature_key_version)
           VALUES (${number}, ${input.docType}, ${input.series}, ${year}, ${sequence},
-                  ${invoiceDate}::date, ${systemEntryDate}::timestamptz, ${warehouseId ?? null}::uuid,
+                  ${invoiceDate}::date, ${input.operationDate ?? null}::date, ${systemEntryDate}::timestamptz, ${warehouseId ?? null}::uuid,
                   ${input.cashierId ?? null}::uuid, ${input.customerId ?? null}::uuid, ${customerTaxId},
                   ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal},
                   ${signable}, ${previousHash}, ${hash}, ${signature}, ${signatureKeyVersion})

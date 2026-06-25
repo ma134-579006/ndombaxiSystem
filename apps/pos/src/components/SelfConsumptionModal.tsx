@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import { IVA_RATE, type Product, type SelfConsumption } from '../api/types';
+import { IVA_RATE, type ConsumptionLimit, type Product, type SelfConsumption } from '../api/types';
 import { formatKz } from '../format';
 import { BarcodeScanner } from './BarcodeScanner';
 
@@ -30,9 +30,11 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [mine, setMine] = useState<SelfConsumption[]>([]);
+  const [lim, setLim] = useState<ConsumptionLimit | null>(null);
 
   const loadMine = () => { api.myConsumptions().then(setMine).catch(() => undefined); };
-  useEffect(() => { loadMine(); }, []);
+  const loadLimit = () => { api.consumptionLimit().then(setLim).catch(() => undefined); };
+  useEffect(() => { loadMine(); loadLimit(); }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -75,7 +77,7 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
       const r = await api.registerConsumptions(cart.map((l) => ({ productId: l.product.id, quantity: l.qty })));
       setMsg(`${r.registered} consumo(s) registado(s) — ${formatKz(r.total)}.${r.employeeLinked ? ' Será descontado no teu salário.' : ' ⚠ Sem ficha de funcionário associada — fala com o gestor.'}`);
       setCart([]); setSearch('');
-      loadMine();
+      loadMine(); loadLimit();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Não foi possível registar os consumos.');
     } finally { setBusy(false); }
@@ -104,6 +106,17 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
         </div>
 
         <div className="consume-body">
+          {lim && lim.employeeLinked ? (
+            lim.available <= 0 ? (
+              <div className="banner danger" style={{ marginBottom: 12 }}>
+                Atingiste o limite de consumo deste mês (salário {formatKz(lim.monthlyPay)}). Só podes voltar a consumir no próximo mês.
+              </div>
+            ) : (
+              <div className="banner info" style={{ marginBottom: 12 }}>
+                Podes consumir até <strong>{formatKz(lim.available)}</strong> este mês · salário {formatKz(lim.monthlyPay)}{lim.consumed > 0 ? ` · já consumiste ${formatKz(lim.consumed)}` : ''}.
+              </div>
+            )
+          ) : null}
           {msg ? <div className="banner success" style={{ marginBottom: 12 }}>{msg}</div> : null}
           {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
 
