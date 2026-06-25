@@ -375,23 +375,26 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .kbd-overlay { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1200; pointer-events: none; }
 .kbd {
   pointer-events: auto; background: var(--surface-2); border-top: 1px solid var(--border);
-  padding: 8px 8px 12px; box-shadow: 0 -12px 30px rgba(0,0,0,.4);
+  padding: 8px clamp(4px, 1.4vw, 8px) max(12px, env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 30px rgba(0,0,0,.4); max-width: 900px; margin: 0 auto; box-sizing: border-box; width: 100%;
 }
-.kbd-bar { display: flex; align-items: center; justify-content: space-between; padding: 2px 6px 6px; }
-.kbd-bar .lbl { color: var(--muted); font-size: 12px; font-weight: 700; }
-.kbd-bar .acts { display: flex; gap: 14px; align-items: center; }
+.kbd-bar { display: flex; align-items: center; justify-content: space-between; padding: 2px 6px 6px; gap: 8px; }
+.kbd-bar .lbl { color: var(--muted); font-size: 12px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kbd-bar .acts { display: flex; gap: clamp(10px, 3vw, 14px); align-items: center; flex: none; }
 .kbd-bar .acts button { background: transparent; border: none; color: var(--muted); font-size: 13px; font-weight: 700; display: grid; place-items: center; }
-.kbd-row { display: flex; gap: 6px; margin-top: 6px; }
+.kbd-row { display: flex; gap: clamp(3px, 1vw, 6px); margin-top: clamp(3px, 1vw, 6px); }
 .key {
-  flex: 1; height: 52px; border-radius: 9px; background: var(--surface); color: var(--text);
-  border: 1px solid var(--border); font-size: 18px; font-weight: 600; display: grid; place-items: center;
-  transition: background .08s, transform .04s;
+  flex: 1 1 0; min-width: 0; height: clamp(40px, 7.4vw, 52px); border-radius: 9px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); font-size: clamp(14px, 4.2vw, 18px); font-weight: 600;
+  display: grid; place-items: center; transition: background .08s, transform .04s;
 }
 .key:hover { background: var(--surface-2); }
 .key:active { transform: translateY(1px); background: var(--primary-soft); }
-.key.action { background: var(--bg); }
+.key.action { background: var(--bg); font-size: clamp(12px, 3.4vw, 15px); }
 .key.accent { background: var(--primary); border-color: var(--primary); color: #fff; }
-.key.wide-15 { flex: 1.5; } .key.wide-16 { flex: 1.6; } .key.wide-4 { flex: 4; }
+.key.wide-15 { flex: 1.5 1 0; } .key.wide-16 { flex: 1.6 1 0; } .key.wide-4 { flex: 4 1 0; }
+@media (min-width: 720px) { .key { height: 52px; font-size: 18px; } .key.action { font-size: 15px; } .kbd-row { gap: 6px; } }
 
 /* ============================================================
    FILA DE VENDAS OFFLINE

@@ -5,6 +5,7 @@ import type { PublicPlan } from '../api/types';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
+import { ScreenKeyboard } from '../components/ScreenKeyboard';
 
 /**
  * Criar conta de empresa — registo SIMPLES (só email + palavra-passe ou Google).
@@ -82,6 +83,7 @@ export function Register({ onBack }: { onBack?: () => void }) {
         </div>
       </div>
       <div className="auth-media"><LoginShowcase /></div>
+      <ScreenKeyboard />
     </div>
   );
 }
