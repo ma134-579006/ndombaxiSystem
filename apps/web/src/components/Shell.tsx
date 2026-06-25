@@ -7,6 +7,8 @@ import { ThemePicker } from './ThemePicker';
 import { PrintBrandHead, PrintBrandFoot } from './PrintBrand';
 import { ChatModal } from './ChatModal';
 import { CustomerChatModal } from './CustomerChatModal';
+import { Modal } from './ui';
+import type { SalaryAdvanceReq } from '../api/types';
 import { CAIXA_URL } from '../config';
 
 /** Sino de notificações (Super Admin): conversas por responder + comentários
@@ -84,16 +86,14 @@ function OrdersBell({ onGo }: { onGo(): void }) {
 
 const fmtKz = (v: number) => `${Math.round(v).toLocaleString('pt-PT')} Kz`;
 
-/** Sino de pedidos de ADIANTAMENTO SALARIAL (gestor/gerente): badge com o nº de
- *  pendentes + dropdown responsivo para Aceitar/Rejeitar cada pedido. */
-function AdvancesBell() {
-  const [items, setItems] = useState<import('../api/types').SalaryAdvanceReq[]>([]);
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState<string | null>(null);
-  const ref = useRef<HTMLDivElement | null>(null);
-
+/** Dados dos pedidos de ADIANTAMENTO SALARIAL pendentes (gestor/gerente): faz
+ *  polling enquanto `enabled`, e expõe a lista + a ação de aprovar/rejeitar. O
+ *  número de pendentes alimenta o badge no perfil. */
+function useAdvances(enabled: boolean) {
+  const [items, setItems] = useState<SalaryAdvanceReq[]>([]);
   const load = () => { api.advances.pending().then(setItems).catch(() => undefined); };
   useEffect(() => {
+    if (!enabled) return;
     let alive = true;
     const tick = () => { api.advances.pending().then((r) => { if (alive) setItems(r); }).catch(() => undefined); };
     tick();
@@ -101,57 +101,45 @@ function AdvancesBell() {
     const onFocus = () => tick();
     window.addEventListener('focus', onFocus);
     return () => { alive = false; window.clearInterval(t); window.removeEventListener('focus', onFocus); };
-  }, []);
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [open]);
-
+  }, [enabled]);
   const review = async (id: string, decision: 'APPROVED' | 'REJECTED') => {
-    setBusy(id);
-    try {
-      await api.advances.review(id, decision);
-      setItems((prev) => prev.filter((i) => i.id !== id));
-    } catch { load(); } finally { setBusy(null); }
+    try { await api.advances.review(id, decision); setItems((prev) => prev.filter((i) => i.id !== id)); }
+    catch { load(); }
   };
+  return { items, review };
+}
 
-  const n = items.length;
+/** Modal (centrado e 100% responsivo, via <Modal> com portal) com os pedidos de
+ *  adiantamento pendentes e os botões Aceitar/Rejeitar. */
+function AdvancesModal({ items, onReview, onClose }: {
+  items: SalaryAdvanceReq[]; onReview(id: string, d: 'APPROVED' | 'REJECTED'): Promise<void>; onClose(): void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const act = async (id: string, d: 'APPROVED' | 'REJECTED') => { setBusy(id); try { await onReview(id, d); } finally { setBusy(null); } };
   return (
-    <div ref={ref} className="acct" style={{ position: 'relative' }}>
-      <button className="icon-btn noti-btn" onClick={() => setOpen((v) => !v)}
-        title={n > 0 ? `${n} pedido(s) de adiantamento` : 'Adiantamentos salariais'} aria-label="Adiantamentos salariais">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 12h.01M18 12h.01" />
-        </svg>
-        {n > 0 ? <span className="noti-badge">{n > 99 ? '99+' : n}</span> : null}
-      </button>
-      {open ? (
-        <div className="noti-pop">
-          <div className="noti-pop-head">💸 Pedidos de adiantamento {n > 0 ? `(${n})` : ''}</div>
-          {n === 0 ? (
-            <div className="noti-pop-empty">Sem pedidos pendentes.</div>
-          ) : items.map((a) => (
-            <div key={a.id} className="noti-item">
-              <div className="noti-item-top">
-                <strong className="noti-name">{a.staff_name}</strong>
-                <strong className="noti-amt">{fmtKz(Number(a.amount))}</strong>
-              </div>
-              <div className="noti-meta">
-                {a.monthly_pay ? `Salário ${fmtKz(Number(a.monthly_pay))}` : 'Salário n/d'}
-                {' · '}{new Date(a.requested_at).toLocaleDateString('pt-PT')}
-                {a.reason ? ` · ${a.reason}` : ''}
-              </div>
-              <div className="noti-actions">
-                <button className="btn sm ok" disabled={busy === a.id} onClick={() => void review(a.id, 'APPROVED')}>Aceitar</button>
-                <button className="btn sm ghost danger" disabled={busy === a.id} onClick={() => void review(a.id, 'REJECTED')}>Rejeitar</button>
-              </div>
+    <Modal title="💸 Pedidos de adiantamento" onClose={onClose}>
+      <div className="adv-list">
+        {items.length === 0 ? (
+          <div className="adv-empty">Sem pedidos de adiantamento pendentes.</div>
+        ) : items.map((a) => (
+          <div key={a.id} className="adv-req">
+            <div className="adv-req-top">
+              <strong className="adv-req-name">{a.staff_name}</strong>
+              <strong className="adv-req-amt">{fmtKz(Number(a.amount))}</strong>
             </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
+            <div className="adv-req-meta">
+              {a.monthly_pay ? `Salário ${fmtKz(Number(a.monthly_pay))}` : 'Salário n/d'}
+              {' · '}{new Date(a.requested_at).toLocaleDateString('pt-PT')}
+              {a.reason ? ` · ${a.reason}` : ''}
+            </div>
+            <div className="adv-req-actions">
+              <button className="btn sm ok" disabled={busy === a.id} onClick={() => void act(a.id, 'APPROVED')}>Aceitar</button>
+              <button className="btn sm ghost danger" disabled={busy === a.id} onClick={() => void act(a.id, 'REJECTED')}>Rejeitar</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Modal>
   );
 }
 
@@ -183,10 +171,10 @@ function IconGear({ size = 17 }: { size?: number }) {
 
 /** Menu da conta do gestor (canto superior direito): avatar + seta → nome,
  *  email, Configurações e Terminar sessão. Fecha ao clicar fora. */
-function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat, canOpenCash, onOpenCash, onChat, onCustChat, onSettings, onLogout }: {
-  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; canCustChat: boolean; canOpenCash: boolean; onOpenCash(): void; onChat(): void; onCustChat(): void; onSettings(): void; onLogout(): void;
+function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat, canOpenCash, canAdvances, advancesCount, onOpenCash, onChat, onCustChat, onAdvances, onSettings, onLogout }: {
+  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; canCustChat: boolean; canOpenCash: boolean; canAdvances: boolean; advancesCount: number; onOpenCash(): void; onChat(): void; onCustChat(): void; onAdvances(): void; onSettings(): void; onLogout(): void;
 }) {
-  const totalBadge = unread + (canCustChat ? custUnread : 0);
+  const totalBadge = unread + (canCustChat ? custUnread : 0) + (canAdvances ? advancesCount : 0);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -225,6 +213,12 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
             <button className="acct-item" onClick={() => { setOpen(false); onCustChat(); }}>
               <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛍️</span> Chat com clientes
               {custUnread > 0 ? <span className="acct-item-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
+            </button>
+          ) : null}
+          {canAdvances ? (
+            <button className="acct-item" onClick={() => { setOpen(false); onAdvances(); }}>
+              <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💸</span> Pedidos de adiantamento
+              {advancesCount > 0 ? <span className="acct-item-badge">{advancesCount > 99 ? '99+' : advancesCount}</span> : null}
             </button>
           ) : null}
           <button className="acct-item" onClick={() => { setOpen(false); onSettings(); }}><IconGear size={17} /> Configurações</button>
@@ -322,6 +316,10 @@ export function Shell({
   const [custChatOpen, setCustChatOpen] = useState(false);
   const [custUnread, setCustUnread] = useState(0);
   const custChatAllowed = canChatCustomers(user?.role);
+  // Pedidos de adiantamento salarial — sub-botão do perfil (gestor/gerente).
+  const advancesAllowed = isTenant && (ROLE_LEVEL[user?.role ?? ''] ?? 9) <= ROLE_LEVEL.STORE_MANAGER;
+  const advances = useAdvances(advancesAllowed);
+  const [advancesOpen, setAdvancesOpen] = useState(false);
   useEffect(() => {
     if (!isTenant) return;
     let alive = true;
@@ -415,7 +413,6 @@ export function Shell({
           <span className="spacer" />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
           {isTenant ? <OrdersBell onGo={() => setSection('orders')} /> : null}
-          {isTenant && (ROLE_LEVEL[user?.role ?? ''] ?? 9) <= ROLE_LEVEL.STORE_MANAGER ? <AdvancesBell /> : null}
           <ThemePicker />
           <ManagerMenu
             photo={avatar}
@@ -425,6 +422,9 @@ export function Shell({
             unread={isTenant ? chatUnread : 0}
             custUnread={isTenant ? custUnread : 0}
             canCustChat={isTenant && custChatAllowed}
+            canAdvances={advancesAllowed}
+            advancesCount={advances.items.length}
+            onAdvances={() => setAdvancesOpen(true)}
             canOpenCash={isTenant && (ROLE_LEVEL[user?.role ?? ''] ?? 9) <= ROLE_LEVEL.SHIFT_SUPERVISOR}
             onOpenCash={() => {
               const p = new URLSearchParams();
@@ -450,6 +450,9 @@ export function Shell({
       ) : null}
       {custChatOpen && custChatAllowed ? (
         <CustomerChatModal onClose={() => setCustChatOpen(false)} onRead={() => setCustUnread(0)} />
+      ) : null}
+      {advancesOpen && advancesAllowed ? (
+        <AdvancesModal items={advances.items} onReview={advances.review} onClose={() => setAdvancesOpen(false)} />
       ) : null}
     </div>
   );
