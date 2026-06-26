@@ -14,6 +14,8 @@ export interface DocumentIdentity {
   email: string | null;
   /** Dizeres livres configuráveis pela empresa para o rodapé do recibo. */
   receiptMessage: string | null;
+  /** Tipo de negócio (adapta o painel): RETAIL | RESTAURANT | SERVICES | HOSPITALITY. */
+  businessType: string;
   /** Assinatura permanente do sistema (autoria). */
   copyright: string;
 }
@@ -64,6 +66,7 @@ export class CompanyIdentityService {
       phone: s?.contact_phone ?? company?.responsiblePhone ?? null,
       email: s?.contact_email ?? company?.responsibleEmail ?? null,
       receiptMessage: s?.receipt_message ?? null,
+      businessType: company?.sector ?? 'RETAIL',
       copyright: copyrightLine(),
     };
   }

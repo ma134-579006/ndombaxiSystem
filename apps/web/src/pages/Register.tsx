@@ -11,14 +11,24 @@ import { ScreenKeyboard } from '../components/ScreenKeyboard';
  * Criar conta de empresa — registo SIMPLES (só email + palavra-passe ou Google).
  * Mesmo design escuro do login (formulário à esquerda, vídeo à direita).
  */
+/** Tipos de negócio suportados (cada um adapta o painel ao seu serviço). */
+const BUSINESS_TYPES: { id: string; label: string; hint: string }[] = [
+  { id: 'RETAIL', label: '🛒 Vendas & Gestão de stock', hint: 'Loja, mercearia, retalho, grossista — produtos e stock.' },
+  { id: 'RESTAURANT', label: '🍔 Restauração', hint: 'Restaurante, hamburgueria, pastelaria, padaria, café, snack-bar.' },
+  { id: 'SERVICES', label: '🔧 Serviços', hint: 'Mecânica, suporte técnico, recauchutagem, reparações, assistência.' },
+  { id: 'HOSPITALITY', label: '🏨 Hotelaria', hint: 'Hotel, hospedaria, pousada, guest-house — quartos e reservas.' },
+];
+
 export function Register({ onBack }: { onBack?: () => void }) {
   const { adoptSession } = useAuth();
   const [plans, setPlans] = useState<PublicPlan[]>([]);
   const [planTier, setPlanTier] = useState('STARTER');
+  const [businessType, setBusinessType] = useState('RETAIL');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const bizHint = BUSINESS_TYPES.find((b) => b.id === businessType)?.hint;
 
   useEffect(() => {
     api.publicLanding().then((l) => {
@@ -35,14 +45,14 @@ export function Register({ onBack }: { onBack?: () => void }) {
     setError(null);
     if (!email.trim() || password.length < 8) { setError('Indique e-mail e palavra-passe (mín. 8 caracteres).'); return; }
     setLoading(true);
-    try { finish(await api.registerSimple({ email: email.trim(), password, planTier })); }
+    try { finish(await api.registerSimple({ email: email.trim(), password, planTier, businessType })); }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível criar a conta.'); }
     finally { setLoading(false); }
   };
 
   const onGoogle = async (idToken: string) => {
     setError(null); setLoading(true);
-    try { finish(await api.registerSimple({ googleIdToken: idToken, planTier })); }
+    try { finish(await api.registerSimple({ googleIdToken: idToken, planTier, businessType })); }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível criar a conta com Google.'); }
     finally { setLoading(false); }
   };
@@ -54,6 +64,12 @@ export function Register({ onBack }: { onBack?: () => void }) {
           <h1 className="auth-title">Criar conta</h1>
 
           {error ? <div className="auth-error">{error}</div> : null}
+
+          <label className="auth-label">Tipo de negócio</label>
+          <select className="auth-input" value={businessType} onChange={(e) => setBusinessType(e.target.value)}>
+            {BUSINESS_TYPES.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+          </select>
+          {bizHint ? <p style={{ margin: '6px 2px 0', fontSize: 12.5, color: '#9fb0cc' }}>{bizHint}</p> : null}
 
           {plans.length > 0 ? (
             <>

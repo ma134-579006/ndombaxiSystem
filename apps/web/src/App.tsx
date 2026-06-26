@@ -22,6 +22,9 @@ import { Gateways } from './sections/Gateways';
 import { Tenants } from './sections/Tenants';
 import { Products } from './sections/Products';
 import { Orders } from './sections/Orders';
+import { ServiceHub } from './sections/ServiceHub';
+import { Restaurant } from './sections/Restaurant';
+import { ServiceOrders } from './sections/ServiceOrders';
 import { Payments } from './sections/Payments';
 import { Operations } from './sections/Operations';
 import { Inventory } from './sections/Inventory';
@@ -184,10 +187,30 @@ function PlatformPanel() {
   );
 }
 
+/** Rótulo do vertical de serviços (para o item de navegação adaptativo). */
+const VERTICAL_LABEL: Record<string, string> = {
+  RESTAURANT: '🍔 Restauração', SERVICES: '🔧 Serviços', HOSPITALITY: '🏨 Hotelaria',
+};
+
 function TenantPanel() {
   const { user } = useAuth();
   const [section, setSection] = useWorkspace('overview');
-  const nav = React.useMemo(() => navForRole(TENANT_NAV, user?.role), [user?.role]);
+  // Tipo de negócio (RETAIL por omissão) → adapta o painel ao serviço escolhido.
+  const [bizType, setBizType] = useState('RETAIL');
+  React.useEffect(() => {
+    let alive = true;
+    api.branding().then((b) => { if (alive) setBizType(b.businessType || 'RETAIL'); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, []);
+  const nav = React.useMemo(() => {
+    const base = navForRole(TENANT_NAV, user?.role);
+    if (bizType === 'RETAIL' || !VERTICAL_LABEL[bizType]) return base;
+    // Mesmo painel base + itens próprios do vertical (logo a seguir à Visão geral).
+    const vert: NavItem[] = [{ key: 'service-hub', label: VERTICAL_LABEL[bizType], icon: IconStore }];
+    if (bizType === 'RESTAURANT') vert.push({ key: 'restaurant', label: '🍽️ Mesas & Comandas', icon: IconStore });
+    if (bizType === 'SERVICES') vert.push({ key: 'service-orders', label: '🛠️ Ordens de serviço', icon: IconStore });
+    return [base[0], ...vert, ...base.slice(1)];
+  }, [user?.role, bizType]);
   // se a secção guardada já não é permitida ao papel, volta à visão geral.
   // 'profile' não está na navegação (abre-se pelo menu da conta) → incluir aqui,
   // senão o guarda redirecionava o "Configurações do perfil" para a visão geral.
@@ -222,6 +245,9 @@ function TenantPanel() {
   return (
     <Shell nav={nav} section={safeSection} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
       {section === 'overview' ? <Overview /> : null}
+      {section === 'service-hub' ? <ServiceHub businessType={bizType} onGo={setSection} /> : null}
+      {section === 'restaurant' ? <Restaurant /> : null}
+      {section === 'service-orders' ? <ServiceOrders /> : null}
       {section === 'assistant' ? <Assistant /> : null}
       {section === 'subscription' ? <Subscription /> : null}
       {section === 'stores' ? <Stores /> : null}

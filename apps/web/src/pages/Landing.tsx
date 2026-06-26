@@ -105,8 +105,14 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           <h1>{cfg?.heroTitle ?? 'O sistema de gestão e vendas para Angola'}</h1>
           <p className="sub">
             {cfg?.heroSubtitle ??
-              'POS, stock, facturação AGT, loja online e IA — tudo num só lugar, em Kwanzas.'}
+              'Para vendas & stock, restauração, serviços e hotelaria — POS, facturação AGT, loja online e IA, tudo num só lugar, em Kwanzas.'}
           </p>
+          <div className="lp-verticals">
+            <span>🛒 Vendas & stock</span>
+            <span>🍔 Restauração</span>
+            <span>🔧 Serviços</span>
+            <span>🏨 Hotelaria</span>
+          </div>
           <div className="cta-row">
             <button className="lp-btn primary" onClick={() => openRegister('BUSINESS')}>
               {cfg?.heroCtaPrimary ?? `Começar grátis — ${trialDays} dias`}

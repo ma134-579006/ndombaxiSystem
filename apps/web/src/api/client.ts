@@ -343,7 +343,7 @@ export const api = {
   registerCompany: (input: RegisterCompanyInput) =>
     request<RegisterCompanyResult>('POST', '/onboarding/register', input, { auth: false }),
   // Registo simples (email+senha OU Google) + setup obrigatório
-  registerSimple: (input: { email?: string; password?: string; googleIdToken?: string; planTier: string }) =>
+  registerSimple: (input: { email?: string; password?: string; googleIdToken?: string; planTier: string; businessType?: string }) =>
     request<{ tokens: TokenPair; companyCode: string; setupCompleted: boolean }>('POST', '/onboarding/register-simple', input, { auth: false }),
   onboarding: {
     myPlan: () => request<{ planId: string; planName: string; priceKz: number } | null>('GET', '/onboarding/my-plan'),
@@ -585,6 +585,27 @@ export const api = {
     setPin: (id: string, pin: string) => request<{ ok: boolean }>('POST', `/staff/users/${id}/set-pin`, { pin }),
     deactivate: (id: string) => request<ManagerStaff>('POST', `/staff/users/${id}/deactivate`),
     unlock: (id: string) => request<ManagerStaff>('POST', `/staff/users/${id}/unlock`),
+  },
+  restaurant: {
+    tableMap: () => request<RestaurantTableMapRow[]>('GET', '/restaurant/table-map'),
+    createTable: (dto: { code?: string; name: string; area?: string; seats?: number }) => request<unknown>('POST', '/restaurant/tables', dto),
+    removeTable: (id: string) => request<{ ok: boolean }>('DELETE', `/restaurant/tables/${id}`),
+    openOrder: (tableId: string, guests?: number, customerName?: string) => request<{ id: string }>('POST', '/restaurant/orders', { tableId, guests, customerName }),
+    order: (id: string) => request<RestaurantOrderDetail>('GET', `/restaurant/orders/${id}`),
+    addItem: (orderId: string, productCode: string, quantity: number, notes?: string) => request<{ ok: boolean }>('POST', `/restaurant/orders/${orderId}/items`, { productCode, quantity, notes }),
+    removeItem: (itemId: string) => request<{ ok: boolean }>('DELETE', `/restaurant/items/${itemId}`),
+    itemKitchen: (itemId: string, status: string) => request<{ ok: boolean }>('POST', `/restaurant/items/${itemId}/kitchen`, { status }),
+    closeOrder: (id: string) => request<{ ok: boolean }>('POST', `/restaurant/orders/${id}/close`),
+    kitchen: () => request<RestaurantKitchenItem[]>('GET', '/restaurant/kitchen'),
+  },
+  serviceOrders: {
+    list: (status?: string) => request<ServiceOrderRow[]>('GET', `/service-orders${status ? `?status=${status}` : ''}`),
+    create: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/service-orders', dto),
+    get: (id: string) => request<ServiceOrderDetail>('GET', `/service-orders/${id}`),
+    update: (id: string, dto: Record<string, unknown>) => request<{ ok: boolean }>('PATCH', `/service-orders/${id}`, dto),
+    addItem: (id: string, dto: Record<string, unknown>) => request<{ ok: boolean }>('POST', `/service-orders/${id}/items`, dto),
+    removeItem: (itemId: string) => request<{ ok: boolean }>('DELETE', `/service-orders/items/${itemId}`),
+    status: (id: string, status: string) => request<{ ok: boolean }>('POST', `/service-orders/${id}/status`, { status }),
   },
   customerChat: {
     contacts: () => request<CustomerContact[]>('GET', '/ecommerce/customer-chat/contacts'),

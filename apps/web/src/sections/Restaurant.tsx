@@ -1,0 +1,187 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { api, ApiError } from '../api/client';
+import type { ManagerProduct, RestaurantKitchenItem, RestaurantOrderDetail, RestaurantTableMapRow } from '../api/types';
+import { confirmDialog, toast } from '../components/feedback';
+import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
+import { Modal } from '../components/ui';
+import { formatKz } from '../format';
+
+const KZ = (n: string | number) => formatKz(Number(n) || 0);
+const KITCHEN_LABEL: Record<string, string> = { PENDING: 'Por preparar', PREPARING: 'Em preparação', READY: 'Pronto', SERVED: 'Servido' };
+const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY', READY: 'SERVED' };
+
+/** Restauração: mapa de mesas + comanda (lançar itens, conta) e ecrã de cozinha (KDS). */
+export function Restaurant() {
+  const [tab, setTab] = useState<'mesas' | 'cozinha'>('mesas');
+  const [tables, setTables] = useState<RestaurantTableMapRow[]>([]);
+  const [products, setProducts] = useState<ManagerProduct[]>([]);
+  const [detail, setDetail] = useState<RestaurantOrderDetail | null>(null);
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [newTable, setNewTable] = useState(false);
+  const [kds, setKds] = useState<RestaurantKitchenItem[]>([]);
+
+  const loadTables = useCallback(async () => { try { setTables(await api.restaurant.tableMap()); } catch { /* */ } }, []);
+  const loadKds = useCallback(async () => { try { setKds(await api.restaurant.kitchen()); } catch { /* */ } }, []);
+  useEffect(() => { void loadTables(); api.products.list().then(setProducts).catch(() => undefined); }, [loadTables]);
+  useEffect(() => {
+    if (tab !== 'cozinha') return;
+    void loadKds(); const t = window.setInterval(loadKds, 5000); return () => window.clearInterval(t);
+  }, [tab, loadKds]);
+
+  const openTable = async (t: RestaurantTableMapRow) => {
+    setBusy(true);
+    try {
+      const id = t.order_id ?? (await api.restaurant.openOrder(t.id)).id;
+      setDetail(await api.restaurant.order(id));
+      await loadTables();
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao abrir a mesa.'); }
+    finally { setBusy(false); }
+  };
+  const refreshDetail = async (id: string) => { setDetail(await api.restaurant.order(id)); await loadTables(); };
+  const addProduct = async (code: string) => {
+    if (!detail) return;
+    try { await api.restaurant.addItem(detail.order.id, code, 1); await refreshDetail(detail.order.id); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao lançar.'); }
+  };
+  const removeItem = async (itemId: string) => {
+    if (!detail) return;
+    await api.restaurant.removeItem(itemId).catch(() => undefined);
+    await refreshDetail(detail.order.id);
+  };
+  const closeOrder = async () => {
+    if (!detail) return;
+    if (!(await confirmDialog({ message: `Fechar a conta da ${detail.order.table_name}? Total ${KZ(detail.order.total)}.` }))) return;
+    await api.restaurant.closeOrder(detail.order.id).catch(() => undefined);
+    toast.success('Conta fechada. Cobre no caixa.');
+    setDetail(null); await loadTables();
+  };
+
+  const filtered = q.trim()
+    ? products.filter((p) => `${p.name} ${p.code}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 30)
+    : products.slice(0, 24);
+
+  return (
+    <>
+      <div className="content-head">
+        <h2>🍽️ Mesas & Comandas</h2>
+        <span className="spacer" />
+        <button className="btn ghost" onClick={() => setNewTable(true)}><IconPlus size={16} /> Nova mesa</button>
+      </div>
+
+      <div className="seg" style={{ marginBottom: 14, maxWidth: 360 }}>
+        <button className={tab === 'mesas' ? 'active' : ''} onClick={() => setTab('mesas')}>Mesas</button>
+        <button className={tab === 'cozinha' ? 'active' : ''} onClick={() => setTab('cozinha')}>Cozinha (KDS){kds.length ? ` · ${kds.length}` : ''}</button>
+      </div>
+
+      {tab === 'mesas' ? (
+        tables.length === 0 ? (
+          <div className="card"><div className="empty"><p>Sem mesas. Cria a primeira mesa.</p></div></div>
+        ) : (
+          <div className="pgrid">
+            {tables.map((t) => {
+              const occupied = !!t.order_id;
+              return (
+                <button key={t.id} className={`pcard${occupied ? ' sel' : ''}`} onClick={() => void openTable(t)} disabled={busy}
+                  style={{ textAlign: 'left', cursor: 'pointer' }}>
+                  <div className="thumb" style={{ fontSize: 28, display: 'grid', placeItems: 'center', background: occupied ? 'color-mix(in srgb, var(--warning) 18%, transparent)' : 'color-mix(in srgb, var(--success) 14%, transparent)' }}>
+                    {occupied ? '🟠' : '🟢'}
+                  </div>
+                  <div className="pinfo">
+                    <div className="pname">{t.name}</div>
+                    <div className="pcode">{t.area ? `${t.area} · ` : ''}{t.seats} lugares</div>
+                    <div className="pfoot">
+                      {occupied
+                        ? <><span className="pprice">{KZ(t.order_total ?? 0)}</span><span className="pill off">Ocupada · {t.opened_at_label}</span></>
+                        : <span className="pill on">Livre</span>}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {kds.length === 0 ? <div className="empty" style={{ padding: 26 }}><p>Sem itens por preparar 🎉</p></div>
+            : kds.map((i) => (
+              <div key={i.id} className="list-row" style={{ padding: '12px 16px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong style={{ fontSize: 14 }}>{Number(i.quantity)}× {i.description}</strong>
+                  <div className="muted" style={{ fontSize: 12.5 }}>{i.table_name ?? 'Mesa'} · {KITCHEN_LABEL[i.kitchen_status] ?? i.kitchen_status}{i.notes ? ` · ${i.notes}` : ''}</div>
+                </div>
+                <button className="btn sm" onClick={async () => { await api.restaurant.itemKitchen(i.id, NEXT[i.kitchen_status] ?? 'SERVED').catch(() => undefined); await loadKds(); }}>
+                  {i.kitchen_status === 'PENDING' ? 'Iniciar' : 'Pronto ✓'}
+                </button>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {/* Comanda da mesa */}
+      {detail ? (
+        <Modal title={`Comanda — ${detail.order.table_name ?? 'Mesa'}`} onClose={() => setDetail(null)}>
+          <div className="card" style={{ padding: '2px 12px', marginBottom: 10 }}>
+            <div className="row"><IconSearch size={18} />
+              <input style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '11px 0', color: 'var(--text)' }}
+                value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar prato/produto para lançar…" />
+            </div>
+          </div>
+          <div className="pgrid" style={{ maxHeight: '26vh', overflowY: 'auto', marginBottom: 12 }}>
+            {filtered.map((p) => (
+              <button key={p.id} className="pcard" onClick={() => void addProduct(p.code)} style={{ cursor: 'pointer', textAlign: 'left' }}>
+                <div className="pinfo"><div className="pname" style={{ fontSize: 13 }}>{p.name}</div><div className="pcode">{p.code}</div></div>
+              </button>
+            ))}
+          </div>
+
+          <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
+            {detail.items.length === 0 ? <div className="empty" style={{ padding: 18 }}><p>Comanda vazia — lança o 1.º item.</p></div>
+              : detail.items.map((it) => (
+                <div key={it.id} className="list-row" style={{ padding: '10px 14px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ fontSize: 13.5 }}>{Number(it.quantity)}× {it.description}</strong>
+                    <div className="muted" style={{ fontSize: 12 }}>{KZ(it.unit_price)} · {KITCHEN_LABEL[it.kitchen_status] ?? it.kitchen_status}</div>
+                  </div>
+                  <span style={{ fontWeight: 700, marginRight: 8 }}>{KZ(Number(it.unit_price) * Number(it.quantity))}</span>
+                  <button className="btn sm ghost" onClick={() => void removeItem(it.id)} title="Remover"><IconTrash size={14} /></button>
+                </div>
+              ))}
+          </div>
+
+          <div className="row" style={{ alignItems: 'center', marginBottom: 12 }}>
+            <strong style={{ fontSize: 16 }}>Total</strong><span className="spacer" style={{ flex: 1 }} />
+            <strong style={{ fontSize: 20 }}>{KZ(detail.order.total)}</strong>
+          </div>
+          <button className="btn lg block" onClick={() => void closeOrder()} disabled={detail.items.length === 0}>Fechar conta</button>
+        </Modal>
+      ) : null}
+
+      {newTable ? <NewTableModal onClose={() => setNewTable(false)} onCreated={() => { setNewTable(false); void loadTables(); }} /> : null}
+    </>
+  );
+}
+
+function NewTableModal({ onClose, onCreated }: { onClose(): void; onCreated(): void }) {
+  const [name, setName] = useState('');
+  const [area, setArea] = useState('');
+  const [seats, setSeats] = useState('4');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!name.trim()) { toast.warning('Indique o nome da mesa.'); return; }
+    setBusy(true);
+    try { await api.restaurant.createTable({ name: name.trim(), area: area.trim() || undefined, seats: Number(seats) || 4 }); toast.success('Mesa criada.'); onCreated(); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao criar a mesa.'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <Modal title="Nova mesa" onClose={onClose}>
+      <div className="field"><label>Nome</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex.: Mesa 1" /></div>
+      <div className="grid-2">
+        <div className="field"><label>Área (opcional)</label><input value={area} onChange={(e) => setArea(e.target.value)} placeholder="Salão / Esplanada" /></div>
+        <div className="field"><label>Lugares</label><input value={seats} onChange={(e) => setSeats(e.target.value.replace(/\D/g, ''))} inputMode="numeric" /></div>
+      </div>
+      <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A criar…' : 'Criar mesa'}</button>
+    </Modal>
+  );
+}

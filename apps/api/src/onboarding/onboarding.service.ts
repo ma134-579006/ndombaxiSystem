@@ -193,7 +193,7 @@ export class OnboardingService {
    * (auto-login) para a empresa concluir o setup.
    */
   async registerSimple(
-    dto: { email?: string; password?: string; googleIdToken?: string; planTier: string },
+    dto: { email?: string; password?: string; googleIdToken?: string; planTier: string; businessType?: string },
     ctx: { ip?: string | null; userAgent?: string | null },
   ): Promise<{ tokens: TokenPair; companyCode: string; setupCompleted: false }> {
     let email: string;
@@ -238,6 +238,8 @@ export class OnboardingService {
         nif: tempNif,
         responsibleName: displayName,
         responsibleEmail: email,
+        // Tipo de negócio (adapta o painel ao vertical): guardado em `sector`.
+        sector: (dto.businessType ?? 'RETAIL'),
         planId: plan.id,
         schemaName,
         // Acesso IMEDIATO com período de teste grátis (ativa já; bloqueia ao fim

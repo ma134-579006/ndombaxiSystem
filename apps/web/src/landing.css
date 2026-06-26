@@ -106,6 +106,9 @@
 .lp-btn.outline:hover { background: #ffffff1f; }
 
 /* Selos de confiança sob o hero */
+.lp-verticals { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+.lp-verticals span { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); color: #eaf0fa; font-size: 13px; font-weight: 700; }
 .lp-trust { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 34px; color: #aebcd2; font-size: 13px; font-weight: 600; }
 .lp-trust span { display: inline-flex; align-items: center; gap: 7px; }
 .lp-trust svg { color: #34d399; }

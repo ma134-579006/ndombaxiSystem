@@ -917,3 +917,93 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."customer_messages" (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS customer_messages_idx ON "{{SCHEMA}}"."customer_messages"(customer_id, created_at);
+
+-- ════════════════════════════════════════════════════════════
+-- RESTAURAÇÃO — Mesas, Comandas e Cozinha (vertical RESTAURANT)
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."restaurant_tables" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code        TEXT NOT NULL,              -- ex.: "M1"
+  name        TEXT NOT NULL,             -- ex.: "Mesa 1"
+  area        TEXT,                      -- ex.: "Esplanada", "Salão"
+  seats       INT NOT NULL DEFAULT 4,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order  INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS restaurant_tables_idx ON "{{SCHEMA}}"."restaurant_tables"(is_active, sort_order);
+
+-- Comanda (conta da mesa). Uma mesa só pode ter 1 comanda OPEN de cada vez.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."restaurant_orders" (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_id       UUID REFERENCES "{{SCHEMA}}"."restaurant_tables"(id) ON DELETE SET NULL,
+  table_name     TEXT,
+  status         TEXT NOT NULL DEFAULT 'OPEN',   -- OPEN | CLOSED | CANCELLED
+  guests         INT NOT NULL DEFAULT 1,
+  customer_name  TEXT,
+  total          NUMERIC(14,2) NOT NULL DEFAULT 0,
+  opened_by      UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  opened_by_name TEXT,
+  invoice_id     UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
+  notes          TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  closed_at      TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS restaurant_orders_status_idx ON "{{SCHEMA}}"."restaurant_orders"(status, created_at);
+CREATE INDEX IF NOT EXISTS restaurant_orders_table_idx ON "{{SCHEMA}}"."restaurant_orders"(table_id);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."restaurant_order_items" (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id       UUID NOT NULL REFERENCES "{{SCHEMA}}"."restaurant_orders"(id) ON DELETE CASCADE,
+  product_id     UUID REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE SET NULL,
+  product_code   TEXT NOT NULL,
+  description    TEXT NOT NULL,
+  unit_price     NUMERIC(14,2) NOT NULL DEFAULT 0,   -- preço c/ IVA, congelado no lançamento
+  quantity       NUMERIC(14,3) NOT NULL DEFAULT 1,
+  kitchen_status TEXT NOT NULL DEFAULT 'PENDING',    -- PENDING | PREPARING | READY | SERVED
+  notes          TEXT,
+  created_by     UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS restaurant_order_items_order_idx ON "{{SCHEMA}}"."restaurant_order_items"(order_id);
+CREATE INDEX IF NOT EXISTS restaurant_order_items_kitchen_idx ON "{{SCHEMA}}"."restaurant_order_items"(kitchen_status, created_at);
+
+-- ════════════════════════════════════════════════════════════
+-- SERVIÇOS — Ordens de Serviço (vertical SERVICES: mecânica, assistência…)
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."service_orders" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  number          TEXT NOT NULL,                  -- OS/2026/0001
+  customer_id     UUID REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE SET NULL,
+  customer_name   TEXT,
+  customer_phone  TEXT,
+  equipment_type  TEXT,                           -- VEHICLE | DEVICE | OTHER
+  equipment_label TEXT,                           -- ex.: "Toyota Corolla", "Portátil HP"
+  equipment_ref   TEXT,                           -- matrícula / nº de série
+  problem         TEXT,                           -- avaria relatada
+  diagnosis       TEXT,                           -- diagnóstico técnico
+  status          TEXT NOT NULL DEFAULT 'OPEN',   -- OPEN|QUOTED|APPROVED|IN_PROGRESS|READY|DELIVERED|CANCELLED
+  total           NUMERIC(14,2) NOT NULL DEFAULT 0,
+  opened_by       UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  opened_by_name  TEXT,
+  assigned_to     TEXT,                           -- técnico responsável
+  invoice_id      UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
+  notes           TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  delivered_at    TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS service_orders_status_idx ON "{{SCHEMA}}"."service_orders"(status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."service_order_items" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id     UUID NOT NULL REFERENCES "{{SCHEMA}}"."service_orders"(id) ON DELETE CASCADE,
+  kind         TEXT NOT NULL DEFAULT 'SERVICE',   -- PART | LABOR | SERVICE
+  product_id   UUID REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE SET NULL,
+  product_code TEXT,
+  description  TEXT NOT NULL,
+  unit_price   NUMERIC(14,2) NOT NULL DEFAULT 0,
+  quantity     NUMERIC(14,3) NOT NULL DEFAULT 1,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS service_order_items_order_idx ON "{{SCHEMA}}"."service_order_items"(order_id);

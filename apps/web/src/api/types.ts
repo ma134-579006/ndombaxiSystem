@@ -460,7 +460,7 @@ export interface StockAnalysis {
 export interface DocumentIdentity {
   companyName: string; nif: string; brandName: string | null; logoUrl: string | null;
   address: string | null; phone: string | null; email: string | null;
-  receiptMessage?: string | null; copyright: string;
+  receiptMessage?: string | null; businessType?: string; copyright: string;
 }
 
 export interface ReportUserRow { name: string; sales: number; net: number; gross: number }
@@ -701,6 +701,13 @@ export interface ChatMessage { id: string; sender_id: string | null; recipient_i
 export interface ChatContact { id: string; name: string; role: string; online: boolean; last_seen_at: string | null; unread: number; last_at: string | null }
 export interface CustomerChatMessage { id: string; customer_id: string; sender_type: 'CUSTOMER' | 'STAFF'; sender_id: string | null; sender_name: string; body: string; created_at: string }
 export interface CustomerContact { id: string; name: string; email: string | null; phone: string | null; online: boolean; last_seen_at: string | null; unread: number; last_at: string | null }
+export interface RestaurantTableMapRow { id: string; code: string; name: string; area: string | null; seats: number; order_id: string | null; order_total: string | null; guests: number | null; opened_at_label: string | null }
+export interface RestaurantOrderItem { id: string; product_code: string; description: string; unit_price: string; quantity: string; kitchen_status: string; notes: string | null; created_at: string }
+export interface RestaurantOrderDetail { order: { id: string; table_name: string | null; status: string; total: string; guests: number; customer_name: string | null }; items: RestaurantOrderItem[] }
+export interface RestaurantKitchenItem { id: string; description: string; quantity: string; kitchen_status: string; notes: string | null; created_at: string; table_name: string | null; order_id: string }
+export interface ServiceOrderRow { id: string; number: string; customer_name: string | null; equipment_label: string | null; status: string; total: string; assigned_to: string | null; created_at: string }
+export interface ServiceOrderItem { id: string; kind: string; product_code: string | null; description: string; unit_price: string; quantity: string; created_at: string }
+export interface ServiceOrderDetail { order: { id: string; number: string; customer_name: string | null; customer_phone: string | null; equipment_type: string | null; equipment_label: string | null; equipment_ref: string | null; problem: string | null; diagnosis: string | null; status: string; total: string; assigned_to: string | null; notes: string | null }; items: ServiceOrderItem[] }
 
 // ── Funcionários (RH) ───────────────────────────────────────
 export interface ManagerEmployee {

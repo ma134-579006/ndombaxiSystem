@@ -19,6 +19,12 @@ export class RegisterSimpleDto {
 
   @IsEnum(PlanTier)
   planTier!: PlanTier;
+
+  /** Tipo de negócio (adapta o painel): RETAIL | RESTAURANT | SERVICES | HOSPITALITY. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^(RETAIL|RESTAURANT|SERVICES|HOSPITALITY)$/, { message: 'Tipo de negócio inválido.' })
+  businessType?: string;
 }
 
 /** Conclusão do setup obrigatório (nome, código, NIF, logo). */
