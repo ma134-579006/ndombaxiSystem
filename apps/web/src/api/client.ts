@@ -598,6 +598,17 @@ export const api = {
     closeOrder: (id: string) => request<{ ok: boolean }>('POST', `/restaurant/orders/${id}/close`),
     kitchen: () => request<RestaurantKitchenItem[]>('GET', '/restaurant/kitchen'),
   },
+  hotel: {
+    roomMap: () => request<HotelRoomMapRow[]>('GET', '/hotel/room-map'),
+    createRoom: (dto: Record<string, unknown>) => request<unknown>('POST', '/hotel/rooms', dto),
+    removeRoom: (id: string) => request<{ ok: boolean }>('DELETE', `/hotel/rooms/${id}`),
+    reservations: (status?: string) => request<HotelReservationRow[]>('GET', `/hotel/reservations${status ? `?status=${status}` : ''}`),
+    createReservation: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/hotel/reservations', dto),
+    reservation: (id: string) => request<HotelReservationDetail>('GET', `/hotel/reservations/${id}`),
+    addFolio: (id: string, dto: Record<string, unknown>) => request<{ ok: boolean }>('POST', `/hotel/reservations/${id}/folio`, dto),
+    removeFolio: (itemId: string) => request<{ ok: boolean }>('DELETE', `/hotel/folio/${itemId}`),
+    status: (id: string, status: string) => request<{ ok: boolean }>('POST', `/hotel/reservations/${id}/status`, { status }),
+  },
   serviceOrders: {
     list: (status?: string) => request<ServiceOrderRow[]>('GET', `/service-orders${status ? `?status=${status}` : ''}`),
     create: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/service-orders', dto),

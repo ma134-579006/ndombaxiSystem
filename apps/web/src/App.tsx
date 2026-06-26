@@ -25,6 +25,7 @@ import { Orders } from './sections/Orders';
 import { ServiceHub } from './sections/ServiceHub';
 import { Restaurant } from './sections/Restaurant';
 import { ServiceOrders } from './sections/ServiceOrders';
+import { Hotel } from './sections/Hotel';
 import { Payments } from './sections/Payments';
 import { Operations } from './sections/Operations';
 import { Inventory } from './sections/Inventory';
@@ -209,6 +210,7 @@ function TenantPanel() {
     const vert: NavItem[] = [{ key: 'service-hub', label: VERTICAL_LABEL[bizType], icon: IconStore }];
     if (bizType === 'RESTAURANT') vert.push({ key: 'restaurant', label: '🍽️ Mesas & Comandas', icon: IconStore });
     if (bizType === 'SERVICES') vert.push({ key: 'service-orders', label: '🛠️ Ordens de serviço', icon: IconStore });
+    if (bizType === 'HOSPITALITY') vert.push({ key: 'hotel', label: '🛏️ Quartos & Reservas', icon: IconStore });
     return [base[0], ...vert, ...base.slice(1)];
   }, [user?.role, bizType]);
   // se a secção guardada já não é permitida ao papel, volta à visão geral.
@@ -248,6 +250,7 @@ function TenantPanel() {
       {section === 'service-hub' ? <ServiceHub businessType={bizType} onGo={setSection} /> : null}
       {section === 'restaurant' ? <Restaurant /> : null}
       {section === 'service-orders' ? <ServiceOrders /> : null}
+      {section === 'hotel' ? <Hotel /> : null}
       {section === 'assistant' ? <Assistant /> : null}
       {section === 'subscription' ? <Subscription /> : null}
       {section === 'stores' ? <Stores /> : null}

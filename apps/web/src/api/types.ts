@@ -709,6 +709,21 @@ export interface ServiceOrderRow { id: string; number: string; customer_name: st
 export interface ServiceOrderItem { id: string; kind: string; product_code: string | null; description: string; unit_price: string; quantity: string; created_at: string }
 export interface ServiceOrderDetail { order: { id: string; number: string; customer_name: string | null; customer_phone: string | null; equipment_type: string | null; equipment_label: string | null; equipment_ref: string | null; problem: string | null; diagnosis: string | null; status: string; total: string; assigned_to: string | null; notes: string | null }; items: ServiceOrderItem[] }
 
+// ── Hotelaria (HOSPITALITY) ─────────────────────────────────
+export interface HotelRoomMapRow {
+  id: string; code: string; name: string; room_type: string | null; capacity: number; rate: string; status: string;
+  reservation_id: string | null; guest_name: string | null; check_out: string | null; res_total: string | null;
+}
+export interface HotelReservationRow {
+  id: string; number: string; room_name: string | null; guest_name: string | null;
+  check_in: string; check_out: string; nights: number; status: string; total: string;
+}
+export interface HotelFolioItem { id: string; product_code: string | null; description: string; unit_price: string; quantity: string; created_at: string }
+export interface HotelReservationDetail {
+  reservation: { id: string; number: string; room_name: string | null; guest_name: string | null; guest_phone: string | null; check_in: string; check_out: string; nights: number; rate: string; guests: number; status: string; total: string; notes: string | null };
+  folio: HotelFolioItem[];
+}
+
 // ── Funcionários (RH) ───────────────────────────────────────
 export interface ManagerEmployee {
   id: string; employee_number: string; full_name: string;

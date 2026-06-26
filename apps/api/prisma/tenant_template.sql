@@ -1007,3 +1007,57 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."service_order_items" (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS service_order_items_order_idx ON "{{SCHEMA}}"."service_order_items"(order_id);
+
+-- ════════════════════════════════════════════════════════════
+-- HOTELARIA — Quartos, Reservas e Conta do hóspede (vertical HOSPITALITY)
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."hotel_rooms" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code        TEXT NOT NULL,                 -- ex.: "101"
+  name        TEXT NOT NULL,                 -- ex.: "Quarto 101"
+  room_type   TEXT,                          -- Individual | Duplo | Suite…
+  capacity    INT NOT NULL DEFAULT 2,
+  rate        NUMERIC(14,2) NOT NULL DEFAULT 0,   -- preço/noite (c/ IVA)
+  status      TEXT NOT NULL DEFAULT 'AVAILABLE',  -- AVAILABLE | MAINTENANCE
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order  INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS hotel_rooms_idx ON "{{SCHEMA}}"."hotel_rooms"(is_active, sort_order);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."hotel_reservations" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  number        TEXT NOT NULL,               -- RES/2026/0001
+  room_id       UUID REFERENCES "{{SCHEMA}}"."hotel_rooms"(id) ON DELETE SET NULL,
+  room_name     TEXT,
+  guest_name    TEXT,
+  guest_phone   TEXT,
+  customer_id   UUID REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE SET NULL,
+  check_in      DATE NOT NULL,
+  check_out     DATE NOT NULL,
+  nights        INT NOT NULL DEFAULT 1,
+  rate          NUMERIC(14,2) NOT NULL DEFAULT 0,   -- preço/noite congelado
+  guests        INT NOT NULL DEFAULT 1,
+  status        TEXT NOT NULL DEFAULT 'BOOKED',     -- BOOKED | CHECKED_IN | CHECKED_OUT | CANCELLED
+  total         NUMERIC(14,2) NOT NULL DEFAULT 0,   -- estadia + extras (folio)
+  invoice_id    UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
+  notes         TEXT,
+  created_by    UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS hotel_res_status_idx ON "{{SCHEMA}}"."hotel_reservations"(status, check_in);
+CREATE INDEX IF NOT EXISTS hotel_res_room_idx ON "{{SCHEMA}}"."hotel_reservations"(room_id, check_in);
+
+-- Conta do hóspede (folio): consumos/extras durante a estadia.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."hotel_folio_items" (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reservation_id UUID NOT NULL REFERENCES "{{SCHEMA}}"."hotel_reservations"(id) ON DELETE CASCADE,
+  product_id     UUID REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE SET NULL,
+  product_code   TEXT,
+  description    TEXT NOT NULL,
+  unit_price     NUMERIC(14,2) NOT NULL DEFAULT 0,
+  quantity       NUMERIC(14,3) NOT NULL DEFAULT 1,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS hotel_folio_res_idx ON "{{SCHEMA}}"."hotel_folio_items"(reservation_id);
