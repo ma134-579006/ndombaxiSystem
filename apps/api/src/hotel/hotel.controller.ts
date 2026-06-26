@@ -42,6 +42,11 @@ export class HotelController {
   @ApiOperation({ summary: 'Lista reservas' })
   list(@Query('status') status?: string) { return this.svc.list(this.ctx.requireTenantSchema(), status); }
 
+  @Get('pending-online')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Nº de reservas da loja online por confirmar' })
+  async pendingOnline() { return { count: await this.svc.pendingOnline(this.ctx.requireTenantSchema()) }; }
+
   @Post('reservations')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Cria uma reserva' })

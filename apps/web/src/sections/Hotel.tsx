@@ -77,7 +77,7 @@ export function Hotel() {
               : reservations.map((r) => (
                 <button key={r.id} className="list-row" onClick={() => void openRes(r.id)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', padding: '12px 16px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ fontSize: 14 }}>{r.number} · {r.guest_name || 'Hóspede'}</strong>
+                    <strong style={{ fontSize: 14 }}>{r.number} · {r.guest_name || 'Hóspede'}{r.source === 'ONLINE' && r.status === 'BOOKED' ? <span className="pill" style={{ marginLeft: 6, background: 'var(--primary)', color: '#fff' }}>🌐 Online</span> : null}</strong>
                     <div className="muted" style={{ fontSize: 12.5 }}>{r.room_name || '—'} · {r.check_in} → {r.check_out} ({r.nights} noites)</div>
                   </div>
                   <span style={{ fontWeight: 700, marginRight: 8 }}>{KZ(r.total)}</span>

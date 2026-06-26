@@ -331,7 +331,7 @@ export const api = {
     feedbackVote: (id: string, dir: 'up' | 'down') =>
       request<{ likes: number; dislikes: number }>('POST', `/public/support/feedback/${id}/vote`, { dir }, { auth: false }),
     admin: {
-      notifications: () => request<{ unreadChats: number; humanWaiting: number; newFeedback: number }>('GET', '/super-admin/support/notifications'),
+      notifications: () => request<{ unreadChats: number; humanWaiting: number; newFeedback: number; pendingCompanies?: number; pendingSubs?: number }>('GET', '/super-admin/support/notifications'),
       chats: () => request<AdminChat[]>('GET', '/super-admin/support/chats'),
       messages: (chatId: string) => request<SupportMsg[]>('GET', `/super-admin/support/chats/${chatId}/messages`),
       reply: (chatId: string, body: string) => request<void>('POST', `/super-admin/support/chats/${chatId}/messages`, { body }),
@@ -388,6 +388,8 @@ export const api = {
   // ── Subscrições — pagamento da plataforma ──────────────────
   // Contas bancárias (público p/ escolher; admin p/ gerir)
   banks: () => request<BankAccount[]>('GET', '/subscription/bank-accounts', undefined, { auth: false }),
+  // Planos públicos (para a empresa escolher/renovar)
+  plans: () => request<PublicPlan[]>('GET', '/landing/plans', undefined, { auth: false }),
   // Lado da EMPRESA (gestor)
   subscription: {
     mine: () => request<Subscription[]>('GET', '/subscription/mine'),
@@ -431,6 +433,10 @@ export const api = {
     reject: (id: string) => request<Company>('POST', `/super-admin/tenants/${id}/reject`),
     suspend: (id: string) => request<Company>('POST', `/super-admin/tenants/${id}/suspend`),
     reactivate: (id: string) => request<Company>('POST', `/super-admin/tenants/${id}/reactivate`),
+    grantBonus: (id: string, dto: { days?: number; months?: number; note?: string }) =>
+      request<Company>('POST', `/super-admin/tenants/${id}/bonus`, dto),
+    changePlan: (id: string, planTier: string) =>
+      request<Company>('PATCH', `/super-admin/tenants/${id}/plan`, { planTier }),
     resetPassword: (id: string, email?: string) =>
       request<{ email: string; temporaryPassword: string }>('POST', `/super-admin/tenants/${id}/reset-password`, email ? { email } : {}),
     exportData: (id: string) => request<unknown>('GET', `/super-admin/tenants/${id}/export`),
@@ -608,6 +614,7 @@ export const api = {
     addFolio: (id: string, dto: Record<string, unknown>) => request<{ ok: boolean }>('POST', `/hotel/reservations/${id}/folio`, dto),
     removeFolio: (itemId: string) => request<{ ok: boolean }>('DELETE', `/hotel/folio/${itemId}`),
     status: (id: string, status: string) => request<{ ok: boolean }>('POST', `/hotel/reservations/${id}/status`, { status }),
+    pendingOnline: () => request<{ count: number }>('GET', '/hotel/pending-online'),
   },
   serviceOrders: {
     list: (status?: string) => request<ServiceOrderRow[]>('GET', `/service-orders${status ? `?status=${status}` : ''}`),
@@ -617,6 +624,7 @@ export const api = {
     addItem: (id: string, dto: Record<string, unknown>) => request<{ ok: boolean }>('POST', `/service-orders/${id}/items`, dto),
     removeItem: (itemId: string) => request<{ ok: boolean }>('DELETE', `/service-orders/items/${itemId}`),
     status: (id: string, status: string) => request<{ ok: boolean }>('POST', `/service-orders/${id}/status`, { status }),
+    pendingOnline: () => request<{ count: number }>('GET', '/service-orders/pending-online'),
   },
   customerChat: {
     contacts: () => request<CustomerContact[]>('GET', '/ecommerce/customer-chat/contacts'),

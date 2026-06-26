@@ -87,6 +87,7 @@ export class SubscriptionService {
         method: dto.method,
         amountKz: plan.priceKz,
         durationMonths: plan.durationMonths,
+        durationDays: plan.durationDays ?? 0,
         bankAccountId: dto.method === 'IBAN' ? dto.bankAccountId ?? null : null,
         status: 'PENDING_PAYMENT',
       },
@@ -161,20 +162,33 @@ export class SubscriptionService {
     return this.activate(sub.id, { adminId, note: dto.note });
   }
 
-  /** Activa a subscrição: calcula validade a partir de durationMonths. */
+  /** Soma um período (meses + dias) a uma data, sem mutar o original. */
+  static addPeriod(base: Date, months: number, days: number): Date {
+    const d = new Date(base);
+    if (months) d.setMonth(d.getMonth() + months);
+    if (days) d.setDate(d.getDate() + days);
+    return d;
+  }
+
+  /** Activa a subscrição: validade = agora + (meses + dias) do plano contratado. */
   private async activate(
     subscriptionId: string,
     opts: { adminId?: string; note?: string; reference?: string },
   ) {
     const sub = await this.require(subscriptionId);
     const startsAt = new Date();
-    const expiresAt = new Date(startsAt);
-    expiresAt.setMonth(expiresAt.getMonth() + (sub.durationMonths || 1));
+    // Período flexível: meses + dias. Se ambos forem 0 (dados antigos), assume 1 mês.
+    const months = sub.durationMonths || 0;
+    const days = sub.durationDays || 0;
+    const expiresAt = months || days
+      ? SubscriptionService.addPeriod(startsAt, months, days)
+      : SubscriptionService.addPeriod(startsAt, 1, 0);
 
     const updated = await this.prisma.subscription.update({
       where: { id: sub.id },
       data: {
         status: 'ACTIVE',
+        isTrial: false,
         startsAt,
         expiresAt,
         reviewedByAdminId: opts.adminId ?? null,
@@ -184,10 +198,11 @@ export class SubscriptionService {
       },
     });
 
-    // Garante que a empresa fica ACTIVE (pagamento confirmado).
+    // Pagamento confirmado → empresa ACTIVE e o plano contratado passa a ser o
+    // plano efectivo da empresa (suporta renovação com troca/upgrade de plano).
     await this.prisma.company.update({
       where: { id: sub.companyId },
-      data: { status: 'ACTIVE', approvedAt: new Date() },
+      data: { status: 'ACTIVE', approvedAt: new Date(), planId: sub.planId },
     }).catch(() => undefined);
 
     return updated;

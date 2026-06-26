@@ -118,8 +118,25 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
     this.logger.log(`Auto-migração concluída: ${ok}/${schemas.length} tenant(s) alinhados.`);
   }
 
+  /**
+   * Backfill único: marca as subscrições de TESTE GRÁTIS já existentes como
+   * `isTrial` para que a sua validade passe a ser DINÂMICA (startsAt + trialDays
+   * actuais). Sem isto, só as novas empresas teriam o trial dinâmico.
+   */
+  async backfillTrialFlags(): Promise<void> {
+    try {
+      const r = await this.prisma.subscription.updateMany({
+        where: { isTrial: false, amountKz: 0, durationMonths: 0, status: 'ACTIVE', reviewNote: { startsWith: 'Período de teste' } },
+        data: { isTrial: true },
+      });
+      if (r.count > 0) this.logger.log(`Backfill: ${r.count} subscrição(ões) de teste marcadas como dinâmicas.`);
+    } catch (err) {
+      this.logger.warn(`Backfill de trials falhou: ${err instanceof Error ? err.message : 'erro'}`);
+    }
+  }
+
   /** No arranque, alinha os tenants em segundo plano (não bloqueia o boot). */
   onApplicationBootstrap(): void {
-    setTimeout(() => { void this.migrateAllTenants(); }, 3_000);
+    setTimeout(() => { void this.migrateAllTenants(); void this.backfillTrialFlags(); }, 3_000);
   }
 }

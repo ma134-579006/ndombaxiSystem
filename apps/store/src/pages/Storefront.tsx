@@ -18,6 +18,7 @@ import { useStore } from '../state/StoreContext';
 import { useCustomer } from '../store/customer';
 import { CustomerModal } from '../components/CustomerModal';
 import { ProductCard } from '../components/ProductCard';
+import { VerticalCTA } from '../components/VerticalRequest';
 import { Typewriter } from '../components/Typewriter';
 import { LiveLocation } from '../components/LiveLocation';
 import { ProductPage } from './ProductPage';
@@ -326,6 +327,12 @@ export function Storefront() {
               <div className="b"><span>💬</span> Apoio da loja</div>
             </div>
           </section>
+
+          {/* CTA do vertical (Hotelaria → reservar; Serviços → pedir serviço) */}
+          {data?.businessType ? (
+            <VerticalCTA code={code} businessType={data.businessType}
+              prefill={customer ? { name: customer.customer.name, email: customer.customer.email } : undefined} />
+          ) : null}
 
           {gateMsg && !customer ? <div className="banner danger" style={{ marginTop: 12 }}>{gateMsg}</div> : null}
           {!customer ? (

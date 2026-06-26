@@ -45,20 +45,57 @@ export class TenantsService {
     if (filters.planTier) {
       where.plan = { is: { tier: filters.planTier } };
     }
-    return this.prisma.company.findMany({
+    const companies = await this.prisma.company.findMany({
       where,
-      include: { plan: true },
+      include: { plan: true, subscriptions: { where: { status: 'ACTIVE' }, select: { expiresAt: true, startsAt: true, isTrial: true } } },
       orderBy: { createdAt: 'desc' },
     });
+    const trialDays = await this.trialDays();
+    return companies.map((c) => this.decorate(c, trialDays));
   }
 
   async get(id: string) {
     const company = await this.prisma.company.findUnique({
       where: { id },
-      include: { plan: true },
+      include: { plan: true, subscriptions: { where: { status: 'ACTIVE' }, select: { expiresAt: true, startsAt: true, isTrial: true } } },
     });
     if (!company) throw new NotFoundException('Empresa não encontrada');
-    return company;
+    return this.decorate(company, await this.trialDays());
+  }
+
+  /** Dias de teste grátis actuais (editável pelo Super Admin; usado no trial dinâmico). */
+  private async trialDays(): Promise<number> {
+    const cfg = await this.prisma.landingConfig.findFirst({ select: { trialDays: true } });
+    return Math.max(1, cfg?.trialDays ?? 14);
+  }
+
+  /** Validade efectiva de uma subscrição (trial = dinâmico; pago = expiresAt fixo). */
+  private effExpiry(s: { expiresAt: Date | null; startsAt: Date | null; isTrial: boolean }, trialDays: number): Date | null {
+    if (s.isTrial && s.startsAt) return new Date(s.startsAt.getTime() + trialDays * 86400000);
+    return s.expiresAt;
+  }
+
+  /** Acrescenta a uma empresa o ESTADO REAL do plano: validade, dias restantes e
+   *  se está expirado (mesmo com company.status ACTIVE). */
+  private decorate<T extends { status: string; subscriptions: { expiresAt: Date | null; startsAt: Date | null; isTrial: boolean }[] }>(
+    c: T,
+    trialDays: number,
+  ): T & { planExpired: boolean; planExpiresAt: string | null; planDaysLeft: number | null; planState: string } {
+    const now = Date.now();
+    const expiries = c.subscriptions
+      .map((s) => this.effExpiry(s, trialDays))
+      .filter((d): d is Date => !!d)
+      .sort((a, b) => b.getTime() - a.getTime());
+    const top = expiries[0] ?? null;
+    const hasValidity = expiries.length > 0;
+    const planExpired = hasValidity && top!.getTime() <= now;
+    const planDaysLeft = top ? Math.ceil((top.getTime() - now) / 86400000) : null;
+    const planState = c.status === 'PENDING' ? 'PENDING'
+      : c.status === 'SUSPENDED' ? 'SUSPENDED'
+        : c.status === 'CANCELLED' ? 'CANCELLED'
+          : planExpired ? 'EXPIRED' : 'ACTIVE';
+    const { subscriptions: _omit, ...rest } = c as T & { subscriptions: unknown };
+    return { ...(rest as T), planExpired, planExpiresAt: top ? top.toISOString() : null, planDaysLeft, planState };
   }
 
   async approve(id: string, ctx: ActorCtx) {
@@ -168,6 +205,60 @@ export class TenantsService {
       ip: ctx.ip,
     });
     return updated;
+  }
+
+  /**
+   * Reativar / dar BÓNUS de tempo a uma empresa (dias e/ou meses). Cria uma
+   * subscrição ACTIVE de bónus que ESTENDE a validade a partir do maior entre
+   * "agora" e a validade actual (não desperdiça dias que ainda restem) e
+   * coloca a empresa ACTIVE. Resolve o caso de plano expirado sem renovação.
+   */
+  async grantBonus(id: string, opts: { days?: number; months?: number; note?: string }, ctx: ActorCtx) {
+    const days = Math.max(0, Math.floor(opts.days ?? 0));
+    const months = Math.max(0, Math.floor(opts.months ?? 0));
+    if (days === 0 && months === 0) {
+      throw new BadRequestException('Indique pelo menos 1 dia ou 1 mês de bónus.');
+    }
+    const company = await this.prisma.company.findUnique({
+      where: { id },
+      include: { subscriptions: { where: { status: 'ACTIVE' }, select: { expiresAt: true, startsAt: true, isTrial: true } } },
+    });
+    if (!company) throw new NotFoundException('Empresa não encontrada');
+
+    const trialDays = await this.trialDays();
+    const now = new Date();
+    const current = company.subscriptions
+      .map((s) => this.effExpiry(s, trialDays))
+      .filter((d): d is Date => !!d)
+      .sort((a, b) => b.getTime() - a.getTime())[0];
+    const base = current && current.getTime() > now.getTime() ? current : now;
+    const expiresAt = new Date(base);
+    if (months) expiresAt.setMonth(expiresAt.getMonth() + months);
+    if (days) expiresAt.setDate(expiresAt.getDate() + days);
+
+    await this.prisma.subscription.create({
+      data: {
+        companyId: id, planId: company.planId, method: 'IBAN', status: 'ACTIVE',
+        amountKz: 0, durationMonths: months, durationDays: days, isTrial: false,
+        startsAt: now, expiresAt,
+        reviewedByAdminId: ctx.adminId, reviewedAt: now,
+        reviewNote: opts.note?.trim() || `Bónus/Reativação pelo Super Admin (+${months}m ${days}d)`,
+      },
+    });
+    await this.prisma.company.update({ where: { id }, data: { status: 'ACTIVE', approvedAt: company.approvedAt ?? now } });
+
+    await this.audit.record({
+      actorType: 'PLATFORM', actorId: ctx.adminId, tenantSchema: company.schemaName,
+      action: 'COMPANY_BONUS_GRANTED', entity: 'Company', entityId: id,
+      after: { months, days, expiresAt: expiresAt.toISOString() }, ip: ctx.ip,
+    });
+    await this.mail.send(
+      company.responsibleEmail,
+      'Ndombaxi System — Plano reativado',
+      `O plano da empresa "${company.name}" foi reativado/estendido até ${expiresAt.toLocaleDateString('pt-PT')}. Já pode aceder normalmente.`,
+    ).catch(() => undefined);
+
+    return this.get(id);
   }
 
   /** Excluir empresa com limpeza completa do schema (§2.2). */

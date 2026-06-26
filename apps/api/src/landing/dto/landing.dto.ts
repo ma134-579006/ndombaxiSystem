@@ -38,7 +38,8 @@ export class UpdateLandingDto {
 export class UpdatePlanDto {
   @IsOptional() @IsString() @Length(1, 80) name?: string;
   @IsOptional() @IsInt() @Min(0) priceKz?: number;
-  @IsOptional() @IsInt() @Min(1) durationMonths?: number;
+  @IsOptional() @IsInt() @Min(0) durationMonths?: number;
+  @IsOptional() @IsInt() @Min(0) durationDays?: number;
   @IsOptional() @IsString() @Length(0, 120) tagline?: string;
   @IsOptional() @IsBoolean() highlight?: boolean;
   @IsOptional() @IsInt() sortOrder?: number;

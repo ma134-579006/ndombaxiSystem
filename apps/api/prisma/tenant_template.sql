@@ -986,6 +986,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."service_orders" (
   total           NUMERIC(14,2) NOT NULL DEFAULT 0,
   opened_by       UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
   opened_by_name  TEXT,
+  source          TEXT NOT NULL DEFAULT 'MANUAL', -- MANUAL | ONLINE (pedido da loja)
   assigned_to     TEXT,                           -- técnico responsável
   invoice_id      UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
   notes           TEXT,
@@ -1042,6 +1043,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."hotel_reservations" (
   total         NUMERIC(14,2) NOT NULL DEFAULT 0,   -- estadia + extras (folio)
   invoice_id    UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
   notes         TEXT,
+  source        TEXT NOT NULL DEFAULT 'MANUAL',     -- MANUAL | ONLINE (reserva da loja)
   created_by    UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()

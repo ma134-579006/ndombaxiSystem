@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Company, CompanyStatus } from '../api/types';
 import { IconBuilding, IconSearch } from '../components/Icons';
-import { StatusBadge } from '../components/ui';
+import { StatusBadge, Modal } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { formatDate } from '../format';
 
@@ -22,6 +22,7 @@ export function Tenants() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [bonusFor, setBonusFor] = useState<Company | null>(null);
   const { enterShadow } = useAuth();
 
   const load = useCallback(async () => {
@@ -153,6 +154,7 @@ export function Tenants() {
                 <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>
                   NIF {c.nif} · {c.plan?.name ?? c.planId} · {c.responsibleEmail} · {formatDate(c.createdAt)}
                 </div>
+                <PlanStateLine c={c} />
               </div>
               <StatusBadge status={c.status} />
               <div className="row" style={{ gap: 8 }}>
@@ -174,6 +176,11 @@ export function Tenants() {
                 {c.status === 'SUSPENDED' ? (
                   <button className="btn sm success" disabled={busyId === c.id} onClick={() => act(c.id, () => api.tenants.reactivate(c.id))}>
                     Reactivar
+                  </button>
+                ) : null}
+                {c.status !== 'PENDING' && c.status !== 'CANCELLED' ? (
+                  <button className={`btn sm ${c.planExpired ? 'success' : 'ghost'}`} disabled={busyId === c.id} onClick={() => setBonusFor(c)} title="Reativar plano / conceder dias ou meses de bónus">
+                    {c.planExpired ? 'Reativar' : 'Bónus / dias'}
                   </button>
                 ) : null}
                 {c.status === 'ACTIVE' || c.status === 'SUSPENDED' ? (
@@ -199,6 +206,78 @@ export function Tenants() {
           ))
         )}
       </div>
+
+      {bonusFor ? (
+        <BonusModal
+          company={bonusFor}
+          onClose={() => setBonusFor(null)}
+          onDone={async () => { setBonusFor(null); await load(); }}
+        />
+      ) : null}
     </>
+  );
+}
+
+/** Linha com o estado REAL do plano: expirado, dias restantes ou validade. */
+function PlanStateLine({ c }: { c: Company }) {
+  if (c.status === 'PENDING' || c.status === 'CANCELLED') return null;
+  if (c.planExpired) {
+    return <div style={{ fontSize: 12.5, marginTop: 3, color: 'var(--danger)', fontWeight: 700 }}>⚠ Plano EXPIRADO{c.planExpiresAt ? ` em ${formatDate(c.planExpiresAt)}` : ''} — sem acesso</div>;
+  }
+  if (c.planDaysLeft != null) {
+    const soon = c.planDaysLeft <= 5;
+    return <div style={{ fontSize: 12.5, marginTop: 3, color: soon ? 'var(--warning)' : 'var(--muted)', fontWeight: soon ? 700 : 500 }}>
+      🗓️ {c.planDaysLeft} dia(s) restante(s){c.planExpiresAt ? ` · até ${formatDate(c.planExpiresAt)}` : ''}
+    </div>;
+  }
+  return null;
+}
+
+/** Reativar / conceder bónus de dias e/ou meses a uma empresa. */
+function BonusModal({ company, onClose, onDone }: { company: Company; onClose(): void; onDone(): void }) {
+  const [months, setMonths] = useState('0');
+  const [days, setDays] = useState(company.planExpired ? '30' : '0');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const PRESETS: { m: number; d: number; label: string }[] = [
+    { m: 0, d: 7, label: '+7 dias' }, { m: 0, d: 15, label: '+15 dias' },
+    { m: 1, d: 0, label: '+1 mês' }, { m: 3, d: 0, label: '+3 meses' }, { m: 12, d: 0, label: '+1 ano' },
+  ];
+  const save = async () => {
+    const m = Number(months) || 0, d = Number(days) || 0;
+    if (m === 0 && d === 0) { setErr('Indique pelo menos 1 dia ou 1 mês.'); return; }
+    setBusy(true); setErr(null);
+    try {
+      await api.tenants.grantBonus(company.id, { months: m, days: d, note: note.trim() || undefined });
+      toast.success(`Plano de "${company.name}" reativado/estendido (+${m}m ${d}d).`);
+      onDone();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Falha ao conceder bónus.');
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal title={`Reativar / Bónus — ${company.name}`} onClose={onClose}>
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      {company.planExpired
+        ? <div className="banner danger" style={{ marginBottom: 12 }}>Plano expirado. O tempo concedido restabelece o acesso imediatamente.</div>
+        : company.planDaysLeft != null
+          ? <div className="banner info" style={{ marginBottom: 12 }}>Restam {company.planDaysLeft} dia(s). O bónus soma-se ao tempo que ainda falta.</div>
+          : null}
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        {PRESETS.map((p) => (
+          <button key={p.label} type="button" className="chip" onClick={() => { setMonths(String(p.m)); setDays(String(p.d)); }}>{p.label}</button>
+        ))}
+      </div>
+      <div className="grid-2">
+        <div className="field"><label>Meses</label><input value={months} onChange={(e) => setMonths(e.target.value.replace(/\D/g, ''))} inputMode="numeric" /></div>
+        <div className="field"><label>Dias</label><input value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, ''))} inputMode="numeric" /></div>
+      </div>
+      <div className="field"><label>Nota (opcional)</label><input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex.: cortesia, compensação…" /></div>
+      <button className="btn lg block" style={{ marginTop: 6 }} onClick={save} disabled={busy}>
+        {busy ? 'A aplicar…' : company.planExpired ? 'Reativar plano' : 'Conceder bónus'}
+      </button>
+    </Modal>
   );
 }

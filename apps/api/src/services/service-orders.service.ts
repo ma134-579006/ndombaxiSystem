@@ -13,31 +13,39 @@ export class ServiceOrdersService {
   list(schema: string, status?: string) {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(status && STATUSES.includes(status)
-        ? Prisma.sql`SELECT id, number, customer_name, equipment_label, status, total, assigned_to, created_at
-                     FROM service_orders WHERE status = ${status} ORDER BY created_at DESC LIMIT 300`
-        : Prisma.sql`SELECT id, number, customer_name, equipment_label, status, total, assigned_to, created_at
-                     FROM service_orders ORDER BY created_at DESC LIMIT 300`),
+        ? Prisma.sql`SELECT id, number, customer_name, equipment_label, status, total, assigned_to, source, created_at
+                     FROM service_orders WHERE status = ${status} ORDER BY (source = 'ONLINE' AND status = 'OPEN') DESC, created_at DESC LIMIT 300`
+        : Prisma.sql`SELECT id, number, customer_name, equipment_label, status, total, assigned_to, source, created_at
+                     FROM service_orders ORDER BY (source = 'ONLINE' AND status = 'OPEN') DESC, created_at DESC LIMIT 300`),
     );
   }
 
   async create(
     schema: string,
-    opener: { id: string; name: string },
-    dto: { customerName?: string; customerPhone?: string; equipmentType?: string; equipmentLabel?: string; equipmentRef?: string; problem?: string; assignedTo?: string },
+    opener: { id: string | null; name: string },
+    dto: { customerName?: string; customerPhone?: string; equipmentType?: string; equipmentLabel?: string; equipmentRef?: string; problem?: string; assignedTo?: string; source?: string },
   ) {
+    const source = dto.source === 'ONLINE' ? 'ONLINE' : 'MANUAL';
     return this.prisma.runInTenant(schema, async (tx) => {
       const year = new Date().getFullYear();
       const cnt = await tx.$queryRaw<{ n: number }[]>(
         Prisma.sql`SELECT COUNT(*)::int AS n FROM service_orders WHERE date_part('year', created_at) = ${year}`);
       const number = `OS/${year}/${String((cnt[0]?.n ?? 0) + 1).padStart(4, '0')}`;
       const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-        INSERT INTO service_orders (number, customer_name, customer_phone, equipment_type, equipment_label, equipment_ref, problem, assigned_to, opened_by, opened_by_name)
+        INSERT INTO service_orders (number, customer_name, customer_phone, equipment_type, equipment_label, equipment_ref, problem, assigned_to, opened_by, opened_by_name, source)
         VALUES (${number}, ${dto.customerName?.trim() || null}, ${dto.customerPhone?.trim() || null},
                 ${dto.equipmentType || null}, ${dto.equipmentLabel?.trim() || null}, ${dto.equipmentRef?.trim() || null},
-                ${dto.problem?.trim() || null}, ${dto.assignedTo?.trim() || null}, ${opener.id}::uuid, ${opener.name})
+                ${dto.problem?.trim() || null}, ${dto.assignedTo?.trim() || null}, ${opener.id}::uuid, ${opener.name}, ${source})
         RETURNING id`);
       return rows[0];
     });
+  }
+
+  /** Nº de ordens de serviço vindas da LOJA ONLINE ainda por tratar (status OPEN). */
+  async pendingOnline(schema: string): Promise<number> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n FROM service_orders WHERE source = 'ONLINE' AND status = 'OPEN'`));
+    return rows[0]?.n ?? 0;
   }
 
   async get(schema: string, id: string) {

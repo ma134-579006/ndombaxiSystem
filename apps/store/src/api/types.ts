@@ -25,8 +25,13 @@ export interface SitePage {
 
 export interface SiteResponse {
   store: string;
+  businessType?: string;
   settings: SiteSettings;
   pages: SitePage[];
+}
+
+export interface StoreRoom {
+  id: string; code: string; name: string; room_type: string | null; capacity: number; rate: string;
 }
 
 export type IvaCode = 'NOR' | 'RED' | 'ISE' | 'OUT';

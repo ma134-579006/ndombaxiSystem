@@ -275,7 +275,8 @@ export class OnboardingService {
     await this.prisma.subscription.create({
       data: {
         companyId: company.id, planId: plan.id, method: 'IBAN',
-        status: 'ACTIVE', amountKz: 0, durationMonths: 0,
+        status: 'ACTIVE', amountKz: 0, durationMonths: 0, durationDays: trialDays,
+        isTrial: true,
         startsAt: new Date(), expiresAt: trialExpiresAt,
         reviewNote: `Período de teste grátis (${trialDays} dias)`,
       },
@@ -324,19 +325,32 @@ export class OnboardingService {
       // está válida agora (empresas legadas sem subscrição NÃO são bloqueadas).
       const subs = await this.prisma.subscription.findMany({
         where: { companyId: tenantId },
-        select: { status: true, expiresAt: true },
+        select: { status: true, expiresAt: true, startsAt: true, isTrial: true },
         orderBy: { createdAt: 'desc' },
       });
+      // Validade efectiva de cada subscrição: para TRIAL é DINÂMICA (startsAt +
+      // trialDays actuais — editável pelo Super Admin); para planos pagos usa o
+      // expiresAt fixo gravado na activação.
+      const trialDays = Math.max(1, (await this.prisma.landingConfig.findFirst({ select: { trialDays: true } }))?.trialDays ?? 14);
+      const eff = (s: { expiresAt: Date | null; startsAt: Date | null; isTrial: boolean }): Date | null => {
+        if (s.isTrial && s.startsAt) return new Date(s.startsAt.getTime() + trialDays * 86400000);
+        return s.expiresAt;
+      };
       // Só "expirado" se já houve um plano ATIVADO (com validade) e este expirou.
-      // Subscrições só por aprovar (sem expiresAt) ou empresas sem subscrição
+      // Subscrições só por aprovar (sem validade) ou empresas sem subscrição
       // NÃO bloqueiam — protege os tenants existentes.
-      const wasActivated = subs.some((s) => s.expiresAt);
+      const wasActivated = subs.some((s) => eff(s));
       if (wasActivated) {
         const now = Date.now();
-        const valid = subs.find((s) => s.status === 'ACTIVE' && (!s.expiresAt || s.expiresAt.getTime() > now));
+        const valid = subs.find((s) => s.status === 'ACTIVE' && (() => { const e = eff(s); return !e || e.getTime() > now; })());
         expired = !valid;
-        const latestActive = subs.find((s) => s.status === 'ACTIVE' && s.expiresAt);
-        expiresAt = latestActive?.expiresAt ? latestActive.expiresAt.toISOString() : null;
+        // Maior validade entre as subscrições ACTIVE (a que protege o acesso).
+        const activeExpiries = subs
+          .filter((s) => s.status === 'ACTIVE')
+          .map((s) => eff(s))
+          .filter((d): d is Date => !!d)
+          .sort((a, b) => b.getTime() - a.getTime());
+        expiresAt = activeExpiries[0]?.toISOString() ?? null;
       }
     }
     return {

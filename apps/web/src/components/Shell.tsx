@@ -15,7 +15,7 @@ import { CAIXA_URL } from '../config';
 /** Sino de notificações (Super Admin): conversas por responder + comentários
  *  novos do site — com badge e dropdown estilo rede social. */
 function NotifyBell({ onGo }: { onGo(section: string): void }) {
-  const [n, setN] = useState<{ unreadChats: number; humanWaiting: number; newFeedback: number } | null>(null);
+  const [n, setN] = useState<{ unreadChats: number; humanWaiting: number; newFeedback: number; pendingCompanies?: number; pendingSubs?: number } | null>(null);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -31,7 +31,7 @@ function NotifyBell({ onGo }: { onGo(section: string): void }) {
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
-  const total = (n?.unreadChats ?? 0) + (n?.newFeedback ?? 0);
+  const total = (n?.unreadChats ?? 0) + (n?.newFeedback ?? 0) + (n?.pendingCompanies ?? 0) + (n?.pendingSubs ?? 0);
   return (
     <div className="noti-wrap" ref={ref}>
       <button className="icon-btn noti-btn" onClick={() => setOpen((v) => !v)} title="Notificações" aria-label="Notificações">
@@ -55,28 +55,49 @@ function NotifyBell({ onGo }: { onGo(section: string): void }) {
             </span>
             {n?.newFeedback ? <span className="noti-badge inline">{n.newFeedback}</span> : null}
           </button>
+          <button className="noti-item" onClick={() => { setOpen(false); onGo('tenants'); }}>
+            🏢 <span style={{ flex: 1, textAlign: 'left' }}>
+              {n?.pendingCompanies ? <><strong>{n.pendingCompanies}</strong> empresa(s) por aprovar</> : 'Sem empresas por aprovar'}
+            </span>
+            {n?.pendingCompanies ? <span className="noti-badge inline">{n.pendingCompanies}</span> : null}
+          </button>
+          <button className="noti-item" onClick={() => { setOpen(false); onGo('subs'); }}>
+            💳 <span style={{ flex: 1, textAlign: 'left' }}>
+              {n?.pendingSubs ? <><strong>{n.pendingSubs}</strong> pagamento(s)/renovação(ões) por rever</> : 'Sem pagamentos por rever'}
+            </span>
+            {n?.pendingSubs ? <span className="noti-badge inline">{n.pendingSubs}</span> : null}
+          </button>
         </div>
       ) : null}
     </div>
   );
 }
 
-/** Sino de ENCOMENDAS (gestor): avisa quando há encomendas novas (PENDING) da
- *  loja online. Badge estilo rede social; clicar abre a secção Encomendas. */
-function OrdersBell({ onGo }: { onGo(): void }) {
-  const [n, setN] = useState(0);
+/** Sino de PEDIDOS DA LOJA (gestor): encomendas novas + pedidos de serviço +
+ *  reservas vindas da loja online. Badge soma os três; clicar abre a secção mais
+ *  relevante (encomendas → ordens de serviço → reservas). */
+function OrdersBell({ onGo }: { onGo(section: string): void }) {
+  const [orders, setOrders] = useState(0);
+  const [services, setServices] = useState(0);
+  const [rooms, setRooms] = useState(0);
   useEffect(() => {
     let alive = true;
-    const tick = () => { api.orders.pendingCount().then((r) => { if (alive) setN(r.count); }).catch(() => undefined); };
+    const tick = () => {
+      api.orders.pendingCount().then((r) => { if (alive) setOrders(r.count); }).catch(() => undefined);
+      api.serviceOrders.pendingOnline().then((r) => { if (alive) setServices(r.count); }).catch(() => undefined);
+      api.hotel.pendingOnline().then((r) => { if (alive) setRooms(r.count); }).catch(() => undefined);
+    };
     tick();
     const t = window.setInterval(tick, 15000);
     const onFocus = () => tick();
     window.addEventListener('focus', onFocus);
     return () => { alive = false; window.clearInterval(t); window.removeEventListener('focus', onFocus); };
   }, []);
+  const n = orders + services + rooms;
+  const target = orders > 0 ? 'orders' : services > 0 ? 'service-orders' : rooms > 0 ? 'hotel' : 'orders';
   return (
-    <button className="icon-btn noti-btn" onClick={onGo}
-      title={n > 0 ? `${n} encomenda(s) nova(s) da loja` : 'Encomendas da loja'} aria-label="Encomendas da loja">
+    <button className="icon-btn noti-btn" onClick={() => onGo(target)}
+      title={n > 0 ? `${n} pedido(s) novo(s) da loja` : 'Pedidos da loja'} aria-label="Pedidos da loja">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
       </svg>
@@ -413,7 +434,7 @@ export function Shell({
           <h1>{current?.label}</h1>
           <span className="spacer" />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
-          {isTenant ? <OrdersBell onGo={() => setSection('orders')} /> : null}
+          {isTenant ? <OrdersBell onGo={(s) => setSection(s)} /> : null}
           <ThemePicker />
           <ManagerMenu
             photo={avatar}

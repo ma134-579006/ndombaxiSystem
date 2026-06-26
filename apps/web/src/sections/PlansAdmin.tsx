@@ -4,15 +4,16 @@ import type { LandingConfig, PublicPlan } from '../api/types';
 import { Modal } from '../components/ui';
 import { IconEdit } from '../components/Icons';
 
-const DURATIONS = [
-  { m: 1, label: 'Mensal (1 mês)' },
-  { m: 3, label: 'Trimestral (3 meses)' },
-  { m: 6, label: 'Semestral (6 meses)' },
-  { m: 12, label: 'Anual (12 meses)' },
-];
-
 function kz(n: number): string {
   return n.toLocaleString('pt-PT') + ' Kz';
+}
+
+/** Rótulo de duração legível a partir de meses + dias. */
+function durationLabel(months: number, days: number): string {
+  const parts: string[] = [];
+  if (months) parts.push(`${months} ${months === 1 ? 'mês' : 'meses'}`);
+  if (days) parts.push(`${days} ${days === 1 ? 'dia' : 'dias'}`);
+  return parts.join(' e ') || '1 mês';
 }
 
 /** Super Admin edita planos (preço Kz, duração, limites, módulos) + conteúdo da landing. */
@@ -58,7 +59,7 @@ export function PlansAdmin() {
                   {p.name} {p.highlight ? <span className="badge" style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }}>Popular</span> : null}
                 </div>
                 <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>
-                  {p.priceKz > 0 ? `${kz(p.priceKz)} / ${p.durationMonths}m` : 'Sob consulta'} ·{' '}
+                  {p.priceKz > 0 ? `${kz(p.priceKz)} / ${durationLabel(p.durationMonths, p.durationDays)}` : 'Sob consulta'} ·{' '}
                   {p.maxStores === -1 ? '∞' : p.maxStores} lojas · {p.maxUsers === -1 ? '∞' : p.maxUsers} users ·{' '}
                   {p.isPublic ? 'visível' : 'oculto'}
                 </div>
@@ -84,7 +85,8 @@ export function PlansAdmin() {
 // ── Editor de um plano ──────────────────────────────────────
 function PlanEditor({ plan, onClose, onSaved }: { plan: PublicPlan; onClose(): void; onSaved(): void }) {
   const [priceKz, setPriceKz] = useState(String(plan.priceKz));
-  const [durationMonths, setDurationMonths] = useState(plan.durationMonths);
+  const [durationMonths, setDurationMonths] = useState(String(plan.durationMonths));
+  const [durationDays, setDurationDays] = useState(String(plan.durationDays ?? 0));
   const [maxStores, setMaxStores] = useState(String(plan.maxStores));
   const [maxUsers, setMaxUsers] = useState(String(plan.maxUsers));
   const [maxProducts, setMaxProducts] = useState(String(plan.maxProducts));
@@ -99,7 +101,8 @@ function PlanEditor({ plan, onClose, onSaved }: { plan: PublicPlan; onClose(): v
     try {
       await api.landingAdmin.updatePlan(plan.id, {
         priceKz: Number(priceKz) || 0,
-        durationMonths,
+        durationMonths: Math.max(0, Number(durationMonths) || 0),
+        durationDays: Math.max(0, Number(durationDays) || 0),
         maxStores: Number(maxStores),
         maxUsers: Number(maxUsers),
         maxProducts: Number(maxProducts),
@@ -124,10 +127,17 @@ function PlanEditor({ plan, onClose, onSaved }: { plan: PublicPlan; onClose(): v
           <input value={priceKz} onChange={(e) => setPriceKz(e.target.value)} inputMode="numeric" />
         </div>
         <div className="field">
-          <label>Duração / acesso</label>
-          <select value={durationMonths} onChange={(e) => setDurationMonths(Number(e.target.value))}>
-            {DURATIONS.map((d) => <option key={d.m} value={d.m}>{d.label}</option>)}
-          </select>
+          <label>Duração — meses</label>
+          <input value={durationMonths} onChange={(e) => setDurationMonths(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="0" />
+        </div>
+      </div>
+      <div className="grid-2">
+        <div className="field">
+          <label>Duração — dias (somam-se aos meses)</label>
+          <input value={durationDays} onChange={(e) => setDurationDays(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="0" />
+        </div>
+        <div className="field" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <span className="muted" style={{ fontSize: 12.5 }}>Acesso por período: <strong>{durationLabel(Number(durationMonths) || 0, Number(durationDays) || 0)}</strong></span>
         </div>
       </div>
       <div className="grid-2">

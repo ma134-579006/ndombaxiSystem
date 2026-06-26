@@ -5,6 +5,8 @@ export interface ResolvedTenant {
   companyId: string;
   schema: string;
   name: string;
+  /** Vertical de negócio (RETAIL | RESTAURANT | SERVICES | HOSPITALITY). */
+  businessType: string;
 }
 
 /**
@@ -21,6 +23,6 @@ export class TenantResolverService {
     if (!company || company.status !== 'ACTIVE') {
       throw new NotFoundException('Loja não encontrada ou indisponível');
     }
-    return { companyId: company.id, schema: company.schemaName, name: company.name };
+    return { companyId: company.id, schema: company.schemaName, name: company.name, businessType: company.sector || 'RETAIL' };
   }
 }

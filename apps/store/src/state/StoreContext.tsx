@@ -9,6 +9,7 @@ const cartKey = (code: string) => `ndombaxi.store.cart.${code}`;
 
 interface StoreData {
   storeName: string;
+  businessType: string;
   settings: SiteSettings;
   products: CatalogProduct[];
   paymentMethods: PaymentMethod[];
@@ -70,6 +71,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ]);
       setData({
         storeName: site.store,
+        businessType: site.businessType || 'RETAIL',
         settings: site.settings,
         products: catalog.products,
         paymentMethods: methods,

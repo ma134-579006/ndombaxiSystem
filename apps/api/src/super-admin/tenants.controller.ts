@@ -19,7 +19,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantsService } from './tenants.service';
 import { AuthService } from '../auth/auth.service';
-import { ChangePlanDto, ListTenantsDto } from './dto/list-tenants.dto';
+import { ChangePlanDto, GrantBonusDto, ListTenantsDto } from './dto/list-tenants.dto';
 import { ResetTenantPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('super-admin')
@@ -94,6 +94,17 @@ export class TenantsController {
     @Ip() ip: string,
   ) {
     return this.tenants.changePlan(id, dto, { adminId: user.sub, ip });
+  }
+
+  @Post(':id/bonus')
+  @ApiOperation({ summary: 'Reativar / dar bónus de dias e/ou meses ao plano' })
+  grantBonus(
+    @Param('id') id: string,
+    @Body() dto: GrantBonusDto,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ) {
+    return this.tenants.grantBonus(id, dto, { adminId: user.sub, ip });
   }
 
   @Post(':id/reset-password')

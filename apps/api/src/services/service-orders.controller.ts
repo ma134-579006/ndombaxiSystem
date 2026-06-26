@@ -22,6 +22,11 @@ export class ServiceOrdersController {
   @ApiOperation({ summary: 'Lista ordens de serviço' })
   list(@Query('status') status?: string) { return this.svc.list(this.ctx.requireTenantSchema(), status); }
 
+  @Get('pending-online')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Nº de pedidos de serviço da loja online por tratar' })
+  async pendingOnline() { return { count: await this.svc.pendingOnline(this.ctx.requireTenantSchema()) }; }
+
   @Post()
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Abre uma ordem de serviço' })

@@ -52,13 +52,28 @@ export class HotelService {
   list(schema: string, status?: string) {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(status && RES_STATUS.includes(status)
-        ? Prisma.sql`SELECT id, number, room_name, guest_name, check_in, check_out, nights, status, total
-                     FROM hotel_reservations WHERE status = ${status} ORDER BY check_in DESC LIMIT 300`
-        : Prisma.sql`SELECT id, number, room_name, guest_name, check_in, check_out, nights, status, total
-                     FROM hotel_reservations ORDER BY check_in DESC LIMIT 300`));
+        ? Prisma.sql`SELECT id, number, room_name, guest_name, check_in, check_out, nights, status, total, source
+                     FROM hotel_reservations WHERE status = ${status} ORDER BY (source = 'ONLINE' AND status = 'BOOKED') DESC, check_in DESC LIMIT 300`
+        : Prisma.sql`SELECT id, number, room_name, guest_name, check_in, check_out, nights, status, total, source
+                     FROM hotel_reservations ORDER BY (source = 'ONLINE' AND status = 'BOOKED') DESC, check_in DESC LIMIT 300`));
   }
 
-  async create(schema: string, by: string, dto: { roomId: string; guestName?: string; guestPhone?: string; checkIn: string; checkOut: string; guests?: number }) {
+  /** Nº de reservas vindas da LOJA ONLINE ainda por confirmar (status BOOKED). */
+  async pendingOnline(schema: string): Promise<number> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n FROM hotel_reservations WHERE source = 'ONLINE' AND status = 'BOOKED'`));
+    return rows[0]?.n ?? 0;
+  }
+
+  /** Quartos públicos disponíveis (para a loja online mostrar e reservar). */
+  publicRooms(schema: string) {
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(Prisma.sql`SELECT id, code, name, room_type, capacity, rate
+                              FROM hotel_rooms WHERE is_active = TRUE AND status = 'AVAILABLE' ORDER BY sort_order, code`));
+  }
+
+  async create(schema: string, by: string | null, dto: { roomId: string; guestName?: string; guestPhone?: string; checkIn: string; checkOut: string; guests?: number; source?: string }) {
+    const source = dto.source === 'ONLINE' ? 'ONLINE' : 'MANUAL';
     if (!dto.checkIn || !dto.checkOut) throw new BadRequestException('Indique as datas de entrada e saída.');
     const nights = nightsBetween(dto.checkIn, dto.checkOut);
     return this.prisma.runInTenant(schema, async (tx) => {
@@ -74,9 +89,9 @@ export class HotelService {
       const number = `RES/${year}/${String((cnt[0]?.n ?? 0) + 1).padStart(4, '0')}`;
       const rate = Number(room[0].rate);
       const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-        INSERT INTO hotel_reservations (number, room_id, room_name, guest_name, guest_phone, check_in, check_out, nights, rate, guests, total, created_by)
+        INSERT INTO hotel_reservations (number, room_id, room_name, guest_name, guest_phone, check_in, check_out, nights, rate, guests, total, created_by, source)
         VALUES (${number}, ${dto.roomId}::uuid, ${room[0].name}, ${dto.guestName?.trim() || null}, ${dto.guestPhone?.trim() || null},
-                ${dto.checkIn}::date, ${dto.checkOut}::date, ${nights}, ${rate}, ${dto.guests ?? 1}, ${rate * nights}, ${by}::uuid)
+                ${dto.checkIn}::date, ${dto.checkOut}::date, ${nights}, ${rate}, ${dto.guests ?? 1}, ${rate * nights}, ${by}::uuid, ${source})
         RETURNING id`);
       return rows[0];
     });

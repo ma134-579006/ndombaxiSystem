@@ -348,8 +348,9 @@ export class SupportService implements OnModuleInit {
     );
   }
 
-  /** Notificações (sino): conversas com mensagens por ler + comentários novos. */
-  async notifications(): Promise<{ unreadChats: number; humanWaiting: number; newFeedback: number }> {
+  /** Notificações (sino): conversas por ler, comentários novos, empresas por
+   *  aprovar e subscrições/renovações por rever. */
+  async notifications(): Promise<{ unreadChats: number; humanWaiting: number; newFeedback: number; pendingCompanies: number; pendingSubs: number }> {
     const a = await this.prisma.$queryRaw<{ n: number }[]>(
       Prisma.sql`SELECT COUNT(*)::int AS n FROM public.support_chats WHERE unread_admin > 0`,
     );
@@ -359,7 +360,12 @@ export class SupportService implements OnModuleInit {
     const c = await this.prisma.$queryRaw<{ n: number }[]>(
       Prisma.sql`SELECT COUNT(*)::int AS n FROM public.site_feedback WHERE seen_by_admin = FALSE`,
     );
-    return { unreadChats: a[0]?.n ?? 0, humanWaiting: b[0]?.n ?? 0, newFeedback: c[0]?.n ?? 0 };
+    const d = await this.prisma.company.count({ where: { status: 'PENDING' } }).catch(() => 0);
+    const e = await this.prisma.subscription.count({ where: { status: 'IN_REVIEW' } }).catch(() => 0);
+    return {
+      unreadChats: a[0]?.n ?? 0, humanWaiting: b[0]?.n ?? 0, newFeedback: c[0]?.n ?? 0,
+      pendingCompanies: d, pendingSubs: e,
+    };
   }
 
   // ── Comentários públicos (sugestões) ────────────────────────

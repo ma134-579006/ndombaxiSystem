@@ -36,6 +36,9 @@ model Plan {
   priceKz      Int // preço em Kwanzas (AOA) para o período. 0 = negociado
   // Duração/ciclo do plano em meses (1=mensal, 3=trimestral, 6=semestral, 12=anual)
   durationMonths Int    @default(1)
+  // Dias adicionais ao ciclo (combina com durationMonths). Permite períodos
+  // flexíveis editáveis pelo Super Admin (ex.: 0 meses + 30 dias = mensal por dias).
+  durationDays Int      @default(0)
   maxStores    Int // -1 = ilimitado
   maxUsers     Int // -1 = ilimitado
   maxProducts  Int // -1 = ilimitado
@@ -146,7 +149,11 @@ model Subscription {
   method       SubscriptionMethod
   status       SubscriptionStatus @default(PENDING_PAYMENT)
   amountKz     Int // valor devido (cópia do preço do plano no momento)
-  durationMonths Int // período contratado
+  durationMonths Int // período contratado (meses)
+  durationDays Int      @default(0) // dias adicionais ao período contratado
+  // Subscrição de TESTE GRÁTIS (trial). Quando true, a validade é DINÂMICA:
+  // startsAt + trialDays actuais (editável pelo Super Admin) em vez de expiresAt fixo.
+  isTrial      Boolean  @default(false)
   // Conta bancária escolhida (se IBAN) / referência gerada (se REFERENCE)
   bankAccountId String?           @db.Uuid
   reference    String?

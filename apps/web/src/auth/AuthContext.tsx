@@ -52,11 +52,17 @@ function modeFromUser(u: DecodedJwt | null): AuthMode | null {
   return u.subjectType === 'PLATFORM' ? 'platform' : 'tenant';
 }
 
-/** A sessão ultrapassou o tempo de vida absoluto? (expira o login guardado) */
+/**
+ * Auto-logout DESATIVADO: a sessão nunca termina sozinha (nem por inatividade,
+ * nem por tempo de vida absoluto). A inatividade apenas BLOQUEIA o ecrã (IdleLock),
+ * preservando a sessão e o trabalho. A sessão só acaba com logout explícito ou
+ * quando o refresh token deixar de ser aceite pelo servidor.
+ */
 function sessionExpired(): boolean {
-  const started = Number(sessionStorage.getItem(LS_SESSION_START) || 0);
-  return started > 0 && Date.now() - started > MAX_SESSION_MS;
+  return false;
 }
+// Mantido para referência (tempo de vida absoluto, já não aplicado):
+void MAX_SESSION_MS;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');

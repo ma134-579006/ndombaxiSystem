@@ -5,6 +5,14 @@ import { Modal } from '../components/ui';
 import { IconCheck, IconClose, IconPlus } from '../components/Icons';
 
 function kz(n: number): string { return n.toLocaleString('pt-PT') + ' Kz'; }
+/** Duração legível de uma subscrição (trial / meses+dias). */
+function durLabel(s: { durationMonths: number; durationDays?: number; isTrial?: boolean }): string {
+  if (s.isTrial) return 'teste grátis';
+  const parts: string[] = [];
+  if (s.durationMonths) parts.push(`${s.durationMonths}m`);
+  if (s.durationDays) parts.push(`${s.durationDays}d`);
+  return parts.join(' ') || '1m';
+}
 /** Constrói o src do comprovativo: se já vier como data URI completo usa-o tal
  *  e qual; senão prefixa o data:...;base64,. Evita o prefixo duplicado. */
 function proofSrc(data: string, fileType: string | undefined, fallback: string): string {
@@ -87,7 +95,7 @@ export function SubsAdmin() {
           <div className="list-row" key={s.id} style={{ cursor: 'pointer' }} onClick={async () => setDetail(await api.subsAdmin.get(s.id))}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700 }}>{s.company?.name ?? '—'} <span className="muted" style={{ fontWeight: 500 }}>· {s.plan?.name}</span></div>
-              <div className="muted" style={{ fontSize: 13 }}>{kz(s.amountKz)} / {s.durationMonths}m · {s.method}</div>
+              <div className="muted" style={{ fontSize: 13 }}>{kz(s.amountKz)} / {durLabel(s)} · {s.method}</div>
             </div>
             <span className="badge" style={{ color: STATUS_TONE[s.status], borderColor: STATUS_TONE[s.status] }}>
               <span className="dot" /> {STATUS_LABEL[s.status]}
@@ -132,7 +140,7 @@ function SubDetail({ sub, onClose, onChanged }: { sub: Subscription; onClose(): 
   return (
     <Modal title={`${sub.company?.name ?? 'Subscrição'} — ${sub.plan?.name ?? ''}`} onClose={onClose}>
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
-      <div className="kv"><span className="k">Valor</span><span className="v">{kz(sub.amountKz)} / {sub.durationMonths} meses</span></div>
+      <div className="kv"><span className="k">Valor</span><span className="v">{kz(sub.amountKz)} / {durLabel(sub)}</span></div>
       <div className="kv"><span className="k">Método</span><span className="v">{sub.method === 'IBAN' ? 'Transferência (IBAN)' : 'Referência Multicaixa'}</span></div>
       <div className="kv"><span className="k">Estado</span><span className="v">{STATUS_LABEL[sub.status]}</span></div>
       {sub.reference ? <div className="kv"><span className="k">Referência</span><span className="v mono">{sub.reference}</span></div> : null}

@@ -48,7 +48,7 @@ export function PlanExpired({ onResolved }: { onResolved(): void }) {
             </button>
           </div>
         ) : (
-          <PayStep onNext={() => setStep('waiting')} />
+          <PayStep onNext={() => setStep('waiting')} allowPlanChoice />
         )}
         <p style={{ textAlign: 'center', marginTop: 12 }}>
           <a onClick={() => void logout()} style={{ color: 'var(--muted)', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>

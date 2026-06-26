@@ -46,7 +46,7 @@ export function ServiceOrders() {
           : rows.map((r) => (
             <button key={r.id} className="list-row" onClick={() => void openOS(r.id)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', padding: '12px 16px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <strong style={{ fontSize: 14 }}>{r.number} · {r.customer_name || 'Cliente'}</strong>
+                <strong style={{ fontSize: 14 }}>{r.number} · {r.customer_name || 'Cliente'}{r.source === 'ONLINE' ? <span className="pill" style={{ marginLeft: 6, background: 'var(--primary)', color: '#fff' }}>🌐 Online</span> : null}</strong>
                 <div className="muted" style={{ fontSize: 12.5 }}>{r.equipment_label || '—'}{r.assigned_to ? ` · 👤 ${r.assigned_to}` : ''}</div>
               </div>
               <span style={{ fontWeight: 700, marginRight: 8 }}>{KZ(r.total)}</span>

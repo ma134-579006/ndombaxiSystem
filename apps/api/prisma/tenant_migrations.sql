@@ -161,3 +161,9 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."salary_advances" ADD COLUMN IF NOT EXISTS di
 -- fiscal/hash AGT), mas regista-se a DATA DA OPERAÇÃO/COMPRA original (ex.: dia
 -- sem luz) para constar no documento. invoice_date continua a ser a data fiscal.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS operation_date DATE;
+
+-- Origem de ordens de serviço e reservas: distingue pedidos vindos da LOJA ONLINE
+-- (ONLINE) dos criados no balcão (MANUAL). Permite ao gestor ver/aprovar o que
+-- chega pela montra pública (vertical Serviços e Hotelaria).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders"     ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'MANUAL';
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."hotel_reservations" ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'MANUAL';

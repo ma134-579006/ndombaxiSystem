@@ -17,6 +17,9 @@ import { CustomerChatService } from './customer-chat.service';
 import { OrdersService } from './orders.service';
 import { StorefrontService } from './storefront.service';
 import { TenantResolverService } from './tenant-resolver.service';
+import { HotelService } from '../hotel/hotel.service';
+import { ServiceOrdersService } from '../services/service-orders.service';
+import { OnlineReservationDto, OnlineServiceRequestDto } from './dto/online-request.dto';
 
 /** Montra pública (sem autenticação). O tenant é resolvido pelo código da empresa. */
 @ApiTags('storefront')
@@ -34,6 +37,8 @@ export class StorefrontController {
     private readonly customers: CustomerAuthService,
     private readonly assistant: AssistantService,
     private readonly gateways: PaymentGatewayService,
+    private readonly hotel: HotelService,
+    private readonly serviceOrders: ServiceOrdersService,
   ) {}
 
   // ── Chat livre com a loja (cliente autenticado, sem encomenda) ─
@@ -101,7 +106,41 @@ export class StorefrontController {
       this.site.getSettings(tenant.schema),
       this.site.listPublishedPages(tenant.schema),
     ]);
-    return { store: tenant.name, settings, pages };
+    return { store: tenant.name, businessType: tenant.businessType, settings, pages };
+  }
+
+  // ── Pedidos/Reservas a partir da loja online (verticais) ───────
+  @Get('rooms')
+  @ApiOperation({ summary: 'Quartos disponíveis para reserva (vertical Hotelaria)' })
+  async rooms(@Param('code') code: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    return { businessType: tenant.businessType, rooms: await this.hotel.publicRooms(tenant.schema) };
+  }
+
+  @Post('reservation')
+  @ApiOperation({ summary: 'Cliente reserva um quarto pela loja (fica BOOKED, origem ONLINE)' })
+  async reservation(@Param('code') code: string, @Body() dto: OnlineReservationDto) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const r = await this.hotel.create(tenant.schema, null, { ...dto, source: 'ONLINE' });
+    if (dto.guestEmail) {
+      await this.customers.upsertCustomer(tenant.schema, dto.guestEmail.trim().toLowerCase(), dto.guestName || 'Hóspede', { phone: dto.guestPhone }).catch(() => undefined);
+    }
+    return { ok: true, id: r.id };
+  }
+
+  @Post('service-request')
+  @ApiOperation({ summary: 'Cliente pede um serviço/orçamento pela loja (OS aberta, origem ONLINE)' })
+  async serviceRequest(@Param('code') code: string, @Body() dto: OnlineServiceRequestDto) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const r = await this.serviceOrders.create(tenant.schema, { id: null, name: 'Loja online' }, {
+      customerName: dto.customerName, customerPhone: dto.customerPhone,
+      equipmentType: dto.equipmentType, equipmentLabel: dto.equipmentLabel, equipmentRef: dto.equipmentRef,
+      problem: dto.problem, source: 'ONLINE',
+    });
+    if (dto.customerEmail) {
+      await this.customers.upsertCustomer(tenant.schema, dto.customerEmail.trim().toLowerCase(), dto.customerName || 'Cliente', { phone: dto.customerPhone }).catch(() => undefined);
+    }
+    return { ok: true, id: r.id };
   }
 
   @Get('pages/:slug')

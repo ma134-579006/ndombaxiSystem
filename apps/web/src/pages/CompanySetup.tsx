@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import type { BankAccount } from '../api/types';
+import type { BankAccount, PublicPlan } from '../api/types';
 import { IconBuilding, IconCard, IconImage, IconLogout, IconCheck } from '../components/Icons';
 import { ScreenKeyboard } from '../components/ScreenKeyboard';
 
@@ -55,9 +55,11 @@ export function CompanySetup({ onDone }: { onDone(): void }) {
   );
 }
 
-export function PayStep({ onNext }: { onNext(): void }) {
+export function PayStep({ onNext, allowPlanChoice = false }: { onNext(): void; allowPlanChoice?: boolean }) {
   const [banks, setBanks] = useState<BankAccount[]>([]);
   const [plan, setPlan] = useState<{ planId: string; planName: string; priceKz: number } | null>(null);
+  const [plans, setPlans] = useState<PublicPlan[]>([]);
+  const [chosenPlanId, setChosenPlanId] = useState<string>('');
   const [file, setFile] = useState<{ name: string; type: string; data: string } | null>(null);
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
@@ -66,8 +68,12 @@ export function PayStep({ onNext }: { onNext(): void }) {
 
   useEffect(() => {
     api.banks().then(setBanks).catch(() => undefined);
-    api.onboarding.myPlan().then(setPlan).catch(() => undefined);
+    api.onboarding.myPlan().then((p) => { setPlan(p); if (p && !chosenPlanId) setChosenPlanId(p.planId); }).catch(() => undefined);
+    if (allowPlanChoice) api.plans().then((ps) => setPlans(ps.filter((p) => p.isPublic))).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const chosenPlan = plans.find((p) => p.id === chosenPlanId);
+  const dueKz = chosenPlan ? chosenPlan.priceKz : (plan?.priceKz ?? 0);
 
   const onFile = (f?: File) => {
     if (!f) return;
@@ -86,9 +92,12 @@ export function PayStep({ onNext }: { onNext(): void }) {
       // (ex.: renovação), cria uma NOVA para o super admin aprovar.
       const subs = await api.subscription.mine().catch(() => []);
       let sub = subs.find((s) => s.status === 'PENDING_PAYMENT' || s.status === 'IN_REVIEW');
+      // Renovação com escolha de plano: força uma nova subscrição com o plano escolhido.
+      const wantPlanId = allowPlanChoice ? (chosenPlanId || plan?.planId) : plan?.planId;
+      if (allowPlanChoice && wantPlanId && sub && sub.planId !== wantPlanId) sub = undefined;
       if (!sub) {
-        if (!plan) { setErr('Plano não encontrado. Contacte o suporte.'); setBusy(false); return; }
-        sub = await api.subscription.create({ planId: plan.planId, method: 'IBAN', bankAccountId: banks[0]?.id });
+        if (!wantPlanId) { setErr('Plano não encontrado. Contacte o suporte.'); setBusy(false); return; }
+        sub = await api.subscription.create({ planId: wantPlanId, method: 'IBAN', bankAccountId: banks[0]?.id });
       }
       await api.subscription.submitProof(sub.id, { fileName: file.name, fileType: file.type, fileData: file.data, amountKz: amount ? Number(amount) : undefined });
       onNext();
@@ -100,8 +109,22 @@ export function PayStep({ onNext }: { onNext(): void }) {
   return (
     <div className="card">
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      {allowPlanChoice && plans.length > 0 ? (
+        <div className="field">
+          <label>Escolha o plano para renovar</label>
+          <select value={chosenPlanId} onChange={(e) => setChosenPlanId(e.target.value)}>
+            {plans.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} — {p.priceKz > 0 ? `${p.priceKz.toLocaleString('pt-PT')} Kz` : 'sob consulta'}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        {plan ? <>Plano <strong>{plan.planName}</strong>{plan.priceKz > 0 ? <> — {plan.priceKz.toLocaleString('pt-PT')} Kz</> : null}. </> : null}
+        {allowPlanChoice
+          ? (chosenPlan ? <>Plano <strong>{chosenPlan.name}</strong>{dueKz > 0 ? <> — {dueKz.toLocaleString('pt-PT')} Kz</> : null}. </> : null)
+          : (plan ? <>Plano <strong>{plan.planName}</strong>{plan.priceKz > 0 ? <> — {plan.priceKz.toLocaleString('pt-PT')} Kz</> : null}. </> : null)}
         Faça a transferência para uma das contas e anexe o comprovativo.
       </p>
       {banks.length > 0 ? (
