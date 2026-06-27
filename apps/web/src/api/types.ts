@@ -728,6 +728,8 @@ export interface HotelReservationRow {
   id: string; number: string; room_name: string | null; guest_name: string | null;
   check_in: string; check_out: string; nights: number; status: string; total: string; source?: string;
 }
+export interface RecipeIngredient { id: string; ingredient_id: string; ingredient_name: string; ingredient_code: string; quantity: string }
+
 export interface VerticalKpi { label: string; value: string; hint?: string; tone?: 'ok' | 'warn' | 'info' }
 export interface VerticalMetrics { businessType: string; title: string; kpis: VerticalKpi[] }
 

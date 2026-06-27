@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StockService } from '../erp/stock.service';
 
 /** IVA por código (espelha o frontend) — para congelar o preço c/ IVA na comanda. */
 const IVA_RATE: Record<string, number> = { NOR: 14, INT: 7, RED: 5, ISE: 0, NS: 0 };
@@ -121,11 +122,83 @@ export class RestaurantService {
     return { ok: true };
   }
 
-  /** Fecha a comanda (a conta). O pagamento/fatura é feito no caixa. */
-  async closeOrder(schema: string, orderId: string) {
-    await this.prisma.runInTenant(schema, (tx) =>
-      tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders SET status = 'CLOSED', closed_at = now() WHERE id = ${orderId}::uuid AND status = 'OPEN'`));
-    return { ok: true };
+  /**
+   * Fecha a comanda (a conta). Baixa do stock os INGREDIENTES de cada prato com
+   * receita (consumo real). Opcionalmente lança o total no FOLIO de um quarto
+   * (consumo do hóspede some na conta do quarto) em vez de ir ao caixa.
+   */
+  async closeOrder(schema: string, orderId: string, chargeToReservationId?: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const ord = await tx.$queryRaw<{ status: string; total: string; table_name: string | null }[]>(
+        Prisma.sql`SELECT status, total, table_name FROM restaurant_orders WHERE id = ${orderId}::uuid`);
+      if (!ord[0]) throw new NotFoundException('Comanda não encontrada.');
+      if (ord[0].status !== 'OPEN') throw new BadRequestException('A comanda já não está aberta.');
+
+      const items = await tx.$queryRaw<{ product_id: string | null; quantity: string }[]>(
+        Prisma.sql`SELECT product_id, quantity FROM restaurant_order_items WHERE order_id = ${orderId}::uuid`);
+      await this.deductIngredients(tx, items);
+
+      await tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders SET status = 'CLOSED', closed_at = now() WHERE id = ${orderId}::uuid`);
+
+      // Lançar no folio do quarto (hotelaria): consumo soma na conta do hóspede.
+      if (chargeToReservationId) {
+        const res = await tx.$queryRaw<{ status: string }[]>(Prisma.sql`SELECT status FROM hotel_reservations WHERE id = ${chargeToReservationId}::uuid`);
+        if (!res[0]) throw new NotFoundException('Reserva não encontrada.');
+        await tx.$executeRaw(Prisma.sql`INSERT INTO hotel_folio_items (reservation_id, description, unit_price, quantity)
+          VALUES (${chargeToReservationId}::uuid, ${`Restaurante/Bar — ${ord[0].table_name ?? 'mesa'}`}, ${Number(ord[0].total)}, 1)`);
+        await tx.$executeRaw(Prisma.sql`UPDATE hotel_reservations SET total = (nights * rate) + COALESCE(
+          (SELECT SUM(unit_price * quantity) FROM hotel_folio_items WHERE reservation_id = ${chargeToReservationId}::uuid), 0), updated_at = now()
+          WHERE id = ${chargeToReservationId}::uuid`);
+      }
+      return { ok: true, chargedToFolio: !!chargeToReservationId };
+    });
+  }
+
+  /** Baixa o stock dos ingredientes (receita) de cada prato vendido. */
+  private async deductIngredients(tx: Prisma.TransactionClient, items: { product_id: string | null; quantity: string }[]): Promise<void> {
+    const wh = await StockService.resolveDefaultWarehouse(tx);
+    for (const it of items) {
+      if (!it.product_id) continue;
+      const recipe = await tx.$queryRaw<{ ingredient_id: string; quantity: string }[]>(
+        Prisma.sql`SELECT ingredient_id, quantity FROM product_recipes WHERE product_id = ${it.product_id}::uuid`);
+      for (const ing of recipe) {
+        const consume = Number(ing.quantity) * Number(it.quantity);
+        if (consume <= 0) continue;
+        if (wh) {
+          await StockService.applyMovement(tx, {
+            productId: ing.ingredient_id, warehouseId: wh, type: 'OUT', quantity: -consume,
+            reference: 'Consumo de receita (restaurante)', allowNegative: true,
+          });
+        } else {
+          await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${consume} WHERE id = ${ing.ingredient_id}::uuid`);
+        }
+      }
+    }
+  }
+
+  // ── Receitas / fichas técnicas ─────────────────────────────
+  getRecipe(schema: string, productId: string) {
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(Prisma.sql`SELECT r.id, r.ingredient_id, r.quantity, p.name AS ingredient_name, p.code AS ingredient_code
+        FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
+        WHERE r.product_id = ${productId}::uuid ORDER BY p.name`));
+  }
+
+  /** Substitui a receita de um prato pela lista indicada (ingrediente + quantidade). */
+  async setRecipe(schema: string, productId: string, items: { ingredientCode: string; quantity: number }[]) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(Prisma.sql`DELETE FROM product_recipes WHERE product_id = ${productId}::uuid`);
+      for (const it of items) {
+        if (!it.ingredientCode || !(it.quantity > 0)) continue;
+        const ing = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM products WHERE code = ${it.ingredientCode} AND is_active = TRUE LIMIT 1`);
+        if (!ing[0]) continue;
+        if (ing[0].id === productId) continue; // o prato não pode ser ingrediente de si próprio
+        await tx.$executeRaw(Prisma.sql`INSERT INTO product_recipes (product_id, ingredient_id, quantity)
+          VALUES (${productId}::uuid, ${ing[0].id}::uuid, ${it.quantity})
+          ON CONFLICT (product_id, ingredient_id) DO UPDATE SET quantity = EXCLUDED.quantity`);
+      }
+      return { ok: true };
+    });
   }
 
   async cancelOrder(schema: string, orderId: string) {

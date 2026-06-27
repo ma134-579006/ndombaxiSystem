@@ -6,7 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { RestaurantService } from './restaurant.service';
-import { AddItemDto, CreateTableDto, KitchenStatusDto, OpenOrderDto } from './dto/restaurant.dto';
+import { AddItemDto, CloseOrderDto, CreateTableDto, KitchenStatusDto, OpenOrderDto, SetRecipeDto } from './dto/restaurant.dto';
 
 /** Restauração — mesas, comandas e cozinha (vertical RESTAURANT). */
 @ApiTags('restaurant')
@@ -71,8 +71,23 @@ export class RestaurantController {
 
   @Post('orders/:id/close')
   @Roles(Role.CASHIER)
-  @ApiOperation({ summary: 'Fecha a comanda (a conta)' })
-  closeOrder(@Param('id') id: string) { return this.svc.closeOrder(this.ctx.requireTenantSchema(), id); }
+  @ApiOperation({ summary: 'Fecha a comanda (baixa ingredientes; opcional: lança no folio do quarto)' })
+  closeOrder(@Param('id') id: string, @Body() dto: CloseOrderDto) {
+    return this.svc.closeOrder(this.ctx.requireTenantSchema(), id, dto?.chargeToReservationId);
+  }
+
+  // ── Receitas / fichas técnicas ─────────────────────────────
+  @Get('recipe/:productId')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Receita (ingredientes) de um prato' })
+  getRecipe(@Param('productId') productId: string) { return this.svc.getRecipe(this.ctx.requireTenantSchema(), productId); }
+
+  @Post('recipe/:productId')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Define a receita de um prato (ingredientes + quantidades)' })
+  setRecipe(@Param('productId') productId: string, @Body() dto: SetRecipeDto) {
+    return this.svc.setRecipe(this.ctx.requireTenantSchema(), productId, dto.items ?? []);
+  }
 
   @Post('orders/:id/cancel')
   @Roles(Role.STORE_MANAGER)

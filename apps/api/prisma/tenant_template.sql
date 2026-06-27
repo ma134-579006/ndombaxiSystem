@@ -969,6 +969,18 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."restaurant_order_items" (
 CREATE INDEX IF NOT EXISTS restaurant_order_items_order_idx ON "{{SCHEMA}}"."restaurant_order_items"(order_id);
 CREATE INDEX IF NOT EXISTS restaurant_order_items_kitchen_idx ON "{{SCHEMA}}"."restaurant_order_items"(kitchen_status, created_at);
 
+-- Ficha técnica / receita: um prato (produto) consome N ingredientes (produtos)
+-- por unidade vendida. Ao fechar a comanda, baixa o stock dos ingredientes.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."product_recipes" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id    UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,   -- prato
+  ingredient_id UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,   -- ingrediente
+  quantity      NUMERIC(14,3) NOT NULL DEFAULT 1,                                          -- por unidade do prato
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT product_recipes_unique UNIQUE (product_id, ingredient_id)
+);
+CREATE INDEX IF NOT EXISTS product_recipes_product_idx ON "{{SCHEMA}}"."product_recipes"(product_id);
+
 -- ════════════════════════════════════════════════════════════
 -- SERVIÇOS — Ordens de Serviço (vertical SERVICES: mecânica, assistência…)
 -- ════════════════════════════════════════════════════════════

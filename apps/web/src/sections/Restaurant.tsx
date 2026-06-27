@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { ManagerProduct, RestaurantKitchenItem, RestaurantOrderDetail, RestaurantTableMapRow } from '../api/types';
+import type { ManagerProduct, RecipeIngredient, RestaurantKitchenItem, RestaurantOrderDetail, RestaurantTableMapRow } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
@@ -12,7 +12,7 @@ const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY',
 
 /** Restauração: mapa de mesas + comanda (lançar itens, conta) e ecrã de cozinha (KDS). */
 export function Restaurant() {
-  const [tab, setTab] = useState<'mesas' | 'cozinha'>('mesas');
+  const [tab, setTab] = useState<'mesas' | 'cozinha' | 'receitas'>('mesas');
   const [tables, setTables] = useState<RestaurantTableMapRow[]>([]);
   const [products, setProducts] = useState<ManagerProduct[]>([]);
   const [detail, setDetail] = useState<RestaurantOrderDetail | null>(null);
@@ -69,12 +69,13 @@ export function Restaurant() {
         <button className="btn ghost" onClick={() => setNewTable(true)}><IconPlus size={16} /> Nova mesa</button>
       </div>
 
-      <div className="seg" style={{ marginBottom: 14, maxWidth: 360 }}>
+      <div className="seg" style={{ marginBottom: 14, maxWidth: 480 }}>
         <button className={tab === 'mesas' ? 'active' : ''} onClick={() => setTab('mesas')}>Mesas</button>
         <button className={tab === 'cozinha' ? 'active' : ''} onClick={() => setTab('cozinha')}>Cozinha (KDS){kds.length ? ` · ${kds.length}` : ''}</button>
+        <button className={tab === 'receitas' ? 'active' : ''} onClick={() => setTab('receitas')}>Receitas</button>
       </div>
 
-      {tab === 'mesas' ? (
+      {tab === 'receitas' ? <RecipesTab products={products} /> : tab === 'mesas' ? (
         tables.length === 0 ? (
           <div className="card"><div className="empty"><p>Sem mesas. Cria a primeira mesa.</p></div></div>
         ) : (
@@ -158,6 +159,76 @@ export function Restaurant() {
       ) : null}
 
       {newTable ? <NewTableModal onClose={() => setNewTable(false)} onCreated={() => { setNewTable(false); void loadTables(); }} /> : null}
+    </>
+  );
+}
+
+/** Fichas técnicas: define os ingredientes (do stock) que cada prato consome. */
+function RecipesTab({ products }: { products: ManagerProduct[] }) {
+  const [dishId, setDishId] = useState('');
+  const [rows, setRows] = useState<{ ingredientCode: string; quantity: string }[]>([]);
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState(false);
+  const dish = products.find((p) => p.id === dishId);
+  const loadRecipe = useCallback(async (id: string) => {
+    try {
+      const r: RecipeIngredient[] = await api.restaurant.recipe(id);
+      setRows(r.map((x) => ({ ingredientCode: x.ingredient_code, quantity: String(Number(x.quantity)) })));
+    } catch { setRows([]); }
+  }, []);
+  useEffect(() => { if (dishId) void loadRecipe(dishId); else setRows([]); }, [dishId, loadRecipe]);
+
+  const addIngredient = (code: string) => {
+    if (rows.some((r) => r.ingredientCode === code)) return;
+    setRows([...rows, { ingredientCode: code, quantity: '1' }]);
+  };
+  const save = async () => {
+    if (!dishId) { toast.warning('Escolha o prato.'); return; }
+    setBusy(true);
+    try {
+      await api.restaurant.setRecipe(dishId, rows.map((r) => ({ ingredientCode: r.ingredientCode, quantity: Number(r.quantity) || 0 })).filter((r) => r.quantity > 0));
+      toast.success('Receita guardada. O stock dos ingredientes baixa ao fechar a comanda.');
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao guardar.'); } finally { setBusy(false); }
+  };
+  const nameOf = (code: string) => products.find((p) => p.code === code)?.name ?? code;
+  const ingFiltered = q.trim() ? products.filter((p) => p.id !== dishId && `${p.name} ${p.code}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 16) : [];
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="field"><label>Prato</label>
+          <select value={dishId} onChange={(e) => setDishId(e.target.value)}>
+            <option value="">— escolher prato —</option>
+            {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+          </select></div>
+      </div>
+      {dish ? (
+        <>
+          <div className="card" style={{ padding: '2px 12px', marginBottom: 8 }}>
+            <div className="row"><IconSearch size={18} /><input style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '10px 0', color: 'var(--text)' }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar ingrediente (do stock)…" /></div>
+          </div>
+          {ingFiltered.length > 0 ? (
+            <div className="pgrid" style={{ maxHeight: '18vh', overflowY: 'auto', marginBottom: 10 }}>
+              {ingFiltered.map((p) => (
+                <button key={p.id} className="pcard" onClick={() => addIngredient(p.code)} style={{ cursor: 'pointer', textAlign: 'left' }}>
+                  <div className="pinfo"><div className="pname" style={{ fontSize: 13 }}>{p.name}</div><div className="pcode">{p.code}</div></div>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
+            {rows.length === 0 ? <div className="empty" style={{ padding: 16 }}><p>Sem ingredientes. Procura e adiciona acima.</p></div>
+              : rows.map((r, i) => (
+                <div key={r.ingredientCode} className="list-row" style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>{nameOf(r.ingredientCode)}</span>
+                  <input value={r.quantity} onChange={(e) => { const v = e.target.value.replace(/[^\d.]/g, ''); setRows(rows.map((x, j) => j === i ? { ...x, quantity: v } : x)); }} inputMode="decimal" style={{ width: 80 }} />
+                  <button className="btn sm ghost" onClick={() => setRows(rows.filter((_, j) => j !== i))}><IconTrash size={14} /></button>
+                </div>
+              ))}
+          </div>
+          <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A guardar…' : 'Guardar receita'}</button>
+        </>
+      ) : <div className="card"><div className="empty"><p>Escolhe um prato para definir a ficha técnica.</p></div></div>}
     </>
   );
 }

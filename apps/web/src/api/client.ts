@@ -602,8 +602,10 @@ export const api = {
     addItem: (orderId: string, productCode: string, quantity: number, notes?: string) => request<{ ok: boolean }>('POST', `/restaurant/orders/${orderId}/items`, { productCode, quantity, notes }),
     removeItem: (itemId: string) => request<{ ok: boolean }>('DELETE', `/restaurant/items/${itemId}`),
     itemKitchen: (itemId: string, status: string) => request<{ ok: boolean }>('POST', `/restaurant/items/${itemId}/kitchen`, { status }),
-    closeOrder: (id: string) => request<{ ok: boolean }>('POST', `/restaurant/orders/${id}/close`),
+    closeOrder: (id: string, chargeToReservationId?: string) => request<{ ok: boolean; chargedToFolio?: boolean }>('POST', `/restaurant/orders/${id}/close`, chargeToReservationId ? { chargeToReservationId } : {}),
     kitchen: () => request<RestaurantKitchenItem[]>('GET', '/restaurant/kitchen'),
+    recipe: (productId: string) => request<RecipeIngredient[]>('GET', `/restaurant/recipe/${productId}`),
+    setRecipe: (productId: string, items: { ingredientCode: string; quantity: number }[]) => request<{ ok: boolean }>('POST', `/restaurant/recipe/${productId}`, { items }),
   },
   hotel: {
     roomMap: () => request<HotelRoomMapRow[]>('GET', '/hotel/room-map'),

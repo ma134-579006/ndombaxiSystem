@@ -1,4 +1,5 @@
-import { IsInt, IsNumber, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsInt, IsNumber, IsOptional, IsString, Length, Max, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateTableDto {
   @IsOptional() @IsString() @Length(1, 20) code?: string;
@@ -21,4 +22,18 @@ export class AddItemDto {
 
 export class KitchenStatusDto {
   @IsString() status!: string; // PENDING | PREPARING | READY | SERVED
+}
+
+export class CloseOrderDto {
+  @IsOptional() @IsString() chargeToReservationId?: string;
+}
+
+export class RecipeItemDto {
+  @IsString() ingredientCode!: string;
+  @IsNumber() @Min(0.001) quantity!: number;
+}
+
+export class SetRecipeDto {
+  @IsArray() @ArrayMaxSize(100) @ValidateNested({ each: true }) @Type(() => RecipeItemDto)
+  items!: RecipeItemDto[];
 }
