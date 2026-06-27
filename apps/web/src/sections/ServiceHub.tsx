@@ -57,6 +57,20 @@ const VERTICALS: Record<string, { label: string; intro: string; mods: Mod[] }> =
       { icon: '📊', title: 'Relatórios & SAF-T', desc: 'Ocupação, receita, fiscal.', to: 'reports' },
     ],
   },
+  CLINIC: {
+    label: '🏥 Clínica / Saúde',
+    intro: 'Gestão de clínica/consultório: pacientes, marcações (agenda) e consultas — com faturação AGT, caixa e RH integrados.',
+    mods: [
+      { icon: '🩺', title: 'Agenda & Pacientes', desc: 'Marcações, pacientes e consultas.', to: 'clinic' },
+      { icon: '👤', title: 'Pacientes', desc: 'Fichas clínicas e histórico.', to: 'clinic' },
+      { icon: '📅', title: 'Marcações', desc: 'Agenda do dia e próximas.', to: 'clinic' },
+      { icon: '💊', title: 'Receitas / Prescrições', desc: 'Registadas em cada consulta.', to: 'clinic' },
+      { icon: '🧾', title: 'Faturação (AGT)', desc: 'Faturar consultas e atos.', to: 'clinic' },
+      { icon: '🤝', title: 'Clientes', desc: 'Base de clientes/pacientes.', to: 'customers' },
+      { icon: '👥', title: 'Equipa & Folha', desc: 'Profissionais e salários.', to: 'employees' },
+      { icon: '📊', title: 'Relatórios & SAF-T', desc: 'Consultas, receita, fiscal.', to: 'reports' },
+    ],
+  },
 };
 
 export function ServiceHub({ businessType, onGo }: { businessType: string; onGo(section: string): void }) {

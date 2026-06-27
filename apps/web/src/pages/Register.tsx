@@ -17,6 +17,7 @@ const BUSINESS_TYPES: { id: string; label: string; hint: string }[] = [
   { id: 'RESTAURANT', label: '🍔 Restauração', hint: 'Restaurante, hamburgueria, pastelaria, padaria, café, snack-bar.' },
   { id: 'SERVICES', label: '🔧 Serviços', hint: 'Mecânica, suporte técnico, recauchutagem, reparações, assistência.' },
   { id: 'HOSPITALITY', label: '🏨 Hotelaria', hint: 'Hotel, hospedaria, pousada, guest-house — quartos e reservas.' },
+  { id: 'CLINIC', label: '🏥 Clínica / Saúde', hint: 'Clínica, consultório, posto médico — pacientes, marcações e consultas.' },
 ];
 
 export function Register({ onBack }: { onBack?: () => void }) {

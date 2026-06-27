@@ -26,6 +26,7 @@ import { ChatModule } from './chat/chat.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
 import { ServiceOrdersModule } from './services/service-orders.module';
 import { HotelModule } from './hotel/hotel.module';
+import { ClinicModule } from './clinic/clinic.module';
 import { VerticalModule } from './vertical/vertical.module';
 import { LandingModule } from './landing/landing.module';
 import { SubscriptionModule } from './subscription/subscription.module';
@@ -104,6 +105,7 @@ import { HealthController } from './health.controller';
     RestaurantModule,
     ServiceOrdersModule,
     HotelModule,
+    ClinicModule,
     VerticalModule,
   ],
   controllers: [HealthController],

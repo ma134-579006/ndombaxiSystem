@@ -627,6 +627,18 @@ export const api = {
     createMaintenance: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/hotel/maintenance', dto),
     maintenanceStatus: (id: string, status: string) => request<{ ok: boolean }>('POST', `/hotel/maintenance/${id}/status`, { status }),
   },
+  clinic: {
+    metrics: () => request<{ todayAppointments: number; todayConsultations: number; patients: number; revenue30: number }>('GET', '/clinic/metrics'),
+    patients: (search?: string) => request<ClinicPatient[]>('GET', `/clinic/patients${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+    createPatient: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/patients', dto),
+    patient: (id: string) => request<ClinicPatientDetail>('GET', `/clinic/patients/${id}`),
+    updatePatient: (id: string, dto: Record<string, unknown>) => request<{ ok: boolean }>('PATCH', `/clinic/patients/${id}`, dto),
+    appointments: (day?: string) => request<ClinicAppointment[]>('GET', `/clinic/appointments${day ? `?day=${day}` : ''}`),
+    createAppointment: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/appointments', dto),
+    appointmentStatus: (id: string, status: string) => request<{ ok: boolean }>('POST', `/clinic/appointments/${id}/status`, { status }),
+    createConsultation: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/consultations', dto),
+    invoiceConsultation: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/clinic/consultations/${id}/invoice`),
+  },
   serviceOrders: {
     list: (status?: string) => request<ServiceOrderRow[]>('GET', `/service-orders${status ? `?status=${status}` : ''}`),
     create: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/service-orders', dto),

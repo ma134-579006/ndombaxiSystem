@@ -20,10 +20,10 @@ export class RegisterSimpleDto {
   @IsEnum(PlanTier)
   planTier!: PlanTier;
 
-  /** Tipo de negócio (adapta o painel): RETAIL | RESTAURANT | SERVICES | HOSPITALITY. */
+  /** Tipo de negócio (adapta o painel): RETAIL | RESTAURANT | SERVICES | HOSPITALITY | CLINIC. */
   @IsOptional()
   @IsString()
-  @Matches(/^(RETAIL|RESTAURANT|SERVICES|HOSPITALITY)$/, { message: 'Tipo de negócio inválido.' })
+  @Matches(/^(RETAIL|RESTAURANT|SERVICES|HOSPITALITY|CLINIC)$/, { message: 'Tipo de negócio inválido.' })
   businessType?: string;
 }
 

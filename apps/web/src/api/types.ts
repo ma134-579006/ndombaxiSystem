@@ -730,6 +730,12 @@ export interface HotelReservationRow {
 }
 export interface RecipeIngredient { id: string; ingredient_id: string; ingredient_name: string; ingredient_code: string; quantity: string }
 
+// ── Clínica / Saúde ────────────────────────────────────────
+export interface ClinicPatient { id: string; name: string; phone: string | null; nif: string | null; birth_date: string | null; sex: string | null; blood_type: string | null; allergies: string | null; notes: string | null; customer_id: string | null }
+export interface ClinicConsultationRow { id: string; professional: string | null; symptoms?: string | null; diagnosis: string | null; prescription: string | null; fee: string; invoice_id: string | null; created_at: string }
+export interface ClinicPatientDetail { patient: ClinicPatient; consultations: ClinicConsultationRow[] }
+export interface ClinicAppointment { id: string; patient_id: string | null; patient_name: string | null; professional: string | null; scheduled_at: string; reason: string | null; status: string }
+
 export interface VerticalKpi { label: string; value: string; hint?: string; tone?: 'ok' | 'warn' | 'info' }
 export interface VerticalMetrics { businessType: string; title: string; kpis: VerticalKpi[] }
 

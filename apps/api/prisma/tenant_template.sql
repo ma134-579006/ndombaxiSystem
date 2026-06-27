@@ -1131,3 +1131,54 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."hotel_folio_items" (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS hotel_folio_res_idx ON "{{SCHEMA}}"."hotel_folio_items"(reservation_id);
+
+-- ════════════════════════════════════════════════════════════
+-- CLÍNICA / SAÚDE — Pacientes, Marcações (agenda) e Consultas (vertical CLINIC)
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_patients" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id  UUID REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE SET NULL,  -- liga ao cliente p/ faturar
+  name         TEXT NOT NULL,
+  phone        TEXT,
+  nif          TEXT,
+  birth_date   DATE,
+  sex          TEXT,                                  -- M | F | O
+  blood_type   TEXT,
+  allergies    TEXT,
+  notes        TEXT,
+  is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS clinic_patients_idx ON "{{SCHEMA}}"."clinic_patients"(is_active, name);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_appointments" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id    UUID REFERENCES "{{SCHEMA}}"."clinic_patients"(id) ON DELETE SET NULL,
+  patient_name  TEXT,
+  professional  TEXT,                                 -- médico/profissional
+  scheduled_at  TIMESTAMPTZ NOT NULL,
+  reason        TEXT,
+  status        TEXT NOT NULL DEFAULT 'SCHEDULED',    -- SCHEDULED | DONE | CANCELLED | NO_SHOW
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS clinic_appt_idx ON "{{SCHEMA}}"."clinic_appointments"(scheduled_at);
+CREATE INDEX IF NOT EXISTS clinic_appt_status_idx ON "{{SCHEMA}}"."clinic_appointments"(status, scheduled_at);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_consultations" (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  appointment_id UUID REFERENCES "{{SCHEMA}}"."clinic_appointments"(id) ON DELETE SET NULL,
+  patient_id     UUID REFERENCES "{{SCHEMA}}"."clinic_patients"(id) ON DELETE SET NULL,
+  patient_name   TEXT,
+  professional   TEXT,
+  symptoms       TEXT,                                 -- queixa/sintomas
+  diagnosis      TEXT,
+  prescription   TEXT,                                 -- receita médica
+  notes          TEXT,
+  fee            NUMERIC(14,2) NOT NULL DEFAULT 0,      -- valor da consulta (c/ IVA)
+  invoice_id     UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
+  created_by     UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS clinic_consult_patient_idx ON "{{SCHEMA}}"."clinic_consultations"(patient_id, created_at DESC);
