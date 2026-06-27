@@ -31,6 +31,17 @@ type View = 'home' | 'results' | 'product' | 'visual' | 'checkout' | 'confirmati
 type Sort = 'relevance' | 'price-asc' | 'price-desc' | 'name';
 const lastOrderKey = (code: string) => `ndombaxi.store.lastorder.${code}`;
 
+/** Portal por MODELO de negócio: ajusta título, CTA e selos da montra. */
+interface Portal { tagline: string; cta: string; badges: [string, string][]; feed: string }
+const PORTALS: Record<string, Portal> = {
+  RETAIL: { tagline: 'Os melhores produtos, entregues em todo o Angola.', cta: 'Ver todos os produtos', badges: [['🚚', 'Envio nacional'], ['🛡️', 'Compra protegida'], ['💬', 'Apoio da loja']], feed: 'Mais para si' },
+  PHARMACY: { tagline: 'Medicamentos e bem-estar — encomende online com segurança.', cta: 'Ver produtos', badges: [['💊', 'Medicamentos'], ['🛡️', 'Compra segura'], ['🚚', 'Entrega']], feed: 'Produtos' },
+  RESTAURANT: { tagline: 'Peça já — comida fresca, entregue a sua casa.', cta: 'Ver cardápio', badges: [['🍔', 'Cardápio'], ['🛵', 'Entrega'], ['⏱️', 'Rápido']], feed: 'Cardápio' },
+  HOSPITALITY: { tagline: 'Reserve a sua estadia — quartos disponíveis online.', cta: 'Ver quartos', badges: [['🛏️', 'Reservas'], ['📅', 'Disponibilidade'], ['💬', 'Apoio']], feed: 'Também disponível' },
+  SERVICES: { tagline: 'Peça assistência — abrimos a sua ordem de serviço online.', cta: 'Ver loja', badges: [['🔧', 'Serviços'], ['🧾', 'Orçamento'], ['💬', 'Acompanhamento']], feed: 'Também disponível' },
+  CLINIC: { tagline: 'Marque a sua consulta — escolha o dia e a hora.', cta: 'Ver loja', badges: [['🩺', 'Consultas'], ['📅', 'Marcações'], ['🔒', 'Privacidade']], feed: 'Também disponível' },
+};
+
 const SORTS: { key: Sort; label: string }[] = [
   { key: 'relevance', label: 'Relevância' },
   { key: 'price-asc', label: 'Preço ↑' },
@@ -53,6 +64,7 @@ export function Storefront() {
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customer = useCustomer(code);
+  const portal = PORTALS[data?.businessType ?? 'RETAIL'] ?? PORTALS.RETAIL;
 
   // Adiciona ao carrinho SEM abrir a gaveta (no telemóvel abrir a cada produto
   // impedia continuar a comprar). Mostra um toast breve como confirmação.
@@ -314,17 +326,15 @@ export function Storefront() {
         ) : null}
 
         <div className="wrap">
-          {/* Banner hero */}
+          {/* Banner hero (adaptado ao modelo de negócio) */}
           <section className="ax-hero">
             <div className="ax-hero-tx">
               <h1>{data?.settings.brand_name || storeName}</h1>
-              <p><Typewriter text={data?.settings.tagline || 'Os melhores produtos, entregues em todo o Angola.'} /></p>
-              <button className="btn lg" onClick={() => { setCat(''); setSearch(''); setView('results'); }}>Ver todos os produtos</button>
+              <p><Typewriter text={data?.settings.tagline || portal.tagline} /></p>
+              <button className="btn lg" onClick={() => { setCat(''); setSearch(''); setView('results'); }}>{portal.cta}</button>
             </div>
             <div className="ax-hero-badges">
-              <div className="b"><span>🚚</span> Envio nacional</div>
-              <div className="b"><span>🛡️</span> Compra protegida</div>
-              <div className="b"><span>💬</span> Apoio da loja</div>
+              {portal.badges.map(([ic, tx]) => <div className="b" key={tx}><span>{ic}</span> {tx}</div>)}
             </div>
           </section>
 
@@ -365,7 +375,7 @@ export function Storefront() {
 
           {/* Feed principal */}
           <section className="ax-section">
-            <h2 className="ax-section-title">Mais para si</h2>
+            <h2 className="ax-section-title">{portal.feed}</h2>
             {products.length === 0 ? (
               <div className="empty"><IconImage size={48} /><p>A loja ainda não tem produtos visíveis.</p></div>
             ) : (

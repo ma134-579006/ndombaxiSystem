@@ -19,7 +19,8 @@ import { StorefrontService } from './storefront.service';
 import { TenantResolverService } from './tenant-resolver.service';
 import { HotelService } from '../hotel/hotel.service';
 import { ServiceOrdersService } from '../services/service-orders.service';
-import { OnlineReservationDto, OnlineServiceRequestDto } from './dto/online-request.dto';
+import { ClinicService } from '../clinic/clinic.service';
+import { OnlineAppointmentDto, OnlineReservationDto, OnlineServiceRequestDto } from './dto/online-request.dto';
 
 /** Montra pública (sem autenticação). O tenant é resolvido pelo código da empresa. */
 @ApiTags('storefront')
@@ -39,6 +40,7 @@ export class StorefrontController {
     private readonly gateways: PaymentGatewayService,
     private readonly hotel: HotelService,
     private readonly serviceOrders: ServiceOrdersService,
+    private readonly clinic: ClinicService,
   ) {}
 
   // ── Chat livre com a loja (cliente autenticado, sem encomenda) ─
@@ -141,6 +143,19 @@ export class StorefrontController {
       await this.customers.upsertCustomer(tenant.schema, dto.customerEmail.trim().toLowerCase(), dto.customerName || 'Cliente', { phone: dto.customerPhone }).catch(() => undefined);
     }
     return { ok: true, id: r.id };
+  }
+
+  @Post('appointment')
+  @ApiOperation({ summary: 'Paciente marca uma consulta pela loja (vertical Clínica)' })
+  async appointment(@Param('code') code: string, @Body() dto: OnlineAppointmentDto) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const r = await this.clinic.createAppointment(tenant.schema, {
+      patientName: dto.patientName, professional: dto.professional, scheduledAt: dto.scheduledAt, reason: dto.reason,
+    });
+    if (dto.patientEmail) {
+      await this.customers.upsertCustomer(tenant.schema, dto.patientEmail.trim().toLowerCase(), dto.patientName || 'Paciente', { phone: dto.patientPhone }).catch(() => undefined);
+    }
+    return { ok: true, id: r[0]?.id };
   }
 
   @Get('pages/:slug')

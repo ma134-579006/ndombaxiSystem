@@ -11,6 +11,16 @@ export class OnlineReservationDto {
   @IsOptional() @IsInt() @Min(1) guests?: number;
 }
 
+/** Marcação de consulta feita pelo paciente na loja online (vertical Clínica). */
+export class OnlineAppointmentDto {
+  @IsString() @Length(1, 120) patientName!: string;
+  @IsOptional() @IsString() @Length(1, 40) patientPhone?: string;
+  @IsOptional() @IsEmail() patientEmail?: string;
+  @IsOptional() @IsString() @Length(1, 120) professional?: string;
+  @IsString() scheduledAt!: string;            // ISO timestamp
+  @IsOptional() @IsString() @Length(1, 300) reason?: string;
+}
+
 /** Pedido de serviço/orçamento feito pelo cliente na loja online (vertical Serviços). */
 export class OnlineServiceRequestDto {
   @IsOptional() @IsString() @Length(1, 120) customerName?: string;

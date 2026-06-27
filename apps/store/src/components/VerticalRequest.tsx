@@ -20,11 +20,24 @@ function Sheet({ title, onClose, children }: { title: string; onClose(): void; c
 }
 
 /**
- * CTA adaptativo ao vertical da loja: Hotelaria → reservar quarto;
- * Serviços → pedir serviço/orçamento. Retalho/Restauração usam o catálogo normal.
+ * CTA adaptativo ao MODELO de negócio (portal): Hotelaria → reservar quarto
+ * (Booking); Serviços → pedir serviço (Service Portal); Clínica → marcar consulta
+ * (Appointment). Retalho/Farmácia/Restauração usam o catálogo (E-commerce/Food).
  */
 export function VerticalCTA({ code, businessType, prefill }: { code: string; businessType: string; prefill?: { name?: string; phone?: string; email?: string } }) {
-  const [open, setOpen] = useState<null | 'hotel' | 'service'>(null);
+  const [open, setOpen] = useState<null | 'hotel' | 'service' | 'clinic'>(null);
+  if (businessType === 'CLINIC') {
+    return (
+      <>
+        <button className="ax-cta" onClick={() => setOpen('clinic')}>
+          <span className="ic" aria-hidden>🩺</span>
+          <span className="tx"><strong>Marcar uma consulta</strong> — escolha o dia e a hora; confirmamos a sua marcação.</span>
+          <span className="chev" aria-hidden>→</span>
+        </button>
+        {open === 'clinic' ? <AppointmentModal code={code} prefill={prefill} onClose={() => setOpen(null)} /> : null}
+      </>
+    );
+  }
   if (businessType === 'HOSPITALITY') {
     return (
       <>
@@ -149,6 +162,48 @@ function ServiceRequestModal({ code, prefill, onClose }: { code: string; prefill
             <div className="field"><label>E-mail (opcional)</label><input value={f.customerEmail} onChange={(e) => setF({ ...f, customerEmail: e.target.value })} inputMode="email" /></div>
           </div>
           <button className="btn lg block" onClick={submit} disabled={busy}>{busy ? 'A enviar…' : 'Enviar pedido'}</button>
+        </>
+      )}
+    </Sheet>
+  );
+}
+
+function AppointmentModal({ code, prefill, onClose }: { code: string; prefill?: { name?: string; phone?: string; email?: string }; onClose(): void }) {
+  const [f, setF] = useState({ patientName: prefill?.name || '', patientPhone: prefill?.phone || '', patientEmail: prefill?.email || '', professional: '', date: today(), time: '09:00', reason: '' });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const submit = async () => {
+    if (!f.patientName.trim() || !f.patientPhone.trim()) { setErr('Indique o seu nome e telefone.'); return; }
+    setBusy(true); setErr(null);
+    try {
+      await api.appointment(code, {
+        patientName: f.patientName.trim(), patientPhone: f.patientPhone.trim(), patientEmail: f.patientEmail.trim() || undefined,
+        professional: f.professional.trim() || undefined, scheduledAt: new Date(`${f.date}T${f.time}:00`).toISOString(), reason: f.reason.trim() || undefined,
+      });
+      setDone(true);
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível marcar.'); } finally { setBusy(false); }
+  };
+  return (
+    <Sheet title="Marcar consulta" onClose={onClose}>
+      {done ? (
+        <div className="empty"><div style={{ fontSize: 40 }}>✅</div><p>Marcação enviada! Vamos confirmar a sua consulta e contactá-lo.</p>
+          <button className="btn lg" style={{ marginTop: 10 }} onClick={onClose}>Concluir</button></div>
+      ) : (
+        <>
+          {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+          <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="field"><label>Dia</label><input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>
+            <div className="field"><label>Hora</label><input type="time" value={f.time} onChange={(e) => setF({ ...f, time: e.target.value })} /></div>
+          </div>
+          <div className="field"><label>Profissional (opcional)</label><input value={f.professional} onChange={(e) => setF({ ...f, professional: e.target.value })} placeholder="Dr(a). …" /></div>
+          <div className="field"><label>Motivo (opcional)</label><input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="ex.: consulta geral" /></div>
+          <div className="field"><label>O seu nome</label><input value={f.patientName} onChange={(e) => setF({ ...f, patientName: e.target.value })} /></div>
+          <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="field"><label>Telefone</label><input value={f.patientPhone} onChange={(e) => setF({ ...f, patientPhone: e.target.value })} inputMode="tel" /></div>
+            <div className="field"><label>E-mail (opcional)</label><input value={f.patientEmail} onChange={(e) => setF({ ...f, patientEmail: e.target.value })} inputMode="email" /></div>
+          </div>
+          <button className="btn lg block" onClick={submit} disabled={busy}>{busy ? 'A marcar…' : 'Confirmar marcação'}</button>
         </>
       )}
     </Sheet>

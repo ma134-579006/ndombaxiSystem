@@ -8,5 +8,6 @@ import { ClinicService } from './clinic.service';
   imports: [PosModule],
   controllers: [ClinicController],
   providers: [ClinicService],
+  exports: [ClinicService],
 })
 export class ClinicModule {}

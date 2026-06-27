@@ -6,6 +6,7 @@ import { PosModule } from '../pos/pos.module';
 import { SiteModule } from '../site/site.module';
 import { HotelModule } from '../hotel/hotel.module';
 import { ServiceOrdersModule } from '../services/service-orders.module';
+import { ClinicModule } from '../clinic/clinic.module';
 import { StorefrontController } from './storefront.controller';
 import { OrdersController } from './orders.controller';
 import { CustomerChatController } from './customer-chat.controller';
@@ -17,7 +18,7 @@ import { OrdersService } from './orders.service';
 import { TenantResolverService } from './tenant-resolver.service';
 
 @Module({
-  imports: [PosModule, SiteModule, PaymentsModule, AiModule, HotelModule, ServiceOrdersModule, JwtModule.register({})],
+  imports: [PosModule, SiteModule, PaymentsModule, AiModule, HotelModule, ServiceOrdersModule, ClinicModule, JwtModule.register({})],
   controllers: [StorefrontController, OrdersController, CustomerChatController],
   providers: [
     StorefrontService,
