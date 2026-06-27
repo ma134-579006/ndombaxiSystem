@@ -36,8 +36,18 @@ export interface EmitInvoiceInput {
   dueDate?: string | null;
   /** Documento retroativo: data da compra ORIGINAL (a data fiscal continua a ser hoje). */
   operationDate?: string | null;
-  lines: { productCode: string; quantity: number; discountRate?: number }[];
+  /**
+   * Linhas do documento. Dois tipos:
+   *  • PRODUTO — `{ productCode, quantity }`: preço/IVA do produto, baixa stock.
+   *  • LIVRE — `{ description, unitPrice (LÍQUIDO), ivaCode, quantity }`: para
+   *    serviços/mão-de-obra/estadia que não são produtos de stock (verticais).
+   */
+  lines: EmitLineInput[];
 }
+
+export type EmitLineInput =
+  | { productCode: string; quantity: number; discountRate?: number }
+  | { productCode?: undefined; description: string; unitPrice: number; ivaCode: IvaCode; quantity: number; discountRate?: number; exemptionReason?: string; exemptionCode?: string };
 
 export interface EmittedInvoice {
   id: string;
@@ -91,22 +101,42 @@ export class InvoiceService {
       throw new BadRequestException('Venda a crédito exige selecionar um cliente.');
     }
     const result = await this.prisma.runInTenant(schema, async (tx) => {
-      const codes = input.lines.map((l) => l.productCode);
+      // Códigos só das linhas de PRODUTO (as linhas livres não têm produto).
+      const codes = input.lines
+        .map((l) => ('productCode' in l ? l.productCode : undefined))
+        .filter((c): c is string => !!c);
 
-      // 1. Carrega e bloqueia os produtos pedidos.
-      const productRows = await tx.$queryRaw<
-        (ProductForEmission & { code: string; name: string })[]
-      >(
-        Prisma.sql`SELECT id, code, name, description, iva_code, unit_price, cost_price,
-                          exemption_reason, exemption_code, shared_stock
-                   FROM products
-                   WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE
-                   FOR UPDATE`,
-      );
+      // 1. Carrega e bloqueia os produtos pedidos (se houver).
+      const productRows = codes.length
+        ? await tx.$queryRaw<(ProductForEmission & { code: string; name: string })[]>(
+            Prisma.sql`SELECT id, code, name, description, iva_code, unit_price, cost_price,
+                              exemption_reason, exemption_code, shared_stock
+                       FROM products
+                       WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE
+                       FOR UPDATE`,
+          )
+        : [];
       const byCode = new Map<string, ProductForEmission & { code: string; name: string }>();
       for (const p of productRows) byCode.set(p.code, p);
 
       const lineInputs: InvoiceLineInput[] = input.lines.map((l) => {
+        // Linha LIVRE (serviço/mão-de-obra/estadia): preço já LÍQUIDO + IVA indicado.
+        if (!('productCode' in l) || !l.productCode) {
+          const free = l as Extract<EmitLineInput, { description: string }>;
+          const exemptionReason = requiresExemptionReason(free.ivaCode)
+            ? (free.exemptionReason?.trim() || DEFAULT_EXEMPTION_REASON[free.ivaCode] || 'Isento')
+            : undefined;
+          return {
+            productCode: '', // marca de linha livre (sem produto/stock)
+            description: free.description,
+            quantity: free.quantity,
+            unitPrice: free.unitPrice,
+            ivaCode: free.ivaCode,
+            discountRate: free.discountRate,
+            exemptionReason,
+            exemptionCode: free.exemptionCode,
+          };
+        }
         const p = byCode.get(l.productCode);
         if (!p) {
           throw new BadRequestException(`Produto não encontrado: ${l.productCode}`);
@@ -212,7 +242,8 @@ export class InvoiceService {
       // tiver lotes expirados. Toda a transacção é revertida (nada é gravado).
       const today = new Date().toISOString().slice(0, 10);
       for (const line of lines) {
-        const product = byCode.get(line.productCode)!;
+        const product = byCode.get(line.productCode);
+        if (!product) continue; // linha livre (serviço/estadia) — sem stock
         const { shared, store: lineStore } = resolveLine(product);
         // Stock disponível: partilhado → global; por loja → saldo da loja (0 se sem linha).
         let available: number;
@@ -268,7 +299,22 @@ export class InvoiceService {
       let lineNumber = 0;
       for (const line of lines) {
         lineNumber += 1;
-        const product = byCode.get(line.productCode)!;
+        const product = byCode.get(line.productCode);
+        // Linha LIVRE (serviço/estadia): sem produto, sem stock, custo 0.
+        if (!product) {
+          await tx.$executeRaw(
+            Prisma.sql`INSERT INTO invoice_items
+                (invoice_id, line_number, product_id, product_code, description, quantity,
+                 unit_price, iva_code, iva_rate, discount_rate, net_amount, iva_amount, gross_amount,
+                 unit_cost, exemption_reason, exemption_code)
+              VALUES (${invoiceId}::uuid, ${lineNumber}, ${null}::uuid, ${'NS'},
+                      ${line.description}, ${line.quantity}, ${line.unitPrice}, ${line.ivaCode},
+                      ${line.ivaRate}, ${line.discountRate ?? 0}, ${line.netAmount},
+                      ${line.ivaAmount}, ${line.grossAmount}, ${0},
+                      ${line.exemptionReason ?? null}, ${line.exemptionCode ?? null})`,
+          );
+          continue;
+        }
         const { shared, store: lineStore } = resolveLine(product);
         await tx.$executeRaw(
           Prisma.sql`INSERT INTO invoice_items
@@ -424,7 +470,7 @@ export class InvoiceService {
     invoice: { id: string; number: string; hash: string; previousHash: string; netTotal: number; ivaTotal: number; grossTotal: number };
     docType: string; date: string; operationDate: string | null; status: string;
     customerName: string | null; cashierName: string | null;
-    items: { description: string; quantity: number; unitPrice: number; total: number }[];
+    items: { productCode: string; description: string; quantity: number; unitPrice: number; total: number }[];
   }> {
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{
@@ -442,8 +488,8 @@ export class InvoiceService {
       );
       const inv = rows[0];
       if (!inv) throw new BadRequestException('Documento não encontrado.');
-      const items = await tx.$queryRaw<{ description: string; quantity: string; gross_amount: string }[]>(
-        Prisma.sql`SELECT description, quantity, gross_amount FROM invoice_items
+      const items = await tx.$queryRaw<{ product_code: string; description: string; quantity: string; gross_amount: string }[]>(
+        Prisma.sql`SELECT product_code, description, quantity, gross_amount FROM invoice_items
                    WHERE invoice_id = ${id}::uuid ORDER BY line_number`,
       );
       return {
@@ -458,7 +504,7 @@ export class InvoiceService {
         items: items.map((it) => {
           const total = Number(it.gross_amount);
           const qty = Number(it.quantity);
-          return { description: it.description, quantity: qty, unitPrice: qty ? Math.round((total / qty) * 100) / 100 : total, total };
+          return { productCode: it.product_code, description: it.description, quantity: qty, unitPrice: qty ? Math.round((total / qty) * 100) / 100 : total, total };
         }),
       };
     });

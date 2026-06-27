@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { DocumentType, IvaCode, round2 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
+import { InvoiceService, type EmitLineInput } from '../pos/invoice.service';
 
 const IVA_RATE: Record<string, number> = { NOR: 14, INT: 7, RED: 5, ISE: 0, NS: 0 };
 const STATUSES = ['OPEN', 'QUOTED', 'APPROVED', 'IN_PROGRESS', 'READY', 'DELIVERED', 'CANCELLED'];
@@ -8,7 +10,10 @@ const STATUSES = ['OPEN', 'QUOTED', 'APPROVED', 'IN_PROGRESS', 'READY', 'DELIVER
 /** Ordens de Serviço (mecânica, assistência técnica, recauchutagem…). */
 @Injectable()
 export class ServiceOrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly invoices: InvoiceService,
+  ) {}
 
   list(schema: string, status?: string) {
     return this.prisma.runInTenant(schema, (tx) =>
@@ -56,6 +61,36 @@ export class ServiceOrdersService {
         FROM service_order_items WHERE order_id = ${id}::uuid ORDER BY created_at`);
       return { order: o[0], items };
     });
+  }
+
+  /**
+   * Fatura a OS (documento fiscal AGT) e marca-a ENTREGUE. As peças com código
+   * de produto saem como linhas de produto (baixam stock); a mão-de-obra/serviços
+   * saem como linhas LIVRES (o preço guardado tem IVA incluído → converte p/ líquido).
+   */
+  async invoice(schema: string, orderId: string, opener: { id: string | null; name: string }) {
+    const detail = await this.get(schema, orderId);
+    const o = detail.order as Record<string, unknown>;
+    if (o.invoice_id) throw new BadRequestException('Esta ordem de serviço já foi faturada.');
+    const items = detail.items as { kind: string; product_code: string | null; description: string; unit_price: string; quantity: string }[];
+    if (!items.length) throw new BadRequestException('A OS não tem itens para faturar.');
+    const lines: EmitLineInput[] = items.map((it) => {
+      if (it.kind === 'PART' && it.product_code) {
+        return { productCode: it.product_code, quantity: Number(it.quantity) };
+      }
+      const net = round2(Number(it.unit_price) / (1 + IVA_RATE.NOR / 100)); // preço guardado é c/ IVA
+      return { description: it.description, unitPrice: net, ivaCode: IvaCode.NOR, quantity: Number(it.quantity) };
+    });
+    const inv = await this.invoices.emit(schema, {
+      docType: DocumentType.FT, series: 'A',
+      customerId: (o.customer_id as string) ?? null,
+      cashierId: opener.id, cashierName: opener.name,
+      paymentType: 'CASH', lines,
+    });
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
+      UPDATE service_orders SET invoice_id = ${inv.id}::uuid, status = 'DELIVERED', delivered_at = now(), updated_at = now()
+      WHERE id = ${orderId}::uuid`));
+    return { invoiceId: inv.id, invoiceNumber: inv.number };
   }
 
   private async recompute(tx: Prisma.TransactionClient, id: string) {

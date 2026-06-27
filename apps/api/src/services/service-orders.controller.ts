@@ -64,4 +64,11 @@ export class ServiceOrdersController {
   status(@Param('id') id: string, @Body() dto: ServiceStatusDto) {
     return this.svc.setStatus(this.ctx.requireTenantSchema(), id, dto.status);
   }
+
+  @Post(':id/invoice')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Fatura a OS (documento fiscal AGT) e marca entregue' })
+  invoice(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.svc.invoice(this.ctx.requireTenantSchema(), id, { id: user.sub, name: user.name ?? user.email ?? 'Operador' });
+  }
 }

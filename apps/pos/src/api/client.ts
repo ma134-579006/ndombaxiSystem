@@ -147,6 +147,8 @@ export const api = {
     request<EmittedInvoice>('POST', '/pos/invoices', input),
   cancelInvoice: (id: string, reason: string) =>
     request<{ creditNoteNumber: string; grossTotal: number }>('POST', `/pos/invoices/${id}/cancel`, { reason }),
+  returnItems: (id: string, items: { productCode: string; quantity: number }[], reason: string) =>
+    request<{ creditNoteNumber: string; refundTotal: number }>('POST', `/pos/invoices/${id}/return`, { items, reason }),
   listSales: (from?: string, to?: string) => {
     const p = new URLSearchParams();
     if (from) p.set('from', from);

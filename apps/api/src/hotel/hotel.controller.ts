@@ -77,4 +77,11 @@ export class HotelController {
   status(@Param('id') id: string, @Body() dto: ReservationStatusDto) {
     return this.svc.setStatus(this.ctx.requireTenantSchema(), id, dto.status);
   }
+
+  @Post('reservations/:id/invoice')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Fatura a reserva (documento fiscal AGT) e faz check-out' })
+  invoice(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.svc.invoice(this.ctx.requireTenantSchema(), id, { id: user.sub, name: user.name ?? user.email ?? 'Operador' });
+  }
 }

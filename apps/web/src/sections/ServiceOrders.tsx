@@ -107,6 +107,13 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
   const removeItem = async (id: string) => { await api.serviceOrders.removeItem(id).catch(() => undefined); onChanged(); };
   const setStatus = async (s: string) => { await api.serviceOrders.status(o.id, s).catch(() => undefined); onChanged(); };
   const saveDiagnosis = async () => { await api.serviceOrders.update(o.id, { diagnosis }).catch(() => undefined); toast.success('Diagnóstico guardado.'); onChanged(); };
+  const [billing, setBilling] = useState(false);
+  const invoice = async () => {
+    if (detail.items.length === 0) { toast.warning('Adicione itens antes de faturar.'); return; }
+    setBilling(true);
+    try { const r = await api.serviceOrders.invoice(o.id); toast.success(`Fatura ${r.invoiceNumber} emitida. OS entregue.`); onClose(); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao faturar.'); } finally { setBilling(false); }
+  };
 
   const filtered = q.trim() ? products.filter((p) => `${p.name} ${p.code}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 20) : products.slice(0, 12);
 
@@ -166,6 +173,14 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
         <strong style={{ fontSize: 16 }}>Total</strong><span className="spacer" style={{ flex: 1 }} />
         <strong style={{ fontSize: 20 }}>{KZ(o.total)}</strong>
       </div>
+
+      {o.status !== 'DELIVERED' && o.status !== 'CANCELLED' ? (
+        <button className="btn lg block success" style={{ marginTop: 12 }} onClick={() => void invoice()} disabled={billing}>
+          🧾 {billing ? 'A faturar…' : 'Faturar (AGT) e entregar'}
+        </button>
+      ) : o.status === 'DELIVERED' ? (
+        <div className="banner success" style={{ marginTop: 12 }}>OS entregue/faturada.</div>
+      ) : null}
     </Modal>
   );
 }

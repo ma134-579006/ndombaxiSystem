@@ -721,6 +721,9 @@ export interface HotelReservationRow {
   id: string; number: string; room_name: string | null; guest_name: string | null;
   check_in: string; check_out: string; nights: number; status: string; total: string; source?: string;
 }
+export interface VerticalKpi { label: string; value: string; hint?: string; tone?: 'ok' | 'warn' | 'info' }
+export interface VerticalMetrics { businessType: string; title: string; kpis: VerticalKpi[] }
+
 export interface HotelFolioItem { id: string; product_code: string | null; description: string; unit_price: string; quantity: string; created_at: string }
 export interface HotelReservationDetail {
   reservation: { id: string; number: string; room_name: string | null; guest_name: string | null; guest_phone: string | null; check_in: string; check_out: string; nights: number; rate: string; guests: number; status: string; total: string; notes: string | null };

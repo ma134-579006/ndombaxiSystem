@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { api } from '../api/client';
+import type { VerticalMetrics } from '../api/types';
 
 /**
  * Painel ADAPTATIVO do vertical de serviços escolhido pela empresa
@@ -59,6 +61,12 @@ const VERTICALS: Record<string, { label: string; intro: string; mods: Mod[] }> =
 
 export function ServiceHub({ businessType, onGo }: { businessType: string; onGo(section: string): void }) {
   const v = VERTICALS[businessType] ?? VERTICALS.RESTAURANT;
+  const [metrics, setMetrics] = useState<VerticalMetrics | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api.vertical.metrics().then((m) => { if (alive) setMetrics(m); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [businessType]);
   return (
     <>
       <div className="content-head">
@@ -67,6 +75,19 @@ export function ServiceHub({ businessType, onGo }: { businessType: string; onGo(
       <div className="card" style={{ marginBottom: 16 }}>
         <p className="muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>{v.intro}</p>
       </div>
+
+      {/* KPIs do vertical (relatório rápido) */}
+      {metrics && metrics.kpis.length > 0 ? (
+        <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+          {metrics.kpis.map((k) => (
+            <div key={k.label} className="card" style={{ padding: '12px 14px' }}>
+              <div className="muted" style={{ fontSize: 12.5 }}>{k.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, margin: '2px 0', color: k.tone === 'warn' ? 'var(--warning)' : k.tone === 'info' ? 'var(--primary)' : 'var(--text)' }}>{k.value}</div>
+              {k.hint ? <div className="muted" style={{ fontSize: 11.5 }}>{k.hint}</div> : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="pgrid">
         {v.mods.map((m) => (
           <button

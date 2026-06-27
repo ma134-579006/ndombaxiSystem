@@ -105,6 +105,7 @@ import type {
   PlatformLoginInput,
   PublicLanding,
   PublicPlan,
+  VerticalMetrics,
   DocumentIdentity,
   RegisterCompanyInput,
   RegisterCompanyResult,
@@ -615,6 +616,7 @@ export const api = {
     removeFolio: (itemId: string) => request<{ ok: boolean }>('DELETE', `/hotel/folio/${itemId}`),
     status: (id: string, status: string) => request<{ ok: boolean }>('POST', `/hotel/reservations/${id}/status`, { status }),
     pendingOnline: () => request<{ count: number }>('GET', '/hotel/pending-online'),
+    invoice: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/hotel/reservations/${id}/invoice`),
   },
   serviceOrders: {
     list: (status?: string) => request<ServiceOrderRow[]>('GET', `/service-orders${status ? `?status=${status}` : ''}`),
@@ -625,6 +627,10 @@ export const api = {
     removeItem: (itemId: string) => request<{ ok: boolean }>('DELETE', `/service-orders/items/${itemId}`),
     status: (id: string, status: string) => request<{ ok: boolean }>('POST', `/service-orders/${id}/status`, { status }),
     pendingOnline: () => request<{ count: number }>('GET', '/service-orders/pending-online'),
+    invoice: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/service-orders/${id}/invoice`),
+  },
+  vertical: {
+    metrics: () => request<VerticalMetrics>('GET', '/vertical/metrics'),
   },
   customerChat: {
     contacts: () => request<CustomerContact[]>('GET', '/ecommerce/customer-chat/contacts'),

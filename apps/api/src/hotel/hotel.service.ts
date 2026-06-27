@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { DocumentType, IvaCode, round2 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
+import { InvoiceService, type EmitLineInput } from '../pos/invoice.service';
 
 const IVA_RATE: Record<string, number> = { NOR: 14, INT: 7, RED: 5, ISE: 0, NS: 0 };
 const RES_STATUS = ['BOOKED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'];
@@ -12,7 +14,10 @@ const nightsBetween = (ci: string, co: string): number => {
 /** Hotelaria — quartos, reservas e conta do hóspede (folio). */
 @Injectable()
 export class HotelService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly invoices: InvoiceService,
+  ) {}
 
   // ── Quartos ────────────────────────────────────────────────
   listRooms(schema: string) {
@@ -105,6 +110,42 @@ export class HotelService {
         FROM hotel_folio_items WHERE reservation_id = ${id}::uuid ORDER BY created_at`);
       return { reservation: r[0], folio };
     });
+  }
+
+  /**
+   * Fatura a reserva (documento fiscal AGT) e faz check-out. A estadia e os
+   * extras manuais saem como linhas LIVRES (preço c/ IVA → convertido p/ líquido);
+   * os consumos com produto saem como linhas de produto (baixam stock).
+   */
+  async invoice(schema: string, reservationId: string, opener: { id: string | null; name: string }) {
+    const detail = await this.get(schema, reservationId);
+    const r = detail.reservation as Record<string, unknown>;
+    if (r.invoice_id) throw new BadRequestException('Esta reserva já foi faturada.');
+    const nights = Number(r.nights) || 1;
+    const rateGross = Number(r.rate) || 0;
+    const lines: EmitLineInput[] = [];
+    if (rateGross > 0) {
+      lines.push({
+        description: `Estadia (${nights} noite(s)) - ${(r.room_name as string) ?? 'Quarto'}`,
+        unitPrice: round2(rateGross / (1 + IVA_RATE.NOR / 100)), ivaCode: IvaCode.NOR, quantity: nights,
+      });
+    }
+    const folio = detail.folio as { product_code: string | null; description: string; unit_price: string; quantity: string }[];
+    for (const it of folio) {
+      if (it.product_code) lines.push({ productCode: it.product_code, quantity: Number(it.quantity) });
+      else lines.push({ description: it.description, unitPrice: round2(Number(it.unit_price) / (1 + IVA_RATE.NOR / 100)), ivaCode: IvaCode.NOR, quantity: Number(it.quantity) });
+    }
+    if (!lines.length) throw new BadRequestException('A reserva não tem valores para faturar.');
+    const inv = await this.invoices.emit(schema, {
+      docType: DocumentType.FT, series: 'A',
+      customerId: (r.customer_id as string) ?? null,
+      cashierId: opener.id, cashierName: opener.name,
+      paymentType: 'CASH', lines,
+    });
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
+      UPDATE hotel_reservations SET invoice_id = ${inv.id}::uuid, status = 'CHECKED_OUT', updated_at = now()
+      WHERE id = ${reservationId}::uuid`));
+    return { invoiceId: inv.id, invoiceNumber: inv.number };
   }
 
   private async recompute(tx: Prisma.TransactionClient, id: string) {
