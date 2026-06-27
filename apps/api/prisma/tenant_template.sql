@@ -978,6 +978,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."service_orders" (
   customer_id     UUID REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE SET NULL,
   customer_name   TEXT,
   customer_phone  TEXT,
+  equipment_id    UUID,                           -- ligação ao equipamento registado (opcional)
   equipment_type  TEXT,                           -- VEHICLE | DEVICE | OTHER
   equipment_label TEXT,                           -- ex.: "Toyota Corolla", "Portátil HP"
   equipment_ref   TEXT,                           -- matrícula / nº de série
@@ -989,6 +990,8 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."service_orders" (
   opened_by_name  TEXT,
   source          TEXT NOT NULL DEFAULT 'MANUAL', -- MANUAL | ONLINE (pedido da loja)
   assigned_to     TEXT,                           -- técnico responsável
+  warranty_days   INT NOT NULL DEFAULT 0,         -- garantia (0/90/180/365)
+  warranty_until  DATE,                           -- fim da garantia (calculado na entrega)
   invoice_id      UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
   notes           TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -996,6 +999,29 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."service_orders" (
   delivered_at    TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS service_orders_status_idx ON "{{SCHEMA}}"."service_orders"(status, created_at DESC);
+
+-- Equipamentos / viaturas registados por cliente (reutilizáveis entre OS).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."service_equipments" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id   UUID REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE SET NULL,
+  customer_name TEXT,
+  kind          TEXT NOT NULL DEFAULT 'DEVICE',    -- VEHICLE | DEVICE | OTHER
+  label         TEXT NOT NULL,                     -- ex.: "Toyota Corolla", "Portátil HP"
+  brand         TEXT,
+  model         TEXT,
+  serial        TEXT,                              -- nº de série / IMEI
+  plate         TEXT,                              -- matrícula (viatura)
+  vin           TEXT,                              -- chassi/VIN
+  color         TEXT,
+  year          INT,
+  km            INT,                               -- quilometragem atual (viatura)
+  next_service_km INT,                             -- próxima revisão (alerta)
+  notes         TEXT,
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS service_equip_customer_idx ON "{{SCHEMA}}"."service_equipments"(customer_id, is_active);
 
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."service_order_items" (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),

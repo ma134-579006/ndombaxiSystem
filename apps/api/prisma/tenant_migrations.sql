@@ -177,3 +177,9 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS source_in
 -- reaplicar o template (CREATE TABLE IF NOT EXISTS).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."hotel_rooms" ADD COLUMN IF NOT EXISTS category TEXT;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."hotel_rooms" ADD COLUMN IF NOT EXISTS floor    TEXT;
+
+-- Assistência Técnica/Oficina: equipamentos por cliente + garantia na OS. A
+-- tabela service_equipments é criada ao reaplicar o template.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS equipment_id   UUID;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS warranty_days  INT NOT NULL DEFAULT 0;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS warranty_until DATE;

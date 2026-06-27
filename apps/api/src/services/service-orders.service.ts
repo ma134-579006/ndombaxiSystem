@@ -28,22 +28,70 @@ export class ServiceOrdersService {
   async create(
     schema: string,
     opener: { id: string | null; name: string },
-    dto: { customerName?: string; customerPhone?: string; equipmentType?: string; equipmentLabel?: string; equipmentRef?: string; problem?: string; assignedTo?: string; source?: string },
+    dto: { customerId?: string; customerName?: string; customerPhone?: string; equipmentId?: string; equipmentType?: string; equipmentLabel?: string; equipmentRef?: string; problem?: string; assignedTo?: string; warrantyDays?: number; source?: string },
   ) {
     const source = dto.source === 'ONLINE' ? 'ONLINE' : 'MANUAL';
+    const warranty = [0, 90, 180, 365].includes(dto.warrantyDays ?? 0) ? (dto.warrantyDays ?? 0) : 0;
     return this.prisma.runInTenant(schema, async (tx) => {
+      // Se vier um equipamento registado, copia os dados (tipo/etiqueta/ref) e o cliente.
+      let { equipmentType, equipmentLabel, equipmentRef, customerName, customerPhone } = dto;
+      let customerId = dto.customerId ?? null;
+      if (dto.equipmentId) {
+        const eq = await tx.$queryRaw<{ kind: string; label: string; serial: string | null; plate: string | null; customer_id: string | null; customer_name: string | null }[]>(
+          Prisma.sql`SELECT kind, label, serial, plate, customer_id, customer_name FROM service_equipments WHERE id = ${dto.equipmentId}::uuid`);
+        if (eq[0]) {
+          equipmentType = equipmentType || eq[0].kind;
+          equipmentLabel = equipmentLabel || eq[0].label;
+          equipmentRef = equipmentRef || eq[0].plate || eq[0].serial || undefined;
+          customerId = customerId || eq[0].customer_id;
+          customerName = customerName || eq[0].customer_name || undefined;
+        }
+      }
       const year = new Date().getFullYear();
       const cnt = await tx.$queryRaw<{ n: number }[]>(
         Prisma.sql`SELECT COUNT(*)::int AS n FROM service_orders WHERE date_part('year', created_at) = ${year}`);
       const number = `OS/${year}/${String((cnt[0]?.n ?? 0) + 1).padStart(4, '0')}`;
       const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-        INSERT INTO service_orders (number, customer_name, customer_phone, equipment_type, equipment_label, equipment_ref, problem, assigned_to, opened_by, opened_by_name, source)
-        VALUES (${number}, ${dto.customerName?.trim() || null}, ${dto.customerPhone?.trim() || null},
-                ${dto.equipmentType || null}, ${dto.equipmentLabel?.trim() || null}, ${dto.equipmentRef?.trim() || null},
-                ${dto.problem?.trim() || null}, ${dto.assignedTo?.trim() || null}, ${opener.id}::uuid, ${opener.name}, ${source})
+        INSERT INTO service_orders (number, customer_id, customer_name, customer_phone, equipment_id, equipment_type, equipment_label, equipment_ref, problem, assigned_to, warranty_days, opened_by, opened_by_name, source)
+        VALUES (${number}, ${customerId}::uuid, ${customerName?.trim() || null}, ${customerPhone?.trim() || null},
+                ${dto.equipmentId ?? null}::uuid, ${equipmentType || null}, ${equipmentLabel?.trim() || null}, ${equipmentRef?.trim() || null},
+                ${dto.problem?.trim() || null}, ${dto.assignedTo?.trim() || null}, ${warranty}, ${opener.id}::uuid, ${opener.name}, ${source})
         RETURNING id`);
       return rows[0];
     });
+  }
+
+  // ── Equipamentos / viaturas (registo reutilizável por cliente) ──
+  listEquipments(schema: string, customerId?: string) {
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(customerId
+        ? Prisma.sql`SELECT id, customer_id, customer_name, kind, label, brand, model, serial, plate, vin, color, year, km, next_service_km, notes
+                     FROM service_equipments WHERE is_active = TRUE AND customer_id = ${customerId}::uuid ORDER BY label`
+        : Prisma.sql`SELECT id, customer_id, customer_name, kind, label, brand, model, serial, plate, vin, color, year, km, next_service_km, notes
+                     FROM service_equipments WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 500`));
+  }
+
+  async createEquipment(schema: string, dto: { customerId?: string; customerName?: string; kind?: string; label: string; brand?: string; model?: string; serial?: string; plate?: string; vin?: string; color?: string; year?: number; km?: number; nextServiceKm?: number; notes?: string }) {
+    if (!dto.label?.trim()) throw new BadRequestException('Indique o equipamento.');
+    const kind = ['VEHICLE', 'DEVICE', 'OTHER'].includes(dto.kind ?? '') ? dto.kind : 'DEVICE';
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+        INSERT INTO service_equipments (customer_id, customer_name, kind, label, brand, model, serial, plate, vin, color, year, km, next_service_km, notes)
+        VALUES (${dto.customerId ?? null}::uuid, ${dto.customerName?.trim() || null}, ${kind}, ${dto.label.trim()},
+                ${dto.brand?.trim() || null}, ${dto.model?.trim() || null}, ${dto.serial?.trim() || null}, ${dto.plate?.trim() || null},
+                ${dto.vin?.trim() || null}, ${dto.color?.trim() || null}, ${dto.year ?? null}, ${dto.km ?? null}, ${dto.nextServiceKm ?? null}, ${dto.notes?.trim() || null})
+        RETURNING id`));
+  }
+
+  async updateEquipment(schema: string, id: string, dto: { km?: number; nextServiceKm?: number; notes?: string }) {
+    const sets: Prisma.Sql[] = [];
+    if (dto.km !== undefined) sets.push(Prisma.sql`km = ${dto.km}`);
+    if (dto.nextServiceKm !== undefined) sets.push(Prisma.sql`next_service_km = ${dto.nextServiceKm}`);
+    if (dto.notes !== undefined) sets.push(Prisma.sql`notes = ${dto.notes}`);
+    if (!sets.length) return { ok: true };
+    sets.push(Prisma.sql`updated_at = now()`);
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE service_equipments SET ${Prisma.join(sets, ', ')} WHERE id = ${id}::uuid`));
+    return { ok: true };
   }
 
   /** Nº de ordens de serviço vindas da LOJA ONLINE ainda por tratar (status OPEN). */
@@ -143,16 +191,22 @@ export class ServiceOrdersService {
   async setStatus(schema: string, id: string, status: string) {
     if (!STATUSES.includes(status)) throw new BadRequestException('Estado inválido.');
     await this.prisma.runInTenant(schema, (tx) =>
+      // Ao ENTREGAR: marca a data de entrega e calcula o fim da garantia
+      // (entrega + warranty_days). Só define se houver garantia configurada.
       tx.$executeRaw(Prisma.sql`UPDATE service_orders SET status = ${status}, updated_at = now(),
-        delivered_at = CASE WHEN ${status} = 'DELIVERED' THEN now() ELSE delivered_at END WHERE id = ${id}::uuid`));
+        delivered_at = CASE WHEN ${status} = 'DELIVERED' THEN now() ELSE delivered_at END,
+        warranty_until = CASE WHEN ${status} = 'DELIVERED' AND warranty_days > 0
+                              THEN (now()::date + warranty_days) ELSE warranty_until END
+        WHERE id = ${id}::uuid`));
     return { ok: true };
   }
 
-  async update(schema: string, id: string, dto: { diagnosis?: string; assignedTo?: string; notes?: string }) {
+  async update(schema: string, id: string, dto: { diagnosis?: string; assignedTo?: string; notes?: string; warrantyDays?: number }) {
     const sets: Prisma.Sql[] = [];
     if (dto.diagnosis !== undefined) sets.push(Prisma.sql`diagnosis = ${dto.diagnosis}`);
     if (dto.assignedTo !== undefined) sets.push(Prisma.sql`assigned_to = ${dto.assignedTo}`);
     if (dto.notes !== undefined) sets.push(Prisma.sql`notes = ${dto.notes}`);
+    if (dto.warrantyDays !== undefined && [0, 90, 180, 365].includes(dto.warrantyDays)) sets.push(Prisma.sql`warranty_days = ${dto.warrantyDays}`);
     if (!sets.length) return { ok: true };
     sets.push(Prisma.sql`updated_at = now()`);
     await this.prisma.runInTenant(schema, (tx) =>

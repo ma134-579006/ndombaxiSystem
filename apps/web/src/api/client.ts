@@ -635,6 +635,9 @@ export const api = {
     status: (id: string, status: string) => request<{ ok: boolean }>('POST', `/service-orders/${id}/status`, { status }),
     pendingOnline: () => request<{ count: number }>('GET', '/service-orders/pending-online'),
     invoice: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/service-orders/${id}/invoice`),
+    equipments: (customerId?: string) => request<ServiceEquipment[]>('GET', `/service-orders/equipments${customerId ? `?customerId=${customerId}` : ''}`),
+    createEquipment: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/service-orders/equipments', dto),
+    updateEquipment: (id: string, dto: Record<string, unknown>) => request<{ ok: boolean }>('PATCH', `/service-orders/equipments/${id}`, dto),
   },
   vertical: {
     metrics: () => request<VerticalMetrics>('GET', '/vertical/metrics'),

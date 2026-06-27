@@ -6,7 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { ServiceOrdersService } from './service-orders.service';
-import { AddServiceItemDto, CreateServiceOrderDto, ServiceStatusDto, UpdateServiceOrderDto } from './dto/service-order.dto';
+import { AddServiceItemDto, CreateEquipmentDto, CreateServiceOrderDto, ServiceStatusDto, UpdateEquipmentDto, UpdateServiceOrderDto } from './dto/service-order.dto';
 
 /** Serviços — Ordens de Serviço (vertical SERVICES). */
 @ApiTags('service-orders')
@@ -26,6 +26,22 @@ export class ServiceOrdersController {
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Nº de pedidos de serviço da loja online por tratar' })
   async pendingOnline() { return { count: await this.svc.pendingOnline(this.ctx.requireTenantSchema()) }; }
+
+  // ── Equipamentos / viaturas ────────────────────────────────
+  @Get('equipments')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Lista equipamentos/viaturas (opcional: por cliente)' })
+  equipments(@Query('customerId') customerId?: string) { return this.svc.listEquipments(this.ctx.requireTenantSchema(), customerId); }
+
+  @Post('equipments')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Regista um equipamento/viatura' })
+  createEquipment(@Body() dto: CreateEquipmentDto) { return this.svc.createEquipment(this.ctx.requireTenantSchema(), dto); }
+
+  @Patch('equipments/:id')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Atualiza km/próxima revisão/notas do equipamento' })
+  updateEquipment(@Param('id') id: string, @Body() dto: UpdateEquipmentDto) { return this.svc.updateEquipment(this.ctx.requireTenantSchema(), id, dto); }
 
   @Post()
   @Roles(Role.CASHIER)
