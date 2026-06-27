@@ -6,7 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { HotelService } from './hotel.service';
-import { CreateReservationDto, CreateRoomDto, FolioItemDto, ReservationStatusDto } from './dto/hotel.dto';
+import { CreateHousekeepingDto, CreateMaintenanceDto, CreateReservationDto, CreateRoomDto, FolioItemDto, ReservationStatusDto, RoomStatusDto, StatusOnlyDto } from './dto/hotel.dto';
 
 /** Hotelaria — quartos, reservas e conta do hóspede (vertical HOSPITALITY). */
 @ApiTags('hotel')
@@ -36,6 +36,43 @@ export class HotelController {
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Remove (desativa) um quarto' })
   removeRoom(@Param('id') id: string) { return this.svc.removeRoom(this.ctx.requireTenantSchema(), id); }
+
+  @Post('rooms/:id/status')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Muda o estado físico do quarto (livre/bloqueado/manutenção…)' })
+  roomStatus(@Param('id') id: string, @Body() dto: RoomStatusDto) { return this.svc.setRoomStatus(this.ctx.requireTenantSchema(), id, dto.status); }
+
+  // ── Housekeeping (limpeza) ─────────────────────────────────
+  @Get('housekeeping')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Lista tarefas de limpeza' })
+  housekeeping(@Query('status') status?: string) { return this.svc.listHousekeeping(this.ctx.requireTenantSchema(), status); }
+
+  @Post('housekeeping')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Cria tarefa de limpeza' })
+  createHousekeeping(@Body() dto: CreateHousekeepingDto) { return this.svc.createHousekeeping(this.ctx.requireTenantSchema(), dto); }
+
+  @Post('housekeeping/:id/done')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Conclui a limpeza (liberta o quarto se não restarem tarefas)' })
+  doneHousekeeping(@Param('id') id: string) { return this.svc.doneHousekeeping(this.ctx.requireTenantSchema(), id); }
+
+  // ── Manutenção ─────────────────────────────────────────────
+  @Get('maintenance')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Lista manutenções' })
+  maintenance(@Query('status') status?: string) { return this.svc.listMaintenance(this.ctx.requireTenantSchema(), status); }
+
+  @Post('maintenance')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Abre uma manutenção (quarto fica em manutenção)' })
+  createMaintenance(@Body() dto: CreateMaintenanceDto) { return this.svc.createMaintenance(this.ctx.requireTenantSchema(), dto); }
+
+  @Post('maintenance/:id/status')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Muda o estado da manutenção (em reparação/concluída)' })
+  maintenanceStatus(@Param('id') id: string, @Body() dto: StatusOnlyDto) { return this.svc.setMaintenanceStatus(this.ctx.requireTenantSchema(), id, dto.status); }
 
   @Get('reservations')
   @Roles(Role.CASHIER)

@@ -714,8 +714,14 @@ export interface ServiceOrderDetail { order: { id: string; number: string; custo
 
 // ── Hotelaria (HOSPITALITY) ─────────────────────────────────
 export interface HotelRoomMapRow {
-  id: string; code: string; name: string; room_type: string | null; capacity: number; rate: string; status: string;
+  id: string; code: string; name: string; room_type: string | null; category?: string | null; floor?: string | null; capacity: number; rate: string; status: string;
   reservation_id: string | null; guest_name: string | null; check_out: string | null; res_total: string | null;
+}
+export interface HotelHousekeepingRow {
+  id: string; room_id: string | null; room_name: string | null; task: string; status: string; assigned_to: string | null; notes: string | null; created_at: string; done_at: string | null;
+}
+export interface HotelMaintenanceRow {
+  id: string; room_id: string | null; room_name: string | null; problem: string; status: string; assigned_to: string | null; created_at: string; done_at: string | null;
 }
 export interface HotelReservationRow {
   id: string; number: string; room_name: string | null; guest_name: string | null;

@@ -171,3 +171,9 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."hotel_reservations" ADD COLUMN IF NOT EXISTS
 -- Nota de crédito → fatura de origem. Permite gravar a NC como documento real
 -- (entra no SAF-T e nos relatórios) e descontar devoluções parciais nos lucros.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS source_invoice_id UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL;
+
+-- Hotelaria profissional: categoria/andar do quarto + estados (limpeza, manutenção,
+-- bloqueado). As tabelas hotel_housekeeping/hotel_maintenance são criadas ao
+-- reaplicar o template (CREATE TABLE IF NOT EXISTS).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."hotel_rooms" ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."hotel_rooms" ADD COLUMN IF NOT EXISTS floor    TEXT;

@@ -1018,13 +1018,42 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."hotel_rooms" (
   code        TEXT NOT NULL,                 -- ex.: "101"
   name        TEXT NOT NULL,                 -- ex.: "Quarto 101"
   room_type   TEXT,                          -- Individual | Duplo | Suite…
+  category    TEXT,                          -- Standard | Executivo | Luxo | Suite | VIP
+  floor       TEXT,                          -- andar (ex.: "1", "R/C")
   capacity    INT NOT NULL DEFAULT 2,
   rate        NUMERIC(14,2) NOT NULL DEFAULT 0,   -- preço/noite (c/ IVA)
-  status      TEXT NOT NULL DEFAULT 'AVAILABLE',  -- AVAILABLE | MAINTENANCE
+  status      TEXT NOT NULL DEFAULT 'AVAILABLE',  -- AVAILABLE | RESERVED | OCCUPIED | CLEANING | MAINTENANCE | BLOCKED
   is_active   BOOLEAN NOT NULL DEFAULT TRUE,
   sort_order  INT NOT NULL DEFAULT 0,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Housekeeping (limpeza): tarefas por quarto, geradas no check-out ou à mão.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."hotel_housekeeping" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id     UUID REFERENCES "{{SCHEMA}}"."hotel_rooms"(id) ON DELETE CASCADE,
+  room_name   TEXT,
+  task        TEXT NOT NULL DEFAULT 'CLEAN',      -- CLEAN | CHANGE_LINEN | INSPECT
+  status      TEXT NOT NULL DEFAULT 'PENDING',    -- PENDING | DONE
+  assigned_to TEXT,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  done_at     TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS hotel_hk_status_idx ON "{{SCHEMA}}"."hotel_housekeeping"(status, created_at DESC);
+
+-- Manutenção: problemas por quarto (AC, TV, chuveiro, lâmpada, porta…).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."hotel_maintenance" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id     UUID REFERENCES "{{SCHEMA}}"."hotel_rooms"(id) ON DELETE CASCADE,
+  room_name   TEXT,
+  problem     TEXT NOT NULL,                       -- descrição da avaria
+  status      TEXT NOT NULL DEFAULT 'OPEN',        -- OPEN | IN_REPAIR | DONE
+  assigned_to TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  done_at     TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS hotel_mt_status_idx ON "{{SCHEMA}}"."hotel_maintenance"(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS hotel_rooms_idx ON "{{SCHEMA}}"."hotel_rooms"(is_active, sort_order);
 
 CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."hotel_reservations" (

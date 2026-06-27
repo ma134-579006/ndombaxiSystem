@@ -22,16 +22,25 @@ export class HotelService {
   // ── Quartos ────────────────────────────────────────────────
   listRooms(schema: string) {
     return this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw(Prisma.sql`SELECT id, code, name, room_type, capacity, rate, status, sort_order
+      tx.$queryRaw(Prisma.sql`SELECT id, code, name, room_type, category, floor, capacity, rate, status, sort_order
         FROM hotel_rooms WHERE is_active = TRUE ORDER BY sort_order, code`));
   }
 
-  async createRoom(schema: string, dto: { code?: string; name: string; roomType?: string; capacity?: number; rate?: number }) {
+  async createRoom(schema: string, dto: { code?: string; name: string; roomType?: string; category?: string; floor?: string; capacity?: number; rate?: number }) {
     if (!dto.name?.trim()) throw new BadRequestException('Indique o nome do quarto.');
     return this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw(Prisma.sql`INSERT INTO hotel_rooms (code, name, room_type, capacity, rate)
-        VALUES (${dto.code?.trim() || dto.name.trim()}, ${dto.name.trim()}, ${dto.roomType?.trim() || null}, ${dto.capacity ?? 2}, ${dto.rate ?? 0})
-        RETURNING id, code, name, room_type, capacity, rate, status, sort_order`));
+      tx.$queryRaw(Prisma.sql`INSERT INTO hotel_rooms (code, name, room_type, category, floor, capacity, rate)
+        VALUES (${dto.code?.trim() || dto.name.trim()}, ${dto.name.trim()}, ${dto.roomType?.trim() || null},
+                ${dto.category?.trim() || null}, ${dto.floor?.trim() || null}, ${dto.capacity ?? 2}, ${dto.rate ?? 0})
+        RETURNING id, code, name, room_type, category, floor, capacity, rate, status, sort_order`));
+  }
+
+  /** Muda o estado físico do quarto (livre/reservado/ocupado/limpeza/manutenção/bloqueado). */
+  async setRoomStatus(schema: string, id: string, status: string) {
+    const ok = ['AVAILABLE', 'RESERVED', 'OCCUPIED', 'CLEANING', 'MAINTENANCE', 'BLOCKED'];
+    if (!ok.includes(status)) throw new BadRequestException('Estado de quarto inválido.');
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE hotel_rooms SET status = ${status} WHERE id = ${id}::uuid`));
+    return { ok: true };
   }
 
   async removeRoom(schema: string, id: string) {
@@ -43,7 +52,7 @@ export class HotelService {
   roomMap(schema: string) {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
-        SELECT r.id, r.code, r.name, r.room_type, r.capacity, r.rate, r.status,
+        SELECT r.id, r.code, r.name, r.room_type, r.category, r.floor, r.capacity, r.rate, r.status,
           res.id AS reservation_id, res.guest_name, res.check_out, res.total AS res_total
         FROM hotel_rooms r
         LEFT JOIN LATERAL (
@@ -98,6 +107,8 @@ export class HotelService {
         VALUES (${number}, ${dto.roomId}::uuid, ${room[0].name}, ${dto.guestName?.trim() || null}, ${dto.guestPhone?.trim() || null},
                 ${dto.checkIn}::date, ${dto.checkOut}::date, ${nights}, ${rate}, ${dto.guests ?? 1}, ${rate * nights}, ${by}::uuid, ${source})
         RETURNING id`);
+      // Reserva criada → quarto fica RESERVADO (se estava livre).
+      await tx.$executeRaw(Prisma.sql`UPDATE hotel_rooms SET status = 'RESERVED' WHERE id = ${dto.roomId}::uuid AND status = 'AVAILABLE'`);
       return rows[0];
     });
   }
@@ -142,9 +153,13 @@ export class HotelService {
       cashierId: opener.id, cashierName: opener.name,
       paymentType: 'CASH', lines,
     });
-    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
-      UPDATE hotel_reservations SET invoice_id = ${inv.id}::uuid, status = 'CHECKED_OUT', updated_at = now()
-      WHERE id = ${reservationId}::uuid`));
+    await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE hotel_reservations SET invoice_id = ${inv.id}::uuid, status = 'CHECKED_OUT', updated_at = now()
+        WHERE id = ${reservationId}::uuid`);
+      // Check-out → quarto vai para LIMPEZA + gera tarefa de housekeeping.
+      await this.applyRoomLifecycle(tx, (r.room_id as string) ?? null, (r.room_name as string) ?? null, 'CHECKED_OUT');
+    });
     return { invoiceId: inv.id, invoiceNumber: inv.number };
   }
 
@@ -189,8 +204,114 @@ export class HotelService {
 
   async setStatus(schema: string, id: string, status: string) {
     if (!RES_STATUS.includes(status)) throw new BadRequestException('Estado inválido.');
-    await this.prisma.runInTenant(schema, (tx) =>
-      tx.$executeRaw(Prisma.sql`UPDATE hotel_reservations SET status = ${status}, updated_at = now() WHERE id = ${id}::uuid`));
+    await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(Prisma.sql`UPDATE hotel_reservations SET status = ${status}, updated_at = now() WHERE id = ${id}::uuid`);
+      const r = await tx.$queryRaw<{ room_id: string | null; room_name: string | null }[]>(
+        Prisma.sql`SELECT room_id, room_name FROM hotel_reservations WHERE id = ${id}::uuid`);
+      await this.applyRoomLifecycle(tx, r[0]?.room_id ?? null, r[0]?.room_name ?? null, status);
+    });
     return { ok: true };
+  }
+
+  /**
+   * Sincroniza o estado FÍSICO do quarto com o ciclo da reserva e gera a tarefa
+   * de limpeza no check-out (fluxo: reserva→ocupado→limpeza→disponível).
+   */
+  private async applyRoomLifecycle(tx: Prisma.TransactionClient, roomId: string | null, roomName: string | null, resStatus: string): Promise<void> {
+    if (!roomId) return;
+    const map: Record<string, string> = { BOOKED: 'RESERVED', CHECKED_IN: 'OCCUPIED', CHECKED_OUT: 'CLEANING', CANCELLED: 'AVAILABLE' };
+    const roomStatus = map[resStatus];
+    if (!roomStatus) return;
+    await tx.$executeRaw(Prisma.sql`UPDATE hotel_rooms SET status = ${roomStatus} WHERE id = ${roomId}::uuid`);
+    if (resStatus === 'CHECKED_OUT') {
+      // Gera tarefa de limpeza se ainda não houver uma pendente para este quarto.
+      const pend = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT id FROM hotel_housekeeping WHERE room_id = ${roomId}::uuid AND status = 'PENDING' LIMIT 1`);
+      if (!pend[0]) {
+        await tx.$executeRaw(Prisma.sql`INSERT INTO hotel_housekeeping (room_id, room_name, task, status)
+          VALUES (${roomId}::uuid, ${roomName}, 'CLEAN', 'PENDING')`);
+      }
+    }
+  }
+
+  // ── Housekeeping (limpeza) ─────────────────────────────────
+  listHousekeeping(schema: string, status?: string) {
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(status === 'DONE' || status === 'PENDING'
+        ? Prisma.sql`SELECT id, room_id, room_name, task, status, assigned_to, notes, created_at, done_at
+                     FROM hotel_housekeeping WHERE status = ${status} ORDER BY created_at DESC LIMIT 300`
+        : Prisma.sql`SELECT id, room_id, room_name, task, status, assigned_to, notes, created_at, done_at
+                     FROM hotel_housekeeping ORDER BY (status='PENDING') DESC, created_at DESC LIMIT 300`));
+  }
+
+  async createHousekeeping(schema: string, dto: { roomId: string; task?: string; assignedTo?: string; notes?: string }) {
+    const task = ['CLEAN', 'CHANGE_LINEN', 'INSPECT'].includes(dto.task ?? '') ? dto.task : 'CLEAN';
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const room = await tx.$queryRaw<{ name: string }[]>(Prisma.sql`SELECT name FROM hotel_rooms WHERE id = ${dto.roomId}::uuid`);
+      if (!room[0]) throw new NotFoundException('Quarto não encontrado.');
+      const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`INSERT INTO hotel_housekeeping (room_id, room_name, task, status, assigned_to, notes)
+        VALUES (${dto.roomId}::uuid, ${room[0].name}, ${task}, 'PENDING', ${dto.assignedTo?.trim() || null}, ${dto.notes?.trim() || null}) RETURNING id`);
+      // Quarto entra em limpeza enquanto a tarefa estiver pendente.
+      await tx.$executeRaw(Prisma.sql`UPDATE hotel_rooms SET status = 'CLEANING' WHERE id = ${dto.roomId}::uuid AND status NOT IN ('OCCUPIED','MAINTENANCE','BLOCKED')`);
+      return rows[0];
+    });
+  }
+
+  /** Conclui a limpeza: se não restarem tarefas pendentes, o quarto fica disponível. */
+  async doneHousekeeping(schema: string, id: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const hk = await tx.$queryRaw<{ room_id: string | null }[]>(Prisma.sql`SELECT room_id FROM hotel_housekeeping WHERE id = ${id}::uuid`);
+      if (!hk[0]) throw new NotFoundException('Tarefa não encontrada.');
+      await tx.$executeRaw(Prisma.sql`UPDATE hotel_housekeeping SET status = 'DONE', done_at = now() WHERE id = ${id}::uuid`);
+      const roomId = hk[0].room_id;
+      if (roomId) {
+        const pend = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n FROM hotel_housekeeping WHERE room_id = ${roomId}::uuid AND status = 'PENDING'`);
+        if ((pend[0]?.n ?? 0) === 0) {
+          // Só liberta o quarto se não estiver ocupado/manutenção/bloqueado.
+          await tx.$executeRaw(Prisma.sql`UPDATE hotel_rooms SET status = 'AVAILABLE' WHERE id = ${roomId}::uuid AND status = 'CLEANING'`);
+        }
+      }
+      return { ok: true };
+    });
+  }
+
+  // ── Manutenção ─────────────────────────────────────────────
+  listMaintenance(schema: string, status?: string) {
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(['OPEN', 'IN_REPAIR', 'DONE'].includes(status ?? '')
+        ? Prisma.sql`SELECT id, room_id, room_name, problem, status, assigned_to, created_at, done_at
+                     FROM hotel_maintenance WHERE status = ${status} ORDER BY created_at DESC LIMIT 300`
+        : Prisma.sql`SELECT id, room_id, room_name, problem, status, assigned_to, created_at, done_at
+                     FROM hotel_maintenance ORDER BY (status<>'DONE') DESC, created_at DESC LIMIT 300`));
+  }
+
+  async createMaintenance(schema: string, dto: { roomId: string; problem: string; assignedTo?: string }) {
+    if (!dto.problem?.trim()) throw new BadRequestException('Descreva o problema.');
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const room = await tx.$queryRaw<{ name: string }[]>(Prisma.sql`SELECT name FROM hotel_rooms WHERE id = ${dto.roomId}::uuid`);
+      if (!room[0]) throw new NotFoundException('Quarto não encontrado.');
+      const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`INSERT INTO hotel_maintenance (room_id, room_name, problem, status, assigned_to)
+        VALUES (${dto.roomId}::uuid, ${room[0].name}, ${dto.problem.trim()}, 'OPEN', ${dto.assignedTo?.trim() || null}) RETURNING id`);
+      await tx.$executeRaw(Prisma.sql`UPDATE hotel_rooms SET status = 'MAINTENANCE' WHERE id = ${dto.roomId}::uuid AND status NOT IN ('OCCUPIED')`);
+      return rows[0];
+    });
+  }
+
+  /** Muda o estado da manutenção; ao concluir, liberta o quarto (se já não houver avarias abertas). */
+  async setMaintenanceStatus(schema: string, id: string, status: string) {
+    if (!['OPEN', 'IN_REPAIR', 'DONE'].includes(status)) throw new BadRequestException('Estado inválido.');
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const mt = await tx.$queryRaw<{ room_id: string | null }[]>(Prisma.sql`SELECT room_id FROM hotel_maintenance WHERE id = ${id}::uuid`);
+      if (!mt[0]) throw new NotFoundException('Manutenção não encontrada.');
+      await tx.$executeRaw(Prisma.sql`UPDATE hotel_maintenance SET status = ${status}, done_at = ${status === 'DONE' ? Prisma.sql`now()` : Prisma.sql`NULL`} WHERE id = ${id}::uuid`);
+      const roomId = mt[0].room_id;
+      if (roomId && status === 'DONE') {
+        const open = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n FROM hotel_maintenance WHERE room_id = ${roomId}::uuid AND status <> 'DONE'`);
+        if ((open[0]?.n ?? 0) === 0) {
+          await tx.$executeRaw(Prisma.sql`UPDATE hotel_rooms SET status = 'AVAILABLE' WHERE id = ${roomId}::uuid AND status = 'MAINTENANCE'`);
+        }
+      }
+      return { ok: true };
+    });
   }
 }

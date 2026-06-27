@@ -617,6 +617,13 @@ export const api = {
     status: (id: string, status: string) => request<{ ok: boolean }>('POST', `/hotel/reservations/${id}/status`, { status }),
     pendingOnline: () => request<{ count: number }>('GET', '/hotel/pending-online'),
     invoice: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/hotel/reservations/${id}/invoice`),
+    roomStatus: (id: string, status: string) => request<{ ok: boolean }>('POST', `/hotel/rooms/${id}/status`, { status }),
+    housekeeping: (status?: string) => request<HotelHousekeepingRow[]>('GET', `/hotel/housekeeping${status ? `?status=${status}` : ''}`),
+    createHousekeeping: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/hotel/housekeeping', dto),
+    doneHousekeeping: (id: string) => request<{ ok: boolean }>('POST', `/hotel/housekeeping/${id}/done`),
+    maintenance: (status?: string) => request<HotelMaintenanceRow[]>('GET', `/hotel/maintenance${status ? `?status=${status}` : ''}`),
+    createMaintenance: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/hotel/maintenance', dto),
+    maintenanceStatus: (id: string, status: string) => request<{ ok: boolean }>('POST', `/hotel/maintenance/${id}/status`, { status }),
   },
   serviceOrders: {
     list: (status?: string) => request<ServiceOrderRow[]>('GET', `/service-orders${status ? `?status=${status}` : ''}`),
