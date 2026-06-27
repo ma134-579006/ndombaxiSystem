@@ -515,6 +515,55 @@ export class InvoiceService {
    * o stock, regista o estorno no caixa e na auditoria. A factura original NÃO
    * é apagada (princípio fiscal AGT — nada se apaga, tudo se estorna).
    */
+  /**
+   * Persiste a NOTA DE CRÉDITO como DOCUMENTO real (invoices + invoice_items),
+   * ligada à fatura de origem. Sem isto a NC não entrava no SAF-T nem nos
+   * relatórios. A cadeia de hash da série NC é mantida pelo chamador.
+   */
+  private async persistCreditNoteDoc(
+    tx: Prisma.TransactionClient,
+    nc: {
+      number: string; series: string; year: number; sequence: number;
+      invoiceDate: string; systemEntryDate: string; signable: string; previousHash: string; hash: string;
+      storeId: string | null; customerId: string | null; customerTaxId: string | null;
+      sourceInvoiceId: string; net: number; iva: number; gross: number;
+      lines: {
+        product_id: string | null; product_code: string; description: string; quantity: number;
+        unit_price: number; iva_code: string; iva_rate: number; discount_rate: number;
+        net_amount: number; iva_amount: number; gross_amount: number; unit_cost: number;
+        exemption_reason: string | null; exemption_code: string | null;
+      }[];
+    },
+  ): Promise<string> {
+    const rows = await tx.$queryRaw<{ id: string }[]>(
+      Prisma.sql`INSERT INTO invoices
+          (number, doc_type, series, year, sequence, invoice_date, system_entry_date,
+           store_id, customer_id, customer_tax_id, net_total, iva_total, gross_total,
+           signable_string, previous_hash, hash, status, source_invoice_id)
+        VALUES (${nc.number}, ${DocumentType.NC}, ${nc.series}, ${nc.year}, ${nc.sequence},
+                ${nc.invoiceDate}::date, ${nc.systemEntryDate}::timestamptz,
+                ${nc.storeId}::uuid, ${nc.customerId}::uuid, ${nc.customerTaxId},
+                ${nc.net}, ${nc.iva}, ${nc.gross}, ${nc.signable}, ${nc.previousHash}, ${nc.hash},
+                'N', ${nc.sourceInvoiceId}::uuid)
+        RETURNING id`,
+    );
+    const ncId = rows[0].id;
+    let ln = 0;
+    for (const l of nc.lines) {
+      ln += 1;
+      await tx.$executeRaw(
+        Prisma.sql`INSERT INTO invoice_items
+            (invoice_id, line_number, product_id, product_code, description, quantity,
+             unit_price, iva_code, iva_rate, discount_rate, net_amount, iva_amount, gross_amount,
+             unit_cost, exemption_reason, exemption_code)
+          VALUES (${ncId}::uuid, ${ln}, ${l.product_id}::uuid, ${l.product_code}, ${l.description}, ${l.quantity},
+                  ${l.unit_price}, ${l.iva_code}, ${l.iva_rate}, ${l.discount_rate}, ${l.net_amount},
+                  ${l.iva_amount}, ${l.gross_amount}, ${l.unit_cost}, ${l.exemption_reason}, ${l.exemption_code})`,
+      );
+    }
+    return ncId;
+  }
+
   async cancelInvoice(
     schema: string,
     invoiceId: string,
@@ -534,9 +583,15 @@ export class InvoiceService {
       if (inv.status === 'A') throw new BadRequestException('Esta venda já foi anulada.');
 
       const items = await tx.$queryRaw<
-        { product_id: string | null; product_code: string; description: string; quantity: string; shared_stock: boolean | null }[]
+        { product_id: string | null; product_code: string; description: string; quantity: string; shared_stock: boolean | null;
+          unit_price: string; iva_code: string; iva_rate: string; discount_rate: string;
+          net_amount: string; iva_amount: string; gross_amount: string; unit_cost: string;
+          exemption_reason: string | null; exemption_code: string | null }[]
       >(
-        Prisma.sql`SELECT ii.product_id, ii.product_code, ii.description, ii.quantity, p.shared_stock
+        Prisma.sql`SELECT ii.product_id, ii.product_code, ii.description, ii.quantity, p.shared_stock,
+                          ii.unit_price, ii.iva_code, ii.iva_rate, ii.discount_rate,
+                          ii.net_amount, ii.iva_amount, ii.gross_amount, ii.unit_cost,
+                          ii.exemption_reason, ii.exemption_code
                    FROM invoice_items ii
                    LEFT JOIN products p ON p.id = ii.product_id
                    WHERE ii.invoice_id = ${invoiceId}::uuid ORDER BY ii.line_number`,
@@ -564,10 +619,29 @@ export class InvoiceService {
         totals: { netTotal: Number(inv.net_total), ivaTotal: Number(inv.iva_total), grossTotal: Number(inv.gross_total), byTaxCode: [] },
       };
       const hash = computeDocumentHash(docHeader, previousHash);
+      const signable = buildSignableString(docHeader, previousHash);
       await tx.$executeRaw(
         Prisma.sql`UPDATE fiscal_series SET last_sequence = ${sequence}, last_hash = ${hash}
                    WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year}`,
       );
+
+      // 2b. Persiste a NC como DOCUMENTO (entra no SAF-T e nos relatórios), com
+      //     todas as linhas da fatura original (anulação total).
+      await this.persistCreditNoteDoc(tx, {
+        number: ncNumber, series: 'A', year, sequence,
+        invoiceDate: docHeader.invoiceDate, systemEntryDate: docHeader.systemEntryDate,
+        signable, previousHash, hash,
+        storeId: inv.store_id, customerId: inv.customer_id, customerTaxId: inv.customer_tax_id,
+        sourceInvoiceId: invoiceId,
+        net: Number(inv.net_total), iva: Number(inv.iva_total), gross: Number(inv.gross_total),
+        lines: items.map((it) => ({
+          product_id: it.product_id, product_code: it.product_code, description: it.description,
+          quantity: Number(it.quantity), unit_price: Number(it.unit_price), iva_code: it.iva_code,
+          iva_rate: Number(it.iva_rate), discount_rate: Number(it.discount_rate),
+          net_amount: Number(it.net_amount), iva_amount: Number(it.iva_amount), gross_amount: Number(it.gross_amount),
+          unit_cost: Number(it.unit_cost), exemption_reason: it.exemption_reason, exemption_code: it.exemption_code,
+        })),
+      });
 
       // 3. Marca a factura original como Anulada (status 'A').
       await tx.$executeRaw(
@@ -649,8 +723,8 @@ export class InvoiceService {
     if (!returns?.length) throw new BadRequestException('Indique os artigos a devolver.');
 
     const result = await this.prisma.runInTenant(schema, async (tx) => {
-      const invRows = await tx.$queryRaw<{ id: string; number: string; status: string; store_id: string | null }[]>(
-        Prisma.sql`SELECT id, number, status, store_id FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`,
+      const invRows = await tx.$queryRaw<{ id: string; number: string; status: string; store_id: string | null; customer_id: string | null; customer_tax_id: string | null }[]>(
+        Prisma.sql`SELECT id, number, status, store_id, customer_id, customer_tax_id FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`,
       );
       if (!invRows[0]) throw new BadRequestException('Factura não encontrada');
       if (invRows[0].status === 'A') throw new BadRequestException('Factura já anulada — use a anulação total.');
@@ -658,10 +732,12 @@ export class InvoiceService {
 
       const items = await tx.$queryRaw<
         { product_id: string | null; product_code: string; description: string; quantity: string;
-          iva_code: string; iva_rate: string; unit_price: string; discount_rate: string; shared_stock: boolean | null }[]
+          iva_code: string; iva_rate: string; unit_price: string; discount_rate: string; shared_stock: boolean | null;
+          unit_cost: string; exemption_reason: string | null; exemption_code: string | null }[]
       >(
         Prisma.sql`SELECT ii.product_id, ii.product_code, ii.description, ii.quantity, ii.iva_code,
-                          ii.iva_rate, ii.unit_price, ii.discount_rate, p.shared_stock
+                          ii.iva_rate, ii.unit_price, ii.discount_rate, p.shared_stock,
+                          ii.unit_cost, ii.exemption_reason, ii.exemption_code
                    FROM invoice_items ii
                    LEFT JOIN products p ON p.id = ii.product_id
                    WHERE ii.invoice_id = ${invoiceId}::uuid`,
@@ -671,6 +747,7 @@ export class InvoiceService {
       // Valida e calcula o valor a estornar (líquido+IVA, respeitando desconto).
       let refundNet = 0, refundIva = 0;
       const toRevert: { productId: string | null; qty: number; code: string; sharedStock: boolean }[] = [];
+      const ncLines: Parameters<InvoiceService['persistCreditNoteDoc']>[1]['lines'] = [];
       for (const r of returns) {
         const it = byCode.get(r.productCode);
         if (!it) throw new BadRequestException(`Artigo não está na factura: ${r.productCode}`);
@@ -682,6 +759,12 @@ export class InvoiceService {
         const lineIva = round2((lineNet * Number(it.iva_rate)) / 100);
         refundNet += lineNet; refundIva += lineIva;
         toRevert.push({ productId: it.product_id, qty: r.quantity, code: r.productCode, sharedStock: !!it.shared_stock });
+        ncLines.push({
+          product_id: it.product_id, product_code: it.product_code, description: it.description, quantity: r.quantity,
+          unit_price: Number(it.unit_price), iva_code: it.iva_code, iva_rate: Number(it.iva_rate),
+          discount_rate: Number(it.discount_rate || 0), net_amount: lineNet, iva_amount: lineIva,
+          gross_amount: round2(lineNet + lineIva), unit_cost: Number(it.unit_cost), exemption_reason: it.exemption_reason, exemption_code: it.exemption_code,
+        });
       }
       refundNet = round2(refundNet);
       refundIva = round2(refundIva);
@@ -701,15 +784,24 @@ export class InvoiceService {
       const sequence = serie[0].last_sequence + 1;
       const ncNumber = formatDocumentNumber({ type: DocumentType.NC, series: 'A', year, sequence });
       const now = new Date();
-      const hash = computeDocumentHash(
-        { invoiceDate: now.toISOString().slice(0, 10), systemEntryDate: now.toISOString(), number: ncNumber,
-          totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] } },
-        serie[0].last_hash,
-      );
+      const ncHeader = { invoiceDate: now.toISOString().slice(0, 10), systemEntryDate: now.toISOString(), number: ncNumber,
+        totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] } };
+      const hash = computeDocumentHash(ncHeader, serie[0].last_hash);
+      const signable = buildSignableString(ncHeader, serie[0].last_hash);
       await tx.$executeRaw(
         Prisma.sql`UPDATE fiscal_series SET last_sequence = ${sequence}, last_hash = ${hash}
                    WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year}`,
       );
+
+      // Persiste a NC PARCIAL como documento (só as linhas devolvidas) — entra no
+      // SAF-T e permite descontar a devolução nos lucros.
+      await this.persistCreditNoteDoc(tx, {
+        number: ncNumber, series: 'A', year, sequence,
+        invoiceDate: ncHeader.invoiceDate, systemEntryDate: ncHeader.systemEntryDate,
+        signable, previousHash: serie[0].last_hash, hash,
+        storeId: inv.store_id, customerId: inv.customer_id, customerTaxId: inv.customer_tax_id,
+        sourceInvoiceId: invoiceId, net: refundNet, iva: refundIva, gross: refundGross, lines: ncLines,
+      });
 
       // Repõe o stock dos artigos devolvidos na loja certa (partilhado → central;
       // por loja → a loja onde a venda foi feita).

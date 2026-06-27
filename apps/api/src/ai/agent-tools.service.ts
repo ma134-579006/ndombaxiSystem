@@ -166,7 +166,7 @@ export class AgentToolsService {
     const canc = await this.q<{ cashier_name: string; canc: number; tot: number }>(schema, Prisma.sql`
       SELECT COALESCE(u.name,'?') AS cashier_name, COUNT(*) FILTER (WHERE i.status='A')::int AS canc, COUNT(*)::int AS tot
       FROM invoices i LEFT JOIN users u ON u.id = i.cashier_id
-      WHERE i.system_entry_date > now() - (${dias} || ' days')::interval
+      WHERE i.doc_type IN ('FT','FS','FR') AND i.system_entry_date > now() - (${dias} || ' days')::interval
       GROUP BY u.name HAVING COUNT(*) FILTER (WHERE i.status='A') > 0`);
     for (const c of canc) {
       const pct = Math.round((c.canc / Math.max(1, c.tot)) * 100);
@@ -175,7 +175,7 @@ export class AgentToolsService {
     // 2. vendas fora de horas (22h-06h)
     const noturnas = await this.q<{ n: number; total: number }>(schema, Prisma.sql`
       SELECT COUNT(*)::int AS n, COALESCE(SUM(gross_total),0)::float AS total FROM invoices
-      WHERE status='N' AND system_entry_date > now() - (${dias} || ' days')::interval
+      WHERE status='N' AND doc_type IN ('FT','FS') AND system_entry_date > now() - (${dias} || ' days')::interval
         AND (EXTRACT(hour FROM system_entry_date) >= 22 OR EXTRACT(hour FROM system_entry_date) < 6)`);
     if (noturnas[0]?.n > 0) findings.push(`🌙 ${noturnas[0].n} vendas fora de horas (22h-06h) no valor de ${fmtKz(noturnas[0].total)} — confirma se a loja opera nesse horário`);
     // 3. diferenças de fecho de caixa

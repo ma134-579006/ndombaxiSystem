@@ -123,7 +123,7 @@ export class DashboardService {
                           COUNT(*) FILTER (WHERE status = 'N')::int AS count,
                           COALESCE(SUM(gross_total) FILTER (WHERE status = 'A'), 0) AS cancelled
                    FROM invoices
-                   WHERE status IN ('N','A')
+                   WHERE status IN ('N','A') AND doc_type IN ('FT','FS')
                      AND system_entry_date >= ${Prisma.raw(cfg.start)}
                      AND system_entry_date < ${Prisma.raw(cfg.end)}
                      ${store}
@@ -199,7 +199,7 @@ export class DashboardService {
                           COALESCE(SUM(iva_total), 0) AS iva,
                           COALESCE(SUM(gross_total), 0) AS gross
                    FROM invoices
-                   WHERE invoice_date = CURRENT_DATE AND status = 'N'${store}`,
+                   WHERE invoice_date = CURRENT_DATE AND status = 'N' AND doc_type IN ('FT','FS')${store}`,
       );
       return this.toSummary(rows[0]);
     });
@@ -250,7 +250,7 @@ export class DashboardService {
                           COALESCE(SUM(gross_total), 0) AS gross,
                           COUNT(*)::int AS count
                    FROM invoices
-                   WHERE status = 'N'
+                   WHERE status = 'N' AND doc_type IN ('FT','FS')
                      AND invoice_date >= CURRENT_DATE - (${span}::int - 1) * INTERVAL '1 day'
                    GROUP BY invoice_date
                    ORDER BY invoice_date`,

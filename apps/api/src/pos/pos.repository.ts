@@ -276,7 +276,7 @@ export class PosRepository {
                      SELECT customer_id, COUNT(*)::int AS purchases,
                             SUM(gross_total)::float AS total_spent,
                             MAX(system_entry_date) AS last_purchase
-                     FROM invoices WHERE status = 'N' AND customer_id IS NOT NULL
+                     FROM invoices WHERE status = 'N' AND doc_type IN ('FT','FS') AND customer_id IS NOT NULL
                      GROUP BY customer_id
                    ) s ON s.customer_id = c.id
                    WHERE c.is_active = TRUE ORDER BY c.name`,

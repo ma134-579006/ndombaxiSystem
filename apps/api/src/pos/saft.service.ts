@@ -22,6 +22,8 @@ interface InvoiceHeaderRow {
   gross_total: string;
   hash: string;
   signature: string | null;
+  status: string;
+  reference: string | null;
 }
 
 interface InvoiceItemRow {
@@ -69,12 +71,14 @@ export class SaftService {
 
     const documents = await this.prisma.runInTenant(schema, async (tx) => {
       const headers = await tx.$queryRaw<InvoiceHeaderRow[]>(
-        Prisma.sql`SELECT id, number, doc_type, invoice_date, system_entry_date,
-                          customer_tax_id, net_total, iva_total, gross_total, hash, signature
-                   FROM invoices
-                   WHERE invoice_date >= ${start}::date AND invoice_date <= ${end}::date
-                     AND status = 'N'
-                   ORDER BY doc_type, series, year, sequence`,
+        // SAF-T AGT inclui TODOS os documentos do período: válidos (N), anulados
+        // (A, com estado) e notas de crédito (NC). Anular nada some — só muda de estado.
+        Prisma.sql`SELECT i.id, i.number, i.doc_type, i.invoice_date, i.system_entry_date,
+                          i.customer_tax_id, i.net_total, i.iva_total, i.gross_total, i.hash, i.signature,
+                          i.status, (SELECT s.number FROM invoices s WHERE s.id = i.source_invoice_id) AS reference
+                   FROM invoices i
+                   WHERE i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date
+                   ORDER BY i.doc_type, i.series, i.year, i.sequence`,
       );
       if (headers.length === 0) return [] as FiscalDocument[];
 
@@ -98,6 +102,8 @@ export class SaftService {
       return headers.map<FiscalDocument>((h) => ({
         type: h.doc_type,
         number: h.number,
+        status: h.status,
+        reference: h.reference ?? undefined,
         invoiceDate: h.invoice_date.toISOString().slice(0, 10),
         systemEntryDate: h.system_entry_date.toISOString(),
         customerTaxId: h.customer_tax_id ?? undefined,

@@ -86,10 +86,23 @@ export class ProfitService {
             ${this.storeCond(storeId)}`,
       );
       const r = rows[0];
-      const salesNet = Number(r.sales_net);
-      const ivaTotal = Number(r.iva);
-      const salesGross = Number(r.sales_gross);
-      const costTotal = Number(r.cost);
+      // Devoluções PARCIAIS (NC cuja fatura de origem NÃO está anulada) descontam
+      // vendas/IVA/custo. As anulações totais já saem por status <> 'A' acima.
+      const ncRows = await tx.$queryRaw<{ net: string; iva: string; gross: string; cost: string }[]>(
+        Prisma.sql`
+          SELECT COALESCE(SUM(nii.net_amount),0) AS net, COALESCE(SUM(nii.iva_amount),0) AS iva,
+                 COALESCE(SUM(nii.gross_amount),0) AS gross, COALESCE(SUM(nii.unit_cost * nii.quantity),0) AS cost
+          FROM invoices nc JOIN invoice_items nii ON nii.invoice_id = nc.id
+          JOIN invoices src ON src.id = nc.source_invoice_id
+          WHERE nc.doc_type = 'NC' AND src.status <> 'A'
+            AND nc.system_entry_date BETWEEN ${f} AND ${t}
+            ${storeId ? Prisma.sql` AND nc.store_id = ${storeId}::uuid` : Prisma.empty}`,
+      );
+      const ncT = ncRows[0];
+      const salesNet = Number(r.sales_net) - Number(ncT.net);
+      const ivaTotal = Number(r.iva) - Number(ncT.iva);
+      const salesGross = Number(r.sales_gross) - Number(ncT.gross);
+      const costTotal = Number(r.cost) - Number(ncT.cost);
       const salesCount = Number(r.n);
 
       // Despesas operacionais reais do período (renda, salários, energia…),

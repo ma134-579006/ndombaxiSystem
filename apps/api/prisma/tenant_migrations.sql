@@ -167,3 +167,7 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS operation
 -- chega pela montra pública (vertical Serviços e Hotelaria).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders"     ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'MANUAL';
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."hotel_reservations" ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'MANUAL';
+
+-- Nota de crédito → fatura de origem. Permite gravar a NC como documento real
+-- (entra no SAF-T e nos relatórios) e descontar devoluções parciais nos lucros.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS source_invoice_id UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL;

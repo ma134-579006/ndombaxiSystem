@@ -103,15 +103,18 @@ function buildTaxTable(documents: FiscalDocument[]): string {
   return node('TaxTable', entries);
 }
 
-function buildLine(line: FiscalDocument['lines'][number], index: number): string {
+function buildLine(line: FiscalDocument['lines'][number], index: number, isCreditNote: boolean, reference?: string): string {
   return node('Line', [
     el('LineNumber', index + 1),
+    // Nota de crédito refere o documento de origem (AGT).
+    isCreditNote && reference ? node('References', [el('Reference', reference)]) : '',
     el('ProductCode', line.productCode),
     el('ProductDescription', line.description),
     el('Quantity', line.quantity),
     el('UnitOfMeasure', 'UN'),
     el('UnitPrice', money(line.unitPrice)),
-    el('CreditAmount', money(line.netAmount)),
+    // NC = DebitAmount (estorno); fatura/recibo = CreditAmount.
+    isCreditNote ? el('DebitAmount', money(line.netAmount)) : el('CreditAmount', money(line.netAmount)),
     node('Tax', [
       el('TaxType', SAFT_TAX_TYPE),
       el('TaxCountryRegion', 'AO'),
@@ -123,11 +126,17 @@ function buildLine(line: FiscalDocument['lines'][number], index: number): string
   ]);
 }
 
+function isNc(type: FiscalDocument['type']): boolean {
+  return String(type) === 'NC';
+}
+
 function buildInvoice(doc: FiscalDocument, sw: Required<SaftSoftware>): string {
+  const creditNote = isNc(doc.type);
   return node('Invoice', [
     el('InvoiceNo', doc.number),
     node('DocumentStatus', [
-      el('InvoiceStatus', 'N'),
+      // Estado real: 'A' anulado / 'N' normal (default).
+      el('InvoiceStatus', doc.status === 'A' ? 'A' : 'N'),
       el('InvoiceStatusDate', doc.systemEntryDate),
       el('SourceID', sw.sourceId),
       el('SourceBilling', 'P'),
@@ -143,7 +152,7 @@ function buildInvoice(doc: FiscalDocument, sw: Required<SaftSoftware>): string {
     ]),
     el('SystemEntryDate', doc.systemEntryDate),
     el('CustomerID', doc.customerTaxId ?? 'Consumidor Final'),
-    ...doc.lines.map((l, i) => buildLine(l, i)),
+    ...doc.lines.map((l, i) => buildLine(l, i, creditNote, doc.reference)),
     node('DocumentTotals', [
       el('TaxPayable', money(doc.totals.ivaTotal)),
       el('NetTotal', money(doc.totals.netTotal)),
@@ -153,12 +162,16 @@ function buildInvoice(doc: FiscalDocument, sw: Required<SaftSoftware>): string {
 }
 
 function buildSalesInvoices(documents: FiscalDocument[], sw: Required<SaftSoftware>): string {
-  const netTotal = documents.reduce((a, d) => a + d.totals.netTotal, 0);
-  const taxTotal = documents.reduce((a, d) => a + d.totals.ivaTotal, 0);
+  // Faturas/recibos somam em crédito; notas de crédito (NC) somam em débito.
+  let totalCredit = 0, totalDebit = 0;
+  for (const d of documents) {
+    const v = d.totals.netTotal + d.totals.ivaTotal;
+    if (isNc(d.type)) totalDebit += v; else totalCredit += v;
+  }
   return node('SalesInvoices', [
     el('NumberOfEntries', documents.length),
-    el('TotalDebit', money(0)),
-    el('TotalCredit', money(netTotal + taxTotal)),
+    el('TotalDebit', money(totalDebit)),
+    el('TotalCredit', money(totalCredit)),
     ...documents.map((d) => buildInvoice(d, sw)),
   ]);
 }

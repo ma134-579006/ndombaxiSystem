@@ -56,4 +56,8 @@ export interface FiscalDocument {
   totals: InvoiceTotals;
   /** Assinatura digital / hash do documento (vai no campo Hash do SAF-T). */
   hash?: string;
+  /** Estado do documento: 'N' normal, 'A' anulado. Default 'N'. */
+  status?: string;
+  /** Documento de origem (nº) — para notas de crédito (NC). */
+  reference?: string;
 }
