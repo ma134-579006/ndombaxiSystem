@@ -127,6 +127,18 @@ export class StockService {
       if (!storeId || storeId === 'ALL') {
         storeId = (await StockService.resolveDefaultWarehouse(tx)) ?? storeId;
       }
+      // CUSTO MÉDIO PONDERADO (CMP): lê o saldo GLOBAL e o custo atuais ANTES da
+      // entrada para ponderar o novo custo. Substituir pelo último preço de compra
+      // distorcia o CMV/lucro ao reabastecer a preços diferentes.
+      const prodRows = await tx.$queryRaw<{ stock_qty: string; cost_price: string }[]>(
+        Prisma.sql`SELECT stock_qty, cost_price FROM products WHERE id = ${input.productId}::uuid FOR UPDATE`,
+      );
+      const oldQty = Number(prodRows[0]?.stock_qty ?? 0);
+      const oldCost = Number(prodRows[0]?.cost_price ?? 0);
+      const newCost = oldQty > 0
+        ? Math.round(((oldQty * oldCost + input.quantity * input.unitCost) / (oldQty + input.quantity)) * 100) / 100
+        : input.unitCost; // sem stock anterior (ou negativo) → assume o custo da entrada
+
       const balanceAfter = await StockService.applyMovement(tx, {
         productId: input.productId,
         warehouseId: storeId,
@@ -138,7 +150,7 @@ export class StockService {
       });
       await tx.$executeRaw(
         Prisma.sql`UPDATE products
-                   SET cost_price = ${input.unitCost},
+                   SET cost_price = ${newCost},
                        unit_price = COALESCE(${input.salePrice ?? null}, unit_price),
                        updated_at = now()
                    WHERE id = ${input.productId}::uuid`,
