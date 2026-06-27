@@ -57,6 +57,19 @@ const VERTICALS: Record<string, { label: string; intro: string; mods: Mod[] }> =
       { icon: '📊', title: 'Relatórios & SAF-T', desc: 'Ocupação, receita, fiscal.', to: 'reports' },
     ],
   },
+  PHARMACY: {
+    label: '💊 Farmácia',
+    intro: 'Gestão de farmácia/parafarmácia: medicamentos com lotes e validades, alerta de produtos a expirar e venda com receita — integrado com stock, caixa e faturação AGT.',
+    mods: [
+      { icon: '⏳', title: 'Validade & Lotes', desc: 'Medicamentos a expirar/expirados.', to: 'pharmacy' },
+      { icon: '💊', title: 'Medicamentos', desc: 'Produtos, princípio ativo e receita.', to: 'products' },
+      { icon: '📦', title: 'Stock & Lotes', desc: 'Entradas, lotes e validades.', to: 'products' },
+      { icon: '🧾', title: 'Vender & Faturar', desc: 'Caixa com AGT.', to: 'operations' },
+      { icon: '🤝', title: 'Clientes', desc: 'Base de clientes.', to: 'customers' },
+      { icon: '👥', title: 'Equipa & Folha', desc: 'Funcionários e salários.', to: 'employees' },
+      { icon: '📊', title: 'Relatórios & SAF-T', desc: 'Vendas, lucros, fiscal.', to: 'reports' },
+    ],
+  },
   CLINIC: {
     label: '🏥 Clínica / Saúde',
     intro: 'Gestão de clínica/consultório: pacientes, marcações (agenda) e consultas — com faturação AGT, caixa e RH integrados.',

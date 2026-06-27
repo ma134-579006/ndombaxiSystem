@@ -23,7 +23,7 @@ export class RegisterSimpleDto {
   /** Tipo de negócio (adapta o painel): RETAIL | RESTAURANT | SERVICES | HOSPITALITY | CLINIC. */
   @IsOptional()
   @IsString()
-  @Matches(/^(RETAIL|RESTAURANT|SERVICES|HOSPITALITY|CLINIC)$/, { message: 'Tipo de negócio inválido.' })
+  @Matches(/^(RETAIL|RESTAURANT|SERVICES|HOSPITALITY|CLINIC|PHARMACY)$/, { message: 'Tipo de negócio inválido.' })
   businessType?: string;
 }
 

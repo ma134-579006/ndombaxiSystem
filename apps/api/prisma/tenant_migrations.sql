@@ -183,3 +183,7 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."hotel_rooms" ADD COLUMN IF NOT EXISTS floor 
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS equipment_id   UUID;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS warranty_days  INT NOT NULL DEFAULT 0;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS warranty_until DATE;
+
+-- Farmácia: princípio ativo + se exige receita médica (controlo de venda).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS active_ingredient     TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS requires_prescription BOOLEAN NOT NULL DEFAULT FALSE;

@@ -639,6 +639,10 @@ export const api = {
     createConsultation: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/consultations', dto),
     invoiceConsultation: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/clinic/consultations/${id}/invoice`),
   },
+  pharmacy: {
+    metrics: () => request<{ expiring: number; expired: number; prescription: number; lowStock: number }>('GET', '/pharmacy/metrics'),
+    expiring: (days = 30) => request<PharmacyBatch[]>('GET', `/pharmacy/expiring?days=${days}`),
+  },
   serviceOrders: {
     list: (status?: string) => request<ServiceOrderRow[]>('GET', `/service-orders${status ? `?status=${status}` : ''}`),
     create: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/service-orders', dto),

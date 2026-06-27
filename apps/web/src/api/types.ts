@@ -730,6 +730,9 @@ export interface HotelReservationRow {
 }
 export interface RecipeIngredient { id: string; ingredient_id: string; ingredient_name: string; ingredient_code: string; quantity: string }
 
+// ── Farmácia ───────────────────────────────────────────────
+export interface PharmacyBatch { id: string; batch_code: string | null; quantity: string; expiry_date: string; days_left: number; product_name: string; product_code: string; active_ingredient: string | null }
+
 // ── Clínica / Saúde ────────────────────────────────────────
 export interface ClinicPatient { id: string; name: string; phone: string | null; nif: string | null; birth_date: string | null; sex: string | null; blood_type: string | null; allergies: string | null; notes: string | null; customer_id: string | null }
 export interface ClinicConsultationRow { id: string; professional: string | null; symptoms?: string | null; diagnosis: string | null; prescription: string | null; fee: string; invoice_id: string | null; created_at: string }

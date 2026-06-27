@@ -27,6 +27,7 @@ import { Restaurant } from './sections/Restaurant';
 import { ServiceOrders } from './sections/ServiceOrders';
 import { Hotel } from './sections/Hotel';
 import { Clinic } from './sections/Clinic';
+import { Pharmacy } from './sections/Pharmacy';
 import { Payments } from './sections/Payments';
 import { Operations } from './sections/Operations';
 import { Inventory } from './sections/Inventory';
@@ -191,7 +192,7 @@ function PlatformPanel() {
 
 /** Rótulo do vertical de serviços (para o item de navegação adaptativo). */
 const VERTICAL_LABEL: Record<string, string> = {
-  RESTAURANT: '🍔 Restauração', SERVICES: '🔧 Serviços', HOSPITALITY: '🏨 Hotelaria', CLINIC: '🏥 Clínica',
+  RESTAURANT: '🍔 Restauração', SERVICES: '🔧 Serviços', HOSPITALITY: '🏨 Hotelaria', CLINIC: '🏥 Clínica', PHARMACY: '💊 Farmácia',
 };
 
 function TenantPanel() {
@@ -213,6 +214,7 @@ function TenantPanel() {
     if (bizType === 'SERVICES') vert.push({ key: 'service-orders', label: '🛠️ Ordens de serviço', icon: IconStore });
     if (bizType === 'HOSPITALITY') vert.push({ key: 'hotel', label: '🛏️ Quartos & Reservas', icon: IconStore });
     if (bizType === 'CLINIC') vert.push({ key: 'clinic', label: '🩺 Agenda & Pacientes', icon: IconStore });
+    if (bizType === 'PHARMACY') vert.push({ key: 'pharmacy', label: '💊 Validade & Lotes', icon: IconStore });
     return [base[0], ...vert, ...base.slice(1)];
   }, [user?.role, bizType]);
   // se a secção guardada já não é permitida ao papel, volta à visão geral.
@@ -254,6 +256,7 @@ function TenantPanel() {
       {section === 'service-orders' ? <ServiceOrders /> : null}
       {section === 'hotel' ? <Hotel /> : null}
       {section === 'clinic' ? <Clinic /> : null}
+      {section === 'pharmacy' ? <Pharmacy /> : null}
       {section === 'assistant' ? <Assistant /> : null}
       {section === 'subscription' ? <Subscription /> : null}
       {section === 'stores' ? <Stores /> : null}
