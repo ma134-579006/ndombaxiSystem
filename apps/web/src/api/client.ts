@@ -606,6 +606,7 @@ export const api = {
     kitchen: () => request<RestaurantKitchenItem[]>('GET', '/restaurant/kitchen'),
     recipe: (productId: string) => request<RecipeIngredient[]>('GET', `/restaurant/recipe/${productId}`),
     setRecipe: (productId: string, items: { ingredientCode: string; quantity: number }[]) => request<{ ok: boolean }>('POST', `/restaurant/recipe/${productId}`, { items }),
+    recomputeCosts: () => request<{ ok: boolean }>('POST', '/restaurant/recipes/recompute-costs', {}),
   },
   hotel: {
     roomMap: () => request<HotelRoomMapRow[]>('GET', '/hotel/room-map'),

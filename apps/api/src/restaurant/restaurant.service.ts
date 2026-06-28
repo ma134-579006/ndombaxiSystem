@@ -123,9 +123,10 @@ export class RestaurantService {
   }
 
   /**
-   * Fecha a comanda (a conta). Baixa do stock os INGREDIENTES de cada prato com
-   * receita (consumo real). Opcionalmente lança o total no FOLIO de um quarto
-   * (consumo do hóspede some na conta do quarto) em vez de ir ao caixa.
+   * Fecha a comanda (a conta). O pagamento/fatura é no CAIXA, onde a emissão
+   * baixa os ingredientes (ficha técnica) — fonte única, sem duplicar. EXCEÇÃO:
+   * se for lançada no FOLIO do quarto (hotelaria), não passa pelo caixa, por isso
+   * aqui é que se baixam os ingredientes.
    */
   async closeOrder(schema: string, orderId: string, chargeToReservationId?: string) {
     return this.prisma.runInTenant(schema, async (tx) => {
@@ -134,16 +135,16 @@ export class RestaurantService {
       if (!ord[0]) throw new NotFoundException('Comanda não encontrada.');
       if (ord[0].status !== 'OPEN') throw new BadRequestException('A comanda já não está aberta.');
 
-      const items = await tx.$queryRaw<{ product_id: string | null; quantity: string }[]>(
-        Prisma.sql`SELECT product_id, quantity FROM restaurant_order_items WHERE order_id = ${orderId}::uuid`);
-      await this.deductIngredients(tx, items);
-
       await tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders SET status = 'CLOSED', closed_at = now() WHERE id = ${orderId}::uuid`);
 
       // Lançar no folio do quarto (hotelaria): consumo soma na conta do hóspede.
       if (chargeToReservationId) {
         const res = await tx.$queryRaw<{ status: string }[]>(Prisma.sql`SELECT status FROM hotel_reservations WHERE id = ${chargeToReservationId}::uuid`);
         if (!res[0]) throw new NotFoundException('Reserva não encontrada.');
+        // Folio não passa pelo caixa → baixa aqui os ingredientes consumidos.
+        const items = await tx.$queryRaw<{ product_id: string | null; quantity: string }[]>(
+          Prisma.sql`SELECT product_id, quantity FROM restaurant_order_items WHERE order_id = ${orderId}::uuid`);
+        await this.deductIngredients(tx, items);
         await tx.$executeRaw(Prisma.sql`INSERT INTO hotel_folio_items (reservation_id, description, unit_price, quantity)
           VALUES (${chargeToReservationId}::uuid, ${`Restaurante/Bar — ${ord[0].table_name ?? 'mesa'}`}, ${Number(ord[0].total)}, 1)`);
         await tx.$executeRaw(Prisma.sql`UPDATE hotel_reservations SET total = (nights * rate) + COALESCE(
@@ -197,8 +198,28 @@ export class RestaurantService {
           VALUES (${productId}::uuid, ${ing[0].id}::uuid, ${it.quantity})
           ON CONFLICT (product_id, ingredient_id) DO UPDATE SET quantity = EXCLUDED.quantity`);
       }
+      // CUSTO DO PRATO = soma do custo dos ingredientes (ficha técnica). Assim o
+      // lucro no caixa = preço de venda − custo dos ingredientes consumidos.
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE products SET cost_price = COALESCE((
+          SELECT SUM(r.quantity * ing.cost_price)
+          FROM product_recipes r JOIN products ing ON ing.id = r.ingredient_id
+          WHERE r.product_id = ${productId}::uuid), 0), updated_at = now()
+        WHERE id = ${productId}::uuid`);
       return { ok: true };
     });
+  }
+
+  /** Recalcula o custo (ficha técnica) de TODOS os pratos com receita — útil
+   *  quando o custo dos ingredientes muda (nova compra altera o custo médio). */
+  async recomputeAllRecipeCosts(schema: string) {
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
+      UPDATE products p SET cost_price = sub.c, updated_at = now()
+      FROM (SELECT r.product_id, SUM(r.quantity * ing.cost_price) AS c
+            FROM product_recipes r JOIN products ing ON ing.id = r.ingredient_id
+            GROUP BY r.product_id) sub
+      WHERE p.id = sub.product_id`));
+    return { ok: true };
   }
 
   async cancelOrder(schema: string, orderId: string) {

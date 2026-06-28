@@ -64,9 +64,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setStatus('loading');
     setError(null);
     try {
-      const [site, catalog, methods] = await Promise.all([
-        api.site(code),
-        api.catalog(code),
+      // O `site` é o essencial (resolve a loja). Catálogo e métodos NÃO devem
+      // impedir a loja de abrir (verticais podem não ter produtos/pagamentos).
+      const site = await api.site(code);
+      const [catalog, methods] = await Promise.all([
+        api.catalog(code).catch(() => ({ products: [] as CatalogProduct[] })),
         api.paymentMethods(code).catch(() => []),
       ]);
       setData({

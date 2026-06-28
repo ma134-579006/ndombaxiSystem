@@ -193,14 +193,22 @@ function RecipesTab({ products }: { products: ManagerProduct[] }) {
   const nameOf = (code: string) => products.find((p) => p.code === code)?.name ?? code;
   const ingFiltered = q.trim() ? products.filter((p) => p.id !== dishId && `${p.name} ${p.code}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 16) : [];
 
+  const recompute = async () => {
+    try { await api.restaurant.recomputeCosts(); toast.success('Custos das fichas técnicas recalculados.'); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha.'); }
+  };
   return (
     <>
       <div className="card" style={{ marginBottom: 12 }}>
-        <div className="field"><label>Prato</label>
-          <select value={dishId} onChange={(e) => setDishId(e.target.value)}>
-            <option value="">— escolher prato —</option>
-            {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
-          </select></div>
+        <div className="row" style={{ alignItems: 'flex-end', gap: 10 }}>
+          <div className="field" style={{ flex: 1, margin: 0 }}><label>Prato</label>
+            <select value={dishId} onChange={(e) => setDishId(e.target.value)}>
+              <option value="">— escolher prato —</option>
+              {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+            </select></div>
+          <button className="btn ghost sm" onClick={() => void recompute()} title="Recalcular o custo dos pratos a partir do custo atual dos ingredientes">↻ Recalcular custos</button>
+        </div>
+        <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>O custo do prato = soma do custo dos ingredientes. Ao vender no caixa, baixa o stock dos ingredientes e o lucro = preço − custo da ficha técnica.</p>
       </div>
       {dish ? (
         <>

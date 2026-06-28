@@ -89,6 +89,11 @@ export class RestaurantController {
     return this.svc.setRecipe(this.ctx.requireTenantSchema(), productId, dto.items ?? []);
   }
 
+  @Post('recipes/recompute-costs')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Recalcula o custo (ficha técnica) de todos os pratos com receita' })
+  recomputeCosts() { return this.svc.recomputeAllRecipeCosts(this.ctx.requireTenantSchema()); }
+
   @Post('orders/:id/cancel')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Cancela a comanda' })

@@ -119,6 +119,23 @@ export class InvoiceService {
       const byCode = new Map<string, ProductForEmission & { code: string; name: string }>();
       for (const p of productRows) byCode.set(p.code, p);
 
+      // FICHA TÉCNICA (BOM): produtos compostos (ex.: hambúrguer) não têm stock
+      // próprio — consomem INGREDIENTES. Carrega as receitas dos produtos vendidos;
+      // na venda baixa-se o stock dos ingredientes (não do prato).
+      const prodIds = productRows.map((p) => p.id);
+      const recipeRows = prodIds.length
+        ? await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; shared_stock: boolean | null; name: string }[]>(
+            Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, p.shared_stock, p.name
+                       FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
+                       WHERE r.product_id IN (${Prisma.join(prodIds)})`)
+        : [];
+      const recipeByProduct = new Map<string, { ingredientId: string; quantity: number; sharedStock: boolean; name: string }[]>();
+      for (const r of recipeRows) {
+        const list = recipeByProduct.get(r.product_id) ?? [];
+        list.push({ ingredientId: r.ingredient_id, quantity: Number(r.quantity), sharedStock: !!r.shared_stock, name: r.name });
+        recipeByProduct.set(r.product_id, list);
+      }
+
       const lineInputs: InvoiceLineInput[] = input.lines.map((l) => {
         // Linha LIVRE (serviço/mão-de-obra/estadia): preço já LÍQUIDO + IVA indicado.
         if (!('productCode' in l) || !l.productCode) {
@@ -244,6 +261,20 @@ export class InvoiceService {
       for (const line of lines) {
         const product = byCode.get(line.productCode);
         if (!product) continue; // linha livre (serviço/estadia) — sem stock
+        // Prato com ficha técnica: NÃO valida o stock do prato (é feito sob
+        // encomenda); valida o stock dos INGREDIENTES (qtd da receita × qtd vendida).
+        const recipe = recipeByProduct.get(product.id);
+        if (recipe && recipe.length) {
+          for (const ing of recipe) {
+            const need = ing.quantity * line.quantity;
+            const ir = await tx.$queryRaw<{ stock_qty: string }[]>(Prisma.sql`SELECT stock_qty FROM products WHERE id = ${ing.ingredientId}::uuid`);
+            const have = ir[0] ? Number(ir[0].stock_qty) : 0;
+            if (have < need) {
+              throw new BadRequestException(`Ingrediente insuficiente para "${line.description}": ${ing.name} (disponível ${have}, necessário ${need}).`);
+            }
+          }
+          continue;
+        }
         const { shared, store: lineStore } = resolveLine(product);
         // Stock disponível: partilhado → global; por loja → saldo da loja (0 se sem linha).
         let available: number;
@@ -315,6 +346,7 @@ export class InvoiceService {
           );
           continue;
         }
+        const recipe = recipeByProduct.get(product.id);
         const { shared, store: lineStore } = resolveLine(product);
         await tx.$executeRaw(
           Prisma.sql`INSERT INTO invoice_items
@@ -327,6 +359,23 @@ export class InvoiceService {
                     ${line.ivaAmount}, ${line.grossAmount}, ${Number(product.cost_price ?? 0)},
                     ${line.exemptionReason ?? null}, ${line.exemptionCode ?? null})`,
         );
+        // Prato com ficha técnica: baixa os INGREDIENTES (não o prato). O custo
+        // (unit_cost acima) já é o custo da receita (cost_price do prato).
+        if (recipe && recipe.length) {
+          for (const ing of recipe) {
+            const store = ing.sharedStock ? defStoreId : (input.storeId || defStoreId);
+            if (store) {
+              await StockService.applyMovement(tx, {
+                productId: ing.ingredientId, warehouseId: store, type: 'OUT',
+                quantity: -(ing.quantity * line.quantity), reference: number, referenceId: invoiceId,
+                createdBy: input.cashierId ?? null, allowNegative: true,
+              });
+            } else {
+              await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${ing.quantity * line.quantity} WHERE id = ${ing.ingredientId}::uuid`);
+            }
+          }
+          continue;
+        }
         if (lineStore) {
           // Saída de stock pela venda. applyMovement também actualiza o espelho
           // global products.stock_qty. Stock partilhado: o pool central pode ficar
