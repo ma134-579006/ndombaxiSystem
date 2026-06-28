@@ -1062,6 +1062,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."hotel_rooms" (
   floor       TEXT,                          -- andar (ex.: "1", "R/C")
   capacity    INT NOT NULL DEFAULT 2,
   rate        NUMERIC(14,2) NOT NULL DEFAULT 0,   -- preço/noite (c/ IVA)
+  photo_url   TEXT,                                -- foto do quarto (loja/booking)
   status      TEXT NOT NULL DEFAULT 'AVAILABLE',  -- AVAILABLE | RESERVED | OCCUPIED | CLEANING | MAINTENANCE | BLOCKED
   is_active   BOOLEAN NOT NULL DEFAULT TRUE,
   sort_order  INT NOT NULL DEFAULT 0,

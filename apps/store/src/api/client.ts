@@ -109,8 +109,10 @@ export const api = {
   chatSend: (code: string, token: string, body: string) =>
     request<StoreChatMessage>('POST', `/store/${enc(code)}/chat`, { body }, token),
   // ── Verticais: reservas (hotelaria) e pedidos de serviço ───
-  rooms: (code: string) =>
-    request<{ businessType: string; rooms: StoreRoom[] }>('GET', `/store/${enc(code)}/rooms`),
+  rooms: (code: string, checkIn?: string, checkOut?: string) => {
+    const q = checkIn && checkOut ? `?checkIn=${checkIn}&checkOut=${checkOut}` : '';
+    return request<{ businessType: string; rooms: StoreRoom[] }>('GET', `/store/${enc(code)}/rooms${q}`);
+  },
   reservation: (code: string, input: { roomId: string; guestName?: string; guestPhone?: string; guestEmail?: string; checkIn: string; checkOut: string; guests?: number }) =>
     request<{ ok: true; id: string }>('POST', `/store/${enc(code)}/reservation`, input),
   serviceRequest: (code: string, input: { customerName?: string; customerPhone?: string; customerEmail?: string; equipmentType?: string; equipmentLabel?: string; equipmentRef?: string; problem: string }) =>

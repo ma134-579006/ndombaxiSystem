@@ -132,12 +132,18 @@ export function Hotel() {
 
 function NewRoom({ onClose, onCreated }: { onClose(): void; onCreated(): void }) {
   const [f, setF] = useState({ code: '', name: '', roomType: 'Duplo', category: 'Standard', floor: '', capacity: '2', rate: '' });
+  const [photo, setPhoto] = useState<string>('');
   const [busy, setBusy] = useState(false);
+  const onPhoto = (file?: File) => {
+    if (!file) return;
+    if (file.size > 2_000_000) { toast.warning('Foto demasiado grande (máx. ~2 MB).'); return; }
+    const r = new FileReader(); r.onload = () => setPhoto(String(r.result)); r.readAsDataURL(file);
+  };
   const save = async () => {
     if (!f.name.trim()) { toast.warning('Indique o nome do quarto.'); return; }
     setBusy(true);
     try {
-      await api.hotel.createRoom({ code: f.code.trim() || undefined, name: f.name.trim(), roomType: f.roomType.trim(), category: f.category.trim(), floor: f.floor.trim() || undefined, capacity: Number(f.capacity) || 2, rate: Number(f.rate) || 0 });
+      await api.hotel.createRoom({ code: f.code.trim() || undefined, name: f.name.trim(), roomType: f.roomType.trim(), category: f.category.trim(), floor: f.floor.trim() || undefined, capacity: Number(f.capacity) || 2, rate: Number(f.rate) || 0, photoUrl: photo || undefined });
       toast.success('Quarto criado.'); onCreated();
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha.'); } finally { setBusy(false); }
   };
@@ -161,6 +167,12 @@ function NewRoom({ onClose, onCreated }: { onClose(): void; onCreated(): void })
       <div className="grid-2">
         <div className="field"><label>Capacidade</label><input value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value.replace(/\D/g, '') })} inputMode="numeric" /></div>
         <div className="field"><label>Preço / noite (Kz)</label><input value={f.rate} onChange={(e) => setF({ ...f, rate: e.target.value.replace(/[^\d.]/g, '') })} inputMode="decimal" placeholder="0" /></div>
+      </div>
+      <div className="row" style={{ gap: 12, alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ width: 64, height: 48, borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', display: 'grid', placeItems: 'center', background: 'var(--surface-2)' }}>
+          {photo ? <img src={photo} alt="quarto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 22 }}>🛏️</span>}
+        </div>
+        <label className="btn ghost sm">{photo ? 'Trocar foto' : 'Carregar foto (loja)'}<input type="file" accept="image/*" hidden onChange={(e) => onPhoto(e.target.files?.[0])} /></label>
       </div>
       <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A criar…' : 'Criar quarto'}</button>
     </Modal>

@@ -67,17 +67,28 @@ export function VerticalCTA({ code, businessType, prefill }: { code: string; bus
 
 function ReservationModal({ code, prefill, onClose }: { code: string; prefill?: { name?: string; phone?: string; email?: string }; onClose(): void }) {
   const [rooms, setRooms] = useState<StoreRoom[]>([]);
+  const [loading, setLoading] = useState(true);
   const ci = today();
   const [f, setF] = useState({ roomId: '', guestName: prefill?.name || '', guestPhone: prefill?.phone || '', guestEmail: prefill?.email || '', checkIn: ci, checkOut: addDays(ci, 1), guests: '1' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-  useEffect(() => { api.rooms(code).then((r) => { setRooms(r.rooms); if (r.rooms[0]) setF((s) => ({ ...s, roomId: r.rooms[0].id })); }).catch(() => undefined); }, [code]);
+  // Disponibilidade REATIVA às datas: só mostra quartos livres no período.
+  useEffect(() => {
+    if (f.checkOut <= f.checkIn) return;
+    let alive = true; setLoading(true);
+    api.rooms(code, f.checkIn, f.checkOut).then((r) => {
+      if (!alive) return;
+      setRooms(r.rooms);
+      setF((s) => ({ ...s, roomId: r.rooms.some((x) => x.id === s.roomId) ? s.roomId : (r.rooms[0]?.id ?? '') }));
+    }).catch(() => undefined).finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [code, f.checkIn, f.checkOut]);
   const room = rooms.find((r) => r.id === f.roomId);
   const nights = Math.max(1, Math.round((new Date(f.checkOut + 'T00:00:00').getTime() - new Date(f.checkIn + 'T00:00:00').getTime()) / 86400000));
   const estimate = room ? nights * Number(room.rate) : 0;
   const submit = async () => {
-    if (!f.roomId) { setErr('Escolha um quarto.'); return; }
+    if (!f.roomId) { setErr('Escolha um quarto disponível.'); return; }
     if (f.checkOut <= f.checkIn) { setErr('A saída deve ser depois da entrada.'); return; }
     if (!f.guestName.trim() || !f.guestPhone.trim()) { setErr('Indique o seu nome e telefone.'); return; }
     setBusy(true); setErr(null);
@@ -91,20 +102,39 @@ function ReservationModal({ code, prefill, onClose }: { code: string; prefill?: 
       {done ? (
         <div className="empty"><div style={{ fontSize: 40 }}>✅</div><p>Reserva enviada! A loja vai confirmar a sua reserva e entrar em contacto.</p>
           <button className="btn lg" style={{ marginTop: 10 }} onClick={onClose}>Concluir</button></div>
-      ) : rooms.length === 0 ? (
-        <div className="empty"><p>Sem quartos disponíveis de momento.</p></div>
       ) : (
         <>
           {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
-          <div className="field"><label>Quarto</label>
-            <select value={f.roomId} onChange={(e) => setF({ ...f, roomId: e.target.value })}>
-              {rooms.map((r) => <option key={r.id} value={r.id}>{r.name} — {r.room_type || 'Quarto'} ({r.capacity}p) · {formatKz(Number(r.rate))}/noite</option>)}
-            </select>
-          </div>
+          {/* 1) Datas → disponibilidade */}
           <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div className="field"><label>Entrada</label><input type="date" value={f.checkIn} onChange={(e) => setF({ ...f, checkIn: e.target.value })} /></div>
-            <div className="field"><label>Saída</label><input type="date" value={f.checkOut} min={addDays(f.checkIn, 1)} onChange={(e) => setF({ ...f, checkOut: e.target.value })} /></div>
+            <div className="field"><label>Entrada</label><input type="date" min={ci} value={f.checkIn} onChange={(e) => setF({ ...f, checkIn: e.target.value, checkOut: e.target.value >= f.checkOut ? addDays(e.target.value, 1) : f.checkOut })} /></div>
+            <div className="field"><label>Saída</label><input type="date" min={addDays(f.checkIn, 1)} value={f.checkOut} onChange={(e) => setF({ ...f, checkOut: e.target.value })} /></div>
           </div>
+          {/* 2) Quartos disponíveis (cartões com foto) */}
+          <label className="field" style={{ display: 'block', marginBottom: 4 }}>Quartos disponíveis</label>
+          {loading ? <div className="empty"><p>A procurar disponibilidade…</p></div>
+            : rooms.length === 0 ? <div className="empty"><p>Sem quartos livres nestas datas. Experimente outras.</p></div>
+            : (
+              <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+                {rooms.map((r) => {
+                  const sel = r.id === f.roomId;
+                  return (
+                    <button key={r.id} type="button" onClick={() => setF({ ...f, roomId: r.id })}
+                      style={{ display: 'flex', gap: 10, alignItems: 'center', textAlign: 'left', padding: 8, borderRadius: 10, cursor: 'pointer',
+                               border: `2px solid ${sel ? 'var(--primary, #2563eb)' : 'var(--border, #ddd)'}`, background: sel ? 'color-mix(in srgb, var(--primary,#2563eb) 8%, transparent)' : 'transparent' }}>
+                      <div style={{ width: 64, height: 48, borderRadius: 8, overflow: 'hidden', background: 'var(--surface-2,#eee)', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 22 }}>
+                        {r.photo_url ? <img src={r.photo_url} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🛏️'}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <strong style={{ fontSize: 13.5 }}>{r.name}</strong>
+                        <div style={{ fontSize: 12, opacity: 0.75 }}>{r.category || r.room_type || 'Quarto'} · {r.capacity}p · {formatKz(Number(r.rate))}/noite</div>
+                      </div>
+                      {sel ? <span style={{ color: 'var(--primary,#2563eb)', fontWeight: 800 }}>✓</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           <div className="field"><label>Hóspedes</label><input value={f.guests} onChange={(e) => setF({ ...f, guests: e.target.value.replace(/\D/g, '') })} inputMode="numeric" /></div>
           <div className="field"><label>O seu nome</label><input value={f.guestName} onChange={(e) => setF({ ...f, guestName: e.target.value })} /></div>
           <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -112,10 +142,10 @@ function ReservationModal({ code, prefill, onClose }: { code: string; prefill?: 
             <div className="field"><label>E-mail (opcional)</label><input value={f.guestEmail} onChange={(e) => setF({ ...f, guestEmail: e.target.value })} inputMode="email" /></div>
           </div>
           <div className="row" style={{ display: 'flex', alignItems: 'center', margin: '8px 0 12px' }}>
-            <span className="muted">{nights} noite(s)</span><span style={{ flex: 1 }} />
+            <span className="muted">{nights} noite(s){room ? ` · ${room.name}` : ''}</span><span style={{ flex: 1 }} />
             <strong style={{ fontSize: 18 }}>{formatKz(estimate)}</strong>
           </div>
-          <button className="btn lg block" onClick={submit} disabled={busy}>{busy ? 'A reservar…' : 'Confirmar reserva'}</button>
+          <button className="btn lg block" onClick={submit} disabled={busy || !f.roomId}>{busy ? 'A reservar…' : 'Confirmar reserva'}</button>
         </>
       )}
     </Sheet>

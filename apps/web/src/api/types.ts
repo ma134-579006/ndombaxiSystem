@@ -715,7 +715,7 @@ export interface ServiceEquipment { id: string; customer_id: string | null; cust
 
 // ── Hotelaria (HOSPITALITY) ─────────────────────────────────
 export interface HotelRoomMapRow {
-  id: string; code: string; name: string; room_type: string | null; category?: string | null; floor?: string | null; capacity: number; rate: string; status: string;
+  id: string; code: string; name: string; room_type: string | null; category?: string | null; floor?: string | null; capacity: number; rate: string; photo_url?: string | null; status: string;
   reservation_id: string | null; guest_name: string | null; check_out: string | null; res_total: string | null;
 }
 export interface HotelHousekeepingRow {

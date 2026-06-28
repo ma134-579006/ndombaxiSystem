@@ -31,7 +31,7 @@ export interface SiteResponse {
 }
 
 export interface StoreRoom {
-  id: string; code: string; name: string; room_type: string | null; capacity: number; rate: string;
+  id: string; code: string; name: string; room_type: string | null; category?: string | null; floor?: string | null; capacity: number; rate: string; photo_url?: string | null;
 }
 
 export type IvaCode = 'NOR' | 'RED' | 'ISE' | 'OUT';

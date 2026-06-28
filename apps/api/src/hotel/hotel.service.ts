@@ -22,17 +22,17 @@ export class HotelService {
   // ── Quartos ────────────────────────────────────────────────
   listRooms(schema: string) {
     return this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw(Prisma.sql`SELECT id, code, name, room_type, category, floor, capacity, rate, status, sort_order
+      tx.$queryRaw(Prisma.sql`SELECT id, code, name, room_type, category, floor, capacity, rate, photo_url, status, sort_order
         FROM hotel_rooms WHERE is_active = TRUE ORDER BY sort_order, code`));
   }
 
-  async createRoom(schema: string, dto: { code?: string; name: string; roomType?: string; category?: string; floor?: string; capacity?: number; rate?: number }) {
+  async createRoom(schema: string, dto: { code?: string; name: string; roomType?: string; category?: string; floor?: string; capacity?: number; rate?: number; photoUrl?: string }) {
     if (!dto.name?.trim()) throw new BadRequestException('Indique o nome do quarto.');
     return this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw(Prisma.sql`INSERT INTO hotel_rooms (code, name, room_type, category, floor, capacity, rate)
+      tx.$queryRaw(Prisma.sql`INSERT INTO hotel_rooms (code, name, room_type, category, floor, capacity, rate, photo_url)
         VALUES (${dto.code?.trim() || dto.name.trim()}, ${dto.name.trim()}, ${dto.roomType?.trim() || null},
-                ${dto.category?.trim() || null}, ${dto.floor?.trim() || null}, ${dto.capacity ?? 2}, ${dto.rate ?? 0})
-        RETURNING id, code, name, room_type, category, floor, capacity, rate, status, sort_order`));
+                ${dto.category?.trim() || null}, ${dto.floor?.trim() || null}, ${dto.capacity ?? 2}, ${dto.rate ?? 0}, ${dto.photoUrl || null})
+        RETURNING id, code, name, room_type, category, floor, capacity, rate, photo_url, status, sort_order`));
   }
 
   /** Muda o estado físico do quarto (livre/reservado/ocupado/limpeza/manutenção/bloqueado). */
@@ -79,11 +79,25 @@ export class HotelService {
     return rows[0]?.n ?? 0;
   }
 
-  /** Quartos públicos disponíveis (para a loja online mostrar e reservar). */
-  publicRooms(schema: string) {
+  /**
+   * Quartos públicos (booking) para a loja. Se forem dadas datas, devolve só os
+   * quartos LIVRES nesse período (sem reservas BOOKED/CHECKED_IN a sobrepor) e
+   * exclui os bloqueados/manutenção. Sem datas, lista os ativos não bloqueados.
+   */
+  publicRooms(schema: string, checkIn?: string, checkOut?: string) {
+    const validDates = checkIn && checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkIn) && /^\d{4}-\d{2}-\d{2}$/.test(checkOut) && checkOut > checkIn;
     return this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw(Prisma.sql`SELECT id, code, name, room_type, capacity, rate
-                              FROM hotel_rooms WHERE is_active = TRUE AND status = 'AVAILABLE' ORDER BY sort_order, code`));
+      tx.$queryRaw(validDates
+        ? Prisma.sql`SELECT id, code, name, room_type, category, floor, capacity, rate, photo_url
+                     FROM hotel_rooms r
+                     WHERE r.is_active = TRUE AND r.status NOT IN ('MAINTENANCE','BLOCKED')
+                       AND NOT EXISTS (
+                         SELECT 1 FROM hotel_reservations res
+                         WHERE res.room_id = r.id AND res.status IN ('BOOKED','CHECKED_IN')
+                           AND NOT (res.check_out <= ${checkIn}::date OR res.check_in >= ${checkOut}::date))
+                     ORDER BY r.sort_order, r.code`
+        : Prisma.sql`SELECT id, code, name, room_type, category, floor, capacity, rate, photo_url
+                     FROM hotel_rooms WHERE is_active = TRUE AND status NOT IN ('MAINTENANCE','BLOCKED') ORDER BY sort_order, code`));
   }
 
   async create(schema: string, by: string | null, dto: { roomId: string; guestName?: string; guestPhone?: string; checkIn: string; checkOut: string; guests?: number; source?: string }) {

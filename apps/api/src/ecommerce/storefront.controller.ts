@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Headers, Param, Post, Put, ServiceUnavailableException } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, Param, Post, Put, Query, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { CustomerProfileDto } from './dto/customer-profile.dto';
@@ -113,10 +113,10 @@ export class StorefrontController {
 
   // ── Pedidos/Reservas a partir da loja online (verticais) ───────
   @Get('rooms')
-  @ApiOperation({ summary: 'Quartos disponíveis para reserva (vertical Hotelaria)' })
-  async rooms(@Param('code') code: string) {
+  @ApiOperation({ summary: 'Quartos disponíveis para reserva (Booking) — filtra por datas se indicadas' })
+  async rooms(@Param('code') code: string, @Query('checkIn') checkIn?: string, @Query('checkOut') checkOut?: string) {
     const tenant = await this.resolver.resolveByCode(code);
-    return { businessType: tenant.businessType, rooms: await this.hotel.publicRooms(tenant.schema) };
+    return { businessType: tenant.businessType, rooms: await this.hotel.publicRooms(tenant.schema, checkIn, checkOut) };
   }
 
   @Post('reservation')

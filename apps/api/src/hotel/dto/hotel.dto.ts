@@ -8,6 +8,7 @@ export class CreateRoomDto {
   @IsOptional() @IsString() @Length(1, 10) floor?: string;
   @IsOptional() @IsInt() @Min(1) capacity?: number;
   @IsOptional() @IsNumber() @Min(0) rate?: number;
+  @IsOptional() @IsString() photoUrl?: string;
 }
 
 export class RoomStatusDto {
