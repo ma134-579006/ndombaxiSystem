@@ -35,15 +35,46 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
     finally { setPrintId(null); }
   };
 
+  // Seleção múltipla (gerente/gestor): permite marcar várias vendas — ou TODAS —
+  // e anulá-las em lote (cada uma gera a sua nota de crédito; nada se apaga).
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true); setErr(null);
-    try { setRows(await api.listSales(from, to)); }
+    try { setRows(await api.listSales(from, to)); setSel(new Set()); }
     catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao carregar vendas.'); }
     finally { setLoading(false); }
   }, [from, to]);
 
   // Filtra AUTOMATICAMENTE ao mudar as datas (sem botão "Filtrar").
   useEffect(() => { void load(); }, [load]);
+
+  // Só vendas VÁLIDAS (não anuladas) podem ser selecionadas para anular.
+  const cancellable = rows.filter((r) => r.status !== 'A');
+  const allSel = cancellable.length > 0 && cancellable.every((r) => sel.has(r.id));
+  const toggleOne = (id: string) =>
+    setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleAll = () => setSel(allSel ? new Set() : new Set(cancellable.map((r) => r.id)));
+
+  // Anula em LOTE todas as vendas selecionadas (NC por cada uma). Continua mesmo
+  // que uma falhe, e no fim relata quantas foram anuladas.
+  const cancelSelected = async () => {
+    const ids = cancellable.filter((r) => sel.has(r.id)).map((r) => r.id);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Anular ${ids.length} venda(s) selecionada(s)? Cada uma gera uma nota de crédito (estorna stock e financeiro). Esta ação não se apaga.`)) return;
+    setBulkBusy(true); setErr(null); setMsg(null);
+    let ok = 0; const fails: string[] = [];
+    for (const id of ids) {
+      const row = rows.find((r) => r.id === id);
+      try { await api.cancelInvoice(id, 'Anulação em lote (histórico de vendas)'); ok += 1; }
+      catch (e) { fails.push(`${row?.number ?? id}: ${e instanceof ApiError ? e.message : 'erro'}`); }
+    }
+    setBulkBusy(false);
+    if (ok > 0) setMsg(`${ok} venda(s) anulada(s). Stock e financeiro revertidos (notas de crédito).`);
+    if (fails.length) setErr(`Não foi possível anular ${fails.length}: ${fails.slice(0, 3).join(' · ')}${fails.length > 3 ? '…' : ''}`);
+    await load(); onChanged?.();
+  };
 
   // Cancelamento POR PRODUTO: abre o detalhe da venda para escolher artigos.
   const [cancelTarget, setCancelTarget] = useState<SaleRow | null>(null);
@@ -72,11 +103,34 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
         {err ? <div className="banner danger">{err}</div> : null}
         {msg ? <div className="banner success">{msg}</div> : null}
 
+        {canCancel && cancellable.length > 0 ? (
+          <div className="sm-bulk">
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'pointer' }}>
+              <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todas as vendas" />
+              Selecionar todas ({cancellable.length})
+            </label>
+            <span className="muted">{sel.size > 0 ? `· ${sel.size} marcada(s)` : ''}</span>
+            <span style={{ flex: 1 }} />
+            {sel.size > 0 ? (
+              <button className="btn sm ghost" onClick={() => setSel(new Set())} disabled={bulkBusy}>Limpar</button>
+            ) : null}
+            <button className="btn sm danger" onClick={() => void cancelSelected()} disabled={bulkBusy || sel.size === 0}>
+              {bulkBusy ? 'A anular…' : `✖ Anular selecionadas${sel.size > 0 ? ` (${sel.size})` : ''}`}
+            </button>
+          </div>
+        ) : null}
+
         <div className="sm-list">
           {rows.length === 0 && !loading ? <div className="empty">Sem vendas no período.</div> : (
             <table className="sales-table">
               <thead>
                 <tr>
+                  {canCancel ? (
+                    <th style={{ width: 30 }}>
+                      <input type="checkbox" checked={allSel} onChange={toggleAll}
+                        disabled={cancellable.length === 0} title="Selecionar todas" aria-label="Selecionar todas as vendas" />
+                    </th>
+                  ) : null}
                   <th>Documento</th><th>Data</th><th>Produtos</th><th>Operador</th><th>Total</th><th>Estado</th><th>2ª via</th>
                   {canCancel ? <th>Cancelar</th> : null}
                 </tr>
@@ -86,6 +140,14 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
                   const cancelled = r.status === 'A';
                   return (
                     <tr key={r.id} className={cancelled ? 'cancelled' : ''}>
+                      {canCancel ? (
+                        <td className="sel-cell" data-label="">
+                          {!cancelled ? (
+                            <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleOne(r.id)}
+                              aria-label={`Selecionar venda ${r.number}`} />
+                          ) : null}
+                        </td>
+                      ) : null}
                       <td data-label="Documento">{r.number}</td>
                       <td data-label="Data">{fmtDateTime(r.system_entry_date)}</td>
                       <td data-label="Produtos" style={{ maxWidth: 280 }}>{r.items || '—'}</td>

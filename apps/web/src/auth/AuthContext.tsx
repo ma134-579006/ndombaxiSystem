@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { api, configureApi } from '../api/client';
+import { api, ApiError, configureApi } from '../api/client';
 import type { PlatformLoginInput, TenantLoginInput, TokenPair } from '../api/types';
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
 import { setTheme, DEFAULT_THEME } from '../theme';
@@ -105,17 +105,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       onAuthLost: () => clearSession(),
       refresh: async () => {
         const rt = refreshRef.current;
-        if (!rt) return false;
-        if (sessionExpired()) return false; // sessão expirou → força re-login
+        if (!rt) { clearSession(); return false; }
+        if (sessionExpired()) { clearSession(); return false; } // (desativado — sempre false)
         try {
           applyTokens(await api.refresh(rt));
           return true;
-        } catch {
+        } catch (e) {
+          // Sem logout por inatividade nem por falha de rede: só termina a sessão
+          // se o refresh token for REJEITADO (401/403). Rede/servidor (API a
+          // acordar) preservam a sessão e o trabalho em curso.
+          if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
+            clearSession();
+          }
           return false;
         }
       },
     });
   }, [applyTokens, clearSession]);
+
+  // Renovação PROATIVA do token: renova ~1 min antes de expirar para a sessão do
+  // gestor nunca cair sozinha (incl. quando o gestor abre/usa a caixa). Só a
+  // inatividade bloqueia o ecrã; nunca há logout automático.
+  useEffect(() => {
+    if (status !== 'authed' || !user?.exp) return;
+    const msLeft = user.exp * 1000 - Date.now() - 60_000;
+    const delay = Math.min(Math.max(msLeft, 5_000), 12 * 60 * 1000);
+    const t = window.setTimeout(() => {
+      void (async () => {
+        const rt = refreshRef.current;
+        if (!rt) return;
+        try { applyTokens(await api.refresh(rt)); }
+        catch { /* rede/servidor — mantém a sessão; tenta no próximo ciclo */ }
+      })();
+    }, delay);
+    return () => window.clearTimeout(t);
+  }, [status, user, applyTokens]);
 
   useEffect(() => {
     let alive = true;

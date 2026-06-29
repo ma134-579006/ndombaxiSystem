@@ -326,6 +326,7 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .sm-filters label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
 .sm-filters input[type=date] { background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 7px 9px; color: var(--text); }
 .sm-list { overflow: auto; flex: 1; }
+.sm-bulk { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px; padding: 9px 12px; font-size: 13px; color: var(--text); }
 .sales-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .sales-table th, .sales-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 .sales-table tr.cancelled { opacity: .55; text-decoration: line-through; }
@@ -531,6 +532,14 @@ html.kbd-open .login-card .footer-credit { display: none; }
   color: var(--muted); font-size: 12px; line-height: 1.5; text-align: center; white-space: pre-wrap; word-break: break-word;
 }
 .receipt .r-foot { padding: 0 22px 22px; }
+/* Ações do fecho de turno: grelha adaptável — 2×2 em ecrã estreito (telemóvel),
+   linha única em ecrã largo. Botões com ícone, alinhados e do mesmo tamanho. */
+.shift-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 4px 22px 22px; }
+.shift-act { display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
+.shift-act .ic { font-size: 16px; line-height: 1; }
+.shift-wa { background: #25D366; color: #06351f; box-shadow: 0 8px 20px -10px #25D366; }
+.shift-done { grid-column: 1 / -1; }
+@media (min-width: 560px) { .shift-actions { grid-template-columns: repeat(4, 1fr); } .shift-done { grid-column: auto; } }
 .hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 
 /* ── Cabeçalho da empresa no recibo ───────────────────────── */
@@ -750,13 +759,21 @@ html.kbd-open .login-card .footer-credit { display: none; }
 @media print {
   /* Fallback (a regra @page real é injectada por print.ts conforme 80/58mm). */
   @page { size: 80mm auto; margin: 0; }
-  html, body { width: var(--paper-mm, 80mm) !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  html, body { width: var(--paper-mm, 80mm) !important; margin: 0 !important; padding: 0 !important; background: #fff !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+  /* Neutraliza posicionamento/transform/overflow dos ANCESTRAIS para o recibo
+     ancorar no TOPO da página (sem deslocamento nem sobreposição com a UI). */
+  #root, .app-bg, .pos, .scan-overlay, .modal-bg > * {
+    position: static !important; transform: none !important; overflow: visible !important;
+    height: auto !important; min-height: 0 !important; max-height: none !important;
+  }
   body * { visibility: hidden !important; }
+  /* Só o ÚLTIMO recibo aberto imprime — evita 2 modais sobrepostos no papel. */
+  .modal-bg:not(:last-of-type) { display: none !important; }
   .modal-bg, .modal-bg * { visibility: visible !important; }
   .modal-bg {
-    position: absolute !important; left: 0 !important; top: 0 !important;
-    width: var(--paper-mm, 80mm) !important; height: auto !important; display: block !important;
-    background: #fff !important; backdrop-filter: none !important; padding: 0 !important; z-index: 0 !important;
+    position: absolute !important; left: 0 !important; top: 0 !important; right: auto !important; bottom: auto !important;
+    width: var(--paper-mm, 80mm) !important; height: auto !important; min-height: 0 !important; display: block !important;
+    background: #fff !important; backdrop-filter: none !important; padding: 0 !important; margin: 0 !important; z-index: 0 !important;
   }
   .modal-bg .card, .modal-bg .receipt {
     box-shadow: none !important; border: none !important; border-radius: 0 !important;
@@ -771,7 +788,7 @@ html.kbd-open .login-card .footer-credit { display: none; }
   .modal-bg .kv { padding: 2px 0 !important; font-size: 12px !important; }
   .modal-bg .kv .v.grand { font-size: 15px !important; font-weight: 900 !important; }
   .modal-bg .legend { font-size: 10.5px !important; }
-  .no-print, .r-foot, .modal-bg .trash { display: none !important; }
+  .no-print, .r-foot, .shift-actions, .paper-toggle, .modal-bg .trash { display: none !important; }
 }
 
 /* ============================================================

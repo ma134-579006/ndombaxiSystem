@@ -32,6 +32,16 @@
       "port": 5173
     },
     {
+      "name": "pos-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@nexus/pos",
+        "dev"
+      ],
+      "port": 5173
+    },
+    {
       "name": "store",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [

@@ -97,7 +97,9 @@ async function request<T>(
   if (res.status === 401 && auth && retry && hooks) {
     const ok = await hooks.refresh();
     if (ok) return request<T>(method, path, body, { auth, retry: false });
-    hooks.onAuthLost();
+    // O refresh decide se termina a sessão: só o faz quando o refresh token é
+    // REJEITADO (401/403). Falhas de rede/servidor (API a acordar) preservam a
+    // sessão — devolvemos o erro para a UI tratar (ex.: modo offline) sem logout.
     throw await parseError(res);
   }
 

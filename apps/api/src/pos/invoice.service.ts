@@ -123,7 +123,17 @@ export class InvoiceService {
       // próprio — consomem INGREDIENTES. Carrega as receitas dos produtos vendidos;
       // na venda baixa-se o stock dos ingredientes (não do prato).
       const prodIds = productRows.map((p) => p.id);
-      const recipeRows = prodIds.length
+      // Tabelas auxiliares (ficha técnica / lotes) podem não existir em tenants
+      // antigos com deriva de schema. Verifica a existência (to_regclass) ANTES
+      // de consultar — sem isto, a venda inteira rebentava com "relation does not
+      // exist". Mesmo padrão defensivo já usado para `receivables`.
+      const reg = await tx.$queryRaw<{ recipes: string | null; batches: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('product_recipes')::text AS recipes,
+                          to_regclass('product_batches')::text AS batches`,
+      );
+      const hasRecipes = !!reg[0]?.recipes;
+      const hasBatches = !!reg[0]?.batches;
+      const recipeRows = (prodIds.length && hasRecipes)
         ? await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; shared_stock: boolean | null; name: string }[]>(
             Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, p.shared_stock, p.name
                        FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
@@ -296,11 +306,12 @@ export class InvoiceService {
           );
         }
         // Validade: se o produto é gerido por lotes e só tem lotes expirados, bloqueia.
-        const batch = await tx.$queryRaw<{ total: string; valid: string }[]>(
+        // (Só consulta se a tabela de lotes existir — tenants antigos podem não a ter.)
+        const batch = hasBatches ? await tx.$queryRaw<{ total: string; valid: string }[]>(
           Prisma.sql`SELECT COALESCE(SUM(quantity),0) AS total,
                             COALESCE(SUM(quantity) FILTER (WHERE expiry_date IS NULL OR expiry_date >= ${today}::date),0) AS valid
                      FROM product_batches WHERE product_id = ${product.id}::uuid`,
-        );
+        ) : [];
         if (batch[0] && Number(batch[0].total) > 0 && Number(batch[0].valid) <= 0) {
           throw new BadRequestException(
             `"${line.description}" está expirado (sem lotes válidos). Venda bloqueada.`,

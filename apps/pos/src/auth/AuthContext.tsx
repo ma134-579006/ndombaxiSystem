@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { api, configureApi } from '../api/client';
+import { api, ApiError, configureApi } from '../api/client';
 import type { TenantLoginInput, TokenPair } from '../api/types';
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
 import { setTheme } from '../theme';
@@ -70,16 +70,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       onAuthLost: () => clearSession(),
       refresh: async () => {
         const rt = refreshRef.current;
-        if (!rt) return false;
+        if (!rt) { clearSession(); return false; }
         try {
           applyTokens(await api.refresh(rt));
           return true;
-        } catch {
+        } catch (e) {
+          // SEM logout por inatividade nem por falha de rede: só termina a sessão
+          // quando o refresh token é REJEITADO (401/403). Erros de rede (status 0)
+          // ou do servidor (5xx — API do Render a acordar) PRESERVAM a sessão;
+          // o operador continua autenticado e a app tenta de novo no próximo ciclo.
+          if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
+            clearSession();
+          }
           return false;
         }
       },
     });
   }, [applyTokens, clearSession]);
+
+  // Renovação PROATIVA do token de acesso: renova ~1 min ANTES de expirar para a
+  // sessão nunca cair sozinha aos 15 min. A inatividade apenas BLOQUEIA o ecrã
+  // (IdleLock, 2m30), preservando a venda em curso; nunca faz logout.
+  useEffect(() => {
+    if (status !== 'authed' || !user?.exp) return;
+    const msLeft = user.exp * 1000 - Date.now() - 60_000; // 1 min de margem
+    const delay = Math.min(Math.max(msLeft, 5_000), 12 * 60 * 1000);
+    const t = window.setTimeout(() => {
+      void (async () => {
+        const rt = refreshRef.current;
+        if (!rt) return;
+        try { applyTokens(await api.refresh(rt)); }
+        catch { /* rede/servidor — mantém a sessão; tenta no próximo 401/ciclo */ }
+      })();
+    }, delay);
+    return () => window.clearTimeout(t);
+  }, [status, user, applyTokens]);
 
   // Restaura a sessão guardada.
   useEffect(() => {

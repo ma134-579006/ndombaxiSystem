@@ -204,7 +204,8 @@ async function request<T>(
   if (res.status === 401 && auth && retry && hooks) {
     const ok = await hooks.refresh();
     if (ok) return request<T>(method, path, body, { auth, retry: false });
-    hooks.onAuthLost();
+    // O refresh termina a sessão só se o token for REJEITADO; falha de rede
+    // preserva a sessão (sem logout). Devolve o erro à UI.
     throw await parseError(res);
   }
   if (!res.ok) throw await parseError(res);
@@ -226,7 +227,7 @@ async function requestText(path: string, retry = true): Promise<string> {
   if (res.status === 401 && retry && hooks) {
     const ok = await hooks.refresh();
     if (ok) return requestText(path, false);
-    hooks.onAuthLost();
+    // Sem logout por falha de rede — o refresh já terminou a sessão se rejeitado.
     throw await parseError(res);
   }
   if (!res.ok) throw await parseError(res);
@@ -293,7 +294,7 @@ export const api = {
       if (res.status === 401 && hooks) {
         const ok = await hooks.refresh();
         if (ok) res = await call();
-        else hooks.onAuthLost();
+        // Sem logout por falha de rede — o refresh termina a sessão só se rejeitado.
       }
       if (!res.ok || !res.body) throw await parseError(res);
       const reader = res.body.getReader();

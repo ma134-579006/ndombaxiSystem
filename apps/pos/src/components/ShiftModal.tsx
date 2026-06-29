@@ -35,6 +35,37 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
     } catch (e) { setError(e instanceof Error ? e.message : 'Não foi possível gerar o PDF.'); }
     finally { setPdfBusy(false); }
   };
+
+  // Envia o RESUMO do fecho por WhatsApp (texto legível). No telemóvel usa a
+  // partilha nativa (escolhe WhatsApp e outras apps); no PC abre o WhatsApp Web.
+  const shareWhatsAppShift = (r: ShiftClose) => {
+    const empresa = identity?.companyName || identity?.brandName || 'Fecho de caixa';
+    const verdict = r.verdict === 'OK' ? '✅ Caixa certo'
+      : r.verdict === 'QUEBRA' ? `🔴 Quebra de ${formatKz(Math.abs(r.difference))}`
+      : `🟠 Sobra de ${formatKz(r.difference)}`;
+    const L: string[] = [`*${empresa}* — Fecho de turno`];
+    if (operatorName || r.openedByName) L.push(`Operador: ${operatorName || r.openedByName}`);
+    L.push(`Data: ${formatDateTime()}`, '',
+      `Fundo inicial: ${formatKz(r.openingFloat)}`,
+      `Vendas: ${formatKz(r.salesTotal)} (${r.salesCount})`,
+      `• Numerário: ${formatKz(r.cashSales)}`);
+    if (r.cardSales > 0) L.push(`• Cartão/TPA: ${formatKz(r.cardSales)}`);
+    if (r.cashIn > 0) L.push(`Reforços: ${formatKz(r.cashIn)}`);
+    if (r.cashOut > 0) L.push(`Sangrias: −${formatKz(r.cashOut)}`);
+    if (r.advancesPaid > 0) L.push(`Adiantamentos: −${formatKz(r.advancesPaid)}`);
+    L.push('',
+      `Esperado (gaveta): ${formatKz(r.expected)}`,
+      `Contado: ${formatKz(r.counted)}`,
+      `*${verdict}*`);
+    const texto = encodeURIComponent(L.join('\n'));
+    const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string }) => Promise<void> };
+    if (nav.share) {
+      void nav.share({ title: `${empresa} · Fecho`, text: decodeURIComponent(texto) })
+        .catch(() => window.open(`https://wa.me/?text=${texto}`, '_blank', 'noopener'));
+    } else {
+      window.open(`https://wa.me/?text=${texto}`, '_blank', 'noopener');
+    }
+  };
   const [openingFloat, setOpeningFloat] = useState('');
   const [counted, setCounted] = useState('');
   const [notes, setNotes] = useState('');
@@ -127,10 +158,22 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
           </div>
           <div className="receipt-credit">{copyrightLine()}</div>
           <PaperSizeToggle />
-          <div className="r-foot" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button className="btn ghost lg" style={{ flex: '1 1 30%' }} onClick={() => window.print()} title="Impressora térmica (80/58mm)">Imprimir (térmica)</button>
-            <button className="btn ghost lg" style={{ flex: '1 1 30%' }} onClick={() => void savePdf(r)} disabled={pdfBusy}>{pdfBusy ? 'A gerar…' : 'Guardar PDF (A4)'}</button>
-            <button className="btn lg" style={{ flex: '1 1 30%' }} onClick={onClosed} autoFocus>Concluir</button>
+          <div className="shift-actions">
+            <button className="btn ghost lg shift-act" onClick={() => window.print()} title="Impressora térmica (80/58mm)">
+              <span className="ic" aria-hidden>🖨</span> Imprimir
+            </button>
+            <button className="btn ghost lg shift-act" onClick={() => void savePdf(r)} disabled={pdfBusy}>
+              <span className="ic" aria-hidden>⬇️</span> {pdfBusy ? 'A gerar…' : 'PDF (A4)'}
+            </button>
+            <button className="btn lg shift-act shift-wa" onClick={() => shareWhatsAppShift(r)}>
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden>
+                <path d="M19.05 4.91A9.82 9.82 0 0 0 12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.004c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.02zM12.05 20.15h-.004a8.23 8.23 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.24-8.23 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.54-3.69 8.24-8.23 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.39.11-.51.11-.11.25-.29.37-.43.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/>
+              </svg>
+              WhatsApp
+            </button>
+            <button className="btn success lg shift-act shift-done" onClick={onClosed} autoFocus>
+              <IconCheck size={17} /> Concluir
+            </button>
           </div>
         </div>
       </div>
