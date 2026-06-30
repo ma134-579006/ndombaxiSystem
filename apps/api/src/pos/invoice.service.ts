@@ -135,9 +135,12 @@ export class InvoiceService {
       const hasBatches = !!reg[0]?.batches;
       const recipeRows = (prodIds.length && hasRecipes)
         ? await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; shared_stock: boolean | null; name: string }[]>(
+            // `product_id` é UUID: os ids vêm como TEXT (parâmetros) → é OBRIGATÓRIO
+            // o cast `::uuid`, senão o Postgres não tem operador `uuid = text` (42883)
+            // e a venda inteira rebenta. (= ANY(...::uuid[]) faz o cast do array.)
             Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, p.shared_stock, p.name
                        FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
-                       WHERE r.product_id IN (${Prisma.join(prodIds)})`)
+                       WHERE r.product_id = ANY(ARRAY[${Prisma.join(prodIds)}]::uuid[])`)
         : [];
       const recipeByProduct = new Map<string, { ingredientId: string; quantity: number; sharedStock: boolean; name: string }[]>();
       for (const r of recipeRows) {
