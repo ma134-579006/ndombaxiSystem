@@ -155,6 +155,25 @@ export class StockService {
                        updated_at = now()
                    WHERE id = ${input.productId}::uuid`,
       );
+
+      // ENGENHARIA DE CUSTOS (automática): se este produto é INGREDIENTE de pratos
+      // (ficha técnica), o seu novo custo médio ponderado altera o custo de TODOS
+      // os pratos que o usam — recalcula-os já (custo do prato = Σ qtd×custo dos
+      // ingredientes). Assim a margem/CMV/lucro ficam SEMPRE reais sem clicar em
+      // "recalcular custos". No-op para negócios sem receitas (afeta 0 linhas).
+      const hasRecipes = await tx.$queryRaw<{ r: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('product_recipes')::text AS r`,
+      );
+      if (hasRecipes[0]?.r) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE products p SET
+              cost_price = COALESCE((SELECT SUM(r.quantity * ing.cost_price)
+                                     FROM product_recipes r JOIN products ing ON ing.id = r.ingredient_id
+                                     WHERE r.product_id = p.id), 0),
+              updated_at = now()
+            WHERE p.id IN (SELECT product_id FROM product_recipes WHERE ingredient_id = ${input.productId}::uuid)`,
+        );
+      }
       // Stock mínimo (opcional) — alerta de reposição por loja.
       if (input.minQty != null && input.minQty >= 0) {
         await tx.$executeRaw(
