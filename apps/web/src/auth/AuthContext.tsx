@@ -75,6 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const accessRef = useRef<string | null>(null);
   const refreshRef = useRef<string | null>(null);
   const companyRef = useRef<string | undefined>(sessionStorage.getItem(LS_COMPANY) ?? undefined);
+  // Refresh ÚNICO em voo (single-flight): dedupe chamadas concorrentes para o mesmo
+  // refresh token (a API revoga-o na rotação). Evita a corrida proativo×on-demand
+  // que reutilizava o token → 401 → logout (ex.: desbloquear o ecrã passados >15 min).
+  const refreshInFlight = useRef<Promise<boolean> | null>(null);
 
   const applyTokens = useCallback((tokens: TokenPair) => {
     accessRef.current = tokens.accessToken;
@@ -98,30 +102,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus('guest');
   }, []);
 
+  // Renova o token UMA vez de cada vez (single-flight). Só termina a sessão quando
+  // o refresh token é REJEITADO (401/403); rede/servidor preservam a sessão.
+  const doRefresh = useCallback((): Promise<boolean> => {
+    if (refreshInFlight.current) return refreshInFlight.current;
+    const p = (async () => {
+      const rt = refreshRef.current;
+      if (!rt) { clearSession(); return false; }
+      if (sessionExpired()) { clearSession(); return false; } // (desativado — sempre false)
+      try { applyTokens(await api.refresh(rt)); return true; }
+      catch (e) {
+        if (e instanceof ApiError && (e.status === 401 || e.status === 403)) clearSession();
+        return false;
+      }
+    })().finally(() => { refreshInFlight.current = null; });
+    refreshInFlight.current = p;
+    return p;
+  }, [applyTokens, clearSession]);
+
   useEffect(() => {
     configureApi({
       getAccessToken: () => accessRef.current,
       getCompanyCode: () => companyRef.current,
       onAuthLost: () => clearSession(),
-      refresh: async () => {
-        const rt = refreshRef.current;
-        if (!rt) { clearSession(); return false; }
-        if (sessionExpired()) { clearSession(); return false; } // (desativado — sempre false)
-        try {
-          applyTokens(await api.refresh(rt));
-          return true;
-        } catch (e) {
-          // Sem logout por inatividade nem por falha de rede: só termina a sessão
-          // se o refresh token for REJEITADO (401/403). Rede/servidor (API a
-          // acordar) preservam a sessão e o trabalho em curso.
-          if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
-            clearSession();
-          }
-          return false;
-        }
-      },
+      refresh: () => doRefresh(),
     });
-  }, [applyTokens, clearSession]);
+  }, [clearSession, doRefresh]);
 
   // Renovação PROATIVA do token: renova ~1 min antes de expirar para a sessão do
   // gestor nunca cair sozinha (incl. quando o gestor abre/usa a caixa). Só a
@@ -130,16 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (status !== 'authed' || !user?.exp) return;
     const msLeft = user.exp * 1000 - Date.now() - 60_000;
     const delay = Math.min(Math.max(msLeft, 5_000), 12 * 60 * 1000);
-    const t = window.setTimeout(() => {
-      void (async () => {
-        const rt = refreshRef.current;
-        if (!rt) return;
-        try { applyTokens(await api.refresh(rt)); }
-        catch { /* rede/servidor — mantém a sessão; tenta no próximo ciclo */ }
-      })();
-    }, delay);
+    const t = window.setTimeout(() => { void doRefresh(); }, delay);
     return () => window.clearTimeout(t);
-  }, [status, user, applyTokens]);
+  }, [status, user, doRefresh]);
 
   useEffect(() => {
     let alive = true;

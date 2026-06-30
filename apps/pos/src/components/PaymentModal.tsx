@@ -36,6 +36,10 @@ export function PaymentModal({ total, customerName, onConfirm, onClose, busy }: 
   const quick = [total, 1000, 2000, 5000, 10000].filter((v, i, a) => a.indexOf(v) === i);
 
   const confirm = () => {
+    // GUARDA: o botão fica desativado quando insuficiente/sem cliente, mas o Enter
+    // do teclado (onSubmit) chamava confirm() diretamente, contornando-o e emitindo
+    // a fatura com pagamento a menos (furo de caixa). Bloqueia também aqui.
+    if (busy || insufficient || creditNoCustomer) return;
     if (type === 'CASH') {
       onConfirm({ paymentType: 'CASH', tendered: tenderedNum || total, changeGiven: change });
     } else {

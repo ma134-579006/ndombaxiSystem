@@ -14,7 +14,7 @@ const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'jul
  * (re-verificado no servidor) — o estado da app (venda em curso) é preservado.
  */
 export function IdleLock({ photo, name, role }: { photo: string | null; name: string; role: string }) {
-  const { logout } = useAuth();
+  const { logout, loginPin, companyCode, user } = useAuth();
   const [locked, setLocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [pin, setPin] = useState('');
@@ -65,11 +65,23 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
     if (!/^\d{4,8}$/.test(pin)) { setErr('Introduz o teu PIN.'); return; }
     setBusy(true); setErr(null);
     try {
-      const r = await api.verifyPin(pin);
-      if (r.ok) { setLocked(false); setPin(''); }
-      else { setErr('PIN incorreto. Tenta novamente.'); setPin(''); inputRef.current?.focus(); }
+      // RE-AUTENTICA com o PIN (a credencial do operador). Devolve SEMPRE o acesso
+      // e renova a sessão, mesmo que o token de 15min tenha expirado durante o
+      // bloqueio — NUNCA faz logout. (Antes usava verifyPin: com o token expirado
+      // caía no fluxo de refresh→logout ao fim de >15 min.)
+      if (companyCode && user?.sub) {
+        await loginPin(companyCode, user.sub, pin);
+      } else {
+        const r = await api.verifyPin(pin); // sem dados p/ re-login → verifica na sessão atual
+        if (!r.ok) throw new ApiError(401, 'PIN incorreto. Tenta novamente.');
+      }
+      setLocked(false); setPin('');
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'Não foi possível validar. Tenta de novo.');
+      const m = e instanceof ApiError
+        ? (e.status === 401 || e.status === 400 ? 'PIN incorreto. Tenta novamente.'
+           : e.status === 0 ? 'Sem ligação. Tenta de novo.' : e.message)
+        : 'Não foi possível validar. Tenta de novo.';
+      setErr(m); setPin(''); inputRef.current?.focus();
     } finally { setBusy(false); }
   };
 
