@@ -62,7 +62,18 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
       },
       { timeout: 60_000, maxWait: 10_000 },
     );
-    this.logger.log(`Tenant schema provisioned: ${schema} (${statements.length} statements)`);
+    // Aplica TAMBÉM as migrações idempotentes ao CRIAR a empresa. Algumas colunas/
+    // tabelas existem só em tenant_migrations.sql (não no template) — sem isto, toda
+    // a empresa NOVA nascia sem elas (ex.: users.last_seen_at, customers.staff_read_at)
+    // e funcionalidades como o chat partiam até ao próximo arranque (migrateAllTenants).
+    // Best-effort por statement: nunca derruba a criação da empresa.
+    const migrations = this.statementsFromFile('tenant_migrations.sql', schema);
+    let migOk = 0;
+    for (const stmt of migrations) {
+      try { await this.prisma.$executeRawUnsafe(stmt); migOk += 1; }
+      catch (err) { this.logger.debug(`migração inicial falhou (${schema}): ${err instanceof Error ? err.message : 'erro'}`); }
+    }
+    this.logger.log(`Tenant schema provisioned: ${schema} (${statements.length} template + ${migOk}/${migrations.length} migrações)`);
   }
 
   /**

@@ -38,7 +38,7 @@ export class PharmacyService {
                (b.expiry_date - CURRENT_DATE) AS days_left,
                p.name AS product_name, p.code AS product_code, p.active_ingredient
         FROM product_batches b JOIN products p ON p.id = b.product_id
-        WHERE b.expiry_date IS NOT NULL AND b.quantity > 0 AND b.expiry_date <= CURRENT_DATE + ${d}
+        WHERE b.expiry_date IS NOT NULL AND b.quantity > 0 AND b.expiry_date <= CURRENT_DATE + ${d}::int
         ORDER BY b.expiry_date ASC LIMIT 500`));
   }
 }

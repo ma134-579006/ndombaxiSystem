@@ -71,8 +71,10 @@ export class VerticalService {
     const r = await this.prisma.runInTenant(schema, async (tx) => {
       const openTables = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n FROM restaurant_orders WHERE status = 'OPEN'`);
       const openTotal = await tx.$queryRaw<{ s: number }[]>(Prisma.sql`SELECT COALESCE(SUM(total),0)::float8 AS s FROM restaurant_orders WHERE status = 'OPEN'`);
-      const todayN = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n FROM restaurant_orders WHERE status = 'CLOSED' AND updated_at::date = CURRENT_DATE`);
-      const todayRev = await tx.$queryRaw<{ s: number }[]>(Prisma.sql`SELECT COALESCE(SUM(total),0)::float8 AS s FROM restaurant_orders WHERE status = 'CLOSED' AND updated_at::date = CURRENT_DATE`);
+      // `restaurant_orders` não tem `updated_at` (só created_at/closed_at) — usar
+      // closed_at (preenchido no fecho da comanda) senão dá 42703 "column updated_at".
+      const todayN = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n FROM restaurant_orders WHERE status = 'CLOSED' AND closed_at::date = CURRENT_DATE`);
+      const todayRev = await tx.$queryRaw<{ s: number }[]>(Prisma.sql`SELECT COALESCE(SUM(total),0)::float8 AS s FROM restaurant_orders WHERE status = 'CLOSED' AND closed_at::date = CURRENT_DATE`);
       return { openTables: openTables[0]?.n ?? 0, openTotal: openTotal[0]?.s ?? 0, todayN: todayN[0]?.n ?? 0, todayRev: todayRev[0]?.s ?? 0 };
     });
     return {
