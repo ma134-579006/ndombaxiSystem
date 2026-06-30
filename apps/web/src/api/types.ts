@@ -179,6 +179,7 @@ export interface ManagerProduct {
   gallery: unknown;
   show_online: boolean;
   shared_stock: boolean;
+  is_ingredient?: boolean;
   is_active: boolean;
 }
 export interface CreateProductInput {
@@ -199,6 +200,7 @@ export interface CreateProductInput {
   sharedStock?: boolean;
   imageUrl?: string;
   showOnline?: boolean;
+  isIngredient?: boolean;
 }
 export interface UpdateProductInput {
   name?: string;
@@ -215,6 +217,7 @@ export interface UpdateProductInput {
   showOnline?: boolean;
   sharedStock?: boolean;
   isActive?: boolean;
+  isIngredient?: boolean;
 }
 
 /** Encomenda online (web_orders). Campos snake_case do raw SQL. */

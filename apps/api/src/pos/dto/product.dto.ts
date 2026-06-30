@@ -103,6 +103,12 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   showOnline?: boolean;
+
+  /** TRUE = ingrediente/matéria-prima: não se vende no caixa nem na loja; só para
+   *  a ficha técnica dos pratos (restauração). */
+  @IsOptional()
+  @IsBoolean()
+  isIngredient?: boolean;
 }
 
 export class UpdateProductDto {
@@ -173,4 +179,9 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  /** Marcar/desmarcar como ingrediente (matéria-prima). */
+  @IsOptional()
+  @IsBoolean()
+  isIngredient?: boolean;
 }

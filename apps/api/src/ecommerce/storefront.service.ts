@@ -52,7 +52,7 @@ export class StorefrontService {
                           p.image_url, p.gallery, pc.name AS category
                    FROM products p
                    LEFT JOIN product_categories pc ON pc.id = p.category_id
-                   WHERE p.is_active = TRUE AND p.show_online = TRUE
+                   WHERE p.is_active = TRUE AND p.show_online = TRUE AND p.is_ingredient = FALSE
                    ORDER BY p.name`,
       ),
     );

@@ -487,6 +487,8 @@ export const api = {
   // ── Back-office do GESTOR da empresa ───────────────────────
   products: {
     list: () => request<ManagerProduct[]>('GET', '/pos/products'),
+    /** Ingredientes/matéria-prima (não vendíveis; para a ficha técnica). */
+    ingredients: () => request<ManagerProduct[]>('GET', '/pos/products/ingredients'),
     create: (dto: CreateProductInput) => request<ManagerProduct>('POST', '/pos/products', dto),
     update: (id: string, dto: UpdateProductInput) =>
       request<ManagerProduct>('PATCH', `/pos/products/${id}`, dto),

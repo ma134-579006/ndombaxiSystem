@@ -33,6 +33,7 @@ interface FormState {
   imageUrl: string;
   showOnline: boolean;
   isActive: boolean;
+  isIngredient: boolean;
 }
 
 const EMPTY: FormState = {
@@ -53,6 +54,7 @@ const EMPTY: FormState = {
   imageUrl: '',
   showOnline: true,
   isActive: true,
+  isIngredient: false,
 };
 
 export function Products() {
@@ -72,6 +74,8 @@ export function Products() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [entering, setEntering] = useState(false);
+  // Vista: produtos vendíveis OU ingredientes (matéria-prima).
+  const [view, setView] = useState<'products' | 'ingredients'>('products');
 
   const toggleSel = (id: string) => setSelected((prev) => {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
@@ -103,13 +107,13 @@ export function Products() {
     setLoading(true);
     setError(null);
     try {
-      setProducts(await api.products.list());
+      setProducts(await (view === 'ingredients' ? api.products.ingredients() : api.products.list()));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar produtos.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [view]);
 
   useEffect(() => {
     void load();
@@ -129,7 +133,7 @@ export function Products() {
   };
 
   const openCreate = () => {
-    setForm(EMPTY);
+    setForm({ ...EMPTY, isIngredient: view === 'ingredients' });
     setFormError(null);
     setCreating(true);
   };
@@ -153,6 +157,7 @@ export function Products() {
       imageUrl: p.image_url ?? '',
       showOnline: p.show_online,
       isActive: p.is_active,
+      isIngredient: !!p.is_ingredient,
     });
     setFormError(null);
     setEditing(p);
@@ -180,7 +185,8 @@ export function Products() {
       setFormError('Indique o nome do produto.');
       return;
     }
-    const price = Number(form.unitPrice);
+    // Ingrediente (matéria-prima) não se vende → preço opcional (0 se vazio).
+    const price = (form.isIngredient && form.unitPrice.trim() === '') ? 0 : Number(form.unitPrice);
     if (!Number.isFinite(price) || price < 0) {
       setFormError('Preço inválido.');
       return;
@@ -200,6 +206,7 @@ export function Products() {
           showOnline: form.showOnline,
           sharedStock: form.sharedStock,
           isActive: form.isActive,
+          isIngredient: form.isIngredient,
         });
       } else {
         // Custo unitário = valor de compra (total) ÷ quantidade; se não houver
@@ -222,6 +229,7 @@ export function Products() {
           sharedStock: form.sharedStock,
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
+          isIngredient: form.isIngredient,
         };
         await api.products.create(payload);
       }
@@ -255,13 +263,19 @@ export function Products() {
     <>
       <div className="sticky-top">
         <div className="content-head">
-          <h2>Catálogo de produtos</h2>
+          <h2>{view === 'ingredients' ? 'Ingredientes (matéria-prima)' : 'Catálogo de produtos'}</h2>
+          <div className="seg" style={{ display: 'inline-flex', gap: 4, marginLeft: 10, background: 'var(--surface-2)', borderRadius: 10, padding: 3 }}>
+            <button className={`btn sm ${view === 'products' ? '' : 'ghost'}`} onClick={() => setView('products')}>Produtos</button>
+            <button className={`btn sm ${view === 'ingredients' ? '' : 'ghost'}`} onClick={() => setView('ingredients')}>Ingredientes</button>
+          </div>
           <span className="spacer" />
-          <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
-            <IconTruck size={16} /> Adicionar stock
-          </button>
+          {view === 'products' ? (
+            <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
+              <IconTruck size={16} /> Adicionar stock
+            </button>
+          ) : null}
           <button className="btn" onClick={openCreate}>
-            <IconPlus size={18} /> Novo produto
+            <IconPlus size={18} /> {view === 'ingredients' ? 'Novo ingrediente' : 'Novo produto'}
           </button>
         </div>
 
@@ -437,9 +451,15 @@ export function Products() {
           ) : null}
 
           <div className="switch-row">
-            <span>Mostrar na loja online</span>
-            <Switch checked={form.showOnline} onChange={(v) => setForm({ ...form, showOnline: v })} />
+            <span>É ingrediente (matéria-prima)<br /><small className="muted">Não se vende no caixa nem na loja — só para a ficha técnica dos pratos.</small></span>
+            <Switch checked={form.isIngredient} onChange={(v) => setForm({ ...form, isIngredient: v, showOnline: v ? false : form.showOnline })} />
           </div>
+          {!form.isIngredient ? (
+            <div className="switch-row">
+              <span>Mostrar na loja online</span>
+              <Switch checked={form.showOnline} onChange={(v) => setForm({ ...form, showOnline: v })} />
+            </div>
+          ) : null}
           {editing ? (
             <div className="switch-row">
               <span>Produto activo</span>

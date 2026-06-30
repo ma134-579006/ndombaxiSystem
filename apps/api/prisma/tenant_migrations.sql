@@ -188,3 +188,8 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS war
 -- Farmácia: princípio ativo + se exige receita médica (controlo de venda).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS active_ingredient     TEXT;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS requires_prescription BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Ingredientes/matéria-prima (restauração): produtos marcados como ingrediente NÃO
+-- aparecem no caixa nem na loja — servem só para a ficha técnica dos pratos. Default
+-- FALSE → produtos existentes continuam vendíveis (sem alteração de comportamento).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS is_ingredient BOOLEAN NOT NULL DEFAULT FALSE;

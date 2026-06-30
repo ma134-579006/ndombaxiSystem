@@ -169,6 +169,9 @@ function RecipesTab({ products }: { products: ManagerProduct[] }) {
   const [rows, setRows] = useState<{ ingredientCode: string; quantity: string }[]>([]);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
+  // Ingredientes (matéria-prima) — lista separada dos pratos vendíveis.
+  const [ingredients, setIngredients] = useState<ManagerProduct[]>([]);
+  useEffect(() => { void api.products.ingredients().then(setIngredients).catch(() => setIngredients([])); }, []);
   const dish = products.find((p) => p.id === dishId);
   const loadRecipe = useCallback(async (id: string) => {
     try {
@@ -190,8 +193,8 @@ function RecipesTab({ products }: { products: ManagerProduct[] }) {
       toast.success('Receita guardada. O stock dos ingredientes baixa ao fechar a comanda.');
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao guardar.'); } finally { setBusy(false); }
   };
-  const nameOf = (code: string) => products.find((p) => p.code === code)?.name ?? code;
-  const ingFiltered = q.trim() ? products.filter((p) => p.id !== dishId && `${p.name} ${p.code}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 16) : [];
+  const nameOf = (code: string) => ingredients.find((p) => p.code === code)?.name ?? products.find((p) => p.code === code)?.name ?? code;
+  const ingFiltered = q.trim() ? ingredients.filter((p) => p.id !== dishId && `${p.name} ${p.code}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 16) : [];
 
   const recompute = async () => {
     try { await api.restaurant.recomputeCosts(); toast.success('Custos das fichas técnicas recalculados.'); }

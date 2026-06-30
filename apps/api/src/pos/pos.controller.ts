@@ -56,6 +56,13 @@ export class PosController {
     return this.repo.listProducts(this.ctx.requireTenantSchema(), user.storeId ?? null);
   }
 
+  @Get('products/ingredients')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Lista ingredientes/matéria-prima (para a ficha técnica dos pratos)' })
+  listIngredients() {
+    return this.repo.listIngredients(this.ctx.requireTenantSchema());
+  }
+
   @Post('products')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Cria um produto (com imagens p/ a loja online)' })
