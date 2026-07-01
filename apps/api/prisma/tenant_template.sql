@@ -207,6 +207,13 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."invoice_items" (
 
 CREATE INDEX IF NOT EXISTS invoice_items_invoice_idx ON "{{SCHEMA}}"."invoice_items"(invoice_id);
 
+-- IMUTABILIDADE LEGAL (Decreto Presidencial 71/25): um documento fiscal emitido
+-- NUNCA pode ser eliminado. A anulação faz-se por estado 'A' + nota de crédito.
+-- A regra DO INSTEAD NOTHING torna o DELETE tecnicamente SEM EFEITO (a linha
+-- sobrevive sempre), garantindo a imutabilidade exigida ao nível da base de dados.
+CREATE OR REPLACE RULE fiscal_no_delete_invoices AS ON DELETE TO "{{SCHEMA}}"."invoices" DO INSTEAD NOTHING;
+CREATE OR REPLACE RULE fiscal_no_delete_invoice_items AS ON DELETE TO "{{SCHEMA}}"."invoice_items" DO INSTEAD NOTHING;
+
 -- ════════════════════════════════════════════════════════════
 -- Fase 3 — ERP base: fornecedores, armazéns, stock, compras (§5)
 -- ════════════════════════════════════════════════════════════

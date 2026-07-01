@@ -193,3 +193,9 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS requires_
 -- aparecem no caixa nem na loja — servem só para a ficha técnica dos pratos. Default
 -- FALSE → produtos existentes continuam vendíveis (sem alteração de comportamento).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS is_ingredient BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- IMUTABILIDADE LEGAL (DP 71/25): bloqueia tecnicamente a eliminação de documentos
+-- fiscais (a anulação é por estado 'A' + nota de crédito). DO INSTEAD NOTHING = o
+-- DELETE não tem efeito (a linha sobrevive). Idempotente (CREATE OR REPLACE RULE).
+CREATE OR REPLACE RULE fiscal_no_delete_invoices AS ON DELETE TO "{{SCHEMA}}"."invoices" DO INSTEAD NOTHING;
+CREATE OR REPLACE RULE fiscal_no_delete_invoice_items AS ON DELETE TO "{{SCHEMA}}"."invoice_items" DO INSTEAD NOTHING;
