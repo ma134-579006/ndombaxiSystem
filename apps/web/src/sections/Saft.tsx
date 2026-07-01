@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
+import type { AgtCommStatus } from '../api/types';
 import { IconReceipt } from '../components/Icons';
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -12,6 +13,24 @@ export function Saft() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  // Comunicação eletrónica à AGT (DP 71/25) — contrato configurado pelo Super Admin;
+  // aqui a empresa comunica os SEUS documentos.
+  const [comm, setComm] = useState<AgtCommStatus | null>(null);
+  const [commBusy, setCommBusy] = useState(false);
+  const [commMsg, setCommMsg] = useState<string | null>(null);
+  const loadComm = () => { api.agtComm.status().then(setComm).catch(() => setComm(null)); };
+  useEffect(() => { loadComm(); }, []);
+  const communicate = async () => {
+    setCommBusy(true); setCommMsg(null);
+    try {
+      const r = await api.agtComm.communicate();
+      setCommMsg(`${r.sent} documento(s) comunicado(s)${r.failed ? `, ${r.failed} falharam` : ''}.`);
+      loadComm();
+    } catch (e) {
+      setCommMsg(e instanceof ApiError ? e.message : 'Não foi possível comunicar à AGT.');
+    } finally { setCommBusy(false); }
+  };
 
   const years: number[] = [];
   for (let y = now.getFullYear(); y >= now.getFullYear() - 4; y--) years.push(y);
@@ -46,6 +65,31 @@ export function Saft() {
 
       {info ? <div className="banner success" style={{ marginBottom: 12 }}>{info}</div> : null}
       {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
+
+      <div className="card" style={{ maxWidth: 520 }}>
+        <h3 style={{ marginTop: 0 }}>Comunicação eletrónica à AGT</h3>
+        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+          Decreto Presidencial 71/25 — envia os teus documentos emitidos à AGT.
+        </p>
+        {!comm ? (
+          <p className="muted" style={{ fontSize: 13 }}>A carregar…</p>
+        ) : !comm.enabled ? (
+          <div className="banner" style={{ fontSize: 13 }}>A comunicação eletrónica ainda não foi ativada pela plataforma.</div>
+        ) : !comm.configured ? (
+          <div className="banner warn" style={{ fontSize: 13 }}>Falta configurar o endpoint da AGT (Super Admin).</div>
+        ) : (
+          <>
+            <div className="grid-2" style={{ marginBottom: 10 }}>
+              <div className="field" style={{ margin: 0 }}><label>Por comunicar</label><strong style={{ fontSize: 20 }}>{comm.pending}</strong></div>
+              <div className="field" style={{ margin: 0 }}><label>Já comunicados</label><strong style={{ fontSize: 20 }}>{comm.communicated}</strong></div>
+            </div>
+            <button className="btn lg block" onClick={communicate} disabled={commBusy || comm.pending === 0}>
+              {commBusy ? 'A comunicar…' : comm.pending === 0 ? 'Sem documentos pendentes' : `Comunicar ${comm.pending} documento(s)`}
+            </button>
+          </>
+        )}
+        {commMsg ? <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>{commMsg}</p> : null}
+      </div>
 
       <div className="card" style={{ maxWidth: 520 }}>
         <h3 style={{ marginTop: 0 }}>Exportar ficheiro SAF-T (AO)</h3>

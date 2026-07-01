@@ -1,5 +1,7 @@
 import { API_URL } from '../config';
 import type {
+  AgtCommResult,
+  AgtCommStatus,
   AgtConfig,
   AiProvider,
   AssistantConfig,
@@ -254,6 +256,12 @@ export const api = {
   // ── SAF-T (AGT): exporta o XML fiscal mensal ───────────────
   saft: {
     export: (year: number, month: number) => requestText(`/pos/saft?year=${year}&month=${month}`),
+  },
+
+  // ── Comunicação eletrónica à AGT (DP 71/25) — por empresa (gestor) ─────
+  agtComm: {
+    status: () => request<AgtCommStatus>('GET', '/fiscal/agt/status'),
+    communicate: () => request<AgtCommResult>('POST', '/fiscal/agt/communicate'),
   },
 
   // ── Preferências do utilizador (tema por perfil) ───────────

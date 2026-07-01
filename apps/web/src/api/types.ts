@@ -978,6 +978,11 @@ export interface AgtConfig {
   receiptLegend: string | null;
   reportFooter: string | null;
   extraFields: AgtExtraField[];
+  // Contrato de comunicação eletrónica com a AGT (DP 71/25) — só o Super Admin configura.
+  communicationEnabled: boolean;
+  endpointUrl: string | null;
+  hasApiKey: boolean;
+  apiKeyMask: string | null;
 }
 export interface UpdateAgtInput {
   environment?: string;
@@ -991,6 +996,23 @@ export interface UpdateAgtInput {
   receiptLegend?: string;
   reportFooter?: string;
   extraFields?: AgtExtraField[];
+  communicationEnabled?: boolean;
+  endpointUrl?: string;
+  /** Texto simples; "" limpa a credencial; omitir mantém a actual. */
+  apiKey?: string;
+}
+
+/** Estado da comunicação AGT do tenant (painel do gestor). */
+export interface AgtCommStatus {
+  enabled: boolean;
+  configured: boolean;
+  pending: number;
+  communicated: number;
+}
+export interface AgtCommResult {
+  sent: number;
+  failed: number;
+  errors: string[];
 }
 
 // ── Suporte (chat do site) + comentários públicos ───────────

@@ -446,6 +446,12 @@ model AgtFiscalConfig {
   receiptLegend             String? // rodapé dos recibos (ex.: "Processado por programa validado nº .../AGT")
   reportFooter              String? // rodapé/observações dos relatórios
   extraFields               Json      @default("[]") // [{key,label,value,showOnReceipt,showOnReport}] livres
+  // Contrato de COMUNICAÇÃO ELETRÓNICA com a AGT (DP 71/25) — configurável só pelo
+  // Super Admin (é a plataforma que fala com a AGT); os tenants apenas comunicam
+  // os SEUS documentos usando este contrato. Desligado por omissão (kill switch).
+  communicationEnabled      Boolean   @default(false)
+  endpointUrl               String? // URL do serviço web da AGT (contrato)
+  apiKeyEnc                 String? // credencial/token cifrado (AES-256-GCM, ver secret-box.ts)
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 

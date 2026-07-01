@@ -10,6 +10,8 @@ export function Fiscal() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState(false);
+  // Credencial de comunicação AGT: campo write-only (nunca chega em claro do servidor).
+  const [apiKeyInput, setApiKeyInput] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -51,8 +53,13 @@ export function Fiscal() {
         receiptLegend: cfg.receiptLegend ?? '',
         reportFooter: cfg.reportFooter ?? '',
         extraFields: cfg.extraFields.filter((f) => f.key || f.label || f.value),
+        communicationEnabled: cfg.communicationEnabled,
+        endpointUrl: cfg.endpointUrl ?? '',
+        // Só envia a credencial se o gestor escreveu algo (mantém a actual senão).
+        ...(apiKeyInput.trim() ? { apiKey: apiKeyInput.trim() } : {}),
       };
       setCfg(await api.fiscal.update(dto));
+      setApiKeyInput('');
       setOk(true);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Não foi possível guardar.');
@@ -90,6 +97,27 @@ export function Fiscal() {
         <p className="muted" style={{ fontSize: 13, marginBottom: 0 }}>
           Configure aqui, sem código, todos os dados que a AGT fornece e as legendas que constam nos recibos/relatórios.
         </p>
+      </div>
+
+      <div className="card">
+        <div className="row">
+          <h3 style={{ margin: 0 }}>Comunicação eletrónica à AGT</h3>
+          <span className="spacer" />
+          <label className="row" style={{ gap: 8, fontSize: 13 }}>
+            <input type="checkbox" checked={cfg.communicationEnabled} onChange={(e) => set('communicationEnabled', e.target.checked)} />
+            Ativa
+          </label>
+        </div>
+        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+          Contrato da PLATAFORMA com a AGT (Decreto Presidencial 71/25): endpoint e credencial únicos,
+          usados por todas as empresas para comunicar os SEUS próprios documentos, sob o seu NIF.
+          Enquanto não houver endpoint oficial da AGT, deixa desativado — não afeta a faturação.
+        </p>
+        <div className="field"><label>URL do serviço web da AGT</label><input value={cfg.endpointUrl ?? ''} onChange={(e) => set('endpointUrl', e.target.value)} placeholder="https://…agt.gov.ao/…" /></div>
+        <div className="field">
+          <label>Credencial / token {cfg.hasApiKey ? <span className="muted">(guardada: {cfg.apiKeyMask})</span> : <span className="muted">(nenhuma guardada)</span>}</label>
+          <input type="password" value={apiKeyInput} onChange={(e) => setApiKeyInput(e.target.value)} placeholder="Deixa vazio para manter a actual" autoComplete="new-password" />
+        </div>
       </div>
 
       <div className="card">

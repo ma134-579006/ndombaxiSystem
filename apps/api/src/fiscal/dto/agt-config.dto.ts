@@ -101,4 +101,23 @@ export class UpdateAgtConfigDto {
   @ValidateNested({ each: true })
   @Type(() => AgtExtraFieldDto)
   extraFields?: AgtExtraFieldDto[];
+
+  // ── Comunicação eletrónica com a AGT (DP 71/25) — contrato da plataforma ──
+  /** Liga/desliga globalmente a comunicação eletrónica (kill switch). */
+  @IsOptional()
+  @IsBoolean()
+  communicationEnabled?: boolean;
+
+  /** URL do serviço web da AGT para submissão de documentos. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 300)
+  endpointUrl?: string;
+
+  /** Credencial/token da AGT — texto simples na entrada (cifrado ao guardar).
+   *  Enviar string vazia limpa o segredo guardado; omitir mantém o actual. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 500)
+  apiKey?: string;
 }

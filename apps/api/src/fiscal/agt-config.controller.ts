@@ -16,9 +16,9 @@ export class AgtConfigController {
   constructor(private readonly config: AgtConfigService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Lê a configuração fiscal AGT' })
+  @ApiOperation({ summary: 'Lê a configuração fiscal AGT (credencial mascarada)' })
   get() {
-    return this.config.get();
+    return this.config.getSafe();
   }
 
   @Patch()
