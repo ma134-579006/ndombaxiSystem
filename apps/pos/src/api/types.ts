@@ -62,7 +62,8 @@ export interface SaleRow {
   doc_type: string;
   system_entry_date: string;
   gross_total: string;
-  status: string; // N=normal, A=anulada
+  status: string; // N=normal, A=anulada (validade fiscal)
+  doc_state?: string; // ciclo de vida: ISSUED|PAID|PARTIALLY_PAID|ANNULLED
   cashier_name: string | null;
   customer_name: string | null;
   items: string;

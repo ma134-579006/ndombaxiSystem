@@ -128,8 +128,8 @@ export class ReceivablesService {
     const amount = round2(dto.amount);
     if (amount <= 0) throw new BadRequestException('Valor inválido.');
     return this.prisma.runInTenant(schema, async (tx) => {
-      const rows = await tx.$queryRaw<{ original_amount: string; paid_amount: string; status: string; customer_name: string | null }[]>(
-        Prisma.sql`SELECT original_amount, paid_amount, status, customer_name
+      const rows = await tx.$queryRaw<{ original_amount: string; paid_amount: string; status: string; customer_name: string | null; invoice_id: string | null }[]>(
+        Prisma.sql`SELECT original_amount, paid_amount, status, customer_name, invoice_id
                    FROM receivables WHERE id = ${id}::uuid FOR UPDATE`,
       );
       if (!rows[0]) throw new NotFoundException('Conta a receber não encontrada.');
@@ -157,6 +157,14 @@ export class ReceivablesService {
       const status = newPaid >= original - 0.001 ? 'PAID' : 'PARTIAL';
       await tx.$executeRaw(Prisma.sql`
         UPDATE receivables SET paid_amount = ${newPaid}, status = ${status} WHERE id = ${id}::uuid`);
+
+      // Estado do documento (DP 71/25): a fatura a crédito passa a PAID quando
+      // liquidada, ou PARTIALLY_PAID enquanto há saldo. Nunca toca em anuladas.
+      if (rows[0].invoice_id) {
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE invoices SET doc_state = ${status === 'PAID' ? 'PAID' : 'PARTIALLY_PAID'}
+          WHERE id = ${rows[0].invoice_id}::uuid AND doc_state <> 'ANNULLED'`);
+      }
 
       await this.audit.recordInTx(tx, {
         actorId: actor.id, actorName: actor.name,

@@ -156,7 +156,9 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."invoices" (
   hash              TEXT NOT NULL,
   signature         TEXT,                    -- assinatura RSA-2048 base64 (Fase 9)
   signature_key_version INT,                  -- versão da chave de assinatura usada
-  status            TEXT NOT NULL DEFAULT 'N', -- N=normal, A=anulado
+  status            TEXT NOT NULL DEFAULT 'N', -- N=normal, A=anulado (validade fiscal)
+  doc_state         TEXT NOT NULL DEFAULT 'ISSUED', -- ciclo de vida (DP 71/25): ISSUED|PAID|PARTIALLY_PAID|ANNULLED
+  communicated_at   TIMESTAMPTZ,              -- quando comunicado à AGT (preparação p/ faturação eletrónica)
   source_invoice_id UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL, -- NC → fatura de origem
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT invoices_number_unique UNIQUE (number)

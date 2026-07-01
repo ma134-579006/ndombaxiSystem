@@ -322,17 +322,20 @@ export class InvoiceService {
         }
       }
 
+      // Estado do documento (DP 71/25): pagamento imediato (numerário/cartão/etc.) →
+      // PAID (fatura-recibo); venda a CRÉDITO fica ISSUED (passa a PAID ao liquidar).
+      const docState = input.paymentType === 'CREDIT' ? 'ISSUED' : 'PAID';
       const invRows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO invoices
             (number, doc_type, series, year, sequence, invoice_date, operation_date, system_entry_date, store_id,
              cashier_id, customer_id, customer_tax_id,
              net_total, iva_total, gross_total, signable_string, previous_hash, hash,
-            signature, signature_key_version)
+            signature, signature_key_version, doc_state)
           VALUES (${number}, ${input.docType}, ${input.series}, ${year}, ${sequence},
                   ${invoiceDate}::date, ${input.operationDate ?? null}::date, ${systemEntryDate}::timestamptz, ${warehouseId ?? null}::uuid,
                   ${input.cashierId ?? null}::uuid, ${input.customerId ?? null}::uuid, ${customerTaxId},
                   ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal},
-                  ${signable}, ${previousHash}, ${hash}, ${signature}, ${signatureKeyVersion})
+                  ${signable}, ${previousHash}, ${hash}, ${signature}, ${signatureKeyVersion}, ${docState})
           RETURNING id`,
       );
       const invoiceId = invRows[0].id;
@@ -510,7 +513,7 @@ export class InvoiceService {
       const where = Prisma.sql`WHERE ${Prisma.join(conds, ' AND ')}`;
       return tx.$queryRaw<Array<Record<string, unknown>>>(
         Prisma.sql`
-          SELECT i.id, i.number, i.doc_type, i.system_entry_date, i.gross_total, i.status,
+          SELECT i.id, i.number, i.doc_type, i.system_entry_date, i.gross_total, i.status, i.doc_state,
                  u.name AS cashier_name, c.name AS customer_name,
                  COALESCE((SELECT string_agg(ii.description || ' x' || ii.quantity, ', ')
                            FROM invoice_items ii WHERE ii.invoice_id = i.id), '') AS items
@@ -706,9 +709,9 @@ export class InvoiceService {
         })),
       });
 
-      // 3. Marca a factura original como Anulada (status 'A').
+      // 3. Marca a factura original como Anulada (status fiscal 'A' + estado ANNULLED).
       await tx.$executeRaw(
-        Prisma.sql`UPDATE invoices SET status = 'A' WHERE id = ${invoiceId}::uuid`,
+        Prisma.sql`UPDATE invoices SET status = 'A', doc_state = 'ANNULLED' WHERE id = ${invoiceId}::uuid`,
       );
 
       // 3b. Se era venda a CRÉDITO, anula a conta a receber (a dívida deixa de

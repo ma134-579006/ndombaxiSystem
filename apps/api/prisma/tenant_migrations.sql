@@ -199,3 +199,8 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS is_ingred
 -- DELETE não tem efeito (a linha sobrevive). Idempotente (CREATE OR REPLACE RULE).
 CREATE OR REPLACE RULE fiscal_no_delete_invoices AS ON DELETE TO "{{SCHEMA}}"."invoices" DO INSTEAD NOTHING;
 CREATE OR REPLACE RULE fiscal_no_delete_invoice_items AS ON DELETE TO "{{SCHEMA}}"."invoice_items" DO INSTEAD NOTHING;
+
+-- Estados do documento (DP 71/25): ciclo de vida separado do `status` fiscal ('N'/'A').
+-- ISSUED (emitido/por pagar) | PAID (pago — fatura-recibo) | PARTIALLY_PAID | ANNULLED.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS doc_state       TEXT NOT NULL DEFAULT 'ISSUED';
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS communicated_at TIMESTAMPTZ;

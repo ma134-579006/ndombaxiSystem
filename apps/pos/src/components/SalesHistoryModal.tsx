@@ -7,6 +7,19 @@ import { ReceiptModal } from './ReceiptModal';
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('pt-PT'); } catch { return s; } };
 
+/** Badge do ESTADO do documento (ciclo de vida DP 71/25): Paga / Por pagar /
+ *  Parcial / Anulada. Cai no `status` fiscal ('A') se não houver `doc_state`. */
+function stateBadge(r: SaleRow): React.ReactNode {
+  const st = r.status === 'A' ? 'ANNULLED' : (r.doc_state || 'PAID');
+  switch (st) {
+    case 'ANNULLED': return <span className="pill off">Anulada</span>;
+    case 'PAID': return <span className="pill on">Paga</span>;
+    case 'PARTIALLY_PAID': return <span className="pill warn">Parcial</span>;
+    case 'ISSUED': return <span className="pill">Por pagar</span>;
+    default: return <span className="pill on">Válida</span>;
+  }
+}
+
 /**
  * Histórico de vendas da caixa: lista as vendas por período, permite marcar
  * uma/várias (ou todas) e cancelar (estorna stock + financeiro via nota de
@@ -153,7 +166,7 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
                       <td data-label="Produtos" style={{ maxWidth: 280 }}>{r.items || '—'}</td>
                       <td data-label="Operador">{r.cashier_name || '—'}</td>
                       <td data-label="Total" style={{ fontWeight: 700 }}>{formatKz(Number(r.gross_total))}</td>
-                      <td data-label="Estado">{cancelled ? <span className="pill off">Anulada</span> : <span className="pill on">Válida</span>}</td>
+                      <td data-label="Estado">{stateBadge(r)}</td>
                       <td data-label="2ª via">
                         <button className="btn sm ghost" onClick={() => void reprint(r.id)} disabled={printId === r.id} title="Imprimir 2ª via">
                           {printId === r.id ? '…' : '🖨 Imprimir'}
