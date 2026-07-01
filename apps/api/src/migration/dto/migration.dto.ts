@@ -15,4 +15,10 @@ export class MigrationFileDto {
   @IsOptional()
   @IsString()
   fileName?: string;
+
+  /** Só relevante para produtos: loja específica onde o stock importado entra
+   *  (fica "por loja"). Omisso/null = "Todas as lojas" (stock partilhado). */
+  @IsOptional()
+  @IsString()
+  storeId?: string | null;
 }

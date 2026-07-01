@@ -281,16 +281,18 @@ export const api = {
     remove: (id: string) => request<void>('DELETE', `/backup/${id}`),
     previewRestore: (contentBase64: string, fileName?: string) =>
       request<RestorePreview>('POST', '/backup/restore/preview', { contentBase64, fileName }),
-    applyRestore: (contentBase64: string, fileName?: string) =>
-      request<RestoreResult>('POST', '/backup/restore/apply', { contentBase64, fileName }),
+    /** `storeId`: loja de destino para stock cuja loja de origem já não existe; omisso/null = essas linhas ficam por conta do próprio restauro. */
+    applyRestore: (contentBase64: string, fileName?: string, storeId?: string | null) =>
+      request<RestoreResult>('POST', '/backup/restore/apply', { contentBase64, fileName, storeId }),
   },
 
   // ── Migração de outros sistemas (Vendus, Primavera, Negócio, etc.) ──
   migration: {
     preview: (kind: MigrationKind, contentBase64: string, fileName?: string) =>
       request<MigrationPreview>('POST', '/migration/preview', { kind, contentBase64, fileName }),
-    apply: (kind: MigrationKind, contentBase64: string, fileName?: string) =>
-      request<MigrationApplyResult>('POST', '/migration/apply', { kind, contentBase64, fileName }),
+    /** `storeId`: só produtos — loja específica (stock por loja) ou omisso/null = todas as lojas (partilhado). */
+    apply: (kind: MigrationKind, contentBase64: string, fileName?: string, storeId?: string | null) =>
+      request<MigrationApplyResult>('POST', '/migration/apply', { kind, contentBase64, fileName, storeId }),
   },
 
   // ── Preferências do utilizador (tema por perfil) ───────────

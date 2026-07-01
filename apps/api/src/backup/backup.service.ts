@@ -205,10 +205,18 @@ export class BackupService {
     return { valid: true, generatedAt: dump.generatedAt, tables };
   }
 
-  /** Aplica o restauro: UPSERT por `id` (nunca apaga nada). Uma linha com erro
-   *  fica isolada — nunca interrompe as restantes nem as outras tabelas. */
-  async applyRestore(schema: string, contentBase64: string, actor: { id?: string | null; name?: string | null }): Promise<RestoreResult> {
+  /**
+   * Aplica o restauro: UPSERT por `id` (nunca apaga nada). Uma linha com erro
+   * fica isolada — nunca interrompe as restantes nem as outras tabelas.
+   * `storeId`: se a LOJA de origem de uma linha de stock (no backup) já não
+   * existir neste tenant, redirecciona-a para a loja escolhida — sem escolha,
+   * essa linha falha isoladamente (não afecta as restantes).
+   */
+  async applyRestore(
+    schema: string, contentBase64: string, actor: { id?: string | null; name?: string | null }, storeId?: string | null,
+  ): Promise<RestoreResult> {
     const dump = this.decode(contentBase64);
+    await this.redirectMissingStores(schema, dump, storeId);
     const tables: RestoreTableResult[] = [];
     for (const t of BACKUP_TABLES) {
       const rows = dump.tables[t] ?? [];
@@ -219,6 +227,22 @@ export class BackupService {
       details: { summary: tables.map((r) => ({ table: r.table, inserted: r.inserted, updated: r.updated, failed: r.failed })) },
     });
     return { applied: true, tables };
+  }
+
+  /** Redirecciona linhas de `stock_items` cuja loja de origem já não existe
+   *  neste tenant para a loja escolhida (mutação em memória do dump, ANTES do
+   *  upsert genérico — nunca toca na BD aqui). */
+  private async redirectMissingStores(schema: string, dump: BackupDump, storeId?: string | null): Promise<void> {
+    const rows = dump.tables['stock_items'];
+    if (!rows?.length) return;
+    const active = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM stores WHERE is_active = TRUE`));
+    const activeIds = new Set(active.map((s) => s.id));
+    if (!storeId || !activeIds.has(storeId)) return; // sem loja válida escolhida — deixa o upsert falhar isoladamente
+    dump.tables['stock_items'] = rows.map((row) => {
+      const wid = row.warehouse_id != null ? String(row.warehouse_id) : '';
+      return activeIds.has(wid) ? row : { ...row, warehouse_id: storeId };
+    });
   }
 
   /**

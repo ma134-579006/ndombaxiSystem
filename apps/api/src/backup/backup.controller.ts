@@ -67,6 +67,6 @@ export class BackupController {
   @Post('restore/apply')
   @ApiOperation({ summary: 'Aplica o restauro (upsert por id, nunca apaga nada)' })
   applyRestore(@Body() dto: RestoreBackupDto, @CurrentUser() user: JwtPayload) {
-    return this.svc.applyRestore(this.ctx.requireTenantSchema(), dto.contentBase64, { id: user.sub, name: user.name });
+    return this.svc.applyRestore(this.ctx.requireTenantSchema(), dto.contentBase64, { id: user.sub, name: user.name }, dto.storeId ?? null);
   }
 }

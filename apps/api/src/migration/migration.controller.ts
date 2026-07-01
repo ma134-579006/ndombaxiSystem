@@ -30,6 +30,6 @@ export class MigrationController {
   @ApiOperation({ summary: 'Aplica a importação (upsert por código/NIF/nome; nunca apaga nada)' })
   apply(@Body() dto: MigrationFileDto, @CurrentUser() user: JwtPayload) {
     const buf = Buffer.from(dto.contentBase64, 'base64');
-    return this.svc.apply(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName, { id: user.sub, name: user.name });
+    return this.svc.apply(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName, { id: user.sub, name: user.name }, dto.storeId ?? null);
   }
 }

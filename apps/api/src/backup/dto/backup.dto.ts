@@ -23,4 +23,11 @@ export class RestoreBackupDto {
   @IsOptional()
   @IsString()
   fileName?: string;
+
+  /** Loja para onde vai o stock cuja loja de origem (no backup) já não existe
+   *  neste tenant. Omisso/null = essas linhas de stock ficam por conta do
+   *  próprio restauro (falham isoladamente, sem afectar as restantes). */
+  @IsOptional()
+  @IsString()
+  storeId?: string | null;
 }

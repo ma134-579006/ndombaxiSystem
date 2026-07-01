@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
+import { StockService } from '../erp/stock.service';
 import {
   CUSTOMER_ALIASES, CustomerField,
   PRODUCT_ALIASES, ProductField,
@@ -58,12 +59,41 @@ export class MigrationService {
     return this.previewSuppliers(schema, headers, rows);
   }
 
-  // ── Aplicação (upsert; nunca destrutivo) ────────────────────────────────
-  apply(schema: string, kind: MigrationKind, buffer: Buffer, fileName: string | undefined, actor: Actor): Promise<MigrationApplyResult> {
+  /**
+   * Aplicação (upsert; nunca destrutivo). `storeId` só se aplica a PRODUTOS:
+   * loja específica (o stock importado fica "por loja", igual à criação manual
+   * de produtos) ou `null`/omisso = "Todas as lojas" (stock partilhado — pool
+   * central, o comportamento anterior). Clientes/fornecedores ignoram-no.
+   */
+  apply(
+    schema: string, kind: MigrationKind, buffer: Buffer, fileName: string | undefined, actor: Actor,
+    storeId?: string | null,
+  ): Promise<MigrationApplyResult> {
     const { headers, rows } = parseUploadedFile(buffer, fileName);
-    if (kind === 'products') return this.applyProducts(schema, headers, rows, actor, fileName);
+    if (kind === 'products') return this.applyProducts(schema, headers, rows, actor, fileName, storeId ?? null);
     if (kind === 'customers') return this.applyCustomers(schema, headers, rows, actor, fileName);
     return this.applySuppliers(schema, headers, rows, actor, fileName);
+  }
+
+  /**
+   * Fixa o saldo ABSOLUTO de stock de um produto numa loja (delta = alvo −
+   * actual), usando o método ESTÁTICO `StockService.applyMovement` DENTRO da
+   * transacção já aberta — nunca abre uma transacção aninhada (evitar esgotar
+   * ligações à Aiven num import com muitas linhas). Mesma lógica de
+   * `StockService.adjust()`, sem a transacção própria dessa função.
+   */
+  private async setAbsoluteStock(
+    tx: Prisma.TransactionClient, productId: string, warehouseId: string, targetQty: number, reference: string,
+  ): Promise<void> {
+    await tx.$executeRaw(Prisma.sql`
+      INSERT INTO stock_items (product_id, warehouse_id, quantity) VALUES (${productId}::uuid, ${warehouseId}::uuid, 0)
+      ON CONFLICT (product_id, warehouse_id) DO NOTHING`);
+    const cur = await tx.$queryRaw<{ quantity: string }[]>(Prisma.sql`
+      SELECT quantity FROM stock_items WHERE product_id = ${productId}::uuid AND warehouse_id = ${warehouseId}::uuid FOR UPDATE`);
+    const current = Number(cur[0]?.quantity ?? 0);
+    const delta = targetQty - current;
+    if (delta === 0) return;
+    await StockService.applyMovement(tx, { productId, warehouseId, type: 'ADJUST', quantity: delta, reference });
   }
 
   // ═══════════════════════════ PRODUTOS ═══════════════════════════════════
@@ -107,15 +137,30 @@ export class MigrationService {
 
   private async applyProducts(
     schema: string, headers: string[], rows: Record<string, unknown>[], actor: Actor, fileName?: string,
+    storeId: string | null = null,
   ): Promise<MigrationApplyResult> {
     const { mapping } = mapHeaders<ProductField>(headers, PRODUCT_ALIASES);
     if (!mapping.name) throw new BadRequestException('Não encontrei a coluna de nome do produto.');
     let created = 0, updated = 0, skipped = 0;
     const errors: string[] = [];
+    const stockRef = `Migração${fileName ? ` (${fileName})` : ''}`;
 
     await this.prisma.runInTenant(schema, async (tx) => {
       const catRows = await tx.$queryRaw<{ id: string; name: string }[]>(Prisma.sql`SELECT id, name FROM product_categories`);
       const catByName = new Map(catRows.map((c) => [c.name.trim().toLowerCase(), c.id]));
+
+      // Loja escolhida: confirma que existe (nunca confia cegamente num id vindo
+      // do frontend) e, se escolhida, lista TODAS as lojas ativas — precisamos de
+      // semear stock_items=0 nas outras lojas para um produto NOVO, tal como a
+      // criação manual de produtos já faz (preserva stock_qty = Σ stock_items).
+      let targetStore: { id: string } | null = null;
+      let allActiveStores: { id: string }[] = [];
+      if (storeId) {
+        const s = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM stores WHERE id = ${storeId}::uuid AND is_active = TRUE LIMIT 1`);
+        if (!s[0]) throw new BadRequestException('A loja escolhida não existe ou está inactiva.');
+        targetStore = s[0];
+        allActiveStores = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM stores WHERE is_active = TRUE`);
+      }
 
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
@@ -157,15 +202,36 @@ export class MigrationService {
             if (categoryId) sets.push(Prisma.sql`category_id = ${categoryId}::uuid`);
             if (costPrice !== null) sets.push(Prisma.sql`cost_price = ${costPrice}`);
             if (salePrice !== null) sets.push(Prisma.sql`unit_price = ${salePrice}`);
-            // Stock só se PARTILHADO — nunca desfasa o livro por loja (stock_items).
-            if (stock !== null && existingRow.shared_stock) sets.push(Prisma.sql`stock_qty = ${stock}`);
+            if (stock !== null) {
+              if (existingRow.shared_stock) {
+                // Partilhado: continua a actualizar-se directo (pool central).
+                sets.push(Prisma.sql`stock_qty = ${stock}`);
+              } else if (targetStore) {
+                // Por loja + o utilizador escolheu a loja: ajusta o saldo ABSOLUTO
+                // dessa loja (fora do UPDATE — StockService também actualiza o
+                // espelho stock_qty). Sem loja escolhida, nunca se mexe (evita
+                // desfasar o livro por loja sem saber a qual loja pertence).
+                await this.setAbsoluteStock(tx, existingRow.id, targetStore.id, Math.max(0, stock), stockRef);
+              }
+            }
             await tx.$executeRaw(Prisma.sql`UPDATE products SET ${Prisma.join(sets, ', ')} WHERE id = ${existingRow.id}::uuid`);
             updated++;
           } else {
             const finalCode = code || barcode || generateInternalCode('MIG');
-            await tx.$executeRaw(Prisma.sql`
+            const shared = !targetStore;
+            const insertedRows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
               INSERT INTO products (code, barcode, name, category_id, iva_code, unit_price, cost_price, stock_qty, shared_stock, show_online)
-              VALUES (${finalCode}, ${barcode || null}, ${name}, ${categoryId}::uuid, 'NOR', ${salePrice ?? 0}, ${costPrice ?? 0}, ${stock ?? 0}, TRUE, FALSE)`);
+              VALUES (${finalCode}, ${barcode || null}, ${name}, ${categoryId}::uuid, 'NOR', ${salePrice ?? 0}, ${costPrice ?? 0}, ${shared ? (stock ?? 0) : 0}, ${shared}, FALSE)
+              RETURNING id`);
+            if (targetStore) {
+              // Por loja: semeia stock_items=0 em TODAS as lojas ativas e a
+              // quantidade importada só na loja escolhida — preserva o invariante
+              // stock_qty = Σ stock_items (igual à criação manual de produtos).
+              for (const st of allActiveStores) {
+                const qty = st.id === targetStore.id ? Math.max(0, stock ?? 0) : 0;
+                await this.setAbsoluteStock(tx, insertedRows[0].id, st.id, qty, stockRef);
+              }
+            }
             created++;
           }
         } catch (e) {

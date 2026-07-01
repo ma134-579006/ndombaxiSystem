@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { RestorePreview, RestoreResult } from '../api/types';
+import type { RestorePreview, RestoreResult, WarehouseRow } from '../api/types';
 import { toast, confirmDialog } from '../components/feedback';
 import { IconShield, IconTruck } from '../components/Icons';
 
@@ -35,6 +35,12 @@ export function BackupRestore() {
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  // Loja de destino do stock cuja loja de origem (no backup) já não existe.
+  // '' = essas linhas ficam por conta do próprio restauro (falham isoladamente).
+  const [stores, setStores] = useState<WarehouseRow[]>([]);
+  const [storeId, setStoreId] = useState('');
+  useEffect(() => { api.inventory.warehouses().then(setStores).catch(() => setStores([])); }, []);
+
   const onPick = async (file: File | undefined) => {
     if (!file) return;
     setError(null); setPreview(null); setResult(null); setBusy(true);
@@ -52,7 +58,7 @@ export function BackupRestore() {
     if (!(await confirmDialog({ message: 'Restaurar este backup? Vai criar/actualizar os dados indicados. Nada é apagado.' }))) return;
     setBusy(true); setError(null);
     try {
-      setResult(await api.backup.applyRestore(contentB64, fileName ?? undefined));
+      setResult(await api.backup.applyRestore(contentB64, fileName ?? undefined, storeId || null));
       toast.success('Restauro concluído.');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Não foi possível restaurar.');
@@ -93,6 +99,15 @@ export function BackupRestore() {
                 ))}
               </tbody>
             </table>
+            {!result && preview.tables.some((t) => t.table === 'stock_items' && t.rows > 0) ? (
+              <div className="field">
+                <label>Se alguma loja do backup já não existir, o stock dela vai para</label>
+                <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                  <option value="">(deixar essas linhas por conta do restauro)</option>
+                  {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            ) : null}
             {!result ? (
               <div className="row" style={{ gap: 10, marginTop: 12 }}>
                 <button className="btn ghost lg" onClick={reset} disabled={busy}>Cancelar</button>

@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { MigrationApplyResult, MigrationKind, MigrationPreview } from '../api/types';
+import type { MigrationApplyResult, MigrationKind, MigrationPreview, WarehouseRow } from '../api/types';
 import { toast, confirmDialog } from '../components/feedback';
 import { IconShield, IconTruck, IconCube, IconBuilding, IconStore } from '../components/Icons';
 
@@ -54,6 +54,12 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const Icon = KIND_ICON[kind];
 
+  // Loja de destino do stock — só relevante para produtos. '' = Todas as lojas
+  // (stock partilhado); um id de loja = stock só nessa loja.
+  const [stores, setStores] = useState<WarehouseRow[]>([]);
+  const [storeId, setStoreId] = useState('');
+  useEffect(() => { if (kind === 'products') api.inventory.warehouses().then(setStores).catch(() => setStores([])); }, [kind]);
+
   const onPick = async (file: File | undefined) => {
     if (!file) return;
     setError(null); setPreview(null); setResult(null); setBusy(true);
@@ -71,7 +77,7 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
     if (!(await confirmDialog({ message: `Importar ${KIND_LABEL[kind].toLowerCase()}? Vai criar/actualizar registos — nada é apagado.` }))) return;
     setBusy(true); setError(null);
     try {
-      const r = await api.migration.apply(kind, contentB64, fileName ?? undefined);
+      const r = await api.migration.apply(kind, contentB64, fileName ?? undefined, kind === 'products' ? (storeId || null) : null);
       setResult(r);
       toast.success(`${KIND_LABEL[kind]}: ${r.created} criado(s), ${r.updated} actualizado(s).`);
     } catch (e) {
@@ -109,6 +115,15 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
             <div className="field" style={{ margin: 0 }}><label>A criar</label><strong style={{ color: 'var(--success)' }}>{preview.toCreate}</strong></div>
             <div className="field" style={{ margin: 0 }}><label>A actualizar</label><strong>{preview.toUpdate}</strong></div>
           </div>
+          {kind === 'products' && preview.detectedColumns.stock ? (
+            <div className="field" style={{ marginBottom: 8 }}>
+              <label>O stock importado entra em</label>
+              <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                <option value="">Todas as lojas (stock partilhado)</option>
+                {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          ) : null}
           {preview.toSkip > 0 ? <p className="muted" style={{ fontSize: 12 }}>{preview.toSkip} linha(s) sem nome — ignoradas.</p> : null}
           {preview.sample.length ? (
             <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 8px', marginBottom: 8 }}>
