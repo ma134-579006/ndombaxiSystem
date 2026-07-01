@@ -22,6 +22,8 @@ import { SiteModule } from './site/site.module';
 import { PaymentsModule } from './payments/payments.module';
 import { FiscalModule } from './fiscal/fiscal.module';
 import { StaffModule } from './staff/staff.module';
+import { BackupModule } from './backup/backup.module';
+import { MigrationModule } from './migration/migration.module';
 import { ChatModule } from './chat/chat.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
 import { ServiceOrdersModule } from './services/service-orders.module';
@@ -87,6 +89,8 @@ import { HealthController } from './health.controller';
     PaymentsModule,
     FiscalModule,
     StaffModule,
+    BackupModule,
+    MigrationModule,
     LandingModule,
     SubscriptionModule,
     CashboxModule,

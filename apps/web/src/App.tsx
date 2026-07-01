@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from './auth/AuthContext';
 import { loadSection, restoreDrafts, saveSection, startDraftCapture } from './workspace';
 import { KeyboardProvider } from './keyboard/KeyboardProvider';
 import { Shell, type NavItem } from './components/Shell';
-import { IconBuilding, IconCard, IconChart, IconCpu, IconCube, IconReceipt, IconStar, IconStore, IconTruck } from './components/Icons';
+import { IconBuilding, IconCard, IconChart, IconCpu, IconCube, IconReceipt, IconShield, IconStar, IconStore, IconTruck } from './components/Icons';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
 import { CompanySetup } from './pages/CompanySetup';
@@ -62,6 +62,9 @@ import { SubsAdmin } from './sections/SubsAdmin';
 import { PlatformDashboard } from './sections/PlatformDashboard';
 import { Integrations } from './sections/Integrations';
 import { MailSettings } from './sections/MailSettings';
+import { Backup } from './sections/Backup';
+import { BackupRestore } from './sections/BackupRestore';
+import { Migration } from './sections/Migration';
 
 const PLATFORM_NAV: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: IconChart },
@@ -135,6 +138,13 @@ const TENANT_NAV: NavItem[] = [
     ],
   },
   { key: 'saft', label: 'Fiscal · SAF-T', icon: IconReceipt, min: 1 },
+  {
+    key: 'backup-group', label: 'Backup & Restauro', icon: IconShield, min: 1, children: [
+      { key: 'backup', label: 'Backup', icon: IconShield, min: 1 },
+      { key: 'backup-restore', label: 'Restauro backup', icon: IconShield, min: 1 },
+      { key: 'migration', label: 'Migração', icon: IconShield, min: 1 },
+    ],
+  },
   { key: 'settings', label: 'Configurações', icon: IconBuilding, min: 1 },
 ];
 
@@ -275,6 +285,9 @@ function TenantPanel() {
       {section === 'operations' ? <Operations /> : null}
       {section === 'reports' ? <Reports /> : null}
       {section === 'saft' ? <Saft /> : null}
+      {section === 'backup' ? <Backup /> : null}
+      {section === 'backup-restore' ? <BackupRestore /> : null}
+      {section === 'migration' ? <Migration /> : null}
       {section === 'profit' ? <Profit /> : null}
       {section === 'cashflow' ? <Cashflow /> : null}
       {section === 'commissions' ? <Commissions /> : null}

@@ -4,6 +4,13 @@ import type {
   AgtCommStatus,
   AgtConfig,
   AiProvider,
+  BackupMeta,
+  BackupSettings,
+  MigrationApplyResult,
+  MigrationKind,
+  MigrationPreview,
+  RestorePreview,
+  RestoreResult,
   AssistantConfig,
   BankAccount,
   Company,
@@ -262,6 +269,28 @@ export const api = {
   agtComm: {
     status: () => request<AgtCommStatus>('GET', '/fiscal/agt/status'),
     communicate: () => request<AgtCommResult>('POST', '/fiscal/agt/communicate'),
+  },
+
+  // ── Backup & Restauro (dados de gestão nunca se perdem) ────
+  backup: {
+    settings: () => request<BackupSettings>('GET', '/backup/settings'),
+    updateSettings: (dto: { autoEnabled?: boolean; frequency?: string }) => request<BackupSettings>('PATCH', '/backup/settings', dto),
+    run: () => request<BackupMeta>('POST', '/backup/run'),
+    list: () => request<BackupMeta[]>('GET', '/backup'),
+    download: (id: string) => request<{ content: string; fileName: string }>('GET', `/backup/${id}/download`),
+    remove: (id: string) => request<void>('DELETE', `/backup/${id}`),
+    previewRestore: (contentBase64: string, fileName?: string) =>
+      request<RestorePreview>('POST', '/backup/restore/preview', { contentBase64, fileName }),
+    applyRestore: (contentBase64: string, fileName?: string) =>
+      request<RestoreResult>('POST', '/backup/restore/apply', { contentBase64, fileName }),
+  },
+
+  // ── Migração de outros sistemas (Vendus, Primavera, Negócio, etc.) ──
+  migration: {
+    preview: (kind: MigrationKind, contentBase64: string, fileName?: string) =>
+      request<MigrationPreview>('POST', '/migration/preview', { kind, contentBase64, fileName }),
+    apply: (kind: MigrationKind, contentBase64: string, fileName?: string) =>
+      request<MigrationApplyResult>('POST', '/migration/apply', { kind, contentBase64, fileName }),
   },
 
   // ── Preferências do utilizador (tema por perfil) ───────────

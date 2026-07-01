@@ -204,3 +204,21 @@ CREATE OR REPLACE RULE fiscal_no_delete_invoice_items AS ON DELETE TO "{{SCHEMA}
 -- ISSUED (emitido/por pagar) | PAID (pago — fatura-recibo) | PARTIALLY_PAID | ANNULLED.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS doc_state       TEXT NOT NULL DEFAULT 'ISSUED';
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS communicated_at TIMESTAMPTZ;
+
+-- Backup & Restauro + Migração (dados de gestão nunca se perdem).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."backups" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind            TEXT NOT NULL DEFAULT 'MANUAL',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by      UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_by_name TEXT,
+  size_bytes      INT NOT NULL DEFAULT 0,
+  tables_meta     JSONB NOT NULL DEFAULT '{}',
+  content_b64     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS backups_created_idx ON "{{SCHEMA}}"."backups"(created_at DESC);
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."suppliers" ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS backup_auto_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS backup_frequency    TEXT NOT NULL DEFAULT 'DAILY';
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS backup_last_at      TIMESTAMPTZ;

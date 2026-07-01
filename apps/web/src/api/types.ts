@@ -1015,6 +1015,44 @@ export interface AgtCommResult {
   errors: string[];
 }
 
+// ── Backup & Restauro ────────────────────────────────────────
+export interface BackupMeta {
+  id: string;
+  kind: 'MANUAL' | 'AUTO';
+  created_at: string;
+  created_by_name: string | null;
+  size_bytes: number;
+  tables_meta: Record<string, number>;
+}
+export interface BackupSettings {
+  autoEnabled: boolean;
+  frequency: 'DAILY' | 'WEEKLY';
+  lastAt: string | null;
+}
+export interface RestorePreview {
+  valid: boolean;
+  generatedAt?: string;
+  tables: { table: string; rows: number; toInsert: number; toUpdate: number }[];
+}
+export interface RestoreTableResult { table: string; inserted: number; updated: number; failed: number; errors: string[] }
+export interface RestoreResult { applied: boolean; tables: RestoreTableResult[] }
+
+// ── Migração (Vendus/Primavera/Negócio/etc.) ──────────────────
+export type MigrationKind = 'products' | 'customers' | 'suppliers';
+export interface MigrationPreviewRow { action: 'CREATE' | 'UPDATE'; data: Record<string, unknown> }
+export interface MigrationPreview {
+  kind: MigrationKind;
+  detectedColumns: Record<string, string>;
+  unmappedColumns: string[];
+  totalRows: number;
+  toCreate: number;
+  toUpdate: number;
+  toSkip: number;
+  sample: MigrationPreviewRow[];
+  skippedSamples: { row: number; reason: string }[];
+}
+export interface MigrationApplyResult { kind: MigrationKind; created: number; updated: number; skipped: number; errors: string[] }
+
 // ── Suporte (chat do site) + comentários públicos ───────────
 export interface SupportMsg { id: string; sender: 'VISITOR' | 'BOT' | 'ADMIN'; body: string; created_at: string }
 export interface SiteFeedback { id: string; author_name: string; body: string; likes: number; dislikes: number; created_at: string }

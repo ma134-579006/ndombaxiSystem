@@ -1195,3 +1195,28 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_consultations" (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS clinic_consult_patient_idx ON "{{SCHEMA}}"."clinic_consultations"(patient_id, created_at DESC);
+
+-- ════════════════════════════════════════════════════════════
+-- Backup & Restauro + Migração (dados de gestão nunca se perdem) ─
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."backups" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind            TEXT NOT NULL DEFAULT 'MANUAL', -- MANUAL | AUTO
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by      UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_by_name TEXT,
+  size_bytes      INT NOT NULL DEFAULT 0,
+  tables_meta     JSONB NOT NULL DEFAULT '{}', -- {tabela: nº de linhas}
+  content_b64     TEXT NOT NULL                -- dump JSON comprimido (gzip) em base64
+);
+CREATE INDEX IF NOT EXISTS backups_created_idx ON "{{SCHEMA}}"."backups"(created_at DESC);
+
+-- Ficha de contacto/observações — usado pela migração de outros sistemas para
+-- guardar o "histórico" que o ficheiro de origem trouxer.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."suppliers" ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- Backup automático (agendado): configuração por empresa.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS backup_auto_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS backup_frequency    TEXT NOT NULL DEFAULT 'DAILY'; -- DAILY | WEEKLY
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS backup_last_at      TIMESTAMPTZ;
