@@ -35,14 +35,21 @@ export class HrRepository {
       // procura o maior número existente e gera o seguinte (F-001, F-002, …).
       let employeeNumber = input.employeeNumber?.trim();
       if (!employeeNumber) {
-        // NOTA: usar '[^0-9]' (não '\D') — o '\D' perdia a barra invertida no
-        // template JS e chegava ao PostgreSQL como 'D', pelo que "F-001" não era
-        // limpo e o cast rebentava com 22P02 ao criar o 2.º funcionário.
-        // ::bigint evita overflow se alguém tiver usado um número longo (ex.: telefone).
-        const seq = await tx.$queryRaw<{ next: number | bigint }[]>(
-          Prisma.sql`SELECT COALESCE(MAX(NULLIF(regexp_replace(employee_number, '[^0-9]', '', 'g'), '')::bigint), 0) + 1 AS next FROM employees`,
+        // Nº automático ATÓMICO via document_counters (upsert com row-lock) — o
+        // antigo MAX()+1 podia dar o mesmo número a duas criações simultâneas.
+        // • Semeia a partir do maior número já existente (tenants antigos) e o
+        //   GREATEST garante que nunca recua se alguém inserir um nº manual maior.
+        // • '[^0-9]' (não '\D': perdia a barra e chegava ao PG como 'D' → 22P02).
+        // • LEAST(…, 99999998) protege o INT do contador de números absurdos
+        //   (ex.: um telefone usado como nº manual).
+        const seq = await tx.$queryRaw<{ last_sequence: number }[]>(
+          Prisma.sql`INSERT INTO document_counters (kind, year, last_sequence)
+                     VALUES ('EMP', 0, LEAST((SELECT COALESCE(MAX(NULLIF(regexp_replace(employee_number, '[^0-9]', '', 'g'), '')::bigint), 0) FROM employees), 99999998) + 1)
+                     ON CONFLICT (kind, year) DO UPDATE
+                     SET last_sequence = GREATEST(document_counters.last_sequence, LEAST((SELECT COALESCE(MAX(NULLIF(regexp_replace(employee_number, '[^0-9]', '', 'g'), '')::bigint), 0) FROM employees), 99999998)) + 1
+                     RETURNING last_sequence`,
         );
-        employeeNumber = `F-${String(seq[0]?.next ?? 1).padStart(3, '0')}`;
+        employeeNumber = `F-${String(seq[0]?.last_sequence ?? 1).padStart(3, '0')}`;
       }
       const rows = await tx.$queryRaw<EmployeeRow[]>(
         Prisma.sql`INSERT INTO employees

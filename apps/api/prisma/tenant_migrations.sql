@@ -222,3 +222,29 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."suppliers" ADD COLUMN IF NOT EXISTS notes TE
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS backup_auto_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS backup_frequency    TEXT NOT NULL DEFAULT 'DAILY';
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS backup_last_at      TIMESTAMPTZ;
+
+-- Defesa em profundidade (DP 71/25): campos FISCAIS de um documento emitido não
+-- podem ser reescritos por UPDATE — só o ciclo de vida (status, doc_state,
+-- communicated_at) muda. Fica NO FIM do ficheiro: as colunas referenciadas
+-- (operation_date, signature, source_invoice_id, …) já foram adicionadas acima
+-- em tenants antigos. Idempotente (CREATE OR REPLACE RULE).
+CREATE OR REPLACE RULE fiscal_no_update_invoices AS ON UPDATE TO "{{SCHEMA}}"."invoices"
+  WHERE NEW.number            IS DISTINCT FROM OLD.number
+     OR NEW.doc_type          IS DISTINCT FROM OLD.doc_type
+     OR NEW.series            IS DISTINCT FROM OLD.series
+     OR NEW.year              IS DISTINCT FROM OLD.year
+     OR NEW.sequence          IS DISTINCT FROM OLD.sequence
+     OR NEW.invoice_date      IS DISTINCT FROM OLD.invoice_date
+     OR NEW.operation_date    IS DISTINCT FROM OLD.operation_date
+     OR NEW.system_entry_date IS DISTINCT FROM OLD.system_entry_date
+     OR NEW.customer_tax_id   IS DISTINCT FROM OLD.customer_tax_id
+     OR NEW.net_total         IS DISTINCT FROM OLD.net_total
+     OR NEW.iva_total         IS DISTINCT FROM OLD.iva_total
+     OR NEW.gross_total       IS DISTINCT FROM OLD.gross_total
+     OR NEW.signable_string   IS DISTINCT FROM OLD.signable_string
+     OR NEW.previous_hash     IS DISTINCT FROM OLD.previous_hash
+     OR NEW.hash              IS DISTINCT FROM OLD.hash
+     OR NEW.signature         IS DISTINCT FROM OLD.signature
+     OR NEW.source_invoice_id IS DISTINCT FROM OLD.source_invoice_id
+  DO INSTEAD NOTHING;
+CREATE OR REPLACE RULE fiscal_no_update_invoice_items AS ON UPDATE TO "{{SCHEMA}}"."invoice_items" DO INSTEAD NOTHING;

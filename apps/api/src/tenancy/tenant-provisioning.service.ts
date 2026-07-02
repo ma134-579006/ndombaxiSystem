@@ -5,6 +5,26 @@ import { randomBytes } from 'node:crypto';
 import { PrismaService, assertValidSchemaName } from '../prisma/prisma.service';
 
 /**
+ * Divide um ficheiro SQL em statements (parser SIMPLES: strip de comentários
+ * '--' linha-a-linha + split por ';'). Exportado para ser testável.
+ * GUARDA: rejeita blocos '$$' (função/DO) — seriam partidos ao meio e aplicados
+ * corrompidos silenciosamente. Falhar já, com mensagem clara, é a opção segura.
+ */
+export function splitSqlStatements(raw: string, sourceName: string): string[] {
+  if (raw.includes('$$')) {
+    throw new Error(
+      `${sourceName} contém blocos '$$' (função/DO) que o parser simples não suporta — ` +
+      `use regras/statements simples ou substitua o parser antes de adicionar funções.`,
+    );
+  }
+  const stripped = raw
+    .split('\n')
+    .map((line) => { const i = line.indexOf('--'); return i >= 0 ? line.slice(0, i) : line; })
+    .join('\n');
+  return stripped.split(';').map((s) => s.trim()).filter((s) => s.length > 0);
+}
+
+/**
  * Provisiona, migra e remove os schemas PostgreSQL isolados de cada tenant
  * (§3.1, §3.3). No arranque, alinha automaticamente todos os tenants existentes
  * com o template atual (auto-cura de "deriva de schema").
@@ -38,13 +58,7 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
   /** Lê um ficheiro SQL, substitui {{SCHEMA}}, remove comentários e divide em statements. */
   private statementsFromFile(name: string, schema: string): string[] {
     const raw = readFileSync(this.resolvePrismaFile(name), 'utf-8').replaceAll('{{SCHEMA}}', schema);
-    // Remove comentários linha-a-linha ANTES de dividir por ';' (um statement
-    // multi-linha precedido de comentário não pode ser descartado inteiro).
-    const stripped = raw
-      .split('\n')
-      .map((line) => { const i = line.indexOf('--'); return i >= 0 ? line.slice(0, i) : line; })
-      .join('\n');
-    return stripped.split(';').map((s) => s.trim()).filter((s) => s.length > 0);
+    return splitSqlStatements(raw, name);
   }
 
   /** Gera um nome de schema único: tenant_<8 hex>. */
@@ -69,9 +83,19 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
     // Best-effort por statement: nunca derruba a criação da empresa.
     const migrations = this.statementsFromFile('tenant_migrations.sql', schema);
     let migOk = 0;
+    const migSamples: string[] = [];
     for (const stmt of migrations) {
       try { await this.prisma.$executeRawUnsafe(stmt); migOk += 1; }
-      catch (err) { this.logger.debug(`migração inicial falhou (${schema}): ${err instanceof Error ? err.message : 'erro'}`); }
+      catch (err) {
+        const msg = err instanceof Error ? err.message.split('\n')[0].slice(0, 160) : 'erro';
+        if (migSamples.length < 3 && !migSamples.includes(msg)) migSamples.push(msg);
+        this.logger.debug(`migração inicial falhou (${schema}): ${msg}`);
+      }
+    }
+    if (migOk < migrations.length) {
+      this.logger.warn(
+        `createTenantSchema(${schema}): ${migrations.length - migOk}/${migrations.length} migração(ões) falharam — ex.: ${migSamples.join(' | ')}`,
+      );
     }
     this.logger.log(`Tenant schema provisioned: ${schema} (${statements.length} template + ${migOk}/${migrations.length} migrações)`);
   }
@@ -90,12 +114,23 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
     ];
     let applied = 0;
     let failed = 0;
+    // As falhas NÃO podem ficar invisíveis (nível debug): a deriva de schema já
+    // causou bugs reais em produção (ex.: venda 42883). Guarda amostras e loga
+    // um resumo a WARN no fim.
+    const samples: string[] = [];
     for (const stmt of statements) {
       try { await this.prisma.$executeRawUnsafe(stmt); applied += 1; }
       catch (err) {
         failed += 1;
-        this.logger.debug(`ensureSchema(${schema}) stmt falhou: ${err instanceof Error ? err.message : 'erro'}`);
+        const msg = err instanceof Error ? err.message.split('\n')[0].slice(0, 160) : 'erro';
+        if (samples.length < 3 && !samples.includes(msg)) samples.push(msg);
+        this.logger.debug(`ensureSchema(${schema}) stmt falhou: ${msg}`);
       }
+    }
+    if (failed > 0) {
+      this.logger.warn(
+        `ensureSchema(${schema}): ${failed}/${statements.length} statement(s) falharam — ex.: ${samples.join(' | ')}`,
+      );
     }
     return { applied, failed };
   }

@@ -216,6 +216,33 @@ CREATE INDEX IF NOT EXISTS invoice_items_invoice_idx ON "{{SCHEMA}}"."invoice_it
 CREATE OR REPLACE RULE fiscal_no_delete_invoices AS ON DELETE TO "{{SCHEMA}}"."invoices" DO INSTEAD NOTHING;
 CREATE OR REPLACE RULE fiscal_no_delete_invoice_items AS ON DELETE TO "{{SCHEMA}}"."invoice_items" DO INSTEAD NOTHING;
 
+-- Defesa em profundidade (DP 71/25): os CAMPOS FISCAIS de um documento emitido
+-- também não podem ser reescritos por UPDATE (números, datas, totais, hash,
+-- assinatura). Só o ciclo de vida muda: status, doc_state e communicated_at.
+-- Um UPDATE que tente alterar campos core fica SEM EFEITO (a cadeia de hash
+-- continua a detetar; esta regra passa a IMPEDIR).
+CREATE OR REPLACE RULE fiscal_no_update_invoices AS ON UPDATE TO "{{SCHEMA}}"."invoices"
+  WHERE NEW.number            IS DISTINCT FROM OLD.number
+     OR NEW.doc_type          IS DISTINCT FROM OLD.doc_type
+     OR NEW.series            IS DISTINCT FROM OLD.series
+     OR NEW.year              IS DISTINCT FROM OLD.year
+     OR NEW.sequence          IS DISTINCT FROM OLD.sequence
+     OR NEW.invoice_date      IS DISTINCT FROM OLD.invoice_date
+     OR NEW.operation_date    IS DISTINCT FROM OLD.operation_date
+     OR NEW.system_entry_date IS DISTINCT FROM OLD.system_entry_date
+     OR NEW.customer_tax_id   IS DISTINCT FROM OLD.customer_tax_id
+     OR NEW.net_total         IS DISTINCT FROM OLD.net_total
+     OR NEW.iva_total         IS DISTINCT FROM OLD.iva_total
+     OR NEW.gross_total       IS DISTINCT FROM OLD.gross_total
+     OR NEW.signable_string   IS DISTINCT FROM OLD.signable_string
+     OR NEW.previous_hash     IS DISTINCT FROM OLD.previous_hash
+     OR NEW.hash              IS DISTINCT FROM OLD.hash
+     OR NEW.signature         IS DISTINCT FROM OLD.signature
+     OR NEW.source_invoice_id IS DISTINCT FROM OLD.source_invoice_id
+  DO INSTEAD NOTHING;
+-- As linhas de um documento emitido nunca são alteradas (nenhum fluxo o faz).
+CREATE OR REPLACE RULE fiscal_no_update_invoice_items AS ON UPDATE TO "{{SCHEMA}}"."invoice_items" DO INSTEAD NOTHING;
+
 -- ════════════════════════════════════════════════════════════
 -- Fase 3 — ERP base: fornecedores, armazéns, stock, compras (§5)
 -- ════════════════════════════════════════════════════════════
