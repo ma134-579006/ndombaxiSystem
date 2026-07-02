@@ -69,7 +69,7 @@ export class MigrationService {
 
   // ── Pré-visualização (NUNCA escreve na BD) ──────────────────────────────
   preview(schema: string, kind: MigrationKind, buffer: Buffer, fileName?: string): Promise<MigrationPreview> {
-    const { headers, rows } = parseUploadedFile(buffer, fileName);
+    const { headers, rows } = parseUploadedFile(buffer, fileName, kind);
     if (kind === 'products') return this.previewProducts(schema, headers, rows);
     if (kind === 'customers') return this.previewCustomers(schema, headers, rows);
     return this.previewSuppliers(schema, headers, rows);
@@ -85,7 +85,7 @@ export class MigrationService {
     schema: string, kind: MigrationKind, buffer: Buffer, fileName: string | undefined, actor: Actor,
     storeId?: string | null,
   ): Promise<MigrationApplyResult> {
-    const { headers, rows } = parseUploadedFile(buffer, fileName);
+    const { headers, rows } = parseUploadedFile(buffer, fileName, kind);
     if (kind === 'products') return this.applyProducts(schema, headers, rows, actor, fileName, storeId ?? null);
     if (kind === 'customers') return this.applyCustomers(schema, headers, rows, actor, fileName);
     return this.applySuppliers(schema, headers, rows, actor, fileName);

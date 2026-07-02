@@ -1733,3 +1733,84 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .lock-hint { position: absolute; bottom: 16px; left: 0; right: 0; text-align: center; font-size: 12px; opacity: .6; padding: 0 16px; }
 
 .lock-secs { font-size: .42em; font-weight: 300; opacity: .7; vertical-align: baseline; letter-spacing: 1px; }
+
+/* ═══════════════════ Migração de dados (responsivo) ═══════════════════ */
+.mig-intro { font-size: 13.5px; max-width: 760px; line-height: 1.55; }
+.mig-formats { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 18px; }
+.mig-chip { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; white-space: nowrap; }
+
+/* Grelha fluida: 1 coluna no telemóvel, 2–3 conforme a largura. minmax(0,…)
+   deixa os cards encolherem abaixo do conteúdo (impede fuga horizontal). */
+.mig-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+
+.mig-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; box-shadow: var(--shadow-sm); }
+.mig-card-head { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
+.mig-card-icon { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  color: #fff; background: var(--grad-primary); box-shadow: 0 6px 16px -8px var(--primary); }
+.mig-card-head h3 { margin: 0; font-size: 15.5px; }
+.mig-card-sub { margin: 3px 0 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+/* Zona de largar/carregar — o coração do novo desenho */
+.mig-drop { width: 100%; border: 1.5px dashed var(--border); background: var(--surface-2); border-radius: 14px;
+  padding: 22px 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;
+  color: var(--text); transition: border-color .15s, background .15s, transform .05s; text-align: center; }
+.mig-drop:hover { border-color: var(--primary); background: var(--primary-soft); }
+.mig-drop.over { border-color: var(--primary); background: var(--primary-soft); }
+.mig-drop.busy { cursor: default; opacity: .85; }
+.mig-drop:active { transform: translateY(1px); }
+.mig-drop > svg { color: var(--primary); }
+.mig-drop strong { font-size: 14px; }
+.mig-drop-hint { font-size: 12px; color: var(--muted); }
+
+.mig-spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--primary);
+  border-radius: 50%; display: inline-block; vertical-align: middle; animation: mig-spin .7s linear infinite; }
+@keyframes mig-spin { to { transform: rotate(360deg); } }
+
+.mig-msg { font-size: 12.5px; }
+.mig-preview, .mig-result { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.mig-file { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-size: 12.5px; min-width: 0; }
+.mig-file-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.mig-file-rows { flex: none; color: var(--muted); }
+
+/* Estatísticas: quebram para 2+ por linha sem estourar */
+.mig-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 8px; }
+.mig-stat { border: 1px solid var(--border); border-radius: 12px; padding: 10px; text-align: center; background: var(--surface-2); }
+.mig-stat-n { display: block; font-size: 22px; font-weight: 800; line-height: 1; }
+.mig-stat-l { display: block; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.mig-stat.create .mig-stat-n { color: var(--success); }
+.mig-stat.skip .mig-stat-n { color: var(--warning); }
+
+.mig-cols, .mig-errors { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.mig-cols > summary, .mig-errors > summary { cursor: pointer; padding: 9px 12px; font-size: 12.5px; font-weight: 600; }
+.mig-cols-body, .mig-errors-body { padding: 4px 12px 10px; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+.mig-col-row { display: flex; justify-content: space-between; gap: 10px; min-width: 0; }
+.mig-col-row span { color: var(--muted); flex: none; }
+.mig-col-row em { font-style: normal; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mig-col-unused { color: var(--muted); font-size: 11.5px; margin-top: 4px; overflow-wrap: anywhere; }
+.mig-errors-body { color: #fca5a5; overflow-wrap: anywhere; max-height: 160px; overflow-y: auto; }
+
+.mig-field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; }
+.mig-field > span { font-weight: 600; color: var(--muted); }
+.mig-field select { width: 100%; }
+
+.mig-sample { max-height: 168px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; padding: 4px 10px; }
+.mig-sample-row { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: 11.5px; border-bottom: 1px solid var(--border); }
+.mig-sample-row:last-child { border-bottom: none; }
+.mig-sample-data { overflow-wrap: anywhere; min-width: 0; }
+.mig-tag { flex: none; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  border-radius: 6px; padding: 2px 7px; }
+.mig-tag.new { background: rgba(16,185,129,.16); color: #6ee7b7; }
+.mig-tag.upd { background: var(--primary-soft); color: #bfdbfe; }
+
+/* Ações: no telemóvel empilham (nunca cortam o texto do botão) */
+.mig-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.mig-actions .btn { flex: 1 1 130px; justify-content: center; white-space: nowrap; }
+.mig-confirm { flex: 2 1 160px; }
+.mig-note { font-size: 11.5px; color: var(--muted); margin: 0; }
+
+@media (max-width: 380px) {
+  .mig-card { padding: 13px; }
+  .mig-actions .btn { flex-basis: 100%; }
+}

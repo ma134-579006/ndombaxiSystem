@@ -17,8 +17,11 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
 
   app.use(helmet());
-  app.use(json({ limit: '20mb' }));
-  app.use(urlencoded({ extended: true, limit: '20mb' }));
+  // 50 MB: os ficheiros de migração (Excel/CSV/SAF-T XML/.sql) chegam como
+  // base64 (infla ~33%), logo um ficheiro binário de ~30 MB precisa de ~40 MB
+  // de corpo. Sem esta folga, ficheiros grandes davam 413 ("erro de servidor").
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   // CORS: aceita a lista explícita do env (CORS_ORIGINS) E, por conveniência,
   // qualquer subdomínio de plataformas de deploy grátis (Cloudflare Pages /
