@@ -160,12 +160,22 @@ export class AuthService {
       where: { status: { notIn: ['SUSPENDED', 'CANCELLED'] } },
       take: 100,
     });
-    for (const c of all) {
-      if (seen.has(c.id)) continue;
-      try {
-        // sonda leve (colunas explícitas — forma estável entre schemas)
-        if (await this.tenantUsers.emailExists(c.schemaName, v)) { seen.add(c.id); out.push(c); }
-      } catch { /* schema indisponível — ignora */ }
+    const remaining = all.filter((c) => !seen.has(c.id));
+    try {
+      // Sonda em LOTE: UMA query UNION ALL para todos os schemas (elimina o
+      // N+1 que abria uma transacção por empresa em cada login).
+      const hits = await this.tenantUsers.schemasWithEmail(remaining.map((c) => c.schemaName), v);
+      for (const c of remaining) {
+        if (hits.has(c.schemaName)) { seen.add(c.id); out.push(c); }
+      }
+    } catch {
+      // Fallback (deriva de schema: uma tabela em falta chumba a query em lote):
+      // sonda antiga, uma a uma, tolerante a schemas indisponíveis.
+      for (const c of remaining) {
+        try {
+          if (await this.tenantUsers.emailExists(c.schemaName, v)) { seen.add(c.id); out.push(c); }
+        } catch { /* schema indisponível — ignora */ }
+      }
     }
     return out;
   }

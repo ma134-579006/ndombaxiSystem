@@ -1,4 +1,5 @@
 import { Body, Controller, ForbiddenException, Get, Headers, Param, Post, Put, Query, ServiceUnavailableException } from '@nestjs/common';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { CustomerProfileDto } from './dto/customer-profile.dto';
@@ -231,7 +232,11 @@ export class StorefrontController {
         'Callback de referência não configurado. Defina o "Segredo do callback EMIS" na Loja → Pagamentos (método Referência).',
       );
     }
-    if (!secret || secret !== expected) {
+    // Comparação em TEMPO CONSTANTE (via hash de comprimento fixo) — a
+    // comparação simples de strings vaza o nº de caracteres certos pelo tempo.
+    const a = createHash('sha256').update(secret ?? '').digest();
+    const b = createHash('sha256').update(expected).digest();
+    if (!secret || !timingSafeEqual(a, b)) {
       throw new ForbiddenException('Segredo de callback inválido.');
     }
     return this.orders.confirmReferencePayment(tenant.schema, dto);

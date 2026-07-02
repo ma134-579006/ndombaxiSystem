@@ -59,44 +59,94 @@ export class OrdersService {
    * (factura) reutilizando o motor do POS e liga-o à encomenda.
    */
   async pay(schema: string, orderId: string): Promise<{ orderId: string; invoiceNumber: string }> {
-    // 1. Lê e valida a encomenda + recolhe as linhas.
-    const { order, lines } = await this.prisma.runInTenant(schema, async (tx) => {
-      const orderRows = await tx.$queryRaw<OrderRow[]>(
-        Prisma.sql`SELECT id, order_number, status, customer_tax_id, invoice_id
-                   FROM web_orders WHERE id = ${orderId}::uuid FOR UPDATE`,
+    // 1. RESERVA atómica da encomenda (anti-corrida). O antigo SELECT ... FOR
+    // UPDATE só protegia DENTRO da 1.ª transacção: dois callbacks/aprovações
+    // quase simultâneos passavam ambos a validação e emitiam DUAS faturas
+    // fiscais (a 2.ª ficava órfã — SAF-T errado até anular). O UPDATE
+    // condicional garante que só UM processo entra; uma reserva pendurada
+    // (crash a meio) expira ao fim de 2 minutos.
+    let order: OrderRow | undefined;
+    try {
+      const claimed = await this.prisma.runInTenant(schema, (tx) =>
+        tx.$queryRaw<OrderRow[]>(
+          Prisma.sql`UPDATE web_orders SET payment_claimed_at = now()
+                     WHERE id = ${orderId}::uuid AND status = 'PENDING'
+                       AND (payment_claimed_at IS NULL OR payment_claimed_at < now() - interval '2 minutes')
+                     RETURNING id, order_number, status, customer_tax_id, invoice_id`,
+        ),
       );
-      if (orderRows.length === 0) throw new NotFoundException('Encomenda não encontrada');
-      if (orderRows[0].status !== 'PENDING') {
-        throw new BadRequestException(`Encomenda não está PENDING (estado: ${orderRows[0].status})`);
+      if (claimed.length === 0) {
+        const cur = await this.prisma.runInTenant(schema, (tx) =>
+          tx.$queryRaw<{ status: string }[]>(
+            Prisma.sql`SELECT status FROM web_orders WHERE id = ${orderId}::uuid LIMIT 1`,
+          ),
+        );
+        if (!cur[0]) throw new NotFoundException('Encomenda não encontrada');
+        throw new BadRequestException(
+          cur[0].status === 'PENDING'
+            ? 'O pagamento desta encomenda já está a ser processado. Aguarde uns segundos.'
+            : `Encomenda não está PENDING (estado: ${cur[0].status})`,
+        );
       }
-      const itemRows = await tx.$queryRaw<{ product_code: string; quantity: string }[]>(
-        Prisma.sql`SELECT product_code, quantity FROM web_order_items
-                   WHERE order_id = ${orderId}::uuid ORDER BY line_number`,
+      order = claimed[0];
+    } catch (e) {
+      // Tenant ainda sem a coluna payment_claimed_at (a auto-migração corre
+      // minutos após o deploy): usa o caminho antigo — funcional, apenas sem
+      // a proteção extra contra a corrida.
+      if (!(e instanceof Error) || !/payment_claimed_at/.test(e.message)) throw e;
+      const rows = await this.prisma.runInTenant(schema, (tx) =>
+        tx.$queryRaw<OrderRow[]>(
+          Prisma.sql`SELECT id, order_number, status, customer_tax_id, invoice_id
+                     FROM web_orders WHERE id = ${orderId}::uuid FOR UPDATE`,
+        ),
       );
-      return { order: orderRows[0], lines: itemRows };
-    });
-
-    // 2. Emite a factura (transacção própria do motor fiscal).
-    const invoice = await this.invoices.emit(schema, {
-      docType: DocumentType.FT,
-      series: 'WEB',
-      customerTaxId: order.customer_tax_id,
-      lines: lines.map((l) => ({ productCode: l.product_code, quantity: Number(l.quantity) })),
-    });
-
-    // 3. Liga a factura e marca PAID (guarda contra duplo pagamento).
-    const updated = await this.prisma.runInTenant(schema, (tx) =>
-      tx.$executeRaw(
-        Prisma.sql`UPDATE web_orders
-                   SET status = 'PAID', invoice_id = ${invoice.id}::uuid, updated_at = now()
-                   WHERE id = ${orderId}::uuid AND status = 'PENDING'`,
-      ),
-    );
-    if (updated === 0) {
-      throw new BadRequestException('Encomenda já não estava PENDING ao confirmar');
+      if (rows.length === 0) throw new NotFoundException('Encomenda não encontrada');
+      if (rows[0].status !== 'PENDING') {
+        throw new BadRequestException(`Encomenda não está PENDING (estado: ${rows[0].status})`);
+      }
+      order = rows[0];
     }
 
-    return { orderId, invoiceNumber: invoice.number };
+    try {
+      const lines = await this.prisma.runInTenant(schema, (tx) =>
+        tx.$queryRaw<{ product_code: string; quantity: string }[]>(
+          Prisma.sql`SELECT product_code, quantity FROM web_order_items
+                     WHERE order_id = ${orderId}::uuid ORDER BY line_number`,
+        ),
+      );
+
+      // 2. Emite a factura (transacção própria do motor fiscal).
+      const invoice = await this.invoices.emit(schema, {
+        docType: DocumentType.FT,
+        series: 'WEB',
+        customerTaxId: order.customer_tax_id,
+        lines: lines.map((l) => ({ productCode: l.product_code, quantity: Number(l.quantity) })),
+      });
+
+      // 3. Liga a factura e marca PAID (liberta a reserva).
+      const updated = await this.prisma.runInTenant(schema, (tx) =>
+        tx.$executeRaw(
+          Prisma.sql`UPDATE web_orders
+                     SET status = 'PAID', invoice_id = ${invoice.id}::uuid, updated_at = now()
+                     WHERE id = ${orderId}::uuid AND status = 'PENDING'`,
+        ),
+      );
+      if (updated === 0) {
+        throw new BadRequestException('Encomenda já não estava PENDING ao confirmar');
+      }
+
+      return { orderId, invoiceNumber: invoice.number };
+    } catch (e) {
+      // Liberta a reserva para permitir nova tentativa (best-effort; se o
+      // tenant não tiver a coluna, o UPDATE falha e ignora-se).
+      await this.prisma.runInTenant(schema, (tx) =>
+        tx.$executeRaw(
+          Prisma.sql`UPDATE web_orders SET payment_claimed_at = NULL
+                     WHERE id = ${orderId}::uuid AND status = 'PENDING'`,
+        ),
+      ).catch(() => undefined);
+      throw e;
+    }
   }
 
   /**

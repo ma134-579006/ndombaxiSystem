@@ -376,6 +376,10 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."web_orders" (
   geo_accuracy     NUMERIC(8,2),
   geo_updated_at   TIMESTAMPTZ,
   geo_consent      BOOLEAN NOT NULL DEFAULT FALSE,
+  -- RESERVA de pagamento (anti-corrida): carimbada atomicamente quando um
+  -- processo começa a emitir a fatura; impede que dois callbacks/aprovações
+  -- simultâneos emitam DUAS faturas fiscais para a mesma encomenda.
+  payment_claimed_at TIMESTAMPTZ,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT web_orders_number_unique UNIQUE (order_number)

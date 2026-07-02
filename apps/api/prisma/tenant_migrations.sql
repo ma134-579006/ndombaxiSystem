@@ -248,3 +248,6 @@ CREATE OR REPLACE RULE fiscal_no_update_invoices AS ON UPDATE TO "{{SCHEMA}}"."i
      OR NEW.source_invoice_id IS DISTINCT FROM OLD.source_invoice_id
   DO INSTEAD NOTHING;
 CREATE OR REPLACE RULE fiscal_no_update_invoice_items AS ON UPDATE TO "{{SCHEMA}}"."invoice_items" DO INSTEAD NOTHING;
+
+-- Reserva de pagamento da encomenda (anti-corrida na emissão da fatura).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS payment_claimed_at TIMESTAMPTZ;

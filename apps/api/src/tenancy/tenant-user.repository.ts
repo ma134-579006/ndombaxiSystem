@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, assertValidSchemaName } from '../prisma/prisma.service';
 import type { RoleName } from '@nexus/types';
 
 export interface TenantUser {
@@ -37,6 +37,28 @@ export interface CreateTenantUserInput {
 @Injectable()
 export class TenantUserRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Sonda em LOTE: devolve os schemas onde o e-mail existe como utilizador
+   * ATIVO — numa ÚNICA query UNION ALL (tabelas totalmente qualificadas, sem
+   * search_path nem transacção). Substitui o N+1 do login que abria uma
+   * transacção por empresa (segundos por login com dezenas de tenants).
+   * Quem chama deve manter um fallback por-schema (emailExists) para tolerar
+   * deriva de schema — se UMA tabela estiver em falta, a query inteira falha.
+   */
+  async schemasWithEmail(schemas: string[], email: string): Promise<Set<string>> {
+    if (schemas.length === 0) return new Set();
+    for (const s of schemas) assertValidSchemaName(s);
+    const parts = schemas.map((s) =>
+      Prisma.sql`SELECT ${s}::text AS schema_name
+                 WHERE EXISTS (SELECT 1 FROM ${Prisma.raw(`"${s}"`)}.users u
+                               WHERE u.email = ${email} AND u.is_active = TRUE)`,
+    );
+    const rows = await this.prisma.$queryRaw<{ schema_name: string }[]>(
+      Prisma.join(parts, ' UNION ALL '),
+    );
+    return new Set(rows.map((r) => r.schema_name));
+  }
 
   /** Sonda LEVE: o e-mail existe (ativo) neste tenant? Colunas explícitas —
    *  a forma do resultado é estável entre schemas (evita o erro 0A000
