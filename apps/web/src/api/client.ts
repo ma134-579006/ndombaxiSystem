@@ -190,9 +190,9 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  opts: { auth?: boolean; retry?: boolean } = {},
+  opts: { auth?: boolean; retry?: boolean; timeoutMs?: number } = {},
 ): Promise<T> {
-  const { auth = true, retry = true } = opts;
+  const { auth = true, retry = true, timeoutMs = 90_000 } = opts;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (auth) {
     const token = hooks?.getAccessToken();
@@ -204,7 +204,7 @@ async function request<T>(
   // Timeout defensivo: sem ele, um servidor "a acordar" (cold start) deixava o
   // pedido pendurado para sempre (spinner infinito). 90 s cobre o arranque.
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 90_000);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     res = await fetch(`${API_URL}${path}`, {
       method,
@@ -219,7 +219,7 @@ async function request<T>(
   } finally { clearTimeout(timer); }
   if (res.status === 401 && auth && retry && hooks) {
     const ok = await hooks.refresh();
-    if (ok) return request<T>(method, path, body, { auth, retry: false });
+    if (ok) return request<T>(method, path, body, { auth, retry: false, timeoutMs });
     // O refresh termina a sessão só se o token for REJEITADO; falha de rede
     // preserva a sessão (sem logout). Devolve o erro à UI.
     throw await parseError(res);
@@ -288,7 +288,7 @@ export const api = {
   backup: {
     settings: () => request<BackupSettings>('GET', '/backup/settings'),
     updateSettings: (dto: { autoEnabled?: boolean; frequency?: string }) => request<BackupSettings>('PATCH', '/backup/settings', dto),
-    run: () => request<BackupMeta>('POST', '/backup/run'),
+    run: () => request<BackupMeta>('POST', '/backup/run', undefined, { timeoutMs: 600_000 }),
     list: () => request<BackupMeta[]>('GET', '/backup'),
     download: (id: string) => request<{ content: string; fileName: string }>('GET', `/backup/${id}/download`),
     remove: (id: string) => request<void>('DELETE', `/backup/${id}`),
@@ -296,16 +296,17 @@ export const api = {
       request<RestorePreview>('POST', '/backup/restore/preview', { contentBase64, fileName }),
     /** `storeId`: loja de destino para stock cuja loja de origem já não existe; omisso/null = essas linhas ficam por conta do próprio restauro. */
     applyRestore: (contentBase64: string, fileName?: string, storeId?: string | null) =>
-      request<RestoreResult>('POST', '/backup/restore/apply', { contentBase64, fileName, storeId }),
+      request<RestoreResult>('POST', '/backup/restore/apply', { contentBase64, fileName, storeId }, { timeoutMs: 600_000 }),
   },
 
   // ── Migração de outros sistemas (Vendus, Primavera, Negócio, etc.) ──
   migration: {
     preview: (kind: MigrationKind, contentBase64: string, fileName?: string) =>
-      request<MigrationPreview>('POST', '/migration/preview', { kind, contentBase64, fileName }),
-    /** `storeId`: só produtos — loja específica (stock por loja) ou omisso/null = todas as lojas (partilhado). */
+      request<MigrationPreview>('POST', '/migration/preview', { kind, contentBase64, fileName }, { timeoutMs: 300_000 }),
+    /** `storeId`: só produtos — loja específica (stock por loja) ou omisso/null = todas as lojas (partilhado).
+     *  Timeout longo: um ficheiro grande (milhares de linhas) demora minutos no servidor (lotes). */
     apply: (kind: MigrationKind, contentBase64: string, fileName?: string, storeId?: string | null) =>
-      request<MigrationApplyResult>('POST', '/migration/apply', { kind, contentBase64, fileName, storeId }),
+      request<MigrationApplyResult>('POST', '/migration/apply', { kind, contentBase64, fileName, storeId }, { timeoutMs: 600_000 }),
   },
 
   // ── Preferências do utilizador (tema por perfil) ───────────

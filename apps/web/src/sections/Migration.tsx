@@ -138,7 +138,7 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
           <div className="row" style={{ gap: 8 }}>
             <button className="btn ghost sm" onClick={reset} disabled={busy}>Cancelar</button>
             <button className="btn sm" style={{ flex: 1 }} onClick={() => void apply()} disabled={busy || (preview.toCreate === 0 && preview.toUpdate === 0)}>
-              {busy ? 'A importar…' : `Confirmar (${preview.toCreate + preview.toUpdate})`}
+              {busy ? 'A importar… (ficheiros grandes demoram minutos)' : `Confirmar (${preview.toCreate + preview.toUpdate})`}
             </button>
           </div>
         </>
