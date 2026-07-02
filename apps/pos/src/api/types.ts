@@ -80,7 +80,7 @@ export interface SaleDetail {
   status: string;
   customerName: string | null;
   cashierName: string | null;
-  items: { productCode: string; description: string; quantity: number; unitPrice: number; total: number }[];
+  items: { productCode: string; description: string; quantity: number; unitPrice: number; total: number; returnedQuantity?: number }[];
 }
 
 export interface EmitInvoiceInput {

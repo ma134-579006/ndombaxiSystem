@@ -321,6 +321,10 @@ html.kbd-open .login-card .footer-credit { display: none; }
 
 /* Histórico de vendas (modal) */
 .sales-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: min(960px, 96vw); max-height: 90vh; max-height: 90dvh; display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+/* Recibo/2ª via (.modal-bg, z 70) aberto A PARTIR do histórico/cancelamento
+   (.scan-overlay, z 200): quando vem depois de um overlay, sobe acima dele —
+   sem isto a janela de impressão ficava escondida atrás da de cancelamento. */
+.scan-overlay ~ .modal-bg { z-index: 300; }
 .sm-head { display: flex; align-items: center; gap: 10px; }
 .sm-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .sm-filters label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
