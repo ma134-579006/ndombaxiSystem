@@ -1,4 +1,5 @@
 import { IsDateString, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { IsAngolaIban, IsAngolaNif } from '../../common/validation/angola';
 
 export class CreateEmployeeDto {
   /** Opcional: se vazio, o sistema atribui automaticamente (F-001, F-002, …). */
@@ -13,6 +14,7 @@ export class CreateEmployeeDto {
 
   @IsOptional()
   @IsString()
+  @IsAngolaNif()
   taxId?: string;
 
   @IsOptional()
@@ -51,6 +53,7 @@ export class CreateEmployeeDto {
 
   @IsOptional()
   @IsString()
+  @IsAngolaIban()
   iban?: string;
 
   /** Foto do funcionário (URL ou data-URI base64; qualquer formato de imagem). */
@@ -72,6 +75,7 @@ export class UpdateEmployeeDto {
 
   @IsOptional()
   @IsString()
+  @IsAngolaNif()
   taxId?: string;
 
   @IsOptional()
@@ -107,6 +111,7 @@ export class UpdateEmployeeDto {
 
   @IsOptional()
   @IsString()
+  @IsAngolaIban()
   iban?: string;
 
   @IsOptional()

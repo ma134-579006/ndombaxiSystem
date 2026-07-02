@@ -114,6 +114,17 @@ export function Employees() {
   const save = async () => {
     setFormError(null);
     if (!form.fullName.trim()) { setFormError('Indique o nome.'); return; }
+    // Validação local de NIF/IBAN (mensagens claras antes de ir à API).
+    const taxId = form.taxId.trim().toUpperCase();
+    if (taxId && !(/^\d{9,10}$/.test(taxId) || /^\d{9}[A-Z]{2}\d{3}$/.test(taxId))) {
+      setFormError('NIF inválido — 9–10 dígitos (empresa) ou 9 dígitos + 2 letras + 3 dígitos (pessoa singular).');
+      return;
+    }
+    const iban = form.iban.replace(/\s+/g, '').toUpperCase();
+    if (iban && !/^AO\d{23}$/.test(iban)) {
+      setFormError('IBAN inválido — formato angolano: AO06 seguido de 21 dígitos (25 caracteres no total).');
+      return;
+    }
     const salary = Number(form.baseSalary) || 0;
     setSaving(true);
     try {
@@ -122,16 +133,16 @@ export function Employees() {
           employeeNumber: form.employeeNumber.trim() || undefined,
           fullName: form.fullName.trim(), position: form.position.trim() || undefined,
           department: form.department.trim() || undefined, baseSalary: salary,
-          iban: form.iban.trim() || undefined, photoUrl: form.photoUrl || undefined,
-          taxId: form.taxId.trim() || undefined,
+          iban: iban || undefined, photoUrl: form.photoUrl || undefined,
+          taxId: taxId || undefined,
           inssNumber: form.inssNumber.trim() || undefined,
         });
       } else {
         const payload: CreateEmployeeInput = {
           fullName: form.fullName.trim(),
           position: form.position.trim() || undefined, department: form.department.trim() || undefined,
-          baseSalary: salary, iban: form.iban.trim() || undefined,
-          taxId: form.taxId.trim() || undefined, inssNumber: form.inssNumber.trim() || undefined,
+          baseSalary: salary, iban: iban || undefined,
+          taxId: taxId || undefined, inssNumber: form.inssNumber.trim() || undefined,
           photoUrl: form.photoUrl || undefined,
         };
         await api.hr.createEmployee(payload);

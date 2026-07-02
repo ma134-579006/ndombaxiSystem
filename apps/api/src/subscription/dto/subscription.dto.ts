@@ -7,12 +7,13 @@ import {
   Length,
   Min,
 } from 'class-validator';
+import { IsAngolaIban } from '../../common/validation/angola';
 
 /** Conta bancária da plataforma (Super Admin). */
 export class UpsertBankAccountDto {
   @IsString() @Length(1, 80) bankName!: string;
   @IsString() @Length(1, 120) accountHolder!: string;
-  @IsString() @Length(8, 40) iban!: string;
+  @IsString() @Length(8, 40) @IsAngolaIban() iban!: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
   @IsOptional() @IsInt() sortOrder?: number;
 }

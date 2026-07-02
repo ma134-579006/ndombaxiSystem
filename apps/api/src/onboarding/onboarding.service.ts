@@ -298,11 +298,11 @@ export class OnboardingService {
   }
 
   /** Plano atual da empresa (para o passo de pagamento do setup obrigatório). */
-  async getMyPlan(tenantId: string | undefined): Promise<{ planId: string; planName: string; priceKz: number } | null> {
+  async getMyPlan(tenantId: string | undefined): Promise<{ planId: string; planName: string; priceKz: number; tier: string } | null> {
     if (!tenantId) return null;
     const company = await this.prisma.company.findUnique({ where: { id: tenantId }, include: { plan: true } });
     if (!company?.plan) return null;
-    return { planId: company.plan.id, planName: company.plan.name, priceKz: Number(company.plan.priceKz) };
+    return { planId: company.plan.id, planName: company.plan.name, priceKz: Number(company.plan.priceKz), tier: company.plan.tier };
   }
 
   /** Estado do setup + aprovação do tenant autenticado. */

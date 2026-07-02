@@ -84,15 +84,21 @@ async function request<T>(
   }
 
   let res: Response;
+  // Timeout defensivo: evita spinner infinito quando o servidor está a acordar.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 90_000);
   try {
     res = await fetch(`${API_URL}${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: ctrl.signal,
     });
-  } catch {
-    throw new ApiError(0, 'Sem ligação ao servidor. Verifique a rede e o endereço da API.');
-  }
+  } catch (e) {
+    throw new ApiError(0, (e as Error)?.name === 'AbortError'
+      ? 'O servidor demorou demasiado a responder. Tente novamente.'
+      : 'Sem ligação ao servidor. Verifique a rede e o endereço da API.');
+  } finally { clearTimeout(timer); }
 
   if (res.status === 401 && auth && retry && hooks) {
     const ok = await hooks.refresh();

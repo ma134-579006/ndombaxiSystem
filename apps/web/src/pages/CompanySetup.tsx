@@ -57,7 +57,7 @@ export function CompanySetup({ onDone }: { onDone(): void }) {
 
 export function PayStep({ onNext, allowPlanChoice = false }: { onNext(): void; allowPlanChoice?: boolean }) {
   const [banks, setBanks] = useState<BankAccount[]>([]);
-  const [plan, setPlan] = useState<{ planId: string; planName: string; priceKz: number } | null>(null);
+  const [plan, setPlan] = useState<{ planId: string; planName: string; priceKz: number; tier?: string } | null>(null);
   const [plans, setPlans] = useState<PublicPlan[]>([]);
   const [chosenPlanId, setChosenPlanId] = useState<string>('');
   const [file, setFile] = useState<{ name: string; type: string; data: string } | null>(null);
@@ -74,6 +74,20 @@ export function PayStep({ onNext, allowPlanChoice = false }: { onNext(): void; a
   }, []);
   const chosenPlan = plans.find((p) => p.id === chosenPlanId);
   const dueKz = chosenPlan ? chosenPlan.priceKz : (plan?.priceKz ?? 0);
+  // Plano GRATUITO: ativação imediata — sem transferência nem comprovativo.
+  const isFree = (chosenPlan ? chosenPlan.tier : plan?.tier) === 'FREE';
+
+  const activateFree = async () => {
+    setErr(null); setBusy(true);
+    try {
+      const wantPlanId = allowPlanChoice ? (chosenPlanId || plan?.planId) : plan?.planId;
+      if (!wantPlanId) { setErr('Plano não encontrado. Contacte o suporte.'); setBusy(false); return; }
+      await api.subscription.create({ planId: wantPlanId, method: 'IBAN' });
+      onNext();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Não foi possível ativar o plano gratuito.');
+    } finally { setBusy(false); }
+  };
 
   const onFile = (f?: File) => {
     if (!f) return;
@@ -121,6 +135,17 @@ export function PayStep({ onNext, allowPlanChoice = false }: { onNext(): void; a
           </select>
         </div>
       ) : null}
+      {isFree ? (
+        <>
+          <div className="banner info" style={{ display: 'block', marginBottom: 12 }}>
+            🎁 Plano <strong>{chosenPlan?.name ?? plan?.planName ?? 'Gratuito'}</strong> — grátis.
+            Ativação imediata, sem pagamento nem aprovação.
+          </div>
+          <button className="btn lg block" onClick={activateFree} disabled={busy}>
+            <IconCheck size={18} /> {busy ? 'A ativar…' : 'Ativar plano gratuito e continuar'}
+          </button>
+        </>
+      ) : (<>
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
         {allowPlanChoice
           ? (chosenPlan ? <>Plano <strong>{chosenPlan.name}</strong>{dueKz > 0 ? <> — {dueKz.toLocaleString('pt-PT')} Kz</> : null}. </> : null)
@@ -147,6 +172,7 @@ export function PayStep({ onNext, allowPlanChoice = false }: { onNext(): void; a
       <button className="btn lg block" onClick={submit} disabled={busy}>
         <IconCard size={18} /> {busy ? 'A enviar…' : 'Enviar comprovativo e continuar'}
       </button>
+      </>)}
     </div>
   );
 }

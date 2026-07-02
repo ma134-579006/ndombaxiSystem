@@ -62,6 +62,39 @@ export class SubscriptionService {
     const plan = await this.prisma.plan.findUnique({ where: { id: dto.planId } });
     if (!plan) throw new NotFoundException('Plano não encontrado');
 
+    // Plano GRATUITO (tier FREE): ativação AUTOMÁTICA e imediata — não exige
+    // comprovativo nem aprovação do Super Admin. Os planos PAGOS mantêm o
+    // fluxo normal (PENDING_PAYMENT → comprovativo → aprovação).
+    if (plan.tier === 'FREE') {
+      const startsAt = new Date();
+      const months = plan.durationMonths || 0;
+      const days = plan.durationDays ?? 0;
+      // Sem período definido → sem validade (o plano gratuito não expira).
+      const expiresAt = months || days
+        ? SubscriptionService.addPeriod(startsAt, months, days)
+        : null;
+      const sub = await this.prisma.subscription.create({
+        data: {
+          companyId,
+          planId: plan.id,
+          method: dto.method,
+          amountKz: 0,
+          durationMonths: months,
+          durationDays: days,
+          status: 'ACTIVE',
+          isTrial: false,
+          startsAt,
+          expiresAt,
+          reviewNote: 'Plano gratuito — ativação automática (sem aprovação)',
+        },
+      });
+      await this.prisma.company.update({
+        where: { id: companyId },
+        data: { status: 'ACTIVE', approvedAt: new Date(), planId: plan.id },
+      }).catch(() => undefined);
+      return sub;
+    }
+
     if (dto.method === 'IBAN' && !dto.bankAccountId) {
       throw new BadRequestException('Escolha a conta bancária para a transferência.');
     }

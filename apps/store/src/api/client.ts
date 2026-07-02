@@ -26,6 +26,9 @@ export class ApiError extends Error {
 
 async function request<T>(method: string, path: string, body?: unknown, token?: string): Promise<T> {
   let res: Response;
+  // Timeout defensivo: evita ficar pendurado quando o servidor está a acordar.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 90_000);
   try {
     res = await fetch(`${API_URL}${path}`, {
       method,
@@ -34,10 +37,13 @@ async function request<T>(method: string, path: string, body?: unknown, token?: 
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: ctrl.signal,
     });
-  } catch {
-    throw new ApiError(0, 'Sem ligação à loja. Verifique a sua internet.');
-  }
+  } catch (e) {
+    throw new ApiError(0, (e as Error)?.name === 'AbortError'
+      ? 'A loja demorou demasiado a responder. Tente novamente.'
+      : 'Sem ligação à loja. Verifique a sua internet.');
+  } finally { clearTimeout(timer); }
   if (!res.ok) {
     let message = `Erro ${res.status}`;
     try {

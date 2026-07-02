@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { normalizeIban } from '../common/validation/angola';
 import type { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
 
 export interface EmployeeRow {
@@ -34,8 +35,12 @@ export class HrRepository {
       // procura o maior número existente e gera o seguinte (F-001, F-002, …).
       let employeeNumber = input.employeeNumber?.trim();
       if (!employeeNumber) {
-        const seq = await tx.$queryRaw<{ next: number }[]>(
-          Prisma.sql`SELECT COALESCE(MAX(NULLIF(regexp_replace(employee_number, '\D', '', 'g'), '')::int), 0) + 1 AS next FROM employees`,
+        // NOTA: usar '[^0-9]' (não '\D') — o '\D' perdia a barra invertida no
+        // template JS e chegava ao PostgreSQL como 'D', pelo que "F-001" não era
+        // limpo e o cast rebentava com 22P02 ao criar o 2.º funcionário.
+        // ::bigint evita overflow se alguém tiver usado um número longo (ex.: telefone).
+        const seq = await tx.$queryRaw<{ next: number | bigint }[]>(
+          Prisma.sql`SELECT COALESCE(MAX(NULLIF(regexp_replace(employee_number, '[^0-9]', '', 'g'), '')::bigint), 0) + 1 AS next FROM employees`,
         );
         employeeNumber = `F-${String(seq[0]?.next ?? 1).padStart(3, '0')}`;
       }
@@ -48,7 +53,8 @@ export class HrRepository {
                   ${input.storeId ?? null}::uuid,
                   COALESCE(${input.hireDate ?? null}::date, CURRENT_DATE),
                   ${input.baseSalary}, ${input.taxableAllowances ?? 0},
-                  ${input.exemptAllowances ?? 0}, ${input.iban ?? null}, ${input.photoUrl ?? null})
+                  ${input.exemptAllowances ?? 0}, ${input.iban ? normalizeIban(input.iban) : null},
+                  ${input.photoUrl ?? null})
           RETURNING *`,
       );
       return rows[0];
@@ -89,7 +95,7 @@ export class HrRepository {
       sets.push(Prisma.sql`taxable_allowances = ${input.taxableAllowances}`);
     if (input.exemptAllowances !== undefined)
       sets.push(Prisma.sql`exempt_allowances = ${input.exemptAllowances}`);
-    if (input.iban !== undefined) sets.push(Prisma.sql`iban = ${input.iban}`);
+    if (input.iban !== undefined) sets.push(Prisma.sql`iban = ${input.iban ? normalizeIban(input.iban) : input.iban}`);
     if (input.photoUrl !== undefined) sets.push(Prisma.sql`photo_url = ${input.photoUrl}`);
     if (input.bonus !== undefined) sets.push(Prisma.sql`bonus = ${input.bonus}`);
     if (input.absenceDays !== undefined) {

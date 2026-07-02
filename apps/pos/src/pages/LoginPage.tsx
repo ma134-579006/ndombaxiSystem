@@ -39,7 +39,7 @@ export function LoginPage() {
   const submit = async () => {
     setError(null);
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setError('Indica o teu e-mail de funcionário.'); return; }
-    if (!/^\d{4,8}$/.test(pin)) { setError('Digite o PIN (4 a 8 dígitos).'); return; }
+    if (!/^\d{4,8}$/.test(pin)) { setError('Digite o seu PIN de 6 dígitos.'); return; }
     try { if (remember) localStorage.setItem('ndx:caixa_remember_email', email.trim()); else localStorage.removeItem('ndx:caixa_remember_email'); } catch { /* */ }
     setLoading(true);
     try {
@@ -122,7 +122,7 @@ function OpenCashHandoff({ email, name }: { email: string; name: string }) {
 
   const submit = async () => {
     setError(null);
-    if (!/^\d{4,8}$/.test(pin)) { setError('Digite o seu PIN (4 a 8 dígitos).'); return; }
+    if (!/^\d{4,8}$/.test(pin)) { setError('Digite o seu PIN de 6 dígitos.'); return; }
     setLoading(true);
     try {
       await loginStaff(email, pin);

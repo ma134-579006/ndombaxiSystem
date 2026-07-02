@@ -7,6 +7,7 @@ import {
   Matches,
 } from 'class-validator';
 import { PlanTier } from '@prisma/client';
+import { IsAngolaIban } from '../../common/validation/angola';
 
 export class RegisterCompanyDto {
   @IsString()
@@ -25,6 +26,7 @@ export class RegisterCompanyDto {
 
   @IsOptional()
   @IsString()
+  @IsAngolaIban()
   iban?: string;
 
   @IsString()

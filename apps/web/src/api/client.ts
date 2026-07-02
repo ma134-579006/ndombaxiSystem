@@ -201,15 +201,22 @@ async function request<T>(
     if (code) headers['X-Tenant-Code'] = code;
   }
   let res: Response;
+  // Timeout defensivo: sem ele, um servidor "a acordar" (cold start) deixava o
+  // pedido pendurado para sempre (spinner infinito). 90 s cobre o arranque.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 90_000);
   try {
     res = await fetch(`${API_URL}${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: ctrl.signal,
     });
-  } catch {
-    throw new ApiError(0, 'Sem ligação ao servidor.');
-  }
+  } catch (e) {
+    throw new ApiError(0, (e as Error)?.name === 'AbortError'
+      ? 'O servidor demorou demasiado a responder. Tente novamente.'
+      : 'Sem ligação ao servidor.');
+  } finally { clearTimeout(timer); }
   if (res.status === 401 && auth && retry && hooks) {
     const ok = await hooks.refresh();
     if (ok) return request<T>(method, path, body, { auth, retry: false });
@@ -231,8 +238,14 @@ async function requestText(path: string, retry = true): Promise<string> {
   const code = hooks?.getCompanyCode?.();
   if (code) headers['X-Tenant-Code'] = code;
   let res: Response;
-  try { res = await fetch(`${API_URL}${path}`, { headers }); }
-  catch { throw new ApiError(0, 'Sem ligação ao servidor.'); }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 90_000);
+  try { res = await fetch(`${API_URL}${path}`, { headers, signal: ctrl.signal }); }
+  catch (e) {
+    throw new ApiError(0, (e as Error)?.name === 'AbortError'
+      ? 'O servidor demorou demasiado a responder. Tente novamente.'
+      : 'Sem ligação ao servidor.');
+  } finally { clearTimeout(timer); }
   if (res.status === 401 && retry && hooks) {
     const ok = await hooks.refresh();
     if (ok) return requestText(path, false);
@@ -387,7 +400,7 @@ export const api = {
   registerSimple: (input: { email?: string; password?: string; googleIdToken?: string; planTier: string; businessType?: string }) =>
     request<{ tokens: TokenPair; companyCode: string; setupCompleted: boolean }>('POST', '/onboarding/register-simple', input, { auth: false }),
   onboarding: {
-    myPlan: () => request<{ planId: string; planName: string; priceKz: number } | null>('GET', '/onboarding/my-plan'),
+    myPlan: () => request<{ planId: string; planName: string; priceKz: number; tier?: string } | null>('GET', '/onboarding/my-plan'),
     setupStatus: () => request<{ setupCompleted: boolean; status: string; approved: boolean; expired: boolean; expiresAt: string | null }>('GET', '/onboarding/setup-status'),
     completeSetup: (dto: { name: string; companyCode?: string; nif: string; logoUrl?: string }) =>
       request<{ ok: true; companyCode: string }>('POST', '/onboarding/complete-setup', dto),

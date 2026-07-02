@@ -131,9 +131,10 @@ function PasswordsCard() {
   };
 
   const setPin = async (u: ManagerStaff) => {
-    const pin = window.prompt(`Novo PIN (4–8 dígitos) para ${u.name} usar na caixa:`);
+    // O PIN é SEMPRE de 6 dígitos (regra única em todo o sistema — a API rejeita outros tamanhos).
+    const pin = window.prompt(`Novo PIN (6 dígitos) para ${u.name} usar na caixa:`);
     if (!pin) return;
-    if (!/^\d{4,8}$/.test(pin)) { setErr('PIN inválido (4 a 8 dígitos).'); return; }
+    if (!/^\d{6}$/.test(pin)) { setErr('PIN inválido — tem de ter exatamente 6 dígitos.'); return; }
     setBusyId(u.id); setResult(null); setErr(null);
     try { await api.staff.setPin(u.id, pin); setResult(`PIN de ${u.name} actualizado.`); }
     catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao definir PIN.'); }
