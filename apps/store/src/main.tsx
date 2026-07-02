@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './theme.css';
 import { initTheme } from './theme';
 import { initAutoUpdate } from './autoUpdate';
@@ -15,6 +16,8 @@ if (!container) throw new Error('Elemento #root não encontrado');
 
 createRoot(container).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );
