@@ -1,7 +1,8 @@
 import { AssistantService } from './assistant.service';
 
 // Testa apenas a lógica pura de extração de blocos — sem dependências reais.
-const svc = new AssistantService({} as never, {} as never);
+// (3º argumento = AiMemoryService, não usado por extractBlocks.)
+const svc = new AssistantService({} as never, {} as never, {} as never);
 
 describe('AssistantService.extractBlocks', () => {
   it('extrai um gráfico de um bloco ```chart', () => {

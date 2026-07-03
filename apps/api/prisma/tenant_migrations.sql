@@ -251,3 +251,34 @@ CREATE OR REPLACE RULE fiscal_no_update_invoice_items AS ON UPDATE TO "{{SCHEMA}
 
 -- Reserva de pagamento da encomenda (anti-corrida na emissão da fatura).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS payment_claimed_at TIMESTAMPTZ;
+
+-- ════════════════════════════════════════════════════════════
+-- Inventário empresarial (Curva ABC, reposição, localização,
+-- transferências com aprovação, valorização, antifraude)
+-- ════════════════════════════════════════════════════════════
+
+-- Localização física do produto na loja (ex.: "Corredor 3 · Prateleira B").
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."stock_items" ADD COLUMN IF NOT EXISTS location TEXT;
+
+-- Transferências entre lojas COM APROVAÇÃO (workflow: gestor pede → administrador
+-- aprova → loja destino RECECIONA; só na receção o stock se move de facto).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stock_transfer_requests" (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id        UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,
+  from_store_id     UUID NOT NULL REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE CASCADE,
+  to_store_id       UUID NOT NULL REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE CASCADE,
+  quantity          NUMERIC(14,3) NOT NULL CHECK (quantity > 0),
+  note              TEXT,
+  status            TEXT NOT NULL DEFAULT 'PENDING', -- PENDING/APPROVED/REJECTED/RECEIVED/CANCELLED
+  requested_by      UUID,
+  requested_by_name TEXT,
+  approved_by       UUID,
+  approved_by_name  TEXT,
+  approved_at       TIMESTAMPTZ,
+  received_by       UUID,
+  received_by_name  TEXT,
+  received_at       TIMESTAMPTZ,
+  reject_reason     TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS stock_transfer_requests_status_idx ON "{{SCHEMA}}"."stock_transfer_requests"(status);

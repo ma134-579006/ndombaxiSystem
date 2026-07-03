@@ -463,6 +463,65 @@ export interface StockAnalysis {
   summary: { stockValue: number; products: number; positive: number; unitsSold: number; forecastValue: number };
   period: { from: string; to: string; days: number };
 }
+// ── Inventário empresarial (ABC, reposição, valorização, antifraude…) ──
+export interface AbcRow {
+  productId: string; code: string; name: string; category: string | null;
+  stockQty: number; costPrice: number; unitPrice: number;
+  salesValue: number; unitsSold: number; rotation: number | null;
+  sharePct: number; cumulativePct: number; abcClass: 'A' | 'B' | 'C';
+}
+export interface AbcReport {
+  rows: AbcRow[];
+  summary: {
+    totalSales: number; products: number;
+    aCount: number; bCount: number; cCount: number;
+    aValue: number; bValue: number; cValue: number;
+  };
+  period: { from: string; to: string };
+}
+export interface ReplenishmentRow {
+  productId: string; code: string; name: string; storeId: string; storeName: string;
+  location: string | null; quantity: number; minQty: number; soldPeriod: number;
+  perDay: number; daysLeft: number | null; suggestedQty: number; suggestedCost: number;
+  reason: 'STOCK_MINIMO' | 'ACABA_ANTES_DO_LEAD' | null;
+}
+export interface ReplenishmentReport {
+  rows: ReplenishmentRow[];
+  params: { days: number; coverage: number; leadDays: number };
+}
+export interface ValuationRow {
+  productId: string; code: string; name: string; quantity: number;
+  value: number; unitValue: number; valueFIFO: number; valueLIFO: number; valueCMP: number;
+}
+export interface ValuationReport {
+  rows: ValuationRow[];
+  totals: { FIFO: number; LIFO: number; CMP: number };
+  method: string;
+}
+export interface FraudSignal {
+  type: string; severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  title: string; detail: string; who?: string | null; count: number;
+}
+export interface FraudReport { signals: FraudSignal[]; periodDays: number }
+export interface LocationRow {
+  product_id: string; code: string; name: string;
+  store_id: string; store_name: string; quantity: number; location: string | null;
+}
+export interface TransferRequestRow {
+  id: string; status: string; quantity: number; note: string | null; reject_reason: string | null;
+  requested_by_name: string | null; approved_by_name: string | null; received_by_name: string | null;
+  created_at: string; approved_at: string | null; received_at: string | null;
+  product_code: string; product_name: string; from_store: string; to_store: string;
+}
+export interface AuditTrailRow {
+  seq: number; timestamp: string; actor_name: string | null;
+  action: string; entity: string | null; entity_id: string | null; details: unknown;
+}
+export interface AuditFilters {
+  actors: Array<{ id: string | null; name: string | null }>;
+  actions: string[];
+}
+
 export interface DocumentIdentity {
   companyName: string; nif: string; brandName: string | null; logoUrl: string | null;
   address: string | null; phone: string | null; email: string | null;

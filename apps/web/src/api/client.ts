@@ -89,6 +89,14 @@ import type {
   StockMovementRow,
   StockAnalysis,
   StockEntryInput,
+  AbcReport,
+  ReplenishmentReport,
+  ValuationReport,
+  FraudReport,
+  LocationRow,
+  TransferRequestRow,
+  AuditTrailRow,
+  AuditFilters,
   BatchInput,
   ExpiringBatch,
   StorePaymentMethod,
@@ -904,6 +912,65 @@ export const api = {
       const qs = p.toString();
       return request<StockAnalysis>('GET', `/erp/stock/analysis${qs ? '?' + qs : ''}`);
     },
+  },
+
+  // ── Inventário empresarial (ABC, reposição, valorização, antifraude…) ──
+  inventoryIntel: {
+    abc: (f: { from?: string; to?: string; storeId?: string } = {}) => {
+      const p = new URLSearchParams();
+      if (f.from) p.set('from', f.from);
+      if (f.to) p.set('to', f.to);
+      if (f.storeId) p.set('storeId', f.storeId);
+      const qs = p.toString();
+      return request<AbcReport>('GET', `/inventory/abc${qs ? '?' + qs : ''}`);
+    },
+    replenishment: (f: { days?: number; coverage?: number; leadDays?: number; storeId?: string } = {}) => {
+      const p = new URLSearchParams();
+      if (f.days) p.set('days', String(f.days));
+      if (f.coverage) p.set('coverage', String(f.coverage));
+      if (f.leadDays) p.set('leadDays', String(f.leadDays));
+      if (f.storeId) p.set('storeId', f.storeId);
+      const qs = p.toString();
+      return request<ReplenishmentReport>('GET', `/inventory/replenishment${qs ? '?' + qs : ''}`);
+    },
+    valuation: (method?: 'FIFO' | 'LIFO' | 'CMP', storeId?: string) => {
+      const p = new URLSearchParams();
+      if (method) p.set('method', method);
+      if (storeId) p.set('storeId', storeId);
+      const qs = p.toString();
+      return request<ValuationReport>('GET', `/inventory/valuation${qs ? '?' + qs : ''}`);
+    },
+    fraudSignals: (days?: number) =>
+      request<FraudReport>('GET', `/inventory/fraud-signals${days ? `?days=${days}` : ''}`),
+    locations: (f: { storeId?: string; q?: string } = {}) => {
+      const p = new URLSearchParams();
+      if (f.storeId) p.set('storeId', f.storeId);
+      if (f.q) p.set('q', f.q);
+      const qs = p.toString();
+      return request<LocationRow[]>('GET', `/inventory/locations${qs ? '?' + qs : ''}`);
+    },
+    setLocation: (productId: string, storeId: string, location: string) =>
+      request<{ ok: true }>('POST', '/inventory/locations', { productId, storeId, location }),
+    transfers: (status?: string) =>
+      request<TransferRequestRow[]>('GET', `/inventory/transfers${status ? `?status=${status}` : ''}`),
+    requestTransfer: (dto: { productId: string; fromStoreId: string; toStoreId: string; quantity: number; note?: string }) =>
+      request<{ id: string; status: string }>('POST', '/inventory/transfers', dto),
+    approveTransfer: (id: string) =>
+      request<{ id: string; status: string }>('POST', `/inventory/transfers/${id}/approve`),
+    rejectTransfer: (id: string, reason?: string) =>
+      request<{ id: string; status: string }>('POST', `/inventory/transfers/${id}/reject`, { reason }),
+    receiveTransfer: (id: string) =>
+      request<{ id: string; status: string }>('POST', `/inventory/transfers/${id}/receive`),
+    auditTrail: (f: { actorId?: string; action?: string; from?: string; to?: string } = {}) => {
+      const p = new URLSearchParams();
+      if (f.actorId) p.set('actorId', f.actorId);
+      if (f.action) p.set('action', f.action);
+      if (f.from) p.set('from', f.from);
+      if (f.to) p.set('to', f.to);
+      const qs = p.toString();
+      return request<AuditTrailRow[]>('GET', `/inventory/audit${qs ? '?' + qs : ''}`);
+    },
+    auditFilters: () => request<AuditFilters>('GET', '/inventory/audit/filters'),
   },
 
   // ── Pagamentos da loja (gerente) ───────────────────────────

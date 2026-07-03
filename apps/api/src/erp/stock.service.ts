@@ -350,6 +350,12 @@ export class StockService {
         type: 'TRANSFER', quantity: input.quantity,
         reference: ref, createdBy: input.createdBy ?? null, allowNegative: true,
       });
+      // Auditoria: fica registado QUEM transferiu, o quê e entre que lojas.
+      await this.audit.recordInTx(tx, {
+        actorId: input.createdBy ?? null, actorName: null,
+        action: 'STOCK_TRANSFER', entity: 'product', entityId: input.productId,
+        details: { fromStoreId: input.fromStoreId, toStoreId: input.toStoreId, quantity: input.quantity, note: input.note ?? null },
+      });
       return { fromBalance, toBalance };
     });
   }
@@ -388,6 +394,12 @@ export class StockService {
         quantity: delta,
         reference: input.reason ?? 'Acerto de inventário',
         createdBy: input.createdBy ?? null,
+      });
+      // Auditoria: fica registado QUEM ajustou, de quanto para quanto e porquê.
+      await this.audit.recordInTx(tx, {
+        actorId: input.createdBy ?? null, actorName: null,
+        action: 'STOCK_ADJUST', entity: 'product', entityId: input.productId,
+        details: { storeId: input.warehouseId, from: current, to: input.newQuantity, delta, reason: input.reason ?? null },
       });
       return { balanceAfter };
     });
