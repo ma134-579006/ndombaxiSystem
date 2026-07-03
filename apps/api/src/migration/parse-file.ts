@@ -72,9 +72,26 @@ function parseSpreadsheet(buffer: Buffer, asText?: string): ParsedFile {
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) throw new BadRequestException('O ficheiro não tem nenhuma folha/tabela legível.');
   const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '', raw: true });
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '', raw: true });
+  // Defesa contra prototype pollution (o xlsx 0.18.5 tem CVE-2023-30533): um
+  // cabeçalho malicioso "__proto__"/"constructor"/"prototype" no ficheiro seria
+  // usado como chave de objeto. Reconstruímos cada linha num objeto SEM protótipo
+  // e ignoramos essas chaves — nenhuma chega ao motor de mapeamento.
+  const rows = raw.map(sanitizeRow);
   const headers = rows.length ? Object.keys(rows[0]) : [];
   return { headers, rows };
+}
+
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/** Copia uma linha para um objeto de protótipo nulo, descartando chaves perigosas. */
+function sanitizeRow(row: Record<string, unknown>): Record<string, unknown> {
+  const clean: Record<string, unknown> = Object.create(null);
+  for (const k of Object.keys(row)) {
+    if (DANGEROUS_KEYS.has(k)) continue;
+    clean[k] = row[k];
+  }
+  return clean;
 }
 
 // ─────────────────────────── SAF-T (AO) XML ────────────────────────────────
