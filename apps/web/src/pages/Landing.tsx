@@ -90,11 +90,18 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
   const primary = cfg?.primaryColor || '#2563eb';
   const accent = cfg?.accentColor || '#0ea5e9';
   // Carrossel: heroImages (várias, rodam sozinhas) → heroImageUrl → default.
-  // Carrossel: usa as imagens do Super Admin SÓ se forem várias (≥2); caso
-  // contrário usa o conjunto profissional por defeito — para rodar SEMPRE
-  // (antes, com 1 só imagem configurada, ficava parado).
+  // Usa as imagens do Super Admin SÓ se forem várias (≥2) E não forem uma
+  // cópia gravada dos padrões ANTIGOS (v1 tinha 10; se a config for só isso,
+  // é lista obsoleta → usa o conjunto novo de 20 em pares por serviço).
+  const OLD_DEFAULT_IDS = [
+    'photo-1604719312566', 'photo-1556740758', 'photo-1441986300917', 'photo-1542838132',
+    'photo-1578916171728', 'photo-1567448400815', 'photo-1607082348824', 'photo-1556742502',
+    'photo-1521335629791', 'photo-1583258292688',
+  ];
+  const isStaleDefaults = (list: string[]) =>
+    list.length > 0 && list.every((u) => OLD_DEFAULT_IDS.some((id) => u.includes(id)));
   const heroImages =
-    cfg?.heroImages && cfg.heroImages.length >= 2
+    cfg?.heroImages && cfg.heroImages.length >= 2 && !isStaleDefaults(cfg.heroImages)
       ? cfg.heroImages
       : DEFAULT_HERO_IMAGES;
   const heroInterval = cfg?.heroIntervalMs || 5000;
