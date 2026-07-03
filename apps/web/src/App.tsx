@@ -33,6 +33,7 @@ import { Operations } from './sections/Operations';
 import { Inventory } from './sections/Inventory';
 import { StockMovements } from './sections/StockMovements';
 import { StockAnalysis } from './sections/StockAnalysis';
+import { InventoryIntel } from './sections/InventoryIntel';
 import { Reports } from './sections/Reports';
 import { Settings } from './sections/Settings';
 import { Profile } from './sections/Profile';
@@ -101,6 +102,7 @@ const TENANT_NAV: NavItem[] = [
       { key: 'products', label: 'Criar produtos', icon: IconCube },
       { key: 'inventory', label: 'Inventário', icon: IconTruck },
       { key: 'stock-analysis', label: 'Análise de stock', icon: IconChart, min: 4 },
+      { key: 'inventory-intel', label: 'Inventário PRO', icon: IconChart, min: 3 },
       { key: 'stock-movements', label: 'Movimentos de stock', icon: IconChart },
       { key: 'purchasing', label: 'Compras', icon: IconTruck, min: 2 },
       { key: 'promotions', label: 'Promoções', icon: IconStar },
@@ -274,6 +276,7 @@ function TenantPanel() {
       {section === 'inventory' ? <Inventory /> : null}
       {section === 'stock-movements' ? <StockMovements /> : null}
       {section === 'stock-analysis' ? <StockAnalysis /> : null}
+      {section === 'inventory-intel' ? <InventoryIntel role={user?.role} /> : null}
       {section === 'purchasing' ? <Purchasing /> : null}
       {section === 'orders' ? <Orders /> : null}
       {section === 'promotions' ? <Promotions /> : null}

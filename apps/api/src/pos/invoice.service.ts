@@ -536,7 +536,7 @@ export class InvoiceService {
     invoice: { id: string; number: string; hash: string; previousHash: string; netTotal: number; ivaTotal: number; grossTotal: number };
     docType: string; date: string; operationDate: string | null; status: string;
     customerName: string | null; cashierName: string | null;
-    items: { productCode: string; description: string; quantity: number; unitPrice: number; total: number }[];
+    items: { productCode: string; description: string; quantity: number; unitPrice: number; total: number; returnedQuantity: number }[];
   }> {
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{
@@ -558,6 +558,9 @@ export class InvoiceService {
         Prisma.sql`SELECT product_code, description, quantity, gross_amount FROM invoice_items
                    WHERE invoice_id = ${id}::uuid ORDER BY line_number`,
       );
+      // Quantidades já devolvidas por NC (por código), distribuídas pelas linhas
+      // por ordem — o modal de cancelamento mostra/limita o REMANESCENTE.
+      const returned = await this.returnedQtyByCode(tx, id);
       return {
         invoice: {
           id: inv.id, number: inv.number, hash: inv.hash, previousHash: inv.previous_hash,
@@ -570,7 +573,10 @@ export class InvoiceService {
         items: items.map((it) => {
           const total = Number(it.gross_amount);
           const qty = Number(it.quantity);
-          return { productCode: it.product_code, description: it.description, quantity: qty, unitPrice: qty ? Math.round((total / qty) * 100) / 100 : total, total };
+          const done = returned.get(it.product_code) ?? 0;
+          const take = Math.min(qty, Math.max(0, done));
+          returned.set(it.product_code, done - take);
+          return { productCode: it.product_code, description: it.description, quantity: qty, unitPrice: qty ? Math.round((total / qty) * 100) / 100 : total, total, returnedQuantity: take };
         }),
       };
     });
@@ -630,6 +636,134 @@ export class InvoiceService {
     return ncId;
   }
 
+  /**
+   * Quantidades JÁ devolvidas por notas de crédito anteriores desta fatura,
+   * agregadas por código de produto. Impede devolver/creditar duas vezes o
+   * mesmo artigo (integridade fiscal: NC nunca excede o vendido).
+   */
+  private async returnedQtyByCode(
+    tx: Prisma.TransactionClient,
+    invoiceId: string,
+  ): Promise<Map<string, number>> {
+    const rows = await tx.$queryRaw<{ product_code: string; qty: string }[]>(
+      Prisma.sql`SELECT ii.product_code, COALESCE(SUM(ii.quantity),0) AS qty
+                 FROM invoices nc JOIN invoice_items ii ON ii.invoice_id = nc.id
+                 WHERE nc.doc_type = 'NC' AND nc.source_invoice_id = ${invoiceId}::uuid
+                 GROUP BY ii.product_code`,
+    );
+    return new Map(rows.map((r) => [r.product_code, Number(r.qty)]));
+  }
+
+  /**
+   * Receitas (ficha técnica) dos produtos indicados — o estorno de stock de um
+   * PRATO devolve os INGREDIENTES (a venda baixou-os a eles, não ao prato).
+   * Guarda to_regclass para tenants antigos sem a tabela (mesmo padrão do emit).
+   */
+  private async loadRecipes(
+    tx: Prisma.TransactionClient,
+    productIds: string[],
+  ): Promise<Map<string, { ingredientId: string; quantity: number; sharedStock: boolean }[]>> {
+    const map = new Map<string, { ingredientId: string; quantity: number; sharedStock: boolean }[]>();
+    if (!productIds.length) return map;
+    const reg = await tx.$queryRaw<{ r: string | null }[]>(
+      Prisma.sql`SELECT to_regclass('product_recipes')::text AS r`,
+    );
+    if (!reg[0]?.r) return map;
+    const rows = await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; shared_stock: boolean | null }[]>(
+      Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, p.shared_stock
+                 FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
+                 WHERE r.product_id = ANY(ARRAY[${Prisma.join(productIds)}]::uuid[])`,
+    );
+    for (const r of rows) {
+      const list = map.get(r.product_id) ?? [];
+      list.push({ ingredientId: r.ingredient_id, quantity: Number(r.quantity), sharedStock: !!r.shared_stock });
+      map.set(r.product_id, list);
+    }
+    return map;
+  }
+
+  /**
+   * Devolve o stock de UMA linha estornada: produto normal → o próprio produto;
+   * prato com ficha técnica → os INGREDIENTES (espelho exato do que a venda
+   * baixou). Loja certa: partilhado → pool central; por loja → loja da venda.
+   */
+  private async restoreStock(
+    tx: Prisma.TransactionClient,
+    args: {
+      productId: string; quantity: number; sharedStock: boolean;
+      storeId: string | null; defWh: string | null;
+      recipeMap: Map<string, { ingredientId: string; quantity: number; sharedStock: boolean }[]>;
+      reference: string; referenceId: string; actorId: string | null;
+    },
+  ): Promise<void> {
+    const recipe = args.recipeMap.get(args.productId);
+    if (recipe && recipe.length) {
+      for (const ing of recipe) {
+        const wh = ing.sharedStock ? args.defWh : (args.storeId || args.defWh);
+        const qty = ing.quantity * args.quantity;
+        if (wh) {
+          await StockService.applyMovement(tx, {
+            productId: ing.ingredientId, warehouseId: wh, type: 'IN', quantity: qty,
+            reference: args.reference, referenceId: args.referenceId, createdBy: args.actorId,
+            allowNegative: true,
+          });
+        } else {
+          await tx.$executeRaw(
+            Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${qty} WHERE id = ${ing.ingredientId}::uuid`,
+          );
+        }
+      }
+      return;
+    }
+    const wh = args.sharedStock ? args.defWh : (args.storeId || args.defWh);
+    if (wh) {
+      await StockService.applyMovement(tx, {
+        productId: args.productId, warehouseId: wh, type: 'IN', quantity: args.quantity,
+        reference: args.reference, referenceId: args.referenceId, createdBy: args.actorId,
+        allowNegative: true,
+      });
+    } else {
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${args.quantity} WHERE id = ${args.productId}::uuid`,
+      );
+    }
+  }
+
+  /**
+   * Estorno no CAIXA: prefere o turno (ainda ABERTO) onde a venda ORIGINAL foi
+   * registada — é dessa gaveta que o dinheiro sai — e usa o MESMO tipo de
+   * pagamento da venda (um estorno de CARTÃO não abate o numerário esperado).
+   * Se esse turno já fechou, cai no turno aberto de quem cancela (comportamento
+   * anterior). Sem turno aberto nenhum: fica só na NC + auditoria (como antes).
+   */
+  private async recordCashRefund(
+    tx: Prisma.TransactionClient,
+    invoiceId: string,
+    actorId: string | null,
+    amount: number,
+    ncNumber: string,
+  ): Promise<void> {
+    const orig = await tx.$queryRaw<{ session_id: string; payment_type: string | null; status: string }[]>(
+      Prisma.sql`SELECT cm.session_id, cm.payment_type, s.status
+                 FROM cash_movements cm JOIN cash_sessions s ON s.id = cm.session_id
+                 WHERE cm.reference_id = ${invoiceId}::uuid AND cm.type = 'SALE'
+                 ORDER BY cm.created_at DESC LIMIT 1`,
+    );
+    const paymentType = orig[0]?.payment_type ?? 'CASH';
+    let sessionId = orig[0]?.status === 'OPEN' ? orig[0].session_id : null;
+    if (!sessionId && actorId) {
+      const open = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT id FROM cash_sessions WHERE status = 'OPEN' AND opened_by = ${actorId}::uuid ORDER BY opened_at DESC LIMIT 1`,
+      );
+      sessionId = open[0]?.id ?? null;
+    }
+    if (!sessionId) return;
+    await tx.$executeRaw(
+      Prisma.sql`INSERT INTO cash_movements (session_id, type, amount, payment_type, reference, reference_id, created_by)
+        VALUES (${sessionId}::uuid, 'REFUND', ${amount}, ${paymentType}, ${ncNumber}, ${invoiceId}::uuid, ${actorId}::uuid)`,
+    );
+  }
+
   async cancelInvoice(
     schema: string,
     invoiceId: string,
@@ -663,6 +797,45 @@ export class InvoiceService {
                    WHERE ii.invoice_id = ${invoiceId}::uuid ORDER BY ii.line_number`,
       );
 
+      // 1b. Devoluções parciais anteriores: a anulação total só estorna o
+      //     REMANESCENTE de cada linha — os artigos já devolvidos por NC parcial
+      //     nunca são creditados/repostos DUAS vezes ("nem mais, nem menos").
+      //     Sem NCs anteriores, o comportamento é EXATAMENTE o original.
+      const returnedByCode = await this.returnedQtyByCode(tx, invoiceId);
+      const hasPriorReturns = returnedByCode.size > 0;
+      const lineRemaining = items.map((it) => {
+        const qty = Number(it.quantity);
+        if (!hasPriorReturns) return qty;
+        const done = returnedByCode.get(it.product_code) ?? 0;
+        const take = Math.min(qty, Math.max(0, done));
+        returnedByCode.set(it.product_code, done - take);
+        return round2(qty - take);
+      });
+      if (hasPriorReturns && lineRemaining.every((q) => q <= 0)) {
+        throw new BadRequestException(
+          'Todos os artigos desta venda já foram devolvidos por nota(s) de crédito — não há nada a anular.',
+        );
+      }
+      const ncLines = items
+        .map((it, idx) => {
+          const qty = Number(it.quantity);
+          const rem = lineRemaining[idx];
+          const ratio = qty > 0 ? rem / qty : 0;
+          const scale = (v: string) => (hasPriorReturns ? round2(Number(v) * ratio) : Number(v));
+          return {
+            product_id: it.product_id, product_code: it.product_code, description: it.description,
+            quantity: hasPriorReturns ? rem : qty,
+            unit_price: Number(it.unit_price), iva_code: it.iva_code,
+            iva_rate: Number(it.iva_rate), discount_rate: Number(it.discount_rate),
+            net_amount: scale(it.net_amount), iva_amount: scale(it.iva_amount), gross_amount: scale(it.gross_amount),
+            unit_cost: Number(it.unit_cost), exemption_reason: it.exemption_reason, exemption_code: it.exemption_code,
+          };
+        })
+        .filter((l) => (hasPriorReturns ? l.quantity > 0 : true));
+      const ncNet = hasPriorReturns ? round2(ncLines.reduce((s, l) => s + l.net_amount, 0)) : Number(inv.net_total);
+      const ncIva = hasPriorReturns ? round2(ncLines.reduce((s, l) => s + l.iva_amount, 0)) : Number(inv.iva_total);
+      const ncGross = hasPriorReturns ? round2(ncLines.reduce((s, l) => s + l.gross_amount, 0)) : Number(inv.gross_total);
+
       // 2. Aloca número de NC na série própria (NC, mesma série/ano).
       const year = new Date().getFullYear();
       await tx.$executeRaw(
@@ -682,7 +855,7 @@ export class InvoiceService {
         invoiceDate: now.toISOString().slice(0, 10),
         systemEntryDate: now.toISOString(),
         number: ncNumber,
-        totals: { netTotal: Number(inv.net_total), ivaTotal: Number(inv.iva_total), grossTotal: Number(inv.gross_total), byTaxCode: [] },
+        totals: { netTotal: ncNet, ivaTotal: ncIva, grossTotal: ncGross, byTaxCode: [] },
       };
       const hash = computeDocumentHash(docHeader, previousHash);
       const signable = buildSignableString(docHeader, previousHash);
@@ -699,14 +872,8 @@ export class InvoiceService {
         signable, previousHash, hash,
         storeId: inv.store_id, customerId: inv.customer_id, customerTaxId: inv.customer_tax_id,
         sourceInvoiceId: invoiceId,
-        net: Number(inv.net_total), iva: Number(inv.iva_total), gross: Number(inv.gross_total),
-        lines: items.map((it) => ({
-          product_id: it.product_id, product_code: it.product_code, description: it.description,
-          quantity: Number(it.quantity), unit_price: Number(it.unit_price), iva_code: it.iva_code,
-          iva_rate: Number(it.iva_rate), discount_rate: Number(it.discount_rate),
-          net_amount: Number(it.net_amount), iva_amount: Number(it.iva_amount), gross_amount: Number(it.gross_amount),
-          unit_cost: Number(it.unit_cost), exemption_reason: it.exemption_reason, exemption_code: it.exemption_code,
-        })),
+        net: ncNet, iva: ncIva, gross: ncGross,
+        lines: ncLines,
       });
 
       // 3. Marca a factura original como Anulada (status fiscal 'A' + estado ANNULLED).
@@ -726,46 +893,38 @@ export class InvoiceService {
         );
       }
 
-      // 4. Devolve o stock (movimento IN) à loja certa: partilhado → pool central
-      //    (loja principal); por loja → a loja onde a venda foi feita (store_id).
+      // 4. Devolve o stock do REMANESCENTE (movimento IN) à loja certa:
+      //    partilhado → pool central; por loja → a loja da venda (store_id).
+      //    Pratos com ficha técnica devolvem os INGREDIENTES (espelho do emit).
       const defWh = await StockService.resolveDefaultWarehouse(tx);
-      for (const it of items) {
-        if (!it.product_id) continue;
-        const warehouseId = it.shared_stock ? defWh : (inv.store_id || defWh);
-        if (warehouseId) {
-          await StockService.applyMovement(tx, {
-            productId: it.product_id, warehouseId, type: 'IN', quantity: Number(it.quantity),
-            reference: `Anulação ${inv.number} (${ncNumber})`, referenceId: invoiceId, createdBy: actor.id ?? null,
-            allowNegative: true,
-          });
-        } else {
-          await tx.$executeRaw(
-            Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${Number(it.quantity)} WHERE id = ${it.product_id}::uuid`,
-          );
-        }
+      const recipeMap = await this.loadRecipes(
+        tx,
+        items.map((i) => i.product_id).filter((p): p is string => !!p),
+      );
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const qty = hasPriorReturns ? lineRemaining[i] : Number(it.quantity);
+        if (!it.product_id || qty <= 0) continue;
+        await this.restoreStock(tx, {
+          productId: it.product_id, quantity: qty, sharedStock: !!it.shared_stock,
+          storeId: inv.store_id, defWh, recipeMap,
+          reference: `Anulação ${inv.number} (${ncNumber})`, referenceId: invoiceId,
+          actorId: actor.id ?? null,
+        });
       }
 
-      // 5. Estorno no caixa (se houver turno aberto do operador).
-      if (actor.id) {
-        const open = await tx.$queryRaw<{ id: string }[]>(
-          Prisma.sql`SELECT id FROM cash_sessions WHERE status = 'OPEN' AND opened_by = ${actor.id}::uuid ORDER BY opened_at DESC LIMIT 1`,
-        );
-        if (open[0]) {
-          await tx.$executeRaw(
-            Prisma.sql`INSERT INTO cash_movements (session_id, type, amount, payment_type, reference, reference_id, created_by)
-              VALUES (${open[0].id}::uuid, 'REFUND', ${Number(inv.gross_total)}, 'CASH', ${ncNumber}, ${invoiceId}::uuid, ${actor.id}::uuid)`,
-          );
-        }
-      }
+      // 5. Estorno no caixa: turno ABERTO da venda original (tipo de pagamento
+      //    original); senão o turno aberto de quem cancela (como antes).
+      await this.recordCashRefund(tx, invoiceId, actor.id ?? null, ncGross, ncNumber);
 
       // 6. Auditoria.
       await this.audit.recordInTx(tx, {
         actorId: actor.id, actorName: actor.name, action: 'SALE_CANCELLED',
         entity: 'invoice', entityId: invoiceId,
-        details: { originalNumber: inv.number, creditNote: ncNumber, grossTotal: Number(inv.gross_total), reason },
+        details: { originalNumber: inv.number, creditNote: ncNumber, grossTotal: ncGross, reason },
       });
 
-      return { creditNoteNumber: ncNumber, grossTotal: Number(inv.gross_total) };
+      return { creditNoteNumber: ncNumber, grossTotal: ncGross };
     });
 
     this.realtime.publish(schema, 'sale.cancelled', {
@@ -809,6 +968,12 @@ export class InvoiceService {
                    WHERE ii.invoice_id = ${invoiceId}::uuid`,
       );
       const byCode = new Map(items.map((i) => [i.product_code, i]));
+      // Vendido por código AGREGADO (o mesmo produto pode ocupar várias linhas)
+      // e quantidades JÁ devolvidas em NCs anteriores — nunca se devolve mais
+      // do que o remanescente (vendido − devolvido).
+      const soldByCode = new Map<string, number>();
+      for (const i of items) soldByCode.set(i.product_code, (soldByCode.get(i.product_code) ?? 0) + Number(i.quantity));
+      const alreadyByCode = await this.returnedQtyByCode(tx, invoiceId);
 
       // Valida e calcula o valor a estornar (líquido+IVA, respeitando desconto).
       let refundNet = 0, refundIva = 0;
@@ -817,9 +982,15 @@ export class InvoiceService {
       for (const r of returns) {
         const it = byCode.get(r.productCode);
         if (!it) throw new BadRequestException(`Artigo não está na factura: ${r.productCode}`);
-        if (r.quantity <= 0 || r.quantity > Number(it.quantity)) {
-          throw new BadRequestException(`Quantidade a devolver inválida para ${r.productCode} (vendidas ${Number(it.quantity)}).`);
+        const sold = soldByCode.get(r.productCode) ?? 0;
+        const already = alreadyByCode.get(r.productCode) ?? 0;
+        if (r.quantity <= 0 || r.quantity > sold - already) {
+          throw new BadRequestException(
+            `Quantidade a devolver inválida para ${r.productCode} (vendidas ${sold}${already > 0 ? `, já devolvidas ${already}` : ''}).`,
+          );
         }
+        // Consome o remanescente também DENTRO do mesmo pedido (código repetido).
+        alreadyByCode.set(r.productCode, already + r.quantity);
         const unitNet = Number(it.unit_price) * (1 - Number(it.discount_rate || 0));
         const lineNet = round2(unitNet * r.quantity);
         const lineIva = round2((lineNet * Number(it.iva_rate)) / 100);
@@ -870,34 +1041,26 @@ export class InvoiceService {
       });
 
       // Repõe o stock dos artigos devolvidos na loja certa (partilhado → central;
-      // por loja → a loja onde a venda foi feita).
+      // por loja → a loja onde a venda foi feita). Pratos com ficha técnica
+      // devolvem os INGREDIENTES (espelho exato do que a venda baixou).
       const defWh = await StockService.resolveDefaultWarehouse(tx);
+      const recipeMap = await this.loadRecipes(
+        tx,
+        toRevert.map((r) => r.productId).filter((p): p is string => !!p),
+      );
       for (const r of toRevert) {
         if (!r.productId) continue;
-        const warehouseId = r.sharedStock ? defWh : (inv.store_id || defWh);
-        if (warehouseId) {
-          await StockService.applyMovement(tx, {
-            productId: r.productId, warehouseId, type: 'IN', quantity: r.qty,
-            reference: `Devolução ${inv.number} (${ncNumber})`, referenceId: invoiceId, createdBy: actor.id ?? null,
-            allowNegative: true,
-          });
-        } else {
-          await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${r.qty} WHERE id = ${r.productId}::uuid`);
-        }
+        await this.restoreStock(tx, {
+          productId: r.productId, quantity: r.qty, sharedStock: r.sharedStock,
+          storeId: inv.store_id, defWh, recipeMap,
+          reference: `Devolução ${inv.number} (${ncNumber})`, referenceId: invoiceId,
+          actorId: actor.id ?? null,
+        });
       }
 
-      // Estorno no caixa.
-      if (actor.id) {
-        const open = await tx.$queryRaw<{ id: string }[]>(
-          Prisma.sql`SELECT id FROM cash_sessions WHERE status = 'OPEN' AND opened_by = ${actor.id}::uuid ORDER BY opened_at DESC LIMIT 1`,
-        );
-        if (open[0]) {
-          await tx.$executeRaw(
-            Prisma.sql`INSERT INTO cash_movements (session_id, type, amount, payment_type, reference, reference_id, created_by)
-              VALUES (${open[0].id}::uuid, 'REFUND', ${refundGross}, 'CASH', ${ncNumber}, ${invoiceId}::uuid, ${actor.id}::uuid)`,
-          );
-        }
-      }
+      // Estorno no caixa: turno ABERTO da venda original (tipo de pagamento
+      // original); senão o turno aberto de quem devolve (como antes).
+      await this.recordCashRefund(tx, invoiceId, actor.id ?? null, refundGross, ncNumber);
 
       // Se era venda a crédito, reduz a dívida pelo valor devolvido (nunca abaixo
       // do que já foi pago; liquida se o saldo ficar a zero). Guarda to_regclass.

@@ -31,6 +31,7 @@ import { HotelModule } from './hotel/hotel.module';
 import { ClinicModule } from './clinic/clinic.module';
 import { PharmacyModule } from './pharmacy/pharmacy.module';
 import { VerticalModule } from './vertical/vertical.module';
+import { InventoryModule } from './inventory/inventory.module';
 import { LandingModule } from './landing/landing.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { CashboxModule } from './cashbox/cashbox.module';
@@ -113,6 +114,7 @@ import { HealthController } from './health.controller';
     ClinicModule,
     PharmacyModule,
     VerticalModule,
+    InventoryModule,
   ],
   controllers: [HealthController],
   providers: [

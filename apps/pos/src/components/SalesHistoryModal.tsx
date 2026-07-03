@@ -227,13 +227,18 @@ function CancelItemsModal({ sale, onClose, onDone }: { sale: SaleRow; onClose():
   }, [sale.id]);
 
   const lines = detail?.items ?? [];
+  // REMANESCENTE por linha: vendido − já devolvido em NCs anteriores. É esse o
+  // máximo cancelável (o servidor também valida — dupla proteção fiscal).
+  const remainingOf = (l: { quantity: number; returnedQuantity?: number }) =>
+    Math.max(0, l.quantity - (l.returnedQuantity ?? 0));
   const setLineQty = (code: string, max: number, v: number) =>
-    setQty((s) => ({ ...s, [code]: Math.max(0, Math.min(max, Math.floor(v) || 0)) }));
+    // Arredonda a 3 casas (produtos a peso vendem 0,5 kg — Math.floor impedia).
+    setQty((s) => ({ ...s, [code]: Math.max(0, Math.min(max, Math.round((v || 0) * 1000) / 1000)) }));
   const toggle = (code: string, max: number) =>
     setQty((s) => ({ ...s, [code]: s[code] ? 0 : max }));
   const selected = lines.filter((l) => (qty[l.productCode] ?? 0) > 0);
   const refund = selected.reduce((acc, l) => acc + l.unitPrice * (qty[l.productCode] ?? 0), 0);
-  const isFull = lines.length > 0 && lines.every((l) => (qty[l.productCode] ?? 0) >= l.quantity);
+  const isFull = lines.length > 0 && lines.every((l) => (qty[l.productCode] ?? 0) >= remainingOf(l));
 
   const confirm = async () => {
     if (selected.length === 0) { setErr('Selecione pelo menos um artigo.'); return; }
@@ -270,14 +275,18 @@ function CancelItemsModal({ sale, onClose, onDone }: { sale: SaleRow; onClose():
                 <tbody>
                   {lines.map((l) => {
                     const q = qty[l.productCode] ?? 0;
+                    const rem = remainingOf(l);
                     return (
-                      <tr key={l.productCode + l.description}>
-                        <td><input type="checkbox" checked={q > 0} onChange={() => toggle(l.productCode, l.quantity)} /></td>
+                      <tr key={l.productCode + l.description} style={rem <= 0 ? { opacity: .55 } : undefined}>
+                        <td><input type="checkbox" checked={q > 0} disabled={rem <= 0} onChange={() => toggle(l.productCode, rem)} /></td>
                         <td data-label="Artigo">{l.description}</td>
-                        <td data-label="Vendido">{l.quantity}</td>
+                        <td data-label="Vendido">
+                          {l.quantity}
+                          {(l.returnedQuantity ?? 0) > 0 ? <span className="muted"> (resta {rem})</span> : null}
+                        </td>
                         <td data-label="Cancelar qtd.">
-                          <input type="number" min={0} max={l.quantity} value={q}
-                            onChange={(e) => setLineQty(l.productCode, l.quantity, Number(e.target.value))}
+                          <input type="number" min={0} max={rem} value={q} disabled={rem <= 0}
+                            onChange={(e) => setLineQty(l.productCode, rem, Number(e.target.value))}
                             style={{ width: 64 }} />
                         </td>
                         <td data-label="Valor" style={{ fontWeight: 700 }}>{formatKz(l.unitPrice * q)}</td>
