@@ -112,7 +112,7 @@ function DesignShowcase() {
 
       <div className="main">
         <div className="topbar">
-          <h1>Design System · Enterprise</h1>
+          {/* Barra só-ações (o título vive no conteúdo — padrão do Shell). */}
           <span className="spacer" />
           <div className="row" role="group" aria-label="Painel">
             {(['gestor', 'super'] as const).map((p) => (
@@ -135,6 +135,7 @@ function DesignShowcase() {
         </div>
 
         <div className="content" style={{ padding: 24, overflow: 'auto' }}>
+          <div className="content-head"><h2>Design System · Enterprise</h2></div>
           <Section title="KPIs" sub="rótulo uppercase + número forte (padrão Stripe/Linear)">
             <div className="kpi-grid">
               <div className="kpi-card"><div className="kpi-label">Vendas de hoje</div><div className="kpi-value">1.254.900 Kz</div><div className="kpi-sub">+12% vs. ontem</div></div>

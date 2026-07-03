@@ -1934,3 +1934,17 @@ body:has(.agent-activity.open) .agent-activity-fab {
 /* Pills de estado completas (o web só tinha .off): verde=válido, âmbar=parcial. */
 .pill.on { color: #86efac; border-color: rgba(16, 185, 129, .45); }
 .pill.warn { color: #fcd34d; border-color: rgba(245, 158, 11, .45); }
+
+/* ── Barra do topo PROFISSIONAL: só ações (menu, sinos, tema, perfil) —
+   opaca e compacta; o nome da página vive no cabeçalho do conteúdo.
+   Elimina a "abertura" translúcida onde o fundo aparecia. ── */
+.topbar {
+  background: var(--bg-2);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  padding: 8px 20px; min-height: 54px;
+  border-bottom: 1px solid var(--border-soft);
+}
+/* Conteúdo cola-se à barra: título da página logo abaixo, sem banda vazia. */
+.content { padding-top: 16px; }
+.content-head { margin: 0 0 14px; }
+.content-head h2 { margin: 0; display: inline-flex; align-items: center; gap: 9px; }
