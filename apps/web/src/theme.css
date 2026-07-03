@@ -1814,3 +1814,123 @@ body:has(.agent-activity.open) .agent-activity-fab {
   .mig-card { padding: 13px; }
   .mig-actions .btn { flex-basis: 100%; }
 }
+
+/* ════════════════════════════════════════════════════════════
+   GOD MODE — DESIGN SYSTEM ENTERPRISE (2026-07)
+   Camada FINAL de cascata: refina tokens e componentes partilhados
+   sem renomear classes — todas as secções herdam. Nível de referência:
+   SAP Fiori / Dynamics / Stripe / Linear. Sem bounce, sem confetti;
+   só fade/slide curtos, 60fps, prefers-reduced-motion respeitado.
+   ════════════════════════════════════════════════════════════ */
+:root {
+  /* Escala de espaçamento 4px (uso novo; os valores antigos continuam válidos). */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-8: 32px;
+  /* Escala tipográfica consistente. */
+  --fs-xs: 11.5px; --fs-sm: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 20px; --fs-2xl: 26px;
+  /* Elevação em 3 níveis (subtil, sem "brilhos"). */
+  --elev-1: 0 1px 2px rgba(2, 8, 20, .25), 0 1px 1px rgba(2, 8, 20, .18);
+  --elev-2: 0 4px 14px -4px rgba(2, 8, 20, .35);
+  --elev-3: 0 16px 40px -16px rgba(2, 8, 20, .5);
+  /* Motion tokens: rápido e natural. */
+  --ease: cubic-bezier(.2, .7, .3, 1);
+  --t-fast: .14s; --t-med: .2s;
+  --focus-ring: 0 0 0 3px var(--primary-soft), 0 0 0 1.5px var(--primary);
+}
+
+/* Acessibilidade: anel de foco consistente em TODO o sistema (teclado). */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: none; box-shadow: var(--focus-ring); border-radius: 8px;
+}
+.field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible { border-radius: 11px; }
+
+/* Tipografia: hierarquia firme nos títulos de página e cartões. */
+.content-head h2 { font-size: var(--fs-2xl); font-weight: 800; letter-spacing: -.02em; }
+.card h3 { font-size: var(--fs-lg); letter-spacing: -.01em; }
+.muted { font-size: inherit; }
+
+/* Botões: elevação discreta (o "glow" forte dava ar de template). */
+.btn { box-shadow: var(--elev-1); transition: filter var(--t-fast), transform .06s, box-shadow var(--t-fast), opacity var(--t-fast); }
+.btn:hover { box-shadow: var(--elev-2); filter: brightness(1.05); }
+.btn.ghost:hover { border-color: #3a4d78; }
+.btn.sm { font-weight: 650; }
+
+/* Cartões: superfície limpa, sem gradiente de plástico; hover só onde é clicável. */
+.card { box-shadow: var(--elev-1); background: var(--surface); }
+.card:hover { box-shadow: var(--elev-1); } /* cartões estáticos não "saltam" */
+
+/* KPIs: número forte, rótulo uppercase discreto (padrão Stripe/Linear). */
+.kpi-card .kpi-label { text-transform: uppercase; letter-spacing: .07em; font-size: var(--fs-xs); font-weight: 700; }
+.kpi-card .kpi-value { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+
+/* Tabelas: cabeçalho uppercase, linhas com hover subtil, densidade enterprise. */
+.ptable th {
+  font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em;
+  font-weight: 700; color: var(--muted);
+}
+.ptable tbody tr { transition: background var(--t-fast); }
+@media (min-width: 641px) { .ptable tbody tr:hover { background: rgba(255, 255, 255, .028); } }
+
+/* Navegação: item ativo com barra de acento à esquerda (orientação espacial). */
+.nav button.active, .nav-sub button.active { position: relative; }
+.nav button.active::before {
+  content: ''; position: absolute; left: 4px; top: 22%; bottom: 22%;
+  width: 3px; border-radius: 999px; background: #fff; opacity: .9;
+}
+
+/* Skeleton loading (estados de carregamento profissionais). */
+.skeleton {
+  position: relative; overflow: hidden; background: var(--surface-2);
+  border-radius: 8px; min-height: 12px;
+}
+.skeleton::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .06), transparent);
+  animation: sk-slide 1.4s var(--ease) infinite;
+}
+@keyframes sk-slide { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* ── CARTÃO DE AÇÃO (padrão "Vendus"): ícone grande + título +
+   descrição + botão primário largo + link secundário. Usado em
+   Migração, Backup e módulos de ação. ─────────────────────── */
+.action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.action-card {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 26px 20px 20px; box-shadow: var(--elev-1);
+  transition: border-color var(--t-med), box-shadow var(--t-med), transform var(--t-med);
+}
+.action-card:hover { border-color: #3a4d78; box-shadow: var(--elev-2); transform: translateY(-2px); }
+.action-card .ac-icon {
+  width: 64px; height: 64px; border-radius: 16px; display: grid; place-items: center;
+  color: var(--primary); background: var(--primary-soft); margin-bottom: 14px;
+}
+.action-card .ac-icon svg { width: 32px; height: 32px; }
+.action-card h4 { margin: 0 0 6px; font-size: 17px; font-weight: 800; font-family: var(--font-display); }
+.action-card p { margin: 0 0 18px; font-size: 13.5px; line-height: 1.5; color: var(--muted); flex: 1; }
+.action-card .btn { width: 100%; }
+.action-card .ac-link {
+  margin-top: 10px; background: none; border: none; color: var(--muted);
+  font-size: 12.5px; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+}
+.action-card .ac-link:hover { color: var(--text); }
+
+/* Toolbar de página consistente (título + ações à direita). */
+.content-head { gap: 12px; flex-wrap: wrap; }
+
+/* Modais: entrada rápida e profissional (fade + slide curto — sem bounce). */
+.modal-bg, .lp-modal-bg { animation: ds-fade var(--t-med) var(--ease) both; }
+.modal, .lp-modal { animation: ds-pop var(--t-med) var(--ease) both; }
+@keyframes ds-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ds-pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Ecrãs táteis: sem pinch-zoom acidental na UI (inputs já têm 16px). */
+@media (pointer: coarse) { .admin { touch-action: pan-x pan-y; } }
+
+/* Movimento reduzido: desliga TODAS as animações decorativas. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+/* Pills de estado completas (o web só tinha .off): verde=válido, âmbar=parcial. */
+.pill.on { color: #86efac; border-color: rgba(16, 185, 129, .45); }
+.pill.warn { color: #fcd34d; border-color: rgba(245, 158, 11, .45); }

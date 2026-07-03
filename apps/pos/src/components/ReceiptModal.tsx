@@ -5,6 +5,8 @@ import { formatDateTime, formatKz } from '../format';
 import { IconCheck } from './Icons';
 import { PaperSizeToggle } from './PaperSizeToggle';
 import { buildInvoicePdf, invoiceFileName } from '../pdf/invoicePdf';
+import { getPaper } from '../print';
+import { pairPrinter, pairedPrinterName, printRaw, rawPrintSupported } from '../escpos';
 
 /** Linha de artigo da fatura (para a tabela no recibo/PDF). */
 export interface ReceiptItem { description: string; quantity: number; unitPrice: number; total: number }
@@ -79,6 +81,46 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
 
   const [pdfBusy, setPdfBusy] = useState(false);
   const makePdf = () => buildInvoicePdf({ invoice, identity, info, customerName, operatorName, items, provisional });
+
+  // ── Impressão: tenta a TÉRMICA DIRETA (ESC/POS via USB, sem driver) e só
+  // se não houver impressora emparelhada/compatível cai no diálogo do sistema.
+  const [printBusy, setPrintBusy] = useState(false);
+  const [printerName, setPrinterName] = useState<string | null>(() => pairedPrinterName());
+  const pairThermal = async () => {
+    try {
+      const p = await pairPrinter();
+      if (p) setPrinterName(p.name);
+    } catch (e) { alert(e instanceof Error ? e.message : 'Não foi possível ligar a impressora.'); }
+  };
+  const doPrint = async () => {
+    setPrintBusy(true);
+    try {
+      const contact = [identity?.phone, identity?.email].filter(Boolean).join(' · ');
+      const ok = await printRaw({
+        company: identity?.companyName || identity?.brandName || null,
+        meta: companyMeta || null,
+        title: `${invoice.number}${reprint ? ' - 2a via' : ''}${provisional ? ' (provisorio)' : ''}`,
+        date: shownDate,
+        customer: customerName || 'Consumidor final',
+        operator: operatorName || null,
+        items,
+        netTotal: invoice.netTotal, ivaTotal: invoice.ivaTotal, grossTotal: invoice.grossTotal,
+        hash: provisional ? null : hashShort,
+        legends: [
+          ...(info?.fields.map((f) => `${f.label}: ${f.value}`) ?? []),
+          ...(info?.softwareCertificateNumber ? [`Software certificado AGT n. ${info.softwareCertificateNumber}`] : []),
+          ...(info?.receiptLegend ? [info.receiptLegend] : []),
+        ],
+        footer: [
+          ...(identity?.address ? [identity.address] : []),
+          ...(contact ? [contact] : []),
+          identity?.receiptMessage || 'Obrigado pela preferência!',
+        ],
+      }, getPaper());
+      if (!ok) window.print();
+    } catch { window.print(); }
+    finally { setPrintBusy(false); }
+  };
 
   const downloadPdf = async () => {
     setPdfBusy(true);
@@ -221,9 +263,17 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
         ) : null}
 
         <PaperSizeToggle />
+        {rawPrintSupported() ? (
+          <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', padding: '2px 0 6px' }}>
+            <span>🖨 {printerName ? `Térmica: ${printerName}` : 'Térmica não ligada (usa o diálogo)'}</span>
+            <button className="btn sm ghost" onClick={() => void pairThermal()}>
+              {printerName ? 'Trocar' : 'Ligar impressora'}
+            </button>
+          </div>
+        ) : null}
         <div className="r-foot" style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <button className="btn ghost lg" style={{ flex: '1 1 30%' }} onClick={() => window.print()}>
-            Imprimir
+          <button className="btn ghost lg" style={{ flex: '1 1 30%' }} onClick={() => void doPrint()} disabled={printBusy}>
+            {printBusy ? 'A imprimir…' : 'Imprimir'}
           </button>
           <button className="btn ghost lg" style={{ flex: '1 1 30%' }} onClick={() => void downloadPdf()} disabled={pdfBusy}>
             {pdfBusy ? '…' : '⬇️ PDF'}

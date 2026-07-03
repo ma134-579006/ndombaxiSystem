@@ -444,3 +444,90 @@
 }
 /* Navbar da landing respeita o notch. */
 .lp-nav { padding-top: calc(14px + env(safe-area-inset-top, 0px)); }
+
+/* ════════════════════════════════════════════════════════════
+   RODAPÉ 2.0 — enterprise em duas camadas (referência INUKA):
+   faixa CTA de destaque + rodapé escuro com colunas e contactos.
+   ════════════════════════════════════════════════════════════ */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+.lp-footer2 { background: #070c18; }
+
+/* Faixa CTA: cor da marca, título forte à esquerda, botão contrastante à direita. */
+.lp-cta-band {
+  background: linear-gradient(120deg, var(--lp-primary), var(--lp-accent));
+  padding: 34px 28px;
+}
+.lp-cta-band .band-inner {
+  max-width: 1080px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.lp-cta-band h2 {
+  margin: 0; color: #fff; font-size: clamp(20px, 3vw, 30px); font-weight: 900;
+  letter-spacing: .01em; text-transform: uppercase;
+}
+.lp-cta-band button {
+  height: 52px; padding: 0 30px; border-radius: 10px; border: none; cursor: pointer;
+  background: #0b1221; color: #fff; font-weight: 800; font-size: 15px;
+  transition: transform .15s ease, box-shadow .2s ease;
+  box-shadow: 0 10px 26px rgba(4, 8, 18, .35);
+}
+.lp-cta-band button:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(4, 8, 18, .45); }
+.lp-cta-band button:active { transform: translateY(0); }
+
+/* Corpo do rodapé: colunas alinhadas à grelha do site. */
+.lp-foot-main { padding: 54px 28px 26px; color: #aebcd2; }
+.lp-foot-main .wrap { max-width: 1080px; margin: 0 auto; }
+.lp-foot-cols {
+  display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 36px 28px;
+  padding-bottom: 38px; border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+.lp-fbrand .fb-logo-row { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.lp-fbrand .fb-logo-row img { width: 44px; height: 44px; object-fit: contain; }
+.lp-fbrand .fnm { font-weight: 900; font-size: 17px; color: #fff; letter-spacing: -.01em; }
+.lp-fbrand .ftag { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: #7e8cab; margin-top: 2px; }
+.fc-line {
+  display: flex; align-items: center; gap: 10px; color: #c6d2e6; text-decoration: none;
+  font-size: 14px; margin-bottom: 10px; line-height: 1.5; transition: color .15s;
+}
+a.fc-line:hover { color: #fff; }
+.fc-line svg { flex: none; color: #7e8cab; }
+.fc-note { color: #8d9bb8; font-size: 13px; }
+.lp-fsocial { display: flex; gap: 10px; margin-top: 16px; }
+.lp-fsocial a {
+  width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center;
+  background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .1);
+  color: #d7e0f0; transition: background .15s, transform .15s;
+}
+.lp-fsocial a:hover { background: rgba(255, 255, 255, .16); transform: translateY(-2px); }
+
+.lp-fcol h5 {
+  margin: 4px 0 16px; font-size: 12.5px; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; color: #fff;
+}
+.lp-fcol a, .lp-fcol button {
+  display: block; width: fit-content; background: none; border: none; padding: 0; cursor: pointer;
+  color: #aebcd2; text-decoration: none; font-size: 14px; font-weight: 500; font-family: inherit;
+  margin-bottom: 11px; transition: color .15s, transform .15s; text-align: left;
+}
+.lp-fcol a:hover, .lp-fcol button:hover { color: #fff; transform: translateX(2px); }
+
+.lp-foot-bottom {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding-top: 20px; font-size: 12.5px; color: #7e8cab;
+}
+.lp-foot-credits strong {
+  background: linear-gradient(120deg, #7db0ff, #b794f6);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  font-weight: 800;
+}
+
+/* Responsivo: 2 colunas no tablet, 1 coluna empilhada no telemóvel. */
+@media (max-width: 900px) { .lp-foot-cols { grid-template-columns: 1fr 1fr; } .lp-fbrand { grid-column: 1 / -1; } }
+@media (max-width: 520px) {
+  .lp-foot-cols { grid-template-columns: 1fr; gap: 28px; }
+  .lp-cta-band .band-inner { justify-content: center; text-align: center; }
+  .lp-cta-band button { width: 100%; }
+  .lp-foot-bottom { justify-content: center; text-align: center; }
+}

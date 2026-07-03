@@ -1195,3 +1195,28 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
 .seg button.on { background: var(--primary); color: #fff; }
 
 .lock-secs { font-size: .42em; font-weight: 300; opacity: .7; vertical-align: baseline; letter-spacing: 1px; }
+
+/* ════════════════════════════════════════════════════════════
+   GOD MODE — DESIGN SYSTEM ENTERPRISE (2026-07) · CAIXA
+   Camada final: foco acessível, motion tokens e elevação subtil.
+   Restrita a ecrã — NÃO afeta a impressão térmica (@media print).
+   ════════════════════════════════════════════════════════════ */
+@media screen {
+  :root {
+    --ease: cubic-bezier(.2, .7, .3, 1);
+    --t-fast: .14s;
+    --elev-1: 0 1px 2px rgba(2, 8, 20, .22);
+    --elev-2: 0 6px 18px -6px rgba(2, 8, 20, .35);
+    --focus-ring: 0 0 0 3px rgba(59, 130, 246, .25), 0 0 0 1.5px var(--primary, #3b82f6);
+  }
+  :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: none; box-shadow: var(--focus-ring);
+  }
+  .btn { transition: filter var(--t-fast), transform .06s, box-shadow var(--t-fast); }
+  .sales-table th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; }
+  /* Toque: sem pinch-zoom acidental no terminal (inputs já a 16px). */
+  .pos { touch-action: pan-x pan-y; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+}

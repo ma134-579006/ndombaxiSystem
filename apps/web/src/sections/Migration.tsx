@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { MigrationApplyResult, MigrationKind, MigrationPreview, WarehouseRow } from '../api/types';
 import { toast, confirmDialog } from '../components/feedback';
-import { IconShield, IconCube, IconBuilding, IconStore, IconCheck, IconClose, IconRefresh } from '../components/Icons';
+import { IconUpload, IconCube, IconUsers, IconTruck, IconCheck, IconClose, IconRefresh } from '../components/Icons';
 
 const KIND_LABEL: Record<MigrationKind, string> = { products: 'Produtos', customers: 'Clientes', suppliers: 'Fornecedores' };
 const KIND_HINT: Record<MigrationKind, string> = {
@@ -10,7 +10,8 @@ const KIND_HINT: Record<MigrationKind, string> = {
   customers: 'Nome, NIF, telefone, e-mail, morada e saldo em dívida',
   suppliers: 'Nome, NIF, telefone, e-mail, morada e conta a pagar',
 };
-const KIND_ICON: Record<MigrationKind, React.ComponentType<{ size?: number }>> = { products: IconCube, customers: IconBuilding, suppliers: IconStore };
+// Ícones SEMÂNTICOS: produtos=caixa, clientes=pessoas, fornecedores=camião.
+const KIND_ICON: Record<MigrationKind, React.ComponentType<{ size?: number }>> = { products: IconCube, customers: IconUsers, suppliers: IconTruck };
 const FIELD_LABEL: Record<string, string> = {
   barcode: 'Código de barras', code: 'Código', name: 'Nome', category: 'Categoria', stock: 'Stock',
   costPrice: 'Valor unitário (custo)', salePrice: 'Valor de venda', profit: 'Lucro',
@@ -36,7 +37,7 @@ function readAsBase64(file: File): Promise<string> {
 export function Migration() {
   return (
     <>
-      <div className="content-head"><h2><IconShield size={20} /> Migração de dados</h2></div>
+      <div className="content-head"><h2><IconUpload size={20} /> Migração de dados</h2></div>
       <p className="muted mig-intro">
         Traga produtos, clientes e fornecedores de outro sistema. Aceita <strong>Excel</strong> (.xlsx),
         {' '}<strong>CSV</strong>, <strong>SAF-T</strong> da AGT (.xml) e cópias de base de dados (.sql).

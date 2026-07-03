@@ -9,7 +9,8 @@ import type {
   RegisterCompanyResult,
 } from '../api/types';
 import { LOGO_SRC } from '../brand';
-import { IconBuilding, IconCheck, IconShield } from '../components/Icons';
+import { CAIXA_URL, STORE_URL } from '../config';
+import { IconCheck, IconMail } from '../components/Icons';
 import { Typewriter } from '../components/Typewriter';
 import { SupportChat } from '../components/SupportChat';
 import { FeedbackSection } from '../components/FeedbackSection';
@@ -131,7 +132,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
 
       {/* FUNCIONALIDADES */}
       {features.length > 0 && (
-        <section className="lp-section">
+        <section className="lp-section" id="funcionalidades">
           <div className="wrap">
             <h2>Tudo o que o seu negócio precisa</h2>
             <p className="lead">Uma plataforma completa, pensada para a realidade comercial angolana.</p>
@@ -150,7 +151,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
 
       {/* PLANOS / PREÇOS */}
       {cfg?.showPricing !== false && plans.length > 0 && (
-        <section className="lp-section alt">
+        <section className="lp-section alt" id="planos">
           <div className="wrap">
             <h2>Planos simples, preços em Kwanzas</h2>
             <p className="lead">
@@ -189,7 +190,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
 
       {/* ANÚNCIOS / PUBLICIDADES */}
       {ads.length > 0 && (
-        <section className="lp-section">
+        <section className="lp-section" id="novidades">
           <div className="wrap">
             <h2>Novidades</h2>
             <div className="lp-ads">
@@ -206,21 +207,79 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       )}
 
       {/* COMENTÁRIOS DA COMUNIDADE */}
-      <FeedbackSection />
+      <div id="comentarios"><FeedbackSection /></div>
 
       {/* CHAT DE SUPORTE (balão flutuante) */}
       <SupportChat />
 
-      {/* RODAPÉ */}
-      <footer className="lp-footer">
-        <div className="contacts">
-          {cfg?.contactEmail && <a href={`mailto:${cfg.contactEmail}`}>{cfg.contactEmail}</a>}
-          {cfg?.contactPhone && <a href={`tel:${cfg.contactPhone}`}>{cfg.contactPhone}</a>}
+      {/* RODAPÉ enterprise em 2 camadas: faixa CTA + colunas (estilo INUKA,
+          adaptado à marca). Só links REAIS: âncoras das secções, caixa/loja
+          e contactos configurados no Super Admin. */}
+      <footer className="lp-footer2">
+        <div className="lp-cta-band">
+          <div className="wrap band-inner">
+            <h2>Comece a sua jornada {cfg?.brandName ?? 'Ndombaxi'} hoje!</h2>
+            <button onClick={() => openRegister('BUSINESS')}>Criar conta grátis</button>
+          </div>
         </div>
-        <div className="lp-credits">
-          <span className="lp-credits-rights">© {new Date().getFullYear()} — Direitos reservados a <strong>Manuel Mbala Ndombaxi</strong></span>
-          <span className="lp-credits-sep" aria-hidden="true" />
-          <span className="lp-credits-sponsor">Patrocinado pela <strong>Loja das Mulheres</strong></span>
+        <div className="lp-foot-main">
+          <div className="wrap lp-foot-cols">
+            <div className="lp-fcol lp-fbrand">
+              <div className="fb-logo-row">
+                <img src={LOGO_SRC} alt={cfg?.brandName ?? 'Ndombaxi'} />
+                <div>
+                  <div className="fnm">{cfg?.brandName ?? 'Ndombaxi System'}</div>
+                  <div className="ftag">Sempre com o seu negócio</div>
+                </div>
+              </div>
+              {cfg?.contactPhone ? (
+                <a className="fc-line" href={`tel:${cfg.contactPhone}`}>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.9.5 2.8.6a2 2 0 0 1 1.8 2Z" /></svg>
+                  {cfg.contactPhone}
+                </a>
+              ) : null}
+              {cfg?.contactEmail ? (
+                <a className="fc-line" href={`mailto:${cfg.contactEmail}`}>
+                  <IconMail size={16} /> {cfg.contactEmail}
+                </a>
+              ) : null}
+              {cfg?.footerText ? <div className="fc-line fc-note">{cfg.footerText}</div> : null}
+              <div className="lp-fsocial">
+                {cfg?.contactPhone ? (
+                  <a href={`https://wa.me/${cfg.contactPhone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" aria-label="WhatsApp" title="WhatsApp">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden><path d="M19.05 4.91A9.82 9.82 0 0 0 12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.004c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.02zM12.05 20.15h-.004a8.23 8.23 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.24-8.23 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.54-3.69 8.24-8.23 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.39.11-.51.11-.11.25-.29.37-.43.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/></svg>
+                  </a>
+                ) : null}
+                {cfg?.contactEmail ? (
+                  <a href={`mailto:${cfg.contactEmail}`} aria-label="E-mail" title="E-mail"><IconMail size={16} /></a>
+                ) : null}
+              </div>
+            </div>
+            <div className="lp-fcol">
+              <h5>Comece</h5>
+              <button onClick={() => openRegister('BUSINESS')}>Criar conta</button>
+              <button onClick={onGoLogin}>Entrar no painel</button>
+              <a href={CAIXA_URL} target="_blank" rel="noreferrer">Abrir a caixa (POS)</a>
+              <a href={STORE_URL} target="_blank" rel="noreferrer">Loja online</a>
+            </div>
+            <div className="lp-fcol">
+              <h5>Produto</h5>
+              <a href="#funcionalidades">Funcionalidades</a>
+              <a href="#planos">Planos e preços</a>
+              <a href="#novidades">Novidades</a>
+              <a href="#comentarios">Comentários</a>
+            </div>
+            <div className="lp-fcol">
+              <h5>Precisa de ajuda?</h5>
+              {cfg?.contactEmail ? <a href={`mailto:${cfg.contactEmail}`}>Fale connosco</a> : null}
+              {cfg?.contactPhone ? <a href={`tel:${cfg.contactPhone}`}>Ligar agora</a> : null}
+              <a href="#comentarios">Deixar comentário</a>
+            </div>
+          </div>
+          <div className="wrap lp-foot-bottom">
+            <span>© {new Date().getFullYear()} {cfg?.brandName ?? 'Ndombaxi System'}. Todos os direitos reservados.</span>
+            <span className="lp-foot-credits">Direitos reservados a <strong>Manuel Mbala Ndombaxi</strong> · Patrocinado pela <strong>Loja das Mulheres</strong></span>
+          </div>
         </div>
       </footer>
 
