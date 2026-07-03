@@ -33,16 +33,37 @@ const ICONS: Array<[string, React.ComponentType<{ size?: number }>]> = [
   ['Câmaras', IconCamera], ['Férias', IconCalendar], ['Destaque', IconStar],
 ];
 
-const NAV = [
+/** Navegações REAIS dos dois painéis (mesmos itens/ícones do App). */
+const NAV_GESTOR = [
   { label: 'Visão geral', icon: IconGauge, active: true },
   { label: 'Assistente IA', icon: IconSparkles },
+  { label: 'Lojas', icon: IconStore },
   { label: 'Produtos', icon: IconCube },
   { label: 'Inventário', icon: IconBoxes },
+  { label: 'Inventário PRO', icon: IconTrendUp },
   { label: 'Compras', icon: IconCartIn },
-  { label: 'Clientes', icon: IconUsers },
-  { label: 'Funcionários', icon: IconBadge },
+  { label: 'Movimentações', icon: IconCoins },
+  { label: 'Caixa & Auditoria', icon: IconCashRegister },
   { label: 'Relatórios', icon: IconReport },
+  { label: 'Funcionários', icon: IconBadge },
+  { label: 'Clientes', icon: IconUsers },
+  { label: 'Câmaras', icon: IconCamera },
+  { label: 'Fiscal · SAF-T', icon: IconReceipt },
+  { label: 'Backup & Restauro', icon: IconDatabase },
   { label: 'Configurações', icon: IconGear },
+];
+const NAV_SUPER = [
+  { label: 'Dashboard', icon: IconGauge, active: true },
+  { label: 'Empresas', icon: IconBuilding },
+  { label: 'Subscrições & Pagamentos', icon: IconCard },
+  { label: 'Suporte do site', icon: IconHeadset },
+  { label: 'Comentários do site', icon: IconMessage },
+  { label: 'Planos & Página inicial', icon: IconTag },
+  { label: 'Inteligência Artificial', icon: IconSparkles },
+  { label: 'Fiscal (AGT)', icon: IconReceipt },
+  { label: 'Gateways de Pagamento', icon: IconBank },
+  { label: 'Integrações', icon: IconPlug },
+  { label: 'E-mail (SMTP)', icon: IconMail },
 ];
 
 function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
@@ -60,26 +81,28 @@ function Section({ title, sub, children }: { title: string; sub?: string; childr
 
 function DesignShowcase() {
   const [theme, setTheme] = useState('claro');
+  const [panel, setPanel] = useState<'gestor' | 'super'>('gestor');
   const setT = (t: string) => {
     setTheme(t);
     if (t) document.documentElement.setAttribute('data-theme', t);
     else document.documentElement.removeAttribute('data-theme'); // padrão = escuro
   };
+  const nav = panel === 'gestor' ? NAV_GESTOR : NAV_SUPER;
 
   return (
     <div className="admin">
-      {/* Sidebar de demonstração (ícones semânticos reais) */}
+      {/* Sidebar de demonstração (navegação REAL do painel escolhido) */}
       <aside className="sidebar" style={{ display: undefined }}>
         <div className="brand">
           <img src="/logo.png" alt="Ndombaxi" />
           <div>
             <div className="nm">Ndombaxi System</div>
-            <div className="tg">Design System</div>
+            <div className="tg">{panel === 'gestor' ? 'Painel do Gestor' : 'Super Admin'}</div>
           </div>
         </div>
         <nav className="nav">
-          {NAV.map((n) => (
-            <button key={n.label} className={n.active ? 'active' : ''}>
+          {nav.map((n) => (
+            <button key={n.label} className={'active' in n && n.active ? 'active' : ''}>
               <n.icon size={18} /> {n.label}
             </button>
           ))}
@@ -91,6 +114,13 @@ function DesignShowcase() {
         <div className="topbar">
           <h1>Design System · Enterprise</h1>
           <span className="spacer" />
+          <div className="row" role="group" aria-label="Painel">
+            {(['gestor', 'super'] as const).map((p) => (
+              <button key={p} className={`chip${panel === p ? ' active' : ''}`} onClick={() => setPanel(p)}>
+                {p === 'gestor' ? 'Gestor' : 'Super Admin'}
+              </button>
+            ))}
+          </div>
           <div className="row" role="group" aria-label="Tema">
             {['claro', ''].map((t) => (
               <button key={t || 'dark'} className={`chip${theme === t ? ' active' : ''}`} onClick={() => setT(t)}>
@@ -100,7 +130,7 @@ function DesignShowcase() {
           </div>
           <div className="who">
             <div className="nm">Manuel Ndombaxi</div>
-            <div className="rl">Gestor</div>
+            <div className="rl">{panel === 'gestor' ? 'Gestor' : 'Super Admin'}</div>
           </div>
         </div>
 

@@ -15,19 +15,42 @@ import { Typewriter } from '../components/Typewriter';
 import { SupportChat } from '../components/SupportChat';
 import { FeedbackSection } from '../components/FeedbackSection';
 
-/** Imagens de fundo realistas (comércio/retalho/POS/negócio) — usadas no
- *  carrossel quando o Super Admin não define as suas. Unsplash, alta qualidade. */
+/** Imagens de fundo realistas — carrossel por SERVIÇO, em pares (2 imagens
+ *  seguidas por vertical): vendas & retalho → restauração/hamburgueria →
+ *  clínica → hotelaria → reparações/serviços → supermercado → pagamentos POS
+ *  → armazém → boutique → mercado. Usadas quando o Super Admin não define
+ *  as suas. Unsplash, alta qualidade, tom profissional. */
 const DEFAULT_HERO_IMAGES = [
-  'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=1920&q=80', // mercado/retalho
-  'https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&w=1920&q=80',   // pagamento POS/cartão
+  // Vendas & retalho
   'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1920&q=80', // loja moderna
+  'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=1920&q=80', // retalho/mercado
+  // Restauração & hamburgueria
+  'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1920&q=80',   // restaurante interior
+  'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1920&q=80', // hambúrguer artesanal
+  // Clínica & saúde
+  'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1920&q=80', // equipa clínica
+  'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1920&q=80', // médico com tablet
+  // Hotelaria
+  'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1920&q=80', // hotel resort
+  'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1920&q=80',   // quarto de hotel
+  // Reparações & serviços técnicos
+  'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1920&q=80', // mecânico/oficina
+  'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=1920&q=80', // técnico/engenharia
+  // Supermercado
+  'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1920&q=80', // prateleiras
   'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1920&q=80',   // mercado fresco
-  'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1920&q=80', // supermercado prateleiras
-  'https://images.unsplash.com/photo-1567448400815-59d5a71b1a6c?auto=format&fit=crop&w=1920&q=80', // caixa/balcão atendimento
-  'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1920&q=80', // armazém/logística
-  'https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?auto=format&fit=crop&w=1920&q=80',   // pagamento móvel/POS
+  // Pagamentos & POS
+  'https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&w=1920&q=80',   // pagamento cartão
+  'https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?auto=format&fit=crop&w=1920&q=80',   // POS móvel
+  // Armazém & logística
+  'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1920&q=80', // armazém
+  'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1920&q=80',   // logística moderna
+  // Boutique & moda
   'https://images.unsplash.com/photo-1521335629791-ce4aec67dd15?auto=format&fit=crop&w=1920&q=80', // loja de roupa
-  'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=1920&q=80', // boutique moderna
+  'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=1920&q=80', // boutique
+  // Atendimento & balcão
+  'https://images.unsplash.com/photo-1567448400815-59d5a71b1a6c?auto=format&fit=crop&w=1920&q=80', // balcão atendimento
+  'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?auto=format&fit=crop&w=1920&q=80',   // profissional negócio
 ];
 const DEFAULT_HERO = DEFAULT_HERO_IMAGES[0];
 
@@ -102,17 +125,19 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       <header className="lp-hero">
         <HeroCarousel images={heroImages} intervalMs={heroInterval} />
         <div className="lp-hero-inner">
-          <span className="badge-pill">🎁 <Typewriter text={`${trialDays} dias grátis · sem cartão · cancele quando quiser`} /></span>
+          <span className="badge-pill"><Typewriter text={`${trialDays} dias grátis · sem cartão · cancele quando quiser`} /></span>
           <h1>{cfg?.heroTitle ?? 'O sistema de gestão e vendas para Angola'}</h1>
           <p className="sub">
             {cfg?.heroSubtitle ??
               'Para vendas & stock, restauração, serviços e hotelaria — POS, facturação AGT, loja online e IA, tudo num só lugar, em Kwanzas.'}
           </p>
           <div className="lp-verticals">
-            <span>🛒 Vendas & stock</span>
-            <span>🍔 Restauração</span>
-            <span>🔧 Serviços</span>
-            <span>🏨 Hotelaria</span>
+            <span>Vendas & stock</span>
+            <span>Restauração</span>
+            <span>Serviços</span>
+            <span>Hotelaria</span>
+            <span>Clínicas</span>
+            <span>Farmácias</span>
           </div>
           <div className="cta-row">
             <button className="lp-btn primary" onClick={() => openRegister('BUSINESS')}>
@@ -160,7 +185,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             <div className="lp-plans">
               {plans.map((p) => (
                 <div className={`lp-plan${p.highlight ? ' highlight' : ''}`} key={p.id}>
-                  {p.highlight && <span className="pop">⭐ Mais popular</span>}
+                  {p.highlight && <span className="pop">Mais popular</span>}
                   <div className="pname">{p.name}</div>
                   <div className="ptag">{p.tagline ?? ''}</div>
                   {p.tier === 'FREE' ? (
