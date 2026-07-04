@@ -1,4 +1,6 @@
-import { jsPDF } from 'jspdf';
+// jsPDF (~400 KB) é carregado DINAMICAMENTE na 1.ª geração de PDF — fora do
+// caminho crítico do arranque do caixa (importante em ligações 3G/4G).
+import type { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import type { DocumentIdentity, EmittedInvoice, ReceiptFiscalInfo } from '../api/types';
 import { formatDateTime, formatKz } from '../format';
@@ -15,6 +17,7 @@ export interface InvoicePdfArgs {
 
 /** Gera uma FATURA A4 profissional (logo, NIF, totais, QR) em PDF. */
 export async function buildInvoicePdf(a: InvoicePdfArgs): Promise<jsPDF> {
+  const { jsPDF } = await import('jspdf');
   const { invoice, identity, info, customerName, operatorName, items, provisional } = a;
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();

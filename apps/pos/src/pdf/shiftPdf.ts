@@ -1,4 +1,5 @@
-import { jsPDF } from 'jspdf';
+// jsPDF (~400 KB) é carregado DINAMICAMENTE na 1.ª geração de PDF.
+import type { jsPDF } from 'jspdf';
 import type { DocumentIdentity, ShiftClose } from '../api/types';
 import { formatDateTime, formatKz } from '../format';
 
@@ -16,6 +17,7 @@ const VERDICT_LABEL: Record<ShiftClose['verdict'], string> = {
 
 /** Gera o RELATÓRIO DE FECHO DE TURNO (Z) em A4 profissional (PDF). */
 export async function buildShiftClosePdf(a: ShiftPdfArgs): Promise<jsPDF> {
+  const { jsPDF } = await import('jspdf');
   const { result: r, identity, operatorName } = a;
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();

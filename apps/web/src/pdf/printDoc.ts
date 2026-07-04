@@ -1,6 +1,8 @@
 import { api } from '../api/client';
 import type { DocumentIdentity } from '../api/types';
-import { buildReportPdf, type ReportTable } from './reportPdf';
+// IMPORT DINÂMICO do gerador (e do jsPDF, ~400 KB): só é descarregado quando o
+// utilizador imprime — fora do caminho crítico do arranque da app.
+import type { ReportTable } from './reportPdf';
 
 let cachedIdentity: DocumentIdentity | null = null;
 async function branding(): Promise<DocumentIdentity | null> {
@@ -78,7 +80,7 @@ export async function printSectionReport(opts?: { title?: string; subtitle?: str
  * contagem de inventário).
  */
 export async function printReportPdf(args: { title: string; subtitle?: string; summary?: [string, string][]; tables: ReportTable[] }): Promise<void> {
-  const identity = await branding();
+  const [{ buildReportPdf }, identity] = await Promise.all([import('./reportPdf'), branding()]);
   const doc = await buildReportPdf({ identity, ...args });
   const filename = `${args.title.replace(/[^\wÀ-ſ -]/g, '').trim().replace(/\s+/g, '-') || 'Relatorio'}.pdf`;
   try {
