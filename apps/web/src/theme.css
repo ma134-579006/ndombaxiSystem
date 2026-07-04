@@ -2016,3 +2016,13 @@ html:not([data-theme="neon"]) .kpi-card.violet  .kpi-ic { background: color-mix(
 @media (max-width: 640px) {
   .sales-table:not(.stack) { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
 }
+
+/* Seletor de TEMA dentro do menu do perfil (movido da barra do topo):
+   amostras de cor em toque único, sem popup aninhado. */
+.acct-theme { margin-top: 8px; padding: 8px 10px 4px; border-top: 1px solid var(--border); }
+.acct-theme-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 8px; }
+.acct-theme-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.acct-sw { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); display: grid; place-items: center; cursor: pointer; padding: 0; transition: transform .1s, border-color .15s; }
+.acct-sw:hover { transform: translateY(-1px); border-color: #34456a; }
+.acct-sw > span { width: 16px; height: 16px; border-radius: 5px; display: block; }
+.acct-sw.on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }

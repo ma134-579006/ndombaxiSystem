@@ -3,7 +3,7 @@ import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
 import { IconLogout } from './Icons';
-import { ThemePicker } from './ThemePicker';
+import { THEMES, getTheme, setTheme } from '../theme';
 import { PrintBrandHead, PrintBrandFoot } from './PrintBrand';
 import { ChatModal } from './ChatModal';
 import { CustomerChatModal } from './CustomerChatModal';
@@ -198,6 +198,7 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
 }) {
   const totalBadge = unread + (canCustChat ? custUnread : 0) + (canAdvances ? advancesCount : 0);
   const [open, setOpen] = useState(false);
+  const [theme, setThemeState] = useState(getTheme());
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!open) return;
@@ -205,6 +206,12 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
+  // Troca de tema movida para AQUI (era um ícone na barra do topo): aplica na
+  // hora e guarda a preferência na conta (segue o utilizador entre dispositivos).
+  const pickTheme = (id: string) => {
+    setTheme(id); setThemeState(id);
+    api.preferences.setTheme(id).catch(() => { /* fica guardado localmente */ });
+  };
   return (
     <div ref={ref} className="acct">
       <button className="acct-btn" onClick={() => setOpen((v) => !v)} title={name} aria-label="Conta">
@@ -234,6 +241,17 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
               {advancesCount > 0 ? <span className="acct-item-badge">{advancesCount > 99 ? '99+' : advancesCount}</span> : null}
             </button>
           ) : null}
+          <div className="acct-theme">
+            <div className="acct-theme-h">Tema do painel</div>
+            <div className="acct-theme-row">
+              {THEMES.map((t) => (
+                <button key={t.id || 'default'} type="button" title={t.label} aria-label={`Tema ${t.label}`}
+                  className={`acct-sw${theme === t.id ? ' on' : ''}`} onClick={() => pickTheme(t.id)}>
+                  <span style={{ background: t.swatch }} />
+                </button>
+              ))}
+            </div>
+          </div>
           <button className="acct-item" onClick={() => { setOpen(false); onSettings(); }}><IconGear size={17} /> Configurações</button>
           <button className="acct-item danger" onClick={() => { setOpen(false); onLogout(); }}><IconLogout size={17} /> Terminar sessão</button>
         </div>
@@ -445,7 +463,6 @@ export function Shell({
               {custUnread > 0 ? <span className="noti-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
             </button>
           ) : null}
-          <ThemePicker />
           <ManagerMenu
             photo={avatar}
             name={user?.name || user?.email || 'Gestor'}
