@@ -23,7 +23,7 @@
   --radius: 15px;
   --radius-sm: 11px;
   --shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.55);
-  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font: 'DM Sans', 'Noto Emoji', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-display: 'Sora', var(--font);
   --glass: rgba(18, 27, 46, 0.7);
   --app-bg:
