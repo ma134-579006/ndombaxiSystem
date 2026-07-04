@@ -16,6 +16,8 @@ export interface DocumentIdentity {
   receiptMessage: string | null;
   /** Tipo de negócio (adapta o painel): RETAIL | RESTAURANT | SERVICES | HOSPITALITY. */
   businessType: string;
+  /** Módulo Loja Online ligado (portal público). Esconde os menus da loja quando falso. */
+  onlineStoreEnabled: boolean;
   /** Assinatura permanente do sistema (autoria). */
   copyright: string;
 }
@@ -27,6 +29,7 @@ interface SiteIdentityRow {
   contact_phone: string | null;
   contact_email: string | null;
   receipt_message: string | null;
+  online_store_enabled: boolean | null;
 }
 
 /**
@@ -51,7 +54,7 @@ export class CompanyIdentityService {
 
     const siteRows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<SiteIdentityRow[]>(
-        Prisma.sql`SELECT brand_name, logo_url, address, contact_phone, contact_email, receipt_message
+        Prisma.sql`SELECT brand_name, logo_url, address, contact_phone, contact_email, receipt_message, online_store_enabled
                    FROM site_settings LIMIT 1`,
       ),
     );
@@ -67,6 +70,7 @@ export class CompanyIdentityService {
       email: s?.contact_email ?? company?.responsibleEmail ?? null,
       receiptMessage: s?.receipt_message ?? null,
       businessType: company?.sector ?? 'RETAIL',
+      onlineStoreEnabled: s?.online_store_enabled ?? true,
       copyright: copyrightLine(),
     };
   }

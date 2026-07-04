@@ -25,6 +25,7 @@ export interface SiteSettingsRow {
   social: unknown;
   custom_css: string | null;
   is_published: boolean;
+  online_store_enabled: boolean;
   updated_at: Date;
 }
 
@@ -79,6 +80,7 @@ export class SiteService {
       sets.push(Prisma.sql`social = ${JSON.stringify(dto.social)}::jsonb`);
     if (dto.customCss !== undefined) sets.push(Prisma.sql`custom_css = ${dto.customCss}`);
     if (dto.isPublished !== undefined) sets.push(Prisma.sql`is_published = ${dto.isPublished}`);
+    if (dto.onlineStoreEnabled !== undefined) sets.push(Prisma.sql`online_store_enabled = ${dto.onlineStoreEnabled}`);
 
     if (sets.length === 0) return current;
     sets.push(Prisma.sql`updated_at = now()`);

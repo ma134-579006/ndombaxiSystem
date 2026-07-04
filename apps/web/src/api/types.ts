@@ -297,11 +297,13 @@ export interface SiteSettings {
   receipt_message: string | null;
   default_iva_code: string;
   is_published: boolean;
+  online_store_enabled: boolean;
 }
 export interface UpdateSiteSettingsInput {
   brandName?: string;
   tagline?: string;
   logoUrl?: string;
+  onlineStoreEnabled?: boolean;
   defaultIvaCode?: string;
   primaryColor?: string;
   secondaryColor?: string;
@@ -525,7 +527,7 @@ export interface AuditFilters {
 export interface DocumentIdentity {
   companyName: string; nif: string; brandName: string | null; logoUrl: string | null;
   address: string | null; phone: string | null; email: string | null;
-  receiptMessage?: string | null; businessType?: string; copyright: string;
+  receiptMessage?: string | null; businessType?: string; onlineStoreEnabled?: boolean; copyright: string;
 }
 
 export interface ReportUserRow { name: string; sales: number; net: number; gross: number }

@@ -221,13 +221,20 @@ function TenantPanel() {
   const [section, setSection] = useWorkspace('overview');
   // Tipo de negócio (RETAIL por omissão) → adapta o painel ao serviço escolhido.
   const [bizType, setBizType] = useState('RETAIL');
+  // Módulo Loja Online: quando desligado, esconde os menus da loja/encomendas.
+  const [storeEnabled, setStoreEnabled] = useState(true);
   React.useEffect(() => {
     let alive = true;
-    api.branding().then((b) => { if (alive) setBizType(b.businessType || 'RETAIL'); }).catch(() => undefined);
+    api.branding().then((b) => { if (alive) { setBizType(b.businessType || 'RETAIL'); setStoreEnabled(b.onlineStoreEnabled !== false); } }).catch(() => undefined);
     return () => { alive = false; };
-  }, []);
+  }, [section]); // recarrega ao voltar de Configurações (reflete o toggle na hora)
   const nav = React.useMemo(() => {
-    const base = navForRole(TENANT_NAV, user?.role);
+    // Loja Online desligada → remove "Loja & Marca" (montra) e "Encomendas".
+    const ONLINE_KEYS = new Set(['store', 'orders']);
+    const gateStore = (items: NavItem[]): NavItem[] => storeEnabled ? items : items
+      .map((it) => it.children ? { ...it, children: it.children.filter((c) => !ONLINE_KEYS.has(c.key)) } : it)
+      .filter((it) => !ONLINE_KEYS.has(it.key) && !(it.children && it.children.length === 0));
+    const base = gateStore(navForRole(TENANT_NAV, user?.role));
     if (bizType === 'RETAIL' || !VERTICAL_LABEL[bizType]) return base;
     // Mesmo painel base + itens próprios do vertical (logo a seguir à Visão geral).
     const vert: NavItem[] = [{ key: 'service-hub', label: VERTICAL_LABEL[bizType], icon: IconStore }];
@@ -237,7 +244,7 @@ function TenantPanel() {
     if (bizType === 'CLINIC') vert.push({ key: 'clinic', label: '🩺 Agenda & Pacientes', icon: IconStore });
     if (bizType === 'PHARMACY') vert.push({ key: 'pharmacy', label: '💊 Validade & Lotes', icon: IconStore });
     return [base[0], ...vert, ...base.slice(1)];
-  }, [user?.role, bizType]);
+  }, [user?.role, bizType, storeEnabled]);
   // se a secção guardada já não é permitida ao papel, volta à visão geral.
   // 'profile' não está na navegação (abre-se pelo menu da conta) → incluir aqui,
   // senão o guarda redirecionava o "Configurações do perfil" para a visão geral.

@@ -9,7 +9,7 @@ import { IconBuilding, IconImage, IconReceipt } from '../components/Icons';
  * recibos, reposição de senhas/PIN dos funcionários, plano e impressora.
  */
 export function Settings() {
-  const [tab, setTab] = useState<'brand' | 'passwords' | 'printer'>('brand');
+  const [tab, setTab] = useState<'brand' | 'modules' | 'passwords' | 'printer'>('brand');
   return (
     <>
       <div className="content-head">
@@ -17,13 +17,62 @@ export function Settings() {
       </div>
       <div className="chip-row" style={{ gap: 6, marginBottom: 12 }}>
         <button className={`chip${tab === 'brand' ? ' on' : ''}`} onClick={() => setTab('brand')}>Empresa & Recibos</button>
+        <button className={`chip${tab === 'modules' ? ' on' : ''}`} onClick={() => setTab('modules')}>Módulos</button>
         <button className={`chip${tab === 'passwords' ? ' on' : ''}`} onClick={() => setTab('passwords')}>Senhas dos funcionários</button>
         <button className={`chip${tab === 'printer' ? ' on' : ''}`} onClick={() => setTab('printer')}>Impressora & Plano</button>
       </div>
       {tab === 'brand' ? <BrandingCard /> : null}
+      {tab === 'modules' ? <ModulesCard /> : null}
       {tab === 'passwords' ? <PasswordsCard /> : null}
       {tab === 'printer' ? <PrinterCard /> : null}
     </>
+  );
+}
+
+/** Módulos ativáveis por empresa. Hoje: Loja Online (portal público). */
+function ModulesCard() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.site.get().then((x) => setEnabled(x.online_store_enabled !== false))
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Falha ao carregar.'));
+  }, []);
+
+  const toggle = async (next: boolean) => {
+    setBusy(true); setErr(null);
+    const prev = enabled;
+    setEnabled(next); // otimista
+    try {
+      await api.site.update({ onlineStoreEnabled: next });
+      toast.success(next ? 'Loja Online ativada.' : 'Loja Online desativada — o portal público fica indisponível.');
+    } catch (e) {
+      setEnabled(prev);
+      setErr(e instanceof ApiError ? e.message : 'Falha ao guardar.');
+    } finally { setBusy(false); }
+  };
+
+  if (enabled === null) return <div className="card"><div className="loading">A carregar…</div></div>;
+  return (
+    <div className="card">
+      <h3><IconBuilding size={18} /> Módulos</h3>
+      {err ? <div className="banner danger">{err}</div> : null}
+      <div className="switch-row" style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700 }}>Loja Online</div>
+          <p className="muted" style={{ margin: '3px 0 0', fontSize: 13 }}>
+            Portal público de vendas/reservas/pedidos, adaptado ao seu ramo. Quando <strong>desligado</strong>,
+            o portal fica indisponível e os menus da loja (Loja & Marca, Encomendas) desaparecem do painel.
+            O resto do ERP funciona normalmente.
+          </p>
+        </div>
+        <label className="switch" aria-label="Loja Online">
+          <input type="checkbox" checked={enabled} disabled={busy} onChange={(e) => void toggle(e.target.checked)} />
+          <span className="tk" /><span className="th" />
+        </label>
+      </div>
+    </div>
   );
 }
 

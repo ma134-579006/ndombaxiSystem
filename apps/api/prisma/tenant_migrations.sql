@@ -282,3 +282,8 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."stock_transfer_requests" (
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS stock_transfer_requests_status_idx ON "{{SCHEMA}}"."stock_transfer_requests"(status);
+
+-- Módulo LOJA ONLINE (ativar/desativar por empresa). Default TRUE = preserva o
+-- comportamento atual (lojas existentes continuam online). Quando FALSE, o
+-- portal público fica indisponível e o painel esconde os menus da loja.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS online_store_enabled BOOLEAN NOT NULL DEFAULT TRUE;

@@ -72,6 +72,11 @@ export class UpdateSiteSettingsDto {
   @IsOptional()
   @IsBoolean()
   isPublished?: boolean;
+
+  /** Módulo Loja Online ligado/desligado (portal público). */
+  @IsOptional()
+  @IsBoolean()
+  onlineStoreEnabled?: boolean;
 }
 
 /** Página construída no editor de blocos. */
