@@ -24,6 +24,19 @@ export interface SaftCompany {
   endDate: string;
   /** Currency code; AOA for Angola. */
   currencyCode?: string;
+  /** Morada da sede (CompanyAddress/AddressDetail — obrigatório no XSD). */
+  addressDetail?: string;
+  /** Cidade da sede (CompanyAddress/City — obrigatório no XSD). */
+  city?: string;
+}
+
+/** Cliente para o MasterFiles (o XSD exige um Customer por CustomerID referenciado). */
+export interface SaftCustomer {
+  /** NIF do cliente; omisso = consumidor final. */
+  taxId?: string;
+  name: string;
+  addressDetail?: string;
+  city?: string;
 }
 
 /**
@@ -57,11 +70,22 @@ const SAFT_SOFTWARE_DEFAULTS: Required<SaftSoftware> = {
 export interface SaftInput {
   company: SaftCompany;
   documents: FiscalDocument[];
+  /** Clientes conhecidos (nome/morada); os restantes derivam dos documentos. */
+  customers?: SaftCustomer[];
   /** Identificação do software (config AGT). Usa defaults quando omitido. */
   software?: SaftSoftware;
   /** When the file was generated; ISO 8601. Defaults to now. */
   dateCreated?: string;
 }
+
+/** Normaliza um instante para o formato exigido pelo XSD: yyyy-mm-ddThh:mm:ss
+ *  (sem milissegundos nem sufixo de fuso — o validador da AGT rejeita extras). */
+function xsdDateTime(iso: string): string {
+  return iso.length > 19 ? iso.slice(0, 19) : iso;
+}
+
+const FINAL_CONSUMER_ID = 'Consumidor Final';
+const UNKNOWN = 'Desconhecido';
 
 function buildHeader(c: SaftCompany, sw: Required<SaftSoftware>, dateCreated: string): string {
   return node('Header', [
@@ -70,6 +94,12 @@ function buildHeader(c: SaftCompany, sw: Required<SaftSoftware>, dateCreated: st
     el('TaxRegistrationNumber', c.taxRegistrationNumber),
     el('TaxAccountingBasis', sw.taxAccountingBasis),
     el('CompanyName', c.companyName),
+    // CompanyAddress é OBRIGATÓRIO no XSD — sem ele o validador da AGT rejeita.
+    node('CompanyAddress', [
+      el('AddressDetail', c.addressDetail || UNKNOWN),
+      el('City', c.city || UNKNOWN),
+      el('Country', 'AO'),
+    ]),
     el('FiscalYear', c.fiscalYear),
     el('StartDate', c.startDate),
     el('EndDate', c.endDate),
@@ -81,6 +111,55 @@ function buildHeader(c: SaftCompany, sw: Required<SaftSoftware>, dateCreated: st
     el('ProductID', sw.productId),
     el('ProductVersion', sw.productVersion),
   ]);
+}
+
+/**
+ * Customer master file: o XSD exige um <Customer> por cada CustomerID
+ * referenciado nas faturas. Combina os clientes fornecidos (nome/morada reais)
+ * com os derivados dos documentos (só NIF) e o Consumidor Final.
+ */
+function buildCustomers(documents: FiscalDocument[], provided: SaftCustomer[]): string[] {
+  const byId = new Map<string, SaftCustomer>();
+  for (const c of provided) {
+    byId.set(c.taxId?.trim() || FINAL_CONSUMER_ID, c);
+  }
+  for (const d of documents) {
+    const id = d.customerTaxId?.trim() || FINAL_CONSUMER_ID;
+    if (!byId.has(id)) byId.set(id, { taxId: d.customerTaxId ?? undefined, name: id === FINAL_CONSUMER_ID ? FINAL_CONSUMER_ID : UNKNOWN });
+  }
+  return [...byId.entries()].map(([id, c]) =>
+    node('Customer', [
+      el('CustomerID', id),
+      el('AccountID', UNKNOWN),
+      // Consumidor final: NIF genérico 999999999 (convenção SAF-T).
+      el('CustomerTaxID', c.taxId?.trim() || '999999999'),
+      el('CompanyName', c.name || id),
+      node('BillingAddress', [
+        el('AddressDetail', c.addressDetail || UNKNOWN),
+        el('City', c.city || UNKNOWN),
+        el('Country', 'AO'),
+      ]),
+      el('SelfBillingIndicator', 0),
+    ]),
+  );
+}
+
+/** Product master file: um <Product> por código distinto referenciado nas linhas. */
+function buildProducts(documents: FiscalDocument[]): string[] {
+  const byCode = new Map<string, string>();
+  for (const d of documents) {
+    for (const l of d.lines) {
+      if (!byCode.has(l.productCode)) byCode.set(l.productCode, l.description);
+    }
+  }
+  return [...byCode.entries()].map(([code, description]) =>
+    node('Product', [
+      el('ProductType', 'P'),
+      el('ProductCode', code),
+      el('ProductDescription', description || code),
+      el('ProductNumberCode', code),
+    ]),
+  );
 }
 
 /** TaxTable entry per distinct IVA code present in the documents. */
@@ -137,7 +216,7 @@ function buildInvoice(doc: FiscalDocument, sw: Required<SaftSoftware>): string {
     node('DocumentStatus', [
       // Estado real: 'A' anulado / 'N' normal (default).
       el('InvoiceStatus', doc.status === 'A' ? 'A' : 'N'),
-      el('InvoiceStatusDate', doc.systemEntryDate),
+      el('InvoiceStatusDate', xsdDateTime(doc.systemEntryDate)),
       el('SourceID', sw.sourceId),
       el('SourceBilling', 'P'),
     ]),
@@ -150,8 +229,8 @@ function buildInvoice(doc: FiscalDocument, sw: Required<SaftSoftware>): string {
       el('CashVATSchemeIndicator', '0'),
       el('ThirdPartiesBillingIndicator', '0'),
     ]),
-    el('SystemEntryDate', doc.systemEntryDate),
-    el('CustomerID', doc.customerTaxId ?? 'Consumidor Final'),
+    el('SystemEntryDate', xsdDateTime(doc.systemEntryDate)),
+    el('CustomerID', doc.customerTaxId?.trim() || FINAL_CONSUMER_ID),
     ...doc.lines.map((l, i) => buildLine(l, i, creditNote, doc.reference)),
     node('DocumentTotals', [
       el('TaxPayable', money(doc.totals.ivaTotal)),
@@ -176,13 +255,21 @@ function buildSalesInvoices(documents: FiscalDocument[], sw: Required<SaftSoftwa
   ]);
 }
 
+/** Namespace oficial do SAF-T (AO) — sem ele o validador da AGT rejeita o ficheiro. */
+const SAFT_AO_NAMESPACE = 'urn:OECD:StandardAuditFile-Tax:AO_1.01_01';
+
 export function buildSaftXml(input: SaftInput): string {
   const dateCreated = input.dateCreated ?? new Date().toISOString().slice(0, 10);
   const sw: Required<SaftSoftware> = { ...SAFT_SOFTWARE_DEFAULTS, ...input.software };
-  const body = node('AuditFile', [
+  const children = [
     buildHeader(input.company, sw, dateCreated),
-    node('MasterFiles', [buildTaxTable(input.documents)]),
+    // Ordem do XSD: Customer → Product → TaxTable.
+    node('MasterFiles', [
+      ...buildCustomers(input.documents, input.customers ?? []),
+      ...buildProducts(input.documents),
+      buildTaxTable(input.documents),
+    ]),
     node('SourceDocuments', [buildSalesInvoices(input.documents, sw)]),
-  ]);
-  return `${XML_DECLARATION}${body}`;
+  ].filter((c) => c !== '').join('');
+  return `${XML_DECLARATION}<AuditFile xmlns="${SAFT_AO_NAMESPACE}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${children}</AuditFile>`;
 }

@@ -69,6 +69,25 @@ export class SaftService {
     const endDate = new Date(year, month, 0); // último dia do mês
     const end = `${year}-${String(month).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
 
+    // Morada da sede (site_settings) — o CompanyAddress é obrigatório no XSD.
+    const identity = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ address: string | null }[]>(
+        Prisma.sql`SELECT address FROM site_settings LIMIT 1`,
+      ),
+    ).catch(() => [] as { address: string | null }[]);
+
+    // Clientes com NIF no período — nomes reais para o MasterFiles/Customer.
+    const custRows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ tax_id: string; name: string; address: string | null }[]>(
+        Prisma.sql`SELECT DISTINCT c.tax_id, c.name, c.address
+                   FROM customers c
+                   WHERE c.tax_id IS NOT NULL AND c.tax_id <> ''
+                     AND EXISTS (SELECT 1 FROM invoices i
+                                 WHERE i.customer_tax_id = c.tax_id
+                                   AND i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date)`,
+      ),
+    ).catch(() => [] as { tax_id: string; name: string; address: string | null }[]);
+
     const documents = await this.prisma.runInTenant(schema, async (tx) => {
       const headers = await tx.$queryRaw<InvoiceHeaderRow[]>(
         // SAF-T AGT inclui TODOS os documentos do período: válidos (N), anulados
@@ -140,7 +159,13 @@ export class SaftService {
         fiscalYear: year,
         startDate: start,
         endDate: end,
+        addressDetail: identity[0]?.address ?? undefined,
       },
+      customers: custRows.map((c) => ({
+        taxId: c.tax_id,
+        name: c.name,
+        addressDetail: c.address ?? undefined,
+      })),
       software,
       documents,
     });

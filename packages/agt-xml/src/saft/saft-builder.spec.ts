@@ -42,10 +42,53 @@ describe('buildSaftXml', () => {
     dateCreated: '2025-02-01',
   });
 
-  it('emits a declaration and AuditFile root', () => {
+  it('emits a declaration and AuditFile root with the AGT namespace', () => {
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
-    expect(xml).toContain('<AuditFile>');
+    expect(xml).toContain('<AuditFile xmlns="urn:OECD:StandardAuditFile-Tax:AO_1.01_01"');
     expect(xml).toContain('</AuditFile>');
+  });
+
+  it('emits the mandatory CompanyAddress (fallback Desconhecido)', () => {
+    expect(xml).toContain('<CompanyAddress><AddressDetail>Desconhecido</AddressDetail><City>Desconhecido</City><Country>AO</Country></CompanyAddress>');
+  });
+
+  it('emits Customer and Product master files derived from the documents', () => {
+    expect(xml).toContain('<CustomerID>5417000000</CustomerID>');
+    expect(xml).toContain('<CustomerTaxID>5417000000</CustomerTaxID>');
+    expect(xml).toContain('<ProductCode>P1</ProductCode>');
+    expect(xml).toContain('<ProductDescription>Café &amp; Açúcar</ProductDescription>');
+    expect(xml).toContain('<ProductType>P</ProductType>');
+  });
+
+  it('normalises SystemEntryDate to yyyy-mm-ddThh:mm:ss (no millis/timezone)', () => {
+    const withMillis = buildSaftXml({
+      company: { taxRegistrationNumber: '5', companyName: 'X', fiscalYear: 2025, startDate: '2025-01-01', endDate: '2025-01-31' },
+      documents: [{ ...makeDoc(), systemEntryDate: '2025-01-15T10:00:00.123Z' }],
+      dateCreated: '2025-02-01',
+    });
+    expect(withMillis).toContain('<SystemEntryDate>2025-01-15T10:00:00</SystemEntryDate>');
+  });
+
+  it('uses Consumidor Final (NIF 999999999) when the document has no customer', () => {
+    const anon = buildSaftXml({
+      company: { taxRegistrationNumber: '5', companyName: 'X', fiscalYear: 2025, startDate: '2025-01-01', endDate: '2025-01-31' },
+      documents: [{ ...makeDoc(), customerTaxId: undefined }],
+      dateCreated: '2025-02-01',
+    });
+    expect(anon).toContain('<CustomerID>Consumidor Final</CustomerID>');
+    expect(anon).toContain('<CustomerTaxID>999999999</CustomerTaxID>');
+  });
+
+  it('uses real customer names/addresses when provided', () => {
+    const named = buildSaftXml({
+      company: { taxRegistrationNumber: '5', companyName: 'X', fiscalYear: 2025, startDate: '2025-01-01', endDate: '2025-01-31' },
+      customers: [{ taxId: '5417000000', name: 'Cliente Real, Lda', addressDetail: 'Rua 1', city: 'Luanda' }],
+      documents: [makeDoc()],
+      dateCreated: '2025-02-01',
+    });
+    expect(named).toContain('<CompanyName>Cliente Real, Lda</CompanyName>');
+    expect(named).toContain('<AddressDetail>Rua 1</AddressDetail>');
+    expect(named).toContain('<City>Luanda</City>');
   });
 
   it('includes header identity and currency AOA', () => {
