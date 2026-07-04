@@ -56,6 +56,7 @@ export function Checkout({
   // Forma de pagamento OBRIGATÓRIA: começa sem seleção — o cliente tem de
   // escolher (IBAN/transferência, Multicaixa Express, Referência ou Numerário).
   const [methodId, setMethodId] = useState<string>('');
+  useEffect(() => { if (methods.length === 1 && !methodId) setMethodId(methods[0].id); }, [methods, methodId]);
   const [submitting, setSubmitting] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -208,7 +209,7 @@ export function Checkout({
         <div className="grid-2">
           <div className="field">
             <label>Província *</label>
-            <input list="provinces" value={province} onChange={(e) => setProvince(e.target.value)} placeholder="Luanda" />
+            <input list="provinces" value={province} onChange={(e) => setProvince(e.target.value)} placeholder="ex.: Luanda" />
             <datalist id="provinces">
               {PROVINCES.map((p) => (
                 <option key={p} value={p} />
@@ -217,12 +218,12 @@ export function Checkout({
           </div>
           <div className="field">
             <label>Município *</label>
-            <input value={municipality} onChange={(e) => setMunicipality(e.target.value)} placeholder="Belas" />
+            <input value={municipality} onChange={(e) => setMunicipality(e.target.value)} placeholder="ex.: Belas" />
           </div>
         </div>
         <div className="field">
           <label>Bairro *</label>
-          <input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} placeholder="Talatona" />
+          <input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} placeholder="ex.: Talatona" />
         </div>
         <div className="field">
           <label>Morada (opcional)</label>

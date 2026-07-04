@@ -39,7 +39,7 @@ export function CompanySetup({ onDone }: { onDone(): void }) {
             <IconBuilding size={28} />
           </div>
           <h1>Ativar a sua empresa</h1>
-          <div className="tg">{trial ? '🎁 Teste grátis ativo — só faltam os dados da empresa' : `Passo ${step === 'pay' ? '1 de 2 — Pagamento' : '2 de 2 — Dados da empresa'}`}</div>
+          <div className="tg">{trial ? 'Teste grátis ativo — só faltam os dados da empresa' : `Passo ${step === 'pay' ? '1 de 2 — Pagamento' : '2 de 2 — Dados da empresa'}`}</div>
         </div>
         {!trial ? <div className="steps-bar"><span className={step === 'pay' ? 'on' : 'done'} /><span className={step === 'data' ? 'on' : ''} /></div> : null}
         {step === 'pay'
@@ -138,7 +138,7 @@ export function PayStep({ onNext, allowPlanChoice = false }: { onNext(): void; a
       {isFree ? (
         <>
           <div className="banner info" style={{ display: 'block', marginBottom: 12 }}>
-            🎁 Plano <strong>{chosenPlan?.name ?? plan?.planName ?? 'Gratuito'}</strong> — grátis.
+            Plano <strong>{chosenPlan?.name ?? plan?.planName ?? 'Gratuito'}</strong> — grátis.
             Ativação imediata, sem pagamento nem aprovação.
           </div>
           <button className="btn lg block" onClick={activateFree} disabled={busy}>

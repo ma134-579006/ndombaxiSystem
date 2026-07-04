@@ -101,7 +101,7 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
               placeholder="Pesquisar por nome ou código de barras…" autoFocus />
           </div>
           {IS_MOBILE ? (
-            <button className={`consume-cam${scan ? ' on' : ''}`} onClick={() => setScan((v) => !v)} title="Ler com a câmara">📷</button>
+            <button className={`consume-cam${scan ? ' on' : ''}`} onClick={() => setScan((v) => !v)} title="Ler com a câmara"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" /><circle cx="12" cy="14" r="3.4" /></svg></button>
           ) : null}
         </div>
 

@@ -3,7 +3,7 @@ import { api, ApiError } from '../api/client';
 import { LOGO_SRC, SYSTEM_NAME } from '../brand';
 import { useAuth } from '../auth/AuthContext';
 
-const IDLE_MS = 2.5 * 60 * 1000; // 2 min e meio sem atividade → bloqueia (não faz logout)
+const IDLE_MS = 10 * 60 * 1000; // 10 min no PAINEL DE GESTÃO (leitura demora; a caixa mantém o bloqueio curto)
 const WEEKDAYS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 

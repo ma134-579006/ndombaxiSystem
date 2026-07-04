@@ -135,7 +135,7 @@ const TENANT_NAV: NavItem[] = [
     ],
   },
   {
-    key: 'users-group', label: 'Usuários', icon: IconBadge, children: [
+    key: 'users-group', label: 'Equipa', icon: IconBadge, children: [
       { key: 'employees', label: 'Funcionários', icon: IconBadge },
       { key: 'payroll', label: 'Folha Salarial', icon: IconWallet, min: 2 },
       { key: 'leave', label: 'Férias', icon: IconCalendar },

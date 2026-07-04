@@ -108,7 +108,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
         hash: provisional ? null : hashShort,
         legends: [
           ...(info?.fields.map((f) => `${f.label}: ${f.value}`) ?? []),
-          ...(info?.softwareCertificateNumber ? [`Software certificado AGT n. ${info.softwareCertificateNumber}`] : []),
+          ...(info?.softwareCertificateNumber && String(info.softwareCertificateNumber) !== '0' ? [`Software certificado AGT n. ${info.softwareCertificateNumber}`] : []),
           ...(info?.receiptLegend ? [info.receiptLegend] : []),
         ],
         footer: [
@@ -234,7 +234,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
                   <strong>{f.label}:</strong> {f.value}
                 </div>
               ))}
-              {info.softwareCertificateNumber ? (
+              {info.softwareCertificateNumber && String(info.softwareCertificateNumber) !== '0' ? (
                 <div>Software certificado AGT nº {info.softwareCertificateNumber}</div>
               ) : null}
               {info.receiptLegend ? <div>{info.receiptLegend}</div> : null}

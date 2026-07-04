@@ -34,7 +34,7 @@ const lastOrderKey = (code: string) => `ndombaxi.store.lastorder.${code}`;
 /** Portal por MODELO de negócio: ajusta título, CTA e selos da montra. */
 interface Portal { tagline: string; cta: string; badges: [string, string][]; feed: string }
 const PORTALS: Record<string, Portal> = {
-  RETAIL: { tagline: 'Os melhores produtos, entregues em todo o Angola.', cta: 'Ver todos os produtos', badges: [['🚚', 'Envio nacional'], ['🛡️', 'Compra protegida'], ['💬', 'Apoio da loja']], feed: 'Mais para si' },
+  RETAIL: { tagline: 'Os melhores produtos, entregues em toda Angola.', cta: 'Ver todos os produtos', badges: [['🚚', 'Envio nacional'], ['🛡️', 'Compra protegida'], ['💬', 'Apoio da loja']], feed: 'Mais para si' },
   PHARMACY: { tagline: 'Medicamentos e bem-estar — encomende online com segurança.', cta: 'Ver produtos', badges: [['💊', 'Medicamentos'], ['🛡️', 'Compra segura'], ['🚚', 'Entrega']], feed: 'Produtos' },
   RESTAURANT: { tagline: 'Peça já — comida fresca, entregue a sua casa.', cta: 'Ver cardápio', badges: [['🍔', 'Cardápio'], ['🛵', 'Entrega'], ['⏱️', 'Rápido']], feed: 'Cardápio' },
   HOSPITALITY: { tagline: 'Reserve a sua estadia — quartos disponíveis online.', cta: 'Ver quartos', badges: [['🛏️', 'Reservas'], ['📅', 'Disponibilidade'], ['💬', 'Apoio']], feed: 'Também disponível' },
@@ -364,7 +364,7 @@ export function Storefront() {
           {featured.length > 0 ? (
             <section className="ax-section">
               <div className="ax-section-head">
-                <h2 className="ax-section-title">⚡ Em destaque</h2>
+                <h2 className="ax-section-title">Em destaque</h2>
                 <button className="ax-link" onClick={() => { setCat(''); setSearch(''); setView('results'); }}>Ver mais <IconChevronRight size={15} /></button>
               </div>
               <div className="ax-rail">

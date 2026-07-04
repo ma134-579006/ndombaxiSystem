@@ -89,7 +89,7 @@ export function Customers() {
     <>
       <div className="sticky-top">
         <div className="content-head">
-          <h2>Clientes <span className="muted" style={{ fontWeight: 500, fontSize: 14 }}>· {rows.length} registados</span></h2>
+          <h2>Clientes <span className="muted" style={{ fontWeight: 500, fontSize: 14 }}>· {rows.length} registado{rows.length === 1 ? '' : 's'}</span></h2>
           <span className="spacer" />
           <button className="btn" onClick={openCreate}><IconPlus size={17} /> Novo cliente</button>
         </div>

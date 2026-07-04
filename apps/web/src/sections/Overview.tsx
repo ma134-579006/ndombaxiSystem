@@ -17,7 +17,7 @@ import { useAuth } from '../auth/AuthContext';
 import { AreaChart, type AreaPoint } from '../components/AreaChart';
 import { ColumnChart, type ColumnPoint } from '../components/ColumnChart';
 import { DonutChart } from '../components/DonutChart';
-import { IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconStar } from '../components/Icons';
+import { IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconWallet } from '../components/Icons';
 import { formatKz } from '../format';
 
 const RANGES: { key: SalesRange; label: string }[] = [
@@ -169,7 +169,7 @@ export function Overview() {
           value={formatKz(sum?.cancelledAmount ?? 0)} sub={`${sum?.cancelledCount ?? 0} venda(s) anulada(s)`} />
         <KpiCard tone="success" icon={<IconChart size={20} />} label="Lucro líquido"
           value={formatKz(sum?.netProfit ?? 0)} sub={`Bruto ${formatKz(sum?.grossProfit ?? 0)} · margem ${sum?.marginPct ?? 0}%`} />
-        <KpiCard tone="warning" icon={<IconStar size={20} />} label="Gastos / Despesas"
+        <KpiCard tone="warning" icon={<IconWallet size={20} />} label="Gastos / Despesas"
           value={formatKz(sum?.otherExpenses ?? 0)} sub="saídas registadas no período" />
       </div>
 
@@ -239,19 +239,19 @@ export function Overview() {
       {/* Gráficos de ranking — produtos, funcionários, clientes */}
       <div className="cols-2">
         <div className="card">
-          <h3>🏆 Produtos que mais vendem</h3>
+          <h3>Produtos que mais vendem</h3>
           <ColumnChart color="var(--primary)" format={formatKz}
             data={top.map((p): ColumnPoint => ({ label: p.description, value: p.grossTotal, hint: `${p.quantity} un.` }))} />
         </div>
         <div className="card">
-          <h3>👤 Funcionários que mais vendem</h3>
+          <h3>Funcionários que mais vendem</h3>
           <ColumnChart color="var(--accent)" format={formatKz}
             data={byUser.map((u): ColumnPoint => ({ label: u.name, value: u.gross, hint: `${u.sales} venda(s)` }))} />
         </div>
       </div>
       <div className="cols-2">
         <div className="card">
-          <h3>🤝 Clientes que mais compram</h3>
+          <h3>Clientes que mais compram</h3>
           <ColumnChart color="var(--success)" format={formatKz}
             data={byCustomer.map((cst): ColumnPoint => ({ label: cst.name, value: cst.gross, hint: `${cst.sales} compra(s)` }))} />
         </div>
