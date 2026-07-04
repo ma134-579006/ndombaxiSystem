@@ -8,8 +8,9 @@ const WEEKDAYS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Q
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
 /**
- * Bloqueio de ecrã do painel (estilo Windows 11, enterprise): após 5 min sem
- * rato/teclado, hiberna num ecrã com o logo do sistema, data/hora em tempo real
+ * Bloqueio de ecrã do painel (estilo Windows 11, enterprise): após 10 min sem
+ * rato/teclado (o timer reinicia a cada interação real), hiberna num ecrã com
+ * o logo do sistema, data/hora em tempo real
  * e o perfil do gestor. Para voltar, pede a PALAVRA-PASSE do próprio utilizador
  * (re-verificada no servidor) — o estado do painel é preservado.
  */
