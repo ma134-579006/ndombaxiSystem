@@ -122,7 +122,7 @@ export function Backup() {
         {list.length === 0 ? (
           <div className="empty" style={{ padding: 16 }}><p>Ainda não há backups. Faz o primeiro acima.</p></div>
         ) : (
-          <table className="sales-table">
+          <table className="ptable stack">
             <thead><tr><th>Data</th><th>Tipo</th><th>Conteúdo</th><th>Tamanho</th><th>Autor</th><th></th></tr></thead>
             <tbody>
               {list.map((b) => (

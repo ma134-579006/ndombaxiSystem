@@ -1992,3 +1992,27 @@ html:not([data-theme="neon"]) .kpi-card.success .kpi-ic { background: color-mix(
 html:not([data-theme="neon"]) .kpi-card.warning .kpi-ic { background: color-mix(in srgb, var(--warning) 18%, transparent) !important; color: var(--warning) !important; }
 html:not([data-theme="neon"]) .kpi-card.danger  .kpi-ic { background: color-mix(in srgb, var(--danger) 16%, transparent) !important; color: var(--danger) !important; }
 html:not([data-theme="neon"]) .kpi-card.violet  .kpi-ic { background: color-mix(in srgb, var(--violet) 16%, transparent) !important; color: var(--violet) !important; }
+
+/* ════════════════════════════════════════════════════════════
+   VARREDURA ENTERPRISE (2026-07) — correções finais de mobile/
+   consistência a partir da inspeção com o utilizador. Só visual.
+   ════════════════════════════════════════════════════════════ */
+
+/* 1) Calm UNIVERSAL: o fio-gradiente e o glow dos cartões saem em TODOS os
+   temas (incl. Neon) — o utilizador quer todas as páginas planas como a
+   Migração. O Neon mantém as suas cores (fundo/acento), só perde a decoração. */
+.card::before, .kpi-card::before, .pcard::before { display: none !important; }
+.kpi-card::after { display: none !important; }
+
+/* 2) Alerta operacional: e-mails longos (sem espaços) quebram DENTRO do texto
+   e o selo (CASH/SALES) fica fixo à direita — deixa de sobrepor o e-mail. */
+.minirow { flex-wrap: wrap; }
+.minirow .mr-main { flex: 1 1 60%; min-width: 0; }
+.minirow .mr-title, .minirow .mr-sub { overflow-wrap: anywhere; word-break: break-word; }
+.minirow > .pill { flex: none; align-self: center; }
+
+/* 3) Rede de segurança: QUALQUER tabela .sales-table que ainda não empilhe
+   passa a rolar dentro do cartão no telemóvel (nunca espreme/transborda). */
+@media (max-width: 640px) {
+  .sales-table:not(.stack) { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+}

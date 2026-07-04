@@ -86,7 +86,7 @@ export function BackupRestore() {
         ) : (
           <>
             <p style={{ fontSize: 13 }}>Ficheiro: <strong>{fileName}</strong>{preview.generatedAt ? ` · gerado em ${new Date(preview.generatedAt).toLocaleString('pt-PT')}` : ''}</p>
-            <table className="sales-table">
+            <table className="ptable stack">
               <thead><tr><th>Tabela</th><th>Linhas</th><th>A criar</th><th>A actualizar</th></tr></thead>
               <tbody>
                 {preview.tables.filter((t) => t.rows > 0).map((t) => (
@@ -118,7 +118,7 @@ export function BackupRestore() {
             ) : (
               <>
                 <div className="banner success" style={{ marginTop: 12 }}>Restauro aplicado.</div>
-                <table className="sales-table">
+                <table className="ptable stack">
                   <thead><tr><th>Tabela</th><th>Criados</th><th>Actualizados</th><th>Falhas</th></tr></thead>
                   <tbody>
                     {result.tables.filter((t) => t.inserted + t.updated + t.failed > 0).map((t) => (

@@ -227,16 +227,7 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
               <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛒</span> Abrir caixa
             </button>
           ) : null}
-          <button className="acct-item" onClick={() => { setOpen(false); onChat(); }}>
-            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💬</span> Chat com caixa
-            {unread > 0 ? <span className="acct-item-badge">{unread > 99 ? '99+' : unread}</span> : null}
-          </button>
-          {canCustChat ? (
-            <button className="acct-item" onClick={() => { setOpen(false); onCustChat(); }}>
-              <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛍️</span> Chat com clientes
-              {custUnread > 0 ? <span className="acct-item-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
-            </button>
-          ) : null}
+          {/* Chats moved para a barra do topo (ícones visíveis). */}
           {canAdvances ? (
             <button className="acct-item" onClick={() => { setOpen(false); onAdvances(); }}>
               <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💸</span> Pedidos de adiantamento
@@ -436,6 +427,24 @@ export function Shell({
           <span className="spacer" />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
           {isTenant ? <OrdersBell onGo={(s) => setSection(s)} /> : null}
+          {/* Chats visíveis na barra (antes escondidos no menu do perfil):
+              chat com a caixa e chat com clientes — cada um com badge de não-lidas. */}
+          {isTenant ? (
+            <button className="icon-btn" style={{ position: 'relative' }} onClick={() => setChatOpen(true)} title="Chat com a caixa" aria-label="Chat com a caixa">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              {isTenant && chatUnread > 0 ? <span className="noti-badge">{chatUnread > 99 ? '99+' : chatUnread}</span> : null}
+            </button>
+          ) : null}
+          {isTenant && custChatAllowed ? (
+            <button className="icon-btn" style={{ position: 'relative' }} onClick={() => setCustChatOpen(true)} title="Chat com clientes" aria-label="Chat com clientes">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 2 4 6v13a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6l-2-4H6z" /><path d="M4 6h16" /><path d="M16 10a4 4 0 0 1-8 0" />
+              </svg>
+              {custUnread > 0 ? <span className="noti-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
+            </button>
+          ) : null}
           <ThemePicker />
           <ManagerMenu
             photo={avatar}

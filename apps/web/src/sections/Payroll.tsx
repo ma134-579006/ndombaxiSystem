@@ -1,5 +1,5 @@
 import { confirmDialog, toast } from '../components/feedback';
-import { printSectionReport } from "../pdf/printDoc";
+import { printReportPdf } from "../pdf/printDoc";
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { ManagerEmployee, PayrollRun, PayrollRunDetail } from '../api/types';
@@ -190,7 +190,24 @@ function RunSheet({ detail, onClose, onPay }: { detail: PayrollRunDetail; onClos
       </div>
 
       <div className="row" style={{ gap: 10, marginTop: 14 }}>
-        <button className="btn ghost" onClick={() => void printSectionReport()}>🖨 Imprimir</button>
+        <button className="btn ghost" onClick={() => void printReportPdf({
+          title: `Folha Salarial · ${periodLabel(run)}`,
+          summary: [
+            ['Salário bruto', formatKz(run.gross_total)],
+            ['INSS (trabalhador 3%)', formatKz(run.inss_employee_total)],
+            ['IRT retido', formatKz(run.irt_total)],
+            ['Líquido a pagar', formatKz(run.net_total)],
+            ['INSS empresa (8%)', formatKz(run.inss_employer_total)],
+            ['Custo total p/ empresa', formatKz(run.employer_cost_total)],
+          ],
+          tables: [{
+            columns: ['Trabalhador', 'Nº', 'Bruto', 'INSS', 'IRT', 'Líquido'],
+            rows: items.map((it) => [
+              it.employee_name, it.employee_number,
+              formatKz(it.gross_salary), formatKz(it.inss_employee), formatKz(it.irt), formatKz(it.net_salary),
+            ]),
+          }],
+        })}>🖨 Imprimir</button>
         <span className="spacer" />
         {run.status === 'PROCESSED' ? (
           <button className="btn" onClick={() => onPay(run.id)}><IconCheck size={16} /> Marcar como paga</button>
