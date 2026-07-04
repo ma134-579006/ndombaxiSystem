@@ -1948,3 +1948,19 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .content { padding-top: 16px; }
 .content-head { margin: 0 0 14px; }
 .content-head h2 { margin: 0; display: inline-flex; align-items: center; gap: 9px; }
+
+/* ── SEM BURACO entre a barra e o título: o cabeçalho da página é uma
+   EXTENSÃO da barra do topo — mesma cor, colado a ela, uma única linha
+   divisória por baixo (padrão Azure/Dynamics). ── */
+.topbar { border-bottom: none; }
+.content { padding-top: 0; }
+.content-head {
+  margin: 0 -24px 16px; padding: 12px 24px 13px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border-soft);
+}
+@media (max-width: 900px) {
+  .content-head { margin: 0 -14px 12px; padding: 10px 14px 11px; }
+}
+/* Cabeçalhos dentro de zonas sticky mantêm o comportamento próprio. */
+.sticky-top > .content-head { margin: 0; padding: 0; background: none; border-bottom: none; }

@@ -134,7 +134,7 @@ function DesignShowcase() {
           </div>
         </div>
 
-        <div className="content" style={{ padding: 24, overflow: 'auto' }}>
+        <div className="content" style={{ overflow: 'auto' }}>
           <div className="content-head"><h2>Design System · Enterprise</h2></div>
           <Section title="KPIs" sub="rótulo uppercase + número forte (padrão Stripe/Linear)">
             <div className="kpi-grid">
