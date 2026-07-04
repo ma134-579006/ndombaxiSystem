@@ -5,7 +5,7 @@ import {
   STAFF_ROLES, STAFF_ROLE_LABELS,
   type CreateEmployeeInput, type EmployeeConsumption, type ManagerEmployee, type ManagerStaff, type ManagerStore, type StaffRoleName,
 } from '../api/types';
-import { IconBuilding, IconEdit, IconImage, IconPlus, IconSearch, IconShield } from '../components/Icons';
+import { IconBadge, IconEdit, IconImage, IconPlus, IconSearch, IconShield, IconUser } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatDate, formatKz } from '../format';
 
@@ -202,7 +202,7 @@ export function Employees() {
 
       {loading ? <div className="card"><div className="loading">A carregar…</div></div>
         : filtered.length === 0 ? (
-          <div className="card"><div className="empty"><IconBuilding size={40} /><p>Sem funcionários. Crie o primeiro.</p></div></div>
+          <div className="card"><div className="empty"><IconBadge size={40} /><p>Sem funcionários. Crie o primeiro.</p></div></div>
         ) : (
           <div className="pgrid">
             {filtered.map((e) => {
@@ -213,7 +213,7 @@ export function Employees() {
                     <input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSel(e.id)} />
                   </label>
                   <div className="thumb">
-                    {e.photo_url ? <img src={e.photo_url} alt={e.full_name} /> : <IconBuilding size={30} />}
+                    {e.photo_url ? <img src={e.photo_url} alt={e.full_name} /> : <IconUser size={30} />}
                   </div>
                   <div className="pinfo">
                     <div className="pname">{e.full_name}</div>

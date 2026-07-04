@@ -105,7 +105,7 @@ export function BarcodeScanner({
   return (
     <>
       <button className="icon-btn" title="Ler código de barras pela câmara" onClick={() => (scanning ? stop() : start())}>
-        <span style={{ fontSize: 20 }}>{scanning ? '✕' : '📷'}</span>
+        <span style={{ fontSize: 20, display: 'inline-flex' }}>{scanning ? '✕' : <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" /><circle cx="12" cy="14" r="3.4" /></svg>}</span>
       </button>
       {err ? <div className="banner danger" style={{ position: 'absolute', zIndex: 50, marginTop: 4 }}>{err}</div> : null}
       {scanning ? (

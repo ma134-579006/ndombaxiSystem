@@ -59,7 +59,7 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
           <div className="ax-pdp-tax">Preço com IVA incluído</div>
 
           <div className="ax-assure">
-            <div className="ax-assure-row"><span>🚚</span> Envio para todo o Angola</div>
+            <div className="ax-assure-row"><span>🚚</span> Envio para toda Angola</div>
             <div className="ax-assure-row"><span>🛡️</span> Compra protegida — pague na recolha ou por referência</div>
             <div className="ax-assure-row"><span>↩️</span> Troca em caso de defeito</div>
           </div>

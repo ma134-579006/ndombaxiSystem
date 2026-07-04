@@ -444,3 +444,154 @@
 }
 /* Navbar da landing respeita o notch. */
 .lp-nav { padding-top: calc(14px + env(safe-area-inset-top, 0px)); }
+
+/* ════════════════════════════════════════════════════════════
+   RODAPÉ 2.0 — enterprise em duas camadas (referência INUKA):
+   faixa CTA de destaque + rodapé escuro com colunas e contactos.
+   ════════════════════════════════════════════════════════════ */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+.lp-footer2 { background: #070c18; }
+
+/* Faixa CTA: cor da marca, título forte à esquerda, botão contrastante à direita. */
+.lp-cta-band {
+  background: linear-gradient(120deg, var(--lp-primary), var(--lp-accent));
+  padding: 34px 28px;
+}
+.lp-cta-band .band-inner {
+  max-width: 1080px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.lp-cta-band h2 {
+  margin: 0; color: #fff; font-size: clamp(20px, 3vw, 30px); font-weight: 900;
+  letter-spacing: .01em; text-transform: uppercase;
+}
+.lp-cta-band button {
+  height: 52px; padding: 0 30px; border-radius: 10px; border: none; cursor: pointer;
+  background: #0b1221; color: #fff; font-weight: 800; font-size: 15px;
+  transition: transform .15s ease, box-shadow .2s ease;
+  box-shadow: 0 10px 26px rgba(4, 8, 18, .35);
+}
+.lp-cta-band button:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(4, 8, 18, .45); }
+.lp-cta-band button:active { transform: translateY(0); }
+
+/* Corpo do rodapé: colunas alinhadas à grelha do site. */
+.lp-foot-main { padding: 54px 28px 26px; color: #aebcd2; }
+.lp-foot-main .wrap { max-width: 1080px; margin: 0 auto; }
+.lp-foot-cols {
+  display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 36px 28px;
+  padding-bottom: 38px; border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+.lp-fbrand .fb-logo-row { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.lp-fbrand .fb-logo-row img { width: 44px; height: 44px; object-fit: contain; }
+.lp-fbrand .fnm { font-weight: 900; font-size: 17px; color: #fff; letter-spacing: -.01em; }
+.lp-fbrand .ftag { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: #7e8cab; margin-top: 2px; }
+.fc-line {
+  display: flex; align-items: center; gap: 10px; color: #c6d2e6; text-decoration: none;
+  font-size: 14px; margin-bottom: 10px; line-height: 1.5; transition: color .15s;
+}
+a.fc-line:hover { color: #fff; }
+.fc-line svg { flex: none; color: #7e8cab; }
+.fc-note { color: #8d9bb8; font-size: 13px; }
+.lp-fsocial { display: flex; gap: 10px; margin-top: 16px; }
+.lp-fsocial a {
+  width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center;
+  background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .1);
+  color: #d7e0f0; transition: background .15s, transform .15s;
+}
+.lp-fsocial a:hover { background: rgba(255, 255, 255, .16); transform: translateY(-2px); }
+
+.lp-fcol h5 {
+  margin: 4px 0 16px; font-size: 12.5px; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; color: #fff;
+}
+.lp-fcol a, .lp-fcol button {
+  display: block; width: fit-content; background: none; border: none; padding: 0; cursor: pointer;
+  color: #aebcd2; text-decoration: none; font-size: 14px; font-weight: 500; font-family: inherit;
+  margin-bottom: 11px; transition: color .15s, transform .15s; text-align: left;
+}
+.lp-fcol a:hover, .lp-fcol button:hover { color: #fff; transform: translateX(2px); }
+
+.lp-foot-bottom {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding-top: 20px; font-size: 12.5px; color: #7e8cab;
+}
+.lp-foot-credits strong {
+  background: linear-gradient(120deg, #7db0ff, #b794f6);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  font-weight: 800;
+}
+
+/* Responsivo: 2 colunas no tablet, 1 coluna empilhada no telemóvel. */
+@media (max-width: 900px) { .lp-foot-cols { grid-template-columns: 1fr 1fr; } .lp-fbrand { grid-column: 1 / -1; } }
+@media (max-width: 520px) {
+  .lp-foot-cols { grid-template-columns: 1fr; gap: 28px; }
+  .lp-cta-band .band-inner { justify-content: center; text-align: center; }
+  .lp-cta-band button { width: 100%; }
+  .lp-foot-bottom { justify-content: center; text-align: center; }
+}
+
+/* ════════════════════════════════════════════════════════════
+   LANDING ENTERPRISE (2026-07) — camada final: mata os efeitos
+   "infantis" (brilhos animados, gradientes a mexer, flutuações)
+   e eleva botões/carrossel ao nível Vendus+. Movimento = só
+   fade/slide curtos e crossfade de imagens.
+   ════════════════════════════════════════════════════════════ */
+
+/* Título do hero: BRANCO sólido e firme (sem gradiente animado). */
+.lp-hero h1 {
+  background: none; -webkit-text-fill-color: #fff; color: #fff;
+  animation: lp-rise .6s .12s both;
+}
+
+/* Aurora: luz ESTÁTICA e discreta (a animação dava ar de festa). */
+.lp-hero::after { animation: none; opacity: .5; }
+
+/* Ken Burns: zoom quase impercetível (1.12 era demasiado). */
+@keyframes lp-kenburns { from { transform: scale(1.045); } to { transform: scale(1.0); } }
+.lp-hero-slide { transition: opacity 1s ease-in-out; }
+.lp-hero-slide.on { animation-duration: 9s; }
+
+/* Ícones das funcionalidades: sem flutuação no hover. */
+.lp-feat:hover .ic { animation: none; }
+/* Plano em destaque: sem pulsar. */
+.lp-plan.featured { animation: none; }
+
+/* ── BOTÕES nível enterprise: sólidos, firmes, elevação subtil ── */
+.lp-btn {
+  height: 50px; padding: 0 26px; border-radius: 10px; font-weight: 700; font-size: 15px;
+  letter-spacing: .01em; transition: background .15s, border-color .15s, box-shadow .15s, transform .06s;
+}
+.lp-btn.primary {
+  background: var(--lp-primary); box-shadow: 0 2px 6px rgba(4, 10, 24, .35);
+}
+.lp-btn.primary:hover { background: color-mix(in srgb, var(--lp-primary) 88%, #000); filter: none; box-shadow: 0 6px 16px rgba(4, 10, 24, .4); }
+.lp-btn.outline { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .28); }
+.lp-btn.outline:hover { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .42); }
+.lp-nav .solid { background: var(--lp-primary); border-radius: 9px; font-weight: 700; }
+.lp-nav .solid:hover { filter: none; background: color-mix(in srgb, var(--lp-primary) 88%, #000); }
+.lp-nav .ghost { border-radius: 9px; font-weight: 600; }
+.lp-plan .pick { font-weight: 700; border-radius: 10px; }
+.lp-plan.highlight .pick { background: var(--lp-primary); }
+.lp-plan.highlight .pick:hover { filter: none; background: color-mix(in srgb, var(--lp-primary) 88%, #000); }
+.lp-plan .pop { background: var(--lp-primary); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: 11px; }
+.lp-cta-band button { border-radius: 10px; }
+
+/* Selos dos verticais: chips limpos, sem emojis, tom uniforme. */
+.lp-verticals span {
+  background: rgba(255, 255, 255, .07); border-color: rgba(255, 255, 255, .14);
+  font-weight: 600; font-size: 12.5px; letter-spacing: .02em; color: #dbe4f2;
+}
+
+/* Badge do trial: mais sóbrio. */
+.lp-hero .badge-pill { background: rgba(255, 255, 255, .09); border-color: rgba(255, 255, 255, .2); color: #dbe6fa; font-weight: 600; }
+
+/* Pontos do carrossel: traços finos e discretos (canto, não espetáculo). */
+.lp-hero-dots { gap: 6px; bottom: 16px; }
+.lp-hero-dots span { width: 16px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .35); }
+.lp-hero-dots span.on { width: 26px; background: #fff; }
+
+/* Marca na navbar: texto sólido (o gradiente + brilho dava ar de jogo). */
+.lp-nav .nm { background: none; -webkit-text-fill-color: #eef3fb; color: #eef3fb; filter: none; font-weight: 800; }
+.lp-nav .logo { filter: none; }

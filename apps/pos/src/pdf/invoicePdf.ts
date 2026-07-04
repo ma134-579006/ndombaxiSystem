@@ -116,7 +116,7 @@ export async function buildInvoicePdf(a: InvoicePdfArgs): Promise<jsPDF> {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(110, 120, 135);
   if (!provisional && invoice.hash) { doc.text(`Controlo (Hash): ${invoice.hash.slice(0, 16)}`, M, y); y += 14; }
   for (const f of info?.fields ?? []) { doc.text(`${f.label}: ${f.value}`, M, y); y += 13; }
-  if (info?.softwareCertificateNumber) { doc.text(`Software certificado AGT nº ${info.softwareCertificateNumber}`, M, y); y += 13; }
+  if (info?.softwareCertificateNumber && String(info.softwareCertificateNumber) !== '0') { doc.text(`Software certificado AGT nº ${info.softwareCertificateNumber}`, M, y); y += 13; }
   if (info?.receiptLegend) { doc.text(doc.splitTextToSize(info.receiptLegend, W - 2 * M), M, y); y += 22; }
 
   // ── QR de verificação ──

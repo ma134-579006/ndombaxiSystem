@@ -3,7 +3,13 @@ import { AuthProvider, useAuth } from './auth/AuthContext';
 import { loadSection, restoreDrafts, saveSection, startDraftCapture } from './workspace';
 import { KeyboardProvider } from './keyboard/KeyboardProvider';
 import { Shell, type NavItem } from './components/Shell';
-import { IconBuilding, IconCard, IconChart, IconCpu, IconCube, IconReceipt, IconShield, IconStar, IconStore, IconTruck } from './components/Icons';
+import {
+  IconArrowLeftRight, IconBadge, IconBank, IconBoxes, IconBuilding, IconCalendar,
+  IconCamera, IconCard, IconCartIn, IconCashRegister, IconChart, IconCoins, IconCube,
+  IconDatabase, IconGauge, IconGear, IconHeadset, IconHistory, IconLedger, IconMail,
+  IconMessage, IconPercent, IconPlug, IconReceipt, IconReport, IconSparkles,
+  IconStore, IconTag, IconTrendUp, IconTruck, IconUpload, IconUsers, IconWallet,
+} from './components/Icons';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
 import { CompanySetup } from './pages/CompanySetup';
@@ -67,18 +73,21 @@ import { Backup } from './sections/Backup';
 import { BackupRestore } from './sections/BackupRestore';
 import { Migration } from './sections/Migration';
 
+/* Ícones SEMÂNTICOS: cada módulo usa o ícone que representa exatamente a
+   função (dashboard=velocímetro, empresas=edifício, suporte=auscultadores,
+   IA=faíscas, integrações=ficha, e-mail=envelope…). Uma só biblioteca. */
 const PLATFORM_NAV: NavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: IconChart },
+  { key: 'dashboard', label: 'Dashboard', icon: IconGauge },
   { key: 'tenants', label: 'Empresas', icon: IconBuilding },
   { key: 'subs', label: 'Subscrições & Pagamentos', icon: IconCard },
-  { key: 'support', label: 'Suporte do site', icon: IconCpu },
-  { key: 'feedback', label: 'Comentários do site', icon: IconStar },
-  { key: 'plans', label: 'Planos & Página inicial', icon: IconStar },
-  { key: 'ai', label: 'Inteligência Artificial', icon: IconCpu },
+  { key: 'support', label: 'Suporte do site', icon: IconHeadset },
+  { key: 'feedback', label: 'Comentários do site', icon: IconMessage },
+  { key: 'plans', label: 'Planos & Página inicial', icon: IconTag },
+  { key: 'ai', label: 'Inteligência Artificial', icon: IconSparkles },
   { key: 'fiscal', label: 'Fiscal (AGT)', icon: IconReceipt },
-  { key: 'gateways', label: 'Gateways de Pagamento', icon: IconCard },
-  { key: 'integrations', label: 'Integrações', icon: IconCpu },
-  { key: 'mail', label: 'E-mail (SMTP)', icon: IconReceipt },
+  { key: 'gateways', label: 'Gateways de Pagamento', icon: IconBank },
+  { key: 'integrations', label: 'Integrações', icon: IconPlug },
+  { key: 'mail', label: 'E-mail (SMTP)', icon: IconMail },
 ];
 
 // min: nível mínimo de papel (0=mais poder). 1=COMPANY_ADMIN, 2=REGIONAL_MANAGER,
@@ -86,68 +95,68 @@ const PLATFORM_NAV: NavItem[] = [
 // O supervisor (4) entra no painel mas só vê monitorização/aprovação (min:4); o
 // CRUD do sistema continua reservado a gerente de loja e acima (backend e nav).
 const TENANT_NAV: NavItem[] = [
-  { key: 'overview', label: 'Visão geral', icon: IconChart, min: 4 },
-  { key: 'assistant', label: 'Assistente IA', icon: IconCpu, min: 2 },
+  { key: 'overview', label: 'Visão geral', icon: IconGauge, min: 4 },
+  { key: 'assistant', label: 'Assistente IA', icon: IconSparkles, min: 2 },
   { key: 'subscription', label: 'Subscrição & Plano', icon: IconCard, min: 1 },
   {
     key: 'stores-group', label: 'Lojas', icon: IconStore, children: [
       { key: 'stores', label: 'Criar lojas', icon: IconStore, min: 2 },
-      { key: 'store', label: 'Loja & Marca', icon: IconStore, min: 1 },
+      { key: 'store', label: 'Loja & Marca', icon: IconTag, min: 1 },
       { key: 'orders', label: 'Encomendas', icon: IconTruck, min: 4 },
-      { key: 'commissions', label: 'Comissões', icon: IconStar, min: 2 },
+      { key: 'commissions', label: 'Comissões', icon: IconPercent, min: 2 },
     ],
   },
   {
     key: 'products-group', label: 'Produtos', icon: IconCube, children: [
       { key: 'products', label: 'Criar produtos', icon: IconCube },
-      { key: 'inventory', label: 'Inventário', icon: IconTruck },
+      { key: 'inventory', label: 'Inventário', icon: IconBoxes },
       { key: 'stock-analysis', label: 'Análise de stock', icon: IconChart, min: 4 },
-      { key: 'inventory-intel', label: 'Inventário PRO', icon: IconChart, min: 3 },
-      { key: 'stock-movements', label: 'Movimentos de stock', icon: IconChart },
-      { key: 'purchasing', label: 'Compras', icon: IconTruck, min: 2 },
-      { key: 'promotions', label: 'Promoções', icon: IconStar },
+      { key: 'inventory-intel', label: 'Inventário PRO', icon: IconTrendUp, min: 3 },
+      { key: 'stock-movements', label: 'Movimentos de stock', icon: IconHistory },
+      { key: 'purchasing', label: 'Compras', icon: IconCartIn, min: 2 },
+      { key: 'promotions', label: 'Promoções', icon: IconTag },
     ],
   },
   {
     // Grupo sem `min` próprio (default 3) para o gerente de loja continuar a ver
     // Caixa & Auditoria e Relatórios; os itens financeiros mantêm min:2 (ocultos
     // ao gerente de loja, como antes).
-    key: 'movements-group', label: 'Movimentações', icon: IconCard, children: [
+    key: 'movements-group', label: 'Movimentações', icon: IconCoins, children: [
       { key: 'payments', label: 'Pagamentos', icon: IconCard, min: 2 },
-      { key: 'profit', label: 'Lucros', icon: IconChart, min: 2 },
+      { key: 'profit', label: 'Lucros', icon: IconTrendUp, min: 2 },
       { key: 'expenses', label: 'Gastos', icon: IconReceipt, min: 2 },
-      { key: 'cashflow', label: 'Fluxo de Caixa', icon: IconChart, min: 2 },
-      { key: 'reconciliation', label: 'Conciliação', icon: IconCard, min: 2 },
-      { key: 'payables', label: 'Contas a Pagar', icon: IconTruck, min: 2 },
-      { key: 'receivables', label: 'Contas a Receber', icon: IconCard, min: 2 },
-      { key: 'accounting', label: 'Contabilidade', icon: IconReceipt, min: 2 },
-      { key: 'operations', label: 'Caixa & Auditoria', icon: IconChart, min: 4 },
-      { key: 'reports', label: 'Relatórios', icon: IconChart },
+      { key: 'cashflow', label: 'Fluxo de Caixa', icon: IconCoins, min: 2 },
+      { key: 'reconciliation', label: 'Conciliação', icon: IconArrowLeftRight, min: 2 },
+      { key: 'payables', label: 'Contas a Pagar', icon: IconWallet, min: 2 },
+      { key: 'receivables', label: 'Contas a Receber', icon: IconCoins, min: 2 },
+      { key: 'accounting', label: 'Contabilidade', icon: IconLedger, min: 2 },
+      { key: 'operations', label: 'Caixa & Auditoria', icon: IconCashRegister, min: 4 },
+      { key: 'reports', label: 'Relatórios', icon: IconReport },
     ],
   },
   {
-    key: 'users-group', label: 'Usuários', icon: IconBuilding, children: [
-      { key: 'employees', label: 'Funcionários', icon: IconBuilding },
-      { key: 'payroll', label: 'Folha Salarial', icon: IconReceipt, min: 2 },
-      { key: 'leave', label: 'Férias', icon: IconBuilding },
+    key: 'users-group', label: 'Equipa', icon: IconBadge, children: [
+      { key: 'employees', label: 'Funcionários', icon: IconBadge },
+      { key: 'payroll', label: 'Folha Salarial', icon: IconWallet, min: 2 },
+      { key: 'leave', label: 'Férias', icon: IconCalendar },
     ],
   },
-  { key: 'customers', label: 'Clientes', icon: IconBuilding },
+  { key: 'customers', label: 'Clientes', icon: IconUsers },
   {
-    key: 'cameras-group', label: 'Câmaras', icon: IconCpu, children: [
-      { key: 'cameras-config', label: 'Configurar', icon: IconCpu, min: 1 },
-      { key: 'cameras-live', label: 'Abrir', icon: IconCpu },
+    key: 'cameras-group', label: 'Câmaras', icon: IconCamera, children: [
+      { key: 'cameras-config', label: 'Configurar', icon: IconGear, min: 1 },
+      { key: 'cameras-live', label: 'Abrir', icon: IconCamera },
     ],
   },
   { key: 'saft', label: 'Fiscal · SAF-T', icon: IconReceipt, min: 1 },
   {
-    key: 'backup-group', label: 'Backup & Restauro', icon: IconShield, min: 1, children: [
-      { key: 'backup', label: 'Backup', icon: IconShield, min: 1 },
-      { key: 'backup-restore', label: 'Restauro backup', icon: IconShield, min: 1 },
-      { key: 'migration', label: 'Migração', icon: IconShield, min: 1 },
+    key: 'backup-group', label: 'Backup & Restauro', icon: IconDatabase, min: 1, children: [
+      { key: 'backup', label: 'Backup', icon: IconDatabase, min: 1 },
+      { key: 'backup-restore', label: 'Restauro backup', icon: IconHistory, min: 1 },
+      { key: 'migration', label: 'Migração', icon: IconUpload, min: 1 },
     ],
   },
-  { key: 'settings', label: 'Configurações', icon: IconBuilding, min: 1 },
+  { key: 'settings', label: 'Configurações', icon: IconGear, min: 1 },
 ];
 
 /** Nível numérico de cada papel (espelha o backend; menor = mais poder). */

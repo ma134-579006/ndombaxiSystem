@@ -431,7 +431,8 @@ export function Shell({
           <button className="menu-toggle" onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
             <IconMenu size={22} />
           </button>
-          <h1>{current?.label}</h1>
+          {/* Sem título duplicado na barra: cada página já mostra o seu nome
+              no cabeçalho do conteúdo (padrão enterprise — a barra é só ações). */}
           <span className="spacer" />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
           {isTenant ? <OrdersBell onGo={(s) => setSection(s)} /> : null}
