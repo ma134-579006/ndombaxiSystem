@@ -1964,3 +1964,31 @@ body:has(.agent-activity.open) .agent-activity-fab {
 }
 /* Cabeçalhos dentro de zonas sticky mantêm o comportamento próprio. */
 .sticky-top > .content-head { margin: 0; padding: 0; background: none; border-bottom: none; }
+
+/* ════════════════════════════════════════════════════════════
+   CALM ENTERPRISE (2026-07) — TODAS as páginas ao nível da página
+   de Migração: cartões planos, uma cor de ação, sem fios de gradiente
+   no topo, sem glows/blobs coloridos, hover discreto. Camada final da
+   cascata. Só visual — nenhuma lógica alterada. (Neon fica de fora.)
+   ════════════════════════════════════════════════════════════ */
+html:not([data-theme="neon"]) .card::before,
+html:not([data-theme="neon"]) .kpi-card::before,
+html:not([data-theme="neon"]) .pcard::before { display: none !important; }
+html:not([data-theme="neon"]) .kpi-card::after { display: none !important; }
+html:not([data-theme="neon"]) .card,
+html:not([data-theme="neon"]) .kpi-card,
+html:not([data-theme="neon"]) .pcard {
+  background: var(--surface) !important; box-shadow: var(--elev-1) !important;
+}
+html:not([data-theme="neon"]) .card:hover,
+html:not([data-theme="neon"]) .kpi-card:hover,
+html:not([data-theme="neon"]) .pcard:hover {
+  transform: none !important; border-color: var(--border) !important; box-shadow: var(--elev-2) !important;
+}
+html:not([data-theme="neon"]) .kpi-ic {
+  box-shadow: none !important; background: var(--primary-soft) !important; color: var(--primary) !important;
+}
+html:not([data-theme="neon"]) .kpi-card.success .kpi-ic { background: color-mix(in srgb, var(--success) 16%, transparent) !important; color: var(--success) !important; }
+html:not([data-theme="neon"]) .kpi-card.warning .kpi-ic { background: color-mix(in srgb, var(--warning) 18%, transparent) !important; color: var(--warning) !important; }
+html:not([data-theme="neon"]) .kpi-card.danger  .kpi-ic { background: color-mix(in srgb, var(--danger) 16%, transparent) !important; color: var(--danger) !important; }
+html:not([data-theme="neon"]) .kpi-card.violet  .kpi-ic { background: color-mix(in srgb, var(--violet) 16%, transparent) !important; color: var(--violet) !important; }
