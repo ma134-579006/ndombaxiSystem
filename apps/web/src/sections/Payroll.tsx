@@ -153,24 +153,60 @@ function ProcessModal({ onClose, onDone }: { onClose(): void; onDone(run: Payrol
   );
 }
 
+const num = (v: string | undefined) => Number(v ?? 0) || 0;
+
 function RunSheet({ detail, onClose, onPay }: { detail: PayrollRunDetail; onClose(): void; onPay(id: string): void }) {
   const { run, items } = detail;
+  // Totais DISCRIMINADOS somados das linhas (o cálculo já os separa; aqui só se
+  // agregam para o Resumo Geral — sem alterar nenhum total fiscal).
+  const t = items.reduce((a, it) => {
+    a.consumption += num(it.self_consumption);
+    a.advance += num(it.advance_deduction);
+    a.absence += num(it.absence_deduction);
+    // "Outros" manuais = other_deductions que não sejam os 3 acima (0 hoje).
+    a.otherManual += Math.max(0, num(it.other_deductions) - num(it.self_consumption) - num(it.advance_deduction) - num(it.absence_deduction));
+    a.totalDed += num(it.total_deductions);
+    return a;
+  }, { consumption: 0, advance: 0, absence: 0, otherManual: 0, totalDed: 0 });
+  const inss = num(run.inss_employee_total), irt = num(run.irt_total);
+
+  // Resumo Geral no formato Enterprise (Bruto → descontos discriminados → Líquido).
+  const resumo: Array<[string, string]> = [
+    ['Salário bruto', formatKz(run.gross_total)],
+    ['(-) INSS trabalhador (3%)', '- ' + formatKz(inss)],
+    ['(-) IRT', '- ' + formatKz(irt)],
+    ['(-) Consumo próprio', '- ' + formatKz(t.consumption)],
+    ['(-) Adiantamento salarial', '- ' + formatKz(t.advance)],
+    ['(-) Faltas', '- ' + formatKz(t.absence)],
+    ['(-) Outros descontos', '- ' + formatKz(t.otherManual)],
+    ['= Total de descontos', formatKz(inss + irt + t.totalDed)],
+    ['Líquido a receber', formatKz(run.net_total)],
+    ['INSS empresa (8%)', formatKz(run.inss_employer_total)],
+    ['Custo total p/ empresa', formatKz(run.employer_cost_total)],
+  ];
+
   return (
     <Modal title={`Folha · ${periodLabel(run)}`} onClose={onClose}>
       <div className="kpi-grid" style={{ marginBottom: 12 }}>
         <Kpi label="Salário bruto" value={formatKz(run.gross_total)} />
-        <Kpi label="INSS (trab. 3%)" value={formatKz(run.inss_employee_total)} />
-        <Kpi label="IRT retido" value={formatKz(run.irt_total)} />
+        <Kpi label="Total descontos" value={formatKz(inss + irt + t.totalDed)} />
         <Kpi label="Líquido a pagar" value={formatKz(run.net_total)} strong />
-      </div>
-      <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
-        INSS empresa (8%): <strong>{formatKz(run.inss_employer_total)}</strong> · Custo total p/ empresa: <strong>{formatKz(run.employer_cost_total)}</strong>
+        <Kpi label="Custo p/ empresa" value={formatKz(run.employer_cost_total)} />
       </div>
 
-      <div style={{ maxHeight: '46vh', overflow: 'auto' }}>
+      {/* Resumo Geral discriminado — nenhum desconto desaparece. */}
+      <div className="card" style={{ marginBottom: 12, padding: 12 }}>
+        {resumo.map(([k, v]) => (
+          <div className="kv" key={k} style={/^=|Líquido/.test(k) ? { fontWeight: 800, borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 4 } : undefined}>
+            <span className="k">{k}</span><span className="v">{v}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ maxHeight: '42vh', overflow: 'auto' }}>
         <table className="ptable stack">
           <thead>
-            <tr><th>Trabalhador</th><th>Bruto</th><th>INSS</th><th>IRT</th><th>Líquido</th></tr>
+            <tr><th>Trabalhador</th><th>Bruto</th><th>INSS</th><th>IRT</th><th>Consumo</th><th>Adiant.</th><th>Faltas</th><th>Tot. desc.</th><th>Líquido</th></tr>
           </thead>
           <tbody>
             {items.map((it) => (
@@ -182,6 +218,10 @@ function RunSheet({ detail, onClose, onPay }: { detail: PayrollRunDetail; onClos
                 <td data-label="Bruto">{formatKz(it.gross_salary)}</td>
                 <td data-label="INSS">{formatKz(it.inss_employee)}</td>
                 <td data-label="IRT">{formatKz(it.irt)}</td>
+                <td data-label="Consumo">{formatKz(num(it.self_consumption))}</td>
+                <td data-label="Adiant.">{formatKz(num(it.advance_deduction))}</td>
+                <td data-label="Faltas">{formatKz(num(it.absence_deduction))}</td>
+                <td data-label="Tot. desc.">{formatKz(num(it.total_deductions))}</td>
                 <td data-label="Líquido" style={{ fontWeight: 700 }}>{formatKz(it.net_salary)}</td>
               </tr>
             ))}
@@ -192,19 +232,14 @@ function RunSheet({ detail, onClose, onPay }: { detail: PayrollRunDetail; onClos
       <div className="row" style={{ gap: 10, marginTop: 14 }}>
         <button className="btn ghost" onClick={() => void printReportPdf({
           title: `Folha Salarial · ${periodLabel(run)}`,
-          summary: [
-            ['Salário bruto', formatKz(run.gross_total)],
-            ['INSS (trabalhador 3%)', formatKz(run.inss_employee_total)],
-            ['IRT retido', formatKz(run.irt_total)],
-            ['Líquido a pagar', formatKz(run.net_total)],
-            ['INSS empresa (8%)', formatKz(run.inss_employer_total)],
-            ['Custo total p/ empresa', formatKz(run.employer_cost_total)],
-          ],
+          summary: resumo,
           tables: [{
-            columns: ['Trabalhador', 'Nº', 'Bruto', 'INSS', 'IRT', 'Líquido'],
+            columns: ['Trabalhador', 'Nº', 'Bruto', 'INSS', 'IRT', 'Consumo', 'Adiant.', 'Faltas', 'Tot. desc.', 'Líquido'],
             rows: items.map((it) => [
               it.employee_name, it.employee_number,
-              formatKz(it.gross_salary), formatKz(it.inss_employee), formatKz(it.irt), formatKz(it.net_salary),
+              formatKz(it.gross_salary), formatKz(it.inss_employee), formatKz(it.irt),
+              formatKz(num(it.self_consumption)), formatKz(num(it.advance_deduction)), formatKz(num(it.absence_deduction)),
+              formatKz(num(it.total_deductions)), formatKz(it.net_salary),
             ]),
           }],
         })}>🖨 Imprimir</button>

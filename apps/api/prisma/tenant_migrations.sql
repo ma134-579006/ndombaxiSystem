@@ -287,3 +287,11 @@ CREATE INDEX IF NOT EXISTS stock_transfer_requests_status_idx ON "{{SCHEMA}}"."s
 -- comportamento atual (lojas existentes continuam online). Quando FALSE, o
 -- portal público fica indisponível e o painel esconde os menus da loja.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS online_store_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- Folha salarial ENTERPRISE: discriminar cada desconto (transparência/auditoria).
+-- Os 3 já eram calculados em separado mas ficavam fundidos em other_deductions;
+-- agora persistem cada um na sua coluna. NÃO altera totais (total_deductions/net
+-- continuam iguais) — só passa a haver rasto por tipo de desconto.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."payroll_items" ADD COLUMN IF NOT EXISTS self_consumption   NUMERIC(14,2) NOT NULL DEFAULT 0;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."payroll_items" ADD COLUMN IF NOT EXISTS advance_deduction  NUMERIC(14,2) NOT NULL DEFAULT 0;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."payroll_items" ADD COLUMN IF NOT EXISTS absence_deduction  NUMERIC(14,2) NOT NULL DEFAULT 0;

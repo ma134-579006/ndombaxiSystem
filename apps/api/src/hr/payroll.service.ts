@@ -162,11 +162,13 @@ export class PayrollService {
               (run_id, employee_id, employee_number, employee_name, base_salary,
                taxable_allowances, exempt_allowances, gross_salary, inss_base,
                inss_employee, inss_employer, irt_base, irt, other_deductions,
+               self_consumption, advance_deduction, absence_deduction,
                total_deductions, net_salary, employer_cost)
             VALUES (${runId}::uuid, ${e.id}::uuid, ${e.employee_number}, ${e.full_name},
                     ${calc.baseSalary}, ${calc.taxableAllowances}, ${calc.exemptAllowances},
                     ${calc.grossSalary}, ${calc.inssBase}, ${calc.inssEmployee},
                     ${calc.inssEmployer}, ${calc.irtBase}, ${calc.irt}, ${calc.otherDeductions},
+                    ${round2(consumption)}, ${round2(advance)}, ${round2(absenceDeduction)},
                     ${calc.totalDeductions}, ${calc.netSalary}, ${calc.employerCost})
             RETURNING id`,
         );

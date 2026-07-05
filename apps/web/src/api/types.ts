@@ -857,6 +857,8 @@ export interface PayrollItem {
   taxable_allowances: string; exempt_allowances: string; gross_salary: string;
   inss_base: string; inss_employee: string; inss_employer: string; irt_base: string;
   irt: string; other_deductions: string; total_deductions: string;
+  /** Descontos DISCRIMINADOS (podem faltar em folhas antigas → tratar como 0). */
+  self_consumption?: string; advance_deduction?: string; absence_deduction?: string;
   net_salary: string; employer_cost: string;
 }
 export interface PayrollRunDetail { run: PayrollRun; items: PayrollItem[] }
