@@ -250,7 +250,7 @@ export function Employees() {
         <Modal title={editing ? 'Editar funcionário' : 'Novo funcionário'} onClose={close}>
           {formError ? <div className="banner danger" style={{ marginBottom: 12 }}>{formError}</div> : null}
           <div className="thumb" style={{ height: 130, borderRadius: 12, border: '1px solid var(--border)', marginBottom: 12, background: 'var(--surface-2)', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-            {form.photoUrl ? <img src={form.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <IconBuilding size={34} />}
+            {form.photoUrl ? <img src={form.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <IconUser size={34} />}
           </div>
           <label className="btn sm ghost block" style={{ marginBottom: 12, cursor: 'pointer' }}>
             <IconImage size={15} /> {form.photoUrl ? 'Trocar foto' : 'Carregar foto'}
