@@ -2026,3 +2026,62 @@ html:not([data-theme="neon"]) .kpi-card.violet  .kpi-ic { background: color-mix(
 .acct-sw:hover { transform: translateY(-1px); border-color: #34456a; }
 .acct-sw > span { width: 16px; height: 16px; border-radius: 5px; display: block; }
 .acct-sw.on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+
+/* ════════════════════════════════════════════════════════════
+   POLISH PREMIUM (2026-07-06) — auditoria visual global.
+   SÓ design/UX: zero lógica. Corrige os desvios encontrados na
+   auditoria página-a-página (foco de teclado, checkboxes crus,
+   CTA sticky dos modais a deixar ver conteúdo, hover de tabelas,
+   loading sem spinner, gráficos sem linha de base).
+   ════════════════════════════════════════════════════════════ */
+
+/* 1) FOCO DE TECLADO visível e consistente (WCAG 2.4.7) — antes
+   só os inputs tinham anel; botões/nav/links ficavam invisíveis
+   ao navegar por Tab. Só aparece via teclado (:focus-visible). */
+button:focus-visible, a:focus-visible, [role="tab"]:focus-visible,
+.chip:focus-visible, .tab:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 10px;
+}
+.switch input:focus-visible + .tk { box-shadow: 0 0 0 3px var(--primary-soft); }
+
+/* 2) CHECKBOX/RADIO nativos com a cor da marca e tamanho digno —
+   os quadradinhos default quebravam o ar premium em listas de
+   seleção (produtos, funcionários, relatórios). */
+input[type="checkbox"], input[type="radio"] {
+  accent-color: var(--primary); width: 16px; height: 16px; cursor: pointer;
+}
+
+/* 3) CTA sticky dos modais: o conteúdo rolava por baixo do botão
+   (via-se o campo "Nova categoria" atrás do "Criar produto").
+   Halo da cor do cartão mascara o que passa por trás, mantendo o
+   botão fixo e a sombra de elevação. */
+.modal .mb > .btn.block:last-child {
+  box-shadow: 0 0 0 18px var(--surface), 0 -18px 24px -6px rgba(0, 0, 0, 0.5);
+}
+
+/* 4) Tabelas: linha com hover subtil (só ecrã e só no formato
+   tabela — os cartões empilhados do telemóvel não precisam). */
+@media screen {
+  .ptable:not(.stack) tbody tr { transition: background .12s; }
+  .ptable:not(.stack) tbody tr:hover td { background: var(--surface-2); }
+}
+
+/* 5) LOADING com spinner elegante — "A carregar…" era texto seco;
+   um anel discreto comunica atividade (performance percebida). */
+.loading { display: flex; align-items: center; gap: 10px; color: var(--muted); font-weight: 600; }
+.loading::before {
+  content: ''; width: 16px; height: 16px; flex: none; border-radius: 999px;
+  border: 2px solid var(--border); border-top-color: var(--primary);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .loading::before { animation: ndx-spin .8s linear infinite; }
+  @keyframes ndx-spin { to { transform: rotate(360deg); } }
+}
+
+/* 6) Gráficos com poucos dados: linha de base visível para o
+   cartão nunca parecer vazio/partido. */
+.bar-chart { border-bottom: 1px solid var(--border-soft); }
+
+/* 7) Estados vazios: ícone suave e respirado (consistência). */
+.empty { color: var(--muted); }
+.empty > svg { opacity: .5; }

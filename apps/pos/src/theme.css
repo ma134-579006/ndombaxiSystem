@@ -1220,3 +1220,9 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
     *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   }
 }
+
+/* POLISH PREMIUM (2026-07-06) — auditoria visual global (so design). */
+input[type="checkbox"], input[type="radio"] { accent-color: var(--primary, #3b82f6); width: 16px; height: 16px; cursor: pointer; }
+.loading { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.loading::before { content: ""; width: 16px; height: 16px; flex: none; border-radius: 999px; border: 2px solid rgba(128,140,170,.35); border-top-color: var(--primary, #3b82f6); }
+@media (prefers-reduced-motion: no-preference) { .loading::before { animation: ndx-spin .8s linear infinite; } @keyframes ndx-spin { to { transform: rotate(360deg); } } }
