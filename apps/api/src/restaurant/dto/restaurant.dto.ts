@@ -31,6 +31,8 @@ export class CloseOrderDto {
 export class RecipeItemDto {
   @IsString() ingredientCode!: string;
   @IsNumber() @Min(0.001) quantity!: number;
+  /** Quebra/desperdício % (aparas, encolhimento): consumo/custo = qtd × (1+q/100). */
+  @IsOptional() @IsNumber() @Min(0) @Max(90) wastePct?: number;
 }
 
 export class SetRecipeDto {

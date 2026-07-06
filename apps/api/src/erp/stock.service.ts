@@ -165,9 +165,16 @@ export class StockService {
         Prisma.sql`SELECT to_regclass('product_recipes')::text AS r`,
       );
       if (hasRecipes[0]?.r) {
+        // Quebra/desperdício: custo real = qtd × (1+quebra/100) × custo. A
+        // coluna pode ainda não existir (auto-migração em fundo) — guarda.
+        const wc = await tx.$queryRaw<{ n: number }[]>(
+          Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
+                     WHERE table_schema = current_schema() AND table_name = 'product_recipes' AND column_name = 'waste_pct'`,
+        );
+        const wasteFactor = (wc[0]?.n ?? 0) > 0 ? Prisma.sql`(1 + COALESCE(r.waste_pct, 0) / 100)` : Prisma.sql`1`;
         await tx.$executeRaw(
           Prisma.sql`UPDATE products p SET
-              cost_price = COALESCE((SELECT SUM(r.quantity * ing.cost_price)
+              cost_price = COALESCE((SELECT SUM(r.quantity * ${wasteFactor} * ing.cost_price)
                                      FROM product_recipes r JOIN products ing ON ing.id = r.ingredient_id
                                      WHERE r.product_id = p.id), 0),
               updated_at = now()

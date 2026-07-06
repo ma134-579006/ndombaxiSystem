@@ -166,7 +166,7 @@ export function Restaurant() {
 /** Fichas técnicas: define os ingredientes (do stock) que cada prato consome. */
 function RecipesTab({ products }: { products: ManagerProduct[] }) {
   const [dishId, setDishId] = useState('');
-  const [rows, setRows] = useState<{ ingredientCode: string; quantity: string }[]>([]);
+  const [rows, setRows] = useState<{ ingredientCode: string; quantity: string; wastePct: string }[]>([]);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   // Ingredientes (matéria-prima) — lista separada dos pratos vendíveis.
@@ -176,20 +176,28 @@ function RecipesTab({ products }: { products: ManagerProduct[] }) {
   const loadRecipe = useCallback(async (id: string) => {
     try {
       const r: RecipeIngredient[] = await api.restaurant.recipe(id);
-      setRows(r.map((x) => ({ ingredientCode: x.ingredient_code, quantity: String(Number(x.quantity)) })));
+      setRows(r.map((x) => ({
+        ingredientCode: x.ingredient_code,
+        quantity: String(Number(x.quantity)),
+        wastePct: Number(x.waste_pct ?? 0) > 0 ? String(Number(x.waste_pct)) : '',
+      })));
     } catch { setRows([]); }
   }, []);
   useEffect(() => { if (dishId) void loadRecipe(dishId); else setRows([]); }, [dishId, loadRecipe]);
 
   const addIngredient = (code: string) => {
     if (rows.some((r) => r.ingredientCode === code)) return;
-    setRows([...rows, { ingredientCode: code, quantity: '1' }]);
+    setRows([...rows, { ingredientCode: code, quantity: '1', wastePct: '' }]);
   };
   const save = async () => {
     if (!dishId) { toast.warning('Escolha o prato.'); return; }
     setBusy(true);
     try {
-      await api.restaurant.setRecipe(dishId, rows.map((r) => ({ ingredientCode: r.ingredientCode, quantity: Number(r.quantity) || 0 })).filter((r) => r.quantity > 0));
+      await api.restaurant.setRecipe(dishId, rows.map((r) => ({
+        ingredientCode: r.ingredientCode,
+        quantity: Number(r.quantity) || 0,
+        wastePct: Math.min(90, Math.max(0, Number(r.wastePct) || 0)),
+      })).filter((r) => r.quantity > 0));
       toast.success('Receita guardada. O stock dos ingredientes baixa ao fechar a comanda.');
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao guardar.'); } finally { setBusy(false); }
   };
@@ -236,6 +244,10 @@ function RecipesTab({ products }: { products: ManagerProduct[] }) {
                   <span style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>{nameOf(r.ingredientCode)}</span>
                   <input value={r.quantity} onChange={(e) => { const v = e.target.value.replace(/[^\d.]/g, ''); setRows(rows.map((x, j) => j === i ? { ...x, quantity: v } : x)); }} inputMode="decimal" style={{ width: 80 }} />
                   {unitOf(r.ingredientCode) ? <span className="muted" style={{ fontSize: 12.5, minWidth: 34 }}>{unitOf(r.ingredientCode)}</span> : null}
+                  {/* Quebra/desperdício %: aparas, encolhimento — consumo e custo reais = qtd × (1+q%) */}
+                  <input value={r.wastePct} onChange={(e) => { const v = e.target.value.replace(/[^\d.]/g, ''); setRows(rows.map((x, j) => j === i ? { ...x, wastePct: v } : x)); }}
+                    inputMode="decimal" placeholder="0" title="Quebra/desperdício em % (aparas, encolhimento)" style={{ width: 56 }} />
+                  <span className="muted" style={{ fontSize: 12.5 }}>% quebra</span>
                   <button className="btn sm ghost" onClick={() => setRows(rows.filter((_, j) => j !== i))}><IconTrash size={14} /></button>
                 </div>
               ))}

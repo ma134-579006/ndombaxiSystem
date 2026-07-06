@@ -133,19 +133,30 @@ export class InvoiceService {
       );
       const hasRecipes = !!reg[0]?.recipes;
       const hasBatches = !!reg[0]?.batches;
+      // QUEBRA/DESPERDÍCIO: waste_pct pode ainda não existir em tenants antigos
+      // (a auto-migração corre em fundo) — verificar a COLUNA antes de a ler,
+      // senão a venda inteira rebentava com 42703. qtd efetiva = qtd×(1+q/100).
+      const wasteCol = hasRecipes
+        ? await tx.$queryRaw<{ n: number }[]>(
+            Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
+                       WHERE table_schema = current_schema() AND table_name = 'product_recipes' AND column_name = 'waste_pct'`)
+        : [{ n: 0 }];
+      const wasteExpr = (wasteCol[0]?.n ?? 0) > 0 ? Prisma.sql`r.waste_pct` : Prisma.sql`0`;
+      const effQty = (q: string | number, w: string | number | null | undefined) =>
+        Number(q) * (1 + (Number(w) || 0) / 100);
       const recipeRows = (prodIds.length && hasRecipes)
-        ? await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; shared_stock: boolean | null; name: string }[]>(
+        ? await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; waste_pct: string | null; shared_stock: boolean | null; name: string }[]>(
             // `product_id` é UUID: os ids vêm como TEXT (parâmetros) → é OBRIGATÓRIO
             // o cast `::uuid`, senão o Postgres não tem operador `uuid = text` (42883)
             // e a venda inteira rebenta. (= ANY(...::uuid[]) faz o cast do array.)
-            Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, p.shared_stock, p.name
+            Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, ${wasteExpr} AS waste_pct, p.shared_stock, p.name
                        FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
                        WHERE r.product_id = ANY(ARRAY[${Prisma.join(prodIds)}]::uuid[])`)
         : [];
       const recipeByProduct = new Map<string, { ingredientId: string; quantity: number; sharedStock: boolean; name: string }[]>();
       for (const r of recipeRows) {
         const list = recipeByProduct.get(r.product_id) ?? [];
-        list.push({ ingredientId: r.ingredient_id, quantity: Number(r.quantity), sharedStock: !!r.shared_stock, name: r.name });
+        list.push({ ingredientId: r.ingredient_id, quantity: effQty(r.quantity, r.waste_pct), sharedStock: !!r.shared_stock, name: r.name });
         recipeByProduct.set(r.product_id, list);
       }
 
@@ -159,8 +170,8 @@ export class InvoiceService {
       // receita (ex.: refrigerante de revenda) continuam a baixar como produto.
       if (recipeRows.length && hasRecipes) {
         const compIds = [...new Set(recipeRows.map((r) => r.ingredient_id))];
-        const subRows = await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; shared_stock: boolean | null; name: string }[]>(
-          Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, p.shared_stock, p.name
+        const subRows = await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; waste_pct: string | null; shared_stock: boolean | null; name: string }[]>(
+          Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, ${wasteExpr} AS waste_pct, p.shared_stock, p.name
                      FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
                      WHERE r.product_id = ANY(ARRAY[${Prisma.join(compIds)}]::uuid[])`,
         );
@@ -178,7 +189,8 @@ export class InvoiceService {
                 for (const s of sub) {
                   expanded.push({
                     ingredientId: s.ingredient_id,
-                    quantity: Number(s.quantity) * comp.quantity,
+                    // qtd do combo × qtd efetiva do sub-ingrediente (inclui quebra)
+                    quantity: effQty(s.quantity, s.waste_pct) * comp.quantity,
                     sharedStock: !!s.shared_stock,
                     name: s.name,
                   });
@@ -712,14 +724,23 @@ export class InvoiceService {
       Prisma.sql`SELECT to_regclass('product_recipes')::text AS r`,
     );
     if (!reg[0]?.r) return map;
-    const rows = await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; shared_stock: boolean | null }[]>(
-      Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, p.shared_stock
+    // Quebra/desperdício (espelho EXATO da emissão): coluna pode não existir
+    // em tenants antigos — verificar antes de ler (senão o estorno rebentava).
+    const wasteCol = await tx.$queryRaw<{ n: number }[]>(
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = 'product_recipes' AND column_name = 'waste_pct'`,
+    );
+    const wasteExpr = (wasteCol[0]?.n ?? 0) > 0 ? Prisma.sql`r.waste_pct` : Prisma.sql`0`;
+    const effQty = (q: string | number, w: string | number | null | undefined) =>
+      Number(q) * (1 + (Number(w) || 0) / 100);
+    const rows = await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; waste_pct: string | null; shared_stock: boolean | null }[]>(
+      Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, ${wasteExpr} AS waste_pct, p.shared_stock
                  FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
                  WHERE r.product_id = ANY(ARRAY[${Prisma.join(productIds)}]::uuid[])`,
     );
     for (const r of rows) {
       const list = map.get(r.product_id) ?? [];
-      list.push({ ingredientId: r.ingredient_id, quantity: Number(r.quantity), sharedStock: !!r.shared_stock });
+      list.push({ ingredientId: r.ingredient_id, quantity: effQty(r.quantity, r.waste_pct), sharedStock: !!r.shared_stock });
       map.set(r.product_id, list);
     }
     // COMBOS/MENUS (1 nível): espelho EXATO da emissão — componentes que são
@@ -727,8 +748,8 @@ export class InvoiceService {
     // o estorno devolver o que a venda realmente baixou (ver expansão no emit).
     if (rows.length) {
       const compIds = [...new Set(rows.map((r) => r.ingredient_id))];
-      const subRows = await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; shared_stock: boolean | null }[]>(
-        Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, p.shared_stock
+      const subRows = await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; waste_pct: string | null; shared_stock: boolean | null }[]>(
+        Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, ${wasteExpr} AS waste_pct, p.shared_stock
                    FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
                    WHERE r.product_id = ANY(ARRAY[${Prisma.join(compIds)}]::uuid[])`,
       );
@@ -744,7 +765,7 @@ export class InvoiceService {
             const sub = subByProduct.get(comp.ingredientId);
             if (sub?.length) {
               for (const s of sub) {
-                expanded.push({ ingredientId: s.ingredient_id, quantity: Number(s.quantity) * comp.quantity, sharedStock: !!s.shared_stock });
+                expanded.push({ ingredientId: s.ingredient_id, quantity: effQty(s.quantity, s.waste_pct) * comp.quantity, sharedStock: !!s.shared_stock });
               }
             } else {
               expanded.push(comp);

@@ -796,7 +796,7 @@ export interface HotelReservationRow {
   id: string; number: string; room_name: string | null; guest_name: string | null;
   check_in: string; check_out: string; nights: number; status: string; total: string; source?: string;
 }
-export interface RecipeIngredient { id: string; ingredient_id: string; ingredient_name: string; ingredient_code: string; quantity: string; ingredient_unit?: string | null }
+export interface RecipeIngredient { id: string; ingredient_id: string; ingredient_name: string; ingredient_code: string; quantity: string; ingredient_unit?: string | null; waste_pct?: string | number | null }
 
 // ── Farmácia ───────────────────────────────────────────────
 export interface PharmacyBatch { id: string; batch_code: string | null; quantity: string; expiry_date: string; days_left: number; product_name: string; product_code: string; active_ingredient: string | null }

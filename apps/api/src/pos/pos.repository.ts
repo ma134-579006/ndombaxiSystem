@@ -168,9 +168,19 @@ export class PosRepository {
       // seus ingredientes (LEFT JOIN da sub-receita multiplica as quantidades)
       // — espelho exato da validação/consumo da emissão. Informativo para o
       // operador ("Sob encomenda · N disp."); a emissão continua a validar.
+      // Quebra/desperdício: cada dose gasta qtd×(1+quebra/100) — a coluna pode
+      // ainda não existir em tenants antigos (guarda de coluna).
+      const wc = reg[0]?.r
+        ? await tx.$queryRaw<{ n: number }[]>(
+            Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
+                       WHERE table_schema = current_schema() AND table_name = 'product_recipes' AND column_name = 'waste_pct'`)
+        : [{ n: 0 }];
+      const w1 = (wc[0]?.n ?? 0) > 0 ? Prisma.sql`(1 + COALESCE(r.waste_pct, 0) / 100)` : Prisma.sql`1`;
+      const w2 = (wc[0]?.n ?? 0) > 0 ? Prisma.sql`(1 + COALESCE(r2.waste_pct, 0) / 100)` : Prisma.sql`1`;
       const portionsExpr = reg[0]?.r
         ? Prisma.sql`(SELECT MIN(FLOOR(ing.stock_qty / NULLIF(
-                        CASE WHEN r2.ingredient_id IS NULL THEN r.quantity ELSE r.quantity * r2.quantity END, 0)))
+                        CASE WHEN r2.ingredient_id IS NULL THEN r.quantity * ${w1}
+                             ELSE r.quantity * ${w1} * r2.quantity * ${w2} END, 0)))
                       FROM product_recipes r
                       LEFT JOIN product_recipes r2 ON r2.product_id = r.ingredient_id
                       JOIN products ing ON ing.id = COALESCE(r2.ingredient_id, r.ingredient_id)

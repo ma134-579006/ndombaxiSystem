@@ -15,6 +15,17 @@ export interface TableRow {
 export class RestaurantService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** A coluna product_recipes.waste_pct pode ainda não existir (auto-migração
+   *  em fundo nos tenants antigos) — verificar antes de a usar, senão as
+   *  fichas técnicas rebentavam com 42703 até a migração chegar. */
+  private async hasWasteCol(tx: Prisma.TransactionClient): Promise<boolean> {
+    const rows = await tx.$queryRaw<{ n: number }[]>(
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = 'product_recipes' AND column_name = 'waste_pct'`,
+    );
+    return (rows[0]?.n ?? 0) > 0;
+  }
+
   // ── Mesas ──────────────────────────────────────────────────
   listTables(schema: string): Promise<TableRow[]> {
     return this.prisma.runInTenant(schema, (tx) =>
@@ -158,20 +169,23 @@ export class RestaurantService {
   /** Baixa o stock dos ingredientes (receita) de cada prato vendido. */
   private async deductIngredients(tx: Prisma.TransactionClient, items: { product_id: string | null; quantity: string }[]): Promise<void> {
     const wh = await StockService.resolveDefaultWarehouse(tx);
+    // Quebra/desperdício: consumo real = qtd × (1 + quebra/100).
+    const wasteExpr = (await this.hasWasteCol(tx)) ? Prisma.sql`COALESCE(waste_pct, 0)` : Prisma.sql`0`;
+    const eff = (q: string | number, w: string | number | null | undefined) => Number(q) * (1 + (Number(w) || 0) / 100);
     for (const it of items) {
       if (!it.product_id) continue;
-      const recipe = await tx.$queryRaw<{ ingredient_id: string; quantity: string }[]>(
-        Prisma.sql`SELECT ingredient_id, quantity FROM product_recipes WHERE product_id = ${it.product_id}::uuid`);
+      const recipe = await tx.$queryRaw<{ ingredient_id: string; quantity: string; waste_pct: string | null }[]>(
+        Prisma.sql`SELECT ingredient_id, quantity, ${wasteExpr} AS waste_pct FROM product_recipes WHERE product_id = ${it.product_id}::uuid`);
       for (const ing of recipe) {
-        const consume = Number(ing.quantity) * Number(it.quantity);
+        const consume = eff(ing.quantity, ing.waste_pct) * Number(it.quantity);
         if (consume <= 0) continue;
         // COMBOS/MENUS (1 nível): se o componente é ele próprio um prato com
         // receita (ex.: Menu = Hambúrguer + …), consome os ingredientes do
         // sub-prato — não o "stock" do sub-prato (produzido sob encomenda).
-        const sub = await tx.$queryRaw<{ ingredient_id: string; quantity: string }[]>(
-          Prisma.sql`SELECT ingredient_id, quantity FROM product_recipes WHERE product_id = ${ing.ingredient_id}::uuid`);
+        const sub = await tx.$queryRaw<{ ingredient_id: string; quantity: string; waste_pct: string | null }[]>(
+          Prisma.sql`SELECT ingredient_id, quantity, ${wasteExpr} AS waste_pct FROM product_recipes WHERE product_id = ${ing.ingredient_id}::uuid`);
         const targets = sub.length
-          ? sub.map((s) => ({ id: s.ingredient_id, qty: Number(s.quantity) * consume }))
+          ? sub.map((s) => ({ id: s.ingredient_id, qty: eff(s.quantity, s.waste_pct) * consume }))
           : [{ id: ing.ingredient_id, qty: consume }];
         for (const t of targets) {
           if (t.qty <= 0) continue;
@@ -190,30 +204,43 @@ export class RestaurantService {
 
   // ── Receitas / fichas técnicas ─────────────────────────────
   getRecipe(schema: string, productId: string) {
-    return this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw(Prisma.sql`SELECT r.id, r.ingredient_id, r.quantity, p.name AS ingredient_name, p.code AS ingredient_code, p.unit AS ingredient_unit
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const wasteExpr = (await this.hasWasteCol(tx)) ? Prisma.sql`COALESCE(r.waste_pct, 0)` : Prisma.sql`0`;
+      return tx.$queryRaw(Prisma.sql`SELECT r.id, r.ingredient_id, r.quantity, ${wasteExpr} AS waste_pct,
+               p.name AS ingredient_name, p.code AS ingredient_code, p.unit AS ingredient_unit
         FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
-        WHERE r.product_id = ${productId}::uuid ORDER BY p.name`));
+        WHERE r.product_id = ${productId}::uuid ORDER BY p.name`);
+    });
   }
 
-  /** Substitui a receita de um prato pela lista indicada (ingrediente + quantidade). */
-  async setRecipe(schema: string, productId: string, items: { ingredientCode: string; quantity: number }[]) {
+  /** Substitui a receita de um prato pela lista indicada (ingrediente + quantidade + quebra %). */
+  async setRecipe(schema: string, productId: string, items: { ingredientCode: string; quantity: number; wastePct?: number }[]) {
     return this.prisma.runInTenant(schema, async (tx) => {
+      const hasWaste = await this.hasWasteCol(tx);
       await tx.$executeRaw(Prisma.sql`DELETE FROM product_recipes WHERE product_id = ${productId}::uuid`);
       for (const it of items) {
         if (!it.ingredientCode || !(it.quantity > 0)) continue;
         const ing = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM products WHERE code = ${it.ingredientCode} AND is_active = TRUE LIMIT 1`);
         if (!ing[0]) continue;
         if (ing[0].id === productId) continue; // o prato não pode ser ingrediente de si próprio
-        await tx.$executeRaw(Prisma.sql`INSERT INTO product_recipes (product_id, ingredient_id, quantity)
-          VALUES (${productId}::uuid, ${ing[0].id}::uuid, ${it.quantity})
-          ON CONFLICT (product_id, ingredient_id) DO UPDATE SET quantity = EXCLUDED.quantity`);
+        const waste = Math.min(90, Math.max(0, Number(it.wastePct) || 0));
+        if (hasWaste) {
+          await tx.$executeRaw(Prisma.sql`INSERT INTO product_recipes (product_id, ingredient_id, quantity, waste_pct)
+            VALUES (${productId}::uuid, ${ing[0].id}::uuid, ${it.quantity}, ${waste})
+            ON CONFLICT (product_id, ingredient_id) DO UPDATE SET quantity = EXCLUDED.quantity, waste_pct = EXCLUDED.waste_pct`);
+        } else {
+          await tx.$executeRaw(Prisma.sql`INSERT INTO product_recipes (product_id, ingredient_id, quantity)
+            VALUES (${productId}::uuid, ${ing[0].id}::uuid, ${it.quantity})
+            ON CONFLICT (product_id, ingredient_id) DO UPDATE SET quantity = EXCLUDED.quantity`);
+        }
       }
-      // CUSTO DO PRATO = soma do custo dos ingredientes (ficha técnica). Assim o
-      // lucro no caixa = preço de venda − custo dos ingredientes consumidos.
+      // CUSTO DO PRATO = soma do custo dos ingredientes COM QUEBRA (o que se
+      // gasta de verdade, não só o que vai ao prato). Lucro no caixa = preço −
+      // este custo real.
+      const wasteFactor = hasWaste ? Prisma.sql`(1 + COALESCE(r.waste_pct, 0) / 100)` : Prisma.sql`1`;
       await tx.$executeRaw(Prisma.sql`
         UPDATE products SET cost_price = COALESCE((
-          SELECT SUM(r.quantity * ing.cost_price)
+          SELECT SUM(r.quantity * ${wasteFactor} * ing.cost_price)
           FROM product_recipes r JOIN products ing ON ing.id = r.ingredient_id
           WHERE r.product_id = ${productId}::uuid), 0), updated_at = now()
         WHERE id = ${productId}::uuid`);
@@ -224,12 +251,15 @@ export class RestaurantService {
   /** Recalcula o custo (ficha técnica) de TODOS os pratos com receita — útil
    *  quando o custo dos ingredientes muda (nova compra altera o custo médio). */
   async recomputeAllRecipeCosts(schema: string) {
-    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
-      UPDATE products p SET cost_price = sub.c, updated_at = now()
-      FROM (SELECT r.product_id, SUM(r.quantity * ing.cost_price) AS c
-            FROM product_recipes r JOIN products ing ON ing.id = r.ingredient_id
-            GROUP BY r.product_id) sub
-      WHERE p.id = sub.product_id`));
+    await this.prisma.runInTenant(schema, async (tx) => {
+      const wasteFactor = (await this.hasWasteCol(tx)) ? Prisma.sql`(1 + COALESCE(r.waste_pct, 0) / 100)` : Prisma.sql`1`;
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE products p SET cost_price = sub.c, updated_at = now()
+        FROM (SELECT r.product_id, SUM(r.quantity * ${wasteFactor} * ing.cost_price) AS c
+              FROM product_recipes r JOIN products ing ON ing.id = r.ingredient_id
+              GROUP BY r.product_id) sub
+        WHERE p.id = sub.product_id`);
+    });
     return { ok: true };
   }
 

@@ -301,3 +301,9 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."payroll_items" ADD COLUMN IF NOT EXISTS abse
 -- fatia; molho ao ml. Sem campo próprio, os utilizadores punham "(kg)" no NOME.
 -- Coluna informativa (exibida em receitas/stock/POS); sem conversões automáticas.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS unit TEXT;
+
+-- ── 2026-07-06 · QUEBRA/DESPERDÍCIO na ficha técnica ─────────────────────────
+-- Numa cozinha real, 180 g de carne crua não rendem 180 g úteis (aparas,
+-- encolhimento). waste_pct por ingrediente: consumo e custo passam a
+-- qtd × (1 + quebra/100). Default 0 = comportamento atual intacto.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."product_recipes" ADD COLUMN IF NOT EXISTS waste_pct NUMERIC(5,2) NOT NULL DEFAULT 0;

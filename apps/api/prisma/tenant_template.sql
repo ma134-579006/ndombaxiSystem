@@ -1020,6 +1020,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."product_recipes" (
   product_id    UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,   -- prato
   ingredient_id UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,   -- ingrediente
   quantity      NUMERIC(14,3) NOT NULL DEFAULT 1,                                          -- por unidade do prato
+  waste_pct     NUMERIC(5,2)  NOT NULL DEFAULT 0,                                           -- quebra/desperdício % (consumo/custo = qtd × (1+q/100))
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT product_recipes_unique UNIQUE (product_id, ingredient_id)
 );
