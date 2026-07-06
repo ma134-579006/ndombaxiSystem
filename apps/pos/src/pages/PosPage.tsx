@@ -305,6 +305,13 @@ export function PosPage() {
     // vender nenhum prato no POS ("está esgotado").
     const madeToOrder = !!p.has_recipe;
     if (!madeToOrder && stock <= 0) { flashError(`"${p.name}" está esgotado.`); return false; }
+    // Prato sem ingredientes suficientes para 1 dose: avisa JÁ no toque (em vez
+    // de deixar o erro para o pagamento). A emissão continua a validar.
+    const portions = p.portions_available == null ? null : Number(p.portions_available);
+    if (madeToOrder && portions != null && portions <= 0) {
+      flashError(`Ingredientes esgotados para "${p.name}" — reponha o stock dos ingredientes.`);
+      return false;
+    }
     const current = cart.find((l) => l.product.id === p.id)?.quantity ?? 0;
     if (!madeToOrder && current + 1 > stock) { flashError(`Stock insuficiente de "${p.name}": só há ${stock}.`); return false; }
     setCart((prev) => {
@@ -659,7 +666,16 @@ export function PosPage() {
                       </div>
                       <div className="pstock">
                         {madeToOrder
-                          ? <span className="stock-mto">Sob encomenda</span>
+                          ? (() => {
+                              // Doses possíveis com o stock atual dos ingredientes.
+                              const doses = p.portions_available == null ? null : Number(p.portions_available);
+                              if (doses != null && doses <= 0) return <span className="stock-out">Ingredientes esgotados</span>;
+                              return (
+                                <span className="stock-mto">
+                                  Sob encomenda{doses != null && doses < 100 ? ` · ${formatNumber(doses)} disp.` : ''}
+                                </span>
+                              );
+                            })()
                           : out
                             ? <span className="stock-out">Esgotado</span>
                             : <span className={`stock-ok${stock <= 5 ? ' low' : ''}`}>{formatNumber(stock)} em stock</span>}

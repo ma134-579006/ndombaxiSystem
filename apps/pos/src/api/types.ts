@@ -41,6 +41,8 @@ export interface Product {
   /** TRUE = prato com ficha técnica: produzido sob encomenda — o stock que
    *  conta é o dos INGREDIENTES (a emissão valida e baixa esses). */
   has_recipe?: boolean;
+  /** Doses possíveis com o stock atual dos ingredientes (informativo). */
+  portions_available?: string | number | null;
 }
 
 export interface Customer {

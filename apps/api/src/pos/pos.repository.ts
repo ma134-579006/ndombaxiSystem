@@ -27,6 +27,8 @@ export interface ProductRow {
   is_active: boolean;
   /** TRUE = tem ficha técnica (prato produzido sob encomenda; stock nos ingredientes). */
   has_recipe?: boolean;
+  /** Doses possíveis com o stock atual dos ingredientes (só pratos; NULL sem receita). */
+  portions_available?: string | number | null;
 }
 
 export interface CustomerRow {
@@ -161,6 +163,19 @@ export class PosRepository {
       const hasRecipeExpr = reg[0]?.r
         ? Prisma.sql`EXISTS (SELECT 1 FROM product_recipes r WHERE r.product_id = p.id)`
         : Prisma.sql`FALSE`;
+      // DOSES DISPONÍVEIS de um prato = MIN(stock_ingrediente ÷ qtd_receita).
+      // Combos (1 nível): componente que é ELE PRÓPRIO um prato expande-se nos
+      // seus ingredientes (LEFT JOIN da sub-receita multiplica as quantidades)
+      // — espelho exato da validação/consumo da emissão. Informativo para o
+      // operador ("Sob encomenda · N disp."); a emissão continua a validar.
+      const portionsExpr = reg[0]?.r
+        ? Prisma.sql`(SELECT MIN(FLOOR(ing.stock_qty / NULLIF(
+                        CASE WHEN r2.ingredient_id IS NULL THEN r.quantity ELSE r.quantity * r2.quantity END, 0)))
+                      FROM product_recipes r
+                      LEFT JOIN product_recipes r2 ON r2.product_id = r.ingredient_id
+                      JOIN products ing ON ing.id = COALESCE(r2.ingredient_id, r.ingredient_id)
+                      WHERE r.product_id = p.id)`
+        : Prisma.sql`NULL`;
       return tx.$queryRaw<ProductRow[]>(
         Prisma.sql`
           SELECT p.id, p.code, p.barcode, p.name, p.description, p.category_id, p.brand,
@@ -168,7 +183,8 @@ export class PosRepository {
                  CASE WHEN p.shared_stock OR ${storeId ?? null}::uuid IS NULL
                       THEN p.stock_qty ELSE COALESCE(si.quantity, 0) END AS stock_qty,
                  p.image_url, p.gallery, p.show_online, p.shared_stock, p.is_ingredient, p.unit, p.is_active,
-                 ${hasRecipeExpr} AS has_recipe
+                 ${hasRecipeExpr} AS has_recipe,
+                 ${portionsExpr} AS portions_available
           FROM products p
           LEFT JOIN stock_items si
                  ON si.product_id = p.id AND si.warehouse_id = ${storeId ?? null}::uuid
