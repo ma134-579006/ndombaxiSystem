@@ -755,3 +755,26 @@ a.fc-line:hover { color: #fff; }
   .lp-stats { margin-top: 36px; }
   .lp-stats b { font-size: 20px; }
 }
+
+/* ── TELEMÓVEIS ESTREITOS: hero digno, sem letras gigantes ──
+   O h1 a 32px em 360px partia "Multissetorial" em 4 linhas pesadas (ar
+   amador). Título mais contido, linhas equilibradas e badge/nav sem cortes. */
+.lp-hero h1 { text-wrap: balance; }
+@media (max-width: 640px) {
+  .lp-hero h1 { font-size: clamp(23px, 6.6vw, 30px); line-height: 1.18; letter-spacing: -0.3px; margin-bottom: 12px; }
+  .lp-hero p.sub { font-size: 14.5px; line-height: 1.55; }
+  .lp-hero .badge-pill { font-size: 11.5px; padding: 6px 11px; max-width: 100%; }
+  .lp-verticals span { font-size: 11.5px; padding: 6px 10px; }
+  .lp-btn { height: 46px; padding: 0 20px; font-size: 14px; }
+}
+/* Nav compacta: nada parte em 2 linhas. */
+@media (max-width: 480px) {
+  .lp-nav { padding-left: 12px; padding-right: 12px; gap: 8px; }
+  .lp-nav .logo { width: 32px; height: 32px; }
+  .lp-nav .nm { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 34vw; }
+  .lp-nav button { white-space: nowrap; height: 36px; padding: 0 11px; font-size: 12.5px; }
+}
+/* Ultra-estreito (<=340px): badge do typing pode quebrar linha com calma. */
+@media (max-width: 340px) {
+  .lp-hero .badge-pill { white-space: normal; line-height: 1.35; min-height: 0; }
+}
