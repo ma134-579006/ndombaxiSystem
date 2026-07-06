@@ -25,6 +25,8 @@ export interface ProductRow {
   is_ingredient: boolean;
   unit: string | null;
   is_active: boolean;
+  /** TRUE = tem ficha técnica (prato produzido sob encomenda; stock nos ingredientes). */
+  has_recipe?: boolean;
 }
 
 export interface CustomerRow {
@@ -148,22 +150,33 @@ export class PosRepository {
    * storeId omisso (gestor/admin) → mostra o stock_qty global.
    */
   listProducts(schema: string, storeId?: string | null): Promise<ProductRow[]> {
-    return this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw<ProductRow[]>(
+    return this.prisma.runInTenant(schema, async (tx) => {
+      // PRATOS/PRODUÇÃO: um produto com ficha técnica é produzido sob encomenda —
+      // não tem stock próprio (a emissão valida/baixa os INGREDIENTES). O POS
+      // precisa de saber isto para não o rotular "Esgotado" nem bloquear a venda.
+      // Guarda to_regclass: tenants antigos podem não ter product_recipes.
+      const reg = await tx.$queryRaw<{ r: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('product_recipes')::text AS r`,
+      );
+      const hasRecipeExpr = reg[0]?.r
+        ? Prisma.sql`EXISTS (SELECT 1 FROM product_recipes r WHERE r.product_id = p.id)`
+        : Prisma.sql`FALSE`;
+      return tx.$queryRaw<ProductRow[]>(
         Prisma.sql`
           SELECT p.id, p.code, p.barcode, p.name, p.description, p.category_id, p.brand,
                  p.iva_code, p.exemption_reason, p.exemption_code, p.unit_price, p.cost_price,
                  CASE WHEN p.shared_stock OR ${storeId ?? null}::uuid IS NULL
                       THEN p.stock_qty ELSE COALESCE(si.quantity, 0) END AS stock_qty,
-                 p.image_url, p.gallery, p.show_online, p.shared_stock, p.is_ingredient, p.unit, p.is_active
+                 p.image_url, p.gallery, p.show_online, p.shared_stock, p.is_ingredient, p.unit, p.is_active,
+                 ${hasRecipeExpr} AS has_recipe
           FROM products p
           LEFT JOIN stock_items si
                  ON si.product_id = p.id AND si.warehouse_id = ${storeId ?? null}::uuid
           -- Ingredientes (matéria-prima) NÃO entram no catálogo do caixa: só se vendem pratos.
           WHERE p.is_active = TRUE AND p.is_ingredient = FALSE
           ORDER BY p.name`,
-      ),
-    );
+      );
+    });
   }
 
   /** Ingredientes/matéria-prima (para a ficha técnica dos pratos) — com custo e stock. */

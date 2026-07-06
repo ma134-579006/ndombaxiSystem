@@ -165,11 +165,8 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
                 {cfg?.heroCtaSecondary ?? 'Entrar'}
               </button>
             </div>
-            <div className="lp-trust">
-              <span><IconCheck size={15} /> {trialDays} dias grátis para testar</span>
-              <span><IconCheck size={15} /> Facturação certificada AGT</span>
-              <span><IconCheck size={15} /> Funciona offline na caixa</span>
-            </div>
+            {/* (Sem linha de selos aqui: o trial já está no badge acima e a AGT/
+                disponibilidade nos INDICADORES logo abaixo — evitar repetição.) */}
           </div>
           {/* Mockup do produto (CSS puro — sem imagens, nítido em qualquer ecrã):
               o visitante VÊ o painel em <1s, como Stripe/Linear mostram o produto. */}
@@ -264,7 +261,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             <div className="lp-step">
               <span className="num">1</span>
               <h3>Crie a conta</h3>
-              <p>Registo em 2 minutos com e-mail ou Google. {trialDays} dias grátis em qualquer plano.</p>
+              <p>Registo em 2 minutos com e-mail ou Google — comece a testar no mesmo instante.</p>
             </div>
             <div className="lp-step">
               <span className="num">2</span>
@@ -287,7 +284,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           <p className="lead">Não é um software estrangeiro adaptado — foi desenhado de raiz para como se trabalha em Angola.</p>
           <div className="lp-why">
             <div className="lp-whyi"><IconCheck size={18} /><div><h3>Tudo em Kwanzas</h3><p>Preços, facturas e relatórios na sua moeda, com IVA angolano.</p></div></div>
-            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Facturação AGT</h3><p>Documentos certificados com hash e SAF-T (AO) pronto a entregar.</p></div></div>
+            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Multi-loja</h3><p>Várias lojas com stock próprio, transferências e relatórios por loja.</p></div></div>
             <div className="lp-whyi"><IconCheck size={18} /><div><h3>Funciona offline</h3><p>A caixa continua a vender sem internet e sincroniza depois.</p></div></div>
             <div className="lp-whyi"><IconCheck size={18} /><div><h3>Multi-setor real</h3><p>Restaurante com fichas técnicas, hotel com folio, farmácia com validades.</p></div></div>
             <div className="lp-whyi"><IconCheck size={18} /><div><h3>Venda a crédito (fiado)</h3><p>Controle dívidas de clientes como se faz no comércio local.</p></div></div>

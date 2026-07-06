@@ -42,6 +42,17 @@
       "port": 5173
     },
     {
+      "name": "pos-dev-local-api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@nexus/pos",
+        "dev"
+      ],
+      "env": { "PAPI_TARGET": "http://localhost:3300" },
+      "port": 5173
+    },
+    {
       "name": "store",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [

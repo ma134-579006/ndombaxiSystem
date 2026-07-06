@@ -9,9 +9,11 @@ export default defineConfig({
     host: true,
     // DEV ONLY (igual ao web/loja): proxy /papi → API de produção com Origin
     // permitida — auditoria/QA no preview local com dados reais.
+    // PAPI_TARGET (env) permite apontar a uma API local (validar alterações
+    // da API antes de publicar) — sem env, mantém a produção.
     proxy: {
       '/papi': {
-        target: 'https://ndombaxi-api-img.onrender.com',
+        target: process.env.PAPI_TARGET || 'https://ndombaxi-api-img.onrender.com',
         changeOrigin: true,
         secure: true,
         rewrite: (p) => p.replace(/^\/papi/, ''),

@@ -299,9 +299,14 @@ export function PosPage() {
   const addToCart = (p: Product): boolean => {
     setEmitError(null);
     const stock = Number(p.stock_qty);
-    if (stock <= 0) { flashError(`"${p.name}" está esgotado.`); return false; }
+    // Prato com ficha técnica: produzido SOB ENCOMENDA — o stock próprio é 0
+    // por natureza (quem conta são os ingredientes; a emissão valida-os e dá
+    // mensagem clara se faltar algum). Sem isto, a restauração não conseguia
+    // vender nenhum prato no POS ("está esgotado").
+    const madeToOrder = !!p.has_recipe;
+    if (!madeToOrder && stock <= 0) { flashError(`"${p.name}" está esgotado.`); return false; }
     const current = cart.find((l) => l.product.id === p.id)?.quantity ?? 0;
-    if (current + 1 > stock) { flashError(`Stock insuficiente de "${p.name}": só há ${stock}.`); return false; }
+    if (!madeToOrder && current + 1 > stock) { flashError(`Stock insuficiente de "${p.name}": só há ${stock}.`); return false; }
     setCart((prev) => {
       const idx = prev.findIndex((l) => l.product.id === p.id);
       if (idx >= 0) {
@@ -321,7 +326,8 @@ export function PosPage() {
           if (l.product.id !== id) return l;
           const stock = Number(l.product.stock_qty);
           const next = l.quantity + delta;
-          if (delta > 0 && next > stock) { flashError(`Stock insuficiente de "${l.product.name}": só há ${stock}.`); return l; }
+          // Pratos sob encomenda não têm stock próprio (ver addToCart).
+          if (!l.product.has_recipe && delta > 0 && next > stock) { flashError(`Stock insuficiente de "${l.product.name}": só há ${stock}.`); return l; }
           return { ...l, quantity: next };
         })
         .filter((l) => l.quantity > 0),
@@ -641,7 +647,10 @@ export function PosPage() {
               <div className="grid">
                 {filtered.map((p) => {
                   const stock = Number(p.stock_qty);
-                  const out = stock <= 0;
+                  // Prato com ficha técnica: "Sob encomenda" (nunca "Esgotado") —
+                  // o stock real está nos ingredientes.
+                  const madeToOrder = !!p.has_recipe;
+                  const out = !madeToOrder && stock <= 0;
                   return (
                     <button key={p.id} className={`prod${out ? ' out' : ''}`} onClick={() => addToCart(p)}>
                       <div>
@@ -649,9 +658,11 @@ export function PosPage() {
                         <div className="pcode">{p.code}</div>
                       </div>
                       <div className="pstock">
-                        {out
-                          ? <span className="stock-out">Esgotado</span>
-                          : <span className={`stock-ok${stock <= 5 ? ' low' : ''}`}>{formatNumber(stock)} em stock</span>}
+                        {madeToOrder
+                          ? <span className="stock-mto">Sob encomenda</span>
+                          : out
+                            ? <span className="stock-out">Esgotado</span>
+                            : <span className={`stock-ok${stock <= 5 ? ' low' : ''}`}>{formatNumber(stock)} em stock</span>}
                       </div>
                       <div className="pfoot">
                         <span className="pprice">{formatKz(grossUnit(p))}</span>

@@ -38,6 +38,9 @@ export interface Product {
   gallery: unknown;
   show_online: boolean;
   is_active: boolean;
+  /** TRUE = prato com ficha técnica: produzido sob encomenda — o stock que
+   *  conta é o dos INGREDIENTES (a emissão valida e baixa esses). */
+  has_recipe?: boolean;
 }
 
 export interface Customer {

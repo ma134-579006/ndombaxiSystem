@@ -1226,3 +1226,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary, #3b82
 .loading { display: flex; align-items: center; gap: 10px; font-weight: 600; }
 .loading::before { content: ""; width: 16px; height: 16px; flex: none; border-radius: 999px; border: 2px solid rgba(128,140,170,.35); border-top-color: var(--primary, #3b82f6); }
 @media (prefers-reduced-motion: no-preference) { .loading::before { animation: ndx-spin .8s linear infinite; } @keyframes ndx-spin { to { transform: rotate(360deg); } } }
+
+/* Prato com ficha tecnica: "Sob encomenda" (informativo, nao alarmante). */
+.stock-mto { color: #60a5fa; font-weight: 700; font-size: 12px; }
