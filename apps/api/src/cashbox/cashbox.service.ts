@@ -108,11 +108,14 @@ export class CashboxService {
       let salesTotal = 0, cashIn = 0, cashOut = 0, salesCount = 0;
       let cashSales = 0; // só vendas pagas em numerário entram no esperado físico
       let cashRefunds = 0; // reembolsos em numerário SAEM da gaveta (anulações/devoluções)
+      const byPayment: Record<string, number> = {};
       for (const r of agg) {
         const total = Number(r.total);
         if (r.type === 'SALE') {
           salesTotal += total; salesCount += r.n;
-          if ((r.payment_type ?? 'CASH') === 'CASH') cashSales += total;
+          const pt = r.payment_type ?? 'CASH';
+          byPayment[pt] = round2((byPayment[pt] ?? 0) + total);
+          if (pt === 'CASH') cashSales += total;
         } else if (r.type === 'CASH_IN') cashIn += total;
         else if (r.type === 'CASH_OUT') cashOut += total;
         else if (r.type === 'REFUND') {
@@ -121,7 +124,11 @@ export class CashboxService {
       }
 
       // Vendas em CARTÃO/Multicaixa TPA (não entram no esperado físico da gaveta).
-      const cardSales = round2(salesTotal - cashSales);
+      // SÓ o método CARD: fiado (CREDIT), transferência e referência NÃO são
+      // "cartão" — o gestor lia como recebido o que era dívida/por conciliar.
+      // A discriminação completa segue em `byPayment` (+ creditSales explícito).
+      const cardSales = round2(byPayment['CARD'] ?? 0);
+      const creditSales = round2(byPayment['CREDIT'] ?? 0);
 
       // Adiantamentos APROVADOS pelo gestor e ainda não levantados: o caixa pode
       // levantar esse dinheiro da gaveta — é uma saída LEGÍTIMA, por isso reduz o
@@ -192,7 +199,8 @@ export class CashboxService {
         openedByName: session.opened_by_name,
         openedAt: session.opened_at,
         closedAt: new Date().toISOString(),
-        openingFloat, salesTotal: round2(salesTotal), cashSales, cardSales, cashIn, cashOut,
+        openingFloat, salesTotal: round2(salesTotal), cashSales, cardSales, creditSales, byPayment,
+        cashIn, cashOut,
         cashRefunds: round2(cashRefunds), advancesPaid, pendingAdvances, breakReason,
         expected, counted, difference, verdict, salesCount,
         products: products.map((p) => ({
@@ -230,7 +238,9 @@ export class CashboxService {
         }
       }
       const openingFloat = Number(session.opening_float);
-      const cardSales = round2(salesTotal - cashSales);
+      // SÓ o método CARD (fiado/transferência/referência ≠ cartão) — ver fecho.
+      const cardSales = round2(byPayment['CARD'] ?? 0);
+      const creditSales = round2(byPayment['CREDIT'] ?? 0);
       // Adiantamentos aprovados por levantar (reduzem o esperado no fecho).
       const advAgg = await tx.$queryRaw<{ total: string }[]>(
         Prisma.sql`SELECT COALESCE(SUM(amount),0)::text AS total FROM salary_advances
@@ -244,7 +254,7 @@ export class CashboxService {
         openedAt: session.opened_at,
         now: new Date().toISOString(),
         openingFloat, salesTotal: round2(salesTotal), salesCount,
-        cashSales: round2(cashSales), cardSales, cashIn: round2(cashIn), cashOut: round2(cashOut),
+        cashSales: round2(cashSales), cardSales, creditSales, cashIn: round2(cashIn), cashOut: round2(cashOut),
         cashRefunds: round2(cashRefunds), advancesApproved,
         expectedCash: round2(openingFloat + cashSales + cashIn - cashOut - cashRefunds - advancesApproved),
         byPayment,

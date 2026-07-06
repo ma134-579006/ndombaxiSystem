@@ -34,6 +34,7 @@ interface FormState {
   showOnline: boolean;
   isActive: boolean;
   isIngredient: boolean;
+  unit: string;
 }
 
 const EMPTY: FormState = {
@@ -55,7 +56,11 @@ const EMPTY: FormState = {
   showOnline: true,
   isActive: true,
   isIngredient: false,
+  unit: '',
 };
+
+/** Unidades de medida comuns (informativas — sem conversão automática). */
+const UNIT_OPTIONS = ['un', 'kg', 'g', 'L', 'ml', 'fatia', 'folha', 'dose', 'porção', 'caixa', 'pacote', 'garrafa', 'lata'];
 
 export function Products() {
   const [products, setProducts] = useState<ManagerProduct[]>([]);
@@ -158,6 +163,7 @@ export function Products() {
       showOnline: p.show_online,
       isActive: p.is_active,
       isIngredient: !!p.is_ingredient,
+      unit: p.unit ?? '',
     });
     setFormError(null);
     setEditing(p);
@@ -207,6 +213,7 @@ export function Products() {
           sharedStock: form.sharedStock,
           isActive: form.isActive,
           isIngredient: form.isIngredient,
+          unit: form.unit.trim(),
         });
       } else {
         // Custo unitário = valor de compra (total) ÷ quantidade; se não houver
@@ -230,6 +237,7 @@ export function Products() {
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
           isIngredient: form.isIngredient,
+          unit: form.unit.trim() || undefined,
         };
         await api.products.create(payload);
       }
@@ -401,6 +409,22 @@ export function Products() {
           <div className="field">
             <label>Preço de venda (Kz, sem IVA)</label>
             <input inputMode="decimal" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="0" />
+          </div>
+          <div className="field">
+            <label>Unidade de medida{form.isIngredient ? '' : ' (opcional)'}</label>
+            <select value={UNIT_OPTIONS.includes(form.unit) ? form.unit : (form.unit ? '__outra' : '')}
+              onChange={(e) => setForm({ ...form, unit: e.target.value === '__outra' ? form.unit : e.target.value })}>
+              <option value="">— Sem unidade —</option>
+              {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+              <option value="__outra">Outra…</option>
+            </select>
+            {!UNIT_OPTIONS.includes(form.unit) && form.unit !== '' ? (
+              <input style={{ marginTop: 6 }} value={form.unit} maxLength={16}
+                onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="ex.: rolo, saco…" />
+            ) : null}
+            <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+              Como este produto se mede: o stock, as compras e a ficha técnica passam a mostrar esta unidade (ex.: carne em <strong>kg</strong>, queijo à <strong>fatia</strong>, molho em <strong>ml</strong>).
+            </p>
           </div>
           {!editing ? (
             <div className="card" style={{ background: 'var(--surface-2)', padding: 12, margin: '0 0 12px' }}>

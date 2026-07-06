@@ -149,6 +149,49 @@ export class InvoiceService {
         recipeByProduct.set(r.product_id, list);
       }
 
+      // COMBOS/MENUS: um componente da receita pode ser ELE PRÓPRIO um prato com
+      // ficha técnica (ex.: Menu = Hambúrguer + Batatas + Refrigerante). O prato
+      // componente é produzido sob encomenda (stock 0) — vender o menu tem de
+      // consumir os INGREDIENTES do componente, não o "stock" do componente
+      // (senão a venda bloqueia com "ingrediente insuficiente: Hambúrguer").
+      // Expande UM nível de sub-receitas: componentes com receita própria são
+      // substituídos pelos seus ingredientes (qtd multiplicada); componentes sem
+      // receita (ex.: refrigerante de revenda) continuam a baixar como produto.
+      if (recipeRows.length && hasRecipes) {
+        const compIds = [...new Set(recipeRows.map((r) => r.ingredient_id))];
+        const subRows = await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; shared_stock: boolean | null; name: string }[]>(
+          Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, p.shared_stock, p.name
+                     FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
+                     WHERE r.product_id = ANY(ARRAY[${Prisma.join(compIds)}]::uuid[])`,
+        );
+        if (subRows.length) {
+          const subByProduct = new Map<string, typeof subRows>();
+          for (const s of subRows) {
+            const l = subByProduct.get(s.product_id) ?? [];
+            l.push(s); subByProduct.set(s.product_id, l);
+          }
+          for (const [pid, list] of recipeByProduct) {
+            const expanded: typeof list = [];
+            for (const comp of list) {
+              const sub = subByProduct.get(comp.ingredientId);
+              if (sub?.length) {
+                for (const s of sub) {
+                  expanded.push({
+                    ingredientId: s.ingredient_id,
+                    quantity: Number(s.quantity) * comp.quantity,
+                    sharedStock: !!s.shared_stock,
+                    name: s.name,
+                  });
+                }
+              } else {
+                expanded.push(comp);
+              }
+            }
+            recipeByProduct.set(pid, expanded);
+          }
+        }
+      }
+
       const lineInputs: InvoiceLineInput[] = input.lines.map((l) => {
         // Linha LIVRE (serviço/mão-de-obra/estadia): preço já LÍQUIDO + IVA indicado.
         if (!('productCode' in l) || !l.productCode) {
@@ -678,6 +721,38 @@ export class InvoiceService {
       const list = map.get(r.product_id) ?? [];
       list.push({ ingredientId: r.ingredient_id, quantity: Number(r.quantity), sharedStock: !!r.shared_stock });
       map.set(r.product_id, list);
+    }
+    // COMBOS/MENUS (1 nível): espelho EXATO da emissão — componentes que são
+    // pratos com receita própria são substituídos pelos seus ingredientes, para
+    // o estorno devolver o que a venda realmente baixou (ver expansão no emit).
+    if (rows.length) {
+      const compIds = [...new Set(rows.map((r) => r.ingredient_id))];
+      const subRows = await tx.$queryRaw<{ product_id: string; ingredient_id: string; quantity: string; shared_stock: boolean | null }[]>(
+        Prisma.sql`SELECT r.product_id, r.ingredient_id, r.quantity, p.shared_stock
+                   FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
+                   WHERE r.product_id = ANY(ARRAY[${Prisma.join(compIds)}]::uuid[])`,
+      );
+      if (subRows.length) {
+        const subByProduct = new Map<string, typeof subRows>();
+        for (const s of subRows) {
+          const l = subByProduct.get(s.product_id) ?? [];
+          l.push(s); subByProduct.set(s.product_id, l);
+        }
+        for (const [pid, list] of map) {
+          const expanded: typeof list = [];
+          for (const comp of list) {
+            const sub = subByProduct.get(comp.ingredientId);
+            if (sub?.length) {
+              for (const s of sub) {
+                expanded.push({ ingredientId: s.ingredient_id, quantity: Number(s.quantity) * comp.quantity, sharedStock: !!s.shared_stock });
+              }
+            } else {
+              expanded.push(comp);
+            }
+          }
+          map.set(pid, expanded);
+        }
+      }
     }
     return map;
   }

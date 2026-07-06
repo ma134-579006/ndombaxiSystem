@@ -174,6 +174,10 @@ export interface ShiftClose {
   salesTotal: number;
   cashSales: number;
   cardSales: number;
+  /** Vendas a crédito (fiado) — NÃO são dinheiro recebido. */
+  creditSales?: number;
+  /** Vendas por método (CASH/CARD/TRANSFER/REFERENCE/EXPRESS/CREDIT). */
+  byPayment?: Record<string, number>;
   cashIn: number;
   cashOut: number;
   cashRefunds: number;
@@ -200,6 +204,8 @@ export interface ReportX {
   salesCount: number;
   cashSales: number;
   cardSales: number;
+  /** Vendas a crédito (fiado) — NÃO são dinheiro recebido. */
+  creditSales?: number;
   cashIn: number;
   cashOut: number;
   cashRefunds: number;

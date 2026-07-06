@@ -109,6 +109,12 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isIngredient?: boolean;
+
+  /** Unidade de medida (un, kg, g, L, ml, fatia, folha…). Informativa. */
+  @IsOptional()
+  @IsString()
+  @Length(1, 16)
+  unit?: string;
 }
 
 export class UpdateProductDto {
@@ -184,4 +190,10 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   isIngredient?: boolean;
+
+  /** Unidade de medida (un, kg, g, L, ml, fatia, folha…). Informativa. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 16)
+  unit?: string;
 }

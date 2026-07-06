@@ -194,6 +194,8 @@ function RecipesTab({ products }: { products: ManagerProduct[] }) {
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao guardar.'); } finally { setBusy(false); }
   };
   const nameOf = (code: string) => ingredients.find((p) => p.code === code)?.name ?? products.find((p) => p.code === code)?.name ?? code;
+  // Unidade de medida do ingrediente (kg, g, ml, fatia…) — mostra ao lado da quantidade.
+  const unitOf = (code: string) => ingredients.find((p) => p.code === code)?.unit ?? products.find((p) => p.code === code)?.unit ?? null;
   const ingFiltered = q.trim() ? ingredients.filter((p) => p.id !== dishId && `${p.name} ${p.code}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 16) : [];
 
   const recompute = async () => {
@@ -222,7 +224,7 @@ function RecipesTab({ products }: { products: ManagerProduct[] }) {
             <div className="pgrid" style={{ maxHeight: '18vh', overflowY: 'auto', marginBottom: 10 }}>
               {ingFiltered.map((p) => (
                 <button key={p.id} className="pcard" onClick={() => addIngredient(p.code)} style={{ cursor: 'pointer', textAlign: 'left' }}>
-                  <div className="pinfo"><div className="pname" style={{ fontSize: 13 }}>{p.name}</div><div className="pcode">{p.code}</div></div>
+                  <div className="pinfo"><div className="pname" style={{ fontSize: 13 }}>{p.name}</div><div className="pcode">{p.code}{p.unit ? ` · ${p.unit}` : ''}</div></div>
                 </button>
               ))}
             </div>
@@ -233,6 +235,7 @@ function RecipesTab({ products }: { products: ManagerProduct[] }) {
                 <div key={r.ingredientCode} className="list-row" style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>{nameOf(r.ingredientCode)}</span>
                   <input value={r.quantity} onChange={(e) => { const v = e.target.value.replace(/[^\d.]/g, ''); setRows(rows.map((x, j) => j === i ? { ...x, quantity: v } : x)); }} inputMode="decimal" style={{ width: 80 }} />
+                  {unitOf(r.ingredientCode) ? <span className="muted" style={{ fontSize: 12.5, minWidth: 34 }}>{unitOf(r.ingredientCode)}</span> : null}
                   <button className="btn sm ghost" onClick={() => setRows(rows.filter((_, j) => j !== i))}><IconTrash size={14} /></button>
                 </div>
               ))}

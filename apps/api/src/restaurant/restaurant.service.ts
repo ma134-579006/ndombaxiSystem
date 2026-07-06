@@ -165,13 +165,24 @@ export class RestaurantService {
       for (const ing of recipe) {
         const consume = Number(ing.quantity) * Number(it.quantity);
         if (consume <= 0) continue;
-        if (wh) {
-          await StockService.applyMovement(tx, {
-            productId: ing.ingredient_id, warehouseId: wh, type: 'OUT', quantity: -consume,
-            reference: 'Consumo de receita (restaurante)', allowNegative: true,
-          });
-        } else {
-          await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${consume} WHERE id = ${ing.ingredient_id}::uuid`);
+        // COMBOS/MENUS (1 nível): se o componente é ele próprio um prato com
+        // receita (ex.: Menu = Hambúrguer + …), consome os ingredientes do
+        // sub-prato — não o "stock" do sub-prato (produzido sob encomenda).
+        const sub = await tx.$queryRaw<{ ingredient_id: string; quantity: string }[]>(
+          Prisma.sql`SELECT ingredient_id, quantity FROM product_recipes WHERE product_id = ${ing.ingredient_id}::uuid`);
+        const targets = sub.length
+          ? sub.map((s) => ({ id: s.ingredient_id, qty: Number(s.quantity) * consume }))
+          : [{ id: ing.ingredient_id, qty: consume }];
+        for (const t of targets) {
+          if (t.qty <= 0) continue;
+          if (wh) {
+            await StockService.applyMovement(tx, {
+              productId: t.id, warehouseId: wh, type: 'OUT', quantity: -t.qty,
+              reference: 'Consumo de receita (restaurante)', allowNegative: true,
+            });
+          } else {
+            await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${t.qty} WHERE id = ${t.id}::uuid`);
+          }
         }
       }
     }
@@ -180,7 +191,7 @@ export class RestaurantService {
   // ── Receitas / fichas técnicas ─────────────────────────────
   getRecipe(schema: string, productId: string) {
     return this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw(Prisma.sql`SELECT r.id, r.ingredient_id, r.quantity, p.name AS ingredient_name, p.code AS ingredient_code
+      tx.$queryRaw(Prisma.sql`SELECT r.id, r.ingredient_id, r.quantity, p.name AS ingredient_name, p.code AS ingredient_code, p.unit AS ingredient_unit
         FROM product_recipes r JOIN products p ON p.id = r.ingredient_id
         WHERE r.product_id = ${productId}::uuid ORDER BY p.name`));
   }

@@ -180,6 +180,8 @@ export interface ManagerProduct {
   show_online: boolean;
   shared_stock: boolean;
   is_ingredient?: boolean;
+  /** Unidade de medida (un, kg, g, L, ml, fatia, folha…). */
+  unit?: string | null;
   is_active: boolean;
 }
 export interface CreateProductInput {
@@ -201,6 +203,7 @@ export interface CreateProductInput {
   imageUrl?: string;
   showOnline?: boolean;
   isIngredient?: boolean;
+  unit?: string;
 }
 export interface UpdateProductInput {
   name?: string;
@@ -218,6 +221,7 @@ export interface UpdateProductInput {
   sharedStock?: boolean;
   isActive?: boolean;
   isIngredient?: boolean;
+  unit?: string;
 }
 
 /** Encomenda online (web_orders). Campos snake_case do raw SQL. */
@@ -792,7 +796,7 @@ export interface HotelReservationRow {
   id: string; number: string; room_name: string | null; guest_name: string | null;
   check_in: string; check_out: string; nights: number; status: string; total: string; source?: string;
 }
-export interface RecipeIngredient { id: string; ingredient_id: string; ingredient_name: string; ingredient_code: string; quantity: string }
+export interface RecipeIngredient { id: string; ingredient_id: string; ingredient_name: string; ingredient_code: string; quantity: string; ingredient_unit?: string | null }
 
 // ── Farmácia ───────────────────────────────────────────────
 export interface PharmacyBatch { id: string; batch_code: string | null; quantity: string; expiry_date: string; days_left: number; product_name: string; product_code: string; active_ingredient: string | null }

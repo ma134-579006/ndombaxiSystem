@@ -134,20 +134,57 @@ export class PurchasingService {
       for (const it of items) {
         const outstanding = Number(it.quantity) - Number(it.received_qty);
         if (outstanding <= 0 || !it.product_id) continue;
+        // CUSTO MÉDIO PONDERADO (CMP): a receção da compra tem de atualizar o
+        // custo do produto tal como a entrada manual de stock — senão o CMV/lucro
+        // ficam falsos (custo 0) e as fichas técnicas sem custo. Lê o saldo e o
+        // custo ANTES do movimento (applyMovement altera products.stock_qty).
+        const prodRows = await tx.$queryRaw<{ stock_qty: string; cost_price: string }[]>(
+          Prisma.sql`SELECT stock_qty, cost_price FROM products WHERE id = ${it.product_id}::uuid FOR UPDATE`,
+        );
+        const oldQty = Number(prodRows[0]?.stock_qty ?? 0);
+        const oldCost = Number(prodRows[0]?.cost_price ?? 0);
+        const unitCost = Number(it.unit_cost);
+        const newCost = oldQty > 0
+          ? Math.round(((oldQty * oldCost + outstanding * unitCost) / (oldQty + outstanding)) * 100) / 100
+          : unitCost; // sem stock anterior (ou negativo) → assume o custo da compra
         await StockService.applyMovement(tx, {
           productId: it.product_id,
           warehouseId: po.warehouse_id,
           type: 'IN',
           quantity: outstanding,
-          unitCost: Number(it.unit_cost),
+          unitCost,
           reference: po.number,
           referenceId: poId,
           createdBy: receivedBy ?? null,
         });
         await tx.$executeRaw(
+          Prisma.sql`UPDATE products SET cost_price = ${newCost}, updated_at = now()
+                     WHERE id = ${it.product_id}::uuid`,
+        );
+        await tx.$executeRaw(
           Prisma.sql`UPDATE purchase_order_items SET received_qty = quantity WHERE id = ${it.id}::uuid`,
         );
         received += 1;
+      }
+
+      // ENGENHARIA DE CUSTOS (automática, igual à entrada manual): os ingredientes
+      // recebidos podem entrar em fichas técnicas — recalcula o custo dos pratos
+      // que os usam (custo do prato = Σ qtd×custo dos ingredientes). No-op para
+      // negócios sem receitas (afeta 0 linhas).
+      const hasRecipes = await tx.$queryRaw<{ r: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('product_recipes')::text AS r`,
+      );
+      if (hasRecipes[0]?.r && received > 0) {
+        const ids = items.filter((i) => i.product_id).map((i) => i.product_id as string);
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE products p SET
+              cost_price = COALESCE((SELECT SUM(r.quantity * ing.cost_price)
+                                     FROM product_recipes r JOIN products ing ON ing.id = r.ingredient_id
+                                     WHERE r.product_id = p.id), 0),
+              updated_at = now()
+            WHERE p.id IN (SELECT product_id FROM product_recipes
+                           WHERE ingredient_id = ANY(ARRAY[${Prisma.join(ids)}]::uuid[]))`,
+        );
       }
 
       await tx.$executeRaw(

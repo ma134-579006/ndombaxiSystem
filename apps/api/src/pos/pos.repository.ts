@@ -23,6 +23,7 @@ export interface ProductRow {
   show_online: boolean;
   shared_stock: boolean;
   is_ingredient: boolean;
+  unit: string | null;
   is_active: boolean;
 }
 
@@ -81,6 +82,8 @@ export class PosRepository {
       showOnline?: boolean;
       /** TRUE = ingrediente/matéria-prima (não se vende; só ficha técnica). */
       isIngredient?: boolean;
+      /** Unidade de medida (un, kg, g, L, ml, fatia, folha…). */
+      unit?: string | null;
     },
   ): Promise<ProductRow> {
     return this.prisma.runInTenant(schema, async (tx) => {
@@ -91,13 +94,13 @@ export class PosRepository {
       const rows = await tx.$queryRaw<ProductRow[]>(
         Prisma.sql`INSERT INTO products
             (code, barcode, name, description, category_id, brand, iva_code, exemption_reason, exemption_code,
-             unit_price, cost_price, stock_qty, shared_stock, image_url, gallery, show_online, is_ingredient)
+             unit_price, cost_price, stock_qty, shared_stock, image_url, gallery, show_online, is_ingredient, unit)
           VALUES (${input.code}, ${input.barcode ?? null}, ${input.name},
                   ${input.description ?? null}, ${input.categoryId ?? null}::uuid, ${input.brand ?? null},
                   ${input.ivaCode}, ${input.exemptionReason ?? null}, ${input.exemptionCode ?? null},
                   ${input.unitPrice ?? 0}, ${input.costPrice ?? 0}, ${input.stockQty ?? 0}, ${shared},
                   ${input.imageUrl ?? null}, ${JSON.stringify(input.gallery ?? [])}::jsonb,
-                  ${showOnline}, ${isIngredient})
+                  ${showOnline}, ${isIngredient}, ${input.unit?.trim() || null})
           RETURNING *`,
       );
       const product = rows[0];
@@ -152,7 +155,7 @@ export class PosRepository {
                  p.iva_code, p.exemption_reason, p.exemption_code, p.unit_price, p.cost_price,
                  CASE WHEN p.shared_stock OR ${storeId ?? null}::uuid IS NULL
                       THEN p.stock_qty ELSE COALESCE(si.quantity, 0) END AS stock_qty,
-                 p.image_url, p.gallery, p.show_online, p.shared_stock, p.is_ingredient, p.is_active
+                 p.image_url, p.gallery, p.show_online, p.shared_stock, p.is_ingredient, p.unit, p.is_active
           FROM products p
           LEFT JOIN stock_items si
                  ON si.product_id = p.id AND si.warehouse_id = ${storeId ?? null}::uuid
@@ -169,7 +172,7 @@ export class PosRepository {
       tx.$queryRaw<ProductRow[]>(
         Prisma.sql`SELECT id, code, barcode, name, description, category_id, brand, iva_code,
                           exemption_reason, exemption_code, unit_price, cost_price, stock_qty,
-                          image_url, gallery, show_online, shared_stock, is_ingredient, is_active
+                          image_url, gallery, show_online, shared_stock, is_ingredient, unit, is_active
                    FROM products WHERE is_active = TRUE AND is_ingredient = TRUE ORDER BY name`,
       ),
     );
@@ -205,6 +208,7 @@ export class PosRepository {
       sharedStock?: boolean;
       isActive?: boolean;
       isIngredient?: boolean;
+      unit?: string | null;
     },
   ): Promise<ProductRow> {
     const sets: Prisma.Sql[] = [];
@@ -224,6 +228,7 @@ export class PosRepository {
     if (input.showOnline !== undefined) sets.push(Prisma.sql`show_online = ${input.showOnline}`);
     if (input.sharedStock !== undefined) sets.push(Prisma.sql`shared_stock = ${input.sharedStock}`);
     if (input.isActive !== undefined) sets.push(Prisma.sql`is_active = ${input.isActive}`);
+    if (input.unit !== undefined) sets.push(Prisma.sql`unit = ${input.unit?.trim() || null}`);
     if (input.isIngredient !== undefined) {
       sets.push(Prisma.sql`is_ingredient = ${input.isIngredient}`);
       // Ao marcar como ingrediente, sai da loja online.

@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."products" (
   gallery      JSONB NOT NULL DEFAULT '[]',   -- imagens adicionais [url, ...]
   show_online  BOOLEAN NOT NULL DEFAULT TRUE, -- aparece na montra/loja online
   is_ingredient BOOLEAN NOT NULL DEFAULT FALSE, -- matéria-prima: NÃO se vende (só ficha técnica)
+  unit         TEXT,                           -- unidade de medida (un, kg, g, L, ml, fatia, folha…)
   active_ingredient     TEXT,                  -- princípio ativo (farmácia)
   requires_prescription BOOLEAN NOT NULL DEFAULT FALSE, -- exige receita médica (farmácia)
   is_active    BOOLEAN NOT NULL DEFAULT TRUE,

@@ -295,3 +295,9 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS onli
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."payroll_items" ADD COLUMN IF NOT EXISTS self_consumption   NUMERIC(14,2) NOT NULL DEFAULT 0;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."payroll_items" ADD COLUMN IF NOT EXISTS advance_deduction  NUMERIC(14,2) NOT NULL DEFAULT 0;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."payroll_items" ADD COLUMN IF NOT EXISTS absence_deduction  NUMERIC(14,2) NOT NULL DEFAULT 0;
+
+-- ── 2026-07-06 · UNIDADE DE MEDIDA nos produtos/ingredientes ─────────────────
+-- Uma hamburgaria compra carne ao kg e consome 0,180 kg por burger; queijo à
+-- fatia; molho ao ml. Sem campo próprio, os utilizadores punham "(kg)" no NOME.
+-- Coluna informativa (exibida em receitas/stock/POS); sem conversões automáticas.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS unit TEXT;

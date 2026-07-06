@@ -50,6 +50,10 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
       `Vendas: ${formatKz(r.salesTotal)} (${r.salesCount})`,
       `• Numerário: ${formatKz(r.cashSales)}`);
     if (r.cardSales > 0) L.push(`• Cartão/TPA: ${formatKz(r.cardSales)}`);
+    if ((r.byPayment?.TRANSFER ?? 0) > 0) L.push(`• Transferência: ${formatKz(r.byPayment!.TRANSFER)}`);
+    if ((r.byPayment?.REFERENCE ?? 0) > 0) L.push(`• Referência: ${formatKz(r.byPayment!.REFERENCE)}`);
+    if ((r.byPayment?.EXPRESS ?? 0) > 0) L.push(`• Multicaixa Express: ${formatKz(r.byPayment!.EXPRESS)}`);
+    if ((r.creditSales ?? 0) > 0) L.push(`• A crédito (fiado, por cobrar): ${formatKz(r.creditSales!)}`);
     if (r.cashIn > 0) L.push(`Reforços: ${formatKz(r.cashIn)}`);
     if (r.cashOut > 0) L.push(`Sangrias: −${formatKz(r.cashOut)}`);
     if (r.advancesPaid > 0) L.push(`Adiantamentos: −${formatKz(r.advancesPaid)}`);
@@ -135,6 +139,10 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
             <div className="kv"><span className="k">Vendas (total)</span><span className="v">{formatKz(r.salesTotal)} · {r.salesCount}</span></div>
             <div className="kv"><span className="k" style={{ paddingLeft: 10 }}>· em numerário</span><span className="v">{formatKz(r.cashSales)}</span></div>
             {r.cardSales > 0 ? <div className="kv"><span className="k" style={{ paddingLeft: 10 }}>· em cartão/Multicaixa (TPA)</span><span className="v">{formatKz(r.cardSales)}</span></div> : null}
+            {(r.byPayment?.TRANSFER ?? 0) > 0 ? <div className="kv"><span className="k" style={{ paddingLeft: 10 }}>· por transferência</span><span className="v">{formatKz(r.byPayment!.TRANSFER)}</span></div> : null}
+            {(r.byPayment?.REFERENCE ?? 0) > 0 ? <div className="kv"><span className="k" style={{ paddingLeft: 10 }}>· por referência</span><span className="v">{formatKz(r.byPayment!.REFERENCE)}</span></div> : null}
+            {(r.byPayment?.EXPRESS ?? 0) > 0 ? <div className="kv"><span className="k" style={{ paddingLeft: 10 }}>· Multicaixa Express</span><span className="v">{formatKz(r.byPayment!.EXPRESS)}</span></div> : null}
+            {(r.creditSales ?? 0) > 0 ? <div className="kv"><span className="k" style={{ paddingLeft: 10 }}>· a crédito (fiado, por cobrar)</span><span className="v">{formatKz(r.creditSales!)}</span></div> : null}
             {r.cashIn > 0 ? <div className="kv"><span className="k">Reforços</span><span className="v">{formatKz(r.cashIn)}</span></div> : null}
             {r.cashOut > 0 ? <div className="kv"><span className="k">Sangrias</span><span className="v">−{formatKz(r.cashOut)}</span></div> : null}
             {r.cashRefunds > 0 ? <div className="kv"><span className="k">Reembolsos</span><span className="v">−{formatKz(r.cashRefunds)}</span></div> : null}
