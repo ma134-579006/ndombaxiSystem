@@ -10,7 +10,11 @@ import type {
 } from '../api/types';
 import { LOGO_SRC } from '../brand';
 import { CAIXA_URL, STORE_URL } from '../config';
-import { IconCheck, IconMail } from '../components/Icons';
+import {
+  IconBoxes, IconBuilding, IconCalendar, IconCart, IconCartIn, IconCashRegister, IconCheck,
+  IconGauge, IconHeadset, IconMail, IconReceipt, IconShield, IconSparkles,
+  IconStore, IconTruck, IconUsers, IconWallet,
+} from '../components/Icons';
 import { Typewriter } from '../components/Typewriter';
 import { SupportChat } from '../components/SupportChat';
 import { FeedbackSection } from '../components/FeedbackSection';
@@ -123,6 +127,12 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       <nav className="lp-nav">
         <img className="logo" src={LOGO_SRC} alt={cfg?.brandName ?? 'Ndombaxi'} />
         <span className="nm">{cfg?.brandName ?? 'Ndombaxi System'}</span>
+        <div className="lp-nav-links" aria-label="Secções da página">
+          <a href="#modulos">Módulos</a>
+          <a href="#como-funciona">Como funciona</a>
+          <a href="#planos">Planos</a>
+          <a href="#faq">FAQ</a>
+        </div>
         <span className="spacer" />
         <button className="ghost" onClick={onGoLogin}>Entrar</button>
         <button className="solid" onClick={() => openRegister('BUSINESS')}>Criar conta</button>
@@ -131,36 +141,100 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       {/* HERO com carrossel animado de imagens realistas */}
       <header className="lp-hero">
         <HeroCarousel images={heroImages} intervalMs={heroInterval} />
-        <div className="lp-hero-inner">
-          <span className="badge-pill"><Typewriter text={`${trialDays} dias grátis · sem cartão · cancele quando quiser`} /></span>
-          <h1>{cfg?.heroTitle ?? 'O sistema de gestão e vendas para Angola'}</h1>
-          <p className="sub">
-            {cfg?.heroSubtitle ??
-              'Para vendas & stock, restauração, serviços e hotelaria — POS, facturação AGT, loja online e IA, tudo num só lugar, em Kwanzas.'}
-          </p>
-          <div className="lp-verticals">
-            <span>Vendas & stock</span>
-            <span>Restauração</span>
-            <span>Serviços</span>
-            <span>Hotelaria</span>
-            <span>Clínicas</span>
-            <span>Farmácias</span>
+        <div className="lp-hero-inner lp-hero-grid">
+          <div className="lp-hero-copy">
+            <span className="badge-pill"><Typewriter text={`${trialDays} dias grátis · sem cartão · cancele quando quiser`} /></span>
+            <h1>{cfg?.heroTitle ?? 'O ERP completo para gerir e vender em Angola'}</h1>
+            <p className="sub">
+              {cfg?.heroSubtitle ??
+                'POS, facturação AGT, stock, compras, RH, financeiro, loja online e IA — 15 módulos num só sistema, em Kwanzas.'}
+            </p>
+            <div className="lp-verticals">
+              <span>Vendas & stock</span>
+              <span>Restauração</span>
+              <span>Serviços</span>
+              <span>Hotelaria</span>
+              <span>Clínicas</span>
+              <span>Farmácias</span>
+            </div>
+            <div className="cta-row">
+              <button className="lp-btn primary" onClick={() => openRegister('BUSINESS')}>
+                {cfg?.heroCtaPrimary ?? `Começar grátis — ${trialDays} dias`}
+              </button>
+              <button className="lp-btn outline" onClick={onGoLogin}>
+                {cfg?.heroCtaSecondary ?? 'Entrar'}
+              </button>
+            </div>
+            <div className="lp-trust">
+              <span><IconCheck size={15} /> {trialDays} dias grátis para testar</span>
+              <span><IconCheck size={15} /> Facturação certificada AGT</span>
+              <span><IconCheck size={15} /> Funciona offline na caixa</span>
+            </div>
           </div>
-          <div className="cta-row">
-            <button className="lp-btn primary" onClick={() => openRegister('BUSINESS')}>
-              {cfg?.heroCtaPrimary ?? `Começar grátis — ${trialDays} dias`}
-            </button>
-            <button className="lp-btn outline" onClick={onGoLogin}>
-              {cfg?.heroCtaSecondary ?? 'Entrar'}
-            </button>
-          </div>
-          <div className="lp-trust">
-            <span><IconCheck size={15} /> {trialDays} dias grátis para testar</span>
-            <span><IconCheck size={15} /> Facturação certificada AGT</span>
-            <span><IconCheck size={15} /> Funciona offline na caixa</span>
+          {/* Mockup do produto (CSS puro — sem imagens, nítido em qualquer ecrã):
+              o visitante VÊ o painel em <1s, como Stripe/Linear mostram o produto. */}
+          <div className="lp-mockup" aria-hidden="true">
+            <div className="mk-frame">
+              <div className="mk-bar"><i /><i /><i /><span className="mk-url">painel · {cfg?.brandName ?? 'Ndombaxi'}</span></div>
+              <div className="mk-body">
+                <div className="mk-side">
+                  <div className="mk-si on" /><div className="mk-si" /><div className="mk-si" /><div className="mk-si" /><div className="mk-si" />
+                </div>
+                <div className="mk-main">
+                  <div className="mk-kpis">
+                    <div className="mk-kpi"><small>Vendas hoje</small><b>184 300 Kz</b><em className="up">▲ 12%</em></div>
+                    <div className="mk-kpi"><small>Lucro líquido</small><b>62 040 Kz</b><em className="up">▲ 8%</em></div>
+                    <div className="mk-kpi"><small>Faturas AGT</small><b>37</b><em>hoje</em></div>
+                  </div>
+                  <div className="mk-chart">
+                    <i style={{ height: '38%' }} /><i style={{ height: '52%' }} /><i style={{ height: '44%' }} /><i style={{ height: '66%' }} /><i style={{ height: '58%' }} /><i style={{ height: '82%' }} /><i style={{ height: '74%' }} />
+                  </div>
+                  <div className="mk-rows"><i /><i /><i /></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+        {/* Indicadores de confiança — âncoras numéricas sob o hero */}
+        <div className="lp-stats" role="list">
+          <div role="listitem"><b>15+</b><span>módulos integrados</span></div>
+          <div role="listitem"><b>10+</b><span>setores de atividade</span></div>
+          <div role="listitem"><b>99,9%</b><span>disponibilidade</span></div>
+          <div role="listitem"><b>AGT</b><span>facturação certificada</span></div>
+        </div>
       </header>
+
+      {/* MÓDULOS — a prova de "ERP completo": sempre visível (não depende da config) */}
+      <section className="lp-section" id="modulos">
+        <div className="wrap">
+          <h2>Um sistema, 15 módulos</h2>
+          <p className="lead">Tudo integrado: o que se vende na caixa baixa no stock, entra no financeiro e sai na facturação AGT.</p>
+          <div className="lp-modules">
+            {[
+              [<IconCashRegister size={20} key="i" />, 'POS / Caixa', 'Venda rápida, offline e com impressão térmica'],
+              [<IconReceipt size={20} key="i" />, 'Facturação AGT', 'Documentos certificados, SAF-T pronto'],
+              [<IconBoxes size={20} key="i" />, 'Inventário', 'Stock por loja, lotes, validades e alertas'],
+              [<IconCartIn size={20} key="i" />, 'Compras', 'Fornecedores, encomendas e custo médio'],
+              [<IconWallet size={20} key="i" />, 'Financeiro', 'Caixa, despesas, contas a pagar/receber'],
+              [<IconUsers size={20} key="i" />, 'RH & Salários', 'Folha salarial com INSS e IRT'],
+              [<IconBuilding size={20} key="i" />, 'Hotelaria', 'Reservas, quartos e conta do hóspede'],
+              [<IconCalendar size={20} key="i" />, 'Clínicas', 'Pacientes, consultas e receitas'],
+              [<IconShield size={20} key="i" />, 'Farmácias', 'Validades, lotes e princípio ativo'],
+              [<IconStore size={20} key="i" />, 'Restaurantes', 'Mesas, comandas, cozinha e fichas técnicas'],
+              [<IconTruck size={20} key="i" />, 'Serviços & Oficina', 'Ordens de serviço e assistência técnica'],
+              [<IconCart size={20} key="i" />, 'Loja Online', 'Montra pública com encomendas e entregas'],
+              [<IconHeadset size={20} key="i" />, 'CRM', 'Clientes, crédito e histórico de compras'],
+              [<IconSparkles size={20} key="i" />, 'IA integrada', 'Assistente que responde com os seus dados'],
+              [<IconGauge size={20} key="i" />, 'Relatórios', 'Lucro real, KPIs e fecho de caixa'],
+            ].map(([ic, t, d], i) => (
+              <div className="lp-mod" key={i}>
+                <span className="mic">{ic}</span>
+                <div><h3>{t}</h3><p>{d}</p></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* FUNCIONALIDADES */}
       {features.length > 0 && (
@@ -180,6 +254,47 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           </div>
         </section>
       )}
+
+      {/* COMO FUNCIONA — 3 passos até vender */}
+      <section className="lp-section alt" id="como-funciona">
+        <div className="wrap">
+          <h2>A vender em 3 passos</h2>
+          <p className="lead">Sem instalação, sem técnico, sem cartão de crédito. Só precisa de um telemóvel ou computador.</p>
+          <div className="lp-steps">
+            <div className="lp-step">
+              <span className="num">1</span>
+              <h3>Crie a conta</h3>
+              <p>Registo em 2 minutos com e-mail ou Google. {trialDays} dias grátis em qualquer plano.</p>
+            </div>
+            <div className="lp-step">
+              <span className="num">2</span>
+              <h3>Configure o negócio</h3>
+              <p>Escolha o setor, adicione produtos e a equipa. O painel adapta-se ao seu ramo.</p>
+            </div>
+            <div className="lp-step">
+              <span className="num">3</span>
+              <h3>Comece a vender</h3>
+              <p>Caixa a funcionar (mesmo offline), facturas AGT e relatórios de lucro em tempo real.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PORQUÊ O NDOMBAXI — diferenciais */}
+      <section className="lp-section" id="porque">
+        <div className="wrap">
+          <h2>Feito para a realidade angolana</h2>
+          <p className="lead">Não é um software estrangeiro adaptado — foi desenhado de raiz para como se trabalha em Angola.</p>
+          <div className="lp-why">
+            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Tudo em Kwanzas</h3><p>Preços, facturas e relatórios na sua moeda, com IVA angolano.</p></div></div>
+            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Facturação AGT</h3><p>Documentos certificados com hash e SAF-T (AO) pronto a entregar.</p></div></div>
+            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Funciona offline</h3><p>A caixa continua a vender sem internet e sincroniza depois.</p></div></div>
+            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Multi-setor real</h3><p>Restaurante com fichas técnicas, hotel com folio, farmácia com validades.</p></div></div>
+            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Venda a crédito (fiado)</h3><p>Controle dívidas de clientes como se faz no comércio local.</p></div></div>
+            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Suporte em português</h3><p>Chat integrado e acompanhamento por quem conhece o mercado.</p></div></div>
+          </div>
+        </div>
+      </section>
 
       {/* PLANOS / PREÇOS */}
       {cfg?.showPricing !== false && plans.length > 0 && (
@@ -237,6 +352,40 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           </div>
         </section>
       )}
+
+      {/* FAQ — responde às objeções antes de pedirem o cartão */}
+      <section className="lp-section alt" id="faq">
+        <div className="wrap lp-faq-wrap">
+          <h2>Perguntas frequentes</h2>
+          <p className="lead">Tudo o que os gestores nos perguntam antes de começar.</p>
+          <div className="lp-faq">
+            <details>
+              <summary>Preciso de cartão de crédito para testar?</summary>
+              <p>Não. Cria a conta e usa {trialDays} dias grátis com todos os módulos do plano. Só paga se decidir continuar — por transferência bancária ou referência.</p>
+            </details>
+            <details>
+              <summary>A facturação é aceite pela AGT?</summary>
+              <p>Sim. Os documentos seguem o regime jurídico das facturas (numeração, hash e assinatura) e o sistema exporta o ficheiro SAF-T (AO) para entregar à AGT.</p>
+            </details>
+            <details>
+              <summary>E se a internet falhar na loja?</summary>
+              <p>A caixa continua a vender offline e sincroniza automaticamente quando a ligação voltar. Não perde vendas por causa da rede.</p>
+            </details>
+            <details>
+              <summary>Serve para o meu ramo?</summary>
+              <p>O painel adapta-se ao setor: restaurantes têm mesas e fichas técnicas, hotéis têm reservas e conta do hóspede, farmácias têm lotes e validades, oficinas têm ordens de serviço — tudo no mesmo sistema.</p>
+            </details>
+            <details>
+              <summary>Os meus dados estão seguros?</summary>
+              <p>Cada empresa tem os seus dados isolados, com cópias de segurança automáticas e acesso protegido por perfis e PIN. Pode exportar os seus dados quando quiser.</p>
+            </details>
+            <details>
+              <summary>Quantas lojas e funcionários posso ter?</summary>
+              <p>Depende do plano — desde 1 loja até lojas e utilizadores ilimitados. Pode mudar de plano em qualquer altura sem perder dados.</p>
+            </details>
+          </div>
+        </div>
+      </section>
 
       {/* COMENTÁRIOS DA COMUNIDADE */}
       <div id="comentarios"><FeedbackSection /></div>
@@ -330,7 +479,10 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
   );
 }
 
-/** Carrossel de fundo do hero — crossfade automático entre imagens. */
+/** Carrossel de fundo do hero — crossfade automático entre imagens.
+ *  PERFORMANCE: só monta o slide ATUAL + o SEGUINTE (pré-carrega) — antes
+ *  montava as 20 imagens 1920px de uma vez (~10 MB no primeiro load, LCP
+ *  péssimo em redes móveis angolanas). O resto carrega à medida que roda. */
 function HeroCarousel({ images, intervalMs }: { images: string[]; intervalMs: number }) {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
@@ -338,19 +490,30 @@ function HeroCarousel({ images, intervalMs }: { images: string[]; intervalMs: nu
     const t = setInterval(() => setIdx((i) => (i + 1) % images.length), Math.max(2000, intervalMs));
     return () => clearInterval(t);
   }, [images.length, intervalMs]);
+  const next = (idx + 1) % images.length;
   return (
     <div className="lp-hero-bg" aria-hidden="true">
       {images.map((src, i) => (
-        <div
-          key={i}
-          className={`lp-hero-slide${i === idx ? ' on' : ''}`}
-          style={{ backgroundImage: `url('${src}')` }}
-        />
+        i === idx || i === next ? (
+          <div
+            key={i}
+            className={`lp-hero-slide${i === idx ? ' on' : ''}`}
+            style={{ backgroundImage: `url('${src}')` }}
+          />
+        ) : null
       ))}
       {images.length > 1 && (
-        <div className="lp-hero-dots">
+        <div className="lp-hero-dots" role="tablist" aria-label="Imagens do carrossel">
           {images.map((_, i) => (
-            <span key={i} className={i === idx ? 'on' : ''} onClick={() => setIdx(i)} />
+            <button
+              key={i}
+              type="button"
+              role="tab"
+              aria-selected={i === idx}
+              aria-label={`Imagem ${i + 1} de ${images.length}`}
+              className={i === idx ? 'on' : ''}
+              onClick={() => setIdx(i)}
+            />
           ))}
         </div>
       )}
