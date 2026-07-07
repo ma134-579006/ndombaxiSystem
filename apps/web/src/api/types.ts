@@ -784,6 +784,7 @@ export interface RestaurantDashboard {
   service: { tablesTotal: number; tablesOpen: number; occupancyPct: number; guestsSeated: number; openValue: number; avgTab: number };
   kitchen: { pending: number; preparing: number; queue: number; oldestWaitMin: number };
   today: { closedCount: number; revenue: number; avgTicket: number };
+  sales: { total: number; online: number; counter: number; invoices: number; dineIn: number };
   menu: { dishesWithRecipe: number; outOfStock: number; lowStock: number };
 }
 export interface ServiceOrderRow { id: string; number: string; customer_name: string | null; equipment_label: string | null; status: string; total: string; assigned_to: string | null; source?: string; created_at: string }

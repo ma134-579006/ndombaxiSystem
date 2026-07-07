@@ -405,12 +405,28 @@ export class RestaurantService {
         JOIN restaurant_orders o ON o.id = i.order_id
         WHERE o.status = 'OPEN'`);
 
-      // ── Hoje (contas fechadas) ───────────────────────────────
+      // ── Hoje (contas de mesa fechadas — só dine-in/comandas) ─
       const today = await tx.$queryRaw<{ closed_count: number; revenue: number; avg_ticket: number }[]>(Prisma.sql`
         SELECT COUNT(*)::int AS closed_count,
                COALESCE(SUM(total),0)::float8 AS revenue,
                COALESCE(AVG(total) FILTER (WHERE total > 0),0)::float8 AS avg_ticket
         FROM restaurant_orders WHERE status = 'CLOSED' AND closed_at::date = CURRENT_DATE`);
+
+      // ── Vendas de HOJE por CANAL (faturas emitidas) ──────────
+      // Um restaurante vende ao BALCÃO (POS) e ONLINE além do salão. O balcão/
+      // online passam por `invoices` (FT/FS, status N). Online = fatura ligada a
+      // uma encomenda web. Só LEITURA para o painel — não altera vendas/stock.
+      // Guarda to_regclass: web_orders/invoices podem faltar em tenants antigos.
+      const regWeb = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('web_orders')::text AS r`);
+      const onlineExpr = regWeb[0]?.r
+        ? Prisma.sql`COALESCE(SUM(gross_total) FILTER (WHERE id IN (SELECT invoice_id FROM web_orders WHERE invoice_id IS NOT NULL)), 0)::float8`
+        : Prisma.sql`0::float8`;
+      const sales = await tx.$queryRaw<{ total: number; online: number; invoices: number }[]>(Prisma.sql`
+        SELECT COALESCE(SUM(gross_total), 0)::float8 AS total,
+               ${onlineExpr} AS online,
+               COUNT(*)::int AS invoices
+        FROM invoices
+        WHERE invoice_date = CURRENT_DATE AND status = 'N' AND doc_type IN ('FT','FS')`);
 
       // ── Cardápio: pratos com ficha técnica e alerta de ingredientes ──
       // Doses por prato = MIN(stock_ingrediente ÷ consumo por dose) — mesmo
@@ -437,6 +453,13 @@ export class RestaurantService {
       const k = kitchen[0] ?? { pending: 0, preparing: 0, oldest_wait_min: null };
       const t = today[0] ?? { closed_count: 0, revenue: 0, avg_ticket: 0 };
       const m = menu[0] ?? { dishes: 0, out_of_stock: 0, low_stock: 0 };
+      const sl = sales[0] ?? { total: 0, online: 0, invoices: 0 };
+      const online = Math.round(sl.online);
+      const dineIn = Math.round(t.revenue);
+      // Balcão (POS) = faturas do dia − as ligadas a encomendas online. O salão
+      // (comandas) fatura no caixa ao fechar, por isso já entra em `total`; para
+      // não duplicar, o "balcão" mostra faturas menos online (inclui o salão).
+      const counter = Math.max(0, Math.round(sl.total) - online);
       return {
         service: {
           tablesTotal: s.tables_total, tablesOpen: s.tables_open,
@@ -447,7 +470,10 @@ export class RestaurantService {
           pending: k.pending, preparing: k.preparing, queue: k.pending + k.preparing,
           oldestWaitMin: k.oldest_wait_min ?? 0,
         },
-        today: { closedCount: t.closed_count, revenue: t.revenue, avgTicket: Math.round(t.avg_ticket) },
+        today: { closedCount: t.closed_count, revenue: dineIn, avgTicket: Math.round(t.avg_ticket) },
+        // Vendas faturadas de hoje por canal (não duplica: `total` já inclui mesa+
+        // balcão+online; `counter` = total − online, e inclui o salão faturado).
+        sales: { total: Math.round(sl.total), online, counter, invoices: sl.invoices, dineIn },
         menu: { dishesWithRecipe: m.dishes, outOfStock: m.out_of_stock, lowStock: m.low_stock },
       };
     });

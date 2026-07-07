@@ -39,6 +39,23 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
         <div className="card"><div className="empty"><p>Não foi possível carregar o painel do restaurante. Verifica a ligação.</p></div></div>
       ) : null}
 
+      {/* ── Vendas de HOJE (todos os canais) — a receita real do dia ── */}
+      <div className="card" style={{ marginBottom: 14, background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, transparent), transparent)' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div className="muted" style={{ fontSize: 12.5 }}>Vendas de hoje · todos os canais</div>
+            <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.1 }}>{d ? KZ(d.sales.total) : '—'}</div>
+            <div className="muted" style={{ fontSize: 11.5 }}>{d ? `${d.sales.invoices} factura(s) emitida(s)` : 'a carregar…'}</div>
+          </div>
+          <span className="spacer" style={{ flex: 1 }} />
+          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+            <Channel icon="🧾" label="Balcão / Mesa" value={d ? KZ(d.sales.counter) : '—'} />
+            <Channel icon="🛵" label="Loja online" value={d ? KZ(d.sales.online) : '—'} />
+            <Channel icon="🍽️" label="Mesa (comandas)" value={d ? KZ(d.sales.dineIn) : '—'} />
+          </div>
+        </div>
+      </div>
+
       {/* ── Serviço de sala (agora) ── */}
       <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 14 }}>
         <Tile label="Sala (ocupação)" value={d ? `${d.service.occupancyPct}%` : '—'} hint={d ? `${d.service.tablesOpen}/${d.service.tablesTotal} mesas ocupadas` : 'a carregar…'} tone={d && d.service.occupancyPct >= 85 ? 'warn' : 'info'} />
@@ -113,6 +130,15 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
         <button className="btn ghost" onClick={() => onGo('customers')}>🤝 Clientes</button>
       </div>
     </>
+  );
+}
+
+function Channel({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div style={{ textAlign: 'right' }}>
+      <div className="muted" style={{ fontSize: 11.5 }}>{icon} {label}</div>
+      <div style={{ fontSize: 17, fontWeight: 700 }}>{value}</div>
+    </div>
   );
 }
 
