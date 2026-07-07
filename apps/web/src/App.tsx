@@ -237,6 +237,32 @@ function TenantPanel() {
       .filter((it) => !ONLINE_KEYS.has(it.key) && !(it.children && it.children.length === 0));
     const base = gateStore(navForRole(TENANT_NAV, user?.role));
     if (bizType === 'RETAIL' || !VERTICAL_LABEL[bizType]) return base;
+
+    // RESTAURANT: navegação PRÓPRIA do setor — a operação de restaurante LIDERA e
+    // o retalho/financeiro passa a backoffice REENQUADRADO (mesmas secções e
+    // permissões: derivamos da `base` já filtrada por papel, só reordenamos e
+    // renomeamos). Deixa de "parecer vendas": um restaurante entra num sistema de
+    // restaurante, não num supermercado com a cozinha colada ao lado.
+    if (bizType === 'RESTAURANT') {
+      const byKey = new Map(base.map((g) => [g.key, g] as const));
+      const relabel = (key: string, label: string): NavItem[] => {
+        const g = byKey.get(key); return g ? [{ ...g, label }] : [];
+      };
+      const spine: NavItem[] = [
+        base[0], // Visão geral
+        { key: 'service-hub', label: '🍔 Centro de comando', icon: IconGauge },
+        { key: 'restaurant', label: '🍽️ Sala & Comandas', icon: IconStore },
+      ];
+      const reframed = new Set(['overview', 'products-group', 'movements-group']);
+      const rest = base.slice(1).filter((g) => !reframed.has(g.key));
+      return [
+        ...spine,
+        ...relabel('products-group', '🍴 Cardápio & Stock'),
+        ...relabel('movements-group', '💳 Caixa & Financeiro'),
+        ...rest,
+      ];
+    }
+
     // Mesmo painel base + itens próprios do vertical (logo a seguir à Visão geral).
     const vert: NavItem[] = [{ key: 'service-hub', label: VERTICAL_LABEL[bizType], icon: IconStore }];
     if (bizType === 'RESTAURANT') vert.push({ key: 'restaurant', label: '🍽️ Mesas & Comandas', icon: IconStore });
