@@ -65,7 +65,9 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
           </div>
 
           <div className="ax-stock-line">
-            {product.inStock
+            {product.madeToOrder
+              ? <span>🍳 Sob encomenda — preparado na hora</span>
+              : product.inStock
               ? (typeof product.stockQty === 'number'
                   ? <span className={product.stockQty <= 5 ? 'low' : ''}>{product.stockQty} disponível(is)</span>
                   : <span>Disponível</span>)

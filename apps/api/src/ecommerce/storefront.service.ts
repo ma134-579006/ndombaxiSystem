@@ -24,6 +24,7 @@ interface CatalogRow {
   image_url: string | null;
   gallery: unknown;
   category?: string | null;
+  has_recipe?: boolean;
 }
 
 export interface CatalogProduct {
@@ -35,6 +36,9 @@ export interface CatalogProduct {
   grossPrice: number;
   inStock: boolean;
   stockQty: number;
+  /** Prato com ficha técnica: produzido SOB ENCOMENDA (stock próprio 0 por
+   *  natureza). Vendável online — a emissão valida/baixa os ingredientes. */
+  madeToOrder: boolean;
   imageUrl: string | null;
   gallery: string[];
   category: string | null;
@@ -46,19 +50,30 @@ export class StorefrontService {
 
   /** Catálogo público: produtos activos e visíveis online, com preço bruto (IVA incluído). */
   async catalog(schema: string): Promise<CatalogProduct[]> {
-    const rows = await this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw<CatalogRow[]>(
+    const rows = await this.prisma.runInTenant(schema, async (tx) => {
+      // Pratos SOB ENCOMENDA (ficha técnica) têm stock próprio 0 por natureza —
+      // são vendíveis online na mesma (a emissão valida/baixa os ingredientes).
+      // Guarda to_regclass: tenants antigos podem não ter product_recipes.
+      const reg = await tx.$queryRaw<{ r: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('product_recipes')::text AS r`,
+      );
+      const hasRecipeExpr = reg[0]?.r
+        ? Prisma.sql`EXISTS (SELECT 1 FROM product_recipes r WHERE r.product_id = p.id)`
+        : Prisma.sql`FALSE`;
+      return tx.$queryRaw<CatalogRow[]>(
         Prisma.sql`SELECT p.id, p.code, p.name, p.description, p.iva_code, p.unit_price, p.stock_qty,
-                          p.image_url, p.gallery, pc.name AS category
+                          p.image_url, p.gallery, pc.name AS category,
+                          ${hasRecipeExpr} AS has_recipe
                    FROM products p
                    LEFT JOIN product_categories pc ON pc.id = p.category_id
                    WHERE p.is_active = TRUE AND p.show_online = TRUE AND p.is_ingredient = FALSE
                    ORDER BY p.name`,
-      ),
-    );
+      );
+    });
     return rows.map((r) => {
       const netPrice = Number(r.unit_price);
       const rate = resolveRate(r.iva_code);
+      const madeToOrder = !!r.has_recipe;
       return {
         code: r.code,
         name: r.name,
@@ -66,8 +81,10 @@ export class StorefrontService {
         ivaCode: r.iva_code,
         netPrice,
         grossPrice: round2(netPrice * (1 + rate / 100)),
-        inStock: Number(r.stock_qty) > 0,
+        // Sob encomenda: sempre "disponível" (a emissão valida os ingredientes).
+        inStock: madeToOrder ? true : Number(r.stock_qty) > 0,
         stockQty: Math.max(0, Math.floor(Number(r.stock_qty))),
+        madeToOrder,
         imageUrl: r.image_url,
         gallery: Array.isArray(r.gallery) ? (r.gallery as string[]) : [],
         category: r.category ?? null,

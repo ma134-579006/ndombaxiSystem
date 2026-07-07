@@ -21,7 +21,7 @@ export function ProductCard({ product, onOpen, onAdd }: {
         <div className="ax-card-name">{product.name}</div>
         <div className="ax-card-tags">
           <span className="ax-tag ship">Envio p/ Angola</span>
-          {lowStock ? <span className="ax-tag low">Só {product.stockQty} restam</span> : null}
+          {product.madeToOrder ? <span className="ax-tag">🍳 Sob encomenda</span> : lowStock ? <span className="ax-tag low">Só {product.stockQty} restam</span> : null}
         </div>
         <div className="ax-card-foot">
           <div className="ax-price">

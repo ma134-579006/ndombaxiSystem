@@ -381,9 +381,14 @@ export function PosPage() {
       for (const l of prev) {
         const fresh = products.find((p) => p.id === l.product.id);
         if (!fresh) { changed = true; continue; }
+        // Pratos SOB ENCOMENDA (ficha técnica) têm stock próprio 0 por natureza —
+        // o stock real está nos ingredientes. NÃO os remover nem clampar aqui,
+        // senão a reconciliação apaga-os do carrinho logo no refetch seguinte
+        // (a emissão é que valida os ingredientes). Espelha addToCart/changeQty.
+        const madeToOrder = !!fresh.has_recipe;
         const stock = Number(fresh.stock_qty);
-        if (stock <= 0) { changed = true; continue; }
-        const qty = Math.min(l.quantity, stock);
+        if (!madeToOrder && stock <= 0) { changed = true; continue; }
+        const qty = madeToOrder ? l.quantity : Math.min(l.quantity, stock);
         if (qty !== l.quantity || fresh !== l.product) changed = true;
         out.push({ product: fresh, quantity: qty });
       }
@@ -408,9 +413,12 @@ export function PosPage() {
           for (const d of draft.lines) {
             const p = products.find((x) => x.id === d.productId);
             if (!p) continue;
+            // Sob encomenda (ficha técnica): stock próprio 0 por natureza — hidrata
+            // na mesma (não descartar por stock<=0). Ver reconciliação acima.
+            const madeToOrder = !!p.has_recipe;
             const stock = Number(p.stock_qty);
-            if (stock <= 0) continue;
-            lines.push({ product: p, quantity: Math.min(d.quantity, stock) });
+            if (!madeToOrder && stock <= 0) continue;
+            lines.push({ product: p, quantity: madeToOrder ? d.quantity : Math.min(d.quantity, stock) });
           }
           if (lines.length) setCart(lines);
           if (draft.customerId) {

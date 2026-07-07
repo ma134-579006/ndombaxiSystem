@@ -45,6 +45,8 @@ export interface CatalogProduct {
   grossPrice: number;
   inStock: boolean;
   stockQty?: number;
+  /** Prato com ficha técnica: produzido sob encomenda (sem stock próprio). */
+  madeToOrder?: boolean;
   imageUrl: string | null;
   gallery: string[];
   category?: string | null;
