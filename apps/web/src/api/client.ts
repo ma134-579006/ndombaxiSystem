@@ -686,6 +686,7 @@ export const api = {
     addFolio: (id: string, dto: Record<string, unknown>) => request<{ ok: boolean }>('POST', `/hotel/reservations/${id}/folio`, dto),
     removeFolio: (itemId: string) => request<{ ok: boolean }>('DELETE', `/hotel/folio/${itemId}`),
     status: (id: string, status: string) => request<{ ok: boolean }>('POST', `/hotel/reservations/${id}/status`, { status }),
+    extend: (id: string, checkOut: string) => request<{ ok: boolean; nights: number; checkOut: string; total: number }>('POST', `/hotel/reservations/${id}/extend`, { checkOut }),
     pendingOnline: () => request<{ count: number }>('GET', '/hotel/pending-online'),
     invoice: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/hotel/reservations/${id}/invoice`),
     roomStatus: (id: string, status: string) => request<{ ok: boolean }>('POST', `/hotel/rooms/${id}/status`, { status }),

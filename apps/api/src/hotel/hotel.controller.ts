@@ -6,7 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { HotelService } from './hotel.service';
-import { CreateHousekeepingDto, CreateMaintenanceDto, CreateReservationDto, CreateRoomDto, FolioItemDto, ReservationStatusDto, RoomStatusDto, StatusOnlyDto } from './dto/hotel.dto';
+import { CreateHousekeepingDto, CreateMaintenanceDto, CreateReservationDto, CreateRoomDto, ExtendStayDto, FolioItemDto, ReservationStatusDto, RoomStatusDto, StatusOnlyDto } from './dto/hotel.dto';
 
 /** Hotelaria — quartos, reservas e conta do hóspede (vertical HOSPITALITY). */
 @ApiTags('hotel')
@@ -113,6 +113,13 @@ export class HotelController {
   @ApiOperation({ summary: 'Muda o estado (check-in, check-out, cancelar)' })
   status(@Param('id') id: string, @Body() dto: ReservationStatusDto) {
     return this.svc.setStatus(this.ctx.requireTenantSchema(), id, dto.status);
+  }
+
+  @Post('reservations/:id/extend')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Estende a estadia (mais noites): recalcula noites e total' })
+  extend(@Param('id') id: string, @Body() dto: ExtendStayDto) {
+    return this.svc.extend(this.ctx.requireTenantSchema(), id, dto.checkOut);
   }
 
   @Post('reservations/:id/invoice')

@@ -127,6 +127,41 @@ export class HotelService {
     });
   }
 
+  /**
+   * ESTENDER a estadia (hóspede fica mais noites): valida que a nova saída é
+   * posterior, que o quarto está LIVRE no período extra (sem colidir com OUTRA
+   * reserva ativa) e recalcula noites + total (noites×diária + folio). Mantém a
+   * diária congelada na reserva. Não permite estender reservas já faturadas ou
+   * canceladas.
+   */
+  async extend(schema: string, id: string, newCheckOut: string) {
+    if (!newCheckOut || !/^\d{4}-\d{2}-\d{2}$/.test(newCheckOut)) throw new BadRequestException('Indique a nova data de saída (YYYY-MM-DD).');
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const r = await tx.$queryRaw<{ room_id: string; check_in: string; check_out: string; status: string; invoice_id: string | null }[]>(
+        Prisma.sql`SELECT room_id, to_char(check_in,'YYYY-MM-DD') AS check_in, to_char(check_out,'YYYY-MM-DD') AS check_out, status, invoice_id
+                   FROM hotel_reservations WHERE id = ${id}::uuid FOR UPDATE`);
+      if (!r[0]) throw new NotFoundException('Reserva não encontrada.');
+      if (r[0].invoice_id) throw new BadRequestException('A reserva já foi faturada — não pode ser estendida.');
+      if (!['BOOKED', 'CHECKED_IN'].includes(r[0].status)) throw new BadRequestException('Só é possível estender reservas ativas.');
+      if (newCheckOut <= r[0].check_out) throw new BadRequestException('A nova saída tem de ser posterior à atual.');
+      // O período EXTRA (saída atual → nova saída) não pode colidir com OUTRA reserva ativa no mesmo quarto.
+      const clash = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM hotel_reservations WHERE room_id = ${r[0].room_id}::uuid AND id <> ${id}::uuid
+          AND status IN ('BOOKED','CHECKED_IN')
+          AND NOT (check_out <= ${r[0].check_out}::date OR check_in >= ${newCheckOut}::date) LIMIT 1`);
+      if (clash[0]) throw new BadRequestException('O quarto já tem outra reserva no período pretendido.');
+      const nights = nightsBetween(r[0].check_in, newCheckOut);
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE hotel_reservations SET check_out = ${newCheckOut}::date, nights = ${nights},
+          total = (${nights} * rate) + COALESCE((SELECT SUM(unit_price * quantity) FROM hotel_folio_items WHERE reservation_id = ${id}::uuid), 0),
+          updated_at = now()
+        WHERE id = ${id}::uuid`);
+      const out = await tx.$queryRaw<{ nights: number; total: string; check_out: string }[]>(
+        Prisma.sql`SELECT nights, total, to_char(check_out,'YYYY-MM-DD') AS check_out FROM hotel_reservations WHERE id = ${id}::uuid`);
+      return { ok: true, nights: out[0]?.nights, checkOut: out[0]?.check_out, total: Number(out[0]?.total) };
+    });
+  }
+
   async get(schema: string, id: string) {
     return this.prisma.runInTenant(schema, async (tx) => {
       const r = await tx.$queryRaw<Record<string, unknown>[]>(Prisma.sql`SELECT * FROM hotel_reservations WHERE id = ${id}::uuid`);

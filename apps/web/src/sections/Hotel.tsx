@@ -339,6 +339,13 @@ function ResDetail({ detail, onClose, onChanged }: { detail: HotelReservationDet
   };
   const removeItem = async (id: string) => { await api.hotel.removeFolio(id).catch(() => undefined); onChanged(); };
   const setStatus = async (s: string) => { await api.hotel.status(r.id, s).catch(() => undefined); onChanged(); };
+  const extendStay = async () => {
+    const suggest = (() => { const d = new Date(`${r.check_out}T00:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+    const nd = window.prompt(`Estender a estadia até (a atual é ${r.check_out}). Nova data de saída (AAAA-MM-DD):`, suggest);
+    if (!nd) return;
+    try { const res = await api.hotel.extend(r.id, nd.trim()); toast.success(`Estadia estendida: ${res.nights} noite(s), saída ${res.checkOut}. Total ${KZ(res.total)}.`); onChanged(); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao estender a estadia.'); }
+  };
   const [billing, setBilling] = useState(false);
   const invoice = async () => {
     setBilling(true);
@@ -359,6 +366,7 @@ function ResDetail({ detail, onClose, onChanged }: { detail: HotelReservationDet
         {r.status === 'BOOKED' ? <button className="btn" onClick={() => void setStatus('CHECKED_IN')}>✅ Check-in</button> : null}
         {r.status === 'CHECKED_IN' ? <button className="btn success" onClick={() => void invoice()} disabled={billing}>🧾 {billing ? 'A faturar…' : 'Faturar (AGT) e check-out'}</button> : null}
         {r.status === 'CHECKED_IN' ? <button className="btn ghost" onClick={() => void setStatus('CHECKED_OUT')}>Check-out s/ fatura</button> : null}
+        {(r.status === 'BOOKED' || r.status === 'CHECKED_IN') ? <button className="btn ghost" onClick={() => void extendStay()}>📅 Estender estadia</button> : null}
         {(r.status === 'BOOKED' || r.status === 'CHECKED_IN') ? <button className="btn ghost" onClick={() => void setStatus('CANCELLED')}>Cancelar</button> : null}
         {r.status === 'CHECKED_OUT' ? <div className="banner success" style={{ width: '100%' }}>Reserva concluída.</div> : null}
       </div>

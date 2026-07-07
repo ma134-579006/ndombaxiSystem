@@ -51,3 +51,8 @@ export class FolioItemDto {
 export class ReservationStatusDto {
   @IsString() status!: string;
 }
+
+export class ExtendStayDto {
+  /** Nova data de saída (posterior à atual). YYYY-MM-DD. */
+  @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Data inválida (use YYYY-MM-DD).' }) checkOut!: string;
+}
