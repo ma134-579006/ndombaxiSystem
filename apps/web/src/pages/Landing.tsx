@@ -66,9 +66,6 @@ function dur(months: number): string {
   return months <= 1 ? 'mês' : `${months} meses`;
 }
 
-function FeatureIcon() {
-  return <IconCheck size={24} />;
-}
 
 interface Props {
   onGoLogin(): void; // abre o painel de login normal
@@ -111,7 +108,6 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
   const heroInterval = cfg?.heroIntervalMs || 5000;
   const trialDays = cfg?.trialDays ?? 14;
   const plans = data?.plans ?? [];
-  const features = cfg?.features?.length ? cfg.features : [];
   const ads = (cfg?.showAds && cfg?.ads?.filter((a) => a.active !== false)) || [];
 
   const openRegister = (tier: PlanTier) => {
@@ -147,7 +143,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             <h1>{cfg?.heroTitle ?? 'O ERP completo para gerir e vender em Angola'}</h1>
             <p className="sub">
               {cfg?.heroSubtitle ??
-                'POS, facturação AGT, stock, compras, RH, financeiro, loja online e IA — 15 módulos num só sistema, em Kwanzas.'}
+                'Venda, gira o stock e fature com certificação AGT — numa única plataforma, em Kwanzas.'}
             </p>
             <div className="lp-verticals">
               <span>Vendas & stock</span>
@@ -233,24 +229,8 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
         </div>
       </section>
 
-      {/* FUNCIONALIDADES */}
-      {features.length > 0 && (
-        <section className="lp-section" id="funcionalidades">
-          <div className="wrap">
-            <h2>Tudo o que o seu negócio precisa</h2>
-            <p className="lead">Uma plataforma completa, pensada para a realidade comercial angolana.</p>
-            <div className="lp-features">
-              {features.map((f, i) => (
-                <div className="lp-feat" key={i}>
-                  <div className="ic"><FeatureIcon /></div>
-                  <h3>{f.title}</h3>
-                  <p>{f.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* (Secção "Funcionalidades" da config REMOVIDA: era um subconjunto da
+          grelha de módulos acima — informação duplicada não vende duas vezes.) */}
 
       {/* COMO FUNCIONA — 3 passos até vender */}
       <section className="lp-section alt" id="como-funciona">
@@ -442,7 +422,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             </div>
             <div className="lp-fcol">
               <h5>Produto</h5>
-              <a href="#funcionalidades">Funcionalidades</a>
+              <a href="#modulos">Módulos</a>
               <a href="#planos">Planos e preços</a>
               <a href="#novidades">Novidades</a>
               <a href="#comentarios">Comentários</a>
