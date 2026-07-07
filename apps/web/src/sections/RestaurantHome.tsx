@@ -44,14 +44,13 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <div className="muted" style={{ fontSize: 12.5 }}>Vendas de hoje · todos os canais</div>
-            <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.1 }}>{d ? KZ(d.sales.total) : '—'}</div>
-            <div className="muted" style={{ fontSize: 11.5 }}>{d ? `${d.sales.invoices} factura(s) emitida(s)` : 'a carregar…'}</div>
+            <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.1 }}>{d?.sales ? KZ(d.sales.total) : '—'}</div>
+            <div className="muted" style={{ fontSize: 11.5 }}>{d?.sales ? `${d.sales.invoices} factura(s) emitida(s)` : 'a carregar…'}</div>
           </div>
           <span className="spacer" style={{ flex: 1 }} />
           <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-            <Channel icon="🧾" label="Balcão / Mesa" value={d ? KZ(d.sales.counter) : '—'} />
-            <Channel icon="🛵" label="Loja online" value={d ? KZ(d.sales.online) : '—'} />
-            <Channel icon="🍽️" label="Mesa (comandas)" value={d ? KZ(d.sales.dineIn) : '—'} />
+            <Channel icon="🧾" label="Balcão & mesa" value={d?.sales ? KZ(d.sales.counter) : '—'} />
+            <Channel icon="🛵" label="Loja online" value={d?.sales ? KZ(d.sales.online) : '—'} />
           </div>
         </div>
       </div>
