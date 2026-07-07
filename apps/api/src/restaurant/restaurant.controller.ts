@@ -6,7 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { RestaurantService } from './restaurant.service';
-import { AddItemDto, CloseOrderDto, CreateTableDto, KitchenStatusDto, OpenOrderDto, SetRecipeDto } from './dto/restaurant.dto';
+import { AddItemDto, CloseOrderDto, CreateTableDto, KitchenStatusDto, OpenOrderDto, ProductionDto, SetRecipeDto } from './dto/restaurant.dto';
 
 /** Restauração — mesas, comandas e cozinha (vertical RESTAURANT). */
 @ApiTags('restaurant')
@@ -93,6 +93,14 @@ export class RestaurantController {
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Recalcula o custo (ficha técnica) de todos os pratos com receita' })
   recomputeCosts() { return this.svc.recomputeAllRecipeCosts(this.ctx.requireTenantSchema()); }
+
+  @Post('production')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Ordem de produção (fornada): consome os ingredientes e dá entrada do produto acabado' })
+  produce(@Body() dto: ProductionDto, @CurrentUser() user: JwtPayload) {
+    return this.svc.produce(this.ctx.requireTenantSchema(), dto,
+      { id: user.sub, name: user.name ?? user.email ?? null });
+  }
 
   @Post('orders/:id/cancel')
   @Roles(Role.STORE_MANAGER)

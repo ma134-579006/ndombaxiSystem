@@ -68,6 +68,9 @@ interface ProductForEmission {
   exemption_reason?: string | null;
   exemption_code?: string | null;
   shared_stock?: boolean;
+  /** Stock global do produto — decide a REGRA DA PRATELEIRA nos pratos com
+   *  receita (fornada produzida → vende do stock; 0 → sob encomenda). */
+  stock_qty?: string | null;
 }
 
 /**
@@ -110,7 +113,7 @@ export class InvoiceService {
       const productRows = codes.length
         ? await tx.$queryRaw<(ProductForEmission & { code: string; name: string })[]>(
             Prisma.sql`SELECT id, code, name, description, iva_code, unit_price, cost_price,
-                              exemption_reason, exemption_code, shared_stock
+                              exemption_reason, exemption_code, shared_stock, stock_qty
                        FROM products
                        WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE
                        FOR UPDATE`,
@@ -329,10 +332,14 @@ export class InvoiceService {
       for (const line of lines) {
         const product = byCode.get(line.productCode);
         if (!product) continue; // linha livre (serviço/estadia) — sem stock
-        // Prato com ficha técnica: NÃO valida o stock do prato (é feito sob
-        // encomenda); valida o stock dos INGREDIENTES (qtd da receita × qtd vendida).
+        // Prato com ficha técnica — REGRA DA PRATELEIRA ("vende-se primeiro o
+        // que está feito"): se há stock PRODUZIDO suficiente (fornada da
+        // padaria/pastelaria), vende do stock do produto e cai na validação
+        // normal abaixo. Sem stock produzido → SOB ENCOMENDA: valida os
+        // INGREDIENTES (qtd da receita × qtd vendida), como sempre.
         const recipe = recipeByProduct.get(product.id);
-        if (recipe && recipe.length) {
+        const shelfSale = !!(recipe && recipe.length) && Number(product.stock_qty) >= line.quantity;
+        if (recipe && recipe.length && !shelfSale) {
           for (const ing of recipe) {
             const need = ing.quantity * line.quantity;
             const ir = await tx.$queryRaw<{ stock_qty: string }[]>(Prisma.sql`SELECT stock_qty FROM products WHERE id = ${ing.ingredientId}::uuid`);
@@ -431,9 +438,14 @@ export class InvoiceService {
                     ${line.ivaAmount}, ${line.grossAmount}, ${Number(product.cost_price ?? 0)},
                     ${line.exemptionReason ?? null}, ${line.exemptionCode ?? null})`,
         );
-        // Prato com ficha técnica: baixa os INGREDIENTES (não o prato). O custo
-        // (unit_cost acima) já é o custo da receita (cost_price do prato).
-        if (recipe && recipe.length) {
+        // Prato com ficha técnica — REGRA DA PRATELEIRA (espelho da validação):
+        // com stock PRODUZIDO suficiente (fornada), baixa o PRODUTO no fluxo
+        // normal abaixo (a fornada já consumiu os ingredientes — baixá-los aqui
+        // outra vez seria dupla contagem). Sem stock produzido → SOB ENCOMENDA:
+        // baixa os INGREDIENTES (não o prato), como sempre. O custo (unit_cost
+        // acima) já é o custo da receita (cost_price do prato).
+        const shelfSale = !!(recipe && recipe.length) && Number(product.stock_qty) >= line.quantity;
+        if (recipe && recipe.length && !shelfSale) {
           for (const ing of recipe) {
             const store = ing.sharedStock ? defStoreId : (input.storeId || defStoreId);
             if (store) {
@@ -793,7 +805,20 @@ export class InvoiceService {
     },
   ): Promise<void> {
     const recipe = args.recipeMap.get(args.productId);
+    // REGRA DA PRATELEIRA (espelho fiel): se a venda ORIGINAL baixou o PRÓPRIO
+    // produto (fornada da padaria — há movimento OUT do produto nesta fatura),
+    // o estorno repõe o PRODUTO, não os ingredientes. Sem esse movimento e com
+    // receita → foi sob encomenda → repõe os INGREDIENTES (comportamento atual).
+    let soldFromShelf = false;
     if (recipe && recipe.length) {
+      const mv = await tx.$queryRaw<{ n: number }[]>(
+        Prisma.sql`SELECT COUNT(*)::int AS n FROM stock_movements
+                   WHERE reference_id = ${args.referenceId}::uuid
+                     AND product_id = ${args.productId}::uuid AND type = 'OUT'`,
+      );
+      soldFromShelf = (mv[0]?.n ?? 0) > 0;
+    }
+    if (recipe && recipe.length && !soldFromShelf) {
       for (const ing of recipe) {
         const wh = ing.sharedStock ? args.defWh : (args.storeId || args.defWh);
         const qty = ing.quantity * args.quantity;

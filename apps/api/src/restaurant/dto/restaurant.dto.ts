@@ -39,3 +39,11 @@ export class SetRecipeDto {
   @IsArray() @ArrayMaxSize(100) @ValidateNested({ each: true }) @Type(() => RecipeItemDto)
   items!: RecipeItemDto[];
 }
+
+/** Ordem de produção (fornada): consome os ingredientes da receita AGORA e dá
+ *  entrada do produto acabado no stock (padaria/pastelaria/produção). */
+export class ProductionDto {
+  @IsString() productCode!: string;
+  @IsNumber() @Min(0.001) @Max(100000) quantity!: number;
+  @IsOptional() @IsString() @Length(1, 200) note?: string;
+}

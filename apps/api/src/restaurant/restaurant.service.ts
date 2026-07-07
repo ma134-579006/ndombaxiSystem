@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../erp/stock.service';
+import { TenantAuditService } from '../cashbox/tenant-audit.service';
 
 /** IVA por código (espelha o frontend) — para congelar o preço c/ IVA na comanda. */
 const IVA_RATE: Record<string, number> = { NOR: 14, INT: 7, RED: 5, ISE: 0, NS: 0 };
@@ -13,7 +14,10 @@ export interface TableRow {
 
 @Injectable()
 export class RestaurantService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: TenantAuditService,
+  ) {}
 
   /** A coluna product_recipes.waste_pct pode ainda não existir (auto-migração
    *  em fundo nos tenants antigos) — verificar antes de a usar, senão as
@@ -261,6 +265,100 @@ export class RestaurantService {
         WHERE p.id = sub.product_id`);
     });
     return { ok: true };
+  }
+
+  /**
+   * ORDEM DE PRODUÇÃO (fornada) — padaria/pastelaria/produção em lote:
+   * consome os ingredientes da receita AGORA (com quebra) e dá entrada do
+   * produto ACABADO no stock, ao custo real da receita (CMP no produto).
+   * A partir daí o balcão vende da PRATELEIRA (ver regra na emissão) e as
+   * sobras do dia abatem-se por acerto de inventário, como qualquer stock.
+   * Nota: consome os componentes DIRETOS da receita — se um componente for
+   * ele próprio um produto produzido (ex.: massa base), consome o stock dele
+   * (produção em fases), não os ingredientes dele.
+   */
+  async produce(
+    schema: string,
+    input: { productCode: string; quantity: number; note?: string },
+    actor: { id: string; name: string | null },
+  ) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const p = await tx.$queryRaw<{ id: string; name: string; stock_qty: string; cost_price: string }[]>(
+        Prisma.sql`SELECT id, name, stock_qty, cost_price FROM products
+                   WHERE code = ${input.productCode} AND is_active = TRUE LIMIT 1 FOR UPDATE`,
+      );
+      if (!p[0]) throw new NotFoundException(`Produto não encontrado: ${input.productCode}`);
+      const wasteExpr = (await this.hasWasteCol(tx)) ? Prisma.sql`COALESCE(r.waste_pct, 0)` : Prisma.sql`0`;
+      const recipe = await tx.$queryRaw<{ ingredient_id: string; quantity: string; waste_pct: string | null; name: string; stock_qty: string; cost_price: string }[]>(
+        Prisma.sql`SELECT r.ingredient_id, r.quantity, ${wasteExpr} AS waste_pct,
+                          ing.name, ing.stock_qty, ing.cost_price
+                   FROM product_recipes r JOIN products ing ON ing.id = r.ingredient_id
+                   WHERE r.product_id = ${p[0].id}::uuid`,
+      );
+      if (!recipe.length) {
+        throw new BadRequestException('Este produto não tem ficha técnica — defina a receita antes de registar a produção.');
+      }
+      const wh = await StockService.resolveDefaultWarehouse(tx);
+
+      // Valida TUDO antes de tocar no stock: uma fornada nunca fica meio-consumida.
+      let unitCost = 0;
+      const needs = recipe.map((r) => {
+        const per = Number(r.quantity) * (1 + (Number(r.waste_pct) || 0) / 100);
+        unitCost += per * Number(r.cost_price);
+        return { id: r.ingredient_id, name: r.name, have: Number(r.stock_qty), need: per * input.quantity };
+      });
+      for (const n of needs) {
+        if (n.have < n.need) {
+          throw new BadRequestException(
+            `Ingrediente insuficiente para a fornada: ${n.name} (disponível ${n.have}, necessário ${Math.round(n.need * 1000) / 1000}).`,
+          );
+        }
+      }
+      unitCost = Math.round(unitCost * 100) / 100;
+
+      // Consome os ingredientes (livro append-only; nunca negativo numa fornada).
+      const ref = input.note?.trim() ? `Produção — ${p[0].name} (${input.note.trim()})` : `Produção — ${p[0].name}`;
+      for (const n of needs) {
+        if (wh) {
+          await StockService.applyMovement(tx, {
+            productId: n.id, warehouseId: wh, type: 'OUT', quantity: -n.need,
+            reference: ref, createdBy: actor.id ?? null, allowNegative: false,
+          });
+        } else {
+          await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${n.need} WHERE id = ${n.id}::uuid`);
+        }
+      }
+
+      // Entrada do produto acabado ao custo da receita — CMP (mesma matemática
+      // da entrada de stock: pondera com o que já estava na prateleira).
+      const oldQty = Number(p[0].stock_qty);
+      const oldCost = Number(p[0].cost_price);
+      const newCost = oldQty > 0
+        ? Math.round(((oldQty * oldCost + input.quantity * unitCost) / (oldQty + input.quantity)) * 100) / 100
+        : unitCost;
+      let balanceAfter = oldQty + input.quantity;
+      if (wh) {
+        balanceAfter = await StockService.applyMovement(tx, {
+          productId: p[0].id, warehouseId: wh, type: 'IN', quantity: input.quantity,
+          unitCost, reference: ref, createdBy: actor.id ?? null,
+        });
+      } else {
+        await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${input.quantity} WHERE id = ${p[0].id}::uuid`);
+      }
+      await tx.$executeRaw(Prisma.sql`UPDATE products SET cost_price = ${newCost}, updated_at = now() WHERE id = ${p[0].id}::uuid`);
+
+      // Auditoria: fica registado QUEM produziu, o quê, quanto e a que custo.
+      await this.audit.recordInTx(tx, {
+        actorId: actor.id ?? null, actorName: actor.name ?? null,
+        action: 'PRODUCTION', entity: 'product', entityId: p[0].id,
+        details: {
+          productCode: input.productCode, quantity: input.quantity, unitCost,
+          newCostPrice: newCost, balanceAfter, note: input.note ?? null,
+          ingredients: needs.map((n) => ({ name: n.name, consumed: Math.round(n.need * 1000) / 1000 })),
+        },
+      });
+      return { produced: input.quantity, unitCost, costPrice: newCost, stockAfter: balanceAfter };
+    });
   }
 
   async cancelOrder(schema: string, orderId: string) {

@@ -555,6 +555,10 @@ export const api = {
       request<ManagerProduct>('PATCH', `/pos/products/${id}`, dto),
     remove: (id: string) =>
       request<{ deleted: boolean; deactivated: boolean }>('DELETE', `/pos/products/${id}`),
+    /** Ordem de produção (fornada): consome os ingredientes da ficha técnica e
+     *  dá entrada do produto acabado no stock (padaria/pastelaria/produção). */
+    produce: (dto: { productCode: string; quantity: number; note?: string }) =>
+      request<{ produced: number; unitCost: number; costPrice: number; stockAfter: number }>('POST', '/restaurant/production', dto),
   },
   orders: {
     list: () => request<WebOrder[]>('GET', '/ecommerce/orders'),

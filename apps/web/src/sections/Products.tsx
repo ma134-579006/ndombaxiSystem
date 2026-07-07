@@ -79,6 +79,7 @@ export function Products() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [entering, setEntering] = useState(false);
+  const [producing, setProducing] = useState(false);
   // Vista: produtos vendíveis OU ingredientes (matéria-prima).
   const [view, setView] = useState<'products' | 'ingredients'>('products');
 
@@ -278,9 +279,18 @@ export function Products() {
           </div>
           <span className="spacer" />
           {view === 'products' ? (
-            <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
-              <IconTruck size={16} /> Adicionar stock
-            </button>
+            <>
+              {/* Fornada (padaria/pastelaria/produção): só aparece se houver
+                  produtos com ficha técnica — não polui os outros negócios. */}
+              {products.some((p) => p.has_recipe) ? (
+                <button className="btn ghost" onClick={() => setProducing(true)}>
+                  🥖 Fornada
+                </button>
+              ) : null}
+              <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
+                <IconTruck size={16} /> Adicionar stock
+              </button>
+            </>
           ) : null}
           <button className="btn" onClick={openCreate}>
             <IconPlus size={18} /> {view === 'ingredients' ? 'Novo ingrediente' : 'Novo produto'}
@@ -505,6 +515,88 @@ export function Products() {
           onSaved={() => { setEntering(false); void load(); }}
         />
       ) : null}
+
+      {producing ? (
+        <ProductionModal
+          products={products.filter((p) => p.has_recipe)}
+          onClose={() => setProducing(false)}
+          onSaved={() => { setProducing(false); void load(); }}
+        />
+      ) : null}
     </>
+  );
+}
+
+/** Ordem de produção (fornada) — padaria/pastelaria/produção em lote: escolhe
+ *  o produto com ficha técnica e a quantidade; o sistema consome os
+ *  ingredientes (com quebra) e dá entrada do produto acabado ao custo real. */
+function ProductionModal({
+  products, onClose, onSaved,
+}: {
+  products: ManagerProduct[];
+  onClose(): void;
+  onSaved(): void;
+}) {
+  const [code, setCode] = useState(products[0]?.code ?? '');
+  const [qty, setQty] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState<{ produced: number; unitCost: number; costPrice: number; stockAfter: number } | null>(null);
+  const sel = products.find((p) => p.code === code);
+  const doses = sel?.portions_available == null ? null : Number(sel.portions_available);
+
+  const submit = async () => {
+    setErr(null);
+    const q = Number(qty);
+    if (!code) { setErr('Escolha o produto a produzir.'); return; }
+    if (!Number.isFinite(q) || q <= 0) { setErr('Indique a quantidade produzida (ex.: 300).'); return; }
+    setBusy(true);
+    try { setDone(await api.products.produce({ productCode: code, quantity: q, note: note.trim() || undefined })); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível registar a fornada.'); }
+    finally { setBusy(false); }
+  };
+
+  if (done) {
+    return (
+      <Modal title="Fornada registada 🥖" onClose={onSaved}>
+        <div className="banner success" style={{ marginBottom: 12 }}>
+          {done.produced.toLocaleString('pt-PT')} un de {sel?.name ?? code} entraram no stock.
+        </div>
+        <div className="kv"><span className="k">Custo por unidade (ingredientes)</span><span className="v">{done.unitCost.toLocaleString('pt-PT', { maximumFractionDigits: 2 })} Kz</span></div>
+        <div className="kv"><span className="k">Custo médio do produto (CMP)</span><span className="v">{done.costPrice.toLocaleString('pt-PT', { maximumFractionDigits: 2 })} Kz</span></div>
+        <div className="kv"><span className="k">Stock na prateleira</span><span className="v">{done.stockAfter.toLocaleString('pt-PT')}</span></div>
+        <p className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>
+          Os ingredientes já foram descontados do stock. O balcão vende da prateleira; as sobras do dia abatem-se em <strong>Inventário → Acertos</strong>.
+        </p>
+        <button className="btn lg block" style={{ marginTop: 12 }} onClick={onSaved}>Fechar</button>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title="Registar fornada (produção)" onClose={onClose}>
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+        A fornada consome os <strong>ingredientes da ficha técnica</strong> (com a quebra definida) e dá entrada do produto acabado no stock — o balcão passa a vender da prateleira.
+      </p>
+      <div className="field"><label>Produto a produzir</label>
+        <select value={code} onChange={(e) => setCode(e.target.value)}>
+          {products.map((p) => <option key={p.id} value={p.code}>{p.name} ({p.code})</option>)}
+        </select></div>
+      <div className="field"><label>Quantidade produzida{sel?.unit ? ` (${sel.unit})` : ''}</label>
+        <input value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" placeholder="ex.: 300" autoFocus />
+        {doses != null ? (
+          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+            Com o stock atual de ingredientes dá para produzir até <strong>{doses.toLocaleString('pt-PT')}</strong>.
+          </p>
+        ) : null}
+      </div>
+      <div className="field"><label>Nota (opcional)</label>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex.: fornada da manhã" maxLength={120} /></div>
+      <button className="btn lg block" onClick={() => void submit()} disabled={busy}>
+        {busy ? 'A registar…' : 'Registar fornada'}
+      </button>
+    </Modal>
   );
 }

@@ -182,6 +182,10 @@ export interface ManagerProduct {
   is_ingredient?: boolean;
   /** Unidade de medida (un, kg, g, L, ml, fatia, folha…). */
   unit?: string | null;
+  /** TRUE = tem ficha técnica (pode ser produzido em fornada / vendido sob encomenda). */
+  has_recipe?: boolean;
+  /** Doses possíveis com o stock atual dos ingredientes. */
+  portions_available?: string | number | null;
   is_active: boolean;
 }
 export interface CreateProductInput {
