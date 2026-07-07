@@ -29,6 +29,7 @@ import { Tenants } from './sections/Tenants';
 import { Products } from './sections/Products';
 import { Orders } from './sections/Orders';
 import { ServiceHub } from './sections/ServiceHub';
+import { RestaurantHome } from './sections/RestaurantHome';
 import { Restaurant } from './sections/Restaurant';
 import { ServiceOrders } from './sections/ServiceOrders';
 import { Hotel } from './sections/Hotel';
@@ -279,7 +280,7 @@ function TenantPanel() {
   return (
     <Shell nav={nav} section={safeSection} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
       {section === 'overview' ? <Overview /> : null}
-      {section === 'service-hub' ? <ServiceHub businessType={bizType} onGo={setSection} /> : null}
+      {section === 'service-hub' ? (bizType === 'RESTAURANT' ? <RestaurantHome onGo={setSection} /> : <ServiceHub businessType={bizType} onGo={setSection} />) : null}
       {section === 'restaurant' ? <Restaurant /> : null}
       {section === 'service-orders' ? <ServiceOrders /> : null}
       {section === 'hotel' ? <Hotel /> : null}

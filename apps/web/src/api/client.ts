@@ -672,6 +672,7 @@ export const api = {
     itemKitchen: (itemId: string, status: string) => request<{ ok: boolean }>('POST', `/restaurant/items/${itemId}/kitchen`, { status }),
     closeOrder: (id: string, chargeToReservationId?: string) => request<{ ok: boolean; chargedToFolio?: boolean }>('POST', `/restaurant/orders/${id}/close`, chargeToReservationId ? { chargeToReservationId } : {}),
     kitchen: () => request<RestaurantKitchenItem[]>('GET', '/restaurant/kitchen'),
+    dashboard: () => request<RestaurantDashboard>('GET', '/restaurant/dashboard'),
     recipe: (productId: string) => request<RecipeIngredient[]>('GET', `/restaurant/recipe/${productId}`),
     setRecipe: (productId: string, items: { ingredientCode: string; quantity: number; wastePct?: number }[]) => request<{ ok: boolean }>('POST', `/restaurant/recipe/${productId}`, { items }),
     recomputeCosts: () => request<{ ok: boolean }>('POST', '/restaurant/recipes/recompute-costs', {}),

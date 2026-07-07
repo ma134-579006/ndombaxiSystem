@@ -780,6 +780,12 @@ export interface RestaurantTableMapRow { id: string; code: string; name: string;
 export interface RestaurantOrderItem { id: string; product_code: string; description: string; unit_price: string; quantity: string; kitchen_status: string; notes: string | null; created_at: string }
 export interface RestaurantOrderDetail { order: { id: string; table_name: string | null; status: string; total: string; guests: number; customer_name: string | null }; items: RestaurantOrderItem[] }
 export interface RestaurantKitchenItem { id: string; description: string; quantity: string; kitchen_status: string; notes: string | null; created_at: string; table_name: string | null; order_id: string }
+export interface RestaurantDashboard {
+  service: { tablesTotal: number; tablesOpen: number; occupancyPct: number; guestsSeated: number; openValue: number; avgTab: number };
+  kitchen: { pending: number; preparing: number; queue: number; oldestWaitMin: number };
+  today: { closedCount: number; revenue: number; avgTicket: number };
+  menu: { dishesWithRecipe: number; outOfStock: number; lowStock: number };
+}
 export interface ServiceOrderRow { id: string; number: string; customer_name: string | null; equipment_label: string | null; status: string; total: string; assigned_to: string | null; source?: string; created_at: string }
 export interface ServiceOrderItem { id: string; kind: string; product_code: string | null; description: string; unit_price: string; quantity: string; created_at: string }
 export interface ServiceOrderDetail { order: { id: string; number: string; customer_name: string | null; customer_phone: string | null; equipment_id?: string | null; equipment_type: string | null; equipment_label: string | null; equipment_ref: string | null; problem: string | null; diagnosis: string | null; status: string; total: string; assigned_to: string | null; notes: string | null; warranty_days?: number; warranty_until?: string | null }; items: ServiceOrderItem[] }

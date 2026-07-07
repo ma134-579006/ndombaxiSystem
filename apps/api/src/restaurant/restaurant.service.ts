@@ -367,6 +367,92 @@ export class RestaurantService {
     return { ok: true };
   }
 
+  /**
+   * CENTRO DE COMANDO do restaurante — retrato operacional em tempo real
+   * (não é um relatório de vendas). Lê apenas as tabelas próprias da restauração
+   * + a matemática de doses (espelho exato do POS) para os alertas de cozinha.
+   * Tudo agregado numa só ida à base de dados por bloco, para ser barato o
+   * suficiente para refrescar de poucos em poucos segundos no ecrã do gestor.
+   */
+  async getDashboard(schema: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const hasWaste = await this.hasWasteCol(tx);
+      const w1 = hasWaste ? Prisma.sql`(1 + COALESCE(r.waste_pct, 0) / 100)` : Prisma.sql`1`;
+      const w2 = hasWaste ? Prisma.sql`(1 + COALESCE(r2.waste_pct, 0) / 100)` : Prisma.sql`1`;
+
+      // ── Serviço de sala (agora) ──────────────────────────────
+      const service = await tx.$queryRaw<{
+        tables_total: number; tables_open: number; guests_seated: number;
+        open_value: number; avg_tab: number;
+      }[]>(Prisma.sql`
+        SELECT
+          (SELECT COUNT(*)::int FROM restaurant_tables WHERE is_active = TRUE) AS tables_total,
+          (SELECT COUNT(*)::int FROM restaurant_orders WHERE status = 'OPEN') AS tables_open,
+          (SELECT COALESCE(SUM(guests),0)::int FROM restaurant_orders WHERE status = 'OPEN') AS guests_seated,
+          (SELECT COALESCE(SUM(total),0)::float8 FROM restaurant_orders WHERE status = 'OPEN') AS open_value,
+          (SELECT COALESCE(AVG(total),0)::float8 FROM restaurant_orders WHERE status = 'OPEN' AND total > 0) AS avg_tab`);
+
+      // ── Pressão da cozinha (fila + espera mais antiga) ───────
+      const kitchen = await tx.$queryRaw<{
+        pending: number; preparing: number; oldest_wait_min: number | null;
+      }[]>(Prisma.sql`
+        SELECT
+          COUNT(*) FILTER (WHERE i.kitchen_status = 'PENDING')::int AS pending,
+          COUNT(*) FILTER (WHERE i.kitchen_status = 'PREPARING')::int AS preparing,
+          FLOOR(EXTRACT(EPOCH FROM (now() - MIN(i.created_at)
+            FILTER (WHERE i.kitchen_status IN ('PENDING','PREPARING')))) / 60)::int AS oldest_wait_min
+        FROM restaurant_order_items i
+        JOIN restaurant_orders o ON o.id = i.order_id
+        WHERE o.status = 'OPEN'`);
+
+      // ── Hoje (contas fechadas) ───────────────────────────────
+      const today = await tx.$queryRaw<{ closed_count: number; revenue: number; avg_ticket: number }[]>(Prisma.sql`
+        SELECT COUNT(*)::int AS closed_count,
+               COALESCE(SUM(total),0)::float8 AS revenue,
+               COALESCE(AVG(total) FILTER (WHERE total > 0),0)::float8 AS avg_ticket
+        FROM restaurant_orders WHERE status = 'CLOSED' AND closed_at::date = CURRENT_DATE`);
+
+      // ── Cardápio: pratos com ficha técnica e alerta de ingredientes ──
+      // Doses por prato = MIN(stock_ingrediente ÷ consumo por dose) — mesmo
+      // cálculo do POS (combos de 1 nível expandidos). Esgotado = 0 doses.
+      const menu = await tx.$queryRaw<{ dishes: number; out_of_stock: number; low_stock: number }[]>(Prisma.sql`
+        WITH dish AS (
+          SELECT p.id,
+            (SELECT MIN(FLOOR(ing.stock_qty / NULLIF(
+                        CASE WHEN r2.ingredient_id IS NULL THEN r.quantity * ${w1}
+                             ELSE r.quantity * ${w1} * r2.quantity * ${w2} END, 0)))
+             FROM product_recipes r
+             LEFT JOIN product_recipes r2 ON r2.product_id = r.ingredient_id
+             JOIN products ing ON ing.id = COALESCE(r2.ingredient_id, r.ingredient_id)
+             WHERE r.product_id = p.id) AS portions
+          FROM products p
+          WHERE p.is_active = TRUE AND EXISTS (SELECT 1 FROM product_recipes r WHERE r.product_id = p.id)
+        )
+        SELECT COUNT(*)::int AS dishes,
+               COUNT(*) FILTER (WHERE portions IS NOT NULL AND portions <= 0)::int AS out_of_stock,
+               COUNT(*) FILTER (WHERE portions IS NOT NULL AND portions > 0 AND portions <= 5)::int AS low_stock
+        FROM dish`);
+
+      const s = service[0] ?? { tables_total: 0, tables_open: 0, guests_seated: 0, open_value: 0, avg_tab: 0 };
+      const k = kitchen[0] ?? { pending: 0, preparing: 0, oldest_wait_min: null };
+      const t = today[0] ?? { closed_count: 0, revenue: 0, avg_ticket: 0 };
+      const m = menu[0] ?? { dishes: 0, out_of_stock: 0, low_stock: 0 };
+      return {
+        service: {
+          tablesTotal: s.tables_total, tablesOpen: s.tables_open,
+          occupancyPct: s.tables_total > 0 ? Math.round((s.tables_open / s.tables_total) * 100) : 0,
+          guestsSeated: s.guests_seated, openValue: s.open_value, avgTab: Math.round(s.avg_tab),
+        },
+        kitchen: {
+          pending: k.pending, preparing: k.preparing, queue: k.pending + k.preparing,
+          oldestWaitMin: k.oldest_wait_min ?? 0,
+        },
+        today: { closedCount: t.closed_count, revenue: t.revenue, avgTicket: Math.round(t.avg_ticket) },
+        menu: { dishesWithRecipe: m.dishes, outOfStock: m.out_of_stock, lowStock: m.low_stock },
+      };
+    });
+  }
+
   /** Ecrã de cozinha (KDS): itens por preparar/em preparação, com a mesa. */
   async kitchen(schema: string) {
     return this.prisma.runInTenant(schema, (tx) =>

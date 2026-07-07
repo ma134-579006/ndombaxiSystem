@@ -111,4 +111,9 @@ export class RestaurantController {
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Ecrã de cozinha (itens por preparar)' })
   kitchen() { return this.svc.kitchen(this.ctx.requireTenantSchema()); }
+
+  @Get('dashboard')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Centro de comando do restaurante (serviço, cozinha, cardápio, hoje)' })
+  dashboard() { return this.svc.getDashboard(this.ctx.requireTenantSchema()); }
 }
