@@ -520,10 +520,12 @@ export class RestaurantService {
         WHERE status IN ('PENDING','PAID') AND kitchen_status IN ('NEW','PREPARING')
         ORDER BY created_at`);
       if (orders.length === 0) return [];
-      const ids = orders.map((o) => o.id);
+      // order_id é UUID: cast explícito de cada id (senão `uuid = text` rebenta,
+      // como no bug da venda 42883). Ver [[bug_sale_uuid_text]].
+      const idList = Prisma.join(orders.map((o) => Prisma.sql`${o.id}::uuid`));
       const items = await tx.$queryRaw<{ order_id: string; description: string; quantity: string }[]>(
         Prisma.sql`SELECT order_id, description, quantity FROM web_order_items
-                   WHERE order_id IN (${Prisma.join(ids)}) ORDER BY line_number`);
+                   WHERE order_id IN (${idList}) ORDER BY line_number`);
       const byOrder = new Map<string, { description: string; quantity: string }[]>();
       for (const it of items) {
         const arr = byOrder.get(it.order_id) ?? [];
