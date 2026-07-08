@@ -86,7 +86,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
           {d && d.kitchen.oldestWaitMin >= 15 ? (
             <span className="pill off" style={{ background: 'var(--danger, #e5484d)', color: '#fff' }}>Atraso na cozinha</span>
           ) : null}
-          <button className="btn ghost" onClick={() => goRest('cozinha')}>Abrir cozinha</button>
+          <button className="btn ghost" onClick={() => onGo('restaurant-kds')}>Abrir cozinha</button>
         </div>
       </div>
 
@@ -111,7 +111,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
       <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }}>Operação</h3>
       <div className="pgrid">
         <ActionCard icon="🍽️" title="Mesas & Comandas" desc="Mapa de sala, abrir mesa, lançar pedidos." onClick={() => goRest('mesas')} />
-        <ActionCard icon="👨‍🍳" title="Cozinha (KDS)" desc="Fila em tempo real, marcar pronto/servido." onClick={() => goRest('cozinha')} badge={d && d.kitchen.queue > 0 ? String(d.kitchen.queue) : undefined} />
+        <ActionCard icon="👨‍🍳" title="Cozinha (KDS)" desc="Fila em tempo real, marcar pronto/servido." onClick={() => onGo('restaurant-kds')} badge={d && d.kitchen.queue > 0 ? String(d.kitchen.queue) : undefined} />
         <ActionCard icon="📋" title="Fichas técnicas" desc="Receitas, custo real e quebra por prato." onClick={() => goRest('receitas')} />
         <ActionCard icon="🥖" title="Produção (fornada)" desc="Padaria/pastelaria: produzir para a prateleira." onClick={() => goRest('producao')} />
       </div>

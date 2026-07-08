@@ -30,6 +30,7 @@ import { Products } from './sections/Products';
 import { Orders } from './sections/Orders';
 import { ServiceHub } from './sections/ServiceHub';
 import { RestaurantHome } from './sections/RestaurantHome';
+import { RestaurantKitchen } from './sections/RestaurantKitchen';
 import { Restaurant } from './sections/Restaurant';
 import { ServiceOrders } from './sections/ServiceOrders';
 import { Hotel } from './sections/Hotel';
@@ -252,6 +253,7 @@ function TenantPanel() {
         base[0], // Visão geral
         { key: 'service-hub', label: '🍔 Centro de comando', icon: IconGauge },
         { key: 'restaurant', label: '🍽️ Sala & Comandas', icon: IconStore },
+        { key: 'restaurant-kds', label: '👨‍🍳 Cozinha', icon: IconStore },
       ];
       const reframed = new Set(['overview', 'products-group', 'movements-group']);
       const rest = base.slice(1).filter((g) => !reframed.has(g.key));
@@ -308,6 +310,7 @@ function TenantPanel() {
       {section === 'overview' ? <Overview /> : null}
       {section === 'service-hub' ? (bizType === 'RESTAURANT' ? <RestaurantHome onGo={setSection} /> : <ServiceHub businessType={bizType} onGo={setSection} />) : null}
       {section === 'restaurant' ? <Restaurant /> : null}
+      {section === 'restaurant-kds' ? <RestaurantKitchen /> : null}
       {section === 'service-orders' ? <ServiceOrders /> : null}
       {section === 'hotel' ? <Hotel /> : null}
       {section === 'clinic' ? <Clinic /> : null}
