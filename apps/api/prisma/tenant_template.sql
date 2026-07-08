@@ -367,6 +367,11 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."web_orders" (
   payment_entity    TEXT,                           -- Entidade EMIS (5 díg.) da referência gerada
   payment_reference TEXT,                           -- Referência Multicaixa gerada para esta encomenda
   status           TEXT NOT NULL DEFAULT 'PENDING', -- PENDING/PAID/SHIPPED/DELIVERED/CANCELLED
+  -- COZINHA (restauração): a encomenda online entra no KDS; o cozinheiro dá um
+  -- tempo estimado e avança a produção (NEW→PREPARING→READY).
+  prep_eta_min     INT,
+  kitchen_status   TEXT NOT NULL DEFAULT 'NEW',
+  kitchen_at       TIMESTAMPTZ,
   net_total        NUMERIC(14,2) NOT NULL,
   iva_total        NUMERIC(14,2) NOT NULL,
   gross_total      NUMERIC(14,2) NOT NULL,

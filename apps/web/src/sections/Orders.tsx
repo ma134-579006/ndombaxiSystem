@@ -157,6 +157,12 @@ export function Orders() {
             <div className="kv"><span className="k">Referência</span>
               <span className="v">{detail.payment_entity ? `Ent. ${detail.payment_entity} · ` : ''}{detail.payment_reference}</span></div>
           ) : null}
+          {/* Cozinha (restauração): tempo estimado dado pelo cozinheiro. */}
+          {detail.kitchen_status && detail.kitchen_status !== 'NEW' ? (
+            <div className="kv"><span className="k">Cozinha</span>
+              <span className="v">{detail.kitchen_status === 'READY' ? '✅ Pronto para entregar'
+                : `👨‍🍳 Em preparação${detail.prep_eta_min ? ` · ~${detail.prep_eta_min} min` : ''}`}</span></div>
+          ) : null}
 
           <div style={{ borderTop: '1px solid var(--border)', margin: '12px 0', paddingTop: 10 }}>
             <strong style={{ fontSize: 14 }}>Artigos</strong>

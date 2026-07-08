@@ -307,3 +307,11 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS unit TEXT
 -- encolhimento). waste_pct por ingrediente: consumo e custo passam a
 -- qtd × (1 + quebra/100). Default 0 = comportamento atual intacto.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."product_recipes" ADD COLUMN IF NOT EXISTS waste_pct NUMERIC(5,2) NOT NULL DEFAULT 0;
+
+-- ── 2026-07-08 · COZINHA recebe ENCOMENDAS ONLINE + tempo estimado ──────────
+-- A loja online passa a alimentar o KDS: o cozinheiro vê a encomenda, dá um
+-- TEMPO ESTIMADO (prep_eta_min) e avança o estado de produção (kitchen_status:
+-- NEW→PREPARING→READY). Aditivo; default NEW = ainda não tocado pela cozinha.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS prep_eta_min   INT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS kitchen_status TEXT NOT NULL DEFAULT 'NEW';
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS kitchen_at     TIMESTAMPTZ;

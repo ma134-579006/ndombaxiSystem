@@ -491,4 +491,79 @@ export class RestaurantService {
         ORDER BY i.created_at`),
     );
   }
+
+  // ── Encomendas ONLINE na cozinha (KDS) ─────────────────────
+  /** As colunas de cozinha em web_orders podem ainda não existir (auto-migração
+   *  em fundo) — verificar antes de as usar, senão o KDS rebentava até chegar. */
+  private async hasWebKitchenCols(tx: Prisma.TransactionClient): Promise<boolean> {
+    const rows = await tx.$queryRaw<{ n: number }[]>(
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = 'web_orders' AND column_name = 'kitchen_status'`);
+    return (rows[0]?.n ?? 0) > 0;
+  }
+
+  /**
+   * FILA da cozinha para encomendas ONLINE: as que estão ativas (por pagar ou
+   * pagas) e ainda não prontas. O cozinheiro vê-as, dá um tempo estimado e
+   * avança a produção — a par das comandas de mesa. Só leitura.
+   */
+  async onlineQueue(schema: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      if (!(await this.hasWebKitchenCols(tx))) return [];
+      const orders = await tx.$queryRaw<{
+        id: string; order_number: string; customer_name: string; status: string;
+        prep_eta_min: number | null; kitchen_status: string; created_at: Date; wait_min: number;
+      }[]>(Prisma.sql`
+        SELECT id, order_number, customer_name, status, prep_eta_min, kitchen_status, created_at,
+               FLOOR(EXTRACT(EPOCH FROM (now() - created_at)) / 60)::int AS wait_min
+        FROM web_orders
+        WHERE status IN ('PENDING','PAID') AND kitchen_status IN ('NEW','PREPARING')
+        ORDER BY created_at`);
+      if (orders.length === 0) return [];
+      const ids = orders.map((o) => o.id);
+      const items = await tx.$queryRaw<{ order_id: string; description: string; quantity: string }[]>(
+        Prisma.sql`SELECT order_id, description, quantity FROM web_order_items
+                   WHERE order_id IN (${Prisma.join(ids)}) ORDER BY line_number`);
+      const byOrder = new Map<string, { description: string; quantity: string }[]>();
+      for (const it of items) {
+        const arr = byOrder.get(it.order_id) ?? [];
+        arr.push({ description: it.description, quantity: it.quantity });
+        byOrder.set(it.order_id, arr);
+      }
+      return orders.map((o) => ({
+        id: o.id, orderNumber: o.order_number, customerName: o.customer_name,
+        paymentStatus: o.status, kitchenStatus: o.kitchen_status,
+        etaMin: o.prep_eta_min, waitMin: o.wait_min,
+        items: byOrder.get(o.id) ?? [],
+      }));
+    });
+  }
+
+  /** O cozinheiro ACEITA a encomenda online e dá um TEMPO ESTIMADO (min). */
+  async setOnlineEta(schema: string, orderId: string, minutes: number) {
+    const m = Math.max(1, Math.min(240, Math.floor(Number(minutes) || 0)));
+    return this.prisma.runInTenant(schema, async (tx) => {
+      if (!(await this.hasWebKitchenCols(tx))) throw new BadRequestException('Cozinha online ainda não disponível neste tenant.');
+      const o = await tx.$queryRaw<{ status: string }[]>(Prisma.sql`SELECT status FROM web_orders WHERE id = ${orderId}::uuid`);
+      if (!o[0]) throw new NotFoundException('Encomenda não encontrada.');
+      if (!['PENDING', 'PAID'].includes(o[0].status)) throw new BadRequestException('A encomenda já não está ativa.');
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE web_orders
+        SET prep_eta_min = ${m},
+            kitchen_status = CASE WHEN kitchen_status = 'NEW' THEN 'PREPARING' ELSE kitchen_status END,
+            kitchen_at = COALESCE(kitchen_at, now()), updated_at = now()
+        WHERE id = ${orderId}::uuid`);
+      return { ok: true as const, etaMin: m };
+    });
+  }
+
+  /** Avança o estado de produção da encomenda online (PREPARING→READY). */
+  async setOnlineKitchen(schema: string, orderId: string, status: string) {
+    if (!['PREPARING', 'READY'].includes(status)) throw new BadRequestException('Estado inválido.');
+    return this.prisma.runInTenant(schema, async (tx) => {
+      if (!(await this.hasWebKitchenCols(tx))) throw new BadRequestException('Cozinha online ainda não disponível neste tenant.');
+      await tx.$executeRaw(Prisma.sql`UPDATE web_orders SET kitchen_status = ${status}, updated_at = now() WHERE id = ${orderId}::uuid`);
+      return { ok: true as const };
+    });
+  }
 }

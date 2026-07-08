@@ -116,4 +116,23 @@ export class RestaurantController {
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Centro de comando do restaurante (serviço, cozinha, cardápio, hoje)' })
   dashboard() { return this.svc.getDashboard(this.ctx.requireTenantSchema()); }
+
+  @Get('online-queue')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Encomendas online na cozinha (com tempo estimado e estado de produção)' })
+  onlineQueue() { return this.svc.onlineQueue(this.ctx.requireTenantSchema()); }
+
+  @Post('online/:orderId/eta')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Cozinha aceita a encomenda online e define o tempo estimado (min)' })
+  onlineEta(@Param('orderId') orderId: string, @Body() dto: { minutes: number }) {
+    return this.svc.setOnlineEta(this.ctx.requireTenantSchema(), orderId, dto?.minutes);
+  }
+
+  @Post('online/:orderId/kitchen')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Avança o estado de produção da encomenda online (PREPARING/READY)' })
+  onlineKitchen(@Param('orderId') orderId: string, @Body() dto: { status: string }) {
+    return this.svc.setOnlineKitchen(this.ctx.requireTenantSchema(), orderId, dto?.status);
+  }
 }

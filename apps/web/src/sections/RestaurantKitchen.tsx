@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
-import type { RestaurantKitchenItem } from '../api/types';
+import { toast } from '../components/feedback';
+import type { RestaurantKitchenItem, RestaurantOnlineTicket } from '../api/types';
 
 const KITCHEN_LABEL: Record<string, string> = { PENDING: 'Por preparar', PREPARING: 'Em preparação', READY: 'Pronto', SERVED: 'Servido' };
 const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY', READY: 'SERVED' };
@@ -21,13 +22,28 @@ function minutesSince(iso: string): number {
  */
 export function RestaurantKitchen() {
   const [items, setItems] = useState<RestaurantKitchenItem[]>([]);
+  const [online, setOnline] = useState<RestaurantOnlineTicket[]>([]);
+  const [etaDraft, setEtaDraft] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
   const [tick, setTick] = useState(0); // força recalcular os tempos
 
   const load = useCallback(async () => {
     try { setItems(await api.restaurant.kitchen()); } catch { /* mantém o último estado */ }
+    try { setOnline(await api.restaurant.onlineQueue()); } catch { /* loja pode estar desligada */ }
     finally { setLoaded(true); }
   }, []);
+
+  const giveEta = async (t: RestaurantOnlineTicket) => {
+    const m = Math.max(1, Math.min(240, Math.floor(Number(etaDraft[t.id]) || 0)));
+    if (!m) { toast.warning('Indica o tempo estimado (min).'); return; }
+    try { await api.restaurant.setOnlineEta(t.id, m); toast.success(`Tempo dado à ${t.orderNumber}: ~${m} min.`); await load(); }
+    catch { toast.error('Falha ao dar o tempo.'); }
+  };
+  const markOnlineReady = async (t: RestaurantOnlineTicket) => {
+    setOnline((prev) => prev.filter((x) => x.id !== t.id)); // otimista
+    await api.restaurant.advanceOnline(t.id, 'READY').catch(() => undefined);
+    await load();
+  };
 
   useEffect(() => {
     void load();
@@ -67,16 +83,60 @@ export function RestaurantKitchen() {
       <div className="content-head">
         <h2>👨‍🍳 Cozinha (KDS)</h2>
         <span className="spacer" />
-        <span className="muted" style={{ fontSize: 13 }}>{totalItems ? `${totalItems} item(ns) · ${tickets.length} mesa(s)` : 'atualiza a cada 5 s'}</span>
+        <span className="muted" style={{ fontSize: 13 }}>{totalItems || online.length ? `${totalItems} item(ns) · ${tickets.length} mesa(s)${online.length ? ` · ${online.length} online` : ''}` : 'atualiza a cada 5 s'}</span>
       </div>
 
-      {loaded && tickets.length === 0 ? (
+      {/* ── Encomendas ONLINE (loja) — o cozinheiro dá o tempo e produz ── */}
+      {online.length > 0 ? (
+        <>
+          <h3 style={{ margin: '4px 0 10px', fontSize: 14 }}>🛵 Encomendas online <span className="muted" style={{ fontWeight: 400 }}>· {online.length}</span></h3>
+          <div className="pgrid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', alignItems: 'start', marginBottom: 18 }}>
+            {online.map((t) => {
+              const isNew = t.kitchenStatus === 'NEW';
+              const tone = t.waitMin >= 15 ? 'var(--danger, #e5484d)' : t.waitMin >= 8 ? 'var(--warning)' : 'var(--primary)';
+              return (
+                <div key={t.id} className="card" style={{ padding: 0, overflow: 'hidden', borderTop: `4px solid ${tone}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border, #0002)' }}>
+                    <strong style={{ fontSize: 14 }}>🛵 {t.customerName || 'Cliente'}</strong>
+                    <span className="pill on" style={{ fontSize: 10 }}>ONLINE</span>
+                    <span className="spacer" style={{ flex: 1 }} />
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: tone }}>⏱ {t.waitMin}m</span>
+                  </div>
+                  <div style={{ padding: '4px 14px' }}>
+                    <div className="muted" style={{ fontSize: 11.5, marginBottom: 4 }}>{t.orderNumber} · {t.paymentStatus === 'PAID' ? 'Pago ✓' : 'Aguarda pagamento'}</div>
+                    {t.items.map((it, i) => (
+                      <div key={i} style={{ fontSize: 13.5, padding: '2px 0' }}>{Number(it.quantity)}× {it.description}</div>
+                    ))}
+                  </div>
+                  <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border, #0002)' }}>
+                    {isNew ? (
+                      <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                        <input value={etaDraft[t.id] ?? ''} onChange={(e) => setEtaDraft((d) => ({ ...d, [t.id]: e.target.value.replace(/[^\d]/g, '') }))}
+                          inputMode="numeric" placeholder="min" style={{ width: 70 }} />
+                        <button className="btn sm" onClick={() => void giveEta(t)}>Aceitar · dar tempo</button>
+                      </div>
+                    ) : (
+                      <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>👨‍🍳 Em preparação{t.etaMin ? ` · ~${t.etaMin} min` : ''}</span>
+                        <button className="btn sm" onClick={() => void markOnlineReady(t)}>Pronto ✓</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <h3 style={{ margin: '4px 0 10px', fontSize: 14 }}>🍽️ Mesas</h3>
+        </>
+      ) : null}
+
+      {loaded && tickets.length === 0 && online.length === 0 ? (
         <div className="card"><div className="empty" style={{ padding: 40 }}>
           <div style={{ fontSize: 40 }}>🎉</div>
           <p>Sem pedidos na cozinha. Tudo em dia.</p>
-          <p className="muted" style={{ fontSize: 12.5 }}>Os itens aparecem aqui quando se lançam numa comanda de mesa.</p>
+          <p className="muted" style={{ fontSize: 12.5 }}>Aparecem aqui os itens das comandas de mesa e as encomendas da loja online.</p>
         </div></div>
-      ) : (
+      ) : tickets.length === 0 ? null : (
         <div className="pgrid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', alignItems: 'start' }}>
           {tickets.map((t) => {
             const tone = t.oldest >= 15 ? 'var(--danger, #e5484d)' : t.oldest >= 8 ? 'var(--warning)' : 'var(--success, #30a46c)';
