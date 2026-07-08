@@ -12,14 +12,14 @@ const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY',
 
 /** Restauração: mapa de mesas + comanda (lançar itens, conta) e ecrã de cozinha (KDS). */
 export function Restaurant() {
-  const [tab, setTab] = useState<'mesas' | 'cozinha' | 'receitas'>('mesas');
+  const [tab, setTab] = useState<'mesas' | 'cozinha' | 'receitas' | 'producao'>('mesas');
   // Deep-link do Centro de Comando: abre no separador pedido. NUM efeito (não no
   // inicializador do useState) — o StrictMode invoca o inicializador 2× e um
   // removeItem lá dentro consumia o valor no 1º e devolvia 'mesas' no 2º (usado).
   useEffect(() => {
     try {
       const t = sessionStorage.getItem('ndx_rest_tab');
-      if (t === 'cozinha' || t === 'receitas' || t === 'mesas') { setTab(t); sessionStorage.removeItem('ndx_rest_tab'); }
+      if (t === 'cozinha' || t === 'receitas' || t === 'mesas' || t === 'producao') { setTab(t); sessionStorage.removeItem('ndx_rest_tab'); }
     } catch { /* sessionStorage indisponível */ }
   }, []);
   const [tables, setTables] = useState<RestaurantTableMapRow[]>([]);
@@ -32,7 +32,8 @@ export function Restaurant() {
 
   const loadTables = useCallback(async () => { try { setTables(await api.restaurant.tableMap()); } catch { /* */ } }, []);
   const loadKds = useCallback(async () => { try { setKds(await api.restaurant.kitchen()); } catch { /* */ } }, []);
-  useEffect(() => { void loadTables(); api.products.list().then(setProducts).catch(() => undefined); }, [loadTables]);
+  const loadProducts = useCallback(() => { void api.products.list().then(setProducts).catch(() => undefined); }, []);
+  useEffect(() => { void loadTables(); loadProducts(); }, [loadTables, loadProducts]);
   useEffect(() => {
     if (tab !== 'cozinha') return;
     void loadKds(); const t = window.setInterval(loadKds, 5000); return () => window.clearInterval(t);
@@ -78,13 +79,14 @@ export function Restaurant() {
         <button className="btn ghost" onClick={() => setNewTable(true)}><IconPlus size={16} /> Nova mesa</button>
       </div>
 
-      <div className="seg" style={{ marginBottom: 14, maxWidth: 480 }}>
+      <div className="seg" style={{ marginBottom: 14, maxWidth: 620 }}>
         <button className={tab === 'mesas' ? 'active' : ''} onClick={() => setTab('mesas')}>Mesas</button>
         <button className={tab === 'cozinha' ? 'active' : ''} onClick={() => setTab('cozinha')}>Cozinha (KDS){kds.length ? ` · ${kds.length}` : ''}</button>
         <button className={tab === 'receitas' ? 'active' : ''} onClick={() => setTab('receitas')}>Receitas</button>
+        <button className={tab === 'producao' ? 'active' : ''} onClick={() => setTab('producao')}>Produção</button>
       </div>
 
-      {tab === 'receitas' ? <RecipesTab products={products} /> : tab === 'mesas' ? (
+      {tab === 'producao' ? <ProductionTab products={products} onProduced={loadProducts} /> : tab === 'receitas' ? <RecipesTab products={products} /> : tab === 'mesas' ? (
         tables.length === 0 ? (
           <div className="card"><div className="empty"><p>Sem mesas. Cria a primeira mesa.</p></div></div>
         ) : (
@@ -264,6 +266,149 @@ function RecipesTab({ products }: { products: ManagerProduct[] }) {
           <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A guardar…' : 'Guardar receita'}</button>
         </>
       ) : <div className="card"><div className="empty"><p>Escolhe um prato para definir a ficha técnica.</p></div></div>}
+    </>
+  );
+}
+
+/**
+ * PRODUÇÃO (fornada) — padaria/pastelaria/produção em lote. Escolhe um produto
+ * com ficha técnica, vê os ingredientes que a fornada consome (com quebra) e o
+ * máximo produzível com o stock atual, e regista a fornada: consome os
+ * ingredientes e dá entrada do produto acabado ao custo real (CMP). Nativo do
+ * restaurante — não é o ecrã de produtos do retalho.
+ */
+function ProductionTab({ products, onProduced }: { products: ManagerProduct[]; onProduced?(): void }) {
+  const [ingredients, setIngredients] = useState<ManagerProduct[]>([]);
+  const [productId, setProductId] = useState('');
+  const [recipe, setRecipe] = useState<RecipeIngredient[]>([]);
+  const [qty, setQty] = useState('1');
+  const [note, setNote] = useState('');
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [last, setLast] = useState<{ produced: number; unitCost: number; costPrice: number; stockAfter: number } | null>(null);
+
+  const loadIngredients = useCallback(() => { void api.products.ingredients().then(setIngredients).catch(() => setIngredients([])); }, []);
+  useEffect(() => { loadIngredients(); }, [loadIngredients]);
+  useEffect(() => { if (productId) void api.restaurant.recipe(productId).then(setRecipe).catch(() => setRecipe([])); else setRecipe([]); }, [productId]);
+
+  const producibles = products.filter((p) => p.has_recipe);
+  const product = products.find((p) => p.id === productId);
+  const filtered = q.trim()
+    ? producibles.filter((p) => `${p.name} ${p.code}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 18)
+    : producibles.slice(0, 18);
+
+  const ingOf = (code: string) => ingredients.find((i) => i.code === code);
+  const rows = recipe.map((r) => {
+    const per = Number(r.quantity) * (1 + (Number(r.waste_pct) || 0) / 100);
+    const ing = ingOf(r.ingredient_code);
+    const stock = Number(ing?.stock_qty ?? 0);
+    return { name: r.ingredient_name, per, stock, unit: r.ingredient_unit ?? ing?.unit ?? '', max: per > 0 ? Math.floor(stock / per) : Infinity };
+  });
+  const maxProducible = rows.length ? Math.min(...rows.map((r) => r.max)) : 0;
+  const n = Math.max(0, Math.floor(Number(qty) || 0));
+  const enough = n > 0 && n <= maxProducible;
+
+  const produce = async () => {
+    if (!product) { toast.warning('Escolhe o produto a produzir.'); return; }
+    if (n <= 0) { toast.warning('Indica a quantidade da fornada.'); return; }
+    setBusy(true);
+    try {
+      const r = await api.products.produce({ productCode: product.code, quantity: n, note: note.trim() || undefined });
+      setLast(r);
+      setNote('');
+      toast.success(`Fornada registada: ${r.produced}× ${product.name} · custo unit. ${KZ(r.unitCost)} · em stock ${r.stockAfter}.`);
+      loadIngredients();
+      onProduced?.(); // atualiza o stock de prateleira no KPI (produtos do pai)
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao registar a fornada.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>
+          🥖 <strong>Fornada</strong>: produz em lote para a prateleira (pães, bolos, pratos preparados).
+          Consome os ingredientes da ficha técnica (com quebra) e dá entrada do produto acabado ao custo real.
+          A partir daí o balcão vende da prateleira.
+        </p>
+      </div>
+
+      {!product ? (
+        <>
+          <div className="card" style={{ padding: '2px 12px', marginBottom: 10 }}>
+            <div className="row"><IconSearch size={18} />
+              <input style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '11px 0', color: 'var(--text)' }}
+                value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar produto a produzir (com ficha técnica)…" />
+            </div>
+          </div>
+          {producibles.length === 0 ? (
+            <div className="card"><div className="empty"><p>Nenhum produto tem ficha técnica ainda. Define receitas no separador <strong>Receitas</strong> para poder produzir.</p></div></div>
+          ) : (
+            <div className="pgrid">
+              {filtered.map((p) => (
+                <button key={p.id} className="pcard" onClick={() => { setProductId(p.id); setLast(null); }} style={{ cursor: 'pointer', textAlign: 'left' }}>
+                  <div className="thumb" style={{ fontSize: 26, display: 'grid', placeItems: 'center' }}>🥐</div>
+                  <div className="pinfo">
+                    <div className="pname" style={{ fontSize: 13.5 }}>{p.name}</div>
+                    <div className="pcode">{p.code}</div>
+                    <div className="pfoot"><span className="pill on">{Number(p.stock_qty) > 0 ? `${Number(p.stock_qty)} na prateleira` : 'Sob encomenda'}</span></div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="content-head" style={{ marginTop: 0 }}>
+            <h3 style={{ margin: 0 }}>🥐 {product.name}</h3>
+            <span className="spacer" />
+            <button className="btn ghost sm" onClick={() => { setProductId(''); setQ(''); }}>← Escolher outro</button>
+          </div>
+
+          <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 12 }}>
+            <div className="card" style={{ padding: '10px 12px' }}><div className="muted" style={{ fontSize: 12 }}>Na prateleira</div><div style={{ fontSize: 20, fontWeight: 800 }}>{Number(product.stock_qty)}</div></div>
+            <div className="card" style={{ padding: '10px 12px' }}><div className="muted" style={{ fontSize: 12 }}>Máx. produzível agora</div><div style={{ fontSize: 20, fontWeight: 800, color: maxProducible > 0 ? 'var(--text)' : 'var(--warning)' }}>{Number.isFinite(maxProducible) ? maxProducible : '—'}</div><div className="muted" style={{ fontSize: 11 }}>com o stock de ingredientes</div></div>
+            <div className="card" style={{ padding: '10px 12px' }}><div className="muted" style={{ fontSize: 12 }}>Custo atual (ficha)</div><div style={{ fontSize: 20, fontWeight: 800 }}>{KZ(product.cost_price)}</div></div>
+          </div>
+
+          <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
+            <div className="list-row" style={{ padding: '8px 14px', fontWeight: 700, fontSize: 12.5, opacity: 0.7 }}>
+              <span style={{ flex: 1 }}>Ingrediente</span><span style={{ width: 90, textAlign: 'right' }}>Por fornada</span><span style={{ width: 90, textAlign: 'right' }}>Em stock</span>
+            </div>
+            {rows.length === 0 ? <div className="empty" style={{ padding: 16 }}><p>A carregar a ficha técnica…</p></div>
+              : rows.map((r, i) => {
+                const need = r.per * n;
+                const short = need > r.stock;
+                return (
+                  <div key={i} className="list-row" style={{ padding: '8px 14px' }}>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}>{r.name}</span>
+                    <span style={{ width: 90, textAlign: 'right', fontSize: 13, color: short ? 'var(--warning)' : 'var(--text)' }}>{Math.round(need * 1000) / 1000} {r.unit}</span>
+                    <span style={{ width: 90, textAlign: 'right', fontSize: 13 }} className="muted">{Math.round(r.stock * 1000) / 1000} {r.unit}</span>
+                  </div>
+                );
+              })}
+          </div>
+
+          <div className="row" style={{ alignItems: 'flex-end', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div className="field" style={{ margin: 0, width: 120 }}><label>Quantidade</label>
+              <input value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d]/g, ''))} inputMode="numeric" /></div>
+            <div className="field" style={{ margin: 0, flex: 1, minWidth: 160 }}><label>Nota (opcional)</label>
+              <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex.: fornada da manhã" /></div>
+          </div>
+          {n > maxProducible ? <div className="banner warn" style={{ marginBottom: 10 }}>Ingredientes insuficientes para {n} — máximo agora: {Number.isFinite(maxProducible) ? maxProducible : 0}.</div> : null}
+          <button className="btn lg block" onClick={() => void produce()} disabled={busy || !enough}>{busy ? 'A produzir…' : `Registar fornada de ${n || 0}`}</button>
+
+          {last ? (
+            <div className="card" style={{ marginTop: 12, borderLeft: '4px solid var(--success)' }}>
+              <strong>✓ Última fornada</strong>
+              <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+                {last.produced}× produzido(s) · custo unitário {KZ(last.unitCost)} · custo médio agora {KZ(last.costPrice)} · em stock {last.stockAfter}.
+              </div>
+            </div>
+          ) : null}
+        </>
+      )}
     </>
   );
 }

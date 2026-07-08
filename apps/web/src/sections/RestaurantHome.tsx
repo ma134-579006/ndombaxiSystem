@@ -113,7 +113,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
         <ActionCard icon="🍽️" title="Mesas & Comandas" desc="Mapa de sala, abrir mesa, lançar pedidos." onClick={() => goRest('mesas')} />
         <ActionCard icon="👨‍🍳" title="Cozinha (KDS)" desc="Fila em tempo real, marcar pronto/servido." onClick={() => goRest('cozinha')} badge={d && d.kitchen.queue > 0 ? String(d.kitchen.queue) : undefined} />
         <ActionCard icon="📋" title="Fichas técnicas" desc="Receitas, custo real e quebra por prato." onClick={() => goRest('receitas')} />
-        <ActionCard icon="🥖" title="Produção (fornada)" desc="Padaria/pastelaria: produzir para a prateleira." onClick={() => onGo('products')} />
+        <ActionCard icon="🥖" title="Produção (fornada)" desc="Padaria/pastelaria: produzir para a prateleira." onClick={() => goRest('producao')} />
       </div>
 
       {/* ── Fecho do dia ── */}
