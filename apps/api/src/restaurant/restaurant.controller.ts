@@ -135,4 +135,30 @@ export class RestaurantController {
   onlineKitchen(@Param('orderId') orderId: string, @Body() dto: { status: string }) {
     return this.svc.setOnlineKitchen(this.ctx.requireTenantSchema(), orderId, dto?.status);
   }
+
+  // ── Balcão / takeaway ──────────────────────────────────────
+  @Post('counter-orders')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Caixa envia um pedido de balcão para a cozinha (sem vender ainda)' })
+  createCounterOrder(@Body() dto: { items: { productCode: string; quantity: number }[]; customerName?: string }, @CurrentUser() user: JwtPayload) {
+    return this.svc.createCounterOrder(this.ctx.requireTenantSchema(), { items: dto?.items ?? [], customerName: dto?.customerName },
+      { id: user.sub, name: user.name ?? user.email ?? 'Operador' });
+  }
+
+  @Get('counter-orders/ready')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Pedidos de balcão prontos para o caixa chamar e vender' })
+  readyCounterOrders() { return this.svc.readyCounterOrders(this.ctx.requireTenantSchema()); }
+
+  @Post('orders/:id/eta')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Cozinha dá o tempo estimado de uma comanda (mesa/balcão)' })
+  orderEta(@Param('id') id: string, @Body() dto: { minutes: number }) {
+    return this.svc.setOrderEta(this.ctx.requireTenantSchema(), id, dto?.minutes);
+  }
+
+  @Post('orders/:id/served')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Fecha a comanda de balcão depois de vendida no caixa' })
+  markServed(@Param('id') id: string) { return this.svc.markCounterServed(this.ctx.requireTenantSchema(), id); }
 }

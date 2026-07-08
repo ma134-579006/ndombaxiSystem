@@ -216,4 +216,13 @@ export const api = {
   requestAdvance: (amount: number, reason?: string) =>
     request<SalaryAdvance>('POST', '/hr/salary-advance', { amount, reason }),
   myAdvances: () => request<SalaryAdvance[]>('GET', '/hr/salary-advance/mine'),
+
+  // ── Restauração · balcão (enviar à cozinha → chamar o pronto) ──
+  fireToKitchen: (items: { productCode: string; quantity: number }[], customerName?: string) =>
+    request<{ id: string; label: string }>('POST', '/restaurant/counter-orders', { items, customerName }),
+  readyKitchenOrders: () =>
+    request<{ id: string; label: string; total: string; etaMin: number | null; waitMin: number; ready: boolean;
+      items: { productCode: string; description: string; unitPrice: string; quantity: string; kitchenStatus: string }[] }[]>(
+      'GET', '/restaurant/counter-orders/ready'),
+  markKitchenOrderServed: (id: string) => request<{ ok: boolean }>('POST', `/restaurant/orders/${id}/served`, {}),
 };

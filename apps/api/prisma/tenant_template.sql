@@ -995,6 +995,9 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."restaurant_orders" (
   opened_by      UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
   opened_by_name TEXT,
   invoice_id     UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
+  -- BALCÃO/TAKEAWAY: table_id NULL = pedido de balcão; prep_eta_min = tempo da cozinha.
+  prep_eta_min   INT,
+  kitchen_at     TIMESTAMPTZ,
   notes          TEXT,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   closed_at      TIMESTAMPTZ

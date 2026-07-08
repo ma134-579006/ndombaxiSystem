@@ -676,6 +676,7 @@ export const api = {
     onlineQueue: () => request<RestaurantOnlineTicket[]>('GET', '/restaurant/online-queue'),
     setOnlineEta: (orderId: string, minutes: number) => request<{ ok: boolean; etaMin: number }>('POST', `/restaurant/online/${orderId}/eta`, { minutes }),
     advanceOnline: (orderId: string, status: string) => request<{ ok: boolean }>('POST', `/restaurant/online/${orderId}/kitchen`, { status }),
+    setOrderEta: (orderId: string, minutes: number) => request<{ ok: boolean; etaMin: number }>('POST', `/restaurant/orders/${orderId}/eta`, { minutes }),
     recipe: (productId: string) => request<RecipeIngredient[]>('GET', `/restaurant/recipe/${productId}`),
     setRecipe: (productId: string, items: { ingredientCode: string; quantity: number; wastePct?: number }[]) => request<{ ok: boolean }>('POST', `/restaurant/recipe/${productId}`, { items }),
     recomputeCosts: () => request<{ ok: boolean }>('POST', '/restaurant/recipes/recompute-costs', {}),

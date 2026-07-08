@@ -45,6 +45,14 @@ export function RestaurantKitchen() {
     await load();
   };
 
+  // Cozinha dá o TEMPO ESTIMADO de uma comanda de mesa/balcão.
+  const giveTicketEta = async (orderId: string) => {
+    const m = Math.max(1, Math.min(240, Math.floor(Number(etaDraft[orderId]) || 0)));
+    if (!m) { toast.warning('Indica o tempo estimado (min).'); return; }
+    try { await api.restaurant.setOrderEta(orderId, m); toast.success(`Tempo dado: ~${m} min.`); await load(); }
+    catch { toast.error('Falha ao dar o tempo.'); }
+  };
+
   useEffect(() => {
     void load();
     const t = window.setInterval(load, 5000);
@@ -66,9 +74,9 @@ export function RestaurantKitchen() {
   // Agrupar por comanda (order_id) → bilhetes.
   const tickets = useMemo(() => {
     void tick; // dependência para recalcular tempos
-    const byOrder = new Map<string, { table: string; orderId: string; items: RestaurantKitchenItem[]; oldest: number }>();
+    const byOrder = new Map<string, { table: string; orderId: string; items: RestaurantKitchenItem[]; oldest: number; eta: number | null; isCounter: boolean }>();
     for (const it of items) {
-      const g = byOrder.get(it.order_id) ?? { table: it.table_name ?? 'Mesa', orderId: it.order_id, items: [], oldest: 0 };
+      const g = byOrder.get(it.order_id) ?? { table: it.table_name ?? 'Mesa', orderId: it.order_id, items: [], oldest: 0, eta: it.prep_eta_min ?? null, isCounter: !!it.is_counter };
       g.items.push(it);
       g.oldest = Math.max(g.oldest, minutesSince(it.created_at));
       byOrder.set(it.order_id, g);
@@ -143,9 +151,22 @@ export function RestaurantKitchen() {
             return (
               <div key={t.orderId} className="card" style={{ padding: 0, overflow: 'hidden', borderTop: `4px solid ${tone}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border, #0002)' }}>
-                  <strong style={{ fontSize: 15 }}>🪑 {t.table}</strong>
+                  <strong style={{ fontSize: 15 }}>{t.isCounter ? '🛍️' : '🪑'} {t.table}</strong>
+                  {t.isCounter ? <span className="pill on" style={{ fontSize: 10 }}>BALCÃO</span> : null}
                   <span className="spacer" style={{ flex: 1 }} />
                   <span style={{ fontSize: 13, fontWeight: 700, color: tone }}>⏱ {t.oldest} min</span>
+                </div>
+                {/* Cozinha dá o tempo estimado (útil sobretudo no balcão/takeaway). */}
+                <div className="row" style={{ gap: 8, alignItems: 'center', padding: '8px 14px', borderBottom: '1px solid var(--border, #0002)' }}>
+                  {t.eta ? (
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--primary)' }}>⏲ Tempo dado: ~{t.eta} min</span>
+                  ) : (
+                    <>
+                      <input value={etaDraft[t.orderId] ?? ''} onChange={(e) => setEtaDraft((d) => ({ ...d, [t.orderId]: e.target.value.replace(/[^\d]/g, '') }))}
+                        inputMode="numeric" placeholder="min" style={{ width: 64 }} />
+                      <button className="btn sm ghost" onClick={() => void giveTicketEta(t.orderId)}>Dar tempo</button>
+                    </>
+                  )}
                 </div>
                 {t.items.map((it) => (
                   <div key={it.id} className="list-row" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>

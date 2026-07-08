@@ -315,3 +315,10 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."product_recipes" ADD COLUMN IF NOT EXISTS wa
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS prep_eta_min   INT;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS kitchen_status TEXT NOT NULL DEFAULT 'NEW';
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS kitchen_at     TIMESTAMPTZ;
+
+-- ── 2026-07-08 · BALCÃO envia à cozinha + tempo estimado na comanda ──────────
+-- Pedido de BALCÃO/TAKEAWAY = comanda com table_id NULL (o caixa "envia para a
+-- cozinha", a cozinha dá um tempo e produz, e depois o caixa chama o pedido
+-- pronto e vende). prep_eta_min = tempo dado pela cozinha (mesa e balcão).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."restaurant_orders" ADD COLUMN IF NOT EXISTS prep_eta_min INT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."restaurant_orders" ADD COLUMN IF NOT EXISTS kitchen_at   TIMESTAMPTZ;

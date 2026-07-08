@@ -23,6 +23,7 @@ import {
 import { ReceiptModal } from '../components/ReceiptModal';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { SalesHistoryModal } from '../components/SalesHistoryModal';
+import { KitchenOrdersModal } from '../components/KitchenOrdersModal';
 import { QueueModal } from '../components/QueueModal';
 import { ShiftModal } from '../components/ShiftModal';
 import { ChatModal } from '../components/ChatModal';
@@ -170,6 +171,9 @@ export function PosPage() {
   const [showCustomer, setShowCustomer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [showSales, setShowSales] = useState(false);
+  // Balcão → cozinha: modal de pedidos prontos + comanda a saldar (chamada da cozinha).
+  const [showKitchen, setShowKitchen] = useState(false);
+  const recalledOrderIdRef = useRef<string | null>(null);
 
   // Turno de caixa
   const [session, setSession] = useState<CashSession | null>(null);
@@ -198,6 +202,8 @@ export function PosPage() {
 
   const [emitting, setEmitting] = useState(false);
   const [emitError, setEmitError] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [firing, setFiring] = useState(false);
   const [emitted, setEmitted] = useState<
     { invoice: EmittedInvoice; customerName: string | null; items?: { description: string; quantity: number; unitPrice: number; total: number }[]; provisional?: boolean } | null
   >(null);
@@ -293,6 +299,7 @@ export function PosPage() {
   const totals = cartTotalsWithDiscount(cart, discountRateByProduct);
 
   const flashError = (m: string) => { setEmitError(m); setTimeout(() => setEmitError(null), 2500); };
+  const flashOk = (m: string) => { setOkMsg(m); setTimeout(() => setOkMsg(null), 3200); };
 
   /** Lança o produto no carrinho. Devolve `true` SÓ se foi realmente lançado
    *  (não esgotado / com stock) — para o campo de pesquisa só limpar nesse caso. */
@@ -546,6 +553,13 @@ export function PosPage() {
       setShowPayment(false);
       setEmitted({ invoice, customerName: customer?.name ?? null, items: buildItems(cart) });
       void refreshProducts(); // stock atualiza em tempo real após a venda
+      // Se esta venda saldou um pedido de balcão chamado da cozinha, fecha-o
+      // (a emissão já baixou os ingredientes — aqui é só mudar o estado).
+      if (recalledOrderIdRef.current) {
+        const rid = recalledOrderIdRef.current;
+        recalledOrderIdRef.current = null;
+        void api.markKitchenOrderServed(rid).catch(() => undefined);
+      }
     } catch (e) {
       if (e instanceof ApiError && e.status === 0) {
         try { await finalizeOffline(); setShowPayment(false); return; } catch { /* erro genérico */ }
@@ -562,6 +576,35 @@ export function PosPage() {
     setCartSel(new Set());
     setCustomer(null);
     void api.clearCartDraft().catch(() => undefined); // venda concluída → limpa o rascunho no servidor
+  };
+
+  // BALCÃO: envia o carrinho para a COZINHA (não vende ainda) e limpa o caixa.
+  const fireToKitchen = async () => {
+    if (cart.length === 0 || firing || emitting) return;
+    setFiring(true);
+    try {
+      const items = cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity }));
+      const r = await api.fireToKitchen(items, customer?.name ?? undefined);
+      setCart([]); setCartSel(new Set()); setCustomer(null);
+      void api.clearCartDraft().catch(() => undefined);
+      flashOk(`🍳 Enviado à cozinha: ${r.label}. Chame o pedido quando estiver pronto.`);
+    } catch (e) { flashError(e instanceof ApiError ? e.message : 'Falha ao enviar para a cozinha.'); }
+    finally { setFiring(false); }
+  };
+
+  // Caixa CHAMA um pedido pronto da cozinha → carrega no carrinho para vender.
+  const recallKitchenOrder = (order: { id: string; label: string; items: { productCode: string; quantity: string }[] }) => {
+    const lines: CartLine[] = [];
+    for (const it of order.items) {
+      const p = products.find((x) => x.code === it.productCode);
+      if (p) lines.push({ product: p, quantity: Math.max(1, Math.floor(Number(it.quantity)) || 1) });
+    }
+    if (lines.length === 0) { flashError('Os produtos deste pedido já não estão no catálogo.'); return; }
+    setCart(lines);
+    setCustomer(null);
+    recalledOrderIdRef.current = order.id;
+    setShowKitchen(false);
+    flashOk(`Pedido de ${order.label} no caixa — finalize a venda.`);
   };
 
   return (
@@ -585,6 +628,10 @@ export function PosPage() {
           <button className="conn" onClick={() => setShowSales(true)} title="Histórico de vendas / cancelar">
             <IconCart size={18} />
             <span className="conn-label">Vendas</span>
+          </button>
+          <button className="conn" onClick={() => setShowKitchen(true)} title="Pedidos prontos da cozinha (balcão)">
+            <IconReceipt size={18} />
+            <span className="conn-label">Cozinha</span>
           </button>
           <button
             className={`conn ${sync.online ? 'on' : 'off'}`}
@@ -783,6 +830,7 @@ export function PosPage() {
               </button>
 
               {emitError ? <div className="banner danger">{emitError}</div> : null}
+              {okMsg ? <div className="banner" style={{ background: 'color-mix(in srgb, var(--success, #30a46c) 16%, transparent)', color: 'var(--success, #1a7f4b)', fontWeight: 700 }}>{okMsg}</div> : null}
 
               <div className="totals">
                 <div className="t-row">
@@ -822,6 +870,12 @@ export function PosPage() {
                       : 'Guardar venda (offline)'}
                 </button>
               )}
+              {/* BALCÃO: enviar o pedido à cozinha (produz-se e depois chama-se o pronto). */}
+              {session && sync.online && cart.length > 0 ? (
+                <button className="btn ghost lg block" style={{ marginTop: 8 }} onClick={() => void fireToKitchen()} disabled={firing || emitting}>
+                  {firing ? 'A enviar…' : '🍳 Enviar para cozinha'}
+                </button>
+              ) : null}
             </div>
           </aside>
         </div>
@@ -860,6 +914,7 @@ export function PosPage() {
       ) : null}
 
       {showQueue ? <QueueModal onClose={() => setShowQueue(false)} /> : null}
+      {showKitchen ? <KitchenOrdersModal onClose={() => setShowKitchen(false)} onRecall={recallKitchenOrder} /> : null}
 
       {showSales ? (
         <SalesHistoryModal

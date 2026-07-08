@@ -490,15 +490,16 @@ export class RestaurantService {
 
   /** Ecrã de cozinha (KDS): itens por preparar/em preparação, com a mesa. */
   async kitchen(schema: string) {
-    return this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw(Prisma.sql`
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const etaExpr = (await this.hasOrderEtaCol(tx)) ? Prisma.sql`o.prep_eta_min` : Prisma.sql`NULL::int`;
+      return tx.$queryRaw(Prisma.sql`
         SELECT i.id, i.description, i.quantity, i.kitchen_status, i.notes, i.created_at,
-          o.table_name, o.id AS order_id
+          o.table_name, o.id AS order_id, ${etaExpr} AS prep_eta_min, (o.table_id IS NULL) AS is_counter
         FROM restaurant_order_items i
         JOIN restaurant_orders o ON o.id = i.order_id
         WHERE o.status = 'OPEN' AND i.kitchen_status IN ('PENDING','PREPARING')
-        ORDER BY i.created_at`),
-    );
+        ORDER BY i.created_at`);
+    });
   }
 
   // ── Encomendas ONLINE na cozinha (KDS) ─────────────────────
@@ -576,5 +577,96 @@ export class RestaurantService {
       await tx.$executeRaw(Prisma.sql`UPDATE web_orders SET kitchen_status = ${status}, updated_at = now() WHERE id = ${orderId}::uuid`);
       return { ok: true as const };
     });
+  }
+
+  // ── BALCÃO / TAKEAWAY: caixa envia à cozinha, depois chama o pronto ─────────
+  /** prep_eta_min pode ainda não existir em restaurant_orders (auto-migração). */
+  private async hasOrderEtaCol(tx: Prisma.TransactionClient): Promise<boolean> {
+    const rows = await tx.$queryRaw<{ n: number }[]>(
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = 'restaurant_orders' AND column_name = 'prep_eta_min'`);
+    return (rows[0]?.n ?? 0) > 0;
+  }
+
+  /**
+   * O CAIXA envia o pedido para a COZINHA (não vende ainda): cria uma comanda de
+   * BALCÃO (table_id NULL) com os itens; vão para o KDS como qualquer comanda. A
+   * cozinha dá o tempo e produz; quando pronto, o caixa "chama" o pedido e vende
+   * pelo fluxo normal (a emissão baixa os ingredientes — aqui NÃO se toca nisso).
+   */
+  async createCounterOrder(schema: string, input: { items: { productCode: string; quantity: number }[]; customerName?: string }, opener: { id: string; name: string }) {
+    if (!input.items?.length) throw new BadRequestException('Sem itens para enviar à cozinha.');
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const label = input.customerName?.trim() || 'Balcão';
+      const ord = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+        INSERT INTO restaurant_orders (table_id, table_name, guests, customer_name, opened_by, opened_by_name)
+        VALUES (NULL, ${label}, 1, ${input.customerName?.trim() || null}, ${opener.id}::uuid, ${opener.name})
+        RETURNING id`);
+      const orderId = ord[0].id;
+      for (const it of input.items) {
+        const qty = it.quantity > 0 ? it.quantity : 1;
+        const p = await tx.$queryRaw<{ id: string; name: string; unit_price: string; iva_code: string }[]>(
+          Prisma.sql`SELECT id, name, unit_price, iva_code FROM products WHERE code = ${it.productCode} AND is_active = TRUE LIMIT 1`);
+        if (!p[0]) continue;
+        const gross = Math.round(Number(p[0].unit_price) * (1 + (IVA_RATE[p[0].iva_code] ?? 14) / 100) * 100) / 100;
+        await tx.$executeRaw(Prisma.sql`INSERT INTO restaurant_order_items (order_id, product_id, product_code, description, unit_price, quantity, created_by)
+          VALUES (${orderId}::uuid, ${p[0].id}::uuid, ${it.productCode}, ${p[0].name}, ${gross}, ${qty}, ${opener.id}::uuid)`);
+      }
+      await this.recomputeTotal(tx, orderId);
+      return { id: orderId, label };
+    });
+  }
+
+  /** A cozinha dá o TEMPO ESTIMADO de uma comanda (mesa ou balcão). */
+  async setOrderEta(schema: string, orderId: string, minutes: number) {
+    const m = Math.max(1, Math.min(240, Math.floor(Number(minutes) || 0)));
+    return this.prisma.runInTenant(schema, async (tx) => {
+      if (!(await this.hasOrderEtaCol(tx))) throw new BadRequestException('Tempo estimado ainda não disponível neste tenant.');
+      const o = await tx.$queryRaw<{ status: string }[]>(Prisma.sql`SELECT status FROM restaurant_orders WHERE id = ${orderId}::uuid`);
+      if (!o[0]) throw new NotFoundException('Comanda não encontrada.');
+      if (o[0].status !== 'OPEN') throw new BadRequestException('A comanda já não está aberta.');
+      await tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders SET prep_eta_min = ${m}, kitchen_at = COALESCE(kitchen_at, now()) WHERE id = ${orderId}::uuid`);
+      return { ok: true as const, etaMin: m };
+    });
+  }
+
+  /** Pedidos de BALCÃO prontos (todos os itens preparados) — para o caixa chamar e vender. */
+  async readyCounterOrders(schema: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const etaExpr = (await this.hasOrderEtaCol(tx)) ? Prisma.sql`o.prep_eta_min` : Prisma.sql`NULL::int`;
+      const orders = await tx.$queryRaw<{
+        id: string; table_name: string | null; customer_name: string | null; total: string;
+        prep_eta_min: number | null; wait_min: number; all_ready: boolean;
+      }[]>(Prisma.sql`
+        SELECT o.id, o.table_name, o.customer_name, o.total, ${etaExpr} AS prep_eta_min,
+               FLOOR(EXTRACT(EPOCH FROM (now() - o.created_at)) / 60)::int AS wait_min,
+               NOT EXISTS (SELECT 1 FROM restaurant_order_items i WHERE i.order_id = o.id
+                           AND i.kitchen_status IN ('PENDING','PREPARING')) AS all_ready
+        FROM restaurant_orders o
+        WHERE o.table_id IS NULL AND o.status = 'OPEN'
+          AND EXISTS (SELECT 1 FROM restaurant_order_items i WHERE i.order_id = o.id)
+        ORDER BY o.created_at`);
+      if (orders.length === 0) return [];
+      const idList = Prisma.join(orders.map((o) => Prisma.sql`${o.id}::uuid`));
+      const items = await tx.$queryRaw<{ order_id: string; product_code: string; description: string; unit_price: string; quantity: string; kitchen_status: string }[]>(
+        Prisma.sql`SELECT order_id, product_code, description, unit_price, quantity, kitchen_status
+                   FROM restaurant_order_items WHERE order_id IN (${idList}) ORDER BY created_at`);
+      const byOrder = new Map<string, typeof items>();
+      for (const it of items) { const a = byOrder.get(it.order_id) ?? []; a.push(it); byOrder.set(it.order_id, a); }
+      return orders.map((o) => ({
+        id: o.id, label: o.customer_name || o.table_name || 'Balcão', total: o.total,
+        etaMin: o.prep_eta_min, waitMin: o.wait_min, ready: o.all_ready,
+        items: (byOrder.get(o.id) ?? []).map((i) => ({ productCode: i.product_code, description: i.description, unitPrice: i.unit_price, quantity: i.quantity, kitchenStatus: i.kitchen_status })),
+      }));
+    });
+  }
+
+  /** Fecha a comanda de balcão DEPOIS de o caixa a vender (a emissão já baixou os
+   *  ingredientes — aqui é só mudar o estado, sem tocar no stock). */
+  async markCounterServed(schema: string, orderId: string) {
+    await this.prisma.runInTenant(schema, (tx) =>
+      tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders SET status = 'CLOSED', closed_at = now()
+                                WHERE id = ${orderId}::uuid AND status = 'OPEN' AND table_id IS NULL`));
+    return { ok: true as const };
   }
 }
