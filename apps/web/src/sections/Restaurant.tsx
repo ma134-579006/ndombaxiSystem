@@ -13,6 +13,15 @@ const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY',
 /** Restauração: mapa de mesas + comanda (lançar itens, conta) e ecrã de cozinha (KDS). */
 export function Restaurant() {
   const [tab, setTab] = useState<'mesas' | 'cozinha' | 'receitas'>('mesas');
+  // Deep-link do Centro de Comando: abre no separador pedido. NUM efeito (não no
+  // inicializador do useState) — o StrictMode invoca o inicializador 2× e um
+  // removeItem lá dentro consumia o valor no 1º e devolvia 'mesas' no 2º (usado).
+  useEffect(() => {
+    try {
+      const t = sessionStorage.getItem('ndx_rest_tab');
+      if (t === 'cozinha' || t === 'receitas' || t === 'mesas') { setTab(t); sessionStorage.removeItem('ndx_rest_tab'); }
+    } catch { /* sessionStorage indisponível */ }
+  }, []);
   const [tables, setTables] = useState<RestaurantTableMapRow[]>([]);
   const [products, setProducts] = useState<ManagerProduct[]>([]);
   const [detail, setDetail] = useState<RestaurantOrderDetail | null>(null);

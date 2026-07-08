@@ -13,6 +13,11 @@ const KZ = (n: number) => formatKz(Number(n) || 0);
  * para funcionar como um painel de parede na gerência/passe.
  */
 export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
+  // Deep-link para o separador certo de "Sala & Comandas" (mesas/cozinha/receitas).
+  const goRest = (tab: 'mesas' | 'cozinha' | 'receitas') => {
+    try { sessionStorage.setItem('ndx_rest_tab', tab); } catch { /* indisponível */ }
+    onGo('restaurant');
+  };
   const [d, setD] = useState<RestaurantDashboard | null>(null);
   const [err, setErr] = useState(false);
   useEffect(() => {
@@ -32,7 +37,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
       <div className="content-head">
         <h2>🍔 Restauração — Centro de comando</h2>
         <span className="spacer" />
-        <button className="btn primary" onClick={() => onGo('restaurant')}>🍽️ Abrir mesas</button>
+        <button className="btn primary" onClick={() => goRest('mesas')}>🍽️ Abrir mesas</button>
       </div>
 
       {err && !d ? (
@@ -81,7 +86,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
           {d && d.kitchen.oldestWaitMin >= 15 ? (
             <span className="pill off" style={{ background: 'var(--danger, #e5484d)', color: '#fff' }}>Atraso na cozinha</span>
           ) : null}
-          <button className="btn ghost" onClick={() => onGo('restaurant')}>Abrir cozinha</button>
+          <button className="btn ghost" onClick={() => goRest('cozinha')}>Abrir cozinha</button>
         </div>
       </div>
 
@@ -97,7 +102,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
                 {d.menu.lowStock > 0 ? <>{d.menu.lowStock} prato(s) com ingredientes a esgotar (≤5 doses).</> : null}
               </div>
             </div>
-            <button className="btn ghost" onClick={() => onGo('restaurant')}>Ver fichas técnicas</button>
+            <button className="btn ghost" onClick={() => goRest('receitas')}>Ver fichas técnicas</button>
           </div>
         </div>
       ) : null}
@@ -105,10 +110,10 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
       {/* ── Ações próprias do restaurante ── */}
       <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }}>Operação</h3>
       <div className="pgrid">
-        <ActionCard icon="🍽️" title="Mesas & Comandas" desc="Mapa de sala, abrir mesa, lançar pedidos." onClick={() => onGo('restaurant')} />
-        <ActionCard icon="👨‍🍳" title="Cozinha (KDS)" desc="Fila em tempo real, marcar pronto/servido." onClick={() => onGo('restaurant')} badge={d && d.kitchen.queue > 0 ? String(d.kitchen.queue) : undefined} />
-        <ActionCard icon="📋" title="Fichas técnicas" desc="Receitas, custo real e quebra por prato." onClick={() => onGo('restaurant')} />
-        <ActionCard icon="🥖" title="Produção (fornada)" desc="Padaria/pastelaria: produzir para a prateleira." onClick={() => onGo('restaurant')} />
+        <ActionCard icon="🍽️" title="Mesas & Comandas" desc="Mapa de sala, abrir mesa, lançar pedidos." onClick={() => goRest('mesas')} />
+        <ActionCard icon="👨‍🍳" title="Cozinha (KDS)" desc="Fila em tempo real, marcar pronto/servido." onClick={() => goRest('cozinha')} badge={d && d.kitchen.queue > 0 ? String(d.kitchen.queue) : undefined} />
+        <ActionCard icon="📋" title="Fichas técnicas" desc="Receitas, custo real e quebra por prato." onClick={() => goRest('receitas')} />
+        <ActionCard icon="🥖" title="Produção (fornada)" desc="Padaria/pastelaria: produzir para a prateleira." onClick={() => onGo('products')} />
       </div>
 
       {/* ── Fecho do dia ── */}
