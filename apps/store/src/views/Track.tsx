@@ -44,6 +44,9 @@ export function Track({ orderId, onBack }: { orderId: string; onBack(): void }) 
 
   useEffect(() => {
     void loadOrder();
+    // Refresca o estado (cozinha/tempo/pagamento) enquanto o cliente acompanha.
+    const t = setInterval(() => void loadOrder(), 15000);
+    return () => clearInterval(t);
   }, [loadOrder]);
 
   const chatOpen = order ? CHATTABLE.includes(order.status) : false;
@@ -112,6 +115,16 @@ export function Track({ orderId, onBack }: { orderId: string; onBack(): void }) 
             {statusLabel(order.status)}
           </span>
         </div>
+        {/* Cozinha (restauração): a loja aceitou e deu um tempo — o cliente vê-o. */}
+        {order.kitchen_status && order.kitchen_status !== 'NEW' ? (
+          <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, fontWeight: 700, fontSize: 14,
+            background: order.kitchen_status === 'READY' ? '#30a46c22' : '#f5a62322',
+            color: order.kitchen_status === 'READY' ? '#1a7f4b' : '#9a6a00' }}>
+            {order.kitchen_status === 'READY'
+              ? '✅ A tua encomenda está pronta!'
+              : `🍳 Em preparação na cozinha${order.prep_eta_min ? ` · pronta em ~${order.prep_eta_min} min` : ''}`}
+          </div>
+        ) : null}
         <div style={{ marginTop: 14 }}>
           {order.items.map((it) => (
             <div className="kv" key={it.id}>

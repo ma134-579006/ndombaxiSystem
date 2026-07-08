@@ -124,6 +124,9 @@ export interface WebOrder {
   municipality: string | null;
   neighborhood: string | null;
   shipping_address: string | null;
+  /** Cozinha (restauração): tempo estimado dado pela loja e estado de produção. */
+  prep_eta_min?: number | null;
+  kitchen_status?: string | null;
   created_at: string;
   items: WebOrderItem[];
 }
