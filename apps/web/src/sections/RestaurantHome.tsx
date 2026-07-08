@@ -76,10 +76,15 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
             <div style={{ fontWeight: 800, fontSize: 16 }}>Cozinha (KDS)</div>
             <div className="muted" style={{ fontSize: 13 }}>
               {d
-                ? d.kitchen.queue === 0
+                ? d.kitchen.queue === 0 && !(d.kitchen.online ?? 0)
                   ? 'Sem itens na fila — cozinha em dia.'
-                  : `${d.kitchen.queue} item(ns) na fila · ${d.kitchen.pending} por preparar · ${d.kitchen.preparing} em preparação` +
-                    (d.kitchen.oldestWaitMin > 0 ? ` · mais antigo há ${d.kitchen.oldestWaitMin} min` : '')
+                  : [
+                      d.kitchen.queue > 0
+                        ? `${d.kitchen.queue} item(ns) de mesa · ${d.kitchen.pending} por preparar · ${d.kitchen.preparing} em preparação` +
+                          (d.kitchen.oldestWaitMin > 0 ? ` · mais antigo há ${d.kitchen.oldestWaitMin} min` : '')
+                        : '',
+                      (d.kitchen.online ?? 0) > 0 ? `🛵 ${d.kitchen.online} encomenda(s) online na cozinha` : '',
+                    ].filter(Boolean).join(' · ')
                 : 'a carregar…'}
             </div>
           </div>

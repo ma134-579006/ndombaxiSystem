@@ -405,6 +405,14 @@ export class RestaurantService {
         JOIN restaurant_orders o ON o.id = i.order_id
         WHERE o.status = 'OPEN'`);
 
+      // ── Encomendas ONLINE a aguardar/em produção na cozinha ──
+      // Guarda de coluna: tenants não migrados não têm kitchen_status → 0.
+      const onlineKitchen = (await this.hasWebKitchenCols(tx))
+        ? await tx.$queryRaw<{ n: number }[]>(Prisma.sql`
+            SELECT COUNT(*)::int AS n FROM web_orders
+            WHERE status IN ('PENDING','PAID') AND kitchen_status IN ('NEW','PREPARING')`)
+        : [{ n: 0 }];
+
       // ── Hoje (contas de mesa fechadas — só dine-in/comandas) ─
       const today = await tx.$queryRaw<{ closed_count: number; revenue: number; avg_ticket: number }[]>(Prisma.sql`
         SELECT COUNT(*)::int AS closed_count,
@@ -469,6 +477,7 @@ export class RestaurantService {
         kitchen: {
           pending: k.pending, preparing: k.preparing, queue: k.pending + k.preparing,
           oldestWaitMin: k.oldest_wait_min ?? 0,
+          online: onlineKitchen[0]?.n ?? 0,
         },
         today: { closedCount: t.closed_count, revenue: dineIn, avgTicket: Math.round(t.avg_ticket) },
         // Vendas faturadas de hoje por canal (não duplica: `total` já inclui mesa+

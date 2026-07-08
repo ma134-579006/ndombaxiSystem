@@ -790,7 +790,7 @@ export interface RestaurantOnlineTicket {
 }
 export interface RestaurantDashboard {
   service: { tablesTotal: number; tablesOpen: number; occupancyPct: number; guestsSeated: number; openValue: number; avgTab: number };
-  kitchen: { pending: number; preparing: number; queue: number; oldestWaitMin: number };
+  kitchen: { pending: number; preparing: number; queue: number; oldestWaitMin: number; online?: number };
   today: { closedCount: number; revenue: number; avgTicket: number };
   sales: { total: number; online: number; counter: number; invoices: number; dineIn: number };
   menu: { dishesWithRecipe: number; outOfStock: number; lowStock: number };
