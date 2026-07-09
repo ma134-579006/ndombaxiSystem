@@ -140,7 +140,7 @@ export class InventoryService {
             SELECT COALESCE(SUM(-m.quantity), 0) AS sold
             FROM stock_movements m
             WHERE m.product_id = si.product_id AND m.warehouse_id = si.warehouse_id
-              AND m.type = 'OUT' AND m.created_at >= now() - make_interval(days => ${days})
+              AND m.type = 'OUT' AND m.created_at >= now() - make_interval(days => ${days}::int)
           ) mv ON TRUE
           WHERE TRUE ${storeCond}
           ORDER BY p.name, w.name`,
@@ -261,7 +261,9 @@ export class InventoryService {
     const days = Math.min(Math.max(f.days ?? 30, 7), 180);
     return this.prisma.runInTenant(schema, async (tx) => {
       const signals: FraudSignal[] = [];
-      const cutoff = Prisma.sql`now() - make_interval(days => ${days})`;
+      // ${days}::int — o Prisma envia o número como bigint e make_interval(days=>…)
+      // espera int4; sem o cast o Postgres não resolve a função (400 DatabaseError).
+      const cutoff = Prisma.sql`now() - make_interval(days => ${days}::int)`;
 
       // 1. Ajustes de inventário frequentes pelo MESMO utilizador.
       const adj = await tx.$queryRaw<Array<{ who: string; n: number }>>(
