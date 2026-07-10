@@ -363,4 +363,76 @@ export class HotelService {
       return { ok: true };
     });
   }
+
+  /**
+   * CENTRO DE COMANDO do hotel (PMS) — retrato operacional em tempo real, no
+   * mesmo padrão do restaurante: receção (ocupação/quartos por estado),
+   * movimentos de HOJE (chegadas/saídas previstas, com nomes), pressão de
+   * limpeza/manutenção, e vendas faturadas do dia por canal. Só LEITURA.
+   */
+  async getDashboard(schema: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      // ── Receção: quartos por estado + hóspedes alojados ─────
+      const rooms = await tx.$queryRaw<{
+        total: number; available: number; occupied: number; cleaning: number; maintenance: number; blocked: number;
+      }[]>(Prisma.sql`
+        SELECT COUNT(*)::int AS total,
+               COUNT(*) FILTER (WHERE status = 'AVAILABLE')::int AS available,
+               COUNT(*) FILTER (WHERE status = 'OCCUPIED')::int AS occupied,
+               COUNT(*) FILTER (WHERE status = 'CLEANING')::int AS cleaning,
+               COUNT(*) FILTER (WHERE status = 'MAINTENANCE')::int AS maintenance,
+               COUNT(*) FILTER (WHERE status = 'BLOCKED')::int AS blocked
+        FROM hotel_rooms WHERE is_active = TRUE`);
+
+      const inHouse = await tx.$queryRaw<{ n: number; guests: number; folio: number }[]>(Prisma.sql`
+        SELECT COUNT(*)::int AS n, COALESCE(SUM(guests),0)::int AS guests,
+               COALESCE(SUM(total),0)::float8 AS folio
+        FROM hotel_reservations WHERE status = 'CHECKED_IN'`);
+
+      // ── HOJE: chegadas e saídas previstas (com nomes p/ a receção) ──
+      const arrivals = await tx.$queryRaw<{ id: string; number: string; guest_name: string | null; room_name: string | null; nights: number; status: string }[]>(
+        Prisma.sql`SELECT id, number, guest_name, room_name, nights, status FROM hotel_reservations
+                   WHERE check_in = CURRENT_DATE AND status = 'BOOKED' ORDER BY created_at`);
+      const departures = await tx.$queryRaw<{ id: string; number: string; guest_name: string | null; room_name: string | null; total: string }[]>(
+        Prisma.sql`SELECT id, number, guest_name, room_name, total FROM hotel_reservations
+                   WHERE check_out = CURRENT_DATE AND status = 'CHECKED_IN' ORDER BY created_at`);
+      const pendingOnline = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`
+        SELECT COUNT(*)::int AS n FROM hotel_reservations WHERE status = 'BOOKED' AND source = 'ONLINE'`);
+
+      // ── Limpeza / manutenção pendentes ───────────────────────
+      const ops = await tx.$queryRaw<{ hk: number; mt: number }[]>(Prisma.sql`
+        SELECT (SELECT COUNT(*)::int FROM hotel_housekeeping WHERE status = 'PENDING') AS hk,
+               (SELECT COUNT(*)::int FROM hotel_maintenance WHERE status <> 'DONE') AS mt`);
+
+      // ── Vendas faturadas de HOJE por canal (mesma fonte do restaurante) ──
+      const regWeb = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('web_orders')::text AS r`);
+      const onlineExpr = regWeb[0]?.r
+        ? Prisma.sql`COALESCE(SUM(gross_total) FILTER (WHERE id IN (SELECT invoice_id FROM web_orders WHERE invoice_id IS NOT NULL)), 0)::float8`
+        : Prisma.sql`0::float8`;
+      const sales = await tx.$queryRaw<{ total: number; online: number; invoices: number }[]>(Prisma.sql`
+        SELECT COALESCE(SUM(gross_total), 0)::float8 AS total, ${onlineExpr} AS online, COUNT(*)::int AS invoices
+        FROM invoices WHERE invoice_date = CURRENT_DATE AND status = 'N' AND doc_type IN ('FT','FS')`);
+
+      const r = rooms[0] ?? { total: 0, available: 0, occupied: 0, cleaning: 0, maintenance: 0, blocked: 0 };
+      const ih = inHouse[0] ?? { n: 0, guests: 0, folio: 0 };
+      const o = ops[0] ?? { hk: 0, mt: 0 };
+      const sl = sales[0] ?? { total: 0, online: 0, invoices: 0 };
+      const online = Math.round(sl.online);
+      return {
+        rooms: {
+          total: r.total, available: r.available, occupied: r.occupied,
+          cleaning: r.cleaning, maintenance: r.maintenance, blocked: r.blocked,
+          occupancyPct: r.total > 0 ? Math.round((r.occupied / r.total) * 100) : 0,
+        },
+        inHouse: { reservations: ih.n, guests: ih.guests, openFolioValue: ih.folio },
+        today: {
+          arrivals: arrivals.map((a) => ({ id: a.id, number: a.number, guest: a.guest_name ?? '—', room: a.room_name ?? '—', nights: Number(a.nights) })),
+          departures: departures.map((d) => ({ id: d.id, number: d.number, guest: d.guest_name ?? '—', room: d.room_name ?? '—', total: Number(d.total) })),
+          pendingOnline: pendingOnline[0]?.n ?? 0,
+        },
+        ops: { housekeepingPending: o.hk, maintenanceOpen: o.mt },
+        sales: { total: Math.round(sl.total), online, counter: Math.max(0, Math.round(sl.total) - online), invoices: sl.invoices },
+      };
+    });
+  }
 }

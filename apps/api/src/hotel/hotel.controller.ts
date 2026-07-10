@@ -17,6 +17,11 @@ export class HotelController {
     private readonly ctx: TenantContext,
   ) {}
 
+  @Get('dashboard')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Centro de comando do hotel (receção, hoje, limpeza, vendas)' })
+  dashboard() { return this.svc.getDashboard(this.ctx.requireTenantSchema()); }
+
   @Get('rooms')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Lista quartos' })
