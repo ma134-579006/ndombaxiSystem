@@ -20,6 +20,13 @@ export type SignatureAlgorithm = 'RSA-SHA256' | 'RSA-SHA1';
 
 export const DEFAULT_SIGNATURE_ALGORITHM: SignatureAlgorithm = 'RSA-SHA256';
 export const RSA_MODULUS_LENGTH = 2048;
+/**
+ * RSA-1024 para a ASSINATURA DE DOCUMENTOS: o campo Hash do SAF-T (AO) aceita
+ * no máx. 172 caracteres — exatamente uma assinatura RSA-1024 em base64
+ * (128 bytes → 172). RSA-2048 produz 344 e NÃO cabe. É o modelo herdado de
+ * Portugal (que usa RSA-1024 nos documentos até hoje).
+ */
+export const RSA_DOC_MODULUS_LENGTH = 1024;
 
 export interface SigningKeyPair {
   privateKeyPem: string;
@@ -27,13 +34,14 @@ export interface SigningKeyPair {
 }
 
 /**
- * Gera um par de chaves RSA-2048 (PEM) para a assinatura fiscal de uma empresa.
- * A chave privada deve ser guardada cifrada em repouso (AES-256-GCM); a chave
- * pública pode ser exportada para verificação por terceiros (ex.: AGT).
+ * Gera um par de chaves RSA (PEM) para a assinatura fiscal. Por omissão 2048;
+ * usar RSA_DOC_MODULUS_LENGTH (1024) quando a assinatura tiver de caber no
+ * campo Hash do SAF-T. A chave privada deve ser guardada cifrada em repouso
+ * (AES-256-GCM); a pública pode ser exportada para verificação (ex.: AGT).
  */
-export function generateSigningKeyPair(): SigningKeyPair {
+export function generateSigningKeyPair(modulusLength: number = RSA_MODULUS_LENGTH): SigningKeyPair {
   const { privateKey, publicKey } = generateKeyPairSync('rsa', {
-    modulusLength: RSA_MODULUS_LENGTH,
+    modulusLength,
     publicKeyEncoding: { type: 'spki', format: 'pem' },
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
   });

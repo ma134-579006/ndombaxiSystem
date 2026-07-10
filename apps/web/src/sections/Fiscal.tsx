@@ -245,11 +245,18 @@ function SigningKeyCard() {
         )}
       </div>
       <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-        Par RSA-2048 do PRODUTOR do software (requisito da certificação): a chave privada assina os
+        Par RSA do PRODUTOR do software (requisito da certificação): a chave privada assina os
         documentos e <strong>nunca sai do servidor</strong>; a pública (public.pem) anexa-se no portal
         da AGT. No campo «Versão da Chave Pública» do portal indica <strong>{st?.hasKey ? st.keyVersion : 1}</strong>
         {' '}— começa em 1 e incrementa a cada rotação da chave.
       </p>
+      {st?.hasKey && st.modulusBits > 1024 ? (
+        <div className="banner warn" style={{ fontSize: 12.5 }}>
+          ⚠ A chave atual é RSA-{st.modulusBits}: a assinatura tem {st.modulusBits === 2048 ? 344 : '—'} caracteres
+          e <strong>não cabe no campo Hash do SAF-T</strong> (máx. 172 — o modelo oficial pressupõe RSA-1024,
+          como em Portugal). Roda a chave para RSA-1024 antes de submeter ao portal.
+        </div>
+      ) : null}
       {st?.hasKey ? (
         <p className="muted" style={{ fontSize: 12 }}>
           {st.algorithm} · RSA-{st.modulusBits} · criada em {st.createdAt ? new Date(st.createdAt).toLocaleString('pt-PT') : '—'}
@@ -259,7 +266,7 @@ function SigningKeyCard() {
       ) : null}
       <div className="row" style={{ gap: 8 }}>
         <button className="btn" onClick={provision} disabled={busy}>
-          {busy ? 'A processar…' : st?.hasKey ? '↻ Rodar chave (nova versão)' : 'Gerar par de chaves RSA-2048'}
+          {busy ? 'A processar…' : st?.hasKey ? '↻ Rodar chave (nova versão, RSA-1024)' : 'Gerar par de chaves RSA-1024'}
         </button>
         <button className="btn ghost" onClick={exportPem} disabled={busy || !st?.hasKey}>
           ⬇ Exportar public.pem

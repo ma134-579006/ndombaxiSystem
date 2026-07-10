@@ -46,9 +46,9 @@ export class AgtConfigController {
   }
 
   @Post('signing-key')
-  @ApiOperation({ summary: 'Gera/roda o par RSA-2048 da plataforma (nova versão)' })
-  provisionSigningKey() {
-    return this.signing.provision();
+  @ApiOperation({ summary: 'Gera/roda o par RSA da plataforma (por omissão 1024 — assinatura cabe no Hash do SAF-T)' })
+  provisionSigningKey(@Body() dto?: { modulusBits?: number }) {
+    return this.signing.provision(dto?.modulusBits);
   }
 
   @Get('signing-key/export')

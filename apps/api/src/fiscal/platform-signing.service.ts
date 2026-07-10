@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { generateSigningKeyPair, RSA_MODULUS_LENGTH } from '@nexus/agt-xml';
+import { generateSigningKeyPair, RSA_DOC_MODULUS_LENGTH } from '@nexus/agt-xml';
 import { createHash } from 'node:crypto';
 import { decryptSecret, encryptSecret } from '../common/crypto/secret-box';
 import type { Env } from '../config/env.validation';
@@ -14,6 +14,8 @@ interface StoredSettings {
   algorithm: string;
   publicKey: string;
   createdAt: string;
+  /** Tamanho do módulo RSA (1024 = compatível com o Hash do SAF-T; 2048 = legado). */
+  modulusBits?: number;
   /** Chaves públicas anteriores (verificação de documentos antigos após rotação).
    *  As privadas antigas são DESCARTADAS — só servem para assinar, não verificar. */
   history: Array<{ keyVersion: number; publicKey: string; createdAt: string; retiredAt: string }>;
@@ -72,7 +74,7 @@ export class PlatformSigningService {
     const s = row ? this.parseSettings(row.settings) : null;
     if (!s) {
       return {
-        hasKey: false, keyVersion: 0, algorithm: 'RSA-SHA256', modulusBits: RSA_MODULUS_LENGTH,
+        hasKey: false, keyVersion: 0, algorithm: 'RSA-SHA256', modulusBits: RSA_DOC_MODULUS_LENGTH,
         createdAt: null, publicKeyFingerprint: null, previousVersions: [],
       };
     }
@@ -80,7 +82,8 @@ export class PlatformSigningService {
       hasKey: true,
       keyVersion: s.keyVersion,
       algorithm: s.algorithm,
-      modulusBits: RSA_MODULUS_LENGTH,
+      // Chaves criadas antes do campo existir eram RSA-2048.
+      modulusBits: s.modulusBits ?? 2048,
       createdAt: s.createdAt,
       publicKeyFingerprint: createHash('sha256').update(s.publicKey).digest('hex'),
       previousVersions: s.history.map((h) => h.keyVersion),
@@ -88,11 +91,14 @@ export class PlatformSigningService {
   }
 
   /**
-   * Gera (ou RODA) o par de chaves RSA-2048 da plataforma. A pública anterior
-   * vai para o histórico; a privada anterior é destruída. Devolve o estado.
+   * Gera (ou RODA) o par de chaves da plataforma. Por omissão RSA-1024 —
+   * PREVENÇÃO: é o único tamanho cuja assinatura (172 base64) cabe no campo
+   * Hash do SAF-T (máx. 172), como no modelo português que a AGT herda. A
+   * pública anterior vai para o histórico; a privada anterior é destruída.
    */
-  async provision(): Promise<PlatformSigningStatus> {
-    const { privateKeyPem, publicKeyPem } = generateSigningKeyPair();
+  async provision(modulusBits: number = RSA_DOC_MODULUS_LENGTH): Promise<PlatformSigningStatus> {
+    const bits = modulusBits === 2048 ? 2048 : RSA_DOC_MODULUS_LENGTH;
+    const { privateKeyPem, publicKeyPem } = generateSigningKeyPair(bits);
     const privateKeyEnc = encryptSecret(privateKeyPem, this.encKey);
     const now = new Date().toISOString();
 
@@ -103,7 +109,7 @@ export class PlatformSigningService {
       ? [...prev.history, { keyVersion: prev.keyVersion, publicKey: prev.publicKey, createdAt: prev.createdAt, retiredAt: now }]
       : [];
     const settings: StoredSettings = {
-      keyVersion: nextVersion, algorithm: 'RSA-SHA256', publicKey: publicKeyPem, createdAt: now, history,
+      keyVersion: nextVersion, algorithm: 'RSA-SHA256', publicKey: publicKeyPem, createdAt: now, modulusBits: bits, history,
     };
 
     await this.prisma.integration.upsert({
