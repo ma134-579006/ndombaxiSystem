@@ -104,7 +104,9 @@ describe('buildSaftXml', () => {
   });
 
   it('emits the invoice with escaped text and correct totals', () => {
-    expect(xml).toContain('<InvoiceNo>FT A/2025/0001</InvoiceNo>');
+    // InvoiceNo normalizado ao pattern oficial do XSD ([^ ]+ [^/^ ]+/[0-9]+):
+    // a série não pode conter '/', logo "FT A/2025/0001" → "FT A2025/0001".
+    expect(xml).toContain('<InvoiceNo>FT A2025/0001</InvoiceNo>');
     expect(xml).toContain('Café &amp; Açúcar');
     expect(xml).toContain('<GrossTotal>2805.00</GrossTotal>'); // 2280 + 525
     expect(xml).toContain('<NetTotal>2500.00</NetTotal>');
@@ -116,7 +118,8 @@ describe('buildSaftXml', () => {
   });
 
   it('uses default software identity when no config is given', () => {
-    expect(xml).toContain('<SoftwareCertificateNumber>0</SoftwareCertificateNumber>');
+    // XSD AO: o elemento chama-se SoftwareValidationNumber (não o nome PT).
+    expect(xml).toContain('<SoftwareValidationNumber>0</SoftwareValidationNumber>');
     expect(xml).toContain('<ProductID>Ndombaxi System/Ndombaxi</ProductID>');
     expect(xml).toContain('<AuditFileVersion>1.01_01</AuditFileVersion>');
   });
@@ -140,7 +143,7 @@ describe('buildSaftXml', () => {
       documents: [{ ...makeDoc(), hash: 'ABC123SIGNATURE==' }],
       dateCreated: '2025-02-01',
     });
-    expect(configured).toContain('<SoftwareCertificateNumber>345/AGT</SoftwareCertificateNumber>');
+    expect(configured).toContain('<SoftwareValidationNumber>345/AGT</SoftwareValidationNumber>');
     expect(configured).toContain('<ProductID>NEXUS ERP/ACME</ProductID>');
     expect(configured).toContain('<ProductVersion>3.1.0</ProductVersion>');
     expect(configured).toContain('<AuditFileVersion>1.02_01</AuditFileVersion>');

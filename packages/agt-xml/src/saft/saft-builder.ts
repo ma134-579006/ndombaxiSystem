@@ -107,7 +107,9 @@ function buildHeader(c: SaftCompany, sw: Required<SaftSoftware>, dateCreated: st
     el('DateCreated', dateCreated),
     el('TaxEntity', sw.taxEntity),
     el('ProductCompanyTaxID', c.taxRegistrationNumber),
-    el('SoftwareCertificateNumber', sw.softwareCertificateNumber),
+    // XSD AO: o elemento chama-se SoftwareValidationNumber (não o nome PT
+    // SoftwareCertificateNumber) — validado contra o SAFTAO1.01_01.xsd oficial.
+    el('SoftwareValidationNumber', sw.softwareCertificateNumber),
     el('ProductID', sw.productId),
     el('ProductVersion', sw.productVersion),
   ]);
@@ -182,16 +184,22 @@ function buildTaxTable(documents: FiscalDocument[]): string {
   return node('TaxTable', entries);
 }
 
-function buildLine(line: FiscalDocument['lines'][number], index: number, isCreditNote: boolean, reference?: string): string {
+function buildLine(line: FiscalDocument['lines'][number], index: number, isCreditNote: boolean, invoiceDate: string, reference?: string): string {
+  // Ordem EXATA do XSD oficial (SAFTAO1.01_01): LineNumber, ProductCode,
+  // ProductDescription, Quantity, UnitOfMeasure, UnitPrice, TaxPointDate
+  // (OBRIGATÓRIO), References (NC — vem DEPOIS do TaxPointDate), Description
+  // (OBRIGATÓRIO ao nível da linha), Debit/CreditAmount, Tax, isenções.
   return node('Line', [
     el('LineNumber', index + 1),
-    // Nota de crédito refere o documento de origem (AGT).
-    isCreditNote && reference ? node('References', [el('Reference', reference)]) : '',
     el('ProductCode', line.productCode),
     el('ProductDescription', line.description),
     el('Quantity', line.quantity),
     el('UnitOfMeasure', 'UN'),
     el('UnitPrice', money(line.unitPrice)),
+    el('TaxPointDate', invoiceDate),
+    // Nota de crédito refere o documento de origem (AGT).
+    isCreditNote && reference ? node('References', [el('Reference', sanitizeDocNumber(reference))]) : '',
+    el('Description', line.description || line.productCode),
     // NC = DebitAmount (estorno); fatura/recibo = CreditAmount.
     isCreditNote ? el('DebitAmount', money(line.netAmount)) : el('CreditAmount', money(line.netAmount)),
     node('Tax', [
@@ -209,10 +217,31 @@ function isNc(type: FiscalDocument['type']): boolean {
   return String(type) === 'NC';
 }
 
+/**
+ * O pattern oficial do InvoiceNo é `[^ ]+ [^/^ ]+/[0-9]+` — a SÉRIE não pode
+ * conter '/'. Documentos legados no formato "FT A/2026/0001" são normalizados
+ * para "FT A2026/0001" SÓ NA EXPORTAÇÃO (o número impresso/assinado original
+ * fica intacto na BD; o hash foi calculado sobre o original e mantém-se).
+ */
+function sanitizeDocNumber(value: string): string {
+  const m = /^([A-Z]+) ([A-Z0-9]{1,5})\/(\d{4})\/(\d+)$/.exec(value);
+  return m ? `${m[1]} ${m[2]}${m[3]}/${m[4]}` : value;
+}
+
+/** Hash SAF-T: máx. 172 car. (XSD). A assinatura RSA-2048 (344 base64) NÃO cabe
+ *  — só entra se couber (ex.: RSA-1024 = 172); senão vai o hash SHA-256 (64).
+ *  O elemento é OBRIGATÓRIO: sem hash/assinatura vai "0" (regra oficial p/
+ *  documentos sem obrigação de validação). */
+function saftHash(doc: FiscalDocument): string {
+  if (doc.signature && doc.signature.length <= 172) return doc.signature;
+  return doc.hash || '0';
+}
+
 function buildInvoice(doc: FiscalDocument, sw: Required<SaftSoftware>): string {
   const creditNote = isNc(doc.type);
   return node('Invoice', [
-    el('InvoiceNo', doc.number),
+    // InvoiceNo normalizado ao pattern oficial (série sem '/').
+    el('InvoiceNo', sanitizeDocNumber(doc.number)),
     node('DocumentStatus', [
       // Estado real: 'A' anulado / 'N' normal (default).
       el('InvoiceStatus', doc.status === 'A' ? 'A' : 'N'),
@@ -220,10 +249,9 @@ function buildInvoice(doc: FiscalDocument, sw: Required<SaftSoftware>): string {
       el('SourceID', sw.sourceId),
       el('SourceBilling', 'P'),
     ]),
-    // Modelo AGT: o Hash do SAF-T é a ASSINATURA RSA (base64) da signable string;
-    // sem assinatura (docs antigos), degrada para o SHA-256 encadeado. O
-    // HashControl indica a versão da chave privada que assinou.
-    el('Hash', doc.signature ?? doc.hash ?? ''),
+    // Hash: máx. 172 car. no XSD — assinatura só se couber (ver saftHash).
+    // HashControl: versão da chave privada que assinou o documento.
+    el('Hash', saftHash(doc)),
     el('HashControl', String(doc.signatureKeyVersion ?? 1)),
     el('InvoiceDate', doc.invoiceDate),
     el('InvoiceType', doc.type),
@@ -232,9 +260,12 @@ function buildInvoice(doc: FiscalDocument, sw: Required<SaftSoftware>): string {
       el('CashVATSchemeIndicator', '0'),
       el('ThirdPartiesBillingIndicator', '0'),
     ]),
+    // XSD AO: SourceID é OBRIGATÓRIO também ao nível do Invoice (além do
+    // DocumentStatus), entre SpecialRegimes e SystemEntryDate.
+    el('SourceID', sw.sourceId),
     el('SystemEntryDate', xsdDateTime(doc.systemEntryDate)),
     el('CustomerID', doc.customerTaxId?.trim() || FINAL_CONSUMER_ID),
-    ...doc.lines.map((l, i) => buildLine(l, i, creditNote, doc.reference)),
+    ...doc.lines.map((l, i) => buildLine(l, i, creditNote, doc.invoiceDate, doc.reference)),
     node('DocumentTotals', [
       el('TaxPayable', money(doc.totals.ivaTotal)),
       el('NetTotal', money(doc.totals.netTotal)),
