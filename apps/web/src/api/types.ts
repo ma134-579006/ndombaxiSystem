@@ -1070,6 +1070,17 @@ export interface AgtConfig {
   hasApiKey: boolean;
   apiKeyMask: string | null;
 }
+/** Chave de assinatura fiscal da plataforma (certificação AGT). */
+export interface PlatformSigningStatus {
+  hasKey: boolean;
+  /** "Versão da Chave Pública" a indicar no portal da AGT (1, 2, … por rotação). */
+  keyVersion: number;
+  algorithm: string;
+  modulusBits: number;
+  createdAt: string | null;
+  publicKeyFingerprint: string | null;
+  previousVersions: number[];
+}
 export interface UpdateAgtInput {
   environment?: string;
   softwareCertificateNumber?: string;

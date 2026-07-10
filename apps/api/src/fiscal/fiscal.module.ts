@@ -5,6 +5,7 @@ import { AgtConfigService } from './agt-config.service';
 import { AgtCommunicationService } from './agt-communication.service';
 import { CompanyIdentityService } from './company-identity.service';
 import { FiscalController } from './fiscal.controller';
+import { PlatformSigningService } from './platform-signing.service';
 
 /**
  * Módulo fiscal AGT (§7): configuração gerida pelo Super Admin (nº de validação,
@@ -16,7 +17,7 @@ import { FiscalController } from './fiscal.controller';
 @Module({
   imports: [CashboxModule],
   controllers: [AgtConfigController, FiscalController],
-  providers: [AgtConfigService, CompanyIdentityService, AgtCommunicationService],
-  exports: [AgtConfigService, CompanyIdentityService],
+  providers: [AgtConfigService, CompanyIdentityService, AgtCommunicationService, PlatformSigningService],
+  exports: [AgtConfigService, CompanyIdentityService, PlatformSigningService],
 })
 export class FiscalModule {}

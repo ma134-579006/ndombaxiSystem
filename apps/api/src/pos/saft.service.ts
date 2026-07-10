@@ -22,6 +22,7 @@ interface InvoiceHeaderRow {
   gross_total: string;
   hash: string;
   signature: string | null;
+  signature_key_version: number | null;
   status: string;
   reference: string | null;
 }
@@ -94,6 +95,7 @@ export class SaftService {
         // (A, com estado) e notas de crédito (NC). Anular nada some — só muda de estado.
         Prisma.sql`SELECT i.id, i.number, i.doc_type, i.invoice_date, i.system_entry_date,
                           i.customer_tax_id, i.net_total, i.iva_total, i.gross_total, i.hash, i.signature,
+                          i.signature_key_version,
                           i.status, (SELECT s.number FROM invoices s WHERE s.id = i.source_invoice_id) AS reference
                    FROM invoices i
                    WHERE i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date
@@ -126,8 +128,11 @@ export class SaftService {
         invoiceDate: h.invoice_date.toISOString().slice(0, 10),
         systemEntryDate: h.system_entry_date.toISOString(),
         customerTaxId: h.customer_tax_id ?? undefined,
-        // No SAF-T o campo Hash leva a assinatura digital (se existir) ou o hash encadeado.
-        hash: h.signature ?? h.hash,
+        // No SAF-T o campo Hash leva a assinatura digital (se existir) ou o hash
+        // encadeado; o HashControl leva a versão da chave que assinou.
+        hash: h.hash,
+        signature: h.signature ?? undefined,
+        signatureKeyVersion: h.signature_key_version != null ? Number(h.signature_key_version) : undefined,
         lines: (itemsByInvoice.get(h.id) ?? []).map<InvoiceLineComputed>((it) => ({
           productCode: it.product_code,
           description: it.description,

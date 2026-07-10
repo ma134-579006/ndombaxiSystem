@@ -527,6 +527,12 @@ export const api = {
     get: () => request<AgtConfig>('GET', '/super-admin/fiscal/agt'),
     update: (dto: UpdateAgtInput) => request<AgtConfig>('PATCH', '/super-admin/fiscal/agt', dto),
     subscribe: () => request<AgtConfig>('POST', '/super-admin/fiscal/agt/subscribe'),
+    // Chave de assinatura da PLATAFORMA (portal AGT) — a privada nunca sai do servidor.
+    signingKey: () => request<PlatformSigningStatus>('GET', '/super-admin/fiscal/agt/signing-key'),
+    provisionSigningKey: () => request<PlatformSigningStatus>('POST', '/super-admin/fiscal/agt/signing-key'),
+    exportPublicKey: () =>
+      request<{ fileName: string; pem: string; keyVersion: number; algorithm: string }>(
+        'GET', '/super-admin/fiscal/agt/signing-key/export'),
   },
 
   integrations: {

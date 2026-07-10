@@ -1,7 +1,7 @@
 import { confirmDialog, toast } from '../components/feedback';
 import React, { useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { AgtConfig, AgtExtraField, UpdateAgtInput } from '../api/types';
+import type { AgtConfig, AgtExtraField, PlatformSigningStatus, UpdateAgtInput } from '../api/types';
 import { IconCheck, IconPlus, IconTrash } from '../components/Icons';
 
 export function Fiscal() {
@@ -99,6 +99,8 @@ export function Fiscal() {
         </p>
       </div>
 
+      <SigningKeyCard />
+
       <div className="card">
         <div className="row">
           <h3 style={{ margin: 0 }}>Comunicação eletrónica à AGT</h3>
@@ -182,5 +184,87 @@ export function Fiscal() {
 
       <button className="btn lg" onClick={save} disabled={saving}>{saving ? 'A guardar…' : 'Guardar configuração fiscal'}</button>
     </>
+  );
+}
+
+/**
+ * Chave de assinatura fiscal da PLATAFORMA (certificação do software na AGT).
+ * O par RSA-2048 é gerado no servidor; a PRIVADA nunca sai de lá (cifrada em
+ * repouso). Aqui exporta-se a PÚBLICA (public.pem) para anexar no portal da
+ * AGT, junto com a "Versão da Chave Pública" (1, 2, … — incrementa na rotação).
+ */
+function SigningKeyCard() {
+  const [st, setSt] = useState<PlatformSigningStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try { setSt(await api.fiscal.signingKey()); } catch { /* mantém */ }
+  };
+  useEffect(() => { void load(); }, []);
+
+  const provision = async () => {
+    const msg = st?.hasKey
+      ? 'RODAR a chave da plataforma? A versão incrementa e o portal da AGT terá de receber o novo public.pem. Os documentos já assinados continuam verificáveis.'
+      : 'Gerar o par de chaves RSA-2048 da plataforma?';
+    if (!(await confirmDialog({ message: msg, danger: !!st?.hasKey }))) return;
+    setBusy(true);
+    try {
+      setSt(await api.fiscal.provisionSigningKey());
+      toast.success('Chave da plataforma pronta. Exporta o public.pem e anexa no portal da AGT.');
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao gerar a chave.'); }
+    finally { setBusy(false); }
+  };
+
+  const exportPem = async () => {
+    setBusy(true);
+    try {
+      const r = await api.fiscal.exportPublicKey();
+      // Descarrega o public.pem no browser — só a chave PÚBLICA sai do servidor.
+      const blob = new Blob([r.pem], { type: 'application/x-pem-file' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = r.fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`public.pem exportado (versão ${r.keyVersion}, ${r.algorithm}).`);
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao exportar.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="card">
+      <div className="row">
+        <h3 style={{ margin: 0 }}>🔑 Chave pública (portal AGT)</h3>
+        <span className="spacer" />
+        {st?.hasKey ? (
+          <span className="badge" style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
+            <span className="dot" /> Versão da Chave Pública: {st.keyVersion}
+          </span>
+        ) : (
+          <span className="badge">Sem chave</span>
+        )}
+      </div>
+      <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+        Par RSA-2048 do PRODUTOR do software (requisito da certificação): a chave privada assina os
+        documentos e <strong>nunca sai do servidor</strong>; a pública (public.pem) anexa-se no portal
+        da AGT. No campo «Versão da Chave Pública» do portal indica <strong>{st?.hasKey ? st.keyVersion : 1}</strong>
+        {' '}— começa em 1 e incrementa a cada rotação da chave.
+      </p>
+      {st?.hasKey ? (
+        <p className="muted" style={{ fontSize: 12 }}>
+          {st.algorithm} · RSA-{st.modulusBits} · criada em {st.createdAt ? new Date(st.createdAt).toLocaleString('pt-PT') : '—'}
+          {st.previousVersions.length ? ` · versões anteriores: ${st.previousVersions.join(', ')}` : ''}
+          <br />Impressão digital (SHA-256): <code style={{ fontSize: 11 }}>{st.publicKeyFingerprint?.slice(0, 32)}…</code>
+        </p>
+      ) : null}
+      <div className="row" style={{ gap: 8 }}>
+        <button className="btn" onClick={provision} disabled={busy}>
+          {busy ? 'A processar…' : st?.hasKey ? '↻ Rodar chave (nova versão)' : 'Gerar par de chaves RSA-2048'}
+        </button>
+        <button className="btn ghost" onClick={exportPem} disabled={busy || !st?.hasKey}>
+          ⬇ Exportar public.pem
+        </button>
+      </div>
+    </div>
   );
 }

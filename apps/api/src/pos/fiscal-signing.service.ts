@@ -117,7 +117,7 @@ export class FiscalSigningService {
                    FROM fiscal_signing_keys WHERE is_active = TRUE LIMIT 1`,
       );
     const rows = tx ? await run(tx) : await this.prisma.runInTenant(schema, run);
-    if (!rows[0]) return null;
+    if (!rows[0]) return this.getPlatformSigner();
 
     const privateKeyPem = decryptSecret(rows[0].private_key_enc, this.secret);
     return new RsaDocumentSigner({
@@ -125,6 +125,25 @@ export class FiscalSigningService {
       keyVersion: Number(rows[0].key_version),
       algorithm: rows[0].algorithm as SignatureAlgorithm,
     });
+  }
+
+  /**
+   * FALLBACK: chave da PLATAFORMA (certificação AGT — a chave do produtor do
+   * software). Usada quando o tenant não tem chave própria, para que TODOS os
+   * documentos saiam assinados. Lê a linha `integrations` AGT_SIGNING_KEY
+   * (nexus_public) — nunca falha a emissão: em erro devolve null (sem assinatura),
+   * exatamente o comportamento anterior.
+   */
+  private async getPlatformSigner(): Promise<RsaDocumentSigner | null> {
+    try {
+      const row = await this.prisma.integration.findUnique({ where: { key: 'AGT_SIGNING_KEY' } });
+      const s = row?.settings as { keyVersion?: number } | null;
+      if (!row?.secretEnc || !s || !Number.isFinite(Number(s.keyVersion))) return null;
+      const privateKeyPem = decryptSecret(row.secretEnc, this.secret);
+      return new RsaDocumentSigner({ privateKeyPem, keyVersion: Number(s.keyVersion) });
+    } catch {
+      return null;
+    }
   }
 
   private toPublic(r: SigningKeyRow): PublicSigningKey {

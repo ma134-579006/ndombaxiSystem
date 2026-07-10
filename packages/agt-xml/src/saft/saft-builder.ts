@@ -220,8 +220,11 @@ function buildInvoice(doc: FiscalDocument, sw: Required<SaftSoftware>): string {
       el('SourceID', sw.sourceId),
       el('SourceBilling', 'P'),
     ]),
-    el('Hash', doc.hash ?? ''),
-    el('HashControl', '1'),
+    // Modelo AGT: o Hash do SAF-T é a ASSINATURA RSA (base64) da signable string;
+    // sem assinatura (docs antigos), degrada para o SHA-256 encadeado. O
+    // HashControl indica a versão da chave privada que assinou.
+    el('Hash', doc.signature ?? doc.hash ?? ''),
+    el('HashControl', String(doc.signatureKeyVersion ?? 1)),
     el('InvoiceDate', doc.invoiceDate),
     el('InvoiceType', doc.type),
     node('SpecialRegimes', [
