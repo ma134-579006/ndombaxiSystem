@@ -18,16 +18,10 @@ export interface IntegrationCatalogEntry {
 /** Catálogo das integrações externas configuráveis pelo Super Admin. O código
  *  está pronto: cada uma activa assim que for preenchida e ligada. */
 export const INTEGRATION_CATALOG: IntegrationCatalogEntry[] = [
-  {
-    key: 'AGT_SAFT', label: 'AGT — Envio do SAF-T',
-    description: 'Envio automático do ficheiro SAF-T ao portal da AGT.',
-    hasBaseUrl: true, baseUrlLabel: 'Endpoint da API AGT',
-    settingsFields: [
-      { name: 'softwareCertificateNumber', label: 'Nº de certificação do software' },
-      { name: 'taxpayerNif', label: 'NIF do contribuinte' },
-    ],
-    secretLabel: 'Token / credencial AGT',
-  },
+  // AGT_SAFT foi REMOVIDA do catálogo: duplicava a página "Fiscal (AGT)" do
+  // Super Admin, que é a fonte única (nº de validação, endpoint, credencial,
+  // legendas, chave pública). Dados que existissem na linha AGT_SAFT são
+  // migrados automaticamente para a config fiscal (ver AgtConfigService.get).
   {
     key: 'OPEN_FINANCE', label: 'Open Finance — Banco',
     description: 'Saldos e movimentos bancários ao vivo (Open Finance).',

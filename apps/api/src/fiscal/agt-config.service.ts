@@ -58,8 +58,39 @@ export class AgtConfigService {
   /** Lê a configuração (cria a default na primeira leitura). */
   async get(): Promise<AgtFiscalConfig> {
     const existing = await this.prisma.agtFiscalConfig.findFirst();
-    if (existing) return existing;
-    return this.prisma.agtFiscalConfig.create({ data: {} });
+    const config = existing ?? (await this.prisma.agtFiscalConfig.create({ data: {} }));
+    return this.migrateLegacyIntegration(config);
+  }
+
+  /**
+   * MIGRAÇÃO ÚNICA da antiga integração "AGT_SAFT" (página Integrações) para
+   * esta config — a página Fiscal (AGT) é agora a fonte única e a entrada foi
+   * removida do catálogo. Se alguém tinha preenchido endpoint/credencial/nº de
+   * certificação lá, os dados passam para aqui sem se perderem (só preenche o
+   * que ainda estiver vazio; a linha antiga é desativada depois de migrada).
+   * Nunca falha a leitura: em erro devolve a config tal como está.
+   */
+  private async migrateLegacyIntegration(config: AgtFiscalConfig): Promise<AgtFiscalConfig> {
+    try {
+      const legacy = await this.prisma.integration.findUnique({ where: { key: 'AGT_SAFT' } });
+      if (!legacy || !legacy.enabled) return config;
+
+      const settings = (legacy.settings ?? {}) as { softwareCertificateNumber?: string };
+      const data: Record<string, unknown> = {};
+      if (!config.endpointUrl && legacy.baseUrl) data.endpointUrl = legacy.baseUrl;
+      // Mesma cifra (secret-box + CONFIG_ENCRYPTION_KEY) → copia-se tal e qual.
+      if (!config.apiKeyEnc && legacy.secretEnc) data.apiKeyEnc = legacy.secretEnc;
+      if (config.softwareCertificateNumber === '0' && settings.softwareCertificateNumber?.trim()) {
+        data.softwareCertificateNumber = settings.softwareCertificateNumber.trim();
+      }
+
+      // Desativa a linha antiga (fica como arquivo; nunca mais é lida).
+      await this.prisma.integration.update({ where: { key: 'AGT_SAFT' }, data: { enabled: false } });
+      if (Object.keys(data).length === 0) return config;
+      return await this.prisma.agtFiscalConfig.update({ where: { id: config.id }, data });
+    } catch {
+      return config;
+    }
   }
 
   /** Vista SEGURA para o painel do Super Admin (nunca devolve a credencial em claro). */

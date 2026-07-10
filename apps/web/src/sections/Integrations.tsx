@@ -4,9 +4,11 @@ import type { Integration } from '../api/types';
 import { IconCpu, IconRefresh } from '../components/Icons';
 import { Switch } from '../components/ui';
 
-/** Integrações externas configuradas 100% pelo Super Admin (AGT, Open Finance,
- *  Stripe, DocuSign, biometria). Segredos guardados encriptados; o código activa
- *  cada integração assim que for preenchida e ligada. */
+/** Integrações externas configuradas 100% pelo Super Admin (Open Finance,
+ *  Stripe, DocuSign, WhatsApp, biometria). Segredos guardados encriptados; o
+ *  código activa cada integração assim que for preenchida e ligada.
+ *  NOTA: a AGT NÃO vive aqui — toda a configuração fiscal (nº de validação,
+ *  endpoint, credencial, chave pública) está na página "Fiscal (AGT)". */
 export function Integrations() {
   const [items, setItems] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
