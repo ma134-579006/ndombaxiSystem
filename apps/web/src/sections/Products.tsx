@@ -80,8 +80,6 @@ export function Products() {
   const [busy, setBusy] = useState(false);
   const [entering, setEntering] = useState(false);
   const [producing, setProducing] = useState(false);
-  // Vista: produtos vendíveis OU ingredientes (matéria-prima).
-  const [view, setView] = useState<'products' | 'ingredients'>('products');
 
   const toggleSel = (id: string) => setSelected((prev) => {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
@@ -113,13 +111,20 @@ export function Products() {
     setLoading(true);
     setError(null);
     try {
-      setProducts(await (view === 'ingredients' ? api.products.ingredients() : api.products.list()));
+      // CATÁLOGO UNIFICADO: produtos vendíveis + ingredientes (matéria-prima) na
+      // MESMA lista. Os ingredientes distinguem-se pela etiqueta 'matéria-prima'.
+      const [prods, ings] = await Promise.all([
+        api.products.list(),
+        api.products.ingredients().catch(() => [] as ManagerProduct[]),
+      ]);
+      const seen = new Set(prods.map((p) => p.id));
+      setProducts([...prods, ...ings.filter((i) => !seen.has(i.id))].sort((a, b) => a.name.localeCompare(b.name)));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar produtos.');
     } finally {
       setLoading(false);
     }
-  }, [view]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -139,7 +144,7 @@ export function Products() {
   };
 
   const openCreate = () => {
-    setForm({ ...EMPTY, isIngredient: view === 'ingredients' });
+    setForm({ ...EMPTY });
     setFormError(null);
     setCreating(true);
   };
@@ -272,28 +277,20 @@ export function Products() {
     <>
       <div className="sticky-top">
         <div className="content-head">
-          <h2>{view === 'ingredients' ? 'Ingredientes (matéria-prima)' : 'Catálogo de produtos'}</h2>
-          <div className="seg" style={{ display: 'inline-flex', gap: 4, marginLeft: 10, background: 'var(--surface-2)', borderRadius: 10, padding: 3 }}>
-            <button className={`btn sm ${view === 'products' ? '' : 'ghost'}`} onClick={() => setView('products')}>Produtos</button>
-            <button className={`btn sm ${view === 'ingredients' ? '' : 'ghost'}`} onClick={() => setView('ingredients')}>Ingredientes</button>
-          </div>
+          <h2>Catálogo de produtos</h2>
           <span className="spacer" />
-          {view === 'products' ? (
-            <>
-              {/* Fornada (padaria/pastelaria/produção): só aparece se houver
-                  produtos com ficha técnica — não polui os outros negócios. */}
-              {products.some((p) => p.has_recipe) ? (
-                <button className="btn ghost" onClick={() => setProducing(true)}>
-                  🥖 Fornada
-                </button>
-              ) : null}
-              <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
-                <IconTruck size={16} /> Adicionar stock
-              </button>
-            </>
+          {/* Fornada (padaria/pastelaria/produção): só aparece se houver
+              produtos com ficha técnica — não polui os outros negócios. */}
+          {products.some((p) => p.has_recipe) ? (
+            <button className="btn ghost" onClick={() => setProducing(true)}>
+              🥖 Fornada
+            </button>
           ) : null}
+          <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
+            <IconTruck size={16} /> Adicionar stock
+          </button>
           <button className="btn" onClick={openCreate}>
-            <IconPlus size={18} /> {view === 'ingredients' ? 'Novo ingrediente' : 'Novo produto'}
+            <IconPlus size={18} /> Novo produto
           </button>
         </div>
 
@@ -347,13 +344,16 @@ export function Products() {
                 {p.image_url ? <img src={p.image_url} alt={p.name} /> : <IconImage size={30} />}
               </div>
               <div className="pinfo">
-                <div className="pname">{p.name}</div>
-                <div className="pcode">{p.code} · {p.iva_code} · stock {Number(p.stock_qty)}</div>
+                <div className="pname">
+                  {p.name}
+                  {p.is_ingredient ? <span className="pill" style={{ marginLeft: 6, fontSize: 10.5, background: 'color-mix(in srgb, var(--warning) 22%, transparent)', color: 'var(--warning)' }}>matéria-prima</span> : null}
+                </div>
+                <div className="pcode">{p.code} · {p.iva_code} · stock {Number(p.stock_qty)}{p.unit ? ` ${p.unit}` : ''}</div>
                 <div className="pfoot">
-                  <span className="pprice">{formatKz(grossUnit(p))}</span>
-                  <span className={`pill ${p.show_online ? 'on' : 'off'}`}>
-                    {p.show_online ? 'Online' : 'Oculto'}
-                  </span>
+                  <span className="pprice">{p.is_ingredient ? '—' : formatKz(grossUnit(p))}</span>
+                  {p.is_ingredient
+                    ? <span className="pill off">Ingrediente</span>
+                    : <span className={`pill ${p.show_online ? 'on' : 'off'}`}>{p.show_online ? 'Online' : 'Oculto'}</span>}
                 </div>
                 <button className="btn sm ghost block" style={{ marginTop: 8 }} onClick={() => openEdit(p)}>
                   <IconEdit size={15} /> Editar

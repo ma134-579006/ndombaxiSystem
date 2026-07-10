@@ -111,9 +111,9 @@ const TENANT_NAV: NavItem[] = [
   {
     key: 'products-group', label: 'Produtos', icon: IconCube, children: [
       { key: 'products', label: 'Criar produtos', icon: IconCube },
+      // Inventário ÚNICO (o antigo 'Inventário' + 'Inventário PRO' + 'Análise de
+      // stock' são agora ABAS dentro desta secção — ver InventoryIntel).
       { key: 'inventory', label: 'Inventário', icon: IconBoxes },
-      { key: 'stock-analysis', label: 'Análise de stock', icon: IconChart, min: 4 },
-      { key: 'inventory-intel', label: 'Inventário PRO', icon: IconTrendUp, min: 3 },
       { key: 'stock-movements', label: 'Movimentos de stock', icon: IconHistory },
       { key: 'purchasing', label: 'Compras', icon: IconCartIn, min: 2 },
       { key: 'promotions', label: 'Promoções', icon: IconTag },
@@ -319,10 +319,10 @@ function TenantPanel() {
       {section === 'subscription' ? <Subscription /> : null}
       {section === 'stores' ? <Stores /> : null}
       {section === 'products' ? <Products /> : null}
-      {section === 'inventory' ? <Inventory /> : null}
+      {/* Inventário ÚNICO com abas (Stock, Análise, ABC, Reposição, Valorização,
+          Antifraude, Transferências, Localização, Auditoria). */}
+      {section === 'inventory' || section === 'inventory-intel' || section === 'stock-analysis' ? <InventoryIntel role={user?.role} /> : null}
       {section === 'stock-movements' ? <StockMovements /> : null}
-      {section === 'stock-analysis' ? <StockAnalysis /> : null}
-      {section === 'inventory-intel' ? <InventoryIntel role={user?.role} /> : null}
       {section === 'purchasing' ? <Purchasing /> : null}
       {section === 'orders' ? <Orders /> : null}
       {section === 'promotions' ? <Promotions /> : null}

@@ -6,13 +6,17 @@ import type {
 } from '../api/types';
 import { IconChart, IconCube, IconSearch, IconShield, IconTruck } from '../components/Icons';
 import { formatKz } from '../format';
+import { Inventory } from './Inventory';
+import { StockAnalysis } from './StockAnalysis';
 
 const isoMinusDays = (d: number) => new Date(Date.now() - d * 86400000).toISOString().slice(0, 10);
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const fmtDT = (s: string) => { try { return new Date(s).toLocaleString('pt-PT'); } catch { return s; } };
 
-type Tab = 'abc' | 'replenish' | 'valuation' | 'fraud' | 'transfers' | 'locations' | 'audit';
+type Tab = 'stock' | 'analysis' | 'abc' | 'replenish' | 'valuation' | 'fraud' | 'transfers' | 'locations' | 'audit';
 const TABS: Array<{ id: Tab; label: string }> = [
+  { id: 'stock', label: '🗃️ Stock' },
+  { id: 'analysis', label: '📊 Análise' },
   { id: 'abc', label: '📦 Curva ABC' },
   { id: 'replenish', label: '📈 Reposição' },
   { id: 'valuation', label: '💰 Valorização' },
@@ -29,21 +33,21 @@ const TABS: Array<{ id: Tab; label: string }> = [
  * mapa de localização e auditoria por funcionário.
  */
 export function InventoryIntel({ role }: { role?: string }) {
-  const [tab, setTab] = useState<Tab>('abc');
+  const [tab, setTab] = useState<Tab>('stock');
   const [stores, setStores] = useState<WarehouseRow[]>([]);
   useEffect(() => { api.inventory.warehouses().then(setStores).catch(() => undefined); }, []);
 
   return (
     <>
-      <div className="content-head">
-        <h2>Inventário PRO</h2>
-        <span className="spacer" />
-      </div>
       <div className="chip-row no-print" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
         {TABS.map((t) => (
           <button key={t.id} className={`btn sm ${tab === t.id ? '' : 'ghost'}`} onClick={() => setTab(t.id)}>{t.label}</button>
         ))}
       </div>
+      {/* Stock e Análise: o inventário básico + a análise, agora ABAS do mesmo
+          Inventário (deixou de haver 'Inventário' e 'Inventário PRO' separados). */}
+      {tab === 'stock' ? <Inventory /> : null}
+      {tab === 'analysis' ? <StockAnalysis /> : null}
       {tab === 'abc' ? <AbcTab stores={stores} /> : null}
       {tab === 'replenish' ? <ReplenishTab stores={stores} /> : null}
       {tab === 'valuation' ? <ValuationTab stores={stores} /> : null}
