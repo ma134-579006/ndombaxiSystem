@@ -688,6 +688,7 @@ export const api = {
     recomputeCosts: () => request<{ ok: boolean }>('POST', '/restaurant/recipes/recompute-costs', {}),
   },
   hotel: {
+    dashboard: () => request<HotelDashboard>('GET', '/hotel/dashboard'),
     roomMap: () => request<HotelRoomMapRow[]>('GET', '/hotel/room-map'),
     createRoom: (dto: Record<string, unknown>) => request<unknown>('POST', '/hotel/rooms', dto),
     removeRoom: (id: string) => request<{ ok: boolean }>('DELETE', `/hotel/rooms/${id}`),

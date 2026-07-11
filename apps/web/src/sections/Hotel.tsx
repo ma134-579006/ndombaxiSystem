@@ -29,6 +29,16 @@ const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00');
 /** Hotelaria — mapa de quartos, reservas e conta do hóspede (folio). */
 export function Hotel() {
   const [tab, setTab] = useState<'rooms' | 'reservations' | 'housekeeping' | 'maintenance'>('rooms');
+  // Deep-link do Centro de Comando: abre no separador pedido (num efeito, não no
+  // inicializador do useState — StrictMode invoca-o 2× e consumia o valor).
+  useEffect(() => {
+    try {
+      const t = sessionStorage.getItem('ndx_hotel_tab');
+      if (t === 'rooms' || t === 'reservations' || t === 'housekeeping' || t === 'maintenance') {
+        setTab(t); sessionStorage.removeItem('ndx_hotel_tab');
+      }
+    } catch { /* sessionStorage indisponível */ }
+  }, []);
   const [rooms, setRooms] = useState<HotelRoomMapRow[]>([]);
   const [reservations, setReservations] = useState<HotelReservationRow[]>([]);
   const [hk, setHk] = useState<HotelHousekeepingRow[]>([]);

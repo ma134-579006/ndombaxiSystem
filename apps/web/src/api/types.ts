@@ -795,6 +795,15 @@ export interface RestaurantDashboard {
   sales: { total: number; online: number; counter: number; invoices: number; dineIn: number };
   menu: { dishesWithRecipe: number; outOfStock: number; lowStock: number };
 }
+export interface HotelDashboardArrival { id: string; number: string; guest: string; room: string; nights: number }
+export interface HotelDashboardDeparture { id: string; number: string; guest: string; room: string; total: number }
+export interface HotelDashboard {
+  rooms: { total: number; available: number; occupied: number; cleaning: number; maintenance: number; blocked: number; occupancyPct: number };
+  inHouse: { reservations: number; guests: number; openFolioValue: number };
+  today: { arrivals: HotelDashboardArrival[]; departures: HotelDashboardDeparture[]; pendingOnline: number };
+  ops: { housekeepingPending: number; maintenanceOpen: number };
+  sales: { total: number; online: number; counter: number; invoices: number };
+}
 export interface ServiceOrderRow { id: string; number: string; customer_name: string | null; equipment_label: string | null; status: string; total: string; assigned_to: string | null; source?: string; created_at: string }
 export interface ServiceOrderItem { id: string; kind: string; product_code: string | null; description: string; unit_price: string; quantity: string; created_at: string }
 export interface ServiceOrderDetail { order: { id: string; number: string; customer_name: string | null; customer_phone: string | null; equipment_id?: string | null; equipment_type: string | null; equipment_label: string | null; equipment_ref: string | null; problem: string | null; diagnosis: string | null; status: string; total: string; assigned_to: string | null; notes: string | null; warranty_days?: number; warranty_until?: string | null }; items: ServiceOrderItem[] }

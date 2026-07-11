@@ -30,6 +30,7 @@ import { Products } from './sections/Products';
 import { Orders } from './sections/Orders';
 import { ServiceHub } from './sections/ServiceHub';
 import { RestaurantHome } from './sections/RestaurantHome';
+import { HotelHome } from './sections/HotelHome';
 import { RestaurantKitchen } from './sections/RestaurantKitchen';
 import { Restaurant } from './sections/Restaurant';
 import { ServiceOrders } from './sections/ServiceOrders';
@@ -265,6 +266,28 @@ function TenantPanel() {
       ];
     }
 
+    // HOSPITALITY: mesma engenharia — o PMS LIDERA (Centro de comando + Quartos
+    // & Reservas), o retalho/financeiro vira backoffice reenquadrado.
+    if (bizType === 'HOSPITALITY') {
+      const byKey = new Map(base.map((g) => [g.key, g] as const));
+      const relabel = (key: string, label: string): NavItem[] => {
+        const g = byKey.get(key); return g ? [{ ...g, label }] : [];
+      };
+      const spine: NavItem[] = [
+        base[0], // Visão geral
+        { key: 'service-hub', label: '🏨 Centro de comando', icon: IconGauge },
+        { key: 'hotel', label: '🛏️ Quartos & Reservas', icon: IconStore },
+      ];
+      const reframed = new Set(['overview', 'products-group', 'movements-group']);
+      const rest = base.slice(1).filter((g) => !reframed.has(g.key));
+      return [
+        ...spine,
+        ...relabel('products-group', '🛎️ Serviços & Stock'),
+        ...relabel('movements-group', '💳 Caixa & Financeiro'),
+        ...rest,
+      ];
+    }
+
     // Mesmo painel base + itens próprios do vertical (logo a seguir à Visão geral).
     const vert: NavItem[] = [{ key: 'service-hub', label: VERTICAL_LABEL[bizType], icon: IconStore }];
     if (bizType === 'RESTAURANT') vert.push({ key: 'restaurant', label: '🍽️ Mesas & Comandas', icon: IconStore });
@@ -308,7 +331,7 @@ function TenantPanel() {
   return (
     <Shell nav={nav} section={safeSection} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
       {section === 'overview' ? <Overview /> : null}
-      {section === 'service-hub' ? (bizType === 'RESTAURANT' ? <RestaurantHome onGo={setSection} /> : <ServiceHub businessType={bizType} onGo={setSection} />) : null}
+      {section === 'service-hub' ? (bizType === 'RESTAURANT' ? <RestaurantHome onGo={setSection} /> : bizType === 'HOSPITALITY' ? <HotelHome onGo={setSection} /> : <ServiceHub businessType={bizType} onGo={setSection} />) : null}
       {section === 'restaurant' ? <Restaurant /> : null}
       {section === 'restaurant-kds' ? <RestaurantKitchen /> : null}
       {section === 'service-orders' ? <ServiceOrders /> : null}
