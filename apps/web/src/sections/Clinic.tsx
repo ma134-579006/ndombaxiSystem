@@ -17,6 +17,13 @@ const hm = (s: string) => { try { return new Date(s).toLocaleTimeString('pt-PT',
 /** Clínica — agenda (marcações), pacientes e consultas. */
 export function Clinic() {
   const [tab, setTab] = useState<'agenda' | 'patients'>('agenda');
+  // Deep-link do Centro de Comando (num efeito — StrictMode-safe).
+  useEffect(() => {
+    try {
+      const t = sessionStorage.getItem('ndx_clinic_tab');
+      if (t === 'agenda' || t === 'patients') { setTab(t); sessionStorage.removeItem('ndx_clinic_tab'); }
+    } catch { /* indisponível */ }
+  }, []);
   const [kpi, setKpi] = useState<{ todayAppointments: number; todayConsultations: number; patients: number; revenue30: number } | null>(null);
   const [day, setDay] = useState(todayISO());
   const [appts, setAppts] = useState<ClinicAppointment[]>([]);

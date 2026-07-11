@@ -804,6 +804,12 @@ export interface HotelDashboard {
   ops: { housekeepingPending: number; maintenanceOpen: number };
   sales: { total: number; online: number; counter: number; invoices: number };
 }
+export interface ClinicAgendaItem { id: string; time: string; patient: string; professional: string; reason: string; overdue: boolean }
+export interface ClinicDashboard {
+  today: { scheduled: number; done: number; noShow: number; cancelled: number; overdue: number; agenda: ClinicAgendaItem[] };
+  patients: { active: number; newToday: number };
+  sales: { total: number; online: number; counter: number; invoices: number };
+}
 export interface ServiceOrderRow { id: string; number: string; customer_name: string | null; equipment_label: string | null; status: string; total: string; assigned_to: string | null; source?: string; created_at: string }
 export interface ServiceOrderItem { id: string; kind: string; product_code: string | null; description: string; unit_price: string; quantity: string; created_at: string }
 export interface ServiceOrderDetail { order: { id: string; number: string; customer_name: string | null; customer_phone: string | null; equipment_id?: string | null; equipment_type: string | null; equipment_label: string | null; equipment_ref: string | null; problem: string | null; diagnosis: string | null; status: string; total: string; assigned_to: string | null; notes: string | null; warranty_days?: number; warranty_until?: string | null }; items: ServiceOrderItem[] }

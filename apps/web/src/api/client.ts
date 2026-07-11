@@ -711,6 +711,7 @@ export const api = {
   },
   clinic: {
     metrics: () => request<{ todayAppointments: number; todayConsultations: number; patients: number; revenue30: number }>('GET', '/clinic/metrics'),
+    dashboard: () => request<ClinicDashboard>('GET', '/clinic/dashboard'),
     patients: (search?: string) => request<ClinicPatient[]>('GET', `/clinic/patients${search ? `?search=${encodeURIComponent(search)}` : ''}`),
     createPatient: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/patients', dto),
     patient: (id: string) => request<ClinicPatientDetail>('GET', `/clinic/patients/${id}`),

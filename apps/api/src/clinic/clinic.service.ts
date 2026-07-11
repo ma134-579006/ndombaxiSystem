@@ -152,4 +152,69 @@ export class ClinicService {
       return { todayAppointments: today[0]?.n ?? 0, todayConsultations: done[0]?.n ?? 0, patients: patients[0]?.n ?? 0, revenue30: rev[0]?.s ?? 0 };
     });
   }
+
+  /**
+   * CENTRO DE COMANDO da clínica (mesma engenharia do restaurante/hotel):
+   * agenda de HOJE (com pacientes/profissional/hora e estado), fila de espera,
+   * KPIs do dia, pacientes, e vendas faturadas por canal. Só LEITURA.
+   */
+  async getDashboard(schema: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      // ── Hoje: contagens por estado + próximas ────────────────
+      const counts = await tx.$queryRaw<{ scheduled: number; done_appt: number; no_show: number; cancelled: number; overdue: number }[]>(Prisma.sql`
+        SELECT COUNT(*) FILTER (WHERE status = 'SCHEDULED')::int AS scheduled,
+               COUNT(*) FILTER (WHERE status = 'DONE')::int AS done_appt,
+               COUNT(*) FILTER (WHERE status = 'NO_SHOW')::int AS no_show,
+               COUNT(*) FILTER (WHERE status = 'CANCELLED')::int AS cancelled,
+               COUNT(*) FILTER (WHERE status = 'SCHEDULED' AND scheduled_at < now())::int AS overdue
+        FROM clinic_appointments WHERE scheduled_at::date = CURRENT_DATE`);
+      const consultsToday = await tx.$queryRaw<{ n: number; fee: number }[]>(Prisma.sql`
+        SELECT COUNT(*)::int AS n, COALESCE(SUM(fee),0)::float8 AS fee
+        FROM clinic_consultations WHERE created_at::date = CURRENT_DATE`);
+
+      // Agenda do dia (SCHEDULED), ordenada por hora, com o essencial p/ a receção.
+      const agenda = await tx.$queryRaw<{ id: string; scheduled_at: Date; patient_name: string | null; professional: string | null; reason: string | null; status: string; overdue: boolean }[]>(Prisma.sql`
+        SELECT id, scheduled_at, patient_name, professional, reason, status,
+               (scheduled_at < now()) AS overdue
+        FROM clinic_appointments
+        WHERE scheduled_at::date = CURRENT_DATE AND status = 'SCHEDULED'
+        ORDER BY scheduled_at`);
+
+      // ── Pacientes ────────────────────────────────────────────
+      const patients = await tx.$queryRaw<{ active: number; new_today: number }[]>(Prisma.sql`
+        SELECT COUNT(*) FILTER (WHERE is_active = TRUE)::int AS active,
+               COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE)::int AS new_today
+        FROM clinic_patients`);
+
+      // ── Vendas faturadas de HOJE por canal (mesma fonte fiscal) ──
+      const regWeb = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('web_orders')::text AS r`);
+      const onlineExpr = regWeb[0]?.r
+        ? Prisma.sql`COALESCE(SUM(gross_total) FILTER (WHERE id IN (SELECT invoice_id FROM web_orders WHERE invoice_id IS NOT NULL)), 0)::float8`
+        : Prisma.sql`0::float8`;
+      const sales = await tx.$queryRaw<{ total: number; online: number; invoices: number }[]>(Prisma.sql`
+        SELECT COALESCE(SUM(gross_total), 0)::float8 AS total, ${onlineExpr} AS online, COUNT(*)::int AS invoices
+        FROM invoices WHERE invoice_date = CURRENT_DATE AND status = 'N' AND doc_type IN ('FT','FS')`);
+
+      const c = counts[0] ?? { scheduled: 0, done_appt: 0, no_show: 0, cancelled: 0, overdue: 0 };
+      const ct = consultsToday[0] ?? { n: 0, fee: 0 };
+      const p = patients[0] ?? { active: 0, new_today: 0 };
+      const sl = sales[0] ?? { total: 0, online: 0, invoices: 0 };
+      const online = Math.round(sl.online);
+      return {
+        today: {
+          scheduled: c.scheduled, done: ct.n, noShow: c.no_show, cancelled: c.cancelled, overdue: c.overdue,
+          agenda: agenda.map((a) => ({
+            id: a.id,
+            time: a.scheduled_at.toISOString().slice(11, 16),
+            patient: a.patient_name ?? '—',
+            professional: a.professional ?? '—',
+            reason: a.reason ?? '',
+            overdue: a.overdue,
+          })),
+        },
+        patients: { active: p.active, newToday: p.new_today },
+        sales: { total: Math.round(sl.total), online, counter: Math.max(0, Math.round(sl.total) - online), invoices: sl.invoices },
+      };
+    });
+  }
 }

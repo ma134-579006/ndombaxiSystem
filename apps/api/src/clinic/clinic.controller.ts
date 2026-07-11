@@ -19,6 +19,11 @@ export class ClinicController {
   @ApiOperation({ summary: 'KPIs da clínica (marcações hoje, consultas, pacientes, receita)' })
   metrics() { return this.svc.metrics(this.ctx.requireTenantSchema()); }
 
+  @Get('dashboard')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Centro de comando da clínica (agenda de hoje, fila, pacientes, vendas)' })
+  dashboard() { return this.svc.getDashboard(this.ctx.requireTenantSchema()); }
+
   // ── Pacientes ──────────────────────────────────────────────
   @Get('patients')
   @Roles(Role.CASHIER)
