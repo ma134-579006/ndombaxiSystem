@@ -204,7 +204,7 @@ function SigningKeyCard() {
 
   const provision = async () => {
     const msg = st?.hasKey
-      ? 'RODAR a chave da plataforma? A versão incrementa e o portal da AGT terá de receber o novo public.pem. Os documentos já assinados continuam verificáveis.'
+      ? 'RODAR a chave da plataforma (nova RSA-2048)? A versão incrementa e o portal da AGT terá de receber o novo public.txt. Os documentos já assinados continuam verificáveis.'
       : 'Gerar o par de chaves RSA-2048 da plataforma?';
     if (!(await confirmDialog({ message: msg, danger: !!st?.hasKey }))) return;
     setBusy(true);
@@ -251,11 +251,12 @@ function SigningKeyCard() {
         <strong> como ficheiro .txt</strong> (o portal não aceita .pem). No campo «Versão da Chave Pública» do portal indica <strong>{st?.hasKey ? st.keyVersion : 1}</strong>
         {' '}— começa em 1 e incrementa a cada rotação da chave.
       </p>
-      {st?.hasKey && st.modulusBits > 1024 ? (
+      {st?.hasKey && st.modulusBits < 2048 ? (
         <div className="banner warn" style={{ fontSize: 12.5 }}>
-          ⚠ A chave atual é RSA-{st.modulusBits}: a assinatura tem {st.modulusBits === 2048 ? 344 : '—'} caracteres
-          e <strong>não cabe no campo Hash do SAF-T</strong> (máx. 172 — o modelo oficial pressupõe RSA-1024,
-          como em Portugal). Roda a chave para RSA-1024 antes de submeter ao portal.
+          ⚠ A chave atual é RSA-{st.modulusBits}: a documentação oficial da Faturação
+          Eletrónica AGT (2026) exige <strong>RSA mínimo 2048 bits</strong>.
+          Roda a chave para RSA-2048 antes de submeter ao portal (no campo Hash do
+          SAF-T continua a ir o hash da cadeia — por desenho, não é bloqueio).
         </div>
       ) : null}
       {st?.hasKey ? (
@@ -267,7 +268,7 @@ function SigningKeyCard() {
       ) : null}
       <div className="row" style={{ gap: 8 }}>
         <button className="btn" onClick={provision} disabled={busy}>
-          {busy ? 'A processar…' : st?.hasKey ? '↻ Rodar chave (nova versão, RSA-1024)' : 'Gerar par de chaves RSA-1024'}
+          {busy ? 'A processar…' : st?.hasKey ? '↻ Rodar chave (nova versão, RSA-2048)' : 'Gerar par de chaves RSA-2048'}
         </button>
         <button className="btn ghost" onClick={exportPem} disabled={busy || !st?.hasKey}>
           ⬇ Exportar chave pública (.txt p/ AGT)

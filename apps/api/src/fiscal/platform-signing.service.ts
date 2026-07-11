@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { generateSigningKeyPair, RSA_DOC_MODULUS_LENGTH } from '@nexus/agt-xml';
+import { generateSigningKeyPair, RSA_DOC_MODULUS_LENGTH, RSA_MODULUS_LENGTH } from '@nexus/agt-xml';
 import { createHash } from 'node:crypto';
 import { decryptSecret, encryptSecret } from '../common/crypto/secret-box';
 import type { Env } from '../config/env.validation';
@@ -74,7 +74,7 @@ export class PlatformSigningService {
     const s = row ? this.parseSettings(row.settings) : null;
     if (!s) {
       return {
-        hasKey: false, keyVersion: 0, algorithm: 'RSA-SHA256', modulusBits: RSA_DOC_MODULUS_LENGTH,
+        hasKey: false, keyVersion: 0, algorithm: 'RSA-SHA256', modulusBits: RSA_MODULUS_LENGTH,
         createdAt: null, publicKeyFingerprint: null, previousVersions: [],
       };
     }
@@ -91,13 +91,16 @@ export class PlatformSigningService {
   }
 
   /**
-   * Gera (ou RODA) o par de chaves da plataforma. Por omissão RSA-1024 —
-   * PREVENÇÃO: é o único tamanho cuja assinatura (172 base64) cabe no campo
-   * Hash do SAF-T (máx. 172), como no modelo português que a AGT herda. A
-   * pública anterior vai para o histórico; a privada anterior é destruída.
+   * Gera (ou RODA) o par de chaves da plataforma. Por omissão **RSA-2048** —
+   * a documentação oficial da Faturação Eletrónica AGT (2026) exige "RSA
+   * mínimo 2048 bits" para a chave do produtor registada no Portal do
+   * Parceiro (assinatura JWS). NOTA: a assinatura 2048 (344 base64) não cabe
+   * no campo Hash do SAF-T (máx. 172) — aí o builder degrada para o hash
+   * SHA-256 da cadeia, por desenho. RSA-1024 fica como opção legada explícita.
+   * A pública anterior vai para o histórico; a privada anterior é destruída.
    */
-  async provision(modulusBits: number = RSA_DOC_MODULUS_LENGTH): Promise<PlatformSigningStatus> {
-    const bits = modulusBits === 2048 ? 2048 : RSA_DOC_MODULUS_LENGTH;
+  async provision(modulusBits: number = RSA_MODULUS_LENGTH): Promise<PlatformSigningStatus> {
+    const bits = modulusBits === RSA_DOC_MODULUS_LENGTH ? RSA_DOC_MODULUS_LENGTH : RSA_MODULUS_LENGTH;
     const { privateKeyPem, publicKeyPem } = generateSigningKeyPair(bits);
     const privateKeyEnc = encryptSecret(privateKeyPem, this.encKey);
     const now = new Date().toISOString();
