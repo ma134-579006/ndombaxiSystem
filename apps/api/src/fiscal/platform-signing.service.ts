@@ -126,7 +126,11 @@ export class PlatformSigningService {
     return this.status();
   }
 
-  /** public.pem para anexar no portal da AGT (404 se ainda não houver chave). */
+  /**
+   * Chave pública para anexar no portal da AGT. O portal EXIGE o ficheiro em
+   * .txt (não aceita .pem), por isso o nome é `public.txt` — o conteúdo é o
+   * mesmo bloco PEM (texto), só muda a extensão. 404 se ainda não houver chave.
+   */
   async exportPublicKey(): Promise<{ fileName: string; pem: string; keyVersion: number; algorithm: string }> {
     const row = await this.getRow();
     const s = row ? this.parseSettings(row.settings) : null;
@@ -135,7 +139,7 @@ export class PlatformSigningService {
     if (!/^-----BEGIN PUBLIC KEY-----[\s\S]+-----END PUBLIC KEY-----\s*$/.test(s.publicKey)) {
       throw new NotFoundException('Chave pública corrompida — gere uma nova chave.');
     }
-    return { fileName: 'public.pem', pem: s.publicKey, keyVersion: s.keyVersion, algorithm: s.algorithm };
+    return { fileName: 'public.txt', pem: s.publicKey, keyVersion: s.keyVersion, algorithm: s.algorithm };
   }
 
   /** Privada decifrada — SÓ para o motor de assinatura (nunca sai por API). */

@@ -210,7 +210,7 @@ function SigningKeyCard() {
     setBusy(true);
     try {
       setSt(await api.fiscal.provisionSigningKey());
-      toast.success('Chave da plataforma pronta. Exporta o public.pem e anexa no portal da AGT.');
+      toast.success('Chave da plataforma pronta. Exporta a chave pública (.txt) e anexa no portal da AGT.');
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao gerar a chave.'); }
     finally { setBusy(false); }
   };
@@ -219,14 +219,15 @@ function SigningKeyCard() {
     setBusy(true);
     try {
       const r = await api.fiscal.exportPublicKey();
-      // Descarrega o public.pem no browser — só a chave PÚBLICA sai do servidor.
-      const blob = new Blob([r.pem], { type: 'application/x-pem-file' });
+      // Descarrega a chave PÚBLICA como .txt (o portal da AGT exige .txt, não
+      // aceita .pem). Conteúdo = mesmo bloco PEM; só a pública sai do servidor.
+      const blob = new Blob([r.pem], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = r.fileName;
+      a.href = url; a.download = r.fileName || 'public.txt';
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
-      toast.success(`public.pem exportado (versão ${r.keyVersion}, ${r.algorithm}).`);
+      toast.success(`Chave pública exportada como ${r.fileName || 'public.txt'} (versão ${r.keyVersion}, ${r.algorithm}) — anexa este .txt no portal da AGT.`);
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao exportar.'); }
     finally { setBusy(false); }
   };
@@ -246,8 +247,8 @@ function SigningKeyCard() {
       </div>
       <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
         Par RSA do PRODUTOR do software (requisito da certificação): a chave privada assina os
-        documentos e <strong>nunca sai do servidor</strong>; a pública (public.pem) anexa-se no portal
-        da AGT. No campo «Versão da Chave Pública» do portal indica <strong>{st?.hasKey ? st.keyVersion : 1}</strong>
+        documentos e <strong>nunca sai do servidor</strong>; a pública anexa-se no portal da AGT
+        <strong> como ficheiro .txt</strong> (o portal não aceita .pem). No campo «Versão da Chave Pública» do portal indica <strong>{st?.hasKey ? st.keyVersion : 1}</strong>
         {' '}— começa em 1 e incrementa a cada rotação da chave.
       </p>
       {st?.hasKey && st.modulusBits > 1024 ? (
@@ -269,7 +270,7 @@ function SigningKeyCard() {
           {busy ? 'A processar…' : st?.hasKey ? '↻ Rodar chave (nova versão, RSA-1024)' : 'Gerar par de chaves RSA-1024'}
         </button>
         <button className="btn ghost" onClick={exportPem} disabled={busy || !st?.hasKey}>
-          ⬇ Exportar public.pem
+          ⬇ Exportar chave pública (.txt p/ AGT)
         </button>
       </div>
     </div>
