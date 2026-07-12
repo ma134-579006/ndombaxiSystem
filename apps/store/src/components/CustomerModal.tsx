@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { GOOGLE_CLIENT_ID } from '../config';
 import { setSession, clearSession } from '../store/customer';
-import type { CustomerProfile, CustomerSession, MyOrderRow } from '../api/types';
+import type { CustomerProfile, CustomerSession, MyClinical, MyOrderRow } from '../api/types';
 import { formatKz } from '../format';
 import { IconClose, IconStore } from './Icons';
 
@@ -31,24 +31,26 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function CustomerModal({
-  code, session, onClose, onOpenOrder,
+  code, session, onClose, onOpenOrder, businessType,
 }: {
   code: string;
   session: CustomerSession | null;
   onClose(): void;
   onOpenOrder(orderId: string): void;
+  businessType?: string;
 }) {
+  const clinic = businessType === 'CLINIC';
   return (
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="mh">
-          <h3>{session ? 'A minha conta' : 'Entrar'}</h3>
+          <h3>{session ? (clinic ? 'A minha área' : 'A minha conta') : 'Entrar'}</h3>
           <span className="spacer" />
           <button className="icon-x" onClick={onClose}><IconClose size={22} /></button>
         </div>
         <div className="mb">
           {session
-            ? <Account code={code} session={session} onClose={onClose} onOpenOrder={onOpenOrder} />
+            ? <Account code={code} session={session} onClose={onClose} onOpenOrder={onOpenOrder} clinic={clinic} />
             : <Login code={code} onClose={onClose} />}
         </div>
       </div>
@@ -181,13 +183,83 @@ function ProfileEditor({ code, token }: { code: string; token: string }) {
   );
 }
 
+const RX_ST: Record<string, string> = { ISSUED: 'Por dispensar', DISPENSED: 'Dispensada', CANCELLED: 'Cancelada' };
+const APPT_ST: Record<string, string> = { SCHEDULED: 'Marcada', DONE: 'Realizada', CANCELLED: 'Cancelada', NO_SHOW: 'Faltou' };
+const EXAM_ST: Record<string, string> = { REQUESTED: 'Pedido', COLLECTED: 'Colhido', IN_LAB: 'No laboratório', DONE: 'Concluído', DELIVERED: 'Entregue' };
+
+/** "A minha saúde" — consultas, receitas e resultados de exames do paciente. */
+function MyHealth({ code, token }: { code: string; token: string }) {
+  const [data, setData] = useState<MyClinical | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api.myClinical(code, token)
+      .then((d) => { if (alive) setData(d); })
+      .catch((e) => { if (alive) setErr(e instanceof ApiError ? e.message : 'Falha ao carregar a sua saúde.'); });
+    return () => { alive = false; };
+  }, [code, token]);
+
+  if (err) return <div className="banner danger" style={{ marginTop: 14 }}>{err}</div>;
+  if (!data) return <p className="muted" style={{ marginTop: 14 }}>A carregar a sua saúde…</p>;
+  if (!data.patient) {
+    return (
+      <div className="banner" style={{ marginTop: 14, background: 'var(--soft, #f3f6fb)', padding: 12, borderRadius: 10 }}>
+        <strong>🩺 A minha saúde</strong>
+        <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+          Ainda não encontrámos a sua ficha clínica. Marque uma consulta com este e-mail e o seu histórico aparece aqui.
+        </p>
+      </div>
+    );
+  }
+  const { appointments, prescriptions, exams } = data;
+  return (
+    <div style={{ marginTop: 16 }}>
+      <h4 style={{ margin: '0 0 8px' }}>🩺 A minha saúde</h4>
+
+      <div className="hx-block">
+        <div className="hx-ttl">📅 Consultas ({appointments.length})</div>
+        {appointments.length === 0 ? <p className="muted" style={{ fontSize: 13, margin: 0 }}>Sem consultas.</p>
+          : appointments.slice(0, 6).map((a) => (
+            <div key={a.id} className="hx-row">
+              <div><strong>{a.when_label}</strong>{a.professional ? ` · ${a.professional}` : ''}<div className="muted" style={{ fontSize: 12 }}>{a.reason || 'consulta'}</div></div>
+              <span className="status-pill">{APPT_ST[a.status] ?? a.status}</span>
+            </div>
+          ))}
+      </div>
+
+      <div className="hx-block">
+        <div className="hx-ttl">💊 Receitas ({prescriptions.length})</div>
+        {prescriptions.length === 0 ? <p className="muted" style={{ fontSize: 13, margin: 0 }}>Sem receitas.</p>
+          : prescriptions.slice(0, 6).map((r) => (
+            <div key={r.id} className="hx-row">
+              <div><strong>{r.number}</strong> · {r.item_count} medicamento(s)<div className="muted" style={{ fontSize: 12 }}>{r.professional || '—'} · {r.issued}</div></div>
+              <span className="status-pill">{RX_ST[r.status] ?? r.status}</span>
+            </div>
+          ))}
+      </div>
+
+      <div className="hx-block">
+        <div className="hx-ttl">🧪 Exames & resultados ({exams.length})</div>
+        {exams.length === 0 ? <p className="muted" style={{ fontSize: 13, margin: 0 }}>Sem exames.</p>
+          : exams.slice(0, 6).map((e) => (
+            <div key={e.id} className="hx-row">
+              <div><strong>{e.exam_type}</strong><div className="muted" style={{ fontSize: 12 }}>{e.requested}{e.result_text && ['DONE', 'DELIVERED'].includes(e.status) ? ` · 📄 ${e.result_text.slice(0, 60)}` : ''}</div></div>
+              <span className="status-pill">{EXAM_ST[e.status] ?? e.status}</span>
+            </div>
+          ))}
+      </div>
+    </div>
+  );
+}
+
 function Account({
-  code, session, onClose, onOpenOrder,
+  code, session, onClose, onOpenOrder, clinic,
 }: {
   code: string;
   session: CustomerSession;
   onClose(): void;
   onOpenOrder(orderId: string): void;
+  clinic?: boolean;
 }) {
   const [orders, setOrders] = useState<MyOrderRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -211,9 +283,11 @@ function Account({
         <button className="btn ghost" onClick={() => { clearSession(code); onClose(); }}>Sair</button>
       </div>
 
+      {clinic ? <MyHealth code={code} token={session.token} /> : null}
+
       <ProfileEditor code={code} token={session.token} />
 
-      <h4 style={{ margin: '18px 0 8px' }}>As minhas encomendas</h4>
+      <h4 style={{ margin: '18px 0 8px' }}>{clinic ? 'As minhas compras na farmácia' : 'As minhas encomendas'}</h4>
       {err ? <div className="banner danger">{err}</div>
         : orders == null ? <p className="muted">A carregar…</p>
         : orders.length === 0 ? <p className="muted">Ainda não tens encomendas nesta loja.</p>

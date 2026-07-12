@@ -34,6 +34,71 @@ export class ClinicService {
     });
   }
 
+  /**
+   * Portal do Paciente: garante um clinic_patient ligado ao CLIENTE da loja
+   * (por email → customer_id). Idempotente. Devolve o patientId — permite ligar
+   * a marcação online a uma ficha real, e a área "A minha saúde" reconhecê-la.
+   */
+  async ensurePatientForCustomer(schema: string, email: string, name: string, phone?: string): Promise<string | null> {
+    const e = email.trim().toLowerCase();
+    if (!e) return null;
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const cust = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM customers WHERE lower(email) = ${e} LIMIT 1`);
+      const customerId = cust[0]?.id ?? null;
+      if (customerId) {
+        const linked = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM clinic_patients WHERE customer_id = ${customerId}::uuid AND is_active = TRUE LIMIT 1`);
+        if (linked[0]) return linked[0].id;
+      }
+      // por nome+telefone, para não duplicar fichas já criadas na receção
+      if (phone?.trim()) {
+        const byPhone = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM clinic_patients WHERE phone = ${phone.trim()} AND is_active = TRUE LIMIT 1`);
+        if (byPhone[0]) {
+          if (customerId) await tx.$executeRaw(Prisma.sql`UPDATE clinic_patients SET customer_id = ${customerId}::uuid WHERE id = ${byPhone[0].id}::uuid AND customer_id IS NULL`);
+          return byPhone[0].id;
+        }
+      }
+      const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+        INSERT INTO clinic_patients (customer_id, name, phone)
+        VALUES (${customerId}::uuid, ${name.trim() || 'Paciente'}, ${phone?.trim() || null}) RETURNING id`);
+      return rows[0].id;
+    });
+  }
+
+  /**
+   * "A minha saúde" (loja, cliente autenticado): a linha do tempo clínica do
+   * paciente ligado a este email — consultas/marcações, receitas e exames. Só
+   * LEITURA e só o que é do próprio. Guardado por to_regclass (tenant sem tabelas
+   * hospitalares devolve estrutura vazia).
+   */
+  async myClinical(schema: string, email: string) {
+    const e = email.trim().toLowerCase();
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const empty = { patient: null as null | { id: string; name: string }, appointments: [] as unknown[], prescriptions: [] as unknown[], exams: [] as unknown[] };
+      const reg = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('clinic_prescriptions')::text AS r`);
+      if (!reg[0]?.r) return empty;
+      const pats = await tx.$queryRaw<{ id: string; name: string }[]>(Prisma.sql`
+        SELECT p.id, p.name FROM clinic_patients p
+        LEFT JOIN customers c ON c.id = p.customer_id
+        WHERE p.is_active = TRUE AND lower(c.email) = ${e}
+        ORDER BY p.created_at LIMIT 5`);
+      if (!pats.length) return empty;
+      const ids = pats.map((p) => p.id);
+      const appointments = await tx.$queryRaw(Prisma.sql`
+        SELECT id, to_char(scheduled_at AT TIME ZONE 'Africa/Luanda', 'YYYY-MM-DD HH24:MI') AS when_label,
+               professional, reason, status
+        FROM clinic_appointments WHERE patient_id = ANY(${ids}::uuid[])
+        ORDER BY scheduled_at DESC LIMIT 50`);
+      const prescriptions = await tx.$queryRaw(Prisma.sql`
+        SELECT id, number, professional, status, to_char(issued_at AT TIME ZONE 'Africa/Luanda', 'YYYY-MM-DD') AS issued,
+               (SELECT COUNT(*)::int FROM clinic_prescription_items i WHERE i.prescription_id = p.id) AS item_count
+        FROM clinic_prescriptions p WHERE patient_id = ANY(${ids}::uuid[]) ORDER BY issued_at DESC LIMIT 50`);
+      const exams = await tx.$queryRaw(Prisma.sql`
+        SELECT id, exam_type, status, result_text, to_char(requested_at AT TIME ZONE 'Africa/Luanda', 'YYYY-MM-DD') AS requested
+        FROM clinic_exams WHERE patient_id = ANY(${ids}::uuid[]) ORDER BY requested_at DESC LIMIT 50`);
+      return { patient: { id: pats[0].id, name: pats[0].name }, appointments, prescriptions, exams };
+    });
+  }
+
   // ── Pacientes ──────────────────────────────────────────────
   listPatients(schema: string, search?: string) {
     const s = (search ?? '').trim();

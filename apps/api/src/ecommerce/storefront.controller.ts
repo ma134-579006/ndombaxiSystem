@@ -157,13 +157,26 @@ export class StorefrontController {
   @ApiOperation({ summary: 'Paciente marca uma consulta pela loja (vertical Clínica)' })
   async appointment(@Param('code') code: string, @Body() dto: OnlineAppointmentDto) {
     const tenant = await this.resolver.resolveByCode(code);
-    const r = await this.clinic.createAppointment(tenant.schema, {
-      patientName: dto.patientName, professional: dto.professional, scheduledAt: dto.scheduledAt, reason: dto.reason,
-    });
+    // Com email: liga a marcação a uma FICHA de paciente do cliente (para a área
+    // "A minha saúde" reconhecê-la). Best-effort — nunca impede a marcação.
+    let patientId: string | undefined;
     if (dto.patientEmail) {
-      await this.customers.upsertCustomer(tenant.schema, dto.patientEmail.trim().toLowerCase(), dto.patientName || 'Paciente', { phone: dto.patientPhone }).catch(() => undefined);
+      const em = dto.patientEmail.trim().toLowerCase();
+      await this.customers.upsertCustomer(tenant.schema, em, dto.patientName || 'Paciente', { phone: dto.patientPhone }).catch(() => undefined);
+      patientId = (await this.clinic.ensurePatientForCustomer(tenant.schema, em, dto.patientName || 'Paciente', dto.patientPhone).catch(() => null)) ?? undefined;
     }
+    const r = await this.clinic.createAppointment(tenant.schema, {
+      patientId, patientName: dto.patientName, professional: dto.professional, scheduledAt: dto.scheduledAt, reason: dto.reason,
+    });
     return { ok: true, id: r[0]?.id };
+  }
+
+  @Get('my/clinical')
+  @ApiOperation({ summary: 'A minha saúde — consultas, receitas e exames do paciente autenticado (Portal do Paciente)' })
+  async myClinical(@Param('code') code: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.clinic.myClinical(tenant.schema, claims.email);
   }
 
   @Get('pages/:slug')

@@ -107,7 +107,7 @@ export function Storefront() {
 
   const openOrder = (orderId: string) => { setAccountOpen(false); setTrackId(orderId); setView('track'); };
   const accountModal = accountOpen
-    ? <CustomerModal code={code} session={customer} onClose={() => setAccountOpen(false)} onOpenOrder={openOrder} />
+    ? <CustomerModal code={code} session={customer} onClose={() => setAccountOpen(false)} onOpenOrder={openOrder} businessType={data?.businessType} />
     : null;
 
   // Conta obrigatória para finalizar/track/chat (estilo marketplace).

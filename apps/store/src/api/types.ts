@@ -174,3 +174,13 @@ export interface MyOrderRow {
   gross_total: string;
   created_at: string;
 }
+// Portal do Paciente — "A minha saúde"
+export interface MyClinicalAppt { id: string; when_label: string; professional: string | null; reason: string | null; status: string }
+export interface MyClinicalRx { id: string; number: string; professional: string | null; status: string; issued: string; item_count: number }
+export interface MyClinicalExam { id: string; exam_type: string; status: string; result_text: string | null; requested: string }
+export interface MyClinical {
+  patient: { id: string; name: string } | null;
+  appointments: MyClinicalAppt[];
+  prescriptions: MyClinicalRx[];
+  exams: MyClinicalExam[];
+}
