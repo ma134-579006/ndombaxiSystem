@@ -199,10 +199,15 @@ function ServiceRequestModal({ code, prefill, onClose }: { code: string; prefill
 }
 
 function AppointmentModal({ code, prefill, onClose }: { code: string; prefill?: { name?: string; phone?: string; email?: string }; onClose(): void }) {
-  const [f, setF] = useState({ patientName: prefill?.name || '', patientPhone: prefill?.phone || '', patientEmail: prefill?.email || '', professional: '', date: today(), time: '09:00', reason: '' });
+  const [f, setF] = useState({ patientName: prefill?.name || '', patientPhone: prefill?.phone || '', patientEmail: prefill?.email || '', professional: '', specialty: '', date: today(), time: '09:00', reason: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  // Portal do Paciente: escolher o médico REAL por especialidade (fallback a texto).
+  const [docs, setDocs] = useState<{ name: string; specialty: string | null }[]>([]);
+  useEffect(() => { api.professionals(code).then((r) => setDocs(r.professionals || [])).catch(() => setDocs([])); }, [code]);
+  const specialties = Array.from(new Set(docs.map((d) => d.specialty).filter(Boolean))) as string[];
+  const docsInSpecialty = f.specialty ? docs.filter((d) => d.specialty === f.specialty) : docs;
   const submit = async () => {
     if (!f.patientName.trim() || !f.patientPhone.trim()) { setErr('Indique o seu nome e telefone.'); return; }
     setBusy(true); setErr(null);
@@ -226,7 +231,24 @@ function AppointmentModal({ code, prefill, onClose }: { code: string; prefill?: 
             <div className="field"><label>Dia</label><input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>
             <div className="field"><label>Hora</label><input type="time" value={f.time} onChange={(e) => setF({ ...f, time: e.target.value })} /></div>
           </div>
-          <div className="field"><label>Profissional (opcional)</label><input value={f.professional} onChange={(e) => setF({ ...f, professional: e.target.value })} placeholder="Dr(a). …" /></div>
+          {docs.length > 0 ? (
+            <>
+              {specialties.length > 0 ? (
+                <div className="field"><label>Especialidade</label>
+                  <select value={f.specialty} onChange={(e) => setF({ ...f, specialty: e.target.value, professional: '' })}>
+                    <option value="">Todas as especialidades</option>
+                    {specialties.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select></div>
+              ) : null}
+              <div className="field"><label>Médico</label>
+                <select value={f.professional} onChange={(e) => setF({ ...f, professional: e.target.value })}>
+                  <option value="">Sem preferência</option>
+                  {docsInSpecialty.map((d) => <option key={d.name} value={d.name}>{d.name}{d.specialty ? ` — ${d.specialty}` : ''}</option>)}
+                </select></div>
+            </>
+          ) : (
+            <div className="field"><label>Profissional (opcional)</label><input value={f.professional} onChange={(e) => setF({ ...f, professional: e.target.value })} placeholder="Dr(a). …" /></div>
+          )}
           <div className="field"><label>Motivo (opcional)</label><input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="ex.: consulta geral" /></div>
           <div className="field"><label>O seu nome</label><input value={f.patientName} onChange={(e) => setF({ ...f, patientName: e.target.value })} /></div>
           <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

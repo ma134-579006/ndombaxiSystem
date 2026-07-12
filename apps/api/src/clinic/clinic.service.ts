@@ -18,6 +18,22 @@ export class ClinicService {
     private readonly invoices: InvoiceService,
   ) {}
 
+  /**
+   * Portal do Paciente (loja online, PÚBLICO): médicos disponíveis para marcação,
+   * agrupáveis por especialidade. Guardado por to_regclass — clínicas cujo tenant
+   * ainda não migrou as tabelas hospitalares devolvem lista vazia (sem rebentar).
+   */
+  async publicProfessionals(schema: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const reg = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('clinic_professionals')::text AS r`);
+      if (!reg[0]?.r) return [] as { name: string; specialty: string | null }[];
+      return tx.$queryRaw<{ name: string; specialty: string | null }[]>(Prisma.sql`
+        SELECT name, specialty FROM clinic_professionals
+        WHERE is_active = TRUE AND category = 'MEDICO'
+        ORDER BY specialty NULLS LAST, name`);
+    });
+  }
+
   // ── Pacientes ──────────────────────────────────────────────
   listPatients(schema: string, search?: string) {
     const s = (search ?? '').trim();

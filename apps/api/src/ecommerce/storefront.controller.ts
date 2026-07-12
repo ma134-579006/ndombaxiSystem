@@ -146,6 +146,13 @@ export class StorefrontController {
     return { ok: true, id: r.id };
   }
 
+  @Get('professionals')
+  @ApiOperation({ summary: 'Médicos disponíveis para marcação (Portal do Paciente — vertical Clínica)' })
+  async professionals(@Param('code') code: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    return { businessType: tenant.businessType, professionals: await this.clinic.publicProfessionals(tenant.schema) };
+  }
+
   @Post('appointment')
   @ApiOperation({ summary: 'Paciente marca uma consulta pela loja (vertical Clínica)' })
   async appointment(@Param('code') code: string, @Body() dto: OnlineAppointmentDto) {

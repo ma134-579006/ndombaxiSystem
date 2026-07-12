@@ -125,4 +125,6 @@ export const api = {
     request<{ ok: true; id: string }>('POST', `/store/${enc(code)}/service-request`, input),
   appointment: (code: string, input: { patientName: string; patientPhone?: string; patientEmail?: string; professional?: string; scheduledAt: string; reason?: string }) =>
     request<{ ok: true; id: string }>('POST', `/store/${enc(code)}/appointment`, input),
+  professionals: (code: string) =>
+    request<{ businessType: string; professionals: { name: string; specialty: string | null }[] }>('GET', `/store/${enc(code)}/professionals`),
 };
