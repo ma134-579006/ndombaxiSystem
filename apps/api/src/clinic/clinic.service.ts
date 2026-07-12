@@ -173,8 +173,11 @@ export class ClinicService {
         FROM clinic_consultations WHERE created_at::date = CURRENT_DATE`);
 
       // Agenda do dia (SCHEDULED), ordenada por hora, com o essencial p/ a receção.
-      const agenda = await tx.$queryRaw<{ id: string; scheduled_at: Date; patient_name: string | null; professional: string | null; reason: string | null; status: string; overdue: boolean }[]>(Prisma.sql`
-        SELECT id, scheduled_at, patient_name, professional, reason, status,
+      // A hora é formatada na hora LOCAL de Angola (Africa/Luanda) — senão
+      // aparecia em UTC (uma marcação das 08:30 mostrava 07:30).
+      const agenda = await tx.$queryRaw<{ id: string; time_label: string; patient_name: string | null; professional: string | null; reason: string | null; status: string; overdue: boolean }[]>(Prisma.sql`
+        SELECT id, to_char(scheduled_at AT TIME ZONE 'Africa/Luanda', 'HH24:MI') AS time_label,
+               patient_name, professional, reason, status,
                (scheduled_at < now()) AS overdue
         FROM clinic_appointments
         WHERE scheduled_at::date = CURRENT_DATE AND status = 'SCHEDULED'
@@ -205,7 +208,7 @@ export class ClinicService {
           scheduled: c.scheduled, done: ct.n, noShow: c.no_show, cancelled: c.cancelled, overdue: c.overdue,
           agenda: agenda.map((a) => ({
             id: a.id,
-            time: a.scheduled_at.toISOString().slice(11, 16),
+            time: a.time_label,
             patient: a.patient_name ?? '—',
             professional: a.professional ?? '—',
             reason: a.reason ?? '',

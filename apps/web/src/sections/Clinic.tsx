@@ -126,7 +126,15 @@ function NewPatient({ onClose, onCreated }: { onClose(): void; onCreated(): void
   const save = async () => {
     if (!f.name.trim()) { toast.warning('Indique o nome.'); return; }
     setBusy(true);
-    try { await api.clinic.createPatient({ ...f, birthDate: f.birthDate || undefined, sex: f.sex || undefined }); toast.success('Paciente registado.'); onCreated(); }
+    try {
+      // Só o nome é obrigatório — os campos opcionais VAZIOS têm de ser OMITIDOS
+      // (não enviados como "", que o backend @IsOptional @Length(1,…) rejeita).
+      const payload: Record<string, string> = { name: f.name.trim() };
+      for (const k of ['phone', 'nif', 'birthDate', 'sex', 'bloodType', 'allergies'] as const) {
+        if (f[k] && f[k].trim()) payload[k] = f[k].trim();
+      }
+      await api.clinic.createPatient(payload); toast.success('Paciente registado.'); onCreated();
+    }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha.'); } finally { setBusy(false); }
   };
   return (
