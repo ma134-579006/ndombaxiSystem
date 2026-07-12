@@ -142,6 +142,13 @@ export function BedsTab({ patients }: { patients: ClinicPatient[] }) {
     await api.clinic.bedStatus(b.id, status).catch((e) => toast.error(errMsg(e, 'Falha.')));
     await load();
   };
+  const [admHistory, setAdmHistory] = useState<ClinicAdmission[]>([]);
+  const loadHistory = useCallback(async () => { try { setAdmHistory(await api.clinic.admissions()); } catch { /* */ } }, []);
+  useEffect(() => { void loadHistory(); }, [loadHistory, beds]);
+  const invoiceAdm = async (a: ClinicAdmission) => {
+    try { const r = await api.clinic.invoiceAdmission(a.id); toast.success(`Fatura ${r.invoiceNumber} emitida.`); await loadHistory(); }
+    catch (e) { toast.error(errMsg(e, 'Falha ao faturar.')); }
+  };
 
   return (
     <>
@@ -179,6 +186,25 @@ export function BedsTab({ patients }: { patients: ClinicPatient[] }) {
           })}
         </div>
       )}
+      {/* Internações com alta — faturação hospitalar (documento fiscal AGT) */}
+      {admHistory.filter((a) => a.status !== 'ADMITTED').length > 0 ? (
+        <>
+          <div className="content-head"><h3 style={{ margin: 0 }}>🧾 Internações — faturação</h3></div>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {admHistory.filter((a) => a.status !== 'ADMITTED').slice(0, 30).map((a) => (
+              <div key={a.id} className="list-row" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong style={{ fontSize: 13.5 }}>{a.number}</strong> <span className="muted">· {a.patient_name ?? '—'}</span>
+                  <div className="muted" style={{ fontSize: 12 }}>{a.bed_label ?? '—'} · {a.status === 'DECEASED' ? 'óbito' : 'alta'} {fmtDT(a.discharged_at)} · total {KZ(a.total)}</div>
+                </div>
+                {a.invoice_id ? <span className="pill on">Faturada</span>
+                  : Number(a.total) > 0 ? <button className="btn sm" onClick={() => void invoiceAdm(a)}>🧾 Faturar</button>
+                  : <span className="muted" style={{ fontSize: 12 }}>sem valor</span>}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
       {newBed ? <NewBedModal onClose={() => setNewBed(false)} onDone={() => { setNewBed(false); void load(); }} /> : null}
       {admitting ? <AdmitModal bed={admitting} patients={patients} onClose={() => setAdmitting(null)} onDone={() => { setAdmitting(null); void load(); }} /> : null}
     </>
@@ -515,6 +541,10 @@ export function ExamsTab({ patients }: { patients: ClinicPatient[] }) {
     await api.clinic.examStatus(r.id, next.id, resultText).catch((e) => toast.error(errMsg(e, 'Falha.')));
     await load();
   };
+  const invoiceExam = async (r: ClinicExamRow) => {
+    try { const inv = await api.clinic.invoiceExam(r.id); toast.success(`Fatura ${inv.invoiceNumber} emitida.`); await load(); }
+    catch (e) { toast.error(errMsg(e, 'Falha ao faturar.')); }
+  };
 
   return (
     <>
@@ -536,6 +566,9 @@ export function ExamsTab({ patients }: { patients: ClinicPatient[] }) {
               </div>
               <span className={`pill ${['DONE', 'DELIVERED'].includes(r.status) ? 'on' : 'off'}`}>{EXAM_LABEL[r.status] ?? r.status}</span>
               {EXAM_NEXT[r.status] ? <button className="btn sm ghost" onClick={() => void advance(r)}>{EXAM_NEXT[r.status].label}</button> : null}
+              {['DONE', 'DELIVERED'].includes(r.status) && Number(r.fee) > 0
+                ? (r.invoice_id ? <span className="pill on">Faturado</span> : <button className="btn sm" onClick={() => void invoiceExam(r)}>🧾 Faturar</button>)
+                : null}
             </div>
           ))}
       </div>

@@ -1,9 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { DocumentType, IvaCode, round2 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
+import { InvoiceService } from '../pos/invoice.service';
 import { StockService } from '../erp/stock.service';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
 import { allocateDocumentNumber, formatCounterNumber } from '../common/document-counter';
+
+const IVA_NOR = 14; // taxa normal — os preços de atos clínicos são guardados COM IVA incluído
 
 const PROF_CATEGORIES = ['MEDICO', 'ENFERMEIRO', 'TECNICO', 'RECECAO', 'LABORATORIO', 'FARMACIA', 'ADMIN', 'OUTRO'];
 const TRIAGE_RISKS = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE'];
@@ -25,6 +29,7 @@ export class HospitalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: TenantAuditService,
+    private readonly invoices: InvoiceService,
   ) {}
 
   // ── Profissionais de saúde ─────────────────────────────────
@@ -362,6 +367,30 @@ export class HospitalService {
       tx.$queryRaw(Prisma.sql`SELECT * FROM clinic_admissions WHERE TRUE${cond} ORDER BY admitted_at DESC LIMIT 200`));
   }
 
+  /**
+   * Fatura a internação (documento fiscal AGT). Só depois da alta — o total só
+   * está fechado quando as diárias foram calculadas. Reutiliza o MESMO motor
+   * fiscal das consultas (InvoiceService.emit): FT série A, o total inclui IVA.
+   */
+  async invoiceAdmission(schema: string, id: string, opener: { id: string | null; name: string }) {
+    const adm = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ number: string; status: string; total: string; invoice_id: string | null; patient_name: string | null; bed_label: string | null }[]>(
+        Prisma.sql`SELECT number, status, total, invoice_id, patient_name, bed_label FROM clinic_admissions WHERE id = ${id}::uuid`));
+    if (!adm[0]) throw new NotFoundException('Internação não encontrada.');
+    if (adm[0].status === 'ADMITTED') throw new BadRequestException('Dê alta ao paciente antes de faturar (as diárias ainda não estão fechadas).');
+    if (adm[0].invoice_id) throw new BadRequestException('Internação já faturada.');
+    const total = Number(adm[0].total);
+    if (!(total > 0)) throw new BadRequestException('A internação não tem valor a faturar.');
+    const net = round2(total / (1 + IVA_NOR / 100));
+    const inv = await this.invoices.emit(schema, {
+      docType: DocumentType.FT, series: 'A',
+      cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
+      lines: [{ description: `Internação ${adm[0].number}${adm[0].bed_label ? ` — ${adm[0].bed_label}` : ''}`, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
+    });
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE clinic_admissions SET invoice_id = ${inv.id}::uuid WHERE id = ${id}::uuid`));
+    return { invoiceId: inv.id, invoiceNumber: inv.number };
+  }
+
   // ── Emergência / triagem ───────────────────────────────────
   async registerTriage(schema: string, by: { id: string | null }, dto: {
     patientId?: string; patientName?: string; complaint?: string; risk?: string; room?: string; professional?: string;
@@ -439,6 +468,25 @@ export class HospitalService {
     const cond = status ? Prisma.sql` AND status = ${status}` : Prisma.empty;
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`SELECT * FROM clinic_exams WHERE TRUE${cond} ORDER BY requested_at DESC LIMIT 200`));
+  }
+
+  /** Fatura um exame (documento fiscal AGT — mesmo motor das consultas). */
+  async invoiceExam(schema: string, id: string, opener: { id: string | null; name: string }) {
+    const ex = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ exam_type: string; fee: string; invoice_id: string | null }[]>(
+        Prisma.sql`SELECT exam_type, fee, invoice_id FROM clinic_exams WHERE id = ${id}::uuid`));
+    if (!ex[0]) throw new NotFoundException('Exame não encontrado.');
+    if (ex[0].invoice_id) throw new BadRequestException('Exame já faturado.');
+    const fee = Number(ex[0].fee);
+    if (!(fee > 0)) throw new BadRequestException('Defina o preço do exame antes de faturar.');
+    const net = round2(fee / (1 + IVA_NOR / 100));
+    const inv = await this.invoices.emit(schema, {
+      docType: DocumentType.FT, series: 'A',
+      cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
+      lines: [{ description: `Exame — ${ex[0].exam_type}`, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
+    });
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE clinic_exams SET invoice_id = ${inv.id}::uuid WHERE id = ${id}::uuid`));
+    return { invoiceId: inv.id, invoiceNumber: inv.number };
   }
 
   // ── Farmácia: medicamentos com stock/validade p/ a receita ──

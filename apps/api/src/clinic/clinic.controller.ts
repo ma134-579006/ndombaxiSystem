@@ -188,6 +188,13 @@ export class ClinicController {
     return this.hospital.dischargePatient(this.ctx.requireTenantSchema(), id, { id: user.sub, name: user.name ?? user.email ?? null }, dto?.outcome);
   }
 
+  @Post('admissions/:id/invoice')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Fatura a internação (documento fiscal AGT) — só após a alta' })
+  invoiceAdmission(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.hospital.invoiceAdmission(this.ctx.requireTenantSchema(), id, { id: user.sub, name: user.name ?? user.email ?? 'Operador' });
+  }
+
   // ── Emergência / triagem ───────────────────────────────────
   @Get('emergency')
   @Roles(Role.CASHIER)
@@ -224,5 +231,12 @@ export class ClinicController {
   @ApiOperation({ summary: 'Avança o estado do exame (+ resultado/laudo)' })
   examStatus(@Param('id') id: string, @Body() dto: { status: string; resultText?: string }) {
     return this.hospital.setExamStatus(this.ctx.requireTenantSchema(), id, dto.status, dto.resultText);
+  }
+
+  @Post('exams/:id/invoice')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Fatura o exame (documento fiscal AGT)' })
+  invoiceExam(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.hospital.invoiceExam(this.ctx.requireTenantSchema(), id, { id: user.sub, name: user.name ?? user.email ?? 'Operador' });
   }
 }
