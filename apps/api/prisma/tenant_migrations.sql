@@ -489,3 +489,6 @@ CREATE INDEX IF NOT EXISTS clinic_exams_patient_idx ON "{{SCHEMA}}"."clinic_exam
 
 -- 2026-07-12 · faturação de exames (liga ao motor fiscal AGT)
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_exams" ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL;
+
+-- 2026-07-12 · faturação da receita dispensada (venda de farmácia no motor AGT)
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_prescriptions" ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL;

@@ -732,6 +732,7 @@ export const api = {
     prescription: (id: string) => request<ClinicPrescriptionDetail>('GET', `/clinic/prescriptions/${id}`),
     dispense: (id: string) => request<{ ok: boolean; number: string }>('POST', `/clinic/prescriptions/${id}/dispense`, {}),
     cancelPrescription: (id: string) => request<{ ok: boolean }>('POST', `/clinic/prescriptions/${id}/cancel`, {}),
+    invoicePrescription: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/clinic/prescriptions/${id}/invoice`),
     addVitals: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/vitals', dto),
     beds: () => request<ClinicBed[]>('GET', '/clinic/beds'),
     createBed: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/beds', dto),

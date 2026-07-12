@@ -111,7 +111,8 @@ export class HospitalService {
     const condP = patientId ? Prisma.sql` AND p.patient_id = ${patientId}::uuid` : Prisma.empty;
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
-        SELECT p.*, (SELECT COUNT(*)::int FROM clinic_prescription_items i WHERE i.prescription_id = p.id) AS item_count
+        SELECT p.*, (SELECT COUNT(*)::int FROM clinic_prescription_items i WHERE i.prescription_id = p.id) AS item_count,
+               EXISTS (SELECT 1 FROM clinic_prescription_items i WHERE i.prescription_id = p.id AND i.product_id IS NOT NULL AND i.dispensed_qty > 0) AS has_billable
         FROM clinic_prescriptions p WHERE TRUE${condS}${condP}
         ORDER BY p.issued_at DESC LIMIT 200`));
   }
@@ -219,6 +220,41 @@ export class HospitalService {
       });
       return { ok: true as const };
     });
+  }
+
+  /**
+   * Fatura a receita DISPENSADA (venda de farmácia — documento fiscal AGT).
+   * Só os itens com medicamento da farmácia (product_id) entram na fatura, ao
+   * preço NET e IVA REAIS do produto; itens externos ficam de fora. Mesmo motor
+   * fiscal das consultas/internações. Guarda invoice_id (não fatura 2×).
+   */
+  async invoicePrescription(schema: string, id: string, opener: { id: string | null; name: string }) {
+    const rx = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ number: string; status: string; invoice_id: string | null }[]>(
+        Prisma.sql`SELECT number, status, invoice_id FROM clinic_prescriptions WHERE id = ${id}::uuid`));
+    if (!rx[0]) throw new NotFoundException('Receita não encontrada.');
+    if (rx[0].status !== 'DISPENSED') throw new BadRequestException('Só se fatura uma receita depois de dispensada.');
+    if (rx[0].invoice_id) throw new BadRequestException('Receita já faturada.');
+    const items = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ medication: string; dispensed_qty: string; unit_price: string | null; iva_code: string | null }[]>(
+        Prisma.sql`SELECT i.medication, i.dispensed_qty, p.unit_price, p.iva_code
+                   FROM clinic_prescription_items i LEFT JOIN products p ON p.id = i.product_id
+                   WHERE i.prescription_id = ${id}::uuid AND i.product_id IS NOT NULL AND i.dispensed_qty > 0`));
+    const lines = items
+      .filter((it) => Number(it.unit_price) > 0)
+      .map((it) => ({
+        description: it.medication,
+        unitPrice: Number(it.unit_price),
+        ivaCode: (it.iva_code as IvaCode) ?? IvaCode.NOR,
+        quantity: Number(it.dispensed_qty),
+      }));
+    if (lines.length === 0) throw new BadRequestException('A receita não tem medicamentos faturáveis (todos externos ou sem preço).');
+    const inv = await this.invoices.emit(schema, {
+      docType: DocumentType.FT, series: 'A',
+      cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH', lines,
+    });
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE clinic_prescriptions SET invoice_id = ${inv.id}::uuid WHERE id = ${id}::uuid`));
+    return { invoiceId: inv.id, invoiceNumber: inv.number };
   }
 
   // ── Sinais vitais ──────────────────────────────────────────

@@ -818,7 +818,7 @@ export interface ClinicDashboard {
 // ── HOSPITAL (HIS) ──
 export interface ClinicProfessional { id: string; name: string; category: string; license_number: string | null; specialty: string | null; subspecialty: string | null; office: string | null; schedule: string | null; on_call: boolean; is_active: boolean }
 export interface ClinicMedication { id: string; code: string; name: string; active_ingredient: string | null; requires_prescription: boolean; stock_qty: string; unit: string | null; next_expiry: string | null }
-export interface ClinicPrescriptionRow { id: string; number: string; patient_name: string | null; professional: string | null; status: string; issued_at: string; dispensed_at: string | null; item_count: number }
+export interface ClinicPrescriptionRow { id: string; number: string; patient_name: string | null; professional: string | null; status: string; issued_at: string; dispensed_at: string | null; item_count: number; invoice_id?: string | null; has_billable?: boolean }
 export interface ClinicPrescriptionItem { id: string; product_id: string | null; medication: string; dosage: string | null; posology: string | null; route: string | null; duration: string | null; quantity: string; dispensed_qty: string; product_code?: string | null; product_stock?: string | null }
 export interface ClinicPrescriptionDetail { prescription: ClinicPrescriptionRow & { notes: string | null; patient_id: string | null }; items: ClinicPrescriptionItem[] }
 export interface ClinicBed { id: string; code: string; ward: string; room: string | null; status: string; daily_rate: string; admission_id: string | null; admitted_patient: string | null; admitted_at: string | null }

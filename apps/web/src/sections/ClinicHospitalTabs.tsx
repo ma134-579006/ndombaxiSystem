@@ -289,6 +289,14 @@ export function PrescriptionsTab({ patients }: { patients: ClinicPatient[] }) {
       setDetail(null); await load();
     } catch (e) { toast.error(errMsg(e, 'Falha ao dispensar.')); }
   };
+  const invoiceRx = async () => {
+    if (!detail) return;
+    try {
+      const inv = await api.clinic.invoicePrescription(detail.prescription.id);
+      toast.success(`Fatura ${inv.invoiceNumber} emitida.`);
+      setDetail(null); await load();
+    } catch (e) { toast.error(errMsg(e, 'Falha ao faturar.')); }
+  };
 
   return (
     <>
@@ -306,6 +314,8 @@ export function PrescriptionsTab({ patients }: { patients: ClinicPatient[] }) {
                 <div className="muted" style={{ fontSize: 12 }}>{r.professional ?? '—'} · {r.item_count} medicamento(s) · {fmtDT(r.issued_at)}</div>
               </div>
               <span className={`pill ${r.status === 'DISPENSED' ? 'on' : 'off'}`}>{RX_LABEL[r.status] ?? r.status}</span>
+              {r.status === 'DISPENSED' && r.invoice_id ? <span className="pill on">🧾</span>
+                : r.status === 'DISPENSED' && r.has_billable ? <span className="pill off">a faturar</span> : null}
             </div>
           ))}
       </div>
@@ -331,6 +341,12 @@ export function PrescriptionsTab({ patients }: { patients: ClinicPatient[] }) {
           </div>
           {detail.prescription.status === 'ISSUED' ? (
             <button className="btn lg block" onClick={() => void dispense()}>💊 Dispensar na farmácia (baixa stock FEFO)</button>
+          ) : detail.prescription.status === 'DISPENSED' ? (
+            detail.prescription.invoice_id
+              ? <div className="pill on" style={{ display: 'block', textAlign: 'center', padding: 10 }}>🧾 Receita faturada</div>
+              : detail.items.some((i) => i.product_code)
+                ? <button className="btn lg block" onClick={() => void invoiceRx()}>🧾 Faturar medicamentos (documento AGT)</button>
+                : <p className="muted" style={{ fontSize: 12, textAlign: 'center' }}>Sem medicamentos faturáveis (externos/sem preço).</p>
           ) : null}
         </Modal>
       ) : null}

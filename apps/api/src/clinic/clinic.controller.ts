@@ -145,6 +145,13 @@ export class ClinicController {
     return this.hospital.cancelPrescription(this.ctx.requireTenantSchema(), id, { id: user.sub, name: user.name ?? user.email ?? null });
   }
 
+  @Post('prescriptions/:id/invoice')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Fatura a receita dispensada (venda de farmácia — documento fiscal AGT)' })
+  invoicePrescription(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.hospital.invoicePrescription(this.ctx.requireTenantSchema(), id, { id: user.sub, name: user.name ?? user.email ?? 'Operador' });
+  }
+
   // ── Sinais vitais ──────────────────────────────────────────
   @Post('vitals')
   @Roles(Role.CASHIER)
