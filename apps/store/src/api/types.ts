@@ -184,3 +184,8 @@ export interface MyClinical {
   prescriptions: MyClinicalRx[];
   exams: MyClinicalExam[];
 }
+export interface MyPrescriptionItem { medication: string; dosage: string | null; posology: string | null; route: string | null; duration: string | null; quantity: string }
+export interface MyPrescriptionDetail {
+  prescription: { id: string; number: string; patient_name: string | null; professional: string | null; notes: string | null; status: string; issued: string };
+  items: MyPrescriptionItem[];
+}

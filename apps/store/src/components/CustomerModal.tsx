@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { GOOGLE_CLIENT_ID } from '../config';
 import { setSession, clearSession } from '../store/customer';
-import type { CustomerProfile, CustomerSession, MyClinical, MyOrderRow } from '../api/types';
+import type { CustomerProfile, CustomerSession, MyClinical, MyPrescriptionDetail, MyOrderRow } from '../api/types';
 import { formatKz } from '../format';
 import { IconClose, IconStore } from './Icons';
 
@@ -187,6 +187,50 @@ const RX_ST: Record<string, string> = { ISSUED: 'Por dispensar', DISPENSED: 'Dis
 const APPT_ST: Record<string, string> = { SCHEDULED: 'Marcada', DONE: 'Realizada', CANCELLED: 'Cancelada', NO_SHOW: 'Faltou' };
 const EXAM_ST: Record<string, string> = { REQUESTED: 'Pedido', COLLECTED: 'Colhido', IN_LAB: 'No laboratório', DONE: 'Concluído', DELIVERED: 'Entregue' };
 
+const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+
+/** Abre uma janela imprimível (o utilizador escolhe "Guardar como PDF"). */
+function printDoc(title: string, bodyHtml: string) {
+  const w = window.open('', '_blank', 'width=800,height=900');
+  if (!w) return;
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+    <style>
+      *{box-sizing:border-box;} body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111;margin:0;padding:32px;max-width:720px;}
+      h1{font-size:20px;margin:0 0 2px;} .sub{color:#555;font-size:13px;margin:0 0 18px;}
+      .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a6;padding-bottom:12px;margin-bottom:16px;}
+      .badge{font-size:12px;color:#1a6;font-weight:800;border:1px solid #1a6;border-radius:6px;padding:3px 8px;}
+      table{width:100%;border-collapse:collapse;margin-top:8px;} th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #ddd;font-size:13px;vertical-align:top;}
+      th{color:#555;font-weight:700;font-size:12px;text-transform:uppercase;}
+      .row{margin:6px 0;font-size:14px;} .lbl{color:#666;} .foot{margin-top:26px;color:#888;font-size:11px;border-top:1px solid #eee;padding-top:10px;}
+      @media print{body{padding:0;}}
+    </style></head><body>${bodyHtml}
+    <div class="foot">Documento gerado pelo Portal do Paciente · Ndombaxi System</div>
+    <script>window.onload=function(){setTimeout(function(){window.print();},250);}<\/script></body></html>`);
+  w.document.close();
+}
+
+function printPrescription(d: MyPrescriptionDetail) {
+  const p = d.prescription;
+  const rows = d.items.map((it) => `<tr><td><strong>${esc(it.medication)}</strong></td>
+    <td>${esc(it.dosage || '—')}</td><td>${esc(it.posology || '—')}</td>
+    <td>${esc(it.route || '—')}</td><td>${esc(it.duration || '—')}</td><td>${Number(it.quantity)}</td></tr>`).join('');
+  printDoc(`Receita ${p.number}`, `
+    <div class="hd"><div><h1>💊 Receita médica</h1><p class="sub">${esc(p.number)} · ${esc(p.issued)}</p></div><span class="badge">AGT · Ndombaxi</span></div>
+    <div class="row"><span class="lbl">Paciente:</span> <strong>${esc(p.patient_name || '—')}</strong></div>
+    <div class="row"><span class="lbl">Médico:</span> ${esc(p.professional || '—')}</div>
+    <table><thead><tr><th>Medicamento</th><th>Dose</th><th>Posologia</th><th>Via</th><th>Duração</th><th>Qtd</th></tr></thead><tbody>${rows}</tbody></table>
+    ${p.notes ? `<div class="row" style="margin-top:14px"><span class="lbl">Observações:</span> ${esc(p.notes)}</div>` : ''}`);
+}
+
+function printExam(e: { exam_type: string; status: string; result_text: string | null; requested: string }, patientName: string) {
+  printDoc(`Exame ${e.exam_type}`, `
+    <div class="hd"><div><h1>🧪 Resultado de exame</h1><p class="sub">${esc(e.requested)}</p></div><span class="badge">Ndombaxi</span></div>
+    <div class="row"><span class="lbl">Paciente:</span> <strong>${esc(patientName)}</strong></div>
+    <div class="row"><span class="lbl">Exame:</span> ${esc(e.exam_type)}</div>
+    <div class="row"><span class="lbl">Estado:</span> ${esc(EXAM_ST[e.status] ?? e.status)}</div>
+    <div class="row" style="margin-top:14px"><span class="lbl">Resultado / laudo:</span><br>${e.result_text ? esc(e.result_text) : '<em>Ainda sem resultado.</em>'}</div>`);
+}
+
 /** "A minha saúde" — consultas, receitas e resultados de exames do paciente. */
 function MyHealth({ code, token }: { code: string; token: string }) {
   const [data, setData] = useState<MyClinical | null>(null);
@@ -198,6 +242,11 @@ function MyHealth({ code, token }: { code: string; token: string }) {
       .catch((e) => { if (alive) setErr(e instanceof ApiError ? e.message : 'Falha ao carregar a sua saúde.'); });
     return () => { alive = false; };
   }, [code, token]);
+
+  const downloadRx = async (id: string) => {
+    try { printPrescription(await api.myPrescription(code, id, token)); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao abrir a receita.'); }
+  };
 
   if (err) return <div className="banner danger" style={{ marginTop: 14 }}>{err}</div>;
   if (!data) return <p className="muted" style={{ marginTop: 14 }}>A carregar a sua saúde…</p>;
@@ -234,6 +283,7 @@ function MyHealth({ code, token }: { code: string; token: string }) {
             <div key={r.id} className="hx-row">
               <div><strong>{r.number}</strong> · {r.item_count} medicamento(s)<div className="muted" style={{ fontSize: 12 }}>{r.professional || '—'} · {r.issued}</div></div>
               <span className="status-pill">{RX_ST[r.status] ?? r.status}</span>
+              <button className="btn ghost sm" title="Descarregar / imprimir" onClick={() => void downloadRx(r.id)}>🖨️</button>
             </div>
           ))}
       </div>
@@ -245,6 +295,9 @@ function MyHealth({ code, token }: { code: string; token: string }) {
             <div key={e.id} className="hx-row">
               <div><strong>{e.exam_type}</strong><div className="muted" style={{ fontSize: 12 }}>{e.requested}{e.result_text && ['DONE', 'DELIVERED'].includes(e.status) ? ` · 📄 ${e.result_text.slice(0, 60)}` : ''}</div></div>
               <span className="status-pill">{EXAM_ST[e.status] ?? e.status}</span>
+              {['DONE', 'DELIVERED'].includes(e.status)
+                ? <button className="btn ghost sm" title="Descarregar / imprimir resultado" onClick={() => printExam(e, data.patient?.name ?? '—')}>🖨️</button>
+                : null}
             </div>
           ))}
       </div>

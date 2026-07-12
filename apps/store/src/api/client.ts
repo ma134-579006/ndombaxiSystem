@@ -8,6 +8,7 @@ import type {
   CustomerSession,
   ExpressPayInput,
   MyClinical,
+  MyPrescriptionDetail,
   MyOrderRow,
   OrderMessage,
   PaymentMethod,
@@ -130,4 +131,6 @@ export const api = {
     request<{ businessType: string; professionals: { name: string; specialty: string | null }[] }>('GET', `/store/${enc(code)}/professionals`),
   myClinical: (code: string, token: string) =>
     request<MyClinical>('GET', `/store/${enc(code)}/my/clinical`, undefined, token),
+  myPrescription: (code: string, id: string, token: string) =>
+    request<MyPrescriptionDetail>('GET', `/store/${enc(code)}/my/prescriptions/${enc(id)}`, undefined, token),
 };

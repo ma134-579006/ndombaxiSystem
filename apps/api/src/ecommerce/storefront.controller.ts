@@ -179,6 +179,14 @@ export class StorefrontController {
     return this.clinic.myClinical(tenant.schema, claims.email);
   }
 
+  @Get('my/prescriptions/:id')
+  @ApiOperation({ summary: 'Detalhe da minha receita (para imprimir/PDF) — só do próprio paciente' })
+  async myPrescription(@Param('code') code: string, @Param('id') id: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.clinic.myPrescriptionDetail(tenant.schema, claims.email, id);
+  }
+
   @Get('pages/:slug')
   @ApiOperation({ summary: 'Página publicada por slug' })
   async page(@Param('code') code: string, @Param('slug') slug: string) {

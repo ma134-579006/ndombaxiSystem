@@ -99,6 +99,29 @@ export class ClinicService {
     });
   }
 
+  /**
+   * Detalhe de uma receita PARA O PRÓPRIO PACIENTE (Portal do Paciente, loja).
+   * Verifica que a receita pertence a uma ficha ligada a este email — senão
+   * NotFound (nunca expõe receitas de outros). Devolve dados p/ imprimir/PDF.
+   */
+  async myPrescriptionDetail(schema: string, email: string, id: string) {
+    const e = email.trim().toLowerCase();
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rx = await tx.$queryRaw<{ id: string; number: string; patient_name: string | null; professional: string | null; notes: string | null; status: string; issued: string }[]>(Prisma.sql`
+        SELECT p.id, p.number, p.patient_name, p.professional, p.notes, p.status,
+               to_char(p.issued_at AT TIME ZONE 'Africa/Luanda', 'YYYY-MM-DD HH24:MI') AS issued
+        FROM clinic_prescriptions p
+        JOIN clinic_patients pt ON pt.id = p.patient_id
+        JOIN customers c ON c.id = pt.customer_id
+        WHERE p.id = ${id}::uuid AND lower(c.email) = ${e} LIMIT 1`);
+      if (!rx[0]) throw new NotFoundException('Receita não encontrada.');
+      const items = await tx.$queryRaw<{ medication: string; dosage: string | null; posology: string | null; route: string | null; duration: string | null; quantity: string }[]>(Prisma.sql`
+        SELECT medication, dosage, posology, route, duration, quantity
+        FROM clinic_prescription_items WHERE prescription_id = ${id}::uuid ORDER BY medication`);
+      return { prescription: rx[0], items };
+    });
+  }
+
   // ── Pacientes ──────────────────────────────────────────────
   listPatients(schema: string, search?: string) {
     const s = (search ?? '').trim();
