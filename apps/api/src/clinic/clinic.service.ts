@@ -198,6 +198,24 @@ export class ClinicService {
         SELECT COALESCE(SUM(gross_total), 0)::float8 AS total, ${onlineExpr} AS online, COUNT(*)::int AS invoices
         FROM invoices WHERE invoice_date = CURRENT_DATE AND status = 'N' AND doc_type IN ('FT','FS')`);
 
+      // ── KPIs hospitalares (HIS) — guardados: tenants antigos podem ainda não
+      // ter as tabelas (migração chega no arranque). Nunca rebenta o painel.
+      const regBeds = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('clinic_beds')::text AS r`);
+      let hospital = { admitted: 0, bedsFree: 0, bedsTotal: 0, emergencyWaiting: 0, emergencyRed: 0, onCallDoctors: 0, examsPending: 0, rxToDispense: 0 };
+      if (regBeds[0]?.r) {
+        const h = await tx.$queryRaw<{ admitted: number; beds_free: number; beds_total: number; ew: number; er: number; oncall: number; exams: number; rx: number }[]>(Prisma.sql`
+          SELECT (SELECT COUNT(*)::int FROM clinic_admissions WHERE status = 'ADMITTED') AS admitted,
+                 (SELECT COUNT(*)::int FROM clinic_beds WHERE is_active = TRUE AND status = 'FREE') AS beds_free,
+                 (SELECT COUNT(*)::int FROM clinic_beds WHERE is_active = TRUE) AS beds_total,
+                 (SELECT COUNT(*)::int FROM clinic_triage WHERE status = 'WAITING') AS ew,
+                 (SELECT COUNT(*)::int FROM clinic_triage WHERE status IN ('WAITING','IN_CARE') AND risk = 'RED') AS er,
+                 (SELECT COUNT(*)::int FROM clinic_professionals WHERE is_active = TRUE AND category = 'MEDICO' AND on_call = TRUE) AS oncall,
+                 (SELECT COUNT(*)::int FROM clinic_exams WHERE status IN ('REQUESTED','COLLECTED','IN_LAB')) AS exams,
+                 (SELECT COUNT(*)::int FROM clinic_prescriptions WHERE status = 'ISSUED') AS rx`);
+        const hh = h[0];
+        if (hh) hospital = { admitted: hh.admitted, bedsFree: hh.beds_free, bedsTotal: hh.beds_total, emergencyWaiting: hh.ew, emergencyRed: hh.er, onCallDoctors: hh.oncall, examsPending: hh.exams, rxToDispense: hh.rx };
+      }
+
       const c = counts[0] ?? { scheduled: 0, done_appt: 0, no_show: 0, cancelled: 0, overdue: 0 };
       const ct = consultsToday[0] ?? { n: 0, fee: 0 };
       const p = patients[0] ?? { active: 0, new_today: 0 };
@@ -216,6 +234,7 @@ export class ClinicService {
           })),
         },
         patients: { active: p.active, newToday: p.new_today },
+        hospital,
         sales: { total: Math.round(sl.total), online, counter: Math.max(0, Math.round(sl.total) - online), invoices: sl.invoices },
       };
     });

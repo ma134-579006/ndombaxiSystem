@@ -5,6 +5,7 @@ import { toast } from '../components/feedback';
 import { IconPlus, IconSearch } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz } from '../format';
+import { BedsTab, EmergencyTab, ExamsTab, PatientRecordModal, PrescriptionsTab, ProfessionalsTab } from './ClinicHospitalTabs';
 
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -14,14 +15,18 @@ const APPT: Record<string, { label: string; tone: string }> = {
 };
 const hm = (s: string) => { try { return new Date(s).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
 
-/** Clínica — agenda (marcações), pacientes e consultas. */
+type ClinicTab = 'agenda' | 'patients' | 'emergency' | 'beds' | 'prescriptions' | 'professionals' | 'exams';
+const CLINIC_TABS: ClinicTab[] = ['agenda', 'patients', 'emergency', 'beds', 'prescriptions', 'professionals', 'exams'];
+
+/** Clínica / Hospital (HIS) — agenda, pacientes/prontuário, emergência,
+ *  internação (leitos), receitas (dispensa na farmácia), profissionais e exames. */
 export function Clinic() {
-  const [tab, setTab] = useState<'agenda' | 'patients'>('agenda');
+  const [tab, setTab] = useState<ClinicTab>('agenda');
   // Deep-link do Centro de Comando (num efeito — StrictMode-safe).
   useEffect(() => {
     try {
       const t = sessionStorage.getItem('ndx_clinic_tab');
-      if (t === 'agenda' || t === 'patients') { setTab(t); sessionStorage.removeItem('ndx_clinic_tab'); }
+      if (t && (CLINIC_TABS as string[]).includes(t)) { setTab(t as ClinicTab); sessionStorage.removeItem('ndx_clinic_tab'); }
     } catch { /* indisponível */ }
   }, []);
   const [kpi, setKpi] = useState<{ todayAppointments: number; todayConsultations: number; patients: number; revenue30: number } | null>(null);
@@ -33,22 +38,25 @@ export function Clinic() {
   const [newPatient, setNewPatient] = useState(false);
   const [consultFor, setConsultFor] = useState<ClinicAppointment | null>(null);
   const [patientId, setPatientId] = useState<string | null>(null);
+  const [recordFor, setRecordFor] = useState<string | null>(null);
 
   const loadKpi = useCallback(async () => { try { setKpi(await api.clinic.metrics()); } catch { /* */ } }, []);
   const loadAppts = useCallback(async () => { try { setAppts(await api.clinic.appointments(day)); } catch { /* */ } }, [day]);
   const loadPatients = useCallback(async () => { try { setPatients(await api.clinic.patients(search || undefined)); } catch { /* */ } }, [search]);
   useEffect(() => { void loadKpi(); }, [loadKpi]);
   useEffect(() => { if (tab === 'agenda') void loadAppts(); }, [tab, loadAppts]);
-  useEffect(() => { if (tab === 'patients') void loadPatients(); }, [tab, loadPatients]);
+  // Os separadores hospitalares também precisam da lista de pacientes (modais).
+  useEffect(() => { if (tab !== 'agenda') void loadPatients(); }, [tab, loadPatients]);
   const refresh = async () => { await loadKpi(); await loadAppts(); };
 
   return (
     <>
       <div className="content-head">
-        <h2>🏥 Clínica</h2>
+        <h2>🏥 Clínica / Hospital</h2>
         <span className="spacer" />
         {tab === 'agenda' ? <button className="btn" onClick={() => setNewAppt(true)}><IconPlus size={17} /> Marcação</button>
-          : <button className="btn" onClick={() => setNewPatient(true)}><IconPlus size={17} /> Paciente</button>}
+          : tab === 'patients' ? <button className="btn" onClick={() => setNewPatient(true)}><IconPlus size={17} /> Paciente</button>
+          : null}
       </div>
 
       {kpi ? (
@@ -67,12 +75,22 @@ export function Clinic() {
         </div>
       ) : null}
 
-      <div className="card toolbar-sticky" style={{ display: 'flex', gap: 6, padding: '8px 10px' }}>
+      <div className="card toolbar-sticky" style={{ display: 'flex', gap: 6, padding: '8px 10px', flexWrap: 'wrap' }}>
         <button className={`chip${tab === 'agenda' ? ' active' : ''}`} onClick={() => setTab('agenda')}>📅 Agenda</button>
+        <button className={`chip${tab === 'emergency' ? ' active' : ''}`} onClick={() => setTab('emergency')}>🚑 Emergência</button>
+        <button className={`chip${tab === 'beds' ? ' active' : ''}`} onClick={() => setTab('beds')}>🛏️ Internação</button>
         <button className={`chip${tab === 'patients' ? ' active' : ''}`} onClick={() => setTab('patients')}>👤 Pacientes</button>
+        <button className={`chip${tab === 'prescriptions' ? ' active' : ''}`} onClick={() => setTab('prescriptions')}>💊 Receitas</button>
+        <button className={`chip${tab === 'exams' ? ' active' : ''}`} onClick={() => setTab('exams')}>🧪 Exames</button>
+        <button className={`chip${tab === 'professionals' ? ' active' : ''}`} onClick={() => setTab('professionals')}>🧑‍⚕️ Profissionais</button>
       </div>
 
-      {tab === 'agenda' ? (
+      {tab === 'emergency' ? <EmergencyTab patients={patients} />
+        : tab === 'beds' ? <BedsTab patients={patients} />
+        : tab === 'prescriptions' ? <PrescriptionsTab patients={patients} />
+        : tab === 'exams' ? <ExamsTab patients={patients} />
+        : tab === 'professionals' ? <ProfessionalsTab />
+        : tab === 'agenda' ? (
         <>
           <div className="card" style={{ padding: 10, marginBottom: 0 }}>
             <div className="field" style={{ margin: 0, maxWidth: 220 }}><label>Dia</label><input type="date" value={day} onChange={(e) => setDay(e.target.value)} /></div>
@@ -103,10 +121,13 @@ export function Clinic() {
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             {patients.length === 0 ? <div className="empty" style={{ padding: 24 }}><p>Sem pacientes.</p></div>
               : patients.map((p) => (
-                <button key={p.id} className="list-row" onClick={() => setPatientId(p.id)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', padding: '12px 16px', cursor: 'pointer' }}>
-                  <strong style={{ fontSize: 14 }}>{p.name}</strong>
-                  <div className="muted" style={{ fontSize: 12.5 }}>{[p.phone, p.sex, p.blood_type].filter(Boolean).join(' · ') || '—'}{p.allergies ? ` · ⚠ ${p.allergies}` : ''}</div>
-                </button>
+                <div key={p.id} className="list-row" style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)', padding: '12px 16px' }}>
+                  <button onClick={() => setPatientId(p.id)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', padding: 0 }}>
+                    <strong style={{ fontSize: 14 }}>{p.name}</strong>
+                    <div className="muted" style={{ fontSize: 12.5 }}>{[p.phone, p.sex, p.blood_type].filter(Boolean).join(' · ') || '—'}{p.allergies ? ` · ⚠ ${p.allergies}` : ''}</div>
+                  </button>
+                  <button className="btn sm ghost" onClick={() => setRecordFor(p.id)}>📖 Prontuário</button>
+                </div>
               ))}
           </div>
         </>
@@ -116,6 +137,7 @@ export function Clinic() {
       {newPatient ? <NewPatient onClose={() => setNewPatient(false)} onCreated={async () => { setNewPatient(false); await loadPatients(); }} /> : null}
       {consultFor ? <ConsultModal appointment={consultFor} onClose={() => setConsultFor(null)} onDone={async () => { setConsultFor(null); await refresh(); }} /> : null}
       {patientId ? <PatientDetail id={patientId} onClose={() => setPatientId(null)} /> : null}
+      {recordFor ? <PatientRecordModal patientId={recordFor} onClose={() => setRecordFor(null)} /> : null}
     </>
   );
 }

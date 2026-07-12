@@ -322,3 +322,167 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS kitchen
 -- pronto e vende). prep_eta_min = tempo dado pela cozinha (mesa e balcão).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."restaurant_orders" ADD COLUMN IF NOT EXISTS prep_eta_min INT;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."restaurant_orders" ADD COLUMN IF NOT EXISTS kitchen_at   TIMESTAMPTZ;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 2026-07-12 · HOSPITAL (HIS) — núcleo clínico enterprise
+-- Pacientes (ficha médica completa), Profissionais de saúde, Receitas médicas
+-- (com dispensa que baixa o stock da farmácia por lote — mesma engenharia das
+-- fichas técnicas do restaurante), Sinais vitais, Leitos/Internação, Triagem
+-- de emergência (Manchester) e Exames. Tudo ADITIVO; nada do núcleo comercial
+-- é alterado. O prontuário (EHR) deriva destas tabelas — nunca se apaga.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Ficha médica do paciente (extensão da tabela existente)
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS process_number TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS marital_status TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS responsible_name TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS responsible_phone TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS insurer TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS insurance_number TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS insurance_plan TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS chronic_conditions TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS continuous_meds TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS family_history TEXT;
+
+-- Profissionais de saúde (médicos, enfermeiros, técnicos, receção, laboratório…)
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_professionals" (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  name           TEXT NOT NULL,
+  category       TEXT NOT NULL DEFAULT 'MEDICO',      -- MEDICO|ENFERMEIRO|TECNICO|RECECAO|LABORATORIO|FARMACIA|ADMIN|OUTRO
+  license_number TEXT,                                -- carteira profissional / nº da ordem
+  specialty      TEXT,
+  subspecialty   TEXT,
+  office         TEXT,                                -- consultório/sala
+  schedule       TEXT,                                -- horário/dias (texto livre)
+  on_call        BOOLEAN NOT NULL DEFAULT FALSE,      -- de plantão agora
+  is_active      BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS clinic_prof_idx ON "{{SCHEMA}}"."clinic_professionals"(is_active, category, name);
+
+-- Receitas médicas + itens (a dispensa baixa o stock da farmácia por lote FEFO)
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_prescriptions" (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  number           TEXT NOT NULL,                     -- RX/2026/0001
+  consultation_id  UUID REFERENCES "{{SCHEMA}}"."clinic_consultations"(id) ON DELETE SET NULL,
+  patient_id       UUID REFERENCES "{{SCHEMA}}"."clinic_patients"(id) ON DELETE SET NULL,
+  patient_name     TEXT,
+  professional_id  UUID REFERENCES "{{SCHEMA}}"."clinic_professionals"(id) ON DELETE SET NULL,
+  professional     TEXT,
+  notes            TEXT,
+  status           TEXT NOT NULL DEFAULT 'ISSUED',    -- ISSUED|DISPENSED|CANCELLED
+  issued_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  dispensed_at     TIMESTAMPTZ,
+  dispensed_by     UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL,
+  created_by       UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS clinic_rx_idx ON "{{SCHEMA}}"."clinic_prescriptions"(status, issued_at DESC);
+CREATE INDEX IF NOT EXISTS clinic_rx_patient_idx ON "{{SCHEMA}}"."clinic_prescriptions"(patient_id, issued_at DESC);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_prescription_items" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  prescription_id UUID NOT NULL REFERENCES "{{SCHEMA}}"."clinic_prescriptions"(id) ON DELETE CASCADE,
+  product_id      UUID REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE SET NULL,  -- medicamento da farmácia
+  medication      TEXT NOT NULL,
+  dosage          TEXT,                               -- ex.: 500 mg
+  posology        TEXT,                               -- ex.: 1 comp. de 8/8h
+  route           TEXT,                               -- oral | IV | IM | tópica…
+  duration        TEXT,                               -- ex.: 7 dias
+  quantity        NUMERIC(14,3) NOT NULL DEFAULT 1,   -- a dispensar
+  dispensed_qty   NUMERIC(14,3) NOT NULL DEFAULT 0,
+  notes           TEXT
+);
+CREATE INDEX IF NOT EXISTS clinic_rx_items_idx ON "{{SCHEMA}}"."clinic_prescription_items"(prescription_id);
+
+-- Sinais vitais (prontuário — nunca se apagam)
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_vitals" (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id      UUID NOT NULL REFERENCES "{{SCHEMA}}"."clinic_patients"(id) ON DELETE CASCADE,
+  consultation_id UUID REFERENCES "{{SCHEMA}}"."clinic_consultations"(id) ON DELETE SET NULL,
+  recorded_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  temperature_c   NUMERIC(4,1),
+  systolic        INT,
+  diastolic       INT,
+  heart_rate      INT,
+  resp_rate       INT,
+  spo2            INT,
+  weight_kg       NUMERIC(6,2),
+  height_cm       NUMERIC(5,1),
+  notes           TEXT,
+  recorded_by     UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS clinic_vitals_idx ON "{{SCHEMA}}"."clinic_vitals"(patient_id, recorded_at DESC);
+
+-- Leitos e internações
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_beds" (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code       TEXT NOT NULL,                            -- ex.: ENF-01, UTI-02
+  ward       TEXT NOT NULL DEFAULT 'ENFERMARIA',       -- ENFERMARIA|UTI|ISOLAMENTO|QUARTO
+  room       TEXT,
+  status     TEXT NOT NULL DEFAULT 'FREE',             -- FREE|OCCUPIED|CLEANING|MAINTENANCE|BLOCKED
+  daily_rate NUMERIC(14,2) NOT NULL DEFAULT 0,         -- diária (c/ IVA)
+  is_active  BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS clinic_beds_idx ON "{{SCHEMA}}"."clinic_beds"(is_active, ward, code);
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_admissions" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  number        TEXT NOT NULL,                         -- INT/2026/0001
+  patient_id    UUID REFERENCES "{{SCHEMA}}"."clinic_patients"(id) ON DELETE SET NULL,
+  patient_name  TEXT,
+  bed_id        UUID REFERENCES "{{SCHEMA}}"."clinic_beds"(id) ON DELETE SET NULL,
+  bed_label     TEXT,
+  professional  TEXT,                                  -- médico responsável
+  reason        TEXT,                                  -- motivo/diagnóstico
+  status        TEXT NOT NULL DEFAULT 'ADMITTED',      -- ADMITTED|DISCHARGED|TRANSFERRED|DECEASED
+  daily_rate    NUMERIC(14,2) NOT NULL DEFAULT 0,      -- diária congelada na admissão
+  total         NUMERIC(14,2) NOT NULL DEFAULT 0,      -- diárias + consumos
+  invoice_id    UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,
+  admitted_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  discharged_at TIMESTAMPTZ,
+  notes         TEXT,
+  created_by    UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS clinic_adm_idx ON "{{SCHEMA}}"."clinic_admissions"(status, admitted_at DESC);
+CREATE INDEX IF NOT EXISTS clinic_adm_patient_idx ON "{{SCHEMA}}"."clinic_admissions"(patient_id, admitted_at DESC);
+
+-- Emergência / triagem (classificação de risco de Manchester)
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_triage" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id   UUID REFERENCES "{{SCHEMA}}"."clinic_patients"(id) ON DELETE SET NULL,
+  patient_name TEXT NOT NULL,
+  complaint    TEXT,                                   -- queixa principal
+  risk         TEXT NOT NULL DEFAULT 'GREEN',          -- RED|ORANGE|YELLOW|GREEN|BLUE
+  room         TEXT,
+  professional TEXT,
+  status       TEXT NOT NULL DEFAULT 'WAITING',        -- WAITING|IN_CARE|OBSERVATION|DISCHARGED|ADMITTED|DECEASED
+  arrived_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  attended_at  TIMESTAMPTZ,
+  closed_at    TIMESTAMPTZ,
+  notes        TEXT,
+  created_by   UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS clinic_triage_idx ON "{{SCHEMA}}"."clinic_triage"(status, risk, arrived_at);
+
+-- Exames (pedido → colheita → laboratório → resultado; integra no prontuário)
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_exams" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id   UUID REFERENCES "{{SCHEMA}}"."clinic_patients"(id) ON DELETE SET NULL,
+  patient_name TEXT,
+  exam_type    TEXT NOT NULL,                          -- ex.: Hemograma, Raio-X tórax
+  requested_by TEXT,
+  status       TEXT NOT NULL DEFAULT 'REQUESTED',      -- REQUESTED|COLLECTED|IN_LAB|DONE|DELIVERED
+  result_text  TEXT,
+  fee          NUMERIC(14,2) NOT NULL DEFAULT 0,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  done_at      TIMESTAMPTZ,
+  created_by   UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS clinic_exams_idx ON "{{SCHEMA}}"."clinic_exams"(status, requested_at DESC);
+CREATE INDEX IF NOT EXISTS clinic_exams_patient_idx ON "{{SCHEMA}}"."clinic_exams"(patient_id, requested_at DESC);

@@ -805,10 +805,34 @@ export interface HotelDashboard {
   sales: { total: number; online: number; counter: number; invoices: number };
 }
 export interface ClinicAgendaItem { id: string; time: string; patient: string; professional: string; reason: string; overdue: boolean }
+export interface ClinicHospitalKpis {
+  admitted: number; bedsFree: number; bedsTotal: number; emergencyWaiting: number;
+  emergencyRed: number; onCallDoctors: number; examsPending: number; rxToDispense: number;
+}
 export interface ClinicDashboard {
   today: { scheduled: number; done: number; noShow: number; cancelled: number; overdue: number; agenda: ClinicAgendaItem[] };
   patients: { active: number; newToday: number };
+  hospital?: ClinicHospitalKpis;
   sales: { total: number; online: number; counter: number; invoices: number };
+}
+// ── HOSPITAL (HIS) ──
+export interface ClinicProfessional { id: string; name: string; category: string; license_number: string | null; specialty: string | null; subspecialty: string | null; office: string | null; schedule: string | null; on_call: boolean; is_active: boolean }
+export interface ClinicMedication { id: string; code: string; name: string; active_ingredient: string | null; requires_prescription: boolean; stock_qty: string; unit: string | null; next_expiry: string | null }
+export interface ClinicPrescriptionRow { id: string; number: string; patient_name: string | null; professional: string | null; status: string; issued_at: string; dispensed_at: string | null; item_count: number }
+export interface ClinicPrescriptionItem { id: string; product_id: string | null; medication: string; dosage: string | null; posology: string | null; route: string | null; duration: string | null; quantity: string; dispensed_qty: string; product_code?: string | null; product_stock?: string | null }
+export interface ClinicPrescriptionDetail { prescription: ClinicPrescriptionRow & { notes: string | null; patient_id: string | null }; items: ClinicPrescriptionItem[] }
+export interface ClinicBed { id: string; code: string; ward: string; room: string | null; status: string; daily_rate: string; admission_id: string | null; admitted_patient: string | null; admitted_at: string | null }
+export interface ClinicAdmission { id: string; number: string; patient_name: string | null; bed_label: string | null; professional: string | null; reason: string | null; status: string; daily_rate: string; total: string; admitted_at: string; discharged_at: string | null }
+export interface ClinicTriageRow { id: string; patient_name: string; complaint: string | null; risk: string; room: string | null; professional: string | null; status: string; arrived_at: string; wait_min: number }
+export interface ClinicExamRow { id: string; patient_name: string | null; exam_type: string; requested_by: string | null; status: string; result_text: string | null; fee: string; requested_at: string; done_at: string | null }
+export interface ClinicVitalsRow { id: string; recorded_at: string; temperature_c: string | null; systolic: number | null; diastolic: number | null; heart_rate: number | null; resp_rate: number | null; spo2: number | null; weight_kg: string | null; height_cm: string | null; notes: string | null }
+export interface ClinicPatientRecord {
+  patient: Record<string, unknown>;
+  consultations: Array<Record<string, unknown>>;
+  prescriptions: Array<Record<string, unknown>>;
+  vitals: ClinicVitalsRow[];
+  admissions: Array<Record<string, unknown>>;
+  exams: Array<Record<string, unknown>>;
 }
 export interface ServiceOrderRow { id: string; number: string; customer_name: string | null; equipment_label: string | null; status: string; total: string; assigned_to: string | null; source?: string; created_at: string }
 export interface ServiceOrderItem { id: string; kind: string; product_code: string | null; description: string; unit_price: string; quantity: string; created_at: string }

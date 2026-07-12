@@ -12,7 +12,7 @@ const KZ = (n: number) => formatKz(Number(n) || 0);
  * oferece AÇÕES PRÓPRIAS. Refresca sozinho.
  */
 export function ClinicHome({ onGo }: { onGo(section: string): void }) {
-  const goClinic = (tab: 'agenda' | 'patients') => {
+  const goClinic = (tab: 'agenda' | 'patients' | 'emergency' | 'beds' | 'prescriptions' | 'professionals' | 'exams') => {
     try { sessionStorage.setItem('ndx_clinic_tab', tab); } catch { /* indisponível */ }
     onGo('clinic');
   };
@@ -64,6 +64,16 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
         <Tile label="Faltas / cancel." value={d ? String(d.today.noShow + d.today.cancelled) : '—'} hint={d ? `${d.today.noShow} falta(s) · ${d.today.cancelled} cancel.` : ''} />
       </div>
 
+      {/* ── Hospital (HIS): internamento, leitos, emergência, plantão ── */}
+      {d?.hospital ? (
+        <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 14 }}>
+          <Tile label="Internados" value={String(d.hospital.admitted)} hint={`${d.hospital.bedsFree}/${d.hospital.bedsTotal} leitos livres`} tone={d.hospital.bedsTotal > 0 && d.hospital.bedsFree === 0 ? 'warn' : 'info'} />
+          <Tile label="Emergência (espera)" value={String(d.hospital.emergencyWaiting)} hint={d.hospital.emergencyRed > 0 ? `⚠ ${d.hospital.emergencyRed} caso(s) VERMELHO` : 'fila de triagem'} tone={d.hospital.emergencyRed > 0 ? 'warn' : undefined} />
+          <Tile label="Médicos de plantão" value={String(d.hospital.onCallDoctors)} hint="disponíveis agora" />
+          <Tile label="Exames pendentes" value={String(d.hospital.examsPending)} hint={d.hospital.rxToDispense > 0 ? `${d.hospital.rxToDispense} receita(s) por dispensar` : 'laboratório'} />
+        </div>
+      ) : null}
+
       {/* ── Alerta de atrasos ── */}
       {d && d.today.overdue > 0 ? (
         <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--warning)' }}>
@@ -105,9 +115,13 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
       {/* ── Ações próprias da clínica ── */}
       <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }}>Operação</h3>
       <div className="pgrid">
+        <ActionCard icon="🚑" title="Emergência" desc="Triagem, classificação de risco, fila." onClick={() => goClinic('emergency')} badge={d?.hospital && d.hospital.emergencyWaiting > 0 ? String(d.hospital.emergencyWaiting) : undefined} />
         <ActionCard icon="📅" title="Agenda & Marcações" desc="Marcar, ver o dia, dar entrada." onClick={() => goClinic('agenda')} badge={d && d.today.scheduled > 0 ? String(d.today.scheduled) : undefined} />
-        <ActionCard icon="👤" title="Pacientes" desc="Fichas clínicas, histórico, prescrições." onClick={() => goClinic('patients')} />
-        <ActionCard icon="🩺" title="Nova consulta" desc="Triagem, diagnóstico, receita e fatura." onClick={() => goClinic('agenda')} />
+        <ActionCard icon="🛏️" title="Internação" desc="Mapa de leitos, admissões e altas." onClick={() => goClinic('beds')} badge={d?.hospital && d.hospital.admitted > 0 ? String(d.hospital.admitted) : undefined} />
+        <ActionCard icon="👤" title="Pacientes & Prontuário" desc="Fichas clínicas e histórico completo." onClick={() => goClinic('patients')} />
+        <ActionCard icon="💊" title="Receitas & Farmácia" desc="Emitir e dispensar (baixa stock por lote)." onClick={() => goClinic('prescriptions')} badge={d?.hospital && d.hospital.rxToDispense > 0 ? String(d.hospital.rxToDispense) : undefined} />
+        <ActionCard icon="🧪" title="Exames" desc="Pedido, colheita, laboratório, resultado." onClick={() => goClinic('exams')} badge={d?.hospital && d.hospital.examsPending > 0 ? String(d.hospital.examsPending) : undefined} />
+        <ActionCard icon="🧑‍⚕️" title="Profissionais" desc="Médicos, especialidades, plantões." onClick={() => goClinic('professionals')} />
         <ActionCard icon="🧾" title="Faturação (AGT)" desc="Faturar consultas e atos clínicos." onClick={() => onGo('operations')} />
       </div>
 
