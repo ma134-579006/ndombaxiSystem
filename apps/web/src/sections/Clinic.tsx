@@ -5,7 +5,7 @@ import { toast } from '../components/feedback';
 import { IconPlus, IconSearch } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz } from '../format';
-import { BedsTab, EmergencyTab, ExamsTab, PatientRecordModal, PrescriptionsTab, ProfessionalsTab } from './ClinicHospitalTabs';
+import { BedsTab, EmergencyTab, ExamsTab, InsurersTab, PatientRecordModal, PrescriptionsTab, ProfessionalsTab } from './ClinicHospitalTabs';
 
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -15,8 +15,8 @@ const APPT: Record<string, { label: string; tone: string }> = {
 };
 const hm = (s: string) => { try { return new Date(s).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
 
-type ClinicTab = 'agenda' | 'patients' | 'emergency' | 'beds' | 'prescriptions' | 'professionals' | 'exams';
-const CLINIC_TABS: ClinicTab[] = ['agenda', 'patients', 'emergency', 'beds', 'prescriptions', 'professionals', 'exams'];
+type ClinicTab = 'agenda' | 'patients' | 'emergency' | 'beds' | 'prescriptions' | 'professionals' | 'exams' | 'insurers';
+const CLINIC_TABS: ClinicTab[] = ['agenda', 'patients', 'emergency', 'beds', 'prescriptions', 'professionals', 'exams', 'insurers'];
 
 /** Clínica / Hospital (HIS) — agenda, pacientes/prontuário, emergência,
  *  internação (leitos), receitas (dispensa na farmácia), profissionais e exames. */
@@ -82,6 +82,7 @@ export function Clinic() {
         <button className={`chip${tab === 'patients' ? ' active' : ''}`} onClick={() => setTab('patients')}>👤 Pacientes</button>
         <button className={`chip${tab === 'prescriptions' ? ' active' : ''}`} onClick={() => setTab('prescriptions')}>💊 Receitas</button>
         <button className={`chip${tab === 'exams' ? ' active' : ''}`} onClick={() => setTab('exams')}>🧪 Exames</button>
+        <button className={`chip${tab === 'insurers' ? ' active' : ''}`} onClick={() => setTab('insurers')}>🛡️ Convénios</button>
         <button className={`chip${tab === 'professionals' ? ' active' : ''}`} onClick={() => setTab('professionals')}>🧑‍⚕️ Profissionais</button>
       </div>
 
@@ -89,6 +90,7 @@ export function Clinic() {
         : tab === 'beds' ? <BedsTab patients={patients} />
         : tab === 'prescriptions' ? <PrescriptionsTab patients={patients} />
         : tab === 'exams' ? <ExamsTab patients={patients} />
+        : tab === 'insurers' ? <InsurersTab patients={patients} onPatientsChanged={loadPatients} />
         : tab === 'professionals' ? <ProfessionalsTab />
         : tab === 'agenda' ? (
         <>

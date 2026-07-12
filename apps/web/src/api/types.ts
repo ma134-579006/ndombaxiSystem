@@ -825,6 +825,8 @@ export interface ClinicBed { id: string; code: string; ward: string; room: strin
 export interface ClinicAdmission { id: string; number: string; patient_name: string | null; bed_label: string | null; professional: string | null; reason: string | null; status: string; daily_rate: string; total: string; admitted_at: string; discharged_at: string | null; invoice_id: string | null }
 export interface ClinicTriageRow { id: string; patient_name: string; complaint: string | null; risk: string; room: string | null; professional: string | null; status: string; arrived_at: string; wait_min: number }
 export interface ClinicExamRow { id: string; patient_name: string | null; exam_type: string; requested_by: string | null; status: string; result_text: string | null; fee: string; requested_at: string; done_at: string | null; invoice_id: string | null }
+export interface ClinicInsurer { id: string; name: string; plan: string | null; coverage_pct: string; is_active: boolean }
+export interface ClinicClaim { id: string; insurer_name: string | null; patient_name: string | null; source_type: string; gross_total: string; covered: string; copay: string; status: string; created_at: string }
 export interface ClinicVitalsRow { id: string; recorded_at: string; temperature_c: string | null; systolic: number | null; diastolic: number | null; heart_rate: number | null; resp_rate: number | null; spo2: number | null; weight_kg: string | null; height_cm: string | null; notes: string | null }
 export interface ClinicPatientRecord {
   patient: Record<string, unknown>;

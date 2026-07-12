@@ -506,23 +506,112 @@ export class HospitalService {
       tx.$queryRaw(Prisma.sql`SELECT * FROM clinic_exams WHERE TRUE${cond} ORDER BY requested_at DESC LIMIT 200`));
   }
 
-  /** Fatura um exame (documento fiscal AGT — mesmo motor das consultas). */
+  /**
+   * Fatura um exame (documento fiscal AGT — mesmo motor das consultas).
+   * CONVÉNIO: se o paciente tem convénio, fatura-se ao paciente apenas a
+   * COPARTICIPAÇÃO (total − parte coberta); a parte do convénio fica registada
+   * como sinistro "a receber". O motor fiscal recebe só o valor final da linha.
+   */
   async invoiceExam(schema: string, id: string, opener: { id: string | null; name: string }) {
     const ex = await this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw<{ exam_type: string; fee: string; invoice_id: string | null }[]>(
-        Prisma.sql`SELECT exam_type, fee, invoice_id FROM clinic_exams WHERE id = ${id}::uuid`));
+      tx.$queryRaw<{ exam_type: string; fee: string; invoice_id: string | null; patient_id: string | null; patient_name: string | null }[]>(
+        Prisma.sql`SELECT exam_type, fee, invoice_id, patient_id, patient_name FROM clinic_exams WHERE id = ${id}::uuid`));
     if (!ex[0]) throw new NotFoundException('Exame não encontrado.');
     if (ex[0].invoice_id) throw new BadRequestException('Exame já faturado.');
     const fee = Number(ex[0].fee);
     if (!(fee > 0)) throw new BadRequestException('Defina o preço do exame antes de faturar.');
-    const net = round2(fee / (1 + IVA_NOR / 100));
+
+    const cov = await this.resolvePatientCoverage(schema, ex[0].patient_id);
+    const covered = cov ? round2((fee * cov.coveragePct) / 100) : 0;
+    const copay = round2(fee - covered);
+    if (!(copay > 0) && covered > 0) {
+      // 100% coberto: nada a faturar ao paciente — regista só o sinistro.
+      await this.recordClaimAndCloseExam(schema, id, { source: 'EXAM', patientId: ex[0].patient_id, patientName: ex[0].patient_name, gross: fee, covered, copay: 0, cov, invoiceId: null, by: opener.id });
+      return { invoiceId: null as string | null, invoiceNumber: null as string | null, covered, copay: 0, insurer: cov?.name ?? null };
+    }
+    const net = round2(copay / (1 + IVA_NOR / 100));
+    const desc = cov ? `Exame — ${ex[0].exam_type} (coparticipação · ${cov.name})` : `Exame — ${ex[0].exam_type}`;
     const inv = await this.invoices.emit(schema, {
       docType: DocumentType.FT, series: 'A',
       cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
-      lines: [{ description: `Exame — ${ex[0].exam_type}`, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
+      lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
     });
-    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE clinic_exams SET invoice_id = ${inv.id}::uuid WHERE id = ${id}::uuid`));
-    return { invoiceId: inv.id, invoiceNumber: inv.number };
+    await this.recordClaimAndCloseExam(schema, id, { source: 'EXAM', patientId: ex[0].patient_id, patientName: ex[0].patient_name, gross: fee, covered, copay, cov, invoiceId: inv.id, by: opener.id });
+    return { invoiceId: inv.id, invoiceNumber: inv.number, covered, copay, insurer: cov?.name ?? null };
+  }
+
+  /** Cobertura do convénio do paciente (null = sem convénio). */
+  private async resolvePatientCoverage(schema: string, patientId: string | null): Promise<{ insurerId: string; name: string; coveragePct: number } | null> {
+    if (!patientId) return null;
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const reg = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('clinic_insurers')::text AS r`);
+      if (!reg[0]?.r) return null;
+      const rows = await tx.$queryRaw<{ id: string; name: string; coverage_pct: string }[]>(Prisma.sql`
+        SELECT i.id, i.name, i.coverage_pct FROM clinic_patients p
+        JOIN clinic_insurers i ON i.id = p.insurer_id AND i.is_active = TRUE
+        WHERE p.id = ${patientId}::uuid`);
+      if (!rows[0]) return null;
+      return { insurerId: rows[0].id, name: rows[0].name, coveragePct: Number(rows[0].coverage_pct) };
+    });
+  }
+
+  private async recordClaimAndCloseExam(schema: string, examId: string, d: {
+    source: string; patientId: string | null; patientName: string | null; gross: number; covered: number; copay: number;
+    cov: { insurerId: string; name: string } | null; invoiceId: string | null; by: string | null;
+  }) {
+    await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(Prisma.sql`UPDATE clinic_exams SET invoice_id = ${d.invoiceId}::uuid WHERE id = ${examId}::uuid`);
+      if (d.cov && d.covered > 0) {
+        await tx.$executeRaw(Prisma.sql`
+          INSERT INTO clinic_insurer_claims (insurer_id, insurer_name, patient_id, patient_name, source_type, source_id, invoice_id, gross_total, covered, copay, created_by)
+          VALUES (${d.cov.insurerId}::uuid, ${d.cov.name}, ${d.patientId}::uuid, ${d.patientName}, ${d.source}, ${examId}::uuid, ${d.invoiceId}::uuid, ${d.gross}, ${d.covered}, ${d.copay}, ${d.by}::uuid)`);
+      }
+    });
+  }
+
+  // ── Convénios / Seguros ────────────────────────────────────
+  listInsurers(schema: string) {
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(Prisma.sql`SELECT * FROM clinic_insurers WHERE is_active = TRUE ORDER BY name`));
+  }
+
+  async createInsurer(schema: string, dto: { name: string; plan?: string; coveragePct?: number }) {
+    if (!dto.name?.trim()) throw new BadRequestException('Indique o nome do convénio.');
+    const pct = Math.max(0, Math.min(100, Number(dto.coveragePct)));
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+        INSERT INTO clinic_insurers (name, plan, coverage_pct)
+        VALUES (${dto.name.trim()}, ${dto.plan?.trim() || null}, ${Number.isFinite(pct) ? pct : 80})
+        RETURNING id`);
+      return rows[0];
+    });
+  }
+
+  async assignPatientInsurer(schema: string, patientId: string, insurerId: string | null) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      let name: string | null = null;
+      if (insurerId) {
+        const i = await tx.$queryRaw<{ name: string }[]>(Prisma.sql`SELECT name FROM clinic_insurers WHERE id = ${insurerId}::uuid`);
+        if (!i[0]) throw new NotFoundException('Convénio não encontrado.');
+        name = i[0].name;
+      }
+      await tx.$executeRaw(Prisma.sql`UPDATE clinic_patients SET insurer_id = ${insurerId}::uuid, insurer = ${name}, updated_at = now() WHERE id = ${patientId}::uuid`);
+      return { ok: true as const };
+    });
+  }
+
+  listClaims(schema: string, status?: string) {
+    const cond = status ? Prisma.sql` AND status = ${status}` : Prisma.empty;
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(Prisma.sql`SELECT * FROM clinic_insurer_claims WHERE TRUE${cond} ORDER BY created_at DESC LIMIT 200`));
+  }
+
+  async setClaimStatus(schema: string, id: string, status: string) {
+    if (!['PENDING', 'SUBMITTED', 'PAID', 'REJECTED'].includes(status)) throw new BadRequestException('Estado inválido.');
+    return this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(Prisma.sql`UPDATE clinic_insurer_claims SET status = ${status} WHERE id = ${id}::uuid`);
+      return { ok: true as const };
+    });
   }
 
   // ── Farmácia: medicamentos com stock/validade p/ a receita ──

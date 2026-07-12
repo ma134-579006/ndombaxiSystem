@@ -1431,3 +1431,39 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_exams" ADD COLUMN IF NOT EXISTS invoi
 
 -- 2026-07-12 · faturação da receita dispensada (venda de farmácia no motor AGT)
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_prescriptions" ADD COLUMN IF NOT EXISTS invoice_id UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL;
+
+-- 2026-07-12 · HOSPITAL (HIS) Fase 4 — Convénios / Seguros de saúde
+-- Registo de convénios com % de cobertura; ligação ao paciente; e "sinistros"
+-- (claims) que registam a parte coberta pelo convénio quando se fatura ao
+-- paciente apenas a coparticipação. Tudo ADITIVO; o motor fiscal só recebe o
+-- valor final da linha (a coparticipação) — nada muda na emissão/hash/SAF-T.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_insurers" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name         TEXT NOT NULL,
+  plan         TEXT,                                   -- plano/apólice (texto livre)
+  coverage_pct NUMERIC(5,2) NOT NULL DEFAULT 80,       -- % que o convénio cobre
+  is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS clinic_insurers_idx ON "{{SCHEMA}}"."clinic_insurers"(is_active, name);
+
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."clinic_patients" ADD COLUMN IF NOT EXISTS insurer_id UUID REFERENCES "{{SCHEMA}}"."clinic_insurers"(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_insurer_claims" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  insurer_id   UUID REFERENCES "{{SCHEMA}}"."clinic_insurers"(id) ON DELETE SET NULL,
+  insurer_name TEXT,
+  patient_id   UUID REFERENCES "{{SCHEMA}}"."clinic_patients"(id) ON DELETE SET NULL,
+  patient_name TEXT,
+  source_type  TEXT NOT NULL,                          -- EXAM | CONSULTATION | ADMISSION | PRESCRIPTION
+  source_id    UUID,
+  invoice_id   UUID REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE SET NULL,  -- fatura da coparticipação do paciente
+  gross_total  NUMERIC(14,2) NOT NULL DEFAULT 0,       -- valor total do ato (c/ IVA)
+  covered      NUMERIC(14,2) NOT NULL DEFAULT 0,       -- parte do convénio (a receber)
+  copay        NUMERIC(14,2) NOT NULL DEFAULT 0,       -- parte do paciente (faturada)
+  status       TEXT NOT NULL DEFAULT 'PENDING',        -- PENDING | SUBMITTED | PAID | REJECTED
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by   UUID REFERENCES "{{SCHEMA}}"."users"(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS clinic_claims_idx ON "{{SCHEMA}}"."clinic_insurer_claims"(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS clinic_claims_insurer_idx ON "{{SCHEMA}}"."clinic_insurer_claims"(insurer_id, status);

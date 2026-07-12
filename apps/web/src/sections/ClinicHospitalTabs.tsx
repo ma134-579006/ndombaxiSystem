@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type {
-  ClinicAdmission, ClinicBed, ClinicExamRow, ClinicMedication, ClinicPatient,
+  ClinicAdmission, ClinicBed, ClinicClaim, ClinicExamRow, ClinicInsurer, ClinicMedication, ClinicPatient,
   ClinicPatientRecord, ClinicPrescriptionDetail, ClinicPrescriptionRow,
   ClinicProfessional, ClinicTriageRow,
 } from '../api/types';
@@ -558,8 +558,16 @@ export function ExamsTab({ patients }: { patients: ClinicPatient[] }) {
     await load();
   };
   const invoiceExam = async (r: ClinicExamRow) => {
-    try { const inv = await api.clinic.invoiceExam(r.id); toast.success(`Fatura ${inv.invoiceNumber} emitida.`); await load(); }
-    catch (e) { toast.error(errMsg(e, 'Falha ao faturar.')); }
+    try {
+      const inv = await api.clinic.invoiceExam(r.id);
+      if (inv.insurer && Number(inv.covered) > 0) {
+        const paciente = inv.invoiceNumber ? `paciente ${KZ(inv.copay ?? 0)} (FT ${inv.invoiceNumber})` : 'paciente 0 (100% coberto)';
+        toast.success(`Convénio ${inv.insurer}: cobre ${KZ(inv.covered)}, ${paciente}.`);
+      } else {
+        toast.success(`Fatura ${inv.invoiceNumber} emitida.`);
+      }
+      await load();
+    } catch (e) { toast.error(errMsg(e, 'Falha ao faturar.')); }
   };
 
   return (
@@ -619,6 +627,134 @@ function NewExamModal({ patients, onClose, onDone }: { patients: ClinicPatient[]
         <div className="field"><label>Preço (Kz)</label><input value={f.fee} onChange={(e) => setF({ ...f, fee: e.target.value.replace(/[^\d.]/g, '') })} inputMode="decimal" /></div>
       </div>
       <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A solicitar…' : 'Solicitar exame'}</button>
+    </Modal>
+  );
+}
+
+// ── CONVÉNIOS / SEGUROS ────────────────────────────────────────
+const CLAIM_ST: Record<string, string> = { PENDING: 'Pendente', SUBMITTED: 'Submetido', PAID: 'Pago', REJECTED: 'Rejeitado' };
+const CLAIM_NEXT: Record<string, { id: string; label: string }[]> = {
+  PENDING: [{ id: 'SUBMITTED', label: 'Submeter' }],
+  SUBMITTED: [{ id: 'PAID', label: 'Pago ✓' }, { id: 'REJECTED', label: 'Rejeitado' }],
+};
+
+export function InsurersTab({ patients, onPatientsChanged }: { patients: ClinicPatient[]; onPatientsChanged(): void }) {
+  const [insurers, setInsurers] = useState<ClinicInsurer[]>([]);
+  const [claims, setClaims] = useState<ClinicClaim[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [assignFor, setAssignFor] = useState<ClinicPatient | null>(null);
+  const load = useCallback(async () => {
+    try { setInsurers(await api.clinic.insurers()); } catch { /* */ }
+    try { setClaims(await api.clinic.claims()); } catch { /* */ }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  const advance = async (c: ClinicClaim, status: string) => {
+    await api.clinic.claimStatus(c.id, status).catch((e) => toast.error(errMsg(e, 'Falha.')));
+    await load();
+  };
+  const pending = claims.filter((c) => c.status !== 'PAID' && c.status !== 'REJECTED');
+  const totalToReceive = pending.reduce((s, c) => s + Number(c.covered), 0);
+
+  return (
+    <>
+      <div className="content-head" style={{ marginTop: 0 }}>
+        <h3 style={{ margin: 0 }}>🛡️ Convénios & Seguros</h3>
+        <span className="spacer" />
+        <button className="btn" onClick={() => setCreating(true)}><IconPlus size={16} /> Novo convénio</button>
+      </div>
+
+      <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 14 }}>
+        <div className="card" style={{ padding: '12px 14px' }}><div className="muted" style={{ fontSize: 12.5 }}>Convénios ativos</div><div style={{ fontSize: 22, fontWeight: 800 }}>{insurers.length}</div></div>
+        <div className="card" style={{ padding: '12px 14px' }}><div className="muted" style={{ fontSize: 12.5 }}>A receber das seguradoras</div><div style={{ fontSize: 22, fontWeight: 800 }}>{KZ(totalToReceive)}</div></div>
+      </div>
+
+      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
+        {insurers.length === 0 ? <div className="empty" style={{ padding: 22 }}><p>Sem convénios. Registe o primeiro (ex.: ENSA Saúde, 80%).</p></div>
+          : insurers.map((i) => (
+            <div key={i.id} className="list-row" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong style={{ fontSize: 13.5 }}>{i.name}</strong>{i.plan ? <span className="muted"> · {i.plan}</span> : null}
+                <div className="muted" style={{ fontSize: 12 }}>Cobre {Number(i.coverage_pct)}%</div>
+              </div>
+              <span className="pill on">{Number(i.coverage_pct)}%</span>
+            </div>
+          ))}
+      </div>
+
+      <div className="content-head"><h4 style={{ margin: 0 }}>👤 Convénio por paciente</h4></div>
+      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
+        {patients.length === 0 ? <div className="empty" style={{ padding: 18 }}><p>Sem pacientes.</p></div>
+          : patients.slice(0, 30).map((p) => (
+            <div key={p.id} className="list-row" style={{ padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}><strong style={{ fontSize: 13 }}>{p.name}</strong>
+                <div className="muted" style={{ fontSize: 12 }}>{p.insurer ? `🛡️ ${p.insurer}` : 'sem convénio (paga 100%)'}</div>
+              </div>
+              <button className="btn sm ghost" onClick={() => setAssignFor(p)}>Convénio</button>
+            </div>
+          ))}
+      </div>
+
+      <div className="content-head"><h4 style={{ margin: 0 }}>📄 Sinistros (a receber das seguradoras)</h4></div>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {claims.length === 0 ? <div className="empty" style={{ padding: 18 }}><p>Sem sinistros ainda. Faturar um ato de um paciente com convénio gera um aqui.</p></div>
+          : claims.map((c) => (
+            <div key={c.id} className="list-row" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong style={{ fontSize: 13 }}>{c.insurer_name}</strong> <span className="muted">· {c.patient_name ?? '—'}</span>
+                <div className="muted" style={{ fontSize: 12 }}>{c.source_type} · total {KZ(c.gross_total)} · convénio {KZ(c.covered)} · paciente {KZ(c.copay)}</div>
+              </div>
+              <span className={`pill ${c.status === 'PAID' ? 'on' : 'off'}`}>{CLAIM_ST[c.status] ?? c.status}</span>
+              {(CLAIM_NEXT[c.status] ?? []).map((n) => <button key={n.id} className="btn sm ghost" onClick={() => void advance(c, n.id)}>{n.label}</button>)}
+            </div>
+          ))}
+      </div>
+
+      {creating ? <NewInsurerModal onClose={() => setCreating(false)} onDone={() => { setCreating(false); void load(); }} /> : null}
+      {assignFor ? <AssignInsurerModal patient={assignFor} insurers={insurers} onClose={() => setAssignFor(null)} onDone={() => { setAssignFor(null); void load(); onPatientsChanged(); }} /> : null}
+    </>
+  );
+}
+
+function NewInsurerModal({ onClose, onDone }: { onClose(): void; onDone(): void }) {
+  const [f, setF] = useState({ name: '', plan: '', coveragePct: '80' });
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!f.name.trim()) { toast.warning('Indique o nome do convénio.'); return; }
+    setBusy(true);
+    try {
+      await api.clinic.createInsurer({ name: f.name.trim(), plan: f.plan.trim() || undefined, coveragePct: Number(f.coveragePct) || 0 });
+      toast.success('Convénio registado.'); onDone();
+    } catch (e) { toast.error(errMsg(e, 'Falha.')); } finally { setBusy(false); }
+  };
+  return (
+    <Modal title="Novo convénio / seguro" onClose={onClose}>
+      <div className="field"><label>Nome</label><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="ex.: ENSA Saúde" /></div>
+      <div className="grid-2">
+        <div className="field"><label>Plano (opcional)</label><input value={f.plan} onChange={(e) => setF({ ...f, plan: e.target.value })} placeholder="ex.: Ouro" /></div>
+        <div className="field"><label>Cobertura (%)</label><input value={f.coveragePct} onChange={(e) => setF({ ...f, coveragePct: e.target.value.replace(/[^\d]/g, '') })} inputMode="numeric" /></div>
+      </div>
+      <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A registar…' : 'Registar convénio'}</button>
+    </Modal>
+  );
+}
+
+function AssignInsurerModal({ patient, insurers, onClose, onDone }: { patient: ClinicPatient; insurers: ClinicInsurer[]; onClose(): void; onDone(): void }) {
+  const [insurerId, setInsurerId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    try { await api.clinic.assignInsurer(patient.id, insurerId || null); toast.success('Convénio atualizado.'); onDone(); }
+    catch (e) { toast.error(errMsg(e, 'Falha.')); } finally { setBusy(false); }
+  };
+  return (
+    <Modal title={`Convénio — ${patient.name}`} onClose={onClose}>
+      <div className="field"><label>Convénio</label>
+        <select value={insurerId} onChange={(e) => setInsurerId(e.target.value)}>
+          <option value="">— sem convénio (paga 100%) —</option>
+          {insurers.map((i) => <option key={i.id} value={i.id}>{i.name} ({Number(i.coverage_pct)}%)</option>)}
+        </select></div>
+      <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A guardar…' : 'Guardar'}</button>
     </Modal>
   );
 }

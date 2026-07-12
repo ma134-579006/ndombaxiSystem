@@ -242,8 +242,36 @@ export class ClinicController {
 
   @Post('exams/:id/invoice')
   @Roles(Role.CASHIER)
-  @ApiOperation({ summary: 'Fatura o exame (documento fiscal AGT)' })
+  @ApiOperation({ summary: 'Fatura o exame (documento fiscal AGT; aplica coparticipação do convénio)' })
   invoiceExam(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.hospital.invoiceExam(this.ctx.requireTenantSchema(), id, { id: user.sub, name: user.name ?? user.email ?? 'Operador' });
   }
+
+  // ── Convénios / Seguros ────────────────────────────────────
+  @Get('insurers')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Lista convénios/seguros de saúde' })
+  insurers() { return this.hospital.listInsurers(this.ctx.requireTenantSchema()); }
+
+  @Post('insurers')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Regista um convénio (com % de cobertura)' })
+  createInsurer(@Body() dto: Record<string, unknown>) { return this.hospital.createInsurer(this.ctx.requireTenantSchema(), dto as never); }
+
+  @Post('patients/:id/insurer')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Atribui (ou remove) o convénio do paciente' })
+  assignInsurer(@Param('id') id: string, @Body() dto: { insurerId?: string | null }) {
+    return this.hospital.assignPatientInsurer(this.ctx.requireTenantSchema(), id, dto?.insurerId ?? null);
+  }
+
+  @Get('claims')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Sinistros de convénio (parte a receber das seguradoras)' })
+  claims(@Query('status') status?: string) { return this.hospital.listClaims(this.ctx.requireTenantSchema(), status); }
+
+  @Post('claims/:id/status')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Avança o estado do sinistro (submetido/pago/rejeitado)' })
+  claimStatus(@Param('id') id: string, @Body() dto: StatusDto) { return this.hospital.setClaimStatus(this.ctx.requireTenantSchema(), id, dto.status); }
 }

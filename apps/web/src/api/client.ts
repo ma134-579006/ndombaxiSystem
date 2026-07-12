@@ -747,7 +747,12 @@ export const api = {
     exams: (status?: string) => request<ClinicExamRow[]>('GET', `/clinic/exams${status ? `?status=${status}` : ''}`),
     requestExam: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/exams', dto),
     examStatus: (id: string, status: string, resultText?: string) => request<{ ok: boolean }>('POST', `/clinic/exams/${id}/status`, { status, resultText }),
-    invoiceExam: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/clinic/exams/${id}/invoice`),
+    invoiceExam: (id: string) => request<{ invoiceId: string | null; invoiceNumber: string | null; covered?: number; copay?: number; insurer?: string | null }>('POST', `/clinic/exams/${id}/invoice`),
+    insurers: () => request<ClinicInsurer[]>('GET', '/clinic/insurers'),
+    createInsurer: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/insurers', dto),
+    assignInsurer: (patientId: string, insurerId: string | null) => request<{ ok: boolean }>('POST', `/clinic/patients/${patientId}/insurer`, { insurerId }),
+    claims: (status?: string) => request<ClinicClaim[]>('GET', `/clinic/claims${status ? `?status=${status}` : ''}`),
+    claimStatus: (id: string, status: string) => request<{ ok: boolean }>('POST', `/clinic/claims/${id}/status`, { status }),
   },
   pharmacy: {
     metrics: () => request<{ expiring: number; expired: number; prescription: number; lowStock: number }>('GET', '/pharmacy/metrics'),
