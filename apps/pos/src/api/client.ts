@@ -225,4 +225,6 @@ export const api = {
       items: { productCode: string; description: string; unitPrice: string; quantity: string; kitchenStatus: string }[] }[]>(
       'GET', '/restaurant/counter-orders/ready'),
   markKitchenOrderServed: (id: string) => request<{ ok: boolean }>('POST', `/restaurant/orders/${id}/served`, {}),
+  productionAvailability: () =>
+    request<{ id: string; name: string; stock: number; inProduction: number; status: 'FREE' | 'BUSY' | 'OUT' }[]>('GET', '/restaurant/availability'),
 };

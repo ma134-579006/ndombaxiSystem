@@ -150,6 +150,9 @@ export function PosPage() {
   }, [companyCode, user?.sub]);
 
   const [products, setProducts] = useState<Product[]>([]);
+  // Disponibilidade dos produtos de PRODUÇÃO + prompt de solicitação à cozinha.
+  const [availMap, setAvailMap] = useState<Record<string, 'FREE' | 'BUSY' | 'OUT'>>({});
+  const [prodPrompt, setProdPrompt] = useState<{ product: Product; status: 'BUSY' | 'OUT' } | null>(null);
   const [promotions, setPromotions] = useState<PromoRow[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [receiptInfo, setReceiptInfo] = useState<ReceiptFiscalInfo | null>(null);
@@ -249,6 +252,12 @@ export function PosPage() {
       setProducts(list);
       void kvSet(CACHE_PRODUCTS, list);
     } catch { /* offline: mantém a cache */ }
+    // Disponibilidade dos produtos de PRODUÇÃO (🟢/🟡/🔴). Vertical não-restaurante
+    // ou offline: fica vazio → produtos comportam-se como hoje.
+    try {
+      const av = await api.productionAvailability();
+      setAvailMap(Object.fromEntries(av.map((r) => [r.id, r.status])));
+    } catch { /* sem restauração: ignora */ }
   }, []);
 
   useEffect(() => {
@@ -305,6 +314,13 @@ export function PosPage() {
    *  (não esgotado / com stock) — para o campo de pesquisa só limpar nesse caso. */
   const addToCart = (p: Product): boolean => {
     setEmitError(null);
+    // PRODUÇÃO: a venda passa pela disponibilidade. Livre → vende normalmente;
+    // Ocupado/Esgotado → NUNCA vende já; abre o prompt para solicitar produção.
+    if (p.is_production) {
+      const st = availMap[p.id];
+      if (st === 'BUSY' || st === 'OUT') { setProdPrompt({ product: p, status: st }); return false; }
+      // FREE (ou desconhecido): segue para a venda normal a partir da prateleira.
+    }
     const stock = Number(p.stock_qty);
     // Prato com ficha técnica: produzido SOB ENCOMENDA — o stock próprio é 0
     // por natureza (quem conta são os ingredientes; a emissão valida-os e dá
@@ -590,6 +606,17 @@ export function PosPage() {
       flashOk(`🍳 Enviado à cozinha: ${r.label}. Chame o pedido quando estiver pronto.`);
     } catch (e) { flashError(e instanceof ApiError ? e.message : 'Falha ao enviar para a cozinha.'); }
     finally { setFiring(false); }
+  };
+
+  // PRODUÇÃO: solicitar uma produção à cozinha (Ocupado/Esgotado). NÃO vende —
+  // cria um pedido de balcão que flui ao KDS; o caixa chama-o quando pronto.
+  const requestProduction = async (product: Product, quantity: number) => {
+    try {
+      const r = await api.fireToKitchen([{ productCode: product.code, quantity }], customer?.name ?? undefined);
+      setProdPrompt(null);
+      flashOk(`🍳 Produção solicitada: ${quantity}× ${product.name} (${r.label}). Chame quando estiver pronto.`);
+      void refreshProducts();
+    } catch (e) { flashError(e instanceof ApiError ? e.message : 'Falha ao solicitar produção.'); }
   };
 
   // Caixa CHAMA um pedido pronto da cozinha → carrega no carrinho para vender.
@@ -915,6 +942,7 @@ export function PosPage() {
 
       {showQueue ? <QueueModal onClose={() => setShowQueue(false)} /> : null}
       {showKitchen ? <KitchenOrdersModal onClose={() => setShowKitchen(false)} onRecall={recallKitchenOrder} /> : null}
+      {prodPrompt ? <ProductionPrompt prompt={prodPrompt} onClose={() => setProdPrompt(null)} onConfirm={requestProduction} /> : null}
 
       {showSales ? (
         <SalesHistoryModal
@@ -965,6 +993,50 @@ export function PosPage() {
           onClose={() => setShowPayment(false)}
         />
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Prompt de PRODUÇÃO no caixa: o produto de produção não está Livre.
+ * Ocupado → "está em produção; criar mais?"; Esgotado → "indisponível; solicitar?".
+ * Nunca vende de imediato — ao confirmar, cria um pedido de produção (à cozinha).
+ */
+function ProductionPrompt({
+  prompt, onClose, onConfirm,
+}: {
+  prompt: { product: Product; status: 'BUSY' | 'OUT' };
+  onClose(): void;
+  onConfirm(product: Product, quantity: number): void | Promise<void>;
+}) {
+  const [qty, setQty] = useState('1');
+  const [busy, setBusy] = useState(false);
+  const busyState = prompt.status === 'BUSY';
+  const confirm = async () => {
+    const n = Math.max(1, Math.floor(Number(qty)) || 1);
+    setBusy(true);
+    try { await onConfirm(prompt.product, n); } finally { setBusy(false); }
+  };
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ margin: '0 0 6px' }}>{busyState ? '🟡 Em produção' : '🔴 Indisponível'}</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          {busyState
+            ? <>«{prompt.product.name}» está em produção. Pretende criar mais uma produção?</>
+            : <>«{prompt.product.name}» está esgotado. Pretende solicitar produção?</>}
+        </p>
+        <div className="field">
+          <label>Quantidade a produzir</label>
+          <input inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d]/g, ''))} autoFocus />
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button className="btn ghost lg" style={{ flex: 1 }} onClick={onClose} disabled={busy}>Não</button>
+          <button className="btn lg" style={{ flex: 1 }} onClick={() => void confirm()} disabled={busy}>
+            {busy ? 'A solicitar…' : 'Sim, solicitar'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

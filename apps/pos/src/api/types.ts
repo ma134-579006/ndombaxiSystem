@@ -43,6 +43,9 @@ export interface Product {
   has_recipe?: boolean;
   /** Doses possíveis com o stock atual dos ingredientes (informativo). */
   portions_available?: string | number | null;
+  /** TRUE = produto de PRODUÇÃO (fabricado): a venda passa pela disponibilidade
+   *  (Livre/Ocupado/Esgotado) — se não estiver Livre, solicita produção. */
+  is_production?: boolean;
 }
 
 export interface Customer {
