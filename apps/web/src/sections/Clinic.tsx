@@ -225,7 +225,11 @@ function ConsultModal({ appointment, onClose, onDone }: { appointment: ClinicApp
       });
       if (invoiceAfter && Number(f.fee) > 0) {
         const inv = await api.clinic.invoiceConsultation(r.id).catch(() => null);
-        if (inv) toast.success(`Consulta registada e faturada (${inv.invoiceNumber}).`); else toast.success('Consulta registada.');
+        if (inv && inv.insurer && Number(inv.covered) > 0) {
+          const pac = inv.invoiceNumber ? `paciente ${KZ(inv.copay ?? 0)} (FT ${inv.invoiceNumber})` : 'paciente 0 (100% coberto)';
+          toast.success(`Consulta registada. Convénio ${inv.insurer}: cobre ${KZ(inv.covered)}, ${pac}.`);
+        } else if (inv) toast.success(`Consulta registada e faturada (${inv.invoiceNumber}).`);
+        else toast.success('Consulta registada.');
       } else toast.success('Consulta registada.');
       onDone();
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha.'); setBusy(false); }

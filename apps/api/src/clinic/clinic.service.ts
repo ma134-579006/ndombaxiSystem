@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { DocumentType, IvaCode, round2 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
 import { InvoiceService } from '../pos/invoice.service';
+import { HospitalService } from './hospital.service';
 
 const IVA_NOR = 14;
 const APPT_STATUS = ['SCHEDULED', 'DONE', 'CANCELLED', 'NO_SHOW'];
@@ -16,6 +17,7 @@ export class ClinicService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly invoices: InvoiceService,
+    private readonly hospital: HospitalService,
   ) {}
 
   /**
@@ -230,20 +232,31 @@ export class ClinicService {
   /** Fatura a consulta (documento fiscal AGT) — taxa da consulta como linha de serviço. */
   async invoiceConsultation(schema: string, id: string, opener: { id: string | null; name: string }) {
     const c = await this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw<{ id: string; fee: string; invoice_id: string | null; patient_name: string | null; professional: string | null }[]>(
-        Prisma.sql`SELECT id, fee, invoice_id, patient_name, professional FROM clinic_consultations WHERE id = ${id}::uuid`));
+      tx.$queryRaw<{ id: string; fee: string; invoice_id: string | null; patient_id: string | null; patient_name: string | null; professional: string | null }[]>(
+        Prisma.sql`SELECT id, fee, invoice_id, patient_id, patient_name, professional FROM clinic_consultations WHERE id = ${id}::uuid`));
     if (!c[0]) throw new NotFoundException('Consulta não encontrada.');
     if (c[0].invoice_id) throw new BadRequestException('Consulta já faturada.');
     const fee = Number(c[0].fee);
     if (!(fee > 0)) throw new BadRequestException('Defina o valor da consulta antes de faturar.');
-    const net = round2(fee / (1 + IVA_NOR / 100)); // a taxa guardada inclui IVA
-    const inv = await this.invoices.emit(schema, {
-      docType: DocumentType.FT, series: 'A',
-      cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
-      lines: [{ description: `Consulta médica${c[0].professional ? ` — ${c[0].professional}` : ''}`, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
-    });
-    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE clinic_consultations SET invoice_id = ${inv.id}::uuid WHERE id = ${id}::uuid`));
-    return { invoiceId: inv.id, invoiceNumber: inv.number };
+
+    // CONVÉNIO: fatura ao paciente só a coparticipação; a parte coberta → sinistro.
+    const cov = await this.hospital.resolvePatientCoverage(schema, c[0].patient_id);
+    const covered = cov ? round2((fee * cov.coveragePct) / 100) : 0;
+    const copay = round2(fee - covered);
+    let invId: string | null = null; let invNumber: string | null = null;
+    if (copay > 0) {
+      const net = round2(copay / (1 + IVA_NOR / 100)); // a taxa guardada inclui IVA
+      const desc = `Consulta médica${c[0].professional ? ` — ${c[0].professional}` : ''}${cov ? ` (coparticipação · ${cov.name})` : ''}`;
+      const inv = await this.invoices.emit(schema, {
+        docType: DocumentType.FT, series: 'A',
+        cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
+        lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
+      });
+      invId = inv.id; invNumber = inv.number;
+    }
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE clinic_consultations SET invoice_id = ${invId}::uuid WHERE id = ${id}::uuid`));
+    await this.hospital.recordInsurerClaim(schema, { source: 'CONSULTATION', sourceId: id, patientId: c[0].patient_id, patientName: c[0].patient_name, gross: fee, covered, copay, cov, invoiceId: invId, by: opener.id });
+    return { invoiceId: invId, invoiceNumber: invNumber, covered, copay, insurer: cov?.name ?? null };
   }
 
   /** KPIs do dia para o dashboard da clínica. */

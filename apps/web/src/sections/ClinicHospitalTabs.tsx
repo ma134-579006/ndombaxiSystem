@@ -146,8 +146,14 @@ export function BedsTab({ patients }: { patients: ClinicPatient[] }) {
   const loadHistory = useCallback(async () => { try { setAdmHistory(await api.clinic.admissions()); } catch { /* */ } }, []);
   useEffect(() => { void loadHistory(); }, [loadHistory, beds]);
   const invoiceAdm = async (a: ClinicAdmission) => {
-    try { const r = await api.clinic.invoiceAdmission(a.id); toast.success(`Fatura ${r.invoiceNumber} emitida.`); await loadHistory(); }
-    catch (e) { toast.error(errMsg(e, 'Falha ao faturar.')); }
+    try {
+      const r = await api.clinic.invoiceAdmission(a.id);
+      if (r.insurer && Number(r.covered) > 0) {
+        const pac = r.invoiceNumber ? `paciente ${KZ(r.copay ?? 0)} (FT ${r.invoiceNumber})` : 'paciente 0 (100% coberto)';
+        toast.success(`Convénio ${r.insurer}: cobre ${KZ(r.covered)}, ${pac}.`);
+      } else toast.success(`Fatura ${r.invoiceNumber} emitida.`);
+      await loadHistory();
+    } catch (e) { toast.error(errMsg(e, 'Falha ao faturar.')); }
   };
 
   return (

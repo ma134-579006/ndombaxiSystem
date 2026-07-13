@@ -720,7 +720,7 @@ export const api = {
     createAppointment: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/appointments', dto),
     appointmentStatus: (id: string, status: string) => request<{ ok: boolean }>('POST', `/clinic/appointments/${id}/status`, { status }),
     createConsultation: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/consultations', dto),
-    invoiceConsultation: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/clinic/consultations/${id}/invoice`),
+    invoiceConsultation: (id: string) => request<{ invoiceId: string | null; invoiceNumber: string | null; covered?: number; copay?: number; insurer?: string | null }>('POST', `/clinic/consultations/${id}/invoice`),
     // ── HOSPITAL (HIS) ──
     patientRecord: (id: string) => request<ClinicPatientRecord>('GET', `/clinic/patients/${id}/record`),
     professionals: (category?: string) => request<ClinicProfessional[]>('GET', `/clinic/professionals${category ? `?category=${category}` : ''}`),
@@ -740,7 +740,7 @@ export const api = {
     admissions: (status?: string) => request<ClinicAdmission[]>('GET', `/clinic/admissions${status ? `?status=${status}` : ''}`),
     admit: (dto: Record<string, unknown>) => request<{ id: string; number: string }>('POST', '/clinic/admissions', dto),
     discharge: (id: string, outcome?: string) => request<{ ok: boolean; days: number; total: number }>('POST', `/clinic/admissions/${id}/discharge`, { outcome }),
-    invoiceAdmission: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/clinic/admissions/${id}/invoice`),
+    invoiceAdmission: (id: string) => request<{ invoiceId: string | null; invoiceNumber: string | null; covered?: number; copay?: number; insurer?: string | null }>('POST', `/clinic/admissions/${id}/invoice`),
     emergency: () => request<ClinicTriageRow[]>('GET', '/clinic/emergency'),
     triage: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/clinic/emergency', dto),
     triageStatus: (id: string, status: string) => request<{ ok: boolean }>('POST', `/clinic/emergency/${id}/status`, { status }),
