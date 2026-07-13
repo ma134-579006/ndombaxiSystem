@@ -180,6 +180,7 @@ export interface ManagerProduct {
   show_online: boolean;
   shared_stock: boolean;
   is_ingredient?: boolean;
+  is_production?: boolean;
   /** Unidade de medida (un, kg, g, L, ml, fatia, folha…). */
   unit?: string | null;
   /** TRUE = tem ficha técnica (pode ser produzido em fornada / vendido sob encomenda). */
@@ -207,6 +208,7 @@ export interface CreateProductInput {
   imageUrl?: string;
   showOnline?: boolean;
   isIngredient?: boolean;
+  isProduction?: boolean;
   unit?: string;
 }
 export interface UpdateProductInput {
@@ -225,6 +227,7 @@ export interface UpdateProductInput {
   sharedStock?: boolean;
   isActive?: boolean;
   isIngredient?: boolean;
+  isProduction?: boolean;
   unit?: string;
 }
 

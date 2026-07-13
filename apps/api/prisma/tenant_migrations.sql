@@ -528,3 +528,9 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."clinic_insurer_claims" (
 );
 CREATE INDEX IF NOT EXISTS clinic_claims_idx ON "{{SCHEMA}}"."clinic_insurer_claims"(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS clinic_claims_insurer_idx ON "{{SCHEMA}}"."clinic_insurer_claims"(insurer_id, status);
+
+-- 2026-07-13 · RESTAURANTE/PRODUCAO — tipo de produto PRODUCAO explicito
+-- is_production: TRUE => o produto e FABRICADO (custo vem da ficha tecnica; sem
+-- estoque/compra/fornecedor tradicionais). Aditivo; is_ingredient continua a ser
+-- materia-prima. Um produto normal (comercial) tem ambos FALSE.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS is_production BOOLEAN NOT NULL DEFAULT FALSE;

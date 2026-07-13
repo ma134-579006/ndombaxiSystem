@@ -110,6 +110,13 @@ export class CreateProductDto {
   @IsBoolean()
   isIngredient?: boolean;
 
+  /** TRUE = produto de PRODUÇÃO (fabricado): o custo vem SEMPRE da ficha técnica
+   *  (nunca manual) e o estoque vem das fornadas. Núcleo de produção, separado do
+   *  núcleo comercial (produto comprado pronto). */
+  @IsOptional()
+  @IsBoolean()
+  isProduction?: boolean;
+
   /** Unidade de medida (un, kg, g, L, ml, fatia, folha…). Informativa. */
   @IsOptional()
   @IsString()
@@ -190,6 +197,11 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   isIngredient?: boolean;
+
+  /** Marcar/desmarcar como produto de PRODUÇÃO (custo da ficha técnica). */
+  @IsOptional()
+  @IsBoolean()
+  isProduction?: boolean;
 
   /** Unidade de medida (un, kg, g, L, ml, fatia, folha…). Informativa. */
   @IsOptional()

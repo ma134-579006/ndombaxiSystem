@@ -34,6 +34,7 @@ interface FormState {
   showOnline: boolean;
   isActive: boolean;
   isIngredient: boolean;
+  isProduction: boolean;
   unit: string;
 }
 
@@ -56,6 +57,7 @@ const EMPTY: FormState = {
   showOnline: true,
   isActive: true,
   isIngredient: false,
+  isProduction: false,
   unit: '',
 };
 
@@ -169,6 +171,7 @@ export function Products() {
       showOnline: p.show_online,
       isActive: p.is_active,
       isIngredient: !!p.is_ingredient,
+      isProduction: !!p.is_production,
       unit: p.unit ?? '',
     });
     setFormError(null);
@@ -219,6 +222,7 @@ export function Products() {
           sharedStock: form.sharedStock,
           isActive: form.isActive,
           isIngredient: form.isIngredient,
+          isProduction: form.isProduction,
           unit: form.unit.trim(),
         });
       } else {
@@ -243,6 +247,7 @@ export function Products() {
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
           isIngredient: form.isIngredient,
+          isProduction: form.isProduction,
           unit: form.unit.trim() || undefined,
         };
         await api.products.create(payload);
@@ -436,7 +441,16 @@ export function Products() {
               Como este produto se mede: o stock, as compras e a ficha técnica passam a mostrar esta unidade (ex.: carne em <strong>kg</strong>, queijo à <strong>fatia</strong>, molho em <strong>ml</strong>).
             </p>
           </div>
-          {!editing ? (
+          {/* PRODUÇÃO: o custo vem da ficha técnica e o estoque das fornadas —
+              escondem-se estoque/custo/compra (deixam de fazer sentido). */}
+          {form.isProduction ? (
+            <div className="card" style={{ background: 'var(--surface-2)', padding: 12, margin: '0 0 12px', borderLeft: '3px solid var(--primary)' }}>
+              <div style={{ fontWeight: 700 }}>🏭 Produto de produção</div>
+              <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
+                O <strong>custo</strong> é calculado automaticamente pela ficha técnica (ingredientes) e o <strong>estoque</strong> vem das fornadas. Defina a receita no separador do restaurante.
+              </p>
+            </div>
+          ) : !editing ? (
             <div className="card" style={{ background: 'var(--surface-2)', padding: 12, margin: '0 0 12px' }}>
               <div style={{ fontWeight: 700, marginBottom: 8 }}>Stock inicial (opcional)</div>
               <div className="field">
@@ -484,10 +498,18 @@ export function Products() {
             </div>
           ) : null}
 
-          <div className="switch-row">
-            <span>É ingrediente (matéria-prima)<br /><small className="muted">Não se vende no caixa nem na loja — só para a ficha técnica dos pratos.</small></span>
-            <Switch checked={form.isIngredient} onChange={(v) => setForm({ ...form, isIngredient: v, showOnline: v ? false : form.showOnline })} />
-          </div>
+          {!form.isProduction ? (
+            <div className="switch-row">
+              <span>É ingrediente (matéria-prima)<br /><small className="muted">Não se vende no caixa nem na loja — só para a ficha técnica dos pratos.</small></span>
+              <Switch checked={form.isIngredient} onChange={(v) => setForm({ ...form, isIngredient: v, showOnline: v ? false : form.showOnline })} />
+            </div>
+          ) : null}
+          {!form.isIngredient ? (
+            <div className="switch-row">
+              <span>🏭 Ativar produção<br /><small className="muted">Produto FABRICADO: o custo vem da ficha técnica e o estoque das fornadas (esconde custo/estoque/compra).</small></span>
+              <Switch checked={form.isProduction} onChange={(v) => setForm({ ...form, isProduction: v })} />
+            </div>
+          ) : null}
           {!form.isIngredient ? (
             <div className="switch-row">
               <span>Mostrar na loja online</span>

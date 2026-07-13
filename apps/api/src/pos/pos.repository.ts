@@ -23,6 +23,7 @@ export interface ProductRow {
   show_online: boolean;
   shared_stock: boolean;
   is_ingredient: boolean;
+  is_production?: boolean;
   unit: string | null;
   is_active: boolean;
   /** TRUE = tem ficha técnica (prato produzido sob encomenda; stock nos ingredientes). */
@@ -86,6 +87,8 @@ export class PosRepository {
       showOnline?: boolean;
       /** TRUE = ingrediente/matéria-prima (não se vende; só ficha técnica). */
       isIngredient?: boolean;
+      /** TRUE = produto de PRODUÇÃO (custo da ficha técnica; estoque das fornadas). */
+      isProduction?: boolean;
       /** Unidade de medida (un, kg, g, L, ml, fatia, folha…). */
       unit?: string | null;
     },
@@ -93,18 +96,23 @@ export class PosRepository {
     return this.prisma.runInTenant(schema, async (tx) => {
       const shared = input.sharedStock ?? false;
       const isIngredient = input.isIngredient ?? false;
+      const isProduction = input.isProduction ?? false;
       // Ingrediente nunca aparece na loja online.
       const showOnline = isIngredient ? false : (input.showOnline ?? true);
+      // PRODUÇÃO: o custo vem da ficha técnica (nunca manual) e o estoque das
+      // fornadas — logo, ignoram-se custo/estoque iniciais no cadastro.
+      const costPrice = isProduction ? 0 : (input.costPrice ?? 0);
+      const stockQty = isProduction ? 0 : (input.stockQty ?? 0);
       const rows = await tx.$queryRaw<ProductRow[]>(
         Prisma.sql`INSERT INTO products
             (code, barcode, name, description, category_id, brand, iva_code, exemption_reason, exemption_code,
-             unit_price, cost_price, stock_qty, shared_stock, image_url, gallery, show_online, is_ingredient, unit)
+             unit_price, cost_price, stock_qty, shared_stock, image_url, gallery, show_online, is_ingredient, is_production, unit)
           VALUES (${input.code}, ${input.barcode ?? null}, ${input.name},
                   ${input.description ?? null}, ${input.categoryId ?? null}::uuid, ${input.brand ?? null},
                   ${input.ivaCode}, ${input.exemptionReason ?? null}, ${input.exemptionCode ?? null},
-                  ${input.unitPrice ?? 0}, ${input.costPrice ?? 0}, ${input.stockQty ?? 0}, ${shared},
+                  ${input.unitPrice ?? 0}, ${costPrice}, ${stockQty}, ${shared},
                   ${input.imageUrl ?? null}, ${JSON.stringify(input.gallery ?? [])}::jsonb,
-                  ${showOnline}, ${isIngredient}, ${input.unit?.trim() || null})
+                  ${showOnline}, ${isIngredient}, ${isProduction}, ${input.unit?.trim() || null})
           RETURNING *`,
       );
       const product = rows[0];
@@ -192,7 +200,7 @@ export class PosRepository {
                  p.iva_code, p.exemption_reason, p.exemption_code, p.unit_price, p.cost_price,
                  CASE WHEN p.shared_stock OR ${storeId ?? null}::uuid IS NULL
                       THEN p.stock_qty ELSE COALESCE(si.quantity, 0) END AS stock_qty,
-                 p.image_url, p.gallery, p.show_online, p.shared_stock, p.is_ingredient, p.unit, p.is_active,
+                 p.image_url, p.gallery, p.show_online, p.shared_stock, p.is_ingredient, p.is_production, p.unit, p.is_active,
                  ${hasRecipeExpr} AS has_recipe,
                  ${portionsExpr} AS portions_available
           FROM products p
@@ -247,6 +255,7 @@ export class PosRepository {
       sharedStock?: boolean;
       isActive?: boolean;
       isIngredient?: boolean;
+      isProduction?: boolean;
       unit?: string | null;
     },
   ): Promise<ProductRow> {
@@ -272,6 +281,11 @@ export class PosRepository {
       sets.push(Prisma.sql`is_ingredient = ${input.isIngredient}`);
       // Ao marcar como ingrediente, sai da loja online.
       if (input.isIngredient) sets.push(Prisma.sql`show_online = FALSE`);
+    }
+    if (input.isProduction !== undefined) {
+      sets.push(Prisma.sql`is_production = ${input.isProduction}`);
+      // PRODUÇÃO: custo vem da ficha técnica; zera o custo manual guardado.
+      if (input.isProduction) sets.push(Prisma.sql`cost_price = 0`);
     }
 
     if (sets.length === 0) return this.getProduct(schema, id);
