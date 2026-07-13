@@ -117,6 +117,11 @@ export class RestaurantController {
   @ApiOperation({ summary: 'Centro de comando do restaurante (serviço, cozinha, cardápio, hoje)' })
   dashboard() { return this.svc.getDashboard(this.ctx.requireTenantSchema()); }
 
+  @Get('availability')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Disponibilidade dos produtos de produção (🟢 Livre / 🟡 Ocupado / 🔴 Esgotado)' })
+  availability() { return this.svc.productionAvailability(this.ctx.requireTenantSchema()); }
+
   @Get('online-queue')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Encomendas online na cozinha (com tempo estimado e estado de produção)' })

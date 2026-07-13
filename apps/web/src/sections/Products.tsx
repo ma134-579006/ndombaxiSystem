@@ -128,11 +128,22 @@ export function Products() {
     }
   }, []);
 
+  // Disponibilidade dos produtos de PRODUÇÃO (🟢 Livre / 🟡 Ocupado / 🔴 Esgotado).
+  const [avail, setAvail] = useState<Record<string, 'FREE' | 'BUSY' | 'OUT'>>({});
   useEffect(() => {
     void load();
     api.inventory.warehouses().then(setStores).catch(() => undefined);
     api.inventory.categories().then(setCategories).catch(() => undefined);
+    api.restaurant.availability()
+      .then((rows) => setAvail(Object.fromEntries(rows.map((r) => [r.id, r.status]))))
+      .catch(() => undefined); // vertical não-restaurante: simplesmente não há
   }, [load]);
+  const availBadge = (id: string) => {
+    const s = avail[id];
+    if (!s) return null;
+    const m = { FREE: ['🟢', 'Livre'], BUSY: ['🟡', 'Ocupado'], OUT: ['🔴', 'Esgotado'] }[s];
+    return <span className="pill" style={{ marginLeft: 6, fontSize: 10.5 }}>{m[0]} {m[1]}</span>;
+  };
 
   const addCategory = async () => {
     const name = newCategory.trim();
@@ -352,13 +363,16 @@ export function Products() {
                 <div className="pname">
                   {p.name}
                   {p.is_ingredient ? <span className="pill" style={{ marginLeft: 6, fontSize: 10.5, background: 'color-mix(in srgb, var(--warning) 22%, transparent)', color: 'var(--warning)' }}>matéria-prima</span> : null}
+                  {p.is_production ? availBadge(p.id) : null}
                 </div>
-                <div className="pcode">{p.code} · {p.iva_code} · stock {Number(p.stock_qty)}{p.unit ? ` ${p.unit}` : ''}</div>
+                <div className="pcode">{p.code} · {p.iva_code} · {p.is_production ? 'produção (fornadas)' : `stock ${Number(p.stock_qty)}${p.unit ? ` ${p.unit}` : ''}`}</div>
                 <div className="pfoot">
                   <span className="pprice">{p.is_ingredient ? '—' : formatKz(grossUnit(p))}</span>
                   {p.is_ingredient
                     ? <span className="pill off">Ingrediente</span>
-                    : <span className={`pill ${p.show_online ? 'on' : 'off'}`}>{p.show_online ? 'Online' : 'Oculto'}</span>}
+                    : p.is_production
+                      ? <span className="pill" style={{ background: 'color-mix(in srgb, var(--primary) 18%, transparent)', color: 'var(--primary)' }}>🏭 Produção</span>
+                      : <span className={`pill ${p.show_online ? 'on' : 'off'}`}>{p.show_online ? 'Online' : 'Oculto'}</span>}
                 </div>
                 <button className="btn sm ghost block" style={{ marginTop: 8 }} onClick={() => openEdit(p)}>
                   <IconEdit size={15} /> Editar

@@ -31,6 +31,33 @@ export class RestaurantService {
   }
 
   // ── Mesas ──────────────────────────────────────────────────
+  /**
+   * DISPONIBILIDADE dos produtos de PRODUÇÃO (🟢 Livre / 🟡 Ocupado / 🔴 Esgotado).
+   * Derivada (sem novas tabelas): Livre = há produção pronta (stock das fornadas);
+   * Ocupado = há produção em andamento (itens em cozinha PENDING/PREPARING);
+   * Esgotado = sem produção pronta nem em curso. Guardado por to_regclass —
+   * tenants sem restaurant_orders só olham ao stock.
+   */
+  async productionAvailability(schema: string): Promise<{ id: string; name: string; stock: number; inProduction: number; status: 'FREE' | 'BUSY' | 'OUT' }[]> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const reg = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('restaurant_order_items')::text AS r`);
+      const inProdExpr = reg[0]?.r
+        ? Prisma.sql`COALESCE((SELECT SUM(oi.quantity)::float8 FROM restaurant_order_items oi
+                       JOIN restaurant_orders o ON o.id = oi.order_id
+                       WHERE oi.product_id = p.id AND o.status = 'OPEN' AND oi.kitchen_status IN ('PENDING','PREPARING')), 0)`
+        : Prisma.sql`0`;
+      const rows = await tx.$queryRaw<{ id: string; name: string; stock: string; in_production: string }[]>(Prisma.sql`
+        SELECT p.id, p.name, p.stock_qty AS stock, ${inProdExpr} AS in_production
+        FROM products p WHERE p.is_active = TRUE AND p.is_production = TRUE
+        ORDER BY p.name`);
+      return rows.map((r) => {
+        const stock = Number(r.stock); const inProduction = Number(r.in_production);
+        const status: 'FREE' | 'BUSY' | 'OUT' = stock > 0 ? 'FREE' : inProduction > 0 ? 'BUSY' : 'OUT';
+        return { id: r.id, name: r.name, stock, inProduction, status };
+      });
+    });
+  }
+
   listTables(schema: string): Promise<TableRow[]> {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<TableRow[]>(Prisma.sql`SELECT id, code, name, area, seats, is_active, sort_order

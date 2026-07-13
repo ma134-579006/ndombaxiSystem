@@ -129,7 +129,8 @@ export class PosRepository {
       // Stock inicial: partilhado → pool central (loja principal); por loja → a loja
       // de quem criou (initialStoreId) ou, em falta, a loja principal.
       const initStore = shared ? defStore : (input.initialStoreId || defStore);
-      const initial = Number(input.stockQty ?? 0);
+      // PRODUÇÃO: sem stock inicial por loja — o estoque vem só das fornadas.
+      const initial = Number(stockQty);
       for (const st of stores) {
         const q = initial > 0 && st.id === initStore ? initial : 0;
         await tx.$executeRaw(

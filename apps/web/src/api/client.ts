@@ -686,6 +686,7 @@ export const api = {
     recipe: (productId: string) => request<RecipeIngredient[]>('GET', `/restaurant/recipe/${productId}`),
     setRecipe: (productId: string, items: { ingredientCode: string; quantity: number; wastePct?: number }[]) => request<{ ok: boolean }>('POST', `/restaurant/recipe/${productId}`, { items }),
     recomputeCosts: () => request<{ ok: boolean }>('POST', '/restaurant/recipes/recompute-costs', {}),
+    availability: () => request<{ id: string; name: string; stock: number; inProduction: number; status: 'FREE' | 'BUSY' | 'OUT' }[]>('GET', '/restaurant/availability'),
   },
   hotel: {
     dashboard: () => request<HotelDashboard>('GET', '/hotel/dashboard'),
