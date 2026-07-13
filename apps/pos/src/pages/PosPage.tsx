@@ -176,6 +176,9 @@ export function PosPage() {
   const [showSales, setShowSales] = useState(false);
   // Balcão → cozinha: modal de pedidos prontos + comanda a saldar (chamada da cozinha).
   const [showKitchen, setShowKitchen] = useState(false);
+  // Notificação em tempo real: nº de pedidos de produção PRONTOS para o caixa chamar.
+  const [kitchenReady, setKitchenReady] = useState(0);
+  const kitchenReadyPrev = useRef(0);
   const recalledOrderIdRef = useRef<string | null>(null);
 
   // Turno de caixa
@@ -259,6 +262,31 @@ export function PosPage() {
       setAvailMap(Object.fromEntries(av.map((r) => [r.id, r.status])));
     } catch { /* sem restauração: ignora */ }
   }, []);
+
+  // Notificação de cozinha: sonda os pedidos PRONTOS e mantém o badge do botão
+  // "Cozinha" atualizado sem recarregar. Beep curto (WebAudio) quando surge um novo.
+  const pollKitchenReady = useCallback(async () => {
+    try {
+      const rows = await api.readyKitchenOrders();
+      const n = rows.filter((r) => r.ready).length;
+      if (n > kitchenReadyPrev.current) {
+        try {
+          const Ctx = (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext);
+          if (Ctx) { const ac = new Ctx(); const o = ac.createOscillator(); const g = ac.createGain();
+            o.frequency.value = 880; o.connect(g); g.connect(ac.destination); g.gain.value = 0.05;
+            o.start(); o.stop(ac.currentTime + 0.18); }
+        } catch { /* som opcional */ }
+      }
+      kitchenReadyPrev.current = n;
+      setKitchenReady(n);
+    } catch { /* sem restauração / offline: ignora */ }
+  }, []);
+  useEffect(() => {
+    if (!sync.online) return;
+    void pollKitchenReady();
+    const t = window.setInterval(() => { void pollKitchenReady(); }, 12000);
+    return () => window.clearInterval(t);
+  }, [sync.online, pollKitchenReady]);
 
   useEffect(() => {
     if (!sync.online) return;
@@ -659,6 +687,7 @@ export function PosPage() {
           <button className="conn" onClick={() => setShowKitchen(true)} title="Pedidos prontos da cozinha (balcão)">
             <IconReceipt size={18} />
             <span className="conn-label">Cozinha</span>
+            {kitchenReady > 0 ? <span className="conn-badge" style={{ background: '#e5484d' }}>{kitchenReady > 99 ? '99+' : kitchenReady}</span> : null}
           </button>
           <button
             className={`conn ${sync.online ? 'on' : 'off'}`}
@@ -941,7 +970,7 @@ export function PosPage() {
       ) : null}
 
       {showQueue ? <QueueModal onClose={() => setShowQueue(false)} /> : null}
-      {showKitchen ? <KitchenOrdersModal onClose={() => setShowKitchen(false)} onRecall={recallKitchenOrder} /> : null}
+      {showKitchen ? <KitchenOrdersModal onClose={() => { setShowKitchen(false); void pollKitchenReady(); }} onRecall={recallKitchenOrder} /> : null}
       {prodPrompt ? <ProductionPrompt prompt={prodPrompt} onClose={() => setProdPrompt(null)} onConfirm={requestProduction} /> : null}
 
       {showSales ? (
