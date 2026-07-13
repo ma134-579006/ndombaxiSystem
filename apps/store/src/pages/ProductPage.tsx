@@ -35,7 +35,7 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
         <div className="ax-gallery">
           <div className="ax-gallery-main">
             {main ? <img src={main} alt={product.name} /> : <IconImage size={64} />}
-            {!product.inStock ? <span className="ax-out lg">Esgotado</span> : null}
+            {!product.inStock && !product.canProduce ? <span className="ax-out lg">Esgotado</span> : null}
           </div>
           {gallery.length > 1 ? (
             <div className="ax-thumbs">
@@ -65,7 +65,13 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
           </div>
 
           <div className="ax-stock-line">
-            {product.madeToOrder
+            {product.isProduction
+              ? (product.availability === 'FREE'
+                  ? <span>🟢 Pronto a servir</span>
+                  : product.availability === 'BUSY'
+                    ? <span className="low">🟡 Em produção — pode encomendar para produção</span>
+                    : <span className="low">🔴 Esgotado — pode solicitar produção</span>)
+              : product.madeToOrder
               ? <span>🍳 Sob encomenda — preparado na hora</span>
               : product.inStock
               ? (typeof product.stockQty === 'number'
@@ -74,7 +80,7 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
               : <span className="low">Esgotado</span>}
           </div>
 
-          {product.inStock ? (
+          {product.inStock || product.canProduce ? (
             <>
               <div className="ax-qty-row">
                 <span className="lbl">Quantidade</span>
@@ -84,10 +90,18 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
                   <button onClick={() => setQty((q) => q + 1)} aria-label="Mais"><IconPlus size={16} /></button>
                 </div>
               </div>
-              <div className="ax-buy-actions">
-                <button className="btn lg block buy" onClick={() => onBuyNow(product, qty)}>Comprar agora</button>
-                <button className="btn lg block ghost" onClick={() => onAdd(product, qty)}>Adicionar ao carrinho</button>
-              </div>
+              {/* Produção não pronta: só "Solicitar produção" (vai a aprovação →
+                  cozinha → pronto → aprovação final). Comprar agora exige stock pronto. */}
+              {product.isProduction && product.availability !== 'FREE' ? (
+                <div className="ax-buy-actions">
+                  <button className="btn lg block buy" onClick={() => onAdd(product, qty)}>🍳 Solicitar produção</button>
+                </div>
+              ) : (
+                <div className="ax-buy-actions">
+                  <button className="btn lg block buy" onClick={() => onBuyNow(product, qty)}>Comprar agora</button>
+                  <button className="btn lg block ghost" onClick={() => onAdd(product, qty)}>Adicionar ao carrinho</button>
+                </div>
+              )}
             </>
           ) : (
             <button className="btn lg block" disabled>Esgotado</button>

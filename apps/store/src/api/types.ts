@@ -47,6 +47,12 @@ export interface CatalogProduct {
   stockQty?: number;
   /** Prato com ficha técnica: produzido sob encomenda (sem stock próprio). */
   madeToOrder?: boolean;
+  /** Produto de PRODUÇÃO explícito: disponibilidade real (como no caixa). */
+  isProduction?: boolean;
+  /** 🟢 FREE (fornada pronta) / 🟡 BUSY (em produção) / 🔴 OUT (esgotado). */
+  availability?: 'FREE' | 'BUSY' | 'OUT';
+  /** Pode ser solicitado à produção mesmo esgotado (encomenda p/ aprovação). */
+  canProduce?: boolean;
   imageUrl: string | null;
   gallery: string[];
   category?: string | null;

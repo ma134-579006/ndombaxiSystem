@@ -25,6 +25,8 @@ interface CatalogRow {
   gallery: unknown;
   category?: string | null;
   has_recipe?: boolean;
+  is_production?: boolean;
+  in_production?: string | number;
 }
 
 export interface CatalogProduct {
@@ -39,6 +41,12 @@ export interface CatalogProduct {
   /** Prato com ficha técnica: produzido SOB ENCOMENDA (stock próprio 0 por
    *  natureza). Vendável online — a emissão valida/baixa os ingredientes. */
   madeToOrder: boolean;
+  /** Produto de PRODUÇÃO explícito: disponibilidade real (como no caixa). */
+  isProduction?: boolean;
+  /** 🟢 FREE (fornada pronta) / 🟡 BUSY (em produção) / 🔴 OUT (esgotado). */
+  availability?: 'FREE' | 'BUSY' | 'OUT';
+  /** Pode ser SOLICITADO à produção mesmo esgotado (encomenda p/ aprovação). */
+  canProduce?: boolean;
   imageUrl: string | null;
   gallery: string[];
   category: string | null;
@@ -60,10 +68,17 @@ export class StorefrontService {
       const hasRecipeExpr = reg[0]?.r
         ? Prisma.sql`EXISTS (SELECT 1 FROM product_recipes r WHERE r.product_id = p.id)`
         : Prisma.sql`FALSE`;
+      // Produção em andamento (itens em cozinha) — para a disponibilidade 🟡 Ocupado.
+      const regOrders = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('restaurant_order_items')::text AS r`);
+      const inProdExpr = regOrders[0]?.r
+        ? Prisma.sql`COALESCE((SELECT SUM(oi.quantity)::float8 FROM restaurant_order_items oi
+                       JOIN restaurant_orders o ON o.id = oi.order_id
+                       WHERE oi.product_id = p.id AND o.status = 'OPEN' AND oi.kitchen_status IN ('PENDING','PREPARING')), 0)`
+        : Prisma.sql`0`;
       return tx.$queryRaw<CatalogRow[]>(
         Prisma.sql`SELECT p.id, p.code, p.name, p.description, p.iva_code, p.unit_price, p.stock_qty,
                           p.image_url, p.gallery, pc.name AS category,
-                          ${hasRecipeExpr} AS has_recipe
+                          ${hasRecipeExpr} AS has_recipe, p.is_production, ${inProdExpr} AS in_production
                    FROM products p
                    LEFT JOIN product_categories pc ON pc.id = p.category_id
                    WHERE p.is_active = TRUE AND p.show_online = TRUE AND p.is_ingredient = FALSE
@@ -74,6 +89,13 @@ export class StorefrontService {
       const netPrice = Number(r.unit_price);
       const rate = resolveRate(r.iva_code);
       const madeToOrder = !!r.has_recipe;
+      const isProduction = !!r.is_production;
+      const stock = Math.max(0, Math.floor(Number(r.stock_qty)));
+      // PRODUÇÃO: disponibilidade real (como no caixa) — 🟢 há fornada / 🟡 em produção
+      // / 🔴 esgotado. O cliente pode SOLICITAR PRODUÇÃO mesmo esgotado (canProduce).
+      const availability: 'FREE' | 'BUSY' | 'OUT' | undefined = isProduction
+        ? (stock > 0 ? 'FREE' : Number(r.in_production) > 0 ? 'BUSY' : 'OUT')
+        : undefined;
       return {
         code: r.code,
         name: r.name,
@@ -81,10 +103,14 @@ export class StorefrontService {
         ivaCode: r.iva_code,
         netPrice,
         grossPrice: round2(netPrice * (1 + rate / 100)),
-        // Sob encomenda: sempre "disponível" (a emissão valida os ingredientes).
-        inStock: madeToOrder ? true : Number(r.stock_qty) > 0,
-        stockQty: Math.max(0, Math.floor(Number(r.stock_qty))),
+        // Produção: "em stock" = há fornada pronta (🟢). Sob encomenda legado
+        // (has_recipe sem is_production): sempre disponível. Comercial: stock>0.
+        inStock: isProduction ? availability === 'FREE' : madeToOrder ? true : stock > 0,
+        stockQty: stock,
         madeToOrder,
+        isProduction,
+        availability,
+        canProduce: isProduction, // produção pode ser solicitada mesmo esgotado
         imageUrl: r.image_url,
         gallery: Array.isArray(r.gallery) ? (r.gallery as string[]) : [],
         category: r.category ?? null,
