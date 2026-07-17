@@ -13,8 +13,10 @@
   "dependencies": {
     "@zxing/browser": "0.1.5",
     "@zxing/library": "0.21.3",
+    "jspdf": "3.0.4",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "@nexus/tokens": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "~18.2.79",

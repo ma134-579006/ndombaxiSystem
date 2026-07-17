@@ -118,9 +118,23 @@ export class CustomerAuthService {
     return this.getProfile(schema, email);
   }
 
-  async emailLogin(schema: string, email: string, name?: string): Promise<CustomerSession> {
+  async emailLogin(schema: string, email: string, name?: string, existing?: boolean): Promise<CustomerSession> {
     const e = email.trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(e)) throw new BadRequestException('Email inválido.');
+    // Modo ENTRAR (conta existente): não cria nada — se o email não estiver
+    // registado nesta loja, avisa o cliente para criar conta primeiro.
+    if (existing) {
+      const rows = await this.prisma.runInTenant(schema, (tx) =>
+        tx.$queryRaw<{ name: string | null }[]>(
+          Prisma.sql`SELECT name FROM customers WHERE lower(email) = ${e} LIMIT 1`,
+        ),
+      );
+      if (!rows[0]) {
+        throw new BadRequestException('Não encontrámos nenhuma conta com este email nesta loja. Toque em "Criar conta".');
+      }
+      const nm = (rows[0].name?.trim() || e.split('@')[0]).slice(0, 120);
+      return { token: await this.sign(schema, e, nm), customer: { email: e, name: nm } };
+    }
     const nm = (name?.trim() || e.split('@')[0]).slice(0, 120);
     await this.upsertCustomer(schema, e, nm).catch(() => undefined);
     return { token: await this.sign(schema, e, nm), customer: { email: e, name: nm } };

@@ -523,7 +523,7 @@ export class RestaurantService {
       // Central de Produção: os pedidos URGENTES vêm primeiro (prioridade DESC),
       // depois por antiguidade — o cozinheiro ataca o que é mais crítico.
       return tx.$queryRaw(Prisma.sql`
-        SELECT i.id, i.description, i.quantity, i.kitchen_status, i.notes, i.created_at,
+        SELECT i.id, i.product_id, i.description, i.quantity, i.kitchen_status, i.notes, i.created_at,
           o.table_name, o.id AS order_id, ${etaExpr} AS prep_eta_min, ${prioExpr} AS priority, (o.table_id IS NULL) AS is_counter
         FROM restaurant_order_items i
         JOIN restaurant_orders o ON o.id = i.order_id
@@ -563,13 +563,13 @@ export class RestaurantService {
       // order_id é UUID: cast explícito de cada id (senão `uuid = text` rebenta,
       // como no bug da venda 42883). Ver [[bug_sale_uuid_text]].
       const idList = Prisma.join(orders.map((o) => Prisma.sql`${o.id}::uuid`));
-      const items = await tx.$queryRaw<{ order_id: string; description: string; quantity: string }[]>(
-        Prisma.sql`SELECT order_id, description, quantity FROM web_order_items
+      const items = await tx.$queryRaw<{ order_id: string; product_id: string | null; description: string; quantity: string }[]>(
+        Prisma.sql`SELECT order_id, product_id, description, quantity FROM web_order_items
                    WHERE order_id IN (${idList}) ORDER BY line_number`);
-      const byOrder = new Map<string, { description: string; quantity: string }[]>();
+      const byOrder = new Map<string, { product_id: string | null; description: string; quantity: string }[]>();
       for (const it of items) {
         const arr = byOrder.get(it.order_id) ?? [];
-        arr.push({ description: it.description, quantity: it.quantity });
+        arr.push({ product_id: it.product_id, description: it.description, quantity: it.quantity });
         byOrder.set(it.order_id, arr);
       }
       return orders.map((o) => ({

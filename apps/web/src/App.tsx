@@ -253,16 +253,16 @@ function TenantPanel() {
       };
       const spine: NavItem[] = [
         base[0], // Visão geral
-        { key: 'service-hub', label: '🍔 Centro de comando', icon: IconGauge },
-        { key: 'restaurant', label: '🍽️ Sala & Comandas', icon: IconStore },
-        { key: 'restaurant-kds', label: '👨‍🍳 Cozinha', icon: IconStore },
+        { key: 'service-hub', label: 'Centro de comando', icon: IconGauge },
+        { key: 'restaurant', label: 'Sala & Comandas', icon: IconStore },
+        { key: 'restaurant-kds', label: 'Cozinha', icon: IconStore },
       ];
       const reframed = new Set(['overview', 'products-group', 'movements-group']);
       const rest = base.slice(1).filter((g) => !reframed.has(g.key));
       return [
         ...spine,
-        ...relabel('products-group', '🍴 Cardápio & Stock'),
-        ...relabel('movements-group', '💳 Caixa & Financeiro'),
+        ...relabel('products-group', 'Cardápio & Stock'),
+        ...relabel('movements-group', 'Caixa & Financeiro'),
         ...rest,
       ];
     }
@@ -276,15 +276,15 @@ function TenantPanel() {
       };
       const spine: NavItem[] = [
         base[0], // Visão geral
-        { key: 'service-hub', label: '🏨 Centro de comando', icon: IconGauge },
-        { key: 'hotel', label: '🛏️ Quartos & Reservas', icon: IconStore },
+        { key: 'service-hub', label: 'Centro de comando', icon: IconGauge },
+        { key: 'hotel', label: 'Quartos & Reservas', icon: IconStore },
       ];
       const reframed = new Set(['overview', 'products-group', 'movements-group']);
       const rest = base.slice(1).filter((g) => !reframed.has(g.key));
       return [
         ...spine,
-        ...relabel('products-group', '🛎️ Serviços & Stock'),
-        ...relabel('movements-group', '💳 Caixa & Financeiro'),
+        ...relabel('products-group', 'Serviços & Stock'),
+        ...relabel('movements-group', 'Caixa & Financeiro'),
         ...rest,
       ];
     }
@@ -298,15 +298,15 @@ function TenantPanel() {
       };
       const spine: NavItem[] = [
         base[0], // Visão geral
-        { key: 'service-hub', label: '🏥 Centro de comando', icon: IconGauge },
-        { key: 'clinic', label: '🩺 Agenda & Pacientes', icon: IconStore },
+        { key: 'service-hub', label: 'Centro de comando', icon: IconGauge },
+        { key: 'clinic', label: 'Agenda & Pacientes', icon: IconStore },
       ];
       const reframed = new Set(['overview', 'products-group', 'movements-group']);
       const rest = base.slice(1).filter((g) => !reframed.has(g.key));
       return [
         ...spine,
-        ...relabel('products-group', '💊 Farmácia & Stock'),
-        ...relabel('movements-group', '💳 Caixa & Financeiro'),
+        ...relabel('products-group', 'Farmácia & Stock'),
+        ...relabel('movements-group', 'Caixa & Financeiro'),
         ...rest,
       ];
     }
@@ -315,8 +315,8 @@ function TenantPanel() {
     const vert: NavItem[] = [{ key: 'service-hub', label: VERTICAL_LABEL[bizType], icon: IconStore }];
     if (bizType === 'RESTAURANT') vert.push({ key: 'restaurant', label: '🍽️ Mesas & Comandas', icon: IconStore });
     if (bizType === 'SERVICES') vert.push({ key: 'service-orders', label: '🛠️ Ordens de serviço', icon: IconStore });
-    if (bizType === 'HOSPITALITY') vert.push({ key: 'hotel', label: '🛏️ Quartos & Reservas', icon: IconStore });
-    if (bizType === 'CLINIC') vert.push({ key: 'clinic', label: '🩺 Agenda & Pacientes', icon: IconStore });
+    if (bizType === 'HOSPITALITY') vert.push({ key: 'hotel', label: 'Quartos & Reservas', icon: IconStore });
+    if (bizType === 'CLINIC') vert.push({ key: 'clinic', label: 'Agenda & Pacientes', icon: IconStore });
     if (bizType === 'PHARMACY') vert.push({ key: 'pharmacy', label: '💊 Validade & Lotes', icon: IconStore });
     return [base[0], ...vert, ...base.slice(1)];
   }, [user?.role, bizType, storeEnabled]);

@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsString, Length } from 'class-validator';
 
 export class CustomerEmailLoginDto {
   @IsEmail()
@@ -8,6 +8,11 @@ export class CustomerEmailLoginDto {
   @IsString()
   @Length(1, 120)
   name?: string;
+
+  /** TRUE = modo ENTRAR: exige conta existente (não cria nem altera nada). */
+  @IsOptional()
+  @IsBoolean()
+  existing?: boolean;
 }
 
 export class CustomerGoogleLoginDto {

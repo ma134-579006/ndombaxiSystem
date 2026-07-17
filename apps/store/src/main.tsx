@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import '@nexus/tokens/tokens.css';
 import './theme.css';
 import { initTheme } from './theme';
 import { initAutoUpdate } from './autoUpdate';

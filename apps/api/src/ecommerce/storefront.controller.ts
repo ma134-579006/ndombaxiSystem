@@ -66,7 +66,7 @@ export class StorefrontController {
   @ApiOperation({ summary: 'Login/registo rápido do cliente por email' })
   async authEmail(@Param('code') code: string, @Body() dto: CustomerEmailLoginDto) {
     const tenant = await this.resolver.resolveByCode(code);
-    return this.customers.emailLogin(tenant.schema, dto.email, dto.name);
+    return this.customers.emailLogin(tenant.schema, dto.email, dto.name, dto.existing);
   }
 
   @Post('auth/google')

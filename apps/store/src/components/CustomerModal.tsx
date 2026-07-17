@@ -59,6 +59,9 @@ export function CustomerModal({
 }
 
 function Login({ code, onClose }: { code: string; onClose(): void }) {
+  // Fluxos SEPARADOS (enterprise): ENTRAR = conta existente (não cria nada);
+  // CRIAR CONTA = registo novo. Evita contas acidentais por gralha no email.
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -96,7 +99,7 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr('Indique um email válido.'); return; }
     setBusy(true);
     try {
-      setSession(code, await api.authEmail(code, email.trim(), name.trim() || undefined));
+      setSession(code, await api.authEmail(code, email.trim(), name.trim() || undefined, mode === 'login'));
       onClose();
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível entrar.'); }
     finally { setBusy(false); }
@@ -106,8 +109,17 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
 
   return (
     <>
+      {/* Alternador Entrar / Criar conta (fluxos distintos, estilo enterprise). */}
+      <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+        <button className={`btn sm${mode === 'login' ? '' : ' ghost'}`} style={{ flex: 1 }}
+          onClick={() => { setMode('login'); setErr(null); }}>Entrar</button>
+        <button className={`btn sm${mode === 'signup' ? '' : ' ghost'}`} style={{ flex: 1 }}
+          onClick={() => { setMode('signup'); setErr(null); }}>Criar conta</button>
+      </div>
       <p className="muted" style={{ marginTop: 0 }}>
-        Entra para <strong>acompanhar as tuas encomendas</strong> e falar com a loja — com histórico e apoio por IA.
+        {mode === 'login'
+          ? <>Já tens conta? Entra com o teu email para <strong>acompanhar as tuas encomendas</strong> e faturas.</>
+          : <>Cria a tua conta para <strong>comprar, acompanhar encomendas</strong> e falar com a loja.</>}
       </p>
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
       {googleOn ? (
@@ -118,9 +130,13 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
       ) : null}
       <div className="field"><label>Email</label>
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="o-teu-email@exemplo.com" inputMode="email" /></div>
-      <div className="field"><label>Nome (opcional)</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="O teu nome" /></div>
-      <button className="btn lg block" onClick={submit} disabled={busy}>{busy ? 'A entrar…' : 'Entrar / Criar conta'}</button>
+      {mode === 'signup' ? (
+        <div className="field"><label>Nome (opcional)</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="O teu nome" /></div>
+      ) : null}
+      <button className="btn lg block" onClick={submit} disabled={busy}>
+        {busy ? 'A entrar…' : mode === 'login' ? 'Entrar' : 'Criar conta'}
+      </button>
     </>
   );
 }

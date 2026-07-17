@@ -1,0 +1,12 @@
+{
+  "name": "@nexus/tokens",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Design tokens do Ndombaxi System — fonte única de cor, raio, sombra e motion para os 3 frontends.",
+  "exports": {
+    "./tokens.css": "./tokens.css"
+  },
+  "files": [
+    "tokens.css"
+  ]
+}

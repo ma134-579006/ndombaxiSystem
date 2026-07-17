@@ -104,8 +104,8 @@ export const api = {
       { body: messageBody, senderName },
     ),
   // ── Conta do cliente ───────────────────────────────────────
-  authEmail: (code: string, email: string, name?: string) =>
-    request<CustomerSession>('POST', `/store/${enc(code)}/auth/email`, { email, name }),
+  authEmail: (code: string, email: string, name?: string, existing?: boolean) =>
+    request<CustomerSession>('POST', `/store/${enc(code)}/auth/email`, { email, name, existing }),
   authGoogle: (code: string, idToken: string) =>
     request<CustomerSession>('POST', `/store/${enc(code)}/auth/google`, { idToken }),
   myOrders: (code: string, token: string) =>

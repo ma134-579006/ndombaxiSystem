@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import '@nexus/tokens/tokens.css';
 import './theme.css';
 import { initTheme } from './theme';
 import { initPaper } from './print';

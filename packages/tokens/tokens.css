@@ -1,0 +1,98 @@
+/* ============================================================
+   Ndombaxi System — DESIGN TOKENS (fonte única, @nexus/tokens)
+   Namespace --nx-* : NÃO colide com as variáveis de tema de cada
+   app (--primary, --accent…). Os temas apontam para estes tokens
+   progressivamente (Fase 1 da auditoria de design 2026-07).
+
+   Identidade (decisão do utilizador 2026-07-17):
+   · GESTÃO (admin, POS, super admin, auth): índigo #2430E8.
+   · LOJA ONLINE: laranja #FF4D2D — token DE CANAL, não da marca.
+   ============================================================ */
+:root {
+  /* ---- Marca (gestão) — rampa índigo ---- */
+  --nx-brand-50:  #eef0ff;
+  --nx-brand-100: #dfe3ff;
+  --nx-brand-200: #c1c8ff;
+  --nx-brand-300: #98a3ff;
+  --nx-brand-400: #6674ff;
+  --nx-brand-500: #4353ff; /* tinta clara p/ fundos escuros */
+  --nx-brand-600: #2430e8; /* PRIMÁRIO da marca */
+  --nx-brand-700: #1b23ae;
+  --nx-brand-800: #161d85;
+  --nx-brand-900: #131a66;
+
+  /* ---- Canal loja (e-commerce) ---- */
+  --nx-shop-500: #ff6a47;
+  --nx-shop-600: #ff4d2d; /* accent da loja */
+  --nx-shop-700: #e63c1e;
+
+  /* ---- Cinzas (escala única, base slate) ---- */
+  --nx-gray-25:  #fcfdfe;
+  --nx-gray-50:  #f8fafc;
+  --nx-gray-100: #f1f5f9;
+  --nx-gray-200: #e2e8f0;
+  --nx-gray-300: #cbd5e1;
+  --nx-gray-400: #94a3b8;
+  --nx-gray-500: #64748b;
+  --nx-gray-600: #475569;
+  --nx-gray-700: #334155;
+  --nx-gray-800: #1e293b;
+  --nx-gray-900: #0f172a;
+  --nx-gray-950: #080d1a;
+
+  /* ---- Semânticas ---- */
+  --nx-success: #10b981;
+  --nx-warning: #f59e0b;
+  --nx-danger:  #ef4444;
+  --nx-info:    #0ea5e9;
+
+  /* ---- Raio (escala 8/12/16 — profissional, sem "pílulas" acidentais) ---- */
+  --nx-radius-sm: 8px;   /* chips, inputs pequenos, badges */
+  --nx-radius-md: 12px;  /* botões, inputs, células */
+  --nx-radius-lg: 16px;  /* cartões, modais */
+  --nx-radius-full: 999px; /* só para pills/avatars deliberados */
+
+  /* ---- Espaçamento (base 4) ---- */
+  --nx-space-1: 4px;
+  --nx-space-2: 8px;
+  --nx-space-3: 12px;
+  --nx-space-4: 16px;
+  --nx-space-5: 20px;
+  --nx-space-6: 24px;
+  --nx-space-8: 32px;
+  --nx-space-10: 40px;
+
+  /* ---- Elevação (sombras frias, nunca pretas duras) ---- */
+  --nx-shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --nx-shadow-2: 0 6px 18px -8px rgba(15, 23, 42, 0.35);
+  --nx-shadow-3: 0 18px 44px -16px rgba(15, 23, 42, 0.45);
+
+  /* ---- Motion (auditoria: elegante, nunca exagerado) ----
+     micro  = hover/press de botões, toggles
+     enter  = entrada de cartões/modais/toasts
+     scene  = transição de secção/página                        */
+  --nx-dur-micro: 120ms;
+  --nx-dur-enter: 200ms;
+  --nx-dur-scene: 320ms;
+  --nx-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --nx-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ---- Tipografia (pesos e tamanhos de referência) ---- */
+  --nx-font-title: 'Sora', 'DM Sans', -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --nx-font-body: 'DM Sans', -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --nx-text-xs: 12px;
+  --nx-text-sm: 13.5px;
+  --nx-text-md: 15px;
+  --nx-text-lg: 18px;
+  --nx-text-xl: 22px;
+  --nx-text-2xl: 28px;
+}
+
+/* Utilizadores com movimento reduzido: as animações desligam-se. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --nx-dur-micro: 0ms;
+    --nx-dur-enter: 0ms;
+    --nx-dur-scene: 0ms;
+  }
+}

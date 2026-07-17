@@ -8,90 +8,98 @@ import { useStore } from '../state/StoreContext';
 const CHATTABLE = ['PAID', 'SHIPPED', 'DELIVERED'];
 const INVOICEABLE = ['PAID', 'SHIPPED', 'DELIVERED'];
 
-const escHtml = (s: string) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
 const dateOnly = (d: string) => { try { return new Date(d).toLocaleDateString('pt-PT'); } catch { return String(d ?? '').slice(0, 10); } };
 
-/** Constrói a FATURA A4 (HTML) e imprime via IFRAME oculto — funciona em TODOS
- *  os ecrãs (PC/telemóvel). O cliente escolhe "Guardar como PDF" no diálogo. */
-function printInvoiceA4(inv: StoreInvoice) {
+/** Gera a FATURA A4 em PDF (jsPDF, carregado dinamicamente na 1.ª utilização)
+ *  e DESCARREGA o ficheiro .pdf — sem diálogo de impressão. */
+async function downloadInvoicePdf(inv: StoreInvoice): Promise<void> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+  const M = 48;
+  let y = 56;
   const c = inv.company;
-  const rows = inv.items.map((it) => `<tr>
-    <td>${escHtml(it.description)}</td>
-    <td class="r">${it.quantity}</td>
-    <td class="r">${formatKz(it.unitPrice)}</td>
-    <td class="r">${it.ivaRate}%</td>
-    <td class="r">${formatKz(it.grossAmount)}</td></tr>`).join('');
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Fatura ${escHtml(inv.number)}</title>
-    <style>
-      @page{size:A4;margin:14mm;} *{box-sizing:border-box;}
-      body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a;margin:0;}
-      .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #ff4d2d;padding-bottom:14px;margin-bottom:16px;}
-      .co{font-size:22px;font-weight:800;margin:0;}
-      .co-meta{font-size:12.5px;color:#475569;margin:3px 0 0;line-height:1.5;}
-      .doc{text-align:right;}
-      .doc .t{font-size:17px;font-weight:800;color:#ff4d2d;margin:0;}
-      .doc .n{font-size:14px;font-weight:700;margin:3px 0 0;}
-      .doc .d{font-size:12px;color:#64748b;margin:2px 0 0;}
-      .party{display:flex;justify-content:space-between;gap:20px;margin:6px 0 18px;font-size:13px;}
-      .lbl{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.4px;}
-      table{width:100%;border-collapse:collapse;margin-top:4px;}
-      th{background:#0f172a;color:#fff;font-size:11.5px;text-transform:uppercase;text-align:left;padding:8px 10px;}
-      td{padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:13px;}
-      th.r,td.r{text-align:right;}
-      .tot{margin-top:14px;margin-left:auto;width:min(300px,60%);}
-      .tot .kv{display:flex;justify-content:space-between;padding:6px 2px;font-size:13px;}
-      .tot .grand{background:#ff4d2d;color:#fff;font-weight:800;font-size:16px;padding:10px 12px;border-radius:8px;margin-top:6px;}
-      .fiscal{margin-top:22px;font-size:11px;color:#64748b;line-height:1.6;border-top:1px solid #e2e8f0;padding-top:12px;}
-      .thanks{margin-top:10px;color:#ff4d2d;font-weight:700;font-size:13px;}
-    </style></head><body>
-      <div class="hd">
-        <div>
-          <h1 class="co">${escHtml(c.name || 'Fatura')}</h1>
-          <p class="co-meta">${c.nif ? `NIF: ${escHtml(c.nif)}<br>` : ''}${c.address ? `${escHtml(c.address)}<br>` : ''}${[c.phone, c.email].filter(Boolean).map(escHtml).join(' · ')}</p>
-        </div>
-        <div class="doc">
-          <p class="t">FATURA</p>
-          <p class="n">${escHtml(inv.number)}</p>
-          <p class="d">${dateOnly(inv.invoiceDate)}</p>
-          <p class="d">Encomenda ${escHtml(inv.orderNumber)}</p>
-        </div>
-      </div>
-      <div class="party">
-        <div><div class="lbl">Cliente</div><strong>${escHtml(inv.customerName || 'Consumidor final')}</strong>${inv.customerTaxId ? `<br>NIF: ${escHtml(inv.customerTaxId)}` : ''}</div>
-      </div>
-      <table>
-        <thead><tr><th>Artigo</th><th class="r">Qt</th><th class="r">Preço</th><th class="r">IVA</th><th class="r">Total</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div class="tot">
-        <div class="kv"><span>Base tributável</span><span>${formatKz(inv.netTotal)}</span></div>
-        <div class="kv"><span>IVA</span><span>${formatKz(inv.ivaTotal)}</span></div>
-        <div class="kv grand"><span>TOTAL</span><span>${formatKz(inv.grossTotal)}</span></div>
-      </div>
-      <div class="fiscal">
-        ${inv.hash ? `Controlo (Hash): ${escHtml(inv.hash.slice(0, 16))}<br>` : ''}
-        Documento processado por programa validado · Ndombaxi System
-        <div class="thanks">${escHtml(c.receiptMessage || 'Obrigado pela preferência!')}</div>
-      </div>
-    </body></html>`;
+  const accent: [number, number, number] = [255, 77, 45];
 
-  const frame = document.createElement('iframe');
-  frame.setAttribute('aria-hidden', 'true');
-  frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
-  document.body.appendChild(frame);
-  const cleanup = () => { setTimeout(() => frame.remove(), 1000); };
-  frame.onload = () => {
-    try {
-      const win = frame.contentWindow;
-      if (!win) { cleanup(); return; }
-      win.focus();
-      win.onafterprint = cleanup;
-      setTimeout(() => win.print(), 300);
-    } catch { cleanup(); }
-  };
-  const doc = frame.contentWindow?.document;
-  if (!doc) { frame.remove(); return; }
-  doc.open(); doc.write(html); doc.close();
+  // Cabeçalho — empresa à esquerda, documento à direita.
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(15, 23, 42);
+  doc.text(c.name || 'Fatura', M, y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(71, 85, 105);
+  let my = y + 16;
+  if (c.nif) { doc.text(`NIF: ${c.nif}`, M, my); my += 13; }
+  if (c.address) { doc.text(doc.splitTextToSize(c.address, W / 2 - M), M, my); my += 13; }
+  const contact = [c.phone, c.email].filter(Boolean).join(' · ');
+  if (contact) { doc.text(contact, M, my); my += 13; }
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...accent);
+  doc.text('FATURA', W - M, y, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(15, 23, 42);
+  doc.text(inv.number, W - M, y + 17, { align: 'right' });
+  doc.setFontSize(9.5); doc.setTextColor(100, 116, 139);
+  doc.text(dateOnly(inv.invoiceDate), W - M, y + 31, { align: 'right' });
+  doc.text(`Encomenda ${inv.orderNumber}`, W - M, y + 44, { align: 'right' });
+
+  y = Math.max(my, y + 52) + 8;
+  doc.setDrawColor(...accent); doc.setLineWidth(2); doc.line(M, y, W - M, y);
+  y += 24;
+
+  // Cliente
+  doc.setFontSize(10); doc.setTextColor(100, 116, 139); doc.text('Cliente', M, y);
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42);
+  doc.text(inv.customerName || 'Consumidor final', M, y + 14);
+  if (inv.customerTaxId) { doc.setFont('helvetica', 'normal'); doc.text(`NIF: ${inv.customerTaxId}`, M, y + 28); y += 14; }
+  y += 40;
+
+  // Tabela de artigos
+  const cQt = W - M - 250, cPr = W - M - 150, cIva = W - M - 92, cTot = W - M;
+  doc.setFillColor(15, 23, 42); doc.rect(M, y - 14, W - 2 * M, 24, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+  doc.text('Artigo', M + 10, y + 2);
+  doc.text('Qt', cQt, y + 2, { align: 'right' });
+  doc.text('Preço', cPr, y + 2, { align: 'right' });
+  doc.text('IVA', cIva, y + 2, { align: 'right' });
+  doc.text('Total', cTot - 10, y + 2, { align: 'right' });
+  y += 24;
+  doc.setFont('helvetica', 'normal');
+  let alt = false;
+  for (const it of inv.items) {
+    if (y > doc.internal.pageSize.getHeight() - 170) { doc.addPage(); y = 56; }
+    if (alt) { doc.setFillColor(247, 249, 252); doc.rect(M, y - 13, W - 2 * M, 22, 'F'); }
+    alt = !alt;
+    doc.setTextColor(30, 36, 46);
+    const nome = doc.splitTextToSize(it.description, cQt - M - 24)[0] ?? it.description;
+    doc.text(String(nome), M + 10, y + 2);
+    doc.text(String(it.quantity), cQt, y + 2, { align: 'right' });
+    doc.text(formatKz(it.unitPrice), cPr, y + 2, { align: 'right' });
+    doc.text(`${it.ivaRate}%`, cIva, y + 2, { align: 'right' });
+    doc.text(formatKz(it.grossAmount), cTot - 10, y + 2, { align: 'right' });
+    y += 22;
+  }
+  y += 16;
+
+  // Totais
+  doc.setFontSize(11);
+  const tot: [string, string][] = [['Base tributável', formatKz(inv.netTotal)], ['IVA', formatKz(inv.ivaTotal)]];
+  for (const [k, v] of tot) {
+    doc.setFillColor(247, 249, 252); doc.rect(M, y - 14, W - 2 * M, 26, 'F');
+    doc.setTextColor(70, 80, 95); doc.text(k, M + 12, y + 3);
+    doc.setTextColor(15, 23, 42); doc.text(v, W - M - 12, y + 3, { align: 'right' });
+    y += 30;
+  }
+  doc.setFillColor(...accent); doc.rect(M, y - 14, W - 2 * M, 34, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+  doc.text('TOTAL', M + 12, y + 6);
+  doc.text(formatKz(inv.grossTotal), W - M - 12, y + 6, { align: 'right' });
+  y += 48;
+
+  // Rodapé fiscal
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(110, 120, 135);
+  if (inv.hash) { doc.text(`Controlo (Hash): ${inv.hash.slice(0, 16)}`, M, y); y += 13; }
+  doc.text('Documento processado por programa validado · Ndombaxi System', M, y); y += 16;
+  doc.setTextColor(...accent); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
+  doc.text(c.receiptMessage || 'Obrigado pela preferência!', M, y);
+
+  doc.save(`Fatura-${inv.number.replace(/[^\w-]/g, '_')}.pdf`);
 }
 const STATUS_COLOR: Record<string, string> = {
   PENDING: '#d97706',
@@ -119,7 +127,7 @@ export function Track({ orderId, onBack }: { orderId: string; onBack(): void }) 
     setInvErr(null);
     try {
       const inv = await api.orderInvoice(code, orderId);
-      printInvoiceA4(inv);
+      await downloadInvoicePdf(inv);
     } catch (e) {
       setInvErr(e instanceof ApiError ? e.message : 'Não foi possível obter a fatura.');
     } finally {

@@ -39,14 +39,52 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
   const [etaDraft, setEtaDraft] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
   const [tick, setTick] = useState(0); // força recalcular os tempos
+  // Disponibilidade dos produtos de PRODUÇÃO (prateleira): usada pelo gate da
+  // fornada — não se aceita um pedido cujo produto está esgotado/insuficiente.
+  const [avail, setAvail] = useState<Record<string, { name: string; stock: number; status: 'FREE' | 'BUSY' | 'OUT' }>>({});
 
   const load = useCallback(async () => {
     try { setItems(await api.restaurant.kitchen()); } catch { /* mantém o último estado */ }
     try { setOnline(await api.restaurant.onlineQueue()); } catch { /* loja pode estar desligada */ }
     finally { setLoaded(true); }
+    try {
+      const rows = await api.restaurant.availability();
+      setAvail(Object.fromEntries(rows.map((r) => [r.id, { name: r.name, stock: r.stock, status: r.status }])));
+    } catch { /* vertical sem produção */ }
   }, []);
 
+  /** FORNADA OBRIGATÓRIA: se um item do pedido é produto de PRODUÇÃO e a
+   *  prateleira não chega para a quantidade pedida, devolve o produto em falta
+   *  — o cozinheiro tem de produzir a fornada ANTES de aceitar/iniciar. */
+  const missingBatch = (its: { product_id?: string | null; quantity: string | number }[]) => {
+    for (const it of its) {
+      const a = it.product_id ? avail[it.product_id] : undefined;
+      if (a && a.stock < Number(it.quantity)) {
+        return { id: it.product_id as string, name: a.name, stock: a.stock, need: Number(it.quantity) };
+      }
+    }
+    return null;
+  };
+  const forceBatch = async (m: { id: string; name: string; stock: number; need: number }) => {
+    const ok = await confirmDialog({
+      title: 'Produzir primeiro',
+      message: `"${m.name}" só tem ${m.stock} na prateleira e este pedido precisa de ${m.need}. Regista a FORNADA primeiro (desconta os ingredientes) — só depois aceitas o pedido. Ir para a produção agora?`,
+      confirmLabel: '🏭 Ir produzir',
+    });
+    if (!ok) return;
+    // Abre a aba Produção já com ESTE produto selecionado (seleção automática).
+    try {
+      sessionStorage.setItem('ndx_rest_tab', 'producao');
+      sessionStorage.setItem('ndx_rest_prod', m.id);
+    } catch { /* indisponível */ }
+    onGo?.('restaurant');
+  };
+
   const giveEta = async (t: RestaurantOnlineTicket) => {
+    // Gate da fornada: encomenda online com produção esgotada/insuficiente não
+    // se aceita — primeiro produz-se (a lógica existente desconta ingredientes).
+    const missing = missingBatch(t.items);
+    if (missing) { void forceBatch(missing); return; }
     const m = Math.max(1, Math.min(240, Math.floor(Number(etaDraft[t.id]) || 0)));
     if (!m) { toast.warning('Indica o tempo estimado (min).'); return; }
     try { await api.restaurant.setOnlineEta(t.id, m); toast.success(`Tempo dado à ${t.orderNumber}: ~${m} min.`); await load(); }
@@ -89,6 +127,12 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
 
   const advance = async (it: RestaurantKitchenItem) => {
     const next = NEXT[it.kitchen_status] ?? 'SERVED';
+    // Gate da fornada no "Iniciar": produto de produção sem prateleira suficiente
+    // obriga a registar a fornada primeiro (mesa e balcão).
+    if (it.kitchen_status === 'PENDING') {
+      const missing = missingBatch([it]);
+      if (missing) { void forceBatch(missing); return; }
+    }
     // GATE do "Pronto": marcar pronto notifica a comanda/encomenda e liberta
     // quem serve. Confirma antes para não marcar pronto sem estar mesmo pronto.
     if (next === 'READY') {

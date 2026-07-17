@@ -292,6 +292,19 @@ function ProductionTab({ products, onProduced, onGo }: { products: ManagerProduc
   const loadIngredients = useCallback(() => { void api.products.ingredients().then(setIngredients).catch(() => setIngredients([])); }, []);
   useEffect(() => { loadIngredients(); }, [loadIngredients]);
   useEffect(() => { if (productId) void api.restaurant.recipe(productId).then(setRecipe).catch(() => setRecipe([])); else setRecipe([]); }, [productId]);
+  // SELEÇÃO AUTOMÁTICA vinda da Cozinha (fornada obrigatória): o KDS deixa o id
+  // do produto em falta no sessionStorage — ao abrir, fica logo selecionado.
+  // Lido num efeito dependente de products (a lista chega async; StrictMode-safe).
+  useEffect(() => {
+    try {
+      const pid = sessionStorage.getItem('ndx_rest_prod');
+      if (pid && products.some((p) => p.id === pid)) {
+        setProductId(pid);
+        setLast(null);
+        sessionStorage.removeItem('ndx_rest_prod');
+      }
+    } catch { /* indisponível */ }
+  }, [products]);
 
   const producibles = products.filter((p) => p.has_recipe);
   const product = products.find((p) => p.id === productId);
