@@ -69,6 +69,14 @@ export function Storefront() {
   // Adiciona ao carrinho SEM abrir a gaveta (no telemóvel abrir a cada produto
   // impedia continuar a comprar). Mostra um toast breve como confirmação.
   const addWithToast = (p: CatalogProduct, qty = 1) => {
+    // PRODUÇÃO esgotada/em-produção: pergunta ao cliente (Sim/Não) se quer
+    // encomendar a produção — igual ao caixa. Só encomenda se confirmar.
+    if (p.isProduction && p.availability && p.availability !== 'FREE') {
+      const msg = p.availability === 'OUT'
+        ? `«${p.name}» está esgotado. Pretende encomendar a produção? Será preparado após aprovação da loja.`
+        : `«${p.name}» está em produção. Pretende encomendar mais? Será preparado após aprovação da loja.`;
+      if (!window.confirm(msg)) return;
+    }
     addToCart(p, qty);
     setToast(p.name);
     if (toastTimer.current) clearTimeout(toastTimer.current);

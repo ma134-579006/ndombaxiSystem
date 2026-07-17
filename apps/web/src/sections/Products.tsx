@@ -128,6 +128,10 @@ export function Products() {
     }
   }, []);
 
+  // Só o RESTAURANTE usa ingredientes/produção (ficha técnica). Noutros negócios
+  // os toggles não fazem sentido e ficam escondidos.
+  const [isRestaurant, setIsRestaurant] = useState(false);
+  useEffect(() => { api.branding().then((b) => setIsRestaurant((b.businessType || '') === 'RESTAURANT')).catch(() => undefined); }, []);
   // Disponibilidade dos produtos de PRODUÇÃO (🟢 Livre / 🟡 Ocupado / 🔴 Esgotado).
   const [avail, setAvail] = useState<Record<string, 'FREE' | 'BUSY' | 'OUT'>>({});
   useEffect(() => {
@@ -512,13 +516,14 @@ export function Products() {
             </div>
           ) : null}
 
-          {!form.isProduction ? (
+          {/* Ingrediente/Produção (ficha técnica) só fazem sentido na RESTAURAÇÃO. */}
+          {isRestaurant && !form.isProduction ? (
             <div className="switch-row">
               <span>É ingrediente (matéria-prima)<br /><small className="muted">Não se vende no caixa nem na loja — só para a ficha técnica dos pratos.</small></span>
               <Switch checked={form.isIngredient} onChange={(v) => setForm({ ...form, isIngredient: v, showOnline: v ? false : form.showOnline })} />
             </div>
           ) : null}
-          {!form.isIngredient ? (
+          {isRestaurant && !form.isIngredient ? (
             <div className="switch-row">
               <span>🏭 Ativar produção<br /><small className="muted">Produto FABRICADO: o custo vem da ficha técnica e o estoque das fornadas (esconde custo/estoque/compra).</small></span>
               <Switch checked={form.isProduction} onChange={(v) => setForm({ ...form, isProduction: v })} />
