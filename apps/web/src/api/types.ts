@@ -1267,3 +1267,14 @@ export interface CameraInput {
   record?: boolean;
   isActive?: boolean;
 }
+// Relatório de vendas do restaurante: comercial vs produção (fatia 7)
+export interface RestaurantReportGroup {
+  revenue: number; qty: number; lines: number; cost: number;
+  margin: number; marginPct: number;
+  top: { description: string; qty: number; revenue: number }[];
+}
+export interface RestaurantSalesReport {
+  days: number;
+  commercial: RestaurantReportGroup;
+  production: RestaurantReportGroup;
+}

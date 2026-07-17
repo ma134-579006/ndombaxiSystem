@@ -58,6 +58,59 @@ export class RestaurantService {
     });
   }
 
+  /**
+   * RELATÓRIO comercial vs PRODUÇÃO (fatia 7 do roadmap): vendas faturadas do
+   * período separadas em produtos de produção (fabricados — is_production) e
+   * comerciais (revenda). Só LEITURA sobre invoices/invoice_items; margem =
+   * preço − custo unitário congelado na venda (unit_cost da linha).
+   */
+  async salesReport(schema: string, days: number) {
+    const d = Math.max(1, Math.min(365, Math.floor(days) || 1));
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const groups = await tx.$queryRaw<{
+        production: boolean; revenue: number; qty: number; cost: number; lines: number;
+      }[]>(Prisma.sql`
+        SELECT COALESCE(p.is_production, FALSE) AS production,
+               COALESCE(SUM(ii.gross_amount), 0)::float8 AS revenue,
+               COALESCE(SUM(ii.quantity), 0)::float8 AS qty,
+               COALESCE(SUM(ii.unit_cost * ii.quantity), 0)::float8 AS cost,
+               COUNT(*)::int AS lines
+        FROM invoice_items ii
+        JOIN invoices i ON i.id = ii.invoice_id
+        LEFT JOIN products p ON p.id = ii.product_id
+        WHERE i.status = 'N' AND i.doc_type IN ('FT','FS')
+          AND i.invoice_date >= CURRENT_DATE - (${d - 1} * INTERVAL '1 day')
+        GROUP BY 1`);
+      const top = await tx.$queryRaw<{
+        production: boolean; description: string; qty: number; revenue: number;
+      }[]>(Prisma.sql`
+        SELECT COALESCE(p.is_production, FALSE) AS production, ii.description,
+               COALESCE(SUM(ii.quantity), 0)::float8 AS qty,
+               COALESCE(SUM(ii.gross_amount), 0)::float8 AS revenue
+        FROM invoice_items ii
+        JOIN invoices i ON i.id = ii.invoice_id
+        LEFT JOIN products p ON p.id = ii.product_id
+        WHERE i.status = 'N' AND i.doc_type IN ('FT','FS')
+          AND i.invoice_date >= CURRENT_DATE - (${d - 1} * INTERVAL '1 day')
+        GROUP BY 1, 2 ORDER BY 4 DESC`);
+      const shape = (production: boolean) => {
+        const g = groups.find((x) => x.production === production);
+        const revenue = g?.revenue ?? 0; const cost = g?.cost ?? 0;
+        return {
+          revenue: Math.round(revenue * 100) / 100,
+          qty: g?.qty ?? 0,
+          lines: g?.lines ?? 0,
+          cost: Math.round(cost * 100) / 100,
+          margin: Math.round((revenue - cost) * 100) / 100,
+          marginPct: revenue > 0 ? Math.round(((revenue - cost) / revenue) * 100) : 0,
+          top: top.filter((t) => t.production === production).slice(0, 8)
+            .map((t) => ({ description: t.description, qty: t.qty, revenue: Math.round(t.revenue * 100) / 100 })),
+        };
+      };
+      return { days: d, commercial: shape(false), production: shape(true) };
+    });
+  }
+
   listTables(schema: string): Promise<TableRow[]> {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<TableRow[]>(Prisma.sql`SELECT id, code, name, area, seats, is_active, sort_order

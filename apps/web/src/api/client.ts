@@ -137,6 +137,7 @@ import type {
   UpdateAgtInput,
   UpdateProductInput,
   UpdateSiteSettingsInput,
+  RestaurantSalesReport,
   WebOrder,
   WebOrderDetail,
   OrderLocation,
@@ -688,6 +689,7 @@ export const api = {
     setRecipe: (productId: string, items: { ingredientCode: string; quantity: number; wastePct?: number }[]) => request<{ ok: boolean }>('POST', `/restaurant/recipe/${productId}`, { items }),
     recomputeCosts: () => request<{ ok: boolean }>('POST', '/restaurant/recipes/recompute-costs', {}),
     availability: () => request<{ id: string; name: string; stock: number; inProduction: number; status: 'FREE' | 'BUSY' | 'OUT' }[]>('GET', '/restaurant/availability'),
+    report: (days: number) => request<RestaurantSalesReport>('GET', `/restaurant/reports?days=${days}`),
   },
   hotel: {
     dashboard: () => request<HotelDashboard>('GET', '/hotel/dashboard'),

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { ManagerProduct, RecipeIngredient, RestaurantKitchenItem, RestaurantOrderDetail, RestaurantTableMapRow } from '../api/types';
+import type { ManagerProduct, RecipeIngredient, RestaurantKitchenItem, RestaurantOrderDetail, RestaurantSalesReport, RestaurantTableMapRow } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
@@ -12,14 +12,14 @@ const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY',
 
 /** Restauração: mapa de mesas + comanda (lançar itens, conta) e ecrã de cozinha (KDS). */
 export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
-  const [tab, setTab] = useState<'mesas' | 'cozinha' | 'receitas' | 'producao'>('mesas');
+  const [tab, setTab] = useState<'mesas' | 'cozinha' | 'receitas' | 'producao' | 'relatorios'>('mesas');
   // Deep-link do Centro de Comando: abre no separador pedido. NUM efeito (não no
   // inicializador do useState) — o StrictMode invoca o inicializador 2× e um
   // removeItem lá dentro consumia o valor no 1º e devolvia 'mesas' no 2º (usado).
   useEffect(() => {
     try {
       const t = sessionStorage.getItem('ndx_rest_tab');
-      if (t === 'cozinha' || t === 'receitas' || t === 'mesas' || t === 'producao') { setTab(t); sessionStorage.removeItem('ndx_rest_tab'); }
+      if (t === 'cozinha' || t === 'receitas' || t === 'mesas' || t === 'producao' || t === 'relatorios') { setTab(t); sessionStorage.removeItem('ndx_rest_tab'); }
     } catch { /* sessionStorage indisponível */ }
   }, []);
   const [tables, setTables] = useState<RestaurantTableMapRow[]>([]);
@@ -84,9 +84,10 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
         <button className={tab === 'cozinha' ? 'active' : ''} onClick={() => setTab('cozinha')}>Cozinha (KDS){kds.length ? ` · ${kds.length}` : ''}</button>
         <button className={tab === 'receitas' ? 'active' : ''} onClick={() => setTab('receitas')}>Receitas</button>
         <button className={tab === 'producao' ? 'active' : ''} onClick={() => setTab('producao')}>Produção</button>
+        <button className={tab === 'relatorios' ? 'active' : ''} onClick={() => setTab('relatorios')}>Relatórios</button>
       </div>
 
-      {tab === 'producao' ? <ProductionTab products={products} onProduced={loadProducts} onGo={onGo} /> : tab === 'receitas' ? <RecipesTab products={products} /> : tab === 'mesas' ? (
+      {tab === 'relatorios' ? <ReportsTab /> : tab === 'producao' ? <ProductionTab products={products} onProduced={loadProducts} onGo={onGo} /> : tab === 'receitas' ? <RecipesTab products={products} /> : tab === 'mesas' ? (
         tables.length === 0 ? (
           <div className="card"><div className="empty"><p>Sem mesas. Cria a primeira mesa.</p></div></div>
         ) : (
@@ -455,5 +456,67 @@ function NewTableModal({ onClose, onCreated }: { onClose(): void; onCreated(): v
       </div>
       <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A criar…' : 'Criar mesa'}</button>
     </Modal>
+  );
+}
+
+/** RELATÓRIOS — vendas comerciais vs PRODUÇÃO (receita, margem, top produtos).
+ *  Só leitura (GET /restaurant/reports); a margem usa o custo congelado na venda. */
+function ReportsTab() {
+  const [days, setDays] = useState(7);
+  const [rep, setRep] = useState<RestaurantSalesReport | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setErr(null);
+    api.restaurant.report(days)
+      .then((r) => { if (alive) setRep(r); })
+      .catch((e) => { if (alive) setErr(e instanceof ApiError ? e.message : 'Falha ao carregar o relatório.'); });
+    return () => { alive = false; };
+  }, [days]);
+
+  const Group = ({ title, icon, g, accent }: { title: string; icon: string; g: RestaurantSalesReport['commercial']; accent: string }) => (
+    <div className="card" style={{ flex: '1 1 260px', borderTop: `3px solid ${accent}` }}>
+      <h3 style={{ margin: '0 0 10px' }}>{icon} {title}</h3>
+      <div className="kpi-grid" style={{ gridTemplateColumns: '1fr 1fr', margin: 0 }}>
+        <div className="kpi-card"><div className="kpi-label">Receita</div>
+          <div className="kpi-value" style={{ fontSize: 19 }}>{KZ(g.revenue)}</div>
+          <div className="kpi-sub">{g.qty} un. · {g.lines} linha(s)</div></div>
+        <div className="kpi-card"><div className="kpi-label">Margem</div>
+          <div className="kpi-value" style={{ fontSize: 19, color: g.margin < 0 ? 'var(--danger)' : 'var(--success)' }}>{KZ(g.margin)}</div>
+          <div className="kpi-sub">{g.marginPct}% · custo {KZ(g.cost)}</div></div>
+      </div>
+      {g.top.length > 0 ? (
+        <div style={{ marginTop: 10 }}>
+          <div className="muted" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 4 }}>Mais vendidos</div>
+          {g.top.map((t, i) => (
+            <div key={i} className="row" style={{ justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--border-soft, #0001)', fontSize: 13.5 }}>
+              <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.description}</span>
+              <span className="muted" style={{ flex: 'none', marginLeft: 8 }}>{t.qty}× · {KZ(t.revenue)}</span>
+            </div>
+          ))}
+        </div>
+      ) : <p className="muted" style={{ fontSize: 13, marginTop: 10 }}>Sem vendas no período.</p>}
+    </div>
+  );
+
+  return (
+    <>
+      <div className="row" style={{ gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        {[{ d: 1, l: 'Hoje' }, { d: 7, l: '7 dias' }, { d: 30, l: '30 dias' }].map((o) => (
+          <button key={o.d} className={`btn sm${days === o.d ? '' : ' ghost'}`} onClick={() => setDays(o.d)}>{o.l}</button>
+        ))}
+        <span className="spacer" style={{ flex: 1 }} />
+        {rep ? <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>Faturado nos últimos {rep.days === 1 ? 'hoje' : `${rep.days} dias`} · comercial + produção = total</span> : null}
+      </div>
+      {err ? <div className="banner danger">{err}</div> : !rep ? (
+        <div className="card"><p className="muted" style={{ margin: 0 }}>A carregar o relatório…</p></div>
+      ) : (
+        <div className="row" style={{ gap: 12, alignItems: 'stretch', flexWrap: 'wrap' }}>
+          <Group title="Comercial (revenda)" icon="🛒" g={rep.commercial} accent="var(--primary)" />
+          <Group title="Produção (fabricado)" icon="🏭" g={rep.production} accent="var(--warning)" />
+        </div>
+      )}
+    </>
   );
 }

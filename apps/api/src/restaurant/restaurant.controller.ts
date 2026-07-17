@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -121,6 +121,13 @@ export class RestaurantController {
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Disponibilidade dos produtos de produção (🟢 Livre / 🟡 Ocupado / 🔴 Esgotado)' })
   availability() { return this.svc.productionAvailability(this.ctx.requireTenantSchema()); }
+
+  @Get('reports')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Relatório de vendas: comercial vs produção (receita, itens, margem, top produtos)' })
+  reports(@Query('days') days?: string) {
+    return this.svc.salesReport(this.ctx.requireTenantSchema(), Number(days) || 7);
+  }
 
   @Post('orders/:id/priority')
   @Roles(Role.CASHIER)
