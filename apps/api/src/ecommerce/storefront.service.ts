@@ -27,6 +27,7 @@ interface CatalogRow {
   has_recipe?: boolean;
   is_production?: boolean;
   in_production?: string | number;
+  reserved?: string | number;
 }
 
 export interface CatalogProduct {
@@ -75,10 +76,20 @@ export class StorefrontService {
                        JOIN restaurant_orders o ON o.id = oi.order_id
                        WHERE oi.product_id = p.id AND o.status = 'OPEN' AND oi.kitchen_status IN ('PENDING','PREPARING')), 0)`
         : Prisma.sql`0`;
+      // RESERVA (Available-To-Promise): stock já prometido a encomendas online
+      // PENDING (por confirmar). O catálogo mostra o stock DISPONÍVEL de facto,
+      // evitando prometer a mesma última unidade a dois clientes / ao caixa.
+      const regWeb = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('web_order_items')::text AS r`);
+      const reservedExpr = regWeb[0]?.r
+        ? Prisma.sql`COALESCE((SELECT SUM(wi.quantity)::float8 FROM web_order_items wi
+                       JOIN web_orders wo ON wo.id = wi.order_id
+                       WHERE wi.product_id = p.id AND wo.status = 'PENDING'), 0)`
+        : Prisma.sql`0`;
       return tx.$queryRaw<CatalogRow[]>(
         Prisma.sql`SELECT p.id, p.code, p.name, p.description, p.iva_code, p.unit_price, p.stock_qty,
                           p.image_url, p.gallery, pc.name AS category,
-                          ${hasRecipeExpr} AS has_recipe, p.is_production, ${inProdExpr} AS in_production
+                          ${hasRecipeExpr} AS has_recipe, p.is_production, ${inProdExpr} AS in_production,
+                          ${reservedExpr} AS reserved
                    FROM products p
                    LEFT JOIN product_categories pc ON pc.id = p.category_id
                    WHERE p.is_active = TRUE AND p.show_online = TRUE AND p.is_ingredient = FALSE
@@ -90,7 +101,11 @@ export class StorefrontService {
       const rate = resolveRate(r.iva_code);
       const madeToOrder = !!r.has_recipe;
       const isProduction = !!r.is_production;
-      const stock = Math.max(0, Math.floor(Number(r.stock_qty)));
+      const rawStock = Math.max(0, Math.floor(Number(r.stock_qty)));
+      // Desconta o que já está reservado a encomendas online por confirmar
+      // (só produtos comerciais; a produção gere-se por fornadas/disponibilidade).
+      const reserved = Math.max(0, Math.floor(Number(r.reserved ?? 0)));
+      const stock = isProduction ? rawStock : Math.max(0, rawStock - reserved);
       // PRODUÇÃO: disponibilidade real (como no caixa) — 🟢 há fornada / 🟡 em produção
       // / 🔴 esgotado. O cliente pode SOLICITAR PRODUÇÃO mesmo esgotado (canProduce).
       const availability: 'FREE' | 'BUSY' | 'OUT' | undefined = isProduction
@@ -122,11 +137,44 @@ export class StorefrontService {
   async checkout(schema: string, dto: CheckoutDto): Promise<{ id: string; orderNumber: string; grossTotal: number }> {
     return this.prisma.runInTenant(schema, async (tx) => {
       const codes = dto.lines.map((l) => l.productCode);
+      // FOR UPDATE serializa checkouts simultâneos do MESMO produto: o 2.º espera
+      // pelo 1.º, vê a reserva já criada e não promete a última unidade duas vezes.
       const products = await tx.$queryRaw<CatalogRow[]>(
-        Prisma.sql`SELECT id, code, name, description, iva_code, exemption_reason, exemption_code, unit_price, stock_qty
-                   FROM products WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE`,
+        Prisma.sql`SELECT id, code, name, description, iva_code, exemption_reason, exemption_code, unit_price, stock_qty, is_production
+                   FROM products WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE
+                   FOR UPDATE`,
       );
       const byCode = new Map(products.map((p) => [p.code, p]));
+
+      // Available-To-Promise: para produtos COMERCIAIS (não produção, não sob
+      // encomenda), o pedido não pode exceder o stock livre = stock − reservado
+      // por outras encomendas PENDING. Produção/pratos sob encomenda não têm
+      // este limite (gerem-se por fornadas/ficha técnica).
+      const hasRecipeRows = products.length > 0
+        ? await tx.$queryRaw<{ product_id: string }[]>(
+            Prisma.sql`SELECT DISTINCT r.product_id FROM product_recipes r
+                       WHERE r.product_id IN (${Prisma.join(products.map((p) => Prisma.sql`${p.id}::uuid`))})`,
+          ).catch(() => [] as { product_id: string }[])
+        : [];
+      const recipeSet = new Set(hasRecipeRows.map((x) => x.product_id));
+      for (const line of dto.lines) {
+        const p = byCode.get(line.productCode);
+        if (!p) continue; // validado a seguir com mensagem própria
+        if (p.is_production || recipeSet.has(p.id)) continue; // sem limite de stock
+        const reservedRows = await tx.$queryRaw<{ n: number }[]>(
+          Prisma.sql`SELECT COALESCE(SUM(wi.quantity), 0)::float8 AS n
+                     FROM web_order_items wi JOIN web_orders wo ON wo.id = wi.order_id
+                     WHERE wi.product_id = ${p.id}::uuid AND wo.status = 'PENDING'`,
+        ).catch(() => [{ n: 0 }]);
+        const available = Math.max(0, Math.floor(Number(p.stock_qty)) - Math.floor(Number(reservedRows[0]?.n ?? 0)));
+        if (line.quantity > available) {
+          throw new BadRequestException(
+            available > 0
+              ? `"${p.name}" só tem ${available} em stock disponível (o resto está reservado a outras encomendas).`
+              : `"${p.name}" esgotou — acabou de ser vendido/reservado. Tente outro produto.`,
+          );
+        }
+      }
 
       const lineInputs: InvoiceLineInput[] = dto.lines.map((l) => {
         const p = byCode.get(l.productCode);

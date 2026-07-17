@@ -89,6 +89,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     void load();
   }, [load]);
 
+  // TEMPO REAL: reatualiza o catálogo (stock/disponibilidade/reservas) em
+  // segundo plano, sem recarregar a loja. Uma venda no caixa ou uma encomenda
+  // de outro cliente reflete-se no stock disponível em segundos.
+  useEffect(() => {
+    if (!code) return;
+    const t = window.setInterval(() => {
+      api.catalog(code)
+        .then((c) => setData((prev) => (prev ? { ...prev, products: c.products } : prev)))
+        .catch(() => undefined);
+    }, 12000);
+    return () => window.clearInterval(t);
+  }, [code]);
+
   // Identidade visual estilo AliExpress: a cor de destaque (--accent) é o
   // laranja-vermelho da plataforma e NÃO é sobreposta pela marca da loja, para
   // a montra ter sempre o mesmo aspeto AliExpress. A cor da loja fica em

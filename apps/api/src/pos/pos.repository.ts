@@ -30,6 +30,8 @@ export interface ProductRow {
   has_recipe?: boolean;
   /** Doses possíveis com o stock atual dos ingredientes (só pratos; NULL sem receita). */
   portions_available?: string | number | null;
+  /** Quantidade já RESERVADA a encomendas online por confirmar (PENDING). */
+  reserved?: string | number | null;
 }
 
 export interface CustomerRow {
@@ -195,6 +197,17 @@ export class PosRepository {
                       JOIN products ing ON ing.id = COALESCE(r2.ingredient_id, r.ingredient_id)
                       WHERE r.product_id = p.id)`
         : Prisma.sql`NULL`;
+      // RESERVA de encomendas online por confirmar (PENDING). O caixa é AVISADO
+      // — não bloqueia a venda física — de que aquele stock está prometido a uma
+      // encomenda da loja. Guarda to_regclass: tenants sem loja online → 0.
+      const regWeb = await tx.$queryRaw<{ r: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('web_order_items')::text AS r`,
+      );
+      const reservedExpr = regWeb[0]?.r
+        ? Prisma.sql`COALESCE((SELECT SUM(wi.quantity)::float8 FROM web_order_items wi
+                       JOIN web_orders wo ON wo.id = wi.order_id
+                       WHERE wi.product_id = p.id AND wo.status = 'PENDING'), 0)`
+        : Prisma.sql`0`;
       return tx.$queryRaw<ProductRow[]>(
         Prisma.sql`
           SELECT p.id, p.code, p.barcode, p.name, p.description, p.category_id, p.brand,
@@ -203,6 +216,7 @@ export class PosRepository {
                       THEN p.stock_qty ELSE COALESCE(si.quantity, 0) END AS stock_qty,
                  p.image_url, p.gallery, p.show_online, p.shared_stock, p.is_ingredient, p.is_production, p.unit, p.is_active,
                  ${hasRecipeExpr} AS has_recipe,
+                 ${reservedExpr} AS reserved,
                  ${portionsExpr} AS portions_available
           FROM products p
           LEFT JOIN stock_items si

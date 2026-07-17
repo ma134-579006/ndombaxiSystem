@@ -44,8 +44,8 @@ export function Orders() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [showGeo, setShowGeo] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     setError(null);
     try {
       setOrders(await api.orders.list());
@@ -58,6 +58,17 @@ export function Orders() {
 
   useEffect(() => {
     void load();
+    // TEMPO REAL: novas encomendas e mudanças de estado da COZINHA (Pronto)
+    // aparecem sem recarregar. Se houver um detalhe aberto, atualiza-o também
+    // — assim o gate "aguarda a cozinha" levanta sozinho quando ficar Pronto.
+    const t = window.setInterval(() => {
+      void load({ silent: true });
+      setDetail((cur) => {
+        if (cur) { api.orders.get(cur.id).then(setDetail).catch(() => undefined); }
+        return cur;
+      });
+    }, 10000);
+    return () => window.clearInterval(t);
   }, [load]);
 
   const open = async (id: string) => {
@@ -176,6 +187,16 @@ export function Orders() {
 
           {actionError ? <div className="banner danger" style={{ marginBottom: 12 }}>{actionError}</div> : null}
 
+          {/* GATE DA COZINHA: enquanto o pedido está em preparação (a cozinha
+              aceitou mas ainda NÃO clicou "Pronto"), o responsável NÃO pode
+              expedir/entregar. Só avança quando a cozinha marcar Pronto. */}
+          {detail.kitchen_status === 'PREPARING' ? (
+            <div className="banner warning" style={{ marginBottom: 12 }}>
+              👨‍🍳 A cozinha está a preparar este pedido. Só poderá continuar (expedir/entregar)
+              quando o cozinheiro marcar <strong>Pronto</strong>.
+            </div>
+          ) : null}
+
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
             {detail.status === 'PENDING' ? (
               <>
@@ -199,12 +220,12 @@ export function Orders() {
               </>
             ) : null}
             {detail.status === 'PAID' ? (
-              <button className="btn" disabled={busy} onClick={() => act(() => api.orders.ship(detail.id))}>
+              <button className="btn" disabled={busy || detail.kitchen_status === 'PREPARING'} onClick={() => act(() => api.orders.ship(detail.id))}>
                 Marcar expedida
               </button>
             ) : null}
             {detail.status === 'SHIPPED' ? (
-              <button className="btn success" disabled={busy} onClick={() => act(() => api.orders.deliver(detail.id))}>
+              <button className="btn success" disabled={busy || detail.kitchen_status === 'PREPARING'} onClick={() => act(() => api.orders.deliver(detail.id))}>
                 Marcar entregue
               </button>
             ) : null}

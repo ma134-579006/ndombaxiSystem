@@ -46,6 +46,9 @@ export interface Product {
   /** TRUE = produto de PRODUÇÃO (fabricado): a venda passa pela disponibilidade
    *  (Livre/Ocupado/Esgotado) — se não estiver Livre, solicita produção. */
   is_production?: boolean;
+  /** Quantidade já RESERVADA a encomendas online por confirmar (PENDING).
+   *  O caixa é AVISADO (não bloqueado) antes de vender esse stock prometido. */
+  reserved?: string | number | null;
 }
 
 export interface Customer {

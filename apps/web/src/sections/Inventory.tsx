@@ -350,7 +350,13 @@ export function StockEntryModal({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const product = useMemo(() => products.find((p) => p.id === productId), [products, productId]);
+  // Não se dá entrada de stock a produtos de PRODUÇÃO (stock vem das fornadas)
+  // nem a INGREDIENTES/matéria-prima (entram por Compras). Só produtos vendáveis.
+  const stockables = useMemo(
+    () => products.filter((p) => !p.is_production && !p.is_ingredient),
+    [products],
+  );
+  const product = useMemo(() => stockables.find((p) => p.id === productId), [stockables, productId]);
   // Preenche o preço de venda com o atual do produto, se ainda vazio.
   useEffect(() => {
     if (product && salePrice === '') setSalePrice(product.unit_price || '');
@@ -389,7 +395,7 @@ export function StockEntryModal({
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
       <div className="grid-2">
         <div className="field"><label>Produto</label>
-          <ProductPicker products={products} value={productId} onChange={(id) => { setProductId(id); setSalePrice(''); }} /></div>
+          <ProductPicker products={stockables} value={productId} onChange={(id) => { setProductId(id); setSalePrice(''); }} /></div>
         <div className="field"><label>Loja</label>
           <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
             <option value="ALL">Todas as lojas (stock partilhado)</option>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
-import { toast } from '../components/feedback';
+import { confirmDialog, toast } from '../components/feedback';
 import type { RestaurantKitchenItem, RestaurantOnlineTicket } from '../api/types';
 
 const KITCHEN_LABEL: Record<string, string> = { PENDING: 'Por preparar', PREPARING: 'Em preparação', READY: 'Pronto', SERVED: 'Servido' };
@@ -20,7 +20,13 @@ function minutesSince(iso: string): number {
  * sozinho de 5 em 5 s. Consome o mesmo endpoint /restaurant/kitchen (só leitura
  * + avanço de estado; nenhuma lógica de venda/stock tocada).
  */
-export function RestaurantKitchen() {
+export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }) {
+  // Manda a cozinheira à PRODUÇÃO (fornadas) e volta em 1 clique. Usa o mesmo
+  // deep-link de separador do Centro de Comando (lido no useEffect do Restaurant).
+  const goToProduction = () => {
+    try { sessionStorage.setItem('ndx_rest_tab', 'producao'); } catch { /* indisponível */ }
+    onGo?.('restaurant');
+  };
   const [items, setItems] = useState<RestaurantKitchenItem[]>([]);
   const [online, setOnline] = useState<RestaurantOnlineTicket[]>([]);
   const [etaDraft, setEtaDraft] = useState<Record<string, string>>({});
@@ -40,8 +46,16 @@ export function RestaurantKitchen() {
     catch { toast.error('Falha ao dar o tempo.'); }
   };
   const markOnlineReady = async (t: RestaurantOnlineTicket) => {
+    // GATE: "Pronto" avisa a encomenda e liberta o responsável para continuar.
+    // Não deve ser clicado sem os pratos estarem MESMO prontos — confirma antes.
+    const ok = await confirmDialog({
+      message: `Confirmas que a encomenda ${t.orderNumber} (${t.customerName || 'cliente'}) está MESMO pronta? Só depois disto o responsável pode continuar a encomenda.`,
+      confirmLabel: 'Sim, está pronta',
+    });
+    if (!ok) return;
     setOnline((prev) => prev.filter((x) => x.id !== t.id)); // otimista
     await api.restaurant.advanceOnline(t.id, 'READY').catch(() => undefined);
+    toast.success(`${t.orderNumber} marcada pronta — responsável notificado.`);
     await load();
   };
 
@@ -68,6 +82,15 @@ export function RestaurantKitchen() {
 
   const advance = async (it: RestaurantKitchenItem) => {
     const next = NEXT[it.kitchen_status] ?? 'SERVED';
+    // GATE do "Pronto": marcar pronto notifica a comanda/encomenda e liberta
+    // quem serve. Confirma antes para não marcar pronto sem estar mesmo pronto.
+    if (next === 'READY') {
+      const ok = await confirmDialog({
+        message: `Confirmas que "${it.description}" está MESMO pronto? Depois disto o pedido é dado como pronto para servir/entregar.`,
+        confirmLabel: 'Sim, está pronto',
+      });
+      if (!ok) return;
+    }
     // Otimista: PENDING→PREPARING fica na lista; READY/SERVED saem (o KDS só
     // mostra por preparar/em preparação). Confirma no servidor e recarrega.
     setItems((prev) => next === 'PREPARING'
@@ -99,6 +122,7 @@ export function RestaurantKitchen() {
       <div className="content-head">
         <h2>👨‍🍳 Cozinha (KDS)</h2>
         <span className="spacer" />
+        {onGo ? <button className="btn sm" onClick={goToProduction} title="Produzir as fornadas e voltar à cozinha num clique">🏭 Ir para produção</button> : null}
         <span className="muted" style={{ fontSize: 13 }}>{totalItems || online.length ? `${totalItems} item(ns) · ${tickets.length} mesa(s)${online.length ? ` · ${online.length} online` : ''}` : 'atualiza a cada 5 s'}</span>
       </div>
 

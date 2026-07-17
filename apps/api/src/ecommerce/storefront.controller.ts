@@ -346,6 +346,13 @@ export class StorefrontController {
     return this.orders.get(tenant.schema, orderId);
   }
 
+  @Get('orders/:orderId/invoice')
+  @ApiOperation({ summary: 'Fatura fiscal da encomenda (para o cliente descarregar em PDF A4)' })
+  async orderInvoice(@Param('code') code: string, @Param('orderId') orderId: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    return this.orders.invoiceForCustomer(tenant.schema, tenant.companyId, orderId);
+  }
+
   @Post('orders/:orderId/location')
   @ApiOperation({ summary: 'Cliente envia a sua localização GPS (entrega, tempo real)' })
   async updateLocation(

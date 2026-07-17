@@ -5,6 +5,7 @@ import { PaymentGatewayService } from '../payments/payment-gateway.service';
 import { PaymentsService } from '../payments/payments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InvoiceService } from '../pos/invoice.service';
+import { CompanyIdentityService } from '../fiscal/company-identity.service';
 
 interface OrderRow {
   id: string;
@@ -21,7 +22,89 @@ export class OrdersService {
     private readonly invoices: InvoiceService,
     private readonly payments: PaymentsService,
     private readonly gateways: PaymentGatewayService,
+    private readonly identity: CompanyIdentityService,
   ) {}
+
+  /**
+   * FATURA do cliente (loja online): dados fiscais do documento já emitido,
+   * para o cliente descarregar/imprimir em A4. Só depois de o gestor confirmar
+   * a encomenda (status PAID + invoice_id ligado). Público — não expõe nada
+   * além do que consta na fatura do próprio pedido.
+   */
+  async invoiceForCustomer(schema: string, companyId: string, orderId: string) {
+    const orders = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{
+        order_number: string; status: string; invoice_id: string | null;
+        customer_name: string | null; customer_tax_id: string | null;
+      }[]>(
+        Prisma.sql`SELECT order_number, status, invoice_id, customer_name, customer_tax_id
+                   FROM web_orders WHERE id = ${orderId}::uuid LIMIT 1`,
+      ),
+    );
+    const order = orders[0];
+    if (!order) throw new NotFoundException('Encomenda não encontrada');
+    if (!order.invoice_id) {
+      throw new BadRequestException('A fatura ainda não está disponível. A loja precisa de confirmar a encomenda.');
+    }
+
+    const invId = order.invoice_id;
+    const [inv, items, company] = await Promise.all([
+      this.prisma.runInTenant(schema, (tx) =>
+        tx.$queryRaw<{
+          number: string; doc_type: string; invoice_date: Date; system_entry_date: Date;
+          net_total: string; iva_total: string; gross_total: string; hash: string;
+        }[]>(
+          Prisma.sql`SELECT number, doc_type, invoice_date, system_entry_date,
+                            net_total, iva_total, gross_total, hash
+                     FROM invoices WHERE id = ${invId}::uuid LIMIT 1`,
+        ),
+      ),
+      this.prisma.runInTenant(schema, (tx) =>
+        tx.$queryRaw<{
+          description: string; quantity: string; unit_price: string; iva_rate: string;
+          net_amount: string; iva_amount: string; gross_amount: string;
+        }[]>(
+          Prisma.sql`SELECT description, quantity, unit_price, iva_rate,
+                            net_amount, iva_amount, gross_amount
+                     FROM invoice_items WHERE invoice_id = ${invId}::uuid ORDER BY line_number`,
+        ),
+      ),
+      this.identity.getDocumentIdentity(companyId, schema),
+    ]);
+    if (!inv[0]) throw new NotFoundException('Fatura não encontrada');
+    const h = inv[0];
+    return {
+      orderNumber: order.order_number,
+      customerName: order.customer_name,
+      customerTaxId: order.customer_tax_id,
+      number: h.number,
+      docType: h.doc_type,
+      invoiceDate: h.invoice_date,
+      systemEntryDate: h.system_entry_date,
+      netTotal: Number(h.net_total),
+      ivaTotal: Number(h.iva_total),
+      grossTotal: Number(h.gross_total),
+      hash: h.hash,
+      company: {
+        name: company.companyName || company.brandName || '',
+        nif: company.nif || '',
+        address: company.address,
+        phone: company.phone,
+        email: company.email,
+        logoUrl: company.logoUrl,
+        receiptMessage: company.receiptMessage,
+      },
+      items: items.map((it) => ({
+        description: it.description,
+        quantity: Number(it.quantity),
+        unitPrice: Number(it.unit_price),
+        ivaRate: Number(it.iva_rate),
+        netAmount: Number(it.net_amount),
+        ivaAmount: Number(it.iva_amount),
+        grossAmount: Number(it.gross_amount),
+      })),
+    };
+  }
 
   list(schema: string) {
     return this.prisma.runInTenant(schema, (tx) =>

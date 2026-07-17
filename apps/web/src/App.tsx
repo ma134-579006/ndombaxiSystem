@@ -355,8 +355,8 @@ function TenantPanel() {
     <Shell nav={nav} section={safeSection} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
       {section === 'overview' ? <Overview /> : null}
       {section === 'service-hub' ? (bizType === 'RESTAURANT' ? <RestaurantHome onGo={setSection} /> : bizType === 'HOSPITALITY' ? <HotelHome onGo={setSection} /> : bizType === 'CLINIC' ? <ClinicHome onGo={setSection} /> : <ServiceHub businessType={bizType} onGo={setSection} />) : null}
-      {section === 'restaurant' ? <Restaurant /> : null}
-      {section === 'restaurant-kds' ? <RestaurantKitchen /> : null}
+      {section === 'restaurant' ? <Restaurant onGo={setSection} /> : null}
+      {section === 'restaurant-kds' ? <RestaurantKitchen onGo={setSection} /> : null}
       {section === 'service-orders' ? <ServiceOrders /> : null}
       {section === 'hotel' ? <Hotel /> : null}
       {section === 'clinic' ? <Clinic /> : null}

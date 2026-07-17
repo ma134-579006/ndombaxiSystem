@@ -51,9 +51,7 @@ export function Storefront() {
     try {
       const qr = await QRCode.toDataURL(storeLink, { margin: 1, width: 520, errorCorrectionLevel: 'M' });
       const nome = brandName.trim() || 'A nossa loja online';
-      const w = window.open('', '_blank', 'width=820,height=1000');
-      if (!w) return;
-      w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Loja online — ${escHtml(nome)}</title>
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>Loja online — ${escHtml(nome)}</title>
         <style>
           @page{size:A4;margin:0;} *{box-sizing:border-box;}
           body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#0f172a;}
@@ -87,8 +85,28 @@ export function Storefront() {
           <div class="perks"><span>🚚 Entrega em Angola</span><span>🛡️ Compra protegida</span><span>💬 Apoio ao cliente</span><span>🧾 Fatura AGT</span></div>
           <div class="foot">Loja online segura · Ndombaxi System</div>
         </div>
-        <script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script></body></html>`);
-      w.document.close();
+        </body></html>`;
+      // Imprime via IFRAME OCULTO no mesmo documento — funciona em TODOS os
+      // ecrãs (PC, telemóvel, tela grande). O window.open era bloqueado por
+      // popup-blockers no desktop, dando a sensação de que o botão só existia
+      // no telemóvel. O utilizador escolhe "Guardar como PDF" ou impressora.
+      const frame = document.createElement('iframe');
+      frame.setAttribute('aria-hidden', 'true');
+      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+      document.body.appendChild(frame);
+      const cleanup = () => { setTimeout(() => frame.remove(), 1000); };
+      frame.onload = () => {
+        try {
+          const win = frame.contentWindow;
+          if (!win) { cleanup(); return; }
+          win.focus();
+          win.onafterprint = cleanup;
+          setTimeout(() => { win.print(); }, 300);
+        } catch { cleanup(); }
+      };
+      const doc = frame.contentWindow?.document;
+      if (!doc) { frame.remove(); return; }
+      doc.open(); doc.write(html); doc.close();
     } catch { /* falha ao gerar o QR */ }
   };
 

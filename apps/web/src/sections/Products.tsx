@@ -109,8 +109,8 @@ export function Products() {
     finally { setBusy(false); }
   };
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     setError(null);
     try {
       // CATÁLOGO UNIFICADO: produtos vendíveis + ingredientes (matéria-prima) na
@@ -134,14 +134,21 @@ export function Products() {
   useEffect(() => { api.branding().then((b) => setIsRestaurant((b.businessType || '') === 'RESTAURANT')).catch(() => undefined); }, []);
   // Disponibilidade dos produtos de PRODUÇÃO (🟢 Livre / 🟡 Ocupado / 🔴 Esgotado).
   const [avail, setAvail] = useState<Record<string, 'FREE' | 'BUSY' | 'OUT'>>({});
+  const loadAvail = useCallback(() => {
+    api.restaurant.availability()
+      .then((rows) => setAvail(Object.fromEntries(rows.map((r) => [r.id, r.status]))))
+      .catch(() => undefined); // vertical não-restaurante: simplesmente não há
+  }, []);
   useEffect(() => {
     void load();
     api.inventory.warehouses().then(setStores).catch(() => undefined);
     api.inventory.categories().then(setCategories).catch(() => undefined);
-    api.restaurant.availability()
-      .then((rows) => setAvail(Object.fromEntries(rows.map((r) => [r.id, r.status]))))
-      .catch(() => undefined); // vertical não-restaurante: simplesmente não há
-  }, [load]);
+    loadAvail();
+    // TEMPO REAL: atualiza stock/disponibilidade sem o utilizador recarregar
+    // (uma venda no caixa ou uma fornada reflete-se aqui em segundos).
+    const t = window.setInterval(() => { void load({ silent: true }); loadAvail(); }, 10000);
+    return () => window.clearInterval(t);
+  }, [load, loadAvail]);
   const availBadge = (id: string) => {
     const s = avail[id];
     if (!s) return null;

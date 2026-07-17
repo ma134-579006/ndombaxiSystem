@@ -366,6 +366,14 @@ export function PosPage() {
     }
     const current = cart.find((l) => l.product.id === p.id)?.quantity ?? 0;
     if (!madeToOrder && current + 1 > stock) { flashError(`Stock insuficiente de "${p.name}": só há ${stock}.`); return false; }
+    // AVISO de reserva (não bloqueia): este stock está prometido a uma encomenda
+    // online por confirmar. O cliente físico tem prioridade, mas o caixa é
+    // avisado para o conflito não passar despercebido (a mesma água vendida 2×).
+    const reserved = Math.max(0, Math.floor(Number(p.reserved ?? 0)));
+    if (!madeToOrder && !p.is_production && reserved > 0 && current + 1 > stock - reserved) {
+      flashError(`⚠️ "${p.name}": ${reserved} reservado(s) para encomenda online. Confirme antes de vender.`);
+      // não faz return — a venda continua (prioridade ao cliente presente).
+    }
     setCart((prev) => {
       const idx = prev.findIndex((l) => l.product.id === p.id);
       if (idx >= 0) {

@@ -11,7 +11,7 @@ const KITCHEN_LABEL: Record<string, string> = { PENDING: 'Por preparar', PREPARI
 const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY', READY: 'SERVED' };
 
 /** Restauração: mapa de mesas + comanda (lançar itens, conta) e ecrã de cozinha (KDS). */
-export function Restaurant() {
+export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
   const [tab, setTab] = useState<'mesas' | 'cozinha' | 'receitas' | 'producao'>('mesas');
   // Deep-link do Centro de Comando: abre no separador pedido. NUM efeito (não no
   // inicializador do useState) — o StrictMode invoca o inicializador 2× e um
@@ -86,7 +86,7 @@ export function Restaurant() {
         <button className={tab === 'producao' ? 'active' : ''} onClick={() => setTab('producao')}>Produção</button>
       </div>
 
-      {tab === 'producao' ? <ProductionTab products={products} onProduced={loadProducts} /> : tab === 'receitas' ? <RecipesTab products={products} /> : tab === 'mesas' ? (
+      {tab === 'producao' ? <ProductionTab products={products} onProduced={loadProducts} onGo={onGo} /> : tab === 'receitas' ? <RecipesTab products={products} /> : tab === 'mesas' ? (
         tables.length === 0 ? (
           <div className="card"><div className="empty"><p>Sem mesas. Cria a primeira mesa.</p></div></div>
         ) : (
@@ -279,7 +279,7 @@ function RecipesTab({ products }: { products: ManagerProduct[] }) {
  * ingredientes e dá entrada do produto acabado ao custo real (CMP). Nativo do
  * restaurante — não é o ecrã de produtos do retalho.
  */
-function ProductionTab({ products, onProduced }: { products: ManagerProduct[]; onProduced?(): void }) {
+function ProductionTab({ products, onProduced, onGo }: { products: ManagerProduct[]; onProduced?(): void; onGo?: (section: string) => void }) {
   const [ingredients, setIngredients] = useState<ManagerProduct[]>([]);
   const [productId, setProductId] = useState('');
   const [recipe, setRecipe] = useState<RecipeIngredient[]>([]);
@@ -327,6 +327,12 @@ function ProductionTab({ products, onProduced }: { products: ManagerProduct[]; o
 
   return (
     <>
+      {onGo ? (
+        <div className="row" style={{ marginBottom: 10 }}>
+          <span className="spacer" style={{ flex: 1 }} />
+          <button className="btn sm" onClick={() => onGo('restaurant-kds')} title="Terminaste a fornada? Volta à cozinha num clique">👨‍🍳 Voltar à cozinha</button>
+        </div>
+      ) : null}
       <div className="card" style={{ marginBottom: 12 }}>
         <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>
           🥖 <strong>Fornada</strong>: produz em lote para a prateleira (pães, bolos, pratos preparados).

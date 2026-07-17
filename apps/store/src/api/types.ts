@@ -195,3 +195,36 @@ export interface MyPrescriptionDetail {
   prescription: { id: string; number: string; patient_name: string | null; professional: string | null; notes: string | null; status: string; issued: string };
   items: MyPrescriptionItem[];
 }
+// Fatura fiscal da encomenda online (para o cliente descarregar em PDF A4)
+export interface StoreInvoiceItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  ivaRate: number;
+  netAmount: number;
+  ivaAmount: number;
+  grossAmount: number;
+}
+export interface StoreInvoice {
+  orderNumber: string;
+  customerName: string | null;
+  customerTaxId: string | null;
+  number: string;
+  docType: string;
+  invoiceDate: string;
+  systemEntryDate: string;
+  netTotal: number;
+  ivaTotal: number;
+  grossTotal: number;
+  hash: string;
+  company: {
+    name: string;
+    nif: string;
+    address: string | null;
+    phone: string | null;
+    email: string | null;
+    logoUrl: string | null;
+    receiptMessage: string | null;
+  };
+  items: StoreInvoiceItem[];
+}

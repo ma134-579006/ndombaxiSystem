@@ -25,8 +25,8 @@ export function Tenants() {
   const [bonusFor, setBonusFor] = useState<Company | null>(null);
   const { enterShadow } = useAuth();
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     setError(null);
     try {
       setCompanies(await api.tenants.list({ status: filter || undefined, search: search || undefined }));
@@ -39,6 +39,9 @@ export function Tenants() {
 
   useEffect(() => {
     void load();
+    // TEMPO REAL: novas empresas / mudanças de estado aparecem sem recarregar.
+    const t = window.setInterval(() => void load({ silent: true }), 15000);
+    return () => window.clearInterval(t);
   }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const act = async (id: string, fn: () => Promise<Company>, confirmMsg?: string) => {

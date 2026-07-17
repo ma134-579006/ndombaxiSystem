@@ -13,6 +13,7 @@ import type {
   OrderMessage,
   PaymentMethod,
   SiteResponse,
+  StoreInvoice,
   StoreRoom,
   StoreChatMessage,
   UploadProofInput,
@@ -78,6 +79,8 @@ export const api = {
       'POST', `/store/${enc(code)}/visual-search`, { imageBase64, mimeType }),
   track: (code: string, orderId: string) =>
     request<WebOrder>('GET', `/store/${enc(code)}/orders/${enc(orderId)}`),
+  orderInvoice: (code: string, orderId: string) =>
+    request<StoreInvoice>('GET', `/store/${enc(code)}/orders/${enc(orderId)}/invoice`),
   updateLocation: (code: string, orderId: string, token: string, body: { lat: number; lng: number; accuracy?: number }) =>
     request<{ ok: true }>('POST', `/store/${enc(code)}/orders/${enc(orderId)}/location`, body, token),
   generateReference: (code: string, orderId: string) =>
