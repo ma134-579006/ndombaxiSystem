@@ -122,6 +122,13 @@ export class RestaurantController {
   @ApiOperation({ summary: 'Disponibilidade dos produtos de produção (🟢 Livre / 🟡 Ocupado / 🔴 Esgotado)' })
   availability() { return this.svc.productionAvailability(this.ctx.requireTenantSchema()); }
 
+  @Post('orders/:id/priority')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Central de Produção: define a prioridade do pedido (0=normal, 1=urgente)' })
+  setPriority(@Param('id') id: string, @Body() dto: { priority: number }) {
+    return this.svc.setOrderPriority(this.ctx.requireTenantSchema(), id, dto?.priority ?? 0);
+  }
+
   @Get('online-queue')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Encomendas online na cozinha (com tempo estimado e estado de produção)' })

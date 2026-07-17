@@ -53,6 +53,12 @@ export function RestaurantKitchen() {
     catch { toast.error('Falha ao dar o tempo.'); }
   };
 
+  // Central de Produção: marca/desmarca um pedido como URGENTE (sobe na fila).
+  const toggleUrgent = async (orderId: string, priority: number) => {
+    try { await api.restaurant.setPriority(orderId, priority); toast.success(priority ? '🔴 Marcado urgente.' : 'Urgência removida.'); await load(); }
+    catch { toast.error('Falha ao mudar a prioridade.'); }
+  };
+
   useEffect(() => {
     void load();
     const t = window.setInterval(load, 5000);
@@ -74,14 +80,16 @@ export function RestaurantKitchen() {
   // Agrupar por comanda (order_id) → bilhetes.
   const tickets = useMemo(() => {
     void tick; // dependência para recalcular tempos
-    const byOrder = new Map<string, { table: string; orderId: string; items: RestaurantKitchenItem[]; oldest: number; eta: number | null; isCounter: boolean }>();
+    const byOrder = new Map<string, { table: string; orderId: string; items: RestaurantKitchenItem[]; oldest: number; eta: number | null; isCounter: boolean; priority: number }>();
     for (const it of items) {
-      const g = byOrder.get(it.order_id) ?? { table: it.table_name ?? 'Mesa', orderId: it.order_id, items: [], oldest: 0, eta: it.prep_eta_min ?? null, isCounter: !!it.is_counter };
+      const g = byOrder.get(it.order_id) ?? { table: it.table_name ?? 'Mesa', orderId: it.order_id, items: [], oldest: 0, eta: it.prep_eta_min ?? null, isCounter: !!it.is_counter, priority: Number(it.priority) || 0 };
       g.items.push(it);
       g.oldest = Math.max(g.oldest, minutesSince(it.created_at));
+      g.priority = Math.max(g.priority, Number(it.priority) || 0);
       byOrder.set(it.order_id, g);
     }
-    return [...byOrder.values()].sort((a, b) => b.oldest - a.oldest);
+    // Central de Produção: URGENTES primeiro, depois por antiguidade.
+    return [...byOrder.values()].sort((a, b) => b.priority - a.priority || b.oldest - a.oldest);
   }, [items, tick]);
 
   const totalItems = items.length;
@@ -147,13 +155,16 @@ export function RestaurantKitchen() {
       ) : tickets.length === 0 ? null : (
         <div className="pgrid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', alignItems: 'start' }}>
           {tickets.map((t) => {
-            const tone = t.oldest >= 15 ? 'var(--danger, #e5484d)' : t.oldest >= 8 ? 'var(--warning)' : 'var(--success, #30a46c)';
+            const urgent = t.priority > 0;
+            const tone = urgent ? 'var(--danger, #e5484d)' : t.oldest >= 15 ? 'var(--danger, #e5484d)' : t.oldest >= 8 ? 'var(--warning)' : 'var(--success, #30a46c)';
             return (
-              <div key={t.orderId} className="card" style={{ padding: 0, overflow: 'hidden', borderTop: `4px solid ${tone}` }}>
+              <div key={t.orderId} className="card" style={{ padding: 0, overflow: 'hidden', borderTop: `4px solid ${tone}`, boxShadow: urgent ? '0 0 0 2px var(--danger, #e5484d)' : undefined }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border, #0002)' }}>
                   <strong style={{ fontSize: 15 }}>{t.isCounter ? '🛍️' : '🪑'} {t.table}</strong>
                   {t.isCounter ? <span className="pill on" style={{ fontSize: 10 }}>BALCÃO</span> : null}
+                  {urgent ? <span className="pill" style={{ fontSize: 10, background: 'var(--danger, #e5484d)', color: '#fff' }}>🔴 URGENTE</span> : null}
                   <span className="spacer" style={{ flex: 1 }} />
+                  <button className="btn sm ghost" title={urgent ? 'Remover urgência' : 'Marcar urgente'} onClick={() => void toggleUrgent(t.orderId, urgent ? 0 : 1)}>{urgent ? '↩' : '🔴'}</button>
                   <span style={{ fontSize: 13, fontWeight: 700, color: tone }}>⏱ {t.oldest} min</span>
                 </div>
                 {/* Cozinha dá o tempo estimado (útil sobretudo no balcão/takeaway). */}

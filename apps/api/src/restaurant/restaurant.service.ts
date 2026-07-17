@@ -519,13 +519,16 @@ export class RestaurantService {
   async kitchen(schema: string) {
     return this.prisma.runInTenant(schema, async (tx) => {
       const etaExpr = (await this.hasOrderEtaCol(tx)) ? Prisma.sql`o.prep_eta_min` : Prisma.sql`NULL::int`;
+      const prioExpr = (await this.hasOrderPriorityCol(tx)) ? Prisma.sql`o.priority` : Prisma.sql`0`;
+      // Central de Produção: os pedidos URGENTES vêm primeiro (prioridade DESC),
+      // depois por antiguidade — o cozinheiro ataca o que é mais crítico.
       return tx.$queryRaw(Prisma.sql`
         SELECT i.id, i.description, i.quantity, i.kitchen_status, i.notes, i.created_at,
-          o.table_name, o.id AS order_id, ${etaExpr} AS prep_eta_min, (o.table_id IS NULL) AS is_counter
+          o.table_name, o.id AS order_id, ${etaExpr} AS prep_eta_min, ${prioExpr} AS priority, (o.table_id IS NULL) AS is_counter
         FROM restaurant_order_items i
         JOIN restaurant_orders o ON o.id = i.order_id
         WHERE o.status = 'OPEN' AND i.kitchen_status IN ('PENDING','PREPARING')
-        ORDER BY i.created_at`);
+        ORDER BY ${prioExpr} DESC, i.created_at`);
     });
   }
 
@@ -613,6 +616,24 @@ export class RestaurantService {
       Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
                  WHERE table_schema = current_schema() AND table_name = 'restaurant_orders' AND column_name = 'prep_eta_min'`);
     return (rows[0]?.n ?? 0) > 0;
+  }
+
+  /** A coluna restaurant_orders.priority pode ainda não existir (auto-migração). */
+  private async hasOrderPriorityCol(tx: Prisma.TransactionClient): Promise<boolean> {
+    const rows = await tx.$queryRaw<{ n: number }[]>(
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = 'restaurant_orders' AND column_name = 'priority'`);
+    return (rows[0]?.n ?? 0) > 0;
+  }
+
+  /** Central de Produção: marca a prioridade de um pedido (0=normal, 1=urgente). */
+  async setOrderPriority(schema: string, orderId: string, priority: number) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      if (!(await this.hasOrderPriorityCol(tx))) throw new BadRequestException('Prioridade ainda não disponível neste tenant.');
+      const p = Math.max(0, Math.min(2, Math.floor(Number(priority) || 0)));
+      await tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders SET priority = ${p} WHERE id = ${orderId}::uuid`);
+      return { ok: true as const, priority: p };
+    });
   }
 
   /**

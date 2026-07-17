@@ -785,7 +785,7 @@ export interface CustomerContact { id: string; name: string; email: string | nul
 export interface RestaurantTableMapRow { id: string; code: string; name: string; area: string | null; seats: number; order_id: string | null; order_total: string | null; guests: number | null; opened_at_label: string | null }
 export interface RestaurantOrderItem { id: string; product_code: string; description: string; unit_price: string; quantity: string; kitchen_status: string; notes: string | null; created_at: string }
 export interface RestaurantOrderDetail { order: { id: string; table_name: string | null; status: string; total: string; guests: number; customer_name: string | null }; items: RestaurantOrderItem[] }
-export interface RestaurantKitchenItem { id: string; description: string; quantity: string; kitchen_status: string; notes: string | null; created_at: string; table_name: string | null; order_id: string; prep_eta_min?: number | null; is_counter?: boolean }
+export interface RestaurantKitchenItem { id: string; description: string; quantity: string; kitchen_status: string; notes: string | null; created_at: string; table_name: string | null; order_id: string; prep_eta_min?: number | null; priority?: number; is_counter?: boolean }
 export interface RestaurantOnlineTicket {
   id: string; orderNumber: string; customerName: string; paymentStatus: string;
   kitchenStatus: string; etaMin: number | null; waitMin: number;

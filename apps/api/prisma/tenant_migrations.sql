@@ -534,3 +534,6 @@ CREATE INDEX IF NOT EXISTS clinic_claims_insurer_idx ON "{{SCHEMA}}"."clinic_ins
 -- estoque/compra/fornecedor tradicionais). Aditivo; is_ingredient continua a ser
 -- materia-prima. Um produto normal (comercial) tem ambos FALSE.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS is_production BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- 2026-07-13 · RESTAURANTE/PRODUCAO — prioridade dos pedidos (Central de Producao)
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."restaurant_orders" ADD COLUMN IF NOT EXISTS priority INT NOT NULL DEFAULT 0;
