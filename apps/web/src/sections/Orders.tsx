@@ -192,8 +192,12 @@ export function Orders() {
               expedir/entregar. Só avança quando a cozinha marcar Pronto. */}
           {detail.kitchen_status === 'PREPARING' ? (
             <div className="banner warning" style={{ marginBottom: 12 }}>
-              👨‍🍳 A cozinha está a preparar este pedido. Só poderá continuar (expedir/entregar)
-              quando o cozinheiro marcar <strong>Pronto</strong>.
+              {/* Conteúdo num único span: o .banner é flex e nós de texto soltos
+                  viram itens flex — o <strong> era empurrado p/ a direita ("Pro nto"). */}
+              <span>
+                👨‍🍳 A cozinha está a preparar este pedido. Só poderá continuar (expedir/entregar)
+                quando o cozinheiro marcar <strong>Pronto</strong>.
+              </span>
             </div>
           ) : null}
 

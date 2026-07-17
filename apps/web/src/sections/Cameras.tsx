@@ -389,7 +389,7 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
             <div className="grid-2">
               <div className="field"><label>Utilizador</label>
                 <input value={ipUser} onChange={(e) => setIpUser(e.target.value)} placeholder="admin" /></div>
-              <div className="field"><label>Palavra-passe do DVR</label>
+              <div className="field"><label>Senha do DVR</label>
                 <input value={ipPass} onChange={(e) => setIpPass(e.target.value)} type="password" placeholder="••••••" /></div>
             </div>
             <button className="btn ghost block" onClick={buildFromIp}>⚙️ Gerar URL a partir do IP</button>

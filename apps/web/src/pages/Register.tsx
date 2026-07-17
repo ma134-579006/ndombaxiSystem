@@ -87,7 +87,7 @@ export function Register({ onBack }: { onBack?: () => void }) {
             placeholder="voce@empresa.ao" type="email" autoComplete="username"
             onKeyDown={(e) => { if (e.key === 'Enter') void submitEmail(); }} />
 
-          <label className="auth-label">Palavra-passe</label>
+          <label className="auth-label">Senha</label>
           <PasswordField value={password} onChange={setPassword} placeholder="mín. 8 caracteres"
             autoComplete="new-password" onEnter={() => void submitEmail()} />
 

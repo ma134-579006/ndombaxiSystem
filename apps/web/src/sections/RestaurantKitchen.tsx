@@ -13,6 +13,13 @@ function minutesSince(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - t) / 60000));
 }
 
+/** Tempo de espera humanizado: "42 min" · "3 h 20" · "9 d". Nunca "13437 min". */
+function fmtWait(min: number): string {
+  if (min < 60) return `${min} min`;
+  if (min < 1440) { const h = Math.floor(min / 60); const m = min % 60; return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
+  return `${Math.floor(min / 1440)} d`;
+}
+
 /**
  * COZINHA (KDS) — destino de 1.ª classe do restaurante. Quadro de passe: um
  * bilhete por mesa/comanda, com os itens por preparar/em preparação, o tempo de
@@ -140,7 +147,7 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
                     <strong style={{ fontSize: 14 }}>🛵 {t.customerName || 'Cliente'}</strong>
                     <span className="pill on" style={{ fontSize: 10 }}>ONLINE</span>
                     <span className="spacer" style={{ flex: 1 }} />
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: tone }}>⏱ {t.waitMin}m</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: tone }}>⏱ {fmtWait(t.waitMin)}</span>
                   </div>
                   <div style={{ padding: '4px 14px' }}>
                     <div className="muted" style={{ fontSize: 11.5, marginBottom: 4 }}>{t.orderNumber} · {t.paymentStatus === 'PAID' ? 'Pago ✓' : 'Aguarda pagamento'}</div>
@@ -189,7 +196,7 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
                   {urgent ? <span className="pill" style={{ fontSize: 10, background: 'var(--danger, #e5484d)', color: '#fff' }}>🔴 URGENTE</span> : null}
                   <span className="spacer" style={{ flex: 1 }} />
                   <button className="btn sm ghost" title={urgent ? 'Remover urgência' : 'Marcar urgente'} onClick={() => void toggleUrgent(t.orderId, urgent ? 0 : 1)}>{urgent ? '↩' : '🔴'}</button>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: tone }}>⏱ {t.oldest} min</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: tone }}>⏱ {fmtWait(t.oldest)}</span>
                 </div>
                 {/* Cozinha dá o tempo estimado (útil sobretudo no balcão/takeaway). */}
                 <div className="row" style={{ gap: 8, alignItems: 'center', padding: '8px 14px', borderBottom: '1px solid var(--border, #0002)' }}>

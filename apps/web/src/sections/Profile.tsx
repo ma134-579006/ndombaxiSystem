@@ -68,7 +68,7 @@ export function Profile() {
     if (pw.length < 8) { setErr('A nova palavra-passe deve ter pelo menos 8 caracteres.'); return; }
     if (pw !== pw2) { setErr('As palavras-passe não coincidem.'); return; }
     setBusy(true);
-    try { await api.staff.resetPassword(uid, pw); setPw(''); setPw2(''); flash('Palavra-passe alterada.'); }
+    try { await api.staff.resetPassword(uid, pw); setPw(''); setPw2(''); flash('Senha alterada.'); }
     catch (e) { fail(e); } finally { setBusy(false); }
   };
 

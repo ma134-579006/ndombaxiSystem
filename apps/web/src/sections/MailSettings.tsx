@@ -90,7 +90,7 @@ export function MailSettings() {
         <div className="switch-row"><span>Ligação segura (SSL/TLS — porta 465)</span><Switch checked={secure} onChange={setSecure} /></div>
         <div className="field"><label>Utilizador (e-mail)</label>
           <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="a-tua-loja@gmail.com" inputMode="email" /></div>
-        <div className="field"><label>Palavra-passe {cfg?.hasPassword ? <span className="muted">(guardada: {cfg.passwordMask} — deixa vazio para manter)</span> : null}</label>
+        <div className="field"><label>Senha {cfg?.hasPassword ? <span className="muted">(guardada: {cfg.passwordMask} — deixa vazio para manter)</span> : null}</label>
           <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder={cfg?.hasPassword ? '•••••••• (manter)' : 'palavra-passe de app'} autoComplete="new-password" /></div>
         <div className="field"><label>Remetente (opcional)</label>
           <input value={fromAddr} onChange={(e) => setFromAddr(e.target.value)} placeholder="Ndombaxi System <a-tua-loja@gmail.com>" /></div>

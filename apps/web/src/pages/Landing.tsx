@@ -637,7 +637,7 @@ function Creds({ result }: { result: RegisterCompanyResult }) {
     <div className="lp-ok" style={{ marginTop: 10 }}>
       <div className="lp-credlabel">Empresa</div><div className="lp-cred">{result.companyCode}</div>
       <div className="lp-credlabel" style={{ marginTop: 10 }}>E-mail</div><div className="lp-cred">{result.adminEmail}</div>
-      <div className="lp-credlabel" style={{ marginTop: 10 }}>Palavra-passe temporária</div><div className="lp-cred">{result.temporaryPassword}</div>
+      <div className="lp-credlabel" style={{ marginTop: 10 }}>Senha temporária</div><div className="lp-cred">{result.temporaryPassword}</div>
     </div>
   );
 }

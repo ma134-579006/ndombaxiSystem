@@ -59,7 +59,7 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
     try {
       const r = await api.verifyPassword(pw);
       if (r.ok) { setLocked(false); setPw(''); }
-      else { setErr('Palavra-passe incorreta. Tenta novamente.'); setPw(''); inputRef.current?.focus(); }
+      else { setErr('Senha incorreta. Tenta novamente.'); setPw(''); inputRef.current?.focus(); }
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Não foi possível validar. Tenta de novo.');
     } finally { setBusy(false); }
@@ -97,7 +97,7 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
             className="lock-pin"
             type="password"
             autoComplete="current-password"
-            placeholder="Palavra-passe"
+            placeholder="Senha"
             value={pw}
             onChange={(e) => setPw(e.target.value)}
           />
