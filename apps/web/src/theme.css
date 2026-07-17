@@ -1593,8 +1593,10 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .auth-sublinks a:hover { text-decoration: underline; }
 .auth-btn { width: 100%; height: clamp(44px, 7dvh, 52px); border: none; border-radius: 12px; cursor: pointer; color: #fff;
   font-size: 16px; font-weight: 800; letter-spacing: .2px;
-  background: linear-gradient(135deg, #7b5cff 0%, #b15cff 50%, #e35ad6 100%);
-  box-shadow: 0 12px 30px -10px rgba(150,80,230,.6); transition: filter .15s, transform .06s; }
+  /* Identidade única da marca (auditoria 2026-07): índigo #2430E8 — o gradiente
+     magenta lia-se como app de consumo e divergia do azul da landing. */
+  background: linear-gradient(135deg, #3d4bff 0%, #2430e8 55%, #1b23ae 100%);
+  box-shadow: 0 12px 30px -10px rgba(36,48,232,.55); transition: filter .15s, transform .06s; }
 .auth-btn:hover { filter: brightness(1.07); }
 .auth-btn:active { transform: translateY(1px); }
 .auth-btn:disabled { opacity: .65; cursor: default; }
