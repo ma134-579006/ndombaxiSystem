@@ -198,6 +198,7 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
 }) {
   const totalBadge = unread + (canCustChat ? custUnread : 0) + (canAdvances ? advancesCount : 0);
   const [open, setOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
   const [theme, setThemeState] = useState(getTheme());
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -241,20 +242,39 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
               {advancesCount > 0 ? <span className="acct-item-badge">{advancesCount > 99 ? '99+' : advancesCount}</span> : null}
             </button>
           ) : null}
-          <div className="acct-theme">
-            <div className="acct-theme-h">Tema do painel</div>
-            <div className="acct-theme-row">
-              {THEMES.map((t) => (
-                <button key={t.id || 'default'} type="button" title={t.label} aria-label={`Tema ${t.label}`}
-                  className={`acct-sw${theme === t.id ? ' on' : ''}`} onClick={() => pickTheme(t.id)}>
-                  <span style={{ background: t.swatch }} />
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Tema: item próprio com ícone — as cores escolhem-se num painel
+              dedicado, não espalhadas no menu (pedido do utilizador). */}
+          <button className="acct-item" onClick={() => { setOpen(false); setThemeOpen(true); }}>
+            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🎨</span> Tema do painel
+          </button>
           <button className="acct-item" onClick={() => { setOpen(false); onSettings(); }}><IconGear size={17} /> Configurações</button>
           <button className="acct-item danger" onClick={() => { setOpen(false); onLogout(); }}><IconLogout size={17} /> Terminar sessão</button>
         </div>
+      ) : null}
+      {themeOpen ? (
+        <Modal title="🎨 Tema do painel" onClose={() => setThemeOpen(false)}>
+          <p className="muted" style={{ marginTop: 0, fontSize: 13.5 }}>
+            Escolhe o tema — aplica-se já e fica guardado na tua conta.
+          </p>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {THEMES.map((t) => {
+              const on = theme === t.id;
+              return (
+                <button key={t.id || 'default'} type="button" onClick={() => pickTheme(t.id)}
+                  className="acct-item" aria-pressed={on}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px',
+                    border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border)'}`, borderRadius: 12,
+                    background: on ? 'var(--primary-soft)' : 'var(--surface)' }}>
+                  <span aria-hidden style={{ width: 22, height: 22, borderRadius: 999, flex: 'none',
+                    background: t.swatch, boxShadow: '0 0 0 2px var(--border)' }} />
+                  <span style={{ flex: 1, textAlign: 'left', fontWeight: 700 }}>{t.label}</span>
+                  {on ? <span style={{ color: 'var(--primary)', fontWeight: 800 }}>✓</span> : null}
+                </button>
+              );
+            })}
+          </div>
+          <button className="btn block" style={{ marginTop: 14 }} onClick={() => setThemeOpen(false)}>Concluído</button>
+        </Modal>
       ) : null}
     </div>
   );

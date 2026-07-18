@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
+import { initLandingReveal } from '../landingReveal';
 import { useAuth } from '../auth/AuthContext';
 import type {
   BankAccount,
@@ -86,6 +87,15 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
+
+  // MOTION enterprise: scroll-reveal bidirecional + parallax do mockup
+  // (landingReveal.ts). Arranca DEPOIS do conteúdo renderizar (loading falso)
+  // para o observador apanhar todas as secções; teardown ao sair da landing.
+  useEffect(() => {
+    if (loading) return;
+    const stop = initLandingReveal();
+    return stop;
+  }, [loading]);
 
   const cfg = data?.config;
   const primary = cfg?.primaryColor || '#2563eb';
