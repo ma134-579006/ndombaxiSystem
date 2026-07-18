@@ -23,6 +23,16 @@ export function ServiceOrders() {
   const [tab, setTab] = useState<'orders' | 'equipments'>('orders');
   const [rows, setRows] = useState<ServiceOrderRow[]>([]);
   const [filter, setFilter] = useState('');
+  // Deep-link do Centro de Comando: abre na aba/filtro pedidos. Lido num EFEITO
+  // (não no inicializador do useState — StrictMode invoca-o 2×; ver Restaurant).
+  useEffect(() => {
+    try {
+      const t = sessionStorage.getItem('ndx_srv_tab');
+      if (t === 'orders' || t === 'equipments') { setTab(t); sessionStorage.removeItem('ndx_srv_tab'); }
+      const s = sessionStorage.getItem('ndx_srv_status');
+      if (s) { setFilter(s); sessionStorage.removeItem('ndx_srv_status'); }
+    } catch { /* sessionStorage indisponível */ }
+  }, []);
   const [creating, setCreating] = useState(false);
   const [detail, setDetail] = useState<ServiceOrderDetail | null>(null);
 

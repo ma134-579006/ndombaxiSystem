@@ -27,6 +27,11 @@ export class ServiceOrdersController {
   @ApiOperation({ summary: 'Nº de pedidos de serviço da loja online por tratar' })
   async pendingOnline() { return { count: await this.svc.pendingOnline(this.ctx.requireTenantSchema()) }; }
 
+  @Get('dashboard')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Centro de comando dos Serviços (pipeline, prontas, online, vendas de hoje)' })
+  dashboard() { return this.svc.dashboard(this.ctx.requireTenantSchema()); }
+
   // ── Equipamentos / viaturas ────────────────────────────────
   @Get('equipments')
   @Roles(Role.CASHIER)

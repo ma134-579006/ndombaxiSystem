@@ -15,6 +15,95 @@ export class ServiceOrdersService {
     private readonly invoices: InvoiceService,
   ) {}
 
+  /**
+   * CENTRO DE COMANDO dos Serviços (mesma engenharia do restaurante/hotel/
+   * clínica): pipeline da oficina, urgências e vendas do dia — só LEITURA.
+   */
+  async dashboard(schema: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const reg = await tx.$queryRaw<{ r: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('service_orders')::text AS r`);
+      const hasSo = !!reg[0]?.r;
+
+      // Pipeline: quantas OS e quanto valor há em cada fase do funil.
+      const pipeline = hasSo
+        ? await tx.$queryRaw<{ status: string; n: number; value: number }[]>(Prisma.sql`
+            SELECT status, COUNT(*)::int AS n, COALESCE(SUM(total),0)::float8 AS value
+            FROM service_orders
+            WHERE status IN ('OPEN','QUOTED','APPROVED','IN_PROGRESS','READY')
+            GROUP BY status`)
+        : [];
+      const byStatus = new Map(pipeline.map((p) => [p.status, p]));
+      const stage = (s: string) => ({
+        count: byStatus.get(s)?.n ?? 0,
+        value: Math.round((byStatus.get(s)?.value ?? 0) * 100) / 100,
+      });
+
+      // Pedidos ONLINE por aceitar + OS em curso há mais tempo (atraso).
+      const online = hasSo
+        ? await tx.$queryRaw<{ n: number }[]>(Prisma.sql`
+            SELECT COUNT(*)::int AS n FROM service_orders WHERE source = 'ONLINE' AND status = 'OPEN'`)
+        : [{ n: 0 }];
+      const oldest = hasSo
+        ? await tx.$queryRaw<{ days: number; number: string }[]>(Prisma.sql`
+            SELECT FLOOR(EXTRACT(EPOCH FROM (now() - created_at)) / 86400)::int AS days, number
+            FROM service_orders WHERE status = 'IN_PROGRESS' ORDER BY created_at LIMIT 1`)
+        : [];
+
+      // Prontas por ENTREGAR (o dinheiro parado na prateleira).
+      const ready = hasSo
+        ? await tx.$queryRaw<{ id: string; number: string; customer_name: string | null; equipment_label: string | null; total: string }[]>(Prisma.sql`
+            SELECT id, number, customer_name, equipment_label, total
+            FROM service_orders WHERE status = 'READY' ORDER BY updated_at DESC LIMIT 6`)
+        : [];
+
+      // Equipamentos ativos em carteira.
+      const regEq = await tx.$queryRaw<{ r: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('service_equipments')::text AS r`);
+      const equipments = regEq[0]?.r
+        ? await tx.$queryRaw<{ n: number }[]>(Prisma.sql`
+            SELECT COUNT(*)::int AS n FROM service_equipments WHERE is_active = TRUE`)
+        : [{ n: 0 }];
+
+      // Vendas de HOJE por canal (faturas FT/FS válidas) — igual ao restaurante.
+      const regInv = await tx.$queryRaw<{ r: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('invoices')::text AS r`);
+      const regWeb = await tx.$queryRaw<{ r: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('web_orders')::text AS r`);
+      const onlineExpr = regWeb[0]?.r
+        ? Prisma.sql`COALESCE(SUM(gross_total) FILTER (WHERE id IN (SELECT invoice_id FROM web_orders WHERE invoice_id IS NOT NULL)), 0)::float8`
+        : Prisma.sql`0::float8`;
+      const sales = regInv[0]?.r
+        ? await tx.$queryRaw<{ total: number; online: number; invoices: number }[]>(Prisma.sql`
+            SELECT COALESCE(SUM(gross_total), 0)::float8 AS total,
+                   ${onlineExpr} AS online,
+                   COUNT(*)::int AS invoices
+            FROM invoices
+            WHERE invoice_date = CURRENT_DATE AND status = 'N' AND doc_type IN ('FT','FS')`)
+        : [{ total: 0, online: 0, invoices: 0 }];
+      const sl = sales[0] ?? { total: 0, online: 0, invoices: 0 };
+      const onlineSales = Math.round(sl.online);
+
+      return {
+        pipeline: {
+          open: stage('OPEN'), quoted: stage('QUOTED'), approved: stage('APPROVED'),
+          inProgress: stage('IN_PROGRESS'), ready: stage('READY'),
+        },
+        onlinePending: online[0]?.n ?? 0,
+        oldestInProgress: oldest[0] ? { days: oldest[0].days, number: oldest[0].number } : null,
+        readyToDeliver: ready.map((r) => ({
+          id: r.id, number: r.number, customerName: r.customer_name,
+          equipment: r.equipment_label, total: Number(r.total),
+        })),
+        equipments: equipments[0]?.n ?? 0,
+        sales: {
+          total: Math.round(sl.total), online: onlineSales,
+          counter: Math.round(sl.total) - onlineSales, invoices: sl.invoices,
+        },
+      };
+    });
+  }
+
   list(schema: string, status?: string) {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(status && STATUSES.includes(status)

@@ -1278,3 +1278,16 @@ export interface RestaurantSalesReport {
   commercial: RestaurantReportGroup;
   production: RestaurantReportGroup;
 }
+// Centro de Comando dos SERVIÇOS (oficina/assistência técnica)
+export interface ServicesPipelineStage { count: number; value: number }
+export interface ServicesDashboard {
+  pipeline: {
+    open: ServicesPipelineStage; quoted: ServicesPipelineStage; approved: ServicesPipelineStage;
+    inProgress: ServicesPipelineStage; ready: ServicesPipelineStage;
+  };
+  onlinePending: number;
+  oldestInProgress: { days: number; number: string } | null;
+  readyToDeliver: { id: string; number: string; customerName: string | null; equipment: string | null; total: number }[];
+  equipments: number;
+  sales: { total: number; online: number; counter: number; invoices: number };
+}

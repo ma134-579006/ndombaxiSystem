@@ -765,6 +765,7 @@ export const api = {
     expiring: (days = 30) => request<PharmacyBatch[]>('GET', `/pharmacy/expiring?days=${days}`),
   },
   serviceOrders: {
+    dashboard: () => request<ServicesDashboard>('GET', '/service-orders/dashboard'),
     list: (status?: string) => request<ServiceOrderRow[]>('GET', `/service-orders${status ? `?status=${status}` : ''}`),
     create: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/service-orders', dto),
     get: (id: string) => request<ServiceOrderDetail>('GET', `/service-orders/${id}`),
