@@ -41,11 +41,31 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
 
   const openTable = async (t: RestaurantTableMapRow) => {
     setBusy(true);
+    setCancelOpen(false); setCancelReason('');
     try {
       const id = t.order_id ?? (await api.restaurant.openOrder(t.id)).id;
       setDetail(await api.restaurant.order(id));
       await loadTables();
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao abrir a mesa.'); }
+    finally { setBusy(false); }
+  };
+
+  // CANCELAMENTO c/ motivo obrigatório (fatia 6): o motivo + quem cancelou ficam
+  // na auditoria (Caixa & Auditoria) e na própria comanda.
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const cancelOrder = async () => {
+    if (!detail) return;
+    const motivo = cancelReason.trim();
+    if (motivo.length < 3) { toast.warning('Indica o motivo do cancelamento (mínimo 3 caracteres).'); return; }
+    setBusy(true);
+    try {
+      await api.restaurant.cancelOrder(detail.order.id, motivo);
+      toast.success(`Comanda da ${detail.order.table_name ?? 'mesa'} cancelada — motivo registado na auditoria.`);
+      setCancelOpen(false); setCancelReason('');
+      setDetail(null);
+      await loadTables();
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao cancelar a comanda.'); }
     finally { setBusy(false); }
   };
   const refreshDetail = async (id: string) => { setDetail(await api.restaurant.order(id)); await loadTables(); };
@@ -166,7 +186,26 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
             <strong style={{ fontSize: 16 }}>Total</strong><span className="spacer" style={{ flex: 1 }} />
             <strong style={{ fontSize: 20 }}>{KZ(detail.order.total)}</strong>
           </div>
-          <button className="btn lg block" onClick={() => void closeOrder()} disabled={detail.items.length === 0}>Fechar conta</button>
+          {cancelOpen ? (
+            <div className="card" style={{ marginBottom: 4, border: '1px solid var(--danger)' }}>
+              <div className="field" style={{ marginBottom: 8 }}>
+                <label>Motivo do cancelamento (obrigatório — fica na auditoria)</label>
+                <input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} autoFocus
+                  placeholder="ex.: cliente desistiu, lançamento errado, mesa duplicada…" />
+              </div>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn danger" style={{ flex: 1 }} onClick={() => void cancelOrder()} disabled={busy}>
+                  {busy ? 'A cancelar…' : 'Confirmar cancelamento'}
+                </button>
+                <button className="btn ghost" onClick={() => { setCancelOpen(false); setCancelReason(''); }}>Voltar</button>
+              </div>
+            </div>
+          ) : (
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn lg" style={{ flex: 1 }} onClick={() => void closeOrder()} disabled={detail.items.length === 0}>Fechar conta</button>
+              <button className="btn ghost" onClick={() => setCancelOpen(true)} title="Cancelar a comanda com motivo (auditado)">Cancelar comanda</button>
+            </div>
+          )}
         </Modal>
       ) : null}
 

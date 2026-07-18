@@ -441,10 +441,72 @@ export class RestaurantService {
     });
   }
 
-  async cancelOrder(schema: string, orderId: string) {
-    await this.prisma.runInTenant(schema, (tx) =>
-      tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders SET status = 'CANCELLED', closed_at = now() WHERE id = ${orderId}::uuid AND status = 'OPEN'`));
-    return { ok: true };
+  /**
+   * CANCELAMENTO enterprise (fatia 6): motivo OBRIGATÓRIO + auditoria completa
+   * (quem, o quê, itens, total, motivo). RBAC no controller (STORE_MANAGER+).
+   * O motivo fica também na própria comanda (notes) para consulta rápida.
+   * NOTA: comanda OPEN nunca mexeu em stock/faturação — cancelar é seguro;
+   * faturas emitidas cancelam-se pelo fluxo fiscal próprio (NC), não aqui.
+   */
+  async cancelOrder(
+    schema: string,
+    orderId: string,
+    reason?: string,
+    actor?: { id?: string | null; name?: string | null },
+  ) {
+    const motivo = (reason ?? '').trim();
+    if (motivo.length < 3) {
+      throw new BadRequestException('Indique o motivo do cancelamento (mínimo 3 caracteres).');
+    }
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{
+        id: string; table_name: string | null; customer_name: string | null;
+        status: string; total: string;
+      }[]>(Prisma.sql`SELECT id, table_name, customer_name, status, total
+                      FROM restaurant_orders WHERE id = ${orderId}::uuid FOR UPDATE`);
+      const order = rows[0];
+      if (!order) throw new NotFoundException('Comanda não encontrada.');
+      if (order.status !== 'OPEN') {
+        throw new BadRequestException(
+          order.status === 'CLOSED'
+            ? 'A comanda já está fechada — para anular a venda use o fluxo fiscal (nota de crédito).'
+            : 'A comanda já estava cancelada.',
+        );
+      }
+      const items = await tx.$queryRaw<{ description: string; quantity: string }[]>(
+        Prisma.sql`SELECT description, quantity FROM restaurant_order_items
+                   WHERE order_id = ${orderId}::uuid ORDER BY created_at`);
+
+      // Motivo visível na própria comanda (coluna notes do template; guarda
+      // defensiva para tenants antigos que possam não a ter).
+      const hasNotes = await tx.$queryRaw<{ n: number }[]>(
+        Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
+                   WHERE table_schema = current_schema() AND table_name = 'restaurant_orders' AND column_name = 'notes'`);
+      const cancelNote = `CANCELADA: ${motivo}${actor?.name ? ` · por ${actor.name}` : ''}`;
+      if ((hasNotes[0]?.n ?? 0) > 0) {
+        await tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders
+          SET status = 'CANCELLED', closed_at = now(), notes = ${cancelNote}
+          WHERE id = ${orderId}::uuid`);
+      } else {
+        await tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders
+          SET status = 'CANCELLED', closed_at = now() WHERE id = ${orderId}::uuid`);
+      }
+
+      // Auditoria: QUEM cancelou, o quê, quanto e PORQUÊ — imutável, consultável
+      // em Caixa & Auditoria.
+      await this.audit.recordInTx(tx, {
+        actorId: actor?.id ?? null, actorName: actor?.name ?? null,
+        action: 'RESTAURANT_ORDER_CANCELLED', entity: 'restaurant_order', entityId: order.id,
+        details: {
+          reason: motivo,
+          tableName: order.table_name,
+          customerName: order.customer_name,
+          total: Number(order.total),
+          items: items.map((i) => ({ description: i.description, quantity: Number(i.quantity) })),
+        },
+      });
+      return { ok: true, cancelled: { tableName: order.table_name, total: Number(order.total) } };
+    });
   }
 
   /**

@@ -104,8 +104,15 @@ export class RestaurantController {
 
   @Post('orders/:id/cancel')
   @Roles(Role.STORE_MANAGER)
-  @ApiOperation({ summary: 'Cancela a comanda' })
-  cancelOrder(@Param('id') id: string) { return this.svc.cancelOrder(this.ctx.requireTenantSchema(), id); }
+  @ApiOperation({ summary: 'Cancela a comanda (motivo obrigatório; fica em auditoria quem/porquê)' })
+  cancelOrder(
+    @Param('id') id: string,
+    @Body() dto: { reason?: string },
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.svc.cancelOrder(this.ctx.requireTenantSchema(), id, dto?.reason,
+      { id: user.sub, name: user.name ?? user.email ?? null });
+  }
 
   @Get('kitchen')
   @Roles(Role.CASHIER)

@@ -20,6 +20,8 @@ const ACTION_LABEL: Record<string, string> = {
   STOCK_WRITE_OFF: 'Baixa de stock',
   INVENTORY_OPEN: 'Inventário iniciado',
   INVENTORY_CLOSE: 'Inventário fechado',
+  PRODUCTION: 'Fornada produzida',
+  RESTAURANT_ORDER_CANCELLED: 'Comanda cancelada',
 };
 
 /** Caixa (turnos) + Auditoria do gerente, com abas. */

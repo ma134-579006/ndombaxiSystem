@@ -690,6 +690,8 @@ export const api = {
     recomputeCosts: () => request<{ ok: boolean }>('POST', '/restaurant/recipes/recompute-costs', {}),
     availability: () => request<{ id: string; name: string; stock: number; inProduction: number; status: 'FREE' | 'BUSY' | 'OUT' }[]>('GET', '/restaurant/availability'),
     report: (days: number) => request<RestaurantSalesReport>('GET', `/restaurant/reports?days=${days}`),
+    cancelOrder: (orderId: string, reason: string) =>
+      request<{ ok: boolean; cancelled: { tableName: string | null; total: number } }>('POST', `/restaurant/orders/${orderId}/cancel`, { reason }),
   },
   hotel: {
     dashboard: () => request<HotelDashboard>('GET', '/hotel/dashboard'),
