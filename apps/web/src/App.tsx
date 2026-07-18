@@ -20,63 +20,67 @@ import { api } from './api/client';
 import './landing.css';
 import { SupportChat } from './components/SupportChat';
 import { FeedbackHost } from './components/feedback';
-import { Ai } from './sections/Ai';
-import { SupportAdmin } from './sections/SupportAdmin';
-import { FeedbackAdmin } from './sections/FeedbackAdmin';
-import { Fiscal } from './sections/Fiscal';
-import { Gateways } from './sections/Gateways';
-import { Tenants } from './sections/Tenants';
-import { Products } from './sections/Products';
-import { Orders } from './sections/Orders';
-import { ServiceHub } from './sections/ServiceHub';
-import { ServicesHome } from './sections/ServicesHome';
-import { RestaurantHome } from './sections/RestaurantHome';
-import { HotelHome } from './sections/HotelHome';
-import { ClinicHome } from './sections/ClinicHome';
-import { RestaurantKitchen } from './sections/RestaurantKitchen';
-import { Restaurant } from './sections/Restaurant';
-import { ServiceOrders } from './sections/ServiceOrders';
-import { Hotel } from './sections/Hotel';
-import { Clinic } from './sections/Clinic';
-import { Pharmacy } from './sections/Pharmacy';
-import { Payments } from './sections/Payments';
-import { Operations } from './sections/Operations';
-import { Inventory } from './sections/Inventory';
-import { StockMovements } from './sections/StockMovements';
-import { StockAnalysis } from './sections/StockAnalysis';
-import { InventoryIntel } from './sections/InventoryIntel';
-import { Reports } from './sections/Reports';
-import { Settings } from './sections/Settings';
-import { Profile } from './sections/Profile';
-import { Promotions } from './sections/Promotions';
-import { Overview } from './sections/Overview';
-import { Profit } from './sections/Profit';
-import { Saft } from './sections/Saft';
-import { Cashflow } from './sections/Cashflow';
-import { Commissions } from './sections/Commissions';
-import { Expenses } from './sections/Expenses';
-import { Receivables } from './sections/Receivables';
-import { Payables } from './sections/Payables';
-import { Reconciliation } from './sections/Reconciliation';
-import { Employees } from './sections/Employees';
-import { Payroll } from './sections/Payroll';
-import { Purchasing } from './sections/Purchasing';
-import { Accounting } from './sections/Accounting';
-import { Assistant } from './sections/Assistant';
-import { Cameras } from './sections/Cameras';
-import { Customers } from './sections/Customers';
-import { Leave } from './sections/Leave';
-import { Stores } from './sections/Stores';
-import { Subscription } from './sections/Subscription';
-import { Storefront } from './sections/Storefront';
-import { PlansAdmin } from './sections/PlansAdmin';
-import { SubsAdmin } from './sections/SubsAdmin';
-import { PlatformDashboard } from './sections/PlatformDashboard';
-import { Integrations } from './sections/Integrations';
-import { MailSettings } from './sections/MailSettings';
-import { Backup } from './sections/Backup';
-import { BackupRestore } from './sections/BackupRestore';
-import { Migration } from './sections/Migration';
+
+/* CODE-SPLIT (Fase 3 da auditoria): cada secção só descarrega quando é
+ * aberta — o bundle inicial fica leve para Android de entrada. React.lazy +
+ * Suspense nos painéis; páginas de arranque (Landing/Login/Registo) ficam eager. */
+const Ai = React.lazy(() => import('./sections/Ai').then((m) => ({ default: m.Ai })));
+const SupportAdmin = React.lazy(() => import('./sections/SupportAdmin').then((m) => ({ default: m.SupportAdmin })));
+const FeedbackAdmin = React.lazy(() => import('./sections/FeedbackAdmin').then((m) => ({ default: m.FeedbackAdmin })));
+const Fiscal = React.lazy(() => import('./sections/Fiscal').then((m) => ({ default: m.Fiscal })));
+const Gateways = React.lazy(() => import('./sections/Gateways').then((m) => ({ default: m.Gateways })));
+const Tenants = React.lazy(() => import('./sections/Tenants').then((m) => ({ default: m.Tenants })));
+const Products = React.lazy(() => import('./sections/Products').then((m) => ({ default: m.Products })));
+const Orders = React.lazy(() => import('./sections/Orders').then((m) => ({ default: m.Orders })));
+const ServiceHub = React.lazy(() => import('./sections/ServiceHub').then((m) => ({ default: m.ServiceHub })));
+const ServicesHome = React.lazy(() => import('./sections/ServicesHome').then((m) => ({ default: m.ServicesHome })));
+const RestaurantHome = React.lazy(() => import('./sections/RestaurantHome').then((m) => ({ default: m.RestaurantHome })));
+const HotelHome = React.lazy(() => import('./sections/HotelHome').then((m) => ({ default: m.HotelHome })));
+const ClinicHome = React.lazy(() => import('./sections/ClinicHome').then((m) => ({ default: m.ClinicHome })));
+const RestaurantKitchen = React.lazy(() => import('./sections/RestaurantKitchen').then((m) => ({ default: m.RestaurantKitchen })));
+const Restaurant = React.lazy(() => import('./sections/Restaurant').then((m) => ({ default: m.Restaurant })));
+const ServiceOrders = React.lazy(() => import('./sections/ServiceOrders').then((m) => ({ default: m.ServiceOrders })));
+const Hotel = React.lazy(() => import('./sections/Hotel').then((m) => ({ default: m.Hotel })));
+const Clinic = React.lazy(() => import('./sections/Clinic').then((m) => ({ default: m.Clinic })));
+const Pharmacy = React.lazy(() => import('./sections/Pharmacy').then((m) => ({ default: m.Pharmacy })));
+const Payments = React.lazy(() => import('./sections/Payments').then((m) => ({ default: m.Payments })));
+const Operations = React.lazy(() => import('./sections/Operations').then((m) => ({ default: m.Operations })));
+const Inventory = React.lazy(() => import('./sections/Inventory').then((m) => ({ default: m.Inventory })));
+const StockMovements = React.lazy(() => import('./sections/StockMovements').then((m) => ({ default: m.StockMovements })));
+const StockAnalysis = React.lazy(() => import('./sections/StockAnalysis').then((m) => ({ default: m.StockAnalysis })));
+const InventoryIntel = React.lazy(() => import('./sections/InventoryIntel').then((m) => ({ default: m.InventoryIntel })));
+const Reports = React.lazy(() => import('./sections/Reports').then((m) => ({ default: m.Reports })));
+const Settings = React.lazy(() => import('./sections/Settings').then((m) => ({ default: m.Settings })));
+const Profile = React.lazy(() => import('./sections/Profile').then((m) => ({ default: m.Profile })));
+const Promotions = React.lazy(() => import('./sections/Promotions').then((m) => ({ default: m.Promotions })));
+const Overview = React.lazy(() => import('./sections/Overview').then((m) => ({ default: m.Overview })));
+const Profit = React.lazy(() => import('./sections/Profit').then((m) => ({ default: m.Profit })));
+const Saft = React.lazy(() => import('./sections/Saft').then((m) => ({ default: m.Saft })));
+const Cashflow = React.lazy(() => import('./sections/Cashflow').then((m) => ({ default: m.Cashflow })));
+const Commissions = React.lazy(() => import('./sections/Commissions').then((m) => ({ default: m.Commissions })));
+const Expenses = React.lazy(() => import('./sections/Expenses').then((m) => ({ default: m.Expenses })));
+const Receivables = React.lazy(() => import('./sections/Receivables').then((m) => ({ default: m.Receivables })));
+const Payables = React.lazy(() => import('./sections/Payables').then((m) => ({ default: m.Payables })));
+const Reconciliation = React.lazy(() => import('./sections/Reconciliation').then((m) => ({ default: m.Reconciliation })));
+const Employees = React.lazy(() => import('./sections/Employees').then((m) => ({ default: m.Employees })));
+const Payroll = React.lazy(() => import('./sections/Payroll').then((m) => ({ default: m.Payroll })));
+const Purchasing = React.lazy(() => import('./sections/Purchasing').then((m) => ({ default: m.Purchasing })));
+const Accounting = React.lazy(() => import('./sections/Accounting').then((m) => ({ default: m.Accounting })));
+const Assistant = React.lazy(() => import('./sections/Assistant').then((m) => ({ default: m.Assistant })));
+const Cameras = React.lazy(() => import('./sections/Cameras').then((m) => ({ default: m.Cameras })));
+const Customers = React.lazy(() => import('./sections/Customers').then((m) => ({ default: m.Customers })));
+const Leave = React.lazy(() => import('./sections/Leave').then((m) => ({ default: m.Leave })));
+const Stores = React.lazy(() => import('./sections/Stores').then((m) => ({ default: m.Stores })));
+const Subscription = React.lazy(() => import('./sections/Subscription').then((m) => ({ default: m.Subscription })));
+const Storefront = React.lazy(() => import('./sections/Storefront').then((m) => ({ default: m.Storefront })));
+const PlansAdmin = React.lazy(() => import('./sections/PlansAdmin').then((m) => ({ default: m.PlansAdmin })));
+const SubsAdmin = React.lazy(() => import('./sections/SubsAdmin').then((m) => ({ default: m.SubsAdmin })));
+const PlatformDashboard = React.lazy(() => import('./sections/PlatformDashboard').then((m) => ({ default: m.PlatformDashboard })));
+const Integrations = React.lazy(() => import('./sections/Integrations').then((m) => ({ default: m.Integrations })));
+const MailSettings = React.lazy(() => import('./sections/MailSettings').then((m) => ({ default: m.MailSettings })));
+const Backup = React.lazy(() => import('./sections/Backup').then((m) => ({ default: m.Backup })));
+const BackupRestore = React.lazy(() => import('./sections/BackupRestore').then((m) => ({ default: m.BackupRestore })));
+const Migration = React.lazy(() => import('./sections/Migration').then((m) => ({ default: m.Migration })));
 
 /* Ícones SEMÂNTICOS: cada módulo usa o ícone que representa exatamente a
    função (dashboard=velocímetro, empresas=edifício, suporte=auscultadores,
@@ -200,6 +204,7 @@ function PlatformPanel() {
   const [section, setSection] = useWorkspace('dashboard');
   return (
     <Shell nav={PLATFORM_NAV} section={section} setSection={setSection} roleLabel="Super Admin" subtitle="Administração">
+      <React.Suspense fallback={<div className="card" style={{ padding: 28, textAlign: 'center' }}><span className="muted">A carregar…</span></div>}>
       {section === 'dashboard' ? <PlatformDashboard /> : null}
       {section === 'tenants' ? <Tenants /> : null}
       {section === 'subs' ? <SubsAdmin /> : null}
@@ -212,6 +217,7 @@ function PlatformPanel() {
       {section === 'integrations' ? <Integrations /> : null}
       {section === 'mail' ? <MailSettings /> : null}
       {section === 'profile' ? <Profile /> : null}
+    </React.Suspense>
     </Shell>
   );
 }
@@ -376,6 +382,7 @@ function TenantPanel() {
   }
   return (
     <Shell nav={nav} section={safeSection} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
+      <React.Suspense fallback={<div className="card" style={{ padding: 28, textAlign: 'center' }}><span className="muted">A carregar…</span></div>}>
       {section === 'overview' ? <Overview /> : null}
       {section === 'service-hub' ? (bizType === 'RESTAURANT' ? <RestaurantHome onGo={setSection} /> : bizType === 'HOSPITALITY' ? <HotelHome onGo={setSection} /> : bizType === 'CLINIC' ? <ClinicHome onGo={setSection} /> : bizType === 'SERVICES' ? <ServicesHome onGo={setSection} /> : <ServiceHub businessType={bizType} onGo={setSection} />) : null}
       {section === 'restaurant' ? <Restaurant onGo={setSection} /> : null}
@@ -421,6 +428,7 @@ function TenantPanel() {
       {section === 'profile' ? <Profile /> : null}
       {/* O mesmo assistente IA da landing, disponível dentro do painel. */}
       <SupportChat />
+    </React.Suspense>
     </Shell>
   );
 }
