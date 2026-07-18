@@ -20,18 +20,21 @@ const KIND_EQ: Record<string, string> = { VEHICLE: 'Viatura', DEVICE: 'Aparelho'
 
 /** Ordens de Serviço (mecânica, assistência técnica, recauchutagem…). */
 export function ServiceOrders() {
-  const [tab, setTab] = useState<'orders' | 'equipments'>('orders');
+  // Deep-link do Centro de Comando: LÊ no inicializador (sem remover — o
+  // StrictMode invoca-o 2× e uma remoção aqui consumiria o valor no 1º run) e
+  // REMOVE num efeito. Ler já no arranque evita a corrida em que o 1º load sem
+  // filtro respondia depois do load filtrado e sobrescrevia a lista.
+  const [tab, setTab] = useState<'orders' | 'equipments'>(() => {
+    try { return sessionStorage.getItem('ndx_srv_tab') === 'equipments' ? 'equipments' : 'orders'; }
+    catch { return 'orders'; }
+  });
   const [rows, setRows] = useState<ServiceOrderRow[]>([]);
-  const [filter, setFilter] = useState('');
-  // Deep-link do Centro de Comando: abre na aba/filtro pedidos. Lido num EFEITO
-  // (não no inicializador do useState — StrictMode invoca-o 2×; ver Restaurant).
+  const [filter, setFilter] = useState(() => {
+    try { return sessionStorage.getItem('ndx_srv_status') ?? ''; } catch { return ''; }
+  });
   useEffect(() => {
-    try {
-      const t = sessionStorage.getItem('ndx_srv_tab');
-      if (t === 'orders' || t === 'equipments') { setTab(t); sessionStorage.removeItem('ndx_srv_tab'); }
-      const s = sessionStorage.getItem('ndx_srv_status');
-      if (s) { setFilter(s); sessionStorage.removeItem('ndx_srv_status'); }
-    } catch { /* sessionStorage indisponível */ }
+    try { sessionStorage.removeItem('ndx_srv_tab'); sessionStorage.removeItem('ndx_srv_status'); }
+    catch { /* sessionStorage indisponível */ }
   }, []);
   const [creating, setCreating] = useState(false);
   const [detail, setDetail] = useState<ServiceOrderDetail | null>(null);
