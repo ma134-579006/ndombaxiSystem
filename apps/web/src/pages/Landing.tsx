@@ -180,9 +180,14 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
                     <div className="mk-kpi"><small>Faturas AGT</small><b>37</b><em>hoje</em></div>
                   </div>
                   <div className="mk-chart">
-                    <i style={{ height: '38%' }} /><i style={{ height: '52%' }} /><i style={{ height: '44%' }} /><i style={{ height: '66%' }} /><i style={{ height: '58%' }} /><i style={{ height: '82%' }} /><i style={{ height: '74%' }} />
+                    <i style={{ ['--h' as never]: '38%' }} /><i style={{ ['--h' as never]: '52%' }} /><i style={{ ['--h' as never]: '44%' }} /><i style={{ ['--h' as never]: '66%' }} /><i style={{ ['--h' as never]: '58%' }} /><i style={{ ['--h' as never]: '82%' }} /><i style={{ ['--h' as never]: '74%' }} />
                   </div>
-                  <div className="mk-rows"><i /><i /><i /></div>
+                  {/* Documentos REAIS do produto (facturação AGT) — em vez de linhas cinzentas. */}
+                  <div className="mk-docs">
+                    <div className="mk-doc"><span className="mk-doc-n">FT A/2026/0042</span><span className="mk-doc-ok">✓ assinada</span><b>12 400 Kz</b></div>
+                    <div className="mk-doc"><span className="mk-doc-n">FT A/2026/0041</span><span className="mk-doc-ok">✓ assinada</span><b>7 850 Kz</b></div>
+                    <div className="mk-doc"><span className="mk-doc-n">SAF-T · Julho</span><span className="mk-doc-ok">pronto</span><b>—</b></div>
+                  </div>
                 </div>
               </div>
             </div>
