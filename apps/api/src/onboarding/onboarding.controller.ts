@@ -41,6 +41,14 @@ export class OnboardingController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Get('first-steps')
+  @ApiOperation({ summary: 'Primeiros passos do tenant (contagens reais p/ o guia de arranque por setor)' })
+  firstSteps() {
+    return this.onboarding.firstSteps(this.ctx.requireTenantSchema());
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('setup-status')
   @ApiOperation({ summary: 'Estado do setup + aprovação da empresa autenticada' })
   setupStatus(@CurrentUser() user: JwtPayload) {

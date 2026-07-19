@@ -596,6 +596,7 @@ export const api = {
       request<SiteSettings>('PATCH', '/site/settings', dto),
   },
   branding: () => request<DocumentIdentity>('GET', '/fiscal/document-identity'),
+  firstSteps: () => request<Record<string, number>>('GET', '/onboarding/first-steps'),
   // ── Promoções + Alertas (gerente) ──────────────────────────
   promotions: {
     list: () => request<Promotion[]>('GET', '/promotions'),

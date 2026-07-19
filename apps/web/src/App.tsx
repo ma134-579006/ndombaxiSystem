@@ -20,6 +20,7 @@ import { api } from './api/client';
 import './landing.css';
 import { SupportChat } from './components/SupportChat';
 import { FeedbackHost } from './components/feedback';
+import { FirstSteps } from './components/FirstSteps';
 
 /* CODE-SPLIT (Fase 3 da auditoria): cada secção só descarrega quando é
  * aberta — o bundle inicial fica leve para Android de entrada. React.lazy +
@@ -383,7 +384,7 @@ function TenantPanel() {
   return (
     <Shell nav={nav} section={safeSection} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
       <React.Suspense fallback={<div className="card" style={{ padding: 28, textAlign: 'center' }}><span className="muted">A carregar…</span></div>}>
-      {section === 'overview' ? <Overview /> : null}
+      {section === 'overview' ? <><FirstSteps onGo={setSection} companyCode={user?.tenantId} /><Overview /></> : null}
       {section === 'service-hub' ? (bizType === 'RESTAURANT' ? <RestaurantHome onGo={setSection} /> : bizType === 'HOSPITALITY' ? <HotelHome onGo={setSection} /> : bizType === 'CLINIC' ? <ClinicHome onGo={setSection} /> : bizType === 'SERVICES' ? <ServicesHome onGo={setSection} /> : <ServiceHub businessType={bizType} onGo={setSection} />) : null}
       {section === 'restaurant' ? <Restaurant onGo={setSection} /> : null}
       {section === 'restaurant-kds' ? <RestaurantKitchen onGo={setSection} /> : null}

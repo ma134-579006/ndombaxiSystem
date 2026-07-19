@@ -305,6 +305,35 @@ export class OnboardingService {
     return { planId: company.plan.id, planName: company.plan.name, priceKz: Number(company.plan.priceKz), tier: company.plan.tier };
   }
 
+  /**
+   * PRIMEIROS PASSOS (onboarding de setor, Fase 3 da auditoria): contagens
+   * reais do tenant para o guia de 1.ª execução por vertical — o frontend
+   * decide os passos consoante o businessType. Só LEITURA; cada tabela de
+   * vertical é guardada por to_regclass (tenants antigos podem não a ter).
+   */
+  async firstSteps(schema: string): Promise<Record<string, number>> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const count = async (table: string, where?: Prisma.Sql): Promise<number> => {
+        const reg = await tx.$queryRaw<{ r: string | null }[]>(
+          Prisma.sql`SELECT to_regclass(${table})::text AS r`);
+        if (!reg[0]?.r) return 0;
+        const rows = await tx.$queryRaw<{ n: number }[]>(
+          Prisma.sql`SELECT COUNT(*)::int AS n FROM ${Prisma.raw(`"${table}"`)} ${where ?? Prisma.empty}`);
+        return rows[0]?.n ?? 0;
+      };
+      const [products, invoices, tables, equipments, rooms, professionals, patients] = await Promise.all([
+        count('products', Prisma.sql`WHERE is_active = TRUE`),
+        count('invoices'),
+        count('restaurant_tables'),
+        count('service_equipments'),
+        count('hotel_rooms'),
+        count('clinic_professionals'),
+        count('clinic_patients'),
+      ]);
+      return { products, invoices, tables, equipments, rooms, professionals, patients };
+    });
+  }
+
   /** Estado do setup + aprovação do tenant autenticado. */
   async getSetupStatus(
     tenantId: string | undefined,
