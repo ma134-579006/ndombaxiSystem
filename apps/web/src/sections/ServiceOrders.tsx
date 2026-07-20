@@ -177,7 +177,20 @@ function CreateOS({ onClose, onCreated }: { onClose(): void; onCreated(id: strin
   const save = async () => {
     setBusy(true);
     try {
-      const r = await api.serviceOrders.create({ ...f, equipmentId: f.equipmentId || undefined });
+      // Campos opcionais vazios têm de ir como `undefined` (não ""): o DTO valida
+      // @Length(1,…) e o @IsOptional só ignora undefined/null — enviar "" dava 400.
+      const clean = (s: string) => (s.trim() ? s.trim() : undefined);
+      const r = await api.serviceOrders.create({
+        customerName: clean(f.customerName),
+        customerPhone: clean(f.customerPhone),
+        equipmentId: f.equipmentId || undefined,
+        equipmentType: f.equipmentType,
+        equipmentLabel: clean(f.equipmentLabel),
+        equipmentRef: clean(f.equipmentRef),
+        problem: clean(f.problem),
+        assignedTo: clean(f.assignedTo),
+        warrantyDays: f.warrantyDays,
+      });
       toast.success('OS aberta.'); onCreated(r.id);
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao abrir a OS.'); } finally { setBusy(false); }
   };
