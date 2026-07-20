@@ -544,6 +544,15 @@ export interface DocumentIdentity {
   receiptMessage?: string | null; businessType?: string; onlineStoreEnabled?: boolean; copyright: string;
 }
 
+/** Detalhe de um documento fiscal emitido (2ª via / reimpressão). */
+export interface SaleDetailItem { productCode: string; description: string; quantity: number; unitPrice: number; total: number; returnedQuantity: number }
+export interface SaleDetail {
+  invoice: { id: string; number: string; hash: string; previousHash: string; netTotal: number; ivaTotal: number; grossTotal: number };
+  docType: string; date: string; operationDate: string | null; status: string;
+  customerName: string | null; cashierName: string | null;
+  items: SaleDetailItem[];
+}
+
 export interface ReportUserRow { name: string; sales: number; net: number; gross: number }
 export interface ReportCategoryRow { name: string; qty: number; net: number; gross: number }
 export interface ReportTaxRow { rate: number; net: number; iva: number; gross: number }
@@ -841,7 +850,7 @@ export interface ClinicPatientRecord {
 }
 export interface ServiceOrderRow { id: string; number: string; customer_name: string | null; equipment_label: string | null; status: string; total: string; assigned_to: string | null; source?: string; created_at: string }
 export interface ServiceOrderItem { id: string; kind: string; product_code: string | null; description: string; unit_price: string; quantity: string; created_at: string }
-export interface ServiceOrderDetail { order: { id: string; number: string; customer_name: string | null; customer_phone: string | null; equipment_id?: string | null; equipment_type: string | null; equipment_label: string | null; equipment_ref: string | null; problem: string | null; diagnosis: string | null; status: string; total: string; assigned_to: string | null; notes: string | null; warranty_days?: number; warranty_until?: string | null }; items: ServiceOrderItem[] }
+export interface ServiceOrderDetail { order: { id: string; number: string; customer_name: string | null; customer_phone: string | null; equipment_id?: string | null; equipment_type: string | null; equipment_label: string | null; equipment_ref: string | null; problem: string | null; diagnosis: string | null; status: string; total: string; assigned_to: string | null; notes: string | null; warranty_days?: number; warranty_until?: string | null; invoice_id?: string | null }; items: ServiceOrderItem[] }
 export interface ServiceEquipment { id: string; customer_id: string | null; customer_name: string | null; kind: string; label: string; brand: string | null; model: string | null; serial: string | null; plate: string | null; vin: string | null; color: string | null; year: number | null; km: number | null; next_service_km: number | null; notes: string | null }
 
 // ── Hotelaria (HOSPITALITY) ─────────────────────────────────

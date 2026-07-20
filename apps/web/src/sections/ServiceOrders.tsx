@@ -7,6 +7,18 @@ import { Modal } from '../components/ui';
 import { formatKz } from '../format';
 
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
+
+/** Gera e descarrega o PDF (fatura fiscal) de um documento emitido. Import
+ *  dinâmico do gerador (+jsPDF) — só carrega quando se imprime. */
+async function printInvoicePdf(invoiceId: string): Promise<void> {
+  const [{ buildInvoicePdf, invoiceFileName }, sale, identity] = await Promise.all([
+    import('../pdf/invoicePdf'),
+    api.sales.detail(invoiceId),
+    api.branding().catch(() => null),
+  ]);
+  const pdf = await buildInvoicePdf(sale, identity);
+  pdf.save(invoiceFileName(sale));
+}
 const STATUS: { id: string; label: string }[] = [
   { id: 'OPEN', label: 'Aberta' }, { id: 'QUOTED', label: 'Orçamentada' }, { id: 'APPROVED', label: 'Aprovada' },
   { id: 'IN_PROGRESS', label: 'Em curso' }, { id: 'READY', label: 'Pronta' }, { id: 'DELIVERED', label: 'Entregue' }, { id: 'CANCELLED', label: 'Cancelada' },
@@ -250,11 +262,27 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
   const saveDiagnosis = async () => { await api.serviceOrders.update(o.id, { diagnosis }).catch(() => undefined); toast.success('Diagnóstico guardado.'); onChanged(); };
   const setWarranty = async (d: number) => { await api.serviceOrders.update(o.id, { warrantyDays: d }).catch(() => undefined); onChanged(); };
   const [billing, setBilling] = useState(false);
+  const [reprinting, setReprinting] = useState(false);
   const invoice = async () => {
     if (detail.items.length === 0) { toast.warning('Adicione itens antes de faturar.'); return; }
     setBilling(true);
-    try { const r = await api.serviceOrders.invoice(o.id); toast.success(`Fatura ${r.invoiceNumber} emitida. OS entregue.`); onClose(); }
-    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao faturar.'); } finally { setBilling(false); }
+    try {
+      // Emite o documento fiscal → regista no Caixa (turno aberto da loja) →
+      // baixa stock/atualiza financeiro (no servidor). Depois gera a impressão.
+      const r = await api.serviceOrders.invoice(o.id);
+      toast.success(`Fatura ${r.invoiceNumber} emitida. OS entregue e registada no Caixa.`);
+      try { await printInvoicePdf(r.invoiceId); }
+      catch { toast.warning('Fatura emitida, mas o PDF falhou. Use "Imprimir 2ª via".'); }
+      onChanged();
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao faturar.'); }
+    finally { setBilling(false); }
+  };
+  const reprint = async () => {
+    if (!o.invoice_id) return;
+    setReprinting(true);
+    try { await printInvoicePdf(o.invoice_id); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao gerar a 2ª via.'); }
+    finally { setReprinting(false); }
   };
 
   const filtered = q.trim() ? products.filter((p) => `${p.name} ${p.code}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 20) : products.slice(0, 12);
@@ -329,7 +357,14 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
           🧾 {billing ? 'A faturar…' : 'Faturar (AGT) e entregar'}
         </button>
       ) : o.status === 'DELIVERED' ? (
-        <div className="banner success" style={{ marginTop: 12 }}>OS entregue/faturada.</div>
+        <div className="banner success" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ flex: 1 }}>OS entregue e faturada.</span>
+          {o.invoice_id ? (
+            <button className="btn sm" onClick={() => void reprint()} disabled={reprinting}>
+              🧾 {reprinting ? 'A gerar…' : 'Imprimir 2ª via'}
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </Modal>
   );

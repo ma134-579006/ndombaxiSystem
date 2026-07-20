@@ -124,6 +124,7 @@ import type {
   PublicPlan,
   VerticalMetrics,
   DocumentIdentity,
+  SaleDetail,
   RegisterCompanyInput,
   RegisterCompanyResult,
   SiteSettings,
@@ -782,6 +783,10 @@ export const api = {
   },
   vertical: {
     metrics: () => request<VerticalMetrics>('GET', '/vertical/metrics'),
+  },
+  sales: {
+    /** Detalhe de um documento emitido (2ª via) — para reimprimir/gerar PDF. */
+    detail: (id: string) => request<SaleDetail>('GET', `/pos/invoices/${id}`),
   },
   customerChat: {
     contacts: () => request<CustomerContact[]>('GET', '/ecommerce/customer-chat/contacts'),

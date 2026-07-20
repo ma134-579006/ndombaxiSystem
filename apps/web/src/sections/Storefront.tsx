@@ -1,13 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import QRCode from 'qrcode';
 import { api, ApiError } from '../api/client';
 import type { SiteSettings, UpdateSiteSettingsInput } from '../api/types';
 import { IconImage, IconStore } from '../components/Icons';
 import { Switch } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { STORE_URL } from '../config';
-
-const escHtml = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
 
 export function Storefront() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
@@ -44,70 +41,37 @@ export function Storefront() {
     } catch { /* clipboard indisponível neste contexto */ }
   };
 
-  /** Cartaz A4 com o QR do link da loja no centro + instruções — imprime ou
-   *  guarda em PDF (o utilizador escolhe "Guardar como PDF" no diálogo). */
-  const printQrPoster = async () => {
-    if (!storeLink) return;
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  /** Descarrega um PDF VERDADEIRO (A4) do cartaz da loja — gerado com jsPDF
+   *  (biblioteca PDF), NUNCA por screenshot. Contém logo, nome da empresa e da
+   *  loja, QR em alta resolução, URL, descrição, benefícios, como partilhar,
+   *  contactos e rodapé, nas cores da marca. O gerador (~400 KB com o jsPDF) é
+   *  importado dinamicamente, só quando o utilizador clica. */
+  const downloadStorePdf = async () => {
+    if (!storeLink || pdfBusy) return;
+    setPdfBusy(true);
     try {
-      const qr = await QRCode.toDataURL(storeLink, { margin: 1, width: 520, errorCorrectionLevel: 'M' });
-      const nome = brandName.trim() || 'A nossa loja online';
-      const html = `<!doctype html><html><head><meta charset="utf-8"><title>Loja online — ${escHtml(nome)}</title>
-        <style>
-          @page{size:A4;margin:0;} *{box-sizing:border-box;}
-          body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#0f172a;}
-          .sheet{width:210mm;min-height:297mm;padding:22mm 18mm;display:flex;flex-direction:column;align-items:center;text-align:center;}
-          .brand{font-size:30px;font-weight:800;margin:0 0 4px;}
-          .sub{font-size:16px;color:#475569;margin:0 0 6px;}
-          .hint{font-size:15px;color:#2563eb;font-weight:700;margin:2px 0 18px;}
-          .qrwrap{border:3px solid #2563eb;border-radius:20px;padding:18px;background:#fff;box-shadow:0 8px 30px #2563eb22;}
-          .qrwrap img{display:block;width:120mm;height:120mm;}
-          .scan{font-size:22px;font-weight:800;margin:16px 0 2px;}
-          .link{font-size:15px;color:#334155;word-break:break-all;margin:2px 0 22px;}
-          .steps{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:8px;max-width:170mm;}
-          .step{flex:1;min-width:44mm;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px 12px;}
-          .step .n{width:30px;height:30px;border-radius:50%;background:#2563eb;color:#fff;font-weight:800;display:grid;place-items:center;margin:0 auto 8px;}
-          .step .t{font-size:13.5px;color:#334155;}
-          .perks{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-top:20px;color:#475569;font-size:14px;}
-          .foot{margin-top:auto;padding-top:18px;color:#94a3b8;font-size:12px;}
-        </style></head><body><div class="sheet">
-          <h1 class="brand">${escHtml(nome)}</h1>
-          <p class="sub">Compre online — rápido, sem filas, entrega em Angola</p>
-          <p class="hint">Aponte a câmara do telemóvel ao código</p>
-          <div class="qrwrap"><img src="${qr}" alt="QR da loja"/></div>
-          <div class="scan">📱 Digitalize para abrir a loja</div>
-          <div class="link">${escHtml(storeLink)}</div>
-          <div class="steps">
-            <div class="step"><div class="n">1</div><div class="t">Abra a câmara e aponte ao QR</div></div>
-            <div class="step"><div class="n">2</div><div class="t">Toque na notificação para abrir a loja</div></div>
-            <div class="step"><div class="n">3</div><div class="t">Escolha os produtos e encomende</div></div>
-            <div class="step"><div class="n">4</div><div class="t">Pague na recolha ou por referência</div></div>
-          </div>
-          <div class="perks"><span>🚚 Entrega em Angola</span><span>🛡️ Compra protegida</span><span>💬 Apoio ao cliente</span><span>🧾 Fatura AGT</span></div>
-          <div class="foot">Loja online segura · Ndombaxi System</div>
-        </div>
-        </body></html>`;
-      // Imprime via IFRAME OCULTO no mesmo documento — funciona em TODOS os
-      // ecrãs (PC, telemóvel, tela grande). O window.open era bloqueado por
-      // popup-blockers no desktop, dando a sensação de que o botão só existia
-      // no telemóvel. O utilizador escolhe "Guardar como PDF" ou impressora.
-      const frame = document.createElement('iframe');
-      frame.setAttribute('aria-hidden', 'true');
-      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
-      document.body.appendChild(frame);
-      const cleanup = () => { setTimeout(() => frame.remove(), 1000); };
-      frame.onload = () => {
-        try {
-          const win = frame.contentWindow;
-          if (!win) { cleanup(); return; }
-          win.focus();
-          win.onafterprint = cleanup;
-          setTimeout(() => { win.print(); }, 300);
-        } catch { cleanup(); }
-      };
-      const doc = frame.contentWindow?.document;
-      if (!doc) { frame.remove(); return; }
-      doc.open(); doc.write(html); doc.close();
-    } catch { /* falha ao gerar o QR */ }
+      const [{ buildStorePosterPdf, posterFileName }, identity] = await Promise.all([
+        import('../pdf/storePosterPdf'),
+        api.branding().catch(() => null),
+      ]);
+      const storeName = brandName.trim() || identity?.brandName || identity?.companyName || 'A nossa loja online';
+      const pdf = await buildStorePosterPdf({
+        identity,
+        storeName,
+        tagline: tagline.trim() || undefined,
+        logoUrl: logoUrl || undefined,
+        storeLink,
+        primaryColor,
+        contactPhone: contactPhone.trim() || undefined,
+        contactEmail: contactEmail.trim() || undefined,
+        address: address.trim() || undefined,
+      });
+      pdf.save(posterFileName(storeName));
+    } catch {
+      setError('Não foi possível gerar o PDF do cartaz. Tente novamente.');
+    } finally { setPdfBusy(false); }
   };
 
   const hydrate = (s: SiteSettings) => {
@@ -216,7 +180,7 @@ export function Storefront() {
               />
               <button className="btn" onClick={copyLink}>{copied ? '✓ Copiado!' : 'Copiar link'}</button>
               <a className="btn ghost" href={storeLink} target="_blank" rel="noreferrer">Abrir</a>
-              <button className="btn" onClick={() => void printQrPoster()}>🖨️ Cartaz QR (A4)</button>
+              <button className="btn" onClick={() => void downloadStorePdf()} disabled={pdfBusy}>{pdfBusy ? 'A gerar PDF…' : '⬇️ Descarregar PDF (A4)'}</button>
             </div>
             <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <a
@@ -227,7 +191,7 @@ export function Storefront() {
               >
                 Partilhar no WhatsApp
               </a>
-              <span className="muted" style={{ fontSize: 12 }}>O cartaz QR (A4) imprime ou guarda em PDF — cole na loja física.</span>
+              <span className="muted" style={{ fontSize: 12 }}>O PDF (A4) é um documento verdadeiro com logo, QR em alta resolução, benefícios e contactos — imprima e cole na loja física.</span>
             </div>
           </>
         ) : (

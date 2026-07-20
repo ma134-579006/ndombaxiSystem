@@ -1639,6 +1639,87 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .auth-eye:hover { color: #fff; background: rgba(255,255,255,.06); }
 
 /* ============================================================
+   ASSISTENTE DE CRIAÇÃO DA EMPRESA (setup) — premium, mesma
+   identidade do login: cartão de vidro, progresso numerado e
+   validação viva. Só o CompanySetup usa; o PlanExpired mantém o
+   design antigo (.login/.box), por isso nada aqui o afeta.
+   ============================================================ */
+.auth-glass { background: rgba(18,26,46,.68); border: 1px solid #232d44;
+  border-radius: 18px; padding: clamp(15px,2.3dvh,22px);
+  backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 24px 60px -26px rgba(0,0,0,.72), inset 0 1px 0 rgba(255,255,255,.04);
+  animation: authRise .45s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes authRise { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes authFade { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+.auth-stepanim { animation: authFade .32s ease both; }
+
+.auth-brandhead { display: flex; align-items: center; gap: 13px; margin-bottom: clamp(12px,2.2dvh,20px); }
+.auth-brandhead .ic { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; flex: none;
+  background: linear-gradient(135deg, #3d4bff 0%, #2430e8 60%, #1b23ae 100%); color: #fff;
+  box-shadow: 0 12px 30px -10px rgba(36,48,232,.6); }
+.auth-brandhead h1 { margin: 0; font-size: clamp(19px,3.2dvh,26px); font-weight: 800; letter-spacing: -.02em; color: #fff; line-height: 1.15; }
+.auth-brandhead .sub { margin: 3px 0 0; font-size: 12.5px; color: #9fb0cc; }
+
+/* Progresso por passos numerados (Pagamento → Dados) */
+.setup-steps { display: flex; align-items: flex-start; margin: 0 0 clamp(14px,2.4dvh,22px); }
+.setup-steps .st { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none; }
+.setup-steps .dot { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  font-weight: 800; font-size: 14px; background: #121a2e; border: 1.5px solid #2a3550; color: #7c89a6;
+  transition: all .35s cubic-bezier(.22,.61,.36,1); }
+.setup-steps .st.on .dot { border-color: #3d4bff; color: #fff;
+  background: linear-gradient(135deg,#3d4bff,#2430e8); box-shadow: 0 0 0 4px rgba(61,75,255,.18); }
+.setup-steps .st.done .dot { border-color: #22c55e; background: rgba(34,197,94,.16); color: #4ade80; }
+.setup-steps .st .lbl { font-size: 11.5px; color: #7c89a6; font-weight: 600; white-space: nowrap; transition: color .3s; }
+.setup-steps .st.on .lbl, .setup-steps .st.done .lbl { color: #cdd7ec; }
+.setup-steps .bar { flex: 1; height: 2px; background: #2a3550; margin: 17px 8px 0; border-radius: 2px; overflow: hidden; position: relative; }
+.setup-steps .bar::after { content: ''; position: absolute; inset: 0; width: 0; background: #22c55e; transition: width .5s ease; }
+.setup-steps .bar.done::after { width: 100%; }
+
+/* Campo com validação viva (check/x + dica) */
+.auth-field { margin-bottom: clamp(6px,1.1dvh,10px); }
+.auth-inwrap { position: relative; }
+.auth-inwrap .vmark { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; pointer-events: none; animation: authFade .2s ease both; }
+.auth-input.ok { border-color: #22c55e; padding-right: 40px; }
+.auth-input.ok:focus { box-shadow: 0 0 0 3px rgba(34,197,94,.2); }
+.auth-input.bad { border-color: #ef4444; padding-right: 40px; }
+.auth-input.bad:focus { box-shadow: 0 0 0 3px rgba(239,68,68,.2); }
+.auth-hint { font-size: 12px; margin: 5px 2px 0; min-height: 14px; line-height: 1.2; transition: color .15s; }
+.auth-hint.ok { color: #4ade80; }
+.auth-hint.bad { color: #fca5a5; }
+.auth-hint.neutral { color: #7c89a6; }
+
+/* Caixa de nota/info (IBAN, plano) em vidro */
+.auth-note { background: rgba(61,75,255,.1); border: 1px solid rgba(61,75,255,.32); color: #cdd7ec;
+  border-radius: 12px; padding: 12px 14px; font-size: 13px; margin-bottom: 13px; line-height: 1.5; }
+.auth-note.ok { background: rgba(34,197,94,.1); border-color: rgba(34,197,94,.34); color: #d7f5df; }
+.auth-note strong { color: #fff; }
+.auth-note .iban { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #eaf0fa; }
+.auth-note .bankrow + .bankrow { margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.07); }
+
+/* Botão de upload no estilo auth (comprovativo / logótipo) */
+.auth-file { display: flex; align-items: center; gap: 10px; width: 100%; min-height: clamp(44px,7dvh,50px);
+  border-radius: 12px; border: 1.5px dashed #2a3550; background: #121a2e; color: #9fb0cc; cursor: pointer;
+  padding: 10px 15px; font-size: 13.5px; font-weight: 600; text-align: left;
+  transition: border-color .15s, color .15s, background .15s; margin-bottom: 12px; }
+.auth-file:hover { border-color: #3d4bff; color: #cdd7ec; background: #141d33; }
+.auth-file.has { border-style: solid; border-color: #22c55e; color: #d7f5df; background: rgba(34,197,94,.07); }
+.auth-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Logótipo (passo Dados) */
+.auth-logo { display: flex; align-items: center; gap: 14px; margin-bottom: clamp(8px,1.4dvh,14px); }
+.auth-logo .lgbox { width: 60px; height: 60px; border-radius: 14px; border: 1px solid #2a3550;
+  display: grid; place-items: center; overflow: hidden; background: #121a2e; flex: none; }
+.auth-logo .lgbox img { width: 100%; height: 100%; object-fit: contain; }
+
+/* Variações do auth-btn para o setup */
+.auth-btn.ghost { background: transparent; border: 1px solid #2a3550; box-shadow: none; color: #cdd7ec; }
+.auth-btn.ghost:hover { border-color: #3d4bff; filter: none; background: rgba(61,75,255,.08); }
+.auth-btn.sm { height: auto; padding: 10px 15px; font-size: 13.5px; width: auto; }
+.auth-btnrow { display: flex; gap: 10px; align-items: stretch; }
+.auth-foot.logout a { color: #9fb0cc; display: inline-flex; align-items: center; gap: 6px; }
+.auth-foot.logout a:hover { color: #fff; }
+
+/* ============================================================
    TECLADO NO ECRÃ autónomo (logins / criar conta) — botão flutuante
    (fora do fluxo, não causa scroll) + teclado fixo. Escondido <=560px.
    ============================================================ */

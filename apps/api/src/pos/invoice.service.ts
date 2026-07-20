@@ -37,6 +37,14 @@ export interface EmitInvoiceInput {
   /** Documento retroativo: data da compra ORIGINAL (a data fiscal continua a ser hoje). */
   operationDate?: string | null;
   /**
+   * Faturação FORA do POS (ex.: Ordem de Serviço, consulta, reserva faturadas no
+   * painel pelo GESTOR, que não abre turno de caixa). Quando `true` e o operador
+   * não tem turno próprio aberto, o movimento é registado na caixa ABERTA da loja
+   * (a mais recente) — assim o dinheiro entra no Caixa e no fecho do turno. No POS
+   * fica `false` (o caixa tem sempre o seu turno), pelo que nada muda lá.
+   */
+  allowAnyOpenSession?: boolean;
+  /**
    * Linhas do documento. Dois tipos:
    *  • PRODUTO — `{ productCode, quantity }`: preço/IVA do produto, baixa stock.
    *  • LIVRE — `{ description, unitPrice (LÍQUIDO), ivaCode, quantity }`: para
@@ -487,11 +495,20 @@ export class InvoiceService {
       // no turno (com tipo de pagamento, dinheiro entregue e troco). Best-effort
       // dentro da tx — não bloqueia a emissão se não houver turno.
       if (input.cashierId) {
-        const open = await tx.$queryRaw<{ id: string }[]>(
+        let open = await tx.$queryRaw<{ id: string }[]>(
           Prisma.sql`SELECT id FROM cash_sessions
                      WHERE status = 'OPEN' AND opened_by = ${input.cashierId}::uuid
                      ORDER BY opened_at DESC LIMIT 1`,
         );
+        // Faturação fora do POS (OS/consulta/reserva no painel): o gestor não tem
+        // turno próprio → regista na caixa ABERTA da loja para o dinheiro entrar
+        // no Caixa. Só quando explicitamente permitido (nunca afeta o POS).
+        if (!open[0] && input.allowAnyOpenSession) {
+          open = await tx.$queryRaw<{ id: string }[]>(
+            Prisma.sql`SELECT id FROM cash_sessions
+                       WHERE status = 'OPEN' ORDER BY opened_at DESC LIMIT 1`,
+          );
+        }
         if (open[0]) {
           await tx.$executeRaw(
             Prisma.sql`INSERT INTO cash_movements

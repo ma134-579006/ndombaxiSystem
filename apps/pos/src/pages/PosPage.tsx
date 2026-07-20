@@ -692,11 +692,13 @@ export function PosPage() {
             <IconCart size={18} />
             <span className="conn-label">Vendas</span>
           </button>
-          <button className="conn" onClick={() => setShowKitchen(true)} title="Pedidos prontos da cozinha (balcão)">
-            <IconReceipt size={18} />
-            <span className="conn-label">Cozinha</span>
-            {kitchenReady > 0 ? <span className="conn-badge" style={{ background: '#e5484d' }}>{kitchenReady > 99 ? '99+' : kitchenReady}</span> : null}
-          </button>
+          {identity?.businessType === 'RESTAURANT' ? (
+            <button className="conn" onClick={() => setShowKitchen(true)} title="Pedidos prontos da cozinha (balcão)">
+              <IconReceipt size={18} />
+              <span className="conn-label">Cozinha</span>
+              {kitchenReady > 0 ? <span className="conn-badge" style={{ background: '#e5484d' }}>{kitchenReady > 99 ? '99+' : kitchenReady}</span> : null}
+            </button>
+          ) : null}
           <button
             className={`conn ${sync.online ? 'on' : 'off'}`}
             onClick={() => {
@@ -934,8 +936,10 @@ export function PosPage() {
                       : 'Guardar venda (offline)'}
                 </button>
               )}
-              {/* BALCÃO: enviar o pedido à cozinha (produz-se e depois chama-se o pronto). */}
-              {session && sync.online && cart.length > 0 ? (
+              {/* BALCÃO: enviar o pedido à cozinha (produz-se e depois chama-se o pronto).
+                  SÓ na restauração — noutros setores (retalho, serviços, clínica…) a
+                  cozinha não existe, por isso o botão não aparece. */}
+              {identity?.businessType === 'RESTAURANT' && session && sync.online && cart.length > 0 ? (
                 <button className="btn ghost lg block" style={{ marginTop: 8 }} onClick={() => void fireToKitchen()} disabled={firing || emitting}>
                   {firing ? 'A enviar…' : '🍳 Enviar para cozinha'}
                 </button>

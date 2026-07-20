@@ -235,6 +235,10 @@ export interface DocumentIdentity {
   phone: string | null;
   email: string | null;
   receiptMessage?: string | null;
+  /** Vertical de negócio (RETAIL | RESTAURANT | SERVICES | HOSPITALITY | CLINIC | PHARMACY).
+   *  Usado para mostrar funcionalidades próprias do setor (ex.: "Enviar para cozinha"
+   *  só na restauração). */
+  businessType?: string;
   copyright: string;
 }
 

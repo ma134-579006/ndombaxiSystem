@@ -222,7 +222,9 @@ export class ServiceOrdersService {
       docType: DocumentType.FT, series: 'A',
       customerId: (o.customer_id as string) ?? null,
       cashierId: opener.id, cashierName: opener.name,
-      paymentType: 'CASH', lines,
+      // Faturação da OS pelo painel: o gestor não abre turno, por isso o
+      // movimento entra na caixa ABERTA da loja (ver emit → allowAnyOpenSession).
+      paymentType: 'CASH', allowAnyOpenSession: true, lines,
     });
     await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
       UPDATE service_orders SET invoice_id = ${inv.id}::uuid, status = 'DELIVERED', delivered_at = now(), updated_at = now()
