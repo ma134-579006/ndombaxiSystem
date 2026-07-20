@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import QRCode from 'qrcode';
 import type { DocumentIdentity, ServiceOrderDetail } from '../api/types';
 
 const INK: [number, number, number] = [17, 24, 39];
@@ -23,6 +24,8 @@ export async function buildWorkOrderPdf(detail: ServiceOrderDetail, identity?: D
   const M = 46;
   const brand: [number, number, number] = [37, 48, 232]; // índigo da marca (design system)
   const empresa = identity?.companyName || identity?.brandName || 'Oficina';
+  const isDevice = (o.equipment_type ?? '').toUpperCase() !== 'VEHICLE';
+  const docTitle = isDevice ? 'FOLHA DE SERVIÇO' : 'FOLHA DE OBRA';
 
   // ── Cabeçalho ──
   let y = 52;
@@ -35,7 +38,7 @@ export async function buildWorkOrderPdf(detail: ServiceOrderDetail, identity?: D
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
   if (identity?.nif) doc.text(`NIF: ${identity.nif}`, tx, y + 15);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...brand);
-  doc.text('FOLHA DE OBRA', W - M, y, { align: 'right' });
+  doc.text(docTitle, W - M, y, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...INK);
   doc.text(o.number, W - M, y + 16, { align: 'right' });
   doc.setFontSize(9); doc.setTextColor(...MUTED);
@@ -69,13 +72,21 @@ export async function buildWorkOrderPdf(detail: ServiceOrderDetail, identity?: D
     ['Quilometragem', o.km_in != null ? `${Number(o.km_in).toLocaleString('pt-PT')} km` : '—'],
     ['Combustível', o.fuel_level ? (FUEL_LABEL[o.fuel_level] ?? o.fuel_level) : '—'],
   ];
+  if (isDevice) {
+    // Aparelho: substitui as linhas de viatura por IMEI/estado (sem KM/combustível).
+    vehRows.length = 0;
+    vehRows.push(['Aparelho', o.equipment_label || 'sem etiqueta']);
+    vehRows.push(['IMEI/serie', o.imei || o.equipment_ref || '-']);
+    vehRows.push(['Estado', o.status]);
+    vehRows.push(['Recebido', o.received_at ? new Date(o.received_at).toLocaleDateString('pt-PT') : '-']);
+  }
   const cliRows: [string, string][] = [
     ['Cliente', o.customer_name || 'Consumidor final'],
     ['Telefone', o.customer_phone || '—'],
     ['Técnico', o.assigned_to || '—'],
     ['Estado', o.status],
   ];
-  const h1 = kv(M, half, 'Viatura', vehRows);
+  const h1 = kv(M, half, isDevice ? 'Aparelho' : 'Viatura', vehRows);
   const h2 = kv(M + half + 14, half, 'Cliente', cliRows);
   y = boxTop + Math.max(h1, h2) + 16;
 
@@ -90,7 +101,7 @@ export async function buildWorkOrderPdf(detail: ServiceOrderDetail, identity?: D
   };
   para('Avaria relatada', o.problem || '');
   para('Diagnóstico', o.diagnosis || '');
-  para('Estado do veículo', o.vehicle_state || '');
+  para(isDevice ? 'Estado físico do aparelho' : 'Estado do veículo', o.vehicle_state || '');
 
   // ── Checklist ──
   if (o.checklist && o.checklist.length) {
@@ -178,6 +189,17 @@ export async function buildWorkOrderPdf(detail: ServiceOrderDetail, identity?: D
   doc.line(M, y + 10, M + 200, y + 10);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...MUTED);
   doc.text('Assinatura do cliente', M, y + 24);
+
+  // ── QR da ordem (referência/consulta rápida) ──
+  try {
+    const qrData = [`OS ${o.number}`, empresa, o.imei ? `IMEI:${o.imei}` : (o.equipment_ref || ''), o.customer_name || '']
+      .filter(Boolean).join(' | ');
+    const qr = await QRCode.toDataURL(qrData, { margin: 1, width: 240 });
+    const qs = 60;
+    doc.addImage(qr, 'PNG', W - M - qs, y - 44, qs, qs, undefined, 'FAST');
+    doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text(o.number, W - M - qs / 2, y + 24, { align: 'center' });
+  } catch { /* QR opcional */ }
 
   // ── Rodapé ──
   const foot = [identity?.address, [identity?.phone, identity?.email].filter(Boolean).join(' · ')].filter(Boolean);

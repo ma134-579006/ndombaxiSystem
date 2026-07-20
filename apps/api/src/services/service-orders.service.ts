@@ -345,6 +345,7 @@ export class ServiceOrdersService {
     kmIn?: number; fuelLevel?: string; vehicleState?: string;
     checklist?: unknown[]; photos?: unknown[]; signature?: string;
     estMinutes?: number; scheduledAt?: string;
+    imei?: string; unlockCode?: string;
   }) {
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{ equipment_id: string | null }[]>(
@@ -360,6 +361,8 @@ export class ServiceOrdersService {
           photos        = COALESCE(${dto.photos ? JSON.stringify(dto.photos) : null}::jsonb, photos),
           signature     = COALESCE(${dto.signature ?? null}, signature),
           est_minutes   = COALESCE(${dto.estMinutes ?? null}, est_minutes),
+          imei          = COALESCE(${dto.imei ?? null}, imei),
+          unlock_code   = COALESCE(${dto.unlockCode ?? null}, unlock_code),
           scheduled_at  = COALESCE(${sched}, scheduled_at),
           received_at   = COALESCE(received_at, now()),
           updated_at    = now()

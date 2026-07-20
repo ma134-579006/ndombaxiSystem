@@ -76,6 +76,9 @@ export class ReceiveVehicleDto {
   @IsOptional() @IsString() @Length(0, 2_000_000) signature?: string; // data URL
   @IsOptional() @IsInt() @Min(0) estMinutes?: number;
   @IsOptional() @IsString() scheduledAt?: string; // ISO
+  // Assistência de telemóveis (equipamento DEVICE)
+  @IsOptional() @IsString() @Length(0, 40) imei?: string;
+  @IsOptional() @IsString() @Length(0, 60) unlockCode?: string;
 }
 export class ScheduleDto {
   @IsOptional() @IsString() scheduledAt?: string; // ISO; vazio/omitido → remove marcação

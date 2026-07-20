@@ -554,3 +554,8 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS rec
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS quote_approved_at TIMESTAMPTZ;     -- aprovacao do orcamento
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS quote_approved_by TEXT;            -- quem aprovou (nome)
 CREATE INDEX IF NOT EXISTS service_orders_scheduled_idx ON "{{SCHEMA}}"."service_orders"(scheduled_at) WHERE scheduled_at IS NOT NULL;
+
+-- 2026-07-20 · ASSISTENCIA DE TELEMOVEIS (vertical SERVICES, equipamento DEVICE):
+-- IMEI e codigo de desbloqueio capturados na rececao do aparelho. ADITIVO.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS imei        TEXT;   -- IMEI/nº de serie do aparelho
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS unlock_code TEXT;   -- codigo/padrao de desbloqueio (reparacao)

@@ -318,11 +318,17 @@ const DEFAULT_CHECKLIST: { key: string; label: string }[] = [
   { key: 'wipers', label: 'Escovas' }, { key: 'spare', label: 'Estepe' }, { key: 'triangle', label: 'Triângulo/colete' },
   { key: 'jack', label: 'Macaco' }, { key: 'radio', label: 'Rádio/multimédia' }, { key: 'docs', label: 'Documentos' },
 ];
-function mergeChecklist(saved?: ServiceChecklistItem[] | null): ServiceChecklistItem[] {
+const DEVICE_CHECKLIST: { key: string; label: string }[] = [
+  { key: 'screen', label: 'Ecrã' }, { key: 'touch', label: 'Toque' }, { key: 'buttons', label: 'Botões' },
+  { key: 'frontcam', label: 'Câmara frontal' }, { key: 'backcam', label: 'Câmara traseira' }, { key: 'speaker', label: 'Coluna' },
+  { key: 'mic', label: 'Microfone' }, { key: 'battery', label: 'Bateria' }, { key: 'charging', label: 'Carregamento' },
+  { key: 'sim', label: 'SIM/rede' }, { key: 'wifi', label: 'Wi-Fi' }, { key: 'fingerprint', label: 'Biometria' },
+];
+function mergeChecklist(saved: ServiceChecklistItem[] | null | undefined, base: { key: string; label: string }[]): ServiceChecklistItem[] {
   const byKey = new Map((saved ?? []).map((c) => [c.key, c]));
-  const merged = DEFAULT_CHECKLIST.map((d) => byKey.get(d.key) ?? { ...d, ok: undefined });
+  const merged = base.map((d) => byKey.get(d.key) ?? { ...d, ok: undefined });
   // mantém itens gravados que não estejam na lista padrão
-  for (const s of saved ?? []) if (!DEFAULT_CHECKLIST.some((d) => d.key === s.key)) merged.push(s);
+  for (const s of saved ?? []) if (!base.some((d) => d.key === s.key)) merged.push(s);
   return merged;
 }
 const MIN_LABEL = (m?: number | null) => (m == null ? '—' : m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}` : `${m}min`);
@@ -406,7 +412,9 @@ function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['or
   const [state, setState] = useState(o.vehicle_state ?? '');
   const [est, setEst] = useState(o.est_minutes != null ? String(o.est_minutes) : '');
   const [sched, setSched] = useState(() => toLocalInput(o.scheduled_at));
-  const [checklist, setChecklist] = useState<ServiceChecklistItem[]>(() => mergeChecklist(o.checklist));
+  const [imei, setImei] = useState(o.imei ?? '');
+  const [unlock, setUnlock] = useState(o.unlock_code ?? '');
+  const [checklist, setChecklist] = useState<ServiceChecklistItem[]>(() => mergeChecklist(o.checklist, isVehicle ? DEFAULT_CHECKLIST : DEVICE_CHECKLIST));
   const [photos, setPhotos] = useState(o.photos ?? []);
   const [sig, setSig] = useState(o.signature ?? '');
   const [busy, setBusy] = useState(false);
@@ -432,6 +440,8 @@ function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['or
         photos, signature: sig || undefined,
         estMinutes: est ? Number(est) : undefined,
         scheduledAt: sched ? new Date(sched).toISOString() : undefined,
+        imei: imei.trim() || undefined,
+        unlockCode: unlock.trim() || undefined,
       });
       toast.success('Receção guardada.');
       onChanged();
@@ -442,7 +452,7 @@ function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['or
   return (
     <div className="card" style={{ marginBottom: 12 }}>
       <button className="row" style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, alignItems: 'center' }} onClick={() => setOpen((v) => !v)}>
-        <strong style={{ fontSize: 14 }}>🚗 Receção &amp; inspeção</strong>
+        <strong style={{ fontSize: 14 }}>{isVehicle ? '🚗' : '📱'} Receção &amp; inspeção</strong>
         <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>{o.received_at ? `recebido ${new Date(o.received_at).toLocaleDateString('pt-PT')}` : 'por preencher'}</span>
         <span className="spacer" style={{ flex: 1 }} />
         <span className="muted">{open ? '▲' : '▼'}</span>
@@ -461,10 +471,17 @@ function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['or
                 </div>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="grid-2">
+              <div className="field"><label>IMEI / Nº de série</label>
+                <input value={imei} onChange={(e) => setImei(e.target.value)} placeholder="ex.: 356789…" inputMode="numeric" /></div>
+              <div className="field"><label>Código de desbloqueio</label>
+                <input value={unlock} onChange={(e) => setUnlock(e.target.value)} placeholder="PIN / padrão / palavra-passe" autoComplete="off" /></div>
+            </div>
+          )}
 
-          <div className="field"><label>Estado do veículo (riscos, amolgadelas, observações)</label>
-            <textarea value={state} onChange={(e) => setState(e.target.value)} rows={2} style={{ width: '100%', resize: 'vertical' }} placeholder="Descreva o estado à entrada…" /></div>
+          <div className="field"><label>{isVehicle ? 'Estado do veículo (riscos, amolgadelas, observações)' : 'Estado físico (riscos, ecrã, humidade, observações)'}</label>
+            <textarea value={state} onChange={(e) => setState(e.target.value)} rows={2} style={{ width: '100%', resize: 'vertical' }} placeholder={isVehicle ? 'Descreva o estado à entrada…' : 'Descreva o estado físico do aparelho…'} /></div>
 
           <label className="auth-label" style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 600, margin: '6px 0' }}>Checklist de inspeção</label>
           <div className="pgrid" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(130px,1fr))', gap: 6, marginBottom: 10 }}>
