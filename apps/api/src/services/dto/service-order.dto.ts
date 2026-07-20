@@ -1,34 +1,39 @@
 import { IsArray, IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Min, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+
+/** Campo opcional de texto: converte "" (ou só espaços) em `undefined` para que
+ *  o @IsOptional o ignore — senão o @Length(1,…) rejeitava strings vazias (400).
+ *  Aplica-se a formulários que enviam campos vazios (painel e loja online). */
+export const EmptyToUndef = () => Transform(({ value }) => (typeof value === 'string' && value.trim() === '' ? undefined : value));
 
 export class CreateServiceOrderDto {
   @IsOptional() @IsString() customerId?: string;
-  @IsOptional() @IsString() @Length(1, 120) customerName?: string;
-  @IsOptional() @IsString() @Length(1, 40) customerPhone?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 120) customerName?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 40) customerPhone?: string;
   @IsOptional() @IsString() equipmentId?: string;
-  @IsOptional() @IsString() @Length(1, 20) equipmentType?: string;
-  @IsOptional() @IsString() @Length(1, 120) equipmentLabel?: string;
-  @IsOptional() @IsString() @Length(1, 80) equipmentRef?: string;
-  @IsOptional() @IsString() @Length(1, 2000) problem?: string;
-  @IsOptional() @IsString() @Length(1, 120) assignedTo?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 20) equipmentType?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 120) equipmentLabel?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 80) equipmentRef?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 2000) problem?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 120) assignedTo?: string;
   @IsOptional() @IsInt() @IsIn([0, 90, 180, 365]) warrantyDays?: number;
 }
 
 export class CreateEquipmentDto {
   @IsOptional() @IsString() customerId?: string;
-  @IsOptional() @IsString() @Length(1, 120) customerName?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 120) customerName?: string;
   @IsOptional() @IsString() @IsIn(['VEHICLE', 'DEVICE', 'OTHER']) kind?: string;
   @IsString() @Length(1, 120) label!: string;
-  @IsOptional() @IsString() @Length(1, 60) brand?: string;
-  @IsOptional() @IsString() @Length(1, 60) model?: string;
-  @IsOptional() @IsString() @Length(1, 60) serial?: string;
-  @IsOptional() @IsString() @Length(1, 20) plate?: string;
-  @IsOptional() @IsString() @Length(1, 40) vin?: string;
-  @IsOptional() @IsString() @Length(1, 30) color?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 60) brand?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 60) model?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 60) serial?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 20) plate?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 40) vin?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 30) color?: string;
   @IsOptional() @IsInt() year?: number;
   @IsOptional() @IsInt() @Min(0) km?: number;
   @IsOptional() @IsInt() @Min(0) nextServiceKm?: number;
-  @IsOptional() @IsString() @Length(1, 500) notes?: string;
+  @EmptyToUndef() @IsOptional() @IsString() @Length(1, 500) notes?: string;
 }
 
 export class UpdateEquipmentDto {
