@@ -24,18 +24,39 @@ type FxKind = 'up' | 'left' | 'right' | 'scale' | 'title';
 // O HERO (copy/carrossel/typing) fica de fora — é o LCP e já tem vida própria.
 const CHOREOGRAPHY: [selector: string, fx: FxKind, staggerMs: number][] = [
   ['.lp-section .wrap > h2', 'title', 0],
-  ['.lp-section .wrap > .lead', 'title', 90],
-  ['.lp-modules .lp-mod', 'up', 55],
-  ['.lp-why .lp-whyi', 'up', 60],
-  ['.lp-faq details', 'up', 40],
-  ['.lp-stats > div', 'up', 70],
-  ['.lp-plans .lp-plan', 'scale', 80],
+  ['.lp-section .wrap > .lead', 'title', 120],
+  ['.lp-modules .lp-mod', 'up', 90],
+  ['.lp-why .lp-whyi', 'up', 95],
+  ['.lp-faq details', 'up', 70],
+  ['.lp-stats > div', 'up', 100],
+  ['.lp-plans .lp-plan', 'scale', 110],
   ['.lp-cta-band', 'scale', 0],
+  // Comentários da comunidade: cada cartão de utilizador entra em cascata.
+  ['.fb-list .fb-item', 'up', 90],
 ];
 
 let io: IntersectionObserver | null = null;
+let mo: MutationObserver | null = null;
 let parallaxRaf = 0;
 let onScroll: (() => void) | null = null;
+
+/** Atribui a coreografia (idempotente — dataset.fx marca o que já está). */
+function applyChoreography(): void {
+  for (const [sel, fx, stagger] of CHOREOGRAPHY) {
+    document.querySelectorAll<HTMLElement>(sel).forEach((el, i) => {
+      if (el.dataset.fx) return;
+      el.dataset.fx = fx;
+      if (stagger) el.style.setProperty('--fxd', `${Math.min(i, 6) * stagger}ms`);
+      io?.observe(el);
+    });
+  }
+  document.querySelectorAll<HTMLElement>('.lp-steps .lp-step').forEach((el, i) => {
+    if (el.dataset.fx) return;
+    el.dataset.fx = i % 2 === 0 ? 'left' : 'right';
+    el.style.setProperty('--fxd', `${Math.min(i, 6) * 110}ms`);
+    io?.observe(el);
+  });
+}
 
 export function initLandingReveal(): () => void {
   if (typeof window === 'undefined') return () => undefined;
@@ -51,23 +72,12 @@ export function initLandingReveal(): () => void {
     { threshold: 0.06, rootMargin: '-4% 0px -6% 0px' },
   );
 
-  for (const [sel, fx, stagger] of CHOREOGRAPHY) {
-    document.querySelectorAll<HTMLElement>(sel).forEach((el, i) => {
-      if (el.dataset.fx) return;
-      el.dataset.fx = fx;
-      // Delay de entrada limitado (máx. 6 posições) — cascata sem arrastar.
-      if (stagger) el.style.setProperty('--fxd', `${Math.min(i, 6) * stagger}ms`);
-      io?.observe(el);
-    });
-  }
+  applyChoreography();
 
-  // Passos: slide ALTERNADO esquerda/direita (1º esq., 2º dir., 3º esq.).
-  document.querySelectorAll<HTMLElement>('.lp-steps .lp-step').forEach((el, i) => {
-    if (el.dataset.fx) return;
-    el.dataset.fx = i % 2 === 0 ? 'left' : 'right';
-    el.style.setProperty('--fxd', `${Math.min(i, 6) * 70}ms`);
-    io?.observe(el);
-  });
+  // Conteúdo ASYNC (ex.: comentários da comunidade chegam por fetch): um
+  // MutationObserver re-aplica a coreografia a nós novos (idempotente).
+  mo = new MutationObserver(() => applyChoreography());
+  mo.observe(document.body, { childList: true, subtree: true });
 
   // Parallax DISCRETO do mockup do hero (decorativo, aria-hidden): ±14px.
   const mock = document.querySelector<HTMLElement>('.lp-mockup');
@@ -90,6 +100,8 @@ export function initLandingReveal(): () => void {
 function teardown(): void {
   io?.disconnect();
   io = null;
+  mo?.disconnect();
+  mo = null;
   if (onScroll) window.removeEventListener('scroll', onScroll);
   onScroll = null;
   if (parallaxRaf) cancelAnimationFrame(parallaxRaf);
