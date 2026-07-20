@@ -1308,4 +1308,5 @@ export interface ServicesDashboard {
   readyToDeliver: { id: string; number: string; customerName: string | null; equipment: string | null; total: number }[];
   equipments: number;
   sales: { total: number; online: number; counter: number; invoices: number };
+  mechanic?: { scheduledToday: number; awaitingApproval: number; avgWorkMinutes: number };
 }

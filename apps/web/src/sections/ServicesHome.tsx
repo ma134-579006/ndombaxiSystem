@@ -4,6 +4,7 @@ import type { ServicesDashboard } from '../api/types';
 import { formatKz } from '../format';
 
 const KZ = (n: number) => formatKz(Number(n) || 0);
+const MIN_LABEL = (m?: number | null) => (!m ? '—' : m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}` : `${m}min`);
 
 /**
  * CENTRO DE COMANDO dos Serviços (vertical SERVICES) — mesma engenharia do
@@ -23,6 +24,10 @@ export function ServicesHome({ onGo }: { onGo(section: string): void }) {
   };
   const goEquipments = () => {
     try { sessionStorage.setItem('ndx_srv_tab', 'equipments'); } catch { /* indisponível */ }
+    onGo('service-orders');
+  };
+  const goAgenda = () => {
+    try { sessionStorage.setItem('ndx_srv_tab', 'agenda'); } catch { /* indisponível */ }
     onGo('service-orders');
   };
 
@@ -87,6 +92,22 @@ export function ServicesHome({ onGo }: { onGo(section: string): void }) {
         <Stage label="👍 Aprovadas" s={d?.pipeline.approved} onClick={() => goOrders('APPROVED')} />
         <Stage label="🔧 Em curso" s={d?.pipeline.inProgress} onClick={() => goOrders('IN_PROGRESS')} tone={late ? 'var(--danger)' : undefined} />
         <Stage label="✅ Prontas" s={d?.pipeline.ready} onClick={() => goOrders('READY')} tone="var(--success)" />
+      </div>
+
+      {/* ── KPIs de OFICINA (Mecânica) ── */}
+      <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: 14 }}>
+        <button className="card kpi" onClick={goAgenda} style={{ cursor: 'pointer', textAlign: 'left', border: '1px solid var(--border)' }}>
+          <div className="muted" style={{ fontSize: 12 }}>📅 Agendados hoje</div>
+          <div style={{ fontSize: 26, fontWeight: 800 }}>{d?.mechanic?.scheduledToday ?? '—'}</div>
+        </button>
+        <button className="card kpi" onClick={() => goOrders('QUOTED')} style={{ cursor: 'pointer', textAlign: 'left', border: '1px solid var(--border)' }}>
+          <div className="muted" style={{ fontSize: 12 }}>⏳ À espera de aprovação</div>
+          <div style={{ fontSize: 26, fontWeight: 800 }}>{d?.mechanic?.awaitingApproval ?? '—'}</div>
+        </button>
+        <div className="card kpi" style={{ border: '1px solid var(--border)' }}>
+          <div className="muted" style={{ fontSize: 12 }}>⏱ Tempo médio (30d)</div>
+          <div style={{ fontSize: 26, fontWeight: 800 }}>{d?.mechanic ? MIN_LABEL(d.mechanic.avgWorkMinutes) : '—'}</div>
+        </div>
       </div>
 
       {/* ── Prontas por ENTREGAR (dinheiro na prateleira) ── */}

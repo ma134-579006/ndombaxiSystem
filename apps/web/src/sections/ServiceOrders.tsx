@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { ManagerProduct, ServiceChecklistItem, ServiceEquipment, ServiceOrderDetail, ServiceOrderRow } from '../api/types';
+import type { ManagerProduct, ServiceAgendaRow, ServiceChecklistItem, ServiceEquipment, ServiceOrderDetail, ServiceOrderRow } from '../api/types';
 import { toast } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
@@ -46,8 +46,8 @@ export function ServiceOrders() {
   // StrictMode invoca-o 2× e uma remoção aqui consumiria o valor no 1º run) e
   // REMOVE num efeito. Ler já no arranque evita a corrida em que o 1º load sem
   // filtro respondia depois do load filtrado e sobrescrevia a lista.
-  const [tab, setTab] = useState<'orders' | 'equipments'>(() => {
-    try { return sessionStorage.getItem('ndx_srv_tab') === 'equipments' ? 'equipments' : 'orders'; }
+  const [tab, setTab] = useState<'orders' | 'agenda' | 'equipments'>(() => {
+    try { const t = sessionStorage.getItem('ndx_srv_tab'); return t === 'equipments' ? 'equipments' : t === 'agenda' ? 'agenda' : 'orders'; }
     catch { return 'orders'; }
   });
   const [rows, setRows] = useState<ServiceOrderRow[]>([]);
@@ -78,10 +78,11 @@ export function ServiceOrders() {
 
       <div className="card toolbar-sticky" style={{ display: 'flex', gap: 6, padding: '8px 10px' }}>
         <button className={`chip${tab === 'orders' ? ' active' : ''}`} onClick={() => setTab('orders')}>🛠️ Ordens</button>
+        <button className={`chip${tab === 'agenda' ? ' active' : ''}`} onClick={() => setTab('agenda')}>📅 Agenda</button>
         <button className={`chip${tab === 'equipments' ? ' active' : ''}`} onClick={() => setTab('equipments')}>💻 Equipamentos</button>
       </div>
 
-      {tab === 'equipments' ? <EquipmentsTab /> : (
+      {tab === 'equipments' ? <EquipmentsTab /> : tab === 'agenda' ? <AgendaTab onOpen={(id) => void openOS(id)} /> : (
       <>
       <div className="card toolbar-sticky" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '10px 12px', top: 52 }}>
         <button className={`chip${filter === '' ? ' active' : ''}`} onClick={() => setFilter('')}>Todas</button>
@@ -107,6 +108,59 @@ export function ServiceOrders() {
       {creating ? <CreateOS onClose={() => setCreating(false)} onCreated={async (id) => { setCreating(false); await load(); await openOS(id); }} /> : null}
       {detail ? <OSDetail detail={detail} onClose={() => setDetail(null)} onChanged={async () => { setDetail(await api.serviceOrders.get(detail.order.id)); await load(); }} /> : null}
     </>
+  );
+}
+
+/** Agenda da oficina: OS marcadas, agrupadas por dia (usa GET /service-orders/agenda). */
+function AgendaTab({ onOpen }: { onOpen(id: string): void }) {
+  const [rows, setRows] = useState<ServiceAgendaRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    api.serviceOrders.agenda()
+      .then((r) => { if (alive) setRows(r); })
+      .catch(() => undefined)
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
+  const groups = React.useMemo(() => {
+    const m = new Map<string, ServiceAgendaRow[]>();
+    for (const r of rows) {
+      const d = new Date(r.scheduled_at);
+      const key = d.toISOString().slice(0, 10);
+      (m.get(key) ?? m.set(key, []).get(key)!).push(r);
+    }
+    return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [rows]);
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const dayLabel = (key: string) => {
+    const d = new Date(key + 'T00:00:00');
+    const s = d.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+    return key === todayKey ? `Hoje · ${s}` : s.charAt(0).toUpperCase() + s.slice(1);
+  };
+  if (loading) return <div className="card"><div className="loading">A carregar agenda…</div></div>;
+  if (!rows.length) return <div className="card"><div className="empty" style={{ padding: 26 }}><p>Sem marcações. Agende uma OS na sua ficha (Receção &amp; inspeção → Marcação).</p></div></div>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {groups.map(([key, items]) => (
+        <div key={key} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '10px 16px', fontWeight: 800, fontSize: 13.5, background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', color: key === todayKey ? 'var(--primary)' : 'var(--text)' }}>
+            {dayLabel(key)} · {items.length}
+          </div>
+          {items.map((r) => (
+            <button key={r.id} className="list-row" onClick={() => onOpen(r.id)}
+              style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', padding: '11px 16px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
+              <span style={{ fontWeight: 800, fontSize: 14, width: 52, color: 'var(--primary)' }}>{new Date(r.scheduled_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong style={{ fontSize: 13.5 }}>{r.number} · {r.customer_name || 'Cliente'}</strong>
+                <div className="muted" style={{ fontSize: 12 }}>{r.equipment_label || '—'}{r.equipment_ref ? ` · ${r.equipment_ref}` : ''}{r.assigned_to ? ` · 👤 ${r.assigned_to}` : ''}</div>
+              </div>
+              <span className="pill">{SL(r.status)}</span>
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -272,6 +326,14 @@ function mergeChecklist(saved?: ServiceChecklistItem[] | null): ServiceChecklist
   return merged;
 }
 const MIN_LABEL = (m?: number | null) => (m == null ? '—' : m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}` : `${m}min`);
+/** ISO → valor para <input type="datetime-local"> (hora local). */
+function toLocalInput(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 
 /** Reduz uma imagem a no máx. `max` px no lado maior e devolve data URL JPEG. */
 function downscale(file: File, max = 1100, quality = 0.72): Promise<string> {
@@ -343,6 +405,7 @@ function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['or
   const [fuel, setFuel] = useState(o.fuel_level ?? '');
   const [state, setState] = useState(o.vehicle_state ?? '');
   const [est, setEst] = useState(o.est_minutes != null ? String(o.est_minutes) : '');
+  const [sched, setSched] = useState(() => toLocalInput(o.scheduled_at));
   const [checklist, setChecklist] = useState<ServiceChecklistItem[]>(() => mergeChecklist(o.checklist));
   const [photos, setPhotos] = useState(o.photos ?? []);
   const [sig, setSig] = useState(o.signature ?? '');
@@ -368,6 +431,7 @@ function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['or
         checklist: checklist.filter((c) => c.ok !== undefined || c.note),
         photos, signature: sig || undefined,
         estMinutes: est ? Number(est) : undefined,
+        scheduledAt: sched ? new Date(sched).toISOString() : undefined,
       });
       toast.success('Receção guardada.');
       onChanged();
@@ -414,8 +478,10 @@ function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['or
           </div>
 
           <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
-            <div className="field" style={{ width: 160, margin: 0 }}><label>Tempo estimado (min)</label>
+            <div className="field" style={{ width: 140, margin: 0 }}><label>Tempo estimado (min)</label>
               <input value={est} onChange={(e) => setEst(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="ex.: 120" /></div>
+            <div className="field" style={{ width: 210, margin: 0 }}><label>📅 Marcação (agenda)</label>
+              <input type="datetime-local" value={sched} onChange={(e) => setSched(e.target.value)} /></div>
             <label className="btn ghost sm">
               📷 Fotos ({photos.length})
               <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple hidden onChange={(e) => void addPhotos(e.target.files)} />

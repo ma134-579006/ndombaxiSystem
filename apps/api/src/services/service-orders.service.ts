@@ -65,6 +65,24 @@ export class ServiceOrdersService {
             SELECT COUNT(*)::int AS n FROM service_equipments WHERE is_active = TRUE`)
         : [{ n: 0 }];
 
+      // KPIs de OFICINA (Mecânica): agendados hoje, à espera de aprovação e tempo
+      // médio de trabalho. Guarda a existência das colunas novas (como os
+      // to_regclass acima) para nunca abortar a query se um tenant ainda não
+      // apanhou a auto-migração.
+      const hasMechCols = hasSo && !!(await tx.$queryRaw<{ ok: boolean }[]>(Prisma.sql`
+        SELECT EXISTS(SELECT 1 FROM information_schema.columns
+          WHERE table_schema = current_schema() AND table_name = 'service_orders' AND column_name = 'scheduled_at') AS ok`))[0]?.ok;
+      const scheduledToday = hasMechCols
+        ? (await tx.$queryRaw<{ n: number }[]>(Prisma.sql`
+            SELECT COUNT(*)::int AS n FROM service_orders
+            WHERE scheduled_at::date = CURRENT_DATE AND status NOT IN ('DELIVERED','CANCELLED')`))[0]?.n ?? 0
+        : 0;
+      const avgWork = hasMechCols
+        ? (await tx.$queryRaw<{ avg: number }[]>(Prisma.sql`
+            SELECT COALESCE(ROUND(AVG(actual_minutes)), 0)::int AS avg FROM service_orders
+            WHERE actual_minutes IS NOT NULL AND updated_at > now() - interval '30 days'`))[0]?.avg ?? 0
+        : 0;
+
       // Vendas de HOJE por canal (faturas FT/FS válidas) — igual ao restaurante.
       const regInv = await tx.$queryRaw<{ r: string | null }[]>(
         Prisma.sql`SELECT to_regclass('invoices')::text AS r`);
@@ -99,6 +117,12 @@ export class ServiceOrdersService {
         sales: {
           total: Math.round(sl.total), online: onlineSales,
           counter: Math.round(sl.total) - onlineSales, invoices: sl.invoices,
+        },
+        // KPIs de oficina (Mecânica)
+        mechanic: {
+          scheduledToday,
+          awaitingApproval: stage('QUOTED').count,
+          avgWorkMinutes: avgWork,
         },
       };
     });
