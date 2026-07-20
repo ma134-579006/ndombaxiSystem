@@ -276,20 +276,26 @@ export class ServiceOrdersService {
       let price = dto.unitPrice ?? 0;
       let productId: string | null = null;
       let productCode: string | null = null;
+      // Peça sem stock suficiente → sinaliza para reposição/compra (o gestor usa a
+      // sugestão automática já existente em Inventário → Reposição). Só um aviso;
+      // não bloqueia (a oficina pode registar a peça e comprá-la a seguir).
+      let lowStock = false; let lowStockName: string | null = null; let inStock = 0;
       if (dto.productCode) {
-        // Peça do stock: busca preço c/ IVA e descrição do produto.
-        const p = await tx.$queryRaw<{ id: string; name: string; unit_price: string; iva_code: string }[]>(
-          Prisma.sql`SELECT id, name, unit_price, iva_code FROM products WHERE code = ${dto.productCode} AND is_active = TRUE LIMIT 1`);
+        // Peça do stock: busca preço c/ IVA, descrição e existência do produto.
+        const p = await tx.$queryRaw<{ id: string; name: string; unit_price: string; iva_code: string; stock_qty: string }[]>(
+          Prisma.sql`SELECT id, name, unit_price, iva_code, stock_qty FROM products WHERE code = ${dto.productCode} AND is_active = TRUE LIMIT 1`);
         if (!p[0]) throw new NotFoundException('Peça/produto não encontrado.');
         productId = p[0].id; productCode = dto.productCode; kind = 'PART';
         description = description || p[0].name;
         price = Math.round(Number(p[0].unit_price) * (1 + (IVA_RATE[p[0].iva_code] ?? 14) / 100) * 100) / 100;
+        inStock = Number(p[0].stock_qty);
+        if (inStock < qty) { lowStock = true; lowStockName = p[0].name; }
       }
       if (!description) throw new BadRequestException('Indique a descrição do item.');
       await tx.$executeRaw(Prisma.sql`INSERT INTO service_order_items (order_id, kind, product_id, product_code, description, unit_price, quantity)
         VALUES (${orderId}::uuid, ${kind}, ${productId}::uuid, ${productCode}, ${description}, ${price}, ${qty})`);
       await this.recompute(tx, orderId);
-      return { ok: true };
+      return { ok: true, lowStock, lowStockName, inStock };
     });
   }
 

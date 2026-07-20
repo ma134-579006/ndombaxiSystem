@@ -547,7 +547,15 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
   const [labor, setLabor] = useState({ description: '', price: '' });
   useEffect(() => { api.products.list().then(setProducts).catch(() => undefined); }, []);
 
-  const addPart = async (code: string) => { await api.serviceOrders.addItem(o.id, { productCode: code, quantity: 1 }).catch((e) => toast.error(e instanceof ApiError ? e.message : 'Falha.')); onChanged(); };
+  const addPart = async (code: string) => {
+    try {
+      const r = await api.serviceOrders.addItem(o.id, { productCode: code, quantity: 1 });
+      // Compra automática: peça sem stock suficiente → avisa e encaminha para a
+      // sugestão de reposição (Inventário → Reposição), sem bloquear a OS.
+      if (r.lowStock) toast.warning(`Sem stock de "${r.lowStockName ?? 'peça'}" (${r.inStock ?? 0} em stock). Peça reposição em Inventário → Reposição.`);
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha.'); }
+    onChanged();
+  };
   const addLabor = async () => {
     if (!labor.description.trim()) { toast.warning('Descreva a mão-de-obra/serviço.'); return; }
     await api.serviceOrders.addItem(o.id, { kind: 'LABOR', description: labor.description.trim(), unitPrice: Number(labor.price) || 0, quantity: 1 }).catch(() => undefined);
