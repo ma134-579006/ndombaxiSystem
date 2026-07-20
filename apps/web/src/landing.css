@@ -585,7 +585,24 @@ a.fc-line:hover { color: #fff; }
 }
 
 /* Badge do trial: mais sóbrio. */
-.lp-hero .badge-pill { background: rgba(255, 255, 255, .09); border-color: rgba(255, 255, 255, .2); color: #dbe6fa; font-weight: 600; }
+/* Azul TECNOLÓGICO estilo "computação de filme": texto ciano-elétrico que
+   brilha, moldura azul luminosa e um leve pulsar do glow. */
+.lp-hero .badge-pill {
+  background: rgba(36, 120, 255, .12);
+  border-color: rgba(90, 190, 255, .55);
+  color: #7fe9ff;
+  font-weight: 700;
+  letter-spacing: .3px;
+  text-shadow: 0 0 6px rgba(120, 225, 255, .75), 0 0 16px rgba(60, 160, 255, .45);
+  box-shadow: 0 0 0 1px rgba(90, 190, 255, .18), 0 0 18px rgba(50, 150, 255, .28), inset 0 0 12px rgba(60, 170, 255, .12);
+  animation: badge-glow 2.6s ease-in-out infinite;
+}
+.lp-hero .badge-pill .tw-caret { color: #7fe9ff; text-shadow: 0 0 8px rgba(120, 225, 255, .9); }
+@keyframes badge-glow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(90,190,255,.18), 0 0 14px rgba(50,150,255,.22), inset 0 0 12px rgba(60,170,255,.10); }
+  50%      { box-shadow: 0 0 0 1px rgba(120,210,255,.3), 0 0 26px rgba(70,170,255,.42), inset 0 0 16px rgba(80,190,255,.18); }
+}
+@media (prefers-reduced-motion: reduce) { .lp-hero .badge-pill { animation: none; } }
 
 /* Pontos do carrossel: traços finos e discretos (canto, não espetáculo). */
 .lp-hero-dots { gap: 6px; bottom: 16px; }
@@ -801,17 +818,18 @@ a.fc-line:hover { color: #fff; }
    visível). Só opacity/transform (+blur em títulos) — zero CLS. */
 .fxr-on [data-fx] {
   opacity: 0;
+  /* 1s + curso maior: a entrada SENTE-SE (a 0,6s/22px passava despercebida). */
   transition:
-    opacity .6s cubic-bezier(.16, 1, .3, 1),
-    transform .6s cubic-bezier(.16, 1, .3, 1),
-    filter .6s cubic-bezier(.16, 1, .3, 1);
+    opacity 1s cubic-bezier(.16, 1, .3, 1),
+    transform 1s cubic-bezier(.16, 1, .3, 1),
+    filter 1s cubic-bezier(.16, 1, .3, 1);
   will-change: opacity, transform;
 }
-.fxr-on [data-fx="up"]    { transform: translateY(22px); }
-.fxr-on [data-fx="left"]  { transform: translateX(-30px); }
-.fxr-on [data-fx="right"] { transform: translateX(30px); }
-.fxr-on [data-fx="scale"] { transform: scale(.96) translateY(10px); }
-.fxr-on [data-fx="title"] { transform: translateY(14px); filter: blur(6px); }
+.fxr-on [data-fx="up"]    { transform: translateY(40px); }
+.fxr-on [data-fx="left"]  { transform: translateX(-56px); }
+.fxr-on [data-fx="right"] { transform: translateX(56px); }
+.fxr-on [data-fx="scale"] { transform: scale(.92) translateY(18px); }
+.fxr-on [data-fx="title"] { transform: translateY(26px); filter: blur(8px); }
 /* Entrada: delay do stagger; saída imediata (delay só em .fx-in). */
 .fxr-on [data-fx].fx-in {
   opacity: 1;
