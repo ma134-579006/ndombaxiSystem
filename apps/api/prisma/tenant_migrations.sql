@@ -537,3 +537,20 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS is_produc
 
 -- 2026-07-13 · RESTAURANTE/PRODUCAO — prioridade dos pedidos (Central de Producao)
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."restaurant_orders" ADD COLUMN IF NOT EXISTS priority INT NOT NULL DEFAULT 0;
+
+-- 2026-07-20 · MECANICA (oficina auto) — rececao do veiculo, folha de obra,
+-- aprovacao de orcamento, tempos e agenda. Tudo ADITIVO sobre service_orders.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS km_in             INT;             -- quilometragem na rececao
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS fuel_level        TEXT;            -- EMPTY|LOW|HALF|HIGH|FULL
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS vehicle_state     TEXT;            -- observacoes do estado (riscos, amolgadelas)
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS checklist         JSONB;           -- [{key,label,ok,note}]
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS photos            JSONB;           -- [{url,caption}] fotos da rececao
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS signature         TEXT;            -- assinatura do cliente (data URL)
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS est_minutes       INT;             -- tempo estimado (min)
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS actual_minutes    INT;             -- tempo realizado (min)
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS work_started_at   TIMESTAMPTZ;     -- inicio do trabalho (cronometro)
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS scheduled_at      TIMESTAMPTZ;     -- marcacao/agenda
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS received_at       TIMESTAMPTZ;     -- momento da rececao
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS quote_approved_at TIMESTAMPTZ;     -- aprovacao do orcamento
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS quote_approved_by TEXT;            -- quem aprovou (nome)
+CREATE INDEX IF NOT EXISTS service_orders_scheduled_idx ON "{{SCHEMA}}"."service_orders"(scheduled_at) WHERE scheduled_at IS NOT NULL;

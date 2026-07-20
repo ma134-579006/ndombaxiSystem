@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { ManagerProduct, ServiceEquipment, ServiceOrderDetail, ServiceOrderRow } from '../api/types';
+import type { ManagerProduct, ServiceChecklistItem, ServiceEquipment, ServiceOrderDetail, ServiceOrderRow } from '../api/types';
 import { toast } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
@@ -18,6 +18,16 @@ async function printInvoicePdf(invoiceId: string): Promise<void> {
   ]);
   const pdf = await buildInvoicePdf(sale, identity);
   pdf.save(invoiceFileName(sale));
+}
+
+/** Gera e descarrega a FOLHA DE OBRA (PDF) da Mecânica. */
+async function printWorkOrder(detail: ServiceOrderDetail): Promise<void> {
+  const [{ buildWorkOrderPdf, workOrderFileName }, identity] = await Promise.all([
+    import('../pdf/workOrderPdf'),
+    api.branding().catch(() => null),
+  ]);
+  const pdf = await buildWorkOrderPdf(detail, identity);
+  pdf.save(workOrderFileName(detail.order));
 }
 const STATUS: { id: string; label: string }[] = [
   { id: 'OPEN', label: 'Aberta' }, { id: 'QUOTED', label: 'Orçamentada' }, { id: 'APPROVED', label: 'Aprovada' },
@@ -243,8 +253,228 @@ function CreateEquipment({ onClose, onCreated }: { onClose(): void; onCreated():
   );
 }
 
+// ── MECÂNICA (oficina auto) ──────────────────────────────────────────────
+const FUEL: { id: string; label: string }[] = [
+  { id: 'EMPTY', label: 'Vazio' }, { id: 'LOW', label: '¼' }, { id: 'HALF', label: '½' }, { id: 'HIGH', label: '¾' }, { id: 'FULL', label: 'Cheio' },
+];
+const FUEL_LABEL: Record<string, string> = Object.fromEntries(FUEL.map((f) => [f.id, f.label]));
+const DEFAULT_CHECKLIST: { key: string; label: string }[] = [
+  { key: 'lights', label: 'Luzes' }, { key: 'tyres', label: 'Pneus' }, { key: 'brakes', label: 'Travões' },
+  { key: 'oil', label: 'Óleo' }, { key: 'coolant', label: 'Líquidos' }, { key: 'battery', label: 'Bateria' },
+  { key: 'wipers', label: 'Escovas' }, { key: 'spare', label: 'Estepe' }, { key: 'triangle', label: 'Triângulo/colete' },
+  { key: 'jack', label: 'Macaco' }, { key: 'radio', label: 'Rádio/multimédia' }, { key: 'docs', label: 'Documentos' },
+];
+function mergeChecklist(saved?: ServiceChecklistItem[] | null): ServiceChecklistItem[] {
+  const byKey = new Map((saved ?? []).map((c) => [c.key, c]));
+  const merged = DEFAULT_CHECKLIST.map((d) => byKey.get(d.key) ?? { ...d, ok: undefined });
+  // mantém itens gravados que não estejam na lista padrão
+  for (const s of saved ?? []) if (!DEFAULT_CHECKLIST.some((d) => d.key === s.key)) merged.push(s);
+  return merged;
+}
+const MIN_LABEL = (m?: number | null) => (m == null ? '—' : m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}` : `${m}min`);
+
+/** Reduz uma imagem a no máx. `max` px no lado maior e devolve data URL JPEG. */
+function downscale(file: File, max = 1100, quality = 0.72): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        const ctx = c.getContext('2d'); if (!ctx) return reject(new Error('canvas'));
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject; img.src = String(r.result);
+    };
+    r.onerror = reject; r.readAsDataURL(file);
+  });
+}
+
+/** Pad de assinatura (canvas). Chama onSave com o data URL PNG. */
+function SignaturePad({ value, onSave }: { value?: string | null; onSave(dataUrl: string): void }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+  const dirty = useRef(false);
+  const [editing, setEditing] = useState(!value);
+  const pos = (e: React.PointerEvent) => {
+    const c = ref.current!; const r = c.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * (c.width / r.width), y: (e.clientY - r.top) * (c.height / r.height) };
+  };
+  const start = (e: React.PointerEvent) => {
+    drawing.current = true; const c = ref.current!; const ctx = c.getContext('2d')!;
+    ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#0f172a';
+    const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); (e.target as Element).setPointerCapture(e.pointerId);
+  };
+  const move = (e: React.PointerEvent) => {
+    if (!drawing.current) return; const ctx = ref.current!.getContext('2d')!; const p = pos(e);
+    ctx.lineTo(p.x, p.y); ctx.stroke(); dirty.current = true;
+  };
+  const end = () => { drawing.current = false; };
+  const clear = () => { const c = ref.current; if (c) c.getContext('2d')!.clearRect(0, 0, c.width, c.height); dirty.current = false; };
+  if (!editing && value) {
+    return (
+      <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+        <img src={value} alt="assinatura" style={{ height: 60, background: '#fff', borderRadius: 8, border: '1px solid var(--border)', padding: 4 }} />
+        <button className="btn sm ghost" onClick={() => { setEditing(true); setTimeout(clear, 0); }}>Assinar de novo</button>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <canvas ref={ref} width={520} height={150}
+        style={{ width: '100%', maxWidth: 340, height: 120, background: '#fff', borderRadius: 10, border: '1px dashed var(--border)', touchAction: 'none', cursor: 'crosshair' }}
+        onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerLeave={end} />
+      <div className="row" style={{ gap: 8, marginTop: 6 }}>
+        <button className="btn sm ghost" onClick={clear}>Limpar</button>
+        <button className="btn sm" onClick={() => { if (!dirty.current) { toast.warning('Assine antes de guardar.'); return; } onSave(ref.current!.toDataURL('image/png')); toast.success('Assinatura guardada.'); }}>Guardar assinatura</button>
+      </div>
+    </div>
+  );
+}
+
+/** Painel de RECEÇÃO do veículo (Mecânica): KM, combustível, estado, checklist,
+ *  fotos, assinatura e tempo estimado. Aditivo — só aparece no vertical Serviços. */
+function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['order']; isVehicle: boolean; onChanged(): void }) {
+  const [open, setOpen] = useState(!o.received_at);
+  const [km, setKm] = useState(o.km_in != null ? String(o.km_in) : '');
+  const [fuel, setFuel] = useState(o.fuel_level ?? '');
+  const [state, setState] = useState(o.vehicle_state ?? '');
+  const [est, setEst] = useState(o.est_minutes != null ? String(o.est_minutes) : '');
+  const [checklist, setChecklist] = useState<ServiceChecklistItem[]>(() => mergeChecklist(o.checklist));
+  const [photos, setPhotos] = useState(o.photos ?? []);
+  const [sig, setSig] = useState(o.signature ?? '');
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const toggle = (key: string) => setChecklist((cs) => cs.map((c) => c.key === key ? { ...c, ok: c.ok === true ? false : c.ok === false ? undefined : true } : c));
+  const addPhotos = async (files: FileList | null) => {
+    if (!files?.length) return;
+    try {
+      const next = [...photos];
+      for (const f of Array.from(files).slice(0, 8)) next.push({ url: await downscale(f), caption: '' });
+      setPhotos(next.slice(0, 12));
+    } catch { toast.error('Falha a processar a foto.'); }
+  };
+  const save = async () => {
+    setBusy(true);
+    try {
+      await api.serviceOrders.receive(o.id, {
+        kmIn: km ? Number(km) : undefined,
+        fuelLevel: fuel || undefined,
+        vehicleState: state || undefined,
+        checklist: checklist.filter((c) => c.ok !== undefined || c.note),
+        photos, signature: sig || undefined,
+        estMinutes: est ? Number(est) : undefined,
+      });
+      toast.success('Receção guardada.');
+      onChanged();
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao guardar a receção.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 12 }}>
+      <button className="row" style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, alignItems: 'center' }} onClick={() => setOpen((v) => !v)}>
+        <strong style={{ fontSize: 14 }}>🚗 Receção &amp; inspeção</strong>
+        <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>{o.received_at ? `recebido ${new Date(o.received_at).toLocaleDateString('pt-PT')}` : 'por preencher'}</span>
+        <span className="spacer" style={{ flex: 1 }} />
+        <span className="muted">{open ? '▲' : '▼'}</span>
+      </button>
+      {open ? (
+        <div style={{ marginTop: 12 }}>
+          {isVehicle ? (
+            <div className="grid-2">
+              <div className="field"><label>Quilometragem</label>
+                <input value={km} onChange={(e) => setKm(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="ex.: 145000" /></div>
+              <div className="field"><label>Combustível</label>
+                <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                  {FUEL.map((f) => (
+                    <button key={f.id} className={`btn sm ${fuel === f.id ? '' : 'ghost'}`} onClick={() => setFuel(fuel === f.id ? '' : f.id)}>{f.label}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="field"><label>Estado do veículo (riscos, amolgadelas, observações)</label>
+            <textarea value={state} onChange={(e) => setState(e.target.value)} rows={2} style={{ width: '100%', resize: 'vertical' }} placeholder="Descreva o estado à entrada…" /></div>
+
+          <label className="auth-label" style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 600, margin: '6px 0' }}>Checklist de inspeção</label>
+          <div className="pgrid" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(130px,1fr))', gap: 6, marginBottom: 10 }}>
+            {checklist.map((c) => (
+              <button key={c.key} className="btn sm ghost" onClick={() => toggle(c.key)}
+                style={{ justifyContent: 'flex-start', borderColor: c.ok === true ? 'var(--success)' : c.ok === false ? 'var(--danger, #e5484d)' : 'var(--border)' }}
+                title="Toque para alternar: OK → problema → por verificar">
+                <span style={{ marginRight: 6 }}>{c.ok === true ? '✅' : c.ok === false ? '⚠️' : '⬜'}</span>{c.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
+            <div className="field" style={{ width: 160, margin: 0 }}><label>Tempo estimado (min)</label>
+              <input value={est} onChange={(e) => setEst(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="ex.: 120" /></div>
+            <label className="btn ghost sm">
+              📷 Fotos ({photos.length})
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple hidden onChange={(e) => void addPhotos(e.target.files)} />
+            </label>
+          </div>
+          {photos.length ? (
+            <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+              {photos.map((p, i) => (
+                <div key={i} style={{ position: 'relative' }}>
+                  <img src={p.url} alt="" style={{ width: 66, height: 66, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+                  <button className="btn sm ghost" style={{ position: 'absolute', top: -6, right: -6, padding: '1px 5px', borderRadius: 999 }}
+                    onClick={() => setPhotos(photos.filter((_, j) => j !== i))}>×</button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="field"><label>Assinatura do cliente</label>
+            <SignaturePad value={sig} onSave={(d) => setSig(d)} /></div>
+
+          <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A guardar…' : 'Guardar receção'}</button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Barra de fluxo da oficina: aprovar orçamento, iniciar/concluir trabalho, tempos. */
+function WorkflowBar({ o, onChanged }: { o: ServiceOrderDetail['order']; onChanged(): void }) {
+  const [busy, setBusy] = useState('');
+  const act = async (key: string, fn: () => Promise<unknown>, okMsg: string) => {
+    setBusy(key);
+    try { await fn(); toast.success(okMsg); onChanged(); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha.'); }
+    finally { setBusy(''); }
+  };
+  const s = o.status;
+  return (
+    <div className="card" style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <strong style={{ fontSize: 13 }}>Fluxo:</strong>
+      {(s === 'OPEN' || s === 'QUOTED') ? (
+        <button className="btn sm" disabled={!!busy} onClick={() => void act('approve', () => api.serviceOrders.approveQuote(o.id), 'Orçamento aprovado.')}>✔ Aprovar orçamento</button>
+      ) : null}
+      {s === 'APPROVED' ? (
+        <button className="btn sm" disabled={!!busy} onClick={() => void act('start', () => api.serviceOrders.startWork(o.id), 'Trabalho iniciado.')}>▶ Iniciar trabalho</button>
+      ) : null}
+      {s === 'IN_PROGRESS' ? (
+        <button className="btn sm success" disabled={!!busy} onClick={() => void act('finish', () => api.serviceOrders.finishWork(o.id), 'Trabalho concluído.')}>■ Concluir trabalho</button>
+      ) : null}
+      {o.quote_approved_at ? <span className="muted" style={{ fontSize: 12 }}>Aprovado{o.quote_approved_by ? ` por ${o.quote_approved_by}` : ''}</span> : null}
+      <span className="spacer" style={{ flex: 1 }} />
+      <span className="muted" style={{ fontSize: 12 }}>⏱ Est: {MIN_LABEL(o.est_minutes)} · Real: {MIN_LABEL(o.actual_minutes)}</span>
+    </div>
+  );
+}
+
 function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; onClose(): void; onChanged(): void }) {
   const o = detail.order;
+  const isVehicle = (o.equipment_type ?? '').toUpperCase() === 'VEHICLE';
   const [products, setProducts] = useState<ManagerProduct[]>([]);
   const [q, setQ] = useState('');
   const [diagnosis, setDiagnosis] = useState(o.diagnosis ?? '');
@@ -294,6 +524,9 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
         <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{o.equipment_label || '—'}{o.equipment_ref ? ` · ${o.equipment_ref}` : ''}{o.assigned_to ? ` · 👤 ${o.assigned_to}` : ''}</div>
         {o.problem ? <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>🛠️ {o.problem}</div> : null}
       </div>
+
+      {o.status !== 'CANCELLED' ? <WorkflowBar o={o} onChanged={onChanged} /> : null}
+      {o.status !== 'CANCELLED' ? <ReceptionPanel o={o} isVehicle={isVehicle} onChanged={onChanged} /> : null}
 
       <div className="grid-2">
         <div className="field"><label>Estado</label>
@@ -351,6 +584,10 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
         <strong style={{ fontSize: 16 }}>Total</strong><span className="spacer" style={{ flex: 1 }} />
         <strong style={{ fontSize: 20 }}>{KZ(o.total)}</strong>
       </div>
+
+      <button className="btn ghost block" style={{ marginTop: 10 }} onClick={() => void printWorkOrder(detail).catch(() => toast.error('Falha ao gerar a folha de obra.'))}>
+        🖨️ Imprimir folha de obra
+      </button>
 
       {o.status !== 'DELIVERED' && o.status !== 'CANCELLED' ? (
         <button className="btn lg block success" style={{ marginTop: 12 }} onClick={() => void invoice()} disabled={billing}>

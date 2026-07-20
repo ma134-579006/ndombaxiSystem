@@ -304,4 +304,90 @@ export class ServiceOrdersService {
       tx.$executeRaw(Prisma.sql`UPDATE service_orders SET ${Prisma.join(sets, ', ')} WHERE id = ${id}::uuid`));
     return { ok: true };
   }
+
+  // ── MECÂNICA (oficina auto) ────────────────────────────────────────────────
+  /**
+   * Receção do veículo: quilometragem, nível de combustível, estado, checklist,
+   * fotos, assinatura do cliente, tempo estimado e marcação. Tudo aditivo sobre a
+   * OS. Se houver equipamento ligado e KM, atualiza também o KM da viatura.
+   */
+  async receiveVehicle(schema: string, id: string, dto: {
+    kmIn?: number; fuelLevel?: string; vehicleState?: string;
+    checklist?: unknown[]; photos?: unknown[]; signature?: string;
+    estMinutes?: number; scheduledAt?: string;
+  }) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{ equipment_id: string | null }[]>(
+        Prisma.sql`SELECT equipment_id FROM service_orders WHERE id = ${id}::uuid`);
+      if (!rows[0]) throw new NotFoundException('Ordem de serviço não encontrada.');
+      const sched = dto.scheduledAt && /^\d{4}-\d{2}-\d{2}/.test(dto.scheduledAt) ? new Date(dto.scheduledAt) : null;
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE service_orders SET
+          km_in         = COALESCE(${dto.kmIn ?? null}, km_in),
+          fuel_level    = COALESCE(${dto.fuelLevel ?? null}, fuel_level),
+          vehicle_state = COALESCE(${dto.vehicleState ?? null}, vehicle_state),
+          checklist     = COALESCE(${dto.checklist ? JSON.stringify(dto.checklist) : null}::jsonb, checklist),
+          photos        = COALESCE(${dto.photos ? JSON.stringify(dto.photos) : null}::jsonb, photos),
+          signature     = COALESCE(${dto.signature ?? null}, signature),
+          est_minutes   = COALESCE(${dto.estMinutes ?? null}, est_minutes),
+          scheduled_at  = COALESCE(${sched}, scheduled_at),
+          received_at   = COALESCE(received_at, now()),
+          updated_at    = now()
+        WHERE id = ${id}::uuid`);
+      // Propaga o KM para a ficha da viatura (histórico de quilometragem).
+      if (dto.kmIn != null && rows[0].equipment_id) {
+        await tx.$executeRaw(Prisma.sql`UPDATE service_equipments SET km = ${dto.kmIn}, updated_at = now()
+          WHERE id = ${rows[0].equipment_id}::uuid`).catch(() => undefined);
+      }
+      return { ok: true };
+    });
+  }
+
+  /** Aprovação do orçamento pelo cliente → estado APPROVED, com quem e quando. */
+  async approveQuote(schema: string, id: string, approvedBy?: string) {
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
+      UPDATE service_orders SET status = 'APPROVED', quote_approved_at = now(),
+        quote_approved_by = ${approvedBy ?? null}, updated_at = now()
+      WHERE id = ${id}::uuid`));
+    return { ok: true };
+  }
+
+  /** Início do trabalho: liga o cronómetro (work_started_at) e põe EM CURSO. */
+  async startWork(schema: string, id: string) {
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
+      UPDATE service_orders SET status = 'IN_PROGRESS',
+        work_started_at = COALESCE(work_started_at, now()), updated_at = now()
+      WHERE id = ${id}::uuid`));
+    return { ok: true };
+  }
+
+  /** Fim do trabalho: calcula o tempo realizado (min) e marca PRONTA. */
+  async finishWork(schema: string, id: string) {
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
+      UPDATE service_orders SET status = 'READY',
+        actual_minutes = COALESCE(actual_minutes,
+          CASE WHEN work_started_at IS NOT NULL
+               THEN GREATEST(1, ROUND(EXTRACT(EPOCH FROM (now() - work_started_at)) / 60))::int
+               ELSE actual_minutes END),
+        updated_at = now()
+      WHERE id = ${id}::uuid`));
+    return { ok: true };
+  }
+
+  /** Agenda/marcação da OS (data-hora). Vazio → remove a marcação. */
+  async setSchedule(schema: string, id: string, scheduledAt?: string) {
+    const sched = scheduledAt && /^\d{4}-\d{2}-\d{2}/.test(scheduledAt) ? new Date(scheduledAt) : null;
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
+      UPDATE service_orders SET scheduled_at = ${sched}, updated_at = now() WHERE id = ${id}::uuid`));
+    return { ok: true };
+  }
+
+  /** Agenda: OS com marcação futura/hoje (para o calendário da oficina). */
+  async agenda(schema: string) {
+    return this.prisma.runInTenant(schema, (tx) => tx.$queryRaw(Prisma.sql`
+      SELECT id, number, customer_name, equipment_label, equipment_ref, status, scheduled_at, assigned_to
+      FROM service_orders
+      WHERE scheduled_at IS NOT NULL AND status NOT IN ('DELIVERED', 'CANCELLED')
+      ORDER BY scheduled_at ASC LIMIT 200`));
+  }
 }

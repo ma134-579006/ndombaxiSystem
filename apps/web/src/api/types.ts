@@ -850,7 +850,16 @@ export interface ClinicPatientRecord {
 }
 export interface ServiceOrderRow { id: string; number: string; customer_name: string | null; equipment_label: string | null; status: string; total: string; assigned_to: string | null; source?: string; created_at: string }
 export interface ServiceOrderItem { id: string; kind: string; product_code: string | null; description: string; unit_price: string; quantity: string; created_at: string }
-export interface ServiceOrderDetail { order: { id: string; number: string; customer_name: string | null; customer_phone: string | null; equipment_id?: string | null; equipment_type: string | null; equipment_label: string | null; equipment_ref: string | null; problem: string | null; diagnosis: string | null; status: string; total: string; assigned_to: string | null; notes: string | null; warranty_days?: number; warranty_until?: string | null; invoice_id?: string | null }; items: ServiceOrderItem[] }
+export interface ServiceChecklistItem { key: string; label: string; ok?: boolean; note?: string }
+export interface ServiceReceptionPhoto { url: string; caption?: string }
+export interface ServiceOrderDetail { order: { id: string; number: string; customer_name: string | null; customer_phone: string | null; equipment_id?: string | null; equipment_type: string | null; equipment_label: string | null; equipment_ref: string | null; problem: string | null; diagnosis: string | null; status: string; total: string; assigned_to: string | null; notes: string | null; warranty_days?: number; warranty_until?: string | null; invoice_id?: string | null;
+  // Mecânica (oficina auto)
+  km_in?: number | null; fuel_level?: string | null; vehicle_state?: string | null;
+  checklist?: ServiceChecklistItem[] | null; photos?: ServiceReceptionPhoto[] | null; signature?: string | null;
+  est_minutes?: number | null; actual_minutes?: number | null; work_started_at?: string | null;
+  scheduled_at?: string | null; received_at?: string | null; quote_approved_at?: string | null; quote_approved_by?: string | null;
+}; items: ServiceOrderItem[] }
+export interface ServiceAgendaRow { id: string; number: string; customer_name: string | null; equipment_label: string | null; equipment_ref: string | null; status: string; scheduled_at: string; assigned_to: string | null }
 export interface ServiceEquipment { id: string; customer_id: string | null; customer_name: string | null; kind: string; label: string; brand: string | null; model: string | null; serial: string | null; plate: string | null; vin: string | null; color: string | null; year: number | null; km: number | null; next_service_km: number | null; notes: string | null }
 
 // ── Hotelaria (HOSPITALITY) ─────────────────────────────────

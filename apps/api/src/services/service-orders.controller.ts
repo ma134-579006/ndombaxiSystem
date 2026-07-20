@@ -6,7 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { ServiceOrdersService } from './service-orders.service';
-import { AddServiceItemDto, CreateEquipmentDto, CreateServiceOrderDto, ServiceStatusDto, UpdateEquipmentDto, UpdateServiceOrderDto } from './dto/service-order.dto';
+import { AddServiceItemDto, ApproveQuoteDto, CreateEquipmentDto, CreateServiceOrderDto, ReceiveVehicleDto, ScheduleDto, ServiceStatusDto, UpdateEquipmentDto, UpdateServiceOrderDto } from './dto/service-order.dto';
 
 /** Serviços — Ordens de Serviço (vertical SERVICES). */
 @ApiTags('service-orders')
@@ -55,6 +55,11 @@ export class ServiceOrdersController {
     return this.svc.create(this.ctx.requireTenantSchema(), { id: user.sub, name: user.name ?? user.email ?? 'Operador' }, dto);
   }
 
+  @Get('agenda')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Agenda da oficina (OS com marcação, por tratar)' })
+  agenda() { return this.svc.agenda(this.ctx.requireTenantSchema()); }
+
   @Get(':id')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Detalhe de uma OS (com itens)' })
@@ -91,5 +96,37 @@ export class ServiceOrdersController {
   @ApiOperation({ summary: 'Fatura a OS (documento fiscal AGT) e marca entregue' })
   invoice(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.svc.invoice(this.ctx.requireTenantSchema(), id, { id: user.sub, name: user.name ?? user.email ?? 'Operador' });
+  }
+
+  // ── MECÂNICA (oficina auto) ────────────────────────────────
+  @Post(':id/receive')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Receção do veículo (KM, combustível, estado, checklist, fotos, assinatura, tempo, agenda)' })
+  receive(@Param('id') id: string, @Body() dto: ReceiveVehicleDto) {
+    return this.svc.receiveVehicle(this.ctx.requireTenantSchema(), id, dto);
+  }
+
+  @Post(':id/approve-quote')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Aprova o orçamento da OS (estado APPROVED)' })
+  approveQuote(@Param('id') id: string, @Body() dto: ApproveQuoteDto, @CurrentUser() user: JwtPayload) {
+    return this.svc.approveQuote(this.ctx.requireTenantSchema(), id, dto.approvedBy ?? user.name ?? undefined);
+  }
+
+  @Post(':id/start-work')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Inicia o trabalho (cronómetro) → EM CURSO' })
+  startWork(@Param('id') id: string) { return this.svc.startWork(this.ctx.requireTenantSchema(), id); }
+
+  @Post(':id/finish-work')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Conclui o trabalho (calcula tempo real) → PRONTA' })
+  finishWork(@Param('id') id: string) { return this.svc.finishWork(this.ctx.requireTenantSchema(), id); }
+
+  @Post(':id/schedule')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Marca/agenda a OS (data-hora)' })
+  schedule(@Param('id') id: string, @Body() dto: ScheduleDto) {
+    return this.svc.setSchedule(this.ctx.requireTenantSchema(), id, dto.scheduledAt);
   }
 }

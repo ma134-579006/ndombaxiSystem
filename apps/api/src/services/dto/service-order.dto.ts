@@ -1,4 +1,5 @@
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateServiceOrderDto {
   @IsOptional() @IsString() customerId?: string;
@@ -53,4 +54,32 @@ export class UpdateServiceOrderDto {
 
 export class ServiceStatusDto {
   @IsString() status!: string;
+}
+
+// ── MECÂNICA (oficina auto) — receção do veículo, orçamento, tempos, agenda ──
+export class ChecklistItemDto {
+  @IsString() @Length(1, 60) key!: string;
+  @IsString() @Length(1, 80) label!: string;
+  @IsOptional() ok?: boolean;
+  @IsOptional() @IsString() @Length(0, 200) note?: string;
+}
+export class ReceptionPhotoDto {
+  @IsString() @Length(1, 2_000_000) url!: string; // data URL ou URL
+  @IsOptional() @IsString() @Length(0, 120) caption?: string;
+}
+export class ReceiveVehicleDto {
+  @IsOptional() @IsInt() @Min(0) kmIn?: number;
+  @IsOptional() @IsString() @IsIn(['EMPTY', 'LOW', 'HALF', 'HIGH', 'FULL']) fuelLevel?: string;
+  @IsOptional() @IsString() @Length(0, 2000) vehicleState?: string;
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => ChecklistItemDto) checklist?: ChecklistItemDto[];
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => ReceptionPhotoDto) photos?: ReceptionPhotoDto[];
+  @IsOptional() @IsString() @Length(0, 2_000_000) signature?: string; // data URL
+  @IsOptional() @IsInt() @Min(0) estMinutes?: number;
+  @IsOptional() @IsString() scheduledAt?: string; // ISO
+}
+export class ScheduleDto {
+  @IsOptional() @IsString() scheduledAt?: string; // ISO; vazio/omitido → remove marcação
+}
+export class ApproveQuoteDto {
+  @IsOptional() @IsString() @Length(0, 120) approvedBy?: string;
 }

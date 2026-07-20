@@ -777,6 +777,13 @@ export const api = {
     status: (id: string, status: string) => request<{ ok: boolean }>('POST', `/service-orders/${id}/status`, { status }),
     pendingOnline: () => request<{ count: number }>('GET', '/service-orders/pending-online'),
     invoice: (id: string) => request<{ invoiceId: string; invoiceNumber: string }>('POST', `/service-orders/${id}/invoice`),
+    // Mecânica (oficina auto)
+    receive: (id: string, dto: Record<string, unknown>) => request<{ ok: boolean }>('POST', `/service-orders/${id}/receive`, dto),
+    approveQuote: (id: string, approvedBy?: string) => request<{ ok: boolean }>('POST', `/service-orders/${id}/approve-quote`, { approvedBy }),
+    startWork: (id: string) => request<{ ok: boolean }>('POST', `/service-orders/${id}/start-work`, {}),
+    finishWork: (id: string) => request<{ ok: boolean }>('POST', `/service-orders/${id}/finish-work`, {}),
+    schedule: (id: string, scheduledAt?: string) => request<{ ok: boolean }>('POST', `/service-orders/${id}/schedule`, { scheduledAt }),
+    agenda: () => request<ServiceAgendaRow[]>('GET', '/service-orders/agenda'),
     equipments: (customerId?: string) => request<ServiceEquipment[]>('GET', `/service-orders/equipments${customerId ? `?customerId=${customerId}` : ''}`),
     createEquipment: (dto: Record<string, unknown>) => request<{ id: string }>('POST', '/service-orders/equipments', dto),
     updateEquipment: (id: string, dto: Record<string, unknown>) => request<{ ok: boolean }>('PATCH', `/service-orders/equipments/${id}`, dto),
