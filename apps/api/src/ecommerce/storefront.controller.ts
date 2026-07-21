@@ -143,7 +143,8 @@ export class StorefrontController {
     if (dto.customerEmail) {
       await this.customers.upsertCustomer(tenant.schema, dto.customerEmail.trim().toLowerCase(), dto.customerName || 'Cliente', { phone: dto.customerPhone }).catch(() => undefined);
     }
-    return { ok: true, id: r.id };
+    // Devolve o número e o token de rastreio para o cliente seguir o reparo.
+    return { ok: true, id: r.id, number: r.number, trackToken: r.trackToken };
   }
 
   @Get('service-order/:token')

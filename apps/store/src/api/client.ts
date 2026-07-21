@@ -131,7 +131,7 @@ export const api = {
   reservation: (code: string, input: { roomId: string; guestName?: string; guestPhone?: string; guestEmail?: string; checkIn: string; checkOut: string; guests?: number }) =>
     request<{ ok: true; id: string }>('POST', `/store/${enc(code)}/reservation`, input),
   serviceRequest: (code: string, input: { customerName?: string; customerPhone?: string; customerEmail?: string; equipmentType?: string; equipmentLabel?: string; equipmentRef?: string; problem: string }) =>
-    request<{ ok: true; id: string }>('POST', `/store/${enc(code)}/service-request`, input),
+    request<{ ok: true; id: string; number?: string; trackToken?: string | null }>('POST', `/store/${enc(code)}/service-request`, input),
   appointment: (code: string, input: { patientName: string; patientPhone?: string; patientEmail?: string; professional?: string; scheduledAt: string; reason?: string }) =>
     request<{ ok: true; id: string }>('POST', `/store/${enc(code)}/appointment`, input),
   professionals: (code: string) =>

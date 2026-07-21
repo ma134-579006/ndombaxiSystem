@@ -164,13 +164,13 @@ export class ServiceOrdersService {
       const cnt = await tx.$queryRaw<{ n: number }[]>(
         Prisma.sql`SELECT COUNT(*)::int AS n FROM service_orders WHERE date_part('year', created_at) = ${year}`);
       const number = `OS/${year}/${String((cnt[0]?.n ?? 0) + 1).padStart(4, '0')}`;
-      const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+      const rows = await tx.$queryRaw<{ id: string; number: string; track_token: string | null }[]>(Prisma.sql`
         INSERT INTO service_orders (number, customer_id, customer_name, customer_phone, equipment_id, equipment_type, equipment_label, equipment_ref, problem, assigned_to, warranty_days, opened_by, opened_by_name, source)
         VALUES (${number}, ${customerId}::uuid, ${customerName?.trim() || null}, ${customerPhone?.trim() || null},
                 ${dto.equipmentId ?? null}::uuid, ${equipmentType || null}, ${equipmentLabel?.trim() || null}, ${equipmentRef?.trim() || null},
                 ${dto.problem?.trim() || null}, ${dto.assignedTo?.trim() || null}, ${warranty}, ${opener.id}::uuid, ${opener.name}, ${source})
-        RETURNING id`);
-      return rows[0];
+        RETURNING id, number, track_token`);
+      return { id: rows[0].id, number: rows[0].number, trackToken: rows[0].track_token };
     });
   }
 

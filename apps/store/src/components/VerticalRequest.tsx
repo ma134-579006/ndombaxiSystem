@@ -157,24 +157,40 @@ function ServiceRequestModal({ code, prefill, onClose }: { code: string; prefill
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [track, setTrack] = useState<{ number?: string; token?: string | null }>({});
+  const [copied, setCopied] = useState(false);
+  const trackUrl = track.token ? `${window.location.origin}/?loja=${encodeURIComponent(code)}&os=${encodeURIComponent(track.token)}` : '';
   const submit = async () => {
     if (!f.problem.trim() || f.problem.trim().length < 3) { setErr('Descreva o que precisa.'); return; }
     if (!f.customerName.trim() || !f.customerPhone.trim()) { setErr('Indique o seu nome e telefone.'); return; }
     setBusy(true); setErr(null);
     try {
-      await api.serviceRequest(code, {
+      const r = await api.serviceRequest(code, {
         customerName: f.customerName.trim(), customerPhone: f.customerPhone.trim(), customerEmail: f.customerEmail.trim() || undefined,
         equipmentType: f.equipmentType, equipmentLabel: f.equipmentLabel.trim() || undefined, equipmentRef: f.equipmentRef.trim() || undefined,
         problem: f.problem.trim(),
       });
+      setTrack({ number: r.number, token: r.trackToken });
       setDone(true);
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível enviar o pedido.'); } finally { setBusy(false); }
   };
   return (
     <Sheet title="Pedir serviço / orçamento" onClose={onClose}>
       {done ? (
-        <div className="empty"><div style={{ fontSize: 40 }}>✅</div><p>Pedido enviado! Vamos analisar e entrar em contacto consigo.</p>
-          <button className="btn lg" style={{ marginTop: 10 }} onClick={onClose}>Concluir</button></div>
+        <div className="empty" style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 40 }}>✅</div>
+          <p style={{ marginBottom: 4 }}>Pedido enviado{track.number ? ` — ${track.number}` : ''}! Vamos analisar e entrar em contacto consigo.</p>
+          {trackUrl ? (
+            <div style={{ marginTop: 8 }}>
+              <p className="muted" style={{ fontSize: 13, margin: '0 0 6px' }}>Siga o estado do seu reparo em tempo real:</p>
+              <a className="btn lg block" href={trackUrl} target="_blank" rel="noreferrer" style={{ marginBottom: 8 }}>🔎 Seguir o meu reparo</a>
+              <button className="btn ghost block" onClick={() => { navigator.clipboard?.writeText(trackUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => undefined); }}>
+                {copied ? '✓ Link copiado!' : 'Copiar link de acompanhamento'}
+              </button>
+            </div>
+          ) : null}
+          <button className="btn lg" style={{ marginTop: 10 }} onClick={onClose}>Concluir</button>
+        </div>
       ) : (
         <>
           {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
