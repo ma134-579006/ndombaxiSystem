@@ -858,7 +858,7 @@ export interface ServiceOrderDetail { order: { id: string; number: string; custo
   checklist?: ServiceChecklistItem[] | null; photos?: ServiceReceptionPhoto[] | null; signature?: string | null;
   est_minutes?: number | null; actual_minutes?: number | null; work_started_at?: string | null;
   scheduled_at?: string | null; received_at?: string | null; quote_approved_at?: string | null; quote_approved_by?: string | null;
-  imei?: string | null; unlock_code?: string | null;
+  imei?: string | null; unlock_code?: string | null; track_token?: string | null;
 }; items: ServiceOrderItem[] }
 export interface ServiceAgendaRow { id: string; number: string; customer_name: string | null; equipment_label: string | null; equipment_ref: string | null; status: string; scheduled_at: string; assigned_to: string | null }
 export interface ServiceEquipment { id: string; customer_id: string | null; customer_name: string | null; kind: string; label: string; brand: string | null; model: string | null; serial: string | null; plate: string | null; vin: string | null; color: string | null; year: number | null; km: number | null; next_service_km: number | null; notes: string | null }

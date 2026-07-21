@@ -18,6 +18,7 @@ import type {
   StoreChatMessage,
   UploadProofInput,
   WebOrder,
+  RepairStatus,
 } from './types';
 
 export class ApiError extends Error {
@@ -79,6 +80,9 @@ export const api = {
       'POST', `/store/${enc(code)}/visual-search`, { imageBase64, mimeType }),
   track: (code: string, orderId: string) =>
     request<WebOrder>('GET', `/store/${enc(code)}/orders/${enc(orderId)}`),
+  /** Portal do cliente: estado do reparo (OS) por token público. */
+  repairStatus: (code: string, token: string) =>
+    request<RepairStatus>('GET', `/store/${enc(code)}/service-order/${enc(token)}`),
   orderInvoice: (code: string, orderId: string) =>
     request<StoreInvoice>('GET', `/store/${enc(code)}/orders/${enc(orderId)}/invoice`),
   updateLocation: (code: string, orderId: string, token: string, body: { lat: number; lng: number; accuracy?: number }) =>

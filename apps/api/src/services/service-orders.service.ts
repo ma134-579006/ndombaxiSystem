@@ -415,6 +415,39 @@ export class ServiceOrdersService {
     return { ok: true };
   }
 
+  /**
+   * PORTAL DO CLIENTE — rastreio público do reparo por token (sem autenticação).
+   * Devolve APENAS um subconjunto seguro: nunca IMEI, código de desbloqueio,
+   * fotos, assinatura, telefone ou dados do cliente. O token é não-adivinhável.
+   */
+  async trackByToken(schema: string, token: string) {
+    if (!token || token.length < 8) throw new NotFoundException('Ordem não encontrada.');
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{
+        number: string; status: string; equipment_type: string | null; equipment_label: string | null;
+        problem: string | null; assigned_to: string | null; total: string;
+        received_at: Date | null; quote_approved_at: Date | null; work_started_at: Date | null;
+        delivered_at: Date | null; created_at: Date; est_minutes: number | null; actual_minutes: number | null;
+        warranty_days: number | null; warranty_until: Date | null;
+      }[]>(Prisma.sql`
+        SELECT number, status, equipment_type, equipment_label, problem, assigned_to, total,
+               received_at, quote_approved_at, work_started_at, delivered_at, created_at,
+               est_minutes, actual_minutes, warranty_days, warranty_until
+        FROM service_orders WHERE track_token = ${token} LIMIT 1`);
+      const o = rows[0];
+      if (!o) throw new NotFoundException('Ordem não encontrada.');
+      return {
+        number: o.number, status: o.status,
+        equipmentType: o.equipment_type, equipment: o.equipment_label, problem: o.problem,
+        technician: o.assigned_to, total: Number(o.total),
+        createdAt: o.created_at, receivedAt: o.received_at, quoteApprovedAt: o.quote_approved_at,
+        workStartedAt: o.work_started_at, deliveredAt: o.delivered_at,
+        estMinutes: o.est_minutes, actualMinutes: o.actual_minutes,
+        warrantyDays: o.warranty_days, warrantyUntil: o.warranty_until,
+      };
+    });
+  }
+
   /** Agenda: OS com marcação futura/hoje (para o calendário da oficina). */
   async agenda(schema: string) {
     return this.prisma.runInTenant(schema, (tx) => tx.$queryRaw(Prisma.sql`

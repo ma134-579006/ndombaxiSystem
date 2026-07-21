@@ -16,7 +16,7 @@ const MIN_LABEL = (m?: number | null) => (m == null ? '—' : m >= 60 ? `${Math.
  * e mão-de-obra, tempos, garantia, fotos e assinatura do cliente. Gerado com jsPDF
  * (biblioteca PDF), nunca screenshot.
  */
-export async function buildWorkOrderPdf(detail: ServiceOrderDetail, identity?: DocumentIdentity | null): Promise<jsPDF> {
+export async function buildWorkOrderPdf(detail: ServiceOrderDetail, identity?: DocumentIdentity | null, trackingUrl?: string): Promise<jsPDF> {
   const o = detail.order;
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
@@ -190,15 +190,16 @@ export async function buildWorkOrderPdf(detail: ServiceOrderDetail, identity?: D
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...MUTED);
   doc.text('Assinatura do cliente', M, y + 24);
 
-  // ── QR da ordem (referência/consulta rápida) ──
+  // ── QR da ordem: se houver link de rastreio, o QR ABRE o portal do cliente
+  //    (estado do reparo); senão, codifica a referência da OS. ──
   try {
-    const qrData = [`OS ${o.number}`, empresa, o.imei ? `IMEI:${o.imei}` : (o.equipment_ref || ''), o.customer_name || '']
-      .filter(Boolean).join(' | ');
-    const qr = await QRCode.toDataURL(qrData, { margin: 1, width: 240 });
+    const qrData = trackingUrl
+      || [`OS ${o.number}`, empresa, o.imei ? `IMEI:${o.imei}` : (o.equipment_ref || '')].filter(Boolean).join(' | ');
+    const qr = await QRCode.toDataURL(qrData, { margin: 1, width: 260, errorCorrectionLevel: 'M' });
     const qs = 60;
     doc.addImage(qr, 'PNG', W - M - qs, y - 44, qs, qs, undefined, 'FAST');
     doc.setFontSize(8); doc.setTextColor(...MUTED);
-    doc.text(o.number, W - M - qs / 2, y + 24, { align: 'center' });
+    doc.text(trackingUrl ? 'Siga o reparo' : o.number, W - M - qs / 2, y + 24, { align: 'center' });
   } catch { /* QR opcional */ }
 
   // ── Rodapé ──

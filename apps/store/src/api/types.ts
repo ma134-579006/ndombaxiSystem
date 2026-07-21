@@ -228,3 +228,23 @@ export interface StoreInvoice {
   };
   items: StoreInvoiceItem[];
 }
+
+/** Portal do cliente: estado público do reparo (OS) — sem dados sensíveis. */
+export interface RepairStatus {
+  number: string;
+  status: string;
+  equipmentType: string | null;
+  equipment: string | null;
+  problem: string | null;
+  technician: string | null;
+  total: number;
+  createdAt: string;
+  receivedAt: string | null;
+  quoteApprovedAt: string | null;
+  workStartedAt: string | null;
+  deliveredAt: string | null;
+  estMinutes: number | null;
+  actualMinutes: number | null;
+  warrantyDays: number | null;
+  warrantyUntil: string | null;
+}

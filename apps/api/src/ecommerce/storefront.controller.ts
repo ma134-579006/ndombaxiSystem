@@ -146,6 +146,13 @@ export class StorefrontController {
     return { ok: true, id: r.id };
   }
 
+  @Get('service-order/:token')
+  @ApiOperation({ summary: 'Portal do cliente: estado do reparo por token (público, sem dados sensíveis)' })
+  async trackServiceOrder(@Param('code') code: string, @Param('token') token: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    return this.serviceOrders.trackByToken(tenant.schema, token);
+  }
+
   @Get('professionals')
   @ApiOperation({ summary: 'Médicos disponíveis para marcação (Portal do Paciente — vertical Clínica)' })
   async professionals(@Param('code') code: string) {

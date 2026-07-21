@@ -5,6 +5,8 @@ import { toast } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz } from '../format';
+import { useAuth } from '../auth/AuthContext';
+import { STORE_URL } from '../config';
 
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
 
@@ -20,13 +22,14 @@ async function printInvoicePdf(invoiceId: string): Promise<void> {
   pdf.save(invoiceFileName(sale));
 }
 
-/** Gera e descarrega a FOLHA DE OBRA (PDF) da Mecânica. */
-async function printWorkOrder(detail: ServiceOrderDetail): Promise<void> {
+/** Gera e descarrega a FOLHA DE OBRA/SERVIÇO (PDF). Se `trackingUrl` for dado, o
+ *  QR abre o portal do cliente (estado do reparo). */
+async function printWorkOrder(detail: ServiceOrderDetail, trackingUrl?: string): Promise<void> {
   const [{ buildWorkOrderPdf, workOrderFileName }, identity] = await Promise.all([
     import('../pdf/workOrderPdf'),
     api.branding().catch(() => null),
   ]);
-  const pdf = await buildWorkOrderPdf(detail, identity);
+  const pdf = await buildWorkOrderPdf(detail, identity, trackingUrl);
   pdf.save(workOrderFileName(detail.order));
 }
 const STATUS: { id: string; label: string }[] = [
@@ -571,6 +574,9 @@ function WorkflowBar({ o, onChanged }: { o: ServiceOrderDetail['order']; onChang
 function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; onClose(): void; onChanged(): void }) {
   const o = detail.order;
   const isVehicle = (o.equipment_type ?? '').toUpperCase() === 'VEHICLE';
+  const { companyCode } = useAuth();
+  // Link do portal do cliente (QR da folha): rastreio público do reparo por token.
+  const trackingUrl = companyCode && o.track_token ? `${STORE_URL}/?loja=${encodeURIComponent(companyCode)}&os=${encodeURIComponent(o.track_token)}` : undefined;
   const [products, setProducts] = useState<ManagerProduct[]>([]);
   const [q, setQ] = useState('');
   const [diagnosis, setDiagnosis] = useState(o.diagnosis ?? '');
@@ -689,8 +695,8 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
         <strong style={{ fontSize: 20 }}>{KZ(o.total)}</strong>
       </div>
 
-      <button className="btn ghost block" style={{ marginTop: 10 }} onClick={() => void printWorkOrder(detail).catch(() => toast.error('Falha ao gerar a folha de obra.'))}>
-        🖨️ Imprimir folha de obra
+      <button className="btn ghost block" style={{ marginTop: 10 }} onClick={() => void printWorkOrder(detail, trackingUrl).catch(() => toast.error('Falha ao gerar a folha de obra.'))}>
+        🖨️ Imprimir {isVehicle ? 'folha de obra' : 'folha de serviço'}{trackingUrl ? ' (com QR de rastreio)' : ''}
       </button>
 
       {o.status !== 'DELIVERED' && o.status !== 'CANCELLED' ? (

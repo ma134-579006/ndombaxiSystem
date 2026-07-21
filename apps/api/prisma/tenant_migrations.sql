@@ -559,3 +559,10 @@ CREATE INDEX IF NOT EXISTS service_orders_scheduled_idx ON "{{SCHEMA}}"."service
 -- IMEI e codigo de desbloqueio capturados na rececao do aparelho. ADITIVO.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS imei        TEXT;   -- IMEI/nº de serie do aparelho
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS unlock_code TEXT;   -- codigo/padrao de desbloqueio (reparacao)
+
+-- 2026-07-21 · PORTAL DO CLIENTE (rastreio do reparo): token publico por OS.
+-- DEFAULT crypto-random (gen_random_uuid) por linha; backfill das OS existentes.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS track_token TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ALTER COLUMN track_token SET DEFAULT substr(replace(gen_random_uuid()::text, '-', ''), 1, 16);
+UPDATE "{{SCHEMA}}"."service_orders" SET track_token = substr(replace(gen_random_uuid()::text, '-', ''), 1, 16) WHERE track_token IS NULL;
+CREATE INDEX IF NOT EXISTS service_orders_track_idx ON "{{SCHEMA}}"."service_orders"(track_token);
