@@ -28,9 +28,10 @@ export class CreateSubscriptionDto {
 
 /** Empresa submete comprovativo (ficheiro base64). */
 export class SubmitProofDto {
-  @IsString() fileName!: string;
-  @IsString() fileType!: string;
-  @IsString() fileData!: string; // base64 (sem prefixo data:)
+  @IsString() @Length(1, 200) fileName!: string;
+  @IsString() @Length(1, 100) fileType!: string;
+  // Limite alinhado com o cliente (4 MB) + inflacao ~34% do base64.
+  @IsString() @Length(1, 6_000_000) fileData!: string; // base64 (sem prefixo data:)
   @IsOptional() @IsInt() @Min(0) amountKz?: number;
   @IsOptional() @IsString() @Length(0, 500) note?: string;
 }
@@ -58,9 +59,9 @@ export class SetupCreateSubscriptionDto {
 /** Enviar comprovativo na landing pós-registo (autorizado pelo setupToken). */
 export class SetupProofDto {
   @IsString() setupToken!: string;
-  @IsString() fileName!: string;
-  @IsString() fileType!: string;
-  @IsString() fileData!: string;
+  @IsString() @Length(1, 200) fileName!: string;
+  @IsString() @Length(1, 100) fileType!: string;
+  @IsString() @Length(1, 6_000_000) fileData!: string;
   @IsOptional() @IsInt() @Min(0) amountKz?: number;
   @IsOptional() @IsString() @Length(0, 500) note?: string;
 }

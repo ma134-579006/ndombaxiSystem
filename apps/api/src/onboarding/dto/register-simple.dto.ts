@@ -45,5 +45,6 @@ export class CompleteSetupDto {
 
   @IsOptional()
   @IsString()
+  @Length(0, 2_600_000)
   logoUrl?: string;
 }

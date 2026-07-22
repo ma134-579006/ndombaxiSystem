@@ -25,6 +25,8 @@ export class UpdateSiteSettingsDto {
 
   @IsOptional()
   @IsString()
+  // Data URL do logotipo: cliente limita a 1,5 MB; +34% do base64.
+  @Length(0, 2_600_000)
   logoUrl?: string;
 
   @IsOptional()
