@@ -223,8 +223,8 @@ importers:
         specifier: 0.21.3
         version: 0.21.3
       jspdf:
-        specifier: 3.0.4
-        version: 3.0.4
+        specifier: 4.2.1
+        version: 4.2.1
       qrcode:
         specifier: 1.5.4
         version: 1.5.4
@@ -266,8 +266,8 @@ importers:
         specifier: 0.21.3
         version: 0.21.3
       jspdf:
-        specifier: 3.0.4
-        version: 3.0.4
+        specifier: 4.2.1
+        version: 4.2.1
       react:
         specifier: 18.2.0
         version: 18.2.0
@@ -306,8 +306,8 @@ importers:
         specifier: 1.5.20
         version: 1.5.20
       jspdf:
-        specifier: 3.0.4
-        version: 3.0.4
+        specifier: 4.2.1
+        version: 4.2.1
       qrcode:
         specifier: 1.5.4
         version: 1.5.4
@@ -4306,8 +4306,8 @@ packages:
     resolution: {integrity: sha512-MT/xP0CrubFRNLNKvxJ2BYfy53Zkm++5bX9dtuPbqAeQpTVe0MQTFhao8+Cp//EmJp244xt6Drw/GVEGCUj40g==}
     engines: {node: '>=12', npm: '>=6'}
 
-  jspdf@3.0.4:
-    resolution: {integrity: sha512-dc6oQ8y37rRcHn316s4ngz/nOjayLF/FFxBF4V9zamQKRqXxyiH1zagkCdktdWhtoQId5K20xt1lB90XzkB+hQ==}
+  jspdf@4.2.1:
+    resolution: {integrity: sha512-YyAXyvnmjTbR4bHQRLzex3CuINCDlQnBqoSYyjJwTP2x9jDLuKDzy7aKUl0hgx3uhcl7xzg32agn5vlie6HIlQ==}
 
   jwa@1.4.2:
     resolution: {integrity: sha512-eeH5JO+21J78qMvTIDdBXidBd6nG2kZjg5Ohz/1fpa28Z4CcsWUzJ1ZZyFq/3z3N17aZy+ZuBoHljASbL1WfOw==}
@@ -11701,7 +11701,7 @@ snapshots:
       ms: 2.1.3
       semver: 7.8.1
 
-  jspdf@3.0.4:
+  jspdf@4.2.1:
     dependencies:
       '@babel/runtime': 7.29.7
       fast-png: 6.4.0
