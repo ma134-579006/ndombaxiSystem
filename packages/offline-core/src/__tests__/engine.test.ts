@@ -145,6 +145,53 @@ test('corte de energia a meio do envio: a venda volta à fila e não se perde', 
   await engine.stop();
 });
 
+test('acordar do background retoma a venda presa (bug do minimizar)', async () => {
+  const server = new FakeServer();
+  const storage = new MemoryAdapter();
+
+  // Monitor REAL, com a rede controlada pela sonda (como em produção): a app
+  // abriu sem rede. Reproduzimos o cenário Android/iOS — os eventos `online`/
+  // `visibilitychange` NUNCA disparam (em Node não há `window`, por isso
+  // `net.start()`/`stop()` são no-op de propósito); a única forma de o motor
+  // reavaliar a ligação é o `wake()` que o shell nativo passa a chamar.
+  let online = false;
+  let probes = 0;
+  const net = new NetMonitor({
+    healthUrl: 'http://localhost/health',
+    fetchImpl: async () => {
+      probes++;
+      if (!online) throw new Error('sem rede');
+      return new Response(null, { status: 200 });
+    },
+  });
+  await net.probe(); // estado real inicial → não-ONLINE (abriu sem servidor alcançável)
+  assert.notEqual(net.getState(), 'ONLINE');
+
+  const engine = new SyncEngine({
+    storage, transport: server.transport(), net,
+    entities: ['product'], idleIntervalMs: 3_600_000,
+  });
+  await engine.start();
+
+  // Venda feita offline enquanto a app estava em segundo plano.
+  await engine.enqueue({ entity: 'sale', op: 'create', localId: 'v1', payload: { total: 7000 } });
+  assert.equal(server.receivedBatches.length, 0, 'offline: a venda não podia ter subido');
+
+  // A internet volta enquanto a app dormia — sem disparar qualquer evento.
+  online = true;
+  const probesAntes = probes;
+
+  // O utilizador reabre a app: o shell nativo chama `wake()`. É isto que
+  // conserta o bug — reavalia a ligação REAL e retoma a sincronização sozinho.
+  await engine.wake();
+  await new Promise((r) => setTimeout(r, 30)); // deixa o ciclo agendado por wake() correr
+
+  assert.ok(probes > probesAntes, 'wake() tem de reavaliar a ligação real (sonda ao /health)');
+  assert.equal(server.receivedBatches.length, 1, 'ao acordar, a venda presa tem de subir sem ajuda');
+  assert.ok(server.appliedOpIds.has(server.receivedBatches[0][0].opId));
+  await engine.stop();
+});
+
 test('reenvio após falha de rede não duplica a venda (idempotência)', async () => {
   const server = new FakeServer();
   const { engine } = await makeEngine(server);
