@@ -1,0 +1,2 @@
+# Saída da compilação dos testes (gerada por `pnpm test`).
+.test-build/

@@ -1,0 +1,20 @@
+{
+  "name": "@nexus/offline-core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ndombaxi System — motor Offline-First: outbox idempotente, delta sync, resolução de conflitos, cifra em repouso e sessão offline. Zero dependências de runtime.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build:test": "tsc -p tsconfig.test.json && node -e \"require('fs').writeFileSync('.test-build/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\"",
+    "test": "pnpm build:test && node --test .test-build/__tests__/"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}
