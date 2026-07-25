@@ -1311,3 +1311,53 @@ export interface ServicesDashboard {
   sales: { total: number; online: number; counter: number; invoices: number };
   mechanic?: { scheduledToday: number; awaitingApproval: number; avgWorkMinutes: number };
 }
+
+// ── Gestão de Downloads das aplicações (Super Admin) ─────────
+export type AppPlatform = 'windows' | 'android' | 'ios';
+export interface AppReleaseRow {
+  id: string;
+  platform: AppPlatform;
+  version: string;
+  minSupported: string | null;
+  fileUrl: string;
+  downloadPageUrl: string | null;
+  fileSize: number | null;
+  sha256: string | null;
+  notes: string[];
+  fixes: string[];
+  requirements: string | null;
+  mandatory: boolean;
+  published: boolean;
+  releasedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface AppReleaseInput {
+  platform: AppPlatform;
+  version: string;
+  minSupported?: string;
+  fileUrl: string;
+  downloadPageUrl?: string;
+  fileSize?: number;
+  sha256?: string;
+  notes?: string[];
+  fixes?: string[];
+  requirements?: string;
+  mandatory?: boolean;
+  published?: boolean;
+}
+
+/** Forma pública de uma versão de app (sem o link direto do ficheiro). */
+export interface PublicRelease {
+  platform: AppPlatform;
+  version: string;
+  minSupported: string | null;
+  downloadPageUrl: string | null;
+  fileSize: number | null;
+  sha256: string | null;
+  notes: string[];
+  fixes: string[];
+  requirements: string | null;
+  mandatory: boolean;
+  releasedAt: string;
+}

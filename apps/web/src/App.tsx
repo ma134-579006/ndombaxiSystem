@@ -6,7 +6,7 @@ import { Shell, type NavItem } from './components/Shell';
 import {
   IconArrowLeftRight, IconBadge, IconBank, IconBoxes, IconBuilding, IconCalendar,
   IconCamera, IconCard, IconCartIn, IconCashRegister, IconChart, IconCoins, IconCube,
-  IconDatabase, IconGauge, IconGear, IconHeadset, IconHistory, IconLedger, IconMail,
+  IconDatabase, IconDownload, IconGauge, IconGear, IconHeadset, IconHistory, IconLedger, IconMail,
   IconMessage, IconPercent, IconPlug, IconReceipt, IconReport, IconSparkles,
   IconStore, IconTag, IconTrendUp, IconTruck, IconUpload, IconUsers, IconWallet,
 } from './components/Icons';
@@ -79,6 +79,7 @@ const SubsAdmin = React.lazy(() => import('./sections/SubsAdmin').then((m) => ({
 const PlatformDashboard = React.lazy(() => import('./sections/PlatformDashboard').then((m) => ({ default: m.PlatformDashboard })));
 const Integrations = React.lazy(() => import('./sections/Integrations').then((m) => ({ default: m.Integrations })));
 const MailSettings = React.lazy(() => import('./sections/MailSettings').then((m) => ({ default: m.MailSettings })));
+const Downloads = React.lazy(() => import('./sections/Downloads').then((m) => ({ default: m.Downloads })));
 const Backup = React.lazy(() => import('./sections/Backup').then((m) => ({ default: m.Backup })));
 const BackupRestore = React.lazy(() => import('./sections/BackupRestore').then((m) => ({ default: m.BackupRestore })));
 const Migration = React.lazy(() => import('./sections/Migration').then((m) => ({ default: m.Migration })));
@@ -98,6 +99,7 @@ const PLATFORM_NAV: NavItem[] = [
   { key: 'gateways', label: 'Gateways de Pagamento', icon: IconBank },
   { key: 'integrations', label: 'Integrações', icon: IconPlug },
   { key: 'mail', label: 'E-mail (SMTP)', icon: IconMail },
+  { key: 'downloads', label: 'Gestão de Downloads', icon: IconDownload },
 ];
 
 // min: nível mínimo de papel (0=mais poder). 1=COMPANY_ADMIN, 2=REGIONAL_MANAGER,
@@ -217,6 +219,7 @@ function PlatformPanel() {
       {section === 'gateways' ? <Gateways /> : null}
       {section === 'integrations' ? <Integrations /> : null}
       {section === 'mail' ? <MailSettings /> : null}
+      {section === 'downloads' ? <Downloads /> : null}
       {section === 'profile' ? <Profile /> : null}
     </React.Suspense>
     </Shell>

@@ -19,6 +19,7 @@ import {
 import { Typewriter } from '../components/Typewriter';
 import { SupportChat } from '../components/SupportChat';
 import { FeedbackSection } from '../components/FeedbackSection';
+import { DownloadApps } from '../sections/DownloadApps';
 
 /** Imagens de fundo realistas — carrossel por SERVIÇO, em pares (2 imagens
  *  seguidas por vertical): vendas & retalho → restauração/hamburgueria →
@@ -137,9 +138,14 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           <a href="#modulos">Módulos</a>
           <a href="#como-funciona">Como funciona</a>
           <a href="#planos">Planos</a>
+          <a href="#baixar">Baixar app</a>
           <a href="#faq">FAQ</a>
         </div>
         <span className="spacer" />
+        <a className="dl-nav-btn" href="#baixar" role="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Baixar Aplicativo
+        </a>
         <button className="ghost" onClick={onGoLogin}>Entrar</button>
         <button className="solid" onClick={() => openRegister('BUSINESS')}>Criar conta</button>
       </nav>
@@ -287,6 +293,9 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           </div>
         </div>
       </section>
+
+      {/* BAIXAR APLICATIVO — apps Windows/Android/iOS (Offline-First) */}
+      <DownloadApps />
 
       {/* PLANOS / PREÇOS */}
       {cfg?.showPricing !== false && plans.length > 0 && (

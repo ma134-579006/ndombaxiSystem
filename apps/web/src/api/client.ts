@@ -4,6 +4,9 @@ import type {
   AgtCommStatus,
   AgtConfig,
   AiProvider,
+  AppReleaseRow,
+  AppReleaseInput,
+  PublicRelease,
   BackupMeta,
   BackupSettings,
   MigrationApplyResult,
@@ -382,6 +385,11 @@ export const api = {
   // ── Landing pública (sem auth) ─────────────────────────────
   publicLanding: () => request<PublicLanding>('GET', '/public/landing', undefined, { auth: false }),
 
+  // ── Downloads públicos (para a secção "Baixar Aplicativo") ──
+  publicDownloads: () =>
+    request<Record<'windows' | 'android' | 'ios', PublicRelease | null>>(
+      'GET', '/downloads/public', undefined, { auth: false }),
+
   // ── Suporte (chat com o assistente do sistema) + comentários públicos ──
   support: {
     start: (name?: string) =>
@@ -438,6 +446,16 @@ export const api = {
     get: () => request<MailConfigView>('GET', '/super-admin/mail'),
     save: (dto: MailConfigInput) => request<MailConfigView>('PUT', '/super-admin/mail', dto),
     test: (to: string) => request<{ ok: boolean; message: string }>('POST', '/super-admin/mail/test', { to }),
+  },
+
+  // ── Gestão de Downloads das apps — Super Admin ─────────────
+  downloadsAdmin: {
+    list: () => request<AppReleaseRow[]>('GET', '/super-admin/downloads'),
+    create: (dto: AppReleaseInput) => request<AppReleaseRow>('POST', '/super-admin/downloads', dto),
+    update: (id: string, dto: Partial<AppReleaseInput>) =>
+      request<AppReleaseRow>('PATCH', `/super-admin/downloads/${id}`, dto),
+    publish: (id: string) => request<AppReleaseRow>('POST', `/super-admin/downloads/${id}/publish`),
+    remove: (id: string) => request<{ deleted: boolean }>('DELETE', `/super-admin/downloads/${id}`),
   },
 
   // ── Landing — gestão pelo Super Admin ──────────────────────
