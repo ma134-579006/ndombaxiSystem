@@ -1,0 +1,28 @@
+{
+  "name": "@nexus/mobile-shell",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ndombaxi System — apps Android e iOS Offline-First (Capacitor sobre os frontends Gestão e Caixa).",
+  "scripts": {
+    "prepare:web": "node scripts/prepare-web.mjs",
+    "sync": "pnpm prepare:web && cap sync",
+    "add:android": "cap add android",
+    "add:ios": "cap add ios",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.2.1",
+    "@capacitor/app": "6.0.2",
+    "@capacitor/core": "6.2.1",
+    "@capacitor/ios": "6.2.1",
+    "@capacitor/preferences": "6.0.3",
+    "@capacitor-community/sqlite": "6.0.2",
+    "@nexus/offline-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.2.1",
+    "typescript": "^5.6.2"
+  }
+}

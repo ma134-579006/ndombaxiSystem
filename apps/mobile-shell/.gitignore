@@ -1,0 +1,7 @@
+# Pasta www gerada a partir de apps/web e apps/pos (não é fonte de verdade).
+www/
+
+# Projetos nativos gerados pelo Capacitor (cap add android / ios).
+# São recriáveis com `cap add`; não se versionam para não duplicar a fonte.
+android/
+ios/

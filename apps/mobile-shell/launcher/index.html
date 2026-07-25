@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#080d1a" />
+  <!-- Lançador das apps móveis: escolha o módulo. A escolha fica guardada e, na
+       próxima vez, a app abre direto nele (troca-se tocando em "Trocar módulo"
+       dentro de cada módulo, ou apagando a preferência). Igual em espírito ao
+       lançador do desktop, mas com alvos de toque grandes. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline';" />
+  <title>Ndombaxi System</title>
+  <style>
+    :root { --brand-500:#4353ff; --brand-600:#2430e8; --gray-950:#080d1a; --gray-400:#94a3b8; --gray-200:#e2e8f0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      min-height: 100vh; min-height: 100dvh;
+      display: flex; flex-direction: column; justify-content: center;
+      padding: max(24px, env(safe-area-inset-top)) 22px max(24px, env(safe-area-inset-bottom));
+      background: radial-gradient(900px 460px at 50% -10%, rgba(67,83,255,.24), transparent 70%), var(--gray-950);
+      color: var(--gray-200);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      -webkit-user-select: none; user-select: none;
+    }
+    .logo { width: 76px; height: 76px; border-radius: 20px; display: block; margin: 0 auto 18px;
+            box-shadow: 0 16px 44px rgba(36,48,232,.35); }
+    h1 { text-align: center; font-size: 24px; font-weight: 700; color: #fff; }
+    .sub { text-align: center; margin-top: 8px; margin-bottom: 30px; font-size: 15px; color: var(--gray-400); line-height: 1.5; }
+    .card {
+      width: 100%; display: flex; align-items: center; gap: 16px;
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.10);
+      border-radius: 18px; padding: 20px; margin-bottom: 14px;
+      color: inherit; font: inherit; text-align: left; cursor: pointer;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .card:active { transform: scale(.98); background: rgba(67,83,255,.12); border-color: rgba(67,83,255,.5); }
+    .icon { flex: 0 0 auto; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center;
+            background: rgba(67,83,255,.18); }
+    .icon svg { width: 26px; height: 26px; stroke: var(--brand-500); fill: none; stroke-width: 1.8;
+                stroke-linecap: round; stroke-linejoin: round; }
+    .t h2 { font-size: 17px; font-weight: 650; color: #fff; }
+    .t p { margin-top: 3px; font-size: 13px; color: var(--gray-400); line-height: 1.45; }
+    .foot { text-align: center; margin-top: 20px; font-size: 12px; color: #5b6883; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <img class="logo" src="./logo.png" alt="Ndombaxi System" />
+  <h1>Bem-vindo</h1>
+  <p class="sub">Por onde quer começar?</p>
+
+  <button class="card" data-go="./gestao/">
+    <span class="icon"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 9h8V3h-8z"/></svg></span>
+    <span class="t"><h2>Painel de Gestão</h2><p>Produtos, stock, clientes e relatórios.</p></span>
+  </button>
+
+  <button class="card" data-go="./caixa/">
+    <span class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 11h20M6 15h4"/></svg></span>
+    <span class="t"><h2>Caixa (POS)</h2><p>Vender com emissão fiscal, mesmo sem internet.</p></span>
+  </button>
+
+  <p class="foot">Os seus dados ficam neste aparelho e sincronizam sozinhos quando houver internet.</p>
+
+  <script>
+    var KEY = 'ndombaxi.module';
+    // Se já escolheu antes, abre direto — sem obrigar a escolher todos os dias.
+    var saved = localStorage.getItem(KEY);
+    if (saved === './gestao/' || saved === './caixa/') location.replace(saved);
+    for (var b of document.querySelectorAll('.card')) {
+      b.addEventListener('click', function () {
+        var go = this.getAttribute('data-go');
+        localStorage.setItem(KEY, go);
+        location.href = go;
+      });
+    }
+  </script>
+</body>
+</html>
