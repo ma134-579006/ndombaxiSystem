@@ -18,3 +18,6 @@ resources/modules/launcher/logo.png
 
 # Ícone gerado a partir do logótipo oficial
 build/icon.png
+
+# Instalador gerado — NUNCA versionar (binário grande; sai do electron-builder).
+setup/
