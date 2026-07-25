@@ -10,7 +10,7 @@
  *
  * Uso: electron scripts/smoke.js
  */
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const assert = require('node:assert');
@@ -190,6 +190,40 @@ app.whenReady().then(async () => {
     assert.equal(r.cards, 2, 'o launcher deve ter 2 cartões');
     assert.equal(r.modules, 'caixa,gestao', 'os cartões devem ser Gestão e Caixa');
     return 'launcher.js correu sob a CSP; ponte OK; cartões: ' + r.modules;
+  });
+
+  // 4c — CADEIA COMPLETA: clicar no cartão ABRE mesmo o módulo.
+  // Liga o handler IPC real (como o main faz) e confirma que, após o clique, a
+  // janela NAVEGA para o módulo e o renderiza. É o cenário exato do cliente.
+  await checkAsync('Clicar no lançador abre e renderiza o módulo (cadeia completa)', async () => {
+    let navegouPara = null;
+    ipcMain.removeHandler('ndombaxi:settings-module');
+    ipcMain.handle('ndombaxi:settings-module', async (_e, id) => {
+      if (id === 'gestao' || id === 'caixa') {
+        navegouPara = id;
+        await win.loadURL(`${SCHEME}://${id}/index.html`);
+      }
+    });
+
+    await win.loadURL(`${SCHEME}://launcher/index.html`);
+    await new Promise((r) => setTimeout(r, 200));
+    // Clica no cartão da Caixa e espera pela navegação real.
+    await win.webContents.executeJavaScript(`
+      [...document.querySelectorAll('.card[data-module]')]
+        .find(c => c.getAttribute('data-module') === 'caixa').click()
+    `);
+    // Espera o carregamento do módulo (a caixa é um SPA React).
+    for (let i = 0; i < 50 && !win.webContents.getURL().includes('/caixa/'); i++) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const url = win.webContents.getURL();
+    const title = await win.webContents.executeJavaScript('document.title').catch(() => '');
+    ipcMain.removeHandler('ndombaxi:settings-module');
+
+    assert.equal(navegouPara, 'caixa', 'o clique não disparou a abertura do módulo pela ponte/IPC');
+    assert.ok(url.includes(`${SCHEME}://caixa/`), `a janela não navegou para a Caixa (está em ${url})`);
+    assert.ok(title && title.length > 0, 'o módulo da Caixa não renderizou (sem título)');
+    return `clique → Caixa aberta e renderizada ("${title}")`;
   });
 
   check('O frontend carregou sem erros de código', () => {
