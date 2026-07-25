@@ -460,6 +460,47 @@ model AgtFiscalConfig {
 }
 
 // ─────────────────────────────────────────────────────────────
+// DOWNLOADS DAS APLICAÇÕES (Windows/Android/iOS) — geridos pelo Super Admin
+// ─────────────────────────────────────────────────────────────
+/// Uma versão publicada de uma aplicação instalável. O Super Admin faz o upload
+/// do instalador para onde quiser (Drive, Mega, R2, GitHub Release…) e cola aqui
+/// o link — NADA de links fixos no código. As apps consultam `/downloads/latest`
+/// e a página oficial de downloads lê estas linhas.
+///
+/// Regra de ouro do fluxo de atualização: `fileUrl` (o link direto do
+/// armazenamento) NUNCA é mostrado ao cliente final. A app envia sempre o
+/// utilizador à `downloadPageUrl` — a página oficial do site — onde estão o
+/// hash e a versão para ele confirmar a integridade do ficheiro.
+model AppRelease {
+  id            String   @id @default(uuid()) @db.Uuid
+  platform      String // windows | android | ios
+  version       String // versão semântica (ex.: 1.0.0)
+  /// Abaixo desta versão, a app fica BLOQUEADA até atualizar (mudança fiscal, etc.).
+  minSupported  String?
+  /// Link direto do instalador no armazenamento escolhido. Uso interno/servidor —
+  /// nunca exposto diretamente ao cliente final (ver regra acima).
+  fileUrl       String
+  /// Página OFICIAL de downloads do site para onde a app encaminha o utilizador.
+  downloadPageUrl String?
+  fileSize      Int? // bytes (informativo na página)
+  sha256        String? // impressão digital para o utilizador confirmar
+  notes         Json     @default("[]") // novidades [string]
+  fixes         Json     @default("[]") // correções [string]
+  requirements  String? // requisitos mínimos (ex.: "Windows 10 ou superior, 64-bit")
+  /// Atualização OBRIGATÓRIA: a app bloqueia e leva à página de downloads.
+  mandatory     Boolean  @default(false)
+  /// Só uma versão PUBLICADA por plataforma é servida como "a mais recente".
+  published     Boolean  @default(false)
+  releasedAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([platform, published])
+  @@map("app_release")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
 // AUDITORIA IMUTÁVEL — append-only + hash encadeado (§9.3)
 // ─────────────────────────────────────────────────────────────
 model AuditLog {

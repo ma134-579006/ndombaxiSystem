@@ -566,3 +566,35 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ADD COLUMN IF NOT EXISTS tra
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."service_orders" ALTER COLUMN track_token SET DEFAULT substr(replace(gen_random_uuid()::text, '-', ''), 1, 16);
 UPDATE "{{SCHEMA}}"."service_orders" SET track_token = substr(replace(gen_random_uuid()::text, '-', ''), 1, 16) WHERE track_token IS NULL;
 CREATE INDEX IF NOT EXISTS service_orders_track_idx ON "{{SCHEMA}}"."service_orders"(track_token);
+
+-- 2026-07-22 · OFFLINE-FIRST — livro de operações sincronizadas (idempotencia).
+-- Cada mutação feita nas apps (Windows/Android/iOS) traz um op_id UUID gerado no
+-- posto. Este livro e a razao pela qual reenviar NUNCA duplica: se o op_id ja ca
+-- estiver, devolvemos o resultado guardado em vez de aplicar outra vez. Sem ele,
+-- uma venda cujo ACK se perdeu na rede entraria duas vezes na contabilidade.
+-- ADITIVO: nenhuma tabela existente e alterada.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."sync_operations" (
+  op_id       UUID PRIMARY KEY,               -- chave de idempotencia (vem do cliente)
+  entity      TEXT NOT NULL,                  -- sale | customer | ...
+  op          TEXT NOT NULL,                  -- create | update | delete
+  local_id    TEXT NOT NULL,                  -- id que o posto atribuiu
+  server_id   TEXT,                           -- id real apos aplicar
+  status      TEXT NOT NULL,                  -- applied | rejected
+  result      JSONB,                          -- resposta guardada (devolvida no reenvio)
+  device_id   TEXT,                           -- posto de origem (diagnostico)
+  user_id     UUID,                           -- quem executou
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),  -- quando o servidor aplicou
+  client_at   TIMESTAMPTZ                     -- quando o utilizador REALMENTE agiu
+);
+CREATE INDEX IF NOT EXISTS sync_ops_local_idx  ON "{{SCHEMA}}"."sync_operations"(entity, local_id);
+CREATE INDEX IF NOT EXISTS sync_ops_recent_idx ON "{{SCHEMA}}"."sync_operations"(created_at DESC);
+
+-- 2026-07-22 · OFFLINE-FIRST — idempotencia da venda garantida pela BASE DE DADOS.
+-- client_op_id e o UUID que o posto gerou para a operacao. O indice UNICO faz com
+-- que uma segunda tentativa de gravar a MESMA venda seja recusada pelo Postgres,
+-- e nao por uma verificacao aplicacional que pode perder a corrida entre dois
+-- pedidos simultaneos. E esta a diferenca entre "quase nunca duplica" e
+-- "e impossivel duplicar". NULL para tudo o que foi emitido online (sem op).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS client_op_id UUID;
+CREATE UNIQUE INDEX IF NOT EXISTS invoices_client_op_uidx
+  ON "{{SCHEMA}}"."invoices"(client_op_id) WHERE client_op_id IS NOT NULL;

@@ -47,6 +47,8 @@ import { CommissionsModule } from './commissions/commissions.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { ReconciliationModule } from './reconciliation/reconciliation.module';
 import { LeaveModule } from './leave/leave.module';
+import { SyncModule } from './sync/sync.module';
+import { DownloadsModule } from './downloads/downloads.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
@@ -107,6 +109,8 @@ import { HealthController } from './health.controller';
     IntegrationsModule,
     ReconciliationModule,
     LeaveModule,
+    SyncModule,
+    DownloadsModule,
     ChatModule,
     RestaurantModule,
     ServiceOrdersModule,

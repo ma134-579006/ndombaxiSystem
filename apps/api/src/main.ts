@@ -32,11 +32,18 @@ async function bootstrap(): Promise<void> {
   // (www., loja., caixa., …) — assim não é preciso reconfigurar a cada subdomínio.
   const allowHosts = ['ndombaxisystem.com'];
   const allowHostSuffixes = ['.pages.dev', '.vercel.app', '.netlify.app', '.ndombaxisystem.com'];
+  // Aplicações instaladas (Windows/Android/iOS): a interface é servida do DISCO
+  // do posto pelo protocolo `ndombaxi://`, pelo que a Origin não é um domínio.
+  // Só estes dois nomes são aceites — correspondem aos módulos empacotados no
+  // instalador (Gestão e Caixa). Ao contrário de um domínio, esta origem NÃO é
+  // alcançável a partir de uma página web: nenhum site a consegue forjar.
+  const allowAppOrigins = ['ndombaxi://gestao', 'ndombaxi://caixa'];
   app.enableCors({
     credentials: true,
     origin(origin, callback) {
       if (!origin) return callback(null, true);
       if (allowList.includes(origin)) return callback(null, true);
+      if (allowAppOrigins.includes(origin)) return callback(null, true);
       try {
         const host = new URL(origin).hostname;
         if (allowHosts.includes(host) || allowHostSuffixes.some((suf) => host.endsWith(suf))) {

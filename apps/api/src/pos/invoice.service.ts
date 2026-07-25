@@ -45,6 +45,15 @@ export interface EmitInvoiceInput {
    */
   allowAnyOpenSession?: boolean;
   /**
+   * OFFLINE-FIRST: UUID da operação gerado no posto que originou esta venda.
+   * Fica gravado com índice ÚNICO — se a mesma venda for reenviada (o ACK
+   * perdeu-se na rede, a app fechou a meio do envio), o Postgres recusa a
+   * segunda gravação e o módulo /sync devolve a fatura original em vez de
+   * emitir um documento novo. NULL em tudo o que é emitido online, onde o
+   * comportamento se mantém exatamente como antes.
+   */
+  clientOpId?: string | null;
+  /**
    * Linhas do documento. Dois tipos:
    *  • PRODUTO — `{ productCode, quantity }`: preço/IVA do produto, baixa stock.
    *  • LIVRE — `{ description, unitPrice (LÍQUIDO), ivaCode, quantity }`: para
@@ -400,12 +409,13 @@ export class InvoiceService {
             (number, doc_type, series, year, sequence, invoice_date, operation_date, system_entry_date, store_id,
              cashier_id, customer_id, customer_tax_id,
              net_total, iva_total, gross_total, signable_string, previous_hash, hash,
-            signature, signature_key_version, doc_state)
+            signature, signature_key_version, doc_state, client_op_id)
           VALUES (${number}, ${input.docType}, ${input.series}, ${year}, ${sequence},
                   ${invoiceDate}::date, ${input.operationDate ?? null}::date, ${systemEntryDate}::timestamptz, ${warehouseId ?? null}::uuid,
                   ${input.cashierId ?? null}::uuid, ${input.customerId ?? null}::uuid, ${customerTaxId},
                   ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal},
-                  ${signable}, ${previousHash}, ${hash}, ${signature}, ${signatureKeyVersion}, ${docState})
+                  ${signable}, ${previousHash}, ${hash}, ${signature}, ${signatureKeyVersion}, ${docState},
+                  ${input.clientOpId ?? null}::uuid)
           RETURNING id`,
       );
       const invoiceId = invRows[0].id;
