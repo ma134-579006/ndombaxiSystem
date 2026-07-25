@@ -11,6 +11,7 @@
  * (mais robusto, cifrado pelo SO e com backup por ficheiro).
  */
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import {
   SqliteAdapter, SyncEngine, NetMonitor, httpTransport,
   OfflineSessionStore,
@@ -56,6 +57,20 @@ export async function bootOfflineEngine(opts: {
     ...(opts.onAuthExpired ? { onAuthExpired: opts.onAuthExpired } : {}),
   });
   await engine.start();
+
+  // ── LIFECYCLE NATIVO ────────────────────────────────────────────────────
+  // A razão de a app "voltar congelada" depois de minimizada: no Android/iOS a
+  // WebView suspende os temporizadores JS em segundo plano e os eventos `online`
+  // / `visibilitychange` — os ÚNICOS gatilhos do NetMonitor — muitas vezes não
+  // disparam ao regressar. Ligamos o ciclo de vida do Capacitor (não usado até
+  // agora, apesar de `@capacitor/app` estar instalado) e, a cada regresso ao
+  // primeiro plano, acordamos o motor à força. A sincronização retoma sozinha,
+  // sem o utilizador tocar em nada. `wake()` é idempotente — disparar a dobrar
+  // (appStateChange + resume) não faz mal.
+  void App.addListener('appStateChange', ({ isActive }) => {
+    if (isActive) void engine.wake();
+  });
+  void App.addListener('resume', () => { void engine.wake(); });
 
   const session = new OfflineSessionStore(storage, mobileDeviceSecret);
   return { engine, session };

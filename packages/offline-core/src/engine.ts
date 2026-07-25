@@ -216,6 +216,26 @@ export class SyncEngine {
   /** Força um ciclo agora (usado no arranque e nos testes). */
   sync(): Promise<void> { return this.cycle(); }
 
+  /**
+   * Acorda o motor depois de um período dormente — a app voltou do segundo
+   * plano ou o sistema saiu de suspensão. É o remédio para o bug clássico do
+   * "minimizar e voltar congelado": no Android/iOS a WebView nativa congela os
+   * temporizadores JS em segundo plano e, ao regressar, os eventos `online` e
+   * `visibilitychange` de que o NetMonitor depende (net.ts) muitas vezes NÃO
+   * chegam. Sem isto, o ciclo de fundo nunca reacorda e as vendas offline ficam
+   * presas na fila com a app aparentemente viva mas parada.
+   *
+   * Reavalia a ligação REAL (sonda ao `/health`, não `navigator.onLine`) e força
+   * já um ciclo, sem esperar pela janela de fundo. Idempotente e não bloqueante:
+   * `probe()` e `cycle()` nunca correm em paralelo, por isso é seguro chamar as
+   * vezes que forem — o shell nativo pode disparar em cada regresso ao 1.º plano.
+   */
+  async wake(): Promise<void> {
+    if (!this.running) return;
+    await this.o.net.probe();
+    this.schedule(0);
+  }
+
   /** Um ciclo completo: subir primeiro, descer depois. Nunca dois em paralelo. */
   private cycle(): Promise<void> {
     if (this.cycleInFlight) return this.cycleInFlight;

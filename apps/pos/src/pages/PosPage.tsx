@@ -249,17 +249,32 @@ export function PosPage() {
 
   // Atualização em TEMPO REAL do stock/catálogo: refaz a lista do servidor
   // (após cada venda/cancelamento e periodicamente), sem o utilizador recarregar.
+  // Assinaturas do último catálogo/disponibilidade recebidos. Este polling corre
+  // de 12 em 12 s (e a cada foco/visibilidade): sem esta guarda, cada volta fazia
+  // `setProducts` com um array NOVO e re-renderizava a grelha inteira mesmo quando
+  // nada mudou — o "engasgo" durante o uso. Só atualizamos o estado quando os
+  // dados mudaram de facto (UI idêntica, zero render desperdiçado).
+  const productsSig = useRef('');
+  const availSig = useRef('');
   const refreshProducts = useCallback(async () => {
     try {
       const list = await api.listProducts();
-      setProducts(list);
-      void kvSet(CACHE_PRODUCTS, list);
+      const sig = JSON.stringify(list);
+      if (sig !== productsSig.current) {
+        productsSig.current = sig;
+        setProducts(list);
+        void kvSet(CACHE_PRODUCTS, list);
+      }
     } catch { /* offline: mantém a cache */ }
     // Disponibilidade dos produtos de PRODUÇÃO (🟢/🟡/🔴). Vertical não-restaurante
     // ou offline: fica vazio → produtos comportam-se como hoje.
     try {
       const av = await api.productionAvailability();
-      setAvailMap(Object.fromEntries(av.map((r) => [r.id, r.status])));
+      const sig = JSON.stringify(av);
+      if (sig !== availSig.current) {
+        availSig.current = sig;
+        setAvailMap(Object.fromEntries(av.map((r) => [r.id, r.status])));
+      }
     } catch { /* sem restauração: ignora */ }
   }, []);
 
@@ -284,14 +299,23 @@ export function PosPage() {
   useEffect(() => {
     if (!sync.online) return;
     void pollKitchenReady();
-    const t = window.setInterval(() => { void pollKitchenReady(); }, 12000);
-    return () => window.clearInterval(t);
+    // Não sondar em segundo plano: com o separador/janela oculto o operador não
+    // está a ver o badge, e o timer continuava a bater na API à toa (pior em
+    // rede lenta). Ao voltar à frente, sondamos já.
+    const t = window.setInterval(() => { if (!document.hidden) void pollKitchenReady(); }, 12000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void pollKitchenReady(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [sync.online, pollKitchenReady]);
 
   useEffect(() => {
     if (!sync.online) return;
-    const t = window.setInterval(() => { void refreshProducts(); }, 12000);
-    // Atualiza também ao voltar ao separador / ganhar foco (catálogo sempre fresco).
+    // Idem: o intervalo periódico não corre em segundo plano; o refresh ao voltar
+    // ao separador/ganhar foco (abaixo) mantém o catálogo fresco quando é visível.
+    const t = window.setInterval(() => { if (!document.hidden) void refreshProducts(); }, 12000);
     const onVisible = () => { if (document.visibilityState === 'visible') void refreshProducts(); };
     const onFocus = () => { void refreshProducts(); };
     document.addEventListener('visibilitychange', onVisible);
