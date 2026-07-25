@@ -442,10 +442,17 @@ function Gate() {
   // O domínio principal (ndombaxisystem.com) abre SEMPRE a landing — o login
   // direto vive em admin.ndombaxisystem.com (e nos previews .pages.dev /
   // localhost, onde quem já entrou antes vai direto ao ecrã de login).
-  const isAdminHost = /^admin\./i.test(window.location.hostname)
+  // App INSTALADA (Windows/Android/iOS): é servida pelo protocolo `ndombaxi://`
+  // e traz a ponte `window.ndombaxi`. Aí o utilizador JÁ é cliente — a landing
+  // de marketing não faz sentido: entra-se sempre direto no LOGIN do gestor.
+  const isNativeApp = window.location.protocol === 'ndombaxi:'
+    || typeof (window as unknown as { ndombaxi?: unknown }).ndombaxi !== 'undefined';
+  const isAdminHost = isNativeApp
+    || /^admin\./i.test(window.location.hostname)
     || window.location.hostname.endsWith('.pages.dev')
     || window.location.hostname === 'localhost';
   const [view, setView] = useState<'landing' | 'login' | 'register'>(() => {
+    if (isNativeApp) return 'login';           // app instalada → login direto
     if (!isAdminHost) return 'landing';
     try { return localStorage.getItem('ndombaxi.web.hadSession') ? 'login' : 'landing'; } catch { return 'landing'; }
   });
@@ -464,7 +471,8 @@ function Gate() {
     );
   }
   if (status !== 'authed') {
-    if (view === 'login') return <Login onBack={() => setView('landing')} onRegister={() => setView('register')} />;
+    // Na app instalada não há landing: "voltar" fica no próprio login.
+    if (view === 'login') return <Login onBack={() => setView(isNativeApp ? 'login' : 'landing')} onRegister={() => setView('register')} />;
     if (view === 'register') return <Register onBack={() => setView('login')} />;
     return <Landing onGoLogin={() => setView('login')} onGoRegister={() => setView('register')} />;
   }

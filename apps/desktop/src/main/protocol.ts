@@ -52,17 +52,24 @@ export function registerScheme(): void {
  */
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  // 'self' para os bundles dos frontends e do lançador. O Google Sign-In
+  // (accounts.google.com/gsi + apis.google.com) é carregado no ecrã de login
+  // "Entrar com Google" — sem isto a CSP bloqueava-o e o login com Google não
+  // funcionava na app instalada. gstatic serve recursos auxiliares do GSI.
+  "script-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com",
   // Os frontends usam estilos em linha (styled/inline) — herdado da web.
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
   "media-src 'self' data: blob: https:",
   "connect-src 'self' https: wss:",
+  // O Google Sign-In desenha o seu seletor de conta num iframe próprio.
+  "frame-src https://accounts.google.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",
-  "form-action 'none'",
+  // 'self' (não 'none'): o GSI pode submeter para o próprio domínio Google.
+  "form-action 'self' https://accounts.google.com",
 ].join('; ');
 
 /**

@@ -133,6 +133,29 @@ app.whenReady().then(async () => {
     return `título: "${title}"`;
   });
 
+  await checkAsync('A Gestão arranca no LOGIN, não na landing de marketing', async () => {
+    await win.loadURL(`${SCHEME}://gestao/index.html`);
+    // Espera o React montar a primeira vista.
+    let r = { landing: false, login: false };
+    for (let i = 0; i < 60; i++) {
+      r = await win.webContents.executeJavaScript(`
+        ({
+          // A landing tem a barra .lp-nav e o botão "Baixar Aplicativo"; o login não.
+          landing: !!document.querySelector('.lp-nav, .lp-hero, .dl-nav-btn'),
+          // O ecrã de login tem campos de credenciais.
+          login: !!document.querySelector('input[type=password], .login, form'),
+          native: window.location.protocol === 'ndombaxi:' && typeof window.ndombaxi === 'object',
+        })
+      `);
+      if (r.landing || r.login) break;
+      await new Promise((res) => setTimeout(res, 100));
+    }
+    assert.ok(r.native, 'a app não se reconheceu como nativa (protocolo/ponte)');
+    assert.ok(!r.landing, 'a Gestão abriu na LANDING de marketing — devia ir direto ao login');
+    assert.ok(r.login, 'o ecrã de login da Gestão não apareceu');
+    return 'Gestão → login direto (sem landing)';
+  });
+
   await checkAsync('O contexto é SEGURO (crypto.subtle disponível)', async () => {
     const report = await win.webContents.executeJavaScript(`
       (async () => {
