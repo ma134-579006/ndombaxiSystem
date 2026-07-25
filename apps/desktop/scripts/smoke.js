@@ -166,6 +166,32 @@ app.whenReady().then(async () => {
     return 'ponte presente; require/process NÃO acessíveis ao frontend';
   });
 
+  // 4b — O LANÇADOR: carregar → clicar num cartão → abrir o módulo.
+  // Este é o fluxo que o cliente vê primeiro e que ANTES falhava: a CSP
+  // `script-src 'self'` do protocolo bloqueava o <script> inline do launcher,
+  // por isso os cliques em "Gestão"/"Caixa" não faziam nada. Agora o script é
+  // externo (launcher.js). Provamos que corre sob a CSP e que liga os cliques.
+  await checkAsync('O lançador liga os cliques sob a CSP (regressão dos módulos que não abriam)', async () => {
+    await win.loadURL(`${SCHEME}://launcher/index.html`);
+    // Damos um instante para o DOMContentLoaded + wire() do launcher.js correrem.
+    await new Promise((r) => setTimeout(r, 200));
+    const r = await win.webContents.executeJavaScript(`
+      ({
+        // data-launcher='ready' SÓ existe se launcher.js correu — ou seja, se a
+        // CSP 'self' o permitiu. Era isto que falhava com o script inline.
+        scriptRan: document.documentElement.getAttribute('data-launcher') === 'ready',
+        bridge: typeof window.ndombaxi?.settings?.setModule === 'function',
+        cards: document.querySelectorAll('.card[data-module]').length,
+        modules: [...document.querySelectorAll('.card[data-module]')].map(c => c.getAttribute('data-module')).sort().join(','),
+      })
+    `);
+    assert.ok(r.scriptRan, 'launcher.js NÃO correu — CSP a bloquear o script do launcher (os módulos não abririam)');
+    assert.ok(r.bridge, 'a ponte window.ndombaxi.settings.setModule não chegou ao launcher');
+    assert.equal(r.cards, 2, 'o launcher deve ter 2 cartões');
+    assert.equal(r.modules, 'caixa,gestao', 'os cartões devem ser Gestão e Caixa');
+    return 'launcher.js correu sob a CSP; ponte OK; cartões: ' + r.modules;
+  });
+
   check('O frontend carregou sem erros de código', () => {
     // Separamos três famílias, porque só uma delas é um defeito nosso:
     //  • rede — esperado: este teste corre sem sessão e as fontes do Google não

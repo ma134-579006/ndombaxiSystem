@@ -12,8 +12,10 @@
     A CSP é restritiva de propósito: este ecrã não carrega nada de fora, por
     isso não há razão para permitir que o consiga fazer.
   -->
+  <!-- `script-src 'self'` (não inline): tem de bater certo com a CSP que o
+       protocolo injeta, senão a interseção das duas bloqueava o launcher.js. -->
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline';" />
+        content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'self';" />
   <title>Ndombaxi System</title>
   <style>
     /* Tokens do @nexus/tokens — a mesma identidade do site, sem depender dele. */
@@ -153,14 +155,8 @@
     <p class="foot">Os seus dados ficam guardados neste computador e sincronizam sozinhos quando houver internet.</p>
   </main>
 
-  <script>
-    for (const card of document.querySelectorAll('.card')) {
-      card.addEventListener('click', () => {
-        // `window.ndombaxi` vem do preload. Se faltar, é sinal de que a ponte
-        // não carregou — melhor não fazer nada do que deixar o ecrã meio vivo.
-        window.ndombaxi?.settings?.setModule(card.dataset.module);
-      });
-    }
-  </script>
+  <!-- Script EXTERNO (não inline): a CSP `script-src 'self'` do protocolo
+       ndombaxi:// bloqueia inline. Ver launcher.js. -->
+  <script src="./launcher.js"></script>
 </body>
 </html>

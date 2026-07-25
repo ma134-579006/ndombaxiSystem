@@ -9,7 +9,7 @@
        dentro de cada módulo, ou apagando a preferência). Igual em espírito ao
        lançador do desktop, mas com alvos de toque grandes. -->
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline';" />
+        content="default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'self';" />
   <title>Ndombaxi System</title>
   <style>
     :root { --brand-500:#4353ff; --brand-600:#2430e8; --gray-950:#080d1a; --gray-400:#94a3b8; --gray-200:#e2e8f0; }
@@ -61,18 +61,7 @@
 
   <p class="foot">Os seus dados ficam neste aparelho e sincronizam sozinhos quando houver internet.</p>
 
-  <script>
-    var KEY = 'ndombaxi.module';
-    // Se já escolheu antes, abre direto — sem obrigar a escolher todos os dias.
-    var saved = localStorage.getItem(KEY);
-    if (saved === './gestao/' || saved === './caixa/') location.replace(saved);
-    for (var b of document.querySelectorAll('.card')) {
-      b.addEventListener('click', function () {
-        var go = this.getAttribute('data-go');
-        localStorage.setItem(KEY, go);
-        location.href = go;
-      });
-    }
-  </script>
+  <!-- Script externo (não inline), como no desktop — ver launcher.js. -->
+  <script src="./launcher.js"></script>
 </body>
 </html>
