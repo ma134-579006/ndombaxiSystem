@@ -11,6 +11,7 @@ import { api, ApiError, configureApi } from '../api/client';
 import type { PlatformLoginInput, TenantLoginInput, TokenPair } from '../api/types';
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
 import { setTheme, DEFAULT_THEME } from '../theme';
+import { startOfflineEngine, stopOfflineEngine } from '../offline/boot';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 /** Que painel mostrar: plataforma (Super Admin) ou gestor da empresa. */
@@ -128,6 +129,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refresh: () => doRefresh(),
     });
   }, [clearSession, doRefresh]);
+
+  // OFFLINE-FIRST (Fatia 1): o motor de sincronização vive enquanto houver sessão
+  // de gestor de uma empresa. Aditivo — mantém o cache local das entidades de
+  // referência e expõe o estado; não altera nenhum fluxo existente. Só no modo
+  // tenant (com código de empresa); o super admin não tem schema de tenant.
+  useEffect(() => {
+    if (status !== 'authed' || !companyRef.current) return;
+    void startOfflineEngine({
+      getAccessToken: () => accessRef.current,
+      getCompanyCode: () => companyRef.current,
+    });
+    return () => { void stopOfflineEngine(); };
+  }, [status]);
 
   // Renovação PROATIVA do token: renova ~1 min antes de expirar para a sessão do
   // gestor nunca cair sozinha (incl. quando o gestor abre/usa a caixa). Só a

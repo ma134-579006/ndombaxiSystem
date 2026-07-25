@@ -8,6 +8,7 @@ import { PrintBrandHead, PrintBrandFoot } from './PrintBrand';
 import { ChatModal } from './ChatModal';
 import { CustomerChatModal } from './CustomerChatModal';
 import { IdleLock } from './IdleLock';
+import { SyncStatusPill } from '../offline/SyncStatusPill';
 import { Modal } from './ui';
 import type { SalaryAdvanceReq } from '../api/types';
 import { CAIXA_URL } from '../config';
@@ -463,6 +464,7 @@ export function Shell({
           {/* Sem título duplicado na barra: cada página já mostra o seu nome
               no cabeçalho do conteúdo (padrão enterprise — a barra é só ações). */}
           <span className="spacer" />
+          <SyncStatusPill />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
           {isTenant ? <OrdersBell onGo={(s) => setSection(s)} /> : null}
           {/* Chats visíveis na barra (antes escondidos no menu do perfil):
