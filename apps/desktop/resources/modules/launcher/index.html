@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <!--
+    Escolha do módulo na primeira execução.
+
+    Aparece UMA vez. A partir daí a aplicação abre direta no módulo escolhido —
+    quem trabalha na caixa não quer ver um menu todas as manhãs. Trocar é
+    sempre possível pelo menu Ndombaxi (Ctrl+1/2/3).
+
+    A CSP é restritiva de propósito: este ecrã não carrega nada de fora, por
+    isso não há razão para permitir que o consiga fazer.
+  -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline';" />
+  <title>Ndombaxi System</title>
+  <style>
+    /* Tokens do @nexus/tokens — a mesma identidade do site, sem depender dele. */
+    :root {
+      --brand-500: #4353ff;
+      --brand-600: #2430e8;
+      --shop-600:  #ff4d2d;
+      --gray-950:  #080d1a;
+      --gray-900:  #0f172a;
+      --gray-400:  #94a3b8;
+      --gray-200:  #e2e8f0;
+      --radius-lg: 16px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(1000px 500px at 50% -10%, rgba(67, 83, 255, .22), transparent 70%),
+        var(--gray-950);
+      color: var(--gray-200);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+      overflow: hidden;
+    }
+    .wrap { width: min(820px, 92vw); text-align: center; }
+
+    .logo {
+      width: 84px; height: 84px;
+      margin: 0 auto 20px;
+      border-radius: 22px;
+      display: block;
+      box-shadow: 0 18px 50px rgba(36, 48, 232, .35);
+      animation: rise .6s cubic-bezier(.2, .8, .2, 1) both;
+    }
+    h1 {
+      font-size: 30px; font-weight: 700; letter-spacing: -.02em; color: #fff;
+      animation: rise .6s cubic-bezier(.2,.8,.2,1) .06s both;
+    }
+    .sub {
+      margin-top: 8px; font-size: 15px; color: var(--gray-400);
+      animation: rise .6s cubic-bezier(.2,.8,.2,1) .12s both;
+    }
+
+    .grid {
+      margin-top: 38px;
+      display: grid;
+      /* Dois módulos: Gestão e Caixa. A Loja Online é a montra do cliente
+         final e vive no navegador — não é uma ferramenta de trabalho. */
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+      max-width: 620px;
+      margin-inline: auto;
+    }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: rgba(255, 255, 255, .04);
+      border: 1px solid rgba(255, 255, 255, .09);
+      border-radius: var(--radius-lg);
+      padding: 26px 20px;
+      cursor: pointer;
+      text-align: left;
+      color: inherit;
+      font: inherit;
+      /* Transição curta e discreta — o padrão Apple/Stripe, sem saltos. */
+      transition: transform .18s cubic-bezier(.2,.8,.2,1),
+                  border-color .18s ease, background .18s ease;
+      animation: rise .6s cubic-bezier(.2,.8,.2,1) both;
+    }
+    .grid .card:nth-child(1) { animation-delay: .18s; }
+    .grid .card:nth-child(2) { animation-delay: .24s; }
+
+    .card:hover, .card:focus-visible {
+      transform: translateY(-3px);
+      border-color: rgba(67, 83, 255, .55);
+      background: rgba(67, 83, 255, .10);
+      outline: none;
+    }
+    .card:focus-visible { box-shadow: 0 0 0 3px rgba(67, 83, 255, .35); }
+
+    .icon {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: grid; place-items: center; margin-bottom: 14px;
+      background: rgba(67, 83, 255, .16);
+    }
+    .card.shop .icon { background: rgba(255, 77, 45, .16); }
+    .icon svg { width: 22px; height: 22px; stroke: var(--brand-500); fill: none;
+                stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .card.shop .icon svg { stroke: var(--shop-600); }
+
+    .card h2 { font-size: 16px; font-weight: 650; color: #fff; }
+    .card p  { margin-top: 6px; font-size: 13px; line-height: 1.5; color: var(--gray-400); }
+
+    .foot {
+      margin-top: 30px; font-size: 12px; color: #5b6883;
+      animation: rise .6s cubic-bezier(.2,.8,.2,1) .36s both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: none; }
+    }
+    /* Respeita quem pediu ao sistema para reduzir animações. */
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <img class="logo" src="/logo.png" alt="Ndombaxi System" />
+    <h1>Bem-vindo ao Ndombaxi System</h1>
+    <p class="sub">Escolha por onde quer começar. Pode trocar a qualquer momento no menu.</p>
+
+    <div class="grid">
+      <button class="card" data-module="gestao">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 9h8V3h-8z"/></svg>
+        </span>
+        <h2>Painel de Gestão</h2>
+        <p>Produtos, stock, clientes, relatórios e configuração da empresa.</p>
+      </button>
+
+      <button class="card" data-module="caixa">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 11h20M6 15h4"/></svg>
+        </span>
+        <h2>Caixa (POS)</h2>
+        <p>Terminal de venda com emissão fiscal AGT. Funciona sem internet.</p>
+      </button>
+
+    </div>
+
+    <p class="foot">Os seus dados ficam guardados neste computador e sincronizam sozinhos quando houver internet.</p>
+  </main>
+
+  <script>
+    for (const card of document.querySelectorAll('.card')) {
+      card.addEventListener('click', () => {
+        // `window.ndombaxi` vem do preload. Se faltar, é sinal de que a ponte
+        // não carregou — melhor não fazer nada do que deixar o ecrã meio vivo.
+        window.ndombaxi?.settings?.setModule(card.dataset.module);
+      });
+    }
+  </script>
+</body>
+</html>

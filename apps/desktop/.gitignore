@@ -1,0 +1,20 @@
+# Compilação do processo principal e do preload
+dist/
+
+# Saídas do electron-builder (instaladores e app desempacotada)
+release/
+release-locked-*/
+dist-installer/
+build-out/
+out-final/
+
+# Frontends compilados e copiados para dentro da app.
+# NÃO se versionam: são gerados a partir de apps/web e apps/pos por
+# `scripts/prepare-resources.mjs`. Versioná-los criaria duas fontes de verdade
+# para a mesma interface — exatamente o que esta arquitetura existe para evitar.
+resources/modules/gestao/
+resources/modules/caixa/
+resources/modules/launcher/logo.png
+
+# Ícone gerado a partir do logótipo oficial
+build/icon.png
