@@ -113,7 +113,7 @@ export function SupportAdmin() {
               <span className="sc-who" style={{ color: m.sender === 'ADMIN' ? '#fff' : undefined }}>
                 {m.sender === 'ADMIN' ? 'Eu (Super Admin)' : m.sender === 'BOT' ? 'Bot 🤖' : active.visitor_name || 'Visitante'}
               </span>
-              <MsgBody body={m.body} />
+              <MsgBody body={m.body} sender={m.sender} />
             </div>
           ))}
         </div>
