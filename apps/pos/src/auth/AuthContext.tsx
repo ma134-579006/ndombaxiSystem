@@ -11,6 +11,7 @@ import { api, ApiError, configureApi } from '../api/client';
 import type { TenantLoginInput, TokenPair } from '../api/types';
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
 import { setTheme } from '../theme';
+import { startCoreEngine, stopCoreEngine } from '../offline/coreEngine';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 
@@ -94,6 +95,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refresh: () => doRefresh(),
     });
   }, [clearSession, doRefresh]);
+
+  // Fatia 3 · Fase A: motor unificado @nexus/offline-core em paralelo (shadow read).
+  // Arranca com a sessão autenticada e para no logout. ADITIVO — não toca no fluxo
+  // de vendas (SyncController continua a mandar); só mantém a cache de referência
+  // para validar a paridade antes de migrar as vendas (Fase B).
+  useEffect(() => {
+    if (status !== 'authed' || !companyRef.current) return;
+    void startCoreEngine({
+      getAccessToken: () => accessRef.current,
+      getCompanyCode: () => companyRef.current,
+    });
+    return () => { void stopCoreEngine(); };
+  }, [status]);
 
   // Renovação PROATIVA do token de acesso: renova ~1 min ANTES de expirar para a
   // sessão nunca cair sozinha aos 15 min. A inatividade apenas BLOQUEIA o ecrã
