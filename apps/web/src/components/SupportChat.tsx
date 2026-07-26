@@ -42,7 +42,7 @@ function GuideLightbox({ src, onClose }: { src: string; onClose(): void }) {
 /** O corpo pode trazer um guia visual: texto + [[SVG]]…[[/SVG]].
  *  O conteúdo é um SCREENSHOT REAL do sistema com marcações (URL /guides/…)
  *  ou, em versões antigas, um SVG inline (vem da NOSSA API — fonte confiável). */
-export function MsgBody({ body }: { body: string }) {
+export function MsgBody({ body, sender }: { body: string; sender?: string }) {
   const [zoom, setZoom] = useState(false);
   const m = body.match(/^([\s\S]*?)\[\[SVG\]\]([\s\S]*?)\[\[\/SVG\]\]/);
   if (!m) return <>{body}</>;
@@ -60,7 +60,13 @@ export function MsgBody({ body }: { body: string }) {
           </span>
           {zoom ? <GuideLightbox src={guide} onClose={() => setZoom(false)} /> : null}
         </>
-      ) : guide.startsWith('<svg') ? (
+      ) : guide.startsWith('<svg') && sender === 'BOT' ? (
+        // SEGURANÇA: o SVG inline só é injetado para mensagens do BOT — o guia
+        // gerado pela NOSSA IA (`imageSvg` da API), a única fonte confiável. Uma
+        // mensagem de VISITANTE (não autenticado) com `[[SVG]]<svg onload=…>` é
+        // guardada crua e vista pelo Super Admin; sem esta guarda, executaria no
+        // browser dele (XSS armazenado → escalada de privilégio). Conteúdo não-BOT
+        // nunca chega ao `dangerouslySetInnerHTML`.
         <span className="sc-img" dangerouslySetInnerHTML={{ __html: guide }} />
       ) : null}
     </>
@@ -212,7 +218,7 @@ export function SupportChat() {
             {msgs.map((m) => (
               <div key={m.id} className={`sc-msg ${m.sender === 'VISITOR' ? 'me' : m.sender === 'ADMIN' ? 'adm' : 'bot'}`}>
                 {m.sender === 'ADMIN' ? <span className="sc-who">Equipa Ndombaxi</span> : null}
-                <MsgBody body={m.body} />
+                <MsgBody body={m.body} sender={m.sender} />
               </div>
             ))}
             {busy ? <div className="sc-msg bot sc-typing">a escrever…</div> : null}
