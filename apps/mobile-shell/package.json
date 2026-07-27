@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@capacitor-community/sqlite": "6.0.2",
     "@capacitor/android": "6.2.1",
     "@capacitor/app": "6.0.2",
     "@capacitor/core": "6.2.1",
@@ -21,7 +22,7 @@
     "@capacitor/ios": "6.2.1",
     "@capacitor/preferences": "6.0.3",
     "@capacitor/share": "6.0.3",
-    "@capacitor-community/sqlite": "6.0.2",
+    "@codetrix-studio/capacitor-google-auth": "3.4.0-rc.4",
     "@nexus/offline-core": "workspace:*"
   },
   "devDependencies": {

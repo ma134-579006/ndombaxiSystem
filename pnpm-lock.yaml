@@ -259,6 +259,9 @@ importers:
       '@capacitor/share':
         specifier: 6.0.3
         version: 6.0.3(@capacitor/core@6.2.1)
+      '@codetrix-studio/capacitor-google-auth':
+        specifier: 3.4.0-rc.4
+        version: 3.4.0-rc.4(@capacitor/core@6.2.1)
       '@nexus/offline-core':
         specifier: workspace:*
         version: link:../../packages/offline-core
@@ -1270,6 +1273,11 @@ packages:
 
   '@capacitor/share@6.0.3':
     resolution: {integrity: sha512-BkNM73Ix+yxQ7fkni8CrrGcp1kSl7u+YNoPLwWKQ1MuQ5Uav0d+CT8M67ie+3dc4jASmegnzlC6tkTmFcPTLeA==}
+    peerDependencies:
+      '@capacitor/core': ^6.0.0
+
+  '@codetrix-studio/capacitor-google-auth@3.4.0-rc.4':
+    resolution: {integrity: sha512-d548/xKrbMHHbzMYSWnlgZCLZYo2zzY7Onrh3x8ujojrb7atkNK68I6su5WgmaBt4E+R4gxBsWams4554aOFjA==}
     peerDependencies:
       '@capacitor/core': ^6.0.0
 
@@ -8543,6 +8551,10 @@ snapshots:
       '@capacitor/core': 6.2.1
 
   '@capacitor/share@6.0.3(@capacitor/core@6.2.1)':
+    dependencies:
+      '@capacitor/core': 6.2.1
+
+  '@codetrix-studio/capacitor-google-auth@3.4.0-rc.4(@capacitor/core@6.2.1)':
     dependencies:
       '@capacitor/core': 6.2.1
 
