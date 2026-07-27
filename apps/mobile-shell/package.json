@@ -5,6 +5,7 @@
   "description": "Ndombaxi System — apps Android e iOS Offline-First (Capacitor sobre os frontends Gestão e Caixa).",
   "scripts": {
     "prepare:web": "node scripts/prepare-web.mjs",
+    "gen:icons": "node scripts/gen-android-icons.mjs",
     "sync": "pnpm prepare:web && cap sync",
     "add:android": "cap add android",
     "add:ios": "cap add ios",
