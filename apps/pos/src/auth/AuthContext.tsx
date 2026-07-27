@@ -11,6 +11,7 @@ import { api, ApiError, configureApi } from '../api/client';
 import type { TenantLoginInput, TokenPair } from '../api/types';
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
 import { setTheme } from '../theme';
+import { rememberOffline, verifyOffline } from '../offline/session';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 
@@ -193,12 +194,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginStaff = useCallback(
     async (email: string, pin: string) => {
-      const r = await api.staffLogin(email.trim().toLowerCase(), pin);
-      companyRef.current = r.companyCode;
-      setCompanyCode(r.companyCode);
-      localStorage.setItem(LS_COMPANY, r.companyCode);
-      applyTokens(r);
-      setStatus('authed');
+      const em = email.trim().toLowerCase();
+      try {
+        const r = await api.staffLogin(em, pin);
+        companyRef.current = r.companyCode;
+        setCompanyCode(r.companyCode);
+        localStorage.setItem(LS_COMPANY, r.companyCode);
+        applyTokens(r);
+        setStatus('authed');
+        // ADITIVO: memoriza a credencial para reabrir a Caixa OFFLINE com o mesmo
+        // PIN. Best-effort — nunca deixa isto quebrar o login que acabou de dar.
+        void rememberOffline({
+          companyCode: r.companyCode, email: em, pin,
+          accessToken: r.accessToken, refreshToken: r.refreshToken,
+        });
+      } catch (e) {
+        // SÓ falha de REDE (status 0) → tenta entrar OFFLINE com o mesmo PIN. Um
+        // erro do servidor (PIN errado, 4xx) segue o caminho normal e é mostrado.
+        if (e instanceof ApiError && e.status === 0) {
+          const off = await verifyOffline(em, pin, companyRef.current);
+          if (off.ok && off.identity) {
+            companyRef.current = off.identity.companyCode;
+            setCompanyCode(off.identity.companyCode);
+            localStorage.setItem(LS_COMPANY, off.identity.companyCode);
+            applyTokens({ accessToken: off.identity.accessToken, refreshToken: off.identity.refreshToken });
+            setStatus('authed');
+            return;
+          }
+          if (off.reason === 'wrong-pin') throw new ApiError(0, 'PIN incorreto (modo offline).');
+          if (off.reason === 'expired') throw new ApiError(0, 'A sessão offline expirou. Ligue-se à internet uma vez para renovar.');
+          throw new ApiError(0, 'Sem ligação e sem sessão offline neste aparelho. Entre uma vez com internet para poder usar offline.');
+        }
+        throw e;
+      }
     },
     [applyTokens],
   );

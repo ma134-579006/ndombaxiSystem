@@ -7,6 +7,7 @@ import { PaperSizeToggle } from './PaperSizeToggle';
 import { buildInvoicePdf, invoiceFileName } from '../pdf/invoicePdf';
 import { getPaper } from '../print';
 import { pairPrinter, pairedPrinterName, printRaw, rawPrintSupported } from '../escpos';
+import { isNativeApp, saveNativePdf, shareNativePdf } from '../offline/nativeShare';
 
 /** Linha de artigo da fatura (para a tabela no recibo/PDF). */
 export interface ReceiptItem { description: string; quantity: number; unitPrice: number; total: number }
@@ -124,7 +125,19 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
 
   const downloadPdf = async () => {
     setPdfBusy(true);
-    try { (await makePdf()).save(invoiceFileName(invoice)); }
+    try {
+      const doc = await makePdf();
+      const name = invoiceFileName(invoice);
+      // Na APP: a WebView não descarrega blobs → grava o ficheiro no aparelho
+      // (pasta Documentos) pelo plugin nativo. No site: download normal do browser.
+      if (isNativeApp()) {
+        const uri = await saveNativePdf(doc.output('blob'), name);
+        if (uri) alert('Fatura guardada no aparelho (Documentos):\n' + name);
+        else doc.save(name);
+      } else {
+        doc.save(name);
+      }
+    }
     catch { alert('Não foi possível gerar o PDF.'); }
     finally { setPdfBusy(false); }
   };
@@ -136,16 +149,43 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
     try {
       const doc = await makePdf();
       const blob = doc.output('blob');
+      const fname = invoiceFileName(invoice);
+      const titleN = invoice.number;
+      const textN = `${identity?.companyName || identity?.brandName || 'Fatura'} · ${invoice.number}`;
+      // Na APP: partilha o FICHEIRO PDF pela partilha nativa (WhatsApp recebe a
+      // fatura A4, não só texto). Se conseguir, termina aqui.
+      if (isNativeApp()) {
+        const ok = await shareNativePdf(blob, fname, titleN, textN);
+        if (ok) return;
+        // não deu pelo nativo → guarda no aparelho e manda o resumo por WhatsApp
+        await saveNativePdf(blob, fname);
+        shareWhatsApp();
+        return;
+      }
       const file = new File([blob], invoiceFileName(invoice), { type: 'application/pdf' });
       const nav = navigator as Navigator & {
         share?: (d: { files?: File[]; title?: string; text?: string }) => Promise<void>;
         canShare?: (d: { files?: File[] }) => boolean;
       };
+      const title = invoice.number;
+      const text = `${identity?.companyName || identity?.brandName || 'Fatura'} · ${invoice.number}`;
       if (nav.share && nav.canShare?.({ files: [file] })) {
-        await nav.share({ files: [file], title: invoice.number, text: `${identity?.companyName || identity?.brandName || 'Fatura'} · ${invoice.number}` });
+        await nav.share({ files: [file], title, text });
+      } else if (nav.share) {
+        // Alguns WebView (Android) PARTILHAM ficheiros mas o `canShare` devolve
+        // false — por isso a fatura ia só como texto. Tentamos na mesma enviar o
+        // PDF; se o utilizador CANCELAR (AbortError) não fazemos nada; se o WebView
+        // mesmo não suportar ficheiros, aí sim caímos para o resumo + descarga.
+        try {
+          await nav.share({ files: [file], title, text });
+        } catch (err) {
+          if ((err as Error)?.name === 'AbortError') return;
+          doc.save(invoiceFileName(invoice));
+          shareWhatsApp();
+        }
       } else {
-        doc.save(invoiceFileName(invoice)); // PC: descarrega
-        shareWhatsApp(); // e abre o WhatsApp com o resumo (anexa o PDF descarregado)
+        doc.save(invoiceFileName(invoice)); // PC sem Web Share: descarrega
+        shareWhatsApp();                     // e abre o WhatsApp com o resumo
       }
     } catch { shareWhatsApp(); }
     finally { setPdfBusy(false); }

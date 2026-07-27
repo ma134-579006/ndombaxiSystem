@@ -83,6 +83,19 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
 
   const openCaixa = () => window.location.assign(`${CAIXA_URL}/`);
 
+  // App instalada (Android/desktop): a Caixa é outra app, "voltar à landing" não
+  // faz sentido e "criar conta" abre o site no NAVEGADOR do sistema. No site
+  // (navegador) mantém-se tudo como antes.
+  const nw = window as unknown as {
+    ndombaxi?: unknown; __NDOMBAXI_NATIVE__?: boolean;
+    Capacitor?: { isNativePlatform?: () => boolean };
+  };
+  const isNativeApp = window.location.protocol === 'ndombaxi:'
+    || typeof nw.ndombaxi !== 'undefined'
+    || nw.__NDOMBAXI_NATIVE__ === true
+    || !!nw.Capacitor?.isNativePlatform?.();
+  const openSignupInBrowser = () => window.open('https://ndombaxisystem.com/', '_blank');
+
   return (
     <div className="auth">
       <ScreenKeyboard />
@@ -140,15 +153,21 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
                     {loading ? 'A entrar…' : 'Entrar'}
                   </button>
 
-                  <a className="auth-caixa" onClick={openCaixa}>Entrar na Caixa (terminal de venda) →</a>
+                  {/* "Entrar na Caixa" só no site: na app a Caixa é outra app. */}
+                  {!isNativeApp ? <a className="auth-caixa" onClick={openCaixa}>Entrar na Caixa (terminal de venda) →</a> : null}
 
                   <div className="auth-or"><span>ou</span></div>
                   <div className="auth-google"><GoogleSignInButton onCredential={(t) => void onGoogle(t)} /></div>
 
-                  {onRegister ? (
+                  {/* Criar conta: no site abre o registo interno; na app abre o
+                      landing no NAVEGADOR do sistema (o registo é no site). */}
+                  {isNativeApp ? (
+                    <p className="auth-foot">Ainda não tem conta? <a onClick={openSignupInBrowser}>Criar conta</a></p>
+                  ) : onRegister ? (
                     <p className="auth-foot">Ainda não tem conta? <a onClick={onRegister}>Criar conta</a></p>
                   ) : null}
-                  {onBack ? <p className="auth-foot"><a onClick={onBack}>← Voltar à página inicial</a></p> : null}
+                  {/* "Voltar à página inicial" só no site (na app não há landing). */}
+                  {onBack && !isNativeApp ? <p className="auth-foot"><a onClick={onBack}>← Voltar à página inicial</a></p> : null}
                 </>
               )}
             </>
