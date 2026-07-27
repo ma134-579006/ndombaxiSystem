@@ -24,12 +24,18 @@ export function LoginShowcase() {
     // ENRIQUECIMENTO: o ecrã pinta já com o fundo tecnológico em CSS e os clips
     // entram depois, sem bloquear o primeiro frame nem o login.
     const q = 'sd';
+    // Caminho RELATIVO à base do build (`import.meta.env.BASE_URL`): no site é
+    // `/media/…`; na app instalada (base `./`, servida de subpasta) resolve para
+    // `./media/…` — os ficheiros estão empacotados no próprio módulo, por isso
+    // TOCAM OFFLINE. Um caminho absoluto `/media/…` apontava para a raiz errada
+    // dentro da app e o vídeo nunca carregava sem internet.
+    const base = import.meta.env.BASE_URL || '/';
     const t1 = window.setTimeout(() => {
-      a.src = `/media/login-tech-${q}.mp4`;
+      a.src = `${base}media/login-tech-${q}.mp4`;
       a.play().catch(() => undefined);
     }, 250);
     const t2 = window.setTimeout(() => {
-      b.src = `/media/login-bg-${q}.mp4`;
+      b.src = `${base}media/login-bg-${q}.mp4`;
       b.play().catch(() => undefined);
     }, 2400);
     return () => { window.clearTimeout(t1); window.clearTimeout(t2); };

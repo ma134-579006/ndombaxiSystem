@@ -448,8 +448,23 @@ function Gate() {
   // App INSTALADA (Windows/Android/iOS): é servida pelo protocolo `ndombaxi://`
   // e traz a ponte `window.ndombaxi`. Aí o utilizador JÁ é cliente — a landing
   // de marketing não faz sentido: entra-se sempre direto no LOGIN do gestor.
+  // Deteção de app INSTALADA, robusta nas 3 plataformas:
+  //  • Desktop (Electron): protocolo `ndombaxi://` e ponte `window.ndombaxi`.
+  //  • Móvel (Capacitor Android/iOS): a WebView serve de `https://localhost`, por
+  //    isso NÃO basta o protocolo — usamos (a) a bandeira `__NDOMBAXI_NATIVE__`
+  //    injetada pelo shell no <head> (ver prepare-web.mjs) e (b) o global
+  //    `window.Capacitor` que o Capacitor injeta nativamente. Sem isto, o Android
+  //    (host `localhost`, sem sessão prévia) abria a LANDING em vez do login.
+  const nativeWin = window as unknown as {
+    ndombaxi?: unknown; __NDOMBAXI_NATIVE__?: boolean;
+    Capacitor?: { isNativePlatform?: () => boolean; isNative?: boolean };
+  };
   const isNativeApp = window.location.protocol === 'ndombaxi:'
-    || typeof (window as unknown as { ndombaxi?: unknown }).ndombaxi !== 'undefined';
+    || typeof nativeWin.ndombaxi !== 'undefined'
+    || nativeWin.__NDOMBAXI_NATIVE__ === true
+    || (!!nativeWin.Capacitor && (typeof nativeWin.Capacitor.isNativePlatform === 'function'
+      ? nativeWin.Capacitor.isNativePlatform()
+      : !!nativeWin.Capacitor.isNative));
   const isAdminHost = isNativeApp
     || /^admin\./i.test(window.location.hostname)
     || window.location.hostname.endsWith('.pages.dev')

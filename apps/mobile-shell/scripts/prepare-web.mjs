@@ -72,9 +72,22 @@ for (const mod of MODULES) {
   let idx = fs.readFileSync(idxPath, 'utf-8');
   if (!idx.includes('back-launcher.js')) {
     idx = idx.replace('</body>', '  <script src="./back-launcher.js"></script>\n</body>');
-    fs.writeFileSync(idxPath, idx);
     log(`${mod.label}: seta de voltar ligada`);
   }
+
+  // Bandeira de "app nativa": marca a WebView como app instalada ANTES do bundle
+  // React arrancar, para o frontend abrir DIRETO no login (e não na landing de
+  // marketing). Externo (não inline) por causa da CSP `script-src 'self'`, e no
+  // <head> para correr antes do módulo. Só existe nas apps — o site nunca o tem.
+  fs.writeFileSync(
+    path.join(modDir, 'native-flag.js'),
+    'window.__NDOMBAXI_NATIVE__ = true;\n',
+  );
+  if (!idx.includes('native-flag.js')) {
+    idx = idx.replace('</head>', '  <script src="./native-flag.js"></script>\n</head>');
+    log(`${mod.label}: bandeira de app nativa ligada`);
+  }
+  fs.writeFileSync(idxPath, idx);
 }
 
 // Lançador + logótipo oficial.
