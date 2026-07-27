@@ -20,21 +20,24 @@ export function LoginShowcase() {
     const a = aRef.current, b = bRef.current;
     if (!a || !b) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const small = window.innerWidth < 900 || window.matchMedia('(pointer: coarse)').matches;
-    const q = small ? 'sd' : 'hd';
-    a.src = `/media/login-tech-${q}.mp4`;
-    a.play().catch(() => undefined);
-    // o clip de compra carrega DEPOIS (não atrasa o primeiro frame)
-    const t = window.setTimeout(() => {
+    // LEVE E RÁPIDO: SD em todo o lado (1.1 MB vs 3.8 MB do HD). O vídeo é
+    // ENRIQUECIMENTO: o ecrã pinta já com o fundo tecnológico em CSS e os clips
+    // entram depois, sem bloquear o primeiro frame nem o login.
+    const q = 'sd';
+    const t1 = window.setTimeout(() => {
+      a.src = `/media/login-tech-${q}.mp4`;
+      a.play().catch(() => undefined);
+    }, 250);
+    const t2 = window.setTimeout(() => {
       b.src = `/media/login-bg-${q}.mp4`;
       b.play().catch(() => undefined);
-    }, 1800);
-    return () => window.clearTimeout(t);
+    }, 2400);
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
   }, []);
 
   return (
     <div className="login-video" aria-hidden>
-      <video ref={aRef} className="lv-a" muted loop playsInline autoPlay preload="auto" />
+      <video ref={aRef} className="lv-a" muted loop playsInline preload="none" />
       <video ref={bRef} className="lv-b" muted loop playsInline preload="none" />
       {/* duotone tecnológico (azul/ciano) por cima das filmagens */}
       <div className="lv-tone" />

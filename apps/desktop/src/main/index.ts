@@ -63,6 +63,8 @@ function createWindow(): BrowserWindow {
     backgroundColor: '#080d1a', // a cor de fundo do próprio Ndombaxi
     title: 'Ndombaxi System',
     icon: path.join(__dirname, '..', '..', 'build', 'icon.png'),
+    // Menu escondido — a navegação faz-se pelo LANÇADOR (1.º ecrã) e pela seta
+    // de voltar dentro de cada módulo. Interface limpa, sem barra de menus.
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
@@ -103,8 +105,9 @@ function createWindow(): BrowserWindow {
   win.on('moved', persistBounds);
   win.on('close', persistBounds);
 
-  const target = settings.module ? moduleUrl(settings.module) : `${SCHEME}://launcher/index.html`;
-  void win.loadURL(target);
+  // O LANÇADOR é sempre o primeiro ecrã (escolher Gestão ou Caixa). De dentro de
+  // cada módulo, a seta de voltar (injetada pelo preload) regressa aqui.
+  void win.loadURL(`${SCHEME}://launcher/index.html`);
 
   scheduleUpdateCheck(win);
   return win;
@@ -147,6 +150,13 @@ function registerIpc(): void {
 
   ipcMain.handle('ndombaxi:settings-module', (_e, moduleId: string) => {
     if (moduleId === 'gestao' || moduleId === 'caixa') openModule(moduleId);
+  });
+
+  // Voltar ao lançador (seta de voltar dentro de cada módulo).
+  ipcMain.handle('ndombaxi:open-launcher', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      void mainWindow.loadURL(`${SCHEME}://launcher/index.html`);
+    }
   });
 
   ipcMain.handle('ndombaxi:update-check', () => checkForUpdates());

@@ -56,23 +56,25 @@ for (const mod of MODULES) {
   });
   const dist = path.join(appDir, 'dist');
   if (!fs.existsSync(dist)) throw new Error(`O build de ${mod.app} não produziu dist/.`);
-  copyDir(dist, path.join(www, mod.target));
-
-  // Seta de VOLTAR ao lançador (só nas apps): copia o script para dentro do
-  // módulo e injeta-o no index.html. Vive no shell, não nos frontends — por isso
-  // é aqui, no empacotamento móvel, e não no build do site. O botão esconde-se
-  // sozinho quando há sessão (ver back-launcher.js).
-  const backSrc = path.join(shell, 'launcher', 'back-launcher.js');
-  if (fs.existsSync(backSrc)) {
-    fs.copyFileSync(backSrc, path.join(www, mod.target, 'back-launcher.js'));
-    const idxPath = path.join(www, mod.target, 'index.html');
-    let html = fs.readFileSync(idxPath, 'utf8');
-    if (!html.includes('back-launcher.js')) {
-      html = html.replace('</body>', '  <script src="./back-launcher.js"></script>\n</body>');
-      fs.writeFileSync(idxPath, html);
-    }
-  }
+  const modDir = path.join(www, mod.target);
+  copyDir(dist, modDir);
   log(`${mod.label}: copiado para www/${mod.target}`);
+
+  // Seta de VOLTAR ao lançador — injeção shell-side (o móvel não tem preload
+  // como o Electron). Copia o script para dentro do módulo e liga-o no
+  // index.html. Vive no shell, não nos frontends (o site continua sem o botão).
+  // O botão esconde-se sozinho quando há sessão iniciada (ver back-launcher.js).
+  fs.copyFileSync(
+    path.join(shell, 'launcher', 'back-launcher.js'),
+    path.join(modDir, 'back-launcher.js'),
+  );
+  const idxPath = path.join(modDir, 'index.html');
+  let idx = fs.readFileSync(idxPath, 'utf-8');
+  if (!idx.includes('back-launcher.js')) {
+    idx = idx.replace('</body>', '  <script src="./back-launcher.js"></script>\n</body>');
+    fs.writeFileSync(idxPath, idx);
+    log(`${mod.label}: seta de voltar ligada`);
+  }
 }
 
 // Lançador + logótipo oficial.
