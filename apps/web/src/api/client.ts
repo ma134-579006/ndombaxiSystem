@@ -1,4 +1,5 @@
 import { API_URL } from '../config';
+import { sharedGet, sharedSet } from '../sharedCache';
 import type {
   AgtCommResult,
   AgtCommStatus,
@@ -206,6 +207,12 @@ async function request<T>(
   opts: { auth?: boolean; retry?: boolean; timeoutMs?: number } = {},
 ): Promise<T> {
   const { auth = true, retry = true, timeoutMs = 90_000 } = opts;
+  // OFFLINE-FIRST (read-through cache): as LEITURAS (GET) são guardadas na cache
+  // partilhada e, quando não há rede, servidas de lá — a Gestão fica navegável
+  // sem internet (e no Android partilha os dados com a Caixa, mesma origem). É
+  // ADITIVO: online devolve sempre dados frescos; escrita/POST não têm cache.
+  const isGet = method.toUpperCase() === 'GET';
+  const cacheKey = `GET ${path}`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (auth) {
     const token = hooks?.getAccessToken();
@@ -226,6 +233,12 @@ async function request<T>(
       signal: ctrl.signal,
     });
   } catch (e) {
+    // Sem rede: numa LEITURA, serve a última cópia guardada (não bloqueia o
+    // trabalho offline). Um timeout (servidor a acordar) NÃO usa cache — é online.
+    if (isGet && (e as Error)?.name !== 'AbortError') {
+      const cached = await sharedGet<T>(cacheKey);
+      if (cached != null) return cached;
+    }
     throw new ApiError(0, (e as Error)?.name === 'AbortError'
       ? 'O servidor demorou demasiado a responder. Tente novamente.'
       : 'Sem ligação ao servidor.');
@@ -240,7 +253,9 @@ async function request<T>(
   if (!res.ok) throw await parseError(res);
   if (res.status === 204) return undefined as T;
   const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  const data = (text ? JSON.parse(text) : undefined) as T;
+  if (isGet && data !== undefined) void sharedSet(cacheKey, data); // guarda p/ offline
+  return data;
 }
 
 /** Como request, mas devolve o corpo em texto cru (ex.: XML do SAF-T). */
