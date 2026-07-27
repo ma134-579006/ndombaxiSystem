@@ -144,10 +144,8 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
         <span className="spacer" />
         <a className="dl-nav-btn" href="#baixar" role="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-          Baixar Aplicativo
+          <span>Baixar Aplicativo</span>
         </a>
-        <button className="ghost" onClick={onGoLogin}>Entrar</button>
-        <button className="solid" onClick={() => openRegister('BUSINESS')}>Criar conta</button>
       </nav>
 
       {/* HERO com carrossel animado de imagens realistas */}

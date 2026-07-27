@@ -1,0 +1,9 @@
+/* Página oficial de downloads (/baixar) — cabeçalho escuro (igual à landing) +
+   a secção "Baixar Aplicativo" clara por baixo. */
+.dlp { min-height: 100vh; background: #f4f6fb; display: flex; flex-direction: column; }
+.dlp .dl-section { flex: 1; }
+.dlp-foot {
+  text-align: center; color: #6b7688; font-size: 13px;
+  padding: 22px 16px calc(22px + env(safe-area-inset-bottom, 0px));
+  background: #0b1221; color: #8a94a6;
+}

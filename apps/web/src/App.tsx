@@ -12,6 +12,7 @@ import {
 } from './components/Icons';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
+import { DownloadsPage } from './pages/DownloadsPage';
 import { CompanySetup } from './pages/CompanySetup';
 import { PendingApproval } from './pages/PendingApproval';
 import { PlanExpired } from './pages/PlanExpired';
@@ -80,6 +81,7 @@ const PlatformDashboard = React.lazy(() => import('./sections/PlatformDashboard'
 const Integrations = React.lazy(() => import('./sections/Integrations').then((m) => ({ default: m.Integrations })));
 const MailSettings = React.lazy(() => import('./sections/MailSettings').then((m) => ({ default: m.MailSettings })));
 const Downloads = React.lazy(() => import('./sections/Downloads').then((m) => ({ default: m.Downloads })));
+const DownloadWizard = React.lazy(() => import('./sections/DownloadWizard').then((m) => ({ default: m.DownloadWizard })));
 const Backup = React.lazy(() => import('./sections/Backup').then((m) => ({ default: m.Backup })));
 const BackupRestore = React.lazy(() => import('./sections/BackupRestore').then((m) => ({ default: m.BackupRestore })));
 const Migration = React.lazy(() => import('./sections/Migration').then((m) => ({ default: m.Migration })));
@@ -219,7 +221,8 @@ function PlatformPanel() {
       {section === 'gateways' ? <Gateways /> : null}
       {section === 'integrations' ? <Integrations /> : null}
       {section === 'mail' ? <MailSettings /> : null}
-      {section === 'downloads' ? <Downloads /> : null}
+      {section === 'downloads' ? <Downloads onOpenWizard={() => setSection('downloads-wizard')} /> : null}
+      {section === 'downloads-wizard' ? <DownloadWizard onDone={() => setSection('downloads')} onCancel={() => setSection('downloads')} /> : null}
       {section === 'profile' ? <Profile /> : null}
     </React.Suspense>
     </Shell>
@@ -490,6 +493,11 @@ function Gate() {
 }
 
 export function App() {
+  // Página oficial de downloads (/baixar): pública, sem sessão. É para onde a
+  // barra de topo e cada cartão de download encaminham o cliente.
+  if (typeof window !== 'undefined' && /^\/baixar\/?$/i.test(window.location.pathname)) {
+    return <DownloadsPage />;
+  }
   return (
     <AuthProvider>
       <KeyboardProvider>

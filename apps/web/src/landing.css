@@ -43,6 +43,28 @@
 .lp-nav .solid { background: var(--lp-primary); color: #fff; }
 .lp-nav .solid:hover { filter: brightness(1.08); }
 
+/* Botão único do topo: "Baixar Aplicativo".
+   Enterprise — gradiente da marca, ícone alinhado, brilho subtil e SEM quebra de
+   linha (o texto vive num <span> com white-space:nowrap). */
+.lp-nav .dl-nav-btn {
+  display: inline-flex; align-items: center; gap: 9px;
+  height: 42px; padding: 0 20px; border-radius: 11px;
+  font-weight: 800; font-size: 14px; line-height: 1; letter-spacing: -.01em;
+  color: #fff; text-decoration: none; white-space: nowrap; cursor: pointer;
+  background: linear-gradient(100deg, var(--lp-primary) 0%, color-mix(in srgb, var(--lp-accent, var(--lp-primary)) 62%, var(--lp-primary)) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 24px -12px var(--lp-primary), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: transform .12s ease, box-shadow .18s ease, filter .18s ease;
+}
+.lp-nav .dl-nav-btn svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.lp-nav .dl-nav-btn span { display: inline-block; }
+.lp-nav .dl-nav-btn:hover { transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 16px 30px -12px var(--lp-primary), inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+.lp-nav .dl-nav-btn:active { transform: translateY(0); }
+@media (max-width: 560px) {
+  /* Ecrã estreito: mantém o botão inteiro, encolhe o texto para "Baixar app". */
+  .lp-nav .dl-nav-btn { height: 38px; padding: 0 14px; font-size: 13px; gap: 7px; }
+}
+
 /* ── HERO com imagem de fundo realista ──────────────────── */
 .lp-hero {
   position: relative;

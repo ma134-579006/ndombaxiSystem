@@ -3,65 +3,112 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
-  <meta name="theme-color" content="#080d1a" />
-  <!-- Lançador das apps móveis: escolha o módulo. A escolha fica guardada e, na
-       próxima vez, a app abre direto nele (troca-se tocando em "Trocar módulo"
-       dentro de cada módulo, ou apagando a preferência). Igual em espírito ao
-       lançador do desktop, mas com alvos de toque grandes. -->
+  <meta name="theme-color" content="#060a15" />
+  <!-- Lançador das apps móveis: o PRIMEIRO ecrã, escolher Gestão ou Caixa. Fundo
+       tecnológico animado em CSS (leve). De dentro de cada módulo, a seta de
+       voltar (injetada pelo build) regressa aqui. Mesma identidade do desktop.
+
+       IMPORTANTE (bug corrigido): os alvos apontam para `./gestao/index.html`
+       (e não `./gestao/`). O servidor local do Capacitor tem `html5mode` ligado
+       por omissão: qualquer caminho cujo ÚLTIMO segmento não tenha ponto é
+       reescrito para o index.html da RAIZ (o próprio lançador). Com `/gestao/`,
+       o último segmento é "gestao" (sem ponto) → tocar no cartão recarregava o
+       lançador ("não acontecia nada"). Com `/gestao/index.html` o segmento tem
+       ponto e a WebView serve mesmo o módulo. -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'self';" />
   <title>Ndombaxi System</title>
   <style>
-    :root { --brand-500:#4353ff; --brand-600:#2430e8; --gray-950:#080d1a; --gray-400:#94a3b8; --gray-200:#e2e8f0; }
+    :root { --brand-500:#4353ff; --brand-600:#2430e8; --shop-600:#ff4d2d; --gray-950:#060a15; --gray-400:#94a3b8; --gray-200:#e2e8f0; }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
     body {
       min-height: 100vh; min-height: 100dvh;
       display: flex; flex-direction: column; justify-content: center;
       padding: max(24px, env(safe-area-inset-top)) 22px max(24px, env(safe-area-inset-bottom));
-      background: radial-gradient(900px 460px at 50% -10%, rgba(67,83,255,.24), transparent 70%), var(--gray-950);
-      color: var(--gray-200);
+      background: var(--gray-950); color: var(--gray-200);
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       -webkit-user-select: none; user-select: none;
+      position: relative; overflow: hidden;
     }
-    .logo { width: 76px; height: 76px; border-radius: 20px; display: block; margin: 0 auto 18px;
-            box-shadow: 0 16px 44px rgba(36,48,232,.35); }
-    h1 { text-align: center; font-size: 24px; font-weight: 700; color: #fff; }
+    /* ── Fundo tecnológico animado (leve: transform/opacity) ── */
+    .bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+    .grid-bg {
+      position: absolute; inset: -2px;
+      background-image:
+        linear-gradient(rgba(67,83,255,.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(67,83,255,.07) 1px, transparent 1px);
+      background-size: 40px 40px;
+      -webkit-mask-image: radial-gradient(ellipse 90% 55% at 50% 38%, #000 40%, transparent 100%);
+              mask-image: radial-gradient(ellipse 90% 55% at 50% 38%, #000 40%, transparent 100%);
+      animation: gridpan 36s linear infinite;
+    }
+    @keyframes gridpan { from { background-position:0 0; } to { background-position:40px 40px; } }
+    .orb { position: absolute; border-radius: 50%; filter: blur(58px); opacity: .5; will-change: transform; }
+    .orb.a { width: 380px; height: 380px; top: -110px; left: -90px;
+             background: radial-gradient(circle, rgba(67,83,255,.55), transparent 68%); animation: drift1 22s ease-in-out infinite; }
+    .orb.b { width: 340px; height: 340px; bottom: -100px; right: -80px;
+             background: radial-gradient(circle, rgba(36,48,232,.5), transparent 68%); animation: drift2 28s ease-in-out infinite; }
+    @keyframes drift1 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(40px,30px);} }
+    @keyframes drift2 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(-36px,-24px);} }
+    .glow-top { position: absolute; inset: 0; background: radial-gradient(760px 380px at 50% -8%, rgba(67,83,255,.2), transparent 70%); }
+
+    .content { position: relative; z-index: 1; }
+    .logo { width: 78px; height: 78px; border-radius: 20px; display: block; margin: 0 auto 18px;
+            box-shadow: 0 16px 46px rgba(36,48,232,.4); }
+    h1 { text-align: center; font-size: 25px; font-weight: 700; color: #fff; letter-spacing: -.01em; }
     .sub { text-align: center; margin-top: 8px; margin-bottom: 30px; font-size: 15px; color: var(--gray-400); line-height: 1.5; }
     .card {
       width: 100%; display: flex; align-items: center; gap: 16px;
-      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.11);
       border-radius: 18px; padding: 20px; margin-bottom: 14px;
       color: inherit; font: inherit; text-align: left; cursor: pointer;
+      -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
       transition: transform .15s ease, background .15s ease, border-color .15s ease;
     }
-    .card:active { transform: scale(.98); background: rgba(67,83,255,.12); border-color: rgba(67,83,255,.5); }
+    .card:active { transform: scale(.98); background: rgba(67,83,255,.14); border-color: rgba(67,83,255,.55); }
+    .card.pos:active { background: rgba(255,77,45,.12); border-color: rgba(255,77,45,.5); }
     .icon { flex: 0 0 auto; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center;
             background: rgba(67,83,255,.18); }
-    .icon svg { width: 26px; height: 26px; stroke: var(--brand-500); fill: none; stroke-width: 1.8;
-                stroke-linecap: round; stroke-linejoin: round; }
+    .card.pos .icon { background: rgba(255,77,45,.18); }
+    .icon svg { width: 26px; height: 26px; stroke: var(--brand-500); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .card.pos .icon svg { stroke: var(--shop-600); }
+    .t { flex: 1; }
     .t h2 { font-size: 17px; font-weight: 650; color: #fff; }
     .t p { margin-top: 3px; font-size: 13px; color: var(--gray-400); line-height: 1.45; }
+    .chev { flex: 0 0 auto; color: #64748b; }
     .foot { text-align: center; margin-top: 20px; font-size: 12px; color: #5b6883; line-height: 1.5; }
+    @media (prefers-reduced-motion: reduce) { .grid-bg, .orb { animation: none !important; } }
   </style>
 </head>
 <body>
-  <img class="logo" src="./logo.png" alt="Ndombaxi System" />
-  <h1>Bem-vindo</h1>
-  <p class="sub">Por onde quer começar?</p>
+  <div class="bg" aria-hidden="true">
+    <div class="grid-bg"></div>
+    <div class="orb a"></div>
+    <div class="orb b"></div>
+    <div class="glow-top"></div>
+  </div>
 
-  <button class="card" data-go="./gestao/">
-    <span class="icon"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 9h8V3h-8z"/></svg></span>
-    <span class="t"><h2>Painel de Gestão</h2><p>Produtos, stock, clientes e relatórios.</p></span>
-  </button>
+  <div class="content">
+    <img class="logo" src="./logo.png" alt="Ndombaxi System" />
+    <h1>Ndombaxi System</h1>
+    <p class="sub">Por onde quer começar?</p>
 
-  <button class="card" data-go="./caixa/">
-    <span class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 11h20M6 15h4"/></svg></span>
-    <span class="t"><h2>Caixa (POS)</h2><p>Vender com emissão fiscal, mesmo sem internet.</p></span>
-  </button>
+    <button class="card" data-go="./gestao/index.html">
+      <span class="icon"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 9h8V3h-8z"/></svg></span>
+      <span class="t"><h2>Painel de Gestão</h2><p>Produtos, stock, clientes e relatórios.</p></span>
+      <span class="chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+    </button>
 
-  <p class="foot">Os seus dados ficam neste aparelho e sincronizam sozinhos quando houver internet.</p>
+    <button class="card pos" data-go="./caixa/index.html">
+      <span class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 11h20M6 15h4"/></svg></span>
+      <span class="t"><h2>Caixa (POS)</h2><p>Vender com emissão fiscal, mesmo sem internet.</p></span>
+      <span class="chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+    </button>
 
-  <!-- Script externo (não inline), como no desktop — ver launcher.js. -->
+    <p class="foot">Os seus dados ficam neste aparelho e sincronizam sozinhos quando houver internet.</p>
+  </div>
+
   <script src="./launcher.js"></script>
 </body>
 </html>
