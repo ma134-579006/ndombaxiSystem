@@ -56,8 +56,23 @@ for (const mod of MODULES) {
   });
   const dist = path.join(appDir, 'dist');
   if (!fs.existsSync(dist)) throw new Error(`O build de ${mod.app} não produziu dist/.`);
-  copyDir(dist, path.join(www, mod.target));
+  const modDir = path.join(www, mod.target);
+  copyDir(dist, modDir);
   log(`${mod.label}: copiado para www/${mod.target}`);
+
+  // Seta de VOLTAR ao lançador — injeção shell-side (o móvel não tem preload
+  // como o Electron). Copia o script e liga-o no index.html do módulo.
+  fs.copyFileSync(
+    path.join(shell, 'launcher', 'back-launcher.js'),
+    path.join(modDir, 'back-launcher.js'),
+  );
+  const idxPath = path.join(modDir, 'index.html');
+  let idx = fs.readFileSync(idxPath, 'utf-8');
+  if (!idx.includes('back-launcher.js')) {
+    idx = idx.replace('</body>', '  <script src="./back-launcher.js"></script>\n</body>');
+    fs.writeFileSync(idxPath, idx);
+    log(`${mod.label}: seta de voltar ligada`);
+  }
 }
 
 // Lançador + logótipo oficial.

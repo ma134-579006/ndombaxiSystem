@@ -5,19 +5,14 @@
  * ficariam sem ação — o mesmo bug que os módulos que não abriam no Windows.
  */
 (function () {
-  var KEY = 'ndombaxi.module';
-
-  // Se já escolheu antes, abre direto — sem obrigar a escolher todos os dias.
-  var saved = localStorage.getItem(KEY);
-  if (saved === './gestao/' || saved === './caixa/') { location.replace(saved); return; }
-
+  // O LANÇADOR é sempre o primeiro ecrã (escolher Gestão ou Caixa). Já não há
+  // auto-redirect: de dentro de cada módulo a seta de voltar regressa aqui para
+  // trocar. Igual ao desktop.
   function wire() {
     var cards = document.querySelectorAll('.card');
     for (var i = 0; i < cards.length; i++) {
       cards[i].addEventListener('click', function () {
-        var go = this.getAttribute('data-go');
-        localStorage.setItem(KEY, go);
-        location.href = go;
+        location.href = this.getAttribute('data-go');
       });
     }
     document.documentElement.setAttribute('data-launcher', 'ready');

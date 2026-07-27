@@ -1,6 +1,6 @@
 {
   "name": "@nexus/desktop",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "private": true,
   "description": "Ndombaxi System — aplicação Windows Offline-First (Gestão, Caixa e Loja num só instalador).",
   "author": "Ndombaxi System",
