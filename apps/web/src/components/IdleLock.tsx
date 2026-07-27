@@ -41,6 +41,24 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
     };
   }, [locked, arm]);
 
+  // Bloqueia ao MINIMIZAR a app (nunca faz logout; o painel fica preservado). Só
+  // na APP instalada — no navegador, trocar de separador não deve bloquear. Ao
+  // voltar, pede a palavra-passe.
+  useEffect(() => {
+    const nw = window as unknown as {
+      ndombaxi?: unknown; __NDOMBAXI_NATIVE__?: boolean;
+      Capacitor?: { isNativePlatform?: () => boolean };
+    };
+    const native = window.location.protocol === 'ndombaxi:'
+      || typeof nw.ndombaxi !== 'undefined'
+      || nw.__NDOMBAXI_NATIVE__ === true
+      || !!nw.Capacitor?.isNativePlatform?.();
+    if (!native) return;
+    const onHide = () => { if (document.hidden) setLocked(true); };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, []);
+
   useEffect(() => {
     if (!locked) return;
     setNow(new Date());

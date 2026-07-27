@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { LOGO_SRC, SYSTEM_NAME } from '../brand';
 import { useAuth } from '../auth/AuthContext';
+import { isNativeApp } from '../offline/nativeShare';
+import { verifyOffline } from '../offline/session';
 
 const IDLE_MS = 2.5 * 60 * 1000; // 2 min e meio sem atividade → bloqueia (não faz logout)
 const WEEKDAYS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
@@ -48,6 +50,17 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
     return () => window.removeEventListener('ndx-lock', lockNow);
   }, []);
 
+  // Bloqueia ao MINIMIZAR a app (nunca faz logout; a venda em curso fica em
+  // memória e é preservada). Só na APP instalada — no navegador, trocar de
+  // separador não deve bloquear a Caixa. Ao voltar, pede o PIN (que funciona
+  // offline, ver unlock).
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    const onHide = () => { if (document.hidden) setLocked(true); };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, []);
+
   // Relógio em tempo real (só corre enquanto bloqueado).
   useEffect(() => {
     if (!locked) return;
@@ -70,7 +83,23 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
       // bloqueio — NUNCA faz logout. (Antes usava verifyPin: com o token expirado
       // caía no fluxo de refresh→logout ao fim de >15 min.)
       if (companyCode && user?.sub) {
-        await loginPin(companyCode, user.sub, pin);
+        try {
+          await loginPin(companyCode, user.sub, pin);
+        } catch (e) {
+          // SEM REDE → valida o PIN OFFLINE (mesmo cofre do login offline da Caixa)
+          // e desbloqueia localmente. A sessão em memória é preservada; nunca há
+          // logout. Só cai aqui em falha de rede (status 0).
+          if (e instanceof ApiError && e.status === 0 && user?.email) {
+            const off = await verifyOffline(user.email, pin, companyCode);
+            if (!off.ok) {
+              throw new ApiError(off.reason === 'wrong-pin' ? 401 : 0,
+                off.reason === 'wrong-pin' ? 'PIN incorreto. Tenta novamente.'
+                  : 'Sem ligação e sem sessão offline. Ligue-se à internet uma vez.');
+            }
+          } else {
+            throw e;
+          }
+        }
       } else {
         const r = await api.verifyPin(pin); // sem dados p/ re-login → verifica na sessão atual
         if (!r.ok) throw new ApiError(401, 'PIN incorreto. Tenta novamente.');
