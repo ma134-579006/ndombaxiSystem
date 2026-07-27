@@ -43,13 +43,20 @@ export async function buildInvoicePdf(sale: SaleDetail, identity?: DocumentIdent
 
   // ── Cabeçalho: identidade (esq.) + bloco do documento (dir.) ──
   let y = 46;
+  let logoW = 0;
   if (identity?.logoUrl) {
     try {
-      const logo = await toDataUrl(identity.logoUrl);
-      if (logo) doc.addImage(logo, 'PNG', M, y - 10, 46, 46, undefined, 'FAST');
+      const logo = await loadLogo(identity.logoUrl);
+      if (logo) {
+        // Encaixa o logótipo numa caixa 52×46 mantendo a PROPORÇÃO (sem distorcer).
+        const scale = Math.min(52 / logo.w, 46 / logo.h);
+        const dw = Math.max(1, logo.w * scale), dh = Math.max(1, logo.h * scale);
+        doc.addImage(logo.data, 'PNG', M, y - 10, dw, dh, undefined, 'FAST');
+        logoW = dw;
+      }
     } catch { /* logo opcional */ }
   }
-  const tx = identity?.logoUrl ? M + 58 : M;
+  const tx = logoW ? M + logoW + 12 : M;
   const bx = W - M - 200, bw = 200, bh = 60;
   const nameW = bx - tx - 16;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...INK);
@@ -208,16 +215,44 @@ export function invoiceFileName(sale: SaleDetail): string {
   return `${num}.pdf`;
 }
 
-async function toDataUrl(url: string): Promise<string | null> {
-  if (url.startsWith('data:')) return url;
-  try {
-    const res = await fetch(url, { mode: 'cors' });
-    const blob = await res.blob();
-    return await new Promise((resolve) => {
-      const r = new FileReader();
-      r.onload = () => resolve(String(r.result));
-      r.onerror = () => resolve(null);
-      r.readAsDataURL(blob);
-    });
-  } catch { return null; }
+/**
+ * Carrega o logótipo de forma ROBUSTA: decodifica QUALQUER formato (PNG/JPEG/
+ * WEBP) via <img>+canvas e reexporta como PNG — o jsPDF aceita sempre — e devolve
+ * as dimensões naturais para manter a proporção. Aceita data-URI (o caso comum) e
+ * URL. Antes: `fetch({mode:'cors'})` falhava em logos remotas e o formato fixo
+ * 'PNG' rejeitava JPEG → a fatura saía sem logótipo. Tolera falhar (devolve null).
+ */
+async function loadLogo(url: string): Promise<{ data: string; w: number; h: number } | null> {
+  let src = url;
+  if (!src.startsWith('data:')) {
+    try {
+      let res: Response;
+      try { res = await fetch(url, { mode: 'cors' }); } catch { res = await fetch(url); }
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      src = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(blob);
+      });
+    } catch { return null; }
+  }
+  return await new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth || 1;
+        c.height = img.naturalHeight || 1;
+        const ctx = c.getContext('2d');
+        if (!ctx) { resolve(null); return; }
+        ctx.drawImage(img, 0, 0);
+        resolve({ data: c.toDataURL('image/png'), w: c.width, h: c.height });
+      } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
 }
