@@ -21,6 +21,7 @@
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
 import path from 'node:path';
 import {
   ensureLocalDatabase, findFreePort, readConfig, stop as stopPostgres,
@@ -37,6 +38,15 @@ export interface SupervisorOptions {
   apiPort?: number;
   /** Para onde sincronizar quando houver internet (Aiven). */
   cloudApiUrl?: string | null;
+  /**
+   * Servir também os outros aparelhos da loja (Android, tablets, 2.º posto).
+   *
+   * Só a API é partilhada. A BASE DE DADOS continua presa a `127.0.0.1` — quem
+   * está na rede fala com a API, que continua a aplicar autenticação, papéis e
+   * isolamento por empresa. Expor o Postgres seria dar a base inteira a quem
+   * apanhasse a palavra-passe do Wi-Fi.
+   */
+  lan?: boolean;
   /** Registo de diagnóstico (o chamador decide se escreve em ficheiro). */
   log?: (line: string) => void;
 }
@@ -46,6 +56,30 @@ export interface LocalServerInfo {
   apiUrl: string;
   apiPort: number;
   databaseUrl: string;
+  /**
+   * Endereço para os OUTROS aparelhos da loja (ex.: http://192.168.1.50:3399).
+   * `null` quando a partilha em rede está desligada ou não há rede local.
+   * É este que o telemóvel usa — no Android o "servidor local" é o PC da loja.
+   */
+  lanUrl: string | null;
+}
+
+/**
+ * Endereço IPv4 desta máquina na rede local.
+ *
+ * Ignoramos `internal` (loopback) e endereços de ligação-local (169.254.x.x, que
+ * aparecem quando o Wi-Fi está ligado mas sem IP atribuído) — anunciar um desses
+ * ao telemóvel dava uma ligação que nunca chegaria a funcionar.
+ */
+export function lanAddress(): string | null {
+  for (const list of Object.values(networkInterfaces())) {
+    for (const ni of list ?? []) {
+      if (ni.family !== 'IPv4' || ni.internal) continue;
+      if (ni.address.startsWith('169.254.')) continue;
+      return ni.address;
+    }
+  }
+  return null;
 }
 
 const DEFAULT_API_PORT = 3399;
@@ -78,7 +112,13 @@ export class LocalServer {
     this.migrate(databaseUrl);
 
     const apiPort = await findFreePort(this.o.apiPort ?? DEFAULT_API_PORT);
-    this.info = { apiUrl: `http://127.0.0.1:${apiPort}`, apiPort, databaseUrl };
+    const ip = this.o.lan ? lanAddress() : null;
+    this.info = {
+      apiUrl: `http://127.0.0.1:${apiPort}`,
+      apiPort,
+      databaseUrl,
+      lanUrl: ip ? `http://${ip}:${apiPort}` : null,
+    };
 
     this.spawnApi();
     await this.waitHealthy(apiPort);
@@ -133,6 +173,9 @@ export class LocalServer {
         NODE_ENV: 'production',
         DATABASE_URL: info.databaseUrl,
         PORT: String(info.apiPort),
+        // Só ouve na rede quando a partilha foi pedida. Por omissão fica preso
+        // à própria máquina — instalar o programa não abre portas na loja.
+        HOST: this.o.lan ? '0.0.0.0' : '127.0.0.1',
         NDOMBAXI_MODE: 'local',
         ...(this.o.cloudApiUrl ? { NDOMBAXI_CLOUD_API: this.o.cloudApiUrl } : {}),
       },

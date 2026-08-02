@@ -11,7 +11,22 @@ const PROD_API_URL = 'https://ndombaxi-api-img.onrender.com';
 // resolução cai na produção. Torna a app imune a um erro de build (defensivo).
 // `||` (não `??`): trata env indefinido E vazio como "não injetado". Sem chamadas
 // de método na esquerda, para o minificador poder dobrar a constante do build.
-export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined)
+/**
+ * SERVIDOR LOCAL primeiro, se existir.
+ *
+ * O Electron injeta aqui `http://127.0.0.1:<porta>` quando o Ndombaxi Local
+ * Server está a correr — e é isso que permite trabalhar sem internet, porque a
+ * escrita deixa de depender da nuvem. Quando não existe (site, Android, ou um
+ * posto onde o servidor local não arrancou), fica tudo exatamente como antes.
+ */
+function hostApiUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  const w = window as unknown as { ndombaxi?: { apiUrl?: string | null } };
+  return w.ndombaxi?.apiUrl ?? null;
+}
+
+export const API_URL = (hostApiUrl()
+  || (import.meta.env.VITE_API_URL as string | undefined)
   || (isNativeApp() ? PROD_API_URL : 'http://localhost:3000')).replace(/\/$/, '');
 
 /** Base da loja online (apps/store). O link partilhável de cada empresa é

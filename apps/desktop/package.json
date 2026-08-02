@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "better-sqlite3": "11.10.0"
+    "better-sqlite3": "11.10.0",
+    "@nexus/local-server": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.11",

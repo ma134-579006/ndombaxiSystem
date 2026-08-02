@@ -161,6 +161,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@nexus/local-server':
+        specifier: workspace:*
+        version: link:../local-server
       better-sqlite3:
         specifier: 11.10.0
         version: 11.10.0
@@ -177,6 +180,15 @@ importers:
       electron-builder:
         specifier: 25.1.8
         version: 25.1.8(electron-builder-squirrel-windows@25.1.8)
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
+
+  apps/local-server:
+    devDependencies:
+      '@types/node':
+        specifier: 20.19.41
+        version: 20.19.41
       typescript:
         specifier: ^5.6.2
         version: 5.9.3
