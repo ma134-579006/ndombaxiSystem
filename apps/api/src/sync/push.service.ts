@@ -22,6 +22,7 @@ import { Prisma } from '@prisma/client';
 import { DocumentType } from '@nexus/agt-xml';
 import type { JwtPayload } from '@nexus/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { CashboxService } from '../cashbox/cashbox.service';
 import { InvoiceService } from '../pos/invoice.service';
 import { PosRepository } from '../pos/pos.repository';
 import type { PullChangeDto } from './sync.service';
@@ -68,6 +69,7 @@ export class PushService {
     private readonly prisma: PrismaService,
     private readonly invoices: InvoiceService,
     private readonly pos: PosRepository,
+    private readonly cashbox: CashboxService,
   ) {}
 
   /**
@@ -109,8 +111,10 @@ export class PushService {
     }
 
     switch (op.entity) {
-      case 'sale':      return this.applySale(schema, op, user);
-      case 'customer':  return this.applyCustomer(schema, op, user);
+      case 'sale':         return this.applySale(schema, op, user);
+      case 'customer':     return this.applyCustomer(schema, op, user);
+      case 'cashSession':  return this.applyCashSession(schema, op, user);
+      case 'cashMovement': return this.applyCashMovement(schema, op, user);
       default:
         return {
           opId: op.opId,
@@ -198,6 +202,179 @@ export class PushService {
                           iva_total, gross_total, hash
                      FROM invoices WHERE client_op_id = ${opId}::uuid`,
       );
+      return rows[0] ?? null;
+    });
+  }
+
+  // ── Turnos de caixa ────────────────────────────────────────
+
+  /**
+   * Abertura (`create`) e fecho (`update`) do turno feitos sem rede.
+   *
+   * A ORDEM é o que torna isto correto, e vem de graça: o `push()` ordena por
+   * `seq`, a sequência que o posto atribuiu. Assim a ABERTURA entra antes das
+   * vendas do turno e o FECHO entra depois — que é exatamente o que o dinheiro
+   * na gaveta exige. Se as vendas entrassem sem o turno aberto, o
+   * `InvoiceService` emitia na mesma (o movimento de caixa é best-effort) mas o
+   * dinheiro não era registado no turno, e o fecho nunca batia certo.
+   *
+   * Não recalculamos nada do fecho aqui: quem fecha é o `CashboxService`, com a
+   * mesma agregação do fecho online. O servidor é a autoridade do valor
+   * esperado; o posto só declara o que CONTOU.
+   */
+  private async applyCashSession(schema: string, op: PushOpDto, user: JwtPayload): Promise<PushResultDto> {
+    const p = op.payload;
+    const actor = { id: user.sub, name: user.name ?? user.email };
+
+    if (op.op === 'create') {
+      try {
+        const { id } = await this.cashbox.open(
+          schema,
+          {
+            openingFloat: Number(p.openingFloat ?? 0),
+            registerCode: (p.registerCode as string) ?? undefined,
+            storeId: (p.storeId as string) ?? user.storeId ?? undefined,
+          },
+          actor,
+          op.opId, // ← unicidade imposta pelo Postgres
+        );
+        const result = this.sessionResult(op, id);
+        await this.recordLedger(schema, op, user, 'applied', id, result);
+        return result;
+      } catch (e) {
+        // Já existe: é a idempotência a funcionar, não um erro. Devolvemos o
+        // turno original para o posto poder continuar a referenciá-lo.
+        if (isUniqueViolation(e, 'cash_sessions_client_op_uidx')) {
+          const existing = await this.findByClientOp(schema, 'cash_sessions', op.opId);
+          if (existing) return { ...this.sessionResult(op, String(existing.id)), status: 'duplicate' };
+        }
+        // Recusa de negócio (ex.: já tem um turno aberto no servidor). Fica
+        // registada para não repetir em ciclo e o posto mostra o motivo.
+        const result: PushResultDto = {
+          opId: op.opId, status: 'rejected',
+          message: (e as Error).message, code: 'SHIFT_REJECTED',
+        };
+        await this.recordLedger(schema, op, user, 'rejected', null, result);
+        return result;
+      }
+    }
+
+    if (op.op === 'update') {
+      try {
+        const summary = await this.cashbox.close(
+          schema,
+          { countedCash: Number(p.countedCash ?? 0), notes: (p.notes as string) ?? undefined },
+          actor,
+        );
+        const result: PushResultDto = {
+          opId: op.opId,
+          status: 'applied',
+          serverId: op.localId,
+          entity: {
+            entity: 'cashSession', id: op.localId,
+            data: summary as unknown as Record<string, unknown>,
+            version: Date.now(), updatedAt: new Date().toISOString(), deleted: false,
+          },
+        };
+        await this.recordLedger(schema, op, user, 'applied', op.localId, result);
+        return result;
+      } catch (e) {
+        const result: PushResultDto = {
+          opId: op.opId, status: 'rejected',
+          message: (e as Error).message, code: 'SHIFT_CLOSE_REJECTED',
+        };
+        await this.recordLedger(schema, op, user, 'rejected', null, result);
+        return result;
+      }
+    }
+
+    return {
+      opId: op.opId, status: 'rejected',
+      message: 'Um turno de caixa não pode ser eliminado.',
+      code: 'OP_NOT_ALLOWED',
+    };
+  }
+
+  /** Reforço (CASH_IN) e sangria (CASH_OUT) feitos sem rede. */
+  private async applyCashMovement(schema: string, op: PushOpDto, user: JwtPayload): Promise<PushResultDto> {
+    const p = op.payload;
+    if (op.op !== 'create') {
+      return {
+        opId: op.opId, status: 'rejected',
+        message: 'Um movimento de caixa não pode ser alterado nem eliminado — corrige-se com outro movimento.',
+        code: 'OP_NOT_ALLOWED',
+      };
+    }
+    try {
+      const { id } = await this.cashbox.addMovement(
+        schema,
+        {
+          type: p.type === 'CASH_OUT' ? 'CASH_OUT' : 'CASH_IN',
+          amount: Number(p.amount ?? 0),
+          reference: (p.reference as string) ?? undefined,
+        },
+        { id: user.sub, name: user.name ?? user.email },
+        op.opId,
+      );
+      const result: PushResultDto = {
+        opId: op.opId, status: 'applied', serverId: id,
+        entity: {
+          entity: 'cashMovement', id, data: { id, ...p },
+          version: Date.now(), updatedAt: new Date().toISOString(), deleted: false,
+        },
+      };
+      await this.recordLedger(schema, op, user, 'applied', id, result);
+      return result;
+    } catch (e) {
+      if (isUniqueViolation(e, 'cash_movements_client_op_uidx')) {
+        const existing = await this.findByClientOp(schema, 'cash_movements', op.opId);
+        if (existing) {
+          return {
+            opId: op.opId, status: 'duplicate', serverId: String(existing.id),
+            entity: {
+              entity: 'cashMovement', id: String(existing.id), data: existing,
+              version: Date.now(), updatedAt: new Date().toISOString(), deleted: false,
+            },
+          };
+        }
+      }
+      const result: PushResultDto = {
+        opId: op.opId, status: 'rejected',
+        message: (e as Error).message, code: 'CASH_MOVEMENT_REJECTED',
+      };
+      await this.recordLedger(schema, op, user, 'rejected', null, result);
+      return result;
+    }
+  }
+
+  private sessionResult(op: PushOpDto, id: string): PushResultDto {
+    return {
+      opId: op.opId,
+      status: 'applied',
+      serverId: id,
+      entity: {
+        entity: 'cashSession', id,
+        data: { id, ...op.payload },
+        version: Date.now(), updatedAt: new Date().toISOString(), deleted: false,
+      },
+    };
+  }
+
+  /**
+   * Procura a linha que uma operação já criou. O nome da tabela NUNCA vem do
+   * pedido — é escolhido aqui, num conjunto fechado, para não haver superfície
+   * de injeção no identificador (que não é parametrizável em SQL).
+   */
+  private findByClientOp(
+    schema: string,
+    table: 'cash_sessions' | 'cash_movements',
+    opId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const sql = table === 'cash_sessions'
+      ? Prisma.sql`SELECT * FROM cash_sessions WHERE client_op_id = ${opId}::uuid`
+      : Prisma.sql`SELECT * FROM cash_movements WHERE client_op_id = ${opId}::uuid`;
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<Record<string, unknown>[]>(sql);
       return rows[0] ?? null;
     });
   }

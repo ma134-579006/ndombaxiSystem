@@ -598,3 +598,17 @@ CREATE INDEX IF NOT EXISTS sync_ops_recent_idx ON "{{SCHEMA}}"."sync_operations"
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS client_op_id UUID;
 CREATE UNIQUE INDEX IF NOT EXISTS invoices_client_op_uidx
   ON "{{SCHEMA}}"."invoices"(client_op_id) WHERE client_op_id IS NOT NULL;
+
+-- 2026-08-02 · OFFLINE-FIRST — TURNOS DE CAIXA feitos sem rede.
+-- Mesma doutrina da venda: a idempotencia e imposta pela BASE DE DADOS, nao por
+-- codigo. Sem isto, um posto que reenviasse a abertura do turno (rede a oscilar)
+-- criava DOIS turnos e o fecho deixava de bater certo com a gaveta.
+-- Indice PARCIAL: so vale para linhas com op — tudo o que foi feito online fica
+-- NULL e nao consome indice nem colide.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."cash_sessions"  ADD COLUMN IF NOT EXISTS client_op_id UUID;
+CREATE UNIQUE INDEX IF NOT EXISTS cash_sessions_client_op_uidx
+  ON "{{SCHEMA}}"."cash_sessions"(client_op_id) WHERE client_op_id IS NOT NULL;
+
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."cash_movements" ADD COLUMN IF NOT EXISTS client_op_id UUID;
+CREATE UNIQUE INDEX IF NOT EXISTS cash_movements_client_op_uidx
+  ON "{{SCHEMA}}"."cash_movements"(client_op_id) WHERE client_op_id IS NOT NULL;
