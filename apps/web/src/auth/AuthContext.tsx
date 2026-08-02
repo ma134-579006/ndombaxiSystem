@@ -12,6 +12,7 @@ import type { PlatformLoginInput, TenantLoginInput, TokenPair } from '../api/typ
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
 import { setTheme, DEFAULT_THEME } from '../theme';
 import { startOfflineEngine, stopOfflineEngine } from '../offline/boot';
+import { prefetchTenantData } from '../offline/prefetch';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 /** Que painel mostrar: plataforma (Super Admin) ou gestor da empresa. */
@@ -140,7 +141,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       getAccessToken: () => accessRef.current,
       getCompanyCode: () => companyRef.current,
     });
-    return () => { void stopOfflineEngine(); };
+    // DOWNLOAD COMPLETO ao entrar: puxa já todos os dados de referência da
+    // empresa para a cache local (Gestão 100% navegável offline). E repete
+    // sempre que a rede REGRESSA, para a cópia local ficar atualizada — "quando
+    // verifica a rede, baixa os dados". Só leituras; best-effort.
+    void prefetchTenantData();
+    const onOnline = () => { void prefetchTenantData(); };
+    window.addEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      void stopOfflineEngine();
+    };
   }, [status]);
 
   // Renovação PROATIVA do token: renova ~1 min antes de expirar para a sessão do

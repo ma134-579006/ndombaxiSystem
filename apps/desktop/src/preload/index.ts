@@ -56,10 +56,24 @@ contextBridge.exposeInMainWorld('ndombaxi', api);
 
 /**
  * Seta de VOLTAR ao lançador — injetada pelo shell APENAS nos módulos (Gestão e
- * Caixa), nunca no próprio lançador. É a forma de trocar de módulo: clara,
- * sempre visível, sem barra de menus. Vive no shell (desktop), por isso não
- * obriga a mexer nos frontends — o site continua sem este botão.
+ * Caixa), nunca no próprio lançador. Serve para TROCAR de módulo ANTES de entrar,
+ * por isso aparece SÓ no ecrã de login; assim que há sessão ativa esconde-se
+ * (há "Terminar sessão" dentro do módulo) e reaparece no logout. Deteta a sessão
+ * pelos mesmos tokens que os frontends guardam no sessionStorage — igual ao
+ * back-launcher do móvel, para o comportamento ser idêntico nas duas apps.
+ * Vive no shell (desktop), por isso não obriga a mexer nos frontends.
  */
+// Sessão ativa → esconder a seta. Gestor: ndombaxi.web.access · Caixa: nexus.pos.access.
+const AUTH_KEYS = ['ndombaxi.web.access', 'nexus.pos.access'];
+function isLoggedIn(): boolean {
+  try {
+    for (const k of AUTH_KEYS) {
+      if (sessionStorage.getItem(k) || localStorage.getItem(k)) return true;
+    }
+  } catch { /* storage indisponível */ }
+  return false;
+}
+
 function injectBackButton(): void {
   const host = window.location.host; // 'gestao' | 'caixa' | 'launcher'
   if (host !== 'gestao' && host !== 'caixa') return;
@@ -97,6 +111,16 @@ function injectBackButton(): void {
   btn.addEventListener('click', () => { void ipcRenderer.invoke('ndombaxi:open-launcher'); });
 
   document.body.appendChild(btn);
+
+  // A entrada é feita numa SPA (sem recarregar): reavaliamos periodicamente e
+  // nos eventos de foco/armazenamento — a seta desaparece assim que a sessão é
+  // criada e reaparece no logout.
+  const sync = () => { btn.style.display = isLoggedIn() ? 'none' : 'grid'; };
+  sync();
+  setInterval(sync, 800);
+  window.addEventListener('focus', sync);
+  document.addEventListener('visibilitychange', sync);
+  window.addEventListener('storage', sync);
 }
 
 if (document.readyState === 'loading') {

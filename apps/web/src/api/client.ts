@@ -220,6 +220,21 @@ async function request<T>(
     const code = hooks?.getCompanyCode?.();
     if (code) headers['X-Tenant-Code'] = code;
   }
+  // OFFLINE RÁPIDO: se o aparelho está claramente SEM rede (navigator.onLine
+  // === false), não vale a pena esperar que um fetch falhe (no WebView Android
+  // pode demorar segundos → "app lenta a processar"). Numa LEITURA servimos já a
+  // cópia em cache; numa escrita falhamos de imediato com uma mensagem clara.
+  // Quando onLine é true mas na verdade não há rede (portal cativo), seguimos o
+  // caminho normal: o fetch falha e caímos no cache no catch abaixo.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    if (isGet) {
+      const cached = await sharedGet<T>(cacheKey);
+      if (cached != null) return cached;
+      throw new ApiError(0, 'Sem ligação e sem cópia guardada deste ecrã. Ligue-se à internet uma vez para o descarregar.');
+    }
+    throw new ApiError(0, 'Sem ligação ao servidor. A alteração não foi guardada — tente novamente com internet.');
+  }
+
   let res: Response;
   // Timeout defensivo: sem ele, um servidor "a acordar" (cold start) deixava o
   // pedido pendurado para sempre (spinner infinito). 90 s cobre o arranque.
