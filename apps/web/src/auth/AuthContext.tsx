@@ -8,11 +8,15 @@ import React, {
   useState,
 } from 'react';
 import { api, ApiError, configureApi } from '../api/client';
-import type { PlatformLoginInput, TenantLoginInput, TokenPair } from '../api/types';
+import type { PlatformLoginInput, TenantLoginInput, TenantTokenPair, TokenPair } from '../api/types';
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
 import { setTheme, DEFAULT_THEME } from '../theme';
 import { startOfflineEngine, stopOfflineEngine } from '../offline/boot';
 import { prefetchTenantData } from '../offline/prefetch';
+// NOTA: o cofre NÃO é apagado no logout de propósito. Se o fosse, um gestor que
+// terminasse a sessão sem rede ficava impedido de voltar a entrar no próprio
+// posto. A credencial expira sozinha ao fim de 30 dias (ver session.ts).
+import { rememberOffline, verifyOffline } from '../offline/session';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 /** Que painel mostrar: plataforma (Super Admin) ou gestor da empresa. */
@@ -245,7 +249,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (input: TenantLoginInput) => {
       // O código deixou de ser pedido: a API resolve a empresa pelo e-mail
       // e devolve o código (necessário para o cabeçalho X-Tenant-Code).
-      const r = await api.loginTenant(input);
+      let r: TenantTokenPair;
+      try {
+        r = await api.loginTenant(input);
+      } catch (e) {
+        // SEM REDE (status 0): tenta a credencial guardada no aparelho. É o que
+        // torna a app instalada utilizável offline — a sessão vive em
+        // `sessionStorage` e morre ao fechar a janela, por isso sem esta porta
+        // reabrir sem internet deixava o gestor de fora. Só entra aqui quando o
+        // login online FALHOU POR REDE: credenciais erradas continuam a ser
+        // recusadas pelo servidor, como sempre.
+        if (e instanceof ApiError && e.status === 0) {
+          const v = await verifyOffline(input.email, input.password, input.companyCode);
+          if (v.ok && v.identity) {
+            companyRef.current = v.identity.companyCode;
+            setCompanyCode(v.identity.companyCode);
+            sessionStorage.setItem(LS_COMPANY, v.identity.companyCode);
+            sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
+            applyTokens({ accessToken: v.identity.accessToken, refreshToken: v.identity.refreshToken });
+            setStatus('authed');
+            return;
+          }
+          if (v.reason === 'wrong-password') {
+            throw new ApiError(0, 'Palavra-passe incorreta (verificação offline).');
+          }
+          if (v.reason === 'expired') {
+            throw new ApiError(0, 'O acesso offline expirou. Ligue-se à internet uma vez para renovar.');
+          }
+        }
+        throw e;
+      }
       const code = input.companyCode ?? r.companyCode;
       companyRef.current = code;
       setCompanyCode(code);
@@ -253,6 +286,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(r);
       setStatus('authed');
+      // Guarda a credencial para o próximo arranque sem rede (best-effort: uma
+      // falha aqui nunca pode estragar um login que já teve sucesso).
+      void rememberOffline({
+        companyCode: code, email: input.email, password: input.password,
+        accessToken: r.accessToken, refreshToken: r.refreshToken,
+      }).catch(() => undefined);
     },
     [applyTokens],
   );
