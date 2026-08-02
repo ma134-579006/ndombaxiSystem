@@ -5,6 +5,7 @@ import { confirmDialog, toast } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz, formatDate } from '../format';
+import { isNetworkError, queueCustomer } from '../offline/writes';
 
 const EMPTY = { name: '', phone: '', email: '', taxId: '', address: '', province: '', municipality: '' };
 
@@ -54,7 +55,23 @@ export function Customers() {
       else { await api.customers.create(body); toast.success(`Cliente «${form.name.trim()}» criado.`); }
       setOpen(false);
       await load();
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível guardar.'); }
+    } catch (e) {
+      // SEM REDE: em vez de perder o trabalho, o cliente fica em fila e sobe
+      // sozinho quando a ligação voltar. Só para esta entidade — ver writes.ts:
+      // uma fila genérica poria documentos fiscais em risco.
+      if (isNetworkError(e)) {
+        const queued = await queueCustomer(body, editing?.id);
+        if (queued) {
+          toast.success(editing
+            ? 'Cliente atualizado (guardado no aparelho — sobe quando houver ligação).'
+            : `Cliente «${form.name.trim()}» criado (guardado no aparelho — sobe quando houver ligação).`);
+          setOpen(false);
+          await load();
+          return;
+        }
+      }
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível guardar.');
+    }
     finally { setSaving(false); }
   };
 
