@@ -40,6 +40,34 @@ function copyDir(from, to) {
   }
 }
 
+/**
+ * Barreira anti-regressão do "Sem ligação ao servidor": um build sem VITE_API_URL
+ * fica a apontar para `http://localhost:3000` (default do frontend). Quando a API
+ * é de produção, o minificador do Vite ELIMINA esse fallback — a presença da
+ * string no dist prova build errado. Recusamos empacotá-lo.
+ */
+function assertApiBaked(dir, label) {
+  if (/localhost/.test(API_URL)) return;
+  const offenders = [];
+  const walk = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith('.js') && fs.readFileSync(p, 'utf8').includes('http://localhost:3000')) {
+        offenders.push(path.relative(dir, p));
+      }
+    }
+  };
+  walk(dir);
+  if (offenders.length) {
+    throw new Error(
+      `${label}: o build aponta para http://localhost:3000 (VITE_API_URL não foi injetado).\n`
+      + `  API esperada: ${API_URL}\n`
+      + `  Ficheiros:    ${offenders.slice(0, 3).join(', ')}${offenders.length > 3 ? '…' : ''}`,
+    );
+  }
+}
+
 process.stdout.write('\nNdombaxi System — a preparar a pasta www das apps móveis\n\n');
 log(`API: ${API_URL}`);
 
@@ -58,6 +86,7 @@ for (const mod of MODULES) {
   if (!fs.existsSync(dist)) throw new Error(`O build de ${mod.app} não produziu dist/.`);
   const modDir = path.join(www, mod.target);
   copyDir(dist, modDir);
+  assertApiBaked(modDir, mod.label); // não empacotar um build que aponta para localhost
   log(`${mod.label}: copiado para www/${mod.target}`);
 
   // Seta de VOLTAR ao lançador — injeção shell-side (o móvel não tem preload

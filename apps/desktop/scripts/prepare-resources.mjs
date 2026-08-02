@@ -44,6 +44,36 @@ function copyDir(from, to) {
   }
 }
 
+/**
+ * Barreira anti-regressão do "Sem ligação ao servidor": um build feito sem
+ * VITE_API_URL fica a apontar para `http://localhost:3000` (default do frontend),
+ * inalcançável na máquina do cliente. Quando a API é a de produção, o minificador
+ * do Vite ELIMINA o fallback — logo a presença dessa string no `dist` prova que o
+ * build está errado. Recusamos empacotá-lo em vez de enviar uma app que não liga.
+ */
+function assertApiBaked(dir, label) {
+  if (/localhost/.test(API_URL)) return; // build local intencional — não há o que validar
+  const offenders = [];
+  const walk = (d) => {
+    for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, entry.name);
+      if (entry.isDirectory()) walk(p);
+      else if (entry.name.endsWith('.js') && fs.readFileSync(p, 'utf8').includes('http://localhost:3000')) {
+        offenders.push(path.relative(dir, p));
+      }
+    }
+  };
+  walk(dir);
+  if (offenders.length) {
+    throw new Error(
+      `${label}: o build aponta para http://localhost:3000 (VITE_API_URL não foi injetado).\n`
+      + `  API esperada: ${API_URL}\n`
+      + `  Ficheiros:    ${offenders.slice(0, 3).join(', ')}${offenders.length > 3 ? '…' : ''}\n`
+      + `  Corrija o build (não usar SKIP_FRONTEND_BUILD com um dist antigo) e repita.`,
+    );
+  }
+}
+
 process.stdout.write('\nNdombaxi System — a preparar os recursos da aplicação Windows\n\n');
 log(`API: ${API_URL}`);
 
@@ -70,6 +100,7 @@ for (const mod of MODULES) {
 
   fs.rmSync(dest, { recursive: true, force: true });
   copyDir(dist, dest);
+  assertApiBaked(dest, mod.label); // NÃO empacotar um build que aponta para localhost
   log(`${mod.label}: copiado para resources/modules/${mod.target}`);
 }
 
