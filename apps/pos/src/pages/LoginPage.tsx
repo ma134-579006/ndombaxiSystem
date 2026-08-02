@@ -85,7 +85,10 @@ export function LoginPage() {
     || typeof nw.ndombaxi !== 'undefined'
     || nw.__NDOMBAXI_NATIVE__ === true
     || !!nw.Capacitor?.isNativePlatform?.();
-  const isMobileApp = !!nw.Capacitor?.isNativePlatform?.();
+  // "Móvel" = app nativa E não-desktop. NÃO dependemos de window.Capacitor (nem
+  // sempre chega ao frontend na app); o desktop expõe window.ndombaxi, o móvel não.
+  const isDesktopApp = window.location.protocol === 'ndombaxi:' || typeof nw.ndombaxi !== 'undefined';
+  const isMobileApp = isNativeApp && !isDesktopApp;
 
   return (
     <div className="auth">
