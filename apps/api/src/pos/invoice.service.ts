@@ -592,6 +592,37 @@ export class InvoiceService {
   }
 
   /**
+   * Recupera o documento que uma operação do posto já emitiu.
+   *
+   * Existe para o caso em que a resposta se perdeu no caminho: o posto reenvia a
+   * mesma venda, o índice único recusa a segunda gravação e devolvemos ESTA —
+   * a original — para o recibo sair com o número fiscal verdadeiro. Devolve a
+   * mesma forma que `emit`, senão quem imprime o recibo partia.
+   */
+  async findByClientOpId(schema: string, clientOpId: string): Promise<EmittedInvoice | null> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{
+        id: string; number: string; hash: string; previous_hash: string | null;
+        net_total: string; iva_total: string; gross_total: string;
+      }[]>(
+        Prisma.sql`SELECT id, number, hash, previous_hash, net_total, iva_total, gross_total
+                     FROM invoices WHERE client_op_id = ${clientOpId}::uuid`,
+      ),
+    );
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      id: r.id,
+      number: r.number,
+      hash: r.hash,
+      previousHash: r.previous_hash ?? '',
+      netTotal: Number(r.net_total),
+      ivaTotal: Number(r.iva_total),
+      grossTotal: Number(r.gross_total),
+    } as EmittedInvoice;
+  }
+
+  /**
    * Lista as vendas (facturas FT/FS) num período, com os produtos vendidos,
    * operador, total e estado. Usado pelo histórico de vendas da caixa, com
    * possibilidade de filtrar por datas e cancelar.

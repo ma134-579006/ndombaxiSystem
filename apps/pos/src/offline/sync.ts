@@ -138,6 +138,11 @@ class SyncController {
     try {
       await api.emitInvoice({
         customerId: sale.customerId ?? undefined,
+        // A MESMA chave em todas as tentativas: se o servidor já tiver gravado
+        // esta venda (resposta perdida), devolve a fatura original em vez de
+        // criar uma segunda. Vendas em fila de versões anteriores não têm chave
+        // e mantêm o comportamento antigo — nada rebenta por causa disso.
+        clientOpId: sale.clientOpId,
         lines: sale.lines.map((l) => ({ productCode: l.productCode, quantity: l.quantity })),
       });
       if (sale.id != null) await deleteSale(sale.id);
