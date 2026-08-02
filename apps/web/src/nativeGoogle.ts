@@ -19,10 +19,10 @@ function plugin(): GAPlugin | null {
   const w = window as unknown as {
     Capacitor?: { isNativePlatform?: () => boolean; Plugins?: { GoogleAuth?: GAPlugin } };
   };
-  if (w.Capacitor?.isNativePlatform?.() && w.Capacitor.Plugins?.GoogleAuth) {
-    return w.Capacitor.Plugins.GoogleAuth;
-  }
-  return null;
+  // Basta o plugin estar acessível. Não exigimos isNativePlatform() (pode ser
+  // instável no frontend dentro da app); na WEB o Capacitor não existe, por isso
+  // isto devolve null e usa-se o botão web — seguro.
+  return w.Capacitor?.Plugins?.GoogleAuth ?? null;
 }
 
 /** True quando o Google nativo está disponível (app instalada com o plugin). */

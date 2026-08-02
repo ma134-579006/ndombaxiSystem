@@ -112,10 +112,14 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
     || typeof nw.ndombaxi !== 'undefined'
     || nw.__NDOMBAXI_NATIVE__ === true
     || !!nw.Capacitor?.isNativePlatform?.();
-  // App MÓVEL (Capacitor) vs DESKTOP (Electron). O Google nativo (plugin Google
-  // Play Services) só existe no móvel; no desktop o OAuth do Google é outro fluxo
-  // (à parte) e por isso não mostramos um botão que não funcionaria.
-  const isMobileApp = !!nw.Capacitor?.isNativePlatform?.();
+  // App MÓVEL (Android/iOS) vs DESKTOP (Electron). NÃO dependemos de
+  // `window.Capacitor` para isto: esse global nem sempre chega ao frontend dentro
+  // da app (é por isso que a app usa a bandeira __NDOMBAXI_NATIVE__ para se
+  // detetar). O DESKTOP expõe `window.ndombaxi` (ponte do Electron); o móvel não.
+  // Logo "móvel" = é app nativa E não é desktop — assim o botão Google aparece no
+  // Android/iOS de forma fiável. No desktop o OAuth do Google é outro fluxo.
+  const isDesktopApp = window.location.protocol === 'ndombaxi:' || typeof nw.ndombaxi !== 'undefined';
+  const isMobileApp = isNativeApp && !isDesktopApp;
   const openSignupInBrowser = () => window.open('https://ndombaxisystem.com/', '_blank');
 
   return (
