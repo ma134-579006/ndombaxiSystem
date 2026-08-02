@@ -45,6 +45,13 @@ import { syncController } from '../offline/sync';
 import { useSync } from '../offline/useSync';
 
 const CACHE_PRODUCTS = 'cache:products';
+// Dados de apoio da Caixa, também guardados para VENDER 100% OFFLINE (clientes,
+// dados do recibo, identidade fiscal da empresa e promoções). Sem isto, offline
+// a caixa abria sem cliente/logo/promoções.
+const CACHE_CUSTOMERS = 'cache:customers';
+const CACHE_RECEIPT = 'cache:receiptInfo';
+const CACHE_IDENTITY = 'cache:identity';
+const CACHE_PROMOS = 'cache:promotions';
 
 const ROLE_LABELS: Record<string, string> = {
   COMPANY_ADMIN: 'Administrador',
@@ -238,12 +245,18 @@ export function PosPage() {
       } finally {
         setLoading(false);
       }
-      // Best-effort (não bloqueiam a caixa).
-      api.listCustomers().then(setCustomers).catch(() => undefined);
-      api.receiptInfo().then(setReceiptInfo).catch(() => undefined);
-      api.documentIdentity().then(setIdentity).catch(() => undefined);
+      // Dados de apoio: ONLINE → aplica e cacheia; OFFLINE → lê da cache local
+      // (para a Caixa vender 100% sem rede — com cliente, recibo, logo e promoções).
+      const cached = async <T,>(key: string, fetcher: () => Promise<T>, setter: (v: T) => void) => {
+        try { const v = await fetcher(); setter(v); void kvSet(key, v); }
+        catch { const c = await kvGet<T>(key); if (c != null) setter(c); }
+      };
+      void cached(CACHE_CUSTOMERS, () => api.listCustomers(), setCustomers);
+      void cached(CACHE_RECEIPT, () => api.receiptInfo(), setReceiptInfo);
+      void cached(CACHE_IDENTITY, () => api.documentIdentity(), setIdentity);
+      void cached(CACHE_PROMOS, () => api.listPromotions(), setPromotions);
+      // A sessão (turno aberto) é dinâmica — não se cacheia.
       api.currentSession().then(setSession).catch(() => undefined);
-      api.listPromotions().then(setPromotions).catch(() => undefined);
     })();
   }, []);
 

@@ -32,12 +32,27 @@ function loadGsi(): Promise<void> {
  * o utilizador continua a poder usar o e-mail.
  */
 export function GoogleSignInButton({ onCredential }: { onCredential(idToken: string): void }) {
+  // Na APP INSTALADA (desktop/móvel) o Google BLOQUEIA o seu OAuth dentro de
+  // WebViews (política "disallowed_useragent") — o botão nunca completaria o
+  // login. Por isso escondemo-lo na app e o utilizador entra por e-mail/PIN; o
+  // SITE (navegador normal) continua a mostrar o Google. (Login nativo com Google
+  // fica para um passo próprio, com plugin nativo — ver notas.)
+  const nw = window as unknown as {
+    ndombaxi?: unknown; __NDOMBAXI_NATIVE__?: boolean;
+    Capacitor?: { isNativePlatform?: () => boolean };
+  };
+  const isNativeApp = window.location.protocol === 'ndombaxi:'
+    || typeof nw.ndombaxi !== 'undefined'
+    || nw.__NDOMBAXI_NATIVE__ === true
+    || !!nw.Capacitor?.isNativePlatform?.();
+
   const ref = useRef<HTMLDivElement | null>(null);
   const cbRef = useRef(onCredential);
   cbRef.current = onCredential;
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    if (isNativeApp) return;               // app instalada: Google escondido
     let cancelled = false;
     loadGsi().then(() => {
       if (cancelled || !ref.current) return;
@@ -65,6 +80,7 @@ export function GoogleSignInButton({ onCredential }: { onCredential(idToken: str
     return () => { cancelled = true; };
   }, []);
 
+  if (isNativeApp) return null; // app instalada: sem Google (usa-se e-mail/PIN)
   if (failed) {
     return (
       <div className="muted" style={{ fontSize: 12, textAlign: 'center', maxWidth: 300 }}>

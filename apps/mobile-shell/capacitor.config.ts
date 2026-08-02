@@ -26,6 +26,16 @@ const config: CapacitorConfig = {
       iosIsEncryption: true,
       androidIsEncryption: true,
     },
+    // Google Sign-In NATIVO (o Google bloqueia o OAuth em WebViews). O
+    // `serverClientId` é o cliente WEB (522636462932-m67fvuutei…) — é a audiência
+    // que a API verifica, por isso o token nativo é aceite sem mudar o backend. O
+    // cliente ANDROID (522636462932-tc0tpn8k…, pacote com.ndombaxi.system + SHA-1)
+    // é o que autoriza a app no Google Cloud; o Google associa-o pelo pacote/SHA-1.
+    GoogleAuth: {
+      scopes: ['profile', 'email'],
+      serverClientId: '522636462932-m67fvuutei11ug355aion1sh00h1k2br.apps.googleusercontent.com',
+      forceCodeForRefreshToken: false,
+    },
   },
   android: {
     // Contexto seguro para a WebView (crypto.subtle).

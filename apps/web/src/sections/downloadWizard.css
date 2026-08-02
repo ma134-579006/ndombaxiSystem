@@ -1,0 +1,131 @@
+/* Assistente de Publicação (Super Admin) — página dedicada, animada e enterprise.
+   Cores herdadas dos tokens do tema (var(--primary/surface/border/...)) para
+   ficar coerente com o resto do painel. */
+
+.dw {
+  max-width: 940px;
+  margin: 0 auto;
+  animation: dw-up .4s cubic-bezier(.2, .7, .3, 1) both;
+}
+
+/* ── Cabeçalho ── */
+.dw-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border, #233149);
+  border-radius: var(--radius, 16px);
+  padding: 28px 30px;
+  margin-bottom: 24px;
+  background:
+    radial-gradient(680px 260px at 12% -20%, color-mix(in srgb, var(--primary, #3b82f6) 26%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--primary, #3b82f6) 8%, transparent), transparent 60%),
+    var(--surface, #12151c);
+}
+.dw-hero-glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(420px 200px at 88% 130%, color-mix(in srgb, var(--primary, #3b82f6) 30%, transparent), transparent 70%);
+  opacity: .8; animation: dw-pulse 5s ease-in-out infinite;
+}
+.dw-hero > * { position: relative; z-index: 1; }
+.dw-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12.5px; font-weight: 800; letter-spacing: .02em;
+  color: var(--primary, #3b82f6);
+  background: color-mix(in srgb, var(--primary, #3b82f6) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary, #3b82f6) 40%, transparent);
+  padding: 6px 12px; border-radius: 999px; margin-bottom: 14px;
+}
+.dw-badge svg { width: 15px; height: 15px; animation: dw-spin 6s linear infinite; }
+.dw-hero h2 { margin: 0 0 8px; font-size: 25px; font-weight: 900; letter-spacing: -.02em; color: var(--text, #eaf0fa); }
+.dw-hero p { margin: 0; max-width: 640px; color: var(--muted, #93a3c0); font-size: 14.5px; line-height: 1.55; }
+.dw-hero b { color: var(--text, #eaf0fa); }
+
+/* ── Passos ── */
+.dw-step { margin-bottom: 22px; }
+.dw-step-h {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 15px; font-weight: 800; color: var(--text, #eaf0fa); margin-bottom: 12px;
+}
+.dw-num {
+  display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px;
+  font-size: 13px; font-weight: 900; color: #fff;
+  background: var(--primary, #3b82f6); box-shadow: 0 6px 16px -8px var(--primary, #3b82f6);
+}
+.dw-you {
+  font-size: 11.5px; font-weight: 700; color: var(--success, #10b981);
+  background: color-mix(in srgb, var(--success, #10b981) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success, #10b981) 35%, transparent);
+  padding: 2px 9px; border-radius: 999px;
+}
+
+/* ── Cartões de plataforma ── */
+.dw-platforms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.dw-plat {
+  display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer;
+  border: 1.5px solid var(--border, #233149); border-radius: 14px; padding: 14px;
+  background: var(--surface, #12151c); color: var(--text, #eaf0fa);
+  transition: transform .14s ease, border-color .14s ease, box-shadow .2s ease, background .14s ease;
+  animation: dw-up .45s cubic-bezier(.2, .7, .3, 1) both;
+}
+.dw-plat:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--primary, #3b82f6) 60%, var(--border, #233149)); box-shadow: 0 14px 30px -18px var(--primary, #3b82f6); }
+.dw-plat.on { border-color: var(--primary, #3b82f6); background: color-mix(in srgb, var(--primary, #3b82f6) 10%, var(--surface, #12151c)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #3b82f6) 22%, transparent); }
+.dw-plat-ic { flex: 0 0 auto; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 11px; background: color-mix(in srgb, var(--primary, #3b82f6) 16%, transparent); color: var(--primary, #3b82f6); }
+.dw-plat.on .dw-plat-ic { animation: dw-float 2.6s ease-in-out infinite; }
+.dw-plat-ic svg { width: 24px; height: 24px; }
+.dw-plat-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dw-plat-t b { font-size: 14.5px; font-weight: 800; }
+.dw-plat-t small { color: var(--muted, #93a3c0); font-size: 12px; margin-top: 2px; }
+.dw-plat-v { flex: 0 0 auto; font-size: 11.5px; font-weight: 800; color: var(--muted, #93a3c0); background: color-mix(in srgb, var(--border, #233149) 55%, transparent); padding: 3px 8px; border-radius: 999px; }
+.dw-plat.on .dw-plat-v { color: var(--primary, #3b82f6); background: color-mix(in srgb, var(--primary, #3b82f6) 16%, transparent); }
+
+/* ── Pré-visualização ── */
+.dw-preview { border: 1px solid var(--border, #233149); border-radius: 14px; padding: 16px; background: var(--surface, #12151c); animation: dw-fade .35s ease both; }
+.dw-facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.dw-fact { border: 1px solid var(--border, #233149); border-radius: 10px; padding: 10px 12px; background: color-mix(in srgb, var(--border, #233149) 12%, transparent); }
+.dw-fact-wide { grid-column: span 2; }
+.dw-fact span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted, #93a3c0); margin-bottom: 4px; }
+.dw-fact b { font-size: 14px; font-weight: 800; color: var(--text, #eaf0fa); }
+.dw-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.dw-list-h { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 800; margin-bottom: 8px; }
+.dw-list-h svg { width: 15px; height: 15px; }
+.dw-list-new { color: var(--primary, #3b82f6); }
+.dw-list-fix { color: var(--success, #10b981); }
+.dw-list ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.dw-list li {
+  position: relative; padding-left: 16px; font-size: 13px; line-height: 1.45; color: var(--text, #eaf0fa);
+  animation: dw-up .4s cubic-bezier(.2, .7, .3, 1) both;
+}
+.dw-list li::before { content: ""; position: absolute; left: 2px; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .5; }
+.dw-list-new + ul li::before { background: var(--primary, #3b82f6); opacity: .7; }
+.dw-list-fix + ul li::before { background: var(--success, #10b981); opacity: .7; }
+
+/* ── Link ── */
+.dw-link { display: flex; align-items: center; gap: 0; border: 1.5px solid var(--border, #233149); border-radius: 12px; overflow: hidden; background: var(--surface, #12151c); transition: border-color .15s ease, box-shadow .2s ease; }
+.dw-link:focus-within { border-color: var(--primary, #3b82f6); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #3b82f6) 20%, transparent); }
+.dw-link-ic { flex: 0 0 auto; display: grid; place-items: center; width: 46px; align-self: stretch; color: var(--muted, #93a3c0); background: color-mix(in srgb, var(--border, #233149) 20%, transparent); }
+.dw-link-ic svg { width: 18px; height: 18px; }
+.dw-link input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text, #eaf0fa); font-size: 14px; padding: 13px 14px; }
+.dw-hint { margin: 8px 2px 0; font-size: 12.5px; color: var(--muted, #93a3c0); }
+
+/* ── Ações ── */
+.dw-actions { display: flex; gap: 10px; align-items: center; margin-top: 26px; }
+.dw-cta { display: inline-flex; align-items: center; gap: 9px; font-weight: 800; }
+.dw-cta svg { width: 18px; height: 18px; transition: transform .15s ease; }
+.dw-cta:hover svg { transform: translateX(3px); }
+
+/* ── Animações ── */
+@keyframes dw-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes dw-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dw-pulse { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+@keyframes dw-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes dw-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 720px) {
+  .dw-platforms { grid-template-columns: 1fr; }
+  .dw-facts { grid-template-columns: 1fr 1fr; }
+  .dw-fact-wide { grid-column: span 2; }
+  .dw-lists { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dw, .dw-plat, .dw-list li, .dw-preview, .dw-hero-glow, .dw-badge svg, .dw-plat.on .dw-plat-ic { animation: none !important; }
+}

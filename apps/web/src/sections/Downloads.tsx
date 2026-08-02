@@ -3,6 +3,7 @@ import { api, ApiError } from '../api/client';
 import type { AppPlatform, AppReleaseInput, AppReleaseRow } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
 import { Switch } from '../components/ui';
+import { consumePrefill } from './releaseManifest';
 
 /**
  * Gestão de Downloads — Super Admin.
@@ -47,7 +48,7 @@ function fmtBytes(n: number | null): string {
   return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(n / 1024).toFixed(0)} KB`;
 }
 
-export function Downloads() {
+export function Downloads({ onOpenWizard }: { onOpenWizard?: () => void } = {}) {
   const [rows, setRows] = useState<AppReleaseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -66,6 +67,22 @@ export function Downloads() {
     }
   };
   useEffect(() => { void load(); }, []);
+
+  // Se o Assistente de Publicação deixou um pacote de pré-preenchimento, consome-o
+  // ao montar: escolhe a plataforma e preenche o formulário (fica só rever e
+  // publicar). O `published` fica sempre em falso — o admin decide.
+  useEffect(() => {
+    const p = consumePrefill();
+    if (!p) return;
+    setTab(p.platform);
+    setEditingId(null);
+    setForm({
+      platform: p.platform, version: p.version, minSupported: p.minSupported,
+      fileUrl: p.fileUrl, downloadPageUrl: p.downloadPageUrl, sha256: p.sha256,
+      requirements: p.requirements, mandatory: p.mandatory, published: false,
+      notesText: p.notes.join('\n'), fixesText: p.fixes.join('\n'),
+    });
+  }, []);
 
   const byPlatform = useMemo(
     () => rows.filter((r) => r.platform === tab),
@@ -151,8 +168,14 @@ export function Downloads() {
 
   return (
     <>
-      <div className="content-head">
-        <h2>Gestão de Downloads</h2>
+      <div className="content-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <h2 style={{ margin: 0 }}>Gestão de Downloads</h2>
+        {onOpenWizard && (
+          <button className="btn primary" onClick={onOpenWizard} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5L13 3Z" /></svg>
+            Preenchimento assistido
+          </button>
+        )}
       </div>
 
       <div className="banner info" style={{ marginBottom: 16 }}>

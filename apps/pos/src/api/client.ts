@@ -1,4 +1,5 @@
 import { API_URL } from '../config';
+import { sharedGet, sharedSet } from '../sharedCache';
 import type { PromoRow } from '../pos/promo';
 import type {
   CashSession,
@@ -75,6 +76,12 @@ async function request<T>(
   options: RequestOptions = {},
 ): Promise<T> {
   const { auth = true, retry = true } = options;
+  // OFFLINE-FIRST (read-through cache): LEITURAS (GET) guardadas na cache
+  // partilhada e servidas de lá quando não há rede. ADITIVO: online devolve
+  // sempre fresco; escrita/POST não têm cache. Mesma cache que a Gestão usa
+  // (mesma origem no Android) → dados partilhados localmente sem servidor.
+  const isGet = method.toUpperCase() === 'GET';
+  const cacheKey = `GET ${path}`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (auth) {
     const token = hooks?.getAccessToken();
@@ -95,6 +102,10 @@ async function request<T>(
       signal: ctrl.signal,
     });
   } catch (e) {
+    if (isGet && (e as Error)?.name !== 'AbortError') {
+      const cached = await sharedGet<T>(cacheKey);
+      if (cached != null) return cached;
+    }
     throw new ApiError(0, (e as Error)?.name === 'AbortError'
       ? 'O servidor demorou demasiado a responder. Tente novamente.'
       : 'Sem ligação ao servidor. Verifique a rede e o endereço da API.');
@@ -112,7 +123,9 @@ async function request<T>(
   if (!res.ok) throw await parseError(res);
   if (res.status === 204) return undefined as T;
   const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  const data = (text ? JSON.parse(text) : undefined) as T;
+  if (isGet && data !== undefined) void sharedSet(cacheKey, data);
+  return data;
 }
 
 export const api = {

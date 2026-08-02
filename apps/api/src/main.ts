@@ -33,11 +33,17 @@ async function bootstrap(): Promise<void> {
   const allowHosts = ['ndombaxisystem.com'];
   const allowHostSuffixes = ['.pages.dev', '.vercel.app', '.netlify.app', '.ndombaxisystem.com'];
   // Aplicações instaladas (Windows/Android/iOS): a interface é servida do DISCO
-  // do posto pelo protocolo `ndombaxi://`, pelo que a Origin não é um domínio.
-  // Só estes dois nomes são aceites — correspondem aos módulos empacotados no
-  // instalador (Gestão e Caixa). Ao contrário de um domínio, esta origem NÃO é
-  // alcançável a partir de uma página web: nenhum site a consegue forjar.
-  const allowAppOrigins = ['ndombaxi://gestao', 'ndombaxi://caixa'];
+  // do posto. No DESKTOP (Electron) pelo protocolo próprio `ndombaxi://`; no
+  // MÓVEL (Capacitor) a WebView serve de `https://localhost` (Android) e
+  // `capacitor://localhost` (iOS) — precisa de contexto seguro para o
+  // `crypto.subtle` da cifra offline, por isso não pode usar um esquema próprio.
+  // Sem estas origens, o `fetch` do login no telemóvel era bloqueado por CORS e
+  // a app dizia "Sem ligação ao servidor" mesmo com internet. A autenticação é
+  // por Bearer (cabeçalho, não cookie), logo aceitar `localhost` não abre CSRF.
+  const allowAppOrigins = [
+    'ndombaxi://gestao', 'ndombaxi://caixa',        // desktop (Electron)
+    'https://localhost', 'capacitor://localhost',   // móvel (Capacitor Android/iOS)
+  ];
   app.enableCors({
     credentials: true,
     origin(origin, callback) {

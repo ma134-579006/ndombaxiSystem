@@ -2,9 +2,15 @@ import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import type { DocumentIdentity, SaleDetail } from '../api/types';
 
-const ACCENT: [number, number, number] = [255, 77, 45];
-const INK: [number, number, number] = [20, 24, 32];
-const MUTED: [number, number, number] = [110, 120, 135];
+/* ── Paleta SÓBRIA (enterprise) — igual à do Caixa, para o documento fiscal ser
+   idêntico venha ele da Gestão ou do POS. Tinta escura, cinzentos, réguas finas
+   e molduras a delimitar cada bloco (à imagem das faturas Primavera/AGT). ── */
+const INK: [number, number, number] = [17, 24, 39];
+const SUB: [number, number, number] = [92, 101, 116];
+const LINE: [number, number, number] = [203, 210, 221];
+const ZEBRA: [number, number, number] = [246, 248, 251];
+const HEAD: [number, number, number] = [30, 38, 52];
+const DANGER: [number, number, number] = [200, 40, 40];
 
 const KZ = (n: number) => `${n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz`;
 
@@ -12,7 +18,7 @@ const DOC_LABEL: Record<string, string> = {
   FT: 'Fatura', FS: 'Fatura-Recibo', FR: 'Fatura-Recibo', NC: 'Nota de Crédito', ND: 'Nota de Débito',
 };
 
-/** Assinatura AGT (4 caracteres do hash nas posições 1, 11, 21, 31). */
+/** Assinatura AGT (4 caracteres do hash nas posições 1, 11, 21, 31 — DP 71/25). */
 function agtSignature(hash: string): string {
   if (!hash) return '';
   return [0, 10, 20, 30].map((i) => hash[i] ?? '').join('');
@@ -20,132 +26,186 @@ function agtSignature(hash: string): string {
 
 /**
  * PDF A4 de um documento fiscal EMITIDO (2ª via / reimpressão), com o mesmo
- * design profissional do resto do sistema: cabeçalho com marca, dados do
- * cliente, tabela de linhas, totais, assinatura AGT, QR e rodapé. Usado após
- * faturar uma Ordem de Serviço (e reutilizável por clínica/hotel/etc.).
+ * layout profissional do Caixa: cabeçalho com identidade + bloco do documento,
+ * adquirente com moldura, tabela densa, resumo de impostos, TOTAL DO DOCUMENTO,
+ * assinatura AGT, QR e rodapé.
  */
 export async function buildInvoicePdf(sale: SaleDetail, identity?: DocumentIdentity | null): Promise<jsPDF> {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
-  const M = 48;
+  const M = 40;
   const empresa = identity?.companyName || identity?.brandName || 'Documento';
-  const label = DOC_LABEL[sale.docType] ?? sale.docType;
+  const title = (DOC_LABEL[sale.docType] ?? sale.docType).toUpperCase();
   const emitted = new Date(sale.date).toLocaleString('pt-PT');
+  const annulled = sale.status === 'A';
+  const ivaRate = sale.invoice.netTotal > 0 ? Math.round((sale.invoice.ivaTotal / sale.invoice.netTotal) * 100) : 0;
 
-  // ── Cabeçalho ──
-  let y = 54;
+  // ── Cabeçalho: identidade (esq.) + bloco do documento (dir.) ──
+  let y = 46;
+  let logoW = 0;
   if (identity?.logoUrl) {
     try {
-      const logo = await toDataUrl(identity.logoUrl);
-      if (logo) doc.addImage(logo, 'PNG', M, y - 16, 54, 54, undefined, 'FAST');
+      const logo = await loadLogo(identity.logoUrl);
+      if (logo) {
+        // Encaixa o logótipo numa caixa 52×46 mantendo a PROPORÇÃO (sem distorcer).
+        const scale = Math.min(52 / logo.w, 46 / logo.h);
+        const dw = Math.max(1, logo.w * scale), dh = Math.max(1, logo.h * scale);
+        doc.addImage(logo.data, 'PNG', M, y - 10, dw, dh, undefined, 'FAST');
+        logoW = dw;
+      }
     } catch { /* logo opcional */ }
   }
-  const tx = identity?.logoUrl ? M + 68 : M;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(...INK);
-  doc.text(empresa, tx, y);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(90, 100, 115);
-  if (identity?.nif) doc.text(`NIF: ${identity.nif}`, tx, y + 16);
-  if (identity?.address) doc.text(doc.splitTextToSize(identity.address, W - tx - M - 160), tx, y + 30);
+  const tx = logoW ? M + logoW + 12 : M;
+  const bx = W - M - 200, bw = 200, bh = 60;
+  const nameW = bx - tx - 16;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...INK);
+  const nameLines = doc.splitTextToSize(empresa, nameW);
+  nameLines.forEach((ln: string, i: number) => doc.text(String(ln), tx, y + i * 15));
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor(...SUB);
+  let hy = y + (nameLines.length - 1) * 15 + 13;
+  if (identity?.nif) { doc.text(`Contribuinte n.º ${identity.nif}`, tx, hy); hy += 11; }
+  if (identity?.address) { for (const ln of doc.splitTextToSize(identity.address, 250)) { doc.text(String(ln), tx, hy); hy += 11; } }
+  const contact = [identity?.phone, identity?.email].filter(Boolean).join('  ·  ');
+  if (contact) { doc.text(contact, tx, hy); hy += 11; }
 
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...ACCENT);
-  doc.text(`${label} ${sale.invoice.number}`.toUpperCase(), W - M, y, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
-  doc.text(`Emitido: ${emitted}`, W - M, y + 16, { align: 'right' });
-  if (sale.status && sale.status !== 'N') {
-    doc.setTextColor(...ACCENT); doc.text(sale.status === 'A' ? 'ANULADO' : sale.status, W - M, y + 30, { align: 'right' });
+  doc.setDrawColor(...LINE); doc.setLineWidth(0.8); doc.roundedRect(bx, y - 12, bw, bh, 3, 3, 'S');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(...INK);
+  doc.text(title, bx + 12, y + 3);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+  doc.setTextColor(...(annulled ? DANGER : SUB));
+  doc.text(annulled ? 'ANULADO' : 'ORIGINAL', bx + bw - 12, y + 2, { align: 'right' });
+  doc.setDrawColor(...LINE); doc.setLineWidth(0.5); doc.line(bx + 12, y + 12, bx + bw - 12, y + 12);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...INK);
+  doc.text(sale.invoice.number, bx + 12, y + 26);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.4); doc.setTextColor(...SUB);
+  doc.text(`Data de emissão: ${emitted}`, bx + 12, y + 39);
+
+  y = Math.max(hy + 6, y + bh - 2);
+  doc.setDrawColor(...INK); doc.setLineWidth(1); doc.line(M, y, W - M, y);
+  y += 14;
+
+  // ── Adquirente (cliente) + meta ──
+  const halfW = (W - 2 * M);
+  doc.setDrawColor(...LINE); doc.setLineWidth(0.8); doc.roundedRect(M, y, halfW, 44, 3, 3, 'S');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...SUB);
+  doc.text('EXMO(S) SENHOR(ES)', M + 10, y + 14);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...INK);
+  doc.text(sale.customerName || 'Consumidor final', M + 10, y + 30);
+  const rx = M + halfW - 190;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  const metaPairs: [string, string][] = [
+    ['Operador', sale.cashierName || '—'],
+    ['Pagamento', 'Pronto pagamento'],
+    ['Página', '1 / 1'],
+  ];
+  let myy = y + 13;
+  for (const [k, v] of metaPairs) {
+    doc.setTextColor(...SUB); doc.text(k, rx, myy);
+    doc.setTextColor(...INK); doc.text(v, M + halfW - 10, myy, { align: 'right' });
+    myy += 12;
   }
+  y += 44 + 16;
 
-  y += 64;
-  doc.setDrawColor(...ACCENT); doc.setLineWidth(2); doc.line(M, y, W - M, y);
-  y += 22;
-
-  // ── Cliente / operador ──
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(70, 80, 95);
-  doc.text(`Cliente: ${sale.customerName || 'Consumidor final'}`, M, y);
-  if (sale.cashierName) doc.text(`Operador: ${sale.cashierName}`, W - M, y, { align: 'right' });
-  y += 22;
-
-  // ── Tabela de linhas ──
+  // ── Tabela de ARTIGOS ──
   const usable = W - 2 * M;
-  const cols = ['Descrição', 'Qtd', 'Preço', 'Total'];
-  const weights = [3.4, 0.8, 1.1, 1.2];
+  const cols = ['DESCRIÇÃO', 'QTD', 'UNI', 'P.UNIT', `IVA${ivaRate ? ` ${ivaRate}%` : ''}`, 'TOTAL'];
+  const weights = [3.5, 0.8, 0.7, 1.25, 0.9, 1.35];
   const wsum = weights.reduce((s, w) => s + w, 0);
   const colW = weights.map((w) => (w / wsum) * usable);
   const colX: number[] = []; { let acc = M; for (const w of colW) { colX.push(acc); acc += w; } }
-  const right = [false, true, true, true];
-  const footerSafe = 120;
+  const right = [false, false, false, true, true, true];
+  const center = [false, true, true, false, false, false];
 
   const drawHead = () => {
-    doc.setFillColor(...INK); doc.rect(M, y - 14, usable, 24, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(255, 255, 255);
+    doc.setFillColor(...HEAD); doc.rect(M, y, usable, 20, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.2); doc.setTextColor(255, 255, 255);
     cols.forEach((c, i) => {
-      const x = right[i] ? colX[i] + colW[i] - 8 : colX[i] + 8;
-      doc.text(c, x, y + 2, { align: right[i] ? 'right' : 'left' });
+      const x = right[i] ? colX[i] + colW[i] - 6 : center[i] ? colX[i] + colW[i] / 2 : colX[i] + 6;
+      doc.text(c, x, y + 13, { align: right[i] ? 'right' : center[i] ? 'center' : 'left' });
     });
-    y += 24;
+    y += 20;
   };
   drawHead();
 
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6);
   let alt = false;
   for (const it of sale.items) {
-    if (y > H - footerSafe) { doc.addPage(); y = 54; drawHead(); doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); alt = false; }
-    if (alt) { doc.setFillColor(247, 249, 252); doc.rect(M, y - 13, usable, 22, 'F'); }
+    const descLines = doc.splitTextToSize(it.description, colW[0] - 12);
+    const rowH = Math.max(18, descLines.length * 10 + 8);
+    if (y + rowH > H - 210) { doc.addPage(); y = 46; drawHead(); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); alt = false; }
+    if (alt) { doc.setFillColor(...ZEBRA); doc.rect(M, y, usable, rowH, 'F'); }
     alt = !alt;
-    doc.setTextColor(30, 36, 46);
+    doc.setTextColor(...INK);
     const cells = [
-      it.description + (it.productCode ? '' : ''),
+      descLines,
       String(Number(it.quantity)),
+      'UND',
       KZ(it.unitPrice),
+      ivaRate ? `${ivaRate}%` : 'Isento',
       KZ(it.total),
     ];
     cells.forEach((val, i) => {
-      const x = right[i] ? colX[i] + colW[i] - 8 : colX[i] + 8;
-      const txt = doc.splitTextToSize(val, colW[i] - 12)[0] ?? val;
-      doc.text(String(txt), x, y + 2, { align: right[i] ? 'right' : 'left' });
+      const x = right[i] ? colX[i] + colW[i] - 6 : center[i] ? colX[i] + colW[i] / 2 : colX[i] + 6;
+      if (Array.isArray(val)) {
+        val.forEach((ln: string, k: number) => doc.text(String(ln), x, y + 12 + k * 10, { align: 'left' }));
+      } else {
+        doc.text(String(val), x, y + 12, { align: right[i] ? 'right' : center[i] ? 'center' : 'left' });
+      }
     });
-    y += 22;
+    y += rowH;
   }
-  y += 14;
+  doc.setDrawColor(...LINE); doc.setLineWidth(0.8); doc.line(M, y, W - M, y);
+  y += 16;
 
-  // ── Totais ──
-  const totals: [string, string][] = [
-    ['Base tributável', KZ(sale.invoice.netTotal)],
-    ['IVA', KZ(sale.invoice.ivaTotal)],
-    ['Total', KZ(sale.invoice.grossTotal)],
+  // ── Resumo de impostos + TOTAL (painel à direita) ──
+  const panelW = 250; const px = W - M - panelW;
+  if (y + 118 > H - 90) { doc.addPage(); y = 46; }
+  const rows: [string, string][] = [
+    ['Mercadorias / Serviços', KZ(sale.invoice.netTotal)],
+    ['Descontos', KZ(0)],
+    ['Líquido (base tributável)', KZ(sale.invoice.netTotal)],
+    [`Imposto (IVA${ivaRate ? ` ${ivaRate}%` : ''})`, KZ(sale.invoice.ivaTotal)],
   ];
-  const boxW = 240; const boxX = W - M - boxW;
-  for (let i = 0; i < totals.length; i++) {
-    if (y > H - footerSafe) { doc.addPage(); y = 54; }
-    const grand = i === totals.length - 1;
-    doc.setFillColor(grand ? 20 : 247, grand ? 24 : 249, grand ? 32 : 252);
-    doc.rect(boxX, y - 14, boxW, grand ? 28 : 24, 'F');
-    doc.setFont('helvetica', grand ? 'bold' : 'normal'); doc.setFontSize(grand ? 12 : 10.5);
-    doc.setTextColor(...(grand ? [255, 255, 255] as [number, number, number] : [70, 80, 95] as [number, number, number]));
-    doc.text(totals[i][0], boxX + 12, y + (grand ? 4 : 2));
-    doc.text(totals[i][1], boxX + boxW - 12, y + (grand ? 4 : 2), { align: 'right' });
-    y += grand ? 30 : 24;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  for (const [k, v] of rows) {
+    doc.setTextColor(...SUB); doc.text(k, px, y);
+    doc.setTextColor(...INK); doc.text(v, px + panelW, y, { align: 'right' });
+    y += 16;
   }
+  y += 4;
+  doc.setFillColor(...HEAD); doc.roundedRect(px, y - 12, panelW, 30, 3, 3, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
+  doc.text('TOTAL DO DOCUMENTO', px + 12, y + 6);
+  doc.setFontSize(13); doc.text(KZ(sale.invoice.grossTotal), px + panelW - 12, y + 6, { align: 'right' });
+  y += 34;
 
-  // ── Assinatura AGT + QR ──
+  // ── Legendas fiscais + assinatura AGT ──
   const sig = agtSignature(sale.invoice.hash);
-  const fy = H - 92;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...MUTED);
-  if (sig) doc.text(`${sig} — Processado por programa validado`, M, fy);
-  if (identity?.receiptMessage) doc.text(doc.splitTextToSize(identity.receiptMessage, W - 2 * M - 90), M, fy + 14);
+  let ly = Math.max(y + 6, H - 150);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...SUB);
+  if (sig) { doc.text(`${sig} — Processado por programa validado`, M, ly); ly += 11; }
+  if (sale.invoice.hash) { doc.text(`Controlo (Hash): ${sale.invoice.hash.slice(0, 20)}`, M, ly); ly += 11; }
+  if (identity?.receiptMessage) { for (const ln of doc.splitTextToSize(identity.receiptMessage, W - 2 * M - 110)) { doc.text(String(ln), M, ly); ly += 11; } }
+
+  // ── QR de verificação ──
   try {
-    const qrData = [empresa, `${label} ${sale.invoice.number}`, sig, KZ(sale.invoice.grossTotal)].join('|');
+    const qrData = [empresa, `${title} ${sale.invoice.number}`, sig, KZ(sale.invoice.grossTotal)].join('|');
     const qr = await QRCode.toDataURL(qrData, { margin: 1, width: 220 });
-    doc.addImage(qr, 'PNG', W - M - 70, fy - 8, 70, 70, undefined, 'FAST');
+    doc.addImage(qr, 'PNG', W - M - 84, H - 156, 84, 84, undefined, 'FAST');
+    doc.setFontSize(7.5); doc.setTextColor(...SUB);
+    doc.text('Verificação · leia o QR', W - M - 84, H - 66);
   } catch { /* QR opcional */ }
 
   // ── Rodapé ──
-  const foot = [identity?.address, [identity?.phone, identity?.email].filter(Boolean).join(' · ')].filter(Boolean);
-  let fyy = H - 40;
-  doc.setDrawColor(225, 230, 240); doc.setLineWidth(1); doc.line(M, fyy - 8, W - M, fyy - 8);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...MUTED);
-  for (const line of foot) { doc.text(String(line), W / 2, fyy, { align: 'center' }); fyy += 12; }
+  const fy = H - 44;
+  doc.setDrawColor(...LINE); doc.setLineWidth(0.8); doc.line(M, fy - 10, W - M, fy - 10);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.4); doc.setTextColor(...SUB);
+  const foot = [identity?.address, contact].filter(Boolean) as string[];
+  let fyy = fy;
+  for (const line of foot) { doc.text(line, W / 2, fyy, { align: 'center' }); fyy += 11; }
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(...INK);
+  doc.text(identity?.receiptMessage || 'Obrigado pela preferência!', W / 2, fyy + 1, { align: 'center' });
 
   return doc;
 }
@@ -155,16 +215,44 @@ export function invoiceFileName(sale: SaleDetail): string {
   return `${num}.pdf`;
 }
 
-async function toDataUrl(url: string): Promise<string | null> {
-  if (url.startsWith('data:')) return url;
-  try {
-    const res = await fetch(url, { mode: 'cors' });
-    const blob = await res.blob();
-    return await new Promise((resolve) => {
-      const r = new FileReader();
-      r.onload = () => resolve(String(r.result));
-      r.onerror = () => resolve(null);
-      r.readAsDataURL(blob);
-    });
-  } catch { return null; }
+/**
+ * Carrega o logótipo de forma ROBUSTA: decodifica QUALQUER formato (PNG/JPEG/
+ * WEBP) via <img>+canvas e reexporta como PNG — o jsPDF aceita sempre — e devolve
+ * as dimensões naturais para manter a proporção. Aceita data-URI (o caso comum) e
+ * URL. Antes: `fetch({mode:'cors'})` falhava em logos remotas e o formato fixo
+ * 'PNG' rejeitava JPEG → a fatura saía sem logótipo. Tolera falhar (devolve null).
+ */
+async function loadLogo(url: string): Promise<{ data: string; w: number; h: number } | null> {
+  let src = url;
+  if (!src.startsWith('data:')) {
+    try {
+      let res: Response;
+      try { res = await fetch(url, { mode: 'cors' }); } catch { res = await fetch(url); }
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      src = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(blob);
+      });
+    } catch { return null; }
+  }
+  return await new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth || 1;
+        c.height = img.naturalHeight || 1;
+        const ctx = c.getContext('2d');
+        if (!ctx) { resolve(null); return; }
+        ctx.drawImage(img, 0, 0);
+        resolve({ data: c.toDataURL('image/png'), w: c.width, h: c.height });
+      } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
 }
