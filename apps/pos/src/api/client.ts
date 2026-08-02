@@ -90,15 +90,10 @@ async function request<T>(
     if (code) headers['X-Tenant-Code'] = code;
   }
 
-  // OFFLINE RÁPIDO (só LEITURAS): sem rede clara (navigator.onLine === false)
-  // servimos já a cópia em cache em vez de esperar o fetch falhar (no WebView
-  // pode demorar segundos por ação). As ESCRITAS mantêm o caminho normal — a
-  // venda offline é tratada pela fila de vendas, que não queremos curto-circuitar.
-  if (isGet && typeof navigator !== 'undefined' && navigator.onLine === false) {
-    const cached = await sharedGet<T>(cacheKey);
-    if (cached != null) return cached;
-    throw new ApiError(0, 'Sem ligação e sem cópia guardada deste ecrã.');
-  }
+  // NOTA: NÃO usamos `navigator.onLine` para decidir se há rede — nas apps nativas
+  // (Electron ndombaxi://, WebView Android) ele reporta `false` mesmo com internet,
+  // bloqueando tudo ("sem ligação"). Fiável é tentar o fetch e, ao falhar, servir a
+  // cache (catch abaixo). A venda offline continua a ser tratada pela fila.
 
   let res: Response;
   // Timeout defensivo: evita spinner infinito quando o servidor está a acordar.

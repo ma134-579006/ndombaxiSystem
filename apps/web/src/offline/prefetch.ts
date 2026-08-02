@@ -21,10 +21,10 @@ let lastRunAt = 0;
 
 /** Dispara todas as leituras de referência em paralelo (best-effort). */
 export async function prefetchTenantData(): Promise<void> {
-  // Sem rede não há o que descarregar; a cache existente serve o offline.
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-  // Evita correr em paralelo consigo mesmo e repetir em rajada (ex.: vários
-  // eventos 'online' seguidos). 30 s chega para não duplicar sem ficar obsoleto.
+  // NÃO gatemos por navigator.onLine (mente nas apps nativas). Se estiver mesmo
+  // offline, as leituras falham e o Promise.allSettled ignora — sem estragar nada.
+  // Evita correr em paralelo consigo mesmo e repetir em rajada. 30 s chega para
+  // não duplicar sem ficar obsoleto.
   if (running || Date.now() - lastRunAt < 30_000) return;
   running = true;
 
