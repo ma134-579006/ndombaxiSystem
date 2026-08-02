@@ -107,15 +107,23 @@ export async function kvGet<T>(key: string): Promise<T | null> {
 }
 
 // ── Fila de vendas offline ─────────────────────────────────
+/**
+ * @param clientOpId chave a REUTILIZAR quando a venda já foi TENTADA online e caiu
+ *   para a fila por falha de rede. É o que impede a duplicação no caso pior: o
+ *   servidor gravou a fatura, a resposta perdeu-se, a venda foi para a fila e
+ *   depois reenviada. Com a MESMA chave, o servidor devolve a fatura original em
+ *   vez de emitir uma segunda. Omisso → venda nova, chave nova.
+ */
 export function buildPendingSale(
   cart: CartLine[],
   totals: { net: number; iva: number; gross: number },
   customer: { id: string; name: string } | null,
+  clientOpId?: string,
 ): PendingSale {
   const rand = Math.random().toString(16).slice(2, 6).toUpperCase();
   return {
     localRef: `OFFLINE-${rand}`,
-    clientOpId: newUuid(), // gerado AQUI, uma só vez — ver PendingSale.clientOpId
+    clientOpId: clientOpId ?? newUuid(), // ver PendingSale.clientOpId
     createdAt: new Date().toISOString(),
     customerId: customer?.id ?? null,
     customerName: customer?.name ?? null,
@@ -139,7 +147,7 @@ export function buildPendingSale(
  * sobre `getRandomValues` quando não — nunca em `Math.random`, porque esta chave
  * é o que impede uma fatura duplicada e não pode ter colisões.
  */
-function newUuid(): string {
+export function newUuid(): string {
   const c = globalThis.crypto;
   if (c?.randomUUID) return c.randomUUID();
   const b = new Uint8Array(16);
