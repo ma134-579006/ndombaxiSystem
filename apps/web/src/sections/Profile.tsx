@@ -3,7 +3,7 @@ import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { DocumentIdentity } from '../api/types';
 import { IconCheck, IconImage } from '../components/Icons';
-import { CAIXA_URL } from '../config';
+import { openCaixaTerminal } from '../config';
 
 /** Nível de cada papel (0 = mais poder), igual ao backend. */
 const ROLE_LEVEL: Record<string, number> = {
@@ -19,13 +19,11 @@ export function Profile() {
   // «Abrir caixa»: disponível para gestor/gerente/admin/supervisor (não atendente/operador).
   const isTenant = user?.subjectType === 'TENANT';
   const canOpenCash = isTenant && (ROLE_LEVEL[user?.role ?? ''] ?? 9) <= ROLE_LEVEL.SHIFT_SUPERVISOR;
-  const openCash = () => {
-    const params = new URLSearchParams();
-    params.set('staff', user?.email || '');
-    if (user?.name) params.set('nome', user.name);
-    if (companyCode) params.set('empresa', companyCode);
-    window.open(`${CAIXA_URL}/?${params.toString()}`, '_blank', 'noopener');
-  };
+  const openCash = () => openCaixaTerminal({
+    staff: user?.email || '',
+    nome: user?.name,
+    empresa: companyCode || undefined,
+  });
   const [name, setName] = useState(user?.name || '');
   const [photo, setPhoto] = useState<string | null>(null);
   const [brand, setBrand] = useState<DocumentIdentity | null>(null);

@@ -80,6 +80,12 @@ fs.copyFileSync(logo, path.join(modulesDir, 'launcher', 'logo.png'));
 const buildDir = path.join(desktop, 'build');
 fs.mkdirSync(buildDir, { recursive: true });
 fs.copyFileSync(logo, path.join(buildDir, 'icon.png'));
+
+// Ícone Windows NÍTIDO (.ico 16→256px). Gerar cada tamanho à parte evita o
+// monograma fusco a 16/32px que a conversão automática de um único PNG deixava
+// — o electron-builder passa a usar este .ico no executável, no título e no
+// instalador (uma só fonte: o logótipo oficial).
+execSync('node scripts/gen-win-icon.mjs', { cwd: desktop, stdio: 'inherit' });
 log('Logótipo oficial aplicado (arranque, executável, instalador e atalhos)');
 
 process.stdout.write('\nRecursos prontos.\n\n');

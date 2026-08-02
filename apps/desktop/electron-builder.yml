@@ -36,7 +36,12 @@ npmRebuild: false
 nodeGypRebuild: false
 
 win:
-  icon: build/icon.png
+  # .ico NÍTIDO com 16→256px, gerado a partir do logótipo oficial pelo
+  # prepare-resources (scripts/gen-win-icon.mjs). Antes usávamos um único PNG de
+  # 512 e deixávamos o electron-builder adivinhar os tamanhos pequenos — a 16/32px
+  # o monograma ficava fusco. Agora cada tamanho é redimensionado à parte (nítido
+  # na barra de tarefas e no título), tal como a app Android faz por densidade.
+  icon: build/icon.ico
   target:
     - target: nsis
       # x64 cobre praticamente todo o parque de PCs Windows em Angola.

@@ -11,7 +11,7 @@ import { IdleLock } from './IdleLock';
 import { SyncStatusPill } from '../offline/SyncStatusPill';
 import { Modal } from './ui';
 import type { SalaryAdvanceReq } from '../api/types';
-import { CAIXA_URL } from '../config';
+import { openCaixaTerminal } from '../config';
 
 /** Sino de notificações (Super Admin): conversas por responder + comentários
  *  novos do site — com badge e dropdown estilo rede social. */
@@ -497,13 +497,11 @@ export function Shell({
             advancesCount={advances.items.length}
             onAdvances={() => setAdvancesOpen(true)}
             canOpenCash={isTenant && (ROLE_LEVEL[user?.role ?? ''] ?? 9) <= ROLE_LEVEL.SHIFT_SUPERVISOR}
-            onOpenCash={() => {
-              const p = new URLSearchParams();
-              p.set('staff', user?.email || '');
-              if (user?.name) p.set('nome', user.name);
-              if (companyCode) p.set('empresa', companyCode);
-              window.open(`${CAIXA_URL}/?${p.toString()}`, '_blank', 'noopener');
-            }}
+            onOpenCash={() => openCaixaTerminal({
+              staff: user?.email || '',
+              nome: user?.name,
+              empresa: companyCode || undefined,
+            })}
             onChat={() => setChatOpen(true)}
             onCustChat={() => setCustChatOpen(true)}
             onSettings={() => setSection('profile')}
