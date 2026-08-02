@@ -123,4 +123,14 @@ export class ReturnItemsDto {
   @IsString()
   @Length(1, 200)
   reason!: string;
+
+  /**
+   * Chave de idempotência da devolução (UUID estável entre tentativas). A
+   * ANULAÇÃO já se protege sozinha pelo estado do documento; a devolução PARCIAL
+   * não — repetir a mesma devolução por a resposta se ter perdido criava uma
+   * SEGUNDA nota de crédito, com stock e dinheiro estornados em dobro.
+   */
+  @IsOptional()
+  @IsUUID()
+  clientOpId?: string;
 }

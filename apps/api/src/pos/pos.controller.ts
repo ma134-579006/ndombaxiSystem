@@ -222,11 +222,24 @@ export class PosController {
   @Post('invoices/:id/return')
   @Roles(Role.SHIFT_SUPERVISOR)
   @ApiOperation({ summary: 'Devolução parcial (NC só dos artigos devolvidos, repõe stock)' })
-  returnItems(@Param('id') id: string, @Body() dto: ReturnItemsDto, @CurrentUser() user: JwtPayload) {
-    return this.invoices.returnItems(this.ctx.requireTenantSchema(), id, dto.items, dto.reason, {
-      id: user.sub,
-      name: user.name ?? user.email,
-    });
+  async returnItems(@Param('id') id: string, @Body() dto: ReturnItemsDto, @CurrentUser() user: JwtPayload) {
+    const schema = this.ctx.requireTenantSchema();
+    try {
+      return await this.invoices.returnItems(
+        schema, id, dto.items, dto.reason,
+        { id: user.sub, name: user.name ?? user.email },
+        dto.clientOpId ?? null,
+      );
+    } catch (e) {
+      // Esta devolução JÁ foi feita e só a resposta se perdeu. Devolvemos a nota
+      // de crédito ORIGINAL em vez de criar uma segunda (que reporia stock e
+      // estornaria dinheiro pela segunda vez).
+      if (dto.clientOpId && isDuplicateOpViolation(e)) {
+        const nc = await this.invoices.findByClientOpId(schema, dto.clientOpId);
+        if (nc) return { creditNoteNumber: nc.number, refundTotal: nc.grossTotal };
+      }
+      throw e;
+    }
   }
 
   // ── Exportação SAF-T (AGT) ─────────────────────────────────
