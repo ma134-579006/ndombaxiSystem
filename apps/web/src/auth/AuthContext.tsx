@@ -16,7 +16,10 @@ import { prefetchTenantData } from '../offline/prefetch';
 // NOTA: o cofre NÃO é apagado no logout de propósito. Se o fosse, um gestor que
 // terminasse a sessão sem rede ficava impedido de voltar a entrar no próprio
 // posto. A credencial expira sozinha ao fim de 30 dias (ver session.ts).
-import { rememberOffline, verifyOffline } from '../offline/session';
+import {
+  clearPendingUpgrade, getPendingUpgrade, rememberOffline, setPendingUpgrade, verifyOffline,
+} from '../offline/session';
+import { isOfflineToken, syncCredentials } from '../offline/credentials';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 /** Que painel mostrar: plataforma (Super Admin) ou gestor da empresa. */
@@ -51,6 +54,20 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+/**
+ * A tentativa de login falhou por não haver SERVIDOR do outro lado?
+ *
+ * `status === 0` é o fetch que nem saiu (sem rede, DNS, TLS, tempo esgotado).
+ * Mas há mais formas de não haver servidor: o intermediário devolve 502/503/504
+ * quando a API está em baixo ou a acordar, e 408 quando desiste. Em qualquer
+ * destes casos ninguém validou as credenciais — e recusar a entrada aqui seria
+ * exatamente o que deixava a app instalada inútil. Um 401 continua a ser um NÃO
+ * do servidor e nunca cai para o caminho offline.
+ */
+function isNetworkFailure(e: unknown): boolean {
+  return e instanceof ApiError && (e.status === 0 || e.status === 408 || (e.status >= 502 && e.status <= 504));
+}
 
 /** Deriva o modo do painel a partir do JWT (subjectType). */
 function modeFromUser(u: DecodedJwt | null): AuthMode | null {
@@ -114,6 +131,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (refreshInFlight.current) return refreshInFlight.current;
     const p = (async () => {
       const rt = refreshRef.current;
+      // SESSÃO OFFLINE PROVISÓRIA: o token foi cunhado no aparelho, o servidor
+      // recusa-o (e bem). Aqui não se renova — PROMOVE-SE: faz-se um login
+      // verdadeiro com o que o utilizador escreveu ao entrar, sem lhe pedir a
+      // senha outra vez.
+      if (isOfflineToken(accessRef.current)) {
+        const up = getPendingUpgrade();
+        if (up) {
+          try {
+            const r = await api.loginTenant(up);
+            const code = up.companyCode ?? r.companyCode;
+            companyRef.current = code;
+            setCompanyCode(code);
+            sessionStorage.setItem(LS_COMPANY, code);
+            applyTokens(r);
+            clearPendingUpgrade();
+            void rememberOffline({
+              companyCode: code, email: up.email, password: up.password,
+              accessToken: r.accessToken, refreshToken: r.refreshToken,
+            }).catch(() => undefined);
+            void syncCredentials(code, true);
+            return true;
+          } catch (e) {
+            // Ainda sem rede → a sessão offline continua de pé (não deslogar).
+            if (e instanceof ApiError && e.status === 0) return false;
+          }
+        }
+        // Chegámos aqui com resposta do servidor (logo, há rede) e sem forma de
+        // promover a sessão: o caminho honesto é pedir o login outra vez.
+        clearSession();
+        return false;
+      }
       if (!rt) { clearSession(); return false; }
       if (sessionExpired()) { clearSession(); return false; } // (desativado — sempre false)
       try { applyTokens(await api.refresh(rt)); return true; }
@@ -157,6 +205,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       void stopOfflineEngine();
     };
   }, [status]);
+
+  // CREDENCIAIS DA EMPRESA no aparelho + promoção da sessão offline.
+  //
+  // Duas coisas, um só relógio:
+  //  1. Se a sessão é provisória (entrou sem rede com credenciais provisionadas),
+  //     tenta fazer o login verdadeiro. Assim que a ligação voltar, a sessão
+  //     passa a ser real sem o utilizador dar por nada.
+  //  2. Com sessão real, re-sincroniza o pacote de credenciais de vez em quando
+  //     — senhas trocadas, colegas novos, saídas. É o "ir sincronizando".
+  //
+  // A cadência é um relógio simples e não `navigator.onLine`: nas apps nativas
+  // esse valor MENTE (já custou uma regressão em que a app inteira dizia
+  // "sem ligação" com internet a funcionar).
+  useEffect(() => {
+    if (status !== 'authed' || !companyRef.current) return;
+    const tick = () => {
+      if (isOfflineToken(accessRef.current)) { void doRefresh(); return; }
+      void syncCredentials(companyRef.current);
+    };
+    const t = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(t);
+  }, [status, doRefresh]);
 
   // Renovação PROATIVA do token: renova ~1 min antes de expirar para a sessão do
   // gestor nunca cair sozinha (incl. quando o gestor abre/usa a caixa). Só a
@@ -259,14 +329,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // reabrir sem internet deixava o gestor de fora. Só entra aqui quando o
         // login online FALHOU POR REDE: credenciais erradas continuam a ser
         // recusadas pelo servidor, como sempre.
-        if (e instanceof ApiError && e.status === 0) {
+        if (isNetworkFailure(e)) {
           const v = await verifyOffline(input.email, input.password, input.companyCode);
           if (v.ok && v.identity) {
             companyRef.current = v.identity.companyCode;
             setCompanyCode(v.identity.companyCode);
             sessionStorage.setItem(LS_COMPANY, v.identity.companyCode);
             sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
-            applyTokens({ accessToken: v.identity.accessToken, refreshToken: v.identity.refreshToken });
+            // Sessão provisória (credenciais provisionadas, sem tokens do
+            // servidor): guarda em memória o que foi escrito, para a promover a
+            // sessão real mal a rede volte — sem voltar a pedir a senha.
+            if (v.provisional) {
+              setPendingUpgrade({
+                email: input.email, password: input.password,
+                companyCode: input.companyCode ?? v.identity.companyCode,
+              });
+            } else {
+              clearPendingUpgrade();
+            }
+            applyTokens({
+              accessToken: v.identity.accessToken,
+              // Sem refresh token do servidor guardamos o próprio token local:
+              // é o que permite à sessão offline sobreviver a um recarregamento
+              // da janela (o arranque exige os dois valores).
+              refreshToken: v.identity.refreshToken || v.identity.accessToken,
+            });
             setStatus('authed');
             return;
           }
@@ -286,12 +373,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(r);
       setStatus('authed');
+      clearPendingUpgrade();
       // Guarda a credencial para o próximo arranque sem rede (best-effort: uma
       // falha aqui nunca pode estragar um login que já teve sucesso).
       void rememberOffline({
         companyCode: code, email: input.email, password: input.password,
         accessToken: r.accessToken, refreshToken: r.refreshToken,
       }).catch(() => undefined);
+      // E descarrega as credenciais da EMPRESA INTEIRA para este aparelho — é o
+      // que permite a qualquer colega entrar aqui sem rede, mesmo que nunca
+      // tenha escrito a senha neste computador/telemóvel.
+      void syncCredentials(code, true);
     },
     [applyTokens],
   );

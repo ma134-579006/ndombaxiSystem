@@ -612,3 +612,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS cash_sessions_client_op_uidx
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."cash_movements" ADD COLUMN IF NOT EXISTS client_op_id UUID;
 CREATE UNIQUE INDEX IF NOT EXISTS cash_movements_client_op_uidx
   ON "{{SCHEMA}}"."cash_movements"(client_op_id) WHERE client_op_id IS NOT NULL;
+
+-- 2026-08-02 · LOGIN OFFLINE — credenciais provisionadas para os aparelhos.
+-- O problema: o cofre offline das apps so conhecia quem tivesse escrito a senha
+-- NAQUELE aparelho. Um segundo gestor, um operador novo, ou uma senha trocada
+-- noutro sitio = "utilizador desconhecido" quando faltava a rede. A app ficava
+-- inutilizavel exatamente no cenario para que foi feita.
+-- A solucao: o servidor guarda um VERIFICADOR proprio (PBKDF2-SHA256), calculado
+-- no unico momento em que tem o segredo em maos (login/reset/criacao), e os
+-- aparelhos da empresa descarregam-no. NAO e o hash de autenticacao (Argon2id,
+-- esse nunca sai do servidor) — e um derivado separado, so para verificar
+-- localmente sem rede. offline_updated_at sobe a cada alteracao: e por ele que o
+-- aparelho sabe que a copia que tem ficou velha e a substitui.
+-- ADITIVO: nenhuma coluna existente e alterada.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS offline_pw_salt      TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS offline_pw_verifier  TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS offline_pw_iters     INT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS offline_pin_salt     TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS offline_pin_verifier TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS offline_pin_iters    INT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS offline_updated_at   TIMESTAMPTZ;

@@ -220,6 +220,11 @@ export const api = {
   custChatDelete: (ids: string[]) => request<{ deleted: number }>('POST', '/ecommerce/customer-chat/delete', { ids }),
   custChatUnread: () => request<{ count: number }>('GET', '/ecommerce/customer-chat/unread'),
 
+  /** Credenciais offline da empresa (permite a QUALQUER operador abrir a Caixa
+   *  sem rede neste posto — ver `offline/credentials.ts`). */
+  offlineCredentials: () =>
+    request<import('../offline/credentials').CredentialBundle>('GET', '/auth/offline-credentials'),
+
   // ── Desbloqueio do ecrã de bloqueio (re-verifica o PIN do próprio caixa) ──
   verifyPin: (pin: string) => request<{ ok: boolean }>('POST', '/auth/verify-pin', { pin }),
 

@@ -168,6 +168,16 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Get('offline-credentials')
+  @ApiOperation({
+    summary: 'Credenciais offline da empresa (para a app instalada autenticar sem rede)',
+  })
+  offlineCredentials(@CurrentUser() user: JwtPayload) {
+    return this.auth.offlineBundle(user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post('verify-pin')
   @ApiOperation({ summary: 'Re-verifica o PIN do próprio utilizador (desbloqueio do POS)' })
   verifyPin(@CurrentUser() user: JwtPayload, @Body() dto: VerifyPinDto) {

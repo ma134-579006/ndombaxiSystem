@@ -11,9 +11,22 @@ import { api, ApiError, configureApi } from '../api/client';
 import type { TenantLoginInput, TokenPair } from '../api/types';
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
 import { setTheme } from '../theme';
-import { rememberOffline, verifyOffline } from '../offline/session';
+import {
+  clearPendingUpgrade, getPendingUpgrade, rememberOffline, setPendingUpgrade, verifyOffline,
+} from '../offline/session';
+import { isOfflineToken, syncCredentials } from '../offline/credentials';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
+
+/**
+ * Falhou por não haver SERVIDOR do outro lado? `status 0` é o fetch que nem
+ * saiu; 408/502/503/504 são o intermediário a dizer que a API não respondeu.
+ * Em nenhum destes casos alguém validou o PIN — e recusar aqui é o que deixava
+ * a Caixa instalada inútil. Um 401 continua a ser um NÃO do servidor.
+ */
+function isNetworkFailure(e: unknown): boolean {
+  return e instanceof ApiError && (e.status === 0 || e.status === 408 || (e.status >= 502 && e.status <= 504));
+}
 
 const LS_ACCESS = 'nexus.pos.access';
 const LS_REFRESH = 'nexus.pos.refresh';
@@ -75,6 +88,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (refreshInFlight.current) return refreshInFlight.current;
     const p = (async () => {
       const rt = refreshRef.current;
+      // SESSÃO OFFLINE PROVISÓRIA: token cunhado no posto, que o servidor
+      // recusa (e bem). Não se renova — promove-se, com o que o operador
+      // escreveu ao entrar, sem lhe pedir o PIN outra vez.
+      if (isOfflineToken(accessRef.current)) {
+        const up = getPendingUpgrade();
+        if (up) {
+          try {
+            const r = await api.staffLogin(up.email, up.pin);
+            companyRef.current = r.companyCode;
+            setCompanyCode(r.companyCode);
+            localStorage.setItem(LS_COMPANY, r.companyCode);
+            applyTokens(r);
+            clearPendingUpgrade();
+            void rememberOffline({
+              companyCode: r.companyCode, email: up.email, pin: up.pin,
+              accessToken: r.accessToken, refreshToken: r.refreshToken,
+            });
+            void syncCredentials(r.companyCode, true);
+            return true;
+          } catch (e) {
+            if (isNetworkFailure(e)) return false; // ainda sem rede — sessão de pé
+          }
+        }
+        // Houve resposta do servidor (logo há rede) e não há como promover:
+        // o caminho honesto é pedir o login outra vez.
+        clearSession();
+        return false;
+      }
       if (!rt) { clearSession(); return false; }
       try { applyTokens(await api.refresh(rt)); return true; }
       catch (e) {
@@ -95,6 +136,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refresh: () => doRefresh(),
     });
   }, [clearSession, doRefresh]);
+
+  // CREDENCIAIS DA EMPRESA no posto + promoção da sessão offline.
+  // Sessão provisória → tenta o login verdadeiro (assim que a rede voltar, a
+  // sessão passa a real sem o operador dar por nada). Sessão real → mantém o
+  // pacote de credenciais em dia (PIN trocado, colega novo, saída).
+  // Relógio simples, NUNCA `navigator.onLine`: nas apps nativas esse valor mente.
+  useEffect(() => {
+    if (status !== 'authed' || !companyRef.current) return;
+    const t = window.setInterval(() => {
+      if (isOfflineToken(accessRef.current)) { void doRefresh(); return; }
+      void syncCredentials(companyRef.current);
+    }, 60_000);
+    return () => window.clearInterval(t);
+  }, [status, doRefresh]);
 
   // Renovação PROATIVA do token de acesso: renova ~1 min ANTES de expirar para a
   // sessão nunca cair sozinha aos 15 min. A inatividade apenas BLOQUEIA o ecrã
@@ -208,16 +263,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           companyCode: r.companyCode, email: em, pin,
           accessToken: r.accessToken, refreshToken: r.refreshToken,
         });
+        clearPendingUpgrade();
+        // Traz as credenciais da EMPRESA INTEIRA para este posto: é o que
+        // permite a qualquer colega abrir a Caixa aqui sem rede, mesmo que
+        // nunca tenha escrito o PIN neste aparelho.
+        void syncCredentials(r.companyCode, true);
       } catch (e) {
-        // SÓ falha de REDE (status 0) → tenta entrar OFFLINE com o mesmo PIN. Um
-        // erro do servidor (PIN errado, 4xx) segue o caminho normal e é mostrado.
-        if (e instanceof ApiError && e.status === 0) {
+        // SÓ falha de rede → tenta entrar OFFLINE com o mesmo PIN. Um erro do
+        // servidor (PIN errado, 4xx) segue o caminho normal e é mostrado.
+        if (isNetworkFailure(e)) {
           const off = await verifyOffline(em, pin, companyRef.current);
           if (off.ok && off.identity) {
             companyRef.current = off.identity.companyCode;
             setCompanyCode(off.identity.companyCode);
             localStorage.setItem(LS_COMPANY, off.identity.companyCode);
-            applyTokens({ accessToken: off.identity.accessToken, refreshToken: off.identity.refreshToken });
+            if (off.provisional) setPendingUpgrade({ email: em, pin });
+            else clearPendingUpgrade();
+            applyTokens({
+              accessToken: off.identity.accessToken,
+              // Sem refresh do servidor guardamos o próprio token local, para a
+              // sessão offline sobreviver a um recarregamento da janela.
+              refreshToken: off.identity.refreshToken || off.identity.accessToken,
+            });
             setStatus('authed');
             return;
           }

@@ -26,7 +26,8 @@
  *     porque a própria página vem dela.
  */
 import { isNativeApp } from '../config';
-import { sharedGet, sharedSet } from '../sharedCache';
+import { durableGet, durableSet } from '../sharedCache';
+import { mintOfflineToken, verifyProvisioned } from './credentials';
 
 const KEY_VAULT = 'offline:managerVault';
 const ITERATIONS = 150_000;
@@ -53,6 +54,10 @@ export interface VerifyOffline {
   ok: boolean;
   identity?: OfflineIdentity;
   reason?: 'wrong-password' | 'unknown-user' | 'expired' | 'unavailable';
+  /** Verdadeiro quando a sessão foi aberta com um token cunhado localmente (o
+   *  utilizador nunca entrou com rede NESTE aparelho). Quem chama tem de a
+   *  promover a uma sessão real assim que houver ligação. */
+  provisional?: boolean;
 }
 
 function cryptoOk(): boolean {
@@ -86,11 +91,14 @@ function safeEqual(a: string, b: string): boolean {
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
+// Armazenamento DURÁVEL (IndexedDB + espelho no localStorage): se um dos dois
+// falhar — e no desktop/Android falha em silêncio — o cofre sobrevive no outro.
+// Um cofre perdido é uma app que não abre sem rede.
 async function readVault(): Promise<Vault> {
-  try { return (await sharedGet<Vault>(KEY_VAULT)) ?? {}; } catch { return {}; }
+  try { return (await durableGet<Vault>(KEY_VAULT)) ?? {}; } catch { return {}; }
 }
 async function writeVault(v: Vault): Promise<void> {
-  try { await sharedSet(KEY_VAULT, v); } catch { /* best-effort */ }
+  try { await durableSet(KEY_VAULT, v); } catch { /* best-effort */ }
 }
 
 /**
@@ -131,7 +139,6 @@ export async function verifyOffline(
   const candidates: OfflineCred[] = companyCode
     ? [vault[slot(companyCode, em)]].filter(Boolean) as OfflineCred[]
     : Object.values(vault).filter((c) => c.email === em);
-  if (candidates.length === 0) return { ok: false, reason: 'unknown-user' };
   let expired = false;
   for (const cred of candidates) {
     if (Date.parse(cred.validUntil) < Date.now()) { expired = true; continue; }
@@ -147,9 +154,55 @@ export async function verifyOffline(
       };
     }
   }
+  // SEGUNDA PORTA — credenciais que o servidor provisionou para a empresa.
+  // É esta que faz o login offline funcionar para quem NUNCA escreveu a senha
+  // neste aparelho: o gestor que troca de computador, o colega que abre a app
+  // do posto, o funcionário contratado depois da última ligação. Sem ela, o
+  // cofre acima só conhecia uma pessoa e a app parecia avariada sem rede.
+  const prov = await verifyProvisioned(email, password, 'password', companyCode);
+  if (prov.ok && prov.user && prov.companyCode) {
+    return {
+      ok: true,
+      provisional: true,
+      identity: {
+        // Token cunhado aqui: identifica quem está a usar a app enquanto não há
+        // rede. É trocado por tokens reais assim que a ligação voltar.
+        accessToken: mintOfflineToken(prov.user, prov.companyCode),
+        refreshToken: '',
+        companyCode: prov.companyCode,
+      },
+    };
+  }
+
   // Só reportamos "expirada" se NENHUMA credencial válida serviu — senão uma
   // credencial velha de outra empresa escondia a boa.
-  return { ok: false, reason: expired ? 'expired' : 'wrong-password' };
+  if (candidates.length === 0 && prov.reason === 'unknown-user') {
+    return { ok: false, reason: 'unknown-user' };
+  }
+  if (expired || prov.reason === 'expired') return { ok: false, reason: 'expired' };
+  if (candidates.length === 0 && prov.reason === 'unavailable') {
+    return { ok: false, reason: 'unavailable' };
+  }
+  return { ok: false, reason: 'wrong-password' };
+}
+
+// ─── Promoção da sessão offline a sessão real ────────────────────────────────
+//
+// Quem entra offline com credenciais provisionadas fica com um token local, que
+// o servidor (bem) recusa. Guardamos aqui, EM MEMÓRIA e só em memória, o que o
+// utilizador acabou de escrever, para que a app possa fazer um login verdadeiro
+// mal a ligação volte — sem lhe pedir a senha outra vez. Nada disto é gravado
+// em disco: morre com a página.
+let pending: { email: string; password: string; companyCode?: string } | null = null;
+
+export function setPendingUpgrade(v: { email: string; password: string; companyCode?: string }): void {
+  pending = v;
+}
+export function getPendingUpgrade(): { email: string; password: string; companyCode?: string } | null {
+  return pending;
+}
+export function clearPendingUpgrade(): void {
+  pending = null;
 }
 
 /** Esquece as credenciais offline (logout explícito do gestor). */

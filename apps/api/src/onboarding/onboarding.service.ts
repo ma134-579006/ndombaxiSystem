@@ -20,6 +20,7 @@ import { Prisma } from '@prisma/client';
 import type { JwtPayload } from '@nexus/types';
 import { Role } from '../rbac/roles.enum';
 import { NifService } from './nif.service';
+import { OfflineCredentialsService } from '../auth/offline-credentials.service';
 import { RegisterCompanyDto } from './dto/register-company.dto';
 
 export interface OnboardingResult {
@@ -49,6 +50,7 @@ export class OnboardingService {
     private readonly config: ConfigService<Env, true>,
     private readonly google: GoogleAuthService,
     private readonly tokens: TokenService,
+    private readonly offlineCreds: OfflineCredentialsService,
   ) {}
 
   private generateTempPassword(): string {
@@ -111,7 +113,7 @@ export class OnboardingService {
         name: `${dto.name} — Loja Principal`,
         isDefault: true,
       });
-      await this.tenantUsers.createUser(schemaName, {
+      const admin = await this.tenantUsers.createUser(schemaName, {
         email: adminEmail,
         passwordHash,
         name: dto.responsibleName,
@@ -119,6 +121,8 @@ export class OnboardingService {
         storeId: store.id,
         mustResetPw: true,
       });
+      // Verificador offline desde o nascimento da empresa (ver StaffService).
+      await this.offlineCreds.remember(schemaName, admin.id, 'PASSWORD', tempPassword);
       // O local de stock é a LOJA principal (criada acima). Sem "armazém".
     } catch (err) {
       // Rollback: limpa o schema e a empresa se o provisioning falhar
@@ -259,6 +263,9 @@ export class OnboardingService {
         storeId: store.id, mustResetPw: false,
       });
       adminUserId = admin.id;
+      // Só há segredo a memorizar quando a conta nasceu com palavra-passe; no
+      // registo por Google a senha é aleatória e ninguém a conhece.
+      if (dto.password) await this.offlineCreds.remember(schemaName, admin.id, 'PASSWORD', dto.password);
       await this.setSetupCompleted(schemaName, false); // exige setup obrigatório
     } catch (err) {
       this.logger.error(`Falha no provisioning de ${schemaName}; a reverter`, err instanceof Error ? err.stack : undefined);

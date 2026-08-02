@@ -3,7 +3,7 @@
 const PROD_API_URL = 'https://ndombaxi-api-img.onrender.com';
 
 /** App instalada (Electron `ndombaxi://` ou Capacitor)? No navegador → false. */
-function isNativeApp(): boolean {
+export function isNativeApp(): boolean {
   if (typeof window === 'undefined') return false; // fora do navegador (teste/SSR)
   const w = window as unknown as {
     ndombaxi?: unknown; __NDOMBAXI_NATIVE__?: boolean;

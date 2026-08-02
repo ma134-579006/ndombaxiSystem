@@ -7,6 +7,7 @@ import { PasswordService } from './password.service';
 import { TwoFaService } from './twofa.service';
 import { TokenService } from './token.service';
 import { GoogleAuthService } from './google-auth.service';
+import { OfflineCredentialsService } from './offline-credentials.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -18,8 +19,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     TwoFaService,
     TokenService,
     GoogleAuthService,
+    OfflineCredentialsService,
     JwtStrategy,
   ],
-  exports: [AuthService, PasswordService, TokenService, GoogleAuthService],
+  exports: [AuthService, PasswordService, TokenService, GoogleAuthService, OfflineCredentialsService],
 })
 export class AuthModule {}
