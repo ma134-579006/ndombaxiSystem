@@ -11,7 +11,17 @@ import { Client } from 'pg';
 import type { SqlRunner } from './provision';
 
 export interface RunnerHandle {
+  /** Executa sem devolver linhas (inserções, marcações). */
   run: SqlRunner;
+  /**
+   * Executa e DEVOLVE as linhas.
+   *
+   * Existe porque a replicação precisa de ler — o diário e o estado atual de
+   * cada linha. Sem isto, quem consumisse este executor teria de abrir uma
+   * segunda ligação só para ler, ou (pior) receberia listas vazias a fingir que
+   * não havia nada para subir.
+   */
+  query: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>;
   close(): Promise<void>;
 }
 
@@ -26,6 +36,10 @@ export async function openRunner(connectionUrl: string): Promise<RunnerHandle> {
   await client.connect();
   return {
     run: async (sql: string, params: unknown[]) => { await client.query(sql, params); },
+    query: async <T = Record<string, unknown>>(sql: string, params?: unknown[]) => {
+      const r = await client.query(sql, params ?? []);
+      return r.rows as T[];
+    },
     close: async () => { try { await client.end(); } catch { /* já fechada */ } },
   };
 }

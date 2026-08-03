@@ -194,6 +194,72 @@ export class ReplicationService {
     return { table: row.table, id: row.id, applied: true, reason: d.reason, conflict: d.conflict };
   }
 
+  // ─── DESCIDA: o que outros dispositivos fizeram ────────────
+  //
+  // O cursor é COMPOSTO — `(momento, id)` — e não só a data. Com um cursor só
+  // de data, dois registos gravados no mesmo milissegundo na fronteira de uma
+  // página faziam desaparecer um deles para sempre. É o mesmo desenho já usado
+  // em `sync.service.ts`, de propósito: dois mecanismos de cursor diferentes no
+  // mesmo sistema seria uma armadilha à espera.
+
+  /** Coluna de tempo de cada tabela (memorizada — o schema não muda a meio). */
+  private readonly tsColumnCache = new Map<string, string | null>();
+
+  private async timeColumn(schema: string, table: string): Promise<string | null> {
+    const chave = `${schema}.${table}`;
+    const em = this.tsColumnCache.get(chave);
+    if (em !== undefined) return em;
+    const cols = await this.prisma.$queryRaw<{ column_name: string }[]>(
+      Prisma.sql`SELECT column_name FROM information_schema.columns
+                 WHERE table_schema = ${schema} AND table_name = ${table}
+                   AND column_name IN ('updated_at', 'created_at')`,
+    );
+    const nomes = cols.map((c) => c.column_name);
+    // `updated_at` é o que interessa; `created_at` serve o que nunca muda
+    // (faturas, movimentos) — para esses são equivalentes.
+    const escolhida = nomes.includes('updated_at') ? 'updated_at'
+      : nomes.includes('created_at') ? 'created_at' : null;
+    this.tsColumnCache.set(chave, escolhida);
+    return escolhida;
+  }
+
+  /**
+   * O que mudou nesta tabela depois do cursor.
+   *
+   * Uma tabela sem coluna de tempo não pode ser descida por incrementos —
+   * e dizemos isso em vez de devolver uma lista vazia que pareceria "nada
+   * mudou". Um silêncio desses seria interpretado como estar em dia.
+   */
+  async pull(
+    schema: string, table: string, since: string | null, limit: number,
+  ): Promise<{ table: string; rows: Record<string, unknown>[]; cursor: string | null; hasMore: boolean; incremental: boolean }> {
+    assertValidSchemaName(schema);
+    if (!isReplicated(table)) {
+      throw new ForbiddenException(`tabela ${table} (classe "${classify(table)}") não desce por aqui`);
+    }
+    const take = Math.min(Math.max(1, limit || 200), ReplicationService.MAX_BATCH);
+    const col = await this.timeColumn(schema, table);
+    const t = `"${schema}"."${table}"`;
+
+    if (!col) {
+      return { table, rows: [], cursor: null, hasMore: false, incremental: false };
+    }
+
+    const pos = decodePos(since);
+    const rows = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(
+      `SELECT * FROM ${t}
+        WHERE ("${col}", id::text) > ($1::timestamptz, $2)
+        ORDER BY "${col}", id::text
+        LIMIT ${take}`,
+      pos.at, pos.id,
+    );
+    const ultima = rows[rows.length - 1];
+    const cursor = ultima
+      ? encodePos({ at: toIso(ultima[col]) ?? pos.at, id: String(ultima.id ?? '') })
+      : since ?? null;
+    return { table, rows, cursor, hasMore: rows.length === take, incremental: true };
+  }
+
   /** Conflitos registados (para o gestor poder olhar). */
   async conflicts(schema: string, limit = 100): Promise<unknown[]> {
     assertValidSchemaName(schema);
@@ -215,4 +281,28 @@ function toIso(v: unknown): string | null {
     return Number.isNaN(t) ? null : new Date(t).toISOString();
   }
   return null;
+}
+
+/**
+ * Posição no cursor: momento + id, para desempatar registos gravados no mesmo
+ * milissegundo. A EPOCA traz tudo — é o que acontece na primeira descida.
+ */
+interface Pos { at: string; id: string }
+const EPOCA: Pos = { at: '1970-01-01T00:00:00.000Z', id: '' };
+
+function decodePos(raw: string | null | undefined): Pos {
+  if (!raw) return EPOCA;
+  try {
+    const p = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as Partial<Pos>;
+    if (typeof p?.at !== 'string') return EPOCA;
+    return { at: p.at, id: typeof p.id === 'string' ? p.id : '' };
+  } catch {
+    // Cursor ilegivel (versao antiga, corrupcao): recomeca do principio.
+    // Trazer tudo outra vez e lento mas CORRETO; adivinhar seria perder dados.
+    return EPOCA;
+  }
+}
+
+function encodePos(p: Pos): string {
+  return Buffer.from(JSON.stringify(p), 'utf8').toString('base64url');
 }

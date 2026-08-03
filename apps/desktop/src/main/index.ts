@@ -109,6 +109,18 @@ async function autoProvision(session: {
       * fs.statfsSync(app.getPath('userData')).bsize;
   } catch { /* sistema sem statfs — não bloqueia por isso */ }
 
+  // A replicação precisa de uma sessão para falar com a nuvem. Guardamo-la SÓ
+  // em memória — morre quando a aplicação fecha, e não fica um token de
+  // administrador em disco à espera de ser encontrado.
+  replicationSession = {
+    accessToken: session.accessToken,
+    companyCode: session.companyCode,
+    apiUrl: session.apiUrl,
+  };
+  // Só faz sentido replicar quando este posto está mesmo a trabalhar da sua
+  // base local: sem ela não há diário, e sem diário não há nada para subir.
+  if (localApiUrl) startReplicationClock();
+
   const decisao = ls.shouldProvision(paths, {
     binariesPresent: ls.binariesPresent(paths),
     isCompanyAdmin: session.role === 'COMPANY_ADMIN',
@@ -145,6 +157,63 @@ async function autoProvision(session: {
     return { done: false, reason: msg };
   } finally {
     await runner.close();
+  }
+}
+
+/**
+ * Relógio da replicação: leva à nuvem o que este posto fez sem internet.
+ *
+ * Corre em segundo plano e NUNCA no caminho de uma operação — o utilizador é
+ * libertado quando a venda fica gravada na base local, não quando a nuvem a
+ * recebe. É essa a arquitetura pedida, e é o que faz a diferença num sítio onde
+ * a internet vai e vem.
+ *
+ * Só arranca com o servidor local em uso: sem base local não há diário, e sem
+ * diário não há nada para replicar (a app está a falar diretamente com a nuvem).
+ */
+let replicationTimer: NodeJS.Timeout | null = null;
+/** Credenciais da sessão atual, guardadas SÓ em memória (nunca em disco). */
+let replicationSession: { accessToken: string; companyCode: string; apiUrl: string } | null = null;
+
+const REPLICATION_EVERY_MS = 2 * 60_000;
+
+function startReplicationClock(): void {
+  if (replicationTimer) return;
+  replicationTimer = setInterval(() => { void replicateOnce(); }, REPLICATION_EVERY_MS);
+}
+
+async function replicateOnce(): Promise<void> {
+  if (!localApiUrl || !replicationSession) return; // sem servidor local, nada a fazer
+  try {
+    const ls = await import('@nexus/local-server');
+    const paths = ls.layout({
+      userDataDir: app.getPath('userData'),
+      resourcesDir: app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', '..', 'resources'),
+    });
+    const cfg = ls.readConfig(paths);
+    if (!cfg) return;
+    const runner = await ls.openRunner(ls.connectionUrl(cfg));
+    try {
+      const r = await ls.pushPending({
+        apiUrl: replicationSession.apiUrl,
+        accessToken: replicationSession.accessToken,
+        companyCode: replicationSession.companyCode,
+        schema: 'public',
+        deviceId: 'desktop',
+        query: runner.query,
+        run: runner.run,
+        log: logLocal,
+      });
+      if (r.sent > 0) {
+        logLocal(`replicação: ${r.applied} aplicadas, ${r.rejected} recusadas, ${r.conflicts} conflitos`);
+      }
+      await ls.pruneJournal({ schema: 'public', run: runner.run });
+    } finally {
+      await runner.close();
+    }
+  } catch (e) {
+    // Sem rede, sem base, sem sessão — nada disto é excecional num posto.
+    logLocal(`replicação adiada: ${(e as Error).message}`);
   }
 }
 

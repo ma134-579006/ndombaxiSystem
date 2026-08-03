@@ -153,3 +153,92 @@ describe('ReplicationService — catálogo e conflitos', () => {
     expect(out[1].applied).toBe(true);
   });
 });
+
+/**
+ * DESCIDA — o que outros dispositivos fizeram.
+ *
+ * A armadilha que aqui se protege: um cursor só de DATA faria desaparecer para
+ * sempre um de dois registos gravados no mesmo milissegundo na fronteira de uma
+ * página. O cursor é composto (momento + id) por causa disso.
+ */
+function fakePull(rows: Record<string, unknown>[], cols = ['updated_at']) {
+  const queries: { sql: string; params: unknown[] }[] = [];
+  const prisma = {
+    $queryRaw: jest.fn(async () => cols.map((c) => ({ column_name: c }))),
+    $queryRawUnsafe: jest.fn(async (sql: string, ...params: unknown[]) => {
+      queries.push({ sql, params });
+      return rows;
+    }),
+    $executeRawUnsafe: jest.fn(async () => 1),
+  } as unknown as PrismaService;
+  return { svc: new ReplicationService(prisma), queries };
+}
+
+describe('ReplicationService — descida da nuvem para o posto', () => {
+  const linha = (id: string, at: string) => ({ id, updated_at: new Date(at), name: 'X' });
+
+  it('traz o que mudou e devolve um cursor', async () => {
+    const { svc } = fakePull([linha('a', '2026-08-01T10:00:00Z')]);
+    const r = await svc.pull(SCHEMA, 'products', null, 200);
+    expect(r.rows).toHaveLength(1);
+    expect(r.cursor).toBeTruthy();
+    expect(r.incremental).toBe(true);
+  });
+
+  it('o cursor é COMPOSTO (momento + id) — não só a data', async () => {
+    const { svc, queries } = fakePull([linha('a', '2026-08-01T10:00:00Z')]);
+    await svc.pull(SCHEMA, 'products', null, 200);
+    // Sem o par ordenado, dois registos do mesmo milissegundo na fronteira da
+    // página faziam um deles desaparecer para sempre.
+    expect(queries[0].sql).toMatch(/\("updated_at", id::text\) > /);
+  });
+
+  it('o cursor devolvido volta a entrar no pedido seguinte', async () => {
+    const { svc, queries } = fakePull([linha('a', '2026-08-01T10:00:00Z')]);
+    const r1 = await svc.pull(SCHEMA, 'products', null, 200);
+    await svc.pull(SCHEMA, 'products', r1.cursor, 200);
+    expect(queries[1].params[0]).toBe('2026-08-01T10:00:00.000Z');
+    expect(queries[1].params[1]).toBe('a');
+  });
+
+  it('um cursor ILEGÍVEL recomeça do princípio em vez de adivinhar', async () => {
+    const { svc, queries } = fakePull([]);
+    await svc.pull(SCHEMA, 'products', 'lixo-que-nao-e-cursor', 200);
+    // Trazer tudo outra vez é lento mas correto; adivinhar seria perder dados.
+    expect(queries[0].params[0]).toBe('1970-01-01T00:00:00.000Z');
+  });
+
+  it('RECUSA descer tabelas que a política não replica', async () => {
+    const { svc } = fakePull([]);
+    await expect(svc.pull(SCHEMA, 'users', null, 200)).rejects.toThrow(/não desce/);
+    await expect(svc.pull(SCHEMA, 'fiscal_series', null, 200)).rejects.toThrow(/não desce/);
+  });
+
+  it('uma tabela SEM coluna de tempo diz que não é incremental (não finge estar em dia)', async () => {
+    const { svc } = fakePull([], []); // sem updated_at nem created_at
+    const r = await svc.pull(SCHEMA, 'products', null, 200);
+    expect(r.incremental).toBe(false);
+    // Uma lista vazia sem este aviso seria lida como "nada mudou".
+    expect(r.rows).toHaveLength(0);
+  });
+
+  it('usa created_at quando não há updated_at (faturas nunca mudam)', async () => {
+    const { svc, queries } = fakePull([{ id: 'f1', created_at: new Date('2026-08-01T10:00:00Z') }], ['created_at']);
+    const r = await svc.pull(SCHEMA, 'invoices', null, 200);
+    expect(r.incremental).toBe(true);
+    expect(queries[0].sql).toContain('"created_at"');
+  });
+
+  it('diz quando há mais para trazer', async () => {
+    const muitas = Array.from({ length: 5 }, (_, i) => linha(`id${i}`, '2026-08-01T10:00:00Z'));
+    const { svc } = fakePull(muitas);
+    const r = await svc.pull(SCHEMA, 'products', null, 5);
+    expect(r.hasMore).toBe(true);
+  });
+
+  it('limita o tamanho da página', async () => {
+    const { svc, queries } = fakePull([]);
+    await svc.pull(SCHEMA, 'products', null, 999999);
+    expect(queries[0].sql).toContain(`LIMIT ${ReplicationService.MAX_BATCH}`);
+  });
+});

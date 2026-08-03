@@ -26,6 +26,19 @@ export class ReplicationController {
     return this.repl.push(this.ctx.requireTenantSchema(), body?.rows ?? []);
   }
 
+  @Get('pull')
+  @Roles(Role.COMPANY_ADMIN)
+  @ApiOperation({ summary: 'O que mudou na nuvem (alterações de outros dispositivos)' })
+  pull(
+    @Query('table') table: string,
+    @Query('since') since?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.repl.pull(
+      this.ctx.requireTenantSchema(), table, since ?? null, Number(limit ?? 200) || 200,
+    );
+  }
+
   @Get('conflicts')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Conflitos registados na sincronização (nada se perde em silêncio)' })
