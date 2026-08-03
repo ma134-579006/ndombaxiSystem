@@ -22,7 +22,7 @@
  * no saldo de stock ou nas séries fiscais seria criar trabalho para depois
  * descartar — e, pior, dar a impressão de que esses dados viajam.
  */
-import { isReplicated } from './policy';
+import { isReplicated } from '@nexus/replication';
 
 /** Nome do diário, dentro do schema da empresa. */
 export const JOURNAL_TABLE = 'sync_journal';

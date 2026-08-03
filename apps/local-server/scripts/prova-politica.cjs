@@ -6,7 +6,7 @@
  * não bate certo. Estes testes existem para que isso não aconteça.
  */
 const path = require('node:path');
-const P = require(path.join(__dirname, '..', 'dist', 'replication', 'policy.js'));
+const P = require(path.join(__dirname, '..', 'dist', 'index.js'));
 
 const r = [];
 const check = (nome, cond, extra = '') => {

@@ -30,11 +30,16 @@ export {
   MIN_FREE_DISK, type AutoContext, type AutoDecision,
 } from './autoprovision';
 export { openRunner, type RunnerHandle } from './sql-runner';
+// A política é PARTILHADA com a nuvem (mesmo ficheiro, não uma cópia).
 export {
   classify, isReplicated, unknownTables, resolve,
   type DataClass, type Version, type Winner, type Resolution,
-} from './replication/policy';
+} from '@nexus/replication';
 export {
   journalDdl, attachTriggersSql, skippedTables, pendingSql, markSyncedSql, pruneSql,
   JOURNAL_TABLE, type PendingChange,
 } from './replication/journal';
+export {
+  pushPending, pruneJournal,
+  type EngineOptions, type PushResult, type SqlQuery,
+} from './replication/engine';
