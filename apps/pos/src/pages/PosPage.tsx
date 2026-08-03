@@ -44,6 +44,7 @@ import { buildPendingSale, kvGet, kvSet, newUuid, queueSale } from '../offline/d
 import { syncController } from '../offline/sync';
 import { useSync } from '../offline/useSync';
 import { deviceKey } from '../offline/device';
+import { setPosBusy } from '../offline/localServer';
 
 const CACHE_PRODUCTS = 'cache:products';
 // Dados de apoio da Caixa, também guardados para VENDER 100% OFFLINE (clientes,
@@ -466,6 +467,17 @@ export function PosPage() {
       else localStorage.removeItem(cartKey);
     } catch { /* storage cheio/indisponível — ignora */ }
   }, [cart, cartKey]);
+
+  // Diz ao posto que a caixa está OCUPADA — turno aberto, carrinho com artigos
+  // ou fatura a ser emitida. É o único sinal que só este ecrã tem, e é o que
+  // impede a cópia da empresa (dezenas de milhares de linhas) de arrancar com
+  // um cliente à espera no balcão. Não muda nada na interface.
+  useEffect(() => {
+    setPosBusy(session != null || cart.length > 0 || emitting);
+  }, [session, cart.length, emitting]);
+  // Ao sair deste ecrã a caixa deixa de estar ocupada — senão uma bandeira
+  // presa adiava a cópia para sempre.
+  useEffect(() => () => setPosBusy(false), []);
 
   // Reconcilia o carrinho com o STOCK ATUAL (ex.: outro caixa vendeu entretanto):
   // remove o que esgotou/saiu do catálogo e ajusta quantidades ao disponível.

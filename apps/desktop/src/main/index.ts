@@ -94,6 +94,9 @@ async function startLocalServer(): Promise<void> {
  * nunca antes. É o que substitui o botão sem perder a proteção: a base local
  * continua a nunca servir a aplicação enquanto não tiver os dados lá dentro.
  */
+/** Último motivo de adiamento escrito no registo, para não o repetir. */
+let ultimoAdiamento: string | null = null;
+
 async function autoProvision(session: {
   accessToken: string; companyCode: string; apiUrl: string; role: string; busy?: boolean;
 }): Promise<{ done: boolean; reason?: string; rows?: number }> {
@@ -112,14 +115,24 @@ async function autoProvision(session: {
   // A replicação precisa de uma sessão para falar com a nuvem. Guardamo-la SÓ
   // em memória — morre quando a aplicação fecha, e não fica um token de
   // administrador em disco à espera de ser encontrado.
-  replicationSession = {
-    accessToken: session.accessToken,
-    companyCode: session.companyCode,
-    apiUrl: session.apiUrl,
-  };
-  // Só faz sentido replicar quando este posto está mesmo a trabalhar da sua
-  // base local: sem ela não há diário, e sem diário não há nada para subir.
-  if (localApiUrl) startReplicationClock();
+  //
+  // SÓ de um ADMINISTRADOR, e é essencial: `/replication/push` e `/pull` são
+  // reservados ao COMPANY_ADMIN. Agora que a Caixa também oferece a sessão, um
+  // operador a entrar num posto já provisionado substituiria aqui o token do
+  // administrador pelo dele — e a partir desse minuto tudo o que a loja
+  // vendesse sem internet ficaria a bater num 403, em silêncio, com o registo
+  // a dizer apenas "replicação adiada". A sessão do administrador que já cá
+  // está vale mais do que a do operador que acabou de chegar.
+  if (session.role === 'COMPANY_ADMIN') {
+    replicationSession = {
+      accessToken: session.accessToken,
+      companyCode: session.companyCode,
+      apiUrl: session.apiUrl,
+    };
+    // Só faz sentido replicar quando este posto está mesmo a trabalhar da sua
+    // base local: sem ela não há diário, e sem diário não há nada para subir.
+    if (localApiUrl) startReplicationClock();
+  }
 
   const decisao = ls.shouldProvision(paths, {
     binariesPresent: ls.binariesPresent(paths),
@@ -129,9 +142,18 @@ async function autoProvision(session: {
     busy: session.busy === true,
   });
   if (!decisao.provision) {
-    logLocal(`cópia automática adiada: ${decisao.reason}`);
+    // Escreve o motivo só quando MUDA. São duas janelas (Gestor e Caixa) a
+    // oferecer a sessão de minuto a minuto: repetir a mesma linha encheria o
+    // registo com milhares de "já provisionado" por dia e afogaria a única
+    // linha que interessa quando algo corre mal. Este ficheiro é o único
+    // diagnóstico que existe num posto sem consola.
+    if (decisao.reason !== ultimoAdiamento) {
+      ultimoAdiamento = decisao.reason;
+      logLocal(`cópia automática adiada: ${decisao.reason}`);
+    }
     return { done: false, reason: decisao.reason };
   }
+  ultimoAdiamento = null;
 
   logLocal(`cópia automática a começar (empresa ${session.companyCode})`);
   const url = await ls.ensureLocalDatabase(paths);

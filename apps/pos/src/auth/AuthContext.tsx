@@ -16,6 +16,7 @@ import {
 } from '../offline/session';
 import { isOfflineToken, syncCredentials } from '../offline/credentials';
 import { registerDevice } from '../offline/device';
+import { offerSessionToHost } from '../offline/localServer';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 
@@ -145,12 +146,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Relógio simples, NUNCA `navigator.onLine`: nas apps nativas esse valor mente.
   useEffect(() => {
     if (status !== 'authed' || !companyRef.current) return;
-    const t = window.setInterval(() => {
+    const tick = () => {
       if (isOfflineToken(accessRef.current)) { void doRefresh(); return; }
       void syncCredentials(companyRef.current);
-    }, 60_000);
+      // Oferece a sessão ao posto, tal como o Gestor faz. Em muitas lojas o
+      // computador do balcão só abre a Caixa — sem isto, o posto que mais
+      // precisa de trabalhar sem internet nunca receberia a cópia da empresa.
+      // Quem decide (papel, disco, caixa ocupada) é o processo principal.
+      const tok = accessRef.current;
+      if (tok && user?.role) {
+        void offerSessionToHost({
+          accessToken: tok, companyCode: companyRef.current!, role: user.role,
+        });
+      }
+    };
+    const t = window.setInterval(tick, 60_000);
+    // Uma primeira tentativa logo à entrada, sem esperar o minuto.
+    tick();
     return () => window.clearInterval(t);
-  }, [status, doRefresh]);
+  }, [status, doRefresh, user]);
 
   // Renovação PROATIVA do token de acesso: renova ~1 min ANTES de expirar para a
   // sessão nunca cair sozinha aos 15 min. A inatividade apenas BLOQUEIA o ecrã
