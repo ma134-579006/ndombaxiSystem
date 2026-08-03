@@ -28,8 +28,23 @@ export interface SqlBridge {
   batch(statements: { sql: string; params?: unknown[] }[]): Promise<void>;
 }
 
-/** Base própria da Caixa — separada da do Gestor, mesmo no mesmo aparelho. */
-const DB_NAME = 'ndombaxi-caixa';
+/**
+ * A MESMA base do Gestor — uma só memória interna por aparelho.
+ *
+ * No Windows isto já era assim sem se dar por ela: o processo principal do
+ * Electron abre sempre `ndombaxi-local.db`, seja qual for o módulo aberto. No
+ * Android é que a Caixa tinha uma base à parte (`ndombaxi-caixa`), e isso
+ * significava duas memórias que nunca se viam: uma venda feita na Caixa não
+ * existia para o Gestor no MESMO telemóvel.
+ *
+ * As tabelas não se pisam — a Caixa usa `kv` e `pending_sales`, o Gestor usa
+ * `meta`, `outbox`, `entities` e `synclog` —, por isso partilhar o ficheiro é
+ * só isso: partilhar. Quem já tiver a base antiga é migrado (ver `store.ts`).
+ */
+const DB_NAME = 'ndombaxi-local';
+
+/** A base que a Caixa usava sozinha, antes de partilhar com o Gestor. */
+export const DB_ANTIGA_DA_CAIXA = 'ndombaxi-caixa';
 
 interface ElectronDb {
   query<T>(sql: string, params?: unknown[]): Promise<T[]>;
@@ -62,6 +77,39 @@ interface CapSqlitePlugin {
     set: { statement: string; values?: unknown[] }[];
     transaction?: boolean;
   }): Promise<unknown>;
+  /** Existe mesmo esta base no aparelho? (nem todas as versões o expõem) */
+  isDatabase?(o: { database: string }): Promise<{ result?: boolean }>;
+}
+
+/**
+ * Abre a base ANTIGA da Caixa (Android), só para ler o que lá ficou.
+ *
+ * Devolve `undefined` quando ela não existe — que é o caso de qualquer
+ * instalação nova. Nunca cria: criar uma base vazia aqui seria inventar uma
+ * migração que não tem nada para migrar.
+ */
+export async function ponteParaBaseAntiga(): Promise<SqlBridge | undefined> {
+  const w = window as unknown as { Capacitor?: { Plugins?: { CapacitorSQLite?: CapSqlitePlugin } } };
+  const p = w.Capacitor?.Plugins?.CapacitorSQLite;
+  if (!p || typeof p.query !== 'function') return undefined;
+  try {
+    const existe = await p.isDatabase?.({ database: DB_ANTIGA_DA_CAIXA });
+    if (existe && existe.result === false) return undefined;
+    await p.createConnection({
+      database: DB_ANTIGA_DA_CAIXA, encrypted: false, mode: 'no-encryption', version: 1, readonly: true,
+    });
+    await p.open({ database: DB_ANTIGA_DA_CAIXA });
+    return {
+      query: async <T = Record<string, unknown>>(sql: string, params?: unknown[]) => {
+        const r = await p.query({ database: DB_ANTIGA_DA_CAIXA, statement: sql, values: params ?? [] });
+        return (r.values ?? []) as T[];
+      },
+      exec: async () => { /* só leitura */ },
+      batch: async () => { /* só leitura */ },
+    };
+  } catch {
+    return undefined; // não existe, ou não abre: não há nada a trazer
+  }
 }
 
 /**

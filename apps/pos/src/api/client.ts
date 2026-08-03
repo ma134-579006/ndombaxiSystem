@@ -221,6 +221,21 @@ export const api = {
     request<ShiftClose>('POST', '/cashbox/session/close', { countedCash, notes }),
   reportX: () => request<ReportX>('GET', '/cashbox/report/x'),
 
+  /**
+   * Sobe o que foi feito SEM REDE (hoje: abertura e fecho de turno).
+   *
+   * Cada operação leva a sua chave (`opId`) e a sequência que este posto lhe
+   * atribuiu. É por essa sequência que o servidor ordena o lote — a abertura do
+   * turno entra antes das vendas, o fecho depois — e é a chave que impede um
+   * reenvio de criar um segundo turno.
+   */
+  syncPush: (ops: {
+    opId: string; seq: number; entity: string; op: 'create' | 'update' | 'delete';
+    localId: string; payload: Record<string, unknown>;
+  }[]) => request<{ results: { opId: string; status: string; message?: string }[] }>(
+    'POST', '/sync/push', { ops },
+  ),
+
   // ── Chat de equipa 1:1 (caixa ↔ gerente) ───────────────────
   chatContacts: () => request<ChatContact[]>('GET', '/chat/contacts'),
   chatMessages: (peer: string) => request<ChatMessage[]>('GET', `/chat/messages?peer=${encodeURIComponent(peer)}`),

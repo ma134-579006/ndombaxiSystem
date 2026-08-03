@@ -17,7 +17,7 @@
  * SQLite não estiver disponível, ou falhar a abrir, usa-se o IndexedDB e vende-se
  * na mesma. É melhor guardar num sítio menos robusto do que não guardar.
  */
-import { deviceSqlBridge, type SqlBridge } from './sqlBridge';
+import { deviceSqlBridge, ponteParaBaseAntiga, type SqlBridge } from './sqlBridge';
 
 const DB_NAME = 'ndombaxi-pos';
 const DB_VERSION = 1;
@@ -89,6 +89,10 @@ async function bridge(): Promise<SqlBridge | null> {
     try {
       for (const sql of ESQUEMA) await b.exec(sql);
       await migrarDoIndexedDb(b);
+      // A Caixa passou a partilhar a base com o Gestor: traz o que ficou na
+      // base antiga dela (Android). Depois da do IndexedDB, para que uma
+      // instalação vinda de muito atrás passe pelas duas por ordem.
+      await migrarDaBaseAntigaDaCaixa(b);
       return b;
     } catch {
       // Base corrompida, sem espaço, plugin a falhar: volta-se ao IndexedDB.
@@ -131,6 +135,52 @@ async function migrarDoIndexedDb(b: SqlBridge): Promise<void> {
 }
 
 interface PendingSaleRow { id?: number; [k: string]: unknown }
+
+/** Marca de que a base antiga da Caixa já foi trazida para a partilhada. */
+const MARCA_BASE_UNICA = '__migrado_para_base_unica__';
+
+/**
+ * Traz o que ficou na base ANTIGA da Caixa (`ndombaxi-caixa`) para a base
+ * partilhada com o Gestor (`ndombaxi-local`).
+ *
+ * Só existe por causa de quem já instalou a versão em que a Caixa tinha base
+ * própria no Android: sem isto, a atualização que passa a partilhar a memória
+ * deixava lá as vendas por enviar desse aparelho — desapareciam da aplicação
+ * sem aviso, que é exatamente o que nunca pode acontecer com dinheiro já
+ * cobrado ao cliente.
+ *
+ * Como a anterior: corre uma vez, traz num lote só e **não apaga nada**.
+ */
+async function migrarDaBaseAntigaDaCaixa(b: SqlBridge): Promise<void> {
+  const feito = await b.query<{ v: string }>('SELECT v FROM kv WHERE k = ?', [MARCA_BASE_UNICA]);
+  if (feito.length > 0) return;
+  try {
+    const antiga = await ponteParaBaseAntiga();
+    if (antiga) {
+      const vendas = await antiga.query<{ payload: string }>(
+        'SELECT payload FROM pending_sales ORDER BY id',
+      ).catch(() => [] as { payload: string }[]);
+      if (vendas.length > 0) {
+        await b.batch(vendas.map((v) => ({
+          sql: 'INSERT INTO pending_sales (payload) VALUES (?)', params: [v.payload],
+        })));
+      }
+      // O `kv` traz consigo o turno local e as caches. `INSERT OR IGNORE`: o que
+      // já exista na base partilhada manda — é o mais recente.
+      const kvs = await antiga.query<{ k: string; v: string }>('SELECT k, v FROM kv')
+        .catch(() => [] as { k: string; v: string }[]);
+      const uteis = kvs.filter((x) => x.k !== MARCA_MIGRACAO && x.k !== MARCA_BASE_UNICA);
+      if (uteis.length > 0) {
+        await b.batch(uteis.map((x) => ({
+          sql: 'INSERT OR IGNORE INTO kv (k, v) VALUES (?, ?)', params: [x.k, x.v],
+        })));
+      }
+    }
+  } catch {
+    /* base antiga ilegível — não há nada a trazer e não se estorva a abertura */
+  }
+  await b.exec('INSERT OR REPLACE INTO kv (k, v) VALUES (?, ?)', [MARCA_BASE_UNICA, '1']);
+}
 
 // ── A porta única para o resto da aplicação ──────────────────────────
 
