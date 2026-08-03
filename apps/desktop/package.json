@@ -8,11 +8,12 @@
   "scripts": {
     "prepare:resources": "node scripts/prepare-resources.mjs",
     "build:main": "tsc -p tsconfig.json",
-    "build": "pnpm build:main && pnpm prepare:resources",
+    "build": "pnpm build:main && pnpm prepare:resources && pnpm prepare:server",
     "dev": "pnpm build:main && electron .",
     "dist:win": "pnpm build && electron-builder --win --x64 --arm64 --publish never",
     "dist:win-legacy": "pnpm build && electron-builder --config electron-builder-legacy.yml --win --x64 --ia32 --publish never",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare:server": "node scripts/prepare-server.mjs"
   },
   "dependencies": {
     "@nexus/local-server": "workspace:*",

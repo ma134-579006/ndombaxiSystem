@@ -16,6 +16,14 @@ resources/modules/gestao/
 resources/modules/caixa/
 resources/modules/launcher/logo.png
 
+# SERVIDOR LOCAL empacotado — gerado por `scripts/prepare-server.mjs`.
+# São ~120 MB de binários do PostgreSQL (que nem sequer são nossos) e a API
+# compilada com as suas dependências. Versionar isto encheria o repositório e
+# criaria uma segunda fonte de verdade para código que já cá está em `apps/api`.
+resources/pgsql/
+resources/api/
+.pg-tmp/
+
 # Ícone gerado a partir do logótipo oficial
 build/icon.png
 

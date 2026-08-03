@@ -136,16 +136,43 @@ export class LocalServer {
    * repositório não usa.
    */
   private migrate(databaseUrl: string): void {
-    const r = spawnSync(
-      process.platform === 'win32' ? 'npx.cmd' : 'npx',
-      ['prisma', 'db', 'push', '--skip-generate', '--accept-data-loss=false'],
-      {
-        cwd: this.o.apiDir,
-        env: { ...process.env, DATABASE_URL: databaseUrl },
-        encoding: 'utf8',
-        windowsHide: true,
-      },
-    );
+    // A CLI do Prisma é chamada DIRETAMENTE, pelo ficheiro que veio no
+    // instalador — não por `npx`.
+    //
+    // A máquina de um lojista não tem Node nem npm instalados: a aplicação traz
+    // o seu. `npx.cmd` simplesmente não existe lá, e a migração falhava sempre —
+    // ou seja, o servidor local nunca chegaria a arrancar num único posto real.
+    // Além disso, `npx` tentaria ir buscar o pacote à internet, que é o que aqui
+    // não se pode assumir.
+    const cli = path.join(this.o.apiDir, 'node_modules', 'prisma', 'build', 'index.js');
+    const temCliPropria = existsSync(cli);
+    const r = temCliPropria
+      ? spawnSync(
+        this.o.nodePath ?? process.execPath,
+        [cli, 'db', 'push', '--skip-generate'],
+        {
+          cwd: this.o.apiDir,
+          env: {
+            ...process.env,
+            // Faz o executável do Electron correr como Node puro.
+            ELECTRON_RUN_AS_NODE: '1',
+            DATABASE_URL: databaseUrl,
+          },
+          encoding: 'utf8',
+          windowsHide: true,
+        },
+      )
+      // Sem CLI empacotada só se está em desenvolvimento, dentro do repositório.
+      : spawnSync(
+        process.platform === 'win32' ? 'npx.cmd' : 'npx',
+        ['prisma', 'db', 'push', '--skip-generate'],
+        {
+          cwd: this.o.apiDir,
+          env: { ...process.env, DATABASE_URL: databaseUrl },
+          encoding: 'utf8',
+          windowsHide: true,
+        },
+      );
     if (r.status !== 0) {
       // Não escondemos: sem esquema correto, a app trabalharia sobre uma base
       // que não corresponde ao código — pior do que não arrancar.
