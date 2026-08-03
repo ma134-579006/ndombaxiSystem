@@ -25,3 +25,8 @@ export {
   type ProvisionOptions, type ProvisionResult, type CloudAccess,
   type SnapshotTable, type SqlRunner,
 } from './provision';
+export {
+  shouldProvision, backoffMs, readAttempts, recordFailure, recordSuccess,
+  MIN_FREE_DISK, type AutoContext, type AutoDecision,
+} from './autoprovision';
+export { openRunner, type RunnerHandle } from './sql-runner';

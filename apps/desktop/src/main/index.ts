@@ -83,6 +83,71 @@ async function startLocalServer(): Promise<void> {
   }
 }
 
+/**
+ * Traz a empresa para este posto, se for a altura certa.
+ *
+ * A decisão de SE copiar não está aqui — está em `shouldProvision`, isolada e
+ * testada. Aqui só se reúnem os factos (binários, papel de quem entrou, espaço
+ * em disco) e se executa o que ela mandar.
+ *
+ * A definição `localServer` é ligada **no fim de uma cópia bem sucedida**, e
+ * nunca antes. É o que substitui o botão sem perder a proteção: a base local
+ * continua a nunca servir a aplicação enquanto não tiver os dados lá dentro.
+ */
+async function autoProvision(session: {
+  accessToken: string; companyCode: string; apiUrl: string; role: string; busy?: boolean;
+}): Promise<{ done: boolean; reason?: string; rows?: number }> {
+  const ls = await import('@nexus/local-server');
+  const paths = ls.layout({
+    userDataDir: app.getPath('userData'),
+    resourcesDir: app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', '..', 'resources'),
+  });
+
+  let freeDiskBytes: number | null = null;
+  try {
+    freeDiskBytes = fs.statfsSync(app.getPath('userData')).bavail
+      * fs.statfsSync(app.getPath('userData')).bsize;
+  } catch { /* sistema sem statfs — não bloqueia por isso */ }
+
+  const decisao = ls.shouldProvision(paths, {
+    binariesPresent: ls.binariesPresent(paths),
+    isCompanyAdmin: session.role === 'COMPANY_ADMIN',
+    companyCode: session.companyCode,
+    freeDiskBytes,
+    busy: session.busy === true,
+  });
+  if (!decisao.provision) {
+    logLocal(`cópia automática adiada: ${decisao.reason}`);
+    return { done: false, reason: decisao.reason };
+  }
+
+  logLocal(`cópia automática a começar (empresa ${session.companyCode})`);
+  const url = await ls.ensureLocalDatabase(paths);
+  const runner = await ls.openRunner(url);
+  try {
+    const r = await ls.provisionFromCloud({
+      paths,
+      cloud: { apiUrl: session.apiUrl, accessToken: session.accessToken, companyCode: session.companyCode },
+      run: runner.run,
+      schema: 'public',
+      log: logLocal,
+    });
+    ls.recordSuccess(paths);
+    // SÓ AGORA se liga: a partir do próximo arranque, este posto trabalha da
+    // sua própria base. Antes disto seria servir uma empresa vazia.
+    writeSettings({ localServer: true });
+    logLocal(`cópia automática concluída: ${r.rows} linhas em ${r.tables} tabelas`);
+    return { done: true, rows: r.rows };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'erro';
+    ls.recordFailure(paths, msg);
+    logLocal(`cópia automática falhou: ${msg}`);
+    return { done: false, reason: msg };
+  } finally {
+    await runner.close();
+  }
+}
+
 /** Diagnóstico em ficheiro: num posto sem consola, é a única forma de saber. */
 function logLocal(line: string): void {
   try {
@@ -182,6 +247,27 @@ function openModule(id: ModuleId): void {
 
 function registerIpc(): void {
   ipcMain.handle('ndombaxi:version', () => app.getVersion());
+
+  /**
+   * CÓPIA AUTOMÁTICA da empresa para este posto.
+   *
+   * Sem botão, por decisão do dono do produto. O frontend limita-se a dizer
+   * "estou aqui, com esta sessão"; toda a inteligência de decidir SE e QUANDO
+   * copiar vive em `@nexus/local-server/autoprovision`, isolada e testada.
+   *
+   * O token não é guardado em lado nenhum — é usado no momento e esquecido.
+   */
+  ipcMain.handle('ndombaxi:local-provision', async (_e, session: {
+    accessToken: string; companyCode: string; apiUrl: string; role: string; busy?: boolean;
+  }) => {
+    try {
+      return await autoProvision(session);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'erro';
+      logLocal(`cópia automática falhou: ${msg}`);
+      return { done: false, reason: msg };
+    }
+  });
 
   // SÍNCRONO de propósito: o `preload` precisa do endereço ANTES de o bundle do
   // frontend arrancar, para o primeiro pedido já sair para o sítio certo. É uma

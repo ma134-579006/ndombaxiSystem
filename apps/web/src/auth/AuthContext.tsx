@@ -20,6 +20,7 @@ import {
   clearPendingUpgrade, getPendingUpgrade, rememberOffline, setPendingUpgrade, verifyOffline,
 } from '../offline/session';
 import { isOfflineToken, syncCredentials } from '../offline/credentials';
+import { offerSessionToHost } from '../offline/localServer';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 /** Que painel mostrar: plataforma (Super Admin) ou gestor da empresa. */
@@ -223,10 +224,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const tick = () => {
       if (isOfflineToken(accessRef.current)) { void doRefresh(); return; }
       void syncCredentials(companyRef.current);
+      // Oferece a sessão ao posto: se for altura de trazer a empresa para a base
+      // local, ele trata disso sozinho. Sem botão e sem perguntar nada — quem
+      // decide é o processo principal, que sabe o que o navegador não sabe
+      // (ficheiros instalados, espaço em disco, tentativas falhadas).
+      const tok = accessRef.current;
+      if (tok && user?.role) {
+        void offerSessionToHost({
+          accessToken: tok, companyCode: companyRef.current!, role: user.role,
+        });
+      }
     };
     const t = window.setInterval(tick, 60_000);
+    // Uma primeira tentativa logo à entrada, sem esperar o minuto.
+    tick();
     return () => window.clearInterval(t);
-  }, [status, doRefresh]);
+  }, [status, doRefresh, user]);
 
   // Renovação PROATIVA do token: renova ~1 min antes de expirar para a sessão do
   // gestor nunca cair sozinha (incl. quando o gestor abre/usa a caixa). Só a
