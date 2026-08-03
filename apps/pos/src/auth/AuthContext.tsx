@@ -15,6 +15,7 @@ import {
   clearPendingUpgrade, getPendingUpgrade, rememberOffline, setPendingUpgrade, verifyOffline,
 } from '../offline/session';
 import { isOfflineToken, syncCredentials } from '../offline/credentials';
+import { registerDevice } from '../offline/device';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 
@@ -268,6 +269,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // permite a qualquer colega abrir a Caixa aqui sem rede, mesmo que
         // nunca tenha escrito o PIN neste aparelho.
         void syncCredentials(r.companyCode, true);
+        // Apresenta o posto e fixa a sua SÉRIE fiscal. Feito no login com rede
+        // porque é a única altura garantida em que o servidor está ao alcance —
+        // e sem série própria duas caixas partilham cadeia de hash.
+        void registerDevice();
       } catch (e) {
         // SÓ falha de rede → tenta entrar OFFLINE com o mesmo PIN. Um erro do
         // servidor (PIN errado, 4xx) segue o caminho normal e é mostrado.

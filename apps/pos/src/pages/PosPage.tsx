@@ -43,6 +43,7 @@ import { useKeyboard } from '../keyboard/KeyboardProvider';
 import { buildPendingSale, kvGet, kvSet, newUuid, queueSale } from '../offline/db';
 import { syncController } from '../offline/sync';
 import { useSync } from '../offline/useSync';
+import { deviceKey } from '../offline/device';
 
 const CACHE_PRODUCTS = 'cache:products';
 // Dados de apoio da Caixa, também guardados para VENDER 100% OFFLINE (clientes,
@@ -645,6 +646,9 @@ export function PosPage() {
         tendered: pay.tendered,
         changeGiven: pay.changeGiven,
         clientOpId,
+        // Identidade do posto: é ela que decide a SÉRIE fiscal desta venda, e
+        // com isso impede que duas caixas escrevam na mesma cadeia de hash.
+        deviceKey: await deviceKey(),
         lines: cart.map((l) => {
           const rate = discountRateByProduct[l.product.id] ?? 0;
           return { productCode: l.product.code, quantity: l.quantity, ...(rate > 0 ? { discountRate: rate } : {}) };

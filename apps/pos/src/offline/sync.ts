@@ -4,6 +4,7 @@
  * aí o seu número fiscal real (sequência AGT sem saltos).
  */
 import { api, ApiError } from '../api/client';
+import { deviceKey } from './device';
 import {
   countPendingSales,
   deleteSale,
@@ -143,6 +144,9 @@ class SyncController {
         // criar uma segunda. Vendas em fila de versões anteriores não têm chave
         // e mantêm o comportamento antigo — nada rebenta por causa disso.
         clientOpId: sale.clientOpId,
+        // A série tem de ser a DESTE posto também no reenvio da fila — senão
+        // uma venda feita aqui sem rede entrava na cadeia de outra caixa.
+        deviceKey: await deviceKey(),
         lines: sale.lines.map((l) => ({ productCode: l.productCode, quantity: l.quantity })),
       });
       if (sale.id != null) await deleteSale(sale.id);

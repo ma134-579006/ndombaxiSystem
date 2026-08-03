@@ -26,6 +26,7 @@ import { InvoiceService } from './invoice.service';
 import { PosRepository } from './pos.repository';
 import { SaftService } from './saft.service';
 import { PlanLimitsService } from '../plans/plan-limits.service';
+import { DevicesService } from '../devices/devices.service';
 
 /** Gera um código de barras EAN-13 interno (prefixo 200 = uso interno GS1)
  *  com dígito de controlo válido — usado quando o produto é criado sem código. */
@@ -57,6 +58,7 @@ export class PosController {
     private readonly signing: FiscalSigningService,
     private readonly ctx: TenantContext,
     private readonly planLimits: PlanLimitsService,
+    private readonly devices: DevicesService,
   ) {}
 
   // ── Catálogo de produtos ───────────────────────────────────
@@ -165,10 +167,22 @@ export class PosController {
   @ApiOperation({ summary: 'Emite um documento fiscal (FT/FS/...) com hash AGT' })
   async emitInvoice(@Body() dto: EmitInvoiceDto, @CurrentUser() user: JwtPayload) {
     const schema = this.ctx.requireTenantSchema();
+    // SÉRIE DO POSTO — e não a que o cliente pedir.
+    //
+    // Cada documento leva o hash do anterior da mesma série: se dois postos
+    // emitirem na mesma série sem rede, ficam duas cadeias divergentes com a
+    // mesma numeração, e isso não se corrige depois (os documentos já foram
+    // entregues a clientes). Por isso a série vem do REGISTO do posto e o
+    // pedido não a pode escolher.
+    //
+    // Posto não registado → 'A', como sempre. É deliberado: as aplicações já
+    // instaladas ainda não se registam, e recusar a venda deixaria lojas
+    // paradas por causa de uma funcionalidade nova.
+    const deviceSeries = await this.devices.seriesFor(schema, dto.deviceKey);
     try {
       return await this.invoices.emit(schema, {
         docType: dto.docType ?? DocumentType.FT,
-        series: dto.series ?? 'A',
+        series: deviceSeries ?? dto.series ?? 'A',
         customerId: dto.customerId ?? null,
         cashierId: user.sub,
         cashierName: user.name ?? user.email,
