@@ -18,7 +18,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "prova:pglite": "node scripts/prova-pglite-schema.mjs"
+    "prova:pglite": "node scripts/prova-pglite-schema.mjs && node scripts/prova-pglite-fiscal.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
