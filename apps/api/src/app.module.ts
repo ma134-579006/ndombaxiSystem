@@ -12,6 +12,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
 import { PosModule } from './pos/pos.module';
 import { DevicesModule } from './devices/devices.module';
+import { CompanyModule } from './company/company.module';
 import { ErpModule } from './erp/erp.module';
 import { EcommerceModule } from './ecommerce/ecommerce.module';
 import { RealtimeModule } from './realtime/realtime.module';
@@ -84,6 +85,7 @@ import { HealthController } from './health.controller';
     SuperAdminModule,
     PosModule,
     DevicesModule,
+    CompanyModule,
     ErpModule,
     EcommerceModule,
     DashboardModule,

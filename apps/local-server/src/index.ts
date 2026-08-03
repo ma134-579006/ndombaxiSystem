@@ -20,3 +20,8 @@ export {
   blockedReason, readReadiness, markProvisioned, isProvisionedFor,
   type ReadinessPaths,
 } from './readiness';
+export {
+  provisionFromCloud,
+  type ProvisionOptions, type ProvisionResult, type CloudAccess,
+  type SnapshotTable, type SqlRunner,
+} from './provision';
