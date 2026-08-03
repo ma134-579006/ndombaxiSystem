@@ -31,6 +31,54 @@ if (!app.requestSingleInstanceLock()) {
 
 let mainWindow: BrowserWindow | null = null;
 
+/**
+ * Endereço da API que os frontends devem usar.
+ *
+ * `null` = usar o endereço gravado no build (a nuvem), que é o comportamento de
+ * sempre. Passa a ter valor quando o SERVIDOR LOCAL arranca — aí as aplicações
+ * falam com `127.0.0.1` e deixam de precisar de internet para trabalhar.
+ *
+ * O recuo é deliberado: se o servidor local não puder arrancar (binários em
+ * falta numa atualização, disco cheio, porta tomada), a aplicação continua a
+ * funcionar contra a nuvem em vez de não abrir. Uma funcionalidade nova não pode
+ * tirar ao lojista o que ele já tinha.
+ */
+let localApiUrl: string | null = null;
+let localServer: import('@nexus/local-server').LocalServer | null = null;
+
+/** Arranca o servidor local, se estiver disponível. Nunca impede a app de abrir. */
+async function startLocalServer(): Promise<void> {
+  try {
+    const { LocalServer, layout, binariesPresent } = await import('@nexus/local-server');
+    const paths = layout({
+      userDataDir: app.getPath('userData'),
+      resourcesDir: app.isPackaged
+        ? process.resourcesPath
+        : path.join(__dirname, '..', '..', 'resources'),
+    });
+    if (!binariesPresent(paths)) {
+      logLocal('servidor local indisponível (binários não incluídos) — a usar a nuvem');
+      return;
+    }
+    localServer = new LocalServer({ paths, apiDir: paths.apiDir, log: logLocal });
+    const info = await localServer.start();
+    localApiUrl = info.apiUrl;
+    logLocal(`servidor local pronto em ${info.apiUrl}`);
+  } catch (e) {
+    localServer = null;
+    localApiUrl = null;
+    logLocal(`servidor local não arrancou (${(e as Error).message}) — a usar a nuvem`);
+  }
+}
+
+/** Diagnóstico em ficheiro: num posto sem consola, é a única forma de saber. */
+function logLocal(line: string): void {
+  try {
+    const f = path.join(app.getPath('userData'), 'local-server.log');
+    fs.appendFileSync(f, `[${new Date().toISOString()}] ${line}\n`);
+  } catch { /* nada mais a fazer */ }
+}
+
 /** Pasta com os frontends compilados (empacotados como `resources/modules`). */
 function modulesRoot(): string {
   return app.isPackaged
@@ -123,6 +171,11 @@ function openModule(id: ModuleId): void {
 function registerIpc(): void {
   ipcMain.handle('ndombaxi:version', () => app.getVersion());
 
+  // SÍNCRONO de propósito: o `preload` precisa do endereço ANTES de o bundle do
+  // frontend arrancar, para o primeiro pedido já sair para o sítio certo. É uma
+  // leitura de uma variável em memória — não há trabalho a bloquear.
+  ipcMain.on('ndombaxi:api-url', (e) => { e.returnValue = localApiUrl; });
+
   ipcMain.handle('ndombaxi:db-query', (_e, sql: string, params?: unknown[]) => query(sql, params ?? []));
   ipcMain.handle('ndombaxi:db-exec', (_e, sql: string, params?: unknown[]) => exec(sql, params ?? []));
   ipcMain.handle('ndombaxi:db-batch', (_e, statements: { sql: string; params?: unknown[] }[]) =>
@@ -174,7 +227,7 @@ app.on('second-instance', () => {
   mainWindow.focus();
 });
 
-void app.whenReady().then(() => {
+void app.whenReady().then(async () => {
   const root = modulesRoot();
   serveModules({
     gestao: path.join(root, 'gestao'),
@@ -197,6 +250,11 @@ void app.whenReady().then(() => {
     return;
   }
 
+  // O servidor local arranca ANTES da janela: assim o `preload` já encontra o
+  // endereço e o primeiro pedido do frontend sai direto para o sítio certo, sem
+  // um recarregamento a meio nem um erro de ligação no arranque.
+  await startLocalServer();
+
   registerIpc();
   mainWindow = createWindow();
   buildMenu({ onOpenModule: openModule, getWindow: () => mainWindow });
@@ -211,7 +269,12 @@ app.on('window-all-closed', () => {
   app.quit();
 });
 
-app.on('before-quit', () => closeDatabase());
+app.on('before-quit', () => {
+  closeDatabase();
+  // Encerra a base local em modo `fast` (faz checkpoint): o próximo arranque não
+  // tem de recuperar o WAL e nada fica por gravar.
+  void localServer?.stop();
+});
 
 // Diagnóstico: um erro não apanhado fica registado em ficheiro em vez de
 // desaparecer. Num posto sem consola, é a única forma de saber o que se passou.

@@ -14,6 +14,18 @@ const api = {
   platform: 'windows' as const,
   version: (): Promise<string> => ipcRenderer.invoke('ndombaxi:version'),
 
+  /**
+   * Endereço da API a usar. `null` = o que ficou gravado no build (a nuvem).
+   * Com o SERVIDOR LOCAL a correr, traz `http://127.0.0.1:<porta>` e a aplicação
+   * deixa de precisar de internet para trabalhar.
+   *
+   * Vem por `sendSync` de propósito: o frontend lê isto ao definir a sua base de
+   * API, ANTES do primeiro pedido. Uma promessa obrigaria o código de arranque a
+   * ser assíncrono e abria uma janela em que os primeiros pedidos ainda saíam
+   * para a nuvem. É a leitura de uma variável em memória do processo principal.
+   */
+  apiUrl: ipcRenderer.sendSync('ndombaxi:api-url') as string | null,
+
   /** Ponte SQLite consumida pelo `SqliteAdapter` de @nexus/offline-core. */
   db: {
     query: <T>(sql: string, params?: unknown[]): Promise<T[]> =>

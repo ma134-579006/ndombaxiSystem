@@ -19,6 +19,7 @@ import {
   pickStorage,
   type SyncStatus,
 } from '@nexus/offline-core';
+import { deviceSqlBridge } from './sqlBridge';
 
 /**
  * Entidades que o endpoint `/sync` sabe servir (ver `sync-registry.ts` na API).
@@ -69,7 +70,11 @@ export async function startOfflineEngine(auth: OfflineAuth): Promise<SyncEngine 
   if (engine) return engine;
   if (starting) return starting;
   starting = (async () => {
-    const storage = await pickStorage(); // IndexedDB no browser/Electron; memória em último recurso
+    // SQLite do APARELHO quando existe (Electron via preload, Android via
+    // plugin) — é ele que dá WAL e um ficheiro único para backup. Sem ponte,
+    // `pickStorage` segue para IndexedDB e, em último recurso, memória: o
+    // trabalho nunca é bloqueado por causa do armazenamento.
+    const storage = await pickStorage(await deviceSqlBridge());
     const net = new NetMonitor({ healthUrl: `${API_URL}/health` });
     const transport = httpTransport({
       baseUrl: API_URL,

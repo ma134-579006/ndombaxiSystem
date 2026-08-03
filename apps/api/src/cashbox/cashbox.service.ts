@@ -41,7 +41,17 @@ export class CashboxService {
     return rows[0] ?? null;
   }
 
-  async open(schema: string, dto: OpenSessionDto, actor: Actor): Promise<{ id: string }> {
+  /**
+   * @param clientOpId UUID da operação quando o turno foi aberto SEM REDE. Grava
+   *   na coluna com índice único: um reenvio do mesmo turno é recusado pelo
+   *   Postgres em vez de criar um turno duplicado. `null` para aberturas online.
+   */
+  async open(
+    schema: string,
+    dto: OpenSessionDto,
+    actor: Actor,
+    clientOpId: string | null = null,
+  ): Promise<{ id: string }> {
     return this.prisma.runInTenant(schema, async (tx) => {
       // Impede dois turnos abertos para o mesmo funcionário.
       const open = await tx.$queryRaw<{ id: string }[]>(
@@ -53,9 +63,10 @@ export class CashboxService {
       }
       const rows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO cash_sessions
-            (store_id, register_code, opened_by, opened_by_name, opening_float, status)
+            (store_id, register_code, opened_by, opened_by_name, opening_float, status, client_op_id)
           VALUES (${dto.storeId ?? null}::uuid, ${dto.registerCode ?? null},
-                  ${actor.id ?? null}::uuid, ${actor.name ?? null}, ${round2(dto.openingFloat)}, 'OPEN')
+                  ${actor.id ?? null}::uuid, ${actor.name ?? null}, ${round2(dto.openingFloat)}, 'OPEN',
+                  ${clientOpId}::uuid)
           RETURNING id`,
       );
       const id = rows[0].id;
@@ -68,14 +79,23 @@ export class CashboxService {
     });
   }
 
-  /** Movimento manual: reforço (CASH_IN) ou sangria (CASH_OUT). */
-  async addMovement(schema: string, dto: CashMovementDto, actor: Actor): Promise<{ id: string }> {
+  /**
+   * Movimento manual: reforço (CASH_IN) ou sangria (CASH_OUT).
+   * @param clientOpId UUID da operação quando foi feita SEM REDE (ver `open`).
+   */
+  async addMovement(
+    schema: string,
+    dto: CashMovementDto,
+    actor: Actor,
+    clientOpId: string | null = null,
+  ): Promise<{ id: string }> {
     return this.prisma.runInTenant(schema, async (tx) => {
       const session = await this.requireOpenSession(tx, actor.id);
       const rows = await tx.$queryRaw<{ id: string }[]>(
-        Prisma.sql`INSERT INTO cash_movements (session_id, type, amount, payment_type, reference, created_by)
+        Prisma.sql`INSERT INTO cash_movements
+            (session_id, type, amount, payment_type, reference, created_by, client_op_id)
           VALUES (${session.id}::uuid, ${dto.type}, ${round2(dto.amount)}, 'CASH',
-                  ${dto.reference ?? null}, ${actor.id ?? null}::uuid)
+                  ${dto.reference ?? null}, ${actor.id ?? null}::uuid, ${clientOpId}::uuid)
           RETURNING id`,
       );
       await this.audit.recordInTx(tx, {

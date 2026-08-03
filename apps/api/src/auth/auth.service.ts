@@ -14,6 +14,7 @@ import { PasswordService } from './password.service';
 import { TwoFaService } from './twofa.service';
 import { TokenService, TokenPair } from './token.service';
 import { GoogleAuthService } from './google-auth.service';
+import { OfflineCredentialsService, type OfflineBundle } from './offline-credentials.service';
 import { MailService } from '../common/mail/mail.service';
 import { PlatformLoginDto, TenantLoginDto } from './dto/auth.dto';
 import { createHash, randomBytes } from 'crypto';
@@ -41,7 +42,22 @@ export class AuthService {
     private readonly audit: AuditService,
     private readonly google: GoogleAuthService,
     private readonly mail: MailService,
+    private readonly offlineCreds: OfflineCredentialsService,
   ) {}
+
+  /**
+   * Pacote de credenciais offline da empresa do utilizador autenticado.
+   * É o que permite a um aparelho entrar sem rede com QUALQUER utilizador da
+   * empresa — não só com quem já lá escreveu a senha uma vez.
+   */
+  async offlineBundle(user: JwtPayload): Promise<OfflineBundle> {
+    if (user.subjectType !== 'TENANT' || !user.tenantSchema || !user.tenantId) {
+      throw new ForbiddenException('Só disponível para utilizadores de empresa.');
+    }
+    const company = await this.prisma.company.findUnique({ where: { id: user.tenantId } });
+    if (!company) throw new NotFoundException('Empresa não encontrada.');
+    return this.offlineCreds.bundle(user.tenantSchema, company.code, company.name);
+  }
 
   // ─── Preferências do utilizador (tema por perfil) ───────────
   private static readonly THEME_WHITELIST = new Set([
@@ -287,6 +303,10 @@ export class AuthService {
     } else if (pr.scope === 'TENANT' && pr.tenantSchema && pr.userId) {
       if (kind === 'PIN') await this.tenantUsers.setPinHash(pr.tenantSchema, pr.userId, hash);
       else await this.tenantUsers.setPasswordHash(pr.tenantSchema, pr.userId, hash);
+      // Sem isto, quem mudasse a senha ficava com o verificador ANTIGO nos
+      // aparelhos: online entrava, offline era recusado — o pior dos mundos,
+      // porque só se descobre quando já não há rede para corrigir.
+      await this.offlineCreds.remember(pr.tenantSchema, pr.userId, kind, secret);
     } else {
       throw new BadRequestException('Pedido inválido.');
     }
@@ -344,6 +364,13 @@ export class AuthService {
     );
 
     await this.tenantUsers.markLoginSuccess(company.schemaName, user.id);
+
+    // Este é um dos poucos instantes em que o servidor tem a senha em claro —
+    // aproveitamo-lo para manter o verificador offline em dia. Fora do caminho
+    // crítico (sem `await`) e best-effort: nunca atrasa nem quebra o login.
+    void this.offlineCreds.remember(company.schemaName, user.id, 'PASSWORD', dto.password, {
+      salt: user.offline_pw_salt, verifier: user.offline_pw_verifier, iterations: user.offline_pw_iters,
+    });
 
     const payload: JwtPayload = {
       sub: user.id,
@@ -488,6 +515,10 @@ export class AuthService {
       throw new UnauthorizedException('PIN incorreto');
     }
     await this.tenantUsers.markLoginSuccess(company.schemaName, user.id);
+    // PIN em claro em mãos → mantém o verificador offline em dia (ver tenantLogin).
+    void this.offlineCreds.remember(company.schemaName, user.id, 'PIN', dto.pin, {
+      salt: user.offline_pin_salt, verifier: user.offline_pin_verifier, iterations: user.offline_pin_iters,
+    });
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -538,6 +569,10 @@ export class AuthService {
       throw new UnauthorizedException('PIN incorreto');
     }
     await this.tenantUsers.markLoginSuccess(company.schemaName, user.id);
+    // PIN em claro em mãos → mantém o verificador offline em dia (ver tenantLogin).
+    void this.offlineCreds.remember(company.schemaName, user.id, 'PIN', dto.pin, {
+      salt: user.offline_pin_salt, verifier: user.offline_pin_verifier, iterations: user.offline_pin_iters,
+    });
     // store_name (join) p/ mostrar a loja no recibo/topo
     const full = await this.tenantUsers.findById(company.schemaName, user.id).catch(() => null);
     const payload: JwtPayload = {

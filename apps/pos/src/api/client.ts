@@ -173,8 +173,10 @@ export const api = {
     request<EmittedInvoice>('POST', '/pos/invoices', input),
   cancelInvoice: (id: string, reason: string) =>
     request<{ creditNoteNumber: string; grossTotal: number }>('POST', `/pos/invoices/${id}/cancel`, { reason }),
-  returnItems: (id: string, items: { productCode: string; quantity: number }[], reason: string) =>
-    request<{ creditNoteNumber: string; refundTotal: number }>('POST', `/pos/invoices/${id}/return`, { items, reason }),
+  /** `clientOpId`: chave estável entre tentativas — impede uma 2.ª nota de crédito
+   *  quando a resposta se perde e o operador repete a MESMA devolução. */
+  returnItems: (id: string, items: { productCode: string; quantity: number }[], reason: string, clientOpId?: string) =>
+    request<{ creditNoteNumber: string; refundTotal: number }>('POST', `/pos/invoices/${id}/return`, { items, reason, clientOpId }),
   listSales: (from?: string, to?: string) => {
     const p = new URLSearchParams();
     if (from) p.set('from', from);
@@ -217,6 +219,11 @@ export const api = {
   custChatMarkRead: (customerId: string) => request<{ ok: boolean }>('POST', '/ecommerce/customer-chat/read', { customerId }),
   custChatDelete: (ids: string[]) => request<{ deleted: number }>('POST', '/ecommerce/customer-chat/delete', { ids }),
   custChatUnread: () => request<{ count: number }>('GET', '/ecommerce/customer-chat/unread'),
+
+  /** Credenciais offline da empresa (permite a QUALQUER operador abrir a Caixa
+   *  sem rede neste posto — ver `offline/credentials.ts`). */
+  offlineCredentials: () =>
+    request<import('../offline/credentials').CredentialBundle>('GET', '/auth/offline-credentials'),
 
   // ── Desbloqueio do ecrã de bloqueio (re-verifica o PIN do próprio caixa) ──
   verifyPin: (pin: string) => request<{ ok: boolean }>('POST', '/auth/verify-pin', { pin }),

@@ -17,6 +17,8 @@
  * ficam no armazenamento privado da app (sandbox), como a fila de vendas.
  */
 import { kvGet, kvSet } from './db';
+import { durableGet, durableSet } from '../sharedCache';
+import { mintOfflineToken, verifyProvisioned } from './credentials';
 
 const KV_VAULT = 'offline:sessionVault';
 const ITERATIONS = 150_000;
@@ -43,6 +45,9 @@ export interface VerifyOffline {
   ok: boolean;
   identity?: OfflineIdentity;
   reason?: 'wrong-pin' | 'unknown-user' | 'expired' | 'unavailable';
+  /** Sessão aberta com um token cunhado no posto (o operador nunca entrou aqui
+   *  com rede). Tem de ser promovida a sessão real assim que houver ligação. */
+  provisional?: boolean;
 }
 
 function cryptoOk(): boolean {
@@ -61,7 +66,12 @@ function fromB64(s: string): Uint8Array {
 }
 async function deriveVerifier(secret: string, salt: Uint8Array, iterations: number): Promise<string> {
   const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, km, 256);
+  // `as BufferSource` é só para o compilador: o TypeScript recente parametriza
+  // `Uint8Array` pelo tipo de buffer e deixa de o aceitar aqui, embora em
+  // execução seja exatamente o que a API espera (igual em web/offline/session.ts).
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' }, km, 256,
+  );
   return toB64(new Uint8Array(bits));
 }
 /** Comparação em tempo constante (não revela onde diferem). */
@@ -71,11 +81,21 @@ function safeEqual(a: string, b: string): boolean {
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
+// O cofre vive em DOIS sítios: a base da fila de vendas (onde sempre viveu, por
+// compatibilidade com postos já instalados) e o armazenamento durável
+// (IndexedDB partilhado + espelho no localStorage). O IndexedDB falha em
+// silêncio — quota, base corrompida, contexto sem permissões — e um cofre
+// perdido é uma Caixa que não abre sem rede.
 async function readVault(): Promise<Vault> {
-  try { return (await kvGet<Vault>(KV_VAULT)) ?? {}; } catch { return {}; }
+  try {
+    const v = await kvGet<Vault>(KV_VAULT);
+    if (v && Object.keys(v).length > 0) return v;
+  } catch { /* segue para o espelho */ }
+  try { return (await durableGet<Vault>(KV_VAULT)) ?? {}; } catch { return {}; }
 }
 async function writeVault(v: Vault): Promise<void> {
   try { await kvSet(KV_VAULT, v); } catch { /* best-effort */ }
+  try { await durableSet(KV_VAULT, v); } catch { /* best-effort */ }
 }
 
 /**
@@ -111,13 +131,44 @@ export async function verifyOffline(email: string, pin: string, companyCode?: st
   const candidates: OfflineCred[] = companyCode
     ? [vault[slot(companyCode, em)]].filter(Boolean) as OfflineCred[]
     : Object.values(vault).filter((c) => c.email === em);
-  if (candidates.length === 0) return { ok: false, reason: 'unknown-user' };
+  let expired = false;
   for (const cred of candidates) {
-    if (Date.parse(cred.validUntil) < Date.now()) return { ok: false, reason: 'expired' };
+    if (Date.parse(cred.validUntil) < Date.now()) { expired = true; continue; }
     const cand = await deriveVerifier(pin, fromB64(cred.salt), cred.iterations);
     if (safeEqual(cand, cred.verifier)) {
       return { ok: true, identity: { accessToken: cred.accessToken, refreshToken: cred.refreshToken, companyCode: cred.companyCode } };
     }
   }
+
+  // SEGUNDA PORTA — credenciais provisionadas pelo servidor para a empresa.
+  // É o que permite ao operador do turno da noite abrir a Caixa num posto onde
+  // nunca escreveu o PIN, sem rede. Antes disto, o posto só conhecia quem lá
+  // tivesse entrado uma vez com internet — e a Caixa parecia avariada.
+  const prov = await verifyProvisioned(email, pin, 'pin', companyCode);
+  if (prov.ok && prov.user && prov.companyCode) {
+    return {
+      ok: true,
+      provisional: true,
+      identity: {
+        accessToken: mintOfflineToken(prov.user, prov.companyCode),
+        refreshToken: '',
+        companyCode: prov.companyCode,
+      },
+    };
+  }
+
+  if (candidates.length === 0 && prov.reason === 'unknown-user') return { ok: false, reason: 'unknown-user' };
+  if (expired || prov.reason === 'expired') return { ok: false, reason: 'expired' };
+  if (candidates.length === 0 && prov.reason === 'unavailable') return { ok: false, reason: 'unavailable' };
   return { ok: false, reason: 'wrong-pin' };
 }
+
+// ─── Promoção da sessão offline a sessão real ────────────────────────────────
+// Guardado EM MEMÓRIA e só em memória (morre com a página): o que o operador
+// escreveu ao entrar sem rede, para a app fazer um login verdadeiro mal a
+// ligação volte, sem lhe pedir o PIN outra vez.
+let pending: { email: string; pin: string } | null = null;
+
+export function setPendingUpgrade(v: { email: string; pin: string }): void { pending = v; }
+export function getPendingUpgrade(): { email: string; pin: string } | null { return pending; }
+export function clearPendingUpgrade(): void { pending = null; }

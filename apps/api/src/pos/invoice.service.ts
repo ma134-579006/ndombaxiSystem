@@ -592,6 +592,37 @@ export class InvoiceService {
   }
 
   /**
+   * Recupera o documento que uma operação do posto já emitiu.
+   *
+   * Existe para o caso em que a resposta se perdeu no caminho: o posto reenvia a
+   * mesma venda, o índice único recusa a segunda gravação e devolvemos ESTA —
+   * a original — para o recibo sair com o número fiscal verdadeiro. Devolve a
+   * mesma forma que `emit`, senão quem imprime o recibo partia.
+   */
+  async findByClientOpId(schema: string, clientOpId: string): Promise<EmittedInvoice | null> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{
+        id: string; number: string; hash: string; previous_hash: string | null;
+        net_total: string; iva_total: string; gross_total: string;
+      }[]>(
+        Prisma.sql`SELECT id, number, hash, previous_hash, net_total, iva_total, gross_total
+                     FROM invoices WHERE client_op_id = ${clientOpId}::uuid`,
+      ),
+    );
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      id: r.id,
+      number: r.number,
+      hash: r.hash,
+      previousHash: r.previous_hash ?? '',
+      netTotal: Number(r.net_total),
+      ivaTotal: Number(r.iva_total),
+      grossTotal: Number(r.gross_total),
+    } as EmittedInvoice;
+  }
+
+  /**
    * Lista as vendas (facturas FT/FS) num período, com os produtos vendidos,
    * operador, total e estado. Usado pelo histórico de vendas da caixa, com
    * possibilidade de filtrar por datas e cancelar.
@@ -693,6 +724,8 @@ export class InvoiceService {
       invoiceDate: string; systemEntryDate: string; signable: string; previousHash: string; hash: string;
       storeId: string | null; customerId: string | null; customerTaxId: string | null;
       sourceInvoiceId: string; net: number; iva: number; gross: number;
+      /** Chave de idempotência do posto (ver `invoices_client_op_uidx`). */
+      clientOpId?: string | null;
       lines: {
         product_id: string | null; product_code: string; description: string; quantity: number;
         unit_price: number; iva_code: string; iva_rate: number; discount_rate: number;
@@ -705,12 +738,12 @@ export class InvoiceService {
       Prisma.sql`INSERT INTO invoices
           (number, doc_type, series, year, sequence, invoice_date, system_entry_date,
            store_id, customer_id, customer_tax_id, net_total, iva_total, gross_total,
-           signable_string, previous_hash, hash, status, source_invoice_id)
+           signable_string, previous_hash, hash, status, source_invoice_id, client_op_id)
         VALUES (${nc.number}, ${DocumentType.NC}, ${nc.series}, ${nc.year}, ${nc.sequence},
                 ${nc.invoiceDate}::date, ${nc.systemEntryDate}::timestamptz,
                 ${nc.storeId}::uuid, ${nc.customerId}::uuid, ${nc.customerTaxId},
                 ${nc.net}, ${nc.iva}, ${nc.gross}, ${nc.signable}, ${nc.previousHash}, ${nc.hash},
-                'N', ${nc.sourceInvoiceId}::uuid)
+                'N', ${nc.sourceInvoiceId}::uuid, ${nc.clientOpId ?? null}::uuid)
         RETURNING id`,
     );
     const ncId = rows[0].id;
@@ -1092,6 +1125,15 @@ export class InvoiceService {
     returns: { productCode: string; quantity: number }[],
     reason: string,
     actor: { id?: string | null; name?: string | null },
+    /**
+     * Chave de idempotência do posto. A ANULAÇÃO é idempotente sozinha (o estado
+     * passa a 'A' e a segunda tentativa é recusada), mas a DEVOLUÇÃO PARCIAL não
+     * é: devolver 2 de 5 e repetir por a resposta se ter perdido passa na
+     * validação do remanescente (restam 3) e criava uma SEGUNDA nota de crédito,
+     * com stock reposto e dinheiro estornado em dobro. Com a chave, o índice
+     * único da tabela recusa a segunda gravação.
+     */
+    clientOpId: string | null = null,
   ): Promise<{ creditNoteNumber: string; refundTotal: number }> {
     if (!returns?.length) throw new BadRequestException('Indique os artigos a devolver.');
 
@@ -1186,6 +1228,7 @@ export class InvoiceService {
         signable, previousHash: serie[0].last_hash, hash,
         storeId: inv.store_id, customerId: inv.customer_id, customerTaxId: inv.customer_tax_id,
         sourceInvoiceId: invoiceId, net: refundNet, iva: refundIva, gross: refundGross, lines: ncLines,
+        clientOpId, // ← unicidade imposta pelo Postgres (ver o parâmetro)
       });
 
       // Repõe o stock dos artigos devolvidos na loja certa (partilhado → central;

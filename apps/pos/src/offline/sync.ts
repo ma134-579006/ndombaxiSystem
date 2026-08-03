@@ -24,7 +24,10 @@ type Listener = (state: SyncState) => void;
 
 class SyncController {
   private state: SyncState = {
-    online: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    // OTIMISTA, e nunca `navigator.onLine`: nas apps nativas (Electron
+    // `ndombaxi://` e WebView Android) ele reporta `false` mesmo com internet.
+    // A ligação real é decidida pelo RESULTADO dos pedidos (ver `flush`).
+    online: true,
     pending: 0,
     syncing: false,
     lastSyncAt: null,
@@ -57,8 +60,11 @@ class SyncController {
     window.addEventListener('offline', this.handleOffline);
     void this.refreshCount();
     // Rede de segurança: tenta sincronizar a cada 30s se houver pendências.
+    // NÃO exige `state.online`: a tentativa É a deteção. Com o antigo requisito,
+    // uma app nativa cujo `navigator.onLine` mentia ficava com `online:false` e
+    // NUNCA voltava a tentar — as vendas offline ficavam encalhadas para sempre.
     this.timer = window.setInterval(() => {
-      if (this.state.online && this.state.pending > 0) void this.flush();
+      if (this.state.pending > 0) void this.flush();
     }, 30_000);
   }
 
@@ -85,7 +91,7 @@ class SyncController {
     const sale = (await listPendingSales()).find((s) => s.id === id);
     if (!sale) return false;
     this.emit({ lastError: null });
-    const ok = await this.emitOne(sale);
+    const ok = (await this.emitOne(sale)) === 'ok'; // 'failed'/'offline' → não emitida
     await this.refreshCount();
     if (ok) this.emit({ lastSyncAt: new Date().toISOString() });
     return ok;
@@ -106,9 +112,12 @@ class SyncController {
     try {
       const sales = (await listPendingSales()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
       for (const sale of sales) {
-        if (!navigator.onLine) break;
-        const ok = await this.emitOne(sale);
-        if (ok) synced++;
+        // A ligação é decidida pelo RESULTADO de cada emissão, nunca por
+        // `navigator.onLine` (mente nas apps nativas). Só uma falha de REDE
+        // interrompe o ciclo — uma recusa do servidor não segura as restantes.
+        const outcome = await this.emitOne(sale);
+        if (outcome === 'ok') { synced++; this.emit({ online: true }); }
+        else if (outcome === 'offline') { this.emit({ online: false }); break; }
         else failed++;
       }
       this.emit({ lastSyncAt: new Date().toISOString() });
@@ -119,14 +128,25 @@ class SyncController {
     return { synced, failed };
   }
 
-  private async emitOne(sale: PendingSale): Promise<boolean> {
+  /**
+   * Resultado de uma emissão:
+   *   • `ok`      — emitida e removida da fila;
+   *   • `failed`  — o servidor recusou/erro dele; as outras vendas continuam;
+   *   • `offline` — não há ligação utilizável AGORA; o ciclo pára e repete depois.
+   */
+  private async emitOne(sale: PendingSale): Promise<'ok' | 'failed' | 'offline'> {
     try {
       await api.emitInvoice({
         customerId: sale.customerId ?? undefined,
+        // A MESMA chave em todas as tentativas: se o servidor já tiver gravado
+        // esta venda (resposta perdida), devolve a fatura original em vez de
+        // criar uma segunda. Vendas em fila de versões anteriores não têm chave
+        // e mantêm o comportamento antigo — nada rebenta por causa disso.
+        clientOpId: sale.clientOpId,
         lines: sale.lines.map((l) => ({ productCode: l.productCode, quantity: l.quantity })),
       });
       if (sale.id != null) await deleteSale(sale.id);
-      return true;
+      return 'ok';
     } catch (e) {
       // Erro de validação do servidor (4xx) → não vale a pena repetir em loop;
       // marca ERROR para revisão manual. Erro de rede → fica PENDING e tenta depois.
@@ -144,7 +164,9 @@ class SyncController {
       }
       if (e instanceof ApiError && e.status === 401) this.emit({ lastError: 'Sessão expirada — entre novamente.' });
       else this.emit({ lastError: updated.lastError ?? null });
-      return false;
+      // `status === 0` é a falha de REDE do api client (sem ligação ou timeout):
+      // a venda continua PENDING e o ciclo pára até haver ligação outra vez.
+      return e instanceof ApiError && e.status === 0 ? 'offline' : 'failed';
     }
   }
 }

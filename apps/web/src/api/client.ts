@@ -349,6 +349,11 @@ export const api = {
       request<{ theme: string }>('PATCH', '/auth/me/preferences', { theme }),
   },
 
+  /** Credenciais offline da empresa (o que permite entrar sem rede — ver
+   *  `offline/credentials.ts`). Sem cache de leitura: quem guarda é o cofre. */
+  offlineCredentials: () =>
+    request<import('../offline/credentials').CredentialBundle>('GET', '/auth/offline-credentials'),
+
   // Desbloqueio do ecrã de bloqueio do painel (re-verifica a palavra-passe do próprio).
   verifyPassword: (password: string) =>
     request<{ ok: boolean }>('POST', '/auth/verify-password', { password }),

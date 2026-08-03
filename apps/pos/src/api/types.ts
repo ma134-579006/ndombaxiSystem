@@ -105,6 +105,9 @@ export interface EmitInvoiceInput {
   dueDate?: string;
   /** Documento retroativo: data da compra ORIGINAL (YYYY-MM-DD). A data fiscal continua a ser hoje. */
   operationDate?: string;
+  /** Chave de idempotência (UUID estável entre tentativas) — impede que uma
+   *  resposta perdida faça nascer uma SEGUNDA fatura da mesma venda. */
+  clientOpId?: string;
   lines: EmitInvoiceLine[];
 }
 

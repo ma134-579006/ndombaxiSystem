@@ -19,6 +19,32 @@ export interface TenantUser {
   locked_until: Date | null;
   last_login_at: Date | null;
   must_reset_pw: boolean;
+  // Credenciais offline (ver OfflineCredentialsService). Opcionais porque um
+  // schema por migrar ainda não tem estas colunas — o código tem de aguentar.
+  offline_pw_salt?: string | null;
+  offline_pw_verifier?: string | null;
+  offline_pw_iters?: number | null;
+  offline_pin_salt?: string | null;
+  offline_pin_verifier?: string | null;
+  offline_pin_iters?: number | null;
+}
+
+/** Uma linha do pacote de credenciais offline (ver `listOfflineCredentials`). */
+export interface OfflineCredentialRow {
+  id: string;
+  email: string;
+  name: string;
+  role: RoleName;
+  store_id: string | null;
+  store_name: string | null;
+  photo_url: string | null;
+  offline_pw_salt: string | null;
+  offline_pw_verifier: string | null;
+  offline_pw_iters: number | null;
+  offline_pin_salt: string | null;
+  offline_pin_verifier: string | null;
+  offline_pin_iters: number | null;
+  offline_updated_at: Date | null;
 }
 
 export interface CreateTenantUserInput {
@@ -236,6 +262,66 @@ export class TenantUserRepository {
         Prisma.sql`UPDATE users SET pin_hash = ${pinHash}, updated_at = now() WHERE id = ${id}::uuid`,
       );
     });
+  }
+
+  // ─── Credenciais OFFLINE (provisionadas aos aparelhos) ──────
+  //
+  // Guardamos um verificador PBKDF2 separado do hash de autenticação. O
+  // Argon2id nunca sai do servidor — nem podia: é caro de propósito e não há
+  // implementação dele no navegador. Este derivado existe só para um aparelho
+  // sem rede poder dizer "esta senha é a mesma" e abrir a sessão.
+
+  /** Verificador offline da SENHA. Best-effort — quem chama nunca falha por isto. */
+  async setOfflinePassword(
+    schema: string, id: string, cred: { salt: string; verifier: string; iterations: number },
+  ): Promise<void> {
+    await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE users SET offline_pw_salt = ${cred.salt},
+                          offline_pw_verifier = ${cred.verifier},
+                          offline_pw_iters = ${cred.iterations},
+                          offline_updated_at = now()
+                   WHERE id = ${id}::uuid`,
+      );
+    });
+  }
+
+  /** Verificador offline do PIN da caixa. */
+  async setOfflinePin(
+    schema: string, id: string, cred: { salt: string; verifier: string; iterations: number },
+  ): Promise<void> {
+    await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE users SET offline_pin_salt = ${cred.salt},
+                          offline_pin_verifier = ${cred.verifier},
+                          offline_pin_iters = ${cred.iterations},
+                          offline_updated_at = now()
+                   WHERE id = ${id}::uuid`,
+      );
+    });
+  }
+
+  /**
+   * Credenciais offline de TODOS os utilizadores ativos da empresa — é isto que
+   * o aparelho descarrega. Colunas explícitas (nunca `SELECT *`): o hash de
+   * autenticação, o segredo de 2FA e o resto não podem sair daqui por descuido.
+   */
+  async listOfflineCredentials(schema: string): Promise<OfflineCredentialRow[]> {
+    return this.prisma.runInTenant(schema, async (tx) =>
+      tx.$queryRaw<OfflineCredentialRow[]>(
+        Prisma.sql`SELECT u.id, u.email, u.name, u.role, u.store_id, s.name AS store_name,
+                          COALESCE(u.photo_url, e.photo_url) AS photo_url,
+                          u.offline_pw_salt, u.offline_pw_verifier, u.offline_pw_iters,
+                          u.offline_pin_salt, u.offline_pin_verifier, u.offline_pin_iters,
+                          u.offline_updated_at
+                   FROM users u
+                   LEFT JOIN stores s ON s.id = u.store_id
+                   LEFT JOIN employees e ON lower(btrim(e.full_name)) = lower(btrim(u.name))
+                   WHERE u.is_active = TRUE
+                     AND (u.offline_pw_verifier IS NOT NULL OR u.offline_pin_verifier IS NOT NULL)
+                   ORDER BY u.name`,
+      ),
+    );
   }
 
   async setTwoFaSecret(

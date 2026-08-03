@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
+import { newUuid } from '../offline/db';
 import type { DocumentIdentity, ReceiptFiscalInfo, SaleDetail, SaleRow } from '../api/types';
 import { formatKz } from '../format';
 import { ReceiptModal } from './ReceiptModal';
@@ -219,6 +220,14 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
 function CancelItemsModal({ sale, onClose, onDone }: { sale: SaleRow; onClose(): void; onDone(info: string): void }) {
   const [detail, setDetail] = useState<SaleDetail | null>(null);
   const [qty, setQty] = useState<Record<string, number>>({});
+  /**
+   * Chave desta devolução. Sobrevive a uma tentativa falhada (para o reenvio ser
+   * reconhecido como o MESMO pedido) mas é descartada assim que o operador mexe
+   * nas quantidades — nessa altura a intenção mudou, e reutilizar a chave faria
+   * o servidor devolver silenciosamente a nota de crédito ANTERIOR.
+   */
+  const returnOpIdRef = useRef<string | null>(null);
+  useEffect(() => { returnOpIdRef.current = null; }, [qty]);
   const [reason, setReason] = useState('Cancelamento na caixa');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -246,10 +255,17 @@ function CancelItemsModal({ sale, onClose, onDone }: { sale: SaleRow; onClose():
     try {
       const r = reason.trim() || 'Cancelamento na caixa';
       if (isFull) {
+        // A anulação total é idempotente no servidor (a 2.ª tentativa é recusada
+        // com "já foi anulada"), por isso não precisa de chave.
         await api.cancelInvoice(sale.id, r);
         onDone(`Venda ${sale.number} anulada. Stock e financeiro revertidos (nota de crédito).`);
       } else {
-        await api.returnItems(sale.id, selected.map((l) => ({ productCode: l.productCode, quantity: qty[l.productCode] })), r);
+        // A devolução PARCIAL não é idempotente sozinha: se a resposta se perder
+        // e o operador repetir, o remanescente ainda permite e nascia uma 2.ª
+        // nota de crédito. A chave é criada uma vez e reutilizada nas tentativas
+        // seguintes DESTA mesma devolução (é limpa se ele mudar as quantidades).
+        if (!returnOpIdRef.current) returnOpIdRef.current = newUuid();
+        await api.returnItems(sale.id, selected.map((l) => ({ productCode: l.productCode, quantity: qty[l.productCode] })), r, returnOpIdRef.current);
         onDone(`${selected.length} artigo(s) cancelado(s) na venda ${sale.number} (nota de crédito parcial).`);
       }
     } catch (e) {

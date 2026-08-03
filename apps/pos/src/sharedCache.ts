@@ -44,6 +44,49 @@ export async function sharedSet<T>(key: string, value: T): Promise<void> {
   } catch { /* best-effort: nunca quebra a app */ }
 }
 
+// ─── Armazenamento DURÁVEL para o que não pode falhar ────────────────────────
+//
+// O IndexedDB é a escolha certa para dados grandes, mas tem um defeito que aqui
+// pesa: quando falha, falha em silêncio (quota, base corrompida, contexto sem
+// permissões). Para o catálogo isso é um contratempo; para as CREDENCIAIS é a
+// diferença entre entrar e não entrar sem rede — e só se descobre no aparelho
+// do cliente, sem internet para corrigir.
+//
+// Por isso o que é pequeno e crítico (o cofre e o pacote de credenciais) é
+// escrito nos DOIS sítios e lido de qualquer um deles. O `localStorage` é
+// síncrono e limitado (~5 MB), o que o desqualifica para dados grandes e o
+// torna perfeito para estes.
+const MIRROR_PREFIX = 'ndombaxi.durable.';
+
+/** Guarda um valor pequeno e crítico em DOIS sítios (IndexedDB + localStorage). */
+export async function durableSet<T>(key: string, value: T): Promise<void> {
+  try { localStorage.setItem(MIRROR_PREFIX + key, JSON.stringify(value)); } catch { /* sem espaço/permissão */ }
+  await sharedSet(key, value);
+}
+
+/** Lê de onde estiver — e repõe o espelho em falta, para o próximo arranque. */
+export async function durableGet<T>(key: string): Promise<T | null> {
+  const fromIdb = await sharedGet<T>(key);
+  if (fromIdb !== null) {
+    // Reposição silenciosa: se o espelho tiver desaparecido, volta a existir.
+    try { localStorage.setItem(MIRROR_PREFIX + key, JSON.stringify(fromIdb)); } catch { /* ignora */ }
+    return fromIdb;
+  }
+  try {
+    const raw = localStorage.getItem(MIRROR_PREFIX + key);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as T;
+    void sharedSet(key, v); // repõe o IndexedDB a partir do espelho
+    return v;
+  } catch { return null; }
+}
+
+/** Apaga nos dois sítios. */
+export async function durableDel(key: string): Promise<void> {
+  try { localStorage.removeItem(MIRROR_PREFIX + key); } catch { /* ignora */ }
+  await sharedSet(key, null);
+}
+
 /** Lê um valor da cache partilhada (null se não existir ou falhar). */
 export async function sharedGet<T>(key: string): Promise<T | null> {
   try {

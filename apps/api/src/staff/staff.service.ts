@@ -8,6 +8,7 @@ import { CreateStoreDto, UpdateStoreDto } from './dto/store.dto';
 import { assertAssignableRole } from './staff.roles';
 import { StaffRepository, type StaffRow, type StoreRow } from './staff.repository';
 import { PlanLimitsService } from '../plans/plan-limits.service';
+import { OfflineCredentialsService } from '../auth/offline-credentials.service';
 
 /** Actor que executa a operação (do JWT). */
 export interface StaffActor {
@@ -33,6 +34,7 @@ export class StaffService {
     private readonly passwords: PasswordService,
     private readonly audit: AuditService,
     private readonly planLimits: PlanLimitsService,
+    private readonly offlineCreds: OfflineCredentialsService,
   ) {}
 
   private generateTempPassword(): string {
@@ -115,6 +117,12 @@ export class StaffService {
       mustResetPw: !dto.password, // se a senha foi gerada, obriga a trocar no 1.º login
     });
 
+    // Um funcionário criado hoje tem de conseguir entrar num posto que está sem
+    // rede desde ontem — por isso o verificador offline nasce COM ele, sem
+    // esperar por um primeiro login online.
+    await this.offlineCreds.remember(schema, user.id, 'PASSWORD', plain);
+    if (dto.pin) await this.offlineCreds.remember(schema, user.id, 'PIN', dto.pin);
+
     await this.audit.record({
       actorType: 'TENANT',
       actorId: actor.sub,
@@ -156,6 +164,7 @@ export class StaffService {
     const plain = dto.password ?? generated!;
     const hash = await this.passwords.hash(plain);
     await this.repo.setPasswordHash(schema, id, hash, !dto.password);
+    await this.offlineCreds.remember(schema, id, 'PASSWORD', plain);
     await this.audit.record({
       actorType: 'TENANT',
       actorId: actor.sub,
@@ -171,6 +180,7 @@ export class StaffService {
     await this.repo.getStaff(schema, id);
     const hash = await this.passwords.hash(dto.pin);
     await this.repo.setPinHash(schema, id, hash);
+    await this.offlineCreds.remember(schema, id, 'PIN', dto.pin);
     return { ok: true };
   }
 

@@ -26,6 +26,14 @@ export type PendingSaleStatus = 'PENDING' | 'SYNCING' | 'ERROR';
 export interface PendingSale {
   id?: number; // autoIncrement
   localRef: string; // referência local legível (ex.: OFFLINE-7F3A)
+  /**
+   * Chave de idempotência da venda — gerada UMA vez, ao entrar na fila, e
+   * enviada IGUAL em todas as tentativas. Fecha a janela em que o servidor
+   * gravava a fatura e a resposta se perdia: sem ela, a tentativa seguinte
+   * criava um SEGUNDO documento fiscal, com stock e dinheiro em dobro.
+   * Opcional porque vendas já em fila (versões anteriores) não a têm.
+   */
+  clientOpId?: string;
   createdAt: string; // ISO
   customerId: string | null;
   customerName: string | null;
@@ -99,14 +107,23 @@ export async function kvGet<T>(key: string): Promise<T | null> {
 }
 
 // ── Fila de vendas offline ─────────────────────────────────
+/**
+ * @param clientOpId chave a REUTILIZAR quando a venda já foi TENTADA online e caiu
+ *   para a fila por falha de rede. É o que impede a duplicação no caso pior: o
+ *   servidor gravou a fatura, a resposta perdeu-se, a venda foi para a fila e
+ *   depois reenviada. Com a MESMA chave, o servidor devolve a fatura original em
+ *   vez de emitir uma segunda. Omisso → venda nova, chave nova.
+ */
 export function buildPendingSale(
   cart: CartLine[],
   totals: { net: number; iva: number; gross: number },
   customer: { id: string; name: string } | null,
+  clientOpId?: string,
 ): PendingSale {
   const rand = Math.random().toString(16).slice(2, 6).toUpperCase();
   return {
     localRef: `OFFLINE-${rand}`,
+    clientOpId: clientOpId ?? newUuid(), // ver PendingSale.clientOpId
     createdAt: new Date().toISOString(),
     customerId: customer?.id ?? null,
     customerName: customer?.name ?? null,
@@ -122,6 +139,23 @@ export function buildPendingSale(
     status: 'PENDING',
     attempts: 0,
   };
+}
+
+/**
+ * UUID v4. Usa `crypto.randomUUID` quando existe (contexto seguro: `ndombaxi://`
+ * no Electron e `https://localhost` no Android) e cai num gerador equivalente
+ * sobre `getRandomValues` quando não — nunca em `Math.random`, porque esta chave
+ * é o que impede uma fatura duplicada e não pode ter colisões.
+ */
+export function newUuid(): string {
+  const c = globalThis.crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  const b = new Uint8Array(16);
+  c.getRandomValues(b);
+  b[6] = (b[6] & 0x0f) | 0x40; // versão 4
+  b[8] = (b[8] & 0x3f) | 0x80; // variante RFC 4122
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
 function ivaRate(code: string): number {

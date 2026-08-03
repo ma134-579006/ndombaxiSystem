@@ -40,7 +40,7 @@ import { useBarcodeScanner } from '../pos/useBarcodeScanner';
 import { formatKz, formatNumber } from '../format';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { useKeyboard } from '../keyboard/KeyboardProvider';
-import { buildPendingSale, kvGet, kvSet, queueSale } from '../offline/db';
+import { buildPendingSale, kvGet, kvSet, newUuid, queueSale } from '../offline/db';
 import { syncController } from '../offline/sync';
 import { useSync } from '../offline/useSync';
 
@@ -594,8 +594,14 @@ export function PosPage() {
   }, [search, products]);
 
   /** Guarda a venda na fila offline e mostra um comprovativo PROVISÓRIO. */
-  const finalizeOffline = async () => {
-    const sale = buildPendingSale(cart, totals, customer ? { id: customer.id, name: customer.name } : null);
+  /**
+   * @param clientOpId chave da tentativa online que falhou por REDE. Reutilizá-la
+   *   é o que impede a duplicação fiscal no caso pior: o servidor tinha gravado a
+   *   fatura e só a RESPOSTA se perdeu — ao reenviar da fila com a mesma chave, o
+   *   servidor devolve a fatura original em vez de emitir uma segunda.
+   */
+  const finalizeOffline = async (clientOpId?: string) => {
+    const sale = buildPendingSale(cart, totals, customer ? { id: customer.id, name: customer.name } : null, clientOpId);
     await queueSale(sale);
     await syncController.refreshCount();
     // Recibo provisório: o nº/hash fiscais reais vêm do servidor ao sincronizar.
@@ -628,12 +634,17 @@ export function PosPage() {
     if (cart.length === 0 || emitting) return;
     setEmitting(true);
     setEmitError(null);
+    // Chave desta venda, criada ANTES de tentar. Serve as duas saídas possíveis:
+    // se a emissão online falhar por rede, a venda vai para a fila COM ESTA
+    // MESMA chave — e o reenvio nunca cria um segundo documento fiscal.
+    const clientOpId = newUuid();
     try {
       const invoice = await api.emitInvoice({
         customerId: customer?.id,
         paymentType: pay.paymentType,
         tendered: pay.tendered,
         changeGiven: pay.changeGiven,
+        clientOpId,
         lines: cart.map((l) => {
           const rate = discountRateByProduct[l.product.id] ?? 0;
           return { productCode: l.product.code, quantity: l.quantity, ...(rate > 0 ? { discountRate: rate } : {}) };
@@ -651,7 +662,8 @@ export function PosPage() {
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 0) {
-        try { await finalizeOffline(); setShowPayment(false); return; } catch { /* erro genérico */ }
+        // MESMA chave da tentativa online — ver finalizeOffline.
+        try { await finalizeOffline(clientOpId); setShowPayment(false); return; } catch { /* erro genérico */ }
       }
       setEmitError(e instanceof ApiError ? e.message : 'Não foi possível emitir o documento.');
     } finally {

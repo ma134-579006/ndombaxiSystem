@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Max,
   Min,
@@ -63,6 +64,18 @@ export class EmitInvoiceDto {
   @Length(10, 10)
   operationDate?: string;
 
+  /**
+   * Chave de idempotência da venda (UUID gerado pelo POSTO, estável entre
+   * tentativas). Fecha uma janela real de DUPLICAÇÃO FISCAL: o servidor grava a
+   * fatura, a rede cai antes da resposta, o posto dá a venda como não emitida e
+   * reenvia — sem esta chave nascia um SEGUNDO documento, com stock e dinheiro
+   * em dobro. Com ela, o índice único `invoices_client_op_uidx` recusa a
+   * segunda gravação e devolvemos a fatura original.
+   */
+  @IsOptional()
+  @IsUUID()
+  clientOpId?: string;
+
   /** Dinheiro entregue pelo cliente (numerário). */
   @IsOptional()
   @IsNumber()
@@ -110,4 +123,14 @@ export class ReturnItemsDto {
   @IsString()
   @Length(1, 200)
   reason!: string;
+
+  /**
+   * Chave de idempotência da devolução (UUID estável entre tentativas). A
+   * ANULAÇÃO já se protege sozinha pelo estado do documento; a devolução PARCIAL
+   * não — repetir a mesma devolução por a resposta se ter perdido criava uma
+   * SEGUNDA nota de crédito, com stock e dinheiro estornados em dobro.
+   */
+  @IsOptional()
+  @IsUUID()
+  clientOpId?: string;
 }
