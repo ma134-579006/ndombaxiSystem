@@ -14,8 +14,13 @@ COPY . .
 # Normaliza o entrypoint (Windows pode gravar CRLF / sem bit +x) para arrancar no Linux.
 RUN sed -i 's/\r$//' apps/api/docker-entrypoint.sh && chmod +x apps/api/docker-entrypoint.sh
 RUN pnpm install --frozen-lockfile
+# Cada pacote do monorepo que a API importa TEM de ser construído aqui: o
+# `dist/` deles não vai no repositório, e uma máquina de quem já os construiu
+# antes não dá pela falta. Foi assim que `@nexus/agt-xml` partiu a imagem uma
+# vez, e agora `@nexus/replication`.
 RUN pnpm --filter @nexus/types build \
  && pnpm --filter @nexus/agt-xml build \
+ && pnpm --filter @nexus/replication build \
  && pnpm --filter @nexus/api exec prisma generate \
  && pnpm --filter @nexus/api build
 
