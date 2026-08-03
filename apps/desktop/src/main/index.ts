@@ -205,8 +205,32 @@ async function replicateOnce(): Promise<void> {
         log: logLocal,
       });
       if (r.sent > 0) {
-        logLocal(`replicação: ${r.applied} aplicadas, ${r.rejected} recusadas, ${r.conflicts} conflitos`);
+        logLocal(`replicação (subida): ${r.applied} aplicadas, ${r.rejected} recusadas, ${r.conflicts} conflitos`);
       }
+
+      // SUBIR PRIMEIRO, descer depois. A ordem não é indiferente: subindo
+      // primeiro, o trabalho deste posto já está na nuvem quando comparamos
+      // versões, e uma alteração feita aqui não corre o risco de ser tapada por
+      // uma cópia mais velha que ainda vinha a caminho.
+      const tabelas = await runner.query<{ table_name: string }>(
+        `SELECT table_name FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`,
+      );
+      const d = await ls.pullAndApply({
+        apiUrl: replicationSession.apiUrl,
+        accessToken: replicationSession.accessToken,
+        companyCode: replicationSession.companyCode,
+        schema: 'public',
+        deviceId: 'desktop',
+        tables: tabelas.map((x) => x.table_name),
+        query: runner.query,
+        run: runner.run,
+        log: logLocal,
+      });
+      if (d.received > 0) {
+        logLocal(`replicação (descida): ${d.applied} aplicadas, ${d.skipped} ignoradas, ${d.conflicts} conflitos`);
+      }
+
       await ls.pruneJournal({ schema: 'public', run: runner.run });
     } finally {
       await runner.close();

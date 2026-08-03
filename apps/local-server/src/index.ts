@@ -32,7 +32,7 @@ export {
 export { openRunner, type RunnerHandle } from './sql-runner';
 // A política é PARTILHADA com a nuvem (mesmo ficheiro, não uma cópia).
 export {
-  classify, isReplicated, unknownTables, resolve,
+  classify, isReplicated, canPushFromDevice, canPullToDevice, unknownTables, resolve,
   type DataClass, type Version, type Winner, type Resolution,
 } from '@nexus/replication';
 export {
@@ -40,6 +40,6 @@ export {
   JOURNAL_TABLE, type PendingChange,
 } from './replication/journal';
 export {
-  pushPending, pruneJournal,
-  type EngineOptions, type PushResult, type SqlQuery,
+  pushPending, pullAndApply, pullStateDdl, pruneJournal,
+  type EngineOptions, type PushResult, type PullApplyResult, type SqlQuery,
 } from './replication/engine';

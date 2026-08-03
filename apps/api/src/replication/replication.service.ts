@@ -1,6 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { classify, isReplicated, resolve, type Version } from '@nexus/replication';
+import {
+  classify, canPullToDevice, canPushFromDevice, resolve, type Version,
+} from '@nexus/replication';
 import { PrismaService, assertValidSchemaName } from '../prisma/prisma.service';
 
 /**
@@ -107,7 +109,7 @@ export class ReplicationService {
 
   private async applyOne(schema: string, row: IncomingRow): Promise<ApplyOutcome> {
     const klass = classify(row.table);
-    if (!isReplicated(row.table)) {
+    if (!canPushFromDevice(row.table)) {
       // Não é um erro do posto — é a política a fazer o seu trabalho.
       throw new ForbiddenException(
         klass === 'unknown'
@@ -234,7 +236,12 @@ export class ReplicationService {
     schema: string, table: string, since: string | null, limit: number,
   ): Promise<{ table: string; rows: Record<string, unknown>[]; cursor: string | null; hasMore: boolean; incremental: boolean }> {
     assertValidSchemaName(schema);
-    if (!isReplicated(table)) {
+    // `canPullToDevice` e NAO `canPushFromDevice`: a direcao nao e simetrica.
+    // Os utilizadores TEM de descer (senao o posto nao autentica ninguem) mas
+    // nunca podem subir. Confundir as duas partiria o sistema de duas maneiras
+    // opostas — ou a loja nao deixava entrar o gerente, ou um posto passava a
+    // poder alterar quem tem acesso a empresa.
+    if (!canPullToDevice(table)) {
       throw new ForbiddenException(`tabela ${table} (classe "${classify(table)}") não desce por aqui`);
     }
     const take = Math.min(Math.max(1, limit || 200), ReplicationService.MAX_BATCH);

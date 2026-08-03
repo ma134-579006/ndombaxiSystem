@@ -208,10 +208,26 @@ describe('ReplicationService — descida da nuvem para o posto', () => {
     expect(queries[0].params[0]).toBe('1970-01-01T00:00:00.000Z');
   });
 
-  it('RECUSA descer tabelas que a política não replica', async () => {
+  it('os UTILIZADORES DESCEM — senão o posto não autenticava ninguém', async () => {
+    // A direção não é simétrica: `users` desce (é a nuvem que manda em quem tem
+    // acesso) mas NUNCA sobe. Se não descesse, um posto a trabalhar da sua
+    // própria base abria e não deixava entrar o gerente.
+    const { svc } = fakePull([{ id: 'u1', updated_at: new Date() }]);
+    const r = await svc.pull(SCHEMA, 'users', null, 200);
+    expect(r.rows).toHaveLength(1);
+  });
+
+  it('mas os utilizadores NÃO sobem do posto', async () => {
+    const { svc } = fake();
+    const [r] = await svc.push(SCHEMA, [row({ table: 'users', data: { id: 'u1', role: 'COMPANY_ADMIN' } })]);
+    expect(r.applied).toBe(false);
+  });
+
+  it('RECUSA descer o que é de cada posto ou se recalcula', async () => {
     const { svc } = fakePull([]);
-    await expect(svc.pull(SCHEMA, 'users', null, 200)).rejects.toThrow(/não desce/);
     await expect(svc.pull(SCHEMA, 'fiscal_series', null, 200)).rejects.toThrow(/não desce/);
+    await expect(svc.pull(SCHEMA, 'stock_items', null, 200)).rejects.toThrow(/não desce/);
+    await expect(svc.pull(SCHEMA, 'tabela_inventada', null, 200)).rejects.toThrow(/não desce/);
   });
 
   it('uma tabela SEM coluna de tempo diz que não é incremental (não finge estar em dia)', async () => {

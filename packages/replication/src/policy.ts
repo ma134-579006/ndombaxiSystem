@@ -134,10 +134,42 @@ export function classify(table: string): DataClass {
   return CLASSES[table] ?? 'unknown';
 }
 
-/** Esta tabela viaja entre o posto e a nuvem? */
+/**
+ * Esta tabela viaja entre o posto e a nuvem?
+ *
+ * ⚠️ Mantido para o DIÁRIO e para a SUBIDA. Para decidir o que DESCE use
+ * `canPullToDevice` — a direção não é simétrica (ver abaixo).
+ */
 export function isReplicated(table: string): boolean {
+  return canPushFromDevice(table);
+}
+
+/**
+ * O posto pode EMPURRAR esta tabela para a nuvem?
+ *
+ * `cloud` fica de fora: um posto não decide quem tem acesso à empresa nem altera
+ * chaves de assinatura.
+ */
+export function canPushFromDevice(table: string): boolean {
   const c = classify(table);
   return c === 'fiscal' || c === 'additive' || c === 'catalog';
+}
+
+/**
+ * Esta tabela DESCE da nuvem para o posto?
+ *
+ * **A direção não é simétrica, e confundi-las partiria o sistema de duas
+ * maneiras opostas.** O caso que obriga a esta distinção é o `users`: se não
+ * descesse, um posto a trabalhar da sua própria base **não teria com quem
+ * autenticar ninguém** — a loja abria e não deixava entrar o gerente. Mas se
+ * pudesse subir, um posto passava a poder alterar quem tem acesso à empresa.
+ *
+ * Logo: `cloud` desce e nunca sobe. `device` (séries fiscais, contadores) não
+ * faz nem uma coisa nem outra — é de cada posto. `derived` recalcula-se.
+ */
+export function canPullToDevice(table: string): boolean {
+  const c = classify(table);
+  return c === 'fiscal' || c === 'additive' || c === 'catalog' || c === 'cloud';
 }
 
 /** Tabelas que este ficheiro não conhece — para serem denunciadas, não adivinhadas. */

@@ -11,6 +11,6 @@
  * Electron do posto sem alterações.
  */
 export {
-  classify, isReplicated, unknownTables, resolve,
+  classify, isReplicated, canPushFromDevice, canPullToDevice, unknownTables, resolve,
   type DataClass, type Version, type Winner, type Resolution,
 } from './policy';
