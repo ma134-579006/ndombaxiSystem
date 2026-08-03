@@ -30,3 +30,11 @@ export {
   MIN_FREE_DISK, type AutoContext, type AutoDecision,
 } from './autoprovision';
 export { openRunner, type RunnerHandle } from './sql-runner';
+export {
+  classify, isReplicated, unknownTables, resolve,
+  type DataClass, type Version, type Winner, type Resolution,
+} from './replication/policy';
+export {
+  journalDdl, attachTriggersSql, skippedTables, pendingSql, markSyncedSql, pruneSql,
+  JOURNAL_TABLE, type PendingChange,
+} from './replication/journal';
