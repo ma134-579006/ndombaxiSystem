@@ -83,6 +83,186 @@ async function startLocalServer(): Promise<void> {
   }
 }
 
+/**
+ * Traz a empresa para este posto, se for a altura certa.
+ *
+ * A decisão de SE copiar não está aqui — está em `shouldProvision`, isolada e
+ * testada. Aqui só se reúnem os factos (binários, papel de quem entrou, espaço
+ * em disco) e se executa o que ela mandar.
+ *
+ * A definição `localServer` é ligada **no fim de uma cópia bem sucedida**, e
+ * nunca antes. É o que substitui o botão sem perder a proteção: a base local
+ * continua a nunca servir a aplicação enquanto não tiver os dados lá dentro.
+ */
+/** Último motivo de adiamento escrito no registo, para não o repetir. */
+let ultimoAdiamento: string | null = null;
+
+async function autoProvision(session: {
+  accessToken: string; companyCode: string; apiUrl: string; role: string; busy?: boolean;
+}): Promise<{ done: boolean; reason?: string; rows?: number }> {
+  const ls = await import('@nexus/local-server');
+  const paths = ls.layout({
+    userDataDir: app.getPath('userData'),
+    resourcesDir: app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', '..', 'resources'),
+  });
+
+  let freeDiskBytes: number | null = null;
+  try {
+    freeDiskBytes = fs.statfsSync(app.getPath('userData')).bavail
+      * fs.statfsSync(app.getPath('userData')).bsize;
+  } catch { /* sistema sem statfs — não bloqueia por isso */ }
+
+  // A replicação precisa de uma sessão para falar com a nuvem. Guardamo-la SÓ
+  // em memória — morre quando a aplicação fecha, e não fica um token de
+  // administrador em disco à espera de ser encontrado.
+  //
+  // SÓ de um ADMINISTRADOR, e é essencial: `/replication/push` e `/pull` são
+  // reservados ao COMPANY_ADMIN. Agora que a Caixa também oferece a sessão, um
+  // operador a entrar num posto já provisionado substituiria aqui o token do
+  // administrador pelo dele — e a partir desse minuto tudo o que a loja
+  // vendesse sem internet ficaria a bater num 403, em silêncio, com o registo
+  // a dizer apenas "replicação adiada". A sessão do administrador que já cá
+  // está vale mais do que a do operador que acabou de chegar.
+  if (session.role === 'COMPANY_ADMIN') {
+    replicationSession = {
+      accessToken: session.accessToken,
+      companyCode: session.companyCode,
+      apiUrl: session.apiUrl,
+    };
+    // Só faz sentido replicar quando este posto está mesmo a trabalhar da sua
+    // base local: sem ela não há diário, e sem diário não há nada para subir.
+    if (localApiUrl) startReplicationClock();
+  }
+
+  const decisao = ls.shouldProvision(paths, {
+    binariesPresent: ls.binariesPresent(paths),
+    isCompanyAdmin: session.role === 'COMPANY_ADMIN',
+    companyCode: session.companyCode,
+    freeDiskBytes,
+    busy: session.busy === true,
+  });
+  if (!decisao.provision) {
+    // Escreve o motivo só quando MUDA. São duas janelas (Gestor e Caixa) a
+    // oferecer a sessão de minuto a minuto: repetir a mesma linha encheria o
+    // registo com milhares de "já provisionado" por dia e afogaria a única
+    // linha que interessa quando algo corre mal. Este ficheiro é o único
+    // diagnóstico que existe num posto sem consola.
+    if (decisao.reason !== ultimoAdiamento) {
+      ultimoAdiamento = decisao.reason;
+      logLocal(`cópia automática adiada: ${decisao.reason}`);
+    }
+    return { done: false, reason: decisao.reason };
+  }
+  ultimoAdiamento = null;
+
+  logLocal(`cópia automática a começar (empresa ${session.companyCode})`);
+  const url = await ls.ensureLocalDatabase(paths);
+  const runner = await ls.openRunner(url);
+  try {
+    const r = await ls.provisionFromCloud({
+      paths,
+      cloud: { apiUrl: session.apiUrl, accessToken: session.accessToken, companyCode: session.companyCode },
+      run: runner.run,
+      schema: 'public',
+      log: logLocal,
+    });
+    ls.recordSuccess(paths);
+    // SÓ AGORA se liga: a partir do próximo arranque, este posto trabalha da
+    // sua própria base. Antes disto seria servir uma empresa vazia.
+    writeSettings({ localServer: true });
+    logLocal(`cópia automática concluída: ${r.rows} linhas em ${r.tables} tabelas`);
+    return { done: true, rows: r.rows };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'erro';
+    ls.recordFailure(paths, msg);
+    logLocal(`cópia automática falhou: ${msg}`);
+    return { done: false, reason: msg };
+  } finally {
+    await runner.close();
+  }
+}
+
+/**
+ * Relógio da replicação: leva à nuvem o que este posto fez sem internet.
+ *
+ * Corre em segundo plano e NUNCA no caminho de uma operação — o utilizador é
+ * libertado quando a venda fica gravada na base local, não quando a nuvem a
+ * recebe. É essa a arquitetura pedida, e é o que faz a diferença num sítio onde
+ * a internet vai e vem.
+ *
+ * Só arranca com o servidor local em uso: sem base local não há diário, e sem
+ * diário não há nada para replicar (a app está a falar diretamente com a nuvem).
+ */
+let replicationTimer: NodeJS.Timeout | null = null;
+/** Credenciais da sessão atual, guardadas SÓ em memória (nunca em disco). */
+let replicationSession: { accessToken: string; companyCode: string; apiUrl: string } | null = null;
+
+const REPLICATION_EVERY_MS = 2 * 60_000;
+
+function startReplicationClock(): void {
+  if (replicationTimer) return;
+  replicationTimer = setInterval(() => { void replicateOnce(); }, REPLICATION_EVERY_MS);
+}
+
+async function replicateOnce(): Promise<void> {
+  if (!localApiUrl || !replicationSession) return; // sem servidor local, nada a fazer
+  try {
+    const ls = await import('@nexus/local-server');
+    const paths = ls.layout({
+      userDataDir: app.getPath('userData'),
+      resourcesDir: app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', '..', 'resources'),
+    });
+    const cfg = ls.readConfig(paths);
+    if (!cfg) return;
+    const runner = await ls.openRunner(ls.connectionUrl(cfg));
+    try {
+      const r = await ls.pushPending({
+        apiUrl: replicationSession.apiUrl,
+        accessToken: replicationSession.accessToken,
+        companyCode: replicationSession.companyCode,
+        schema: 'public',
+        deviceId: 'desktop',
+        query: runner.query,
+        run: runner.run,
+        log: logLocal,
+      });
+      if (r.sent > 0) {
+        logLocal(`replicação (subida): ${r.applied} aplicadas, ${r.rejected} recusadas, ${r.conflicts} conflitos`);
+      }
+
+      // SUBIR PRIMEIRO, descer depois. A ordem não é indiferente: subindo
+      // primeiro, o trabalho deste posto já está na nuvem quando comparamos
+      // versões, e uma alteração feita aqui não corre o risco de ser tapada por
+      // uma cópia mais velha que ainda vinha a caminho.
+      const tabelas = await runner.query<{ table_name: string }>(
+        `SELECT table_name FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`,
+      );
+      const d = await ls.pullAndApply({
+        apiUrl: replicationSession.apiUrl,
+        accessToken: replicationSession.accessToken,
+        companyCode: replicationSession.companyCode,
+        schema: 'public',
+        deviceId: 'desktop',
+        tables: tabelas.map((x) => x.table_name),
+        query: runner.query,
+        run: runner.run,
+        log: logLocal,
+      });
+      if (d.received > 0) {
+        logLocal(`replicação (descida): ${d.applied} aplicadas, ${d.skipped} ignoradas, ${d.conflicts} conflitos`);
+      }
+
+      await ls.pruneJournal({ schema: 'public', run: runner.run });
+    } finally {
+      await runner.close();
+    }
+  } catch (e) {
+    // Sem rede, sem base, sem sessão — nada disto é excecional num posto.
+    logLocal(`replicação adiada: ${(e as Error).message}`);
+  }
+}
+
 /** Diagnóstico em ficheiro: num posto sem consola, é a única forma de saber. */
 function logLocal(line: string): void {
   try {
@@ -182,6 +362,27 @@ function openModule(id: ModuleId): void {
 
 function registerIpc(): void {
   ipcMain.handle('ndombaxi:version', () => app.getVersion());
+
+  /**
+   * CÓPIA AUTOMÁTICA da empresa para este posto.
+   *
+   * Sem botão, por decisão do dono do produto. O frontend limita-se a dizer
+   * "estou aqui, com esta sessão"; toda a inteligência de decidir SE e QUANDO
+   * copiar vive em `@nexus/local-server/autoprovision`, isolada e testada.
+   *
+   * O token não é guardado em lado nenhum — é usado no momento e esquecido.
+   */
+  ipcMain.handle('ndombaxi:local-provision', async (_e, session: {
+    accessToken: string; companyCode: string; apiUrl: string; role: string; busy?: boolean;
+  }) => {
+    try {
+      return await autoProvision(session);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'erro';
+      logLocal(`cópia automática falhou: ${msg}`);
+      return { done: false, reason: msg };
+    }
+  });
 
   // SÍNCRONO de propósito: o `preload` precisa do endereço ANTES de o bundle do
   // frontend arrancar, para o primeiro pedido já sair para o sítio certo. É uma

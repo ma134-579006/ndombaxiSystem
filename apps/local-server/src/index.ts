@@ -20,3 +20,26 @@ export {
   blockedReason, readReadiness, markProvisioned, isProvisionedFor,
   type ReadinessPaths,
 } from './readiness';
+export {
+  provisionFromCloud,
+  type ProvisionOptions, type ProvisionResult, type CloudAccess,
+  type SnapshotTable, type SqlRunner,
+} from './provision';
+export {
+  shouldProvision, backoffMs, readAttempts, recordFailure, recordSuccess,
+  MIN_FREE_DISK, type AutoContext, type AutoDecision,
+} from './autoprovision';
+export { openRunner, type RunnerHandle } from './sql-runner';
+// A política é PARTILHADA com a nuvem (mesmo ficheiro, não uma cópia).
+export {
+  classify, isReplicated, canPushFromDevice, canPullToDevice, unknownTables, resolve,
+  type DataClass, type Version, type Winner, type Resolution,
+} from '@nexus/replication';
+export {
+  journalDdl, attachTriggersSql, skippedTables, pendingSql, markSyncedSql, pruneSql,
+  JOURNAL_TABLE, type PendingChange,
+} from './replication/journal';
+export {
+  pushPending, pullAndApply, pullStateDdl, pruneJournal,
+  type EngineOptions, type PushResult, type PullApplyResult, type SqlQuery,
+} from './replication/engine';

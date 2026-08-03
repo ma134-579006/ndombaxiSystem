@@ -26,6 +26,19 @@ const api = {
    */
   apiUrl: ipcRenderer.sendSync('ndombaxi:api-url') as string | null,
 
+  /**
+   * Oferece a sessão atual ao processo principal para ele decidir, sozinho, se
+   * é altura de trazer a empresa para este posto (ver `autoProvision`).
+   *
+   * O frontend NÃO decide nada: só diz quem está a usar a aplicação. Toda a
+   * inteligência — papel de quem entrou, espaço em disco, caixa ocupada,
+   * tentativas falhadas — vive do lado do processo principal, onde é testável.
+   */
+  provisionLocal: (session: {
+    accessToken: string; companyCode: string; apiUrl: string; role: string; busy?: boolean;
+  }): Promise<{ done: boolean; reason?: string; rows?: number }> =>
+    ipcRenderer.invoke('ndombaxi:local-provision', session),
+
   /** Ponte SQLite consumida pelo `SqliteAdapter` de @nexus/offline-core. */
   db: {
     query: <T>(sql: string, params?: unknown[]): Promise<T[]> =>
