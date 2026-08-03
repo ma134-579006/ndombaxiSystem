@@ -1,18 +1,23 @@
 /**
- * Camada offline da Caixa — IndexedDB puro (sem dependências).
+ * Camada offline da Caixa.
  *   • kv: cache do catálogo/clientes/recibo/identidade (para abrir offline).
  *   • pendingSales: fila de vendas feitas sem internet, à espera de emissão fiscal.
+ *
+ * ONDE isto fica gravado deixou de estar aqui: vive em `store.ts`, que usa o
+ * **SQLite do aparelho** (memória interna) quando existe — Android pelo
+ * Capacitor, Windows pelo Electron — e recua para IndexedDB no navegador. Uma
+ * venda por enviar não é cache: é dinheiro e obrigação fiscal, e merece escrita
+ * confirmada em disco e lotes tudo-ou-nada.
  *
  * IMPORTANTE (lei fiscal AGT): o número e o hash do documento são SEMPRE
  * atribuídos pelo servidor (sequência sem saltos). Uma venda offline fica em
  * fila e só recebe o número fiscal quando é sincronizada — nunca o inventamos.
  */
 import type { CartLine } from '../pos/cart';
-
-const DB_NAME = 'ndombaxi-pos';
-const DB_VERSION = 1;
-const STORE_KV = 'kv';
-const STORE_SALES = 'pendingSales';
+import {
+  indexedDbSupported, kvGet as storeKvGet, kvSet as storeKvSet,
+  salesAdd, salesCount, salesDelete, salesList, salesPut,
+} from './store';
 
 export interface PendingSaleLine {
   productCode: string;
@@ -46,64 +51,24 @@ export interface PendingSale {
   attempts: number;
 }
 
-let dbPromise: Promise<IDBDatabase> | null = null;
-
-function openDb(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_KV)) db.createObjectStore(STORE_KV);
-      if (!db.objectStoreNames.contains(STORE_SALES)) {
-        db.createObjectStore(STORE_SALES, { keyPath: 'id', autoIncrement: true });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error('IndexedDB indisponível'));
-  });
-  return dbPromise;
-}
-
-function tx<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  return openDb().then(
-    (db) =>
-      new Promise<T>((resolve, reject) => {
-        const t = db.transaction(store, mode);
-        const req = fn(t.objectStore(store));
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error ?? new Error('Falha de IndexedDB'));
-      }),
-  );
-}
-
-/** True se o ambiente suporta IndexedDB (degradação graciosa em modo restrito). */
+/**
+ * True quando há onde guardar. Mantém o nome antigo porque é o que o resto da
+ * Caixa usa — o que mudou foi só o sítio onde se guarda.
+ */
 export function offlineSupported(): boolean {
-  try {
-    return typeof indexedDB !== 'undefined';
-  } catch {
-    return false;
-  }
+  // A ponte para o SQLite é assíncrona; esta pergunta é feita em pontos
+  // síncronos da interface. O IndexedDB estar disponível é garantia suficiente
+  // de que há cave, e nas apps instaladas há sempre a melhor das duas.
+  return indexedDbSupported();
 }
 
 // ── Cache chave/valor ──────────────────────────────────────
-export async function kvSet<T>(key: string, value: T): Promise<void> {
-  if (!offlineSupported()) return;
-  try {
-    await tx(STORE_KV, 'readwrite', (s) => s.put(value as unknown as object, key));
-  } catch {
-    /* cache best-effort */
-  }
+export function kvSet<T>(key: string, value: T): Promise<void> {
+  return storeKvSet(key, value);
 }
 
-export async function kvGet<T>(key: string): Promise<T | null> {
-  if (!offlineSupported()) return null;
-  try {
-    const v = await tx<T>(STORE_KV, 'readonly', (s) => s.get(key) as IDBRequest<T>);
-    return (v ?? null) as T | null;
-  } catch {
-    return null;
-  }
+export function kvGet<T>(key: string): Promise<T | null> {
+  return storeKvGet<T>(key);
 }
 
 // ── Fila de vendas offline ─────────────────────────────────
@@ -162,34 +127,22 @@ function ivaRate(code: string): number {
   return code === 'NOR' ? 14 : code === 'RED' ? 5 : 0;
 }
 
-export async function queueSale(sale: PendingSale): Promise<number> {
-  const id = await tx<IDBValidKey>(STORE_SALES, 'readwrite', (s) => s.add(sale) as IDBRequest<IDBValidKey>);
-  return Number(id);
+export function queueSale(sale: PendingSale): Promise<number> {
+  return salesAdd(sale as unknown as Record<string, unknown>);
 }
 
-export async function listPendingSales(): Promise<PendingSale[]> {
-  if (!offlineSupported()) return [];
-  try {
-    const all = await tx<PendingSale[]>(STORE_SALES, 'readonly', (s) => s.getAll() as IDBRequest<PendingSale[]>);
-    return all ?? [];
-  } catch {
-    return [];
-  }
+export function listPendingSales(): Promise<PendingSale[]> {
+  return salesList<PendingSale>();
 }
 
-export async function updateSale(sale: PendingSale): Promise<void> {
-  await tx(STORE_SALES, 'readwrite', (s) => s.put(sale));
+export function updateSale(sale: PendingSale): Promise<void> {
+  return salesPut(sale as unknown as { id?: number } & Record<string, unknown>);
 }
 
-export async function deleteSale(id: number): Promise<void> {
-  await tx(STORE_SALES, 'readwrite', (s) => s.delete(id));
+export function deleteSale(id: number): Promise<void> {
+  return salesDelete(id);
 }
 
-export async function countPendingSales(): Promise<number> {
-  if (!offlineSupported()) return 0;
-  try {
-    return await tx<number>(STORE_SALES, 'readonly', (s) => s.count() as IDBRequest<number>);
-  } catch {
-    return 0;
-  }
+export function countPendingSales(): Promise<number> {
+  return salesCount();
 }
