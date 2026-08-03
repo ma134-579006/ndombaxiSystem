@@ -16,3 +16,7 @@ export {
   binariesPresent, ensureLocalDatabase, backup, connectionUrl, readConfig,
   type PostgresPaths, type LocalDbConfig,
 } from './postgres';
+export {
+  blockedReason, readReadiness, markProvisioned, isProvisionedFor,
+  type ReadinessPaths,
+} from './readiness';

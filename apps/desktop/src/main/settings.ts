@@ -17,6 +17,15 @@ export interface Settings {
   apiUrl: string;
   /** Última janela: posição e tamanho, para abrir onde o utilizador deixou. */
   window?: { x?: number; y?: number; width: number; height: number; maximized: boolean };
+  /**
+   * Usar o servidor local (PostgreSQL neste posto) em vez da nuvem.
+   *
+   * Falso por omissão, e tem de continuar assim: uma base local VAZIA a servir
+   * a aplicação é o lojista a abrir o programa e não encontrar a empresa. Só
+   * pode ficar verdadeiro depois de os dados terem sido trazidos para cá — e
+   * mesmo assim o `local-server` volta a verificar (ver `readiness.ts`).
+   */
+  localServer?: boolean;
 }
 
 /** API de produção. O instalador não pergunta nada ao lojista. */
@@ -25,6 +34,8 @@ const DEFAULT_API = 'https://ndombaxi-api-img.onrender.com';
 const DEFAULTS: Settings = {
   module: null,
   apiUrl: process.env.NDOMBAXI_API_URL || DEFAULT_API,
+  // Nunca ligado por omissão — ver o comentário em `Settings.localServer`.
+  localServer: false,
 };
 
 function file(): string {
