@@ -171,6 +171,11 @@ export const api = {
     request<Customer>('POST', '/pos/customers', input),
   emitInvoice: (input: EmitInvoiceInput) =>
     request<EmittedInvoice>('POST', '/pos/invoices', input),
+  /** Apresenta este posto e recebe a sua série fiscal exclusiva (idempotente). */
+  registerDevice: (input: { deviceKey: string; name: string; platform: string; storeId?: string }) =>
+    request<{ deviceKey: string; name: string; series: string; storeId: string | null }>(
+      'POST', '/devices/register', input,
+    ),
   cancelInvoice: (id: string, reason: string) =>
     request<{ creditNoteNumber: string; grossTotal: number }>('POST', `/pos/invoices/${id}/cancel`, { reason }),
   /** `clientOpId`: chave estável entre tentativas — impede uma 2.ª nota de crédito

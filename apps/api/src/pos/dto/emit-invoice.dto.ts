@@ -38,11 +38,25 @@ export class EmitInvoiceDto {
   @IsEnum(DocumentType)
   docType?: DocumentType;
 
-  /** Série fiscal (default "A"). */
+  /**
+   * Série fiscal (default "A"). **Ignorada quando o posto está registado** — aí
+   * manda a série do posto (ver `devices.service.ts`). Mantida para as
+   * aplicações antigas, que ainda não se registam.
+   */
   @IsOptional()
   @IsString()
   @Length(1, 5)
   series?: string;
+
+  /**
+   * Identificador estável deste posto. É por ele que o servidor sabe em que
+   * série fiscal esta venda tem de entrar — o que impede duas caixas de
+   * construírem cadeias de hash divergentes com a mesma numeração.
+   */
+  @IsOptional()
+  @IsString()
+  @Length(8, 128)
+  deviceKey?: string;
 
   @IsOptional()
   @IsString()

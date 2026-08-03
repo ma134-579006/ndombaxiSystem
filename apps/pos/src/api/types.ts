@@ -108,6 +108,10 @@ export interface EmitInvoiceInput {
   /** Chave de idempotência (UUID estável entre tentativas) — impede que uma
    *  resposta perdida faça nascer uma SEGUNDA fatura da mesma venda. */
   clientOpId?: string;
+  /** Identidade deste posto — é por ela que o servidor sabe em que SÉRIE
+   *  fiscal a venda entra, impedindo duas caixas de partilharem cadeia de
+   *  hash (ver `offline/device.ts`). */
+  deviceKey?: string;
   lines: EmitInvoiceLine[];
 }
 

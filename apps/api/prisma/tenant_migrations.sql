@@ -632,3 +632,32 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS offline_pin_
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS offline_pin_verifier TEXT;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS offline_pin_iters    INT;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."users" ADD COLUMN IF NOT EXISTS offline_updated_at   TIMESTAMPTZ;
+
+-- 2026-08-03 · OFFLINE-FIRST — UMA SERIE FISCAL POR POSTO.
+-- A restricao que obriga a isto: cada documento leva o hash do documento
+-- ANTERIOR da mesma serie (invoice.service.ts). Logo cada serie e estritamente
+-- sequencial e tem de ter UM SO escritor. Dois postos a emitir na MESMA serie
+-- sem rede constroem duas cadeias divergentes com a mesma numeracao — e isso
+-- NAO tem resolucao possivel, porque os dois documentos ja foram entregues a
+-- clientes. Nao se resolve o conflito: impede-se por construcao.
+-- Dando a cada posto a SUA serie, cada cadeia passa a ter um so escritor, e a
+-- sincronizacao dos documentos fiscais passa a ser uniao de insercoes.
+-- ADITIVO: as empresas atuais continuam na serie 'A'; os postos novos nascem
+-- com serie propria ('A1', 'A2', ...), que nunca colide com a existente.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."devices" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_key    TEXT NOT NULL,             -- identificador estavel gerado no aparelho
+  name          TEXT NOT NULL,             -- "Loja 1 - Caixa 2"
+  platform      TEXT NOT NULL,             -- windows | android | ios | web
+  store_id      UUID REFERENCES "{{SCHEMA}}"."stores"(id) ON DELETE SET NULL,
+  series        TEXT NOT NULL,             -- serie fiscal EXCLUSIVA deste posto
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at  TIMESTAMPTZ,
+  CONSTRAINT devices_key_unique UNIQUE (device_key)
+);
+-- A INVARIANTE que aguenta tudo o resto, imposta pela BASE DE DADOS e nao por
+-- codigo: dois aparelhos nunca podem partilhar uma serie. Uma verificacao
+-- aplicacional perderia a corrida entre dois registos simultaneos; esta nao.
+CREATE UNIQUE INDEX IF NOT EXISTS devices_series_uidx ON "{{SCHEMA}}"."devices"(series);
+CREATE INDEX IF NOT EXISTS devices_store_idx ON "{{SCHEMA}}"."devices"(store_id);

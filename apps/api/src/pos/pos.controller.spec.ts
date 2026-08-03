@@ -22,10 +22,16 @@ function duplicateKeyError(): Error {
   );
 }
 
-function makeController(invoices: Partial<Record<string, unknown>>) {
+function makeController(
+  invoices: Partial<Record<string, unknown>>,
+  // Por omissão, posto NÃO registado (série `null`) — é o comportamento das
+  // aplicações já instaladas, e o que estes testes de idempotência exercitam.
+  devices: Partial<Record<string, unknown>> = { seriesFor: () => Promise.resolve(null) },
+) {
   const ctx = { requireTenantSchema: () => 'tenant_1' };
   return new PosController(
     {} as never, invoices as never, {} as never, {} as never, ctx as never, {} as never,
+    devices as never,
   );
 }
 
@@ -84,5 +90,51 @@ describe('PosController — emissão idempotente da venda', () => {
 
     await expect(controller.emitInvoice(dto({ clientOpId: OP_ID }), USER)).rejects.toThrow();
     expect(findByClientOpId).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A série com que uma venda é emitida decide em que cadeia de hash ela entra.
+ * Se o pedido pudesse escolher a série, bastava uma app desatualizada — ou mal
+ * configurada — para duas caixas escreverem na mesma cadeia sem rede. Estes
+ * testes fecham essa porta.
+ */
+describe('PosController — a série vem do POSTO, não do pedido', () => {
+  const emitOk = () => jest.fn(
+    (_schema: string, _input: { series?: string }) =>
+      Promise.resolve({ id: 'inv-1', number: 'FT A1/1' }),
+  );
+
+  it('usa a série do posto registado', async () => {
+    const emit = emitOk();
+    const controller = makeController(
+      { emit }, { seriesFor: () => Promise.resolve('A7') },
+    );
+    await controller.emitInvoice(dto(), USER);
+    expect(emit.mock.calls[0][1]).toMatchObject({ series: 'A7' });
+  });
+
+  it('IGNORA a série pedida pelo cliente quando o posto está registado', async () => {
+    const emit = emitOk();
+    const controller = makeController(
+      { emit }, { seriesFor: () => Promise.resolve('A7') },
+    );
+    await controller.emitInvoice(dto({ series: 'A' }), USER);
+    // Se aqui saísse 'A', duas caixas voltavam a partilhar cadeia.
+    expect(emit.mock.calls[0][1]).toMatchObject({ series: 'A7' });
+  });
+
+  it('posto NÃO registado continua em "A" — a loja não pára por causa disto', async () => {
+    const emit = emitOk();
+    const controller = makeController({ emit }, { seriesFor: () => Promise.resolve(null) });
+    await controller.emitInvoice(dto(), USER);
+    expect(emit.mock.calls[0][1]).toMatchObject({ series: 'A' });
+  });
+
+  it('posto não registado respeita a série explícita da app antiga', async () => {
+    const emit = emitOk();
+    const controller = makeController({ emit }, { seriesFor: () => Promise.resolve(null) });
+    await controller.emitInvoice(dto({ series: 'B' }), USER);
+    expect(emit.mock.calls[0][1]).toMatchObject({ series: 'B' });
   });
 });
