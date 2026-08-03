@@ -1,6 +1,6 @@
 {
   "name": "@nexus/desktop",
-  "version": "1.1.6",
+  "version": "1.2.0",
   "private": true,
   "description": "Ndombaxi System — aplicação Windows Offline-First (Gestão, Caixa e Loja num só instalador).",
   "author": "Ndombaxi System",
@@ -15,8 +15,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "better-sqlite3": "11.10.0",
-    "@nexus/local-server": "workspace:*"
+    "@nexus/local-server": "workspace:*",
+    "@nexus/update-core": "workspace:*",
+    "better-sqlite3": "11.10.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.11",

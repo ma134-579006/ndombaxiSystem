@@ -1,0 +1,24 @@
+{
+  "name": "@nexus/update-core",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ndombaxi System — decisão da atualização obrigatória, partilhada pelo Gestor, Caixa, Android e Electron.",
+  "main": "dist/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.esm.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.6.2"
+  }
+}

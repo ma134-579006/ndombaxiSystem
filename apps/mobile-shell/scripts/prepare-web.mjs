@@ -22,6 +22,37 @@ const repo = path.resolve(shell, '..', '..');
 
 const API_URL = process.env.NDOMBAXI_API_URL || 'https://ndombaxi-api-img.onrender.com';
 
+/**
+ * A versão do produto — UMA só, para as duas plataformas.
+ *
+ * Sai do `package.json` da aplicação Windows de propósito: Windows e Android
+ * são publicados como um par, e a atualização obrigatória compara versões. Com
+ * duas fontes diferentes, mais cedo ou mais tarde uma delas ficava para trás e
+ * os aparelhos passariam a receber (ou a não receber) bloqueios errados. O
+ * `versionName` do Android estava, aliás, esquecido em "1.0" desde o início.
+ */
+const APP_VERSION = JSON.parse(
+  fs.readFileSync(path.join(repo, 'apps', 'desktop', 'package.json'), 'utf-8'),
+).version;
+
+/**
+ * Escreve a mesma versão no Android (`versionName`) e sobe o `versionCode`, que
+ * o Android exige que cresça a cada publicação. Sem isto, o APK dizia uma versão
+ * e a aplicação lá dentro dizia outra.
+ */
+function syncAndroidVersion() {
+  const gradle = path.join(shell, 'android', 'app', 'build.gradle');
+  if (!fs.existsSync(gradle)) return; // projeto Android ainda não gerado
+  let g = fs.readFileSync(gradle, 'utf-8');
+  const atual = /versionName\s+"([^"]+)"/.exec(g)?.[1];
+  if (atual === APP_VERSION) return;
+  const code = Number(/versionCode\s+(\d+)/.exec(g)?.[1] ?? 1);
+  g = g.replace(/versionName\s+"[^"]+"/, `versionName "${APP_VERSION}"`)
+    .replace(/versionCode\s+\d+/, `versionCode ${code + 1}`);
+  fs.writeFileSync(gradle, g);
+  log(`Android: versão ${atual} → ${APP_VERSION} (versionCode ${code + 1})`);
+}
+
 const MODULES = [
   { app: 'web', target: 'gestao', label: 'Painel de Gestão' },
   { app: 'pos', target: 'caixa', label: 'Caixa (POS)' },
@@ -108,9 +139,16 @@ for (const mod of MODULES) {
   // React arrancar, para o frontend abrir DIRETO no login (e não na landing de
   // marketing). Externo (não inline) por causa da CSP `script-src 'self'`, e no
   // <head> para correr antes do módulo. Só existe nas apps — o site nunca o tem.
+  //
+  // Vai também a VERSÃO INSTALADA. É o que a verificação de atualização
+  // obrigatória compara com a versão publicada pelo servidor. Fica gravada no
+  // ficheiro em vez de ser perguntada a um plugin em tempo de execução por uma
+  // razão simples: se o plugin não responder — e num arranque de WebView isso
+  // acontece — a app não saberia que versão é, e uma atualização de segurança
+  // obrigatória nunca chegaria a esse aparelho, sem ninguém dar por isso.
   fs.writeFileSync(
     path.join(modDir, 'native-flag.js'),
-    'window.__NDOMBAXI_NATIVE__ = true;\n',
+    `window.__NDOMBAXI_NATIVE__ = true;\nwindow.__NDOMBAXI_APP_VERSION__ = ${JSON.stringify(APP_VERSION)};\n`,
   );
   if (!idx.includes('native-flag.js')) {
     idx = idx.replace('</head>', '  <script src="./native-flag.js"></script>\n</head>');
@@ -126,5 +164,7 @@ fs.copyFileSync(
   path.join(www, 'logo.png'),
 );
 log('Lançador e logótipo copiados para www/');
+
+syncAndroidVersion();
 
 process.stdout.write('\nwww pronto. Agora: pnpm --filter @nexus/mobile-shell sync\n\n');

@@ -167,6 +167,9 @@ importers:
       '@nexus/local-server':
         specifier: workspace:*
         version: link:../local-server
+      '@nexus/update-core':
+        specifier: workspace:*
+        version: link:../../packages/update-core
       better-sqlite3:
         specifier: 11.10.0
         version: 11.10.0
@@ -303,6 +306,9 @@ importers:
       '@nexus/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
+      '@nexus/update-core':
+        specifier: workspace:*
+        version: link:../../packages/update-core
       '@zxing/browser':
         specifier: 0.1.5
         version: 0.1.5(@zxing/library@0.21.3)
@@ -386,6 +392,9 @@ importers:
       '@nexus/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
+      '@nexus/update-core':
+        specifier: workspace:*
+        version: link:../../packages/update-core
       '@zxing/browser':
         specifier: 0.1.5
         version: 0.1.5(@zxing/library@0.21.3)
@@ -464,6 +473,15 @@ importers:
 
   packages/types:
     devDependencies:
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
+
+  packages/update-core:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.41
       typescript:
         specifier: ^5.6.2
         version: 5.9.3

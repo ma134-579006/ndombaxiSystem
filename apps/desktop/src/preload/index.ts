@@ -65,6 +65,16 @@ const api = {
     openLauncher: (): Promise<void> => ipcRenderer.invoke('ndombaxi:open-launcher'),
   },
 
+  /**
+   * Entrar com Google. Abre o navegador do sistema (o Google recusa o seu login
+   * dentro de WebViews) e devolve o `id_token` — o mesmo que o botão do site
+   * produz, para o resto do fluxo não mudar nada.
+   */
+  google: {
+    signIn: (): Promise<{ idToken: string | null; error?: string }> =>
+      ipcRenderer.invoke('ndombaxi:google-signin'),
+  },
+
   update: {
     check: (): Promise<unknown> => ipcRenderer.invoke('ndombaxi:update-check'),
     openDownloadPage: (): Promise<void> => ipcRenderer.invoke('ndombaxi:update-open'),
