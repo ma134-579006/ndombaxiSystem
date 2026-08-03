@@ -17,7 +17,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "ts-node prisma/seed.ts",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prova:pglite": "node scripts/prova-pglite-schema.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -58,6 +59,7 @@
     "@nexus/replication": "workspace:*"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
     "@nestjs/cli": "^10.4.5",
     "@nestjs/schematics": "^10.1.4",
     "@nestjs/testing": "^10.4.4",

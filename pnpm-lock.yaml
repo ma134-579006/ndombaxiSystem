@@ -110,6 +110,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.5.4
+        version: 0.5.4
       '@nestjs/cli':
         specifier: ^10.4.5
         version: 10.4.9
@@ -1359,6 +1362,9 @@ packages:
   '@develar/schema-utils@2.6.5':
     resolution: {integrity: sha512-0cp4PsWQ/9avqTVMCtZ+GirikIA36ikvjtHweU4/j8yLtgObI0+JUPhYFScgwlteveGB1rt3Cm8UhN04XayDig==}
     engines: {node: '>= 8.9.0'}
+
+  '@electric-sql/pglite@0.5.4':
+    resolution: {integrity: sha512-yYZUyyXrHU7tPlCjwZQJ6hIG9DscdCCn7Uk0mYKwC1FeHX286AbcmFveMiRBEak8e9iPupjsoVImN3yJZVed2g==}
 
   '@electron/asar@3.4.1':
     resolution: {integrity: sha512-i4/rNPRS84t0vSRa2HorerGRXWyF4vThfHesw0dmcWHp+cspK743UanA0suA5Q5y8kzY2y6YKrvbIUn69BCAiA==}
@@ -8719,6 +8725,8 @@ snapshots:
     dependencies:
       ajv: 6.15.0
       ajv-keywords: 3.5.2(ajv@6.15.0)
+
+  '@electric-sql/pglite@0.5.4': {}
 
   '@electron/asar@3.4.1':
     dependencies:
