@@ -49,7 +49,7 @@ let localServer: import('@nexus/local-server').LocalServer | null = null;
 /** Arranca o servidor local, se estiver disponível. Nunca impede a app de abrir. */
 async function startLocalServer(): Promise<void> {
   try {
-    const { LocalServer, layout, binariesPresent } = await import('@nexus/local-server');
+    const { LocalServer, layout, binariesPresent, blockedReason } = await import('@nexus/local-server');
     const paths = layout({
       userDataDir: app.getPath('userData'),
       resourcesDir: app.isPackaged
@@ -58,6 +58,18 @@ async function startLocalServer(): Promise<void> {
     });
     if (!binariesPresent(paths)) {
       logLocal('servidor local indisponível (binários não incluídos) — a usar a nuvem');
+      return;
+    }
+    // BARREIRA — não basta os binários existirem.
+    //
+    // Sem isto, bastava incluir o PostgreSQL no instalador para que, na
+    // atualização seguinte, cada posto passasse a falar com uma base de dados
+    // VAZIA: o lojista abria a aplicação e não encontrava a empresa, nem os
+    // produtos, nem as vendas. A base local só serve a aplicação depois de ter
+    // sido ligada de propósito E de ter recebido os dados da empresa.
+    const blocked = blockedReason(paths, { enabled: readSettings().localServer === true });
+    if (blocked) {
+      logLocal(`servidor local não usado (${blocked}) — a usar a nuvem`);
       return;
     }
     localServer = new LocalServer({ paths, apiDir: paths.apiDir, log: logLocal });
