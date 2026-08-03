@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@nexus/shop-link": "workspace:*",
     "@nexus/tokens": "workspace:*",
     "@nexus/update-core": "workspace:*",
     "@zxing/browser": "0.1.5",

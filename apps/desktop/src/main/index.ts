@@ -47,6 +47,8 @@ let mainWindow: BrowserWindow | null = null;
  * tirar ao lojista o que ele já tinha.
  */
 let localApiUrl: string | null = null;
+/** Endereço deste posto na rede da loja — é o que os telemóveis usam. */
+let localLanUrl: string | null = null;
 let localServer: import('@nexus/local-server').LocalServer | null = null;
 
 /** Arranca o servidor local, se estiver disponível. Nunca impede a app de abrir. */
@@ -75,10 +77,19 @@ async function startLocalServer(): Promise<void> {
       logLocal(`servidor local não usado (${blocked}) — a usar a nuvem`);
       return;
     }
-    localServer = new LocalServer({ paths, apiDir: paths.apiDir, log: logLocal });
+    localServer = new LocalServer({
+      paths,
+      apiDir: paths.apiDir,
+      log: logLocal,
+      // Partilhar com os outros aparelhos da loja, se o responsável o pediu.
+      // Só a API sai para a rede; a base continua presa a 127.0.0.1.
+      lan: readSettings().shareOnLan === true,
+    });
     const info = await localServer.start();
     localApiUrl = info.apiUrl;
+    localLanUrl = info.lanUrl;
     logLocal(`servidor local pronto em ${info.apiUrl}`);
+    if (info.lanUrl) logLocal(`a servir a loja em ${info.lanUrl}`);
   } catch (e) {
     localServer = null;
     localApiUrl = null;
@@ -470,6 +481,50 @@ function registerIpc(): void {
     } catch (e) {
       return { idToken: null, error: e instanceof Error ? e.message : 'Falhou a entrada com Google.' };
     }
+  });
+
+  /**
+   * Estado do SERVIDOR DESTA LOJA, para o Gestor o poder mostrar.
+   *
+   * Devolve factos, não conselhos: se os ficheiros vieram na instalação, se a
+   * empresa já foi copiada para cá, se está a servir, e em que endereço os
+   * outros aparelhos o encontram. Quem explica ao utilizador é a interface.
+   */
+  ipcMain.handle('ndombaxi:local-status', async () => {
+    try {
+      const ls = await import('@nexus/local-server');
+      const paths = ls.layout({
+        userDataDir: app.getPath('userData'),
+        resourcesDir: app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', '..', 'resources'),
+      });
+      const s = readSettings();
+      const readiness = ls.readReadiness(paths);
+      return {
+        binaries: ls.binariesPresent(paths),
+        provisioned: readiness.provisioned === true,
+        companyCode: readiness.companyCode ?? null,
+        running: localApiUrl != null,
+        apiUrl: localApiUrl,
+        sharing: s.shareOnLan === true,
+        lanUrl: localLanUrl,
+        blocked: ls.blockedReason(paths, { enabled: s.localServer === true }),
+      };
+    } catch (e) {
+      return { binaries: false, provisioned: false, running: false, error: (e as Error).message };
+    }
+  });
+
+  /**
+   * Ligar/desligar a partilha com os outros aparelhos da loja.
+   *
+   * A mudança só produz efeito no arranque seguinte, e isso é dito a quem
+   * clica: reiniciar o servidor por baixo de quem está a cobrar seria cortar
+   * uma venda a meio para mudar uma definição.
+   */
+  ipcMain.handle('ndombaxi:local-share', (_e, ligar: boolean) => {
+    writeSettings({ shareOnLan: ligar === true });
+    logLocal(`partilha na loja ${ligar ? 'LIGADA' : 'desligada'} (aplica-se ao reabrir)`);
+    return { sharing: ligar === true, needsRestart: true };
   });
 
   ipcMain.handle('ndombaxi:update-check', () => checkForUpdates());

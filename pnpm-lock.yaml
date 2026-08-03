@@ -303,6 +303,9 @@ importers:
 
   apps/pos:
     dependencies:
+      '@nexus/shop-link':
+        specifier: workspace:*
+        version: link:../../packages/shop-link
       '@nexus/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
@@ -389,6 +392,9 @@ importers:
       '@nexus/offline-core':
         specifier: workspace:*
         version: link:../../packages/offline-core
+      '@nexus/shop-link':
+        specifier: workspace:*
+        version: link:../../packages/shop-link
       '@nexus/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
@@ -461,6 +467,15 @@ importers:
         version: 5.9.3
 
   packages/replication:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.41
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
+
+  packages/shop-link:
     devDependencies:
       '@types/node':
         specifier: ^20.14.0

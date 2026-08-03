@@ -26,6 +26,22 @@ export interface Settings {
    * mesmo assim o `local-server` volta a verificar (ver `readiness.ts`).
    */
   localServer?: boolean;
+  /**
+   * Servir também os OUTROS aparelhos da loja (telemóveis, tablets, 2.º posto)
+   * pela rede local.
+   *
+   * É isto que dá ao telemóvel o sistema COMPLETO sem internet: compras, stock,
+   * RH e tudo o resto passam a ser respondidos pelo servidor desta loja, em vez
+   * de dependerem da nuvem. Não é um modo "só leitura" nem uma cópia parcial —
+   * é a mesma API, na mesma sala.
+   *
+   * FALSO por omissão, e de propósito: instalar um programa não deve abrir
+   * portas na rede de ninguém. Quem partilha é o responsável, quando decide.
+   * Mesmo ligado, só a API é servida; a BASE DE DADOS continua presa a
+   * `127.0.0.1` — expor o PostgreSQL seria entregar a empresa inteira a quem
+   * soubesse a senha do Wi-Fi.
+   */
+  shareOnLan?: boolean;
 }
 
 /** API de produção. O instalador não pergunta nada ao lojista. */
@@ -36,6 +52,8 @@ const DEFAULTS: Settings = {
   apiUrl: process.env.NDOMBAXI_API_URL || DEFAULT_API,
   // Nunca ligado por omissão — ver o comentário em `Settings.localServer`.
   localServer: false,
+  // Instalar não abre portas na rede da loja — ver `Settings.shareOnLan`.
+  shareOnLan: false,
 };
 
 function file(): string {

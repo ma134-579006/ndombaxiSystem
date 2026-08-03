@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@nexus/offline-core": "workspace:*",
+    "@nexus/shop-link": "workspace:*",
     "@nexus/tokens": "workspace:*",
     "@nexus/update-core": "workspace:*",
     "@zxing/browser": "0.1.5",

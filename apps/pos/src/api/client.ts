@@ -1,4 +1,5 @@
 import { API_URL } from '../config';
+import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
 import type { PromoRow } from '../pos/promo';
 import type {
@@ -100,13 +101,24 @@ async function request<T>(
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 90_000);
   try {
-    res = await fetch(`${API_URL}${path}`, {
+    // SERVIDOR DA LOJA primeiro, se houver um configurado e a responder. É o
+    // que dá ao telemóvel o sistema INTEIRO sem internet: quem responde é a
+    // mesma API, a correr no computador do balcão. Sem loja configurada — ou
+    // com ela em silêncio — isto devolve exatamente a nuvem de sempre.
+    const base = baseParaPedido(API_URL);
+    const eraDaLoja = base !== API_URL;
+    res = await fetch(`${base}${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: ctrl.signal,
     });
+    // Respondeu (mesmo que com erro): o servidor da loja está vivo.
+    if (eraDaLoja) anotarSucessoDaLoja();
   } catch (e) {
+    // Silêncio do servidor da loja. Ao fim de algumas falhas seguidas o
+    // aparelho volta à nuvem sozinho — quem saiu da loja continua a trabalhar.
+    if (baseParaPedido(API_URL) !== API_URL) anotarFalhaDaLoja();
     if (isGet && (e as Error)?.name !== 'AbortError') {
       const cached = await sharedGet<T>(cacheKey);
       if (cached != null) return cached;
