@@ -148,27 +148,51 @@ export function isRunning(paths: PostgresPaths, port: number): boolean {
  * A partilha entre postos (LAN) é uma decisão à parte, com regra de firewall
  * própria — não um efeito colateral de instalar o programa.
  */
-export function start(paths: PostgresPaths, cfg: LocalDbConfig): void {
+export async function start(paths: PostgresPaths, cfg: LocalDbConfig): Promise<void> {
   if (isRunning(paths, cfg.port)) return;
   mkdirSync(paths.logDir, { recursive: true });
   const logFile = path.join(paths.logDir, 'postgres.log');
 
-  const r = spawnSync(
+  // `stdio: 'ignore'` NÃO é higiene — é o que impede a aplicação de bloquear
+  // para sempre no primeiro arranque.
+  //
+  // O `pg_ctl` lança o servidor e sai, mas o SERVIDOR fica com os canais de
+  // saída que herdou. Com os canais ligados a tubos, o `spawnSync` fica à
+  // espera do fim do tubo — e o fim só chega quando o servidor morrer, ou seja,
+  // nunca. Encontrado a correr isto pela primeira vez: o processo ficava preso
+  // indefinidamente com o PostgreSQL já a funcionar ao lado. Numa instalação
+  // real, seria a aplicação a nunca abrir.
+  //
+  // O que se perde (a saída do pg_ctl) não faz falta: o servidor escreve tudo
+  // em `logFile`, e é de lá que sai a mensagem de erro se algo correr mal.
+  spawnSync(
     tool(paths, 'pg_ctl'),
     [
       '-D', paths.dataDir,
       '-l', logFile,
       '-o', `-p ${cfg.port} -c listen_addresses=127.0.0.1`,
-      // Espera até estar a aceitar ligações — arrancar a API contra uma base que
-      // ainda não responde dava um erro de arranque intermitente e inexplicável.
       '-w', '-t', '60',
       'start',
     ],
-    { encoding: 'utf8' },
+    { stdio: 'ignore' },
   );
-  if (r.status !== 0 && !isRunning(paths, cfg.port)) {
-    throw new Error(`Não foi possível arrancar a base local: ${r.stderr || r.stdout}`);
+
+  // E confirmamos por nós que está mesmo a ACEITAR LIGAÇÕES.
+  //
+  // O `-w` do pg_ctl devia garantir isto, mas não garantiu: no primeiro
+  // arranque o passo seguinte falhou com «the database system is starting up».
+  // A recuperação do WAL depois de uma paragem suja pode demorar, e "o processo
+  // existe" não é o mesmo que "a base responde". Quem manda é a sonda.
+  const limite = Date.now() + 60_000;
+  while (Date.now() < limite) {
+    if (isRunning(paths, cfg.port)) return;
+    await new Promise((r) => setTimeout(r, 300));
   }
+  let detalhe = '';
+  try { detalhe = readFileSync(logFile, 'utf8').split('\n').slice(-5).join(' | '); } catch { /* sem log */ }
+  throw new Error(
+    `A base de dados local não ficou disponível a tempo (porta ${cfg.port}).${detalhe ? ` Último registo: ${detalhe}` : ''}`,
+  );
 }
 
 /** Pára o cluster em modo `fast` (faz checkpoint; não corrompe). */
@@ -224,7 +248,7 @@ export async function ensureLocalDatabase(paths: PostgresPaths): Promise<string>
     // A porta guardada pode ter sido ocupada por outro programa entretanto.
     const free = await findFreePort(cfg.port);
     if (free !== cfg.port) { cfg = { ...cfg, port: free }; writeConfig(paths, cfg); }
-    start(paths, cfg);
+    await start(paths, cfg);
   }
   ensureDatabase(paths, cfg);
   return connectionUrl(cfg);
