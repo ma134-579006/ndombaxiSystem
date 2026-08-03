@@ -8,6 +8,14 @@ import { initAutoUpdate } from './autoUpdate';
 import { initScrollReveal } from './scrollReveal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { mandatoryUpdate } from './update/mandatoryUpdate';
+import { isNativeApp } from './config';
+
+// APLICAÇÃO INSTALADA: marca-se o documento para o CSS poder distinguir a app
+// do site. Serve para o conteúdo OCUPAR O ECRÃ TODO quando a janela está
+// maximizada — no site mantém-se a largura de leitura confortável (ver
+// `.app-instalada` em theme.css). Feito antes de desenhar, para não haver um
+// instante com o layout do site dentro da app.
+if (isNativeApp()) document.documentElement.classList.add('app-instalada');
 
 initTheme();
 initAutoUpdate(); // recarrega sozinho quando há nova versão publicada
