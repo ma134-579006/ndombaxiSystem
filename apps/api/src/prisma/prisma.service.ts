@@ -5,6 +5,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 /** Identificador de schema válido: tenant_xxxxx (hex) ou nexus_public. */
 const SCHEMA_NAME_RE = /^(nexus_public|tenant_[a-z0-9]{8,})$/;
@@ -49,7 +50,13 @@ export class PrismaService
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
-    super({ datasources: { db: { url: withPoolLimits(process.env.DATABASE_URL) } } });
+    // A ligação passa a entrar por um ADAPTER, e não por um `url` no esquema
+    // (Prisma 7). Parece uma formalidade e não é: é o que permite a MESMA API
+    // correr sobre o PostgreSQL da nuvem, sobre o PostgreSQL portátil de um
+    // posto Windows e — é este o objetivo — sobre o PGlite dentro de um
+    // telemóvel, onde não existe motor nativo do Prisma. Trocar de motor deixa
+    // de ser uma reescrita e passa a ser trocar esta linha.
+    super({ adapter: new PrismaPg({ connectionString: withPoolLimits(process.env.DATABASE_URL) }) });
   }
 
   async onModuleInit(): Promise<void> {

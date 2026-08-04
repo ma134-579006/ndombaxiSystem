@@ -10,9 +10,12 @@ generator client {
   previewFeatures = ["multiSchema"]
 }
 
+// O `url` deixou de viver aqui (Prisma 7). A ligação passa a ser dada por um
+// ADAPTER ao construir o cliente — e é exatamente isso que torna possível o
+// mesmo código correr sobre o PostgreSQL do servidor E sobre o PGlite dentro de
+// um telemóvel. Para as migrações, o endereço está em `prisma.config.ts`.
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
   schemas  = ["nexus_public"]
 }
 
