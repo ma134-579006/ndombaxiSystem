@@ -1,0 +1,23 @@
+{
+  "name": "@nexus/prisma-adapter-pglite",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Driver adapter do Prisma 7 para o PGlite EM PROCESSO — o que permite a MESMA API correr dentro do telemóvel.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/driver-adapter-utils": "^7.9.1"
+  },
+  "peerDependencies": {
+    "@electric-sql/pglite": ">=0.5.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
+    "@types/node": "^20.14.0",
+    "typescript": "^5.6.2"
+  }
+}
