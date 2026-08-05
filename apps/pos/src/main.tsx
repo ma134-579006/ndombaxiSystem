@@ -7,12 +7,15 @@ import { initTheme } from './theme';
 import { initPaper } from './print';
 import { initAutoUpdate } from './autoUpdate';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { isSaleInProgress } from './pos/saleActivity';
 
 initTheme();
 initPaper();
-// Auto-atualização: só recarrega quando NÃO há venda em curso (carrinho vazio)
-// para nunca perder uma venda a meio.
-initAutoUpdate({ canReload: () => document.querySelectorAll('.cart-line').length === 0 });
+// Auto-atualização: só recarrega quando NÃO há venda em curso, para nunca perder
+// uma venda a meio. O sinal vem do ESTADO do carrinho (bandeira escrita pelo
+// ecrã de vendas) e não do DOM: contar `.cart-line` amarrava a regra a uma
+// classe de estilo reutilizável noutras listas.
+initAutoUpdate({ canReload: () => !isSaleInProgress() });
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Elemento #root não encontrado');
