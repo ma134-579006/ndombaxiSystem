@@ -21,6 +21,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @nexus/types build \
  && pnpm --filter @nexus/agt-xml build \
  && pnpm --filter @nexus/replication build \
+ && pnpm --filter @nexus/prisma-adapter-pglite build \
  && pnpm --filter @nexus/api exec prisma generate \
  && pnpm --filter @nexus/api build
 

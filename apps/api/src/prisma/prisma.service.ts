@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaPGlite } from '@nexus/prisma-adapter-pglite';
 
 /** Identificador de schema válido: tenant_xxxxx (hex) ou nexus_public. */
 const SCHEMA_NAME_RE = /^(nexus_public|tenant_[a-z0-9]{8,})$/;
@@ -42,6 +43,42 @@ function withPoolLimits(url: string | undefined): string | undefined {
   }
 }
 
+/** A API corre EMBUTIDA (base dentro do próprio aparelho)? */
+export function isEmbeddedEngine(): boolean {
+  return (process.env.DATABASE_ENGINE ?? '').toLowerCase() === 'pglite';
+}
+
+/**
+ * Escolhe o motor. É UMA decisão, tomada por quem arranca a aplicação.
+ *
+ * • por omissão → PostgreSQL por TCP (nuvem e posto Windows). **Nada muda.**
+ * • `DATABASE_ENGINE=pglite` → a base vive DENTRO do processo, sem servidor e
+ *   sem porta aberta. É o modo do telemóvel.
+ *
+ * O PGlite é carregado só quando é pedido: assim a imagem da nuvem não leva o
+ * WASM do PostgreSQL (mais de 100 MB) para nada.
+ */
+function criarAdapter(logger: Logger): PrismaPg | PrismaPGlite {
+  if (!isEmbeddedEngine()) {
+    return new PrismaPg({ connectionString: withPoolLimits(process.env.DATABASE_URL) });
+  }
+
+  const dataDir = process.env.PGLITE_DATA_DIR;
+  if (!dataDir) {
+    // Sem pasta, o PGlite guarda tudo em memória — e ao fechar a app as vendas
+    // do dia desapareciam. Antes falhar aqui, à vista, do que perder o dia.
+    throw new Error('DATABASE_ENGINE=pglite exige PGLITE_DATA_DIR (a pasta onde a base fica gravada).');
+  }
+
+  // `require` e não `import`: o pacote do PGlite só tem de existir no aparelho.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { PGlite } = require('@electric-sql/pglite') as {
+    PGlite: { create(opts: { dataDir: string }): Promise<unknown> };
+  };
+  logger.log(`Motor EMBUTIDO (PGlite) — base em ${dataDir}, sem servidor e sem porta aberta`);
+  return new PrismaPGlite(() => PGlite.create({ dataDir }) as never, { schema: 'nexus_public' });
+}
+
 @Injectable()
 export class PrismaService
   extends PrismaClient
@@ -56,12 +93,16 @@ export class PrismaService
     // posto Windows e — é este o objetivo — sobre o PGlite dentro de um
     // telemóvel, onde não existe motor nativo do Prisma. Trocar de motor deixa
     // de ser uma reescrita e passa a ser trocar esta linha.
-    super({ adapter: new PrismaPg({ connectionString: withPoolLimits(process.env.DATABASE_URL) }) });
+    super({ adapter: criarAdapter(new Logger(PrismaService.name)) });
   }
 
   async onModuleInit(): Promise<void> {
     await this.$connect();
-    this.logger.log('Prisma connected to PostgreSQL (pool contido: máx. 5 ligações)');
+    this.logger.log(
+      isEmbeddedEngine()
+        ? 'Prisma ligado ao PGlite EM PROCESSO (sessão única — operações seriadas)'
+        : 'Prisma connected to PostgreSQL (pool contido: máx. 5 ligações)',
+    );
   }
 
   async onModuleDestroy(): Promise<void> {

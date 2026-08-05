@@ -20,7 +20,8 @@
     "prisma:studio": "prisma studio",
     "prova:pglite": "node scripts/prova-pglite-schema.mjs && node scripts/prova-pglite-fiscal.mjs && node scripts/prova-pglite-socket.mjs",
     "prova:prisma7": "node scripts/prova-prisma7-postgres.mjs",
-    "prova:prisma-pglite": "node scripts/prova-prisma-pglite.mjs"
+    "prova:prisma-pglite": "node scripts/prova-prisma-pglite.mjs",
+    "prova:api-embutida": "node scripts/prova-api-embutida.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -37,6 +38,7 @@
     "@nestjs/throttler": "^6.2.1",
     "@nestjs/websockets": "^10.4.4",
     "@nexus/agt-xml": "workspace:*",
+    "@nexus/prisma-adapter-pglite": "workspace:*",
     "@nexus/replication": "workspace:*",
     "@nexus/types": "workspace:*",
     "@prisma/adapter-pg": "^7.9.1",
@@ -68,7 +70,6 @@
     "@nestjs/cli": "^10.4.5",
     "@nestjs/schematics": "^10.1.4",
     "@nestjs/testing": "^10.4.4",
-    "@nexus/prisma-adapter-pglite": "workspace:*",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.13",
     "@types/node": "^20.16.10",

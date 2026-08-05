@@ -15,7 +15,20 @@ export const envSchema = z.object({
     .default('http://localhost:3000')
     .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean)),
 
-  DATABASE_URL: z.string().url().or(z.string().startsWith('postgresql://')),
+  // Motor da base: por omissão PostgreSQL por TCP (nuvem e posto Windows);
+  // `pglite` corre a base DENTRO do processo (o modo do telemóvel).
+  DATABASE_ENGINE: z.enum(['postgres', 'pglite']).default('postgres'),
+  PGLITE_DATA_DIR: z.string().optional(),
+
+  // Num aparelho não há endereço nenhum para onde ligar — por isso o URL só é
+  // exigido quando o motor é o PostgreSQL. Continua OBRIGATÓRIO aí: uma API da
+  // nuvem a arrancar sem base seria pior do que não arrancar.
+  // A variável VAZIA vale por ausente: é o que um aparelho tem, e é também o
+  // que sobra quando alguém apaga o valor num painel de configuração.
+  DATABASE_URL: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.string().url().or(z.string().startsWith('postgresql://')).optional(),
+  ),
 
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
@@ -58,7 +71,27 @@ export const envSchema = z.object({
   GOOGLE_CLIENT_ID: z
     .string()
     .default('522636462932-m67fvuutei11ug355aion1sh00h1k2br.apps.googleusercontent.com'),
-});
+})
+  // Cada motor tem a SUA exigência, e nenhuma delas pode ficar por verificar:
+  // sem endereço, a API da nuvem arrancava sem base; sem pasta, o PGlite
+  // guardava tudo em memória e as vendas do dia morriam ao fechar a app.
+  .superRefine((env, ctx) => {
+    if (env.DATABASE_ENGINE === 'pglite') {
+      if (!env.PGLITE_DATA_DIR) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['PGLITE_DATA_DIR'],
+          message: 'obrigatório quando DATABASE_ENGINE=pglite (pasta onde a base fica gravada)',
+        });
+      }
+    } else if (!env.DATABASE_URL) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['DATABASE_URL'],
+        message: 'obrigatório quando DATABASE_ENGINE=postgres',
+      });
+    }
+  });
 
 export type Env = z.infer<typeof envSchema>;
 
