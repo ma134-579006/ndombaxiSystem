@@ -76,11 +76,17 @@ input { font-family: inherit; }
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   border: 1px solid transparent; border-radius: var(--radius);
   padding: 0 18px; height: 52px; font-size: 15px; font-weight: 700;
-  color: #fff; background: var(--grad-primary); box-shadow: 0 8px 20px -10px var(--primary);
-  transition: filter .15s, transform .05s, box-shadow .15s, opacity .15s;
+  /* Cor SÓLIDA, não gradiente, e sem sombra colorida.
+     O gradiente + halo era a assinatura visual de 2015; um ERP a par do
+     Linear, do Stripe ou do Dynamics usa tinta chapada e responde no hover.
+     A cor vem do acento do Design System, por isso o botão da Caixa, o do
+     Gestor e o da Loja passam a ser exatamente o mesmo botão. */
+  color: var(--nx-c-text-on-accent, #fff); background: var(--nx-c-accent, var(--primary));
+  transition: background-color var(--nx-dur-micro, .12s) var(--nx-ease-out, ease),
+              transform var(--nx-dur-micro, .12s) var(--nx-ease-out, ease), opacity .15s;
   user-select: none; white-space: nowrap;
 }
-.btn:hover { filter: brightness(1.07); box-shadow: 0 12px 26px -10px var(--primary); }
+.btn:hover { background: var(--nx-c-accent-hover, var(--primary-700)); }
 .btn:active { transform: translateY(1px); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn.success { background: var(--success); }
