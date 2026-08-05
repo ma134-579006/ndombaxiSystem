@@ -301,6 +301,21 @@ function moduleUrl(id: ModuleId): string {
   return `${SCHEME}://${MODULE_HOSTS[id]}/index.html`;
 }
 
+/**
+ * Liga/desliga o modo quiosque e grava a escolha.
+ *
+ * Ao SAIR, desmaximiza-se: em quiosque o Windows considera a janela
+ * maximizada, e sem isto ela ficava do tamanho do ecrã mas já com barra de
+ * título — a tapar a barra de tarefas na mesma, que é exatamente o que sair
+ * do quiosque devia desfazer.
+ */
+function setKiosk(win: BrowserWindow, on: boolean): void {
+  if (win.isDestroyed()) return;
+  win.setKiosk(on);
+  if (!on && win.isMaximized()) win.unmaximize();
+  writeSettings({ kiosk: on });
+}
+
 function createWindow(): BrowserWindow {
   const settings = readSettings();
   const bounds = settings.window;
@@ -345,6 +360,19 @@ function createWindow(): BrowserWindow {
     // Menu escondido — a navegação faz-se pelo LANÇADOR (1.º ecrã) e pela seta
     // de voltar dentro de cada módulo. Interface limpa, sem barra de menus.
     autoHideMenuBar: true,
+    /**
+     * MODO QUIOSQUE — o ecrã é todo do Ndombaxi.
+     *
+     * `kiosk` (não `fullscreen`) é o que TAPA a barra de tarefas, o botão
+     * Iniciar e a área de notificações no Windows: o `fullscreen` normal
+     * ainda deixa a barra de tarefas aparecer quando o rato chega ao fundo,
+     * o que num balcão é meio caminho para alguém sair do sistema sem querer.
+     * Também dispensa `frame: false` — em quiosque não há barra de título nem
+     * bordas, e continua a ser uma janela normal quando se sai.
+     *
+     * Ligado por omissão; a escolha do posto fica gravada. Sai-se com F11.
+     */
+    kiosk: settings.kiosk !== false,
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
@@ -381,6 +409,10 @@ function createWindow(): BrowserWindow {
 
   const persistBounds = () => {
     if (win.isDestroyed()) return;
+    // Em quiosque a janela tem a medida do ecrã inteiro: gravá-la faria o posto
+    // reabrir com uma "janela normal" do tamanho do ecrã ao sair do quiosque.
+    // Enquanto está em quiosque mantém-se a última medida real.
+    if (win.isKiosk()) return;
     const b = win.getNormalBounds();
     writeSettings({
       window: { x: b.x, y: b.y, width: b.width, height: b.height, maximized: win.isMaximized() },
@@ -389,6 +421,37 @@ function createWindow(): BrowserWindow {
   win.on('resized', persistBounds);
   win.on('moved', persistBounds);
   win.on('close', persistBounds);
+
+  /**
+   * Maximizar entra em quiosque.
+   *
+   * Era o pedido: com a janela maximizada nada do Windows deve aparecer. Quem
+   * maximiza quer o ecrã todo — e num PDV "o ecrã todo" quer dizer sem barra
+   * de tarefas por baixo do total a pagar.
+   */
+  win.on('maximize', () => {
+    if (!win.isKiosk()) setKiosk(win, true);
+  });
+
+  /**
+   * F11 entra e sai do quiosque.
+   *
+   * Tem de haver SEMPRE uma saída conhecida: um posto que ocupa o ecrã todo
+   * sem forma de sair é uma máquina bloqueada, não um produto. F11 é a tecla
+   * que toda a gente já usa para ecrã inteiro. Ao sair, o Windows volta ao
+   * normal — barra de tarefas, Iniciar e notificações incluídos.
+   */
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown' || input.key !== 'F11') return;
+    event.preventDefault();
+    setKiosk(win, !win.isKiosk());
+  });
+
+  // Fechar devolve o Windows ao normal antes de a janela desaparecer. Sem isto,
+  // um encerramento a meio pode deixar a barra de tarefas escondida.
+  win.on('close', () => {
+    if (!win.isDestroyed() && win.isKiosk()) win.setKiosk(false);
+  });
 
   // O LANÇADOR é sempre o primeiro ecrã (escolher Gestão ou Caixa). De dentro de
   // cada módulo, a seta de voltar (injetada pelo preload) regressa aqui.

@@ -42,6 +42,17 @@ export interface Settings {
    * soubesse a senha do Wi-Fi.
    */
   shareOnLan?: boolean;
+  /**
+   * MODO QUIOSQUE — o posto ocupa o ecrã inteiro e o Windows desaparece:
+   * sem barra de título, sem bordas, sem barra de tarefas, sem botão Iniciar,
+   * sem área de notificações. É o comportamento de um PDV profissional: quem
+   * está ao balcão vê o sistema, não o ambiente de trabalho.
+   *
+   * LIGADO por omissão (é um posto de venda, não um computador de escritório).
+   * Sai-se com **F11**, e sair devolve o Windows ao normal — tal como fechar a
+   * aplicação. A escolha fica gravada, para o posto reabrir como ficou.
+   */
+  kiosk?: boolean;
 }
 
 /** API de produção. O instalador não pergunta nada ao lojista. */
@@ -54,6 +65,8 @@ const DEFAULTS: Settings = {
   localServer: false,
   // Instalar não abre portas na rede da loja — ver `Settings.shareOnLan`.
   shareOnLan: false,
+  // Ecrã inteiro, sem Windows à vista — ver `Settings.kiosk`.
+  kiosk: true,
 };
 
 function file(): string {
