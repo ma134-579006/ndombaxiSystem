@@ -27,6 +27,19 @@ extraResources:
   - from: resources/modules
     to: modules
 
+  # O SERVIDOR LOCAL: PostgreSQL portátil + a API compilada. É o que permite ao
+  # posto trabalhar sem internet em vez de depender da nuvem.
+  #
+  # ⚠️ Só podem ir aqui porque a barreira do `readiness.ts` já está em produção:
+  # a base local só serve a aplicação depois de ligada de propósito E
+  # provisionada. Sem essa barreira, bastava incluir estes ficheiros para cada
+  # posto passar a falar com uma base VAZIA — o lojista abria a app e não
+  # encontrava a empresa, nem os produtos, nem as vendas.
+  - from: resources/pgsql
+    to: pgsql
+  - from: resources/api
+    to: api
+
 # O better-sqlite3 já vem compilado para o ABI do Electron 33 (ver 13-Scripts,
 # `prebuild-install --runtime=electron`). Deixamos o electron-builder tentar
 # reconstruí-lo aqui traria dois problemas: percorre TODO o workspace pnpm e

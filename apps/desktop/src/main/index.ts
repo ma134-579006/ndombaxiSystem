@@ -12,14 +12,17 @@
  *   • instância única                → dois postos a escrever no mesmo SQLite dava
  *                                     corrupção; a 2.ª execução foca a 1.ª janela.
  */
-import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, dialog, screen } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { registerScheme, serveModules, SCHEME } from './protocol';
 import { openDatabase, closeDatabase, query, exec, batch, backupTo } from './database';
 import { deviceSecret } from './secure-store';
 import { readSettings, writeSettings, type ModuleId } from './settings';
-import { checkForUpdates, openDownloadPage, scheduleUpdateCheck } from './updater';
+import {
+  checkForUpdates, lastDecision, openDownloadPage, quitAfterUpdatePrompt, scheduleUpdateCheck,
+} from './updater';
+import { signInWithGoogle } from './google-auth';
 import { buildMenu } from './menu';
 
 registerScheme(); // obrigatoriamente antes de `whenReady`
@@ -44,6 +47,8 @@ let mainWindow: BrowserWindow | null = null;
  * tirar ao lojista o que ele já tinha.
  */
 let localApiUrl: string | null = null;
+/** Endereço deste posto na rede da loja — é o que os telemóveis usam. */
+let localLanUrl: string | null = null;
 let localServer: import('@nexus/local-server').LocalServer | null = null;
 
 /** Arranca o servidor local, se estiver disponível. Nunca impede a app de abrir. */
@@ -72,10 +77,19 @@ async function startLocalServer(): Promise<void> {
       logLocal(`servidor local não usado (${blocked}) — a usar a nuvem`);
       return;
     }
-    localServer = new LocalServer({ paths, apiDir: paths.apiDir, log: logLocal });
+    localServer = new LocalServer({
+      paths,
+      apiDir: paths.apiDir,
+      log: logLocal,
+      // Partilhar com os outros aparelhos da loja, se o responsável o pediu.
+      // Só a API sai para a rede; a base continua presa a 127.0.0.1.
+      lan: readSettings().shareOnLan === true,
+    });
     const info = await localServer.start();
     localApiUrl = info.apiUrl;
+    localLanUrl = info.lanUrl;
     logLocal(`servidor local pronto em ${info.apiUrl}`);
+    if (info.lanUrl) logLocal(`a servir a loja em ${info.lanUrl}`);
   } catch (e) {
     localServer = null;
     localApiUrl = null;
@@ -291,12 +305,37 @@ function createWindow(): BrowserWindow {
   const settings = readSettings();
   const bounds = settings.window;
 
+  /**
+   * Área utilizável do ecrã onde a janela vai nascer (o ecrã menos a barra de
+   * tarefas). Se houver posição gravada, é o ecrã DESSA posição — senão, num
+   * computador com dois monitores a janela reabria com as medidas do outro.
+   */
+  const ecra = bounds?.x !== undefined
+    ? screen.getDisplayMatching({
+      x: bounds.x, y: bounds.y ?? 0, width: bounds.width ?? 1440, height: bounds.height ?? 900,
+    })
+    : screen.getPrimaryDisplay();
+  const area = ecra.workArea;
+
+  /**
+   * Os mínimos NUNCA podem ser maiores do que o ecrã.
+   *
+   * Era isto que impedia a janela de cobrir o ecrã inteiro: num portátil de
+   * 1366×768 com o Windows a 150%, o ecrã em pontos lógicos fica com ~911×512 —
+   * menos do que os 1024×640 exigidos. O Windows não consegue encolher a janela
+   * até à área de trabalho, e ela fica MAIOR do que o ecrã, com parte de fora e
+   * sem nunca assentar ao maximizar. Descendo os mínimos até ao que o ecrã dá,
+   * o maximizado passa a assentar certo em qualquer resolução.
+   */
+  const minWidth = Math.min(1024, area.width);
+  const minHeight = Math.min(640, area.height);
+
   const win = new BrowserWindow({
-    width: bounds?.width ?? 1440,
-    height: bounds?.height ?? 900,
+    width: Math.min(bounds?.width ?? 1440, area.width),
+    height: Math.min(bounds?.height ?? 900, area.height),
     ...(bounds?.x !== undefined ? { x: bounds.x, y: bounds.y } : {}),
-    minWidth: 1024,
-    minHeight: 640,
+    minWidth,
+    minHeight,
     // A janela só aparece quando tiver conteúdo — evita o retângulo branco a
     // piscar que faz uma aplicação parecer amadora.
     show: false,
@@ -316,8 +355,14 @@ function createWindow(): BrowserWindow {
     },
   });
 
-  if (bounds?.maximized) win.maximize();
-  win.once('ready-to-show', () => win.show());
+  // Maximizar SÓ quando a janela já tem conteúdo. Com `show: false`, um
+  // `maximize()` feito ainda antes disto é desfeito pelo `show()` em várias
+  // configurações do Windows — a janela abria no tamanho normal e o utilizador
+  // tinha de maximizar à mão de cada vez.
+  win.once('ready-to-show', () => {
+    if (bounds?.maximized) win.maximize();
+    win.show();
+  });
 
   // Uma ligação externa (um site de banco, uma ajuda) abre no NAVEGADOR, nunca
   // dentro da app — dentro da app teria o nosso `preload` ao alcance.
@@ -425,10 +470,82 @@ function registerIpc(): void {
     }
   });
 
+  /**
+   * Entrar com Google — acontece no NAVEGADOR do sistema, nunca dentro da
+   * janela (o Google recusa o seu login em WebViews). Devolve o `id_token`, que
+   * segue o mesmo caminho do botão do site.
+   */
+  ipcMain.handle('ndombaxi:google-signin', async () => {
+    try {
+      return { idToken: await signInWithGoogle() };
+    } catch (e) {
+      return { idToken: null, error: e instanceof Error ? e.message : 'Falhou a entrada com Google.' };
+    }
+  });
+
+  /**
+   * Estado do SERVIDOR DESTA LOJA, para o Gestor o poder mostrar.
+   *
+   * Devolve factos, não conselhos: se os ficheiros vieram na instalação, se a
+   * empresa já foi copiada para cá, se está a servir, e em que endereço os
+   * outros aparelhos o encontram. Quem explica ao utilizador é a interface.
+   */
+  ipcMain.handle('ndombaxi:local-status', async () => {
+    try {
+      const ls = await import('@nexus/local-server');
+      const paths = ls.layout({
+        userDataDir: app.getPath('userData'),
+        resourcesDir: app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', '..', 'resources'),
+      });
+      const s = readSettings();
+      const readiness = ls.readReadiness(paths);
+      return {
+        binaries: ls.binariesPresent(paths),
+        provisioned: readiness.provisioned === true,
+        companyCode: readiness.companyCode ?? null,
+        running: localApiUrl != null,
+        apiUrl: localApiUrl,
+        sharing: s.shareOnLan === true,
+        lanUrl: localLanUrl,
+        blocked: ls.blockedReason(paths, { enabled: s.localServer === true }),
+      };
+    } catch (e) {
+      return { binaries: false, provisioned: false, running: false, error: (e as Error).message };
+    }
+  });
+
+  /**
+   * Ligar/desligar a partilha com os outros aparelhos da loja.
+   *
+   * A mudança só produz efeito no arranque seguinte, e isso é dito a quem
+   * clica: reiniciar o servidor por baixo de quem está a cobrar seria cortar
+   * uma venda a meio para mudar uma definição.
+   */
+  ipcMain.handle('ndombaxi:local-share', (_e, ligar: boolean) => {
+    writeSettings({ shareOnLan: ligar === true });
+    logLocal(`partilha na loja ${ligar ? 'LIGADA' : 'desligada'} (aplica-se ao reabrir)`);
+    return { sharing: ligar === true, needsRestart: true };
+  });
+
   ipcMain.handle('ndombaxi:update-check', () => checkForUpdates());
+
+  /**
+   * "Atualizar Agora": abre a página oficial e ENCERRA a aplicação.
+   *
+   * Repare-se no que NÃO se faz aqui: não se pergunta ao servidor outra vez, e
+   * não se aceita um endereço vindo do frontend. Perguntar outra vez deixava o
+   * botão morto se a rede tivesse caído entretanto — e o utilizador preso num
+   * ecrã sem saída. Aceitar o endereço do frontend transformava uma falha na
+   * interface numa forma de abrir o que se quisesse na máquina do cliente.
+   *
+   * Usa-se o que a última verificação trouxe e, na falta dele, a página oficial.
+   */
   ipcMain.handle('ndombaxi:update-open', async () => {
-    const verdict = await checkForUpdates();
-    if (verdict.info) await openDownloadPage(verdict.info);
+    const aberto = await openDownloadPage(lastDecision()?.release?.downloadPageUrl);
+    // Não se encerra se a página não chegou a abrir: encerrar aí deixava o
+    // lojista sem aplicação E sem saber onde ir buscar a nova.
+    if (aberto) quitAfterUpdatePrompt();
+    return { opened: aberto };
   });
 }
 

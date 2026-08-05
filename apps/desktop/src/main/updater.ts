@@ -1,5 +1,10 @@
 /**
- * Verificação de atualizações.
+ * Verificação de atualizações — lado do processo principal.
+ *
+ * A decisão de trancar ou não **não está aqui**: está em `@nexus/update-core`,
+ * partilhada com o Gestor, a Caixa e o Android. Se cada um decidisse à sua
+ * maneira, mais cedo ou mais tarde um deles trancava alguém que os outros
+ * deixavam trabalhar.
  *
  * Regras vindas do desenho do produto, e a razão de cada uma:
  *   • Corre em segundo plano ao arrancar e NUNCA atrasa a abertura da app. Quem
@@ -12,98 +17,93 @@
  *     assinatura para ele confirmar que o ficheiro não foi trocado no caminho.
  */
 import { app, BrowserWindow, shell } from 'electron';
+import { decideUpdate, isSafeDownloadPage, type UpdateDecision } from '@nexus/update-core';
 import { readSettings } from './settings';
 
-export interface UpdateInfo {
-  version: string;
-  /** Abaixo desta versão, a app fica bloqueada até atualizar. */
-  minSupportedVersion?: string;
-  releasedAt?: string;
-  notes?: string[];
-  fixes?: string[];
-  /** Página OFICIAL de downloads — nunca o link direto do armazenamento. */
-  downloadPageUrl: string;
-  mandatory?: boolean;
+/**
+ * Página oficial de downloads, usada só como ÚLTIMO recurso.
+ *
+ * O botão "Atualizar Agora" nunca pode ficar morto: se a rede caiu entre o
+ * momento em que se decidiu trancar e o clique do utilizador, ele ficaria preso
+ * num ecrã sem saída. É o nosso próprio site, e a mesma página para onde a
+ * publicação normal aponta.
+ */
+const PAGINA_OFICIAL = 'https://ndombaxisystem.com/baixar';
+
+/** Última decisão conhecida — para o clique não depender de haver rede. */
+let ultimaDecisao: UpdateDecision | null = null;
+
+export function lastDecision(): UpdateDecision | null {
+  return ultimaDecisao;
 }
 
-export interface UpdateVerdict {
-  available: boolean;
-  mandatory: boolean;
-  current: string;
-  info?: UpdateInfo;
-}
+/** Pergunta ao servidor oficial. Devolve sempre — nunca lança. */
+export async function checkForUpdates(): Promise<UpdateDecision> {
+  const current = app.getVersion();
+  const { apiUrl } = readSettings();
 
-/** Compara versões semânticas. `-1` se a < b. */
-export function compareVersions(a: string, b: string): number {
-  const pa = a.split('.').map((n) => parseInt(n, 10) || 0);
-  const pb = b.split('.').map((n) => parseInt(n, 10) || 0);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
-    if (d !== 0) return d < 0 ? -1 : 1;
+  let raw: unknown = null;
+  if (apiUrl) {
+    try {
+      const ctrl = new AbortController();
+      // Curto de propósito: isto corre em segundo plano e não interessa a
+      // ninguém esperar 30 s por uma verificação.
+      const timer = setTimeout(() => ctrl.abort(), 10_000);
+      try {
+        const res = await fetch(`${apiUrl}/downloads/latest?platform=windows`, {
+          signal: ctrl.signal,
+          headers: { Accept: 'application/json' },
+        });
+        if (res.ok) raw = await res.json();
+      } finally {
+        clearTimeout(timer);
+      }
+    } catch {
+      // Sem rede, DNS em baixo, servidor a dormir: a app segue o seu caminho.
+      raw = null;
+    }
   }
-  return 0;
+
+  const decision = decideUpdate(current, raw, { platform: 'windows' });
+  // Só se guarda uma decisão COM conteúdo: uma verificação falhada (offline) não
+  // pode apagar o que já se sabia — senão o botão ficava sem destino.
+  if (decision.release) ultimaDecisao = decision;
+  return decision;
 }
 
 /**
- * Pergunta ao servidor se há versão nova. Devolve sempre — nunca lança.
+ * Abre a página OFICIAL de downloads no navegador do sistema e diz se
+ * conseguiu. Só `https` — sem isto, um servidor comprometido podia devolver um
+ * `file://` e transformar a atualização num vetor de execução na máquina do
+ * cliente.
  */
-export async function checkForUpdates(): Promise<UpdateVerdict> {
-  const current = app.getVersion();
-  const verdict: UpdateVerdict = { available: false, mandatory: false, current };
-
-  const { apiUrl } = readSettings();
-  if (!apiUrl) return verdict;
-
+export async function openDownloadPage(url?: string | null): Promise<boolean> {
+  const alvo = isSafeDownloadPage(url) ? url : PAGINA_OFICIAL;
   try {
-    const ctrl = new AbortController();
-    // Curto de propósito: isto corre em segundo plano e não interessa a ninguém
-    // esperar 30 s por uma verificação opcional.
-    const timer = setTimeout(() => ctrl.abort(), 10_000);
-    let res: Response;
-    try {
-      res = await fetch(`${apiUrl}/downloads/latest?platform=windows`, {
-        signal: ctrl.signal,
-        headers: { Accept: 'application/json' },
-      });
-    } finally {
-      clearTimeout(timer);
-    }
-    if (!res.ok) return verdict;
-
-    const info = (await res.json()) as UpdateInfo;
-    if (!info?.version) return verdict;
-
-    verdict.info = info;
-    verdict.available = compareVersions(current, info.version) < 0;
-    // Obrigatória por indicação explícita OU por a versão instalada ter caído
-    // abaixo do mínimo suportado (ex.: mudança fiscal que torna a antiga ilegal).
-    verdict.mandatory = Boolean(
-      info.mandatory ||
-      (info.minSupportedVersion && compareVersions(current, info.minSupportedVersion) < 0),
-    );
-    return verdict;
+    await shell.openExternal(alvo);
+    return true;
   } catch {
-    // Sem rede, DNS em baixo, servidor a dormir: a app segue o seu caminho.
-    return verdict;
+    return false;
   }
 }
 
-/** Abre a página oficial de downloads no navegador do sistema. */
-export async function openDownloadPage(info: UpdateInfo): Promise<void> {
-  const url = info.downloadPageUrl;
-  // Só abrimos http(s). Sem isto, um servidor comprometido podia devolver um
-  // `file://` ou um esquema de aplicação e transformar a atualização num vetor
-  // de execução na máquina do cliente.
-  if (!/^https?:\/\//i.test(url)) return;
-  await shell.openExternal(url);
+/**
+ * Encerra a aplicação em segurança depois de encaminhar para o download.
+ *
+ * O atraso não é decoração: dá tempo ao navegador para abrir antes de a janela
+ * desaparecer. Fechar no mesmo instante deixava o utilizador a olhar para o
+ * ambiente de trabalho sem perceber se alguma coisa aconteceu.
+ */
+export function quitAfterUpdatePrompt(): void {
+  setTimeout(() => { app.quit(); }, 1500);
 }
 
 /** Verifica em segundo plano e avisa a janela quando houver novidade. */
 export function scheduleUpdateCheck(win: BrowserWindow): void {
   const run = async () => {
-    const verdict = await checkForUpdates();
-    if (verdict.available && !win.isDestroyed()) {
-      win.webContents.send('ndombaxi:update-available', verdict);
+    const decision = await checkForUpdates();
+    if (decision.state !== 'none' && !win.isDestroyed()) {
+      win.webContents.send('ndombaxi:update-available', decision);
     }
   };
   // 5 s depois de abrir — a app já está a ser usada, ninguém repara.

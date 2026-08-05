@@ -8,6 +8,18 @@ import { IconCheck } from './Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { PaperSizeToggle } from './PaperSizeToggle';
 import { buildShiftClosePdf, shiftFileName } from '../pdf/shiftPdf';
+import { abrirTurnoOffline, fecharTurnoOffline } from '../offline/shifts';
+
+/**
+ * Falhou por não haver SERVIDOR do outro lado? `status 0` é o pedido que nem
+ * saiu; 408/502/503/504 são o intermediário a dizer que a API não respondeu.
+ * Em nenhum destes casos o servidor recusou o turno — e é por isso que nestes,
+ * e só nestes, se abre/fecha o turno aqui no aparelho.
+ */
+function isNetworkFailure(e: unknown): boolean {
+  return e instanceof ApiError
+    && (e.status === 0 || e.status === 408 || (e.status >= 502 && e.status <= 504));
+}
 
 interface Props {
   session: CashSession | null;
@@ -94,6 +106,14 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
       await api.openSession(float);
       onOpened();
     } catch (e) {
+      // SEM REDE o turno abre à mesma, aqui no aparelho, e sobe quando a ligação
+      // voltar. Sem isto, uma loja sem internet não conseguia sequer começar o
+      // dia — e depois as vendas subiam sem turno, sem caírem na gaveta.
+      if (isNetworkFailure(e)) {
+        await abrirTurnoOffline({ openingFloat: float });
+        onOpened();
+        return;
+      }
       setError(e instanceof ApiError ? e.message : 'Não foi possível abrir o turno.');
     } finally {
       setBusy(false);
@@ -115,6 +135,15 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
       const res = await api.closeSession(Number(counted) || 0, notes.trim() || undefined);
       setCloseResult(res);
     } catch (e) {
+      // SEM REDE fecha-se na mesma: fica declarado o que foi CONTADO na gaveta e
+      // sobe depois das vendas. Quem apura o esperado é o servidor — recalcular
+      // aqui seria ter duas contabilidades a discordar uma da outra.
+      if (isNetworkFailure(e)) {
+        const t = await fecharTurnoOffline({
+          countedCash: Number(counted) || 0, notes: notes.trim() || undefined,
+        });
+        if (t) { onClosed(); return; }
+      }
       setError(e instanceof ApiError ? e.message : 'Não foi possível fechar o turno.');
     } finally {
       setBusy(false);

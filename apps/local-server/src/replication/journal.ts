@@ -52,17 +52,26 @@ export function journalDdl(schema: string): string[] {
        op          CHAR(1)     NOT NULL,
        changed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
        device_id   TEXT,
+       user_id     TEXT,
        synced_at   TIMESTAMPTZ
      )`,
+    // Postos que já tinham o diário criado por uma versão anterior não recebem
+    // colunas novas pelo `CREATE TABLE IF NOT EXISTS`. Sem este ALTER, a função
+    // do gatilho passava a inserir numa coluna inexistente e **toda a gravação
+    // na base local falhava** — incluindo vendas.
+    `ALTER TABLE ${j} ADD COLUMN IF NOT EXISTS user_id TEXT`,
     // Índice PARCIAL: as linhas já sincronizadas são a esmagadora maioria e não
     // interessam à consulta que corre a toda a hora ("o que falta subir?").
     `CREATE INDEX IF NOT EXISTS sync_journal_pending_idx
        ON ${j}(seq) WHERE synced_at IS NULL`,
     `CREATE INDEX IF NOT EXISTS sync_journal_row_idx ON ${j}(table_name, row_id)`,
-    // A função lê o posto de `nexus.device_id` (definido pela ligação). O
-    // segundo argumento `true` do current_setting devolve NULL em vez de
-    // rebentar quando a definição não existe — uma ligação que se esqueça dela
-    // não pode fazer falhar uma VENDA.
+    // A função lê o posto de `nexus.device_id` e QUEM fez a alteração de
+    // `nexus.user_id` — ambos definidos pela ligação que está a escrever.
+    //
+    // O segundo argumento `true` do `current_setting` devolve NULL em vez de
+    // rebentar quando a definição não existe. Não é comodismo: uma ligação que
+    // se esqueça de as definir não pode fazer falhar uma VENDA. Prefere-se um
+    // registo sem autor a um balcão parado.
     `CREATE OR REPLACE FUNCTION ${s}.${ident(FN)}() RETURNS trigger AS $$
      DECLARE
        v_id TEXT;
@@ -72,8 +81,10 @@ export function journalDdl(schema: string): string[] {
        ELSE
          v_id := to_jsonb(NEW) ->> 'id';
        END IF;
-       INSERT INTO ${j} (table_name, row_id, op, device_id)
-       VALUES (TG_TABLE_NAME, v_id, LEFT(TG_OP, 1), current_setting('nexus.device_id', true));
+       INSERT INTO ${j} (table_name, row_id, op, device_id, user_id)
+       VALUES (TG_TABLE_NAME, v_id, LEFT(TG_OP, 1),
+               current_setting('nexus.device_id', true),
+               current_setting('nexus.user_id', true));
        RETURN NULL;
      END;
      $$ LANGUAGE plpgsql`,
@@ -115,6 +126,8 @@ export interface PendingChange {
   op: 'I' | 'U' | 'D';
   changed_at: Date;
   device_id: string | null;
+  /** Quem fez a alteração, para auditoria da sincronização. */
+  user_id: string | null;
 }
 
 /**
@@ -143,10 +156,10 @@ export function pendingSql(schema: string, limit: number): string {
   // Aqui dentro `seq` é o BIGINT verdadeiro e a ordem é numérica. A conversão
   // para texto fica cá fora, onde já não pode influenciar ordenação nenhuma
   // (JavaScript não tem inteiros de 64 bits com precisão).
-  return `SELECT seq::text AS seq, table_name, row_id, op, changed_at, device_id
+  return `SELECT seq::text AS seq, table_name, row_id, op, changed_at, device_id, user_id
           FROM (
             SELECT DISTINCT ON (table_name, row_id)
-                   seq, table_name, row_id, op, changed_at, device_id
+                   seq, table_name, row_id, op, changed_at, device_id, user_id
             FROM ${j}
             WHERE synced_at IS NULL
             ORDER BY table_name, row_id, seq DESC

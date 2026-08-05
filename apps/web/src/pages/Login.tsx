@@ -8,6 +8,23 @@ import { PasswordField } from '../components/PasswordField';
 import { ScreenKeyboard } from '../components/ScreenKeyboard';
 import { openCaixaTerminal } from '../config';
 import { nativeGoogleAvailable, nativeGoogleSignIn } from '../nativeGoogle';
+import { desktopGoogleAvailable, desktopGoogleSignIn } from '../desktopGoogle';
+
+/**
+ * O botão "Continuar com Google" da APP (Windows e Android). O site usa o botão
+ * do próprio Google (GIS), que não funciona dentro de uma WebView — por isso a
+ * app tem o seu, com o mesmo aspeto, e cada plataforma trata do login à sua
+ * maneira por trás.
+ */
+function GoogleAppButton({ onClick, disabled }: { onClick(): void; disabled?: boolean }) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled}
+      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, height: 46, borderRadius: 999, border: '1px solid #dadce0', background: '#fff', color: '#3c4043', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.9 6.1 29.7 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.9 6.1 29.7 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.6 0 10.7-2.1 14.6-5.6l-6.7-5.7C29.8 34.6 27 36 24 36c-5.2 0-9.6-3.3-11.2-8l-6.6 5.1C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.7 5.7c-.5.4 7.1-5.2 7.1-15.3 0-1.3-.1-2.3-.4-3.5z"/></svg>
+      Continuar com Google
+    </button>
+  );
+}
 
 /** Lista de empresas devolvida quando o e-mail existe em várias. */
 interface CompanyChoice { code: string; name: string }
@@ -68,6 +85,24 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
       else setError('Entrada com Google cancelada.');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Não foi possível entrar com Google.');
+    } finally { setLoading(false); }
+  };
+
+  // App WINDOWS: o Google abre no NAVEGADOR do sistema (recusa WebViews) e
+  // devolve o token à app. Mesmo fluxo do móvel, outra porta de entrada.
+  const onGoogleDesktop = async () => {
+    setError(null);
+    if (!desktopGoogleAvailable()) {
+      setError('Entrar com Google ainda não está disponível nesta versão da app. Atualize para a versão mais recente.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const idToken = await desktopGoogleSignIn();
+      if (idToken) await onGoogle(idToken);
+      else setError('Entrada com Google cancelada.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Não foi possível entrar com Google.');
     } finally { setLoading(false); }
   };
 
@@ -183,24 +218,21 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
                   {/* "Entrar na Caixa" só no site: na app a Caixa é outra app. */}
                   {!isNativeApp ? <a className="auth-caixa" onClick={openCaixa}>Entrar na Caixa (terminal de venda) →</a> : null}
 
-                  {/* Google: no SITE o botão web (GIS); na app MÓVEL o botão
-                      nativo (o GIS não funciona em WebView); no DESKTOP nada por
-                      agora (evita um "ou" órfão sem botão). */}
+                  {/* Google: no SITE o botão web (GIS); na app o botão próprio —
+                      no MÓVEL pelos Google Play Services, no WINDOWS pelo
+                      navegador do sistema. O GIS não funciona em WebView. */}
                   {!isNativeApp ? (
                     <>
                       <div className="auth-or"><span>ou</span></div>
                       <div className="auth-google"><GoogleSignInButton onCredential={(t) => void onGoogle(t)} /></div>
                     </>
-                  ) : isMobileApp ? (
+                  ) : (
                     <>
                       <div className="auth-or"><span>ou</span></div>
-                      <button type="button" onClick={() => void onGoogleNative()} disabled={loading}
-                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, height: 46, borderRadius: 999, border: '1px solid #dadce0', background: '#fff', color: '#3c4043', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-                        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.9 6.1 29.7 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.9 6.1 29.7 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.6 0 10.7-2.1 14.6-5.6l-6.7-5.7C29.8 34.6 27 36 24 36c-5.2 0-9.6-3.3-11.2-8l-6.6 5.1C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.7 5.7c-.5.4 7.1-5.2 7.1-15.3 0-1.3-.1-2.3-.4-3.5z"/></svg>
-                        Continuar com Google
-                      </button>
+                      <GoogleAppButton disabled={loading}
+                        onClick={() => void (isMobileApp ? onGoogleNative() : onGoogleDesktop())} />
                     </>
-                  ) : null}
+                  )}
 
                   {/* Criar conta: no site abre o registo interno; na app abre o
                       landing no NAVEGADOR do sistema (o registo é no site). */}

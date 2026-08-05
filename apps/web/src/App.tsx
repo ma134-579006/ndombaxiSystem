@@ -21,6 +21,7 @@ import { api } from './api/client';
 import './landing.css';
 import { SupportChat } from './components/SupportChat';
 import { FeedbackHost } from './components/feedback';
+import { UpdateGate } from './update/UpdateGate';
 import { FirstSteps } from './components/FirstSteps';
 
 /* CODE-SPLIT (Fase 3 da auditoria): cada secção só descarrega quando é
@@ -519,6 +520,9 @@ export function App() {
         <Gate />
         {/* Toasts + diálogos de confirmação enterprise (todo o painel). */}
         <FeedbackHost />
+        {/* Por cima de tudo, e FORA do Gate: a atualização obrigatória tem de
+            aparecer esteja o utilizador no login ou dentro do painel. */}
+        <UpdateGate />
       </KeyboardProvider>
     </AuthProvider>
   );

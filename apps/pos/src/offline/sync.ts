@@ -6,6 +6,9 @@
 import { api, ApiError } from '../api/client';
 import { deviceKey } from './device';
 import {
+  limparTurnoLocalSeVazio, opDeTurnoEnviada, opsDeTurnoPendentes, contarOpsDeTurno,
+} from './shifts';
+import {
   countPendingSales,
   deleteSale,
   listPendingSales,
@@ -83,8 +86,15 @@ class SyncController {
   };
   private handleOffline = () => this.emit({ online: false });
 
+  /**
+   * O que falta enviar = vendas + operações de turno.
+   *
+   * O turno entra na conta de propósito: é este número que a atualização
+   * obrigatória usa para decidir se já pode trancar a aplicação. Um fecho de
+   * turno por subir é trabalho por salvar tanto como uma venda.
+   */
   async refreshCount(): Promise<void> {
-    this.emit({ pending: await countPendingSales() });
+    this.emit({ pending: (await countPendingSales()) + (await contarOpsDeTurno()) });
   }
 
   /** Reemite uma venda específica da fila (revisão manual, ex.: corrigir um ERRO). */
@@ -104,6 +114,41 @@ class SyncController {
     await this.refreshCount();
   }
 
+  /**
+   * Sobe as operações de TURNO feitas sem rede.
+   *
+   * `abertura` decide qual metade se envia, e a razão é de dinheiro: a ABERTURA
+   * tem de chegar ao servidor ANTES das vendas do turno, e o FECHO só DEPOIS.
+   * O servidor emite a fatura mesmo sem turno aberto (o movimento de caixa é
+   * best-effort), por isso vendas que subissem antes da abertura entravam sem
+   * cair na gaveta — e o fecho nunca batia certo.
+   */
+  private async pushTurnos(abertura: boolean): Promise<'ok' | 'offline'> {
+    const todas = await opsDeTurnoPendentes();
+    const lote = todas.filter((o) => (abertura ? o.op === 'create' : o.op === 'update'));
+    if (lote.length === 0) return 'ok';
+    try {
+      const r = await api.syncPush(lote);
+      for (const res of r.results ?? []) {
+        // `duplicate` é a idempotência a funcionar: o servidor já tinha esta
+        // operação. Sai da fila tal como uma aplicada — insistir criaria ciclo.
+        if (res.status === 'applied' || res.status === 'duplicate') {
+          await opDeTurnoEnviada(res.opId);
+        } else if (res.status === 'rejected') {
+          // Recusa de negócio (ex.: já havia turno aberto no servidor). Fica
+          // registada e sai da fila: repetir daria o mesmo resultado para sempre.
+          await opDeTurnoEnviada(res.opId);
+          this.emit({ lastError: res.message ?? 'O servidor recusou uma operação de turno.' });
+        }
+      }
+      await limparTurnoLocalSeVazio();
+      return 'ok';
+    } catch (e) {
+      // Sem ligação: fica tudo na fila, exatamente como estava.
+      return e instanceof ApiError && e.status === 0 ? 'offline' : 'ok';
+    }
+  }
+
   /** Esvazia a fila: emite cada venda pendente no servidor, por ordem. */
   async flush(): Promise<{ synced: number; failed: number }> {
     if (this.state.syncing) return { synced: 0, failed: 0 };
@@ -111,6 +156,11 @@ class SyncController {
     let synced = 0;
     let failed = 0;
     try {
+      // 1º a ABERTURA do turno — antes de qualquer venda.
+      if (await this.pushTurnos(true) === 'offline') {
+        this.emit({ online: false });
+        return { synced: 0, failed: 0 };
+      }
       const sales = (await listPendingSales()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
       for (const sale of sales) {
         // A ligação é decidida pelo RESULTADO de cada emissão, nunca por
@@ -121,6 +171,10 @@ class SyncController {
         else if (outcome === 'offline') { this.emit({ online: false }); break; }
         else failed++;
       }
+      // Por fim o FECHO do turno — só depois de as vendas dele terem subido,
+      // senão o servidor fechava a caixa sem o dinheiro que ainda vinha a
+      // caminho e o resumo saía errado.
+      if (failed === 0 && this.state.online) await this.pushTurnos(false);
       this.emit({ lastSyncAt: new Date().toISOString() });
     } finally {
       await this.refreshCount();

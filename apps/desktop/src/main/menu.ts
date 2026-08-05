@@ -77,30 +77,30 @@ export function buildMenu(opts: {
         {
           label: 'Procurar atualizações…',
           click: async () => {
-            const verdict = await checkForUpdates();
+            const decision = await checkForUpdates();
             const win = opts.getWindow();
-            if (!verdict.available || !verdict.info) {
+            if (decision.state === 'none' || !decision.release) {
               await dialog.showMessageBox(win ?? undefined!, {
                 type: 'info',
                 title: 'Ndombaxi System',
                 message: 'Está a usar a versão mais recente.',
-                detail: `Versão instalada: ${verdict.current}`,
+                detail: `Versão instalada: ${decision.current}`,
               });
               return;
             }
             const r = await dialog.showMessageBox(win ?? undefined!, {
               type: 'info',
               title: 'Nova versão disponível',
-              message: `Ndombaxi System ${verdict.info.version}`,
+              message: `Ndombaxi System ${decision.release.version}`,
               detail: [
-                ...(verdict.info.notes ?? []).map((n) => `• ${n}`),
-                ...(verdict.info.fixes ?? []).map((f) => `• Correção: ${f}`),
+                ...decision.release.notes.map((n) => `• ${n}`),
+                ...decision.release.fixes.map((f) => `• Correção: ${f}`),
               ].join('\n') || 'Melhorias de desempenho e correções.',
               buttons: ['Atualizar', 'Depois'],
               defaultId: 0,
               cancelId: 1,
             });
-            if (r.response === 0) await openDownloadPage(verdict.info);
+            if (r.response === 0) await openDownloadPage(decision.release.downloadPageUrl);
           },
         },
         {
