@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './auth/AuthContext';
 import { KeyboardProvider } from './keyboard/KeyboardProvider';
 import { LoginPage } from './pages/LoginPage';
 import { PosPage } from './pages/PosPage';
+import { UpdateGate } from './update/UpdateGate';
 
 function Gate() {
   const { status } = useAuth();
@@ -27,6 +28,9 @@ export function App() {
     <AuthProvider>
       <KeyboardProvider>
         <Gate />
+        {/* Por cima de tudo, e FORA do Gate: a atualização obrigatória tem de
+            aparecer esteja o operador no login ou a meio de uma venda. */}
+        <UpdateGate />
       </KeyboardProvider>
     </AuthProvider>
   );

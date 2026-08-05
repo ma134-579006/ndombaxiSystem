@@ -3,13 +3,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { ManagerStaff, SiteSettings } from '../api/types';
 import { IconBuilding, IconImage, IconReceipt } from '../components/Icons';
+import { ShopServerCard } from './ShopServerCard';
 
 /**
  * Configurações da empresa (admin): branding (logo/nome), dados e dizeres dos
  * recibos, reposição de senhas/PIN dos funcionários, plano e impressora.
  */
 export function Settings() {
-  const [tab, setTab] = useState<'brand' | 'modules' | 'passwords' | 'printer'>('brand');
+  const [tab, setTab] = useState<'brand' | 'modules' | 'passwords' | 'printer' | 'loja'>('brand');
   return (
     <>
       <div className="content-head">
@@ -20,11 +21,13 @@ export function Settings() {
         <button className={`chip${tab === 'modules' ? ' on' : ''}`} onClick={() => setTab('modules')}>Módulos</button>
         <button className={`chip${tab === 'passwords' ? ' on' : ''}`} onClick={() => setTab('passwords')}>Senhas dos funcionários</button>
         <button className={`chip${tab === 'printer' ? ' on' : ''}`} onClick={() => setTab('printer')}>Impressora & Plano</button>
+        <button className={`chip${tab === 'loja' ? ' on' : ''}`} onClick={() => setTab('loja')}>Servidor da loja</button>
       </div>
       {tab === 'brand' ? <BrandingCard /> : null}
       {tab === 'modules' ? <ModulesCard /> : null}
       {tab === 'passwords' ? <PasswordsCard /> : null}
       {tab === 'printer' ? <PrinterCard /> : null}
+      {tab === 'loja' ? <ShopServerCard /> : null}
     </>
   );
 }

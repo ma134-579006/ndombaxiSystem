@@ -809,10 +809,20 @@ html.kbd-open .login .box > p { display: none; }
 .theme-opt .ck { color: var(--primary); font-weight: 800; }
 
 /* ── Responsividade extra ───────────────────────────────────── */
-/* Ecrãs muito grandes (4K / ultrawide): conteúdo centrado, não estica de mais */
+/* Ecrãs muito grandes (4K / ultrawide) NO SITE: conteúdo centrado, não estica
+   de mais — num navegador maximizado, linhas de texto de 2500px não se leem. */
 @media (min-width: 1700px) {
   .content { max-width: 1640px; margin-inline: auto; width: 100%; }
 }
+
+/* Na APLICAÇÃO INSTALADA a regra é outra: OCUPAR O ECRÃ TODO.
+   No site, a janela é do navegador e o utilizador escolhe o tamanho. Na app, a
+   janela maximizada É o ecrã do computador — e limitá-la a 1640px deixava duas
+   faixas vazias nos lados de qualquer monitor moderno, com o programa a parecer
+   uma página web esquecida no meio do ecrã em vez de um sistema de gestão.
+   A marca `app-instalada` é posta no arranque (ver `main.tsx`); no site nunca
+   existe, por isso o comportamento do site fica exatamente como estava. */
+.app-instalada .content { max-width: none; }
 /* Tabelas largas no telemóvel/tablet: scroll horizontal suave dentro do cartão
    (em vez de partir o layout). Os botões de ação ficam acessíveis ao deslizar. */
 @media (max-width: 820px) {

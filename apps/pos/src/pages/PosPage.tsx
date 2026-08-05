@@ -45,6 +45,7 @@ import { syncController } from '../offline/sync';
 import { useSync } from '../offline/useSync';
 import { deviceKey } from '../offline/device';
 import { setPosBusy } from '../offline/localServer';
+import { turnoAbertoLocal } from '../offline/shifts';
 import { setSaleInProgress } from '../pos/saleActivity';
 
 const CACHE_PRODUCTS = 'cache:products';
@@ -259,7 +260,22 @@ export function PosPage() {
       void cached(CACHE_IDENTITY, () => api.documentIdentity(), setIdentity);
       void cached(CACHE_PROMOS, () => api.listPromotions(), setPromotions);
       // A sessão (turno aberto) é dinâmica — não se cacheia.
-      api.currentSession().then(setSession).catch(() => undefined);
+      // O servidor é a autoridade sobre o turno. SEM REDE, vale o turno aberto
+      // NESTE aparelho — senão a Caixa abria sem turno e o operador não
+      // conseguia começar o dia numa loja sem internet.
+      api.currentSession().then(setSession).catch(async () => {
+        const t = await turnoAbertoLocal();
+        if (t) {
+          setSession({
+            id: t.opId,
+            register_code: t.registerCode,
+            opened_by_name: t.operatorName,
+            opened_at: t.openedAt,
+            opening_float: String(t.openingFloat),
+            status: 'OPEN',
+          });
+        }
+      });
     })();
   }, []);
 

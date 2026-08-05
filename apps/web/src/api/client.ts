@@ -1,4 +1,5 @@
 import { API_URL } from '../config';
+import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
 import type {
   AgtCommResult,
@@ -231,13 +232,24 @@ async function request<T>(
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    res = await fetch(`${API_URL}${path}`, {
+    // SERVIDOR DA LOJA primeiro, se houver um configurado e a responder. É o
+    // que dá ao telemóvel o sistema INTEIRO sem internet: compras, stock, RH e
+    // o resto passam a ser respondidos pela mesma API, a correr no balcão. Sem
+    // loja configurada — ou com ela em silêncio — isto é a nuvem de sempre.
+    const base = baseParaPedido(API_URL);
+    const eraDaLoja = base !== API_URL;
+    res = await fetch(`${base}${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: ctrl.signal,
     });
+    if (eraDaLoja) anotarSucessoDaLoja();
   } catch (e) {
+    // Silêncio do servidor da loja: ao fim de algumas falhas seguidas o
+    // aparelho volta à nuvem sozinho, em vez de ficar preso a um computador
+    // que já não alcança.
+    if (baseParaPedido(API_URL) !== API_URL) anotarFalhaDaLoja();
     // Sem rede: numa LEITURA, serve a última cópia guardada (não bloqueia o
     // trabalho offline). Um timeout (servidor a acordar) NÃO usa cache — é online.
     if (isGet && (e as Error)?.name !== 'AbortError') {

@@ -65,6 +65,30 @@ const api = {
     openLauncher: (): Promise<void> => ipcRenderer.invoke('ndombaxi:open-launcher'),
   },
 
+  /**
+   * O SERVIDOR DESTA LOJA: em que estado está e em que endereço os outros
+   * aparelhos (telemóvel, tablet, 2.º posto) o encontram.
+   */
+  localServer: {
+    status: (): Promise<{
+      binaries: boolean; provisioned: boolean; companyCode?: string | null;
+      running: boolean; apiUrl?: string | null; sharing?: boolean;
+      lanUrl?: string | null; blocked?: string | null; error?: string;
+    }> => ipcRenderer.invoke('ndombaxi:local-status'),
+    setSharing: (on: boolean): Promise<{ sharing: boolean; needsRestart: boolean }> =>
+      ipcRenderer.invoke('ndombaxi:local-share', on),
+  },
+
+  /**
+   * Entrar com Google. Abre o navegador do sistema (o Google recusa o seu login
+   * dentro de WebViews) e devolve o `id_token` — o mesmo que o botão do site
+   * produz, para o resto do fluxo não mudar nada.
+   */
+  google: {
+    signIn: (): Promise<{ idToken: string | null; error?: string }> =>
+      ipcRenderer.invoke('ndombaxi:google-signin'),
+  },
+
   update: {
     check: (): Promise<unknown> => ipcRenderer.invoke('ndombaxi:update-check'),
     openDownloadPage: (): Promise<void> => ipcRenderer.invoke('ndombaxi:update-open'),
