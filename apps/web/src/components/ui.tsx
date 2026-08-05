@@ -1,7 +1,6 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
+import { Badge, Dialog, type Tone } from '@nexus/ui';
 import { statusLabel } from '../format';
-import { IconClose } from './Icons';
 
 export function Switch({ checked, onChange }: { checked: boolean; onChange(v: boolean): void }) {
   return (
@@ -13,23 +12,39 @@ export function Switch({ checked, onChange }: { checked: boolean; onChange(v: bo
   );
 }
 
-const STATUS_TONE: Record<string, string> = {
-  PENDING: 'var(--warning)',
-  ACTIVE: 'var(--success)',
-  SUSPENDED: 'var(--danger)',
-  CANCELLED: 'var(--muted)',
+const STATUS_TONE: Record<string, Tone> = {
+  PENDING: 'warning',
+  ACTIVE: 'success',
+  SUSPENDED: 'danger',
+  CANCELLED: 'neutral',
 };
 
+/**
+ * Estado de uma empresa/subscrição.
+ *
+ * Passou a usar o `Badge` do Design System: a mesma cor de "activo" que a
+ * Caixa e a Loja mostram, em vez de uma escala própria do Gestor.
+ */
 export function StatusBadge({ status }: { status: string }) {
-  const color = STATUS_TONE[status] ?? 'var(--muted)';
   return (
-    <span className="badge" style={{ color, borderColor: color, background: 'transparent' }}>
-      <span className="dot" />
+    <Badge dot tone={STATUS_TONE[status] ?? 'neutral'}>
       {statusLabel(status)}
-    </span>
+    </Badge>
   );
 }
 
+/**
+ * Modal do Gestor — agora só um invólucro fino sobre o `<Dialog>` partilhado.
+ *
+ * A API mantém-se igual (`title`, `onClose`, `children`), por isso as 35
+ * secções que a usam não mudaram uma linha. O que ganharam, todas de uma vez:
+ * fecho com Escape, foco preso dentro do modal, foco devolvido a quem o abriu,
+ * scroll do corpo trancado e `role="dialog"` com nome acessível — nada disto
+ * existia antes.
+ *
+ * O portal para o <body> não se perdeu: mudou-se para dentro do `<Dialog>`,
+ * onde beneficia também a Caixa e a Loja.
+ */
 export function Modal({
   title,
   onClose,
@@ -39,22 +54,9 @@ export function Modal({
   onClose(): void;
   children: React.ReactNode;
 }) {
-  // Portal para o <body>: o modal sai de qualquer stacking context local (cartões
-  // com transform, painéis animados, etc.), por isso fica SEMPRE à frente e um
-  // modal aberto sobre outro nunca cai para trás.
-  return createPortal(
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="mh">
-          <h3>{title}</h3>
-          <span className="spacer" />
-          <button className="icon-btn" style={{ width: 36, height: 36 }} onClick={onClose}>
-            <IconClose size={18} />
-          </button>
-        </div>
-        <div className="mb">{children}</div>
-      </div>
-    </div>,
-    document.body,
+  return (
+    <Dialog open onClose={onClose} title={title}>
+      {children}
+    </Dialog>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Dialog, Skeleton } from '@nexus/ui';
 import { api, ApiError } from '../api/client';
 import { newUuid } from '../offline/db';
 import type { DocumentIdentity, ReceiptFiscalInfo, SaleDetail, SaleRow } from '../api/types';
@@ -96,14 +97,7 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
 
   return (
     <>
-    <div className="scan-overlay" onClick={onClose}>
-      <div className="sales-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sm-head">
-          <h2 style={{ margin: 0 }}>Histórico de vendas</h2>
-          <span style={{ flex: 1 }} />
-          <button className="icon-btn" onClick={onClose} aria-label="Fechar"><span style={{ fontSize: 20 }}>✕</span></button>
-        </div>
-
+    <Dialog open onClose={onClose} title="Histórico de vendas" size="xl">
         <div className="sm-filters">
           <label>De <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></label>
           <label>até <input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></label>
@@ -187,8 +181,7 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
             </table>
           )}
         </div>
-      </div>
-    </div>
+    </Dialog>
 
     {cancelTarget ? (
       <CancelItemsModal sale={cancelTarget} onClose={() => setCancelTarget(null)} onDone={onCancelled} />
@@ -275,15 +268,11 @@ function CancelItemsModal({ sale, onClose, onDone }: { sale: SaleRow; onClose():
   };
 
   return (
-    <div className="scan-overlay" onClick={onClose}>
-      <div className="sales-modal" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
-        <div className="sm-head">
-          <h2 style={{ margin: 0 }}>Cancelar artigos — {sale.number}</h2>
-          <span style={{ flex: 1 }} />
-          <button className="icon-btn" onClick={onClose} aria-label="Fechar"><span style={{ fontSize: 20 }}>✕</span></button>
-        </div>
-        {err ? <div className="banner danger">{err}</div> : null}
-        {!detail ? <div className="empty">A carregar artigos…</div> : (
+    // Anular gera nota de crédito e mexe em stock e caixa: com o pedido a
+    // decorrer, o clique no fundo não pode fechar o diálogo a meio.
+    <Dialog open onClose={onClose} title={`Cancelar artigos — ${sale.number}`} dismissable={!busy}>
+        {err ? <div className="banner danger" role="alert">{err}</div> : null}
+        {!detail ? <Skeleton lines={4} height={28} /> : (
           <>
             <div className="sm-list">
               <table className="sales-table">
@@ -319,13 +308,12 @@ function CancelItemsModal({ sale, onClose, onDone }: { sale: SaleRow; onClose():
               <span className="muted">{isFull ? 'Anula a venda inteira' : `${selected.length} artigo(s) selecionado(s)`}</span>
               <span style={{ flex: 1 }} />
               <strong style={{ fontSize: 18 }}>{formatKz(refund)}</strong>
-              <button className="btn danger" onClick={() => void confirm()} disabled={busy || selected.length === 0}>
+              <Button variant="danger" loading={busy} onClick={() => void confirm()} disabled={selected.length === 0}>
                 {busy ? 'A cancelar…' : isFull ? 'Anular venda' : 'Cancelar artigos'}
-              </button>
+              </Button>
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Dialog>
   );
 }

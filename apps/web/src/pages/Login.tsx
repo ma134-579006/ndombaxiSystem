@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Button, Dialog } from '@nexus/ui';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
@@ -239,24 +240,36 @@ function ForgotModal({ onClose }: { onClose(): void }) {
     finally { setBusy(false); }
   };
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
-        <div className="mh"><h3>Recuperar senha</h3><span className="spacer" /><button className="btn sm ghost" onClick={onClose}>Fechar</button></div>
-        <div className="mb">
-          {done ? (
-            <div className="banner success"><div>Se existir uma conta com esse e-mail, enviámos um link para repor a senha. Verifica a tua caixa de entrada (e o spam).</div></div>
-          ) : (
-            <>
-              {warn ? <div className="banner danger" style={{ marginBottom: 12 }}>{warn}</div> : null}
-              <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Escreve o teu e-mail. Enviamos um link (válido 1 hora) para definires uma nova senha.</p>
-              <div className="field"><label>E-mail</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="exemplo@empresa.ao" inputMode="email" /></div>
-              <button className="btn lg block" onClick={() => void submit()} disabled={busy}>{busy ? 'A enviar…' : 'Enviar link de recuperação'}</button>
-            </>
-          )}
+    <Dialog
+      open
+      onClose={onClose}
+      title="Recuperar senha"
+      size="sm"
+      footer={
+        done ? undefined : (
+          <Button variant="primary" size="lg" block loading={busy} onClick={() => void submit()}>
+            {busy ? 'A enviar…' : 'Enviar link de recuperação'}
+          </Button>
+        )
+      }
+    >
+      {done ? (
+        <div className="banner success" role="status">
+          <div>Se existir uma conta com esse e-mail, enviámos um link para repor a senha. Verifica a tua caixa de entrada (e o spam).</div>
         </div>
-      </div>
-    </div>
+      ) : (
+        <>
+          {warn ? <div className="banner danger" role="alert">{warn}</div> : null}
+          <p className="nx-body-sm" style={{ color: 'var(--nx-c-text-muted)', margin: 0 }}>
+            Escreve o teu e-mail. Enviamos um link (válido 1 hora) para definires uma nova senha.
+          </p>
+          <div className="field">
+            <label htmlFor="recover-email">E-mail</label>
+            <input id="recover-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="exemplo@empresa.ao" inputMode="email" />
+          </div>
+        </>
+      )}
+    </Dialog>
   );
 }
 

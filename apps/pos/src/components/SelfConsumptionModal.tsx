@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Dialog } from '@nexus/ui';
 import { api, ApiError } from '../api/client';
 import { IVA_RATE, type ConsumptionLimit, type Product, type SelfConsumption } from '../api/types';
 import { formatKz } from '../format';
@@ -86,13 +87,10 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
   const pendingTotal = mine.filter((c) => c.status === 'PENDING').reduce((s, c) => s + Number(c.total), 0);
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="consume-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="consume-head">
-          <h3>🛒 Consumo próprio</h3>
-          <button className="x" onClick={onClose} aria-label="Fechar">✕</button>
-        </div>
-
+    /* `flush`: a pesquisa é sticky no topo e a lista traz o seu próprio
+       espaçamento — o padding do corpo do diálogo abriria uma faixa por cima
+       da barra fixa. */
+    <Dialog open onClose={onClose} title="🛒 Consumo próprio" flush>
         {/* Pesquisa FIXA no topo (não rola com a lista) */}
         <div className="consume-search">
           <div className="field">
@@ -117,8 +115,8 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
               </div>
             )
           ) : null}
-          {msg ? <div className="banner success" style={{ marginBottom: 12 }}>{msg}</div> : null}
-          {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+          {msg ? <div className="banner success" role="status" style={{ marginBottom: 12 }}>{msg}</div> : null}
+          {err ? <div className="banner danger" role="alert" style={{ marginBottom: 12 }}>{err}</div> : null}
 
           {scan && IS_MOBILE ? (
             <div style={{ marginBottom: 14 }}>
@@ -191,7 +189,6 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
             </div>
           ) : null}
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

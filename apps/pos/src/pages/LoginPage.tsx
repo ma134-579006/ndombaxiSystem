@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Button, Dialog } from '@nexus/ui';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
@@ -225,24 +226,36 @@ function ForgotPinModal({ defaultEmail, onClose }: { defaultEmail?: string; onCl
     finally { setBusy(false); }
   };
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
-        <div className="mh"><h3>Recuperar PIN</h3><span className="spacer" /><button className="btn sm ghost" onClick={onClose}>Fechar</button></div>
-        <div className="mb">
-          {done ? (
-            <div className="banner success"><div>Se existir uma conta com esse e-mail, enviámos um link para definires um novo PIN. Vê a tua caixa de entrada.</div></div>
-          ) : (
-            <>
-              {warn ? <div className="banner danger" style={{ marginBottom: 12 }}>{warn}</div> : null}
-              <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Escreve o teu e-mail. Enviamos um link (1 hora) para definires um novo PIN.</p>
-              <div className="field"><label>E-mail</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.ao" inputMode="email" /></div>
-              <button className="btn lg block" onClick={() => void submit()} disabled={busy}>{busy ? 'A enviar…' : 'Enviar link'}</button>
-            </>
-          )}
+    <Dialog
+      open
+      onClose={onClose}
+      title="Recuperar PIN"
+      size="sm"
+      footer={
+        done ? undefined : (
+          <Button variant="primary" size="lg" block loading={busy} onClick={() => void submit()}>
+            {busy ? 'A enviar…' : 'Enviar link'}
+          </Button>
+        )
+      }
+    >
+      {done ? (
+        <div className="banner success" role="status">
+          <div>Se existir uma conta com esse e-mail, enviámos um link para definires um novo PIN. Vê a tua caixa de entrada.</div>
         </div>
-      </div>
-    </div>
+      ) : (
+        <>
+          {warn ? <div className="banner danger" role="alert">{warn}</div> : null}
+          <p className="nx-body-sm" style={{ color: 'var(--nx-c-text-muted)', margin: 0 }}>
+            Escreve o teu e-mail. Enviamos um link (1 hora) para definires um novo PIN.
+          </p>
+          <div className="field">
+            <label htmlFor="pin-email">E-mail</label>
+            <input id="pin-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.ao" inputMode="email" />
+          </div>
+        </>
+      )}
+    </Dialog>
   );
 }
 

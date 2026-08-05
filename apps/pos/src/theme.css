@@ -8,9 +8,12 @@
   --surface-2: #18233c;
   --border: #233149;
   --border-soft: #1a2540;
-  --primary: #3b82f6;
-  --primary-700: #2563eb;
-  --primary-soft: rgba(59, 130, 246, 0.16);
+  /* Índigo da marca (brand-500, tinta para fundo escuro) — igual ao
+     Gestor. A Caixa usava #3b82f6 e ficava com um primário diferente
+     do resto do sistema no mesmo posto de trabalho. */
+  --primary: var(--nx-brand-500, #4353ff);
+  --primary-700: var(--nx-brand-600, #2430e8);
+  --primary-soft: rgba(67, 83, 255, 0.16);
   --grad-primary: linear-gradient(135deg, #4353ff 0%, #2430e8 100%);
   --text: #eaf0fa;
   --muted: #93a3c0;
@@ -325,6 +328,17 @@ html.kbd-open .login-card .footer-credit { display: none; }
    (.scan-overlay, z 200): quando vem depois de um overlay, sobe acima dele —
    sem isto a janela de impressão ficava escondida atrás da de cancelamento. */
 .scan-overlay ~ .modal-bg { z-index: 300; }
+
+/* Os diálogos do @nexus/ui entram NA MESMA camada onde o `.modal-bg` sempre
+   esteve (70), em vez do valor genérico do pacote (1000). O empilhamento da
+   Caixa foi afinado à mão — leitor por câmara (200), teclado no ecrã (1001),
+   bloqueio de inatividade (4000) — e subir os diálogos passava-os à frente da
+   câmara e do teclado. A regra a seguir é o equivalente da de cima para os
+   diálogos já migrados. */
+:root {
+  --nx-z-dialog: 70;
+}
+.scan-overlay ~ .nx-dialog__backdrop { z-index: 300; }
 .sm-head { display: flex; align-items: center; gap: 10px; }
 .sm-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .sm-filters label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
@@ -770,6 +784,15 @@ html.kbd-open .login-card .footer-credit { display: none; }
     position: static !important; transform: none !important; overflow: visible !important;
     height: auto !important; min-height: 0 !important; max-height: none !important;
   }
+  /* ⚠️ A IMPRESSÃO TÉRMICA ESTÁ AMARRADA A `.modal-bg` (ver regras abaixo:
+     tudo fica invisível e só `.modal-bg` volta a aparecer). Por isso o
+     ReceiptModal NÃO foi migrado para <Dialog> — migrá-lo sem reescrever
+     este bloco imprimiria uma folha EM BRANCO.
+     Os diálogos do @nexus/ui já migrados (histórico, cancelamento…) podem
+     estar abertos por trás do recibo. São `position: fixed`, o que baralha
+     a paginação, e o `visibility: hidden` não os tira do fluxo — por isso
+     saem do papel explicitamente. */
+  .nx-dialog__backdrop, .nx-toaster { display: none !important; }
   body * { visibility: hidden !important; }
   /* Só o ÚLTIMO recibo aberto imprime — evita 2 modais sobrepostos no papel. */
   .modal-bg:not(:last-of-type) { display: none !important; }
@@ -1251,3 +1274,50 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary, #3b82
 
 /* Prato com ficha tecnica: "Sob encomenda" (informativo, nao alarmante). */
 .stock-mto { color: #60a5fa; font-weight: 700; font-size: 12px; }
+
+/* ── Chat com o gerente ─────────────────────────────────────
+   Estava tudo em `style={{…}}` dentro do ChatModal (≈30 objetos
+   inline, com cores cravadas à mão como #ef4444). Passa a classes
+   sobre os tokens, para o chat seguir os 10 temas como o resto. */
+.chat-search { padding: 10px 14px; border-bottom: 1px solid var(--nx-c-border); flex: none; }
+.chat-search-box { display: flex; align-items: center; gap: 8px; background: var(--nx-c-surface-sunken);
+  border: 1px solid var(--nx-c-border); border-radius: var(--nx-radius-md); padding: 0 12px; }
+.chat-search-box input { flex: 1; background: transparent; border: none; outline: none;
+  color: var(--nx-c-text); font: 400 var(--nx-text-sm)/1 var(--nx-font-body); padding: 11px 0; }
+.chat-contact { width: 100%; text-align: left; background: transparent; border: none;
+  border-bottom: 1px solid var(--nx-c-border); padding: 12px 14px; cursor: pointer;
+  display: flex; align-items: center; gap: 10px; color: var(--nx-c-text); }
+.chat-contact:hover { background: var(--nx-c-surface-sunken); }
+.chat-avatar { position: relative; width: 38px; height: 38px; border-radius: 999px;
+  background: var(--nx-c-surface-sunken); display: grid; place-items: center; font-weight: 800; flex: none; }
+.chat-dot { width: 11px; height: 11px; border-radius: 999px; flex: none;
+  background: var(--nx-c-text-faint); box-shadow: 0 0 0 2px var(--nx-c-surface); }
+.chat-avatar .chat-dot { position: absolute; right: 0; bottom: 0; }
+.chat-dot.on { background: var(--nx-c-success); }
+.chat-dot.sm { width: 9px; height: 9px; box-shadow: none; }
+.chat-unread { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: var(--nx-c-danger); color: #fff; font-size: 11px; font-weight: 800;
+  display: inline-grid; place-items: center; }
+.chat-peer { display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  border-bottom: 1px solid var(--nx-c-border); flex: none; }
+.chat-scroller { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
+  gap: 8px; padding: 12px; }
+.chat-msg { display: flex; gap: 8px; align-items: center; }
+.chat-msg.mine { justify-content: flex-end; }
+.chat-msg.pick { cursor: pointer; }
+.chat-bubble { max-width: 80%; }
+.chat-bubble .body { background: var(--nx-c-surface-sunken); color: var(--nx-c-text);
+  padding: 8px 12px; border-radius: 14px; font: 400 var(--nx-text-sm)/1.4 var(--nx-font-body);
+  word-break: break-word; }
+.chat-msg.mine .chat-bubble .body { background: var(--nx-c-accent); color: var(--nx-c-text-on-accent); }
+.chat-bubble.sel .body { outline: 2px solid var(--nx-c-danger); }
+.chat-bubble .at { font-size: 10.5px; color: var(--nx-c-text-muted); margin-top: 2px; }
+.chat-msg.mine .chat-bubble .at { text-align: right; }
+.chat-compose { display: flex; gap: 8px; align-items: flex-end; width: 100%; }
+.chat-compose textarea { flex: 1; resize: none; min-height: 44px; max-height: 120px; padding: 11px 12px;
+  border-radius: var(--nx-radius-md); border: 1px solid var(--nx-c-border-strong);
+  background: var(--nx-c-surface); color: var(--nx-c-text);
+  font: 400 var(--nx-text-sm)/1.4 var(--nx-font-body); }
+/* Nome de quem escreveu (só no chat com CLIENTES, onde há vários interlocutores). */
+.chat-bubble .from { font-size: 11px; color: var(--nx-c-text-muted); margin: 0 0 2px 4px; }
+.chat-contact .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Badge, Button, Dialog, EmptyState, Skeleton } from '@nexus/ui';
 import { api } from '../api/client';
 import { formatKz } from '../format';
-import { IconClose, IconReceipt } from './Icons';
+import { IconReceipt } from './Icons';
 
 export type ReadyKitchenOrder = {
   id: string; label: string; total: string; etaMin: number | null; waitMin: number; ready: boolean;
@@ -22,37 +23,63 @@ export function KitchenOrdersModal({ onClose, onRecall }: { onClose(): void; onR
   useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [load]);
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
-        <div className="row" style={{ padding: 16, borderBottom: '1px solid var(--border)', gap: 10 }}>
-          <IconReceipt size={20} />
-          <h2 style={{ margin: 0, fontSize: 18 }}>🍳 Pedidos da cozinha{orders.length ? <span className="muted"> · {orders.length}</span> : null}</h2>
-          <span className="spacer" />
-          <button className="trash" onClick={onClose} aria-label="Fechar"><IconClose size={22} /></button>
-        </div>
-        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto' }}>
-          {loaded && orders.length === 0 ? (
-            <p className="muted" style={{ textAlign: 'center', padding: 20 }}>
-              Sem pedidos de balcão. Monta um pedido no caixa e toca em <strong>“🍳 Enviar para cozinha”</strong> — aparece aqui e podes chamá-lo quando estiver pronto.
-            </p>
-          ) : orders.map((o) => (
-            <div key={o.id} className="card" style={{ padding: 12, borderLeft: `4px solid ${o.ready ? 'var(--success, #30a46c)' : 'var(--warning)'}` }}>
-              <div className="row" style={{ alignItems: 'center', gap: 8 }}>
+    <Dialog
+      open
+      onClose={onClose}
+      title={`🍳 Pedidos da cozinha${orders.length ? ` · ${orders.length}` : ''}`}
+    >
+      {/* Enquanto a primeira leitura não chega, o esqueleto segura o espaço.
+          Antes o diálogo abria vazio e só depois saltava com os pedidos. */}
+      {!loaded ? (
+        <Skeleton lines={3} height={64} />
+      ) : orders.length === 0 ? (
+        <EmptyState
+          icon={<IconReceipt size={26} />}
+          title="Sem pedidos de balcão"
+          text="Monta um pedido no caixa e toca em “🍳 Enviar para cozinha” — aparece aqui e podes chamá-lo quando estiver pronto."
+        />
+      ) : (
+        /* A lista muda sozinha de 5 em 5 s: `aria-live` faz com que um pedido
+           que fica pronto seja anunciado, em vez de passar despercebido. */
+        <div className="nx-stack" aria-live="polite">
+          {orders.map((o) => (
+            <article
+              key={o.id}
+              className="nx-card"
+              style={{
+                padding: 'var(--nx-space-3)',
+                gap: 'var(--nx-space-2)',
+                borderLeft: `4px solid ${o.ready ? 'var(--nx-c-success)' : 'var(--nx-c-warning)'}`,
+              }}
+            >
+              <div className="nx-row">
                 <strong>{o.label}</strong>
-                <span className="spacer" style={{ flex: 1 }} />
-                <span style={{ fontWeight: 700 }}>{formatKz(Number(o.total))}</span>
+                <span className="nx-spacer" />
+                <span className="nx-num" style={{ fontWeight: 700 }}>{formatKz(Number(o.total))}</span>
               </div>
-              <div className="muted" style={{ fontSize: 12.5, margin: '4px 0' }}>
-                {o.ready ? '✅ Pronto para vender' : `👨‍🍳 Em preparação${o.etaMin ? ` · ~${o.etaMin} min` : ''}`} · há {o.waitMin} min
+
+              <div className="nx-row">
+                <Badge dot tone={o.ready ? 'success' : 'warning'}>
+                  {o.ready ? 'Pronto para vender' : `Em preparação${o.etaMin ? ` · ~${o.etaMin} min` : ''}`}
+                </Badge>
+                <span className="nx-caption">há {o.waitMin} min</span>
               </div>
-              {o.items.map((it, i) => <div key={i} style={{ fontSize: 13 }}>{Number(it.quantity)}× {it.description}</div>)}
-              <button className="btn success block" style={{ marginTop: 10 }} disabled={!o.ready} onClick={() => onRecall(o)}>
+
+              <ul className="nx-stack-2" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                {o.items.map((it, i) => (
+                  <li key={i} className="nx-body-sm">
+                    <span className="nx-num">{Number(it.quantity)}×</span> {it.description}
+                  </li>
+                ))}
+              </ul>
+
+              <Button variant="primary" block disabled={!o.ready} onClick={() => onRecall(o)}>
                 {o.ready ? 'Chamar ao caixa e vender' : 'Aguarda a cozinha…'}
-              </button>
-            </div>
+              </Button>
+            </article>
           ))}
         </div>
-      </div>
-    </div>
+      )}
+    </Dialog>
   );
 }

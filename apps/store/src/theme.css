@@ -12,9 +12,14 @@
   --text: #16202c;
   --muted: #6b7686;
   --border: #e7eaf2;
-  --success: #16a34a;
-  --warning: #d97706;
-  --danger: #dc2626;
+  /* Semânticas vindas dos tokens. A Loja tinha um verde, um âmbar e um
+     vermelho só seus (#16a34a/#d97706/#dc2626): o mesmo estado "pago"
+     aparecia em dois verdes diferentes conforme o utilizador estivesse
+     na Loja ou no Gestor. O laranja da Loja é o ACENTO do canal — não
+     tem nada que ver com estado, e por isso fica onde está. */
+  --success: var(--nx-success, #10b981);
+  --warning: var(--nx-warning, #f59e0b);
+  --danger: var(--nx-danger, #ef4444);
   --radius: var(--nx-radius-lg, 16px);
   --radius-sm: var(--nx-radius-md, 12px);
   --shadow: 0 8px 30px rgba(20, 32, 44, 0.08);

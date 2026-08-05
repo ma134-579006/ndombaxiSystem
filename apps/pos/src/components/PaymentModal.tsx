@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
+import { Button, Dialog } from '@nexus/ui';
 import type { PaymentType } from '../api/types';
 import { formatKz } from '../format';
-import { IconClose } from './Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 
 interface Props {
@@ -48,65 +48,102 @@ export function PaymentModal({ total, customerName, onConfirm, onClose, busy }: 
   };
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, padding: 22 }}>
-        <div className="row" style={{ marginBottom: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 18 }}>Pagamento</h2>
-          <span className="spacer" />
-          <button className="trash" onClick={onClose}><IconClose size={22} /></button>
-        </div>
-
-        <div className="totals" style={{ marginBottom: 14 }}>
-          <div className="t-row grand"><span>Total a pagar</span><span>{formatKz(total)}</span></div>
-        </div>
-
-        <div className="pay-methods">
-          {METHODS.map((m) => (
-            <button key={m.type} className={`pay-method${type === m.type ? ' on' : ''}`} onClick={() => setType(m.type)}>
-              {m.label}
-            </button>
-          ))}
-        </div>
-
-        {type === 'CASH' ? (
-          <div style={{ marginTop: 14 }}>
-            <KeyboardInput label="Dinheiro entregue (Kz)" value={tendered} onChange={setTendered} numeric placeholder={String(total)} onSubmit={confirm} />
-            <div className="quick-cash">
-              {quick.map((v) => (
-                <button key={v} className="qc" onClick={() => setTendered(String(v))}>{formatKz(v)}</button>
-              ))}
-            </div>
-            <div className="change-box" style={{ borderColor: insufficient ? 'var(--danger)' : 'var(--success)' }}>
-              <span>Troco</span>
-              <strong style={{ color: insufficient ? 'var(--danger)' : 'var(--success)' }}>
-                {insufficient ? 'Insuficiente' : formatKz(change)}
-              </strong>
-            </div>
-          </div>
-        ) : type === 'CREDIT' ? (
-          <div style={{ marginTop: 12 }}>
-            {customerName ? (
-              <p className="muted" style={{ fontSize: 13 }}>
-                Venda a crédito em nome de <strong>{customerName}</strong>. Fica em dívida (vencimento a 30 dias)
-                e aparece em <strong>Contas a Receber</strong>. A factura é emitida normalmente.
-              </p>
-            ) : (
-              <div className="change-box" style={{ borderColor: 'var(--danger)' }}>
-                <span>Cliente</span>
-                <strong style={{ color: 'var(--danger)' }}>Selecione um cliente primeiro</strong>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>
-            Pagamento por {METHODS.find((m) => m.type === type)?.label}. Confirme após receber o pagamento.
-          </p>
-        )}
-
-        <button className="btn success lg block" style={{ marginTop: 16 }} onClick={confirm} disabled={busy || insufficient || creditNoCustomer}>
+    <Dialog
+      open
+      onClose={onClose}
+      title="Pagamento"
+      size="sm"
+      // Enquanto a factura está a ser emitida, o diálogo não se fecha por
+      // clique no fundo nem por Escape acidental: fechá-lo a meio deixaria
+      // o operador sem saber se o documento chegou a sair.
+      dismissable={!busy}
+      footer={
+        <Button
+          variant="primary"
+          size="lg"
+          block
+          loading={busy}
+          onClick={confirm}
+          disabled={insufficient || creditNoCustomer}
+        >
           {busy ? 'A emitir…' : type === 'CREDIT' ? 'Confirmar venda a crédito' : 'Confirmar e emitir factura'}
-        </button>
+        </Button>
+      }
+    >
+      <div className="totals">
+        <div className="t-row grand">
+          <span>Total a pagar</span>
+          <span className="nx-num">{formatKz(total)}</span>
+        </div>
       </div>
-    </div>
+
+      {/* Grupo de escolha: `aria-pressed` diz ao leitor de ecrã qual o método
+          activo. Antes, a selecção existia apenas na classe `.on` — invisível
+          para quem não vê o destaque. */}
+      <div className="pay-methods" role="group" aria-label="Método de pagamento">
+        {METHODS.map((m) => (
+          <button
+            key={m.type}
+            className={`pay-method${type === m.type ? ' on' : ''}`}
+            aria-pressed={type === m.type}
+            onClick={() => setType(m.type)}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {type === 'CASH' ? (
+        <div className="nx-stack-2">
+          <KeyboardInput
+            label="Dinheiro entregue (Kz)"
+            value={tendered}
+            onChange={setTendered}
+            numeric
+            placeholder={String(total)}
+            onSubmit={confirm}
+          />
+          <div className="quick-cash">
+            {quick.map((v) => (
+              <button key={v} className="qc" onClick={() => setTendered(String(v))}>
+                {formatKz(v)}
+              </button>
+            ))}
+          </div>
+          {/* O troco é lido em voz alta assim que muda: numa caixa com fila,
+              o operador não tem os olhos no ecrã enquanto conta as notas. */}
+          <div
+            className="change-box"
+            style={{ borderColor: insufficient ? 'var(--nx-c-danger)' : 'var(--nx-c-success)' }}
+            role="status"
+            aria-live="polite"
+          >
+            <span>Troco</span>
+            <strong
+              className="nx-num"
+              style={{ color: insufficient ? 'var(--nx-c-danger)' : 'var(--nx-c-success)' }}
+            >
+              {insufficient ? 'Insuficiente' : formatKz(change)}
+            </strong>
+          </div>
+        </div>
+      ) : type === 'CREDIT' ? (
+        customerName ? (
+          <p className="nx-body-sm" style={{ color: 'var(--nx-c-text-muted)', margin: 0 }}>
+            Venda a crédito em nome de <strong>{customerName}</strong>. Fica em dívida (vencimento a 30 dias) e
+            aparece em <strong>Contas a Receber</strong>. A factura é emitida normalmente.
+          </p>
+        ) : (
+          <div className="change-box" style={{ borderColor: 'var(--nx-c-danger)' }} role="alert">
+            <span>Cliente</span>
+            <strong style={{ color: 'var(--nx-c-danger)' }}>Selecione um cliente primeiro</strong>
+          </div>
+        )
+      ) : (
+        <p className="nx-body-sm" style={{ color: 'var(--nx-c-text-muted)', margin: 0 }}>
+          Pagamento por {METHODS.find((m) => m.type === type)?.label}. Confirme após receber o pagamento.
+        </p>
+      )}
+    </Dialog>
   );
 }

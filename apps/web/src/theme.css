@@ -10,9 +10,13 @@
   --surface-2: #18233c;
   --border: #233149;
   --border-soft: rgba(255, 255, 255, 0.06);
-  --primary: #3b82f6;
-  --primary-700: #2563eb;
-  --primary-soft: rgba(59, 130, 246, 0.16);
+  /* Índigo da marca, na tinta prevista para fundos escuros (brand-500).
+     Antes era #3b82f6 — um azul que não pertence à paleta e que punha o
+     botão primário com gradiente índigo e sombra azul, dois azuis na
+     mesma peça. O tema `claro` já apontava ao token; os escuros não. */
+  --primary: var(--nx-brand-500, #4353ff);
+  --primary-700: var(--nx-brand-600, #2430e8);
+  --primary-soft: rgba(67, 83, 255, 0.16);
   --accent: #06b6d4;
   --accent-2: #7c3aed;
   --grad-primary: linear-gradient(135deg, #4353ff 0%, #2430e8 100%);

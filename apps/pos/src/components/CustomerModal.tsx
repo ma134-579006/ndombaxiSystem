@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
+import { Button, Dialog, EmptyState } from '@nexus/ui';
 import { api, ApiError } from '../api/client';
 import type { Customer } from '../api/types';
-import { IconClose, IconSearch, IconUser } from './Icons';
+import { IconSearch, IconUser } from './Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 
 interface Props {
@@ -45,64 +46,60 @@ export function CustomerModal({ customers, onPick, onCreated, onClose }: Props) 
   };
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div
-        className="card"
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 460, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}
-      >
-        <div className="row" style={{ padding: 16, borderBottom: '1px solid var(--border)', gap: 10 }}>
-          <IconUser size={20} />
-          <h2 style={{ margin: 0, fontSize: 18 }}>Cliente</h2>
-          <span className="spacer" />
-          <button className="trash" onClick={onClose} aria-label="Fechar">
-            <IconClose size={22} />
-          </button>
-        </div>
+    <Dialog open onClose={onClose} title="Cliente" size="sm">
+      <Button variant="secondary" block onClick={() => onPick(null)}>
+        Consumidor final (sem cliente)
+      </Button>
 
-        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto' }}>
-          <button className="btn ghost block" onClick={() => onPick(null)}>
-            Consumidor final (sem cliente)
-          </button>
+      <KeyboardInput
+        icon={<IconSearch size={18} />}
+        placeholder="Procurar por nome ou NIF…"
+        value={search}
+        onChange={setSearch}
+      />
 
-          <KeyboardInput
-            icon={<IconSearch size={18} />}
-            placeholder="Procurar por nome ou NIF…"
-            value={search}
-            onChange={setSearch}
+      {/* O nº de resultados é anunciado: quem procura às cegas percebe que a
+          lista mudou sem ter de a percorrer. */}
+      <div className="nx-stack-2" role="listbox" aria-label="Clientes" aria-live="polite">
+        {filtered.length === 0 ? (
+          <EmptyState
+            icon={<IconUser size={26} />}
+            title="Sem clientes correspondentes"
+            text="Ajuste a procura ou crie o cliente aqui em baixo."
           />
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {filtered.length === 0 ? (
-              <p className="muted" style={{ textAlign: 'center', padding: 8 }}>
-                Sem clientes correspondentes.
-              </p>
-            ) : (
-              filtered.slice(0, 30).map((c) => (
-                <button
-                  key={c.id}
-                  className="cart-line"
-                  style={{ textAlign: 'left', cursor: 'pointer', color: 'var(--text)' }}
-                  onClick={() => onPick(c)}
-                >
-                  <div className="cl-name">{c.name}</div>
-                  <div className="cl-sub">{c.tax_id ? `NIF ${c.tax_id}` : 'Sem NIF'}</div>
-                </button>
-              ))
-            )}
-          </div>
-
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <strong style={{ fontSize: 14 }}>Novo cliente</strong>
-            {error ? <div className="banner danger">{error}</div> : null}
-            <KeyboardInput label="Nome" placeholder="Nome do cliente" value={name} onChange={setName} />
-            <KeyboardInput label="NIF (opcional)" placeholder="NIF" value={nif} onChange={setNif} numeric />
-            <button className="btn block" onClick={create} disabled={creating}>
-              {creating ? 'A criar…' : 'Adicionar cliente'}
+        ) : (
+          filtered.slice(0, 30).map((c) => (
+            <button
+              key={c.id}
+              className="cart-line"
+              role="option"
+              aria-selected={false}
+              style={{ textAlign: 'left', cursor: 'pointer', color: 'var(--nx-c-text)' }}
+              onClick={() => onPick(c)}
+            >
+              <div className="cl-name">{c.name}</div>
+              <div className="cl-sub">{c.tax_id ? `NIF ${c.tax_id}` : 'Sem NIF'}</div>
             </button>
-          </div>
-        </div>
+          ))
+        )}
       </div>
-    </div>
+
+      <div
+        className="nx-stack-2"
+        style={{ borderTop: '1px solid var(--nx-c-border)', paddingTop: 'var(--nx-space-3)' }}
+      >
+        <strong className="nx-body-sm">Novo cliente</strong>
+        {error ? (
+          <div className="banner danger" role="alert">
+            {error}
+          </div>
+        ) : null}
+        <KeyboardInput label="Nome" placeholder="Nome do cliente" value={name} onChange={setName} />
+        <KeyboardInput label="NIF (opcional)" placeholder="NIF" value={nif} onChange={setNif} numeric />
+        <Button variant="primary" block loading={creating} onClick={create}>
+          {creating ? 'A criar…' : 'Adicionar cliente'}
+        </Button>
+      </div>
+    </Dialog>
   );
 }

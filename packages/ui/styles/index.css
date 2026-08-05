@@ -1,0 +1,16 @@
+/* ============================================================
+   @nexus/ui — folha única do Design System do Ndombaxi System.
+
+   Importar UMA vez, no main.tsx de cada app, DEPOIS dos tokens
+   e ANTES do theme.css da app:
+
+     import '@nexus/tokens/tokens.css';
+     import '@nexus/ui/styles.css';
+     import './theme.css';
+
+   Ordem importa: os tokens definem os valores, esta folha define
+   a base e os componentes, e o theme.css da app só afina o que é
+   genuinamente específico do canal (gestão vs. loja).
+   ============================================================ */
+@import './base.css';
+@import './components.css';

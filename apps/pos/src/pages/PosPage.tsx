@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button, Dialog } from '@nexus/ui';
 import { api, ApiError } from '../api/client';
 import type { CashSession, Customer, DocumentIdentity, EmittedInvoice, PaymentType, Product, ReceiptFiscalInfo } from '../api/types';
 import { IVA_RATE } from '../api/types';
@@ -1124,25 +1125,30 @@ function ProductionPrompt({
     try { await onConfirm(prompt.product, n); } finally { setBusy(false); }
   };
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 6px' }}>{busyState ? '🟡 Em produção' : '🔴 Indisponível'}</h3>
-        <p className="muted" style={{ marginTop: 0 }}>
-          {busyState
-            ? <>«{prompt.product.name}» está em produção. Pretende criar mais uma produção?</>
-            : <>«{prompt.product.name}» está esgotado. Pretende solicitar produção?</>}
-        </p>
-        <div className="field">
-          <label>Quantidade a produzir</label>
-          <input inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d]/g, ''))} autoFocus />
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          <button className="btn ghost lg" style={{ flex: 1 }} onClick={onClose} disabled={busy}>Não</button>
-          <button className="btn lg" style={{ flex: 1 }} onClick={() => void confirm()} disabled={busy}>
+    <Dialog
+      open
+      onClose={onClose}
+      title={busyState ? '🟡 Em produção' : '🔴 Indisponível'}
+      size="sm"
+      dismissable={!busy}
+      footer={
+        <>
+          <Button variant="ghost" size="lg" style={{ flex: 1 }} onClick={onClose} disabled={busy}>Não</Button>
+          <Button variant="primary" size="lg" style={{ flex: 1 }} loading={busy} onClick={() => void confirm()}>
             {busy ? 'A solicitar…' : 'Sim, solicitar'}
-          </button>
-        </div>
+          </Button>
+        </>
+      }
+    >
+      <p className="nx-body-sm" style={{ color: 'var(--nx-c-text-muted)', margin: 0 }}>
+        {busyState
+          ? <>«{prompt.product.name}» está em produção. Pretende criar mais uma produção?</>
+          : <>«{prompt.product.name}» está esgotado. Pretende solicitar produção?</>}
+      </p>
+      <div className="field">
+        <label htmlFor="prod-qty">Quantidade a produzir</label>
+        <input id="prod-qty" inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d]/g, ''))} autoFocus />
       </div>
-    </div>
+    </Dialog>
   );
 }

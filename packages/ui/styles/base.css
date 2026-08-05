@@ -1,0 +1,179 @@
+/* ============================================================
+   @nexus/ui — BASE
+   Camada semântica do Design System. Os componentes NUNCA tocam
+   num hexadecimal: falam sempre por estes nomes. Trocar de tema
+   (ou de canal) redefine estes nomes, e todo o sistema acompanha.
+
+   Três camadas, nesta ordem:
+     1. @nexus/tokens  → valores crus  (--nx-brand-600: #2430e8)
+     2. @nexus/ui base → significado   (--nx-c-accent: brand-600)
+     3. theme.css      → afinação do canal (gestão vs. loja)
+   ============================================================ */
+
+:root {
+  /* ---- Superfícies (claro por omissão — é o tema de arranque) ---- */
+  --nx-c-bg:            var(--nx-gray-50);
+  --nx-c-surface:       #ffffff;
+  --nx-c-surface-raised: var(--nx-gray-25);
+  --nx-c-surface-sunken: var(--nx-gray-100);
+  --nx-c-border:        var(--nx-gray-200);
+  --nx-c-border-strong: var(--nx-gray-300);
+
+  /* ---- Texto: 3 níveis, nunca mais. Mais do que isto é ruído. ---- */
+  --nx-c-text:       var(--nx-gray-900);
+  --nx-c-text-muted: var(--nx-gray-600);
+  --nx-c-text-faint: var(--nx-gray-500);
+  --nx-c-text-on-accent: #ffffff;
+
+  /* ---- Acento (o canal decide: gestão=índigo, loja=laranja) ---- */
+  --nx-c-accent:       var(--nx-brand-600);
+  --nx-c-accent-hover: var(--nx-brand-700);
+  --nx-c-accent-soft:  var(--nx-brand-50);
+  --nx-c-accent-ring:  color-mix(in srgb, var(--nx-c-accent) 30%, transparent);
+
+  /* ---- Semânticas de ESTADO. Nunca servem de acento decorativo:
+          se o verde não quer dizer "correu bem", não é este verde. ---- */
+  --nx-c-success: var(--nx-success);
+  --nx-c-warning: var(--nx-warning);
+  --nx-c-danger:  var(--nx-danger);
+  --nx-c-info:    var(--nx-info);
+  --nx-c-success-soft: color-mix(in srgb, var(--nx-success) 14%, transparent);
+  --nx-c-warning-soft: color-mix(in srgb, var(--nx-warning) 16%, transparent);
+  --nx-c-danger-soft:  color-mix(in srgb, var(--nx-danger)  14%, transparent);
+  --nx-c-info-soft:    color-mix(in srgb, var(--nx-info)    14%, transparent);
+
+  /* ---- Elevação ---- */
+  --nx-c-shadow-1: var(--nx-shadow-1);
+  --nx-c-shadow-2: var(--nx-shadow-2);
+  --nx-c-shadow-3: var(--nx-shadow-3);
+
+  /* ---- Altura de controlo: um único ritmo vertical para botões,
+          inputs, selects e chips. É isto que faz uma barra de
+          ferramentas alinhar sem ninguém a empurrar com margens. ---- */
+  --nx-control-h-sm: 34px;
+  --nx-control-h-md: 42px;
+  --nx-control-h-lg: 50px;
+
+  /* ---- Camadas. Declaradas como tokens porque cada app tem sobreposições
+          próprias que TÊM de ficar por cima (o leitor de códigos ocupa a
+          câmara em ecrã inteiro; o teclado no ecrã tem de tapar o diálogo
+          para o operador ver o que escreve). Empilhar às cegas escondia-as. ---- */
+  --nx-z-dialog: 1000;
+  --nx-z-toast: 1100;
+
+  /* ---- Anel de foco: UM só, igual em todo o sistema.
+          Requisito WCAG 2.4.7 — nunca se remove sem substituir. ---- */
+  --nx-focus-ring: 0 0 0 3px var(--nx-c-accent-ring), 0 0 0 1px var(--nx-c-accent);
+}
+
+/* ---- Temas escuros: redefine-se a CAMADA SEMÂNTICA, não os componentes.
+        Qualquer tema escuro da app só precisa de herdar este bloco. ---- */
+:root[data-theme='grafite'],
+:root[data-theme='oceano'],
+:root[data-theme='violeta'],
+:root[data-theme='esmeralda'],
+:root[data-theme='indigo'],
+:root[data-theme='neon'],
+:root[data-theme='apple'],
+:root[data-nx-scheme='dark'],
+html:not([data-theme]) {
+  --nx-c-bg:            var(--nx-gray-950);
+  --nx-c-surface:       var(--nx-gray-900);
+  --nx-c-surface-raised: var(--nx-gray-800);
+  --nx-c-surface-sunken: #060a14;
+  --nx-c-border:        var(--nx-gray-800);
+  --nx-c-border-strong: var(--nx-gray-700);
+
+  --nx-c-text:       var(--nx-gray-50);
+  --nx-c-text-muted: var(--nx-gray-400);
+  --nx-c-text-faint: var(--nx-gray-500);
+
+  /* Sobre fundo escuro o índigo-600 não passa no contraste: sobe-se
+     para o 500, que é a tinta clara prevista nos tokens. */
+  --nx-c-accent:       var(--nx-brand-500);
+  --nx-c-accent-hover: var(--nx-brand-400);
+  --nx-c-accent-soft:  color-mix(in srgb, var(--nx-brand-500) 18%, transparent);
+
+  --nx-c-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --nx-c-shadow-2: 0 6px 18px -8px rgba(0, 0, 0, 0.55);
+  --nx-c-shadow-3: 0 18px 44px -16px rgba(0, 0, 0, 0.65);
+}
+
+/* ---- Canal LOJA: só troca o acento. Tudo o resto é partilhado —
+        é o que impede a loja de virar um produto visualmente diferente. ---- */
+:root[data-nx-channel='shop'] {
+  --nx-c-accent:       var(--nx-shop-600);
+  --nx-c-accent-hover: var(--nx-shop-700);
+  --nx-c-accent-soft:  color-mix(in srgb, var(--nx-shop-600) 12%, transparent);
+}
+
+/* ============================================================
+   Tipografia — escala única, aplicada por nome e não por px solto.
+   ============================================================ */
+.nx-title-xl { font: 700 var(--nx-text-2xl)/1.15 var(--nx-font-title); letter-spacing: -0.02em; text-wrap: balance; }
+.nx-title-lg { font: 700 var(--nx-text-xl)/1.2  var(--nx-font-title); letter-spacing: -0.015em; text-wrap: balance; }
+.nx-title-md { font: 600 var(--nx-text-lg)/1.3  var(--nx-font-title); letter-spacing: -0.01em; }
+.nx-body     { font: 400 var(--nx-text-md)/1.55 var(--nx-font-body); }
+.nx-body-sm  { font: 400 var(--nx-text-sm)/1.5  var(--nx-font-body); }
+.nx-caption  { font: 500 var(--nx-text-xs)/1.4  var(--nx-font-body); color: var(--nx-c-text-muted); }
+.nx-label {
+  font: 600 var(--nx-text-xs)/1.3 var(--nx-font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nx-c-text-muted);
+}
+/* Dígitos que alinham em coluna — obrigatório em qualquer tabela de
+   valores. Sem isto, uma coluna de kwanzas nunca alinha à direita. */
+.nx-num { font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   Foco visível — uma regra para todo o sistema.
+   ============================================================ */
+.nx-focusable:focus-visible,
+[class^='nx-']:focus-visible,
+[class*=' nx-']:focus-visible {
+  outline: none;
+  box-shadow: var(--nx-focus-ring);
+}
+
+/* ============================================================
+   Utilitários de layout: espaçamento vem do contentor (gap), nunca
+   de margens por elemento — margens colapsam e duplicam em silêncio.
+   ============================================================ */
+.nx-stack   { display: flex; flex-direction: column; gap: var(--nx-space-4); min-width: 0; }
+.nx-stack-2 { display: flex; flex-direction: column; gap: var(--nx-space-2); min-width: 0; }
+.nx-row     { display: flex; align-items: center; gap: var(--nx-space-3); min-width: 0; }
+.nx-row-wrap { display: flex; align-items: center; gap: var(--nx-space-3); flex-wrap: wrap; min-width: 0; }
+.nx-spacer  { flex: 1 1 auto; }
+/* Qualquer conteúdo largo (tabela, gráfico, código) rola dentro de si
+   próprio. O corpo da página nunca rola para o lado. */
+.nx-scroll-x { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+
+/* Visível só para leitores de ecrã. É assim que se dá a palavra
+   ("subiu", "a carregar") a quem não vê a seta nem a cor. */
+.nx-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Colunas secundárias saem do caminho no telemóvel em vez de
+   espremerem a tabela até nada se ler. */
+@media (max-width: 640px) {
+  .nx-hide-mobile { display: none; }
+}
+
+/* ============================================================
+   Movimento reduzido: os tokens já zeram as durações, mas há
+   animações com keyframes que precisam de ser travadas à mão.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .nx-skeleton { animation: none !important; }
+  .nx-spinner  { animation-duration: 1.6s !important; }
+}

@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
+// O style guide tem de carregar EXACTAMENTE a mesma pilha que as apps.
+// Faltavam os tokens: a página vinha a desenhar-se com os valores de
+// recurso do `var(--nx-…, fallback)`, ou seja, mostrava um sistema que
+// não era o que está em produção.
+import '@nexus/tokens/tokens.css';
+import '@nexus/ui/styles.css';
 import './theme.css';
+import {
+  Badge, Button, Card, DataTable, Dialog, EmptyState, Input, KpiCard,
+  Select, Skeleton, Tabs, ToastProvider, useToast,
+} from '@nexus/ui';
 import {
   IconArrowLeftRight, IconAudit, IconBadge, IconBank, IconBell, IconBoxes, IconBuilding,
   IconCalendar, IconCamera, IconCard, IconCart, IconCartIn, IconCashRegister, IconChart,
@@ -242,6 +252,8 @@ function DesignShowcase() {
             </div>
           </Section>
 
+          <NxKit />
+
           <Section title="Iconografia semântica" sub="uma só biblioteca · stroke 2 · cada módulo com o ícone da função">
             <div className="card">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 10 }}>
@@ -260,4 +272,210 @@ function DesignShowcase() {
   );
 }
 
-createRoot(document.getElementById('root')!).render(<DesignShowcase />);
+/* ============================================================
+   @nexus/ui — os componentes PARTILHADOS pelas três apps.
+   Tudo o que está aqui é literalmente o mesmo código que corre no
+   Gestor, na Caixa e na Loja (e portanto no Desktop e no Android).
+   ============================================================ */
+
+interface Fatura {
+  doc: string;
+  cliente: string;
+  data: string;
+  total: number;
+  estado: 'Paga' | 'Parcial' | 'Anulada';
+}
+
+const FATURAS: Fatura[] = [
+  { doc: 'FT A/2026/0102', cliente: 'Maria dos Santos', data: '02/07/2026', total: 45900, estado: 'Paga' },
+  { doc: 'FT A/2026/0101', cliente: 'João Baptista', data: '02/07/2026', total: 128500, estado: 'Parcial' },
+  { doc: 'FT A/2026/0100', cliente: 'Consumidor final', data: '01/07/2026', total: 9200, estado: 'Anulada' },
+];
+
+const kz = (n: number) => `${n.toLocaleString('pt-PT')} Kz`;
+
+function NxKit() {
+  const toast = useToast();
+  const [dialog, setDialog] = useState(false);
+  const [aba, setAba] = useState('componentes');
+  const [carregar, setCarregar] = useState(false);
+
+  return (
+    <>
+      <Section title="@nexus/ui · Botões" sub="4 níveis de hierarquia · o `loading` bloqueia o duplo-clique">
+        <Card>
+          <div className="nx-row-wrap">
+            <Button variant="primary">Emitir fatura</Button>
+            <Button variant="secondary">Guardar rascunho</Button>
+            <Button variant="ghost">Cancelar</Button>
+            <Button variant="danger">Anular documento</Button>
+            <Button variant="primary" loading>
+              A gravar
+            </Button>
+            <Button variant="secondary" disabled>
+              Indisponível
+            </Button>
+          </div>
+          <div className="nx-row-wrap">
+            <Button size="sm" variant="secondary">Pequeno</Button>
+            <Button size="md" variant="secondary">Normal</Button>
+            <Button size="lg" variant="secondary">Grande</Button>
+          </div>
+        </Card>
+      </Section>
+
+      <Section title="@nexus/ui · Campos" sub="rótulo, ajuda e erro ligados por id ao controlo (leitor de ecrã anuncia os três)">
+        <Card>
+          <div className="grid-2">
+            <Input label="Nome do cliente" required placeholder="ex.: Maria dos Santos" />
+            <Input label="NIF" hint="9 dígitos, emitido pela AGT" placeholder="000000000" />
+          </div>
+          <div className="grid-2">
+            <Input label="Telefone" error="Preencha um número angolano válido (9 dígitos)." defaultValue="93" />
+            <Select label="Regime fiscal" defaultValue="geral">
+              <option value="geral">Regime geral</option>
+              <option value="simplificado">Regime simplificado</option>
+              <option value="isento">Isento</option>
+            </Select>
+          </div>
+        </Card>
+      </Section>
+
+      <Section title="@nexus/ui · Indicadores" sub="valor domina · variação dita por seta, cor E palavra">
+        <div className="wrapcols" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+          <KpiCard label="Vendas do dia" value={kz(486300)} delta={12.4} deltaLabel="vs. ontem" />
+          <KpiCard label="Ticket médio" value={kz(8420)} delta={-3.1} deltaLabel="vs. ontem" />
+          <KpiCard label="Rupturas de stock" value="7" delta={9.5} deltaLabel="vs. semana" invert />
+          <KpiCard label="Documentos por sincronizar" value="0" delta={0} />
+        </div>
+      </Section>
+
+      <Section title="@nexus/ui · Tabela de dados" sub="carregamento sem salto de layout · números tabulares · rola dentro de si">
+        <Card
+          flush
+          title="Faturação recente"
+          actions={
+            <Button size="sm" variant="secondary" onClick={() => setCarregar((v) => !v)}>
+              {carregar ? 'Mostrar dados' : 'Simular carregamento'}
+            </Button>
+          }
+        >
+          <DataTable<Fatura>
+            caption="Faturas emitidas nos últimos 2 dias"
+            loading={carregar}
+            rows={FATURAS}
+            rowKey={(r) => r.doc}
+            columns={[
+              { key: 'doc', header: 'Documento', cell: (r) => <strong>{r.doc}</strong> },
+              { key: 'cliente', header: 'Cliente', cell: (r) => r.cliente },
+              { key: 'data', header: 'Data', cell: (r) => r.data, hideOnMobile: true },
+              { key: 'total', header: 'Total', numeric: true, cell: (r) => kz(r.total) },
+              {
+                key: 'estado',
+                header: 'Estado',
+                cell: (r) => (
+                  <Badge dot tone={r.estado === 'Paga' ? 'success' : r.estado === 'Parcial' ? 'warning' : 'danger'}>
+                    {r.estado}
+                  </Badge>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      </Section>
+
+      <Section title="@nexus/ui · Estados" sub="vazio com saída · esqueleto que reserva o espaço final · emblemas com forma além da cor">
+        <div className="grid-2">
+          <Card title="Estado vazio">
+            <EmptyState
+              icon={<IconBoxes size={26} />}
+              title="Ainda não há produtos"
+              text="Importe o seu catálogo por ficheiro ou crie o primeiro produto à mão."
+              action={<Button variant="primary" icon={<IconUpload size={16} />}>Importar catálogo</Button>}
+            />
+          </Card>
+          <Card title="Sem ligação">
+            <EmptyState
+              variant="offline"
+              icon={<IconDatabase size={26} />}
+              title="A trabalhar sem rede"
+              text="As vendas ficam guardadas no aparelho e sobem assim que a ligação voltar."
+            />
+          </Card>
+          <Card title="Emblemas">
+            <div className="nx-row-wrap">
+              <Badge dot tone="success">Paga</Badge>
+              <Badge dot tone="warning">Parcial</Badge>
+              <Badge dot tone="danger">Anulada</Badge>
+              <Badge tone="info">Sincronizada</Badge>
+              <Badge tone="accent">Nova</Badge>
+              <Badge tone="neutral">Rascunho</Badge>
+            </div>
+          </Card>
+          <Card title="Esqueleto">
+            <Skeleton lines={4} />
+          </Card>
+        </div>
+      </Section>
+
+      <Section title="@nexus/ui · Diálogo, separadores e avisos" sub="foco preso no diálogo · setas navegam os separadores · erro fica até ser fechado">
+        <Card>
+          <Tabs
+            label="Demonstração"
+            active={aba}
+            onChange={setAba}
+            tabs={[
+              { id: 'componentes', label: 'Componentes' },
+              { id: 'avisos', label: 'Avisos', count: 4 },
+            ]}
+          />
+          <div className="nx-row-wrap" style={{ marginTop: 16 }}>
+            <Button variant="primary" onClick={() => setDialog(true)}>Abrir diálogo</Button>
+            <Button variant="secondary" onClick={() => toast.success('Fatura emitida', 'FT A/2026/0103 · 45.900 Kz')}>
+              Sucesso
+            </Button>
+            <Button variant="secondary" onClick={() => toast.warning('Stock baixo', '3 produtos abaixo do mínimo.')}>
+              Aviso
+            </Button>
+            <Button variant="secondary" onClick={() => toast.error('Impressora não respondeu', 'Verifique o cabo USB e tente de novo.')}>
+              Erro (fica até fechar)
+            </Button>
+          </div>
+        </Card>
+
+        <Dialog
+          open={dialog}
+          onClose={() => setDialog(false)}
+          title="Anular fatura FT A/2026/0102"
+          description="A anulação gera uma nota de crédito e repõe o stock."
+          dismissable={false}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setDialog(false)}>Voltar</Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setDialog(false);
+                  toast.success('Fatura anulada', 'Nota de crédito NC A/2026/0007 emitida.');
+                }}
+              >
+                Anular fatura
+              </Button>
+            </>
+          }
+        >
+          <Input label="Motivo da anulação" required placeholder="ex.: erro no cliente" />
+          <p className="nx-body-sm" style={{ color: 'var(--nx-c-text-muted)', margin: 0 }}>
+            O motivo fica no registo de auditoria com o seu utilizador e a data.
+          </p>
+        </Dialog>
+      </Section>
+    </>
+  );
+}
+
+createRoot(document.getElementById('root')!).render(
+  <ToastProvider>
+    <DesignShowcase />
+  </ToastProvider>,
+);

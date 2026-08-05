@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
+import { Button, Dialog } from '@nexus/ui';
 import { api, ApiError } from '../api/client';
 import type { CashSession, DocumentIdentity, ReportX, ShiftClose } from '../api/types';
 import { copyrightLine } from '../brand';
 import { formatKz, formatDateTime } from '../format';
-import { IconCheck, IconClose } from './Icons';
+import { IconCheck } from './Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { PaperSizeToggle } from './PaperSizeToggle';
 import { buildShiftClosePdf, shiftFileName } from '../pdf/shiftPdf';
@@ -231,50 +232,54 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
   // ── Abrir turno ──────────────────────────────────────────
   if (!session) {
     return (
-      <div className="modal-bg" onClick={onClose}>
-        <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, padding: 22 }}>
-          <div className="row" style={{ marginBottom: 14 }}>
-            <h2 style={{ margin: 0, fontSize: 18 }}>Abrir turno de caixa</h2>
-            <span className="spacer" />
-            <button className="trash" onClick={onClose}><IconClose size={22} /></button>
-          </div>
-          {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
-          <KeyboardInput label="Fundo de troco inicial (Kz)" value={openingFloat} onChange={setOpeningFloat} numeric placeholder="0" onSubmit={open} />
-          <button className="btn success lg block" style={{ marginTop: 14 }} onClick={open} disabled={busy}>
+      <Dialog
+        open
+        onClose={onClose}
+        title="Abrir turno de caixa"
+        size="sm"
+        footer={
+          <Button variant="primary" size="lg" block loading={busy} onClick={open}>
             {busy ? 'A abrir…' : 'Abrir turno'}
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      >
+        {error ? <div className="banner danger" role="alert">{error}</div> : null}
+        <KeyboardInput label="Fundo de troco inicial (Kz)" value={openingFloat} onChange={setOpeningFloat} numeric placeholder="0" onSubmit={open} />
+      </Dialog>
     );
   }
 
   // ── Fechar turno ─────────────────────────────────────────
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, padding: 22 }}>
-        <div className="row" style={{ marginBottom: 8 }}>
-          <h2 style={{ margin: 0, fontSize: 18 }}>Fechar turno</h2>
-          <span className="spacer" />
-          <button className="trash" onClick={onClose}><IconClose size={22} /></button>
+    <Dialog
+      open
+      onClose={onClose}
+      title="Fechar turno"
+      description={`Aberto por ${session.opened_by_name} · ${new Date(session.opened_at).toLocaleString('pt-PT')}`}
+      size="sm"
+      // Fechar o turno é irreversível (emite o Z). Com o diálogo a meio de uma
+      // contagem, um clique no fundo não pode deitar fora o valor já contado.
+      dismissable={!busy}
+      footer={
+        <div className="nx-stack-2" style={{ width: '100%' }}>
+          <Button variant="secondary" size="lg" block onClick={loadX} disabled={busy}>
+            Relatório X (ler sem fechar)
+          </Button>
+          <Button variant="danger" size="lg" block loading={busy} onClick={close} disabled={cartCount > 0}>
+            {busy ? 'A fechar…' : 'Fechar turno e conferir (Z)'}
+          </Button>
         </div>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          Aberto por {session.opened_by_name} · {new Date(session.opened_at).toLocaleString('pt-PT')}
-        </p>
-        {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
-        {cartCount > 0 ? (
-          <div className="banner warn" style={{ marginBottom: 12 }}>
-            ⚠️ Há {cartCount} artigo(s) no carrinho por finalizar. Finalize a venda (ou limpe o carrinho) antes de fechar o turno.
-          </div>
-        ) : null}
-        <KeyboardInput label="Dinheiro contado na gaveta (Kz)" value={counted} onChange={setCounted} numeric placeholder="0" onSubmit={close} />
-        <KeyboardInput label="Observações (opcional)" value={notes} onChange={setNotes} placeholder="ex.: nota sobre o turno" />
-        <button className="btn ghost lg block" style={{ marginTop: 12 }} onClick={loadX} disabled={busy}>
-          Relatório X (ler sem fechar)
-        </button>
-        <button className="btn danger lg block" style={{ marginTop: 10 }} onClick={close} disabled={busy || cartCount > 0}>
-          {busy ? 'A fechar…' : 'Fechar turno e conferir (Z)'}
-        </button>
-      </div>
-    </div>
+      }
+    >
+      {error ? <div className="banner danger" role="alert">{error}</div> : null}
+      {cartCount > 0 ? (
+        <div className="banner warn" role="alert">
+          ⚠️ Há {cartCount} artigo(s) no carrinho por finalizar. Finalize a venda (ou limpe o carrinho) antes de
+          fechar o turno.
+        </div>
+      ) : null}
+      <KeyboardInput label="Dinheiro contado na gaveta (Kz)" value={counted} onChange={setCounted} numeric placeholder="0" onSubmit={close} />
+      <KeyboardInput label="Observações (opcional)" value={notes} onChange={setNotes} placeholder="ex.: nota sobre o turno" />
+    </Dialog>
   );
 }
