@@ -29,7 +29,8 @@
         "@nexus/pos",
         "preview"
       ],
-      "port": 5173
+      "port": 5173,
+      "autoPort": true
     },
     {
       "name": "pos-dev",
