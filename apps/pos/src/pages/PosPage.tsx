@@ -46,6 +46,7 @@ import { useSync } from '../offline/useSync';
 import { deviceKey } from '../offline/device';
 import { setPosBusy } from '../offline/localServer';
 import { turnoAbertoLocal } from '../offline/shifts';
+import { setSaleInProgress } from '../pos/saleActivity';
 
 const CACHE_PRODUCTS = 'cache:products';
 // Dados de apoio da Caixa, também guardados para VENDER 100% OFFLINE (clientes,
@@ -494,6 +495,15 @@ export function PosPage() {
   // Ao sair deste ecrã a caixa deixa de estar ocupada — senão uma bandeira
   // presa adiava a cópia para sempre.
   useEffect(() => () => setPosBusy(false), []);
+
+  // Venda em curso: sinal lido pela auto-atualização para nunca recarregar a app
+  // a meio de uma venda. É MAIS ESTREITO que "ocupada" acima — um turno aberto
+  // sem carrinho não deve adiar a atualização, senão a app nunca se atualizaria
+  // durante o dia de trabalho.
+  useEffect(() => {
+    setSaleInProgress(cart.length > 0 || emitting);
+  }, [cart.length, emitting]);
+  useEffect(() => () => setSaleInProgress(false), []);
 
   // Reconcilia o carrinho com o STOCK ATUAL (ex.: outro caixa vendeu entretanto):
   // remove o que esgotou/saiu do catálogo e ajusta quantidades ao disponível.
