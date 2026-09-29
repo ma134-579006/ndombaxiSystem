@@ -25,6 +25,7 @@ services:
       npx -y pnpm@9.15.9 install --frozen-lockfile --prod=false &&
       npx -y pnpm@9.15.9 --filter @nexus/types build &&
       npx -y pnpm@9.15.9 --filter @nexus/agt-xml build &&
+      npx -y pnpm@9.15.9 --filter @nexus/replication build &&
       npx -y pnpm@9.15.9 --filter @nexus/api exec prisma generate &&
       npx -y pnpm@9.15.9 --filter @nexus/api build
     startCommand: >-
