@@ -86,3 +86,4 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - Chaves: software RSA>=2048 (jwsSoftwareSignature, Portal do Parceiro) e contribuinte (PEM emitido pela AGT, por empresa). Independentes da chave Modelo 8 (RSA-1024) do SAF-T.
 - Por validar em homologacao (sem credenciais nesta sessao): operationType SE/SS, typ do header JWS (JWT vs JOSE), forma da resposta de obterEstado, mapeamento FS->FR, RC/GR/ORC nao enviados, QR AGT nos recibos ainda nao aplicado.
 - ACAO MANUAL: pedir credenciais Basic (produtores.dfe.dcrr.agt@minfin.gov.ao), registar chave publica do software no Portal do Parceiro HML, chave privada do contribuinte no Portal do Contribuinte, pedir series (Super Admin > Fiscal > Facturacao Electronica), activar.
+- QR oficial da AGT (consultar-fe?emissor=NIF&document=DOCUMENTNO) nos recibos/PDF quando o documento esta numa serie AGT ativa (flag feQr).

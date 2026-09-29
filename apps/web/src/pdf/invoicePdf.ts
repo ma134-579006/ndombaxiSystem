@@ -190,7 +190,9 @@ export async function buildInvoicePdf(sale: SaleDetail, identity?: DocumentIdent
 
   // ── QR de verificação ──
   try {
-    const qrData = [empresa, `${title} ${sale.invoice.number}`, sig, KZ(sale.invoice.grossTotal)].join('|');
+    const qrData = sale.invoice.feQr && identity?.nif
+      ? `https://quiosqueagt.minfin.gov.ao/facturacao-eletronica/consultar-fe?emissor=${encodeURIComponent(identity.nif)}&document=${sale.invoice.number.replace(/ /g, '%20')}`
+      : [empresa, `${title} ${sale.invoice.number}`, sig, KZ(sale.invoice.grossTotal)].join('|');
     const qr = await QRCode.toDataURL(qrData, { margin: 1, width: 220 });
     doc.addImage(qr, 'PNG', W - M - 84, H - 156, 84, 84, undefined, 'FAST');
     doc.setFontSize(7.5); doc.setTextColor(...SUB);

@@ -278,6 +278,16 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     return map[`${feType}-${year}`] ?? null;
   }
 
+  /** true se `series` é um código de série AGT activo desta empresa (para o QR da AGT nos recibos). */
+  async isFeSeries(schema: string, series: string | null | undefined): Promise<boolean> {
+    if (!series) return false;
+    const company = await this.prisma.company.findUnique({ where: { schemaName: schema }, select: { id: true } });
+    if (!company) return false;
+    const row = await this.prisma.einvoiceCompany.findUnique({ where: { companyId: company.id } });
+    if (!row?.enabled) return false;
+    return Object.values((row.series as Record<string, string> | null) ?? {}).includes(series);
+  }
+
   // ── HTTP ────────────────────────────────────────────────────────────────
   private async signingContext(companyId: string): Promise<{ ctx: FeSigningContext; settings: FeSettings; secrets: FeSecrets; company: { nif: string; schemaName: string } }> {
     const { settings, secrets } = await this.loadConfig();

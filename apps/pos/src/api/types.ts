@@ -84,7 +84,7 @@ export type PaymentType = 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS'
 
 /** Detalhe de um documento já emitido (para reimpressão / 2ª via). */
 export interface SaleDetail {
-  invoice: { id: string; number: string; hash: string; previousHash: string; netTotal: number; ivaTotal: number; grossTotal: number };
+  invoice: { id: string; number: string; hash: string; previousHash: string; netTotal: number; ivaTotal: number; grossTotal: number; feQr?: boolean };
   docType: string;
   date: string;
   operationDate: string | null;
@@ -123,6 +123,8 @@ export interface EmittedInvoice {
   netTotal: number;
   ivaTotal: number;
   grossTotal: number;
+  /** Documento numa série AGT da Facturação Electrónica → QR oficial da AGT. */
+  feQr?: boolean;
 }
 
 /** Turno de caixa aberto. */

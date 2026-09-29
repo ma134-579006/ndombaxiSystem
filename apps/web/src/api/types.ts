@@ -547,7 +547,7 @@ export interface DocumentIdentity {
 /** Detalhe de um documento fiscal emitido (2ª via / reimpressão). */
 export interface SaleDetailItem { productCode: string; description: string; quantity: number; unitPrice: number; total: number; returnedQuantity: number }
 export interface SaleDetail {
-  invoice: { id: string; number: string; hash: string; previousHash: string; netTotal: number; ivaTotal: number; grossTotal: number };
+  invoice: { id: string; number: string; hash: string; previousHash: string; netTotal: number; ivaTotal: number; grossTotal: number; feQr?: boolean };
   docType: string; date: string; operationDate: string | null; status: string;
   customerName: string | null; cashierName: string | null;
   items: SaleDetailItem[];

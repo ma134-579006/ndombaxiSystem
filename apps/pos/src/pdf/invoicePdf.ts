@@ -201,7 +201,9 @@ export async function buildInvoicePdf(a: InvoicePdfArgs): Promise<jsPDF> {
   // ── QR de verificação (canto inferior direito) ──
   if (!provisional && invoice.hash) {
     try {
-      const qrData = [empresa, invoice.number, identity?.nif ? `NIF:${identity.nif}` : '',
+      const qrData = invoice.feQr && identity?.nif
+        ? `https://quiosqueagt.minfin.gov.ao/facturacao-eletronica/consultar-fe?emissor=${encodeURIComponent(identity.nif)}&document=${invoice.number.replace(/ /g, '%20')}`
+        : [empresa, invoice.number, identity?.nif ? `NIF:${identity.nif}` : '',
         `Total:${invoice.grossTotal}`, `IVA:${invoice.ivaTotal}`, new Date().toISOString().slice(0, 10),
         `H:${invoice.hash.slice(0, 16)}`].filter(Boolean).join('|');
       const qr = await QRCode.toDataURL(qrData, { margin: 1, width: 220 });

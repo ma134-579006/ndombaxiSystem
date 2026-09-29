@@ -36,7 +36,9 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
   const hashShort = invoice.hash ? [0, 10, 20, 30].map((i) => invoice.hash[i] ?? '').join('') : '----';
   const shownDate = dateLabel ?? formatDateTime();
   // Conteúdo do QR de verificação (campos-chave do documento).
-  const qrData = [
+  const qrData = invoice.feQr && identity?.nif
+    ? `https://quiosqueagt.minfin.gov.ao/facturacao-eletronica/consultar-fe?emissor=${encodeURIComponent(identity.nif)}&document=${invoice.number.replace(/ /g, '%20')}`
+    : [
     identity?.companyName || identity?.brandName || 'Documento', invoice.number,
     identity?.nif ? `NIF:${identity.nif}` : '',
     `Total:${invoice.grossTotal}`, `IVA:${invoice.ivaTotal}`,

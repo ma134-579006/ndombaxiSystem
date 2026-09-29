@@ -81,6 +81,8 @@ export interface EmittedInvoice {
   netTotal: number;
   ivaTotal: number;
   grossTotal: number;
+  /** true quando o documento está numa série AGT da Facturação Electrónica (QR da AGT no recibo). */
+  feQr?: boolean;
 }
 
 interface ProductForEmission {
@@ -627,6 +629,7 @@ export class InvoiceService {
         netTotal: totals.netTotal,
         ivaTotal: totals.ivaTotal,
         grossTotal: totals.grossTotal,
+        feQr: !!agtSeries,
       };
     });
 
@@ -652,10 +655,10 @@ export class InvoiceService {
   async findByClientOpId(schema: string, clientOpId: string): Promise<EmittedInvoice | null> {
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<{
-        id: string; number: string; hash: string; previous_hash: string | null;
+        id: string; number: string; hash: string; previous_hash: string | null; series: string;
         net_total: string; iva_total: string; gross_total: string;
       }[]>(
-        Prisma.sql`SELECT id, number, hash, previous_hash, net_total, iva_total, gross_total
+        Prisma.sql`SELECT id, number, hash, previous_hash, series, net_total, iva_total, gross_total
                      FROM invoices WHERE client_op_id = ${clientOpId}::uuid`,
       ),
     );
@@ -669,6 +672,7 @@ export class InvoiceService {
       netTotal: Number(r.net_total),
       ivaTotal: Number(r.iva_total),
       grossTotal: Number(r.gross_total),
+      feQr: await this.einvoice.isFeSeries(schema, r.series),
     } as EmittedInvoice;
   }
 
@@ -708,18 +712,18 @@ export class InvoiceService {
    * Nada se altera; é uma cópia fiel do documento fiscal original.
    */
   async getSaleDetail(schema: string, id: string): Promise<{
-    invoice: { id: string; number: string; hash: string; previousHash: string; netTotal: number; ivaTotal: number; grossTotal: number };
+    invoice: { id: string; number: string; hash: string; previousHash: string; netTotal: number; ivaTotal: number; grossTotal: number; feQr?: boolean };
     docType: string; date: string; operationDate: string | null; status: string;
     customerName: string | null; cashierName: string | null;
     items: { productCode: string; description: string; quantity: number; unitPrice: number; total: number; returnedQuantity: number }[];
   }> {
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{
-        id: string; number: string; doc_type: string; status: string; hash: string; previous_hash: string;
+        id: string; number: string; doc_type: string; series: string; status: string; hash: string; previous_hash: string;
         net_total: string; iva_total: string; gross_total: string; system_entry_date: Date; operation_date: Date | null;
         customer_name: string | null; cashier_name: string | null;
       }[]>(
-        Prisma.sql`SELECT i.id, i.number, i.doc_type, i.status, i.hash, i.previous_hash,
+        Prisma.sql`SELECT i.id, i.number, i.doc_type, i.series, i.status, i.hash, i.previous_hash,
                           i.net_total, i.iva_total, i.gross_total, i.system_entry_date, i.operation_date,
                           c.name AS customer_name, u.name AS cashier_name
                    FROM invoices i
@@ -736,10 +740,12 @@ export class InvoiceService {
       // Quantidades já devolvidas por NC (por código), distribuídas pelas linhas
       // por ordem — o modal de cancelamento mostra/limita o REMANESCENTE.
       const returned = await this.returnedQtyByCode(tx, id);
+      const feQr = await this.einvoice.isFeSeries(schema, inv.series);
       return {
         invoice: {
           id: inv.id, number: inv.number, hash: inv.hash, previousHash: inv.previous_hash,
           netTotal: Number(inv.net_total), ivaTotal: Number(inv.iva_total), grossTotal: Number(inv.gross_total),
+          feQr: feQr,
         },
         docType: inv.doc_type, status: inv.status,
         date: inv.system_entry_date.toISOString(),
