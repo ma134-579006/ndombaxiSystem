@@ -25,7 +25,7 @@ export async function buildShiftClosePdf(a: ShiftPdfArgs): Promise<jsPDF> {
   const M = 48;
   let y = 54;
   const empresa = identity?.companyName || identity?.brandName || 'Fecho de turno';
-  const accent: [number, number, number] = [255, 77, 45];
+  const accent: [number, number, number] = [36, 48, 232];
   const tone: [number, number, number] =
     r.verdict === 'OK' ? [22, 163, 74] : r.verdict === 'QUEBRA' ? [220, 38, 38] : [217, 119, 6];
 

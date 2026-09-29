@@ -16,7 +16,7 @@ export interface ReportPdfArgs {
   tables: ReportTable[];
 }
 
-const ACCENT: [number, number, number] = [255, 77, 45];
+const ACCENT: [number, number, number] = [36, 48, 232];
 const INK: [number, number, number] = [20, 24, 32];
 const MUTED: [number, number, number] = [110, 120, 135];
 
