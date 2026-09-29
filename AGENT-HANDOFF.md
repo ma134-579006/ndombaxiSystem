@@ -39,3 +39,9 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - PlanExpired: painel pode rolar (conteúdo de pagamento variável); login/registo continuam sem scroll.
 - Conta de teste: empresa "Supermercado Teste Ndombaxi" (slug `supermercado-teste-ndombaxi`) reativada +30 dias, com produto "Arroz 1kg".
 - Por fazer: validação visual POS/Loja em produção, polimento de tabelas/forms, responsividade 320–1920, acessibilidade, QA final; instalador Windows e APK continuam pendentes.
+
+## Verificação em produção (2026-09-29, Chrome)
+- Caixa: login de funcionário (Operador Teste, F-001, email operador.teste@ndombaxi.ao, PIN definido pelo utilizador) → abrir turno → venda em numerário 1.368 Kz → recibo com QR. Stock 50→49. Modais rolam em alturas baixas (`.modal-bg > .card` com overflow).
+- Loja: aparência laranja/tokens OK em 1280 e ~657 px, sem overflow horizontal.
+- Admin: auditoria a11y básica sem botões sem nome, inputs sem label ou imagens sem alt; `lang="pt"`.
+- Por fazer: compra de teste na Loja (exige conta de cliente), polimento adicional de tabelas/forms do admin, QA de 320–1920 nas apps autenticadas, instalador Windows, APK.
