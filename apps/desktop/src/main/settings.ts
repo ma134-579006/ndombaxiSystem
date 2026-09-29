@@ -45,7 +45,7 @@ export interface Settings {
 }
 
 /** API de produção. O instalador não pergunta nada ao lojista. */
-const DEFAULT_API = 'https://ndombaxi-api-img.onrender.com';
+const DEFAULT_API = 'https://ndombaxi-api-3nmz.onrender.com';
 
 const DEFAULTS: Settings = {
   module: null,
@@ -63,6 +63,7 @@ function file(): string {
 export function readSettings(): Settings {
   try {
     const raw = JSON.parse(fs.readFileSync(file(), 'utf8')) as Partial<Settings>;
+    if (raw.apiUrl && raw.apiUrl.includes('ndombaxi-api-img.onrender.com')) raw.apiUrl = DEFAULT_API;
     return { ...DEFAULTS, ...raw };
   } catch {
     return { ...DEFAULTS };

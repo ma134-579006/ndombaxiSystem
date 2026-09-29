@@ -14,7 +14,7 @@ export default defineConfig({
     // local com dados reais (auditoria/QA). Nunca afeta builds de produção.
     proxy: {
       '/papi': {
-        target: 'https://ndombaxi-api-img.onrender.com',
+        target: 'https://ndombaxi-api-3nmz.onrender.com',
         changeOrigin: true,
         secure: true,
         rewrite: (p) => p.replace(/^\/papi/, ''),

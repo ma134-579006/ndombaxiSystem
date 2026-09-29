@@ -1,5 +1,5 @@
 /** API de produção — recurso de último recurso quando o build não injeta a URL. */
-const PROD_API_URL = 'https://ndombaxi-api-img.onrender.com';
+const PROD_API_URL = 'https://ndombaxi-api-3nmz.onrender.com';
 
 // A URL da API é injetada no build (VITE_API_URL). Quando NÃO é injetada:
 //   • no site (navegador)          → localhost:3000 (ambiente de desenvolvimento);

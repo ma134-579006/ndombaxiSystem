@@ -17,7 +17,7 @@ const desktop = path.resolve(here, '..');
 const repo = path.resolve(desktop, '..', '..');
 
 /** API de produção. Fica gravada no bundle dos frontends. */
-const API_URL = process.env.NDOMBAXI_API_URL || 'https://ndombaxi-api-img.onrender.com';
+const API_URL = process.env.NDOMBAXI_API_URL || 'https://ndombaxi-api-3nmz.onrender.com';
 
 /**
  * Apenas Gestão e Caixa. A Loja Online é uma montra para o CLIENTE FINAL, que

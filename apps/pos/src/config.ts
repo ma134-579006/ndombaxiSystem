@@ -1,6 +1,6 @@
 // URL base da API NEXUS. Configurável por VITE_API_URL (substituído no build).
 /** API de produção — último recurso quando o build não injeta a URL. */
-const PROD_API_URL = 'https://ndombaxi-api-img.onrender.com';
+const PROD_API_URL = 'https://ndombaxi-api-3nmz.onrender.com';
 
 /** App instalada (Electron `ndombaxi://` ou Capacitor)? No navegador → false. */
 export function isNativeApp(): boolean {

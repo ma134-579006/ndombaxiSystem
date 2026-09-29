@@ -13,7 +13,7 @@ const {
 
 const r = [];
 const check = (nome, cond) => r.push([cond ? 'OK  ' : 'FALHA', nome]);
-const NUVEM = 'https://ndombaxi-api-img.onrender.com';
+const NUVEM = 'https://ndombaxi-api-3nmz.onrender.com';
 
 // ── Que endereços se aceitam ──────────────────────────────────────────
 const escrito = normalizarEndereco('192.168.1.50:3399');

@@ -13,7 +13,7 @@ export default defineConfig({
     // da API antes de publicar) — sem env, mantém a produção.
     proxy: {
       '/papi': {
-        target: process.env.PAPI_TARGET || 'https://ndombaxi-api-img.onrender.com',
+        target: process.env.PAPI_TARGET || 'https://ndombaxi-api-3nmz.onrender.com',
         changeOrigin: true,
         secure: true,
         rewrite: (p) => p.replace(/^\/papi/, ''),
