@@ -29,3 +29,13 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - Landing: cores por defeito agora `--nx-brand-600/400`; navbar preservada; foco visível e reduced-motion.
 - Limite: ecrãs autenticados (Shell/Dashboard/Admin/POS/Loja) não são testáveis em dev sem sessão real (API bloqueada por CORS no dev; não se introduzem credenciais). Herdam o remap; validação visual pendente em produção.
 - Build de produção do web: OK (vite build exit 0).
+
+## Atualização (fases 5–10, produção)
+- Cloudflare Pages exige lockfile congelado: todo novo pacote workspace tem de constar em `pnpm-lock.yaml` (importers). `packages/ui` adicionado (sem peerDependencies).
+- Verificado em Chrome (produção): /ds, login (sem scroll), dashboard (super-admin e empresa via shadow), Produtos, Novo produto, Reativar, Funcionários.
+- Shell: item ativo da sidebar legível; tema claro com elevações/vidro/bordas alinhados aos tokens.
+- ErrorBoundary recarrega 1× quando um chunk antigo desaparece após novo deploy.
+- POS: `--primary*` vem de `--nx-brand-*`; Loja: `--accent` vem de `--nx-shop-600`.
+- PlanExpired: painel pode rolar (conteúdo de pagamento variável); login/registo continuam sem scroll.
+- Conta de teste: empresa "Supermercado Teste Ndombaxi" (slug `supermercado-teste-ndombaxi`) reativada +30 dias, com produto "Arroz 1kg".
+- Por fazer: validação visual POS/Loja em produção, polimento de tabelas/forms, responsividade 320–1920, acessibilidade, QA final; instalador Windows e APK continuam pendentes.
