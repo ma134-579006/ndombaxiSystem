@@ -72,3 +72,9 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - Temas escuros verificados no painel real (violeta, neon, esmeralda, oceano, apple); neon com KPIs tonais.
 - a11y: aria-label em login da Caixa (email/PIN) e pesquisa por imagem da Loja; auditoria publica sem botoes sem nome nem img sem alt.
 - Bloqueio por inatividade (IdleLock) ativa-se tambem em modo shadow; interrompe scripts de teste.
+
+## Atualização (NIF, e-mail, AGT Modelo 8)
+- NIF: Company.nif deixou de ser unico (indice normal); aceita 9-10 digitos ou 14 caracteres BI (9 digitos + 2 letras + 3 digitos), normalizado para maiusculas.
+- E-mail unico global (EmailRegistryService): responsavel de empresa, funcionarios de qualquer tenant e platform users. Bloqueia so novos registos; duplicados antigos nao foram alterados.
+- AGT Modelo 8 (Regras e Requisitos para Validacao de Sistemas, ponto 34): assinatura RSA-1024 + SHA-1 (PKCS#1 v1.5), Base64 172 car. = campo Hash; texto assinado InvoiceDate;SystemEntryDate(AAAA-MM-DDTHH:MM:SS);InvoiceNo;GrossTotal;assinatura do documento anterior (vazio no 1.o). Chave = da PLATAFORMA (PlatformSigningService, RSA-1024 por omissao), nao por empresa. InvoiceNo passou a "FT A2026/0001" (igual ao SAF-T). Cadeias antigas SHA-256 recomecam automaticamente. Sem chave RSA-1024 valida a emissao cai no modo legado (sem assinatura AGT) e avisa no log.
+- ACAO MANUAL: no Super Admin > Fiscal, gerar/rodar a chave RSA-1024, exportar public.txt e comunicar a AGT com a Declaracao Modelo 8 (nova versao da chave) ANTES de submeter novos SAF-T.
