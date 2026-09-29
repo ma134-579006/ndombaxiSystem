@@ -17,6 +17,7 @@ export function PasswordField(props: {
     <div className="auth-pass">
       <input
         className="auth-input"
+        aria-label={props.placeholder && props.placeholder.length>=6 ? 'Novo PIN' : 'PIN'}
         type={show ? 'text' : 'password'}
         value={props.value}
         inputMode={props.inputMode}

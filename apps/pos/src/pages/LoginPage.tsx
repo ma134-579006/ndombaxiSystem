@@ -146,7 +146,7 @@ export function LoginPage() {
               <input className="auth-input" value={email} onChange={(e) => setEmail(e.target.value)}
                 placeholder="voce@empresa.ao" inputMode="email" type="text"
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                name="ndx_field_acct" id="ndx_field_acct"
+                name="ndx_field_acct" id="ndx_field_acct" aria-label="E-mail do funcionário"
                 data-lpignore="true" data-1p-ignore data-form-type="other" data-bwignore="true"
                 readOnly={emailRO} onFocus={() => setEmailRO(false)} onPointerDown={() => setEmailRO(false)}
                 onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />

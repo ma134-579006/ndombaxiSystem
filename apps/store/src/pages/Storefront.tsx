@@ -257,7 +257,7 @@ export function Storefront() {
     const s = data?.settings;
     return (
       <>
-      <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" aria-label="Pesquisar por imagem" style={{ display: 'none' }}
         onChange={(e) => void onImagePicked(e.target.files?.[0] ?? undefined)} />
       <footer className="ax-footer">
         <div className="wrap in">
