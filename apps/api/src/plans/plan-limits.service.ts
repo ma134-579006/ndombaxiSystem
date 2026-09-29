@@ -17,18 +17,12 @@ export class PlanLimitsService {
   async assertCanCreate(schema: string, resource: Resource): Promise<void> {
     const company = await this.prisma.company.findUnique({
       where: { schemaName: schema },
-      include: {
-        plan: true,
-        subscriptions: {
-          where: { status: 'ACTIVE' },
-          include: { plan: true },
-          orderBy: { expiresAt: 'desc' },
-          take: 1,
-        },
-      },
+      include: { plan: true },
     });
     if (!company) return; // sem empresa conhecida → não bloqueia
-    const plan = company.subscriptions[0]?.plan ?? company.plan;
+    // company.planId é a fonte de verdade: actualizado ao aprovar uma subscrição
+    // e quando o Super Admin muda o plano.
+    const plan = company.plan;
     if (!plan) return;
 
     const limit = resource === 'stores' ? plan.maxStores
