@@ -3,7 +3,7 @@ import React, { useId, useMemo, useState } from 'react';
 export interface DonutSlice { label: string; value: number }
 
 /** Paleta moderna (ciano→azul→violeta→verde→âmbar→rosa…) para as fatias. */
-const PALETTE = ['#3b82f6', '#22d3ee', '#a855f7', '#34d399', '#f59e0b', '#ec4899', '#6366f1', '#14b8a6', '#fb7185', '#84cc16'];
+const PALETTE = ['#3b82f6', '#22d3ee', '#a855f7', '#34d399', '#64748b', '#ec4899', '#6366f1', '#14b8a6', '#fb7185', '#84cc16'];
 
 /**
  * Gráfico de ROSCA (donut) SVG, sem dependências — mesmo nível dos gráficos de

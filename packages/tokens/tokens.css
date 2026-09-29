@@ -6,7 +6,7 @@
 
    Identidade (decisão do utilizador 2026-07-17):
    · GESTÃO (admin, POS, super admin, auth): índigo #2430E8.
-   · LOJA ONLINE: laranja #FF4D2D — token DE CANAL, não da marca.
+   · LOJA ONLINE: índigo (sem laranja) — token DE CANAL, não da marca.
    ============================================================ */
 :root {
   /* ---- Marca (gestão) — rampa índigo ---- */
@@ -22,9 +22,9 @@
   --nx-brand-900: #131a66;
 
   /* ---- Canal loja (e-commerce) ---- */
-  --nx-shop-500: #ff6a47;
-  --nx-shop-600: #ff4d2d; /* accent da loja */
-  --nx-shop-700: #e63c1e;
+  --nx-shop-500: #4353ff;
+  --nx-shop-600: #2430e8; /* accent da loja */
+  --nx-shop-700: #1b23ae;
 
   /* ---- Cinzas (escala única, base slate) ---- */
   --nx-gray-25:  #fcfdfe;
@@ -42,7 +42,7 @@
 
   /* ---- Semânticas ---- */
   --nx-success: #10b981;
-  --nx-warning: #f59e0b;
+  --nx-warning: #ca8a04;
   --nx-danger:  #ef4444;
   --nx-info:    #0ea5e9;
 
@@ -188,7 +188,7 @@
 
   --nx-success-soft: rgba(16, 185, 129, 0.16);
   --nx-success-text: #4ade9c;
-  --nx-warning-soft: rgba(245, 158, 11, 0.16);
+  --nx-warning-soft: rgba(202,138,4, 0.16);
   --nx-warning-text: #fbbf50;
   --nx-danger-soft: rgba(239, 68, 68, 0.16);
   --nx-danger-text: #fca5a5;

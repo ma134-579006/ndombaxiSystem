@@ -10,7 +10,7 @@ import { subscribeSyncStatus, getSyncStatus } from './boot';
  */
 const LABEL: Record<SyncStatus['link'], { text: string; color: string }> = {
   ONLINE: { text: 'Sincronizado', color: '#16a34a' },
-  OFFLINE: { text: 'Offline', color: '#d97706' },
+  OFFLINE: { text: 'Offline', color: '#a16207' },
   SERVER_DOWN: { text: 'Servidor indisponível', color: '#dc2626' },
 };
 

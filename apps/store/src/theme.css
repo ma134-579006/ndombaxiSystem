@@ -3,8 +3,8 @@
    A cor de destaque (--accent) vem da marca de cada loja.
    ============================================================ */
 :root {
-  --accent: var(--nx-shop-600, #ff4d2d);
-  --accent-2: #ff6a00;
+  --accent: var(--nx-brand-600, #2430e8);
+  --accent-2: var(--nx-brand-500, #4353ff);
   --price: #e62e04;           /* vermelho dos preços */
   --bg: #f4f6fb;
   --surface: #ffffff;
@@ -13,7 +13,7 @@
   --muted: #6b7686;
   --border: #e7eaf2;
   --success: #16a34a;
-  --warning: #d97706;
+  --warning: #a16207;
   --danger: #dc2626;
   --radius: var(--nx-radius-lg, 16px);
   --radius-sm: var(--nx-radius-md, 12px);
@@ -731,7 +731,7 @@ button, .btn, .add-btn, .chip, .product { -webkit-tap-highlight-color: transpare
    (--accent) e o layout comercial mantêm-se intocados.
    ════════════════════════════════════════════════════════════ */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: none; box-shadow: 0 0 0 3px rgba(255, 106, 0, .28), 0 0 0 1.5px var(--accent, #ff6a00);
+  outline: none; box-shadow: 0 0 0 3px rgba(67, 83, 255, .28), 0 0 0 1.5px var(--accent, #2430e8);
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
@@ -784,3 +784,7 @@ h1, h2, h3 { font-weight: 700; }
 }
 :where(button, a, [tabindex]):focus-visible { outline: 2px solid var(--nx-brand-500, #4353ff); outline-offset: 2px; }
 .badge, .chip { font-weight: 600; }
+
+/* Sem laranja: acento e preços na identidade índigo. */
+:root { --accent: var(--nx-brand-600, #2430e8); --accent-2: var(--nx-brand-500, #4353ff); --price: var(--nx-brand-700, #1b23ae); }
+.search input { border-color: var(--border); }

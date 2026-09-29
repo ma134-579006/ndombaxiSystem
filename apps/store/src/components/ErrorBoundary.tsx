@@ -29,7 +29,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
           <p style={{ color: '#68738a', fontSize: 14, marginTop: 0 }}>
             A loja encontrou um problema. Recarregue a página — o seu carrinho continua guardado.
           </p>
-          <button onClick={() => location.reload()} style={{ marginTop: 12, width: '100%', height: 46, borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#f97316,#ea580c)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+          <button onClick={() => location.reload()} style={{ marginTop: 12, width: '100%', height: 46, borderRadius: 12, border: 'none', background: '#2430e8', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
             Recarregar a loja
           </button>
         </div>

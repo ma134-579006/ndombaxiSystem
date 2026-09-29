@@ -102,7 +102,7 @@ async function downloadInvoicePdf(inv: StoreInvoice): Promise<void> {
   doc.save(`Fatura-${inv.number.replace(/[^\w-]/g, '_')}.pdf`);
 }
 const STATUS_COLOR: Record<string, string> = {
-  PENDING: '#d97706',
+  PENDING: '#a16207',
   PAID: '#2563eb',
   SHIPPED: '#7c3aed',
   DELIVERED: '#16a34a',
