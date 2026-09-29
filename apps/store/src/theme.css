@@ -749,3 +749,38 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary, #3b82
 .hx-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border,#e6e9ef);}
 .hx-row:last-child{border-bottom:none;}
 .hx-row > div:first-child{flex:1;min-width:0;font-size:13px;}
+
+/* ════════════════════════════════════════════════════════════
+   LOJA ENTERPRISE v3 — estrutura em neutros/índigo do sistema;
+   a cor da marca (--accent) só em acções, preços e estados.
+   ════════════════════════════════════════════════════════════ */
+:root {
+  --bg: var(--nx-gray-50, #f8fafc);
+  --text: var(--nx-gray-900, #0b1020);
+  --muted: var(--nx-gray-500, #64748b);
+  --border: var(--nx-gray-200, #e2e8f0);
+  --shadow: 0 1px 2px rgba(11,16,32,.04), 0 8px 24px -12px rgba(11,16,32,.10);
+}
+h1, h2, h3 { font-weight: 700; }
+.ax-hero {
+  background:
+    radial-gradient(60% 120% at 100% 0%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 70%),
+    linear-gradient(135deg, var(--nx-brand-800, #141a85), var(--nx-brand-600, #2430e8));
+  box-shadow: 0 20px 40px -24px rgba(36,48,232,.6);
+}
+.ax-hero-tx h1 { font-weight: 700; letter-spacing: -.03em; }
+.ax-hero .btn { background: #fff; color: var(--nx-brand-700, #1b23ae); font-weight: 700; }
+.ax-hero-badges .b { font-weight: 600; background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.22); }
+.btn, .btn.buy { background: var(--accent); background-image: none; font-weight: 700; }
+.ax-store-ava, .ax-card .add, .header .cart-count { background-image: none; background-color: var(--accent); }
+.header .brand .nm { font-weight: 700; }
+.ax-card { border-radius: 14px; box-shadow: 0 1px 2px rgba(11,16,32,.04); }
+.ax-card:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -16px rgba(11,16,32,.28); }
+.search input { border: 1.5px solid var(--border); box-shadow: none; }
+.search input:focus { border-color: var(--nx-brand-500, #4353ff); box-shadow: 0 0 0 3px rgba(67,83,255,.18); }
+.search svg { color: var(--muted); }
+.field input:focus, .field select:focus, .field textarea:focus, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: var(--nx-brand-500, #4353ff); box-shadow: 0 0 0 3px rgba(67,83,255,.18);
+}
+:where(button, a, [tabindex]):focus-visible { outline: 2px solid var(--nx-brand-500, #4353ff); outline-offset: 2px; }
+.badge, .chip { font-weight: 600; }
