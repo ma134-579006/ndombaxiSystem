@@ -2475,3 +2475,29 @@ html:not([data-theme="neon"]) .card { border: 1px solid var(--border) !important
 /* Botões: sem brilho colorido em nenhum tema escuro */
 html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn { box-shadow: 0 1px 2px rgba(0,0,0,.35); }
 html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn:hover { box-shadow: 0 4px 12px -6px rgba(0,0,0,.5); }
+
+/* ═══ ENTERPRISE v5 — botões tonais, linhas de lista e popovers responsivos ═══ */
+.btn.sm.warn, .btn.sm.danger, .btn.sm.success {
+  box-shadow: none; font-weight: 650;
+  border: 1px solid color-mix(in srgb, var(--_t) 32%, transparent);
+  background: color-mix(in srgb, var(--_t) 12%, transparent); color: var(--_tt);
+}
+.btn.sm.warn { --_t: #dc2626; --_tt: #dc2626; }
+.btn.sm.danger { --_t: #dc2626; --_tt: #dc2626; }
+.btn.sm.success { --_t: #16a34a; --_tt: #15803d; }
+.btn.sm.warn:hover, .btn.sm.danger:hover, .btn.sm.success:hover { background: color-mix(in srgb, var(--_t) 20%, transparent); filter: none; }
+html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn.sm.warn { --_tt: #fbbf24; }
+html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn.sm.danger { --_tt: #f87171; }
+html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn.sm.success { --_tt: #4ade80; }
+.list-row { flex-wrap: wrap; row-gap: 10px; }
+.list-row > .row { flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 700px) {
+  .list-row > .row { width: 100%; justify-content: flex-start; }
+  .list-row > .row .btn { flex: 1 1 auto; }
+  .noti-pop { position: fixed !important; left: 10px !important; right: 10px !important; width: auto !important; top: 64px !important; max-height: 70vh; overflow: auto; }
+  .content-head { flex-wrap: wrap; gap: 10px; }
+  .ptable { min-width: 560px; }
+}
+/* Cartões com formulário (Integrações, Gateways…): nunca espremidos em 2 colunas */
+.pgrid:has(input, select, textarea) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+.pill { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
