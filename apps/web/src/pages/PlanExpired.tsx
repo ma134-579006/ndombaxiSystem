@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext';
 import { PayStep } from './CompanySetup';
 import { PendingApproval } from './PendingApproval';
 import { IconLogout, IconCard } from '../components/Icons';
+import { LoginShowcase } from '../components/LoginShowcase';
 
 /**
  * Plano EXPIRADO: o sistema bloqueia o acesso geral. A empresa vê uma
@@ -26,36 +27,34 @@ export function PlanExpired({ onResolved }: { onResolved(): void }) {
   }
 
   return (
-    <div className="login">
-      <div className="box" style={{ maxWidth: 480 }}>
-        <div className="brand">
-          <div style={{ width: 56, height: 56, borderRadius: 16, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', marginBottom: 10 }}>
-            <IconCard size={26} />
-          </div>
-          <h1>Plano expirado</h1>
-          <div className="tg">Renove para voltar a aceder</div>
-        </div>
-        {step === 'notice' ? (
-          <div className="card">
-            <div className="banner danger" style={{ marginBottom: 12 }}>
-              O período do seu plano terminou e o acesso está <strong>bloqueado</strong>. Os seus dados estão guardados em segurança.
+    <div className="auth pe">
+      <div className="auth-panel">
+        <div className="auth-form pe-form">
+          <div className="pe-badge"><IconCard size={26} /></div>
+          <span className="pe-chip">Acesso suspenso</span>
+          <h1 className="auth-title">Plano expirado</h1>
+          <p className="pe-sub">Renove para voltar a aceder ao seu negócio.</p>
+          {step === 'notice' ? (
+            <div className="pe-card">
+              <div className="banner danger">
+                <div>O período do seu plano terminou e o acesso está <strong>bloqueado</strong>. Os seus dados estão guardados em segurança.</div>
+              </div>
+              <p className="pe-text">
+                Para reativar, faça o pagamento da renovação e envie o comprovativo. Após a aprovação do administrador, entra novamente com tudo como estava.
+              </p>
+              <button className="auth-btn" onClick={() => setStep('pay')}>
+                <IconCard size={18} /> Ativar / Renovar plano
+              </button>
             </div>
-            <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-              Para reativar, faça o pagamento da renovação e envie o comprovativo. Após a aprovação do administrador, entra novamente com tudo como estava.
-            </p>
-            <button className="btn lg block" onClick={() => setStep('pay')}>
-              <IconCard size={18} /> Ativar / Renovar plano
-            </button>
-          </div>
-        ) : (
-          <PayStep onNext={() => setStep('waiting')} allowPlanChoice />
-        )}
-        <p style={{ textAlign: 'center', marginTop: 12 }}>
-          <a onClick={() => void logout()} style={{ color: 'var(--muted)', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <IconLogout size={15} /> Terminar sessão
-          </a>
-        </p>
+          ) : (
+            <div className="pe-card"><PayStep onNext={() => setStep('waiting')} allowPlanChoice /></div>
+          )}
+          <p className="auth-foot">
+            <a onClick={() => void logout()} className="pe-out"><IconLogout size={15} /> Terminar sessão</a>
+          </p>
+        </div>
       </div>
+      <div className="auth-media"><LoginShowcase /></div>
     </div>
   );
 }

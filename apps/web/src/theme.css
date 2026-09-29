@@ -2178,3 +2178,19 @@ input[type="checkbox"], input[type="radio"] {
 /* 7) Estados vazios: ícone suave e respirado (consistência). */
 .empty { color: var(--muted); }
 .empty > svg { opacity: .5; }
+
+/* Plano expirado — mesmo design escuro do login (split + showcase). */
+.pe { --surface: #111a2e; --surface-2: #18233c; --border: #233149; --text: #eaf0fa; --muted: #93a3c0; }
+.pe-form { max-width: 440px; }
+.pe-badge { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; color: #fff; margin-bottom: 16px;
+  background: linear-gradient(135deg, #4353ff, #7b5cff); box-shadow: 0 12px 30px -10px rgba(99,102,241,.7); }
+.pe-chip { display: inline-block; margin-bottom: 10px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .02em;
+  color: #fecaca; background: rgba(239,68,68,.13); border: 1px solid rgba(239,68,68,.4); }
+.pe-sub { margin: -8px 0 18px; color: #9fb0cc; font-size: 15px; }
+.pe-card { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)); border: 1px solid rgba(255,255,255,.09);
+  border-radius: 18px; padding: 18px; backdrop-filter: blur(10px); box-shadow: 0 18px 44px -16px rgba(0,0,0,.6); }
+.pe-card .banner { margin-bottom: 14px; }
+.pe-card .banner strong { color: #fff; }
+.pe-text { margin: 0 0 16px; font-size: 14px; line-height: 1.55; color: #9fb0cc; }
+.pe-out { color: #8ea6ff; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.pe-out:hover { text-decoration: underline; }
