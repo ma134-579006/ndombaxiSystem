@@ -2505,3 +2505,7 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn
 /* Barra lateral: itens nunca encolhem/sobrepõem-se com grupos abertos; a lista rola */
 .sidebar .nav > *, .sidebar .nav-group, .sidebar .nav button, .sidebar .nav-group-head, .sidebar .nav-sub, .sidebar .nav-sub > * { flex: none; }
 .sidebar .nav { overflow-y: auto; min-height: 0; }
+/* Neon: ícones de KPI tonais como nos restantes temas */
+[data-theme="neon"] .kpi-ic, [data-theme="neon"] .kpi-card.success .kpi-ic, [data-theme="neon"] .kpi-card.warning .kpi-ic, [data-theme="neon"] .kpi-card.violet .kpi-ic { background: var(--primary-soft) !important; color: var(--primary) !important; box-shadow: none !important; }
+[data-theme="neon"] .kpi-card.danger .kpi-ic { background: color-mix(in srgb, #dc2626 14%, transparent) !important; color: #ef4444 !important; box-shadow: none !important; }
+[data-theme="neon"] .kpi-card { background: var(--surface) !important; }
