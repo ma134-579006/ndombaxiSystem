@@ -1121,7 +1121,7 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
 /* ============================================================
    COMPATIBILIDADE — navegadores antigos (sem color-mix/aspect-ratio).
    ============================================================ */
-@supports not (color-mix(in srgb, red, blue)) {
+@supports not (background: color-mix(in srgb, red, blue)) {
   /* cartão de login translúcido sobre o vídeo → fundo sólido legível */
   .login-card { background: rgba(17, 26, 46, 0.92); }
 }
