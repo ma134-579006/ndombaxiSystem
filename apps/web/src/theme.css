@@ -2269,3 +2269,7 @@ input[type="checkbox"], input[type="radio"] {
 }
 [data-theme="claro"] .kpi-card, [data-theme="claro"] .card { border-color: var(--nx-gray-200); box-shadow: var(--nx-shadow-1); }
 [data-theme="claro"] .kpi-card { background: var(--surface); }
+
+/* Plano expirado: contém o fluxo de pagamento (conteúdo variável) → o painel pode rolar em vez de cortar. */
+.pe .auth-panel { overflow-y: auto; align-items: flex-start; }
+.pe .auth-form { margin-block: auto; }
