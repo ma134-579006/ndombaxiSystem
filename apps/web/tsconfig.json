@@ -16,7 +16,7 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": { "@/*": ["src/*"], "@nexus/ui": ["../../packages/ui/src/index.tsx"] }
   },
-  "include": ["src"]
+  "include": ["src", "../../packages/ui/src"]
 }

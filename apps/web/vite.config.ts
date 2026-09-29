@@ -6,6 +6,9 @@ import react from '@vitejs/plugin-react';
 // `design.html` = style guide vivo do Design System (estático, sem dados).
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: { '@nexus/ui/ui.css': resolve(__dirname, '../../packages/ui/src/ui.css'), '@nexus/ui': resolve(__dirname, '../../packages/ui/src/index.tsx') },
+  },
   server: {
     port: 5175,
     host: true,
@@ -32,6 +35,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         design: resolve(__dirname, 'design.html'),
+        ds: resolve(__dirname, 'ds.html'),
       },
     },
   },

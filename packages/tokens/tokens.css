@@ -86,6 +86,127 @@
   --nx-text-lg: 18px;
   --nx-text-xl: 22px;
   --nx-text-2xl: 28px;
+  --nx-text-3xl: 36px;
+  --nx-text-4xl: 48px;
+  --nx-leading-tight: 1.2;
+  --nx-leading-snug: 1.4;
+  --nx-leading-normal: 1.55;
+  --nx-weight-regular: 400;
+  --nx-weight-medium: 500;
+  --nx-weight-semibold: 600;
+  --nx-weight-bold: 700;
+
+  /* ---- Espaçamento — extensão ---- */
+  --nx-space-12: 48px;
+  --nx-space-16: 64px;
+
+  /* ---- Breakpoints (documentais: CSS não aceita var() em @media).
+     xs <480 · sm ≥480 · md ≥768 · lg ≥1100 · xl ≥1440 ---- */
+  --nx-bp-sm: 480px;
+  --nx-bp-md: 768px;
+  --nx-bp-lg: 1100px;
+  --nx-bp-xl: 1440px;
+
+  /* ---- Alvos de toque / controlos ---- */
+  --nx-control-sm: 32px;
+  --nx-control-md: 40px;
+  --nx-control-lg: 48px;
+  --nx-touch-min: 44px;
+
+  /* ---- Camadas (z-index) ---- */
+  --nx-z-sticky: 20;
+  --nx-z-drawer: 60;
+  --nx-z-modal: 80;
+  --nx-z-toast: 100;
+
+  /* ============ SEMÂNTICOS — tema CLARO (predefinido) ============ */
+  --nx-bg: var(--nx-gray-50);
+  --nx-surface: #ffffff;
+  --nx-surface-2: var(--nx-gray-100);
+  --nx-surface-raised: #ffffff;
+  --nx-overlay: rgba(15, 23, 42, 0.5);
+  --nx-border: var(--nx-gray-200);
+  --nx-border-strong: var(--nx-gray-300);
+  --nx-text: var(--nx-gray-900);
+  --nx-text-muted: var(--nx-gray-600);
+  --nx-text-subtle: var(--nx-gray-500);
+  --nx-text-on-brand: #ffffff;
+
+  --nx-primary: var(--nx-brand-600);
+  --nx-primary-hover: var(--nx-brand-700);
+  --nx-primary-active: var(--nx-brand-800);
+  --nx-primary-soft: var(--nx-brand-50);
+  --nx-primary-soft-text: var(--nx-brand-700);
+  --nx-channel: var(--nx-shop-600);
+  --nx-channel-hover: var(--nx-shop-700);
+  --nx-channel-soft: #fff1ed;
+
+  --nx-success-soft: #e8f6ef;
+  --nx-success-text: #0b7a55;
+  --nx-warning-soft: #fef4e0;
+  --nx-warning-text: #935f05;
+  --nx-danger-soft: #fdeced;
+  --nx-danger-text: #b42318;
+  --nx-info-soft: #e6f4fb;
+  --nx-info-text: #0369a1;
+
+  /* Estados interativos */
+  --nx-hover-overlay: rgba(15, 23, 42, 0.05);
+  --nx-active-overlay: rgba(15, 23, 42, 0.09);
+  --nx-selected: var(--nx-brand-50);
+  --nx-disabled-bg: var(--nx-gray-100);
+  --nx-disabled-text: var(--nx-gray-400);
+  --nx-focus-ring: 0 0 0 3px rgba(36, 48, 232, 0.35);
+  --nx-focus-outline: 2px solid var(--nx-brand-600);
+  --nx-skeleton-a: var(--nx-gray-100);
+  --nx-skeleton-b: var(--nx-gray-200);
+}
+
+/* ============ SEMÂNTICOS — tema ESCURO ============
+   Ativa-se com data-nx-mode="dark" no elemento raiz (ou em qualquer
+   contentor: a demo mostra claro e escuro lado a lado). */
+[data-nx-mode="dark"] {
+  --nx-bg: var(--nx-gray-950);
+  --nx-surface: #111a2e;
+  --nx-surface-2: #18233c;
+  --nx-surface-raised: #1b2745;
+  --nx-overlay: rgba(2, 6, 18, 0.66);
+  --nx-border: #233149;
+  --nx-border-strong: #33456a;
+  --nx-text: #eaf0fa;
+  --nx-text-muted: #a7b4cc;
+  --nx-text-subtle: #8494b2;
+
+  --nx-primary: var(--nx-brand-500);
+  --nx-primary-hover: var(--nx-brand-400);
+  --nx-primary-active: var(--nx-brand-300);
+  --nx-primary-soft: rgba(102, 116, 255, 0.16);
+  --nx-primary-soft-text: var(--nx-brand-300);
+  --nx-channel: var(--nx-shop-500);
+  --nx-channel-hover: #ff8266;
+  --nx-channel-soft: rgba(255, 106, 71, 0.16);
+
+  --nx-success-soft: rgba(16, 185, 129, 0.16);
+  --nx-success-text: #4ade9c;
+  --nx-warning-soft: rgba(245, 158, 11, 0.16);
+  --nx-warning-text: #fbbf50;
+  --nx-danger-soft: rgba(239, 68, 68, 0.16);
+  --nx-danger-text: #fca5a5;
+  --nx-info-soft: rgba(14, 165, 233, 0.16);
+  --nx-info-text: #7dd3fc;
+
+  --nx-hover-overlay: rgba(255, 255, 255, 0.06);
+  --nx-active-overlay: rgba(255, 255, 255, 0.11);
+  --nx-selected: rgba(102, 116, 255, 0.18);
+  --nx-disabled-bg: #18233c;
+  --nx-disabled-text: #5b6b8a;
+  --nx-focus-ring: 0 0 0 3px rgba(152, 163, 255, 0.5);
+  --nx-focus-outline: 2px solid var(--nx-brand-300);
+  --nx-skeleton-a: #18233c;
+  --nx-skeleton-b: #233149;
+  --nx-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --nx-shadow-2: 0 6px 18px -8px rgba(0, 0, 0, 0.6);
+  --nx-shadow-3: 0 18px 44px -16px rgba(0, 0, 0, 0.7);
 }
 
 /* Utilizadores com movimento reduzido: as animações desligam-se. */

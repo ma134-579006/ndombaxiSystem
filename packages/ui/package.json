@@ -1,0 +1,16 @@
+{
+  "name": "@nexus/ui",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Biblioteca de componentes do Ndombaxi System (React) — construída sobre @nexus/tokens.",
+  "main": "src/index.tsx",
+  "types": "src/index.tsx",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./ui.css": "./src/ui.css"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
