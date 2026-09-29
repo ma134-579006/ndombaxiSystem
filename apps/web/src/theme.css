@@ -2197,3 +2197,62 @@ input[type="checkbox"], input[type="radio"] {
 .pe .pe-card .banner.danger { background: rgba(239,68,68,.13); border-color: rgba(239,68,68,.4); color: #fecaca; }
 .pe .pe-card .banner.danger strong { color: #fff; }
 .pe .auth-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+
+/* ============================================================
+   DESIGN SYSTEM v2 — harmoniza o painel com @nexus/tokens.
+   Remapeia as variáveis legadas e refina as classes partilhadas
+   (botão, cartão, campo, tabela, modal). Sem glows nem gradientes de template.
+   ============================================================ */
+[data-theme="claro"] {
+  --bg: var(--nx-gray-50); --bg-2: var(--nx-gray-100); --surface: #fff; --surface-2: var(--nx-gray-100);
+  --border: var(--nx-gray-200); --border-soft: var(--nx-gray-200);
+  --primary: var(--nx-brand-600); --primary-700: var(--nx-brand-700); --primary-soft: var(--nx-brand-50);
+  --text: var(--nx-gray-900); --muted: var(--nx-gray-600);
+  --shadow: var(--nx-shadow-2); --shadow-sm: var(--nx-shadow-1);
+  --app-bg: var(--nx-gray-50);
+  --radius: var(--nx-radius-lg); --radius-sm: var(--nx-radius-md);
+}
+:root:not([data-theme]) {
+  --bg: #0a1120; --surface: #111a2e; --surface-2: #18233c; --border: #233149;
+  --primary: var(--nx-brand-500); --primary-soft: rgba(102,116,255,.16);
+  --app-bg: var(--bg);
+}
+.btn { height: 40px; border-radius: var(--nx-radius-md); font-weight: 600; box-shadow: var(--nx-shadow-1); transition: background var(--nx-dur-micro), filter var(--nx-dur-micro), transform var(--nx-dur-micro); }
+.btn:hover { filter: brightness(.94); box-shadow: var(--nx-shadow-1); }
+.btn:focus-visible, .chip:focus-visible, .tab:focus-visible, .nav button:focus-visible { outline: none; box-shadow: var(--nx-focus-ring); }
+.btn.sm { height: 32px; border-radius: var(--nx-radius-sm); }
+.btn.lg { height: 48px; border-radius: var(--nx-radius-md); }
+.btn.success, .btn.danger, .btn.warn { box-shadow: var(--nx-shadow-1); }
+.card, .kpi-card { box-shadow: var(--nx-shadow-1); }
+.field input:focus, .field textarea:focus, .field select:focus { box-shadow: var(--nx-focus-ring); }
+.field input, .field textarea, .field select { border-radius: var(--nx-radius-md); }
+.modal-bg { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--nx-overlay); }
+.modal { background: var(--surface); box-shadow: var(--nx-shadow-3); }
+.ptable thead th { text-transform: uppercase; letter-spacing: .04em; font-size: 12px; }
+.pill { font-size: 11px; font-weight: 700; padding: 3px 10px; }
+@media (prefers-reduced-motion: reduce) { .btn, .card { transition: none; } }
+
+/* AUTH: nunca há scroll — compacta em alturas curtas */
+.auth-panel { overflow: hidden; }
+@media (max-height: 560px) {
+  .auth-panel { padding-top: 8px; padding-bottom: 8px; }
+  .auth-input { height: 38px; }
+  .auth-btn { height: 40px; }
+  .auth-label { margin: 6px 0 3px; font-size: 12px; }
+  .auth-sublinks { margin: 6px 2px 8px; font-size: 12px; }
+  .auth-or { margin: 6px 0; }
+  .auth-foot { margin-top: 6px; font-size: 12.5px; }
+}
+@media (max-height: 420px) {
+  .auth-title { font-size: 18px; margin-bottom: 6px; }
+  .auth-input { height: 34px; }
+  .auth-btn { height: 36px; }
+}
+@media (max-height: 420px) {
+  .auth-panel { padding-top: 4px; padding-bottom: 4px; }
+  .auth-label { margin: 3px 0 2px; }
+  .auth-sublinks { margin: 3px 2px 5px; }
+  .auth-or { margin: 3px 0; }
+  .auth-foot { margin-top: 3px; }
+  .auth-input { height: 32px; }
+}
