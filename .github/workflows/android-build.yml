@@ -22,7 +22,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
       - name: Instalar dependências
         run: pnpm install --frozen-lockfile
       - name: Preparar web e projeto Android
