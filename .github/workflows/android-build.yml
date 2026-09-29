@@ -24,6 +24,11 @@ jobs:
           java-version: 17
       - name: Instalar dependências
         run: pnpm install --frozen-lockfile
+      - name: Compilar pacotes partilhados
+        run: |
+          pnpm --filter @nexus/types build
+          pnpm --filter @nexus/update-core build
+          pnpm --filter @nexus/shop-link build
       - name: Preparar web e projeto Android
         run: |
           node apps/mobile-shell/scripts/prepare-web.mjs
