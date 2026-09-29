@@ -8,3 +8,5 @@ export * from './hash';
 export * from './signature';
 export * from './saft/xml';
 export * from './saft/saft-builder';
+export * from './einvoice/jws';
+export * from './einvoice/fe';

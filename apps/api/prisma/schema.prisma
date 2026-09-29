@@ -256,6 +256,65 @@ model Company {
 }
 
 // ─────────────────────────────────────────────────────────────
+// FACTURAÇÃO ELECTRÓNICA AGT (DP 71/25, DE 683/25) — estado por empresa
+// ─────────────────────────────────────────────────────────────
+model EinvoiceCompany {
+  companyId           String   @id @db.Uuid
+  enabled             Boolean  @default(false)
+  /// Só documentos criados a partir desta data entram na fila de envio.
+  enabledFrom         DateTime?
+  establishmentNumber String   @default("1")
+  /// Chave privada do CONTRIBUINTE (emitida pela AGT), cifrada em repouso.
+  taxpayerKeyEnc      String?
+  taxpayerKeyBits     Int?
+  /// { "FT-2026": "<código de série atribuído pela AGT>" }
+  series              Json     @default("{}")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("einvoice_companies")
+  @@schema("nexus_public")
+}
+
+model EinvoiceDocument {
+  id            String    @id @default(uuid()) @db.Uuid
+  companyId     String    @db.Uuid
+  invoiceId     String    @db.Uuid
+  documentNo    String
+  /// QUEUED | SENT | VALID | INVALID | ERROR
+  status        String    @default("QUEUED")
+  requestId     String?
+  errors        Json?
+  attempts      Int       @default(0)
+  lastAttemptAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([companyId, documentNo])
+  @@index([companyId, status])
+  @@map("einvoice_documents")
+  @@schema("nexus_public")
+}
+
+model EinvoiceSubmission {
+  id             String   @id @default(uuid()) @db.Uuid
+  companyId      String   @db.Uuid
+  submissionUuid String
+  requestId      String?
+  documentNos    String[]
+  /// SENT | DONE | CANCELLED
+  status         String   @default("SENT")
+  resultCode     Int?
+  response       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([companyId, status])
+  @@map("einvoice_submissions")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
 // UTILIZADORES DA PLATAFORMA — Super Admins (§2)
 // (utilizadores de empresa vivem no schema do tenant)
 // ─────────────────────────────────────────────────────────────

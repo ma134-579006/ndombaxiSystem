@@ -590,6 +590,17 @@ export const api = {
     exportPublicKey: () =>
       request<{ fileName: string; pem: string; keyVersion: number; algorithm: string }>(
         'GET', '/super-admin/fiscal/agt/signing-key/export'),
+    // Facturação Electrónica (DP 71/25 · DE 683/25)
+    feConfig: () => request<Record<string, any>>('GET', '/super-admin/fiscal/einvoice/config'),
+    feUpdate: (dto: Record<string, unknown>) => request<Record<string, any>>('PATCH', '/super-admin/fiscal/einvoice/config', dto),
+    feProvisionKey: () => request<Record<string, any>>('POST', '/super-admin/fiscal/einvoice/software-key', {}),
+    feExportKey: () => request<{ fileName: string; pem: string; signatureVersion: number }>('GET', '/super-admin/fiscal/einvoice/software-key/export'),
+    feCompany: (id: string) => request<Record<string, any>>('GET', `/super-admin/fiscal/einvoice/company/${id}`),
+    feSaveCompany: (id: string, dto: Record<string, unknown>) => request<Record<string, any>>('PUT', `/super-admin/fiscal/einvoice/company/${id}`, dto),
+    feRequestSeries: (id: string, dto: { documentType: string; year: number }) => request<Record<string, any>>('POST', `/super-admin/fiscal/einvoice/company/${id}/series`, dto),
+    feSync: (id: string) => request<Record<string, any>>('POST', `/super-admin/fiscal/einvoice/company/${id}/sync`, {}),
+    feDocuments: (id: string, status?: string) => request<Array<Record<string, any>>>('GET', `/super-admin/fiscal/einvoice/company/${id}/documents${status ? `?status=${status}` : ''}`),
+    feRequeue: (id: string, documentNo: string) => request<Record<string, any>>('POST', `/super-admin/fiscal/einvoice/company/${id}/requeue`, { documentNo }),
   },
 
   integrations: {

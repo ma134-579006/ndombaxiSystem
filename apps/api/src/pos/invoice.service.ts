@@ -8,6 +8,7 @@ import {
   DocumentType,
   FiscalDocument,
   formatDocumentNumber,
+  formatFeDocumentNo,
   GENESIS_HASH,
   InvoiceLineInput,
   isAgtSignature,
@@ -20,6 +21,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { FiscalSigningService } from './fiscal-signing.service';
 import { PlatformSigningService } from '../fiscal/platform-signing.service';
+import { EinvoiceService } from '../einvoice/einvoice.service';
 import { StockService } from '../erp/stock.service';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
 
@@ -114,6 +116,7 @@ export class InvoiceService {
     private readonly signing: FiscalSigningService,
     private readonly audit: TenantAuditService,
     private readonly platformSigning: PlatformSigningService,
+    private readonly einvoice: EinvoiceService,
   ) {}
 
   private readonly log = new Logger(InvoiceService.name);
@@ -321,25 +324,30 @@ export class InvoiceService {
 
       // 3. Aloca numeração + hash anterior, bloqueando a série fiscal.
       const year = new Date().getFullYear();
+      // Facturação Electrónica: com série AGT autorizada, o documento numera-se nessa série.
+      const agtSeries = await this.einvoice.seriesFor(schema, input.docType, year);
+      const series = agtSeries ?? input.series;
       await tx.$executeRaw(
         Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
-                   VALUES (${input.docType}, ${input.series}, ${year}, 0, ${GENESIS_HASH})
+                   VALUES (${input.docType}, ${series}, ${year}, 0, ${GENESIS_HASH})
                    ON CONFLICT (doc_type, series, year) DO NOTHING`,
       );
       const serieRows = await tx.$queryRaw<
         { last_sequence: number; last_hash: string }[]
       >(
         Prisma.sql`SELECT last_sequence, last_hash FROM fiscal_series
-                   WHERE doc_type = ${input.docType} AND series = ${input.series} AND year = ${year}
+                   WHERE doc_type = ${input.docType} AND series = ${series} AND year = ${year}
                    FOR UPDATE`,
       );
       const sequence = serieRows[0].last_sequence + 1;
-      const number = formatDocumentNumber({
-        type: input.docType,
-        series: input.series,
-        year,
-        sequence,
-      });
+      const number = agtSeries
+        ? formatFeDocumentNo(input.docType, agtSeries, sequence)
+        : formatDocumentNumber({
+          type: input.docType,
+          series: input.series,
+          year,
+          sequence,
+        });
 
       // 4. Datas (ao segundo, formato AGT) e assinatura/cadeia (Modelo 8).
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
@@ -365,7 +373,7 @@ export class InvoiceService {
       await tx.$executeRaw(
         Prisma.sql`UPDATE fiscal_series
                    SET last_sequence = ${sequence}, last_hash = ${hash}
-                   WHERE doc_type = ${input.docType} AND series = ${input.series} AND year = ${year}`,
+                   WHERE doc_type = ${input.docType} AND series = ${series} AND year = ${year}`,
       );
 
       // Loja onde a venda ocorre (a do operador; senão a loja principal). A
@@ -452,7 +460,7 @@ export class InvoiceService {
              cashier_id, customer_id, customer_tax_id,
              net_total, iva_total, gross_total, signable_string, previous_hash, hash,
             signature, signature_key_version, doc_state, client_op_id)
-          VALUES (${number}, ${input.docType}, ${input.series}, ${year}, ${sequence},
+          VALUES (${number}, ${input.docType}, ${series}, ${year}, ${sequence},
                   ${invoiceDate}::date, ${input.operationDate ?? null}::date, ${systemEntryDate}::timestamptz, ${warehouseId ?? null}::uuid,
                   ${input.cashierId ?? null}::uuid, ${input.customerId ?? null}::uuid, ${customerTaxId},
                   ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal},
@@ -1062,17 +1070,19 @@ export class InvoiceService {
 
       // 2. Aloca número de NC na série própria (NC, mesma série/ano).
       const year = new Date().getFullYear();
+      const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
+      const ncSeries = ncAgt ?? 'A';
       await tx.$executeRaw(
         Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
-                   VALUES (${DocumentType.NC}, 'A', ${year}, 0, ${GENESIS_HASH})
+                   VALUES (${DocumentType.NC}, ${ncSeries}, ${year}, 0, ${GENESIS_HASH})
                    ON CONFLICT (doc_type, series, year) DO NOTHING`,
       );
       const serie = await tx.$queryRaw<{ last_sequence: number; last_hash: string }[]>(
         Prisma.sql`SELECT last_sequence, last_hash FROM fiscal_series
-                   WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year} FOR UPDATE`,
+                   WHERE doc_type = ${DocumentType.NC} AND series = ${ncSeries} AND year = ${year} FOR UPDATE`,
       );
       const sequence = serie[0].last_sequence + 1;
-      const ncNumber = formatDocumentNumber({ type: DocumentType.NC, series: 'A', year, sequence });
+      const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: 'A', year, sequence });
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const docHeader = {
         invoiceDate: now.toISOString().slice(0, 10),
@@ -1085,13 +1095,13 @@ export class InvoiceService {
       const previousHash = ncChain.previousHash;
       await tx.$executeRaw(
         Prisma.sql`UPDATE fiscal_series SET last_sequence = ${sequence}, last_hash = ${hash}
-                   WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year}`,
+                   WHERE doc_type = ${DocumentType.NC} AND series = ${ncSeries} AND year = ${year}`,
       );
 
       // 2b. Persiste a NC como DOCUMENTO (entra no SAF-T e nos relatórios), com
       //     todas as linhas da fatura original (anulação total).
       await this.persistCreditNoteDoc(tx, {
-        number: ncNumber, series: 'A', year, sequence,
+        number: ncNumber, series: ncSeries, year, sequence,
         invoiceDate: docHeader.invoiceDate, systemEntryDate: docHeader.systemEntryDate,
         signable, previousHash, hash, signature: ncChain.signature, signatureKeyVersion: ncChain.signatureKeyVersion,
         storeId: inv.store_id, customerId: inv.customer_id, customerTaxId: inv.customer_tax_id,
@@ -1242,17 +1252,19 @@ export class InvoiceService {
 
       // Aloca NC.
       const year = new Date().getFullYear();
+      const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
+      const ncSeries = ncAgt ?? 'A';
       await tx.$executeRaw(
         Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
-                   VALUES (${DocumentType.NC}, 'A', ${year}, 0, ${GENESIS_HASH})
+                   VALUES (${DocumentType.NC}, ${ncSeries}, ${year}, 0, ${GENESIS_HASH})
                    ON CONFLICT (doc_type, series, year) DO NOTHING`,
       );
       const serie = await tx.$queryRaw<{ last_sequence: number; last_hash: string }[]>(
         Prisma.sql`SELECT last_sequence, last_hash FROM fiscal_series
-                   WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year} FOR UPDATE`,
+                   WHERE doc_type = ${DocumentType.NC} AND series = ${ncSeries} AND year = ${year} FOR UPDATE`,
       );
       const sequence = serie[0].last_sequence + 1;
-      const ncNumber = formatDocumentNumber({ type: DocumentType.NC, series: 'A', year, sequence });
+      const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: 'A', year, sequence });
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const ncHeader = { invoiceDate: now.toISOString().slice(0, 10), systemEntryDate: now.toISOString(), number: ncNumber,
         totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] as never[] } };
@@ -1260,13 +1272,13 @@ export class InvoiceService {
       const { hash, signable } = ncChain;
       await tx.$executeRaw(
         Prisma.sql`UPDATE fiscal_series SET last_sequence = ${sequence}, last_hash = ${hash}
-                   WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year}`,
+                   WHERE doc_type = ${DocumentType.NC} AND series = ${ncSeries} AND year = ${year}`,
       );
 
       // Persiste a NC PARCIAL como documento (só as linhas devolvidas) — entra no
       // SAF-T e permite descontar a devolução nos lucros.
       await this.persistCreditNoteDoc(tx, {
-        number: ncNumber, series: 'A', year, sequence,
+        number: ncNumber, series: ncSeries, year, sequence,
         invoiceDate: ncHeader.invoiceDate, systemEntryDate: ncHeader.systemEntryDate,
         signable, previousHash: ncChain.previousHash, hash, signature: ncChain.signature, signatureKeyVersion: ncChain.signatureKeyVersion,
         storeId: inv.store_id, customerId: inv.customer_id, customerTaxId: inv.customer_tax_id,

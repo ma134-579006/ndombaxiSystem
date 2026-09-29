@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { AgtConfig, AgtExtraField, PlatformSigningStatus, UpdateAgtInput } from '../api/types';
 import { IconCheck, IconPlus, IconTrash } from '../components/Icons';
+import { EinvoiceCard } from './EinvoiceCard';
 
 export function Fiscal() {
   const [cfg, setCfg] = useState<AgtConfig | null>(null);
@@ -100,6 +101,7 @@ export function Fiscal() {
       </div>
 
       <SigningKeyCard />
+      <EinvoiceCard />
 
       <div className="card">
         <div className="row">
