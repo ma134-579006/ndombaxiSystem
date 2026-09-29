@@ -715,8 +715,8 @@ button, .btn, .add-btn, .chip, .product { -webkit-tap-highlight-color: transpare
   .acct-head .avatar { background: #ffe6de; color: var(--accent); }
   .ax-card:hover { border-color: #f3b8a8; }
   .search input:focus, .ax-search input:focus, .pay-opt.active,
-  .btn:focus-visible { box-shadow: 0 0 0 3px rgba(255,77,45,.18); }
-  .add-btn, .ax-add { box-shadow: 0 4px 12px rgba(255,77,45,.4); }
+  .btn:focus-visible { box-shadow: 0 0 0 3px rgba(36,48,232,.22); }
+  .add-btn, .ax-add { box-shadow: 0 4px 12px rgba(36,48,232,.35); }
 }
 @supports not (aspect-ratio: 1 / 1) {
   .ax-card-img, .ax-gallery-main, .product .ph { min-height: 180px; }

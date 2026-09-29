@@ -19,7 +19,7 @@ async function downloadInvoicePdf(inv: StoreInvoice): Promise<void> {
   const M = 48;
   let y = 56;
   const c = inv.company;
-  const accent: [number, number, number] = [255, 77, 45];
+  const accent: [number, number, number] = [36, 48, 232];
 
   // Cabeçalho — empresa à esquerda, documento à direita.
   doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(15, 23, 42);
