@@ -2256,3 +2256,7 @@ input[type="checkbox"], input[type="radio"] {
   .auth-foot { margin-top: 3px; }
   .auth-input { height: 32px; }
 }
+
+/* Sidebar escura: item activo legível em qualquer tema */
+.sidebar .nav button.active, .sidebar .nav-sub button.active { background: rgba(102,116,255,.24); color: #fff; }
+.sidebar .nav button.active::before, .sidebar .nav-sub button.active::before { background: var(--nx-brand-300, #98a3ff); }
