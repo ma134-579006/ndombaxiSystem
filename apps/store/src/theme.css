@@ -3,7 +3,7 @@
    A cor de destaque (--accent) vem da marca de cada loja.
    ============================================================ */
 :root {
-  --accent: #ff4d2d;          /* laranja-vermelho estilo AliExpress */
+  --accent: var(--nx-shop-600, #ff4d2d);
   --accent-2: #ff6a00;
   --price: #e62e04;           /* vermelho dos preços */
   --bg: #f4f6fb;

@@ -8,9 +8,9 @@
   --surface-2: #18233c;
   --border: #233149;
   --border-soft: #1a2540;
-  --primary: #3b82f6;
-  --primary-700: #2563eb;
-  --primary-soft: rgba(59, 130, 246, 0.16);
+  --primary: var(--nx-brand-500, #4353ff);
+  --primary-700: var(--nx-brand-700, #1b23ae);
+  --primary-soft: rgba(102, 116, 255, 0.16);
   --grad-primary: linear-gradient(135deg, #4353ff 0%, #2430e8 100%);
   --text: #eaf0fa;
   --muted: #93a3c0;
