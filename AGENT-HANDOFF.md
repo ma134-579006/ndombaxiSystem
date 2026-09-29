@@ -50,3 +50,9 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - `.github/workflows/android-build.yml` (manual, "Run workflow"): compila APK DEBUG no Ubuntu (JDK 17, SDK do runner). Run 36562401647 OK; APK em Desktop\Ndombaxi-Instaladores\android\app-debug.apk. Play Store exige keystore própria (não existe). iOS continua a exigir Mac/Apple Developer (workflow ios-build.yml).
 - Responsividade verificada em produção: Loja e landing a 320 e 1920 sem overflow; login da Caixa a 320×640 sem scroll.
 - Instalador Windows: instalação silenciosa (`/S /D=...`) fica sem janela nem ficheiros extraídos após 25 s — provável pedido de elevação (UAC) que só o utilizador pode aprovar. Teste manual com duplo clique pendente. Pasta vazia C:\ndombaxi-inst-test pode ser apagada à mão.
+
+## Atualização (bloqueio, landing v3, Loja v3)
+- Bloqueio de ecrã (web IdleLock + POS IdleLock): cartão em vidro, gradiente índigo, foco/aria, compactação por altura (commit 48d12a1).
+- Landing v3: `--lp-primary/accent` = `--nx-brand-*`, Sora/DM Sans com pesos ≤700, ícones em quadrado tonal, sem ciano/roxo/animações de brilho; chat flutuante em índigo sólido.
+- Loja v3: estrutura em neutros/índigo (hero índigo), cor da marca (`--accent`, laranja) só em acções/preços; verificado em produção.
+- Teste "Nova loja" (empresa de teste): validação do limite do plano (1 loja) funciona com mensagem clara; criar loja com sucesso exigiria plano superior (não alterado).
