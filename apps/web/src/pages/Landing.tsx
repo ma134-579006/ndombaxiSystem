@@ -171,15 +171,12 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             {NAV_LINKS.map((l) => (
               <a key={l.href} href={l.href}>{l.label}</a>
             ))}
+            <a href="#baixar">Baixar Aplicativo</a>
           </div>
           <span className="spacer" />
           <div className="lp-nav-actions">
             <button type="button" className="nav-login" onClick={onGoLogin}>Entrar</button>
             <button type="button" className="nav-signup" onClick={() => openRegister('BUSINESS')}>Criar Conta</button>
-            <a className="dl-nav-btn" href="#baixar">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-              <span>Baixar Aplicativo</span>
-            </a>
           </div>
           <button
             type="button"
