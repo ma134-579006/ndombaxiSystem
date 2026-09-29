@@ -66,3 +66,9 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - Limite de lojas/utilizadores/produtos usa company.plan (fonte de verdade); testado em produção no TEKAMBISSA (Business, 3 lojas): 2.ª e 3.ª criadas, 4.ª bloqueada. Lojas de teste TESTE2/TESTE3 ficaram nessa empresa.
 - v5: botões .sm tonais (warn=vermelho suave, sem laranja), list-row responsivo, popover de notificações compacto, .pgrid com formulários >=320px, sidebar sem encolher itens com grupo aberto.
 - Varredura mobile (super admin 12 secções + empresa ~16): sem overflow horizontal.
+
+## Atualização final (QA)
+- @supports invalido (Loja/Caixa) corrigido: fallbacks laranja/opaco aplicavam-se sempre. Laranja removido de CSS, PDFs e launcher movel.
+- Temas escuros verificados no painel real (violeta, neon, esmeralda, oceano, apple); neon com KPIs tonais.
+- a11y: aria-label em login da Caixa (email/PIN) e pesquisa por imagem da Loja; auditoria publica sem botoes sem nome nem img sem alt.
+- Bloqueio por inatividade (IdleLock) ativa-se tambem em modo shadow; interrompe scripts de teste.
