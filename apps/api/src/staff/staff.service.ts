@@ -9,6 +9,7 @@ import { assertAssignableRole } from './staff.roles';
 import { StaffRepository, type StaffRow, type StoreRow } from './staff.repository';
 import { PlanLimitsService } from '../plans/plan-limits.service';
 import { OfflineCredentialsService } from '../auth/offline-credentials.service';
+import { EmailRegistryService } from '../common/identity/email-registry.service';
 
 /** Actor que executa a operação (do JWT). */
 export interface StaffActor {
@@ -35,6 +36,7 @@ export class StaffService {
     private readonly audit: AuditService,
     private readonly planLimits: PlanLimitsService,
     private readonly offlineCreds: OfflineCredentialsService,
+    private readonly emails: EmailRegistryService,
   ) {}
 
   private generateTempPassword(): string {
@@ -101,6 +103,7 @@ export class StaffService {
     if (await this.repo.existsByEmail(schema, email)) {
       throw new ConflictException('Já existe um funcionário com este e-mail.');
     }
+    await this.emails.assertAvailable(email, 'Este e-mail já está registado no sistema (outra empresa ou funcionário). Use um e-mail único.');
 
     const generated = dto.password ? undefined : this.generateTempPassword();
     const plain = dto.password ?? generated!;

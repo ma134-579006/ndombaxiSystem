@@ -1,5 +1,7 @@
 import { IsEmail, IsEnum, IsOptional, IsString, Length, Matches, MinLength } from 'class-validator';
 import { PlanTier } from '@prisma/client';
+import { Transform } from 'class-transformer';
+import { NIF_MESSAGE, NIF_REGEX, normalizeNif } from '../nif.service';
 
 /** Registo simples: email + palavra-passe própria OU conta Google. */
 export class RegisterSimpleDto {
@@ -39,8 +41,9 @@ export class CompleteSetupDto {
   @Matches(/^[a-z0-9-]{2,40}$/, { message: 'Código: minúsculas, dígitos e hífens.' })
   companyCode?: string;
 
+  @Transform(({ value }) => normalizeNif(value))
   @IsString()
-  @Matches(/^\d{9,10}$/, { message: 'NIF inválido.' })
+  @Matches(NIF_REGEX, { message: NIF_MESSAGE })
   nif!: string;
 
   @IsOptional()

@@ -1,9 +1,11 @@
 import { DocumentType } from './document-types';
 
 /**
- * Sequential fiscal numbering per AGT (§7). Format: "FT A/2025/0001".
+ * Sequential fiscal numbering per AGT (§7). Format: "FT A2025/0001" — o padrão
+ * oficial do InvoiceNo é `[^ ]+ [^/^ ]+/[0-9]+` (a SÉRIE não contém "/"), o que
+ * garante que o número assinado é IGUAL ao exportado no SAF-T (AO).
  *  - prefix: document type (FT, FS, ...)
- *  - series: letter(s)/code identifying the issuing series/POS (e.g. "A")
+ *  - series: letter(s)/code identifying the issuing series/POS (e.g. "A"), seguida do ano
  *  - year: fiscal year (4 digits)
  *  - sequence: monotonic per (type, series, year), zero-padded to >= 4 digits
  *
@@ -33,10 +35,11 @@ export function formatDocumentNumber(parts: DocumentNumberParts): string {
     throw new Error(`Invalid sequence ${sequence}: must be a positive integer`);
   }
   const seq = String(sequence).padStart(PAD, '0');
-  return `${type} ${series}/${year}/${seq}`;
+  return `${type} ${series}${year}/${seq}`;
 }
 
-const PARSE_RE = /^([A-Z]+) ([A-Z0-9]{1,5})\/(\d{4})\/(\d{4,})$/;
+// Aceita o formato actual ("FT A2025/0001") e o legado ("FT A/2025/0001").
+const PARSE_RE = /^([A-Z]+) ([A-Z0-9]{1,5}?)\/?(\d{4})\/(\d{4,})$/;
 
 export function parseDocumentNumber(value: string): DocumentNumberParts {
   const m = PARSE_RE.exec(value);

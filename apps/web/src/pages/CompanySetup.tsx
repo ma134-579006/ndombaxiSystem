@@ -281,8 +281,8 @@ function DataStep({ onDone, onBack }: { onDone(): void; onBack?: () => void }) {
 
   // Validação em tempo real
   const nameOk = name.trim().length >= 2;
-  const nifDigits = nif.trim();
-  const nifOk = /^\d{9,10}$/.test(nifDigits);
+  const nifDigits = nif.trim().toUpperCase();
+  const nifOk = /^(\d{9,10}|\d{9}[A-Z]{2}\d{3})$/.test(nifDigits);
   const canSubmit = useMemo(() => nameOk && nifOk, [nameOk, nifOk]);
 
   const onLogo = (file?: File) => {
@@ -297,7 +297,7 @@ function DataStep({ onDone, onBack }: { onDone(): void; onBack?: () => void }) {
     setErr(null);
     setTouched({ name: true, nif: true });
     if (!nameOk) { setErr('Indique o nome da empresa.'); return; }
-    if (!nifOk) { setErr('NIF inválido (9 a 10 dígitos).'); return; }
+    if (!nifOk) { setErr('NIF inválido (9–10 dígitos, ou 14 caracteres do BI: 9 dígitos + 2 letras + 3 dígitos).'); return; }
     setBusy(true);
     try {
       // O código da loja é gerado automaticamente a partir do nome (no servidor).
@@ -348,7 +348,7 @@ function DataStep({ onDone, onBack }: { onDone(): void; onBack?: () => void }) {
           <input
             className={`auth-input ${nifState === 'neutral' ? '' : nifState}`}
             value={nif}
-            onChange={(e) => setNif(e.target.value.replace(/\D/g, '').slice(0, 10))}
+            onChange={(e) => setNif(e.target.value.replace(/[^0-9a-zA-Z]/g, '').toUpperCase().slice(0, 14))}
             onBlur={() => setTouched((t) => ({ ...t, nif: true }))}
             placeholder="5XXXXXXXX"
             inputMode="numeric"
@@ -356,7 +356,7 @@ function DataStep({ onDone, onBack }: { onDone(): void; onBack?: () => void }) {
           {nifState === 'ok' ? <span className="vmark" style={{ color: '#22c55e' }}><IconCheck size={16} /></span> : null}
         </div>
         <div className={`auth-hint ${nifState}`}>
-          {nifState === 'bad' ? `NIF inválido — ${nifDigits.length}/9 dígitos.` : nifState === 'ok' ? 'NIF válido.' : '9 a 10 dígitos, como na AGT.'}
+          {nifState === 'bad' ? `NIF inválido — ${nifDigits.length} caracteres.` : nifState === 'ok' ? 'NIF válido.' : 'Empresa: 9 a 10 dígitos. Particular: 14 caracteres do BI.'}
         </div>
       </div>
 

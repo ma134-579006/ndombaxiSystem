@@ -7,7 +7,9 @@ import {
   Matches,
 } from 'class-validator';
 import { PlanTier } from '@prisma/client';
+import { Transform } from 'class-transformer';
 import { IsAngolaIban } from '../../common/validation/angola';
+import { NIF_MESSAGE, NIF_REGEX, normalizeNif } from '../nif.service';
 
 export class RegisterCompanyDto {
   @IsString()
@@ -20,8 +22,9 @@ export class RegisterCompanyDto {
   @Length(2, 120)
   name!: string;
 
+  @Transform(({ value }) => normalizeNif(value))
   @IsString()
-  @Matches(/^\d{9,10}$/, { message: 'NIF inválido' })
+  @Matches(NIF_REGEX, { message: NIF_MESSAGE })
   nif!: string;
 
   @IsOptional()

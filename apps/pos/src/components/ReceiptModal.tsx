@@ -32,7 +32,8 @@ interface Props {
 
 /** Recibo/comprovativo da venda emitida — identidade da empresa + dados fiscais AGT (§7). */
 export function ReceiptModal({ invoice, info, identity, customerName, operatorName, items, provisional, reprint, dateLabel, onClose }: Props) {
-  const hashShort = invoice.hash ? invoice.hash.slice(0, 4) : '----';
+  // AGT: 4 caracteres da assinatura nas posições 1.ª, 11.ª, 21.ª e 31.ª.
+  const hashShort = invoice.hash ? [0, 10, 20, 30].map((i) => invoice.hash[i] ?? '').join('') : '----';
   const shownDate = dateLabel ?? formatDateTime();
   // Conteúdo do QR de verificação (campos-chave do documento).
   const qrData = [

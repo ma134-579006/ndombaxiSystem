@@ -231,7 +231,7 @@ model Company {
   // código curto usado para login tenant-scoped e subdomínio (ex: "continente")
   code              String        @unique
   name              String
-  nif               String        @unique // NIF validado junto à AGT
+  nif               String // NIF (9–10 dígitos ou 14 do BI); o mesmo NIF pode ter várias empresas
   iban              String?
   responsibleName   String
   responsibleEmail  String
@@ -250,6 +250,7 @@ model Company {
   subscriptions     Subscription[]
 
   @@index([status])
+  @@index([nif])
   @@map("companies")
   @@schema("nexus_public")
 }

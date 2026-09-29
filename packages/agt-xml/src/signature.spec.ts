@@ -72,3 +72,41 @@ describe('RSA-2048 fiscal signature', () => {
     expect(a.signature).not.toBe(b.signature);
   });
 });
+
+describe('Modelo AGT (Modelo 8): RSA-1024 / SHA-1, assinatura de 172 caracteres', () => {
+  const {
+    AgtDocumentSigner, buildAgtSignableString, isAgtSignature, verifyAgtDocument, generateSigningKeyPair, RSA_DOC_MODULUS_LENGTH,
+  } = require('./signature');
+  const keys = generateSigningKeyPair(RSA_DOC_MODULUS_LENGTH);
+  const header = (number: string, gross: number, entry = '2026-09-29T11:27:08.456Z') => ({
+    invoiceDate: '2026-09-29', systemEntryDate: entry, number,
+    totals: { netTotal: gross, ivaTotal: 0, grossTotal: gross, byTaxCode: [] },
+  });
+
+  it('texto a assinar: datas AGT, GrossTotal com 2 casas e hash anterior vazio no 1.º', () => {
+    expect(buildAgtSignableString(header('FT A2026/0001', 1200), '')).toBe(
+      '2026-09-29;2026-09-29T11:27:08;FT A2026/0001;1200.00;',
+    );
+  });
+
+  it('assina com 172 caracteres Base64 e verifica com a chave pública', () => {
+    const signer = new AgtDocumentSigner({ privateKeyPem: keys.privateKeyPem, keyVersion: 1 });
+    const d1 = header('FT A2026/0001', 1200);
+    const s1 = signer.signDocument(d1, '');
+    expect(s1.signature).toHaveLength(172);
+    expect(isAgtSignature(s1.signature)).toBe(true);
+    expect(verifyAgtDocument(d1, '', s1.signature, keys.publicKeyPem)).toBe(true);
+    // o documento seguinte encadeia com a ASSINATURA do anterior
+    const d2 = header('FT A2026/0002', 75.5, '2026-09-29T11:43:25.000Z');
+    const s2 = signer.signDocument(d2, s1.signature);
+    expect(verifyAgtDocument(d2, s1.signature, s2.signature, keys.publicKeyPem)).toBe(true);
+    expect(verifyAgtDocument(d2, '', s2.signature, keys.publicKeyPem)).toBe(false);
+    expect(verifyAgtDocument(header('FT A2026/0002', 75.6), s1.signature, s2.signature, keys.publicKeyPem)).toBe(false);
+  });
+
+  it('recusa chave de 2048 bits (assinatura de 344 caracteres não cabe no Hash)', () => {
+    const big = generateSigningKeyPair(2048);
+    const signer = new AgtDocumentSigner({ privateKeyPem: big.privateKeyPem, keyVersion: 1 });
+    expect(() => signer.signDocument(header('FT A2026/0001', 1), '')).toThrow(/1024/);
+  });
+});

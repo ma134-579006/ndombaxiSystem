@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv, type Env } from './config/env.validation';
 import { PrismaModule } from './prisma/prisma.module';
+import { IdentityModule } from './common/identity/email-registry.service';
 import { AuditModule } from './audit/audit.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 import { MailModule } from './common/mail/mail.module';
@@ -77,6 +78,7 @@ import { HealthController } from './health.controller';
       }),
     }),
     PrismaModule,
+    IdentityModule,
     RealtimeModule,
     AuditModule,
     TenancyModule,

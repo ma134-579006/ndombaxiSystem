@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { generateSigningKeyPair, RSA_DOC_MODULUS_LENGTH, RSA_MODULUS_LENGTH } from '@nexus/agt-xml';
+import { AGT_SIGNATURE_ALGORITHM, generateSigningKeyPair, RSA_DOC_MODULUS_LENGTH, RSA_MODULUS_LENGTH } from '@nexus/agt-xml';
 import { createHash } from 'node:crypto';
 import { decryptSecret, encryptSecret } from '../common/crypto/secret-box';
 import type { Env } from '../config/env.validation';
@@ -74,7 +74,7 @@ export class PlatformSigningService {
     const s = row ? this.parseSettings(row.settings) : null;
     if (!s) {
       return {
-        hasKey: false, keyVersion: 0, algorithm: 'RSA-SHA256', modulusBits: RSA_MODULUS_LENGTH,
+        hasKey: false, keyVersion: 0, algorithm: AGT_SIGNATURE_ALGORITHM, modulusBits: RSA_DOC_MODULUS_LENGTH,
         createdAt: null, publicKeyFingerprint: null, previousVersions: [],
       };
     }
@@ -91,15 +91,15 @@ export class PlatformSigningService {
   }
 
   /**
-   * Gera (ou RODA) o par de chaves da plataforma. Por omissão **RSA-2048** —
-   * a documentação oficial da Faturação Eletrónica AGT (2026) exige "RSA
-   * mínimo 2048 bits" para a chave do produtor registada no Portal do
-   * Parceiro (assinatura JWS). NOTA: a assinatura 2048 (344 base64) não cabe
-   * no campo Hash do SAF-T (máx. 172) — aí o builder degrada para o hash
-   * SHA-256 da cadeia, por desenho. RSA-1024 fica como opção legada explícita.
-   * A pública anterior vai para o histórico; a privada anterior é destruída.
+   * Gera (ou RODA) o par de chaves da plataforma conforme o MODELO 8 da AGT
+   * (Regras e Requisitos para Validação de Sistemas, ponto 34): RSA de
+   * **1024 bits** com hash SHA-1 (assinatura Base64 de 172 caracteres = campo
+   * Hash do SAF-T). A chave pública tem de ser comunicada à AGT com a
+   * Declaração Modelo 8 (ficheiro .txt); após rotação, o novo upload é
+   * obrigatório. A pública anterior vai para o histórico; a privada anterior
+   * é destruída. 2048 bits só para o regime JWS da Facturação Electrónica.
    */
-  async provision(modulusBits: number = RSA_MODULUS_LENGTH): Promise<PlatformSigningStatus> {
+  async provision(modulusBits: number = RSA_DOC_MODULUS_LENGTH): Promise<PlatformSigningStatus> {
     const bits = modulusBits === RSA_DOC_MODULUS_LENGTH ? RSA_DOC_MODULUS_LENGTH : RSA_MODULUS_LENGTH;
     const { privateKeyPem, publicKeyPem } = generateSigningKeyPair(bits);
     const privateKeyEnc = encryptSecret(privateKeyPem, this.encKey);
@@ -112,7 +112,7 @@ export class PlatformSigningService {
       ? [...prev.history, { keyVersion: prev.keyVersion, publicKey: prev.publicKey, createdAt: prev.createdAt, retiredAt: now }]
       : [];
     const settings: StoredSettings = {
-      keyVersion: nextVersion, algorithm: 'RSA-SHA256', publicKey: publicKeyPem, createdAt: now, modulusBits: bits, history,
+      keyVersion: nextVersion, algorithm: bits === RSA_DOC_MODULUS_LENGTH ? AGT_SIGNATURE_ALGORITHM : 'RSA-SHA256', publicKey: publicKeyPem, createdAt: now, modulusBits: bits, history,
     };
 
     await this.prisma.integration.upsert({
@@ -146,12 +146,12 @@ export class PlatformSigningService {
   }
 
   /** Privada decifrada — SÓ para o motor de assinatura (nunca sai por API). */
-  async getPrivateKeyForSigning(): Promise<{ privateKeyPem: string; keyVersion: number } | null> {
+  async getPrivateKeyForSigning(): Promise<{ privateKeyPem: string; keyVersion: number; modulusBits: number } | null> {
     const row = await this.getRow();
     const s = row ? this.parseSettings(row.settings) : null;
     if (!s || !row?.secretEnc) return null;
     try {
-      return { privateKeyPem: decryptSecret(row.secretEnc, this.encKey), keyVersion: s.keyVersion };
+      return { privateKeyPem: decryptSecret(row.secretEnc, this.encKey), keyVersion: s.keyVersion, modulusBits: s.modulusBits ?? 2048 };
     } catch {
       return null;
     }

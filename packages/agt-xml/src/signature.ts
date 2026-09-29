@@ -1,5 +1,6 @@
 import { createSign, createVerify, generateKeyPairSync } from 'node:crypto';
 import { buildSignableString } from './hash';
+import { money } from './money';
 import { Sha256Signer } from './hash';
 import { FiscalDocument } from './types';
 
@@ -128,4 +129,86 @@ export class RsaDocumentSigner {
       algorithm: this.algorithm,
     };
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Modelo AGT (Declaração Modelo 8 — Regras e Requisitos para Validação de
+// Sistemas, ponto 34): assinatura RSA da chave do PRODUTOR do software, chave
+// privada de 1024 bits, hash SHA-1, PKCS#1 v1.5, resultado em Base64 com
+// EXACTAMENTE 172 caracteres, sem quebras de linha. O texto assinado é
+//   InvoiceDate;SystemEntryDate;InvoiceNo;GrossTotal;<assinatura do documento
+//   anterior da mesma série (vazia no primeiro)>
+// e o valor da assinatura é o próprio campo Hash do SAF-T (AO).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const AGT_SIGNATURE_ALGORITHM: SignatureAlgorithm = 'RSA-SHA1';
+export const AGT_SIGNATURE_LENGTH = 172;
+const AGT_SIGNATURE_RE = /^[A-Za-z0-9+/]{171}=$/;
+
+/** Uma assinatura AGT válida em forma: Base64 de 128 bytes (172 caracteres). */
+export function isAgtSignature(value: string | null | undefined): boolean {
+  return typeof value === 'string' && value.length === AGT_SIGNATURE_LENGTH && AGT_SIGNATURE_RE.test(value);
+}
+
+/** SystemEntryDate no formato AGT: AAAA-MM-DDTHH:MM:SS (sem milissegundos nem fuso). */
+export function formatAgtSystemEntryDate(iso: string): string {
+  return iso.length > 19 ? iso.slice(0, 19) : iso;
+}
+
+/** Texto a assinar (ponto 34 d/e). `previousSignature` vazio no 1.º documento da série. */
+export function buildAgtSignableString(
+  doc: DocHeader,
+  previousSignature: string,
+): string {
+  return [
+    doc.invoiceDate,
+    formatAgtSystemEntryDate(doc.systemEntryDate),
+    doc.number,
+    money(doc.totals.grossTotal),
+    previousSignature,
+  ].join(';');
+}
+
+export interface AgtSignatureResult {
+  /** Assinatura Base64 (172 car.) — é o campo Hash do SAF-T e a chave do documento. */
+  signature: string;
+  signableString: string;
+  keyVersion: number;
+}
+
+/** Assinador conforme o Modelo 8 da AGT (chave da plataforma, RSA-1024/SHA-1). */
+export class AgtDocumentSigner {
+  private readonly privateKeyPem: string;
+  readonly keyVersion: number;
+
+  constructor(options: { privateKeyPem: string; keyVersion: number }) {
+    this.privateKeyPem = options.privateKeyPem;
+    this.keyVersion = options.keyVersion;
+  }
+
+  signDocument(doc: DocHeader, previousSignature: string): AgtSignatureResult {
+    const signableString = buildAgtSignableString(doc, previousSignature);
+    const signature = signString(signableString, this.privateKeyPem, AGT_SIGNATURE_ALGORITHM);
+    if (!isAgtSignature(signature)) {
+      throw new Error(
+        `Assinatura AGT inválida (${signature.length} caracteres): a chave da plataforma tem de ser RSA de 1024 bits.`,
+      );
+    }
+    return { signature, signableString, keyVersion: this.keyVersion };
+  }
+}
+
+/** Verifica um documento assinado no modelo AGT contra a chave pública registada. */
+export function verifyAgtDocument(
+  doc: DocHeader,
+  previousSignature: string,
+  signature: string,
+  publicKeyPem: string,
+): boolean {
+  return verifySignatureString(
+    buildAgtSignableString(doc, previousSignature),
+    signature,
+    publicKeyPem,
+    AGT_SIGNATURE_ALGORITHM,
+  );
 }

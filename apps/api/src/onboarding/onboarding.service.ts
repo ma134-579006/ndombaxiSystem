@@ -20,6 +20,7 @@ import { Prisma } from '@prisma/client';
 import type { JwtPayload } from '@nexus/types';
 import { Role } from '../rbac/roles.enum';
 import { NifService } from './nif.service';
+import { EmailRegistryService } from '../common/identity/email-registry.service';
 import { OfflineCredentialsService } from '../auth/offline-credentials.service';
 import { RegisterCompanyDto } from './dto/register-company.dto';
 
@@ -51,6 +52,7 @@ export class OnboardingService {
     private readonly google: GoogleAuthService,
     private readonly tokens: TokenService,
     private readonly offlineCreds: OfflineCredentialsService,
+    private readonly emails: EmailRegistryService,
   ) {}
 
   private generateTempPassword(): string {
@@ -65,14 +67,14 @@ export class OnboardingService {
       throw new BadRequestException(nifCheck.reason ?? 'NIF inválido');
     }
 
+    // O mesmo NIF pode abrir várias empresas; só o código é único.
     const clash = await this.prisma.company.findFirst({
-      where: { OR: [{ code: dto.companyCode }, { nif: dto.nif }] },
+      where: { code: dto.companyCode },
     });
     if (clash) {
-      throw new ConflictException(
-        'Já existe uma empresa com este código ou NIF',
-      );
+      throw new ConflictException('Já existe uma empresa com este código');
     }
+    await this.emails.assertAvailable(dto.responsibleEmail);
 
     const plan = await this.prisma.plan.findUnique({
       where: { tier: dto.planTier },
@@ -218,8 +220,7 @@ export class OnboardingService {
       passwordHash = await this.passwords.hash(dto.password);
     }
 
-    const existing = await this.prisma.company.findFirst({ where: { responsibleEmail: email } });
-    if (existing) {
+    if (await this.emails.isTaken(email)) {
       throw new ConflictException('Já existe uma conta com este e-mail. Inicie sessão.');
     }
 
@@ -454,11 +455,6 @@ export class OnboardingService {
     } else {
       code = await this.generateUniqueCode(dto.name, tenantId);
     }
-
-    const nifClash = await this.prisma.company.findFirst({
-      where: { nif: dto.nif, NOT: { id: tenantId } },
-    });
-    if (nifClash) throw new ConflictException('Já existe uma empresa com este NIF.');
 
     // NÃO ativa a empresa aqui: fica PENDING até o Super Admin aprovar a
     // subscrição/pagamento. Só guarda os dados (nome, código, NIF).

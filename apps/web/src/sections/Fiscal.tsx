@@ -204,8 +204,8 @@ function SigningKeyCard() {
 
   const provision = async () => {
     const msg = st?.hasKey
-      ? 'RODAR a chave da plataforma (nova RSA-2048)? A versão incrementa e o portal da AGT terá de receber o novo public.txt. Os documentos já assinados continuam verificáveis.'
-      : 'Gerar o par de chaves RSA-2048 da plataforma?';
+      ? 'RODAR a chave da plataforma (nova RSA-1024, Modelo 8)? A versão incrementa e a AGT terá de receber a nova chave pública (public.txt) com a Declaração Modelo 8 ANTES de submeteres novos documentos. Os documentos já assinados continuam verificáveis.'
+      : 'Gerar o par de chaves RSA-1024 da plataforma (Modelo 8 da AGT)?';
     if (!(await confirmDialog({ message: msg, danger: !!st?.hasKey }))) return;
     setBusy(true);
     try {
@@ -251,12 +251,12 @@ function SigningKeyCard() {
         <strong> como ficheiro .txt</strong> (o portal não aceita .pem). No campo «Versão da Chave Pública» do portal indica <strong>{st?.hasKey ? st.keyVersion : 1}</strong>
         {' '}— começa em 1 e incrementa a cada rotação da chave.
       </p>
-      {st?.hasKey && st.modulusBits < 2048 ? (
+      {!st?.hasKey || st.modulusBits !== 1024 ? (
         <div className="banner warn" style={{ fontSize: 12.5 }}>
-          ⚠ A chave atual é RSA-{st.modulusBits}: a documentação oficial da Faturação
-          Eletrónica AGT (2026) exige <strong>RSA mínimo 2048 bits</strong>.
-          Roda a chave para RSA-2048 antes de submeter ao portal (no campo Hash do
-          SAF-T continua a ir o hash da cadeia — por desenho, não é bloqueio).
+          ⚠ {st?.hasKey ? `A chave atual é RSA-${st.modulusBits}.` : 'Ainda não há chave.'} O Modelo 8 da AGT exige
+          <strong> RSA de 1024 bits com SHA-1</strong> (assinatura Base64 de 172 caracteres no campo Hash do SAF-T).
+          Enquanto a chave não for RSA-1024, os documentos são emitidos SEM assinatura AGT e o SAF-T será rejeitado.
+          Gera/roda a chave e envia a nova pública (.txt) à AGT com a Declaração Modelo 8.
         </div>
       ) : null}
       {st?.hasKey ? (
@@ -268,7 +268,7 @@ function SigningKeyCard() {
       ) : null}
       <div className="row" style={{ gap: 8 }}>
         <button className="btn" onClick={provision} disabled={busy}>
-          {busy ? 'A processar…' : st?.hasKey ? '↻ Rodar chave (nova versão, RSA-2048)' : 'Gerar par de chaves RSA-2048'}
+          {busy ? 'A processar…' : st?.hasKey ? '↻ Rodar chave (nova versão, RSA-1024)' : 'Gerar par de chaves RSA-1024 (Modelo 8)'}
         </button>
         <button className="btn ghost" onClick={exportPem} disabled={busy || !st?.hasKey}>
           ⬇ Exportar chave pública (.txt p/ AGT)

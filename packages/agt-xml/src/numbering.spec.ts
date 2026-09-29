@@ -5,15 +5,20 @@ describe('document numbering', () => {
   it('formats with zero-padded sequence', () => {
     expect(
       formatDocumentNumber({ type: DocumentType.FT, series: 'A', year: 2025, sequence: 1 }),
-    ).toBe('FT A/2025/0001');
+    ).toBe('FT A2025/0001');
     expect(
       formatDocumentNumber({ type: DocumentType.NC, series: 'B2', year: 2025, sequence: 12345 }),
-    ).toBe('NC B2/2025/12345');
+    ).toBe('NC B22025/12345');
   });
 
   it('round-trips through parse', () => {
-    const n = 'FT A/2025/0042';
+    const n = 'FT A2025/0042';
     expect(formatDocumentNumber(parseDocumentNumber(n))).toBe(n);
+    expect(parseDocumentNumber('NC B22025/12345')).toMatchObject({ series: 'B2', year: 2025, sequence: 12345 });
+    // legado
+    expect(parseDocumentNumber('FT A/2025/0042')).toMatchObject({ series: 'A', year: 2025, sequence: 42 });
+    // padrão oficial AGT do InvoiceNo
+    expect(n).toMatch(/^[^ ]+ [^/^ ]+\/[0-9]+$/);
   });
 
   it('rejects invalid series and sequence', () => {
@@ -27,6 +32,6 @@ describe('document numbering', () => {
 
   it('rejects malformed numbers and unknown types on parse', () => {
     expect(() => parseDocumentNumber('FT/2025/1')).toThrow(/Malformed/);
-    expect(() => parseDocumentNumber('XX A/2025/0001')).toThrow(/Unknown document type/);
+    expect(() => parseDocumentNumber('XX A2025/0001')).toThrow(/Unknown document type/);
   });
 });

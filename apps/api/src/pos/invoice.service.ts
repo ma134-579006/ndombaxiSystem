@@ -1,20 +1,25 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
+  AgtDocumentSigner,
   buildSignableString,
   computeDocumentHash,
   computeInvoice,
   DocumentType,
+  FiscalDocument,
   formatDocumentNumber,
   GENESIS_HASH,
   InvoiceLineInput,
+  isAgtSignature,
   IvaCode,
   requiresExemptionReason,
+  RSA_DOC_MODULUS_LENGTH,
   round2,
 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { FiscalSigningService } from './fiscal-signing.service';
+import { PlatformSigningService } from '../fiscal/platform-signing.service';
 import { StockService } from '../erp/stock.service';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
 
@@ -108,7 +113,55 @@ export class InvoiceService {
     private readonly realtime: RealtimeService,
     private readonly signing: FiscalSigningService,
     private readonly audit: TenantAuditService,
+    private readonly platformSigning: PlatformSigningService,
   ) {}
+
+  private readonly log = new Logger(InvoiceService.name);
+  private warnedNoPlatformKey = false;
+
+  /**
+   * Assina e encadeia um documento conforme o MODELO 8 da AGT: assinatura RSA
+   * (1024 bits, SHA-1, Base64 de 172 caracteres) com a chave do PRODUTOR do
+   * software — a que a AGT recebeu na Declaração Modelo 8. O campo Hash do
+   * documento É essa assinatura e o documento seguinte da série encadeia com
+   * ela (vazio no primeiro; cadeias antigas em SHA-256 recomeçam aqui).
+   * Sem chave da plataforma válida (RSA-1024) cai no modo legado e avisa.
+   */
+  private async signAndChain(
+    schema: string,
+    tx: Prisma.TransactionClient,
+    header: Pick<FiscalDocument, 'invoiceDate' | 'systemEntryDate' | 'number' | 'totals'>,
+    lastHash: string,
+  ): Promise<{ previousHash: string; hash: string; signature: string | null; signatureKeyVersion: number | null; signable: string }> {
+    const key = await this.platformSigning.getPrivateKeyForSigning();
+    if (key && key.modulusBits === RSA_DOC_MODULUS_LENGTH) {
+      const previousSignature = isAgtSignature(lastHash) ? lastHash : '';
+      const signed = new AgtDocumentSigner({ privateKeyPem: key.privateKeyPem, keyVersion: key.keyVersion })
+        .signDocument(header, previousSignature);
+      return {
+        previousHash: previousSignature,
+        hash: signed.signature,
+        signature: signed.signature,
+        signatureKeyVersion: signed.keyVersion,
+        signable: signed.signableString,
+      };
+    }
+    if (!this.warnedNoPlatformKey) {
+      this.warnedNoPlatformKey = true;
+      this.log.warn('Chave de assinatura da plataforma ausente ou não RSA-1024: documentos emitidos SEM assinatura AGT (Modelo 8). Gere a chave em Fiscal → Chave da plataforma e comunique a pública à AGT.');
+    }
+    const signable = buildSignableString(header, lastHash);
+    const hash = computeDocumentHash(header, lastHash);
+    const signer = await this.signing.getActiveSigner(schema, tx);
+    let signature: string | null = null;
+    let signatureKeyVersion: number | null = null;
+    if (signer) {
+      const signed = signer.signDocument(header, lastHash);
+      signature = signed.signature;
+      signatureKeyVersion = signed.keyVersion;
+    }
+    return { previousHash: lastHash, hash, signature, signatureKeyVersion, signable };
+  }
 
   /**
    * Emite um documento fiscal de forma atómica (§7): resolve produtos, calcula
@@ -280,7 +333,6 @@ export class InvoiceService {
                    WHERE doc_type = ${input.docType} AND series = ${input.series} AND year = ${year}
                    FOR UPDATE`,
       );
-      const previousHash = serieRows[0].last_hash;
       const sequence = serieRows[0].last_sequence + 1;
       const number = formatDocumentNumber({
         type: input.docType,
@@ -289,24 +341,14 @@ export class InvoiceService {
         sequence,
       });
 
-      // 4. Datas e cadeia de hash.
-      const now = new Date();
+      // 4. Datas (ao segundo, formato AGT) e assinatura/cadeia (Modelo 8).
+      const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const invoiceDate = now.toISOString().slice(0, 10);
       const systemEntryDate = now.toISOString();
       const docHeader = { invoiceDate, systemEntryDate, number, totals };
-      const signable = buildSignableString(docHeader, previousHash);
-      const hash = computeDocumentHash(docHeader, previousHash);
-
-      // Assinatura digital RSA-2048 (se a empresa já tiver chave activa). A
-      // cadeia de hash SHA-256 mantém-se inalterada; a assinatura é adicional.
-      const signer = await this.signing.getActiveSigner(schema, tx);
-      let signature: string | null = null;
-      let signatureKeyVersion: number | null = null;
-      if (signer) {
-        const signed = signer.signDocument(docHeader, previousHash);
-        signature = signed.signature;
-        signatureKeyVersion = signed.keyVersion;
-      }
+      const chain = await this.signAndChain(schema, tx, docHeader, serieRows[0].last_hash);
+      const { hash, signable, signature, signatureKeyVersion } = chain;
+      const previousHash = chain.previousHash;
 
       // 5. Cliente (NIF + nome) opcional — override explícito tem prioridade.
       let customerTaxId: string | null = input.customerTaxId ?? null;
@@ -722,6 +764,7 @@ export class InvoiceService {
     nc: {
       number: string; series: string; year: number; sequence: number;
       invoiceDate: string; systemEntryDate: string; signable: string; previousHash: string; hash: string;
+      signature?: string | null; signatureKeyVersion?: number | null;
       storeId: string | null; customerId: string | null; customerTaxId: string | null;
       sourceInvoiceId: string; net: number; iva: number; gross: number;
       /** Chave de idempotência do posto (ver `invoices_client_op_uidx`). */
@@ -738,11 +781,11 @@ export class InvoiceService {
       Prisma.sql`INSERT INTO invoices
           (number, doc_type, series, year, sequence, invoice_date, system_entry_date,
            store_id, customer_id, customer_tax_id, net_total, iva_total, gross_total,
-           signable_string, previous_hash, hash, status, source_invoice_id, client_op_id)
+           signable_string, previous_hash, hash, signature, signature_key_version, status, source_invoice_id, client_op_id)
         VALUES (${nc.number}, ${DocumentType.NC}, ${nc.series}, ${nc.year}, ${nc.sequence},
                 ${nc.invoiceDate}::date, ${nc.systemEntryDate}::timestamptz,
                 ${nc.storeId}::uuid, ${nc.customerId}::uuid, ${nc.customerTaxId},
-                ${nc.net}, ${nc.iva}, ${nc.gross}, ${nc.signable}, ${nc.previousHash}, ${nc.hash},
+                ${nc.net}, ${nc.iva}, ${nc.gross}, ${nc.signable}, ${nc.previousHash}, ${nc.hash}, ${nc.signature ?? null}, ${nc.signatureKeyVersion ?? null},
                 'N', ${nc.sourceInvoiceId}::uuid, ${nc.clientOpId ?? null}::uuid)
         RETURNING id`,
     );
@@ -1029,17 +1072,17 @@ export class InvoiceService {
                    WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year} FOR UPDATE`,
       );
       const sequence = serie[0].last_sequence + 1;
-      const previousHash = serie[0].last_hash;
       const ncNumber = formatDocumentNumber({ type: DocumentType.NC, series: 'A', year, sequence });
-      const now = new Date();
+      const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const docHeader = {
         invoiceDate: now.toISOString().slice(0, 10),
         systemEntryDate: now.toISOString(),
         number: ncNumber,
-        totals: { netTotal: ncNet, ivaTotal: ncIva, grossTotal: ncGross, byTaxCode: [] },
+        totals: { netTotal: ncNet, ivaTotal: ncIva, grossTotal: ncGross, byTaxCode: [] as never[] },
       };
-      const hash = computeDocumentHash(docHeader, previousHash);
-      const signable = buildSignableString(docHeader, previousHash);
+      const ncChain = await this.signAndChain(schema, tx, docHeader, serie[0].last_hash);
+      const { hash, signable } = ncChain;
+      const previousHash = ncChain.previousHash;
       await tx.$executeRaw(
         Prisma.sql`UPDATE fiscal_series SET last_sequence = ${sequence}, last_hash = ${hash}
                    WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year}`,
@@ -1050,7 +1093,7 @@ export class InvoiceService {
       await this.persistCreditNoteDoc(tx, {
         number: ncNumber, series: 'A', year, sequence,
         invoiceDate: docHeader.invoiceDate, systemEntryDate: docHeader.systemEntryDate,
-        signable, previousHash, hash,
+        signable, previousHash, hash, signature: ncChain.signature, signatureKeyVersion: ncChain.signatureKeyVersion,
         storeId: inv.store_id, customerId: inv.customer_id, customerTaxId: inv.customer_tax_id,
         sourceInvoiceId: invoiceId,
         net: ncNet, iva: ncIva, gross: ncGross,
@@ -1210,11 +1253,11 @@ export class InvoiceService {
       );
       const sequence = serie[0].last_sequence + 1;
       const ncNumber = formatDocumentNumber({ type: DocumentType.NC, series: 'A', year, sequence });
-      const now = new Date();
+      const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const ncHeader = { invoiceDate: now.toISOString().slice(0, 10), systemEntryDate: now.toISOString(), number: ncNumber,
-        totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] } };
-      const hash = computeDocumentHash(ncHeader, serie[0].last_hash);
-      const signable = buildSignableString(ncHeader, serie[0].last_hash);
+        totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] as never[] } };
+      const ncChain = await this.signAndChain(schema, tx, ncHeader, serie[0].last_hash);
+      const { hash, signable } = ncChain;
       await tx.$executeRaw(
         Prisma.sql`UPDATE fiscal_series SET last_sequence = ${sequence}, last_hash = ${hash}
                    WHERE doc_type = ${DocumentType.NC} AND series = 'A' AND year = ${year}`,
@@ -1225,7 +1268,7 @@ export class InvoiceService {
       await this.persistCreditNoteDoc(tx, {
         number: ncNumber, series: 'A', year, sequence,
         invoiceDate: ncHeader.invoiceDate, systemEntryDate: ncHeader.systemEntryDate,
-        signable, previousHash: serie[0].last_hash, hash,
+        signable, previousHash: ncChain.previousHash, hash, signature: ncChain.signature, signatureKeyVersion: ncChain.signatureKeyVersion,
         storeId: inv.store_id, customerId: inv.customer_id, customerTaxId: inv.customer_tax_id,
         sourceInvoiceId: invoiceId, net: refundNet, iva: refundIva, gross: refundGross, lines: ncLines,
         clientOpId, // ← unicidade imposta pelo Postgres (ver o parâmetro)
