@@ -2502,3 +2502,6 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn
 /* Cartões com formulário (Integrações, Gateways…): nunca espremidos em 2 colunas */
 .pgrid:has(input, select, textarea) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
 .pill { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+/* Barra lateral: itens nunca encolhem/sobrepõem-se com grupos abertos; a lista rola */
+.sidebar .nav > *, .sidebar .nav-group, .sidebar .nav button, .sidebar .nav-group-head, .sidebar .nav-sub, .sidebar .nav-sub > * { flex: none; }
+.sidebar .nav { overflow-y: auto; min-height: 0; }
