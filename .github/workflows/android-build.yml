@@ -1,0 +1,41 @@
+# Compila o APK Android (Ndombaxi System) na nuvem (Ubuntu + JDK 17 + Android SDK).
+# Sem secrets → APK de DEBUG (instalável para testes). Para publicar na Play Store
+# é preciso uma keystore própria (não incluída).
+name: Android build
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    env:
+      NDOMBAXI_API_URL: https://ndombaxi-api-3nmz.onrender.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+      - name: Preparar web e projeto Android
+        run: |
+          node apps/mobile-shell/scripts/prepare-web.mjs
+          pnpm --filter @nexus/mobile-shell exec cap add android || true
+          pnpm --filter @nexus/mobile-shell exec cap sync android
+      - name: Compilar APK debug
+        working-directory: apps/mobile-shell/android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ndombaxi-android-debug
+          path: apps/mobile-shell/android/app/build/outputs/apk/debug/*.apk
