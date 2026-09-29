@@ -106,8 +106,8 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
   }, [loading]);
 
   const cfg = data?.config;
-  const primary = cfg?.primaryColor || '#2563eb';
-  const accent = cfg?.accentColor || '#0ea5e9';
+  const primary = cfg?.primaryColor || 'var(--nx-brand-600)';
+  const accent = cfg?.accentColor || 'var(--nx-brand-400)';
   // Carrossel: heroImages (várias, rodam sozinhas) → heroImageUrl → default.
   // Usa as imagens do Super Admin SÓ se forem várias (≥2) E não forem uma
   // cópia gravada dos padrões ANTIGOS (v1 tinha 10; se a config for só isso,

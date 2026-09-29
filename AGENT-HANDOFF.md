@@ -22,3 +22,10 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - Migrar progressivamente os `--primary/--bg` do `theme.css` para `--nx-*` (10 temas legados existem; não remover sem decisão).
 - Auditoria: 1.705 `style={{` inline no web, 27 tamanhos de fonte, 12 breakpoints, `components/ui.tsx` só tem Switch/StatusBadge/Modal.
 - Pendentes fora do redesign: instalador Windows por testar (silent install não confirmou), APK Android (sem JDK/SDK/keystore), revogar token GitHub vazado, faturas Render/Aiven.
+
+## Atualização (fase 4/5)
+- theme.css: bloco "DESIGN SYSTEM v2" remapeia --bg/--surface/--primary do tema `claro` (padrão) e do tema base para `--nx-*`; .btn/.card/.field/.modal/.ptable refinados.
+- Auth: login e registo verificados sem scroll a 320×480, 360×400, 390×640, 1440×900 (compactação por max-height 560/420).
+- Landing: cores por defeito agora `--nx-brand-600/400`; navbar preservada; foco visível e reduced-motion.
+- Limite: ecrãs autenticados (Shell/Dashboard/Admin/POS/Loja) não são testáveis em dev sem sessão real (API bloqueada por CORS no dev; não se introduzem credenciais). Herdam o remap; validação visual pendente em produção.
+- Build de produção do web: OK (vite build exit 0).

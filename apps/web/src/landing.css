@@ -954,3 +954,9 @@ a.fc-line:hover { color: #fff; }
   .lp .lp-nav .lp-nav-links a::after, .lp .lp-nav .nav-signup, .lp .lp-nav .dl-nav-btn { transition: none !important; }
 }
 .lp section[id], .lp footer[id] { scroll-margin-top: 76px; }
+
+/* DESIGN SYSTEM v2 — acessibilidade e foco */
+.lp a:focus-visible, .lp button:focus-visible, .lp input:focus-visible, .lp summary:focus-visible {
+  outline: 2px solid var(--nx-brand-300, #99a8ff); outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) { .lp *, .lp *::before, .lp *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
