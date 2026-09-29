@@ -45,3 +45,8 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - Loja: aparência laranja/tokens OK em 1280 e ~657 px, sem overflow horizontal.
 - Admin: auditoria a11y básica sem botões sem nome, inputs sem label ou imagens sem alt; `lang="pt"`.
 - Por fazer: compra de teste na Loja (exige conta de cliente), polimento adicional de tabelas/forms do admin, QA de 320–1920 nas apps autenticadas, instalador Windows, APK.
+
+## Android / instalador (2026-09-29)
+- `.github/workflows/android-build.yml` (manual, "Run workflow"): compila APK DEBUG no Ubuntu (JDK 17, SDK do runner). Run 36562401647 OK; APK em Desktop\Ndombaxi-Instaladores\android\app-debug.apk. Play Store exige keystore própria (não existe). iOS continua a exigir Mac/Apple Developer (workflow ios-build.yml).
+- Responsividade verificada em produção: Loja e landing a 320 e 1920 sem overflow; login da Caixa a 320×640 sem scroll.
+- Instalador Windows: instalação silenciosa (`/S /D=...`) fica sem janela nem ficheiros extraídos após 25 s — provável pedido de elevação (UAC) que só o utilizador pode aprovar. Teste manual com duplo clique pendente. Pasta vazia C:\ndombaxi-inst-test pode ser apagada à mão.
