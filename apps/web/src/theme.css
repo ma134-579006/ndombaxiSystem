@@ -2494,7 +2494,8 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn
 @media (max-width: 700px) {
   .list-row > .row { width: 100%; justify-content: flex-start; }
   .list-row > .row .btn { flex: 1 1 auto; }
-  .noti-pop { position: fixed !important; left: 10px !important; right: 10px !important; width: auto !important; top: 64px !important; max-height: 70vh; overflow: auto; }
+  .noti-pop { position: fixed !important; left: auto !important; right: 10px !important; width: min(360px, calc(100vw - 20px)) !important; top: 64px !important; max-height: min(420px, 70vh); overflow: auto; padding: 6px; }
+  .noti-pop-head { padding: 4px 8px 6px; }
   .content-head { flex-wrap: wrap; gap: 10px; }
   .ptable { min-width: 560px; }
 }
