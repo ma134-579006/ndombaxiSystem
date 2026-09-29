@@ -147,7 +147,7 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
             type="password"
             inputMode="numeric"
             autoComplete="off"
-            placeholder="PIN"
+            placeholder="PIN" aria-label="PIN"
             value={pin}
             maxLength={8}
             onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}

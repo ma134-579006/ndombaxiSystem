@@ -115,7 +115,7 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
             className="lock-pin"
             type="password"
             autoComplete="current-password"
-            placeholder="Senha"
+            placeholder="Senha" aria-label="Senha"
             value={pw}
             onChange={(e) => setPw(e.target.value)}
           />
