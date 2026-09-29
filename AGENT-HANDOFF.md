@@ -61,3 +61,8 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - Decisão do utilizador: NÃO pode existir laranja. Loja passou a índigo; avisos em #ca8a04/#a16207.
 - Processamento v3: .loading = anel índigo + barra indeterminada + texto a respirar (só com prefers-reduced-motion: no-preference).
 - Shell v4 (theme.css "ENTERPRISE v4"): barra lateral clara (tema claro), ícones stroke 1.75, item ativo índigo-50 com indicador, KPIs brancos com ícone tonal índigo (só danger vermelho), hover/entrada animados.
+
+## Atualização (v5, limites de plano)
+- Limite de lojas/utilizadores/produtos usa company.plan (fonte de verdade); testado em produção no TEKAMBISSA (Business, 3 lojas): 2.ª e 3.ª criadas, 4.ª bloqueada. Lojas de teste TESTE2/TESTE3 ficaram nessa empresa.
+- v5: botões .sm tonais (warn=vermelho suave, sem laranja), list-row responsivo, popover de notificações compacto, .pgrid com formulários >=320px, sidebar sem encolher itens com grupo aberto.
+- Varredura mobile (super admin 12 secções + empresa ~16): sem overflow horizontal.
