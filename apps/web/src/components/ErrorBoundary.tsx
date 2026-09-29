@@ -17,6 +17,16 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // eslint-disable-next-line no-console
     console.error('[ErrorBoundary]', error, info?.componentStack);
+    // Nova versão publicada → o ficheiro antigo já não existe: recarrega uma vez.
+    if (/dynamically imported module|Importing a module script failed|ChunkLoadError/i.test(String(error?.message))) {
+      try {
+        const last = Number(sessionStorage.getItem('nx.chunkReload') || 0);
+        if (Date.now() - last > 30000) {
+          sessionStorage.setItem('nx.chunkReload', String(Date.now()));
+          location.reload();
+        }
+      } catch { /* ignore */ }
+    }
   }
 
   private hardReload = () => {
