@@ -2407,28 +2407,28 @@ input[type="checkbox"], input[type="radio"] {
 /* Cards de KPI */
 html .kpi-grid { gap: 16px; }
 html:not([data-theme="neon"]) .kpi-card {
-  border: 1px solid var(--nx-gray-200, #e2e8f0) !important; border-radius: 14px; padding: 18px 20px;
-  background: #fff !important; box-shadow: 0 1px 2px rgba(15,23,42,.04) !important;
+  border: 1px solid var(--border) !important; border-radius: 14px; padding: 18px 20px;
+  background: var(--surface) !important; box-shadow: 0 1px 2px rgba(15,23,42,.06) !important;
   transition: box-shadow .25s ease, border-color .25s ease, transform .25s cubic-bezier(.2,.7,.3,1);
 }
 html:not([data-theme="neon"]) .kpi-card:hover {
-  transform: translateY(-2px) !important; border-color: var(--nx-brand-200, #c7ceff) !important;
-  box-shadow: 0 12px 28px -14px rgba(36,48,232,.28) !important;
+  transform: translateY(-2px) !important; border-color: var(--primary) !important;
+  box-shadow: 0 12px 28px -14px rgba(0,0,0,.35) !important;
 }
 html:not([data-theme="neon"]) .kpi-ic {
   width: 40px; height: 40px; border-radius: 11px; margin-bottom: 14px;
-  background: var(--nx-brand-50, #eef0ff) !important; color: var(--nx-brand-600, #2430e8) !important;
+  background: var(--primary-soft) !important; color: var(--primary) !important;
   transition: transform .3s cubic-bezier(.2,.7,.3,1), background .2s ease;
 }
 html:not([data-theme="neon"]) .kpi-card.success .kpi-ic,
 html:not([data-theme="neon"]) .kpi-card.warning .kpi-ic,
-html:not([data-theme="neon"]) .kpi-card.violet .kpi-ic { background: var(--nx-brand-50, #eef0ff) !important; color: var(--nx-brand-600, #2430e8) !important; }
-html:not([data-theme="neon"]) .kpi-card.danger .kpi-ic { background: #fef2f2 !important; color: #dc2626 !important; }
+html:not([data-theme="neon"]) .kpi-card.violet .kpi-ic { background: var(--primary-soft) !important; color: var(--primary) !important; }
+html:not([data-theme="neon"]) .kpi-card.danger .kpi-ic { background: color-mix(in srgb, #dc2626 14%, transparent) !important; color: #ef4444 !important; }
 html:not([data-theme="neon"]) .kpi-ic svg { stroke-width: 1.75; }
 .kpi-card:hover .kpi-ic { transform: scale(1.08) rotate(-4deg); }
-.kpi-label { font-size: 11.5px; letter-spacing: .06em; color: var(--nx-gray-500, #64748b); }
+.kpi-label { font-size: 11.5px; letter-spacing: .06em; color: var(--muted); }
 .kpi-value { font-family: var(--nx-font-title, inherit); font-weight: 700; font-size: 26px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-html:not([data-theme="neon"]) .card { border: 1px solid var(--nx-gray-200, #e2e8f0) !important; border-radius: 14px; }
+html:not([data-theme="neon"]) .card { border: 1px solid var(--border) !important; border-radius: 14px; }
 .card h3 { font-family: var(--nx-font-title, inherit); font-weight: 650; }
 
 /* Filtros de período */
