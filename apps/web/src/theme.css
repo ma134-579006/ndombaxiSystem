@@ -2260,3 +2260,12 @@ input[type="checkbox"], input[type="radio"] {
 /* Sidebar escura: item activo legível em qualquer tema */
 .sidebar .nav button.active, .sidebar .nav-sub button.active { background: rgba(102,116,255,.24); color: #fff; }
 .sidebar .nav button.active::before, .sidebar .nav-sub button.active::before { background: var(--nx-brand-300, #98a3ff); }
+
+/* Tema claro: elevações, vidro e bordas coerentes com o Design System */
+[data-theme="claro"] {
+  --elev-1: var(--nx-shadow-1); --elev-2: 0 4px 14px -6px rgba(15,23,42,.14); --elev-3: 0 16px 40px -18px rgba(15,23,42,.22);
+  --glass: rgba(248,250,252,.86);
+  --border: var(--nx-gray-200); --border-soft: var(--nx-gray-200);
+}
+[data-theme="claro"] .kpi-card, [data-theme="claro"] .card { border-color: var(--nx-gray-200); box-shadow: var(--nx-shadow-1); }
+[data-theme="claro"] .kpi-card { background: var(--surface); }
