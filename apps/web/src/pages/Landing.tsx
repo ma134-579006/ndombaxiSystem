@@ -74,6 +74,13 @@ interface Props {
   onGoRegister?(): void; // abre o registo simples (email/Google)
 }
 
+const NAV_LINKS = [
+  { href: '#modulos', label: 'Funcionalidades' },
+  { href: '#planos', label: 'Planos' },
+  { href: '#porque', label: 'Sobre' },
+  { href: '#contacto', label: 'Contacto' },
+];
+
 export function Landing({ onGoLogin, onGoRegister }: Props) {
   const { loginTenant } = useAuth();
   const [data, setData] = useState<{ config: LandingConfig; plans: PublicPlan[] } | null>(null);
@@ -121,6 +128,29 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
   const plans = data?.plans ?? [];
   const ads = (cfg?.showAds && cfg?.ads?.filter((a) => a.active !== false)) || [];
 
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = () => setMenuOpen(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    const onResize = () => { if (window.innerWidth >= 960) setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [menuOpen]);
+
   const openRegister = (tier: PlanTier) => {
     // Novo fluxo simples (email/Google) quando disponível; senão, modal antigo.
     if (onGoRegister) { onGoRegister(); return; }
@@ -129,23 +159,54 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
   };
 
   return (
-    <div className="lp" style={{ ['--lp-primary' as string]: primary, ['--lp-accent' as string]: accent }}>
+    <div className="lp" id="top" style={{ ['--lp-primary' as string]: primary, ['--lp-accent' as string]: accent }}>
       {/* NAV */}
-      <nav className="lp-nav">
-        <img className="logo" src={LOGO_SRC} alt={cfg?.brandName ?? 'Ndombaxi'} />
-        <span className="nm">{cfg?.brandName ?? 'Ndombaxi System'}</span>
-        <div className="lp-nav-links" aria-label="Secções da página">
-          <a href="#modulos">Módulos</a>
-          <a href="#como-funciona">Como funciona</a>
-          <a href="#planos">Planos</a>
-          <a href="#baixar">Baixar app</a>
-          <a href="#faq">FAQ</a>
+      <nav className={`lp-nav${scrolled ? ' scrolled' : ''}${menuOpen ? ' open' : ''}`}>
+        <div className="lp-nav-bar">
+          <a className="lp-brand" href="#top" onClick={closeMenu} aria-label={cfg?.brandName ?? 'Ndombaxi System'}>
+            <img className="logo" src={LOGO_SRC} alt="" />
+            <span className="nm">{cfg?.brandName ?? 'Ndombaxi System'}</span>
+          </a>
+          <div className="lp-nav-links" aria-label="Secções da página">
+            {NAV_LINKS.map((l) => (
+              <a key={l.href} href={l.href}>{l.label}</a>
+            ))}
+          </div>
+          <span className="spacer" />
+          <div className="lp-nav-actions">
+            <button type="button" className="nav-login" onClick={onGoLogin}>Entrar</button>
+            <button type="button" className="nav-signup" onClick={() => openRegister('BUSINESS')}>Criar Conta</button>
+            <a className="dl-nav-btn" href="#baixar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+              <span>Baixar Aplicativo</span>
+            </a>
+          </div>
+          <button
+            type="button"
+            className="lp-burger"
+            aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={menuOpen}
+            aria-controls="lp-mobile-menu"
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <span /><span /><span />
+          </button>
         </div>
-        <span className="spacer" />
-        <a className="dl-nav-btn" href="#baixar" role="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-          <span>Baixar Aplicativo</span>
-        </a>
+        <div id="lp-mobile-menu" className="lp-mobile-menu" aria-hidden={!menuOpen}>
+          <div className="lp-mobile-inner">
+            {NAV_LINKS.map((l) => (
+              <a key={l.href} href={l.href} onClick={closeMenu} tabIndex={menuOpen ? 0 : -1}>{l.label}</a>
+            ))}
+            <div className="lp-mobile-cta">
+              <button type="button" className="nav-signup" tabIndex={menuOpen ? 0 : -1} onClick={() => { closeMenu(); openRegister('BUSINESS'); }}>Criar Conta</button>
+              <button type="button" className="nav-login" tabIndex={menuOpen ? 0 : -1} onClick={() => { closeMenu(); onGoLogin(); }}>Entrar</button>
+              <a className="dl-nav-btn" href="#baixar" tabIndex={menuOpen ? 0 : -1} onClick={closeMenu}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+                <span>Baixar Aplicativo</span>
+              </a>
+            </div>
+          </div>
+        </div>
       </nav>
 
       {/* HERO com carrossel animado de imagens realistas */}
@@ -395,7 +456,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       {/* RODAPÉ enterprise em 2 camadas: faixa CTA + colunas (estilo INUKA,
           adaptado à marca). Só links REAIS: âncoras das secções, caixa/loja
           e contactos configurados no Super Admin. */}
-      <footer className="lp-footer2">
+      <footer className="lp-footer2" id="contacto">
         <div className="lp-cta-band">
           <div className="wrap band-inner">
             <h2>Comece a sua jornada {cfg?.brandName ?? 'Ndombaxi'} hoje!</h2>
