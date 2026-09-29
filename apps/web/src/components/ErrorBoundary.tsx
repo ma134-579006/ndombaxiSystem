@@ -47,7 +47,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
           <pre style={{ textAlign: 'left', fontSize: 11, color: '#fca5a5', background: '#0a1020', border: '1px solid #233149', borderRadius: 10, padding: 10, overflow: 'auto', maxHeight: 140 }}>
             {String(this.state.error?.message || this.state.error)}
           </pre>
-          <button onClick={this.hardReload} style={{ marginTop: 12, width: '100%', height: 46, borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+          <button onClick={this.hardReload} style={{ marginTop: 12, width: '100%', height: 46, borderRadius: 12, border: 'none', background: '#2430e8', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
             Recarregar
           </button>
         </div>

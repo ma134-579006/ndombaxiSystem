@@ -56,3 +56,8 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - Landing v3: `--lp-primary/accent` = `--nx-brand-*`, Sora/DM Sans com pesos ≤700, ícones em quadrado tonal, sem ciano/roxo/animações de brilho; chat flutuante em índigo sólido.
 - Loja v3: estrutura em neutros/índigo (hero índigo), cor da marca (`--accent`, laranja) só em acções/preços; verificado em produção.
 - Teste "Nova loja" (empresa de teste): validação do limite do plano (1 loja) funciona com mensagem clara; criar loja com sucesso exigiria plano superior (não alterado).
+
+## Atualização (sem laranja, processamento, shell v4)
+- Decisão do utilizador: NÃO pode existir laranja. Loja passou a índigo; avisos em #ca8a04/#a16207.
+- Processamento v3: .loading = anel índigo + barra indeterminada + texto a respirar (só com prefers-reduced-motion: no-preference).
+- Shell v4 (theme.css "ENTERPRISE v4"): barra lateral clara (tema claro), ícones stroke 1.75, item ativo índigo-50 com indicador, KPIs brancos com ícone tonal índigo (só danger vermelho), hover/entrada animados.

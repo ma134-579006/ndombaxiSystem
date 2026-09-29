@@ -2335,3 +2335,122 @@ input[type="checkbox"], input[type="radio"] {
   .lock-av { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .lock-screen { animation: none; } .lock-btn { transition: none; } }
+
+/* ════════════════════════════════════════════════════════════
+   PROCESSAMENTO v3 — anel em gradiente índigo com pulso interno,
+   barra indeterminada e texto a "respirar". Substitui o spinner simples.
+   ════════════════════════════════════════════════════════════ */
+.loading {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 44px 20px; text-align: center; font-weight: 600; font-size: 14px; letter-spacing: .01em;
+  color: var(--muted, #64748b); position: relative;
+}
+.loading::before {
+  content: ''; width: 44px; height: 44px; flex: none; border-radius: 50%; border: 0;
+  background:
+    radial-gradient(circle at center, var(--nx-brand-500, #4353ff) 0 5px, transparent 6px),
+    conic-gradient(from 0deg, rgba(67,83,255,0) 0deg, var(--nx-brand-400, #6674ff) 120deg, var(--nx-brand-600, #2430e8) 330deg, rgba(36,48,232,0) 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)), radial-gradient(circle at center, #000 0 5px, transparent 6px);
+  -webkit-mask-composite: source-over;
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)), radial-gradient(circle at center, #000 0 5px, transparent 6px);
+  mask-composite: add;
+}
+.loading::after {
+  content: ''; order: 3; width: 120px; height: 3px; border-radius: 999px; overflow: hidden;
+  background: linear-gradient(90deg, transparent 0, var(--nx-brand-500, #4353ff) 50%, transparent 100%) -120px 0 / 60px 100% no-repeat, rgba(128,140,170,.22);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .loading::before { animation: nx-ring 1s linear infinite; }
+  .loading::after { animation: nx-bar 1.3s ease-in-out infinite; }
+  .loading { animation: nx-breathe 1.8s ease-in-out infinite; }
+  @keyframes nx-ring { to { transform: rotate(360deg); } }
+  @keyframes nx-bar { from { background-position: -60px 0, 0 0; } to { background-position: 120px 0, 0 0; } }
+  @keyframes nx-breathe { 0%,100% { opacity: 1; } 50% { opacity: .62; } }
+}
+
+/* ═══ ENTERPRISE v4 — barra lateral, cards, ícones e animações (tema claro) ═══ */
+[data-theme="claro"] .sidebar {
+  --text: var(--nx-gray-900, #0f172a);
+  --muted: var(--nx-gray-500, #64748b);
+  --surface: #fff;
+  --surface-2: var(--nx-gray-50, #f8fafc);
+  --border: var(--nx-gray-200, #e2e8f0);
+  --border-soft: var(--nx-gray-200, #e2e8f0);
+  background: #fff;
+  border-right: 1px solid var(--nx-gray-200, #e2e8f0);
+  box-shadow: 1px 0 0 rgba(15,23,42,.02);
+}
+[data-theme="claro"] .sidebar .brand { padding: 18px 16px 14px; border-bottom: 1px solid var(--nx-gray-100, #f1f5f9); margin-bottom: 6px; }
+[data-theme="claro"] .sidebar .brand img { border-radius: 10px; border: 1px solid var(--nx-gray-200, #e2e8f0); background: #fff; }
+[data-theme="claro"] .sidebar .brand .nm { font-family: var(--nx-font-title, inherit); font-weight: 700; font-size: 14px; letter-spacing: -.01em; }
+[data-theme="claro"] .sidebar .brand .tg { color: var(--nx-gray-500, #64748b); }
+[data-theme="claro"] .sidebar .nav { padding: 6px 10px; gap: 2px; }
+[data-theme="claro"] .sidebar .nav button,
+[data-theme="claro"] .sidebar .nav-group-head {
+  height: 40px; padding: 0 12px; border-radius: 10px; font-size: 13.5px; font-weight: 550;
+  color: var(--nx-gray-600, #475569); position: relative;
+  transition: background .18s ease, color .18s ease;
+}
+[data-theme="claro"] .sidebar .nav button svg,
+[data-theme="claro"] .sidebar .nav-group-head svg { stroke-width: 1.75; color: var(--nx-gray-400, #94a3b8); flex: none; transition: color .18s ease, transform .22s cubic-bezier(.2,.7,.3,1); }
+[data-theme="claro"] .sidebar .nav button:hover,
+[data-theme="claro"] .sidebar .nav-group-head:hover { background: var(--nx-gray-100, #f1f5f9); color: var(--nx-gray-900, #0f172a); }
+[data-theme="claro"] .sidebar .nav button:hover svg,
+[data-theme="claro"] .sidebar .nav-group-head:hover svg { color: var(--nx-brand-600, #2430e8); transform: scale(1.08); }
+[data-theme="claro"] .sidebar .nav button.active,
+[data-theme="claro"] .sidebar .nav-sub button.active {
+  background: var(--nx-brand-50, #eef0ff); color: var(--nx-brand-700, #1b23ae); box-shadow: none; font-weight: 650;
+}
+[data-theme="claro"] .sidebar .nav button.active svg,
+[data-theme="claro"] .sidebar .nav-sub button.active svg { color: var(--nx-brand-600, #2430e8); }
+[data-theme="claro"] .sidebar .nav button.active::before,
+[data-theme="claro"] .sidebar .nav-sub button.active::before { background: var(--nx-brand-600, #2430e8); left: -10px; width: 3px; height: 20px; border-radius: 0 3px 3px 0; }
+[data-theme="claro"] .sidebar .nav-group-head.has-active { color: var(--nx-gray-900, #0f172a); }
+[data-theme="claro"] .sidebar .nav-group-head.has-active svg { color: var(--nx-brand-600, #2430e8); }
+[data-theme="claro"] .sidebar .nav-sub { border-left: 1px solid var(--nx-gray-200, #e2e8f0); margin: 2px 0 6px 21px; padding-left: 8px; }
+[data-theme="claro"] .sidebar .nav-sub button { height: 36px; font-size: 13px; }
+[data-theme="claro"] .sidebar .sig { border-top: 1px solid var(--nx-gray-100, #f1f5f9); color: var(--nx-gray-400, #94a3b8); }
+
+/* Cards de KPI */
+html .kpi-grid { gap: 16px; }
+html:not([data-theme="neon"]) .kpi-card {
+  border: 1px solid var(--nx-gray-200, #e2e8f0) !important; border-radius: 14px; padding: 18px 20px;
+  background: #fff !important; box-shadow: 0 1px 2px rgba(15,23,42,.04) !important;
+  transition: box-shadow .25s ease, border-color .25s ease, transform .25s cubic-bezier(.2,.7,.3,1);
+}
+html:not([data-theme="neon"]) .kpi-card:hover {
+  transform: translateY(-2px) !important; border-color: var(--nx-brand-200, #c7ceff) !important;
+  box-shadow: 0 12px 28px -14px rgba(36,48,232,.28) !important;
+}
+html:not([data-theme="neon"]) .kpi-ic {
+  width: 40px; height: 40px; border-radius: 11px; margin-bottom: 14px;
+  background: var(--nx-brand-50, #eef0ff) !important; color: var(--nx-brand-600, #2430e8) !important;
+  transition: transform .3s cubic-bezier(.2,.7,.3,1), background .2s ease;
+}
+html:not([data-theme="neon"]) .kpi-card.success .kpi-ic,
+html:not([data-theme="neon"]) .kpi-card.warning .kpi-ic,
+html:not([data-theme="neon"]) .kpi-card.violet .kpi-ic { background: var(--nx-brand-50, #eef0ff) !important; color: var(--nx-brand-600, #2430e8) !important; }
+html:not([data-theme="neon"]) .kpi-card.danger .kpi-ic { background: #fef2f2 !important; color: #dc2626 !important; }
+html:not([data-theme="neon"]) .kpi-ic svg { stroke-width: 1.75; }
+.kpi-card:hover .kpi-ic { transform: scale(1.08) rotate(-4deg); }
+.kpi-label { font-size: 11.5px; letter-spacing: .06em; color: var(--nx-gray-500, #64748b); }
+.kpi-value { font-family: var(--nx-font-title, inherit); font-weight: 700; font-size: 26px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+html:not([data-theme="neon"]) .card { border: 1px solid var(--nx-gray-200, #e2e8f0) !important; border-radius: 14px; }
+.card h3 { font-family: var(--nx-font-title, inherit); font-weight: 650; }
+
+/* Filtros de período */
+.seg, .chips { gap: 6px; }
+.chip { transition: background .18s ease, color .18s ease, border-color .18s ease, transform .15s ease; }
+.chip:hover { border-color: var(--nx-brand-300, #98a3ff); }
+.chip:active { transform: scale(.97); }
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes nx-slide-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+  .sidebar .nav > *, .sidebar .nav-sub > * { animation: nx-slide-in .35s cubic-bezier(.2,.7,.3,1) both; }
+  .sidebar .nav > *:nth-child(2) { animation-delay: .03s; } .sidebar .nav > *:nth-child(3) { animation-delay: .06s; }
+  .sidebar .nav > *:nth-child(4) { animation-delay: .09s; } .sidebar .nav > *:nth-child(5) { animation-delay: .12s; }
+  .sidebar .nav > *:nth-child(n+6) { animation-delay: .15s; }
+  .nav-group-head svg:last-child { transition: transform .22s ease; }
+  .kpi-value { animation: nx-count .6s cubic-bezier(.2,.7,.3,1) both; }
+  @keyframes nx-count { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+}

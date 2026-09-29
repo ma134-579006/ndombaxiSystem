@@ -788,3 +788,35 @@ h1, h2, h3 { font-weight: 700; }
 /* Sem laranja: acento e preços na identidade índigo. */
 :root { --accent: var(--nx-brand-600, #2430e8); --accent-2: var(--nx-brand-500, #4353ff); --price: var(--nx-brand-700, #1b23ae); }
 .search input { border-color: var(--border); }
+
+/* ════════════════════════════════════════════════════════════
+   PROCESSAMENTO v3 — anel em gradiente índigo com pulso interno,
+   barra indeterminada e texto a "respirar". Substitui o spinner simples.
+   ════════════════════════════════════════════════════════════ */
+.loading {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 44px 20px; text-align: center; font-weight: 600; font-size: 14px; letter-spacing: .01em;
+  color: var(--muted, #64748b); position: relative;
+}
+.loading::before {
+  content: ''; width: 44px; height: 44px; flex: none; border-radius: 50%; border: 0;
+  background:
+    radial-gradient(circle at center, var(--nx-brand-500, #4353ff) 0 5px, transparent 6px),
+    conic-gradient(from 0deg, rgba(67,83,255,0) 0deg, var(--nx-brand-400, #6674ff) 120deg, var(--nx-brand-600, #2430e8) 330deg, rgba(36,48,232,0) 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)), radial-gradient(circle at center, #000 0 5px, transparent 6px);
+  -webkit-mask-composite: source-over;
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)), radial-gradient(circle at center, #000 0 5px, transparent 6px);
+  mask-composite: add;
+}
+.loading::after {
+  content: ''; order: 3; width: 120px; height: 3px; border-radius: 999px; overflow: hidden;
+  background: linear-gradient(90deg, transparent 0, var(--nx-brand-500, #4353ff) 50%, transparent 100%) -120px 0 / 60px 100% no-repeat, rgba(128,140,170,.22);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .loading::before { animation: nx-ring 1s linear infinite; }
+  .loading::after { animation: nx-bar 1.3s ease-in-out infinite; }
+  .loading { animation: nx-breathe 1.8s ease-in-out infinite; }
+  @keyframes nx-ring { to { transform: rotate(360deg); } }
+  @keyframes nx-bar { from { background-position: -60px 0, 0 0; } to { background-position: 120px 0, 0 0; } }
+  @keyframes nx-breathe { 0%,100% { opacity: 1; } 50% { opacity: .62; } }
+}

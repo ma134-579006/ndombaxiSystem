@@ -210,7 +210,7 @@ function PlatformPanel() {
   const [section, setSection] = useWorkspace('dashboard');
   return (
     <Shell nav={PLATFORM_NAV} section={section} setSection={setSection} roleLabel="Super Admin" subtitle="Administração">
-      <React.Suspense fallback={<div className="card" style={{ padding: 28, textAlign: 'center' }}><span className="muted">A carregar…</span></div>}>
+      <React.Suspense fallback={<div className="card"><div className="loading">A carregar…</div></div>}>
       {section === 'dashboard' ? <PlatformDashboard /> : null}
       {section === 'tenants' ? <Tenants /> : null}
       {section === 'subs' ? <SubsAdmin /> : null}
@@ -377,7 +377,7 @@ function TenantPanel() {
     return () => { alive = false; };
   }, []);
   if (gate === null) {
-    return <div className="login"><span className="muted">A carregar…</span></div>;
+    return <div className="login"><div className="loading">A carregar…</div></div>;
   }
   if (!gate.setupCompleted) {
     return <CompanySetup onDone={() => setGate({ setupCompleted: true, approved: false, expired: false })} />;
@@ -390,7 +390,7 @@ function TenantPanel() {
   }
   return (
     <Shell nav={nav} section={safeSection} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
-      <React.Suspense fallback={<div className="card" style={{ padding: 28, textAlign: 'center' }}><span className="muted">A carregar…</span></div>}>
+      <React.Suspense fallback={<div className="card"><div className="loading">A carregar…</div></div>}>
       {section === 'overview' ? <><FirstSteps onGo={setSection} companyCode={user?.tenantId} /><Overview /></> : null}
       {section === 'service-hub' ? (bizType === 'RESTAURANT' ? <RestaurantHome onGo={setSection} /> : bizType === 'HOSPITALITY' ? <HotelHome onGo={setSection} /> : bizType === 'CLINIC' ? <ClinicHome onGo={setSection} /> : bizType === 'SERVICES' ? <ServicesHome onGo={setSection} /> : <ServiceHub businessType={bizType} onGo={setSection} />) : null}
       {section === 'restaurant' ? <Restaurant onGo={setSection} /> : null}
@@ -485,7 +485,7 @@ function Gate() {
   if (status === 'loading') {
     return (
       <div className="login">
-        <span className="muted">A carregar…</span>
+        <div className="loading">A carregar…</div>
       </div>
     );
   }
