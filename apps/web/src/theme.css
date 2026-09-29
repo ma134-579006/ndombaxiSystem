@@ -2194,3 +2194,6 @@ input[type="checkbox"], input[type="radio"] {
 .pe-text { margin: 0 0 16px; font-size: 14px; line-height: 1.55; color: #9fb0cc; }
 .pe-out { color: #8ea6ff; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .pe-out:hover { text-decoration: underline; }
+.pe .pe-card .banner.danger { background: rgba(239,68,68,.13); border-color: rgba(239,68,68,.4); color: #fecaca; }
+.pe .pe-card .banner.danger strong { color: #fff; }
+.pe .auth-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
