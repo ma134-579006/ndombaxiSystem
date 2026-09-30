@@ -1391,7 +1391,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary, #3b82
 }
 
 /* ── Logo LPS Vendas: sempre visível (v9) ─────────────────────────────── */
-.auth-logo-wide { display: block; width: auto; height: clamp(56px, 13vh, 112px); max-width: 100%; object-fit: contain; margin: 0 0 clamp(6px, 1.6vh, 16px) -6px; filter: drop-shadow(0 6px 18px rgba(0,0,0,.45)); }
+.auth-logo-wide { display: block; width: auto; height: clamp(44px, 9.5vh, 84px); max-width: 100%; object-fit: contain; margin: 0 0 clamp(6px, 1.6vh, 16px) -6px; filter: drop-shadow(0 6px 18px rgba(0,0,0,.45)); }
 .topbar-logo { width: 44px; height: 44px; padding: 2px; }
 .lock-logo { width: 46px; height: 46px; border-radius: 10px; }
 @media (max-width: 720px) { .topbar-logo { width: 36px; height: 36px; } }
