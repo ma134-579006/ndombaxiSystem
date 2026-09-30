@@ -155,7 +155,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   // Android/iOS de forma fiável. No desktop o OAuth do Google é outro fluxo.
   const isDesktopApp = window.location.protocol === 'ndombaxi:' || typeof nw.ndombaxi !== 'undefined';
   const isMobileApp = isNativeApp && !isDesktopApp;
-  const openSignupInBrowser = () => window.open('https://ndombaxisystem.com/', '_blank');
+  const openSignupInBrowser = () => window.open('https://lpsvendas.com/', '_blank');
 
   return (
     <div className="auth">

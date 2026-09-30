@@ -31,14 +31,14 @@ export const API_URL = (hostApiUrl()
 
 /** Base da loja online (apps/store). O link partilhável de cada empresa é
  *  `${STORE_URL}/${companyCode}`. Configurável no build via VITE_STORE_URL. */
-export const STORE_URL = ((import.meta.env.VITE_STORE_URL as string | undefined) ?? 'https://loja.ndombaxisystem.com').replace(
+export const STORE_URL = ((import.meta.env.VITE_STORE_URL as string | undefined) ?? 'https://loja.lpsvendas.com').replace(
   /\/$/,
   '',
 );
 
 /** Terminal de venda (Caixa / POS, apps/pos). Configurável no build via
  *  VITE_CAIXA_URL. Abre-se com `${CAIXA_URL}/?empresa=<codigo>`. */
-export const CAIXA_URL = ((import.meta.env.VITE_CAIXA_URL as string | undefined) ?? 'https://caixa.ndombaxisystem.com').replace(
+export const CAIXA_URL = ((import.meta.env.VITE_CAIXA_URL as string | undefined) ?? 'https://caixa.lpsvendas.com').replace(
   /\/$/,
   '',
 );

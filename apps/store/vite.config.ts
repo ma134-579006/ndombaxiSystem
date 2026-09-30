@@ -17,7 +17,7 @@ export default defineConfig({
         rewrite: (p) => p.replace(/^\/papi/, ''),
         configure: (proxy) => {
           proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.setHeader('origin', 'https://loja.ndombaxisystem.com');
+            proxyReq.setHeader('origin', 'https://loja.lpsvendas.com');
           });
         },
       },

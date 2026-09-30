@@ -28,7 +28,7 @@ import { readSettings } from './settings';
  * num ecrã sem saída. É o nosso próprio site, e a mesma página para onde a
  * publicação normal aponta.
  */
-const PAGINA_OFICIAL = 'https://ndombaxisystem.com/baixar';
+const PAGINA_OFICIAL = 'https://lpsvendas.com/baixar';
 
 /** Última decisão conhecida — para o clique não depender de haver rede. */
 let ultimaDecisao: UpdateDecision | null = null;

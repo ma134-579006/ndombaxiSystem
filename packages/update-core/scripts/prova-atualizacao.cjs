@@ -17,7 +17,7 @@ const base = {
   platform: 'windows',
   version: '1.3.0',
   minSupported: null,
-  downloadPageUrl: 'https://ndombaxisystem.com/baixar',
+  downloadPageUrl: 'https://lpsvendas.com/baixar',
   notes: ['Correções de segurança'],
   fixes: [],
   mandatory: false,
@@ -79,7 +79,7 @@ const d = decideUpdate('1.2.4', { ...base, mandatory: true }, WIN);
 check('a decisão leva a versão instalada', d.current === '1.2.4');
 check('a decisão leva a versão nova', d.release.version === '1.3.0');
 check('a decisão leva as melhorias', d.release.notes[0] === 'Correções de segurança');
-check('a decisão leva a página oficial', d.release.downloadPageUrl === 'https://ndombaxisystem.com/baixar');
+check('a decisão leva a página oficial', d.release.downloadPageUrl === 'https://lpsvendas.com/baixar');
 
 // ── Não perder trabalho: sincronizar ANTES de trancar ───────────────
 check('fila vazia → pode trancar', readyToBlock({ pending: 0, online: true, syncing: false }).canBlock === true);

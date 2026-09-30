@@ -217,8 +217,8 @@ export class AuthService {
   }
 
   // ─── Recuperação de senha/PIN ("esqueci-me") ────────────────
-  private get frontendWeb(): string { return process.env.PUBLIC_WEB_URL || 'https://ndombaxisystem.com'; }
-  private get frontendCaixa(): string { return process.env.PUBLIC_CAIXA_URL || 'https://caixa.ndombaxisystem.com'; }
+  private get frontendWeb(): string { return process.env.PUBLIC_WEB_URL || 'https://lpsvendas.com'; }
+  private get frontendCaixa(): string { return process.env.PUBLIC_CAIXA_URL || 'https://caixa.lpsvendas.com'; }
 
   /**
    * Pede a recuperação de senha (painel) ou PIN (caixa). Por segurança responde
