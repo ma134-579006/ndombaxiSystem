@@ -52,7 +52,7 @@ export function PlansAdmin() {
 
       <div className="fx-stats">
         <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Planos</div><div className="vl">{plans.length}</div><div className="sb">{visible} visível(is) na página inicial</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Teste grátis</div><div className="vl">{cfg?.trialDays ?? '—'}<small> dias</small></div><div className="sb">para cada nova empresa</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Teste grátis</div><div className="vl">{cfg?.trialDays ?? '—'}<small>&nbsp;dias</small></div><div className="sb">para cada nova empresa</div></div></div>
         <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Marca</div><div className="vl" style={{ fontSize: 18 }}>{cfg?.brandName ?? '—'}</div><div className="sb">nome mostrado no site</div></div></div>
       </div>
 
@@ -297,7 +297,7 @@ function LandingEditor({ cfg, onSaved }: { cfg: LandingConfig; onSaved(c: Landin
             className="pl-hero"
             style={{ ['--pl-c' as string]: primaryColor, backgroundImage: firstImage ? `linear-gradient(180deg, rgba(8,13,26,.55), rgba(8,13,26,.86)), url(${firstImage})` : undefined }}
           >
-            <div className="pl-hero-nav"><img src="/logo-horizontal.svg" alt={brandName} /></div>
+            <div className="pl-hero-nav"><img src="/logo-horizontal.png" alt={brandName} /></div>
             <h5>{heroTitle || 'Título principal'}</h5>
             <p>{heroSubtitle || 'Subtítulo do site'}</p>
             <span className="pl-cta">Criar conta grátis</span>

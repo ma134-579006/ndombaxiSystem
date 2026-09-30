@@ -162,7 +162,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
       <ScreenKeyboard />
       <div className="auth-panel">
         <div className="auth-form">
-          <img className="auth-logo-wide" src="/logo-horizontal.svg" alt="LPS Vendas" />
+          <img className="auth-logo-wide" src="/logo-horizontal.png" alt="LPS Vendas" />
           {resetToken ? (
             <>
               <h1 className="auth-title">Nova palavra-passe</h1>

@@ -129,7 +129,7 @@ export function LoginPage() {
     <div className="auth">
       <ScreenKeyboard />
       <div className="auth-panel">
-        <div className="auth-form"><img className="auth-logo-wide" src="/logo-horizontal.svg" alt="LPS Vendas" />
+        <div className="auth-form"><img className="auth-logo-wide" src="/logo-horizontal.png" alt="LPS Vendas" />
           {resetToken ? (
             <>
               <h1 className="auth-title">Novo PIN</h1>
