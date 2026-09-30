@@ -297,7 +297,7 @@ function LandingEditor({ cfg, onSaved }: { cfg: LandingConfig; onSaved(c: Landin
             className="pl-hero"
             style={{ ['--pl-c' as string]: primaryColor, backgroundImage: firstImage ? `linear-gradient(180deg, rgba(8,13,26,.55), rgba(8,13,26,.86)), url(${firstImage})` : undefined }}
           >
-            <div className="pl-hero-nav"><img src="/logo-horizontal.svg" alt={brandName} /></div>
+            <div className="pl-hero-nav"><img src="/logo-horizontal.png" alt={brandName} /></div>
             <h5>{heroTitle || 'Título principal'}</h5>
             <p>{heroSubtitle || 'Subtítulo do site'}</p>
             <span className="pl-cta">Criar conta grátis</span>
