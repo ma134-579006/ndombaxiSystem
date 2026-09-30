@@ -132,7 +132,40 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
         `ensureSchema(${schema}): ${failed}/${statements.length} statement(s) falharam — ex.: ${samples.join(' | ')}`,
       );
     }
+    await this.fixInvoiceItemsProductFk(schema);
     return { applied, failed };
+  }
+
+  /**
+   * `invoice_items.product_id` nasceu com ON DELETE SET NULL. Só que as regras fiscais
+   * (DP 71/25: `fiscal_no_update_invoice_items … DO INSTEAD NOTHING`) reescrevem o UPDATE
+   * interno que o PostgreSQL faz para cumprir o SET NULL → erro XX000 «referential integrity
+   * query … gave unexpected result» e NENHUM produto podia ser eliminado (nem os nunca vendidos).
+   * Com NO ACTION a verificação passa a ser um SELECT (não reescrito): elimina-se o que nunca
+   * foi vendido; o código já DESATIVA os produtos com vendas. Idempotente: só altera se ainda
+   * for SET NULL; best-effort (nunca derruba o arranque).
+   */
+  async fixInvoiceItemsProductFk(schema: string): Promise<boolean> {
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<{ confdeltype: string }[]>(
+        `SELECT c.confdeltype FROM pg_constraint c
+           JOIN pg_class t ON t.oid = c.conrelid JOIN pg_namespace n ON n.oid = t.relnamespace
+          WHERE n.nspname = $1 AND t.relname = 'invoice_items' AND c.conname = 'invoice_items_product_id_fkey'`,
+        schema,
+      );
+      if (!rows.length || rows[0].confdeltype !== 'n') return false; // ausente ou já corrigido
+      await this.prisma.$transaction([
+        this.prisma.$executeRawUnsafe(`ALTER TABLE "${schema}"."invoice_items" DROP CONSTRAINT invoice_items_product_id_fkey`),
+        this.prisma.$executeRawUnsafe(
+          `ALTER TABLE "${schema}"."invoice_items" ADD CONSTRAINT invoice_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES "${schema}"."products"(id)`,
+        ),
+      ]);
+      this.logger.log(`${schema}: invoice_items.product_id corrigido (SET NULL → NO ACTION) — produtos já se podem eliminar.`);
+      return true;
+    } catch (err) {
+      this.logger.warn(`${schema}: não foi possível corrigir invoice_items_product_id_fkey: ${err instanceof Error ? err.message.split('\n')[0].slice(0, 140) : 'erro'}`);
+      return false;
+    }
   }
 
   /** Remove completamente o schema do tenant (§2.2 — excluir empresa). */

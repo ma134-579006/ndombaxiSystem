@@ -192,7 +192,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."invoice_items" (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   invoice_id       UUID NOT NULL REFERENCES "{{SCHEMA}}"."invoices"(id) ON DELETE CASCADE,
   line_number      INT  NOT NULL,
-  product_id       UUID REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE SET NULL,
+  product_id       UUID REFERENCES "{{SCHEMA}}"."products"(id),   -- NO ACTION de proposito: as regras fiscais (DO INSTEAD NOTHING em UPDATE) partem o SET NULL
   product_code     TEXT NOT NULL,
   description      TEXT NOT NULL,
   quantity         NUMERIC(14,3) NOT NULL,

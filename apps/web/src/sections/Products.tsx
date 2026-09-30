@@ -100,12 +100,18 @@ export function Products() {
   const bulkDelete = async () => {
     if (!(await confirmDialog({ message: `Eliminar ${selected.size} produto(s)? Produtos com vendas associadas são apenas desativados.`, danger: true }))) return;
     setBusy(true); setError(null);
-    let del = 0, deact = 0;
+    let del = 0, deact = 0, fail = 0, firstErr = '';
     try {
-      for (const id of selected) { const r = await api.products.remove(id); if (r.deleted) del++; else deact++; }
+      // Um produto que falhe NÃO interrompe os restantes: no fim mostra-se o resumo.
+      for (const id of selected) {
+        try { const r = await api.products.remove(id); if (r.deleted) del++; else deact++; }
+        catch (e) { fail++; if (!firstErr) firstErr = e instanceof ApiError ? e.message : 'erro desconhecido'; }
+      }
       setSelected(new Set()); await load();
-      setError(null);
-      if (deact > 0) setError(`${del} eliminado(s); ${deact} com vendas foram desativados.`);
+      const parts = [`${del} eliminado(s)`];
+      if (deact > 0) parts.push(`${deact} com vendas foram desativados`);
+      if (fail > 0) parts.push(`${fail} não puderam ser eliminados (${firstErr})`);
+      setError(deact > 0 || fail > 0 ? `${parts.join('; ')}.` : null);
     } catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao eliminar.'); }
     finally { setBusy(false); }
   };
