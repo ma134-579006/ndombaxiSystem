@@ -23,6 +23,7 @@ export function Tenants() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bonusFor, setBonusFor] = useState<Company | null>(null);
+  const [counts, setCounts] = useState<{ total: number; active: number; pending: number; suspended: number } | null>(null);
   const { enterShadow } = useAuth();
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
@@ -30,6 +31,7 @@ export function Tenants() {
     setError(null);
     try {
       setCompanies(await api.tenants.list({ status: filter || undefined, search: search || undefined }));
+      api.platformDashboard.kpis().then((k) => setCounts(k.companies)).catch(() => undefined);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar empresas.');
     } finally {
@@ -108,38 +110,45 @@ export function Tenants() {
     } finally { setBusyId(null); }
   };
 
-  return (
-    <>
-      <div className="sticky-top">
-        <div className="content-head">
-          <h2>Empresas registadas</h2>
-          <span className="spacer" />
-          <div className="wrapcols">
-            {FILTERS.map((f) => (
-              <button key={f.label} className={`chip${filter === f.key ? ' active' : ''}`} onClick={() => setFilter(f.key)}>
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
+  const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+  const closeMenu = (e: React.MouseEvent) => { (e.currentTarget as HTMLElement).closest('details')?.removeAttribute('open'); };
 
-        <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
-          <div className="row">
-            <IconSearch size={18} />
-            <input
-              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void load(); }}
-              placeholder="Procurar por nome, código ou NIF… (Enter)"
-            />
-          </div>
+  return (
+    <div className="fx-wide">
+      <div className="content-head">
+        <h2>Empresas registadas</h2>
+      </div>
+
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Total</div><div className="vl">{counts?.total ?? '—'}</div><div className="sb">empresas na plataforma</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Activas</div><div className="vl"><span className="fx-dot ok" />{counts?.active ?? '—'}</div><div className="sb">com acesso ao sistema</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Pendentes</div><div className="vl"><span className="fx-dot" />{counts?.pending ?? '—'}</div><div className="sb">a aguardar aprovação</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Suspensas</div><div className="vl"><span className="fx-dot bad" />{counts?.suspended ?? '—'}</div><div className="sb">sem acesso</div></div></div>
+      </div>
+
+      <div className="fx-toolbar">
+        <div className="fx-tabs" role="tablist" aria-label="Filtrar por estado">
+          {FILTERS.map((f) => (
+            <button key={f.label} role="tab" aria-selected={filter === f.key} className={filter === f.key ? 'on' : ''} onClick={() => setFilter(f.key)}>
+              {f.label}
+            </button>
+          ))}
         </div>
+        <label className="fx-search">
+          <IconSearch size={17} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void load(); }}
+            placeholder="Procurar por nome, código ou NIF…"
+            aria-label="Procurar empresas"
+          />
+        </label>
       </div>
 
       {error ? <div className="banner danger">{error}</div> : null}
 
-      <div className="card">
+      <div className="fx-card" style={{ padding: 8 }}>
         {loading ? (
           <div className="loading">A carregar empresas…</div>
         ) : companies.length === 0 ? (
@@ -149,61 +158,43 @@ export function Tenants() {
           </div>
         ) : (
           companies.map((c) => (
-            <div className="list-row" key={c.id}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>
-                  {c.name} <span className="muted" style={{ fontWeight: 500 }}>· {c.code}</span>
-                </div>
-                <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>
-                  NIF {c.nif} · {c.plan?.name ?? c.planId} · {c.responsibleEmail} · {formatDate(c.createdAt)}
+            <div className="co-row" key={c.id}>
+              <span className="co-av" aria-hidden="true">{initials(c.name)}</span>
+              <div className="co-main">
+                <div className="co-name">{c.name} <span className="co-code">{c.code}</span></div>
+                <div className="co-meta">
+                  <span className="co-plan">{c.plan?.name ?? c.planId}</span>
+                  <span>NIF {c.nif}</span>
+                  <span>{c.responsibleEmail}</span>
+                  <span>desde {formatDate(c.createdAt)}</span>
                 </div>
                 <PlanStateLine c={c} />
               </div>
               <StatusBadge status={c.status} />
-              <div className="row" style={{ gap: 8 }}>
+              <div className="co-actions">
                 {c.status === 'PENDING' ? (
                   <>
-                    <button className="btn sm success" disabled={busyId === c.id} onClick={() => act(c.id, () => api.tenants.approve(c.id))}>
-                      Aprovar
-                    </button>
-                    <button className="btn sm ghost" disabled={busyId === c.id} onClick={() => act(c.id, () => api.tenants.reject(c.id), `Rejeitar "${c.name}"?`)}>
-                      Rejeitar
-                    </button>
+                    <button className="btn sm success" disabled={busyId === c.id} onClick={() => act(c.id, () => api.tenants.approve(c.id))}>Aprovar</button>
+                    <button className="btn sm ghost" disabled={busyId === c.id} onClick={() => act(c.id, () => api.tenants.reject(c.id), `Rejeitar "${c.name}"?`)}>Rejeitar</button>
                   </>
                 ) : null}
-                {c.status === 'ACTIVE' ? (
-                  <button className="btn sm warn" disabled={busyId === c.id} onClick={() => act(c.id, () => api.tenants.suspend(c.id), `Suspender "${c.name}"?`)}>
-                    Suspender
-                  </button>
-                ) : null}
-                {c.status === 'SUSPENDED' ? (
-                  <button className="btn sm success" disabled={busyId === c.id} onClick={() => act(c.id, () => api.tenants.reactivate(c.id))}>
-                    Reactivar
-                  </button>
-                ) : null}
-                {c.status !== 'PENDING' && c.status !== 'CANCELLED' ? (
-                  <button className={`btn sm ${c.planExpired ? 'success' : 'ghost'}`} disabled={busyId === c.id} onClick={() => setBonusFor(c)} title="Reativar plano / conceder dias ou meses de bónus">
-                    {c.planExpired ? 'Reativar' : 'Bónus / dias'}
-                  </button>
-                ) : null}
                 {c.status === 'ACTIVE' || c.status === 'SUSPENDED' ? (
-                  <button className="btn sm ghost" disabled={busyId === c.id} onClick={() => enterShadowFor(c)} title="Entrar no painel da empresa (shadow)">
-                    Entrar (shadow)
-                  </button>
+                  <button className="btn sm" disabled={busyId === c.id} onClick={() => enterShadowFor(c)} title="Entrar no painel da empresa (shadow)">Entrar no painel</button>
                 ) : null}
-                {c.status !== 'PENDING' && c.status !== 'CANCELLED' ? (
-                  <button className="btn sm ghost" disabled={busyId === c.id} onClick={() => resetPwd(c)} title="Forçar reset de senha">
-                    Repor senha
-                  </button>
+                {c.planExpired ? (
+                  <button className="btn sm success" disabled={busyId === c.id} onClick={() => setBonusFor(c)}>Reativar plano</button>
                 ) : null}
-                <button className="btn sm ghost" disabled={busyId === c.id} onClick={() => exportData(c)} title="Exportar dados (RGPD)">
-                  Exportar
-                </button>
-                {c.status === 'SUSPENDED' || c.status === 'CANCELLED' ? (
-                  <button className="btn sm danger" disabled={busyId === c.id} onClick={() => remove(c)} title="Eliminar empresa e dados">
-                    Eliminar
-                  </button>
-                ) : null}
+                <details className="kebab">
+                  <summary aria-label={`Mais acções para ${c.name}`}>Mais</summary>
+                  <div className="kebab-menu" onClick={closeMenu}>
+                    {c.status === 'ACTIVE' ? <button disabled={busyId === c.id} onClick={() => act(c.id, () => api.tenants.suspend(c.id), `Suspender "${c.name}"?`)}>Suspender</button> : null}
+                    {c.status === 'SUSPENDED' ? <button disabled={busyId === c.id} onClick={() => act(c.id, () => api.tenants.reactivate(c.id))}>Reactivar</button> : null}
+                    {c.status !== 'PENDING' && c.status !== 'CANCELLED' ? <button disabled={busyId === c.id} onClick={() => setBonusFor(c)}>Bónus / dias</button> : null}
+                    {c.status !== 'PENDING' && c.status !== 'CANCELLED' ? <button disabled={busyId === c.id} onClick={() => resetPwd(c)}>Repor senha</button> : null}
+                    <button disabled={busyId === c.id} onClick={() => exportData(c)}>Exportar dados</button>
+                    {c.status === 'SUSPENDED' || c.status === 'CANCELLED' ? <button className="danger" disabled={busyId === c.id} onClick={() => remove(c)}>Eliminar…</button> : null}
+                  </div>
+                </details>
               </div>
             </div>
           ))
@@ -217,7 +208,7 @@ export function Tenants() {
           onDone={async () => { setBonusFor(null); await load(); }}
         />
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -225,13 +216,15 @@ export function Tenants() {
 function PlanStateLine({ c }: { c: Company }) {
   if (c.status === 'PENDING' || c.status === 'CANCELLED') return null;
   if (c.planExpired) {
-    return <div style={{ fontSize: 12.5, marginTop: 3, color: 'var(--danger)', fontWeight: 700 }}>⚠ Plano EXPIRADO{c.planExpiresAt ? ` em ${formatDate(c.planExpiresAt)}` : ''} — sem acesso</div>;
+    return <div className="co-state bad"><span className="fx-dot bad" />Plano expirado{c.planExpiresAt ? ` em ${formatDate(c.planExpiresAt)}` : ''} — sem acesso</div>;
   }
   if (c.planDaysLeft != null) {
     const soon = c.planDaysLeft <= 5;
-    return <div style={{ fontSize: 12.5, marginTop: 3, color: soon ? 'var(--warning)' : 'var(--muted)', fontWeight: soon ? 700 : 500 }}>
-      🗓️ {c.planDaysLeft} dia(s) restante(s){c.planExpiresAt ? ` · até ${formatDate(c.planExpiresAt)}` : ''}
-    </div>;
+    return (
+      <div className={`co-state${soon ? ' soon' : ''}`}>
+        <span className={`fx-dot${soon ? ' bad' : ' ok'}`} />{c.planDaysLeft} dia(s) restante(s){c.planExpiresAt ? ` · até ${formatDate(c.planExpiresAt)}` : ''}
+      </div>
+    );
   }
   return null;
 }
