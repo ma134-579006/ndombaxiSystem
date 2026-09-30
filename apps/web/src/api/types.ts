@@ -10,7 +10,7 @@ export interface PlatformKpis {
   companies: { total: number; pending: number; active: number; suspended: number; newToday: number; new7d: number };
   subscriptions: { total: number; active: number; inReview: number; pendingPayment: number };
   revenue: { activeMonthlyKz: number; collectedKz: number; pendingKz: number };
-  plans: { tier: string; name: string; companies: number; priceKz: number }[];
+  plans: { tier: string; name: string; companies: number; priceKz: number; periodMonths: number }[];
 }
 export interface PlatformSeriesPoint { day: string; companies: number; subscriptions: number }
 export interface RecentCompany {

@@ -127,7 +127,7 @@ export function PlatformDashboard() {
             <div className="list-row" key={p.tier}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700 }}>{p.name}</div>
-                <div className="muted" style={{ fontSize: 13 }}>{p.priceKz > 0 ? `${kz(p.priceKz)}/mês` : 'Sob consulta'}</div>
+                <div className="muted" style={{ fontSize: 13 }}>{p.priceKz > 0 ? `${kz(p.priceKz)}${p.periodMonths > 1 ? ` / ${p.periodMonths} meses` : '/mês'}` : 'Sob consulta'}</div>
               </div>
               <strong style={{ fontSize: 18 }}>{p.companies}</strong>
             </div>
