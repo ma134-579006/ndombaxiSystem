@@ -1379,3 +1379,13 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary, #3b82
 .pay-method { min-height: 52px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; border-radius: 12px; font-size: 13px; font-weight: 650; line-height: 1.2; }
 .pay-method.on { box-shadow: 0 0 0 2px var(--primary-soft), 0 8px 18px -10px var(--primary); }
 @media (max-width: 380px) { .pay-methods { grid-template-columns: repeat(2, 1fr); } }
+
+/* Caixa: ajustes finos em ecrãs estreitos */
+.prod .pfoot { gap: 6px; flex-wrap: wrap; }
+.prod .pprice { font-size: 15px; white-space: nowrap; }
+@media (max-width: 560px) {
+  .topbar { gap: 8px; }
+  .topbar .conn, .topbar .icon-btn { height: 38px; min-width: 38px; }
+  .topbar .who .name { font-size: 13px; line-height: 1.2; }
+  .topbar .who { min-width: 0; flex: 1 1 auto; }
+}
