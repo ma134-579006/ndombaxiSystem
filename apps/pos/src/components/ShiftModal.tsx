@@ -52,9 +52,9 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
   // partilha nativa (escolhe WhatsApp e outras apps); no PC abre o WhatsApp Web.
   const shareWhatsAppShift = (r: ShiftClose) => {
     const empresa = identity?.companyName || identity?.brandName || 'Fecho de caixa';
-    const verdict = r.verdict === 'OK' ? '✅ Caixa certo'
-      : r.verdict === 'QUEBRA' ? `🔴 Quebra de ${formatKz(Math.abs(r.difference))}`
-      : `🟠 Sobra de ${formatKz(r.difference)}`;
+    const verdict = r.verdict === 'OK' ? 'Caixa certo'
+      : r.verdict === 'QUEBRA' ? `Quebra de ${formatKz(Math.abs(r.difference))}`
+      : `Sobra de ${formatKz(r.difference)}`;
     const L: string[] = [`*${empresa}* — Fecho de turno`];
     if (operatorName || r.openedByName) L.push(`Operador: ${operatorName || r.openedByName}`);
     L.push(`Data: ${formatDateTime()}`, '',
@@ -162,7 +162,7 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
           </div>
           <div className="r-body">
             <div className="banner" style={{ marginBottom: 12, justifyContent: 'center', background: 'transparent', border: `1px solid ${tone}`, color: tone, fontSize: 16, fontWeight: 900 }}>
-              {r.verdict === 'OK' ? '✓ CAIXA CERTO' : r.verdict === 'QUEBRA' ? `QUEBRA DE CAIXA ${formatKz(Math.abs(r.difference))}` : `SOBRA ${formatKz(r.difference)}`}
+              {r.verdict === 'OK' ? 'CAIXA CERTO' : r.verdict === 'QUEBRA' ? `QUEBRA DE CAIXA ${formatKz(Math.abs(r.difference))}` : `SOBRA ${formatKz(r.difference)}`}
             </div>
             <div className="kv"><span className="k">Fundo inicial</span><span className="v">{formatKz(r.openingFloat)}</span></div>
             <div className="kv"><span className="k">Vendas (total)</span><span className="v">{formatKz(r.salesTotal)} · {r.salesCount}</span></div>
@@ -182,7 +182,7 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
             <div className="kv"><span className="k">Contado (físico)</span><span className="v">{formatKz(r.counted)}</span></div>
             <div className="kv"><span className="k">Diferença</span><span className="v" style={{ color: tone }}>{formatKz(r.difference)}</span></div>
             {r.cardSales > 0 ? <div className="legend" style={{ textAlign: 'left', marginTop: 8 }}>As vendas em <strong>cartão/TPA</strong> ({formatKz(r.cardSales)}) não entram na gaveta — não contam para a quebra.</div> : null}
-            {r.breakReason ? <div className="banner danger" style={{ marginTop: 10, fontSize: 13 }}>⚠️ {r.breakReason}</div> : null}
+            {r.breakReason ? <div className="banner danger" style={{ marginTop: 10, fontSize: 13 }}>{r.breakReason}</div> : null}
 
             {r.products.length > 0 ? (
               <div className="legend" style={{ textAlign: 'left' }}>
@@ -292,7 +292,7 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
         {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
         {cartCount > 0 ? (
           <div className="banner warn" style={{ marginBottom: 12 }}>
-            ⚠️ Há {cartCount} artigo(s) no carrinho por finalizar. Finalize a venda (ou limpe o carrinho) antes de fechar o turno.
+            Há {cartCount} artigo(s) no carrinho por finalizar. Finalize a venda (ou limpe o carrinho) antes de fechar o turno.
           </div>
         ) : null}
         <KeyboardInput label="Dinheiro contado na gaveta (Kz)" value={counted} onChange={setCounted} numeric placeholder="0" onSubmit={close} />

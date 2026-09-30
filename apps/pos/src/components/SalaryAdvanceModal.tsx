@@ -64,7 +64,7 @@ export function SalaryAdvanceModal({ onClose }: { onClose(): void }) {
     <div className="modal-bg" onClick={onClose}>
       <div className="consume-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="consume-head">
-          <h3>💸 Adiantamento salário</h3>
+          <h3>Adiantamento salário</h3>
           <button className="x" onClick={onClose} aria-label="Fechar">✕</button>
         </div>
 

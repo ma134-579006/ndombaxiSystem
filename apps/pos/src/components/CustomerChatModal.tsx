@@ -59,7 +59,7 @@ export function CustomerChatModal({ onClose, onRead }: { onClose(): void; onRead
         {!peer ? (
           <>
             <div className="row" style={{ alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border)', flex: 'none' }}>
-              <h2 style={{ margin: 0, fontSize: 17 }}>🛍️ Chat com clientes</h2>
+              <h2 style={{ margin: 0, fontSize: 17 }}>Chat com clientes</h2>
               <span className="spacer" style={{ flex: 1 }} />
               <button className="trash" onClick={onClose} aria-label="Fechar"><IconClose size={22} /></button>
             </div>

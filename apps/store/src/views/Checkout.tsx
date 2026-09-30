@@ -169,14 +169,14 @@ export function Checkout({
               <div className="muted" style={{ fontSize: 14, lineHeight: 1.5 }}>
                 {[neighborhood, municipality, province].filter(Boolean).join(', ')}
                 {address ? <><br />{address}</> : null}
-                {phone ? <><br />📞 {phone}</> : null}
-                {email ? <><br />✉️ {email}</> : null}
+                {phone ? <><br />{phone}</> : null}
+                {email ? <><br />{email}</> : null}
               </div>
             </div>
             <button className="btn ghost" onClick={() => setEditing(true)}>Editar</button>
           </div>
           <div className="banner success" style={{ marginTop: 12, fontSize: 13 }}>
-            <div>✅ Dados do teu registo — não precisas de os reintroduzir. Confirma e paga.</div>
+            <div>Dados do teu registo — não precisas de os reintroduzir. Confirma e paga.</div>
           </div>
         </div>
       ) : (
@@ -261,7 +261,7 @@ export function Checkout({
           <div>📍 <strong>Localização GPS obrigatória</strong> — ao confirmar, o telemóvel vai pedir acesso à sua localização para a loja entregar no sítio certo. Sem permissão, a encomenda não é criada.</div>
         </div>
         <button className="btn lg block" onClick={submit} disabled={submitting || locating || cart.length === 0}>
-          {locating ? '📍 A obter localização GPS…' : submitting ? 'A processar…' : 'Confirmar encomenda'}
+          {locating ? 'A obter localização GPS…' : submitting ? 'A processar…' : 'Confirmar encomenda'}
         </button>
       </div>
     </div>

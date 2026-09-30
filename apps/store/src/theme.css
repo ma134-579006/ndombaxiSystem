@@ -820,3 +820,21 @@ h1, h2, h3 { font-weight: 700; }
   @keyframes nx-bar { from { background-position: -60px 0, 0 0; } to { background-position: 120px 0, 0 0; } }
   @keyframes nx-breathe { 0%,100% { opacity: 1; } 50% { opacity: .62; } }
 }
+
+/* ═══ LOJA v4 — acabamento profissional (cabeçalho, pesquisa, cartões, secções) ═══ */
+.ax-header { box-shadow: 0 1px 0 var(--border); }
+.ax-search { border: 1px solid var(--border) !important; background: var(--surface-2); box-shadow: none !important; transition: border-color .15s, box-shadow .15s, background .15s; }
+.ax-search:focus-within { border-color: var(--accent) !important; background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent) !important; }
+.ax-section-title { font-family: var(--nx-font-title, inherit); font-weight: 700; font-size: 20px; letter-spacing: -.015em; }
+.ax-link { font-weight: 650; }
+.ax-card { border-radius: 16px; box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+.ax-card-img { aspect-ratio: 4 / 3; }
+.ax-card-name { font-weight: 600; font-size: 14px; }
+.ax-price { font-family: var(--nx-font-title, inherit); font-weight: 700; }
+.ax-price .cur { font-size: 11.5px; font-weight: 600; opacity: .8; }
+.ax-price .val { font-size: 19px; }
+.ax-add { width: 36px; height: 36px; box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--accent) 60%, transparent); }
+.ax-catchip { font-weight: 600; }
+.ax-hero { border-radius: 20px; }
+.ax-hero h1 { font-family: var(--nx-font-title, inherit); letter-spacing: -.02em; }
+.ax-footer { border-top: 1px solid var(--border); }

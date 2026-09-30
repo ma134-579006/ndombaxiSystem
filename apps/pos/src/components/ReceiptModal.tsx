@@ -308,7 +308,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
         <PaperSizeToggle />
         {rawPrintSupported() ? (
           <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', padding: '2px 0 6px' }}>
-            <span>🖨 {printerName ? `Térmica: ${printerName}` : 'Térmica não ligada (usa o diálogo)'}</span>
+            <span>{printerName ? `Térmica: ${printerName}` : 'Térmica não ligada (usa o diálogo)'}</span>
             <button className="btn sm ghost" onClick={() => void pairThermal()}>
               {printerName ? 'Trocar' : 'Ligar impressora'}
             </button>

@@ -111,7 +111,7 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
           <span style={{ flex: 1 }} />
           {canCancel
             ? <span className="muted" style={{ fontSize: 12.5 }}>Cancela artigos por venda (seleção múltipla).</span>
-            : <span className="muted" style={{ fontSize: 12.5 }}>🔒 Só o gerente/gestor pode cancelar vendas.</span>}
+            : <span className="muted" style={{ fontSize: 12.5 }}>Só o gerente/gestor pode cancelar vendas.</span>}
         </div>
 
         {err ? <div className="banner danger">{err}</div> : null}
@@ -129,7 +129,7 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
               <button className="btn sm ghost" onClick={() => setSel(new Set())} disabled={bulkBusy}>Limpar</button>
             ) : null}
             <button className="btn sm danger" onClick={() => void cancelSelected()} disabled={bulkBusy || sel.size === 0}>
-              {bulkBusy ? 'A anular…' : `✖ Anular selecionadas${sel.size > 0 ? ` (${sel.size})` : ''}`}
+              {bulkBusy ? 'A anular…' : `Anular selecionadas${sel.size > 0 ? ` (${sel.size})` : ''}`}
             </button>
           </div>
         ) : null}
@@ -170,13 +170,13 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
                       <td data-label="Estado">{stateBadge(r)}</td>
                       <td data-label="2ª via">
                         <button className="btn sm ghost" onClick={() => void reprint(r.id)} disabled={printId === r.id} title="Imprimir 2ª via">
-                          {printId === r.id ? '…' : '🖨 Imprimir'}
+                          {printId === r.id ? '…' : 'Imprimir'}
                         </button>
                       </td>
                       {canCancel ? (
                         <td data-label="Cancelar">
                           {!cancelled ? (
-                            <button className="btn sm danger" onClick={() => setCancelTarget(r)} title="Cancelar artigos desta venda">✖ Cancelar</button>
+                            <button className="btn sm danger" onClick={() => setCancelTarget(r)} title="Cancelar artigos desta venda">Cancelar</button>
                           ) : null}
                         </td>
                       ) : null}

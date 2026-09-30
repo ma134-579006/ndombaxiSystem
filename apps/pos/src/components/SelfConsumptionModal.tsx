@@ -75,7 +75,7 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
     setBusy(true); setErr(null); setMsg(null);
     try {
       const r = await api.registerConsumptions(cart.map((l) => ({ productId: l.product.id, quantity: l.qty })));
-      setMsg(`${r.registered} consumo(s) registado(s) — ${formatKz(r.total)}.${r.employeeLinked ? ' Será descontado no teu salário.' : ' ⚠ Sem ficha de funcionário associada — fala com o gestor.'}`);
+      setMsg(`${r.registered} consumo(s) registado(s) — ${formatKz(r.total)}.${r.employeeLinked ? ' Será descontado no teu salário.' : ' Sem ficha de funcionário associada — fala com o gestor.'}`);
       setCart([]); setSearch('');
       loadMine(); loadLimit();
     } catch (e) {
@@ -89,7 +89,7 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
     <div className="modal-bg" onClick={onClose}>
       <div className="consume-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="consume-head">
-          <h3>🛒 Consumo próprio</h3>
+          <h3>Consumo próprio</h3>
           <button className="x" onClick={onClose} aria-label="Fechar">✕</button>
         </div>
 

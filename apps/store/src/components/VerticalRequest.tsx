@@ -183,9 +183,9 @@ function ServiceRequestModal({ code, prefill, onClose }: { code: string; prefill
           {trackUrl ? (
             <div style={{ marginTop: 8 }}>
               <p className="muted" style={{ fontSize: 13, margin: '0 0 6px' }}>Siga o estado do seu reparo em tempo real:</p>
-              <a className="btn lg block" href={trackUrl} target="_blank" rel="noreferrer" style={{ marginBottom: 8 }}>🔎 Seguir o meu reparo</a>
+              <a className="btn lg block" href={trackUrl} target="_blank" rel="noreferrer" style={{ marginBottom: 8 }}>Seguir o meu reparo</a>
               <button className="btn ghost block" onClick={() => { navigator.clipboard?.writeText(trackUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => undefined); }}>
-                {copied ? '✓ Link copiado!' : 'Copiar link de acompanhamento'}
+                {copied ? 'Link copiado!' : 'Copiar link de acompanhamento'}
               </button>
             </div>
           ) : null}

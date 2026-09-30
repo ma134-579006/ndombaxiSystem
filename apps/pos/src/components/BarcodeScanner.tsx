@@ -115,7 +115,7 @@ export function BarcodeScanner({
             <div className="scan-hint">
               Aponte ao código de barras — ao reconhecer o produto, faz um bip, adiciona e fecha automaticamente.
             </div>
-            {last ? <div className="scan-last">✓ Lido: {last}</div> : null}
+            {last ? <div className="scan-last">Lido: {last}</div> : null}
             <button className="btn ghost block" onClick={stop}>{continuous ? 'Concluir' : 'Cancelar'}</button>
           </div>
         </div>

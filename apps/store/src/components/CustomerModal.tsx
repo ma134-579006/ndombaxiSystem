@@ -231,7 +231,7 @@ function printPrescription(d: MyPrescriptionDetail) {
     <td>${esc(it.dosage || '—')}</td><td>${esc(it.posology || '—')}</td>
     <td>${esc(it.route || '—')}</td><td>${esc(it.duration || '—')}</td><td>${Number(it.quantity)}</td></tr>`).join('');
   printDoc(`Receita ${p.number}`, `
-    <div class="hd"><div><h1>💊 Receita médica</h1><p class="sub">${esc(p.number)} · ${esc(p.issued)}</p></div><span class="badge">AGT · Ndombaxi</span></div>
+    <div class="hd"><div><h1>Receita médica</h1><p class="sub">${esc(p.number)} · ${esc(p.issued)}</p></div><span class="badge">AGT · Ndombaxi</span></div>
     <div class="row"><span class="lbl">Paciente:</span> <strong>${esc(p.patient_name || '—')}</strong></div>
     <div class="row"><span class="lbl">Médico:</span> ${esc(p.professional || '—')}</div>
     <table><thead><tr><th>Medicamento</th><th>Dose</th><th>Posologia</th><th>Via</th><th>Duração</th><th>Qtd</th></tr></thead><tbody>${rows}</tbody></table>
@@ -240,7 +240,7 @@ function printPrescription(d: MyPrescriptionDetail) {
 
 function printExam(e: { exam_type: string; status: string; result_text: string | null; requested: string }, patientName: string) {
   printDoc(`Exame ${e.exam_type}`, `
-    <div class="hd"><div><h1>🧪 Resultado de exame</h1><p class="sub">${esc(e.requested)}</p></div><span class="badge">Ndombaxi</span></div>
+    <div class="hd"><div><h1>Resultado de exame</h1><p class="sub">${esc(e.requested)}</p></div><span class="badge">Ndombaxi</span></div>
     <div class="row"><span class="lbl">Paciente:</span> <strong>${esc(patientName)}</strong></div>
     <div class="row"><span class="lbl">Exame:</span> ${esc(e.exam_type)}</div>
     <div class="row"><span class="lbl">Estado:</span> ${esc(EXAM_ST[e.status] ?? e.status)}</div>
@@ -269,7 +269,7 @@ function MyHealth({ code, token }: { code: string; token: string }) {
   if (!data.patient) {
     return (
       <div className="banner" style={{ marginTop: 14, background: 'var(--soft, #f3f6fb)', padding: 12, borderRadius: 10 }}>
-        <strong>🩺 A minha saúde</strong>
+        <strong>A minha saúde</strong>
         <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
           Ainda não encontrámos a sua ficha clínica. Marque uma consulta com este e-mail e o seu histórico aparece aqui.
         </p>
@@ -279,10 +279,10 @@ function MyHealth({ code, token }: { code: string; token: string }) {
   const { appointments, prescriptions, exams } = data;
   return (
     <div style={{ marginTop: 16 }}>
-      <h4 style={{ margin: '0 0 8px' }}>🩺 A minha saúde</h4>
+      <h4 style={{ margin: '0 0 8px' }}>A minha saúde</h4>
 
       <div className="hx-block">
-        <div className="hx-ttl">📅 Consultas ({appointments.length})</div>
+        <div className="hx-ttl">Consultas ({appointments.length})</div>
         {appointments.length === 0 ? <p className="muted" style={{ fontSize: 13, margin: 0 }}>Sem consultas.</p>
           : appointments.slice(0, 6).map((a) => (
             <div key={a.id} className="hx-row">
@@ -293,7 +293,7 @@ function MyHealth({ code, token }: { code: string; token: string }) {
       </div>
 
       <div className="hx-block">
-        <div className="hx-ttl">💊 Receitas ({prescriptions.length})</div>
+        <div className="hx-ttl">Receitas ({prescriptions.length})</div>
         {prescriptions.length === 0 ? <p className="muted" style={{ fontSize: 13, margin: 0 }}>Sem receitas.</p>
           : prescriptions.slice(0, 6).map((r) => (
             <div key={r.id} className="hx-row">
@@ -305,7 +305,7 @@ function MyHealth({ code, token }: { code: string; token: string }) {
       </div>
 
       <div className="hx-block">
-        <div className="hx-ttl">🧪 Exames & resultados ({exams.length})</div>
+        <div className="hx-ttl">Exames & resultados ({exams.length})</div>
         {exams.length === 0 ? <p className="muted" style={{ fontSize: 13, margin: 0 }}>Sem exames.</p>
           : exams.slice(0, 6).map((e) => (
             <div key={e.id} className="hx-row">

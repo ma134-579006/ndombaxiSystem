@@ -232,7 +232,7 @@ export function Storefront() {
         <div className="wrap">
           <button className="ax-back" onClick={goHome} style={{ marginTop: 14 }}><IconChevronLeft size={18} /> Voltar à loja</button>
           <div className="ax-results-head">
-            <div className="ax-results-title">📷 Pesquisa por imagem
+            <div className="ax-results-title">Pesquisa por imagem
               {imgResults ? <span className="ax-results-count">{imgResults.length} produto(s)</span> : null}</div>
           </div>
           {imgSearching ? (

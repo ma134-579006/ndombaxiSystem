@@ -232,8 +232,8 @@ export function Track({ orderId, onBack }: { orderId: string; onBack(): void }) 
             background: order.kitchen_status === 'READY' ? '#30a46c22' : '#f5a62322',
             color: order.kitchen_status === 'READY' ? '#1a7f4b' : '#9a6a00' }}>
             {order.kitchen_status === 'READY'
-              ? '✅ A tua encomenda está pronta!'
-              : `🍳 Em preparação na cozinha${order.prep_eta_min ? ` · pronta em ~${order.prep_eta_min} min` : ''}`}
+              ? 'A tua encomenda está pronta!'
+              : `Em preparação na cozinha${order.prep_eta_min ? ` · pronta em ~${order.prep_eta_min} min` : ''}`}
           </div>
         ) : null}
         <div style={{ marginTop: 14 }}>
@@ -253,7 +253,7 @@ export function Track({ orderId, onBack }: { orderId: string; onBack(): void }) 
           <div style={{ marginTop: 14 }}>
             <button className="btn block" onClick={downloadInvoice} disabled={invBusy}
               style={{ width: '100%' }}>
-              {invBusy ? 'A preparar fatura…' : '🧾 Baixar fatura (PDF A4)'}
+              {invBusy ? 'A preparar fatura…' : 'Baixar fatura (PDF A4)'}
             </button>
             {invErr ? <p className="muted" style={{ color: 'var(--danger, #dc2626)', fontSize: 13, marginTop: 8 }}>{invErr}</p> : null}
           </div>

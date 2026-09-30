@@ -67,12 +67,12 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
           <div className="ax-stock-line">
             {product.isProduction
               ? (product.availability === 'FREE'
-                  ? <span>🟢 Pronto a servir</span>
+                  ? <span>Pronto a servir</span>
                   : product.availability === 'BUSY'
-                    ? <span className="low">🟡 Em produção — pode encomendar para produção</span>
-                    : <span className="low">🔴 Esgotado — pode solicitar produção</span>)
+                    ? <span className="low">Em produção — pode encomendar para produção</span>
+                    : <span className="low">Esgotado — pode solicitar produção</span>)
               : product.madeToOrder
-              ? <span>🍳 Sob encomenda — preparado na hora</span>
+              ? <span>Sob encomenda — preparado na hora</span>
               : product.inStock
               ? (typeof product.stockQty === 'number'
                   ? <span className={product.stockQty <= 5 ? 'low' : ''}>{product.stockQty} disponível(is)</span>
@@ -94,7 +94,7 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
                   cozinha → pronto → aprovação final). Comprar agora exige stock pronto. */}
               {product.isProduction && product.availability !== 'FREE' ? (
                 <div className="ax-buy-actions">
-                  <button className="btn lg block buy" onClick={() => onAdd(product, qty)}>🍳 Solicitar produção</button>
+                  <button className="btn lg block buy" onClick={() => onAdd(product, qty)}>Solicitar produção</button>
                 </div>
               ) : (
                 <div className="ax-buy-actions">

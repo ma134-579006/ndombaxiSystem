@@ -297,7 +297,7 @@ function PinResetView({ token }: { token: string }) {
   if (ok) {
     return (
       <div className="banner success">
-        <div>✅ PIN definido. Já podes <a style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 700 }} onClick={() => location.assign(location.pathname)}>entrar na caixa</a>.</div>
+        <div>PIN definido. Já podes <a style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 700 }} onClick={() => location.assign(location.pathname)}>entrar na caixa</a>.</div>
       </div>
     );
   }

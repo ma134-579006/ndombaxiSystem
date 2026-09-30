@@ -26,14 +26,14 @@ export function KitchenOrdersModal({ onClose, onRecall }: { onClose(): void; onR
       <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
         <div className="row" style={{ padding: 16, borderBottom: '1px solid var(--border)', gap: 10 }}>
           <IconReceipt size={20} />
-          <h2 style={{ margin: 0, fontSize: 18 }}>🍳 Pedidos da cozinha{orders.length ? <span className="muted"> · {orders.length}</span> : null}</h2>
+          <h2 style={{ margin: 0, fontSize: 18 }}>Pedidos da cozinha{orders.length ? <span className="muted"> · {orders.length}</span> : null}</h2>
           <span className="spacer" />
           <button className="trash" onClick={onClose} aria-label="Fechar"><IconClose size={22} /></button>
         </div>
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto' }}>
           {loaded && orders.length === 0 ? (
             <p className="muted" style={{ textAlign: 'center', padding: 20 }}>
-              Sem pedidos de balcão. Monta um pedido no caixa e toca em <strong>“🍳 Enviar para cozinha”</strong> — aparece aqui e podes chamá-lo quando estiver pronto.
+              Sem pedidos de balcão. Monta um pedido no caixa e toca em <strong>“Enviar para cozinha”</strong> — aparece aqui e podes chamá-lo quando estiver pronto.
             </p>
           ) : orders.map((o) => (
             <div key={o.id} className="card" style={{ padding: 12, borderLeft: `4px solid ${o.ready ? 'var(--success, #30a46c)' : 'var(--warning)'}` }}>
@@ -43,7 +43,7 @@ export function KitchenOrdersModal({ onClose, onRecall }: { onClose(): void; onR
                 <span style={{ fontWeight: 700 }}>{formatKz(Number(o.total))}</span>
               </div>
               <div className="muted" style={{ fontSize: 12.5, margin: '4px 0' }}>
-                {o.ready ? '✅ Pronto para vender' : `👨‍🍳 Em preparação${o.etaMin ? ` · ~${o.etaMin} min` : ''}`} · há {o.waitMin} min
+                {o.ready ? 'Pronto para vender' : `Em preparação${o.etaMin ? ` · ~${o.etaMin} min` : ''}`} · há {o.waitMin} min
               </div>
               {o.items.map((it, i) => <div key={i} style={{ fontSize: 13 }}>{Number(it.quantity)}× {it.description}</div>)}
               <button className="btn success block" style={{ marginTop: 10 }} disabled={!o.ready} onClick={() => onRecall(o)}>

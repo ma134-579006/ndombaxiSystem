@@ -427,7 +427,7 @@ export function PosPage() {
     // avisado para o conflito não passar despercebido (a mesma água vendida 2×).
     const reserved = Math.max(0, Math.floor(Number(p.reserved ?? 0)));
     if (!madeToOrder && !p.is_production && reserved > 0 && current + 1 > stock - reserved) {
-      flashError(`⚠️ "${p.name}": ${reserved} reservado(s) para encomenda online. Confirme antes de vender.`);
+      flashError(`"${p.name}": ${reserved} reservado(s) para encomenda online. Confirme antes de vender.`);
       // não faz return — a venda continua (prioridade ao cliente presente).
     }
     setCart((prev) => {
@@ -730,7 +730,7 @@ export function PosPage() {
       const r = await api.fireToKitchen(items, customer?.name ?? undefined);
       setCart([]); setCartSel(new Set()); setCustomer(null);
       void api.clearCartDraft().catch(() => undefined);
-      flashOk(`🍳 Enviado à cozinha: ${r.label}. Chame o pedido quando estiver pronto.`);
+      flashOk(`Enviado à cozinha: ${r.label}. Chame o pedido quando estiver pronto.`);
     } catch (e) { flashError(e instanceof ApiError ? e.message : 'Falha ao enviar para a cozinha.'); }
     finally { setFiring(false); }
   };
@@ -741,7 +741,7 @@ export function PosPage() {
     try {
       const r = await api.fireToKitchen([{ productCode: product.code, quantity }], customer?.name ?? undefined);
       setProdPrompt(null);
-      flashOk(`🍳 Produção solicitada: ${quantity}× ${product.name} (${r.label}). Chame quando estiver pronto.`);
+      flashOk(`Produção solicitada: ${quantity}× ${product.name} (${r.label}). Chame quando estiver pronto.`);
       void refreshProducts();
     } catch (e) { flashError(e instanceof ApiError ? e.message : 'Falha ao solicitar produção.'); }
   };
@@ -768,7 +768,7 @@ export function PosPage() {
           <img className="topbar-logo" src={identity?.logoUrl || LOGO_SRC} alt={identity?.companyName || SYSTEM_SHORT} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
           <div className="who">
             <div className="name">{identity?.companyName || `${SYSTEM_SHORT} · Caixa`}</div>
-            {user?.storeName ? <div className="store-tag">🏪 {user.storeName}</div> : null}
+            {user?.storeName ? <div className="store-tag">{user.storeName}</div> : null}
           </div>
           <span className="spacer" />
           <button
@@ -974,7 +974,7 @@ export function PosPage() {
                       })()}
                     </div>
                     {promoByProduct[l.product.id]?.name ? (
-                      <div className="cl-promo">🏷️ {promoByProduct[l.product.id].name}</div>
+                      <div className="cl-promo">{promoByProduct[l.product.id].name}</div>
                     ) : null}
                   </div>
                 ))}
@@ -1000,7 +1000,7 @@ export function PosPage() {
                 </div>
                 {totals.discount > 0 ? (
                   <div className="t-row" style={{ color: 'var(--success)' }}>
-                    <span>🏷️ Desconto promoções</span>
+                    <span>Desconto promoções</span>
                     <span>−{formatKz(totals.discount)}</span>
                   </div>
                 ) : null}
@@ -1032,7 +1032,7 @@ export function PosPage() {
                   cozinha não existe, por isso o botão não aparece. */}
               {identity?.businessType === 'RESTAURANT' && session && sync.online && cart.length > 0 ? (
                 <button className="btn ghost lg block" style={{ marginTop: 8 }} onClick={() => void fireToKitchen()} disabled={firing || emitting}>
-                  {firing ? 'A enviar…' : '🍳 Enviar para cozinha'}
+                  {firing ? 'A enviar…' : 'Enviar para cozinha'}
                 </button>
               ) : null}
             </div>
@@ -1152,7 +1152,7 @@ function ProductionPrompt({
   return (
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 6px' }}>{busyState ? '🟡 Em produção' : '🔴 Indisponível'}</h3>
+        <h3 style={{ margin: '0 0 6px' }}>{busyState ? 'Em produção' : 'Indisponível'}</h3>
         <p className="muted" style={{ marginTop: 0 }}>
           {busyState
             ? <>«{prompt.product.name}» está em produção. Pretende criar mais uma produção?</>
