@@ -14,7 +14,7 @@ const PROD_API_URL = 'https://ndombaxi-api-3nmz.onrender.com';
 /**
  * SERVIDOR LOCAL primeiro, se existir.
  *
- * O Electron injeta aqui `http://127.0.0.1:<porta>` quando o Ndombaxi Local
+ * O Electron injeta aqui `http://127.0.0.1:<porta>` quando o LPS Vendas Local
  * Server está a correr — e é isso que permite trabalhar sem internet, porque a
  * escrita deixa de depender da nuvem. Quando não existe (site, Android, ou um
  * posto onde o servidor local não arrancou), fica tudo exatamente como antes.

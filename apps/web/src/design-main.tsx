@@ -11,7 +11,7 @@ import {
 } from './components/Icons';
 
 /**
- * DESIGN SYSTEM — style guide VIVO do Ndombaxi System (/design.html).
+ * DESIGN SYSTEM — style guide VIVO do LPS Vendas (/design.html).
  * Página estática (sem API, sem dados reais): mostra tokens, ícones
  * semânticos e todos os componentes partilhados nos 2 temas. Serve de
  * contrato visual para qualquer ecrã novo do ERP.
@@ -94,9 +94,9 @@ function DesignShowcase() {
       {/* Sidebar de demonstração (navegação REAL do painel escolhido) */}
       <aside className="sidebar" style={{ display: undefined }}>
         <div className="brand">
-          <img src="/logo.png" alt="Ndombaxi" />
+          <img src="/logo.png" alt="LPS Vendas" />
           <div>
-            <div className="nm">Ndombaxi System</div>
+            <div className="nm">LPS Vendas</div>
             <div className="tg">{panel === 'gestor' ? 'Painel do Gestor' : 'Super Admin'}</div>
           </div>
         </div>

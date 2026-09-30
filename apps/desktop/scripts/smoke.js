@@ -269,7 +269,7 @@ app.whenReady().then(async () => {
 
   // ── Relatório ──────────────────────────────────────────────
   const pad = (s, n) => (s + ' '.repeat(n)).slice(0, n);
-  process.stdout.write('\n  VERIFICAÇÃO DE ARRANQUE — Ndombaxi System (Windows)\n');
+  process.stdout.write('\n  VERIFICAÇÃO DE ARRANQUE — LPS Vendas (Windows)\n');
   process.stdout.write('  ' + '─'.repeat(72) + '\n');
   for (const r of results) {
     process.stdout.write(`  ${r.ok ? '[OK]  ' : '[FALHA]'} ${pad(r.name, 52)} ${r.detail}\n`);

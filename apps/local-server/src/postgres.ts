@@ -237,7 +237,7 @@ export async function ensureLocalDatabase(paths: PostgresPaths): Promise<string>
   if (!binariesPresent(paths)) {
     throw new Error(
       'Os ficheiros da base de dados local não foram encontrados. '
-      + 'Reinstale o Ndombaxi System — o instalador inclui tudo o que é preciso.',
+      + 'Reinstale o LPS Vendas — o instalador inclui tudo o que é preciso.',
     );
   }
   let cfg = readConfig(paths);

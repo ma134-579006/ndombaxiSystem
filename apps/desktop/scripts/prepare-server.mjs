@@ -1,7 +1,7 @@
 /**
  * Prepara o SERVIDOR LOCAL para ir dentro do instalador Windows.
  *
- * É isto que transforma o Ndombaxi System de "aplicação que precisa da nuvem"
+ * É isto que transforma o LPS Vendas de "aplicação que precisa da nuvem"
  * em "aplicação que trabalha na loja mesmo sem internet": o PostgreSQL portátil
  * e a API compilada passam a viajar com o instalador.
  *
@@ -9,7 +9,7 @@
  *   • `pgsql/` — o PostgreSQL 16 para Windows, PODADO. Do zip oficial (323 MB)
  *     ficam só `bin`, `lib` e `share`; sai `doc/`, `include/`, `symbols/` e o
  *     pgAdmin, que são a maior parte do peso e não servem num posto de venda.
- *   • `api/` — a API do Ndombaxi compilada, com as suas dependências reais
+ *   • `api/` — a API do LPS Vendas compilada, com as suas dependências reais
  *     (sem os atalhos do pnpm, que não sobrevivem a sair do repositório).
  *
  * ⚠️ A ORDEM importa e está garantida noutro sítio: os binários só podem ir no

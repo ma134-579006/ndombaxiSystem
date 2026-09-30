@@ -52,7 +52,7 @@ export class MailService {
       if (pass) {
         return {
           host: row.host, port: row.port, secure: row.secure, user: row.username, pass,
-          from: row.fromAddr || `Ndombaxi System <${row.username}>`,
+          from: row.fromAddr || `LPS Vendas <${row.username}>`,
           source: 'db', cacheKey: `db:${row.updatedAt.getTime()}`,
         };
       }
@@ -65,7 +65,7 @@ export class MailService {
       const secure = (process.env.SMTP_SECURE ?? (port === 465 ? 'true' : 'false')) === 'true';
       return {
         host, port, secure, user, pass,
-        from: process.env.SMTP_FROM || `Ndombaxi System <${user}>`,
+        from: process.env.SMTP_FROM || `LPS Vendas <${user}>`,
         source: 'env', cacheKey: `env:${host}:${port}:${user}`,
       };
     }
@@ -104,10 +104,10 @@ export class MailService {
   async sendWelcome(to: string, companyName: string, companyCode: string, tempPassword: string): Promise<void> {
     await this.send(
       to,
-      `Bem-vindo ao Ndombaxi System — ${companyName}`,
+      `Bem-vindo ao LPS Vendas — ${companyName}`,
       [
         `Olá,`, ``,
-        `A sua empresa "${companyName}" foi registada na plataforma Ndombaxi System.`,
+        `A sua empresa "${companyName}" foi registada na plataforma LPS Vendas.`,
         `Código da empresa: ${companyCode}`,
         `Senha temporária: ${tempPassword}`, ``,
         `O acesso será activado após aprovação. Altere a senha no primeiro login.`,
@@ -166,8 +166,8 @@ export class MailService {
     try {
       await this.sendHtml(
         to,
-        'Teste de e-mail — Ndombaxi System',
-        '<p>✅ O teu SMTP está a funcionar. Este é um e-mail de teste do <strong>Ndombaxi System</strong>.</p>',
+        'Teste de e-mail — LPS Vendas',
+        '<p>✅ O teu SMTP está a funcionar. Este é um e-mail de teste do <strong>LPS Vendas</strong>.</p>',
       );
       return { ok: true, message: `E-mail de teste enviado para ${to}.` };
     } catch (e) {

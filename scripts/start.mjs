@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Ndombaxi System — arranque INTELIGENTE e automático (zero-config).
+ * LPS Vendas — arranque INTELIGENTE e automático (zero-config).
  *
  * Deteta sozinho o melhor caminho para a base de dados, SEM perguntar nada:
  *   1) Se já houver DATABASE_URL remoto no .env (Aiven/Neon/Supabase) → usa-o
@@ -37,7 +37,7 @@ const err = (m) => log(`${c.red}✗${c.reset} ${m}`);
 function banner() {
   log('');
   log(`${c.bold}${c.blue}============================================================${c.reset}`);
-  log(`${c.bold}   NDOMBAXI SYSTEM — arranque automático${c.reset}`);
+  log(`${c.bold}   LPS VENDAS — arranque automático${c.reset}`);
   log(`${c.dim}   por Manuel Mbala Tomás Ndombaxi${c.reset}`);
   log(`${c.bold}${c.blue}============================================================${c.reset}`);
   log('');

@@ -14,6 +14,12 @@ export const envSchema = z.object({
     .string()
     .default('http://localhost:3000')
     .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean)),
+  // Domínios próprios ADICIONAIS aceites por CORS (apex + subdomínios), separados
+  // por vírgula. Vazio por defeito; usado na migração de domínio (ex.: lpsvendas.com).
+  CORS_EXTRA_HOSTS: z
+    .string()
+    .default('')
+    .transform((v) => v.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)),
 
   DATABASE_URL: z.string().url().or(z.string().startsWith('postgresql://')),
 
@@ -22,7 +28,7 @@ export const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('7d'),
 
-  TWOFA_ISSUER: z.string().default('Ndombaxi System'),
+  TWOFA_ISSUER: z.string().default('LPS Vendas'),
 
   RATE_LIMIT_USER_PER_MIN: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_TENANT_PER_MIN: z.coerce.number().int().positive().default(1000),

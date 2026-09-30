@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-NLP de RAIZ (sem bibliotecas de ML) para o bot de suporte do Ndombaxi System.
+NLP de RAIZ (sem bibliotecas de ML) para o bot de suporte do LPS Vendas.
 
 Pipeline clássico e transparente:
   texto → normalização (minúsculas, sem acentos) → tokens → n-gramas (1+2)

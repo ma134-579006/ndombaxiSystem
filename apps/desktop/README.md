@@ -1,4 +1,4 @@
-# Ndombaxi System — Aplicação Windows
+# LPS Vendas — Aplicação Windows
 
 Aplicação instalável que empacota **os mesmos frontends do website**: o Painel de
 Gestão (`apps/web`) e a Caixa/POS (`apps/pos`). Não existe interface própria aqui

@@ -220,7 +220,7 @@ function printDoc(title: string, bodyHtml: string) {
       .row{margin:6px 0;font-size:14px;} .lbl{color:#666;} .foot{margin-top:26px;color:#888;font-size:11px;border-top:1px solid #eee;padding-top:10px;}
       @media print{body{padding:0;}}
     </style></head><body>${bodyHtml}
-    <div class="foot">Documento gerado pelo Portal do Paciente · Ndombaxi System</div>
+    <div class="foot">Documento gerado pelo Portal do Paciente · LPS Vendas</div>
     <script>window.onload=function(){setTimeout(function(){window.print();},250);}<\/script></body></html>`);
   w.document.close();
 }
@@ -231,7 +231,7 @@ function printPrescription(d: MyPrescriptionDetail) {
     <td>${esc(it.dosage || '—')}</td><td>${esc(it.posology || '—')}</td>
     <td>${esc(it.route || '—')}</td><td>${esc(it.duration || '—')}</td><td>${Number(it.quantity)}</td></tr>`).join('');
   printDoc(`Receita ${p.number}`, `
-    <div class="hd"><div><h1>Receita médica</h1><p class="sub">${esc(p.number)} · ${esc(p.issued)}</p></div><span class="badge">AGT · Ndombaxi</span></div>
+    <div class="hd"><div><h1>Receita médica</h1><p class="sub">${esc(p.number)} · ${esc(p.issued)}</p></div><span class="badge">AGT · LPS Vendas</span></div>
     <div class="row"><span class="lbl">Paciente:</span> <strong>${esc(p.patient_name || '—')}</strong></div>
     <div class="row"><span class="lbl">Médico:</span> ${esc(p.professional || '—')}</div>
     <table><thead><tr><th>Medicamento</th><th>Dose</th><th>Posologia</th><th>Via</th><th>Duração</th><th>Qtd</th></tr></thead><tbody>${rows}</tbody></table>
@@ -240,7 +240,7 @@ function printPrescription(d: MyPrescriptionDetail) {
 
 function printExam(e: { exam_type: string; status: string; result_text: string | null; requested: string }, patientName: string) {
   printDoc(`Exame ${e.exam_type}`, `
-    <div class="hd"><div><h1>Resultado de exame</h1><p class="sub">${esc(e.requested)}</p></div><span class="badge">Ndombaxi</span></div>
+    <div class="hd"><div><h1>Resultado de exame</h1><p class="sub">${esc(e.requested)}</p></div><span class="badge">LPS Vendas</span></div>
     <div class="row"><span class="lbl">Paciente:</span> <strong>${esc(patientName)}</strong></div>
     <div class="row"><span class="lbl">Exame:</span> ${esc(e.exam_type)}</div>
     <div class="row"><span class="lbl">Estado:</span> ${esc(EXAM_ST[e.status] ?? e.status)}</div>

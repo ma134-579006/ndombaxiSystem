@@ -3,7 +3,7 @@
   "version": "3.0.0",
   "private": true,
   "type": "module",
-  "description": "Montra pública (loja online) Ndombaxi System — catálogo, checkout e acompanhamento de encomendas.",
+  "description": "Montra pública (loja online) LPS Vendas — catálogo, checkout e acompanhamento de encomendas.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

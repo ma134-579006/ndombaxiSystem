@@ -1,5 +1,5 @@
 /**
- * @nexus/offline-core — motor Offline-First do Ndombaxi System.
+ * @nexus/offline-core — motor Offline-First do LPS Vendas.
  *
  * Um só motor para as três aplicações (Windows, Android, iOS) e para os três
  * frontends web. Zero dependências de runtime: o que corre no posto de venda é

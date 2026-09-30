@@ -3,7 +3,7 @@ import { Image, StyleSheet, Text, type StyleProp, type TextStyle } from 'react-n
 import { copyrightLine } from '../brand';
 import { theme } from '../theme';
 
-// Logótipo principal do sistema (Ndombaxi System).
+// Logótipo principal do sistema (LPS Vendas).
 const LOGO = require('../../assets/logo.png');
 
 export function Logo({ size = 84 }: { size?: number }) {

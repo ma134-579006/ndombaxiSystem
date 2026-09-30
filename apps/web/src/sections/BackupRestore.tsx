@@ -24,7 +24,7 @@ function readAsBase64(file: File): Promise<string> {
   });
 }
 
-/** Restauro de um backup PRÓPRIO do Ndombaxi (.ndbak) — pré-visualiza sempre
+/** Restauro de um backup PRÓPRIO do LPS Vendas (.ndbak) — pré-visualiza sempre
  *  antes de aplicar; nunca apaga nada (upsert por id). */
 export function BackupRestore() {
   const [fileName, setFileName] = useState<string | null>(null);
@@ -73,7 +73,7 @@ export function BackupRestore() {
 
       <div className="card" style={{ maxWidth: 640 }}>
         <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          Sobe um ficheiro <strong>.ndbak</strong> (backup do próprio Ndombaxi System, descarregado em
+          Sobe um ficheiro <strong>.ndbak</strong> (backup do próprio LPS Vendas, descarregado em
           "Backup"). O sistema mostra sempre o que vai criar/actualizar antes de aplicar — nunca apaga nada.
         </p>
         {error ? <div className="banner danger">{error}</div> : null}

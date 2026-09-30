@@ -2,7 +2,7 @@
  * Resolução automática de conflitos.
  *
  * A melhor estratégia de conflitos é não os ter. Por isso o modelo de dados do
- * Ndombaxi foi pensado em três famílias, e só UMA delas pode realmente conflituar:
+ * O LPS Vendas foi pensado em três famílias, e só UMA delas pode realmente conflituar:
  *
  *   1. APPEND-ONLY (vendas, notas de crédito, movimentos de caixa, auditoria)
  *      Cada documento é novo e traz o seu `opId`. Duas caixas offline a vender o

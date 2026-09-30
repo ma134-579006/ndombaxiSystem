@@ -271,7 +271,7 @@ export class AuthService {
     const url = `${base.replace(/\/+$/, '')}/?reset=${token}&k=${p.kind === 'PIN' ? 'pin' : 'pw'}`;
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#16202c">
-        <h2 style="color:#0f62fe">Ndombaxi System</h2>
+        <h2 style="color:#0f62fe">LPS Vendas</h2>
         <p>Recebemos um pedido para recuperar a tua <strong>${what}</strong>.</p>
         <p>Clica no botão abaixo (válido por <strong>1 hora</strong>):</p>
         <p style="text-align:center;margin:24px 0">
@@ -279,7 +279,7 @@ export class AuthService {
         </p>
         <p style="font-size:13px;color:#6b7686">Se não foste tu, ignora este e-mail — nada muda. Link: ${url}</p>
       </div>`;
-    await this.mail.sendHtml(p.email, `Recuperar ${what} — Ndombaxi System`, html);
+    await this.mail.sendHtml(p.email, `Recuperar ${what} — LPS Vendas`, html);
   }
 
   /** Aplica a nova senha/PIN a partir do token recebido por e-mail. */

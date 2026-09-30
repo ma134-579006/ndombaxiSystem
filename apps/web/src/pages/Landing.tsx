@@ -163,9 +163,9 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       {/* NAV */}
       <nav className={`lp-nav${scrolled ? ' scrolled' : ''}${menuOpen ? ' open' : ''}`}>
         <div className="lp-nav-bar">
-          <a className="lp-brand" href="#top" onClick={closeMenu} aria-label={cfg?.brandName ?? 'Ndombaxi System'}>
+          <a className="lp-brand" href="#top" onClick={closeMenu} aria-label={cfg?.brandName ?? 'LPS Vendas'}>
             <img className="logo" src={LOGO_SRC} alt="" />
-            <span className="nm">{cfg?.brandName ?? 'Ndombaxi System'}</span>
+            <span className="nm">{cfg?.brandName ?? 'LPS Vendas'}</span>
           </a>
           <div className="lp-nav-links" aria-label="Secções da página">
             {NAV_LINKS.map((l) => (
@@ -240,7 +240,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
               o visitante VÊ o painel em <1s, como Stripe/Linear mostram o produto. */}
           <div className="lp-mockup" aria-hidden="true">
             <div className="mk-frame">
-              <div className="mk-bar"><i /><i /><i /><span className="mk-url">painel · {cfg?.brandName ?? 'Ndombaxi'}</span></div>
+              <div className="mk-bar"><i /><i /><i /><span className="mk-url">painel · {cfg?.brandName ?? 'LPS Vendas'}</span></div>
               <div className="mk-body">
                 <div className="mk-side">
                   <div className="mk-si on" /><div className="mk-si" /><div className="mk-si" /><div className="mk-si" /><div className="mk-si" />
@@ -334,7 +334,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
         </div>
       </section>
 
-      {/* PORQUÊ O NDOMBAXI — diferenciais */}
+      {/* PORQUÊ O LPS VENDAS — diferenciais */}
       <section className="lp-section" id="porque">
         <div className="wrap">
           <h2>Feito para a realidade angolana</h2>
@@ -456,7 +456,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       <footer className="lp-footer2" id="contacto">
         <div className="lp-cta-band">
           <div className="wrap band-inner">
-            <h2>Comece a sua jornada {cfg?.brandName ?? 'Ndombaxi'} hoje!</h2>
+            <h2>Comece a sua jornada {cfg?.brandName ?? 'LPS Vendas'} hoje!</h2>
             <button onClick={() => openRegister('BUSINESS')}>Criar conta grátis</button>
           </div>
         </div>
@@ -464,9 +464,9 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           <div className="wrap lp-foot-cols">
             <div className="lp-fcol lp-fbrand">
               <div className="fb-logo-row">
-                <img src={LOGO_SRC} alt={cfg?.brandName ?? 'Ndombaxi'} />
+                <img src={LOGO_SRC} alt={cfg?.brandName ?? 'LPS Vendas'} />
                 <div>
-                  <div className="fnm">{cfg?.brandName ?? 'Ndombaxi System'}</div>
+                  <div className="fnm">{cfg?.brandName ?? 'LPS Vendas'}</div>
                   <div className="ftag">Sempre com o seu negócio</div>
                 </div>
               </div>
@@ -515,7 +515,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             </div>
           </div>
           <div className="wrap lp-foot-bottom">
-            <span>© {new Date().getFullYear()} {cfg?.brandName ?? 'Ndombaxi System'}. Todos os direitos reservados.</span>
+            <span>© {new Date().getFullYear()} {cfg?.brandName ?? 'LPS Vendas'}. Todos os direitos reservados.</span>
             <span className="lp-foot-credits">Direitos reservados a <strong>Manuel Mbala Ndombaxi</strong> · Patrocinado pela <strong>Loja das Mulheres</strong></span>
           </div>
         </div>

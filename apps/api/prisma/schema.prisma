@@ -66,7 +66,7 @@ model Plan {
 model LandingConfig {
   id              String   @id @default(uuid()) @db.Uuid
   // Marca
-  brandName       String   @default("Ndombaxi System")
+  brandName       String   @default("LPS Vendas")
   // Hero (secção principal)
   heroTitle       String   @default("O sistema de gestão e vendas para Angola")
   heroSubtitle    String   @default("POS, stock, facturação AGT, loja online e IA — tudo num só lugar, em Kwanzas.")
@@ -87,7 +87,7 @@ model LandingConfig {
   // Anúncios / publicidades rotativas (lista JSON [{title,text,imageUrl,ctaLabel,ctaUrl,active}])
   ads             Json     @default("[]")
   // Rodapé / contactos
-  footerText      String   @default("© Ndombaxi System — Desenvolvido por Manuel Mbala Tomás Ndombaxi")
+  footerText      String   @default("© LPS Vendas — Desenvolvido por Manuel Mbala Tomás Ndombaxi")
   contactEmail    String?
   contactPhone    String?
   // Liga/desliga secções
@@ -395,7 +395,7 @@ model AiProvider {
 // Persona / configuração global do assistente (singleton lógico).
 model AiAssistantConfig {
   id           String   @id @default(uuid()) @db.Uuid
-  displayName  String   @default("Ndombaxi Assistant")
+  displayName  String   @default("LPS Vendas Assistant")
   persona      String   @default("profissional, calorosa, empática e muito humana")
   systemPrompt String? // override total do prompt de sistema (opcional)
   greeting     String? // saudação inicial mostrada/falada ao utilizador

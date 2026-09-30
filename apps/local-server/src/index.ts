@@ -1,5 +1,5 @@
 /**
- * Ndombaxi Local Server — API e base de dados no próprio posto.
+ * LPS Vendas Local Server — API e base de dados no próprio posto.
  *
  * O que resolve: até aqui as aplicações falavam DIRETAMENTE com o servidor na
  * nuvem. Sem internet, tudo o que fosse ESCRITA parava — e o lojista angolano

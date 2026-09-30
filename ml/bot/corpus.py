@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-CORPUS de treino do bot — o conhecimento TOTAL do Ndombaxi System.
+CORPUS de treino do bot — o conhecimento TOTAL do LPS Vendas.
 
 Cada intenção tem: exemplos (frases de treino pt-PT/Angola), resposta
 profissional e, quando ajuda, uma IMAGEM instrutiva (gerada em images.py).
@@ -15,7 +15,7 @@ INTENTS: list[dict] = [
             "ola preciso de ajuda", "alguem ai", "boas", "ola tudo bom", "epa boas",
             "oi presciso de ajuda", "ola boa", "saudacoes", "ola amigo",
         ],
-        "answer": "Olá! 👋 Bem-vindo ao Ndombaxi System. Posso ensinar-te a criar conta, vender no caixa, gerir stock, processar salários, tirar relatórios e muito mais. O que precisas?",
+        "answer": "Olá! 👋 Bem-vindo ao LPS Vendas. Posso ensinar-te a criar conta, vender no caixa, gerir stock, processar salários, tirar relatórios e muito mais. O que precisas?",
     },
     {
         "id": "falar_humano",
@@ -262,7 +262,7 @@ INTENTS: list[dict] = [
             "o que sabes fazer", "quem es tu", "es um robo", "como funcionas",
             "es uma ia", "ajudas em que",
         ],
-        "answer": "Sou a IA de suporte do Ndombaxi System 🤖 — fui treinada com o funcionamento completo do sistema (caixa, stock, salários, relatórios, loja online…) e até **desenho guias visuais** para te orientar. Não tenho acesso à base de dados — os teus dados são só teus. Se quiseres um humano, é só pedir!",
+        "answer": "Sou a IA de suporte do LPS Vendas 🤖 — fui treinada com o funcionamento completo do sistema (caixa, stock, salários, relatórios, loja online…) e até **desenho guias visuais** para te orientar. Não tenho acesso à base de dados — os teus dados são só teus. Se quiseres um humano, é só pedir!",
     },
     {
         "id": "agradecimento",
@@ -276,6 +276,6 @@ INTENTS: list[dict] = [
         "examples": [
             "tchau", "adeus", "ate logo", "ja volto", "vou sair", "bye",
         ],
-        "answer": "Até já! 👋 Quando precisares, estou aqui na bolinha azul. Bom trabalho com o Ndombaxi System!",
+        "answer": "Até já! 👋 Quando precisares, estou aqui na bolinha azul. Bom trabalho com o LPS Vendas!",
     },
 ]

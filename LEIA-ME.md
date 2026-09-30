@@ -1,8 +1,8 @@
-# Ndombaxi System
+# LPS Vendas
 
 Plataforma empresarial para Angola — **POS (caixa)**, **ERP**, **e-commerce**, **IA (OpenManus)** e **administração**, com conformidade fiscal **AGT** (facturação, hash, SAF-T, assinatura RSA-2048).
 
-> Desenvolvido por **Manuel Mbala Tomás Ndombaxi**. © Ndombaxi System.
+> Desenvolvido por **Manuel Mbala Tomás Ndombaxi**. © LPS Vendas.
 
 ---
 

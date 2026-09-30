@@ -1,4 +1,4 @@
-# 🚀 Pôr o Ndombaxi System ONLINE 24/7 — grátis
+# 🚀 Pôr o LPS Vendas ONLINE 24/7 — grátis
 
 Guia passo-a-passo, **sem terminal complicado**. No fim tens links que
 funcionam em qualquer telemóvel/PC, sem ligar o teu computador.

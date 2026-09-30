@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Painel de administração Ndombaxi System. VITE_API_URL define a API.
+// Painel de administração LPS Vendas. VITE_API_URL define a API.
 // `design.html` = style guide vivo do Design System (estático, sem dados).
 export default defineConfig({
   plugins: [react()],

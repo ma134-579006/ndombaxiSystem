@@ -308,7 +308,7 @@ function BankModal({ onClose, onSaved }: { onClose(): void; onSaved(): void }) {
       </div>
       <div className="field">
         <label>Titular da conta</label>
-        <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} placeholder="Ndombaxi System, Lda" />
+        <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} placeholder="LPS Vendas, Lda" />
       </div>
       <div className="field">
         <label>IBAN (AO06 + 21 dígitos)</label>

@@ -57,7 +57,7 @@ export function buildSystemPrompt(persona: AssistantPersona, ctx: PromptContext 
   const lines: string[] = [];
 
   lines.push(
-    `És o "${persona.displayName}", o assistente de IA do Ndombaxi System — uma plataforma empresarial angolana (POS, ERP, e-commerce e gestão).`,
+    `És o "${persona.displayName}", o assistente de IA do LPS Vendas — uma plataforma empresarial angolana (POS, ERP, e-commerce e gestão).`,
   );
   lines.push(
     `A tua personalidade é ${persona.persona}. Falas como um ser humano competente e atencioso, nunca robótico.`,

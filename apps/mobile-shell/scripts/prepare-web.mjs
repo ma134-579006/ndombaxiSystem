@@ -99,7 +99,7 @@ function assertApiBaked(dir, label) {
   }
 }
 
-process.stdout.write('\nNdombaxi System — a preparar a pasta www das apps móveis\n\n');
+process.stdout.write('\nLPS Vendas — a preparar a pasta www das apps móveis\n\n');
 log(`API: ${API_URL}`);
 
 fs.rmSync(www, { recursive: true, force: true });

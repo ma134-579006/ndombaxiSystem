@@ -25,7 +25,7 @@ import { fallbackAnswer, predict } from './neural-bot';
  * As tabelas vivem no schema PÚBLICO e são criadas de forma idempotente.
  */
 const KNOWLEDGE = `
-És o assistente oficial do Ndombaxi System — um sistema SaaS de gestão (ERP + POS + loja online) para empresas de Angola, em Kwanzas (Kz).
+És o assistente oficial do LPS Vendas — um sistema SaaS de gestão (ERP + POS + loja online) para empresas de Angola, em Kwanzas (Kz).
 Respondes SEMPRE em português de Portugal/Angola, de forma profissional, clara e simpática. Usa passos numerados quando ensinas a fazer algo.
 
 GUIAS VISUAIS (screenshots reais do sistema com marcações nos botões): quando explicares um destes fluxos, termina a resposta com a etiqueta exata correspondente (uma só, a mais relevante):
@@ -185,7 +185,7 @@ export class SupportService implements OnModuleInit {
     const rows = await this.prisma.$queryRaw<{ id: string }[]>(
       Prisma.sql`INSERT INTO public.support_chats (visitor_name) VALUES (${visitorName?.slice(0, 80) ?? null}) RETURNING id`,
     );
-    const greeting = `Olá${visitorName ? `, ${visitorName}` : ''}! 👋 Sou o assistente do Ndombaxi System. Pergunta-me como criar conta, vender no caixa, gerir stock, folha salarial, relatórios… Se precisares, chamo a nossa equipa. (Esta conversa não fica guardada nos nossos servidores.)`;
+    const greeting = `Olá${visitorName ? `, ${visitorName}` : ''}! 👋 Sou o assistente do LPS Vendas. Pergunta-me como criar conta, vender no caixa, gerir stock, folha salarial, relatórios… Se precisares, chamo a nossa equipa. (Esta conversa não fica guardada nos nossos servidores.)`;
     // PRIVACIDADE: a saudação NÃO é guardada — em modo BOT nada vai para a BD.
     return { chatId: rows[0].id, greeting };
   }

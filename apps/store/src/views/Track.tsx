@@ -95,7 +95,7 @@ async function downloadInvoicePdf(inv: StoreInvoice): Promise<void> {
   // Rodapé fiscal
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(110, 120, 135);
   if (inv.hash) { doc.text(`Controlo (Hash): ${inv.hash.slice(0, 16)}`, M, y); y += 13; }
-  doc.text('Documento processado por programa validado · Ndombaxi System', M, y); y += 16;
+  doc.text('Documento processado por programa validado · LPS Vendas', M, y); y += 16;
   doc.setTextColor(...accent); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
   doc.text(c.receiptMessage || 'Obrigado pela preferência!', M, y);
 

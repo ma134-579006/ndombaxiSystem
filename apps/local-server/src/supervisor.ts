@@ -1,5 +1,5 @@
 /**
- * Supervisor do Ndombaxi Local Server.
+ * Supervisor do LPS Vendas Local Server.
  *
  * Responsabilidade única: garantir que, quando o lojista abre a aplicação, existe
  * uma API a responder em `127.0.0.1` — com ou sem internet, tenha ou não alguém
@@ -185,7 +185,7 @@ export class LocalServer {
     if (!info) throw new Error('start() ainda não correu');
     const entry = path.join(this.o.apiDir, 'dist', 'main.js');
     if (!existsSync(entry)) {
-      throw new Error(`API local não encontrada em ${entry}. Reinstale o Ndombaxi System.`);
+      throw new Error(`API local não encontrada em ${entry}. Reinstale o LPS Vendas.`);
     }
     mkdirSync(this.o.paths.logDir, { recursive: true });
 

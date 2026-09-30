@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title Ndombaxi System
+title LPS Vendas
 cd /d "%~dp0"
 echo ============================================================
-echo    NDOMBAXI SYSTEM  -  arranque automatico (um clique)
+echo    LPS VENDAS  -  arranque automatico (um clique)
 echo    por Manuel Mbala Tomas Ndombaxi
 echo ============================================================
 echo.

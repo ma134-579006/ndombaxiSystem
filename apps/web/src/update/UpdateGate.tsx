@@ -112,7 +112,7 @@ export function UpdateGate() {
     if (dispensado) return null;
     return (
       <Faixa tom="aviso">
-        Está disponível a versão {d.release.version} do Ndombaxi System.{' '}
+        Está disponível a versão {d.release.version} do LPS Vendas.{' '}
         {d.release.downloadPageUrl ? (
           <a href={d.release.downloadPageUrl} target="_blank" rel="noreferrer"
             style={{ color: '#fff', textDecoration: 'underline' }}>Atualizar</a>
@@ -145,13 +145,13 @@ export function UpdateGate() {
         boxShadow: '0 30px 80px rgba(0,0,0,.55)', maxHeight: '90vh', overflowY: 'auto',
       }}>
         <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', opacity: 0.6 }}>
-          Ndombaxi System
+          LPS Vendas
         </div>
         <h1 style={{ fontSize: 26, fontWeight: 800, margin: '10px 0 12px' }}>
           Nova versão disponível
         </h1>
         <p style={{ fontSize: 15, lineHeight: 1.6, margin: 0, opacity: 0.85 }}>
-          Foi disponibilizada uma nova versão do Ndombaxi System. Para continuar a
+          Foi disponibilizada uma nova versão do LPS Vendas. Para continuar a
           utilizar o sistema é obrigatório atualizar.
         </p>
 

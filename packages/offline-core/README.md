@@ -1,6 +1,6 @@
 # @nexus/offline-core
 
-Motor Offline-First do Ndombaxi System. **Zero dependências de runtime** — o que
+Motor Offline-First do LPS Vendas. **Zero dependências de runtime** — o que
 corre no posto de venda é exatamente o que corre nos testes.
 
 Um só motor para as quatro superfícies: Windows (Electron), Android e iOS

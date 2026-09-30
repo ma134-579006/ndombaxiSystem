@@ -1,5 +1,5 @@
 /**
- * Processo principal do Ndombaxi System para Windows.
+ * Processo principal do LPS Vendas para Windows.
  *
  * Postura de segurança, e o ataque que cada linha fecha:
  *   • `contextIsolation: true`      → uma biblioteca comprometida no frontend não
@@ -26,6 +26,13 @@ import { signInWithGoogle } from './google-auth';
 import { buildMenu } from './menu';
 
 registerScheme(); // obrigatoriamente antes de `whenReady`
+
+/**
+ * COMPATIBILIDADE DO REBRAND (LPS Vendas): o Electron deriva a pasta de dados do nome do
+ * produto. Fixamo-la no nome ANTIGO para que a base local, a chave do dispositivo e as
+ * definições dos postos existentes continuem exactamente onde estão.
+ */
+app.setPath('userData', path.join(app.getPath('appData'), 'Ndombaxi System'));
 
 /** Um único posto por máquina — protege a integridade da base local. */
 if (!app.requestSingleInstanceLock()) {
@@ -339,8 +346,8 @@ function createWindow(): BrowserWindow {
     // A janela só aparece quando tiver conteúdo — evita o retângulo branco a
     // piscar que faz uma aplicação parecer amadora.
     show: false,
-    backgroundColor: '#080d1a', // a cor de fundo do próprio Ndombaxi
-    title: 'Ndombaxi System',
+    backgroundColor: '#080d1a', // a cor de fundo do próprio LPS Vendas
+    title: 'LPS Vendas',
     icon: path.join(__dirname, '..', '..', 'build', 'icon.png'),
     // Menu escondido — a navegação faz-se pelo LANÇADOR (1.º ecrã) e pela seta
     // de voltar dentro de cada módulo. Interface limpa, sem barra de menus.
@@ -442,7 +449,7 @@ function registerIpc(): void {
   ipcMain.handle('ndombaxi:db-backup', async () => {
     const dir = path.join(app.getPath('documents'), 'Ndombaxi', 'Backups');
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const dest = path.join(dir, `ndombaxi-${stamp}.db`);
+    const dest = path.join(dir, `lps-vendas-${stamp}.db`);
     try {
       await backupTo(dest);
       return { ok: true, path: dest };
@@ -571,7 +578,7 @@ void app.whenReady().then(async () => {
     // Sem base local não há modo offline. Dizemos o que aconteceu em vez de
     // abrir uma app que perde vendas em silêncio.
     dialog.showErrorBox(
-      'Ndombaxi System',
+      'LPS Vendas',
       'Não foi possível abrir a base de dados local deste posto.\n\n'
       + `Detalhe: ${(e as Error).message}\n\n`
       + 'A aplicação vai fechar. Contacte o suporte — nenhum dado foi perdido.',

@@ -73,7 +73,7 @@ services:
       CONFIG_ENCRYPTION_KEY: ${CONFIG_ENCRYPTION_KEY:-dev-ndombaxi-config-encryption-key-32bytes+}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-admin@ndombaxi.ao}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-Ndombaxi!Admin2026}
-      TWOFA_ISSUER: "Ndombaxi System"
+      TWOFA_ISSUER: "LPS Vendas"
     ports:
       - "3000:3000"
     depends_on:

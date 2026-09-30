@@ -1,6 +1,6 @@
 /** Identidade do sistema e autoria (assinatura permanente). */
-export const SYSTEM_NAME = 'Ndombaxi System';
-export const SYSTEM_SHORT = 'Ndombaxi';
+export const SYSTEM_NAME = 'LPS Vendas';
+export const SYSTEM_SHORT = 'LPS Vendas';
 export const SYSTEM_MODULE = 'Caixa · Ponto de Venda';
 export const AUTHOR = 'Manuel Mbala Tomás Ndombaxi';
 export const LOGO_SRC = '/logo.svg';

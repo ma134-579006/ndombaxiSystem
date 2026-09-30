@@ -74,7 +74,7 @@ function assertApiBaked(dir, label) {
   }
 }
 
-process.stdout.write('\nNdombaxi System — a preparar os recursos da aplicação Windows\n\n');
+process.stdout.write('\nLPS Vendas — a preparar os recursos da aplicação Windows\n\n');
 log(`API: ${API_URL}`);
 
 for (const mod of MODULES) {

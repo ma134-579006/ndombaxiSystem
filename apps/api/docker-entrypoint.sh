@@ -3,7 +3,7 @@
 set -e
 cd /repo/apps/api
 
-echo "Ndombaxi API — a preparar a base de dados..."
+echo "LPS Vendas API — a preparar a base de dados..."
 until pnpm exec prisma db push --skip-generate; do
   echo "Base de dados ainda não pronta; nova tentativa em 3s..."
   sleep 3

@@ -1,4 +1,4 @@
-# Ndombaxi System — Apps Android e iOS (Capacitor)
+# LPS Vendas — Apps Android e iOS (Capacitor)
 
 Aplicações móveis Offline-First que embrulham **os mesmos frontends do site** —
 Gestão (`apps/web`) e Caixa (`apps/pos`). Não há interface própria: é a razão
