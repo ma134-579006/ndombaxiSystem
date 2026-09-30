@@ -1,5 +1,5 @@
 /**
- * Tipos partilhados do motor Offline-First do Ndombaxi System.
+ * Tipos partilhados do motor Offline-First do LPS Vendas.
  *
  * Princípio de ouro: o cliente NUNCA inventa identidade fiscal. Números de
  * documento, hash AGT e sequências são sempre atribuídos pelo servidor. O que o

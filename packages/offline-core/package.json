@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Ndombaxi System — motor Offline-First: outbox idempotente, delta sync, resolução de conflitos, cifra em repouso e sessão offline. Zero dependências de runtime.",
+  "description": "LPS Vendas — motor Offline-First: outbox idempotente, delta sync, resolução de conflitos, cifra em repouso e sessão offline. Zero dependências de runtime.",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {

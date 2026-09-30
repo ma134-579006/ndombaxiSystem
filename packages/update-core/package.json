@@ -2,7 +2,7 @@
   "name": "@nexus/update-core",
   "version": "1.0.0",
   "private": true,
-  "description": "Ndombaxi System — decisão da atualização obrigatória, partilhada pelo Gestor, Caixa, Android e Electron.",
+  "description": "LPS Vendas — decisão da atualização obrigatória, partilhada pelo Gestor, Caixa, Android e Electron.",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/index.d.ts",

@@ -2,7 +2,7 @@
   "name": "@nexus/shop-link",
   "version": "1.0.0",
   "private": true,
-  "description": "Ndombaxi System — ligação ao servidor da loja (rede local), partilhada pelo Gestor e pela Caixa.",
+  "description": "LPS Vendas — ligação ao servidor da loja (rede local), partilhada pelo Gestor e pela Caixa.",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/index.d.ts",

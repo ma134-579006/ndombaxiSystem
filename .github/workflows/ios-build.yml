@@ -1,4 +1,4 @@
-# Compila a app iOS (Ndombaxi System) num Mac NA NUVEM — GitHub Actions macOS
+# Compila a app iOS (LPS Vendas) num Mac NA NUVEM — GitHub Actions macOS
 # runner. É o caminho LEGÍTIMO para gerar o .ipa sem ter um Mac físico (a Apple
 # só permite compilar iOS em macOS; aqui usamos o macOS oficial do GitHub).
 #
@@ -36,6 +36,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - uses: actions/setup-node@v4
         with:
