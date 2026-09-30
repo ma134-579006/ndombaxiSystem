@@ -3,10 +3,10 @@ import { confirmDialog, toast } from '../components/feedback';
 import { api, ApiError } from '../api/client';
 
 /**
- * Facturação Electrónica AGT (DP 71/25 · DE 683/25): credenciais Basic do produtor,
- * chave RSA (≥2048) do software, e por empresa: chave do contribuinte (AGT), séries e fila.
+ * Facturação Electrónica AGT (DP 71/25 · DE 683/25): passo 1 credenciais e chave do
+ * software (produtor), passo 2 dados por empresa (chave do contribuinte, séries, fila).
  */
-export function EinvoiceCard() {
+export function EinvoiceCard({ onChanged }: { onChanged?: () => void }) {
   const [cfg, setCfg] = useState<Record<string, any> | null>(null);
   const [busy, setBusy] = useState(false);
   const [f, setF] = useState({ environment: 'HML', basicUser: '', basicPassword: '', productId: '', productVersion: '', softwareValidationNumber: '' });
@@ -23,6 +23,7 @@ export function EinvoiceCard() {
     setBusy(true);
     try {
       await fn();
+      onChanged?.();
       if (okMsg) toast.success(okMsg);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Operação falhou.');
@@ -85,14 +86,14 @@ export function EinvoiceCard() {
       if (f.basicPassword) dto.basicPassword = f.basicPassword;
       setCfg(await api.fiscal.feUpdate(dto));
       setF((p) => ({ ...p, basicPassword: '' }));
-    }, 'Configuração da Facturação Electrónica guardada.');
+    }, 'Configuração guardada.');
 
   const toggle = () =>
     guard(
       async () => {
         setCfg(await api.fiscal.feUpdate({ enabled: !cfg?.enabled }));
       },
-      cfg?.enabled ? 'Facturação Electrónica desactivada.' : 'Facturação Electrónica activada.',
+      cfg?.enabled ? 'Envio à AGT desactivado.' : 'Envio à AGT activado.',
     );
 
   const genKey = async () => {
@@ -126,182 +127,228 @@ export function EinvoiceCard() {
       setTpKey('');
     }, msg);
 
-  const statusColor: Record<string, string> = {
-    VALID: 'var(--success)',
-    INVALID: 'var(--danger)',
-    ERROR: 'var(--danger)',
-    SENT: 'var(--muted)',
-    QUEUED: 'var(--muted)',
-  };
+  const steps: Array<{ done: boolean; label: string }> = [
+    { done: !!cfg?.basicUser && !!cfg?.hasBasicPassword, label: 'Credenciais Basic do produtor' },
+    { done: !!cfg?.hasSoftwareKey, label: 'Chave RSA do software gerada' },
+    { done: !!cfg?.softwareValidationNumber, label: 'Nº de validação do software' },
+    { done: !!cfg?.enabled, label: 'Envio à AGT activado' },
+  ];
+  const badge = cfg?.enabled ? { t: 'Activa', c: 'ok' } : cfg?.ready ? { t: 'Pronta', c: 'ok' } : { t: 'Por configurar', c: 'off' };
+  const tone: Record<string, string> = { VALID: 'ok', INVALID: 'bad', ERROR: 'bad', SENT: 'off', QUEUED: 'off' };
+  const stateLabel: Record<string, string> = { VALID: 'Válido', INVALID: 'Inválido', ERROR: 'Erro', SENT: 'Enviado', QUEUED: 'Em fila' };
 
   return (
-    <div className="card">
-      <div className="row">
-        <h3 style={{ margin: 0 }}>Facturação Electrónica (DP 71/25 · DE 683/25)</h3>
-        <span className="spacer" />
-        <span className="badge" style={{ color: cfg?.enabled ? 'var(--success)' : undefined }}>
-          {cfg?.enabled ? 'Activa' : cfg?.ready ? 'Pronta' : 'Por configurar'}
-        </span>
-      </div>
-      <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-        Regime de 2026 (assinaturas JWS RS256, chave ≥ 2048 bits): credenciais <strong>Basic</strong> do produtor (pedir a
-        produtores.dfe.dcrr.agt@minfin.gov.ao), chave do software (pública no Portal do Parceiro) e, por empresa, a chave do
-        contribuinte emitida pela AGT e as séries pedidas por API. Endpoint: {cfg?.baseUrl ?? '—'}. É independente da
-        assinatura do SAF-T (Modelo 8, RSA-1024).
-      </p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
-        <label className="field">
-          <span>Ambiente</span>
-          <select value={f.environment} onChange={(e) => setF({ ...f, environment: e.target.value })}>
-            <option value="HML">Homologação (testes)</option>
-            <option value="PROD">Produção</option>
-          </select>
-        </label>
-        <label className="field">
-          <span>Utilizador Basic</span>
-          <input value={f.basicUser} onChange={(e) => setF({ ...f, basicUser: e.target.value })} autoComplete="off" />
-        </label>
-        <label className="field">
-          <span>Palavra-passe Basic {cfg?.hasBasicPassword ? '(definida)' : ''}</span>
-          <input
-            type="password"
-            value={f.basicPassword}
-            onChange={(e) => setF({ ...f, basicPassword: e.target.value })}
-            autoComplete="new-password"
-            placeholder={cfg?.hasBasicPassword ? 'deixe vazio para manter' : ''}
-          />
-        </label>
-        <label className="field">
-          <span>Produto (productId)</span>
-          <input value={f.productId} onChange={(e) => setF({ ...f, productId: e.target.value })} />
-        </label>
-        <label className="field">
-          <span>Versão</span>
-          <input value={f.productVersion} onChange={(e) => setF({ ...f, productVersion: e.target.value })} />
-        </label>
-        <label className="field">
-          <span>Nº de validação do software (ex.: C_134)</span>
-          <input value={f.softwareValidationNumber} onChange={(e) => setF({ ...f, softwareValidationNumber: e.target.value })} />
-        </label>
-      </div>
-      <p className="muted" style={{ fontSize: 12.5 }}>
-        Chave do software:{' '}
-        {cfg?.hasSoftwareKey ? `RSA-${cfg.softwareKeyBits} · versão da assinatura ${cfg.signatureVersion}` : 'ainda não gerada'}.
-      </p>
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn" onClick={save} disabled={busy}>Guardar</button>
-        <button className="btn ghost" onClick={genKey} disabled={busy}>
-          {cfg?.hasSoftwareKey ? 'Rodar chave do software' : 'Gerar chave do software (RSA-2048)'}
-        </button>
-        <button className="btn ghost" onClick={exportKey} disabled={busy || !cfg?.hasSoftwareKey}>Exportar chave pública</button>
-        <button className="btn ghost" onClick={toggle} disabled={busy || (!cfg?.enabled && !cfg?.ready)}>
-          {cfg?.enabled ? 'Desactivar envio' : 'Activar envio à AGT'}
-        </button>
+    <>
+      <div className="fx-card">
+        <div className="fx-card-h">
+          <div>
+            <h3>Produtor do software</h3>
+            <p>
+              Regime de 2026 (DP 71/25 · DE 683/25): assinaturas JWS RS256 com chave de, no mínimo, 2048 bits. É independente da
+              assinatura do SAF-T (Modelo 8). Endpoint: <span className="mono">{cfg?.baseUrl ?? '—'}</span>
+            </p>
+          </div>
+          <span className={`fx-badge ${badge.c}`}><span className={`fx-dot ${badge.c}`} />{badge.t}</span>
+        </div>
+
+        <ol className="fx-steps">
+          {steps.map((s, i) => (
+            <li key={s.label} className={s.done ? 'done' : ''}>
+              <span className="n">{s.done ? '✓' : i + 1}</span>
+              {s.label}
+            </li>
+          ))}
+        </ol>
+
+        <div className="fx-grid" style={{ marginTop: 16 }}>
+          <div className="field">
+            <label>Ambiente</label>
+            <select value={f.environment} onChange={(e) => setF({ ...f, environment: e.target.value })}>
+              <option value="HML">Homologação (testes)</option>
+              <option value="PROD">Produção</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>Utilizador Basic</label>
+            <input value={f.basicUser} onChange={(e) => setF({ ...f, basicUser: e.target.value })} autoComplete="off" />
+          </div>
+          <div className="field">
+            <label>Palavra-passe Basic {cfg?.hasBasicPassword ? <em className="muted">(definida)</em> : null}</label>
+            <input
+              type="password"
+              value={f.basicPassword}
+              onChange={(e) => setF({ ...f, basicPassword: e.target.value })}
+              autoComplete="new-password"
+              placeholder={cfg?.hasBasicPassword ? 'Deixe vazio para manter' : ''}
+            />
+          </div>
+          <div className="field">
+            <label>Nº de validação do software</label>
+            <input value={f.softwareValidationNumber} onChange={(e) => setF({ ...f, softwareValidationNumber: e.target.value })} placeholder="ex.: C_134" />
+          </div>
+          <div className="field">
+            <label>Produto (productId)</label>
+            <input value={f.productId} onChange={(e) => setF({ ...f, productId: e.target.value })} />
+          </div>
+          <div className="field">
+            <label>Versão</label>
+            <input value={f.productVersion} onChange={(e) => setF({ ...f, productVersion: e.target.value })} />
+          </div>
+        </div>
+
+        <div className="fx-meta">
+          <div><small>Chave do software</small><b>{cfg?.hasSoftwareKey ? `RSA-${cfg.softwareKeyBits}` : 'por gerar'}</b></div>
+          <div><small>Versão da assinatura</small><b>{cfg?.hasSoftwareKey ? cfg.signatureVersion : '—'}</b></div>
+        </div>
+
+        <div className="fx-actions">
+          <button className="btn" onClick={save} disabled={busy}>Guardar</button>
+          <button className="btn ghost" onClick={genKey} disabled={busy}>{cfg?.hasSoftwareKey ? 'Rodar chave' : 'Gerar chave RSA-2048'}</button>
+          <button className="btn ghost" onClick={exportKey} disabled={busy || !cfg?.hasSoftwareKey}>Exportar chave pública</button>
+          <button className="btn ghost" onClick={toggle} disabled={busy || (!cfg?.enabled && !cfg?.ready)}>
+            {cfg?.enabled ? 'Desactivar envio' : 'Activar envio à AGT'}
+          </button>
+        </div>
       </div>
 
-      <h4 style={{ marginBottom: 6 }}>Por empresa</h4>
-      <select value={cid} onChange={(e) => void loadCompany(e.target.value)} style={{ maxWidth: 420 }}>
-        <option value="">— escolher empresa —</option>
-        {companies.map((c) => (
-          <option key={c.id} value={c.id}>{c.name} · NIF {c.nif}</option>
-        ))}
-      </select>
-      {co ? (
-        <div style={{ marginTop: 10 }}>
-          <p className="muted" style={{ fontSize: 12.5 }}>
-            {co.enabled ? 'Activa' : 'Inactiva'} · chave do contribuinte: {co.hasTaxpayerKey ? `RSA-${co.taxpayerKeyBits}` : 'em falta'} · séries:{' '}
-            {Object.keys(co.series ?? {}).length
-              ? Object.entries(co.series as Record<string, string>).map(([k, v]) => `${k}=${v}`).join(', ')
-              : 'nenhuma'}{' '}
-            · documentos: {Object.entries(co.documents ?? {}).map(([k, v]) => `${k} ${v}`).join(' · ') || '—'}
-          </p>
-          <label className="field">
-            <span>Chave privada do contribuinte (PEM da AGT) — nunca é mostrada de volta</span>
-            <textarea rows={4} value={tpKey} onChange={(e) => setTpKey(e.target.value)} placeholder="-----BEGIN PRIVATE KEY-----" />
-          </label>
-          <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
-            <label className="field" style={{ maxWidth: 140 }}>
-              <span>Estabelecimento</span>
-              <input value={est} onChange={(e) => setEst(e.target.value)} />
-            </label>
-            <button
-              className="btn sm"
-              disabled={busy}
-              onClick={() => saveCompany({ establishmentNumber: est, ...(tpKey ? { taxpayerPrivateKey: tpKey } : {}) }, 'Dados da empresa guardados.')}
-            >
-              Guardar chave/estabelecimento
-            </button>
-            <select value={sType} onChange={(e) => setSType(e.target.value)}>
-              <option>FT</option>
-              <option>FS</option>
-              <option>NC</option>
-              <option>ND</option>
-            </select>
-            <input type="number" value={sYear} onChange={(e) => setSYear(Number(e.target.value))} style={{ width: 90 }} />
-            <button
-              className="btn sm ghost"
-              disabled={busy || !co.hasTaxpayerKey}
-              onClick={() =>
-                guard(async () => {
-                  await api.fiscal.feRequestSeries(cid, { documentType: sType, year: sYear });
-                  await loadCompany(cid);
-                }, 'Série atribuída pela AGT.')
-              }
-            >
-              Pedir série à AGT
-            </button>
-            <button className="btn sm" disabled={busy} onClick={() => saveCompany({ enabled: !co.enabled }, co.enabled ? 'Envio desactivado.' : 'Envio activado nesta empresa.')}>
-              {co.enabled ? 'Desactivar empresa' : 'Activar empresa'}
-            </button>
-            <button
-              className="btn sm ghost"
-              disabled={busy || !co.enabled}
-              onClick={() =>
-                guard(async () => {
-                  await api.fiscal.feSync(cid);
-                  await loadCompany(cid);
-                }, 'Sincronização feita.')
-              }
-            >
-              Enviar/consultar agora
-            </button>
+      <div className="fx-card">
+        <div className="fx-card-h">
+          <div>
+            <h3>Por empresa</h3>
+            <p>Chave do contribuinte (emitida pela AGT), séries autorizadas e fila de documentos.</p>
           </div>
-          {docs.length ? (
-            <div style={{ overflowX: 'auto', marginTop: 10 }}>
-              <table className="ptable">
-                <thead>
-                  <tr><th>Documento</th><th>Estado</th><th>Tentativas</th><th>Erros</th><th /></tr>
-                </thead>
-                <tbody>
-                  {docs.slice(0, 30).map((d) => (
-                    <tr key={String(d.id)}>
-                      <td>{String(d.documentNo)}</td>
-                      <td style={{ color: statusColor[String(d.status)] }}>{String(d.status)}</td>
-                      <td>{String(d.attempts)}</td>
-                      <td style={{ fontSize: 12 }}>{d.errors ? JSON.stringify(d.errors).slice(0, 140) : ''}</td>
-                      <td>
-                        {d.status === 'INVALID' || d.status === 'ERROR' ? (
-                          <button
-                            className="btn sm ghost"
-                            onClick={() =>
-                              guard(async () => {
-                                await api.fiscal.feRequeue(cid, String(d.documentNo));
-                                await loadCompany(cid);
-                              }, 'Reposto na fila.')
-                            }
-                          >
-                            Repor
-                          </button>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
         </div>
-      ) : null}
-    </div>
+        <div className="field" style={{ maxWidth: 460 }}>
+          <label>Empresa</label>
+          <select value={cid} onChange={(e) => void loadCompany(e.target.value)}>
+            <option value="">Escolher empresa…</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>{c.name} · NIF {c.nif}</option>
+            ))}
+          </select>
+        </div>
+
+        {co ? (
+          <>
+            <div className="fx-meta">
+              <div><small>Estado</small><b>{co.enabled ? 'Activa' : 'Inactiva'}</b></div>
+              <div><small>Chave do contribuinte</small><b>{co.hasTaxpayerKey ? `RSA-${co.taxpayerKeyBits}` : 'em falta'}</b></div>
+              <div>
+                <small>Séries</small>
+                <b>
+                  {Object.keys(co.series ?? {}).length
+                    ? Object.entries(co.series as Record<string, string>).map(([k, v]) => `${k} → ${v}`).join(' · ')
+                    : 'nenhuma'}
+                </b>
+              </div>
+              <div>
+                <small>Documentos</small>
+                <b>{Object.entries(co.documents ?? {}).map(([k, v]) => `${stateLabel[k] ?? k}: ${v}`).join(' · ') || '—'}</b>
+              </div>
+            </div>
+
+            <div className="field">
+              <label>Chave privada do contribuinte (PEM emitido pela AGT)</label>
+              <textarea rows={4} value={tpKey} onChange={(e) => setTpKey(e.target.value)} placeholder="-----BEGIN PRIVATE KEY-----" spellCheck={false} />
+              <small className="muted">Nunca é mostrada de volta depois de guardada.</small>
+            </div>
+
+            <div className="fx-grid" style={{ alignItems: 'end' }}>
+              <div className="field">
+                <label>Estabelecimento</label>
+                <input value={est} onChange={(e) => setEst(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Tipo de documento</label>
+                <select value={sType} onChange={(e) => setSType(e.target.value)}>
+                  <option value="FT">Factura (FT)</option>
+                  <option value="FS">Factura-recibo (FS)</option>
+                  <option value="NC">Nota de crédito (NC)</option>
+                  <option value="ND">Nota de débito (ND)</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>Ano da série</label>
+                <input type="number" value={sYear} onChange={(e) => setSYear(Number(e.target.value))} />
+              </div>
+            </div>
+
+            <div className="fx-actions">
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => saveCompany({ establishmentNumber: est, ...(tpKey ? { taxpayerPrivateKey: tpKey } : {}) }, 'Dados da empresa guardados.')}
+              >
+                Guardar chave e estabelecimento
+              </button>
+              <button
+                className="btn ghost"
+                disabled={busy || !co.hasTaxpayerKey}
+                onClick={() =>
+                  guard(async () => {
+                    await api.fiscal.feRequestSeries(cid, { documentType: sType, year: sYear });
+                    await loadCompany(cid);
+                  }, 'Série atribuída pela AGT.')
+                }
+              >
+                Pedir série à AGT
+              </button>
+              <button className="btn ghost" disabled={busy} onClick={() => saveCompany({ enabled: !co.enabled }, co.enabled ? 'Envio desactivado.' : 'Envio activado nesta empresa.')}>
+                {co.enabled ? 'Desactivar empresa' : 'Activar empresa'}
+              </button>
+              <button
+                className="btn ghost"
+                disabled={busy || !co.enabled}
+                onClick={() =>
+                  guard(async () => {
+                    await api.fiscal.feSync(cid);
+                    await loadCompany(cid);
+                  }, 'Sincronização feita.')
+                }
+              >
+                Enviar e consultar agora
+              </button>
+            </div>
+
+            {docs.length ? (
+              <div className="fx-table">
+                <table className="ptable">
+                  <thead>
+                    <tr><th>Documento</th><th>Estado</th><th>Tentativas</th><th>Erros</th><th /></tr>
+                  </thead>
+                  <tbody>
+                    {docs.slice(0, 30).map((d) => (
+                      <tr key={String(d.id)}>
+                        <td className="mono">{String(d.documentNo)}</td>
+                        <td><span className={`fx-badge ${tone[String(d.status)] ?? 'off'}`}>{stateLabel[String(d.status)] ?? String(d.status)}</span></td>
+                        <td>{String(d.attempts)}</td>
+                        <td style={{ fontSize: 12 }}>{d.errors ? JSON.stringify(d.errors).slice(0, 140) : ''}</td>
+                        <td>
+                          {d.status === 'INVALID' || d.status === 'ERROR' ? (
+                            <button
+                              className="btn sm ghost"
+                              onClick={() =>
+                                guard(async () => {
+                                  await api.fiscal.feRequeue(cid, String(d.documentNo));
+                                  await loadCompany(cid);
+                                }, 'Reposto na fila.')
+                              }
+                            >
+                              Repor
+                            </button>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <p className="muted" style={{ fontSize: 13, margin: '12px 0 0' }}>Escolhe uma empresa para gerir a chave, as séries e a fila de envio.</p>
+        )}
+      </div>
+    </>
   );
 }
