@@ -2682,3 +2682,12 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .pil
 .pgrid .pcard .pcode { color: var(--muted); font-size: 12.5px; }
 .pgrid .pcard .pprice { font-family: var(--nx-font-title, inherit); font-weight: 700; font-size: 17px; }
 @media (max-width: 820px) { .content { padding-bottom: 96px; } }
+
+/* Cabeçalho + pesquisa antigos (sticky-top/toolbar-sticky) com o mesmo aspecto do novo design */
+.sticky-top { position: static !important; background: none !important; margin: 0 0 16px !important; padding: 0 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.sticky-top > .content-head { margin-bottom: 14px !important; }
+.sticky-top > * + * { margin-top: 12px; }
+.toolbar-sticky { padding: 0 16px !important; min-height: 46px; border-radius: 12px !important; display: flex; align-items: center; box-shadow: none !important; }
+.toolbar-sticky > .row { width: 100%; }
+.toolbar-sticky:focus-within { border-color: var(--primary) !important; }
+.toolbar-sticky input[type="text"], .toolbar-sticky input:not([type]) { font-size: 14px; }
