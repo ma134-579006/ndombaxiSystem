@@ -1,4 +1,4 @@
-# Instalador Windows do Ndombaxi System — build MODERNO (Windows 10 e 11).
+# Instalador Windows do LPS Vendas — build MODERNO (Windows 10 e 11).
 #
 # "Instalar num clique, sem dependências" traduz-se em decisões concretas:
 #   • O Electron traz o seu próprio Chromium e Node — não se instala .NET, VC++
@@ -9,8 +9,8 @@
 #     assistente normal, o que ele espera de software sério, sem o obrigar a
 #     decidir nada: Seguinte, Seguinte, Concluir.
 appId: com.ndombaxi.system
-productName: Ndombaxi System
-copyright: © Ndombaxi System
+productName: LPS Vendas
+copyright: © LPS Vendas
 
 directories:
   output: release
@@ -72,7 +72,7 @@ nsis:
   allowElevation: true
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  shortcutName: Ndombaxi System
+  shortcutName: LPS Vendas
   # NÃO fixamos installerIcon/uninstallerIcon aqui. Essas opções do NSIS exigem
   # um ficheiro .ico e são passadas em BRUTO ao makensis (não são convertidas).
   # Deixamos o electron-builder derivar os ícones do instalador a partir do
@@ -84,4 +84,4 @@ nsis:
   deleteAppDataOnUninstall: false
   runAfterFinish: true
   artifactName: NdombaxiSystem-Setup-${version}-${arch}.${ext}
-  uninstallDisplayName: Ndombaxi System
+  uninstallDisplayName: LPS Vendas

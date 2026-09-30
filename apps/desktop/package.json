@@ -2,8 +2,8 @@
   "name": "@nexus/desktop",
   "version": "1.2.2",
   "private": true,
-  "description": "Ndombaxi System — aplicação Windows Offline-First (Gestão, Caixa e Loja num só instalador).",
-  "author": "Ndombaxi System",
+  "description": "LPS Vendas — aplicação Windows Offline-First (Gestão, Caixa e Loja num só instalador).",
+  "author": "LPS Vendas",
   "main": "dist/main/index.js",
   "scripts": {
     "prepare:resources": "node scripts/prepare-resources.mjs",

@@ -2,7 +2,7 @@
   "name": "@nexus/local-server",
   "version": "0.1.0",
   "private": true,
-  "description": "Ndombaxi Local Server — PostgreSQL portátil + API local supervisionada (offline-first).",
+  "description": "LPS Vendas Local Server — PostgreSQL portátil + API local supervisionada (offline-first).",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

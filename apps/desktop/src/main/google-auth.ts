@@ -47,11 +47,11 @@ export class GoogleAuthError extends Error {}
 
 /** Página mostrada no navegador quando corre bem. */
 const PAGINA_OK = `<!doctype html><html lang="pt"><head><meta charset="utf-8">
-<title>Ndombaxi System</title></head>
+<title>LPS Vendas</title></head>
 <body style="font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0f1626;color:#eef2ff;
 display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center">
 <div><h1 style="font-size:22px;margin:0 0 10px">Sessão iniciada</h1>
-<p style="opacity:.75;margin:0">Já pode voltar ao Ndombaxi System. Esta janela pode ser fechada.</p></div>
+<p style="opacity:.75;margin:0">Já pode voltar ao LPS Vendas. Esta janela pode ser fechada.</p></div>
 </body></html>`;
 
 function fecha(server: Server): void {

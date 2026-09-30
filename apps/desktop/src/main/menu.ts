@@ -16,7 +16,7 @@ export function buildMenu(opts: {
 }): void {
   const menu = Menu.buildFromTemplate([
     {
-      label: 'Ndombaxi',
+      label: 'LPS Vendas',
       submenu: [
         { label: 'Painel de Gestão', accelerator: 'Ctrl+1', click: () => opts.onOpenModule('gestao') },
         { label: 'Caixa (POS)', accelerator: 'Ctrl+2', click: () => opts.onOpenModule('caixa') },
@@ -82,7 +82,7 @@ export function buildMenu(opts: {
             if (decision.state === 'none' || !decision.release) {
               await dialog.showMessageBox(win ?? undefined!, {
                 type: 'info',
-                title: 'Ndombaxi System',
+                title: 'LPS Vendas',
                 message: 'Está a usar a versão mais recente.',
                 detail: `Versão instalada: ${decision.current}`,
               });
@@ -91,7 +91,7 @@ export function buildMenu(opts: {
             const r = await dialog.showMessageBox(win ?? undefined!, {
               type: 'info',
               title: 'Nova versão disponível',
-              message: `Ndombaxi System ${decision.release.version}`,
+              message: `LPS Vendas ${decision.release.version}`,
               detail: [
                 ...decision.release.notes.map((n) => `• ${n}`),
                 ...decision.release.fixes.map((f) => `• Correção: ${f}`),
@@ -104,13 +104,13 @@ export function buildMenu(opts: {
           },
         },
         {
-          label: 'Sobre o Ndombaxi System',
+          label: 'Sobre o LPS Vendas',
           click: () => {
             const win = opts.getWindow();
             void dialog.showMessageBox(win ?? undefined!, {
               type: 'info',
-              title: 'Ndombaxi System',
-              message: `Ndombaxi System ${app.getVersion()}`,
+              title: 'LPS Vendas',
+              message: `LPS Vendas ${app.getVersion()}`,
               detail: [
                 'ERP Offline-First para Angola.',
                 '',
