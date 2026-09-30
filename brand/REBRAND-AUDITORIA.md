@@ -10,8 +10,11 @@ Estado: codigo e assets prontos NO RAMO; nada fundido em `main`, nada alterado e
 - Autoria "Manuel Mbala Tomas Ndombaxi"; credenciais/e-mails de teste `@ndombaxi.ao`; AGENT-HANDOFF (registo historico); COMO-GERAR-SETUPS (nome da pasta local do utilizador).
 - `apps/api/src/support/bot-model.json` nao retreinado.
 
+## Dominio
+PRODUCAO = ndombaxisystem.com (inalterado). lpsvendas.com ainda NAO esta registado. O codigo deste ramo nao aponta para ele; a API so aceita um dominio novo por CORS quando este estiver em `CORS_EXTRA_HOSTS` (env, vazio por defeito) - evita que um terceiro registe o dominio e obtenha acesso CORS. A preparacao da migracao esta no ramo `dominio-lpsvendas`.
+
 ## Pendente de configuracao externa (nao feito)
-1. DNS/Cloudflare Pages: adicionar `lpsvendas.com` (+ www/loja/caixa) SEM remover `ndombaxisystem.com`.
+1. (so apos registar o dominio) DNS/Cloudflare Pages: adicionar `lpsvendas.com` (+ www/loja/caixa) SEM remover `ndombaxisystem.com`.
 2. OAuth Google: adicionar origens/redirects de lpsvendas.com (nao remover os antigos).
 3. SMTP: remetente/dominio lpsvendas.com (SPF/DKIM/DMARC).
 4. Depois de validado: virar as 33 referencias a `ndombaxisystem.com` no codigo (lista: `git grep ndombaxisystem.com`), canonical/og:url/sitemap, e 301 antigo -> novo.

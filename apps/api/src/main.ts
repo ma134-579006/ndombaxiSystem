@@ -30,10 +30,13 @@ async function bootstrap(): Promise<void> {
   const allowList = config.get('CORS_ORIGINS', { infer: true }) as string[];
   // Domínio(s) próprio(s) da plataforma: apex exacto + qualquer subdomínio
   // (www., loja., caixa., …) — assim não é preciso reconfigurar a cada subdomínio.
-  // lpsvendas.com é o domínio oficial do LPS Vendas; ndombaxisystem.com mantém-se
-  // durante a transição (aditivo — nada é retirado até o novo domínio estar validado).
-  const allowHosts = ['lpsvendas.com', 'ndombaxisystem.com'];
-  const allowHostSuffixes = ['.pages.dev', '.vercel.app', '.netlify.app', '.lpsvendas.com', '.ndombaxisystem.com'];
+  // PRODUÇÃO: ndombaxisystem.com. Um domínio novo (ex.: lpsvendas.com) só é aceite
+  // depois de definido em CORS_EXTRA_HOSTS (variável de ambiente, vazia por defeito):
+  // não o fixamos no código porque, enquanto não estiver registado por nós, qualquer
+  // terceiro o poderia registar e obter acesso CORS com credenciais à API.
+  const extraHosts = config.get('CORS_EXTRA_HOSTS', { infer: true }) as string[];
+  const allowHosts = ['ndombaxisystem.com', ...extraHosts];
+  const allowHostSuffixes = ['.pages.dev', '.vercel.app', '.netlify.app', '.ndombaxisystem.com', ...extraHosts.map((h) => `.${h}`)];
   // Aplicações instaladas (Windows/Android/iOS): a interface é servida do DISCO
   // do posto. No DESKTOP (Electron) pelo protocolo próprio `ndombaxi://`; no
   // MÓVEL (Capacitor) a WebView serve de `https://localhost` (Android) e
