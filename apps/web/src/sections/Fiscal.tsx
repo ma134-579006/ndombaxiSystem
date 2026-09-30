@@ -141,15 +141,17 @@ export function Fiscal() {
 
       {tab === 'saft' ? (
         <>
+          {!cfg.subscribed ? (
           <div className="fx-card">
             <div className="fx-card-h">
               <div>
                 <h3>Subscrição à AGT</h3>
                 <p>Estado do registo do sistema junto da AGT. Os dados que a AGT fornece e as legendas dos recibos configuram-se aqui, sem código.</p>
               </div>
-              {cfg.subscribed ? <span className="fx-badge ok"><Dot tone="ok" />Subscrito</span> : <button className="btn sm" onClick={subscribe}>Subscrever à AGT</button>}
+              <button className="btn sm" onClick={subscribe}>Subscrever à AGT</button>
             </div>
           </div>
+          ) : null}
 
           <SigningKeyCard st={key} onChanged={refreshStatus} />
 
