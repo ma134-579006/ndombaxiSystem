@@ -69,7 +69,7 @@ export function DownloadApps() {
   return (
     <section className="lp-section dl-section" id="baixar">
       <div className="wrap">
-        <h2>Leve o Ndombaxi consigo</h2>
+        <h2>Leve o LPS Vendas consigo</h2>
         <p className="lead">
           A mesma aplicação do site, agora instalada no seu equipamento — a funcionar mesmo
           sem internet e a sincronizar sozinha quando a ligação voltar.

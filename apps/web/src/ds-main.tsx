@@ -242,7 +242,7 @@ function Page() {
         <style>{'@media (max-width: 767px) { .ds-head { position: static !important; } }'}</style>
         <header className="ds-head" style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--nx-surface)', borderBottom: '1px solid var(--nx-border)' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', padding: '10px 20px', maxWidth: 1240, margin: '0 auto' }}>
-            <strong style={{ fontFamily: 'var(--nx-font-title)', fontSize: 16 }}>Ndombaxi · Design System</strong>
+            <strong style={{ fontFamily: 'var(--nx-font-title)', fontSize: 16 }}>LPS Vendas · Design System</strong>
             <span style={{ flex: 1 }} />
             <Switch label="Comparar claro/escuro" checked={compare} onChange={(e) => setCompare(e.target.checked)} />
             <Tabs label="Largura" value={String(width ?? 0)} onChange={(v) => setWidth(v === '0' ? null : Number(v))} tabs={[{ id: '0', label: 'Total' }, { id: '1024', label: '1024' }, { id: '768', label: '768' }, { id: '390', label: '390' }, { id: '320', label: '320' }]} />
@@ -253,7 +253,7 @@ function Page() {
           </nav>
         </header>
         <main style={{ maxWidth: 1240, margin: '0 auto', padding: '32px 20px' }}>
-          <PageHeader title="Biblioteca @nexus/ui" description="Fonte de verdade visual do Ndombaxi System: tokens, componentes, estados, responsividade e acessibilidade." />
+          <PageHeader title="Biblioteca @nexus/ui" description="Fonte de verdade visual do LPS Vendas: tokens, componentes, estados, responsividade e acessibilidade." />
           <div style={{ display: compare ? 'grid' : 'block', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 16, alignItems: 'start' }}>
             {(compare ? (['light', 'dark'] as Mode[]) : [mode]).map((m) => (
               <div key={m} data-nx-mode={m} className="nx-root" style={{ width: width ? width : undefined, maxWidth: '100%', margin: width ? '0 auto' : undefined, padding: compare || width ? 16 : 0, borderRadius: 16, border: compare || width ? '1px dashed var(--nx-border-strong)' : 0, overflow: 'hidden' }}>

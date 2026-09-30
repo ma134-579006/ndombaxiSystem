@@ -93,7 +93,7 @@ export function MailSettings() {
         <div className="field"><label>Senha {cfg?.hasPassword ? <span className="muted">(guardada: {cfg.passwordMask} — deixa vazio para manter)</span> : null}</label>
           <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder={cfg?.hasPassword ? '•••••••• (manter)' : 'palavra-passe de app'} autoComplete="new-password" /></div>
         <div className="field"><label>Remetente (opcional)</label>
-          <input value={fromAddr} onChange={(e) => setFromAddr(e.target.value)} placeholder="Ndombaxi System <a-tua-loja@gmail.com>" /></div>
+          <input value={fromAddr} onChange={(e) => setFromAddr(e.target.value)} placeholder="LPS Vendas <a-tua-loja@gmail.com>" /></div>
         <div className="switch-row"><span>Ativo (usar esta configuração)</span><Switch checked={enabled} onChange={setEnabled} /></div>
         <button className="btn lg block" style={{ marginTop: 8 }} onClick={() => void save()} disabled={saving}>{saving ? 'A guardar…' : 'Guardar configuração'}</button>
       </div>

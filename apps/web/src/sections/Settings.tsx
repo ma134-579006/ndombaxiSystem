@@ -229,7 +229,7 @@ function PrinterCard() {
       <h2>Página de teste</h2><div class="l"></div>
       <p>Se está a ler isto, a impressora está a funcionar.</p>
       <p>80 mm · ${new Date().toLocaleString('pt-PT')}</p>
-      <div class="l"></div><small>Ndombaxi System</small>
+      <div class="l"></div><small>LPS Vendas</small>
       <script>window.onload=function(){window.print()}<\/script></body></html>`);
     w.document.close();
   };

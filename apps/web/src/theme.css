@@ -1,5 +1,5 @@
 /* ============================================================
-   Ndombaxi System — Painel de Administração (tema escuro enterprise)
+   LPS Vendas — Painel de Administração (tema escuro enterprise)
    Design moderno: Sora (títulos) + DM Sans (corpo), profundidade,
    gradientes subtis, vidro (glass) e acentos vivos.
    ============================================================ */
@@ -1559,7 +1559,7 @@ body:has(.agent-activity.open) .agent-activity-fab {
 }
 
 /* ============================================================
-   WORDMARK "Ndombaxi System" — premium (gradiente do logo).
+   WORDMARK "LPS Vendas" — premium (gradiente do logo).
    Texto em ciano→azul→violeta com brilho subtil; tipografia
    display. Marca enterprise no login, criar conta e landing.
    ============================================================ */

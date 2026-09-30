@@ -1,4 +1,4 @@
-export const SYSTEM_NAME = 'Ndombaxi System';
+export const SYSTEM_NAME = 'LPS Vendas';
 export const AUTHOR = 'Manuel Mbala Tomás Ndombaxi';
 export const LOGO_SRC = '/logo.svg';
 

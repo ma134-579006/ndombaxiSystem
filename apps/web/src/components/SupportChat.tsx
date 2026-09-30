@@ -204,7 +204,7 @@ export function SupportChat() {
           <div className="sc-head">
             <span className="sc-dot" />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="sc-title">Assistente Ndombaxi</div>
+              <div className="sc-title">Assistente LPS Vendas</div>
               <div className="sc-sub">{human ? 'Equipa chamada — respondemos aqui' : 'Responde na hora · IA'}</div>
             </div>
             <button className="sc-reset" onClick={() => void resetChat()} title="Nova conversa (volta ao assistente)" aria-label="Nova conversa">
@@ -217,7 +217,7 @@ export function SupportChat() {
           <div className="sc-body" ref={scroller}>
             {msgs.map((m) => (
               <div key={m.id} className={`sc-msg ${m.sender === 'VISITOR' ? 'me' : m.sender === 'ADMIN' ? 'adm' : 'bot'}`}>
-                {m.sender === 'ADMIN' ? <span className="sc-who">Equipa Ndombaxi</span> : null}
+                {m.sender === 'ADMIN' ? <span className="sc-who">Equipa LPS Vendas</span> : null}
                 <MsgBody body={m.body} sender={m.sender} />
               </div>
             ))}

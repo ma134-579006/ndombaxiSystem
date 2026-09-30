@@ -60,7 +60,7 @@ function LadoDoBalcao({ host }: { host: NonNullable<Anfitriao['localServer']> })
       await host.setSharing(ligar);
       recarregar();
       toast.success(ligar
-        ? 'Partilha ligada. Feche e volte a abrir o Ndombaxi System para os outros aparelhos o encontrarem.'
+        ? 'Partilha ligada. Feche e volte a abrir o LPS Vendas para os outros aparelhos o encontrarem.'
         : 'Partilha desligada. Aplica-se ao reabrir o programa.');
     } finally { setOcupado(false); }
   };
@@ -74,7 +74,7 @@ function LadoDoBalcao({ host }: { host: NonNullable<Anfitriao['localServer']> })
       {!e.binaries ? (
         <div className="banner">
           Esta instalação não trouxe o servidor local. Instale a versão mais recente
-          do Ndombaxi System para trabalhar sem internet.
+          do LPS Vendas para trabalhar sem internet.
         </div>
       ) : !e.provisioned ? (
         <div className="banner">

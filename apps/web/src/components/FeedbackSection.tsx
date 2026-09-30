@@ -49,7 +49,7 @@ export function FeedbackSection() {
     <section className="lp-section" id="comentarios">
       <div className="wrap">
         <h2>A tua opinião constrói o sistema</h2>
-        <p className="lead">Diz-nos o que gostarias de ver no Ndombaxi System — e vota nas sugestões da comunidade.</p>
+        <p className="lead">Diz-nos o que gostarias de ver no LPS Vendas — e vota nas sugestões da comunidade.</p>
 
         <div className="fb-form">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="O teu nome (opcional)" maxLength={80} />

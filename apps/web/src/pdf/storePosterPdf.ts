@@ -180,7 +180,7 @@ export async function buildStorePosterPdf(a: StorePosterArgs): Promise<jsPDF> {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...brand);
   doc.text(empresa, M, fy + 18);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(170, 178, 190);
-  doc.text('Loja online segura · Gerado por Ndombaxi System', W - M, fy + 18, { align: 'right' });
+  doc.text('Loja online segura · Gerado por LPS Vendas', W - M, fy + 18, { align: 'right' });
 
   return doc;
 }

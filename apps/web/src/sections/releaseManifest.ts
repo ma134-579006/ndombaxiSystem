@@ -52,7 +52,7 @@ export const RELEASE_MANIFEST: Record<AppPlatform, ReleaseManifestEntry> = {
     minSupported: '1.0.0',
     requirements: 'Android 6 ou superior',
     notes: [
-      'Ícone e nome do Ndombaxi no instalador e no ambiente do telemóvel',
+      'Ícone e nome do LPS Vendas no instalador e no ambiente do telemóvel',
       'Faturas A4 com desenho profissional',
       'Recibo térmico sempre dentro da largura do papel',
     ],
