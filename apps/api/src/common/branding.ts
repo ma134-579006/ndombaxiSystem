@@ -5,8 +5,8 @@
  * referenciados em todo o backend (health, recibos, etc.). A assinatura do
  * autor faz parte da identidade do produto.
  */
-export const SYSTEM_NAME = 'Ndombaxi System';
-export const SYSTEM_SHORT = 'Ndombaxi';
+export const SYSTEM_NAME = 'LPS Vendas';
+export const SYSTEM_SHORT = 'LPS Vendas';
 export const SYSTEM_VERSION = '3.0';
 
 /** Autor / detentor dos direitos de autor do sistema. */

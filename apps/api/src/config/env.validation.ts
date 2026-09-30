@@ -22,7 +22,7 @@ export const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('7d'),
 
-  TWOFA_ISSUER: z.string().default('Ndombaxi System'),
+  TWOFA_ISSUER: z.string().default('LPS Vendas'),
 
   RATE_LIMIT_USER_PER_MIN: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_TENANT_PER_MIN: z.coerce.number().int().positive().default(1000),

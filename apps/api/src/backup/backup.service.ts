@@ -141,7 +141,7 @@ export class BackupService {
     );
     if (!rows[0]) throw new BadRequestException('Backup não encontrado.');
     const stamp = rows[0].created_at.toISOString().slice(0, 10);
-    return { content: rows[0].content_b64, fileName: `ndombaxi-backup-${stamp}.ndbak` };
+    return { content: rows[0].content_b64, fileName: `lps-vendas-backup-${stamp}.ndbak` };
   }
 
   async remove(schema: string, id: string): Promise<void> {
@@ -177,7 +177,7 @@ export class BackupService {
     try { data = JSON.parse(json); } catch { throw new BadRequestException('Ficheiro de backup inválido.'); }
     const d = data as Partial<BackupDump>;
     if (d.format !== BACKUP_FORMAT || typeof d.tables !== 'object' || !d.tables) {
-      throw new BadRequestException('Este ficheiro não é um backup do Ndombaxi System.');
+      throw new BadRequestException('Este ficheiro não é um backup do LPS Vendas.');
     }
     return d as BackupDump;
   }

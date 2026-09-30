@@ -124,7 +124,7 @@ export class TenantsService {
     });
     await this.mail.send(
       company.responsibleEmail,
-      `Ndombaxi System — Empresa aprovada`,
+      `LPS Vendas — Empresa aprovada`,
       `A empresa "${company.name}" foi aprovada. Já pode aceder com o código ${company.code}.`,
     );
     return updated;
@@ -176,7 +176,7 @@ export class TenantsService {
     });
     await this.mail.send(
       company.responsibleEmail,
-      `Ndombaxi System — Estado da empresa alterado`,
+      `LPS Vendas — Estado da empresa alterado`,
       `O estado da empresa "${company.name}" passou para ${status}.`,
     );
     return updated;
@@ -254,7 +254,7 @@ export class TenantsService {
     });
     await this.mail.send(
       company.responsibleEmail,
-      'Ndombaxi System — Plano reativado',
+      'LPS Vendas — Plano reativado',
       `O plano da empresa "${company.name}" foi reativado/estendido até ${expiresAt.toLocaleDateString('pt-PT')}. Já pode aceder normalmente.`,
     ).catch(() => undefined);
 
@@ -315,7 +315,7 @@ export class TenantsService {
     });
     await this.mail.send(
       email,
-      'Ndombaxi System — Senha reposta',
+      'LPS Vendas — Senha reposta',
       `A sua senha foi reposta pelo administrador. Senha temporária: ${temporaryPassword}\nAltere-a após entrar.`,
     );
     return { email, temporaryPassword };

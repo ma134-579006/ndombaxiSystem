@@ -367,7 +367,7 @@ export class AgentToolsService {
       });
       doc.fontSize(19).fillColor('#0f1729').text(titulo, { align: 'left' });
       doc.moveDown(0.3);
-      doc.fontSize(9).fillColor('#5a6679').text(`Ndombaxi System · ${new Date().toLocaleDateString('pt-PT')}`);
+      doc.fontSize(9).fillColor('#5a6679').text(`LPS Vendas · ${new Date().toLocaleDateString('pt-PT')}`);
       doc.moveTo(48, doc.y + 6).lineTo(547, doc.y + 6).strokeColor('#2563eb').lineWidth(2).stroke();
       doc.moveDown(1);
       doc.fontSize(11).fillColor('#1c2436');

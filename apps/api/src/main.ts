@@ -30,8 +30,10 @@ async function bootstrap(): Promise<void> {
   const allowList = config.get('CORS_ORIGINS', { infer: true }) as string[];
   // Domínio(s) próprio(s) da plataforma: apex exacto + qualquer subdomínio
   // (www., loja., caixa., …) — assim não é preciso reconfigurar a cada subdomínio.
-  const allowHosts = ['ndombaxisystem.com'];
-  const allowHostSuffixes = ['.pages.dev', '.vercel.app', '.netlify.app', '.ndombaxisystem.com'];
+  // lpsvendas.com é o domínio oficial do LPS Vendas; ndombaxisystem.com mantém-se
+  // durante a transição (aditivo — nada é retirado até o novo domínio estar validado).
+  const allowHosts = ['lpsvendas.com', 'ndombaxisystem.com'];
+  const allowHostSuffixes = ['.pages.dev', '.vercel.app', '.netlify.app', '.lpsvendas.com', '.ndombaxisystem.com'];
   // Aplicações instaladas (Windows/Android/iOS): a interface é servida do DISCO
   // do posto. No DESKTOP (Electron) pelo protocolo próprio `ndombaxi://`; no
   // MÓVEL (Capacitor) a WebView serve de `https://localhost` (Android) e
@@ -76,7 +78,7 @@ async function bootstrap(): Promise<void> {
 
   if (config.get('NODE_ENV', { infer: true }) !== 'production') {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('Ndombaxi System API')
+      .setTitle('LPS Vendas API')
       .setDescription('Core API — multi-tenant, auth, RBAC, POS/ERP/e-commerce (AGT)')
       .setVersion('3.0.0')
       .addBearerAuth()
@@ -87,7 +89,7 @@ async function bootstrap(): Promise<void> {
 
   const port = config.get('PORT', { infer: true });
   await app.listen(port);
-  logger.log(`Ndombaxi System API em http://localhost:${port}${prefix ? '/' + prefix : ''}`);
+  logger.log(`LPS Vendas API em http://localhost:${port}${prefix ? '/' + prefix : ''}`);
 }
 
 void bootstrap();
