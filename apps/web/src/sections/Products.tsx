@@ -79,6 +79,7 @@ export function Products() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pfilter, setPfilter] = useState<'ALL' | 'IN' | 'OUT' | 'ONLINE'>('ALL');
   const [busy, setBusy] = useState(false);
   const [entering, setEntering] = useState(false);
   const [producing, setProducing] = useState(false);
@@ -300,69 +301,85 @@ export function Products() {
   const siMargin = siSale > 0 ? (siUnitProfit / siSale) * 100 : 0;
   const kz = (n: number) => n.toLocaleString('pt-PT', { maximumFractionDigits: 2 }) + ' Kz';
 
+  const sellable = products.filter((p) => !p.is_ingredient);
+  const stockValue = sellable.reduce((s, p) => (p.is_production ? s : s + grossUnit(p) * Math.max(0, Number(p.stock_qty))), 0);
+  const outOfStock = sellable.filter((p) => !p.is_production && Number(p.stock_qty) <= 0).length;
+  const onlineCount = products.filter((p) => p.show_online && !p.is_ingredient).length;
+  const visible = filtered.filter((p) => {
+    if (pfilter === 'IN') return !p.is_ingredient && (p.is_production || Number(p.stock_qty) > 0);
+    if (pfilter === 'OUT') return !p.is_ingredient && !p.is_production && Number(p.stock_qty) <= 0;
+    if (pfilter === 'ONLINE') return !!p.show_online && !p.is_ingredient;
+    return true;
+  });
+
   return (
-    <>
-      <div className="sticky-top">
-        <div className="content-head">
-          <h2>Catálogo de produtos</h2>
-          <span className="spacer" />
-          {/* Fornada (padaria/pastelaria/produção): só aparece se houver
-              produtos com ficha técnica — não polui os outros negócios. */}
-          {products.some((p) => p.has_recipe) ? (
-            <button className="btn ghost" onClick={() => setProducing(true)}>
-              Fornada
-            </button>
-          ) : null}
-          <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
-            <IconTruck size={16} /> Adicionar stock
+    <div className="fx-wide">
+      <div className="content-head">
+        <h2>Catálogo de produtos</h2>
+        <span className="spacer" />
+        {/* Fornada (padaria/pastelaria/produção): só aparece se houver
+            produtos com ficha técnica — não polui os outros negócios. */}
+        {products.some((p) => p.has_recipe) ? (
+          <button className="btn ghost" onClick={() => setProducing(true)}>
+            Fornada
           </button>
-          <button className="btn" onClick={openCreate}>
-            <IconPlus size={18} /> Novo produto
-          </button>
-        </div>
+        ) : null}
+        <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
+          <IconTruck size={16} /> Adicionar stock
+        </button>
+        <button className="btn" onClick={openCreate}>
+          <IconPlus size={18} /> Novo produto
+        </button>
+      </div>
 
-        <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
-          <div className="row">
-            <IconSearch size={18} />
-            <input
-              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Procurar por nome ou código…"
-            />
-            {filtered.length > 0 ? (
-              <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /> Todos
-              </label>
-            ) : null}
-          </div>
-        </div>
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Produtos</div><div className="vl">{sellable.length}</div><div className="sb">{products.length - sellable.length} matérias-primas à parte</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Valor em stock</div><div className="vl">{formatKz(stockValue)}</div><div className="sb">ao preço de venda (c/ IVA)</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Sem stock</div><div className="vl"><span className={`fx-dot${outOfStock ? ' bad' : ' ok'}`} />{outOfStock}</div><div className="sb">a repor</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Na loja online</div><div className="vl">{onlineCount}</div><div className="sb">visíveis aos clientes</div></div></div>
+      </div>
 
-        {selected.size > 0 ? (
-          <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
-            <strong>{selected.size} selecionado(s)</strong>
-            <span className="spacer" />
-            <button className="btn sm ghost" onClick={() => setSelected(new Set())} disabled={busy}>Limpar</button>
-            <button className="btn sm warn" onClick={bulkDeactivate} disabled={busy}>Desativar</button>
-            <button className="btn sm danger" onClick={bulkDelete} disabled={busy}>Eliminar</button>
-          </div>
+      <div className="fx-toolbar">
+        <div className="fx-tabs" role="tablist" aria-label="Filtrar produtos">
+          {([['ALL', 'Todos'], ['IN', 'Com stock'], ['OUT', 'Sem stock'], ['ONLINE', 'Online']] as const).map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={pfilter === k} className={pfilter === k ? 'on' : ''} onClick={() => setPfilter(k)}>{l}</button>
+          ))}
+        </div>
+        <label className="fx-search">
+          <IconSearch size={17} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar por nome ou código…" aria-label="Procurar produtos" />
+        </label>
+        {filtered.length > 0 ? (
+          <label className="row" style={{ gap: 6, fontSize: 13, whiteSpace: 'nowrap', cursor: 'pointer' }}>
+            <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /> Selecionar todos
+          </label>
         ) : null}
       </div>
+
+      {selected.size > 0 ? (
+        <div className="fx-card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
+          <strong>{selected.size} selecionado(s)</strong>
+          <span className="spacer" />
+          <button className="btn sm ghost" onClick={() => setSelected(new Set())} disabled={busy}>Limpar</button>
+          <button className="btn sm warn" onClick={bulkDeactivate} disabled={busy}>Desativar</button>
+          <button className="btn sm danger" onClick={bulkDelete} disabled={busy}>Eliminar</button>
+        </div>
+      ) : null}
 
       {error ? <div className="banner danger">{error}</div> : null}
 
       {loading ? (
         <div className="card"><div className="loading">A carregar produtos…</div></div>
-      ) : filtered.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="card">
           <div className="empty">
             <IconCube size={40} />
-            <p>{q ? 'Nenhum produto encontrado.' : 'Ainda não há produtos. Crie o primeiro.'}</p>
+            <p>{q || pfilter !== 'ALL' ? 'Nenhum produto encontrado.' : 'Ainda não há produtos. Crie o primeiro.'}</p>
           </div>
         </div>
       ) : (
         <div className="pgrid">
-          {filtered.map((p) => (
+          {visible.map((p) => (
             <div className={`pcard${selected.has(p.id) ? ' sel' : ''}`} key={p.id}>
               <label className="pcard-check" onClick={(e) => e.stopPropagation()}>
                 <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSel(p.id)} />
@@ -571,7 +588,7 @@ export function Products() {
           onSaved={() => { setProducing(false); void load(); }}
         />
       ) : null}
-    </>
+    </div>
   );
 }
 
