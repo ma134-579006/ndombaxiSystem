@@ -1045,7 +1045,7 @@ button, .btn, .prod, .icon-btn, .chip { -webkit-tap-highlight-color: transparent
   }
 }
 
-/* WORDMARK premium "Ndombaxi System" (gradiente do logo) — consistente com web. */
+/* WORDMARK premium "LPS Vendas" (gradiente do logo) — consistente com web. */
 @media screen {
   .login .brand h1, .login-card .brand h1 {
     background: linear-gradient(100deg, #22d3ee 0%, #5b95ff 46%, #a855f7 100%);
