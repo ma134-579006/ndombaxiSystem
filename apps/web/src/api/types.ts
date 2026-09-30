@@ -1037,6 +1037,7 @@ export interface AiProvider {
   voice: string | null;
   hasApiKey: boolean;
   apiKeyMask: string | null;
+  keyUnreadable?: boolean;
   isActive: boolean;
   isDefault: boolean;
   priority: number;
