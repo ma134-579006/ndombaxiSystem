@@ -2714,3 +2714,8 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .pil
 .agent-composer textarea { font-size: 14.5px; }
 .agent-hint { font-size: 12px; color: var(--muted); }
 .agent-sendbtn { border-radius: 12px; background: var(--primary); }
+
+/* ── Logo LPS Vendas: sempre visível (v9) ─────────────────────────────── */
+.auth-logo-wide { display: block; width: auto; height: clamp(56px, 13dvh, 112px); max-width: 100%; object-fit: contain; margin: 0 0 clamp(6px, 1.6dvh, 16px) -6px; filter: drop-shadow(0 6px 18px rgba(0,0,0,.45)); }
+.sidebar .brand img { width: 46px; height: 46px; padding: 2px; border-radius: 12px; background: rgba(255,255,255,.04); }
+.lock-logo { width: 46px; height: 46px; border-radius: 10px; }

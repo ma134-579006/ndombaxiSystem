@@ -110,7 +110,7 @@ jobs:
       - name: Publicar artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: NdombaxiSystem-ios
+          name: LPSVendas-ios
           path: |
             ${{ runner.temp }}/ipa/*.ipa
           if-no-files-found: warn

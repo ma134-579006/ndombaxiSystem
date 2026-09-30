@@ -4,7 +4,7 @@ Estado: codigo e assets prontos NO RAMO; nada fundido em `main`, nada alterado e
 
 ## Mantido de proposito (tecnico / historico / compatibilidade)
 - IDs: `com.ndombaxi.system`, `ndombaxi://`, chaves `ndombaxi.*`, bases IndexedDB `ndombaxi-*`, `window.ndombaxi`, `.ndbak`, `BACKUP_FORMAT`.
-- Desktop: `userData` fixo em `%APPDATA%/Ndombaxi System` (preserva BD local, chave do dispositivo, definicoes); `artifactName NdombaxiSystem-Setup-*` (auto-update); pasta Documentos/Ndombaxi/Backups.
+- Desktop: `userData` fixo em `%APPDATA%/Ndombaxi System` (preserva BD local, chave do dispositivo, definicoes); `artifactName` passou a `LPSVendas-Setup-*` (nome do instalador visivel ao utilizador; o auto-update usa URLs guardadas na base de dados, nao o nome); pasta Documentos/Ndombaxi/Backups.
 - SAF-T/AGT: `productId` `Ndombaxi System/Ndombaxi` e `sourceId` `Ndombaxi` (saft-builder, schema.prisma, einvoice.service) — nao alterar sem validacao AGT.
 - Infra: `ndombaxi-api-3nmz.onrender.com`, servico/imagens `ndombaxi-api`, `NDOMBAXI_API_URL`.
 - Autoria "Manuel Mbala Tomas Ndombaxi"; credenciais/e-mails de teste `@ndombaxi.ao`; AGENT-HANDOFF (registo historico); COMO-GERAR-SETUPS (nome da pasta local do utilizador).

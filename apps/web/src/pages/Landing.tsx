@@ -9,7 +9,7 @@ import type {
   PublicPlan,
   RegisterCompanyResult,
 } from '../api/types';
-import { LOGO_SRC } from '../brand';
+import { LOGO_WIDE } from '../brand';
 import { CAIXA_URL, STORE_URL } from '../config';
 import {
   IconBoxes, IconBuilding, IconCalendar, IconCart, IconCartIn, IconCashRegister, IconCheck,
@@ -164,8 +164,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       <nav className={`lp-nav${scrolled ? ' scrolled' : ''}${menuOpen ? ' open' : ''}`}>
         <div className="lp-nav-bar">
           <a className="lp-brand" href="#top" onClick={closeMenu} aria-label={cfg?.brandName ?? 'LPS Vendas'}>
-            <img className="logo" src={LOGO_SRC} alt="" />
-            <span className="nm">{cfg?.brandName ?? 'LPS Vendas'}</span>
+            <img className="logo" src={LOGO_WIDE} alt="" />
           </a>
           <div className="lp-nav-links" aria-label="Secções da página">
             {NAV_LINKS.map((l) => (
@@ -464,9 +463,8 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           <div className="wrap lp-foot-cols">
             <div className="lp-fcol lp-fbrand">
               <div className="fb-logo-row">
-                <img src={LOGO_SRC} alt={cfg?.brandName ?? 'LPS Vendas'} />
+                <img src={LOGO_WIDE} alt={cfg?.brandName ?? 'LPS Vendas'} />
                 <div>
-                  <div className="fnm">{cfg?.brandName ?? 'LPS Vendas'}</div>
                   <div className="ftag">Sempre com o seu negócio</div>
                 </div>
               </div>
