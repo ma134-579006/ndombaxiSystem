@@ -25,6 +25,7 @@ function ago(iso: string): string {
  *   • 100% responsivo (telemóvel → desktop).
  */
 export function SupportAdmin() {
+  const [listTab, setListTab] = useState<'WAIT' | 'ALL'>('WAIT');
   const [chats, setChats] = useState<AdminChat[]>([]);
   const [active, setActive] = useState<AdminChat | null>(null);
   const [msgs, setMsgs] = useState<SupportMsg[]>([]);
@@ -111,7 +112,7 @@ export function SupportAdmin() {
             <div key={m.id} className={`sc-msg ${m.sender === 'ADMIN' ? 'me' : m.sender === 'VISITOR' ? 'bot' : 'adm'}`}
               style={{ alignSelf: m.sender === 'ADMIN' ? 'flex-end' : 'flex-start' }}>
               <span className="sc-who" style={{ color: m.sender === 'ADMIN' ? '#fff' : undefined }}>
-                {m.sender === 'ADMIN' ? 'Eu (Super Admin)' : m.sender === 'BOT' ? 'Bot 🤖' : active.visitor_name || 'Visitante'}
+                {m.sender === 'ADMIN' ? 'Eu (Super Admin)' : m.sender === 'BOT' ? 'Assistente' : active.visitor_name || 'Visitante'}
               </span>
               <MsgBody body={m.body} sender={m.sender} />
             </div>
@@ -132,9 +133,12 @@ export function SupportAdmin() {
     );
   }
 
-  // ── ECRÃ 1: lista de conversas (só a lista) ──────────────────
+  // ── ECRÃ 1: lista de conversas ──────────────────────────────
+  const waiting = chats.filter((c) => c.status === 'HUMAN' || c.unread_admin > 0);
+  const humans = chats.filter((c) => c.status === 'HUMAN').length;
+  const visible = listTab === 'WAIT' ? waiting : chats;
   return (
-    <>
+    <div className="fx-wide">
       <div className="content-head">
         <h2>Suporte do site</h2>
         <span className="spacer" />
@@ -142,24 +146,36 @@ export function SupportAdmin() {
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
 
-      <div className="card msgr-list">
-        {chats.length === 0 ? <div className="empty" style={{ padding: 30 }}><p>Sem conversas ainda.</p></div>
-          : chats.map((c) => (
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconRefresh size={20} /></span><div><div className="lb">Por responder</div><div className="vl"><span className={`fx-dot${waiting.length ? ' bad' : ' ok'}`} />{waiting.length}</div><div className="sb">com mensagens novas</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconRefresh size={20} /></span><div><div className="lb">Pedem a equipa</div><div className="vl">{humans}</div><div className="sb">saíram do assistente</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconRefresh size={20} /></span><div><div className="lb">Conversas</div><div className="vl">{chats.length}</div><div className="sb">no total</div></div></div>
+      </div>
+
+      <div className="fx-tabs" role="tablist" aria-label="Filtrar conversas">
+        <button role="tab" aria-selected={listTab === 'WAIT'} className={listTab === 'WAIT' ? 'on' : ''} onClick={() => setListTab('WAIT')}>Por responder ({waiting.length})</button>
+        <button role="tab" aria-selected={listTab === 'ALL'} className={listTab === 'ALL' ? 'on' : ''} onClick={() => setListTab('ALL')}>Todas ({chats.length})</button>
+      </div>
+
+      <div className="fx-card msgr-list" style={{ padding: 8 }}>
+        {visible.length === 0 ? <div className="empty" style={{ padding: 30 }}><p>{listTab === 'WAIT' ? 'Tudo respondido.' : 'Sem conversas ainda.'}</p></div>
+          : visible.map((c) => (
             <button key={c.id} className="msgr-row" onClick={() => void open(c)}>
               <span className={`fb-avatar${c.status === 'HUMAN' ? ' hot' : ''}`}>{(c.visitor_name || 'V').slice(0, 1).toUpperCase()}</span>
               <span className="msgr-row-main">
                 <span className="msgr-row-top">
                   <strong className={c.unread_admin > 0 ? 'unread' : ''}>{c.visitor_name || 'Visitante'}</strong>
+                  {c.status === 'HUMAN' ? <span className="fx-badge bad" style={{ padding: '2px 9px', fontSize: 11.5 }}>Pede a equipa</span> : null}
                   <span className="msgr-when">{ago(c.last_msg_at)}</span>
                 </span>
                 <span className={`msgr-snippet${c.unread_admin > 0 ? ' unread' : ''}`}>
-                  {c.status === 'HUMAN' ? '🔔 ' : ''}{(c.last_body || '—').replace(/\[\[SVG\]\][\s\S]*$/, ' 📷')}
+                  {(c.last_body || '—').replace(/\[\[SVG\]\][\s\S]*$/, '(imagem)')}
                 </span>
               </span>
               {c.unread_admin > 0 ? <span className="noti-badge inline">{c.unread_admin}</span> : null}
             </button>
           ))}
       </div>
-    </>
+    </div>
   );
 }
