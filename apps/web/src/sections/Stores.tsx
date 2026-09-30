@@ -64,11 +64,12 @@ export function Stores() {
     finally { setBulkBusy(false); }
   };
 
+  const activeCount = items.filter((s) => s.is_active).length;
+
   return (
-    <>
+    <div className="fx-wide">
       <div className="content-head">
         <h2>Lojas da empresa</h2>
-        <span className="muted" style={{ fontSize: 13 }}>{items.length} loja(s)</span>
         {selectable.length > 0 ? (
           <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer', marginLeft: 8 }}>
             <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todas" /> Todas
@@ -77,6 +78,12 @@ export function Stores() {
         <span className="spacer" />
         <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Nova loja</button>
+      </div>
+
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Lojas</div><div className="vl">{items.length}</div><div className="sb">na empresa</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Activas</div><div className="vl"><span className="fx-dot ok" />{activeCount}</div><div className="sb">a vender</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Inactivas</div><div className="vl"><span className={`fx-dot${items.length - activeCount ? ' bad' : ''}`} />{items.length - activeCount}</div><div className="sb">desativadas</div></div></div>
       </div>
 
       {selected.size > 0 ? (
@@ -120,7 +127,7 @@ export function Stores() {
 
       {creating ? <StoreModal onClose={() => setCreating(false)} onSaved={() => { setCreating(false); void load(); }} /> : null}
       {editing ? <StoreModal store={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void load(); }} /> : null}
-    </>
+    </div>
   );
 }
 

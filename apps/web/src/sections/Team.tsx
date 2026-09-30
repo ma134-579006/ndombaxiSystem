@@ -51,8 +51,11 @@ export function Team() {
     finally { setBusyId(null); }
   };
 
+  const activeUsers = users.filter((u) => u.is_active).length;
+  const withPin = users.filter((u) => u.has_pin).length;
+
   return (
-    <>
+    <div className="fx-wide">
       <div className="content-head">
         <h2>Equipa & acessos</h2>
         <span className="spacer" />
@@ -60,10 +63,16 @@ export function Team() {
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Novo utilizador</button>
       </div>
 
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconShield size={20} /></span><div><div className="lb">Utilizadores</div><div className="vl">{users.length}</div><div className="sb">com acesso registado</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconShield size={20} /></span><div><div className="lb">Activos</div><div className="vl"><span className="fx-dot ok" />{activeUsers}</div><div className="sb">{users.length - activeUsers} inactivo(s)</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconLock size={20} /></span><div><div className="lb">Com PIN da Caixa</div><div className="vl">{withPin}</div><div className="sb">{users.length - withPin} sem PIN</div></div></div>
+      </div>
+
       {info ? <div className="banner success">{info}</div> : null}
       {error ? <div className="banner danger">{error}</div> : null}
 
-      <div className="card">
+      <div className="fx-card" style={{ padding: 8 }}>
         {loading ? <div className="loading">A carregar…</div>
           : users.length === 0 ? <div className="empty"><IconBuilding size={40} /><p>Sem utilizadores. Cria o primeiro acesso.</p></div>
           : (
@@ -80,8 +89,8 @@ export function Team() {
                     <td data-label="Estado"><span className={`pill ${u.is_active ? 'on' : 'off'}`}>{u.is_active ? 'Activo' : 'Inactivo'}</span></td>
                     <td className="actions no-print">
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                        <button className="btn sm ghost" disabled={busyId === u.id} onClick={() => setEditing(u)} title="Editar papel/loja"><IconEdit size={14} /></button>
-                        <button className="btn sm ghost" disabled={busyId === u.id} onClick={() => setPinFor(u)} title="Definir PIN do POS"><IconLock size={14} /></button>
+                        <button className="btn sm ghost" disabled={busyId === u.id} onClick={() => setEditing(u)} title="Editar papel/loja" aria-label={`Editar ${u.name}`}><IconEdit size={14} /></button>
+                        <button className="btn sm ghost" disabled={busyId === u.id} onClick={() => setPinFor(u)} title="Definir PIN do POS" aria-label={`Definir PIN de ${u.name}`}><IconLock size={14} /></button>
                         <button className="btn sm ghost" disabled={busyId === u.id} onClick={() => resetPwd(u)}>Repor senha</button>
                         {u.is_active ? <button className="btn sm danger" disabled={busyId === u.id} onClick={() => deactivate(u)}>Desativar</button> : null}
                       </div>
@@ -96,7 +105,7 @@ export function Team() {
       {creating ? <CreateModal stores={stores} onClose={() => setCreating(false)} onCreated={(temp) => { setCreating(false); if (temp) setInfo(`Senha temporária: ${temp} — entregue ao funcionário (só aparece agora).`); void load(); }} /> : null}
       {editing ? <EditModal user={editing} stores={stores} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void load(); }} /> : null}
       {pinFor ? <PinModal user={pinFor} onClose={() => setPinFor(null)} onSaved={() => { setPinFor(null); setInfo('PIN definido.'); void load(); }} /> : null}
-    </>
+    </div>
   );
 }
 

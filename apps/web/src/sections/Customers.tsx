@@ -102,29 +102,33 @@ export function Customers() {
   const totalSpent = useMemo(() => rows.reduce((s, r) => s + (r.total_spent ?? 0), 0), [rows]);
   const withPurchases = useMemo(() => rows.filter((r) => (r.purchases ?? 0) > 0).length, [rows]);
 
+  const avgTicket = useMemo(() => {
+    const n = rows.reduce((s, r) => s + (r.purchases ?? 0), 0);
+    return n > 0 ? totalSpent / n : 0;
+  }, [rows, totalSpent]);
+
   return (
-    <>
-      <div className="sticky-top">
-        <div className="content-head">
-          <h2>Clientes <span className="muted" style={{ fontWeight: 500, fontSize: 14 }}>· {rows.length} registado{rows.length === 1 ? '' : 's'}</span></h2>
-          <span className="spacer" />
-          <button className="btn" onClick={openCreate}><IconPlus size={17} /> Novo cliente</button>
-        </div>
+    <div className="fx-wide">
+      <div className="content-head">
+        <h2>Clientes</h2>
+        <span className="spacer" />
+        <button className="btn" onClick={openCreate}><IconPlus size={17} /> Novo cliente</button>
+      </div>
 
-        <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
-          <div className="row">
-            <IconSearch size={18} />
-            <input
-              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '13px 0', color: 'var(--text)' }}
-              value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar por nome, telefone, email ou NIF…"
-            />
-          </div>
-        </div>
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconSearch size={20} /></span><div><div className="lb">Clientes</div><div className="vl">{rows.length}</div><div className="sb">{withPurchases} já compraram</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconSearch size={20} /></span><div><div className="lb">Faturado a clientes</div><div className="vl">{formatKz(totalSpent)}</div><div className="sb">compras identificadas</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconSearch size={20} /></span><div><div className="lb">Compra média</div><div className="vl">{formatKz(avgTicket)}</div><div className="sb">por compra</div></div></div>
+      </div>
 
+      <div className="fx-toolbar">
+        <label className="fx-search" style={{ maxWidth: 520 }}>
+          <IconSearch size={17} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar por nome, telefone, e-mail ou NIF…" aria-label="Procurar clientes" />
+        </label>
         {selected.size > 0 ? (
-          <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
+          <div className="row" style={{ gap: 10 }}>
             <strong>{selected.size} selecionado(s)</strong>
-            <span className="spacer" style={{ flex: 1 }} />
             <button className="btn sm danger" onClick={() => void bulkDelete()} disabled={bulkBusy}>Eliminar selecionados</button>
           </div>
         ) : null}
@@ -132,44 +136,39 @@ export function Customers() {
 
       {error ? <div className="banner danger">{error}</div> : null}
 
-      <div className="kpi-grid">
-        <div className="kpi-card"><div className="kpi-label">Clientes</div><div className="kpi-value">{rows.length}</div><div className="kpi-sub">{withPurchases} já compraram</div></div>
-        <div className="kpi-card success"><div className="kpi-label">Faturado a clientes</div><div className="kpi-value" style={{ fontSize: 22 }}>{formatKz(totalSpent)}</div><div className="kpi-sub">soma das compras identificadas</div></div>
-      </div>
-
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="fx-card" style={{ padding: 8 }}>
         {loading ? <div className="loading" style={{ padding: 26 }}>A carregar…</div>
           : filtered.length === 0 ? <div className="empty" style={{ padding: 30 }}><p>{q ? 'Sem resultados.' : 'Ainda não há clientes — cria o primeiro ou regista-os no caixa durante a venda.'}</p></div>
           : <>
-            <div className="list-row" style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
-              <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" />
-              <span className="muted" style={{ fontSize: 12.5 }}>Selecionar todos ({filtered.length})</span>
-            </div>
+            <label className="row" style={{ padding: '8px 14px', gap: 10, fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /> Selecionar todos ({filtered.length})
+            </label>
             {filtered.map((c) => (
-            <div key={c.id} className="list-row" style={{ padding: '12px 16px' }}>
-              <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSel(c.id)} aria-label={`Selecionar ${c.name}`} />
-              <span className="fb-avatar">{c.name.slice(0, 1).toUpperCase()}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <strong style={{ fontSize: 14 }}>{c.name}</strong>
-                <div className="muted" style={{ fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {[c.phone, c.email, c.tax_id ? `NIF ${c.tax_id}` : null].filter(Boolean).join(' · ') || 'sem contactos'}
+              <div key={c.id} className="co-row">
+                <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSel(c.id)} aria-label={`Selecionar ${c.name}`} />
+                <span className="co-av" aria-hidden="true">{c.name.slice(0, 1).toUpperCase()}</span>
+                <div className="co-main">
+                  <div className="co-name">{c.name}</div>
+                  <div className="co-meta">
+                    {[c.phone, c.email, c.tax_id ? `NIF ${c.tax_id}` : null].filter(Boolean).map((x) => <span key={String(x)}>{x}</span>)}
+                    {!c.phone && !c.email && !c.tax_id ? <span>sem contactos</span> : null}
+                  </div>
+                  <div className="co-state">
+                    {(c.purchases ?? 0) > 0
+                      ? <><span className="fx-dot ok" />{c.purchases} compra(s) · <strong style={{ marginLeft: 4, color: 'var(--text)' }}>{formatKz(c.total_spent ?? 0)}</strong>{c.last_purchase ? ` · última ${formatDate(c.last_purchase)}` : ''}</>
+                      : <><span className="fx-dot" />sem compras ainda</>}
+                  </div>
                 </div>
-                <div className="muted" style={{ fontSize: 12 }}>
-                  {(c.purchases ?? 0) > 0
-                    ? <>{c.purchases} compra(s) · <strong style={{ color: 'var(--success)' }}>{formatKz(c.total_spent ?? 0)}</strong>{c.last_purchase ? ` · última ${formatDate(c.last_purchase)}` : ''}</>
-                    : 'sem compras ainda'}
+                <div className="co-actions">
+                  {c.phone ? (
+                    <a className="btn sm ghost" href={`https://wa.me/${c.phone.replace(/[^\d]/g, '').replace(/^(?!244)(\d{9})$/, '244$1')}`} target="_blank" rel="noreferrer">WhatsApp</a>
+                  ) : null}
+                  {c.phone ? <a className="btn sm ghost" href={`tel:${c.phone}`}>Ligar</a> : null}
+                  <button className="btn sm ghost" onClick={() => openEdit(c)}>Editar</button>
+                  <button className="btn sm ghost" onClick={() => void remove(c)} title="Eliminar" aria-label={`Eliminar ${c.name}`}><IconTrash size={15} /></button>
                 </div>
               </div>
-              <div className="row" style={{ gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                {c.phone ? (
-                  <a className="btn sm ghost" href={`https://wa.me/${c.phone.replace(/[^\d]/g, '').replace(/^(?!244)(\d{9})$/, '244$1')}`} target="_blank" rel="noreferrer">💬</a>
-                ) : null}
-                {c.phone ? <a className="btn sm ghost" href={`tel:${c.phone}`}>📞</a> : null}
-                <button className="btn sm ghost" onClick={() => openEdit(c)}>Editar</button>
-                <button className="btn sm ghost" onClick={() => void remove(c)} title="Eliminar"><IconTrash size={15} /></button>
-              </div>
-            </div>
-          ))}
+            ))}
           </>}
       </div>
 
@@ -196,6 +195,6 @@ export function Customers() {
           <button className="btn lg block" onClick={() => void save()} disabled={saving}>{saving ? 'A guardar…' : editing ? 'Guardar alterações' : 'Criar cliente'}</button>
         </Modal>
       ) : null}
-    </>
+    </div>
   );
 }
