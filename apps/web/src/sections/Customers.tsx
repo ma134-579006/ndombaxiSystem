@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CustomerRow } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
-import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
+import { IconPlus, IconSearch, IconTrash, IconUser } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz, formatDate } from '../format';
 import { isNetworkError, queueCustomer } from '../offline/writes';
@@ -116,9 +116,9 @@ export function Customers() {
       </div>
 
       <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconSearch size={20} /></span><div><div className="lb">Clientes</div><div className="vl">{rows.length}</div><div className="sb">{withPurchases} já compraram</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconSearch size={20} /></span><div><div className="lb">Faturado a clientes</div><div className="vl">{formatKz(totalSpent)}</div><div className="sb">compras identificadas</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconSearch size={20} /></span><div><div className="lb">Compra média</div><div className="vl">{formatKz(avgTicket)}</div><div className="sb">por compra</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconUser size={20} /></span><div><div className="lb">Clientes</div><div className="vl">{rows.length}</div><div className="sb">{withPurchases} já compraram</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconUser size={20} /></span><div><div className="lb">Faturado a clientes</div><div className="vl">{formatKz(totalSpent)}</div><div className="sb">compras identificadas</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconUser size={20} /></span><div><div className="lb">Compra média</div><div className="vl">{formatKz(avgTicket)}</div><div className="sb">por compra</div></div></div>
       </div>
 
       <div className="fx-toolbar">
