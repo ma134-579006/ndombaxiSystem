@@ -1,5 +1,5 @@
 # ============================================================
-# Ndombaxi System — imagem da API (NestJS + Prisma).
+# LPS Vendas — imagem da API (NestJS + Prisma).
 # Build context = RAIZ do repositório (monorepo pnpm).
 #   docker build -f apps/api/Dockerfile -t ndombaxi-api .
 # A imagem inclui TODAS as dependências (nada a instalar no servidor).

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Ndombaxi System — ligar a base de dados na NUVEM (Aiven / Neon / Supabase).
+ * LPS Vendas — ligar a base de dados na NUVEM (Aiven / Neon / Supabase).
  *
  * Objetivo: base de dados online 24/7 com o MÍNIMO de esforço humano. O único
  * passo que ninguém pode automatizar por si é criar a conta e copiar a

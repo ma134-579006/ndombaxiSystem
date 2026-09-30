@@ -1,4 +1,4 @@
-# Compila o APK Android (Ndombaxi System) na nuvem (Ubuntu + JDK 17 + Android SDK).
+# Compila o APK Android (LPS Vendas) na nuvem (Ubuntu + JDK 17 + Android SDK).
 # Sem secrets → APK de DEBUG (instalável para testes). Para publicar na Play Store
 # é preciso uma keystore própria (não incluída).
 name: Android build

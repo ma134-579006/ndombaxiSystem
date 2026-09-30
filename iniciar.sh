@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ndombaxi System — arranque automático (um clique) · Manuel Mbala Tomás Ndombaxi
+# LPS Vendas — arranque automático (um clique) · Manuel Mbala Tomás Ndombaxi
 cd "$(dirname "$0")"
 
 echo "============================================================"

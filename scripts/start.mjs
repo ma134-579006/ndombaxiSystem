@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Ndombaxi System — arranque INTELIGENTE e automático (zero-config).
+ * LPS Vendas — arranque INTELIGENTE e automático (zero-config).
  *
  * Deteta sozinho o melhor caminho para a base de dados, SEM perguntar nada:
  *   1) Se já houver DATABASE_URL remoto no .env (Aiven/Neon/Supabase) → usa-o
