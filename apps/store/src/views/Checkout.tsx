@@ -1,3 +1,4 @@
+import { IconPin } from '../components/Icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CheckoutResult, PaymentMethod } from '../api/types';
@@ -258,7 +259,7 @@ export function Checkout({
           <span className="v" style={{ fontSize: 22, fontWeight: 900 }}>{formatKz(total)}</span>
         </div>
         <div className="banner info" style={{ margin: '12px 0', fontSize: 13 }}>
-          <div>📍 <strong>Localização GPS obrigatória</strong> — ao confirmar, o telemóvel vai pedir acesso à sua localização para a loja entregar no sítio certo. Sem permissão, a encomenda não é criada.</div>
+          <div><IconPin size={15} /> <strong>Localização GPS obrigatória</strong> — ao confirmar, o telemóvel vai pedir acesso à sua localização para a loja entregar no sítio certo. Sem permissão, a encomenda não é criada.</div>
         </div>
         <button className="btn lg block" onClick={submit} disabled={submitting || locating || cart.length === 0}>
           {locating ? 'A obter localização GPS…' : submitting ? 'A processar…' : 'Confirmar encomenda'}

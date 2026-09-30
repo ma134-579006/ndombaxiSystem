@@ -1,3 +1,4 @@
+import { IconClose, IconCamera } from './Icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { isTouchDevice, makeDetector } from '../scan/decoder';
 import { beep } from '../beep';
@@ -68,7 +69,7 @@ export function BarcodeScanner({ onDetected }: { onDetected(code: string): boole
   return (
     <>
       <button type="button" className="scan-btn" title="Procurar produto pela câmara" onClick={() => (scanning ? stop() : start())}>
-        <span style={{ fontSize: 20 }}>{scanning ? '✕' : '📷'}</span>
+        <span style={{ fontSize: 20 }}>{scanning ? <IconClose size={18} /> : <IconCamera size={18} />}</span>
       </button>
       {err ? <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{err}</div> : null}
       {scanning ? (

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { StoreRoom } from '../api/types';
 import { formatKz } from '../format';
-import { IconClose } from './Icons';
+import { IconClose, IconStethoscope, IconBed, IconWrench, IconCheck } from './Icons';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
@@ -30,7 +30,7 @@ export function VerticalCTA({ code, businessType, prefill }: { code: string; bus
     return (
       <>
         <button className="ax-cta" onClick={() => setOpen('clinic')}>
-          <span className="ic" aria-hidden>🩺</span>
+          <span className="ic" aria-hidden><IconStethoscope size={18} /></span>
           <span className="tx"><strong>Marcar uma consulta</strong> — escolha o dia e a hora; confirmamos a sua marcação.</span>
           <span className="chev" aria-hidden>→</span>
         </button>
@@ -42,7 +42,7 @@ export function VerticalCTA({ code, businessType, prefill }: { code: string; bus
     return (
       <>
         <button className="ax-cta" onClick={() => setOpen('hotel')}>
-          <span className="ic" aria-hidden>🛏️</span>
+          <span className="ic" aria-hidden><IconBed size={18} /></span>
           <span className="tx"><strong>Reservar um quarto</strong> — escolha as datas e reserve online; confirmamos de seguida.</span>
           <span className="chev" aria-hidden>→</span>
         </button>
@@ -54,7 +54,7 @@ export function VerticalCTA({ code, businessType, prefill }: { code: string; bus
     return (
       <>
         <button className="ax-cta" onClick={() => setOpen('service')}>
-          <span className="ic" aria-hidden>🔧</span>
+          <span className="ic" aria-hidden><IconWrench size={18} /></span>
           <span className="tx"><strong>Pedir um serviço / orçamento</strong> — descreva o que precisa e entramos em contacto.</span>
           <span className="chev" aria-hidden>→</span>
         </button>
@@ -100,7 +100,7 @@ function ReservationModal({ code, prefill, onClose }: { code: string; prefill?: 
   return (
     <Sheet title="Reservar quarto" onClose={onClose}>
       {done ? (
-        <div className="empty"><div style={{ fontSize: 40 }}>✅</div><p>Reserva enviada! A loja vai confirmar a sua reserva e entrar em contacto.</p>
+        <div className="empty"><div style={{ color: "var(--accent)" }}><IconCheck size={44} /></div><p>Reserva enviada! A loja vai confirmar a sua reserva e entrar em contacto.</p>
           <button className="btn lg" style={{ marginTop: 10 }} onClick={onClose}>Concluir</button></div>
       ) : (
         <>
@@ -123,7 +123,7 @@ function ReservationModal({ code, prefill, onClose }: { code: string; prefill?: 
                       style={{ display: 'flex', gap: 10, alignItems: 'center', textAlign: 'left', padding: 8, borderRadius: 10, cursor: 'pointer',
                                border: `2px solid ${sel ? 'var(--primary, #2563eb)' : 'var(--border, #ddd)'}`, background: sel ? 'color-mix(in srgb, var(--primary,#2563eb) 8%, transparent)' : 'transparent' }}>
                       <div style={{ width: 64, height: 48, borderRadius: 8, overflow: 'hidden', background: 'var(--surface-2,#eee)', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 22 }}>
-                        {r.photo_url ? <img src={r.photo_url} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🛏️'}
+                        {r.photo_url ? <img src={r.photo_url} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <IconBed size={22} />}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <strong style={{ fontSize: 13.5 }}>{r.name}</strong>
@@ -178,7 +178,7 @@ function ServiceRequestModal({ code, prefill, onClose }: { code: string; prefill
     <Sheet title="Pedir serviço / orçamento" onClose={onClose}>
       {done ? (
         <div className="empty" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 40 }}>✅</div>
+          <div style={{ color: "var(--accent)" }}><IconCheck size={44} /></div>
           <p style={{ marginBottom: 4 }}>Pedido enviado{track.number ? ` — ${track.number}` : ''}! Vamos analisar e entrar em contacto consigo.</p>
           {trackUrl ? (
             <div style={{ marginTop: 8 }}>
@@ -238,7 +238,7 @@ function AppointmentModal({ code, prefill, onClose }: { code: string; prefill?: 
   return (
     <Sheet title="Marcar consulta" onClose={onClose}>
       {done ? (
-        <div className="empty"><div style={{ fontSize: 40 }}>✅</div><p>Marcação enviada! Vamos confirmar a sua consulta e contactá-lo.</p>
+        <div className="empty"><div style={{ color: "var(--accent)" }}><IconCheck size={44} /></div><p>Marcação enviada! Vamos confirmar a sua consulta e contactá-lo.</p>
           <button className="btn lg" style={{ marginTop: 10 }} onClick={onClose}>Concluir</button></div>
       ) : (
         <>

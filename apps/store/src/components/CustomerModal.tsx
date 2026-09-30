@@ -166,7 +166,7 @@ function ProfileEditor({ code, token }: { code: string; token: string }) {
         province: p.province ?? undefined, municipality: p.municipality ?? undefined,
         neighborhood: p.neighborhood ?? undefined, taxId: p.taxId ?? undefined,
       });
-      setP(r); setMsg('Dados guardados ✅'); setOpen(false);
+      setP(r); setMsg('Dados guardados'); setOpen(false);
     } catch { setMsg('Não foi possível guardar.'); }
     finally { setBusy(false); }
   };
@@ -299,7 +299,7 @@ function MyHealth({ code, token }: { code: string; token: string }) {
             <div key={r.id} className="hx-row">
               <div><strong>{r.number}</strong> · {r.item_count} medicamento(s)<div className="muted" style={{ fontSize: 12 }}>{r.professional || '—'} · {r.issued}</div></div>
               <span className="status-pill">{RX_ST[r.status] ?? r.status}</span>
-              <button className="btn ghost sm" title="Descarregar / imprimir" onClick={() => void downloadRx(r.id)}>🖨️</button>
+              <button className="btn ghost sm" title="Descarregar / imprimir" onClick={() => void downloadRx(r.id)}>Imprimir</button>
             </div>
           ))}
       </div>
@@ -309,10 +309,10 @@ function MyHealth({ code, token }: { code: string; token: string }) {
         {exams.length === 0 ? <p className="muted" style={{ fontSize: 13, margin: 0 }}>Sem exames.</p>
           : exams.slice(0, 6).map((e) => (
             <div key={e.id} className="hx-row">
-              <div><strong>{e.exam_type}</strong><div className="muted" style={{ fontSize: 12 }}>{e.requested}{e.result_text && ['DONE', 'DELIVERED'].includes(e.status) ? ` · 📄 ${e.result_text.slice(0, 60)}` : ''}</div></div>
+              <div><strong>{e.exam_type}</strong><div className="muted" style={{ fontSize: 12 }}>{e.requested}{e.result_text && ['DONE', 'DELIVERED'].includes(e.status) ? ` · ${e.result_text.slice(0, 60)}` : ''}</div></div>
               <span className="status-pill">{EXAM_ST[e.status] ?? e.status}</span>
               {['DONE', 'DELIVERED'].includes(e.status)
-                ? <button className="btn ghost sm" title="Descarregar / imprimir resultado" onClick={() => printExam(e, data.patient?.name ?? '—')}>🖨️</button>
+                ? <button className="btn ghost sm" title="Descarregar / imprimir resultado" onClick={() => printExam(e, data.patient?.name ?? '—')}>Imprimir</button>
                 : null}
             </div>
           ))}

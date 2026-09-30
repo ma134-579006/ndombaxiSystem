@@ -838,3 +838,12 @@ h1, h2, h3 { font-weight: 700; }
 .ax-hero { border-radius: 20px; }
 .ax-hero h1 { font-family: var(--nx-font-title, inherit); letter-spacing: -.02em; }
 .ax-footer { border-top: 1px solid var(--border); }
+
+/* Página de produto: galeria contida, garantias com ícones */
+.ax-gallery-main { max-height: min(62vw, 440px); }
+.ax-gallery-main img { object-fit: contain; }
+.ax-assure-row { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text); }
+.ax-assure-row > span { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); flex: none; }
+.ax-hero-badges .b { display: inline-flex; align-items: center; gap: 8px; }
+.ax-hero-badges .b > span { display: inline-grid; place-items: center; }
+.ax-cta .ic { display: inline-grid; place-items: center; color: var(--accent); }

@@ -271,7 +271,7 @@ export function Track({ orderId, onBack }: { orderId: string; onBack(): void }) 
             <div className="chat" ref={chatRef}>
               {messages.length === 0 ? (
                 <p className="muted" style={{ textAlign: 'center', padding: 12 }}>
-                  Ainda sem mensagens. Faça uma pergunta à loja 👋
+                  Ainda sem mensagens. Faça uma pergunta à loja
                 </p>
               ) : (
                 messages.map((m) => {

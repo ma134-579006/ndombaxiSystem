@@ -3,16 +3,10 @@ import type { CatalogProduct, CheckoutResult, PaymentMethod } from '../api/types
 import { api } from '../api/client';
 import { copyrightLine } from '../brand';
 import { Header } from '../components/Header';
-import {
-  IconCart,
-  IconChevronLeft,
-  IconChevronRight,
-  IconClose,
-  IconImage,
-  IconMinus,
-  IconPlus,
-  IconTrash,
-} from '../components/Icons';
+import { IconCart, IconChevronLeft, IconChevronRight, IconClose, IconImage, IconMinus, IconPlus, IconTrash, IconUser, IconBox, IconTruck, IconShield, IconChat, IconPill, IconUtensils, IconBike, IconClock, IconBed, IconCalendar, IconWrench, IconReceipt, IconStethoscope, IconLock } from '../components/Icons';
+
+const BADGE_ICONS: Record<string, React.ComponentType<{ size?: number }>> = { truck: IconTruck, shield: IconShield, chat: IconChat, pill: IconPill, utensils: IconUtensils, bike: IconBike, clock: IconClock, bed: IconBed, calendar: IconCalendar, wrench: IconWrench, receipt: IconReceipt, stethoscope: IconStethoscope, lock: IconLock };
+function BadgeIcon({ name }: { name: string }) { const I = BADGE_ICONS[name]; return I ? <I size={16} /> : null; }
 import { formatKz } from '../format';
 import { useStore } from '../state/StoreContext';
 import { useCustomer } from '../store/customer';
@@ -34,12 +28,12 @@ const lastOrderKey = (code: string) => `ndombaxi.store.lastorder.${code}`;
 /** Portal por MODELO de negócio: ajusta título, CTA e selos da montra. */
 interface Portal { tagline: string; cta: string; badges: [string, string][]; feed: string }
 const PORTALS: Record<string, Portal> = {
-  RETAIL: { tagline: 'Os melhores produtos, entregues em toda Angola.', cta: 'Ver todos os produtos', badges: [['🚚', 'Envio nacional'], ['🛡️', 'Compra protegida'], ['💬', 'Apoio da loja']], feed: 'Mais para si' },
-  PHARMACY: { tagline: 'Medicamentos e bem-estar — encomende online com segurança.', cta: 'Ver produtos', badges: [['💊', 'Medicamentos'], ['🛡️', 'Compra segura'], ['🚚', 'Entrega']], feed: 'Produtos' },
-  RESTAURANT: { tagline: 'Peça já — comida fresca, entregue a sua casa.', cta: 'Ver cardápio', badges: [['🍔', 'Cardápio'], ['🛵', 'Entrega'], ['⏱️', 'Rápido']], feed: 'Cardápio' },
-  HOSPITALITY: { tagline: 'Reserve a sua estadia — quartos disponíveis online.', cta: 'Ver quartos', badges: [['🛏️', 'Reservas'], ['📅', 'Disponibilidade'], ['💬', 'Apoio']], feed: 'Também disponível' },
-  SERVICES: { tagline: 'Peça assistência — abrimos a sua ordem de serviço online.', cta: 'Ver loja', badges: [['🔧', 'Serviços'], ['🧾', 'Orçamento'], ['💬', 'Acompanhamento']], feed: 'Também disponível' },
-  CLINIC: { tagline: 'Marque a sua consulta — escolha o dia e a hora.', cta: 'Ver loja', badges: [['🩺', 'Consultas'], ['📅', 'Marcações'], ['🔒', 'Privacidade']], feed: 'Também disponível' },
+  RETAIL: { tagline: 'Os melhores produtos, entregues em toda Angola.', cta: 'Ver todos os produtos', badges: [['truck', 'Envio nacional'], ['shield', 'Compra protegida'], ['chat', 'Apoio da loja']], feed: 'Mais para si' },
+  PHARMACY: { tagline: 'Medicamentos e bem-estar — encomende online com segurança.', cta: 'Ver produtos', badges: [['pill', 'Medicamentos'], ['shield', 'Compra segura'], ['truck', 'Entrega']], feed: 'Produtos' },
+  RESTAURANT: { tagline: 'Peça já — comida fresca, entregue a sua casa.', cta: 'Ver cardápio', badges: [['utensils', 'Cardápio'], ['bike', 'Entrega'], ['clock', 'Rápido']], feed: 'Cardápio' },
+  HOSPITALITY: { tagline: 'Reserve a sua estadia — quartos disponíveis online.', cta: 'Ver quartos', badges: [['bed', 'Reservas'], ['calendar', 'Disponibilidade'], ['chat', 'Apoio']], feed: 'Também disponível' },
+  SERVICES: { tagline: 'Peça assistência — abrimos a sua ordem de serviço online.', cta: 'Ver loja', badges: [['wrench', 'Serviços'], ['receipt', 'Orçamento'], ['chat', 'Acompanhamento']], feed: 'Também disponível' },
+  CLINIC: { tagline: 'Marque a sua consulta — escolha o dia e a hora.', cta: 'Ver loja', badges: [['stethoscope', 'Consultas'], ['calendar', 'Marcações'], ['lock', 'Privacidade']], feed: 'Também disponível' },
 };
 
 const SORTS: { key: Sort; label: string }[] = [
@@ -83,7 +77,7 @@ export function Storefront() {
     toastTimer.current = setTimeout(() => setToast(null), 1600);
   };
   const toastNode = toast ? (
-    <div className="ax-toast"><span aria-hidden>🛒</span> <span className="v">{toast}</span> <span>no carrinho</span></div>
+    <div className="ax-toast"><span aria-hidden><IconCart size={16} /></span> <span className="v">{toast}</span> <span>no carrinho</span></div>
   ) : null;
 
   // ── Pesquisa por imagem (estilo Google Lens) ──
@@ -342,7 +336,7 @@ export function Storefront() {
               <button className="btn lg" onClick={() => { setCat(''); setSearch(''); setView('results'); }}>{portal.cta}</button>
             </div>
             <div className="ax-hero-badges">
-              {portal.badges.map(([ic, tx]) => <div className="b" key={tx}><span>{ic}</span> {tx}</div>)}
+              {portal.badges.map(([ic, tx]) => <div className="b" key={tx}><span><BadgeIcon name={ic} /></span> {tx}</div>)}
             </div>
           </section>
 
@@ -355,14 +349,14 @@ export function Storefront() {
           {gateMsg && !customer ? <div className="banner danger" style={{ marginTop: 12 }}>{gateMsg}</div> : null}
           {!customer ? (
             <button className="ax-cta" onClick={() => setAccountOpen(true)}>
-              <span className="ic" aria-hidden>👤</span>
+              <span className="ic" aria-hidden><IconUser size={18} /></span>
               <span className="tx"><strong>Crie a sua conta grátis</strong> — para comprar, acompanhar encomendas e falar com a loja.</span>
               <span className="chev" aria-hidden><IconChevronRight size={18} /></span>
             </button>
           ) : null}
           {savedOrder ? (
             <button className="ax-cta" onClick={() => requireAccount('Entre na sua conta para acompanhar as suas encomendas.', () => { setTrackId(savedOrder.id); setView('track'); })}>
-              <span className="ic" aria-hidden>📦</span>
+              <span className="ic" aria-hidden><IconBox size={18} /></span>
               <span className="tx">Acompanhar a sua encomenda <strong>{savedOrder.orderNumber}</strong></span>
               <span className="chev" aria-hidden><IconChevronRight size={18} /></span>
             </button>

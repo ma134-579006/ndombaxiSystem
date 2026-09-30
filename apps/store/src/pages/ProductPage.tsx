@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { CatalogProduct } from '../api/types';
 import { formatKz } from '../format';
-import { IconChevronLeft, IconImage, IconMinus, IconPlus } from '../components/Icons';
+import { IconChevronLeft, IconImage, IconMinus, IconPlus, IconTruck, IconShield, IconReturn } from '../components/Icons';
 import { ProductCard } from '../components/ProductCard';
 
 /** Página de produto (PDP) estilo AliExpress: galeria com miniaturas, bloco de
@@ -59,9 +59,9 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
           <div className="ax-pdp-tax">Preço com IVA incluído</div>
 
           <div className="ax-assure">
-            <div className="ax-assure-row"><span>🚚</span> Envio para toda Angola</div>
-            <div className="ax-assure-row"><span>🛡️</span> Compra protegida — pague na recolha ou por referência</div>
-            <div className="ax-assure-row"><span>↩️</span> Troca em caso de defeito</div>
+            <div className="ax-assure-row"><span><IconTruck size={17} /></span> Envio para toda Angola</div>
+            <div className="ax-assure-row"><span><IconShield size={17} /></span> Compra protegida — pague na recolha ou por referência</div>
+            <div className="ax-assure-row"><span><IconReturn size={17} /></span> Troca em caso de defeito</div>
           </div>
 
           <div className="ax-stock-line">

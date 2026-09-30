@@ -24,7 +24,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
     return (
       <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24, fontFamily: 'system-ui, sans-serif' }}>
         <div style={{ maxWidth: 440, textAlign: 'center', border: '1px solid #e3e6ee', borderRadius: 16, padding: 24, boxShadow: '0 8px 30px rgba(10,20,40,.08)' }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>⚠️</div>
+          
           <h2 style={{ margin: '0 0 8px' }}>Ocorreu um erro inesperado</h2>
           <p style={{ color: '#68738a', fontSize: 14, marginTop: 0 }}>
             A loja encontrou um problema. Recarregue a página — o seu carrinho continua guardado.
