@@ -386,12 +386,12 @@ function ManageAccessModal({
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
       {isLocked ? (
         <div className="banner warn" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ flex: 1 }}>🔒 Acesso bloqueado temporariamente (tentativas falhadas).</span>
+          <span style={{ flex: 1 }}>Acesso bloqueado temporariamente (tentativas falhadas).</span>
           <button className="btn sm" onClick={unlock} disabled={busy !== null}>{busy === 'unlock' ? 'A desbloquear…' : 'Desbloquear agora'}</button>
         </div>
       ) : (
         <button className="btn ghost block" style={{ marginBottom: 16 }} onClick={unlock} disabled={busy !== null}>
-          {busy === 'unlock' ? 'A desbloquear…' : '🔓 Desbloquear acesso (se bloqueado)'}
+          {busy === 'unlock' ? 'A desbloquear…' : 'Desbloquear acesso (se bloqueado)'}
         </button>
       )}
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
@@ -421,7 +421,7 @@ function ManageAccessModal({
       <div className="field"><label>Nova senha do painel (deixa vazio para gerar automática)</label>
         <input value={newPwd} onChange={(e) => setNewPwd(e.target.value)} type="text" placeholder="define uma senha ou deixa vazio" autoComplete="new-password" /></div>
       <button className="btn block" onClick={resetPwd} disabled={busy !== null}>
-        {busy === 'pwd' ? 'A guardar…' : newPwd ? '🔑 Definir esta senha' : '🔑 Repor senha (gera nova)'}
+        {busy === 'pwd' ? 'A guardar…' : newPwd ? 'Definir esta senha' : 'Repor senha (gera nova)'}
       </button>
     </Modal>
   );
@@ -514,7 +514,7 @@ function ConsumptionsPanel() {
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <div className="row" style={{ alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen((v) => !v)}>
-        <h3 style={{ margin: 0 }}>🛒 Consumo próprio</h3>
+        <h3 style={{ margin: 0 }}>Consumo próprio</h3>
         <span className="spacer" />
         <span className="muted" style={{ fontSize: 13 }}>
           {pending.length} por descontar · <strong>{formatKz(pendingTotal)}</strong>

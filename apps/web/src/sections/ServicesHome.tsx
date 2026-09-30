@@ -48,9 +48,9 @@ export function ServicesHome({ onGo }: { onGo(section: string): void }) {
   return (
     <>
       <div className="content-head">
-        <h2>🔧 Serviços — Centro de comando</h2>
+        <h2>Serviços — Centro de comando</h2>
         <span className="spacer" />
-        <button className="btn primary" onClick={() => goOrders()}>🛠️ Abrir ordens de serviço</button>
+        <button className="btn primary" onClick={() => goOrders()}>Abrir ordens de serviço</button>
       </div>
 
       {err && !d ? (
@@ -67,8 +67,8 @@ export function ServicesHome({ onGo }: { onGo(section: string): void }) {
           </div>
           <span className="spacer" style={{ flex: 1 }} />
           <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-            <div><div className="muted" style={{ fontSize: 11.5 }}>🧾 Balcão & oficina</div><strong>{d?.sales ? KZ(d.sales.counter) : '—'}</strong></div>
-            <div><div className="muted" style={{ fontSize: 11.5 }}>🛒 Loja online</div><strong>{d?.sales ? KZ(d.sales.online) : '—'}</strong></div>
+            <div><div className="muted" style={{ fontSize: 11.5 }}>Balcão & oficina</div><strong>{d?.sales ? KZ(d.sales.counter) : '—'}</strong></div>
+            <div><div className="muted" style={{ fontSize: 11.5 }}>Loja online</div><strong>{d?.sales ? KZ(d.sales.online) : '—'}</strong></div>
           </div>
         </div>
       </div>
@@ -81,38 +81,38 @@ export function ServicesHome({ onGo }: { onGo(section: string): void }) {
       ) : null}
       {late ? (
         <div className="banner danger" style={{ marginBottom: 12, cursor: 'pointer' }} onClick={() => goOrders('IN_PROGRESS')}>
-          ⏰ A OS <strong>{d?.oldestInProgress?.number}</strong> está em curso há <strong>{d?.oldestInProgress?.days} dia(s)</strong> — verifica o atraso.
+          A OS <strong>{d?.oldestInProgress?.number}</strong> está em curso há <strong>{d?.oldestInProgress?.days} dia(s)</strong> — verifica o atraso.
         </div>
       ) : null}
 
       {/* ── PIPELINE da oficina (funil) ── */}
       <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: 14 }}>
         <Stage label="🆕 Abertas" s={d?.pipeline.open} onClick={() => goOrders('OPEN')} />
-        <Stage label="📋 Orçamentadas" s={d?.pipeline.quoted} onClick={() => goOrders('QUOTED')} />
-        <Stage label="👍 Aprovadas" s={d?.pipeline.approved} onClick={() => goOrders('APPROVED')} />
-        <Stage label="🔧 Em curso" s={d?.pipeline.inProgress} onClick={() => goOrders('IN_PROGRESS')} tone={late ? 'var(--danger)' : undefined} />
-        <Stage label="✅ Prontas" s={d?.pipeline.ready} onClick={() => goOrders('READY')} tone="var(--success)" />
+        <Stage label="Orçamentadas" s={d?.pipeline.quoted} onClick={() => goOrders('QUOTED')} />
+        <Stage label="Aprovadas" s={d?.pipeline.approved} onClick={() => goOrders('APPROVED')} />
+        <Stage label="Em curso" s={d?.pipeline.inProgress} onClick={() => goOrders('IN_PROGRESS')} tone={late ? 'var(--danger)' : undefined} />
+        <Stage label="Prontas" s={d?.pipeline.ready} onClick={() => goOrders('READY')} tone="var(--success)" />
       </div>
 
       {/* ── KPIs de OFICINA (Mecânica) ── */}
       <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: 14 }}>
         <button className="card kpi" onClick={goAgenda} style={{ cursor: 'pointer', textAlign: 'left', border: '1px solid var(--border)' }}>
-          <div className="muted" style={{ fontSize: 12 }}>📅 Agendados hoje</div>
+          <div className="muted" style={{ fontSize: 12 }}>Agendados hoje</div>
           <div style={{ fontSize: 26, fontWeight: 800 }}>{d?.mechanic?.scheduledToday ?? '—'}</div>
         </button>
         <button className="card kpi" onClick={() => goOrders('QUOTED')} style={{ cursor: 'pointer', textAlign: 'left', border: '1px solid var(--border)' }}>
-          <div className="muted" style={{ fontSize: 12 }}>⏳ À espera de aprovação</div>
+          <div className="muted" style={{ fontSize: 12 }}>À espera de aprovação</div>
           <div style={{ fontSize: 26, fontWeight: 800 }}>{d?.mechanic?.awaitingApproval ?? '—'}</div>
         </button>
         <div className="card kpi" style={{ border: '1px solid var(--border)' }}>
-          <div className="muted" style={{ fontSize: 12 }}>⏱ Tempo médio (30d)</div>
+          <div className="muted" style={{ fontSize: 12 }}>Tempo médio (30d)</div>
           <div style={{ fontSize: 26, fontWeight: 800 }}>{d?.mechanic ? MIN_LABEL(d.mechanic.avgWorkMinutes) : '—'}</div>
         </div>
       </div>
 
       {/* ── Prontas por ENTREGAR (dinheiro na prateleira) ── */}
       <div className="card" style={{ marginBottom: 14 }}>
-        <h3 style={{ margin: '0 0 8px' }}>✅ Prontas por entregar</h3>
+        <h3 style={{ margin: '0 0 8px' }}>Prontas por entregar</h3>
         {!d || d.readyToDeliver.length === 0 ? (
           <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>Nada pronto por entregar — bom trabalho.</p>
         ) : d.readyToDeliver.map((r) => (
@@ -128,9 +128,9 @@ export function ServicesHome({ onGo }: { onGo(section: string): void }) {
 
       {/* ── Gestão ── */}
       <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
-        <button className="btn ghost" onClick={goEquipments}>💻 Equipamentos em carteira · {d?.equipments ?? '—'}</button>
-        <button className="btn ghost" onClick={() => onGo('customers')}>👥 Clientes</button>
-        <button className="btn ghost" onClick={() => onGo('reports')}>📊 Relatórios</button>
+        <button className="btn ghost" onClick={goEquipments}>Equipamentos em carteira · {d?.equipments ?? '—'}</button>
+        <button className="btn ghost" onClick={() => onGo('customers')}>Clientes</button>
+        <button className="btn ghost" onClick={() => onGo('reports')}>Relatórios</button>
       </div>
     </>
   );

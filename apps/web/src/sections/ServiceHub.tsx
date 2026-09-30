@@ -13,7 +13,7 @@ interface Mod { icon: string; title: string; desc: string; to?: string; soon?: b
 
 const VERTICALS: Record<string, { label: string; intro: string; mods: Mod[] }> = {
   RESTAURANT: {
-    label: '🍔 Restauração',
+    label: 'Restauração',
     intro: 'Gestão completa do teu restaurante/pastelaria: cardápio, mesas, cozinha e entregas — integrado com caixa, faturação AGT e RH.',
     mods: [
       { icon: '📋', title: 'Cardápio', desc: 'Pratos, categorias, preços e fotos.', to: 'products' },
@@ -28,7 +28,7 @@ const VERTICALS: Record<string, { label: string; intro: string; mods: Mod[] }> =
     ],
   },
   SERVICES: {
-    label: '🔧 Serviços',
+    label: 'Serviços',
     intro: 'Oficina/assistência técnica de ponta a ponta: ordens de serviço, orçamentos, execução e fatura — com peças do stock e RH integrados.',
     mods: [
       { icon: '🛠️', title: 'Ordens de serviço', desc: 'Abrir, executar e fechar OS.', to: 'service-orders' },
@@ -43,7 +43,7 @@ const VERTICALS: Record<string, { label: string; intro: string; mods: Mod[] }> =
     ],
   },
   HOSPITALITY: {
-    label: '🏨 Hotelaria',
+    label: 'Hotelaria',
     intro: 'Gestão de hotel/hospedaria: quartos, reservas, check-in/out e conta do hóspede — com faturação AGT e RH integrados.',
     mods: [
       { icon: '🛏️', title: 'Quartos', desc: 'Tipos, estado e tarifas.', to: 'hotel' },
@@ -58,7 +58,7 @@ const VERTICALS: Record<string, { label: string; intro: string; mods: Mod[] }> =
     ],
   },
   PHARMACY: {
-    label: '💊 Farmácia',
+    label: 'Farmácia',
     intro: 'Gestão de farmácia/parafarmácia: medicamentos com lotes e validades, alerta de produtos a expirar e venda com receita — integrado com stock, caixa e faturação AGT.',
     mods: [
       { icon: '⏳', title: 'Validade & Lotes', desc: 'Medicamentos a expirar/expirados.', to: 'pharmacy' },
@@ -71,7 +71,7 @@ const VERTICALS: Record<string, { label: string; intro: string; mods: Mod[] }> =
     ],
   },
   CLINIC: {
-    label: '🏥 Clínica / Saúde',
+    label: 'Clínica / Saúde',
     intro: 'Gestão de clínica/consultório: pacientes, marcações (agenda) e consultas — com faturação AGT, caixa e RH integrados.',
     mods: [
       { icon: '🩺', title: 'Agenda & Pacientes', desc: 'Marcações, pacientes e consultas.', to: 'clinic' },

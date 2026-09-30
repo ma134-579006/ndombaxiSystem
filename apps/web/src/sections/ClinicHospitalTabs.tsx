@@ -44,7 +44,7 @@ export function EmergencyTab({ patients }: { patients: ClinicPatient[] }) {
   return (
     <>
       <div className="content-head" style={{ marginTop: 0 }}>
-        <h3 style={{ margin: 0 }}>🚑 Fila de emergência</h3>
+        <h3 style={{ margin: 0 }}>Fila de emergência</h3>
         <span className="spacer" />
         <button className="btn" onClick={() => setAdding(true)}><IconPlus size={16} /> Nova chegada</button>
       </div>
@@ -90,7 +90,7 @@ function TriageModal({ patients, onClose, onDone }: { patients: ClinicPatient[];
     } catch (e) { toast.error(errMsg(e, 'Falha ao registar.')); } finally { setBusy(false); }
   };
   return (
-    <Modal title="🚑 Triagem — nova chegada" onClose={onClose}>
+    <Modal title="Triagem — nova chegada" onClose={onClose}>
       <div className="field"><label>Paciente (ficha)</label>
         <select value={f.patientId} onChange={(e) => setF({ ...f, patientId: e.target.value })}>
           <option value="">— sem ficha (indicar nome) —</option>
@@ -159,7 +159,7 @@ export function BedsTab({ patients }: { patients: ClinicPatient[] }) {
   return (
     <>
       <div className="content-head" style={{ marginTop: 0 }}>
-        <h3 style={{ margin: 0 }}>🛏️ Mapa de leitos</h3>
+        <h3 style={{ margin: 0 }}>Mapa de leitos</h3>
         <span className="spacer" />
         <button className="btn ghost" onClick={() => setNewBed(true)}><IconPlus size={16} /> Novo leito</button>
       </div>
@@ -195,7 +195,7 @@ export function BedsTab({ patients }: { patients: ClinicPatient[] }) {
       {/* Internações com alta — faturação hospitalar (documento fiscal AGT) */}
       {admHistory.filter((a) => a.status !== 'ADMITTED').length > 0 ? (
         <>
-          <div className="content-head"><h3 style={{ margin: 0 }}>🧾 Internações — faturação</h3></div>
+          <div className="content-head"><h3 style={{ margin: 0 }}>Internações — faturação</h3></div>
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             {admHistory.filter((a) => a.status !== 'ADMITTED').slice(0, 30).map((a) => (
               <div key={a.id} className="list-row" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -204,7 +204,7 @@ export function BedsTab({ patients }: { patients: ClinicPatient[] }) {
                   <div className="muted" style={{ fontSize: 12 }}>{a.bed_label ?? '—'} · {a.status === 'DECEASED' ? 'óbito' : 'alta'} {fmtDT(a.discharged_at)} · total {KZ(a.total)}</div>
                 </div>
                 {a.invoice_id ? <span className="pill on">Faturada</span>
-                  : Number(a.total) > 0 ? <button className="btn sm" onClick={() => void invoiceAdm(a)}>🧾 Faturar</button>
+                  : Number(a.total) > 0 ? <button className="btn sm" onClick={() => void invoiceAdm(a)}>Faturar</button>
                   : <span className="muted" style={{ fontSize: 12 }}>sem valor</span>}
               </div>
             ))}
@@ -307,7 +307,7 @@ export function PrescriptionsTab({ patients }: { patients: ClinicPatient[] }) {
   return (
     <>
       <div className="content-head" style={{ marginTop: 0 }}>
-        <h3 style={{ margin: 0 }}>💊 Receitas médicas</h3>
+        <h3 style={{ margin: 0 }}>Receitas médicas</h3>
         <span className="spacer" />
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={16} /> Nova receita</button>
       </div>
@@ -346,12 +346,12 @@ export function PrescriptionsTab({ patients }: { patients: ClinicPatient[] }) {
             ))}
           </div>
           {detail.prescription.status === 'ISSUED' ? (
-            <button className="btn lg block" onClick={() => void dispense()}>💊 Dispensar na farmácia (baixa stock FEFO)</button>
+            <button className="btn lg block" onClick={() => void dispense()}>Dispensar na farmácia (baixa stock FEFO)</button>
           ) : detail.prescription.status === 'DISPENSED' ? (
             detail.prescription.invoice_id
-              ? <div className="pill on" style={{ display: 'block', textAlign: 'center', padding: 10 }}>🧾 Receita faturada</div>
+              ? <div className="pill on" style={{ display: 'block', textAlign: 'center', padding: 10 }}>Receita faturada</div>
               : detail.items.some((i) => i.product_code)
-                ? <button className="btn lg block" onClick={() => void invoiceRx()}>🧾 Faturar medicamentos (documento AGT)</button>
+                ? <button className="btn lg block" onClick={() => void invoiceRx()}>Faturar medicamentos (documento AGT)</button>
                 : <p className="muted" style={{ fontSize: 12, textAlign: 'center' }}>Sem medicamentos faturáveis (externos/sem preço).</p>
           ) : null}
         </Modal>
@@ -406,7 +406,7 @@ function NewPrescriptionModal({ patients, onClose, onDone }: { patients: ClinicP
   };
 
   return (
-    <Modal title="💊 Nova receita médica" onClose={onClose}>
+    <Modal title="Nova receita médica" onClose={onClose}>
       <div className="grid-2">
         <div className="field"><label>Paciente</label>
           <select value={patientId} onChange={(e) => setPatientId(e.target.value)}>
@@ -428,7 +428,7 @@ function NewPrescriptionModal({ patients, onClose, onDone }: { patients: ClinicP
             <button key={m.id} className="list-row" style={{ width: '100%', textAlign: 'left', padding: '8px 14px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)' }} onClick={() => addMed(m)}>
               <strong style={{ fontSize: 13 }}>{m.name}</strong>
               <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
-                {m.active_ingredient ? `${m.active_ingredient} · ` : ''}stock {Number(m.stock_qty)}{m.next_expiry ? ` · val. ${m.next_expiry.slice(0, 10)}` : ''}{m.requires_prescription ? ' · 🔒 controlado' : ''}
+                {m.active_ingredient ? `${m.active_ingredient} · ` : ''}stock {Number(m.stock_qty)}{m.next_expiry ? ` · val. ${m.next_expiry.slice(0, 10)}` : ''}{m.requires_prescription ? ' · controlado' : ''}
               </span>
             </button>
           ))}
@@ -458,8 +458,8 @@ function NewPrescriptionModal({ patients, onClose, onDone }: { patients: ClinicP
 
 // ── PROFISSIONAIS DE SAÚDE ─────────────────────────────────────
 const CAT_LABEL: Record<string, string> = {
-  MEDICO: '🧑‍⚕️ Médico', ENFERMEIRO: '💉 Enfermeiro', TECNICO: '🔬 Técnico', RECECAO: '🛎️ Receção',
-  LABORATORIO: '🧪 Laboratório', FARMACIA: '💊 Farmácia', ADMIN: '📋 Administração', OUTRO: '👤 Outro',
+  MEDICO: '🧑‍Médico', ENFERMEIRO: 'Enfermeiro', TECNICO: 'Técnico', RECECAO: 'Receção',
+  LABORATORIO: 'Laboratório', FARMACIA: 'Farmácia', ADMIN: 'Administração', OUTRO: 'Outro',
 };
 
 export function ProfessionalsTab() {
@@ -476,7 +476,7 @@ export function ProfessionalsTab() {
   return (
     <>
       <div className="content-head" style={{ marginTop: 0 }}>
-        <h3 style={{ margin: 0 }}>🧑‍⚕️ Profissionais de saúde</h3>
+        <h3 style={{ margin: 0 }}>🧑‍Profissionais de saúde</h3>
         <span className="spacer" />
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={16} /> Novo profissional</button>
       </div>
@@ -494,7 +494,7 @@ export function ProfessionalsTab() {
               </div>
               {p.category === 'MEDICO' ? (
                 <button className={`btn sm ${p.on_call ? '' : 'ghost'}`} onClick={() => void toggleOnCall(p)}>
-                  {p.on_call ? '🟢 De plantão' : 'Fora de plantão'}
+                  {p.on_call ? 'De plantão' : 'Fora de plantão'}
                 </button>
               ) : null}
             </div>
@@ -579,7 +579,7 @@ export function ExamsTab({ patients }: { patients: ClinicPatient[] }) {
   return (
     <>
       <div className="content-head" style={{ marginTop: 0 }}>
-        <h3 style={{ margin: 0 }}>🧪 Exames</h3>
+        <h3 style={{ margin: 0 }}>Exames</h3>
         <span className="spacer" />
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={16} /> Solicitar exame</button>
       </div>
@@ -597,7 +597,7 @@ export function ExamsTab({ patients }: { patients: ClinicPatient[] }) {
               <span className={`pill ${['DONE', 'DELIVERED'].includes(r.status) ? 'on' : 'off'}`}>{EXAM_LABEL[r.status] ?? r.status}</span>
               {EXAM_NEXT[r.status] ? <button className="btn sm ghost" onClick={() => void advance(r)}>{EXAM_NEXT[r.status].label}</button> : null}
               {['DONE', 'DELIVERED'].includes(r.status) && Number(r.fee) > 0
-                ? (r.invoice_id ? <span className="pill on">Faturado</span> : <button className="btn sm" onClick={() => void invoiceExam(r)}>🧾 Faturar</button>)
+                ? (r.invoice_id ? <span className="pill on">Faturado</span> : <button className="btn sm" onClick={() => void invoiceExam(r)}>Faturar</button>)
                 : null}
             </div>
           ))}
@@ -621,7 +621,7 @@ function NewExamModal({ patients, onClose, onDone }: { patients: ClinicPatient[]
     } catch (e) { toast.error(errMsg(e, 'Falha.')); } finally { setBusy(false); }
   };
   return (
-    <Modal title="🧪 Solicitar exame" onClose={onClose}>
+    <Modal title="Solicitar exame" onClose={onClose}>
       <div className="field"><label>Paciente</label>
         <select value={f.patientId} onChange={(e) => setF({ ...f, patientId: e.target.value })}>
           <option value="">— escolher —</option>
@@ -665,7 +665,7 @@ export function InsurersTab({ patients, onPatientsChanged }: { patients: ClinicP
   return (
     <>
       <div className="content-head" style={{ marginTop: 0 }}>
-        <h3 style={{ margin: 0 }}>🛡️ Convénios & Seguros</h3>
+        <h3 style={{ margin: 0 }}>Convénios & Seguros</h3>
         <span className="spacer" />
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={16} /> Novo convénio</button>
       </div>
@@ -688,7 +688,7 @@ export function InsurersTab({ patients, onPatientsChanged }: { patients: ClinicP
           ))}
       </div>
 
-      <div className="content-head"><h4 style={{ margin: 0 }}>👤 Convénio por paciente</h4></div>
+      <div className="content-head"><h4 style={{ margin: 0 }}>Convénio por paciente</h4></div>
       <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
         {patients.length === 0 ? <div className="empty" style={{ padding: 18 }}><p>Sem pacientes.</p></div>
           : patients.slice(0, 30).map((p) => (
@@ -701,7 +701,7 @@ export function InsurersTab({ patients, onPatientsChanged }: { patients: ClinicP
           ))}
       </div>
 
-      <div className="content-head"><h4 style={{ margin: 0 }}>📄 Sinistros (a receber das seguradoras)</h4></div>
+      <div className="content-head"><h4 style={{ margin: 0 }}>Sinistros (a receber das seguradoras)</h4></div>
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {claims.length === 0 ? <div className="empty" style={{ padding: 18 }}><p>Sem sinistros ainda. Faturar um ato de um paciente com convénio gera um aqui.</p></div>
           : claims.map((c) => (
@@ -771,34 +771,34 @@ export function PatientRecordModal({ patientId, onClose }: { patientId: string; 
   useEffect(() => { api.clinic.patientRecord(patientId).then(setRec).catch(() => toast.error('Falha ao carregar o prontuário.')); }, [patientId]);
   const p = rec?.patient as Record<string, string | null> | undefined;
   return (
-    <Modal title={`📖 Prontuário — ${p?.name ?? '…'}`} onClose={onClose}>
+    <Modal title={`Prontuário — ${p?.name ?? '…'}`} onClose={onClose}>
       {!rec ? <div className="loading">A carregar…</div> : (
         <>
           <div className="card" style={{ marginBottom: 10, fontSize: 13 }}>
             <div className="muted" style={{ fontSize: 12 }}>
               {[p?.sex, p?.blood_type, p?.birth_date ? `nasc. ${String(p.birth_date).slice(0, 10)}` : null, p?.insurer ? `convénio ${p.insurer}` : null].filter(Boolean).join(' · ') || 'sem dados demográficos'}
             </div>
-            {p?.allergies ? <div style={{ color: 'var(--warning)', marginTop: 4 }}>⚠ Alergias: {p.allergies}</div> : null}
+            {p?.allergies ? <div style={{ color: 'var(--warning)', marginTop: 4 }}>Alergias: {p.allergies}</div> : null}
             {p?.chronic_conditions ? <div className="muted" style={{ marginTop: 2 }}>Crónicas: {p.chronic_conditions}</div> : null}
             {p?.continuous_meds ? <div className="muted" style={{ marginTop: 2 }}>Medicação contínua: {p.continuous_meds}</div> : null}
           </div>
-          <RecordSection title={`🩺 Consultas (${rec.consultations.length})`} rows={rec.consultations.map((c) => ({
+          <RecordSection title={`Consultas (${rec.consultations.length})`} rows={rec.consultations.map((c) => ({
             id: String(c.id), main: String(c.diagnosis || c.symptoms || 'consulta'),
             sub: `${c.professional ?? '—'} · ${fmtDT(String(c.created_at))}${Number(c.fee) ? ` · ${KZ(Number(c.fee))}` : ''}`,
           }))} />
-          <RecordSection title={`💊 Receitas (${rec.prescriptions.length})`} rows={rec.prescriptions.map((r) => ({
+          <RecordSection title={`Receitas (${rec.prescriptions.length})`} rows={rec.prescriptions.map((r) => ({
             id: String(r.id), main: `${r.number} · ${r.item_count} medicamento(s)`,
             sub: `${r.professional ?? '—'} · ${fmtDT(String(r.issued_at))} · ${RX_LABEL[String(r.status)] ?? r.status}`,
           }))} />
-          <RecordSection title={`🛏️ Internações (${rec.admissions.length})`} rows={rec.admissions.map((a) => ({
+          <RecordSection title={`Internações (${rec.admissions.length})`} rows={rec.admissions.map((a) => ({
             id: String(a.id), main: `${a.number} · ${a.bed_label ?? '—'}`,
             sub: `${a.reason ?? '—'} · ${fmtDT(String(a.admitted_at))}${a.discharged_at ? ` → ${fmtDT(String(a.discharged_at))}` : ' · internado'} · ${KZ(Number(a.total))}`,
           }))} />
-          <RecordSection title={`🧪 Exames (${rec.exams.length})`} rows={rec.exams.map((e) => ({
+          <RecordSection title={`Exames (${rec.exams.length})`} rows={rec.exams.map((e) => ({
             id: String(e.id), main: String(e.exam_type),
             sub: `${EXAM_LABEL[String(e.status)] ?? e.status} · ${fmtDT(String(e.requested_at))}${e.result_text ? ` · 📄 ${String(e.result_text).slice(0, 50)}` : ''}`,
           }))} />
-          <RecordSection title={`❤️ Sinais vitais (${rec.vitals.length})`} rows={rec.vitals.map((v) => ({
+          <RecordSection title={`Sinais vitais (${rec.vitals.length})`} rows={rec.vitals.map((v) => ({
             id: v.id, main: [
               v.temperature_c ? `${v.temperature_c}°C` : null,
               v.systolic && v.diastolic ? `TA ${v.systolic}/${v.diastolic}` : null,

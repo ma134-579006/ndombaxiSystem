@@ -161,7 +161,7 @@ export function Expenses() {
           </div>
           <span className="spacer" />
           <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
-          <button className="btn sm" onClick={() => void printSectionReport()}>🖨 Imprimir</button>
+          <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
         </div>
       </div>
 

@@ -64,7 +64,7 @@ export function Hotel() {
   return (
     <>
       <div className="content-head">
-        <h2>🏨 Hotelaria</h2>
+        <h2>Hotelaria</h2>
         <span className="spacer" />
         {tab === 'rooms'
           ? <button className="btn ghost" onClick={() => setNewRoom(true)}><IconPlus size={17} /> Quarto</button>
@@ -72,10 +72,10 @@ export function Hotel() {
       </div>
 
       <div className="card toolbar-sticky" style={{ display: 'flex', gap: 6, padding: '8px 10px', flexWrap: 'wrap' }}>
-        <button className={`chip${tab === 'rooms' ? ' active' : ''}`} onClick={() => setTab('rooms')}>🛏️ Quartos</button>
-        <button className={`chip${tab === 'reservations' ? ' active' : ''}`} onClick={() => setTab('reservations')}>📅 Reservas</button>
-        <button className={`chip${tab === 'housekeeping' ? ' active' : ''}`} onClick={() => setTab('housekeeping')}>🧹 Limpeza{pendHk ? ` (${pendHk})` : ''}</button>
-        <button className={`chip${tab === 'maintenance' ? ' active' : ''}`} onClick={() => setTab('maintenance')}>🔧 Manutenção{openMt ? ` (${openMt})` : ''}</button>
+        <button className={`chip${tab === 'rooms' ? ' active' : ''}`} onClick={() => setTab('rooms')}>Quartos</button>
+        <button className={`chip${tab === 'reservations' ? ' active' : ''}`} onClick={() => setTab('reservations')}>Reservas</button>
+        <button className={`chip${tab === 'housekeeping' ? ' active' : ''}`} onClick={() => setTab('housekeeping')}>Limpeza{pendHk ? ` (${pendHk})` : ''}</button>
+        <button className={`chip${tab === 'maintenance' ? ' active' : ''}`} onClick={() => setTab('maintenance')}>Manutenção{openMt ? ` (${openMt})` : ''}</button>
       </div>
 
       {tab === 'rooms' ? (
@@ -94,7 +94,7 @@ export function Hotel() {
                       <span className="pill" style={{ marginLeft: 'auto', color: st.color, borderColor: st.color, fontSize: 11 }}>{st.label}</span>
                     </div>
                     <div className="pcode">{r.category || r.room_type || 'Quarto'}{r.floor ? ` · ${r.floor}º` : ''} · {r.capacity}p · {KZ(r.rate)}/noite</div>
-                    {occupied ? <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>👤 {r.guest_name || 'Hóspede'} · saída {r.check_out}</div>
+                    {occupied ? <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{r.guest_name || 'Hóspede'} · saída {r.check_out}</div>
                       : <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
                           {r.status === 'AVAILABLE' || r.status === 'RESERVED' ? 'Toque para reservar' : 'Toque para gerir estado'}
                         </div>}
@@ -121,7 +121,7 @@ export function Hotel() {
               : reservations.map((r) => (
                 <button key={r.id} className="list-row" onClick={() => void openRes(r.id)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', padding: '12px 16px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ fontSize: 14 }}>{r.number} · {r.guest_name || 'Hóspede'}{r.source === 'ONLINE' && r.status === 'BOOKED' ? <span className="pill" style={{ marginLeft: 6, background: 'var(--primary)', color: '#fff' }}>🌐 Online</span> : null}</strong>
+                    <strong style={{ fontSize: 14 }}>{r.number} · {r.guest_name || 'Hóspede'}{r.source === 'ONLINE' && r.status === 'BOOKED' ? <span className="pill" style={{ marginLeft: 6, background: 'var(--primary)', color: '#fff' }}>Online</span> : null}</strong>
                     <div className="muted" style={{ fontSize: 12.5 }}>{r.room_name || '—'} · {r.check_in} → {r.check_out} ({r.nights} noites)</div>
                   </div>
                   <span style={{ fontWeight: 700, marginRight: 8 }}>{KZ(r.total)}</span>
@@ -208,13 +208,13 @@ function RoomMenuModal({ room, onClose, onChanged }: { room: HotelRoomMapRow; on
   return (
     <Modal title={`${room.name} — ${st.label}`} onClose={onClose}>
       <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-        <button className="btn sm" disabled={busy} onClick={() => void setStatus('AVAILABLE')}>🟢 Livre</button>
-        <button className="btn sm ghost" disabled={busy} onClick={() => void setStatus('CLEANING')}>🟣 Limpeza</button>
-        <button className="btn sm ghost" disabled={busy} onClick={() => void setStatus('BLOCKED')}>⛔ Bloquear</button>
+        <button className="btn sm" disabled={busy} onClick={() => void setStatus('AVAILABLE')}>Livre</button>
+        <button className="btn sm ghost" disabled={busy} onClick={() => void setStatus('CLEANING')}>Limpeza</button>
+        <button className="btn sm ghost" disabled={busy} onClick={() => void setStatus('BLOCKED')}>Bloquear</button>
       </div>
       <div className="field"><label>Abrir manutenção (avaria)</label>
         <input value={problem} onChange={(e) => setProblem(e.target.value)} placeholder="ex.: Ar condicionado avariado" /></div>
-      <button className="btn lg block" disabled={busy} onClick={() => void openMaint()}>🔧 Abrir manutenção</button>
+      <button className="btn lg block" disabled={busy} onClick={() => void openMaint()}>Abrir manutenção</button>
     </Modal>
   );
 }
@@ -248,10 +248,10 @@ function HousekeepingTab({ rows, rooms, onChanged }: { rows: HotelHousekeepingRo
             <div key={h.id} className="list-row" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ fontSize: 13.5 }}>{h.room_name || 'Quarto'} · {TASK_L[h.task] ?? h.task}</strong>
-                {h.assigned_to ? <div className="muted" style={{ fontSize: 12 }}>👤 {h.assigned_to}</div> : null}
+                {h.assigned_to ? <div className="muted" style={{ fontSize: 12 }}>{h.assigned_to}</div> : null}
               </div>
               {h.status === 'PENDING'
-                ? <button className="btn sm success" onClick={() => void done(h.id)}>✔ Concluir</button>
+                ? <button className="btn sm success" onClick={() => void done(h.id)}>Concluir</button>
                 : <span className="pill on">Feito</span>}
             </div>
           ))}
@@ -369,14 +369,14 @@ function ResDetail({ detail, onClose, onChanged }: { detail: HotelReservationDet
     <Modal title={`${r.number} — ${SL(r.status)}`} onClose={onClose}>
       <div className="card" style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 13.5 }}><strong>{r.guest_name || 'Hóspede'}</strong>{r.guest_phone ? ` · ${r.guest_phone}` : ''}</div>
-        <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>🛏️ {r.room_name || '—'} · {r.check_in} → {r.check_out} · {r.nights} noite(s) · {r.guests}p</div>
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{r.room_name || '—'} · {r.check_in} → {r.check_out} · {r.nights} noite(s) · {r.guests}p</div>
       </div>
 
       <div className="row" style={{ gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-        {r.status === 'BOOKED' ? <button className="btn" onClick={() => void setStatus('CHECKED_IN')}>✅ Check-in</button> : null}
-        {r.status === 'CHECKED_IN' ? <button className="btn success" onClick={() => void invoice()} disabled={billing}>🧾 {billing ? 'A faturar…' : 'Faturar (AGT) e check-out'}</button> : null}
+        {r.status === 'BOOKED' ? <button className="btn" onClick={() => void setStatus('CHECKED_IN')}>Check-in</button> : null}
+        {r.status === 'CHECKED_IN' ? <button className="btn success" onClick={() => void invoice()} disabled={billing}>{billing ? 'A faturar…' : 'Faturar (AGT) e check-out'}</button> : null}
         {r.status === 'CHECKED_IN' ? <button className="btn ghost" onClick={() => void setStatus('CHECKED_OUT')}>Check-out s/ fatura</button> : null}
-        {(r.status === 'BOOKED' || r.status === 'CHECKED_IN') ? <button className="btn ghost" onClick={() => void extendStay()}>📅 Estender estadia</button> : null}
+        {(r.status === 'BOOKED' || r.status === 'CHECKED_IN') ? <button className="btn ghost" onClick={() => void extendStay()}>Estender estadia</button> : null}
         {(r.status === 'BOOKED' || r.status === 'CHECKED_IN') ? <button className="btn ghost" onClick={() => void setStatus('CANCELLED')}>Cancelar</button> : null}
         {r.status === 'CHECKED_OUT' ? <div className="banner success" style={{ width: '100%' }}>Reserva concluída.</div> : null}
       </div>

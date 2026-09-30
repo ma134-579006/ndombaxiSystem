@@ -156,7 +156,7 @@ export function Customers() {
                 </div>
                 <div className="muted" style={{ fontSize: 12 }}>
                   {(c.purchases ?? 0) > 0
-                    ? <>🛒 {c.purchases} compra(s) · <strong style={{ color: 'var(--success)' }}>{formatKz(c.total_spent ?? 0)}</strong>{c.last_purchase ? ` · última ${formatDate(c.last_purchase)}` : ''}</>
+                    ? <>{c.purchases} compra(s) · <strong style={{ color: 'var(--success)' }}>{formatKz(c.total_spent ?? 0)}</strong>{c.last_purchase ? ` · última ${formatDate(c.last_purchase)}` : ''}</>
                     : 'sem compras ainda'}
                 </div>
               </div>

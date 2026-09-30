@@ -15,15 +15,15 @@ const fmtDT = (s: string) => { try { return new Date(s).toLocaleString('pt-PT');
 
 type Tab = 'stock' | 'analysis' | 'abc' | 'replenish' | 'valuation' | 'fraud' | 'transfers' | 'locations' | 'audit';
 const TABS: Array<{ id: Tab; label: string }> = [
-  { id: 'stock', label: '🗃️ Stock' },
-  { id: 'analysis', label: '📊 Análise' },
-  { id: 'abc', label: '📦 Curva ABC' },
-  { id: 'replenish', label: '📈 Reposição' },
-  { id: 'valuation', label: '💰 Valorização' },
-  { id: 'fraud', label: '🚨 Antifraude' },
-  { id: 'transfers', label: '🔄 Transferências' },
-  { id: 'locations', label: '📍 Localização' },
-  { id: 'audit', label: '📑 Auditoria' },
+  { id: 'stock', label: 'Stock' },
+  { id: 'analysis', label: 'Análise' },
+  { id: 'abc', label: 'Curva ABC' },
+  { id: 'replenish', label: 'Reposição' },
+  { id: 'valuation', label: 'Valorização' },
+  { id: 'fraud', label: 'Antifraude' },
+  { id: 'transfers', label: 'Transferências' },
+  { id: 'locations', label: 'Localização' },
+  { id: 'audit', label: 'Auditoria' },
 ];
 
 /**
@@ -71,7 +71,7 @@ function StoreSelect({ stores, value, onChange }: { stores: WarehouseRow[]; valu
   );
 }
 
-// ── 📦 Curva ABC ─────────────────────────────────────────────
+// ── Curva ABC ─────────────────────────────────────────────
 function AbcTab({ stores }: { stores: WarehouseRow[] }) {
   const [from, setFrom] = useState(isoMinusDays(90));
   const [to, setTo] = useState(todayISO());
@@ -135,7 +135,7 @@ function AbcTab({ stores }: { stores: WarehouseRow[] }) {
   );
 }
 
-// ── 📈 Reposição + sugestão de compra ────────────────────────
+// ── Reposição + sugestão de compra ────────────────────────
 function ReplenishTab({ stores }: { stores: WarehouseRow[] }) {
   const [storeId, setStoreId] = useState('');
   const [days, setDays] = useState(30);
@@ -211,7 +211,7 @@ function ReplenishTab({ stores }: { stores: WarehouseRow[] }) {
   );
 }
 
-// ── 💰 Valorização FIFO / LIFO / CMP ─────────────────────────
+// ── Valorização FIFO / LIFO / CMP ─────────────────────────
 function ValuationTab({ stores }: { stores: WarehouseRow[] }) {
   const [method, setMethod] = useState<'FIFO' | 'LIFO' | 'CMP'>('CMP');
   const [storeId, setStoreId] = useState('');
@@ -274,7 +274,7 @@ function ValuationTab({ stores }: { stores: WarehouseRow[] }) {
   );
 }
 
-// ── 🚨 Motor antifraude ──────────────────────────────────────
+// ── Motor antifraude ──────────────────────────────────────
 function FraudTab() {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<FraudReport | null>(null);
@@ -326,7 +326,7 @@ function FraudTab() {
   );
 }
 
-// ── 🔄 Transferências com aprovação ──────────────────────────
+// ── Transferências com aprovação ──────────────────────────
 function TransfersTab({ stores, role }: { stores: WarehouseRow[]; role?: string }) {
   const [rows, setRows] = useState<TransferRequestRow[]>([]);
   const [products, setProducts] = useState<ManagerProduct[]>([]);
@@ -429,7 +429,7 @@ function TransfersTab({ stores, role }: { stores: WarehouseRow[]; role?: string 
                     ) : r.status === 'PENDING' ? <span className="muted">aguarda administrador</span> : null}
                     {r.status === 'APPROVED' ? (
                       <button className="btn sm" disabled={busy}
-                        onClick={() => void act(() => api.inventoryIntel.receiveTransfer(r.id), 'Receção confirmada — stock movido entre as lojas.')}>✔ Rececionar</button>
+                        onClick={() => void act(() => api.inventoryIntel.receiveTransfer(r.id), 'Receção confirmada — stock movido entre as lojas.')}>Rececionar</button>
                     ) : null}
                   </td>
                 </tr>
@@ -442,7 +442,7 @@ function TransfersTab({ stores, role }: { stores: WarehouseRow[]; role?: string 
   );
 }
 
-// ── 📍 Mapa de localização ───────────────────────────────────
+// ── Mapa de localização ───────────────────────────────────
 function LocationsTab({ stores }: { stores: WarehouseRow[] }) {
   const [storeId, setStoreId] = useState('');
   const [q, setQ] = useState('');
@@ -514,7 +514,7 @@ function LocationsTab({ stores }: { stores: WarehouseRow[] }) {
   );
 }
 
-// ── 📑 Auditoria por funcionário ─────────────────────────────
+// ── Auditoria por funcionário ─────────────────────────────
 function AuditTab() {
   const [filters, setFilters] = useState<AuditFilters | null>(null);
   const [actorId, setActorId] = useState('');

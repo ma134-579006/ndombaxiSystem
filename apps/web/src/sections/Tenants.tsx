@@ -98,7 +98,7 @@ export function Tenants() {
   };
 
   const remove = async (c: Company) => {
-    const typed = window.prompt(`⚠️ ELIMINAR "${c.name}" apaga TODOS os dados (schema) de forma irreversível.\nPara confirmar, escreva o código da empresa: ${c.code}`, '');
+    const typed = window.prompt(`ELIMINAR "${c.name}" apaga TODOS os dados (schema) de forma irreversível.\nPara confirmar, escreva o código da empresa: ${c.code}`, '');
     if (typed === null) return;
     if (typed.trim() !== c.code) { toast.error('Código não coincide. Cancelado.'); return; }
     setBusyId(c.id);

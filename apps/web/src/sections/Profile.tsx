@@ -94,7 +94,7 @@ export function Profile() {
               {' '}Define primeiro o teu PIN da caixa em <strong>Segurança</strong>.
             </p>
           </div>
-          <button className="btn lg" onClick={openCash} style={{ flex: 'none' }}>🛒 Abrir caixa</button>
+          <button className="btn lg" onClick={openCash} style={{ flex: 'none' }}>Abrir caixa</button>
         </div>
       ) : null}
 

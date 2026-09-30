@@ -171,8 +171,8 @@ export function Orders() {
           {/* Cozinha (restauração): tempo estimado dado pelo cozinheiro. */}
           {detail.kitchen_status && detail.kitchen_status !== 'NEW' ? (
             <div className="kv"><span className="k">Cozinha</span>
-              <span className="v">{detail.kitchen_status === 'READY' ? '✅ Pronto para entregar'
-                : `👨‍🍳 Em preparação${detail.prep_eta_min ? ` · ~${detail.prep_eta_min} min` : ''}`}</span></div>
+              <span className="v">{detail.kitchen_status === 'READY' ? 'Pronto para entregar'
+                : `Em preparação${detail.prep_eta_min ? ` · ~${detail.prep_eta_min} min` : ''}`}</span></div>
           ) : null}
 
           <div style={{ borderTop: '1px solid var(--border)', margin: '12px 0', paddingTop: 10 }}>
@@ -195,7 +195,7 @@ export function Orders() {
               {/* Conteúdo num único span: o .banner é flex e nós de texto soltos
                   viram itens flex — o <strong> era empurrado p/ a direita ("Pro nto"). */}
               <span>
-                👨‍🍳 A cozinha está a preparar este pedido. Só poderá continuar (expedir/entregar)
+                A cozinha está a preparar este pedido. Só poderá continuar (expedir/entregar)
                 quando o cozinheiro marcar <strong>Pronto</strong>.
               </span>
             </div>
@@ -238,7 +238,7 @@ export function Orders() {
 
           <div style={{ marginTop: 12 }}>
             <button className="btn ghost block" onClick={() => setShowGeo((v) => !v)}>
-              📍 {showGeo ? 'Ocultar localização' : 'Ver localização do cliente (GPS em tempo real)'}
+              {showGeo ? 'Ocultar localização' : 'Ver localização do cliente (GPS em tempo real)'}
             </button>
             {showGeo ? <LiveOrderMap orderId={detail.id} /> : null}
           </div>
@@ -247,7 +247,7 @@ export function Orders() {
             <OrderChat orderId={detail.id} />
           ) : (
             <div className="muted" style={{ fontSize: 12, marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-              💬 A conversa com o cliente abre depois de a encomenda ser <strong>paga/aprovada</strong>.
+              A conversa com o cliente abre depois de a encomenda ser <strong>paga/aprovada</strong>.
             </div>
           )}
         </Modal>
@@ -299,8 +299,8 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
       <div className="banner info" style={{ marginTop: 10 }}>
         <div>
           {loc.consent
-            ? '📡 À espera do sinal GPS do cliente. A posição aparece quando o cliente tiver a loja aberta com o GPS ligado.'
-            : '⚠️ Este cliente ainda não partilhou a localização GPS desta encomenda.'}
+            ? 'À espera do sinal GPS do cliente. A posição aparece quando o cliente tiver a loja aberta com o GPS ligado.'
+            : 'Este cliente ainda não partilhou a localização GPS desta encomenda.'}
         </div>
       </div>
     );
@@ -330,7 +330,7 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
         />
       </div>
       <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-        <a className="btn" href={dir} target="_blank" rel="noreferrer">🧭 Como chegar</a>
+        <a className="btn" href={dir} target="_blank" rel="noreferrer">Como chegar</a>
         <a className="btn ghost" href={open} target="_blank" rel="noreferrer">Abrir no Google Maps</a>
         <span className="muted" style={{ fontSize: 11.5, alignSelf: 'center' }}>{q}</span>
       </div>
@@ -370,7 +370,7 @@ function OrderChat({ orderId }: { orderId: string }) {
 
   return (
     <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-      <strong style={{ fontSize: 14 }}>💬 Conversa com o cliente</strong>
+      <strong style={{ fontSize: 14 }}>Conversa com o cliente</strong>
       {err ? <div className="banner danger" style={{ margin: '8px 0' }}>{err}</div> : null}
       <div ref={scroller} style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, margin: '10px 0' }}>
         {messages == null ? <span className="muted" style={{ fontSize: 13 }}>A carregar…</span>

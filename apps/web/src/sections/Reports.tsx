@@ -169,8 +169,8 @@ export function Reports() {
         <h2>Relatórios</h2>
         <span className="spacer" />
         <button className="btn sm ghost" onClick={csvExport}>⬇ CSV/Excel</button>
-        <button className="btn sm ghost" onClick={() => void emailExport()}>✉ E-mail</button>
-        <button className="btn sm ghost" onClick={() => void printSectionReport()}>🖨 Imprimir/PDF</button>
+        <button className="btn sm ghost" onClick={() => void emailExport()}>E-mail</button>
+        <button className="btn sm ghost" onClick={() => void printSectionReport()}>Imprimir/PDF</button>
       </div>
 
       <div className="card no-print" style={{ marginBottom: 12 }}>

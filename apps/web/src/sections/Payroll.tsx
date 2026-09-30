@@ -242,7 +242,7 @@ function RunSheet({ detail, onClose, onPay }: { detail: PayrollRunDetail; onClos
               formatKz(num(it.total_deductions)), formatKz(it.net_salary),
             ]),
           }],
-        })}>🖨 Imprimir</button>
+        })}>Imprimir</button>
         <span className="spacer" />
         {run.status === 'PROCESSED' ? (
           <button className="btn" onClick={() => onPay(run.id)}><IconCheck size={16} /> Marcar como paga</button>

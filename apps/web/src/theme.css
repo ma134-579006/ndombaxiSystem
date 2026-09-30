@@ -2640,3 +2640,36 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .pil
   .co-actions .btn { flex: 1 1 auto; }
   .fx-search { max-width: none; flex-basis: 100%; }
 }
+
+/* ═══ DESIGN v7 — acabamento global das páginas (cabeçalho, filtros, KPIs, vazios) ═══ */
+/* Cabeçalho de página */
+.content-head { margin: 4px 0 18px; padding: 0; min-height: 44px; }
+.content-head h2 { font-size: 24px; line-height: 1.2; }
+.content-head > .muted { font-size: 13px; }
+.content-head .live-dot { margin-right: 2px; }
+/* Barra de filtros: cartão compacto com campos numa linha e botões alinhados à base */
+.card.no-print:has(input[type="date"]), .card:has(> .row input[type="date"]) { padding: 14px 18px; }
+.card:has(> .row input[type="date"]) > .row { gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.card:has(> .row input[type="date"]) .field { margin-bottom: 0; }
+.card:has(> .row input[type="date"]) .chip { height: 34px; }
+/* Chips de período = pílulas segmentadas discretas */
+.chip { height: 34px; padding: 0 14px; display: inline-flex; align-items: center; font-size: 13px; font-weight: 600; background: var(--surface); }
+.chip.active { background: var(--primary-soft); color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+/* KPIs */
+.kpi-grid { gap: 14px; margin-bottom: 18px; }
+.kpi-card { padding: 16px 18px; }
+.kpi-card .kpi-label { color: var(--muted); }
+.kpi-value { line-height: 1.15; }
+.kpi-sub { line-height: 1.4; }
+/* Estados vazios com ícone */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.empty p { margin: 0; font-size: 14px; }
+/* Cartões seguidos: respiração vertical consistente */
+.content .card + .card, .content .kpi-grid + .card, .content .card + .kpi-grid { margin-top: 16px; }
+/* Botão de acção principal do cabeçalho */
+.content-head .btn:not(.ghost):not(.sm) { height: 42px; }
+/* Tabelas dentro de cartões: sem margens internas duplicadas */
+.card > .ptable, .card > div > .ptable { width: 100%; }
+.ptable tbody tr:hover td { background: color-mix(in srgb, var(--primary) 4%, transparent); }
+/* Labels de KPI sem transformação agressiva em ecrãs pequenos */
+@media (max-width: 480px) { .kpi-label { letter-spacing: .04em; } .content-head h2 { font-size: 21px; } }

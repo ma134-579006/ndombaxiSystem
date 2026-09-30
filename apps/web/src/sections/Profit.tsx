@@ -88,7 +88,7 @@ export function Profit() {
           </div>
           <span className="spacer" />
           <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
-          <button className="btn sm" onClick={print}>🖨 Imprimir</button>
+          <button className="btn sm" onClick={print}>Imprimir</button>
         </div>
       </div>
 

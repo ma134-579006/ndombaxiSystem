@@ -48,7 +48,7 @@ export function DownloadWizard({ onDone, onCancel }: Props) {
 
   const fill = () => {
     stashPrefill(prefillFromManifest(platform, fileUrl));
-    toast.success('Formulário preenchido pelo assistente. ✨ Reveja e publique.');
+    toast.success('Formulário preenchido pelo assistente. Reveja e publique.');
     onDone();
   };
 

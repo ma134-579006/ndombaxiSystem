@@ -69,9 +69,9 @@ export function MailSettings() {
 
       <div className={`banner ${cfg?.source === 'db' ? 'success' : cfg?.source === 'env' ? 'info' : 'warning'}`} style={{ marginBottom: 16 }}>
         <div>
-          {cfg?.source === 'db' ? '✅ A enviar e-mails com esta configuração (guardada no painel).'
+          {cfg?.source === 'db' ? 'A enviar e-mails com esta configuração (guardada no painel).'
             : cfg?.source === 'env' ? 'ℹ️ A usar a configuração das variáveis do Render. Podes substituí-la aqui.'
-            : '⚠️ Sem e-mail configurado — a recuperação de senha/PIN não envia. Preenche abaixo.'}
+            : 'Sem e-mail configurado — a recuperação de senha/PIN não envia. Preenche abaixo.'}
         </div>
       </div>
 

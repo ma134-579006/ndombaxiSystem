@@ -35,9 +35,9 @@ export function HotelHome({ onGo }: { onGo(section: string): void }) {
   return (
     <>
       <div className="content-head">
-        <h2>🏨 Hotelaria — Centro de comando</h2>
+        <h2>Hotelaria — Centro de comando</h2>
         <span className="spacer" />
-        <button className="btn primary" onClick={() => goHotel('rooms')}>🛏️ Ver quartos</button>
+        <button className="btn primary" onClick={() => goHotel('rooms')}>Ver quartos</button>
       </div>
 
       {err && !d ? (
@@ -89,7 +89,7 @@ export function HotelHome({ onGo }: { onGo(section: string): void }) {
       {/* ── Movimentos de HOJE: chegadas e saídas ── */}
       <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginBottom: 14 }}>
         <MoveList
-          title="🛬 Chegadas de hoje"
+          title="Chegadas de hoje"
           empty="Sem chegadas previstas para hoje."
           count={d?.today.arrivals.length ?? 0}
           rows={(d?.today.arrivals ?? []).map((a) => ({ id: a.id, left: a.guest, mid: `${a.room} · ${a.nights} noite(s)`, right: a.number }))}
@@ -97,7 +97,7 @@ export function HotelHome({ onGo }: { onGo(section: string): void }) {
           badge={d && d.today.pendingOnline > 0 ? `${d.today.pendingOnline} online` : undefined}
         />
         <MoveList
-          title="🛫 Saídas de hoje"
+          title="Saídas de hoje"
           empty="Sem saídas previstas para hoje."
           count={d?.today.departures.length ?? 0}
           rows={(d?.today.departures ?? []).map((x) => ({ id: x.id, left: x.guest, mid: x.room, right: KZ(x.total) }))}
@@ -127,10 +127,10 @@ export function HotelHome({ onGo }: { onGo(section: string): void }) {
       {/* ── Gestão (secundário: partilhado com o núcleo) ── */}
       <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }} className="muted">Gestão</h3>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn ghost" onClick={() => onGo('operations')}>🧾 Caixa & Faturação</button>
-        <button className="btn ghost" onClick={() => onGo('reports')}>📊 Relatórios & SAF-T</button>
-        <button className="btn ghost" onClick={() => onGo('employees')}>👥 Equipa & Folha</button>
-        <button className="btn ghost" onClick={() => onGo('customers')}>🤝 Hóspedes</button>
+        <button className="btn ghost" onClick={() => onGo('operations')}>Caixa & Faturação</button>
+        <button className="btn ghost" onClick={() => onGo('reports')}>Relatórios & SAF-T</button>
+        <button className="btn ghost" onClick={() => onGo('employees')}>Equipa & Folha</button>
+        <button className="btn ghost" onClick={() => onGo('customers')}>Hóspedes</button>
       </div>
     </>
   );

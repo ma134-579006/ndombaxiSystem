@@ -49,7 +49,7 @@ export function Leave() {
         <h2>Férias & ausências</h2>
         <span className="spacer" />
         <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
-        <button className="btn sm" onClick={() => void printSectionReport()}>🖨 Imprimir</button>
+        <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Novo pedido</button>
       </div>
 

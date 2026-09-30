@@ -74,8 +74,8 @@ export function FeedbackAdmin() {
                 <div style={{ fontWeight: 700 }}>{f.author_name || 'Anónimo'} <span className="muted" style={{ fontWeight: 500, fontSize: 12 }}>· {new Date(f.created_at).toLocaleString('pt-PT')}</span></div>
                 <div style={{ fontSize: 14, marginTop: 2, wordBreak: 'break-word' }}>{f.body}</div>
               </div>
-              <span className="pill on">👍 {f.likes}</span>
-              <span className="pill off">👎 {f.dislikes}</span>
+              <span className="pill on">{f.likes}</span>
+              <span className="pill off">{f.dislikes}</span>
             </div>
           ))}
       </div>

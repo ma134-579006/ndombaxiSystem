@@ -55,7 +55,7 @@ export function Cameras({ mode }: { mode: 'config' | 'live' }) {
           ) : rows.map((c) => <CamRow key={c.id} cam={c} onEdit={() => setEditing(c)} onChanged={load} />)}
       </div>
       <p className="muted" style={{ fontSize: 12.5 }}>
-        🎞️ Gravação: com a opção «Gravar» ligada e uma <strong>URL de fotograma</strong> definida, o servidor guarda 1 imagem/minuto
+        Gravação: com a opção «Gravar» ligada e uma <strong>URL de fotograma</strong> definida, o servidor guarda 1 imagem/minuto
         durante <strong>30 dias</strong> — depois apaga automaticamente para libertar espaço. As gravações veem-se em «Câmaras → Abrir».
       </p>
 
@@ -90,7 +90,7 @@ function CamRow({ cam, onEdit, onChanged }: { cam: CameraRow; onEdit(): void; on
       <div style={{ flex: 1, minWidth: 0 }}>
         <strong style={{ fontSize: 14 }}>{cam.name}</strong>
         <span className={`pill ${cam.is_active ? 'on' : 'off'}`} style={{ marginLeft: 8 }}>{cam.is_active ? 'Ativa' : 'Desativada'}</span>
-        {cam.conn_type === 'P2P' ? <span className="pill on" style={{ marginLeft: 6 }}>☁️ Nuvem</span> : null}
+        {cam.conn_type === 'P2P' ? <span className="pill on" style={{ marginLeft: 6 }}>Nuvem</span> : null}
         {cam.record ? <span className="pill" style={{ marginLeft: 6, color: 'var(--danger)' }}>● REC</span> : null}
         <div className="muted" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cam.conn_type === 'P2P' ? `SN: ${cam.device_sn ?? '—'}` : cam.stream_url}</div>
       </div>
@@ -157,7 +157,7 @@ function CamGuide({ cam, onClose }: { cam: CameraRow; onClose(): void }) {
                   : <>Lê este QR para instalar a app. Depois volta e escolhe «SN» para adicionar a câmara.</>}
               </div>
             </div>
-          ) : <p className="muted" style={{ fontSize: 12.5, marginBottom: 0 }}>⚠️ Tens de escolher uma das três opções.</p>}
+          ) : <p className="muted" style={{ fontSize: 12.5, marginBottom: 0 }}>Tens de escolher uma das três opções.</p>}
         </div>
       </div>
     </div>
@@ -326,10 +326,10 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
       {/* Passo único: ler o QR do DVR. Tudo o resto é automático/opcional. */}
       <div className="row" style={{ gap: 8, marginBottom: 10 }}>
         <button className="btn" style={{ flex: 1 }} onClick={() => (scanning ? stopScan() : void startScan())}>
-          {scanning ? '✕ Parar' : '🔳 Ler QR do DVR'}
+          {scanning ? 'Parar' : 'Ler QR do DVR'}
         </button>
         <button className="btn ghost" style={{ flex: 1 }} onClick={() => fileRef.current?.click()} disabled={decoding}>
-          {decoding ? 'A ler…' : '🖼️ Foto do Guia'}
+          {decoding ? 'A ler…' : 'Foto do Guia'}
         </button>
       </div>
       <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => void onPickPhoto(e.target.files?.[0])} />
@@ -341,7 +341,7 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
       ) : null}
 
       {connType === 'P2P' && deviceSn ? (
-        <div className="banner success" style={{ marginBottom: 12, fontSize: 13 }}><div>✅ Câmara lida — SN <code>{deviceSn}</code>. Dá-lhe um nome e guarda.</div></div>
+        <div className="banner success" style={{ marginBottom: 12, fontSize: 13 }}><div>Câmara lida — SN <code>{deviceSn}</code>. Dá-lhe um nome e guarda.</div></div>
       ) : null}
 
       <div className="field"><label>Nome</label>
@@ -360,14 +360,14 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
       {advanced ? (
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12 }}>
           <div className="seg block" style={{ marginBottom: 12 }}>
-            <button className={connType === 'P2P' ? 'on' : ''} onClick={() => setConnType('P2P')}>☁️ Nuvem (QR/SN)</button>
-            <button className={connType === 'STREAM' ? 'on' : ''} onClick={() => setConnType('STREAM')}>🔗 URL de stream</button>
+            <button className={connType === 'P2P' ? 'on' : ''} onClick={() => setConnType('P2P')}>Nuvem (QR/SN)</button>
+            <button className={connType === 'STREAM' ? 'on' : ''} onClick={() => setConnType('STREAM')}>URL de stream</button>
           </div>
           <div className="banner info" style={{ margin: '0 0 12px', fontSize: 12.5 }}>
-            <div>📺 Para ver <strong>dentro do painel</strong> (e gravar), o DVR tem de estar acessível pela internet: cola aqui a URL de vídeo/fotograma (HLS/MJPEG/JPEG) com o teu <strong>IP público</strong> ou <strong>DDNS</strong>. Caso contrário, vê-se na app oficial pelo botão <strong>Guia</strong>.</div>
+            <div>Para ver <strong>dentro do painel</strong> (e gravar), o DVR tem de estar acessível pela internet: cola aqui a URL de vídeo/fotograma (HLS/MJPEG/JPEG) com o teu <strong>IP público</strong> ou <strong>DDNS</strong>. Caso contrário, vê-se na app oficial pelo botão <strong>Guia</strong>.</div>
           </div>
           <div style={{ border: '1px dashed var(--border)', borderRadius: 12, padding: 12, marginBottom: 12 }}>
-            <strong style={{ fontSize: 13 }}>📡 Configurar por IP (DVR na rede)</strong>
+            <strong style={{ fontSize: 13 }}>Configurar por IP (DVR na rede)</strong>
             <p className="muted" style={{ fontSize: 12, margin: '4px 0 10px' }}>Preenche os dados do DVR e gera a URL automaticamente (sem app externa).</p>
             <div className="grid-2">
               <div className="field"><label>Marca</label>
@@ -392,7 +392,7 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
               <div className="field"><label>Senha do DVR</label>
                 <input value={ipPass} onChange={(e) => setIpPass(e.target.value)} type="password" placeholder="••••••" /></div>
             </div>
-            <button className="btn ghost block" onClick={buildFromIp}>⚙️ Gerar URL a partir do IP</button>
+            <button className="btn ghost block" onClick={buildFromIp}>Gerar URL a partir do IP</button>
           </div>
           <div className="field"><label>URL de vídeo (HLS .m3u8 · MJPEG · MP4)</label>
             <input value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)} placeholder="http://SEU-DDNS:porta/...m3u8" /></div>
@@ -436,8 +436,8 @@ function CamerasLive({ rows, loading, error }: { rows: CameraRow[]; loading: boo
               <button key={c.id} className="card" style={{ padding: 10, textAlign: 'left', cursor: 'pointer' }} onClick={() => setOpen(c)}>
                 {hasStream(c) ? <LivePlayer cam={c} thumb /> : <P2PThumb />}
                 <div className="row" style={{ marginTop: 8, gap: 8 }}>
-                  <strong style={{ fontSize: 14 }}>📹 {c.name}</strong>
-                  {c.conn_type === 'P2P' ? <span className="pill on">☁️ Nuvem</span> : null}
+                  <strong style={{ fontSize: 14 }}>{c.name}</strong>
+                  {c.conn_type === 'P2P' ? <span className="pill on">Nuvem</span> : null}
                   {c.record ? <span className="pill" style={{ color: 'var(--danger)' }}>● REC</span> : null}
                   <span className="spacer" />
                   <span className="muted" style={{ fontSize: 12 }}>{hasStream(c) ? 'ampliar →' : 'abrir Guia →'}</span>
@@ -526,7 +526,7 @@ function LivePlayer({ cam, thumb = false }: { cam: CameraRow; thumb?: boolean })
 
   if (failed) return (
     <div className="empty" style={{ height: h, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 14 }}>
-      <p style={{ fontSize: 13, lineHeight: 1.5, margin: 0 }}>⚠️ {failed}</p>
+      <p style={{ fontSize: 13, lineHeight: 1.5, margin: 0 }}>{failed}</p>
     </div>
   );
 
@@ -569,7 +569,7 @@ function CamViewer({ cam, onClose }: { cam: CameraRow; onClose(): void }) {
   return (
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 920 }} onClick={(e) => e.stopPropagation()}>
-        <div className="mh"><h3>📹 {cam.name}</h3>
+        <div className="mh"><h3>{cam.name}</h3>
           <span className="spacer" />
           <div className="seg" style={{ marginRight: 10 }}>
             <button className={tab === 'live' ? 'on' : ''} onClick={() => setTab('live')}>Ao vivo</button>

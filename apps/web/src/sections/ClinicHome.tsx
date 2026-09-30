@@ -31,9 +31,9 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
   return (
     <>
       <div className="content-head">
-        <h2>🏥 Clínica — Centro de comando</h2>
+        <h2>Clínica — Centro de comando</h2>
         <span className="spacer" />
-        <button className="btn primary" onClick={() => goClinic('agenda')}>📅 Ver agenda</button>
+        <button className="btn primary" onClick={() => goClinic('agenda')}>Ver agenda</button>
       </div>
 
       {err && !d ? (
@@ -93,7 +93,7 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
       {/* ── Agenda de hoje ── */}
       <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border, #0002)' }}>
-          <strong style={{ fontSize: 14 }}>📅 Agenda de hoje</strong>
+          <strong style={{ fontSize: 14 }}>Agenda de hoje</strong>
           <span className="pill on">{d?.today.agenda.length ?? 0}</span>
           <span className="spacer" style={{ flex: 1 }} />
           <button className="btn sm ghost" onClick={() => goClinic('agenda')}>Abrir</button>
@@ -128,10 +128,10 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
       {/* ── Gestão (secundário) ── */}
       <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }} className="muted">Gestão</h3>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn ghost" onClick={() => onGo('operations')}>🧾 Caixa & Faturação</button>
-        <button className="btn ghost" onClick={() => onGo('reports')}>📊 Relatórios & SAF-T</button>
-        <button className="btn ghost" onClick={() => onGo('employees')}>👥 Profissionais & Folha</button>
-        <button className="btn ghost" onClick={() => onGo('customers')}>🤝 Pacientes (clientes)</button>
+        <button className="btn ghost" onClick={() => onGo('operations')}>Caixa & Faturação</button>
+        <button className="btn ghost" onClick={() => onGo('reports')}>Relatórios & SAF-T</button>
+        <button className="btn ghost" onClick={() => onGo('employees')}>Profissionais & Folha</button>
+        <button className="btn ghost" onClick={() => onGo('customers')}>Pacientes (clientes)</button>
       </div>
     </>
   );

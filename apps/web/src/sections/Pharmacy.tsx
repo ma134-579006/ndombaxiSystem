@@ -18,7 +18,7 @@ export function Pharmacy() {
 
   return (
     <>
-      <div className="content-head"><h2>💊 Farmácia — validade & lotes</h2></div>
+      <div className="content-head"><h2>Farmácia — validade & lotes</h2></div>
 
       {kpi ? (
         <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 14 }}>

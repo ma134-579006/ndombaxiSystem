@@ -52,7 +52,7 @@ export function Clinic() {
   return (
     <>
       <div className="content-head">
-        <h2>🏥 Clínica / Hospital</h2>
+        <h2>Clínica / Hospital</h2>
         <span className="spacer" />
         {tab === 'agenda' ? <button className="btn" onClick={() => setNewAppt(true)}><IconPlus size={17} /> Marcação</button>
           : tab === 'patients' ? <button className="btn" onClick={() => setNewPatient(true)}><IconPlus size={17} /> Paciente</button>
@@ -76,14 +76,14 @@ export function Clinic() {
       ) : null}
 
       <div className="card toolbar-sticky" style={{ display: 'flex', gap: 6, padding: '8px 10px', flexWrap: 'wrap' }}>
-        <button className={`chip${tab === 'agenda' ? ' active' : ''}`} onClick={() => setTab('agenda')}>📅 Agenda</button>
-        <button className={`chip${tab === 'emergency' ? ' active' : ''}`} onClick={() => setTab('emergency')}>🚑 Emergência</button>
-        <button className={`chip${tab === 'beds' ? ' active' : ''}`} onClick={() => setTab('beds')}>🛏️ Internação</button>
-        <button className={`chip${tab === 'patients' ? ' active' : ''}`} onClick={() => setTab('patients')}>👤 Pacientes</button>
-        <button className={`chip${tab === 'prescriptions' ? ' active' : ''}`} onClick={() => setTab('prescriptions')}>💊 Receitas</button>
-        <button className={`chip${tab === 'exams' ? ' active' : ''}`} onClick={() => setTab('exams')}>🧪 Exames</button>
-        <button className={`chip${tab === 'insurers' ? ' active' : ''}`} onClick={() => setTab('insurers')}>🛡️ Convénios</button>
-        <button className={`chip${tab === 'professionals' ? ' active' : ''}`} onClick={() => setTab('professionals')}>🧑‍⚕️ Profissionais</button>
+        <button className={`chip${tab === 'agenda' ? ' active' : ''}`} onClick={() => setTab('agenda')}>Agenda</button>
+        <button className={`chip${tab === 'emergency' ? ' active' : ''}`} onClick={() => setTab('emergency')}>Emergência</button>
+        <button className={`chip${tab === 'beds' ? ' active' : ''}`} onClick={() => setTab('beds')}>Internação</button>
+        <button className={`chip${tab === 'patients' ? ' active' : ''}`} onClick={() => setTab('patients')}>Pacientes</button>
+        <button className={`chip${tab === 'prescriptions' ? ' active' : ''}`} onClick={() => setTab('prescriptions')}>Receitas</button>
+        <button className={`chip${tab === 'exams' ? ' active' : ''}`} onClick={() => setTab('exams')}>Exames</button>
+        <button className={`chip${tab === 'insurers' ? ' active' : ''}`} onClick={() => setTab('insurers')}>Convénios</button>
+        <button className={`chip${tab === 'professionals' ? ' active' : ''}`} onClick={() => setTab('professionals')}>🧑‍Profissionais</button>
       </div>
 
       {tab === 'emergency' ? <EmergencyTab patients={patients} />
@@ -128,7 +128,7 @@ export function Clinic() {
                     <strong style={{ fontSize: 14 }}>{p.name}</strong>
                     <div className="muted" style={{ fontSize: 12.5 }}>{[p.phone, p.sex, p.blood_type].filter(Boolean).join(' · ') || '—'}{p.allergies ? ` · ⚠ ${p.allergies}` : ''}</div>
                   </button>
-                  <button className="btn sm ghost" onClick={() => setRecordFor(p.id)}>📖 Prontuário</button>
+                  <button className="btn sm ghost" onClick={() => setRecordFor(p.id)}>Prontuário</button>
                 </div>
               ))}
           </div>
@@ -257,7 +257,7 @@ function PatientDetail({ id, onClose }: { id: string; onClose(): void }) {
     <Modal title={p.name} onClose={onClose}>
       <div className="card" style={{ marginBottom: 10 }}>
         <div className="muted" style={{ fontSize: 12.5 }}>{[p.phone, p.sex, p.blood_type, p.nif ? `NIF ${p.nif}` : null].filter(Boolean).join(' · ') || '—'}</div>
-        {p.allergies ? <div style={{ fontSize: 12.5, color: 'var(--warning)', marginTop: 4 }}>⚠ Alergias: {p.allergies}</div> : null}
+        {p.allergies ? <div style={{ fontSize: 12.5, color: 'var(--warning)', marginTop: 4 }}>Alergias: {p.allergies}</div> : null}
         {p.notes ? <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>{p.notes}</div> : null}
       </div>
       <strong style={{ fontSize: 14 }}>Histórico de consultas</strong>
@@ -267,13 +267,13 @@ function PatientDetail({ id, onClose }: { id: string; onClose(): void }) {
             <div key={c.id} className="list-row" style={{ padding: '10px 14px', display: 'block' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <strong style={{ fontSize: 13 }}>{new Date(c.created_at).toLocaleDateString('pt-PT')}</strong>
-                {c.professional ? <span className="muted" style={{ fontSize: 12 }}>👨‍⚕️ {c.professional}</span> : null}
+                {c.professional ? <span className="muted" style={{ fontSize: 12 }}>👨‍{c.professional}</span> : null}
                 <span className="spacer" style={{ flex: 1 }} />
                 {Number(c.fee) > 0 ? <span style={{ fontWeight: 700 }}>{KZ(c.fee)}</span> : null}
                 {c.invoice_id ? <span className="pill on" style={{ marginLeft: 6 }}>Faturada</span> : null}
               </div>
-              {c.diagnosis ? <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>🩺 {c.diagnosis}</div> : null}
-              {c.prescription ? <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>💊 {c.prescription}</div> : null}
+              {c.diagnosis ? <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>{c.diagnosis}</div> : null}
+              {c.prescription ? <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{c.prescription}</div> : null}
             </div>
           ))}
       </div>

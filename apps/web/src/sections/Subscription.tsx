@@ -90,7 +90,7 @@ function ActiveCard({ sub, onChange }: { sub: Sub; onChange(): void }) {
       <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div className="kpi-ic" style={{ background: 'var(--success)', marginBottom: 0 }}><IconCheck size={20} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ margin: 0 }}>{isTrial ? '🎁 Teste grátis — Ativo' : `${sub.plan?.name ?? 'Plano'} — Activa`}</h3>
+          <h3 style={{ margin: 0 }}>{isTrial ? 'Teste grátis — Ativo' : `${sub.plan?.name ?? 'Plano'} — Activa`}</h3>
           <div className="muted" style={{ fontSize: 13 }}>
             {isTrial ? 'Período de teste gratuito' : `${kz(sub.amountKz)} / ${sub.durationMonths} meses`}
             {sub.expiresAt ? ` · válido até ${new Date(sub.expiresAt).toLocaleDateString('pt-PT')}` : ''}

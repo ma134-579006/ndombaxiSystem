@@ -69,7 +69,7 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
     const ok = await confirmDialog({
       title: 'Produzir primeiro',
       message: `"${m.name}" só tem ${m.stock} na prateleira e este pedido precisa de ${m.need}. Regista a FORNADA primeiro (desconta os ingredientes) — só depois aceitas o pedido. Ir para a produção agora?`,
-      confirmLabel: '🏭 Ir produzir',
+      confirmLabel: 'Ir produzir',
     });
     if (!ok) return;
     // Abre a aba Produção já com ESTE produto selecionado (seleção automática).
@@ -114,7 +114,7 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
 
   // Central de Produção: marca/desmarca um pedido como URGENTE (sobe na fila).
   const toggleUrgent = async (orderId: string, priority: number) => {
-    try { await api.restaurant.setPriority(orderId, priority); toast.success(priority ? '🔴 Marcado urgente.' : 'Urgência removida.'); await load(); }
+    try { await api.restaurant.setPriority(orderId, priority); toast.success(priority ? 'Marcado urgente.' : 'Urgência removida.'); await load(); }
     catch { toast.error('Falha ao mudar a prioridade.'); }
   };
 
@@ -171,16 +171,16 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
   return (
     <>
       <div className="content-head">
-        <h2>👨‍🍳 Cozinha (KDS)</h2>
+        <h2>Cozinha (KDS)</h2>
         <span className="spacer" />
-        {onGo ? <button className="btn sm" onClick={goToProduction} title="Produzir as fornadas e voltar à cozinha num clique">🏭 Ir para produção</button> : null}
+        {onGo ? <button className="btn sm" onClick={goToProduction} title="Produzir as fornadas e voltar à cozinha num clique">Ir para produção</button> : null}
         <span className="muted" style={{ fontSize: 13 }}>{totalItems || online.length ? `${totalItems} item(ns) · ${tickets.length} mesa(s)${online.length ? ` · ${online.length} online` : ''}` : 'atualiza a cada 5 s'}</span>
       </div>
 
       {/* ── Encomendas ONLINE (loja) — o cozinheiro dá o tempo e produz ── */}
       {online.length > 0 ? (
         <>
-          <h3 style={{ margin: '4px 0 10px', fontSize: 14 }}>🛵 Encomendas online <span className="muted" style={{ fontWeight: 400 }}>· {online.length}</span></h3>
+          <h3 style={{ margin: '4px 0 10px', fontSize: 14 }}>Encomendas online <span className="muted" style={{ fontWeight: 400 }}>· {online.length}</span></h3>
           <div className="pgrid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', alignItems: 'start', marginBottom: 18 }}>
             {online.map((t) => {
               const isNew = t.kitchenStatus === 'NEW';
@@ -188,10 +188,10 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
               return (
                 <div key={t.id} className="card" style={{ padding: 0, overflow: 'hidden', borderTop: `4px solid ${tone}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border, #0002)' }}>
-                    <strong style={{ fontSize: 14 }}>🛵 {t.customerName || 'Cliente'}</strong>
+                    <strong style={{ fontSize: 14 }}>{t.customerName || 'Cliente'}</strong>
                     <span className="pill on" style={{ fontSize: 10 }}>ONLINE</span>
                     <span className="spacer" style={{ flex: 1 }} />
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: tone }}>⏱ {fmtWait(t.waitMin)}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: tone }}>{fmtWait(t.waitMin)}</span>
                   </div>
                   <div style={{ padding: '4px 14px' }}>
                     <div className="muted" style={{ fontSize: 11.5, marginBottom: 4 }}>{t.orderNumber} · {t.paymentStatus === 'PAID' ? 'Pago ✓' : 'Aguarda pagamento'}</div>
@@ -208,7 +208,7 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
                       </div>
                     ) : (
                       <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-                        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>👨‍🍳 Em preparação{t.etaMin ? ` · ~${t.etaMin} min` : ''}</span>
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>Em preparação{t.etaMin ? ` · ~${t.etaMin} min` : ''}</span>
                         <button className="btn sm" onClick={() => void markOnlineReady(t)}>Pronto ✓</button>
                       </div>
                     )}
@@ -217,7 +217,7 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
               );
             })}
           </div>
-          <h3 style={{ margin: '4px 0 10px', fontSize: 14 }}>🍽️ Mesas</h3>
+          <h3 style={{ margin: '4px 0 10px', fontSize: 14 }}>Mesas</h3>
         </>
       ) : null}
 
@@ -237,15 +237,15 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border, #0002)' }}>
                   <strong style={{ fontSize: 15 }}>{t.isCounter ? '🛍️' : '🪑'} {t.table}</strong>
                   {t.isCounter ? <span className="pill on" style={{ fontSize: 10 }}>BALCÃO</span> : null}
-                  {urgent ? <span className="pill" style={{ fontSize: 10, background: 'var(--danger, #e5484d)', color: '#fff' }}>🔴 URGENTE</span> : null}
+                  {urgent ? <span className="pill" style={{ fontSize: 10, background: 'var(--danger, #e5484d)', color: '#fff' }}>URGENTE</span> : null}
                   <span className="spacer" style={{ flex: 1 }} />
                   <button className="btn sm ghost" title={urgent ? 'Remover urgência' : 'Marcar urgente'} onClick={() => void toggleUrgent(t.orderId, urgent ? 0 : 1)}>{urgent ? '↩' : '🔴'}</button>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: tone }}>⏱ {fmtWait(t.oldest)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: tone }}>{fmtWait(t.oldest)}</span>
                 </div>
                 {/* Cozinha dá o tempo estimado (útil sobretudo no balcão/takeaway). */}
                 <div className="row" style={{ gap: 8, alignItems: 'center', padding: '8px 14px', borderBottom: '1px solid var(--border, #0002)' }}>
                   {t.eta ? (
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--primary)' }}>⏲ Tempo dado: ~{t.eta} min</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--primary)' }}>Tempo dado: ~{t.eta} min</span>
                   ) : (
                     <>
                       <input value={etaDraft[t.orderId] ?? ''} onChange={(e) => setEtaDraft((d) => ({ ...d, [t.orderId]: e.target.value.replace(/[^\d]/g, '') }))}

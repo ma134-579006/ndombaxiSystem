@@ -28,15 +28,15 @@ const SUGGESTIONS = [
 ];
 
 const TOOL_LABEL: Record<string, string> = {
-  resumo_vendas: '📊 A analisar vendas', top_produtos: '🏆 Top produtos',
-  desempenho_funcionarios: '👥 Desempenho dos funcionários', detetar_anomalias: '🕵️ Auditoria anti-fraude',
-  stock_critico: '📦 Stock crítico', lucro_resumo: '💰 Lucro', gastos_resumo: '🧾 Gastos',
-  listar_funcionarios: '👥 Funcionários', listar_clientes: '🤝 Clientes', mapa_iva: '🏛️ Mapa de IVA',
-  atualizar_preco_produto: '✏️ A alterar preço', criar_cliente: '➕ A criar cliente',
-  criar_produto: '🛒 A criar produto',
-  criar_despesa: '➕ A registar despesa', ajustar_stock_minimo: '✏️ Stock mínimo',
-  criar_planilha: '📗 A criar planilha', criar_pdf: '📄 A criar PDF', criar_imagem: '🎨 A gerar imagem',
-  mostrar_guia: '🖼️ Guia visual', enviar_whatsapp: '💬 WhatsApp',
+  resumo_vendas: 'A analisar vendas', top_produtos: 'Top produtos',
+  desempenho_funcionarios: 'Desempenho dos funcionários', detetar_anomalias: 'Auditoria anti-fraude',
+  stock_critico: 'Stock crítico', lucro_resumo: 'Lucro', gastos_resumo: 'Gastos',
+  listar_funcionarios: 'Funcionários', listar_clientes: 'Clientes', mapa_iva: 'Mapa de IVA',
+  atualizar_preco_produto: 'A alterar preço', criar_cliente: 'A criar cliente',
+  criar_produto: 'A criar produto',
+  criar_despesa: 'A registar despesa', ajustar_stock_minimo: 'Stock mínimo',
+  criar_planilha: 'A criar planilha', criar_pdf: 'A criar PDF', criar_imagem: 'A gerar imagem',
+  mostrar_guia: 'Guia visual', enviar_whatsapp: 'WhatsApp',
 };
 
 const IconMic = ({ size = 20 }: { size?: number }) => (
@@ -125,7 +125,7 @@ export function Assistant() {
         else if (e.type === 'error') { finalText = e.text ?? 'Falha no agente.'; }
       });
       await stream.done;
-      setTurns((p) => [...p, { role: 'assistant', content: finalText || '✓ Feito.', attachments }]);
+      setTurns((p) => [...p, { role: 'assistant', content: finalText || 'Feito.', attachments }]);
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : '';
       const transient = /\b(503|429|500|502|504)\b|unavailable|overloaded|sobrecarregad|temporar/i.test(msg);
@@ -134,7 +134,7 @@ export function Assistant() {
         content: e instanceof ApiError && e.status === 400
           ? 'O agente precisa de um provedor de IA configurado (Super Admin → Inteligência Artificial).'
           : transient
-            ? '⏳ O serviço de IA está sobrecarregado neste momento. Espera uns segundos e tenta de novo. (Se acontecer muito, o Super Admin pode adicionar uma 2.ª chave de IA para alternância automática.)'
+            ? 'O serviço de IA está sobrecarregado neste momento. Espera uns segundos e tenta de novo. (Se acontecer muito, o Super Admin pode adicionar uma 2.ª chave de IA para alternância automática.)'
             : (msg || 'Não consegui responder agora. Tenta novamente.'),
       }]);
     } finally { setBusy(false); }
@@ -173,7 +173,7 @@ export function Assistant() {
           <div className="agent-col">
             {!empty ? (
               <div className="row" style={{ justifyContent: 'flex-end', position: 'sticky', top: 0, zIndex: 2, paddingBottom: 4 }}>
-                <button className="btn sm ghost" onClick={() => void clearConversation()} title="Apagar a memória e começar uma conversa nova">🗑 Nova conversa</button>
+                <button className="btn sm ghost" onClick={() => void clearConversation()} title="Apagar a memória e começar uma conversa nova">Nova conversa</button>
               </div>
             ) : null}
             {empty ? (
@@ -299,7 +299,7 @@ function ActivityCard({ step, running }: { step: Step; running: boolean }) {
                   <span><strong>{a.file.name}</strong><em>Descarregar</em></span>
                 </a>
               ) : null}
-              {a.waLink ? <a className="agent-wa" href={a.waLink} target="_blank" rel="noreferrer">💬 Enviar no WhatsApp</a> : null}
+              {a.waLink ? <a className="agent-wa" href={a.waLink} target="_blank" rel="noreferrer">Enviar no WhatsApp</a> : null}
             </React.Fragment>
           ))}
         </div>
@@ -339,7 +339,7 @@ function AgentTurn({ turn }: { turn: Turn }) {
               <img className="agent-img" src={a.guideUrl} alt="Guia do sistema" onClick={() => setZoom(a.guideUrl!)} />
             ) : null}
             {a.waLink ? (
-              <a className="agent-wa" href={a.waLink} target="_blank" rel="noreferrer">💬 Enviar no WhatsApp</a>
+              <a className="agent-wa" href={a.waLink} target="_blank" rel="noreferrer">Enviar no WhatsApp</a>
             ) : null}
           </div>
         ))}

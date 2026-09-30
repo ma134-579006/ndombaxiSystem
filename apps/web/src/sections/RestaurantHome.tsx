@@ -35,9 +35,9 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
   return (
     <>
       <div className="content-head">
-        <h2>🍔 Restauração — Centro de comando</h2>
+        <h2>Restauração — Centro de comando</h2>
         <span className="spacer" />
-        <button className="btn primary" onClick={() => goRest('mesas')}>🍽️ Abrir mesas</button>
+        <button className="btn primary" onClick={() => goRest('mesas')}>Abrir mesas</button>
       </div>
 
       {err && !d ? (
@@ -133,10 +133,10 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
       {/* ── Gestão (secundário: partilhado com o núcleo) ── */}
       <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }} className="muted">Gestão</h3>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn ghost" onClick={() => onGo('operations')}>🧾 Caixa & Faturação</button>
-        <button className="btn ghost" onClick={() => onGo('reports')}>📊 Relatórios & SAF-T</button>
-        <button className="btn ghost" onClick={() => onGo('employees')}>👥 Equipa & Folha</button>
-        <button className="btn ghost" onClick={() => onGo('customers')}>🤝 Clientes</button>
+        <button className="btn ghost" onClick={() => onGo('operations')}>Caixa & Faturação</button>
+        <button className="btn ghost" onClick={() => onGo('reports')}>Relatórios & SAF-T</button>
+        <button className="btn ghost" onClick={() => onGo('employees')}>Equipa & Folha</button>
+        <button className="btn ghost" onClick={() => onGo('customers')}>Clientes</button>
       </div>
     </>
   );

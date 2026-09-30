@@ -94,7 +94,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
   return (
     <>
       <div className="content-head">
-        <h2>🍽️ Mesas & Comandas</h2>
+        <h2>Mesas & Comandas</h2>
         <span className="spacer" />
         <button className="btn ghost" onClick={() => setNewTable(true)}><IconPlus size={16} /> Nova mesa</button>
       </div>
@@ -383,7 +383,7 @@ function ProductionTab({ products, onProduced, onGo }: { products: ManagerProduc
       {onGo ? (
         <div className="row" style={{ marginBottom: 10 }}>
           <span className="spacer" style={{ flex: 1 }} />
-          <button className="btn sm" onClick={() => onGo('restaurant-kds')} title="Terminaste a fornada? Volta à cozinha num clique">👨‍🍳 Voltar à cozinha</button>
+          <button className="btn sm" onClick={() => onGo('restaurant-kds')} title="Terminaste a fornada? Volta à cozinha num clique">Voltar à cozinha</button>
         </div>
       ) : null}
       <div className="card" style={{ marginBottom: 12 }}>
@@ -422,7 +422,7 @@ function ProductionTab({ products, onProduced, onGo }: { products: ManagerProduc
       ) : (
         <>
           <div className="content-head" style={{ marginTop: 0 }}>
-            <h3 style={{ margin: 0 }}>🥐 {product.name}</h3>
+            <h3 style={{ margin: 0 }}>{product.name}</h3>
             <span className="spacer" />
             <button className="btn ghost sm" onClick={() => { setProductId(''); setQ(''); }}>← Escolher outro</button>
           </div>
@@ -462,7 +462,7 @@ function ProductionTab({ products, onProduced, onGo }: { products: ManagerProduc
 
           {last ? (
             <div className="card" style={{ marginTop: 12, borderLeft: '4px solid var(--success)' }}>
-              <strong>✓ Última fornada</strong>
+              <strong>Última fornada</strong>
               <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
                 {last.produced}× produzido(s) · custo unitário {KZ(last.unitCost)} · custo médio agora {KZ(last.costPrice)} · em stock {last.stockAfter}.
               </div>

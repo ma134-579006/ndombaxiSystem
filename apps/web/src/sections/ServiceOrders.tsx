@@ -74,15 +74,15 @@ export function ServiceOrders() {
   return (
     <>
       <div className="content-head">
-        <h2>🛠️ Assistência técnica</h2>
+        <h2>Assistência técnica</h2>
         <span className="spacer" />
         {tab === 'orders' ? <button className="btn" onClick={() => setCreating(true)}><IconPlus size={17} /> Nova OS</button> : null}
       </div>
 
       <div className="card toolbar-sticky" style={{ display: 'flex', gap: 6, padding: '8px 10px' }}>
-        <button className={`chip${tab === 'orders' ? ' active' : ''}`} onClick={() => setTab('orders')}>🛠️ Ordens</button>
-        <button className={`chip${tab === 'agenda' ? ' active' : ''}`} onClick={() => setTab('agenda')}>📅 Agenda</button>
-        <button className={`chip${tab === 'equipments' ? ' active' : ''}`} onClick={() => setTab('equipments')}>💻 Equipamentos</button>
+        <button className={`chip${tab === 'orders' ? ' active' : ''}`} onClick={() => setTab('orders')}>Ordens</button>
+        <button className={`chip${tab === 'agenda' ? ' active' : ''}`} onClick={() => setTab('agenda')}>Agenda</button>
+        <button className={`chip${tab === 'equipments' ? ' active' : ''}`} onClick={() => setTab('equipments')}>Equipamentos</button>
       </div>
 
       {tab === 'equipments' ? <EquipmentsTab /> : tab === 'agenda' ? <AgendaTab onOpen={(id) => void openOS(id)} /> : (
@@ -97,7 +97,7 @@ export function ServiceOrders() {
           : rows.map((r) => (
             <button key={r.id} className="list-row" onClick={() => void openOS(r.id)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', padding: '12px 16px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <strong style={{ fontSize: 14 }}>{r.number} · {r.customer_name || 'Cliente'}{r.source === 'ONLINE' ? <span className="pill" style={{ marginLeft: 6, background: 'var(--primary)', color: '#fff' }}>🌐 Online</span> : null}</strong>
+                <strong style={{ fontSize: 14 }}>{r.number} · {r.customer_name || 'Cliente'}{r.source === 'ONLINE' ? <span className="pill" style={{ marginLeft: 6, background: 'var(--primary)', color: '#fff' }}>Online</span> : null}</strong>
                 <div className="muted" style={{ fontSize: 12.5 }}>{r.equipment_label || '—'}{r.assigned_to ? ` · 👤 ${r.assigned_to}` : ''}</div>
               </div>
               <span style={{ fontWeight: 700, marginRight: 8 }}>{KZ(r.total)}</span>
@@ -257,7 +257,7 @@ function EquipmentsTab() {
                     {[e.brand, e.model].filter(Boolean).join(' ')}{e.plate ? ` · ${e.plate}` : ''}{e.serial ? ` · SN ${e.serial}` : ''}{e.customer_name ? ` · 👤 ${e.customer_name}` : ''}
                     {e.km != null ? ` · ${e.km.toLocaleString('pt-PT')} km` : ''}
                   </div>
-                  {overKm ? <div style={{ fontSize: 12, color: 'var(--warning)', fontWeight: 700 }}>⚠ Revisão devida (≥ {e.next_service_km?.toLocaleString('pt-PT')} km)</div> : null}
+                  {overKm ? <div style={{ fontSize: 12, color: 'var(--warning)', fontWeight: 700 }}>Revisão devida (≥ {e.next_service_km?.toLocaleString('pt-PT')} km)</div> : null}
                 </div>
               </div>
             );
@@ -513,10 +513,10 @@ function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['or
           <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
             <div className="field" style={{ width: 140, margin: 0 }}><label>Tempo estimado (min)</label>
               <input value={est} onChange={(e) => setEst(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="ex.: 120" /></div>
-            <div className="field" style={{ width: 210, margin: 0 }}><label>📅 Marcação (agenda)</label>
+            <div className="field" style={{ width: 210, margin: 0 }}><label>Marcação (agenda)</label>
               <input type="datetime-local" value={sched} onChange={(e) => setSched(e.target.value)} /></div>
             <label className="btn ghost sm">
-              📷 Fotos ({photos.length})
+              Fotos ({photos.length})
               <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple hidden onChange={(e) => void addPhotos(e.target.files)} />
             </label>
           </div>
@@ -556,7 +556,7 @@ function WorkflowBar({ o, onChanged }: { o: ServiceOrderDetail['order']; onChang
     <div className="card" style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
       <strong style={{ fontSize: 13 }}>Fluxo:</strong>
       {(s === 'OPEN' || s === 'QUOTED') ? (
-        <button className="btn sm" disabled={!!busy} onClick={() => void act('approve', () => api.serviceOrders.approveQuote(o.id), 'Orçamento aprovado.')}>✔ Aprovar orçamento</button>
+        <button className="btn sm" disabled={!!busy} onClick={() => void act('approve', () => api.serviceOrders.approveQuote(o.id), 'Orçamento aprovado.')}>Aprovar orçamento</button>
       ) : null}
       {s === 'APPROVED' ? (
         <button className="btn sm" disabled={!!busy} onClick={() => void act('start', () => api.serviceOrders.startWork(o.id), 'Trabalho iniciado.')}>▶ Iniciar trabalho</button>
@@ -566,7 +566,7 @@ function WorkflowBar({ o, onChanged }: { o: ServiceOrderDetail['order']; onChang
       ) : null}
       {o.quote_approved_at ? <span className="muted" style={{ fontSize: 12 }}>Aprovado{o.quote_approved_by ? ` por ${o.quote_approved_by}` : ''}</span> : null}
       <span className="spacer" style={{ flex: 1 }} />
-      <span className="muted" style={{ fontSize: 12 }}>⏱ Est: {MIN_LABEL(o.est_minutes)} · Real: {MIN_LABEL(o.actual_minutes)}</span>
+      <span className="muted" style={{ fontSize: 12 }}>Est: {MIN_LABEL(o.est_minutes)} · Real: {MIN_LABEL(o.actual_minutes)}</span>
     </div>
   );
 }
@@ -632,7 +632,7 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
       <div className="card" style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 13.5 }}><strong>{o.customer_name || 'Cliente'}</strong>{o.customer_phone ? ` · ${o.customer_phone}` : ''}</div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{o.equipment_label || '—'}{o.equipment_ref ? ` · ${o.equipment_ref}` : ''}{o.assigned_to ? ` · 👤 ${o.assigned_to}` : ''}</div>
-        {o.problem ? <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>🛠️ {o.problem}</div> : null}
+        {o.problem ? <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>{o.problem}</div> : null}
       </div>
 
       {o.status !== 'CANCELLED' ? <WorkflowBar o={o} onChanged={onChanged} /> : null}
@@ -696,19 +696,19 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
       </div>
 
       <button className="btn ghost block" style={{ marginTop: 10 }} onClick={() => void printWorkOrder(detail, trackingUrl).catch(() => toast.error('Falha ao gerar a folha de obra.'))}>
-        🖨️ Imprimir {isVehicle ? 'folha de obra' : 'folha de serviço'}{trackingUrl ? ' (com QR de rastreio)' : ''}
+        Imprimir {isVehicle ? 'folha de obra' : 'folha de serviço'}{trackingUrl ? ' (com QR de rastreio)' : ''}
       </button>
 
       {o.status !== 'DELIVERED' && o.status !== 'CANCELLED' ? (
         <button className="btn lg block success" style={{ marginTop: 12 }} onClick={() => void invoice()} disabled={billing}>
-          🧾 {billing ? 'A faturar…' : 'Faturar (AGT) e entregar'}
+          {billing ? 'A faturar…' : 'Faturar (AGT) e entregar'}
         </button>
       ) : o.status === 'DELIVERED' ? (
         <div className="banner success" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ flex: 1 }}>OS entregue e faturada.</span>
           {o.invoice_id ? (
             <button className="btn sm" onClick={() => void reprint()} disabled={reprinting}>
-              🧾 {reprinting ? 'A gerar…' : 'Imprimir 2ª via'}
+              {reprinting ? 'A gerar…' : 'Imprimir 2ª via'}
             </button>
           ) : null}
         </div>

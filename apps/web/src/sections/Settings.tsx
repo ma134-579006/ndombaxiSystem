@@ -244,7 +244,7 @@ function PrinterCard() {
         <li>No caixa/relatórios, toque em <strong>Imprimir</strong> e escolha essa impressora — fica como predefinida.</li>
         <li>Use o botão abaixo para confirmar que imprime.</li>
       </ol>
-      <button className="btn ghost" onClick={testPrint}>🖨 Imprimir página de teste</button>
+      <button className="btn ghost" onClick={testPrint}>Imprimir página de teste</button>
       <p className="muted" style={{ marginTop: 12 }}>
         <strong>Plano e pagamentos:</strong> faça a gestão do plano e do comprovativo na secção <strong>Subscrição &amp; Plano</strong>.
       </p>

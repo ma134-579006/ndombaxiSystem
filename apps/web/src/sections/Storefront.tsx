@@ -160,7 +160,7 @@ export function Storefront() {
 
       {/* Link partilhável directo da loja (sem código) */}
       <div className="card" style={isPublished ? { borderColor: 'var(--success)' } : undefined}>
-        <h3>🔗 Link da tua loja</h3>
+        <h3>Link da tua loja</h3>
         <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
           Partilha este link com os teus clientes. Ao abrir, vão <strong>direito à tua loja</strong> — sem precisar de escrever nenhum código.
         </p>
@@ -178,7 +178,7 @@ export function Storefront() {
                 onFocus={(e) => e.currentTarget.select()}
                 style={{ flex: '1 1 260px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '11px 13px', color: 'var(--text)', fontSize: 14 }}
               />
-              <button className="btn" onClick={copyLink}>{copied ? '✓ Copiado!' : 'Copiar link'}</button>
+              <button className="btn" onClick={copyLink}>{copied ? 'Copiado!' : 'Copiar link'}</button>
               <a className="btn ghost" href={storeLink} target="_blank" rel="noreferrer">Abrir</a>
               <button className="btn" onClick={() => void downloadStorePdf()} disabled={pdfBusy}>{pdfBusy ? 'A gerar PDF…' : '⬇️ Descarregar PDF (A4)'}</button>
             </div>

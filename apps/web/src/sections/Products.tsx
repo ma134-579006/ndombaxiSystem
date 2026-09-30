@@ -132,7 +132,7 @@ export function Products() {
   // os toggles não fazem sentido e ficam escondidos.
   const [isRestaurant, setIsRestaurant] = useState(false);
   useEffect(() => { api.branding().then((b) => setIsRestaurant((b.businessType || '') === 'RESTAURANT')).catch(() => undefined); }, []);
-  // Disponibilidade dos produtos de PRODUÇÃO (🟢 Livre / 🟡 Ocupado / 🔴 Esgotado).
+  // Disponibilidade dos produtos de PRODUÇÃO (Livre / Ocupado / Esgotado).
   const [avail, setAvail] = useState<Record<string, 'FREE' | 'BUSY' | 'OUT'>>({});
   const loadAvail = useCallback(() => {
     api.restaurant.availability()
@@ -310,7 +310,7 @@ export function Products() {
               produtos com ficha técnica — não polui os outros negócios. */}
           {products.some((p) => p.has_recipe) ? (
             <button className="btn ghost" onClick={() => setProducing(true)}>
-              🥖 Fornada
+              Fornada
             </button>
           ) : null}
           <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
@@ -382,7 +382,7 @@ export function Products() {
                   {p.is_ingredient
                     ? <span className="pill off">Ingrediente</span>
                     : p.is_production
-                      ? <span className="pill" style={{ background: 'color-mix(in srgb, var(--primary) 18%, transparent)', color: 'var(--primary)' }}>🏭 Produção</span>
+                      ? <span className="pill" style={{ background: 'color-mix(in srgb, var(--primary) 18%, transparent)', color: 'var(--primary)' }}>Produção</span>
                       : <span className={`pill ${p.show_online ? 'on' : 'off'}`}>{p.show_online ? 'Online' : 'Oculto'}</span>}
                 </div>
                 <button className="btn sm ghost block" style={{ marginTop: 8 }} onClick={() => openEdit(p)}>
@@ -470,7 +470,7 @@ export function Products() {
               escondem-se estoque/custo/compra (deixam de fazer sentido). */}
           {form.isProduction ? (
             <div className="card" style={{ background: 'var(--surface-2)', padding: 12, margin: '0 0 12px', borderLeft: '3px solid var(--primary)' }}>
-              <div style={{ fontWeight: 700 }}>🏭 Produto de produção</div>
+              <div style={{ fontWeight: 700 }}>Produto de produção</div>
               <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
                 O <strong>custo</strong> é calculado automaticamente pela ficha técnica (ingredientes) e o <strong>estoque</strong> vem das fornadas. Defina a receita no separador do restaurante.
               </p>
@@ -532,7 +532,7 @@ export function Products() {
           ) : null}
           {isRestaurant && !form.isIngredient ? (
             <div className="switch-row">
-              <span>🏭 Ativar produção<br /><small className="muted">Produto FABRICADO: o custo vem da ficha técnica e o estoque das fornadas (esconde custo/estoque/compra).</small></span>
+              <span>Ativar produção<br /><small className="muted">Produto FABRICADO: o custo vem da ficha técnica e o estoque das fornadas (esconde custo/estoque/compra).</small></span>
               <Switch checked={form.isProduction} onChange={(v) => setForm({ ...form, isProduction: v })} />
             </div>
           ) : null}

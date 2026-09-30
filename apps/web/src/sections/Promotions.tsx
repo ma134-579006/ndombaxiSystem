@@ -74,7 +74,7 @@ export function Promotions() {
       {/* Alertas operacionais */}
       {alerts.length > 0 ? (
         <div className="card">
-          <h3>🔔 Alertas ({alerts.length})</h3>
+          <h3>Alertas ({alerts.length})</h3>
           {alerts.slice(0, 8).map((a, i) => (
             <div className="list-row" key={i}>
               <span className="badge" style={{ color: a.level === 'danger' ? 'var(--danger)' : a.level === 'warning' ? 'var(--warning)' : 'var(--primary)', borderColor: 'currentColor' }}>
