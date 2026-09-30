@@ -73,6 +73,20 @@ function parseSpreadsheet(buffer: Buffer, asText?: string): ParsedFile {
   if (!sheetName) throw new BadRequestException('O ficheiro não tem nenhuma folha/tabela legível.');
   const sheet = workbook.Sheets[sheetName];
   const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '', raw: true });
+  // Células NUMÉRICAS com zeros à esquerda (formato «0000000000000» no Excel): o valor
+  // bruto perde os zeros; o texto formatado tem-nos. Só se substitui quando o texto
+  // formatado é um código só de dígitos com zero à esquerda (códigos de barras/SKU),
+  // para nunca mexer em preços ou quantidades.
+  if (asText === undefined) {
+    const formatted = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '', raw: false });
+    raw.forEach((row, i) => {
+      const f = formatted[i];
+      if (!f) return;
+      for (const k of Object.keys(row)) {
+        if (typeof row[k] === 'number' && typeof f[k] === 'string' && /^0\d{5,}$/.test(f[k] as string)) row[k] = f[k];
+      }
+    });
+  }
   // Defesa contra prototype pollution (o xlsx 0.18.5 tem CVE-2023-30533): um
   // cabeçalho malicioso "__proto__"/"constructor"/"prototype" no ficheiro seria
   // usado como chave de objeto. Reconstruímos cada linha num objeto SEM protótipo

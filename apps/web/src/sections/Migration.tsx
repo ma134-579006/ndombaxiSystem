@@ -66,6 +66,8 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Escolha manual das colunas (só produtos): campo → cabeçalho do ficheiro ('' = não usar).
+  const [mapping, setMapping] = useState<Record<string, string> | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const Icon = KIND_ICON[kind];
 
@@ -81,7 +83,7 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
       setError(`Ficheiro demasiado grande (${(file.size / 1024 / 1024).toFixed(1)} MB; máx. ${MAX_FILE_MB} MB). Divida-o em partes e importe cada uma.`);
       return;
     }
-    setError(null); setPreview(null); setResult(null); setBusy(true);
+    setError(null); setPreview(null); setResult(null); setMapping(null); setBusy(true);
     try {
       const b64 = await readAsBase64(file);
       setFileName(file.name); setContentB64(b64);
@@ -91,12 +93,25 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
     } finally { setBusy(false); }
   };
 
+  /** O utilizador corrigiu uma coluna: refaz a pré-visualização com essa escolha. */
+  const remap = async (field: string, header: string) => {
+    if (!contentB64 || !preview) return;
+    const next = { ...preview.detectedColumns, ...(mapping ?? {}), [field]: header };
+    setBusy(true); setError(null);
+    try {
+      setPreview(await api.migration.preview(kind, contentB64, fileName ?? undefined, next));
+      setMapping(next);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível aplicar esta coluna.');
+    } finally { setBusy(false); }
+  };
+
   const apply = async () => {
     if (!contentB64) return;
     if (!(await confirmDialog({ message: `Importar ${KIND_LABEL[kind].toLowerCase()}? Vai criar/atualizar registos — nada é apagado.` }))) return;
     setBusy(true); setError(null);
     try {
-      const r = await api.migration.apply(kind, contentB64, fileName ?? undefined, kind === 'products' ? (storeId || null) : null);
+      const r = await api.migration.apply(kind, contentB64, fileName ?? undefined, kind === 'products' ? (storeId || null) : null, kind === 'products' ? mapping : null);
       setResult(r);
       toast.success(`${KIND_LABEL[kind]}: ${r.created} criado(s), ${r.updated} atualizado(s).`);
     } catch (e) {
@@ -104,7 +119,7 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
     } finally { setBusy(false); }
   };
 
-  const reset = () => { setFileName(null); setContentB64(null); setPreview(null); setResult(null); setError(null); if (inputRef.current) inputRef.current.value = ''; };
+  const reset = () => { setMapping(null); setFileName(null); setContentB64(null); setPreview(null); setResult(null); setError(null); if (inputRef.current) inputRef.current.value = ''; };
 
   return (
     <div className="mig-card">
@@ -155,12 +170,42 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
             {preview.toSkip > 0 ? <div className="mig-stat skip"><span className="mig-stat-n">{preview.toSkip}</span><span className="mig-stat-l">Ignoradas</span></div> : null}
           </div>
 
-          <details className="mig-cols">
+          {preview.warnings?.length ? (
+            <div className="mig-warn" role="alert">
+              <strong>Confirme antes de importar</strong>
+              <ul>{preview.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+            </div>
+          ) : null}
+
+          {preview.notes?.length ? <div className="mig-note-box">{preview.notes.map((n, i) => <div key={i}>{n}</div>)}</div> : null}
+
+          {kind === 'products' && preview.summary ? (
+            <div className="mig-sum">
+              <span><b>{preview.summary.withBarcode}</b> com código de barras</span>
+              <span><b>{preview.summary.withStock}</b> com stock</span>
+              <span>stock total <b>{preview.summary.stockTotal.toLocaleString('pt-PT')}</b></span>
+              <span>entram <b>visíveis online</b></span>
+            </div>
+          ) : null}
+
+          <details className="mig-cols" open={kind === 'products' && !!preview.warnings?.length}>
             <summary>Colunas reconhecidas ({Object.keys(preview.detectedColumns).length})</summary>
             <div className="mig-cols-body">
-              {Object.entries(preview.detectedColumns).map(([field, header]) => (
-                <div key={field} className="mig-col-row"><span>{FIELD_LABEL[field] ?? field}</span><em>{header}</em></div>
-              ))}
+              {kind === 'products' && preview.headers ? (
+                ['name', 'code', 'barcode', 'category', 'stock', 'costPrice', 'salePrice'].map((field) => (
+                  <label key={field} className="mig-col-row">
+                    <span>{FIELD_LABEL[field] ?? field}</span>
+                    <select value={preview.detectedColumns[field] ?? ''} disabled={busy} onChange={(e) => void remap(field, e.target.value)}>
+                      <option value="">— não usar —</option>
+                      {preview.headers!.map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </label>
+                ))
+              ) : (
+                Object.entries(preview.detectedColumns).map(([field, header]) => (
+                  <div key={field} className="mig-col-row"><span>{FIELD_LABEL[field] ?? field}</span><em>{header}</em></div>
+                ))
+              )}
               {preview.unmappedColumns.length ? (
                 <div className="mig-col-unused">Não usadas: {preview.unmappedColumns.slice(0, 6).join(', ')}{preview.unmappedColumns.length > 6 ? '…' : ''}</div>
               ) : null}
@@ -203,6 +248,9 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
           <div className="banner success mig-msg">
             {result.created} criado(s) · {result.updated} atualizado(s){result.skipped ? ` · ${result.skipped} ignorado(s)` : ''}
           </div>
+          {result.warnings?.length ? (
+            <div className="mig-warn" role="alert"><ul>{result.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></div>
+          ) : null}
           {result.errors.length ? (
             <details className="mig-errors">
               <summary>{result.errors.length} aviso(s)</summary>

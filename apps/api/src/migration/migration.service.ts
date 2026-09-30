@@ -9,6 +9,8 @@ import {
   SUPPLIER_ALIASES, SupplierField,
   mapHeaders, parseFlexibleNumber,
 } from './column-aliases';
+import { cleanName, isValidGtin, readBarcode, readCode, readStock } from './cell-values';
+import { detectProductColumns } from './product-columns';
 import { parseUploadedFile } from './parse-file';
 import type { MigrationKind } from './dto/migration.dto';
 
@@ -23,8 +25,22 @@ export interface MigrationPreview {
   toSkip: number;
   sample: PreviewRow[];
   skippedSamples: { row: number; reason: string }[];
+  /** Todas as colunas do ficheiro (para o utilizador poder corrigir o mapeamento). */
+  headers?: string[];
+  /** Como as colunas foram decididas. */
+  notes?: string[];
+  /** Problemas que o utilizador deve ver ANTES de importar. */
+  warnings?: string[];
+  /** Resumo do que vai entrar (só produtos). */
+  summary?: { withBarcode: number; withStock: number; stockTotal: number; invalidBarcodes: number; duplicatesInFile: number };
 }
-export interface MigrationApplyResult { kind: MigrationKind; created: number; updated: number; skipped: number; errors: string[] }
+export interface MigrationApplyResult { kind: MigrationKind; created: number; updated: number; skipped: number; errors: string[]; warnings?: string[] }
+
+/** Valores de uma linha de produto, já lidos com rigor. */
+interface ProductCells {
+  name: string; code: string; barcode: string; barcodeWarning?: string;
+  stock: number | null; stockWarning?: string; cost: number | null; sale: number | null;
+}
 
 type Actor = { id?: string | null; name?: string | null };
 const SAMPLE_SIZE = 20;
@@ -68,9 +84,9 @@ export class MigrationService {
   ) {}
 
   // ── Pré-visualização (NUNCA escreve na BD) ──────────────────────────────
-  preview(schema: string, kind: MigrationKind, buffer: Buffer, fileName?: string): Promise<MigrationPreview> {
+  preview(schema: string, kind: MigrationKind, buffer: Buffer, fileName?: string, mapping?: Record<string, string> | null): Promise<MigrationPreview> {
     const { headers, rows } = parseUploadedFile(buffer, fileName, kind);
-    if (kind === 'products') return this.previewProducts(schema, headers, rows);
+    if (kind === 'products') return this.previewProducts(schema, headers, rows, mapping ?? null);
     if (kind === 'customers') return this.previewCustomers(schema, headers, rows);
     return this.previewSuppliers(schema, headers, rows);
   }
@@ -83,10 +99,10 @@ export class MigrationService {
    */
   apply(
     schema: string, kind: MigrationKind, buffer: Buffer, fileName: string | undefined, actor: Actor,
-    storeId?: string | null,
+    storeId?: string | null, mapping?: Record<string, string> | null,
   ): Promise<MigrationApplyResult> {
     const { headers, rows } = parseUploadedFile(buffer, fileName, kind);
-    if (kind === 'products') return this.applyProducts(schema, headers, rows, actor, fileName, storeId ?? null);
+    if (kind === 'products') return this.applyProducts(schema, headers, rows, actor, fileName, storeId ?? null, mapping ?? null);
     if (kind === 'customers') return this.applyCustomers(schema, headers, rows, actor, fileName);
     return this.applySuppliers(schema, headers, rows, actor, fileName);
   }
@@ -113,8 +129,27 @@ export class MigrationService {
   }
 
   // ═══════════════════════════ PRODUTOS ═══════════════════════════════════
-  private async previewProducts(schema: string, headers: string[], rows: Record<string, unknown>[]): Promise<MigrationPreview> {
-    const { mapping, unmapped } = mapHeaders<ProductField>(headers, PRODUCT_ALIASES);
+  /** Lê UMA linha de produto com rigor (código de barras, stock vazio ≠ 0, nome limpo). */
+  private readProductRow(r: Record<string, unknown>, cols: ReturnType<typeof detectProductColumns>): ProductCells {
+    const m = cols.mapping;
+    const barcodeSrc = m.barcode ?? (cols.barcodeFromCode ? m.code : undefined);
+    const bc = barcodeSrc ? readBarcode(r[barcodeSrc]) : { value: '' };
+    const st = m.stock ? readStock(r[m.stock]) : { value: null as number | null };
+    return {
+      name: cleanName(r[m.name!]),
+      code: m.code ? readCode(r[m.code]) : '',
+      barcode: bc.value,
+      barcodeWarning: bc.warning,
+      stock: st.value,
+      stockWarning: st.warning,
+      cost: m.costPrice ? parseFlexibleNumber(r[m.costPrice]) : null,
+      sale: m.salePrice ? parseFlexibleNumber(r[m.salePrice]) : null,
+    };
+  }
+
+  private async previewProducts(schema: string, headers: string[], rows: Record<string, unknown>[], override: Record<string, string> | null = null): Promise<MigrationPreview> {
+    const cols = detectProductColumns(headers, rows, override);
+    const { mapping, unmapped } = cols;
     if (!mapping.name) {
       throw new BadRequestException(`Não encontrei a coluna de NOME do produto. Colunas do ficheiro: ${headers.join(', ')}`);
     }
@@ -124,39 +159,67 @@ export class MigrationService {
     const byBarcode = new Set(existing.filter((p) => p.barcode).map((p) => (p.barcode as string).trim()));
 
     let toCreate = 0, toUpdate = 0, toSkip = 0;
+    let withBarcode = 0, withStock = 0, stockTotal = 0, invalidBarcodes = 0, duplicatesInFile = 0, sciNotation = 0, negativeStock = 0;
+    const seen = new Set<string>();
+    const invalidExamples: string[] = [];
     const sample: PreviewRow[] = [];
     const skippedSamples: { row: number; reason: string }[] = [];
     rows.forEach((r, i) => {
-      const name = String(r[mapping.name!] ?? '').trim();
-      if (!name) { toSkip++; if (skippedSamples.length < 10) skippedSamples.push({ row: i + 2, reason: 'sem nome' }); return; }
-      const code = mapping.code ? String(r[mapping.code] ?? '').trim() : '';
-      const barcode = mapping.barcode ? String(r[mapping.barcode] ?? '').trim() : '';
-      const found = (!!code && byCode.has(code)) || (!!barcode && byBarcode.has(barcode));
+      const c = this.readProductRow(r, cols);
+      if (!c.name) { toSkip++; if (skippedSamples.length < 10) skippedSamples.push({ row: i + 2, reason: 'sem nome' }); return; }
+      const found = (!!c.code && byCode.has(c.code)) || (!!c.barcode && byBarcode.has(c.barcode));
       const action: PreviewRow['action'] = found ? 'UPDATE' : 'CREATE';
       if (action === 'CREATE') toCreate++; else toUpdate++;
+      if (c.barcode) {
+        withBarcode++;
+        if (!isValidGtin(c.barcode)) { invalidBarcodes++; if (invalidExamples.length < 3) invalidExamples.push(c.barcode); }
+      }
+      if (c.barcodeWarning) sciNotation++;
+      if (c.stock !== null) { withStock++; stockTotal += c.stock; }
+      if (c.stockWarning) negativeStock++;
+      const key = c.code || c.barcode;
+      if (key) { if (seen.has(key)) duplicatesInFile++; else seen.add(key); }
       if (sample.length < SAMPLE_SIZE) {
         sample.push({
           action,
           data: {
-            name,
-            code: code || '(gerado automaticamente)',
-            barcode: barcode || null,
-            stock: mapping.stock ? parseFlexibleNumber(r[mapping.stock]) : null,
-            custo: mapping.costPrice ? parseFlexibleNumber(r[mapping.costPrice]) : null,
-            venda: mapping.salePrice ? parseFlexibleNumber(r[mapping.salePrice]) : null,
+            name: c.name,
+            code: c.code || (c.barcode ? '(= código de barras)' : '(gerado automaticamente)'),
+            barcode: c.barcode || null,
+            stock: c.stock,
+            custo: c.cost,
+            venda: c.sale,
           },
         });
       }
     });
-    return { kind: 'products', detectedColumns: mapping as Record<string, string>, unmappedColumns: unmapped, totalRows: rows.length, toCreate, toUpdate, toSkip, sample, skippedSamples };
+
+    const warnings: string[] = [];
+    if (!mapping.stock) warnings.push('Não encontrei a coluna de STOCK — os produtos novos ficam com stock 0. Escolha a coluna em «Colunas reconhecidas».');
+    else if (withStock === 0) warnings.push(`A coluna de stock «${mapping.stock}» está vazia em todas as linhas — o stock não vai ser importado.`);
+    if (!mapping.barcode && !cols.barcodeFromCode) warnings.push('Não encontrei a coluna de CÓDIGO DE BARRAS — o leitor não vai encontrar estes produtos. Escolha a coluna em «Colunas reconhecidas».');
+    if (!mapping.salePrice) warnings.push('Não encontrei a coluna de PREÇO DE VENDA — os produtos ficam a 0 Kz.');
+    if (sciNotation) warnings.push(`${sciNotation} código(s) de barras em notação científica (o Excel cortou os dígitos) — ficam SEM código de barras. Formate a coluna como Texto e exporte de novo.`);
+    if (invalidBarcodes) warnings.push(`${invalidBarcodes} código(s) de barras com dígito de controlo inválido (ex.: ${invalidExamples.join(', ')}) — serão importados tal como estão; confirme no ficheiro.`);
+    if (duplicatesInFile) warnings.push(`${duplicatesInFile} linha(s) repetem um código/código de barras já visto no ficheiro — a última vence.`);
+    if (negativeStock) warnings.push(`${negativeStock} linha(s) com stock negativo — tratadas como 0.`);
+
+    return {
+      kind: 'products', detectedColumns: mapping as Record<string, string>, unmappedColumns: unmapped, totalRows: rows.length,
+      toCreate, toUpdate, toSkip, sample, skippedSamples,
+      headers, notes: cols.notes, warnings,
+      summary: { withBarcode, withStock, stockTotal: Math.round(stockTotal * 1000) / 1000, invalidBarcodes, duplicatesInFile },
+    };
   }
 
   private async applyProducts(
     schema: string, headers: string[], rows: Record<string, unknown>[], actor: Actor, fileName?: string,
-    storeId: string | null = null,
+    storeId: string | null = null, override: Record<string, string> | null = null,
   ): Promise<MigrationApplyResult> {
-    const { mapping } = mapHeaders<ProductField>(headers, PRODUCT_ALIASES);
+    const cols = detectProductColumns(headers, rows, override);
+    const { mapping } = cols;
     if (!mapping.name) throw new BadRequestException('Não encontrei a coluna de nome do produto.');
+    let noBarcodeSci = 0, clampedStock = 0;
     let created = 0, updated = 0, skipped = 0;
     const errors: string[] = [];
     const stockRef = `Migração${fileName ? ` (${fileName})` : ''}`;
@@ -190,14 +253,17 @@ export class MigrationService {
 
           for (let i = start; i < end; i++) {
             const r = rows[i];
-            const name = String(r[mapping.name!] ?? '').trim();
+            const cells = this.readProductRow(r, cols);
+            const name = cells.name;
             if (!name) { bSkipped++; continue; }
             try {
-          const code = mapping.code ? String(r[mapping.code] ?? '').trim() : '';
-          const barcode = mapping.barcode ? String(r[mapping.barcode] ?? '').trim() : '';
-          const stock = mapping.stock ? parseFlexibleNumber(r[mapping.stock]) : null;
-          const costPrice = mapping.costPrice ? parseFlexibleNumber(r[mapping.costPrice]) : null;
-          const salePrice = mapping.salePrice ? parseFlexibleNumber(r[mapping.salePrice]) : null;
+          const code = cells.code;
+          const barcode = cells.barcode;
+          const stock = cells.stock;
+          const costPrice = cells.cost;
+          const salePrice = cells.sale;
+          if (cells.barcodeWarning) noBarcodeSci++;
+          if (cells.stockWarning) clampedStock++;
 
           let categoryId: string | null = null;
           if (mapping.category) {
@@ -247,7 +313,7 @@ export class MigrationService {
             const shared = !targetStore;
             const insertedRows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
               INSERT INTO products (code, barcode, name, category_id, iva_code, unit_price, cost_price, stock_qty, shared_stock, show_online)
-              VALUES (${finalCode}, ${barcode || null}, ${name}, ${categoryId}::uuid, 'NOR', ${salePrice ?? 0}, ${costPrice ?? 0}, ${shared ? (stock ?? 0) : 0}, ${shared}, FALSE)
+              VALUES (${finalCode}, ${barcode || null}, ${name}, ${categoryId}::uuid, 'NOR', ${salePrice ?? 0}, ${costPrice ?? 0}, ${shared ? (stock ?? 0) : 0}, ${shared}, TRUE)
               RETURNING id`);
             if (targetStore) {
               // Por loja: semeia stock_items=0 em TODAS as lojas ativas e a
@@ -285,7 +351,10 @@ export class MigrationService {
       actorId: actor.id, actorName: actor.name, action: 'MIGRATION_IMPORT',
       entity: 'products', details: { fileName, created, updated, skipped },
     });
-    return { kind: 'products', created, updated, skipped, errors };
+    const warnings: string[] = [];
+    if (noBarcodeSci) warnings.push(`${noBarcodeSci} produto(s) ficaram SEM código de barras (notação científica no ficheiro).`);
+    if (clampedStock) warnings.push(`${clampedStock} produto(s) tinham stock negativo — importados com 0.`);
+    return { kind: 'products', created, updated, skipped, errors, warnings };
   }
 
   // ═══════════════════════════ CLIENTES ═══════════════════════════════════

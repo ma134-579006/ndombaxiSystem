@@ -10,15 +10,28 @@ export type CustomerField = 'name' | 'taxId' | 'phone' | 'email' | 'address' | '
 export type SupplierField = 'name' | 'taxId' | 'phone' | 'email' | 'address' | 'debt' | 'history';
 
 export const PRODUCT_ALIASES: Record<ProductField, string[]> = {
-  barcode: ['codigo de barras', 'codigo barras', 'cod barras', 'cod de barras', 'ean', 'ean13', 'ean 13', 'codigo ean', 'barcode', 'gtin'],
-  code: ['codigo', 'cod', 'referencia', 'ref', 'sku', 'codigo interno', 'codigo produto', 'cod produto', 'codigo artigo'],
-  name: ['nome do produto', 'nome produto', 'designacao', 'designacao do artigo', 'descricao', 'descricao do produto', 'artigo', 'produto', 'nome'],
-  category: ['categoria', 'familia', 'grupo', 'seccao'],
-  stock: ['stock', 'stock atual', 'quantidade', 'qtd', 'qtd stock', 'existencias', 'stock disponivel', 'saldo stock', 'quantidade em stock'],
-  costPrice: ['valor unitario', 'custo unitario', 'preco custo', 'preco de custo', 'custo', 'p custo', 'preco compra', 'valor de custo', 'preco de compra'],
-  salePrice: ['valor de venda', 'preco de venda', 'preco venda', 'pvp', 'p v p', 'valor venda', 'preco unitario venda', 'preco unitario de venda'],
+  barcode: ['codigo de barras', 'codigos de barras', 'codigo de barra', 'codigo barras', 'codigo barra', 'cod barras', 'cod barra', 'cod de barras', 'cod de barra', 'codbarras', 'codbarra', 'c barras', 'barras', 'barra', 'ean', 'ean13', 'ean 13', 'ean8', 'ean 8', 'codigo ean', 'cod ean', 'upc', 'barcode', 'bar code', 'gtin', 'cb'],
+  code: ['codigo', 'cod', 'referencia', 'ref', 'sku', 'codigo interno', 'cod interno', 'codigo produto', 'cod produto', 'codigo artigo', 'cod artigo', 'codigo do produto', 'codigo do artigo', 'id produto', 'id artigo', 'n artigo', 'numero artigo', 'item', 'item code', 'referencia interna', 'id'],
+  name: ['nome do produto', 'nome produto', 'nome do artigo', 'nome artigo', 'designacao', 'designacao do artigo', 'designacao produto', 'descricao', 'descricao do produto', 'descricao artigo', 'descricao do artigo', 'artigo', 'produto', 'nome', 'item name', 'product name', 'description'],
+  category: ['categoria', 'categorias', 'familia', 'grupo', 'seccao', 'departamento', 'classe', 'category'],
+  stock: ['stock', 'stock atual', 'stock actual', 'stock disponivel', 'stock final', 'stock total', 'stock existente', 'quantidade', 'quantidade em stock', 'quantidade atual', 'quantidade existente', 'quant', 'qtd', 'qtd stock', 'qtd atual', 'qtd existente', 'qtde', 'qty', 'quantity', 'existencias', 'existencia', 'saldo', 'saldo stock', 'saldo atual', 'em stock', 'unidades', 'inventario', 'contagem', 'disponivel'],
+  costPrice: ['valor unitario', 'custo unitario', 'custo unit', 'preco custo', 'preco de custo', 'preco custo unitario', 'custo', 'custo medio', 'custo de compra', 'p custo', 'pcusto', 'preco compra', 'preco de compra', 'preco de aquisicao', 'aquisicao', 'valor de custo', 'valor compra', 'cost', 'cost price'],
+  salePrice: ['valor de venda', 'valor venda', 'preco de venda', 'preco venda', 'preco venda unitario', 'preco unitario venda', 'preco unitario de venda', 'pvp', 'p v p', 'preco publico', 'preco ao publico', 'preco final', 'preco com iva', 'preco', 'sale price', 'price'],
   profit: ['lucro', 'margem', 'lucro unitario', 'margem de lucro', 'margem lucro'],
 };
+
+/** Palavras que DESQUALIFICAM uma coluna para um campo (ex.: «Stock mínimo» não é o stock). */
+export const PRODUCT_NEGATIVE: Partial<Record<ProductField, string[]>> = {
+  stock: ['minimo', 'minima', 'maximo', 'maxima', 'seguranca', 'reposicao', 'encomenda', 'preco', 'valor', 'custo', 'iva', 'anterior', 'reservado', 'reserva'],
+  code: ['barras', 'barra', 'ean', 'fornecedor', 'categoria', 'familia', 'iva', 'postal', 'cliente'],
+  name: ['fornecedor', 'categoria', 'familia', 'cliente', 'codigo'],
+  category: ['codigo', 'cod', 'id'],
+  costPrice: ['total', 'iva', 'venda', 'pvp'],
+  salePrice: ['custo', 'compra', 'total', 'aquisicao', 'cost'],
+};
+
+/** Ordem de atribuição: os campos mais específicos primeiro (evita que «Código» roube a coluna de barras). */
+export const PRODUCT_FIELD_ORDER: ProductField[] = ['barcode', 'stock', 'costPrice', 'salePrice', 'profit', 'code', 'category', 'name'];
 
 export const CUSTOMER_ALIASES: Record<CustomerField, string[]> = {
   name: ['nome', 'nome do cliente', 'cliente', 'designacao', 'razao social', 'nome cliente'],
@@ -49,32 +62,59 @@ export function normalizeHeader(h: string): string {
     .trim();
 }
 
+const tokensOf = (norm: string): string[] => norm.split(' ').filter(Boolean);
+
+/** As palavras de `needle` aparecem, seguidas e INTEIRAS, em `hay`? (nunca por pedaços de palavra) */
+function containsWords(hay: string[], needle: string[]): boolean {
+  if (!needle.length || needle.length > hay.length) return false;
+  for (let i = 0; i + needle.length <= hay.length; i++) {
+    if (needle.every((w, j) => hay[i + j] === w)) return true;
+  }
+  return false;
+}
+
 /**
- * Mapeia os cabeçalhos do ficheiro para os campos canónicos. 1ª passagem:
- * igualdade exacta (após normalizar). 2ª passagem: o cabeçalho CONTÉM uma
- * variante conhecida (cobre cabeçalhos como "Código de Barras (EAN)"). Nunca
- * inventa uma correspondência fora do dicionário — puramente determinístico.
+ * Mapeia os cabeçalhos do ficheiro para os campos canónicos — determinístico.
+ *  1) igualdade exacta (após normalizar);
+ *  2) o cabeçalho CONTÉM a variante como palavras INTEIRAS («Código de Barras (EAN)»
+ *     contém «codigo de barras»; «Descodificação» NÃO contém «cod»);
+ *  3) uma coluna serve UM só campo; palavras de `negative` desqualificam («Stock
+ *     mínimo» nunca é o stock). Os campos são atribuídos por `order`.
+ * Nunca inventa uma correspondência fora do dicionário.
  */
 export function mapHeaders<F extends string>(
   headers: string[],
   aliases: Record<F, string[]>,
+  opts: { negative?: Partial<Record<F, string[]>>; order?: F[] } = {},
 ): { mapping: Partial<Record<F, string>>; unmapped: string[] } {
-  const normalized = headers.map((h) => ({ original: h, norm: normalizeHeader(h) }));
+  const normalized = headers.map((h) => {
+    const norm = normalizeHeader(h);
+    return { original: h, norm, tokens: tokensOf(norm) };
+  });
   const mapping: Partial<Record<F, string>> = {};
-  const fields = Object.keys(aliases) as F[];
+  const used = new Set<string>();
+  const fields = opts.order ?? (Object.keys(aliases) as F[]);
 
   for (const field of fields) {
-    const variants = aliases[field];
+    const variants = aliases[field] ?? [];
+    const neg = opts.negative?.[field] ?? [];
+    const eligible = normalized.filter((h) => !used.has(h.original) && !neg.some((n) => h.tokens.includes(n)));
     // 1ª passagem: igualdade exacta.
-    const exact = normalized.find((h) => variants.includes(h.norm));
-    if (exact) { mapping[field] = exact.original; continue; }
-    // 2ª passagem: contém a variante como substring.
-    const partial = normalized.find((h) => variants.some((v) => h.norm.includes(v)));
-    if (partial) mapping[field] = partial.original;
+    let pick = eligible.find((h) => variants.includes(h.norm));
+    // 2ª passagem: contém a variante (palavras inteiras) — a variante mais longa ganha.
+    if (!pick) {
+      let best = 0;
+      for (const h of eligible) {
+        for (const v of variants) {
+          const vt = tokensOf(v);
+          if (vt.length > best && containsWords(h.tokens, vt)) { best = vt.length; pick = h; }
+        }
+      }
+    }
+    if (pick) { mapping[field] = pick.original; used.add(pick.original); }
   }
 
-  const mappedOriginals = new Set(Object.values(mapping));
-  const unmapped = headers.filter((h) => !mappedOriginals.has(h));
+  const unmapped = headers.filter((h) => !used.has(h));
   return { mapping, unmapped };
 }
 

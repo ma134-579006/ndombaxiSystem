@@ -1211,8 +1211,14 @@ export interface MigrationPreview {
   toSkip: number;
   sample: MigrationPreviewRow[];
   skippedSamples: { row: number; reason: string }[];
+  /** Todas as colunas do ficheiro (para corrigir o mapeamento à mão). */
+  headers?: string[];
+  notes?: string[];
+  /** Problemas a ver ANTES de importar. */
+  warnings?: string[];
+  summary?: { withBarcode: number; withStock: number; stockTotal: number; invalidBarcodes: number; duplicatesInFile: number };
 }
-export interface MigrationApplyResult { kind: MigrationKind; created: number; updated: number; skipped: number; errors: string[] }
+export interface MigrationApplyResult { kind: MigrationKind; created: number; updated: number; skipped: number; errors: string[]; warnings?: string[] }
 
 // ── Suporte (chat do site) + comentários públicos ───────────
 export interface SupportMsg { id: string; sender: 'VISITOR' | 'BOT' | 'ADMIN'; body: string; created_at: string }
