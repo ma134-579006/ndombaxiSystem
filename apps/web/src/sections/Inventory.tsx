@@ -62,12 +62,14 @@ export function Inventory() {
     }
   };
 
+  const expiring = batches.filter((b) => b.days_left <= 60);
+  const openCounts = counts.filter((c) => c.status !== 'CLOSED').length;
+
   return (
-    <>
+    <div className="fx-wide">
       <div className="content-head">
         <h2>Inventário</h2>
         <span className="spacer" />
-        <span className="muted" style={{ fontSize: 12.5, marginRight: 4 }}>Para repor mercadoria, usa <strong>Adicionar stock</strong> em <strong>Produtos</strong>.</span>
         <button className="btn ghost" onClick={() => setWritingOff(true)} disabled={warehouses.length === 0 || products.length === 0}>
           <IconTrash size={16} /> Baixa de stock
         </button>
@@ -76,21 +78,30 @@ export function Inventory() {
             <IconTruck size={16} /> Transferir entre lojas
           </button>
         ) : null}
-        <button className="btn ghost" onClick={() => setCreating(true)} disabled={warehouses.length === 0}>
+        <button className="btn" onClick={() => setCreating(true)} disabled={warehouses.length === 0}>
           <IconPlus size={16} /> Nova contagem
         </button>
       </div>
+
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Contagens em curso</div><div className="vl">{openCounts}</div><div className="sb">{counts.length} no total</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Abaixo do mínimo</div><div className="vl"><span className={`fx-dot${lowStock.length ? ' bad' : ' ok'}`} />{lowStock.length}</div><div className="sb">produtos a repor</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconReceipt size={20} /></span><div><div className="lb">Lotes a expirar</div><div className="vl"><span className={`fx-dot${expiring.length ? ' bad' : ' ok'}`} />{expiring.length}</div><div className="sb">nos próximos 60 dias</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Produtos</div><div className="vl">{products.length}</div><div className="sb">{warehouses.length} loja(s)</div></div></div>
+      </div>
+
       {error ? <div className="banner danger">{error}</div> : null}
+      <div className="fx-note" style={{ marginBottom: 16 }}>
+        <span>Para repor mercadoria, usa <strong>Adicionar stock</strong> em <strong>Produtos</strong>. Aqui fazes contagens, baixas e transferências.</span>
+      </div>
       {(warehouses.length === 0 || products.length === 0) && !loading ? (
-        <div className="banner" style={{ marginBottom: 12 }}>
-          Para dar entrada de stock precisa de uma <strong>loja</strong> e pelo menos um <strong>produto</strong>.
+        <div className="fx-note bad" style={{ marginBottom: 16 }}>
+          <span>Para dar entrada de stock precisa de uma <strong>loja</strong> e pelo menos um <strong>produto</strong>.</span>
         </div>
       ) : null}
       {lowStock.length > 0 ? (
-        <div className="banner warning" style={{ marginBottom: 12, flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
-            <span>⚠️</span><span>{lowStock.length} produto(s) abaixo do stock mínimo</span>
-          </div>
+        <div className="fx-note bad" style={{ marginBottom: 16, flexDirection: 'column' }}>
+          <strong>{lowStock.length} produto(s) abaixo do stock mínimo</strong>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {lowStock.slice(0, 10).map((l, i) => (
               <span key={`${l.productCode}-${i}`} className="alert-chip" title={`${l.productName} — ${l.quantity}/${l.minQty}`}>
@@ -101,51 +112,42 @@ export function Inventory() {
           </div>
         </div>
       ) : null}
-      {batches.filter((b) => b.days_left <= 60).length > 0 ? (
-        <div className="banner warning" style={{ marginBottom: 12 }}>
-          <span>⏰</span>
-          <span><strong>{batches.filter((b) => b.days_left <= 60).length} lote(s)</strong> a expirar nos próximos 60 dias — ver a secção “Lotes &amp; validade” abaixo.</span>
-        </div>
-      ) : null}
 
-      <div className="card">
-        <h3>Contagens de inventário</h3>
+      <div className="fx-card" style={{ padding: 8 }}>
+        <div className="fx-card-h" style={{ padding: '12px 14px 0', marginBottom: 8 }}>
+          <div><h3>Contagens de inventário</h3><p>Conferência física do stock por loja.</p></div>
+        </div>
         {loading ? <div className="loading">A carregar…</div> : counts.length === 0 ? (
           <div className="empty"><IconCube size={40} /><p>Sem contagens. Crie uma para conferir o stock.</p></div>
         ) : counts.map((c) => (
-          <div className="list-row" key={c.id} style={{ cursor: 'pointer' }} onClick={async () => setOpenCount(await api.inventory.getCount(c.id))}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700 }}>{c.reference} <span className="muted" style={{ fontWeight: 500 }}>· {c.warehouse_name}</span></div>
-              <div className="muted" style={{ fontSize: 13 }}>{c.items} artigos · {new Date(c.created_at).toLocaleDateString('pt-PT')}</div>
+          <div className="co-row" key={c.id} style={{ cursor: 'pointer' }} onClick={async () => setOpenCount(await api.inventory.getCount(c.id))}>
+            <span className="co-av" aria-hidden="true"><IconCube size={18} /></span>
+            <div className="co-main">
+              <div className="co-name">{c.reference} <span className="co-code">{c.warehouse_name}</span></div>
+              <div className="co-meta"><span>{c.items} artigos</span><span>{new Date(c.created_at).toLocaleDateString('pt-PT')}</span></div>
             </div>
-            <span className="badge" style={{ color: c.status === 'CLOSED' ? 'var(--success)' : 'var(--warning)', borderColor: 'currentColor' }}>
-              {c.status === 'CLOSED' ? 'Fechada' : 'A contar'}
-            </span>
+            <span className={`fx-badge ${c.status === 'CLOSED' ? 'ok' : 'off'}`}>{c.status === 'CLOSED' ? 'Fechada' : 'A contar'}</span>
           </div>
         ))}
       </div>
 
       {/* Lotes & validade (FEFO) */}
-      <div className="card">
-        <div className="row" style={{ marginBottom: 6 }}>
-          <h3 style={{ margin: 0 }}>Lotes &amp; validade</h3>
-          <span className="spacer" />
-          <span className="muted" style={{ fontSize: 12 }}>a expirar (60 dias) / expirados</span>
+      <div className="fx-card" style={{ padding: 8 }}>
+        <div className="fx-card-h" style={{ padding: '12px 14px 0', marginBottom: 8 }}>
+          <div><h3>Lotes e validade</h3><p>Lotes a expirar em 60 dias ou já expirados (FEFO: o que expira primeiro sai primeiro).</p></div>
         </div>
         {loading ? <div className="loading">A carregar…</div> : batches.length === 0 ? (
-          <div className="empty"><IconReceipt size={36} /><p>Sem lotes a expirar. Indique o lote e a validade em <strong>Adicionar stock</strong> para controlar validades (FEFO).</p></div>
+          <div className="empty"><IconReceipt size={36} /><p>Sem lotes a expirar. Indique o lote e a validade em <strong>Adicionar stock</strong> para controlar validades.</p></div>
         ) : batches.map((b) => {
           const expired = b.days_left <= 0;
           const prod = products.find((x) => x.name === b.product_name);
           return (
-            <div className="list-row" key={b.id}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700 }}>{b.product_name}{b.batch_code ? <span className="muted" style={{ fontWeight: 500 }}> · lote {b.batch_code}</span> : null}</div>
-                <div className="muted" style={{ fontSize: 13 }}>{Number(b.quantity)} un. · validade {formatDate(b.expiry_date)}</div>
+            <div className="co-row" key={b.id}>
+              <div className="co-main">
+                <div className="co-name">{b.product_name}{b.batch_code ? <span className="co-code">lote {b.batch_code}</span> : null}</div>
+                <div className="co-meta"><span>{Number(b.quantity)} un.</span><span>validade {formatDate(b.expiry_date)}</span></div>
               </div>
-              <span className="badge" style={{ color: expired ? 'var(--danger)' : b.days_left <= 14 ? 'var(--warning)' : 'var(--muted)', borderColor: 'currentColor' }}>
-                {expired ? `Expirado há ${-b.days_left}d` : `faltam ${b.days_left}d`}
-              </span>
+              <span className={`fx-badge ${expired ? 'bad' : 'off'}`}>{expired ? `Expirado há ${-b.days_left}d` : `faltam ${b.days_left}d`}</span>
               {prod && expired ? (
                 <button className="btn sm ghost" onClick={() => setWoInit({ productId: prod.id, quantity: Number(b.quantity) })} title="Dar baixa por caducidade (produto caducado)">
                   Baixa por caducidade
@@ -193,7 +195,7 @@ export function Inventory() {
         />
       ) : null}
       {openCount ? <CountSheet detail={openCount} products={products} onClose={() => { setOpenCount(null); void load(); }} /> : null}
-    </>
+    </div>
   );
 }
 

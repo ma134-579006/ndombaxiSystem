@@ -50,8 +50,11 @@ export function Purchasing() {
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Operação falhou.'); }
   };
 
+  const openOrders = orders.filter((o) => o.status === 'DRAFT' || o.status === 'CONFIRMED');
+  const toReceive = orders.filter((o) => o.status === 'CONFIRMED').reduce((s, o) => s + Number(o.gross_total), 0);
+
   return (
-    <>
+    <div className="fx-wide">
       <div className="content-head">
         <h2>Compras</h2>
         <span className="spacer" />
@@ -64,9 +67,16 @@ export function Purchasing() {
         )}
       </div>
 
-      <div className="seg" style={{ maxWidth: 380, marginBottom: 14 }}>
-        <button className={tab === 'orders' ? 'on' : ''} onClick={() => setTab('orders')}>Encomendas de compra</button>
-        <button className={tab === 'suppliers' ? 'on' : ''} onClick={() => setTab('suppliers')}>Fornecedores</button>
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconTruck size={20} /></span><div><div className="lb">Em aberto</div><div className="vl">{openOrders.length}</div><div className="sb">rascunho ou confirmadas</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconTruck size={20} /></span><div><div className="lb">A receber</div><div className="vl">{formatKz(toReceive)}</div><div className="sb">encomendas confirmadas</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Rececionadas</div><div className="vl"><span className="fx-dot ok" />{orders.filter((o) => o.status === 'RECEIVED').length}</div><div className="sb">stock actualizado</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Fornecedores</div><div className="vl">{suppliers.length}</div><div className="sb">registados</div></div></div>
+      </div>
+
+      <div className="fx-tabs" role="tablist" aria-label="Compras">
+        <button role="tab" aria-selected={tab === 'orders'} className={tab === 'orders' ? 'on' : ''} onClick={() => setTab('orders')}>Encomendas de compra</button>
+        <button role="tab" aria-selected={tab === 'suppliers'} className={tab === 'suppliers' ? 'on' : ''} onClick={() => setTab('suppliers')}>Fornecedores</button>
       </div>
 
       {error ? <div className="banner danger">{error}</div> : null}
@@ -77,17 +87,18 @@ export function Purchasing() {
       ) : null}
 
       {tab === 'orders' ? (
-        <div className="card">
-          <h3>Encomendas de compra</h3>
+        <div className="fx-card" style={{ padding: 8 }}>
           {loading ? <div className="loading">A carregar…</div> : orders.length === 0 ? (
             <div className="empty"><IconTruck size={40} /><p>Sem encomendas. Crie uma para repor stock junto de um fornecedor.</p></div>
           ) : orders.map((o) => (
-            <div className="list-row" key={o.id}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700 }}>{o.number} <span className="muted" style={{ fontWeight: 500 }}>· {o.supplier_name}</span></div>
-                <div className="muted" style={{ fontSize: 13 }}>
-                  {formatKz(o.gross_total)} · {formatDate(o.order_date)}
-                  {o.expected_date ? ` · prevista ${formatDate(o.expected_date)}` : ''}
+            <div className="co-row" key={o.id}>
+              <span className="co-av" aria-hidden="true"><IconTruck size={18} /></span>
+              <div className="co-main">
+                <div className="co-name">{o.number} <span className="co-code">{o.supplier_name}</span></div>
+                <div className="co-meta">
+                  <span className="co-plan">{formatKz(o.gross_total)}</span>
+                  <span>{formatDate(o.order_date)}</span>
+                  {o.expected_date ? <span>prevista {formatDate(o.expected_date)}</span> : null}
                 </div>
               </div>
               <span className="badge" style={{ color: PO_TONE[o.status] ?? 'var(--muted)', borderColor: 'currentColor' }}>
@@ -106,16 +117,17 @@ export function Purchasing() {
           ))}
         </div>
       ) : (
-        <div className="card">
-          <h3>Fornecedores</h3>
+        <div className="fx-card" style={{ padding: 8 }}>
           {loading ? <div className="loading">A carregar…</div> : suppliers.length === 0 ? (
             <div className="empty"><IconBuilding size={40} /><p>Sem fornecedores registados.</p></div>
           ) : suppliers.map((s) => (
-            <div className="list-row" key={s.id}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700 }}>{s.name} <span className="muted" style={{ fontWeight: 500 }}>· {s.code}</span></div>
-                <div className="muted" style={{ fontSize: 13 }}>
-                  {[s.nif ? `NIF ${s.nif}` : null, s.phone, s.email].filter(Boolean).join(' · ') || 'Sem contactos'}
+            <div className="co-row" key={s.id}>
+              <span className="co-av" aria-hidden="true">{s.name.slice(0, 2).toUpperCase()}</span>
+              <div className="co-main">
+                <div className="co-name">{s.name} <span className="co-code">{s.code}</span></div>
+                <div className="co-meta">
+                  {[s.nif ? `NIF ${s.nif}` : null, s.phone, s.email].filter(Boolean).map((x) => <span key={String(x)}>{x}</span>)}
+                  {!s.nif && !s.phone && !s.email ? <span>Sem contactos</span> : null}
                 </div>
               </div>
             </div>
@@ -130,7 +142,7 @@ export function Purchasing() {
           onClose={() => setNewOrder(false)} onSaved={load}
         />
       ) : null}
-    </>
+    </div>
   );
 }
 

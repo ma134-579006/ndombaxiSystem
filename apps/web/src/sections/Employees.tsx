@@ -158,13 +158,24 @@ export function Employees() {
   const allSel = filtered.length > 0 && filtered.every((e) => selected.has(e.id));
   const toggleAll = () => setSelected(allSel ? new Set() : new Set(filtered.map((e) => e.id)));
 
+  const activeEmps = items.filter((e) => e.status === 'ACTIVE');
+  const payroll = activeEmps.reduce((s, e) => s + (Number(e.base_salary) || 0), 0);
+  const withAccess = items.filter((e) => !!accessOf(e)).length;
+
   return (
-    <>
+    <div className="fx-wide">
       <div className="sticky-top">
         <div className="content-head">
           <h2>Funcionários</h2>
           <span className="spacer" />
           <button className="btn" onClick={openCreate}><IconPlus size={18} /> Novo funcionário</button>
+        </div>
+
+        <div className="fx-stats" style={{ marginBottom: 0 }}>
+          <div className="fx-stat"><span className="ic"><IconBadge size={20} /></span><div><div className="lb">Funcionários</div><div className="vl">{items.length}</div><div className="sb">{items.length - activeEmps.length} inactivo(s)</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconBadge size={20} /></span><div><div className="lb">Activos</div><div className="vl"><span className="fx-dot ok" />{activeEmps.length}</div><div className="sb">em funções</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconShield size={20} /></span><div><div className="lb">Com acesso ao sistema</div><div className="vl">{withAccess}</div><div className="sb">login ou PIN da Caixa</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconBadge size={20} /></span><div><div className="lb">Salários base</div><div className="vl">{formatKz(payroll)}</div><div className="sb">soma dos activos</div></div></div>
         </div>
 
         <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>
@@ -317,7 +328,7 @@ export function Employees() {
           onChanged={() => { setManageFor(null); void load(); }}
         />
       ) : null}
-    </>
+    </div>
   );
 }
 
