@@ -455,8 +455,14 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       <footer className="lp-footer2" id="contacto">
         <div className="lp-cta-band">
           <div className="wrap band-inner">
-            <h2>Comece a sua jornada {cfg?.brandName ?? 'LPS Vendas'} hoje!</h2>
-            <button onClick={() => openRegister('BUSINESS')}>Criar conta grátis</button>
+            <div className="band-txt">
+              <h2>Comece hoje com o {cfg?.brandName ?? 'LPS Vendas'}</h2>
+              <p>Teste grátis, sem cartão. Venda, controle o stock e emita facturas certificadas AGT numa só plataforma.</p>
+            </div>
+            <div className="band-act">
+              <button className="band-primary" onClick={() => openRegister('BUSINESS')}>Criar conta grátis</button>
+              <button className="band-ghost" onClick={onGoLogin}>Entrar no painel</button>
+            </div>
           </div>
         </div>
         <div className="lp-foot-main">
@@ -464,10 +470,8 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             <div className="lp-fcol lp-fbrand">
               <div className="fb-logo-row">
                 <img src={LOGO_WIDE} alt={cfg?.brandName ?? 'LPS Vendas'} />
-                <div>
-                  <div className="ftag">Sempre com o seu negócio</div>
-                </div>
               </div>
+              <p className="fdesc">Gestão, caixa e loja online num só sistema — com facturação certificada AGT, em Kwanzas.</p>
               {cfg?.contactPhone ? (
                 <a className="fc-line" href={`tel:${cfg.contactPhone}`}>
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.9.5 2.8.6a2 2 0 0 1 1.8 2Z" /></svg>
@@ -479,7 +483,6 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
                   <IconMail size={16} /> {cfg.contactEmail}
                 </a>
               ) : null}
-              {cfg?.footerText ? <div className="fc-line fc-note">{cfg.footerText}</div> : null}
               <div className="lp-fsocial">
                 {cfg?.contactPhone ? (
                   <a href={`https://wa.me/${cfg.contactPhone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" aria-label="WhatsApp" title="WhatsApp">
@@ -513,7 +516,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             </div>
           </div>
           <div className="wrap lp-foot-bottom">
-            <span>© {new Date().getFullYear()} {cfg?.brandName ?? 'LPS Vendas'}. Todos os direitos reservados.</span>
+            <span>{cfg?.footerText || `© ${new Date().getFullYear()} ${cfg?.brandName ?? 'LPS Vendas'}. Todos os direitos reservados.`}</span>
             <span className="lp-foot-credits">Direitos reservados a <strong>Manuel Mbala Ndombaxi</strong> · Patrocinado pela <strong>Loja das Mulheres</strong></span>
           </div>
         </div>

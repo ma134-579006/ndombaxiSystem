@@ -1074,3 +1074,62 @@ a.fc-line:hover { color: #fff; }
   .lp .lp-brand .logo, .lp-nav .logo { height: 52px; max-width: 190px; }
   .lp-fbrand .fb-logo-row img { height: 72px; }
 }
+
+/* ── Rodapé da landing (v11) ──────────────────────────────────────────── */
+.lp-footer2 { background: linear-gradient(180deg, transparent 0 78px, #060a16 78px); padding-top: 34px; }
+.lp-cta-band { background: none; padding: 0 20px; position: relative; z-index: 2; }
+.lp-cta-band .band-inner { max-width: 1080px; margin: 0 auto; padding: 34px 40px; border-radius: 22px; display: flex; align-items: center; justify-content: space-between; gap: 22px 32px; flex-wrap: wrap; background: linear-gradient(120deg, #1a24b8, #3a49ff 62%, #22d3ee 160%); box-shadow: 0 34px 60px -28px rgba(36, 48, 232, .65), inset 0 1px 0 rgba(255,255,255,.18); }
+.lp-cta-band .band-txt { flex: 1 1 360px; min-width: 0; }
+.lp-cta-band .band-txt h2 { margin: 0; font-size: clamp(22px, 3.4vw, 31px); line-height: 1.15; letter-spacing: -.02em; text-transform: none; color: #fff; }
+.lp-cta-band .band-txt p { margin: 10px 0 0; max-width: 54ch; font-size: 15px; line-height: 1.55; color: rgba(255,255,255,.84); }
+.lp-cta-band .band-act { display: flex; gap: 12px; flex-wrap: wrap; }
+.lp-cta-band .band-act button { cursor: pointer; font: inherit; font-weight: 700; font-size: 15px; padding: 13px 22px; border-radius: 12px; transition: transform .15s, background .15s, box-shadow .2s; }
+.lp-cta-band .band-primary { background: #fff; color: #1a24b8; border: 0; box-shadow: 0 10px 24px -10px rgba(4,8,18,.5); }
+.lp-cta-band .band-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -10px rgba(4,8,18,.55); }
+.lp-cta-band .band-ghost { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.6); }
+.lp-cta-band .band-ghost:hover { background: rgba(255,255,255,.12); }
+.lp-foot-main { background: #060a16; padding: 56px 28px 28px; }
+.lp-foot-cols { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 40px 36px; }
+.lp-fbrand .fb-logo-row { margin-bottom: 14px; }
+.lp-fbrand .fb-logo-row img { height: 72px; max-width: 240px; }
+.lp-fbrand .fdesc { margin: 0 0 20px; max-width: 34ch; font-size: 14px; line-height: 1.65; color: #94a3c0; }
+.fc-line { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; padding: 0; font-size: 14px; color: #cbd5ea; text-decoration: none; }
+.fc-line svg { width: 18px; height: 18px; flex: none; color: #7c8bff; }
+a.fc-line:hover { color: #fff; }
+.lp-fsocial { display: flex; gap: 10px; margin-top: 18px; }
+.lp-fsocial a { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: #dbe4f7; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); transition: background .15s, transform .15s; }
+.lp-fsocial a:hover { background: #3a49ff; border-color: #3a49ff; transform: translateY(-2px); }
+.lp-fcol h5 { margin: 0 0 14px; font-size: 12px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: #fff; }
+.lp-fcol a, .lp-fcol button { display: block; padding: 6px 0; margin: 0; background: none; border: 0; text-align: left; cursor: pointer; font: inherit; font-size: 14.5px; color: #9fb0cf; text-decoration: none; transition: color .15s, transform .15s; }
+.lp-fcol a:hover, .lp-fcol button:hover { color: #fff; transform: translateX(3px); }
+.lp-foot-bottom { max-width: 1080px; margin: 44px auto 0; padding: 22px 0 0; border-top: 1px solid rgba(255,255,255,.09); display: flex; justify-content: space-between; align-items: center; gap: 10px 24px; flex-wrap: wrap; font-size: 13px; color: #7e8cab; }
+.lp-foot-bottom .lp-foot-credits { text-align: right; }
+@media (max-width: 900px) { .lp-foot-cols { grid-template-columns: 1fr 1fr; } .lp-fbrand { grid-column: 1 / -1; } }
+@media (max-width: 560px) {
+  .lp-cta-band .band-inner { padding: 26px 22px; text-align: center; justify-content: center; }
+  .lp-cta-band .band-act { width: 100%; }
+  .lp-cta-band .band-act button { flex: 1 1 100%; }
+  .lp-foot-main { padding: 44px 20px 24px; }
+  .lp-fbrand { text-align: left; }
+  .lp-foot-bottom { flex-direction: column; align-items: flex-start; }
+  .lp-foot-bottom .lp-foot-credits { text-align: left; }
+}
+
+/* ── Topo da landing (v12): hierarquia clara, nada que pareça botão sem ser ─ */
+.lp .lp-hero .badge-pill { display: inline-flex; align-items: center; gap: 10px; padding: 0; border: 0; background: none; box-shadow: none; border-radius: 0; font-size: 13.5px; font-weight: 600; letter-spacing: .01em; color: #cfe0ff; max-width: 100%; }
+.lp .lp-hero .badge-pill::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 4px rgba(52, 211, 153, .18); }
+.lp .lp-hero h1 { margin-top: 18px; }
+/* setores: texto simples separado por pontos (já não são "botões") */
+.lp .lp-hero .lp-verticals { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 0; margin: 22px 0 30px; }
+.lp .lp-hero .lp-verticals span { display: inline-flex; align-items: center; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font-size: 13.5px; font-weight: 500; letter-spacing: .01em; color: rgba(255, 255, 255, .72); }
+.lp .lp-hero .lp-verticals span:not(:last-child)::after { content: ""; width: 4px; height: 4px; margin: 0 12px; border-radius: 50%; background: rgba(255, 255, 255, .38); }
+/* botões: mais espaço, mesma altura, hierarquia primário / secundário */
+.lp .lp-hero .cta-row { display: flex; flex-wrap: wrap; gap: 16px 18px; align-items: center; }
+.lp .lp-hero .cta-row .lp-btn { min-height: 52px; padding: 0 28px; border-radius: 12px; font-size: 15.5px; font-weight: 700; }
+.lp .lp-hero .cta-row .lp-btn.outline { background: transparent; border: 1.5px solid rgba(255, 255, 255, .5); }
+.lp .lp-hero .cta-row .lp-btn.outline:hover { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .8); }
+@media (max-width: 560px) {
+  .lp .lp-hero .cta-row { flex-direction: column; align-items: stretch; gap: 12px; }
+  .lp .lp-hero .cta-row .lp-btn { width: 100%; justify-content: center; }
+  .lp .lp-hero .lp-verticals span:not(:last-child)::after { margin: 0 9px; }
+}
