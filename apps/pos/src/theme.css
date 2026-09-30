@@ -1373,3 +1373,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary, #3b82
 .cart-foot > .btn.ghost.block { box-shadow: none; background: var(--surface); border: 1px solid var(--border); }
 .cart-foot > .btn.ghost.block:hover { border-color: var(--primary); }
 .totals .t-row.grand { font-family: var(--nx-font-title, inherit); }
+
+/* Modal de pagamento: métodos em grelha uniforme */
+.pay-methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pay-method { min-height: 52px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; border-radius: 12px; font-size: 13px; font-weight: 650; line-height: 1.2; }
+.pay-method.on { box-shadow: 0 0 0 2px var(--primary-soft), 0 8px 18px -10px var(--primary); }
+@media (max-width: 380px) { .pay-methods { grid-template-columns: repeat(2, 1fr); } }
