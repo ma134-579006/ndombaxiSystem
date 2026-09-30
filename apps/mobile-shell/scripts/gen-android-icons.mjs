@@ -1,5 +1,5 @@
 /**
- * Gera os ícones da app Android a partir do logótipo oficial do Ndombaxi.
+ * Gera os ícones da app Android a partir do logótipo oficial do LPS Vendas.
  *
  * PORQUÊ um script: a pasta `android/` é um projeto Capacitor LOCAL (está no
  * `.gitignore`), regenerado por `cap add android` — que traria o ícone genérico
@@ -60,4 +60,4 @@ for (const [dir, legacy, fg] of DENSITIES) {
   await base.clone().resize(fg, fg).writeAsync(path.join(out, 'ic_launcher_foreground.png'));
   process.stdout.write(`  ícones ${dir}: ${legacy}px / fg ${fg}px\n`);
 }
-process.stdout.write('\nÍcones do Ndombaxi gerados. Recompile a app para os ver.\n\n');
+process.stdout.write('\nÍcones do LPS Vendas gerados. Recompile a app para os ver.\n\n');

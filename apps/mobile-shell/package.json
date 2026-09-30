@@ -2,7 +2,7 @@
   "name": "@nexus/mobile-shell",
   "version": "1.0.0",
   "private": true,
-  "description": "Ndombaxi System — apps Android e iOS Offline-First (Capacitor sobre os frontends Gestão e Caixa).",
+  "description": "LPS Vendas — apps Android e iOS Offline-First (Capacitor sobre os frontends Gestão e Caixa).",
   "scripts": {
     "prepare:web": "node scripts/prepare-web.mjs",
     "gen:icons": "node scripts/gen-android-icons.mjs",

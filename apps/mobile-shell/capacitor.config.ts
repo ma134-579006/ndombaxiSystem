@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * Configuração Capacitor das aplicações Android e iOS do Ndombaxi System.
+ * Configuração Capacitor das aplicações Android e iOS do LPS Vendas.
  *
  * `webDir` é a pasta `www`, preparada pelo `scripts/prepare-web.mjs` — os mesmos
  * frontends do site (Gestão e Caixa) compilados com base relativa. É por isto
@@ -14,7 +14,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  */
 const config: CapacitorConfig = {
   appId: 'com.ndombaxi.system',
-  appName: 'Ndombaxi System',
+  appName: 'LPS Vendas',
   webDir: 'www',
   // Sobre a durabilidade: o plugin de SQLite grava num ficheiro nativo, fora da
   // WebView, por isso os dados sobrevivem à limpeza de cache do navegador do SO.
