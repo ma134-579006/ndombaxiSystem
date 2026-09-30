@@ -11,7 +11,7 @@ function Gate() {
     return (
       <div className="app-bg">
         <div className="login-screen">
-          <span className="muted">A carregar…</span>
+          <div className="loading">A carregar…</div>
         </div>
       </div>
     );
