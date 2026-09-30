@@ -37,7 +37,7 @@ Gerar o instalador (Windows 10/11, x64):
 pnpm --filter @nexus/desktop dist:win
 ```
 
-O resultado fica em `release/NdombaxiSystem-Setup-<versão>-x64.exe`.
+O resultado fica em `release/LPSVendas-Setup-<versão>-x64.exe`.
 
 ## Verificação automática
 

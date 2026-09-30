@@ -83,5 +83,5 @@ nsis:
   # completa é uma decisão explícita, documentada no manual.
   deleteAppDataOnUninstall: false
   runAfterFinish: true
-  artifactName: NdombaxiSystem-Setup-${version}-${arch}.${ext}
+  artifactName: LPSVendas-Setup-${version}-${arch}.${ext}
   uninstallDisplayName: LPS Vendas

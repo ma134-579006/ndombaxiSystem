@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { LOGO_SRC, SYSTEM_NAME } from '../brand';
+import { LOGO_WIDE, SYSTEM_NAME } from '../brand';
 import { DownloadApps } from '../sections/DownloadApps';
 import '../landing.css';
 import './downloadsPage.css';
@@ -23,8 +23,7 @@ export function DownloadsPage() {
       style={{ ['--lp-primary' as string]: '#2430e8', ['--lp-accent' as string]: '#22d3ee' }}
     >
       <nav className="lp-nav">
-        <img className="logo" src={LOGO_SRC} alt={SYSTEM_NAME} />
-        <span className="nm">{SYSTEM_NAME}</span>
+        <img className="logo" src={LOGO_WIDE} alt={SYSTEM_NAME} />
         <span className="spacer" />
         <a className="dl-nav-btn" href="/" role="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>

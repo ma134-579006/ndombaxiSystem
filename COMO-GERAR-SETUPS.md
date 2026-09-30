@@ -22,7 +22,7 @@ plataforma.
 pnpm install                       # compila o better-sqlite3 nativo (precisa do VC++)
 pnpm --filter @nexus/desktop run dist:win
 ```
-**Saída:** `apps/desktop/release/NdombaxiSystem-Setup-<versão>-<arch>.exe`
+**Saída:** `apps/desktop/release/LPSVendas-Setup-<versão>-<arch>.exe`
 
 > Antes de gerar: subir a **versão** em `apps/desktop/package.json` — é a mudança de
 > versão que faz a app detetar a atualização e mostrar o ecrã de update.
