@@ -16,7 +16,6 @@ import {
   IconGauge, IconHeadset, IconMail, IconReceipt, IconShield, IconSparkles,
   IconStore, IconTruck, IconUsers, IconWallet,
 } from '../components/Icons';
-import { Typewriter } from '../components/Typewriter';
 import { SupportChat } from '../components/SupportChat';
 import { FeedbackSection } from '../components/FeedbackSection';
 import { DownloadApps } from '../sections/DownloadApps';
@@ -210,13 +209,20 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
         <HeroCarousel images={heroImages} intervalMs={heroInterval} />
         <div className="lp-hero-inner lp-hero-grid">
           <div className="lp-hero-copy">
-            <span className="badge-pill"><Typewriter text={`${trialDays} dias grátis · sem cartão · cancele quando quiser`} /></span>
-            <h1>{cfg?.heroTitle ?? 'O ERP completo para gerir e vender em Angola'}</h1>
+            <span className="hero-eyebrow"><i aria-hidden="true" />{`${trialDays} dias grátis · sem cartão · cancele quando quiser`}</span>
+            <h1>
+              {(() => {
+                const w = (cfg?.heroTitle ?? 'O ERP completo para gerir e vender em Angola').split(' ');
+                const cut = Math.max(1, w.length - 2);
+                return <>{w.slice(0, cut).join(' ')} <em>{w.slice(cut).join(' ')}</em></>;
+              })()}
+            </h1>
             <p className="sub">
               {cfg?.heroSubtitle ??
                 'Venda, gira o stock e fature com certificação AGT — numa única plataforma, em Kwanzas.'}
             </p>
             <div className="lp-verticals">
+              <small>Feito para</small>
               <span>Vendas & stock</span>
               <span>Restauração</span>
               <span>Serviços</span>
@@ -227,6 +233,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             <div className="cta-row">
               <button className="lp-btn primary" onClick={() => openRegister('BUSINESS')}>
                 {cfg?.heroCtaPrimary ?? `Começar grátis — ${trialDays} dias`}
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
               </button>
               <button className="lp-btn outline" onClick={onGoLogin}>
                 {cfg?.heroCtaSecondary ?? 'Entrar'}
