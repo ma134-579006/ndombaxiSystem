@@ -104,6 +104,7 @@ export function Commissions() {
                     <td data-label="Nº">{r.salesCount}</td>
                     <td data-label="% comissão" className="no-print" style={{ width: 110 }}>
                       <input
+                        aria-label="% de comissão"
                         style={{ width: 70, textAlign: 'right' }}
                         value={rates[r.userId] ?? String(r.rate)}
                         inputMode="decimal"

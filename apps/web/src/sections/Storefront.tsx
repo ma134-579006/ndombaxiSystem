@@ -174,6 +174,7 @@ export function Storefront() {
             <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <input
                 readOnly
+                aria-label="Ligação da loja online"
                 value={storeLink}
                 onFocus={(e) => e.currentTarget.select()}
                 style={{ flex: '1 1 260px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '11px 13px', color: 'var(--text)', fontSize: 14 }}
@@ -209,7 +210,7 @@ export function Storefront() {
             <button className="btn sm ghost" onClick={() => fileRef.current?.click()}>
               <IconImage size={15} /> {logoUrl ? 'Trocar logótipo' : 'Carregar logótipo'}
             </button>
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onPickLogo(e.target.files?.[0])} />
+            <input ref={fileRef} type="file" accept="image/*" hidden aria-label="Carregar logótipo" onChange={(e) => onPickLogo(e.target.files?.[0])} />
             <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>PNG/JPG, recomenda-se fundo transparente.</p>
           </div>
         </div>
@@ -231,15 +232,15 @@ export function Storefront() {
           <div className="field">
             <label>Cor principal</label>
             <div className="row" style={{ gap: 10 }}>
-              <input className="swatch" type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} />
-              <input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} style={{ flex: 1 }} />
+              <input className="swatch" type="color" aria-label="Escolher cor principal" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} />
+              <input aria-label="Cor principal (hexadecimal)" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} style={{ flex: 1 }} />
             </div>
           </div>
           <div className="field">
             <label>Cor secundária</label>
             <div className="row" style={{ gap: 10 }}>
-              <input className="swatch" type="color" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} />
-              <input value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} style={{ flex: 1 }} />
+              <input className="swatch" type="color" aria-label="Escolher cor secundária" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} />
+              <input aria-label="Cor secundária (hexadecimal)" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} style={{ flex: 1 }} />
             </div>
           </div>
         </div>

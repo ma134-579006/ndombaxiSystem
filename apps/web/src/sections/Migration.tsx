@@ -120,7 +120,7 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
 
       {!preview && !result ? (
         <>
-          <input ref={inputRef} type="file" accept={ACCEPT} hidden onChange={(e) => void onPick(e.target.files?.[0])} />
+          <input ref={inputRef} type="file" accept={ACCEPT} hidden aria-label="Escolher ficheiro a importar" onChange={(e) => void onPick(e.target.files?.[0])} />
           <button
             type="button"
             className={`mig-drop${dragOver ? ' over' : ''}${busy ? ' busy' : ''}`}
