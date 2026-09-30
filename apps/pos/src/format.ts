@@ -8,8 +8,8 @@ export function toNumber(value: number | string | null | undefined): number {
 
 export function formatKz(value: number | string | null | undefined): string {
   const n = toNumber(value);
-  const sign = n < 0 ? '-' : '';
   const [int, dec] = Math.abs(n).toFixed(2).split('.');
+  const sign = n < 0 && (int !== '0' || dec !== '00') ? '-' : '';
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return `${sign}${grouped},${dec} Kz`;
 }
