@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsObject, IsOptional, IsString } from 'class-validator';
 
 export const MIGRATION_KINDS = ['products', 'customers', 'suppliers'] as const;
 export type MigrationKind = (typeof MIGRATION_KINDS)[number];
@@ -21,4 +21,9 @@ export class MigrationFileDto {
   @IsOptional()
   @IsString()
   storeId?: string | null;
+
+  /** Só produtos: escolha manual das colunas do ficheiro (campo → cabeçalho; vazio = não usar). */
+  @IsOptional()
+  @IsObject()
+  mapping?: Record<string, string>;
 }

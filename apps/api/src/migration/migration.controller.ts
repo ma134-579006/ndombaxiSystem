@@ -23,13 +23,13 @@ export class MigrationController {
   @ApiOperation({ summary: 'Pré-visualiza a importação — nunca escreve na base de dados' })
   preview(@Body() dto: MigrationFileDto) {
     const buf = Buffer.from(dto.contentBase64, 'base64');
-    return this.svc.preview(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName);
+    return this.svc.preview(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName, dto.mapping ?? null);
   }
 
   @Post('apply')
   @ApiOperation({ summary: 'Aplica a importação (upsert por código/NIF/nome; nunca apaga nada)' })
   apply(@Body() dto: MigrationFileDto, @CurrentUser() user: JwtPayload) {
     const buf = Buffer.from(dto.contentBase64, 'base64');
-    return this.svc.apply(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName, { id: user.sub, name: user.name }, dto.storeId ?? null);
+    return this.svc.apply(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName, { id: user.sub, name: user.name }, dto.storeId ?? null, dto.mapping ?? null);
   }
 }
