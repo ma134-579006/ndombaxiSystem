@@ -29,16 +29,22 @@ export const API_URL = (hostApiUrl()
   || (import.meta.env.VITE_API_URL as string | undefined)
   || (isNativeApp() ? PROD_API_URL : 'http://localhost:3000')).replace(/\/$/, '');
 
+/** Domínio público de PRODUÇÃO. Hoje: ndombaxisystem.com. Para migrar (ex.: para
+ *  lpsvendas.com) basta definir VITE_PUBLIC_DOMAIN no build — sem alterar código.
+ *  VITE_STORE_URL / VITE_CAIXA_URL continuam a ter prioridade. */
+const PUBLIC_DOMAIN = ((import.meta.env.VITE_PUBLIC_DOMAIN as string | undefined) || 'ndombaxisystem.com').trim();
+export const SITE_URL = `https://${PUBLIC_DOMAIN}`;
+
 /** Base da loja online (apps/store). O link partilhável de cada empresa é
  *  `${STORE_URL}/${companyCode}`. Configurável no build via VITE_STORE_URL. */
-export const STORE_URL = ((import.meta.env.VITE_STORE_URL as string | undefined) ?? 'https://loja.lpsvendas.com').replace(
+export const STORE_URL = ((import.meta.env.VITE_STORE_URL as string | undefined) ?? `https://loja.${PUBLIC_DOMAIN}`).replace(
   /\/$/,
   '',
 );
 
 /** Terminal de venda (Caixa / POS, apps/pos). Configurável no build via
  *  VITE_CAIXA_URL. Abre-se com `${CAIXA_URL}/?empresa=<codigo>`. */
-export const CAIXA_URL = ((import.meta.env.VITE_CAIXA_URL as string | undefined) ?? 'https://caixa.lpsvendas.com').replace(
+export const CAIXA_URL = ((import.meta.env.VITE_CAIXA_URL as string | undefined) ?? `https://caixa.${PUBLIC_DOMAIN}`).replace(
   /\/$/,
   '',
 );

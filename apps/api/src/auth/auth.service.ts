@@ -217,8 +217,11 @@ export class AuthService {
   }
 
   // ─── Recuperação de senha/PIN ("esqueci-me") ────────────────
-  private get frontendWeb(): string { return process.env.PUBLIC_WEB_URL || 'https://lpsvendas.com'; }
-  private get frontendCaixa(): string { return process.env.PUBLIC_CAIXA_URL || 'https://caixa.lpsvendas.com'; }
+  // Domínio público de PRODUÇÃO (hoje ndombaxisystem.com). Para migrar basta definir
+  // PUBLIC_DOMAIN no ambiente; PUBLIC_WEB_URL / PUBLIC_CAIXA_URL continuam a ter prioridade.
+  private get publicDomain(): string { return process.env.PUBLIC_DOMAIN || 'ndombaxisystem.com'; }
+  private get frontendWeb(): string { return process.env.PUBLIC_WEB_URL || `https://${this.publicDomain}`; }
+  private get frontendCaixa(): string { return process.env.PUBLIC_CAIXA_URL || `https://caixa.${this.publicDomain}`; }
 
   /**
    * Pede a recuperação de senha (painel) ou PIN (caixa). Por segurança responde

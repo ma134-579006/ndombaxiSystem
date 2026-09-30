@@ -444,8 +444,8 @@ function TenantPanel() {
 
 function Gate() {
   const { status, mode, shadow, exitShadow } = useAuth();
-  // O domínio principal (lpsvendas.com) abre SEMPRE a landing — o login
-  // direto vive em admin.lpsvendas.com (e nos previews .pages.dev /
+  // O domínio principal (ndombaxisystem.com) abre SEMPRE a landing — o login
+  // direto vive em admin.ndombaxisystem.com (e nos previews .pages.dev /
   // localhost, onde quem já entrou antes vai direto ao ecrã de login).
   // App INSTALADA (Windows/Android/iOS): é servida pelo protocolo `ndombaxi://`
   // e traz a ponte `window.ndombaxi`. Aí o utilizador JÁ é cliente — a landing

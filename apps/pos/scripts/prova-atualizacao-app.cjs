@@ -77,7 +77,7 @@ const espera = (ms) => new Promise((res) => setTimeout(res, ms));
   // ── O ciclo completo, num Android com vendas por enviar ───────────
   const releaseObrigatoria = {
     platform: 'android', version: '1.3.0', minSupported: null,
-    downloadPageUrl: 'https://lpsvendas.com/baixar',
+    downloadPageUrl: 'https://ndombaxisystem.com/baixar',
     notes: ['Correções de segurança'], fixes: [], mandatory: true,
     releasedAt: '2026-08-03T00:00:00.000Z',
   };

@@ -45,7 +45,7 @@ jobs:
           for i in $(seq 1 6); do
             start=$(date +%s)
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 \
-              -H 'origin: https://lpsvendas.com' "$URL" || echo 000)
+              -H 'origin: https://ndombaxisystem.com' "$URL" || echo 000)
             took=$(( $(date +%s) - start ))
             echo "  tentativa $i: HTTP $code em ${took}s"
             if [ "$code" = "200" ]; then

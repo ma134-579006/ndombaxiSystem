@@ -19,7 +19,7 @@ export default defineConfig({
         rewrite: (p) => p.replace(/^\/papi/, ''),
         configure: (proxy) => {
           proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.setHeader('origin', 'https://caixa.lpsvendas.com');
+            proxyReq.setHeader('origin', 'https://caixa.ndombaxisystem.com');
           });
         },
       },

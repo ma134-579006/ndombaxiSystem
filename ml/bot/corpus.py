@@ -38,7 +38,7 @@ INTENTS: list[dict] = [
             "inscrever a empresa", "quero experimentar o sistema", "como adquirir o sistema",
             "quero usar o ndombaxi na minha empresa", "como faco parte", "quero comecar",
         ],
-        "answer": "Criar a conta da tua empresa é simples:\n1. Vai a https://lpsvendas.com e clica em **Criar conta**.\n2. Indica o teu **e-mail** e cria a **palavra-passe** (só isso — sem códigos).\n3. Escolhe o plano e vê o IBAN para a transferência.\n4. Envia o comprovativo (foto/imagem) ali mesmo.\n5. A nossa equipa aprova e recebes acesso — há **teste grátis** para começares já!",
+        "answer": "Criar a conta da tua empresa é simples:\n1. Vai a https://ndombaxisystem.com e clica em **Criar conta**.\n2. Indica o teu **e-mail** e cria a **palavra-passe** (só isso — sem códigos).\n3. Escolhe o plano e vê o IBAN para a transferência.\n4. Envia o comprovativo (foto/imagem) ali mesmo.\n5. A nossa equipa aprova e recebes acesso — há **teste grátis** para começares já!",
         "image": "criar_conta",
     },
     {
@@ -48,7 +48,7 @@ INTENTS: list[dict] = [
             "planos e precos", "quanto pago por mes", "preciso saber os precos", "e caro",
             "tem plano gratis", "quanto e a mensalidade",
         ],
-        "answer": "Os planos estão sempre atualizados na página inicial (https://lpsvendas.com), em **Kwanzas**, com a duração e os limites de cada um (lojas, utilizadores, produtos). Há **teste grátis sem cartão**. O pagamento é por transferência bancária com envio do comprovativo — a ativação é feita pela nossa equipa. Para condições especiais, posso chamar a equipa comercial — é só pedires.",
+        "answer": "Os planos estão sempre atualizados na página inicial (https://ndombaxisystem.com), em **Kwanzas**, com a duração e os limites de cada um (lojas, utilizadores, produtos). Há **teste grátis sem cartão**. O pagamento é por transferência bancária com envio do comprovativo — a ativação é feita pela nossa equipa. Para condições especiais, posso chamar a equipa comercial — é só pedires.",
     },
     {
         "id": "login_gestor",
@@ -57,7 +57,7 @@ INTENTS: list[dict] = [
             "esqueci a senha", "entrar na conta da empresa", "login do administrador",
             "como acedo ao painel de gestao", "senha errada nao entra", "recuperar palavra passe",
         ],
-        "answer": "Para entrar no painel do gestor:\n1. Vai a https://lpsvendas.com e clica **Entrar**.\n2. Escolhe o perfil **Gestor**.\n3. Indica o teu **e-mail** e a **palavra-passe** — ou toca em **Continuar com o Google**. Sem códigos: o sistema encontra a tua empresa pelo e-mail.\nSe esqueceste a senha, o administrador da empresa pode repô-la em **Configurações**. Se és o administrador e perdeste o acesso, pede aqui para falar com a equipa.",
+        "answer": "Para entrar no painel do gestor:\n1. Vai a https://ndombaxisystem.com e clica **Entrar**.\n2. Escolhe o perfil **Gestor**.\n3. Indica o teu **e-mail** e a **palavra-passe** — ou toca em **Continuar com o Google**. Sem códigos: o sistema encontra a tua empresa pelo e-mail.\nSe esqueceste a senha, o administrador da empresa pode repô-la em **Configurações**. Se és o administrador e perdeste o acesso, pede aqui para falar com a equipa.",
     },
     {
         "id": "login_caixa",
@@ -66,7 +66,7 @@ INTENTS: list[dict] = [
             "o operador nao aparece na caixa", "entrar na caixa pin", "abrir o pos",
             "como o funcionario entra na caixa", "caixa pede pin qual e",
         ],
-        "answer": "No caixa (https://caixa.lpsvendas.com):\n1. Escreve o **e-mail registado da empresa** (o do gestor) — ou entra direto com o botão **Google**.\n2. **Toca no teu nome** na lista de operadores.\n3. Digita o teu **PIN**.\nO PIN é definido pelo gestor em **Funcionários → Dar acesso ao sistema**. Se o teu nome não aparece, ainda não tens PIN definido.",
+        "answer": "No caixa (https://caixa.ndombaxisystem.com):\n1. Escreve o **e-mail registado da empresa** (o do gestor) — ou entra direto com o botão **Google**.\n2. **Toca no teu nome** na lista de operadores.\n3. Digita o teu **PIN**.\nO PIN é definido pelo gestor em **Funcionários → Dar acesso ao sistema**. Se o teu nome não aparece, ainda não tens PIN definido.",
         "image": "login_caixa",
     },
     {
@@ -138,7 +138,7 @@ INTENTS: list[dict] = [
             "ativar loja virtual", "ecommerce do sistema", "vender online", "site da minha loja",
             "como o cliente compra online",
         ],
-        "answer": "Cada empresa tem a sua loja online em https://loja.lpsvendas.com (com o teu código). Os produtos com **Mostrar online** aparecem com foto e stock em tempo real. O cliente **cria conta**, compra (transferência/referência/Express), acompanha a encomenda e fala contigo pelo chat. Tu geres tudo em **Encomendas** no painel.",
+        "answer": "Cada empresa tem a sua loja online em https://loja.ndombaxisystem.com (com o teu código). Os produtos com **Mostrar online** aparecem com foto e stock em tempo real. O cliente **cria conta**, compra (transferência/referência/Express), acompanha a encomenda e fala contigo pelo chat. Tu geres tudo em **Encomendas** no painel.",
     },
     {
         "id": "folha_salarial",

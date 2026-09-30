@@ -5,7 +5,7 @@ import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
 import { ScreenKeyboard } from '../components/ScreenKeyboard';
-import { openCaixaTerminal } from '../config';
+import { openCaixaTerminal, SITE_URL } from '../config';
 import { nativeGoogleAvailable, nativeGoogleSignIn } from '../nativeGoogle';
 import { desktopGoogleAvailable, desktopGoogleSignIn } from '../desktopGoogle';
 
@@ -155,7 +155,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   // Android/iOS de forma fiável. No desktop o OAuth do Google é outro fluxo.
   const isDesktopApp = window.location.protocol === 'ndombaxi:' || typeof nw.ndombaxi !== 'undefined';
   const isMobileApp = isNativeApp && !isDesktopApp;
-  const openSignupInBrowser = () => window.open('https://lpsvendas.com/', '_blank');
+  const openSignupInBrowser = () => window.open(`${SITE_URL}/`, '_blank');
 
   return (
     <div className="auth">

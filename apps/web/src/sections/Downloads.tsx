@@ -223,7 +223,7 @@ export function Downloads({ onOpenWizard }: { onOpenWizard?: () => void } = {}) 
 
         <div className="field">
           <label>Página de downloads (para onde a app encaminha o cliente)</label>
-          <input value={form.downloadPageUrl} onChange={(e) => set({ downloadPageUrl: e.target.value })} placeholder="https://lpsvendas.com/baixar" />
+          <input value={form.downloadPageUrl} onChange={(e) => set({ downloadPageUrl: e.target.value })} placeholder="https://ndombaxisystem.com/baixar" />
         </div>
 
         <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
