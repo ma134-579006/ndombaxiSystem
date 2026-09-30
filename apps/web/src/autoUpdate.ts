@@ -21,7 +21,7 @@ const RELOAD_GUARD_WINDOW = 60_000; // ...por esta janela (ms)
 function currentBundleHash(): string | null {
   const scripts = Array.from(document.querySelectorAll('script[src]')) as HTMLScriptElement[];
   for (const s of scripts) {
-    const m = s.src.match(/assets\/index-([\w-]+)\.js/);
+    const m = s.src.match(/assets\/(?:index|main)-([\w-]+)\.js/);
     if (m) return m[1];
   }
   return null;
@@ -82,7 +82,7 @@ export function initAutoUpdate(opts?: { canReload?: () => boolean }) {
       } finally {
         clearTimeout(t);
       }
-      const m = html.match(/assets\/index-([\w-]+)\.js/);
+      const m = html.match(/assets\/(?:index|main)-([\w-]+)\.js/);
       const latest = m ? m[1] : null;
       if (latest && latest !== current) {
         pending = true;

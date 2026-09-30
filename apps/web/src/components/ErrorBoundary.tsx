@@ -1,10 +1,14 @@
 import React from 'react';
+import { isChunkError, reloadForNewVersion } from '../lazyRetry';
 
 /**
  * Captura erros de render para que a app NUNCA fique em "tela branca".
  * Mostra uma mensagem clara + botões de recarregar / terminar sessão, e
  * regista o erro na consola para diagnóstico.
  */
+function justTriggeredReload(): boolean {
+  try { return Date.now() - Number(sessionStorage.getItem("nx.chunkReload") || 0) < 8000; } catch { return true; }
+}
 interface State { error: Error | null }
 
 export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, State> {
@@ -17,16 +21,8 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // eslint-disable-next-line no-console
     console.error('[ErrorBoundary]', error, info?.componentStack);
-    // Nova versão publicada → o ficheiro antigo já não existe: recarrega uma vez.
-    if (/dynamically imported module|Importing a module script failed|ChunkLoadError/i.test(String(error?.message))) {
-      try {
-        const last = Number(sessionStorage.getItem('nx.chunkReload') || 0);
-        if (Date.now() - last > 30000) {
-          sessionStorage.setItem('nx.chunkReload', String(Date.now()));
-          location.reload();
-        }
-      } catch { /* ignore */ }
-    }
+    // Nova versão publicada → o ficheiro antigo já não existe: recarrega (sem mostrar o erro).
+    if (isChunkError(error)) reloadForNewVersion();
   }
 
   private hardReload = () => {
@@ -36,6 +32,10 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
 
   render() {
     if (!this.state.error) return this.props.children;
+    // Ficheiro antigo após uma publicação: mostra só «A actualizar…» enquanto recarrega.
+    if (isChunkError(this.state.error) && justTriggeredReload()) {
+      return <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', background: '#0b1020', color: '#c7ceff', fontFamily: 'system-ui, sans-serif' }}>A actualizar…</div>;
+    }
     return (
       <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24, background: '#0c1426', color: '#eaf0fa', fontFamily: 'system-ui, sans-serif' }}>
         <div style={{ maxWidth: 440, textAlign: 'center', background: '#111a2e', border: '1px solid #233149', borderRadius: 16, padding: 24 }}>
