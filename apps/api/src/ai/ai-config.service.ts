@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, type AiProvider } from '@prisma/client';
 import type { Env } from '../config/env.validation';
@@ -20,6 +20,8 @@ export interface SafeAiProvider {
   voice: string | null;
   hasApiKey: boolean;
   apiKeyMask: string | null;
+  /** A chave guardada não pode ser desencriptada (mudou a chave de encriptação do servidor). */
+  keyUnreadable: boolean;
   headers: unknown;
   settings: unknown;
   isActive: boolean;
@@ -36,8 +38,24 @@ export class AiConfigService {
     private readonly config: ConfigService<Env, true>,
   ) {}
 
+  private readonly logger = new Logger(AiConfigService.name);
+
   private get key(): string {
     return this.config.get('CONFIG_ENCRYPTION_KEY', { infer: true });
+  }
+
+  private unreadableMessage(names: string[]): string {
+    return `A chave da API do fornecedor de IA (${names.join(', ')}) não pode ser lida — foi guardada com outra chave de encriptação. No Super Admin → Inteligência Artificial → Editar, volte a colar a chave da API e guarde.`;
+  }
+
+  /** Desencripta a chave do provedor; se não for possível, erro claro em vez de "Unsupported state". */
+  private readKey(p: AiProvider): string | null {
+    if (!p.apiKeyEnc) return null;
+    try {
+      return decryptSecret(p.apiKeyEnc, this.key);
+    } catch {
+      throw new UnprocessableEntityException(this.unreadableMessage([p.name]));
+    }
   }
 
   // ── Provedores (CRUD do painel do Super Admin) ─────────────
@@ -116,7 +134,7 @@ export class AiConfigService {
     if (!chosen) return null;
     return {
       provider: chosen,
-      apiKey: chosen.apiKeyEnc ? decryptSecret(chosen.apiKeyEnc, this.key) : null,
+      apiKey: this.readKey(chosen),
     };
   }
 
@@ -129,10 +147,20 @@ export class AiConfigService {
     capability: AiCapability,
   ): Promise<{ provider: AiProvider; apiKey: string | null }[]> {
     const all = await this.prisma.aiProvider.findMany();
-    return resolveAllProviders(all, capability).map((provider) => ({
-      provider,
-      apiKey: provider.apiKeyEnc ? decryptSecret(provider.apiKeyEnc, this.key) : null,
-    }));
+    const out: { provider: AiProvider; apiKey: string | null }[] = [];
+    const unreadable: string[] = [];
+    for (const provider of resolveAllProviders(all, capability)) {
+      try {
+        out.push({ provider, apiKey: this.readKey(provider) });
+      } catch {
+        unreadable.push(provider.name);
+        this.logger.warn(`Chave do provedor de IA "${provider.name}" ilegível (chave de encriptação diferente) — ignorado.`);
+      }
+    }
+    if (!out.length && unreadable.length) {
+      throw new UnprocessableEntityException(this.unreadableMessage(unreadable));
+    }
+    return out;
   }
 
   /**
@@ -165,7 +193,7 @@ export class AiConfigService {
     const provider = await this.requireProvider(id);
     return {
       provider,
-      apiKey: provider.apiKeyEnc ? decryptSecret(provider.apiKeyEnc, this.key) : null,
+      apiKey: this.readKey(provider),
     };
   }
 
@@ -194,11 +222,13 @@ export class AiConfigService {
 
   private toSafe(p: AiProvider): SafeAiProvider {
     let mask: string | null = null;
+    let keyUnreadable = false;
     if (p.apiKeyEnc) {
       try {
         mask = maskSecret(decryptSecret(p.apiKeyEnc, this.key));
       } catch {
         mask = '••••••••';
+        keyUnreadable = true;
       }
     }
     return {
@@ -211,6 +241,7 @@ export class AiConfigService {
       voice: p.voice,
       hasApiKey: !!p.apiKeyEnc,
       apiKeyMask: mask,
+      keyUnreadable,
       headers: p.headers,
       settings: p.settings,
       isActive: p.isActive,

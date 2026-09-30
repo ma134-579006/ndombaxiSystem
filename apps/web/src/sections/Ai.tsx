@@ -166,7 +166,7 @@ export function Ai() {
                     <span className="co-plan">{p.adapter}</span>
                     <span>{p.capabilities.join(', ') || 'sem capacidades'}</span>
                     <span className="mono">{p.baseUrl}</span>
-                    <span>{p.hasApiKey ? `chave ${p.apiKeyMask ?? '••••'}` : 'sem chave'}</span>
+                    <span>{p.hasApiKey ? `chave ${p.apiKeyMask ?? '••••'}` : 'sem chave'}</span>{p.keyUnreadable ? <span className="fx-badge bad" title="A chave foi guardada com outra chave de encriptação. Clique em Editar, cole a chave da API e guarde.">Chave ilegível — volte a guardar</span> : null}
                   </div>
                 </div>
                 <div className="co-actions">
