@@ -1066,11 +1066,11 @@ a.fc-line:hover { color: #fff; }
 
 /* ── Logo LPS Vendas: sempre visível (v9) ─────────────────────────────────
    A logo completa (horizontal, transparente) substitui o ícone+texto. */
-.lp .lp-brand .logo, .lp-nav .logo { width: auto; height: 46px; max-width: 170px; object-fit: contain; }
+.lp .lp-brand .logo, .lp-nav .logo { width: auto; height: 60px; max-width: 220px; object-fit: contain; }
 .lp .lp-brand { gap: 0; }
-.lp-fbrand .fb-logo-row img { width: auto; height: 68px; max-width: 220px; object-fit: contain; }
-.dlp .lp-nav .logo { height: 48px; }
+.lp-fbrand .fb-logo-row img { width: auto; height: 84px; max-width: 280px; object-fit: contain; }
+.dlp .lp-nav .logo { height: 60px; }
 @media (max-width: 720px) {
-  .lp .lp-brand .logo, .lp-nav .logo { height: 40px; max-width: 150px; }
-  .lp-fbrand .fb-logo-row img { height: 58px; }
+  .lp .lp-brand .logo, .lp-nav .logo { height: 52px; max-width: 190px; }
+  .lp-fbrand .fb-logo-row img { height: 72px; }
 }
