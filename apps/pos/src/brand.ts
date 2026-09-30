@@ -4,9 +4,9 @@ export const SYSTEM_SHORT = 'LPS Vendas';
 export const SYSTEM_MODULE = 'Caixa · Ponto de Venda';
 export const AUTHOR = 'Manuel Mbala Tomás Ndombaxi';
 /** Simbolo (carrinho + LPS), transparente — para espacos quadrados pequenos. */
-export const LOGO_SRC = '/logo-mark.png';
+export const LOGO_SRC = '/logo-mark.svg';
 /** Logo completa (com "Vendas"), transparente — para cabecalhos e ecras onde cabe. */
-export const LOGO_WIDE = '/logo-horizontal.png';
+export const LOGO_WIDE = '/logo-horizontal.svg';
 
 export function copyrightLine(year: number = new Date().getFullYear()): string {
   return `© ${year} ${SYSTEM_NAME}`;
