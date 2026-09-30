@@ -14,6 +14,12 @@ export const envSchema = z.object({
     .string()
     .default('http://localhost:3000')
     .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean)),
+  // Domínios próprios ADICIONAIS aceites por CORS (apex + subdomínios), separados
+  // por vírgula. Vazio por defeito; usado na migração de domínio (ex.: lpsvendas.com).
+  CORS_EXTRA_HOSTS: z
+    .string()
+    .default('')
+    .transform((v) => v.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)),
 
   DATABASE_URL: z.string().url().or(z.string().startsWith('postgresql://')),
 
