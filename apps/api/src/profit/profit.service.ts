@@ -217,7 +217,9 @@ export class ProfitService {
         cum += sales;
         const sharePct = total > 0 ? round2((sales / total) * 100) : 0;
         const cumulativePct = total > 0 ? round2((cum / total) * 100) : 0;
-        const abcClass: 'A' | 'B' | 'C' = cumulativePct <= 80 ? 'A' : cumulativePct <= 95 ? 'B' : 'C';
+        // Classe pela % acumulada ANTES deste produto: o que começa abaixo de 80% é A (um produto único com 100% é A).
+        const before = total > 0 ? ((cum - sales) / total) * 100 : 0;
+        const abcClass: 'A' | 'B' | 'C' = before < 80 ? 'A' : before < 95 ? 'B' : 'C';
         return { productCode: r.product_code, description: r.description, sales: round2(sales), sharePct, cumulativePct, abcClass };
       });
     });

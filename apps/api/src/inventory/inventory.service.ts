@@ -88,7 +88,8 @@ export class InventoryService {
       const withClass = enriched.map((r) => {
         cum += r.salesValue;
         const cumPct = total > 0 ? (cum / total) * 100 : 0;
-        const cls = r.salesValue <= 0 ? 'C' : cumPct <= 80 ? 'A' : cumPct <= 95 ? 'B' : 'C';
+        const before = total > 0 ? ((cum - r.salesValue) / total) * 100 : 0;
+        const cls = r.salesValue <= 0 ? 'C' : before < 80 ? 'A' : before < 95 ? 'B' : 'C';
         return {
           ...r,
           rotation: Number.isFinite(r.rotation) ? r.rotation : null,
