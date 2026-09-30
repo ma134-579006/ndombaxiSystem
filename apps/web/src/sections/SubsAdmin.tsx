@@ -36,6 +36,23 @@ const STATUS_TONE: Record<SubStatus, string> = {
   EXPIRED: 'var(--muted)',
 };
 
+type SubTab = 'ALL' | 'IN_REVIEW' | 'PENDING_PAYMENT' | 'LIVE' | 'EXPIRED' | 'REJECTED';
+const TABS: { key: SubTab; label: string }[] = [
+  { key: 'ALL', label: 'Todas' },
+  { key: 'IN_REVIEW', label: 'Para rever' },
+  { key: 'PENDING_PAYMENT', label: 'Por pagar' },
+  { key: 'LIVE', label: 'Em vigor' },
+  { key: 'EXPIRED', label: 'Expiradas' },
+  { key: 'REJECTED', label: 'Rejeitadas' },
+];
+
+/** Estado efectivo: uma subscrição ACTIVE cuja validade já passou está EXPIRADA. */
+function effStatus(s: Subscription): SubStatus {
+  if (s.status === 'ACTIVE' && s.expiresAt && new Date(s.expiresAt).getTime() < Date.now()) return 'EXPIRED';
+  return s.status;
+}
+const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString('pt-PT') : '—');
+
 export function SubsAdmin() {
   const [subs, setSubs] = useState<Subscription[]>([]);
   const [banks, setBanks] = useState<BankAccount[]>([]);
@@ -43,6 +60,10 @@ export function SubsAdmin() {
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<Subscription | null>(null);
   const [showBank, setShowBank] = useState(false);
+  const [tab, setTab] = useState<SubTab>('ALL');
+  const [q, setQ] = useState('');
+  const [withTrials, setWithTrials] = useState(false);
+  const [limit, setLimit] = useState(30);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,8 +80,22 @@ export function SubsAdmin() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const paid = subs.filter((s) => !s.isTrial && s.amountKz > 0);
+  const count = (st: SubStatus) => subs.filter((s) => effStatus(s) === st).length;
+  const live = count('ACTIVE');
+  const filtered = subs.filter((s) => {
+    const st = effStatus(s);
+    if (!withTrials && (s.isTrial || s.amountKz === 0) && tab === 'ALL') return false;
+    if (tab === 'LIVE' && st !== 'ACTIVE') return false;
+    if (tab !== 'ALL' && tab !== 'LIVE' && st !== tab) return false;
+    const needle = q.trim().toLowerCase();
+    if (needle && !`${s.company?.name ?? ''} ${s.plan?.name ?? ''}`.toLowerCase().includes(needle)) return false;
+    return true;
+  });
+  const shown = filtered.slice(0, limit);
+
   return (
-    <>
+    <div className="fx-wide">
       <div className="content-head">
         <h2>Subscrições & Pagamentos</h2>
         <span className="spacer" />
@@ -68,47 +103,78 @@ export function SubsAdmin() {
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
 
-      {/* CONTAS BANCÁRIAS */}
-      <div className="card">
-        <h3>Contas bancárias da plataforma (IBAN)</h3>
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Em vigor</div><div className="vl"><span className="fx-dot ok" />{live}</div><div className="sb">subscrições activas e válidas</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Para rever</div><div className="vl"><span className="fx-dot" />{count('IN_REVIEW')}</div><div className="sb">comprovativos submetidos</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Por pagar</div><div className="vl"><span className="fx-dot" />{count('PENDING_PAYMENT')}</div><div className="sb">à espera de pagamento</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Expiradas</div><div className="vl"><span className="fx-dot bad" />{count('EXPIRED')}</div><div className="sb">{paid.length} pagas no total</div></div></div>
+      </div>
+
+      <div className="fx-card">
+        <div className="fx-card-h">
+          <div><h3>Contas bancárias da plataforma</h3><p>IBAN para onde as empresas transferem o valor das subscrições.</p></div>
+        </div>
         {banks.length === 0 ? (
-          <p className="muted">Sem contas. Adicione uma para receber transferências.</p>
+          <p className="muted" style={{ margin: 0 }}>Sem contas. Adicione uma para receber transferências.</p>
         ) : banks.map((b) => (
-          <div className="list-row" key={b.id}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700 }}>{b.bankName} <span className="muted" style={{ fontWeight: 500 }}>· {b.accountHolder}</span></div>
-              <div className="muted mono" style={{ fontSize: 13 }}>{b.iban}</div>
+          <div className="co-row" key={b.id} style={{ padding: '10px 4px' }}>
+            <div className="co-main">
+              <div className="co-name">{b.bankName} <span className="co-code">{b.accountHolder}</span></div>
+              <div className="mono muted" style={{ marginTop: 2 }}>{b.iban}</div>
             </div>
-            <span className="badge" style={{ color: b.isActive ? 'var(--success)' : 'var(--muted)', borderColor: 'currentColor' }}>
-              {b.isActive ? 'Activa' : 'Inactiva'}
-            </span>
+            <span className={`fx-badge ${b.isActive ? 'ok' : 'off'}`}><span className={`fx-dot ${b.isActive ? 'ok' : ''}`} />{b.isActive ? 'Activa' : 'Inactiva'}</span>
           </div>
         ))}
       </div>
 
-      {/* SUBSCRIÇÕES */}
-      <div className="card">
-        <h3>Subscrições</h3>
-        {loading ? <div className="loading">A carregar…</div> : subs.length === 0 ? (
-          <p className="muted">Ainda não há subscrições.</p>
-        ) : subs.map((s) => (
-          <div className="list-row" key={s.id} style={{ cursor: 'pointer' }} onClick={async () => setDetail(await api.subsAdmin.get(s.id))}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700 }}>{s.company?.name ?? '—'} <span className="muted" style={{ fontWeight: 500 }}>· {s.plan?.name}</span></div>
-              <div className="muted" style={{ fontSize: 13 }}>{kz(s.amountKz)} / {durLabel(s)} · {s.method}</div>
+      <div className="fx-toolbar">
+        <div className="fx-tabs" role="tablist" aria-label="Filtrar subscrições">
+          {TABS.map((x) => (
+            <button key={x.key} role="tab" aria-selected={tab === x.key} className={tab === x.key ? 'on' : ''} onClick={() => { setTab(x.key); setLimit(30); }}>{x.label}</button>
+          ))}
+        </div>
+        <label className="fx-search">
+          <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(30); }} placeholder="Procurar empresa ou plano…" aria-label="Procurar subscrições" />
+        </label>
+      </div>
+      <label className="row" style={{ gap: 8, fontSize: 13, margin: '0 0 12px', color: 'var(--muted)' }}>
+        <input type="checkbox" checked={withTrials} onChange={(e) => setWithTrials(e.target.checked)} /> Incluir testes grátis e planos a 0 Kz na vista "Todas"
+      </label>
+
+      <div className="fx-card" style={{ padding: 8 }}>
+        {loading ? <div className="loading">A carregar…</div> : filtered.length === 0 ? (
+          <div className="empty"><p>Sem subscrições neste filtro.</p></div>
+        ) : shown.map((s) => {
+          const st = effStatus(s);
+          return (
+            <div className="co-row" key={s.id} style={{ cursor: 'pointer' }} onClick={async () => setDetail(await api.subsAdmin.get(s.id))}>
+              <span className="co-av" aria-hidden="true">{(s.company?.name ?? '?').slice(0, 2).toUpperCase()}</span>
+              <div className="co-main">
+                <div className="co-name">{s.company?.name ?? '—'} <span className="co-code">{s.plan?.name}</span></div>
+                <div className="co-meta">
+                  <span className="co-plan">{s.amountKz > 0 ? kz(s.amountKz) : 'Sem custo'} / {durLabel(s)}</span>
+                  <span>{s.method === 'IBAN' ? 'Transferência' : 'Referência'}</span>
+                  {s.startsAt ? <span>{fmtDate(s.startsAt)} → {fmtDate(s.expiresAt)}</span> : <span>criada em {fmtDate(s.createdAt)}</span>}
+                </div>
+              </div>
+              <span className="badge" style={{ color: STATUS_TONE[st], borderColor: STATUS_TONE[st] }}>
+                <span className="dot" /> {STATUS_LABEL[st]}
+              </span>
             </div>
-            <span className="badge" style={{ color: STATUS_TONE[s.status], borderColor: STATUS_TONE[s.status] }}>
-              <span className="dot" /> {STATUS_LABEL[s.status]}
-            </span>
+          );
+        })}
+        {filtered.length > shown.length ? (
+          <div style={{ textAlign: 'center', padding: 12 }}>
+            <button className="btn ghost" onClick={() => setLimit((n) => n + 30)}>Mostrar mais ({filtered.length - shown.length})</button>
           </div>
-        ))}
+        ) : null}
       </div>
 
       {detail ? (
         <SubDetail sub={detail} onClose={() => setDetail(null)} onChanged={() => { setDetail(null); void load(); }} />
       ) : null}
       {showBank ? <BankModal onClose={() => setShowBank(false)} onSaved={() => { setShowBank(false); void load(); }} /> : null}
-    </>
+    </div>
   );
 }
 
