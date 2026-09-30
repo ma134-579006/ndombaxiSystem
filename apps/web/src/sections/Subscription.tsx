@@ -26,7 +26,18 @@ function fileToBase64(file: File): Promise<{ data: string; type: string; name: s
   });
 }
 
-/** Subscrição & Plano (lado da empresa): escolher plano, pagar por IBAN,
+/** Período legível de um plano/subscrição: "1 mês", "3 meses", "30 dias", "sem prazo". */
+function periodLabel(months: number, days = 0): string {
+  const parts: string[] = [];
+  if (months) parts.push(`${months} ${months === 1 ? 'mês' : 'meses'}`);
+  if (days) parts.push(`${days} ${days === 1 ? 'dia' : 'dias'}`);
+  return parts.join(' e ') || 'sem prazo';
+}
+const priceLabel = (p: { priceKz: number; durationMonths: number; durationDays?: number }) =>
+  p.priceKz > 0 ? `${kz(p.priceKz)} / ${periodLabel(p.durationMonths, p.durationDays)}` : 'Grátis';
+const daysLeft = (iso: string | null) => (iso ? Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)) : null);
+
+/** Subscrição & Plano (lado da empresa): plano actual, escolher plano, pagar por IBAN,
  *  enviar comprovativo (imagem) e conversar com o Super Admin. */
 export function Subscription() {
   const [subs, setSubs] = useState<Sub[]>([]);
@@ -45,66 +56,91 @@ export function Subscription() {
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  const active = subs.find((s) => s.status === 'ACTIVE');
+  // A subscrição em vigor é a ACTIVE ainda válida que expira mais tarde (não a primeira da lista).
+  const active = subs
+    .filter((s) => s.status === 'ACTIVE' && (!s.expiresAt || new Date(s.expiresAt).getTime() > Date.now()))
+    .sort((x, y) => (y.expiresAt ? new Date(y.expiresAt).getTime() : Infinity) - (x.expiresAt ? new Date(x.expiresAt).getTime() : Infinity))[0];
   const pending = subs.find((s) => s.status === 'PENDING_PAYMENT' || s.status === 'IN_REVIEW');
   const [changing, setChanging] = useState(false);
+  const currentPlan = plans.find((pl) => pl.id === active?.planId);
+  const left = daysLeft(active?.expiresAt ?? null);
 
   return (
-    <>
+    <div className="fx-wide">
       <div className="content-head"><h2>Subscrição &amp; Plano</h2></div>
       {error ? <div className="banner danger">{error}</div> : null}
 
-      {loading ? <div className="card"><div className="loading">A carregar…</div></div>
+      {!loading ? (
+        <div className="fx-stats">
+          <div className="fx-stat"><span className="ic"><IconCard size={20} /></span><div><div className="lb">Plano actual</div><div className="vl">{active?.plan?.name ?? 'Sem plano activo'}</div><div className="sb">{active ? (active.isTrial ? 'período de teste' : priceLabel({ priceKz: active.amountKz, durationMonths: active.durationMonths, durationDays: active.durationDays })) : 'escolhe um plano abaixo'}</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Válido até</div><div className="vl">{active?.expiresAt ? new Date(active.expiresAt).toLocaleDateString('pt-PT') : '—'}</div><div className="sb">{left != null ? `${left} dia(s) restante(s)` : 'sem data de fim'}</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconReceipt size={20} /></span><div><div className="lb">Lojas incluídas</div><div className="vl">{currentPlan ? (currentPlan.maxStores === -1 ? 'Ilimitadas' : currentPlan.maxStores) : '—'}</div><div className="sb">{currentPlan ? `${currentPlan.maxUsers === -1 ? 'utilizadores ilimitados' : `${currentPlan.maxUsers} utilizadores`}` : ''}</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconReceipt size={20} /></span><div><div className="lb">Estado</div><div className="vl"><span className={`fx-dot${pending ? '' : active ? ' ok' : ' bad'}`} />{pending ? STATUS_LABEL[pending.status] : active ? 'Em dia' : 'Sem acesso'}</div><div className="sb">{pending ? 'pagamento em curso' : active ? 'a usar o sistema' : 'renova para continuar'}</div></div></div>
+        </div>
+      ) : null}
+
+      {loading ? <div className="fx-card"><div className="loading">A carregar…</div></div>
         : pending ? <PayAndChat sub={pending} banks={banks} onChanged={load} />
-        : active ? (
-          changing
-            ? <CreateForm plans={plans} banks={banks} onCreated={() => { setChanging(false); void load(); }} onCancel={() => setChanging(false)} />
-            : <ActiveCard sub={active} onChange={() => setChanging(true)} />
-        )
-        : <CreateForm plans={plans} banks={banks} onCreated={load} />}
+        : active && !changing ? <ActiveCard sub={active} left={left} onChange={() => setChanging(true)} />
+        : <CreateForm plans={plans} banks={banks} currentPlanId={active?.planId} onCreated={() => { setChanging(false); void load(); }} onCancel={active ? () => setChanging(false) : undefined} />}
 
       {/* Histórico */}
       {subs.length > 0 ? (
-        <div className="card">
-          <h3>Histórico de subscrições</h3>
-          {subs.map((s) => (
-            <div className="list-row" key={s.id}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700 }}>{s.plan?.name ?? 'Plano'} <span className="muted" style={{ fontWeight: 500 }}>· {kz(s.amountKz)}/{s.durationMonths}m</span></div>
-                <div className="muted" style={{ fontSize: 12 }}>{new Date(s.createdAt).toLocaleDateString('pt-PT')} · {s.method === 'IBAN' ? 'Transferência' : 'Referência'}</div>
+        <div className="fx-card" style={{ padding: 8 }}>
+          <div className="fx-card-h" style={{ padding: '12px 14px 0', marginBottom: 6 }}><div><h3>Histórico de subscrições</h3></div></div>
+          {subs.map((s) => {
+            const expired = s.status === 'ACTIVE' && s.expiresAt && new Date(s.expiresAt).getTime() < Date.now();
+            const st: SubStatus = expired ? 'EXPIRED' : s.status;
+            return (
+              <div className="co-row" key={s.id}>
+                <span className="co-av" aria-hidden="true">{(s.plan?.name ?? 'P').slice(0, 2).toUpperCase()}</span>
+                <div className="co-main">
+                  <div className="co-name">{s.plan?.name ?? 'Plano'}</div>
+                  <div className="co-meta">
+                    <span className="co-plan">{s.amountKz > 0 ? `${kz(s.amountKz)} / ${periodLabel(s.durationMonths, s.durationDays)}` : 'Sem custo'}</span>
+                    <span>{new Date(s.createdAt).toLocaleDateString('pt-PT')}</span>
+                    <span>{s.method === 'IBAN' ? 'Transferência' : 'Referência'}</span>
+                  </div>
+                </div>
+                <span className="badge" style={{ color: STATUS_TONE[st], borderColor: 'currentColor' }}><span className="dot" /> {STATUS_LABEL[st]}</span>
               </div>
-              <span className="badge" style={{ color: STATUS_TONE[s.status], borderColor: 'currentColor' }}>{STATUS_LABEL[s.status]}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : null}
-    </>
+    </div>
   );
 }
 
-function ActiveCard({ sub, onChange }: { sub: Sub; onChange(): void }) {
-  // Trial = subscrição grátis (0 Kz, sem ciclo de meses).
-  const isTrial = sub.amountKz === 0 && (sub.durationMonths ?? 0) === 0;
+function ActiveCard({ sub, left, onChange }: { sub: Sub; left: number | null; onChange(): void }) {
+  const isTrial = !!sub.isTrial || (sub.amountKz === 0 && (sub.durationMonths ?? 0) === 0);
+  const total = sub.startsAt && sub.expiresAt ? Math.max(1, (new Date(sub.expiresAt).getTime() - new Date(sub.startsAt).getTime()) / 86_400_000) : null;
+  const pct = total != null && left != null ? Math.min(100, Math.max(0, Math.round(((total - left) / total) * 100))) : null;
   return (
-    <div className="card" style={{ borderColor: 'var(--success)' }}>
-      <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div className="kpi-ic" style={{ background: 'var(--success)', marginBottom: 0 }}><IconCheck size={20} /></div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ margin: 0 }}>{isTrial ? 'Teste grátis — Ativo' : `${sub.plan?.name ?? 'Plano'} — Activa`}</h3>
-          <div className="muted" style={{ fontSize: 13 }}>
-            {isTrial ? 'Período de teste gratuito' : `${kz(sub.amountKz)} / ${sub.durationMonths} meses`}
-            {sub.expiresAt ? ` · válido até ${new Date(sub.expiresAt).toLocaleDateString('pt-PT')}` : ''}
-          </div>
+    <div className="fx-card">
+      <div className="fx-card-h">
+        <div>
+          <h3>{isTrial ? 'Período de teste gratuito' : `Plano ${sub.plan?.name ?? ''}`}</h3>
+          <p>
+            {isTrial ? 'Estás a testar o sistema sem custo.' : `${kz(sub.amountKz)} por ${periodLabel(sub.durationMonths, sub.durationDays)}.`}
+            {sub.expiresAt ? ` Válido até ${new Date(sub.expiresAt).toLocaleDateString('pt-PT')}.` : ''}
+          </p>
         </div>
-        <button className="btn" onClick={onChange}>
-          <IconCard size={16} /> {isTrial ? 'Escolher um plano' : 'Trocar de plano'}
-        </button>
+        <span className="fx-badge ok"><span className="fx-dot ok" />Activa</span>
+      </div>
+      {pct != null ? (
+        <div className="fx-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Tempo do plano já utilizado">
+          <span style={{ width: `${pct}%` }} />
+        </div>
+      ) : null}
+      <div className="fx-actions">
+        <button className="btn" onClick={onChange}><IconCard size={16} /> {isTrial ? 'Escolher um plano' : 'Trocar ou renovar plano'}</button>
       </div>
     </div>
   );
 }
 
-function CreateForm({ plans, banks, onCreated, onCancel }: { plans: PublicPlan[]; banks: BankAccount[]; onCreated(): void; onCancel?: () => void }) {
+function CreateForm({ plans, banks, currentPlanId, onCreated, onCancel }: { plans: PublicPlan[]; banks: BankAccount[]; currentPlanId?: string; onCreated(): void; onCancel?: () => void }) {
   const [planId, setPlanId] = useState(plans[0]?.id ?? '');
   const [method, setMethod] = useState<'IBAN' | 'REFERENCE'>('IBAN');
   const [bankAccountId, setBankAccountId] = useState(banks[0]?.id ?? '');
@@ -127,28 +163,32 @@ function CreateForm({ plans, banks, onCreated, onCancel }: { plans: PublicPlan[]
     finally { setBusy(false); }
   };
 
+  const lim = (n: number) => (n === -1 ? 'ilimitados' : String(n));
+
   return (
-    <div className="card">
-      <div className="row" style={{ alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>Escolher plano</h3>
-        <span className="spacer" />
+    <div className="fx-card">
+      <div className="fx-card-h">
+        <div>
+          <h3>Escolher plano</h3>
+          <p>Podes trocar de plano quando quiseres. O novo plano fica activo depois de o pagamento ser aprovado.</p>
+        </div>
         {onCancel ? <button className="btn sm ghost" onClick={onCancel}>Cancelar</button> : null}
       </div>
-      <p className="muted" style={{ fontSize: 13, margin: '6px 0 12px' }}>
-        Pode trocar de plano a qualquer momento, mesmo com um plano ativo. O novo plano fica ativo após o Super Admin aprovar o pagamento.
-      </p>
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
-      <div className="pgrid" style={{ marginBottom: 14 }}>
+      <div className="fx-plans" role="radiogroup" aria-label="Planos">
         {plans.map((p) => (
-          <button key={p.id} className="pcard" onClick={() => setPlanId(p.id)}
-            style={{ textAlign: 'left', padding: 14, borderColor: planId === p.id ? 'var(--primary)' : undefined, boxShadow: planId === p.id ? '0 0 0 3px var(--primary-soft)' : undefined }}>
-            <div style={{ fontWeight: 800 }}>{p.name}</div>
-            <div style={{ fontSize: 20, fontWeight: 900, margin: '4px 0' }}>{kz(p.priceKz)}<span className="muted" style={{ fontSize: 12, fontWeight: 500 }}> /{p.durationMonths}m</span></div>
-            <div className="muted" style={{ fontSize: 12 }}>{p.maxStores} loja(s) · {p.maxUsers} util.</div>
+          <button key={p.id} role="radio" aria-checked={planId === p.id} className={`fx-plan${planId === p.id ? ' on' : ''}`} onClick={() => setPlanId(p.id)}>
+            <span className="fx-plan-top">
+              <b>{p.name}</b>
+              {p.id === currentPlanId ? <span className="fx-badge ok" style={{ padding: '2px 9px', fontSize: 11 }}>Actual</span> : p.highlight ? <span className="fx-badge" style={{ padding: '2px 9px', fontSize: 11 }}>Popular</span> : null}
+            </span>
+            <span className="fx-plan-price">{p.priceKz > 0 ? kz(p.priceKz) : 'Grátis'}</span>
+            <span className="fx-plan-per">{p.priceKz > 0 ? `por ${periodLabel(p.durationMonths, p.durationDays)}` : 'sem custo'}</span>
+            <span className="fx-plan-lim">{lim(p.maxStores)} loja(s) · {lim(p.maxUsers)} utilizadores</span>
           </button>
         ))}
       </div>
-      <div className="grid-2">
+      <div className="fx-grid" style={{ marginTop: 16 }}>
         <div className="field"><label>Método de pagamento</label>
           <select value={method} onChange={(e) => setMethod(e.target.value as 'IBAN' | 'REFERENCE')}>
             <option value="IBAN">Transferência bancária (IBAN)</option>
@@ -162,9 +202,11 @@ function CreateForm({ plans, banks, onCreated, onCancel }: { plans: PublicPlan[]
             </select></div>
         ) : null}
       </div>
-      <button className="btn lg block" onClick={submit} disabled={busy || !planId}>
-        {busy ? 'A subscrever…' : `Subscrever ${plan ? `(${kz(plan.priceKz)})` : ''}`}
-      </button>
+      <div className="fx-actions">
+        <button className="btn lg" onClick={submit} disabled={busy || !planId}>
+          {busy ? 'A subscrever…' : `Subscrever${plan && plan.priceKz > 0 ? ` (${kz(plan.priceKz)})` : ''}`}
+        </button>
+      </div>
     </div>
   );
 }
@@ -201,7 +243,7 @@ function PayAndChat({ sub, banks, onChanged }: { sub: Sub; banks: BankAccount[];
   };
 
   return (
-    <div className="card">
+    <div className="fx-card">
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
         <h3 style={{ margin: 0 }}>{sub.plan?.name ?? 'Plano'} — {kz(sub.amountKz)}</h3>
         <span className="badge" style={{ color: STATUS_TONE[sub.status], borderColor: 'currentColor' }}>{STATUS_LABEL[sub.status]}</span>

@@ -2691,3 +2691,14 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .pil
 .toolbar-sticky > .row { width: 100%; }
 .toolbar-sticky:focus-within { border-color: var(--primary) !important; }
 .toolbar-sticky input[type="text"], .toolbar-sticky input:not([type]) { font-size: 14px; }
+
+/* Planos e barra de progresso */
+.fx-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.fx-plan { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 16px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--surface); transition: border-color .15s, box-shadow .2s, transform .15s; }
+.fx-plan:hover { border-color: color-mix(in srgb, var(--primary) 50%, var(--border)); transform: translateY(-2px); }
+.fx-plan.on { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.fx-plan-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fx-plan-price { font-family: var(--nx-font-title, inherit); font-weight: 700; font-size: 21px; letter-spacing: -.01em; margin-top: 6px; }
+.fx-plan-per, .fx-plan-lim { font-size: 12.5px; color: var(--muted); }
+.fx-bar { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 4px 0 2px; }
+.fx-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--nx-brand-500, #4353ff), var(--nx-brand-600, #2430e8)); transition: width .6s cubic-bezier(.2, .7, .3, 1); }
