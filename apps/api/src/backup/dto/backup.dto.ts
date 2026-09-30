@@ -14,7 +14,7 @@ export class UpdateBackupSettingsDto {
   frequency?: BackupFrequency;
 }
 
-/** Conteúdo de um backup (próprio formato Ndombaxi) para pré-visualizar/restaurar. */
+/** Conteúdo de um backup (próprio formato LPS Vendas) para pré-visualizar/restaurar. */
 export class RestoreBackupDto {
   /** Conteúdo do ficheiro .ndbak (gzip+base64) tal como foi descarregado. */
   @IsString()

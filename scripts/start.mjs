@@ -37,7 +37,7 @@ const err = (m) => log(`${c.red}✗${c.reset} ${m}`);
 function banner() {
   log('');
   log(`${c.bold}${c.blue}============================================================${c.reset}`);
-  log(`${c.bold}   NDOMBAXI SYSTEM — arranque automático${c.reset}`);
+  log(`${c.bold}   LPS VENDAS — arranque automático${c.reset}`);
   log(`${c.dim}   por Manuel Mbala Tomás Ndombaxi${c.reset}`);
   log(`${c.bold}${c.blue}============================================================${c.reset}`);
   log('');

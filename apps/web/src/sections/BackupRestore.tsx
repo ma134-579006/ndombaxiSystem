@@ -24,7 +24,7 @@ function readAsBase64(file: File): Promise<string> {
   });
 }
 
-/** Restauro de um backup PRÓPRIO do Ndombaxi (.ndbak) — pré-visualiza sempre
+/** Restauro de um backup PRÓPRIO do LPS Vendas (.ndbak) — pré-visualiza sempre
  *  antes de aplicar; nunca apaga nada (upsert por id). */
 export function BackupRestore() {
   const [fileName, setFileName] = useState<string | null>(null);

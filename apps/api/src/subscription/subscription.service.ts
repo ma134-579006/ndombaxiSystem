@@ -11,7 +11,7 @@ import type {
 } from './dto/subscription.dto';
 
 /**
- * Subscrições e pagamento da PLATAFORMA (empresa → Ndombaxi), geridos pelo
+ * Subscrições e pagamento da PLATAFORMA (empresa → LPS Vendas), geridos pelo
  * Super Admin. Dois métodos:
  *  • IBAN (transferência): empresa escolhe um banco, sobe comprovativo, o
  *    Super Admin aprova → subscrição fica ACTIVE pelo período do plano.

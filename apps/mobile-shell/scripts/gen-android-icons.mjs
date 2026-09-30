@@ -4,7 +4,7 @@
  * PORQUÊ um script: a pasta `android/` é um projeto Capacitor LOCAL (está no
  * `.gitignore`), regenerado por `cap add android` — que traria o ícone genérico
  * do Capacitor. Correr isto DEPOIS do `cap add` (ou a qualquer momento) repõe o
- * ícone do Ndombaxi em todas as densidades, mais o ícone redondo e o foreground
+ * ícone do LPS Vendas em todas as densidades, mais o ícone redondo e o foreground
  * adaptativo. O fundo adaptativo (navy) está em
  * `android/app/src/main/res/values/ic_launcher_background.xml`.
  *

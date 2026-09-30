@@ -168,7 +168,7 @@ export class BackupService {
     return this.getSettings(schema);
   }
 
-  // ── Restauro (próprio formato Ndombaxi) ──────────────────────────────────
+  // ── Restauro (próprio formato LPS Vendas) ──────────────────────────────────
   private decode(contentBase64: string): BackupDump {
     let json: string;
     try { json = gunzipSync(Buffer.from(contentBase64, 'base64')).toString('utf-8'); }

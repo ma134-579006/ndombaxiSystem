@@ -449,7 +449,7 @@ function registerIpc(): void {
   ipcMain.handle('ndombaxi:db-backup', async () => {
     const dir = path.join(app.getPath('documents'), 'Ndombaxi', 'Backups');
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const dest = path.join(dir, `ndombaxi-${stamp}.db`);
+    const dest = path.join(dir, `lps-vendas-${stamp}.db`);
     try {
       await backupTo(dest);
       return { ok: true, path: dest };

@@ -27,7 +27,7 @@ export function buildMenu(opts: {
             const win = opts.getWindow();
             const dir = path.join(app.getPath('documents'), 'Ndombaxi', 'Backups');
             const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const dest = path.join(dir, `ndombaxi-${stamp}.db`);
+            const dest = path.join(dir, `lps-vendas-${stamp}.db`);
             try {
               await backupTo(dest);
               const r = await dialog.showMessageBox(win ?? undefined!, {

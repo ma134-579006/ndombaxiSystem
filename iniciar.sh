@@ -3,7 +3,7 @@
 cd "$(dirname "$0")"
 
 echo "============================================================"
-echo "   NDOMBAXI SYSTEM — arranque automático"
+echo "   LPS VENDAS — arranque automático"
 echo "============================================================"
 
 command -v pnpm >/dev/null 2>&1 || {
