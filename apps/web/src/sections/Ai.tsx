@@ -24,6 +24,7 @@ const emptyForm = (): ProviderForm => ({
 });
 
 export function Ai() {
+  const [aiTab, setAiTab] = useState<'providers' | 'assistant'>('providers');
   const [providers, setProviders] = useState<AiProvider[]>([]);
   const [assistant, setAssistant] = useState<AssistantConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,63 +119,91 @@ export function Ai() {
 
   if (loading) return <div className="loading">A carregar a configuração de IA…</div>;
 
+  const activeProviders = providers.filter((p) => p.isActive);
+  const def = providers.find((p) => p.isDefault);
+  const caps = new Set(providers.flatMap((p) => p.capabilities));
+  const EMOJI_LABEL: Record<string, string> = { none: 'Nenhum', subtle: 'Discreto', balanced: 'Equilibrado', rich: 'Rico' };
+
   return (
-    <>
+    <div className="fx-wide">
       {error ? <div className="banner danger">{error}</div> : null}
 
       <div className="content-head">
-        <h2>Provedores de IA</h2>
-        <span className="muted" style={{ fontSize: 13 }}>OpenManus, OpenAI, Anthropic, ElevenLabs ou REST genérico</span>
+        <h2>Inteligência Artificial</h2>
         <span className="spacer" />
-        <button className="btn sm" onClick={openCreate}><IconPlus size={16} /> Adicionar provedor</button>
+        {aiTab === 'providers' ? <button className="btn" onClick={openCreate}><IconPlus size={16} /> Adicionar provedor</button> : null}
       </div>
 
-      <div className="card">
-        {providers.length === 0 ? (
-          <div className="empty"><IconCpu size={40} /><p>Nenhum provedor configurado.</p></div>
-        ) : (
-          providers.map((p) => (
-            <div className="list-row" key={p.id}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700 }}>
-                  {p.name}{' '}
-                  {p.isDefault ? <span className="badge" style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }}><IconStar size={11} /> default</span> : null}
-                  {!p.isActive ? <span className="muted"> · inactivo</span> : null}
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconCpu size={20} /></span><div><div className="lb">Provedores</div><div className="vl">{providers.length}</div><div className="sb">{activeProviders.length} activo(s)</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconStar size={20} /></span><div><div className="lb">Por omissão</div><div className="vl">{def ? def.name : '—'}</div><div className="sb">{def ? def.adapter : 'define um provedor principal'}</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCpu size={20} /></span><div><div className="lb">Capacidades</div><div className="vl">{caps.size}</div><div className="sb">{[...caps].slice(0, 4).join(', ') || 'nenhuma'}</div></div></div>
+      </div>
+
+      <div className="fx-tabs" role="tablist" aria-label="Inteligência artificial">
+        <button role="tab" aria-selected={aiTab === 'providers'} className={aiTab === 'providers' ? 'on' : ''} onClick={() => setAiTab('providers')}>Provedores</button>
+        <button role="tab" aria-selected={aiTab === 'assistant'} className={aiTab === 'assistant' ? 'on' : ''} onClick={() => setAiTab('assistant')}>Assistente e canais</button>
+      </div>
+
+      {aiTab === 'providers' ? (
+        <div className="fx-card" style={{ padding: 8 }}>
+          <div className="fx-card-h" style={{ padding: '12px 14px 0', marginBottom: 8 }}>
+            <div><h3>Provedores</h3><p>OpenManus, OpenAI, Anthropic, ElevenLabs ou REST genérico. A chave da API fica cifrada e nunca é mostrada de volta.</p></div>
+          </div>
+          {providers.length === 0 ? (
+            <div className="empty"><IconCpu size={40} /><p>Nenhum provedor configurado.</p></div>
+          ) : (
+            providers.map((p) => (
+              <div className="co-row" key={p.id}>
+                <span className="co-av" aria-hidden="true"><IconCpu size={18} /></span>
+                <div className="co-main">
+                  <div className="co-name">
+                    {p.name}
+                    {p.isDefault ? <span className="fx-badge ok" style={{ marginLeft: 8, padding: '1px 9px', fontSize: 11 }}>Por omissão</span> : null}
+                    {!p.isActive ? <span className="fx-badge" style={{ marginLeft: 8, padding: '1px 9px', fontSize: 11 }}>Inactivo</span> : null}
+                  </div>
+                  <div className="co-meta">
+                    <span className="co-plan">{p.adapter}</span>
+                    <span>{p.capabilities.join(', ') || 'sem capacidades'}</span>
+                    <span className="mono">{p.baseUrl}</span>
+                    <span>{p.hasApiKey ? `chave ${p.apiKeyMask ?? '••••'}` : 'sem chave'}</span>
+                  </div>
                 </div>
-                <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>
-                  {p.adapter} · {p.capabilities.join(', ')} · {p.baseUrl}
-                  {p.hasApiKey ? ` · chave ${p.apiKeyMask ?? '••••'}` : ' · sem chave'}
+                <div className="co-actions">
+                  <button className="btn sm ghost" onClick={() => testProvider(p)}><IconPlay size={15} /> Testar</button>
+                  <button className="btn sm ghost" onClick={() => openEdit(p)}>Editar</button>
+                  <button className="icon-btn" style={{ width: 34, height: 34 }} onClick={() => removeProvider(p)} aria-label={`Remover ${p.name}`}><IconTrash size={16} /></button>
                 </div>
               </div>
-              <button className="btn sm ghost" onClick={() => testProvider(p)}><IconPlay size={15} /> Testar</button>
-              <button className="btn sm ghost" onClick={() => openEdit(p)}>Editar</button>
-              <button className="icon-btn" style={{ width: 36, height: 36 }} onClick={() => removeProvider(p)}><IconTrash size={16} /></button>
-            </div>
-          ))
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      ) : null}
 
-      {/* Persona do assistente */}
-      {assistant ? (
-        <div className="card">
-          <h3>Assistente — persona &amp; canais</h3>
-          <div className="grid-2">
+      {aiTab === 'assistant' && assistant ? (
+        <div className="fx-card">
+          <div className="fx-card-h">
+            <div><h3>Persona do assistente</h3><p>Como o assistente se apresenta e que canais tem activos.</p></div>
+          </div>
+          <div className="fx-grid">
             <div className="field"><label>Nome do assistente</label><input value={assistant.displayName} onChange={(e) => setA('displayName', e.target.value)} /></div>
-            <div className="field"><label>Idioma (locale)</label><input value={assistant.locale} onChange={(e) => setA('locale', e.target.value)} /></div>
+            <div className="field"><label>Idioma</label><input value={assistant.locale} onChange={(e) => setA('locale', e.target.value)} /></div>
+            <div className="field">
+              <label>Nível de emojis</label>
+              <select value={assistant.emojiLevel} onChange={(e) => setA('emojiLevel', e.target.value)}>
+                {['none', 'subtle', 'balanced', 'rich'].map((o) => <option key={o} value={o}>{EMOJI_LABEL[o]}</option>)}
+              </select>
+            </div>
           </div>
           <div className="field"><label>Personalidade</label><textarea value={assistant.persona} onChange={(e) => setA('persona', e.target.value)} /></div>
           <div className="field"><label>Saudação inicial</label><input value={assistant.greeting ?? ''} onChange={(e) => setA('greeting', e.target.value)} placeholder="Olá! Como posso ajudar?" /></div>
-          <div className="field">
-            <label>Nível de emojis</label>
-            <select value={assistant.emojiLevel} onChange={(e) => setA('emojiLevel', e.target.value)}>
-              {['none', 'subtle', 'balanced', 'rich'].map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
           <div className="switch-row"><span>Voz (TTS)</span><Switch checked={assistant.voiceEnabled} onChange={(v) => setA('voiceEnabled', v)} /></div>
           <div className="switch-row"><span>Chamadas de voz</span><Switch checked={assistant.callEnabled} onChange={(v) => setA('callEnabled', v)} /></div>
           <div className="switch-row"><span>Geração de imagens</span><Switch checked={assistant.imageEnabled} onChange={(v) => setA('imageEnabled', v)} /></div>
           <div className="switch-row"><span>Gráficos nas respostas</span><Switch checked={assistant.chartsEnabled} onChange={(v) => setA('chartsEnabled', v)} /></div>
-          <button className="btn" style={{ marginTop: 12 }} onClick={saveAssistant} disabled={savingA}>{savingA ? 'A guardar…' : 'Guardar persona'}</button>
+          <div className="fx-actions">
+            <button className="btn" onClick={saveAssistant} disabled={savingA}>{savingA ? 'A guardar…' : 'Guardar persona'}</button>
+          </div>
         </div>
       ) : null}
 
@@ -205,6 +234,6 @@ export function Ai() {
           <button className="btn block lg" style={{ marginTop: 12 }} onClick={saveProvider} disabled={saving}>{saving ? 'A guardar…' : 'Guardar provedor'}</button>
         </Modal>
       ) : null}
-    </>
+    </div>
   );
 }

@@ -239,7 +239,7 @@ export function Assistant() {
       </aside>
       {!actOpen ? (
         <button className={`agent-activity-fab only-mobile${steps.length && busy ? ' busy' : ''}`} onClick={() => setActOpen(true)} title="Atividade do agente">
-          ⚡{steps.length ? <span className="noti-badge">{steps.length}</span> : null}
+          <IconCpu size={18} />{steps.length ? <span className="noti-badge">{steps.length}</span> : null}
         </button>
       ) : null}
 

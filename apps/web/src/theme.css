@@ -2702,3 +2702,15 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .pil
 .fx-plan-per, .fx-plan-lim { font-size: 12.5px; color: var(--muted); }
 .fx-bar { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 4px 0 2px; }
 .fx-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--nx-brand-500, #4353ff), var(--nx-brand-600, #2430e8)); transition: width .6s cubic-bezier(.2, .7, .3, 1); }
+
+/* Assistente IA (empresa) — aspecto profissional */
+.agent-hero { padding: 6vh 12px 8px; }
+.agent-hero-ic { width: 64px; height: 64px; border-radius: 20px; background: linear-gradient(135deg, var(--nx-brand-500, #4353ff), var(--nx-brand-700, #1b23ae)); color: #fff; box-shadow: 0 0 0 8px var(--primary-soft), 0 18px 36px -16px rgba(36, 48, 232, .55); }
+.agent-hero h2 { font-family: var(--nx-font-title, inherit); font-size: 26px; font-weight: 700; }
+.agent-sugs { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; max-width: 720px; margin: 0 auto; }
+.agent-sug { text-align: left; padding: 14px 16px; border-radius: 14px; font-size: 13.5px; font-weight: 550; line-height: 1.4; color: var(--text); border: 1px solid var(--border); background: var(--surface); box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+.agent-sug:hover { border-color: var(--primary); box-shadow: 0 10px 24px -14px rgba(36, 48, 232, .4); }
+.agent-composer { border-radius: 18px; padding: 12px 14px; box-shadow: 0 10px 30px -18px rgba(15, 23, 42, .35); }
+.agent-composer textarea { font-size: 14.5px; }
+.agent-hint { font-size: 12px; color: var(--muted); }
+.agent-sendbtn { border-radius: 12px; background: var(--primary); }
