@@ -12,6 +12,9 @@
          idêntica ao site mesmo OFFLINE — sem elas, offline caía na fonte do
          sistema. Só a Noto Emoji fica no Google (é pesada e é apenas fallback de
          emoji, com o emoji do sistema como reserva quando não há rede). -->
+    <!-- Pré-carrega as fontes latinas (Sora + DM Sans): evita o salto de layout quando chegam (CLS). -->
+    <link rel="preload" href="/fonts/nx03.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/nx01.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/fonts/ndombaxi-fonts.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
