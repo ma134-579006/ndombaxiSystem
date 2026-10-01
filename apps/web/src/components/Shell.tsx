@@ -10,6 +10,7 @@ import { CustomerChatModal } from './CustomerChatModal';
 import { IdleLock } from './IdleLock';
 import { SyncStatusPill } from '../offline/SyncStatusPill';
 import { Modal } from './ui';
+import { UserAvatar, displayName } from './UserAvatar';
 import type { SalaryAdvanceReq } from '../api/types';
 import { openCaixaTerminal } from '../config';
 
@@ -192,6 +193,23 @@ function IconGear({ size = 17 }: { size?: number }) {
   );
 }
 
+/** Ícones do menu da conta: traço único 1.75, 24×24 (mesma família da barra lateral). */
+const ICON_PATHS = {
+  chevron: 'M6 9l6 6 6-6',
+  register: 'M4 10h16v10H4zM7 10V5h10v5M8 14h2M14 14h2M8 17h8M10 7.5h4',
+  banknote: 'M3 6.5h18v11H3zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM6 9.5v.01M18 14.5v.01',
+  palette: 'M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.4 17 3 12 3zM7.5 12.5v.01M9.5 8v.01M14.5 8v.01M17 11.5v.01',
+  settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
+  logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+} as const;
+
+function MenuIcon({ d, size = 18, className }: { d: string; size?: number; className?: string }) {
+  return (
+    <svg className={className ?? 'acct2-ic'} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
+  );
+}
+
 /** Menu da conta do gestor (canto superior direito): avatar + seta → nome,
  *  email, Configurações e Terminar sessão. Fecha ao clicar fora. */
 function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat, canOpenCash, canAdvances, advancesCount, onOpenCash, onChat, onCustChat, onAdvances, onSettings, onLogout }: {
@@ -214,46 +232,61 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
     setTheme(id); setThemeState(id);
     api.preferences.setTheme(id).catch(() => { /* fica guardado localmente */ });
   };
+  // Esc fecha o menu.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+  const shown = displayName(name, email);
+  const go = (fn: () => void) => () => { setOpen(false); fn(); };
   return (
-    <div ref={ref} className="acct">
-      <button className="acct-btn" onClick={() => setOpen((v) => !v)} title={name} aria-label="Conta">
-        {photo ? <img className="acct-av" src={photo} alt={name} /> : <span className="acct-av acct-av-ph"><IconUser size={18} /></span>}
+    <div ref={ref} className="acct acct2">
+      <button className={`acct2-btn${open ? ' open' : ''}`} onClick={() => setOpen((v) => !v)} title={shown}
+        aria-label={`Conta de ${shown}`} aria-haspopup="menu" aria-expanded={open}>
+        <UserAvatar photo={photo} name={shown} email={email} size={34} />
         {totalBadge > 0 ? <span className="acct-badge">{totalBadge > 99 ? '99+' : totalBadge}</span> : null}
-        <span className={`acct-caret${open ? ' up' : ''}`}>▾</span>
+        <MenuIcon d={ICON_PATHS.chevron} size={15} className="acct2-caret" />
       </button>
       {open ? (
-        <div className="acct-pop">
-          <div className="acct-head">
-            {photo ? <img className="acct-av lg" src={photo} alt={name} /> : <span className="acct-av lg acct-av-ph"><IconUser size={22} /></span>}
-            <div style={{ minWidth: 0 }}>
-              <div className="acct-name">{name}</div>
-              {email ? <div className="acct-email">{email}</div> : null}
-              <div className="acct-role">{role}</div>
+        <div className="acct2-pop" role="menu" aria-label="Conta">
+          <div className="acct2-head">
+            <UserAvatar photo={photo} name={shown} email={email} size={44} />
+            <div className="acct2-who">
+              <div className="acct2-name">{shown}</div>
+              {email ? <div className="acct2-email">{email}</div> : null}
             </div>
           </div>
-          {canOpenCash ? (
-            <button className="acct-item" onClick={() => { setOpen(false); onOpenCash(); }}>
-              <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛒</span> Abrir caixa
+          <div className="acct2-role">{role}</div>
+          <div className="acct2-group">
+            {canOpenCash ? (
+              <button role="menuitem" className="acct2-item" onClick={go(onOpenCash)}>
+                <MenuIcon d={ICON_PATHS.register} /> Abrir caixa
+              </button>
+            ) : null}
+            {canAdvances ? (
+              <button role="menuitem" className="acct2-item" onClick={go(onAdvances)}>
+                <MenuIcon d={ICON_PATHS.banknote} /> Pedidos de adiantamento
+                {advancesCount > 0 ? <span className="acct-item-badge">{advancesCount > 99 ? '99+' : advancesCount}</span> : null}
+              </button>
+            ) : null}
+            <button role="menuitem" className="acct2-item" onClick={go(() => setThemeOpen(true))}>
+              <MenuIcon d={ICON_PATHS.palette} /> Tema do painel
             </button>
-          ) : null}
-          {/* Chats moved para a barra do topo (ícones visíveis). */}
-          {canAdvances ? (
-            <button className="acct-item" onClick={() => { setOpen(false); onAdvances(); }}>
-              <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💸</span> Pedidos de adiantamento
-              {advancesCount > 0 ? <span className="acct-item-badge">{advancesCount > 99 ? '99+' : advancesCount}</span> : null}
+            <button role="menuitem" className="acct2-item" onClick={go(onSettings)}>
+              <MenuIcon d={ICON_PATHS.settings} /> Configurações
             </button>
-          ) : null}
-          {/* Tema: item próprio com ícone — as cores escolhem-se num painel
-              dedicado, não espalhadas no menu (pedido do utilizador). */}
-          <button className="acct-item" onClick={() => { setOpen(false); setThemeOpen(true); }}>
-            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🎨</span> Tema do painel
-          </button>
-          <button className="acct-item" onClick={() => { setOpen(false); onSettings(); }}><IconGear size={17} /> Configurações</button>
-          <button className="acct-item danger" onClick={() => { setOpen(false); onLogout(); }}><IconLogout size={17} /> Terminar sessão</button>
+          </div>
+          <div className="acct2-group">
+            <button role="menuitem" className="acct2-item danger" onClick={go(onLogout)}>
+              <MenuIcon d={ICON_PATHS.logout} /> Terminar sessão
+            </button>
+          </div>
         </div>
       ) : null}
       {themeOpen ? (
-        <Modal title="🎨 Tema do painel" onClose={() => setThemeOpen(false)}>
+        <Modal title="Tema do painel" onClose={() => setThemeOpen(false)}>
           <p className="muted" style={{ marginTop: 0, fontSize: 13.5 }}>
             Escolhe o tema — aplica-se já e fica guardado na tua conta.
           </p>

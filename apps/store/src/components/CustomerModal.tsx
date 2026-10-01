@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { UserAvatar } from './UserAvatar';
 import { api, ApiError } from '../api/client';
 import { GOOGLE_CLIENT_ID } from '../config';
 import { setSession, clearSession } from '../store/customer';
@@ -344,7 +345,7 @@ function Account({
   return (
     <>
       <div className="acct-head">
-        <div className="avatar"><IconStore size={20} /></div>
+        <UserAvatar name={session.customer.name} email={session.customer.email} size={44} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 800 }}>{session.customer.name}</div>
           <div className="muted" style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.customer.email}</div>
