@@ -33,6 +33,8 @@ export interface MigrationPreview {
   warnings?: string[];
   /** Resumo do que vai entrar (só produtos). */
   summary?: { withBarcode: number; withStock: number; stockTotal: number; invalidBarcodes: number; duplicatesInFile: number };
+  /** Lojas com coluna de stock própria no ficheiro («Stock - <Loja>»). */
+  storeStock?: string[];
 }
 export interface MigrationApplyResult { kind: MigrationKind; created: number; updated: number; skipped: number; errors: string[]; warnings?: string[] }
 
@@ -254,6 +256,7 @@ export class MigrationService {
       toCreate, toUpdate, toSkip, sample, skippedSamples,
       headers, notes: cols.notes, warnings,
       summary: { withBarcode, withStock, stockTotal: Math.round(stockTotal * 1000) / 1000, invalidBarcodes, duplicatesInFile },
+      storeStock: cols.storeStock.map((s) => s.label),
     };
   }
 

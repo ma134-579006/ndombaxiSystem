@@ -122,7 +122,7 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
   const reset = () => { setMapping(null); setFileName(null); setContentB64(null); setPreview(null); setResult(null); setError(null); if (inputRef.current) inputRef.current.value = ''; };
 
   return (
-    <div className="mig-card">
+    <div className={`mig-card${preview || result ? ' active' : ''}`}>
       <header className="mig-card-head">
         <span className="mig-card-icon" aria-hidden><Icon size={20} /></span>
         <div>
@@ -162,84 +162,111 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
 
       {preview && !result ? (
         <div className="mig-preview">
-          <div className="mig-file"><span className="mig-file-name">{fileName}</span><span className="mig-file-rows">{preview.totalRows} linha(s)</span></div>
-
-          <div className="mig-stats">
-            <div className="mig-stat create"><span className="mig-stat-n">{preview.toCreate}</span><span className="mig-stat-l">A criar</span></div>
-            <div className="mig-stat update"><span className="mig-stat-n">{preview.toUpdate}</span><span className="mig-stat-l">A atualizar</span></div>
-            {preview.toSkip > 0 ? <div className="mig-stat skip"><span className="mig-stat-n">{preview.toSkip}</span><span className="mig-stat-l">Ignoradas</span></div> : null}
+          <div className="mig-file">
+            <span className="mig-file-ic" aria-hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5zM14 3v5h5" /></svg></span>
+            <span className="mig-file-name">{fileName}</span>
+            <span className="mig-file-rows">{preview.totalRows.toLocaleString('pt-PT')} linhas</span>
+            <button type="button" className="btn sm ghost" onClick={reset} disabled={busy}>Trocar ficheiro</button>
           </div>
 
-          {preview.warnings?.length ? (
-            <div className="mig-warn" role="alert">
-              <strong>Confirme antes de importar</strong>
-              <ul>{preview.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
-            </div>
-          ) : null}
+          <div className="mig-kpis">
+            <div className="mig-kpi create"><span className="l">A criar</span><span className="n">{preview.toCreate.toLocaleString('pt-PT')}</span></div>
+            <div className="mig-kpi update"><span className="l">A atualizar</span><span className="n">{preview.toUpdate.toLocaleString('pt-PT')}</span></div>
+            {kind === 'products' && preview.summary ? (
+              <>
+                <div className="mig-kpi"><span className="l">Com stock</span><span className="n">{preview.summary.withStock.toLocaleString('pt-PT')}</span><span className="h">{preview.summary.stockTotal.toLocaleString('pt-PT')} unidades no total</span></div>
+                <div className="mig-kpi"><span className="l">Com código de barras</span><span className="n">{preview.summary.withBarcode.toLocaleString('pt-PT')}</span><span className="h">entram visíveis na loja online</span></div>
+              </>
+            ) : null}
+            {preview.toSkip > 0 ? <div className="mig-kpi skip"><span className="l">Ignoradas</span><span className="n">{preview.toSkip}</span><span className="h">sem nome</span></div> : null}
+          </div>
 
-          {preview.notes?.length ? <div className="mig-note-box">{preview.notes.map((n, i) => <div key={i}>{n}</div>)}</div> : null}
-
-          {kind === 'products' && preview.summary ? (
-            <div className="mig-sum">
-              <span><b>{preview.summary.withBarcode}</b> com código de barras</span>
-              <span><b>{preview.summary.withStock}</b> com stock</span>
-              <span>stock total <b>{preview.summary.stockTotal.toLocaleString('pt-PT')}</b></span>
-              <span>entram <b>visíveis online</b></span>
-            </div>
-          ) : null}
-
-          <details className="mig-cols" open={kind === 'products' && !!preview.warnings?.length}>
-            <summary>Colunas reconhecidas ({Object.keys(preview.detectedColumns).length})</summary>
-            <div className="mig-cols-body">
-              {kind === 'products' && preview.headers ? (
-                ['name', 'code', 'barcode', 'category', 'stock', 'costPrice', 'salePrice'].map((field) => (
-                  <label key={field} className="mig-col-row">
-                    <span>{FIELD_LABEL[field] ?? field}</span>
-                    <select value={preview.detectedColumns[field] ?? ''} disabled={busy} onChange={(e) => void remap(field, e.target.value)}>
-                      <option value="">— não usar —</option>
-                      {preview.headers!.map((h) => <option key={h} value={h}>{h}</option>)}
-                    </select>
-                  </label>
-                ))
+          <div className="mig-body">
+            <div className="mig-col-main">
+              {preview.warnings?.length ? (
+                <section className="mig-callout warn" role="alert">
+                  <h4>Reveja antes de importar <span className="mig-count">{preview.warnings.length}</span></h4>
+                  <ul>{preview.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+                </section>
               ) : (
-                Object.entries(preview.detectedColumns).map(([field, header]) => (
-                  <div key={field} className="mig-col-row"><span>{FIELD_LABEL[field] ?? field}</span><em>{header}</em></div>
-                ))
+                <section className="mig-callout ok"><h4>Ficheiro sem problemas detetados</h4></section>
               )}
-              {preview.unmappedColumns.length ? (
-                <div className="mig-col-unused">Não usadas: {preview.unmappedColumns.slice(0, 6).join(', ')}{preview.unmappedColumns.length > 6 ? '…' : ''}</div>
+              {preview.notes?.length ? (
+                <section className="mig-callout info">
+                  <h4>Como o ficheiro foi lido</h4>
+                  <ul>{preview.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+                </section>
               ) : null}
             </div>
-          </details>
 
-          {kind === 'products' && preview.detectedColumns.stock ? (
-            <label className="mig-field">
-              <span>O stock importado entra em</span>
-              <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-                <option value="">Todas as lojas (stock partilhado)</option>
-                {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </label>
-          ) : null}
+            <aside className="mig-col-side">
+              <section className="mig-panel">
+                <h4>Colunas reconhecidas</h4>
+                {kind === 'products' && preview.headers ? (
+                  ['name', 'code', 'barcode', 'category', 'stock', 'costPrice', 'salePrice'].map((field) => (
+                    field === 'stock' && preview.storeStock?.length && !preview.detectedColumns.stock ? (
+                      <div key={field} className="mig-map-row">
+                        <span className="k">{FIELD_LABEL[field]}</span>
+                        <span className="v mig-pill">Por loja: {preview.storeStock.join(', ')}</span>
+                      </div>
+                    ) : (
+                      <label key={field} className="mig-map-row">
+                        <span className="k">{FIELD_LABEL[field] ?? field}</span>
+                        <select className="mig-select" value={preview.detectedColumns[field] ?? ''} disabled={busy} onChange={(e) => void remap(field, e.target.value)}>
+                          <option value="">— não usar —</option>
+                          {preview.headers!.map((h) => <option key={h} value={h}>{h}</option>)}
+                        </select>
+                      </label>
+                    )
+                  ))
+                ) : (
+                  Object.entries(preview.detectedColumns).map(([field, header]) => (
+                    <div key={field} className="mig-map-row"><span className="k">{FIELD_LABEL[field] ?? field}</span><span className="v">{header}</span></div>
+                  ))
+                )}
+                {preview.unmappedColumns.length ? (
+                  <p className="mig-unused">Não usadas: {preview.unmappedColumns.slice(0, 8).join(', ')}{preview.unmappedColumns.length > 8 ? '…' : ''}</p>
+                ) : null}
+              </section>
+
+              {kind === 'products' && (preview.detectedColumns.stock || preview.storeStock?.length) ? (
+                <section className="mig-panel">
+                  <h4>Destino do stock</h4>
+                  <select className="mig-select" value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                    <option value="">{preview.storeStock?.length ? 'Automático (cada loja do ficheiro recebe o seu stock)' : 'Todas as lojas (stock partilhado)'}</option>
+                    {stores.map((st) => <option key={st.id} value={st.id}>Só na loja {st.name}</option>)}
+                  </select>
+                </section>
+              ) : null}
+            </aside>
+          </div>
 
           {preview.sample.length ? (
-            <div className="mig-sample">
-              {preview.sample.map((s, i) => (
-                <div key={i} className="mig-sample-row">
-                  <span className={`mig-tag ${s.action === 'CREATE' ? 'new' : 'upd'}`}>{s.action === 'CREATE' ? 'Novo' : 'Atualiza'}</span>
-                  <span className="mig-sample-data">{Object.entries(s.data).map(([k, v]) => `${k}: ${v ?? '—'}`).join(' · ')}</span>
-                </div>
-              ))}
-            </div>
+            <section className="mig-panel">
+              <h4>Amostra ({preview.sample.length} de {preview.totalRows.toLocaleString('pt-PT')})</h4>
+              <div className="mig-table-wrap">
+                <table className="mig-table">
+                  <thead><tr><th>Ação</th>{Object.keys(preview.sample[0].data).map((k) => <th key={k}>{k}</th>)}</tr></thead>
+                  <tbody>
+                    {preview.sample.map((row, i) => (
+                      <tr key={i}>
+                        <td><span className={`mig-tag ${row.action === 'CREATE' ? 'new' : 'upd'}`}>{row.action === 'CREATE' ? 'Novo' : 'Atualiza'}</span></td>
+                        {Object.keys(preview.sample[0].data).map((k) => <td key={k}>{row.data[k] === null || row.data[k] === undefined || row.data[k] === '' ? '—' : String(row.data[k])}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           ) : null}
 
           <div className="mig-actions">
+            {busy ? <span className="mig-note">Ficheiros grandes podem demorar alguns minutos — não feche esta página.</span> : <span className="spacer" />}
             <button className="btn ghost" onClick={reset} disabled={busy}><IconClose size={15} /> Cancelar</button>
             <button className="btn mig-confirm" onClick={() => void apply()} disabled={busy || (preview.toCreate === 0 && preview.toUpdate === 0)}>
-              {busy ? <><span className="mig-spinner" aria-hidden /> A importar…</> : <><IconCheck size={16} /> Confirmar {preview.toCreate + preview.toUpdate}</>}
+              {busy ? <><span className="mig-spinner" aria-hidden /> A importar…</> : <><IconCheck size={16} /> Importar {(preview.toCreate + preview.toUpdate).toLocaleString('pt-PT')} {KIND_LABEL[kind].toLowerCase()}</>}
             </button>
           </div>
-          {busy ? <p className="mig-note">Ficheiros grandes podem demorar alguns minutos — não feche esta página.</p> : null}
         </div>
       ) : null}
 
