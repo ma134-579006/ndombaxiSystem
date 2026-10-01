@@ -13,6 +13,19 @@ const KITCHEN_LABEL: Record<string, string> = { PENDING: 'Por preparar', PREPARI
 const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY', READY: 'SERVED' };
 
 /** Restauração: mapa de mesas + comanda (lançar itens, conta) e ecrã de cozinha (KDS). */
+/** Junta linhas iguais da comanda (mesmo prato, preço e estado) numa só, com a quantidade somada; remover tira a última linha do grupo. */
+function groupItems<T extends { id: string; description: string; unit_price: string | number; kitchen_status: string; quantity: string | number }>(items: T[]): T[] {
+  const out: T[] = [];
+  const idx = new Map<string, number>();
+  for (const it of items) {
+    const k = `${it.description}|${it.unit_price}|${it.kitchen_status}`;
+    const i = idx.get(k);
+    if (i === undefined) { idx.set(k, out.length); out.push({ ...it }); }
+    else out[i] = { ...out[i], id: it.id, quantity: Number(out[i].quantity) + Number(it.quantity) };
+  }
+  return out;
+}
+
 export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
   const [tab, setTab] = useState<'mesas' | 'cozinha' | 'receitas' | 'producao' | 'relatorios'>('mesas');
   // Deep-link do Centro de Comando: abre no separador pedido. NUM efeito (não no
@@ -183,7 +196,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
 
           <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
             {detail.items.length === 0 ? <div className="empty" style={{ padding: 18 }}><p>Comanda vazia — lança o 1.º item.</p></div>
-              : detail.items.map((it) => (
+              : groupItems(detail.items).map((it) => (
                 <div key={it.id} className="list-row" style={{ padding: '10px 14px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <strong style={{ fontSize: 13.5 }}>{Number(it.quantity)}× {it.description}</strong>

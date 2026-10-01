@@ -1,30 +1,29 @@
 /**
- * SCROLL-REVEAL global — nível enterprise, ZERO dependências.
+ * SCROLL-FX global (admin, caixa, loja) — ZERO dependências.
  *
- * Os blocos de conteúdo (cartões, KPIs, tabelas, secções) MATERIALIZAM-SE
- * suavemente quando entram no ecrã ao rolar para baixo ("como se nunca tivessem
- * lá") e recuam ao sair (rolar para cima). Efeito aplicado a TODO o sistema sem
- * tocar em cada componente: um único observador marca os alvos com [data-reveal]
- * e alterna "in"/"out" conforme a visibilidade. Um MutationObserver apanha o
- * conteúdo que a SPA injeta ao trocar de página/secção. Respeita
- * prefers-reduced-motion (não anima) e nunca esconde nada se o JS não correr
- * (o CSS só atua sob .reveal-ready).
+ * Os blocos de conteúdo entram no ecrã com uma animação e, ao saírem, ficam
+ * prontos para voltar a entrar — por isso aparecem ao rolar para baixo E para
+ * cima. A animação MUDA de cada vez (sobe, desce, entra pela esquerda/direita,
+ * zoom, inclinação), escolhida ao sair do ecrã, e os blocos que entram juntos
+ * escalonam-se. Nunca se esconde nada que esteja visível (só se prepara o que
+ * está totalmente fora do ecrã) e blocos muito altos ficam sempre visíveis.
+ * Respeita prefers-reduced-motion e, sem JS, nada fica escondido.
  */
-
-// Blocos que valem a pena revelar. Evita elementos estruturais (sidebar/topbar)
-// e contextos onde a animação atrapalha (login, modais — têm a sua própria).
 const SELECTOR =
-  '.card, .kpi-card, .pcard, .ptable, .minilist, .content-head, .chart-card, .bar-card, ' +
-  '.lp-section, .lp-trust, .lp-feat, .lp-plan, section';
-const SKIP = '.login, .modal-bg, .modal, .sidebar, .topbar, .shadow-bar';
+  '.card, .kpi-card, .ui-tile, .fx-stat, .fx-card, .pcard, .pc2, .prod, .ax-card, .ax-sec, .rt-table, .rc-row, .ph-row, .chart-card, .bar-card, ' +
+  '.ptable, .minilist, .lp-section, .lp-trust, .lp-feat, .lp-plan, .store-info, .order-card';
+const SKIP = '.login, .modal-bg, .modal, .sidebar, .topbar, .header, .ax-header, .drawer, .cart-drawer, .lock, .shadow-bar, .toolbar-sticky, .fx-toolbar, .gate';
+const VARIANTS = ['up', 'down', 'left', 'right', 'zoom', 'tilt'];
 
 let io: IntersectionObserver | null = null;
+const pick = () => VARIANTS[Math.floor(Math.random() * VARIANTS.length)];
 
 function track(el: Element): void {
   const h = el as HTMLElement;
-  if (h.dataset.reveal) return; // já observado
-  if (h.closest(SKIP)) return; // contexto excluído
+  if (h.dataset.reveal) return;
+  if (h.closest(SKIP)) return;
   h.dataset.reveal = 'out';
+  h.dataset.fx = pick();
   io?.observe(el);
 }
 
@@ -34,28 +33,32 @@ function scan(root: ParentNode): void {
 
 export function initScrollReveal(): void {
   if (typeof window === 'undefined' || io) return;
-  // Acessibilidade: quem prefere menos movimento não recebe a animação.
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   io = new IntersectionObserver(
     (entries) => {
+      let n = 0;
       for (const e of entries) {
+        const h = e.target as HTMLElement;
         if (e.isIntersecting) {
-          // Revela UMA vez e deixa de observar — nunca volta a esconder ao
-          // rolar para cima (evita o efeito de "aparecer/desaparecer").
-          (e.target as HTMLElement).dataset.reveal = 'in';
-          io?.unobserve(e.target);
+          // Blocos mais altos que o ecrã nunca se escondem.
+          if (e.boundingClientRect.height > window.innerHeight * 0.85) { h.dataset.reveal = 'in'; io?.unobserve(h); continue; }
+          h.style.setProperty('--rd', `${Math.min(n++, 7) * 55}ms`);
+          h.dataset.reveal = 'in';
+        } else if (h.dataset.reveal === 'in') {
+          // Saiu totalmente do ecrã: prepara a próxima entrada com outro efeito.
+          h.style.setProperty('--rd', '0ms');
+          h.dataset.fx = pick();
+          h.dataset.reveal = 'out';
         }
       }
     },
-    { threshold: 0.04, rootMargin: '0px 0px -4% 0px' },
+    { threshold: 0, rootMargin: '0px 0px -5% 0px' },
   );
 
-  // O CSS só esconde os alvos quando esta classe existe → sem flash se algo falhar.
   document.documentElement.classList.add('reveal-ready');
   scan(document);
 
-  // Conteúdo novo (troca de secção/página numa SPA).
   const mo = new MutationObserver((muts) => {
     for (const m of muts) {
       m.addedNodes.forEach((n) => {
