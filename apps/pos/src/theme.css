@@ -1503,3 +1503,19 @@ img.u-av { background: var(--surface-2); }
 .prod.prod2 .pstock .stock-mto { color: #93c5fd; background: rgba(147,197,253,.14); }
 .prod.prod2 .pfoot { padding-top: 8px; border-top: 1px solid var(--border); }
 .prod.prod2 .pprice { font-size: 16px; font-weight: 700; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+
+/* ── Caixa v3: detalhes de acabamento ── */
+/* Caixas de seleção com o tema (deixam de ser quadrados brancos) */
+.cart input[type="checkbox"], .pos input[type="checkbox"] { accent-color: var(--primary); width: 18px; height: 18px; cursor: pointer; }
+/* Logótipo do topo legível (não espremido num quadrado de 38 px) */
+.topbar-logo { width: auto !important; min-width: 38px; max-width: 110px; height: 38px; padding: 4px 6px; object-fit: contain; }
+@media (max-width: 720px) { .topbar-logo { max-width: 80px; height: 32px; } }
+/* Métodos de pagamento com ícone */
+.pay-method { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 64px; }
+.pay-method .pay-ic { color: var(--muted); }
+.pay-method.on .pay-ic { color: #fff; }
+.pay-method span { line-height: 1.2; }
+/* Recibo: botões com o mesmo peso; WhatsApp com a cor só no ícone */
+.r-foot .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.r-foot .r-wa svg { color: #25D366; }
+.r-foot .r-wa:hover { border-color: #25D366; }
