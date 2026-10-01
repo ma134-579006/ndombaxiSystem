@@ -1023,6 +1023,8 @@ export const api = {
   },
   inventory: {
     warehouses: () => request<WarehouseRow[]>('GET', '/erp/warehouses'),
+    /** Saldos de stock por produto e loja (para mostrar o stock existente ao escolher um produto). */
+    stockLevels: () => request<Array<{ product_id: string; warehouse_id: string; warehouse_code: string; quantity: string; min_qty: string | null }>>('GET', '/erp/stock'),
     listCounts: () => request<StockCountRow[]>('GET', '/inventory/counts'),
     createCount: (warehouseId: string, notes?: string) =>
       request<{ id: string; reference: string }>('POST', '/inventory/counts', { warehouseId, notes }),
