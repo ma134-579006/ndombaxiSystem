@@ -3402,3 +3402,9 @@ img.u-av { background: var(--surface-2); }
   background: linear-gradient(145deg, var(--primary, #4f7cff), #7c4dff); transition: transform .12s, opacity .15s; }
 .cv-send:hover:not(:disabled) { transform: scale(1.06); } .cv-send:disabled { opacity: .4; cursor: default; }
 @media (max-width: 520px) { .modal-bg:has(.cv-sheet) { padding: 0; place-items: stretch; } .cv-sheet { width: 100%; height: calc(100dvh / var(--uz, 1)); border-radius: 0; } }
+
+/* Todas as páginas ocupam a largura toda do ecrã (como a Visão geral), em qualquer monitor */
+.fx, .fx-wide { max-width: none; width: 100%; }
+.content .card[style*="max-width"], .content > div[style*="max-width"], .content > * > .card[style*="max-width"] { max-width: none !important; width: 100%; }
+.content .cols-2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.content .mig-intro { max-width: none; }
