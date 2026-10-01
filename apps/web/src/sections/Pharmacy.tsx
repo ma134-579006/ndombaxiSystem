@@ -21,16 +21,17 @@ export function Pharmacy() {
       <div className="content-head"><h2>Farmácia — validade & lotes</h2></div>
 
       {kpi ? (
-        <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 14 }}>
+        <div className="kpi-grid ph-kpis">
           {[
-            { label: 'A expirar (≤30 dias)', value: String(kpi.expiring), tone: 'var(--warning)' },
-            { label: 'Expirados', value: String(kpi.expired), tone: 'var(--danger)' },
-            { label: 'Exigem receita', value: String(kpi.prescription), tone: 'var(--text)' },
-            { label: 'Stock baixo', value: String(kpi.lowStock), tone: kpi.lowStock ? 'var(--warning)' : 'var(--text)' },
+            { label: 'A expirar (≤30 dias)', value: kpi.expiring, tone: 'warn', hint: 'lotes a vencer' },
+            { label: 'Expirados', value: kpi.expired, tone: kpi.expired ? 'bad' : '', hint: 'retirar da venda' },
+            { label: 'Exigem receita', value: kpi.prescription, tone: 'info', hint: 'dispensa controlada' },
+            { label: 'Stock baixo', value: kpi.lowStock, tone: kpi.lowStock ? 'warn' : '', hint: 'repor em breve' },
           ].map((k) => (
-            <div key={k.label} className="card" style={{ padding: '12px 14px' }}>
-              <div className="muted" style={{ fontSize: 12.5 }}>{k.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, margin: '2px 0', color: k.tone }}>{k.value}</div>
+            <div key={k.label} className={`ui-tile ${k.tone}`}>
+              <div className="ui-tile-l">{k.label}</div>
+              <div className="ui-tile-v">{k.value}</div>
+              <div className="ui-tile-h">{k.hint}</div>
             </div>
           ))}
         </div>
@@ -43,28 +44,32 @@ export function Pharmacy() {
         ))}
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {rows.length === 0 ? <div className="empty" style={{ padding: 24 }}><p>Sem lotes a expirar neste período.</p></div>
-          : rows.map((b) => {
+      {rows.length === 0 ? <div className="card empty" style={{ padding: 24 }}><p>Sem lotes a expirar neste período.</p></div> : (
+        <div className="ph-list">
+          {rows.map((b) => {
             const expired = b.days_left < 0;
             const soon = b.days_left >= 0 && b.days_left <= 7;
-            const tone = expired ? 'var(--danger)' : soon ? 'var(--warning)' : 'var(--muted)';
+            const lvl = expired ? 'bad' : soon ? 'warn' : 'ok';
+            const pct = expired ? 100 : Math.max(6, Math.min(100, 100 - (b.days_left / Math.max(days, 1)) * 100));
             return (
-              <div key={b.id} className="list-row" style={{ padding: '10px 14px', display: 'flex', gap: 10, alignItems: 'center', borderLeft: `4px solid ${tone}` }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ fontSize: 13.5 }}>{b.product_name}</strong>
-                  <div className="muted" style={{ fontSize: 12 }}>
-                    {b.product_code}{b.active_ingredient ? ` · ${b.active_ingredient}` : ''}{b.batch_code ? ` · lote ${b.batch_code}` : ''} · {Number(b.quantity)} un.
+              <div key={b.id} className={`ph-row ${lvl}`}>
+                <div className="ph-main">
+                  <strong>{b.product_name}</strong>
+                  <div className="muted">
+                    {b.product_code}{b.active_ingredient ? ` · ${b.active_ingredient}` : ''}{b.batch_code ? ` · lote ${b.batch_code}` : ''}
                   </div>
+                  <div className="ph-bar"><i style={{ width: `${pct}%` }} /></div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: tone }}>{expired ? `Expirou ${fmtDate(b.expiry_date)}` : `${b.days_left} dia(s)`}</div>
-                  <div className="muted" style={{ fontSize: 11.5 }}>{fmtDate(b.expiry_date)}</div>
+                <div className="ph-qty"><b>{Number(b.quantity)}</b><span>un.</span></div>
+                <div className="ph-exp">
+                  <span className="ph-badge">{expired ? 'Expirado' : b.days_left === 0 ? 'Expira hoje' : `${b.days_left} dia(s)`}</span>
+                  <small>{fmtDate(b.expiry_date)}</small>
                 </div>
               </div>
             );
           })}
-      </div>
+        </div>
+      )}
     </>
   );
 }
