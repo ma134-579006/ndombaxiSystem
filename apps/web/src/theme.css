@@ -3467,3 +3467,17 @@ img.u-av { background: var(--surface-2); }
 .wo-reasons { display: flex; flex-wrap: wrap; gap: 6px; }
 .wo-reasons button { padding: 7px 13px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .wo-reasons button.on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--surface)); color: var(--primary); }
+
+/* ── Folha salarial e férias ── */
+.pay-row { grid-template-columns: auto minmax(0, 1fr) auto auto auto; }
+.pay-month { width: 54px; padding: 8px 0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; line-height: 1.1; color: var(--sc); background: color-mix(in srgb, var(--sc) 12%, transparent); }
+.pay-month b { font-size: 15px; letter-spacing: .04em; } .pay-month i { font-style: normal; font-size: 11px; opacity: .8; }
+.rc-amt small { display: block; font-size: 10.5px; font-weight: 600; color: var(--muted); text-align: right; }
+.lv-row { grid-template-columns: auto minmax(0, 1fr) auto auto auto; }
+.lv-type { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+.lv-row.lt-FERIAS .lv-type { color: #0891b2; border-color: color-mix(in srgb, #0891b2 40%, var(--border)); }
+.lv-row.lt-FALTA .lv-type { color: #dc2626; border-color: color-mix(in srgb, #dc2626 40%, var(--border)); }
+.lv-row.lt-LICENCA .lv-type { color: #7c3aed; border-color: color-mix(in srgb, #7c3aed 40%, var(--border)); }
+.lv-act { display: flex; gap: 6px; min-width: 150px; justify-content: flex-end; }
+.profit-page .ph-kpis { margin-bottom: 14px; }
+@media (max-width: 760px) { .pay-row, .lv-row { grid-template-columns: auto minmax(0, 1fr) auto; } .pay-row .btn, .lv-act { grid-column: 2 / -1; justify-content: flex-start; } }

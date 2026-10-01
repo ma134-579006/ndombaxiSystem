@@ -57,60 +57,42 @@ export function Leave() {
 
       <div className="print-only print-header"><h2>Férias & Ausências</h2><p>{new Date().toLocaleDateString('pt-PT')}</p></div>
 
-      <div className="kpi-grid">
-        <div className="kpi-card warning"><div className="kpi-ic"><IconBuilding size={20} /></div>
-          <div className="kpi-label">Pedidos pendentes</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>{sum?.pending ?? 0}</div>
-          <div className="kpi-sub">a aguardar decisão</div>
-        </div>
-        <div className="kpi-card primary"><div className="kpi-ic"><IconBuilding size={20} /></div>
-          <div className="kpi-label">Dias de férias (ano)</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>{sum?.ferasDaysYear ?? 0}</div>
-          <div className="kpi-sub">aprovados este ano</div>
-        </div>
+      <div className="ph-kpis no-print">
+        <div className={`ui-tile${(sum?.pending ?? 0) > 0 ? ' warn' : ''}`}><div className="ui-tile-l">Pedidos pendentes</div><div className="ui-tile-v">{sum?.pending ?? 0}</div><div className="ui-tile-h">a aguardar decisão</div></div>
+        <div className="ui-tile info"><div className="ui-tile-l">Dias de férias (ano)</div><div className="ui-tile-v">{sum?.ferasDaysYear ?? 0}</div><div className="ui-tile-h">aprovados este ano</div></div>
       </div>
 
-      <div className="card no-print" style={{ padding: '10px 14px' }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {FILTERS.map((f) => (
-            <button key={f.label} className={`chip ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>{f.label}</button>
-          ))}
-        </div>
+      <div className="fx-tabs inv-tabs no-print">
+        {FILTERS.map((f) => (
+          <button key={f.label} className={filter === f.key ? 'on' : ''} onClick={() => setFilter(f.key)}>{f.label}</button>
+        ))}
       </div>
 
-      <div className="card">
-        {loading ? <div className="loading">A carregar…</div>
-          : rows.length === 0 ? <div className="empty"><IconBuilding size={40} /><p>Sem pedidos neste filtro.</p></div>
-          : (
-            <table className="ptable stack">
-              <thead><tr><th>Funcionário</th><th>Tipo</th><th>Período</th><th>Dias</th><th>Motivo</th><th>Estado</th><th className="no-print" /></tr></thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id}>
-                    <td data-label="Funcionário">{r.employee_name || '—'}</td>
-                    <td data-label="Tipo">{TYPE_LABEL[r.type] ?? r.type}</td>
-                    <td data-label="Período">{new Date(r.start_date).toLocaleDateString('pt-PT')} – {new Date(r.end_date).toLocaleDateString('pt-PT')}</td>
-                    <td data-label="Dias">{r.days}</td>
-                    <td data-label="Motivo">{r.reason || '—'}</td>
-                    <td data-label="Estado">
-                      <span className={`pill ${r.status === 'APPROVED' ? 'on' : r.status === 'REJECTED' ? 'off' : ''}`}>
-                        {r.status === 'APPROVED' ? 'Aprovado' : r.status === 'REJECTED' ? 'Rejeitado' : 'Pendente'}
-                      </span>
-                    </td>
-                    <td className="actions no-print">
-                      {r.status === 'PENDING' ? (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="btn sm success" disabled={busy} onClick={() => review(r.id, 'APPROVED')}>Aprovar</button>
-                          <button className="btn sm ghost" disabled={busy} onClick={() => review(r.id, 'REJECTED')}>Rejeitar</button>
-                        </div>
-                      ) : <span className="muted" style={{ fontSize: 12 }}>{r.reviewed_by_name ?? ''}</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-      </div>
+      {loading ? <div className="card"><div className="loading">A carregar…</div></div>
+        : rows.length === 0 ? <div className="card"><div className="empty"><IconBuilding size={40} /><p>Sem pedidos neste filtro.</p></div></div>
+        : (
+          <div className="rc-list">
+            {rows.map((r) => (
+              <div key={r.id} className={`rc-row rc-static lv-row lt-${r.type} st-${r.status === 'APPROVED' ? 'READY' : r.status === 'REJECTED' ? 'CANCELLED' : 'IN_PROGRESS'}`}>
+                <span className="rc-av">{(r.employee_name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>
+                <div className="rc-main">
+                  <strong>{r.employee_name || '—'}<span className="lv-type">{TYPE_LABEL[r.type] ?? r.type}</span></strong>
+                  <div className="muted">{new Date(r.start_date).toLocaleDateString('pt-PT')} → {new Date(r.end_date).toLocaleDateString('pt-PT')} · {r.reason || 'sem motivo'}</div>
+                </div>
+                <span className="rc-amt">{r.days}<small>{r.days === 1 ? 'dia' : 'dias'}</small></span>
+                <span className="rc-state">{r.status === 'APPROVED' ? 'Aprovado' : r.status === 'REJECTED' ? 'Rejeitado' : 'Pendente'}</span>
+                <div className="lv-act no-print">
+                  {r.status === 'PENDING' ? (
+                    <>
+                      <button className="btn sm success" disabled={busy} onClick={() => review(r.id, 'APPROVED')}>Aprovar</button>
+                      <button className="btn sm ghost" disabled={busy} onClick={() => review(r.id, 'REJECTED')}>Rejeitar</button>
+                    </>
+                  ) : <span className="muted" style={{ fontSize: 12 }}>{r.reviewed_by_name ?? ''}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
       {creating ? <NewModal onClose={() => setCreating(false)} onCreated={() => { setCreating(false); void load(); }} /> : null}
     </div>
