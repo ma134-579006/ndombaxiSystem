@@ -1519,3 +1519,7 @@ img.u-av { background: var(--surface-2); }
 .r-foot .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .r-foot .r-wa svg { color: #25D366; }
 .r-foot .r-wa:hover { border-color: #25D366; }
+
+/* Scroll discreto: só se vê ao passar o rato */
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+*:hover { scrollbar-color: color-mix(in srgb, #8a94a8 50%, transparent) transparent; }
