@@ -1,4 +1,4 @@
-import { confirmDialog } from '../components/feedback';
+import { confirmDialog, runBulk } from '../components/feedback';
 import { printSectionReport } from "../pdf/printDoc";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
@@ -116,7 +116,11 @@ export function Expenses() {
   const bulkDelete = async () => {
     if (!(await confirmDialog({ message: `Eliminar ${selected.size} despesa(s)? A ação fica registada na auditoria.`, danger: true }))) return;
     setBulkBusy(true);
-    try { for (const id of selected) await api.expenses.remove(id); setSelected(new Set()); await load(); }
+    try {
+      const r = await runBulk({ title: 'A eliminar despesas', items: [...selected], run: ([id]) => api.expenses.remove(id) });
+      setSelected(new Set()); await load();
+      if (r.failed) setError(`${r.failed} não puderam ser eliminadas (${r.firstError}).`);
+    }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível eliminar.'); }
     finally { setBulkBusy(false); }
   };

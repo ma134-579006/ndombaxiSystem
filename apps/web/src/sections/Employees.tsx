@@ -1,4 +1,4 @@
-import { confirmDialog } from '../components/feedback';
+import { confirmDialog, runBulk } from '../components/feedback';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import {
@@ -58,9 +58,10 @@ export function Employees() {
     setBulkBusy(true); setError(null);
     let del = 0, deact = 0;
     try {
-      for (const id of selected) { const r = await api.hr.removeEmployee(id); if (r.deleted) del++; else deact++; }
+      const r = await runBulk({ title: 'A eliminar funcionários', items: [...selected], run: async ([id]) => { const x = await api.hr.removeEmployee(id); if (x.deleted) del++; else deact++; } });
       setSelected(new Set()); await load();
       if (deact > 0) setInfo(`${del} eliminado(s); ${deact} com histórico foram cessados.`);
+      if (r.failed) setError(`${r.failed} não puderam ser eliminados (${r.firstError}).`);
     } catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao eliminar.'); } finally { setBulkBusy(false); }
   };
 

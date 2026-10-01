@@ -33,6 +33,75 @@ export function confirmDialog(opts: ConfirmOpts): Promise<boolean> {
   });
 }
 
+/* ── PROGRESSO DE OPERAÇÕES EM MASSA (eliminar/desativar vários) ──────────
+   Ecrã modal com percentagem real, contagem e barra. Uso:
+     const r = await runBulk({ title: 'A eliminar produtos', items: ids, batchSize: 250,
+                               run: async (lote) => { await api.x.removeMany(lote); } });
+   - batchSize > 1: `run` recebe lotes (endpoint em lote → rápido).
+   - batchSize = 1: `run` recebe 1 item; corre `concurrency` em paralelo.
+   Um lote que falhe NÃO interrompe os restantes: conta como falhado. */
+interface BulkState { title: string; total: number; done: number; failed: number; finished: boolean }
+let setBulkUi: ((s: BulkState | null) => void) | null = null;
+
+export interface BulkResult { done: number; failed: number; firstError: string | null }
+
+export async function runBulk<T>(opts: {
+  title: string;
+  items: T[];
+  run: (batch: T[]) => Promise<unknown>;
+  batchSize?: number;
+  concurrency?: number;
+}): Promise<BulkResult> {
+  const { title, items, run } = opts;
+  const size = Math.max(1, opts.batchSize ?? 1);
+  const conc = Math.max(1, opts.concurrency ?? (size > 1 ? 2 : 6));
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) batches.push(items.slice(i, i + size));
+  const st: BulkState = { title, total: items.length, done: 0, failed: 0, finished: false };
+  const paint = () => setBulkUi?.({ ...st });
+  paint();
+  let firstError: string | null = null;
+  let next = 0;
+  const worker = async () => {
+    while (next < batches.length) {
+      const b = batches[next++];
+      try { await run(b); st.done += b.length; }
+      catch (e) { st.failed += b.length; if (!firstError) firstError = e instanceof Error ? e.message : 'erro desconhecido'; }
+      paint();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(conc, batches.length) }, worker));
+  st.finished = true; paint();
+  await new Promise((r) => setTimeout(r, 700)); // mostra o 100% antes de fechar
+  setBulkUi?.(null);
+  return { done: st.done, failed: st.failed, firstError };
+}
+
+function BulkProgress({ s }: { s: BulkState }) {
+  const processed = s.done + s.failed;
+  const pct = s.total ? Math.round((processed / s.total) * 100) : 100;
+  return (
+    <div className="fb-confirm-bg" role="dialog" aria-modal="true" aria-label={s.title}>
+      <div className="fb-confirm fb-bulk">
+        <div className={`fb-bulk-ring${s.finished ? ' ok' : ''}`} style={{ ['--p' as string]: pct }}>
+          <span>{s.finished && !s.failed
+            ? <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+            : `${pct}%`}</span>
+        </div>
+        <h4>{s.finished ? 'Concluído' : s.title}</h4>
+        <p aria-live="polite">
+          {processed.toLocaleString('pt-PT')} de {s.total.toLocaleString('pt-PT')}
+          {s.failed ? ` · ${s.failed.toLocaleString('pt-PT')} com erro` : ''}
+        </p>
+        <div className="fb-bulk-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+          <i style={{ width: `${pct}%` }} />
+        </div>
+        {!s.finished ? <small className="fb-bulk-hint">Não feche esta janela.</small> : null}
+      </div>
+    </div>
+  );
+}
+
 const ICONS: Record<ToastKind, React.ReactNode> = {
   success: <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>,
   error: <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 7.5v5.5M12 16.4v.2" /></svg>,
@@ -46,6 +115,7 @@ const TOAST_MS = 4600;
 export function FeedbackHost() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const [bulk, setBulk] = useState<BulkState | null>(null);
 
   useEffect(() => {
     pushToast = (kind, text) => {
@@ -55,7 +125,8 @@ export function FeedbackHost() {
       window.setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), TOAST_MS);
     };
     openConfirm = (c) => setConfirm(c);
-    return () => { pushToast = null; openConfirm = null; };
+    setBulkUi = (s) => setBulk(s);
+    return () => { pushToast = null; openConfirm = null; setBulkUi = null; };
   }, []);
 
   // Esc fecha o diálogo (= cancelar)
@@ -97,6 +168,7 @@ export function FeedbackHost() {
           </div>
         </div>
       ) : null}
+      {bulk ? <BulkProgress s={bulk} /> : null}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { confirmDialog } from '../components/feedback';
+import { confirmDialog, runBulk } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { OpsAlert, Promotion, PromotionInput, PromoType } from '../api/types';
@@ -58,7 +58,7 @@ export function Promotions() {
   const bulkDelete = async () => {
     if (!(await confirmDialog({ message: `Eliminar ${selected.size} promoção(ões)?`, danger: true }))) return;
     setBulkBusy(true);
-    try { for (const id of selected) await api.promotions.remove(id).catch(() => undefined); setSelected(new Set()); await load(); }
+    try { await runBulk({ title: 'A eliminar promoções', items: [...selected], run: ([id]) => api.promotions.remove(id) }); setSelected(new Set()); await load(); }
     finally { setBulkBusy(false); }
   };
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CustomerRow } from '../api/types';
-import { confirmDialog, toast } from '../components/feedback';
+import { confirmDialog, runBulk, toast } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash, IconUser } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz, formatDate } from '../format';
@@ -87,7 +87,11 @@ export function Customers() {
   const bulkDelete = async () => {
     if (!(await confirmDialog({ message: `Eliminar ${selected.size} cliente(s)? Os que têm faturas são apenas desativados.`, danger: true }))) return;
     setBulkBusy(true);
-    try { for (const id of selected) await api.customers.remove(id); setSelected(new Set()); toast.success('Clientes processados.'); await load(); }
+    try {
+      const r = await runBulk({ title: 'A eliminar clientes', items: [...selected], run: ([id]) => api.customers.remove(id) });
+      setSelected(new Set()); await load();
+      if (r.failed) toast.error(`${r.failed} não puderam ser eliminados (${r.firstError}).`); else toast.success('Clientes processados.');
+    }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível eliminar.'); }
     finally { setBulkBusy(false); }
   };
