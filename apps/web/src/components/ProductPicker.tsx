@@ -4,6 +4,12 @@ import type { ManagerProduct } from '../api/types';
 import { beep } from '../beep';
 import { UiIcon } from './UiIcon';
 
+const stockTone = (p: ManagerProduct) => (Number(p.stock_qty) > 0 ? 'ok' : 'bad');
+const stockText = (p: ManagerProduct) => {
+  const n = Number(p.stock_qty) || 0;
+  return `${new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 3 }).format(n)} ${p.unit || 'un.'} em stock`;
+};
+
 /**
  * Seletor de produto por PESQUISA (nome ou código de barras) — substitui os
  * <select>. Opcionalmente lê o código de barras pela CÂMARA do telemóvel
@@ -104,7 +110,8 @@ export function ProductPicker({
     <div className="prod-picker">
       {selected ? (
         <div className="pp-selected">
-          <span><strong>{selected.name}</strong> <span className="muted">({selected.code})</span></span>
+          <span><strong>{selected.name}</strong> <span className="muted">({selected.code})</span>
+            <span className={`pp-stock ${stockTone(selected)}`}>{stockText(selected)}</span></span>
           <button type="button" className="btn sm ghost" onClick={() => { onChange(''); setOpen(true); }}>Trocar</button>
         </div>
       ) : (
@@ -137,8 +144,8 @@ export function ProductPicker({
           {matches.length === 0 ? <div className="muted" style={{ padding: 10 }}>Sem produtos.</div>
             : matches.map((p) => (
               <button type="button" key={p.id} className="pp-opt" onClick={() => pick(p)}>
-                <span>{p.name}</span>
-                <span className="muted">{p.code}{p.barcode ? ` · ${p.barcode}` : ''}</span>
+                <span className="pp-nm">{p.name}<span className="muted">{p.code}{p.barcode ? ` · ${p.barcode}` : ''}</span></span>
+                <span className={`pp-stock ${stockTone(p)}`}>{stockText(p)}</span>
               </button>
             ))}
         </div>

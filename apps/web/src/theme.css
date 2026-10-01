@@ -3437,3 +3437,33 @@ img.u-av { background: var(--surface-2); }
 .emp-photo p { margin: 6px 0 0; font-size: 12px; }
 .emp-sec { margin: 18px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .emp-note { font-size: 12px; margin: 0 0 8px; }
+
+/* ── Seletor de produto: stock existente ── */
+.pp-stock { margin-left: 8px; font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+.pp-stock.ok { color: #15803d; background: rgba(22,163,74,.12); } .pp-stock.bad { color: #b91c1c; background: rgba(220,38,38,.12); }
+.pp-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pp-opt .pp-nm { display: flex; flex-direction: column; gap: 1px; min-width: 0; text-align: left; }
+.pp-opt .pp-nm .muted { font-size: 11.5px; }
+.pp-selected { align-items: center; gap: 10px; }
+/* ── Baixa de stock ── */
+.wo { display: flex; flex-direction: column; gap: 4px; }
+.wo-intro { margin: 0 0 4px; font-size: 13px; }
+.wo-sec { margin: 14px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.wo-hint { margin-top: 10px; padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--border); color: var(--muted); font-size: 13px; text-align: center; }
+.wo-stock { margin-top: 10px; padding: 14px 16px; border-radius: 14px; background: color-mix(in srgb, var(--primary) 8%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border)); display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px 16px; }
+.wo-stock span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: block; }
+.wo-stock b { font-size: 28px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; } .wo-stock b.zero { color: #dc2626; }
+.wo-stock small { font-size: 13px; font-weight: 600; color: var(--muted); }
+.wo-stock-side b { font-size: 20px; }
+.wo-wh { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.wo-wh button { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.wo-wh button i { font-style: normal; font-variant-numeric: tabular-nums; color: var(--muted); }
+.wo-wh button.on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--surface)); color: var(--primary); }
+.wo-quick { display: flex; gap: 6px; margin-top: 8px; }
+.wo-quick button { padding: 5px 12px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.wo-quick button:hover { border-color: var(--primary); color: var(--primary); }
+.wo-after { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 14px; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); font-size: 13px; margin-bottom: 6px; }
+.wo-after.bad { background: rgba(220,38,38,.1); color: #b91c1c; }
+.wo-reasons { display: flex; flex-wrap: wrap; gap: 6px; }
+.wo-reasons button { padding: 7px 13px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.wo-reasons button.on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--surface)); color: var(--primary); }

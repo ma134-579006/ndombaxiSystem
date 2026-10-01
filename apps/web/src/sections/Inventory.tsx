@@ -278,19 +278,33 @@ function WriteOffModal({
   onClose(): void;
   onSaved(): void;
 }) {
-  const [productId, setProductId] = useState(initial?.productId || products[0]?.id || '');
+  const [productId, setProductId] = useState(initial?.productId || '');
   const [warehouseId, setWarehouseId] = useState(warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? '');
   const [qty, setQty] = useState(initial?.quantity != null ? String(initial.quantity) : '');
   const [reason, setReason] = useState(WRITEOFF_REASONS[0]);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [levels, setLevels] = useState<Array<{ product_id: string; warehouse_id: string; quantity: string }> | null>(null);
+  useEffect(() => { api.inventory.stockLevels().then(setLevels).catch(() => setLevels([])); }, []);
+
+  const product = products.find((p) => p.id === productId) || null;
+  const fmt = (n: number) => new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 3 }).format(n);
+  const unit = product?.unit || 'un.';
+  const perWh = levels && product ? levels.filter((l) => l.product_id === product.id) : [];
+  const whQty = (id: string) => Number(perWh.find((l) => l.warehouse_id === id)?.quantity ?? 0);
+  const total = product ? Number(product.stock_qty) || 0 : 0;
+  // Stock desta loja: o saldo exato por loja; se ainda não carregou, o total do produto.
+  const here = product ? (levels ? whQty(warehouseId) : total) : 0;
+  const q = Number(qty.replace(',', '.')) || 0;
+  const after = here - q;
+  const lossValue = product ? q * (Number(product.cost_price) || 0) : 0;
 
   const submit = async () => {
     setErr(null);
-    const q = Number(qty);
     if (!productId || !warehouseId) { setErr('Escolha o produto e a loja.'); return; }
     if (!(q > 0)) { setErr('Indique a quantidade a dar baixa.'); return; }
+    if (levels && q > here) { setErr(`Só existem ${fmt(here)} ${unit} nesta loja — não pode dar baixa de ${fmt(q)}.`); return; }
     setBusy(true);
     try {
       await api.inventory.writeOff(productId, warehouseId, q, note.trim() ? `${reason} — ${note.trim()}` : reason);
@@ -301,31 +315,71 @@ function WriteOffModal({
 
   return (
     <Modal title="Baixa de stock" onClose={onClose}>
-      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
-      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        Retira unidades do stock por <strong>caducidade</strong>, dano, perda, etc. Fica registado na auditoria.
-      </p>
-      <div className="grid-2">
-        <div className="field"><label>Produto</label>
-          <ProductPicker products={products} value={productId} onChange={setProductId} /></div>
-        <div className="field"><label>Loja</label>
-          <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
-          </select></div>
-      </div>
-      <div className="grid-2">
-        <div className="field"><label>Quantidade</label>
-          <input inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="ex.: 3" /></div>
+      <div className="wo">
+        {err ? <div className="banner danger">{err}</div> : null}
+        <p className="muted wo-intro">Retira unidades do stock por caducidade, dano, perda, etc. Fica registado na auditoria.</p>
+
+        <div className="wo-sec">1 · Produto</div>
+        <ProductPicker products={products} value={productId} onChange={(id) => { setProductId(id); setQty(''); }} />
+
+        {product ? (
+          <div className="wo-stock">
+            <div className="wo-stock-main">
+              <span>Stock nesta loja</span>
+              <b className={here > 0 ? '' : 'zero'}>{levels || here ? fmt(here) : '…'} <small>{unit}</small></b>
+            </div>
+            <div className="wo-stock-side">
+              <span>Total (todas as lojas)</span>
+              <b>{fmt(total)} <small>{unit}</small></b>
+            </div>
+            {levels && warehouses.length > 1 ? (
+              <div className="wo-wh">
+                {warehouses.map((w) => (
+                  <button key={w.id} type="button" className={w.id === warehouseId ? 'on' : ''} onClick={() => setWarehouseId(w.id)}>
+                    {w.name}<i>{fmt(whQty(w.id))}</i>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : <div className="wo-hint">Escolha um produto para ver o stock existente.</div>}
+
+        {warehouses.length === 1 || !product ? (
+          <div className="field" style={{ marginTop: 12 }}><label>Loja</label>
+            <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (principal)' : ''}</option>)}
+            </select></div>
+        ) : null}
+
+        <div className="wo-sec">2 · Quantidade e motivo</div>
+        <div className="field"><label>Quantidade a retirar</label>
+          <input inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="ex.: 3" disabled={!product} />
+          {product && here > 0 ? (
+            <div className="wo-quick">
+              <button type="button" onClick={() => setQty('1')}>1</button>
+              {here > 2 ? <button type="button" onClick={() => setQty(String(Math.floor(here / 2)))}>Metade</button> : null}
+              <button type="button" onClick={() => setQty(String(here))}>Tudo ({fmt(here)})</button>
+            </div>
+          ) : null}
+        </div>
+        {product && q > 0 ? (
+          <div className={`wo-after${levels && after < 0 ? ' bad' : ''}`}>
+            <span>Ficará com <b>{fmt(Math.max(after, levels ? after : 0))} {unit}</b> nesta loja</span>
+            {lossValue > 0 ? <span>Custo da baixa: <b>{formatKz(lossValue)}</b></span> : null}
+          </div>
+        ) : null}
+
         <div className="field"><label>Motivo</label>
-          <select value={reason} onChange={(e) => setReason(e.target.value)}>
-            {WRITEOFF_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
-          </select></div>
+          <div className="wo-reasons">
+            {WRITEOFF_REASONS.map((r) => <button key={r} type="button" className={r === reason ? 'on' : ''} onClick={() => setReason(r)}>{r}</button>)}
+          </div></div>
+        <div className="field"><label>Nota (opcional)</label>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex.: lote vencido a 30/06" /></div>
+
+        <button className="btn lg block danger" onClick={submit} disabled={busy || !product}>
+          {busy ? 'A dar baixa…' : 'Confirmar baixa'}
+        </button>
       </div>
-      <div className="field"><label>Nota (opcional)</label>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex.: lote vencido a 30/06" /></div>
-      <button className="btn lg block danger" onClick={submit} disabled={busy}>
-        {busy ? 'A dar baixa…' : 'Confirmar baixa'}
-      </button>
     </Modal>
   );
 }
