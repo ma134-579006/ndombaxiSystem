@@ -1,4 +1,4 @@
-import { confirmDialog } from '../components/feedback';
+import { confirmDialog, runBulk, toast } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CreateProductInput, IvaCode, ManagerProduct, WarehouseRow } from '../api/types';
@@ -92,27 +92,30 @@ export function Products() {
     if (!(await confirmDialog({ message: `Eliminar ${selected.size} produto(s)? Produtos com vendas associadas são apenas desativados.`, danger: true }))) return;
     setBusy(true); setError(null);
     const ids = [...selected];
-    let del = 0, deact = 0, fail = 0, firstErr = '';
+    let del = 0, deact = 0;
     try {
-      // Tudo de uma vez, numa só chamada e numa só transacção.
-      try {
-        const r = await api.products.removeMany(ids);
-        del = r.deleted; deact = r.deactivated;
-      } catch (e) {
-        if (!(e instanceof ApiError) || e.status !== 404) throw e;
-        // API ainda sem o endpoint em lote (deploy em curso): recorre ao 1 a 1.
-        for (const id of ids) {
-          try { const r = await api.products.remove(id); if (r.deleted) del++; else deact++; }
-          catch (e2) { fail++; if (!firstErr) firstErr = e2 instanceof ApiError ? e2.message : 'erro desconhecido'; }
-        }
-      }
-      // Sai logo da lista (sem esperar pelo recarregamento).
+      // Lotes de 200 no endpoint em lote: rápido e com percentagem real no ecrã.
+      const r = await runBulk({
+        title: 'A eliminar produtos',
+        items: ids,
+        batchSize: 200,
+        run: async (lote) => {
+          try {
+            const x = await api.products.removeMany(lote);
+            del += x.deleted; deact += x.deactivated;
+          } catch (e) {
+            if (!(e instanceof ApiError) || e.status !== 404) throw e;
+            // API ainda sem o endpoint em lote (deploy em curso): recorre ao 1 a 1.
+            for (const id of lote) { const x = await api.products.remove(id); if (x.deleted) del++; else deact++; }
+          }
+        },
+      });
       setProducts((prev) => prev.filter((p) => !ids.includes(p.id)));
       setSelected(new Set()); await load({ silent: true });
       const parts = [`${del} eliminado(s)`];
       if (deact > 0) parts.push(`${deact} com vendas foram desativados`);
-      if (fail > 0) parts.push(`${fail} não puderam ser eliminados (${firstErr})`);
-      setError(deact > 0 || fail > 0 ? `${parts.join('; ')}.` : null);
+      if (r.failed > 0) parts.push(`${r.failed} não puderam ser eliminados (${r.firstError})`);
+      if (deact > 0 || r.failed > 0) setError(`${parts.join('; ')}.`); else toast.success(`${del} produto(s) eliminado(s).`);
     } catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao eliminar.'); }
     finally { setBusy(false); }
   };

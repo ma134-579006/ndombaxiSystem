@@ -1198,6 +1198,24 @@ button, .btn, .chip, .tab, .nav button { -webkit-tap-highlight-color: transparen
 .fb-confirm p { margin: 0 0 18px; color: var(--muted); font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
 .fb-confirm-row { display: flex; gap: 10px; }
 .fb-confirm-row .btn { flex: 1; }
+/* Progresso de operações em massa */
+.fb-bulk { padding: 28px 24px 22px; }
+.fb-bulk-ring {
+  --p: 0; width: 92px; height: 92px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(var(--primary, #2430e8) calc(var(--p) * 1%), color-mix(in srgb, var(--primary, #2430e8) 14%, transparent) 0);
+  transition: background .25s linear;
+}
+.fb-bulk-ring > span {
+  width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; background: var(--surface);
+  font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text);
+}
+.fb-bulk-ring.ok { background: conic-gradient(#16a34a 100%, transparent 0); }
+.fb-bulk-ring.ok > span { color: #16a34a; }
+.fb-bulk p { margin: 0 0 14px; font-variant-numeric: tabular-nums; }
+.fb-bulk-bar { height: 6px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--primary, #2430e8) 14%, transparent); }
+.fb-bulk-bar > i { display: block; height: 100%; border-radius: inherit; background: var(--primary, #2430e8); transition: width .25s ease; }
+.fb-bulk-hint { display: block; margin-top: 12px; color: var(--muted); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .fb-bulk-ring, .fb-bulk-bar > i { transition: none; } }
 @media (max-width: 480px) {
   .fb-toasts { left: 14px; right: 14px; max-width: none; }
 }

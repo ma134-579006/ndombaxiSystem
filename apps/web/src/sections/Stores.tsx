@@ -1,4 +1,4 @@
-import { confirmDialog } from '../components/feedback';
+import { confirmDialog, runBulk } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CreateStoreInput, ManagerStore } from '../api/types';
@@ -52,12 +52,9 @@ export function Stores() {
     setBulkBusy(true); setError(null); setInfo(null);
     let del = 0, deact = 0, skipped = 0;
     try {
-      for (const id of selected) {
-        const st = items.find((s) => s.id === id);
-        if (!st || st.is_default) { skipped++; continue; }
-        const r = await api.staff.deleteStore(id);
-        if (r.deleted) del++; else deact++;
-      }
+      const ids = [...selected].filter((id) => { const st = items.find((s) => s.id === id); if (!st || st.is_default) { skipped++; return false; } return true; });
+      const r = await runBulk({ title: 'A eliminar lojas', items: ids, concurrency: 3, run: async ([id]) => { const x = await api.staff.deleteStore(id); if (x.deleted) del++; else deact++; } });
+      if (r.failed) setError(`${r.failed} não puderam ser eliminadas (${r.firstError}).`);
       setSelected(new Set()); await load();
       setInfo(`${del} eliminada(s)${deact ? `; ${deact} com histórico ficaram desativadas` : ''}.${skipped ? ' A loja principal foi ignorada.' : ''}`);
     } catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao eliminar.'); }
