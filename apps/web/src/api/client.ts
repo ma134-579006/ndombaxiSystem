@@ -353,6 +353,11 @@ export const api = {
      *  Timeout longo: um ficheiro grande (milhares de linhas) demora minutos no servidor (lotes). */
     apply: (kind: MigrationKind, contentBase64: string, fileName?: string, storeId?: string | null, mapping?: Record<string, string> | null) =>
       request<MigrationApplyResult>('POST', '/migration/apply', { kind, contentBase64, fileName, storeId, ...(mapping ? { mapping } : {}) }, { timeoutMs: 600_000 }),
+    /** Importação em segundo plano (barra de progresso real): devolve o id do trabalho. */
+    applyAsync: (kind: MigrationKind, contentBase64: string, fileName?: string, storeId?: string | null, mapping?: Record<string, string> | null) =>
+      request<{ jobId: string }>('POST', '/migration/apply-async', { kind, contentBase64, fileName, storeId, ...(mapping ? { mapping } : {}) }, { timeoutMs: 120_000 }),
+    job: (id: string) =>
+      request<{ id: string; total: number; processed: number; status: 'running' | 'done' | 'error'; result?: MigrationApplyResult; error?: string }>('GET', `/migration/jobs/${id}`),
   },
 
   // ── Preferências do utilizador (tema por perfil) ───────────

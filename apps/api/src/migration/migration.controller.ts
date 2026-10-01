@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -31,5 +31,18 @@ export class MigrationController {
   apply(@Body() dto: MigrationFileDto, @CurrentUser() user: JwtPayload) {
     const buf = Buffer.from(dto.contentBase64, 'base64');
     return this.svc.apply(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName, { id: user.sub, name: user.name }, dto.storeId ?? null, dto.mapping ?? null);
+  }
+
+  @Post('apply-async')
+  @ApiOperation({ summary: 'Inicia a importação em segundo plano (progresso em GET migration/jobs/:id)' })
+  applyAsync(@Body() dto: MigrationFileDto, @CurrentUser() user: JwtPayload) {
+    const buf = Buffer.from(dto.contentBase64, 'base64');
+    return this.svc.startApply(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName, { id: user.sub, name: user.name }, dto.storeId ?? null, dto.mapping ?? null);
+  }
+
+  @Get('jobs/:id')
+  @ApiOperation({ summary: 'Progresso de uma importação em segundo plano' })
+  job(@Param('id') id: string) {
+    return this.svc.getJob(this.ctx.requireTenantSchema(), id);
   }
 }
