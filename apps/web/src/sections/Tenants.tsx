@@ -1,5 +1,5 @@
 import { confirmDialog, toast } from '../components/feedback';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Company, CompanyStatus } from '../api/types';
 import { IconBuilding, IconSearch } from '../components/Icons';
@@ -26,11 +26,15 @@ export function Tenants() {
   const [counts, setCounts] = useState<{ total: number; active: number; pending: number; suspended: number } | null>(null);
   const { enterShadow } = useAuth();
 
+  const reqSeq = useRef(0);
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     setError(null);
     try {
-      setCompanies(await api.tenants.list({ status: filter || undefined, search: search || undefined }));
+      const req = ++reqSeq.current;
+      const list = await api.tenants.list({ status: filter || undefined, search: search.trim() || undefined });
+      if (req !== reqSeq.current) return; // resposta antiga (o utilizador já escreveu mais)
+      setCompanies(list);
       api.platformDashboard.kpis().then((k) => setCounts(k.companies)).catch(() => undefined);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar empresas.');
@@ -39,12 +43,15 @@ export function Tenants() {
     }
   }, [filter, search]);
 
+  // Pesquisa enquanto se escreve (300 ms depois da última tecla) e o refrescamento
+  // de 15 s usa SEMPRE o filtro/pesquisa actuais (antes só pesquisava com Enter
+  // e o refrescamento repunha a lista completa).
   useEffect(() => {
-    void load();
+    const d = window.setTimeout(() => void load({ silent: !!search }), search ? 300 : 0);
     // TEMPO REAL: novas empresas / mudanças de estado aparecem sem recarregar.
     const t = window.setInterval(() => void load({ silent: true }), 15000);
-    return () => window.clearInterval(t);
-  }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { window.clearTimeout(d); window.clearInterval(t); };
+  }, [load, search]);
 
   const act = async (id: string, fn: () => Promise<Company>, confirmMsg?: string) => {
     if (confirmMsg && !(await confirmDialog({ message: confirmMsg }))) return;
