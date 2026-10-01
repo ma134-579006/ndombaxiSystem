@@ -38,12 +38,6 @@ export function Migration() {
   return (
     <>
       <div className="content-head"><h2><IconUpload size={20} /> Migração de dados</h2></div>
-      <p className="muted mig-intro">
-        Traga produtos, clientes e fornecedores de outro sistema. Aceita <strong>Excel</strong> (.xlsx),
-        {' '}<strong>CSV</strong>, <strong>SAF-T</strong> da AGT (.xml) e cópias de base de dados (.sql).
-        O sistema reconhece as colunas automaticamente e mostra o que vai criar/atualizar antes de gravar —
-        <strong> nunca apaga dados existentes</strong>.
-      </p>
       <div className="mig-formats">
         {['Excel .xlsx', 'CSV', 'SAF-T .xml (AGT)', 'Base de dados .sql'].map((f) => (
           <span key={f} className="mig-chip">{f}</span>
