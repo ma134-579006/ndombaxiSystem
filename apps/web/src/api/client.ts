@@ -623,6 +623,8 @@ export const api = {
   // ── Back-office do GESTOR da empresa ───────────────────────
   products: {
     list: () => request<ManagerProduct[]>('GET', '/pos/products'),
+    /** Catálogo do gestor: inclui os inativos (para os poder reativar ou eliminar). */
+    listAll: () => request<ManagerProduct[]>('GET', '/pos/products/all'),
     /** Ingredientes/matéria-prima (não vendíveis; para a ficha técnica). */
     ingredients: () => request<ManagerProduct[]>('GET', '/pos/products/ingredients'),
     create: (dto: CreateProductInput) => request<ManagerProduct>('POST', '/pos/products', dto),
