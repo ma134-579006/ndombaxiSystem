@@ -177,6 +177,18 @@ function MenuIcon({ d, size = 18, className }: { d: string; size?: number; class
   );
 }
 
+/** Iniciais do produto (sem foto) e cor estável — iguais às do painel. */
+function monoOf(name: string): string {
+  const w = name.replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((x) => /\p{L}/u.test(x));
+  if (!w.length) return (name.trim()[0] ?? '?').toUpperCase();
+  return (w.length === 1 ? w[0].slice(0, 2) : w[0][0] + w[1][0]).toUpperCase();
+}
+const MONO = ['#2430E8', '#4338CA', '#0E7490', '#0F766E', '#6D28D9', '#BE185D', '#B45309', '#334155'];
+function monoColor(name: string): string {
+  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return MONO[h % MONO.length];
+}
+
 export function PosPage() {
   const { user, logout, companyCode } = useAuth();
   const kbd = useKeyboard();
@@ -907,10 +919,15 @@ export function PosPage() {
                   const madeToOrder = !!p.has_recipe;
                   const out = !madeToOrder && stock <= 0;
                   return (
-                    <button key={p.id} className={`prod${out ? ' out' : ''}`} onClick={() => addToCart(p)}>
-                      <div>
-                        <div className="pname">{p.name}</div>
-                        <div className="pcode">{p.code}</div>
+                    <button key={p.id} className={`prod prod2${out ? ' out' : ''}`} onClick={() => addToCart(p)} title={p.name}>
+                      <div className="prod2-top">
+                        {p.image_url
+                          ? <img className="prod2-img" src={p.image_url} alt="" loading="lazy" />
+                          : <span className="prod2-mono" style={{ background: monoColor(p.name) }} aria-hidden="true">{monoOf(p.name)}</span>}
+                        <div className="prod2-txt">
+                          <div className="pname">{p.name}</div>
+                          <div className="pcode">{p.code}</div>
+                        </div>
                       </div>
                       <div className="pstock">
                         {madeToOrder
