@@ -80,15 +80,15 @@ export function Clinic() {
         </div>
       ) : null}
 
-      <div className="card toolbar-sticky" style={{ display: 'flex', gap: 6, padding: '8px 10px', flexWrap: 'wrap' }}>
-        <button className={`chip${tab === 'agenda' ? ' active' : ''}`} onClick={() => setTab('agenda')}>Agenda</button>
-        <button className={`chip${tab === 'emergency' ? ' active' : ''}`} onClick={() => setTab('emergency')}>Emergência</button>
-        <button className={`chip${tab === 'beds' ? ' active' : ''}`} onClick={() => setTab('beds')}>Internação</button>
-        <button className={`chip${tab === 'patients' ? ' active' : ''}`} onClick={() => setTab('patients')}>Pacientes</button>
-        <button className={`chip${tab === 'prescriptions' ? ' active' : ''}`} onClick={() => setTab('prescriptions')}>Receitas</button>
-        <button className={`chip${tab === 'exams' ? ' active' : ''}`} onClick={() => setTab('exams')}>Exames</button>
-        <button className={`chip${tab === 'insurers' ? ' active' : ''}`} onClick={() => setTab('insurers')}>Convénios</button>
-        <button className={`chip${tab === 'professionals' ? ' active' : ''}`} onClick={() => setTab('professionals')}>Profissionais</button>
+      <div className="fx-tabs inv-tabs">
+        <button className={tab === 'agenda' ? 'on' : ''} onClick={() => setTab('agenda')}>Agenda</button>
+        <button className={tab === 'emergency' ? 'on' : ''} onClick={() => setTab('emergency')}>Emergência</button>
+        <button className={tab === 'beds' ? 'on' : ''} onClick={() => setTab('beds')}>Internação</button>
+        <button className={tab === 'patients' ? 'on' : ''} onClick={() => setTab('patients')}>Pacientes</button>
+        <button className={tab === 'prescriptions' ? 'on' : ''} onClick={() => setTab('prescriptions')}>Receitas</button>
+        <button className={tab === 'exams' ? 'on' : ''} onClick={() => setTab('exams')}>Exames</button>
+        <button className={tab === 'insurers' ? 'on' : ''} onClick={() => setTab('insurers')}>Convénios</button>
+        <button className={tab === 'professionals' ? 'on' : ''} onClick={() => setTab('professionals')}>Profissionais</button>
       </div>
 
       {tab === 'emergency' ? <EmergencyTab patients={patients} />
@@ -102,41 +102,45 @@ export function Clinic() {
           <div className="card" style={{ padding: 10, marginBottom: 0 }}>
             <div className="field" style={{ margin: 0, maxWidth: 220 }}><label>Dia</label><input type="date" value={day} onChange={(e) => setDay(e.target.value)} /></div>
           </div>
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            {appts.length === 0 ? <div className="empty" style={{ padding: 24 }}><p>Sem marcações neste dia.</p></div>
-              : appts.map((a) => {
+          {appts.length === 0 ? <div className="card empty" style={{ padding: 24 }}><p>Sem marcações neste dia.</p></div> : (
+            <div className="rc-list">
+              {appts.map((a) => {
                 const st = APPT[a.status] ?? APPT.SCHEDULED;
                 return (
-                  <div key={a.id} className="list-row" style={{ padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <strong style={{ fontSize: 14, width: 52 }}>{hm(a.scheduled_at)}</strong>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <strong style={{ fontSize: 14 }}>{a.patient_name || 'Paciente'}</strong>
-                      <div className="muted" style={{ fontSize: 12.5 }}>{a.reason || '—'}{a.professional ? ` · ${a.professional}` : ''}</div>
+                  <div key={a.id} className="rc-row rc-static" style={{ ['--sc' as string]: st.tone }}>
+                    <span className="rc-time">{hm(a.scheduled_at)}</span>
+                    <div className="rc-main">
+                      <strong>{a.patient_name || 'Paciente'}</strong>
+                      <div className="muted">{a.reason || '—'}{a.professional ? ` · ${a.professional}` : ''}</div>
                     </div>
-                    <span className="pill" style={{ color: st.tone, borderColor: st.tone }}>{st.label}</span>
-                    {a.status === 'SCHEDULED' ? <button className="btn sm success" onClick={() => setConsultFor(a)}>Atender</button> : null}
+                    <span className="rc-state">{st.label}</span>
+                    {a.status === 'SCHEDULED' ? <button className="btn sm success" onClick={() => setConsultFor(a)}>Atender</button> : <span />}
                   </div>
                 );
               })}
-          </div>
+            </div>
+          )}
         </>
       ) : (
         <>
           <div className="card toolbar-sticky" style={{ padding: '2px 12px', top: 52 }}>
             <div className="row"><IconSearch size={18} /><input style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '11px 0', color: 'var(--text)' }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar paciente…" /></div>
           </div>
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            {patients.length === 0 ? <div className="empty" style={{ padding: 24 }}><p>Sem pacientes.</p></div>
-              : patients.map((p) => (
-                <div key={p.id} className="list-row" style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)', padding: '12px 16px' }}>
-                  <button onClick={() => setPatientId(p.id)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', padding: 0 }}>
-                    <strong style={{ fontSize: 14 }}>{p.name}</strong>
-                    <div className="muted" style={{ fontSize: 12.5 }}>{[p.phone, p.sex, p.blood_type].filter(Boolean).join(' · ') || '—'}{p.allergies ? ` · Alergias: ${p.allergies}` : ''}</div>
+          {patients.length === 0 ? <div className="card empty" style={{ padding: 24 }}><p>Sem pacientes.</p></div> : (
+            <div className="rc-list">
+              {patients.map((p) => (
+                <div key={p.id} className="rc-row rc-static" style={{ ['--sc' as string]: '#2563eb' }}>
+                  <span className="rc-av">{(p.name || '?').split(/s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>
+                  <button className="rc-main rc-btn" onClick={() => setPatientId(p.id)}>
+                    <strong>{p.name}</strong>
+                    <div className="muted">{[p.phone, p.sex, p.blood_type].filter(Boolean).join(' · ') || '—'}{p.allergies ? ` · Alergias: ${p.allergies}` : ''}</div>
                   </button>
+                  <span />
                   <button className="btn sm ghost" onClick={() => setRecordFor(p.id)}>Prontuário</button>
                 </div>
               ))}
-          </div>
+            </div>
+          )}
         </>
       )}
 

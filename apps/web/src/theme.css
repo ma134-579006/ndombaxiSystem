@@ -3308,3 +3308,10 @@ img.u-av { background: var(--surface-2); }
 .rc-row.st-DELIVERED, .rc-row.st-CHECKED_OUT { --sc: #15803d; }
 .rc-row.st-CANCELLED { --sc: #94a3b8; }
 @media (max-width: 640px) { .rc-row { grid-template-columns: auto minmax(0, 1fr) auto; } .rc-amt { display: none; } }
+
+/* Clínica: agenda e pacientes em cartões */
+.rc-static { cursor: default; }
+.rc-static:hover { transform: none; }
+.rc-time { min-width: 56px; padding: 9px 10px; border-radius: 11px; text-align: center; font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--sc); background: color-mix(in srgb, var(--sc) 12%, transparent); }
+.rc-av { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px; color: #fff; background: linear-gradient(145deg, var(--sc), color-mix(in srgb, var(--sc) 55%, #7c3aed)); }
+.rc-btn { background: transparent; border: none; padding: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; min-width: 0; }
