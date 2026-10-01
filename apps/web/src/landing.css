@@ -1115,39 +1115,102 @@ a.fc-line:hover { color: #fff; }
   .lp-foot-bottom .lp-foot-credits { text-align: left; }
 }
 
-/* ── Topo da landing (v12): hierarquia clara, nada que pareça botão sem ser ─ */
-.lp .lp-hero .badge-pill { animation: none !important; box-shadow: none !important; display: inline-flex; align-items: center; gap: 10px; padding: 0; border: 0; background: none; box-shadow: none; border-radius: 0; font-size: 13.5px; font-weight: 600; letter-spacing: .01em; color: #cfe0ff; max-width: 100%; }
-.lp .lp-hero .badge-pill::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 4px rgba(52, 211, 153, .18); }
-.lp .lp-hero h1 { margin-top: 18px; }
-/* setores: texto simples separado por pontos (já não são "botões") */
-.lp .lp-hero .lp-verticals { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 0; margin: 22px 0 30px; }
-.lp .lp-hero .lp-verticals span { display: inline-flex; align-items: center; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font-size: 13.5px; font-weight: 500; letter-spacing: .01em; color: rgba(255, 255, 255, .72); }
-.lp .lp-hero .lp-verticals span:not(:last-child)::after { content: ""; width: 4px; height: 4px; margin: 0 12px; border-radius: 50%; background: rgba(255, 255, 255, .38); }
-/* botões: mais espaço, mesma altura, hierarquia primário / secundário */
-.lp .lp-hero .cta-row { display: flex; flex-wrap: wrap; gap: 16px 18px; align-items: center; }
-.lp .lp-hero .cta-row .lp-btn { min-height: 52px; padding: 0 28px; border-radius: 12px; font-size: 15.5px; font-weight: 700; }
-.lp .lp-hero .cta-row .lp-btn.outline { background: transparent; border: 1.5px solid rgba(255, 255, 255, .5); }
-.lp .lp-hero .cta-row .lp-btn.outline:hover { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .8); }
-@media (max-width: 560px) {
-  .lp .lp-hero .cta-row { flex-direction: column; align-items: stretch; gap: 12px; }
-  .lp .lp-hero .cta-row .lp-btn { width: 100%; justify-content: center; }
-  .lp .lp-hero .lp-verticals span:not(:last-child)::after { margin: 0 9px; }
+/* ── Hero (v16): sobreposições em camadas, tipografia, categorias, botões e carrossel ──
+   Regra visual: CONTEÚDO > SOBREPOSIÇÃO > IMAGEM. Substitui os blocos v12/v13. */
+
+/* 1) Fundo: retira a aurora e as camadas antigas; uma única pilha de sobreposições sobre as fotos */
+.lp .lp-hero::before, .lp .lp-hero::after { content: none; display: none; animation: none; }
+.lp .lp-hero { --hero-pad: clamp(20px, 5vw, 40px); min-height: clamp(560px, 88svh, 880px); padding: clamp(36px, 7vh, 84px) var(--hero-pad) 0; }
+.lp .lp-hero-bg { z-index: -1; background: #060a16; }
+.lp .lp-hero-slide { background-position: center; filter: saturate(.82) contrast(1.03); transition: opacity 1.4s cubic-bezier(.4, 0, .2, 1); }
+.lp .lp-hero-slide.on { animation: lp-hero-drift 14s ease-out forwards; }
+@keyframes lp-hero-drift { from { transform: scale(1.05); } to { transform: scale(1); } }
+.lp .lp-hero-bg::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(6, 10, 22, .94) 0%, rgba(6, 10, 22, .83) 34%, rgba(6, 10, 22, .44) 62%, rgba(6, 10, 22, .14) 100%),
+    linear-gradient(180deg, rgba(6, 10, 22, .62) 0%, rgba(6, 10, 22, .10) 28%, rgba(6, 10, 22, .22) 62%, rgba(6, 10, 22, .92) 100%),
+    radial-gradient(70% 55% at 88% 12%, rgba(36, 48, 232, .26), transparent 62%);
+}
+@media (max-width: 767px) {
+  .lp .lp-hero-bg::after {
+    background:
+      linear-gradient(180deg, rgba(6, 10, 22, .78) 0%, rgba(6, 10, 22, .68) 40%, rgba(6, 10, 22, .80) 74%, rgba(6, 10, 22, .95) 100%),
+      radial-gradient(90% 40% at 100% 0%, rgba(36, 48, 232, .22), transparent 60%);
+  }
 }
 
-/* ── Topo da landing (v13): composição moderna ───────────────────────── */
-.lp .lp-hero-copy { max-width: 660px; }
-.lp .lp-hero .hero-eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: #b9c8ee; }
-.lp .lp-hero .hero-eyebrow i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 4px rgba(52, 211, 153, .2); }
-.lp .lp-hero h1 { margin: 20px 0 18px; font-size: clamp(34px, 6.2vw, 62px); line-height: 1.04; letter-spacing: -.035em; font-weight: 800; color: #fff; background: none; -webkit-text-fill-color: #fff; animation: none; text-wrap: balance; }
-.lp .lp-hero h1 em { font-style: normal; background: linear-gradient(95deg, #93a5ff 10%, #22d3ee 95%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-.lp .lp-hero .sub { max-width: 56ch; margin: 0 0 30px; font-size: clamp(16px, 2.1vw, 19px); line-height: 1.6; color: rgba(255, 255, 255, .8); }
-.lp .lp-hero .cta-row { gap: 14px 16px; margin: 0 0 36px; }
-.lp .lp-hero .cta-row .lp-btn.primary { gap: 10px; display: inline-flex; align-items: center; }
-.lp .lp-hero .cta-row .lp-btn.outline { border-color: rgba(255, 255, 255, .38); }
-.lp .lp-hero .lp-verticals { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 0; margin: 0; padding: 22px 0 0; border-top: 1px solid rgba(255, 255, 255, .16); }
-.lp .lp-hero .lp-verticals small { flex: 0 0 100%; margin-bottom: 4px; font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: rgba(255, 255, 255, .5); }
-.lp .lp-hero .lp-verticals span { font-size: 14.5px; font-weight: 600; color: rgba(255, 255, 255, .88); }
+/* 2) Texto */
+/* Fonte de reserva com as métricas da Sora (proporção medida 1,083): sem salto quando a Sora chega. */
+@font-face { font-family: 'Sora Fallback'; src: local('Arial'), local('Helvetica Neue'), local('Helvetica'); font-weight: 400 800; size-adjust: 108%; }
+.lp .lp-hero-copy { max-width: 42rem; min-width: 0; }
+.lp .lp-hero h1 .nb { white-space: nowrap; }
+.lp .lp-hero .hero-eyebrow.pending { visibility: hidden; }
+@media (min-width: 1024px) {
+  .lp .lp-hero-inner { max-width: 1200px; }
+  .lp .lp-hero-grid { grid-template-columns: 1.12fr .88fr; gap: 48px; align-items: start; }
+  .lp .lp-mockup { margin-top: clamp(8px, 4vh, 40px); }
+}
+.lp .lp-hero .hero-eyebrow { display: inline-flex; align-items: flex-start; gap: 10px; max-width: 34ch; font-size: 12px; font-weight: 650; letter-spacing: .14em; line-height: 1.6; text-transform: uppercase; color: #c3d0ee; }
+.lp .lp-hero .hero-eyebrow i { flex: none; width: 8px; height: 8px; margin-top: .55em; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 3px rgba(52, 211, 153, .18); }
+.lp .lp-hero h1 { font-family: Sora, 'Sora Fallback', 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; margin: clamp(14px, 2.4vh, 20px) 0 clamp(14px, 2.2vh, 18px); font-size: clamp(1.75rem, 1.05rem + 3.4vw, 3.5rem); line-height: 1.06; letter-spacing: -.03em; font-weight: 700; color: #fff; background: none; -webkit-text-fill-color: #fff; animation: none; text-wrap: balance; }
+.lp .lp-hero h1 em { font-style: normal; background: linear-gradient(90deg, #8fb0ff 5%, #4cc9f0 95%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.lp .lp-hero p.sub { max-width: 34rem; margin: 0 0 clamp(18px, 3vh, 26px); font-size: clamp(1rem, .94rem + .35vw, 1.1875rem); line-height: 1.6; color: rgba(232, 238, 250, .86); text-wrap: pretty; }
+
+/* 3) Controlo do carrossel (acessível; fora do fundo aria-hidden) */
+.lp .lp-hero-ctrl { display: flex; align-items: center; justify-content: flex-start; gap: 14px; max-width: 34rem; margin: 0 0 clamp(14px, 2.2vh, 18px); padding-top: clamp(12px, 2vh, 16px); border-top: 1px solid rgba(255, 255, 255, .12); }
+.lp .lp-hero-ctrl .dots { display: flex; align-items: center; gap: 2px; margin-left: -6px; }
+.lp .lp-hero-ctrl .dots button { position: relative; width: 28px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: none; cursor: pointer; display: grid; place-items: center; }
+.lp .lp-hero-ctrl .dots button::before { content: ''; width: 8px; height: 8px; border-radius: 99px; background: rgba(255, 255, 255, .34); transition: width .25s ease, background-color .25s ease; }
+.lp .lp-hero-ctrl .dots button.on::before { width: 22px; background: #fff; }
+.lp .lp-hero-ctrl .dots button:hover::before { background: rgba(255, 255, 255, .6); }
+.lp .lp-hero-ctrl .dots button.on:hover::before { background: #fff; }
+.lp .lp-hero-ctrl .dots button:focus-visible { outline: 2px solid #9db8ff; outline-offset: 1px; }
+.lp .lp-hero-ctrl .arrows { display: flex; gap: 8px; }
+.lp .lp-hero-ctrl .arrows button { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border-radius: 10px; color: #fff; cursor: pointer; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .18); transition: background-color .18s ease, border-color .18s ease; }
+.lp .lp-hero-ctrl .arrows button:hover { background: rgba(255, 255, 255, .11); border-color: rgba(255, 255, 255, .32); }
+.lp .lp-hero-ctrl .arrows button:active { transform: scale(.96); }
+.lp .lp-hero-ctrl .arrows button:focus-visible { outline: 2px solid #9db8ff; outline-offset: 2px; }
+.lp .lp-hero-ctrl .ctr { white-space: nowrap; }
+.lp .lp-hero-ctrl .ctr { font-variant-numeric: tabular-nums; font-size: 12.5px; letter-spacing: .08em; color: rgba(255, 255, 255, .62); }
+
+/* 4) «Feito para» — lista de categorias (informativa, não interactiva) */
+.lp .lp-hero .lp-verticals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; border: 0; max-width: 34rem; }
+.lp .lp-hero .lp-verticals small { grid-column: 1 / -1; margin: 0 0 2px; font-size: 11.5px; font-weight: 650; letter-spacing: .16em; text-transform: uppercase; color: rgba(255, 255, 255, .52); }
+.lp .lp-hero .lp-verticals .vt { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 46px; padding: 0 12px 0 8px; border-radius: 12px; font-size: 14px; font-weight: 600; line-height: 1.2; color: rgba(255, 255, 255, .92); background: rgba(255, 255, 255, .055); border: 1px solid rgba(255, 255, 255, .11); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); cursor: default; user-select: none; }
+.lp .lp-hero .lp-verticals .vt i { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: #8fb4ff; background: rgba(120, 150, 255, .14); }
+.lp .lp-hero .lp-verticals .vt i svg { display: block; }
+@media (min-width: 640px) { .lp .lp-hero .lp-verticals { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* 5) CTAs — primário inequívoco, secundário claramente secundário */
+.lp .lp-hero .cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; margin: 0 0 clamp(22px, 3.6vh, 32px); }
+.lp .lp-hero .cta-row .lp-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 0 26px; border-radius: 12px; font-size: 15.5px; font-weight: 650; letter-spacing: .005em; transition: transform .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.lp .lp-hero .cta-row .lp-btn:focus-visible { outline: 2px solid #b4c6ff; outline-offset: 3px; }
+.lp .lp-hero .cta-row .lp-btn.primary { background: linear-gradient(180deg, #3b4bff 0%, #2430e8 100%); color: #fff; border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 10px 24px -12px rgba(36, 48, 232, .85), inset 0 1px 0 rgba(255, 255, 255, .18); }
+.lp .lp-hero .cta-row .lp-btn.primary svg { flex: none; transition: transform .18s ease; }
+.lp .lp-hero .cta-row .lp-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 14px 28px -12px rgba(36, 48, 232, .95), inset 0 1px 0 rgba(255, 255, 255, .2); filter: none; }
+.lp .lp-hero .cta-row .lp-btn.primary:hover svg { transform: translateX(3px); }
+.lp .lp-hero .cta-row .lp-btn.primary:active { transform: translateY(0) scale(.992); }
+.lp .lp-hero .cta-row .lp-btn.outline { background: rgba(255, 255, 255, .04); color: rgba(255, 255, 255, .92); font-weight: 600; border: 1px solid rgba(255, 255, 255, .24); box-shadow: none; }
+.lp .lp-hero .cta-row .lp-btn.outline:hover { background: rgba(255, 255, 255, .09); border-color: rgba(255, 255, 255, .38); }
+.lp .lp-hero .cta-row .lp-btn.outline:active { transform: scale(.992); }
 @media (max-width: 560px) {
-  .lp .lp-hero .cta-row .lp-btn { justify-content: center; }
-  .lp .lp-hero .lp-verticals span { font-size: 13.5px; }
+  .lp .lp-hero .cta-row { flex-direction: column; align-items: stretch; }
+  .lp .lp-hero .cta-row .lp-btn { width: 100%; }
+  .lp .lp-hero .cta-row .lp-btn.primary { min-height: 54px; }
+}
+
+/* 6) Botão flutuante de chat: proporcional, respeita safe areas, sem pulsar */
+.sc-fab::after { animation: none !important; }
+.sc-fab:focus-visible { outline: 2px solid #b4c6ff; outline-offset: 3px; }
+.sc-fab:active { transform: scale(.96); }
+@media (max-width: 560px) {
+  .sc-fab { width: 48px; height: 48px; right: max(14px, env(safe-area-inset-right, 0px)); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* 7) Movimento reduzido: sem deriva, sem transições decorativas */
+@media (prefers-reduced-motion: reduce) {
+  .lp .lp-hero-slide, .lp .lp-hero-slide.on { animation: none; transition: none; }
+  .lp .lp-hero .cta-row .lp-btn, .lp .lp-hero .cta-row .lp-btn.primary svg, .lp .lp-hero-ctrl .dots button::before { transition: none; }
+  .lp .lp-hero .cta-row .lp-btn.primary:hover, .lp .lp-hero .cta-row .lp-btn.primary:hover svg { transform: none; }
 }

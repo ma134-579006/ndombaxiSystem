@@ -123,6 +123,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       ? cfg.heroImages
       : DEFAULT_HERO_IMAGES;
   const heroInterval = cfg?.heroIntervalMs || 5000;
+  const [slideIdx, setSlideIdx] = useHeroSlides(heroImages.length, heroInterval);
   const trialDays = cfg?.trialDays ?? 14;
   const plans = data?.plans ?? [];
   const ads = (cfg?.showAds && cfg?.ads?.filter((a) => a.active !== false)) || [];
@@ -206,30 +207,24 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
 
       {/* HERO com carrossel animado de imagens realistas */}
       <header className="lp-hero">
-        <HeroCarousel images={heroImages} intervalMs={heroInterval} />
+        <HeroSlides images={heroImages} idx={slideIdx} />
         <div className="lp-hero-inner lp-hero-grid">
           <div className="lp-hero-copy">
-            <span className="hero-eyebrow"><i aria-hidden="true" />{`${trialDays} dias grátis · sem cartão · cancele quando quiser`}</span>
+            <span className={`hero-eyebrow${cfg ? '' : ' pending'}`}><i aria-hidden="true" />{`${trialDays} dias grátis · sem cartão · cancele quando quiser`}</span>
             <h1>
               {(() => {
-                const w = (cfg?.heroTitle ?? 'O ERP completo para gerir e vender em Angola').split(' ');
+                const w = (cfg?.heroTitle ?? 'O ERP Multi-setorial mais completo para Angola').split(' ');
                 const cut = Math.max(1, w.length - 2);
-                return <>{w.slice(0, cut).join(' ')} <em>{w.slice(cut).join(' ')}</em></>;
+                const words = (list: string[]) => list.map((x, i) => (
+                  <React.Fragment key={i}>{i > 0 ? ' ' : ''}{x.includes('-') ? <span className="nb">{x}</span> : x}</React.Fragment>
+                ));
+                return <>{words(w.slice(0, cut))} <em>{words(w.slice(cut))}</em></>;
               })()}
             </h1>
             <p className="sub">
               {cfg?.heroSubtitle ??
-                'Venda, gira o stock e fature com certificação AGT — numa única plataforma, em Kwanzas.'}
+                'POS, facturação certificada AGT, stock, financeiro, hotelaria, clínicas, farmácias, restaurantes, serviços, loja online e IA — tudo numa única plataforma.'}
             </p>
-            <div className="lp-verticals">
-              <small>Feito para</small>
-              <span>Vendas & stock</span>
-              <span>Restauração</span>
-              <span>Serviços</span>
-              <span>Hotelaria</span>
-              <span>Clínicas</span>
-              <span>Farmácias</span>
-            </div>
             <div className="cta-row">
               <button className="lp-btn primary" onClick={() => openRegister('BUSINESS')}>
                 {cfg?.heroCtaPrimary ?? `Começar grátis — ${trialDays} dias`}
@@ -238,6 +233,15 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
               <button className="lp-btn outline" onClick={onGoLogin}>
                 {cfg?.heroCtaSecondary ?? 'Entrar'}
               </button>
+            </div>
+            <HeroControls count={heroImages.length} idx={slideIdx} onPick={setSlideIdx} />
+            <div className="lp-verticals" role="list" aria-labelledby="lp-vt-label">
+              <small id="lp-vt-label">Feito para</small>
+              {VERTICALS.map((v) => (
+                <span key={v.label} role="listitem" className="vt">
+                  <i aria-hidden="true">{v.icon}</i>{v.label}
+                </span>
+              ))}
             </div>
             {/* (Sem linha de selos aqui: o trial já está no badge acima e a AGT/
                 disponibilidade nos INDICADORES logo abaixo — evitar repetição.) */}
@@ -548,40 +552,94 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
  *  PERFORMANCE: só monta o slide ATUAL + o SEGUINTE (pré-carrega) — antes
  *  montava as 20 imagens 1920px de uma vez (~10 MB no primeiro load, LCP
  *  péssimo em redes móveis angolanas). O resto carrega à medida que roda. */
-function HeroCarousel({ images, intervalMs }: { images: string[]; intervalMs: number }) {
+const VT_SVG = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
+const VERTICALS: { label: string; icon: React.ReactNode }[] = [
+  { label: 'Vendas & stock', icon: <svg {...VT_SVG}><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /><path d="M2.5 3.5h2.6l2.1 11.2a1.6 1.6 0 0 0 1.6 1.3h8.1a1.6 1.6 0 0 0 1.6-1.2L20.5 8H6.1" /></svg> },
+  { label: 'Restauração', icon: <svg {...VT_SVG}><path d="M6 3v7a2 2 0 0 0 4 0V3M8 3v18" /><path d="M17 21V3c-2.2 1.3-3.5 3.6-3.5 6.5 0 2 1.2 3.5 3.5 3.5" /></svg> },
+  { label: 'Serviços', icon: <svg {...VT_SVG}><circle cx="12" cy="12" r="3" /><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" /></svg> },
+  { label: 'Hotelaria', icon: <svg {...VT_SVG}><path d="M3 18V7M3 13h18v5M21 13v-2a3 3 0 0 0-3-3h-7v5" /><circle cx="7" cy="10.2" r="1.5" /></svg> },
+  { label: 'Clínicas', icon: <svg {...VT_SVG}><path d="M6 3v6a4 4 0 0 0 8 0V3" /><path d="M10 13v2a4 4 0 0 0 8 0v-1.5" /><circle cx="18" cy="11.8" r="1.8" /></svg> },
+  { label: 'Farmácias', icon: <svg {...VT_SVG}><rect x="3" y="8.5" width="18" height="7" rx="3.5" transform="rotate(-35 12 12)" /><path d="m9.5 9.5 5 5" /></svg> },
+];
+
+function useHeroSlides(count: number, intervalMs: number) {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
-    if (images.length < 2) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % images.length), Math.max(2000, intervalMs));
+    if (count < 2) return;
+    // Quem pede «menos movimento» não tem mudança automática de imagem.
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const t = setInterval(() => {
+      if (document.visibilityState === 'hidden') return; // separador em 2.º plano: não roda
+      setIdx((i) => (i + 1) % count);
+    }, Math.max(2000, intervalMs));
     return () => clearInterval(t);
-  }, [images.length, intervalMs]);
+  }, [count, intervalMs]);
+  return [idx, setIdx] as const;
+}
+
+/** Unsplash permite pedir a largura: em ecrãs pequenos não se descarregam 1920 px (melhora o LCP). */
+function sizedHeroImage(src: string): string {
+  try {
+    const u = new URL(src);
+    if (u.hostname !== 'images.unsplash.com') return src;
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1440;
+    u.searchParams.set('w', String(vw <= 768 ? 900 : vw <= 1280 ? 1400 : 1920));
+    u.searchParams.set('q', '70');
+    return u.toString();
+  } catch { return src; }
+}
+
+/** Fundo: a imagem atual monta logo; a SEGUINTE só depois de 2,5 s (não compete com o LCP) e serve de pré-carregamento. */
+function HeroSlides({ images, idx }: { images: string[]; idx: number }) {
+  const [showNext, setShowNext] = useState(false);
+  useEffect(() => {
+    setShowNext(false);
+    const t = setTimeout(() => setShowNext(true), 2500);
+    return () => clearTimeout(t);
+  }, [idx]);
   const next = (idx + 1) % images.length;
   return (
     <div className="lp-hero-bg" aria-hidden="true">
       {images.map((src, i) => (
-        i === idx || i === next ? (
-          <div
-            key={i}
-            className={`lp-hero-slide${i === idx ? ' on' : ''}`}
-            style={{ backgroundImage: `url('${src}')` }}
-          />
+        i === idx || (showNext && i === next) ? (
+          <div key={i} className={`lp-hero-slide${i === idx ? ' on' : ''}`} style={{ backgroundImage: `url('${sizedHeroImage(src)}')` }} />
         ) : null
       ))}
-      {images.length > 1 && (
-        <div className="lp-hero-dots" role="tablist" aria-label="Imagens do carrossel">
-          {images.map((_, i) => (
+    </div>
+  );
+}
+
+/** Controlos: acessíveis por teclado/leitor de ecrã (ficam FORA do fundo aria-hidden). */
+function HeroControls({ count, idx, onPick }: { count: number; idx: number; onPick(i: number): void }) {
+  if (count < 2) return null;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    <div className="lp-hero-ctrl" role="group" aria-label="Imagens do carrossel">
+      {count > 8 ? (
+        // Muitas imagens: pontos seriam ruído — setas + contador.
+        <div className="arrows">
+          <button type="button" aria-label="Imagem anterior" onClick={() => onPick((idx - 1 + count) % count)}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
+          </button>
+          <button type="button" aria-label="Imagem seguinte" onClick={() => onPick((idx + 1) % count)}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+          </button>
+        </div>
+      ) : (
+        <div className="dots">
+          {Array.from({ length: count }, (_, i) => (
             <button
               key={i}
               type="button"
-              role="tab"
-              aria-selected={i === idx}
-              aria-label={`Imagem ${i + 1} de ${images.length}`}
+              aria-label={`Imagem ${i + 1} de ${count}`}
+              aria-current={i === idx ? 'true' : undefined}
               className={i === idx ? 'on' : ''}
-              onClick={() => setIdx(i)}
+              onClick={() => onPick(i)}
             />
           ))}
         </div>
       )}
+      <span className="ctr" aria-hidden="true">{pad(idx + 1)} / {pad(count)}</span>
     </div>
   );
 }
