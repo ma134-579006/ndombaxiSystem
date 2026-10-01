@@ -9,7 +9,7 @@ import {
   SUPPLIER_ALIASES, SupplierField,
   mapHeaders, parseFlexibleNumber,
 } from './column-aliases';
-import { cleanName, isValidGtin, readBarcode, readCode, readStock } from './cell-values';
+import { cleanName, hasLetters, isValidGtin, readBarcode, readCode, readStock } from './cell-values';
 import { detectProductColumns } from './product-columns';
 import { parseUploadedFile } from './parse-file';
 import type { MigrationKind } from './dto/migration.dto';
@@ -40,6 +40,19 @@ export interface MigrationApplyResult { kind: MigrationKind; created: number; up
 interface ProductCells {
   name: string; code: string; barcode: string; barcodeWarning?: string;
   stock: number | null; stockWarning?: string; cost: number | null; sale: number | null;
+  /** Stock por loja do ficheiro (já limitado a ≥ 0); vazio se o ficheiro não o tem. */
+  perStore: { label: string; value: number | null }[];
+  /** O ficheiro tinha um código de barras no lugar do NOME (passa a código de barras). */
+  nameWasBarcode?: boolean;
+  barcodeHasLetters?: boolean;
+}
+
+const normStore = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+/** Associa um rótulo de loja do ficheiro a uma loja da empresa (nome igual ou contido). */
+function matchStore<T extends { name: string }>(label: string, stores: T[]): T | undefined {
+  const l = normStore(label);
+  return stores.find((s) => normStore(s.name) === l)
+    ?? stores.find((s) => { const n = normStore(s.name); return n.length >= 3 && (n.includes(l) || l.includes(n)); });
 }
 
 type Actor = { id?: string | null; name?: string | null };
@@ -133,15 +146,35 @@ export class MigrationService {
   private readProductRow(r: Record<string, unknown>, cols: ReturnType<typeof detectProductColumns>): ProductCells {
     const m = cols.mapping;
     const barcodeSrc = m.barcode ?? (cols.barcodeFromCode ? m.code : undefined);
-    const bc = barcodeSrc ? readBarcode(r[barcodeSrc]) : { value: '' };
-    const st = m.stock ? readStock(r[m.stock]) : { value: null as number | null };
+    const bc = barcodeSrc ? readBarcode(r[barcodeSrc]) : { value: '' as string, warning: undefined as string | undefined };
+    let st: { value: number | null; warning?: string } = m.stock ? readStock(r[m.stock]) : { value: null };
+    // Stock por loja: cada coluna lida com rigor; o total é a soma (null se todas vazias).
+    const perStore = cols.storeStock.map((s) => {
+      const v = readStock(r[s.header]);
+      if (v.warning && !st.warning) st = { ...st, warning: v.warning };
+      return { label: s.label, value: v.value };
+    });
+    if (perStore.length) {
+      const known = perStore.filter((p) => p.value !== null);
+      st = { value: known.length ? known.reduce((t, p) => t + (p.value as number), 0) : null, warning: st.warning };
+    }
+    const name = cleanName(r[m.name!]);
+    let barcode = bc.value;
+    let nameWasBarcode = false;
+    // O ficheiro de origem tem por vezes o código de barras na coluna do NOME:
+    // sem código de barras na linha, esse número passa a ser o código de barras.
+    if (/^\d{8,14}$/.test(name) && !barcode) { barcode = name; nameWasBarcode = true; }
+    else if (/^\d{8,14}$/.test(name)) nameWasBarcode = true;
     return {
-      name: cleanName(r[m.name!]),
+      name,
       code: m.code ? readCode(r[m.code]) : '',
-      barcode: bc.value,
-      barcodeWarning: bc.warning,
+      barcode,
+      barcodeWarning: bc.warning && !/^código GS1/.test(bc.warning) ? bc.warning : undefined,
+      barcodeHasLetters: hasLetters(barcode),
+      nameWasBarcode,
       stock: st.value,
       stockWarning: st.warning,
+      perStore,
       cost: m.costPrice ? parseFlexibleNumber(r[m.costPrice]) : null,
       sale: m.salePrice ? parseFlexibleNumber(r[m.salePrice]) : null,
     };
@@ -160,6 +193,8 @@ export class MigrationService {
 
     let toCreate = 0, toUpdate = 0, toSkip = 0;
     let withBarcode = 0, withStock = 0, stockTotal = 0, invalidBarcodes = 0, duplicatesInFile = 0, sciNotation = 0, negativeStock = 0;
+    let nameAsBarcode = 0, lettersBarcode = 0;
+    const lettersExamples: string[] = [];
     const seen = new Set<string>();
     const invalidExamples: string[] = [];
     const sample: PreviewRow[] = [];
@@ -175,6 +210,8 @@ export class MigrationService {
         if (!isValidGtin(c.barcode)) { invalidBarcodes++; if (invalidExamples.length < 3) invalidExamples.push(c.barcode); }
       }
       if (c.barcodeWarning) sciNotation++;
+      if (c.nameWasBarcode) nameAsBarcode++;
+      if (c.barcodeHasLetters) { lettersBarcode++; if (lettersExamples.length < 3) lettersExamples.push(c.barcode); }
       if (c.stock !== null) { withStock++; stockTotal += c.stock; }
       if (c.stockWarning) negativeStock++;
       const key = c.code || c.barcode;
@@ -187,6 +224,7 @@ export class MigrationService {
             code: c.code || (c.barcode ? '(= código de barras)' : '(gerado automaticamente)'),
             barcode: c.barcode || null,
             stock: c.stock,
+            ...(c.perStore.length ? { lojas: c.perStore.map((p) => `${p.label}: ${p.value ?? '—'}`).join(' · ') } : {}),
             custo: c.cost,
             venda: c.sale,
           },
@@ -195,13 +233,20 @@ export class MigrationService {
     });
 
     const warnings: string[] = [];
-    if (!mapping.stock) warnings.push('Não encontrei a coluna de STOCK — os produtos novos ficam com stock 0. Escolha a coluna em «Colunas reconhecidas».');
-    else if (withStock === 0) warnings.push(`A coluna de stock «${mapping.stock}» está vazia em todas as linhas — o stock não vai ser importado.`);
+    if (!mapping.stock && !cols.storeStock.length) warnings.push('Não encontrei a coluna de STOCK — os produtos novos ficam com stock 0. Escolha a coluna em «Colunas reconhecidas».');
+    else if (mapping.stock && withStock === 0) warnings.push(`A coluna de stock «${mapping.stock}» está vazia em todas as linhas — o stock não vai ser importado.`);
     if (!mapping.barcode && !cols.barcodeFromCode) warnings.push('Não encontrei a coluna de CÓDIGO DE BARRAS — o leitor não vai encontrar estes produtos. Escolha a coluna em «Colunas reconhecidas».');
     if (!mapping.salePrice) warnings.push('Não encontrei a coluna de PREÇO DE VENDA — os produtos ficam a 0 Kz.');
     if (sciNotation) warnings.push(`${sciNotation} código(s) de barras em notação científica (o Excel cortou os dígitos) — ficam SEM código de barras. Formate a coluna como Texto e exporte de novo.`);
     if (invalidBarcodes) warnings.push(`${invalidBarcodes} código(s) de barras com dígito de controlo inválido (ex.: ${invalidExamples.join(', ')}) — serão importados tal como estão; confirme no ficheiro.`);
     if (duplicatesInFile) warnings.push(`${duplicatesInFile} linha(s) repetem um código/código de barras já visto no ficheiro — a última vence.`);
+    if (nameAsBarcode) warnings.push(`${nameAsBarcode} linha(s) têm um CÓDIGO DE BARRAS no lugar do nome (vem assim do ficheiro) — o número é usado como código de barras; corrija o nome depois em Produtos.`);
+    if (lettersBarcode) warnings.push(`${lettersBarcode} código(s) de barras com letras (ex.: ${lettersExamples.join(', ')}) — não são EAN; mantidos tal como estão.`);
+    if (cols.storeStock.length) {
+      const stores = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<{ id: string; name: string }[]>(Prisma.sql`SELECT id, name FROM stores WHERE is_active = TRUE`));
+      const miss = cols.storeStock.filter((c) => !matchStore(c.label, stores)).map((c) => `«${c.label}»`);
+      if (miss.length) warnings.push(`Lojas do ficheiro sem correspondência na empresa: ${miss.join(', ')} — o stock dessas colunas soma-se ao total (crie a loja com o mesmo nome para separar).`);
+    }
     if (negativeStock) warnings.push(`${negativeStock} linha(s) com stock negativo — tratadas como 0.`);
 
     return {
@@ -227,16 +272,38 @@ export class MigrationService {
     // Loja escolhida: valida UMA vez (transacção curta) — nunca confia num id do
     // frontend. Se escolhida, lista TODAS as lojas ativas: um produto NOVO semeia
     // stock_items=0 nas outras lojas (preserva o invariante stock_qty = Σ stock_items).
-    let targetStore: { id: string } | null = null;
-    let allActiveStores: { id: string }[] = [];
+    let targetStore: { id: string; name?: string } | null = null;
+    let allActiveStores: { id: string; name: string }[] = [];
     if (storeId) {
       await this.prisma.runInTenant(schema, async (tx) => {
-        const s = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM stores WHERE id = ${storeId}::uuid AND is_active = TRUE LIMIT 1`);
+        const s = await tx.$queryRaw<{ id: string; name: string }[]>(Prisma.sql`SELECT id, name FROM stores WHERE id = ${storeId}::uuid AND is_active = TRUE LIMIT 1`);
         if (!s[0]) throw new BadRequestException('A loja escolhida não existe ou está inactiva.');
         targetStore = s[0];
-        allActiveStores = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM stores WHERE is_active = TRUE`);
+        allActiveStores = await tx.$queryRaw<{ id: string; name: string }[]>(Prisma.sql`SELECT id, name FROM stores WHERE is_active = TRUE`);
       });
     }
+    // Stock POR LOJA no ficheiro: sem loja escolhida e com TODAS as colunas a
+    // corresponder a lojas da empresa, cada loja recebe o seu stock (por loja).
+    let storeColMap: { label: string; storeId: string }[] = [];
+    if (cols.storeStock.length) {
+      if (!allActiveStores.length) {
+        allActiveStores = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<{ id: string; name: string }[]>(Prisma.sql`SELECT id, name FROM stores WHERE is_active = TRUE`));
+      }
+      const matched = cols.storeStock.map((c) => ({ label: c.label, st: matchStore(c.label, allActiveStores) }));
+      const chosen = targetStore as { id: string } | null;
+      if (chosen) {
+        // Loja escolhida: usa a coluna dessa loja (se existir); senão o total.
+        const own = matched.find((x) => x.st?.id === chosen.id);
+        storeColMap = own ? [{ label: own.label, storeId: chosen.id }] : [];
+      } else if (matched.every((x) => x.st)) {
+        storeColMap = matched.map((x) => ({ label: x.label, storeId: x.st!.id }));
+      }
+    }
+    const perStoreMode = !targetStore && storeColMap.length > 0;
+    const stockFor = (cells: ProductCells): number | null => {
+      if (targetStore && storeColMap.length) return cells.perStore.find((p) => p.label === storeColMap[0].label)?.value ?? null;
+      return cells.stock;
+    };
 
     // Importa por LOTES — cada lote na sua transacção. Um lote que falhe por
     // inteiro (ex.: timeout) não perde os lotes anteriores nem trava os seguintes.
@@ -259,7 +326,7 @@ export class MigrationService {
             try {
           const code = cells.code;
           const barcode = cells.barcode;
-          const stock = cells.stock;
+          const stock = stockFor(cells);
           const costPrice = cells.cost;
           const salePrice = cells.sale;
           if (cells.barcodeWarning) noBarcodeSci++;
@@ -294,7 +361,12 @@ export class MigrationService {
             if (categoryId) sets.push(Prisma.sql`category_id = ${categoryId}::uuid`);
             if (costPrice !== null) sets.push(Prisma.sql`cost_price = ${costPrice}`);
             if (salePrice !== null) sets.push(Prisma.sql`unit_price = ${salePrice}`);
-            if (stock !== null) {
+            if (perStoreMode && !existingRow.shared_stock) {
+              for (const sc of storeColMap) {
+                const v = cells.perStore.find((p) => p.label === sc.label)?.value;
+                if (v !== null && v !== undefined) await this.setAbsoluteStock(tx, existingRow.id, sc.storeId, Math.max(0, v), stockRef);
+              }
+            } else if (stock !== null) {
               if (existingRow.shared_stock) {
                 // Partilhado: continua a actualizar-se directo (pool central).
                 sets.push(Prisma.sql`stock_qty = ${stock}`);
@@ -310,12 +382,19 @@ export class MigrationService {
             bUpdated++;
           } else {
             const finalCode = code || barcode || generateInternalCode('MIG');
-            const shared = !targetStore;
+            const shared = !targetStore && !perStoreMode;
             const insertedRows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
               INSERT INTO products (code, barcode, name, category_id, iva_code, unit_price, cost_price, stock_qty, shared_stock, show_online)
               VALUES (${finalCode}, ${barcode || null}, ${name}, ${categoryId}::uuid, 'NOR', ${salePrice ?? 0}, ${costPrice ?? 0}, ${shared ? (stock ?? 0) : 0}, ${shared}, TRUE)
               RETURNING id`);
-            if (targetStore) {
+            if (perStoreMode) {
+              // Stock por loja do ficheiro: cada loja recebe o seu valor; as outras 0.
+              for (const st of allActiveStores) {
+                const sc = storeColMap.find((x) => x.storeId === st.id);
+                const v = sc ? cells.perStore.find((p) => p.label === sc.label)?.value ?? 0 : 0;
+                await this.setAbsoluteStock(tx, insertedRows[0].id, st.id, Math.max(0, v ?? 0), stockRef);
+              }
+            } else if (targetStore) {
               // Por loja: semeia stock_items=0 em TODAS as lojas ativas e a
               // quantidade importada só na loja escolhida — preserva o invariante
               // stock_qty = Σ stock_items (igual à criação manual de produtos).
