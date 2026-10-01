@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { AdvanceLimit, SalaryAdvance } from '../api/types';
 import { formatKz } from '../format';
+import { UiIcon } from './UiIcon';
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   PENDING: { label: 'Pendente', cls: 'warn' },
@@ -64,7 +65,8 @@ export function SalaryAdvanceModal({ onClose }: { onClose(): void }) {
     <div className="modal-bg" onClick={onClose}>
       <div className="consume-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="consume-head">
-          <h3>Adiantamento salário</h3>
+          <span className="ch-ic" aria-hidden="true"><UiIcon e="money" size={20} /></span>
+          <div className="ch-tx"><h3>Adiantamento salarial</h3><small>Pedido ao gestor · descontado na folha do mês</small></div>
           <button className="x" onClick={onClose} aria-label="Fechar">✕</button>
         </div>
 
@@ -76,14 +78,14 @@ export function SalaryAdvanceModal({ onClose }: { onClose(): void }) {
             <div className="banner warn">Ainda não tens uma ficha de funcionário associada em RH. Fala com o gestor para te registar e definir o salário.</div>
           ) : (
             <>
-              {/* Cartão do limite */}
-              <div className="adv-card">
-                <div className="adv-row"><span>Salário mensal</span><strong>{formatKz(lim?.monthlyPay ?? 0)}</strong></div>
-                {(lim?.outstanding ?? 0) > 0 ? (
-                  <div className="adv-row"><span>Já por descontar</span><strong>− {formatKz(lim?.outstanding ?? 0)}</strong></div>
-                ) : null}
-                <div className="adv-row big"><span>Disponível para pedir</span><strong>{formatKz(available)}</strong></div>
+              {/* Limite: indicadores + barra de utilização */}
+              <div className="erp-kpis">
+                <div className="erp-kpi"><span>Salário mensal</span><b>{formatKz(lim?.monthlyPay ?? 0)}</b></div>
+                <div className="erp-kpi"><span>Por descontar</span><b>{formatKz(lim?.outstanding ?? 0)}</b></div>
+                <div className="erp-kpi hi"><span>Disponível</span><b>{formatKz(available)}</b></div>
               </div>
+              <div className="erp-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.round(((lim?.outstanding ?? 0) / Math.max(lim?.monthlyPay ?? 1, 1)) * 100))}%` }} /></div>
+              <div className="erp-bar-l">{Math.min(100, Math.round(((lim?.outstanding ?? 0) / Math.max(lim?.monthlyPay ?? 1, 1)) * 100))}% do salário já comprometido</div>
 
               {/* Formulário */}
               <label className="adv-label">Valor do adiantamento</label>
@@ -118,7 +120,7 @@ export function SalaryAdvanceModal({ onClose }: { onClose(): void }) {
 
           {mine.length > 0 ? (
             <div className="consume-mine">
-              <strong style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>Os meus pedidos</strong>
+              <div className="erp-sec">Os meus pedidos <span>{mine.length}</span></div>
               {mine.map((a) => {
                 const s = STATUS[a.status] ?? { label: a.status, cls: 'muted' };
                 return (
