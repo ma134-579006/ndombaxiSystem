@@ -19,7 +19,7 @@ export function SyncStatusPill() {
   useEffect(() => subscribeSyncStatus(setStatus), []);
   if (!status) return null;
   // Tudo em ordem → não ocupa a barra (padrão ERP: só se avisa o que exige atenção).
-  if (status.link === 'ONLINE' && status.pending + status.blocked === 0 && !status.syncing) return null;
+  if (status.link === 'ONLINE' && status.pending + status.blocked === 0) return null;
 
   const meta = LABEL[status.link] ?? LABEL.OFFLINE;
   const pending = status.pending + status.blocked;

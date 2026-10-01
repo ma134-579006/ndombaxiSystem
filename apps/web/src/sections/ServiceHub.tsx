@@ -100,9 +100,6 @@ export function ServiceHub({ businessType, onGo }: { businessType: string; onGo(
       <div className="content-head">
         <h2>{v.label}</h2>
       </div>
-      <div className="card" style={{ marginBottom: 16 }}>
-        <p className="muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>{v.intro}</p>
-      </div>
 
       {/* KPIs do vertical (relatório rápido) */}
       {metrics && metrics.kpis.length > 0 ? (
