@@ -582,8 +582,15 @@ function sizedHeroImage(src: string): string {
   try {
     const u = new URL(src);
     if (u.hostname !== 'images.unsplash.com') return src;
+    // Largura que a foto (3:2) ocupa realmente em `cover` × densidade do ecrã (máx. 1,5),
+    // arredondada a tamanhos fixos (cache). Evita fotos desfocadas ou pesadas demais.
     const vw = typeof window !== 'undefined' ? window.innerWidth : 1440;
-    u.searchParams.set('w', String(vw <= 768 ? 900 : vw <= 1280 ? 1400 : 1920));
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 900;
+    const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
+    const narrow = vw < 768 || (vw < 1024 && vh > vw);
+    const layerH = narrow ? (vw < 768 ? Math.max(380, vw * 1.18) : vw * 0.82) : Math.min(880, vh);
+    const need = Math.max(vw, layerH * 1.5) * dpr;
+    u.searchParams.set('w', String([640, 900, 1200, 1600, 1920].find((s) => s >= need) ?? 1920));
     u.searchParams.set('q', '70');
     return u.toString();
   } catch { return src; }
