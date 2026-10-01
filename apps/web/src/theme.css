@@ -3213,7 +3213,7 @@ img.u-av { background: var(--surface-2); }
   .admin.nav-rail .main { margin-left: 76px; min-width: 0; flex: 1; }
   .admin.nav-rail .sidebar { position: absolute; top: 0; bottom: 0; left: 0; z-index: 70; width: 76px !important; overflow: hidden;
     transition: width .28s cubic-bezier(.2,.8,.2,1), box-shadow .28s ease; transition-delay: 0s; }
-  .admin.nav-rail .sidebar:hover, .admin.nav-rail .sidebar:focus-within { width: 264px !important; transition-delay: .08s;
+  .admin.nav-rail .sidebar:hover, .admin.nav-rail .sidebar:has(:focus-visible) { width: 264px !important; transition-delay: .08s;
     box-shadow: 24px 0 60px -24px rgba(7,11,22,.55), 1px 0 0 rgba(255,255,255,.04); }
   /* Marca: só o logótipo centrado; o nome surge ao abrir */
   .admin.nav-rail .sidebar .brand { padding: 16px 16px 14px; gap: 12px; flex-wrap: nowrap; }
@@ -3222,17 +3222,17 @@ img.u-av { background: var(--surface-2); }
   .admin.nav-rail .sidebar .nav-label,
   .admin.nav-rail .sidebar .nav-group-head > svg:last-child,
   .admin.nav-rail .sidebar .sig { opacity: 0; transform: translateX(-6px); transition: opacity .18s ease, transform .22s ease; white-space: nowrap; pointer-events: none; }
-  .admin.nav-rail .sidebar:hover .brand-tx, .admin.nav-rail .sidebar:focus-within .brand-tx,
-  .admin.nav-rail .sidebar:hover .nav-label, .admin.nav-rail .sidebar:focus-within .nav-label,
-  .admin.nav-rail .sidebar:hover .nav-group-head > svg:last-child, .admin.nav-rail .sidebar:focus-within .nav-group-head > svg:last-child,
-  .admin.nav-rail .sidebar:hover .sig, .admin.nav-rail .sidebar:focus-within .sig { opacity: 1; transform: none; transition-delay: .12s; pointer-events: auto; }
+  .admin.nav-rail .sidebar:hover .brand-tx, .admin.nav-rail .sidebar:has(:focus-visible) .brand-tx,
+  .admin.nav-rail .sidebar:hover .nav-label, .admin.nav-rail .sidebar:has(:focus-visible) .nav-label,
+  .admin.nav-rail .sidebar:hover .nav-group-head > svg:last-child, .admin.nav-rail .sidebar:has(:focus-visible) .nav-group-head > svg:last-child,
+  .admin.nav-rail .sidebar:hover .sig, .admin.nav-rail .sidebar:has(:focus-visible) .sig { opacity: 1; transform: none; transition-delay: .12s; pointer-events: auto; }
   /* Ícones alinhados no centro do rail (posição fixa — não saltam ao abrir) */
   .admin.nav-rail .sidebar .nav { padding-left: 12px; padding-right: 12px; }
   .admin.nav-rail .sidebar .nav button, .admin.nav-rail .sidebar .nav-group-head { padding-left: 15px; padding-right: 12px; gap: 14px; }
   .admin.nav-rail .sidebar .nav button svg, .admin.nav-rail .sidebar .nav-group-head svg { flex: none; }
   /* Sub-opções só com a barra aberta */
-  .admin.nav-rail .sidebar:not(:hover):not(:focus-within) .nav-sub { display: none; }
-  .admin.nav-rail .sidebar:not(:hover):not(:focus-within) .nav-group-head.has-active { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); }
+  .admin.nav-rail .sidebar:not(:hover):not(:has(:focus-visible)) .nav-sub { display: none; }
+  .admin.nav-rail .sidebar:not(:hover):not(:has(:focus-visible)) .nav-group-head.has-active { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); }
 }
 @media (min-width: 901px) and (prefers-reduced-motion: reduce) {
   .admin.nav-rail .sidebar, .admin.nav-rail .sidebar * { transition: none !important; }
@@ -3286,14 +3286,14 @@ img.u-av { background: var(--surface-2); }
 /* Barra lateral: ao abrir EMPURRA as páginas (não as tapa) — só com rato; em toque continua por cima */
 @media (min-width: 901px) and (hover: hover) and (pointer: fine) {
   .admin.nav-rail .main { transition: margin-left .28s cubic-bezier(.2,.8,.2,1); }
-  .admin.nav-rail:has(.sidebar:hover) .main, .admin.nav-rail:has(.sidebar:focus-within) .main { margin-left: 264px; transition-delay: .08s; }
-  .admin.nav-rail .sidebar:hover, .admin.nav-rail .sidebar:focus-within { box-shadow: 1px 0 0 var(--border); }
+  .admin.nav-rail:has(.sidebar:hover) .main, .admin.nav-rail:has(.sidebar:has(:focus-visible)) .main { margin-left: 264px; transition-delay: .08s; }
+  .admin.nav-rail .sidebar:hover, .admin.nav-rail .sidebar:has(:focus-visible) { box-shadow: 1px 0 0 var(--border); }
 }
 /* Scroll discreto: só existe quando há conteúdo a mais e só se vê ao passar o rato */
 .content, .nav, .modal, .sc-body, .chat-box, .rt-menu { scrollbar-width: thin; scrollbar-color: transparent transparent; }
 .content:hover, .nav:hover, .modal:hover, .sc-body:hover, .chat-box:hover, .rt-menu:hover { scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
 .nav, .sidebar .nav { overflow-x: hidden; }
-@media (min-width: 901px) { .admin.nav-rail .sidebar:not(:hover):not(:focus-within) .nav { overflow-y: hidden; } }
+@media (min-width: 901px) { .admin.nav-rail .sidebar:not(:hover):not(:has(:focus-visible)) .nav { overflow-y: hidden; } }
 
 /* Lista em cartões (ordens de serviço, reservas): ícone, texto, valor e estado com cor */
 .rc-list { display: flex; flex-direction: column; gap: 10px; }
