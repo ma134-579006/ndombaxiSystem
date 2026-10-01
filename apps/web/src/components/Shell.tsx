@@ -391,9 +391,6 @@ export function Shell({
   const flat = nav.flatMap((n) => (n.children ? n.children : [n]));
   const current = flat.find((n) => n.key === section);
   const [menuOpen, setMenuOpen] = useState(false);
-  // Barra lateral recolhida (só ícones) — preferência guardada neste dispositivo.
-  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('ndombaxi.nav.collapsed') === '1'; } catch { return false; } });
-  const toggleCollapsed = () => setCollapsed((v) => { const n = !v; try { localStorage.setItem('ndombaxi.nav.collapsed', n ? '1' : '0'); } catch { /* indisponível */ } if (n) setOpenGroups({}); return n; });
   // Grupos abertos (abre automaticamente o que contém a secção activa).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -434,21 +431,15 @@ export function Shell({
   }, [openGroups]);
 
   return (
-    <div className={`admin${collapsed ? ' nav-collapsed' : ''}`}>
+    <div className="admin nav-rail">
       {menuOpen ? <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} /> : null}
-      <aside ref={asideRef} className={`sidebar${menuOpen ? ' open' : ''}`}>
+      <aside ref={asideRef} className={`sidebar${menuOpen ? ' open' : ''}`} onMouseLeave={() => setOpenGroups({})}>
         <div className="brand">
           <img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
           <div className="brand-tx">
             <div className="nm">{brandName}</div>
             <div className="tg">{subtitle}</div>
           </div>
-          <button type="button" className="nav-collapse" onClick={toggleCollapsed}
-            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'} title={collapsed ? 'Expandir menu' : 'Recolher menu'} aria-pressed={collapsed}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16" /><path d={collapsed ? 'M13 10l2 2-2 2' : 'M16 10l-2 2 2 2'} />
-            </svg>
-          </button>
         </div>
         <nav className="nav">
           {nav.map((n) => {
@@ -460,10 +451,8 @@ export function Shell({
                 <div key={n.key} className="nav-group">
                   <button
                     className={`nav-group-head${hasActive ? ' has-active' : ''}`}
-                    title={collapsed ? n.label : undefined}
+                    title={n.label}
                     onClick={() => {
-                      // Recolhida: abre a barra já com o grupo aberto (as sub-opções precisam de texto).
-                      if (collapsed) { setCollapsed(false); try { localStorage.setItem('ndombaxi.nav.collapsed', '0'); } catch { /* */ } setOpenGroups({ [n.key]: true }); return; }
                       setOpenGroups((p) => (p[n.key] ? {} : { [n.key]: true }));
                     }}
                   >
@@ -493,8 +482,7 @@ export function Shell({
               <button
                 key={n.key}
                 className={section === n.key ? 'active' : ''}
-                title={collapsed ? n.label : undefined}
-                aria-label={collapsed ? n.label : undefined}
+                title={n.label}
                 onClick={() => setSection(n.key)}
               >
                 <Icon size={18} /> <span className="nav-label">{n.label}</span>

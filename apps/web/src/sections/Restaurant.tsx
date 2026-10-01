@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
+import { IVA_RATE } from '../api/types';
 import type { ManagerProduct, RecipeIngredient, RestaurantKitchenItem, RestaurantOrderDetail, RestaurantSalesReport, RestaurantTableMapRow } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
@@ -112,28 +113,37 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
         tables.length === 0 ? (
           <div className="card"><div className="empty"><p>Sem mesas. Cria a primeira mesa.</p></div></div>
         ) : (
-          <div className="pgrid">
-            {tables.map((t) => {
-              const occupied = !!t.order_id;
-              return (
-                <button key={t.id} className={`pcard${occupied ? ' sel' : ''}`} onClick={() => void openTable(t)} disabled={busy}
-                  style={{ textAlign: 'left', cursor: 'pointer' }}>
-                  <div className="thumb" style={{ fontSize: 28, display: 'grid', placeItems: 'center', background: occupied ? 'color-mix(in srgb, var(--warning) 18%, transparent)' : 'color-mix(in srgb, var(--success) 14%, transparent)' }}>
-                    <span className="ui-dot" style={{ background: occupied ? '#ca8a04' : '#16a34a' }} aria-hidden="true" />
-                  </div>
-                  <div className="pinfo">
-                    <div className="pname">{t.name}</div>
-                    <div className="pcode">{t.area ? `${t.area} · ` : ''}{t.seats} lugares</div>
-                    <div className="pfoot">
-                      {occupied
-                        ? <><span className="pprice">{KZ(t.order_total ?? 0)}</span><span className="pill off">Ocupada · {t.opened_at_label}</span></>
-                        : <span className="pill on">Livre</span>}
+          <>
+            <div className="rt-summary">
+              <span className="rt-chip free"><i /> {tables.filter((t) => !t.order_id).length} livres</span>
+              <span className="rt-chip busy"><i /> {tables.filter((t) => !!t.order_id).length} ocupadas</span>
+              <span className="rt-chip">Em aberto <b>{KZ(tables.reduce((sum, t) => sum + Number(t.order_total ?? 0), 0))}</b></span>
+            </div>
+            <div className="rt-grid">
+              {tables.map((t) => {
+                const occupied = !!t.order_id;
+                return (
+                  <button key={t.id} className={`rt-table${occupied ? ' busy' : ' free'}`} onClick={() => void openTable(t)} disabled={busy}
+                    aria-label={`${t.name} — ${occupied ? 'ocupada' : 'livre'}`}>
+                    <div className="rt-top">
+                      <span className="rt-num">{t.code || t.name.replace(/\D+/g, '') || '—'}</span>
+                      <span className="rt-state">{occupied ? 'Ocupada' : 'Livre'}</span>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                    <div className="rt-name">{t.name}</div>
+                    <div className="rt-meta">
+                      <UiIcon e="users" size={14} /> {occupied && t.guests ? `${t.guests}/${t.seats}` : `${t.seats} lugares`}
+                      {t.area ? <span className="rt-area">· {t.area}</span> : null}
+                    </div>
+                    <div className="rt-foot">
+                      {occupied
+                        ? <><span className="rt-total">{KZ(t.order_total ?? 0)}</span><span className="rt-time"><UiIcon e="clock" size={13} /> {t.opened_at_label}</span></>
+                        : <span className="rt-open">Abrir comanda</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -161,10 +171,12 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
                 value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar prato/produto para lançar…" />
             </div>
           </div>
-          <div className="pgrid" style={{ maxHeight: 'calc(26vh / var(--uz, 1))', overflowY: 'auto', marginBottom: 12 }}>
+          <div className="rt-menu">
             {filtered.map((p) => (
-              <button key={p.id} className="pcard" onClick={() => void addProduct(p.code)} style={{ cursor: 'pointer', textAlign: 'left' }}>
-                <div className="pinfo"><div className="pname" style={{ fontSize: 13 }}>{p.name}</div><div className="pcode">{p.code}</div></div>
+              <button key={p.id} className="rt-dish" onClick={() => void addProduct(p.code)} title={`Lançar ${p.name}`}>
+                <span className="rt-dish-name">{p.name}</span>
+                <span className="rt-dish-price">{KZ(Number(p.unit_price) * (1 + (IVA_RATE[p.iva_code] ?? 0) / 100))}</span>
+                <span className="rt-dish-add" aria-hidden="true"><IconPlus size={14} /></span>
               </button>
             ))}
           </div>
