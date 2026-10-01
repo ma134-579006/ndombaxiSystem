@@ -3,6 +3,7 @@ import type { PaymentType } from '../api/types';
 import { formatKz } from '../format';
 import { IconClose } from './Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
+import { UiIcon } from './UiIcon';
 
 interface Props {
   total: number;
@@ -13,13 +14,13 @@ interface Props {
   busy?: boolean;
 }
 
-const METHODS: { type: PaymentType; label: string }[] = [
-  { type: 'CASH', label: 'Numerário' },
-  { type: 'CARD', label: 'Multicaixa (TPA)' },
-  { type: 'TRANSFER', label: 'Transferência' },
-  { type: 'REFERENCE', label: 'Referência' },
-  { type: 'EXPRESS', label: 'Express' },
-  { type: 'CREDIT', label: 'A crédito (fiado)' },
+const METHODS: { type: PaymentType; label: string; icon: string }[] = [
+  { type: 'CASH', label: 'Numerário', icon: 'money' },
+  { type: 'CARD', label: 'Multicaixa (TPA)', icon: 'card' },
+  { type: 'TRANSFER', label: 'Transferência', icon: 'building' },
+  { type: 'REFERENCE', label: 'Referência', icon: 'receipt' },
+  { type: 'EXPRESS', label: 'Express', icon: 'phone' },
+  { type: 'CREDIT', label: 'A crédito (fiado)', icon: 'clock' },
 ];
 
 /** Selecção do método + (numerário) dinheiro entregue → troco automático. */
@@ -62,8 +63,9 @@ export function PaymentModal({ total, customerName, onConfirm, onClose, busy }: 
 
         <div className="pay-methods">
           {METHODS.map((m) => (
-            <button key={m.type} className={`pay-method${type === m.type ? ' on' : ''}`} onClick={() => setType(m.type)}>
-              {m.label}
+            <button key={m.type} className={`pay-method${type === m.type ? ' on' : ''}`} onClick={() => setType(m.type)} aria-pressed={type === m.type}>
+              <UiIcon e={m.icon} size={20} className="pay-ic" />
+              <span>{m.label}</span>
             </button>
           ))}
         </div>
