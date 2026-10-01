@@ -856,3 +856,9 @@ img.u-av { background: var(--surface-2); }
 .ax-card-img.mono { display: grid; place-items: center; background: color-mix(in srgb, var(--mono, #2430E8) 10%, #fff); }
 .ax-mono { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; color: #fff; font-size: 22px; font-weight: 700;
   letter-spacing: .02em; background: var(--mono, #2430E8); box-shadow: 0 10px 22px -12px var(--mono, #2430E8); }
+
+/* Carregamento progressivo do catálogo */
+.ax-more { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 22px 0 8px; font-size: 13px; color: var(--muted); }
+.ax-more-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent, #2430e8) 25%, transparent); border-top-color: var(--accent, #2430e8); animation: ax-rot .7s linear infinite; }
+@keyframes ax-rot { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ax-more-spin { animation: none; } }

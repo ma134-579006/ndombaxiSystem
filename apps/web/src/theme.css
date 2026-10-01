@@ -3237,3 +3237,13 @@ img.u-av { background: var(--surface-2); }
   background: var(--bg); padding-top: 10px; padding-bottom: 10px; margin-top: -10px;
   box-shadow: 0 10px 14px -14px rgba(15,23,42,.45); }
 .content .toolbar-sticky { background: var(--surface); padding-top: 0; padding-bottom: 0; margin-top: 0; }
+
+/* Rail em ecrãs TÁTEIS (tablet/portátil com toque, sem «passar o rato»): o botão ☰ volta
+   a aparecer e abre a barra completa por cima do conteúdo — igual ao telemóvel. */
+@media (min-width: 901px) and (hover: none), (min-width: 901px) and (pointer: coarse) {
+  .menu-toggle { display: inline-flex !important; }
+  .admin.nav-rail .sidebar.open { width: 264px !important; z-index: 100; box-shadow: 24px 0 60px -24px rgba(7,11,22,.55); }
+  .admin.nav-rail .sidebar.open .brand-tx, .admin.nav-rail .sidebar.open .nav-label,
+  .admin.nav-rail .sidebar.open .nav-group-head > svg:last-child, .admin.nav-rail .sidebar.open .sig { opacity: 1; transform: none; pointer-events: auto; }
+  .admin.nav-rail .sidebar.open .nav-sub { display: flex !important; }
+}

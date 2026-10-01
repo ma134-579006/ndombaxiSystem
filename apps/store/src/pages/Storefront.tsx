@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ProgressiveGrid } from '../components/ProgressiveGrid';
 import type { CatalogProduct, CheckoutResult, PaymentMethod } from '../api/types';
 import { api } from '../api/client';
 import { copyrightLine } from '../brand';
@@ -381,9 +382,7 @@ export function Storefront() {
             {products.length === 0 ? (
               <div className="empty"><IconImage size={48} /><p>A loja ainda não tem produtos visíveis.</p></div>
             ) : (
-              <div className="ax-grid">
-                {products.map((p) => <ProductCard key={p.code} product={p} onOpen={openProduct} onAdd={(x) => addWithToast(x)} />)}
-              </div>
+              <ProgressiveGrid items={products} render={(p) => <ProductCard key={p.code} product={p} onOpen={openProduct} onAdd={(x) => addWithToast(x)} />} />
             )}
           </section>
         </div>
@@ -424,9 +423,7 @@ export function Storefront() {
         {results.length === 0 ? (
           <div className="empty"><IconImage size={48} /><p>Nenhum produto encontrado.</p></div>
         ) : (
-          <div className="ax-grid">
-            {results.map((p) => <ProductCard key={p.code} product={p} onOpen={openProduct} onAdd={(x) => addWithToast(x)} />)}
-          </div>
+          <ProgressiveGrid items={results} render={(p) => <ProductCard key={p.code} product={p} onOpen={openProduct} onAdd={(x) => addWithToast(x)} />} />
         )}
       </div>
 
