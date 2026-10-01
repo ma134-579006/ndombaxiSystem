@@ -2998,3 +2998,16 @@ img.u-av { background: var(--surface-2); }
   .fx-stat { padding: 14px; } .fx-stat .ic { top: 12px; right: 12px; width: 30px; height: 30px; }
   .fx-stat .lb { padding-right: 36px; font-size: 12px; min-height: 30px; } .fx-stat .vl { font-size: 19px; }
 }
+
+/* Grelhas com 4 indicadores: 4 colunas ou 2×2 — nunca 3 + 1 sozinho */
+@media (min-width: 641px) { .kpi-grid:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+@media (min-width: 1180px) { .kpi-grid:has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; } }
+/* Cartões de acção dos centros de comando: compactos (ícone + texto + seta), o cartão inteiro é o botão */
+.pcard:has(> .thumb.ui-thumb) { display: grid !important; grid-template-columns: 44px minmax(0, 1fr) 18px; gap: 14px; align-items: center; padding: 16px !important; min-height: 0 !important; }
+.pcard > .thumb.ui-thumb { width: 44px !important; height: 44px !important; aspect-ratio: auto !important; border-radius: 12px !important; margin: 0 !important; padding: 0 !important; }
+.pcard:has(> .thumb.ui-thumb) .pinfo { padding: 0 !important; min-width: 0; }
+.pcard:has(> .thumb.ui-thumb) .pname { font-size: 14.5px; font-weight: 650; margin: 0 0 2px; }
+.pcard:has(> .thumb.ui-thumb) .pcode { font-size: 12.5px; line-height: 1.4; color: var(--muted); white-space: normal; }
+.pcard:has(> .thumb.ui-thumb) .pfoot { display: none !important; }
+.pcard:has(> .thumb.ui-thumb)::after { content: ''; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-top: 2px solid var(--muted); transform: rotate(45deg); justify-self: center; }
+.pcard:has(> .thumb.ui-thumb):hover::after { border-color: var(--primary); }
