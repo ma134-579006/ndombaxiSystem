@@ -43,7 +43,7 @@ export function initScrollReveal(): void {
         if (e.isIntersecting) {
           // Blocos mais altos que o ecrã nunca se escondem.
           if (e.boundingClientRect.height > window.innerHeight * 0.85) { h.dataset.reveal = 'in'; io?.unobserve(h); continue; }
-          h.style.setProperty('--rd', `${Math.min(n++, 7) * 55}ms`);
+          h.style.setProperty('--rd', `${Math.min(n++, 8) * 90}ms`);
           h.dataset.reveal = 'in';
         } else if (h.dataset.reveal === 'in') {
           // Saiu totalmente do ecrã: prepara a próxima entrada com outro efeito.

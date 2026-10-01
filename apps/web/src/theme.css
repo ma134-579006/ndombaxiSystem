@@ -813,7 +813,7 @@ html.kbd-open .login .box > p { display: none; }
 /* Ecrãs muito grandes (4K / ultrawide) NO SITE: conteúdo centrado, não estica
    de mais — num navegador maximizado, linhas de texto de 2500px não se leem. */
 @media (min-width: 1700px) {
-  .content { max-width: 1640px; margin-inline: auto; width: 100%; }
+  .content { max-width: none; width: 100%; }
 }
 
 /* Na APLICAÇÃO INSTALADA a regra é outra: OCUPAR O ECRÃ TODO.
@@ -841,18 +841,18 @@ html.kbd-open .login .box > p { display: none; }
 /* ── SCROLL-FX: blocos entram/saem ao rolar (variam a cada vez) ───────────────
    Só atua sob .reveal-ready; sem JS nada fica escondido. */
 .reveal-ready [data-reveal] {
-  --e: cubic-bezier(.16, 1, .3, 1);
-  transition: opacity .55s var(--e) var(--rd, 0s), translate .6s var(--e) var(--rd, 0s), scale .6s var(--e) var(--rd, 0s), rotate .6s var(--e) var(--rd, 0s),
+  --e: cubic-bezier(.19, 1, .22, 1);
+  transition: opacity 1s var(--e) var(--rd, 0s), translate 1.15s var(--e) var(--rd, 0s), scale 1.15s var(--e) var(--rd, 0s), rotate 1.15s var(--e) var(--rd, 0s), filter .9s ease-out var(--rd, 0s),
     box-shadow .15s, transform .12s, background-color .15s, border-color .15s;
 }
 .reveal-ready [data-reveal="out"] { opacity: 0; }
-.reveal-ready [data-reveal="out"][data-fx="up"] { translate: 0 30px; }
-.reveal-ready [data-reveal="out"][data-fx="down"] { translate: 0 -24px; }
-.reveal-ready [data-reveal="out"][data-fx="left"] { translate: -28px 0; }
-.reveal-ready [data-reveal="out"][data-fx="right"] { translate: 28px 0; }
-.reveal-ready [data-reveal="out"][data-fx="zoom"] { scale: .9; }
-.reveal-ready [data-reveal="out"][data-fx="tilt"] { translate: 0 22px; rotate: 1.4deg; scale: .96; }
-.reveal-ready [data-reveal="in"] { opacity: 1; translate: none; scale: none; rotate: none; }
+.reveal-ready [data-reveal="out"][data-fx="up"] { translate: 0 64px; }
+.reveal-ready [data-reveal="out"][data-fx="down"] { translate: 0 -48px; }
+.reveal-ready [data-reveal="out"][data-fx="left"] { translate: -64px 0; }
+.reveal-ready [data-reveal="out"][data-fx="right"] { translate: 64px 0; }
+.reveal-ready [data-reveal="out"][data-fx="zoom"] { scale: .82; filter: blur(5px); }
+.reveal-ready [data-reveal="out"][data-fx="tilt"] { translate: 0 44px; rotate: 2.6deg; scale: .93; filter: blur(4px); }
+.reveal-ready [data-reveal="in"] { opacity: 1; translate: none; scale: none; rotate: none; filter: none; }
 @media (prefers-reduced-motion: reduce), print {
   .reveal-ready [data-reveal] { opacity: 1 !important; translate: none !important; scale: none !important; rotate: none !important; transition: none; }
 }
