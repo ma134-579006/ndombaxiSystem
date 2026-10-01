@@ -3156,3 +3156,33 @@ img.u-av { background: var(--surface-2); }
 .content-head h2 > svg:first-child { display: none; }
 /* Separadores do Inventário como controlo segmentado */
 .inv-tabs { margin-bottom: 16px; }
+
+/* ════════════════════════════════════════════════════════════
+   BARRA LATERAL RECOLHÍVEL (só ícones) — botão no topo, ao lado da marca.
+   ════════════════════════════════════════════════════════════ */
+.sidebar { transition: width .22s cubic-bezier(.2,.7,.3,1); }
+.sidebar .brand { position: relative; }
+.sidebar .brand-tx { min-width: 0; flex: 1; }
+.sidebar .brand-tx .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-collapse { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface); color: var(--muted); transition: color .15s, border-color .15s, background-color .15s; }
+.nav-collapse:hover { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
+.nav-collapse:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+@media (min-width: 901px) {
+  .admin.nav-collapsed .sidebar { width: 76px !important; }
+  .admin.nav-collapsed .sidebar .brand { flex-direction: column; gap: 10px; padding: 16px 0 12px; }
+  .admin.nav-collapsed .sidebar .brand img { width: 44px; height: 44px; }
+  .admin.nav-collapsed .sidebar .brand-tx,
+  .admin.nav-collapsed .sidebar .nav-label,
+  .admin.nav-collapsed .sidebar .nav-group-head > svg:last-child,
+  .admin.nav-collapsed .sidebar .nav-sub,
+  .admin.nav-collapsed .sidebar .sig { display: none !important; }
+  .admin.nav-collapsed .sidebar .nav { padding-left: 10px; padding-right: 10px; }
+  .admin.nav-collapsed .sidebar .nav button,
+  .admin.nav-collapsed .sidebar .nav-group-head { justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+  .admin.nav-collapsed .sidebar .nav button svg,
+  .admin.nav-collapsed .sidebar .nav-group-head svg { flex: none; }
+  .admin.nav-collapsed .sidebar .nav-group-head.has-active { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--primary); }
+}
+@media (max-width: 900px) { .nav-collapse { display: none; } }
+@media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
