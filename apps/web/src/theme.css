@@ -2915,3 +2915,84 @@ img.u-av { background: var(--surface-2); }
 .lock-screen.v3 .lock-hint { position: absolute; bottom: 18px; font-size: 12px; opacity: .5; }
 @media (max-height: 620px) { .lock-screen.v3 .lock-clock { margin-top: 64px; } .lock-screen.v3 .lock-time { font-size: 56px; } .lock-screen.v3 .lock-hint { display: none; } }
 @media (prefers-reduced-motion: reduce) { .lock-screen.v3 .lock-spin { animation: none; } }
+
+/* ════════════════════════════════════════════════════════════
+   KPI v4 + VISÃO GERAL — estilo SaaS moderno: sem bolhas desfocadas nem
+   gradientes; rótulo discreto, valor grande com algarismos tabulares,
+   ícone tonal pequeno no canto, cartões planos com borda fina.
+   ════════════════════════════════════════════════════════════ */
+.kpi-grid { gap: 14px; }
+.kpi-card, .kpi-grid .kpi-card { position: relative; overflow: hidden; padding: 18px 18px 16px !important; border-radius: 14px !important;
+  background: var(--surface) !important; border: 1px solid var(--border) !important;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04) !important; transform: none !important; animation: none !important; }
+.kpi-card::before, .kpi-card::after { content: none !important; display: none !important; }
+.kpi-card:hover { transform: none !important; border-color: color-mix(in srgb, var(--primary) 30%, var(--border)) !important; box-shadow: 0 6px 20px -12px rgba(15,23,42,.25) !important; }
+.kpi-card .kpi-ic { position: absolute; top: 16px; right: 16px; width: 34px; height: 34px; margin: 0 !important; border-radius: 10px;
+  box-shadow: none !important; color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent) !important; }
+.kpi-card .kpi-ic svg { width: 18px; height: 18px; }
+.kpi-card.success .kpi-ic { color: #16a34a; background: rgba(22,163,74,.1) !important; }
+.kpi-card.warning .kpi-ic { color: #ca8a04; background: rgba(202,138,4,.12) !important; }
+.kpi-card.danger .kpi-ic { color: #dc2626; background: rgba(220,38,38,.09) !important; }
+.kpi-card.violet .kpi-ic { color: #7c3aed; background: rgba(124,58,237,.1) !important; }
+.kpi-card .kpi-label { padding-right: 46px; font-size: 13px !important; font-weight: 500 !important; text-transform: none !important; letter-spacing: 0 !important;
+  opacity: 1 !important; color: var(--muted); line-height: 1.35; min-height: 34px; display: flex; align-items: center; }
+.kpi-card .kpi-value { margin: 8px 0 4px !important; font-size: clamp(22px, 2.2vw, 28px) !important; font-weight: 650 !important; letter-spacing: -.02em;
+  color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi-card .kpi-sub { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+
+/* Cabeçalho, período e secções da Visão geral */
+.profit-page .content-head { align-items: center; gap: 12px; margin-bottom: 16px; padding: 0; background: none; border: 0; }
+.profit-page .content-head h2 { font-size: clamp(22px, 2.4vw, 26px); font-weight: 650; letter-spacing: -.02em; margin: 0; }
+.ov-live { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  color: #15803d; background: rgba(22,163,74,.08); border: 1px solid rgba(22,163,74,.18); }
+.ov-live-t { color: var(--muted); font-weight: 500; }
+.ov-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.ov-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--border); overflow-x: auto; max-width: 100%; }
+.ov-seg button { flex: none; height: 32px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent; color: var(--muted);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background-color .15s, color .15s; }
+.ov-seg button:hover { color: var(--text); }
+.ov-seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(15,23,42,.08), 0 0 0 1px var(--border); }
+.ov-seg button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.profit-page .card { border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+.profit-page .card h3 { font-size: 15px; font-weight: 650; letter-spacing: -.01em; margin: 0 0 14px; color: var(--text); }
+.ov-empty, .profit-page .card .empty p.muted, .profit-page .card > p.muted { margin: 0; padding: 28px 12px; text-align: center; font-size: 13px;
+  color: var(--muted); background: var(--surface-2); border: 1px dashed var(--border); border-radius: 12px; }
+.profit-page .card .empty { padding: 0; }
+@media (max-width: 640px) {
+  .kpi-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+  .kpi-card, .kpi-grid .kpi-card { padding: 14px 14px 12px !important; }
+  .kpi-card .kpi-ic { top: 12px; right: 12px; width: 30px; height: 30px; }
+  .kpi-card .kpi-label { padding-right: 36px; font-size: 12px !important; min-height: 30px; }
+  .kpi-card .kpi-value { font-size: 19px !important; }
+  .profit-page .card { padding: 16px; }
+}
+
+/* ── Mesmo estilo moderno em TODAS as páginas do painel ── */
+.content-head { align-items: center; gap: 12px; }
+.content-head h2 { font-size: clamp(22px, 2.4vw, 26px); font-weight: 650; letter-spacing: -.02em; }
+.content .card { border-radius: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+.content .card > h3, .content .card .row > h3 { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+/* Chips de filtro/período: activo discreto (sem gradiente) */
+.chip { font-weight: 600; transition: background-color .15s, color .15s, border-color .15s; }
+.chip.active { background: color-mix(in srgb, var(--primary) 10%, var(--surface)); color: var(--primary); border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); box-shadow: none; }
+/* Estados vazios */
+.content .empty { color: var(--muted); }
+.content .empty p { margin: 6px 0 0; font-size: 13.5px; }
+/* Cartões de estatística das páginas (Produtos, Stock, Equipa…) = mesmo desenho dos KPIs */
+.fx-stat { position: relative; display: block; padding: 18px 18px 16px; border-radius: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+.fx-stat .ic { position: absolute; top: 16px; right: 16px; width: 34px; height: 34px; border-radius: 10px; background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.fx-stat .ic svg { width: 18px; height: 18px; }
+.fx-stat .lb { padding-right: 46px; min-height: 34px; display: flex; align-items: center; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.fx-stat .vl { margin-top: 8px; font-size: clamp(20px, 2vw, 26px); font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.fx-stat .sb { margin-top: 4px; }
+/* Mosaicos dos centros de comando (restaurante, hotel, clínica) */
+.ui-tile { padding: 16px 18px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+.ui-tile-l { font-size: 13px; font-weight: 500; color: var(--muted); }
+.ui-tile-v { margin: 6px 0 2px; font-size: clamp(20px, 2vw, 26px); font-weight: 650; letter-spacing: -.02em; color: var(--text); font-variant-numeric: tabular-nums; }
+.ui-tile.info .ui-tile-v { color: var(--primary); }
+.ui-tile.warn .ui-tile-v { color: #b45309; }
+.ui-tile-h { font-size: 12.5px; color: var(--muted); }
+@media (max-width: 640px) {
+  .fx-stat { padding: 14px; } .fx-stat .ic { top: 12px; right: 12px; width: 30px; height: 30px; }
+  .fx-stat .lb { padding-right: 36px; font-size: 12px; min-height: 30px; } .fx-stat .vl { font-size: 19px; }
+}

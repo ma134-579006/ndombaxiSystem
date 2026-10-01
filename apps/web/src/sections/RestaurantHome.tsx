@@ -154,10 +154,10 @@ function Channel({ icon, label, value }: { icon: string; label: string; value: s
 
 function Tile({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: 'info' | 'warn' }) {
   return (
-    <div className="card" style={{ padding: '12px 14px' }}>
-      <div className="muted" style={{ fontSize: 12.5 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, margin: '2px 0', color: tone === 'warn' ? 'var(--warning)' : tone === 'info' ? 'var(--primary)' : 'var(--text)' }}>{value}</div>
-      {hint ? <div className="muted" style={{ fontSize: 11.5 }}>{hint}</div> : null}
+    <div className={`ui-tile${tone ? ' ' + tone : ''}`}>
+      <div className="ui-tile-l">{label}</div>
+      <div className="ui-tile-v">{value}</div>
+      {hint ? <div className="ui-tile-h">{hint}</div> : null}
     </div>
   );
 }
