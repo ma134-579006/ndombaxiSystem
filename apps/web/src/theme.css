@@ -3315,3 +3315,14 @@ img.u-av { background: var(--surface-2); }
 .rc-time { min-width: 56px; padding: 9px 10px; border-radius: 11px; text-align: center; font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--sc); background: color-mix(in srgb, var(--sc) 12%, transparent); }
 .rc-av { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px; color: #fff; background: linear-gradient(145deg, var(--sc), color-mix(in srgb, var(--sc) 55%, #7c3aed)); }
 .rc-btn { background: transparent; border: none; padding: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; min-width: 0; }
+
+/* Listas dentro de cartões (hospital, convénios, receitas, exames…): ritmo, hover e cantos coerentes */
+.card:has(> .list-row) { border-radius: 14px; padding: 6px !important; }
+.card:has(> .list-row) > .list-row { padding: 12px 14px !important; border-radius: 10px; border-top: 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent) !important; }
+.card:has(> .list-row) > .list-row:last-child { border-bottom: 0 !important; }
+.card:has(> .list-row) > .list-row:hover { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.card:has(> .list-row) > .list-row strong { font-size: 14px; }
+.card:has(> .list-row) > .list-row .pill { font-weight: 700; }
+/* Leitos: mosaicos mais legíveis */
+.pgrid > .pcard[style*="border-top: 4px"], .pgrid > .pcard[style*="border-top:4px"] { border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,42,.04); transition: transform .12s, box-shadow .15s; }
+.pgrid > .pcard[style*="border-top: 4px"]:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -16px rgba(15,23,42,.4); }
