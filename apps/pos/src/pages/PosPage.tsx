@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { UserAvatar, displayName } from '../components/UserAvatar';
 import { api, ApiError } from '../api/client';
 import type { CashSession, Customer, DocumentIdentity, EmittedInvoice, PaymentType, Product, ReceiptFiscalInfo } from '../api/types';
 import { IVA_RATE } from '../api/types';
@@ -94,53 +95,85 @@ function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustCha
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+  const shown = displayName(name, email);
+  const go = (fn: () => void) => () => { setOpen(false); fn(); };
   return (
-    <div ref={ref} className="op-menu">
-      <button className="op-menu-btn" onClick={() => setOpen((v) => !v)} title={name} aria-label="Conta do operador">
-        {photo ? <img className="op-avatar" src={photo} alt={name} />
-          : <span className="op-avatar op-avatar-ph"><IconUser size={18} /></span>}
+    <div ref={ref} className="op-menu acct2">
+      <button className={`acct2-btn${open ? ' open' : ''}`} onClick={() => setOpen((v) => !v)} title={shown}
+        aria-label={`Conta de ${shown}`} aria-haspopup="menu" aria-expanded={open}>
+        <UserAvatar photo={photo} name={shown} email={email} size={34} />
         {totalBadge > 0 ? <span className="op-badge">{totalBadge > 99 ? '99+' : totalBadge}</span> : null}
-        <span className={`op-caret${open ? ' up' : ''}`}>▾</span>
+        <MenuIcon d={OP_ICONS.chevron} size={15} className="acct2-caret" />
       </button>
       {open ? (
-        <div className="op-menu-pop">
-          <div className="op-menu-head">
-            {photo ? <img className="op-avatar lg" src={photo} alt={name} />
-              : <span className="op-avatar lg op-avatar-ph"><IconUser size={22} /></span>}
-            <div style={{ minWidth: 0 }}>
-              <div className="op-menu-name">{name}</div>
-              {email ? <div className="op-menu-email">{email}</div> : null}
-              <div className="op-menu-role">{role}</div>
+        <div className="acct2-pop" role="menu" aria-label="Conta">
+          <div className="acct2-head">
+            <UserAvatar photo={photo} name={shown} email={email} size={44} />
+            <div className="acct2-who">
+              <div className="acct2-name">{shown}</div>
+              {email ? <div className="acct2-email">{email}</div> : null}
             </div>
           </div>
-          <button className="op-menu-item" onClick={() => { setOpen(false); onChat(); }}>
-            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💬</span> Chat com gerente
-            {unread > 0 ? <span className="op-item-badge">{unread > 99 ? '99+' : unread}</span> : null}
-          </button>
-          {canCustChat ? (
-            <button className="op-menu-item" onClick={() => { setOpen(false); onCustChat(); }}>
-              <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛍️</span> Chat com clientes
-              {custUnread > 0 ? <span className="op-item-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
+          <div className="acct2-role">{role}</div>
+          <div className="acct2-group">
+            <button role="menuitem" className="acct2-item" onClick={go(onChat)}>
+              <MenuIcon d={OP_ICONS.chat} /> Chat com gerente
+              {unread > 0 ? <span className="op-item-badge">{unread > 99 ? '99+' : unread}</span> : null}
             </button>
-          ) : null}
-          <button className="op-menu-item" onClick={() => { setOpen(false); onSelfConsumption(); }}>
-            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🛒</span> Consumo próprio
-          </button>
-          <button className="op-menu-item" onClick={() => { setOpen(false); onSalaryAdvance(); }}>
-            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>💸</span> Adiantamento salário
-          </button>
-          <button className="op-menu-item" onClick={() => { setOpen(false); onDocumento(); }}>
-            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>📄</span> Documento
-          </button>
-          <button className="op-menu-item" onClick={() => { setOpen(false); window.dispatchEvent(new Event('ndx-lock')); }}>
-            <span style={{ fontSize: 16, width: 17, display: 'inline-grid', placeItems: 'center' }}>🔒</span> Bloquear
-          </button>
-          <button className="op-menu-item danger" onClick={() => { setOpen(false); onLogout(); }}>
-            <IconLogout size={17} /> Terminar sessão
-          </button>
+            {canCustChat ? (
+              <button role="menuitem" className="acct2-item" onClick={go(onCustChat)}>
+                <MenuIcon d={OP_ICONS.bag} /> Chat com clientes
+                {custUnread > 0 ? <span className="op-item-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
+              </button>
+            ) : null}
+          </div>
+          <div className="acct2-group">
+            <button role="menuitem" className="acct2-item" onClick={go(onSelfConsumption)}>
+              <MenuIcon d={OP_ICONS.cup} /> Consumo próprio
+            </button>
+            <button role="menuitem" className="acct2-item" onClick={go(onSalaryAdvance)}>
+              <MenuIcon d={OP_ICONS.banknote} /> Adiantamento salarial
+            </button>
+            <button role="menuitem" className="acct2-item" onClick={go(onDocumento)}>
+              <MenuIcon d={OP_ICONS.doc} /> Documento
+            </button>
+          </div>
+          <div className="acct2-group">
+            <button role="menuitem" className="acct2-item" onClick={go(() => window.dispatchEvent(new Event('ndx-lock')))}>
+              <MenuIcon d={OP_ICONS.lock} /> Bloquear ecrã
+            </button>
+            <button role="menuitem" className="acct2-item danger" onClick={go(onLogout)}>
+              <MenuIcon d={OP_ICONS.logout} /> Terminar sessão
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Ícones do menu da conta: traço único 1.75, 24×24. */
+const OP_ICONS = {
+  chevron: 'M6 9l6 6 6-6',
+  chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z',
+  bag: 'M6 7h12l1 13H5L6 7zM9 7a3 3 0 0 1 6 0',
+  cup: 'M5 8h11v6a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V8zM16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v2M11.5 3v2',
+  banknote: 'M3 6.5h18v11H3zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM6 9.5v.01M18 14.5v.01',
+  doc: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5zM14 3v5h5M9 13h6M9 17h6',
+  lock: 'M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3',
+  logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+} as const;
+
+function MenuIcon({ d, size = 18, className }: { d: string; size?: number; className?: string }) {
+  return (
+    <svg className={className ?? 'acct2-ic'} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
   );
 }
 
@@ -790,6 +823,7 @@ export function PosPage() {
               {kitchenReady > 0 ? <span className="conn-badge" style={{ background: '#e5484d' }}>{kitchenReady > 99 ? '99+' : kitchenReady}</span> : null}
             </button>
           ) : null}
+          {!sync.online || sync.syncing || sync.pending > 0 ? (
           <button
             className={`conn ${sync.online ? 'on' : 'off'}`}
             onClick={() => {
@@ -808,6 +842,7 @@ export function PosPage() {
             <span className="conn-label">{sync.online ? 'Online' : 'Offline'}</span>
             {sync.pending > 0 ? <span className="conn-badge">{sync.pending}</span> : null}
           </button>
+          ) : null}
           <button
             className={`icon-btn${kbd.enabled ? ' on' : ''}`}
             onClick={kbd.toggle}

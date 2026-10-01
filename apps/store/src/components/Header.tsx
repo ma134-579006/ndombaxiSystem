@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../state/StoreContext';
 import { cartCount } from '../store/cart';
 import { useCustomer } from '../store/customer';
+import { UserAvatar } from './UserAvatar';
 import { IconCart, IconSearch, IconStore } from './Icons';
 import { ThemePicker } from './ThemePicker';
 
@@ -78,9 +79,10 @@ export function Header({ onHome, onCart, onAccount, search, onSearchChange, onSe
           {onAccount ? (
             <button className={`ax-icon-btn${customer ? ' in' : ''}`} onClick={onAccount}
               title={customer ? customer.customer.name : 'Entrar / Minhas encomendas'} aria-label="Conta">
-              <IconUser size={22} />
+              {customer
+                ? <UserAvatar name={customer.customer.name} email={customer.customer.email} size={26} />
+                : <IconUser size={22} />}
               <span className="lbl">{customer ? 'Conta' : 'Entrar'}</span>
-              {customer ? <span className="dot" /> : null}
             </button>
           ) : null}
           <button className="ax-icon-btn cart" onClick={onCart} aria-label="Carrinho">

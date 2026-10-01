@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
+import { UserAvatar, displayName } from './UserAvatar';
 import { LOGO_SRC, SYSTEM_NAME } from '../brand';
 import { useAuth } from '../auth/AuthContext';
 import { isNativeApp } from '../offline/nativeShare';
@@ -135,8 +136,7 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
       </div>
 
       <div className="lock-card" onClick={(e) => e.stopPropagation()}>
-        {photo ? <img className="lock-av" src={photo} alt={name} />
-          : <span className="lock-av lock-av-ph">{(name || '?').slice(0, 1).toUpperCase()}</span>}
+        <UserAvatar photo={photo} name={displayName(name)} size={72} className="lock-av" />
         <div className="lock-name">{name}</div>
         <div className="lock-role">{role}</div>
 
