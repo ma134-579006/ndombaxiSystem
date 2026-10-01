@@ -52,26 +52,36 @@ export function Payroll() {
 
       {error ? <div className="banner danger">{error}</div> : null}
 
-      <div className="card">
-        <h3>Folhas processadas</h3>
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconReceipt size={20} /></span><div><div className="lb">Folhas processadas</div><div className="vl">{runs.length}</div><div className="sb">{runs.filter((r) => r.status === 'PAID').length} paga(s)</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Por pagar</div><div className="vl"><span className={`fx-dot${runs.some((r) => r.status === 'PROCESSED') ? ' bad' : ' ok'}`} />{formatKz(runs.filter((r) => r.status === 'PROCESSED').reduce((t, r) => t + Number(r.net_total), 0))}</div><div className="sb">líquido das folhas ainda não pagas</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconReceipt size={20} /></span><div><div className="lb">Líquido pago (ano)</div><div className="vl">{formatKz(runs.filter((r) => r.status === 'PAID' && r.period_year === new Date().getFullYear()).reduce((t, r) => t + Number(r.net_total), 0))}</div><div className="sb">folhas pagas em {new Date().getFullYear()}</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconPlus size={20} /></span><div><div className="lb">Custo p/ empresa (ano)</div><div className="vl">{formatKz(runs.filter((r) => r.period_year === new Date().getFullYear()).reduce((t, r) => t + Number(r.employer_cost_total), 0))}</div><div className="sb">salários + INSS patronal</div></div></div>
+      </div>
+
+      <div className="fx-card" style={{ padding: 8 }}>
+        <div className="fx-card-h" style={{ padding: '12px 14px 0', marginBottom: 8 }}><div><h3>Folhas processadas</h3><p>Uma folha por mês. Abra uma para ver o recibo de cada trabalhador.</p></div></div>
         {loading ? <div className="loading">A carregar…</div> : runs.length === 0 ? (
           <div className="empty"><IconReceipt size={40} /><p>Ainda não processou nenhuma folha salarial.</p></div>
-        ) : runs.map((r) => (
-          <div className="list-row" key={r.id} style={{ cursor: 'pointer' }} onClick={() => open(r.id)}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700 }}>{periodLabel(r)}</div>
-              <div className="muted" style={{ fontSize: 13 }}>
-                {r.employee_count} trab. · líquido {formatKz(r.net_total)} · custo p/ empresa {formatKz(r.employer_cost_total)}
+        ) : (
+          <div className="rc-list" style={{ padding: 6 }}>
+            {runs.map((r) => (
+              <div className={`rc-row pay-row st-${r.status === 'PAID' ? 'READY' : 'IN_PROGRESS'}`} key={r.id} role="button" tabIndex={0}
+                onClick={() => open(r.id)} onKeyDown={(e) => { if (e.key === 'Enter') void open(r.id); }}>
+                <span className="pay-month"><b>{(MONTHS[r.period_month - 1] ?? '').slice(0, 3).toUpperCase()}</b><i>{r.period_year}</i></span>
+                <div className="rc-main">
+                  <strong>{periodLabel(r)}</strong>
+                  <div className="muted">{r.employee_count} trabalhador(es) · bruto {formatKz(r.gross_total)} · custo p/ empresa {formatKz(r.employer_cost_total)}</div>
+                </div>
+                <span className="rc-amt">{formatKz(r.net_total)}<small>líquido</small></span>
+                <span className="rc-state">{r.status === 'PAID' ? 'Paga' : 'Por pagar'}</span>
+                {r.status === 'PROCESSED' ? (
+                  <button className="btn sm" onClick={(e) => { e.stopPropagation(); void pay(r.id); }}><IconCheck size={14} /> Marcar paga</button>
+                ) : null}
               </div>
-            </div>
-            <span className="badge" style={{ color: r.status === 'PAID' ? 'var(--success)' : 'var(--warning)', borderColor: 'currentColor' }}>
-              {r.status === 'PAID' ? 'Paga' : 'Processada'}
-            </span>
-            {r.status === 'PROCESSED' ? (
-              <button className="btn sm" onClick={(e) => { e.stopPropagation(); void pay(r.id); }}><IconCheck size={14} /> Marcar paga</button>
-            ) : null}
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
       {processing ? <ProcessModal onClose={() => setProcessing(false)} onDone={async (run) => { await load(); setProcessing(false); await open(run.id); }} /> : null}
