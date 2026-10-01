@@ -48,7 +48,7 @@ export function SyncStatusPill() {
           transition: 'box-shadow .2s',
         }}
       />
-      <span className="sync-pill-text">{meta.text}</span>
+      <span className="sync-pill-text">{status.syncing && status.link === 'ONLINE' ? 'A sincronizar…' : meta.text}</span>
       {pending > 0 ? (
         <span style={{ background: meta.color, color: '#fff', borderRadius: 999, padding: '0 6px', fontSize: 11 }}>
           {pending > 99 ? '99+' : pending}
