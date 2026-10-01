@@ -344,6 +344,14 @@ function WriteOffModal({
           </div>
         ) : <div className="wo-hint">Escolha um produto para ver o stock existente.</div>}
 
+        {levels && product && here < total ? (
+          <div className="wo-note">
+            {here <= 0
+              ? `O total é ${fmt(total)} ${unit}, mas nenhuma unidade está registada nesta loja (o saldo vem de uma importação ou de outra loja). A baixa só retira do stock registado na loja — regularize primeiro com Adicionar stock ou uma Contagem.`
+              : `Só ${fmt(here)} de ${fmt(total)} ${unit} estão registadas nesta loja; a baixa só pode retirar essas.`}
+          </div>
+        ) : null}
+
         {warehouses.length === 1 || !product ? (
           <div className="field" style={{ marginTop: 12 }}><label>Loja</label>
             <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
