@@ -1623,3 +1623,20 @@ img.u-av { background: var(--surface-2); }
   background: linear-gradient(145deg, var(--primary, #4f7cff), #7c4dff); transition: transform .12s, opacity .15s; }
 .cv-send:hover:not(:disabled) { transform: scale(1.06); } .cv-send:disabled { opacity: .4; cursor: default; }
 @media (max-width: 520px) { .modal-bg:has(.cv-sheet) { padding: 0; place-items: stretch; } .cv-sheet { width: 100%; height: calc(100dvh / var(--uz, 1)); border-radius: 0; } }
+
+/* ── Documentos e vendas: visual ERP ── */
+.sales-modal { border-radius: 20px; padding: 0; gap: 0; overflow: hidden; }
+.sales-modal > * { margin-left: 20px; margin-right: 20px; }
+.sales-modal .sm-head { margin: 0; padding: 18px 20px; border-bottom: 1px solid var(--border); background: linear-gradient(135deg, color-mix(in srgb, var(--primary, #4f7cff) 14%, var(--surface)), var(--surface) 75%); }
+.sales-modal .sm-head .ch-ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex: none; color: #fff; background: linear-gradient(145deg, var(--primary, #4f7cff), #7c4dff); }
+.sales-modal .sm-head .ch-tx { display: flex; flex-direction: column; gap: 2px; }
+.sales-modal .sm-head h2 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+.sales-modal .sm-head small { color: var(--muted); font-size: 12.5px; }
+.sales-modal .erp-kpis { margin-top: 16px; margin-bottom: 4px; }
+.sm-toolbar { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); }
+.sm-quick { display: flex; gap: 6px; }
+.sales-modal .sm-list { margin-top: 12px; margin-bottom: 18px; border: 1px solid var(--border); border-radius: 14px; }
+.sales-table thead th { position: sticky; top: 0; background: var(--surface-2); z-index: 1; }
+.sales-table tbody tr:last-child td { border-bottom: none; }
+.sales-table td:first-child, .sales-table th:first-child { padding-left: 14px; }
+.sales-modal .banner { margin-top: 10px; }

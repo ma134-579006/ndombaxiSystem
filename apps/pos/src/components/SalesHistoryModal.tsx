@@ -4,6 +4,7 @@ import { newUuid } from '../offline/db';
 import type { DocumentIdentity, ReceiptFiscalInfo, SaleDetail, SaleRow } from '../api/types';
 import { formatKz } from '../format';
 import { ReceiptModal } from './ReceiptModal';
+import { UiIcon } from './UiIcon';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const fmtDateTime = (s: string) => { try { return new Date(s).toLocaleString('pt-PT'); } catch { return s; } };
@@ -99,12 +100,24 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
     <div className="scan-overlay" onClick={onClose}>
       <div className="sales-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sm-head">
-          <h2 style={{ margin: 0 }}>Histórico de vendas</h2>
+          <span className="ch-ic" aria-hidden="true"><UiIcon e="doc" size={20} /></span>
+          <div className="ch-tx"><h2>Documentos e vendas</h2><small>Histórico, 2ª via e cancelamentos</small></div>
           <span style={{ flex: 1 }} />
           <button className="icon-btn" onClick={onClose} aria-label="Fechar"><span style={{ fontSize: 20 }}>✕</span></button>
         </div>
 
-        <div className="sm-filters">
+        <div className="erp-kpis">
+          <div className="erp-kpi"><span>Documentos</span><b>{rows.length}</b></div>
+          <div className="erp-kpi hi"><span>Total faturado</span><b>{formatKz(rows.filter((r) => r.status !== 'A').reduce((t, r) => t + Number(r.gross_total), 0))}</b></div>
+          <div className="erp-kpi"><span>Anulados</span><b>{rows.filter((r) => r.status === 'A').length}</b></div>
+        </div>
+
+        <div className="sm-filters sm-toolbar">
+          <div className="sm-quick">
+            <button className="chip" onClick={() => { setFrom(todayISO()); setTo(todayISO()); }}>Hoje</button>
+            <button className="chip" onClick={() => { const d = new Date(); d.setDate(d.getDate() - 6); setFrom(d.toISOString().slice(0, 10)); setTo(todayISO()); }}>7 dias</button>
+            <button className="chip" onClick={() => { const d = new Date(); d.setDate(d.getDate() - 29); setFrom(d.toISOString().slice(0, 10)); setTo(todayISO()); }}>30 dias</button>
+          </div>
           <label>De <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></label>
           <label>até <input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></label>
           {loading ? <span className="muted" style={{ fontSize: 12.5 }}>A carregar…</span> : null}
