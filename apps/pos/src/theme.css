@@ -1433,3 +1433,55 @@ img.u-av { background: var(--surface-2); }
 .acct2-item.danger:hover { background: color-mix(in srgb, var(--danger, #dc2626) 8%, transparent); }
 @media (max-width: 560px) { .acct2-btn { padding-right: 3px; } .acct2-caret { display: none; } }
 @media (prefers-reduced-motion: reduce) { .acct2-pop { animation: none; } .acct2-caret { transition: none; } }
+
+/* ════════════════════════════════════════════════════════════
+   ECRÃ DE BLOQUEIO v3 — sóbrio e profissional: fundo escuro neutro,
+   relógio limpo (sem segundos), cartão de vidro com campo + botão integrados.
+   ════════════════════════════════════════════════════════════ */
+.lock-screen.v3 { color: #f3f6fc; background: #070b16; font-family: inherit; }
+.lock-screen.v3 .lock-aurora { display: none; }
+.lock-screen.v3 .lock-bg { position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 50% 0%, rgba(36,48,232,.32), transparent 70%),
+    radial-gradient(40% 35% at 85% 100%, rgba(36,48,232,.14), transparent 70%),
+    linear-gradient(180deg, #0a1022 0%, #070b16 100%); }
+.lock-screen.v3 .lock-top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 18px clamp(16px, 4vw, 32px); }
+.lock-screen.v3 .lock-brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+.lock-screen.v3 .lock-logo { width: auto; height: 28px; max-width: 64px; object-fit: contain; border-radius: 0; box-shadow: none; }
+.lock-screen.v3 .lock-state { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  color: rgba(243,246,252,.8); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
+.lock-screen.v3 .lock-clock { position: relative; margin-top: clamp(84px, 16vh, 150px); text-align: center; text-shadow: none; }
+.lock-screen.v3 .lock-time { font-size: clamp(64px, 13vw, 112px); font-weight: 300; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.lock-screen.v3 .lock-date { margin-top: 10px; font-size: clamp(14px, 2.4vw, 17px); font-weight: 500; opacity: .72; text-transform: none; }
+.lock-screen.v3 .lock-date::first-letter { text-transform: uppercase; }
+.lock-screen.v3 .lock-card { position: relative; width: min(360px, calc(100vw - 32px)); margin: auto auto clamp(56px, 10vh, 110px); padding: 26px 24px 18px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; border-radius: 20px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 30px 80px -30px rgba(0,0,0,.8); }
+.lock-screen.v3 .lock-av { width: 64px !important; height: 64px !important; font-size: 22px !important; border: 0; box-shadow: 0 0 0 4px rgba(255,255,255,.08); margin-bottom: 8px; }
+.lock-screen.v3 .lock-name { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lock-screen.v3 .lock-role { font-size: 13px; opacity: .65; margin: 0; }
+.lock-screen.v3 .lock-form { width: 100%; margin-top: 18px; display: block; }
+.lock-screen.v3 .lock-field { display: flex; align-items: center; height: 48px; padding: 4px; border-radius: 12px;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.16); transition: border-color .15s, box-shadow .15s; }
+.lock-screen.v3 .lock-field:focus-within { border-color: #8f9bff; box-shadow: 0 0 0 3px rgba(102,116,255,.3); }
+.lock-screen.v3 .lock-field.bad { border-color: rgba(248,113,113,.7); }
+.lock-screen.v3 .lock-pin { flex: 1; min-width: 0; height: 100%; padding: 0 12px; border: 0 !important; background: transparent !important; box-shadow: none !important;
+  color: #fff; font-size: 15px; outline: none; text-align: left; letter-spacing: normal; }
+.lock-screen.v3 .lock-pin::placeholder { color: rgba(243,246,252,.45); }
+.lock-screen.v3 .lock-go { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 9px; cursor: pointer;
+  color: #fff; background: #2430e8; transition: background-color .15s, transform .15s; }
+.lock-screen.v3 .lock-go:hover { background: #3341ff; }
+.lock-screen.v3 .lock-go:active { transform: scale(.96); }
+.lock-screen.v3 .lock-go:disabled { opacity: .7; cursor: default; }
+.lock-screen.v3 .lock-go:focus-visible { outline: 2px solid #b4c1ff; outline-offset: 2px; }
+.lock-screen.v3 .lock-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: lock-rot .7s linear infinite; }
+@keyframes lock-rot { to { transform: rotate(360deg); } }
+.lock-screen.v3 .lock-err { width: 100%; margin-top: 10px; padding: 0; background: none; border: 0; color: #fca5a5; font-size: 13px; text-align: left; }
+.lock-screen.v3 .lock-other { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; padding: 8px 10px; border-radius: 8px;
+  font-size: 13px; font-weight: 500; color: rgba(243,246,252,.65); }
+.lock-screen.v3 .lock-other:hover { color: #fff; background: rgba(255,255,255,.06); }
+.lock-screen.v3 .lock-hint { position: absolute; bottom: 18px; font-size: 12px; opacity: .5; }
+@media (max-height: 620px) { .lock-screen.v3 .lock-clock { margin-top: 64px; } .lock-screen.v3 .lock-time { font-size: 56px; } .lock-screen.v3 .lock-hint { display: none; } }
+@media (prefers-reduced-motion: reduce) { .lock-screen.v3 .lock-spin { animation: none; } }

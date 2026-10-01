@@ -119,19 +119,21 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
 
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
-  const ss = String(now.getSeconds()).padStart(2, '0');
-  const dateLabel = `${WEEKDAYS[now.getDay()]}, ${now.getDate()} de ${MONTHS[now.getMonth()]} de ${now.getFullYear()}`;
+    const dateLabel = `${WEEKDAYS[now.getDay()]}, ${now.getDate()} de ${MONTHS[now.getMonth()]} de ${now.getFullYear()}`;
 
   return (
-    <div className="lock-screen" role="dialog" aria-modal="true" aria-label="Ecrã bloqueado">
-      <div className="lock-aurora" aria-hidden />
+    <div className="lock-screen v3" role="dialog" aria-modal="true" aria-label="Ecrã bloqueado">
+      <div className="lock-bg" aria-hidden="true" />
       <header className="lock-top">
-        <img className="lock-logo" src={LOGO_SRC} alt={SYSTEM_NAME} />
-        <span className="lock-sys">{SYSTEM_NAME}</span>
+        <span className="lock-brand"><img className="lock-logo" src={LOGO_SRC} alt="" /><span>{SYSTEM_NAME}</span></span>
+        <span className="lock-state">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3" /></svg>
+          Sessão bloqueada
+        </span>
       </header>
 
-      <div className="lock-clock">
-        <div className="lock-time">{hh}:{mm}<span className="lock-secs">:{ss}</span></div>
+      <div className="lock-clock" aria-live="off">
+        <div className="lock-time">{hh}:{mm}</div>
         <div className="lock-date">{dateLabel}</div>
       </div>
 
@@ -141,26 +143,33 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
         <div className="lock-role">{role}</div>
 
         <form className="lock-form" onSubmit={(e) => { e.preventDefault(); void unlock(); }}>
-          <input
-            ref={inputRef}
-            className="lock-pin"
-            type="password"
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="PIN" aria-label="PIN"
-            value={pin}
-            maxLength={8}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-          />
-          <button className="lock-btn" type="submit" disabled={busy}>{busy ? 'A validar…' : 'Desbloquear'}</button>
+          <div className={`lock-field${err ? ' bad' : ''}`}>
+            <input
+              ref={inputRef}
+              className="lock-pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="PIN" aria-label="PIN"
+              value={pin}
+              maxLength={8}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+            />
+            <button className="lock-go" type="submit" disabled={busy} aria-label="Desbloquear" title="Desbloquear">
+              {busy
+                ? <span className="lock-spin" aria-hidden="true" />
+                : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>}
+            </button>
+          </div>
         </form>
-        {err ? <div className="lock-err">{err}</div> : null}
+        {err ? <div className="lock-err" role="alert">{err}</div> : null}
         <button className="lock-other" type="button" onClick={() => { setLocked(false); logout(); }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
           Terminar sessão
         </button>
       </div>
 
-      <div className="lock-hint">Sessão bloqueada por inatividade · introduz o PIN para continuar</div>
+      <div className="lock-hint">Bloqueado por inatividade · introduza a PIN para continuar</div>
     </div>
   );
 }
