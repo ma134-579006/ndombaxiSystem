@@ -64,6 +64,18 @@ const EMPTY: FormState = {
 /** Unidades de medida comuns (informativas — sem conversão automática). */
 const UNIT_OPTIONS = ['un', 'kg', 'g', 'L', 'ml', 'fatia', 'folha', 'dose', 'porção', 'caixa', 'pacote', 'garrafa', 'lata'];
 
+/** Iniciais do produto (sem foto): 2 letras das primeiras palavras com letras. */
+function monoOf(name: string): string {
+  const w = name.replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((x) => /\p{L}/u.test(x));
+  if (!w.length) return (name.trim()[0] ?? '?').toUpperCase();
+  return (w.length === 1 ? w[0].slice(0, 2) : w[0][0] + w[1][0]).toUpperCase();
+}
+const MONO = ['#2430E8', '#4338CA', '#0E7490', '#0F766E', '#6D28D9', '#BE185D', '#B45309', '#334155'];
+function monoColor(name: string): string {
+  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return MONO[h % MONO.length];
+}
+
 export function Products() {
   const [products, setProducts] = useState<ManagerProduct[]>([]);
   const [stores, setStores] = useState<WarehouseRow[]>([]);
@@ -388,36 +400,39 @@ export function Products() {
         </div>
       ) : (
         <div className="pgrid">
-          {visible.map((p) => (
-            <div className={`pcard${selected.has(p.id) ? ' sel' : ''}`} key={p.id}>
+          {visible.map((p) => {
+            const qty = Number(p.stock_qty);
+            const stockTone = p.is_production || p.is_ingredient ? '' : qty <= 0 ? ' out' : qty <= 5 ? ' low' : ' ok';
+            return (
+            <div className={`pcard pc2${selected.has(p.id) ? ' sel' : ''}${!p.is_active ? ' inactive' : ''}`} key={p.id}>
               <label className="pcard-check" onClick={(e) => e.stopPropagation()}>
-                <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSel(p.id)} />
+                <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSel(p.id)} aria-label={`Selecionar ${p.name}`} />
               </label>
-              <div className="thumb">
-                {p.image_url ? <img src={p.image_url} alt={p.name} /> : <IconImage size={30} />}
+              <div className={`thumb${p.image_url ? '' : ' mono'}`} style={p.image_url ? undefined : { ['--mono' as string]: monoColor(p.name) }}>
+                {p.image_url ? <img src={p.image_url} alt={p.name} loading="lazy" /> : <span aria-hidden="true">{monoOf(p.name)}</span>}
               </div>
               <div className="pinfo">
-                <div className="pname">
-                  {p.name}
-                  {p.is_ingredient ? <span className="pill" style={{ marginLeft: 6, fontSize: 10.5, background: 'color-mix(in srgb, var(--warning) 22%, transparent)', color: 'var(--warning)' }}>matéria-prima</span> : null}
+                <div className="pname" title={p.name}>{p.name}</div>
+                <div className="pcode">{p.code}{p.barcode && p.barcode !== p.code ? ` · ${p.barcode}` : ''}</div>
+                <div className="pc2-tags">
+                  {p.is_ingredient ? <span className="pc2-tag warn">Matéria-prima</span> : null}
+                  {p.is_production ? <span className="pc2-tag info">Produção</span> : null}
                   {p.is_production ? availBadge(p.id) : null}
-                  {!p.is_active ? <span className="pill off" style={{ marginLeft: 6, fontSize: 10.5 }}>Inativo</span> : null}
+                  {!p.is_production && !p.is_ingredient ? (
+                    <span className={`pc2-tag stock${stockTone}`}>{qty <= 0 ? 'Sem stock' : `${qty.toLocaleString('pt-PT')}${p.unit ? ` ${p.unit}` : ' un.'}`}</span>
+                  ) : null}
+                  {!p.is_active ? <span className="pc2-tag off">Inativo</span> : !p.is_ingredient && !p.is_production ? <span className={`pc2-tag ${p.show_online ? 'on' : 'muted'}`}>{p.show_online ? 'Online' : 'Oculto'}</span> : null}
                 </div>
-                <div className="pcode">{p.code} · {p.iva_code} · {p.is_production ? 'produção (fornadas)' : `stock ${Number(p.stock_qty)}${p.unit ? ` ${p.unit}` : ''}`}</div>
                 <div className="pfoot">
                   <span className="pprice">{p.is_ingredient ? '—' : formatKz(grossUnit(p))}</span>
-                  {p.is_ingredient
-                    ? <span className="pill off">Ingrediente</span>
-                    : p.is_production
-                      ? <span className="pill" style={{ background: 'color-mix(in srgb, var(--primary) 18%, transparent)', color: 'var(--primary)' }}>Produção</span>
-                      : <span className={`pill ${p.show_online ? 'on' : 'off'}`}>{p.show_online ? 'Online' : 'Oculto'}</span>}
+                  <button className="pc2-edit" onClick={() => openEdit(p)} aria-label={`Editar ${p.name}`} title="Editar">
+                    <IconEdit size={15} /> Editar
+                  </button>
                 </div>
-                <button className="btn sm ghost block" style={{ marginTop: 8 }} onClick={() => openEdit(p)}>
-                  <IconEdit size={15} /> Editar
-                </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
