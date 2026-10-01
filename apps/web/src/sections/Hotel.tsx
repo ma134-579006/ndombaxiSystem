@@ -80,33 +80,40 @@ export function Hotel() {
       </div>
 
       {tab === 'rooms' ? (
-        <div className="pgrid">
-          {rooms.length === 0 ? <div className="empty" style={{ padding: 26, gridColumn: '1/-1' }}><p>Sem quartos. Crie o primeiro com “Quarto”.</p></div>
-            : rooms.map((r) => {
-              const occupied = !!r.reservation_id;
-              const st = ROOM_STATE[r.status] ?? ROOM_STATE.AVAILABLE;
-              return (
-                <button key={r.id} className="pcard"
-                  onClick={() => { if (occupied) void openRes(r.reservation_id!); else if (r.status === 'AVAILABLE' || r.status === 'RESERVED') setBooking(r); else setRoomMenu(r); }}
-                  style={{ cursor: 'pointer', textAlign: 'left', borderLeft: `4px solid ${st.color}` }}>
-                  <div className="pinfo">
-                    <div className="pname" style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span className="ui-dot" style={{ background: st.color }} aria-hidden="true" /> {r.name}
-                      <span className="pill" style={{ marginLeft: 'auto', color: st.color, borderColor: st.color, fontSize: 11 }}>{st.label}</span>
+        <>
+          {rooms.length > 0 ? (
+            <div className="rt-summary">
+              {Object.entries(ROOM_STATE).map(([k, v]) => {
+                const n = rooms.filter((r) => r.status === k).length;
+                return n ? <span key={k} className="rt-chip"><i style={{ background: v.color }} /> {v.label} <b>{n}</b></span> : null;
+              })}
+            </div>
+          ) : null}
+          <div className="rt-grid hotel-grid">
+            {rooms.length === 0 ? <div className="empty" style={{ padding: 26, gridColumn: '1/-1' }}><p>Sem quartos. Crie o primeiro com “Quarto”.</p></div>
+              : rooms.map((r) => {
+                const occupied = !!r.reservation_id;
+                const st = ROOM_STATE[r.status] ?? ROOM_STATE.AVAILABLE;
+                return (
+                  <div key={r.id} role="button" tabIndex={0} className="rt-table hotel-room" style={{ ['--rc' as string]: st.color }}
+                    onClick={() => { if (occupied) void openRes(r.reservation_id!); else if (r.status === 'AVAILABLE' || r.status === 'RESERVED') setBooking(r); else setRoomMenu(r); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); (e.currentTarget as HTMLElement).click(); } }}>
+                    <div className="rt-top">
+                      <span className="rt-num">{r.code || r.name}</span>
+                      <span className="rt-state">{st.label}</span>
                     </div>
-                    <div className="pcode">{r.category || r.room_type || 'Quarto'}{r.floor ? ` · ${r.floor}º` : ''} · {r.capacity}p · {KZ(r.rate)}/noite</div>
-                    {occupied ? <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{r.guest_name || 'Hóspede'} · saída {r.check_out}</div>
-                      : <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                          {r.status === 'AVAILABLE' || r.status === 'RESERVED' ? 'Toque para reservar' : 'Toque para gerir estado'}
-                        </div>}
-                    <div style={{ marginTop: 6 }}>
+                    <div className="rt-name">{r.category || r.room_type || 'Quarto'}{r.floor ? ` · ${r.floor}º andar` : ''}</div>
+                    <div className="rt-meta"><UiIcon e="👥" size={14} /> {r.capacity} pessoa{r.capacity === 1 ? '' : 's'}</div>
+                    {occupied ? <div className="rt-meta rt-area"><UiIcon e="🛏️" size={14} /> {r.guest_name || 'Hóspede'} · saída {r.check_out}</div> : null}
+                    <div className="rt-foot">
+                      <span className="rt-total">{KZ(r.rate)}<small>/noite</small></span>
                       <button className="btn sm ghost" onClick={(e) => { e.stopPropagation(); setRoomMenu(r); }}>Estado</button>
                     </div>
                   </div>
-                </button>
-              );
-            })}
-        </div>
+                );
+              })}
+          </div>
+        </>
       ) : tab === 'housekeeping' ? (
         <HousekeepingTab rows={hk} rooms={rooms} onChanged={refresh} />
       ) : tab === 'maintenance' ? (
