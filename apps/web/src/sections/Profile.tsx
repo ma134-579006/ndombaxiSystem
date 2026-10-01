@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import type { DocumentIdentity } from '../api/types';
 import { IconCheck, IconImage } from '../components/Icons';
 import { openCaixaTerminal } from '../config';
+import { UiIcon } from '../components/UiIcon';
 
 /** Nível de cada papel (0 = mais poder), igual ao backend. */
 const ROLE_LEVEL: Record<string, number> = {
@@ -86,7 +87,7 @@ export function Profile() {
 
       {canOpenCash ? (
         <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ width: 52, height: 52, borderRadius: 14, flex: 'none', display: 'grid', placeItems: 'center', fontSize: 26, background: 'linear-gradient(135deg, var(--primary), #7c4dff)', boxShadow: '0 6px 20px rgba(79,124,255,.35)' }}>🛒</div>
+          <div style={{ width: 52, height: 52, borderRadius: 14, flex: 'none', display: 'grid', placeItems: 'center', fontSize: 26, background: 'linear-gradient(135deg, var(--primary), #7c4dff)', boxShadow: '0 6px 20px rgba(79,124,255,.35)', color: '#fff' }}><UiIcon e="cart" size={26} /></div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <h3 style={{ margin: '0 0 2px' }}>Abrir caixa</h3>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>

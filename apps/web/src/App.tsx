@@ -233,7 +233,7 @@ function PlatformPanel() {
 
 /** Rótulo do vertical de serviços (para o item de navegação adaptativo). */
 const VERTICAL_LABEL: Record<string, string> = {
-  RESTAURANT: '🍔 Restauração', SERVICES: '🔧 Serviços', HOSPITALITY: '🏨 Hotelaria', CLINIC: '🏥 Clínica', PHARMACY: '💊 Farmácia',
+  RESTAURANT: 'Restauração', SERVICES: 'Serviços', HOSPITALITY: 'Hotelaria', CLINIC: 'Clínica', PHARMACY: 'Farmácia',
 };
 
 function TenantPanel() {
@@ -351,11 +351,11 @@ function TenantPanel() {
 
     // Mesmo painel base + itens próprios do vertical (logo a seguir à Visão geral).
     const vert: NavItem[] = [{ key: 'service-hub', label: VERTICAL_LABEL[bizType], icon: IconStore }];
-    if (bizType === 'RESTAURANT') vert.push({ key: 'restaurant', label: '🍽️ Mesas & Comandas', icon: IconStore });
-    if (bizType === 'SERVICES') vert.push({ key: 'service-orders', label: '🛠️ Ordens de serviço', icon: IconStore });
+    if (bizType === 'RESTAURANT') vert.push({ key: 'restaurant', label: 'Mesas & Comandas', icon: IconStore });
+    if (bizType === 'SERVICES') vert.push({ key: 'service-orders', label: 'Ordens de serviço', icon: IconStore });
     if (bizType === 'HOSPITALITY') vert.push({ key: 'hotel', label: 'Quartos & Reservas', icon: IconStore });
     if (bizType === 'CLINIC') vert.push({ key: 'clinic', label: 'Agenda & Pacientes', icon: IconStore });
-    if (bizType === 'PHARMACY') vert.push({ key: 'pharmacy', label: '💊 Validade & Lotes', icon: IconStore });
+    if (bizType === 'PHARMACY') vert.push({ key: 'pharmacy', label: 'Validade & Lotes', icon: IconStore });
     return [base[0], ...vert, ...base.slice(1)];
   }, [user?.role, bizType, storeEnabled]);
   // se a secção guardada já não é permitida ao papel, volta à visão geral.
@@ -500,7 +500,7 @@ function Gate() {
     <>
       {shadow ? (
         <div className="shadow-bar">
-          <span>👁 Modo shadow — a ver o painel de <strong>{shadow}</strong></span>
+          <span>Modo shadow — a ver o painel de <strong>{shadow}</strong></span>
           <button className="btn sm" onClick={exitShadow}>Sair do shadow</button>
         </div>
       ) : null}

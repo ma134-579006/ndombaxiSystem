@@ -76,7 +76,7 @@ export function ServicesHome({ onGo }: { onGo(section: string): void }) {
       {/* ── Alertas operacionais ── */}
       {d && d.onlinePending > 0 ? (
         <div className="banner warning" style={{ marginBottom: 12, cursor: 'pointer' }} onClick={() => goOrders('OPEN')}>
-          🛒 <strong>{d.onlinePending} pedido(s) de serviço da loja online</strong> por aceitar — toca para abrir.
+          <strong>{d.onlinePending} pedido(s) de serviço da loja online</strong> por aceitar — toca para abrir.
         </div>
       ) : null}
       {late ? (
@@ -87,7 +87,7 @@ export function ServicesHome({ onGo }: { onGo(section: string): void }) {
 
       {/* ── PIPELINE da oficina (funil) ── */}
       <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: 14 }}>
-        <Stage label="🆕 Abertas" s={d?.pipeline.open} onClick={() => goOrders('OPEN')} />
+        <Stage label="Abertas" s={d?.pipeline.open} onClick={() => goOrders('OPEN')} />
         <Stage label="Orçamentadas" s={d?.pipeline.quoted} onClick={() => goOrders('QUOTED')} />
         <Stage label="Aprovadas" s={d?.pipeline.approved} onClick={() => goOrders('APPROVED')} />
         <Stage label="Em curso" s={d?.pipeline.inProgress} onClick={() => goOrders('IN_PROGRESS')} tone={late ? 'var(--danger)' : undefined} />

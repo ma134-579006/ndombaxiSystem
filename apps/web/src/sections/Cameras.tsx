@@ -6,6 +6,7 @@ import { confirmDialog, toast } from '../components/feedback';
 import { IconPlus } from '../components/Icons';
 import { Modal, Switch } from '../components/ui';
 import { decodeQrFromImage, makeQrDetector } from '../scan/decoder';
+import { UiIcon } from '../components/UiIcon';
 
 /**
  * CÂMARAS de vigilância:
@@ -72,7 +73,7 @@ function CamRow({ cam, onEdit, onChanged }: { cam: CameraRow; onEdit(): void; on
     try {
       const r = await api.cameras.test(cam.id);
       if (r.warning) toast.warning(r.warning);
-      else if (r.ok) toast.success(`«${cam.name}» respondeu (${r.contentType ?? 'stream'} · ${r.kind}). ✅`);
+      else if (r.ok) toast.success(`«${cam.name}» respondeu (${r.contentType ?? 'stream'} · ${r.kind}).`);
       else toast.error(`«${cam.name}» não respondeu (HTTP ${r.status || 'sem ligação'}). Confirma a URL e a rede.`);
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Teste falhou.'); }
     finally { setBusy(false); }
@@ -86,7 +87,7 @@ function CamRow({ cam, onEdit, onChanged }: { cam: CameraRow; onEdit(): void; on
   };
   return (
     <div className="list-row" style={{ padding: '12px 16px' }}>
-      <span style={{ fontSize: 22 }}>📹</span>
+      <UiIcon e="video" size={22} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <strong style={{ fontSize: 14 }}>{cam.name}</strong>
         <span className={`pill ${cam.is_active ? 'on' : 'off'}`} style={{ marginLeft: 8 }}>{cam.is_active ? 'Ativa' : 'Desativada'}</span>
@@ -109,7 +110,7 @@ function CamRow({ cam, onEdit, onChanged }: { cam: CameraRow; onEdit(): void; on
 function P2PThumb() {
   return (
     <div className="empty" style={{ height: 170, display: 'grid', placeItems: 'center', background: '#0b1220', borderRadius: 12, color: '#9fb0c8' }}>
-      <div style={{ textAlign: 'center' }}><div style={{ fontSize: 34 }}>☁️📹</div><div style={{ fontSize: 12, marginTop: 4 }}>Câmara de nuvem — toca para o Guia (3 QR)</div></div>
+      <div style={{ textAlign: 'center' }}><div className="ui-ic-lg"><UiIcon e="video" size={29} /></div><div style={{ fontSize: 12, marginTop: 4 }}>Câmara de nuvem — toca para o Guia (3 QR)</div></div>
     </div>
   );
 }
@@ -207,10 +208,10 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
       try {
         const j = JSON.parse(raw) as { sn?: string; serial?: string; deviceId?: string; id?: string; name?: string };
         const sn = j.sn ?? j.serial ?? j.deviceId ?? j.id;
-        if (sn) { setDeviceSn(String(sn)); if (j.name && !name) setName(j.name); toast.success('SN lido do QR. ✅'); return; }
+        if (sn) { setDeviceSn(String(sn)); if (j.name && !name) setName(j.name); toast.success('SN lido do QR.'); return; }
       } catch { /* não é JSON → trata como SN em texto */ }
       setDeviceSn(raw.trim());
-      toast.success('SN lido do QR. ✅');
+      toast.success('SN lido do QR.');
       return;
     }
     try {
@@ -220,11 +221,11 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
         setStreamUrl(su);
         if (j.name && !name) setName(j.name);
         if (j.snapshot ?? j.snapshotUrl) setSnapshotUrl((j.snapshot ?? j.snapshotUrl)!);
-        toast.success('Dados da câmara lidos do QR. ✅');
+        toast.success('Dados da câmara lidos do QR.');
         return;
       }
     } catch { /* não é JSON → trata como URL */ }
-    if (/^https?:\/\//i.test(raw)) { setStreamUrl(raw); toast.success('URL lida do QR. ✅'); }
+    if (/^https?:\/\//i.test(raw)) { setStreamUrl(raw); toast.success('URL lida do QR.'); }
     else toast.warning(`O QR não contém uma URL HTTP(S): «${raw.slice(0, 60)}»`);
   };
 
@@ -244,7 +245,7 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
     if (iosFound) setAppIos(iosFound);
     if (androidFound) setAppAndroid(androidFound);
     const got = [snFound && 'SN', iosFound && 'iOS', androidFound && 'Android'].filter(Boolean).join(', ');
-    if (got) toast.success(`Lido do Guia: ${got}. ✅`);
+    if (got) toast.success(`Lido do Guia: ${got}.`);
     else toast.warning('Não consegui ler QR nesta imagem. Tenta uma foto mais nítida e de frente.');
   };
 
@@ -282,7 +283,7 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
     if (snap) setSnapshotUrl(snap);
     if (stream) setStreamUrl(stream);
     setConnType('STREAM');
-    toast.success('URL gerada a partir do IP. Toca em «Testar» para confirmar o sinal. ✅');
+    toast.success('URL gerada a partir do IP. Toca em «Testar» para confirmar o sinal.');
   };
 
   const startScan = async () => {
@@ -315,7 +316,7 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
         : { name: name.trim(), connType, streamUrl: streamUrl.trim(), snapshotUrl: snapshotUrl.trim() || undefined, record, notes: notes.trim() || undefined };
       if (cam) await api.cameras.update(cam.id, input);
       else await api.cameras.create(input);
-      toast.success(`Câmara «${name.trim()}» ${cam ? 'atualizada' : 'ligada'}. ✅`);
+      toast.success(`Câmara «${name.trim()}» ${cam ? 'atualizada' : 'ligada'}.`);
       onSaved();
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível guardar.'); }
     finally { setSaving(false); }

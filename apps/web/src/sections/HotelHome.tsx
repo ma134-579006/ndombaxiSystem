@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { HotelDashboard } from '../api/types';
 import { formatKz } from '../format';
+import { UiIcon } from '../components/UiIcon';
 
 const KZ = (n: number) => formatKz(Number(n) || 0);
 type HotelTab = 'rooms' | 'reservations' | 'housekeeping' | 'maintenance';
@@ -72,7 +73,7 @@ export function HotelHome({ onGo }: { onGo(section: string): void }) {
       {d && opsPending > 0 ? (
         <div className="card" style={{ marginBottom: 14, borderLeft: `4px solid ${d.ops.maintenanceOpen > 0 ? 'var(--warning)' : 'var(--primary)'}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 30 }}>🧹</div>
+            <div className="ui-ic-lg"><UiIcon e="🧹" size={26} /></div>
             <div style={{ flex: 1, minWidth: 200 }}>
               <div style={{ fontWeight: 700 }}>Governanta & manutenção</div>
               <div className="muted" style={{ fontSize: 13 }}>
@@ -168,7 +169,7 @@ function MoveList({ title, empty, count, rows, onOpen, badge }: {
 function Channel({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <div style={{ textAlign: 'right' }}>
-      <div className="muted" style={{ fontSize: 11.5 }}>{icon} {label}</div>
+      <div className="muted ui-chan"><UiIcon e={icon} size={14} /> {label}</div>
       <div style={{ fontSize: 17, fontWeight: 700 }}>{value}</div>
     </div>
   );
@@ -187,7 +188,7 @@ function Tile({ label, value, hint, tone }: { label: string; value: string; hint
 function ActionCard({ icon, title, desc, onClick, badge }: { icon: string; title: string; desc: string; onClick(): void; badge?: string }) {
   return (
     <button className="pcard" onClick={onClick} style={{ textAlign: 'left', cursor: 'pointer', position: 'relative' }}>
-      <div className="thumb" style={{ fontSize: 30, display: 'grid', placeItems: 'center' }}>{icon}</div>
+      <div className="thumb ui-thumb"><UiIcon e={icon} size={26} /></div>
       <div className="pinfo">
         <div className="pname">{title}</div>
         <div className="pcode">{desc}</div>

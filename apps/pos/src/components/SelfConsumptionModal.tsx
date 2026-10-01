@@ -3,6 +3,7 @@ import { api, ApiError } from '../api/client';
 import { IVA_RATE, type ConsumptionLimit, type Product, type SelfConsumption } from '../api/types';
 import { formatKz } from '../format';
 import { BarcodeScanner } from './BarcodeScanner';
+import { UiIcon } from './UiIcon';
 
 function grossUnit(p: Product): number {
   return Number(p.unit_price) * (1 + IVA_RATE[p.iva_code] / 100);
@@ -96,7 +97,7 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
         {/* Pesquisa FIXA no topo (não rola com a lista) */}
         <div className="consume-search">
           <div className="field">
-            <span aria-hidden style={{ opacity: .7 }}>🔎</span>
+            <UiIcon e="search" size={16} />
             <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Pesquisar por nome ou código de barras…" autoFocus />
           </div>

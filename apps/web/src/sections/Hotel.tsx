@@ -5,6 +5,7 @@ import { toast } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz } from '../format';
+import { UiIcon } from '../components/UiIcon';
 
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
 const STATUS: { id: string; label: string }[] = [
@@ -90,7 +91,7 @@ export function Hotel() {
                   style={{ cursor: 'pointer', textAlign: 'left', borderLeft: `4px solid ${st.color}` }}>
                   <div className="pinfo">
                     <div className="pname" style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {st.dot} {r.name}
+                      <span className="ui-dot" style={{ background: st.color }} aria-hidden="true" /> {r.name}
                       <span className="pill" style={{ marginLeft: 'auto', color: st.color, borderColor: st.color, fontSize: 11 }}>{st.label}</span>
                     </div>
                     <div className="pcode">{r.category || r.room_type || 'Quarto'}{r.floor ? ` · ${r.floor}º` : ''} · {r.capacity}p · {KZ(r.rate)}/noite</div>
@@ -180,7 +181,7 @@ function NewRoom({ onClose, onCreated }: { onClose(): void; onCreated(): void })
       </div>
       <div className="row" style={{ gap: 12, alignItems: 'center', marginBottom: 10 }}>
         <div style={{ width: 64, height: 48, borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', display: 'grid', placeItems: 'center', background: 'var(--surface-2)' }}>
-          {photo ? <img src={photo} alt="quarto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 22 }}>🛏️</span>}
+          {photo ? <img src={photo} alt="quarto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <UiIcon e="bed" size={22} />}
         </div>
         <label className="btn ghost sm">{photo ? 'Trocar foto' : 'Carregar foto (loja)'}<input type="file" accept="image/*" hidden onChange={(e) => onPhoto(e.target.files?.[0])} /></label>
       </div>

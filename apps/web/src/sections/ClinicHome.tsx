@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { ClinicDashboard } from '../api/types';
 import { formatKz } from '../format';
+import { UiIcon } from '../components/UiIcon';
 
 const KZ = (n: number) => formatKz(Number(n) || 0);
 
@@ -68,7 +69,7 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
       {d?.hospital ? (
         <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 14 }}>
           <Tile label="Internados" value={String(d.hospital.admitted)} hint={`${d.hospital.bedsFree}/${d.hospital.bedsTotal} leitos livres`} tone={d.hospital.bedsTotal > 0 && d.hospital.bedsFree === 0 ? 'warn' : 'info'} />
-          <Tile label="Emergência (espera)" value={String(d.hospital.emergencyWaiting)} hint={d.hospital.emergencyRed > 0 ? `⚠ ${d.hospital.emergencyRed} caso(s) VERMELHO` : 'fila de triagem'} tone={d.hospital.emergencyRed > 0 ? 'warn' : undefined} />
+          <Tile label="Emergência (espera)" value={String(d.hospital.emergencyWaiting)} hint={d.hospital.emergencyRed > 0 ? `${d.hospital.emergencyRed} caso(s) VERMELHO` : 'fila de triagem'} tone={d.hospital.emergencyRed > 0 ? 'warn' : undefined} />
           <Tile label="Médicos de plantão" value={String(d.hospital.onCallDoctors)} hint="disponíveis agora" />
           <Tile label="Exames pendentes" value={String(d.hospital.examsPending)} hint={d.hospital.rxToDispense > 0 ? `${d.hospital.rxToDispense} receita(s) por dispensar` : 'laboratório'} />
         </div>
@@ -78,7 +79,7 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
       {d && d.today.overdue > 0 ? (
         <div className="card" style={{ marginBottom: 14, borderLeft: '4px solid var(--warning)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 30 }}>⏰</div>
+            <div className="ui-ic-lg"><UiIcon e="⏰" size={26} /></div>
             <div style={{ flex: 1, minWidth: 200 }}>
               <div style={{ fontWeight: 700 }}>Sala de espera</div>
               <div className="muted" style={{ fontSize: 13 }}>
@@ -140,7 +141,7 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
 function Channel({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <div style={{ textAlign: 'right' }}>
-      <div className="muted" style={{ fontSize: 11.5 }}>{icon} {label}</div>
+      <div className="muted ui-chan"><UiIcon e={icon} size={14} /> {label}</div>
       <div style={{ fontSize: 17, fontWeight: 700 }}>{value}</div>
     </div>
   );
@@ -159,7 +160,7 @@ function Tile({ label, value, hint, tone }: { label: string; value: string; hint
 function ActionCard({ icon, title, desc, onClick, badge }: { icon: string; title: string; desc: string; onClick(): void; badge?: string }) {
   return (
     <button className="pcard" onClick={onClick} style={{ textAlign: 'left', cursor: 'pointer', position: 'relative' }}>
-      <div className="thumb" style={{ fontSize: 30, display: 'grid', placeItems: 'center' }}>{icon}</div>
+      <div className="thumb ui-thumb"><UiIcon e={icon} size={26} /></div>
       <div className="pinfo">
         <div className="pname">{title}</div>
         <div className="pcode">{desc}</div>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { isTouchDevice, makeDetector } from '../scan/decoder';
 import type { ManagerProduct } from '../api/types';
 import { beep } from '../beep';
+import { UiIcon } from './UiIcon';
 
 /**
  * Seletor de produto por PESQUISA (nome ou código de barras) — substitui os
@@ -116,7 +117,7 @@ export function ProductPicker({
           />
           {isTouchDevice() ? (
           <button type="button" className="btn sm ghost" title="Ler código pela câmara" onClick={() => (scanning ? stopScan() : startScan())}>
-            {scanning ? 'Parar' : '📷'}
+            {scanning ? 'Parar' : <UiIcon e="camera" size={18} title="Ler código" />}
           </button>
           ) : null}
         </div>

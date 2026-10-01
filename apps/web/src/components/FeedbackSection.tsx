@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { SiteFeedback } from '../api/types';
+import { UiIcon } from './UiIcon';
 
 const LS_VOTES = 'ndombaxi.feedback.votes';
 function votedSet(): Set<string> {
@@ -70,8 +71,8 @@ export function FeedbackSection() {
                 </div>
                 <p className="fb-body">{f.body}</p>
                 <div className="fb-votes">
-                  <button className={voted.has(f.id) ? 'off' : ''} onClick={() => void vote(f.id, 'up')} aria-label="Gosto">👍 {f.likes}</button>
-                  <button className={voted.has(f.id) ? 'off' : ''} onClick={() => void vote(f.id, 'down')} aria-label="Não gosto">👎 {f.dislikes}</button>
+                  <button className={voted.has(f.id) ? 'off' : ''} onClick={() => void vote(f.id, 'up')} aria-label="Gosto"><UiIcon e="thumbUp" size={15} /> {f.likes}</button>
+                  <button className={voted.has(f.id) ? 'off' : ''} onClick={() => void vote(f.id, 'down')} aria-label="Não gosto"><UiIcon e="thumbDown" size={15} /> {f.dislikes}</button>
                 </div>
               </div>
             ))}

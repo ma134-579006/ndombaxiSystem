@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { VerticalMetrics } from '../api/types';
+import { UiIcon } from '../components/UiIcon';
 
 /**
  * Painel ADAPTATIVO do vertical de serviços escolhido pela empresa
@@ -124,7 +125,7 @@ export function ServiceHub({ businessType, onGo }: { businessType: string; onGo(
             disabled={m.soon}
             style={{ textAlign: 'left', cursor: m.soon ? 'default' : 'pointer', opacity: m.soon ? 0.72 : 1 }}
           >
-            <div className="thumb" style={{ fontSize: 30, display: 'grid', placeItems: 'center' }}>{m.icon}</div>
+            <div className="thumb ui-thumb"><UiIcon e={m.icon} size={26} /></div>
             <div className="pinfo">
               <div className="pname">{m.title}</div>
               <div className="pcode">{m.desc}</div>

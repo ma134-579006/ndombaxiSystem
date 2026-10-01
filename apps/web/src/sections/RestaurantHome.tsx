@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { RestaurantDashboard } from '../api/types';
 import { formatKz } from '../format';
+import { UiIcon } from '../components/UiIcon';
 
 const KZ = (n: number) => formatKz(Number(n) || 0);
 
@@ -71,7 +72,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
       {/* ── Pressão da cozinha ── */}
       <div className="card" style={{ marginBottom: 14, borderLeft: `4px solid ${kitchenTone === 'crit' ? 'var(--danger, #e5484d)' : kitchenTone === 'warn' ? 'var(--warning)' : 'var(--primary)'}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 34 }}>👨‍🍳</div>
+          <div className="ui-ic-lg"><UiIcon e="👨‍🍳" size={29} /></div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontWeight: 800, fontSize: 16 }}>Cozinha (KDS)</div>
             <div className="muted" style={{ fontSize: 13 }}>
@@ -83,7 +84,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
                         ? `${d.kitchen.queue} item(ns) de mesa · ${d.kitchen.pending} por preparar · ${d.kitchen.preparing} em preparação` +
                           (d.kitchen.oldestWaitMin > 0 ? ` · mais antigo há ${d.kitchen.oldestWaitMin} min` : '')
                         : '',
-                      (d.kitchen.online ?? 0) > 0 ? `🛵 ${d.kitchen.online} encomenda(s) online na cozinha` : '',
+                      (d.kitchen.online ?? 0) > 0 ? `${d.kitchen.online} encomenda(s) online na cozinha` : '',
                     ].filter(Boolean).join(' · ')
                 : 'a carregar…'}
             </div>
@@ -99,7 +100,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
       {d && (d.menu.outOfStock > 0 || d.menu.lowStock > 0) ? (
         <div className="card" style={{ marginBottom: 14, borderLeft: `4px solid ${d.menu.outOfStock > 0 ? 'var(--warning)' : 'var(--primary)'}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 30 }}>🧾</div>
+            <div className="ui-ic-lg"><UiIcon e="🧾" size={26} /></div>
             <div style={{ flex: 1, minWidth: 200 }}>
               <div style={{ fontWeight: 700 }}>Cardápio & ingredientes</div>
               <div className="muted" style={{ fontSize: 13 }}>
@@ -145,7 +146,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
 function Channel({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <div style={{ textAlign: 'right' }}>
-      <div className="muted" style={{ fontSize: 11.5 }}>{icon} {label}</div>
+      <div className="muted ui-chan"><UiIcon e={icon} size={14} /> {label}</div>
       <div style={{ fontSize: 17, fontWeight: 700 }}>{value}</div>
     </div>
   );
@@ -164,7 +165,7 @@ function Tile({ label, value, hint, tone }: { label: string; value: string; hint
 function ActionCard({ icon, title, desc, onClick, badge }: { icon: string; title: string; desc: string; onClick(): void; badge?: string }) {
   return (
     <button className="pcard" onClick={onClick} style={{ textAlign: 'left', cursor: 'pointer', position: 'relative' }}>
-      <div className="thumb" style={{ fontSize: 30, display: 'grid', placeItems: 'center' }}>{icon}</div>
+      <div className="thumb ui-thumb"><UiIcon e={icon} size={26} /></div>
       <div className="pinfo">
         <div className="pname">{title}</div>
         <div className="pcode">{desc}</div>

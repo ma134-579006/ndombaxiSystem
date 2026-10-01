@@ -124,10 +124,10 @@ export function Downloads({ onOpenWizard }: { onOpenWizard?: () => void } = {}) 
     try {
       if (editingId) {
         await api.downloadsAdmin.update(editingId, payload);
-        toast.success('Versão atualizada. ✅');
+        toast.success('Versão atualizada.');
       } else {
         await api.downloadsAdmin.create(payload);
-        toast.success('Versão registada. ✅');
+        toast.success('Versão registada.');
       }
       setEditingId(null);
       resetForm();
@@ -145,7 +145,7 @@ export function Downloads({ onOpenWizard }: { onOpenWizard?: () => void } = {}) 
     }))) return;
     try {
       await api.downloadsAdmin.publish(r.id);
-      toast.success(`Versão ${r.version} publicada. 🚀`);
+      toast.success(`Versão ${r.version} publicada.`);
       await load();
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Não foi possível publicar.');

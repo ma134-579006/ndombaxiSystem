@@ -180,7 +180,7 @@ function ReplenishTab({ stores }: { stores: WarehouseRow[] }) {
       </div>
       {data ? (
         <div className="card">
-          {rows.length === 0 ? <div className="empty"><IconCube size={36} /><p>Nada a repor — stock saudável. 👍</p></div> : (
+          {rows.length === 0 ? <div className="empty"><IconCube size={36} /><p>Nada a repor — stock saudável.</p></div> : (
             <>
               <div className="muted" style={{ marginBottom: 8 }}>
                 Sugestão total: <strong>{formatKz(totalCost)}</strong> (custo estimado) · previsão pelo consumo dos últimos {data.params.days} dias, cobertura {data.params.coverage} dias.
@@ -305,7 +305,7 @@ function FraudTab() {
       </div>
       <div className="card">
         {busy ? <div className="empty"><p>A analisar…</p></div>
-          : !data || data.signals.length === 0 ? <div className="empty"><IconShield size={36} /><p>Sem sinais suspeitos nos últimos {days} dias. ✅</p></div>
+          : !data || data.signals.length === 0 ? <div className="empty"><IconShield size={36} /><p>Sem sinais suspeitos nos últimos {days} dias.</p></div>
           : (
             <table className="ptable stack">
               <thead><tr><th>Gravidade</th><th>Sinal</th><th>Detalhe</th><th>Ocorrências</th></tr></thead>

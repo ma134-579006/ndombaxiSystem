@@ -313,7 +313,7 @@ export function ResetView({ token, kind }: { token: string; kind: 'pw' | 'pin' }
   if (ok) {
     return (
       <div className="banner success">
-        <div>✅ {isPin ? 'PIN' : 'Senha'} definido(a). Já podes <a style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 700 }} onClick={() => location.assign(location.pathname)}>entrar</a>.</div>
+        <div>{isPin ? 'PIN' : 'Senha'} definido(a). Já podes <a style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 700 }} onClick={() => location.assign(location.pathname)}>entrar</a>.</div>
       </div>
     );
   }

@@ -1,3 +1,4 @@
+import { UiIcon } from '../components/UiIcon';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type {
@@ -172,7 +173,7 @@ export function BedsTab({ patients }: { patients: ClinicPatient[] }) {
             const tone = occupied ? 'var(--warning)' : b.status === 'FREE' ? 'var(--success, #30a46c)' : 'var(--muted, #888)';
             return (
               <div key={b.id} className="pcard" style={{ textAlign: 'left', borderTop: `4px solid ${tone}` }}>
-                <div className="thumb" style={{ fontSize: 26, display: 'grid', placeItems: 'center' }}>{WARD_ICON[b.ward] ?? '🛏️'}</div>
+                <div className="thumb ui-thumb"><UiIcon e={WARD_ICON[b.ward] ?? '🛏️'} size={24} /></div>
                 <div className="pinfo">
                   <div className="pname">{b.code} <span className="muted" style={{ fontWeight: 400 }}>· {b.ward}{b.room ? ` · ${b.room}` : ''}</span></div>
                   <div className="pcode">{occupied ? `${b.admitted_patient} · desde ${fmtDT(b.admitted_at)}` : `${BED_LABEL[b.status] ?? b.status} · diária ${KZ(b.daily_rate)}`}</div>
@@ -320,7 +321,7 @@ export function PrescriptionsTab({ patients }: { patients: ClinicPatient[] }) {
                 <div className="muted" style={{ fontSize: 12 }}>{r.professional ?? '—'} · {r.item_count} medicamento(s) · {fmtDT(r.issued_at)}</div>
               </div>
               <span className={`pill ${r.status === 'DISPENSED' ? 'on' : 'off'}`}>{RX_LABEL[r.status] ?? r.status}</span>
-              {r.status === 'DISPENSED' && r.invoice_id ? <span className="pill on">🧾</span>
+              {r.status === 'DISPENSED' && r.invoice_id ? <span className="pill on" title="Faturado"><UiIcon e="receipt" size={13} /> Faturado</span>
                 : r.status === 'DISPENSED' && r.has_billable ? <span className="pill off">a faturar</span> : null}
             </div>
           ))}
@@ -458,7 +459,7 @@ function NewPrescriptionModal({ patients, onClose, onDone }: { patients: ClinicP
 
 // ── PROFISSIONAIS DE SAÚDE ─────────────────────────────────────
 const CAT_LABEL: Record<string, string> = {
-  MEDICO: '🧑‍Médico', ENFERMEIRO: 'Enfermeiro', TECNICO: 'Técnico', RECECAO: 'Receção',
+  MEDICO: 'Médico', ENFERMEIRO: 'Enfermeiro', TECNICO: 'Técnico', RECECAO: 'Receção',
   LABORATORIO: 'Laboratório', FARMACIA: 'Farmácia', ADMIN: 'Administração', OUTRO: 'Outro',
 };
 
@@ -476,7 +477,7 @@ export function ProfessionalsTab() {
   return (
     <>
       <div className="content-head" style={{ marginTop: 0 }}>
-        <h3 style={{ margin: 0 }}>🧑‍Profissionais de saúde</h3>
+        <h3 style={{ margin: 0 }}>Profissionais de saúde</h3>
         <span className="spacer" />
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={16} /> Novo profissional</button>
       </div>
@@ -591,7 +592,7 @@ export function ExamsTab({ patients }: { patients: ClinicPatient[] }) {
                 <strong style={{ fontSize: 13.5 }}>{r.exam_type}</strong> <span className="muted">· {r.patient_name ?? '—'}</span>
                 <div className="muted" style={{ fontSize: 12 }}>
                   {r.requested_by ? `pedido por ${r.requested_by} · ` : ''}{fmtDT(r.requested_at)}
-                  {r.result_text ? ` · 📄 ${r.result_text.slice(0, 60)}` : ''}
+                  {r.result_text ? ` · ${r.result_text.slice(0, 60)}` : ''}
                 </div>
               </div>
               <span className={`pill ${['DONE', 'DELIVERED'].includes(r.status) ? 'on' : 'off'}`}>{EXAM_LABEL[r.status] ?? r.status}</span>
@@ -694,7 +695,7 @@ export function InsurersTab({ patients, onPatientsChanged }: { patients: ClinicP
           : patients.slice(0, 30).map((p) => (
             <div key={p.id} className="list-row" style={{ padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}><strong style={{ fontSize: 13 }}>{p.name}</strong>
-                <div className="muted" style={{ fontSize: 12 }}>{p.insurer ? `🛡️ ${p.insurer}` : 'sem convénio (paga 100%)'}</div>
+                <div className="muted" style={{ fontSize: 12 }}>{p.insurer ? `${p.insurer}` : 'sem convénio (paga 100%)'}</div>
               </div>
               <button className="btn sm ghost" onClick={() => setAssignFor(p)}>Convénio</button>
             </div>
@@ -796,7 +797,7 @@ export function PatientRecordModal({ patientId, onClose }: { patientId: string; 
           }))} />
           <RecordSection title={`Exames (${rec.exams.length})`} rows={rec.exams.map((e) => ({
             id: String(e.id), main: String(e.exam_type),
-            sub: `${EXAM_LABEL[String(e.status)] ?? e.status} · ${fmtDT(String(e.requested_at))}${e.result_text ? ` · 📄 ${String(e.result_text).slice(0, 50)}` : ''}`,
+            sub: `${EXAM_LABEL[String(e.status)] ?? e.status} · ${fmtDT(String(e.requested_at))}${e.result_text ? ` · ${String(e.result_text).slice(0, 50)}` : ''}`,
           }))} />
           <RecordSection title={`Sinais vitais (${rec.vitals.length})`} rows={rec.vitals.map((v) => ({
             id: v.id, main: [

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { confirmDialog, toast } from '../components/feedback';
 import type { RestaurantKitchenItem, RestaurantOnlineTicket } from '../api/types';
+import { UiIcon } from '../components/UiIcon';
 
 const KITCHEN_LABEL: Record<string, string> = { PENDING: 'Por preparar', PREPARING: 'Em preparação', READY: 'Pronto', SERVED: 'Servido' };
 const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY', READY: 'SERVED' };
@@ -223,7 +224,7 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
 
       {loaded && tickets.length === 0 && online.length === 0 ? (
         <div className="card"><div className="empty" style={{ padding: 40 }}>
-          <div style={{ fontSize: 40 }}>🎉</div>
+          <div className="ui-ic-lg"><UiIcon e="🎉" size={32} /></div>
           <p>Sem pedidos na cozinha. Tudo em dia.</p>
           <p className="muted" style={{ fontSize: 12.5 }}>Aparecem aqui os itens das comandas de mesa e as encomendas da loja online.</p>
         </div></div>
@@ -235,11 +236,11 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
             return (
               <div key={t.orderId} className="card" style={{ padding: 0, overflow: 'hidden', borderTop: `4px solid ${tone}`, boxShadow: urgent ? '0 0 0 2px var(--danger, #e5484d)' : undefined }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border, #0002)' }}>
-                  <strong style={{ fontSize: 15 }}>{t.isCounter ? '🛍️' : '🪑'} {t.table}</strong>
+                  <strong style={{ fontSize: 15 }}><UiIcon e={t.isCounter ? 'bag' : 'chair'} size={16} /> {t.table}</strong>
                   {t.isCounter ? <span className="pill on" style={{ fontSize: 10 }}>BALCÃO</span> : null}
                   {urgent ? <span className="pill" style={{ fontSize: 10, background: 'var(--danger, #e5484d)', color: '#fff' }}>URGENTE</span> : null}
                   <span className="spacer" style={{ flex: 1 }} />
-                  <button className="btn sm ghost" title={urgent ? 'Remover urgência' : 'Marcar urgente'} onClick={() => void toggleUrgent(t.orderId, urgent ? 0 : 1)}>{urgent ? '↩' : '🔴'}</button>
+                  <button className="btn sm ghost" title={urgent ? 'Remover urgência' : 'Marcar urgente'} onClick={() => void toggleUrgent(t.orderId, urgent ? 0 : 1)}>{urgent ? 'Normal' : 'Urgente'}</button>
                   <span style={{ fontSize: 13, fontWeight: 700, color: tone }}>{fmtWait(t.oldest)}</span>
                 </div>
                 {/* Cozinha dá o tempo estimado (útil sobretudo no balcão/takeaway). */}

@@ -3,6 +3,7 @@ import { api, ApiError } from '../api/client';
 import type { AgentEvent } from '../api/types';
 import { IconCpu } from '../components/Icons';
 import { micSupported, playBase64Audio, startRecording, startVoiceCall, stopAudio, type Recorder, type VoiceCall } from '../components/voice';
+import { UiIcon } from '../components/UiIcon';
 
 /**
  * AGENTE IA do gestor — design estilo claude.ai, responsivo:
@@ -268,7 +269,7 @@ function ActivityCard({ step, running }: { step: Step; running: boolean }) {
   const [zoom, setZoom] = useState<string | null>(null);
   const label = TOOL_LABEL[step.tool] ?? step.tool;
   const m = /^(\p{Emoji})\s*(.*)$/u.exec(label);
-  const icon = m ? m[1] : '⚙️';
+  const icon = m ? m[1] : null;
   const title = m ? m[2] : label;
   const atts = step.atts ?? [];
   return (
@@ -295,7 +296,7 @@ function ActivityCard({ step, running }: { step: Step; running: boolean }) {
               {a.guideUrl ? <img className="agent-thumb" src={a.guideUrl} alt="Guia" onClick={() => setZoom(a.guideUrl!)} /> : null}
               {a.file ? (
                 <a className="agent-file" download={a.file.name} href={`data:${a.file.mime};base64,${a.file.base64}`}>
-                  <span className="agent-file-ic">{a.file.kind === 'xlsx' ? '📗' : '📄'}</span>
+                  <span className="agent-file-ic"><UiIcon e="doc" size={18} /></span>
                   <span><strong>{a.file.name}</strong><em>Descarregar</em></span>
                 </a>
               ) : null}
@@ -328,7 +329,7 @@ function AgentTurn({ turn }: { turn: Turn }) {
           <div key={i} className="agent-attach">
             {a.file ? (
               <a className="agent-file" download={a.file.name} href={`data:${a.file.mime};base64,${a.file.base64}`}>
-                <span className="agent-file-ic">{a.file.kind === 'xlsx' ? '📗' : '📄'}</span>
+                <span className="agent-file-ic"><UiIcon e="doc" size={18} /></span>
                 <span><strong>{a.file.name}</strong><em>Toca para descarregar</em></span>
               </a>
             ) : null}
@@ -509,7 +510,7 @@ function CallOverlay({ onClose }: { onClose(): void }) {
               <IconPhone size={26} />
             </button>
           </div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 14 }}>Fala normalmente — eu respondo quando terminares. 🎙️</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 14 }}>Fala normalmente — eu respondo quando terminares.</div>
         </div>
       </div>
     </div>

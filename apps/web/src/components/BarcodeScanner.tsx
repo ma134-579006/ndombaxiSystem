@@ -8,7 +8,7 @@ import { beep } from '../beep';
  * mostra aviso. Reutilizável (criar produto, caixa, etc.).
  */
 export function BarcodeScanner({
-  onDetected, label = '📷 Ler código', title = 'Ler código de barras pela câmara',
+  onDetected, label = 'Ler código', title = 'Ler código de barras pela câmara',
 }: {
   onDetected(code: string): void;
   label?: string;

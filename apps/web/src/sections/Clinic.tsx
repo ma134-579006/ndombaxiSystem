@@ -88,7 +88,7 @@ export function Clinic() {
         <button className={`chip${tab === 'prescriptions' ? ' active' : ''}`} onClick={() => setTab('prescriptions')}>Receitas</button>
         <button className={`chip${tab === 'exams' ? ' active' : ''}`} onClick={() => setTab('exams')}>Exames</button>
         <button className={`chip${tab === 'insurers' ? ' active' : ''}`} onClick={() => setTab('insurers')}>Convénios</button>
-        <button className={`chip${tab === 'professionals' ? ' active' : ''}`} onClick={() => setTab('professionals')}>🧑‍Profissionais</button>
+        <button className={`chip${tab === 'professionals' ? ' active' : ''}`} onClick={() => setTab('professionals')}>Profissionais</button>
       </div>
 
       {tab === 'emergency' ? <EmergencyTab patients={patients} />
@@ -111,7 +111,7 @@ export function Clinic() {
                     <strong style={{ fontSize: 14, width: 52 }}>{hm(a.scheduled_at)}</strong>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <strong style={{ fontSize: 14 }}>{a.patient_name || 'Paciente'}</strong>
-                      <div className="muted" style={{ fontSize: 12.5 }}>{a.reason || '—'}{a.professional ? ` · 👨‍⚕️ ${a.professional}` : ''}</div>
+                      <div className="muted" style={{ fontSize: 12.5 }}>{a.reason || '—'}{a.professional ? ` · ${a.professional}` : ''}</div>
                     </div>
                     <span className="pill" style={{ color: st.tone, borderColor: st.tone }}>{st.label}</span>
                     {a.status === 'SCHEDULED' ? <button className="btn sm success" onClick={() => setConsultFor(a)}>Atender</button> : null}
@@ -131,7 +131,7 @@ export function Clinic() {
                 <div key={p.id} className="list-row" style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)', padding: '12px 16px' }}>
                   <button onClick={() => setPatientId(p.id)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', padding: 0 }}>
                     <strong style={{ fontSize: 14 }}>{p.name}</strong>
-                    <div className="muted" style={{ fontSize: 12.5 }}>{[p.phone, p.sex, p.blood_type].filter(Boolean).join(' · ') || '—'}{p.allergies ? ` · ⚠ ${p.allergies}` : ''}</div>
+                    <div className="muted" style={{ fontSize: 12.5 }}>{[p.phone, p.sex, p.blood_type].filter(Boolean).join(' · ') || '—'}{p.allergies ? ` · Alergias: ${p.allergies}` : ''}</div>
                   </button>
                   <button className="btn sm ghost" onClick={() => setRecordFor(p.id)}>Prontuário</button>
                 </div>
@@ -272,7 +272,7 @@ function PatientDetail({ id, onClose }: { id: string; onClose(): void }) {
             <div key={c.id} className="list-row" style={{ padding: '10px 14px', display: 'block' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <strong style={{ fontSize: 13 }}>{new Date(c.created_at).toLocaleDateString('pt-PT')}</strong>
-                {c.professional ? <span className="muted" style={{ fontSize: 12 }}>👨‍{c.professional}</span> : null}
+                {c.professional ? <span className="muted" style={{ fontSize: 12 }}>{c.professional}</span> : null}
                 <span className="spacer" style={{ flex: 1 }} />
                 {Number(c.fee) > 0 ? <span style={{ fontWeight: 700 }}>{KZ(c.fee)}</span> : null}
                 {c.invoice_id ? <span className="pill on" style={{ marginLeft: 6 }}>Faturada</span> : null}

@@ -163,8 +163,8 @@ export function Products() {
   const availBadge = (id: string) => {
     const s = avail[id];
     if (!s) return null;
-    const m = { FREE: ['🟢', 'Livre'], BUSY: ['🟡', 'Ocupado'], OUT: ['🔴', 'Esgotado'] }[s];
-    return <span className="pill" style={{ marginLeft: 6, fontSize: 10.5 }}>{m[0]} {m[1]}</span>;
+    const m = { FREE: ['#16a34a', 'Livre'], BUSY: ['#ca8a04', 'Ocupado'], OUT: ['#dc2626', 'Esgotado'] }[s];
+    return <span className="pill" style={{ marginLeft: 6, fontSize: 10.5 }}><span className="ui-dot" style={{ background: m[0] }} aria-hidden="true" /> {m[1]}</span>;
   };
 
   const addCategory = async () => {
@@ -634,7 +634,7 @@ function ProductionModal({
 
   if (done) {
     return (
-      <Modal title="Fornada registada 🥖" onClose={onSaved}>
+      <Modal title="Fornada registada" onClose={onSaved}>
         <div className="banner success" style={{ marginBottom: 12 }}>
           {done.produced.toLocaleString('pt-PT')} un de {sel?.name ?? code} entraram no stock.
         </div>
