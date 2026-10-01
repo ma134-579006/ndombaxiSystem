@@ -4,6 +4,7 @@ import { App } from './App';
 import '@nexus/tokens/tokens.css';
 import './theme.css';
 import { initTheme } from './theme';
+import { initScrollReveal } from './scrollReveal';
 import { initPaper } from './print';
 import { initAutoUpdate } from './autoUpdate';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -11,6 +12,7 @@ import { mandatoryUpdate } from './update/mandatoryUpdate';
 import { isSaleInProgress } from './pos/saleActivity';
 
 initTheme();
+initScrollReveal();
 initPaper();
 // Auto-atualização: só recarrega quando NÃO há venda em curso, para nunca perder
 // uma venda a meio. O sinal vem do ESTADO do carrinho (bandeira escrita pelo
