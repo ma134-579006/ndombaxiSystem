@@ -1139,21 +1139,25 @@ a.fc-line:hover { color: #fff; }
       radial-gradient(90% 40% at 100% 0%, rgba(36, 48, 232, .22), transparent 60%);
   }
 }
-/* Ecrãs estreitos/verticais: a foto (horizontal) NÃO estica à altura toda do conteúdo
-   — senão fica ampliada ~4×. Ocupa só o topo, proporcional à largura, e funde-se no
-   fundo escuro; sem zoom de deriva (que ampliaria ainda mais). */
+/* Ecrãs estreitos/verticais: a foto (horizontal) aparece INTEIRA, ajustada à largura do
+   ecrã e centrada no primeiro ecrã; à volta, a mesma foto desfocada preenche o espaço
+   (sem barras vazias). Sem zoom de deriva. */
 @media (max-width: 767px), (max-width: 1023px) and (orientation: portrait) {
   .lp .lp-hero { background: #060a16; }
-  .lp .lp-hero-bg { bottom: auto; height: min(100%, max(380px, 118vw)); }
-  .lp .lp-hero-slide.on { animation: none; }
+  .lp .lp-hero-bg { bottom: auto; height: min(100%, 100svh); overflow: hidden; }
+  .lp .lp-hero-slide, .lp .lp-hero-slide.on { animation: none; transform: none; background-size: 0 0; background-repeat: no-repeat; }
+  .lp .lp-hero-slide::before, .lp .lp-hero-slide::after { content: ''; position: absolute; background-image: inherit; background-repeat: no-repeat; }
+  .lp .lp-hero-slide::before { inset: -40px; background-size: cover; background-position: center; filter: blur(22px) saturate(.9) brightness(.7); }
+  .lp .lp-hero-slide::after { inset: 0; background-size: 100% auto; background-position: center 42%;
+    -webkit-mask-image: linear-gradient(180deg, transparent var(--img-top), #000 var(--fade-top), #000 var(--fade-bottom), transparent var(--img-bottom));
+            mask-image: linear-gradient(180deg, transparent var(--img-top), #000 var(--fade-top), #000 var(--fade-bottom), transparent var(--img-bottom)); }
+  /* Margens suaves: só onde a foto (3:2) começa/acaba dentro do 1.º ecrã. */
+  .lp .lp-hero-slide { --img-h: calc(100vw / 1.5); --img-top: calc(42% - var(--img-h) * .42); --img-bottom: calc(var(--img-top) + var(--img-h)); --fade-top: calc(var(--img-top) + var(--img-h) * .22); --fade-bottom: calc(var(--img-bottom) - var(--img-h) * .22); }
   .lp .lp-hero-bg::after {
     background:
-      linear-gradient(180deg, rgba(6, 10, 22, .80) 0%, rgba(6, 10, 22, .66) 38%, rgba(6, 10, 22, .78) 70%, #060a16 100%),
+      linear-gradient(180deg, rgba(6, 10, 22, .72) 0%, rgba(6, 10, 22, .58) 40%, rgba(6, 10, 22, .74) 72%, #060a16 100%),
       radial-gradient(90% 40% at 100% 0%, rgba(36, 48, 232, .22), transparent 60%);
   }
-}
-@media (min-width: 768px) and (max-width: 1023px) and (orientation: portrait) {
-  .lp .lp-hero-bg { height: min(100%, 82vw); }
 }
 
 /* 2) Texto */
