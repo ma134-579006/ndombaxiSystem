@@ -90,7 +90,8 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
     <div className="modal-bg" onClick={onClose}>
       <div className="consume-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="consume-head">
-          <h3>Consumo próprio</h3>
+          <span className="ch-ic" aria-hidden="true"><UiIcon e="cart" size={20} /></span>
+          <div className="ch-tx"><h3>Consumo próprio</h3><small>Produtos para o próprio · descontado no salário</small></div>
           <button className="x" onClick={onClose} aria-label="Fechar">✕</button>
         </div>
 
@@ -108,15 +109,15 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
 
         <div className="consume-body">
           {lim && lim.employeeLinked ? (
-            lim.available <= 0 ? (
-              <div className="banner danger" style={{ marginBottom: 12 }}>
-                Atingiste o limite de consumo deste mês (salário {formatKz(lim.monthlyPay)}). Só podes voltar a consumir no próximo mês.
+            <>
+              <div className="erp-kpis">
+                <div className="erp-kpi"><span>Salário mensal</span><b>{formatKz(lim.monthlyPay)}</b></div>
+                <div className="erp-kpi"><span>Já consumido</span><b>{formatKz(lim.consumed)}</b></div>
+                <div className={`erp-kpi ${lim.available <= 0 ? 'bad' : 'hi'}`}><span>Disponível este mês</span><b>{formatKz(Math.max(lim.available, 0))}</b></div>
               </div>
-            ) : (
-              <div className="banner info" style={{ marginBottom: 12 }}>
-                Podes consumir até <strong>{formatKz(lim.available)}</strong> este mês · salário {formatKz(lim.monthlyPay)}{lim.consumed > 0 ? ` · já consumiste ${formatKz(lim.consumed)}` : ''}.
-              </div>
-            )
+              <div className="erp-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.round((lim.consumed / Math.max(lim.monthlyPay, 1)) * 100))}%` }} /></div>
+              {lim.available <= 0 ? <div className="banner danger" style={{ margin: '10px 0 12px' }}>Atingiste o limite deste mês. Só podes voltar a consumir no próximo mês.</div> : <div style={{ height: 12 }} />}
+            </>
           ) : null}
           {msg ? <div className="banner success" style={{ marginBottom: 12 }}>{msg}</div> : null}
           {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
@@ -178,7 +179,7 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
           {mine.length > 0 ? (
             <div className="consume-mine">
               <div className="row" style={{ alignItems: 'center', marginBottom: 6 }}>
-                <strong style={{ fontSize: 14 }}>Os meus consumos</strong>
+                <div className="erp-sec" style={{ margin: 0 }}>Os meus consumos <span>{mine.length}</span></div>
                 <span className="spacer" />
                 <span className="muted" style={{ fontSize: 13 }}>Por descontar: <strong>{formatKz(pendingTotal)}</strong></span>
               </div>
