@@ -35,8 +35,8 @@ const LS_SESSION_START = 'ndombaxi.web.session_start';
 const MAX_SESSION_MS = 12 * 60 * 60 * 1000; // 12 horas
 // Acesso shadow: guarda a sessão de plataforma para restaurar ao sair.
 const LS_SHADOW = 'ndombaxi.web.shadow';
-const LS_PREV_ACCESS = 'ndombaxi.web.prevaccess';
-const LS_PREV_REFRESH = 'ndombaxi.web.prevrefresh';
+export const LS_PREV_ACCESS = 'ndombaxi.web.prevaccess';
+export const LS_PREV_REFRESH = 'ndombaxi.web.prevrefresh';
 
 interface AuthContextValue {
   status: AuthStatus;

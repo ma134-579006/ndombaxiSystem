@@ -2,10 +2,38 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { UserAvatar, displayName } from './UserAvatar';
 import { api, ApiError } from '../api/client';
 import { LOGO_SRC, SYSTEM_NAME } from '../brand';
-import { useAuth } from '../auth/AuthContext';
+import { LS_PREV_ACCESS, LS_PREV_REFRESH, useAuth } from '../auth/AuthContext';
+import { API_URL } from '../config';
 
 const IDLE_MS = 10 * 60 * 1000; // 10 min no PAINEL DE GESTÃO (leitura demora; a caixa mantém o bloqueio curto)
 const WEEKDAYS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+/**
+ * Em MODO SHADOW quem está ao teclado é o Super Admin (não sabe a senha do
+ * gestor da empresa): valida a senha DELE com a sessão de plataforma guardada,
+ * renovando-a se tiver expirado (as mesmas APIs de sempre).
+ */
+async function verifyPlatformPassword(password: string): Promise<boolean> {
+  const call = (token: string) => fetch(`${API_URL}/auth/verify-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ password }),
+  });
+  let res: Response | null = null;
+  const access = sessionStorage.getItem(LS_PREV_ACCESS);
+  if (access) res = await call(access);
+  if (!res || res.status === 401) {
+    const refresh = sessionStorage.getItem(LS_PREV_REFRESH);
+    if (!refresh) return false;
+    const pair = await api.refresh(refresh);
+    sessionStorage.setItem(LS_PREV_ACCESS, pair.accessToken);
+    sessionStorage.setItem(LS_PREV_REFRESH, pair.refreshToken);
+    res = await call(pair.accessToken);
+  }
+  if (!res.ok) return false;
+  const j = (await res.json().catch(() => ({}))) as { ok?: boolean };
+  return !!j.ok;
+}
+
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
 /**
@@ -16,7 +44,7 @@ const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'jul
  * (re-verificada no servidor) — o estado do painel é preservado.
  */
 export function IdleLock({ photo, name, role }: { photo: string | null; name: string; role: string }) {
-  const { logout } = useAuth();
+  const { logout, shadow } = useAuth();
   const [locked, setLocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [pw, setPw] = useState('');
@@ -76,8 +104,8 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
     if (!pw) { setErr('Introduz a tua palavra-passe.'); return; }
     setBusy(true); setErr(null);
     try {
-      const r = await api.verifyPassword(pw);
-      if (r.ok) { setLocked(false); setPw(''); }
+      const ok = shadow ? await verifyPlatformPassword(pw) : (await api.verifyPassword(pw)).ok;
+      if (ok) { setLocked(false); setPw(''); }
       else { setErr('Senha incorreta. Tenta novamente.'); setPw(''); inputRef.current?.focus(); }
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Não foi possível validar. Tenta de novo.');
@@ -105,9 +133,9 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
       </div>
 
       <div className="lock-card" onClick={(e) => e.stopPropagation()}>
-        <UserAvatar photo={photo} name={displayName(name)} size={72} className="lock-av" />
-        <div className="lock-name">{name}</div>
-        <div className="lock-role">{role}</div>
+        <UserAvatar photo={shadow ? null : photo} name={shadow ? 'Super Admin' : displayName(name)} size={72} className="lock-av" />
+        <div className="lock-name">{shadow ? 'Super Admin' : displayName(name)}</div>
+        <div className="lock-role">{shadow ? `Modo shadow · ${shadow}` : role}</div>
 
         <form className="lock-form" onSubmit={(e) => { e.preventDefault(); void unlock(); }}>
           <input
@@ -115,7 +143,7 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
             className="lock-pin"
             type="password"
             autoComplete="current-password"
-            placeholder="Senha" aria-label="Senha"
+            placeholder={shadow ? 'Senha do Super Admin' : 'Senha'} aria-label={shadow ? 'Senha do Super Admin' : 'Senha'}
             value={pw}
             onChange={(e) => setPw(e.target.value)}
           />
