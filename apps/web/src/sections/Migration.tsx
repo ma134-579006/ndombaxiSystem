@@ -106,23 +106,48 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
     } finally { setBusy(false); }
   };
 
+  // Progresso real da importação (processadas / total) — mostrado num ecrã próprio.
+  const [progress, setProgress] = useState<{ done: number; total: number; startedAt: number } | null>(null);
+
   const apply = async () => {
     if (!contentB64) return;
     if (!(await confirmDialog({ message: `Importar ${KIND_LABEL[kind].toLowerCase()}? Vai criar/atualizar registos — nada é apagado.` }))) return;
     setBusy(true); setError(null);
+    const total0 = preview?.totalRows ?? 0;
+    setProgress({ done: 0, total: total0, startedAt: Date.now() });
     try {
-      const r = await api.migration.apply(kind, contentB64, fileName ?? undefined, kind === 'products' ? (storeId || null) : null, kind === 'products' ? mapping : null);
+      const sid = kind === 'products' ? (storeId || null) : null;
+      const map = kind === 'products' ? mapping : null;
+      let r: MigrationApplyResult;
+      try {
+        const { jobId } = await api.migration.applyAsync(kind, contentB64, fileName ?? undefined, sid, map);
+        // Consulta o progresso até terminar.
+        for (;;) {
+          await new Promise((res) => setTimeout(res, 700));
+          const j = await api.migration.job(jobId);
+          setProgress((p) => ({ done: j.processed, total: j.total || total0, startedAt: p?.startedAt ?? Date.now() }));
+          if (j.status === 'done' && j.result) { r = j.result; break; }
+          if (j.status === 'error') throw new Error(j.error || 'Falha na importação.');
+        }
+      } catch (e) {
+        // API ainda sem importação em segundo plano (deploy em curso): pedido único.
+        if (!(e instanceof ApiError) || e.status !== 404) throw e;
+        r = await api.migration.apply(kind, contentB64, fileName ?? undefined, sid, map);
+      }
+      setProgress((p) => (p ? { ...p, done: p.total } : p));
+      await new Promise((res) => setTimeout(res, 500));
       setResult(r);
       toast.success(`${KIND_LABEL[kind]}: ${r.created} criado(s), ${r.updated} atualizado(s).`);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível importar.');
-    } finally { setBusy(false); }
+      setError(e instanceof ApiError || e instanceof Error ? e.message : 'Não foi possível importar.');
+    } finally { setBusy(false); setProgress(null); }
   };
 
   const reset = () => { setMapping(null); setFileName(null); setContentB64(null); setPreview(null); setResult(null); setError(null); if (inputRef.current) inputRef.current.value = ''; };
 
   return (
     <div className={`mig-card${preview || result ? ' active' : ''}`}>
+      {progress ? <ImportProgress kind={kind} fileName={fileName} {...progress} /> : null}
       <header className="mig-card-head">
         <span className="mig-card-icon" aria-hidden><Icon size={20} /></span>
         <div>
@@ -287,6 +312,41 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
           <button className="btn ghost block" onClick={reset}><IconRefresh size={15} /> Importar outro ficheiro</button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Ecrã de progresso da importação: percentagem real, barra animada, linhas e tempo estimado. */
+function ImportProgress({ kind, fileName, done, total, startedAt }: { kind: MigrationKind; fileName: string | null; done: number; total: number; startedAt: number }) {
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  const elapsed = (Date.now() - startedAt) / 1000;
+  const eta = done > 0 && done < total ? Math.max(1, Math.round((elapsed / done) * (total - done))) : null;
+  const etaLabel = eta === null ? (pct >= 100 ? 'A concluir…' : 'A preparar…') : eta >= 60 ? `cerca de ${Math.ceil(eta / 60)} min restantes` : `cerca de ${eta} s restantes`;
+  const finished = pct >= 100;
+  return (
+    <div className="imp-overlay" role="dialog" aria-modal="true" aria-label="Importação em curso">
+      <div className="imp-card">
+        <div className="imp-head">
+          <span className={`imp-ic${finished ? ' ok' : ''}`} aria-hidden>
+            {finished
+              ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+              : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M8 8l4-4 4 4" /><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>}
+          </span>
+          <div className="imp-titles">
+            <h4>{finished ? 'Importação concluída' : `A importar ${KIND_LABEL[kind].toLowerCase()}`}</h4>
+            {fileName ? <p>{fileName}</p> : null}
+          </div>
+          <span className="imp-pct" aria-live="polite">{pct}<small>%</small></span>
+        </div>
+        <div className="imp-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+          <i style={{ width: `${Math.max(pct, 2)}%` }} />
+        </div>
+        <div className="imp-meta">
+          <span><b>{done.toLocaleString('pt-PT')}</b> de {total.toLocaleString('pt-PT')} linhas</span>
+          <span>{etaLabel}</span>
+        </div>
+        <p className="imp-hint">Pode continuar nesta página — não feche o separador até terminar.</p>
+      </div>
     </div>
   );
 }

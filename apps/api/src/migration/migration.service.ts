@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
@@ -58,6 +59,13 @@ function matchStore<T extends { name: string }>(label: string, stores: T[]): T |
 }
 
 type Actor = { id?: string | null; name?: string | null };
+type OnProgress = (done: number, total: number) => void;
+
+/** Importação a correr em segundo plano (para a barra de progresso real no painel). */
+export interface MigrationJob {
+  id: string; kind: MigrationKind; total: number; processed: number;
+  status: 'running' | 'done' | 'error'; result?: MigrationApplyResult; error?: string; startedAt: number;
+}
 const SAMPLE_SIZE = 20;
 
 /**
@@ -114,12 +122,40 @@ export class MigrationService {
    */
   apply(
     schema: string, kind: MigrationKind, buffer: Buffer, fileName: string | undefined, actor: Actor,
-    storeId?: string | null, mapping?: Record<string, string> | null,
+    storeId?: string | null, mapping?: Record<string, string> | null, onProgress?: OnProgress,
   ): Promise<MigrationApplyResult> {
     const { headers, rows } = parseUploadedFile(buffer, fileName, kind);
-    if (kind === 'products') return this.applyProducts(schema, headers, rows, actor, fileName, storeId ?? null, mapping ?? null);
-    if (kind === 'customers') return this.applyCustomers(schema, headers, rows, actor, fileName);
-    return this.applySuppliers(schema, headers, rows, actor, fileName);
+    onProgress?.(0, rows.length);
+    if (kind === 'products') return this.applyProducts(schema, headers, rows, actor, fileName, storeId ?? null, mapping ?? null, onProgress);
+    if (kind === 'customers') return this.applyCustomers(schema, headers, rows, actor, fileName, onProgress);
+    return this.applySuppliers(schema, headers, rows, actor, fileName, onProgress);
+  }
+
+  // ── Importação em segundo plano com progresso ───────────────────────────
+  private readonly jobs = new Map<string, MigrationJob & { schema: string }>();
+
+  /** Inicia a importação em segundo plano e devolve o id para consultar o progresso. */
+  startApply(
+    schema: string, kind: MigrationKind, buffer: Buffer, fileName: string | undefined, actor: Actor,
+    storeId?: string | null, mapping?: Record<string, string> | null,
+  ): { jobId: string } {
+    // Limpa trabalhos com mais de 1 h (memória).
+    const cutoff = Date.now() - 3600_000;
+    for (const [k, j] of this.jobs) if (j.startedAt < cutoff) this.jobs.delete(k);
+    const job: MigrationJob & { schema: string } = { id: randomUUID(), schema, kind, total: 0, processed: 0, status: 'running', startedAt: Date.now() };
+    this.jobs.set(job.id, job);
+    void this.apply(schema, kind, buffer, fileName, actor, storeId, mapping, (done, total) => { job.processed = done; job.total = total; })
+      .then((res) => { job.result = res; job.processed = job.total; job.status = 'done'; })
+      .catch((e: unknown) => { job.status = 'error'; job.error = e instanceof Error ? e.message : 'Falha na importação.'; this.logger.warn(`Migração em segundo plano falhou: ${job.error}`); });
+    return { jobId: job.id };
+  }
+
+  /** Estado de uma importação (só da própria empresa). */
+  getJob(schema: string, id: string): MigrationJob {
+    const j = this.jobs.get(id);
+    if (!j || j.schema !== schema) throw new NotFoundException('Importação não encontrada.');
+    const { schema: _s, ...pub } = j;
+    return pub;
   }
 
   /**
@@ -262,7 +298,7 @@ export class MigrationService {
 
   private async applyProducts(
     schema: string, headers: string[], rows: Record<string, unknown>[], actor: Actor, fileName?: string,
-    storeId: string | null = null, override: Record<string, string> | null = null,
+    storeId: string | null = null, override: Record<string, string> | null = null, onProgress?: OnProgress,
   ): Promise<MigrationApplyResult> {
     const cols = detectProductColumns(headers, rows, override);
     const { mapping } = cols;
@@ -312,6 +348,7 @@ export class MigrationService {
     // inteiro (ex.: timeout) não perde os lotes anteriores nem trava os seguintes.
     for (let start = 0; start < rows.length; start += BATCH_SIZE) {
       const end = Math.min(start + BATCH_SIZE, rows.length);
+      onProgress?.(start, rows.length);
       let bCreated = 0, bUpdated = 0, bSkipped = 0;
       const bErrors: string[] = [];
       try {
@@ -466,7 +503,7 @@ export class MigrationService {
   }
 
   private async applyCustomers(
-    schema: string, headers: string[], rows: Record<string, unknown>[], actor: Actor, fileName?: string,
+    schema: string, headers: string[], rows: Record<string, unknown>[], actor: Actor, fileName?: string, onProgress?: OnProgress,
   ): Promise<MigrationApplyResult> {
     const { mapping } = mapHeaders<CustomerField>(headers, CUSTOMER_ALIASES);
     if (!mapping.name) throw new BadRequestException('Não encontrei a coluna de nome do cliente.');
@@ -478,6 +515,7 @@ export class MigrationService {
     // Por LOTES — cada lote na sua transacção (ver nota em BATCH_SIZE).
     for (let start = 0; start < rows.length; start += BATCH_SIZE) {
       const end = Math.min(start + BATCH_SIZE, rows.length);
+      onProgress?.(start, rows.length);
       let bCreated = 0, bUpdated = 0, bSkipped = 0;
       const bErrors: string[] = [];
       try {
@@ -593,7 +631,7 @@ export class MigrationService {
   }
 
   private async applySuppliers(
-    schema: string, headers: string[], rows: Record<string, unknown>[], actor: Actor, fileName?: string,
+    schema: string, headers: string[], rows: Record<string, unknown>[], actor: Actor, fileName?: string, onProgress?: OnProgress,
   ): Promise<MigrationApplyResult> {
     const { mapping } = mapHeaders<SupplierField>(headers, SUPPLIER_ALIASES);
     if (!mapping.name) throw new BadRequestException('Não encontrei a coluna de nome do fornecedor.');
@@ -605,6 +643,7 @@ export class MigrationService {
     // Por LOTES — cada lote na sua transacção (ver nota em BATCH_SIZE).
     for (let start = 0; start < rows.length; start += BATCH_SIZE) {
       const end = Math.min(start + BATCH_SIZE, rows.length);
+      onProgress?.(start, rows.length);
       let bCreated = 0, bUpdated = 0, bSkipped = 0;
       const bErrors: string[] = [];
       try {
