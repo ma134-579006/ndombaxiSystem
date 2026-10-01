@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { LandingConfig, PublicPlan } from '../api/types';
 import { Modal } from '../components/ui';
-import { IconCheck, IconEdit } from '../components/Icons';
+import { IconCalendar, IconCheck, IconEdit, IconLedger, IconTag } from '../components/Icons';
 
 function kz(n: number): string {
   return n.toLocaleString('pt-PT') + ' Kz';
@@ -51,9 +51,9 @@ export function PlansAdmin() {
       {error ? <div className="banner danger">{error}</div> : null}
 
       <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Planos</div><div className="vl">{plans.length}</div><div className="sb">{visible} visível(is) na página inicial</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Teste grátis</div><div className="vl">{cfg?.trialDays ?? '—'}<small>&nbsp;dias</small></div><div className="sb">para cada nova empresa</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Marca</div><div className="vl" style={{ fontSize: 18 }}>{cfg?.brandName ?? '—'}</div><div className="sb">nome mostrado no site</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconLedger size={20} /></span><div><div className="lb">Planos</div><div className="vl">{plans.length}</div><div className="sb">{visible} visível(is) na página inicial</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCalendar size={20} /></span><div><div className="lb">Teste grátis</div><div className="vl">{cfg?.trialDays ?? '—'}<small>&nbsp;dias</small></div><div className="sb">para cada nova empresa</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconTag size={20} /></span><div><div className="lb">Marca</div><div className="vl" style={{ fontSize: 18 }}>{cfg?.brandName ?? '—'}</div><div className="sb">nome mostrado no site</div></div></div>
       </div>
 
       {/* PLANOS */}

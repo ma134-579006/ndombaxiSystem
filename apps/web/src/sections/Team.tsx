@@ -5,7 +5,7 @@ import {
   STAFF_ROLES, STAFF_ROLE_LABELS,
   type CreateStaffInput, type ManagerStaff, type ManagerStore, type StaffRoleName,
 } from '../api/types';
-import { IconPlus, IconRefresh, IconBuilding, IconLock, IconEdit, IconShield } from '../components/Icons';
+import { IconBuilding, IconCheck, IconEdit, IconKey, IconLock, IconPlus, IconRefresh, IconShield, IconUsers } from '../components/Icons';
 import { Modal } from '../components/ui';
 
 /** Equipa: utilizadores, papéis (permissões), senha, PIN do POS e loja.
@@ -64,9 +64,9 @@ export function Team() {
       </div>
 
       <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconShield size={20} /></span><div><div className="lb">Utilizadores</div><div className="vl">{users.length}</div><div className="sb">com acesso registado</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconShield size={20} /></span><div><div className="lb">Activos</div><div className="vl"><span className="fx-dot ok" />{activeUsers}</div><div className="sb">{users.length - activeUsers} inactivo(s)</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconLock size={20} /></span><div><div className="lb">Com PIN da Caixa</div><div className="vl">{withPin}</div><div className="sb">{users.length - withPin} sem PIN</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconUsers size={20} /></span><div><div className="lb">Utilizadores</div><div className="vl">{users.length}</div><div className="sb">com acesso registado</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Activos</div><div className="vl"><span className="fx-dot ok" />{activeUsers}</div><div className="sb">{users.length - activeUsers} inactivo(s)</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconKey size={20} /></span><div><div className="lb">Com PIN da Caixa</div><div className="vl">{withPin}</div><div className="sb">{users.length - withPin} sem PIN</div></div></div>
       </div>
 
       {info ? <div className="banner success">{info}</div> : null}

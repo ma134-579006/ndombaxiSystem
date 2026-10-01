@@ -6,7 +6,7 @@ import type {
   WarehouseRow, ManagerProduct,
 } from '../api/types';
 import { Modal } from '../components/ui';
-import { IconPlus, IconTruck, IconCheck, IconBuilding, IconTrash } from '../components/Icons';
+import { IconBuilding, IconCheck, IconPlus, IconReport, IconTrash, IconTruck } from '../components/Icons';
 import { formatKz, formatDate } from '../format';
 
 const PO_TONE: Record<string, string> = {
@@ -68,7 +68,7 @@ export function Purchasing() {
       </div>
 
       <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconTruck size={20} /></span><div><div className="lb">Em aberto</div><div className="vl">{openOrders.length}</div><div className="sb">rascunho ou confirmadas</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconReport size={20} /></span><div><div className="lb">Em aberto</div><div className="vl">{openOrders.length}</div><div className="sb">rascunho ou confirmadas</div></div></div>
         <div className="fx-stat"><span className="ic"><IconTruck size={20} /></span><div><div className="lb">A receber</div><div className="vl">{formatKz(toReceive)}</div><div className="sb">encomendas confirmadas</div></div></div>
         <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Rececionadas</div><div className="vl"><span className="fx-dot ok" />{orders.filter((o) => o.status === 'RECEIVED').length}</div><div className="sb">stock actualizado</div></div></div>
         <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Fornecedores</div><div className="vl">{suppliers.length}</div><div className="sb">registados</div></div></div>

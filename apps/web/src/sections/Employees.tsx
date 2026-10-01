@@ -5,7 +5,7 @@ import {
   STAFF_ROLES, STAFF_ROLE_LABELS,
   type CreateEmployeeInput, type EmployeeConsumption, type ManagerEmployee, type ManagerStaff, type ManagerStore, type StaffRoleName,
 } from '../api/types';
-import { IconBadge, IconEdit, IconImage, IconPlus, IconSearch, IconShield, IconUser } from '../components/Icons';
+import { IconBadge, IconCheck, IconEdit, IconImage, IconPlus, IconSearch, IconShield, IconUser, IconUsers, IconWallet } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatDate, formatKz } from '../format';
 
@@ -173,10 +173,10 @@ export function Employees() {
         </div>
 
         <div className="fx-stats" style={{ marginBottom: 0 }}>
-          <div className="fx-stat"><span className="ic"><IconBadge size={20} /></span><div><div className="lb">Funcionários</div><div className="vl">{items.length}</div><div className="sb">{items.length - activeEmps.length} inactivo(s)</div></div></div>
-          <div className="fx-stat"><span className="ic"><IconBadge size={20} /></span><div><div className="lb">Activos</div><div className="vl"><span className="fx-dot ok" />{activeEmps.length}</div><div className="sb">em funções</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconUsers size={20} /></span><div><div className="lb">Funcionários</div><div className="vl">{items.length}</div><div className="sb">{items.length - activeEmps.length} inactivo(s)</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Activos</div><div className="vl"><span className="fx-dot ok" />{activeEmps.length}</div><div className="sb">em funções</div></div></div>
           <div className="fx-stat"><span className="ic"><IconShield size={20} /></span><div><div className="lb">Com acesso ao sistema</div><div className="vl">{withAccess}</div><div className="sb">login ou PIN da Caixa</div></div></div>
-          <div className="fx-stat"><span className="ic"><IconBadge size={20} /></span><div><div className="lb">Salários base</div><div className="vl">{formatKz(payroll)}</div><div className="sb">soma dos activos</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconWallet size={20} /></span><div><div className="lb">Salários base</div><div className="vl">{formatKz(payroll)}</div><div className="sb">soma dos activos</div></div></div>
         </div>
 
         <div className="card toolbar-sticky" style={{ padding: '2px 14px' }}>

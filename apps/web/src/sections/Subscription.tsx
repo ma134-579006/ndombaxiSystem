@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { BankAccount, PublicPlan, SubMessage, Subscription as Sub, SubStatus } from '../api/types';
-import { IconCheck, IconCard, IconReceipt } from '../components/Icons';
+import { IconCalendar, IconCard, IconCheck, IconReceipt, IconShield, IconStore } from '../components/Icons';
 
 function kz(n: number): string { return n.toLocaleString('pt-PT') + ' Kz'; }
 
@@ -73,9 +73,9 @@ export function Subscription() {
       {!loading ? (
         <div className="fx-stats">
           <div className="fx-stat"><span className="ic"><IconCard size={20} /></span><div><div className="lb">Plano actual</div><div className="vl">{active?.plan?.name ?? 'Sem plano activo'}</div><div className="sb">{active ? (active.isTrial ? 'período de teste' : priceLabel({ priceKz: active.amountKz, durationMonths: active.durationMonths, durationDays: active.durationDays })) : 'escolhe um plano abaixo'}</div></div></div>
-          <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Válido até</div><div className="vl">{active?.expiresAt ? new Date(active.expiresAt).toLocaleDateString('pt-PT') : '—'}</div><div className="sb">{left != null ? `${left} dia(s) restante(s)` : 'sem data de fim'}</div></div></div>
-          <div className="fx-stat"><span className="ic"><IconReceipt size={20} /></span><div><div className="lb">Lojas incluídas</div><div className="vl">{currentPlan ? (currentPlan.maxStores === -1 ? 'Ilimitadas' : currentPlan.maxStores) : '—'}</div><div className="sb">{currentPlan ? `${currentPlan.maxUsers === -1 ? 'utilizadores ilimitados' : `${currentPlan.maxUsers} utilizadores`}` : ''}</div></div></div>
-          <div className="fx-stat"><span className="ic"><IconReceipt size={20} /></span><div><div className="lb">Estado</div><div className="vl"><span className={`fx-dot${pending ? '' : active ? ' ok' : ' bad'}`} />{pending ? STATUS_LABEL[pending.status] : active ? 'Em dia' : 'Sem acesso'}</div><div className="sb">{pending ? 'pagamento em curso' : active ? 'a usar o sistema' : 'renova para continuar'}</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconCalendar size={20} /></span><div><div className="lb">Válido até</div><div className="vl">{active?.expiresAt ? new Date(active.expiresAt).toLocaleDateString('pt-PT') : '—'}</div><div className="sb">{left != null ? `${left} dia(s) restante(s)` : 'sem data de fim'}</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Lojas incluídas</div><div className="vl">{currentPlan ? (currentPlan.maxStores === -1 ? 'Ilimitadas' : currentPlan.maxStores) : '—'}</div><div className="sb">{currentPlan ? `${currentPlan.maxUsers === -1 ? 'utilizadores ilimitados' : `${currentPlan.maxUsers} utilizadores`}` : ''}</div></div></div>
+          <div className="fx-stat"><span className="ic"><IconShield size={20} /></span><div><div className="lb">Estado</div><div className="vl"><span className={`fx-dot${pending ? '' : active ? ' ok' : ' bad'}`} />{pending ? STATUS_LABEL[pending.status] : active ? 'Em dia' : 'Sem acesso'}</div><div className="sb">{pending ? 'pagamento em curso' : active ? 'a usar o sistema' : 'renova para continuar'}</div></div></div>
         </div>
       ) : null}
 

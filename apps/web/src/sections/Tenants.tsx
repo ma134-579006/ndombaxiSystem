@@ -2,7 +2,7 @@ import { confirmDialog, toast } from '../components/feedback';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Company, CompanyStatus } from '../api/types';
-import { IconBuilding, IconSearch } from '../components/Icons';
+import { IconBuilding, IconCheck, IconHistory, IconLock, IconSearch } from '../components/Icons';
 import { StatusBadge, Modal } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { formatDate } from '../format';
@@ -128,9 +128,9 @@ export function Tenants() {
 
       <div className="fx-stats">
         <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Total</div><div className="vl">{counts?.total ?? '—'}</div><div className="sb">empresas na plataforma</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Activas</div><div className="vl"><span className="fx-dot ok" />{counts?.active ?? '—'}</div><div className="sb">com acesso ao sistema</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Pendentes</div><div className="vl"><span className="fx-dot" />{counts?.pending ?? '—'}</div><div className="sb">a aguardar aprovação</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Suspensas</div><div className="vl"><span className="fx-dot bad" />{counts?.suspended ?? '—'}</div><div className="sb">sem acesso</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Activas</div><div className="vl"><span className="fx-dot ok" />{counts?.active ?? '—'}</div><div className="sb">com acesso ao sistema</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconHistory size={20} /></span><div><div className="lb">Pendentes</div><div className="vl"><span className="fx-dot" />{counts?.pending ?? '—'}</div><div className="sb">a aguardar aprovação</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconLock size={20} /></span><div><div className="lb">Suspensas</div><div className="vl"><span className="fx-dot bad" />{counts?.suspended ?? '—'}</div><div className="sb">sem acesso</div></div></div>
       </div>
 
       <div className="fx-toolbar">

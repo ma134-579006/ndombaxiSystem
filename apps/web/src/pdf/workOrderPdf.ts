@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { formatKz } from '../format';
 import QRCode from 'qrcode';
 import type { DocumentIdentity, ServiceOrderDetail } from '../api/types';
 
@@ -6,7 +7,7 @@ const INK: [number, number, number] = [17, 24, 39];
 const MUTED: [number, number, number] = [107, 114, 128];
 const LIGHT: [number, number, number] = [243, 246, 251];
 
-const KZ = (n: number) => `${n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz`;
+const KZ = (n: number) => formatKz(n);
 const FUEL_LABEL: Record<string, string> = { EMPTY: 'Vazio', LOW: '1/4', HALF: '1/2', HIGH: '3/4', FULL: 'Cheio' };
 const MIN_LABEL = (m?: number | null) => (m == null ? '—' : m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}` : `${m} min`);
 

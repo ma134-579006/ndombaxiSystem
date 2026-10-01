@@ -6,7 +6,7 @@ import type { DashLowStock, ExpiringBatch, ManagerProduct, StockCountDetail, Sto
 import { Modal } from '../components/ui';
 import { ProductPicker } from '../components/ProductPicker';
 import { BarcodeScanner } from '../components/BarcodeScanner';
-import { IconCheck, IconCube, IconPlus, IconTruck, IconTrash, IconReceipt } from '../components/Icons';
+import { IconAudit, IconBell, IconCalendar, IconCheck, IconCube, IconPlus, IconReceipt, IconTrash, IconTruck } from '../components/Icons';
 import { formatKz, formatDate } from '../format';
 
 /** Inventário profissional: entrada de stock (custo/lucro), contagens e baixas. */
@@ -84,9 +84,9 @@ export function Inventory() {
       </div>
 
       <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Contagens em curso</div><div className="vl">{openCounts}</div><div className="sb">{counts.length} no total</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Abaixo do mínimo</div><div className="vl"><span className={`fx-dot${lowStock.length ? ' bad' : ' ok'}`} />{lowStock.length}</div><div className="sb">produtos a repor</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconReceipt size={20} /></span><div><div className="lb">Lotes a expirar</div><div className="vl"><span className={`fx-dot${expiring.length ? ' bad' : ' ok'}`} />{expiring.length}</div><div className="sb">nos próximos 60 dias</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconAudit size={20} /></span><div><div className="lb">Contagens em curso</div><div className="vl">{openCounts}</div><div className="sb">{counts.length} no total</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconBell size={20} /></span><div><div className="lb">Abaixo do mínimo</div><div className="vl"><span className={`fx-dot${lowStock.length ? ' bad' : ' ok'}`} />{lowStock.length}</div><div className="sb">produtos a repor</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCalendar size={20} /></span><div><div className="lb">Lotes a expirar</div><div className="vl"><span className={`fx-dot${expiring.length ? ' bad' : ' ok'}`} />{expiring.length}</div><div className="sb">nos próximos 60 dias</div></div></div>
         <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Produtos</div><div className="vl">{products.length}</div><div className="sb">{warehouses.length} loja(s)</div></div></div>
       </div>
 
