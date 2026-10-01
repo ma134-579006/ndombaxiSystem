@@ -3334,3 +3334,26 @@ img.u-av { background: var(--surface-2); }
 /* Leitos: mosaicos mais legíveis */
 .pgrid > .pcard[style*="border-top: 4px"], .pgrid > .pcard[style*="border-top:4px"] { border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,42,.04); transition: transform .12s, box-shadow .15s; }
 .pgrid > .pcard[style*="border-top: 4px"]:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -16px rgba(15,23,42,.4); }
+
+/* ── Menu da conta no admin: pedidos de adiantamento e configurações (visual ERP) ── */
+.erp-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.erp-kpi { padding: 12px 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.erp-kpi span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.erp-kpi b { font-size: 20px; font-weight: 700; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.erp-kpi.hi { background: color-mix(in srgb, var(--primary) 10%, var(--surface-2)); border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
+.erp-kpi.hi b { color: var(--primary); }
+.adv-list { gap: 10px; }
+.adv-req2 { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px 14px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
+.adv-req2-main strong { font-size: 14.5px; }
+.adv-req2 .adv-req-meta { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.adv-req2-amt { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.adv-req2-act { grid-column: 2 / -1; display: flex; gap: 8px; }
+.acc-hero { display: flex; align-items: center; gap: 18px; padding: 20px 22px; margin-bottom: 16px; border-radius: 18px; border: 1px solid var(--border);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, var(--surface)), var(--surface) 70%); }
+.acc-hero-tx { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.acc-hero-tx strong { font-size: 20px; letter-spacing: -.01em; }
+.acc-hero-tx > span { color: var(--muted); font-size: 13.5px; }
+.acc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.acc-chips i { font-style: normal; font-size: 11.5px; font-weight: 700; text-transform: capitalize; padding: 3px 10px; border-radius: 99px; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.acc-h { display: flex; align-items: center; gap: 9px; margin: 0 0 14px !important; font-size: 16px; }
+.acc-h svg { color: var(--primary); }

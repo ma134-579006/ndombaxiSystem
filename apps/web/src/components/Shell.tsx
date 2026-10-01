@@ -142,26 +142,37 @@ function AdvancesModal({ items, onReview, onClose }: {
   const act = async (id: string, d: 'APPROVED' | 'REJECTED') => { setBusy(id); try { await onReview(id, d); } finally { setBusy(null); } };
   return (
     <Modal title="Pedidos de adiantamento" onClose={onClose}>
+      {items.length > 0 ? (
+        <div className="erp-kpis">
+          <div className="erp-kpi"><span>Pedidos pendentes</span><b>{items.length}</b></div>
+          <div className="erp-kpi hi"><span>Valor total</span><b>{fmtKz(items.reduce((t, x) => t + Number(x.amount), 0))}</b></div>
+        </div>
+      ) : null}
       <div className="adv-list">
         {items.length === 0 ? (
           <div className="adv-empty">Sem pedidos de adiantamento pendentes.</div>
-        ) : items.map((a) => (
-          <div key={a.id} className="adv-req">
-            <div className="adv-req-top">
-              <strong className="adv-req-name">{a.staff_name}</strong>
-              <strong className="adv-req-amt">{fmtKz(Number(a.amount))}</strong>
+        ) : items.map((a) => {
+          const pay = Number(a.monthly_pay) || 0;
+          const pct = pay > 0 ? Math.min(100, Math.round((Number(a.amount) / pay) * 100)) : null;
+          return (
+            <div key={a.id} className="adv-req2">
+              <UserAvatar name={a.staff_name} size={42} />
+              <div className="adv-req2-main">
+                <strong>{a.staff_name}</strong>
+                <div className="adv-req-meta">
+                  {pay ? `Salário ${fmtKz(pay)}` : 'Salário n/d'}{pct !== null ? ` · ${pct}% do salário` : ''}
+                  {' · '}{new Date(a.requested_at).toLocaleDateString('pt-PT')}
+                  {a.reason ? ` · ${a.reason}` : ''}
+                </div>
+              </div>
+              <strong className="adv-req2-amt">{fmtKz(Number(a.amount))}</strong>
+              <div className="adv-req2-act">
+                <button className="btn sm ok" disabled={busy === a.id} onClick={() => void act(a.id, 'APPROVED')}>Aceitar</button>
+                <button className="btn sm ghost danger" disabled={busy === a.id} onClick={() => void act(a.id, 'REJECTED')}>Rejeitar</button>
+              </div>
             </div>
-            <div className="adv-req-meta">
-              {a.monthly_pay ? `Salário ${fmtKz(Number(a.monthly_pay))}` : 'Salário n/d'}
-              {' · '}{new Date(a.requested_at).toLocaleDateString('pt-PT')}
-              {a.reason ? ` · ${a.reason}` : ''}
-            </div>
-            <div className="adv-req-actions">
-              <button className="btn sm ok" disabled={busy === a.id} onClick={() => void act(a.id, 'APPROVED')}>Aceitar</button>
-              <button className="btn sm ghost danger" disabled={busy === a.id} onClick={() => void act(a.id, 'REJECTED')}>Rejeitar</button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </Modal>
   );

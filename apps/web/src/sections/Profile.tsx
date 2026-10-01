@@ -5,6 +5,7 @@ import type { DocumentIdentity } from '../api/types';
 import { IconCheck, IconImage } from '../components/Icons';
 import { openCaixaTerminal } from '../config';
 import { UiIcon } from '../components/UiIcon';
+import { UserAvatar } from '../components/UserAvatar';
 
 /** Nível de cada papel (0 = mais poder), igual ao backend. */
 const ROLE_LEVEL: Record<string, number> = {
@@ -82,6 +83,17 @@ export function Profile() {
   return (
     <div>
       <div className="content-head"><h2>Configurações da conta</h2></div>
+      <div className="acc-hero">
+        <UserAvatar photo={photo} name={name || user?.name || user?.email || 'Utilizador'} email={user?.email} size={72} />
+        <div className="acc-hero-tx">
+          <strong>{name || user?.name || 'Utilizador'}</strong>
+          <span>{user?.email}</span>
+          <div className="acc-chips">
+            <i>{(user?.role ?? '').replace(/_/g, ' ').toLowerCase()}</i>
+            {companyCode ? <i>Empresa {companyCode}</i> : null}
+          </div>
+        </div>
+      </div>
       {msg ? <div className="banner success">{msg}</div> : null}
       {err ? <div className="banner danger">{err}</div> : null}
 
@@ -102,7 +114,7 @@ export function Profile() {
       <div className="cols-2">
         {/* Perfil: foto + nome + email + NIF */}
         <div className="card">
-          <h3>Perfil</h3>
+          <h3 className="acc-h"><UiIcon e="👤" size={18} /> Perfil</h3>
           <div className="row" style={{ gap: 16, alignItems: 'center', marginBottom: 14 }}>
             <div style={{ width: 84, height: 84, borderRadius: 18, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface-2)', display: 'grid', placeItems: 'center', flex: 'none' }}>
               {photo ? <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <IconImage size={30} />}
@@ -124,7 +136,7 @@ export function Profile() {
 
         {/* Segurança: password + PIN */}
         <div className="card">
-          <h3>Segurança</h3>
+          <h3 className="acc-h"><UiIcon e="🛡️" size={18} /> Segurança</h3>
           <div className="field"><label>Nova palavra-passe</label>
             <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="mín. 8 caracteres" /></div>
           <div className="field"><label>Confirmar palavra-passe</label>
