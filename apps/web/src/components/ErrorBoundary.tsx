@@ -1,5 +1,6 @@
 import React from 'react';
 import { isChunkError, reloadForNewVersion } from '../lazyRetry';
+import { UiIcon } from '../components/UiIcon';
 
 /**
  * Captura erros de render para que a app NUNCA fique em "tela branca".
@@ -39,7 +40,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
     return (
       <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24, background: '#0c1426', color: '#eaf0fa', fontFamily: 'system-ui, sans-serif' }}>
         <div style={{ maxWidth: 440, textAlign: 'center', background: '#111a2e', border: '1px solid #233149', borderRadius: 16, padding: 24 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>⚠️</div>
+          <div className="ui-ic-lg"><UiIcon e="⚠️" size={32} /></div>
           <h2 style={{ margin: '0 0 8px' }}>Ocorreu um erro inesperado</h2>
           <p style={{ color: '#93a3c0', fontSize: 14, marginTop: 0 }}>
             A aplicação encontrou um problema. Tente recarregar — os seus dados estão guardados em segurança.

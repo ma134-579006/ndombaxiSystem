@@ -46,25 +46,25 @@ function NotifyBell({ onGo }: { onGo(section: string): void }) {
         <div className="noti-pop">
           <div className="noti-head">Notificações</div>
           <button className="noti-item" onClick={() => { setOpen(false); onGo('support'); }}>
-            💬 <span style={{ flex: 1, textAlign: 'left' }}>
+            <span style={{ flex: 1, textAlign: 'left' }}>
               {n?.unreadChats ? <><strong>{n.unreadChats}</strong> conversa(s) por responder{n.humanWaiting ? ` · ${n.humanWaiting} à espera da equipa` : ''}</> : 'Sem conversas novas'}
             </span>
             {n?.unreadChats ? <span className="noti-badge inline">{n.unreadChats}</span> : null}
           </button>
           <button className="noti-item" onClick={() => { setOpen(false); onGo('feedback'); }}>
-            ⭐ <span style={{ flex: 1, textAlign: 'left' }}>
+            <span style={{ flex: 1, textAlign: 'left' }}>
               {n?.newFeedback ? <><strong>{n.newFeedback}</strong> comentário(s) novo(s) no site</> : 'Sem comentários novos'}
             </span>
             {n?.newFeedback ? <span className="noti-badge inline">{n.newFeedback}</span> : null}
           </button>
           <button className="noti-item" onClick={() => { setOpen(false); onGo('tenants'); }}>
-            🏢 <span style={{ flex: 1, textAlign: 'left' }}>
+            <span style={{ flex: 1, textAlign: 'left' }}>
               {n?.pendingCompanies ? <><strong>{n.pendingCompanies}</strong> empresa(s) por aprovar</> : 'Sem empresas por aprovar'}
             </span>
             {n?.pendingCompanies ? <span className="noti-badge inline">{n.pendingCompanies}</span> : null}
           </button>
           <button className="noti-item" onClick={() => { setOpen(false); onGo('subs'); }}>
-            💳 <span style={{ flex: 1, textAlign: 'left' }}>
+            <span style={{ flex: 1, textAlign: 'left' }}>
               {n?.pendingSubs ? <><strong>{n.pendingSubs}</strong> pagamento(s)/renovação(ões) por rever</> : 'Sem pagamentos por rever'}
             </span>
             {n?.pendingSubs ? <span className="noti-badge inline">{n.pendingSubs}</span> : null}
@@ -141,7 +141,7 @@ function AdvancesModal({ items, onReview, onClose }: {
   const [busy, setBusy] = useState<string | null>(null);
   const act = async (id: string, d: 'APPROVED' | 'REJECTED') => { setBusy(id); try { await onReview(id, d); } finally { setBusy(null); } };
   return (
-    <Modal title="💸 Pedidos de adiantamento" onClose={onClose}>
+    <Modal title="Pedidos de adiantamento" onClose={onClose}>
       <div className="adv-list">
         {items.length === 0 ? (
           <div className="adv-empty">Sem pedidos de adiantamento pendentes.</div>

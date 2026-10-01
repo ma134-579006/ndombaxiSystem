@@ -48,7 +48,7 @@ export function ScreenKeyboard() {
       {on ? (
         <div className="oskb" role="group" aria-label="Teclado no ecrã">
           <div className="oskb-bar">
-            <span>⌨ Teclado no ecrã</span>
+            <span>Teclado no ecrã</span>
             <button type="button" className="oskb-x" onMouseDown={(e) => { e.preventDefault(); setOn(false); }}>Fechar ✕</button>
           </div>
           {rows.map((row, i) => (

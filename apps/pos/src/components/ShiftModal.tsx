@@ -8,6 +8,7 @@ import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { PaperSizeToggle } from './PaperSizeToggle';
 import { buildShiftClosePdf, shiftFileName } from '../pdf/shiftPdf';
 import { abrirTurnoOffline, fecharTurnoOffline } from '../offline/shifts';
+import { UiIcon } from './UiIcon';
 
 /**
  * Falhou por não haver SERVIDOR do outro lado? `status 0` é o pedido que nem
@@ -197,10 +198,10 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
           <PaperSizeToggle />
           <div className="shift-actions">
             <button className="btn ghost lg shift-act" onClick={() => window.print()} title="Impressora térmica (80/58mm)">
-              <span className="ic" aria-hidden>🖨</span> Imprimir
+              <span className="ic" aria-hidden><UiIcon e="printer" size={18} /></span> Imprimir
             </button>
             <button className="btn ghost lg shift-act" onClick={() => void savePdf(r)} disabled={pdfBusy}>
-              <span className="ic" aria-hidden>⬇️</span> {pdfBusy ? 'A gerar…' : 'PDF (A4)'}
+              <span className="ic" aria-hidden><UiIcon e="download" size={18} /></span> {pdfBusy ? 'A gerar…' : 'PDF (A4)'}
             </button>
             <button className="btn lg shift-act shift-wa" onClick={() => shareWhatsAppShift(r)}>
               <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden>

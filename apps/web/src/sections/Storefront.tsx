@@ -181,7 +181,7 @@ export function Storefront() {
               />
               <button className="btn" onClick={copyLink}>{copied ? 'Copiado!' : 'Copiar link'}</button>
               <a className="btn ghost" href={storeLink} target="_blank" rel="noreferrer">Abrir</a>
-              <button className="btn" onClick={() => void downloadStorePdf()} disabled={pdfBusy}>{pdfBusy ? 'A gerar PDF…' : '⬇️ Descarregar PDF (A4)'}</button>
+              <button className="btn" onClick={() => void downloadStorePdf()} disabled={pdfBusy}>{pdfBusy ? 'A gerar PDF…' : 'Descarregar PDF (A4)'}</button>
             </div>
             <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <a

@@ -8,6 +8,7 @@ import { buildInvoicePdf, invoiceFileName } from '../pdf/invoicePdf';
 import { getPaper } from '../print';
 import { pairPrinter, pairedPrinterName, printRaw, rawPrintSupported } from '../escpos';
 import { isNativeApp, saveNativePdf, shareNativePdf } from '../offline/nativeShare';
+import { UiIcon } from './UiIcon';
 
 /** Linha de artigo da fatura (para a tabela no recibo/PDF). */
 export interface ReceiptItem { description: string; quantity: number; unitPrice: number; total: number }
@@ -319,7 +320,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
             {printBusy ? 'A imprimir…' : 'Imprimir'}
           </button>
           <button className="btn ghost lg" style={{ flex: '1 1 30%' }} onClick={() => void downloadPdf()} disabled={pdfBusy}>
-            {pdfBusy ? '…' : '⬇️ PDF'}
+            {pdfBusy ? '…' : <><UiIcon e="download" size={16} /> PDF</>}
           </button>
           <button
             className="btn lg"

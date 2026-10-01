@@ -44,7 +44,7 @@ export function Pharmacy() {
       </div>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {rows.length === 0 ? <div className="empty" style={{ padding: 24 }}><p>Sem lotes a expirar neste período. 👍</p></div>
+        {rows.length === 0 ? <div className="empty" style={{ padding: 24 }}><p>Sem lotes a expirar neste período.</p></div>
           : rows.map((b) => {
             const expired = b.days_left < 0;
             const soon = b.days_left >= 0 && b.days_left <= 7;

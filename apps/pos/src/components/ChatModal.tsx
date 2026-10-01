@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import type { ChatContact, ChatMessage } from '../api/types';
 import { IconClose } from './Icons';
+import { UiIcon } from './UiIcon';
 
 const ROLE_LABEL: Record<string, string> = {
   COMPANY_ADMIN: 'Administrador', REGIONAL_MANAGER: 'Gerente regional', STORE_MANAGER: 'Gestor',
@@ -80,7 +81,7 @@ export function ChatModal({ meId, onClose, onRead }: { meId?: string; onClose():
             </div>
             <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', flex: 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-2, var(--bg-2))', border: '1px solid var(--border)', borderRadius: 12, padding: '0 12px' }}>
-                <span aria-hidden style={{ opacity: .7 }}>🔎</span>
+                <UiIcon e="search" size={16} />
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar por nome…"
                   style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 14, padding: '10px 0' }} />
                 {search ? <button onClick={() => setSearch('')} aria-label="Limpar" style={{ background: 'transparent', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 16 }}>✕</button> : null}

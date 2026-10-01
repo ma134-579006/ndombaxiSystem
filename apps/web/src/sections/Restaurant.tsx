@@ -5,6 +5,7 @@ import { confirmDialog, toast } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz } from '../format';
+import { UiIcon } from '../components/UiIcon';
 
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
 const KITCHEN_LABEL: Record<string, string> = { PENDING: 'Por preparar', PREPARING: 'Em preparação', READY: 'Pronto', SERVED: 'Servido' };
@@ -118,7 +119,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
                 <button key={t.id} className={`pcard${occupied ? ' sel' : ''}`} onClick={() => void openTable(t)} disabled={busy}
                   style={{ textAlign: 'left', cursor: 'pointer' }}>
                   <div className="thumb" style={{ fontSize: 28, display: 'grid', placeItems: 'center', background: occupied ? 'color-mix(in srgb, var(--warning) 18%, transparent)' : 'color-mix(in srgb, var(--success) 14%, transparent)' }}>
-                    {occupied ? '🟠' : '🟢'}
+                    <span className="ui-dot" style={{ background: occupied ? '#ca8a04' : '#16a34a' }} aria-hidden="true" />
                   </div>
                   <div className="pinfo">
                     <div className="pname">{t.name}</div>
@@ -136,7 +137,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
         )
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          {kds.length === 0 ? <div className="empty" style={{ padding: 26 }}><p>Sem itens por preparar 🎉</p></div>
+          {kds.length === 0 ? <div className="empty" style={{ padding: 26 }}><p>Sem itens por preparar</p></div>
             : kds.map((i) => (
               <div key={i.id} className="list-row" style={{ padding: '12px 16px' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -388,7 +389,7 @@ function ProductionTab({ products, onProduced, onGo }: { products: ManagerProduc
       ) : null}
       <div className="card" style={{ marginBottom: 12 }}>
         <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>
-          🥖 <strong>Fornada</strong>: produz em lote para a prateleira (pães, bolos, pratos preparados).
+          <strong>Fornada</strong>: produz em lote para a prateleira (pães, bolos, pratos preparados).
           Consome os ingredientes da ficha técnica (com quebra) e dá entrada do produto acabado ao custo real.
           A partir daí o balcão vende da prateleira.
         </p>
@@ -408,7 +409,7 @@ function ProductionTab({ products, onProduced, onGo }: { products: ManagerProduc
             <div className="pgrid">
               {filtered.map((p) => (
                 <button key={p.id} className="pcard" onClick={() => { setProductId(p.id); setLast(null); }} style={{ cursor: 'pointer', textAlign: 'left' }}>
-                  <div className="thumb" style={{ fontSize: 26, display: 'grid', placeItems: 'center' }}>🥐</div>
+                  <div className="thumb ui-thumb"><UiIcon e="layers" size={24} /></div>
                   <div className="pinfo">
                     <div className="pname" style={{ fontSize: 13.5 }}>{p.name}</div>
                     <div className="pcode">{p.code}</div>
@@ -516,7 +517,7 @@ function ReportsTab() {
 
   const Group = ({ title, icon, g, accent }: { title: string; icon: string; g: RestaurantSalesReport['commercial']; accent: string }) => (
     <div className="card" style={{ flex: '1 1 260px', borderTop: `3px solid ${accent}` }}>
-      <h3 style={{ margin: '0 0 10px' }}>{icon} {title}</h3>
+      <h3 className="ui-h3" style={{ margin: '0 0 10px' }}><UiIcon e={icon} size={18} /> {title}</h3>
       <div className="kpi-grid" style={{ gridTemplateColumns: '1fr 1fr', margin: 0 }}>
         <div className="kpi-card"><div className="kpi-label">Receita</div>
           <div className="kpi-value" style={{ fontSize: 19 }}>{KZ(g.revenue)}</div>

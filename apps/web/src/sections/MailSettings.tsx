@@ -46,7 +46,7 @@ export function MailSettings() {
         ...(password ? { password } : {}), // só envia se foi escrita uma nova
       });
       setCfg(c); setPassword('');
-      toast.success('Configuração de e-mail guardada. ✅');
+      toast.success('Configuração de e-mail guardada.');
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível guardar.'); }
     finally { setSaving(false); }
   };
@@ -70,7 +70,7 @@ export function MailSettings() {
       <div className={`banner ${cfg?.source === 'db' ? 'success' : cfg?.source === 'env' ? 'info' : 'warning'}`} style={{ marginBottom: 16 }}>
         <div>
           {cfg?.source === 'db' ? 'A enviar e-mails com esta configuração (guardada no painel).'
-            : cfg?.source === 'env' ? 'ℹ️ A usar a configuração das variáveis do Render. Podes substituí-la aqui.'
+            : cfg?.source === 'env' ? 'A usar a configuração das variáveis do Render. Podes substituí-la aqui.'
             : 'Sem e-mail configurado — a recuperação de senha/PIN não envia. Preenche abaixo.'}
         </div>
       </div>

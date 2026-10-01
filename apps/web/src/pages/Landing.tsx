@@ -849,14 +849,14 @@ function SetupSubscription({
         <button className="x" onClick={onClose}>×</button>
         {submitted ? (
           <>
-            <h3>Comprovativo enviado ✅</h3>
+            <h3>Comprovativo enviado</h3>
             <p className="msub">A tua subscrição está <b>em análise</b>. Assim que a plataforma aprovar, a tua conta fica <b>activa</b>. Entra depois com:</p>
             <Creds result={result} />
             <button className="lp-btn primary" style={{ width: '100%', justifyContent: 'center', marginTop: 14 }} onClick={onLogin}>Ir para o login</button>
           </>
         ) : !sub ? (
           <>
-            <h3>Conta criada! 🎉 Falta concluir a subscrição</h3>
+            <h3>Conta criada! Falta concluir a subscrição</h3>
             <p className="msub">Escolhe o plano e a conta para transferir. A seguir envias o comprovativo (obrigatório).</p>
             {err && <div className="lp-err">{err}</div>}
             <div className="lp-field">
@@ -892,7 +892,7 @@ function SetupSubscription({
             ) : null}
             {err && <div className="lp-err">{err}</div>}
             <button className="lp-btn primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => fileRef.current?.click()} disabled={busy}>
-              {busy ? 'A enviar…' : '📷 Enviar comprovativo (foto)'}
+              {busy ? 'A enviar…' : 'Enviar comprovativo (foto)'}
             </button>
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => upload(e.target.files?.[0])} />
             <p className="msub" style={{ marginTop: 12, fontSize: 12 }}>A plataforma verifica o comprovativo e ativa a tua conta. Podes acompanhar e conversar depois de entrares.</p>

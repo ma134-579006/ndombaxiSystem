@@ -164,7 +164,7 @@ export function SupportChat() {
         setMsgs((p) => [...p, { id: `b${Date.now()}`, sender: 'BOT', body, created_at: new Date().toISOString() }]);
       } else if (r.escalated && !human) {
         // 1.ª vez em modo humano: explica o silêncio do bot (a equipa responde aqui).
-        setMsgs((p) => [...p, { id: `h${Date.now()}`, sender: 'BOT', body: '✅ A nossa equipa foi chamada e vai responder aqui mesmo. Se preferires voltar ao assistente automático, toca em ⟳ (nova conversa) no topo.', created_at: new Date().toISOString() }]);
+        setMsgs((p) => [...p, { id: `h${Date.now()}`, sender: 'BOT', body: 'A nossa equipa foi chamada e vai responder aqui mesmo. Se preferires voltar ao assistente automático, toca em ⟳ (nova conversa) no topo.', created_at: new Date().toISOString() }]);
       }
       if (r.escalated) markHuman();
       scrollDown();

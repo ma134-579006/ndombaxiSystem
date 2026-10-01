@@ -7,6 +7,7 @@ import { Modal } from '../components/ui';
 import { formatKz } from '../format';
 import { useAuth } from '../auth/AuthContext';
 import { STORE_URL } from '../config';
+import { UiIcon } from '../components/UiIcon';
 
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
 
@@ -98,7 +99,7 @@ export function ServiceOrders() {
             <button key={r.id} className="list-row" onClick={() => void openOS(r.id)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', padding: '12px 16px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ fontSize: 14 }}>{r.number} · {r.customer_name || 'Cliente'}{r.source === 'ONLINE' ? <span className="pill" style={{ marginLeft: 6, background: 'var(--primary)', color: '#fff' }}>Online</span> : null}</strong>
-                <div className="muted" style={{ fontSize: 12.5 }}>{r.equipment_label || '—'}{r.assigned_to ? ` · 👤 ${r.assigned_to}` : ''}</div>
+                <div className="muted" style={{ fontSize: 12.5 }}>{r.equipment_label || '—'}{r.assigned_to ? ` · ${r.assigned_to}` : ''}</div>
               </div>
               <span style={{ fontWeight: 700, marginRight: 8 }}>{KZ(r.total)}</span>
               <span className={`pill ${r.status === 'DELIVERED' ? 'on' : r.status === 'CANCELLED' ? 'off' : ''}`}>{SL(r.status)}</span>
@@ -156,7 +157,7 @@ function AgendaTab({ onOpen }: { onOpen(id: string): void }) {
               <span style={{ fontWeight: 800, fontSize: 14, width: 52, color: 'var(--primary)' }}>{new Date(r.scheduled_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ fontSize: 13.5 }}>{r.number} · {r.customer_name || 'Cliente'}</strong>
-                <div className="muted" style={{ fontSize: 12 }}>{r.equipment_label || '—'}{r.equipment_ref ? ` · ${r.equipment_ref}` : ''}{r.assigned_to ? ` · 👤 ${r.assigned_to}` : ''}</div>
+                <div className="muted" style={{ fontSize: 12 }}>{r.equipment_label || '—'}{r.equipment_ref ? ` · ${r.equipment_ref}` : ''}{r.assigned_to ? ` · ${r.assigned_to}` : ''}</div>
               </div>
               <span className="pill">{SL(r.status)}</span>
             </button>
@@ -254,7 +255,7 @@ function EquipmentsTab() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong style={{ fontSize: 13.5 }}>{KIND_EQ[e.kind] ?? e.kind}: {e.label}</strong>
                   <div className="muted" style={{ fontSize: 12 }}>
-                    {[e.brand, e.model].filter(Boolean).join(' ')}{e.plate ? ` · ${e.plate}` : ''}{e.serial ? ` · SN ${e.serial}` : ''}{e.customer_name ? ` · 👤 ${e.customer_name}` : ''}
+                    {[e.brand, e.model].filter(Boolean).join(' ')}{e.plate ? ` · ${e.plate}` : ''}{e.serial ? ` · SN ${e.serial}` : ''}{e.customer_name ? ` · ${e.customer_name}` : ''}
                     {e.km != null ? ` · ${e.km.toLocaleString('pt-PT')} km` : ''}
                   </div>
                   {overKm ? <div style={{ fontSize: 12, color: 'var(--warning)', fontWeight: 700 }}>Revisão devida (≥ {e.next_service_km?.toLocaleString('pt-PT')} km)</div> : null}
@@ -468,7 +469,7 @@ function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['or
   return (
     <div className="card" style={{ marginBottom: 12 }}>
       <button className="row" style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, alignItems: 'center' }} onClick={() => setOpen((v) => !v)}>
-        <strong style={{ fontSize: 14 }}>{isVehicle ? '🚗' : '📱'} Receção &amp; inspeção</strong>
+        <strong style={{ fontSize: 14 }}><UiIcon e={isVehicle ? 'car' : 'phone'} size={16} /> Receção &amp; inspeção</strong>
         <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>{o.received_at ? `recebido ${new Date(o.received_at).toLocaleDateString('pt-PT')}` : 'por preencher'}</span>
         <span className="spacer" style={{ flex: 1 }} />
         <span className="muted">{open ? '▲' : '▼'}</span>
@@ -505,7 +506,7 @@ function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['or
               <button key={c.key} className="btn sm ghost" onClick={() => toggle(c.key)}
                 style={{ justifyContent: 'flex-start', borderColor: c.ok === true ? 'var(--success)' : c.ok === false ? 'var(--danger, #e5484d)' : 'var(--border)' }}
                 title="Toque para alternar: OK → problema → por verificar">
-                <span style={{ marginRight: 6 }}>{c.ok === true ? '✅' : c.ok === false ? '⚠️' : '⬜'}</span>{c.label}
+                <span className={`ui-chk${c.ok === true ? ' ok' : c.ok === false ? ' bad' : ''}`} aria-label={c.ok === true ? 'OK' : c.ok === false ? 'Com problema' : 'Por verificar'}>{c.ok === true ? <UiIcon e="check" size={16} /> : c.ok === false ? <UiIcon e="alert" size={16} /> : null}</span>{c.label}
               </button>
             ))}
           </div>
@@ -559,7 +560,7 @@ function WorkflowBar({ o, onChanged }: { o: ServiceOrderDetail['order']; onChang
         <button className="btn sm" disabled={!!busy} onClick={() => void act('approve', () => api.serviceOrders.approveQuote(o.id), 'Orçamento aprovado.')}>Aprovar orçamento</button>
       ) : null}
       {s === 'APPROVED' ? (
-        <button className="btn sm" disabled={!!busy} onClick={() => void act('start', () => api.serviceOrders.startWork(o.id), 'Trabalho iniciado.')}>▶ Iniciar trabalho</button>
+        <button className="btn sm" disabled={!!busy} onClick={() => void act('start', () => api.serviceOrders.startWork(o.id), 'Trabalho iniciado.')}>Iniciar trabalho</button>
       ) : null}
       {s === 'IN_PROGRESS' ? (
         <button className="btn sm success" disabled={!!busy} onClick={() => void act('finish', () => api.serviceOrders.finishWork(o.id), 'Trabalho concluído.')}>■ Concluir trabalho</button>
@@ -631,7 +632,7 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
     <Modal title={`${o.number} — ${SL(o.status)}`} onClose={onClose}>
       <div className="card" style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 13.5 }}><strong>{o.customer_name || 'Cliente'}</strong>{o.customer_phone ? ` · ${o.customer_phone}` : ''}</div>
-        <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{o.equipment_label || '—'}{o.equipment_ref ? ` · ${o.equipment_ref}` : ''}{o.assigned_to ? ` · 👤 ${o.assigned_to}` : ''}</div>
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{o.equipment_label || '—'}{o.equipment_ref ? ` · ${o.equipment_ref}` : ''}{o.assigned_to ? ` · ${o.assigned_to}` : ''}</div>
         {o.problem ? <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>{o.problem}</div> : null}
       </div>
 

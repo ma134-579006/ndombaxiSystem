@@ -13,12 +13,12 @@ import { ScreenKeyboard } from '../components/ScreenKeyboard';
  */
 /** Tipos de negócio suportados (cada um adapta o painel ao seu serviço). */
 const BUSINESS_TYPES: { id: string; label: string; hint: string }[] = [
-  { id: 'RETAIL', label: '🛒 Vendas & Gestão de stock', hint: 'Loja, mercearia, retalho, grossista — produtos e stock.' },
-  { id: 'RESTAURANT', label: '🍔 Restauração', hint: 'Restaurante, hamburgueria, pastelaria, padaria, café, snack-bar.' },
-  { id: 'SERVICES', label: '🔧 Serviços', hint: 'Mecânica, suporte técnico, recauchutagem, reparações, assistência.' },
-  { id: 'HOSPITALITY', label: '🏨 Hotelaria', hint: 'Hotel, hospedaria, pousada, guest-house — quartos e reservas.' },
-  { id: 'CLINIC', label: '🏥 Clínica / Saúde', hint: 'Clínica, consultório, posto médico — pacientes, marcações e consultas.' },
-  { id: 'PHARMACY', label: '💊 Farmácia', hint: 'Farmácia, parafarmácia — medicamentos, lotes, validades e receita.' },
+  { id: 'RETAIL', label: 'Vendas & Gestão de stock', hint: 'Loja, mercearia, retalho, grossista — produtos e stock.' },
+  { id: 'RESTAURANT', label: 'Restauração', hint: 'Restaurante, hamburgueria, pastelaria, padaria, café, snack-bar.' },
+  { id: 'SERVICES', label: 'Serviços', hint: 'Mecânica, suporte técnico, recauchutagem, reparações, assistência.' },
+  { id: 'HOSPITALITY', label: 'Hotelaria', hint: 'Hotel, hospedaria, pousada, guest-house — quartos e reservas.' },
+  { id: 'CLINIC', label: 'Clínica / Saúde', hint: 'Clínica, consultório, posto médico — pacientes, marcações e consultas.' },
+  { id: 'PHARMACY', label: 'Farmácia', hint: 'Farmácia, parafarmácia — medicamentos, lotes, validades e receita.' },
 ];
 
 export function Register({ onBack }: { onBack?: () => void }) {

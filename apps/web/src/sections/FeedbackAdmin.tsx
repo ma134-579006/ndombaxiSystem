@@ -35,8 +35,8 @@ export function FeedbackAdmin() {
       {stats ? (
         <div className="kpi-grid">
           <div className="kpi-card"><div className="kpi-label">Total</div><div className="kpi-value">{stats.total}</div></div>
-          <div className="kpi-card"><div className="kpi-label">Bem recebidos 👍</div><div className="kpi-value" style={{ color: 'var(--success)' }}>{stats.positive}</div></div>
-          <div className="kpi-card"><div className="kpi-label">Mal recebidos 👎</div><div className="kpi-value" style={{ color: 'var(--danger)' }}>{stats.negative}</div></div>
+          <div className="kpi-card"><div className="kpi-label">Bem recebidos</div><div className="kpi-value" style={{ color: 'var(--success)' }}>{stats.positive}</div></div>
+          <div className="kpi-card"><div className="kpi-label">Mal recebidos</div><div className="kpi-value" style={{ color: 'var(--danger)' }}>{stats.negative}</div></div>
           <div className="kpi-card"><div className="kpi-label">Neutros</div><div className="kpi-value">{stats.neutral}</div></div>
         </div>
       ) : null}
