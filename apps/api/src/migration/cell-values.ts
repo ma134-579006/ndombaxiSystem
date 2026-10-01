@@ -36,7 +36,19 @@ export function readBarcode(raw: unknown): ReadResult {
   }
   s = s.replace(/[\s-]/g, '');
   if (/^\d+[.,]0+$/.test(s)) s = s.replace(/[.,]0+$/, ''); // "123.0" → "123"
+  // Código GS1 completo (DataMatrix/GS1-128: «(01)GTIN(17)validade(10)lote…»):
+  // o produto é identificado pelo GTIN — é isso que o leitor encontra na caixa.
+  const gs1 = s.match(/^\(?01\)?(\d{14})(?=\(?\d{2}\)?|$)/);
+  if (gs1 && s.length >= 16) { // EAN tem no máximo 14 dígitos: 16+ começado por «01» é GS1
+    const gtin = gs1[1].startsWith('0') ? gs1[1].slice(1) : gs1[1];
+    return { value: gtin, warning: `código GS1 «${s}» — usado o GTIN ${gtin}` };
+  }
   return { value: s };
+}
+
+/** Código de barras com letras (não é EAN/UPC): mantém-se, mas avisa-se o utilizador. */
+export function hasLetters(code: string): boolean {
+  return /[A-Za-z]/.test(code);
 }
 
 /** Código interno/SKU: texto aparado; números do Excel sem ".0" nem notação científica. */
@@ -71,6 +83,9 @@ export interface StockRead { value: number | null; warning?: string }
 export function readStock(raw: unknown): StockRead {
   if (raw === null || raw === undefined) return { value: null };
   if (typeof raw === 'string' && raw.trim() === '') return { value: null };
+  // Texto sem algarismos («Sim», «Sem controlo de Stock»…) não é uma quantidade:
+  // desconhecido (null) — nunca 0, que apagava o stock real.
+  if (typeof raw === 'string' && !/\d/.test(raw)) return { value: null };
   const n = parseFlexibleNumber(raw);
   if (n < 0) return { value: 0, warning: `stock negativo (${n}) tratado como 0` };
   return { value: n };

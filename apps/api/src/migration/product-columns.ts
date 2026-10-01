@@ -1,5 +1,5 @@
 import {
-  PRODUCT_ALIASES, PRODUCT_FIELD_ORDER, PRODUCT_NEGATIVE, ProductField, mapHeaders,
+  PRODUCT_ALIASES, PRODUCT_FIELD_ORDER, PRODUCT_NEGATIVE, ProductField, mapHeaders, normalizeHeader,
 } from './column-aliases';
 import { looksLikeBarcode, readBarcode } from './cell-values';
 
@@ -10,6 +10,33 @@ export interface ProductColumns {
   notes: string[];
   /** A coluna «Código» do ficheiro já traz os códigos de barras (EAN): usa-se também como código de barras. */
   barcodeFromCode: boolean;
+  /** Stock POR LOJA («Stock - Loja Central», «Stock - Loja 2»…): uma coluna por loja do ficheiro. */
+  storeStock: { header: string; label: string }[];
+}
+
+/** Rótulos que NÃO são nomes de loja («Stock actual», «Stock mínimo»…). */
+const GENERIC_STOCK_LABELS = new Set(['atual', 'actual', 'disponivel', 'final', 'total', 'existente', 'minimo', 'minima', 'maximo', 'maxima',
+  'seguranca', 'reposicao', 'inicial', 'anterior', 'reservado', 'fisico', 'teorico', 'geral', 'global', 'em', 'de']);
+
+/**
+ * Colunas de stock por loja: «Stock - <Loja>», «Stock <Loja>», «Qtd <Loja>», «Existências <Loja>».
+ * Ignora duplicados que o leitor renomeia («…_1») — avisa nas notas.
+ */
+function detectStoreStock(headers: string[], notes: string[]): { header: string; label: string }[] {
+  const out: { header: string; label: string }[] = [];
+  const seen = new Set<string>();
+  for (const h of headers) {
+    const m = h.match(/^\s*(?:stock|qtd\.?|quantidade|exist[eê]ncias?)\s*[-–:|]?\s*(.+?)\s*$/i);
+    if (!m) continue;
+    const dup = /_\d+$/.test(m[1]);
+    const label = m[1].replace(/_\d+$/, '').trim();
+    const norm = normalizeHeader(label);
+    if (!norm || norm.split(' ').every((w) => GENERIC_STOCK_LABELS.has(w))) continue;
+    if (dup || seen.has(norm)) { notes.push(`Coluna «${h}» repete a loja «${label}» — foi ignorada (usa-se a primeira).`); continue; }
+    seen.add(norm);
+    out.push({ header: h, label });
+  }
+  return out;
 }
 
 const SAMPLE_ROWS = 400;
@@ -78,6 +105,17 @@ export function detectProductColumns(
     }
   }
 
-  const used = new Set(Object.values(mapping));
-  return { mapping, unmapped: headers.filter((h) => !used.has(h)), notes, barcodeFromCode };
+  // Stock por loja: se o ficheiro tem colunas por loja e o utilizador não escolheu
+  // outra coluna de stock à mão, são ELAS a fonte do stock (a soma dá o total).
+  let storeStock: { header: string; label: string }[] = [];
+  if (!explicit.has('stock')) {
+    storeStock = detectStoreStock(headers, notes);
+    if (storeStock.length) {
+      delete mapping.stock; // as colunas por loja têm prioridade sobre uma coluna genérica
+      notes.push(`Stock por loja: ${storeStock.map((s) => `«${s.label}»`).join(', ')} — cada loja recebe o seu stock (a soma é o total).`);
+    }
+  }
+
+  const used = new Set([...Object.values(mapping), ...storeStock.map((s) => s.header)]);
+  return { mapping, unmapped: headers.filter((h) => !used.has(h)), notes, barcodeFromCode, storeStock };
 }

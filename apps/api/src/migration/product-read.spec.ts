@@ -135,3 +135,29 @@ describe('Excel: zeros à esquerda', () => {
     expect(rows[0]['Stock']).toBe(7); // quantidades não são mexidas
   });
 });
+
+describe('exportação com stock por loja (ex.: Loja Da Mulher)', () => {
+  const headers = ['Nome', 'Referência', 'Código de Barras', 'PVP', 'Preço Fornecedor', 'Controlar Stock',
+    'Stock - Loja 2', 'Stock - Loja Central', 'Stock - Loja Central_1'];
+  const rows = [
+    { Nome: 'Sabonete', Referência: 'V1', 'Código de Barras': '8718951627291', PVP: '100,0000', 'Preço Fornecedor': '80,0000', 'Controlar Stock': 'Sim', 'Stock - Loja 2': '3,0000', 'Stock - Loja Central': '5,0000', 'Stock - Loja Central_1': '0' },
+  ];
+  it('«Controlar Stock» (Sim/Não) nunca é o stock; colunas por loja sim; duplicado ignorado', () => {
+    const c = detectProductColumns(headers, rows);
+    expect(c.mapping.stock).toBeUndefined();
+    expect(c.storeStock.map((s) => s.label)).toEqual(['Loja 2', 'Loja Central']);
+    expect(c.notes.join(' ')).toMatch(/Central_1/);
+  });
+  it('«Preço Fornecedor» é o preço de custo', () => {
+    expect(detectProductColumns(headers, rows).mapping.costPrice).toBe('Preço Fornecedor');
+  });
+  it('texto sem números no stock é desconhecido (null), não 0', () => {
+    expect(readStock('Sim').value).toBeNull();
+    expect(readStock('Sem controlo de Stock').value).toBeNull();
+    expect(readStock('12,0000').value).toBe(12);
+  });
+  it('código GS1 completo → GTIN', () => {
+    expect(readBarcode('01189041826045531727070010H102').value).toBe('18904182604553');
+    expect(readBarcode('0105601234567890').value).toBe('05601234567890'.slice(1));
+  });
+});
