@@ -141,8 +141,8 @@ export function SupportChat() {
     return () => window.clearInterval(t);
   }, [open, chatId, human, msgs]);
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (override?: string) => {
+    const text = (override ?? input).trim();
     if (!text || !chatId || busy) return;
     setInput('');
     // Contexto para a IA: últimos turnos guardados APENAS no navegador.
@@ -202,7 +202,10 @@ export function SupportChat() {
       {open ? (
         <div className="sc-panel">
           <div className="sc-head">
-            <span className="sc-dot" />
+            <span className="sc-avatar" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z" /><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" /></svg>
+              <i />
+            </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="sc-title">Assistente LPS Vendas</div>
               <div className="sc-sub">{human ? 'Equipa chamada — respondemos aqui' : 'Responde na hora · IA'}</div>
@@ -221,7 +224,14 @@ export function SupportChat() {
                 <MsgBody body={m.body} sender={m.sender} />
               </div>
             ))}
-            {busy ? <div className="sc-msg bot sc-typing">a escrever…</div> : null}
+            {busy ? <div className="sc-msg bot sc-typing" aria-label="a escrever"><i /><i /><i /></div> : null}
+            {msgs.length <= 1 && !busy ? (
+              <div className="sc-quick">
+                {['Quanto custa?', 'Funciona com a AGT?', 'Como começar?'].map((q) => (
+                  <button key={q} onClick={() => void send(q)}>{q}</button>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="sc-foot">
             <input
