@@ -1,3 +1,4 @@
+import { UserAvatar } from '../components/UserAvatar';
 import { confirmDialog, runBulk } from '../components/feedback';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
@@ -216,39 +217,37 @@ export function Employees() {
         : filtered.length === 0 ? (
           <div className="card"><div className="empty"><IconBadge size={40} /><p>Sem funcionários. Crie o primeiro.</p></div></div>
         ) : (
-          <div className="pgrid">
+          <div className="emp-grid">
             {filtered.map((e) => {
               const u = accessOf(e);
+              const st = e.status === 'ACTIVE' ? 'on' : e.status === 'TERMINATED' ? 'end' : 'off';
               return (
-                <div className={`pcard${selected.has(e.id) ? ' sel' : ''}`} key={e.id}>
-                  <label className="pcard-check" onClick={(ev) => ev.stopPropagation()}>
-                    <input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSel(e.id)} />
+                <div className={`emp-card${selected.has(e.id) ? ' sel' : ''}`} key={e.id}>
+                  <label className="emp-check" onClick={(ev) => ev.stopPropagation()}>
+                    <input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSel(e.id)} aria-label={`Selecionar ${e.full_name}`} />
                   </label>
-                  <div className="thumb">
-                    {e.photo_url ? <img src={e.photo_url} alt={e.full_name} /> : <IconUser size={30} />}
+                  <div className="emp-top">
+                    <UserAvatar photo={e.photo_url} name={e.full_name} size={56} />
+                    <div className="emp-id">
+                      <strong>{e.full_name}</strong>
+                      <span>{e.position || 'Sem função definida'}{e.department ? ` · ${e.department}` : ''}</span>
+                    </div>
+                    <span className={`emp-st ${st}`}>{e.status === 'ACTIVE' ? 'Activo' : e.status === 'TERMINATED' ? 'Cessado' : 'Suspenso'}</span>
                   </div>
-                  <div className="pinfo">
-                    <div className="pname">{e.full_name}</div>
-                    <div className="pcode">{e.employee_number}{e.position ? ` · ${e.position}` : ''}</div>
-                    <div className="pfoot">
-                      <span className="pprice">{formatKz(Number(e.base_salary))}</span>
-                      <span className={`pill ${e.status === 'ACTIVE' ? 'on' : 'off'}`}>{e.status === 'ACTIVE' ? 'Activo' : e.status === 'TERMINATED' ? 'Cessado' : 'Suspenso'}</span>
-                    </div>
-                    <div style={{ marginTop: 8 }}>
-                      {u ? (
-                        <div className="row" style={{ gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                          <span className="pill on" title={u.email} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <IconShield size={11} /> {STAFF_ROLE_LABELS[u.role] ?? u.role}{u.has_pin ? ' · PIN' : ''}
-                          </span>
-                          <button className="btn sm ghost" onClick={() => setManageFor({ user: u, name: e.full_name })}>Gerir acesso</button>
-                        </div>
-                      ) : e.status === 'ACTIVE' ? (
-                        <button className="btn sm ghost block" onClick={() => setAccessFor(e)}>
-                          <IconShield size={13} /> Dar acesso ao sistema
-                        </button>
-                      ) : <span className="muted" style={{ fontSize: 12 }}>Sem acesso</span>}
-                    </div>
-                    <button className="btn sm ghost block" style={{ marginTop: 8 }} onClick={() => openEdit(e)}><IconEdit size={15} /> Editar</button>
+                  <div className="emp-meta">
+                    <div><small>Nº</small><b>{e.employee_number}</b></div>
+                    <div><small>Salário base</small><b>{formatKz(Number(e.base_salary))}</b></div>
+                  </div>
+                  <div className="emp-acc">
+                    {u ? (
+                      <>
+                        <span className="emp-role" title={u.email}><IconShield size={12} /> {STAFF_ROLE_LABELS[u.role] ?? u.role}{u.has_pin ? ' · PIN' : ''}</span>
+                        <button className="btn sm ghost" onClick={() => setManageFor({ user: u, name: e.full_name })}>Gerir acesso</button>
+                      </>
+                    ) : e.status === 'ACTIVE' ? (
+                      <button className="btn sm ghost" onClick={() => setAccessFor(e)}><IconShield size={13} /> Dar acesso</button>
+                    ) : <span className="muted" style={{ fontSize: 12 }}>Sem acesso</span>}
+                    <button className="btn sm ghost" onClick={() => openEdit(e)}><IconEdit size={14} /> Editar</button>
                   </div>
                 </div>
               );
@@ -261,39 +260,49 @@ export function Employees() {
       {creating || editing ? (
         <Modal title={editing ? 'Editar funcionário' : 'Novo funcionário'} onClose={close}>
           {formError ? <div className="banner danger" style={{ marginBottom: 12 }}>{formError}</div> : null}
-          <div className="thumb" style={{ height: 130, borderRadius: 12, border: '1px solid var(--border)', marginBottom: 12, background: 'var(--surface-2)', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-            {form.photoUrl ? <img src={form.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <IconUser size={34} />}
-          </div>
-          <label className="btn sm ghost block" style={{ marginBottom: 12, cursor: 'pointer' }}>
-            <IconImage size={15} /> {form.photoUrl ? 'Trocar foto' : 'Carregar foto'}
-            <input type="file" accept="image/*" hidden onChange={(ev) => onPickPhoto(ev.target.files?.[0])} />
-          </label>
+          <div className="emp-form">
+            <div className="emp-photo">
+              <UserAvatar photo={form.photoUrl} name={form.fullName || 'Novo funcionário'} size={76} />
+              <div>
+                <label className="btn sm ghost" style={{ cursor: 'pointer' }}>
+                  <IconImage size={15} /> {form.photoUrl ? 'Trocar foto' : 'Carregar foto'}
+                  <input type="file" accept="image/*" hidden onChange={(ev) => onPickPhoto(ev.target.files?.[0])} />
+                </label>
+                <p className="muted">Opcional. Sem foto, mostram-se as iniciais do nome.</p>
+              </div>
+            </div>
 
-          {editing ? (
-            <div className="field"><label>Nº de funcionário</label>
-              <input value={form.employeeNumber} onChange={(e) => setForm({ ...form, employeeNumber: e.target.value })} placeholder="ex.: F-001" /></div>
-          ) : (
-            <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>O <strong>nº de funcionário</strong> é atribuído automaticamente.</p>
-          )}
-          <div className="field"><label>Nome completo</label>
-            <input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>
-          <div className="grid-2">
-            <div className="field"><label>Função</label>
-              <input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="ex.: Operador de caixa" /></div>
-            <div className="field"><label>Departamento</label>
-              <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} /></div>
-          </div>
-          <div className="grid-2">
-            <div className="field"><label>Salário base (Kz)</label>
-              <input value={form.baseSalary} onChange={(e) => setForm({ ...form, baseSalary: e.target.value })} inputMode="decimal" placeholder="0" /></div>
-            <div className="field"><label>IBAN</label>
-              <input value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} placeholder="AO06…" /></div>
-          </div>
-          <div className="grid-2">
-            <div className="field"><label>NIF</label>
-              <input value={form.taxId} onChange={(e) => setForm({ ...form, taxId: e.target.value })} /></div>
-            <div className="field"><label>Nº Segurança Social</label>
-              <input value={form.inssNumber} onChange={(e) => setForm({ ...form, inssNumber: e.target.value })} /></div>
+            <div className="emp-sec">Dados pessoais</div>
+            <div className="field"><label>Nome completo</label>
+              <input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} autoFocus /></div>
+            {editing ? (
+              <div className="field"><label>Nº de funcionário</label>
+                <input value={form.employeeNumber} onChange={(e) => setForm({ ...form, employeeNumber: e.target.value })} placeholder="ex.: F-001" /></div>
+            ) : (
+              <p className="muted emp-note">O <strong>nº de funcionário</strong> é atribuído automaticamente.</p>
+            )}
+
+            <div className="emp-sec">Função e remuneração</div>
+            <div className="grid-2">
+              <div className="field"><label>Função</label>
+                <input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="ex.: Operador de caixa" /></div>
+              <div className="field"><label>Departamento</label>
+                <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="ex.: Vendas" /></div>
+            </div>
+            <div className="grid-2">
+              <div className="field"><label>Salário base (Kz)</label>
+                <input value={form.baseSalary} onChange={(e) => setForm({ ...form, baseSalary: e.target.value })} inputMode="decimal" placeholder="0" /></div>
+              <div className="field"><label>IBAN</label>
+                <input value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} placeholder="AO06…" /></div>
+            </div>
+
+            <div className="emp-sec">Identificação fiscal e social</div>
+            <div className="grid-2">
+              <div className="field"><label>NIF</label>
+                <input value={form.taxId} onChange={(e) => setForm({ ...form, taxId: e.target.value })} /></div>
+              <div className="field"><label>Nº Segurança Social</label>
+                <input value={form.inssNumber} onChange={(e) => setForm({ ...form, inssNumber: e.target.value })} /></div>
+            </div>
           </div>
           <p className="muted" style={{ fontSize: 12, margin: '0 0 4px' }}>
             O <strong>bónus</strong> e as <strong>faltas</strong> definem-se ao <strong>processar a folha salarial</strong> (no pagamento), não aqui.

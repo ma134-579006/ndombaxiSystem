@@ -3408,3 +3408,32 @@ img.u-av { background: var(--surface-2); }
 .content .card[style*="max-width"], .content > div[style*="max-width"], .content > * > .card[style*="max-width"] { max-width: none !important; width: 100%; }
 .content .cols-2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
 .content .mig-intro { max-width: none; }
+
+/* ── Funcionários: cartões e formulário profissionais ── */
+.sticky-top .fx-stats + .toolbar-sticky { margin-top: 14px; }
+.emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+.emp-card { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 18px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface);
+  box-shadow: 0 1px 2px rgba(15,23,42,.04); transition: box-shadow .15s, border-color .15s, transform .12s; }
+.emp-card:hover { box-shadow: 0 14px 30px -20px rgba(15,23,42,.5); transform: translateY(-2px); }
+.emp-card.sel { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+.emp-check { position: absolute; top: 12px; right: 12px; opacity: 0; transition: opacity .12s; }
+.emp-card:hover .emp-check, .emp-card.sel .emp-check, .emp-check:focus-within { opacity: 1; }
+.emp-top { display: flex; align-items: center; gap: 14px; padding-right: 24px; }
+.emp-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.emp-id strong { font-size: 15.5px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emp-id span { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emp-st { position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; color: #15803d; background: rgba(22,163,74,.12); }
+.emp-st.off { color: #b45309; background: rgba(217,119,6,.13); } .emp-st.end { color: #b91c1c; background: rgba(220,38,38,.12); }
+.emp-check + .emp-top + .emp-meta { margin-top: 0; }
+.emp-card:hover .emp-st { opacity: 0; } .emp-card.sel .emp-st { opacity: 0; }
+.emp-meta { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
+.emp-meta small { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.emp-meta b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.emp-acc { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+.emp-acc .btn:last-child { margin-left: auto; }
+.emp-role { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 99px; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.modal:has(.emp-form) { max-width: 640px; }
+.emp-photo { display: flex; align-items: center; gap: 16px; padding: 14px; border-radius: 14px; background: var(--surface-2); border: 1px dashed var(--border); margin-bottom: 8px; }
+.emp-photo p { margin: 6px 0 0; font-size: 12px; }
+.emp-sec { margin: 18px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.emp-note { font-size: 12px; margin: 0 0 8px; }
