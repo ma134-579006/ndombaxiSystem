@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { BankAccount, SubMessage, Subscription, SubStatus } from '../api/types';
 import { Modal } from '../components/ui';
-import { IconCheck, IconClose, IconPlus } from '../components/Icons';
+import { IconAudit, IconCheck, IconClose, IconHistory, IconPlus, IconWallet } from '../components/Icons';
 
 function kz(n: number): string { return n.toLocaleString('pt-PT') + ' Kz'; }
 /** Duração legível de uma subscrição (trial / meses+dias). */
@@ -105,9 +105,9 @@ export function SubsAdmin() {
 
       <div className="fx-stats">
         <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Em vigor</div><div className="vl"><span className="fx-dot ok" />{live}</div><div className="sb">subscrições activas e válidas</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Para rever</div><div className="vl"><span className="fx-dot" />{count('IN_REVIEW')}</div><div className="sb">comprovativos submetidos</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Por pagar</div><div className="vl"><span className="fx-dot" />{count('PENDING_PAYMENT')}</div><div className="sb">à espera de pagamento</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Expiradas</div><div className="vl"><span className="fx-dot bad" />{count('EXPIRED')}</div><div className="sb">{paid.length} pagas no total</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconAudit size={20} /></span><div><div className="lb">Para rever</div><div className="vl"><span className="fx-dot" />{count('IN_REVIEW')}</div><div className="sb">comprovativos submetidos</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconWallet size={20} /></span><div><div className="lb">Por pagar</div><div className="vl"><span className="fx-dot" />{count('PENDING_PAYMENT')}</div><div className="sb">à espera de pagamento</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconHistory size={20} /></span><div><div className="lb">Expiradas</div><div className="vl"><span className="fx-dot bad" />{count('EXPIRED')}</div><div className="sb">{paid.length} pagas no total</div></div></div>
       </div>
 
       <div className="fx-card">

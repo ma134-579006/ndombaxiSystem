@@ -2,7 +2,7 @@ import { confirmDialog, runBulk } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CreateStoreInput, ManagerStore } from '../api/types';
-import { IconPlus, IconRefresh, IconStore, IconEdit } from '../components/Icons';
+import { IconCheck, IconEdit, IconLock, IconPlus, IconRefresh, IconStore } from '../components/Icons';
 import { Modal, Switch } from '../components/ui';
 
 /** Lojas da empresa (multi-loja / lojas filhas). Criar/editar exige administrador.
@@ -79,8 +79,8 @@ export function Stores() {
 
       <div className="fx-stats">
         <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Lojas</div><div className="vl">{items.length}</div><div className="sb">na empresa</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Activas</div><div className="vl"><span className="fx-dot ok" />{activeCount}</div><div className="sb">a vender</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Inactivas</div><div className="vl"><span className={`fx-dot${items.length - activeCount ? ' bad' : ''}`} />{items.length - activeCount}</div><div className="sb">desativadas</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Activas</div><div className="vl"><span className="fx-dot ok" />{activeCount}</div><div className="sb">a vender</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconLock size={20} /></span><div><div className="lb">Inactivas</div><div className="vl"><span className={`fx-dot${items.length - activeCount ? ' bad' : ''}`} />{items.length - activeCount}</div><div className="sb">desativadas</div></div></div>
       </div>
 
       {selected.size > 0 ? (

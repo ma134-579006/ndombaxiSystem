@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { formatKz } from '../format';
 import QRCode from 'qrcode';
 import type { DocumentIdentity, SaleDetail } from '../api/types';
 
@@ -12,7 +13,7 @@ const ZEBRA: [number, number, number] = [246, 248, 251];
 const HEAD: [number, number, number] = [30, 38, 52];
 const DANGER: [number, number, number] = [200, 40, 40];
 
-const KZ = (n: number) => `${n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz`;
+const KZ = (n: number) => formatKz(n);
 
 const DOC_LABEL: Record<string, string> = {
   FT: 'Fatura', FS: 'Fatura-Recibo', FR: 'Fatura-Recibo', NC: 'Nota de Crédito', ND: 'Nota de Débito',

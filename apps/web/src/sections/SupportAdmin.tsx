@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { AdminChat, SupportMsg } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
-import { IconRefresh } from '../components/Icons';
+import { IconHeadset, IconMessage, IconRefresh } from '../components/Icons';
 import { MsgBody } from '../components/SupportChat';
 
 const STATUS_LABEL: Record<string, string> = { BOT: 'Com o bot', HUMAN: 'Aguarda equipa', CLOSED: 'Fechada' };
@@ -147,9 +147,9 @@ export function SupportAdmin() {
       {error ? <div className="banner danger">{error}</div> : null}
 
       <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconRefresh size={20} /></span><div><div className="lb">Por responder</div><div className="vl"><span className={`fx-dot${waiting.length ? ' bad' : ' ok'}`} />{waiting.length}</div><div className="sb">com mensagens novas</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconRefresh size={20} /></span><div><div className="lb">Pedem a equipa</div><div className="vl">{humans}</div><div className="sb">saíram do assistente</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconRefresh size={20} /></span><div><div className="lb">Conversas</div><div className="vl">{chats.length}</div><div className="sb">no total</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconMessage size={20} /></span><div><div className="lb">Por responder</div><div className="vl"><span className={`fx-dot${waiting.length ? ' bad' : ' ok'}`} />{waiting.length}</div><div className="sb">com mensagens novas</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconHeadset size={20} /></span><div><div className="lb">Pedem a equipa</div><div className="vl">{humans}</div><div className="sb">saíram do assistente</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconMessage size={20} /></span><div><div className="lb">Conversas</div><div className="vl">{chats.length}</div><div className="sb">no total</div></div></div>
       </div>
 
       <div className="fx-tabs" role="tablist" aria-label="Filtrar conversas">

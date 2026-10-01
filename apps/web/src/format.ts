@@ -24,6 +24,9 @@ export function formatKz(value: number | string): string {
   const n = typeof value === 'string' ? Number(value) : value;
   if (!Number.isFinite(n)) return '—';
   // Nunca mostra «-0,00»: zero negativo e valores que arredondam a zero saem como 0,00.
-  const v = Math.abs(n) < 0.005 ? 0 : n;
-  return `${v.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz`;
+  // Mesmo formato do Caixa e da Loja (pt-AO): milhares com «.», decimais com «,» — SEMPRE
+  // agrupado (o pt-PT do browser não agrupa 4 dígitos: dava «5000,00» ao lado de «17 100,00»).
+  const [int, dec] = Math.abs(n).toFixed(2).split('.');
+  const sign = n < 0 && (int !== '0' || dec !== '00') ? '-' : '';
+  return `${sign}${int.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${dec} Kz`;
 }

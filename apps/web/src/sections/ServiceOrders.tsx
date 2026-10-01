@@ -425,6 +425,15 @@ function SignaturePad({ value, onSave }: { value?: string | null; onSave(dataUrl
 function ReceptionPanel({ o, isVehicle, onChanged }: { o: ServiceOrderDetail['order']; isVehicle: boolean; onChanged(): void }) {
   const [open, setOpen] = useState(!o.received_at);
   const [km, setKm] = useState(o.km_in != null ? String(o.km_in) : '');
+  // Receção ainda sem km: sugere os km registados no equipamento (editável).
+  useEffect(() => {
+    if (o.km_in != null || !o.equipment_id) return;
+    let alive = true;
+    api.serviceOrders.equipments()
+      .then((list) => { const eq = list.find((e) => e.id === o.equipment_id); if (alive && eq?.km != null) setKm((cur) => cur || String(eq.km)); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [o.km_in, o.equipment_id]);
   const [fuel, setFuel] = useState(o.fuel_level ?? '');
   const [state, setState] = useState(o.vehicle_state ?? '');
   const [est, setEst] = useState(o.est_minutes != null ? String(o.est_minutes) : '');

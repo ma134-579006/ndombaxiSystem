@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CreateProductInput, IvaCode, ManagerProduct, WarehouseRow } from '../api/types';
 import { IVA_RATE } from '../api/types';
-import { IconCube, IconEdit, IconImage, IconPlus, IconSearch, IconTruck } from '../components/Icons';
+import { IconBell, IconCube, IconEdit, IconImage, IconPlus, IconSearch, IconStore, IconTruck, IconWallet } from '../components/Icons';
 import { Modal, Switch } from '../components/ui';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { StockEntryModal } from './Inventory';
@@ -309,7 +309,7 @@ export function Products() {
   const siUnitProfit = siSale - siUnitCost;
   const siTotalProfit = siUnitProfit * siQty;
   const siMargin = siSale > 0 ? (siUnitProfit / siSale) * 100 : 0;
-  const kz = (n: number) => n.toLocaleString('pt-PT', { maximumFractionDigits: 2 }) + ' Kz';
+  const kz = (n: number) => formatKz(n);
 
   const sellable = products.filter((p) => !p.is_ingredient && p.is_active);
   const stockValue = sellable.reduce((s, p) => (p.is_production ? s : s + grossUnit(p) * Math.max(0, Number(p.stock_qty))), 0);
@@ -344,9 +344,9 @@ export function Products() {
 
       <div className="fx-stats">
         <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Produtos</div><div className="vl">{sellable.length}</div><div className="sb">{products.length - sellable.length} matérias-primas à parte</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Valor em stock</div><div className="vl">{formatKz(stockValue)}</div><div className="sb">ao preço de venda (c/ IVA)</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Sem stock</div><div className="vl"><span className={`fx-dot${outOfStock ? ' bad' : ' ok'}`} />{outOfStock}</div><div className="sb">a repor</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Na loja online</div><div className="vl">{onlineCount}</div><div className="sb">visíveis aos clientes</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconWallet size={20} /></span><div><div className="lb">Valor em stock</div><div className="vl">{formatKz(stockValue)}</div><div className="sb">ao preço de venda (c/ IVA)</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconBell size={20} /></span><div><div className="lb">Sem stock</div><div className="vl"><span className={`fx-dot${outOfStock ? ' bad' : ' ok'}`} />{outOfStock}</div><div className="sb">a repor</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Na loja online</div><div className="vl">{onlineCount}</div><div className="sb">visíveis aos clientes</div></div></div>
       </div>
 
       <div className="fx-toolbar">

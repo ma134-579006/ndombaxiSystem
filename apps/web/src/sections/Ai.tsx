@@ -2,7 +2,7 @@ import { confirmDialog, toast } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { AI_ADAPTERS, AI_CAPABILITIES, type AiProvider, type AssistantConfig, type CreateProviderInput } from '../api/types';
-import { IconCpu, IconPlay, IconPlus, IconStar, IconTrash } from '../components/Icons';
+import { IconCpu, IconPlay, IconPlus, IconSparkles, IconStar, IconTrash } from '../components/Icons';
 import { Modal, Switch } from '../components/ui';
 
 interface ProviderForm {
@@ -137,7 +137,7 @@ export function Ai() {
       <div className="fx-stats">
         <div className="fx-stat"><span className="ic"><IconCpu size={20} /></span><div><div className="lb">Provedores</div><div className="vl">{providers.length}</div><div className="sb">{activeProviders.length} activo(s)</div></div></div>
         <div className="fx-stat"><span className="ic"><IconStar size={20} /></span><div><div className="lb">Por omissão</div><div className="vl">{def ? def.name : '—'}</div><div className="sb">{def ? def.adapter : 'define um provedor principal'}</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCpu size={20} /></span><div><div className="lb">Capacidades</div><div className="vl">{caps.size}</div><div className="sb">{[...caps].slice(0, 4).join(', ') || 'nenhuma'}</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconSparkles size={20} /></span><div><div className="lb">Capacidades</div><div className="vl">{caps.size}</div><div className="sb">{[...caps].slice(0, 4).join(', ') || 'nenhuma'}</div></div></div>
       </div>
 
       <div className="fx-tabs" role="tablist" aria-label="Inteligência artificial">
