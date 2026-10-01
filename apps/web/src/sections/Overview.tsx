@@ -133,18 +133,16 @@ export function Overview() {
     <div className="profit-page">
       <div className="content-head">
         <h2>Visão geral</h2>
-        <span className="muted" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 12 }}>
-          <span className="live-dot" /> Ao vivo{updatedAt ? ` · ${updatedAt.toLocaleTimeString('pt-PT')}` : ''}
-        </span>
+        <span className="ov-live"><span className="live-dot" /> Ao vivo{updatedAt ? <span className="ov-live-t"> · {updatedAt.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span> : null}</span>
         <span className="spacer" />
         <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
       </div>
 
       {/* Selector de intervalo (+ loja, para o admin que vê todas) */}
-      <div className="card" style={{ padding: '10px 14px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div className="ov-toolbar">
+        <div className="ov-seg" role="tablist" aria-label="Período">
           {RANGES.map((r) => (
-            <button key={r.key} className={`chip ${range === r.key ? 'active' : ''}`} onClick={() => setRange(r.key)}>{r.label}</button>
+            <button key={r.key} role="tab" aria-selected={range === r.key} className={range === r.key ? 'on' : ''} onClick={() => setRange(r.key)}>{r.label}</button>
           ))}
         </div>
         {isAdmin && stores.length > 1 ? (
@@ -200,7 +198,7 @@ export function Overview() {
             <DonutChart
               data={byCategory.filter((c) => c.gross > 0).slice(0, 8).map((c) => ({ label: c.name || 'Sem categoria', value: c.gross }))}
               centerLabel="Vendas" format={formatKz} />
-          ) : <p className="muted">Sem vendas por categoria no período.</p>}
+          ) : <p className="ov-empty">Sem vendas por categoria no período.</p>}
         </div>
         <div className="card">
           <h3>Métodos de pagamento</h3>
@@ -208,7 +206,7 @@ export function Overview() {
             <DonutChart
               data={byPayment.filter((p) => p.total > 0).map((p) => ({ label: PAY_PT[p.method] ?? p.method, value: p.total }))}
               centerLabel="Recebido" format={formatKz} />
-          ) : <p className="muted">Sem pagamentos no período.</p>}
+          ) : <p className="ov-empty">Sem pagamentos no período.</p>}
         </div>
       </div>
 
@@ -258,7 +256,7 @@ export function Overview() {
 
         <div className="card">
           <h3>Stock baixo {low.length > 0 ? <span className="pill off">{low.length}</span> : null}</h3>
-          {low.length === 0 ? <p className="muted">Tudo acima do mínimo ✓</p> : (
+          {low.length === 0 ? <p className="ov-empty">Tudo acima do mínimo</p> : (
             <div className="minilist">
               {low.slice(0, 12).map((s) => (
                 <div className="minirow l-warning" key={`${s.productCode}-${s.warehouseCode}`}>
@@ -289,7 +287,7 @@ export function Overview() {
                 <button className="btn sm ghost" onClick={clearAllAlerts}>Limpar tudo</button>
               ) : null}
             </div>
-            {visibleAlerts.length === 0 ? <p className="muted">Sem alertas. Tudo em ordem ✓</p> : (
+            {visibleAlerts.length === 0 ? <p className="ov-empty">Sem alertas. Tudo em ordem</p> : (
               <div className="minilist">
                 {visibleAlerts.map((a, i) => (
                   <div className={`minirow l-${a.level}`} key={i}>
@@ -315,7 +313,7 @@ function KpiCard({ tone, icon, label, value, sub }: { tone: string; icon: React.
     <div className={`kpi-card ${tone}`}>
       <div className="kpi-ic">{icon}</div>
       <div className="kpi-label">{label}</div>
-      <div className="kpi-value" style={{ fontSize: 22 }}>{value}</div>
+      <div className="kpi-value">{value}</div>
       <div className="kpi-sub">{sub}</div>
     </div>
   );
