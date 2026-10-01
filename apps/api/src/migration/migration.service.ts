@@ -222,9 +222,9 @@ export class MigrationService {
         sample.push({
           action,
           data: {
-            name: c.name,
-            code: c.code || (c.barcode ? '(= código de barras)' : '(gerado automaticamente)'),
-            barcode: c.barcode || null,
+            nome: c.name,
+            'código': c.code || (c.barcode ? '(= código de barras)' : '(gerado automaticamente)'),
+            'código de barras': c.barcode || null,
             stock: c.stock,
             ...(c.perStore.length ? { lojas: c.perStore.map((p) => `${p.label}: ${p.value ?? '—'}`).join(' · ') } : {}),
             custo: c.cost,
