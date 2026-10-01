@@ -3481,3 +3481,5 @@ img.u-av { background: var(--surface-2); }
 .lv-act { display: flex; gap: 6px; min-width: 150px; justify-content: flex-end; }
 .profit-page .ph-kpis { margin-bottom: 14px; }
 @media (max-width: 760px) { .pay-row, .lv-row { grid-template-columns: auto minmax(0, 1fr) auto; } .pay-row .btn, .lv-act { grid-column: 2 / -1; justify-content: flex-start; } }
+
+.wo-note { margin-top: 10px; padding: 10px 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.5; color: #92400e; background: rgba(217,119,6,.12); border: 1px solid rgba(217,119,6,.3); }
