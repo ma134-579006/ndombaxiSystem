@@ -142,7 +142,7 @@ export function UpdateGate() {
       <div style={{
         width: '100%', maxWidth: 520, background: '#0f1626', color: '#eef2ff',
         border: '1px solid rgba(255,255,255,.10)', borderRadius: 18, padding: '30px 30px 26px',
-        boxShadow: '0 30px 80px rgba(0,0,0,.55)', maxHeight: '90vh', overflowY: 'auto',
+        boxShadow: '0 30px 80px rgba(0,0,0,.55)', maxHeight: 'calc(90vh / var(--uz, 1))', overflowY: 'auto',
       }}>
         <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', opacity: 0.6 }}>
           LPS Vendas

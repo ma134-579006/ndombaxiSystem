@@ -28,7 +28,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24, background: '#0c1426', color: '#eaf0fa', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ minHeight: 'calc(100dvh / var(--uz, 1))', display: 'grid', placeItems: 'center', padding: 24, background: '#0c1426', color: '#eaf0fa', fontFamily: 'system-ui, sans-serif' }}>
         <div style={{ maxWidth: 440, textAlign: 'center', background: '#111a2e', border: '1px solid #233149', borderRadius: 16, padding: 24 }}>
           <div style={{ marginBottom: 8, color: '#ca8a04' }}><UiIcon e="alert" size={36} /></div>
           <h2 style={{ margin: '0 0 8px' }}>Ocorreu um erro inesperado</h2>

@@ -49,7 +49,7 @@ export function CustomerModal({ customers, onPick, onCreated, onClose }: Props) 
       <div
         className="card"
         onClick={(e) => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 460, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}
+        style={{ width: '100%', maxWidth: 460, maxHeight: 'calc(88vh / var(--uz, 1))', display: 'flex', flexDirection: 'column' }}
       >
         <div className="row" style={{ padding: 16, borderBottom: '1px solid var(--border)', gap: 10 }}>
           <IconUser size={20} />

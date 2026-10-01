@@ -77,7 +77,7 @@ export function ChatModal({ meId, title, onClose, onRead }: { meId?: string; tit
   return (
     <Modal title={peer ? '' : title} onClose={onClose}>
       {!peer ? (
-        <div style={{ height: '56vh', maxHeight: '56vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ height: 'calc(56vh / var(--uz, 1))', maxHeight: 'calc(56vh / var(--uz, 1))', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           {contacts.length === 0 ? (
             <div className="empty" style={{ margin: 'auto', textAlign: 'center', color: 'var(--muted)' }}><p>Sem membros na equipa para conversar.</p></div>
           ) : contacts.map((c) => (
@@ -94,7 +94,7 @@ export function ChatModal({ meId, title, onClose, onRead }: { meId?: string; tit
           ))}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '60vh', maxHeight: '60vh' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(60vh / var(--uz, 1))', maxHeight: 'calc(60vh / var(--uz, 1))' }}>
           {/* Cabeçalho da conversa */}
           <div className="row" style={{ gap: 10, alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
             <button className="btn sm ghost" onClick={() => { setPeer(null); setSelMode(false); setSel(new Set()); }} title="Voltar">←</button>

@@ -671,7 +671,7 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
       <div className="card" style={{ padding: '2px 12px', marginBottom: 8 }}>
         <div className="row"><IconSearch size={18} /><input style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '10px 0', color: 'var(--text)' }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar peça…" /></div>
       </div>
-      <div className="pgrid" style={{ maxHeight: '18vh', overflowY: 'auto', marginBottom: 10 }}>
+      <div className="pgrid" style={{ maxHeight: 'calc(18vh / var(--uz, 1))', overflowY: 'auto', marginBottom: 10 }}>
         {filtered.map((p) => (
           <button key={p.id} className="pcard" onClick={() => void addPart(p.code)} style={{ cursor: 'pointer', textAlign: 'left' }}>
             <div className="pinfo"><div className="pname" style={{ fontSize: 13 }}>{p.name}</div><div className="pcode">{p.code}</div></div>

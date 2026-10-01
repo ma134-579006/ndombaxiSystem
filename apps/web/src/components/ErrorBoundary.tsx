@@ -35,10 +35,10 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
     if (!this.state.error) return this.props.children;
     // Ficheiro antigo após uma publicação: mostra só «A actualizar…» enquanto recarrega.
     if (isChunkError(this.state.error) && justTriggeredReload()) {
-      return <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', background: '#0b1020', color: '#c7ceff', fontFamily: 'system-ui, sans-serif' }}>A actualizar…</div>;
+      return <div style={{ minHeight: 'calc(100dvh / var(--uz, 1))', display: 'grid', placeItems: 'center', background: '#0b1020', color: '#c7ceff', fontFamily: 'system-ui, sans-serif' }}>A actualizar…</div>;
     }
     return (
-      <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24, background: '#0c1426', color: '#eaf0fa', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ minHeight: 'calc(100dvh / var(--uz, 1))', display: 'grid', placeItems: 'center', padding: 24, background: '#0c1426', color: '#eaf0fa', fontFamily: 'system-ui, sans-serif' }}>
         <div style={{ maxWidth: 440, textAlign: 'center', background: '#111a2e', border: '1px solid #233149', borderRadius: 16, padding: 24 }}>
           <div className="ui-ic-lg"><UiIcon e="⚠️" size={32} /></div>
           <h2 style={{ margin: '0 0 8px' }}>Ocorreu um erro inesperado</h2>

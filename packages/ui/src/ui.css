@@ -123,7 +123,7 @@
 /* ---------- Overlay: Modal / Drawer / Tooltip / Dropdown ---------- */
 .nx-scrim { position: fixed; inset: 0; z-index: var(--nx-z-modal); background: var(--nx-overlay); display: grid; place-items: center; padding: var(--nx-space-4); animation: nx-fade var(--nx-dur-enter); }
 @keyframes nx-fade { from { opacity: 0; } }
-.nx-modal { width: min(520px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: var(--nx-surface-raised); color: var(--nx-text); border: 1px solid var(--nx-border); border-radius: var(--nx-radius-lg); box-shadow: var(--nx-shadow-3); animation: nx-in var(--nx-dur-enter) var(--nx-ease-out); }
+.nx-modal { width: min(520px, 100%); max-height: calc(calc(100dvh / var(--uz, 1)) - 32px); display: flex; flex-direction: column; background: var(--nx-surface-raised); color: var(--nx-text); border: 1px solid var(--nx-border); border-radius: var(--nx-radius-lg); box-shadow: var(--nx-shadow-3); animation: nx-in var(--nx-dur-enter) var(--nx-ease-out); }
 .nx-modal.wide { width: min(760px, 100%); }
 .nx-modal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--nx-space-3); padding: var(--nx-space-4) var(--nx-space-5); border-bottom: 1px solid var(--nx-border); }
 .nx-modal-head h3 { margin: 0; font: var(--nx-weight-semibold) var(--nx-text-lg)/1.3 var(--nx-font-title); }

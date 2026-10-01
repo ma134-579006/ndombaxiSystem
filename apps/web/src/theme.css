@@ -142,9 +142,9 @@ input, textarea, select { font-family: inherit; }
 .kv .k { color: var(--muted); } .kv .v { font-weight: 600; text-align: right; }
 
 /* ── Layout admin ───────────────────────────────────────── */
-/* iPhone/Safari: 100vh inclui a barra de endereço → o fundo ficava cortado.
-   100dvh segue a altura VISÍVEL; o 100vh fica como fallback (Safari antigo). */
-.admin { display: flex; height: 100vh; height: 100dvh; }
+/* iPhone/Safari: calc(100vh / var(--uz, 1)) inclui a barra de endereço → o fundo ficava cortado.
+   calc(100dvh / var(--uz, 1)) segue a altura VISÍVEL; o calc(100vh / var(--uz, 1)) fica como fallback (Safari antigo). */
+.admin { display: flex; height: calc(100vh / var(--uz, 1)); height: calc(100dvh / var(--uz, 1)); }
 .sidebar { width: 252px; flex: none; background: linear-gradient(180deg, var(--bg-2), var(--bg) 120%); border-right: 1px solid var(--border-soft); display: flex; flex-direction: column; }
 .sidebar .brand { display: flex; align-items: center; gap: 12px; padding: 20px 18px 16px; }
 .sidebar .brand img { width: 40px; height: 40px; border-radius: 12px; object-fit: contain; background: var(--surface-2); border: 1px solid var(--border); padding: 3px; }
@@ -157,14 +157,14 @@ input, textarea, select { font-family: inherit; }
 .nav button:hover { background: var(--surface); color: var(--text); }
 .nav button.active { background: var(--grad-primary); color: #fff; box-shadow: 0 10px 22px -12px var(--primary); }
 /* Separador "ou" no login (entre palavra-passe e Google) */
-.or-sep { display: flex; align-items: center; gap: 10px; margin: clamp(6px, 1.2vh, 12px) 0; color: var(--muted); font-size: 12px; }
+.or-sep { display: flex; align-items: center; gap: 10px; margin: clamp(6px, calc(1.2vh / var(--uz, 1)), 12px) 0; color: var(--muted); font-size: 12px; }
 .or-sep::before, .or-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 /* Link compacto "Tenho código 2FA" (poupa altura no login) */
-.link-2fa { background: none; border: none; color: var(--muted); font-size: clamp(11px, 1.5vh, 13px); cursor: pointer; padding: 2px 0; margin-bottom: clamp(4px, 1vh, 10px); text-decoration: underline; align-self: flex-start; }
+.link-2fa { background: none; border: none; color: var(--muted); font-size: clamp(11px, calc(1.5vh / var(--uz, 1)), 13px); cursor: pointer; padding: 2px 0; margin-bottom: clamp(4px, calc(1vh / var(--uz, 1)), 10px); text-decoration: underline; align-self: flex-start; }
 .link-2fa:hover { color: var(--text); }
 .login .google-row { display: flex; flex-direction: column; align-items: center; }
 /* Chat de aprovação (empresa ↔ super admin) */
-.chat-box { max-height: 38vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 8px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; }
+.chat-box { max-height: calc(38vh / var(--uz, 1)); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 8px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; }
 .chat-msg { max-width: 82%; padding: 8px 11px; border-radius: 12px; font-size: 13px; }
 .chat-msg .cm-who { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
 .chat-msg.me { align-self: flex-end; background: var(--primary-soft); border: 1px solid rgba(59,130,246,.35); }
@@ -277,7 +277,7 @@ input, textarea, select { font-family: inherit; }
 .menu-toggle { display: none; width: 40px; height: 40px; border-radius: 11px; align-items: center; justify-content: center; color: var(--text); border: 1px solid var(--border); background: var(--surface); flex: none; }
 .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); z-index: 90; }
 @media (max-width: 900px) {
-  .admin { height: 100dvh; }
+  .admin { height: calc(100dvh / var(--uz, 1)); }
   .menu-toggle { display: inline-flex; }
   .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 84vw; max-width: 300px; transform: translateX(-100%); transition: transform .25s ease; z-index: 100; }
   .sidebar.open { transform: translateX(0); box-shadow: 0 0 60px rgba(0,0,0,.6); }
@@ -389,37 +389,37 @@ input, textarea, select { font-family: inherit; }
 
 /* ── Login ──────────────────────────────────────────────── */
 /* Adapta-se a QUALQUER ecrã SEM rolar: a altura do cartão é fixa ao
-   ecrã (100dvh) e TODAS as medidas verticais (logo, margens, campos,
+   ecrã (calc(100dvh / var(--uz, 1))) e TODAS as medidas verticais (logo, margens, campos,
    botão) escalam de forma contínua com a altura do ecrã via clamp()+vh.
    Quanto mais baixo o ecrã, mais compacto fica — a logo só encolhe
    (object-fit:contain), nunca distorce. */
-.login { height: 100vh; height: 100dvh; display: flex; flex-direction: column;
+.login { height: calc(100vh / var(--uz, 1)); height: calc(100dvh / var(--uz, 1)); display: flex; flex-direction: column;
   justify-content: safe center; align-items: center; overflow: hidden;
-  padding: clamp(6px, 1.6vh, 24px) 18px;
+  padding: clamp(6px, calc(1.6vh / var(--uz, 1)), 24px) 18px;
   /* Segue o TEMA (claro/escuro): luzes de cor por cima do fundo do tema —
      assim o texto (var(--text)) é sempre legível. */
   background: radial-gradient(900px 480px at 15% -10%, var(--primary-soft), transparent 60%), radial-gradient(700px 460px at 100% 110%, rgba(124,58,237,.12), transparent 55%), var(--app-bg); }
 /* A PÁGINA nunca rola (overflow hidden). A caixa absorve excesso só em ecrãs
    minúsculos (scroll interno discreto), mantendo o login sempre "justo". */
 .login .box { width: 100%; max-width: 410px; margin: auto; max-height: 100%; overflow: hidden; }
-.login .brand { display: flex; flex-direction: column; align-items: center; margin-bottom: clamp(6px, 2vh, 22px); }
+.login .brand { display: flex; flex-direction: column; align-items: center; margin-bottom: clamp(6px, calc(2vh / var(--uz, 1)), 22px); }
 /* Logo "modo enterprise": SEM caixa de fundo — flutua limpa sobre o vídeo,
    com profundidade (sombra) + leve halo na cor da marca. A imagem é a mesma
    (PNG com fundo tornado transparente), só muda a apresentação. */
-.login .brand img { width: clamp(44px, 8.6vh, 90px); height: clamp(44px, 8.6vh, 90px); object-fit: contain; margin-bottom: clamp(5px, 1.3vh, 13px); filter: drop-shadow(0 8px 20px rgba(0,0,0,.5)) drop-shadow(0 0 12px var(--primary-soft)); }
-.login .brand h1 { margin: 0; font-size: clamp(16px, 2.8vh, 23px); font-weight: 900; line-height: 1.1; color: var(--primary); text-shadow: 0 1px 22px var(--primary-soft); }
-.login .brand .tg { color: var(--muted); font-size: clamp(11px, 1.6vh, 13px); margin-top: 2px; }
-.login .card { background: linear-gradient(180deg, rgba(255,255,255,.04), transparent 40%), var(--surface); box-shadow: var(--shadow); padding: clamp(11px, 2.2vh, 20px); }
+.login .brand img { width: clamp(44px, calc(8.6vh / var(--uz, 1)), 90px); height: clamp(44px, calc(8.6vh / var(--uz, 1)), 90px); object-fit: contain; margin-bottom: clamp(5px, calc(1.3vh / var(--uz, 1)), 13px); filter: drop-shadow(0 8px 20px rgba(0,0,0,.5)) drop-shadow(0 0 12px var(--primary-soft)); }
+.login .brand h1 { margin: 0; font-size: clamp(16px, calc(2.8vh / var(--uz, 1)), 23px); font-weight: 900; line-height: 1.1; color: var(--primary); text-shadow: 0 1px 22px var(--primary-soft); }
+.login .brand .tg { color: var(--muted); font-size: clamp(11px, calc(1.6vh / var(--uz, 1)), 13px); margin-top: 2px; }
+.login .card { background: linear-gradient(180deg, rgba(255,255,255,.04), transparent 40%), var(--surface); box-shadow: var(--shadow); padding: clamp(11px, calc(2.2vh / var(--uz, 1)), 20px); }
 
 /* Controlos do login encolhem com a altura do ecrã (escopo .login só). */
-.login .card .seg { margin-bottom: clamp(7px, 1.6vh, 16px) !important; }
-.login .seg button { padding: clamp(6px, 1.3vh, 10px); }
-.login .field { margin-bottom: clamp(4px, 1.1vh, 14px); gap: clamp(2px, 0.6vh, 6px); }
-.login .field > label { font-size: clamp(11px, 1.5vh, 13px); }
-.login .field input { padding: clamp(7px, 1.3vh, 12px) 13px; }
-.login .kbd-toggle { margin: clamp(7px, 1.3vh, 14px) 0; padding: clamp(7px, 1.2vh, 11px) 12px; }
-.login .btn.lg { height: clamp(40px, 6.4vh, 52px); }
-.login .box > p { margin-top: clamp(7px, 1.2vh, 14px) !important; }
+.login .card .seg { margin-bottom: clamp(7px, calc(1.6vh / var(--uz, 1)), 16px) !important; }
+.login .seg button { padding: clamp(6px, calc(1.3vh / var(--uz, 1)), 10px); }
+.login .field { margin-bottom: clamp(4px, calc(1.1vh / var(--uz, 1)), 14px); gap: clamp(2px, calc(0.6vh / var(--uz, 1)), 6px); }
+.login .field > label { font-size: clamp(11px, calc(1.5vh / var(--uz, 1)), 13px); }
+.login .field input { padding: clamp(7px, calc(1.3vh / var(--uz, 1)), 12px) 13px; }
+.login .kbd-toggle { margin: clamp(7px, calc(1.3vh / var(--uz, 1)), 14px) 0; padding: clamp(7px, calc(1.2vh / var(--uz, 1)), 11px) 12px; }
+.login .btn.lg { height: clamp(40px, calc(6.4vh / var(--uz, 1)), 52px); }
+.login .box > p { margin-top: clamp(7px, calc(1.2vh / var(--uz, 1)), 14px) !important; }
 
 /* Telemóveis (largura pequena): o teclado-no-ecrã não é preciso (têm
    teclado nativo) → esconde-o para poupar altura. */
@@ -472,7 +472,7 @@ html.kbd-open .login .box > p { display: none; }
 .modal-bg { position: fixed; inset: 0; background: rgba(4,8,16,.72); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); z-index: 1000; display: grid; place-items: center; padding: 18px; }
 /* Modal como COLUNA flex: cabeçalho FIXO no topo + corpo a rolar por dentro,
    cabendo sempre no ecrã (sem rolar o título nem a página). */
-.modal { background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 30%), var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 540px; max-height: 92vh; max-height: 92dvh; overflow: hidden; box-shadow: 0 40px 90px -24px rgba(0,0,0,.75); display: flex; flex-direction: column; }
+.modal { background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 30%), var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 540px; max-height: calc(92vh / var(--uz, 1)); max-height: calc(92dvh / var(--uz, 1)); overflow: hidden; box-shadow: 0 40px 90px -24px rgba(0,0,0,.75); display: flex; flex-direction: column; }
 .modal .mh { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-soft); flex: none; }
 .modal .mh h3 { margin: 0; font-size: 17px; font-weight: 700; }
 .modal .mb { padding: 20px; overflow: auto; flex: 1 1 auto; min-height: 0; -webkit-overflow-scrolling: touch; }
@@ -1315,7 +1315,7 @@ button, .btn, .chip, .tab, .nav button { -webkit-tap-highlight-color: transparen
   background: linear-gradient(90deg, transparent, rgba(103,232,249,.8), transparent);
   box-shadow: 0 0 18px rgba(103,232,249,.55);
   animation: lv-scan 7.5s linear infinite; }
-@keyframes lv-scan { from { transform: translateY(0); } to { transform: translateY(110vh); } }
+@keyframes lv-scan { from { transform: translateY(0); } to { transform: translateY(calc(110vh / var(--uz, 1))); } }
 
 /* véu para leitura (mais frio, sem castanhos) */
 .login-video-veil { position: absolute; inset: 0;
@@ -1337,7 +1337,7 @@ button, .btn, .chip, .tab, .nav button { -webkit-tap-highlight-color: transparen
 .agent-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .agent-col { max-width: 780px; margin: 0 auto; padding: 18px 6px 8px; display: flex; flex-direction: column; gap: 16px; }
 
-.agent-hero { text-align: center; padding: 8vh 12px 12px; }
+.agent-hero { text-align: center; padding: calc(8vh / var(--uz, 1)) 12px 12px; }
 .agent-hero-ic { width: 60px; height: 60px; border-radius: 18px; margin: 0 auto 14px; display: grid; place-items: center;
   background: var(--grad-primary, var(--primary)); color: #fff; box-shadow: 0 14px 34px -12px var(--primary); }
 .agent-hero h2 { margin: 0 0 8px; font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
@@ -1603,24 +1603,24 @@ body:has(.agent-activity.open) .agent-activity-fab {
     linear-gradient(90deg, #0a0e1a 0%, #0a0e1a 24%, rgba(10,14,26,.92) 38%, rgba(10,14,26,.55) 55%, rgba(10,14,26,.12) 74%, rgba(10,14,26,0) 88%),
     linear-gradient(0deg, rgba(7,10,20,.45), rgba(7,10,20,0) 35%); }
 .auth-panel { position: relative; z-index: 2; width: clamp(360px, 46%, 600px); flex: none; display: flex; align-items: center; justify-content: center;
-  padding: clamp(12px, 3dvh, 28px) clamp(22px, 4vw, 60px); overflow-y: auto; background: transparent; }
+  padding: clamp(12px, calc(3dvh / var(--uz, 1)), 28px) clamp(22px, 4vw, 60px); overflow-y: auto; background: transparent; }
 /* O formulário ADAPTA-SE 100% à altura do ecrã (qualquer ângulo) sem scroll:
    alturas e espaçamentos seguem a altura visível (dvh) com limites mínimos. */
 .auth-form { width: 100%; max-width: 380px; }
-.auth-title { margin: 0 0 clamp(12px, 2.6dvh, 22px); font-family: var(--font-display, inherit); font-size: clamp(22px, 4.2dvh, 34px); font-weight: 800; letter-spacing: -.02em; color: #fff; }
-.auth-label { display: block; font-size: 13px; color: #9fb0cc; margin: clamp(8px, 1.6dvh, 14px) 0 clamp(4px, .8dvh, 6px); font-weight: 600; }
-.auth-input { width: 100%; height: clamp(42px, 6.6dvh, 50px); border-radius: 12px; border: 1px solid #232d44; background: #121a2e; color: #fff;
+.auth-title { margin: 0 0 clamp(12px, calc(2.6dvh / var(--uz, 1)), 22px); font-family: var(--font-display, inherit); font-size: clamp(22px, calc(4.2dvh / var(--uz, 1)), 34px); font-weight: 800; letter-spacing: -.02em; color: #fff; }
+.auth-label { display: block; font-size: 13px; color: #9fb0cc; margin: clamp(8px, calc(1.6dvh / var(--uz, 1)), 14px) 0 clamp(4px, .8dvh, 6px); font-weight: 600; }
+.auth-input { width: 100%; height: clamp(42px, calc(6.6dvh / var(--uz, 1)), 50px); border-radius: 12px; border: 1px solid #232d44; background: #121a2e; color: #fff;
   padding: 0 15px; font-size: 15px; outline: none; transition: border-color .15s, box-shadow .15s; }
 .auth-input::placeholder { color: #5d6b85; }
 .auth-input:focus { border-color: #7b5cff; box-shadow: 0 0 0 3px rgba(123,92,255,.22); }
-.auth-sublinks { display: flex; justify-content: space-between; align-items: center; margin: clamp(8px, 1.4dvh, 12px) 2px clamp(12px, 2dvh, 18px); font-size: 13px; }
+.auth-sublinks { display: flex; justify-content: space-between; align-items: center; margin: clamp(8px, calc(1.4dvh / var(--uz, 1)), 12px) 2px clamp(12px, calc(2dvh / var(--uz, 1)), 18px); font-size: 13px; }
 .auth-remember { display: inline-flex; align-items: center; gap: 7px; color: #9fb0cc; cursor: pointer; user-select: none; }
 .auth-remember input { width: 16px; height: 16px; accent-color: #7b5cff; cursor: pointer; }
-.auth-2fa-link { display: inline-block; margin: -6px 2px clamp(12px, 2dvh, 18px); font-size: 13px; color: #8ea6ff; cursor: pointer; }
+.auth-2fa-link { display: inline-block; margin: -6px 2px clamp(12px, calc(2dvh / var(--uz, 1)), 18px); font-size: 13px; color: #8ea6ff; cursor: pointer; }
 .auth-2fa-link:hover { text-decoration: underline; }
 .auth-sublinks a { color: #8ea6ff; cursor: pointer; text-decoration: none; }
 .auth-sublinks a:hover { text-decoration: underline; }
-.auth-btn { width: 100%; height: clamp(44px, 7dvh, 52px); border: none; border-radius: 12px; cursor: pointer; color: #fff;
+.auth-btn { width: 100%; height: clamp(44px, calc(7dvh / var(--uz, 1)), 52px); border: none; border-radius: 12px; cursor: pointer; color: #fff;
   font-size: 16px; font-weight: 800; letter-spacing: .2px;
   /* Identidade única da marca (auditoria 2026-07): índigo #2430E8 — o gradiente
      magenta lia-se como app de consumo e divergia do azul da landing. */
@@ -1631,10 +1631,10 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .auth-btn:disabled { opacity: .65; cursor: default; }
 .auth-caixa { display: block; text-align: center; margin: 14px 0 4px; color: #9fb0cc; font-size: 13.5px; cursor: pointer; text-decoration: none; }
 .auth-caixa:hover { color: #fff; }
-.auth-or { display: flex; align-items: center; gap: 12px; color: #5d6b85; font-size: 12px; margin: clamp(10px, 2dvh, 16px) 0; }
+.auth-or { display: flex; align-items: center; gap: 12px; color: #5d6b85; font-size: 12px; margin: clamp(10px, calc(2dvh / var(--uz, 1)), 16px) 0; }
 .auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: #232d44; }
 .auth-google { display: flex; justify-content: center; }
-.auth-foot { text-align: center; margin: clamp(10px, 2dvh, 16px) 0 0; font-size: 13.5px; color: #9fb0cc; }
+.auth-foot { text-align: center; margin: clamp(10px, calc(2dvh / var(--uz, 1)), 16px) 0 0; font-size: 13.5px; color: #9fb0cc; }
 .auth-foot a { color: #8ea6ff; cursor: pointer; font-weight: 600; text-decoration: none; }
 .auth-foot a:hover { text-decoration: underline; }
 .auth-error { background: rgba(239,68,68,.14); border: 1px solid rgba(239,68,68,.4); color: #fecaca;
@@ -1674,7 +1674,7 @@ body:has(.agent-activity.open) .agent-activity-fab {
    design antigo (.login/.box), por isso nada aqui o afeta.
    ============================================================ */
 .auth-glass { background: rgba(18,26,46,.68); border: 1px solid #232d44;
-  border-radius: 18px; padding: clamp(15px,2.3dvh,22px);
+  border-radius: 18px; padding: clamp(15px,calc(2.3dvh / var(--uz, 1)),22px);
   backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
   box-shadow: 0 24px 60px -26px rgba(0,0,0,.72), inset 0 1px 0 rgba(255,255,255,.04);
   animation: authRise .45s cubic-bezier(.22,.61,.36,1) both; }
@@ -1682,15 +1682,15 @@ body:has(.agent-activity.open) .agent-activity-fab {
 @keyframes authFade { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
 .auth-stepanim { animation: authFade .32s ease both; }
 
-.auth-brandhead { display: flex; align-items: center; gap: 13px; margin-bottom: clamp(12px,2.2dvh,20px); }
+.auth-brandhead { display: flex; align-items: center; gap: 13px; margin-bottom: clamp(12px,calc(2.2dvh / var(--uz, 1)),20px); }
 .auth-brandhead .ic { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; flex: none;
   background: linear-gradient(135deg, #3d4bff 0%, #2430e8 60%, #1b23ae 100%); color: #fff;
   box-shadow: 0 12px 30px -10px rgba(36,48,232,.6); }
-.auth-brandhead h1 { margin: 0; font-size: clamp(19px,3.2dvh,26px); font-weight: 800; letter-spacing: -.02em; color: #fff; line-height: 1.15; }
+.auth-brandhead h1 { margin: 0; font-size: clamp(19px,calc(3.2dvh / var(--uz, 1)),26px); font-weight: 800; letter-spacing: -.02em; color: #fff; line-height: 1.15; }
 .auth-brandhead .sub { margin: 3px 0 0; font-size: 12.5px; color: #9fb0cc; }
 
 /* Progresso por passos numerados (Pagamento → Dados) */
-.setup-steps { display: flex; align-items: flex-start; margin: 0 0 clamp(14px,2.4dvh,22px); }
+.setup-steps { display: flex; align-items: flex-start; margin: 0 0 clamp(14px,calc(2.4dvh / var(--uz, 1)),22px); }
 .setup-steps .st { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none; }
 .setup-steps .dot { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
   font-weight: 800; font-size: 14px; background: #121a2e; border: 1.5px solid #2a3550; color: #7c89a6;
@@ -1705,7 +1705,7 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .setup-steps .bar.done::after { width: 100%; }
 
 /* Campo com validação viva (check/x + dica) */
-.auth-field { margin-bottom: clamp(6px,1.1dvh,10px); }
+.auth-field { margin-bottom: clamp(6px,calc(1.1dvh / var(--uz, 1)),10px); }
 .auth-inwrap { position: relative; }
 .auth-inwrap .vmark { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; pointer-events: none; animation: authFade .2s ease both; }
 .auth-input.ok { border-color: #22c55e; padding-right: 40px; }
@@ -1726,7 +1726,7 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .auth-note .bankrow + .bankrow { margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.07); }
 
 /* Botão de upload no estilo auth (comprovativo / logótipo) */
-.auth-file { display: flex; align-items: center; gap: 10px; width: 100%; min-height: clamp(44px,7dvh,50px);
+.auth-file { display: flex; align-items: center; gap: 10px; width: 100%; min-height: clamp(44px,calc(7dvh / var(--uz, 1)),50px);
   border-radius: 12px; border: 1.5px dashed #2a3550; background: #121a2e; color: #9fb0cc; cursor: pointer;
   padding: 10px 15px; font-size: 13.5px; font-weight: 600; text-align: left;
   transition: border-color .15s, color .15s, background .15s; margin-bottom: 12px; }
@@ -1735,7 +1735,7 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .auth-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Logótipo (passo Dados) */
-.auth-logo { display: flex; align-items: center; gap: 14px; margin-bottom: clamp(8px,1.4dvh,14px); }
+.auth-logo { display: flex; align-items: center; gap: 14px; margin-bottom: clamp(8px,calc(1.4dvh / var(--uz, 1)),14px); }
 .auth-logo .lgbox { width: 60px; height: 60px; border-radius: 14px; border: 1px solid #2a3550;
   display: grid; place-items: center; overflow: hidden; background: #121a2e; flex: none; }
 .auth-logo .lgbox img { width: 100%; height: 100%; object-fit: contain; }
@@ -1760,13 +1760,13 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .oskb { position: fixed; left: 0; right: 0; bottom: 0; z-index: 121; background: var(--surface-2, #0c1426);
   border-top: 1px solid var(--border); box-shadow: 0 -12px 40px -10px rgba(0,0,0,.5);
   padding: 8px clamp(6px,2vw,16px) max(12px, env(safe-area-inset-bottom));
-  display: flex; flex-direction: column; gap: clamp(4px,0.8vh,6px); box-sizing: border-box; width: 100%; }
+  display: flex; flex-direction: column; gap: clamp(4px,calc(0.8vh / var(--uz, 1)),6px); box-sizing: border-box; width: 100%; }
 .oskb-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--muted); padding: 2px 2px 4px; }
 .oskb-bar > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .oskb-x { background: transparent; border: none; color: var(--muted); cursor: pointer; font-weight: 700; font-size: 13px; flex: none; }
 /* As linhas centram-se e nunca passam de 760px (confortável em monitores largos). */
 .oskb-row { display: flex; gap: clamp(3px,1.1vw,6px); justify-content: center; width: 100%; max-width: 760px; margin: 0 auto; }
-.oskb-k { flex: 1 1 0; min-width: 0; max-width: 64px; height: clamp(38px, 6.2vh, 46px); border-radius: 9px; border: 1px solid var(--border);
+.oskb-k { flex: 1 1 0; min-width: 0; max-width: 64px; height: clamp(38px, calc(6.2vh / var(--uz, 1)), 46px); border-radius: 9px; border: 1px solid var(--border);
   background: var(--surface); color: var(--text); font-size: clamp(14px, 4.2vw, 17px); font-weight: 600; cursor: pointer; display: grid; place-items: center; }
 .oskb-k:active { background: var(--primary); color: #fff; border-color: var(--primary); }
 .oskb-k.wide { max-width: 72px; }
@@ -1777,7 +1777,7 @@ body:has(.agent-activity.open) .agent-activity-fab {
 
 /* ===== Sino de adiantamentos: dropdown responsivo (Aceitar/Rejeitar) ===== */
 .noti-pop { position: absolute; top: calc(100% + 10px); right: 0; z-index: 200; width: 340px;
-  max-width: calc(100vw - 24px); max-height: min(70vh, 460px); overflow-y: auto;
+  max-width: calc(100vw - 24px); max-height: min(calc(70vh / var(--uz, 1)), 460px); overflow-y: auto;
   background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
   box-shadow: 0 20px 50px -16px rgba(0,0,0,.55); padding: 8px; }
 .noti-pop-head { font-size: 13px; font-weight: 800; color: var(--text); padding: 6px 8px 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
@@ -1820,10 +1820,10 @@ body:has(.agent-activity.open) .agent-activity-fab {
 .lock-top { position: absolute; top: 22px; left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
 .lock-logo { width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 6px 18px -6px rgba(0,0,0,.6); }
 .lock-sys { font-weight: 800; letter-spacing: .3px; font-size: 16px; opacity: .92; }
-.lock-clock { margin-top: 16vh; text-align: center; text-shadow: 0 6px 30px rgba(0,0,0,.5); }
+.lock-clock { margin-top: calc(16vh / var(--uz, 1)); text-align: center; text-shadow: 0 6px 30px rgba(0,0,0,.5); }
 .lock-time { font-size: clamp(64px, 16vw, 132px); font-weight: 200; line-height: .95; letter-spacing: 2px; }
 .lock-date { margin-top: 6px; font-size: clamp(14px, 3.6vw, 20px); opacity: .85; text-transform: capitalize; }
-.lock-card { margin-top: auto; margin-bottom: clamp(36px, 8vh, 90px); display: flex; flex-direction: column; align-items: center;
+.lock-card { margin-top: auto; margin-bottom: clamp(36px, calc(8vh / var(--uz, 1)), 90px); display: flex; flex-direction: column; align-items: center;
   gap: 8px; padding: 22px 26px; width: min(380px, 90vw); border-radius: 20px;
   background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
   -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: 0 30px 80px -30px rgba(0,0,0,.7); }
@@ -2338,15 +2338,15 @@ input[type="checkbox"], input[type="radio"] {
 .lock-hint { opacity: .55; }
 /* Alturas curtas: nada sobrepõe (relógio + cartão empilham e compactam) */
 @media (max-height: 640px) {
-  .lock-clock { margin-top: 11vh; }
-  .lock-time { font-size: clamp(44px, 12vh, 96px); }
+  .lock-clock { margin-top: calc(11vh / var(--uz, 1)); }
+  .lock-time { font-size: clamp(44px, calc(12vh / var(--uz, 1)), 96px); }
   .lock-card { margin-bottom: 44px; padding: 14px 18px; }
   .lock-av { width: 52px; height: 52px; }
   .lock-form { margin-top: 8px; }
 }
 @media (max-height: 460px) {
   .lock-top, .lock-hint { display: none; }
-  .lock-clock { margin-top: 3vh; }
+  .lock-clock { margin-top: calc(3vh / var(--uz, 1)); }
   .lock-time { font-size: 40px; }
   .lock-date { display: none; }
   .lock-card { margin-bottom: 8px; padding: 10px 14px; gap: 2px; }
@@ -2512,7 +2512,7 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn
 @media (max-width: 700px) {
   .list-row > .row { width: 100%; justify-content: flex-start; }
   .list-row > .row .btn { flex: 1 1 auto; }
-  .noti-pop { position: fixed !important; left: auto !important; right: 10px !important; width: min(360px, calc(100vw - 20px)) !important; top: 64px !important; max-height: min(420px, 70vh); overflow: auto; padding: 6px; }
+  .noti-pop { position: fixed !important; left: auto !important; right: 10px !important; width: min(360px, calc(100vw - 20px)) !important; top: 64px !important; max-height: min(420px, calc(70vh / var(--uz, 1))); overflow: auto; padding: 6px; }
   .noti-pop-head { padding: 4px 8px 6px; }
   .content-head { flex-wrap: wrap; gap: 10px; }
   .ptable { min-width: 560px; }
@@ -2725,7 +2725,7 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .pil
 .fx-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--nx-brand-500, #4353ff), var(--nx-brand-600, #2430e8)); transition: width .6s cubic-bezier(.2, .7, .3, 1); }
 
 /* Assistente IA (empresa) — aspecto profissional */
-.agent-hero { padding: 6vh 12px 8px; }
+.agent-hero { padding: calc(6vh / var(--uz, 1)) 12px 8px; }
 .agent-hero-ic { width: 64px; height: 64px; border-radius: 20px; background: linear-gradient(135deg, var(--nx-brand-500, #4353ff), var(--nx-brand-700, #1b23ae)); color: #fff; box-shadow: 0 0 0 8px var(--primary-soft), 0 18px 36px -16px rgba(36, 48, 232, .55); }
 .agent-hero h2 { font-family: var(--nx-font-title, inherit); font-size: 26px; font-weight: 700; }
 .agent-sugs { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; max-width: 720px; margin: 0 auto; }
@@ -2737,7 +2737,7 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .pil
 .agent-sendbtn { border-radius: 12px; background: var(--primary); }
 
 /* ── Logo LPS Vendas: sempre visível (v9) ─────────────────────────────── */
-.auth-logo-wide { display: block; width: auto; height: clamp(44px, 9.5dvh, 84px); max-width: 100%; object-fit: contain; margin: 0 0 clamp(6px, 1.6dvh, 16px) -6px; filter: drop-shadow(0 6px 18px rgba(0,0,0,.45)); }
+.auth-logo-wide { display: block; width: auto; height: clamp(44px, calc(9.5dvh / var(--uz, 1)), 84px); max-width: 100%; object-fit: contain; margin: 0 0 clamp(6px, calc(1.6dvh / var(--uz, 1)), 16px) -6px; filter: drop-shadow(0 6px 18px rgba(0,0,0,.45)); }
 .sidebar .brand img { width: 46px; height: 46px; padding: 2px; border-radius: 12px; background: rgba(255,255,255,.04); }
 .lock-logo { width: 46px; height: 46px; border-radius: 10px; }
 
@@ -2881,11 +2881,11 @@ img.u-av { background: var(--surface-2); }
 .lock-screen.v3 .lock-logo { width: auto; height: 28px; max-width: 64px; object-fit: contain; border-radius: 0; box-shadow: none; }
 .lock-screen.v3 .lock-state { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
   color: rgba(243,246,252,.8); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
-.lock-screen.v3 .lock-clock { position: relative; margin-top: clamp(84px, 16vh, 150px); text-align: center; text-shadow: none; }
+.lock-screen.v3 .lock-clock { position: relative; margin-top: clamp(84px, calc(16vh / var(--uz, 1)), 150px); text-align: center; text-shadow: none; }
 .lock-screen.v3 .lock-time { font-size: clamp(64px, 13vw, 112px); font-weight: 300; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .lock-screen.v3 .lock-date { margin-top: 10px; font-size: clamp(14px, 2.4vw, 17px); font-weight: 500; opacity: .72; text-transform: none; }
 .lock-screen.v3 .lock-date::first-letter { text-transform: uppercase; }
-.lock-screen.v3 .lock-card { position: relative; width: min(360px, calc(100vw - 32px)); margin: auto auto clamp(56px, 10vh, 110px); padding: 26px 24px 18px;
+.lock-screen.v3 .lock-card { position: relative; width: min(360px, calc(100vw - 32px)); margin: auto auto clamp(56px, calc(10vh / var(--uz, 1)), 110px); padding: 26px 24px 18px;
   display: flex; flex-direction: column; align-items: center; gap: 4px; border-radius: 20px;
   background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
   -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 30px 80px -30px rgba(0,0,0,.8); }

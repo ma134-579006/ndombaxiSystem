@@ -477,7 +477,7 @@ function LivePlayer({ cam, thumb = false }: { cam: CameraRow; thumb?: boolean })
   // Vê pelo servidor (fotograma ao vivo) quando ligar direto não dá — desde que
   // haja uma URL de fotograma para o servidor ir buscar.
   const useProxy = (kind === 'MJPEG' || mixed) && !!cam.snapshot_url;
-  const h = thumb ? 170 : 'min(62vh, 560px)';
+  const h = thumb ? 170 : 'min(calc(62vh / var(--uz, 1)), 560px)';
 
   // HLS via hls.js (ligação direta).
   useEffect(() => {
@@ -617,5 +617,5 @@ function RecFrame({ camId, day, file }: { camId: string; day: string; file: stri
     return () => { alive = false; if (obj) URL.revokeObjectURL(obj); };
   }, [camId, day, file]);
   if (!url) return <div className="empty" style={{ height: 280, display: 'grid', placeItems: 'center' }}><p>a carregar fotograma…</p></div>;
-  return <img src={url} alt={`gravação ${day}`} style={{ width: '100%', maxHeight: '56vh', objectFit: 'contain', borderRadius: 12, background: '#000' }} />;
+  return <img src={url} alt={`gravação ${day}`} style={{ width: '100%', maxHeight: 'calc(56vh / var(--uz, 1))', objectFit: 'contain', borderRadius: 12, background: '#000' }} />;
 }
