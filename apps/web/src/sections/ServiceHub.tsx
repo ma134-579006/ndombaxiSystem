@@ -103,12 +103,12 @@ export function ServiceHub({ businessType, onGo }: { businessType: string; onGo(
 
       {/* KPIs do vertical (relatório rápido) */}
       {metrics && metrics.kpis.length > 0 ? (
-        <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+        <div className="kpi-grid ph-kpis">
           {metrics.kpis.map((k) => (
-            <div key={k.label} className="card" style={{ padding: '12px 14px' }}>
-              <div className="muted" style={{ fontSize: 12.5 }}>{k.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, margin: '2px 0', color: k.tone === 'warn' ? 'var(--warning)' : k.tone === 'info' ? 'var(--primary)' : 'var(--text)' }}>{k.value}</div>
-              {k.hint ? <div className="muted" style={{ fontSize: 11.5 }}>{k.hint}</div> : null}
+            <div key={k.label} className={`ui-tile ${k.tone === 'warn' ? 'warn' : k.tone === 'info' ? 'info' : ''}`}>
+              <div className="ui-tile-l">{k.label}</div>
+              <div className="ui-tile-v">{k.value}</div>
+              {k.hint ? <div className="ui-tile-h">{k.hint}</div> : null}
             </div>
           ))}
         </div>

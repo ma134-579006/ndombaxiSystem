@@ -3253,3 +3253,36 @@ img.u-av { background: var(--surface-2); }
 .hotel-room .rt-state { color: var(--rc); background: color-mix(in srgb, var(--rc) 13%, transparent); }
 .hotel-room .rt-total small { font-size: 11.5px; font-weight: 500; color: var(--muted); margin-left: 2px; }
 .hotel-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); }
+
+/* Farmácia / hub de verticais: KPIs e lista de lotes */
+.ph-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 16px; }
+.ui-tile.bad { border-color: color-mix(in srgb, #dc2626 40%, var(--border)); }
+.ui-tile.bad .ui-tile-v { color: #dc2626; }
+.ph-list { display: flex; flex-direction: column; gap: 10px; }
+.ph-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 18px; padding: 14px 18px; border-radius: 14px; border: 1px solid var(--border); border-left: 4px solid var(--muted); background: var(--surface); transition: box-shadow .15s, transform .12s; }
+.ph-row:hover { box-shadow: 0 10px 24px -18px rgba(15,23,42,.5); transform: translateY(-1px); }
+.ph-row.ok { border-left-color: #16a34a; } .ph-row.warn { border-left-color: #d97706; } .ph-row.bad { border-left-color: #dc2626; }
+.ph-main strong { font-size: 14.5px; }
+.ph-main .muted { font-size: 12.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-bar { height: 5px; border-radius: 99px; background: color-mix(in srgb, var(--muted) 20%, transparent); margin-top: 9px; overflow: hidden; max-width: 340px; }
+.ph-bar i { display: block; height: 100%; border-radius: inherit; background: #16a34a; }
+.ph-row.warn .ph-bar i { background: #d97706; } .ph-row.bad .ph-bar i { background: #dc2626; }
+.ph-qty { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.ph-qty b { font-size: 20px; font-variant-numeric: tabular-nums; } .ph-qty span { font-size: 11.5px; color: var(--muted); }
+.ph-exp { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; min-width: 104px; }
+.ph-badge { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 99px; color: #15803d; background: rgba(22,163,74,.11); white-space: nowrap; }
+.ph-row.warn .ph-badge { color: #b45309; background: rgba(217,119,6,.13); } .ph-row.bad .ph-badge { color: #b91c1c; background: rgba(220,38,38,.12); }
+.ph-exp small { font-size: 11.5px; color: var(--muted); }
+@media (max-width: 640px) { .ph-row { grid-template-columns: 1fr auto; } .ph-qty { display: none; } }
+
+/* Barra lateral: ao abrir EMPURRA as páginas (não as tapa) — só com rato; em toque continua por cima */
+@media (min-width: 901px) and (hover: hover) and (pointer: fine) {
+  .admin.nav-rail .main { transition: margin-left .28s cubic-bezier(.2,.8,.2,1); }
+  .admin.nav-rail:has(.sidebar:hover) .main, .admin.nav-rail:has(.sidebar:focus-within) .main { margin-left: 264px; transition-delay: .08s; }
+  .admin.nav-rail .sidebar:hover, .admin.nav-rail .sidebar:focus-within { box-shadow: 1px 0 0 var(--border); }
+}
+/* Scroll discreto: só existe quando há conteúdo a mais e só se vê ao passar o rato */
+.content, .nav, .modal, .sc-body, .chat-box, .rt-menu { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.content:hover, .nav:hover, .modal:hover, .sc-body:hover, .chat-box:hover, .rt-menu:hover { scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
+.nav, .sidebar .nav { overflow-x: hidden; }
+@media (min-width: 901px) { .admin.nav-rail .sidebar:not(:hover):not(:focus-within) .nav { overflow-y: hidden; } }
