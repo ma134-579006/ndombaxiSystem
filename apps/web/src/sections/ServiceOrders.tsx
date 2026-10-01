@@ -80,10 +80,10 @@ export function ServiceOrders() {
         {tab === 'orders' ? <button className="btn" onClick={() => setCreating(true)}><IconPlus size={17} /> Nova OS</button> : null}
       </div>
 
-      <div className="card toolbar-sticky" style={{ display: 'flex', gap: 6, padding: '8px 10px' }}>
-        <button className={`chip${tab === 'orders' ? ' active' : ''}`} onClick={() => setTab('orders')}>Ordens</button>
-        <button className={`chip${tab === 'agenda' ? ' active' : ''}`} onClick={() => setTab('agenda')}>Agenda</button>
-        <button className={`chip${tab === 'equipments' ? ' active' : ''}`} onClick={() => setTab('equipments')}>Equipamentos</button>
+      <div className="fx-tabs inv-tabs">
+        <button className={tab === 'orders' ? 'on' : ''} onClick={() => setTab('orders')}>Ordens</button>
+        <button className={tab === 'agenda' ? 'on' : ''} onClick={() => setTab('agenda')}>Agenda</button>
+        <button className={tab === 'equipments' ? 'on' : ''} onClick={() => setTab('equipments')}>Equipamentos</button>
       </div>
 
       {tab === 'equipments' ? <EquipmentsTab /> : tab === 'agenda' ? <AgendaTab onOpen={(id) => void openOS(id)} /> : (
@@ -93,19 +93,21 @@ export function ServiceOrders() {
         {STATUS.map((s) => <button key={s.id} className={`chip${filter === s.id ? ' active' : ''}`} onClick={() => setFilter(s.id)}>{s.label}</button>)}
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {rows.length === 0 ? <div className="empty" style={{ padding: 26 }}><p>Sem ordens de serviço.</p></div>
-          : rows.map((r) => (
-            <button key={r.id} className="list-row" onClick={() => void openOS(r.id)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', padding: '12px 16px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <strong style={{ fontSize: 14 }}>{r.number} · {r.customer_name || 'Cliente'}{r.source === 'ONLINE' ? <span className="pill" style={{ marginLeft: 6, background: 'var(--primary)', color: '#fff' }}>Online</span> : null}</strong>
-                <div className="muted" style={{ fontSize: 12.5 }}>{r.equipment_label || '—'}{r.assigned_to ? ` · ${r.assigned_to}` : ''}</div>
+      {rows.length === 0 ? <div className="card empty" style={{ padding: 26 }}><p>Sem ordens de serviço.</p></div> : (
+        <div className="rc-list">
+          {rows.map((r) => (
+            <button key={r.id} className={`rc-row st-${r.status}`} onClick={() => void openOS(r.id)}>
+              <span className="rc-ic"><UiIcon e="🛠️" size={20} /></span>
+              <div className="rc-main">
+                <strong>{r.number} · {r.customer_name || 'Cliente'}{r.source === 'ONLINE' ? <span className="rc-tag">Online</span> : null}</strong>
+                <div className="muted">{r.equipment_label || '—'}{r.assigned_to ? ` · ${r.assigned_to}` : ''}</div>
               </div>
-              <span style={{ fontWeight: 700, marginRight: 8 }}>{KZ(r.total)}</span>
-              <span className={`pill ${r.status === 'DELIVERED' ? 'on' : r.status === 'CANCELLED' ? 'off' : ''}`}>{SL(r.status)}</span>
+              <span className="rc-amt">{KZ(r.total)}</span>
+              <span className="rc-state">{SL(r.status)}</span>
             </button>
           ))}
-      </div>
+        </div>
+      )}
       </>
       )}
 
