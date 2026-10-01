@@ -35,10 +35,14 @@ export function initScrollReveal(): void {
   io = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {
-        (e.target as HTMLElement).dataset.reveal = e.isIntersecting ? 'in' : 'out';
+        // Revela UMA vez e nunca volta a esconder: blocos altos (catálogo com milhares de
+        // produtos) nunca atingem o limiar e ficavam invisíveis ao rolar.
+        if (!e.isIntersecting) continue;
+        (e.target as HTMLElement).dataset.reveal = 'in';
+        io?.unobserve(e.target);
       }
     },
-    { threshold: 0.06, rootMargin: '-4% 0px -6% 0px' },
+    { threshold: 0, rootMargin: '0px 0px -4% 0px' },
   );
 
   document.documentElement.classList.add('reveal-ready');
