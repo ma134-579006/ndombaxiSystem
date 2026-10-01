@@ -75,7 +75,7 @@ export function QueueModal({ onClose }: Props) {
       <div
         className="card"
         onClick={(e) => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 520, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}
+        style={{ width: '100%', maxWidth: 520, maxHeight: 'calc(88vh / var(--uz, 1))', display: 'flex', flexDirection: 'column' }}
       >
         <div className="row" style={{ padding: 16, borderBottom: '1px solid var(--border)', gap: 10 }}>
           <IconReceipt size={20} />

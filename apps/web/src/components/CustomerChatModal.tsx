@@ -61,7 +61,7 @@ export function CustomerChatModal({ onClose, onRead }: { onClose(): void; onRead
   return (
     <Modal title={peer ? '' : 'Conversas com clientes'} onClose={onClose}>
       {!peer ? (
-        <div style={{ height: '58vh', maxHeight: '58vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ height: 'calc(58vh / var(--uz, 1))', maxHeight: 'calc(58vh / var(--uz, 1))', display: 'flex', flexDirection: 'column' }}>
           <div className="card" style={{ padding: '2px 12px', marginBottom: 8, flex: 'none' }}>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar cliente…"
               style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', padding: '11px 0', color: 'var(--text)' }} />
@@ -85,7 +85,7 @@ export function CustomerChatModal({ onClose, onRead }: { onClose(): void; onRead
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '60vh', maxHeight: '60vh' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(60vh / var(--uz, 1))', maxHeight: 'calc(60vh / var(--uz, 1))' }}>
           <div className="row" style={{ gap: 10, alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
             <button className="btn sm ghost" onClick={() => { setPeer(null); setSelMode(false); setSel(new Set()); }}>←</button>
             <span style={{ width: 9, height: 9, borderRadius: 999, flex: 'none', background: peer.online ? 'var(--success)' : 'var(--muted)' }} />

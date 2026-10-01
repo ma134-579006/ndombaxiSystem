@@ -122,7 +122,7 @@ function ProcessModal({ onClose, onDone }: { onClose(): void; onDone(run: Payrol
       </div>
 
       {emps.length ? (
-        <div style={{ maxHeight: '42vh', overflow: 'auto', margin: '4px 0 6px' }}>
+        <div style={{ maxHeight: 'calc(42vh / var(--uz, 1))', overflow: 'auto', margin: '4px 0 6px' }}>
           <table className="ptable stack">
             <thead><tr><th>Trabalhador</th><th>Bónus (Kz)</th><th>Faltas (dias)</th></tr></thead>
             <tbody>
@@ -203,7 +203,7 @@ function RunSheet({ detail, onClose, onPay }: { detail: PayrollRunDetail; onClos
         ))}
       </div>
 
-      <div style={{ maxHeight: '42vh', overflow: 'auto' }}>
+      <div style={{ maxHeight: 'calc(42vh / var(--uz, 1))', overflow: 'auto' }}>
         <table className="ptable stack">
           <thead>
             <tr><th>Trabalhador</th><th>Bruto</th><th>INSS</th><th>IRT</th><th>Consumo</th><th>Adiant.</th><th>Faltas</th><th>Tot. desc.</th><th>Líquido</th></tr>

@@ -71,7 +71,7 @@ export function ChatModal({ meId, onClose, onRead }: { meId?: string; onClose():
 
   return (
     <div className="modal-bg" onClick={onClose}>
-      <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', maxHeight: 'calc(100dvh - 40px)', overflow: 'hidden' }}>
+      <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', maxHeight: 'calc(calc(100dvh / var(--uz, 1)) - 40px)', overflow: 'hidden' }}>
         {!peer ? (
           <>
             <div className="row" style={{ alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border)', flex: 'none' }}>

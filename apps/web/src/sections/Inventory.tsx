@@ -558,7 +558,7 @@ function CountSheet({ detail, products, onClose }: { detail: StockCountDetail; p
         <BarcodeScanner onDetected={onScan} />
       </div>
 
-      <div style={{ maxHeight: '46vh', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ maxHeight: 'calc(46vh / var(--uz, 1))', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {filtered.length === 0 ? (
           <div className="empty" style={{ padding: '22px 0' }}>
             <p className="muted" style={{ margin: 0 }}>Nenhum produto corresponde a «{q}».</p>

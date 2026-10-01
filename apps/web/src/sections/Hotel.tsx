@@ -387,7 +387,7 @@ function ResDetail({ detail, onClose, onChanged }: { detail: HotelReservationDet
       <div className="card" style={{ padding: '2px 12px', marginBottom: 8 }}>
         <div className="row"><IconSearch size={18} /><input style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '10px 0', color: 'var(--text)' }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar produto…" /></div>
       </div>
-      <div className="pgrid" style={{ maxHeight: '16vh', overflowY: 'auto', marginBottom: 10 }}>
+      <div className="pgrid" style={{ maxHeight: 'calc(16vh / var(--uz, 1))', overflowY: 'auto', marginBottom: 10 }}>
         {filtered.map((p) => (
           <button key={p.id} className="pcard" onClick={() => void addProduct(p.code)} style={{ cursor: 'pointer', textAlign: 'left' }}>
             <div className="pinfo"><div className="pname" style={{ fontSize: 13 }}>{p.name}</div><div className="pcode">{p.code}</div></div>

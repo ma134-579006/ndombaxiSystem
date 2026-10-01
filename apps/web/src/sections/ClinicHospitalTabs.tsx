@@ -424,7 +424,7 @@ function NewPrescriptionModal({ patients, onClose, onDone }: { patients: ClinicP
         </div>
       </div>
       {meds.length > 0 ? (
-        <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 8, maxHeight: '20vh', overflowY: 'auto' }}>
+        <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 8, maxHeight: 'calc(20vh / var(--uz, 1))', overflowY: 'auto' }}>
           {meds.map((m) => (
             <button key={m.id} className="list-row" style={{ width: '100%', textAlign: 'left', padding: '8px 14px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)' }} onClick={() => addMed(m)}>
               <strong style={{ fontSize: 13 }}>{m.name}</strong>

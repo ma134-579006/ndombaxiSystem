@@ -238,7 +238,7 @@ function Page() {
   );
   return (
     <ToastProvider>
-      <div className="nx-root" style={{ minHeight: '100vh' }}>
+      <div className="nx-root" style={{ minHeight: 'calc(100vh / var(--uz, 1))' }}>
         <style>{'@media (max-width: 767px) { .ds-head { position: static !important; } }'}</style>
         <header className="ds-head" style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--nx-surface)', borderBottom: '1px solid var(--nx-border)' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', padding: '10px 20px', maxWidth: 1240, margin: '0 auto' }}>
