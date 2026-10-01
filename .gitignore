@@ -47,3 +47,6 @@ pdf_text.txt
 
 # Claude scheduler lock
 .claude/scheduled_tasks.lock
+
+# Builds do Electron (gerados)
+**/win-unpacked/
