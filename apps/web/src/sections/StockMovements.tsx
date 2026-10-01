@@ -37,7 +37,11 @@ export function StockMovements() {
     } finally { setLoading(false); }
   }, [q, warehouseId, from, to]);
 
-  useEffect(() => { void search(); }, []); // carga inicial
+  // Pesquisa automática: 300 ms depois de escrever ou de mudar um filtro (sem Enter).
+  useEffect(() => {
+    const t = window.setTimeout(() => void search(), 300);
+    return () => window.clearTimeout(t);
+  }, [search]);
 
   return (
     <>

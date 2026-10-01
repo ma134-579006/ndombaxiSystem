@@ -46,7 +46,12 @@ export function Clinic() {
   useEffect(() => { void loadKpi(); }, [loadKpi]);
   useEffect(() => { if (tab === 'agenda') void loadAppts(); }, [tab, loadAppts]);
   // Os separadores hospitalares também precisam da lista de pacientes (modais).
-  useEffect(() => { if (tab !== 'agenda') void loadPatients(); }, [tab, loadPatients]);
+  // Pesquisa automática com 300 ms de espera (não dispara um pedido por cada tecla).
+  useEffect(() => {
+    if (tab === 'agenda') return;
+    const t = window.setTimeout(() => void loadPatients(), search ? 300 : 0);
+    return () => window.clearTimeout(t);
+  }, [tab, loadPatients, search]);
   const refresh = async () => { await loadKpi(); await loadAppts(); };
 
   return (
