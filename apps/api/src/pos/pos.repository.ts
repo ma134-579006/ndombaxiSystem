@@ -162,7 +162,7 @@ export class PosRepository {
    *  - shared_stock = FALSE → saldo da loja do operador (stock_items dessa loja).
    * storeId omisso (gestor/admin) → mostra o stock_qty global.
    */
-  listProducts(schema: string, storeId?: string | null): Promise<ProductRow[]> {
+  listProducts(schema: string, storeId?: string | null, includeInactive = false): Promise<ProductRow[]> {
     return this.prisma.runInTenant(schema, async (tx) => {
       // PRATOS/PRODUÇÃO: um produto com ficha técnica é produzido sob encomenda —
       // não tem stock próprio (a emissão valida/baixa os INGREDIENTES). O POS
@@ -222,7 +222,7 @@ export class PosRepository {
           LEFT JOIN stock_items si
                  ON si.product_id = p.id AND si.warehouse_id = ${storeId ?? null}::uuid
           -- Ingredientes (matéria-prima) NÃO entram no catálogo do caixa: só se vendem pratos.
-          WHERE p.is_active = TRUE AND p.is_ingredient = FALSE
+          WHERE (p.is_active = TRUE OR ${includeInactive}::boolean) AND p.is_ingredient = FALSE
           ORDER BY p.name`,
       );
     });

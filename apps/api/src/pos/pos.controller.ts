@@ -69,6 +69,13 @@ export class PosController {
     return this.repo.listProducts(this.ctx.requireTenantSchema(), user.storeId ?? null);
   }
 
+  @Get('products/all')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Catálogo completo para o gestor: inclui produtos inativos' })
+  listAllProducts(@CurrentUser() user: JwtPayload) {
+    return this.repo.listProducts(this.ctx.requireTenantSchema(), user.storeId ?? null, true);
+  }
+
   @Get('products/ingredients')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Lista ingredientes/matéria-prima (para a ficha técnica dos pratos)' })

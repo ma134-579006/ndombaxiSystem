@@ -88,15 +88,6 @@ export function Products() {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
   });
 
-  const bulkDeactivate = async () => {
-    setBusy(true); setError(null);
-    try {
-      for (const id of selected) await api.products.update(id, { isActive: false });
-      setSelected(new Set()); await load();
-    } catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao desativar.'); }
-    finally { setBusy(false); }
-  };
-
   const bulkDelete = async () => {
     if (!(await confirmDialog({ message: `Eliminar ${selected.size} produto(s)? Produtos com vendas associadas são apenas desativados.`, danger: true }))) return;
     setBusy(true); setError(null);
@@ -123,7 +114,7 @@ export function Products() {
       // CATÁLOGO UNIFICADO: produtos vendíveis + ingredientes (matéria-prima) na
       // MESMA lista. Os ingredientes distinguem-se pela etiqueta 'matéria-prima'.
       const [prods, ings] = await Promise.all([
-        api.products.list(),
+        api.products.listAll(),
         api.products.ingredients().catch(() => [] as ManagerProduct[]),
       ]);
       const seen = new Set(prods.map((p) => p.id));
@@ -307,10 +298,10 @@ export function Products() {
   const siMargin = siSale > 0 ? (siUnitProfit / siSale) * 100 : 0;
   const kz = (n: number) => n.toLocaleString('pt-PT', { maximumFractionDigits: 2 }) + ' Kz';
 
-  const sellable = products.filter((p) => !p.is_ingredient);
+  const sellable = products.filter((p) => !p.is_ingredient && p.is_active);
   const stockValue = sellable.reduce((s, p) => (p.is_production ? s : s + grossUnit(p) * Math.max(0, Number(p.stock_qty))), 0);
   const outOfStock = sellable.filter((p) => !p.is_production && Number(p.stock_qty) <= 0).length;
-  const onlineCount = products.filter((p) => p.show_online && !p.is_ingredient).length;
+  const onlineCount = products.filter((p) => p.show_online && p.is_active && !p.is_ingredient).length;
   const visible = filtered.filter((p) => {
     if (pfilter === 'IN') return !p.is_ingredient && (p.is_production || Number(p.stock_qty) > 0);
     if (pfilter === 'OUT') return !p.is_ingredient && !p.is_production && Number(p.stock_qty) <= 0;
@@ -367,7 +358,6 @@ export function Products() {
           <strong>{selected.size} selecionado(s)</strong>
           <span className="spacer" />
           <button className="btn sm ghost" onClick={() => setSelected(new Set())} disabled={busy}>Limpar</button>
-          <button className="btn sm warn" onClick={bulkDeactivate} disabled={busy}>Desativar</button>
           <button className="btn sm danger" onClick={bulkDelete} disabled={busy}>Eliminar</button>
         </div>
       ) : null}
@@ -398,6 +388,7 @@ export function Products() {
                   {p.name}
                   {p.is_ingredient ? <span className="pill" style={{ marginLeft: 6, fontSize: 10.5, background: 'color-mix(in srgb, var(--warning) 22%, transparent)', color: 'var(--warning)' }}>matéria-prima</span> : null}
                   {p.is_production ? availBadge(p.id) : null}
+                  {!p.is_active ? <span className="pill off" style={{ marginLeft: 6, fontSize: 10.5 }}>Inativo</span> : null}
                 </div>
                 <div className="pcode">{p.code} · {p.iva_code} · {p.is_production ? 'produção (fornadas)' : `stock ${Number(p.stock_qty)}${p.unit ? ` ${p.unit}` : ''}`}</div>
                 <div className="pfoot">
