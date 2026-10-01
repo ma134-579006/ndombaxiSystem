@@ -338,6 +338,26 @@ export class PosRepository {
     });
   }
 
+  /** Elimina VÁRIOS produtos numa só transacção (mesma regra de deleteProduct, em lote). */
+  async deleteProducts(schema: string, ids: string[]): Promise<{ deleted: number; deactivated: number }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const sold = await tx.$queryRaw<{ product_id: string }[]>(
+        Prisma.sql`SELECT DISTINCT product_id FROM invoice_items WHERE product_id = ANY(${ids}::uuid[])`,
+      );
+      const soldIds = sold.map((r) => r.product_id);
+      if (soldIds.length > 0) {
+        await tx.$executeRaw(Prisma.sql`UPDATE products SET is_active = FALSE, updated_at = now() WHERE id = ANY(${soldIds}::uuid[])`);
+      }
+      const delIds = ids.filter((i) => !soldIds.includes(i));
+      if (delIds.length === 0) return { deleted: 0, deactivated: soldIds.length };
+      await tx.$executeRaw(Prisma.sql`DELETE FROM stock_movements WHERE product_id = ANY(${delIds}::uuid[])`);
+      await tx.$executeRaw(Prisma.sql`DELETE FROM stock_items WHERE product_id = ANY(${delIds}::uuid[])`);
+      await tx.$executeRaw(Prisma.sql`DELETE FROM product_batches WHERE product_id = ANY(${delIds}::uuid[])`);
+      const n = await tx.$executeRaw(Prisma.sql`DELETE FROM products WHERE id = ANY(${delIds}::uuid[])`);
+      return { deleted: Number(n), deactivated: soldIds.length };
+    });
+  }
+
   // ── Clientes ───────────────────────────────────────────────
   createCustomer(
     schema: string,

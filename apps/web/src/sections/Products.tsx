@@ -91,14 +91,24 @@ export function Products() {
   const bulkDelete = async () => {
     if (!(await confirmDialog({ message: `Eliminar ${selected.size} produto(s)? Produtos com vendas associadas são apenas desativados.`, danger: true }))) return;
     setBusy(true); setError(null);
+    const ids = [...selected];
     let del = 0, deact = 0, fail = 0, firstErr = '';
     try {
-      // Um produto que falhe NÃO interrompe os restantes: no fim mostra-se o resumo.
-      for (const id of selected) {
-        try { const r = await api.products.remove(id); if (r.deleted) del++; else deact++; }
-        catch (e) { fail++; if (!firstErr) firstErr = e instanceof ApiError ? e.message : 'erro desconhecido'; }
+      // Tudo de uma vez, numa só chamada e numa só transacção.
+      try {
+        const r = await api.products.removeMany(ids);
+        del = r.deleted; deact = r.deactivated;
+      } catch (e) {
+        if (!(e instanceof ApiError) || e.status !== 404) throw e;
+        // API ainda sem o endpoint em lote (deploy em curso): recorre ao 1 a 1.
+        for (const id of ids) {
+          try { const r = await api.products.remove(id); if (r.deleted) del++; else deact++; }
+          catch (e2) { fail++; if (!firstErr) firstErr = e2 instanceof ApiError ? e2.message : 'erro desconhecido'; }
+        }
       }
-      setSelected(new Set()); await load();
+      // Sai logo da lista (sem esperar pelo recarregamento).
+      setProducts((prev) => prev.filter((p) => !ids.includes(p.id)));
+      setSelected(new Set()); await load({ silent: true });
       const parts = [`${del} eliminado(s)`];
       if (deact > 0) parts.push(`${deact} com vendas foram desativados`);
       if (fail > 0) parts.push(`${fail} não puderam ser eliminados (${firstErr})`);
@@ -109,7 +119,7 @@ export function Products() {
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
-    setError(null);
+    if (!opts?.silent) setError(null);
     try {
       // CATÁLOGO UNIFICADO: produtos vendíveis + ingredientes (matéria-prima) na
       // MESMA lista. Os ingredientes distinguem-se pela etiqueta 'matéria-prima'.

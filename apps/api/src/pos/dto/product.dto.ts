@@ -1,5 +1,8 @@
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
+  IsUUID,
   IsBoolean,
   IsIn,
   IsNumber,
@@ -208,4 +211,12 @@ export class UpdateProductDto {
   @IsString()
   @Length(0, 16)
   unit?: string;
+}
+
+export class DeleteProductsDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(2000)
+  @IsUUID(undefined, { each: true })
+  ids!: string[];
 }

@@ -632,6 +632,9 @@ export const api = {
       request<ManagerProduct>('PATCH', `/pos/products/${id}`, dto),
     remove: (id: string) =>
       request<{ deleted: boolean; deactivated: boolean }>('DELETE', `/pos/products/${id}`),
+    /** Elimina vários de uma só vez (os com vendas são só desativados). */
+    removeMany: (ids: string[]) =>
+      request<{ deleted: number; deactivated: number }>('POST', '/pos/products/bulk-delete', { ids }),
     /** Ordem de produção (fornada): consome os ingredientes da ficha técnica e
      *  dá entrada do produto acabado no stock (padaria/pastelaria/produção). */
     produce: (dto: { productCode: string; quantity: number; note?: string }) =>

@@ -20,7 +20,7 @@ import { TenantContext } from '../tenancy/tenant-context';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { SaveCartDraftDto } from './dto/cart-draft.dto';
 import { CancelInvoiceDto, EmitInvoiceDto, ReturnItemsDto } from './dto/emit-invoice.dto';
-import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
+import { CreateProductDto, DeleteProductsDto, UpdateProductDto } from './dto/product.dto';
 import { FiscalSigningService } from './fiscal-signing.service';
 import { InvoiceService } from './invoice.service';
 import { PosRepository } from './pos.repository';
@@ -109,6 +109,13 @@ export class PosController {
     const schema = this.ctx.requireTenantSchema();
     const ivaCode = dto.ivaCode === 'AUTO' ? await this.repo.defaultIvaCode(schema) : dto.ivaCode;
     return this.repo.updateProduct(schema, id, { ...dto, ivaCode });
+  }
+
+  @Post('products/bulk-delete')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Elimina vários produtos de uma vez (os com vendas são só desativados)' })
+  deleteProducts(@Body() dto: DeleteProductsDto) {
+    return this.repo.deleteProducts(this.ctx.requireTenantSchema(), dto.ids);
   }
 
   @Delete('products/:id')
