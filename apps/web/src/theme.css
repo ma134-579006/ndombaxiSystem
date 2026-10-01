@@ -3286,3 +3286,25 @@ img.u-av { background: var(--surface-2); }
 .content:hover, .nav:hover, .modal:hover, .sc-body:hover, .chat-box:hover, .rt-menu:hover { scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
 .nav, .sidebar .nav { overflow-x: hidden; }
 @media (min-width: 901px) { .admin.nav-rail .sidebar:not(:hover):not(:focus-within) .nav { overflow-y: hidden; } }
+
+/* Lista em cartões (ordens de serviço, reservas): ícone, texto, valor e estado com cor */
+.rc-list { display: flex; flex-direction: column; gap: 10px; }
+.rc-row { --sc: var(--muted); display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 16px; width: 100%; text-align: left; cursor: pointer;
+  padding: 14px 18px; border-radius: 14px; border: 1px solid var(--border); border-left: 4px solid var(--sc); background: var(--surface); font: inherit; color: var(--text);
+  transition: box-shadow .15s, transform .12s; }
+.rc-row:hover { box-shadow: 0 10px 24px -18px rgba(15,23,42,.5); transform: translateY(-1px); }
+.rc-row:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.rc-ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; color: var(--sc); background: color-mix(in srgb, var(--sc) 12%, transparent); }
+.rc-main strong { font-size: 14.5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rc-main .muted { font-size: 12.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; color: #fff; background: var(--primary); }
+.rc-amt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rc-state { font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 99px; white-space: nowrap; color: var(--sc); background: color-mix(in srgb, var(--sc) 13%, transparent); }
+.rc-row.st-OPEN, .rc-row.st-BOOKED { --sc: #2563eb; }
+.rc-row.st-QUOTED { --sc: #7c3aed; }
+.rc-row.st-APPROVED { --sc: #0891b2; }
+.rc-row.st-IN_PROGRESS, .rc-row.st-CHECKED_IN { --sc: #d97706; }
+.rc-row.st-READY { --sc: #16a34a; }
+.rc-row.st-DELIVERED, .rc-row.st-CHECKED_OUT { --sc: #15803d; }
+.rc-row.st-CANCELLED { --sc: #94a3b8; }
+@media (max-width: 640px) { .rc-row { grid-template-columns: auto minmax(0, 1fr) auto; } .rc-amt { display: none; } }

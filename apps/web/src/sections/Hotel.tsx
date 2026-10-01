@@ -72,11 +72,11 @@ export function Hotel() {
           : null}
       </div>
 
-      <div className="card toolbar-sticky" style={{ display: 'flex', gap: 6, padding: '8px 10px', flexWrap: 'wrap' }}>
-        <button className={`chip${tab === 'rooms' ? ' active' : ''}`} onClick={() => setTab('rooms')}>Quartos</button>
-        <button className={`chip${tab === 'reservations' ? ' active' : ''}`} onClick={() => setTab('reservations')}>Reservas</button>
-        <button className={`chip${tab === 'housekeeping' ? ' active' : ''}`} onClick={() => setTab('housekeeping')}>Limpeza{pendHk ? ` (${pendHk})` : ''}</button>
-        <button className={`chip${tab === 'maintenance' ? ' active' : ''}`} onClick={() => setTab('maintenance')}>Manutenção{openMt ? ` (${openMt})` : ''}</button>
+      <div className="fx-tabs inv-tabs">
+        <button className={tab === 'rooms' ? 'on' : ''} onClick={() => setTab('rooms')}>Quartos</button>
+        <button className={tab === 'reservations' ? 'on' : ''} onClick={() => setTab('reservations')}>Reservas</button>
+        <button className={tab === 'housekeeping' ? 'on' : ''} onClick={() => setTab('housekeeping')}>Limpeza{pendHk ? ` (${pendHk})` : ''}</button>
+        <button className={tab === 'maintenance' ? 'on' : ''} onClick={() => setTab('maintenance')}>Manutenção{openMt ? ` (${openMt})` : ''}</button>
       </div>
 
       {tab === 'rooms' ? (
@@ -124,19 +124,21 @@ export function Hotel() {
             <button className={`chip${filter === '' ? ' active' : ''}`} onClick={() => setFilter('')}>Todas</button>
             {STATUS.map((s) => <button key={s.id} className={`chip${filter === s.id ? ' active' : ''}`} onClick={() => setFilter(s.id)}>{s.label}</button>)}
           </div>
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            {reservations.length === 0 ? <div className="empty" style={{ padding: 26 }}><p>Sem reservas.</p></div>
-              : reservations.map((r) => (
-                <button key={r.id} className="list-row" onClick={() => void openRes(r.id)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', padding: '12px 16px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ fontSize: 14 }}>{r.number} · {r.guest_name || 'Hóspede'}{r.source === 'ONLINE' && r.status === 'BOOKED' ? <span className="pill" style={{ marginLeft: 6, background: 'var(--primary)', color: '#fff' }}>Online</span> : null}</strong>
-                    <div className="muted" style={{ fontSize: 12.5 }}>{r.room_name || '—'} · {r.check_in} → {r.check_out} ({r.nights} noites)</div>
+          {reservations.length === 0 ? <div className="card empty" style={{ padding: 26 }}><p>Sem reservas.</p></div> : (
+            <div className="rc-list">
+              {reservations.map((r) => (
+                <button key={r.id} className={`rc-row st-${r.status}`} onClick={() => void openRes(r.id)}>
+                  <span className="rc-ic"><UiIcon e="🛏️" size={20} /></span>
+                  <div className="rc-main">
+                    <strong>{r.number} · {r.guest_name || 'Hóspede'}{r.source === 'ONLINE' && r.status === 'BOOKED' ? <span className="rc-tag">Online</span> : null}</strong>
+                    <div className="muted">{r.room_name || '—'} · {r.check_in} → {r.check_out} ({r.nights} noites)</div>
                   </div>
-                  <span style={{ fontWeight: 700, marginRight: 8 }}>{KZ(r.total)}</span>
-                  <span className={`pill ${r.status === 'CHECKED_OUT' ? 'on' : r.status === 'CANCELLED' ? 'off' : ''}`}>{SL(r.status)}</span>
+                  <span className="rc-amt">{KZ(r.total)}</span>
+                  <span className="rc-state">{SL(r.status)}</span>
                 </button>
               ))}
-          </div>
+            </div>
+          )}
         </>
       )}
 
