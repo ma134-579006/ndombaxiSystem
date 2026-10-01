@@ -52,16 +52,19 @@ export function StoreChat({ code }: { code: string }) {
       {open ? (
         <div className="store-chat">
           <div className="store-chat-head">
-            <span className="store-chat-dot" style={{ background: online ? 'var(--success, #16a34a)' : '#9aa3b2' }} />
+            <span className="sch-av" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1.5-5h15L21 9" /><path d="M4 9v11h16V9" /><path d="M9 20v-6h6v6" /></svg>
+              <i className={online ? 'on' : ''} />
+            </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <strong>Falar com a loja</strong>
-              <div className="muted" style={{ fontSize: 12 }}>{online ? 'A loja está online' : 'A loja está offline — respondemos em breve'}</div>
+              <div className={`sch-st${online ? ' on' : ''}`}>{online ? 'Online agora' : 'Offline — respondemos em breve'}</div>
             </div>
             <button className="store-chat-x" onClick={() => setOpen(false)} aria-label="Fechar">✕</button>
           </div>
           <div ref={scroller} className="store-chat-body">
             {msgs.length === 0 ? (
-              <div className="muted" style={{ margin: 'auto', textAlign: 'center', fontSize: 14, padding: 16 }}>Escreve a tua mensagem — a loja responde aqui.</div>
+              <div className="sch-empty"><b>Olá! 👋</b><span>Escreva a sua mensagem — a loja responde aqui.</span></div>
             ) : msgs.map((m) => {
               const mine = m.sender_type === 'CUSTOMER';
               return (
@@ -77,7 +80,9 @@ export function StoreChat({ code }: { code: string }) {
             <textarea value={text} onChange={(e) => setText(e.target.value)} rows={1}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
               placeholder="Escreve uma mensagem…" />
-            <button className="btn" onClick={() => void send()} disabled={busy || !text.trim()}>Enviar</button>
+            <button className="sch-send" onClick={() => void send()} disabled={busy || !text.trim()} aria-label="Enviar">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+            </button>
           </div>
         </div>
       ) : null}
