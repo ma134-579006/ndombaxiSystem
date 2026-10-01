@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import type { ChatContact, ChatMessage } from '../api/types';
-import { Modal } from './ui';
+import { ChatView } from './ChatView';
 import { confirmDialog } from './feedback';
 
 const ROLE_LABEL: Record<string, string> = {
@@ -26,6 +26,7 @@ const seenLabel = (c: { online: boolean; last_seen_at: string | null }) => {
  */
 export function ChatModal({ meId, title, onClose, onRead }: { meId?: string; title: string; onClose(): void; onRead?(): void }) {
   const [contacts, setContacts] = useState<ChatContact[]>([]);
+  const [search, setSearch] = useState('');
   const [peer, setPeer] = useState<ChatContact | null>(null);
   const [msgs, setMsgs] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
@@ -70,77 +71,19 @@ export function ChatModal({ meId, title, onClose, onRead }: { meId?: string; tit
     try { await api.chat.remove([...sel]); setSel(new Set()); setSelMode(false); if (peer) await loadMsgs(peer); } catch { /* */ }
   };
 
-  const Dot = ({ on }: { on: boolean }) => (
-    <span style={{ width: 9, height: 9, borderRadius: 999, flex: 'none', background: on ? 'var(--success)' : 'var(--muted)', boxShadow: on ? '0 0 0 2px color-mix(in srgb, var(--success) 30%, transparent)' : 'none' }} />
-  );
+  const cvContacts = contacts.map((c) => ({ id: c.id, name: c.name, sub: `${ROLE_LABEL[c.role] ?? c.role} · ${seenLabel(c)}`, online: c.online, unread: c.unread }));
+  const cvPeer = peer ? cvContacts.find((c) => c.id === peer.id) ?? { id: peer.id, name: peer.name, sub: '', online: peer.online, unread: 0 } : null;
 
   return (
-    <Modal title={peer ? '' : title} onClose={onClose}>
-      {!peer ? (
-        <div style={{ height: 'calc(56vh / var(--uz, 1))', maxHeight: 'calc(56vh / var(--uz, 1))', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {contacts.length === 0 ? (
-            <div className="empty" style={{ margin: 'auto', textAlign: 'center', color: 'var(--muted)' }}><p>Sem membros na equipa para conversar.</p></div>
-          ) : contacts.map((c) => (
-            <button key={c.id} className="list-row" onClick={() => openPeer(c)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', padding: '11px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span className="fb-avatar" style={{ position: 'relative' }}>{c.name.slice(0, 1).toUpperCase()}
-                <span style={{ position: 'absolute', right: -1, bottom: -1, width: 11, height: 11, borderRadius: 999, background: c.online ? 'var(--success)' : 'var(--muted)', boxShadow: '0 0 0 2px var(--surface)' }} />
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <strong style={{ fontSize: 14 }}>{c.name}</strong>
-                <div className="muted" style={{ fontSize: 12.5 }}>{ROLE_LABEL[c.role] ?? c.role} · {seenLabel(c)}</div>
-              </div>
-              {c.unread > 0 ? <span className="acct-item-badge">{c.unread > 99 ? '99+' : c.unread}</span> : null}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(60vh / var(--uz, 1))', maxHeight: 'calc(60vh / var(--uz, 1))' }}>
-          {/* Cabeçalho da conversa */}
-          <div className="row" style={{ gap: 10, alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
-            <button className="btn sm ghost" onClick={() => { setPeer(null); setSelMode(false); setSel(new Set()); }} title="Voltar">←</button>
-            <Dot on={peer.online} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <strong style={{ fontSize: 14 }}>{peer.name}</strong>
-              <div className="muted" style={{ fontSize: 12 }}>{ROLE_LABEL[peer.role] ?? peer.role} · {seenLabel(peer)}</div>
-            </div>
-            {selMode ? (
-              <>
-                <button className="btn sm danger" onClick={() => void delSelected()} disabled={sel.size === 0}>Eliminar ({sel.size})</button>
-                <button className="btn sm ghost" onClick={() => { setSelMode(false); setSel(new Set()); }}>Cancelar</button>
-              </>
-            ) : (
-              <button className="btn sm ghost" onClick={() => setSelMode(true)} disabled={msgs.length === 0}>Selecionar</button>
-            )}
-          </div>
-
-          <div ref={scroller} style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 2px' }}>
-            {msgs.length === 0 ? (
-              <div style={{ margin: 'auto', color: 'var(--muted)', fontSize: 14, textAlign: 'center' }}>Sem mensagens. Escreve a primeira.</div>
-            ) : msgs.map((m) => {
-              const mine = !!meId && m.sender_id === meId;
-              const checked = sel.has(m.id);
-              return (
-                <div key={m.id} onClick={() => selMode && toggleMsg(m.id)}
-                  style={{ display: 'flex', justifyContent: mine ? 'flex-end' : 'flex-start', gap: 8, alignItems: 'center', cursor: selMode ? 'pointer' : 'default' }}>
-                  {selMode ? <input type="checkbox" checked={checked} readOnly /> : null}
-                  <div style={{ maxWidth: '78%' }}>
-                    <div style={{ background: mine ? 'var(--primary)' : 'var(--surface-2)', color: mine ? '#fff' : 'var(--text)', padding: '8px 12px', borderRadius: 14, fontSize: 14, lineHeight: 1.4, wordBreak: 'break-word', outline: checked ? '2px solid var(--danger)' : 'none' }}>{m.body}</div>
-                    <div className="muted" style={{ fontSize: 10.5, textAlign: mine ? 'right' : 'left', marginTop: 2 }}>{time(m.created_at)}</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="row" style={{ gap: 8, alignItems: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-            <textarea value={text} onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
-              placeholder={`Mensagem para ${peer.name}…`} rows={1}
-              style={{ flex: 1, resize: 'none', minHeight: 44, maxHeight: 120, padding: '11px 12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 14, fontFamily: 'inherit' }} />
-            <button className="btn" onClick={() => void send()} disabled={busy || !text.trim()} style={{ height: 44 }}>Enviar</button>
-          </div>
-        </div>
-      )}
-    </Modal>
+    <ChatView
+      title={title} subtitle="Conversas da equipa" emptyText="Sem ninguém para conversar." searchPlaceholder="Pesquisar por nome ou função…"
+      contacts={cvContacts} search={search} onSearch={setSearch}
+      peer={cvPeer} peerStatus={peer ? `${ROLE_LABEL[peer.role] ?? peer.role} · ${seenLabel(peer)}` : ''}
+      onOpen={(cv) => { const c = contacts.find((x) => x.id === cv.id); if (c) openPeer(c); }}
+      onBack={() => { setPeer(null); setSelMode(false); setSel(new Set()); }}
+      msgs={msgs.map((m) => ({ id: m.id, mine: !!meId && m.sender_id === meId, body: m.body, at: time(m.created_at), author: m.sender_name }))}
+      selMode={selMode} sel={sel} onToggleSel={toggleMsg} onSelMode={(v) => { setSelMode(v); if (!v) setSel(new Set()); }} onDelete={() => void delSelected()}
+      text={text} onText={setText} onSend={() => void send()} busy={busy} onClose={onClose}
+    />
   );
 }
