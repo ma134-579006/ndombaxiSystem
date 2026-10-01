@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Splash } from './components/Splash';
 import { copyrightLine } from './brand';
 import { IconKeyboard, IconStore } from './components/Icons';
 import { KeyboardProvider, useKeyboard } from './keyboard/KeyboardProvider';
@@ -60,9 +61,7 @@ function Gate() {
 
   if (status === 'loading' || status === 'idle') {
     return (
-      <div className="gate">
-        <p className="muted">A abrir a loja…</p>
-      </div>
+      <Splash />
     );
   }
 
