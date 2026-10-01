@@ -71,16 +71,16 @@ export function Accounting() {
         <>
           {/* indicadores */}
           <div className="kpi-grid">
-            <div className="kpi-card"><div className="kpi-label">PROVEITOS (VENDAS)</div>
+            <div className="kpi-card"><div className="kpi-label">Proveitos (vendas)</div>
               <div className="kpi-value">{formatKz(profit.salesGross)}</div>
               <div className="kpi-sub">{profit.salesCount} documentos · ticket {formatKz(profit.ticketAvg)}</div></div>
-            <div className="kpi-card"><div className="kpi-label">RESULTADO BRUTO</div>
+            <div className="kpi-card"><div className="kpi-label">Resultado bruto</div>
               <div className="kpi-value">{formatKz(profit.grossProfit)}</div>
               <div className="kpi-sub">margem {profit.marginPct.toFixed(1)}%</div></div>
-            <div className={`kpi-card ${profit.netProfit < 0 ? 'danger' : 'success'}`}><div className="kpi-label">RESULTADO LÍQUIDO</div>
+            <div className={`kpi-card ${profit.netProfit < 0 ? 'danger' : 'success'}`}><div className="kpi-label">Resultado líquido</div>
               <div className="kpi-value" style={{ color: profit.netProfit < 0 ? 'var(--danger)' : 'var(--success)' }}>{formatKz(profit.netProfit)}</div>
               <div className="kpi-sub">após gastos operacionais</div></div>
-            <div className="kpi-card"><div className="kpi-label">IVA APURADO (A ENTREGAR)</div>
+            <div className="kpi-card"><div className="kpi-label">IVA apurado (a entregar)</div>
               <div className="kpi-value">{formatKz(ivaTotal)}</div>
               <div className="kpi-sub">liquidado nas vendas do mês</div></div>
           </div>

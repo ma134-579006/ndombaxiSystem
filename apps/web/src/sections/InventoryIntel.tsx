@@ -39,9 +39,9 @@ export function InventoryIntel({ role }: { role?: string }) {
 
   return (
     <>
-      <div className="chip-row no-print" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+      <div className="fx-tabs no-print inv-tabs" role="tablist" aria-label="Secções do inventário">
         {TABS.map((t) => (
-          <button key={t.id} className={`btn sm ${tab === t.id ? '' : 'ghost'}`} onClick={() => setTab(t.id)}>{t.label}</button>
+          <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>{t.label}</button>
         ))}
       </div>
       {/* Stock e Análise: o inventário básico + a análise, agora ABAS do mesmo
