@@ -1217,6 +1217,8 @@ export interface MigrationPreview {
   /** Problemas a ver ANTES de importar. */
   warnings?: string[];
   summary?: { withBarcode: number; withStock: number; stockTotal: number; invalidBarcodes: number; duplicatesInFile: number };
+  /** Lojas com coluna de stock própria no ficheiro («Stock - <Loja>»). */
+  storeStock?: string[];
 }
 export interface MigrationApplyResult { kind: MigrationKind; created: number; updated: number; skipped: number; errors: string[]; warnings?: string[] }
 
