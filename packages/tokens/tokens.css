@@ -227,3 +227,8 @@
 @media (min-width: 2200px) { html:root { zoom: 1.25; --uz: 1.25; height: calc(100% / 1.25); } }
 @media (min-width: 2900px) { html:root { zoom: 1.5; --uz: 1.5; height: calc(100% / 1.5); } }
 @media (min-width: 3400px) { html:root { zoom: 1.75; --uz: 1.75; height: calc(100% / 1.75); } }
+/* 5K, 6K e 8K (TVs e monitores gigantes): mantém ~2200 px úteis de interface. */
+@media (min-width: 4400px) { html:root { zoom: 2; --uz: 2; height: calc(100% / 2); } }
+@media (min-width: 5600px) { html:root { zoom: 2.5; --uz: 2.5; height: calc(100% / 2.5); } }
+@media (min-width: 6800px) { html:root { zoom: 3; --uz: 3; height: calc(100% / 3); } }
+@media (min-width: 7600px) { html:root { zoom: 3.5; --uz: 3.5; height: calc(100% / 3.5); } }
