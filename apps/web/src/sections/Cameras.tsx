@@ -47,18 +47,29 @@ export function Cameras({ mode }: { mode: 'config' | 'live' }) {
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {loading ? <div className="loading" style={{ padding: 26 }}>A carregar…</div>
-          : rows.length === 0 ? (
-            <div className="empty" style={{ padding: 30 }}>
-              <p>Sem câmaras configuradas. Toca em <strong>Ligar câmara</strong> e lê o QR do equipamento ou cola a URL do stream (HLS/MJPEG/MP4) do teu DVR.</p>
-            </div>
-          ) : rows.map((c) => <CamRow key={c.id} cam={c} onEdit={() => setEditing(c)} onChanged={load} />)}
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><UiIcon e="video" size={20} /></span><div><div className="lb">Câmaras</div><div className="vl">{rows.length}</div><div className="sb">ligadas ao sistema</div></div></div>
+        <div className="fx-stat"><span className="ic"><UiIcon e="check" size={20} /></span><div><div className="lb">Ativas</div><div className="vl"><span className={`fx-dot${rows.some((r) => r.is_active) ? ' ok' : ''}`} />{rows.filter((r) => r.is_active).length}</div><div className="sb">visíveis em «Abrir»</div></div></div>
+        <div className="fx-stat"><span className="ic"><UiIcon e="clock" size={20} /></span><div><div className="lb">A gravar</div><div className="vl">{rows.filter((r) => r.record).length}</div><div className="sb">1 imagem por minuto · 30 dias</div></div></div>
       </div>
-      <p className="muted" style={{ fontSize: 12.5 }}>
-        Gravação: com a opção «Gravar» ligada e uma <strong>URL de fotograma</strong> definida, o servidor guarda 1 imagem/minuto
-        durante <strong>30 dias</strong> — depois apaga automaticamente para libertar espaço. As gravações veem-se em «Câmaras → Abrir».
-      </p>
+
+      {loading ? <div className="card"><div className="loading">A carregar…</div></div>
+        : rows.length === 0 ? (
+          <div className="card cam-empty">
+            <span className="rs-ic"><UiIcon e="video" size={26} /></span>
+            <h3>Ligue a sua primeira câmara</h3>
+            <div className="pr-steps">
+              <div className="pr-step"><i>1</i><div><b>Toque em «Ligar câmara»</b><span>Escolha o tipo de ligação do seu equipamento.</span></div></div>
+              <div className="pr-step"><i>2</i><div><b>Leia o QR ou cole a URL</b><span>QR do equipamento (nuvem) ou a URL do stream do DVR (HLS, MJPEG ou MP4).</span></div></div>
+              <div className="pr-step"><i>3</i><div><b>Teste e veja ao vivo</b><span>Use «Testar» e abra a câmara em «Câmaras → Abrir».</span></div></div>
+            </div>
+            <button className="btn lg" onClick={() => setEditing('new')}><IconPlus size={17} /> Ligar câmara</button>
+          </div>
+        ) : (
+          <div className="rc-list">{rows.map((c) => <CamRow key={c.id} cam={c} onEdit={() => setEditing(c)} onChanged={load} />)}</div>
+        )}
+
+      <div className="pr-plan"><b>Gravação automática</b><span>Com a opção «Gravar» ligada e uma URL de fotograma definida, o servidor guarda <strong>1 imagem por minuto durante 30 dias</strong> e apaga depois automaticamente. As gravações veem-se em «Câmaras → Abrir».</span></div>
 
       {editing ? <CamForm cam={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void load(); }} /> : null}
     </>
@@ -86,16 +97,17 @@ function CamRow({ cam, onEdit, onChanged }: { cam: CameraRow; onEdit(): void; on
     finally { setBusy(false); }
   };
   return (
-    <div className="list-row" style={{ padding: '12px 16px' }}>
-      <UiIcon e="video" size={22} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <strong style={{ fontSize: 14 }}>{cam.name}</strong>
-        <span className={`pill ${cam.is_active ? 'on' : 'off'}`} style={{ marginLeft: 8 }}>{cam.is_active ? 'Ativa' : 'Desativada'}</span>
-        {cam.conn_type === 'P2P' ? <span className="pill on" style={{ marginLeft: 6 }}>Nuvem</span> : null}
-        {cam.record ? <span className="pill" style={{ marginLeft: 6, color: 'var(--danger)' }}>● REC</span> : null}
-        <div className="muted" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cam.conn_type === 'P2P' ? `SN: ${cam.device_sn ?? '—'}` : cam.stream_url}</div>
+    <div className={`rc-row rc-static cam-row st-${cam.is_active ? 'READY' : 'CANCELLED'}`}>
+      <span className="rc-ic"><UiIcon e="video" size={20} /></span>
+      <div className="rc-main">
+        <strong>{cam.name}
+          {cam.conn_type === 'P2P' ? <span className="lv-type">Nuvem</span> : null}
+          {cam.record ? <span className="lv-type" style={{ color: 'var(--danger)' }}>● REC</span> : null}
+        </strong>
+        <div className="muted">{cam.conn_type === 'P2P' ? `SN: ${cam.device_sn ?? '—'}` : cam.stream_url}</div>
       </div>
-      <div className="row" style={{ gap: 8 }}>
+      <span className="rc-state">{cam.is_active ? 'Ativa' : 'Desativada'}</span>
+      <div className="row cam-act">
         {cam.conn_type === 'P2P' ? <button className="btn sm" onClick={() => setGuide(true)}>Guia (3 QR)</button> : null}
         {(cam.conn_type !== 'P2P' || hasStream(cam)) ? <button className="btn sm ghost" onClick={() => void test()} disabled={busy}>Testar</button> : null}
         <button className="btn sm ghost" onClick={onEdit}>Editar</button>
