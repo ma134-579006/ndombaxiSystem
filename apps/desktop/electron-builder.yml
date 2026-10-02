@@ -19,6 +19,7 @@ directories:
 files:
   - dist/**/*
   - package.json
+  - build/icon.png
   - "!**/*.map"
 
 extraResources:
