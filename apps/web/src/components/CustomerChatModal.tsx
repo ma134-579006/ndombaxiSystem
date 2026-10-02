@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import type { CustomerChatMessage, CustomerContact } from '../api/types';
 import { ChatView } from './ChatView';
 import { confirmDialog } from './feedback';
+import { pollEvery, stopPoll } from '../poll';
 
 const time = (s: string) => { try { return new Date(s).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
 const seenLabel = (c: { online: boolean; last_seen_at: string | null }) => {
@@ -31,13 +32,13 @@ export function CustomerChatModal({ onClose, onRead }: { onClose(): void; onRead
 
   const loadContacts = async () => { try { setContacts(await api.customerChat.contacts()); } catch { /* */ } };
   const loadMsgs = async (p: CustomerContact) => { try { setMsgs(await api.customerChat.messages(p.id)); } catch { /* */ } };
-  useEffect(() => { void loadContacts(); const t = window.setInterval(loadContacts, 6000); return () => window.clearInterval(t); }, []);
+  useEffect(() => { void loadContacts(); const t = pollEvery(loadContacts, 6000); return () => stopPoll(t); }, []);
   useEffect(() => {
     if (!peer) return;
     void loadMsgs(peer);
     void api.customerChat.markRead(peer.id).then(() => onRead?.()).catch(() => undefined);
-    const t = window.setInterval(() => { if (peer) { void loadMsgs(peer); void loadContacts(); } }, 3500);
-    return () => window.clearInterval(t);
+    const t = pollEvery(() => { if (peer) { void loadMsgs(peer); void loadContacts(); } }, 3500);
+    return () => stopPoll(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peer?.id]);
   useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }); }, [msgs]);

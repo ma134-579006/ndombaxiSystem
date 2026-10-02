@@ -4,6 +4,7 @@ import type { AdminChat, SupportMsg } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
 import { IconHeadset, IconMessage, IconRefresh } from '../components/Icons';
 import { MsgBody } from '../components/SupportChat';
+import { pollEvery, stopPoll } from '../poll';
 
 const STATUS_LABEL: Record<string, string> = { BOT: 'Com o bot', HUMAN: 'Aguarda equipa', CLOSED: 'Fechada' };
 
@@ -40,7 +41,7 @@ export function SupportAdmin() {
     try { setChats(await api.support.admin.chats()); setError(null); }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao carregar.'); }
   }, []);
-  useEffect(() => { void load(); const t = window.setInterval(() => void load(), 15000); return () => window.clearInterval(t); }, [load]);
+  useEffect(() => { void load(); const t = pollEvery(() => void load(), 15000); return () => stopPoll(t); }, [load]);
 
   const scrollDown = (smooth = false) =>
     window.setTimeout(() => scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: smooth ? 'smooth' : 'auto' }), 60);
@@ -59,7 +60,7 @@ export function SupportAdmin() {
   // Dentro do chat: vai buscando mensagens novas do visitante (polling).
   useEffect(() => {
     if (!active) return;
-    const t = window.setInterval(async () => {
+    const t = pollEvery(async () => {
       const cur = activeRef.current;
       if (!cur) return;
       try {
@@ -67,7 +68,7 @@ export function SupportAdmin() {
         setMsgs((prev) => (all.length !== prev.length ? (scrollDown(true), all) : prev));
       } catch { /* offline */ }
     }, 6000);
-    return () => window.clearInterval(t);
+    return () => stopPoll(t);
   }, [active]);
 
   const reply = async () => {

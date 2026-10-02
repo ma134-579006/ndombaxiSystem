@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import type { ClinicDashboard } from '../api/types';
 import { formatKz } from '../format';
 import { UiIcon } from '../components/UiIcon';
+import { pollEvery, stopPoll } from '../poll';
 
 const KZ = (n: number) => formatKz(Number(n) || 0);
 
@@ -25,8 +26,8 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
       .then((r) => { if (alive) { setD(r); setErr(false); } })
       .catch(() => { if (alive) setErr(true); });
     void load();
-    const t = window.setInterval(load, 8000);
-    return () => { alive = false; window.clearInterval(t); };
+    const t = pollEvery(load, 8000);
+    return () => { alive = false; stopPoll(t); };
   }, []);
 
   return (

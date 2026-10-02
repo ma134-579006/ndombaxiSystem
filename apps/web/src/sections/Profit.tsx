@@ -3,6 +3,7 @@ import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { ProfitAbcRow, ProfitPoint, ProfitProduct, ProfitSummary } from '../api/types';
 import { IconChart, IconRefresh } from '../components/Icons';
+import { pollEvery, stopPoll } from '../poll';
 
 function kz(n: number): string {
   return (n ?? 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kz';
@@ -46,8 +47,8 @@ export function Profit() {
   useEffect(() => {
     void load();
     // Tempo real: refresca a cada 30s.
-    timer.current = window.setInterval(() => void load(), 30_000);
-    return () => { if (timer.current) window.clearInterval(timer.current); };
+    timer.current = pollEvery(() => void load(), 30_000);
+    return () => { if (timer.current) stopPoll(timer.current); };
   }, [load]);
 
   const maxBar = Math.max(1, ...series.map((p) => Math.max(p.salesNet, p.cost)));
