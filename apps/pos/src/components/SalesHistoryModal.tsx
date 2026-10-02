@@ -28,6 +28,7 @@ function stateBadge(r: SaleRow): React.ReactNode {
  * crédito, 100% registado). Fecha por cima de tudo.
  */
 export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { onClose(): void; onChanged?(): void; canCancel?: boolean }) {
+  const [q, setQ] = useState('');
   const [from, setFrom] = useState(todayISO());
   const [to, setTo] = useState(todayISO());
   const [rows, setRows] = useState<SaleRow[]>([]);
@@ -112,6 +113,12 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
           <div className="erp-kpi"><span>Anulados</span><b>{rows.filter((r) => r.status === 'A').length}</b></div>
         </div>
 
+        <div className="sm-search">
+          <UiIcon e="search" size={16} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar por documento, produto ou operador…" />
+          {q ? <button onClick={() => setQ('')} aria-label="Limpar">✕</button> : null}
+        </div>
+
         <div className="sm-filters sm-toolbar">
           <div className="sm-quick">
             <button className="chip" onClick={() => { setFrom(todayISO()); setTo(todayISO()); }}>Hoje</button>
@@ -163,7 +170,7 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
+                {rows.filter((r) => !q.trim() || `${r.number} ${r.items ?? ''} ${r.cashier_name ?? ''}`.toLowerCase().includes(q.trim().toLowerCase())).map((r) => {
                   const cancelled = r.status === 'A';
                   return (
                     <tr key={r.id} className={cancelled ? 'cancelled' : ''}>
