@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import type { RestaurantDashboard } from '../api/types';
 import { formatKz } from '../format';
 import { UiIcon } from '../components/UiIcon';
+import { pollEvery, stopPoll } from '../poll';
 
 const KZ = (n: number) => formatKz(Number(n) || 0);
 
@@ -27,8 +28,8 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
       .then((r) => { if (alive) { setD(r); setErr(false); } })
       .catch(() => { if (alive) setErr(true); });
     void load();
-    const t = window.setInterval(load, 8000);
-    return () => { alive = false; window.clearInterval(t); };
+    const t = pollEvery(load, 8000);
+    return () => { alive = false; stopPoll(t); };
   }, []);
 
   const kitchenTone = d ? (d.kitchen.oldestWaitMin >= 15 ? 'crit' : d.kitchen.queue > 0 ? 'warn' : 'ok') : 'ok';

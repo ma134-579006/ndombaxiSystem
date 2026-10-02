@@ -8,6 +8,7 @@ import { Modal, Switch } from '../components/ui';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { StockEntryModal } from './Inventory';
 import { formatKz } from '../format';
+import { pollEvery, stopPoll } from '../poll';
 
 const IVA_OPTIONS: IvaCode[] = ['NOR', 'INT', 'RED', 'ISE', 'OUT'];
 
@@ -169,8 +170,8 @@ export function Products() {
     loadAvail();
     // TEMPO REAL: atualiza stock/disponibilidade sem o utilizador recarregar
     // (uma venda no caixa ou uma fornada reflete-se aqui em segundos).
-    const t = window.setInterval(() => { void load({ silent: true }); loadAvail(); }, 10000);
-    return () => window.clearInterval(t);
+    const t = pollEvery(() => { void load({ silent: true }); loadAvail(); }, 10000);
+    return () => stopPoll(t);
   }, [load, loadAvail]);
   const availBadge = (id: string) => {
     const s = avail[id];

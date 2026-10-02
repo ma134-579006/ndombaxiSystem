@@ -14,6 +14,7 @@ import {
 import { IconPlus, IconRefresh, IconReceipt, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz } from '../format';
+import { pollEvery, stopPoll } from '../poll';
 
 const PAYMENT_LABELS: Record<ExpensePayment, string> = {
   CASH: 'Dinheiro', TRANSFER: 'Transferência', REFERENCE: 'Referência', CARD: 'Cartão',
@@ -71,8 +72,8 @@ export function Expenses() {
 
   useEffect(() => {
     void load();
-    timer.current = window.setInterval(() => void load(), 60_000);
-    return () => { if (timer.current) window.clearInterval(timer.current); };
+    timer.current = pollEvery(() => void load(), 60_000);
+    return () => { if (timer.current) stopPoll(timer.current); };
   }, [load]);
 
   const setPreset = (days: number) => {

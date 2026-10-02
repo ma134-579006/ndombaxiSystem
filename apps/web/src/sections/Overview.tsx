@@ -19,6 +19,7 @@ import { ColumnChart, type ColumnPoint } from '../components/ColumnChart';
 import { DonutChart } from '../components/DonutChart';
 import { IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconWallet } from '../components/Icons';
 import { formatKz } from '../format';
+import { pollEvery, stopPoll } from '../poll';
 
 const RANGES: { key: SalesRange; label: string }[] = [
   { key: 'today', label: 'Hoje' },
@@ -115,8 +116,8 @@ export function Overview() {
 
   useEffect(() => {
     void load();
-    timer.current = window.setInterval(() => void load(), 20_000);
-    return () => { if (timer.current) window.clearInterval(timer.current); };
+    timer.current = pollEvery(() => void load(), 20_000);
+    return () => { if (timer.current) stopPoll(timer.current); };
   }, [load]);
 
   const chartPoints: AreaPoint[] = (series?.points ?? []).map((p) => ({

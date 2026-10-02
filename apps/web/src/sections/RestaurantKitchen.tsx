@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { confirmDialog, toast } from '../components/feedback';
 import type { RestaurantKitchenItem, RestaurantOnlineTicket } from '../api/types';
 import { UiIcon } from '../components/UiIcon';
+import { pollEvery, stopPoll } from '../poll';
 
 const KITCHEN_LABEL: Record<string, string> = { PENDING: 'Por preparar', PREPARING: 'Em preparação', READY: 'Pronto', SERVED: 'Servido' };
 const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY', READY: 'SERVED' };
@@ -121,9 +122,9 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
 
   useEffect(() => {
     void load();
-    const t = window.setInterval(load, 5000);
-    const c = window.setInterval(() => setTick((x) => x + 1), 30000);
-    return () => { window.clearInterval(t); window.clearInterval(c); };
+    const t = pollEvery(load, 5000);
+    const c = pollEvery(() => setTick((x) => x + 1), 30000);
+    return () => { stopPoll(t); stopPoll(c); };
   }, [load]);
 
   const advance = async (it: RestaurantKitchenItem) => {

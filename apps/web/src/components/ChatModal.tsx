@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import type { ChatContact, ChatMessage } from '../api/types';
 import { ChatView } from './ChatView';
 import { confirmDialog } from './feedback';
+import { pollEvery, stopPoll } from '../poll';
 
 const ROLE_LABEL: Record<string, string> = {
   COMPANY_ADMIN: 'Administrador', REGIONAL_MANAGER: 'Gerente regional', STORE_MANAGER: 'Gestor',
@@ -38,14 +39,14 @@ export function ChatModal({ meId, title, onClose, onRead }: { meId?: string; tit
   const loadContacts = async () => { try { setContacts(await api.chat.contacts()); } catch { /* offline */ } };
   const loadMsgs = async (p: ChatContact) => { try { setMsgs(await api.chat.messages(p.id)); } catch { /* offline */ } };
 
-  useEffect(() => { void loadContacts(); const t = window.setInterval(loadContacts, 5000); return () => window.clearInterval(t); }, []);
+  useEffect(() => { void loadContacts(); const t = pollEvery(loadContacts, 5000); return () => stopPoll(t); }, []);
   useEffect(() => {
     if (!peer) return;
     void loadMsgs(peer);
     void api.chat.markRead(peer.id).then(() => onRead?.()).catch(() => undefined);
     // Conversa + presença em tempo (quase) real: recarrega mensagens e contactos.
-    const t = window.setInterval(() => { if (peer) { void loadMsgs(peer); void loadContacts(); } }, 3000);
-    return () => window.clearInterval(t);
+    const t = pollEvery(() => { if (peer) { void loadMsgs(peer); void loadContacts(); } }, 3000);
+    return () => stopPoll(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peer?.id]);
   useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }); }, [msgs]);

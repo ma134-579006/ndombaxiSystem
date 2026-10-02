@@ -5,6 +5,7 @@ import type { CashflowForecast, CashflowPoint, CashflowSummary } from '../api/ty
 import { AreaChart, type AreaPoint } from '../components/AreaChart';
 import { IconCard, IconChart, IconRefresh } from '../components/Icons';
 import { formatKz } from '../format';
+import { pollEvery, stopPoll } from '../poll';
 
 function iso(d: Date): string { return d.toISOString().slice(0, 10); }
 function ddmm(s: string): string { const d = new Date(s); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`; }
@@ -38,8 +39,8 @@ export function Cashflow() {
 
   useEffect(() => {
     void load();
-    timer.current = window.setInterval(() => void load(), 30_000);
-    return () => { if (timer.current) window.clearInterval(timer.current); };
+    timer.current = pollEvery(() => void load(), 30_000);
+    return () => { if (timer.current) stopPoll(timer.current); };
   }, [load]);
 
   const setPreset = (days: number) => {
