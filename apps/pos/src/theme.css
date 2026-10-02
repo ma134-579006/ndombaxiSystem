@@ -1697,3 +1697,12 @@ img.u-av { background: var(--surface-2); }
 .xf-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--primary, #4f7cff), color-mix(in srgb, var(--primary, #4f7cff) 55%, #7c3aed)); transition: width .25s ease-out; }
 .xf-box small { font-size: 11.5px; color: var(--muted, #64748b); }
 @keyframes xf-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ══ ECRÃS TÁTEIS: campos nunca tapados pelo teclado no ecrã ══ */
+html.touch-ui .modal { max-height: min(calc(var(--vvh, 100dvh) - 16px), calc(92dvh / var(--uz, 1))); }
+html.kb-open .modal-bg { align-items: flex-start; padding-top: 8px; padding-bottom: 8px; }
+html.touch-ui.input-focus .modal .mb, html.touch-ui.input-focus .consume-body, html.touch-ui.input-focus .cv-msgs { padding-bottom: calc(var(--kb, 0px) + 38vh); }
+html.touch-ui.input-focus .content { padding-bottom: calc(var(--kb, 0px) + 42vh); }
+html.touch-ui input, html.touch-ui select, html.touch-ui textarea { scroll-margin-top: 22vh; font-size: max(16px, 1em); }
+html.touch-ui .btn, html.touch-ui button { touch-action: manipulation; }
+html.touch-ui .btn.sm { min-height: 40px; }

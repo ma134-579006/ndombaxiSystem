@@ -6,10 +6,12 @@ import { TransferHost } from './transfer';
 import '@nexus/tokens/tokens.css';
 import './theme.css';
 import { initTheme } from './theme';
+import { initTouchUi } from './touchUi';
 import { initAutoUpdate } from './autoUpdate';
 import { initScrollReveal } from './scrollReveal';
 
 initTheme();
+initTouchUi(); // ecrãs táteis: comportamento de telemóvel + campos acima do teclado
 initAutoUpdate(); // recarrega sozinho quando há nova versão publicada
 initScrollReveal(); // conteúdo materializa-se ao rolar (efeito de catálogo premium)
 
