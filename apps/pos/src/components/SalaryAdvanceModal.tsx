@@ -109,12 +109,6 @@ export function SalaryAdvanceModal({ onClose }: { onClose(): void }) {
                   placeholder="Ex.: imprevisto, saúde, transporte…" />
               </div>
 
-              <button className="btn block" style={{ marginTop: 12 }} disabled={!canSubmit} onClick={() => void submit()}>
-                {busy ? 'A enviar…' : 'Pedir adiantamento'}
-              </button>
-              <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-                O pedido fica pendente até o gestor/gerente aprovar. Depois de aprovado, o valor é descontado automaticamente no teu salário do mês do pagamento.
-              </p>
             </>
           )}
 
@@ -141,6 +135,15 @@ export function SalaryAdvanceModal({ onClose }: { onClose(): void }) {
             </div>
           ) : null}
         </div>
+
+        {lim?.employeeLinked ? (
+          <div className="consume-foot">
+            <p className="muted">O pedido fica pendente até o gestor aprovar; depois é descontado no salário do mês do pagamento.</p>
+            <button className="btn lg block" disabled={!canSubmit} onClick={() => void submit()}>
+              {busy ? 'A enviar…' : value > 0 ? `Pedir ${formatKz(value)}` : 'Pedir adiantamento'}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

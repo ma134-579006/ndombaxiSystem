@@ -148,15 +148,6 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
                   <button className="consume-rm" onClick={() => removeLine(l.product.id)} aria-label="Remover">✕</button>
                 </div>
               ))}
-              <div className="consume-cart-foot">
-                <button className="btn ghost sm" onClick={() => setCart([])}>Limpar</button>
-                <span className="spacer" />
-                <span className="muted" style={{ fontSize: 13 }}>Total</span>
-                <strong style={{ fontSize: 18 }}>{formatKz(cartTotal)}</strong>
-              </div>
-              <button className="btn block" style={{ marginTop: 10 }} disabled={busy} onClick={() => void registerAll()}>
-                {busy ? 'A registar…' : `Registar consumo (${cartCount})`}
-              </button>
             </div>
           ) : null}
 
@@ -193,6 +184,16 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
             </div>
           ) : null}
         </div>
+
+        {cart.length > 0 ? (
+          <div className="consume-foot row">
+            <div className="cf-sum"><span>{cartCount} item(ns)</span><b>{formatKz(cartTotal)}</b></div>
+            <button className="btn ghost" onClick={() => setCart([])}>Limpar</button>
+            <button className="btn" disabled={busy} onClick={() => void registerAll()}>
+              {busy ? 'A registar…' : 'Registar consumo'}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
