@@ -3483,3 +3483,17 @@ img.u-av { background: var(--surface-2); }
 @media (max-width: 760px) { .pay-row, .lv-row { grid-template-columns: auto minmax(0, 1fr) auto; } .pay-row .btn, .lv-act { grid-column: 2 / -1; justify-content: flex-start; } }
 
 .wo-note { margin-top: 10px; padding: 10px 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.5; color: #92400e; background: rgba(217,119,6,.12); border: 1px solid rgba(217,119,6,.3); }
+
+/* ══ SISTEMA: título/botões e pesquisa FIXOS em todas as páginas (admin e super admin) ══
+   O cabeçalho cola-se ao topo; a barra de pesquisa cola-se logo abaixo dele
+   (altura medida por stickyStack.ts → --ch-h). Só o conteúdo rola. */
+.sticky-top { display: contents !important; }
+.content .content-head { position: sticky !important; top: 0 !important; z-index: 30 !important; background: var(--bg) !important; }
+.content .toolbar-sticky, .content .fx-toolbar { position: sticky !important; top: var(--ch-h, 56px) !important; z-index: 29 !important; margin-top: 0 !important; background: var(--surface) !important; }
+.content .fx-toolbar { background: var(--bg) !important; }
+.content .fx-toolbar::after, .content .toolbar-sticky::after { content: none; }
+@media (max-width: 700px) {
+  .content .content-head { position: static !important; }
+  .content .toolbar-sticky, .content .fx-toolbar { top: 0 !important; }
+}
+@media print { .content .content-head, .content .toolbar-sticky, .content .fx-toolbar { position: static !important; } }
