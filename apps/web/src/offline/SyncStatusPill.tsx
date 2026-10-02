@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { isNativeApp } from '../config';
 import type { SyncStatus } from '@nexus/offline-core';
 import { subscribeSyncStatus, getSyncStatus } from './boot';
 
@@ -15,6 +16,7 @@ const LABEL: Record<SyncStatus['link'], { text: string; color: string }> = {
 };
 
 export function SyncStatusPill() {
+  if (!isNativeApp()) return null; // navegador: 100% online — sem indicador de sincronização
   const [status, setStatus] = useState<SyncStatus | null>(getSyncStatus());
   useEffect(() => subscribeSyncStatus(setStatus), []);
   if (!status) return null;

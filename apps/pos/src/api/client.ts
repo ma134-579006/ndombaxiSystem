@@ -1,4 +1,5 @@
 import { API_URL } from '../config';
+import { isNativeApp } from '../offline/nativeShare';
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
 import type { PromoRow } from '../pos/promo';
@@ -105,7 +106,7 @@ async function request<T>(
     // que dá ao telemóvel o sistema INTEIRO sem internet: quem responde é a
     // mesma API, a correr no computador do balcão. Sem loja configurada — ou
     // com ela em silêncio — isto devolve exatamente a nuvem de sempre.
-    const base = baseParaPedido(API_URL);
+    const base = isNativeApp() ? baseParaPedido(API_URL) : API_URL;
     const eraDaLoja = base !== API_URL;
     res = await fetch(`${base}${path}`, {
       method,
@@ -118,7 +119,7 @@ async function request<T>(
   } catch (e) {
     // Silêncio do servidor da loja. Ao fim de algumas falhas seguidas o
     // aparelho volta à nuvem sozinho — quem saiu da loja continua a trabalhar.
-    if (baseParaPedido(API_URL) !== API_URL) anotarFalhaDaLoja();
+    if (isNativeApp() && baseParaPedido(API_URL) !== API_URL) anotarFalhaDaLoja();
     if (isGet && (e as Error)?.name !== 'AbortError') {
       const cached = await sharedGet<T>(cacheKey);
       if (cached != null) return cached;

@@ -11,7 +11,7 @@
  * Reutiliza a mesma fonte de sessão do cliente de API (token + código do tenant),
  * por isso segue automaticamente a renovação proativa do token.
  */
-import { API_URL } from '../config';
+import { API_URL, isNativeApp } from '../config';
 import {
   SyncEngine,
   NetMonitor,
@@ -67,6 +67,8 @@ function wireForeground(): void {
 
 /** Arranca o motor (idempotente). Seguro chamar em cada autenticação. */
 export async function startOfflineEngine(auth: OfflineAuth): Promise<SyncEngine | null> {
+  // Navegador: 100% online — o motor offline só existe nas apps instaladas.
+  if (!isNativeApp()) return null;
   if (engine) return engine;
   if (starting) return starting;
   starting = (async () => {

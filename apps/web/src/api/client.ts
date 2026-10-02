@@ -1,4 +1,4 @@
-import { API_URL } from '../config';
+import { API_URL, isNativeApp } from '../config';
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
 import type {
@@ -236,7 +236,8 @@ async function request<T>(
     // que dá ao telemóvel o sistema INTEIRO sem internet: compras, stock, RH e
     // o resto passam a ser respondidos pela mesma API, a correr no balcão. Sem
     // loja configurada — ou com ela em silêncio — isto é a nuvem de sempre.
-    const base = baseParaPedido(API_URL);
+    // No NAVEGADOR o sistema é 100% online: sem servidor da loja, sem cache offline.
+    const base = isNativeApp() ? baseParaPedido(API_URL) : API_URL;
     const eraDaLoja = base !== API_URL;
     res = await fetch(`${base}${path}`, {
       method,
@@ -249,10 +250,10 @@ async function request<T>(
     // Silêncio do servidor da loja: ao fim de algumas falhas seguidas o
     // aparelho volta à nuvem sozinho, em vez de ficar preso a um computador
     // que já não alcança.
-    if (baseParaPedido(API_URL) !== API_URL) anotarFalhaDaLoja();
+    if (isNativeApp() && baseParaPedido(API_URL) !== API_URL) anotarFalhaDaLoja();
     // Sem rede: numa LEITURA, serve a última cópia guardada (não bloqueia o
     // trabalho offline). Um timeout (servidor a acordar) NÃO usa cache — é online.
-    if (isGet && (e as Error)?.name !== 'AbortError') {
+    if (isNativeApp() && isGet && (e as Error)?.name !== 'AbortError') {
       const cached = await sharedGet<T>(cacheKey);
       if (cached != null) return cached;
     }
@@ -271,7 +272,7 @@ async function request<T>(
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const data = (text ? JSON.parse(text) : undefined) as T;
-  if (isGet && data !== undefined) void sharedSet(cacheKey, data); // guarda p/ offline
+  if (isNativeApp() && isGet && data !== undefined) void sharedSet(cacheKey, data); // cache offline: só nas apps instaladas
   return data;
 }
 
