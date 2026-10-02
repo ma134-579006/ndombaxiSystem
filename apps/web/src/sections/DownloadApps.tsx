@@ -23,22 +23,32 @@ interface PlatformMeta {
   icon: React.ReactNode;
 }
 
+const WinIcon = () => (
+  <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
+    <path fill="currentColor" d="M2.5 4.9 10.2 3.8v7.5H2.5zM11.3 3.65 21.5 2.2v9.1H11.3zM2.5 12.4h7.7v7.5l-7.7-1.1zM11.3 12.4h10.2v9.4l-10.2-1.4z" />
+  </svg>
+);
+const AndroidIcon = () => (
+  <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
+    <path fill="currentColor" d="M17.6 9.5a.9.9 0 1 1 1.8 0v5.6a.9.9 0 1 1-1.8 0zM4.6 9.5a.9.9 0 1 1 1.8 0v5.6a.9.9 0 1 1-1.8 0z" />
+    <path fill="currentColor" d="M7 8.9h10v8.1a1.2 1.2 0 0 1-1.2 1.2h-.9v2.6a1.1 1.1 0 0 1-2.2 0v-2.6h-1.4v2.6a1.1 1.1 0 0 1-2.2 0v-2.6h-.9A1.2 1.2 0 0 1 7 17z" />
+    <path fill="currentColor" d="M7.1 8.3a5 5 0 0 1 9.8 0zM15.6 2.9l1-1.5a.4.4 0 1 0-.7-.4l-1 1.5a5.6 5.6 0 0 0-5.8 0l-1-1.5a.4.4 0 1 0-.7.4l1 1.5" />
+    <circle cx="9.7" cy="6.1" r=".7" fill="#fff" /><circle cx="14.3" cy="6.1" r=".7" fill="#fff" />
+  </svg>
+);
+const AppleIcon = () => (
+  <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
+    <path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
+  </svg>
+);
+const DlIcon = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" /></svg>
+);
+
 const PLATFORMS: PlatformMeta[] = [
-  {
-    id: 'windows', label: 'Windows', tagline: 'Para o computador da loja e do escritório.',
-    defaultReq: 'Windows 10 ou 11 · 64-bit',
-    icon: <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M3 5.6 10.4 4.5v7.1H3zM10.4 12.6v7.1L3 18.6v-6zM11.6 4.3 21 3v8.6h-9.4zM21 12.6V21l-9.4-1.3v-7.1z"/></svg>,
-  },
-  {
-    id: 'android', label: 'Android', tagline: 'Venda e faça a gestão a partir do telemóvel.',
-    defaultReq: 'Android 6 ou superior',
-    icon: <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M6 9h12v8a2 2 0 0 1-2 2h-1v3h-2v-3h-2v3H9v-3H8a2 2 0 0 1-2-2zM4 9.5A1.5 1.5 0 0 1 5.5 11v4a1.5 1.5 0 0 1-3 0v-4A1.5 1.5 0 0 1 4 9.5m16 0A1.5 1.5 0 0 1 21.5 11v4a1.5 1.5 0 0 1-3 0v-4A1.5 1.5 0 0 1 20 9.5M7.2 7.8A6 6 0 0 1 12 5.5c1.9 0 3.6.9 4.8 2.3z"/></svg>,
-  },
-  {
-    id: 'ios', label: 'iPhone', tagline: 'A mesma experiência, no seu iOS.',
-    defaultReq: 'iOS 13 ou superior',
-    icon: <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M16 3c.1 1.2-.4 2.3-1.1 3.1-.8.9-2 1.5-3 1.4-.1-1.1.4-2.3 1.1-3C13.8 3.6 15.1 3 16 3M18.7 17c-.5 1.2-.8 1.7-1.4 2.7-1 1.5-2.3 3.3-4 3.3-1.5 0-1.9-1-4-1-2 0-2.5 1-4 1-1.6 0-2.9-1.7-3.8-3.1C-.7 15.6-.2 9 3.8 8.2c1.2-.2 2 .5 3.1.5 1 0 1.7-.7 3.1-.7 1.3 0 2.4.6 3.1.9-2.8 1.6-2.3 5.6.5 6.3z"/></svg>,
-  },
+  { id: 'windows', label: 'Windows', tagline: 'Para o computador da loja e do escritório.', defaultReq: 'Windows 10 ou 11 · 64-bit', icon: <WinIcon /> },
+  { id: 'android', label: 'Android', tagline: 'Venda e faça a gestão a partir do telemóvel.', defaultReq: 'Android 6 ou superior', icon: <AndroidIcon /> },
+  { id: 'ios', label: 'iPhone', tagline: 'A mesma experiência, no seu iOS.', defaultReq: 'iOS 13 ou superior', icon: <AppleIcon /> },
 ];
 
 function fmtSize(n: number | null): string | null {
@@ -75,6 +85,12 @@ export function DownloadApps() {
           sem internet e a sincronizar sozinha quando a ligação voltar.
         </p>
 
+        <div className="dl-trust">
+          <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg> Funciona sem internet</span>
+          <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5" /></svg> Sincroniza sozinha</span>
+          <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /></svg> Instalador oficial verificado</span>
+        </div>
+
         <div className="dl-grid">
           {PLATFORMS.map((p) => {
             const rel = releases?.[p.id] ?? null;
@@ -84,21 +100,25 @@ export function DownloadApps() {
             const href = rel?.downloadPageUrl || undefined;
 
             return (
-              <article className={`dl-card ${available ? '' : 'soon'}`} key={p.id}>
-                <div className="dl-icon" aria-hidden="true">{p.icon}</div>
-                <h3>{p.label}</h3>
-                <p className="dl-tag">{p.tagline}</p>
+              <article className={`dl-card dl-${p.id} ${available ? '' : 'soon'}`} key={p.id}>
+                <div className="dl-head">
+                  <div className="dl-icon" aria-hidden="true">{p.icon}</div>
+                  <div className="dl-ht">
+                    <h3>{p.label}</h3>
+                    <p className="dl-tag">{p.tagline}</p>
+                  </div>
+                  <span className={`dl-badge${available ? '' : ' soon'}`}>{available ? `v${rel!.version}` : 'Em breve'}</span>
+                </div>
 
-                <ul className="dl-meta">
-                  <li><span>Requisitos</span><b>{rel?.requirements || p.defaultReq}</b></li>
+                <div className="dl-facts">
+                  <div className="full"><span>Requisitos</span><b>{rel?.requirements || p.defaultReq}</b></div>
                   {available && (
                     <>
-                      <li><span>Versão</span><b>{rel!.version}</b></li>
-                      <li><span>Atualizado</span><b>{fmtDate(rel!.releasedAt)}</b></li>
-                      {fmtSize(rel!.fileSize) && <li><span>Tamanho</span><b>{fmtSize(rel!.fileSize)}</b></li>}
+                      <div><span>Atualizado</span><b>{fmtDate(rel!.releasedAt)}</b></div>
+                      <div><span>Tamanho</span><b>{fmtSize(rel!.fileSize) || '—'}</b></div>
                     </>
                   )}
-                </ul>
+                </div>
 
                 {available && (rel!.notes.length > 0 || rel!.fixes.length > 0) && (
                   <details className="dl-changelog">
@@ -112,11 +132,11 @@ export function DownloadApps() {
 
                 {available ? (
                   <a className="dl-btn" href={href} target="_blank" rel="noreferrer">
-                    Baixar para {p.label}
+                    <DlIcon /> Baixar para {p.label}
                   </a>
                 ) : (
                   <span className="dl-btn disabled" aria-disabled="true">
-                    {loaded ? 'Em breve' : 'A carregar…'}
+                    {loaded ? 'Disponível em breve' : 'A carregar…'}
                   </span>
                 )}
 
