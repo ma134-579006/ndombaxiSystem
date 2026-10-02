@@ -51,8 +51,12 @@ export interface ProvisionOptions {
   paths: ReadinessPaths;
   cloud: CloudAccess;
   run: SqlRunner;
-  /** Schema do tenant na base local (o mesmo nome da nuvem). */
+  /** Schema do tenant na base local. Com um servidor recente, é substituído pelo
+   *  nome real da nuvem (`/company/snapshot/platform`). */
   schema: string;
+  /** Pasta com `tenant_template.sql`/`tenant_migrations.sql` (API empacotada). Com
+   *  ela, o schema da empresa é criado na base local antes da cópia. */
+  sqlDir?: string;
   /** Tamanho da página. O servidor limita a 500. */
   pageSize?: number;
   log?: (line: string) => void;
@@ -70,7 +74,7 @@ interface Progress {
   /** Tabelas já COMPLETAS. */
   done: string[];
   /** Tabela a meio e em que linha ia. */
-  partial?: { table: string; offset: number };
+  partial?: { table: string; offset: number; after?: string | null };
   startedAt: string;
 }
 
@@ -95,7 +99,8 @@ function clearProgress(paths: ReadinessPaths): void {
 
 /** Identificador SQL seguro (a validação a sério é o servidor só devolver tabelas reais). */
 function ident(name: string): string {
-  if (!/^[a-z_][a-z0-9_]*$/.test(name)) throw new Error(`Nome inválido: ${name}`);
+  // Letras/dígitos/_ (maiúsculas incluídas: colunas de plataforma em camelCase, ex. "priceKz").
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error(`Nome inválido: ${name}`);
   return `"${name}"`;
 }
 
@@ -106,13 +111,47 @@ function ident(name: string): string {
 export async function provisionFromCloud(o: ProvisionOptions): Promise<ProvisionResult> {
   const log = o.log ?? (() => undefined);
   const doFetch = o.fetchImpl ?? fetch;
-  const pageSize = Math.min(Math.max(1, o.pageSize ?? 200), 500);
+  // Páginas grandes: com catálogos de milhões de linhas, páginas de 200 davam
+  // dezenas de milhares de pedidos. O servidor novo aceita até 5000.
+  const pageSize = Math.min(Math.max(1, o.pageSize ?? 2000), 5000);
 
   const headers = {
     Authorization: `Bearer ${o.cloud.accessToken}`,
     'X-Tenant-Code': o.cloud.companyCode,
   };
   const base = o.cloud.apiUrl.replace(/\/+$/, '');
+
+  // 1) PLATAFORMA: registo da empresa, plano e subscrições → a API local passa a
+  //    reconhecer a empresa (login, X-Tenant-Code). Servidor antigo (404): salta.
+  const plat = await doFetch(`${base}/company/snapshot/platform`, { headers });
+  if (plat.ok) {
+    const p = (await plat.json()) as { schema: string; companies: unknown[]; plans: unknown[]; subscriptions: unknown[] };
+    if (p.schema) o.schema = p.schema;
+    for (const [tabela, linhas] of [['plans', p.plans], ['companies', p.companies], ['subscriptions', p.subscriptions]] as const) {
+      if (!Array.isArray(linhas) || linhas.length === 0) continue;
+      const cols = [...new Set((linhas as Record<string, unknown>[]).flatMap((r) => Object.keys(r)))];
+      const t = `nexus_public.${ident(tabela)}`;
+      const lista = cols.map(ident).join(', ');
+      await o.run(
+        `INSERT INTO ${t} (${lista}) SELECT ${lista} FROM json_populate_recordset(NULL::${t}, $1::json) ON CONFLICT DO NOTHING`,
+        [JSON.stringify(linhas)],
+      );
+    }
+    log(`plataforma: empresa e plano registados (schema ${o.schema})`);
+  }
+  // 2) SCHEMA DA EMPRESA criado localmente com o MESMO modelo da nuvem.
+  if (o.sqlDir) {
+    await o.run(`CREATE SCHEMA IF NOT EXISTS ${ident(o.schema)}`, []);
+    for (const f of ['tenant_template.sql', 'tenant_migrations.sql']) {
+      const file = path.join(o.sqlDir, f);
+      if (!existsSync(file)) continue;
+      const sql = readFileSync(file, 'utf8').split('{{SCHEMA}}').join(o.schema);
+      const stmts = sql.split('\n').map((l) => { const i = l.indexOf('--'); return i >= 0 ? l.slice(0, i) : l; })
+        .join('\n').split(';').map((x) => x.trim()).filter(Boolean);
+      for (const st of stmts) { try { await o.run(st, []); } catch { /* idempotente: o que já existe falha e segue */ } }
+    }
+    log(`schema ${o.schema} pronto na base local`);
+  }
 
   const res = await doFetch(`${base}/company/snapshot/tables`, { headers });
   if (!res.ok) throw new Error(`Não foi possível listar as tabelas da empresa (HTTP ${res.status}).`);
@@ -136,28 +175,40 @@ export async function provisionFromCloud(o: ProvisionOptions): Promise<Provision
     if (feitas.has(t.table)) continue;
     // Retoma no meio da tabela onde ficou (não recomeça a tabela inteira).
     let offset = anterior?.partial?.table === t.table ? anterior.partial.offset : 0;
+    // Cursor por posição (keyset) quando o servidor o suporta — sem OFFSET.
+    let after: string | null | undefined = anterior?.partial?.table === t.table ? anterior.partial.after : undefined;
 
     for (;;) {
       const url = `${base}/company/snapshot/rows?table=${encodeURIComponent(t.table)}`
-        + `&offset=${offset}&limit=${pageSize}`;
+        + `&offset=${offset}&limit=${pageSize}&after=${encodeURIComponent(after ?? '')}`;
       const r = await doFetch(url, { headers });
       if (!r.ok) throw new Error(`Falha ao copiar ${t.table} (HTTP ${r.status}).`);
-      const page = (await r.json()) as { rows: Record<string, unknown>[]; done: boolean };
+      const page = (await r.json()) as { rows: Record<string, unknown>[]; done: boolean; next?: string | null };
 
-      for (const row of page.rows) {
-        const cols = Object.keys(row);
-        if (cols.length === 0) continue;
-        const marcadores = cols.map((_, i) => `$${i + 1}`).join(', ');
+      const linhas = page.rows.filter((row) => Object.keys(row).length > 0);
+      if (linhas.length > 0) {
+        // UMA instrução por página (json_populate_recordset), em vez de uma por
+        // linha: milhões de linhas deixam de ser milhões de idas à base.
+        const cols = [...new Set(linhas.flatMap((row) => Object.keys(row)))];
+        const tabela = `${ident(o.schema)}.${ident(t.table)}`;
+        const lista = cols.map(ident).join(', ');
         // ON CONFLICT DO NOTHING: repetir a cópia nunca estraga o que já cá está.
-        await o.run(
-          `INSERT INTO ${ident(o.schema)}.${ident(t.table)} `
-          + `(${cols.map(ident).join(', ')}) VALUES (${marcadores}) ON CONFLICT DO NOTHING`,
-          cols.map((c) => row[c]),
-        );
-        totalLinhas += 1;
+        const sql = `INSERT INTO ${tabela} (${lista}) SELECT ${lista} `
+          + `FROM json_populate_recordset(NULL::${tabela}, $1::json)`;
+        try {
+          await o.run(`${sql} ON CONFLICT DO NOTHING`, [JSON.stringify(linhas)]);
+        } catch (e) {
+          // Tabelas FISCAIS só de acréscimo (com RULE contra alterações) não aceitam
+          // ON CONFLICT: inserção simples — a cópia continua pelo cursor, sem repetir.
+          if (!/ON CONFLICT clause cannot be used/i.test((e as Error).message)) throw e;
+          await o.run(sql, [JSON.stringify(linhas)]);
+        }
+        totalLinhas += linhas.length;
       }
       offset += page.rows.length;
-      progresso.partial = { table: t.table, offset };
+      // Servidor novo devolve `next` (cursor); o antigo não — continua por offset.
+      if ('next' in page) after = page.next ?? null;
+      progresso.partial = { table: t.table, offset, after };
       writeProgress(o.paths, progresso);
       if (page.done) break;
     }

@@ -64,16 +64,44 @@ export class PosController {
   // ── Catálogo de produtos ───────────────────────────────────
   @Get('products')
   @ApiOperation({ summary: 'Lista produtos activos com o stock efectivo da loja do operador' })
-  listProducts(@CurrentUser() user: JwtPayload) {
+  @ApiQuery({ name: 'q', required: false, description: 'Pesquisa: código/barras exatos, nome ou marca' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Página (máx. 5000). Sem limit devolve tudo (apps antigas).' })
+  @ApiQuery({ name: 'offset', required: false })
+  listProducts(
+    @CurrentUser() user: JwtPayload,
+    @Query('q') q?: string, @Query('limit') limit?: string, @Query('offset') offset?: string,
+  ) {
     // O caixa vê o stock da SUA loja (stock por loja); gestor/admin sem loja vê o global.
-    return this.repo.listProducts(this.ctx.requireTenantSchema(), user.storeId ?? null);
+    return this.repo.listProducts(this.ctx.requireTenantSchema(), user.storeId ?? null, false, pageOpts(q, limit, offset));
+  }
+
+  @Get('products/changes')
+  @ApiOperation({ summary: 'Alterações do catálogo desde um momento (memória interna das apps, aos poucos)' })
+  @ApiQuery({ name: 'since', required: false }) @ApiQuery({ name: 'after', required: false }) @ApiQuery({ name: 'limit', required: false })
+  async productChanges(
+    @CurrentUser() user: JwtPayload,
+    @Query('since') since?: string, @Query('after') after?: string, @Query('limit') limit?: string,
+  ) {
+    const lim = Math.min(Math.max(1, Number(limit) || 2000), 5000);
+    const items = await this.repo.listProducts(this.ctx.requireTenantSchema(), user.storeId ?? null, true, {
+      changesSince: since ?? '', afterId: after || undefined, limit: lim,
+    });
+    // Cursor com a precisão TOTAL do Postgres (microssegundos, em texto): em ms,
+    // linhas gravadas no mesmo instante faziam o cursor voltar sempre ao início.
+    const last = items[items.length - 1] as (typeof items)[number] & { updated_cursor?: string };
+    const next = items.length === lim && last ? { since: last.updated_cursor ?? '', after: last.id } : null;
+    return { items, next };
   }
 
   @Get('products/all')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Catálogo completo para o gestor: inclui produtos inativos' })
-  listAllProducts(@CurrentUser() user: JwtPayload) {
-    return this.repo.listProducts(this.ctx.requireTenantSchema(), user.storeId ?? null, true);
+  @ApiQuery({ name: 'q', required: false }) @ApiQuery({ name: 'limit', required: false }) @ApiQuery({ name: 'offset', required: false })
+  listAllProducts(
+    @CurrentUser() user: JwtPayload,
+    @Query('q') q?: string, @Query('limit') limit?: string, @Query('offset') offset?: string,
+  ) {
+    return this.repo.listProducts(this.ctx.requireTenantSchema(), user.storeId ?? null, true, pageOpts(q, limit, offset));
   }
 
   @Get('products/ingredients')
@@ -316,4 +344,10 @@ export class PosController {
   listSigningKeys() {
     return this.signing.list(this.ctx.requireTenantSchema());
   }
+}
+
+/** Opções de página/pesquisa do catálogo (só com `limit` — sem ele, lista completa). */
+function pageOpts(q?: string, limit?: string, offset?: string) {
+  if (limit === undefined && !q) return undefined;
+  return { q: q ?? '', limit: Number(limit) || 200, offset: Number(offset) || 0 };
 }

@@ -661,3 +661,10 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."devices" (
 -- aplicacional perderia a corrida entre dois registos simultaneos; esta nao.
 CREATE UNIQUE INDEX IF NOT EXISTS devices_series_uidx ON "{{SCHEMA}}"."devices"(series);
 CREATE INDEX IF NOT EXISTS devices_store_idx ON "{{SCHEMA}}"."devices"(store_id);
+
+-- CATALOGOS GRANDES (centenas de milhares a milhoes de produtos): pesquisa por
+-- nome/codigo de barras e alteracoes incrementais (memoria interna das apps)
+-- precisam de indices; sem eles cada pagina era uma leitura da tabela inteira.
+CREATE INDEX IF NOT EXISTS products_name_idx ON "{{SCHEMA}}"."products"(name);
+CREATE INDEX IF NOT EXISTS products_barcode_idx ON "{{SCHEMA}}"."products"(barcode);
+CREATE INDEX IF NOT EXISTS products_updated_idx ON "{{SCHEMA}}"."products"(updated_at, id);
