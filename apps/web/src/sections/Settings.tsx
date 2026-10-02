@@ -1,4 +1,4 @@
-import { confirmDialog, toast } from '../components/feedback';
+import { confirmDialog, toast, readFileProgress } from '../components/feedback';
 import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { STAFF_ROLE_LABELS, type ManagerStaff, type SiteSettings } from '../api/types';
@@ -107,9 +107,7 @@ function BrandingCard() {
   const onLogo = (file?: File) => {
     if (!file) return;
     if (file.size > 1_500_000) { setErr('Logótipo demasiado grande (máx. ~1,5 MB).'); return; }
-    const r = new FileReader();
-    r.onload = () => setLogoUrl(String(r.result));
-    r.readAsDataURL(file);
+    void readFileProgress(file).then((data) => setLogoUrl(data));
   };
 
   const save = async () => {

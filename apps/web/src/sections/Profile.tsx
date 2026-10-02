@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { readFileProgress } from '../components/feedback';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { DocumentIdentity } from '../api/types';
@@ -50,9 +51,7 @@ export function Profile() {
   const onPhoto = (f?: File) => {
     if (!f) return;
     if (f.size > 1_800_000) { setErr('Imagem demasiado grande (máx. ~1,8 MB).'); return; }
-    const r = new FileReader();
-    r.onload = () => setPhoto(String(r.result));
-    r.readAsDataURL(f);
+    void readFileProgress(f).then((data) => setPhoto(data));
   };
 
   const saveProfile = async () => {

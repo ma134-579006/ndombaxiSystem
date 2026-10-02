@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { BackupMeta, BackupSettings } from '../api/types';
-import { toast, confirmDialog } from '../components/feedback';
+import { toast, confirmDialog, runDownload } from '../components/feedback';
 import { IconShield, IconTruck, IconTrash, IconRefresh } from '../components/Icons';
 import { Switch } from '../components/ui';
 
@@ -64,12 +64,13 @@ export function Backup() {
 
   const download = async (id: string) => {
     try {
-      const { content, fileName } = await api.backup.download(id);
-      const blob = new Blob([Uint8Array.from(atob(content), (c) => c.charCodeAt(0))], { type: 'application/gzip' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
+      await runDownload({
+        title: 'A descarregar backup', fileName: 'backup.ndbak',
+        make: async () => {
+          const { content, fileName } = await api.backup.download(id);
+          return { blob: new Blob([Uint8Array.from(atob(content), (c) => c.charCodeAt(0))], { type: 'application/gzip' }), fileName };
+        },
+      });
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível descarregar.'); }
   };
 

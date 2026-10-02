@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { readFileProgress } from '../components/feedback';
 import { api, ApiError } from '../api/client';
 import type { BankAccount, PublicPlan, SubMessage, Subscription as Sub, SubStatus } from '../api/types';
 import { IconCalendar, IconCard, IconCheck, IconReceipt, IconShield, IconStore } from '../components/Icons';
@@ -14,16 +15,9 @@ const STATUS_TONE: Record<SubStatus, string> = {
   ACTIVE: 'var(--success)', REJECTED: 'var(--danger)', EXPIRED: 'var(--muted)',
 };
 
-function fileToBase64(file: File): Promise<{ data: string; type: string; name: string }> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => {
-      const res = String(r.result);
-      resolve({ data: res.includes(',') ? res.slice(res.indexOf(',') + 1) : res, type: file.type || 'image/jpeg', name: file.name });
-    };
-    r.onerror = () => reject(new Error('read'));
-    r.readAsDataURL(file);
-  });
+async function fileToBase64(file: File): Promise<{ data: string; type: string; name: string }> {
+  const res = await readFileProgress(file);
+  return { data: res.includes(',') ? res.slice(res.indexOf(',') + 1) : res, type: file.type || 'image/jpeg', name: file.name };
 }
 
 /** Período legível de um plano/subscrição: "1 mês", "3 meses", "30 dias", "sem prazo". */

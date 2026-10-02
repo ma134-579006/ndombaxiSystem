@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { readFileProgress, runTransfer } from '../components/feedback';
 import { api, ApiError } from '../api/client';
 import type { SiteSettings, UpdateSiteSettingsInput } from '../api/types';
 import { IconImage, IconStore } from '../components/Icons';
@@ -57,18 +58,20 @@ export function Storefront() {
         api.branding().catch(() => null),
       ]);
       const storeName = brandName.trim() || identity?.brandName || identity?.companyName || 'A nossa loja online';
-      const pdf = await buildStorePosterPdf({
-        identity,
-        storeName,
-        tagline: tagline.trim() || undefined,
-        logoUrl: logoUrl || undefined,
-        storeLink,
-        primaryColor,
-        contactPhone: contactPhone.trim() || undefined,
-        contactEmail: contactEmail.trim() || undefined,
-        address: address.trim() || undefined,
-      });
-      pdf.save(posterFileName(storeName));
+      await runTransfer({ title: 'A gerar o cartaz em PDF', kind: 'generate', task: async () => {
+        const pdf = await buildStorePosterPdf({
+          identity,
+          storeName,
+          tagline: tagline.trim() || undefined,
+          logoUrl: logoUrl || undefined,
+          storeLink,
+          primaryColor,
+          contactPhone: contactPhone.trim() || undefined,
+          contactEmail: contactEmail.trim() || undefined,
+          address: address.trim() || undefined,
+        });
+        pdf.save(posterFileName(storeName));
+      } });
     } catch {
       setError('Não foi possível gerar o PDF do cartaz. Tente novamente.');
     } finally { setPdfBusy(false); }
@@ -107,9 +110,7 @@ export function Storefront() {
       setError('Logótipo demasiado grande (máx. ~1,5 MB).');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setLogoUrl(String(reader.result));
-    reader.readAsDataURL(file);
+    void readFileProgress(file).then((data) => setLogoUrl(data));
   };
 
   const save = async () => {

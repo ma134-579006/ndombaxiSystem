@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { runDownload } from '../components/feedback';
 import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type {
@@ -115,11 +116,7 @@ export function Reports() {
 
   const csvExport = () => {
     const { name, csv } = buildCsv();
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
+    void runDownload({ title: 'A exportar relatório', fileName: name, make: async () => new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }) });
   };
 
   const emailExport = async () => {

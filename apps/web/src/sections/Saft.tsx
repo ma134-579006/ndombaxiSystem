@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { runDownload } from '../components/feedback';
 import { api, ApiError } from '../api/client';
 import type { AgtCommStatus } from '../api/types';
 import { IconReceipt } from '../components/Icons';
@@ -38,19 +39,15 @@ export function Saft() {
   const exportSaft = async () => {
     setError(null); setInfo(null); setBusy(true);
     try {
-      const xml = await api.saft.export(year, month);
-      if (!xml || !xml.includes('<AuditFile')) {
-        throw new ApiError(0, 'O servidor não devolveu um SAF-T válido.');
-      }
-      const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `SAFT-AO-${year}-${String(month).padStart(2, '0')}.xml`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      await runDownload({
+        title: `A exportar SAF-T de ${MONTHS[month - 1]} ${year}`,
+        fileName: `SAFT-AO-${year}-${String(month).padStart(2, '0')}.xml`,
+        make: async () => {
+          const xml = await api.saft.export(year, month);
+          if (!xml || !xml.includes('<AuditFile')) throw new ApiError(0, 'O servidor não devolveu um SAF-T válido.');
+          return new Blob([xml], { type: 'application/xml;charset=utf-8' });
+        },
+      });
       setInfo(`SAF-T de ${MONTHS[month - 1]} de ${year} descarregado.`);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Não foi possível exportar o SAF-T.');

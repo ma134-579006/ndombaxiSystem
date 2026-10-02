@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { HotelHousekeepingRow, HotelMaintenanceRow, HotelReservationDetail, HotelReservationRow, HotelRoomMapRow, ManagerProduct } from '../api/types';
-import { toast } from '../components/feedback';
+import { toast, readFileProgress } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz } from '../format';
@@ -157,7 +157,7 @@ function NewRoom({ onClose, onCreated }: { onClose(): void; onCreated(): void })
   const onPhoto = (file?: File) => {
     if (!file) return;
     if (file.size > 2_000_000) { toast.warning('Foto demasiado grande (máx. ~2 MB).'); return; }
-    const r = new FileReader(); r.onload = () => setPhoto(String(r.result)); r.readAsDataURL(file);
+    void readFileProgress(file).then((data) => setPhoto(data));
   };
   const save = async () => {
     if (!f.name.trim()) { toast.warning('Indique o nome do quarto.'); return; }

@@ -1,4 +1,4 @@
-import { confirmDialog, runBulk, toast } from '../components/feedback';
+import { confirmDialog, runBulk, toast, readFileProgress } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CreateProductInput, IvaCode, ManagerProduct, WarehouseRow } from '../api/types';
@@ -234,9 +234,7 @@ export function Products() {
       setFormError('Imagem demasiado grande (máx. ~1,5 MB).');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setForm((f) => ({ ...f, imageUrl: String(reader.result) }));
-    reader.readAsDataURL(file);
+    void readFileProgress(file).then((data) => setForm((f) => ({ ...f, imageUrl: data })));
   };
 
   const save = async () => {
