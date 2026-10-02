@@ -3847,5 +3847,5 @@ html.touch-ui .topbar { padding-left: 14px; padding-right: 14px; }
 .nn-card h4 { margin: 0; font-size: 17px; } .nn-card p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--muted, #64748b); }
 
 /* Camadas: a barra do topo (menu do perfil, sino, tema) fica SEMPRE acima do cabeçalho/pesquisa fixos do conteúdo (z 30/29) */
-.topbar { position: relative; z-index: 85; }
+.topbar { position: sticky; top: 0; z-index: 85; }
 .topbar .acct2-pop, .topbar .noti-pop, .topbar .theme-menu { z-index: 300; }

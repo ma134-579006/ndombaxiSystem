@@ -34,6 +34,15 @@ jobs:
           node apps/mobile-shell/scripts/prepare-web.mjs
           pnpm --filter @nexus/mobile-shell exec cap add android || true
           pnpm --filter @nexus/mobile-shell exec cap sync android
+          # Ícones a partir do logótipo único (apps/web/public/logo.png, sem fundo).
+          node apps/mobile-shell/scripts/gen-android-icons.mjs
+      - name: Assinatura estável
+        # Cada runner criava uma debug.keystore NOVA → cada APK tinha assinatura
+        # diferente e o Android recusava instalar por cima da versão anterior
+        # ("App não instalada"). Usamos sempre a mesma chave de depuração.
+        run: |
+          mkdir -p ~/.android
+          cp apps/mobile-shell/keystore/debug.keystore ~/.android/debug.keystore
       - name: Compilar APK debug
         working-directory: apps/mobile-shell/android
         run: ./gradlew assembleDebug --no-daemon
