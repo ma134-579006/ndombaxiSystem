@@ -98,3 +98,13 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - **Efeito ao rolar**: `scrollReveal.ts` usa `data-reveal`/`data-sfx` (NÃO `data-fx`, que é da landing — um conflito escondeu secções da landing).
 - **Cuidado CSS**: `:has()` não pode ser aninhado (`:has(.a:has(.b))` invalida a regra inteira).
 - Builds: o repo sob `...Packages\Claude_*\LocalCache` não compila (esbuild); compilar em `C:\ndombaxi-build` (cópia com node_modules). Android: workflow `android-build.yml` (manual) → artefacto `ndombaxi-android-debug`. Versões: desktop 1.3.0, android 1.1.0.
+
+## Atualização (2026-10-02 noite) — logótipo único, apps offline, builds na nuvem (PR #101, #102)
+- **Logótipo único** = o da landing sem fundo (`logo-horizontal.png`). `logo.png`/`logo-mark.png`/`logo.svg`/`favicon.ico`/`apple-touch-icon` gerados a partir dele (web/pos/store/mobile). Ícones Windows (`gen-win-icon.mjs`) e Android (`gen-android-icons.mjs`, fundo adaptativo branco) derivam de `apps/web/public/logo.png`.
+- **Caminhos de imagens nas apps**: usar SEMPRE `import.meta.env.BASE_URL` (`LOGO_SRC`/`LOGO_WIDE` em `brand.ts`). Caminho absoluto `/x.png` parte no Android (módulos em `www/gestao`, `www/caixa`).
+- **Menu do perfil**: `.topbar { position: sticky; z-index: 85 }` + popovers z 300. O `.content` é o contentor que rola (não a janela) — `content-head` fixa em `top: 0` dentro dele.
+- **Servidor local (Windows)** — bugs corrigidos que o impediam de funcionar: segredos JWT gerados por posto (`local-server/secrets.json`), `API_PREFIX=''`, CSP do Electron permite `http://127.0.0.1:*`. Com servidor local em uso, a Gestão abre sessão da NUVEM em segundo plano (`startCloudSession`, `offline/localServer.ts`) para cópia/replicação; tokens locais nunca vão para a replicação.
+- **Desbloqueio de ecrã offline**: Gestão valida no cofre offline (`verifyOffline`); Caixa já validava (agora também em 408/502–504).
+- **Android**: keystore de depuração fixa (`apps/mobile-shell/keystore/`, SHA-1 no README — registar no Google Cloud); `allowMixedContent` + `cleartext` para o servidor da loja na LAN.
+- **Builds**: Actions → "Windows build" (`windows-build.yml`, windows-latest, ~7 min) e "Android build" (~3 min) → artefactos `lps-vendas-windows` / `ndombaxi-android-debug`. Só Windows 10/11 (Electron 33); Windows 7/8 fora por decisão do utilizador.
+- **Por validar em aparelho real**: arranque do servidor local + cópia automática + replicação; login/desbloqueio offline; ícones. A API de produção não é alcançável a partir das sessões na nuvem (proxy 403) — testes e criação de empresas de teste têm de ser feitos do lado do utilizador.
