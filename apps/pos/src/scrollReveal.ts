@@ -11,8 +11,8 @@
  */
 const SELECTOR =
   '.card, .kpi-card, .ui-tile, .fx-stat, .fx-card, .pcard, .pc2, .prod, .ax-card, .ax-sec, .rt-table, .rc-row, .ph-row, .chart-card, .bar-card, ' +
-  '.ptable, .minilist, .lp-section, .lp-trust, .lp-feat, .lp-plan, .store-info, .order-card';
-const SKIP = '.login, .modal-bg, .modal, .sidebar, .topbar, .header, .ax-header, .drawer, .cart-drawer, .lock, .shadow-bar, .toolbar-sticky, .fx-toolbar, .gate';
+  '.ptable, .minilist, .store-info, .order-card';
+const SKIP = '.login, .modal-bg, .modal, .sidebar, .topbar, .header, .ax-header, .drawer, .cart-drawer, .lock, .shadow-bar, .toolbar-sticky, .fx-toolbar, .gate, .lp-section, .lp-hero, .lp-cta-band, .dl-section, [data-fx]';
 const VARIANTS = ['up', 'down', 'left', 'right', 'zoom', 'tilt'];
 
 let io: IntersectionObserver | null = null;
@@ -23,7 +23,7 @@ function track(el: Element): void {
   if (h.dataset.reveal) return;
   if (h.closest(SKIP)) return;
   h.dataset.reveal = 'out';
-  h.dataset.fx = pick();
+  h.dataset.sfx = pick();
   io?.observe(el);
 }
 
@@ -48,7 +48,7 @@ export function initScrollReveal(): void {
         } else if (h.dataset.reveal === 'in') {
           // Saiu totalmente do ecrã: prepara a próxima entrada com outro efeito.
           h.style.setProperty('--rd', '0ms');
-          h.dataset.fx = pick();
+          h.dataset.sfx = pick();
           h.dataset.reveal = 'out';
         }
       }
