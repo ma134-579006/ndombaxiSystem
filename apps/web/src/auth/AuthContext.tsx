@@ -12,7 +12,7 @@ import type { PlatformLoginInput, TenantLoginInput, TenantTokenPair, TokenPair }
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
 import { setTheme, DEFAULT_THEME } from '../theme';
 import { startOfflineEngine, stopOfflineEngine } from '../offline/boot';
-import { prefetchTenantData } from '../offline/prefetch';
+import { prefetchTenantData, startPrefetchSchedule } from '../offline/prefetch';
 // NOTA: o cofre NÃO é apagado no logout de propósito. Se o fosse, um gestor que
 // terminasse a sessão sem rede ficava impedido de voltar a entrar no próprio
 // posto. A credencial expira sozinha ao fim de 30 dias (ver session.ts).
@@ -198,11 +198,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // empresa para a cache local (Gestão 100% navegável offline). E repete
     // sempre que a rede REGRESSA, para a cópia local ficar atualizada — "quando
     // verifica a rede, baixa os dados". Só leituras; best-effort.
-    void prefetchTenantData();
-    const onOnline = () => { void prefetchTenantData(); };
-    window.addEventListener('online', onOnline);
+    void prefetchTenantData(companyRef.current);
+    const stopSchedule = startPrefetchSchedule(companyRef.current);
     return () => {
-      window.removeEventListener('online', onOnline);
+      stopSchedule();
       void stopOfflineEngine();
     };
   }, [status]);
