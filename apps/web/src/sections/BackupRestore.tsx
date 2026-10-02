@@ -71,18 +71,27 @@ export function BackupRestore() {
     <>
       <div className="content-head"><h2><IconShield size={20} /> Restauro backup</h2></div>
 
-      <div className="card" style={{ maxWidth: 640 }}>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          Sobe um ficheiro <strong>.ndbak</strong> (backup do próprio LPS Vendas, descarregado em
-          "Backup"). O sistema mostra sempre o que vai criar/actualizar antes de aplicar — nunca apaga nada.
-        </p>
+      <div className="card">
+        <h3><IconShield size={18} /> Restaurar um backup</h3>
         {error ? <div className="banner danger">{error}</div> : null}
         {!preview ? (
-          <label className="btn lg block" style={{ cursor: 'pointer', textAlign: 'center' }}>
-            <input ref={inputRef} type="file" accept=".ndbak,application/gzip,application/octet-stream" hidden
-              onChange={(e) => void onPick(e.target.files?.[0])} />
-            <IconTruck size={16} /> {busy ? 'A analisar…' : 'Escolher ficheiro de backup (.ndbak)'}
-          </label>
+          <>
+            <label className={`rs-drop${busy ? ' busy' : ''}`}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); void onPick(e.dataTransfer.files?.[0]); }}>
+              <input ref={inputRef} type="file" accept=".ndbak,application/gzip,application/octet-stream" hidden
+                onChange={(e) => void onPick(e.target.files?.[0])} />
+              <span className="rs-ic"><IconTruck size={26} /></span>
+              <b>{busy ? 'A analisar o ficheiro…' : 'Arraste o ficheiro .ndbak para aqui'}</b>
+              <small>ou clique para escolher no computador</small>
+              <span className="rs-btn">Escolher ficheiro de backup</span>
+            </label>
+            <div className="rs-notes">
+              <div><i>1</i><span>Mostra <strong>sempre o que vai criar ou actualizar</strong> antes de aplicar.</span></div>
+              <div><i>2</i><span><strong>Nunca apaga</strong> dados existentes.</span></div>
+              <div><i>3</i><span>Usa o ficheiro descarregado em <strong>Backup</strong> (formato .ndbak do LPS Vendas).</span></div>
+            </div>
+          </>
         ) : (
           <>
             <p style={{ fontSize: 13 }}>Ficheiro: <strong>{fileName}</strong>{preview.generatedAt ? ` · gerado em ${new Date(preview.generatedAt).toLocaleString('pt-PT')}` : ''}</p>

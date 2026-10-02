@@ -176,13 +176,17 @@ function LadoDoAparelho() {
         </>
       ) : (
         <>
-          <label className="lbl" style={{ marginTop: 12 }}>Endereço mostrado no computador da loja</label>
-          <input className="inp" value={texto} placeholder="192.168.1.50:3399"
-            inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false}
-            onChange={(ev) => { setTexto(ev.target.value); setErro(null); }}
-            onKeyDown={(ev) => { if (ev.key === 'Enter') ligar(); }} />
+          <div className="field" style={{ marginTop: 14 }}>
+            <label>Endereço mostrado no computador da loja</label>
+            <div className="sv-row">
+              <input value={texto} placeholder="192.168.1.50:3399"
+                inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false}
+                onChange={(ev) => { setTexto(ev.target.value); setErro(null); }}
+                onKeyDown={(ev) => { if (ev.key === 'Enter') ligar(); }} />
+              <button className="btn" onClick={ligar} disabled={!texto.trim()}>Ligar a esta loja</button>
+            </div>
+          </div>
           {erro ? <div className="banner danger" style={{ marginTop: 10 }}>{erro}</div> : null}
-          <button className="btn" style={{ marginTop: 12 }} onClick={ligar}>Ligar a esta loja</button>
         </>
       )}
     </div>
