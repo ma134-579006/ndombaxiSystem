@@ -88,3 +88,34 @@
 @media (max-width: 900px) {
   .dl-section .dl-grid { grid-template-columns: 1fr; max-width: 420px; margin-inline: auto; }
 }
+
+/* ══ Baixar aplicativo — redesenho profissional ══ */
+.dl-trust { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 22px; margin: 0 0 30px; }
+.dl-trust span { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: #3b4a63; }
+.dl-trust svg { color: #16a34a; }
+.dl-section .dl-grid { gap: 22px; align-items: stretch; }
+.dl-card { border-radius: 22px; padding: 26px; gap: 0; border: 1px solid #e4e9f2; box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 12px 32px -18px rgba(16,24,40,.18); }
+.dl-card:hover { box-shadow: 0 26px 56px -24px rgba(16,24,40,.28); }
+.dl-head { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; position: relative; }
+.dl-ht { min-width: 0; flex: 1; }
+.dl-card .dl-icon { width: 64px; height: 64px; border-radius: 18px; margin: 0; flex: none; color: #fff; box-shadow: 0 14px 26px -14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.25); }
+.dl-windows .dl-icon { background: linear-gradient(145deg, #2ab4ff, #0067c0); }
+.dl-android .dl-icon { background: linear-gradient(145deg, #4ee58f, #1fa463); }
+.dl-ios .dl-icon { background: linear-gradient(145deg, #3a3a42, #0b0b0f); }
+.dl-card h3 { margin: 0; font-size: 21px; letter-spacing: -.01em; }
+.dl-card .dl-tag { margin: 3px 0 0; font-size: 13.5px; }
+.dl-badge { position: absolute; top: -6px; right: -6px; font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 99px; color: #0f5132; background: #d1f5df; border: 1px solid #a7e8c3; }
+.dl-badge.soon { color: #7a5200; background: #fff0c9; border-color: #f6d98a; }
+.dl-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.dl-facts > div { padding: 12px 14px; border-radius: 14px; background: #f5f7fb; border: 1px solid #edf0f6; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.dl-facts > .full { grid-column: 1 / -1; }
+.dl-facts span { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: #8a94a6; }
+.dl-facts b { font-size: 14px; color: #1a2640; font-weight: 700; }
+.dl-card .dl-btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 15px 18px; border-radius: 14px; background: linear-gradient(135deg, var(--lp-primary), color-mix(in srgb, var(--lp-primary) 62%, #7c3aed)); box-shadow: 0 14px 26px -14px var(--lp-primary); }
+.dl-card .dl-btn.disabled { background: #eef1f6; box-shadow: none; }
+.dl-card.soon { opacity: 1; }
+.dl-card.soon .dl-icon { filter: saturate(.7); }
+.dl-changelog summary::before { content: none; }
+.dl-changelog summary { display: inline-flex; align-items: center; gap: 6px; }
+.dl-changelog summary::after { content: '▾'; font-size: 11px; transition: transform .2s; } .dl-changelog[open] summary::after { transform: rotate(180deg); }
+@media (max-width: 900px) { .dl-section .dl-grid { max-width: 460px; } }
