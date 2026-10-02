@@ -60,9 +60,12 @@ const CSP = [
   // Os frontends usam estilos em linha (styled/inline) — herdado da web.
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "img-src 'self' data: blob: https:",
+  // http://127.0.0.1 / localhost = SERVIDOR LOCAL do posto (API em HTTP só na
+  // máquina). Sem isto a CSP bloqueava TODOS os pedidos assim que o posto passava
+  // a usar o servidor local, e a app dizia "Sem ligação ao servidor".
+  "img-src 'self' data: blob: https: http://127.0.0.1:* http://localhost:*",
   "media-src 'self' data: blob: https:",
-  "connect-src 'self' https: wss:",
+  "connect-src 'self' https: wss: http://127.0.0.1:* http://localhost:*",
   // O Google Sign-In desenha o seu seletor de conta num iframe próprio.
   "frame-src https://accounts.google.com",
   "frame-ancestors 'none'",
