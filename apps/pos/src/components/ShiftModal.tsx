@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { runTransfer } from '../transfer';
 import { api, ApiError } from '../api/client';
 import type { CashSession, DocumentIdentity, ReportX, ShiftClose } from '../api/types';
 import { copyrightLine } from '../brand';
@@ -38,7 +39,7 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
   const savePdf = async (r: ShiftClose) => {
     setPdfBusy(true);
     try {
-      const doc = await buildShiftClosePdf({ result: r, identity, operatorName });
+      const doc = await runTransfer({ title: 'A gerar o relatório de fecho em PDF', kind: 'generate', task: () => buildShiftClosePdf({ result: r, identity, operatorName }) });
       const name = shiftFileName(r);
       try {
         const url = doc.output('bloburl');
