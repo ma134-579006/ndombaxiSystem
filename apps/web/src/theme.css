@@ -3739,3 +3739,9 @@ img.u-av { background: var(--surface-2); }
 
 .sv-row { display: flex; gap: 10px; } .sv-row input { flex: 1; min-width: 0; } .sv-row .btn { flex: none; height: 46px; }
 @media (max-width: 560px) { .sv-row { flex-direction: column; } }
+
+/* Indicadores: o valor ajusta-se à largura do cartão (nunca é cortado com reticências) */
+.kpi-card { container-type: inline-size; }
+.kpi-card .kpi-value { font-size: clamp(15px, 12cqw, 28px) !important; text-overflow: clip !important; overflow: visible !important; }
+/* Pesquisa das listas ocupa a largura toda */
+.content .fx-toolbar .fx-search { max-width: none; flex: 1 1 260px; }
