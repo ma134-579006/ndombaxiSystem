@@ -68,6 +68,8 @@ win:
 
 nsis:
   oneClick: false
+  # Fecha à força a app e o servidor local antes de instalar (ver o ficheiro).
+  include: installer/installer.nsh
   perMachine: false          # instala no perfil do utilizador → não pede admin
   allowToChangeInstallationDirectory: true
   allowElevation: true
