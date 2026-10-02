@@ -43,8 +43,9 @@ export function initScrollReveal(): void {
         if (e.isIntersecting) {
           // Blocos mais altos que o ecrã nunca se escondem.
           if (e.boundingClientRect.height > window.innerHeight * 0.85) { h.dataset.reveal = 'in'; io?.unobserve(h); continue; }
-          h.style.setProperty('--rd', `${Math.min(n++, 8) * 90}ms`);
+          h.style.setProperty('--rd', `${Math.min(n++, 4) * 30}ms`);
           h.dataset.reveal = 'in';
+          io?.unobserve(h); // entra UMA vez: rolar para trás não volta a esconder/animar (rapidez)
         } else if (h.dataset.reveal === 'in') {
           // Saiu totalmente do ecrã: prepara a próxima entrada com outro efeito.
           h.style.setProperty('--rd', '0ms');

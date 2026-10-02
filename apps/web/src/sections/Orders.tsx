@@ -4,6 +4,7 @@ import type { OrderLocation, OrderMessage, OrderStatus, WebOrder, WebOrderDetail
 import { IconCpu, IconTruck } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatDate, formatKz, statusLabel } from '../format';
+import { pollEvery, stopPoll } from '../poll';
 
 const CHATTABLE = ['PAID', 'SHIPPED', 'DELIVERED'];
 
@@ -61,14 +62,14 @@ export function Orders() {
     // TEMPO REAL: novas encomendas e mudanças de estado da COZINHA (Pronto)
     // aparecem sem recarregar. Se houver um detalhe aberto, atualiza-o também
     // — assim o gate "aguarda a cozinha" levanta sozinho quando ficar Pronto.
-    const t = window.setInterval(() => {
+    const t = pollEvery(() => {
       void load({ silent: true });
       setDetail((cur) => {
         if (cur) { api.orders.get(cur.id).then(setDetail).catch(() => undefined); }
         return cur;
       });
     }, 10000);
-    return () => window.clearInterval(t);
+    return () => stopPoll(t);
   }, [load]);
 
   const open = async (id: string) => {
@@ -285,9 +286,9 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
         .catch((e) => { if (alive) setErr(e instanceof ApiError ? e.message : 'Falha ao obter localização.'); });
     };
     tick();
-    const t = window.setInterval(tick, 4000);
-    const c = window.setInterval(() => force((n) => n + 1), 1000);
-    return () => { alive = false; window.clearInterval(t); window.clearInterval(c); };
+    const t = pollEvery(tick, 4000);
+    const c = pollEvery(() => force((n) => n + 1), 1000);
+    return () => { alive = false; stopPoll(t); stopPoll(c); };
   }, [orderId]);
 
   if (err) return <div className="banner danger" style={{ marginTop: 10 }}>{err}</div>;

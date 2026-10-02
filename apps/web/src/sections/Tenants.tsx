@@ -6,6 +6,7 @@ import { IconBuilding, IconCheck, IconHistory, IconLock, IconSearch } from '../c
 import { StatusBadge, Modal } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { formatDate } from '../format';
+import { pollEvery, stopPoll } from '../poll';
 
 const FILTERS: { key: '' | CompanyStatus; label: string }[] = [
   { key: '', label: 'Todas' },
@@ -49,8 +50,8 @@ export function Tenants() {
   useEffect(() => {
     const d = window.setTimeout(() => void load({ silent: !!search }), search ? 300 : 0);
     // TEMPO REAL: novas empresas / mudanças de estado aparecem sem recarregar.
-    const t = window.setInterval(() => void load({ silent: true }), 15000);
-    return () => { window.clearTimeout(d); window.clearInterval(t); };
+    const t = pollEvery(() => void load({ silent: true }), 15000);
+    return () => { window.clearTimeout(d); stopPoll(t); };
   }, [load, search]);
 
   const act = async (id: string, fn: () => Promise<Company>, confirmMsg?: string) => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import type { SupportMsg } from '../api/types';
+import { pollEvery, stopPoll } from '../poll';
 
 /** `/guides/…` relativo à base do build (nas apps o módulo é servido de subpasta). */
 const assetUrl = (p: string) => `${import.meta.env.BASE_URL || '/'}${p.replace(/^\//, '')}`;
@@ -134,14 +135,14 @@ export function SupportChat() {
   // Quando a conversa está com humanos, vai buscando respostas da EQUIPA (polling).
   useEffect(() => {
     if (!open || !chatId || !human) return;
-    const t = window.setInterval(async () => {
+    const t = pollEvery(async () => {
       try {
         const last = msgs[msgs.length - 1]?.created_at;
         const news = (await api.support.messages(chatId, last)).filter((n) => n.sender === 'ADMIN');
         if (news.length) { setMsgs((p) => [...p, ...news.filter((n) => !p.some((x) => x.id === n.id))]); scrollDown(); }
       } catch { /* offline — tenta no próximo tick */ }
     }, 6000);
-    return () => window.clearInterval(t);
+    return () => stopPoll(t);
   }, [open, chatId, human, msgs]);
 
   const send = async (override?: string) => {

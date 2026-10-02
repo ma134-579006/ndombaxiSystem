@@ -393,16 +393,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
    Só atua sob .reveal-ready; sem JS nada fica escondido. */
 .reveal-ready [data-reveal] {
   --e: cubic-bezier(.19, 1, .22, 1);
-  transition: opacity 1s var(--e) var(--rd, 0s), translate 1.15s var(--e) var(--rd, 0s), scale 1.15s var(--e) var(--rd, 0s), rotate 1.15s var(--e) var(--rd, 0s), filter .9s ease-out var(--rd, 0s),
+  transition: opacity .28s var(--e) var(--rd, 0s), translate .34s var(--e) var(--rd, 0s), scale .34s var(--e) var(--rd, 0s), rotate .34s var(--e) var(--rd, 0s),
     box-shadow .15s, transform .12s, background-color .15s, border-color .15s;
 }
 .reveal-ready [data-reveal="out"] { opacity: 0; }
-.reveal-ready [data-reveal="out"][data-sfx="up"] { translate: 0 64px; }
-.reveal-ready [data-reveal="out"][data-sfx="down"] { translate: 0 -48px; }
-.reveal-ready [data-reveal="out"][data-sfx="left"] { translate: -64px 0; }
-.reveal-ready [data-reveal="out"][data-sfx="right"] { translate: 64px 0; }
-.reveal-ready [data-reveal="out"][data-sfx="zoom"] { scale: .82; filter: blur(5px); }
-.reveal-ready [data-reveal="out"][data-sfx="tilt"] { translate: 0 44px; rotate: 2.6deg; scale: .93; filter: blur(4px); }
+.reveal-ready [data-reveal="out"][data-sfx="up"] { translate: 0 16px; }
+.reveal-ready [data-reveal="out"][data-sfx="down"] { translate: 0 -12px; }
+.reveal-ready [data-reveal="out"][data-sfx="left"] { translate: -16px 0; }
+.reveal-ready [data-reveal="out"][data-sfx="right"] { translate: 16px 0; }
+.reveal-ready [data-reveal="out"][data-sfx="zoom"] { scale: .97; }
+.reveal-ready [data-reveal="out"][data-sfx="tilt"] { translate: 0 12px; rotate: .6deg; scale: .98; }
 .reveal-ready [data-reveal="in"] { opacity: 1; translate: none; scale: none; rotate: none; filter: none; }
 @media (prefers-reduced-motion: reduce), print {
   .reveal-ready [data-reveal] { opacity: 1 !important; translate: none !important; scale: none !important; rotate: none !important; transition: none; }

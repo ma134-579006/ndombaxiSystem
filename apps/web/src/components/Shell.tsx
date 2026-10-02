@@ -13,6 +13,7 @@ import { Modal } from './ui';
 import { UserAvatar, displayName } from './UserAvatar';
 import type { SalaryAdvanceReq } from '../api/types';
 import { openCaixaTerminal } from '../config';
+import { pollEvery, stopPoll } from '../poll';
 
 /** Sino de notificações (Super Admin): conversas por responder + comentários
  *  novos do site — com badge e dropdown estilo rede social. */
@@ -24,8 +25,8 @@ function NotifyBell({ onGo }: { onGo(section: string): void }) {
     let alive = true;
     const tick = () => { api.support.admin.notifications().then((r) => { if (alive) setN(r); }).catch(() => undefined); };
     tick();
-    const t = window.setInterval(tick, 20000);
-    return () => { alive = false; window.clearInterval(t); };
+    const t = pollEvery(tick, 20000);
+    return () => { alive = false; stopPoll(t); };
   }, []);
   useEffect(() => {
     if (!open) return;
@@ -92,10 +93,10 @@ function OrdersBell({ onGo }: { onGo(section: string): void }) {
       api.hotel.pendingOnline().then((r) => { if (alive) setRooms(r.count); }).catch(() => undefined);
     };
     tick();
-    const t = window.setInterval(tick, 15000);
+    const t = pollEvery(tick, 15000);
     const onFocus = () => tick();
     window.addEventListener('focus', onFocus);
-    return () => { alive = false; window.clearInterval(t); window.removeEventListener('focus', onFocus); };
+    return () => { alive = false; stopPoll(t); window.removeEventListener('focus', onFocus); };
   }, []);
   const n = orders + services + rooms + leaves;
   const target = orders > 0 ? 'orders' : services > 0 ? 'service-orders' : rooms > 0 ? 'hotel' : leaves > 0 ? 'leave' : 'orders';
@@ -123,10 +124,10 @@ function useAdvances(enabled: boolean) {
     let alive = true;
     const tick = () => { api.advances.pending().then((r) => { if (alive) setItems(r); }).catch(() => undefined); };
     tick();
-    const t = window.setInterval(tick, 20000);
+    const t = pollEvery(tick, 20000);
     const onFocus = () => tick();
     window.addEventListener('focus', onFocus);
-    return () => { alive = false; window.clearInterval(t); window.removeEventListener('focus', onFocus); };
+    return () => { alive = false; stopPoll(t); window.removeEventListener('focus', onFocus); };
   }, [enabled]);
   const review = async (id: string, decision: 'APPROVED' | 'REJECTED') => {
     try { await api.advances.review(id, decision); setItems((prev) => prev.filter((i) => i.id !== id)); }
@@ -426,8 +427,8 @@ export function Shell({
       if (custChatAllowed) api.customerChat.unread().then((r) => { if (alive) setCustUnread(r.count); }).catch(() => undefined);
     };
     tick();
-    const t = window.setInterval(tick, 10000);
-    return () => { alive = false; window.clearInterval(t); };
+    const t = pollEvery(tick, 10000);
+    return () => { alive = false; stopPoll(t); };
   }, [isTenant, custChatAllowed]);
 
   // Fecha a gaveta ao mudar de secção (importante no telemóvel).

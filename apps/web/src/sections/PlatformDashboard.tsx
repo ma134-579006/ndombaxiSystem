@@ -6,6 +6,7 @@ import { IconBuilding, IconCard, IconRefresh, IconStar } from '../components/Ico
 import { AreaChart } from '../components/AreaChart';
 import { DonutChart } from '../components/DonutChart';
 import { formatDate } from '../format';
+import { pollEvery, stopPoll } from '../poll';
 
 function kz(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toLocaleString('pt-PT', { maximumFractionDigits: 1 }) + 'M Kz';
@@ -39,8 +40,8 @@ export function PlatformDashboard() {
   // Tempo real: refrescar a cada 20s (como o dashboard do gestor).
   useEffect(() => {
     void load();
-    timer.current = window.setInterval(() => void load(), 20_000);
-    return () => { if (timer.current) window.clearInterval(timer.current); };
+    timer.current = pollEvery(() => void load(), 20_000);
+    return () => { if (timer.current) stopPoll(timer.current); };
   }, [load]);
 
   return (

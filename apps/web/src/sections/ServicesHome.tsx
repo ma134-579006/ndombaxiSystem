@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { ServicesDashboard } from '../api/types';
 import { formatKz } from '../format';
+import { pollEvery, stopPoll } from '../poll';
 
 const KZ = (n: number) => formatKz(Number(n) || 0);
 const MIN_LABEL = (m?: number | null) => (!m ? '—' : m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}` : `${m}min`);
@@ -39,8 +40,8 @@ export function ServicesHome({ onGo }: { onGo(section: string): void }) {
       .then((r) => { if (alive) { setD(r); setErr(false); } })
       .catch(() => { if (alive) setErr(true); });
     void load();
-    const t = window.setInterval(load, 8000);
-    return () => { alive = false; window.clearInterval(t); };
+    const t = pollEvery(load, 8000);
+    return () => { alive = false; stopPoll(t); };
   }, []);
 
   const late = d?.oldestInProgress && d.oldestInProgress.days >= 7;
