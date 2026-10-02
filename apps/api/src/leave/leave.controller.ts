@@ -15,6 +15,12 @@ class CreateLeaveDto {
   @IsString() endDate!: string;
   @IsOptional() @IsString() @Length(0, 300) reason?: string;
 }
+class RequestMyLeaveDto {
+  @IsIn(['FERIAS', 'FALTA', 'LICENCA', 'OUTRO']) type!: string;
+  @IsString() startDate!: string;
+  @IsString() endDate!: string;
+  @IsOptional() @IsString() @Length(0, 300) reason?: string;
+}
 class ReviewLeaveDto {
   @IsIn(['APPROVED', 'REJECTED']) decision!: 'APPROVED' | 'REJECTED';
 }
@@ -32,6 +38,20 @@ export class LeaveController {
     private readonly leave: LeaveService,
     private readonly ctx: TenantContext,
   ) {}
+
+  @Get('mine')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Os meus pedidos de férias/ausência (operador)' })
+  mine(@CurrentUser() u: JwtPayload) {
+    return this.leave.mine(this.ctx.requireTenantSchema(), u.sub, u.name ?? u.email ?? null);
+  }
+
+  @Post('mine')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'O operador pede férias/ausência para si (o gestor aprova em RH)' })
+  requestMine(@Body() dto: RequestMyLeaveDto, @CurrentUser() u: JwtPayload) {
+    return this.leave.requestMine(this.ctx.requireTenantSchema(), dto, { id: u.sub, name: u.name ?? u.email ?? null });
+  }
 
   @Get()
   @ApiOperation({ summary: 'Lista pedidos de férias/ausência (filtro por estado)' })

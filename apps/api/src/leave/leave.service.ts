@@ -112,4 +112,41 @@ export class LeaveService {
       return { id, status: decision };
     });
   }
+
+  /** Funcionário ligado ao login (por user_id; ou por nome único, ligando-o). */
+  private async employeeOf(tx: Prisma.TransactionClient, userId: string, name?: string | null): Promise<{ id: string } | null> {
+    const byUser = await tx.$queryRaw<{ id: string }[]>(
+      Prisma.sql`SELECT id FROM employees WHERE user_id = ${userId}::uuid AND status = 'ACTIVE' LIMIT 1`,
+    );
+    if (byUser[0]) return byUser[0];
+    if (name && name.trim()) {
+      const byName = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT id FROM employees WHERE status = 'ACTIVE' AND user_id IS NULL AND lower(full_name) = lower(${name.trim()}) LIMIT 2`,
+      );
+      if (byName.length === 1) {
+        await tx.$executeRaw(Prisma.sql`UPDATE employees SET user_id = ${userId}::uuid, updated_at = now() WHERE id = ${byName[0].id}::uuid`);
+        return byName[0];
+      }
+    }
+    return null;
+  }
+
+  /** Os meus pedidos (operador da caixa). */
+  async mine(schema: string, userId: string, name?: string | null): Promise<{ linked: boolean; rows: unknown[] }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const emp = await this.employeeOf(tx, userId, name);
+      if (!emp) return { linked: false, rows: [] };
+      const rows = await tx.$queryRaw<unknown[]>(Prisma.sql`
+        SELECT id, type, start_date::text AS start_date, end_date::text AS end_date, days, reason, status, reviewed_by_name, created_at
+        FROM leave_requests WHERE employee_id = ${emp.id}::uuid ORDER BY created_at DESC LIMIT 40`);
+      return { linked: true, rows };
+    });
+  }
+
+  /** O operador pede férias/ausência para SI; fica PENDENTE e o gestor é notificado (sino + RH). */
+  async requestMine(schema: string, dto: Omit<CreateLeave, 'employeeId'>, actor: Actor & { id: string }): Promise<{ id: string }> {
+    const emp = await this.prisma.runInTenant(schema, (tx) => this.employeeOf(tx, actor.id, actor.name));
+    if (!emp) throw new BadRequestException('Sem ficha de funcionário associada. Fala com o gestor para te registar em RH.');
+    return this.create(schema, { ...dto, employeeId: emp.id } as CreateLeave, actor);
+  }
 }

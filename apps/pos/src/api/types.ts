@@ -178,11 +178,11 @@ export interface SalaryAdvance {
 }
 /** Limite disponível para adiantamento (salário − por descontar). */
 export interface AdvanceLimit {
-  monthlyPay: number; outstanding: number; available: number; employeeLinked: boolean;
+  monthlyPay: number; outstanding: number; consumed?: number; available: number; employeeLinked: boolean;
 }
 /** Limite de consumo do mês (salário − consumido este mês). */
 export interface ConsumptionLimit {
-  monthlyPay: number; consumed: number; available: number; employeeLinked: boolean;
+  monthlyPay: number; consumed: number; advances?: number; available: number; employeeLinked: boolean;
 }
 /** Resumo do fecho de turno (para o recibo de fecho). */
 export interface ShiftClose {
@@ -261,3 +261,5 @@ export interface ReceiptFiscalInfo {
   receiptLegend: string | null;
   fields: { label: string; value: string }[];
 }
+
+export interface MyLeave { id: string; type: 'FERIAS' | 'FALTA' | 'LICENCA' | 'OUTRO'; start_date: string; end_date: string; days: number; reason: string | null; status: 'PENDING' | 'APPROVED' | 'REJECTED'; reviewed_by_name: string | null; created_at: string }

@@ -110,12 +110,14 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
         <div className="consume-body">
           {lim && lim.employeeLinked ? (
             <>
-              <div className="erp-kpis">
+              <div className="erp-kpis erp-kpis4">
                 <div className="erp-kpi"><span>Salário mensal</span><b>{formatKz(lim.monthlyPay)}</b></div>
-                <div className="erp-kpi"><span>Já consumido</span><b>{formatKz(lim.consumed)}</b></div>
-                <div className={`erp-kpi ${lim.available <= 0 ? 'bad' : 'hi'}`}><span>Disponível este mês</span><b>{formatKz(Math.max(lim.available, 0))}</b></div>
+                <div className="erp-kpi"><span>Adiantamentos</span><b>{formatKz(lim.advances ?? 0)}</b></div>
+                <div className="erp-kpi"><span>Consumo próprio</span><b>{formatKz(lim.consumed)}</b></div>
+                <div className={`erp-kpi ${lim.available <= 0 ? 'bad' : 'hi'}`}><span>Saldo disponível</span><b>{formatKz(Math.max(lim.available, 0))}</b></div>
               </div>
-              <div className="erp-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.round((lim.consumed / Math.max(lim.monthlyPay, 1)) * 100))}%` }} /></div>
+              <div className="erp-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.round(((lim.consumed + (lim.advances ?? 0)) / Math.max(lim.monthlyPay, 1)) * 100))}%` }} /></div>
+              <div className="erp-bar-l">O saldo é partilhado com o Adiantamento salarial.</div>
               {lim.available <= 0 ? <div className="banner danger" style={{ margin: '10px 0 12px' }}>Atingiste o limite deste mês. Só podes voltar a consumir no próximo mês.</div> : <div style={{ height: 12 }} />}
             </>
           ) : null}

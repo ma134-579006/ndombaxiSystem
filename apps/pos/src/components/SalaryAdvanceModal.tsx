@@ -79,13 +79,17 @@ export function SalaryAdvanceModal({ onClose }: { onClose(): void }) {
           ) : (
             <>
               {/* Limite: indicadores + barra de utilização */}
-              <div className="erp-kpis">
+              <div className="erp-kpis erp-kpis4">
                 <div className="erp-kpi"><span>Salário mensal</span><b>{formatKz(lim?.monthlyPay ?? 0)}</b></div>
-                <div className="erp-kpi"><span>Por descontar</span><b>{formatKz(lim?.outstanding ?? 0)}</b></div>
-                <div className="erp-kpi hi"><span>Disponível</span><b>{formatKz(available)}</b></div>
+                <div className="erp-kpi"><span>Adiantamentos</span><b>{formatKz(lim?.outstanding ?? 0)}</b></div>
+                <div className="erp-kpi"><span>Consumo próprio</span><b>{formatKz(lim?.consumed ?? 0)}</b></div>
+                <div className="erp-kpi hi"><span>Saldo disponível</span><b>{formatKz(available)}</b></div>
               </div>
-              <div className="erp-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.round(((lim?.outstanding ?? 0) / Math.max(lim?.monthlyPay ?? 1, 1)) * 100))}%` }} /></div>
-              <div className="erp-bar-l">{Math.min(100, Math.round(((lim?.outstanding ?? 0) / Math.max(lim?.monthlyPay ?? 1, 1)) * 100))}% do salário já comprometido</div>
+              {(() => {
+                const used = Math.min(100, Math.round((((lim?.outstanding ?? 0) + (lim?.consumed ?? 0)) / Math.max(lim?.monthlyPay ?? 1, 1)) * 100));
+                return (<><div className="erp-bar" aria-hidden="true"><i style={{ width: `${used}%` }} /></div>
+                  <div className="erp-bar-l">{used}% do salário já usado · o saldo é partilhado com o Consumo próprio</div></>);
+              })()}
 
               {/* Formulário */}
               <label className="adv-label">Valor do adiantamento</label>
