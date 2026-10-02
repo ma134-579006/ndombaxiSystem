@@ -234,14 +234,19 @@ function TransferModal({
   };
 
   return (
-    <Modal title="Transferir stock entre lojas" onClose={onClose}>
-      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
-      {ok ? <div className="banner success" style={{ marginBottom: 12 }}>{ok}</div> : null}
+    <Modal title="Transferir stock entre lojas" onClose={onClose}
+      toolbar={<div className="field" style={{ margin: 0 }}><label>Produto (pesquise por nome ou código de barras)</label>
+        <ProductPicker products={products} value={productId} onChange={setProductId} /></div>}
+      footer={<>
+        {err ? <div className="banner danger" style={{ margin: 0 }}>{err}</div> : null}
+        {ok ? <div className="banner success" style={{ margin: 0 }}>{ok}</div> : null}
+        <button className="btn lg block" onClick={submit} disabled={busy}>
+          {busy ? 'A transferir…' : 'Confirmar transferência'}
+        </button>
+      </>}>
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
         Move unidades de uma loja para outra. O total da empresa não muda — só a distribuição por loja. Fica registado na auditoria.
       </p>
-      <div className="field"><label>Produto</label>
-        <ProductPicker products={products} value={productId} onChange={setProductId} /></div>
       <div className="grid-2">
         <div className="field"><label>De (origem)</label>
           <select value={fromStoreId} onChange={(e) => setFromStoreId(e.target.value)}>
@@ -259,9 +264,6 @@ function TransferModal({
         <div className="field"><label>Nota (opcional)</label>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex.: reposição loja talatona" /></div>
       </div>
-      <button className="btn lg block" onClick={submit} disabled={busy}>
-        {busy ? 'A transferir…' : 'Confirmar transferência'}
-      </button>
     </Modal>
   );
 }
@@ -314,13 +316,17 @@ function WriteOffModal({
   };
 
   return (
-    <Modal title="Baixa de stock" onClose={onClose}>
+    <Modal title="Baixa de stock" onClose={onClose}
+      toolbar={<div className="field" style={{ margin: 0 }}><label>Produto (pesquise por nome ou código de barras)</label>
+        <ProductPicker products={products} value={productId} onChange={(id) => { setProductId(id); setQty(''); }} /></div>}
+      footer={<>
+        {err ? <div className="banner danger" style={{ margin: 0 }}>{err}</div> : null}
+        <button className="btn lg block danger" onClick={submit} disabled={busy || !product}>
+          {busy ? 'A dar baixa…' : 'Confirmar baixa'}
+        </button>
+      </>}>
       <div className="wo">
-        {err ? <div className="banner danger">{err}</div> : null}
         <p className="muted wo-intro">Retira unidades do stock por caducidade, dano, perda, etc. Fica registado na auditoria.</p>
-
-        <div className="wo-sec">1 · Produto</div>
-        <ProductPicker products={products} value={productId} onChange={(id) => { setProductId(id); setQty(''); }} />
 
         {product ? (
           <div className="wo-stock">
@@ -384,9 +390,6 @@ function WriteOffModal({
         <div className="field"><label>Nota (opcional)</label>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex.: lote vencido a 30/06" /></div>
 
-        <button className="btn lg block danger" onClick={submit} disabled={busy || !product}>
-          {busy ? 'A dar baixa…' : 'Confirmar baixa'}
-        </button>
       </div>
     </Modal>
   );
@@ -455,11 +458,16 @@ export function StockEntryModal({
   };
 
   return (
-    <Modal title="Adicionar stock" onClose={onClose}>
-      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+    <Modal title="Adicionar stock" onClose={onClose}
+      toolbar={<div className="field" style={{ margin: 0 }}><label>Produto (pesquise por nome ou código de barras)</label>
+        <ProductPicker products={stockables} value={productId} onChange={(id) => { setProductId(id); setSalePrice(''); }} /></div>}
+      footer={<>
+        {err ? <div className="banner danger" style={{ margin: 0 }}>{err}</div> : null}
+        <button className="btn lg block" onClick={submit} disabled={busy}>
+          {busy ? 'A dar entrada…' : 'Dar entrada e atualizar preços'}
+        </button>
+      </>}>
       <div className="grid-2">
-        <div className="field"><label>Produto</label>
-          <ProductPicker products={stockables} value={productId} onChange={(id) => { setProductId(id); setSalePrice(''); }} /></div>
         <div className="field"><label>Loja</label>
           <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
             <option value="ALL">Todas as lojas (stock partilhado)</option>
@@ -505,9 +513,6 @@ export function StockEntryModal({
         </strong>
       </div>
 
-      <button className="btn lg block" onClick={submit} disabled={busy}>
-        {busy ? 'A dar entrada…' : 'Dar entrada e atualizar preços'}
-      </button>
     </Modal>
   );
 }
