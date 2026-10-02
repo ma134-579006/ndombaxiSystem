@@ -1075,7 +1075,9 @@ export const api = {
   },
   // ── Clientes da empresa (mesma tabela que o caixa usa) ─────
   customers: {
-    list: () => request<CustomerRow[]>('GET', '/pos/customers'),
+    /** Página + pesquisa no servidor (nome, NIF, telefone, e-mail). */
+    list: (o: { q?: string; limit?: number } = {}) =>
+      request<CustomerRow[]>('GET', `/pos/customers?limit=${o.limit ?? 500}${o.q ? `&q=${encodeURIComponent(o.q)}` : ''}`),
     create: (input: { name: string; taxId?: string; email?: string; phone?: string; address?: string }) =>
       request<CustomerRow>('POST', '/pos/customers', input),
     update: (id: string, input: { name?: string; taxId?: string; email?: string; phone?: string; address?: string; province?: string; municipality?: string }) =>

@@ -246,7 +246,9 @@ export const api = {
     request<{ items: Product[]; next: { since: string; after: string } | null }>(
       'GET', `/pos/products/changes?limit=${limit}&since=${encodeURIComponent(since)}&after=${encodeURIComponent(after)}`),
   listPromotions: () => request<PromoRow[]>('GET', '/promotions'),
-  listCustomers: () => request<Customer[]>('GET', '/pos/customers'),
+  /** Clientes: página + pesquisa no servidor (nome, NIF, telefone, e-mail). */
+  listCustomers: (o: { q?: string; limit?: number } = {}) =>
+    request<Customer[]>('GET', `/pos/customers?limit=${o.limit ?? 300}${o.q ? `&q=${encodeURIComponent(o.q)}` : ''}`),
   createCustomer: (input: { taxId?: string; name: string; phone?: string }) =>
     request<Customer>('POST', '/pos/customers', input),
   emitInvoice: (input: EmitInvoiceInput) =>

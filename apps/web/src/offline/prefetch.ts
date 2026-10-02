@@ -85,7 +85,7 @@ const ALL_READS = [
   '/landing/plans', '/leave', '/leave/employees', '/leave/summary',
   '/onboarding/my-plan', '/onboarding/setup-status',
   '/payables', '/payables/summary', '/payments/methods', '/payments/proofs',
-  '/pos/customers', '/pos/products/ingredients', // produtos: base indexada própria (syncCatalog)
+  '/pos/customers?limit=500', '/pos/products/ingredients', // produtos: base indexada própria (syncCatalog)
   '/profit/abc', '/profit/by-product', '/profit/series', '/profit/summary', '/promotions', '/public/landing',
   '/receivables', '/receivables/summary', '/reconciliation', '/reconciliation/summary',
   '/reports/cash-sessions', '/reports/documents', '/reports/payment-methods', '/reports/sales-by-brand', '/reports/sales-by-category',

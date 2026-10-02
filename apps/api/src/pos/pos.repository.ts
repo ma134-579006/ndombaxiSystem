@@ -414,7 +414,32 @@ export class PosRepository {
 
   /** Lista clientes com ESTATÍSTICAS de compra (nº compras, total gasto, última
    *  compra) — só faturas válidas (status 'N'). Partilhado com caixa/loja online. */
-  listCustomers(schema: string): Promise<CustomerRow[]> {
+  listCustomers(schema: string, opts?: { q?: string; limit?: number; offset?: number }): Promise<CustomerRow[]> {
+    if (opts?.limit !== undefined) {
+      // PÁGINA + PESQUISA no servidor (empresas com muitos clientes): os totais de
+      // compras calculam-se só para os clientes da página (LATERAL), não para todos.
+      const q = (opts.q ?? '').trim();
+      const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const where = q
+        ? Prisma.sql`AND (c.name ILIKE ${like} OR c.tax_id = ${q} OR c.phone ILIKE ${like} OR c.email ILIKE ${like})`
+        : Prisma.empty;
+      const lim = Math.min(Math.max(1, Math.floor(opts.limit)), 2000);
+      const off = Math.max(0, Math.floor(opts.offset ?? 0));
+      return this.prisma.runInTenant(schema, (tx) =>
+        tx.$queryRaw<CustomerRow[]>(
+          Prisma.sql`SELECT c.*, COALESCE(s.purchases, 0)::int AS purchases,
+                            COALESCE(s.total_spent, 0)::float AS total_spent, s.last_purchase
+                     FROM customers c
+                     LEFT JOIN LATERAL (
+                       SELECT COUNT(*)::int AS purchases, SUM(gross_total)::float AS total_spent,
+                              MAX(system_entry_date) AS last_purchase
+                       FROM invoices i WHERE i.customer_id = c.id AND i.status = 'N' AND i.doc_type IN ('FT','FS')
+                     ) s ON TRUE
+                     WHERE c.is_active = TRUE ${where}
+                     ORDER BY c.name LIMIT ${lim} OFFSET ${off}`,
+        ),
+      );
+    }
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<CustomerRow[]>(
         Prisma.sql`SELECT c.*,

@@ -156,8 +156,9 @@ export class PosController {
   // ── Clientes ───────────────────────────────────────────────
   @Get('customers')
   @ApiOperation({ summary: 'Lista clientes do tenant' })
-  listCustomers() {
-    return this.repo.listCustomers(this.ctx.requireTenantSchema());
+  @ApiQuery({ name: 'q', required: false }) @ApiQuery({ name: 'limit', required: false }) @ApiQuery({ name: 'offset', required: false })
+  listCustomers(@Query('q') q?: string, @Query('limit') limit?: string, @Query('offset') offset?: string) {
+    return this.repo.listCustomers(this.ctx.requireTenantSchema(), pageOpts(q, limit, offset));
   }
 
   @Post('customers')
