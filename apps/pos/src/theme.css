@@ -1706,3 +1706,8 @@ html.touch-ui.input-focus .content { padding-bottom: calc(var(--kb, 0px) + 42vh)
 html.touch-ui input, html.touch-ui select, html.touch-ui textarea { scroll-margin-top: 22vh; font-size: max(16px, 1em); }
 html.touch-ui .btn, html.touch-ui button { touch-action: manipulation; }
 html.touch-ui .btn.sm { min-height: 40px; }
+
+/* Funcionalidades que exigem rede */
+.nn-card { margin: auto; max-width: 340px; padding: 34px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.nn-ic { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; color: #b45309; background: rgba(217,119,6,.14); margin-bottom: 6px; }
+.nn-card h4 { margin: 0; font-size: 17px; } .nn-card p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--muted, #64748b); }

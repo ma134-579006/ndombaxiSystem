@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { NeedsNetwork, useNetwork } from './NeedsNetwork';
 
 export interface CvContact { id: string; name: string; sub: string; online: boolean; unread: number }
 export interface CvMsg { id: string; mine: boolean; body: string; at: string; author?: string }
@@ -17,6 +18,7 @@ export function ChatView(p: {
   text: string; onText(v: string): void; onSend(): void; busy: boolean; onClose(): void;
 }) {
   const scroller = useRef<HTMLDivElement | null>(null);
+  const online = useNetwork();
   useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }); }, [p.msgs.length, p.peer?.id]);
   const q = p.search.trim().toLowerCase();
   const list = q ? p.contacts.filter((c) => `${c.name} ${c.sub}`.toLowerCase().includes(q)) : p.contacts;
@@ -25,7 +27,18 @@ export function ChatView(p: {
   return (
     <div className="modal-bg" onClick={p.onClose}>
       <div className="cv-sheet" onClick={(e) => e.stopPropagation()}>
-        {!p.peer ? (
+        {!online ? (
+          <>
+            <div className="cv-head">
+              <span className="cv-hic" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z" /></svg>
+              </span>
+              <div className="cv-htx"><h3>{p.title}</h3><small>Sem ligação</small></div>
+              <button className="cv-x" onClick={p.onClose} aria-label="Fechar">✕</button>
+            </div>
+            <NeedsNetwork what="O chat" />
+          </>
+        ) : !p.peer ? (
           <>
             <div className="cv-head">
               <span className="cv-hic" aria-hidden="true">
