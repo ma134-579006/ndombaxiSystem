@@ -131,7 +131,10 @@ class SyncController {
     const lote = todas.filter((o) => (abertura ? o.op === 'create' : o.op === 'update'));
     if (lote.length === 0) return 'ok';
     try {
-      const r = await api.syncPush(lote);
+      // `createdAt` é obrigatório no servidor: sem ele o lote inteiro era recusado
+      // (400) e o turno aberto offline nunca subia ("A enviar 1" para sempre).
+      // Operações antigas guardadas sem o campo levam a hora atual.
+      const r = await api.syncPush(lote.map((o) => ({ ...o, createdAt: o.createdAt ?? new Date().toISOString() })));
       for (const res of r.results ?? []) {
         // `duplicate` é a idempotência a funcionar: o servidor já tinha esta
         // operação. Sai da fila tal como uma aplicada — insistir criaria ciclo.
@@ -148,7 +151,10 @@ class SyncController {
       return 'ok';
     } catch (e) {
       // Sem ligação: fica tudo na fila, exatamente como estava.
-      return e instanceof ApiError && e.status === 0 ? 'offline' : 'ok';
+      if (e instanceof ApiError && e.status === 0) return 'offline';
+      // Recusa do servidor ao LOTE (ex.: validação): não esconder — fica visível.
+      this.emit({ lastError: e instanceof ApiError ? e.message : 'Falha ao enviar o turno.' });
+      return 'ok';
     }
   }
 

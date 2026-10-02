@@ -47,7 +47,7 @@ import { syncController } from '../offline/sync';
 import { useSync } from '../offline/useSync';
 import { deviceKey } from '../offline/device';
 import { setPosBusy } from '../offline/localServer';
-import { turnoAbertoLocal } from '../offline/shifts';
+import { espelharTurnoServidor, turnoAbertoLocal } from '../offline/shifts';
 import { isNativeApp } from '../config';
 import { setSaleInProgress } from '../pos/saleActivity';
 
@@ -315,7 +315,7 @@ export function PosPage() {
       // O servidor é a autoridade sobre o turno. SEM REDE, vale o turno aberto
       // NESTE aparelho — senão a Caixa abria sem turno e o operador não
       // conseguia começar o dia numa loja sem internet.
-      api.currentSession().then(setSession).catch(async () => {
+      api.currentSession().then((s) => { setSession(s); void espelharTurnoServidor(s); }).catch(async () => {
         const t = await turnoAbertoLocal();
         if (t) {
           setSession({
@@ -1153,14 +1153,14 @@ export function PosPage() {
             // SEM REDE o turno foi aberto NESTE aparelho: usar esse (antes ficava
             // null e a Caixa voltava a pedir para abrir turno, em ciclo).
             const s = await api.currentSession().catch(() => undefined);
-            if (s !== undefined) { setSession(s); return; }
+            if (s !== undefined) { setSession(s); void espelharTurnoServidor(s); return; }
             const t = await turnoAbertoLocal();
             setSession(t ? {
               id: t.opId, register_code: t.registerCode, opened_by_name: t.operatorName,
               opened_at: t.openedAt, opening_float: String(t.openingFloat), status: 'OPEN',
             } : null);
           }}
-          onClosed={async () => { setShowShift(false); setSession(null); }}
+          onClosed={async () => { setShowShift(false); setSession(null); void espelharTurnoServidor(null); }}
           onClose={() => setShowShift(false)}
         />
       ) : null}

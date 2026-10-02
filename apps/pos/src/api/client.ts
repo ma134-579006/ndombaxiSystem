@@ -232,7 +232,7 @@ export const api = {
    */
   syncPush: (ops: {
     opId: string; seq: number; entity: string; op: 'create' | 'update' | 'delete';
-    localId: string; payload: Record<string, unknown>;
+    localId: string; payload: Record<string, unknown>; createdAt: string;
   }[]) => request<{ results: { opId: string; status: string; message?: string }[] }>(
     'POST', '/sync/push', { ops },
   ),

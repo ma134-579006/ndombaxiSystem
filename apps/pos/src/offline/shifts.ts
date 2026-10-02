@@ -55,6 +55,8 @@ export interface OpTurno {
   op: 'create' | 'update';
   localId: string;
   payload: Record<string, unknown>;
+  /** Quando aconteceu (ISO) — o servidor exige-o em cada operação de /sync/push. */
+  createdAt?: string;
 }
 
 function uuid(): string {
@@ -142,6 +144,7 @@ export async function abrirTurnoOffline(input: {
     entity: 'cashSession',
     op: 'create',
     localId: turno.opId,
+    createdAt: turno.openedAt,
     payload: {
       openingFloat: turno.openingFloat,
       ...(turno.registerCode ? { registerCode: turno.registerCode } : {}),
@@ -177,6 +180,7 @@ export async function fecharTurnoOffline(input: {
     entity: 'cashSession',
     op: 'update',
     localId: t.opId,
+    createdAt: fechado.closedAt,
     payload: {
       countedCash: fechado.countedCash,
       ...(fechado.notes ? { notes: fechado.notes } : {}),
@@ -194,4 +198,31 @@ export async function limparTurnoLocalSeVazio(): Promise<void> {
   if ((await ops()).length > 0) return;
   const t = await turnoLocal();
   if (t && t.status === 'closed') await kvSet(CHAVE_TURNO, null);
+}
+
+/**
+ * ESPELHO do turno do servidor na memória interna.
+ *
+ * Um turno aberto COM rede tem de continuar visível se a rede cair e a app for
+ * reaberta — senão a Caixa pedia para abrir outro turno (que o servidor recusaria)
+ * e o fecho ficava impossível. Chamado sempre que o servidor responde.
+ * Nunca pisa trabalho local por subir: com operações pendentes, o local manda.
+ */
+export async function espelharTurnoServidor(s: {
+  id: string; status?: string; opened_at?: string; opening_float?: string | number;
+  opened_by_name?: string | null; register_code?: string | null;
+} | null): Promise<void> {
+  if ((await ops()).length > 0) return;
+  if (s && (s.status ?? 'OPEN') === 'OPEN') {
+    await kvSet(CHAVE_TURNO, {
+      opId: s.id,
+      openedAt: s.opened_at ?? new Date().toISOString(),
+      openingFloat: Number(s.opening_float) || 0,
+      operatorName: s.opened_by_name ?? null,
+      registerCode: s.register_code ?? null,
+      status: 'open',
+    } satisfies TurnoLocal);
+  } else if (await turnoLocal()) {
+    await kvSet(CHAVE_TURNO, null);
+  }
 }
