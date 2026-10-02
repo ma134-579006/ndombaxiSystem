@@ -16,12 +16,12 @@ export function Settings() {
       <div className="content-head">
         <h2>Configurações</h2>
       </div>
-      <div className="chip-row" style={{ gap: 6, marginBottom: 12 }}>
-        <button className={`chip${tab === 'brand' ? ' on' : ''}`} onClick={() => setTab('brand')}>Empresa & Recibos</button>
-        <button className={`chip${tab === 'modules' ? ' on' : ''}`} onClick={() => setTab('modules')}>Módulos</button>
-        <button className={`chip${tab === 'passwords' ? ' on' : ''}`} onClick={() => setTab('passwords')}>Senhas dos funcionários</button>
-        <button className={`chip${tab === 'printer' ? ' on' : ''}`} onClick={() => setTab('printer')}>Impressora & Plano</button>
-        <button className={`chip${tab === 'loja' ? ' on' : ''}`} onClick={() => setTab('loja')}>Servidor da loja</button>
+      <div className="fx-tabs inv-tabs">
+        <button className={tab === 'brand' ? 'on' : ''} onClick={() => setTab('brand')}>Empresa & Recibos</button>
+        <button className={tab === 'modules' ? 'on' : ''} onClick={() => setTab('modules')}>Módulos</button>
+        <button className={tab === 'passwords' ? 'on' : ''} onClick={() => setTab('passwords')}>Senhas dos funcionários</button>
+        <button className={tab === 'printer' ? 'on' : ''} onClick={() => setTab('printer')}>Impressora & Plano</button>
+        <button className={tab === 'loja' ? 'on' : ''} onClick={() => setTab('loja')}>Servidor da loja</button>
       </div>
       {tab === 'brand' ? <BrandingCard /> : null}
       {tab === 'modules' ? <ModulesCard /> : null}
