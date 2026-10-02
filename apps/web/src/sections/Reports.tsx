@@ -163,6 +163,37 @@ export function Reports() {
     return null;
   })();
 
+  const num = (v: unknown) => Number(v) || 0;
+  const kp: { l: string; v: string; h?: string; hi?: boolean }[] = (() => {
+    if (tab === 'product' || (tab === 'all' && byProduct.length)) {
+      const sales = byProduct.reduce((t, p) => t + num(p.salesNet), 0), profit = byProduct.reduce((t, p) => t + num(p.profit), 0), qty = byProduct.reduce((t, p) => t + num(p.qty), 0);
+      return [{ l: 'Vendas líquidas', v: formatKz(sales), hi: true }, { l: 'Lucro', v: formatKz(profit) }, { l: 'Margem', v: sales ? `${Math.round((profit / sales) * 1000) / 10}%` : '—' }, { l: 'Unidades', v: String(qty), h: `${byProduct.length} produto(s)` }];
+    }
+    const grp = (rows: { sales?: number; qty?: number; net: number; gross: number }[], k: 'sales' | 'qty', lab: string) => [
+      { l: 'Líquido', v: formatKz(rows.reduce((t, r) => t + num(r.net), 0)) },
+      { l: 'Total faturado', v: formatKz(rows.reduce((t, r) => t + num(r.gross), 0)), hi: true },
+      { l: lab, v: String(rows.reduce((t, r) => t + num(r[k]), 0)), h: `${rows.length} linha(s)` },
+    ];
+    if (tab === 'user') return grp(byUser, 'sales', 'Nº de vendas');
+    if (tab === 'store') return grp(byStore, 'sales', 'Nº de vendas');
+    if (tab === 'category') return grp(byCategory, 'qty', 'Quantidade');
+    if (tab === 'brand') return grp(byBrand, 'qty', 'Quantidade');
+    if (tab === 'evolution') {
+      const sales = series.reduce((t, p) => t + num(p.salesNet), 0), profit = series.reduce((t, p) => t + num(p.profit), 0);
+      return [{ l: 'Vendas líquidas', v: formatKz(sales), hi: true }, { l: 'Custo', v: formatKz(series.reduce((t, p) => t + num(p.cost), 0)) }, { l: 'Lucro', v: formatKz(profit) }, { l: 'Dias', v: String(series.length) }];
+    }
+    if (tab === 'tax') return [{ l: 'Base tributável', v: formatKz(sumTax(tax, 'net')) }, { l: 'IVA', v: formatKz(sumTax(tax, 'iva')), hi: true }, { l: 'Total', v: formatKz(sumTax(tax, 'gross')) }];
+    if (tab === 'payments') return [{ l: 'Total recebido', v: formatKz(payments.reduce((t, r) => t + num(r.total), 0)), hi: true }, { l: 'Nº de pagamentos', v: String(payments.reduce((t, r) => t + num(r.count), 0)) }, { l: 'Métodos', v: String(payments.length) }];
+    if (tab === 'documents') return [{ l: 'Documentos', v: String(docs.length) }, { l: 'Total', v: formatKz(docs.filter((d) => d.status !== 'A').reduce((t, d) => t + num(d.gross_total), 0)), hi: true }, { l: 'Anulados', v: String(docs.filter((d) => d.status === 'A').length) }];
+    if (tab === 'cashbox') return [{ l: 'Fechos', v: String(sessions.length) }, { l: 'Vendas', v: formatKz(sessions.reduce((t, x) => t + num(x.total_sales), 0)), hi: true }, { l: 'Diferença total', v: formatKz(sessions.reduce((t, x) => t + num(x.difference), 0)) }];
+    return [];
+  })();
+  const setRange = (days: number | 'month' | 'year') => {
+    const end = new Date();
+    const start = days === 'month' ? new Date(end.getFullYear(), end.getMonth(), 1) : days === 'year' ? new Date(end.getFullYear(), 0, 1) : new Date(Date.now() - (days - 1) * 86400000);
+    setFrom(todayISO(start)); setTo(todayISO(end));
+  };
+
   return (
     <div className="reports-page">
       <div className="content-head no-print">
@@ -173,41 +204,51 @@ export function Reports() {
         <button className="btn sm ghost" onClick={() => void printSectionReport()}>Imprimir/PDF</button>
       </div>
 
-      <div className="card no-print" style={{ marginBottom: 12 }}>
-        {groups.map((g) => (
-          <div key={g} style={{ marginBottom: 8 }}>
-            <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', margin: '2px 0 6px' }}>{g}</div>
-            <div className="chip-row" style={{ flexWrap: 'wrap', gap: 6 }}>
+      <div className="rp-layout">
+        <nav className="rp-nav no-print" aria-label="Relatórios">
+          {groups.map((g) => (
+            <div key={g} className="rp-grp">
+              <div className="rp-gl">{g}</div>
               {TABS.filter((t) => t.group === g).map((t) => (
-                <button key={t.key} className={`chip${tab === t.key ? ' on' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
+                <button key={t.key} className={tab === t.key ? 'on' : ''} onClick={() => setTab(t.key)}>{t.label}</button>
               ))}
             </div>
+          ))}
+        </nav>
+
+        <div className="rp-main">
+          <div className="card rp-filters no-print">
+            <div className="rp-presets">
+              <button className="chip" onClick={() => setRange(1)}>Hoje</button>
+              <button className="chip" onClick={() => setRange(7)}>7 dias</button>
+              <button className="chip" onClick={() => setRange(30)}>30 dias</button>
+              <button className="chip" onClick={() => setRange('month')}>Este mês</button>
+              <button className="chip" onClick={() => setRange('year')}>Este ano</button>
+            </div>
+            <div className="rp-fields">
+              <div className="field"><label>De</label>
+                <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></div>
+              <div className="field"><label>Até</label>
+                <input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></div>
+              {isAdmin && stores.length > 1 && STORE_FILTERABLE.includes(tab) ? (
+                <div className="field"><label>Loja</label>
+                  <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                    <option value="">Todas as lojas</option>
+                    {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select></div>
+              ) : null}
+              {tab === 'documents' ? (
+                <div className="field"><label>Tipo de documento</label>
+                  <select value={docType} onChange={(e) => setDocType(e.target.value)}>
+                    <option value="">Todos</option>
+                    <option value="FT">Fatura (FT)</option>
+                    <option value="FS">Fatura simplificada (FS)</option>
+                    <option value="NC">Nota de crédito (NC)</option>
+                  </select></div>
+              ) : null}
+              <button className="btn" onClick={() => void load()} disabled={loading}>{loading ? 'A carregar…' : 'Atualizar'}</button>
+            </div>
           </div>
-        ))}
-        <div className="row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 8 }}>
-          <div className="field" style={{ margin: 0 }}><label>Data inicial</label>
-            <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></div>
-          <div className="field" style={{ margin: 0 }}><label>Data final</label>
-            <input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></div>
-          {isAdmin && stores.length > 1 && STORE_FILTERABLE.includes(tab) ? (
-            <div className="field" style={{ margin: 0 }}><label>Loja</label>
-              <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-                <option value="">Todas as lojas</option>
-                {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select></div>
-          ) : null}
-          {tab === 'documents' ? (
-            <div className="field" style={{ margin: 0 }}><label>Tipo de documento</label>
-              <select value={docType} onChange={(e) => setDocType(e.target.value)}>
-                <option value="">Todos</option>
-                <option value="FT">Fatura (FT)</option>
-                <option value="FS">Fatura simplificada (FS)</option>
-                <option value="NC">Nota de crédito (NC)</option>
-              </select></div>
-          ) : null}
-          <button className="btn sm" onClick={() => void load()} disabled={loading}>{loading ? 'A carregar…' : 'Atualizar'}</button>
-        </div>
-      </div>
 
       {error ? <div className="banner danger no-print">{error}</div> : null}
 
@@ -216,6 +257,14 @@ export function Reports() {
         <span className="dph-title">{TABS.find((t) => t.key === tab)?.label}</span>
         <span className="dph-period"> · Período: {new Date(from).toLocaleDateString('pt-PT')} a {new Date(to).toLocaleDateString('pt-PT')}</span>
       </div>
+
+      {!loading && kp.length ? (
+        <div className="rp-kpis no-print">
+          {kp.map((k) => (
+            <div key={k.l} className={`ui-tile${k.hi ? ' info' : ''}`}><div className="ui-tile-l">{k.l}</div><div className="ui-tile-v">{k.v}</div>{k.h ? <div className="ui-tile-h">{k.h}</div> : null}</div>
+          ))}
+        </div>
+      ) : null}
 
       {!loading && reportChart ? (
         <div className="card no-print" style={{ marginBottom: 12 }}>
@@ -297,6 +346,9 @@ export function Reports() {
       </div>
       )}
 
+        </div>
+      </div>
+
       {/* Rodapé da empresa na impressão: vem do Shell (PrintBrandFoot). */}
     </div>
   );
@@ -319,13 +371,13 @@ function Table({ head, rows, foot }: { head: string[]; rows: string[][]; foot?: 
   if (rows.length === 0) return <div className="empty"><IconChart size={36} /><p>Sem dados no período.</p></div>;
   return (
     <table className="ptable stack">
-      <thead><tr>{head.map((h, i) => <th key={i} style={i > 0 ? { textAlign: 'right' } : undefined}>{h}</th>)}</tr></thead>
+      <thead><tr>{head.map((h, i) => <th key={i} className={i > 0 ? 'num' : undefined}>{h}</th>)}</tr></thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={i}>{r.map((c, j) => <td key={j} data-label={head[j]} style={j > 0 ? { textAlign: 'right' } : undefined}>{c}</td>)}</tr>
+          <tr key={i}>{r.map((c, j) => <td key={j} data-label={head[j]} className={j > 0 ? 'num' : undefined}>{c}</td>)}</tr>
         ))}
       </tbody>
-      {foot ? <tfoot><tr>{foot.map((c, j) => <th key={j} style={j > 0 ? { textAlign: 'right' } : undefined}>{c}</th>)}</tr></tfoot> : null}
+      {foot ? <tfoot><tr>{foot.map((c, j) => <th key={j} className={j > 0 ? 'num' : undefined}>{c}</th>)}</tr></tfoot> : null}
     </table>
   );
 }
