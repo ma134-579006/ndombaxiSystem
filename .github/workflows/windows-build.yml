@@ -6,6 +6,8 @@ name: Windows build
 
 on:
   workflow_dispatch: {}
+  push:
+    branches: [claude/windows-build]   # TEMPORÁRIO: validar antes de integrar
 
 jobs:
   build-windows:
