@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { readFileProgress } from '../transfer';
 import { api, ApiError } from '../api/client';
 import type { CheckoutResult, PaymentMethod } from '../api/types';
 import { IconCheck, IconUpload } from '../components/Icons';
@@ -8,17 +9,10 @@ import { useStore } from '../state/StoreContext';
 interface GeneratedRef { available: boolean; entity?: string; reference?: string; amount?: number; expiresAt?: string; message?: string }
 function fmtRef(r: string): string { return r.replace(/(\d{3})(?=\d)/g, '$1 ').trim(); }
 
-function fileToBase64(file: File): Promise<{ data: string; name: string; mime: string }> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => {
-      const result = String(r.result);
-      const comma = result.indexOf(',');
-      resolve({ data: comma >= 0 ? result.slice(comma + 1) : result, name: file.name, mime: file.type });
-    };
-    r.onerror = () => reject(new Error('Falha ao ler o ficheiro'));
-    r.readAsDataURL(file);
-  });
+async function fileToBase64(file: File): Promise<{ data: string; name: string; mime: string }> {
+  const result = await readFileProgress(file);
+  const comma = result.indexOf(',');
+  return { data: comma >= 0 ? result.slice(comma + 1) : result, name: file.name, mime: file.type };
 }
 
 export function Confirmation({

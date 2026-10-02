@@ -5,6 +5,7 @@ import { formatDateTime, formatKz } from '../format';
 import { IconCheck } from './Icons';
 import { PaperSizeToggle } from './PaperSizeToggle';
 import { buildInvoicePdf, invoiceFileName } from '../pdf/invoicePdf';
+import { runTransfer } from '../transfer';
 import { getPaper } from '../print';
 import { pairPrinter, pairedPrinterName, printRaw, rawPrintSupported } from '../escpos';
 import { isNativeApp, saveNativePdf, shareNativePdf } from '../offline/nativeShare';
@@ -130,7 +131,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
   const downloadPdf = async () => {
     setPdfBusy(true);
     try {
-      const doc = await makePdf();
+      const doc = await runTransfer({ title: 'A gerar o PDF do recibo', kind: 'generate', task: () => makePdf() });
       const name = invoiceFileName(invoice);
       // Na APP: a WebView não descarrega blobs → grava o ficheiro no aparelho
       // (pasta Documentos) pelo plugin nativo. No site: download normal do browser.
@@ -151,7 +152,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
   const sharePdfWhatsApp = async () => {
     setPdfBusy(true);
     try {
-      const doc = await makePdf();
+      const doc = await runTransfer({ title: 'A gerar o PDF do recibo', kind: 'generate', task: () => makePdf() });
       const blob = doc.output('blob');
       const fname = invoiceFileName(invoice);
       const titleN = invoice.number;

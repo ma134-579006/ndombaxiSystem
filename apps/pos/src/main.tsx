@@ -8,6 +8,7 @@ import { initScrollReveal } from './scrollReveal';
 import { initPaper } from './print';
 import { initAutoUpdate } from './autoUpdate';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { TransferHost } from './transfer';
 import { mandatoryUpdate } from './update/mandatoryUpdate';
 import { isSaleInProgress } from './pos/saleActivity';
 
@@ -31,6 +32,7 @@ createRoot(container).render(
   <React.StrictMode>
     <ErrorBoundary>
       <App />
+      <TransferHost />
     </ErrorBoundary>
   </React.StrictMode>,
 );

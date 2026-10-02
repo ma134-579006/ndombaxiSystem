@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { runTransfer } from '../transfer';
 import { api, ApiError } from '../api/client';
 import type { OrderMessage, StoreInvoice, WebOrder } from '../api/types';
 import { IconChevronLeft, IconSend, IconSpark } from '../components/Icons';
@@ -127,7 +128,7 @@ export function Track({ orderId, onBack }: { orderId: string; onBack(): void }) 
     setInvErr(null);
     try {
       const inv = await api.orderInvoice(code, orderId);
-      await downloadInvoicePdf(inv);
+      await runTransfer({ title: 'A gerar a fatura em PDF', kind: 'generate', task: () => downloadInvoicePdf(inv) });
     } catch (e) {
       setInvErr(e instanceof ApiError ? e.message : 'Não foi possível obter a fatura.');
     } finally {

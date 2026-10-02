@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { readFileProgress } from '../transfer';
 import { ProgressiveGrid } from '../components/ProgressiveGrid';
 import type { CatalogProduct, CheckoutResult, PaymentMethod } from '../api/types';
 import { api } from '../api/client';
@@ -92,9 +93,7 @@ export function Storefront() {
     setView('visual'); setImgSearching(true); setImgResults(null); setImgMsg(null);
     window.scrollTo({ top: 0 });
     try {
-      const dataUrl: string = await new Promise((res, rej) => {
-        const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file);
-      });
+      const dataUrl: string = await readFileProgress(file);
       const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
       const r = await api.visualSearch(code, base64, file.type || 'image/jpeg');
       setImgResults(r.products || []);

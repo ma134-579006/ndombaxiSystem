@@ -1681,3 +1681,19 @@ img.u-av { background: var(--surface-2); }
 .lv-days { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 64px; height: 48px; border-radius: 12px; background: color-mix(in srgb, var(--primary, #4f7cff) 16%, var(--surface-2)); line-height: 1; }
 .lv-days b { font-size: 20px; } .lv-days span { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 @media (max-width: 520px) { .lv-dates { grid-template-columns: 1fr 1fr; } .lv-days { grid-column: 1 / -1; flex-direction: row; gap: 8px; } }
+
+/* Progresso de ficheiros (upload / download / geração) */
+.xf-bg { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: rgba(7,11,22,.55); backdrop-filter: blur(6px); animation: xf-in .2s ease both; }
+.xf-box { width: min(360px, 92vw); padding: 28px 26px 22px; border-radius: 22px; background: var(--surface, #fff); color: var(--text, #0f1729); border: 1px solid var(--border, #e4e9f2); box-shadow: 0 30px 80px -20px rgba(0,0,0,.6); display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.xf-ring { --c: var(--primary, #4f7cff); width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--c) calc(var(--p) * 1%), color-mix(in srgb, var(--muted, #64748b) 22%, transparent) 0); position: relative; transition: background .2s; }
+.xf-ring::before { content: ''; position: absolute; inset: 9px; border-radius: 50%; background: var(--surface, #fff); }
+.xf-ring span { position: relative; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.xf-ring.ok { --c: #16a34a; } .xf-ring.ok span { color: #16a34a; }
+.xf-box h4 { margin: 4px 0 0; font-size: 16.5px; }
+.xf-file { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 7px 12px; border-radius: 99px; background: var(--surface-2, #f3f6fb); border: 1px solid var(--border, #e4e9f2); font-size: 12.5px; color: var(--muted, #64748b); }
+.xf-file svg { color: var(--primary, #4f7cff); flex: none; } .xf-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xf-box p { margin: 0; font-size: 13px; color: var(--muted, #64748b); }
+.xf-bar { width: 100%; height: 7px; border-radius: 99px; background: color-mix(in srgb, var(--muted, #64748b) 22%, transparent); overflow: hidden; }
+.xf-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--primary, #4f7cff), color-mix(in srgb, var(--primary, #4f7cff) 55%, #7c3aed)); transition: width .25s ease-out; }
+.xf-box small { font-size: 11.5px; color: var(--muted, #64748b); }
+@keyframes xf-in { from { opacity: 0; } to { opacity: 1; } }

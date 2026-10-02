@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { TransferHost } from './transfer';
 import '@nexus/tokens/tokens.css';
 import './theme.css';
 import { initTheme } from './theme';
@@ -19,6 +20,7 @@ createRoot(container).render(
   <React.StrictMode>
     <ErrorBoundary>
       <App />
+      <TransferHost />
     </ErrorBoundary>
   </React.StrictMode>,
 );
