@@ -34,10 +34,16 @@ export function Modal({
   title,
   onClose,
   children,
+  toolbar,
+  footer,
 }: {
   title: string;
   onClose(): void;
   children: React.ReactNode;
+  /** Pesquisa/seleção FIXA por baixo do cabeçalho (não rola). */
+  toolbar?: React.ReactNode;
+  /** Ação principal FIXA no fundo (não rola). */
+  footer?: React.ReactNode;
 }) {
   // Portal para o <body>: o modal sai de qualquer stacking context local (cartões
   // com transform, painéis animados, etc.), por isso fica SEMPRE à frente e um
@@ -52,7 +58,9 @@ export function Modal({
             <IconClose size={18} />
           </button>
         </div>
+        {toolbar ? <div className="mt">{toolbar}</div> : null}
         <div className="mb">{children}</div>
+        {footer ? <div className="mf">{footer}</div> : null}
       </div>
     </div>,
     document.body,
