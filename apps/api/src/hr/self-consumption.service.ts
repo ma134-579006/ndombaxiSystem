@@ -48,24 +48,28 @@ export class SelfConsumptionService {
   private async monthlyCap(
     tx: Prisma.TransactionClient,
     employeeId: string,
-  ): Promise<{ monthlyPay: number; consumed: number; available: number }> {
-    const rows = await tx.$queryRaw<{ pay: string; consumed: string }[]>(
+  ): Promise<{ monthlyPay: number; consumed: number; advances?: number; available: number }> {
+    const rows = await tx.$queryRaw<{ pay: string; consumed: string; adv: string }[]>(
       Prisma.sql`SELECT
           (COALESCE(e.base_salary,0)+COALESCE(e.taxable_allowances,0)+COALESCE(e.exempt_allowances,0))::text AS pay,
           COALESCE((SELECT SUM(c.total) FROM employee_consumptions c
                     WHERE c.employee_id = e.id
-                      AND c.created_at >= date_trunc('month', now())),0)::text AS consumed
+                      AND c.created_at >= date_trunc('month', now())),0)::text AS consumed,
+          COALESCE((SELECT SUM(a.amount) FROM salary_advances a
+                    WHERE a.employee_id = e.id AND a.status IN ('PENDING','APPROVED')),0)::text AS adv
         FROM employees e WHERE e.id = ${employeeId}::uuid`,
     );
     const monthlyPay = round2(Number(rows[0]?.pay) || 0);
     const consumed = round2(Number(rows[0]?.consumed) || 0);
-    const available = Math.max(0, round2(monthlyPay - consumed));
-    return { monthlyPay, consumed, available };
+    const advances = round2(Number(rows[0]?.adv) || 0);
+    // SALDO ÚNICO: o consumo próprio e os adiantamentos saem do mesmo salário.
+    const available = Math.max(0, round2(monthlyPay - consumed - advances));
+    return { monthlyPay, consumed, advances, available };
   }
 
   /** Valida que o consumo cabe no limite do mês; lança erro claro caso contrário. */
   private assertWithinCap(
-    cap: { monthlyPay: number; consumed: number; available: number },
+    cap: { monthlyPay: number; consumed: number; advances?: number; available: number },
     amount: number,
   ): void {
     if (cap.monthlyPay <= 0) {
@@ -73,7 +77,7 @@ export class SelfConsumptionService {
     }
     if (cap.available <= 0) {
       throw new BadRequestException(
-        `Atingiste o limite de consumo deste mês (salário ${fmtKz(cap.monthlyPay)}). Só podes voltar a consumir no próximo mês.`,
+        `Atingiste o limite do mês (salário ${fmtKz(cap.monthlyPay)}). Só podes voltar a consumir no próximo mês.`,
       );
     }
     if (round2(amount) > cap.available) {
@@ -87,7 +91,7 @@ export class SelfConsumptionService {
   async limit(
     schema: string,
     actor: ConsumptionActor,
-  ): Promise<{ monthlyPay: number; consumed: number; available: number; employeeLinked: boolean }> {
+  ): Promise<{ monthlyPay: number; consumed: number; advances?: number; available: number; employeeLinked: boolean }> {
     return this.prisma.runInTenant(schema, async (tx) => {
       const emp = await this.resolveEmployee(tx, actor.userId, actor.name);
       if (!emp) return { monthlyPay: 0, consumed: 0, available: 0, employeeLinked: false };
@@ -174,7 +178,7 @@ export class SelfConsumptionService {
       if (!emp) throw new BadRequestException('Sem ficha de funcionário associada. Fala com o gestor para te registar em RH.');
       const cap = await this.monthlyCap(tx, emp.id);
       if (cap.monthlyPay <= 0) throw new BadRequestException('O teu salário ainda não está definido em RH. Fala com o gestor.');
-      if (cap.available <= 0) throw new BadRequestException(`Atingiste o limite de consumo deste mês (salário ${fmtKz(cap.monthlyPay)}). Só podes voltar a consumir no próximo mês.`);
+      if (cap.available <= 0) throw new BadRequestException(`Atingiste o limite do mês (salário ${fmtKz(cap.monthlyPay)}). Só podes voltar a consumir no próximo mês.`);
       let total = 0;
       let registered = 0;
 

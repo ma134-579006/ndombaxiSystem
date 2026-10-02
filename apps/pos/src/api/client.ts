@@ -273,6 +273,10 @@ export const api = {
   requestAdvance: (amount: number, reason?: string) =>
     request<SalaryAdvance>('POST', '/hr/salary-advance', { amount, reason }),
   myAdvances: () => request<SalaryAdvance[]>('GET', '/hr/salary-advance/mine'),
+  // ── Férias / ausências (pede → o gestor é notificado e decide em RH) ──
+  myLeaves: () => request<{ linked: boolean; rows: import('./types').MyLeave[] }>('GET', '/leave/mine'),
+  requestLeave: (dto: { type: string; startDate: string; endDate: string; reason?: string }) =>
+    request<{ id: string }>('POST', '/leave/mine', dto),
 
   // ── Restauração · balcão (enviar à cozinha → chamar o pronto) ──
   fireToKitchen: (items: { productCode: string; quantity: number }[], customerName?: string) =>

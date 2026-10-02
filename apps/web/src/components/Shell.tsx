@@ -82,9 +82,11 @@ function OrdersBell({ onGo }: { onGo(section: string): void }) {
   const [orders, setOrders] = useState(0);
   const [services, setServices] = useState(0);
   const [rooms, setRooms] = useState(0);
+  const [leaves, setLeaves] = useState(0);
   useEffect(() => {
     let alive = true;
     const tick = () => {
+      api.leave.summary().then((r) => { if (alive) setLeaves(r.pending); }).catch(() => undefined);
       api.orders.pendingCount().then((r) => { if (alive) setOrders(r.count); }).catch(() => undefined);
       api.serviceOrders.pendingOnline().then((r) => { if (alive) setServices(r.count); }).catch(() => undefined);
       api.hotel.pendingOnline().then((r) => { if (alive) setRooms(r.count); }).catch(() => undefined);
@@ -95,11 +97,11 @@ function OrdersBell({ onGo }: { onGo(section: string): void }) {
     window.addEventListener('focus', onFocus);
     return () => { alive = false; window.clearInterval(t); window.removeEventListener('focus', onFocus); };
   }, []);
-  const n = orders + services + rooms;
-  const target = orders > 0 ? 'orders' : services > 0 ? 'service-orders' : rooms > 0 ? 'hotel' : 'orders';
+  const n = orders + services + rooms + leaves;
+  const target = orders > 0 ? 'orders' : services > 0 ? 'service-orders' : rooms > 0 ? 'hotel' : leaves > 0 ? 'leave' : 'orders';
   return (
     <button className="icon-btn noti-btn" onClick={() => onGo(target)}
-      title={n > 0 ? `${n} pedido(s) novo(s) da loja` : 'Pedidos da loja'} aria-label="Pedidos da loja">
+      title={n > 0 ? `${n} pedido(s) novo(s)${leaves > 0 ? ` (${leaves} de férias/ausência)` : ''}` : 'Pedidos da loja'} aria-label="Pedidos da loja">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
       </svg>

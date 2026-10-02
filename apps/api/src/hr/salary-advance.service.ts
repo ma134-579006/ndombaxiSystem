@@ -63,14 +63,24 @@ export class SalaryAdvanceService {
     return Number(rows[0]?.total) || 0;
   }
 
-  /** Limite disponível do funcionário (salário − adiantamentos por descontar). */
-  async limit(schema: string, actor: AdvanceActor): Promise<{ monthlyPay: number; outstanding: number; available: number; employeeLinked: boolean }> {
+  /** Consumo próprio já registado neste mês (usa o MESMO saldo que os adiantamentos). */
+  private async consumedThisMonth(tx: Prisma.TransactionClient, employeeId: string): Promise<number> {
+    const rows = await tx.$queryRaw<{ total: string }[]>(
+      Prisma.sql`SELECT COALESCE(SUM(total),0)::text AS total FROM employee_consumptions
+                 WHERE employee_id = ${employeeId}::uuid AND created_at >= date_trunc('month', now())`,
+    );
+    return Number(rows[0]?.total) || 0;
+  }
+
+  /** Saldo ÚNICO do funcionário: salário − adiantamentos por descontar − consumo próprio do mês. */
+  async limit(schema: string, actor: AdvanceActor): Promise<{ monthlyPay: number; outstanding: number; consumed: number; available: number; employeeLinked: boolean }> {
     return this.prisma.runInTenant(schema, async (tx) => {
       const emp = await this.resolveEmployee(tx, actor.userId, actor.name);
-      if (!emp) return { monthlyPay: 0, outstanding: 0, available: 0, employeeLinked: false };
+      if (!emp) return { monthlyPay: 0, outstanding: 0, consumed: 0, available: 0, employeeLinked: false };
       const out = await this.outstanding(tx, emp.id);
-      const available = Math.max(0, Math.round((emp.monthlyPay - out) * 100) / 100);
-      return { monthlyPay: emp.monthlyPay, outstanding: out, available, employeeLinked: true };
+      const consumed = await this.consumedThisMonth(tx, emp.id);
+      const available = Math.max(0, Math.round((emp.monthlyPay - out - consumed) * 100) / 100);
+      return { monthlyPay: emp.monthlyPay, outstanding: out, consumed, available, employeeLinked: true };
     });
   }
 
@@ -83,7 +93,8 @@ export class SalaryAdvanceService {
       if (!emp) throw new BadRequestException('Sem ficha de funcionário associada. Fala com o gestor para te registar em RH.');
       if (emp.monthlyPay <= 0) throw new BadRequestException('O teu salário ainda não está definido em RH. Fala com o gestor.');
       const out = await this.outstanding(tx, emp.id);
-      const available = Math.max(0, Math.round((emp.monthlyPay - out) * 100) / 100);
+      const consumed = await this.consumedThisMonth(tx, emp.id);
+      const available = Math.max(0, Math.round((emp.monthlyPay - out - consumed) * 100) / 100);
       if (amt > available) {
         throw new BadRequestException(`O valor excede o limite disponível (${available.toLocaleString('pt-PT')} Kz). O salário é ${emp.monthlyPay.toLocaleString('pt-PT')} Kz e já tens ${out.toLocaleString('pt-PT')} Kz por descontar.`);
       }

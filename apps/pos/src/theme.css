@@ -1667,3 +1667,17 @@ img.u-av { background: var(--surface-2); }
 .sm-quick .chip { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 99px; padding: 6px 13px; font-weight: 600; font-size: 12.5px; }
 .sm-quick .chip:hover { border-color: var(--primary, #4f7cff); color: var(--primary, #4f7cff); }
 .sales-modal { max-height: calc(92vh / var(--uz, 1)); }
+
+/* Saldo único (4 indicadores) e pedido de férias */
+.erp-kpis4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 640px) { .erp-kpis4 { grid-template-columns: 1fr 1fr; } .erp-kpis4 .erp-kpi.hi { grid-column: auto; } }
+.lv-types { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.lv-type-b { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; font: inherit; }
+.lv-type-b small { font-size: 11.5px; color: var(--muted); }
+.lv-type-b.on { border-color: var(--primary, #4f7cff); background: color-mix(in srgb, var(--primary, #4f7cff) 14%, var(--surface-2)); }
+.lv-dates { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
+.lv-dates label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); font-weight: 700; }
+.lv-dates input { height: 48px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; font-size: 15px; }
+.lv-days { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 64px; height: 48px; border-radius: 12px; background: color-mix(in srgb, var(--primary, #4f7cff) 16%, var(--surface-2)); line-height: 1; }
+.lv-days b { font-size: 20px; } .lv-days span { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+@media (max-width: 520px) { .lv-dates { grid-template-columns: 1fr 1fr; } .lv-days { grid-column: 1 / -1; flex-direction: row; gap: 8px; } }

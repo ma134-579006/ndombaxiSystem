@@ -31,6 +31,7 @@ import { ChatModal } from '../components/ChatModal';
 import { CustomerChatModal } from '../components/CustomerChatModal';
 import { SelfConsumptionModal } from '../components/SelfConsumptionModal';
 import { SalaryAdvanceModal } from '../components/SalaryAdvanceModal';
+import { LeaveRequestModal } from '../components/LeaveRequestModal';
 import { IdleLock } from '../components/IdleLock';
 import { ThemePicker } from '../components/ThemePicker';
 import { PaymentModal } from '../components/PaymentModal';
@@ -83,8 +84,8 @@ function grossUnit(p: Product): number {
 
 /** Menu do operador (canto superior direito): avatar + seta → nome, email e
  *  terminar sessão. Fecha ao clicar fora. */
-function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustChat, onChat, onCustChat, onSelfConsumption, onSalaryAdvance, onDocumento, onLogout }: {
-  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; canCustChat: boolean; onChat(): void; onCustChat(): void; onSelfConsumption(): void; onSalaryAdvance(): void; onDocumento(): void; onLogout(): void;
+function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustChat, onChat, onCustChat, onSelfConsumption, onSalaryAdvance, onLeave, onDocumento, onLogout }: {
+  photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; canCustChat: boolean; onChat(): void; onCustChat(): void; onSelfConsumption(): void; onSalaryAdvance(): void; onLeave(): void; onDocumento(): void; onLogout(): void;
 }) {
   const totalBadge = unread + (canCustChat ? custUnread : 0);
   const [open, setOpen] = useState(false);
@@ -140,6 +141,9 @@ function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustCha
             <button role="menuitem" className="acct2-item" onClick={go(onSalaryAdvance)}>
               <MenuIcon d={OP_ICONS.banknote} /> Adiantamento salarial
             </button>
+            <button role="menuitem" className="acct2-item" onClick={go(onLeave)}>
+              <MenuIcon d={OP_ICONS.calendar} /> Pedir férias / ausência
+            </button>
             <button role="menuitem" className="acct2-item" onClick={go(onDocumento)}>
               <MenuIcon d={OP_ICONS.doc} /> Documento
             </button>
@@ -165,6 +169,7 @@ const OP_ICONS = {
   bag: 'M6 7h12l1 13H5L6 7zM9 7a3 3 0 0 1 6 0',
   cup: 'M5 8h11v6a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V8zM16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v2M11.5 3v2',
   banknote: 'M3 6.5h18v11H3zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM6 9.5v.01M18 14.5v.01',
+  calendar: 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 10h16M8 3v4M16 3v4',
   doc: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5zM14 3v5h5M9 13h6M9 17h6',
   lock: 'M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
@@ -249,6 +254,7 @@ export function PosPage() {
   const [custUnread, setCustUnread] = useState(0);
   const [showConsumption, setShowConsumption] = useState(false);
   const [showAdvance, setShowAdvance] = useState(false);
+  const [showLeave, setShowLeave] = useState(false);
   // O operador de caixa não tem chat com clientes — só supervisor e acima.
   const custChatAllowed = canChatCustomers(user?.role);
   useEffect(() => {
@@ -875,6 +881,7 @@ export function PosPage() {
             onCustChat={() => setShowCustChat(true)}
             onSelfConsumption={() => setShowConsumption(true)}
             onSalaryAdvance={() => setShowAdvance(true)}
+            onLeave={() => setShowLeave(true)}
             onDocumento={() => setShowSales(true)}
             onLogout={logout}
           />
@@ -1159,6 +1166,7 @@ export function PosPage() {
       {showConsumption ? (
         <SelfConsumptionModal products={products} onClose={() => setShowConsumption(false)} />
       ) : null}
+      {showLeave ? <LeaveRequestModal onClose={() => setShowLeave(false)} /> : null}
       {showAdvance ? (
         <SalaryAdvanceModal onClose={() => setShowAdvance(false)} />
       ) : null}
