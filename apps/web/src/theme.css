@@ -3802,3 +3802,9 @@ img.u-av { background: var(--surface-2); }
 @media (max-width: 640px) { .modal .mt { padding: 10px 14px; } .modal .mf { padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px)); } .modal .mt .pp-list { left: 14px; right: 14px; } }
 /* Janelas antigas sem footer: o botão principal, mesmo dentro de um bloco, também fica fixo no fundo */
 .modal .mb > div > .btn.block:last-child, .modal .mb > form > .btn.block:last-child { position: sticky; bottom: 0; z-index: 2; margin-top: 16px; box-shadow: 0 0 0 18px var(--surface), 0 -18px 24px -6px rgba(0,0,0,.45); }
+
+.cam-row { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.cam-act { gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.cam-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; padding: 36px 24px !important; }
+.cam-empty h3 { margin: 0; font-size: 20px; } .cam-empty .pr-steps { width: 100%; text-align: left; }
+@media (max-width: 760px) { .cam-row { grid-template-columns: auto minmax(0, 1fr); } .cam-row .rc-state { display: none; } .cam-act { grid-column: 1 / -1; justify-content: flex-start; } }
