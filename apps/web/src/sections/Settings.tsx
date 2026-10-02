@@ -1,7 +1,9 @@
 import { confirmDialog, toast } from '../components/feedback';
 import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { ManagerStaff, SiteSettings } from '../api/types';
+import { STAFF_ROLE_LABELS, type ManagerStaff, type SiteSettings } from '../api/types';
+import { Modal } from '../components/ui';
+import { UserAvatar } from '../components/UserAvatar';
 import { IconBuilding, IconImage, IconReceipt } from '../components/Icons';
 import { ShopServerCard } from './ShopServerCard';
 
@@ -182,39 +184,50 @@ function PasswordsCard() {
     finally { setBusyId(null); }
   };
 
-  const setPin = async (u: ManagerStaff) => {
+  const [pinFor, setPinFor] = useState<ManagerStaff | null>(null);
+  const [pinVal, setPinVal] = useState('');
+  const savePin = async () => {
+    const u = pinFor; if (!u) return;
     // O PIN é SEMPRE de 6 dígitos (regra única em todo o sistema — a API rejeita outros tamanhos).
-    const pin = window.prompt(`Novo PIN (6 dígitos) para ${u.name} usar na caixa:`);
-    if (!pin) return;
-    if (!/^\d{6}$/.test(pin)) { setErr('PIN inválido — tem de ter exatamente 6 dígitos.'); return; }
+    if (!/^\d{6}$/.test(pinVal)) { setErr('PIN inválido — tem de ter exatamente 6 dígitos.'); return; }
     setBusyId(u.id); setResult(null); setErr(null);
-    try { await api.staff.setPin(u.id, pin); setResult(`PIN de ${u.name} actualizado.`); }
+    try { await api.staff.setPin(u.id, pinVal); setResult(`PIN de ${u.name} actualizado.`); setPinFor(null); setPinVal(''); }
     catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao definir PIN.'); }
     finally { setBusyId(null); }
   };
 
   return (
     <div className="card">
-      <h3>Senhas e PIN dos funcionários</h3>
-      <p className="muted" style={{ marginTop: 0 }}>Reponha a senha (login) ou o PIN (caixa) de qualquer funcionário, incluindo administradores.</p>
+      <h3><IconBuilding size={18} /> Senhas e PIN dos funcionários</h3>
+      <p className="muted">Reponha a senha (login) ou o PIN (caixa) de qualquer funcionário, incluindo administradores.</p>
       {err ? <div className="banner danger">{err}</div> : null}
       {result ? <div className="banner success">{result}</div> : null}
-      <table className="ptable stack">
-        <thead><tr><th>Nome</th><th>Email</th><th>Função</th><th>Ações</th></tr></thead>
-        <tbody>
-          {users.map((u) => (
-            <tr key={u.id}>
-              <td data-label="Nome">{u.name}</td>
-              <td data-label="Email">{u.email}</td>
-              <td data-label="Função">{u.role}</td>
-              <td data-label="Ações">
-                <button className="btn sm ghost" onClick={() => reset(u)} disabled={busyId === u.id}>Repor senha</button>{' '}
-                <button className="btn sm ghost" onClick={() => setPin(u)} disabled={busyId === u.id}>Definir PIN</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="rc-list">
+        {users.map((u) => (
+          <div key={u.id} className="rc-row rc-static st-READY pw-row">
+            <UserAvatar name={u.name} email={u.email} size={42} />
+            <div className="rc-main">
+              <strong>{u.name}</strong>
+              <div className="muted">{u.email}</div>
+            </div>
+            <span className="rc-state">{(STAFF_ROLE_LABELS as Record<string, string>)[u.role] ?? u.role}</span>
+            <div className="lv-act">
+              <button className="btn sm ghost" onClick={() => reset(u)} disabled={busyId === u.id}>Repor senha</button>
+              <button className="btn sm ghost" onClick={() => { setPinFor(u); setPinVal(''); setErr(null); }} disabled={busyId === u.id}>Definir PIN</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {pinFor ? (
+        <Modal title={`PIN da caixa — ${pinFor.name}`} onClose={() => setPinFor(null)}>
+          <p className="muted" style={{ marginTop: 0 }}>Defina um PIN de <strong>6 dígitos</strong> para {pinFor.name} entrar na caixa.</p>
+          <div className="field"><label>Novo PIN</label>
+            <input inputMode="numeric" autoFocus value={pinVal} maxLength={6} placeholder="••••••"
+              onChange={(e) => setPinVal(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onKeyDown={(e) => { if (e.key === 'Enter') void savePin(); }} /></div>
+          <button className="btn lg block" onClick={() => void savePin()} disabled={pinVal.length !== 6 || busyId === pinFor.id}>Guardar PIN</button>
+        </Modal>
+      ) : null}
     </div>
   );
 }
@@ -236,18 +249,14 @@ function PrinterCard() {
   return (
     <div className="card">
       <h3><IconReceipt size={18} /> Impressora &amp; Plano</h3>
-      <p className="muted" style={{ marginTop: 0 }}>
-        <strong>Impressora térmica (80/58 mm):</strong> o tamanho do papel escolhe-se no <strong>caixa</strong>, no recibo (botão de tamanho de papel) — fica memorizado nesse dispositivo.
-      </p>
-      <ol className="muted" style={{ fontSize: 13, paddingLeft: 18, margin: '0 0 10px' }}>
-        <li><strong>Impressora WiFi/rede:</strong> ligue-a uma vez como impressora do sistema (Definições → Impressoras no telemóvel/PC, “Adicionar impressora” → WiFi/IP).</li>
-        <li>No caixa/relatórios, toque em <strong>Imprimir</strong> e escolha essa impressora — fica como predefinida.</li>
-        <li>Use o botão abaixo para confirmar que imprime.</li>
-      </ol>
-      <button className="btn ghost" onClick={testPrint}>Imprimir página de teste</button>
-      <p className="muted" style={{ marginTop: 12 }}>
-        <strong>Plano e pagamentos:</strong> faça a gestão do plano e do comprovativo na secção <strong>Subscrição &amp; Plano</strong>.
-      </p>
+      <p className="muted"><strong>Impressora térmica (80/58 mm):</strong> o tamanho do papel escolhe-se no <strong>caixa</strong>, no recibo (botão de tamanho de papel) e fica memorizado nesse dispositivo.</p>
+      <div className="pr-steps">
+        <div className="pr-step"><i>1</i><div><b>Ligue a impressora</b><span>WiFi/rede: adicione-a uma vez como impressora do sistema (Definições → Impressoras → Adicionar → WiFi/IP).</span></div></div>
+        <div className="pr-step"><i>2</i><div><b>Escolha-a ao imprimir</b><span>No caixa ou nos relatórios, toque em Imprimir e escolha essa impressora — fica como predefinida.</span></div></div>
+        <div className="pr-step"><i>3</i><div><b>Confirme com um teste</b><span>Imprima a página de teste para validar o tamanho do papel e a ligação.</span></div></div>
+      </div>
+      <button className="btn" onClick={testPrint}>Imprimir página de teste</button>
+      <div className="pr-plan"><b>Plano e pagamentos</b><span>Faça a gestão do plano e do comprovativo na secção <strong>Subscrição &amp; Plano</strong>.</span></div>
     </div>
   );
 }
