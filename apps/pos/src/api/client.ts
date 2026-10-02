@@ -84,6 +84,9 @@ async function request<T>(
   // (mesma origem no Android) → dados partilhados localmente sem servidor.
   const isGet = method.toUpperCase() === 'GET';
   const cacheKey = `GET ${path}`;
+  // Dados "ao vivo" NUNCA vêm da memória: o rascunho do carrinho (voltariam artigos
+  // já vendidos) e o turno atual (a app tem o seu espelho próprio, offline/shifts).
+  const cacheavel = isGet && !/^\/(pos\/cart-draft|cashbox\/session\/current)/.test(path);
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (auth) {
     const token = hooks?.getAccessToken();
@@ -102,7 +105,7 @@ async function request<T>(
   // logo pelo caminho offline (fila de vendas/turno). Sonda em 2.º plano.
   if (isNativeApp() && semRede) {
     sondarServidor();
-    if (isGet) {
+    if (cacheavel) {
       const mem = (await sharedGet<T>(cacheKey)) ?? (await sharedGet<T>(`GET ${path.split('?')[0]}`));
       if (mem != null) return mem;
     }
@@ -135,7 +138,7 @@ async function request<T>(
     // Silêncio do servidor da loja. Ao fim de algumas falhas seguidas o
     // aparelho volta à nuvem sozinho — quem saiu da loja continua a trabalhar.
     if (isNativeApp() && baseParaPedido(API_URL) !== API_URL) anotarFalhaDaLoja();
-    if (isGet && (isNativeApp() || (e as Error)?.name !== 'AbortError')) {
+    if (cacheavel && (isNativeApp() || (e as Error)?.name !== 'AbortError')) {
       const cached = (await sharedGet<T>(cacheKey)) ?? (await sharedGet<T>(`GET ${path.split('?')[0]}`));
       if (cached != null) return cached;
     }
@@ -157,7 +160,7 @@ async function request<T>(
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const data = (text ? JSON.parse(text) : undefined) as T;
-  if (isGet && data !== undefined) {
+  if (cacheavel && data !== undefined) {
     void sharedSet(cacheKey, data);
     if (path.includes('?')) void sharedSet(`GET ${path.split('?')[0]}`, data);
   }

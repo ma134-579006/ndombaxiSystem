@@ -59,6 +59,9 @@ const CACHE_CUSTOMERS = 'cache:customers';
 const CACHE_RECEIPT = 'cache:receiptInfo';
 const CACHE_IDENTITY = 'cache:identity';
 const CACHE_PROMOS = 'cache:promotions';
+/** Rascunho do carrinho no servidor por apagar (venda concluída sem rede). */
+const DRAFT_STALE = 'ndx:cart-draft-stale';
+const marcarRascunhoVelho = () => { try { localStorage.setItem(DRAFT_STALE, '1'); } catch { /* ignora */ } };
 
 const ROLE_LABELS: Record<string, string> = {
   COMPANY_ADMIN: 'Administrador',
@@ -594,6 +597,15 @@ export function PosPage() {
     hydratedRef.current = true;
     (async () => {
       try {
+        // Uma venda concluída SEM rede não conseguiu apagar o rascunho no servidor:
+        // apaga-o agora e não o restaura (senão voltavam artigos já vendidos).
+        let stale = false;
+        try { stale = localStorage.getItem(DRAFT_STALE) === '1'; } catch { /* ignora */ }
+        if (stale) {
+          await api.clearCartDraft();
+          try { localStorage.removeItem(DRAFT_STALE); } catch { /* ignora */ }
+          return;
+        }
         const draft = await api.getCartDraft();
         if (draft && Array.isArray(draft.lines) && draft.lines.length) {
           const lines: CartLine[] = [];
@@ -775,7 +787,7 @@ export function PosPage() {
     setCart([]);
     setCartSel(new Set());
     setCustomer(null);
-    void api.clearCartDraft().catch(() => undefined); // venda concluída → limpa o rascunho no servidor
+    void api.clearCartDraft().catch(marcarRascunhoVelho); // venda concluída → limpa o rascunho no servidor
   };
 
   // BALCÃO: envia o carrinho para a COZINHA (não vende ainda) e limpa o caixa.
@@ -786,7 +798,7 @@ export function PosPage() {
       const items = cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity }));
       const r = await api.fireToKitchen(items, customer?.name ?? undefined);
       setCart([]); setCartSel(new Set()); setCustomer(null);
-      void api.clearCartDraft().catch(() => undefined);
+      void api.clearCartDraft().catch(marcarRascunhoVelho);
       flashOk(`Enviado à cozinha: ${r.label}. Chame o pedido quando estiver pronto.`);
     } catch (e) { flashError(e instanceof ApiError ? e.message : 'Falha ao enviar para a cozinha.'); }
     finally { setFiring(false); }
