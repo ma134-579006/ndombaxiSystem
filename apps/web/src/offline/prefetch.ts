@@ -19,7 +19,7 @@
  * em massa para além do que a própria página já mostra. Best-effort: cada falha é
  * ignorada e nunca quebra a app. NAVEGADOR: não faz nada (100% online).
  */
-import { api } from '../api/client';
+import { api, replayQueuedWrites } from '../api/client';
 import { isNativeApp } from '../config';
 import { runTransfer } from '../components/feedback';
 
@@ -111,14 +111,27 @@ export async function prefetchTenantData(company?: string | null): Promise<void>
 }
 
 /** Atualização periódica silenciosa (10 min) enquanto a app está aberta e visível. */
+/** Sobe as alterações feitas offline e, se subiu alguma, reconcilia a cópia local. */
+let replaying = false;
+export async function flushOutbox(company?: string | null): Promise<void> {
+  if (!isNativeApp() || replaying) return;
+  replaying = true;
+  try {
+    const n = await replayQueuedWrites();
+    if (n > 0) { lastRunAt = 0; void prefetchTenantData(company); }
+  } catch { /* tenta no próximo ciclo */ } finally { replaying = false; }
+}
+
 export function startPrefetchSchedule(company?: string | null): () => void {
   if (!isNativeApp() || typeof window === 'undefined') return () => undefined;
   window.clearInterval(timer);
+  void flushOutbox(company);
+  const flushTimer = window.setInterval(() => { void flushOutbox(company); }, 20_000);
   timer = window.setInterval(() => {
     if (document.visibilityState === 'visible') void prefetchTenantData(company);
   }, 10 * 60_000);
-  const wake = () => { if (document.visibilityState === 'visible') void prefetchTenantData(company); };
+  const wake = () => { if (document.visibilityState === 'visible') { void flushOutbox(company); void prefetchTenantData(company); } };
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('online', wake);
-  return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); };
+  return () => { window.clearInterval(timer); window.clearInterval(flushTimer); document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); };
 }
