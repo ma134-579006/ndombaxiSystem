@@ -847,9 +847,10 @@ export function PosPage() {
               {kitchenReady > 0 ? <span className="conn-badge" style={{ background: '#e5484d' }}>{kitchenReady > 99 ? '99+' : kitchenReady}</span> : null}
             </button>
           ) : null}
-          {/* A sincronização é AUTOMÁTICA e corre em segundo plano (motor do aparelho). A página só
-              mostra, de forma discreta, que está sem rede — sem botão de sincronizar. */}
-          {isNativeApp() && (!sync.online || sync.pending > 0) ? (
+          {/* A sincronização é AUTOMÁTICA e INVISÍVEL (decisão do dono do produto): nada aparece
+              enquanto se trabalha com ou sem rede. Só surge um aviso se o servidor RECUSAR algo
+              (ex.: uma venda com erro), para o operador poder rever. */}
+          {isNativeApp() && !!sync.lastError && sync.pending > 0 ? (
           <button
             className={`conn ${sync.online ? 'on' : 'off'}`}
             onClick={() => setShowQueue(true)}

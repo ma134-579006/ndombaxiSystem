@@ -19,7 +19,7 @@
  * em massa para além do que a própria página já mostra. Best-effort: cada falha é
  * ignorada e nunca quebra a app. NAVEGADOR: não faz nada (100% online).
  */
-import { api, replayQueuedWrites } from '../api/client';
+import { api, prefetchGet, replayQueuedWrites } from '../api/client';
 import { isNativeApp } from '../config';
 import { runTransfer } from '../components/feedback';
 
@@ -62,6 +62,54 @@ function collect(): Task[] {
   return out;
 }
 
+/**
+ * TODAS as leituras da Gestão (lista tirada de api/client.ts): o 1.º login guarda
+ * cada área na memória interna, para todas as páginas abrirem sem rede. Ficam de
+ * fora só as que precisam de internet por natureza (chat, notificações, IA) e as
+ * de plataforma (super admin). Caminhos que o servidor recusa para esta empresa
+ * (403/404 — outro setor de negócio) não voltam a ser pedidos nesta sessão.
+ */
+const ALL_READS = [
+  '/alerts', '/audit', '/backup', '/backup/settings', '/cameras', '/cashbox/sessions',
+  '/cashflow/forecast', '/cashflow/series', '/cashflow/summary', '/commissions',
+  '/dashboard/low-stock', '/dashboard/sales/by-store?days=7', '/dashboard/sales/series', '/dashboard/sales/today', '/dashboard/top-products',
+  '/ecommerce/orders', '/ecommerce/orders/count/pending',
+  '/erp/purchase-orders', '/erp/stock/analysis', '/erp/stock/categories', '/erp/stock/movements', '/erp/suppliers', '/erp/warehouses',
+  '/expenses', '/expenses/summary',
+  '/fiscal/agt/status', '/fiscal/document-identity', '/fiscal/receipt-info',
+  '/hr/employees', '/hr/payroll/runs', '/hr/salary-advance/pending', '/hr/salary-advance/pending/count', '/hr/self-consumption',
+  '/inventory/abc', '/inventory/audit', '/inventory/audit/filters', '/inventory/batches/expiring?days=30', '/inventory/counts',
+  '/inventory/fraud-signals', '/inventory/locations', '/inventory/replenishment', '/inventory/transfers', '/inventory/valuation',
+  '/landing/plans', '/leave', '/leave/employees', '/leave/summary',
+  '/onboarding/my-plan', '/onboarding/setup-status',
+  '/payables', '/payables/summary', '/payments/methods', '/payments/proofs',
+  '/pos/customers', '/pos/products', '/pos/products/all', '/pos/products/ingredients',
+  '/profit/abc', '/profit/by-product', '/profit/series', '/profit/summary', '/promotions', '/public/landing',
+  '/receivables', '/receivables/summary', '/reconciliation', '/reconciliation/summary',
+  '/reports/cash-sessions', '/reports/documents', '/reports/payment-methods', '/reports/sales-by-brand', '/reports/sales-by-category',
+  '/reports/sales-by-customer', '/reports/sales-by-store', '/reports/sales-by-user', '/reports/tax-map',
+  '/site/settings', '/staff/stores', '/staff/users', '/subscription/bank-accounts', '/subscription/mine', '/vertical/metrics',
+  // Setores (só respondem na empresa do setor certo; as restantes dão 403/404 e saem da lista)
+  '/restaurant/availability', '/restaurant/dashboard', '/restaurant/kitchen', '/restaurant/online-queue', '/restaurant/table-map', '/restaurant/reports?days=7',
+  '/hotel/dashboard', '/hotel/pending-online', '/hotel/room-map', '/hotel/reservations', '/hotel/housekeeping', '/hotel/maintenance',
+  '/clinic/beds', '/clinic/dashboard', '/clinic/emergency', '/clinic/insurers', '/clinic/metrics', '/clinic/admissions', '/clinic/appointments',
+  '/clinic/claims', '/clinic/exams', '/clinic/medications', '/clinic/patients', '/clinic/prescriptions', '/clinic/professionals',
+  '/pharmacy/metrics', '/pharmacy/expiring?days=90',
+  '/service-orders', '/service-orders/agenda', '/service-orders/dashboard', '/service-orders/pending-online', '/service-orders/equipments',
+];
+const recusados = new Set<string>();
+
+function rawTasks(): Task[] {
+  return ALL_READS.filter((p) => !recusados.has(p)).map((p) => ({
+    label: p,
+    call: () => prefetchGet(p).catch((e: unknown) => {
+      const st = (e as { status?: number }).status;
+      if (st === 403 || st === 404) recusados.add(p);
+      throw e;
+    }),
+  }));
+}
+
 const flagKey = (company: string) => `ndombaxi.device-ready.${company}`;
 const hasPrepared = (company: string) => { try { return localStorage.getItem(flagKey(company)) !== null; } catch { return false; } };
 const markPrepared = (company: string) => { try { localStorage.setItem(flagKey(company), String(Date.now())); } catch { /* ignora */ } };
@@ -86,7 +134,7 @@ export async function prefetchTenantData(company?: string | null): Promise<void>
   if (running || Date.now() - lastRunAt < 30_000) return;
   running = true;
   try {
-    const tasks = collect();
+    const tasks = [...collect(), ...rawTasks()];
     if (tasks.length === 0) return;
     const first = !!company && !hasPrepared(company);
     if (first) {
@@ -100,7 +148,7 @@ export async function prefetchTenantData(company?: string | null): Promise<void>
         },
       });
       // Só marca como pronto se a maioria respondeu (senão volta a tentar no próximo arranque).
-      if (okCount >= Math.ceil(tasks.length * 0.5)) markPrepared(company as string);
+      if (okCount >= Math.ceil(tasks.length * 0.3)) markPrepared(company as string);
     } else {
       await runAll(tasks);
     }
