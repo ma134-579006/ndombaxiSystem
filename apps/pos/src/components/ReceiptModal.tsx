@@ -8,7 +8,7 @@ import { buildInvoicePdf, invoiceFileName } from '../pdf/invoicePdf';
 import { runTransfer } from '../transfer';
 import { getPaper } from '../print';
 import { pairPrinter, pairedPrinterName, printRaw, rawPrintSupported } from '../escpos';
-import { isNativeApp, saveNativePdf, shareNativePdf } from '../offline/nativeShare';
+import { isCapacitorApp as isNativeApp, saveNativePdf, shareNativePdf } from '../offline/nativeShare';
 import { UiIcon } from './UiIcon';
 
 /** Linha de artigo da fatura (para a tabela no recibo/PDF). */

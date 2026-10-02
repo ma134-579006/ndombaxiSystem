@@ -374,7 +374,17 @@ function createWindow(): BrowserWindow {
   // tinha de maximizar à mão de cada vez.
   win.once('ready-to-show', () => {
     if (bounds?.maximized) win.maximize();
+    // ECRÃ INTEIRO por omissão: cobre a barra de tarefas e esconde a barra de
+    // título. Minimizar/fechar ficam na seta discreta do canto (preload) e no F11.
+    win.setFullScreen(true);
     win.show();
+  });
+  // F11 alterna o ecrã inteiro (como em qualquer programa do Windows).
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'F11') {
+      event.preventDefault();
+      win.setFullScreen(!win.isFullScreen());
+    }
   });
 
   // Uma ligação externa (um site de banco, uma ajuda) abre no NAVEGADOR, nunca
@@ -474,6 +484,16 @@ function registerIpc(): void {
 
   ipcMain.handle('ndombaxi:settings-module', (_e, moduleId: string) => {
     if (moduleId === 'gestao' || moduleId === 'caixa') openModule(moduleId);
+  });
+
+  // Controlos da janela (seta discreta do canto, injetada pelo preload).
+  ipcMain.handle('ndombaxi:window', (_e, action: string) => {
+    const w = mainWindow;
+    if (!w || w.isDestroyed()) return false;
+    if (action === 'minimize') w.minimize();
+    else if (action === 'fullscreen') w.setFullScreen(!w.isFullScreen());
+    else if (action === 'close') w.close();
+    return w.isFullScreen();
   });
 
   // Voltar ao lançador (seta de voltar dentro de cada módulo).

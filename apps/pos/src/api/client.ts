@@ -1,5 +1,5 @@
 import { API_URL } from '../config';
-import { isNativeApp } from '../offline/nativeShare';
+import { isNativeApp } from '../config';
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
 import type { PromoRow } from '../pos/promo';
@@ -84,6 +84,9 @@ async function request<T>(
   // (mesma origem no Android) → dados partilhados localmente sem servidor.
   const isGet = method.toUpperCase() === 'GET';
   const cacheKey = `GET ${path}`;
+  // Dados "ao vivo" NUNCA vêm da memória: o rascunho do carrinho (voltariam artigos
+  // já vendidos) e o turno atual (a app tem o seu espelho próprio, offline/shifts).
+  const cacheavel = isGet && !/^\/(pos\/cart-draft|cashbox\/session\/current)/.test(path);
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (auth) {
     const token = hooks?.getAccessToken();
@@ -97,10 +100,23 @@ async function request<T>(
   // bloqueando tudo ("sem ligação"). Fiável é tentar o fetch e, ao falhar, servir a
   // cache (catch abaixo). A venda offline continua a ser tratada pela fila.
 
+  // MEMÓRIA INTERNA PRIMEIRO: se o aparelho já sabe que está sem servidor, não
+  // espera por um pedido que vai falhar — leituras da memória, escritas seguem
+  // logo pelo caminho offline (fila de vendas/turno). Sonda em 2.º plano.
+  if (isNativeApp() && semRede) {
+    sondarServidor();
+    if (cacheavel) {
+      const mem = (await sharedGet<T>(cacheKey)) ?? (await sharedGet<T>(`GET ${path.split('?')[0]}`));
+      if (mem != null) return mem;
+    }
+    throw new ApiError(0, 'Sem ligação ao servidor.');
+  }
+
   let res: Response;
   // Timeout defensivo: evita spinner infinito quando o servidor está a acordar.
+  // Na app, uma leitura não espera mais de 12 s — responde a memória interna.
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 90_000);
+  const timer = setTimeout(() => ctrl.abort(), isNativeApp() && isGet ? 12_000 : 90_000);
   try {
     // SERVIDOR DA LOJA primeiro, se houver um configurado e a responder. É o
     // que dá ao telemóvel o sistema INTEIRO sem internet: quem responde é a
@@ -116,12 +132,14 @@ async function request<T>(
     });
     // Respondeu (mesmo que com erro): o servidor da loja está vivo.
     if (eraDaLoja) anotarSucessoDaLoja();
+    if (isNativeApp()) marcarComRede();
   } catch (e) {
+    if (isNativeApp()) marcarSemRede();
     // Silêncio do servidor da loja. Ao fim de algumas falhas seguidas o
     // aparelho volta à nuvem sozinho — quem saiu da loja continua a trabalhar.
     if (isNativeApp() && baseParaPedido(API_URL) !== API_URL) anotarFalhaDaLoja();
-    if (isGet && (e as Error)?.name !== 'AbortError') {
-      const cached = await sharedGet<T>(cacheKey);
+    if (cacheavel && (isNativeApp() || (e as Error)?.name !== 'AbortError')) {
+      const cached = (await sharedGet<T>(cacheKey)) ?? (await sharedGet<T>(`GET ${path.split('?')[0]}`));
       if (cached != null) return cached;
     }
     throw new ApiError(0, (e as Error)?.name === 'AbortError'
@@ -142,8 +160,30 @@ async function request<T>(
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const data = (text ? JSON.parse(text) : undefined) as T;
-  if (isGet && data !== undefined) void sharedSet(cacheKey, data);
+  if (cacheavel && data !== undefined) {
+    void sharedSet(cacheKey, data);
+    if (path.includes('?')) void sharedSet(`GET ${path.split('?')[0]}`, data);
+  }
   return data;
+}
+
+/** Estado de ligação conhecido pela app (ver `request`). */
+let semRede = false;
+let ultimaSonda = 0;
+function marcarSemRede(): void { semRede = true; }
+function marcarComRede(): void {
+  if (semRede && typeof window !== 'undefined') window.dispatchEvent(new Event('online')); // a fila sobe sozinha
+  semRede = false;
+}
+function sondarServidor(): void {
+  if (Date.now() - ultimaSonda < 15_000) return;
+  ultimaSonda = Date.now();
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8_000);
+  fetch(`${baseParaPedido(API_URL)}/health`, { signal: ctrl.signal })
+    .then((r) => { if (r.ok) marcarComRede(); })
+    .catch(() => undefined)
+    .finally(() => clearTimeout(t));
 }
 
 export const api = {
@@ -232,7 +272,7 @@ export const api = {
    */
   syncPush: (ops: {
     opId: string; seq: number; entity: string; op: 'create' | 'update' | 'delete';
-    localId: string; payload: Record<string, unknown>;
+    localId: string; payload: Record<string, unknown>; createdAt: string;
   }[]) => request<{ results: { opId: string; status: string; message?: string }[] }>(
     'POST', '/sync/push', { ops },
   ),

@@ -36,6 +36,8 @@ jobs:
           pnpm --filter @nexus/mobile-shell exec cap sync android
           # Ícones a partir do logótipo único (apps/web/public/logo.png, sem fundo).
           node apps/mobile-shell/scripts/gen-android-icons.mjs
+          # Ecrã inteiro (imersivo): sem barra de estado nem de navegação.
+          node apps/mobile-shell/scripts/patch-android.mjs
       - name: Assinatura estável
         # Cada runner criava uma debug.keystore NOVA → cada APK tinha assinatura
         # diferente e o Android recusava instalar por cima da versão anterior

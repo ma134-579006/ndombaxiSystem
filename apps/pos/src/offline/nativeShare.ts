@@ -27,8 +27,9 @@ function bridge(): CapBridge | null {
   return null;
 }
 
-/** True quando corre dentro da app instalada (Android/iOS). */
-export function isNativeApp(): boolean {
+/** True SÓ no Android/iOS (Capacitor) — para os plugins de ficheiros. Para
+ *  "é a app instalada?" (inclui o Windows) usar `isNativeApp` de `../config`. */
+export function isCapacitorApp(): boolean {
   return !!bridge();
 }
 

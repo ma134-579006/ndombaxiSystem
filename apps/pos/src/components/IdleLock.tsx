@@ -3,7 +3,7 @@ import { api, ApiError } from '../api/client';
 import { UserAvatar, displayName } from './UserAvatar';
 import { LOGO_SRC, SYSTEM_NAME } from '../brand';
 import { useAuth } from '../auth/AuthContext';
-import { isNativeApp } from '../offline/nativeShare';
+import { isNativeApp } from '../config';
 import { verifyOffline } from '../offline/session';
 
 const IDLE_MS = 2.5 * 60 * 1000; // 2 min e meio sem atividade → bloqueia (não faz logout)

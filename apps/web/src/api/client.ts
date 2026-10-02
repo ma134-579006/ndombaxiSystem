@@ -202,6 +202,38 @@ async function parseError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, message, data);
 }
 
+/**
+ * MEMÓRIA INTERNA PRIMEIRO (apps instaladas).
+ *
+ * Quando o aparelho já sabe que não há servidor (a última tentativa falhou por
+ * rede), as LEITURAS respondem logo da memória interna — sem esperar por um
+ * pedido que vai falhar — e as ESCRITAS vão direto para a fila. Em segundo plano,
+ * de 15 em 15 s, sonda o servidor; mal responda, tudo volta a ir à rede, as
+ * alterações guardadas sobem e a memória atualiza-se. O utilizador não vê nada.
+ */
+let semRede = false;
+let ultimaSonda = 0;
+function marcarSemRede(): void { semRede = true; }
+function marcarComRede(): void {
+  if (semRede && typeof window !== 'undefined') window.dispatchEvent(new Event('online'));
+  semRede = false;
+}
+function sondarServidor(): void {
+  if (Date.now() - ultimaSonda < 15_000) return;
+  ultimaSonda = Date.now();
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8_000);
+  fetch(`${baseParaPedido(API_URL)}/health`, { signal: ctrl.signal })
+    .then((r) => { if (r.ok) marcarComRede(); })
+    .catch(() => undefined)
+    .finally(() => clearTimeout(t));
+}
+/** Caminho sem query: chave de recurso para quando a página pede outro filtro/data sem rede. */
+const semQuery = (path: string) => path.split('?')[0];
+async function lerDaMemoria<T>(path: string): Promise<T | null> {
+  return (await sharedGet<T>(`GET ${path}`)) ?? (await sharedGet<T>(`GET ${semQuery(path)}`));
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -227,6 +259,15 @@ async function request<T>(
   const queueable = isNativeApp() && !isGet && opts.queue !== false && canQueue(method, path);
   const opId = queueable ? newOpId() : undefined;
   if (opId) headers['X-Client-Op-Id'] = opId;
+  if (isNativeApp() && semRede) {
+    sondarServidor();
+    if (isGet) {
+      const mem = await lerDaMemoria<T>(path);
+      if (mem != null) return mem;
+    } else if (queueable && opId) {
+      return (await enqueueWrite(method, path, body, opId)) as T;
+    }
+  }
   // NOTA: NÃO usamos `navigator.onLine` para decidir se há rede. Nas apps nativas
   // ele MENTE — no Electron (protocolo ndombaxi://) e no WebView do Android reporta
   // `false` mesmo com internet, o que bloqueava todos os pedidos ("sem ligação").
@@ -236,7 +277,9 @@ async function request<T>(
   // Timeout defensivo: sem ele, um servidor "a acordar" (cold start) deixava o
   // pedido pendurado para sempre (spinner infinito). 90 s cobre o arranque.
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  // App: uma LEITURA não espera 90 s por uma rede fraca — ao fim de 12 s responde a memória.
+  const limite = isNativeApp() && isGet && opts.timeoutMs === undefined ? 12_000 : timeoutMs;
+  const timer = setTimeout(() => ctrl.abort(), limite);
   try {
     // SERVIDOR DA LOJA primeiro, se houver um configurado e a responder. É o
     // que dá ao telemóvel o sistema INTEIRO sem internet: compras, stock, RH e
@@ -252,7 +295,9 @@ async function request<T>(
       signal: ctrl.signal,
     });
     if (eraDaLoja) anotarSucessoDaLoja();
+    if (isNativeApp()) marcarComRede();
   } catch (e) {
+    if (isNativeApp()) marcarSemRede();
     // Silêncio do servidor da loja: ao fim de algumas falhas seguidas o
     // aparelho volta à nuvem sozinho, em vez de ficar preso a um computador
     // que já não alcança.
@@ -263,8 +308,9 @@ async function request<T>(
     if (queueable && opId) {
       return (await enqueueWrite(method, path, body, opId)) as T;
     }
-    if (isNativeApp() && isGet && (e as Error)?.name !== 'AbortError') {
-      const cached = await sharedGet<T>(cacheKey);
+    if (isNativeApp() && isGet) {
+      // Também num tempo esgotado: na app, a memória interna é a resposta.
+      const cached = await lerDaMemoria<T>(path);
       if (cached != null) return cached;
     }
     throw new ApiError(0, (e as Error)?.name === 'AbortError'
@@ -282,7 +328,12 @@ async function request<T>(
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const data = (text ? JSON.parse(text) : undefined) as T;
-  if (isNativeApp() && isGet && data !== undefined) void sharedSet(cacheKey, data); // cache offline: só nas apps instaladas
+  if (isNativeApp() && isGet && data !== undefined) {
+    // Memória interna: a resposta exata e, à parte, a última versão do recurso
+    // (sem filtros) — serve a mesma página sem rede com outro período/filtro.
+    void sharedSet(cacheKey, data);
+    if (semQuery(path) !== path) void sharedSet(`GET ${semQuery(path)}`, data);
+  }
   return data;
 }
 
@@ -311,6 +362,11 @@ async function sendQueuedWrite(op: OutboxOp, refreshed = false): Promise<SendRes
   }
   const err = await parseError(res);
   return { ok: false, status: res.status, message: err.message, retry: res.status >= 500 || res.status === 429 || res.status === 408 || res.status === 401 };
+}
+
+/** Leitura crua (usada pelo pré-carregamento para guardar TODAS as áreas na memória interna). */
+export function prefetchGet(path: string): Promise<unknown> {
+  return request<unknown>('GET', path, undefined, { timeoutMs: 60_000 });
 }
 
 /** Reenvia as alterações feitas offline (chamado em segundo plano; devolve quantas subiram). */

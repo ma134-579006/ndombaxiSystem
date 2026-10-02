@@ -212,6 +212,11 @@ export class LocalServer {
         // Mesmas rotas da nuvem (API_PREFIX vazio em produção): as apps chamam
         // `/auth/login`, não `/api/v1/auth/login`.
         API_PREFIX: '',
+        // Limites por minuto pensados para a NUVEM (muitos clientes). No posto há uma
+        // só loja: ao voltar a rede, a fila de centenas de vendas sobe de seguida e
+        // com 100/min seria recusada (429) a meio.
+        RATE_LIMIT_USER_PER_MIN: process.env.RATE_LIMIT_USER_PER_MIN ?? '6000',
+        RATE_LIMIT_TENANT_PER_MIN: process.env.RATE_LIMIT_TENANT_PER_MIN ?? '60000',
         ...(this.o.cloudApiUrl ? { NDOMBAXI_CLOUD_API: this.o.cloudApiUrl } : {}),
       },
       stdio: 'ignore',

@@ -9,7 +9,7 @@ import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { PaperSizeToggle } from './PaperSizeToggle';
 import { buildShiftClosePdf, shiftFileName } from '../pdf/shiftPdf';
 import { abrirTurnoOffline, fecharTurnoOffline } from '../offline/shifts';
-import { isNativeApp } from '../offline/nativeShare';
+import { isNativeApp } from '../config';
 import { UiIcon } from './UiIcon';
 
 /**

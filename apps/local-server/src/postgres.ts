@@ -170,7 +170,9 @@ export async function start(paths: PostgresPaths, cfg: LocalDbConfig): Promise<v
     [
       '-D', paths.dataDir,
       '-l', logFile,
-      '-o', `-p ${cfg.port} -c listen_addresses=127.0.0.1`,
+      // Só TCP em 127.0.0.1. Fora do Windows desliga também o socket Unix (por omissão
+      // em /var/run/postgresql, sem permissão para um utilizador normal).
+      '-o', `-p ${cfg.port} -c listen_addresses=127.0.0.1${process.platform === 'win32' ? '' : " -c unix_socket_directories=''"}`,
       '-w', '-t', '60',
       'start',
     ],

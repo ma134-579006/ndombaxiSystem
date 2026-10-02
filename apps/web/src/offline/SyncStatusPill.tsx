@@ -31,43 +31,8 @@ export function SyncStatusPill() {
     window.addEventListener('ndombaxi:outbox-failed', onFail);
     return () => window.removeEventListener('ndombaxi:outbox-failed', onFail);
   }, []);
-  // Tudo em ordem → não ocupa a barra (padrão ERP: só se avisa o que exige atenção).
-  if ((!status || (status.link === 'ONLINE' && status.pending + status.blocked === 0)) && queued === 0) return null;
-
-  const meta = LABEL[status?.link ?? 'OFFLINE'] ?? LABEL.OFFLINE;
-  const pending = (status ? status.pending + status.blocked : 0) + queued;
-  const syncing = !!status?.syncing;
-  const title = [
-    meta.text,
-    pending > 0 ? `${pending} por sincronizar` : null,
-    syncing ? 'a sincronizar…' : null,
-  ].filter(Boolean).join(' · ');
-
-  return (
-    <span
-      title={title}
-      aria-label={title}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 600,
-        color: 'var(--text-soft, #64748b)',
-        border: '1px solid var(--border, rgba(128,128,128,.25))',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      <span
-        style={{
-          width: 8, height: 8, borderRadius: 999, background: meta.color,
-          boxShadow: syncing ? `0 0 0 3px ${meta.color}22` : 'none',
-          transition: 'box-shadow .2s',
-        }}
-      />
-      <span className="sync-pill-text">{syncing && status?.link === 'ONLINE' ? 'A sincronizar…' : meta.text}</span>
-      {pending > 0 ? (
-        <span style={{ background: meta.color, color: '#fff', borderRadius: 999, padding: '0 6px', fontSize: 11 }}>
-          {pending > 99 ? '99+' : pending}
-        </span>
-      ) : null}
-    </span>
-  );
+  // Sincronização AUTOMÁTICA e INVISÍVEL (decisão do dono do produto): com ou sem rede,
+  // a barra não mostra nada. Só a recusa de uma alteração pelo servidor avisa (toast acima).
+  void status; void queued;
+  return null;
 }

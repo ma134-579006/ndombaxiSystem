@@ -47,8 +47,8 @@ import { syncController } from '../offline/sync';
 import { useSync } from '../offline/useSync';
 import { deviceKey } from '../offline/device';
 import { setPosBusy } from '../offline/localServer';
-import { turnoAbertoLocal } from '../offline/shifts';
-import { isNativeApp } from '../offline/nativeShare';
+import { espelharTurnoServidor, turnoAbertoLocal } from '../offline/shifts';
+import { isNativeApp } from '../config';
 import { setSaleInProgress } from '../pos/saleActivity';
 
 const CACHE_PRODUCTS = 'cache:products';
@@ -59,6 +59,9 @@ const CACHE_CUSTOMERS = 'cache:customers';
 const CACHE_RECEIPT = 'cache:receiptInfo';
 const CACHE_IDENTITY = 'cache:identity';
 const CACHE_PROMOS = 'cache:promotions';
+/** Rascunho do carrinho no servidor por apagar (venda concluída sem rede). */
+const DRAFT_STALE = 'ndx:cart-draft-stale';
+const marcarRascunhoVelho = () => { try { localStorage.setItem(DRAFT_STALE, '1'); } catch { /* ignora */ } };
 
 const ROLE_LABELS: Record<string, string> = {
   COMPANY_ADMIN: 'Administrador',
@@ -315,7 +318,7 @@ export function PosPage() {
       // O servidor é a autoridade sobre o turno. SEM REDE, vale o turno aberto
       // NESTE aparelho — senão a Caixa abria sem turno e o operador não
       // conseguia começar o dia numa loja sem internet.
-      api.currentSession().then(setSession).catch(async () => {
+      api.currentSession().then((s) => { setSession(s); void espelharTurnoServidor(s); }).catch(async () => {
         const t = await turnoAbertoLocal();
         if (t) {
           setSession({
@@ -594,6 +597,15 @@ export function PosPage() {
     hydratedRef.current = true;
     (async () => {
       try {
+        // Uma venda concluída SEM rede não conseguiu apagar o rascunho no servidor:
+        // apaga-o agora e não o restaura (senão voltavam artigos já vendidos).
+        let stale = false;
+        try { stale = localStorage.getItem(DRAFT_STALE) === '1'; } catch { /* ignora */ }
+        if (stale) {
+          await api.clearCartDraft();
+          try { localStorage.removeItem(DRAFT_STALE); } catch { /* ignora */ }
+          return;
+        }
         const draft = await api.getCartDraft();
         if (draft && Array.isArray(draft.lines) && draft.lines.length) {
           const lines: CartLine[] = [];
@@ -775,7 +787,7 @@ export function PosPage() {
     setCart([]);
     setCartSel(new Set());
     setCustomer(null);
-    void api.clearCartDraft().catch(() => undefined); // venda concluída → limpa o rascunho no servidor
+    void api.clearCartDraft().catch(marcarRascunhoVelho); // venda concluída → limpa o rascunho no servidor
   };
 
   // BALCÃO: envia o carrinho para a COZINHA (não vende ainda) e limpa o caixa.
@@ -786,7 +798,7 @@ export function PosPage() {
       const items = cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity }));
       const r = await api.fireToKitchen(items, customer?.name ?? undefined);
       setCart([]); setCartSel(new Set()); setCustomer(null);
-      void api.clearCartDraft().catch(() => undefined);
+      void api.clearCartDraft().catch(marcarRascunhoVelho);
       flashOk(`Enviado à cozinha: ${r.label}. Chame o pedido quando estiver pronto.`);
     } catch (e) { flashError(e instanceof ApiError ? e.message : 'Falha ao enviar para a cozinha.'); }
     finally { setFiring(false); }
@@ -847,9 +859,10 @@ export function PosPage() {
               {kitchenReady > 0 ? <span className="conn-badge" style={{ background: '#e5484d' }}>{kitchenReady > 99 ? '99+' : kitchenReady}</span> : null}
             </button>
           ) : null}
-          {/* A sincronização é AUTOMÁTICA e corre em segundo plano (motor do aparelho). A página só
-              mostra, de forma discreta, que está sem rede — sem botão de sincronizar. */}
-          {isNativeApp() && (!sync.online || sync.pending > 0) ? (
+          {/* A sincronização é AUTOMÁTICA e INVISÍVEL (decisão do dono do produto): nada aparece
+              enquanto se trabalha com ou sem rede. Só surge um aviso se o servidor RECUSAR algo
+              (ex.: uma venda com erro), para o operador poder rever. */}
+          {isNativeApp() && !!sync.lastError && sync.pending > 0 ? (
           <button
             className={`conn ${sync.online ? 'on' : 'off'}`}
             onClick={() => setShowQueue(true)}
@@ -1148,8 +1161,19 @@ export function PosPage() {
           cartCount={cart.length}
           identity={identity}
           operatorName={user?.name || user?.email}
-          onOpened={async () => { setShowShift(false); setSession(await api.currentSession().catch(() => null)); }}
-          onClosed={async () => { setShowShift(false); setSession(null); }}
+          onOpened={async () => {
+            setShowShift(false);
+            // SEM REDE o turno foi aberto NESTE aparelho: usar esse (antes ficava
+            // null e a Caixa voltava a pedir para abrir turno, em ciclo).
+            const s = await api.currentSession().catch(() => undefined);
+            if (s !== undefined) { setSession(s); void espelharTurnoServidor(s); return; }
+            const t = await turnoAbertoLocal();
+            setSession(t ? {
+              id: t.opId, register_code: t.registerCode, opened_by_name: t.operatorName,
+              opened_at: t.openedAt, opening_float: String(t.openingFloat), status: 'OPEN',
+            } : null);
+          }}
+          onClosed={async () => { setShowShift(false); setSession(null); void espelharTurnoServidor(null); }}
           onClose={() => setShowShift(false)}
         />
       ) : null}
