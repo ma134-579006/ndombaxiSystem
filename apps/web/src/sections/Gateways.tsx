@@ -102,34 +102,32 @@ export function Gateways() {
       {error ? <div className="banner danger">{error}</div> : null}
       <div className="content-head">
         <h2>Contratos de gateway</h2>
-        <span className="muted" style={{ fontSize: 13 }}>Ex.: Multicaixa Express com IBAN e credenciais (encriptadas)</span>
         <span className="spacer" />
         <button className="btn sm" onClick={() => setForm(emptyForm())}><IconPlus size={16} /> Adicionar contrato</button>
       </div>
 
-      <div className="card">
-        {items.length === 0 ? (
-          <div className="empty"><IconCard size={40} /><p>Nenhum contrato configurado.</p></div>
-        ) : (
-          items.map((g) => (
-            <div className="list-row" key={g.id}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700 }}>
-                  {g.label} <span className="muted" style={{ fontWeight: 500 }}>· {g.provider}</span>
-                  {!g.isActive ? <span className="muted"> · inactivo</span> : null}
-                </div>
-                <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>
+      {items.length === 0 ? (
+        <div className="card"><div className="empty"><IconCard size={40} /><p>Nenhum contrato configurado.</p></div></div>
+      ) : (
+        <div className="rc-list">
+          {items.map((g) => (
+            <div className={`rc-row rc-static st-${g.isActive ? 'READY' : 'CANCELLED'}`} key={g.id}>
+              <span className="rc-ic"><IconCard size={20} /></span>
+              <div className="rc-main">
+                <strong>{g.label}<span className="lv-type">{g.provider}</span></strong>
+                <div className="muted">
                   {g.iban ? `IBAN ${g.iban}` : 'Sem IBAN'}
                   {g.contractRef ? ` · contrato ${g.contractRef}` : ''}
                   {g.apiKeyMask ? ` · chave ${g.apiKeyMask}` : ''}
                 </div>
               </div>
+              <span className="rc-state">{g.isActive ? 'Activo' : 'Inactivo'}</span>
               <button className="btn sm ghost" onClick={() => openEdit(g)}>Editar</button>
-              <button className="icon-btn" style={{ width: 36, height: 36 }} onClick={() => remove(g)}><IconTrash size={16} /></button>
+              <button className="icon-btn" style={{ width: 36, height: 36 }} onClick={() => remove(g)} aria-label="Eliminar"><IconTrash size={16} /></button>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {form ? (
         <Modal title={form.id ? 'Editar contrato' : 'Novo contrato de gateway'} onClose={() => setForm(null)}>

@@ -3697,3 +3697,5 @@ img.u-av { background: var(--surface-2); }
 .page-anim[data-sec="subscription"] .grid-2,
 .page-anim[data-sec="downloads"] .grid-2,
 .page-anim[data-sec="feedback"] .grid-2 { gap: 0 24px; }
+
+.page-anim[data-sec="gateways"] .rc-row { grid-template-columns: auto minmax(0, 1fr) auto auto auto; }
