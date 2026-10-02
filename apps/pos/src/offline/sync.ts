@@ -4,6 +4,7 @@
  * aí o seu número fiscal real (sequência AGT sem saltos).
  */
 import { api, ApiError } from '../api/client';
+import { isNativeApp } from './nativeShare';
 import { deviceKey } from './device';
 import {
   limparTurnoLocalSeVazio, opDeTurnoEnviada, opsDeTurnoPendentes, contarOpsDeTurno,
@@ -58,6 +59,8 @@ class SyncController {
 
   /** Inicia a deteção de rede + verificação periódica (uma só vez). */
   start(): void {
+    // Navegador: 100% online — sem fila nem sincronização de vendas.
+    if (!isNativeApp()) return;
     if (this.started || typeof window === 'undefined') return;
     this.started = true;
     window.addEventListener('online', this.handleOnline);

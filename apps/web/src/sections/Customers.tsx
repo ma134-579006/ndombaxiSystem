@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { isNativeApp } from '../config';
 import { api, ApiError } from '../api/client';
 import type { CustomerRow } from '../api/types';
 import { confirmDialog, runBulk, toast } from '../components/feedback';
@@ -59,7 +60,7 @@ export function Customers() {
       // SEM REDE: em vez de perder o trabalho, o cliente fica em fila e sobe
       // sozinho quando a ligação voltar. Só para esta entidade — ver writes.ts:
       // uma fila genérica poria documentos fiscais em risco.
-      if (isNetworkError(e)) {
+      if (isNativeApp() && isNetworkError(e)) {
         const queued = await queueCustomer(body, editing?.id);
         if (queued) {
           toast.success(editing

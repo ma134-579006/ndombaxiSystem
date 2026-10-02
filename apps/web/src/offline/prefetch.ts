@@ -15,12 +15,14 @@
  * quebra a app; corre em segundo plano sem bloquear o ecrã.
  */
 import { api } from '../api/client';
+import { isNativeApp } from '../config';
 
 let running = false;
 let lastRunAt = 0;
 
 /** Dispara todas as leituras de referência em paralelo (best-effort). */
 export async function prefetchTenantData(): Promise<void> {
+  if (!isNativeApp()) return; // navegador: 100% online, nada a pré-carregar para offline
   // NÃO gatemos por navigator.onLine (mente nas apps nativas). Se estiver mesmo
   // offline, as leituras falham e o Promise.allSettled ignora — sem estragar nada.
   // Evita correr em paralelo consigo mesmo e repetir em rajada. 30 s chega para

@@ -3813,3 +3813,30 @@ img.u-av { background: var(--surface-2); }
 .fb-xfer { min-width: 320px; }
 .fb-xfer-file { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; margin: 2px 0 6px; padding: 7px 12px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--border); font-size: 12.5px; color: var(--muted); }
 .fb-xfer-file svg { color: var(--primary); flex: none; } .fb-xfer-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ══ ECRÃS TÁTEIS: campos nunca tapados pelo teclado no ecrã ══ */
+html.touch-ui .modal { max-height: min(calc(var(--vvh, 100dvh) - 16px), calc(92dvh / var(--uz, 1))); }
+html.kb-open .modal-bg { align-items: flex-start; padding-top: 8px; padding-bottom: 8px; }
+html.touch-ui.input-focus .modal .mb, html.touch-ui.input-focus .consume-body, html.touch-ui.input-focus .cv-msgs { padding-bottom: calc(var(--kb, 0px) + 38vh); }
+html.touch-ui.input-focus .content { padding-bottom: calc(var(--kb, 0px) + 42vh); }
+html.touch-ui input, html.touch-ui select, html.touch-ui textarea { scroll-margin-top: 22vh; font-size: max(16px, 1em); }
+html.touch-ui .btn, html.touch-ui button { touch-action: manipulation; }
+html.touch-ui .btn.sm { min-height: 40px; }
+
+/* ══ Menu lateral em ecrãs táteis: gaveta (☰) como no telemóvel, em qualquer largura ══ */
+html.touch-ui .menu-toggle { display: inline-flex !important; }
+html.touch-ui .admin.nav-rail .main { margin-left: 0 !important; transition: none; }
+html.touch-ui .admin.nav-rail .sidebar { position: fixed !important; top: 0; left: 0; bottom: 0; width: min(84vw, 320px) !important; max-width: 320px; overflow-y: auto; transform: translateX(-100%); transition: transform .25s ease; z-index: 100; box-shadow: none; }
+html.touch-ui .admin.nav-rail .sidebar.open { transform: translateX(0); box-shadow: 0 0 60px rgba(0,0,0,.6); }
+html.touch-ui .admin.nav-rail .sidebar:hover, html.touch-ui .admin.nav-rail .sidebar:has(:focus-visible) { box-shadow: none; }
+html.touch-ui .admin.nav-rail .sidebar.open:hover { box-shadow: 0 0 60px rgba(0,0,0,.6); }
+html.touch-ui .admin.nav-rail .sidebar .brand { padding: 16px 18px; flex-wrap: wrap; }
+html.touch-ui .admin.nav-rail .sidebar .brand-tx, html.touch-ui .admin.nav-rail .sidebar .nav-label,
+html.touch-ui .admin.nav-rail .sidebar .nav-group-head > svg:last-child, html.touch-ui .admin.nav-rail .sidebar .sig { opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
+html.touch-ui .admin.nav-rail .sidebar .nav { padding: 8px; }
+html.touch-ui .admin.nav-rail .sidebar .nav button, html.touch-ui .admin.nav-rail .sidebar .nav-group-head { padding: 12px 14px; gap: 11px; min-height: 46px; }
+html.touch-ui .admin.nav-rail .sidebar .nav-sub { display: flex !important; }
+html.touch-ui .admin.nav-rail .sidebar:not(:hover):not(:has(:focus-visible)) .nav-sub { display: flex !important; }
+html.touch-ui .admin.nav-rail .sidebar .nav { overflow-y: auto !important; }
+html.touch-ui .content { padding-left: 14px; padding-right: 14px; }
+html.touch-ui .topbar { padding-left: 14px; padding-right: 14px; }

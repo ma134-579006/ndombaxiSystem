@@ -48,6 +48,7 @@ import { useSync } from '../offline/useSync';
 import { deviceKey } from '../offline/device';
 import { setPosBusy } from '../offline/localServer';
 import { turnoAbertoLocal } from '../offline/shifts';
+import { isNativeApp } from '../offline/nativeShare';
 import { setSaleInProgress } from '../pos/saleActivity';
 
 const CACHE_PRODUCTS = 'cache:products';
@@ -711,6 +712,11 @@ export function PosPage() {
   const finalize = async () => {
     if (cart.length === 0 || emitting) return;
     if (!sync.online) {
+      if (!isNativeApp()) {
+        // NAVEGADOR: 100% online. A venda sem internet só existe na aplicação instalada.
+        flashError('Sem ligação à internet. A Caixa no navegador precisa de rede — use a aplicação instalada para vender sem internet.');
+        return;
+      }
       setEmitting(true);
       try { await finalizeOffline(); } finally { setEmitting(false); }
       return;
@@ -754,7 +760,7 @@ export function PosPage() {
         void api.markKitchenOrderServed(rid).catch(() => undefined);
       }
     } catch (e) {
-      if (e instanceof ApiError && e.status === 0) {
+      if (isNativeApp() && e instanceof ApiError && e.status === 0) {
         // MESMA chave da tentativa online — ver finalizeOffline.
         try { await finalizeOffline(clientOpId); setShowPayment(false); return; } catch { /* erro genérico */ }
       }

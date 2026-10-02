@@ -4,6 +4,7 @@ import { App } from './App';
 import '@nexus/tokens/tokens.css';
 import './theme.css';
 import { initTheme } from './theme';
+import { initTouchUi } from './touchUi';
 import { initScrollReveal } from './scrollReveal';
 import { initPaper } from './print';
 import { initAutoUpdate } from './autoUpdate';
@@ -13,6 +14,7 @@ import { mandatoryUpdate } from './update/mandatoryUpdate';
 import { isSaleInProgress } from './pos/saleActivity';
 
 initTheme();
+initTouchUi(); // ecrãs táteis: comportamento de telemóvel + campos acima do teclado
 initScrollReveal();
 initPaper();
 // Auto-atualização: só recarrega quando NÃO há venda em curso, para nunca perder

@@ -4,6 +4,7 @@ import { App } from './App';
 import '@nexus/tokens/tokens.css';
 import './theme.css';
 import { initTheme } from './theme';
+import { initTouchUi } from './touchUi';
 import { initAutoUpdate } from './autoUpdate';
 import { initScrollReveal } from './scrollReveal';
 import { initStickyStack } from './stickyStack';
@@ -19,6 +20,7 @@ import { isNativeApp } from './config';
 if (isNativeApp()) document.documentElement.classList.add('app-instalada');
 
 initTheme();
+initTouchUi(); // ecrãs táteis: comportamento de telemóvel + campos acima do teclado
 initAutoUpdate(); // recarrega sozinho quando há nova versão publicada
 // Verificação da versão INSTALADA (app Windows/Android) contra o servidor
 // oficial. Em segundo plano; sem internet não faz nada e o Gestor abre na mesma.

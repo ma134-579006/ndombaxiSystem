@@ -9,6 +9,7 @@ import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { PaperSizeToggle } from './PaperSizeToggle';
 import { buildShiftClosePdf, shiftFileName } from '../pdf/shiftPdf';
 import { abrirTurnoOffline, fecharTurnoOffline } from '../offline/shifts';
+import { isNativeApp } from '../offline/nativeShare';
 import { UiIcon } from './UiIcon';
 
 /**
@@ -110,7 +111,7 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
       // SEM REDE o turno abre à mesma, aqui no aparelho, e sobe quando a ligação
       // voltar. Sem isto, uma loja sem internet não conseguia sequer começar o
       // dia — e depois as vendas subiam sem turno, sem caírem na gaveta.
-      if (isNetworkFailure(e)) {
+      if (isNativeApp() && isNetworkFailure(e)) {
         await abrirTurnoOffline({ openingFloat: float });
         onOpened();
         return;
@@ -139,7 +140,7 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
       // SEM REDE fecha-se na mesma: fica declarado o que foi CONTADO na gaveta e
       // sobe depois das vendas. Quem apura o esperado é o servidor — recalcular
       // aqui seria ter duas contabilidades a discordar uma da outra.
-      if (isNetworkFailure(e)) {
+      if (isNativeApp() && isNetworkFailure(e)) {
         const t = await fecharTurnoOffline({
           countedCash: Number(counted) || 0, notes: notes.trim() || undefined,
         });
