@@ -98,3 +98,16 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - **Efeito ao rolar**: `scrollReveal.ts` usa `data-reveal`/`data-sfx` (NÃO `data-fx`, que é da landing — um conflito escondeu secções da landing).
 - **Cuidado CSS**: `:has()` não pode ser aninhado (`:has(.a:has(.b))` invalida a regra inteira).
 - Builds: o repo sob `...Packages\Claude_*\LocalCache` não compila (esbuild); compilar em `C:\ndombaxi-build` (cópia com node_modules). Android: workflow `android-build.yml` (manual) → artefacto `ndombaxi-android-debug`. Versões: desktop 1.3.0, android 1.1.0.
+
+## Atualização (2026-10-02 noite, 2) — apps 100% offline (memória interna primeiro), testes E2E reais
+- **Memória interna como servidor principal** (web `api/client.ts`, pos `api/client.ts`): na app, depois de uma falha de rede, LEITURAS respondem logo da memória (IndexedDB `ndombaxi.shared`) e ESCRITAS vão para a fila; sonda `/health` de 15 em 15 s → ao responder dispara `online`, a fila sobe e a memória atualiza. Leituras na app com timeout de 12 s. Guarda também `GET <caminho-sem-query>` para abrir páginas com outro filtro/período sem rede.
+- **Dados ao vivo nunca vêm da memória** (pos): `/pos/cart-draft`, `/cashbox/session/current`. Turno: espelho local (`espelharTurnoServidor` em `offline/shifts.ts`).
+- **Pré-carregamento** (`web/offline/prefetch.ts`, `ALL_READS`): todas as leituras da Gestão (excepto chat, notificações, IA, super admin). 403/404 (outro setor) saem da lista na sessão.
+- **Sincronização invisível**: `SyncStatusPill` não renderiza; chip da Caixa só aparece se o servidor recusar algo.
+- **Caixa no Windows**: `isNativeApp` de `offline/nativeShare` só via Capacitor → renomeado `isCapacitorApp` (só para PDF); o resto usa `config.isNativeApp` (Electron+Capacitor). Era a causa do "Sem ligação ao servidor" na Caixa do Windows.
+- **Turno offline**: `/sync/push` exige `createdAt` (faltava → 400 e vendas sem movimento de caixa). Corrigido.
+- **Instalador Windows**: `apps/desktop/installer/installer.nsh` (customCheckAppRunning) fecha à força "LPS Vendas.exe" (+ API local) e postgres da pasta da app.
+- **Ecrã inteiro**: Electron `setFullScreen(true)` + seta discreta (preload `#ndx-winctl`, IPC `ndombaxi:window`) + F11; Android `scripts/patch-android.mjs` (MainActivity imersiva) no workflow.
+- **Servidor local**: segredos JWT por posto, `API_PREFIX=''`, CSP com `http://127.0.0.1:*`, limites 6000/min, sem socket Unix fora do Windows.
+- **Como testar localmente (sem nuvem)**: `/usr/lib/postgresql/16/bin` + `@nexus/local-server` como utilizador `nobody` (ver commits); frontends com `VITE_API_URL=http://api.test` e Playwright a encaminhar `api.test` → `127.0.0.1:3399`, `window.__NDOMBAXI_NATIVE__=true`.
+- **Resultados**: Caixa offline (login PIN, abrir/fechar turno, vendas) → turno CLOSED com contado, faturas FT ligadas ao turno, stock certo. Gestão: todas as páginas abrem sem rede (só IA pede rede) em comércio, restauração, hotel, clínica, farmácia e serviços. Simulação hipermercado: 310 faturas multi-linha c/ descontos e 5 métodos → totais/IVA por taxa/métodos/lucro/contas a receber/fechos de caixa batem ao cêntimo com o cálculo independente e com a BD.
