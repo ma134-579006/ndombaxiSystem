@@ -847,23 +847,16 @@ export function PosPage() {
               {kitchenReady > 0 ? <span className="conn-badge" style={{ background: '#e5484d' }}>{kitchenReady > 99 ? '99+' : kitchenReady}</span> : null}
             </button>
           ) : null}
-          {!sync.online || sync.syncing || sync.pending > 0 ? (
+          {/* A sincronização é AUTOMÁTICA e corre em segundo plano (motor do aparelho). A página só
+              mostra, de forma discreta, que está sem rede — sem botão de sincronizar. */}
+          {isNativeApp() && (!sync.online || sync.pending > 0) ? (
           <button
             className={`conn ${sync.online ? 'on' : 'off'}`}
-            onClick={() => {
-              if (sync.online && sync.pending > 0) sync.flush();
-              setShowQueue(true);
-            }}
-            title={sync.online ? 'Online — ver fila de vendas' : 'Offline — vendas guardadas localmente'}
+            onClick={() => setShowQueue(true)}
+            title={sync.online ? 'Vendas guardadas no aparelho — enviam-se sozinhas' : 'Sem rede — a trabalhar no aparelho; envia sozinho quando houver ligação'}
           >
-            {sync.syncing ? (
-              <IconSync size={18} className="spin" />
-            ) : sync.online ? (
-              <IconCloud size={18} />
-            ) : (
-              <IconCloudOff size={18} />
-            )}
-            <span className="conn-label">{sync.online ? 'Online' : 'Offline'}</span>
+            {sync.online ? <IconCloud size={18} /> : <IconCloudOff size={18} />}
+            <span className="conn-label">{sync.online ? 'A enviar' : 'Sem rede'}</span>
             {sync.pending > 0 ? <span className="conn-badge">{sync.pending}</span> : null}
           </button>
           ) : null}
