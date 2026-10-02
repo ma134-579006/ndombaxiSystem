@@ -3709,3 +3709,19 @@ img.u-av { background: var(--surface-2); }
 .pr-plan { margin-top: 18px; padding: 14px 16px; border-radius: 14px; border: 1px dashed var(--border); display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--muted); }
 .pr-plan b { color: var(--text); font-size: 14px; }
 @media (max-width: 760px) { .pw-row { grid-template-columns: auto minmax(0, 1fr); } .pw-row .rc-state { display: none; } .pw-row .lv-act { grid-column: 1 / -1; justify-content: flex-start; } }
+
+/* Ação principal das configurações: largura própria, à direita (não ocupa a linha toda) */
+.page-anim[data-sec="settings"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="mail"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="gateways"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="integrations"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="backup"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="backup-restore"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="saft"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="fiscal"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="plans"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="ai"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="profile"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="subscription"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="downloads"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg,
+.page-anim[data-sec="feedback"] .card:has(> .field) > .btn, .card:has(> .field) > .btn.block, .card:has(> .field) > .btn.lg { width: auto !important; min-width: 240px; justify-self: end; }
