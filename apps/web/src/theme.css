@@ -3286,7 +3286,7 @@ img.u-av { background: var(--surface-2); }
 /* Barra lateral: ao abrir EMPURRA as páginas (não as tapa) — só com rato; em toque continua por cima */
 @media (min-width: 901px) and (hover: hover) and (pointer: fine) {
   .admin.nav-rail .main { transition: margin-left .28s cubic-bezier(.2,.8,.2,1); }
-  .admin.nav-rail:has(.sidebar:hover) .main, .admin.nav-rail:has(.sidebar:has(:focus-visible)) .main { margin-left: 264px; transition-delay: .08s; }
+  .admin.nav-rail:has(.sidebar:hover) .main, .admin.nav-rail:has(.sidebar :focus-visible) .main { margin-left: 264px; transition-delay: .08s; }
   .admin.nav-rail .sidebar:hover, .admin.nav-rail .sidebar:has(:focus-visible) { box-shadow: 1px 0 0 var(--border); }
 }
 /* Scroll discreto: só existe quando há conteúdo a mais e só se vê ao passar o rato */
