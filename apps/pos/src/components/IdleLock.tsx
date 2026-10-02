@@ -90,7 +90,7 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
           // SEM REDE → valida o PIN OFFLINE (mesmo cofre do login offline da Caixa)
           // e desbloqueia localmente. A sessão em memória é preservada; nunca há
           // logout. Só cai aqui em falha de rede (status 0).
-          if (e instanceof ApiError && e.status === 0 && user?.email) {
+          if (e instanceof ApiError && (e.status === 0 || e.status === 408 || (e.status >= 502 && e.status <= 504)) && user?.email) {
             const off = await verifyOffline(user.email, pin, companyCode);
             if (!off.ok) {
               throw new ApiError(off.reason === 'wrong-pin' ? 401 : 0,

@@ -1,0 +1,56 @@
+# Compila o instalador Windows (LPS Vendas, Windows 10/11 x64) na nuvem.
+# Manual: Actions → "Windows build" → Run workflow. Resultado: artefacto
+# `lps-vendas-windows` com LPSVendas-Setup-<versão>-x64.exe (sem assinatura
+# digital → o SmartScreen avisa na primeira instalação).
+name: Windows build
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    env:
+      NDOMBAXI_API_URL: https://ndombaxi-api-3nmz.onrender.com
+      PG_URL: https://get.enterprisedb.com/postgresql/postgresql-16.4-1-windows-x64-binaries.zip
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+      - name: better-sqlite3 para o ABI do Electron
+        shell: bash
+        working-directory: apps/desktop
+        run: |
+          cd "$(node -p "require('path').dirname(require.resolve('better-sqlite3/package.json'))")"
+          npx --yes prebuild-install@7 --runtime=electron --target=33.4.11 --arch=x64 --force
+      - name: PostgreSQL portátil (só bin, lib, share)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest $env:PG_URL -OutFile pg.zip
+          Expand-Archive pg.zip -DestinationPath pg-tmp
+          $dest = 'apps/desktop/resources/pgsql'
+          New-Item -ItemType Directory -Force $dest | Out-Null
+          foreach ($p in 'bin','lib','share') { Move-Item "pg-tmp/pgsql/$p" "$dest/$p" }
+          if (-not (Test-Path "$dest/bin/postgres.exe")) { throw 'postgres.exe em falta' }
+      - name: Compilar pacotes partilhados
+        run: |
+          pnpm --filter @nexus/types build
+          pnpm --filter @nexus/update-core build
+          pnpm --filter @nexus/shop-link build
+          pnpm --filter @nexus/replication build
+          pnpm --filter @nexus/local-server build
+      - name: Compilar app (frontends, API local, ícones)
+        run: pnpm --filter @nexus/desktop build
+      - name: Gerar instalador
+        working-directory: apps/desktop
+        run: pnpm exec electron-builder --win --x64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lps-vendas-windows
+          path: apps/desktop/release/*.exe
+          if-no-files-found: error

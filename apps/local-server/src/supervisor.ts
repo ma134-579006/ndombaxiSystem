@@ -20,7 +20,8 @@
  * diferença está só no `DATABASE_URL`.
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 import path from 'node:path';
 import {
@@ -204,6 +205,13 @@ export class LocalServer {
         // à própria máquina — instalar o programa não abre portas na loja.
         HOST: this.o.lan ? '0.0.0.0' : '127.0.0.1',
         NDOMBAXI_MODE: 'local',
+        // A API valida o ambiente ao arrancar: sem estes segredos terminava logo
+        // ("Invalid environment configuration") e o posto nunca tinha servidor
+        // local. Gerados UMA vez por máquina e guardados junto da base local.
+        ...localSecrets(path.dirname(this.o.paths.dataDir)),
+        // Mesmas rotas da nuvem (API_PREFIX vazio em produção): as apps chamam
+        // `/auth/login`, não `/api/v1/auth/login`.
+        API_PREFIX: '',
         ...(this.o.cloudApiUrl ? { NDOMBAXI_CLOUD_API: this.o.cloudApiUrl } : {}),
       },
       stdio: 'ignore',
@@ -283,4 +291,18 @@ export class LocalServer {
     } catch { /* melhor esforço no encerramento */ }
     this.info = null;
   }
+}
+
+/** Segredos JWT/cifra da API local deste posto — criados na 1.ª vez e reutilizados. */
+function localSecrets(baseDir: string): Record<string, string> {
+  const file = path.join(baseDir, 'secrets.json');
+  try {
+    const j = JSON.parse(readFileSync(file, 'utf8')) as Record<string, string>;
+    if (j.JWT_ACCESS_SECRET?.length >= 32 && j.JWT_REFRESH_SECRET?.length >= 32 && j.CONFIG_ENCRYPTION_KEY?.length >= 32) return j;
+  } catch { /* ainda não existe → cria */ }
+  const gen = () => randomBytes(48).toString('hex');
+  const j = { JWT_ACCESS_SECRET: gen(), JWT_REFRESH_SECRET: gen(), CONFIG_ENCRYPTION_KEY: gen() };
+  mkdirSync(baseDir, { recursive: true });
+  writeFileSync(file, JSON.stringify(j), { mode: 0o600 });
+  return j;
 }

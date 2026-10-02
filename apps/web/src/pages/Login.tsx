@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
+import { LOGO_WIDE } from '../brand';
 import { useAuth } from '../auth/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
@@ -162,7 +163,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
       <ScreenKeyboard />
       <div className="auth-panel">
         <div className="auth-form">
-          <img className="auth-logo-wide" src="/logo-horizontal.png" alt="LPS Vendas" />
+          <img className="auth-logo-wide" src={LOGO_WIDE} alt="LPS Vendas" />
           {resetToken ? (
             <>
               <h1 className="auth-title">Nova palavra-passe</h1>

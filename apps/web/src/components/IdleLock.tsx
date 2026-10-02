@@ -4,6 +4,7 @@ import { api, ApiError } from '../api/client';
 import { LOGO_SRC, SYSTEM_NAME } from '../brand';
 import { LS_PREV_ACCESS, LS_PREV_REFRESH, useAuth } from '../auth/AuthContext';
 import { API_URL } from '../config';
+import { verifyOffline } from '../offline/session';
 
 const IDLE_MS = 10 * 60 * 1000; // 10 min no PAINEL DE GESTÃO (leitura demora; a caixa mantém o bloqueio curto)
 const WEEKDAYS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
@@ -44,7 +45,7 @@ const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'jul
  * (re-verificada no servidor) — o estado do painel é preservado.
  */
 export function IdleLock({ photo, name, role }: { photo: string | null; name: string; role: string }) {
-  const { logout, shadow } = useAuth();
+  const { logout, shadow, user, companyCode } = useAuth();
   const [locked, setLocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [pw, setPw] = useState('');
@@ -104,7 +105,22 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
     if (!pw) { setErr('Introduz a tua palavra-passe.'); return; }
     setBusy(true); setErr(null);
     try {
-      const ok = shadow ? await verifyPlatformPassword(pw) : (await api.verifyPassword(pw)).ok;
+      let ok: boolean;
+      try {
+        ok = shadow ? await verifyPlatformPassword(pw) : (await api.verifyPassword(pw)).ok;
+      } catch (e) {
+        // SEM SERVIDOR (app instalada sem rede, nuvem a acordar): valida a senha no
+        // cofre offline do aparelho — o mesmo do login offline. Só em falha de rede;
+        // uma recusa do servidor nunca cai aqui.
+        const semRede = e instanceof TypeError
+          || (e instanceof ApiError && (e.status === 0 || e.status === 408 || (e.status >= 502 && e.status <= 504)));
+        if (!semRede || shadow || !user?.email) throw e;
+        const off = await verifyOffline(user.email, pw, companyCode);
+        if (!off.ok && off.reason !== 'wrong-password') {
+          throw new ApiError(0, 'Sem ligação ao servidor e sem credencial offline neste aparelho.');
+        }
+        ok = off.ok;
+      }
       if (ok) { setLocked(false); setPw(''); }
       else { setErr('Senha incorreta. Tenta novamente.'); setPw(''); inputRef.current?.focus(); }
     } catch (e) {

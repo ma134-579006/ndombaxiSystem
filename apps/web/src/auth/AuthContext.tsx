@@ -20,7 +20,7 @@ import {
   clearPendingUpgrade, getPendingUpgrade, rememberOffline, setPendingUpgrade, verifyOffline,
 } from '../offline/session';
 import { isOfflineToken, syncCredentials } from '../offline/credentials';
-import { offerSessionToHost } from '../offline/localServer';
+import { offerSessionToHost, startCloudSession, stopCloudSession } from '../offline/localServer';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 /** Que painel mostrar: plataforma (Super Admin) ou gestor da empresa. */
@@ -396,6 +396,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // que permite a qualquer colega entrar aqui sem rede, mesmo que nunca
       // tenha escrito a senha neste computador/telemóvel.
       void syncCredentials(code, true);
+      // Posto a trabalhar no servidor local: sessão da nuvem em segundo plano
+      // para a sincronização (o token local não vale na nuvem).
+      try {
+        startCloudSession({ email: input.email, password: input.password, companyCode: code, role: decodeJwt(r.accessToken)?.role ?? '' });
+      } catch { /* nunca estorva o login */ }
     },
     [applyTokens],
   );
@@ -463,6 +468,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [applyTokens, clearSession]);
 
   const logout = useCallback(async () => {
+    stopCloudSession();
     const rt = refreshRef.current;
     if (rt) {
       try {

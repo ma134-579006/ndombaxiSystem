@@ -40,9 +40,15 @@ const config: CapacitorConfig = {
   android: {
     // Contexto seguro para a WebView (crypto.subtle).
     initialFocus: true,
+    // O SERVIDOR DA LOJA (posto Windows na rede local) responde em http://IP:porta.
+    // A WebView é servida de https://localhost; sem isto o pedido era bloqueado
+    // como conteúdo misto e o telemóvel nunca chegava ao servidor local.
+    allowMixedContent: true,
   },
   server: {
     androidScheme: 'https',
+    // Android 9+ recusa HTTP em claro por omissão — necessário para o servidor da loja na LAN.
+    cleartext: true,
     iosScheme: 'https',
   },
 };

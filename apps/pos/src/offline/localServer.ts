@@ -18,7 +18,7 @@
  * tentativas já falharam. E é lá que se exige uma sessão de ADMINISTRADOR — um
  * operador de caixa a entrar num posto emprestado nunca deixa lá a empresa.
  */
-import { API_URL } from '../config';
+import { API_URL, CLOUD_API_URL } from '../config';
 
 interface Host {
   provisionLocal?(session: {
@@ -66,6 +66,9 @@ export async function offerSessionToHost(input: {
 }): Promise<void> {
   const h = host();
   if (!h?.provisionLocal) return;
+  // Token emitido pelo servidor local não vale na nuvem: não o entregar ao posto
+  // (a sincronização ficaria a falar consigo mesma). A Gestão trata da sessão da nuvem.
+  if (API_URL !== CLOUD_API_URL) return;
   try {
     await h.provisionLocal({
       accessToken: input.accessToken,

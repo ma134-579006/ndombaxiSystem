@@ -31,6 +31,10 @@ function hostApiUrl(): string | null {
   return w.ndombaxi?.apiUrl ?? null;
 }
 
+/** A NUVEM (nunca o servidor local). */
+export const CLOUD_API_URL = ((import.meta.env.VITE_API_URL as string | undefined)
+  || (isNativeApp() ? PROD_API_URL : 'http://localhost:3000')).replace(/\/$/, '');
+
 export const API_URL = (hostApiUrl()
   || (import.meta.env.VITE_API_URL as string | undefined)
   || (isNativeApp() ? PROD_API_URL : 'http://localhost:3000')).replace(/\/$/, '');

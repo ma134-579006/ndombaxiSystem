@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import type { SupportMsg } from '../api/types';
 
+/** `/guides/…` relativo à base do build (nas apps o módulo é servido de subpasta). */
+const assetUrl = (p: string) => `${import.meta.env.BASE_URL || '/'}${p.replace(/^\//, '')}`;
+
 const LS_CHAT = 'ndombaxi.support.chat';
 const LS_MSGS = 'ndombaxi.support.msgs';
 const LS_HUMAN = 'ndombaxi.support.human';
@@ -53,12 +56,12 @@ export function MsgBody({ body, sender }: { body: string; sender?: string }) {
       {guide.startsWith('/guides/') ? (
         <>
           <span className="sc-img zoomable" onClick={() => setZoom(true)} title="Toca para ampliar">
-            <img src={guide} alt="Guia visual do sistema" loading="lazy" />
+            <img src={assetUrl(guide)} alt="Guia visual do sistema" loading="lazy" />
             <span className="sc-img-zoom" aria-hidden>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3M11 8v6M8 11h6" /></svg>
             </span>
           </span>
-          {zoom ? <GuideLightbox src={guide} onClose={() => setZoom(false)} /> : null}
+          {zoom ? <GuideLightbox src={assetUrl(guide)} onClose={() => setZoom(false)} /> : null}
         </>
       ) : guide.startsWith('<svg') && sender === 'BOT' ? (
         // SEGURANÇA: o SVG inline só é injetado para mensagens do BOT — o guia

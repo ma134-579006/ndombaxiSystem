@@ -121,6 +121,12 @@ let ultimoAdiamento: string | null = null;
 async function autoProvision(session: {
   accessToken: string; companyCode: string; apiUrl: string; role: string; busy?: boolean;
 }): Promise<{ done: boolean; reason?: string; rows?: number }> {
+  // Sessão emitida pelo PRÓPRIO servidor local: não vale na nuvem — usá-la para
+  // copiar ou replicar seria o posto a falar consigo mesmo. A app entrega à parte
+  // uma sessão da nuvem para isso.
+  if (/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(session.apiUrl) || session.apiUrl === localApiUrl) {
+    return { done: false, reason: 'sessão do servidor local (à espera da sessão da nuvem)' };
+  }
   const ls = await import('@nexus/local-server');
   const paths = ls.layout({
     userDataDir: app.getPath('userData'),
