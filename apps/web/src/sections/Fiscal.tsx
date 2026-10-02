@@ -1,4 +1,4 @@
-import { confirmDialog, toast } from '../components/feedback';
+import { confirmDialog, toast, runDownload } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { AgtConfig, AgtExtraField, PlatformSigningStatus, UpdateAgtInput } from '../api/types';
@@ -263,15 +263,17 @@ function SigningKeyCard({ st, onChanged }: { st: PlatformSigningStatus | null; o
   const exportPem = async () => {
     setBusy(true);
     try {
-      const r = await api.fiscal.exportPublicKey();
-      // O portal da AGT exige .txt (não aceita .pem); o conteúdo é o mesmo bloco PEM.
-      const blob = new Blob([r.pem], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = r.fileName || 'public.txt';
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-      toast.success(`Chave pública exportada (${r.fileName || 'public.txt'}, versão ${r.keyVersion}).`);
+      let info = { fileName: 'public.txt', keyVersion: 0 };
+      await runDownload({
+        title: 'A exportar chave pública', fileName: 'public.txt',
+        make: async () => {
+          const r = await api.fiscal.exportPublicKey();
+          info = { fileName: r.fileName || 'public.txt', keyVersion: r.keyVersion };
+          // O portal da AGT exige .txt (não aceita .pem); o conteúdo é o mesmo bloco PEM.
+          return { blob: new Blob([r.pem], { type: 'text/plain;charset=utf-8' }), fileName: info.fileName };
+        },
+      });
+      toast.success(`Chave pública exportada (${info.fileName}, versão ${info.keyVersion}).`);
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao exportar.'); }
     finally { setBusy(false); }
   };

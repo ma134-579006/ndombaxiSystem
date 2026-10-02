@@ -1,4 +1,4 @@
-import { confirmDialog, toast } from '../components/feedback';
+import { confirmDialog, toast, runDownload } from '../components/feedback';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Company, CompanyStatus } from '../api/types';
@@ -81,14 +81,11 @@ export function Tenants() {
   const exportData = async (c: Company) => {
     setBusyId(c.id);
     try {
-      const data = await api.tenants.exportData(c.id);
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${c.code}-dados-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await runDownload({
+        title: `A exportar dados de ${c.name ?? c.code}`,
+        fileName: `${c.code}-dados-${new Date().toISOString().slice(0, 10)}.json`,
+        make: async () => new Blob([JSON.stringify(await api.tenants.exportData(c.id), null, 2)], { type: 'application/json' }),
+      });
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Não foi possível exportar.');
     } finally { setBusyId(null); }

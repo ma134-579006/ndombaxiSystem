@@ -77,6 +77,101 @@ export async function runBulk<T>(opts: {
   return { done: st.done, failed: st.failed, firstError };
 }
 
+/* ── PROGRESSO DE UPLOAD / DOWNLOAD / GERAÇÃO DE FICHEIROS ─────────────────
+   O MESMO ecrã de progresso das operações em massa (anel com %, barra e estado),
+   para TODO o sistema: carregar um ficheiro, descarregar um export/backup, gerar um PDF.
+   - Só aparece se a operação demorar (>250 ms) — tarefas instantâneas não "piscam".
+   - Se a tarefa reportar % real (ctl.setPct) usa-o; senão avança suavemente até ~92%
+     e salta para 100% quando termina. Mostra o 100% antes de fechar. */
+type TransferKind = 'upload' | 'download' | 'generate';
+interface TransferState { title: string; kind: TransferKind; file?: string; pct: number; detail?: string; finished: boolean }
+let setTransferUi: ((s: TransferState | null) => void) | null = null;
+export interface TransferCtl { setPct(n: number, detail?: string): void }
+const fmtBytes = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+export async function runTransfer<T>(opts: { title: string; kind?: TransferKind; file?: string; task: (ctl: TransferCtl) => Promise<T> }): Promise<T> {
+  const st: TransferState = { title: opts.title, kind: opts.kind ?? 'generate', file: opts.file, pct: 0, finished: false };
+  let shown = false; let real = false; let shownAt = 0;
+  const paint = () => { if (shown) setTransferUi?.({ ...st }); };
+  const showTimer = window.setTimeout(() => { shown = true; shownAt = Date.now(); paint(); }, 250);
+  const simTimer = window.setInterval(() => { if (real) return; st.pct = st.pct + (92 - st.pct) * 0.07; paint(); }, 130);
+  const ctl: TransferCtl = { setPct: (n, d) => { real = true; st.pct = Math.max(st.pct, Math.min(99, n)); if (d) st.detail = d; paint(); } };
+  const stop = () => { window.clearTimeout(showTimer); window.clearInterval(simTimer); };
+  try {
+    const r = await opts.task(ctl);
+    stop();
+    if (shown) {
+      st.pct = 100; st.finished = true; paint();
+      await new Promise((res) => setTimeout(res, Math.max(600, 900 - (Date.now() - shownAt))));
+      setTransferUi?.(null);
+    }
+    return r;
+  } catch (e) { stop(); if (shown) setTransferUi?.(null); throw e; }
+}
+
+/** Lê um ficheiro escolhido pelo utilizador com progresso REAL (onprogress). */
+export function readFileProgress(file: File, mode: 'dataURL' | 'text' = 'dataURL'): Promise<string> {
+  return runTransfer<string>({
+    title: 'A carregar ficheiro', kind: 'upload', file: `${file.name} · ${fmtBytes(file.size)}`,
+    task: (ctl) => new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onprogress = (e) => { if (e.lengthComputable) ctl.setPct((e.loaded / e.total) * 100, `${fmtBytes(e.loaded)} de ${fmtBytes(e.total)}`); };
+      r.onload = () => resolve(String(r.result));
+      r.onerror = () => reject(new Error('Não foi possível ler o ficheiro.'));
+      if (mode === 'text') r.readAsText(file); else r.readAsDataURL(file);
+    }),
+  });
+}
+
+/** Grava um Blob no disco (descarregamento). */
+function saveBlobToDisk(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/** Descarrega um ficheiro produzido por `make` (pedido à API, geração local…) com o ecrã de progresso. */
+export function runDownload(opts: { title: string; fileName: string; make: (ctl: TransferCtl) => Promise<Blob | { blob: Blob; fileName?: string }> }): Promise<void> {
+  return runTransfer<void>({
+    title: opts.title, kind: 'download', file: opts.fileName,
+    task: async (ctl) => {
+      const out = await opts.make(ctl);
+      const blob = out instanceof Blob ? out : out.blob;
+      const name = out instanceof Blob ? opts.fileName : (out.fileName || opts.fileName);
+      ctl.setPct(97, `${fmtBytes(blob.size)} · a guardar`);
+      saveBlobToDisk(blob, name);
+    },
+  });
+}
+
+function TransferProgress({ s }: { s: TransferState }) {
+  const pct = Math.round(s.pct);
+  const label = s.finished ? 'Concluído' : s.title;
+  const ic = s.kind === 'upload' ? 'M12 19V6M6.5 11.5 12 6l5.5 5.5M5 20h14' : s.kind === 'download' ? 'M12 5v13M6.5 12.5 12 18l5.5-5.5M5 4h14' : 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 14h6M9 17h4';
+  return (
+    <div className="fb-confirm-bg" role="dialog" aria-modal="true" aria-label={label}>
+      <div className="fb-confirm fb-bulk fb-xfer">
+        <div className={`fb-bulk-ring${s.finished ? ' ok' : ''}`} style={{ ['--p' as string]: pct }}>
+          <span>{s.finished
+            ? <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+            : `${pct}%`}</span>
+        </div>
+        <h4>{label}</h4>
+        {s.file ? (
+          <div className="fb-xfer-file">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={ic} /></svg>
+            <span>{s.file}</span>
+          </div>
+        ) : null}
+        <p aria-live="polite">{s.finished ? (s.kind === 'upload' ? 'Ficheiro carregado' : s.kind === 'download' ? 'Ficheiro guardado' : 'Ficheiro pronto') : (s.detail || (s.kind === 'upload' ? 'A enviar…' : s.kind === 'download' ? 'A preparar o ficheiro…' : 'A gerar…'))}</p>
+        <div className="fb-bulk-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}><i style={{ width: `${pct}%` }} /></div>
+        {!s.finished ? <small className="fb-bulk-hint">Não feche esta janela.</small> : null}
+      </div>
+    </div>
+  );
+}
+
 function BulkProgress({ s }: { s: BulkState }) {
   const processed = s.done + s.failed;
   const pct = s.total ? Math.round((processed / s.total) * 100) : 100;
@@ -116,6 +211,7 @@ export function FeedbackHost() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [bulk, setBulk] = useState<BulkState | null>(null);
+  const [xfer, setXfer] = useState<TransferState | null>(null);
 
   useEffect(() => {
     pushToast = (kind, text) => {
@@ -126,7 +222,8 @@ export function FeedbackHost() {
     };
     openConfirm = (c) => setConfirm(c);
     setBulkUi = (s) => setBulk(s);
-    return () => { pushToast = null; openConfirm = null; setBulkUi = null; };
+    setTransferUi = (s) => setXfer(s);
+    return () => { pushToast = null; openConfirm = null; setBulkUi = null; setTransferUi = null; };
   }, []);
 
   // Esc fecha o diálogo (= cancelar)
@@ -169,6 +266,7 @@ export function FeedbackHost() {
         </div>
       ) : null}
       {bulk ? <BulkProgress s={bulk} /> : null}
+      {xfer ? <TransferProgress s={xfer} /> : null}
     </>
   );
 }

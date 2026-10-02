@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { readFileProgress } from '../components/feedback';
 import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { BankTx, ImportStatementRow, ReconSummary } from '../api/types';
@@ -78,13 +79,11 @@ export function Reconciliation() {
   const onFile = (file: File | undefined) => {
     if (!file) return;
     setMsg(null); setError(null);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const r = parseCsv(String(reader.result));
+    void readFileProgress(file, 'text').then((text) => {
+      const r = parseCsv(text);
       if (r.length === 0) { setError('Não encontrei movimentos no ficheiro. Formato: data;descrição;valor'); setParsed(null); return; }
       setParsed(r);
-    };
-    reader.readAsText(file);
+    }).catch((e) => setError(e instanceof Error ? e.message : 'Falha ao ler o ficheiro.'));
   };
 
   const doImport = async () => {

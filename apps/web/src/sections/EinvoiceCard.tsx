@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { confirmDialog, toast } from '../components/feedback';
+import { confirmDialog, toast, runDownload } from '../components/feedback';
 import { api, ApiError } from '../api/client';
 
 /**
@@ -110,15 +110,13 @@ export function EinvoiceCard({ onChanged }: { onChanged?: () => void }) {
 
   const exportKey = () =>
     guard(async () => {
-      const r = await api.fiscal.feExportKey();
-      const url = URL.createObjectURL(new Blob([r.pem], { type: 'text/plain;charset=utf-8' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = r.fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      await runDownload({
+        title: 'A exportar chave pública', fileName: 'chave-publica.txt',
+        make: async () => {
+          const r = await api.fiscal.feExportKey();
+          return { blob: new Blob([r.pem], { type: 'text/plain;charset=utf-8' }), fileName: r.fileName };
+        },
+      });
     }, 'Chave pública exportada.');
 
   const saveCompany = (dto: Record<string, unknown>, msg: string) =>

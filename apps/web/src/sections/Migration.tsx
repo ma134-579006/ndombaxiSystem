@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { MigrationApplyResult, MigrationKind, MigrationPreview, WarehouseRow } from '../api/types';
-import { toast, confirmDialog } from '../components/feedback';
+import { toast, confirmDialog, readFileProgress } from '../components/feedback';
 import { IconUpload, IconCube, IconUsers, IconTruck, IconCheck, IconClose, IconRefresh } from '../components/Icons';
 
 const KIND_LABEL: Record<MigrationKind, string> = { products: 'Produtos', customers: 'Clientes', suppliers: 'Fornecedores' };
@@ -21,13 +21,9 @@ const ACCEPT = '.xlsx,.xls,.xlsm,.csv,.txt,.xml,.sql';
 // Limite de segurança no cliente (o servidor aceita ~30 MB binários / 50 MB de corpo).
 const MAX_FILE_MB = 30;
 
-function readAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => { const s = String(reader.result); resolve(s.slice(s.indexOf(',') + 1)); };
-    reader.onerror = () => reject(new Error('Não foi possível ler o ficheiro.'));
-    reader.readAsDataURL(file);
-  });
+async function readAsBase64(file: File): Promise<string> {
+  const s = await readFileProgress(file);
+  return s.slice(s.indexOf(',') + 1);
 }
 
 /** Migração inteligente de dados de outros sistemas (Vendus, Primavera, PHC/

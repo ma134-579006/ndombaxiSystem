@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { readFileProgress } from '../components/feedback';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { BankAccount, PublicPlan } from '../api/types';
@@ -119,9 +120,7 @@ export function PayStep({ onNext, allowPlanChoice = false, auth = false }: { onN
   const onFile = (f?: File) => {
     if (!f) return;
     if (f.size > 4_000_000) { setErr('Imagem demasiado grande (máx. ~4 MB).'); return; }
-    const r = new FileReader();
-    r.onload = () => setFile({ name: f.name, type: f.type, data: String(r.result) });
-    r.readAsDataURL(f);
+    void readFileProgress(f).then((data) => setFile({ name: f.name, type: f.type, data: data }));
   };
 
   const submit = async () => {
@@ -288,9 +287,7 @@ function DataStep({ onDone, onBack }: { onDone(): void; onBack?: () => void }) {
   const onLogo = (file?: File) => {
     if (!file) return;
     if (file.size > 1_500_000) { setErr('Logótipo demasiado grande (máx. ~1,5 MB).'); return; }
-    const r = new FileReader();
-    r.onload = () => setLogoUrl(String(r.result));
-    r.readAsDataURL(file);
+    void readFileProgress(file).then((data) => setLogoUrl(data));
   };
 
   const submit = async () => {

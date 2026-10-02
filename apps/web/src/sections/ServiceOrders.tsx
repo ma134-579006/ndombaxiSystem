@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { ManagerProduct, ServiceAgendaRow, ServiceChecklistItem, ServiceEquipment, ServiceOrderDetail, ServiceOrderRow } from '../api/types';
-import { toast } from '../components/feedback';
+import { toast, runTransfer } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz } from '../format';
@@ -14,24 +14,28 @@ const KZ = (n: string | number) => formatKz(Number(n) || 0);
 /** Gera e descarrega o PDF (fatura fiscal) de um documento emitido. Import
  *  dinâmico do gerador (+jsPDF) — só carrega quando se imprime. */
 async function printInvoicePdf(invoiceId: string): Promise<void> {
-  const [{ buildInvoicePdf, invoiceFileName }, sale, identity] = await Promise.all([
-    import('../pdf/invoicePdf'),
-    api.sales.detail(invoiceId),
-    api.branding().catch(() => null),
-  ]);
-  const pdf = await buildInvoicePdf(sale, identity);
-  pdf.save(invoiceFileName(sale));
+  await runTransfer({ title: 'A gerar a fatura em PDF', kind: 'generate', task: async () => {
+    const [{ buildInvoicePdf, invoiceFileName }, sale, identity] = await Promise.all([
+      import('../pdf/invoicePdf'),
+      api.sales.detail(invoiceId),
+      api.branding().catch(() => null),
+    ]);
+    const pdf = await buildInvoicePdf(sale, identity);
+    pdf.save(invoiceFileName(sale));
+  } });
 }
 
 /** Gera e descarrega a FOLHA DE OBRA/SERVIÇO (PDF). Se `trackingUrl` for dado, o
  *  QR abre o portal do cliente (estado do reparo). */
 async function printWorkOrder(detail: ServiceOrderDetail, trackingUrl?: string): Promise<void> {
-  const [{ buildWorkOrderPdf, workOrderFileName }, identity] = await Promise.all([
-    import('../pdf/workOrderPdf'),
-    api.branding().catch(() => null),
-  ]);
-  const pdf = await buildWorkOrderPdf(detail, identity, trackingUrl);
-  pdf.save(workOrderFileName(detail.order));
+  await runTransfer({ title: 'A gerar a folha de serviço em PDF', kind: 'generate', task: async () => {
+    const [{ buildWorkOrderPdf, workOrderFileName }, identity] = await Promise.all([
+      import('../pdf/workOrderPdf'),
+      api.branding().catch(() => null),
+    ]);
+    const pdf = await buildWorkOrderPdf(detail, identity, trackingUrl);
+    pdf.save(workOrderFileName(detail.order));
+  } });
 }
 const STATUS: { id: string; label: string }[] = [
   { id: 'OPEN', label: 'Aberta' }, { id: 'QUOTED', label: 'Orçamentada' }, { id: 'APPROVED', label: 'Aprovada' },

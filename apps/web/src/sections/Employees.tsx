@@ -1,5 +1,5 @@
 import { UserAvatar } from '../components/UserAvatar';
-import { confirmDialog, runBulk } from '../components/feedback';
+import { confirmDialog, runBulk, readFileProgress } from '../components/feedback';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import {
@@ -108,9 +108,7 @@ export function Employees() {
   const onPickPhoto = (file: File | undefined) => {
     if (!file) return;
     if (file.size > 1_800_000) { setFormError('Foto demasiado grande (máx. ~1,8 MB).'); return; }
-    const reader = new FileReader();
-    reader.onload = () => setForm((f) => ({ ...f, photoUrl: String(reader.result) }));
-    reader.readAsDataURL(file);
+    void readFileProgress(file).then((data) => setForm((f) => ({ ...f, photoUrl: data })));
   };
 
   const save = async () => {
