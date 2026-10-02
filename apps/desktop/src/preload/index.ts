@@ -172,10 +172,61 @@ function injectBackButton(): void {
   window.addEventListener('storage', sync);
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', injectBackButton);
-} else {
+/**
+ * Seta QUASE INVISÍVEL no canto superior direito: a app corre em ecrã inteiro
+ * (sem barra de título nem barra de tarefas); um clique aqui mostra Minimizar,
+ * Sair/Entrar em ecrã inteiro e Fechar. Em todos os ecrãs (lançador e módulos).
+ */
+function injectWindowControls(): void {
+  if (document.getElementById('ndx-winctl')) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'ndx-winctl';
+  wrap.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483647;display:flex;flex-direction:column;align-items:flex-end;font:500 13px system-ui,Segoe UI,sans-serif;';
+  const tab = document.createElement('button');
+  tab.type = 'button';
+  tab.title = 'Janela (minimizar, ecrã inteiro, fechar)';
+  tab.setAttribute('aria-label', 'Controlos da janela');
+  tab.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+  tab.style.cssText = 'width:22px;height:14px;padding:0;display:grid;place-items:center;border:0;border-radius:0 0 0 8px;background:rgba(100,116,139,.18);color:rgba(100,116,139,.55);cursor:pointer;opacity:.35;transition:opacity .15s,background .15s;';
+  tab.addEventListener('mouseenter', () => { tab.style.opacity = '1'; tab.style.background = 'rgba(36,48,232,.9)'; tab.style.color = '#fff'; });
+  tab.addEventListener('mouseleave', () => { if (panel.style.display === 'none') { tab.style.opacity = '.35'; tab.style.background = 'rgba(100,116,139,.18)'; tab.style.color = 'rgba(100,116,139,.55)'; } });
+  const panel = document.createElement('div');
+  panel.style.cssText = 'display:none;margin:4px 6px 0 0;padding:6px;border-radius:12px;background:#fff;color:#0f172a;box-shadow:0 18px 40px -12px rgba(15,23,42,.45);border:1px solid rgba(15,23,42,.08);min-width:190px;';
+  const item = (label: string, action: string, danger = false) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.style.cssText = `display:block;width:100%;text-align:left;padding:9px 12px;border:0;border-radius:8px;background:transparent;cursor:pointer;font:inherit;color:${danger ? '#dc2626' : 'inherit'};`;
+    b.addEventListener('mouseenter', () => { b.style.background = danger ? 'rgba(220,38,38,.08)' : 'rgba(36,48,232,.08)'; });
+    b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; });
+    b.addEventListener('click', async () => {
+      hide();
+      const fs = await ipcRenderer.invoke('ndombaxi:window', action);
+      if (action === 'fullscreen') fsBtn.textContent = fs ? 'Sair de ecrã inteiro' : 'Ecrã inteiro';
+    });
+    panel.appendChild(b);
+    return b;
+  };
+  item('Minimizar', 'minimize');
+  const fsBtn = item('Sair de ecrã inteiro', 'fullscreen');
+  item('Fechar o LPS Vendas', 'close', true);
+  const hide = () => { panel.style.display = 'none'; tab.style.opacity = '.35'; tab.style.background = 'rgba(100,116,139,.18)'; tab.style.color = 'rgba(100,116,139,.55)'; };
+  tab.addEventListener('click', (e) => { e.stopPropagation(); panel.style.display = panel.style.display === 'none' ? 'block' : 'none'; });
+  document.addEventListener('click', (e) => { if (!wrap.contains(e.target as Node)) hide(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+  wrap.append(tab, panel);
+  document.body.appendChild(wrap);
+}
+
+function injectShell(): void {
   injectBackButton();
+  injectWindowControls();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', injectShell);
+} else {
+  injectShell();
 }
 
 export type NdombaxiBridge = typeof api;
