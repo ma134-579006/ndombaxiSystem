@@ -49,6 +49,7 @@ import { deviceKey } from '../offline/device';
 import { setPosBusy } from '../offline/localServer';
 import { espelharTurnoServidor, turnoAbertoLocal } from '../offline/shifts';
 import { isNativeApp } from '../config';
+import { syncCatalog } from '../offline/catalog';
 import { setSaleInProgress } from '../pos/saleActivity';
 
 const CACHE_PRODUCTS = 'cache:products';
@@ -414,16 +415,47 @@ export function PosPage() {
     };
   }, [sync.online, refreshProducts]);
 
+  // CATÁLOGOS GRANDES: a grelha mostra os primeiros 300; a PESQUISA vai ao servidor
+  // (ou à memória interna, sem rede) — nome, código, código de barras e marca.
+  const [searchHits, setSearchHits] = useState<Product[]>([]);
+  useEffect(() => {
+    const q = search.trim();
+    if (!q) { setSearchHits([]); return; }
+    let vivo = true;
+    const t = window.setTimeout(() => {
+      api.listProducts({ q, limit: 100 }).then((r) => { if (vivo) setSearchHits(r); }).catch(() => undefined);
+    }, 250);
+    return () => { vivo = false; window.clearTimeout(t); };
+  }, [search]);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return products;
-    return products.filter(
+    const local = products.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.code.toLowerCase().includes(q) ||
         (p.barcode ?? '').toLowerCase().includes(q),
     );
-  }, [products, search]);
+    const ids = new Set(local.map((p) => p.id));
+    return [...local, ...searchHits.filter((p) => !ids.has(p.id))];
+  }, [products, search, searchHits]);
+  /** Procura UM produto por código/código de barras: primeiro no que já está carregado,
+   *  depois no servidor/memória interna (catálogos que não cabem na grelha). */
+  const lookupCode = useCallback(async (code: string): Promise<Product | null> => {
+    const c = code.trim().toLowerCase();
+    const isExact = (p: Product) => (p.barcode ?? '').toLowerCase() === c || p.code.toLowerCase() === c;
+    const local = products.find(isExact) ?? searchHits.find(isExact);
+    if (local) return local;
+    try { return (await api.listProducts({ q: code.trim(), limit: 5 })).find(isExact) ?? null; } catch { return null; }
+  }, [products, searchHits]);
+  // Memória interna do catálogo (app instalada): sincroniza as alterações em 2.º plano.
+  useEffect(() => {
+    if (!isNativeApp() || !companyCode) return;
+    const run = () => { void syncCatalog(companyCode, async (since, after) => (await api.productChanges(since, after)) as never).catch(() => undefined); };
+    run();
+    const t = window.setInterval(run, 3 * 60_000);
+    return () => window.clearInterval(t);
+  }, [companyCode]);
 
   // Promoções: desconto por linha (em tempo real, espelha o backend).
   const promoByProduct = useMemo(() => {
@@ -648,12 +680,23 @@ export function PosPage() {
    * procura por código de barras / código EXACTO; lança ao carrinho e LIMPA a
    * pesquisa (auto-enter), pronto para a próxima leitura.
    */
+  const scanPending = useRef(new Set<string>());
   const scanResolve = (raw: string): boolean => {
     const code = raw.trim();
     if (!code) return false;
     const found = products.find(
       (p) => (p.barcode && p.barcode === code) || p.code.toLowerCase() === code.toLowerCase(),
     );
+    if (!found) {
+      // Não está na grelha (catálogo grande): procura no servidor/memória interna.
+      if (scanPending.current.has(code)) return false;
+      scanPending.current.add(code);
+      void lookupCode(code).then((p) => {
+        if (p) { if (addToCart(p)) setSearch(''); else setSearch(code); }
+        else { setSearch(code); flashError(`Código não encontrado: ${code}`); }
+      }).finally(() => { scanPending.current.delete(code); });
+      return false;
+    }
     if (found) {
       // Regra: só limpa o campo DEPOIS de lançar mesmo o produto no carrinho.
       const added = addToCart(found);
@@ -674,7 +717,10 @@ export function PosPage() {
     const exact = products.find((p) => (p.barcode && p.barcode === q) || p.code.toLowerCase() === q.toLowerCase());
     if (exact) { if (addToCart(exact)) setSearch(''); return; }
     if (filtered.length === 1) { if (addToCart(filtered[0])) setSearch(''); return; }
-    flashError('Vários resultados — toque no produto ou leia o código.');
+    void lookupCode(q).then((p) => {
+      if (p) { if (addToCart(p)) setSearch(''); return; }
+      flashError(filtered.length ? 'Vários resultados — toque no produto ou leia o código.' : `Código não encontrado: ${q}`);
+    });
   };
 
   // Leitor de código de barras FÍSICO (keyboard-wedge): lê e lança ao carrinho.
@@ -689,12 +735,13 @@ export function PosPage() {
     const q = search.trim();
     if (!q) return;
     const t = window.setTimeout(() => {
-      const exact = products.find((p) => (p.barcode && p.barcode === q) || p.code.toLowerCase() === q.toLowerCase());
+      const isExact = (p: Product) => (p.barcode && p.barcode === q) || p.code.toLowerCase() === q.toLowerCase();
+      const exact = products.find(isExact) ?? searchHits.find(isExact);
       if (exact && addToCart(exact)) setSearch('');
     }, 140);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, products]);
+  }, [search, products, searchHits]);
 
   /** Guarda a venda na fila offline e mostra um comprovativo PROVISÓRIO. */
   /**

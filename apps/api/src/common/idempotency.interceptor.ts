@@ -1,3 +1,4 @@
+import { AsyncResource } from 'node:async_hooks';
 import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Request, Response } from 'express';
@@ -36,13 +37,19 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const schema = auth?.tenantSchema;
     if (!schema) return next.handle();
 
+    // O resto do pedido (controlador) tem de correr no contexto ASSÍNCRONO deste
+    // pedido: depois do `await` da consulta, o callback corre no contexto do
+    // Prisma e o TenantContext (AsyncLocalStorage) perdia-se — TODAS as escritas
+    // com X-Client-Op-Id (fila offline das apps) davam 500 "No tenant in current
+    // request context" e nunca subiam. `bind` captura o contexto já aqui.
+    const handle = AsyncResource.bind(() => next.handle());
     return from(this.lookup(schema, opId)).pipe(
       switchMap((hit) => {
         if (hit) {
           res.status(hit.status);
           return of(hit.body);
         }
-        return next.handle().pipe(
+        return handle().pipe(
           mergeMap(async (body) => {
             await this.record(schema, opId, auth, method, req.originalUrl ?? req.url, res.statusCode, body);
             return body;

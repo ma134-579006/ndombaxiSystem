@@ -1,7 +1,8 @@
 import { API_URL, isNativeApp } from '../config';
-import { canQueue, enqueueWrite, newOpId, replayOutbox, type OutboxOp, type SendResult } from '../offline/outbox';
+import { canQueue, enqueueWrite, newOpId, replayOutbox, withSnake, type OutboxOp, type SendResult } from '../offline/outbox';
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
+import { applyToCatalog, queryCatalog } from '../offline/catalog';
 import type {
   AgtCommResult,
   AgtCommStatus,
@@ -230,8 +231,37 @@ function sondarServidor(): void {
 }
 /** Caminho sem query: chave de recurso para quando a página pede outro filtro/data sem rede. */
 const semQuery = (path: string) => path.split('?')[0];
+/** Produtos: listas/páginas/pesquisas respondidas pela base indexada (offline/catalog). */
+const PRODUTOS = /^\/pos\/products(\/all)?(\?|$)/;
 async function lerDaMemoria<T>(path: string): Promise<T | null> {
+  if (PRODUTOS.test(path)) {
+    const company = hooks?.getCompanyCode?.();
+    if (!company) return null;
+    const u = new URL(path, 'http://x');
+    const rows = await queryCatalog(company, {
+      q: u.searchParams.get('q') ?? '',
+      limit: Number(u.searchParams.get('limit')) || 1000,
+      offset: Number(u.searchParams.get('offset')) || 0,
+      includeInactive: u.pathname.endsWith('/all'),
+    }).catch(() => []);
+    return rows as unknown as T;
+  }
   return (await sharedGet<T>(`GET ${path}`)) ?? (await sharedGet<T>(`GET ${semQuery(path)}`));
+}
+
+/** Escrita guardada na fila do aparelho; produtos refletem-se já na memória do catálogo. */
+async function guardarNaFila(method: string, path: string, body: unknown, opId: string): Promise<unknown> {
+  const res = await enqueueWrite(method, path, body, opId);
+  const m = /^\/pos\/products(?:\/([^/?]+))?(?:\?|$)/.exec(path);
+  const company = hooks?.getCompanyCode?.();
+  if (m && company && !['all', 'changes', 'ingredients'].includes(m[1] ?? '')) {
+    const b = withSnake((body && typeof body === 'object' ? body : {}) as Record<string, unknown>);
+    const M = method.toUpperCase();
+    if (M === 'POST' && !m[1]) await applyToCatalog(company, 'create', String((res as { id?: string }).id), b).catch(() => undefined);
+    else if (M === 'DELETE' && m[1]) await applyToCatalog(company, 'delete', m[1]).catch(() => undefined);
+    else if (m[1]) await applyToCatalog(company, 'update', m[1], b).catch(() => undefined);
+  }
+  return res;
 }
 
 async function request<T>(
@@ -265,7 +295,7 @@ async function request<T>(
       const mem = await lerDaMemoria<T>(path);
       if (mem != null) return mem;
     } else if (queueable && opId) {
-      return (await enqueueWrite(method, path, body, opId)) as T;
+      return (await guardarNaFila(method, path, body, opId)) as T;
     }
   }
   // NOTA: NÃO usamos `navigator.onLine` para decidir se há rede. Nas apps nativas
@@ -306,7 +336,7 @@ async function request<T>(
     // trabalho offline). Um timeout (servidor a acordar) NÃO usa cache — é online.
     // SEM REDE numa ESCRITA: guarda na fila do aparelho e responde como se tivesse gravado.
     if (queueable && opId) {
-      return (await enqueueWrite(method, path, body, opId)) as T;
+      return (await guardarNaFila(method, path, body, opId)) as T;
     }
     if (isNativeApp() && isGet) {
       // Também num tempo esgotado: na app, a memória interna é a resposta.
@@ -328,7 +358,8 @@ async function request<T>(
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const data = (text ? JSON.parse(text) : undefined) as T;
-  if (isNativeApp() && isGet && data !== undefined) {
+  if (isNativeApp() && isGet && data !== undefined && !PRODUTOS.test(path)) {
+    // (Produtos ficam na base indexada própria — nunca como um bloco gigante aqui.)
     // Memória interna: a resposta exata e, à parte, a última versão do recurso
     // (sem filtros) — serve a mesma página sem rede com outro período/filtro.
     void sharedSet(cacheKey, data);
@@ -358,10 +389,27 @@ async function sendQueuedWrite(op: OutboxOp, refreshed = false): Promise<SendRes
   if (res.ok) {
     const text = res.status === 204 ? '' : await res.text().catch(() => '');
     let data: unknown; try { data = text ? JSON.parse(text) : undefined; } catch { data = undefined; }
+    // Produto criado sem rede já subiu: troca o registo provisório pelo do servidor.
+    const company = hooks?.getCompanyCode?.();
+    if (company && op.localId && /^\/pos\/products(\?|$)/.test(op.path)) {
+      await applyToCatalog(company, 'delete', op.localId).catch(() => undefined);
+      if (data && typeof data === 'object' && (data as { id?: string }).id) {
+        await applyToCatalog(company, 'create', String((data as { id: string }).id), data as Record<string, unknown>).catch(() => undefined);
+      }
+    }
     return { ok: true, data };
   }
   const err = await parseError(res);
   return { ok: false, status: res.status, message: err.message, retry: res.status >= 500 || res.status === 429 || res.status === 408 || res.status === 401 };
+}
+
+export interface CatalogQuery { q?: string; limit?: number; offset?: number }
+function catalogQs(o: CatalogQuery): string {
+  const p = new URLSearchParams();
+  if (o.q) p.set('q', o.q);
+  p.set('limit', String(o.limit ?? 200));
+  if (o.offset) p.set('offset', String(o.offset));
+  return `?${p.toString()}`;
 }
 
 /** Leitura crua (usada pelo pré-carregamento para guardar TODAS as áreas na memória interna). */
@@ -726,9 +774,15 @@ export const api = {
 
   // ── Back-office do GESTOR da empresa ───────────────────────
   products: {
-    list: () => request<ManagerProduct[]>('GET', '/pos/products'),
+    /** Página/pesquisa de produtos (catálogos grandes: nunca a lista inteira). Sem
+     *  opções devolve os primeiros 1000 — para escolhas rápidas em formulários. */
+    list: (o?: CatalogQuery) => request<ManagerProduct[]>('GET', `/pos/products${catalogQs(o ?? { limit: 1000 })}`),
     /** Catálogo do gestor: inclui os inativos (para os poder reativar ou eliminar). */
-    listAll: () => request<ManagerProduct[]>('GET', '/pos/products/all'),
+    listAll: (o?: CatalogQuery) => request<ManagerProduct[]>('GET', `/pos/products/all${catalogQs(o ?? { limit: 1000 })}`),
+    /** Alterações do catálogo (memória interna aos poucos). */
+    changes: (since: string, after: string, limit = 5000) =>
+      request<{ items: ManagerProduct[]; next: { since: string; after: string } | null }>(
+        'GET', `/pos/products/changes?limit=${limit}&since=${encodeURIComponent(since)}&after=${encodeURIComponent(after)}`, undefined, { timeoutMs: 120_000 }),
     /** Ingredientes/matéria-prima (não vendíveis; para a ficha técnica). */
     ingredients: () => request<ManagerProduct[]>('GET', '/pos/products/ingredients'),
     create: (dto: CreateProductInput) => request<ManagerProduct>('POST', '/pos/products', dto),

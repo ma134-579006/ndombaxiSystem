@@ -1,5 +1,5 @@
 import { confirmDialog, runBulk, toast, readFileProgress } from '../components/feedback';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CreateProductInput, IvaCode, ManagerProduct, WarehouseRow } from '../api/types';
 import { IVA_RATE } from '../api/types';
@@ -83,6 +83,13 @@ export function Products() {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [search, setSearch] = useState('');
+  // CATÁLOGOS GRANDES: páginas de 100 e pesquisa no SERVIDOR (ou na memória
+  // interna, sem rede) — nunca o catálogo inteiro de uma vez.
+  const PAGE = 100;
+  const [pages, setPages] = useState(1);
+  const queryRef = useRef({ q: '', pages: 1 });
+  queryRef.current = { q: search.trim(), pages };
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -139,10 +146,12 @@ export function Products() {
     try {
       // CATÁLOGO UNIFICADO: produtos vendíveis + ingredientes (matéria-prima) na
       // MESMA lista. Os ingredientes distinguem-se pela etiqueta 'matéria-prima'.
+      const { q: term, pages: n } = queryRef.current;
       const [prods, ings] = await Promise.all([
-        api.products.listAll(),
-        api.products.ingredients().catch(() => [] as ManagerProduct[]),
+        api.products.listAll({ q: term, limit: PAGE * n }),
+        term ? Promise.resolve([] as ManagerProduct[]) : api.products.ingredients().catch(() => [] as ManagerProduct[]),
       ]);
+      setHasMore(prods.length >= PAGE * n);
       const seen = new Set(prods.map((p) => p.id));
       setProducts([...prods, ...ings.filter((i) => !seen.has(i.id))].sort((a, b) => a.name.localeCompare(b.name)));
     } catch (e) {
@@ -306,9 +315,16 @@ export function Products() {
   };
 
   const q = search.trim().toLowerCase();
-  const filtered = q
-    ? products.filter((p) => p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q))
-    : products;
+  // A pesquisa já é feita no servidor/memória (nome, código, código de barras, marca).
+  const filtered = products;
+  // Nova pesquisa → volta à 1.ª página (com uma pequena espera enquanto se escreve).
+  const firstSearch = useRef(true);
+  useEffect(() => {
+    if (firstSearch.current) { firstSearch.current = false; return; }
+    const t = window.setTimeout(() => { setPages(1); queryRef.current = { q: search.trim(), pages: 1 }; void load(); }, 300);
+    return () => window.clearTimeout(t);
+  }, [search, load]);
+  const loadMore = () => { const n = pages + 1; setPages(n); queryRef.current = { q: search.trim(), pages: n }; void load({ silent: true }); };
   const allSel = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
   const toggleAll = () => setSelected(allSel ? new Set() : new Set(filtered.map((p) => p.id)));
 
@@ -434,6 +450,11 @@ export function Products() {
           })}
         </div>
       )}
+      {!loading && hasMore ? (
+        <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0' }}>
+          <button className="btn" onClick={loadMore}>Carregar mais produtos ({products.length} mostrados)</button>
+        </div>
+      ) : null}
 
       {creating || editing ? (
         <Modal title={editing ? 'Editar produto' : 'Novo produto'} onClose={close}>

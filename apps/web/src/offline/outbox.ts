@@ -42,7 +42,7 @@ const uuid = (): string => (typeof crypto !== 'undefined' && 'randomUUID' in cry
 export const newOpId = (): string => uuid();
 
 const snake = (k: string) => k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
-const withSnake = (o: Record<string, unknown>): Record<string, unknown> => {
+export const withSnake = (o: Record<string, unknown>): Record<string, unknown> => {
   const out: Record<string, unknown> = { ...o };
   for (const [k, v] of Object.entries(o)) if (/[A-Z]/.test(k)) out[snake(k)] = v;
   return out;
