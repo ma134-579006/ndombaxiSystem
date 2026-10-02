@@ -558,7 +558,7 @@ export function Shell({
             onLogout={logout}
           />
         </header>
-        <div className="content"><div className="page-anim" key={section}>
+        <div className="content"><div className="page-anim" key={section} data-sec={section}>
           <PrintBrandHead title={current?.label} />
           {children}
           <PrintBrandFoot />
