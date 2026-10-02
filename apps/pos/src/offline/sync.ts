@@ -4,7 +4,7 @@
  * aí o seu número fiscal real (sequência AGT sem saltos).
  */
 import { api, ApiError } from '../api/client';
-import { isNativeApp } from './nativeShare';
+import { isNativeApp } from '../config';
 import { deviceKey } from './device';
 import {
   limparTurnoLocalSeVazio, opDeTurnoEnviada, opsDeTurnoPendentes, contarOpsDeTurno,

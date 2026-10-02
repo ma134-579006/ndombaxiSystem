@@ -1,5 +1,5 @@
 import { API_URL } from '../config';
-import { isNativeApp } from '../offline/nativeShare';
+import { isNativeApp } from '../config';
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
 import type { PromoRow } from '../pos/promo';

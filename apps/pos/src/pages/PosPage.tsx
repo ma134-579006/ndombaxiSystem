@@ -48,7 +48,7 @@ import { useSync } from '../offline/useSync';
 import { deviceKey } from '../offline/device';
 import { setPosBusy } from '../offline/localServer';
 import { turnoAbertoLocal } from '../offline/shifts';
-import { isNativeApp } from '../offline/nativeShare';
+import { isNativeApp } from '../config';
 import { setSaleInProgress } from '../pos/saleActivity';
 
 const CACHE_PRODUCTS = 'cache:products';
@@ -1148,7 +1148,18 @@ export function PosPage() {
           cartCount={cart.length}
           identity={identity}
           operatorName={user?.name || user?.email}
-          onOpened={async () => { setShowShift(false); setSession(await api.currentSession().catch(() => null)); }}
+          onOpened={async () => {
+            setShowShift(false);
+            // SEM REDE o turno foi aberto NESTE aparelho: usar esse (antes ficava
+            // null e a Caixa voltava a pedir para abrir turno, em ciclo).
+            const s = await api.currentSession().catch(() => undefined);
+            if (s !== undefined) { setSession(s); return; }
+            const t = await turnoAbertoLocal();
+            setSession(t ? {
+              id: t.opId, register_code: t.registerCode, opened_by_name: t.operatorName,
+              opened_at: t.openedAt, opening_float: String(t.openingFloat), status: 'OPEN',
+            } : null);
+          }}
           onClosed={async () => { setShowShift(false); setSession(null); }}
           onClose={() => setShowShift(false)}
         />
