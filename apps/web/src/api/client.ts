@@ -1,4 +1,5 @@
 import { API_URL, isNativeApp } from '../config';
+import { canQueue, enqueueWrite, newOpId, replayOutbox, type OutboxOp, type SendResult } from '../offline/outbox';
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
 import type {
@@ -205,7 +206,7 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  opts: { auth?: boolean; retry?: boolean; timeoutMs?: number } = {},
+  opts: { auth?: boolean; retry?: boolean; timeoutMs?: number; queue?: boolean } = {},
 ): Promise<T> {
   const { auth = true, retry = true, timeoutMs = 90_000 } = opts;
   // OFFLINE-FIRST (read-through cache): as LEITURAS (GET) são guardadas na cache
@@ -221,6 +222,11 @@ async function request<T>(
     const code = hooks?.getCompanyCode?.();
     if (code) headers['X-Tenant-Code'] = code;
   }
+  // ESCRITA em apps instaladas: UUID de idempotência desde a 1.ª tentativa. Se a resposta se perder,
+  // o reenvio (da fila) leva o MESMO id e o servidor devolve a resposta guardada — sem duplicar.
+  const queueable = isNativeApp() && !isGet && opts.queue !== false && canQueue(method, path);
+  const opId = queueable ? newOpId() : undefined;
+  if (opId) headers['X-Client-Op-Id'] = opId;
   // NOTA: NÃO usamos `navigator.onLine` para decidir se há rede. Nas apps nativas
   // ele MENTE — no Electron (protocolo ndombaxi://) e no WebView do Android reporta
   // `false` mesmo com internet, o que bloqueava todos os pedidos ("sem ligação").
@@ -253,6 +259,10 @@ async function request<T>(
     if (isNativeApp() && baseParaPedido(API_URL) !== API_URL) anotarFalhaDaLoja();
     // Sem rede: numa LEITURA, serve a última cópia guardada (não bloqueia o
     // trabalho offline). Um timeout (servidor a acordar) NÃO usa cache — é online.
+    // SEM REDE numa ESCRITA: guarda na fila do aparelho e responde como se tivesse gravado.
+    if (queueable && opId) {
+      return (await enqueueWrite(method, path, body, opId)) as T;
+    }
     if (isNativeApp() && isGet && (e as Error)?.name !== 'AbortError') {
       const cached = await sharedGet<T>(cacheKey);
       if (cached != null) return cached;
@@ -274,6 +284,38 @@ async function request<T>(
   const data = (text ? JSON.parse(text) : undefined) as T;
   if (isNativeApp() && isGet && data !== undefined) void sharedSet(cacheKey, data); // cache offline: só nas apps instaladas
   return data;
+}
+
+/** Envia UMA operação da fila offline (com o seu UUID de idempotência). */
+async function sendQueuedWrite(op: OutboxOp, refreshed = false): Promise<SendResult> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Client-Op-Id': op.id };
+  const token = hooks?.getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const code = hooks?.getCompanyCode?.();
+  if (code) headers['X-Tenant-Code'] = code;
+  let res: Response;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 60_000);
+    res = await fetch(`${baseParaPedido(API_URL)}${op.path}`, { method: op.method, headers, body: op.body === undefined ? undefined : JSON.stringify(op.body), signal: ctrl.signal });
+    clearTimeout(t);
+  } catch { return { ok: false, status: 0, message: 'Sem ligação ao servidor.', retry: true }; }
+  if (res.status === 401 && hooks && !refreshed) {
+    if (await hooks.refresh()) return sendQueuedWrite(op, true);
+    return { ok: false, status: 401, message: 'Sessão expirada.', retry: true };
+  }
+  if (res.ok) {
+    const text = res.status === 204 ? '' : await res.text().catch(() => '');
+    let data: unknown; try { data = text ? JSON.parse(text) : undefined; } catch { data = undefined; }
+    return { ok: true, data };
+  }
+  const err = await parseError(res);
+  return { ok: false, status: res.status, message: err.message, retry: res.status >= 500 || res.status === 429 || res.status === 408 || res.status === 401 };
+}
+
+/** Reenvia as alterações feitas offline (chamado em segundo plano; devolve quantas subiram). */
+export function replayQueuedWrites(): Promise<number> {
+  return replayOutbox((op) => sendQueuedWrite(op));
 }
 
 /** Como request, mas devolve o corpo em texto cru (ex.: XML do SAF-T). */
