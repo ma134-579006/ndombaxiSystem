@@ -3745,3 +3745,49 @@ img.u-av { background: var(--surface-2); }
 .kpi-card .kpi-value { font-size: clamp(15px, 12cqw, 28px) !important; text-overflow: clip !important; overflow: visible !important; }
 /* Pesquisa das listas ocupa a largura toda */
 .content .fx-toolbar .fx-search { max-width: none; flex: 1 1 260px; }
+
+/* ══ RELATÓRIOS — centro de relatórios ERP: menu lateral, filtros, indicadores e tabelas ══ */
+.rp-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 20px; align-items: start; }
+.rp-nav { position: sticky; top: calc(var(--ch-h, 56px) + 10px); display: flex; flex-direction: column; gap: 14px; padding: 14px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); max-height: calc(100vh / var(--uz, 1) - 140px); overflow-y: auto; }
+.rp-gl { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 0 10px 6px; }
+.rp-grp { display: flex; flex-direction: column; gap: 2px; }
+.rp-nav button { text-align: left; padding: 9px 12px; border-radius: 10px; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--text); background: transparent; border: 0; cursor: pointer; transition: background .12s, color .12s; }
+.rp-nav button:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.rp-nav button.on { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--primary); box-shadow: inset 3px 0 0 var(--primary); }
+.rp-filters { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; margin-bottom: 14px; }
+.rp-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-fields { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.rp-fields .field { margin: 0; min-width: 150px; }
+.rp-fields .btn { height: 46px; margin-left: auto; }
+.rp-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.rp-main > .card { border-radius: 16px; }
+.rp-main .ptable { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+.rp-main .ptable th { position: sticky; top: calc(var(--ch-h, 56px)); background: var(--surface-2); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 11px 14px; border-bottom: 1px solid var(--border); text-align: left; z-index: 2; }
+.rp-main .ptable td { padding: 12px 14px; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.rp-main .ptable td:first-child { font-weight: 600; }
+.rp-main .ptable th.num, .rp-main .ptable td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.rp-main .ptable tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+.rp-main .ptable tbody tr:hover td { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.rp-main .ptable tfoot th { background: var(--surface-2); font-size: 13.5px; text-transform: none; letter-spacing: 0; color: var(--text); position: static; border-top: 2px solid var(--border); }
+@media (max-width: 1000px) {
+  .rp-layout { grid-template-columns: 1fr; }
+  .rp-nav { position: static; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; max-height: none; padding: 8px; gap: 8px; }
+  .rp-grp { flex-direction: row; align-items: center; gap: 4px; } .rp-gl { padding: 0 6px 0 4px; white-space: nowrap; }
+  .rp-nav button { white-space: nowrap; } .rp-nav button.on { box-shadow: none; }
+}
+@media print { .rp-layout { display: block; } }
+
+/* Caixa e Auditoria */
+.sh-row { grid-template-columns: auto minmax(0, 1fr) auto auto auto; }
+.sh-cash { font-size: 11.5px; color: var(--muted); line-height: 1.5; text-align: right; min-width: 120px; }
+.au-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px !important; }
+.au-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.au-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); overflow: hidden; }
+.au-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 13px 18px; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.au-row:last-child { border-bottom: 0; } .au-row:hover { background: color-mix(in srgb, var(--primary) 4%, transparent); }
+.au-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 16%, transparent); }
+.au-ok .au-dot { background: #16a34a; box-shadow: 0 0 0 4px rgba(22,163,74,.16); } .au-bad .au-dot { background: #dc2626; box-shadow: 0 0 0 4px rgba(220,38,38,.16); }
+.au-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; } .au-main strong { font-size: 14px; }
+.au-main span { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.au-row time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 760px) { .sh-row { grid-template-columns: auto minmax(0, 1fr) auto; } .sh-cash, .sh-row .rc-state { display: none; } .au-row { grid-template-columns: auto 1fr; } .au-row time { grid-column: 2; } }

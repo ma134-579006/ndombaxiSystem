@@ -31,11 +31,10 @@ export function Operations() {
     <>
       <div className="content-head">
         <h2>Caixa & Auditoria</h2>
-        <span className="spacer" />
-        <div className="seg" style={{ maxWidth: 320 }}>
-          <button className={tab === 'shifts' ? 'on' : ''} onClick={() => setTab('shifts')}>Turnos</button>
-          <button className={tab === 'audit' ? 'on' : ''} onClick={() => setTab('audit')}>Auditoria</button>
-        </div>
+      </div>
+      <div className="fx-tabs inv-tabs">
+        <button className={tab === 'shifts' ? 'on' : ''} onClick={() => setTab('shifts')}>Turnos de caixa</button>
+        <button className={tab === 'audit' ? 'on' : ''} onClick={() => setTab('audit')}>Auditoria</button>
       </div>
       {tab === 'shifts' ? <Shifts /> : <Audit />}
     </>
@@ -51,40 +50,44 @@ function Shifts() {
     api.cashbox.sessions().then(setRows).catch((e) => setError(e instanceof ApiError ? e.message : 'Falha.')).finally(() => setLoading(false));
   }, []);
 
+  const open = rows.filter((r) => r.status === 'OPEN').length;
+  const sales = rows.reduce((t, r) => t + (Number(r.total_sales) || 0), 0);
+  const diff = rows.filter((r) => r.status === 'CLOSED').reduce((t, r) => t + (Number(r.difference) || 0), 0);
   return (
-    <div className="card">
-      <h3>Histórico de turnos</h3>
+    <>
+      <div className="fx-stats">
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Turnos</div><div className="vl">{rows.length}</div><div className="sb">{open} aberto(s)</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Vendas nos turnos</div><div className="vl">{kz(sales)}</div><div className="sb">soma dos turnos listados</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Diferença de caixa</div><div className="vl"><span className={`fx-dot ${diff === 0 ? 'ok' : 'bad'}`} />{kz(diff)}</div><div className="sb">sobras e quebras acumuladas</div></div></div>
+      </div>
       {error ? <div className="banner danger">{error}</div> : null}
-      {loading ? <div className="loading">A carregar…</div> : rows.length === 0 ? (
-        <p className="muted">Ainda não há turnos registados.</p>
-      ) : rows.map((s) => {
-        const diff = s.difference == null ? null : Number(s.difference);
-        const tone = diff == null ? 'var(--muted)' : diff === 0 ? 'var(--success)' : diff < 0 ? 'var(--danger)' : 'var(--warning)';
-        return (
-          <div className="list-row" key={s.id}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700 }}>
-                {s.opened_by_name ?? '—'}
-                {s.status === 'OPEN' ? <span className="badge" style={{ marginLeft: 8, color: 'var(--success)', borderColor: 'var(--success)' }}>Aberto</span> : null}
-              </div>
-              <div className="muted" style={{ fontSize: 13 }}>
-                {new Date(s.opened_at).toLocaleString('pt-PT')}
-                {s.closed_at ? ` → ${new Date(s.closed_at).toLocaleString('pt-PT')}` : ''} ·{' '}
-                {s.sales_count} vendas · {kz(s.total_sales)}
-              </div>
-            </div>
-            {s.status === 'CLOSED' ? (
-              <div style={{ textAlign: 'right' }}>
-                <div className="muted" style={{ fontSize: 12 }}>Contado {kz(s.counted_cash)} / esperado {kz(s.expected_cash)}</div>
-                <div style={{ fontWeight: 800, color: tone }}>
-                  {diff === 0 ? 'Caixa certo' : diff != null && diff < 0 ? `Quebra ${kz(Math.abs(diff))}` : `Sobra ${kz(diff)}`}
+      {loading ? <div className="card"><div className="loading">A carregar…</div></div> : rows.length === 0 ? (
+        <div className="card"><div className="empty"><p>Ainda não há turnos registados.</p></div></div>
+      ) : (
+        <div className="rc-list">
+          {rows.map((s) => {
+            const d = s.difference == null ? null : Number(s.difference);
+            const isOpen = s.status === 'OPEN';
+            return (
+              <div className={`rc-row rc-static sh-row st-${isOpen ? 'IN_PROGRESS' : d === 0 ? 'READY' : d != null && d < 0 ? 'CANCELLED' : 'APPROVED'}`} key={s.id}>
+                <span className="rc-av">{(s.opened_by_name ?? '?').slice(0, 2).toUpperCase()}</span>
+                <div className="rc-main">
+                  <strong>{s.opened_by_name ?? '—'}{isOpen ? <span className="lv-type">Aberto agora</span> : null}</strong>
+                  <div className="muted">
+                    {new Date(s.opened_at).toLocaleString('pt-PT')}{s.closed_at ? ` → ${new Date(s.closed_at).toLocaleString('pt-PT')}` : ''}
+                  </div>
                 </div>
+                <span className="rc-amt">{kz(s.total_sales)}<small>{s.sales_count} venda(s)</small></span>
+                {!isOpen ? (
+                  <span className="rc-state">{d === 0 ? 'Caixa certo' : d != null && d < 0 ? `Quebra ${kz(Math.abs(d))}` : `Sobra ${kz(d)}`}</span>
+                ) : <span />}
+                <span className="sh-cash">{!isOpen ? <>Contado {kz(s.counted_cash)}<br />Esperado {kz(s.expected_cash)}</> : null}</span>
               </div>
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -116,47 +119,46 @@ function Audit() {
 
   return (
     <>
-      <div className="card" style={{ padding: '12px 14px' }}>
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+      <div className="card toolbar-sticky au-bar">
+        <div className="au-chips">
           {FILTERS.map((f) => (
             <button key={f || 'all'} className={`chip${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
               {f ? ACTION_LABEL[f] ?? f : 'Tudo'}
             </button>
           ))}
-          <span className="spacer" />
-          <button className="btn sm ghost" onClick={verify}>Verificar integridade</button>
         </div>
-        {integrity ? (
-          <div className={`banner ${integrity.valid ? 'success' : 'danger'}`} style={{ marginTop: 10, alignItems: 'center' }}>
-            {integrity.valid ? (
-              <><IconCheck size={16} /> Cadeia de auditoria íntegra — nada foi alterado.</>
-            ) : (
-              <>
-                <IconClose size={16} />
-                <span style={{ flex: 1 }}>Cadeia partida no registo #{integrity.brokenAtSeq}. Pode ser de registos antigos — toca em "Reparar" para voltar a selar.</span>
-                <button className="btn sm" onClick={repair} disabled={repairing}>{repairing ? 'A reparar…' : 'Reparar'}</button>
-              </>
-            )}
-          </div>
-        ) : null}
+        <button className="btn sm ghost" onClick={verify}>Verificar integridade</button>
       </div>
+      {integrity ? (
+        <div className={`banner ${integrity.valid ? 'success' : 'danger'}`} style={{ alignItems: 'center' }}>
+          {integrity.valid ? (
+            <><IconCheck size={16} /> Cadeia de auditoria íntegra — nada foi alterado.</>
+          ) : (
+            <>
+              <IconClose size={16} />
+              <span style={{ flex: 1 }}>Cadeia partida no registo #{integrity.brokenAtSeq}. Pode ser de registos antigos — toca em "Reparar" para voltar a selar.</span>
+              <button className="btn sm" onClick={repair} disabled={repairing}>{repairing ? 'A reparar…' : 'Reparar'}</button>
+            </>
+          )}
+        </div>
+      ) : null}
 
-      <div className="card">
-        <h3>Registo de auditoria</h3>
-        {loading ? <div className="loading">A carregar…</div> : rows.length === 0 ? (
-          <p className="muted">Sem eventos.</p>
-        ) : rows.map((e) => (
-          <div className="list-row" key={e.seq}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700 }}>{ACTION_LABEL[e.action] ?? e.action}</div>
-              <div className="muted" style={{ fontSize: 13 }}>
-                {e.actor_name ?? 'sistema'} · {new Date(e.timestamp).toLocaleString('pt-PT')}
-                {renderDetails(e.details)}
+      {loading ? <div className="card"><div className="loading">A carregar…</div></div> : rows.length === 0 ? (
+        <div className="card"><div className="empty"><p>Sem eventos.</p></div></div>
+      ) : (
+        <div className="au-list">
+          {rows.map((e) => (
+            <div className={`au-row au-${/CANCEL|WRITE_OFF/.test(e.action) ? 'bad' : /SALE|CLOSE/.test(e.action) ? 'ok' : 'info'}`} key={e.seq}>
+              <i className="au-dot" />
+              <div className="au-main">
+                <strong>{ACTION_LABEL[e.action] ?? e.action}</strong>
+                <span>{e.actor_name ?? 'sistema'}{renderDetails(e.details)}</span>
               </div>
+              <time>{new Date(e.timestamp).toLocaleString('pt-PT')}</time>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
