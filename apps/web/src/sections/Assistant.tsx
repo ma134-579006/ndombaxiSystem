@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { NeedsNetwork, useNetwork } from '../components/NeedsNetwork';
 import { api, ApiError } from '../api/client';
 import type { AgentEvent } from '../api/types';
 import { IconCpu } from '../components/Icons';
@@ -65,6 +66,7 @@ function voiceError(e: unknown): string {
 }
 
 export function Assistant() {
+  const online = useNetwork();
   const [name, setName] = useState('Assistente');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
@@ -166,6 +168,12 @@ export function Assistant() {
   const voiceOk = micSupported();
   const empty = turns.length === 0;
 
+  if (!online) return (
+    <>
+      <div className="content-head"><h2>Assistente IA</h2></div>
+      <div className="card" style={{ display: 'flex' }}><NeedsNetwork what="O assistente de IA" /></div>
+    </>
+  );
   return (
     <div className="agent">
       {/* coluna principal (estilo claude.ai) */}
