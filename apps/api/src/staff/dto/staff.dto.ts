@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
 
 export class CreateStaffDto {
   @IsString()
@@ -27,6 +27,20 @@ export class CreateStaffDto {
   @IsString()
   @Matches(/^\d{6}$/, { message: 'O PIN deve ter exactamente 6 dígitos.' })
   pin?: string;
+
+  /**
+   * Id do funcionário — só quando o posto (servidor local) replica para a nuvem
+   * um funcionário que criou: o mesmo id nos dois lados, para as edições
+   * seguintes (PIN, senha) acertarem no mesmo registo.
+   */
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
+  /** Com `password` dada: obriga a trocá-la no 1.º login (senha temporária replicada). */
+  @IsOptional()
+  @IsBoolean()
+  mustResetPw?: boolean;
 }
 
 export class UpdateStaffDto {
@@ -58,6 +72,11 @@ export class ResetPasswordDto {
   @IsString()
   @Length(8, 72)
   password?: string;
+
+  /** Com `password` dada: obriga a trocá-la no 1.º login (senha temporária replicada). */
+  @IsOptional()
+  @IsBoolean()
+  mustResetPw?: boolean;
 }
 
 export class SetPinDto {

@@ -14,6 +14,7 @@
  * corre, ou fica adiado com o motivo escrito no registo do posto.
  */
 import { API_URL, CLOUD_API_URL } from '../config';
+import { flushCloudMirror, setCloudAuth } from './cloudMirror';
 
 interface Host {
   provisionLocal?(session: {
@@ -68,6 +69,7 @@ export function usingLocalServer(): boolean {
 }
 
 let cloudTimer: number | null = null;
+let mirrorTimer: number | null = null;
 
 /**
  * SESSÃO DA NUVEM para a sincronização, quando o posto trabalha no servidor local.
@@ -109,6 +111,8 @@ export function startCloudSession(input: { email: string; password: string; comp
       refreshToken = ok.refreshToken;
       const code = input.companyCode ?? ok.companyCode;
       if (code) {
+        // Também para enviar à nuvem as alterações de funcionários (ver cloudMirror).
+        setCloudAuth({ token: ok.accessToken, companyCode: code });
         await offerSessionToHost({ accessToken: ok.accessToken, companyCode: code, role: input.role, apiUrl: CLOUD_API_URL });
       }
     } catch (e) {
@@ -120,8 +124,11 @@ export function startCloudSession(input: { email: string; password: string; comp
   };
   void tick();
   cloudTimer = window.setInterval(() => { void tick(); }, 10 * 60_000); // token de acesso dura 15 min
+  mirrorTimer = window.setInterval(() => { void flushCloudMirror(); }, 30_000);
 }
 
 export function stopCloudSession(): void {
   if (cloudTimer) { window.clearInterval(cloudTimer); cloudTimer = null; }
+  if (mirrorTimer) { window.clearInterval(mirrorTimer); mirrorTimer = null; }
+  setCloudAuth(null);
 }

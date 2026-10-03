@@ -111,13 +111,14 @@ export class StaffService {
     const pinHash = dto.pin ? await this.passwords.hash(dto.pin) : null;
 
     const user = await this.repo.createUser(schema, {
+      id: dto.id,
       email,
       name: dto.name,
       role,
       passwordHash,
       storeId: dto.storeId ?? null,
       pinHash,
-      mustResetPw: !dto.password, // se a senha foi gerada, obriga a trocar no 1.º login
+      mustResetPw: !dto.password || dto.mustResetPw === true, // senha gerada (ou temporária replicada) → trocar no 1.º login
     });
 
     // Um funcionário criado hoje tem de conseguir entrar num posto que está sem
@@ -166,7 +167,7 @@ export class StaffService {
     const generated = dto.password ? undefined : this.generateTempPassword();
     const plain = dto.password ?? generated!;
     const hash = await this.passwords.hash(plain);
-    await this.repo.setPasswordHash(schema, id, hash, !dto.password);
+    await this.repo.setPasswordHash(schema, id, hash, !dto.password || dto.mustResetPw === true);
     await this.offlineCreds.remember(schema, id, 'PASSWORD', plain);
     await this.audit.record({
       actorType: 'TENANT',
