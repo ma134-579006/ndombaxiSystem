@@ -49,7 +49,7 @@ import { deviceKey } from '../offline/device';
 import { setPosBusy } from '../offline/localServer';
 import { espelharTurnoServidor, turnoAbertoLocal } from '../offline/shifts';
 import { isNativeApp } from '../config';
-import { syncCatalog } from '../offline/catalog';
+import { adjustCatalogStock, syncCatalog } from '../offline/catalog';
 import { customersStore } from '../offline/indexedList';
 import { setSaleInProgress } from '../pos/saleActivity';
 
@@ -757,6 +757,8 @@ export function PosPage() {
   const finalizeOffline = async (clientOpId?: string) => {
     const sale = buildPendingSale(cart, totals, customer ? { id: customer.id, name: customer.name } : null, clientOpId);
     await queueSale(sale);
+    // Memória partilhada com o Gestão: o stock desce já, antes de a venda subir.
+    if (companyCode) for (const l of sale.lines) void adjustCatalogStock(companyCode, l.productCode, -l.quantity).catch(() => undefined);
     await syncController.refreshCount();
     // Recibo provisório: o nº/hash fiscais reais vêm do servidor ao sincronizar.
     const provisionalInvoice: EmittedInvoice = {

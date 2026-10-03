@@ -22,9 +22,12 @@ if (!fs.existsSync(javaDir)) {
 
 const activity = `package com.ndombaxi.system;
 
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 import android.view.WindowManager;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -36,6 +39,15 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         immersive();
+        // TECLADO: com o conteúdo a ocupar o ecrã todo, o Android deixa de encolher
+        // a WebView quando o teclado abre — e o teclado tapava os campos e o botão
+        // de gravar. A app encolhe exatamente a altura do teclado (e volta ao fechar).
+        View root = findViewById(android.R.id.content);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            int ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+            v.setPadding(0, 0, 0, ime);
+            return insets;
+        });
     }
 
     @Override
@@ -51,6 +63,15 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void immersive() {
+        // O CONTEÚDO OCUPA O ECRÃ TODO. Só esconder as barras não chega: sem isto a
+        // WebView continua a começar por baixo do sítio da barra de estado, e essa
+        // faixa ficava BRANCA (o fundo da janela) no topo, onde estão a hora e a data.
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        // Se a barra reaparecer (deslizar a partir do topo), vê-se sobre a cor da
+        // app — nunca sobre branco.
+        getWindow().getDecorView().setBackgroundColor(Color.parseColor("#080d1a"));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             WindowManager.LayoutParams lp = getWindow().getAttributes();
             lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
@@ -58,6 +79,7 @@ public class MainActivity extends BridgeActivity {
         }
         WindowInsetsControllerCompat c =
             WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        c.setAppearanceLightStatusBars(false);
         c.hide(WindowInsetsCompat.Type.systemBars());
         c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
     }

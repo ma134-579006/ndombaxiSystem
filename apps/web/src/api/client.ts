@@ -332,7 +332,11 @@ async function request<T>(
   // pedido pendurado para sempre (spinner infinito). 90 s cobre o arranque.
   const ctrl = new AbortController();
   // App: uma LEITURA não espera 90 s por uma rede fraca — ao fim de 12 s responde a memória.
-  const limite = isNativeApp() && isGet && opts.timeoutMs === undefined ? 12_000 : timeoutMs;
+  // E uma ESCRITA que pode ir para a fila não prende o utilizador mais de 8 s: com
+  // rede fraca (ou as ligações ocupadas por descargas em 2.º plano) fica guardada
+  // e sobe depois — sem risco, cada uma leva o seu X-Client-Op-Id (nunca em dobro).
+  const limite = isNativeApp() && opts.timeoutMs === undefined && (isGet || queueable)
+    ? (isGet ? 12_000 : 8_000) : timeoutMs;
   const timer = setTimeout(() => ctrl.abort(), limite);
   try {
     // SERVIDOR DA LOJA primeiro, se houver um configurado e a responder. É o

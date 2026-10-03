@@ -61,6 +61,8 @@ export interface EmitInvoiceInput {
    * comportamento se mantém exatamente como antes.
    */
   clientOpId?: string | null;
+  /** Venda feita sem rede (fila do aparelho): não é recusada por stock — ver EmitInvoiceDto.offline. */
+  offline?: boolean;
   /**
    * Linhas do documento. Dois tipos:
    *  • PRODUTO — `{ productCode, quantity }`: preço/IVA do produto, baixa stock.
@@ -405,7 +407,8 @@ export class InvoiceService {
       // A venda é bloqueada se não houver stock suficiente ou se o produto só
       // tiver lotes expirados. Toda a transacção é revertida (nada é gravado).
       const today = new Date().toISOString().slice(0, 10);
-      for (const line of lines) {
+      // Venda feita SEM REDE: já aconteceu — não se valida stock nem validade aqui.
+      for (const line of input.offline ? [] : lines) {
         const product = byCode.get(line.productCode);
         if (!product) continue; // linha livre (serviço/estadia) — sem stock
         // Prato com ficha técnica — REGRA DA PRATELEIRA ("vende-se primeiro o
@@ -550,7 +553,7 @@ export class InvoiceService {
             reference: number,
             referenceId: invoiceId,
             createdBy: input.cashierId ?? null,
-            allowNegative: shared,
+            allowNegative: shared || input.offline === true,
           });
         } else {
           await tx.$executeRaw(
