@@ -113,7 +113,9 @@ describe('SnapshotService — âmbito e paginação', () => {
     const { svc, queries } = fake(['products'], []);
     await svc.rows(SCHEMA, 'products', 0, 99999);
     expect(queries.some((q) => q.includes('LIMIT'))).toBe(true);
-    expect(SnapshotService.MAX_LIMIT).toBeLessThanOrEqual(500);
+    // Teto de 5000: com catálogos de milhões, páginas de 500 eram milhares de pedidos
+    // (a cópia nunca terminava); 5000 linhas ainda cabem numa ligação fraca.
+    expect(SnapshotService.MAX_LIMIT).toBeLessThanOrEqual(5000);
   });
 
   it('diz que acabou quando a página vem incompleta', async () => {
