@@ -23,6 +23,7 @@ import { api, prefetchGet, replayQueuedWrites } from '../api/client';
 import { isNativeApp } from '../config';
 import { runTransfer } from '../components/feedback';
 import { syncCatalog } from './catalog';
+import { customersStore } from './indexedList';
 
 let running = false;
 let lastRunAt = 0;
@@ -140,6 +141,7 @@ export async function prefetchTenantData(company?: string | null): Promise<void>
     // plano: nunca bloqueia o ecrã; as páginas de produtos usam-no assim que chega.
     if (company) {
       void syncCatalog(company, async (since, after) => (await api.products.changes(since, after)) as never).catch(() => undefined);
+      void customersStore.sync(company, async (since, after) => (await api.customers.changes(since, after)) as never).catch(() => undefined);
     }
     const tasks = [...collect(), ...rawTasks()];
     if (tasks.length === 0) return;

@@ -258,14 +258,34 @@ export class LocalServer {
 }
 
 /** Segredos JWT/cifra da API local deste posto — criados na 1.ª vez e reutilizados. */
+/**
+ * SÉRIE FISCAL DESTE POSTO ("L" + 3 caracteres, ex.: `FT LX4K2026/0001`).
+ *
+ * O servidor local numera as faturas sozinho, sem internet. Na série da nuvem
+ * ("A") o posto e a nuvem emitiam o MESMO número — e ao sincronizar uma das
+ * faturas era recusada (número duplicado), com documentos já entregues a
+ * clientes. Cada posto tem a sua cadeia, como manda o regime de séries.
+ */
+function novaSerie(): string {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return 'L' + [...randomBytes(3)].map((b) => abc[b % abc.length]).join('');
+}
+
 function localSecrets(baseDir: string): Record<string, string> {
   const file = path.join(baseDir, 'secrets.json');
   try {
     const j = JSON.parse(readFileSync(file, 'utf8')) as Record<string, string>;
-    if (j.JWT_ACCESS_SECRET?.length >= 32 && j.JWT_REFRESH_SECRET?.length >= 32 && j.CONFIG_ENCRYPTION_KEY?.length >= 32) return j;
+    if (j.JWT_ACCESS_SECRET?.length >= 32 && j.JWT_REFRESH_SECRET?.length >= 32 && j.CONFIG_ENCRYPTION_KEY?.length >= 32) {
+      // Postos instalados antes da série própria: ganham-na agora (uma só vez).
+      if (!/^L[A-Z0-9]{3}$/.test(j.DEVICE_SERIES ?? '')) {
+        j.DEVICE_SERIES = novaSerie();
+        try { writeFileSync(file, JSON.stringify(j), { mode: 0o600 }); } catch { /* fica para o próximo arranque */ }
+      }
+      return j;
+    }
   } catch { /* ainda não existe → cria */ }
   const gen = () => randomBytes(48).toString('hex');
-  const j = { JWT_ACCESS_SECRET: gen(), JWT_REFRESH_SECRET: gen(), CONFIG_ENCRYPTION_KEY: gen() };
+  const j = { JWT_ACCESS_SECRET: gen(), JWT_REFRESH_SECRET: gen(), CONFIG_ENCRYPTION_KEY: gen(), DEVICE_SERIES: novaSerie() };
   mkdirSync(baseDir, { recursive: true });
   writeFileSync(file, JSON.stringify(j), { mode: 0o600 });
   return j;

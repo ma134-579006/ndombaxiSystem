@@ -3,6 +3,8 @@ import { isNativeApp } from '../config';
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
 import { queryCatalog } from '../offline/catalog';
+import { customersStore } from '../offline/indexedList';
+import { canQueue, enqueueWrite, newOpId, replayOutbox, withSnake, type OutboxOp, type SendResult } from '../offline/outbox';
 import type { PromoRow } from '../pos/promo';
 import type {
   CashSession,
@@ -56,6 +58,8 @@ export function configureApi(h: AuthHooks): void {
 interface RequestOptions {
   auth?: boolean;
   retry?: boolean;
+  /** `false` = esta escrita nunca vai para a fila offline. */
+  queue?: boolean;
 }
 
 async function parseError(res: Response): Promise<ApiError> {
@@ -90,8 +94,14 @@ async function request<T>(
   const cacheavel = isGet && !/^\/(pos\/cart-draft|cashbox\/session\/current|pos\/products)/.test(path);
   // Produtos: base indexada própria (offline/catalog) — milhões de produtos.
   const produtos = isGet && /^\/pos\/products(\?|$)/.test(path);
+  const clientes = isGet && /^\/pos\/customers(\?|$)/.test(path);
   const doCatalogo = async (): Promise<T | null> => {
     const company = hooks?.getCompanyCode();
+    if (clientes && company) {
+      const u = new URL(path, 'http://x');
+      const rows = await customersStore.query(company, { q: u.searchParams.get('q') ?? '', limit: Number(u.searchParams.get('limit')) || 300 }).catch(() => []);
+      return rows.length || u.searchParams.get('q') ? (rows as unknown as T) : null;
+    }
     if (!produtos || !company) return null;
     const u = new URL(path, 'http://x');
     const rows = await queryCatalog(company, {
@@ -108,6 +118,14 @@ async function request<T>(
     if (code) headers['X-Tenant-Code'] = code;
   }
 
+  // ESCRITA na app instalada (cliente novo, tema, autoconsumo, férias, pedidos…):
+  // UUID de idempotência desde a 1.ª tentativa; sem rede vai para a FILA do
+  // aparelho e sobe sozinha quando a ligação volta (vendas e turnos têm o seu
+  // próprio motor, `offline/sync`, e ficam de fora — ver `canQueue`).
+  const queueable = isNativeApp() && !isGet && options.queue !== false && canQueue(method, path);
+  const opId = queueable ? newOpId() : undefined;
+  if (opId) headers['X-Client-Op-Id'] = opId;
+
   // NOTA: NÃO usamos `navigator.onLine` para decidir se há rede — nas apps nativas
   // (Electron ndombaxi://, WebView Android) ele reporta `false` mesmo com internet,
   // bloqueando tudo ("sem ligação"). Fiável é tentar o fetch e, ao falhar, servir a
@@ -118,6 +136,7 @@ async function request<T>(
   // logo pelo caminho offline (fila de vendas/turno). Sonda em 2.º plano.
   if (isNativeApp() && semRede) {
     sondarServidor();
+    if (queueable && opId) return (await guardarNaFila(method, path, body, opId)) as T;
     const cat = await doCatalogo();
     if (cat) return cat;
     if (cacheavel) {
@@ -153,6 +172,7 @@ async function request<T>(
     // Silêncio do servidor da loja. Ao fim de algumas falhas seguidas o
     // aparelho volta à nuvem sozinho — quem saiu da loja continua a trabalhar.
     if (isNativeApp() && baseParaPedido(API_URL) !== API_URL) anotarFalhaDaLoja();
+    if (queueable && opId) return (await guardarNaFila(method, path, body, opId)) as T;
     if (isNativeApp()) { const cat = await doCatalogo(); if (cat) return cat; }
     if (cacheavel && (isNativeApp() || (e as Error)?.name !== 'AbortError')) {
       const cached = (await sharedGet<T>(cacheKey)) ?? (await sharedGet<T>(`GET ${path.split('?')[0]}`));
@@ -181,6 +201,60 @@ async function request<T>(
     if (path.includes('?')) void sharedSet(`GET ${path.split('?')[0]}`, data);
   }
   return data;
+}
+
+/** Guarda a escrita na fila e reflete-a já na memória (cliente novo aparece na pesquisa). */
+async function guardarNaFila(method: string, path: string, body: unknown, opId: string): Promise<unknown> {
+  const res = await enqueueWrite(method, path, body, opId);
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('ndombaxi:outbox-changed'));
+  const company = hooks?.getCompanyCode();
+  const M = method.toUpperCase();
+  const c = path.split('?')[0].match(/^\/pos\/customers(?:\/([^/]+))?$/);
+  if (company && c) {
+    const b = withSnake((body && typeof body === 'object' ? body : {}) as Record<string, unknown>);
+    if (M === 'POST' && !c[1]) await customersStore.apply(company, 'create', String((res as { id?: string }).id), b).catch(() => undefined);
+    else if (c[1]) await customersStore.apply(company, M === 'DELETE' ? 'delete' : 'update', c[1], b).catch(() => undefined);
+  }
+  return res;
+}
+
+/** Envia UMA operação da fila offline (com o seu UUID de idempotência). */
+async function sendQueuedWrite(op: OutboxOp, refreshed = false): Promise<SendResult> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Client-Op-Id': op.id };
+  const token = hooks?.getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const code = hooks?.getCompanyCode();
+  if (code) headers['X-Tenant-Code'] = code;
+  let res: Response;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 60_000);
+    res = await fetch(`${baseParaPedido(API_URL)}${op.path}`, { method: op.method, headers, body: op.body === undefined ? undefined : JSON.stringify(op.body), signal: ctrl.signal });
+    clearTimeout(t);
+  } catch { return { ok: false, status: 0, message: 'Sem ligação ao servidor.', retry: true }; }
+  if (res.status === 401 && hooks && !refreshed) {
+    if (await hooks.refresh()) return sendQueuedWrite(op, true);
+    return { ok: false, status: 401, message: 'Sessão expirada.', retry: true };
+  }
+  if (res.ok) {
+    const text = res.status === 204 ? '' : await res.text().catch(() => '');
+    let data: unknown; try { data = text ? JSON.parse(text) : undefined; } catch { data = undefined; }
+    // Cliente criado sem rede já subiu: troca o registo provisório pelo do servidor.
+    const company = hooks?.getCompanyCode();
+    if (company && op.localId && /^\/pos\/customers(\?|$)/.test(op.path)) {
+      await customersStore.apply(company, 'delete', op.localId).catch(() => undefined);
+      const id = data && typeof data === 'object' ? (data as { id?: string }).id : undefined;
+      if (id) await customersStore.apply(company, 'create', id, data as Record<string, unknown>).catch(() => undefined);
+    }
+    return { ok: true, data };
+  }
+  const err = await parseError(res);
+  return { ok: false, status: res.status, message: err.message, retry: res.status >= 500 || res.status === 429 || res.status === 408 || res.status === 401 };
+}
+
+/** Reenvia as alterações feitas sem rede (antes das vendas, pelo motor de sincronização). */
+export function replayQueuedWrites(): Promise<number> {
+  return replayOutbox((op) => sendQueuedWrite(op));
 }
 
 /** Estado de ligação conhecido pela app (ver `request`). */
@@ -246,6 +320,10 @@ export const api = {
     request<{ items: Product[]; next: { since: string; after: string } | null }>(
       'GET', `/pos/products/changes?limit=${limit}&since=${encodeURIComponent(since)}&after=${encodeURIComponent(after)}`),
   listPromotions: () => request<PromoRow[]>('GET', '/promotions'),
+  /** Alterações de clientes (memória interna aos poucos). */
+  customerChanges: (since: string, after: string, limit = 5000) =>
+    request<{ items: Customer[]; next: { since: string; after: string } | null }>(
+      'GET', `/pos/customers/changes?limit=${limit}&since=${encodeURIComponent(since)}&after=${encodeURIComponent(after)}`),
   /** Clientes: página + pesquisa no servidor (nome, NIF, telefone, e-mail). */
   listCustomers: (o: { q?: string; limit?: number } = {}) =>
     request<Customer[]>('GET', `/pos/customers?limit=${o.limit ?? 300}${o.q ? `&q=${encodeURIComponent(o.q)}` : ''}`),

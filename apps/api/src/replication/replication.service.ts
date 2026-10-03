@@ -99,7 +99,8 @@ export class ReplicationService {
       try {
         out.push(await this.applyOne(schema, row));
       } catch (e) {
-        const reason = e instanceof Error ? e.message.split('\n')[0].slice(0, 200) : 'erro';
+        const reason = e instanceof Error
+          ? (e.message.split('\n').map((l) => l.trim()).filter(Boolean).pop() ?? 'erro').slice(0, 200) : 'erro';
         this.logger.debug(`replicação recusou ${row.table}/${row.id}: ${reason}`);
         out.push({ table: row.table, id: row.id, applied: false, reason, conflict: false });
       }
@@ -127,14 +128,22 @@ export class ReplicationService {
     }
 
     const t = `"${schema}"."${row.table}"`;
+    const lista = cols.map((c) => `"${c}"`).join(', ');
+    // A linha vai como UM json e o PostgreSQL converte cada campo para o tipo da
+    // coluna (uuid, numeric, timestamptz, jsonb…). Com um parâmetro por coluna
+    // tudo chegava como texto e QUALQUER linha com uuid era recusada — nada do
+    // que um posto fazia sem internet chegava à nuvem.
+    const json = JSON.stringify(row.data);
 
     // ── FISCAL e ADITIVO: só entram, nunca alteram ─────────────
     if (klass === 'fiscal' || klass === 'additive') {
-      const marcadores = cols.map((_, i) => `$${i + 1}`).join(', ');
       const n = await this.prisma.$executeRawUnsafe(
-        `INSERT INTO ${t} (${cols.map((c) => `"${c}"`).join(', ')})
-         VALUES (${marcadores}) ON CONFLICT DO NOTHING`,
-        ...cols.map((c) => row.data[c]),
+        // `WHERE NOT EXISTS` e não `ON CONFLICT`: faturas têm REGRAS contra
+        // alteração, e o PostgreSQL recusa `ON CONFLICT` nessas tabelas — todas
+        // as vendas feitas sem internet eram recusadas pela nuvem.
+        `INSERT INTO ${t} (${lista}) SELECT ${lista} FROM json_populate_record(NULL::${t}, $1::json)
+         WHERE NOT EXISTS (SELECT 1 FROM ${t} WHERE id::text = $2)`,
+        json, row.id,
       );
       return {
         table: row.table, id: row.id, applied: n > 0, conflict: false,
@@ -186,12 +195,11 @@ export class ReplicationService {
       return { table: row.table, id: row.id, applied: false, reason: d.reason, conflict: d.conflict };
     }
 
-    const marcadores = cols.map((_, i) => `$${i + 1}`).join(', ');
     const set = cols.filter((c) => c !== 'id').map((c) => `"${c}" = EXCLUDED."${c}"`).join(', ');
     await this.prisma.$executeRawUnsafe(
-      `INSERT INTO ${t} (${cols.map((c) => `"${c}"`).join(', ')}) VALUES (${marcadores})
+      `INSERT INTO ${t} (${lista}) SELECT ${lista} FROM json_populate_record(NULL::${t}, $1::json)
        ${set ? `ON CONFLICT (id) DO UPDATE SET ${set}` : 'ON CONFLICT DO NOTHING'}`,
-      ...cols.map((c) => row.data[c]),
+      json,
     );
     return { table: row.table, id: row.id, applied: true, reason: d.reason, conflict: d.conflict };
   }

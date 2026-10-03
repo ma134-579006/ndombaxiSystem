@@ -199,6 +199,11 @@ async function autoProvision(session: {
       sqlDir: path.join(paths.apiDir, 'prisma'),
       log: logLocal,
     });
+    // Diário + gatilhos JÁ: o que se gravar neste posto a partir de agora sobe para a nuvem.
+    try {
+      const schema = await ls.companySchema({ query: runner.query, companyCode: session.companyCode });
+      await ls.ensureJournal({ schema, run: runner.run, query: runner.query });
+    } catch (e) { logLocal(`diário: ${(e as Error).message}`); }
     ls.recordSuccess(paths);
     // SÓ AGORA se liga: a partir do próximo arranque, este posto trabalha da
     // sua própria base. Antes disto seria servir uma empresa vazia.
@@ -249,11 +254,19 @@ async function replicateOnce(): Promise<void> {
     if (!cfg) return;
     const runner = await ls.openRunner(ls.connectionUrl(cfg));
     try {
+      // A empresa vive no schema com o MESMO nome da nuvem (tenant_…), não em
+      // `public`; e o diário tem de existir — sem ele nada do que se grava aqui
+      // subia (postos copiados antes desta versão recuperam o que mudou desde a cópia).
+      const schema = await ls.companySchema({ query: runner.query, companyCode: replicationSession.companyCode });
+      const j = await ls.ensureJournal({
+        schema, run: runner.run, query: runner.query, desde: ls.readReadiness(paths).provisionedAt ?? null,
+      });
+      if (j.created) logLocal(`diário instalado em ${schema}: ${j.tables} tabelas, ${j.backfilled} alterações recuperadas`);
       const r = await ls.pushPending({
         apiUrl: replicationSession.apiUrl,
         accessToken: replicationSession.accessToken,
         companyCode: replicationSession.companyCode,
-        schema: 'public',
+        schema,
         deviceId: 'desktop',
         query: runner.query,
         run: runner.run,
@@ -269,15 +282,18 @@ async function replicateOnce(): Promise<void> {
       // uma cópia mais velha que ainda vinha a caminho.
       const tabelas = await runner.query<{ table_name: string }>(
         `SELECT table_name FROM information_schema.tables
-          WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`,
+          WHERE table_schema = $1 AND table_type = 'BASE TABLE'`, [schema],
       );
       const d = await ls.pullAndApply({
         apiUrl: replicationSession.apiUrl,
         accessToken: replicationSession.accessToken,
         companyCode: replicationSession.companyCode,
-        schema: 'public',
+        schema,
         deviceId: 'desktop',
         tables: tabelas.map((x) => x.table_name),
+        // 1.ª descida a partir da cópia (com 24 h de folga para o que mudou
+        // enquanto ela corria) — não a empresa inteira outra vez.
+        startAt: desdeCopia(ls.readReadiness(paths).provisionedAt),
         query: runner.query,
         run: runner.run,
         log: logLocal,
@@ -286,7 +302,7 @@ async function replicateOnce(): Promise<void> {
         logLocal(`replicação (descida): ${d.applied} aplicadas, ${d.skipped} ignoradas, ${d.conflicts} conflitos`);
       }
 
-      await ls.pruneJournal({ schema: 'public', run: runner.run });
+      await ls.pruneJournal({ schema, run: runner.run });
     } finally {
       await runner.close();
     }
@@ -294,6 +310,11 @@ async function replicateOnce(): Promise<void> {
     // Sem rede, sem base, sem sessão — nada disto é excecional num posto.
     logLocal(`replicação adiada: ${(e as Error).message}`);
   }
+}
+
+function desdeCopia(provisionedAt?: string): string | null {
+  const t = provisionedAt ? Date.parse(provisionedAt) : NaN;
+  return Number.isNaN(t) ? null : new Date(t - 24 * 3600_000).toISOString();
 }
 
 /** Diagnóstico em ficheiro: num posto sem consola, é a única forma de saber. */

@@ -1,4 +1,11 @@
 import { Prisma } from '@prisma/client';
+import { localSeries } from './device-series';
+
+/** No servidor local de um posto, o contador é do posto ("RC-LX4K"): nunca colide com a nuvem. */
+function kindOf(kind: string): string {
+  const s = localSeries();
+  return s ? `${kind}-${s}` : kind;
+}
 
 /**
  * Alocação ATÓMICA de números sequenciais para documentos NÃO fiscais
@@ -20,7 +27,7 @@ export async function allocateDocumentNumber(
 ): Promise<number> {
   const rows = await tx.$queryRaw<{ last_sequence: number }[]>(
     Prisma.sql`INSERT INTO document_counters (kind, year, last_sequence)
-               VALUES (${kind}, ${year}, 1)
+               VALUES (${kindOf(kind)}, ${year}, 1)
                ON CONFLICT (kind, year)
                DO UPDATE SET last_sequence = document_counters.last_sequence + 1
                RETURNING last_sequence`,
@@ -30,5 +37,5 @@ export async function allocateDocumentNumber(
 
 /** Formata "KIND/ANO/0001" (sequência preenchida a >= 4 dígitos). */
 export function formatCounterNumber(kind: string, year: number, sequence: number): string {
-  return `${kind}/${year}/${String(sequence).padStart(4, '0')}`;
+  return `${kindOf(kind)}/${year}/${String(sequence).padStart(4, '0')}`;
 }

@@ -50,6 +50,7 @@ import { setPosBusy } from '../offline/localServer';
 import { espelharTurnoServidor, turnoAbertoLocal } from '../offline/shifts';
 import { isNativeApp } from '../config';
 import { syncCatalog } from '../offline/catalog';
+import { customersStore } from '../offline/indexedList';
 import { setSaleInProgress } from '../pos/saleActivity';
 
 const CACHE_PRODUCTS = 'cache:products';
@@ -451,7 +452,10 @@ export function PosPage() {
   // Memória interna do catálogo (app instalada): sincroniza as alterações em 2.º plano.
   useEffect(() => {
     if (!isNativeApp() || !companyCode) return;
-    const run = () => { void syncCatalog(companyCode, async (since, after) => (await api.productChanges(since, after)) as never).catch(() => undefined); };
+    const run = () => {
+      void syncCatalog(companyCode, async (since, after) => (await api.productChanges(since, after)) as never).catch(() => undefined);
+      void customersStore.sync(companyCode, async (since, after) => (await api.customerChanges(since, after)) as never).catch(() => undefined);
+    };
     run();
     const t = window.setInterval(run, 3 * 60_000);
     return () => window.clearInterval(t);

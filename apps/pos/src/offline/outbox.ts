@@ -1,5 +1,5 @@
 /**
- * FILA DE ESCRITA OFFLINE (apps instaladas — Android e Desktop).
+ * FILA DE ESCRITA OFFLINE DO CAIXA (cópia da do Gestão, com chave própria).
  *
  * Qualquer alteração feita SEM REDE (criar, editar, eliminar em qualquer módulo)
  * fica guardada na memória do aparelho e sobe sozinha quando a ligação volta. É o
@@ -23,11 +23,24 @@ export interface OutboxOp {
 }
 export interface OutboxFailure extends OutboxOp { status: number; message: string; at: number }
 
-const KEY = 'outbox:v1';
-const FAIL_KEY = 'outbox:failed:v1';
+const KEY = 'outbox:pos:v1';
+const FAIL_KEY = 'outbox:pos:failed:v1';
+const IDMAP_KEY = 'outbox:pos:idmap:v1';
+
+/**
+ * Id definitivo de um registo criado SEM REDE (ex.: cliente escolhido numa venda
+ * em fila). `undefined` = ainda não subiu; `null` = já não está na fila e nunca
+ * teve id (a criação foi recusada).
+ */
+export async function resolveLocalId(localId: string): Promise<string | null | undefined> {
+  const mapa = (await sharedGet<Record<string, string>>(IDMAP_KEY)) ?? {};
+  if (mapa[localId]) return mapa[localId];
+  const pendente = (await load()).some((op) => op.localId === localId);
+  return pendente ? undefined : null;
+}
 
 /** Nunca em fila: tempo real, fiscal, pagamentos, autenticação, ficheiros, motores próprios. */
-const NEVER = /\/(auth|chat|customer-chat|support|assistant|agent|ai|notifications?|subscription|payments?|gateways?|platform|super|tenants?|downloads?|fiscal|saft|einvoice|agt|invoices?|credit-notes?|cancel|emit|sales|payroll|backup|migration|upload|sync|devices?|register|login|logout|refresh|password|pin|google|close|pay|checkout|check-out|check-in|bill|issue|folio|deliver|void|refund|returns?|cashbox|cash-sessions?|shifts?)(\/|$|\?)/i;
+const NEVER = /\/(auth|chat|customer-chat|support|assistant|agent|ai|notifications?|subscription|payments?|gateways?|platform|super|tenants?|downloads?|fiscal|saft|einvoice|agt|invoices?|credit-notes?|cancel|emit|sales|payroll|backup|migration|upload|sync|devices?|register|login|logout|refresh|password|pin|google|close|pay|checkout|check-out|check-in|bill|issue|folio|deliver|void|refund|returns?|cashbox|cash-sessions?|shifts?|cart-draft)(\/|$|\?)/i;
 
 /**
  * Exceções à lista acima: são CRUD da empresa (não fiscais, não tempo real) e o
@@ -156,6 +169,8 @@ export async function replayOutbox(send: (op: OutboxOp) => Promise<SendResult>):
         if (op.localId && typeof serverId === 'string') {
           const s = JSON.stringify(rest).split(op.localId).join(serverId);
           try { rest = JSON.parse(s) as OutboxOp[]; } catch { /* mantém */ }
+          const mapa = (await sharedGet<Record<string, string>>(IDMAP_KEY)) ?? {};
+          await sharedSet(IDMAP_KEY, { ...mapa, [op.localId]: serverId });
         }
         await save(rest);
         sent++;

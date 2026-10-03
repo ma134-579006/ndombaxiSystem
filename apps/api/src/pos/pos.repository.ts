@@ -414,6 +414,24 @@ export class PosRepository {
 
   /** Lista clientes com ESTATÍSTICAS de compra (nº compras, total gasto, última
    *  compra) — só faturas válidas (status 'N'). Partilhado com caixa/loja online. */
+  /** Alterações de clientes por (updated_at, id) — memória interna das apps, aos poucos.
+   *  Inclui os desativados (a app retira-os da memória). Cursor com precisão total. */
+  listCustomerChanges(schema: string, since: string, afterId: string | undefined, limit: number): Promise<(CustomerRow & { updated_cursor: string })[]> {
+    const lim = Math.min(Math.max(1, Math.floor(limit)), 5000);
+    const s = since || '1970-01-01T00:00:00Z';
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<(CustomerRow & { updated_cursor: string })[]>(
+        Prisma.sql`SELECT c.id, c.tax_id, c.name, c.email, c.phone, c.address, c.province, c.municipality,
+                          c.is_active, c.updated_at::text AS updated_cursor
+                   FROM customers c
+                   WHERE ${afterId
+                     ? Prisma.sql`(c.updated_at, c.id) > (${s}::timestamptz, ${afterId}::uuid)`
+                     : Prisma.sql`c.updated_at >= ${s}::timestamptz`}
+                   ORDER BY c.updated_at, c.id LIMIT ${lim}`,
+      ),
+    );
+  }
+
   listCustomers(schema: string, opts?: { q?: string; limit?: number; offset?: number }): Promise<CustomerRow[]> {
     if (opts?.limit !== undefined) {
       // PÁGINA + PESQUISA no servidor (empresas com muitos clientes): os totais de
@@ -481,7 +499,7 @@ export class PosRepository {
     }
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<CustomerRow[]>(
-        Prisma.sql`UPDATE customers SET ${Prisma.join(sets, ', ')} WHERE id = ${id}::uuid RETURNING *`,
+        Prisma.sql`UPDATE customers SET ${Prisma.join([...sets, Prisma.sql`updated_at = now()`], ', ')} WHERE id = ${id}::uuid RETURNING *`,
       ),
     );
     if (!rows[0]) throw new NotFoundException('Cliente não encontrado.');
@@ -495,7 +513,7 @@ export class PosRepository {
         Prisma.sql`SELECT id FROM invoices WHERE customer_id = ${id}::uuid LIMIT 1`,
       );
       if (used[0]) {
-        await tx.$executeRaw(Prisma.sql`UPDATE customers SET is_active = FALSE WHERE id = ${id}::uuid`);
+        await tx.$executeRaw(Prisma.sql`UPDATE customers SET is_active = FALSE, updated_at = now() WHERE id = ${id}::uuid`);
         return { deleted: false, deactivated: true };
       }
       await tx.$executeRaw(Prisma.sql`DELETE FROM customers WHERE id = ${id}::uuid`);

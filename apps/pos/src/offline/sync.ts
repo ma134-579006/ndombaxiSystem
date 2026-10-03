@@ -3,7 +3,8 @@
  * esvazia a fila de vendas offline — cada venda é emitida no servidor e recebe
  * aí o seu número fiscal real (sequência AGT sem saltos).
  */
-import { api, ApiError } from '../api/client';
+import { api, ApiError, replayQueuedWrites } from '../api/client';
+import { outboxCount, resolveLocalId } from './outbox';
 import { isNativeApp } from '../config';
 import { deviceKey } from './device';
 import {
@@ -65,6 +66,7 @@ class SyncController {
     this.started = true;
     window.addEventListener('online', this.handleOnline);
     window.addEventListener('offline', this.handleOffline);
+    window.addEventListener('ndombaxi:outbox-changed', this.handleQueued);
     void this.refreshCount();
     // Rede de segurança: tenta sincronizar a cada 30s se houver pendências.
     // NÃO exige `state.online`: a tentativa É a deteção. Com o antigo requisito,
@@ -79,6 +81,7 @@ class SyncController {
     if (typeof window === 'undefined') return;
     window.removeEventListener('online', this.handleOnline);
     window.removeEventListener('offline', this.handleOffline);
+    window.removeEventListener('ndombaxi:outbox-changed', this.handleQueued);
     if (this.timer !== null) window.clearInterval(this.timer);
     this.started = false;
   }
@@ -88,6 +91,7 @@ class SyncController {
     void this.flush();
   };
   private handleOffline = () => this.emit({ online: false });
+  private handleQueued = () => { void this.refreshCount(); };
 
   /**
    * O que falta enviar = vendas + operações de turno.
@@ -97,7 +101,8 @@ class SyncController {
    * turno por subir é trabalho por salvar tanto como uma venda.
    */
   async refreshCount(): Promise<void> {
-    this.emit({ pending: (await countPendingSales()) + (await contarOpsDeTurno()) });
+    // + as outras alterações feitas sem rede (fila de escritas): também é trabalho por salvar.
+    this.emit({ pending: (await countPendingSales()) + (await contarOpsDeTurno()) + (await outboxCount().catch(() => 0)) });
   }
 
   /** Reemite uma venda específica da fila (revisão manual, ex.: corrigir um ERRO). */
@@ -170,6 +175,9 @@ class SyncController {
         this.emit({ online: false });
         return { synced: 0, failed: 0 };
       }
+      // Depois as outras alterações feitas sem rede (cliente novo, tema, pedidos…):
+      // um cliente criado offline tem de existir na nuvem antes da venda que o usa.
+      try { await replayQueuedWrites(); } catch { /* fica para a próxima volta */ }
       const sales = (await listPendingSales()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
       for (const sale of sales) {
         // A ligação é decidida pelo RESULTADO de cada emissão, nunca por
@@ -199,9 +207,17 @@ class SyncController {
    *   • `offline` — não há ligação utilizável AGORA; o ciclo pára e repete depois.
    */
   private async emitOne(sale: PendingSale): Promise<'ok' | 'failed' | 'offline'> {
+    // Cliente criado SEM REDE: a venda leva o id definitivo (o provisório não
+    // existe na nuvem). Ainda por subir → espera pela próxima volta.
+    let customerId = sale.customerId ?? undefined;
+    if (customerId?.startsWith('local-')) {
+      const real = await resolveLocalId(customerId);
+      if (real === undefined) return 'offline';
+      customerId = real ?? undefined;
+    }
     try {
       await api.emitInvoice({
-        customerId: sale.customerId ?? undefined,
+        customerId,
         // A MESMA chave em todas as tentativas: se o servidor já tiver gravado
         // esta venda (resposta perdida), devolve a fatura original em vez de
         // criar uma segunda. Vendas em fila de versões anteriores não têm chave

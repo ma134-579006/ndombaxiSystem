@@ -44,33 +44,50 @@ export class InventoryService {
     const from = isDate(f.from) ? f.from! : new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
     const storeCond = f.storeId ? Prisma.sql` AND i.store_id = ${f.storeId}::uuid` : Prisma.empty;
     return this.prisma.runInTenant(schema, async (tx) => {
-      const rows = await tx.$queryRaw<Array<{
+      // CATÁLOGOS GRANDES: as vendas do período agregam-se UMA vez (GROUP BY), em
+      // vez de uma subconsulta por produto; e dos produtos SEM vendas só seguem os
+      // 500 com mais stock parado (os que interessam decidir) — antes eram todas
+      // as linhas do catálogo (300 mil produtos = 80 MB e 17 s por pedido).
+      type AbcRow = {
         id: string; code: string; name: string; category: string | null;
         stock_qty: string; cost_price: string; unit_price: string;
         net: string | null; units: string | null; nc_net: string | null; nc_units: string | null;
-      }>>(
+      };
+      const sold = await tx.$queryRaw<AbcRow[]>(
         Prisma.sql`
-          SELECT p.id, p.code, p.name, c.name AS category,
-                 p.stock_qty, p.cost_price, p.unit_price,
-                 s.net, s.units, n.net AS nc_net, n.units AS nc_units
-          FROM products p
+          WITH s AS (
+            SELECT ii.product_id,
+                   SUM(ii.net_amount) FILTER (WHERE i.doc_type IN ('FT','FS') AND i.status <> 'A') AS net,
+                   SUM(ii.quantity)   FILTER (WHERE i.doc_type IN ('FT','FS') AND i.status <> 'A') AS units,
+                   SUM(ii.net_amount) FILTER (WHERE i.doc_type = 'NC') AS nc_net,
+                   SUM(ii.quantity)   FILTER (WHERE i.doc_type = 'NC') AS nc_units
+            FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
+            WHERE i.system_entry_date >= ${from}::date AND i.system_entry_date < (${to}::date + 1)
+              ${storeCond}
+            GROUP BY ii.product_id
+          )
+          SELECT p.id, p.code, p.name, c.name AS category, p.stock_qty, p.cost_price, p.unit_price,
+                 s.net, s.units, s.nc_net, s.nc_units
+          FROM s JOIN products p ON p.id = s.product_id
           LEFT JOIN product_categories c ON c.id = p.category_id
-          LEFT JOIN LATERAL (
-            SELECT SUM(ii.net_amount) AS net, SUM(ii.quantity) AS units
-            FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
-            WHERE ii.product_id = p.id AND i.doc_type IN ('FT','FS') AND i.status <> 'A'
-              AND i.system_entry_date >= ${from}::date AND i.system_entry_date < (${to}::date + 1)
-              ${storeCond}
-          ) s ON TRUE
-          LEFT JOIN LATERAL (
-            SELECT SUM(ii.net_amount) AS net, SUM(ii.quantity) AS units
-            FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
-            WHERE ii.product_id = p.id AND i.doc_type = 'NC'
-              AND i.system_entry_date >= ${from}::date AND i.system_entry_date < (${to}::date + 1)
-              ${storeCond}
-          ) n ON TRUE
           WHERE p.is_active = TRUE`,
       );
+      // NOT EXISTS (não uma lista de ids: numa loja enorme passaria o limite de parâmetros).
+      const notSold = Prisma.sql`p.is_active = TRUE AND NOT EXISTS (
+        SELECT 1 FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
+        WHERE ii.product_id = p.id
+          AND i.system_entry_date >= ${from}::date AND i.system_entry_date < (${to}::date + 1)
+          ${storeCond})`;
+      const dead = await tx.$queryRaw<AbcRow[]>(
+        Prisma.sql`SELECT p.id, p.code, p.name, c.name AS category, p.stock_qty, p.cost_price, p.unit_price,
+                          NULL AS net, NULL AS units, NULL AS nc_net, NULL AS nc_units
+                   FROM products p LEFT JOIN product_categories c ON c.id = p.category_id
+                   WHERE ${notSold}
+                   ORDER BY GREATEST(p.stock_qty, 0) * p.cost_price DESC, p.name LIMIT 500`,
+      );
+      const activeTotal = Number((await tx.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS n FROM products WHERE is_active = TRUE`))[0]?.n ?? 0);
+      const deadOmitted = Math.max(0, activeTotal - sold.length - dead.length);
+      const rows = [...sold, ...dead];
       const enriched = rows.map((r) => {
         const value = Math.max(0, round2((Number(r.net) || 0) - (Number(r.nc_net) || 0)));
         const units = Math.max(0, round3((Number(r.units) || 0) - (Number(r.nc_units) || 0)));
@@ -103,8 +120,10 @@ export class InventoryService {
       return {
         rows: withClass,
         summary: {
-          totalSales: round2(total), products: withClass.length,
-          aCount: count('A'), bCount: count('B'), cCount: count('C'),
+          // Contagens sobre TODO o catálogo: os produtos sem vendas não listados contam como C.
+          totalSales: round2(total), products: withClass.length + deadOmitted,
+          aCount: count('A'), bCount: count('B'), cCount: count('C') + deadOmitted,
+          omittedWithoutSales: deadOmitted,
           aValue: value('A'), bValue: value('B'), cValue: value('C'),
         },
         period: { from, to },
@@ -196,14 +215,19 @@ export class InventoryService {
             Prisma.sql`SELECT p.id, p.code, p.name, p.stock_qty AS qty, p.cost_price
                        FROM products p WHERE p.stock_qty > 0 AND p.is_active = TRUE ORDER BY p.name`,
           );
-      const ids = stock.map((s) => s.id);
       const layerCond = f.storeId ? Prisma.sql` AND m.warehouse_id = ${f.storeId}::uuid` : Prisma.empty;
-      const layers = ids.length
+      // Os produtos com stock filtram-se no PRÓPRIO SQL — não numa lista de ids: com
+      // mais de 32 767 produtos a consulta rebentava ("too many bind variables").
+      const comStock = f.storeId
+        ? Prisma.sql`SELECT si.product_id FROM stock_items si JOIN products p ON p.id = si.product_id
+                     WHERE si.warehouse_id = ${f.storeId}::uuid AND si.quantity > 0 AND p.is_active = TRUE`
+        : Prisma.sql`SELECT p.id FROM products p WHERE p.stock_qty > 0 AND p.is_active = TRUE`;
+      const layers = stock.length
         ? await tx.$queryRaw<Array<{ product_id: string; quantity: string; unit_cost: string }>>(
             Prisma.sql`SELECT m.product_id, m.quantity, m.unit_cost
                        FROM stock_movements m
                        WHERE m.type = 'IN' AND m.quantity > 0 AND m.unit_cost IS NOT NULL
-                         AND m.product_id = ANY(ARRAY[${Prisma.join(ids)}]::uuid[])
+                         AND m.product_id IN (${comStock})
                          ${layerCond}
                        ORDER BY m.created_at ASC`,
           )
@@ -247,7 +271,10 @@ export class InventoryService {
           valueFIFO: vFifo, valueLIFO: vLifo, valueCMP: vCmp,
         };
       });
-      return { rows, totals, method };
+      // Totais sobre TODO o stock; a tabela mostra os 500 de maior valor (catálogos
+      // grandes não cabem num ecrã nem num pedido).
+      rows.sort((a, b) => b.value - a.value);
+      return { rows: rows.slice(0, 500), totals, method, products: rows.length };
     });
   }
 

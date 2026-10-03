@@ -16,6 +16,7 @@ import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
+import { localSeries } from '../common/device-series';
 import { TenantContext } from '../tenancy/tenant-context';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { SaveCartDraftDto } from './dto/cart-draft.dto';
@@ -154,6 +155,15 @@ export class PosController {
   }
 
   // ── Clientes ───────────────────────────────────────────────
+  @Get('customers/changes')
+  @ApiOperation({ summary: 'Alterações de clientes desde um momento (memória interna das apps)' })
+  async customerChanges(@Query('since') since?: string, @Query('after') after?: string, @Query('limit') limit?: string) {
+    const lim = Math.min(Math.max(1, Number(limit) || 2000), 5000);
+    const items = await this.repo.listCustomerChanges(this.ctx.requireTenantSchema(), since ?? '', after || undefined, lim);
+    const last = items[items.length - 1];
+    return { items, next: items.length === lim && last ? { since: last.updated_cursor, after: last.id } : null };
+  }
+
   @Get('customers')
   @ApiOperation({ summary: 'Lista clientes do tenant' })
   @ApiQuery({ name: 'q', required: false }) @ApiQuery({ name: 'limit', required: false }) @ApiQuery({ name: 'offset', required: false })
@@ -225,7 +235,8 @@ export class PosController {
     try {
       return await this.invoices.emit(schema, {
         docType: dto.docType ?? DocumentType.FT,
-        series: deviceSeries ?? dto.series ?? 'A',
+        // Servidor local de um posto: série própria do posto (DEVICE_SERIES).
+        series: deviceSeries ?? localSeries() ?? dto.series ?? 'A',
         customerId: dto.customerId ?? null,
         cashierId: user.sub,
         cashierName: user.name ?? user.email,
