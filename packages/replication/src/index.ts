@@ -12,5 +12,6 @@
  */
 export {
   classify, isReplicated, canPushFromDevice, canPullToDevice, unknownTables, resolve,
+  tierForRole, tierRank, canPushWithTier, canPullWithTier, type ReplicationTier,
   type DataClass, type Version, type Winner, type Resolution,
 } from './policy';

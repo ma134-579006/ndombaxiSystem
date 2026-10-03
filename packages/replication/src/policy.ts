@@ -292,3 +292,60 @@ function differs(a: Version, b: Version): boolean {
     || (a.updatedAt ?? null) !== (b.updatedAt ?? null)
     || (a.deleted ?? false) !== (b.deleted ?? false);
 }
+
+// ─── QUEM pode replicar O QUÊ ───────────────────────────────────────────────
+//
+// O posto replica com a sessão de quem lá está a trabalhar. Antes, só o
+// administrador: num posto onde só o caixa entra, as vendas feitas sem
+// internet ficavam presas até um administrador iniciar sessão. Agora cada papel
+// sobe (e desce) apenas o que já pode fazer na própria aplicação:
+//
+//   • caixa / supervisor de turno → vendas, turnos, caixa, movimentos de stock
+//     (tudo só de ACRÉSCIMO: uma fatura que já esteja na nuvem nunca é reescrita);
+//   • gerente de loja / regional  → isso + catálogo (produtos, clientes, …);
+//   • administrador               → tudo o que a política permite (como antes).
+
+export type ReplicationTier = 'sales' | 'manager' | 'admin';
+
+/** Nível de replicação de um papel (`null` = não replica, ex.: só consulta). */
+export function tierForRole(role: string | null | undefined): ReplicationTier | null {
+  switch (role) {
+    case 'COMPANY_ADMIN': return 'admin';
+    case 'REGIONAL_MANAGER':
+    case 'STORE_MANAGER': return 'manager';
+    case 'SHIFT_SUPERVISOR':
+    case 'CASHIER': return 'sales';
+    default: return null;
+  }
+}
+
+/** O que o balcão produz: só de acréscimo, nada que reescreva o que existe. */
+const SALES_PUSH = new Set([
+  'invoices', 'invoice_items', 'cash_sessions', 'cash_movements', 'stock_movements',
+  'employee_consumptions', 'loyalty_movements',
+]);
+
+/** O que o balcão precisa de ler para vender sem rede. */
+const SALES_PULL = new Set([
+  'products', 'product_categories', 'product_recipes', 'product_batches', 'customers',
+  'promotions', 'payment_methods', 'stores', 'warehouses', 'restaurant_tables', 'loyalty_cards',
+]);
+
+/** Ordem dos níveis (maior = mais poder). */
+export function tierRank(t: ReplicationTier | null): number {
+  return t === 'admin' ? 3 : t === 'manager' ? 2 : t === 'sales' ? 1 : 0;
+}
+
+export function canPushWithTier(table: string, tier: ReplicationTier | null): boolean {
+  if (!tier || !canPushFromDevice(table)) return false;
+  if (tier === 'admin') return true;
+  if (tier === 'manager') return classify(table) !== 'cloud';
+  return SALES_PUSH.has(table);
+}
+
+export function canPullWithTier(table: string, tier: ReplicationTier | null): boolean {
+  if (!tier || !canPullToDevice(table)) return false;
+  if (tier === 'admin') return true;
+  if (tier === 'manager') return classify(table) !== 'cloud';
+  return SALES_PULL.has(table);
+}

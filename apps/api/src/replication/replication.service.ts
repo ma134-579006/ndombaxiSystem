@@ -1,7 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
-  classify, canPullToDevice, canPushFromDevice, resolve, type Version,
+  classify, canPullToDevice, canPushFromDevice, canPullWithTier, canPushWithTier, resolve,
+  type ReplicationTier, type Version,
 } from '@nexus/replication';
 import { PrismaService, assertValidSchemaName } from '../prisma/prisma.service';
 
@@ -86,7 +87,7 @@ export class ReplicationService {
    * Um lote que falhasse por inteiro por causa de uma linha estranha deixaria o
    * posto preso para sempre no mesmo ponto.
    */
-  async push(schema: string, rows: IncomingRow[]): Promise<ApplyOutcome[]> {
+  async push(schema: string, rows: IncomingRow[], tier: ReplicationTier | null = 'admin'): Promise<ApplyOutcome[]> {
     assertValidSchemaName(schema);
     if (!Array.isArray(rows) || rows.length === 0) return [];
     if (rows.length > ReplicationService.MAX_BATCH) {
@@ -97,6 +98,10 @@ export class ReplicationService {
     const out: ApplyOutcome[] = [];
     for (const row of rows) {
       try {
+        if (!canPushWithTier(row.table, tier) && canPushFromDevice(row.table)) {
+          // A política deixaria, o PAPEL não: ex. um caixa a enviar produtos.
+          throw new ForbiddenException(`o papel desta sessão não envia ${row.table}`);
+        }
         out.push(await this.applyOne(schema, row));
       } catch (e) {
         const reason = e instanceof Error
@@ -145,6 +150,12 @@ export class ReplicationService {
          WHERE NOT EXISTS (SELECT 1 FROM ${t} WHERE id::text = $2)`,
         json, row.id,
       );
+      // Movimento de stock NOVO vindo do posto: aplica-o ao saldo da loja e ao
+      // total do produto, como o StockService faz numa venda na nuvem. Sem isto
+      // o stock da nuvem só acertava quando um administrador subia a linha do
+      // produto — e aí por "último a escrever ganha", apagando vendas feitas
+      // na nuvem entretanto.
+      if (n > 0 && row.table === 'stock_movements') await this.applyStockMovement(schema, row.data);
       return {
         table: row.table, id: row.id, applied: n > 0, conflict: false,
         reason: n > 0
@@ -195,13 +206,38 @@ export class ReplicationService {
       return { table: row.table, id: row.id, applied: false, reason: d.reason, conflict: d.conflict };
     }
 
-    const set = cols.filter((c) => c !== 'id').map((c) => `"${c}" = EXCLUDED."${c}"`).join(', ');
+    // O stock de um produto que já existe é dos MOVIMENTOS (ver applyStockMovement),
+    // nunca do valor absoluto que o posto tinha: esse não conta as vendas da nuvem.
+    const set = cols.filter((c) => c !== 'id' && !(row.table === 'products' && c === 'stock_qty'))
+      .map((c) => `"${c}" = EXCLUDED."${c}"`).join(', ');
     await this.prisma.$executeRawUnsafe(
       `INSERT INTO ${t} (${lista}) SELECT ${lista} FROM json_populate_record(NULL::${t}, $1::json)
        ${set ? `ON CONFLICT (id) DO UPDATE SET ${set}` : 'ON CONFLICT DO NOTHING'}`,
       json,
     );
     return { table: row.table, id: row.id, applied: true, reason: d.reason, conflict: d.conflict };
+  }
+
+  /** Soma um movimento de stock vindo do posto ao saldo da loja e ao total do produto. */
+  private async applyStockMovement(schema: string, m: Record<string, unknown>): Promise<void> {
+    const q = Number(m.quantity);
+    const pid = typeof m.product_id === 'string' ? m.product_id : null;
+    const wid = typeof m.warehouse_id === 'string' ? m.warehouse_id : null;
+    if (!pid || !wid || !Number.isFinite(q) || q === 0) return;
+    await this.prisma.$transaction([
+      this.prisma.$executeRawUnsafe(
+        `INSERT INTO "${schema}"."stock_items" (product_id, warehouse_id, quantity)
+         VALUES ($1::uuid, $2::uuid, 0) ON CONFLICT (product_id, warehouse_id) DO NOTHING`, pid, wid,
+      ),
+      this.prisma.$executeRawUnsafe(
+        `UPDATE "${schema}"."stock_items" SET quantity = quantity + $3::numeric, updated_at = now()
+         WHERE product_id = $1::uuid AND warehouse_id = $2::uuid`, pid, wid, q,
+      ),
+      this.prisma.$executeRawUnsafe(
+        `UPDATE "${schema}"."products" SET stock_qty = stock_qty + $2::numeric, updated_at = now()
+         WHERE id = $1::uuid`, pid, q,
+      ),
+    ]);
   }
 
   // ─── DESCIDA: o que outros dispositivos fizeram ────────────
@@ -241,7 +277,7 @@ export class ReplicationService {
    * mudou". Um silêncio desses seria interpretado como estar em dia.
    */
   async pull(
-    schema: string, table: string, since: string | null, limit: number,
+    schema: string, table: string, since: string | null, limit: number, tier: ReplicationTier | null = 'admin',
   ): Promise<{ table: string; rows: Record<string, unknown>[]; cursor: string | null; hasMore: boolean; incremental: boolean }> {
     assertValidSchemaName(schema);
     // `canPullToDevice` e NAO `canPushFromDevice`: a direcao nao e simetrica.
@@ -251,6 +287,9 @@ export class ReplicationService {
     // poder alterar quem tem acesso a empresa.
     if (!canPullToDevice(table)) {
       throw new ForbiddenException(`tabela ${table} (classe "${classify(table)}") não desce por aqui`);
+    }
+    if (!canPullWithTier(table, tier)) {
+      throw new ForbiddenException(`o papel desta sessão não lê ${table}`);
     }
     const take = Math.min(Math.max(1, limit || 200), ReplicationService.MAX_BATCH);
     const col = await this.timeColumn(schema, table);

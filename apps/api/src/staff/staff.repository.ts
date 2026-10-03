@@ -166,6 +166,7 @@ export class StaffRepository {
   async createUser(
     schema: string,
     input: {
+      id?: string;
       email: string;
       name: string;
       role: string;
@@ -177,8 +178,8 @@ export class StaffRepository {
   ): Promise<StaffRow> {
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<StaffRow[]>(
-        Prisma.sql`INSERT INTO users (email, password_hash, name, role, store_id, pin_hash, must_reset_pw)
-                   VALUES (${input.email}, ${input.passwordHash}, ${input.name}, ${input.role},
+        Prisma.sql`INSERT INTO users (id, email, password_hash, name, role, store_id, pin_hash, must_reset_pw)
+                   VALUES (COALESCE(${input.id ?? null}::uuid, gen_random_uuid()), ${input.email}, ${input.passwordHash}, ${input.name}, ${input.role},
                            ${input.storeId ?? null}::uuid, ${input.pinHash ?? null}, ${input.mustResetPw})
                    RETURNING ${SAFE_USER_COLS}`,
       ),

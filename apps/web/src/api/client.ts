@@ -1,4 +1,6 @@
 import { API_URL, isNativeApp } from '../config';
+import { mirrorStaffWrite, mirrorsToCloud } from '../offline/cloudMirror';
+import { usingLocalServer } from '../offline/localServer';
 import { canQueue, enqueueWrite, newOpId, replayOutbox, withSnake, type OutboxOp, type SendResult } from '../offline/outbox';
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
@@ -377,9 +379,14 @@ async function request<T>(
     throw await parseError(res);
   }
   if (!res.ok) throw await parseError(res);
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) {
+    if (!isGet && mirrorsToCloud(method, path) && usingLocalServer()) void mirrorStaffWrite(method, path, body, undefined);
+    return undefined as T;
+  }
   const text = await res.text();
   const data = (text ? JSON.parse(text) : undefined) as T;
+  // Funcionário alterado no SERVIDOR LOCAL: segue também para a nuvem pela API.
+  if (!isGet && mirrorsToCloud(method, path) && usingLocalServer()) void mirrorStaffWrite(method, path, body, data);
   if (isNativeApp() && isGet && data !== undefined && !PRODUTOS.test(path)) {
     // (Produtos ficam na base indexada própria — nunca como um bloco gigante aqui.)
     // Memória interna: a resposta exata e, à parte, a última versão do recurso

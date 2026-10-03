@@ -20,6 +20,7 @@ function fake(existing: Record<string, unknown> | null = null) {
       return 1;
     }),
     $queryRawUnsafe: jest.fn(async () => (existing ? [existing] : [])),
+    $transaction: jest.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
   } as unknown as PrismaService;
   return { svc: new ReplicationService(prisma), executed };
 }
@@ -256,5 +257,70 @@ describe('ReplicationService — descida da nuvem para o posto', () => {
     const { svc, queries } = fakePull([]);
     await svc.pull(SCHEMA, 'products', null, 999999);
     expect(queries[0].sql).toContain(`LIMIT ${ReplicationService.MAX_BATCH}`);
+  });
+});
+
+describe('ReplicationService — cada papel só replica o que já pode fazer', () => {
+  it('o CAIXA sobe vendas (só entram, nunca reescrevem)', async () => {
+    const { svc } = fake(null);
+    const [r] = await svc.push(SCHEMA, [row({ table: 'invoices', data: { id: 'f1', number: 'FT L1A2026/1' } })], 'sales');
+    expect(r.applied).toBe(true);
+  });
+
+  it('o CAIXA não sobe catálogo (ex.: mudar o preço de um produto)', async () => {
+    const { svc, executed } = fake(null);
+    const [r] = await svc.push(SCHEMA, [row({ table: 'products', data: { id: 'p1', unit_price: 1 } })], 'sales');
+    expect(r.applied).toBe(false);
+    expect(r.reason).toMatch(/papel/);
+    expect(executed.some((e) => e.sql.includes('products'))).toBe(false);
+  });
+
+  it('o GERENTE sobe catálogo', async () => {
+    const { svc } = fake(null);
+    const [r] = await svc.push(SCHEMA, [row()], 'manager');
+    expect(r.applied).toBe(true);
+  });
+
+  it('sem papel de replicação (só consulta) nada sobe', async () => {
+    const { svc } = fake(null);
+    const [r] = await svc.push(SCHEMA, [row({ table: 'invoices', data: { id: 'f1' } })], null);
+    expect(r.applied).toBe(false);
+  });
+
+  it('o CAIXA desce produtos mas não utilizadores nem salários', async () => {
+    const { svc } = fakePull([]);
+    await expect(svc.pull(SCHEMA, 'products', null, 200, 'sales')).resolves.toBeDefined();
+    await expect(svc.pull(SCHEMA, 'users', null, 200, 'sales')).rejects.toThrow(/papel/);
+    await expect(svc.pull(SCHEMA, 'payroll_items', null, 200, 'sales')).rejects.toThrow(/papel/);
+  });
+
+  it('o GERENTE não desce utilizadores (senhas) — só o administrador', async () => {
+    const { svc } = fakePull([]);
+    await expect(svc.pull(SCHEMA, 'users', null, 200, 'manager')).rejects.toThrow(/papel/);
+    await expect(svc.pull(SCHEMA, 'users', null, 200, 'admin')).resolves.toBeDefined();
+  });
+});
+
+describe('ReplicationService — stock da nuvem acompanha os movimentos do posto', () => {
+  const mov = { id: 'm1', product_id: '11111111-1111-4111-8111-111111111111', warehouse_id: '22222222-2222-4222-8222-222222222222', quantity: -2 };
+
+  it('um movimento novo soma ao saldo da loja e ao total do produto', async () => {
+    const { svc, executed } = fake(null);
+    await svc.push(SCHEMA, [row({ table: 'stock_movements', id: 'm1', data: mov })], 'sales');
+    expect(executed.some((e) => /UPDATE .*stock_items.*quantity \+/s.test(e.sql))).toBe(true);
+    expect(executed.some((e) => /UPDATE .*products.*stock_qty = stock_qty \+/s.test(e.sql) && e.params.includes(-2))).toBe(true);
+  });
+
+  it('um movimento repetido (já existia) não volta a mexer no stock', async () => {
+    const { svc, executed } = fake({ id: 'm1' });
+    await svc.push(SCHEMA, [row({ table: 'stock_movements', id: 'm1', data: mov })], 'sales');
+    expect(executed.some((e) => /stock_qty = stock_qty/.test(e.sql))).toBe(false);
+  });
+
+  it('a linha do produto vinda do posto nunca sobrepõe o stock da nuvem', async () => {
+    const { svc, executed } = fake(null);
+    await svc.push(SCHEMA, [row({ data: { id: '11111111-1111-4111-8111-111111111111', name: 'Pão', stock_qty: 99, version: 2 } })], 'manager');
+    const up = executed.find((e) => e.sql.includes('ON CONFLICT (id) DO UPDATE'));
+    expect(up?.sql).not.toMatch(/"stock_qty" = EXCLUDED/);
   });
 });

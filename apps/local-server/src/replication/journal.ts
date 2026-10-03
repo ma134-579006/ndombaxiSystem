@@ -139,7 +139,7 @@ export interface PendingChange {
  * nem desejável: cada linha é um facto próprio, e é por isso que o `DISTINCT`
  * usa o `id` da linha e não a tabela.
  */
-export function pendingSql(schema: string, limit: number): string {
+export function pendingSql(schema: string, limit: number, tables?: string[]): string {
   const j = `${ident(schema)}.${ident(JOURNAL_TABLE)}`;
   const n = Math.min(Math.max(1, limit), 1000);
   // ⚠️ A SUBCONSULTA NÃO É ESTILO — é uma correção.
@@ -161,7 +161,7 @@ export function pendingSql(schema: string, limit: number): string {
             SELECT DISTINCT ON (table_name, row_id)
                    seq, table_name, row_id, op, changed_at, device_id, user_id
             FROM ${j}
-            WHERE synced_at IS NULL
+            WHERE synced_at IS NULL${tables ? ` AND table_name IN (${tables.map((t) => `'${ident(t).slice(1, -1)}'`).join(', ') || "''"})` : ''}
             ORDER BY table_name, row_id, seq DESC
           ) ultimas
           ORDER BY seq

@@ -81,3 +81,70 @@ export async function offerSessionToHost(input: {
     /* o posto regista o motivo; aqui não se estorva o operador */
   }
 }
+
+let cloudTimer: number | null = null;
+
+/** Papel dentro de um token (só para o posto escolher a sessão; a nuvem verifica tudo). */
+function roleOf(token: string): string {
+  try {
+    const p = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))) as { role?: string };
+    return p.role ?? '';
+  } catch { return ''; }
+}
+
+/**
+ * SESSÃO DA NUVEM para a replicação, quando a Caixa trabalha no SERVIDOR LOCAL.
+ *
+ * O login foi feito contra o posto (token local, que a nuvem não aceita). Em
+ * segundo plano entra também na nuvem com as mesmas credenciais e entrega ESSE
+ * token ao processo principal — assim as vendas feitas sem internet sobem com a
+ * sessão do próprio caixa, sem esperar que um administrador entre. A nuvem só
+ * deixa o caixa enviar o que é dele (vendas, turnos, caixa, stock). Sem rede
+ * tenta mais tarde; o operador nunca vê nada disto.
+ */
+export function startCloudSession(cred: { email: string; pin?: string; password?: string; companyCode?: string }): void {
+  if (!canHostLocalServer() || API_URL === CLOUD_API_URL) return;
+  stopCloudSession();
+  let refreshToken: string | null = null;
+  const post = async <T,>(path: string, body: unknown): Promise<T> => {
+    const ctrl = new AbortController();
+    const t = window.setTimeout(() => ctrl.abort(), 60_000);
+    try {
+      const res = await fetch(`${CLOUD_API_URL}${path}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal,
+      });
+      if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+      return (await res.json()) as T;
+    } finally { window.clearTimeout(t); }
+  };
+  type Pair = { accessToken: string; refreshToken: string; companyCode?: string };
+  const tick = async () => {
+    try {
+      let pair: Pair | null = null;
+      if (refreshToken) { try { pair = await post<Pair>('/auth/refresh', { refreshToken }); } catch { refreshToken = null; } }
+      if (!pair) {
+        pair = cred.pin
+          ? await post<Pair>('/auth/login/staff', { email: cred.email, pin: cred.pin })
+          : await post<Pair>('/auth/login', { email: cred.email, password: cred.password, ...(cred.companyCode ? { companyCode: cred.companyCode } : {}) });
+      }
+      refreshToken = pair.refreshToken;
+      const code = pair.companyCode ?? cred.companyCode;
+      const h = host();
+      if (code && h?.provisionLocal) {
+        await h.provisionLocal({
+          accessToken: pair.accessToken, companyCode: code, apiUrl: CLOUD_API_URL, role: roleOf(pair.accessToken), busy,
+        }).catch(() => undefined);
+      }
+    } catch (e) {
+      const st = (e as { status?: number }).status;
+      if (st === 401 || st === 403) { stopCloudSession(); return; } // credenciais recusadas pela nuvem
+      /* sem rede → próximo ciclo */
+    }
+  };
+  void tick();
+  cloudTimer = window.setInterval(() => { void tick(); }, 10 * 60_000);
+}
+
+export function stopCloudSession(): void {
+  if (cloudTimer) { window.clearInterval(cloudTimer); cloudTimer = null; }
+}

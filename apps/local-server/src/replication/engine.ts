@@ -47,6 +47,12 @@ export interface EngineOptions {
   maxBatches?: number;
   log?: (line: string) => void;
   fetchImpl?: typeof fetch;
+  /**
+   * Nível de quem tem a sessão (caixa/gerente/admin). Só se envia e lê o que
+   * esse papel pode; o resto do diário FICA PENDENTE até haver uma sessão com
+   * papel suficiente — nunca é marcado como enviado nem se perde.
+   */
+  tier?: import('@nexus/replication').ReplicationTier | null;
 }
 
 export interface PushResult {
@@ -77,8 +83,19 @@ export async function pushPending(o: EngineOptions): Promise<PushResult> {
 
   const res: PushResult = { sent: 0, applied: 0, rejected: 0, conflicts: 0, remaining: false };
 
+  // Tabelas que ESTA sessão pode enviar (sem nível = como antes: tudo).
+  let permitidas: string[] | undefined;
+  if (o.tier !== undefined) {
+    const { canPushWithTier } = await import('@nexus/replication');
+    const tabs = await o.query<{ table_name: string }>(
+      `SELECT DISTINCT table_name FROM "${o.schema}"."sync_journal" WHERE synced_at IS NULL`,
+    );
+    permitidas = tabs.map((t) => t.table_name).filter((t) => canPushWithTier(t, o.tier ?? null));
+    if (permitidas.length === 0) return res;
+  }
+
   for (let volta = 0; volta < maxBatches; volta++) {
-    const pendentes = await o.query<PendingChange>(pendingSql(o.schema, batch));
+    const pendentes = await o.query<PendingChange>(pendingSql(o.schema, batch, permitidas));
     if (pendentes.length === 0) return res;
 
     // Lê o estado ATUAL de cada linha. É de propósito que não se guarda a
@@ -226,8 +243,10 @@ export async function pullAndApply(
 
   const { canPullToDevice, classify, resolve } = await import('@nexus/replication');
 
+  const { canPullWithTier } = await import('@nexus/replication');
   for (const table of o.tables) {
     if (!canPullToDevice(table)) continue;
+    if (o.tier !== undefined && !canPullWithTier(table, o.tier ?? null)) continue;
     res.tables += 1;
 
     const guardado = await o.query<{ cursor: string | null }>(
