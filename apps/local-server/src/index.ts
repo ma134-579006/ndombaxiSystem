@@ -33,7 +33,8 @@ export { openRunner, type RunnerHandle } from './sql-runner';
 // A política é PARTILHADA com a nuvem (mesmo ficheiro, não uma cópia).
 export {
   classify, isReplicated, canPushFromDevice, canPullToDevice, unknownTables, resolve,
-  type DataClass, type Version, type Winner, type Resolution,
+  tierForRole, tierRank, canPushWithTier, canPullWithTier,
+  type DataClass, type Version, type Winner, type Resolution, type ReplicationTier,
 } from '@nexus/replication';
 export {
   journalDdl, attachTriggersSql, skippedTables, pendingSql, markSyncedSql, pruneSql,

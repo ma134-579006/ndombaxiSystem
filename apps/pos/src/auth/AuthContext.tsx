@@ -16,7 +16,7 @@ import {
 } from '../offline/session';
 import { isOfflineToken, syncCredentials } from '../offline/credentials';
 import { registerDevice } from '../offline/device';
-import { offerSessionToHost } from '../offline/localServer';
+import { offerSessionToHost, startCloudSession, stopCloudSession } from '../offline/localServer';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
 
@@ -232,6 +232,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       applyTokens(tokens);
       setStatus('authed');
+      // Servidor local em uso: sessão da nuvem em 2.º plano para a replicação.
+      startCloudSession({ email: input.email, password: input.password, companyCode: input.companyCode });
     },
     [applyTokens],
   );
@@ -279,6 +281,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           accessToken: r.accessToken, refreshToken: r.refreshToken,
         });
         clearPendingUpgrade();
+        // Servidor local em uso: sessão da nuvem em 2.º plano para a replicação.
+        startCloudSession({ email: em, pin, companyCode: r.companyCode });
         // Traz as credenciais da EMPRESA INTEIRA para este posto: é o que
         // permite a qualquer colega abrir a Caixa aqui sem rede, mesmo que
         // nunca tenha escrito o PIN neste aparelho.
@@ -318,6 +322,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    stopCloudSession();
     const rt = refreshRef.current;
     if (rt) {
       try {

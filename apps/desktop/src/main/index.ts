@@ -140,25 +140,25 @@ async function autoProvision(session: {
   } catch { /* sistema sem statfs — não bloqueia por isso */ }
 
   // A replicação precisa de uma sessão para falar com a nuvem. Guardamo-la SÓ
-  // em memória — morre quando a aplicação fecha, e não fica um token de
-  // administrador em disco à espera de ser encontrado.
+  // em memória — morre quando a aplicação fecha, e não fica um token em disco.
   //
-  // SÓ de um ADMINISTRADOR, e é essencial: `/replication/push` e `/pull` são
-  // reservados ao COMPANY_ADMIN. Agora que a Caixa também oferece a sessão, um
-  // operador a entrar num posto já provisionado substituiria aqui o token do
-  // administrador pelo dele — e a partir desse minuto tudo o que a loja
-  // vendesse sem internet ficaria a bater num 403, em silêncio, com o registo
-  // a dizer apenas "replicação adiada". A sessão do administrador que já cá
-  // está vale mais do que a do operador que acabou de chegar.
-  if (session.role === 'COMPANY_ADMIN') {
-    replicationSession = {
-      accessToken: session.accessToken,
-      companyCode: session.companyCode,
-      apiUrl: session.apiUrl,
-    };
-    // Só faz sentido replicar quando este posto está mesmo a trabalhar da sua
-    // base local: sem ela não há diário, e sem diário não há nada para subir.
-    if (localApiUrl) startReplicationClock();
+  // Qualquer papel serve: a nuvem só deixa cada um enviar o que já pode fazer
+  // (caixa → vendas/turnos/stock; gerente → + catálogo; administrador → tudo), e
+  // o posto deixa PENDENTE o que o papel atual não pode enviar. Fica a sessão de
+  // papel MAIS ALTO — mas uma de papel inferior substitui-a quando a outra já
+  // não é renovada (o administrador saiu): senão as vendas do caixa ficavam a
+  // bater num token caducado.
+  {
+    const { tierForRole, tierRank } = ls;
+    const tier = tierForRole(session.role);
+    const atual = replicationSession;
+    const caducou = !atual || Date.now() - atual.at > 12 * 60_000;
+    if (tier && (caducou || tierRank(tier) >= tierRank(atual!.tier))) {
+      replicationSession = {
+        accessToken: session.accessToken, companyCode: session.companyCode, apiUrl: session.apiUrl, tier, at: Date.now(),
+      };
+      if (localApiUrl) startReplicationClock();
+    }
   }
 
   const decisao = ls.shouldProvision(paths, {
@@ -233,7 +233,10 @@ async function autoProvision(session: {
  */
 let replicationTimer: NodeJS.Timeout | null = null;
 /** Credenciais da sessão atual, guardadas SÓ em memória (nunca em disco). */
-let replicationSession: { accessToken: string; companyCode: string; apiUrl: string } | null = null;
+let replicationSession: {
+  accessToken: string; companyCode: string; apiUrl: string;
+  tier: import('@nexus/local-server').ReplicationTier; at: number;
+} | null = null;
 
 const REPLICATION_EVERY_MS = 2 * 60_000;
 
@@ -268,6 +271,7 @@ async function replicateOnce(): Promise<void> {
         companyCode: replicationSession.companyCode,
         schema,
         deviceId: 'desktop',
+        tier: replicationSession.tier,
         query: runner.query,
         run: runner.run,
         log: logLocal,
@@ -294,6 +298,7 @@ async function replicateOnce(): Promise<void> {
         // 1.ª descida a partir da cópia (com 24 h de folga para o que mudou
         // enquanto ela corria) — não a empresa inteira outra vez.
         startAt: desdeCopia(ls.readReadiness(paths).provisionedAt),
+        tier: replicationSession.tier,
         query: runner.query,
         run: runner.run,
         log: logLocal,

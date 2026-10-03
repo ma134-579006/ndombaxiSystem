@@ -1,5 +1,8 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { JwtPayload } from '@nexus/types';
+import { tierForRole } from '@nexus/replication';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
@@ -19,23 +22,27 @@ export class ReplicationController {
     private readonly ctx: TenantContext,
   ) {}
 
+  // Caixa e acima: cada papel só sobe/desce o que já pode fazer na aplicação
+  // (ver `canPushWithTier` / `canPullWithTier` em @nexus/replication). O resto
+  // de cada linha é recusado pelo serviço, linha a linha.
   @Post('push')
-  @Roles(Role.COMPANY_ADMIN)
+  @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Recebe um lote de alterações feitas num posto' })
-  push(@Body() body: { rows: IncomingRow[] }) {
-    return this.repl.push(this.ctx.requireTenantSchema(), body?.rows ?? []);
+  push(@Body() body: { rows: IncomingRow[] }, @CurrentUser() user: JwtPayload) {
+    return this.repl.push(this.ctx.requireTenantSchema(), body?.rows ?? [], tierForRole(user.role));
   }
 
   @Get('pull')
-  @Roles(Role.COMPANY_ADMIN)
+  @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'O que mudou na nuvem (alterações de outros dispositivos)' })
   pull(
+    @CurrentUser() user: JwtPayload,
     @Query('table') table: string,
     @Query('since') since?: string,
     @Query('limit') limit?: string,
   ) {
     return this.repl.pull(
-      this.ctx.requireTenantSchema(), table, since ?? null, Number(limit ?? 200) || 200,
+      this.ctx.requireTenantSchema(), table, since ?? null, Number(limit ?? 200) || 200, tierForRole(user.role),
     );
   }
 
