@@ -22,6 +22,7 @@
 import { api, prefetchGet, replayQueuedWrites } from '../api/client';
 import { isNativeApp } from '../config';
 import { runTransfer } from '../components/feedback';
+import { syncCatalog } from './catalog';
 
 let running = false;
 let lastRunAt = 0;
@@ -32,6 +33,7 @@ const SKIP_NS = new Set([
   'support', 'tenants', 'platformDashboard', 'mailAdmin', 'downloadsAdmin', 'landingAdmin', 'subsAdmin',
   'ai', 'integrations', 'gateways', 'onboarding', 'setup', 'chat', 'customerChat', 'assistant',
   'preferences', 'agtComm', 'backup', 'migration', 'cameras', 'audit',
+  'products', // catálogo: base indexada (offline/catalog), nunca a lista inteira
 ]);
 /** Leituras sem argumentos obrigatórios (listas, resumos, painéis…). */
 const READ_NAME = /^(list|listAll|all|summary|pending|pendingCount|pendingOnline|metrics|stats|overview|today|top|topProducts|lowStock|salesToday|alerts|ingredients|categories|warehouses|stores|listStores|listUsers|listSuppliers|employees|roomMap|reservations|housekeeping|maintenance|tableMap|tables|kitchen|mine|limit|sessions|counts|listCounts|expiring|expiringBatches|expiring30|analysis|status|get|balance|rooms|beds|patients|appointments|professionals|insurers|exams|prescriptions|orders|equipments|agenda|suppliers|runs|listRuns|methods|salaries)$/;
@@ -83,7 +85,7 @@ const ALL_READS = [
   '/landing/plans', '/leave', '/leave/employees', '/leave/summary',
   '/onboarding/my-plan', '/onboarding/setup-status',
   '/payables', '/payables/summary', '/payments/methods', '/payments/proofs',
-  '/pos/customers', '/pos/products', '/pos/products/all', '/pos/products/ingredients',
+  '/pos/customers?limit=500', '/pos/products/ingredients', // produtos: base indexada própria (syncCatalog)
   '/profit/abc', '/profit/by-product', '/profit/series', '/profit/summary', '/promotions', '/public/landing',
   '/receivables', '/receivables/summary', '/reconciliation', '/reconciliation/summary',
   '/reports/cash-sessions', '/reports/documents', '/reports/payment-methods', '/reports/sales-by-brand', '/reports/sales-by-category',
@@ -134,6 +136,11 @@ export async function prefetchTenantData(company?: string | null): Promise<void>
   if (running || Date.now() - lastRunAt < 30_000) return;
   running = true;
   try {
+    // CATÁLOGO (base indexada, aos poucos — milhões de produtos cabem) em 2.º
+    // plano: nunca bloqueia o ecrã; as páginas de produtos usam-no assim que chega.
+    if (company) {
+      void syncCatalog(company, async (since, after) => (await api.products.changes(since, after)) as never).catch(() => undefined);
+    }
     const tasks = [...collect(), ...rawTasks()];
     if (tasks.length === 0) return;
     const first = !!company && !hasPrepared(company);

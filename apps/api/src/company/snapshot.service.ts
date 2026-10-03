@@ -40,7 +40,7 @@ export class SnapshotService {
   private readonly logger = new Logger(SnapshotService.name);
   /** Teto por página. Mais do que isto e a resposta fica grande demais para um
    *  posto com ligação fraca — que é exatamente o caso de uso. */
-  static readonly MAX_LIMIT = 500;
+  static readonly MAX_LIMIT = 5000;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -104,6 +104,28 @@ export class SnapshotService {
   }
 
   /**
+   * Linhas da PLATAFORMA que o servidor local precisa para servir esta empresa:
+   * o registo em `companies` (com o nome do schema), o plano e as subscrições.
+   * Sem elas a base local tinha os dados mas não sabia que a empresa existia —
+   * o login local falhava e o posto nunca deixava de depender da nuvem.
+   * Só a PRÓPRIA empresa (schema tirado do token).
+   */
+  async platform(schema: string): Promise<{ schema: string; companies: unknown[]; plans: unknown[]; subscriptions: unknown[] }> {
+    assertValidSchemaName(schema);
+    const companies = await this.prisma.$queryRaw<Record<string, unknown>[]>(
+      Prisma.sql`SELECT * FROM nexus_public.companies WHERE "schemaName" = ${schema}`,
+    );
+    const planIds = companies.map((c) => String(c.planId));
+    const plans = planIds.length
+      ? await this.prisma.$queryRaw<unknown[]>(Prisma.sql`SELECT * FROM nexus_public.plans WHERE id::text IN (${Prisma.join(planIds)})`)
+      : [];
+    const subscriptions = companies.length
+      ? await this.prisma.$queryRaw<unknown[]>(Prisma.sql`SELECT * FROM nexus_public.subscriptions WHERE "companyId" = ${String(companies[0].id)}::uuid`).catch(() => [])
+      : [];
+    return { schema, companies, plans, subscriptions };
+  }
+
+  /**
    * Uma página de linhas de UMA tabela.
    *
    * `ctid` como ordem: é a posição física da linha. Não é bonito, mas é a única
@@ -111,8 +133,8 @@ export class SnapshotService {
    * e sem ordem estável duas páginas podiam trazer a mesma linha e falhar outra.
    */
   async rows(
-    schema: string, table: string, offset: number, limit: number,
-  ): Promise<{ table: string; offset: number; rows: unknown[]; done: boolean }> {
+    schema: string, table: string, offset: number, limit: number, after?: string,
+  ): Promise<{ table: string; offset: number; rows: unknown[]; done: boolean; next?: string | null }> {
     assertValidSchemaName(schema);
 
     // O nome da tabela vai para dentro de SQL, por isso NÃO basta validá-lo com
@@ -125,11 +147,27 @@ export class SnapshotService {
     const take = Math.min(Math.max(1, limit || 200), SnapshotService.MAX_LIMIT);
     const skip = Math.max(0, offset || 0);
 
+    // KEYSET por ctid (`after`): cada página continua onde a anterior acabou, sem
+    // OFFSET — com milhões de linhas o OFFSET relia tudo o que ficou para trás e
+    // a cópia nunca acabava. `offset` mantém-se para postos antigos.
+    if (after !== undefined) {
+      if (after !== '' && !/^\(\d+,\d+\)$/.test(after)) throw new BadRequestException('Cursor inválido.');
+      const raw = await this.prisma.$queryRaw<Record<string, unknown>[]>(
+        after
+          ? Prisma.sql`SELECT ctid::text AS "__ctid", * FROM ${Prisma.raw(`"${schema}"."${table}"`)}
+                       WHERE ctid > ${after}::tid ORDER BY ctid LIMIT ${take}`
+          : Prisma.sql`SELECT ctid::text AS "__ctid", * FROM ${Prisma.raw(`"${schema}"."${table}"`)}
+                       ORDER BY ctid LIMIT ${take}`,
+      );
+      const next = raw.length ? String(raw[raw.length - 1].__ctid) : null;
+      const rows = raw.map(({ __ctid: _c, ...r }) => semBigInt(r));
+      return { table, offset: skip, rows, done: rows.length < take, next: rows.length < take ? null : next };
+    }
     const rows = await this.prisma.$queryRaw<unknown[]>(
       Prisma.sql`SELECT * FROM ${Prisma.raw(`"${schema}"."${table}"`)}
                  ORDER BY ctid LIMIT ${take} OFFSET ${skip}`,
     );
-    return { table, offset: skip, rows, done: rows.length < take };
+    return { table, offset: skip, rows: rows.map((r) => semBigInt(r as Record<string, unknown>)), done: rows.length < take };
   }
 }
 
@@ -162,4 +200,14 @@ export function topologicalOrder(nodes: string[], edges: FkEdge[]): string[] {
   }
   for (const n of nodes) if (!done.has(n)) out.push(n); // ciclos, no fim
   return out;
+}
+
+/**
+ * Colunas BIGINT chegam como `BigInt`, que o JSON não sabe escrever — a página
+ * inteira dava erro 500 (ex.: `tenant_audit_log.seq`) e a cópia para o servidor
+ * local parava ali. Em texto, o Postgres converte-as de volta ao inserir.
+ */
+function semBigInt(r: Record<string, unknown>): Record<string, unknown> {
+  for (const k of Object.keys(r)) if (typeof r[k] === 'bigint') r[k] = (r[k] as bigint).toString();
+  return r;
 }

@@ -162,7 +162,18 @@ export class PosRepository {
    *  - shared_stock = FALSE → saldo da loja do operador (stock_items dessa loja).
    * storeId omisso (gestor/admin) → mostra o stock_qty global.
    */
-  listProducts(schema: string, storeId?: string | null, includeInactive = false): Promise<ProductRow[]> {
+  /**
+   * Catálogo. Sem `opts` devolve tudo (compatibilidade com apps antigas). Com
+   * `limit`, devolve UMA página e pesquisa no servidor (`q`: código/barras exatos,
+   * nome/marca) — obrigatório para catálogos grandes (centenas de milhares a
+   * milhões de produtos: a lista inteira passava das centenas de MB).
+   * `changesSince` (+ `afterId`) devolve as alterações por ordem (updated_at, id)
+   * — é o que a memória interna das apps usa para se manter atualizada aos poucos.
+   */
+  listProducts(
+    schema: string, storeId?: string | null, includeInactive = false,
+    opts?: { q?: string; limit?: number; offset?: number; changesSince?: string; afterId?: string },
+  ): Promise<ProductRow[]> {
     return this.prisma.runInTenant(schema, async (tx) => {
       // PRATOS/PRODUÇÃO: um produto com ficha técnica é produzido sob encomenda —
       // não tem stock próprio (a emissão valida/baixa os INGREDIENTES). O POS
@@ -208,9 +219,27 @@ export class PosRepository {
                        JOIN web_orders wo ON wo.id = wi.order_id
                        WHERE wi.product_id = p.id AND wo.status = 'PENDING'), 0)`
         : Prisma.sql`0`;
+      const q = (opts?.q ?? '').trim();
+      const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      let where = Prisma.empty;
+      let order = Prisma.sql`ORDER BY p.name`;
+      if (opts?.changesSince !== undefined) {
+        const since = opts.changesSince || '1970-01-01T00:00:00Z';
+        where = opts.afterId
+          ? Prisma.sql`AND (p.updated_at, p.id) > (${since}::timestamptz, ${opts.afterId}::uuid)`
+          : Prisma.sql`AND p.updated_at >= ${since}::timestamptz`;
+        order = Prisma.sql`ORDER BY p.updated_at, p.id`;
+      } else if (q) {
+        where = Prisma.sql`AND (p.code = ${q} OR p.barcode = ${q} OR p.name ILIKE ${like} OR p.brand ILIKE ${like})`;
+        // Correspondência exata de código/barras primeiro, depois nome a começar pelo termo.
+        order = Prisma.sql`ORDER BY (p.code = ${q} OR p.barcode = ${q}) DESC, (p.name ILIKE ${q.replace(/[\\%_]/g, (c) => `\\${c}`) + '%'}) DESC, p.name`;
+      }
+      const lim = opts?.limit !== undefined ? Math.min(Math.max(1, Math.floor(opts.limit)), 5000) : null;
+      const off = Math.max(0, Math.floor(opts?.offset ?? 0));
+      const page = lim !== null ? Prisma.sql`LIMIT ${lim} OFFSET ${off}` : Prisma.empty;
       return tx.$queryRaw<ProductRow[]>(
         Prisma.sql`
-          SELECT p.id, p.code, p.barcode, p.name, p.description, p.category_id, p.brand,
+          SELECT p.id, p.code, p.barcode, p.name, p.updated_at, p.updated_at::text AS updated_cursor, p.description, p.category_id, p.brand,
                  p.iva_code, p.exemption_reason, p.exemption_code, p.unit_price, p.cost_price,
                  CASE WHEN p.shared_stock OR ${storeId ?? null}::uuid IS NULL
                       THEN p.stock_qty ELSE COALESCE(si.quantity, 0) END AS stock_qty,
@@ -222,8 +251,11 @@ export class PosRepository {
           LEFT JOIN stock_items si
                  ON si.product_id = p.id AND si.warehouse_id = ${storeId ?? null}::uuid
           -- Ingredientes (matéria-prima) NÃO entram no catálogo do caixa: só se vendem pratos.
-          WHERE (p.is_active = TRUE OR ${includeInactive}::boolean) AND p.is_ingredient = FALSE
-          ORDER BY p.name`,
+          WHERE ${opts?.changesSince !== undefined ? Prisma.sql`TRUE` : Prisma.sql`(p.is_active = TRUE OR ${includeInactive}::boolean)`}
+            AND p.is_ingredient = FALSE
+            ${where}
+          ${order}
+          ${page}`,
       );
     });
   }
@@ -382,7 +414,32 @@ export class PosRepository {
 
   /** Lista clientes com ESTATÍSTICAS de compra (nº compras, total gasto, última
    *  compra) — só faturas válidas (status 'N'). Partilhado com caixa/loja online. */
-  listCustomers(schema: string): Promise<CustomerRow[]> {
+  listCustomers(schema: string, opts?: { q?: string; limit?: number; offset?: number }): Promise<CustomerRow[]> {
+    if (opts?.limit !== undefined) {
+      // PÁGINA + PESQUISA no servidor (empresas com muitos clientes): os totais de
+      // compras calculam-se só para os clientes da página (LATERAL), não para todos.
+      const q = (opts.q ?? '').trim();
+      const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const where = q
+        ? Prisma.sql`AND (c.name ILIKE ${like} OR c.tax_id = ${q} OR c.phone ILIKE ${like} OR c.email ILIKE ${like})`
+        : Prisma.empty;
+      const lim = Math.min(Math.max(1, Math.floor(opts.limit)), 2000);
+      const off = Math.max(0, Math.floor(opts.offset ?? 0));
+      return this.prisma.runInTenant(schema, (tx) =>
+        tx.$queryRaw<CustomerRow[]>(
+          Prisma.sql`SELECT c.*, COALESCE(s.purchases, 0)::int AS purchases,
+                            COALESCE(s.total_spent, 0)::float AS total_spent, s.last_purchase
+                     FROM customers c
+                     LEFT JOIN LATERAL (
+                       SELECT COUNT(*)::int AS purchases, SUM(gross_total)::float AS total_spent,
+                              MAX(system_entry_date) AS last_purchase
+                       FROM invoices i WHERE i.customer_id = c.id AND i.status = 'N' AND i.doc_type IN ('FT','FS')
+                     ) s ON TRUE
+                     WHERE c.is_active = TRUE ${where}
+                     ORDER BY c.name LIMIT ${lim} OFFSET ${off}`,
+        ),
+      );
+    }
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<CustomerRow[]>(
         Prisma.sql`SELECT c.*,

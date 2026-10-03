@@ -525,7 +525,7 @@ export class InvoiceService {
                 createdBy: input.cashierId ?? null, allowNegative: true,
               });
             } else {
-              await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${ing.quantity * line.quantity} WHERE id = ${ing.ingredientId}::uuid`);
+              await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${ing.quantity * line.quantity}, updated_at = now() WHERE id = ${ing.ingredientId}::uuid`);
             }
           }
           continue;
@@ -547,7 +547,7 @@ export class InvoiceService {
           });
         } else {
           await tx.$executeRaw(
-            Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${line.quantity}
+            Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${line.quantity}, updated_at = now()
                        WHERE id = ${product.id}::uuid`,
           );
         }
@@ -947,7 +947,7 @@ export class InvoiceService {
           });
         } else {
           await tx.$executeRaw(
-            Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${qty} WHERE id = ${ing.ingredientId}::uuid`,
+            Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${qty}, updated_at = now() WHERE id = ${ing.ingredientId}::uuid`,
           );
         }
       }
@@ -962,7 +962,7 @@ export class InvoiceService {
       });
     } else {
       await tx.$executeRaw(
-        Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${args.quantity} WHERE id = ${args.productId}::uuid`,
+        Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${args.quantity}, updated_at = now() WHERE id = ${args.productId}::uuid`,
       );
     }
   }

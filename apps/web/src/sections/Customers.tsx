@@ -28,13 +28,30 @@ export function Customers() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const toggleSel = (id: string) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
+  // Muitos clientes: páginas de 200 e pesquisa no servidor (ou na memória, sem rede).
+  const [pages, setPages] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const qRef = React.useRef({ q: '', pages: 1 });
+  qRef.current = { q: q.trim(), pages };
   const load = async () => {
     setLoading(true);
-    try { setRows(await api.customers.list()); setError(null); }
+    try {
+      const n = qRef.current.pages * 200;
+      const r = await api.customers.list({ q: qRef.current.q, limit: n });
+      setRows(r); setHasMore(r.length >= n); setError(null);
+    }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao carregar clientes.'); }
     finally { setLoading(false); }
   };
   useEffect(() => { void load(); }, []);
+  const firstQ = React.useRef(true);
+  useEffect(() => {
+    if (firstQ.current) { firstQ.current = false; return; }
+    const t = window.setTimeout(() => { setPages(1); qRef.current = { q: q.trim(), pages: 1 }; void load(); }, 300);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+  const loadMore = () => { const n = pages + 1; setPages(n); qRef.current = { q: q.trim(), pages: n }; void load(); };
 
   const openCreate = () => { setEditing(null); setForm({ ...EMPTY }); setOpen(true); };
   const openEdit = (c: CustomerRow) => {
@@ -176,6 +193,11 @@ export function Customers() {
             ))}
           </>}
       </div>
+      {!loading && hasMore ? (
+        <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0' }}>
+          <button className="btn" onClick={loadMore}>Carregar mais clientes ({rows.length} mostrados)</button>
+        </div>
+      ) : null}
 
       {open ? (
         <Modal title={editing ? 'Editar cliente' : 'Novo cliente'} onClose={() => setOpen(false)}>

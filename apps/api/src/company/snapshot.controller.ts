@@ -28,6 +28,13 @@ export class SnapshotController {
     return this.snapshot.tables(this.ctx.requireTenantSchema());
   }
 
+  @Get('platform')
+  @Roles(Role.COMPANY_ADMIN)
+  @ApiOperation({ summary: 'Registo da empresa, plano e subscrições (para o servidor local servir esta empresa)' })
+  platform() {
+    return this.snapshot.platform(this.ctx.requireTenantSchema());
+  }
+
   @Get('rows')
   @Roles(Role.COMPANY_ADMIN)
   @ApiQuery({ name: 'table', required: true })
@@ -38,12 +45,14 @@ export class SnapshotController {
     @Query('table') table: string,
     @Query('offset') offset?: string,
     @Query('limit') limit?: string,
+    @Query('after') after?: string,
   ) {
     return this.snapshot.rows(
       this.ctx.requireTenantSchema(),
       table,
       Number(offset ?? 0) || 0,
       Number(limit ?? 200) || 200,
+      after,
     );
   }
 }

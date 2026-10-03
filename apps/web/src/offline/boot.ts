@@ -26,7 +26,10 @@ import { deviceSqlBridge } from './sqlBridge';
  * O push só aceita `sale`/`customer`; aqui interessa sobretudo o PULL — manter o
  * catálogo e os clientes em cache local para leitura offline.
  */
-const ENTITIES = ['product', 'category', 'customer', 'promotion', 'store', 'paymentMethod'];
+// Produtos e clientes NÃO: em empresas grandes são milhões de registos e o motor
+// puxava-os em páginas pequenas (centenas de /sync/pull seguidos). Os produtos
+// vivem na base indexada (offline/catalog) e os clientes na memória das leituras.
+const ENTITIES = ['category', 'promotion', 'store', 'paymentMethod'];
 
 export interface OfflineAuth {
   getAccessToken(): string | null;

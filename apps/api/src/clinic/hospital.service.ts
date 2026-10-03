@@ -172,7 +172,7 @@ export class HospitalService {
               reference: `Dispensa ${rx[0].number}`, createdBy: actor.id ?? null, allowNegative: false,
             });
           } else {
-            await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${need} WHERE id = ${it.product_id}::uuid`);
+            await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${need}, updated_at = now() WHERE id = ${it.product_id}::uuid`);
           }
           // FEFO: abate dos lotes por validade mais próxima (rastreabilidade).
           let remaining = need;

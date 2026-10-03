@@ -10,7 +10,7 @@
  * A API é a MESMA (mesmas regras fiscais, mesma numeração, mesmo SAF-T). Muda o
  * `DATABASE_URL` — e é essa a razão de isto ser viável sem reescrever o sistema.
  */
-export { LocalServer, type LocalServerInfo, type SupervisorOptions } from './supervisor';
+export { LocalServer, applyPlatformSchema, type LocalServerInfo, type SupervisorOptions } from './supervisor';
 export { layout, type LayoutOptions } from './paths';
 export {
   binariesPresent, ensureLocalDatabase, backup, connectionUrl, readConfig,

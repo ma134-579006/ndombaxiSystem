@@ -279,7 +279,7 @@ export class RestaurantService {
               reference: 'Consumo de receita (restaurante)', allowNegative: true,
             });
           } else {
-            await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${t.qty} WHERE id = ${t.id}::uuid`);
+            await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${t.qty}, updated_at = now() WHERE id = ${t.id}::uuid`);
           }
         }
       }
@@ -405,7 +405,7 @@ export class RestaurantService {
             reference: ref, createdBy: actor.id ?? null, allowNegative: false,
           });
         } else {
-          await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${n.need} WHERE id = ${n.id}::uuid`);
+          await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${n.need}, updated_at = now() WHERE id = ${n.id}::uuid`);
         }
       }
 
@@ -423,7 +423,7 @@ export class RestaurantService {
           unitCost, reference: ref, createdBy: actor.id ?? null,
         });
       } else {
-        await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${input.quantity} WHERE id = ${p[0].id}::uuid`);
+        await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = stock_qty + ${input.quantity}, updated_at = now() WHERE id = ${p[0].id}::uuid`);
       }
       await tx.$executeRaw(Prisma.sql`UPDATE products SET cost_price = ${newCost}, updated_at = now() WHERE id = ${p[0].id}::uuid`);
 

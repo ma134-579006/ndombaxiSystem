@@ -184,6 +184,9 @@ async function autoProvision(session: {
 
   logLocal(`cópia automática a começar (empresa ${session.companyCode})`);
   const url = await ls.ensureLocalDatabase(paths);
+  // Tabelas de PLATAFORMA (empresas, planos…) antes de copiar: sem elas a API
+  // local não reconheceria a empresa e o posto nunca deixaria a nuvem.
+  try { ls.applyPlatformSchema(paths.apiDir, url); } catch (e) { logLocal(`esquema de plataforma: ${(e as Error).message}`); }
   const runner = await ls.openRunner(url);
   try {
     const r = await ls.provisionFromCloud({
@@ -191,6 +194,9 @@ async function autoProvision(session: {
       cloud: { apiUrl: session.apiUrl, accessToken: session.accessToken, companyCode: session.companyCode },
       run: runner.run,
       schema: 'public',
+      // Modelo SQL das empresas (vem com a API empacotada): cria o schema da
+      // empresa na base local com o mesmo nome da nuvem antes da cópia.
+      sqlDir: path.join(paths.apiDir, 'prisma'),
       log: logLocal,
     });
     ls.recordSuccess(paths);

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Customer } from '../api/types';
 import { IconClose, IconSearch, IconUser } from './Icons';
@@ -19,13 +19,24 @@ export function CustomerModal({ customers, onPick, onCreated, onClose }: Props) 
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Muitos clientes: a pesquisa vai também ao servidor (ou à memória, sem rede).
+  const [hits, setHits] = useState<Customer[]>([]);
+  useEffect(() => {
+    const q = search.trim();
+    if (!q) { setHits([]); return; }
+    let vivo = true;
+    const t = window.setTimeout(() => { api.listCustomers({ q, limit: 50 }).then((r) => { if (vivo) setHits(r); }).catch(() => undefined); }, 250);
+    return () => { vivo = false; window.clearTimeout(t); };
+  }, [search]);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return customers;
-    return customers.filter(
+    const local = customers.filter(
       (c) => c.name.toLowerCase().includes(q) || (c.tax_id ?? '').toLowerCase().includes(q),
     );
-  }, [customers, search]);
+    const ids = new Set(local.map((c) => c.id));
+    return [...local, ...hits.filter((c) => !ids.has(c.id))];
+  }, [customers, search, hits]);
 
   const create = async () => {
     setError(null);

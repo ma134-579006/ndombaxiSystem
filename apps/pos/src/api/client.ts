@@ -2,6 +2,7 @@ import { API_URL } from '../config';
 import { isNativeApp } from '../config';
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
+import { queryCatalog } from '../offline/catalog';
 import type { PromoRow } from '../pos/promo';
 import type {
   CashSession,
@@ -86,7 +87,19 @@ async function request<T>(
   const cacheKey = `GET ${path}`;
   // Dados "ao vivo" NUNCA vêm da memória: o rascunho do carrinho (voltariam artigos
   // já vendidos) e o turno atual (a app tem o seu espelho próprio, offline/shifts).
-  const cacheavel = isGet && !/^\/(pos\/cart-draft|cashbox\/session\/current)/.test(path);
+  const cacheavel = isGet && !/^\/(pos\/cart-draft|cashbox\/session\/current|pos\/products)/.test(path);
+  // Produtos: base indexada própria (offline/catalog) — milhões de produtos.
+  const produtos = isGet && /^\/pos\/products(\?|$)/.test(path);
+  const doCatalogo = async (): Promise<T | null> => {
+    const company = hooks?.getCompanyCode();
+    if (!produtos || !company) return null;
+    const u = new URL(path, 'http://x');
+    const rows = await queryCatalog(company, {
+      q: u.searchParams.get('q') ?? '', limit: Number(u.searchParams.get('limit')) || 300,
+      offset: Number(u.searchParams.get('offset')) || 0,
+    }).catch(() => []);
+    return rows as unknown as T;
+  };
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (auth) {
     const token = hooks?.getAccessToken();
@@ -105,6 +118,8 @@ async function request<T>(
   // logo pelo caminho offline (fila de vendas/turno). Sonda em 2.º plano.
   if (isNativeApp() && semRede) {
     sondarServidor();
+    const cat = await doCatalogo();
+    if (cat) return cat;
     if (cacheavel) {
       const mem = (await sharedGet<T>(cacheKey)) ?? (await sharedGet<T>(`GET ${path.split('?')[0]}`));
       if (mem != null) return mem;
@@ -138,6 +153,7 @@ async function request<T>(
     // Silêncio do servidor da loja. Ao fim de algumas falhas seguidas o
     // aparelho volta à nuvem sozinho — quem saiu da loja continua a trabalhar.
     if (isNativeApp() && baseParaPedido(API_URL) !== API_URL) anotarFalhaDaLoja();
+    if (isNativeApp()) { const cat = await doCatalogo(); if (cat) return cat; }
     if (cacheavel && (isNativeApp() || (e as Error)?.name !== 'AbortError')) {
       const cached = (await sharedGet<T>(cacheKey)) ?? (await sharedGet<T>(`GET ${path.split('?')[0]}`));
       if (cached != null) return cached;
@@ -217,9 +233,22 @@ export const api = {
       request<{ theme: string }>('PATCH', '/auth/me/preferences', { theme }),
   },
 
-  listProducts: () => request<Product[]>('GET', '/pos/products'),
+  /** Página/pesquisa do catálogo (q: código/barras exatos, nome, marca). Nunca a lista inteira. */
+  listProducts: (o: { q?: string; limit?: number; offset?: number } = {}) => {
+    const p = new URLSearchParams();
+    if (o.q) p.set('q', o.q);
+    p.set('limit', String(o.limit ?? 300));
+    if (o.offset) p.set('offset', String(o.offset));
+    return request<Product[]>('GET', `/pos/products?${p.toString()}`);
+  },
+  /** Alterações do catálogo (memória interna aos poucos). */
+  productChanges: (since: string, after: string, limit = 5000) =>
+    request<{ items: Product[]; next: { since: string; after: string } | null }>(
+      'GET', `/pos/products/changes?limit=${limit}&since=${encodeURIComponent(since)}&after=${encodeURIComponent(after)}`),
   listPromotions: () => request<PromoRow[]>('GET', '/promotions'),
-  listCustomers: () => request<Customer[]>('GET', '/pos/customers'),
+  /** Clientes: página + pesquisa no servidor (nome, NIF, telefone, e-mail). */
+  listCustomers: (o: { q?: string; limit?: number } = {}) =>
+    request<Customer[]>('GET', `/pos/customers?limit=${o.limit ?? 300}${o.q ? `&q=${encodeURIComponent(o.q)}` : ''}`),
   createCustomer: (input: { taxId?: string; name: string; phone?: string }) =>
     request<Customer>('POST', '/pos/customers', input),
   emitInvoice: (input: EmitInvoiceInput) =>
