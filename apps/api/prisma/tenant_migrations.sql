@@ -670,3 +670,4 @@ CREATE INDEX IF NOT EXISTS products_barcode_idx ON "{{SCHEMA}}"."products"(barco
 CREATE INDEX IF NOT EXISTS products_updated_idx ON "{{SCHEMA}}"."products"(updated_at, id);
 CREATE INDEX IF NOT EXISTS customers_name_idx ON "{{SCHEMA}}"."customers"(name);
 CREATE INDEX IF NOT EXISTS invoices_customer_idx ON "{{SCHEMA}}"."invoices"(customer_id);
+CREATE INDEX IF NOT EXISTS customers_updated_idx ON "{{SCHEMA}}"."customers"(updated_at, id);

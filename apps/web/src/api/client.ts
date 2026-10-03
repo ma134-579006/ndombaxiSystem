@@ -3,6 +3,7 @@ import { canQueue, enqueueWrite, newOpId, replayOutbox, withSnake, type OutboxOp
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
 import { applyToCatalog, queryCatalog } from '../offline/catalog';
+import { customersStore } from '../offline/indexedList';
 import type {
   AgtCommResult,
   AgtCommStatus,
@@ -246,8 +247,21 @@ async function lerDaMemoria<T>(path: string): Promise<T | null> {
     }).catch(() => []);
     return rows as unknown as T;
   }
+  if (CLIENTES.test(path)) {
+    const company = hooks?.getCompanyCode?.();
+    if (company) {
+      const u = new URL(path, 'http://x');
+      const rows = await customersStore.query(company, {
+        q: u.searchParams.get('q') ?? '', limit: Number(u.searchParams.get('limit')) || 500,
+        offset: Number(u.searchParams.get('offset')) || 0,
+      }).catch(() => []);
+      if (rows.length || u.searchParams.get('q')) return rows as unknown as T;
+    }
+  }
   return (await sharedGet<T>(`GET ${path}`)) ?? (await sharedGet<T>(`GET ${semQuery(path)}`));
 }
+/** Clientes: base indexada própria (offline/indexedList) — empresas com muitos clientes. */
+const CLIENTES = /^\/pos\/customers(\?|$)/;
 
 /** Escrita guardada na fila do aparelho; produtos refletem-se já na memória do catálogo. */
 async function guardarNaFila(method: string, path: string, body: unknown, opId: string): Promise<unknown> {
@@ -260,6 +274,14 @@ async function guardarNaFila(method: string, path: string, body: unknown, opId: 
     if (M === 'POST' && !m[1]) await applyToCatalog(company, 'create', String((res as { id?: string }).id), b).catch(() => undefined);
     else if (M === 'DELETE' && m[1]) await applyToCatalog(company, 'delete', m[1]).catch(() => undefined);
     else if (m[1]) await applyToCatalog(company, 'update', m[1], b).catch(() => undefined);
+  }
+  const c = /^\/pos\/customers(?:\/([^/?]+))?(?:\?|$)/.exec(path);
+  if (c && company && c[1] !== 'changes') {
+    const b = withSnake((body && typeof body === 'object' ? body : {}) as Record<string, unknown>);
+    const M = method.toUpperCase();
+    if (M === 'POST' && !c[1]) await customersStore.apply(company, 'create', String((res as { id?: string }).id), b).catch(() => undefined);
+    else if (M === 'DELETE' && c[1]) await customersStore.apply(company, 'delete', c[1]).catch(() => undefined);
+    else if (c[1]) await customersStore.apply(company, 'update', c[1], b).catch(() => undefined);
   }
   return res;
 }
@@ -1075,6 +1097,10 @@ export const api = {
   },
   // ── Clientes da empresa (mesma tabela que o caixa usa) ─────
   customers: {
+    /** Alterações de clientes (memória interna aos poucos). */
+    changes: (since: string, after: string, limit = 5000) =>
+      request<{ items: CustomerRow[]; next: { since: string; after: string } | null }>(
+        'GET', `/pos/customers/changes?limit=${limit}&since=${encodeURIComponent(since)}&after=${encodeURIComponent(after)}`, undefined, { timeoutMs: 120_000 }),
     /** Página + pesquisa no servidor (nome, NIF, telefone, e-mail). */
     list: (o: { q?: string; limit?: number } = {}) =>
       request<CustomerRow[]>('GET', `/pos/customers?limit=${o.limit ?? 500}${o.q ? `&q=${encodeURIComponent(o.q)}` : ''}`),

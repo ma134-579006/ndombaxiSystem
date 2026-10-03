@@ -132,21 +132,34 @@ export async function queryCatalog(company: string, o: { q?: string; limit?: num
     r.onsuccess = () => resolve(r.result as Row[]); r.onerror = () => resolve([]);
   });
   // Percorre o índice de nomes por ordem; `keep` decide o que entra.
-  const walk = (range: IDBKeyRange | null, keep: (r: Row) => boolean, need: number, skip: number) => new Promise<void>((resolve) => {
-    let skipped = 0;
-    const c = st().index('name_l').openCursor(range);
-    const t0 = Date.now();
-    c.onsuccess = () => {
-      const cur = c.result;
-      if (!cur || out.length >= need || Date.now() - t0 > 1500) { resolve(); return; }
-      const r = cur.value as Row;
-      if (keep(r) && ok(r) && !seen.has(r.id)) {
-        if (skipped < skip) skipped++; else push(r);
+
+  const walk = async (range: IDBKeyRange | null, keep: (r: Row) => boolean, need: number, skip: number) => {
+      // Lê o índice de nomes em BLOCOS (getAll), não um registo de cada vez: cada
+      // passo de um cursor custava dezenas de ms e uma pesquisa demorava segundos.
+      let skipped = 0; const t0 = Date.now(); let lower: string | undefined;
+      const lo0 = range ? (range.lower as string) : undefined; const hi = range ? (range.upper as string) : undefined;
+      const chunk = (lo?: string): IDBKeyRange | null => {
+        const l = lo ?? lo0;
+        if (l === undefined && hi === undefined) return null;
+        if (l === undefined) return IDBKeyRange.upperBound(hi as string);
+        if (hi === undefined) return IDBKeyRange.lowerBound(l);
+        return IDBKeyRange.bound(l, hi);
+      };
+      while (out.length < need && Date.now() - t0 < 1500) {
+        const rows = await new Promise<Row[]>((resolve) => {
+          const r = st().index('name_l').getAll(chunk(lower), 2000);
+          r.onsuccess = () => resolve(r.result as Row[]); r.onerror = () => resolve([]);
+        });
+        for (const r of rows) {
+          if (out.length >= need) break;
+          if (ok(r) && keep(r) && !seen.has(r.id)) { if (skipped < skip) skipped++; else push(r); }
+        }
+        if (rows.length < 2000) break;
+        const next = String(rows[rows.length - 1].name_l ?? '');
+        if (next === lower) break;
+        lower = next;
       }
-      cur.continue();
     };
-    c.onerror = () => resolve();
-  });
 
   if (!q) {
     await walk(null, () => true, limit, offset);
@@ -154,8 +167,11 @@ export async function queryCatalog(company: string, o: { q?: string; limit?: num
     const need = offset + limit;
     for (const r of await getAll('code', q)) push(r);
     for (const r of await getAll('barcode', q)) push(r);
+    // Código/barras/NIF/telefone encontrado: é uma procura por identificador — não percorrer tudo.
+    const exatos = out.length > 0;
     if (out.length < need) await walk(IDBKeyRange.bound(ql, `${ql}￿`), () => true, need, 0);
-    if (out.length < need) await walk(null, (r) => String(r.name_l ?? '').includes(ql) || String(r.brand ?? '').toLowerCase().includes(ql), need, 0);
+    // 'Contém' só quando há poucos resultados (é a procura mais lenta: percorre a lista).
+    if (!exatos && out.length < Math.min(need, 20)) await walk(null, (r) => String(r.name_l ?? '').includes(ql) || String(r.brand ?? '').toLowerCase().includes(ql), need, 0);
     out.splice(0, offset);
     out.length = Math.min(out.length, limit);
   }

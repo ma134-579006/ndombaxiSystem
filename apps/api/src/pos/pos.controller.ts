@@ -154,6 +154,15 @@ export class PosController {
   }
 
   // ── Clientes ───────────────────────────────────────────────
+  @Get('customers/changes')
+  @ApiOperation({ summary: 'Alterações de clientes desde um momento (memória interna das apps)' })
+  async customerChanges(@Query('since') since?: string, @Query('after') after?: string, @Query('limit') limit?: string) {
+    const lim = Math.min(Math.max(1, Number(limit) || 2000), 5000);
+    const items = await this.repo.listCustomerChanges(this.ctx.requireTenantSchema(), since ?? '', after || undefined, lim);
+    const last = items[items.length - 1];
+    return { items, next: items.length === lim && last ? { since: last.updated_cursor, after: last.id } : null };
+  }
+
   @Get('customers')
   @ApiOperation({ summary: 'Lista clientes do tenant' })
   @ApiQuery({ name: 'q', required: false }) @ApiQuery({ name: 'limit', required: false }) @ApiQuery({ name: 'offset', required: false })

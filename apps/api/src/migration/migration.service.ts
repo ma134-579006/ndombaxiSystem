@@ -556,7 +556,7 @@ export class MigrationService {
                   const combined = existing.notes ? `${existing.notes}\n${newNote}` : newNote;
                   sets.push(Prisma.sql`notes = ${combined}`);
                 }
-                await tx.$executeRaw(Prisma.sql`UPDATE customers SET ${Prisma.join(sets, ', ')} WHERE id = ${existing.id}::uuid`);
+                await tx.$executeRaw(Prisma.sql`UPDATE customers SET ${Prisma.join([...sets, Prisma.sql`updated_at = now()`], ', ')} WHERE id = ${existing.id}::uuid`);
                 customerId = existing.id;
                 bUpdated++;
               } else {

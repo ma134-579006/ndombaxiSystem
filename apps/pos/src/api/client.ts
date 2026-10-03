@@ -3,6 +3,7 @@ import { isNativeApp } from '../config';
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
 import { queryCatalog } from '../offline/catalog';
+import { customersStore } from '../offline/indexedList';
 import type { PromoRow } from '../pos/promo';
 import type {
   CashSession,
@@ -90,8 +91,14 @@ async function request<T>(
   const cacheavel = isGet && !/^\/(pos\/cart-draft|cashbox\/session\/current|pos\/products)/.test(path);
   // Produtos: base indexada própria (offline/catalog) — milhões de produtos.
   const produtos = isGet && /^\/pos\/products(\?|$)/.test(path);
+  const clientes = isGet && /^\/pos\/customers(\?|$)/.test(path);
   const doCatalogo = async (): Promise<T | null> => {
     const company = hooks?.getCompanyCode();
+    if (clientes && company) {
+      const u = new URL(path, 'http://x');
+      const rows = await customersStore.query(company, { q: u.searchParams.get('q') ?? '', limit: Number(u.searchParams.get('limit')) || 300 }).catch(() => []);
+      return rows.length || u.searchParams.get('q') ? (rows as unknown as T) : null;
+    }
     if (!produtos || !company) return null;
     const u = new URL(path, 'http://x');
     const rows = await queryCatalog(company, {
@@ -246,6 +253,10 @@ export const api = {
     request<{ items: Product[]; next: { since: string; after: string } | null }>(
       'GET', `/pos/products/changes?limit=${limit}&since=${encodeURIComponent(since)}&after=${encodeURIComponent(after)}`),
   listPromotions: () => request<PromoRow[]>('GET', '/promotions'),
+  /** Alterações de clientes (memória interna aos poucos). */
+  customerChanges: (since: string, after: string, limit = 5000) =>
+    request<{ items: Customer[]; next: { since: string; after: string } | null }>(
+      'GET', `/pos/customers/changes?limit=${limit}&since=${encodeURIComponent(since)}&after=${encodeURIComponent(after)}`),
   /** Clientes: página + pesquisa no servidor (nome, NIF, telefone, e-mail). */
   listCustomers: (o: { q?: string; limit?: number } = {}) =>
     request<Customer[]>('GET', `/pos/customers?limit=${o.limit ?? 300}${o.q ? `&q=${encodeURIComponent(o.q)}` : ''}`),
