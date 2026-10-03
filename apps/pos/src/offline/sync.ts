@@ -5,6 +5,24 @@
  */
 import { api, ApiError, replayQueuedWrites } from '../api/client';
 import { outboxCount, resolveLocalId } from './outbox';
+import { sharedSet } from '../sharedCache';
+
+/**
+ * MEMÓRIA PARTILHADA COM O GESTÃO: as vendas feitas sem rede que ainda não
+ * subiram ficam visíveis no Gestão do mesmo aparelho (no Android os dois correm
+ * na mesma origem e partilham esta memória). Sai da lista quando sobe.
+ */
+export const VENDAS_PENDENTES_KEY = 'partilha:caixa:vendas-pendentes';
+async function publicarVendasPendentes(): Promise<void> {
+  try {
+    const vendas = await listPendingSales();
+    await sharedSet(VENDAS_PENDENTES_KEY, vendas.map((v) => ({
+      localRef: v.localRef, createdAt: v.createdAt, customerName: v.customerName, grossTotal: v.grossTotal,
+      netTotal: v.netTotal, ivaTotal: v.ivaTotal, status: v.status, lastError: v.lastError ?? null,
+      lines: v.lines.map((l) => ({ productCode: l.productCode, productName: l.productName, quantity: l.quantity, unitPriceGross: l.unitPriceGross })),
+    })));
+  } catch { /* melhor esforço */ }
+}
 import { isNativeApp } from '../config';
 import { deviceKey } from './device';
 import {
@@ -101,6 +119,7 @@ class SyncController {
    * turno por subir é trabalho por salvar tanto como uma venda.
    */
   async refreshCount(): Promise<void> {
+    void publicarVendasPendentes();
     // + as outras alterações feitas sem rede (fila de escritas): também é trabalho por salvar.
     this.emit({ pending: (await countPendingSales()) + (await contarOpsDeTurno()) + (await outboxCount().catch(() => 0)) });
   }

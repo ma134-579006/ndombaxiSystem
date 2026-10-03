@@ -3863,3 +3863,15 @@ html.touch-ui .topbar { padding-left: 14px; padding-right: 14px; }
 /* Camadas: a barra do topo (menu do perfil, sino, tema) fica SEMPRE acima do cabeçalho/pesquisa fixos do conteúdo (z 30/29) */
 .topbar { position: sticky; top: 0; z-index: 85; }
 .topbar .acct2-pop, .topbar .noti-pop, .topbar .theme-menu { z-index: 300; }
+
+/* Vendas do Caixa por subir (memória partilhada, Visão geral) */
+.pps { margin-bottom: 16px; border: 1px solid var(--nx-warning, #d97706); }
+.pps-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
+.pps-sum { font-weight: 700; color: var(--nx-warning, #b45309); }
+.pps-note { font-size: 12.5px; margin: 4px 0 10px; }
+.pps-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pps-list li { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: baseline; font-size: 13px; }
+.pps-ref { font-family: ui-monospace, monospace; font-size: 12px; color: var(--muted); }
+.pps-desc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pps-val { font-weight: 700; }
+.pps-err { grid-column: 1 / -1; color: var(--nx-danger, #b91c1c); font-size: 12px; }

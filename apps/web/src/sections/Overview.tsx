@@ -19,6 +19,7 @@ import { ColumnChart, type ColumnPoint } from '../components/ColumnChart';
 import { DonutChart } from '../components/DonutChart';
 import { IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconWallet } from '../components/Icons';
 import { formatKz } from '../format';
+import { PendingPosSales } from '../components/PendingPosSales';
 import { pollEvery, stopPoll } from '../poll';
 
 const RANGES: { key: SalesRange; label: string }[] = [
@@ -132,6 +133,7 @@ export function Overview() {
 
   return (
     <div className="profit-page">
+      <PendingPosSales />
       <div className="content-head">
         <h2>Visão geral</h2>
         <span className="ov-live"><span className="live-dot" /> Ao vivo{updatedAt ? <span className="ov-live-t"> · {updatedAt.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span> : null}</span>

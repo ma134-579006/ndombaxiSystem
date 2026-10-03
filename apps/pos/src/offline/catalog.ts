@@ -178,3 +178,21 @@ export async function queryCatalog(company: string, o: { q?: string; limit?: num
   db.close();
   return out.map(({ name_l: _n, ...r }) => r as Row);
 }
+
+/**
+ * Venda feita SEM REDE: desconta já o stock na memória partilhada (a mesma que o
+ * Gestão lê no Android), para os dois verem o mesmo stock antes de a venda subir.
+ * Quando sobe, a sincronização do catálogo traz o valor da nuvem e acerta tudo.
+ */
+export async function adjustCatalogStock(company: string, code: string, delta: number): Promise<void> {
+  if (typeof indexedDB === 'undefined' || !delta) return;
+  const db = await open(company);
+  const tx = db.transaction(STORE, 'readwrite');
+  const st = tx.objectStore(STORE);
+  const rows = await new Promise<Row[]>((resolve) => {
+    const r = st.index('code').getAll(code); r.onsuccess = () => resolve(r.result as Row[]); r.onerror = () => resolve([]);
+  });
+  for (const r of rows) st.put({ ...r, stock_qty: String(Number((r as { stock_qty?: unknown }).stock_qty ?? 0) + delta) });
+  await done(tx);
+  db.close();
+}
