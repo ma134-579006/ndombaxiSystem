@@ -95,6 +95,8 @@ export interface SaleDetail {
 }
 
 export interface EmitInvoiceInput {
+  /** Venda feita sem rede, a subir da fila: a nuvem não a recusa por stock. */
+  offline?: boolean;
   docType?: string; // default FT
   series?: string; // default A
   customerId?: string;

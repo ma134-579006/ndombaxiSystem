@@ -45,6 +45,24 @@ export function Modal({
   /** Ação principal FIXA no fundo (não rola). */
   footer?: React.ReactNode;
 }) {
+  // AÇÃO PRINCIPAL SEMPRE NO RODAPÉ. Muitos formulários terminam com o botão
+  // largo (`.btn.block`) dentro do conteúdo; aí ficava "colado" (sticky) ao fundo
+  // da zona que rola e, no telemóvel — sobretudo com o teclado aberto, que encolhe
+  // o ecrã — aparecia a flutuar a meio do formulário, por cima dos campos. Esse
+  // botão final passa para o rodapé fixo, fora do scroll: fica sempre no fundo do
+  // modal (logo acima do teclado) e nunca tapa nada.
+  let body: React.ReactNode = children;
+  let foot = footer;
+  if (!foot) {
+    const kids = React.Children.toArray(children);
+    const last = kids[kids.length - 1];
+    if (React.isValidElement<{ className?: string; style?: React.CSSProperties }>(last)
+        && last.type === 'button' && /\bbtn\b/.test(last.props.className ?? '') && /\bblock\b/.test(last.props.className ?? '')) {
+      const { marginTop: _m, ...style } = last.props.style ?? {};
+      foot = React.cloneElement(last, { style });
+      body = kids.slice(0, -1);
+    }
+  }
   // Portal para o <body>: o modal sai de qualquer stacking context local (cartões
   // com transform, painéis animados, etc.), por isso fica SEMPRE à frente e um
   // modal aberto sobre outro nunca cai para trás.
@@ -59,8 +77,8 @@ export function Modal({
           </button>
         </div>
         {toolbar ? <div className="mt">{toolbar}</div> : null}
-        <div className="mb">{children}</div>
-        {footer ? <div className="mf">{footer}</div> : null}
+        <div className="mb">{body}</div>
+        {foot ? <div className="mf">{foot}</div> : null}
       </div>
     </div>,
     document.body,

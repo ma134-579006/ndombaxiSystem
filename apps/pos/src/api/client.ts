@@ -150,7 +150,9 @@ async function request<T>(
   // Timeout defensivo: evita spinner infinito quando o servidor está a acordar.
   // Na app, uma leitura não espera mais de 12 s — responde a memória interna.
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), isNativeApp() && isGet ? 12_000 : 90_000);
+  // Escrita que pode ir para a fila: no máximo 8 s à espera da rede, depois fica
+  // guardada (idempotente — X-Client-Op-Id). Vendas e turnos têm o seu motor.
+  const timer = setTimeout(() => ctrl.abort(), isNativeApp() && isGet ? 12_000 : queueable ? 8_000 : 90_000);
   try {
     // SERVIDOR DA LOJA primeiro, se houver um configurado e a responder. É o
     // que dá ao telemóvel o sistema INTEIRO sem internet: quem responde é a

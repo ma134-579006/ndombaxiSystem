@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
+  IsBoolean,
   IsArray,
   IsEnum,
   IsIn,
@@ -89,6 +90,16 @@ export class EmitInvoiceDto {
   @IsOptional()
   @IsUUID()
   clientOpId?: string;
+
+  /**
+   * Venda feita SEM REDE, a subir da fila do aparelho. A mercadoria já saiu da
+   * loja: a nuvem não a pode recusar por "stock insuficiente" (o stock dela
+   * podia estar desatualizado) — regista-a e o saldo fica negativo, à vista,
+   * para ser acertado. Recusá-la deixava a venda presa no aparelho para sempre.
+   */
+  @IsOptional()
+  @IsBoolean()
+  offline?: boolean;
 
   /** Dinheiro entregue pelo cliente (numerário). */
   @IsOptional()

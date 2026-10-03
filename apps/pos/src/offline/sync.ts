@@ -223,6 +223,9 @@ class SyncController {
         // criar uma segunda. Vendas em fila de versões anteriores não têm chave
         // e mantêm o comportamento antigo — nada rebenta por causa disso.
         clientOpId: sale.clientOpId,
+        // Venda feita SEM REDE: já aconteceu — a nuvem regista-a mesmo que o stock
+        // dela esteja desatualizado, em vez de a recusar e a deixar presa aqui.
+        offline: true,
         // A série tem de ser a DESTE posto também no reenvio da fila — senão
         // uma venda feita aqui sem rede entrava na cadeia de outra caixa.
         deviceKey: await deviceKey(),
@@ -233,7 +236,10 @@ class SyncController {
     } catch (e) {
       // Erro de validação do servidor (4xx) → não vale a pena repetir em loop;
       // marca ERROR para revisão manual. Erro de rede → fica PENDING e tenta depois.
-      const isClient = e instanceof ApiError && e.status >= 400 && e.status < 500 && e.status !== 0;
+      // 401 NÃO é erro da venda: é a sessão (ex.: Caixa aberto sem rede, ainda com a
+      // sessão provisória). Fica PENDENTE e sobe assim que a sessão for renovada.
+      const sessao = e instanceof ApiError && e.status === 401;
+      const isClient = e instanceof ApiError && e.status >= 400 && e.status < 500 && e.status !== 0 && !sessao;
       const updated: PendingSale = {
         ...sale,
         status: isClient ? 'ERROR' : 'PENDING',
@@ -249,7 +255,7 @@ class SyncController {
       else this.emit({ lastError: updated.lastError ?? null });
       // `status === 0` é a falha de REDE do api client (sem ligação ou timeout):
       // a venda continua PENDING e o ciclo pára até haver ligação outra vez.
-      return e instanceof ApiError && e.status === 0 ? 'offline' : 'failed';
+      return e instanceof ApiError && (e.status === 0 || sessao) ? 'offline' : 'failed';
     }
   }
 }
