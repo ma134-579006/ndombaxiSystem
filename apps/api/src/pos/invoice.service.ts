@@ -18,6 +18,7 @@ import {
   round2,
 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
+import { localSeries } from '../common/device-series';
 import { RealtimeService } from '../realtime/realtime.service';
 import { FiscalSigningService } from './fiscal-signing.service';
 import { PlatformSigningService } from '../fiscal/platform-signing.service';
@@ -341,15 +342,21 @@ export class InvoiceService {
                    WHERE doc_type = ${input.docType} AND series = ${series} AND year = ${year}
                    FOR UPDATE`,
       );
-      const sequence = serieRows[0].last_sequence + 1;
-      const number = agtSeries
-        ? formatFeDocumentNo(input.docType, agtSeries, sequence)
-        : formatDocumentNumber({
-          type: input.docType,
-          series: input.series,
-          year,
-          sequence,
-        });
+      let sequence = serieRows[0].last_sequence + 1;
+      const fmt = (n: number) => (agtSeries
+        ? formatFeDocumentNo(input.docType, agtSeries, n)
+        : formatDocumentNumber({ type: input.docType, series: input.series, year, sequence: n }));
+      // Número já ocupado por uma fatura que SUBIU de um posto local antigo (que
+      // numerava na mesma série): salta-o em vez de recusar a venda com
+      // "duplicado". Postos atuais têm série própria e isto nunca acontece.
+      for (let i = 0; i < 1000; i++) {
+        const ocupado = await tx.$queryRaw<{ x: number }[]>(
+          Prisma.sql`SELECT 1 AS x FROM invoices WHERE number = ${fmt(sequence)} LIMIT 1`,
+        );
+        if (ocupado.length === 0) break;
+        sequence += 1;
+      }
+      const number = fmt(sequence);
 
       // 4. Datas (ao segundo, formato AGT) e assinatura/cadeia (Modelo 8).
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
@@ -1077,7 +1084,7 @@ export class InvoiceService {
       // 2. Aloca número de NC na série própria (NC, mesma série/ano).
       const year = new Date().getFullYear();
       const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
-      const ncSeries = ncAgt ?? 'A';
+      const ncSeries = ncAgt ?? localSeries() ?? 'A';
       await tx.$executeRaw(
         Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
                    VALUES (${DocumentType.NC}, ${ncSeries}, ${year}, 0, ${GENESIS_HASH})
@@ -1088,7 +1095,7 @@ export class InvoiceService {
                    WHERE doc_type = ${DocumentType.NC} AND series = ${ncSeries} AND year = ${year} FOR UPDATE`,
       );
       const sequence = serie[0].last_sequence + 1;
-      const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: 'A', year, sequence });
+      const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: ncSeries, year, sequence });
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const docHeader = {
         invoiceDate: now.toISOString().slice(0, 10),
@@ -1259,7 +1266,7 @@ export class InvoiceService {
       // Aloca NC.
       const year = new Date().getFullYear();
       const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
-      const ncSeries = ncAgt ?? 'A';
+      const ncSeries = ncAgt ?? localSeries() ?? 'A';
       await tx.$executeRaw(
         Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
                    VALUES (${DocumentType.NC}, ${ncSeries}, ${year}, 0, ${GENESIS_HASH})
@@ -1270,7 +1277,7 @@ export class InvoiceService {
                    WHERE doc_type = ${DocumentType.NC} AND series = ${ncSeries} AND year = ${year} FOR UPDATE`,
       );
       const sequence = serie[0].last_sequence + 1;
-      const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: 'A', year, sequence });
+      const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: ncSeries, year, sequence });
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const ncHeader = { invoiceDate: now.toISOString().slice(0, 10), systemEntryDate: now.toISOString(), number: ncNumber,
         totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] as never[] } };

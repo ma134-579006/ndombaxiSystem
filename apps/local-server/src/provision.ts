@@ -219,10 +219,41 @@ export async function provisionFromCloud(o: ProvisionOptions): Promise<Provision
     log(`copiada: ${t.table} (${t.rows} linhas esperadas)`);
   }
 
+  await syncSequences(o.schema, o.run);
+
   // SÓ AGORA. Marcar antes de tudo entrar seria pôr a aplicação a servir uma
   // empresa incompleta — o erro que esta cópia existe para evitar.
   markProvisioned(o.paths, o.cloud.companyCode);
   clearProgress(o.paths);
   log(`cópia concluída: ${tables.length} tabelas, ${totalLinhas} linhas`);
   return { tables: tables.length, rows: totalLinhas, resumed };
+}
+
+/**
+ * Acerta as SEQUÊNCIAS do schema pelo maior valor copiado.
+ *
+ * A cópia insere as linhas com os seus números (ex.: `seq` do registo de
+ * auditoria), mas a sequência ficava em 1 — e a primeira gravação no posto
+ * (abrir um turno, emitir uma fatura) rebentava com "registo duplicado".
+ * Idempotente: só sobe a sequência, nunca a faz recuar.
+ */
+export async function syncSequences(schema: string, run: SqlRunner): Promise<void> {
+  if (!/^[a-z0-9_]+$/.test(schema)) throw new Error(`Schema inválido: ${schema}`);
+  await run(`DO $$
+    DECLARE r record; m bigint; lv bigint; ic boolean;
+    BEGIN
+      FOR r IN
+        SELECT c.relname AS tbl, a.attname AS col, pg_get_serial_sequence(format('%I.%I', n.nspname, c.relname), a.attname) AS seq
+          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+         WHERE n.nspname = '${schema}' AND c.relkind = 'r'
+           AND pg_get_serial_sequence(format('%I.%I', n.nspname, c.relname), a.attname) IS NOT NULL
+      LOOP
+        EXECUTE format('SELECT max(%I)::bigint FROM %I.%I', r.col, '${schema}', r.tbl) INTO m;
+        EXECUTE format('SELECT last_value, is_called FROM %s', r.seq) INTO lv, ic;
+        IF m IS NOT NULL AND (m > lv OR (m = lv AND NOT ic)) THEN
+          PERFORM setval(r.seq, m);
+        END IF;
+      END LOOP;
+    END $$`, []);
 }

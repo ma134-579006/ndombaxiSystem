@@ -89,7 +89,12 @@ export async function pushPending(o: EngineOptions): Promise<PushResult> {
       table: string; id: string; data: Record<string, unknown>; deleted: boolean; deviceId: string | null;
     }[] = [];
     for (const p of pendentes) {
-      if (!p.row_id) continue; // linha sem id (tabela de chave composta) — nada a fazer
+      if (!p.row_id) {
+        // Linha sem id (ex.: registo de auditoria) — não se replica; marca-se
+        // para não ficar pendente para sempre.
+        await o.run(markSyncedSql(o.schema), [p.table_name, null, p.seq]);
+        continue;
+      }
       if (p.op === 'D') {
         linhas.push({ table: p.table_name, id: p.row_id, data: { id: p.row_id }, deleted: true, deviceId: p.device_id });
         continue;
@@ -209,7 +214,9 @@ export function pullStateDdl(schema: string): string[] {
  * entre os dois lados. Por isso o gatilho é desligado na sessão enquanto isto
  * corre (`session_replication_role`).
  */
-export async function pullAndApply(o: EngineOptions & { tables: string[] }): Promise<PullApplyResult> {
+export async function pullAndApply(
+  o: EngineOptions & { tables: string[]; startAt?: string | null; maxPagesPerTable?: number },
+): Promise<PullApplyResult> {
   const log = o.log ?? (() => undefined);
   const doFetch = o.fetchImpl ?? fetch;
   const batch = Math.min(Math.max(1, o.batchSize ?? 200), 200);
@@ -226,53 +233,61 @@ export async function pullAndApply(o: EngineOptions & { tables: string[] }): Pro
     const guardado = await o.query<{ cursor: string | null }>(
       `SELECT cursor FROM "${o.schema}"."sync_cursors" WHERE table_name = $1`, [table],
     );
-    let cursor = guardado[0]?.cursor ?? null;
+    // Sem cursor: começa no MOMENTO DA CÓPIA (o que é anterior já cá está).
+    // Começar do zero voltava a descer a empresa inteira, 200 linhas de cada
+    // vez — com milhões de produtos, as alterações novas nunca chegavam.
+    let cursor = guardado[0]?.cursor
+      ?? (o.startAt ? Buffer.from(JSON.stringify({ at: o.startAt, id: '' }), 'utf8').toString('base64url') : null);
 
-    const url = `${o.apiUrl.replace(/\/+$/, '')}/replication/pull`
-      + `?table=${encodeURIComponent(table)}&limit=${batch}`
-      + (cursor ? `&since=${encodeURIComponent(cursor)}` : '');
-    let page: { rows: Record<string, unknown>[]; cursor: string | null; hasMore: boolean; incremental: boolean };
-    try {
-      const r = await doFetch(url, {
-        headers: { Authorization: `Bearer ${o.accessToken}`, 'X-Tenant-Code': o.companyCode },
-      });
-      if (!r.ok) { res.remaining = true; continue; }
-      page = await r.json() as typeof page;
-    } catch {
-      log('replicação: sem ligação para descer alterações');
-      res.remaining = true;
-      return res;
-    }
-
-    if (!page.incremental) {
-      // A nuvem avisou que não sabe dizer o que mudou nesta tabela. Uma lista
-      // vazia sem este aviso seria lida como "está tudo em dia" — e o posto
-      // ficava para trás sem ninguém perceber.
-      log(`replicação: ${table} não desce por incrementos (sem coluna de tempo)`);
-      continue;
-    }
-    res.received += page.rows.length;
-
-    for (const remota of page.rows) {
-      const id = remota.id == null ? null : String(remota.id);
-      if (!id) { res.skipped += 1; continue; }
+    // Várias páginas por volta (com teto), para não ficar uma tabela para trás.
+    for (let pagina = 0; pagina < (o.maxPagesPerTable ?? 25); pagina++) {
+      const url = `${o.apiUrl.replace(/\/+$/, '')}/replication/pull`
+        + `?table=${encodeURIComponent(table)}&limit=${batch}`
+        + (cursor ? `&since=${encodeURIComponent(cursor)}` : '');
+      let page: { rows: Record<string, unknown>[]; cursor: string | null; hasMore: boolean; incremental: boolean };
       try {
-        const aplicou = await applyRemoteRow(o, table, id, remota, classify(table), resolve);
-        if (aplicou.applied) res.applied += 1; else res.skipped += 1;
-        if (aplicou.conflict) res.conflicts += 1;
-      } catch (e) {
-        res.skipped += 1;
-        log(`replicação: ${table}/${id} não aplicada — ${(e as Error).message.split('\n')[0]}`);
+        const r = await doFetch(url, {
+          headers: { Authorization: `Bearer ${o.accessToken}`, 'X-Tenant-Code': o.companyCode },
+        });
+        if (!r.ok) { res.remaining = true; break; }
+        page = await r.json() as typeof page;
+      } catch {
+        log('replicação: sem ligação para descer alterações');
+        res.remaining = true;
+        return res;
       }
-    }
 
-    cursor = page.cursor ?? cursor;
-    await o.run(
-      `INSERT INTO "${o.schema}"."sync_cursors" (table_name, cursor) VALUES ($1, $2)
-       ON CONFLICT (table_name) DO UPDATE SET cursor = EXCLUDED.cursor, updated_at = now()`,
-      [table, cursor],
-    );
-    if (page.hasMore) res.remaining = true;
+      if (!page.incremental) {
+        // A nuvem avisou que não sabe dizer o que mudou nesta tabela. Uma lista
+        // vazia sem este aviso seria lida como "está tudo em dia" — e o posto
+        // ficava para trás sem ninguém perceber.
+        log(`replicação: ${table} não desce por incrementos (sem coluna de tempo)`);
+        break;
+      }
+      res.received += page.rows.length;
+
+      for (const remota of page.rows) {
+        const id = remota.id == null ? null : String(remota.id);
+        if (!id) { res.skipped += 1; continue; }
+        try {
+          const aplicou = await applyRemoteRow(o, table, id, remota, classify(table), resolve);
+          if (aplicou.applied) res.applied += 1; else res.skipped += 1;
+          if (aplicou.conflict) res.conflicts += 1;
+        } catch (e) {
+          res.skipped += 1;
+          log(`replicação: ${table}/${id} não aplicada — ${(e as Error).message.split('\n')[0]}`);
+        }
+      }
+
+      cursor = page.cursor ?? cursor;
+      await o.run(
+        `INSERT INTO "${o.schema}"."sync_cursors" (table_name, cursor) VALUES ($1, $2)
+         ON CONFLICT (table_name) DO UPDATE SET cursor = EXCLUDED.cursor, updated_at = now()`,
+        [table, cursor],
+      );
+      if (!page.hasMore) break;
+      if (pagina === (o.maxPagesPerTable ?? 25) - 1) res.remaining = true;
+    }
   }
   return res;
 }
@@ -294,7 +309,7 @@ async function applyRemoteRow(
   // O gatilho do diário é desligado NESTA sessão enquanto se aplica: sem isto,
   // o que desce da nuvem entrava no diário como trabalho deste posto e voltava
   // a subir — um ciclo infinito entre os dois lados.
-  await o.run(`SET LOCAL session_replication_role = 'replica'`, []);
+  await o.run(`SET session_replication_role = 'replica'`, []);
 
   try {
     if (klass === 'fiscal' || klass === 'additive' || klass === 'cloud') {
@@ -303,10 +318,15 @@ async function applyRemoteRow(
       const set = klass === 'cloud'
         ? cols.filter((c) => c !== 'id').map((c) => `"${c}" = EXCLUDED."${c}"`).join(', ')
         : '';
+      // Fiscal: `WHERE NOT EXISTS` (as faturas têm REGRAS e não aceitam `ON CONFLICT`).
       await o.run(
-        `INSERT INTO ${t} (${cols.map((c) => `"${c}"`).join(', ')}) VALUES (${marcadores})
-         ${set ? `ON CONFLICT (id) DO UPDATE SET ${set}` : 'ON CONFLICT DO NOTHING'}`,
-        valores,
+        set
+          ? `INSERT INTO ${t} (${cols.map((c) => `"${c}"`).join(', ')}) VALUES (${marcadores})
+             ON CONFLICT (id) DO UPDATE SET ${set}`
+          : `INSERT INTO ${t} (${cols.map((c) => `"${c}"`).join(', ')})
+             SELECT ${cols.map((c) => `"${c}"`).join(', ')} FROM json_populate_record(NULL::${t}, $1::json)
+             WHERE NOT EXISTS (SELECT 1 FROM ${t} WHERE id::text = $2)`,
+        set ? valores : [JSON.stringify(Object.fromEntries(cols.map((c) => [c, remota[c]]))), id],
       );
       return { applied: true, conflict: false };
     }
@@ -338,7 +358,7 @@ async function applyRemoteRow(
     );
     return { applied: true, conflict: d.conflict };
   } finally {
-    await o.run(`SET LOCAL session_replication_role = 'origin'`, []);
+    await o.run(`SET session_replication_role = 'origin'`, []);
   }
 }
 
@@ -358,4 +378,84 @@ function str(v: unknown): string | null {
 /** Limpeza periódica do diário já sincronizado. */
 export async function pruneJournal(o: Pick<EngineOptions, 'schema' | 'run'>, dias = 30): Promise<void> {
   try { await o.run(pruneSql(o.schema, dias), []); } catch { /* melhor esforço */ }
+}
+
+/**
+ * Instala (ou confirma) o DIÁRIO e os gatilhos no schema da empresa.
+ *
+ * Sem isto nada do que se grava no posto chega à nuvem: o motor lê o diário, e
+ * um diário que nunca foi criado é uma fila sempre vazia — o "editei sem
+ * internet e na nuvem não apareceu". Idempotente: corre na cópia e a cada ciclo.
+ *
+ * Postos já copiados ANTES de o diário existir: na 1.ª instalação, o que foi
+ * alterado depois da cópia (`desde`) entra no diário, para não se perder.
+ */
+export async function ensureJournal(
+  o: Pick<EngineOptions, 'schema' | 'run' | 'query'> & { desde?: string | null },
+): Promise<{ created: boolean; tables: number; backfilled: number }> {
+  const { journalDdl, attachTriggersSql, JOURNAL_TABLE } = await import('./journal');
+  const { isReplicated } = await import('@nexus/replication');
+  const existia = await o.query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2`,
+    [o.schema, JOURNAL_TABLE],
+  );
+  const created = (existia[0]?.n ?? 0) === 0;
+  for (const sql of journalDdl(o.schema)) await o.run(sql, []);
+
+  const tabelas = (await o.query<{ table_name: string }>(
+    `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE'`,
+    [o.schema],
+  )).map((t) => t.table_name).filter((t) => isReplicated(t));
+  // Só (re)liga onde falta: recriar gatilhos a cada ciclo bloquearia as tabelas.
+  const ligados = new Set((await o.query<{ tbl: string }>(
+    `SELECT c.relname AS tbl FROM pg_trigger g JOIN pg_class c ON c.oid = g.tgrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = $1 AND g.tgname = c.relname || '_sync_journal'`,
+    [o.schema],
+  )).map((r) => r.tbl));
+  const faltam = tabelas.filter((t) => !ligados.has(t));
+  for (const sql of attachTriggersSql(o.schema, faltam)) await o.run(sql, []);
+
+  let backfilled = 0;
+  // Postos copiados por versões anteriores ficaram com as sequências em 1
+  // ("registo duplicado" ao abrir um turno). Acerta-as na 1.ª instalação.
+  if (created) {
+    const { syncSequences } = await import('../provision');
+    try { await syncSequences(o.schema, o.run); } catch { /* melhor esforço */ }
+  }
+  if (created && o.desde) {
+    for (const t of tabelas) {
+      const cols = (await o.query<{ column_name: string }>(
+        `SELECT column_name FROM information_schema.columns
+          WHERE table_schema = $1 AND table_name = $2 AND column_name IN ('id', 'updated_at', 'created_at')`,
+        [o.schema, t],
+      )).map((c) => c.column_name);
+      if (!cols.includes('id')) continue;
+      const col = cols.includes('updated_at') ? 'updated_at' : cols.includes('created_at') ? 'created_at' : null;
+      if (!col) continue;
+      const r = await o.query<{ n: number }>(
+        `WITH ins AS (
+           INSERT INTO "${o.schema}"."${JOURNAL_TABLE}" (table_name, row_id, op)
+           SELECT $1, id::text, 'U' FROM "${o.schema}"."${t}" WHERE "${col}" > $2::timestamptz
+           RETURNING 1)
+         SELECT count(*)::int AS n FROM ins`,
+        [t, o.desde],
+      );
+      backfilled += r[0]?.n ?? 0;
+    }
+  }
+  return { created, tables: tabelas.length, backfilled };
+}
+
+/** Schema da empresa na base local (o mesmo nome que na nuvem). */
+export async function companySchema(
+  o: Pick<EngineOptions, 'query' | 'companyCode'>,
+): Promise<string> {
+  try {
+    const r = await o.query<{ s: string }>(
+      `SELECT "schemaName" AS s FROM nexus_public.companies WHERE lower(code) = lower($1) LIMIT 1`, [o.companyCode],
+    );
+    if (r[0]?.s && /^[a-z0-9_]+$/.test(r[0].s)) return r[0].s;
+  } catch { /* base antiga sem tabelas de plataforma */ }
+  return 'public';
 }

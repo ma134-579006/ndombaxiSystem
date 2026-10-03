@@ -21,7 +21,7 @@ export {
   type ReadinessPaths,
 } from './readiness';
 export {
-  provisionFromCloud,
+  provisionFromCloud, syncSequences,
   type ProvisionOptions, type ProvisionResult, type CloudAccess,
   type SnapshotTable, type SqlRunner,
 } from './provision';
@@ -40,6 +40,6 @@ export {
   JOURNAL_TABLE, type PendingChange,
 } from './replication/journal';
 export {
-  pushPending, pullAndApply, pullStateDdl, pruneJournal,
+  pushPending, pullAndApply, pullStateDdl, pruneJournal, ensureJournal, companySchema,
   type EngineOptions, type PushResult, type PullApplyResult, type SqlQuery,
 } from './replication/engine';

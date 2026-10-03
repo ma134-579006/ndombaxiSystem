@@ -16,6 +16,7 @@ import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
+import { localSeries } from '../common/device-series';
 import { TenantContext } from '../tenancy/tenant-context';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { SaveCartDraftDto } from './dto/cart-draft.dto';
@@ -234,7 +235,8 @@ export class PosController {
     try {
       return await this.invoices.emit(schema, {
         docType: dto.docType ?? DocumentType.FT,
-        series: deviceSeries ?? dto.series ?? 'A',
+        // Servidor local de um posto: série própria do posto (DEVICE_SERIES).
+        series: deviceSeries ?? localSeries() ?? dto.series ?? 'A',
         customerId: dto.customerId ?? null,
         cashierId: user.sub,
         cashierName: user.name ?? user.email,

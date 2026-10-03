@@ -16,7 +16,7 @@ function fake(existing: Record<string, unknown> | null = null) {
     $executeRawUnsafe: jest.fn(async (sql: string, ...params: unknown[]) => {
       executed.push({ sql, params });
       // Simula o `ON CONFLICT DO NOTHING`: se já existia, 0 linhas.
-      if (sql.includes('ON CONFLICT DO NOTHING') && existing) return 0;
+      if ((sql.includes('ON CONFLICT DO NOTHING') || sql.includes('WHERE NOT EXISTS')) && existing) return 0;
       return 1;
     }),
     $queryRawUnsafe: jest.fn(async () => (existing ? [existing] : [])),
@@ -86,7 +86,7 @@ describe('ReplicationService — documentos fiscais são IMUTÁVEIS', () => {
     const [r] = await svc.push(SCHEMA, [row({ table: 'invoices', data: { id: 'f1', number: 'FT A1/1' } })]);
     expect(r.applied).toBe(true);
     const ins = executed.find((e) => e.sql.includes('invoices'));
-    expect(ins?.sql).toContain('ON CONFLICT DO NOTHING');
+    expect(ins?.sql).toContain('WHERE NOT EXISTS');
   });
 
   it('uma fatura que JÁ EXISTE não é reescrita — mesmo que o posto insista', async () => {
@@ -107,7 +107,7 @@ describe('ReplicationService — documentos fiscais são IMUTÁVEIS', () => {
     const [r] = await svc.push(SCHEMA, [row({ table: 'stock_movements', data: { id: 'm1', delta: -3 } })]);
     expect(r.applied).toBe(true);
     expect(executed.find((e) => e.sql.includes('stock_movements'))?.sql)
-      .toContain('ON CONFLICT DO NOTHING');
+      .toContain('WHERE NOT EXISTS');
   });
 });
 
