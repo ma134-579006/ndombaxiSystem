@@ -7,6 +7,10 @@ name: Windows build
 on:
   workflow_dispatch: {}
 
+# Escrita no repositório só para publicar o instalador em Releases (link direto).
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -54,3 +58,21 @@ jobs:
           name: lps-vendas-windows
           path: apps/desktop/release/*.exe
           if-no-files-found: error
+      # Link DIRETO para o lojista: os "Artifacts" só aparecem no fundo da página
+      # do Actions (e nunca na app GitHub do telemóvel). A release
+      # `windows-latest` é substituída a cada build; o ficheiro com nome fixo dá
+      # um link que nunca muda:
+      #   https://github.com/<dono>/<repo>/releases/download/windows-latest/LPSVendas-Setup-x64.exe
+      - name: Publicar instalador (Releases → windows-latest)
+        shell: bash
+        working-directory: apps/desktop/release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          exe=$(ls LPSVendas-Setup-*-x64.exe | head -1)
+          cp "$exe" LPSVendas-Setup-x64.exe
+          gh release delete windows-latest --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          gh release create windows-latest "$exe" LPSVendas-Setup-x64.exe \
+            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
+            --title "LPS Vendas para Windows (mais recente)" \
+            --notes "Instalador do LPS Vendas para Windows 10/11 (64 bits). Commit ${GITHUB_SHA::7}, build #${GITHUB_RUN_NUMBER}. Sem assinatura digital: na primeira instalação o Windows avisa — Mais informações → Executar mesmo assim."
