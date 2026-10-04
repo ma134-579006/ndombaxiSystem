@@ -825,7 +825,9 @@ export const api = {
       request<{ deleted: boolean; deactivated: boolean }>('DELETE', `/pos/products/${id}`),
     /** Elimina vários de uma só vez (os com vendas são só desativados). */
     removeMany: (ids: string[]) =>
-      request<{ deleted: number; deactivated: number }>('POST', '/pos/products/bulk-delete', { ids }),
+      // Operação pesada (até centenas de produtos e o que deles depende): tempo
+      // próprio e sem fila offline — nunca devolve uma resposta provisória sem contagens.
+      request<{ deleted: number; deactivated: number }>('POST', '/pos/products/bulk-delete', { ids }, { timeoutMs: 120_000, queue: false }),
     /** Ordem de produção (fornada): consome os ingredientes da ficha técnica e
      *  dá entrada do produto acabado no stock (padaria/pastelaria/produção). */
     produce: (dto: { productCode: string; quantity: number; note?: string }) =>

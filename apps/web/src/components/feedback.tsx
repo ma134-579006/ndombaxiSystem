@@ -62,11 +62,42 @@ export async function runBulk<T>(opts: {
   paint();
   let firstError: string | null = null;
   let next = 0;
+  // Recusa PASSAGEIRA (limite de pedidos por minuto, servidor ocupado, rede):
+  // espera e repete. Antes, numa eliminação de centenas de registos, a nuvem
+  // recusava parte dos pedidos (429) e "uns eliminavam, outros davam erro".
+  const passageira = (e: unknown) => {
+    const s = (e as { status?: number })?.status;
+    return s === 429 || s === 408 || s === 502 || s === 503 || s === 504 || s === 0;
+  };
+  const comRepeticao = async (b: T[]) => {
+    for (let tentativa = 0; ; tentativa++) {
+      try { return await run(b); } catch (e) {
+        if (!passageira(e) || tentativa >= 5) throw e;
+        await new Promise((r) => setTimeout(r, Math.min(20_000, 1_500 * 2 ** tentativa)));
+      }
+    }
+  };
+  // Lote que falha de vez é DIVIDIDO ao meio e repetido (o lote é atómico no
+  // servidor — nada dele ficou feito): um registo problemático não leva os outros
+  // 199 consigo, e no fim só ficam de fora os que falham mesmo.
+  const executar = async (b: T[]): Promise<void> => {
+    try { await comRepeticao(b); st.done += b.length; }
+    catch (e) {
+      if (b.length > 1) {
+        const meio = Math.ceil(b.length / 2);
+        await executar(b.slice(0, meio));
+        await executar(b.slice(meio));
+        return;
+      }
+      st.failed += 1;
+      if (!firstError) firstError = e instanceof Error ? e.message : 'erro desconhecido';
+    }
+    paint();
+  };
   const worker = async () => {
     while (next < batches.length) {
       const b = batches[next++];
-      try { await run(b); st.done += b.length; }
-      catch (e) { st.failed += b.length; if (!firstError) firstError = e instanceof Error ? e.message : 'erro desconhecido'; }
+      await executar(b);
       paint();
     }
   };
