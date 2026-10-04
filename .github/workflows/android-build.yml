@@ -6,6 +6,10 @@ name: Android build
 on:
   workflow_dispatch: {}
 
+# Escrita no repositório só para publicar o APK em Releases (link direto).
+permissions:
+  contents: write
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -52,3 +56,18 @@ jobs:
         with:
           name: ndombaxi-android-debug
           path: apps/mobile-shell/android/app/build/outputs/apk/debug/*.apk
+      # Link DIRETO (os Artifacts não aparecem na app GitHub do telemóvel).
+      # A release `android-latest` é substituída a cada build:
+      #   https://github.com/<dono>/<repo>/releases/download/android-latest/LPSVendas-Android.apk
+      - name: Publicar APK (Releases → android-latest)
+        working-directory: apps/mobile-shell/android/app/build/outputs/apk/debug
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk=$(ls *.apk | head -1)
+          cp "$apk" LPSVendas-Android.apk
+          gh release delete android-latest --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          gh release create android-latest LPSVendas-Android.apk \
+            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
+            --title "LPS Vendas para Android (mais recente)" \
+            --notes "APK do LPS Vendas para Android. Commit ${GITHUB_SHA::7}, build #${GITHUB_RUN_NUMBER}. Para instalar: abrir o ficheiro no telemóvel e permitir 'instalar apps desconhecidas' para o navegador."

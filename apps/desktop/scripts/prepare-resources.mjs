@@ -104,18 +104,20 @@ for (const mod of MODULES) {
   log(`${mod.label}: copiado para resources/modules/${mod.target}`);
 }
 
-// Logótipo oficial para o ecrã de arranque e para o instalador/executável.
+// Logótipo oficial para o ecrã de arranque.
 const logo = path.join(repo, 'apps', 'web', 'public', 'logo.png');
 fs.copyFileSync(logo, path.join(modulesDir, 'launcher', 'logo.png'));
 
 const buildDir = path.join(desktop, 'build');
 fs.mkdirSync(buildDir, { recursive: true });
-fs.copyFileSync(logo, path.join(buildDir, 'icon.png'));
+// Ícone da janela/atalhos: o ícone de APLICAÇÃO quadrado (o logótipo largo
+// ficava ilegível em pequeno). O ecrã de arranque continua com o logótipo.
+fs.copyFileSync(path.join(repo, 'apps', 'web', 'public', 'app-icon.png'), path.join(buildDir, 'icon.png'));
 
 // Ícone Windows NÍTIDO (.ico 16→256px). Gerar cada tamanho à parte evita o
 // monograma fusco a 16/32px que a conversão automática de um único PNG deixava
 // — o electron-builder passa a usar este .ico no executável, no título e no
-// instalador (uma só fonte: o logótipo oficial).
+// instalador (fonte: o ícone de aplicação apps/web/public/app-icon*.png).
 execSync('node scripts/gen-win-icon.mjs', { cwd: desktop, stdio: 'inherit' });
 log('Logótipo oficial aplicado (arranque, executável, instalador e atalhos)');
 
