@@ -73,8 +73,8 @@ export const api = {
   catalog: (code: string) => request<CatalogResponse>('GET', `/store/${enc(code)}/catalog`),
   paymentMethods: (code: string) =>
     request<PaymentMethod[]>('GET', `/store/${enc(code)}/payment-methods`),
-  checkout: (code: string, input: CheckoutInput) =>
-    request<CheckoutResult>('POST', `/store/${enc(code)}/checkout`, input),
+  checkout: (code: string, input: CheckoutInput, token?: string) =>
+    request<CheckoutResult>('POST', `/store/${enc(code)}/checkout`, input, token),
   visualSearch: (code: string, imageBase64: string, mimeType?: string) =>
     request<{ available: boolean; products: CatalogProduct[]; message?: string }>(
       'POST', `/store/${enc(code)}/visual-search`, { imageBase64, mimeType }),
@@ -108,8 +108,12 @@ export const api = {
       { body: messageBody, senderName },
     ),
   // ── Conta do cliente ───────────────────────────────────────
-  authEmail: (code: string, email: string, name?: string, existing?: boolean) =>
-    request<CustomerSession>('POST', `/store/${enc(code)}/auth/email`, { email, name, existing }),
+  /** Passo 1: pede o código de verificação (chega por email). */
+  authEmailCode: (code: string, email: string, existing?: boolean) =>
+    request<{ sent: true }>('POST', `/store/${enc(code)}/auth/email/code`, { email, existing }),
+  /** Passo 2: entra com o código recebido. */
+  authEmail: (code: string, email: string, name: string | undefined, existing: boolean | undefined, otp: string) =>
+    request<CustomerSession>('POST', `/store/${enc(code)}/auth/email`, { email, name, existing, code: otp }),
   authGoogle: (code: string, idToken: string) =>
     request<CustomerSession>('POST', `/store/${enc(code)}/auth/google`, { idToken }),
   myOrders: (code: string, token: string) =>

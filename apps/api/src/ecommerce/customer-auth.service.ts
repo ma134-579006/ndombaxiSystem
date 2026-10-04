@@ -7,6 +7,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import { createHash, randomInt } from 'node:crypto';
+import { MailService } from '../common/mail/mail.service';
 import type { Env } from '../config/env.validation';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -59,6 +61,7 @@ export class CustomerAuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService<Env, true>,
+    private readonly mail: MailService,
   ) {}
 
   private get secret(): string {
@@ -76,12 +79,18 @@ export class CustomerAuthService {
    *  para sincronizar com o caixa/gestor. Guarda também o PERFIL (telefone,
    *  morada, província/município/bairro, NIF) quando vier, sem apagar o que já
    *  existe (COALESCE: só sobrepõe com valor novo não vazio). */
-  async upsertCustomer(schema: string, email: string, name: string, p: CustomerProfileInput = {}): Promise<void> {
+  async upsertCustomer(
+    schema: string, email: string, name: string, p: CustomerProfileInput = {},
+    /** Pedidos públicos sem sessão: só CRIA; nunca altera um cliente existente
+     *  (senão qualquer anónimo reescrevia o nome/telefone/NIF de outra pessoa). */
+    insertOnly = false,
+  ): Promise<void> {
     const v = (s?: string | null) => (s && s.trim() ? s.trim() : null);
     await this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`SELECT id FROM customers WHERE lower(email) = ${email} LIMIT 1`,
       );
+      if (rows[0] && insertOnly) return;
       if (rows[0]) {
         await tx.$executeRaw(Prisma.sql`
           UPDATE customers SET
@@ -118,9 +127,65 @@ export class CustomerAuthService {
     return this.getProfile(schema, email);
   }
 
-  async emailLogin(schema: string, email: string, name?: string, existing?: boolean): Promise<CustomerSession> {
+  /**
+   * PASSO 1 do login por email: envia um código de 6 dígitos (10 min) para o email.
+   * Sem isto qualquer pessoa entrava na conta de um cliente sabendo só o email
+   * (encomendas, morada, NIF, dados clínicos). No máximo um código por minuto.
+   */
+  async sendEmailCode(schema: string, email: string, existing?: boolean): Promise<{ sent: true }> {
     const e = email.trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(e)) throw new BadRequestException('Email inválido.');
+    if (!(await this.mail.isEnabled())) {
+      throw new BadRequestException('O login por email não está disponível nesta loja. Entre com o Google.');
+    }
+    if (existing) {
+      const rows = await this.prisma.runInTenant(schema, (tx) =>
+        tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT 1 AS n FROM customers WHERE lower(email) = ${e} LIMIT 1`),
+      );
+      if (!rows[0]) throw new BadRequestException('Não encontrámos nenhuma conta com este email nesta loja. Toque em "Criar conta".');
+    }
+    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    const sent = await this.prisma.runInTenant(schema, async (tx) => {
+      const recent = await tx.$queryRaw<{ n: number }[]>(
+        Prisma.sql`SELECT 1 AS n FROM customer_login_codes WHERE email = ${e} AND created_at > now() - interval '60 seconds'`,
+      );
+      if (recent[0]) return false;
+      await tx.$executeRaw(Prisma.sql`
+        INSERT INTO customer_login_codes (email, code_hash, expires_at, attempts, created_at)
+        VALUES (${e}, ${hashCode(e, code)}, now() + interval '10 minutes', 0, now())
+        ON CONFLICT (email) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at,
+          attempts = 0, created_at = now()`);
+      return true;
+    });
+    if (!sent) throw new BadRequestException('Já enviámos um código há menos de um minuto. Verifique o seu email.');
+    await this.mail.send(e, 'O seu código de acesso', `O seu código para entrar na loja é: ${code}\n\nVálido durante 10 minutos. Se não pediu este código, ignore este email.`);
+    return { sent: true };
+  }
+
+  /** Confirma o código (5 tentativas, 10 min) e consome-o. */
+  private async verifyEmailCode(schema: string, e: string, code: string | undefined): Promise<void> {
+    if (!code || !/^\d{6}$/.test(code)) throw new BadRequestException('Indique o código de 6 dígitos enviado para o seu email.');
+    const ok = await this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<{ code_hash: string; attempts: number; valid: boolean }[]>(
+        Prisma.sql`SELECT code_hash, attempts, expires_at > now() AS valid FROM customer_login_codes WHERE email = ${e} FOR UPDATE`,
+      );
+      const r = rows[0];
+      if (!r || !r.valid || r.attempts >= 5) return 'expired' as const;
+      if (r.code_hash !== hashCode(e, code)) {
+        await tx.$executeRaw(Prisma.sql`UPDATE customer_login_codes SET attempts = attempts + 1 WHERE email = ${e}`);
+        return 'wrong' as const;
+      }
+      await tx.$executeRaw(Prisma.sql`DELETE FROM customer_login_codes WHERE email = ${e}`);
+      return 'ok' as const;
+    });
+    if (ok === 'expired') throw new BadRequestException('O código expirou ou excedeu as tentativas. Peça um novo código.');
+    if (ok === 'wrong') throw new BadRequestException('Código incorreto.');
+  }
+
+  async emailLogin(schema: string, email: string, name?: string, existing?: boolean, code?: string): Promise<CustomerSession> {
+    const e = email.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(e)) throw new BadRequestException('Email inválido.');
+    await this.verifyEmailCode(schema, e, code);
     // Modo ENTRAR (conta existente): não cria nada — se o email não estiver
     // registado nesta loja, avisa o cliente para criar conta primeiro.
     if (existing) {
@@ -199,4 +264,9 @@ export class CustomerAuthService {
       ),
     );
   }
+}
+
+/** Hash do código (nunca se guarda o código em claro). */
+function hashCode(email: string, code: string): string {
+  return createHash('sha256').update(`${email}:${code}`).digest('hex');
 }

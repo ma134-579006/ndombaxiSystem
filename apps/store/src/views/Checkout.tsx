@@ -133,14 +133,14 @@ export function Checkout({
       let result;
       try {
         // Tenta COM o GPS (API atual).
-        result = await api.checkout(code, { ...base, geoLat: fix.lat, geoLng: fix.lng, geoAccuracy: fix.accuracy, geoConsent: true });
+        result = await api.checkout(code, { ...base, geoLat: fix.lat, geoLng: fix.lng, geoAccuracy: fix.accuracy, geoConsent: true }, session?.token);
       } catch (e) {
         // Resiliência: se a API ainda não conhecer os campos GPS, conclui a
         // encomenda à mesma (não perde a venda). O GPS passa a ser guardado
         // automaticamente assim que a API for atualizada.
         const msg = e instanceof ApiError ? e.message : '';
         if (/geo(lat|lng|accuracy|consent)|should not exist/i.test(msg)) {
-          result = await api.checkout(code, base);
+          result = await api.checkout(code, base, session?.token);
         } else {
           throw e;
         }

@@ -9,7 +9,7 @@ import type { JwtPayload, RoleName } from '@nexus/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantUserRepository, type TenantUser } from '../tenancy/tenant-user.repository';
 import { AuditService } from '../audit/audit.service';
-import { Role } from '../rbac/roles.enum';
+import { ROLE_LEVEL, Role } from '../rbac/roles.enum';
 import { PasswordService } from './password.service';
 import { TwoFaService } from './twofa.service';
 import { TokenService, TokenPair } from './token.service';
@@ -56,7 +56,21 @@ export class AuthService {
     }
     const company = await this.prisma.company.findUnique({ where: { id: user.tenantId } });
     if (!company) throw new NotFoundException('Empresa não encontrada.');
-    return this.offlineCreds.bundle(user.tenantSchema, company.code, company.name);
+    const full = await this.offlineCreds.bundle(user.tenantSchema, company.code, company.name);
+    // SEGURANÇA: só as credenciais de quem tem papel IGUAL OU INFERIOR ao de quem
+    // pede (e da mesma loja, para quem está preso a uma loja). Antes, um caixa
+    // descarregava os verificadores de TODOS — incluindo o administrador — e um PIN
+    // de 6 dígitos parte-se offline em minutos. Os colegas de caixa continuam a
+    // poder entrar sem rede no mesmo posto.
+    const nivel = ROLE_LEVEL[user.role as Role] ?? 99;
+    const users = full.users.filter((u) => {
+      if (u.id === user.sub) return true;
+      const n = ROLE_LEVEL[u.role as Role];
+      if (n === undefined || n < nivel) return false;
+      if (user.role !== Role.COMPANY_ADMIN && user.storeId && u.storeId && u.storeId !== user.storeId) return false;
+      return true;
+    });
+    return { ...full, users };
   }
 
   // ─── Preferências do utilizador (tema por perfil) ───────────
@@ -795,6 +809,8 @@ export class AuthService {
     return {
       sub: u.id,
       email: u.email,
+      // Sem o nome, depois do 1.º refresh os recibos/auditoria ficavam sem operador.
+      name: u.name ?? undefined,
       role: u.role,
       subjectType: 'TENANT',
       tenantId: company.id,

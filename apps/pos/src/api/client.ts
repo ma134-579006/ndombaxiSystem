@@ -91,7 +91,9 @@ async function request<T>(
   const cacheKey = `GET ${path}`;
   // Dados "ao vivo" NUNCA vêm da memória: o rascunho do carrinho (voltariam artigos
   // já vendidos) e o turno atual (a app tem o seu espelho próprio, offline/shifts).
-  const cacheavel = isGet && !/^\/(pos\/cart-draft|cashbox\/session\/current|pos\/products)/.test(path);
+  // `/changes` (incrementais) e `/auth/` (credenciais offline) nunca vêm da memória:
+  // uma página antiga repetida sobrepunha edições offline ou renovava credenciais.
+  const cacheavel = isGet && !/^\/(pos\/cart-draft|cashbox\/session\/current|pos\/products|auth\/)/.test(path) && !/\/changes(\?|$)/.test(path);
   // Produtos: base indexada própria (offline/catalog) — milhões de produtos.
   const produtos = isGet && /^\/pos\/products(\?|$)/.test(path);
   const clientes = isGet && /^\/pos\/customers(\?|$)/.test(path);

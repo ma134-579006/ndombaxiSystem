@@ -283,6 +283,8 @@ export function PosPage() {
   >(null);
 
   // Constrói as linhas de artigos (descrição, qt, preço unit. c/IVA, total) para a fatura.
+  // Fatura a cliente com NIF: o NIF do adquirente tem de constar no documento.
+  const receiptCustomer = (c: typeof customer) => (c ? (c.tax_id?.trim() && c.tax_id.trim() !== '999999999' ? `${c.name} · NIF ${c.tax_id.trim()}` : c.name) : null);
   const buildItems = (lines: CartLine[]) => lines.map((l) => {
     const total = lineGross(l);
     return { description: l.product.name, quantity: l.quantity, unitPrice: l.quantity ? Math.round((total / l.quantity) * 100) / 100 : total, total };
@@ -754,8 +756,8 @@ export function PosPage() {
    *   fatura e só a RESPOSTA se perdeu — ao reenviar da fila com a mesma chave, o
    *   servidor devolve a fatura original em vez de emitir uma segunda.
    */
-  const finalizeOffline = async (clientOpId?: string) => {
-    const sale = buildPendingSale(cart, totals, customer ? { id: customer.id, name: customer.name } : null, clientOpId);
+  const finalizeOffline = async (clientOpId?: string, pay?: { paymentType: PaymentType; tendered?: number; changeGiven?: number }) => {
+    const sale = buildPendingSale(cart, totals, customer ? { id: customer.id, name: customer.name } : null, clientOpId, pay, discountRateByProduct);
     await queueSale(sale);
     // Memória partilhada com o Gestão: o stock desce já, antes de a venda subir.
     if (companyCode) for (const l of sale.lines) void adjustCatalogStock(companyCode, l.productCode, -l.quantity).catch(() => undefined);
@@ -770,7 +772,7 @@ export function PosPage() {
       ivaTotal: totals.iva,
       grossTotal: totals.gross,
     };
-    setEmitted({ invoice: provisionalInvoice, customerName: customer?.name ?? null, items: buildItems(cart), provisional: true });
+    setEmitted({ invoice: provisionalInvoice, customerName: receiptCustomer(customer), items: buildItems(cart), provisional: true });
   };
 
   // "Finalizar venda": offline → fila directa; online → abre o ecrã de pagamento.
@@ -782,9 +784,8 @@ export function PosPage() {
         flashError('Sem ligação à internet. A Caixa no navegador precisa de rede — use a aplicação instalada para vender sem internet.');
         return;
       }
-      setEmitting(true);
-      try { await finalizeOffline(); } finally { setEmitting(false); }
-      return;
+      // App sem rede: escolhe-se o pagamento como sempre (cartão, crédito, troco…);
+      // a emissão cai na fila com esses dados — ver doEmit.
     }
     setEmitError(null);
     setShowPayment(true);
@@ -815,7 +816,7 @@ export function PosPage() {
         }),
       });
       setShowPayment(false);
-      setEmitted({ invoice, customerName: customer?.name ?? null, items: buildItems(cart) });
+      setEmitted({ invoice, customerName: receiptCustomer(customer), items: buildItems(cart) });
       void refreshProducts(); // stock atualiza em tempo real após a venda
       // Se esta venda saldou um pedido de balcão chamado da cozinha, fecha-o
       // (a emissão já baixou os ingredientes — aqui é só mudar o estado).
@@ -827,7 +828,7 @@ export function PosPage() {
     } catch (e) {
       if (isNativeApp() && e instanceof ApiError && e.status === 0) {
         // MESMA chave da tentativa online — ver finalizeOffline.
-        try { await finalizeOffline(clientOpId); setShowPayment(false); return; } catch { /* erro genérico */ }
+        try { await finalizeOffline(clientOpId, pay); setShowPayment(false); return; } catch { /* erro genérico */ }
       }
       setEmitError(e instanceof ApiError ? e.message : 'Não foi possível emitir o documento.');
     } finally {

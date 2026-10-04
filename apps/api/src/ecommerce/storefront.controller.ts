@@ -62,11 +62,18 @@ export class StorefrontController {
   }
 
   // ── Conta do cliente (login simples / Google) ──────────────
+  @Post('auth/email/code')
+  @ApiOperation({ summary: 'Envia um código de verificação para o email do cliente (passo 1)' })
+  async authEmailCode(@Param('code') code: string, @Body() dto: CustomerEmailLoginDto) {
+    const tenant = await this.resolver.resolveByCode(code);
+    return this.customers.sendEmailCode(tenant.schema, dto.email, dto.existing);
+  }
+
   @Post('auth/email')
-  @ApiOperation({ summary: 'Login/registo rápido do cliente por email' })
+  @ApiOperation({ summary: 'Login/registo do cliente por email, com o código recebido (passo 2)' })
   async authEmail(@Param('code') code: string, @Body() dto: CustomerEmailLoginDto) {
     const tenant = await this.resolver.resolveByCode(code);
-    return this.customers.emailLogin(tenant.schema, dto.email, dto.name, dto.existing);
+    return this.customers.emailLogin(tenant.schema, dto.email, dto.name, dto.existing, dto.code);
   }
 
   @Post('auth/google')
@@ -126,7 +133,7 @@ export class StorefrontController {
     const tenant = await this.resolver.resolveByCode(code);
     const r = await this.hotel.create(tenant.schema, null, { ...dto, source: 'ONLINE' });
     if (dto.guestEmail) {
-      await this.customers.upsertCustomer(tenant.schema, dto.guestEmail.trim().toLowerCase(), dto.guestName || 'Hóspede', { phone: dto.guestPhone }).catch(() => undefined);
+      await this.customers.upsertCustomer(tenant.schema, dto.guestEmail.trim().toLowerCase(), dto.guestName || 'Hóspede', { phone: dto.guestPhone }, true).catch(() => undefined);
     }
     return { ok: true, id: r.id };
   }
@@ -141,7 +148,7 @@ export class StorefrontController {
       problem: dto.problem, source: 'ONLINE',
     });
     if (dto.customerEmail) {
-      await this.customers.upsertCustomer(tenant.schema, dto.customerEmail.trim().toLowerCase(), dto.customerName || 'Cliente', { phone: dto.customerPhone }).catch(() => undefined);
+      await this.customers.upsertCustomer(tenant.schema, dto.customerEmail.trim().toLowerCase(), dto.customerName || 'Cliente', { phone: dto.customerPhone }, true).catch(() => undefined);
     }
     // Devolve o número e o token de rastreio para o cliente seguir o reparo.
     return { ok: true, id: r.id, number: r.number, trackToken: r.trackToken };
@@ -170,7 +177,7 @@ export class StorefrontController {
     let patientId: string | undefined;
     if (dto.patientEmail) {
       const em = dto.patientEmail.trim().toLowerCase();
-      await this.customers.upsertCustomer(tenant.schema, em, dto.patientName || 'Paciente', { phone: dto.patientPhone }).catch(() => undefined);
+      await this.customers.upsertCustomer(tenant.schema, em, dto.patientName || 'Paciente', { phone: dto.patientPhone }, true).catch(() => undefined);
       patientId = (await this.clinic.ensurePatientForCustomer(tenant.schema, em, dto.patientName || 'Paciente', dto.patientPhone).catch(() => null)) ?? undefined;
     }
     const r = await this.clinic.createAppointment(tenant.schema, {
@@ -233,7 +240,7 @@ export class StorefrontController {
   }
 
   @Post('orders/:orderId/pay/express')
-  @ApiOperation({ summary: 'Pagar por Multicaixa Express (aprovação automática verificada)' })
+  @ApiOperation({ summary: 'Pagar por Multicaixa Express (fica por confirmar pela loja até haver verificação do gateway)' })
   async payExpress(
     @Param('code') code: string,
     @Param('orderId') orderId: string,
@@ -333,16 +340,20 @@ export class StorefrontController {
 
   @Post('checkout')
   @ApiOperation({ summary: 'Cria uma encomenda online (PENDING)' })
-  async checkout(@Param('code') code: string, @Body() dto: CheckoutDto) {
+  async checkout(@Param('code') code: string, @Body() dto: CheckoutDto, @Headers('authorization') auth?: string) {
     const tenant = await this.resolver.resolveByCode(code);
     const result = await this.storefront.checkout(tenant.schema, dto);
     // Lembra/atualiza o perfil do cliente (e sincroniza com o caixa/gestor):
-    // assim, na próxima compra os dados já vêm preenchidos.
+    // assim, na próxima compra os dados já vêm preenchidos. Só ATUALIZA um
+    // cliente existente com sessão desse mesmo email; anónimo apenas cria.
     if (dto.customerEmail) {
-      await this.customers.upsertCustomer(tenant.schema, dto.customerEmail.trim().toLowerCase(), dto.customerName, {
+      const email = dto.customerEmail.trim().toLowerCase();
+      const claims = auth ? await this.customers.verify(tenant.schema, auth).catch(() => null) : null;
+      const own = !!claims && claims.email.toLowerCase() === email;
+      await this.customers.upsertCustomer(tenant.schema, email, dto.customerName, {
         phone: dto.customerPhone, address: dto.shippingAddress, province: dto.province,
         municipality: dto.municipality, neighborhood: dto.neighborhood, taxId: dto.customerTaxId,
-      }).catch(() => undefined);
+      }, !own).catch(() => undefined);
     }
     return result;
   }

@@ -4,6 +4,7 @@
  * aí o seu número fiscal real (sequência AGT sem saltos).
  */
 import { api, ApiError, replayQueuedWrites } from '../api/client';
+import type { PaymentType } from '../api/types';
 import { outboxCount, resolveLocalId } from './outbox';
 import { sharedSet } from '../sharedCache';
 
@@ -202,15 +203,21 @@ class SyncController {
         // A ligação é decidida pelo RESULTADO de cada emissão, nunca por
         // `navigator.onLine` (mente nas apps nativas). Só uma falha de REDE
         // interrompe o ciclo — uma recusa do servidor não segura as restantes.
+        // Venda já RECUSADA antes (ERROR): volta a tentar-se de vez em quando (a
+        // causa pode ter sido corrigida no servidor), mas nunca segura o resto.
+        const eraErro = sale.status === 'ERROR';
         const outcome = await this.emitOne(sale);
         if (outcome === 'ok') { synced++; this.emit({ online: true }); }
         else if (outcome === 'offline') { this.emit({ online: false }); break; }
-        else failed++;
+        else if (outcome === 'skip') continue; // à espera de um cliente criado offline
+        else if (!eraErro) failed++;
       }
       // Por fim o FECHO do turno — só depois de as vendas dele terem subido,
       // senão o servidor fechava a caixa sem o dinheiro que ainda vinha a
-      // caminho e o resumo saía errado.
-      if (failed === 0 && this.state.online) await this.pushTurnos(false);
+      // caminho e o resumo saía errado. Uma venda em ERRO (para revisão manual)
+      // já não impede o fecho de subir para sempre.
+      const porSubir = (await listPendingSales()).filter((v) => v.status !== 'ERROR').length;
+      if (failed === 0 && porSubir === 0 && this.state.online) await this.pushTurnos(false);
       this.emit({ lastSyncAt: new Date().toISOString() });
     } finally {
       await this.refreshCount();
@@ -225,13 +232,14 @@ class SyncController {
    *   • `failed`  — o servidor recusou/erro dele; as outras vendas continuam;
    *   • `offline` — não há ligação utilizável AGORA; o ciclo pára e repete depois.
    */
-  private async emitOne(sale: PendingSale): Promise<'ok' | 'failed' | 'offline'> {
+  private async emitOne(sale: PendingSale): Promise<'ok' | 'failed' | 'offline' | 'skip'> {
     // Cliente criado SEM REDE: a venda leva o id definitivo (o provisório não
     // existe na nuvem). Ainda por subir → espera pela próxima volta.
     let customerId = sale.customerId ?? undefined;
     if (customerId?.startsWith('local-')) {
       const real = await resolveLocalId(customerId);
-      if (real === undefined) return 'offline';
+      // Cliente ainda por subir: salta só ESTA venda (não pára as outras).
+      if (real === undefined) return 'skip';
       customerId = real ?? undefined;
     }
     try {
@@ -248,7 +256,14 @@ class SyncController {
         // A série tem de ser a DESTE posto também no reenvio da fila — senão
         // uma venda feita aqui sem rede entrava na cadeia de outra caixa.
         deviceKey: await deviceKey(),
-        lines: sale.lines.map((l) => ({ productCode: l.productCode, quantity: l.quantity })),
+        // O que o cliente pagou e o desconto que lhe foi feito NO MOMENTO da venda.
+        ...(sale.paymentType ? { paymentType: sale.paymentType as PaymentType } : {}),
+        ...(sale.tendered != null ? { tendered: sale.tendered } : {}),
+        ...(sale.changeGiven != null ? { changeGiven: sale.changeGiven } : {}),
+        lines: sale.lines.map((l) => ({
+          productCode: l.productCode, quantity: l.quantity,
+          ...(l.discountRate && l.discountRate > 0 ? { discountRate: l.discountRate } : {}),
+        })),
       });
       if (sale.id != null) await deleteSale(sale.id);
       return 'ok';

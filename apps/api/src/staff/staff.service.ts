@@ -1,8 +1,9 @@
+import { ForbiddenException } from '@nestjs/common';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { PasswordService } from '../auth/password.service';
 import { AuditService } from '../audit/audit.service';
-import { Role } from '../rbac/roles.enum';
+import { ROLE_LEVEL, Role } from '../rbac/roles.enum';
 import { CreateStaffDto, ResetPasswordDto, SetPinDto, UpdateStaffDto } from './dto/staff.dto';
 import { CreateStoreDto, UpdateStoreDto } from './dto/store.dto';
 import { assertAssignableRole } from './staff.roles';
@@ -190,7 +191,14 @@ export class StaffService {
 
   /** Desbloqueia o acesso de um funcionário bloqueado por tentativas falhadas. */
   async unlock(schema: string, actor: StaffActor, id: string): Promise<StaffRow> {
-    await this.repo.getStaff(schema, id); // 404 se não existir
+    const alvo = await this.repo.getStaff(schema, id); // 404 se não existir
+    // Só se desbloqueia quem tem papel INFERIOR (o admin desbloqueia todos). Antes um
+    // gerente desbloqueava o administrador a cada 3 PINs errados — o bloqueio por
+    // tentativas deixava de proteger a conta mais poderosa da empresa.
+    if (actor.role !== Role.COMPANY_ADMIN
+        && (ROLE_LEVEL[alvo.role as Role] ?? 0) <= (ROLE_LEVEL[actor.role as Role] ?? 99)) {
+      throw new ForbiddenException('Só pode desbloquear funcionários de papel inferior ao seu.');
+    }
     await this.repo.clearLockout(schema, id);
     await this.audit.record({
       actorType: 'TENANT',

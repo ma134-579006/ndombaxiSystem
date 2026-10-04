@@ -65,6 +65,9 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  // Verificação do email: o código enviado prova que o email é do cliente.
+  const [codeSent, setCodeSent] = useState(false);
+  const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const gbtn = useRef<HTMLDivElement | null>(null);
@@ -100,7 +103,13 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr('Indique um email válido.'); return; }
     setBusy(true);
     try {
-      setSession(code, await api.authEmail(code, email.trim(), name.trim() || undefined, mode === 'login'));
+      if (!codeSent) {
+        await api.authEmailCode(code, email.trim(), mode === 'login');
+        setCodeSent(true);
+        return;
+      }
+      if (!/^\d{6}$/.test(otp.trim())) { setErr('Indique o código de 6 dígitos que recebeu por email.'); return; }
+      setSession(code, await api.authEmail(code, email.trim(), name.trim() || undefined, mode === 'login', otp.trim()));
       onClose();
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível entrar.'); }
     finally { setBusy(false); }
@@ -113,9 +122,9 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
       {/* Alternador Entrar / Criar conta (fluxos distintos, estilo enterprise). */}
       <div className="row" style={{ gap: 8, marginBottom: 12 }}>
         <button className={`btn sm${mode === 'login' ? '' : ' ghost'}`} style={{ flex: 1 }}
-          onClick={() => { setMode('login'); setErr(null); }}>Entrar</button>
+          onClick={() => { setMode('login'); setErr(null); setCodeSent(false); setOtp(''); }}>Entrar</button>
         <button className={`btn sm${mode === 'signup' ? '' : ' ghost'}`} style={{ flex: 1 }}
-          onClick={() => { setMode('signup'); setErr(null); }}>Criar conta</button>
+          onClick={() => { setMode('signup'); setErr(null); setCodeSent(false); setOtp(''); }}>Criar conta</button>
       </div>
       <p className="muted" style={{ marginTop: 0 }}>
         {mode === 'login'
@@ -130,13 +139,18 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
         </>
       ) : null}
       <div className="field"><label>Email</label>
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="o-teu-email@exemplo.com" inputMode="email" /></div>
+        <input value={email} onChange={(e) => { setEmail(e.target.value); setCodeSent(false); setOtp(''); }} placeholder="o-teu-email@exemplo.com" inputMode="email" /></div>
       {mode === 'signup' ? (
         <div className="field"><label>Nome (opcional)</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="O teu nome" /></div>
       ) : null}
+      {codeSent ? (
+        <div className="field"><label>Código enviado para {email.trim()}</label>
+          <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="6 dígitos" inputMode="numeric" autoComplete="one-time-code" /></div>
+      ) : null}
       <button className="btn lg block" onClick={submit} disabled={busy}>
-        {busy ? 'A entrar…' : mode === 'login' ? 'Entrar' : 'Criar conta'}
+        {busy ? 'Um momento…' : !codeSent ? 'Enviar código' : mode === 'login' ? 'Entrar' : 'Criar conta'}
       </button>
     </>
   );

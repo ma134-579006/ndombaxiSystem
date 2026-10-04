@@ -50,6 +50,9 @@ export class StockService {
                  WHERE product_id = ${m.productId}::uuid AND warehouse_id = ${m.warehouseId}::uuid
                  FOR UPDATE`,
     );
+    // Defensivo: corpos sem DTO podem trazer a quantidade como string.
+    m = { ...m, quantity: Number(m.quantity) };
+    if (!Number.isFinite(m.quantity)) throw new BadRequestException('Quantidade inválida.');
     const current = Number(rows[0].quantity);
     const balanceAfter = current + m.quantity;
     if (balanceAfter < 0 && !m.allowNegative) {

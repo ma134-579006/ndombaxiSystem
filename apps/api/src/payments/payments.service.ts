@@ -240,14 +240,17 @@ export class PaymentsService {
   async recordExpressProof(
     schema: string,
     orderId: string,
-    input: { amount?: number; reference?: string; note?: string },
+    input: { amount?: number; reference?: string; note?: string; approved?: boolean },
   ): Promise<PaymentProofRow> {
+    // Sem confirmação real do gateway, o comprovativo fica PENDENTE (o gestor aprova).
+    const approved = input.approved === true;
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<PaymentProofRow[]>(
         Prisma.sql`INSERT INTO payment_proofs
             (order_id, method_type, amount, reference, status, note, reviewed_at)
           VALUES (${orderId}::uuid, 'MULTICAIXA_EXPRESS', ${input.amount ?? null},
-                  ${input.reference ?? null}, 'APPROVED', ${input.note ?? null}, now())
+                  ${input.reference ?? null}, ${approved ? 'APPROVED' : 'PENDING'}, ${input.note ?? null},
+                  ${approved ? new Date() : null})
           RETURNING id, order_id, method_type, amount, reference, file_name, file_mime,
                     file_url, status, note, uploaded_at, reviewed_by, reviewed_at`,
       );

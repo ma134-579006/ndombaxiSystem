@@ -276,9 +276,12 @@ function buildInvoice(doc: FiscalDocument, sw: Required<SaftSoftware>): string {
 
 function buildSalesInvoices(documents: FiscalDocument[], sw: Required<SaftSoftware>): string {
   // Faturas/recibos somam em crédito; notas de crédito (NC) somam em débito.
+  // Regra SAF-T: somam-se os valores SEM imposto (DebitAmount/CreditAmount das
+  // linhas) e EXCLUEM-se os documentos anulados (InvoiceStatus = A).
   let totalCredit = 0, totalDebit = 0;
   for (const d of documents) {
-    const v = d.totals.netTotal + d.totals.ivaTotal;
+    if (d.status === 'A') continue;
+    const v = d.totals.netTotal;
     if (isNc(d.type)) totalDebit += v; else totalCredit += v;
   }
   return node('SalesInvoices', [

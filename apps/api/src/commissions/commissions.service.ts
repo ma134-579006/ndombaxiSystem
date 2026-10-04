@@ -92,6 +92,10 @@ export class CommissionsService {
       throw new BadRequestException('Percentagem inválida (0–100).');
     }
     const r = round2(rate);
+    // Ninguém define a própria comissão (um gerente punha-se a 100%).
+    if (actor.id && actor.id === userId) {
+      throw new BadRequestException('Não pode definir a sua própria percentagem de comissão.');
+    }
     return this.prisma.runInTenant(schema, async (tx) => {
       if (!(await this.hasRateColumn(tx))) {
         throw new BadRequestException('Empresa criada antes desta versão — recrie/atualize o esquema para usar comissões.');
