@@ -28,6 +28,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { empacotarApi } from './bundle-api.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -55,13 +56,30 @@ function tamanho(dir) {
 /** O que sobrevive à poda. Tudo o resto é peso morto num posto de venda. */
 const PASTAS_UTEIS = ['bin', 'lib', 'share'];
 
+/**
+ * Tira do PostgreSQL o que não serve num posto de venda e só torna a instalação
+ * mais lenta (centenas de ficheiros pequenos que o NSIS cria e o antivírus
+ * analisa um a um):
+ *   • `share/locale` — traduções das mensagens do servidor/ferramentas; sem
+ *     elas as mensagens saem em inglês (a app não as mostra ao lojista);
+ *   • `lib/pgxs` — o kit para COMPILAR extensões em C.
+ * Fica tudo o que o `initdb`/`postgres` precisa (bki, timezone, timezonesets,
+ * tsearch_data, extension — onde vive o plpgsql — e as DLLs).
+ */
+function podarPostgres(destino) {
+  for (const lixo of [['share', 'locale'], ['lib', 'pgxs']]) {
+    fs.rmSync(path.join(destino, ...lixo), { recursive: true, force: true });
+  }
+}
+
 function prepararPostgres() {
   const destino = path.join(resources, 'pgsql');
   const jaPronto = fs.existsSync(path.join(destino, 'bin', 'postgres.exe'));
 
   const zip = process.env.NDOMBAXI_PG_ZIP;
   if (jaPronto && !zip) {
-    log(`PostgreSQL já preparado (${tamanho(destino)} MB) — nada a fazer`);
+    podarPostgres(destino);
+    log(`PostgreSQL já preparado (${tamanho(destino)} MB) — só podado`);
     return;
   }
   if (!zip) {
@@ -100,6 +118,7 @@ function prepararPostgres() {
     fs.renameSync(de, path.join(destino, p));
   }
   fs.rmSync(temp, { recursive: true, force: true });
+  podarPostgres(destino);
 
   // Sem o `initdb` e o `postgres` não há base local nenhuma — é melhor falhar
   // aqui do que descobrir isso na loja do cliente.
@@ -127,7 +146,7 @@ function prepararPostgres() {
  *    local. É uma dependência de desenvolvimento, logo o `--prod` deixa-a de
  *    fora — e na máquina do lojista não há npm para a ir buscar.
  */
-function prepararPrisma(destino) {
+export function prepararPrisma(destino) {
   const alvoModules = path.join(destino, 'node_modules');
 
   // O cliente gerado vive ao lado do `@prisma/client`, na pasta real do pnpm
@@ -163,10 +182,33 @@ function prepararPrisma(destino) {
   if (!fs.existsSync(path.join(destinoCli, 'build', 'index.js'))) {
     throw new Error('A CLI do Prisma copiada não tem build/index.js — o supervisor não a encontraria.');
   }
+
+  // Os MOTORES da CLI (`@prisma/engines` + dependências). A cópia acima é só a
+  // pasta `prisma`: o `require('@prisma/engines')` dela não encontrava nada
+  // (o pacote ficava escondido dentro de `.pnpm`) e, mesmo que encontrasse, a
+  // cópia do `pnpm deploy` não traz o binário `schema-engine` — esse só existe
+  // depois do `postinstall` no repositório. Resultado: `prisma db push` falhava
+  // e o servidor local não arrancava. Copiamos do repositório (já com o
+  // binário), sem atalhos, para o topo de node_modules.
+  const copiarComDependencias = (nome, deDir) => {
+    const alvo = path.join(alvoModules, nome);
+    if (fs.existsSync(alvo) && !fs.lstatSync(alvo).isSymbolicLink()) return;
+    const origem = fs.realpathSync(path.dirname(require.resolve(`${nome}/package.json`, { paths: [deDir] })));
+    fs.rmSync(alvo, { recursive: true, force: true });
+    fs.mkdirSync(path.dirname(alvo), { recursive: true });
+    fs.cpSync(origem, alvo, { recursive: true, dereference: true });
+    const pj = JSON.parse(fs.readFileSync(path.join(origem, 'package.json'), 'utf8'));
+    for (const d of Object.keys(pj.dependencies ?? {})) copiarComDependencias(d, origem);
+  };
+  copiarComDependencias('@prisma/engines', cliRaiz);
+  const motoresDir = path.join(alvoModules, '@prisma', 'engines');
+  if (!fs.readdirSync(motoresDir).some((f) => f.startsWith('schema-engine'))) {
+    throw new Error('O @prisma/engines copiado não traz o schema-engine — corra "pnpm install" (postinstall do Prisma).');
+  }
   log(`Prisma pronto (cliente gerado + CLI, motor ${motor})`);
 }
 
-function prepararApi() {
+async function prepararApi() {
   const destino = path.join(resources, 'api');
 
   log('A compilar a API…');
@@ -210,9 +252,15 @@ function prepararApi() {
   if (!fs.existsSync(path.join(destino, 'dist', 'main.js'))) {
     throw new Error('A API compilada não tem dist/main.js — o supervisor não a conseguiria arrancar.');
   }
+  // Instalação rápida: a API vira um único ficheiro e node_modules fica só com
+  // o nativo/Prisma (de ~14 500 para ~1 700 ficheiros).
+  await empacotarApi(destino, log);
   log(`API pronta: resources/api (${tamanho(destino)} MB)`);
 }
 
-prepararPostgres();
-prepararApi();
-process.stdout.write('\nServidor local pronto a empacotar.\n\n');
+// Corre só quando chamado diretamente (comparação sem maiúsculas: letra da unidade no Windows).
+if (process.argv[1] && path.resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()) {
+  prepararPostgres();
+  await prepararApi();
+  process.stdout.write('\nServidor local pronto a empacotar.\n\n');
+}
