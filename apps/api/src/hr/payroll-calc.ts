@@ -37,19 +37,18 @@ export interface IrtBracket {
 }
 
 export const IRT_BRACKETS: readonly IrtBracket[] = [
-  { from: 0, upTo: 70_000, fixed: 0, rate: 0 },
-  { from: 70_000, upTo: 100_000, fixed: 0, rate: 0.1 },
-  { from: 100_000, upTo: 150_000, fixed: 3_000, rate: 0.13 },
-  { from: 150_000, upTo: 200_000, fixed: 9_500, rate: 0.16 },
-  { from: 200_000, upTo: 300_000, fixed: 17_500, rate: 0.18 },
-  { from: 300_000, upTo: 500_000, fixed: 35_500, rate: 0.19 },
-  { from: 500_000, upTo: 1_000_000, fixed: 73_500, rate: 0.2 },
-  { from: 1_000_000, upTo: 1_500_000, fixed: 173_500, rate: 0.21 },
-  { from: 1_500_000, upTo: 2_000_000, fixed: 278_500, rate: 0.22 },
-  { from: 2_000_000, upTo: 2_500_000, fixed: 388_500, rate: 0.23 },
-  { from: 2_500_000, upTo: 5_000_000, fixed: 503_500, rate: 0.24 },
-  { from: 5_000_000, upTo: 10_000_000, fixed: 1_103_500, rate: 0.245 },
-  { from: 10_000_000, upTo: Number.POSITIVE_INFINITY, fixed: 2_328_500, rate: 0.25 },
+  { from: 0, upTo: 100_000, fixed: 0, rate: 0 },
+  { from: 100_000, upTo: 150_000, fixed: 0, rate: 0.13 },
+  { from: 150_000, upTo: 200_000, fixed: 12_500, rate: 0.16 },
+  { from: 200_000, upTo: 300_000, fixed: 31_250, rate: 0.18 },
+  { from: 300_000, upTo: 500_000, fixed: 49_250, rate: 0.19 },
+  { from: 500_000, upTo: 1_000_000, fixed: 87_250, rate: 0.2 },
+  { from: 1_000_000, upTo: 1_500_000, fixed: 187_249, rate: 0.21 },
+  { from: 1_500_000, upTo: 2_000_000, fixed: 292_249, rate: 0.22 },
+  { from: 2_000_000, upTo: 2_500_000, fixed: 402_249, rate: 0.23 },
+  { from: 2_500_000, upTo: 5_000_000, fixed: 517_249, rate: 0.24 },
+  { from: 5_000_000, upTo: 10_000_000, fixed: 1_117_249, rate: 0.245 },
+  { from: 10_000_000, upTo: Number.POSITIVE_INFINITY, fixed: 2_342_248, rate: 0.25 },
 ] as const;
 
 /**

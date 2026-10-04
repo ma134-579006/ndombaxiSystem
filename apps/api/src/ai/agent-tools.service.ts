@@ -1,3 +1,4 @@
+import { Role, roleHasAtLeast } from '../rbac/roles.enum';
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as XLSX from 'xlsx';
@@ -57,6 +58,33 @@ export class AgentToolsService {
   ) {}
 
   /** Definições (function-calling, formato OpenAI/Gemini). */
+  /**
+   * PAPEL MÍNIMO por ferramenta. Antes todas estavam disponíveis para qualquer
+   * utilizador: um caixa pedia "muda o preço do X para 1 Kz" e a IA fazia; via os
+   * salários de todos e o lucro da empresa. Escrita e dados sensíveis exigem
+   * GERENTE (ou ADMIN); a verificação repete-se em `execute` (não só na lista).
+   */
+  private static readonly MIN_ROLE: Record<string, Role> = {
+    resumo_vendas: Role.STORE_MANAGER, top_produtos: Role.STORE_MANAGER,
+    desempenho_funcionarios: Role.STORE_MANAGER, detetar_anomalias: Role.STORE_MANAGER,
+    stock_critico: Role.SHIFT_SUPERVISOR, lucro_resumo: Role.COMPANY_ADMIN, gastos_resumo: Role.STORE_MANAGER,
+    listar_funcionarios: Role.COMPANY_ADMIN, listar_clientes: Role.STORE_MANAGER, mapa_iva: Role.STORE_MANAGER,
+    atualizar_preco_produto: Role.STORE_MANAGER, criar_cliente: Role.CASHIER, criar_produto: Role.STORE_MANAGER,
+    criar_despesa: Role.STORE_MANAGER, ajustar_stock_minimo: Role.STORE_MANAGER, enviar_whatsapp: Role.STORE_MANAGER,
+  };
+
+  /** Pode este papel usar esta ferramenta? (desconhecido = só administrador) */
+  allowed(name: string, role: string | undefined): boolean {
+    const min = AgentToolsService.MIN_ROLE[name];
+    if (min === undefined) return ['criar_planilha', 'criar_pdf', 'criar_imagem', 'mostrar_guia'].includes(name) || roleHasAtLeast(role as Role, Role.COMPANY_ADMIN);
+    return roleHasAtLeast(role as Role, min);
+  }
+
+  /** Ferramentas oferecidas à IA para este papel. */
+  defsFor(role: string | undefined): ToolDef[] {
+    return this.defs().filter((d) => this.allowed(d.name, role));
+  }
+
   defs(): ToolDef[] {
     const num = (d: string) => ({ type: 'number', description: d });
     const str = (d: string) => ({ type: 'string', description: d });
@@ -87,7 +115,10 @@ export class AgentToolsService {
   }
 
   /** Executa uma ferramenta no schema do tenant. NUNCA elimina nada. */
-  async execute(schema: string, actor: { id: string; email: string; storeId?: string | null }, name: string, args: Record<string, unknown>): Promise<ToolOutcome> {
+  async execute(schema: string, actor: { id: string; email: string; storeId?: string | null; role?: string }, name: string, args: Record<string, unknown>): Promise<ToolOutcome> {
+    if (!this.allowed(name, actor.role)) {
+      return { result: 'Sem permissão: esta ação exige um gestor ou o administrador da empresa. Explica isto ao utilizador.' };
+    }
     const days = Math.min(365, Math.max(1, Number(args?.dias ?? 0) || 0));
     try {
       switch (name) {

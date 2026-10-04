@@ -236,7 +236,17 @@ function sondarServidor(): void {
 const semQuery = (path: string) => path.split('?')[0];
 /** Produtos: listas/páginas/pesquisas respondidas pela base indexada (offline/catalog). */
 const PRODUTOS = /^\/pos\/products(\/all)?(\?|$)/;
+/**
+ * Leituras que NUNCA vêm da memória:
+ *  • `/…/changes` — alterações incrementais: uma página antiga servida de novo
+ *    sobrepunha edições feitas offline e, com o cursor a meio, ficava em ciclo;
+ *  • `/auth/…` — o pacote de credenciais offline: servido da cache, renovava a
+ *    validade e um funcionário despedido continuava a entrar sem rede.
+ */
+const SEM_CACHE = /\/changes(\?|$)|^\/auth\//;
+
 async function lerDaMemoria<T>(path: string): Promise<T | null> {
+  if (SEM_CACHE.test(path)) return null;
   if (PRODUTOS.test(path)) {
     const company = hooks?.getCompanyCode?.();
     if (!company) return null;
@@ -391,7 +401,7 @@ async function request<T>(
   const data = (text ? JSON.parse(text) : undefined) as T;
   // Funcionário alterado no SERVIDOR LOCAL: segue também para a nuvem pela API.
   if (!isGet && mirrorsToCloud(method, path) && usingLocalServer()) void mirrorStaffWrite(method, path, body, data);
-  if (isNativeApp() && isGet && data !== undefined && !PRODUTOS.test(path)) {
+  if (isNativeApp() && isGet && data !== undefined && !PRODUTOS.test(path) && !SEM_CACHE.test(path)) {
     // (Produtos ficam na base indexada própria — nunca como um bloco gigante aqui.)
     // Memória interna: a resposta exata e, à parte, a última versão do recurso
     // (sem filtros) — serve a mesma página sem rede com outro período/filtro.

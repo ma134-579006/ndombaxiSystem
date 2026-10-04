@@ -1,3 +1,5 @@
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../rbac/roles.enum';
 import { Body, Controller, Get, Ip, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
@@ -58,6 +60,9 @@ export class OnboardingController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Post('complete-setup')
+  // Só o ADMINISTRADOR da empresa: antes qualquer utilizador (até um caixa) mudava
+  // o nome, o código de login e o NIF do emitente dos documentos fiscais.
+  @Roles(Role.COMPANY_ADMIN)
   @ApiOperation({ summary: 'Conclui o setup obrigatório (nome, código, NIF, logo)' })
   completeSetup(@Body() dto: CompleteSetupDto, @CurrentUser() user: JwtPayload) {
     return this.onboarding.completeSetup(user.tenantId, this.ctx.requireTenantSchema(), dto);

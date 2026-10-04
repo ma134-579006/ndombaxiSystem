@@ -671,3 +671,13 @@ CREATE INDEX IF NOT EXISTS products_updated_idx ON "{{SCHEMA}}"."products"(updat
 CREATE INDEX IF NOT EXISTS customers_name_idx ON "{{SCHEMA}}"."customers"(name);
 CREATE INDEX IF NOT EXISTS invoices_customer_idx ON "{{SCHEMA}}"."invoices"(customer_id);
 CREATE INDEX IF NOT EXISTS customers_updated_idx ON "{{SCHEMA}}"."customers"(updated_at, id);
+
+-- Códigos de verificação do login por email dos clientes da loja online (OTP, 10 min).
+-- Sem isto, qualquer pessoa entrava na conta de um cliente só com o email dele.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."customer_login_codes" (
+  email       TEXT PRIMARY KEY,
+  code_hash   TEXT NOT NULL,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  attempts    INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

@@ -5,6 +5,7 @@ import { StockService } from '../erp/stock.service';
 import { TenantAuditService } from './tenant-audit.service';
 import { allocateDocumentNumber, formatCounterNumber } from '../common/document-counter';
 import type { CountItemDto, CreateCountDto, StockWriteOffDto } from './dto/cashbox.dto';
+import { luandaYear } from '../common/luanda-date';
 
 interface Actor { id?: string | null; name?: string | null }
 
@@ -59,7 +60,7 @@ export class InventoryService {
   /** Cria uma folha de contagem com o saldo actual do sistema para o armazém. */
   async createCount(schema: string, dto: CreateCountDto, actor: Actor): Promise<{ id: string; reference: string }> {
     return this.prisma.runInTenant(schema, async (tx) => {
-      const year = new Date().getFullYear();
+      const year = luandaYear();
       const seq = await allocateDocumentNumber(tx, 'INV', year);
       const reference = formatCounterNumber('INV', year, seq);
 
@@ -114,16 +115,31 @@ export class InventoryService {
     });
   }
 
-  /** Regista a contagem física de um item (calcula a diferença). */
+  /**
+   * Regista a contagem física de um item. O saldo do sistema é re-lido NO
+   * MOMENTO da contagem (vendas feitas entre abrir a folha e contar já estão
+   * refletidas na prateleira) — assim o ajuste ao fechar não as conta duas vezes.
+   */
   async countItem(schema: string, countId: string, dto: CountItemDto): Promise<void> {
-    await this.prisma.runInTenant(schema, (tx) =>
-      tx.$executeRaw(
-        Prisma.sql`UPDATE stock_count_items
-            SET counted_qty = ${dto.countedQty},
-                difference = ${dto.countedQty} - system_qty
-            WHERE count_id = ${countId}::uuid AND product_id = ${dto.productId}::uuid`,
-      ),
-    );
+    await this.prisma.runInTenant(schema, async (tx) => {
+      const head = await tx.$queryRaw<{ status: string; warehouse_id: string }[]>(
+        Prisma.sql`SELECT status, warehouse_id FROM stock_counts WHERE id = ${countId}::uuid LIMIT 1`,
+      );
+      if (!head[0]) throw new NotFoundException('Contagem não encontrada');
+      if (head[0].status === 'CLOSED') throw new BadRequestException('Contagem já fechada — abra uma nova folha.');
+      const n = await tx.$executeRaw(
+        Prisma.sql`UPDATE stock_count_items i
+            SET system_qty = COALESCE((SELECT si.quantity FROM stock_items si
+                                       WHERE si.product_id = i.product_id
+                                         AND si.warehouse_id = ${head[0].warehouse_id}::uuid), 0),
+                counted_qty = ${dto.countedQty},
+                difference = ${dto.countedQty} - COALESCE((SELECT si.quantity FROM stock_items si
+                                       WHERE si.product_id = i.product_id
+                                         AND si.warehouse_id = ${head[0].warehouse_id}::uuid), 0)
+            WHERE i.count_id = ${countId}::uuid AND i.product_id = ${dto.productId}::uuid`,
+      );
+      if (n === 0) throw new NotFoundException('Produto não pertence a esta contagem.');
+    });
   }
 
   // ── Lotes & validade (FEFO) ────────────────────────────────
@@ -133,7 +149,12 @@ export class InventoryService {
     dto: { productId: string; warehouseId: string; batchCode?: string; quantity: number; expiryDate?: string },
     actor: Actor,
   ): Promise<{ id: string }> {
+    // O corpo chega sem DTO validado: "5" (string) somava como texto ("5"+"10").
+    const quantity = Number(dto.quantity);
+    if (!Number.isFinite(quantity) || quantity < 0) throw new BadRequestException('Quantidade do lote inválida.');
+    dto = { ...dto, quantity };
     return this.prisma.runInTenant(schema, async (tx) => {
+      await this.assertActiveStore(tx, dto.warehouseId);
       const rows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO product_batches (product_id, warehouse_id, batch_code, quantity, expiry_date)
           VALUES (${dto.productId}::uuid, ${dto.warehouseId}::uuid, ${dto.batchCode ?? null},
@@ -182,8 +203,13 @@ export class InventoryService {
     if (dto.fromWarehouseId === dto.toWarehouseId) {
       throw new BadRequestException('Origem e destino têm de ser armazéns diferentes.');
     }
+    const quantity = Number(dto.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) throw new BadRequestException('Quantidade inválida.');
+    dto = { ...dto, quantity };
     return this.prisma.runInTenant(schema, async (tx) => {
-      const year = new Date().getFullYear();
+      await this.assertActiveStore(tx, dto.fromWarehouseId);
+      await this.assertActiveStore(tx, dto.toWarehouseId);
+      const year = luandaYear();
       const seq = await allocateDocumentNumber(tx, 'TRF', year);
       const reference = formatCounterNumber('TRF', year, seq);
       // saída da origem (bloqueia se não houver stock)
@@ -285,5 +311,12 @@ export class InventoryService {
       });
       return { adjusted };
     });
+  }
+
+  private async assertActiveStore(tx: Prisma.TransactionClient, id: string): Promise<void> {
+    const r = await tx.$queryRaw<{ id: string }[]>(
+      Prisma.sql`SELECT id FROM stores WHERE id::text = ${id} AND is_active = TRUE LIMIT 1`,
+    );
+    if (!r[0]) throw new BadRequestException('Loja/armazém inexistente ou inativo.');
   }
 }

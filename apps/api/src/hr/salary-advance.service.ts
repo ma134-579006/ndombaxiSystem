@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -142,10 +142,14 @@ export class SalaryAdvanceService {
   async review(schema: string, id: string, decision: 'APPROVED' | 'REJECTED', reviewerId?: string, reviewerName?: string, note?: string): Promise<AdvanceRow> {
     if (decision !== 'APPROVED' && decision !== 'REJECTED') throw new BadRequestException('Decisão inválida.');
     return this.prisma.runInTenant(schema, async (tx) => {
-      const existing = await tx.$queryRaw<{ status: string }[]>(
-        Prisma.sql`SELECT status FROM salary_advances WHERE id = ${id}::uuid FOR UPDATE`,
+      const existing = await tx.$queryRaw<{ status: string; user_id: string | null }[]>(
+        Prisma.sql`SELECT status, user_id FROM salary_advances WHERE id = ${id}::uuid FOR UPDATE`,
       );
       if (existing.length === 0) throw new NotFoundException('Pedido não encontrado.');
+      // Ninguém aprova o PRÓPRIO adiantamento (um gerente pedia e aprovava sozinho).
+      if (reviewerId && existing[0].user_id === reviewerId) {
+        throw new ForbiddenException('Não pode decidir o seu próprio pedido de adiantamento — outro responsável tem de o rever.');
+      }
       if (existing[0].status !== 'PENDING') throw new BadRequestException(`Este pedido já foi ${existing[0].status === 'APPROVED' ? 'aprovado' : existing[0].status === 'REJECTED' ? 'rejeitado' : 'processado'}.`);
       const rows = await tx.$queryRaw<AdvanceRow[]>(
         Prisma.sql`UPDATE salary_advances

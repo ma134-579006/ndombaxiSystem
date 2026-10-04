@@ -271,7 +271,7 @@ export class OrdersService {
     schema: string,
     orderId: string,
     input: { expressPhone: string; reference?: string },
-  ): Promise<{ orderId: string; invoiceNumber: string; verified: true }> {
+  ): Promise<{ orderId: string; pending: true; verified: false; message: string }> {
     const express = await this.gateways.getActiveExpress();
     if (!express) {
       throw new BadRequestException(
@@ -287,15 +287,22 @@ export class OrdersService {
       throw new BadRequestException(`Encomenda não está PENDING (estado: ${order.status})`);
     }
 
-    // (Verificação real junto do Express seria feita aqui via express.gateway.baseUrl.)
+    // SEGURANÇA: ainda NÃO há confirmação real junto do Express (integração HTTP
+    // por fazer). Antes, este pedido PÚBLICO marcava a encomenda como paga e emitia
+    // a fatura só com um número de telefone — qualquer pessoa levava a mercadoria
+    // sem pagar. Agora fica um comprovativo PENDENTE e o gestor confirma o
+    // recebimento (como na transferência). `pay()` só deve ser chamado por um
+    // callback ASSINADO do gateway quando a integração existir.
     await this.payments.recordExpressProof(schema, orderId, {
       amount: Number(order.gross_total),
       reference: input.reference,
-      note: `Pagamento Express verificado automaticamente (contrato "${express.gateway.label}"; tel: ${input.expressPhone}).`,
+      note: `Pagamento Multicaixa Express indicado pelo cliente (contrato "${express.gateway.label}"; tel: ${input.expressPhone}) — por confirmar.`,
+      approved: false,
     });
-
-    const paid = await this.pay(schema, orderId);
-    return { orderId, invoiceNumber: paid.invoiceNumber, verified: true };
+    return {
+      orderId, pending: true, verified: false,
+      message: 'Pagamento registado. A loja confirma a receção e a encomenda segue logo a seguir.',
+    };
   }
 
   /**

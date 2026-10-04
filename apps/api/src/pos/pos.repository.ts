@@ -130,7 +130,8 @@ export class PosRepository {
       const defStore = defStoreRows[0]?.id;
       // Stock inicial: partilhado → pool central (loja principal); por loja → a loja
       // de quem criou (initialStoreId) ou, em falta, a loja principal.
-      const initStore = shared ? defStore : (input.initialStoreId || defStore);
+      const wanted = input.initialStoreId && stores.some((st) => st.id === input.initialStoreId) ? input.initialStoreId : defStore;
+      const initStore = shared ? defStore : wanted;
       // PRODUÇÃO: sem stock inicial por loja — o estoque vem só das fornadas.
       const initial = Number(stockQty);
       for (const st of stores) {
@@ -316,7 +317,8 @@ export class PosRepository {
     if (input.exemptionCode !== undefined) sets.push(Prisma.sql`exemption_code = ${input.exemptionCode || null}`);
     if (input.unitPrice !== undefined) sets.push(Prisma.sql`unit_price = ${input.unitPrice}`);
     if (input.costPrice !== undefined) sets.push(Prisma.sql`cost_price = ${input.costPrice}`);
-    if (input.stockQty !== undefined) sets.push(Prisma.sql`stock_qty = ${input.stockQty}`);
+    // stock_qty NÃO se escreve aqui: é o espelho de stock_items (por loja) e só
+    // muda por movimentos (entrada, baixa, contagem). Sobrescrevê-lo dessincronizava.
     if (input.imageUrl !== undefined) sets.push(Prisma.sql`image_url = ${input.imageUrl}`);
     if (input.gallery !== undefined)
       sets.push(Prisma.sql`gallery = ${JSON.stringify(input.gallery)}::jsonb`);

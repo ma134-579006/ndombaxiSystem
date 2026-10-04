@@ -234,7 +234,9 @@ export class PosController {
     const deviceSeries = await this.devices.seriesFor(schema, dto.deviceKey);
     try {
       return await this.invoices.emit(schema, {
-        docType: dto.docType ?? DocumentType.FT,
+        // Pelo caixa só se VENDE (FT/FS). Notas de crédito nascem da anulação/devolução;
+        // um "NC" pedido aqui baixava stock e contava como venda no turno.
+        docType: dto.docType === DocumentType.FS ? DocumentType.FS : DocumentType.FT,
         // Servidor local de um posto: série própria do posto (DEVICE_SERIES).
         series: deviceSeries ?? localSeries() ?? dto.series ?? 'A',
         customerId: dto.customerId ?? null,

@@ -4,6 +4,7 @@ import { computeInvoice, InvoiceLineInput, IvaCode, requiresExemptionReason, res
 import { allocateDocumentNumber, formatCounterNumber } from '../common/document-counter';
 import { PrismaService } from '../prisma/prisma.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { luandaYear } from '../common/luanda-date';
 
 /** Motivo de isenção por omissão p/ IVA que o exige (igual ao do POS). */
 const DEFAULT_EXEMPTION_REASON: Partial<Record<IvaCode, string>> = {
@@ -135,6 +136,14 @@ export class StorefrontService {
 
   /** Cria uma encomenda online em estado PENDING (sem emitir factura ainda). */
   async checkout(schema: string, dto: CheckoutDto): Promise<{ id: string; orderNumber: string; grossTotal: number }> {
+    // Linhas repetidas do mesmo produto juntam-se numa só: senão cada uma era
+    // validada isoladamente contra o stock livre e, somadas, excediam-no.
+    const merged = new Map<string, CheckoutDto['lines'][number]>();
+    for (const l of dto.lines) {
+      const prev = merged.get(l.productCode);
+      merged.set(l.productCode, prev ? { ...prev, quantity: prev.quantity + l.quantity } : { ...l });
+    }
+    dto = { ...dto, lines: [...merged.values()] };
     return this.prisma.runInTenant(schema, async (tx) => {
       const codes = dto.lines.map((l) => l.productCode);
       // FOR UPDATE serializa checkouts simultâneos do MESMO produto: o 2.º espera
@@ -142,6 +151,7 @@ export class StorefrontService {
       const products = await tx.$queryRaw<CatalogRow[]>(
         Prisma.sql`SELECT id, code, name, description, iva_code, exemption_reason, exemption_code, unit_price, stock_qty, is_production
                    FROM products WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE
+                     AND show_online = TRUE AND COALESCE(is_ingredient, FALSE) = FALSE
                    FOR UPDATE`,
       );
       const byCode = new Map(products.map((p) => [p.code, p]));
@@ -195,7 +205,7 @@ export class StorefrontService {
       });
       const { lines, totals } = computeInvoice(lineInputs);
 
-      const year = new Date().getFullYear();
+      const year = luandaYear();
       // Numeração atómica (sem race): contador por (kind, year).
       const sequence = await allocateDocumentNumber(tx, 'WEB', year);
       const orderNumber = formatCounterNumber('WEB', year, sequence);

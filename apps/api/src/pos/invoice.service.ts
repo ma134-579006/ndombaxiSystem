@@ -25,6 +25,7 @@ import { PlatformSigningService } from '../fiscal/platform-signing.service';
 import { EinvoiceService } from '../einvoice/einvoice.service';
 import { StockService } from '../erp/stock.service';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
+import { luandaDate, luandaYear } from '../common/luanda-date';
 
 export interface EmitInvoiceInput {
   docType: DocumentType;
@@ -328,7 +329,7 @@ export class InvoiceService {
       const { lines, totals } = computeInvoice(lineInputs);
 
       // 3. Aloca numeração + hash anterior, bloqueando a série fiscal.
-      const year = new Date().getFullYear();
+      const year = luandaYear();
       // Facturação Electrónica: com série AGT autorizada, o documento numera-se nessa série.
       const agtSeries = await this.einvoice.seriesFor(schema, input.docType, year);
       const series = agtSeries ?? input.series;
@@ -362,7 +363,7 @@ export class InvoiceService {
 
       // 4. Datas (ao segundo, formato AGT) e assinatura/cadeia (Modelo 8).
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
-      const invoiceDate = now.toISOString().slice(0, 10);
+      const invoiceDate = luandaDate(now);
       const systemEntryDate = now.toISOString();
       const docHeader = { invoiceDate, systemEntryDate, number, totals };
       const chain = await this.signAndChain(schema, tx, docHeader, serieRows[0].last_hash);
@@ -406,7 +407,7 @@ export class InvoiceService {
       // ── Validação de stock e validade ANTES de emitir ─────────────
       // A venda é bloqueada se não houver stock suficiente ou se o produto só
       // tiver lotes expirados. Toda a transacção é revertida (nada é gravado).
-      const today = new Date().toISOString().slice(0, 10);
+      const today = luandaDate();
       // Venda feita SEM REDE: já aconteceu — não se valida stock nem validade aqui.
       for (const line of input.offline ? [] : lines) {
         const product = byCode.get(line.productCode);
@@ -735,7 +736,9 @@ export class InvoiceService {
       }[]>(
         Prisma.sql`SELECT i.id, i.number, i.doc_type, i.series, i.status, i.hash, i.previous_hash,
                           i.net_total, i.iva_total, i.gross_total, i.system_entry_date, i.operation_date,
-                          c.name AS customer_name, u.name AS cashier_name
+                          CASE WHEN NULLIF(trim(c.tax_id), '') IS NOT NULL AND c.tax_id <> '999999999'
+                               THEN c.name || ' · NIF ' || trim(c.tax_id) ELSE c.name END AS customer_name,
+                          u.name AS cashier_name
                    FROM invoices i
                    LEFT JOIN customers c ON c.id = i.customer_id
                    LEFT JOIN users u ON u.id = i.cashier_id
@@ -1021,14 +1024,19 @@ export class InvoiceService {
     const result = await this.prisma.runInTenant(schema, async (tx) => {
       // 1. Carrega a factura + linhas (bloqueia).
       const invRows = await tx.$queryRaw<
-        { id: string; number: string; status: string; gross_total: string; net_total: string; iva_total: string; customer_id: string | null; customer_tax_id: string | null; store_id: string | null }[]
+        { id: string; number: string; status: string; gross_total: string; net_total: string; iva_total: string; customer_id: string | null; customer_tax_id: string | null; store_id: string | null; doc_type: string }[]
       >(
-        Prisma.sql`SELECT id, number, status, gross_total, net_total, iva_total, customer_id, customer_tax_id, store_id
+        Prisma.sql`SELECT id, number, status, gross_total, net_total, iva_total, customer_id, customer_tax_id, store_id, doc_type
                    FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`,
       );
       if (!invRows[0]) throw new BadRequestException('Factura não encontrada');
       const inv = invRows[0];
       if (inv.status === 'A') throw new BadRequestException('Esta venda já foi anulada.');
+      // Só faturas se anulam. Anular uma NC repunha o stock e tirava o dinheiro da
+      // gaveta OUTRA vez (e gerava uma NC sobre a NC).
+      if (inv.doc_type !== 'FT' && inv.doc_type !== 'FS') {
+        throw new BadRequestException('Só se anulam faturas — este documento não é uma venda.');
+      }
 
       const items = await tx.$queryRaw<
         { product_id: string | null; product_code: string; description: string; quantity: string; shared_stock: boolean | null;
@@ -1085,7 +1093,7 @@ export class InvoiceService {
       const ncGross = hasPriorReturns ? round2(ncLines.reduce((s, l) => s + l.gross_amount, 0)) : Number(inv.gross_total);
 
       // 2. Aloca número de NC na série própria (NC, mesma série/ano).
-      const year = new Date().getFullYear();
+      const year = luandaYear();
       const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
       const ncSeries = ncAgt ?? localSeries() ?? 'A';
       await tx.$executeRaw(
@@ -1101,7 +1109,7 @@ export class InvoiceService {
       const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: ncSeries, year, sequence });
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const docHeader = {
-        invoiceDate: now.toISOString().slice(0, 10),
+        invoiceDate: luandaDate(now),
         systemEntryDate: now.toISOString(),
         number: ncNumber,
         totals: { netTotal: ncNet, ivaTotal: ncIva, grossTotal: ncGross, byTaxCode: [] as never[] },
@@ -1207,11 +1215,14 @@ export class InvoiceService {
     if (!returns?.length) throw new BadRequestException('Indique os artigos a devolver.');
 
     const result = await this.prisma.runInTenant(schema, async (tx) => {
-      const invRows = await tx.$queryRaw<{ id: string; number: string; status: string; store_id: string | null; customer_id: string | null; customer_tax_id: string | null }[]>(
-        Prisma.sql`SELECT id, number, status, store_id, customer_id, customer_tax_id FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`,
+      const invRows = await tx.$queryRaw<{ id: string; number: string; status: string; store_id: string | null; customer_id: string | null; customer_tax_id: string | null; doc_type: string }[]>(
+        Prisma.sql`SELECT id, number, status, store_id, customer_id, customer_tax_id, doc_type FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`,
       );
       if (!invRows[0]) throw new BadRequestException('Factura não encontrada');
       if (invRows[0].status === 'A') throw new BadRequestException('Factura já anulada — use a anulação total.');
+      if (invRows[0].doc_type !== 'FT' && invRows[0].doc_type !== 'FS') {
+        throw new BadRequestException('Só se devolvem artigos de faturas — este documento não é uma venda.');
+      }
       const inv = invRows[0];
 
       const items = await tx.$queryRaw<
@@ -1267,7 +1278,7 @@ export class InvoiceService {
       const refundGross = round2(refundNet + refundIva);
 
       // Aloca NC.
-      const year = new Date().getFullYear();
+      const year = luandaYear();
       const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
       const ncSeries = ncAgt ?? localSeries() ?? 'A';
       await tx.$executeRaw(
@@ -1282,7 +1293,7 @@ export class InvoiceService {
       const sequence = serie[0].last_sequence + 1;
       const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: ncSeries, year, sequence });
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
-      const ncHeader = { invoiceDate: now.toISOString().slice(0, 10), systemEntryDate: now.toISOString(), number: ncNumber,
+      const ncHeader = { invoiceDate: luandaDate(now), systemEntryDate: now.toISOString(), number: ncNumber,
         totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] as never[] } };
       const ncChain = await this.signAndChain(schema, tx, ncHeader, serie[0].last_hash);
       const { hash, signable } = ncChain;

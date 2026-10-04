@@ -13,6 +13,12 @@ export class CustomerEmailLoginDto {
   @IsOptional()
   @IsBoolean()
   existing?: boolean;
+
+  /** Código de 6 dígitos enviado para o email (obrigatório para entrar). */
+  @IsOptional()
+  @IsString()
+  @Length(6, 6)
+  code?: string;
 }
 
 export class CustomerGoogleLoginDto {

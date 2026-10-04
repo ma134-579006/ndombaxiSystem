@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { allocateDocumentNumber, formatCounterNumber } from '../common/document-counter';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
 import { CreateReceivableDto, RecordPaymentDto } from './dto/receivable.dto';
+import { luandaYear } from '../common/luanda-date';
 
 export interface ReceivableRow {
   id: string;
@@ -44,8 +45,8 @@ export class ReceivablesService {
   list(schema: string, filter?: string): Promise<ReceivableRow[]> {
     const where =
       filter === 'paid' ? Prisma.sql`WHERE r.status = 'PAID'`
-      : filter === 'overdue' ? Prisma.sql`WHERE r.status <> 'PAID' AND r.due_date IS NOT NULL AND r.due_date < CURRENT_DATE`
-      : filter === 'open' ? Prisma.sql`WHERE r.status <> 'PAID'`
+      : filter === 'overdue' ? Prisma.sql`WHERE r.status NOT IN ('PAID','CANCELLED') AND r.due_date IS NOT NULL AND r.due_date < CURRENT_DATE`
+      : filter === 'open' ? Prisma.sql`WHERE r.status NOT IN ('PAID','CANCELLED')`
       : Prisma.sql``;
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<ReceivableRow[]>(Prisma.sql`
@@ -53,7 +54,7 @@ export class ReceivablesService {
                r.original_amount, r.paid_amount,
                (r.original_amount - r.paid_amount) AS outstanding,
                to_char(r.due_date,'YYYY-MM-DD') AS due_date, r.status,
-               CASE WHEN r.status <> 'PAID' AND r.due_date IS NOT NULL AND r.due_date < CURRENT_DATE
+               CASE WHEN r.status NOT IN ('PAID','CANCELLED') AND r.due_date IS NOT NULL AND r.due_date < CURRENT_DATE
                     THEN (CURRENT_DATE - r.due_date) ELSE 0 END AS days_overdue,
                r.created_at
         FROM receivables r
@@ -68,10 +69,10 @@ export class ReceivablesService {
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{ outstanding: string; overdue: string; open_count: number; overdue_count: number }[]>(Prisma.sql`
         SELECT
-          COALESCE(SUM(original_amount - paid_amount) FILTER (WHERE status <> 'PAID'), 0) AS outstanding,
-          COALESCE(SUM(original_amount - paid_amount) FILTER (WHERE status <> 'PAID' AND due_date IS NOT NULL AND due_date < CURRENT_DATE), 0) AS overdue,
-          COUNT(*) FILTER (WHERE status <> 'PAID')::int AS open_count,
-          COUNT(*) FILTER (WHERE status <> 'PAID' AND due_date IS NOT NULL AND due_date < CURRENT_DATE)::int AS overdue_count
+          COALESCE(SUM(original_amount - paid_amount) FILTER (WHERE status NOT IN ('PAID','CANCELLED')), 0) AS outstanding,
+          COALESCE(SUM(original_amount - paid_amount) FILTER (WHERE status NOT IN ('PAID','CANCELLED') AND due_date IS NOT NULL AND due_date < CURRENT_DATE), 0) AS overdue,
+          COUNT(*) FILTER (WHERE status NOT IN ('PAID','CANCELLED'))::int AS open_count,
+          COUNT(*) FILTER (WHERE status NOT IN ('PAID','CANCELLED') AND due_date IS NOT NULL AND due_date < CURRENT_DATE)::int AS overdue_count
         FROM receivables`);
       const r = rows[0];
       return {
@@ -90,7 +91,7 @@ export class ReceivablesService {
         SELECT r.id, r.customer_name, r.invoice_number, r.original_amount, r.paid_amount,
                (r.original_amount - r.paid_amount) AS outstanding,
                to_char(r.due_date,'YYYY-MM-DD') AS due_date, r.status,
-               CASE WHEN r.status <> 'PAID' AND r.due_date IS NOT NULL AND r.due_date < CURRENT_DATE
+               CASE WHEN r.status NOT IN ('PAID','CANCELLED') AND r.due_date IS NOT NULL AND r.due_date < CURRENT_DATE
                     THEN (CURRENT_DATE - r.due_date) ELSE 0 END AS days_overdue,
                r.created_at
         FROM receivables r WHERE r.id = ${id}::uuid LIMIT 1`);
@@ -136,6 +137,11 @@ export class ReceivablesService {
       const original = Number(rows[0].original_amount);
       const paid = Number(rows[0].paid_amount);
       const outstanding = round2(original - paid);
+      // Conta de uma venda ANULADA (NC): já não há dívida — receber aqui emitia um
+      // recibo e marcava como paga uma fatura que deixou de existir.
+      if (rows[0].status === 'CANCELLED') {
+        throw new BadRequestException('Esta conta foi cancelada (venda anulada) — não aceita pagamentos.');
+      }
       if (rows[0].status === 'PAID' || outstanding <= 0) {
         throw new BadRequestException('Esta conta já está liquidada.');
       }
@@ -143,7 +149,7 @@ export class ReceivablesService {
         throw new BadRequestException(`Valor superior ao saldo em dívida (${outstanding}).`);
       }
 
-      const year = new Date().getFullYear();
+      const year = luandaYear();
       const seq = await allocateDocumentNumber(tx, 'RC', year);
       const receiptNumber = formatCounterNumber('RC', year, seq);
 

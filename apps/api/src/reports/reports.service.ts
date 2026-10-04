@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { luandaDate } from '../common/luanda-date';
 
 /**
  * Relatórios de gestão (estilo Vendus): vendas por utilizador, por categoria,
@@ -12,10 +13,10 @@ export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private range(from?: string, to?: string): { from: string; to: string } {
-    const toD = to && /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : new Date().toISOString().slice(0, 10);
+    const toD = to && /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : luandaDate();
     const fromD = from && /^\d{4}-\d{2}-\d{2}$/.test(from)
       ? from
-      : new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
+      : luandaDate(Date.now() - 29 * 86400000);
     return { from: fromD, to: toD };
   }
 

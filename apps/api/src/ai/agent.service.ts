@@ -112,8 +112,8 @@ export class AgentService {
     if (newUserMsg) await this.memory.append(schema, user.sub, 'user', newUserMsg);
     const ctxMsgs = await this.memory.context(schema, user.sub, 12000);
     const messages: AgentMessage[] = (ctxMsgs.length ? ctxMsgs : history.slice(-16)).map((h) => ({ role: h.role, content: h.content.slice(0, 4000) }));
-    const defs = this.tools.defs();
-    const actor = { id: user.sub, email: user.email, storeId: user.storeId ?? null };
+    const defs = this.tools.defsFor(user.role);
+    const actor = { id: user.sub, email: user.email, storeId: user.storeId ?? null, role: user.role };
 
     for (let round = 0; round < MAX_ROUNDS; round++) {
       const r = await callTools(messages, defs);

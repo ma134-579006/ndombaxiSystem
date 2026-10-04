@@ -8,7 +8,9 @@ import { IconCheck, IconClose } from './Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { PaperSizeToggle } from './PaperSizeToggle';
 import { buildShiftClosePdf, shiftFileName } from '../pdf/shiftPdf';
-import { abrirTurnoOffline, fecharTurnoOffline } from '../offline/shifts';
+import { abrirTurnoOffline, fecharTurnoOffline, turnoAbertoLocal } from '../offline/shifts';
+import { listPendingSales } from '../offline/db';
+import { syncController } from '../offline/sync';
 import { isNativeApp } from '../config';
 import { UiIcon } from './UiIcon';
 
@@ -133,6 +135,25 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
       return;
     }
     setBusy(true);
+    // Vendas feitas SEM REDE ainda por subir: fechar já na nuvem apurava o
+    // esperado sem esse dinheiro (diferença falsa na gaveta). Tenta subi-las
+    // primeiro; se não der, o fecho fica no aparelho (sobe DEPOIS delas) ou,
+    // para um turno aberto na nuvem, espera-se pela rede.
+    if (isNativeApp()) {
+      const porSubir = async () => (await listPendingSales().catch(() => [])).filter((v) => v.status !== 'ERROR').length;
+      if (await porSubir() > 0) await syncController.flush().catch(() => undefined);
+      const n = await porSubir();
+      if (n > 0) {
+        if (await turnoAbertoLocal()) {
+          const t = await fecharTurnoOffline({ countedCash: Number(counted) || 0, notes: notes.trim() || undefined });
+          setBusy(false);
+          if (t) { onClosed(); return; }
+        }
+        setBusy(false);
+        setError(`Há ${n} venda(s) feita(s) sem rede ainda por subir. Ligue-se à internet e aguarde que subam antes de fechar o turno — senão o dinheiro esperado na gaveta sai errado.`);
+        return;
+      }
+    }
     try {
       const res = await api.closeSession(Number(counted) || 0, notes.trim() || undefined);
       setCloseResult(res);

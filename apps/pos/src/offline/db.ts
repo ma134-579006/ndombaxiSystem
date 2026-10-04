@@ -24,6 +24,8 @@ export interface PendingSaleLine {
   productName: string;
   quantity: number;
   unitPriceGross: number;
+  /** Desconto (promoção) aplicado nesta linha no momento da venda (0–1). */
+  discountRate?: number;
 }
 
 export type PendingSaleStatus = 'PENDING' | 'SYNCING' | 'ERROR';
@@ -42,6 +44,13 @@ export interface PendingSale {
   createdAt: string; // ISO
   customerId: string | null;
   customerName: string | null;
+  /**
+   * Como o cliente PAGOU. Sem isto a venda subia sempre como numerário: uma venda
+   * a cartão ou a crédito inflacionava o dinheiro esperado no fecho do turno.
+   */
+  paymentType?: string;
+  tendered?: number;
+  changeGiven?: number;
   lines: PendingSaleLine[];
   netTotal: number;
   ivaTotal: number;
@@ -84,6 +93,8 @@ export function buildPendingSale(
   totals: { net: number; iva: number; gross: number },
   customer: { id: string; name: string } | null,
   clientOpId?: string,
+  pay?: { paymentType: string; tendered?: number; changeGiven?: number },
+  discountRateByProduct: Record<string, number> = {},
 ): PendingSale {
   const rand = Math.random().toString(16).slice(2, 6).toUpperCase();
   return {
@@ -92,12 +103,19 @@ export function buildPendingSale(
     createdAt: new Date().toISOString(),
     customerId: customer?.id ?? null,
     customerName: customer?.name ?? null,
-    lines: cart.map((l) => ({
-      productCode: l.product.code,
-      productName: l.product.name,
-      quantity: l.quantity,
-      unitPriceGross: Number(l.product.unit_price) * (1 + ivaRate(l.product.iva_code) / 100),
-    })),
+    paymentType: pay?.paymentType,
+    tendered: pay?.tendered,
+    changeGiven: pay?.changeGiven,
+    lines: cart.map((l) => {
+      const rate = discountRateByProduct[l.product.id] ?? 0;
+      return {
+        productCode: l.product.code,
+        productName: l.product.name,
+        quantity: l.quantity,
+        unitPriceGross: Number(l.product.unit_price) * (1 + ivaRate(l.product.iva_code) / 100),
+        ...(rate > 0 ? { discountRate: rate } : {}),
+      };
+    }),
     netTotal: totals.net,
     ivaTotal: totals.iva,
     grossTotal: totals.gross,
