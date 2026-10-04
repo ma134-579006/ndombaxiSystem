@@ -98,6 +98,7 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
       );
     }
     this.logger.log(`Tenant schema provisioned: ${schema} (${statements.length} template + ${migOk}/${migrations.length} migrações)`);
+    await this.ensureForeignKeyIndexes(schema);
   }
 
   /**
@@ -133,7 +134,54 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
       );
     }
     await this.fixInvoiceItemsProductFk(schema);
+    await this.ensureForeignKeyIndexes(schema);
     return { applied, failed };
+  }
+
+  /**
+   * ÍNDICE EM CADA LIGAÇÃO (FK) que ainda não o tem.
+   *
+   * Ao eliminar um registo (ex.: um produto), o PostgreSQL verifica CADA tabela que
+   * o referencia. Sem índice nessa coluna percorre a tabela inteira, uma vez por
+   * registo eliminado: com o histórico de vendas de uma empresa real, eliminar os
+   * produtos migrados passava de ~1 s para minutos, os lotes passavam o limite da
+   * transação e "uns eliminavam, outros davam erro". O mesmo valia para clientes,
+   * fornecedores, lojas… — por isso é genérico, para todas as FKs do schema.
+   *
+   * CONCURRENTLY: não bloqueia vendas enquanto o índice é criado numa tabela grande.
+   * Idempotente e best-effort (nunca derruba o arranque).
+   */
+  async ensureForeignKeyIndexes(schema: string): Promise<number> {
+    assertValidSchemaName(schema);
+    let criados = 0;
+    try {
+      const faltam = await this.prisma.$queryRawUnsafe<{ tbl: string; col: string }[]>(
+        `SELECT t.relname AS tbl, a.attname AS col
+           FROM pg_constraint c
+           JOIN pg_class t ON t.oid = c.conrelid
+           JOIN pg_namespace n ON n.oid = t.relnamespace
+           JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+          WHERE c.contype = 'f' AND n.nspname = $1 AND array_length(c.conkey, 1) = 1
+            AND NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.conrelid AND i.indkey[0] = c.conkey[1])`,
+        schema,
+      );
+      for (const f of faltam) {
+        if (!/^[a-z_][a-z0-9_]*$/.test(f.tbl) || !/^[a-z_][a-z0-9_]*$/.test(f.col)) continue;
+        const nome = `${f.tbl}_${f.col}_fkidx`.slice(0, 63);
+        try {
+          await this.prisma.$executeRawUnsafe(
+            `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${nome}" ON "${schema}"."${f.tbl}" ("${f.col}")`,
+          );
+          criados += 1;
+        } catch (err) {
+          this.logger.debug(`${schema}: índice ${nome} não criado: ${err instanceof Error ? err.message.split('\n')[0] : 'erro'}`);
+        }
+      }
+      if (criados > 0) this.logger.log(`${schema}: ${criados} índice(s) criados em ligações (FK) — eliminações rápidas.`);
+    } catch (err) {
+      this.logger.warn(`${schema}: verificação de índices FK falhou: ${err instanceof Error ? err.message.split('\n')[0].slice(0, 140) : 'erro'}`);
+    }
+    return criados;
   }
 
   /**
