@@ -40,7 +40,40 @@ function loadJimp() {
 // Tamanhos canónicos de um .ico Windows (o shell escolhe o que precisa).
 const SIZES = [16, 24, 32, 48, 64, 128, 256];
 
-/** Constrói um .ico com cada `png` (Buffer) embutido — um por tamanho. */
+/**
+ * Imagem em formato DIB (BMP sem cabeçalho de ficheiro), como o Windows guarda os
+ * ícones clássicos: 32 bpp BGRA de baixo para cima + máscara AND de 1 bpp.
+ * Os tamanhos pequenos vão assim — PNG dentro do .ico só é lido com segurança a
+ * 256 px; abaixo disso, algumas vistas do Explorador e o compilador do NSIS
+ * mostravam o ícone genérico.
+ */
+function toDib(img) {
+  const { width: w, height: h, data } = img.bitmap; // RGBA, de cima para baixo
+  const header = Buffer.alloc(40);
+  header.writeUInt32LE(40, 0);        // tamanho do cabeçalho
+  header.writeInt32LE(w, 4);
+  header.writeInt32LE(h * 2, 8);      // altura dupla (cor + máscara)
+  header.writeUInt16LE(1, 12);        // planos
+  header.writeUInt16LE(32, 14);       // bpp
+  const xor = Buffer.alloc(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const src = (y * w + x) * 4;
+      const dst = ((h - 1 - y) * w + x) * 4;
+      xor[dst] = data[src + 2]; xor[dst + 1] = data[src + 1]; xor[dst + 2] = data[src]; xor[dst + 3] = data[src + 3];
+    }
+  }
+  const rowMask = Math.ceil(w / 32) * 4;
+  const and = Buffer.alloc(rowMask * h); // 0 = opaco; a transparência real vem do alfa
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] === 0) and[(h - 1 - y) * rowMask + (x >> 3)] |= 0x80 >> (x & 7);
+    }
+  }
+  return Buffer.concat([header, xor, and]);
+}
+
+/** Constrói um .ico com cada imagem (`png` = bytes PNG ou DIB) — uma por tamanho. */
 function buildIco(entries) {
   const header = Buffer.alloc(6);
   header.writeUInt16LE(0, 0);            // reservado
@@ -69,8 +102,12 @@ function buildIco(entries) {
 
 async function main() {
   const Jimp = loadJimp();
-  const logo = path.join(repo, 'apps', 'web', 'public', 'logo.png');
-  const base = await Jimp.read(logo);
+  // Ícone de APLICAÇÃO quadrado (apps/web/scripts/gen-app-icon.py), não o
+  // logótipo largo: encolhido a 16–48 px o logótipo virava um borrão claro.
+  // Até 32 px usa-se a versão só com "LPS" (o "VENDAS" seria ilegível).
+  const pub = path.join(repo, 'apps', 'web', 'public');
+  const grande = await Jimp.read(path.join(pub, 'app-icon.png'));
+  const pequeno = await Jimp.read(path.join(pub, 'app-icon-small.png'));
 
   const buildDir = path.join(desktop, 'build');
   fs.mkdirSync(buildDir, { recursive: true });
@@ -79,8 +116,13 @@ async function main() {
   for (const size of SIZES) {
     // jimp-compact (0.16) não expõe getBufferAsync — passamos por um PNG
     // temporário (writeAsync é estável) e lemos os bytes de volta.
+    const img = (size <= 32 ? pequeno : grande).clone().resize(size, size, Jimp.RESIZE_BICUBIC);
+    if (size < 256) {
+      entries.push({ size, png: toDib(img) });
+      continue;
+    }
     const tmp = path.join(buildDir, `._icon-${size}.png`);
-    await base.clone().resize(size, size, Jimp.RESIZE_BICUBIC).writeAsync(tmp);
+    await img.writeAsync(tmp);
     const png = fs.readFileSync(tmp);
     fs.rmSync(tmp, { force: true });
     entries.push({ size, png });

@@ -1,13 +1,14 @@
 /**
- * Gera os ícones da app Android a partir do logótipo oficial do LPS Vendas.
+ * Gera os ícones da app Android a partir do ÍCONE DE APLICAÇÃO do LPS Vendas.
  *
  * PORQUÊ um script: a pasta `android/` é um projeto Capacitor LOCAL (está no
  * `.gitignore`), regenerado por `cap add android` — que traria o ícone genérico
  * do Capacitor. Correr isto DEPOIS do `cap add` (ou a qualquer momento) repõe o
  * ícone do LPS Vendas em todas as densidades, mais o ícone redondo e o foreground
- * adaptativo. Fonte ÚNICA: `apps/web/public/logo.png` — o logótipo da landing,
- * sem fundo. O fundo adaptativo (branco, obrigatório nos ícones adaptativos do
- * Android 8+) é escrito aqui em `values/ic_launcher_background.xml`.
+ * adaptativo. Fonte ÚNICA: `apps/web/public/app-icon*.png` (quadrado azul com
+ * "LPS VENDAS", gerado por `apps/web/scripts/gen-app-icon.py`). O fundo
+ * adaptativo (Android 8+) é o azul da marca, escrito aqui em
+ * `values/ic_launcher_background.xml`.
  *
  *   node scripts/gen-android-icons.mjs
  */
@@ -31,7 +32,13 @@ function loadJimp() {
 }
 
 const Jimp = loadJimp();
-const LOGO = path.join(repo, 'apps', 'web', 'public', 'logo.png');
+// Ícone de APLICAÇÃO quadrado (apps/web/scripts/gen-app-icon.py) — o logótipo
+// largo ficava um borrão no ecrã do telemóvel.
+const PUB = path.join(repo, 'apps', 'web', 'public');
+const ICONE = path.join(PUB, 'app-icon.png');
+const FRENTE = path.join(PUB, 'app-icon-foreground.png');
+// Fundo do ícone adaptativo (Android 8+): o azul do meio do gradiente do ícone.
+const AZUL_FUNDO = '#1D39D4';
 const RES = path.join(shell, 'android', 'app', 'src', 'main', 'res');
 
 // [pasta densidade, tamanho legado px, tamanho foreground adaptativo px (108dp)]
@@ -48,30 +55,35 @@ if (!fs.existsSync(RES)) {
   process.exit(1);
 }
 
-const base = await Jimp.read(LOGO);
+const icone = await Jimp.read(ICONE);
+const frente = await Jimp.read(FRENTE);
 
-// Logótipo centrado num canvas transparente com margem (fração de cada lado).
-function padded(size, margin) {
-  const inner = Math.round(size * (1 - 2 * margin));
-  const logo = base.clone().resize(inner, inner);
-  const off = Math.round((size - inner) / 2);
-  return new Jimp(size, size, 0x00000000).composite(logo, off, off);
+/** O ícone recortado num círculo (ic_launcher_round). */
+function redondo(size) {
+  const img = icone.clone().resize(size, size, Jimp.RESIZE_BICUBIC);
+  const r = size / 2;
+  img.scan(0, 0, size, size, function (x, y, idx) {
+    const dx = x + 0.5 - r; const dy = y + 0.5 - r;
+    const dentro = Math.min(1, Math.max(0, r - Math.sqrt(dx * dx + dy * dy))); // borda suave
+    this.bitmap.data[idx + 3] = Math.round(this.bitmap.data[idx + 3] * dentro);
+  });
+  return img;
 }
 
 for (const [dir, legacy, fg] of DENSITIES) {
   const out = path.join(RES, `mipmap-${dir}`);
   fs.mkdirSync(out, { recursive: true });
-  // Ícone legado (Android 6–7) — o logótipo sem fundo, como na landing.
-  await padded(legacy, 0).writeAsync(path.join(out, 'ic_launcher.png'));
-  // Ícone redondo — o mesmo logótipo, sem máscara (recortar cortaria o "Vendas").
-  await padded(legacy, 0.04).writeAsync(path.join(out, 'ic_launcher_round.png'));
-  // Foreground adaptativo (Android 8+) — o logótipo dentro da zona segura
-  // (66 de 108 dp), para a máscara do sistema não o cortar.
-  await padded(fg, 0.12).writeAsync(path.join(out, 'ic_launcher_foreground.png'));
+  // Ícone legado (Android 6–7): o quadrado arredondado azul com "LPS VENDAS".
+  await icone.clone().resize(legacy, legacy, Jimp.RESIZE_BICUBIC).writeAsync(path.join(out, 'ic_launcher.png'));
+  // Ícone redondo: o mesmo, recortado em círculo (as letras cabem no círculo).
+  await redondo(legacy).writeAsync(path.join(out, 'ic_launcher_round.png'));
+  // Foreground adaptativo (Android 8+): só as letras, já dentro da zona segura;
+  // o fundo azul vem de ic_launcher_background (o sistema aplica a máscara).
+  await frente.clone().resize(fg, fg, Jimp.RESIZE_BICUBIC).writeAsync(path.join(out, 'ic_launcher_foreground.png'));
   process.stdout.write(`  ícones ${dir}: ${legacy}px / fg ${fg}px\n`);
 }
 const values = path.join(RES, 'values');
 fs.mkdirSync(values, { recursive: true });
 fs.writeFileSync(path.join(values, 'ic_launcher_background.xml'),
-  '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#FFFFFF</color>\n</resources>\n');
+  `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${AZUL_FUNDO}</color>\n</resources>\n`);
 process.stdout.write('\nÍcones do LPS Vendas gerados. Recompile a app para os ver.\n\n');
