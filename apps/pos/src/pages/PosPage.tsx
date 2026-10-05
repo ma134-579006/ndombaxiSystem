@@ -279,7 +279,7 @@ export function PosPage() {
   const [okMsg, setOkMsg] = useState<string | null>(null);
   const [firing, setFiring] = useState(false);
   const [emitted, setEmitted] = useState<
-    { invoice: EmittedInvoice; customerName: string | null; items?: { description: string; quantity: number; unitPrice: number; total: number }[]; provisional?: boolean; pay?: { paymentType: PaymentType; tendered?: number; changeGiven?: number } } | null
+    { invoice: EmittedInvoice; customerName: string | null; items?: { description: string; quantity: number; unitPrice: number; total: number }[]; provisional?: boolean; pay?: { paymentType: PaymentType; tendered?: number; changeGiven?: number; payments?: { type: Exclude<PaymentType, 'CREDIT'>; amount: number }[] } } | null
   >(null);
 
   // Constrói as linhas de artigos (descrição, qt, preço unit. c/IVA, total) para a fatura.
@@ -756,7 +756,7 @@ export function PosPage() {
    *   fatura e só a RESPOSTA se perdeu — ao reenviar da fila com a mesma chave, o
    *   servidor devolve a fatura original em vez de emitir uma segunda.
    */
-  const finalizeOffline = async (clientOpId?: string, pay?: { paymentType: PaymentType; tendered?: number; changeGiven?: number }) => {
+  const finalizeOffline = async (clientOpId?: string, pay?: { paymentType: PaymentType; tendered?: number; changeGiven?: number; payments?: { type: Exclude<PaymentType, 'CREDIT'>; amount: number }[] }) => {
     const sale = buildPendingSale(cart, totals, customer ? { id: customer.id, name: customer.name } : null, clientOpId, pay, discountRateByProduct);
     await queueSale(sale);
     // Memória partilhada com o Gestão: o stock desce já, antes de a venda subir.
@@ -792,7 +792,7 @@ export function PosPage() {
   };
 
   // Emissão real após escolher o método de pagamento (+ troco).
-  const doEmit = async (pay: { paymentType: PaymentType; tendered?: number; changeGiven?: number; prescriptionRef?: string }) => {
+  const doEmit = async (pay: { paymentType: PaymentType; tendered?: number; changeGiven?: number; prescriptionRef?: string; payments?: { type: Exclude<PaymentType, 'CREDIT'>; amount: number }[] }) => {
     if (cart.length === 0 || emitting) return;
     setEmitting(true);
     setEmitError(null);
@@ -807,6 +807,7 @@ export function PosPage() {
         tendered: pay.tendered,
         changeGiven: pay.changeGiven,
         ...(pay.prescriptionRef ? { prescriptionRef: pay.prescriptionRef } : {}),
+        ...(pay.payments?.length ? { payments: pay.payments } : {}),
         clientOpId,
         // Identidade do posto: é ela que decide a SÉRIE fiscal desta venda, e
         // com isso impede que duas caixas escrevam na mesma cadeia de hash.

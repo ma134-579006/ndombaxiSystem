@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsBoolean,
   IsArray,
@@ -31,6 +32,16 @@ export class EmitInvoiceLineDto {
   @Min(0)
   @Max(0.9999)
   discountRate?: number;
+}
+
+/** Parcela de um pagamento misto. */
+export class PaymentPartDto {
+  @IsIn(['CASH', 'CARD', 'TRANSFER', 'REFERENCE', 'EXPRESS'])
+  type!: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS';
+
+  @IsNumber()
+  @Min(0.01)
+  amount!: number;
 }
 
 export class EmitInvoiceDto {
@@ -102,6 +113,14 @@ export class EmitInvoiceDto {
   offline?: boolean;
 
   /** Dinheiro entregue pelo cliente (numerário). */
+  /** PAGAMENTO MISTO (ex.: parte numerário + parte TPA): soma = total da venda. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(4)
+  @ValidateNested({ each: true })
+  @Type(() => PaymentPartDto)
+  payments?: PaymentPartDto[];
+
   /** Farmácia: nº da receita médica (exigido quando há medicamentos sujeitos a receita). */
   @IsOptional()
   @IsString()

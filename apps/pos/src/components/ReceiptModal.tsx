@@ -26,7 +26,7 @@ interface Props {
   /** Venda guardada offline: comprovativo PROVISÓRIO (sem nº fiscal ainda). */
   provisional?: boolean;
   /** Como o cliente pagou (talão: método, valor entregue e troco). */
-  pay?: { paymentType: string; tendered?: number; changeGiven?: number };
+  pay?: { paymentType: string; tendered?: number; changeGiven?: number; payments?: { type: string; amount: number }[] };
   /** Reimpressão (2ª via) de um documento já emitido. */
   reprint?: boolean;
   /** Data a mostrar (na 2ª via, a data ORIGINAL do documento). */
@@ -274,13 +274,18 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
             <span className="k">Total</span>
             <span className="v grand">{formatKz(invoice.grossTotal)}</span>
           </div>
-          {pay ? (
+          {pay?.payments?.length ? pay.payments.map((p) => (
+            <div className="kv" key={p.type}>
+              <span className="k">Pago em {PAY_LABEL[p.type] ?? p.type}</span>
+              <span className="v">{formatKz(p.amount)}</span>
+            </div>
+          )) : pay ? (
             <div className="kv">
               <span className="k">Pagamento</span>
               <span className="v">{PAY_LABEL[pay.paymentType] ?? pay.paymentType}</span>
             </div>
           ) : null}
-          {pay?.paymentType === 'CASH' && pay.tendered != null && pay.tendered > 0 ? (
+          {!pay?.payments?.length && pay?.paymentType === 'CASH' && pay.tendered != null && pay.tendered > 0 ? (
             <>
               <div className="kv"><span className="k">Entregue</span><span className="v">{formatKz(pay.tendered)}</span></div>
               <div className="kv"><span className="k">Troco</span><span className="v">{formatKz(Math.max(0, pay.tendered - invoice.grossTotal))}</span></div>

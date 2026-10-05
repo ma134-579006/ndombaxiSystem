@@ -54,6 +54,8 @@ export interface EmitInvoiceInput {
    * fica `false` (o caixa tem sempre o seu turno), pelo que nada muda lá.
    */
   allowAnyOpenSession?: boolean;
+  /** PAGAMENTO MISTO: parcelas por meio (ex.: parte numerário + parte TPA). Soma = total; sem crédito. */
+  payments?: { type: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS'; amount: number }[] | null;
   /** Farmácia: nº da receita médica apresentada (obrigatório para medicamentos sujeitos a receita). */
   prescriptionRef?: string | null;
   /** Interno: venda que vem da DISPENSA de uma receita do sistema (já validada). */
@@ -373,7 +375,26 @@ export class InvoiceService {
       // Dinheiro entregue/troco: o servidor é a fonte da verdade. Aceitava-se
       // `tendered: 10` numa venda de 300, ou um troco inventado — a gaveta não batia.
       // Venda offline já aconteceu: grava-se como veio. Outros meios: sem troco.
-      if (!input.offline) {
+      // PAGAMENTO MISTO: as parcelas têm de somar o total; o troco só sai da parte em numerário.
+      let parcelas: { type: string; amount: number }[] | null = null;
+      if (input.payments && input.payments.length > 1) {
+        const soma = round2(input.payments.reduce((a, p) => a + Number(p.amount), 0));
+        if (input.payments.some((p) => !(Number(p.amount) > 0) || !['CASH', 'CARD', 'TRANSFER', 'REFERENCE', 'EXPRESS'].includes(p.type))) {
+          throw new BadRequestException('Pagamento misto inválido (valores positivos; crédito não se divide).');
+        }
+        if (Math.abs(soma - totals.grossTotal) > 0.01) {
+          throw new BadRequestException(`As parcelas (${soma}) não somam o total da venda (${totals.grossTotal}).`);
+        }
+        parcelas = input.payments.map((p) => ({ type: p.type, amount: round2(Number(p.amount)) }));
+        const cashPart = parcelas.filter((p) => p.type === 'CASH').reduce((a, p) => a + p.amount, 0);
+        if (input.tendered != null && cashPart > 0 && !input.offline && input.tendered < cashPart - 1) {
+          throw new BadRequestException(`Valor entregue (${input.tendered}) inferior à parte em numerário (${cashPart}).`);
+        }
+        input = { ...input,
+          paymentType: (cashPart > 0 ? 'CASH' : parcelas[0].type) as EmitInvoiceInput['paymentType'],
+          changeGiven: cashPart > 0 && input.tendered != null ? Math.max(0, round2(input.tendered - cashPart)) : null,
+          tendered: cashPart > 0 ? input.tendered ?? null : null };
+      } else if (!input.offline) {
         if ((input.paymentType ?? 'CASH') === 'CASH') {
           if (input.tendered != null) {
             if (input.tendered < totals.grossTotal - 1) {
@@ -651,7 +672,19 @@ export class InvoiceService {
                        WHERE status = 'OPEN' ORDER BY opened_at DESC LIMIT 1`,
           );
         }
-        if (open[0]) {
+        if (open[0] && parcelas) {
+          // Uma linha por meio de pagamento (o fecho conta numerário e TPA à parte).
+          // A maior parcela fica por último: é a usada num eventual estorno.
+          for (const p of [...parcelas].sort((a, b) => a.amount - b.amount)) {
+            await tx.$executeRaw(
+              Prisma.sql`INSERT INTO cash_movements
+                  (session_id, type, amount, payment_type, tendered, change_given, reference, reference_id, created_by)
+                VALUES (${open[0].id}::uuid, 'SALE', ${p.amount}, ${p.type},
+                        ${p.type === 'CASH' ? input.tendered ?? null : null}, ${p.type === 'CASH' ? input.changeGiven ?? null : null},
+                        ${number}, ${invoiceId}::uuid, ${input.cashierId}::uuid)`,
+            );
+          }
+        } else if (open[0]) {
           await tx.$executeRaw(
             Prisma.sql`INSERT INTO cash_movements
                 (session_id, type, amount, payment_type, tendered, change_given, reference, reference_id, created_by)

@@ -151,6 +151,7 @@ export class PushService {
         // Venda que vem da fila do posto JÁ ACONTECEU sem rede: regista-se mesmo com stock
         // desatualizado (como no POST /pos/invoices com offline:true), em vez de ficar presa.
         offline: true,
+        payments: (p.payments as never) ?? null,
         lines: p.lines as never,
       });
 

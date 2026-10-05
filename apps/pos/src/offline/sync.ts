@@ -260,6 +260,7 @@ class SyncController {
         ...(sale.paymentType ? { paymentType: sale.paymentType as PaymentType } : {}),
         ...(sale.tendered != null ? { tendered: sale.tendered } : {}),
         ...(sale.changeGiven != null ? { changeGiven: sale.changeGiven } : {}),
+        ...(sale.payments?.length ? { payments: sale.payments as never } : {}),
         lines: sale.lines.map((l) => ({
           productCode: l.productCode, quantity: l.quantity,
           ...(l.discountRate && l.discountRate > 0 ? { discountRate: l.discountRate } : {}),

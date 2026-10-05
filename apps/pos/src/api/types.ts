@@ -105,6 +105,8 @@ export interface EmitInvoiceInput {
   paymentType?: PaymentType;
   tendered?: number;
   changeGiven?: number;
+  /** Pagamento misto: parcelas por meio (soma = total). */
+  payments?: { type: Exclude<PaymentType, 'CREDIT'>; amount: number }[];
   /** Farmácia: nº da receita médica apresentada pelo cliente. */
   prescriptionRef?: string;
   /** Vencimento da dívida (venda a crédito); default +30 dias no servidor. */
