@@ -14,6 +14,8 @@ import {
   isAgtSignature,
   IvaCode,
   requiresExemptionReason,
+  findTaxExemption,
+  type TaxExemption,
   RSA_DOC_MODULUS_LENGTH,
   round2,
   RsaDocumentSigner,
@@ -121,6 +123,16 @@ const DEFAULT_EXEMPTION_REASON: Partial<Record<IvaCode, string>> = {
   [IvaCode.ISE]: 'Isento de IVA',
   [IvaCode.OUT]: 'Não sujeito a IVA',
 };
+
+/**
+ * Código de isenção oficial (SAF-T AO / FE) da linha: o do produto, se válido;
+ * "não sujeito" (OUT) sem código → M02. O motivo impresso/exportado passa a ser
+ * o texto oficial desse código (TaxExemptionReason tem de corresponder ao código).
+ */
+function exemptionFor(ivaCode: string, code: string | null | undefined): TaxExemption | undefined {
+  if (!requiresExemptionReason(ivaCode as IvaCode)) return undefined;
+  return findTaxExemption(code) ?? (ivaCode === IvaCode.OUT ? findTaxExemption('M02') : undefined);
+}
 
 /**
  * Gerente/supervisor/caixa de UMA loja não anula nem devolve vendas de OUTRA loja.
@@ -334,8 +346,9 @@ export class InvoiceService {
         // Linha LIVRE (serviço/mão-de-obra/estadia): preço já LÍQUIDO + IVA indicado.
         if (!('productCode' in l) || !l.productCode) {
           const free = l as Extract<EmitLineInput, { description: string }>;
+          const ex = exemptionFor(free.ivaCode, free.exemptionCode);
           const exemptionReason = requiresExemptionReason(free.ivaCode)
-            ? (free.exemptionReason?.trim() || DEFAULT_EXEMPTION_REASON[free.ivaCode] || 'Isento')
+            ? (ex?.reason || free.exemptionReason?.trim() || DEFAULT_EXEMPTION_REASON[free.ivaCode] || 'Isento')
             : undefined;
           return {
             productCode: '', // marca de linha livre (sem produto/stock)
@@ -345,7 +358,7 @@ export class InvoiceService {
             ivaCode: free.ivaCode,
             discountRate: free.discountRate,
             exemptionReason,
-            exemptionCode: free.exemptionCode,
+            exemptionCode: ex?.code ?? free.exemptionCode,
           };
         }
         const p = byCode.get(l.productCode);
@@ -354,8 +367,9 @@ export class InvoiceService {
         }
         // IVA isento/não-sujeito (ISE/OUT) exige motivo: usa o do produto ou
         // um motivo por omissão (a venda nunca pode falhar por falta dele).
+        const ex = exemptionFor(p.iva_code, p.exemption_code);
         const exemptionReason = requiresExemptionReason(p.iva_code)
-          ? (p.exemption_reason?.trim() || DEFAULT_EXEMPTION_REASON[p.iva_code] || 'Isento')
+          ? (ex?.reason || p.exemption_reason?.trim() || DEFAULT_EXEMPTION_REASON[p.iva_code] || 'Isento')
           : undefined;
         return {
           productCode: l.productCode,
@@ -365,7 +379,7 @@ export class InvoiceService {
           ivaCode: p.iva_code,
           discountRate: l.discountRate,
           exemptionReason,
-          exemptionCode: p.exemption_code ?? undefined,
+          exemptionCode: ex?.code ?? p.exemption_code ?? undefined,
         };
       });
 

@@ -96,7 +96,7 @@ export class HospitalService {
     ).then((r) => r[0]?.c ?? 'NOR').catch(() => 'NOR');
     if (code === 'ISE') {
       return { description, unitPrice: round2(gross), ivaCode: IvaCode.ISE, quantity,
-        exemptionReason: 'Isento — prestação de serviços médicos e sanitários (artigo 12.º do CIVA)' };
+        exemptionCode: 'M22', exemptionReason: 'Isento nos termos da alínea m) do artigo 12.º do CIVA' };
     }
     return { description, unitPrice: netForGross(gross, IVA_NOR), ivaCode: IvaCode.NOR, quantity };
   }

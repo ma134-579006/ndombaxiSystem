@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { DocumentType } from '@nexus/agt-xml';
+import { DocumentType, findTaxExemption } from '@nexus/agt-xml';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -49,6 +49,28 @@ function isDuplicateOpViolation(e: unknown): boolean {
   return (msg.includes('23505') || /duplicate key value/i.test(msg))
     // O Postgres pode citar o índice OU só a coluna ("Key (client_op_id)=… already exists").
     && (msg.includes('invoices_client_op_uidx') || msg.includes('(client_op_id)'));
+}
+
+
+/**
+ * IVA isento (ISE) exige um código de isenção OFICIAL (M10 bens alimentares, M11
+ * medicamentos…): sem ele a Facturação Electrónica rejeita a linha (E18) e o SAF-T
+ * fica sem TaxExemptionCode. "Não sujeito" (OUT) sem código → M02. O motivo é sempre
+ * o texto oficial do código.
+ */
+function exemptionFields(ivaCode: string | undefined, code: string | null | undefined): { exemptionCode?: string | null; exemptionReason?: string | null } {
+  if (ivaCode === undefined) {
+    if (code === undefined || code === null || code === '') return {};
+    const ex = findTaxExemption(code);
+    if (!ex) throw new BadRequestException(`Código de isenção desconhecido: ${code}.`);
+    return { exemptionCode: ex.code, exemptionReason: ex.reason };
+  }
+  if (ivaCode !== 'ISE' && ivaCode !== 'OUT') return { exemptionCode: null, exemptionReason: null };
+  const ex = findTaxExemption(code) ?? (ivaCode === 'OUT' ? findTaxExemption('M02') : undefined);
+  if (!ex) {
+    throw new BadRequestException('Produto isento de IVA: escolha o código de isenção da AGT (ex.: M10 bens alimentares, M11 medicamentos, M13 livros).');
+  }
+  return { exemptionCode: ex.code, exemptionReason: ex.reason };
 }
 
 @ApiTags('pos')
@@ -127,6 +149,7 @@ export class PosController {
     // O stock inicial por loja entra na loja de quem cria (se tiver loja atribuída).
     return this.repo.createProduct(schema, {
       ...dto,
+      ...exemptionFields(ivaCode, dto.exemptionCode),
       code,
       ivaCode,
       initialStoreId: user.storeId ?? null,
@@ -139,7 +162,7 @@ export class PosController {
   async updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     const schema = this.ctx.requireTenantSchema();
     const ivaCode = dto.ivaCode === 'AUTO' ? await this.repo.defaultIvaCode(schema) : dto.ivaCode;
-    return this.repo.updateProduct(schema, id, { ...dto, ivaCode });
+    return this.repo.updateProduct(schema, id, { ...dto, ivaCode, ...exemptionFields(ivaCode, dto.exemptionCode) });
   }
 
   @Post('products/bulk-delete')
