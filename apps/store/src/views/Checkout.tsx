@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CheckoutResult, PaymentMethod } from '../api/types';
 import { IconChevronLeft } from '../components/Icons';
-import { formatKz } from '../format';
+import { formatKz, methodLabel } from '../format';
 import { useStore } from '../state/StoreContext';
 import { cartTotal } from '../store/cart';
 import { useCustomer } from '../store/customer';
@@ -245,7 +245,7 @@ export function Checkout({
             >
               <div className="radio" />
               <div>
-                <div className="lbl">{m.label}</div>
+                <div className="lbl">{methodLabel(m)}</div>
                 <div className="ds">{PM_DESC[m.type] ?? m.type}</div>
               </div>
             </div>

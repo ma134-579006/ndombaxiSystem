@@ -1,6 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { DocumentType, IvaCode, round2 } from '@nexus/agt-xml';
+import { luandaDate } from '../common/luanda-date';
+import { billingOpId, netForGross, rethrowIfAlreadyBilled } from '../common/billing-guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { InvoiceService } from '../pos/invoice.service';
 import { StockService } from '../erp/stock.service';
@@ -42,15 +44,16 @@ export class HospitalService {
 
   async createProfessional(schema: string, dto: {
     name: string; category?: string; licenseNumber?: string; specialty?: string;
-    subspecialty?: string; office?: string; schedule?: string; onCall?: boolean;
+    subspecialty?: string; office?: string; schedule?: string; onCall?: boolean; userId?: string | null;
   }) {
     if (!dto.name?.trim()) throw new BadRequestException('Indique o nome do profissional.');
     const cat = PROF_CATEGORIES.includes(dto.category ?? '') ? dto.category : 'MEDICO';
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-        INSERT INTO clinic_professionals (name, category, license_number, specialty, subspecialty, office, schedule, on_call)
+        INSERT INTO clinic_professionals (name, category, license_number, specialty, subspecialty, office, schedule, on_call, user_id)
         VALUES (${dto.name.trim()}, ${cat}, ${dto.licenseNumber?.trim() || null}, ${dto.specialty?.trim() || null},
-                ${dto.subspecialty?.trim() || null}, ${dto.office?.trim() || null}, ${dto.schedule?.trim() || null}, ${!!dto.onCall})
+                ${dto.subspecialty?.trim() || null}, ${dto.office?.trim() || null}, ${dto.schedule?.trim() || null}, ${!!dto.onCall},
+                ${dto.userId || null}::uuid)
         RETURNING id`);
       return rows[0];
     });
@@ -58,8 +61,16 @@ export class HospitalService {
 
   async updateProfessional(schema: string, id: string, dto: {
     specialty?: string; office?: string; schedule?: string; onCall?: boolean; isActive?: boolean;
+    /** Conta de acesso do profissional ('' ou null = desligar). Dá acesso aos dados clínicos. */
+    userId?: string | null; category?: string;
   }) {
     return this.prisma.runInTenant(schema, async (tx) => {
+      if (dto.userId !== undefined) {
+        await tx.$executeRaw(Prisma.sql`UPDATE clinic_professionals SET user_id = ${dto.userId || null}::uuid, updated_at = now() WHERE id = ${id}::uuid`);
+      }
+      if (dto.category && PROF_CATEGORIES.includes(dto.category)) {
+        await tx.$executeRaw(Prisma.sql`UPDATE clinic_professionals SET category = ${dto.category} WHERE id = ${id}::uuid`);
+      }
       await tx.$executeRaw(Prisma.sql`UPDATE clinic_professionals SET
           specialty = COALESCE(${dto.specialty ?? null}, specialty),
           office = COALESCE(${dto.office ?? null}, office),
@@ -72,13 +83,67 @@ export class HospitalService {
     });
   }
 
+  // ── IVA dos atos de saúde ──────────────────────────────────
+  /**
+   * Linha fiscal de um ato de saúde (consulta, exame, internamento) a partir do
+   * valor COM IVA guardado. A empresa escolhe em Configurações: taxa normal (14%)
+   * ou ISENTO (serviços médicos e sanitários) — nesse caso o valor é todo líquido
+   * e a linha leva o motivo de isenção exigido pela AGT.
+   */
+  async clinicalLine(schema: string, description: string, gross: number, quantity = 1) {
+    const code = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ c: string | null }[]>(Prisma.sql`SELECT clinical_iva_code AS c FROM site_settings LIMIT 1`),
+    ).then((r) => r[0]?.c ?? 'NOR').catch(() => 'NOR');
+    if (code === 'ISE') {
+      return { description, unitPrice: round2(gross), ivaCode: IvaCode.ISE, quantity,
+        exemptionReason: 'Isento — prestação de serviços médicos e sanitários (artigo 12.º do CIVA)' };
+    }
+    return { description, unitPrice: netForGross(gross, IVA_NOR), ivaCode: IvaCode.NOR, quantity };
+  }
+
+  // ── Privacidade clínica ────────────────────────────────────
+  /**
+   * Quem pode ver/escrever DADOS CLÍNICOS (prontuário, diagnóstico, notas, receitas,
+   * sinais vitais): a direção (gerente de loja para cima) e os profissionais de
+   * saúde LIGADOS a um utilizador (médico, enfermeiro, técnico, laboratório,
+   * farmácia). Receção/caixa veem só os dados administrativos.
+   *
+   * Transição sem partir clínicas existentes: enquanto a empresa não tiver NENHUM
+   * profissional ligado a um utilizador, mantém-se o acesso de antes (todos). A
+   * restrição liga-se sozinha quando o primeiro profissional é associado à sua conta.
+   */
+  async canSeeClinical(schema: string, user: { sub?: string; role?: string }): Promise<boolean> {
+    if (['SUPER_ADMIN', 'COMPANY_ADMIN', 'REGIONAL_MANAGER', 'STORE_MANAGER'].includes(String(user.role))) return true;
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const r = await tx.$queryRaw<{ linked: boolean; me: boolean }[]>(Prisma.sql`
+        SELECT EXISTS (SELECT 1 FROM clinic_professionals WHERE user_id IS NOT NULL AND is_active) AS linked,
+               EXISTS (SELECT 1 FROM clinic_professionals WHERE user_id = ${user.sub ?? null}::uuid AND is_active
+                         AND category IN ('MEDICO','ENFERMEIRO','TECNICO','LABORATORIO','FARMACIA')) AS me`);
+      return !r[0]?.linked || !!r[0]?.me;
+    });
+  }
+
+  async assertClinical(schema: string, user: { sub?: string; role?: string }): Promise<void> {
+    if (!(await this.canSeeClinical(schema, user))) {
+      throw new ForbiddenException('Dados clínicos: acesso reservado a profissionais de saúde e à direção.');
+    }
+  }
+
   // ── Receitas médicas ───────────────────────────────────────
   async createPrescription(schema: string, by: { id: string | null }, dto: {
     patientId?: string; patientName?: string; consultationId?: string;
     professionalId?: string; professional?: string; notes?: string;
     items: Array<{ productId?: string; medication: string; dosage?: string; posology?: string; route?: string; duration?: string; quantity?: number; notes?: string }>;
   }) {
-    if (!dto.items?.length) throw new BadRequestException('A receita precisa de pelo menos 1 medicamento.');
+    // Só itens válidos (objeto com nome do medicamento e quantidade positiva): `items:[null]` dava 500
+    // e uma receita só com linhas em branco ficava numerada e vazia.
+    const items = (Array.isArray(dto.items) ? dto.items : []).filter((it) => it && typeof it === 'object' && typeof it.medication === 'string' && it.medication.trim());
+    if (!items.length) throw new BadRequestException('A receita precisa de pelo menos 1 medicamento.');
+    for (const it of items) {
+      if (it.quantity !== undefined && !(Number(it.quantity) > 0)) throw new BadRequestException(`Quantidade inválida para ${it.medication}.`);
+    }
+    if (!dto.patientId && !dto.patientName?.trim()) throw new BadRequestException('Indique o paciente da receita.');
+    dto = { ...dto, items };
     return this.prisma.runInTenant(schema, async (tx) => {
       let patientName = dto.patientName?.trim() || null;
       if (dto.patientId) {
@@ -153,7 +218,11 @@ export class HospitalService {
       for (const it of items) {
         if (!it.product_id) continue; // medicamento externo (sem stock na farmácia)
         const need = Number(it.quantity);
-        const have = Number(it.stock_qty ?? 0);
+        // Unidades de lotes CADUCADOS não se dispensam (continuam no saldo até à baixa).
+        const exp = await tx.$queryRaw<{ q: string }[]>(Prisma.sql`
+          SELECT COALESCE(SUM(quantity),0) AS q FROM product_batches
+          WHERE product_id = ${it.product_id}::uuid AND quantity > 0 AND expiry_date < ${luandaDate()}::date`).catch(() => [{ q: '0' }]);
+        const have = Number(it.stock_qty ?? 0) - Number(exp[0]?.q ?? 0);
         if (have < need) {
           throw new BadRequestException(
             `Stock insuficiente na farmácia: ${it.name ?? it.medication} (disponível ${have}, receita pede ${need}).`);
@@ -180,6 +249,7 @@ export class HospitalService {
           const batches = await tx.$queryRaw<{ id: string; batch_code: string | null; quantity: string }[]>(
             Prisma.sql`SELECT id, batch_code, quantity FROM product_batches
                        WHERE product_id = ${it.product_id}::uuid AND quantity > 0
+                         AND (expiry_date IS NULL OR expiry_date >= ${luandaDate()}::date)
                        ORDER BY expiry_date NULLS LAST, created_at`);
           for (const b of batches) {
             if (remaining <= 0) break;
@@ -340,7 +410,8 @@ export class HospitalService {
     patientId: string; bedId: string; professional?: string; reason?: string; notes?: string;
   }) {
     return this.prisma.runInTenant(schema, async (tx) => {
-      const p = await tx.$queryRaw<{ name: string }[]>(Prisma.sql`SELECT name FROM clinic_patients WHERE id = ${dto.patientId}::uuid`);
+      // FOR UPDATE no paciente: dois internamentos em simultâneo (leitos diferentes) passavam ambos.
+      const p = await tx.$queryRaw<{ name: string }[]>(Prisma.sql`SELECT name FROM clinic_patients WHERE id = ${dto.patientId}::uuid FOR UPDATE`);
       if (!p[0]) throw new NotFoundException('Paciente não encontrado.');
       const bed = await tx.$queryRaw<{ code: string; ward: string; status: string; daily_rate: string }[]>(
         Prisma.sql`SELECT code, ward, status, daily_rate FROM clinic_beds WHERE id = ${dto.bedId}::uuid AND is_active = TRUE FOR UPDATE`);
@@ -414,7 +485,7 @@ export class HospitalService {
         Prisma.sql`SELECT number, status, total, invoice_id, patient_id, patient_name, bed_label FROM clinic_admissions WHERE id = ${id}::uuid`));
     if (!adm[0]) throw new NotFoundException('Internação não encontrada.');
     if (adm[0].status === 'ADMITTED') throw new BadRequestException('Dê alta ao paciente antes de faturar (as diárias ainda não estão fechadas).');
-    if (adm[0].invoice_id) throw new BadRequestException('Internação já faturada.');
+    if (adm[0].invoice_id || await this.hasClaim(schema, 'ADMISSION', id)) throw new BadRequestException('Internação já faturada.');
     const total = Number(adm[0].total);
     if (!(total > 0)) throw new BadRequestException('A internação não tem valor a faturar.');
 
@@ -424,13 +495,14 @@ export class HospitalService {
     const copay = round2(total - covered);
     let invId: string | null = null; let invNumber: string | null = null;
     if (copay > 0) {
-      const net = round2(copay / (1 + IVA_NOR / 100));
+      const net = netForGross(copay, IVA_NOR);
       const desc = `Internação ${adm[0].number}${adm[0].bed_label ? ` — ${adm[0].bed_label}` : ''}${cov ? ` (coparticipação · ${cov.name})` : ''}`;
       const inv = await this.invoices.emit(schema, {
         docType: DocumentType.FT, series: 'A',
         cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
-        lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
-      });
+        clientOpId: billingOpId('ADMISSION', id),
+        lines: [await this.clinicalLine(schema, desc, copay)],
+      }).catch((e) => rethrowIfAlreadyBilled(e, 'Internação já faturada.'));
       invId = inv.id; invNumber = inv.number;
     }
     await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE clinic_admissions SET invoice_id = ${invId}::uuid WHERE id = ${id}::uuid`));
@@ -528,7 +600,7 @@ export class HospitalService {
       tx.$queryRaw<{ exam_type: string; fee: string; invoice_id: string | null; patient_id: string | null; patient_name: string | null }[]>(
         Prisma.sql`SELECT exam_type, fee, invoice_id, patient_id, patient_name FROM clinic_exams WHERE id = ${id}::uuid`));
     if (!ex[0]) throw new NotFoundException('Exame não encontrado.');
-    if (ex[0].invoice_id) throw new BadRequestException('Exame já faturado.');
+    if (ex[0].invoice_id || await this.hasClaim(schema, 'EXAM', id)) throw new BadRequestException('Exame já faturado.');
     const fee = Number(ex[0].fee);
     if (!(fee > 0)) throw new BadRequestException('Defina o preço do exame antes de faturar.');
 
@@ -540,13 +612,14 @@ export class HospitalService {
       await this.recordClaimAndCloseExam(schema, id, { source: 'EXAM', patientId: ex[0].patient_id, patientName: ex[0].patient_name, gross: fee, covered, copay: 0, cov, invoiceId: null, by: opener.id });
       return { invoiceId: null as string | null, invoiceNumber: null as string | null, covered, copay: 0, insurer: cov?.name ?? null };
     }
-    const net = round2(copay / (1 + IVA_NOR / 100));
+    const net = netForGross(copay, IVA_NOR);
     const desc = cov ? `Exame — ${ex[0].exam_type} (coparticipação · ${cov.name})` : `Exame — ${ex[0].exam_type}`;
     const inv = await this.invoices.emit(schema, {
       docType: DocumentType.FT, series: 'A',
       cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
-      lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
-    });
+      clientOpId: billingOpId('EXAM', id),
+      lines: [await this.clinicalLine(schema, desc, copay)],
+    }).catch((e) => rethrowIfAlreadyBilled(e, 'Exame já faturado.'));
     await this.recordClaimAndCloseExam(schema, id, { source: 'EXAM', patientId: ex[0].patient_id, patientName: ex[0].patient_name, gross: fee, covered, copay, cov, invoiceId: inv.id, by: opener.id });
     return { invoiceId: inv.id, invoiceNumber: inv.number, covered, copay, insurer: cov?.name ?? null };
   }
@@ -585,9 +658,26 @@ export class HospitalService {
     gross: number; covered: number; copay: number; cov: { insurerId: string; name: string } | null; invoiceId: string | null; by: string | null;
   }) {
     if (!d.cov || !(d.covered > 0)) return;
-    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
-      INSERT INTO clinic_insurer_claims (insurer_id, insurer_name, patient_id, patient_name, source_type, source_id, invoice_id, gross_total, covered, copay, created_by)
-      VALUES (${d.cov!.insurerId}::uuid, ${d.cov!.name}, ${d.patientId}::uuid, ${d.patientName}, ${d.source}, ${d.sourceId}::uuid, ${d.invoiceId}::uuid, ${d.gross}, ${d.covered}, ${d.copay}, ${d.by}::uuid)`));
+    // Um ato = um sinistro: o lock por ato serializa pedidos em simultâneo e o
+    // NOT EXISTS impede cobrar a seguradora duas vezes pelo mesmo ato.
+    const inserted = await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${'claim:' + d.source + ':' + d.sourceId}))`);
+      return tx.$executeRaw(Prisma.sql`
+        INSERT INTO clinic_insurer_claims (insurer_id, insurer_name, patient_id, patient_name, source_type, source_id, invoice_id, gross_total, covered, copay, created_by)
+        SELECT ${d.cov!.insurerId}::uuid, ${d.cov!.name}, ${d.patientId}::uuid, ${d.patientName}, ${d.source}, ${d.sourceId}::uuid, ${d.invoiceId}::uuid, ${d.gross}, ${d.covered}, ${d.copay}, ${d.by}::uuid
+        WHERE NOT EXISTS (SELECT 1 FROM clinic_insurer_claims WHERE source_type = ${d.source} AND source_id = ${d.sourceId}::uuid)`);
+    });
+    if (inserted === 0 && !d.invoiceId) {
+      const what = d.source === 'ADMISSION' ? 'Internação' : d.source === 'EXAM' ? 'Exame' : 'Consulta';
+      throw new BadRequestException(`${what} já faturad${what.endsWith('a') ? 'a' : 'o'}.`);
+    }
+  }
+
+  /** Já existe sinistro para este ato (ato 100% coberto já "faturado" à seguradora). */
+  async hasClaim(schema: string, source: string, sourceId: string): Promise<boolean> {
+    const r = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<{ x: number }[]>(
+      Prisma.sql`SELECT 1 AS x FROM clinic_insurer_claims WHERE source_type = ${source} AND source_id = ${sourceId}::uuid LIMIT 1`));
+    return r.length > 0;
   }
 
   // ── Convénios / Seguros ────────────────────────────────────

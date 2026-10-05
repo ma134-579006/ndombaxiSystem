@@ -41,6 +41,8 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."employees"     ADD COLUMN IF NOT EXISTS exem
 -- Dizeres livres do recibo/relatório (rodapé configurável pela empresa).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings"  ADD COLUMN IF NOT EXISTS receipt_message TEXT;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings"  ADD COLUMN IF NOT EXISTS default_iva_code TEXT NOT NULL DEFAULT 'NOR';
+-- IVA dos atos de saúde (consultas, exames, internamento): 'NOR' (14%) ou 'ISE' (isento, com motivo).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings"  ADD COLUMN IF NOT EXISTS clinical_iva_code TEXT NOT NULL DEFAULT 'NOR';
 -- Setup obrigatório concluído? Empresas existentes = TRUE (não afeta); novos registos põem FALSE.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings"  ADD COLUMN IF NOT EXISTS setup_completed BOOLEAN NOT NULL DEFAULT TRUE;
 

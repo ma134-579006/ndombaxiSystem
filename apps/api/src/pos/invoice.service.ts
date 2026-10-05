@@ -54,6 +54,10 @@ export interface EmitInvoiceInput {
    * fica `false` (o caixa tem sempre o seu turno), pelo que nada muda lá.
    */
   allowAnyOpenSession?: boolean;
+  /** Farmácia: nº da receita médica apresentada (obrigatório para medicamentos sujeitos a receita). */
+  prescriptionRef?: string | null;
+  /** Interno: venda que vem da DISPENSA de uma receita do sistema (já validada). */
+  prescriptionDispensed?: boolean;
   /**
    * OFFLINE-FIRST: UUID da operação gerado no posto que originou esta venda.
    * Fica gravado com índice ÚNICO — se a mesma venda for reenviada (o ACK
@@ -226,6 +230,19 @@ export class InvoiceService {
       const byCode = new Map<string, ProductForEmission & { code: string; name: string }>();
       for (const p of productRows) byCode.set(p.code, p);
 
+      // MEDICAMENTOS SUJEITOS A RECEITA: ao balcão só com o nº da receita (fica na
+      // auditoria) ou pela dispensa de uma receita do sistema. Venda offline já aconteceu.
+      let rxNames: string[] = [];
+      if (productRows.length && !input.offline && !input.prescriptionDispensed) {
+        const rx = await tx.$queryRaw<{ name: string }[]>(Prisma.sql`
+          SELECT name FROM products p WHERE p.id = ANY(ARRAY[${Prisma.join(productRows.map((r) => r.id))}]::uuid[])
+            AND COALESCE((to_jsonb(p) ->> 'requires_prescription')::boolean, FALSE)`);
+        rxNames = rx.map((r) => r.name);
+        if (rxNames.length && !input.prescriptionRef?.trim()) {
+          throw new BadRequestException(`Medicamento sujeito a receita médica: ${rxNames.join(', ')}. Indique o nº da receita.`);
+        }
+      }
+
       // FICHA TÉCNICA (BOM): produtos compostos (ex.: hambúrguer) não têm stock
       // próprio — consomem INGREDIENTES. Carrega as receitas dos produtos vendidos;
       // na venda baixa-se o stock dos ingredientes (não do prato).
@@ -353,6 +370,22 @@ export class InvoiceService {
       // 2. Calcula linhas + totais (motor fiscal puro).
       const { lines, totals } = computeInvoice(lineInputs);
 
+      // Dinheiro entregue/troco: o servidor é a fonte da verdade. Aceitava-se
+      // `tendered: 10` numa venda de 300, ou um troco inventado — a gaveta não batia.
+      // Venda offline já aconteceu: grava-se como veio. Outros meios: sem troco.
+      if (!input.offline) {
+        if ((input.paymentType ?? 'CASH') === 'CASH') {
+          if (input.tendered != null) {
+            if (input.tendered < totals.grossTotal - 1) {
+              throw new BadRequestException(`Valor entregue (${input.tendered}) inferior ao total (${totals.grossTotal}).`);
+            }
+            input = { ...input, changeGiven: Math.max(0, round2(input.tendered - totals.grossTotal)) };
+          }
+        } else {
+          input = { ...input, tendered: null, changeGiven: null };
+        }
+      }
+
       // 3. Aloca numeração + hash anterior, bloqueando a série fiscal.
       // Facturação Electrónica: com série AGT autorizada, o documento numera-se nessa série.
       const series = agtSeries ?? input.series;
@@ -475,14 +508,24 @@ export class InvoiceService {
         }
         // Validade: se o produto é gerido por lotes e só tem lotes expirados, bloqueia.
         // (Só consulta se a tabela de lotes existir — tenants antigos podem não a ter.)
-        const batch = hasBatches ? await tx.$queryRaw<{ total: string; valid: string }[]>(
+        const batch = hasBatches ? await tx.$queryRaw<{ total: string; valid: string; expired: string }[]>(
           Prisma.sql`SELECT COALESCE(SUM(quantity),0) AS total,
-                            COALESCE(SUM(quantity) FILTER (WHERE expiry_date IS NULL OR expiry_date >= ${today}::date),0) AS valid
-                     FROM product_batches WHERE product_id = ${product.id}::uuid`,
+                            COALESCE(SUM(quantity) FILTER (WHERE expiry_date IS NULL OR expiry_date >= ${today}::date),0) AS valid,
+                            COALESCE(SUM(quantity) FILTER (WHERE expiry_date < ${today}::date),0) AS expired
+                     FROM product_batches WHERE product_id = ${product.id}::uuid
+                       AND (${lineStore}::uuid IS NULL OR warehouse_id = ${lineStore}::uuid)`,
         ) : [];
         if (batch[0] && Number(batch[0].total) > 0 && Number(batch[0].valid) <= 0) {
           throw new BadRequestException(
             `"${line.description}" está expirado (sem lotes válidos). Venda bloqueada.`,
+          );
+        }
+        // As unidades de lotes CADUCADOS continuam no saldo até serem abatidas (baixa):
+        // não podem ser vendidas. Antes só se bloqueava quando NÃO havia nenhuma válida
+        // (10 válidas + 100 caducadas → vendia 50).
+        if (batch[0] && available - Number(batch[0].expired) < line.quantity) {
+          throw new BadRequestException(
+            `"${line.description}": só ${Math.max(0, available - Number(batch[0].expired))} unidade(s) dentro da validade (pedido ${line.quantity}). Abata os lotes caducados.`,
           );
         }
       }
@@ -579,6 +622,9 @@ export class InvoiceService {
             createdBy: input.cashierId ?? null,
             allowNegative: shared || input.offline === true,
           });
+          // FEFO: a venda consome os lotes VÁLIDOS da loja por validade mais próxima,
+          // para os lotes refletirem o que está na prateleira (antes nunca baixavam).
+          if (hasBatches) await this.consumeBatchesFefo(tx, product.id, lineStore, line.quantity, luandaDate());
         } else {
           await tx.$executeRaw(
             Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${line.quantity}, updated_at = now()
@@ -652,6 +698,7 @@ export class InvoiceService {
           ivaTotal: totals.ivaTotal,
           paymentType: input.paymentType ?? 'CASH',
           items: lines.length,
+          ...(rxNames.length ? { prescriptionRef: input.prescriptionRef?.trim(), prescriptionItems: rxNames } : {}),
         },
       });
 
@@ -728,7 +775,7 @@ export class InvoiceService {
         Prisma.sql`
           SELECT i.id, i.number, i.doc_type, i.system_entry_date, i.gross_total, i.status, i.doc_state,
                  u.name AS cashier_name, c.name AS customer_name,
-                 COALESCE((SELECT string_agg(ii.description || ' x' || ii.quantity, ', ')
+                 COALESCE((SELECT string_agg(ii.description || ' x' || rtrim(rtrim(ii.quantity::text, '0'), '.'), ', ')
                            FROM invoice_items ii WHERE ii.invoice_id = i.id), '') AS items
           FROM invoices i
           LEFT JOIN users u ON u.id = i.cashier_id
@@ -801,6 +848,23 @@ export class InvoiceService {
     });
     detalhe.invoice.feQr = await this.einvoice.isFeSeries(schema, serie);
     return detalhe;
+  }
+
+  /** Abate `qty` dos lotes válidos (não caducados) do armazém, por validade mais próxima. */
+  private async consumeBatchesFefo(tx: Prisma.TransactionClient, productId: string, warehouseId: string, qty: number, today: string): Promise<void> {
+    let remaining = qty;
+    const lots = await tx.$queryRaw<{ id: string; quantity: string }[]>(Prisma.sql`
+      SELECT id, quantity FROM product_batches
+      WHERE product_id = ${productId}::uuid AND warehouse_id = ${warehouseId}::uuid AND quantity > 0
+        AND (expiry_date IS NULL OR expiry_date >= ${today}::date)
+      ORDER BY expiry_date ASC NULLS LAST, created_at
+      FOR UPDATE`);
+    for (const lot of lots) {
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, Number(lot.quantity));
+      await tx.$executeRaw(Prisma.sql`UPDATE product_batches SET quantity = quantity - ${take} WHERE id = ${lot.id}::uuid`);
+      remaining -= take;
+    }
   }
 
   /**
@@ -1065,6 +1129,16 @@ export class InvoiceService {
       const inv = invRows[0];
       assertOwnStore(actor, inv.store_id);
       if (inv.status === 'A') throw new BadRequestException('Esta venda já foi anulada.');
+      // Venda a CRÉDITO com dinheiro já recebido: anular cancelava a dívida e o valor
+      // pago ficava sem estorno nem saldo a favor do cliente (dinheiro "perdido").
+      const regRec = await tx.$queryRaw<{ reg: string | null }[]>(Prisma.sql`SELECT to_regclass('receivables')::text AS reg`);
+      if (regRec[0]?.reg) {
+        const pago = await tx.$queryRaw<{ paid: string }[]>(Prisma.sql`
+          SELECT COALESCE(SUM(paid_amount),0) AS paid FROM receivables WHERE invoice_id = ${invoiceId}::uuid AND status <> 'CANCELLED'`);
+        if (Number(pago[0]?.paid ?? 0) > 0) {
+          throw new BadRequestException(`Esta venda a crédito já tem ${Number(pago[0].paid).toFixed(2)} Kz recebidos. Estorne primeiro os recebimentos (ou faça uma devolução) antes de anular.`);
+        }
+      }
       // Só faturas se anulam. Anular uma NC repunha o stock e tirava o dinheiro da
       // gaveta OUTRA vez (e gerava uma NC sobre a NC).
       if (inv.doc_type !== 'FT' && inv.doc_type !== 'FS') {

@@ -49,8 +49,9 @@ export function ProductCard({ product, onOpen, onAdd }: {
         </div>
         <div className="ax-card-foot">
           <div className="ax-price">
-            <span className="cur">Kz</span>
+            {/* Mesmo formato do resto da loja: "81.914,70 Kz" (antes "Kz 81.914,70" só nos cartões). */}
             <span className="val">{formatKz(product.grossPrice).replace(/\s*Kz\s*/i, '').trim()}</span>
+            <span className="cur" style={{ marginLeft: 4 }}>Kz</span>
           </div>
           {canOrder ? (
             <button className="ax-add" onClick={(e) => { e.stopPropagation(); onAdd(product); }}

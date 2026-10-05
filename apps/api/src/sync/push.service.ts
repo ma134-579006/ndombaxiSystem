@@ -58,7 +58,9 @@ interface LedgerRow {
 function isUniqueViolation(e: unknown, indexHint?: string): boolean {
   const msg = e instanceof Error ? e.message : String(e);
   const isUnique = msg.includes('23505') || /duplicate key value/i.test(msg);
-  return isUnique && (!indexHint || msg.includes(indexHint));
+  // O Postgres pode citar só a coluna ("Key (client_op_id)=… already exists") e não o índice.
+  const byColumn = !!indexHint && indexHint.endsWith('client_op_uidx') && msg.includes('(client_op_id)');
+  return isUnique && (!indexHint || msg.includes(indexHint) || byColumn);
 }
 
 @Injectable()
@@ -146,6 +148,9 @@ export class PushService {
         // não passa a ser uma venda de segunda nos relatórios de operação.
         operationDate: (p.operationDate as string) ?? op.createdAt.slice(0, 10),
         clientOpId: op.opId, // ← 1.ª camada: unicidade imposta pelo Postgres
+        // Venda que vem da fila do posto JÁ ACONTECEU sem rede: regista-se mesmo com stock
+        // desatualizado (como no POST /pos/invoices com offline:true), em vez de ficar presa.
+        offline: true,
         lines: p.lines as never,
       });
 

@@ -3875,3 +3875,13 @@ html.touch-ui .topbar { padding-left: 14px; padding-right: 14px; }
 .pps-desc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pps-val { font-weight: 700; }
 .pps-err { grid-column: 1 / -1; color: var(--nx-danger, #b91c1c); font-size: 12px; }
+
+/* ── Auditoria de design (Gestão/Super Admin) ───────────────────────────── */
+/* O botão de conversa flutuante tapava o último botão da página (Guardar, Editar,
+   enviar do Assistente): reserva espaço no fundo do conteúdo quando ele existe. */
+body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+@media (max-width: 760px) {
+  body:has(.sc-fab) .admin .content { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+}
+/* Valores dos KPI: o "Kz" não salta sozinho para a linha seguinte; números grandes encolhem. */
+.kpi-value { white-space: nowrap; font-size: clamp(18px, 2.2vw, 28px); overflow: hidden; text-overflow: ellipsis; }

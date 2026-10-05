@@ -37,6 +37,7 @@ interface FormState {
   isIngredient: boolean;
   isProduction: boolean;
   unit: string;
+  requiresPrescription: boolean;
 }
 
 const EMPTY: FormState = {
@@ -60,6 +61,7 @@ const EMPTY: FormState = {
   isIngredient: false,
   isProduction: false,
   unit: '',
+  requiresPrescription: false,
 };
 
 /** Unidades de medida comuns (informativas — sem conversão automática). */
@@ -176,7 +178,9 @@ export function Products() {
   // Só o RESTAURANTE usa ingredientes/produção (ficha técnica). Noutros negócios
   // os toggles não fazem sentido e ficam escondidos.
   const [isRestaurant, setIsRestaurant] = useState(false);
-  useEffect(() => { api.branding().then((b) => setIsRestaurant((b.businessType || '') === 'RESTAURANT')).catch(() => undefined); }, []);
+  // Farmácia/clínica/hospital: medicamentos sujeitos a receita médica.
+  const [isHealth, setIsHealth] = useState(false);
+  useEffect(() => { api.branding().then((b) => { const t = (b.businessType || '').toUpperCase(); setIsRestaurant(t === 'RESTAURANT'); setIsHealth(['PHARMACY', 'FARMACIA', 'CLINIC', 'HOSPITAL'].includes(t)); }).catch(() => undefined); }, []);
   // Disponibilidade dos produtos de PRODUÇÃO (Livre / Ocupado / Esgotado).
   const [avail, setAvail] = useState<Record<string, 'FREE' | 'BUSY' | 'OUT'>>({});
   const loadAvail = useCallback(() => {
@@ -240,6 +244,7 @@ export function Products() {
       isIngredient: !!p.is_ingredient,
       isProduction: !!p.is_production,
       unit: p.unit ?? '',
+      requiresPrescription: !!p.requires_prescription,
     });
     setFormError(null);
     setEditing(p);
@@ -289,6 +294,7 @@ export function Products() {
           isIngredient: form.isIngredient,
           isProduction: form.isProduction,
           unit: form.unit.trim(),
+          ...(isHealth ? { requiresPrescription: form.requiresPrescription } : {}),
         });
       } else {
         // Custo unitário = valor de compra (total) ÷ quantidade; se não houver
@@ -314,6 +320,7 @@ export function Products() {
           isIngredient: form.isIngredient,
           isProduction: form.isProduction,
           unit: form.unit.trim() || undefined,
+          ...(isHealth ? { requiresPrescription: form.requiresPrescription } : {}),
         };
         await api.products.create(payload);
       }
@@ -617,6 +624,12 @@ export function Products() {
             <div className="switch-row">
               <span>Ativar produção<br /><small className="muted">Produto FABRICADO: o custo vem da ficha técnica e o estoque das fornadas (esconde custo/estoque/compra).</small></span>
               <Switch checked={form.isProduction} onChange={(v) => setForm({ ...form, isProduction: v })} />
+            </div>
+          ) : null}
+          {isHealth && !form.isIngredient ? (
+            <div className="switch-row">
+              <span>Exige receita médica<br /><small className="muted">O caixa só vende com o nº da receita (fica registado na auditoria).</small></span>
+              <Switch checked={form.requiresPrescription} onChange={(v) => setForm({ ...form, requiresPrescription: v })} />
             </div>
           ) : null}
           {!form.isIngredient ? (

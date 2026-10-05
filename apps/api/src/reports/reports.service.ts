@@ -186,21 +186,35 @@ export class ReportsService {
   }
 
   /** Métodos de pagamento (a partir dos movimentos de caixa do tipo venda). */
-  async paymentMethods(schema: string, from?: string, to?: string) {
+  /**
+   * Métodos de pagamento das VENDAS do período (FT/FS não anuladas), por loja se
+   * pedido. Antes lia só `cash_movements`: vendas faturadas fora de um turno não
+   * contavam ("Sem pagamentos"), e o gerente de loja via a empresa inteira.
+   * O método vem do movimento de caixa da venda; sem movimento → crédito (se há
+   * conta a receber) ou "Sem turno" (faturada sem caixa aberta).
+   */
+  async paymentMethods(schema: string, from?: string, to?: string, storeId?: string) {
     const { from: f, to: t } = this.range(from, to);
     return this.prisma.runInTenant(schema, async (tx) => {
-      const has = await tx.$queryRaw<{ reg: string | null }[]>(
-        Prisma.sql`SELECT to_regclass('cash_movements')::text AS reg`,
+      const reg = await tx.$queryRaw<{ cm: string | null; rc: string | null }[]>(
+        Prisma.sql`SELECT to_regclass('cash_movements')::text AS cm, to_regclass('receivables')::text AS rc`,
       );
-      if (!has[0]?.reg) return [];
+      const cmJoin = reg[0]?.cm
+        ? Prisma.sql`LEFT JOIN LATERAL (SELECT m.payment_type FROM cash_movements m WHERE m.type = 'SALE' AND m.reference_id = i.id LIMIT 1) cm ON TRUE`
+        : Prisma.sql`LEFT JOIN LATERAL (SELECT NULL::text AS payment_type) cm ON TRUE`;
+      const credit = reg[0]?.rc
+        ? Prisma.sql`EXISTS (SELECT 1 FROM receivables r WHERE r.invoice_id = i.id)`
+        : Prisma.sql`FALSE`;
       return tx.$queryRaw(Prisma.sql`
-        SELECT COALESCE(payment_type, 'OUTRO') AS method,
+        SELECT COALESCE(cm.payment_type, CASE WHEN ${credit} THEN 'CREDIT' ELSE 'SEM_TURNO' END) AS method,
                COUNT(*)::int AS count,
-               ROUND(SUM(amount), 2)::float AS total
-        FROM cash_movements
-        WHERE type = 'SALE'
-          AND created_at >= ${f}::date AND created_at < (${t}::date + 1)
-        GROUP BY payment_type ORDER BY total DESC`);
+               ROUND(SUM(i.gross_total), 2)::float AS total
+        FROM invoices i
+        ${cmJoin}
+        WHERE i.doc_type IN ('FT','FS') AND i.status <> 'A'
+          AND i.invoice_date >= ${f}::date AND i.invoice_date <= ${t}::date
+          ${this.storeCond(storeId)}
+        GROUP BY 1 ORDER BY total DESC`);
     });
   }
 }

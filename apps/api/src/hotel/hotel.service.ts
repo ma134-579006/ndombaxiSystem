@@ -3,9 +3,18 @@ import { Prisma } from '@prisma/client';
 import { DocumentType, IvaCode, round2 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
 import { InvoiceService, type EmitLineInput } from '../pos/invoice.service';
+import { luandaYear } from '../common/luanda-date';
+import { billingOpId, netForGross, rethrowIfAlreadyBilled } from '../common/billing-guard';
 
 const IVA_RATE: Record<string, number> = { NOR: 14, INT: 7, RED: 5, ISE: 0, NS: 0 };
 const RES_STATUS = ['BOOKED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'];
+
+/** O folio só muda enquanto a estadia está aberta (reservada ou em curso) e por faturar. */
+function assertFolioOpen(r: { status: string; invoice_id: string | null }): void {
+  if (r.invoice_id || !['BOOKED', 'CHECKED_IN'].includes(r.status)) {
+    throw new BadRequestException('A conta desta reserva já está fechada (faturada ou cancelada).');
+  }
+}
 const nightsBetween = (ci: string, co: string): number => {
   const a = new Date(ci + 'T00:00:00'), b = new Date(co + 'T00:00:00');
   return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000));
@@ -103,16 +112,26 @@ export class HotelService {
   async create(schema: string, by: string | null, dto: { roomId: string; guestName?: string; guestPhone?: string; checkIn: string; checkOut: string; guests?: number; source?: string }) {
     const source = dto.source === 'ONLINE' ? 'ONLINE' : 'MANUAL';
     if (!dto.checkIn || !dto.checkOut) throw new BadRequestException('Indique as datas de entrada e saída.');
+    const ci = new Date(`${dto.checkIn}T00:00:00Z`); const co = new Date(`${dto.checkOut}T00:00:00Z`);
+    if (Number.isNaN(ci.getTime()) || Number.isNaN(co.getTime()) || ci.toISOString().slice(0, 10) !== dto.checkIn.slice(0, 10) || co.toISOString().slice(0, 10) !== dto.checkOut.slice(0, 10)) {
+      throw new BadRequestException('Datas inválidas (use AAAA-MM-DD).');
+    }
+    if (co <= ci) throw new BadRequestException('A data de saída tem de ser posterior à de entrada.');
     const nights = nightsBetween(dto.checkIn, dto.checkOut);
     return this.prisma.runInTenant(schema, async (tx) => {
-      const room = await tx.$queryRaw<{ name: string; rate: string }[]>(Prisma.sql`SELECT name, rate FROM hotel_rooms WHERE id = ${dto.roomId}::uuid`);
+      // FOR UPDATE no quarto: reservas em simultâneo para as mesmas datas passavam ambas o teste de sobreposição.
+      const room = await tx.$queryRaw<{ name: string; rate: string; capacity: number | null; is_active: boolean; status: string }[]>(Prisma.sql`SELECT name, rate, capacity, is_active, status FROM hotel_rooms WHERE id = ${dto.roomId}::uuid FOR UPDATE`);
       if (!room[0]) throw new NotFoundException('Quarto não encontrado.');
+      if (!room[0].is_active || ['MAINTENANCE', 'BLOCKED'].includes(room[0].status)) throw new BadRequestException('Quarto indisponível (desativado ou em manutenção).');
+      if (room[0].capacity && (dto.guests ?? 1) > Number(room[0].capacity)) throw new BadRequestException(`O quarto tem capacidade para ${room[0].capacity} hóspede(s).`);
       // Evita sobreposição de datas com reservas ativas no mesmo quarto.
       const clash = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM hotel_reservations WHERE room_id = ${dto.roomId}::uuid AND status IN ('BOOKED','CHECKED_IN')
           AND NOT (check_out <= ${dto.checkIn}::date OR check_in >= ${dto.checkOut}::date) LIMIT 1`);
       if (clash[0]) throw new BadRequestException('O quarto já tem reserva nessas datas.');
-      const year = new Date().getFullYear();
+      const year = luandaYear();
+      // Numeração: o COUNT(*)+1 dava números repetidos em simultâneo — serializa por empresa.
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext('hotel_reservation_number:' || current_schema()))`);
       const cnt = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n FROM hotel_reservations WHERE date_part('year', created_at) = ${year}`);
       const number = `RES/${year}/${String((cnt[0]?.n ?? 0) + 1).padStart(4, '0')}`;
       const rate = Number(room[0].rate);
@@ -181,19 +200,20 @@ export class HotelService {
     const detail = await this.get(schema, reservationId);
     const r = detail.reservation as Record<string, unknown>;
     if (r.invoice_id) throw new BadRequestException('Esta reserva já foi faturada.');
+    if (r.status === 'CANCELLED') throw new BadRequestException('Reserva cancelada — não se fatura.');
     const nights = Number(r.nights) || 1;
     const rateGross = Number(r.rate) || 0;
     const lines: EmitLineInput[] = [];
     if (rateGross > 0) {
       lines.push({
         description: `Estadia (${nights} noite(s)) - ${(r.room_name as string) ?? 'Quarto'}`,
-        unitPrice: round2(rateGross / (1 + IVA_RATE.NOR / 100)), ivaCode: IvaCode.NOR, quantity: nights,
+        unitPrice: netForGross(rateGross, IVA_RATE.NOR), ivaCode: IvaCode.NOR, quantity: nights,
       });
     }
     const folio = detail.folio as { product_code: string | null; description: string; unit_price: string; quantity: string }[];
     for (const it of folio) {
       if (it.product_code) lines.push({ productCode: it.product_code, quantity: Number(it.quantity) });
-      else lines.push({ description: it.description, unitPrice: round2(Number(it.unit_price) / (1 + IVA_RATE.NOR / 100)), ivaCode: IvaCode.NOR, quantity: Number(it.quantity) });
+      else lines.push({ description: it.description, unitPrice: netForGross(Number(it.unit_price), IVA_RATE.NOR), ivaCode: IvaCode.NOR, quantity: Number(it.quantity) });
     }
     if (!lines.length) throw new BadRequestException('A reserva não tem valores para faturar.');
     const inv = await this.invoices.emit(schema, {
@@ -201,7 +221,9 @@ export class HotelService {
       customerId: (r.customer_id as string) ?? null,
       cashierId: opener.id, cashierName: opener.name,
       paymentType: 'CASH', lines,
-    });
+      // Dois pedidos em simultâneo emitiam duas faturas: a chave fixa por reserva impede-o.
+      clientOpId: billingOpId('HOTEL', reservationId),
+    }).catch((e) => rethrowIfAlreadyBilled(e, 'Esta reserva já foi faturada.'));
     await this.prisma.runInTenant(schema, async (tx) => {
       await tx.$executeRaw(Prisma.sql`
         UPDATE hotel_reservations SET invoice_id = ${inv.id}::uuid, status = 'CHECKED_OUT', updated_at = now()
@@ -220,8 +242,9 @@ export class HotelService {
 
   async addFolio(schema: string, id: string, dto: { productCode?: string; description?: string; unitPrice?: number; quantity?: number }) {
     return this.prisma.runInTenant(schema, async (tx) => {
-      const res = await tx.$queryRaw<{ status: string }[]>(Prisma.sql`SELECT status FROM hotel_reservations WHERE id = ${id}::uuid`);
+      const res = await tx.$queryRaw<{ status: string; invoice_id: string | null }[]>(Prisma.sql`SELECT status, invoice_id FROM hotel_reservations WHERE id = ${id}::uuid FOR UPDATE`);
       if (!res[0]) throw new NotFoundException('Reserva não encontrada.');
+      assertFolioOpen(res[0]);
       const qty = dto.quantity && dto.quantity > 0 ? dto.quantity : 1;
       let description = dto.description?.trim() || '';
       let price = dto.unitPrice ?? 0;
@@ -245,6 +268,8 @@ export class HotelService {
     return this.prisma.runInTenant(schema, async (tx) => {
       const it = await tx.$queryRaw<{ reservation_id: string }[]>(Prisma.sql`SELECT reservation_id FROM hotel_folio_items WHERE id = ${itemId}::uuid`);
       if (!it[0]) return { ok: true };
+      const res = await tx.$queryRaw<{ status: string; invoice_id: string | null }[]>(Prisma.sql`SELECT status, invoice_id FROM hotel_reservations WHERE id = ${it[0].reservation_id}::uuid FOR UPDATE`);
+      if (res[0]) assertFolioOpen(res[0]);
       await tx.$executeRaw(Prisma.sql`DELETE FROM hotel_folio_items WHERE id = ${itemId}::uuid`);
       await this.recompute(tx, it[0].reservation_id);
       return { ok: true };
@@ -254,10 +279,24 @@ export class HotelService {
   async setStatus(schema: string, id: string, status: string) {
     if (!RES_STATUS.includes(status)) throw new BadRequestException('Estado inválido.');
     await this.prisma.runInTenant(schema, async (tx) => {
+      const r = await tx.$queryRaw<{ room_id: string | null; room_name: string | null; status: string; invoice_id: string | null }[]>(
+        Prisma.sql`SELECT room_id, room_name, status, invoice_id FROM hotel_reservations WHERE id = ${id}::uuid FOR UPDATE`);
+      if (!r[0]) throw new NotFoundException('Reserva não encontrada.');
+      if (r[0].status === status) return;
+      // Máquina de estados: faturada = fechada; check-out só pela fatura.
+      if (r[0].invoice_id) throw new BadRequestException('Reserva já faturada — o estado já não pode ser alterado (anule a fatura).');
+      const permitido: Record<string, string[]> = { BOOKED: ['CHECKED_IN', 'CANCELLED'], CHECKED_IN: ['CANCELLED'], CHECKED_OUT: [], CANCELLED: ['BOOKED'] };
+      if (!(permitido[r[0].status] ?? []).includes(status)) {
+        throw new BadRequestException(status === 'CHECKED_OUT'
+          ? 'O check-out faz-se ao faturar a reserva.'
+          : `Transição inválida: ${r[0].status} → ${status}.`);
+      }
       await tx.$executeRaw(Prisma.sql`UPDATE hotel_reservations SET status = ${status}, updated_at = now() WHERE id = ${id}::uuid`);
-      const r = await tx.$queryRaw<{ room_id: string | null; room_name: string | null }[]>(
-        Prisma.sql`SELECT room_id, room_name FROM hotel_reservations WHERE id = ${id}::uuid`);
-      await this.applyRoomLifecycle(tx, r[0]?.room_id ?? null, r[0]?.room_name ?? null, status);
+      // Cancelar/reativar uma reserva que nunca entrou no quarto não mexe no quarto
+      // (antes punha-o DISPONÍVEL mesmo com outro hóspede lá dentro).
+      if (r[0].status === 'CHECKED_IN' || status === 'CHECKED_IN') {
+        await this.applyRoomLifecycle(tx, r[0].room_id, r[0].room_name, status);
+      }
     });
     return { ok: true };
   }

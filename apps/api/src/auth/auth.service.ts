@@ -135,7 +135,7 @@ export class AuthService {
         ip: ctx.ip,
         after: { email: dto.email },
       });
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('E-mail ou palavra-passe incorretos.');
     }
 
     const twoFaVerified = this.checkTwoFa(
@@ -214,11 +214,11 @@ export class AuthService {
   private async resolveCompany(companyCode: string | undefined, email: string) {
     if (companyCode) {
       const c = await this.prisma.company.findUnique({ where: { code: companyCode.toLowerCase() } });
-      if (!c) throw new UnauthorizedException('Invalid credentials');
+      if (!c) throw new UnauthorizedException('E-mail ou palavra-passe incorretos.');
       return c;
     }
     const candidates = await this.companiesForEmail(email);
-    if (candidates.length === 0) throw new UnauthorizedException('Invalid credentials');
+    if (candidates.length === 0) throw new UnauthorizedException('E-mail ou palavra-passe incorretos.');
     if (candidates.length > 1) {
       // o frontend mostra um seletor e repete o pedido com companyCode
       throw new BadRequestException({
@@ -346,7 +346,7 @@ export class AuthService {
     );
 
     if (!user || !user.is_active) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('E-mail ou palavra-passe incorretos.');
     }
 
     if (user.locked_until && user.locked_until > new Date()) {
@@ -368,7 +368,7 @@ export class AuthService {
         entityId: user.id,
         ip: ctx.ip,
       });
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('E-mail ou palavra-passe incorretos.');
     }
 
     const twoFaVerified = this.checkTwoFa(

@@ -3,9 +3,18 @@ import { Prisma } from '@prisma/client';
 import { DocumentType, IvaCode, round2 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
 import { InvoiceService, type EmitLineInput } from '../pos/invoice.service';
+import { billingOpId, netForGross, rethrowIfAlreadyBilled } from '../common/billing-guard';
+import { luandaYear } from '../common/luanda-date';
 
 const IVA_RATE: Record<string, number> = { NOR: 14, INT: 7, RED: 5, ISE: 0, NS: 0 };
 const STATUSES = ['OPEN', 'QUOTED', 'APPROVED', 'IN_PROGRESS', 'READY', 'DELIVERED', 'CANCELLED'];
+
+/** Itens só mudam com a OS em curso e por faturar (antes mudavam o total de uma OS já faturada). */
+function assertEditable(o: { status: string; invoice_id: string | null }): void {
+  if (o.invoice_id || ['DELIVERED', 'CANCELLED'].includes(o.status)) {
+    throw new BadRequestException('OS fechada (faturada, entregue ou cancelada) — já não se alteram itens.');
+  }
+}
 
 /** Ordens de Serviço (mecânica, assistência técnica, recauchutagem…). */
 @Injectable()
@@ -160,7 +169,9 @@ export class ServiceOrdersService {
           customerName = customerName || eq[0].customer_name || undefined;
         }
       }
-      const year = new Date().getFullYear();
+      const year = luandaYear();
+      // COUNT(*)+1 dava números de OS repetidos em simultâneo — serializa a numeração por empresa.
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext('service_order_number:' || current_schema()))`);
       const cnt = await tx.$queryRaw<{ n: number }[]>(
         Prisma.sql`SELECT COUNT(*)::int AS n FROM service_orders WHERE date_part('year', created_at) = ${year}`);
       const number = `OS/${year}/${String((cnt[0]?.n ?? 0) + 1).padStart(4, '0')}`;
@@ -233,13 +244,14 @@ export class ServiceOrdersService {
     const detail = await this.get(schema, orderId);
     const o = detail.order as Record<string, unknown>;
     if (o.invoice_id) throw new BadRequestException('Esta ordem de serviço já foi faturada.');
+    if (o.status === 'CANCELLED') throw new BadRequestException('OS cancelada — não se fatura.');
     const items = detail.items as { kind: string; product_code: string | null; description: string; unit_price: string; quantity: string }[];
     if (!items.length) throw new BadRequestException('A OS não tem itens para faturar.');
     const lines: EmitLineInput[] = items.map((it) => {
       if (it.kind === 'PART' && it.product_code) {
         return { productCode: it.product_code, quantity: Number(it.quantity) };
       }
-      const net = round2(Number(it.unit_price) / (1 + IVA_RATE.NOR / 100)); // preço guardado é c/ IVA
+      const net = netForGross(Number(it.unit_price), IVA_RATE.NOR); // preço guardado é c/ IVA
       return { description: it.description, unitPrice: net, ivaCode: IvaCode.NOR, quantity: Number(it.quantity) };
     });
     const inv = await this.invoices.emit(schema, {
@@ -249,9 +261,12 @@ export class ServiceOrdersService {
       // Faturação da OS pelo painel: o gestor não abre turno, por isso o
       // movimento entra na caixa ABERTA da loja (ver emit → allowAnyOpenSession).
       paymentType: 'CASH', allowAnyOpenSession: true, lines,
-    });
+      // 4 pedidos em simultâneo emitiam 4 faturas (e baixavam as peças 4×): chave fixa por OS.
+      clientOpId: billingOpId('SERVICE_ORDER', orderId),
+    }).catch((e) => rethrowIfAlreadyBilled(e, 'Esta ordem de serviço já foi faturada.'));
     await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
-      UPDATE service_orders SET invoice_id = ${inv.id}::uuid, status = 'DELIVERED', delivered_at = now(), updated_at = now()
+      UPDATE service_orders SET invoice_id = ${inv.id}::uuid, status = 'DELIVERED', delivered_at = now(), updated_at = now(),
+        warranty_until = CASE WHEN warranty_days > 0 THEN (now()::date + warranty_days) ELSE warranty_until END
       WHERE id = ${orderId}::uuid`));
     return { invoiceId: inv.id, invoiceNumber: inv.number };
   }
@@ -268,8 +283,9 @@ export class ServiceOrdersService {
     dto: { kind?: string; productCode?: string; description?: string; unitPrice?: number; quantity?: number },
   ) {
     return this.prisma.runInTenant(schema, async (tx) => {
-      const ord = await tx.$queryRaw<{ status: string }[]>(Prisma.sql`SELECT status FROM service_orders WHERE id = ${orderId}::uuid`);
+      const ord = await tx.$queryRaw<{ status: string; invoice_id: string | null }[]>(Prisma.sql`SELECT status, invoice_id FROM service_orders WHERE id = ${orderId}::uuid FOR UPDATE`);
       if (!ord[0]) throw new NotFoundException('OS não encontrada.');
+      assertEditable(ord[0]);
       const qty = dto.quantity && dto.quantity > 0 ? dto.quantity : 1;
       let kind = (dto.kind || 'SERVICE').toUpperCase();
       let description = dto.description?.trim() || '';
@@ -301,8 +317,11 @@ export class ServiceOrdersService {
 
   async removeItem(schema: string, itemId: string) {
     return this.prisma.runInTenant(schema, async (tx) => {
-      const it = await tx.$queryRaw<{ order_id: string }[]>(Prisma.sql`SELECT order_id FROM service_order_items WHERE id = ${itemId}::uuid`);
+      const it = await tx.$queryRaw<{ order_id: string; status: string; invoice_id: string | null }[]>(Prisma.sql`
+        SELECT i.order_id, o.status, o.invoice_id FROM service_order_items i JOIN service_orders o ON o.id = i.order_id
+        WHERE i.id = ${itemId}::uuid FOR UPDATE OF o`);
       if (!it[0]) return { ok: true };
+      assertEditable(it[0]);
       await tx.$executeRaw(Prisma.sql`DELETE FROM service_order_items WHERE id = ${itemId}::uuid`);
       await this.recompute(tx, it[0].order_id);
       return { ok: true };
@@ -311,14 +330,21 @@ export class ServiceOrdersService {
 
   async setStatus(schema: string, id: string, status: string) {
     if (!STATUSES.includes(status)) throw new BadRequestException('Estado inválido.');
-    await this.prisma.runInTenant(schema, (tx) =>
+    await this.prisma.runInTenant(schema, async (tx) => {
+      const cur = await tx.$queryRaw<{ status: string; invoice_id: string | null }[]>(Prisma.sql`SELECT status, invoice_id FROM service_orders WHERE id = ${id}::uuid FOR UPDATE`);
+      if (!cur[0]) throw new NotFoundException('OS não encontrada.');
+      // Faturada = fechada (reabrir deixava a OS diferente da fatura); entregar faz-se ao faturar.
+      if (cur[0].invoice_id && cur[0].status !== status) throw new BadRequestException('OS já faturada — o estado já não pode ser alterado.');
+      if (cur[0].status === 'CANCELLED' && status !== 'CANCELLED') throw new BadRequestException('OS cancelada — crie uma nova.');
+      return 
       // Ao ENTREGAR: marca a data de entrega e calcula o fim da garantia
       // (entrega + warranty_days). Só define se houver garantia configurada.
       tx.$executeRaw(Prisma.sql`UPDATE service_orders SET status = ${status}, updated_at = now(),
         delivered_at = CASE WHEN ${status} = 'DELIVERED' THEN now() ELSE delivered_at END,
         warranty_until = CASE WHEN ${status} = 'DELIVERED' AND warranty_days > 0
                               THEN (now()::date + warranty_days) ELSE warranty_until END
-        WHERE id = ${id}::uuid`));
+        WHERE id = ${id}::uuid`);
+    });
     return { ok: true };
   }
 

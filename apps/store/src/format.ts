@@ -31,3 +31,15 @@ const STATUS_LABELS: Record<string, string> = {
 export function statusLabel(status: string): string {
   return STATUS_LABELS[status] ?? status;
 }
+
+/** Nome legível do meio de pagamento: a API usa o código (BANK_TRANSFER…) quando o gestor não deu nome. */
+const METHOD_LABEL: Record<string, string> = {
+  BANK_TRANSFER: 'Transferência bancária',
+  REFERENCE: 'Pagamento por referência',
+  MULTICAIXA_EXPRESS: 'Multicaixa Express',
+  CASH: 'Numerário na entrega',
+};
+export function methodLabel(m: { type: string; label?: string | null }): string {
+  const l = (m.label ?? '').trim();
+  return !l || l === m.type ? METHOD_LABEL[m.type] ?? m.type : l;
+}

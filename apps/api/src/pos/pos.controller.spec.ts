@@ -49,6 +49,15 @@ describe('PosController — emissão idempotente da venda', () => {
     expect(emit).toHaveBeenCalledWith('tenant_1', expect.objectContaining({ clientOpId: OP_ID }));
   });
 
+  it('reenvio reconhecido também quando o Postgres só cita a COLUNA (formato real do Prisma)', async () => {
+    const original = { id: 'inv-1', number: 'FT A/8', hash: 'abc', grossTotal: 100 };
+    // Mensagem real observada: o nome do índice NÃO aparece.
+    const emit = jest.fn(() => Promise.reject(new Error('Raw query failed. Code: `23505`. Message: `Key (client_op_id)=(' + OP_ID + ') already exists.`')));
+    const findByClientOpId = jest.fn(() => Promise.resolve(original));
+    const controller = makeController({ emit, findByClientOpId });
+    await expect(controller.emitInvoice(dto({ clientOpId: OP_ID }), USER)).resolves.toEqual(original);
+  });
+
   it('reenvio da MESMA venda devolve a fatura ORIGINAL — não emite uma segunda', async () => {
     const original = { id: 'inv-1', number: 'FT A/7', hash: 'abc', grossTotal: 15000 };
     const emit = jest.fn(() => Promise.reject(duplicateKeyError()));

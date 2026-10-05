@@ -71,12 +71,34 @@ export class PrismaService
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
     assertValidSchemaName(schema);
+    // DEADLOCK / conflito de serialização (40P01/40001): o Postgres abortou a
+    // transacção inteira (nada ficou gravado) — repetir é seguro e é o que se
+    // espera. Antes chegava ao utilizador como "Conflito ao gravar".
+    for (let tentativa = 1; ; tentativa++) {
+      try {
+        return await this.runInTenantOnce(schema, fn);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (tentativa >= 3 || !/\b(40P01|40001)\b|deadlock detected|could not serialize/i.test(msg)) throw e;
+        await new Promise((r) => setTimeout(r, 20 * tentativa + Math.floor(Math.random() * 30)));
+      }
+    }
+  }
+
+  private runInTenantOnce<T>(
+    schema: string,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
     return this.$transaction(
       async (tx) => {
         // schema já validado contra regex — seguro para interpolação de identifier
         await tx.$executeRawUnsafe(
           `SET LOCAL search_path TO "${schema}", nexus_public`,
         );
+        // Fuso de ANGOLA na sessão: CURRENT_DATE, ::date e to_char passam a contar
+        // o dia de Luanda (UTC+1). Em UTC, entre as 00:00 e a 01:00 de Luanda os
+        // painéis "hoje", a agenda e os relatórios do dia contavam o dia anterior.
+        await tx.$executeRawUnsafe(`SET LOCAL TIME ZONE 'Africa/Luanda'`);
         return fn(tx);
       },
       // Timeout alargado para tolerar a latência de uma BD na nuvem em

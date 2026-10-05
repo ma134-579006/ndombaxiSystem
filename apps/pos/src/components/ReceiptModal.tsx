@@ -25,6 +25,8 @@ interface Props {
   items?: ReceiptItem[];
   /** Venda guardada offline: comprovativo PROVISÓRIO (sem nº fiscal ainda). */
   provisional?: boolean;
+  /** Como o cliente pagou (talão: método, valor entregue e troco). */
+  pay?: { paymentType: string; tendered?: number; changeGiven?: number };
   /** Reimpressão (2ª via) de um documento já emitido. */
   reprint?: boolean;
   /** Data a mostrar (na 2ª via, a data ORIGINAL do documento). */
@@ -33,7 +35,12 @@ interface Props {
 }
 
 /** Recibo/comprovativo da venda emitida — identidade da empresa + dados fiscais AGT (§7). */
-export function ReceiptModal({ invoice, info, identity, customerName, operatorName, items, provisional, reprint, dateLabel, onClose }: Props) {
+/** Nome do meio de pagamento no talão (o cliente não lê "CASH"). */
+const PAY_LABEL: Record<string, string> = {
+  CASH: 'Numerário', CARD: 'Cartão (TPA)', TRANSFER: 'Transferência', REFERENCE: 'Referência', EXPRESS: 'Multicaixa Express', CREDIT: 'Crédito (a pagar)',
+};
+
+export function ReceiptModal({ invoice, info, identity, customerName, operatorName, items, provisional, reprint, dateLabel, pay, onClose }: Props) {
   // AGT: 4 caracteres da assinatura nas posições 1.ª, 11.ª, 21.ª e 31.ª.
   const hashShort = invoice.hash ? [0, 10, 20, 30].map((i) => invoice.hash[i] ?? '').join('') : '----';
   const shownDate = dateLabel ?? formatDateTime();
@@ -267,12 +274,24 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
             <span className="k">Total</span>
             <span className="v grand">{formatKz(invoice.grossTotal)}</span>
           </div>
+          {pay ? (
+            <div className="kv">
+              <span className="k">Pagamento</span>
+              <span className="v">{PAY_LABEL[pay.paymentType] ?? pay.paymentType}</span>
+            </div>
+          ) : null}
+          {pay?.paymentType === 'CASH' && pay.tendered != null && pay.tendered > 0 ? (
+            <>
+              <div className="kv"><span className="k">Entregue</span><span className="v">{formatKz(pay.tendered)}</span></div>
+              <div className="kv"><span className="k">Troco</span><span className="v">{formatKz(Math.max(0, pay.tendered - invoice.grossTotal))}</span></div>
+            </>
+          ) : null}
           <div className="kv">
             <span className="k">{provisional ? 'Referência local' : 'Controlo (Hash)'}</span>
             <span className="v hash">{provisional ? invoice.number : hashShort}</span>
           </div>
 
-          {info && (info.receiptLegend || info.fields.length > 0 || info.softwareCertificateNumber) ? (
+          {info && (info.receiptLegend || info.fields.length > 0 || (info.softwareCertificateNumber && String(info.softwareCertificateNumber) !== '0')) ? (
             <div className="legend">
               {info.fields.map((f) => (
                 <div key={f.label}>

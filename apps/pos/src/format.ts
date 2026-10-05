@@ -27,3 +27,19 @@ export function formatDateTime(d: Date = new Date()): string {
   const p = (x: number) => (x < 10 ? `0${x}` : `${x}`);
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+
+/**
+ * Lê um valor em Kz escrito à angolana: "2000,50", "5.000,00", "5 000", "1.234.567".
+ * `Number("2000,50")` dava NaN (venda bloqueada por "insuficiente") e
+ * `Number("5.000,00")` gravava o fundo de caixa a 0. Um único ponto seguido de
+ * exatamente 3 dígitos é separador de milhares ("5.000" = 5000); caso contrário
+ * é decimal ("3370.56"). Devolve NaN se não for um número.
+ */
+export function parseKz(raw: string | number | null | undefined): number {
+  if (typeof raw === 'number') return raw;
+  let s = String(raw ?? '').replace(/\s|kz/gi, '').replace(/[−–]/g, '-');
+  if (!s) return NaN;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if ((s.match(/\./g) ?? []).length > 1 || /^-?\d{1,3}\.\d{3}$/.test(s)) s = s.replace(/\./g, '');
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}

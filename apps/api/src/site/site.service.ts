@@ -22,6 +22,7 @@ export interface SiteSettingsRow {
   address: string | null;
   receipt_message: string | null;
   default_iva_code: string;
+  clinical_iva_code?: string;
   social: unknown;
   custom_css: string | null;
   is_published: boolean;
@@ -76,6 +77,7 @@ export class SiteService {
     if (dto.address !== undefined) sets.push(Prisma.sql`address = ${dto.address}`);
     if (dto.receiptMessage !== undefined) sets.push(Prisma.sql`receipt_message = ${dto.receiptMessage}`);
     if (dto.defaultIvaCode !== undefined) sets.push(Prisma.sql`default_iva_code = ${dto.defaultIvaCode}`);
+    if (dto.clinicalIvaCode !== undefined) sets.push(Prisma.sql`clinical_iva_code = ${dto.clinicalIvaCode}`);
     if (dto.social !== undefined)
       sets.push(Prisma.sql`social = ${JSON.stringify(dto.social)}::jsonb`);
     if (dto.customCss !== undefined) sets.push(Prisma.sql`custom_css = ${dto.customCss}`);

@@ -63,16 +63,31 @@ export function Modal({
       body = kids.slice(0, -1);
     }
   }
+  // Acessibilidade: Esc fecha, o foco entra no modal e volta ao sítio ao fechar.
+  const boxRef = React.useRef<HTMLDivElement>(null);
+  const closeRef = React.useRef(onClose);
+  closeRef.current = onClose;
+  React.useEffect(() => {
+    const before = document.activeElement as HTMLElement | null;
+    const onKey = (e: KeyboardEvent) => {
+      // Só o modal de cima fecha (vários abertos: o último no DOM é o da frente).
+      const all = document.querySelectorAll('.modal');
+      if (e.key === 'Escape' && all[all.length - 1] === boxRef.current) { e.stopPropagation(); closeRef.current(); }
+    };
+    document.addEventListener('keydown', onKey);
+    if (boxRef.current && !boxRef.current.contains(document.activeElement)) boxRef.current.focus({ preventScroll: true });
+    return () => { document.removeEventListener('keydown', onKey); before?.focus?.({ preventScroll: true }); };
+  }, []);
   // Portal para o <body>: o modal sai de qualquer stacking context local (cartões
   // com transform, painéis animados, etc.), por isso fica SEMPRE à frente e um
   // modal aberto sobre outro nunca cai para trás.
   return createPortal(
     <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" ref={boxRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="mh">
           <h3>{title}</h3>
           <span className="spacer" />
-          <button className="icon-btn" style={{ width: 36, height: 36 }} onClick={onClose}>
+          <button className="icon-btn" style={{ width: 36, height: 36 }} onClick={onClose} aria-label="Fechar">
             <IconClose size={18} />
           </button>
         </div>

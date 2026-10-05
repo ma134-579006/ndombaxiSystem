@@ -30,8 +30,8 @@ const TABS: { key: Tab; label: string; group: string }[] = [
 const todayISO = (d = new Date()) => d.toISOString().slice(0, 10);
 const fmtDT = (s: string) => { try { return new Date(s).toLocaleString('pt-PT'); } catch { return s; } };
 const PAY_LABEL: Record<string, string> = {
-  CASH: 'Dinheiro', CARD: 'Multibanco/Cartão', TRANSFER: 'Transferência',
-  REFERENCE: 'Referência', EXPRESS: 'Express', CREDIT: 'A crédito', OUTRO: 'Outro',
+  CASH: 'Numerário', CARD: 'Multicaixa/Cartão', TRANSFER: 'Transferência',
+  REFERENCE: 'Referência', EXPRESS: 'Multicaixa Express', CREDIT: 'A crédito', OUTRO: 'Outro', SEM_TURNO: 'Sem turno de caixa',
 };
 const DOC_LABEL: Record<string, string> = { FT: 'Fatura', FS: 'Fatura simplificada', NC: 'Nota de crédito', FR: 'Fatura-recibo' };
 

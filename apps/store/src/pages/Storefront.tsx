@@ -112,21 +112,29 @@ export function Storefront() {
     ? <CustomerModal code={code} session={customer} onClose={() => setAccountOpen(false)} onOpenOrder={openOrder} businessType={data?.businessType} />
     : null;
 
-  // Conta obrigatória para finalizar/track/chat (estilo marketplace).
+  // Conta obrigatória para finalizar/track/chat (estilo marketplace) — SE houver
+  // forma de entrar. Sem e-mail configurado nem Google, o cliente ficava num beco
+  // sem saída e a loja não vendia: aí compra-se como CONVIDADO (a API aceita).
+  const [guestMode, setGuestMode] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    api.authMethods(code).then((m) => { if (alive) setGuestMode(!m.email && !m.google); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [code]);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
   const requireAccount = (msg: string, then: () => void) => {
-    if (customer) { setGateMsg(null); then(); return; }
+    if (customer || guestMode) { setGateMsg(null); then(); return; }
     setGateMsg(msg);
     setAccountOpen(true);
   };
   useEffect(() => { if (customer) setGateMsg(null); }, [customer]);
   useEffect(() => {
-    if (!customer && (view === 'checkout' || view === 'track')) {
+    if (!customer && !guestMode && (view === 'checkout' || view === 'track')) {
       setView('home');
       setAccountOpen(true);
       setGateMsg('Entre na sua conta para continuar.');
     }
-  }, [customer, view]);
+  }, [customer, view, guestMode]);
 
   useEffect(() => {
     try { const raw = localStorage.getItem(lastOrderKey(code)); setSavedOrder(raw ? JSON.parse(raw) : null); }

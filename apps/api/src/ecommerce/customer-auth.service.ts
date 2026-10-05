@@ -64,6 +64,13 @@ export class CustomerAuthService {
     private readonly mail: MailService,
   ) {}
 
+  /** Formas de entrar disponíveis nesta instalação (a loja esconde as que não existem). */
+  async loginMethods(): Promise<{ email: boolean; google: boolean }> {
+    const email = await this.mail.isEnabled().catch(() => false);
+    const google = /\.apps\.googleusercontent\.com$/.test(process.env.GOOGLE_CLIENT_ID ?? '');
+    return { email, google };
+  }
+
   private get secret(): string {
     return this.config.get('JWT_ACCESS_SECRET', { infer: true });
   }
