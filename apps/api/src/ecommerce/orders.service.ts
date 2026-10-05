@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { DocumentType } from '@nexus/agt-xml';
 import { PaymentGatewayService } from '../payments/payment-gateway.service';
@@ -17,6 +17,8 @@ interface OrderRow {
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly invoices: InvoiceService,
@@ -340,13 +342,22 @@ export class OrdersService {
     const order = orders[0];
     if (!order) throw new NotFoundException('Nenhuma encomenda corresponde a esta referência.');
 
+    // Pagamento recebido para uma encomenda CANCELADA: não é "já paga" — o dinheiro entrou
+    // e tem de ser reembolsado. Sinaliza com 409 (e fica no log) em vez de o esconder.
+    if (order.status === 'CANCELLED') {
+      this.logger.warn(`Pagamento por referência recebido para a encomenda cancelada ${order.order_number} — reembolso necessário.`);
+      throw new ConflictException('Esta encomenda foi cancelada: o pagamento recebido precisa de ser reembolsado ao cliente.');
+    }
     // Já paga (callback repetido) → idempotente.
     if (order.status !== 'PENDING') {
       return { orderId: order.id, invoiceNumber: null, status: order.status, alreadyPaid: true };
     }
 
     // Valida o valor pago (tolerância de 1 Kwanza para arredondamentos).
-    if (typeof input.amount === 'number' && Number.isFinite(input.amount)) {
+    if (input.amount !== undefined && input.amount !== null && !(typeof input.amount === 'number' && Number.isFinite(input.amount) && input.amount > 0)) {
+      throw new BadRequestException('Valor pago inválido.');
+    }
+    if (typeof input.amount === 'number') {
       const expected = Number(order.gross_total);
       if (Math.abs(expected - input.amount) > 1) {
         throw new BadRequestException(

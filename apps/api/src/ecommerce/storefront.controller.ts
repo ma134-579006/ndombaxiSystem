@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Headers, Param, Post, Put, Query, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, Param, Post, Put, Query, ServiceUnavailableException } from '@nestjs/common';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
@@ -281,6 +281,10 @@ export class StorefrontController {
     const b = createHash('sha256').update(expected).digest();
     if (!secret || !timingSafeEqual(a, b)) {
       throw new ForbiddenException('Segredo de callback inválido.');
+    }
+    // O banco informa SEMPRE o valor pago: sem ele (ou inválido) não se aprova a encomenda.
+    if (typeof dto.amount !== 'number' || !Number.isFinite(dto.amount) || dto.amount <= 0) {
+      throw new BadRequestException('Valor pago em falta ou inválido.');
     }
     return this.orders.confirmReferencePayment(tenant.schema, dto);
   }

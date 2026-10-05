@@ -4,6 +4,9 @@ import {
   ArrayMinSize,
   IsArray,
   IsEmail,
+  Matches,
+  Max,
+  MaxLength,
   IsOptional,
   IsString,
   Length,
@@ -19,6 +22,7 @@ export class CheckoutLineDto {
 
   @IsNumber()
   @Min(0.001)
+  @Max(100_000)
   quantity!: number;
 }
 
@@ -36,10 +40,12 @@ export class VisualSearchDto {
 export class CustomerLocationDto {
   @IsNumber()
   @Min(-90)
+  @Max(90)
   lat!: number;
 
   @IsNumber()
   @Min(-180)
+  @Max(180)
   lng!: number;
 
   @IsOptional()
@@ -51,6 +57,7 @@ export class CustomerLocationDto {
 export class CheckoutDto {
   @IsString()
   @Length(1, 200)
+  @Matches(/\S/, { message: 'Indique o nome do cliente.' })
   customerName!: string;
 
   @IsOptional()
@@ -59,16 +66,18 @@ export class CheckoutDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(32)
   customerPhone?: string;
 
   /** NIF do cliente (opcional; necessário p/ factura com contribuinte). */
   @IsOptional()
   @IsString()
-  @Length(1, 32)
+  @Matches(/^[0-9A-Za-z]{5,20}$/, { message: 'NIF inválido (apenas letras e números, 5 a 20 caracteres).' })
   customerTaxId?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(400)
   shippingAddress?: string;
 
   /** Província (ex.: Luanda). */
@@ -89,17 +98,20 @@ export class CheckoutDto {
   /** Forma de pagamento escolhida no checkout. */
   @IsOptional()
   @IsString()
+  @MaxLength(60)
   paymentMethod?: string;
 
   /** Localização GPS do cliente (entrega) — capturada no checkout. */
   @IsOptional()
   @IsNumber()
   @Min(-90)
+  @Max(90)
   geoLat?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(-180)
+  @Max(180)
   geoLng?: number;
 
   /** Precisão do GPS em metros (quanto menor, mais exato). */
