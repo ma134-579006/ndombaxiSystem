@@ -129,6 +129,13 @@ export class PosController {
     return this.repo.listProducts(this.ctx.requireTenantSchema(), user.storeId ?? null, true, pageOpts(q, limit, offset));
   }
 
+  @Get('products/stats')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Totais do catálogo (produtos, sem stock, online, valor em stock)' })
+  productStats(@CurrentUser() user: JwtPayload) {
+    return this.repo.productStats(this.ctx.requireTenantSchema(), user.storeId ?? null);
+  }
+
   @Get('products/ingredients')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Lista ingredientes/matéria-prima (para a ficha técnica dos pratos)' })
@@ -187,6 +194,12 @@ export class PosController {
     const items = await this.repo.listCustomerChanges(this.ctx.requireTenantSchema(), since ?? '', after || undefined, lim);
     const last = items[items.length - 1];
     return { items, next: items.length === lim && last ? { since: last.updated_cursor, after: last.id } : null };
+  }
+
+  @Get('customers/stats')
+  @ApiOperation({ summary: 'Totais dos clientes (quantos, quantos compraram, faturado, compra média)' })
+  customerStats() {
+    return this.repo.customerStats(this.ctx.requireTenantSchema());
   }
 
   @Get('customers')

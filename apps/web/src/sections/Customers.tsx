@@ -121,13 +121,16 @@ export function Customers() {
   const allSel = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
   const toggleAll = () => setSelected(allSel ? new Set() : new Set(filtered.map((c) => c.id)));
 
-  const totalSpent = useMemo(() => rows.reduce((s, r) => s + (r.total_spent ?? 0), 0), [rows]);
-  const withPurchases = useMemo(() => rows.filter((r) => (r.purchases ?? 0) > 0).length, [rows]);
+  // Totais do SERVIDOR (todos os clientes); a lista pode estar paginada.
+  const [stats, setStats] = useState<Awaited<ReturnType<typeof api.customers.stats>> | null>(null);
+  useEffect(() => { api.customers.stats().then(setStats).catch(() => setStats(null)); }, [rows.length]);
+  const totalSpent = useMemo(() => stats?.totalSpent ?? rows.reduce((s, r) => s + (r.total_spent ?? 0), 0), [rows, stats]);
+  const withPurchases = useMemo(() => stats?.withPurchases ?? rows.filter((r) => (r.purchases ?? 0) > 0).length, [rows, stats]);
 
   const avgTicket = useMemo(() => {
-    const n = rows.reduce((s, r) => s + (r.purchases ?? 0), 0);
+    const n = stats?.purchases ?? rows.reduce((s, r) => s + (r.purchases ?? 0), 0);
     return n > 0 ? totalSpent / n : 0;
-  }, [rows, totalSpent]);
+  }, [rows, totalSpent, stats]);
 
   return (
     <div className="fx-wide">
@@ -138,7 +141,7 @@ export function Customers() {
       </div>
 
       <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconUsers size={20} /></span><div><div className="lb">Clientes</div><div className="vl">{rows.length}</div><div className="sb">{withPurchases} já compraram</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconUsers size={20} /></span><div><div className="lb">Clientes</div><div className="vl">{stats?.total ?? rows.length}</div><div className="sb">{withPurchases} já compraram</div></div></div>
         <div className="fx-stat"><span className="ic"><IconReceipt size={20} /></span><div><div className="lb">Faturado a clientes</div><div className="vl">{formatKz(totalSpent)}</div><div className="sb">compras identificadas</div></div></div>
         <div className="fx-stat"><span className="ic"><IconTrendUp size={20} /></span><div><div className="lb">Compra média</div><div className="vl">{formatKz(avgTicket)}</div><div className="sb">por compra</div></div></div>
       </div>
