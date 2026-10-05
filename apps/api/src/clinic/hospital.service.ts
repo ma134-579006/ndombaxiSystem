@@ -80,7 +80,15 @@ export class HospitalService {
     professionalId?: string; professional?: string; notes?: string;
     items: Array<{ productId?: string; medication: string; dosage?: string; posology?: string; route?: string; duration?: string; quantity?: number; notes?: string }>;
   }) {
-    if (!dto.items?.length) throw new BadRequestException('A receita precisa de pelo menos 1 medicamento.');
+    // Só itens válidos (objeto com nome do medicamento e quantidade positiva): `items:[null]` dava 500
+    // e uma receita só com linhas em branco ficava numerada e vazia.
+    const items = (Array.isArray(dto.items) ? dto.items : []).filter((it) => it && typeof it === 'object' && typeof it.medication === 'string' && it.medication.trim());
+    if (!items.length) throw new BadRequestException('A receita precisa de pelo menos 1 medicamento.');
+    for (const it of items) {
+      if (it.quantity !== undefined && !(Number(it.quantity) > 0)) throw new BadRequestException(`Quantidade inválida para ${it.medication}.`);
+    }
+    if (!dto.patientId && !dto.patientName?.trim()) throw new BadRequestException('Indique o paciente da receita.');
+    dto = { ...dto, items };
     return this.prisma.runInTenant(schema, async (tx) => {
       let patientName = dto.patientName?.trim() || null;
       if (dto.patientId) {
@@ -347,7 +355,8 @@ export class HospitalService {
     patientId: string; bedId: string; professional?: string; reason?: string; notes?: string;
   }) {
     return this.prisma.runInTenant(schema, async (tx) => {
-      const p = await tx.$queryRaw<{ name: string }[]>(Prisma.sql`SELECT name FROM clinic_patients WHERE id = ${dto.patientId}::uuid`);
+      // FOR UPDATE no paciente: dois internamentos em simultâneo (leitos diferentes) passavam ambos.
+      const p = await tx.$queryRaw<{ name: string }[]>(Prisma.sql`SELECT name FROM clinic_patients WHERE id = ${dto.patientId}::uuid FOR UPDATE`);
       if (!p[0]) throw new NotFoundException('Paciente não encontrado.');
       const bed = await tx.$queryRaw<{ code: string; ward: string; status: string; daily_rate: string }[]>(
         Prisma.sql`SELECT code, ward, status, daily_rate FROM clinic_beds WHERE id = ${dto.bedId}::uuid AND is_active = TRUE FOR UPDATE`);

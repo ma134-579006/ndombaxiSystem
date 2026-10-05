@@ -155,8 +155,10 @@ export class RestaurantService {
 
   async openOrder(schema: string, tableId: string, opener: { id: string; name: string }, guests = 1, customerName?: string) {
     return this.prisma.runInTenant(schema, async (tx) => {
-      const t = await tx.$queryRaw<{ name: string }[]>(Prisma.sql`SELECT name FROM restaurant_tables WHERE id = ${tableId}::uuid`);
+      // FOR UPDATE na mesa: aberturas em simultâneo criavam várias comandas OPEN na mesma mesa.
+      const t = await tx.$queryRaw<{ name: string; is_active: boolean }[]>(Prisma.sql`SELECT name, is_active FROM restaurant_tables WHERE id = ${tableId}::uuid FOR UPDATE`);
       if (!t[0]) throw new NotFoundException('Mesa não encontrada.');
+      if (!t[0].is_active) throw new BadRequestException('Mesa desativada.');
       const existing = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM restaurant_orders WHERE table_id = ${tableId}::uuid AND status = 'OPEN' LIMIT 1`);
       if (existing[0]) return existing[0]; // já tem comanda aberta → devolve-a
       const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`

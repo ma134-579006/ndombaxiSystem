@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { DocumentType, IvaCode, round2 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
 import { InvoiceService, type EmitLineInput } from '../pos/invoice.service';
+import { luandaYear } from '../common/luanda-date';
 import { billingOpId, netForGross, rethrowIfAlreadyBilled } from '../common/billing-guard';
 
 const IVA_RATE: Record<string, number> = { NOR: 14, INT: 7, RED: 5, ISE: 0, NS: 0 };
@@ -111,16 +112,26 @@ export class HotelService {
   async create(schema: string, by: string | null, dto: { roomId: string; guestName?: string; guestPhone?: string; checkIn: string; checkOut: string; guests?: number; source?: string }) {
     const source = dto.source === 'ONLINE' ? 'ONLINE' : 'MANUAL';
     if (!dto.checkIn || !dto.checkOut) throw new BadRequestException('Indique as datas de entrada e saída.');
+    const ci = new Date(`${dto.checkIn}T00:00:00Z`); const co = new Date(`${dto.checkOut}T00:00:00Z`);
+    if (Number.isNaN(ci.getTime()) || Number.isNaN(co.getTime()) || ci.toISOString().slice(0, 10) !== dto.checkIn.slice(0, 10) || co.toISOString().slice(0, 10) !== dto.checkOut.slice(0, 10)) {
+      throw new BadRequestException('Datas inválidas (use AAAA-MM-DD).');
+    }
+    if (co <= ci) throw new BadRequestException('A data de saída tem de ser posterior à de entrada.');
     const nights = nightsBetween(dto.checkIn, dto.checkOut);
     return this.prisma.runInTenant(schema, async (tx) => {
-      const room = await tx.$queryRaw<{ name: string; rate: string }[]>(Prisma.sql`SELECT name, rate FROM hotel_rooms WHERE id = ${dto.roomId}::uuid`);
+      // FOR UPDATE no quarto: reservas em simultâneo para as mesmas datas passavam ambas o teste de sobreposição.
+      const room = await tx.$queryRaw<{ name: string; rate: string; capacity: number | null; is_active: boolean; status: string }[]>(Prisma.sql`SELECT name, rate, capacity, is_active, status FROM hotel_rooms WHERE id = ${dto.roomId}::uuid FOR UPDATE`);
       if (!room[0]) throw new NotFoundException('Quarto não encontrado.');
+      if (!room[0].is_active || ['MAINTENANCE', 'BLOCKED'].includes(room[0].status)) throw new BadRequestException('Quarto indisponível (desativado ou em manutenção).');
+      if (room[0].capacity && (dto.guests ?? 1) > Number(room[0].capacity)) throw new BadRequestException(`O quarto tem capacidade para ${room[0].capacity} hóspede(s).`);
       // Evita sobreposição de datas com reservas ativas no mesmo quarto.
       const clash = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM hotel_reservations WHERE room_id = ${dto.roomId}::uuid AND status IN ('BOOKED','CHECKED_IN')
           AND NOT (check_out <= ${dto.checkIn}::date OR check_in >= ${dto.checkOut}::date) LIMIT 1`);
       if (clash[0]) throw new BadRequestException('O quarto já tem reserva nessas datas.');
-      const year = new Date().getFullYear();
+      const year = luandaYear();
+      // Numeração: o COUNT(*)+1 dava números repetidos em simultâneo — serializa por empresa.
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext('hotel_reservation_number:' || current_schema()))`);
       const cnt = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n FROM hotel_reservations WHERE date_part('year', created_at) = ${year}`);
       const number = `RES/${year}/${String((cnt[0]?.n ?? 0) + 1).padStart(4, '0')}`;
       const rate = Number(room[0].rate);
