@@ -4,12 +4,13 @@ import {
   Controller,
   Delete,
   Get,
-  Header,
   Param,
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { DocumentType } from '@nexus/agt-xml';
 import type { JwtPayload } from '@nexus/types';
@@ -321,14 +322,14 @@ export class PosController {
   // ── Exportação SAF-T (AGT) ─────────────────────────────────
   @Get('saft')
   @Roles(Role.COMPANY_ADMIN)
-  @Header('Content-Type', 'application/xml; charset=utf-8')
-  @ApiOperation({ summary: 'Exporta o SAF-T (Angola) mensal em XML' })
+  @ApiOperation({ summary: 'Exporta o SAF-T (Angola) mensal em XML (enviado por partes)' })
   @ApiQuery({ name: 'year', example: 2025 })
   @ApiQuery({ name: 'month', example: 1 })
-  saftExport(
+  async saftExport(
     @Query('year') year: string,
     @Query('month') month: string,
     @CurrentUser() user: JwtPayload,
+    @Res() res: Response,
   ) {
     const y = Number(year);
     const m = Number(month);
@@ -338,7 +339,22 @@ export class PosController {
     if (!user.tenantId) {
       throw new BadRequestException('Contexto sem tenant');
     }
-    return this.saft.exportMonth(user.tenantId, this.ctx.requireTenantSchema(), y, m);
+    // POR PARTES: o ficheiro de um mês grande (milhões de documentos) não cabe numa
+    // string em memória. Escreve-se à medida que se lê, esperando que a ligação
+    // escoe (backpressure) antes de continuar.
+    const schema = this.ctx.requireTenantSchema();
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="SAFT-AO-${y}-${String(m).padStart(2, '0')}.xml"`);
+    try {
+      await this.saft.writeMonth(user.tenantId, schema, y, m, (chunk) =>
+        res.write(chunk) ? undefined : new Promise<void>((resolve) => res.once('drain', () => resolve())));
+      res.end();
+    } catch (e) {
+      // Erro antes do 1.º byte: resposta de erro normal. Depois: corta a ligação
+      // (um XML truncado nunca pode parecer um ficheiro válido).
+      if (!res.headersSent) throw e;
+      res.destroy(e instanceof Error ? e : new Error(String(e)));
+    }
   }
 
   // ── Chave de assinatura digital RSA-2048 (AGT) ─────────────

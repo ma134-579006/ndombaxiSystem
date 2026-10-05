@@ -121,13 +121,18 @@ function buildHeader(c: SaftCompany, sw: Required<SaftSoftware>, dateCreated: st
  * com os derivados dos documentos (só NIF) e o Consumidor Final.
  */
 function buildCustomers(documents: FiscalDocument[], provided: SaftCustomer[]): string[] {
+  return customerEntries(provided, documents.map((d) => d.customerTaxId));
+}
+
+/** <Customer> por CustomerID: clientes conhecidos + NIFs referenciados (só NIF) + Consumidor Final. */
+function customerEntries(provided: SaftCustomer[], referencedTaxIds: Iterable<string | null | undefined>): string[] {
   const byId = new Map<string, SaftCustomer>();
   for (const c of provided) {
     byId.set(c.taxId?.trim() || FINAL_CONSUMER_ID, c);
   }
-  for (const d of documents) {
-    const id = d.customerTaxId?.trim() || FINAL_CONSUMER_ID;
-    if (!byId.has(id)) byId.set(id, { taxId: d.customerTaxId ?? undefined, name: id === FINAL_CONSUMER_ID ? FINAL_CONSUMER_ID : UNKNOWN });
+  for (const t of referencedTaxIds) {
+    const id = t?.trim() || FINAL_CONSUMER_ID;
+    if (!byId.has(id)) byId.set(id, { taxId: t ?? undefined, name: id === FINAL_CONSUMER_ID ? FINAL_CONSUMER_ID : UNKNOWN });
   }
   return [...byId.entries()].map(([id, c]) =>
     node('Customer', [
@@ -154,6 +159,10 @@ function buildProducts(documents: FiscalDocument[]): string[] {
       if (!byCode.has(l.productCode)) byCode.set(l.productCode, l.description);
     }
   }
+  return productEntries(byCode);
+}
+
+function productEntries(byCode: Map<string, string>): string[] {
   return [...byCode.entries()].map(([code, description]) =>
     node('Product', [
       el('ProductType', 'P'),
@@ -172,6 +181,10 @@ function buildTaxTable(documents: FiscalDocument[]): string {
       seen.set(line.ivaCode, line.ivaRate);
     }
   }
+  return taxTable(seen);
+}
+
+function taxTable(seen: Map<IvaCode, number>): string {
   const entries = [...seen.entries()].map(([code, rate]) =>
     node('TaxTableEntry', [
       el('TaxType', SAFT_TAX_TYPE),
@@ -309,4 +322,55 @@ export function buildSaftXml(input: SaftInput): string {
     node('SourceDocuments', [buildSalesInvoices(input.documents, sw)]),
   ].filter((c) => c !== '').join('');
   return `${XML_DECLARATION}<AuditFile xmlns="${SAFT_AO_NAMESPACE}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${children}</AuditFile>`;
+}
+
+
+/**
+ * SAF-T POR PARTES (streaming), para meses com milhões de documentos.
+ *
+ * `buildSaftXml` monta o ficheiro inteiro numa string — com uma cadeia de
+ * supermercados (milhões de faturas/mês) isso esgota a memória. Aqui o chamador
+ * fornece os totais e as tabelas mestras já agregados (SQL) e os documentos como
+ * um iterador assíncrono (lidos em lotes); cada <Invoice> é escrito assim que é
+ * lido. O XML resultante é IDÊNTICO ao de `buildSaftXml` para os mesmos dados.
+ */
+export interface SaftStreamInput {
+  company: SaftCompany;
+  software?: SaftSoftware;
+  dateCreated?: string;
+  /** Clientes conhecidos (nome/morada). */
+  customers: SaftCustomer[];
+  /** Todos os NIF referenciados no período (incl. vazio = consumidor final). */
+  referencedCustomerTaxIds: Iterable<string | null | undefined>;
+  /** Produtos referenciados: código → descrição. */
+  products: Map<string, string>;
+  /** Taxas de IVA presentes: código → percentagem. */
+  taxes: Map<IvaCode, number>;
+  numberOfEntries: number;
+  /** Soma SEM imposto das NC não anuladas. */
+  totalDebit: number;
+  /** Soma SEM imposto das faturas não anuladas. */
+  totalCredit: number;
+  documents: AsyncIterable<FiscalDocument>;
+}
+
+export async function writeSaftXml(write: (chunk: string) => void | Promise<void>, input: SaftStreamInput): Promise<void> {
+  const dateCreated = input.dateCreated ?? new Date().toISOString().slice(0, 10);
+  const sw: Required<SaftSoftware> = { ...SAFT_SOFTWARE_DEFAULTS, ...input.software };
+  await write(`${XML_DECLARATION}<AuditFile xmlns="${SAFT_AO_NAMESPACE}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">`);
+  await write(buildHeader(input.company, sw, dateCreated));
+  await write(node('MasterFiles', [
+    ...customerEntries(input.customers, input.referencedCustomerTaxIds),
+    ...productEntries(input.products),
+    taxTable(input.taxes),
+  ]));
+  await write('<SourceDocuments><SalesInvoices>');
+  await write(el('NumberOfEntries', input.numberOfEntries) + el('TotalDebit', money(input.totalDebit)) + el('TotalCredit', money(input.totalCredit)));
+  let buf = '';
+  for await (const doc of input.documents) {
+    buf += buildInvoice(doc, sw);
+    if (buf.length > 256_000) { await write(buf); buf = ''; }
+  }
+  if (buf) await write(buf);
+  await write('</SalesInvoices></SourceDocuments></AuditFile>');
 }

@@ -151,3 +151,32 @@ describe('buildSaftXml', () => {
     expect(configured).toContain('<Hash>ABC123SIGNATURE==</Hash>');
   });
 });
+
+describe('writeSaftXml (por partes)', () => {
+  it('gera EXATAMENTE o mesmo XML que buildSaftXml para os mesmos dados', async () => {
+    const company = {
+      taxRegistrationNumber: '5000000000', companyName: 'Empresa Teste, Lda', fiscalYear: 2025,
+      startDate: '2025-01-01', endDate: '2025-01-31',
+    };
+    const ft = makeDoc();
+    const nc: FiscalDocument = { ...makeDoc(), type: DocumentType.NC, number: 'NC A2025/0001', reference: 'FT A/2025/0001', customerTaxId: undefined };
+    const anulada: FiscalDocument = { ...makeDoc(), number: 'FT A/2025/0002', status: 'A' };
+    const docs = [ft, anulada, nc];
+    const esperado = buildSaftXml({ company, documents: docs, dateCreated: '2025-02-01' });
+
+    const products = new Map<string, string>();
+    const taxes = new Map<IvaCode, number>();
+    for (const d of docs) for (const l of d.lines) { if (!products.has(l.productCode)) products.set(l.productCode, l.description); taxes.set(l.ivaCode, l.ivaRate); }
+    async function* gen() { for (const d of docs) yield d; }
+    let out = '';
+    const { writeSaftXml } = await import('./saft-builder');
+    await writeSaftXml((c) => { out += c; }, {
+      company, dateCreated: '2025-02-01', customers: [],
+      referencedCustomerTaxIds: docs.map((d) => d.customerTaxId),
+      products, taxes, numberOfEntries: docs.length,
+      totalDebit: nc.totals.netTotal, totalCredit: ft.totals.netTotal,
+      documents: gen(),
+    });
+    expect(out).toBe(esperado);
+  });
+});
