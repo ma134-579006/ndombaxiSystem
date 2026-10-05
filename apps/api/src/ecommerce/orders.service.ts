@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { DocumentType } from '@nexus/agt-xml';
 import { PaymentGatewayService } from '../payments/payment-gateway.service';
@@ -17,6 +17,8 @@ interface OrderRow {
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly invoices: InvoiceService,
@@ -192,8 +194,8 @@ export class OrdersService {
 
     try {
       const lines = await this.prisma.runInTenant(schema, (tx) =>
-        tx.$queryRaw<{ product_code: string; quantity: string }[]>(
-          Prisma.sql`SELECT product_code, quantity FROM web_order_items
+        tx.$queryRaw<{ product_code: string; quantity: string; unit_price: string }[]>(
+          Prisma.sql`SELECT product_code, quantity, unit_price FROM web_order_items
                      WHERE order_id = ${orderId}::uuid ORDER BY line_number`,
         ),
       );
@@ -203,7 +205,9 @@ export class OrdersService {
         docType: DocumentType.FT,
         series: 'WEB',
         customerTaxId: order.customer_tax_id,
-        lines: lines.map((l) => ({ productCode: l.product_code, quantity: Number(l.quantity) })),
+        // Preço CONGELADO do checkout: se o gestor mudar o preço entre o pedido e o pagamento,
+        // a fatura continua igual ao que o cliente viu e pagou.
+        lines: lines.map((l) => ({ productCode: l.product_code, quantity: Number(l.quantity), unitPrice: Number(l.unit_price) })),
       });
 
       // 3. Liga a factura e marca PAID (liberta a reserva).
@@ -338,13 +342,22 @@ export class OrdersService {
     const order = orders[0];
     if (!order) throw new NotFoundException('Nenhuma encomenda corresponde a esta referência.');
 
+    // Pagamento recebido para uma encomenda CANCELADA: não é "já paga" — o dinheiro entrou
+    // e tem de ser reembolsado. Sinaliza com 409 (e fica no log) em vez de o esconder.
+    if (order.status === 'CANCELLED') {
+      this.logger.warn(`Pagamento por referência recebido para a encomenda cancelada ${order.order_number} — reembolso necessário.`);
+      throw new ConflictException('Esta encomenda foi cancelada: o pagamento recebido precisa de ser reembolsado ao cliente.');
+    }
     // Já paga (callback repetido) → idempotente.
     if (order.status !== 'PENDING') {
       return { orderId: order.id, invoiceNumber: null, status: order.status, alreadyPaid: true };
     }
 
     // Valida o valor pago (tolerância de 1 Kwanza para arredondamentos).
-    if (typeof input.amount === 'number' && Number.isFinite(input.amount)) {
+    if (input.amount !== undefined && input.amount !== null && !(typeof input.amount === 'number' && Number.isFinite(input.amount) && input.amount > 0)) {
+      throw new BadRequestException('Valor pago inválido.');
+    }
+    if (typeof input.amount === 'number') {
       const expected = Number(order.gross_total);
       if (Math.abs(expected - input.amount) > 1) {
         throw new BadRequestException(
@@ -439,10 +452,15 @@ export class OrdersService {
       CANCELLED: ['PENDING'],
     };
     await this.prisma.runInTenant(schema, async (tx) => {
-      const rows = await tx.$queryRaw<{ status: string }[]>(
-        Prisma.sql`SELECT status FROM web_orders WHERE id = ${orderId}::uuid FOR UPDATE`,
+      const rows = await tx.$queryRaw<{ status: string; claimed: boolean }[]>(
+        Prisma.sql`SELECT status, (payment_claimed_at IS NOT NULL AND payment_claimed_at > now() - interval '2 minutes') AS claimed
+                   FROM web_orders WHERE id = ${orderId}::uuid FOR UPDATE`,
       );
       if (rows.length === 0) throw new NotFoundException('Encomenda não encontrada');
+      // Pagamento em curso (fatura a ser emitida): cancelar agora deixava uma fatura órfã.
+      if (next === 'CANCELLED' && rows[0].claimed) {
+        throw new BadRequestException('O pagamento desta encomenda está a ser processado — aguarde uns segundos antes de cancelar.');
+      }
       if (!allowed[next].includes(rows[0].status)) {
         throw new BadRequestException(`Transição inválida de ${rows[0].status} para ${next}`);
       }

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   AgtDocumentSigner,
@@ -16,6 +16,7 @@ import {
   requiresExemptionReason,
   RSA_DOC_MODULUS_LENGTH,
   round2,
+  RsaDocumentSigner,
 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
 import { localSeries } from '../common/device-series';
@@ -74,7 +75,8 @@ export interface EmitInvoiceInput {
 }
 
 export type EmitLineInput =
-  | { productCode: string; quantity: number; discountRate?: number }
+  // `unitPrice` só o usam serviços internos (ex.: loja online congela o preço do checkout); o POS não o expõe.
+  | { productCode: string; quantity: number; discountRate?: number; unitPrice?: number }
   | { productCode?: undefined; description: string; unitPrice: number; ivaCode: IvaCode; quantity: number; discountRate?: number; exemptionReason?: string; exemptionCode?: string };
 
 export interface EmittedInvoice {
@@ -114,6 +116,19 @@ const DEFAULT_EXEMPTION_REASON: Partial<Record<IvaCode, string>> = {
   [IvaCode.OUT]: 'Não sujeito a IVA',
 };
 
+/**
+ * Gerente/supervisor/caixa de UMA loja não anula nem devolve vendas de OUTRA loja.
+ * Gerente regional e acima (e tokens sem loja, p.ex. servidor local) não têm esta restrição.
+ */
+const PAPEIS_DE_LOJA = new Set(['STORE_MANAGER', 'SHIFT_SUPERVISOR', 'CASHIER', 'ATTENDANT']);
+function assertOwnStore(actor: { storeId?: string | null; role?: string | null }, invoiceStoreId: string | null): void {
+  if (actor.storeId && actor.role && PAPEIS_DE_LOJA.has(actor.role) && invoiceStoreId && invoiceStoreId !== actor.storeId) {
+    throw new ForbiddenException('Esta venda pertence a outra loja — só a pode anular/devolver a própria loja ou a direção.');
+  }
+}
+
+type PlatformKey = Awaited<ReturnType<PlatformSigningService['getPrivateKeyForSigning']>>;
+
 @Injectable()
 export class InvoiceService {
   constructor(
@@ -141,8 +156,10 @@ export class InvoiceService {
     tx: Prisma.TransactionClient,
     header: Pick<FiscalDocument, 'invoiceDate' | 'systemEntryDate' | 'number' | 'totals'>,
     lastHash: string,
+    // Chave da plataforma lida ANTES da transacção (ver `emit`): lê-se por outra ligação do pool.
+    key: PlatformKey,
+    platformSigner: RsaDocumentSigner | null,
   ): Promise<{ previousHash: string; hash: string; signature: string | null; signatureKeyVersion: number | null; signable: string }> {
-    const key = await this.platformSigning.getPrivateKeyForSigning();
     if (key && key.modulusBits === RSA_DOC_MODULUS_LENGTH) {
       const previousSignature = isAgtSignature(lastHash) ? lastHash : '';
       const signed = new AgtDocumentSigner({ privateKeyPem: key.privateKeyPem, keyVersion: key.keyVersion })
@@ -161,7 +178,7 @@ export class InvoiceService {
     }
     const signable = buildSignableString(header, lastHash);
     const hash = computeDocumentHash(header, lastHash);
-    const signer = await this.signing.getActiveSigner(schema, tx);
+    const signer = await this.signing.getActiveSigner(schema, tx, platformSigner);
     let signature: string | null = null;
     let signatureKeyVersion: number | null = null;
     if (signer) {
@@ -182,6 +199,13 @@ export class InvoiceService {
     if (input.paymentType === 'CREDIT' && !input.customerId) {
       throw new BadRequestException('Venda a crédito exige selecionar um cliente.');
     }
+    // A série AGT lê-se ANTES da transacção: `seriesFor` usa outra ligação ao
+    // pool e, lá dentro, N vendas em simultâneo seguravam todas as ligações à espera
+    // de uma (N+1.ª) — bloqueio até ao timeout (HTTP 500) com 5 ligações no pool.
+    const year = luandaYear();
+    const agtSeries = await this.einvoice.seriesFor(schema, input.docType, year);
+    const platformKey = await this.platformSigning.getPrivateKeyForSigning();
+    const platformSigner = await this.signing.getPlatformSigner();
     const result = await this.prisma.runInTenant(schema, async (tx) => {
       // Códigos só das linhas de PRODUTO (as linhas livres não têm produto).
       const codes = input.lines
@@ -195,6 +219,7 @@ export class InvoiceService {
                               exemption_reason, exemption_code, shared_stock, stock_qty
                        FROM products
                        WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE
+                       ORDER BY id
                        FOR UPDATE`,
           )
         : [];
@@ -317,7 +342,7 @@ export class InvoiceService {
           productCode: l.productCode,
           description: p.name ?? p.description ?? l.productCode,
           quantity: l.quantity,
-          unitPrice: Number(p.unit_price),
+          unitPrice: l.unitPrice ?? Number(p.unit_price),
           ivaCode: p.iva_code,
           discountRate: l.discountRate,
           exemptionReason,
@@ -329,9 +354,7 @@ export class InvoiceService {
       const { lines, totals } = computeInvoice(lineInputs);
 
       // 3. Aloca numeração + hash anterior, bloqueando a série fiscal.
-      const year = luandaYear();
       // Facturação Electrónica: com série AGT autorizada, o documento numera-se nessa série.
-      const agtSeries = await this.einvoice.seriesFor(schema, input.docType, year);
       const series = agtSeries ?? input.series;
       await tx.$executeRaw(
         Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
@@ -366,7 +389,7 @@ export class InvoiceService {
       const invoiceDate = luandaDate(now);
       const systemEntryDate = now.toISOString();
       const docHeader = { invoiceDate, systemEntryDate, number, totals };
-      const chain = await this.signAndChain(schema, tx, docHeader, serieRows[0].last_hash);
+      const chain = await this.signAndChain(schema, tx, docHeader, serieRows[0].last_hash, platformKey, platformSigner);
       const { hash, signable, signature, signatureKeyVersion } = chain;
       const previousHash = chain.previousHash;
 
@@ -728,7 +751,9 @@ export class InvoiceService {
     customerName: string | null; cashierName: string | null;
     items: { productCode: string; description: string; quantity: number; unitPrice: number; total: number; returnedQuantity: number }[];
   }> {
-    return this.prisma.runInTenant(schema, async (tx) => {
+    // `isFeSeries` usa outra ligação ao pool: corre depois da transacção, não lá dentro.
+    let serie: string | null = null;
+    const detalhe = await this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{
         id: string; number: string; doc_type: string; series: string; status: string; hash: string; previous_hash: string;
         net_total: string; iva_total: string; gross_total: string; system_entry_date: Date; operation_date: Date | null;
@@ -753,12 +778,12 @@ export class InvoiceService {
       // Quantidades já devolvidas por NC (por código), distribuídas pelas linhas
       // por ordem — o modal de cancelamento mostra/limita o REMANESCENTE.
       const returned = await this.returnedQtyByCode(tx, id);
-      const feQr = await this.einvoice.isFeSeries(schema, inv.series);
+      serie = inv.series;
       return {
         invoice: {
           id: inv.id, number: inv.number, hash: inv.hash, previousHash: inv.previous_hash,
           netTotal: Number(inv.net_total), ivaTotal: Number(inv.iva_total), grossTotal: Number(inv.gross_total),
-          feQr: feQr,
+          feQr: false,
         },
         docType: inv.doc_type, status: inv.status,
         date: inv.system_entry_date.toISOString(),
@@ -774,6 +799,8 @@ export class InvoiceService {
         }),
       };
     });
+    detalhe.invoice.feQr = await this.einvoice.isFeSeries(schema, serie);
+    return detalhe;
   }
 
   /**
@@ -1019,8 +1046,13 @@ export class InvoiceService {
     schema: string,
     invoiceId: string,
     reason: string,
-    actor: { id?: string | null; name?: string | null },
+    actor: { id?: string | null; name?: string | null; storeId?: string | null; role?: string | null },
   ): Promise<{ creditNoteNumber: string; grossTotal: number }> {
+    // Série AGT lida ANTES da transacção (usa outra ligação ao pool; dentro dela bloqueia sob carga).
+    const year = luandaYear();
+    const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
+    const platformKey = await this.platformSigning.getPrivateKeyForSigning();
+    const platformSigner = await this.signing.getPlatformSigner();
     const result = await this.prisma.runInTenant(schema, async (tx) => {
       // 1. Carrega a factura + linhas (bloqueia).
       const invRows = await tx.$queryRaw<
@@ -1031,6 +1063,7 @@ export class InvoiceService {
       );
       if (!invRows[0]) throw new BadRequestException('Factura não encontrada');
       const inv = invRows[0];
+      assertOwnStore(actor, inv.store_id);
       if (inv.status === 'A') throw new BadRequestException('Esta venda já foi anulada.');
       // Só faturas se anulam. Anular uma NC repunha o stock e tirava o dinheiro da
       // gaveta OUTRA vez (e gerava uma NC sobre a NC).
@@ -1093,8 +1126,6 @@ export class InvoiceService {
       const ncGross = hasPriorReturns ? round2(ncLines.reduce((s, l) => s + l.gross_amount, 0)) : Number(inv.gross_total);
 
       // 2. Aloca número de NC na série própria (NC, mesma série/ano).
-      const year = luandaYear();
-      const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
       const ncSeries = ncAgt ?? localSeries() ?? 'A';
       await tx.$executeRaw(
         Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
@@ -1114,7 +1145,7 @@ export class InvoiceService {
         number: ncNumber,
         totals: { netTotal: ncNet, ivaTotal: ncIva, grossTotal: ncGross, byTaxCode: [] as never[] },
       };
-      const ncChain = await this.signAndChain(schema, tx, docHeader, serie[0].last_hash);
+      const ncChain = await this.signAndChain(schema, tx, docHeader, serie[0].last_hash, platformKey, platformSigner);
       const { hash, signable } = ncChain;
       const previousHash = ncChain.previousHash;
       await tx.$executeRaw(
@@ -1201,7 +1232,7 @@ export class InvoiceService {
     invoiceId: string,
     returns: { productCode: string; quantity: number }[],
     reason: string,
-    actor: { id?: string | null; name?: string | null },
+    actor: { id?: string | null; name?: string | null; storeId?: string | null; role?: string | null },
     /**
      * Chave de idempotência do posto. A ANULAÇÃO é idempotente sozinha (o estado
      * passa a 'A' e a segunda tentativa é recusada), mas a DEVOLUÇÃO PARCIAL não
@@ -1214,6 +1245,12 @@ export class InvoiceService {
   ): Promise<{ creditNoteNumber: string; refundTotal: number }> {
     if (!returns?.length) throw new BadRequestException('Indique os artigos a devolver.');
 
+    // Série AGT lida ANTES da transacção (usa outra ligação ao pool; dentro dela bloqueia sob carga).
+    const year = luandaYear();
+    const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
+    const platformKey = await this.platformSigning.getPrivateKeyForSigning();
+    const platformSigner = await this.signing.getPlatformSigner();
+
     const result = await this.prisma.runInTenant(schema, async (tx) => {
       const invRows = await tx.$queryRaw<{ id: string; number: string; status: string; store_id: string | null; customer_id: string | null; customer_tax_id: string | null; doc_type: string }[]>(
         Prisma.sql`SELECT id, number, status, store_id, customer_id, customer_tax_id, doc_type FROM invoices WHERE id = ${invoiceId}::uuid FOR UPDATE`,
@@ -1224,6 +1261,7 @@ export class InvoiceService {
         throw new BadRequestException('Só se devolvem artigos de faturas — este documento não é uma venda.');
       }
       const inv = invRows[0];
+      assertOwnStore(actor, inv.store_id);
 
       const items = await tx.$queryRaw<
         { product_id: string | null; product_code: string; description: string; quantity: string;
@@ -1278,8 +1316,6 @@ export class InvoiceService {
       const refundGross = round2(refundNet + refundIva);
 
       // Aloca NC.
-      const year = luandaYear();
-      const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
       const ncSeries = ncAgt ?? localSeries() ?? 'A';
       await tx.$executeRaw(
         Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
@@ -1295,7 +1331,7 @@ export class InvoiceService {
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const ncHeader = { invoiceDate: luandaDate(now), systemEntryDate: now.toISOString(), number: ncNumber,
         totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] as never[] } };
-      const ncChain = await this.signAndChain(schema, tx, ncHeader, serie[0].last_hash);
+      const ncChain = await this.signAndChain(schema, tx, ncHeader, serie[0].last_hash, platformKey, platformSigner);
       const { hash, signable } = ncChain;
       await tx.$executeRaw(
         Prisma.sql`UPDATE fiscal_series SET last_sequence = ${sequence}, last_hash = ${hash}

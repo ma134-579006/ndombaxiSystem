@@ -72,6 +72,9 @@ export class TenantAuditService {
 
   /** Grava dentro de uma transacção já existente (search_path do tenant fixado). */
   async recordInTx(tx: Prisma.TransactionClient, e: TenantAuditEntry): Promise<void> {
+    // Cadeia de hash: duas gravações em simultâneo liam o MESMO `prev` e bifurcavam a cadeia
+    // (o /audit/verify passava a falhar). O lock (por empresa, até ao fim da transacção) serializa-as.
+    await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext('tenant_audit_log:' || current_schema()))`);
     e = { ...e, actorName: await this.resolveActorName(tx, e) };
     const last = await tx.$queryRaw<{ hash: string }[]>(
       Prisma.sql`SELECT hash FROM tenant_audit_log ORDER BY seq DESC LIMIT 1`,

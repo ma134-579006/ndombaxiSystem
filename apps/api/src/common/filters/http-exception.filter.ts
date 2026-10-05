@@ -46,9 +46,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else if (isDatabaseError(exception)) {
       // Erros da base de dados → mensagem amigável. NUNCA devolver a mensagem
       // crua do Prisma ao cliente (contém dados da linha / detalhes internos).
-      statusCode = HttpStatus.BAD_REQUEST;
+      // P2024/P2028: pool/transacção sem ligação livre a tempo — NÃO é erro do pedido.
+      // 503 diz à app que pode repetir (as apps offline reenviam em 5xx; em 4xx descartavam).
+      const prismaCode = (exception as { code?: string }).code;
+      const sobrecarga = prismaCode === 'P2028' || prismaCode === 'P2024';
+      statusCode = sobrecarga ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.BAD_REQUEST;
       error = 'DatabaseError';
-      message = mapDatabaseError(pgErrorCode(exception));
+      message = sobrecarga ? 'O sistema está muito ocupado neste momento. Tente novamente dentro de instantes.' : mapDatabaseError(pgErrorCode(exception));
       this.logger.error(
         `DB error (${pgErrorCode(exception) ?? '?'}) on ${request.method} ${request.url}`,
         exception instanceof Error ? exception.stack : undefined,
