@@ -110,6 +110,8 @@ export class FiscalSigningService {
   async getActiveSigner(
     schema: string,
     tx?: Prisma.TransactionClient,
+    /** Chave da plataforma já lida FORA da transacção (evita 2.ª ligação ao pool lá dentro). */
+    platformFallback?: RsaDocumentSigner | null,
   ): Promise<RsaDocumentSigner | null> {
     const run = async (client: Prisma.TransactionClient) =>
       client.$queryRaw<SigningKeyRow[]>(
@@ -117,7 +119,7 @@ export class FiscalSigningService {
                    FROM fiscal_signing_keys WHERE is_active = TRUE LIMIT 1`,
       );
     const rows = tx ? await run(tx) : await this.prisma.runInTenant(schema, run);
-    if (!rows[0]) return this.getPlatformSigner();
+    if (!rows[0]) return platformFallback !== undefined ? platformFallback : this.getPlatformSigner();
 
     const privateKeyPem = decryptSecret(rows[0].private_key_enc, this.secret);
     return new RsaDocumentSigner({
@@ -134,7 +136,7 @@ export class FiscalSigningService {
    * (nexus_public) — nunca falha a emissão: em erro devolve null (sem assinatura),
    * exatamente o comportamento anterior.
    */
-  private async getPlatformSigner(): Promise<RsaDocumentSigner | null> {
+  async getPlatformSigner(): Promise<RsaDocumentSigner | null> {
     try {
       const row = await this.prisma.integration.findUnique({ where: { key: 'AGT_SIGNING_KEY' } });
       const s = row?.settings as { keyVersion?: number } | null;
