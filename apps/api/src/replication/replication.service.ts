@@ -142,20 +142,31 @@ export class ReplicationService {
 
     // ── FISCAL e ADITIVO: só entram, nunca alteram ─────────────
     if (klass === 'fiscal' || klass === 'additive') {
-      const n = await this.prisma.$executeRawUnsafe(
-        // `WHERE NOT EXISTS` e não `ON CONFLICT`: faturas têm REGRAS contra
-        // alteração, e o PostgreSQL recusa `ON CONFLICT` nessas tabelas — todas
-        // as vendas feitas sem internet eram recusadas pela nuvem.
-        `INSERT INTO ${t} (${lista}) SELECT ${lista} FROM json_populate_record(NULL::${t}, $1::json)
-         WHERE NOT EXISTS (SELECT 1 FROM ${t} WHERE id::text = $2)`,
-        json, row.id,
-      );
-      // Movimento de stock NOVO vindo do posto: aplica-o ao saldo da loja e ao
-      // total do produto, como o StockService faz numa venda na nuvem. Sem isto
-      // o stock da nuvem só acertava quando um administrador subia a linha do
-      // produto — e aí por "último a escrever ganha", apagando vendas feitas
-      // na nuvem entretanto.
-      if (n > 0 && row.table === 'stock_movements') await this.applyStockMovement(schema, row.data);
+      // `WHERE NOT EXISTS` e não `ON CONFLICT`: faturas têm REGRAS contra
+      // alteração, e o PostgreSQL recusa `ON CONFLICT` nessas tabelas — todas
+      // as vendas feitas sem internet eram recusadas pela nuvem.
+      const inserir = `INSERT INTO ${t} (${lista}) SELECT ${lista} FROM json_populate_record(NULL::${t}, $1::json)
+         WHERE NOT EXISTS (SELECT 1 FROM ${t} WHERE id::text = $2)`;
+      let n: number;
+      if (row.table === 'stock_movements') {
+        // Movimento de stock NOVO vindo do posto: aplica-o ao saldo da loja e ao
+        // total do produto, como o StockService faz numa venda na nuvem. Sem isto
+        // o stock da nuvem só acertava quando um administrador subia a linha do
+        // produto — e aí por "último a escrever ganha", apagando vendas feitas
+        // na nuvem entretanto.
+        //
+        // NUMA SÓ TRANSACÇÃO com a gravação do movimento: antes eram duas
+        // operações. Se a 2.ª falhasse (ligação, reinício), o movimento ficava
+        // gravado, o posto tentava de novo, a nuvem dizia "já existia" e o saldo
+        // nunca mais era aplicado — stock desalinhado para sempre.
+        n = await this.prisma.$transaction(async (tx) => {
+          const ins = await tx.$executeRawUnsafe(inserir, json, row.id);
+          if (ins > 0) await this.applyStockMovement(tx, schema, row.data);
+          return ins;
+        });
+      } else {
+        n = await this.prisma.$executeRawUnsafe(inserir, json, row.id);
+      }
       return {
         table: row.table, id: row.id, applied: n > 0, conflict: false,
         reason: n > 0
@@ -210,34 +221,43 @@ export class ReplicationService {
     // nunca do valor absoluto que o posto tinha: esse não conta as vendas da nuvem.
     const set = cols.filter((c) => c !== 'id' && !(row.table === 'products' && c === 'stock_qty'))
       .map((c) => `"${c}" = EXCLUDED."${c}"`).join(', ');
+    // O mesmo vale para um produto NOVO vindo do posto: o stock_qty que ele traz é o
+    // total de AGORA (já com tudo o que o posto vendeu e recebeu) e logo a seguir
+    // chegam, um a um, os movimentos que o compõem — que a nuvem soma outra vez.
+    // Resultado antes: stock contado a dobrar (total 20, lojas 10 para um produto
+    // criado com 10). Entra a 0 e os movimentos trazem o stock, uma só vez.
+    const jsonDaLinha = row.table === 'products' && !atual
+      ? JSON.stringify({ ...row.data, stock_qty: 0 })
+      : json;
     await this.prisma.$executeRawUnsafe(
       `INSERT INTO ${t} (${lista}) SELECT ${lista} FROM json_populate_record(NULL::${t}, $1::json)
        ${set ? `ON CONFLICT (id) DO UPDATE SET ${set}` : 'ON CONFLICT DO NOTHING'}`,
-      json,
+      jsonDaLinha,
     );
     return { table: row.table, id: row.id, applied: true, reason: d.reason, conflict: d.conflict };
   }
 
-  /** Soma um movimento de stock vindo do posto ao saldo da loja e ao total do produto. */
-  private async applyStockMovement(schema: string, m: Record<string, unknown>): Promise<void> {
+  /**
+   * Soma um movimento de stock vindo do posto ao saldo da loja e ao total do produto.
+   * Corre DENTRO da transacção que grava o movimento (tudo ou nada).
+   */
+  private async applyStockMovement(tx: Prisma.TransactionClient, schema: string, m: Record<string, unknown>): Promise<void> {
     const q = Number(m.quantity);
     const pid = typeof m.product_id === 'string' ? m.product_id : null;
     const wid = typeof m.warehouse_id === 'string' ? m.warehouse_id : null;
     if (!pid || !wid || !Number.isFinite(q) || q === 0) return;
-    await this.prisma.$transaction([
-      this.prisma.$executeRawUnsafe(
-        `INSERT INTO "${schema}"."stock_items" (product_id, warehouse_id, quantity)
-         VALUES ($1::uuid, $2::uuid, 0) ON CONFLICT (product_id, warehouse_id) DO NOTHING`, pid, wid,
-      ),
-      this.prisma.$executeRawUnsafe(
-        `UPDATE "${schema}"."stock_items" SET quantity = quantity + $3::numeric, updated_at = now()
-         WHERE product_id = $1::uuid AND warehouse_id = $2::uuid`, pid, wid, q,
-      ),
-      this.prisma.$executeRawUnsafe(
-        `UPDATE "${schema}"."products" SET stock_qty = stock_qty + $2::numeric, updated_at = now()
-         WHERE id = $1::uuid`, pid, q,
-      ),
-    ]);
+    await tx.$executeRawUnsafe(
+      `INSERT INTO "${schema}"."stock_items" (product_id, warehouse_id, quantity)
+       VALUES ($1::uuid, $2::uuid, 0) ON CONFLICT (product_id, warehouse_id) DO NOTHING`, pid, wid,
+    );
+    await tx.$executeRawUnsafe(
+      `UPDATE "${schema}"."stock_items" SET quantity = quantity + $3::numeric, updated_at = now()
+       WHERE product_id = $1::uuid AND warehouse_id = $2::uuid`, pid, wid, q,
+    );
+    await tx.$executeRawUnsafe(
+      `UPDATE "${schema}"."products" SET stock_qty = stock_qty + $2::numeric, updated_at = now()
+       WHERE id = $1::uuid`, pid, q,
+    );
   }
 
   // ─── DESCIDA: o que outros dispositivos fizeram ────────────

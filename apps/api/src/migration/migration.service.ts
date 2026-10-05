@@ -179,6 +179,33 @@ export class MigrationService {
     await StockService.applyMovement(tx, { productId, warehouseId, type: 'ADJUST', quantity: delta, reference });
   }
 
+  /**
+   * Fixa o stock TOTAL de um produto PARTILHADO (pool central). O pool vive na loja
+   * principal (é onde o "criar produto" manual o põe), por isso passa pelo mesmo
+   * `StockService.applyMovement`: saldo da loja + movimento + total, tudo de uma vez.
+   * Antes escrevia-se só `products.stock_qty`: o produto ficava com stock mas SEM saldo
+   * em nenhuma loja, e a 1.ª venda criava um saldo negativo na loja (total 219, lojas -1).
+   * `current` = total actual se já se conhece (produto novo = 0), para poupar uma consulta.
+   */
+  private async setSharedTotal(
+    tx: Prisma.TransactionClient, productId: string, targetQty: number, reference: string,
+    defaultStoreId: string | null, current: number | null = null,
+  ): Promise<void> {
+    if (!defaultStoreId) {
+      // Sem nenhuma loja ativa não há onde registar o saldo: mantém o comportamento antigo.
+      await tx.$executeRaw(Prisma.sql`UPDATE products SET stock_qty = ${targetQty}, updated_at = now() WHERE id = ${productId}::uuid`);
+      return;
+    }
+    let cur = current;
+    if (cur === null) {
+      const r = await tx.$queryRaw<{ q: string }[]>(Prisma.sql`SELECT stock_qty AS q FROM products WHERE id = ${productId}::uuid FOR UPDATE`);
+      cur = Number(r[0]?.q ?? 0);
+    }
+    const delta = targetQty - cur;
+    if (delta === 0) return;
+    await StockService.applyMovement(tx, { productId, warehouseId: defaultStoreId, type: 'ADJUST', quantity: delta, reference });
+  }
+
   // ═══════════════════════════ PRODUTOS ═══════════════════════════════════
   /** Lê UMA linha de produto com rigor (código de barras, stock vazio ≠ 0, nome limpo). */
   private readProductRow(r: Record<string, unknown>, cols: ReturnType<typeof detectProductColumns>): ProductCells {
@@ -321,6 +348,10 @@ export class MigrationService {
         allActiveStores = await tx.$queryRaw<{ id: string; name: string }[]>(Prisma.sql`SELECT id, name FROM stores WHERE is_active = TRUE`);
       });
     }
+    // Loja principal (onde vive o stock dos produtos PARTILHADOS), consultada UMA vez.
+    const defaultStoreId = (await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<{ id: string }[]>(
+      Prisma.sql`SELECT id FROM stores WHERE is_active = TRUE ORDER BY is_default DESC, created_at ASC LIMIT 1`,
+    )))[0]?.id ?? null;
     // Stock POR LOJA no ficheiro: sem loja escolhida e com TODAS as colunas a
     // corresponder a lojas da empresa, cada loja recebe o seu stock (por loja).
     let storeColMap: { label: string; storeId: string }[] = [];
@@ -408,8 +439,9 @@ export class MigrationService {
               }
             } else if (stock !== null) {
               if (existingRow.shared_stock) {
-                // Partilhado: continua a actualizar-se directo (pool central).
-                sets.push(Prisma.sql`stock_qty = ${stock}`);
+                // Partilhado (pool central, na loja principal): ajusta o TOTAL pelo
+                // mesmo caminho dos movimentos — nunca só o espelho stock_qty.
+                await this.setSharedTotal(tx, existingRow.id, Math.max(0, stock), stockRef, defaultStoreId);
               } else if (targetStore) {
                 // Por loja + o utilizador escolheu a loja: ajusta o saldo ABSOLUTO
                 // dessa loja (fora do UPDATE — StockService também actualiza o
@@ -425,8 +457,12 @@ export class MigrationService {
             const shared = !targetStore && !perStoreMode;
             const insertedRows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
               INSERT INTO products (code, barcode, name, category_id, iva_code, unit_price, cost_price, stock_qty, shared_stock, show_online)
-              VALUES (${finalCode}, ${barcode || null}, ${name}, ${categoryId}::uuid, 'NOR', ${salePrice ?? 0}, ${costPrice ?? 0}, ${shared ? (stock ?? 0) : 0}, ${shared}, TRUE)
+              VALUES (${finalCode}, ${barcode || null}, ${name}, ${categoryId}::uuid, 'NOR', ${salePrice ?? 0}, ${costPrice ?? 0}, 0, ${shared}, TRUE)
               RETURNING id`);
+            // Partilhado: o stock importado entra pela loja principal (saldo + movimento + total).
+            if (shared && (stock ?? 0) > 0) {
+              await this.setSharedTotal(tx, insertedRows[0].id, Math.max(0, stock ?? 0), stockRef, defaultStoreId, 0);
+            }
             if (perStoreMode) {
               // Stock por loja do ficheiro: cada loja recebe o seu valor; as outras 0.
               for (const st of allActiveStores) {
