@@ -63,6 +63,11 @@ export class UpdateSiteSettingsDto {
   @IsIn(['NOR', 'INT', 'RED', 'ISE', 'OUT'])
   defaultIvaCode?: string;
 
+  /** IVA dos atos de saúde (consultas, exames, internamento): taxa normal ou isento. */
+  @IsOptional()
+  @IsIn(['NOR', 'ISE'])
+  clinicalIvaCode?: string;
+
   @IsOptional()
   @IsObject()
   social?: Record<string, string>;

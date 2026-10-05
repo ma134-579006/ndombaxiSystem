@@ -90,6 +90,7 @@ function BrandingCard() {
   const [address, setAddress] = useState('');
   const [receiptMessage, setReceiptMessage] = useState('');
   const [defaultIva, setDefaultIva] = useState('NOR');
+  const [clinicalIva, setClinicalIva] = useState('NOR');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -101,6 +102,7 @@ function BrandingCard() {
       setContactPhone(x.contact_phone ?? ''); setContactEmail(x.contact_email ?? '');
       setAddress(x.address ?? ''); setReceiptMessage(x.receipt_message ?? '');
       setDefaultIva(x.default_iva_code || 'NOR');
+      setClinicalIva(x.clinical_iva_code || 'NOR');
     }).catch((e) => setErr(e instanceof ApiError ? e.message : 'Falha ao carregar.'));
   }, []);
 
@@ -113,7 +115,7 @@ function BrandingCard() {
   const save = async () => {
     setBusy(true); setMsg(null); setErr(null);
     try {
-      await api.site.update({ brandName: brandName.trim() || undefined, logoUrl: logoUrl || undefined, contactPhone, contactEmail, address, receiptMessage, defaultIvaCode: defaultIva });
+      await api.site.update({ brandName: brandName.trim() || undefined, logoUrl: logoUrl || undefined, contactPhone, contactEmail, address, receiptMessage, defaultIvaCode: defaultIva, clinicalIvaCode: clinicalIva });
       setMsg('Guardado. Aparece no admin, no caixa e nos recibos.');
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao guardar.'); }
     finally { setBusy(false); }
@@ -158,6 +160,14 @@ function BrandingCard() {
         </select>
         <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
           Ao criar produtos com IVA «Automático», é esta taxa que fica aplicada.
+        </p></div>
+      <div className="field"><label htmlFor="clinical-iva">IVA dos atos de saúde (consultas, exames, internamento)</label>
+        <select id="clinical-iva" value={clinicalIva} onChange={(e) => setClinicalIva(e.target.value)}>
+          <option value="NOR">NOR (14%) — o valor do ato inclui IVA</option>
+          <option value="ISE">ISE (isento) — serviços médicos e sanitários</option>
+        </select>
+        <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+          Só para clínicas/hospitais. Isento: a fatura sai sem IVA e com o motivo de isenção. Confirme com o seu contabilista o enquadramento da sua atividade.
         </p></div>
       <button className="btn" onClick={save} disabled={busy}>{busy ? 'A guardar…' : 'Guardar'}</button>
     </div>

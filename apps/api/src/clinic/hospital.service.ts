@@ -83,6 +83,24 @@ export class HospitalService {
     });
   }
 
+  // ── IVA dos atos de saúde ──────────────────────────────────
+  /**
+   * Linha fiscal de um ato de saúde (consulta, exame, internamento) a partir do
+   * valor COM IVA guardado. A empresa escolhe em Configurações: taxa normal (14%)
+   * ou ISENTO (serviços médicos e sanitários) — nesse caso o valor é todo líquido
+   * e a linha leva o motivo de isenção exigido pela AGT.
+   */
+  async clinicalLine(schema: string, description: string, gross: number, quantity = 1) {
+    const code = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ c: string | null }[]>(Prisma.sql`SELECT clinical_iva_code AS c FROM site_settings LIMIT 1`),
+    ).then((r) => r[0]?.c ?? 'NOR').catch(() => 'NOR');
+    if (code === 'ISE') {
+      return { description, unitPrice: round2(gross), ivaCode: IvaCode.ISE, quantity,
+        exemptionReason: 'Isento — prestação de serviços médicos e sanitários (artigo 12.º do CIVA)' };
+    }
+    return { description, unitPrice: netForGross(gross, IVA_NOR), ivaCode: IvaCode.NOR, quantity };
+  }
+
   // ── Privacidade clínica ────────────────────────────────────
   /**
    * Quem pode ver/escrever DADOS CLÍNICOS (prontuário, diagnóstico, notas, receitas,
@@ -483,7 +501,7 @@ export class HospitalService {
         docType: DocumentType.FT, series: 'A',
         cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
         clientOpId: billingOpId('ADMISSION', id),
-        lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
+        lines: [await this.clinicalLine(schema, desc, copay)],
       }).catch((e) => rethrowIfAlreadyBilled(e, 'Internação já faturada.'));
       invId = inv.id; invNumber = inv.number;
     }
@@ -600,7 +618,7 @@ export class HospitalService {
       docType: DocumentType.FT, series: 'A',
       cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
       clientOpId: billingOpId('EXAM', id),
-      lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
+      lines: [await this.clinicalLine(schema, desc, copay)],
     }).catch((e) => rethrowIfAlreadyBilled(e, 'Exame já faturado.'));
     await this.recordClaimAndCloseExam(schema, id, { source: 'EXAM', patientId: ex[0].patient_id, patientName: ex[0].patient_name, gross: fee, covered, copay, cov, invoiceId: inv.id, by: opener.id });
     return { invoiceId: inv.id, invoiceNumber: inv.number, covered, copay, insurer: cov?.name ?? null };

@@ -310,6 +310,7 @@ export interface SiteSettings {
   address: string | null;
   receipt_message: string | null;
   default_iva_code: string;
+  clinical_iva_code?: string;
   is_published: boolean;
   online_store_enabled: boolean;
 }
@@ -319,6 +320,7 @@ export interface UpdateSiteSettingsInput {
   logoUrl?: string;
   onlineStoreEnabled?: boolean;
   defaultIvaCode?: string;
+  clinicalIvaCode?: string;
   primaryColor?: string;
   secondaryColor?: string;
   contactEmail?: string;

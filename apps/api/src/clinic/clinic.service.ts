@@ -252,7 +252,7 @@ export class ClinicService {
         docType: DocumentType.FT, series: 'A',
         cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
         clientOpId: billingOpId('CONSULTATION', id),
-        lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
+        lines: [await this.hospital.clinicalLine(schema, desc, copay)],
       }).catch((e) => rethrowIfAlreadyBilled(e, 'Consulta já faturada.'));
       invId = inv.id; invNumber = inv.number;
     }
