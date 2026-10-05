@@ -89,7 +89,9 @@ export function AreaChart({ points, height = 220, color = 'var(--primary)', subC
         {/* pontos + captura de hover por coluna */}
         {points.map((p, i) => (
           <g key={i}>
-            <circle cx={x(i)} cy={y(p.value)} r={hover === i ? 4.5 : 0} fill={color} stroke="var(--surface)" strokeWidth="2" />
+            {/* Um só dia: sem linha possível — desenha uma barra e o ponto (antes ficava só a grelha). */}
+            {n === 1 ? <rect x={x(i) - 18} y={y(p.value)} width={36} height={Math.max(0, padT + innerH - y(p.value))} rx={6} fill={`url(#g-${uid})`} stroke={color} strokeWidth="1.5" /> : null}
+            <circle cx={x(i)} cy={y(p.value)} r={hover === i || n === 1 ? 4.5 : 0} fill={color} stroke="var(--surface)" strokeWidth="2" />
             <rect x={x(i) - innerW / (2 * Math.max(1, n - 1))} y={padT} width={innerW / Math.max(1, n - 1)} height={innerH}
               fill="transparent" onMouseEnter={() => setHover(i)} />
           </g>

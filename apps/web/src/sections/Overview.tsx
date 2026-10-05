@@ -34,7 +34,7 @@ const RANGES: { key: SalesRange; label: string }[] = [
 const DAYS: Record<string, number> = { '7d': 7, '1m': 30, '3m': 90, '6m': 180, '1y': 365 };
 const PAY_PT: Record<string, string> = {
   CASH: 'Numerário', CARD: 'Multicaixa/Cartão', TRANSFER: 'Transferência',
-  REFERENCE: 'Referência', EXPRESS: 'Multicaixa Express', CREDIT: 'A crédito',
+  REFERENCE: 'Referência', EXPRESS: 'Multicaixa Express', CREDIT: 'A crédito', SEM_TURNO: 'Sem turno de caixa',
 };
 
 function iso(d: Date): string { return d.toISOString().slice(0, 10); }

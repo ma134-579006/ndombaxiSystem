@@ -757,7 +757,7 @@ export class InvoiceService {
         Prisma.sql`
           SELECT i.id, i.number, i.doc_type, i.system_entry_date, i.gross_total, i.status, i.doc_state,
                  u.name AS cashier_name, c.name AS customer_name,
-                 COALESCE((SELECT string_agg(ii.description || ' x' || ii.quantity, ', ')
+                 COALESCE((SELECT string_agg(ii.description || ' x' || rtrim(rtrim(ii.quantity::text, '0'), '.'), ', ')
                            FROM invoice_items ii WHERE ii.invoice_id = i.id), '') AS items
           FROM invoices i
           LEFT JOIN users u ON u.id = i.cashier_id

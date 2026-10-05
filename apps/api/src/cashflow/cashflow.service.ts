@@ -180,8 +180,9 @@ export class CashflowService {
 
     const avgDailyInflow = round2(s.inflows / basisDays);
     const avgDailyOutflow = round2(s.outflows / basisDays);
-    const projectedInflow30 = round2(avgDailyInflow * 30);
-    const projectedOutflow30 = round2(avgDailyOutflow * 30);
+    // Projeção a partir do valor EXATO (arredondar a média antes de ×30 dava 109.563,60 para 109.563,50).
+    const projectedInflow30 = round2((s.inflows / basisDays) * 30);
+    const projectedOutflow30 = round2((s.outflows / basisDays) * 30);
     const projectedNet30 = round2(projectedInflow30 + receivablesDueSoon - projectedOutflow30);
     return {
       basisDays, avgDailyInflow, avgDailyOutflow,

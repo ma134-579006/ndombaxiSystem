@@ -3,7 +3,7 @@ import { runTransfer } from '../transfer';
 import { api, ApiError } from '../api/client';
 import type { CashSession, DocumentIdentity, ReportX, ShiftClose } from '../api/types';
 import { copyrightLine } from '../brand';
-import { formatKz, formatDateTime } from '../format';
+import { formatKz, formatDateTime, parseKz } from '../format';
 import { IconCheck, IconClose } from './Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { PaperSizeToggle } from './PaperSizeToggle';
@@ -104,7 +104,7 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
 
   const open = async () => {
     setError(null);
-    const float = Number(openingFloat) || 0;
+    const float = parseKz(openingFloat) || 0;
     setBusy(true);
     try {
       await api.openSession(float);
@@ -145,7 +145,7 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
       const n = await porSubir();
       if (n > 0) {
         if (await turnoAbertoLocal()) {
-          const t = await fecharTurnoOffline({ countedCash: Number(counted) || 0, notes: notes.trim() || undefined });
+          const t = await fecharTurnoOffline({ countedCash: parseKz(counted) || 0, notes: notes.trim() || undefined });
           setBusy(false);
           if (t) { onClosed(); return; }
         }
@@ -155,7 +155,7 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
       }
     }
     try {
-      const res = await api.closeSession(Number(counted) || 0, notes.trim() || undefined);
+      const res = await api.closeSession(parseKz(counted) || 0, notes.trim() || undefined);
       setCloseResult(res);
     } catch (e) {
       // SEM REDE fecha-se na mesma: fica declarado o que foi CONTADO na gaveta e
@@ -163,7 +163,7 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
       // aqui seria ter duas contabilidades a discordar uma da outra.
       if (isNativeApp() && isNetworkFailure(e)) {
         const t = await fecharTurnoOffline({
-          countedCash: Number(counted) || 0, notes: notes.trim() || undefined,
+          countedCash: parseKz(counted) || 0, notes: notes.trim() || undefined,
         });
         if (t) { onClosed(); return; }
       }

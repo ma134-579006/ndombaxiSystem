@@ -62,6 +62,13 @@ export class StorefrontController {
   }
 
   // ── Conta do cliente (login simples / Google) ──────────────
+  @Get('auth/methods')
+  @ApiOperation({ summary: 'Formas de login de cliente disponíveis (email/Google); sem nenhuma, a loja vende como convidado' })
+  async authMethods(@Param('code') code: string) {
+    await this.resolver.resolveByCode(code);
+    return this.customers.loginMethods();
+  }
+
   @Post('auth/email/code')
   @ApiOperation({ summary: 'Envia um código de verificação para o email do cliente (passo 1)' })
   async authEmailCode(@Param('code') code: string, @Body() dto: CustomerEmailLoginDto) {

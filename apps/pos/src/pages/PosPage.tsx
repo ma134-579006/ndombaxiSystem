@@ -279,7 +279,7 @@ export function PosPage() {
   const [okMsg, setOkMsg] = useState<string | null>(null);
   const [firing, setFiring] = useState(false);
   const [emitted, setEmitted] = useState<
-    { invoice: EmittedInvoice; customerName: string | null; items?: { description: string; quantity: number; unitPrice: number; total: number }[]; provisional?: boolean } | null
+    { invoice: EmittedInvoice; customerName: string | null; items?: { description: string; quantity: number; unitPrice: number; total: number }[]; provisional?: boolean; pay?: { paymentType: PaymentType; tendered?: number; changeGiven?: number } } | null
   >(null);
 
   // Constrói as linhas de artigos (descrição, qt, preço unit. c/IVA, total) para a fatura.
@@ -772,7 +772,7 @@ export function PosPage() {
       ivaTotal: totals.iva,
       grossTotal: totals.gross,
     };
-    setEmitted({ invoice: provisionalInvoice, customerName: receiptCustomer(customer), items: buildItems(cart), provisional: true });
+    setEmitted({ invoice: provisionalInvoice, customerName: receiptCustomer(customer), items: buildItems(cart), provisional: true, pay });
   };
 
   // "Finalizar venda": offline → fila directa; online → abre o ecrã de pagamento.
@@ -816,7 +816,7 @@ export function PosPage() {
         }),
       });
       setShowPayment(false);
-      setEmitted({ invoice, customerName: receiptCustomer(customer), items: buildItems(cart) });
+      setEmitted({ invoice, customerName: receiptCustomer(customer), items: buildItems(cart), pay });
       void refreshProducts(); // stock atualiza em tempo real após a venda
       // Se esta venda saldou um pedido de balcão chamado da cozinha, fecha-o
       // (a emissão já baixou os ingredientes — aqui é só mudar o estado).
@@ -1193,6 +1193,7 @@ export function PosPage() {
           operatorName={user?.name || user?.email}
           items={emitted.items}
           provisional={emitted.provisional}
+          pay={emitted.pay}
           onClose={closeReceipt}
         />
       ) : null}

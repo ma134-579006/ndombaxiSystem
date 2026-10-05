@@ -1,4 +1,4 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post, ForbiddenException } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -35,6 +35,8 @@ export class FiscalController {
   @Roles(Role.ATTENDANT)
   @ApiOperation({ summary: 'Identidade da empresa (logo + dados) para os documentos' })
   documentIdentity(@CurrentUser() user: JwtPayload) {
+    // Sessão da PLATAFORMA (super admin) não tem empresa: 403 claro em vez de 500.
+    if (!user.tenantId) throw new ForbiddenException('Esta sessão não pertence a nenhuma empresa.');
     return this.identity.getDocumentIdentity(user.tenantId, this.ctx.requireTenantSchema());
   }
 

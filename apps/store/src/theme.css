@@ -939,3 +939,9 @@ html.touch-ui.input-focus .content { padding-bottom: calc(var(--kb, 0px) + 42vh)
 html.touch-ui input, html.touch-ui select, html.touch-ui textarea { scroll-margin-top: 22vh; font-size: max(16px, 1em); }
 html.touch-ui .btn, html.touch-ui button { touch-action: manipulation; }
 html.touch-ui .btn.sm { min-height: 40px; }
+
+/* Telemóvel: ações do cabeçalho (tema, conta, carrinho) encostadas à direita, alvos de toque maiores. */
+@media (max-width: 760px) {
+  .ax-actions { margin-left: auto; }
+  .ax-actions .ax-icon-btn { min-width: 44px; min-height: 44px; }
+}

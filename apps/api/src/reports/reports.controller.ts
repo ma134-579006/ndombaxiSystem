@@ -73,7 +73,7 @@ export class ReportsController {
 
   @Get('payment-methods')
   @ApiOperation({ summary: 'Métodos de pagamento' })
-  paymentMethods(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.reports.paymentMethods(this.ctx.requireTenantSchema(), from, to);
+  paymentMethods(@CurrentUser() user: JwtPayload, @Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    return this.reports.paymentMethods(this.ctx.requireTenantSchema(), from, to, effectiveStoreId(user, storeId));
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { JwtPayload } from '@nexus/types';
 
@@ -32,7 +32,8 @@ export class TenantContext {
   requireTenantSchema(): string {
     const schema = this.auth?.tenantSchema;
     if (!schema) {
-      throw new Error('No tenant in current request context');
+      // Sessão sem empresa (ex.: super admin num endpoint de empresa): 403, não 500.
+      throw new ForbiddenException('Esta operação exige uma sessão de empresa.');
     }
     return schema;
   }

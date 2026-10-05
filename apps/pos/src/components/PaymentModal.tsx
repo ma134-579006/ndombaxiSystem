@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { PaymentType } from '../api/types';
-import { formatKz } from '../format';
+import { formatKz, parseKz } from '../format';
 import { IconClose } from './Icons';
 import { KeyboardInput } from '../keyboard/KeyboardInput';
 import { UiIcon } from './UiIcon';
@@ -28,13 +28,23 @@ export function PaymentModal({ total, customerName, onConfirm, onClose, busy }: 
   const [type, setType] = useState<PaymentType>('CASH');
   const [tendered, setTendered] = useState('');
 
-  const tenderedNum = Number(tendered) || 0;
+  const tenderedNum = parseKz(tendered) || 0;
   const change = useMemo(() => Math.max(0, tenderedNum - total), [tenderedNum, total]);
   const insufficient = type === 'CASH' && tendered !== '' && tenderedNum < total;
   const creditNoCustomer = type === 'CREDIT' && !customerName;
 
   // Atalhos de notas Kwanza comuns.
-  const quick = [total, 1000, 2000, 5000, 10000].filter((v, i, a) => a.indexOf(v) === i);
+  // Atalhos úteis: o valor exato e as próximas notas/valores redondos ACIMA do total
+  // (antes mostrava 1.000/2.000 para uma conta de 10.413).
+  const quick = (() => {
+    const out = [total];
+    for (const step of [500, 1000, 2000, 5000, 10000, 20000, 50000]) {
+      const v = Math.ceil(total / step) * step;
+      if (v > total && !out.includes(v)) out.push(v);
+      if (out.length >= 5) break;
+    }
+    return out;
+  })();
 
   const confirm = () => {
     // GUARDA: o botão fica desativado quando insuficiente/sem cliente, mas o Enter
