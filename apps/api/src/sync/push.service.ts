@@ -58,7 +58,9 @@ interface LedgerRow {
 function isUniqueViolation(e: unknown, indexHint?: string): boolean {
   const msg = e instanceof Error ? e.message : String(e);
   const isUnique = msg.includes('23505') || /duplicate key value/i.test(msg);
-  return isUnique && (!indexHint || msg.includes(indexHint));
+  // O Postgres pode citar só a coluna ("Key (client_op_id)=… already exists") e não o índice.
+  const byColumn = !!indexHint && indexHint.endsWith('client_op_uidx') && msg.includes('(client_op_id)');
+  return isUnique && (!indexHint || msg.includes(indexHint) || byColumn);
 }
 
 @Injectable()

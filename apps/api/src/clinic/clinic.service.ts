@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { DocumentType, IvaCode, round2 } from '@nexus/agt-xml';
+import { billingOpId, netForGross, rethrowIfAlreadyBilled } from '../common/billing-guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { InvoiceService } from '../pos/invoice.service';
 import { HospitalService } from './hospital.service';
@@ -235,7 +236,7 @@ export class ClinicService {
       tx.$queryRaw<{ id: string; fee: string; invoice_id: string | null; patient_id: string | null; patient_name: string | null; professional: string | null }[]>(
         Prisma.sql`SELECT id, fee, invoice_id, patient_id, patient_name, professional FROM clinic_consultations WHERE id = ${id}::uuid`));
     if (!c[0]) throw new NotFoundException('Consulta não encontrada.');
-    if (c[0].invoice_id) throw new BadRequestException('Consulta já faturada.');
+    if (c[0].invoice_id || await this.hospital.hasClaim(schema, 'CONSULTATION', id)) throw new BadRequestException('Consulta já faturada.');
     const fee = Number(c[0].fee);
     if (!(fee > 0)) throw new BadRequestException('Defina o valor da consulta antes de faturar.');
 
@@ -245,13 +246,14 @@ export class ClinicService {
     const copay = round2(fee - covered);
     let invId: string | null = null; let invNumber: string | null = null;
     if (copay > 0) {
-      const net = round2(copay / (1 + IVA_NOR / 100)); // a taxa guardada inclui IVA
+      const net = netForGross(copay, IVA_NOR); // a taxa guardada inclui IVA
       const desc = `Consulta médica${c[0].professional ? ` — ${c[0].professional}` : ''}${cov ? ` (coparticipação · ${cov.name})` : ''}`;
       const inv = await this.invoices.emit(schema, {
         docType: DocumentType.FT, series: 'A',
         cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
+        clientOpId: billingOpId('CONSULTATION', id),
         lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
-      });
+      }).catch((e) => rethrowIfAlreadyBilled(e, 'Consulta'));
       invId = inv.id; invNumber = inv.number;
     }
     await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE clinic_consultations SET invoice_id = ${invId}::uuid WHERE id = ${id}::uuid`));

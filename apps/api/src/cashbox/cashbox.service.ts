@@ -53,7 +53,9 @@ export class CashboxService {
     clientOpId: string | null = null,
   ): Promise<{ id: string }> {
     return this.prisma.runInTenant(schema, async (tx) => {
-      // Impede dois turnos abertos para o mesmo funcionário.
+      // Impede dois turnos abertos para o mesmo funcionário. O lock por funcionário
+      // serializa aberturas em simultâneo (3 cliques davam 2 turnos OPEN).
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${'cash-open:' + (actor.id ?? '')}))`);
       const open = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`SELECT id FROM cash_sessions
                    WHERE status = 'OPEN' AND opened_by = ${actor.id ?? null}::uuid LIMIT 1`,
@@ -299,7 +301,8 @@ export class CashboxService {
     const rows = await tx.$queryRaw<SessionRow[]>(
       Prisma.sql`SELECT * FROM cash_sessions
                  WHERE status = 'OPEN' AND opened_by = ${userId ?? null}::uuid
-                 ORDER BY opened_at DESC LIMIT 1`,
+                 ORDER BY opened_at DESC LIMIT 1
+                 FOR UPDATE`,
     );
     if (!rows[0]) throw new BadRequestException('Não há turno de caixa aberto. Abra um turno primeiro.');
     return rows[0];

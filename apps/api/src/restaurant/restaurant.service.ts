@@ -202,8 +202,12 @@ export class RestaurantService {
 
   async removeItem(schema: string, itemId: string) {
     return this.prisma.runInTenant(schema, async (tx) => {
-      const it = await tx.$queryRaw<{ order_id: string }[]>(Prisma.sql`SELECT order_id FROM restaurant_order_items WHERE id = ${itemId}::uuid`);
+      const it = await tx.$queryRaw<{ order_id: string; order_status: string }[]>(Prisma.sql`
+        SELECT i.order_id, o.status AS order_status FROM restaurant_order_items i
+        JOIN restaurant_orders o ON o.id = i.order_id WHERE i.id = ${itemId}::uuid FOR UPDATE OF o`);
       if (!it[0]) return { ok: true };
+      // Comanda fechada (já cobrada/lançada) não se altera — o total passava a 0 depois de fechada.
+      if (it[0].order_status !== 'OPEN') throw new BadRequestException('A comanda já está fechada — não se removem artigos.');
       await tx.$executeRaw(Prisma.sql`DELETE FROM restaurant_order_items WHERE id = ${itemId}::uuid`);
       await this.recomputeTotal(tx, it[0].order_id);
       return { ok: true };
@@ -226,16 +230,20 @@ export class RestaurantService {
   async closeOrder(schema: string, orderId: string, chargeToReservationId?: string) {
     return this.prisma.runInTenant(schema, async (tx) => {
       const ord = await tx.$queryRaw<{ status: string; total: string; table_name: string | null }[]>(
-        Prisma.sql`SELECT status, total, table_name FROM restaurant_orders WHERE id = ${orderId}::uuid`);
+        Prisma.sql`SELECT status, total, table_name FROM restaurant_orders WHERE id = ${orderId}::uuid FOR UPDATE`);
       if (!ord[0]) throw new NotFoundException('Comanda não encontrada.');
       if (ord[0].status !== 'OPEN') throw new BadRequestException('A comanda já não está aberta.');
+      // FOR UPDATE: 3 fechos em simultâneo lançavam o consumo 3× no folio (e baixavam os ingredientes 3×).
 
       await tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders SET status = 'CLOSED', closed_at = now() WHERE id = ${orderId}::uuid`);
 
       // Lançar no folio do quarto (hotelaria): consumo soma na conta do hóspede.
       if (chargeToReservationId) {
-        const res = await tx.$queryRaw<{ status: string }[]>(Prisma.sql`SELECT status FROM hotel_reservations WHERE id = ${chargeToReservationId}::uuid`);
+        const res = await tx.$queryRaw<{ status: string; invoice_id: string | null }[]>(Prisma.sql`SELECT status, invoice_id FROM hotel_reservations WHERE id = ${chargeToReservationId}::uuid FOR UPDATE`);
         if (!res[0]) throw new NotFoundException('Reserva não encontrada.');
+        if (res[0].invoice_id || !['BOOKED', 'CHECKED_IN'].includes(res[0].status)) {
+          throw new BadRequestException('A conta desta reserva já está fechada (faturada ou cancelada) — cobre no caixa.');
+        }
         // Folio não passa pelo caixa → baixa aqui os ingredientes consumidos.
         const items = await tx.$queryRaw<{ product_id: string | null; quantity: string }[]>(
           Prisma.sql`SELECT product_id, quantity FROM restaurant_order_items WHERE order_id = ${orderId}::uuid`);

@@ -46,7 +46,8 @@ function generateEan13(): string {
 function isDuplicateOpViolation(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : String(e);
   return (msg.includes('23505') || /duplicate key value/i.test(msg))
-    && msg.includes('invoices_client_op_uidx');
+    // O Postgres pode citar o índice OU só a coluna ("Key (client_op_id)=… already exists").
+    && (msg.includes('invoices_client_op_uidx') || msg.includes('(client_op_id)'));
 }
 
 @ApiTags('pos')

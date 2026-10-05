@@ -353,6 +353,22 @@ export class InvoiceService {
       // 2. Calcula linhas + totais (motor fiscal puro).
       const { lines, totals } = computeInvoice(lineInputs);
 
+      // Dinheiro entregue/troco: o servidor é a fonte da verdade. Aceitava-se
+      // `tendered: 10` numa venda de 300, ou um troco inventado — a gaveta não batia.
+      // Venda offline já aconteceu: grava-se como veio. Outros meios: sem troco.
+      if (!input.offline) {
+        if ((input.paymentType ?? 'CASH') === 'CASH') {
+          if (input.tendered != null) {
+            if (input.tendered < totals.grossTotal - 1) {
+              throw new BadRequestException(`Valor entregue (${input.tendered}) inferior ao total (${totals.grossTotal}).`);
+            }
+            input = { ...input, changeGiven: Math.max(0, round2(input.tendered - totals.grossTotal)) };
+          }
+        } else {
+          input = { ...input, tendered: null, changeGiven: null };
+        }
+      }
+
       // 3. Aloca numeração + hash anterior, bloqueando a série fiscal.
       // Facturação Electrónica: com série AGT autorizada, o documento numera-se nessa série.
       const series = agtSeries ?? input.series;
@@ -475,14 +491,24 @@ export class InvoiceService {
         }
         // Validade: se o produto é gerido por lotes e só tem lotes expirados, bloqueia.
         // (Só consulta se a tabela de lotes existir — tenants antigos podem não a ter.)
-        const batch = hasBatches ? await tx.$queryRaw<{ total: string; valid: string }[]>(
+        const batch = hasBatches ? await tx.$queryRaw<{ total: string; valid: string; expired: string }[]>(
           Prisma.sql`SELECT COALESCE(SUM(quantity),0) AS total,
-                            COALESCE(SUM(quantity) FILTER (WHERE expiry_date IS NULL OR expiry_date >= ${today}::date),0) AS valid
-                     FROM product_batches WHERE product_id = ${product.id}::uuid`,
+                            COALESCE(SUM(quantity) FILTER (WHERE expiry_date IS NULL OR expiry_date >= ${today}::date),0) AS valid,
+                            COALESCE(SUM(quantity) FILTER (WHERE expiry_date < ${today}::date),0) AS expired
+                     FROM product_batches WHERE product_id = ${product.id}::uuid
+                       AND (${lineStore}::uuid IS NULL OR warehouse_id = ${lineStore}::uuid)`,
         ) : [];
         if (batch[0] && Number(batch[0].total) > 0 && Number(batch[0].valid) <= 0) {
           throw new BadRequestException(
             `"${line.description}" está expirado (sem lotes válidos). Venda bloqueada.`,
+          );
+        }
+        // As unidades de lotes CADUCADOS continuam no saldo até serem abatidas (baixa):
+        // não podem ser vendidas. Antes só se bloqueava quando NÃO havia nenhuma válida
+        // (10 válidas + 100 caducadas → vendia 50).
+        if (batch[0] && available - Number(batch[0].expired) < line.quantity) {
+          throw new BadRequestException(
+            `"${line.description}": só ${Math.max(0, available - Number(batch[0].expired))} unidade(s) dentro da validade (pedido ${line.quantity}). Abata os lotes caducados.`,
           );
         }
       }
@@ -579,6 +605,9 @@ export class InvoiceService {
             createdBy: input.cashierId ?? null,
             allowNegative: shared || input.offline === true,
           });
+          // FEFO: a venda consome os lotes VÁLIDOS da loja por validade mais próxima,
+          // para os lotes refletirem o que está na prateleira (antes nunca baixavam).
+          if (hasBatches) await this.consumeBatchesFefo(tx, product.id, lineStore, line.quantity, luandaDate());
         } else {
           await tx.$executeRaw(
             Prisma.sql`UPDATE products SET stock_qty = stock_qty - ${line.quantity}, updated_at = now()
@@ -801,6 +830,23 @@ export class InvoiceService {
     });
     detalhe.invoice.feQr = await this.einvoice.isFeSeries(schema, serie);
     return detalhe;
+  }
+
+  /** Abate `qty` dos lotes válidos (não caducados) do armazém, por validade mais próxima. */
+  private async consumeBatchesFefo(tx: Prisma.TransactionClient, productId: string, warehouseId: string, qty: number, today: string): Promise<void> {
+    let remaining = qty;
+    const lots = await tx.$queryRaw<{ id: string; quantity: string }[]>(Prisma.sql`
+      SELECT id, quantity FROM product_batches
+      WHERE product_id = ${productId}::uuid AND warehouse_id = ${warehouseId}::uuid AND quantity > 0
+        AND (expiry_date IS NULL OR expiry_date >= ${today}::date)
+      ORDER BY expiry_date ASC NULLS LAST, created_at
+      FOR UPDATE`);
+    for (const lot of lots) {
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, Number(lot.quantity));
+      await tx.$executeRaw(Prisma.sql`UPDATE product_batches SET quantity = quantity - ${take} WHERE id = ${lot.id}::uuid`);
+      remaining -= take;
+    }
   }
 
   /**

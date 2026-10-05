@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { DocumentType, IvaCode, round2 } from '@nexus/agt-xml';
+import { luandaDate } from '../common/luanda-date';
+import { billingOpId, netForGross, rethrowIfAlreadyBilled } from '../common/billing-guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { InvoiceService } from '../pos/invoice.service';
 import { StockService } from '../erp/stock.service';
@@ -153,7 +155,11 @@ export class HospitalService {
       for (const it of items) {
         if (!it.product_id) continue; // medicamento externo (sem stock na farmácia)
         const need = Number(it.quantity);
-        const have = Number(it.stock_qty ?? 0);
+        // Unidades de lotes CADUCADOS não se dispensam (continuam no saldo até à baixa).
+        const exp = await tx.$queryRaw<{ q: string }[]>(Prisma.sql`
+          SELECT COALESCE(SUM(quantity),0) AS q FROM product_batches
+          WHERE product_id = ${it.product_id}::uuid AND quantity > 0 AND expiry_date < ${luandaDate()}::date`).catch(() => [{ q: '0' }]);
+        const have = Number(it.stock_qty ?? 0) - Number(exp[0]?.q ?? 0);
         if (have < need) {
           throw new BadRequestException(
             `Stock insuficiente na farmácia: ${it.name ?? it.medication} (disponível ${have}, receita pede ${need}).`);
@@ -180,6 +186,7 @@ export class HospitalService {
           const batches = await tx.$queryRaw<{ id: string; batch_code: string | null; quantity: string }[]>(
             Prisma.sql`SELECT id, batch_code, quantity FROM product_batches
                        WHERE product_id = ${it.product_id}::uuid AND quantity > 0
+                         AND (expiry_date IS NULL OR expiry_date >= ${luandaDate()}::date)
                        ORDER BY expiry_date NULLS LAST, created_at`);
           for (const b of batches) {
             if (remaining <= 0) break;
@@ -414,7 +421,7 @@ export class HospitalService {
         Prisma.sql`SELECT number, status, total, invoice_id, patient_id, patient_name, bed_label FROM clinic_admissions WHERE id = ${id}::uuid`));
     if (!adm[0]) throw new NotFoundException('Internação não encontrada.');
     if (adm[0].status === 'ADMITTED') throw new BadRequestException('Dê alta ao paciente antes de faturar (as diárias ainda não estão fechadas).');
-    if (adm[0].invoice_id) throw new BadRequestException('Internação já faturada.');
+    if (adm[0].invoice_id || await this.hasClaim(schema, 'ADMISSION', id)) throw new BadRequestException('Internação já faturada.');
     const total = Number(adm[0].total);
     if (!(total > 0)) throw new BadRequestException('A internação não tem valor a faturar.');
 
@@ -424,13 +431,14 @@ export class HospitalService {
     const copay = round2(total - covered);
     let invId: string | null = null; let invNumber: string | null = null;
     if (copay > 0) {
-      const net = round2(copay / (1 + IVA_NOR / 100));
+      const net = netForGross(copay, IVA_NOR);
       const desc = `Internação ${adm[0].number}${adm[0].bed_label ? ` — ${adm[0].bed_label}` : ''}${cov ? ` (coparticipação · ${cov.name})` : ''}`;
       const inv = await this.invoices.emit(schema, {
         docType: DocumentType.FT, series: 'A',
         cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
+        clientOpId: billingOpId('ADMISSION', id),
         lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
-      });
+      }).catch((e) => rethrowIfAlreadyBilled(e, 'Internação'));
       invId = inv.id; invNumber = inv.number;
     }
     await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE clinic_admissions SET invoice_id = ${invId}::uuid WHERE id = ${id}::uuid`));
@@ -528,7 +536,7 @@ export class HospitalService {
       tx.$queryRaw<{ exam_type: string; fee: string; invoice_id: string | null; patient_id: string | null; patient_name: string | null }[]>(
         Prisma.sql`SELECT exam_type, fee, invoice_id, patient_id, patient_name FROM clinic_exams WHERE id = ${id}::uuid`));
     if (!ex[0]) throw new NotFoundException('Exame não encontrado.');
-    if (ex[0].invoice_id) throw new BadRequestException('Exame já faturado.');
+    if (ex[0].invoice_id || await this.hasClaim(schema, 'EXAM', id)) throw new BadRequestException('Exame já faturado.');
     const fee = Number(ex[0].fee);
     if (!(fee > 0)) throw new BadRequestException('Defina o preço do exame antes de faturar.');
 
@@ -540,13 +548,14 @@ export class HospitalService {
       await this.recordClaimAndCloseExam(schema, id, { source: 'EXAM', patientId: ex[0].patient_id, patientName: ex[0].patient_name, gross: fee, covered, copay: 0, cov, invoiceId: null, by: opener.id });
       return { invoiceId: null as string | null, invoiceNumber: null as string | null, covered, copay: 0, insurer: cov?.name ?? null };
     }
-    const net = round2(copay / (1 + IVA_NOR / 100));
+    const net = netForGross(copay, IVA_NOR);
     const desc = cov ? `Exame — ${ex[0].exam_type} (coparticipação · ${cov.name})` : `Exame — ${ex[0].exam_type}`;
     const inv = await this.invoices.emit(schema, {
       docType: DocumentType.FT, series: 'A',
       cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
+      clientOpId: billingOpId('EXAM', id),
       lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
-    });
+    }).catch((e) => rethrowIfAlreadyBilled(e, 'Exame'));
     await this.recordClaimAndCloseExam(schema, id, { source: 'EXAM', patientId: ex[0].patient_id, patientName: ex[0].patient_name, gross: fee, covered, copay, cov, invoiceId: inv.id, by: opener.id });
     return { invoiceId: inv.id, invoiceNumber: inv.number, covered, copay, insurer: cov?.name ?? null };
   }
@@ -585,9 +594,26 @@ export class HospitalService {
     gross: number; covered: number; copay: number; cov: { insurerId: string; name: string } | null; invoiceId: string | null; by: string | null;
   }) {
     if (!d.cov || !(d.covered > 0)) return;
-    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
-      INSERT INTO clinic_insurer_claims (insurer_id, insurer_name, patient_id, patient_name, source_type, source_id, invoice_id, gross_total, covered, copay, created_by)
-      VALUES (${d.cov!.insurerId}::uuid, ${d.cov!.name}, ${d.patientId}::uuid, ${d.patientName}, ${d.source}, ${d.sourceId}::uuid, ${d.invoiceId}::uuid, ${d.gross}, ${d.covered}, ${d.copay}, ${d.by}::uuid)`));
+    // Um ato = um sinistro: o lock por ato serializa pedidos em simultâneo e o
+    // NOT EXISTS impede cobrar a seguradora duas vezes pelo mesmo ato.
+    const inserted = await this.prisma.runInTenant(schema, async (tx) => {
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${'claim:' + d.source + ':' + d.sourceId}))`);
+      return tx.$executeRaw(Prisma.sql`
+        INSERT INTO clinic_insurer_claims (insurer_id, insurer_name, patient_id, patient_name, source_type, source_id, invoice_id, gross_total, covered, copay, created_by)
+        SELECT ${d.cov!.insurerId}::uuid, ${d.cov!.name}, ${d.patientId}::uuid, ${d.patientName}, ${d.source}, ${d.sourceId}::uuid, ${d.invoiceId}::uuid, ${d.gross}, ${d.covered}, ${d.copay}, ${d.by}::uuid
+        WHERE NOT EXISTS (SELECT 1 FROM clinic_insurer_claims WHERE source_type = ${d.source} AND source_id = ${d.sourceId}::uuid)`);
+    });
+    if (inserted === 0 && !d.invoiceId) {
+      const what = d.source === 'ADMISSION' ? 'Internação' : d.source === 'EXAM' ? 'Exame' : 'Consulta';
+      throw new BadRequestException(`${what} já faturad${what.endsWith('a') ? 'a' : 'o'}.`);
+    }
+  }
+
+  /** Já existe sinistro para este ato (ato 100% coberto já "faturado" à seguradora). */
+  async hasClaim(schema: string, source: string, sourceId: string): Promise<boolean> {
+    const r = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<{ x: number }[]>(
+      Prisma.sql`SELECT 1 AS x FROM clinic_insurer_claims WHERE source_type = ${source} AND source_id = ${sourceId}::uuid LIMIT 1`));
+    return r.length > 0;
   }
 
   // ── Convénios / Seguros ────────────────────────────────────
