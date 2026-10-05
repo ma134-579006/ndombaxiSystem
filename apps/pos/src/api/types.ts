@@ -111,6 +111,8 @@ export interface EmitInvoiceInput {
   payments?: { type: Exclude<PaymentType, 'CREDIT'>; amount: number }[];
   /** Farmácia: nº da receita médica apresentada pelo cliente. */
   prescriptionRef?: string;
+  /** Desconto manual: PIN do supervisor/gerente que o aprovou. */
+  approvalPin?: string;
   /** Vencimento da dívida (venda a crédito); default +30 dias no servidor. */
   dueDate?: string;
   /** Documento retroativo: data da compra ORIGINAL (YYYY-MM-DD). A data fiscal continua a ser hoje. */

@@ -333,6 +333,8 @@ export const api = {
     request<Customer[]>('GET', `/pos/customers?limit=${o.limit ?? 300}${o.q ? `&q=${encodeURIComponent(o.q)}` : ''}`),
   createCustomer: (input: { taxId?: string; name: string; phone?: string }) =>
     request<Customer>('POST', '/pos/customers', input),
+  /** Confirma o PIN do supervisor/gerente que aprova um desconto manual. */
+  approveDiscount: (pin: string) => request<{ approverName: string; self: boolean }>('POST', '/pos/discount/approve', { pin }),
   emitInvoice: (input: EmitInvoiceInput) =>
     request<EmittedInvoice>('POST', '/pos/invoices', input),
   /** Apresenta este posto e recebe a sua série fiscal exclusiva (idempotente). */
