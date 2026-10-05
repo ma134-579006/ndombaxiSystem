@@ -507,8 +507,12 @@ export function ProfessionalsTab() {
 }
 
 function NewProfessionalModal({ onClose, onDone }: { onClose(): void; onDone(): void }) {
-  const [f, setF] = useState({ name: '', category: 'MEDICO', licenseNumber: '', specialty: '', office: '', schedule: '' });
+  const [f, setF] = useState({ name: '', category: 'MEDICO', licenseNumber: '', specialty: '', office: '', schedule: '', userId: '' });
   const [busy, setBusy] = useState(false);
+  // Conta de acesso: liga o profissional a um funcionário — é isso que lhe dá acesso
+  // aos dados clínicos (prontuário, receitas). Sem ligação, não entra no sistema.
+  const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+  useEffect(() => { api.staff.listUsers().then((u) => setUsers(u.filter((x) => x.is_active))).catch(() => undefined); }, []);
   const save = async () => {
     if (!f.name.trim()) { toast.warning('Indique o nome.'); return; }
     setBusy(true);
@@ -518,6 +522,7 @@ function NewProfessionalModal({ onClose, onDone }: { onClose(): void; onDone(): 
       if (f.specialty.trim()) dto.specialty = f.specialty.trim();
       if (f.office.trim()) dto.office = f.office.trim();
       if (f.schedule.trim()) dto.schedule = f.schedule.trim();
+      if (f.userId) dto.userId = f.userId;
       await api.clinic.createProfessional(dto); toast.success('Profissional registado.'); onDone();
     } catch (e) { toast.error(errMsg(e, 'Falha.')); } finally { setBusy(false); }
   };
@@ -536,6 +541,13 @@ function NewProfessionalModal({ onClose, onDone }: { onClose(): void; onDone(): 
         <div className="field"><label>Consultório</label><input value={f.office} onChange={(e) => setF({ ...f, office: e.target.value })} placeholder="ex.: 2" /></div>
       </div>
       <div className="field"><label>Horário</label><input value={f.schedule} onChange={(e) => setF({ ...f, schedule: e.target.value })} placeholder="ex.: 2ª-6ª 08h-16h" /></div>
+      <div className="field"><label htmlFor="prof-user">Conta de acesso (funcionário)</label>
+        <select id="prof-user" value={f.userId} onChange={(e) => setF({ ...f, userId: e.target.value })}>
+          <option value="">— Sem conta (não entra no sistema) —</option>
+          {users.map((u) => <option key={u.id} value={u.id}>{u.name} · {u.email}</option>)}
+        </select>
+        <small className="muted">Médicos, enfermeiros, técnicos, laboratório e farmácia com conta ligada veem os dados clínicos. Quando houver pelo menos um profissional ligado, a receção e o caixa deixam de ver prontuários, notas e receitas.</small>
+      </div>
       <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A registar…' : 'Registar profissional'}</button>
     </Modal>
   );

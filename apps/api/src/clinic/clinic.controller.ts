@@ -34,7 +34,12 @@ export class ClinicController {
   @Get('patients')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Lista pacientes (pesquisa por nome/telefone)' })
-  patients(@Query('search') search?: string) { return this.svc.listPatients(this.ctx.requireTenantSchema(), search); }
+  async patients(@CurrentUser() user: JwtPayload, @Query('search') search?: string) {
+    const schema = this.ctx.requireTenantSchema();
+    const rows = (await this.svc.listPatients(schema, search)) as Record<string, unknown>[];
+    // Receção/caixa: lista administrativa (as notas clínicas ficam de fora).
+    return (await this.hospital.canSeeClinical(schema, user)) ? rows : rows.map(({ notes: _n, ...r }) => r);
+  }
 
   @Post('patients')
   @Roles(Role.CASHIER)
@@ -44,12 +49,24 @@ export class ClinicController {
   @Get('patients/:id')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Ficha do paciente (com histórico de consultas)' })
-  getPatient(@Param('id') id: string) { return this.svc.getPatient(this.ctx.requireTenantSchema(), id); }
+  async getPatient(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    const schema = this.ctx.requireTenantSchema();
+    const r = await this.svc.getPatient(schema, id);
+    if (await this.hospital.canSeeClinical(schema, user)) return r;
+    // Sem acesso clínico: ficha administrativa + histórico SEM sintomas/diagnóstico/receita.
+    const { notes: _n, ...patient } = r.patient;
+    const consultations = (r.consultations as Record<string, unknown>[]).map(({ symptoms: _s, diagnosis: _d, prescription: _p, ...c }) => c);
+    return { patient, consultations };
+  }
 
   @Patch('patients/:id')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Atualiza dados do paciente' })
-  updatePatient(@Param('id') id: string, @Body() dto: UpdatePatientDto) { return this.svc.updatePatient(this.ctx.requireTenantSchema(), id, dto); }
+  async updatePatient(@Param('id') id: string, @Body() dto: UpdatePatientDto, @CurrentUser() user: JwtPayload) {
+    const schema = this.ctx.requireTenantSchema();
+    if (dto.notes !== undefined) await this.hospital.assertClinical(schema, user); // notas clínicas
+    return this.svc.updatePatient(schema, id, dto);
+  }
 
   // ── Agenda (marcações) ─────────────────────────────────────
   @Get('appointments')
@@ -71,7 +88,9 @@ export class ClinicController {
   @Post('consultations')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Regista uma consulta (sintomas, diagnóstico, receita)' })
-  createConsultation(@Body() dto: CreateConsultationDto, @CurrentUser() user: JwtPayload) {
+  async createConsultation(@Body() dto: CreateConsultationDto, @CurrentUser() user: JwtPayload) {
+    // A receção pode abrir a consulta (para faturar); sintomas/diagnóstico/receita só o profissional.
+    if (dto.symptoms || dto.diagnosis || dto.prescription) await this.hospital.assertClinical(this.ctx.requireTenantSchema(), user);
     return this.svc.createConsultation(this.ctx.requireTenantSchema(), { id: user.sub }, dto);
   }
 
@@ -88,7 +107,11 @@ export class ClinicController {
   @Get('patients/:id/record')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Prontuário do paciente (consultas, receitas, vitais, internações, exames)' })
-  patientRecord(@Param('id') id: string) { return this.hospital.patientRecord(this.ctx.requireTenantSchema(), id); }
+  async patientRecord(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    const schema = this.ctx.requireTenantSchema();
+    await this.hospital.assertClinical(schema, user);
+    return this.hospital.patientRecord(schema, id);
+  }
 
   // ── Profissionais de saúde ─────────────────────────────────
   @Get('professionals')
@@ -122,7 +145,8 @@ export class ClinicController {
   @Post('prescriptions')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Emite uma receita médica (medicamentos + posologia)' })
-  createPrescription(@Body() dto: Record<string, unknown>, @CurrentUser() user: JwtPayload) {
+  async createPrescription(@Body() dto: Record<string, unknown>, @CurrentUser() user: JwtPayload) {
+    await this.hospital.assertClinical(this.ctx.requireTenantSchema(), user); // só profissionais prescrevem
     return this.hospital.createPrescription(this.ctx.requireTenantSchema(), { id: user.sub }, dto as never);
   }
 
@@ -156,7 +180,8 @@ export class ClinicController {
   @Post('vitals')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Regista sinais vitais do paciente (prontuário)' })
-  addVitals(@Body() dto: Record<string, unknown>, @CurrentUser() user: JwtPayload) {
+  async addVitals(@Body() dto: Record<string, unknown>, @CurrentUser() user: JwtPayload) {
+    await this.hospital.assertClinical(this.ctx.requireTenantSchema(), user);
     return this.hospital.addVitals(this.ctx.requireTenantSchema(), { id: user.sub }, dto as never);
   }
 

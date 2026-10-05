@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { DocumentType, IvaCode, round2 } from '@nexus/agt-xml';
 import { luandaDate } from '../common/luanda-date';
@@ -44,15 +44,16 @@ export class HospitalService {
 
   async createProfessional(schema: string, dto: {
     name: string; category?: string; licenseNumber?: string; specialty?: string;
-    subspecialty?: string; office?: string; schedule?: string; onCall?: boolean;
+    subspecialty?: string; office?: string; schedule?: string; onCall?: boolean; userId?: string | null;
   }) {
     if (!dto.name?.trim()) throw new BadRequestException('Indique o nome do profissional.');
     const cat = PROF_CATEGORIES.includes(dto.category ?? '') ? dto.category : 'MEDICO';
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-        INSERT INTO clinic_professionals (name, category, license_number, specialty, subspecialty, office, schedule, on_call)
+        INSERT INTO clinic_professionals (name, category, license_number, specialty, subspecialty, office, schedule, on_call, user_id)
         VALUES (${dto.name.trim()}, ${cat}, ${dto.licenseNumber?.trim() || null}, ${dto.specialty?.trim() || null},
-                ${dto.subspecialty?.trim() || null}, ${dto.office?.trim() || null}, ${dto.schedule?.trim() || null}, ${!!dto.onCall})
+                ${dto.subspecialty?.trim() || null}, ${dto.office?.trim() || null}, ${dto.schedule?.trim() || null}, ${!!dto.onCall},
+                ${dto.userId || null}::uuid)
         RETURNING id`);
       return rows[0];
     });
@@ -60,8 +61,16 @@ export class HospitalService {
 
   async updateProfessional(schema: string, id: string, dto: {
     specialty?: string; office?: string; schedule?: string; onCall?: boolean; isActive?: boolean;
+    /** Conta de acesso do profissional ('' ou null = desligar). Dá acesso aos dados clínicos. */
+    userId?: string | null; category?: string;
   }) {
     return this.prisma.runInTenant(schema, async (tx) => {
+      if (dto.userId !== undefined) {
+        await tx.$executeRaw(Prisma.sql`UPDATE clinic_professionals SET user_id = ${dto.userId || null}::uuid, updated_at = now() WHERE id = ${id}::uuid`);
+      }
+      if (dto.category && PROF_CATEGORIES.includes(dto.category)) {
+        await tx.$executeRaw(Prisma.sql`UPDATE clinic_professionals SET category = ${dto.category} WHERE id = ${id}::uuid`);
+      }
       await tx.$executeRaw(Prisma.sql`UPDATE clinic_professionals SET
           specialty = COALESCE(${dto.specialty ?? null}, specialty),
           office = COALESCE(${dto.office ?? null}, office),
@@ -72,6 +81,34 @@ export class HospitalService {
         WHERE id = ${id}::uuid`);
       return { ok: true as const };
     });
+  }
+
+  // ── Privacidade clínica ────────────────────────────────────
+  /**
+   * Quem pode ver/escrever DADOS CLÍNICOS (prontuário, diagnóstico, notas, receitas,
+   * sinais vitais): a direção (gerente de loja para cima) e os profissionais de
+   * saúde LIGADOS a um utilizador (médico, enfermeiro, técnico, laboratório,
+   * farmácia). Receção/caixa veem só os dados administrativos.
+   *
+   * Transição sem partir clínicas existentes: enquanto a empresa não tiver NENHUM
+   * profissional ligado a um utilizador, mantém-se o acesso de antes (todos). A
+   * restrição liga-se sozinha quando o primeiro profissional é associado à sua conta.
+   */
+  async canSeeClinical(schema: string, user: { sub?: string; role?: string }): Promise<boolean> {
+    if (['SUPER_ADMIN', 'COMPANY_ADMIN', 'REGIONAL_MANAGER', 'STORE_MANAGER'].includes(String(user.role))) return true;
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const r = await tx.$queryRaw<{ linked: boolean; me: boolean }[]>(Prisma.sql`
+        SELECT EXISTS (SELECT 1 FROM clinic_professionals WHERE user_id IS NOT NULL AND is_active) AS linked,
+               EXISTS (SELECT 1 FROM clinic_professionals WHERE user_id = ${user.sub ?? null}::uuid AND is_active
+                         AND category IN ('MEDICO','ENFERMEIRO','TECNICO','LABORATORIO','FARMACIA')) AS me`);
+      return !r[0]?.linked || !!r[0]?.me;
+    });
+  }
+
+  async assertClinical(schema: string, user: { sub?: string; role?: string }): Promise<void> {
+    if (!(await this.canSeeClinical(schema, user))) {
+      throw new ForbiddenException('Dados clínicos: acesso reservado a profissionais de saúde e à direção.');
+    }
   }
 
   // ── Receitas médicas ───────────────────────────────────────
