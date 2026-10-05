@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService, assertValidSchemaName } from '../prisma/prisma.service';
 
 /**
@@ -23,6 +23,12 @@ export function splitSqlStatements(raw: string, sourceName: string): string[] {
     .join('\n');
   return stripped.split(';').map((s) => s.trim()).filter((s) => s.length > 0);
 }
+
+/**
+ * Sobe quando muda a LÓGICA do `ensureSchema` (e não só os .sql): força um novo
+ * alinhamento de todas as empresas no arranque seguinte.
+ */
+const SCHEMA_LOGIC_VERSION = 1;
 
 /**
  * Provisiona, migra e remove os schemas PostgreSQL isolados de cada tenant
@@ -109,6 +115,7 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
    */
   async ensureSchema(schema: string): Promise<{ applied: number; failed: number }> {
     assertValidSchemaName(schema);
+    const hash = this.currentSchemaHash();
     const statements = [
       ...this.statementsFromFile('tenant_template.sql', schema),
       ...this.statementsFromFile('tenant_migrations.sql', schema),
@@ -135,7 +142,62 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
     }
     await this.fixInvoiceItemsProductFk(schema);
     await this.ensureForeignKeyIndexes(schema);
+    // Só regista "alinhado" se NADA falhou: com falhas, o próximo arranque tenta de novo.
+    if (failed === 0) await this.storeSchemaHash(schema, hash);
     return { applied, failed };
+  }
+
+  /** Impressão digital do que `ensureSchema` aplica: os dois .sql + a versão da lógica. */
+  private currentSchemaHash(): string {
+    const h = createHash('sha256');
+    h.update(`logic:${SCHEMA_LOGIC_VERSION}\n`);
+    for (const f of ['tenant_template.sql', 'tenant_migrations.sql']) h.update(readFileSync(this.resolvePrismaFile(f)));
+    return h.digest('hex');
+  }
+
+  /** Impressão digital com que este schema foi alinhado da última vez (null = nunca/desconhecida). */
+  private async storedSchemaHash(schema: string): Promise<string | null> {
+    assertValidSchemaName(schema);
+    try {
+      const ex = await this.prisma.$queryRawUnsafe<{ r: string | null }[]>(
+        `SELECT to_regclass('"${schema}"._schema_version')::text AS r`,
+      );
+      if (!ex[0]?.r) return null;
+      const rows = await this.prisma.$queryRawUnsafe<{ hash: string }[]>(
+        `SELECT hash FROM "${schema}"."_schema_version" WHERE id = 1`,
+      );
+      return rows[0]?.hash ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async storeSchemaHash(schema: string, hash: string): Promise<void> {
+    assertValidSchemaName(schema);
+    try {
+      await this.prisma.$executeRawUnsafe(
+        `CREATE TABLE IF NOT EXISTS "${schema}"."_schema_version" (id SMALLINT PRIMARY KEY DEFAULT 1, hash TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+      );
+      await this.prisma.$executeRawUnsafe(
+        `INSERT INTO "${schema}"."_schema_version" (id, hash) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET hash = EXCLUDED.hash, applied_at = now()`,
+        hash,
+      );
+    } catch (err) {
+      this.logger.warn(`${schema}: não consegui registar a versão do esquema: ${err instanceof Error ? err.message.split('\n')[0].slice(0, 120) : 'erro'}`);
+    }
+  }
+
+  /**
+   * Alinha o schema SÓ se os .sql (ou a lógica) mudaram desde a última vez.
+   * Antes, CADA arranque da API repetia ~360 instruções por empresa, uma a uma,
+   * pela rede até à base de dados — e no Render grátis a API arranca sempre que
+   * acorda: minutos de carga em segundo plano que deixavam o site lento logo a
+   * seguir. Devolve true se correu o alinhamento completo.
+   */
+  async ensureSchemaIfOutdated(schema: string): Promise<boolean> {
+    if ((await this.storedSchemaHash(schema)) === this.currentSchemaHash()) return false;
+    await this.ensureSchema(schema);
+    return true;
   }
 
   /**
@@ -238,11 +300,12 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
     catch (err) { this.logger.warn(`Não consegui listar tenants p/ migração: ${err instanceof Error ? err.message : 'erro'}`); return; }
     this.logger.log(`Auto-migração de ${schemas.length} tenant(s)…`);
     let ok = 0;
+    let saltados = 0;
     for (const schema of schemas) {
-      try { await this.ensureSchema(schema); ok += 1; }
+      try { if (!(await this.ensureSchemaIfOutdated(schema))) saltados += 1; ok += 1; }
       catch (err) { this.logger.warn(`Migração falhou em ${schema}: ${err instanceof Error ? err.message : 'erro'}`); }
     }
-    this.logger.log(`Auto-migração concluída: ${ok}/${schemas.length} tenant(s) alinhados.`);
+    this.logger.log(`Auto-migração concluída: ${ok}/${schemas.length} tenant(s) alinhados (${saltados} já estavam em dia).`);
   }
 
   /**
