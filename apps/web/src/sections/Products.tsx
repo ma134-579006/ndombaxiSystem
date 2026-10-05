@@ -109,7 +109,7 @@ export function Products() {
   });
 
   const bulkDelete = async () => {
-    if (!(await confirmDialog({ message: `Eliminar ${selected.size} produto(s)? Produtos com vendas associadas são apenas desativados.`, danger: true }))) return;
+    if (!(await confirmDialog({ message: `Eliminar ${selected.size} produto(s)? Produtos com vendas não podem ser apagados (constam de faturas): ficam apenas desativados.`, danger: true }))) return;
     setBusy(true); setError(null);
     const ids = [...selected];
     let del = 0, deact = 0;
@@ -132,10 +132,22 @@ export function Products() {
       });
       setProducts((prev) => prev.filter((p) => !ids.includes(p.id)));
       setSelected(new Set()); await load({ silent: true });
-      const parts = [`${del} eliminado(s)`];
-      if (deact > 0) parts.push(`${deact} com vendas foram desativados`);
-      if (r.failed > 0) parts.push(`${r.failed} não puderam ser eliminados (${r.firstError})`);
-      if (deact > 0 || r.failed > 0) setError(`${parts.join('; ')}.`); else toast.success(`${del} produto(s) eliminado(s).`);
+      // Produto JÁ VENDIDO consta de faturas emitidas e a lei não deixa apagá-lo: é
+      // DESATIVADO (sai do Caixa e da loja; o histórico fica). Não é um erro — só
+      // as falhas verdadeiras vão a vermelho.
+      const aviso = deact > 0
+        ? `${deact} produto(s) já tinham vendas e por isso não podem ser apagados (constam de faturas emitidas): ficaram desativados — já não aparecem no Caixa nem na loja online, e o histórico fica intacto.`
+        : '';
+      if (r.failed > 0) {
+        const parts = [`${del} eliminado(s)`];
+        if (deact > 0) parts.push(`${deact} com vendas foram desativados`);
+        parts.push(`${r.failed} não puderam ser eliminados (${r.firstError})`);
+        setError(`${parts.join('; ')}.`);
+      } else if (deact > 0) {
+        toast.warning(del > 0 ? `${del} eliminado(s). ${aviso}` : aviso);
+      } else {
+        toast.success(`${del} produto(s) eliminado(s).`);
+      }
     } catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao eliminar.'); }
     finally { setBusy(false); }
   };
