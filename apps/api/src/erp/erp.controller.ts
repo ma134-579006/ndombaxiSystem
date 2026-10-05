@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -13,6 +13,17 @@ import { ErpRepository } from './erp.repository';
 import { StockService } from './stock.service';
 import { PurchasingService } from './purchasing.service';
 
+/**
+ * Gerente/supervisor de UMA loja só mexe no stock da sua loja (antes acertava,
+ * transferia e dava entradas noutras lojas). Regional e acima: sem restrição.
+ */
+function assertOwnStore(user: JwtPayload, storeId: string | null | undefined): void {
+  const papeisDeLoja = ['STORE_MANAGER', 'SHIFT_SUPERVISOR', 'CASHIER', 'ATTENDANT'];
+  if (user.storeId && papeisDeLoja.includes(String(user.role)) && storeId && storeId !== 'ALL' && storeId !== user.storeId) {
+    throw new ForbiddenException('Só pode movimentar o stock da sua loja.');
+  }
+}
+
 @ApiTags('erp')
 @Controller('erp')
 export class ErpController {
@@ -25,6 +36,7 @@ export class ErpController {
 
   // ── Fornecedores ───────────────────────────────────────────
   @Get('suppliers')
+  @Roles(Role.STORE_MANAGER) // custos/compras: não é informação do balcão
   @ApiOperation({ summary: 'Lista fornecedores' })
   listSuppliers() {
     return this.repo.listSuppliers(this.ctx.requireTenantSchema());
@@ -65,6 +77,7 @@ export class ErpController {
   }
 
   @Get('stock/movements')
+  @Roles(Role.STORE_MANAGER) // custos/compras: não é informação do balcão
   @ApiOperation({ summary: 'Movimentos de stock (consulta com filtros)' })
   listMovements(
     @Query('q') q?: string,
@@ -91,6 +104,7 @@ export class ErpController {
   }
 
   @Get('stock/analysis')
+  @Roles(Role.STORE_MANAGER) // custos/compras: não é informação do balcão
   @ApiOperation({ summary: 'Análise de stock (valor, vendas, previsão) com filtros' })
   stockAnalysis(
     @Query('from') from?: string,
@@ -106,6 +120,7 @@ export class ErpController {
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Acerto de inventário (define saldo absoluto)' })
   adjustStock(@Body() dto: AdjustStockDto, @CurrentUser() user: JwtPayload) {
+    assertOwnStore(user, dto.warehouseId);
     return this.stock.adjust(this.ctx.requireTenantSchema(), {
       productId: dto.productId,
       warehouseId: dto.warehouseId,
@@ -119,6 +134,7 @@ export class ErpController {
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Transfere stock de uma loja para outra' })
   transferStock(@Body() dto: TransferStockDto, @CurrentUser() user: JwtPayload) {
+    assertOwnStore(user, dto.fromStoreId); // envia-se stock da PRÓPRIA loja
     return this.stock.transfer(this.ctx.requireTenantSchema(), {
       productId: dto.productId,
       fromStoreId: dto.fromStoreId,
@@ -133,6 +149,7 @@ export class ErpController {
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Entrada de stock em lote (actualiza custo e preço; lucro automático)' })
   stockEntry(@Body() dto: StockEntryDto, @CurrentUser() user: JwtPayload) {
+    assertOwnStore(user, dto.warehouseId);
     return this.stock.stockEntry(this.ctx.requireTenantSchema(), {
       productId: dto.productId,
       warehouseId: dto.warehouseId,
@@ -149,6 +166,7 @@ export class ErpController {
 
   // ── Compras ────────────────────────────────────────────────
   @Get('purchase-orders')
+  @Roles(Role.STORE_MANAGER) // custos/compras: não é informação do balcão
   @ApiOperation({ summary: 'Lista encomendas de compra' })
   listPurchaseOrders() {
     return this.purchasing.list(this.ctx.requireTenantSchema());

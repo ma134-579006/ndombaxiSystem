@@ -1111,6 +1111,16 @@ export class InvoiceService {
       const inv = invRows[0];
       assertOwnStore(actor, inv.store_id);
       if (inv.status === 'A') throw new BadRequestException('Esta venda já foi anulada.');
+      // Venda a CRÉDITO com dinheiro já recebido: anular cancelava a dívida e o valor
+      // pago ficava sem estorno nem saldo a favor do cliente (dinheiro "perdido").
+      const regRec = await tx.$queryRaw<{ reg: string | null }[]>(Prisma.sql`SELECT to_regclass('receivables')::text AS reg`);
+      if (regRec[0]?.reg) {
+        const pago = await tx.$queryRaw<{ paid: string }[]>(Prisma.sql`
+          SELECT COALESCE(SUM(paid_amount),0) AS paid FROM receivables WHERE invoice_id = ${invoiceId}::uuid AND status <> 'CANCELLED'`);
+        if (Number(pago[0]?.paid ?? 0) > 0) {
+          throw new BadRequestException(`Esta venda a crédito já tem ${Number(pago[0].paid).toFixed(2)} Kz recebidos. Estorne primeiro os recebimentos (ou faça uma devolução) antes de anular.`);
+        }
+      }
       // Só faturas se anulam. Anular uma NC repunha o stock e tirava o dinheiro da
       // gaveta OUTRA vez (e gerava uma NC sobre a NC).
       if (inv.doc_type !== 'FT' && inv.doc_type !== 'FS') {

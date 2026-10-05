@@ -253,7 +253,7 @@ export class ClinicService {
         cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
         clientOpId: billingOpId('CONSULTATION', id),
         lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
-      }).catch((e) => rethrowIfAlreadyBilled(e, 'Consulta'));
+      }).catch((e) => rethrowIfAlreadyBilled(e, 'Consulta já faturada.'));
       invId = inv.id; invNumber = inv.number;
     }
     await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE clinic_consultations SET invoice_id = ${invId}::uuid WHERE id = ${id}::uuid`));

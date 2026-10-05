@@ -39,6 +39,10 @@ export class StockService {
     tx: Prisma.TransactionClient,
     m: MovementInput,
   ): Promise<number> {
+    // ORDEM DE LOCKS fixa: primeiro o PRODUTO, depois o saldo da loja — a mesma da
+    // emissão de faturas. Com a ordem inversa, vendas e transferências do mesmo
+    // produto em simultâneo entravam em deadlock ("Conflito ao gravar").
+    await tx.$executeRaw(Prisma.sql`SELECT 1 FROM products WHERE id = ${m.productId}::uuid FOR UPDATE`);
     // Garante a linha de saldo e bloqueia-a.
     await tx.$executeRaw(
       Prisma.sql`INSERT INTO stock_items (product_id, warehouse_id, quantity)
@@ -81,6 +85,14 @@ export class StockService {
                  WHERE id = ${m.productId}::uuid`,
     );
     return balanceAfter;
+  }
+
+  /** A loja tem de existir e estar ativa: um id inventado criava saldos fantasma (unidades a aparecer/desaparecer). */
+  static async assertActiveStore(tx: Prisma.TransactionClient, storeId: string): Promise<void> {
+    const r = await tx.$queryRaw<{ id: string }[]>(
+      Prisma.sql`SELECT id FROM stores WHERE id::text = ${storeId} AND is_active = TRUE LIMIT 1`,
+    );
+    if (!r[0]) throw new BadRequestException('Loja inexistente ou inativa.');
   }
 
   /**
@@ -130,6 +142,7 @@ export class StockService {
       if (!storeId || storeId === 'ALL') {
         storeId = (await StockService.resolveDefaultWarehouse(tx)) ?? storeId;
       }
+      await StockService.assertActiveStore(tx, storeId);
       // CUSTO MÉDIO PONDERADO (CMP): lê o saldo GLOBAL e o custo atuais ANTES da
       // entrada para ponderar o novo custo. Substituir pelo último preço de compra
       // distorcia o CMV/lucro ao reabastecer a preços diferentes.
@@ -347,6 +360,8 @@ export class StockService {
     if (input.quantity <= 0) throw new BadRequestException('A quantidade tem de ser maior que zero.');
     if (input.fromStoreId === input.toStoreId) throw new BadRequestException('Escolha lojas diferentes para a transferência.');
     return this.prisma.runInTenant(schema, async (tx) => {
+      await StockService.assertActiveStore(tx, input.fromStoreId);
+      await StockService.assertActiveStore(tx, input.toStoreId);
       const ref = input.note?.trim() ? `Transferência — ${input.note.trim()}` : 'Transferência entre lojas';
       // Saída na origem (bloqueia se não houver stock suficiente).
       const fromBalance = await StockService.applyMovement(tx, {
@@ -385,6 +400,8 @@ export class StockService {
       throw new BadRequestException('Saldo não pode ser negativo');
     }
     return this.prisma.runInTenant(schema, async (tx) => {
+      await StockService.assertActiveStore(tx, input.warehouseId);
+      await tx.$queryRaw(Prisma.sql`SELECT 1 FROM products WHERE id = ${input.productId}::uuid FOR UPDATE`);
       await tx.$executeRaw(
         Prisma.sql`INSERT INTO stock_items (product_id, warehouse_id, quantity)
                    VALUES (${input.productId}::uuid, ${input.warehouseId}::uuid, 0)

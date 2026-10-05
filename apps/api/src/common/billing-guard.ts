@@ -17,10 +17,10 @@ export function billingOpId(source: string, id: string): string {
 }
 
 /** A 2.ª emissão bateu no índice único da idempotência → o ato já foi faturado. */
-export function rethrowIfAlreadyBilled(e: unknown, what: string): never {
+export function rethrowIfAlreadyBilled(e: unknown, mensagem: string): never {
   const msg = e instanceof Error ? e.message : String(e);
   if ((msg.includes('23505') || /duplicate key value/i.test(msg)) && (msg.includes('invoices_client_op_uidx') || msg.includes('(client_op_id)'))) {
-    throw new BadRequestException(`${what} já faturad${what.endsWith('a') ? 'a' : 'o'}.`);
+    throw new BadRequestException(mensagem);
   }
   throw e;
 }

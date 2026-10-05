@@ -447,7 +447,7 @@ export class HospitalService {
         cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
         clientOpId: billingOpId('ADMISSION', id),
         lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
-      }).catch((e) => rethrowIfAlreadyBilled(e, 'Internação'));
+      }).catch((e) => rethrowIfAlreadyBilled(e, 'Internação já faturada.'));
       invId = inv.id; invNumber = inv.number;
     }
     await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE clinic_admissions SET invoice_id = ${invId}::uuid WHERE id = ${id}::uuid`));
@@ -564,7 +564,7 @@ export class HospitalService {
       cashierId: opener.id, cashierName: opener.name, paymentType: 'CASH',
       clientOpId: billingOpId('EXAM', id),
       lines: [{ description: desc, unitPrice: net, ivaCode: IvaCode.NOR, quantity: 1 }],
-    }).catch((e) => rethrowIfAlreadyBilled(e, 'Exame'));
+    }).catch((e) => rethrowIfAlreadyBilled(e, 'Exame já faturado.'));
     await this.recordClaimAndCloseExam(schema, id, { source: 'EXAM', patientId: ex[0].patient_id, patientName: ex[0].patient_name, gross: fee, covered, copay, cov, invoiceId: inv.id, by: opener.id });
     return { invoiceId: inv.id, invoiceNumber: inv.number, covered, copay, insurer: cov?.name ?? null };
   }

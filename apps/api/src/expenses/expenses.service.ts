@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { luandaDate } from '../common/luanda-date';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
 import { CreateExpenseDto } from './dto/expense.dto';
@@ -38,8 +39,17 @@ export class ExpensesService {
   ) {}
 
   private range(from?: string, to?: string): { from: string; to: string } {
-    const toD = to ? new Date(to) : new Date();
-    const fromD = from ? new Date(from) : new Date(toD.getTime() - 29 * 86400000);
+    // Datas inválidas ("abc") davam RangeError → HTTP 500. Formato estrito AAAA-MM-DD.
+    const valida = (d: string | undefined, nome: string) => {
+      if (d === undefined || d === '') return undefined;
+      const dt = new Date(`${d}T00:00:00Z`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(dt.getTime()) || dt.toISOString().slice(0, 10) !== d) {
+        throw new BadRequestException(`Data "${nome}" inválida (use AAAA-MM-DD).`);
+      }
+      return dt;
+    };
+    const toD = valida(to, 'até') ?? new Date(`${luandaDate()}T00:00:00Z`);
+    const fromD = valida(from, 'de') ?? new Date(toD.getTime() - 29 * 86400000);
     return { from: fromD.toISOString().slice(0, 10), to: toD.toISOString().slice(0, 10) };
   }
 

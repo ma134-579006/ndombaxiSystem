@@ -67,6 +67,12 @@ export class InventoryService {
   /** Cria uma folha de contagem com o saldo actual do sistema para o armazém. */
   async createCount(schema: string, dto: CreateCountDto, actor: Actor): Promise<{ id: string; reference: string }> {
     return this.prisma.runInTenant(schema, async (tx) => {
+      await this.assertActiveStore(tx, dto.warehouseId);
+      // Uma contagem aberta por loja: duas contagens em paralelo aplicavam o mesmo acerto duas vezes.
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${'stock-count:' + dto.warehouseId}))`);
+      const aberta = await tx.$queryRaw<{ reference: string }[]>(Prisma.sql`
+        SELECT reference FROM stock_counts WHERE warehouse_id = ${dto.warehouseId}::uuid AND status = 'COUNTING' LIMIT 1`);
+      if (aberta[0]) throw new BadRequestException(`Já existe uma contagem aberta nesta loja (${aberta[0].reference}). Feche-a primeiro.`);
       const year = luandaYear();
       const seq = await allocateDocumentNumber(tx, 'INV', year);
       const reference = formatCounterNumber('INV', year, seq);

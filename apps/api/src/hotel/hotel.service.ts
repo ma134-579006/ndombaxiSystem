@@ -223,7 +223,7 @@ export class HotelService {
       paymentType: 'CASH', lines,
       // Dois pedidos em simultâneo emitiam duas faturas: a chave fixa por reserva impede-o.
       clientOpId: billingOpId('HOTEL', reservationId),
-    }).catch((e) => rethrowIfAlreadyBilled(e, 'Reserva'));
+    }).catch((e) => rethrowIfAlreadyBilled(e, 'Esta reserva já foi faturada.'));
     await this.prisma.runInTenant(schema, async (tx) => {
       await tx.$executeRaw(Prisma.sql`
         UPDATE hotel_reservations SET invoice_id = ${inv.id}::uuid, status = 'CHECKED_OUT', updated_at = now()
