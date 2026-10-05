@@ -491,6 +491,13 @@ async function requestText(path: string, retry = true): Promise<string> {
   return res.text();
 }
 
+export interface StockCheckRow { id: string; code: string; name: string; isActive: boolean; shown: number; stores: number }
+export interface StockCheckResult {
+  checked: number;
+  semSaldoPorLoja: { total: number; items: StockCheckRow[] };
+  diferencas: { total: number; items: StockCheckRow[] };
+}
+
 export const api = {
   login: (input: PlatformLoginInput) =>
     request<TokenPair>('POST', '/auth/super-admin/login', input, { auth: false }),
@@ -1229,6 +1236,10 @@ export const api = {
     warehouses: () => request<WarehouseRow[]>('GET', '/erp/warehouses'),
     /** Saldos de stock por produto e loja (para mostrar o stock existente ao escolher um produto). */
     stockLevels: () => request<Array<{ product_id: string; warehouse_id: string; warehouse_code: string; quantity: string; min_qty: string | null }>>('GET', '/erp/stock'),
+    /** Compara o stock mostrado com os saldos por loja (só relata). */
+    stockCheck: () => request<StockCheckResult>('GET', '/inventory/stock-check'),
+    /** Cria o saldo por loja dos produtos com stock mas sem saldo (o total mostrado não muda). */
+    stockRepair: () => request<{ fixed: number }>('POST', '/inventory/stock-check/repair', {}),
     listCounts: () => request<StockCountRow[]>('GET', '/inventory/counts'),
     createCount: (warehouseId: string, notes?: string) =>
       request<{ id: string; reference: string }>('POST', '/inventory/counts', { warehouseId, notes }),
