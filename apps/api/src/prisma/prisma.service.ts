@@ -77,6 +77,10 @@ export class PrismaService
         await tx.$executeRawUnsafe(
           `SET LOCAL search_path TO "${schema}", nexus_public`,
         );
+        // Fuso de ANGOLA na sessão: CURRENT_DATE, ::date e to_char passam a contar
+        // o dia de Luanda (UTC+1). Em UTC, entre as 00:00 e a 01:00 de Luanda os
+        // painéis "hoje", a agenda e os relatórios do dia contavam o dia anterior.
+        await tx.$executeRawUnsafe(`SET LOCAL TIME ZONE 'Africa/Luanda'`);
         return fn(tx);
       },
       // Timeout alargado para tolerar a latência de uma BD na nuvem em
