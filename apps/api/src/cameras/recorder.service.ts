@@ -34,7 +34,15 @@ export class CameraRecorderService implements OnApplicationBootstrap, OnModuleDe
   constructor(private readonly prisma: PrismaService) {}
 
   onApplicationBootstrap(): void {
-    mkdirSync(this.dir, { recursive: true });
+    // Sem poder criar a pasta (instalação só de leitura, contentor sem permissões…)
+    // a API arrancava e MORRIA aqui — e o servidor local do posto nunca existia.
+    // As câmaras são um extra: avisa e segue sem gravar.
+    try {
+      mkdirSync(this.dir, { recursive: true });
+    } catch (e) {
+      this.logger.warn(`Gravador de câmaras desativado: não consegui criar ${this.dir} (${e instanceof Error ? e.message : 'erro'})`);
+      return;
+    }
     this.snapTimer = setInterval(() => void this.tick().catch(() => undefined), SNAPSHOT_EVERY_MS);
     this.purgeTimer = setInterval(() => this.purge(), PURGE_EVERY_MS);
     this.purge();

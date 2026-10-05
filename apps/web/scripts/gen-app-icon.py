@@ -1,95 +1,83 @@
 """
-Gera o ÍCONE DE APLICAÇÃO do LPS Vendas (quadrado), fonte única dos ícones do
-instalador/app Windows e da app Android.
+Gera o ÍCONE DE APLICAÇÃO do LPS Vendas a partir do LOGÓTIPO OFICIAL
+(`public/logo.png` — o mesmo do site, do favicon e da landing), fonte única dos
+ícones do instalador/app Windows e da app Android.
 
-PORQUÊ: o logótipo (`public/logo.png`) é LARGO (carrinho + "LPS" + "Vendas").
-Encolhido para os 16–48 px de um ícone, ficava um borrão claro com muita margem
-— o lojista via "um instalador sem ícone". Um ícone de app tem de ser quadrado,
-cheio e legível em pequeno: monograma "LPS" branco sobre o azul da marca.
+O logótipo é LARGO (carrinho + "LPS" + "Vendas") e tem muita margem transparente
+no ficheiro original. Encolhido tal e qual para 16–48 px ficava um borrão. Aqui:
+  1. recorta-se à caixa real do desenho (sem a margem);
+  2. escala-se para ocupar o máximo possível de um quadrado branco, que é o que
+     um ícone de aplicação precisa.
+É SEMPRE o mesmo logótipo — não se inventa outro desenho.
 
 Saídas (em apps/web/public/):
-  • app-icon.png            1024 px — quadrado arredondado + "LPS" + "VENDAS"
-  • app-icon-small.png      1024 px — o mesmo sem "VENDAS" (para 16–32 px)
-  • app-icon-foreground.png 1024 px — só as letras, fundo transparente, dentro
-                            da zona segura (Android adaptativo, fundo azul à parte)
+  • app-icon.png            1024 px — logótipo num quadrado branco arredondado
+  • app-icon-small.png      1024 px — igual, com menos margem (para 16–32 px)
+  • app-icon-round.png      1024 px — logótipo num círculo branco (Android redondo)
+  • app-icon-foreground.png 1024 px — só o logótipo, fundo transparente, dentro
+                            da zona segura do ícone adaptativo (Android 8+;
+                            o fundo branco vem de ic_launcher_background)
 
 Uso:  python3 apps/web/scripts/gen-app-icon.py   (precisa de Pillow)
 Os PNG gerados vão para o repositório — o CI só os redimensiona.
 """
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFilter
 
 PUBLIC = Path(__file__).resolve().parent.parent / "public"
 S = 1024
-
-# Azul da marca (o do logótipo é #0926FB): gradiente de cima para baixo.
-TOPO = (52, 92, 255)
-BASE = (6, 22, 170)
-FONTES = [
-    "/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf",
-]
+BORDA = (203, 213, 238, 255)  # contorno azul-claro: o ícone branco não "some" numa barra branca
 
 
-def fonte(px):
-    for f in FONTES:
-        if Path(f).exists():
-            return ImageFont.truetype(f, px)
-    raise SystemExit("Fonte bold-italic não encontrada (instale fonts-liberation).")
+def logotipo():
+    """O logótipo oficial recortado à caixa real do desenho."""
+    im = Image.open(PUBLIC / "logo.png").convert("RGBA")
+    return im.crop(im.getchannel("A").getbbox())
 
 
-def fundo():
-    """Quadrado arredondado com gradiente e um brilho suave no topo."""
-    grad = Image.new("RGB", (S, S))
-    px = grad.load()
-    for y in range(S):
-        t = y / (S - 1)
-        c = tuple(round(TOPO[i] * (1 - t) + BASE[i] * t) for i in range(3))
-        for x in range(S):
-            px[x, y] = c
-    mascara = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(mascara).rounded_rectangle((0, 0, S - 1, S - 1), radius=int(S * 0.22), fill=255)
-    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    img.paste(grad, (0, 0), mascara)
-    # brilho: elipse branca muito transparente no terço de cima
-    brilho = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    ImageDraw.Draw(brilho).ellipse((-S * 0.3, -S * 0.75, S * 1.3, S * 0.42), fill=(255, 255, 255, 30))
-    brilho = brilho.filter(ImageFilter.GaussianBlur(S * 0.03))
-    brilho.putalpha(Image.composite(brilho.getchannel("A"), Image.new("L", (S, S), 0), mascara))
-    return Image.alpha_composite(img, brilho)
-
-
-def letras(com_vendas, escala=1.0):
-    """'LPS' (e 'VENDAS') brancos com sombra, centrados, num canvas transparente."""
-    camada = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    d = ImageDraw.Draw(camada)
-    f_lps = fonte(int((430 if com_vendas else 520) * escala))
-    caixa = d.textbbox((0, 0), "LPS", font=f_lps)
-    w, h = caixa[2] - caixa[0], caixa[3] - caixa[1]
-    f_v = fonte(int(150 * escala))
-    cv = d.textbbox((0, 0), "VENDAS", font=f_v)
-    wv, hv = cv[2] - cv[0], cv[3] - cv[1]
-    gap = int(40 * escala)
-    total = h + (gap + hv if com_vendas else 0)
-    y0 = (S - total) // 2
-    d.text(((S - w) // 2 - caixa[0], y0 - caixa[1]), "LPS", font=f_lps, fill="white")
-    if com_vendas:
-        d.text(((S - wv) // 2 - cv[0], y0 + h + gap - cv[1]), "VENDAS", font=f_v, fill=(225, 233, 255, 255))
+def colocar(base, logo, largura_rel, dy=0):
+    """Cola o logótipo centrado, com `largura_rel` da largura da tela, e uma sombra suave."""
+    w = int(S * largura_rel)
+    h = round(logo.height * w / logo.width)
+    img = logo.resize((w, h), Image.LANCZOS)
+    x, y = (S - w) // 2, (S - h) // 2 + dy
     sombra = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    sombra.putalpha(camada.getchannel("A").point(lambda a: a * 0.45))
-    sombra = sombra.filter(ImageFilter.GaussianBlur(S * 0.012))
-    base = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    base.alpha_composite(sombra, (int(S * 0.008), int(S * 0.018)))
-    return Image.alpha_composite(base, camada)
+    mascara = Image.new("RGBA", img.size, (20, 40, 120, 0))
+    mascara.putalpha(img.getchannel("A").point(lambda a: int(a * 0.22)))
+    sombra.alpha_composite(mascara, (x, y + int(S * 0.012)))
+    sombra = sombra.filter(ImageFilter.GaussianBlur(S * 0.008))
+    base.alpha_composite(sombra)
+    base.alpha_composite(img, (x, y))
+    return base
+
+
+def quadrado(raio_rel):
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    r = int(S * raio_rel)
+    d.rounded_rectangle((0, 0, S - 1, S - 1), radius=r, fill=BORDA)
+    d.rounded_rectangle((10, 10, S - 11, S - 11), radius=max(r - 10, 0), fill=(255, 255, 255, 255))
+    return img
+
+
+def circulo():
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.ellipse((0, 0, S - 1, S - 1), fill=BORDA)
+    d.ellipse((10, 10, S - 11, S - 11), fill=(255, 255, 255, 255))
+    return img
 
 
 def main():
-    bg = fundo()
-    Image.alpha_composite(bg, letras(True)).save(PUBLIC / "app-icon.png", optimize=True)
-    Image.alpha_composite(bg, letras(False)).save(PUBLIC / "app-icon-small.png", optimize=True)
-    # Android adaptativo: o sistema recorta 108dp → visível ~72dp (66%). Letras a ~62%.
-    letras(True, escala=0.62).save(PUBLIC / "app-icon-foreground.png", optimize=True)
+    logo = logotipo()
+    colocar(quadrado(0.22), logo, 0.88).save(PUBLIC / "app-icon.png", optimize=True)
+    colocar(quadrado(0.16), logo, 0.94).save(PUBLIC / "app-icon-small.png", optimize=True)
+    # Círculo: a largura do logótipo tem de caber na corda do círculo à altura das pontas.
+    colocar(circulo(), logo, 0.76).save(PUBLIC / "app-icon-round.png", optimize=True)
+    # Adaptativo: o sistema mostra ~66% centrais (círculo de 72 dp em 108 dp). O logótipo
+    # é largo — a diagonal tem de caber nesse círculo: largura <= 0.577 da tela.
+    colocar(Image.new("RGBA", (S, S), (0, 0, 0, 0)), logo, 0.56).save(PUBLIC / "app-icon-foreground.png", optimize=True)
     print("Ícones gerados em", PUBLIC)
 
 
