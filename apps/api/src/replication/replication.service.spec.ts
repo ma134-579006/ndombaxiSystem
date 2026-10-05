@@ -12,7 +12,8 @@ const SCHEMA = 'tenant_ab12cd34';
 
 function fake(existing: Record<string, unknown> | null = null) {
   const executed: { sql: string; params: unknown[] }[] = [];
-  const prisma = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prisma: any = {
     $executeRawUnsafe: jest.fn(async (sql: string, ...params: unknown[]) => {
       executed.push({ sql, params });
       // Simula o `ON CONFLICT DO NOTHING`: se já existia, 0 linhas.
@@ -20,9 +21,13 @@ function fake(existing: Record<string, unknown> | null = null) {
       return 1;
     }),
     $queryRawUnsafe: jest.fn(async () => (existing ? [existing] : [])),
-    $transaction: jest.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
-  } as unknown as PrismaService;
-  return { svc: new ReplicationService(prisma), executed };
+    // Aceita as duas formas: lista de operações ou função com a transacção (a atual:
+    // gravar o movimento e aplicá-lo ao saldo têm de ser tudo-ou-nada).
+    $transaction: jest.fn(async (arg: unknown) => (typeof arg === 'function'
+      ? (arg as (tx: unknown) => Promise<unknown>)(prisma)
+      : Promise.all(arg as Promise<unknown>[]))),
+  };
+  return { svc: new ReplicationService(prisma as unknown as PrismaService), executed };
 }
 
 function row(over: Partial<IncomingRow> = {}): IncomingRow {
