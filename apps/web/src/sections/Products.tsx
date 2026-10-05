@@ -99,7 +99,7 @@ export function Products() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [pfilter, setPfilter] = useState<'ALL' | 'IN' | 'OUT' | 'ONLINE'>('ALL');
+  const [pfilter, setPfilter] = useState<'ALL' | 'IN' | 'OUT' | 'ONLINE' | 'OFF'>('ALL');
   const [busy, setBusy] = useState(false);
   const [entering, setEntering] = useState(false);
   const [producing, setProducing] = useState(false);
@@ -354,7 +354,16 @@ export function Products() {
   const stockValue = sellable.reduce((s, p) => (p.is_production ? s : s + grossUnit(p) * Math.max(0, Number(p.stock_qty))), 0);
   const outOfStock = sellable.filter((p) => !p.is_production && Number(p.stock_qty) <= 0).length;
   const onlineCount = products.filter((p) => p.show_online && p.is_active && !p.is_ingredient).length;
+  // Desativados (ex.: produtos com vendas que se tentou eliminar) saem da lista normal
+  // e ficam no separador "Inativos", de onde se podem reativar (Editar).
+  const inactiveCount = products.filter((p) => !p.is_active).length;
+  // A lista vem por páginas: com mais por carregar o número é um mínimo ("100+").
+  const inactiveLabel = `${inactiveCount}${hasMore ? '+' : ''}`;
   const visible = filtered.filter((p) => {
+    if (pfilter === 'OFF') return !p.is_active;
+    // A pesquisar, os desativados também aparecem (com a etiqueta "Inativo"): é
+    // assim que se encontra um para o reativar.
+    if (!p.is_active && !q) return false;
     if (pfilter === 'IN') return !p.is_ingredient && (p.is_production || Number(p.stock_qty) > 0);
     if (pfilter === 'OUT') return !p.is_ingredient && !p.is_production && Number(p.stock_qty) <= 0;
     if (pfilter === 'ONLINE') return !!p.show_online && !p.is_ingredient;
@@ -390,7 +399,7 @@ export function Products() {
 
       <div className="fx-toolbar">
         <div className="fx-tabs" role="tablist" aria-label="Filtrar produtos">
-          {([['ALL', 'Todos'], ['IN', 'Com stock'], ['OUT', 'Sem stock'], ['ONLINE', 'Online']] as const).map(([k, l]) => (
+          {([['ALL', 'Todos'], ['IN', 'Com stock'], ['OUT', 'Sem stock'], ['ONLINE', 'Online'], ...(inactiveCount > 0 || pfilter === 'OFF' ? [['OFF', `Inativos (${inactiveLabel})`]] : [])] as [typeof pfilter, string][]).map(([k, l]) => (
             <button key={k} role="tab" aria-selected={pfilter === k} className={pfilter === k ? 'on' : ''} onClick={() => setPfilter(k)}>{l}</button>
           ))}
         </div>
