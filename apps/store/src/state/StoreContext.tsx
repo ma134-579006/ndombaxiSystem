@@ -2,9 +2,29 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { api, ApiError } from '../api/client';
 import type { CatalogProduct, PaymentMethod, SiteSettings } from '../api/types';
 import { INITIAL_STORE_CODE } from '../config';
+import { OPEN_STORE_EVENT, takePendingStoreCode } from '../native';
 import type { CartLine } from '../store/cart';
 
 const LS_CODE = 'ndombaxi.store.code';
+const LS_RECENT = 'ndombaxi.store.recent';
+
+/** Lojas visitadas (para reabrir com um toque no ecrã de entrada). */
+export interface RecentStore { code: string; name: string; at: number }
+export function readRecentStores(): RecentStore[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(LS_RECENT) || '[]') as RecentStore[];
+    return Array.isArray(list) ? list.filter((r) => r && typeof r.code === 'string').slice(0, 8) : [];
+  } catch { return []; }
+}
+export function forgetRecentStore(code: string): RecentStore[] {
+  const next = readRecentStores().filter((r) => r.code !== code);
+  try { localStorage.setItem(LS_RECENT, JSON.stringify(next)); } catch { /* armazenamento indisponível */ }
+  return next;
+}
+function rememberStore(code: string, name: string) {
+  const next = [{ code, name, at: Date.now() }, ...readRecentStores().filter((r) => r.code !== code)].slice(0, 8);
+  try { localStorage.setItem(LS_RECENT, JSON.stringify(next)); } catch { /* armazenamento indisponível */ }
+}
 const cartKey = (code: string) => `ndombaxi.store.cart.${code}`;
 
 interface StoreData {
@@ -53,8 +73,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const clean = next.trim().toLowerCase();
     setCodeState(clean);
     if (clean) localStorage.setItem(LS_CODE, clean);
+    else localStorage.removeItem(LS_CODE); // "trocar de loja" volta mesmo ao ecrã de entrada
     setCart(clean ? readCart(clean) : []);
   }, []);
+
+  // App Android: um link/QR de loja aberto de fora (ligação direta) troca de loja.
+  useEffect(() => {
+    const onOpen = (e: Event) => { const next = (e as CustomEvent<string>).detail; takePendingStoreCode(); if (next) setCode(next); };
+    const early = takePendingStoreCode();
+    if (early) setCode(early);
+    window.addEventListener(OPEN_STORE_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_STORE_EVENT, onOpen);
+  }, [setCode]);
 
   const load = useCallback(async () => {
     if (!code) {
@@ -78,6 +108,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         products: catalog.products,
         paymentMethods: methods,
       });
+      rememberStore(code, site.store || code);
       setStatus('ready');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Não foi possível abrir a loja.');

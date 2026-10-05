@@ -12,7 +12,39 @@ import { isCapacitorApp as isNativeApp, saveNativePdf, shareNativePdf } from '..
 import { UiIcon } from './UiIcon';
 
 /** Linha de artigo da fatura (para a tabela no recibo/PDF). */
-export interface ReceiptItem { description: string; quantity: number; unitPrice: number; total: number }
+export interface ReceiptItem {
+  description: string; quantity: number; unitPrice: number; total: number;
+  /** Opcionais (venda feita agora no POS): IVA por taxa e isenção no talão. */
+  ivaRate?: number; net?: number; iva?: number; exemptionCode?: string | null;
+}
+
+/** Designação do documento pelo prefixo do número (FR = Factura-Recibo; FS é o nome antigo). */
+export function docDesignation(number: string): string {
+  const t = number.split(' ')[0];
+  return ({ FT: 'Factura', FR: 'Factura-Recibo', FS: 'Factura-Recibo', NC: 'Nota de Crédito', ND: 'Nota de Débito', RC: 'Recibo', GR: 'Guia de Remessa', ORC: 'Orçamento' } as Record<string, string>)[t] ?? 'Documento';
+}
+
+/** IVA discriminado por taxa + motivos de isenção (menções obrigatórias). */
+function taxSummary(items: ReceiptItem[] | undefined, netTotal: number) {
+  const rows = new Map<number, { base: number; iva: number }>();
+  const exempt = new Set<string>();
+  for (const it of items ?? []) {
+    if (it.ivaRate == null || it.net == null) return { rows: [], exemptions: [] };
+    const r = rows.get(it.ivaRate) ?? { base: 0, iva: 0 };
+    r.base += it.net; r.iva += it.iva ?? 0;
+    rows.set(it.ivaRate, r);
+    if (it.ivaRate === 0) exempt.add(it.exemptionCode ? `Isento — ${it.exemptionCode}` : 'Isento de IVA');
+  }
+  // Desconto global na venda: as linhas já não somam a base do documento → não discrimina (evita números errados).
+  const sum = [...rows.values()].reduce((a, r) => a + r.base, 0);
+  if (Math.abs(sum - netTotal) > 0.05) return { rows: [], exemptions: [...exempt] };
+  return {
+    rows: [...rows.entries()].sort((a, b) => b[0] - a[0]).map(([rate, v]) => ({
+      label: rate === 0 ? 'Isento' : `IVA ${rate}%`, base: Math.round(v.base * 100) / 100, iva: Math.round(v.iva * 100) / 100,
+    })),
+    exemptions: [...exempt],
+  };
+}
 
 interface Props {
   invoice: EmittedInvoice;
@@ -44,6 +76,8 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
   // AGT: 4 caracteres da assinatura nas posições 1.ª, 11.ª, 21.ª e 31.ª.
   const hashShort = invoice.hash ? [0, 10, 20, 30].map((i) => invoice.hash[i] ?? '').join('') : '----';
   const shownDate = dateLabel ?? formatDateTime();
+  const designation = provisional ? 'Comprovativo provisório' : docDesignation(invoice.number);
+  const tax = taxSummary(items, invoice.netTotal);
   // Conteúdo do QR de verificação (campos-chave do documento).
   const qrData = invoice.feQr && identity?.nif
     ? `https://quiosqueagt.minfin.gov.ao/facturacao-eletronica/consultar-fe?emissor=${encodeURIComponent(identity.nif)}&document=${invoice.number.replace(/ /g, '%20')}`
@@ -113,6 +147,10 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
         company: identity?.companyName || identity?.brandName || null,
         meta: companyMeta || null,
         title: `${invoice.number}${reprint ? ' - 2a via' : ''}${provisional ? ' (provisorio)' : ''}`,
+        docTitle: designation,
+        taxRows: tax.rows.length > 1 || tax.exemptions.length ? tax.rows : undefined,
+        exemptions: tax.exemptions,
+        qr: !provisional && invoice.feQr ? qrData : null,
         date: shownDate,
         customer: customerName || 'Consumidor final',
         operator: operatorName || null,
@@ -220,6 +258,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
           <div className="check" style={provisional ? { background: 'var(--warning)', color: '#20160a' } : undefined}>
             <IconCheck size={30} />
           </div>
+          <div className="sub" style={{ fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' }}>{designation}</div>
           <div className="num">{invoice.number}{reprint ? ' · 2ª via' : ''}</div>
           <div className="sub">{shownDate}</div>
         </div>
@@ -266,10 +305,19 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
             <span className="k">Base tributável</span>
             <span className="v">{formatKz(invoice.netTotal)}</span>
           </div>
+          {tax.rows.length > 1 || tax.exemptions.length ? tax.rows.map((t) => (
+            <div className="kv" key={t.label} style={{ fontSize: 12.5 }}>
+              <span className="k">{t.label} s/ {formatKz(t.base)}</span>
+              <span className="v">{formatKz(t.iva)}</span>
+            </div>
+          )) : null}
           <div className="kv">
             <span className="k">IVA</span>
             <span className="v">{formatKz(invoice.ivaTotal)}</span>
           </div>
+          {tax.exemptions.map((e) => (
+            <div key={e} className="muted" style={{ fontSize: 12 }}>{e}</div>
+          ))}
           <div className="kv" style={{ borderTop: '1px solid var(--border)', marginTop: 6, paddingTop: 10 }}>
             <span className="k">Total</span>
             <span className="v grand">{formatKz(invoice.grossTotal)}</span>
@@ -315,7 +363,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
               <div style={{ background: '#fff', padding: 8, borderRadius: 8 }}>
                 <QRCodeSVG value={qrData} size={116} level="M" />
               </div>
-              <div className="muted" style={{ fontSize: 11 }}>Verificação · leia o QR</div>
+              <div className="muted" style={{ fontSize: 11 }}>{invoice.feQr ? 'Consulte no Quiosque AGT · leia o QR' : 'Verificação · leia o QR'}</div>
             </div>
           ) : null}
         </div>

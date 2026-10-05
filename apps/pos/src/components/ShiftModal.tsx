@@ -94,6 +94,25 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
   const [error, setError] = useState<string | null>(null);
   const [closeResult, setCloseResult] = useState<ShiftClose | null>(null);
   const [xReport, setXReport] = useState<ReportX | null>(null);
+  // Sangria (retirar dinheiro da gaveta) / reforço (pôr troco) durante o turno.
+  const [mov, setMov] = useState<'CASH_OUT' | 'CASH_IN' | null>(null);
+  const [movAmount, setMovAmount] = useState('');
+  const [movReason, setMovReason] = useState('');
+  const [movDone, setMovDone] = useState<string | null>(null);
+
+  const saveMovement = async () => {
+    if (!mov) return;
+    const amount = parseKz(movAmount) || 0;
+    if (amount <= 0) { setError('Indique um valor maior que zero.'); return; }
+    setError(null); setBusy(true);
+    try {
+      await api.cashMovement(mov, amount, movReason.trim() || undefined);
+      setMovDone(mov === 'CASH_OUT' ? `Sangria de ${formatKz(amount)} registada.` : `Reforço de ${formatKz(amount)} registado.`);
+      setMov(null); setMovAmount(''); setMovReason('');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível registar o movimento (precisa de rede).');
+    } finally { setBusy(false); }
+  };
 
   const loadX = async () => {
     setError(null); setBusy(true);
@@ -301,6 +320,31 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
     );
   }
 
+  // ── Sangria / reforço ────────────────────────────────────
+  if (mov) {
+    const out = mov === 'CASH_OUT';
+    return (
+      <div className="modal-bg" onClick={() => setMov(null)}>
+        <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, padding: 22 }}>
+          <div className="row" style={{ marginBottom: 8 }}>
+            <h2 style={{ margin: 0, fontSize: 18 }}>{out ? 'Sangria — retirar da gaveta' : 'Reforço — pôr troco na gaveta'}</h2>
+            <span className="spacer" />
+            <button className="trash" onClick={() => setMov(null)} aria-label="Voltar"><IconClose size={22} /></button>
+          </div>
+          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+            {out ? 'O valor sai do dinheiro esperado no fecho (ex.: depósito no cofre).' : 'O valor soma ao dinheiro esperado no fecho (ex.: troco trazido do cofre).'}
+          </p>
+          {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
+          <KeyboardInput label="Valor (Kz)" value={movAmount} onChange={setMovAmount} numeric placeholder="0" onSubmit={saveMovement} autoFocus />
+          <KeyboardInput label="Motivo (opcional)" value={movReason} onChange={setMovReason} placeholder={out ? 'ex.: depósito no cofre' : 'ex.: troco do cofre'} />
+          <button className={`btn ${out ? 'danger' : 'success'} lg block`} style={{ marginTop: 14 }} onClick={saveMovement} disabled={busy}>
+            {busy ? 'A registar…' : out ? 'Registar sangria' : 'Registar reforço'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Fechar turno ─────────────────────────────────────────
   return (
     <div className="modal-bg" onClick={onClose}>
@@ -321,7 +365,12 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
         ) : null}
         <KeyboardInput label="Dinheiro contado na gaveta (Kz)" value={counted} onChange={setCounted} numeric placeholder="0" onSubmit={close} />
         <KeyboardInput label="Observações (opcional)" value={notes} onChange={setNotes} placeholder="ex.: nota sobre o turno" />
-        <button className="btn ghost lg block" style={{ marginTop: 12 }} onClick={loadX} disabled={busy}>
+        {movDone ? <div className="banner info" style={{ marginTop: 12 }}>{movDone}</div> : null}
+        <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+          <button className="btn ghost lg" style={{ flex: 1 }} onClick={() => { setError(null); setMovDone(null); setMov('CASH_OUT'); }} disabled={busy}>Sangria</button>
+          <button className="btn ghost lg" style={{ flex: 1 }} onClick={() => { setError(null); setMovDone(null); setMov('CASH_IN'); }} disabled={busy}>Reforço</button>
+        </div>
+        <button className="btn ghost lg block" style={{ marginTop: 10 }} onClick={loadX} disabled={busy}>
           Relatório X (ler sem fechar)
         </button>
         <button className="btn danger lg block" style={{ marginTop: 10 }} onClick={close} disabled={busy || cartCount > 0}>

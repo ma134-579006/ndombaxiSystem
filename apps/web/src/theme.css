@@ -3885,3 +3885,57 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
 }
 /* Valores dos KPI: o "Kz" não salta sozinho para a linha seguinte; números grandes encolhem. */
 .kpi-value { white-space: nowrap; font-size: clamp(18px, 2.2vw, 28px); overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Localização do cliente em tempo real (mapa próprio, sem iframe) ─────────── */
+.lmap { position: relative; overflow: hidden; border-radius: var(--nx-radius-lg); background: var(--surface-2, var(--surface));
+  border: 1px solid var(--border); touch-action: none; cursor: grab; user-select: none; }
+.lmap:active { cursor: grabbing; }
+.lmap-tiles, .lmap-overlay { position: absolute; inset: 0; pointer-events: none; }
+.lmap-tiles img { position: absolute; width: 256px; height: 256px; max-width: none; image-rendering: auto; }
+.lmap-trail { fill: none; stroke: var(--nx-brand-500); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; opacity: .75; }
+.lmap-acc { fill: color-mix(in srgb, var(--nx-brand-500) 14%, transparent); stroke: color-mix(in srgb, var(--nx-brand-500) 55%, transparent); stroke-width: 1.5; }
+.lmap-pin { position: absolute; width: 0; height: 0; pointer-events: none; }
+.lmap-dot { position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: var(--nx-radius-full);
+  background: var(--nx-brand-500); border: 3px solid #fff; box-shadow: var(--nx-shadow-2); }
+.lmap-pin.live .lmap-dot { background: var(--nx-success); }
+.lmap-pulse { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: var(--nx-radius-full);
+  background: color-mix(in srgb, var(--nx-brand-500) 30%, transparent); opacity: 0; }
+.lmap-pin.live .lmap-pulse { background: color-mix(in srgb, var(--nx-success) 35%, transparent); animation: lmap-pulse 1.8s var(--nx-ease-out, ease-out) infinite; }
+@keyframes lmap-pulse { 0% { transform: scale(.4); opacity: .9; } 100% { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .lmap-pin.live .lmap-pulse { animation: none; opacity: .5; } }
+.lmap-ctrl { position: absolute; right: var(--nx-space-3); top: var(--nx-space-3); display: flex; flex-direction: column;
+  border-radius: var(--nx-radius-md); overflow: hidden; box-shadow: var(--nx-shadow-2); border: 1px solid var(--border); }
+.lmap-ctrl button { width: 40px; height: 40px; border: 0; background: var(--surface); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer; }
+.lmap-ctrl button + button { border-top: 1px solid var(--border); }
+.lmap-ctrl button:hover { background: var(--surface-2, var(--surface)); }
+.lmap-ctrl button.on { color: var(--nx-brand-500); }
+.lmap-attr { position: absolute; right: 6px; bottom: 4px; font-size: 10px; padding: 1px 6px; border-radius: var(--nx-radius-sm);
+  background: color-mix(in srgb, var(--surface) 80%, transparent); color: var(--muted); pointer-events: none; }
+
+.loc-card { margin-top: var(--nx-space-3); border: 1px solid var(--border); border-radius: var(--nx-radius-lg); overflow: hidden; background: var(--surface); box-shadow: var(--nx-shadow-1); }
+.loc-head { display: flex; align-items: center; gap: var(--nx-space-3); padding: var(--nx-space-3) var(--nx-space-4); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.loc-head h4 { margin: 0; font-size: 15px; font-family: var(--nx-font-title); }
+.loc-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: var(--nx-radius-full); font-size: 12px; font-weight: 700;
+  background: color-mix(in srgb, var(--muted) 14%, transparent); color: var(--muted); }
+.loc-pill i { width: 8px; height: 8px; border-radius: var(--nx-radius-full); background: currentColor; }
+.loc-pill.live { background: color-mix(in srgb, var(--nx-success) 16%, transparent); color: var(--nx-success); }
+.loc-pill.live i { animation: lmap-blink 1.2s ease-in-out infinite; }
+@keyframes lmap-blink { 50% { opacity: .25; } }
+.loc-head .loc-meta { margin-left: auto; font-size: 12.5px; color: var(--muted); }
+.loc-body { padding: var(--nx-space-3); }
+.loc-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--nx-space-3); padding: var(--nx-space-3) var(--nx-space-4); border-top: 1px solid var(--border); }
+.loc-info .k { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 2px; }
+.loc-info .v { font-size: 13.5px; font-weight: 600; color: var(--text); word-break: break-word; }
+.loc-actions { display: flex; gap: var(--nx-space-2); flex-wrap: wrap; padding: 0 var(--nx-space-4) var(--nx-space-4); }
+.loc-actions .btn { flex: 1 1 140px; justify-content: center; }
+.loc-empty { margin-top: var(--nx-space-3); display: flex; gap: var(--nx-space-3); align-items: flex-start; padding: var(--nx-space-4);
+  border: 1px dashed var(--border); border-radius: var(--nx-radius-lg); color: var(--muted); font-size: 13.5px; }
+.loc-empty strong { display: block; color: var(--text); margin-bottom: 2px; }
+.loc-empty .ic { width: 38px; height: 38px; flex: none; border-radius: var(--nx-radius-full); display: grid; place-items: center;
+  background: color-mix(in srgb, var(--nx-brand-500) 14%, transparent); color: var(--nx-brand-500); font-size: 18px; }
+@media (max-width: 600px) { .loc-head .loc-meta { margin-left: 0; width: 100%; } .lmap { height: 300px !important; } }
+
+/* Modal largo (mapa da localização do cliente). */
+.modal.modal-wide { max-width: min(960px, 96vw); }
+.loc-actions a.btn, .loc-info a { text-decoration: none; }
+.loc-info a { color: var(--nx-brand-500); }

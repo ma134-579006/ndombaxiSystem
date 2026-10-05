@@ -828,6 +828,8 @@ export const api = {
      *  opções devolve os primeiros 1000 — para escolhas rápidas em formulários. */
     list: (o?: CatalogQuery) => request<ManagerProduct[]>('GET', `/pos/products${catalogQs(o ?? { limit: 1000 })}`),
     /** Catálogo do gestor: inclui os inativos (para os poder reativar ou eliminar). */
+    /** Totais do catálogo inteiro (os cartões não podem contar só a página carregada). */
+    stats: () => request<{ sellable: number; ingredients: number; inactive: number; outOfStock: number; online: number; stockValue: number }>('GET', '/pos/products/stats'),
     listAll: (o?: CatalogQuery) => request<ManagerProduct[]>('GET', `/pos/products/all${catalogQs(o ?? { limit: 1000 })}`),
     /** Alterações do catálogo (memória interna aos poucos). */
     changes: (since: string, after: string, limit = 5000) =>
@@ -1130,6 +1132,8 @@ export const api = {
   },
   // ── Clientes da empresa (mesma tabela que o caixa usa) ─────
   customers: {
+    /** Totais de todos os clientes (cartões da Gestão). */
+    stats: () => request<{ total: number; withPurchases: number; totalSpent: number; purchases: number }>('GET', '/pos/customers/stats'),
     /** Alterações de clientes (memória interna aos poucos). */
     changes: (since: string, after: string, limit = 5000) =>
       request<{ items: CustomerRow[]; next: { since: string; after: string } | null }>(

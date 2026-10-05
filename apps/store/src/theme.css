@@ -945,3 +945,53 @@ html.touch-ui .btn.sm { min-height: 40px; }
   .ax-actions { margin-left: auto; }
   .ax-actions .ax-icon-btn { min-width: 44px; min-height: 44px; }
 }
+
+/* ── Entrada na loja (StorePicker) — ecrã inicial da app LPS Loja ───────── */
+.sp { min-height: calc(100dvh / var(--uz, 1)); display: flex; justify-content: center; overflow-y: auto;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--nx-brand-600) 16%, transparent) 0%, transparent 60%),
+    var(--bg); }
+.sp-col { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: var(--nx-space-5); }
+.sp-hero { text-align: center; padding-top: var(--nx-space-4); }
+.sp-logo { display: block; margin: 0 auto; width: 88px; height: 88px; object-fit: contain; border-radius: var(--nx-radius-lg); background: #fff;
+  padding: 8px; box-shadow: var(--nx-shadow-2); }
+.sp-hero h1 { font-family: var(--nx-font-title); font-size: var(--nx-text-2xl); line-height: var(--nx-leading-tight);
+  margin: var(--nx-space-4) 0 var(--nx-space-2); letter-spacing: -0.01em; }
+.sp-hero p { margin: 0 auto; max-width: 34ch; color: var(--muted); font-size: var(--nx-text-md); line-height: var(--nx-leading-normal); }
+.sp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--nx-radius-lg);
+  box-shadow: var(--nx-shadow-2); padding: var(--nx-space-5); display: flex; flex-direction: column; gap: var(--nx-space-3); }
+.sp-msg { margin: 0; }
+.sp-label { font-weight: 600; font-size: var(--nx-text-sm); }
+.sp-field { position: relative; }
+.sp-field-ic { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; z-index: 1; }
+.sp-field input { padding-left: 44px !important; height: 52px; font-size: 16px; }
+.sp-hint { font-size: var(--nx-text-xs); color: var(--muted); }
+.sp-hint.err { color: var(--nx-danger); }
+.sp-card .btn.lg { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: var(--nx-radius-md); }
+.sp-or { display: flex; align-items: center; gap: var(--nx-space-3); color: var(--muted); font-size: var(--nx-text-xs);
+  text-transform: uppercase; letter-spacing: .08em; }
+.sp-or::before, .sp-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.sp-recent h2 { font-size: var(--nx-text-sm); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 var(--nx-space-2); }
+.sp-recent ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--nx-space-2); }
+.sp-recent li { position: relative; }
+.sp-store { width: 100%; display: flex; align-items: center; gap: var(--nx-space-3); padding: 12px 48px 12px 12px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--nx-radius-md); color: var(--text); text-align: left;
+  transition: border-color var(--nx-dur-micro) var(--nx-ease-out), transform var(--nx-dur-micro) var(--nx-ease-out); }
+.sp-store:hover { border-color: var(--accent); }
+.sp-store:active { transform: scale(.99); }
+.sp-store > svg { margin-left: auto; color: var(--muted); }
+.sp-avatar { flex: none; width: 42px; height: 42px; border-radius: var(--nx-radius-md); display: grid; place-items: center;
+  font-weight: 800; color: #fff; background: linear-gradient(135deg, var(--nx-brand-500), var(--nx-brand-800)); }
+.sp-store-tx { display: flex; flex-direction: column; min-width: 0; }
+.sp-store-tx .nm { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-store-tx .cd { font-size: var(--nx-text-xs); color: var(--muted); }
+.sp-forget { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border-radius: 999px;
+  display: grid; place-items: center; border: none; background: transparent; color: var(--muted); cursor: pointer; }
+.sp-forget:hover { background: var(--nx-hover-overlay); color: var(--text); }
+.sp-trust { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--nx-space-2); }
+.sp-trust li { display: flex; align-items: center; gap: var(--nx-space-3); color: var(--muted); font-size: var(--nx-text-sm); }
+.sp-trust li svg { flex: none; color: var(--nx-success); }
+.sp-foot { text-align: center; color: var(--muted); font-size: var(--nx-text-xs); margin: 0; }
+/* App nativa: sem zoom de duplo toque, toques sem realce azul do Android. */
+.native-app body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }

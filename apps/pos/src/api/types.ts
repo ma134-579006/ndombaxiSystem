@@ -32,6 +32,8 @@ export interface Product {
   description: string | null;
   category_id: string | null;
   iva_code: IvaCode;
+  /** Código de isenção AGT (M00–M99) quando o IVA é ISE/OUT. */
+  exemption_code?: string | null;
   unit_price: string; // NUMERIC → string (preço líquido, antes de IVA)
   stock_qty: string;
   image_url: string | null;

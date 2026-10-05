@@ -14,6 +14,8 @@ import {
   isAgtSignature,
   IvaCode,
   requiresExemptionReason,
+  findTaxExemption,
+  type TaxExemption,
   RSA_DOC_MODULUS_LENGTH,
   round2,
   RsaDocumentSigner,
@@ -26,7 +28,7 @@ import { PlatformSigningService } from '../fiscal/platform-signing.service';
 import { EinvoiceService } from '../einvoice/einvoice.service';
 import { StockService } from '../erp/stock.service';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
-import { luandaDate, luandaYear } from '../common/luanda-date';
+import { luandaDate, luandaDateTime, luandaYear } from '../common/luanda-date';
 
 export interface EmitInvoiceInput {
   docType: DocumentType;
@@ -123,6 +125,16 @@ const DEFAULT_EXEMPTION_REASON: Partial<Record<IvaCode, string>> = {
 };
 
 /**
+ * Código de isenção oficial (SAF-T AO / FE) da linha: o do produto, se válido;
+ * "não sujeito" (OUT) sem código → M02. O motivo impresso/exportado passa a ser
+ * o texto oficial desse código (TaxExemptionReason tem de corresponder ao código).
+ */
+function exemptionFor(ivaCode: string, code: string | null | undefined): TaxExemption | undefined {
+  if (!requiresExemptionReason(ivaCode as IvaCode)) return undefined;
+  return findTaxExemption(code) ?? (ivaCode === IvaCode.OUT ? findTaxExemption('M02') : undefined);
+}
+
+/**
  * Gerente/supervisor/caixa de UMA loja não anula nem devolve vendas de OUTRA loja.
  * Gerente regional e acima (e tokens sem loja, p.ex. servidor local) não têm esta restrição.
  */
@@ -209,7 +221,7 @@ export class InvoiceService {
     // pool e, lá dentro, N vendas em simultâneo seguravam todas as ligações à espera
     // de uma (N+1.ª) — bloqueio até ao timeout (HTTP 500) com 5 ligações no pool.
     const year = luandaYear();
-    const agtSeries = await this.einvoice.seriesFor(schema, input.docType, year);
+    const agtSeries = await this.einvoice.seriesFor(schema, input.docType, year, { strict: !input.offline });
     const platformKey = await this.platformSigning.getPrivateKeyForSigning();
     const platformSigner = await this.signing.getPlatformSigner();
     const result = await this.prisma.runInTenant(schema, async (tx) => {
@@ -334,8 +346,9 @@ export class InvoiceService {
         // Linha LIVRE (serviço/mão-de-obra/estadia): preço já LÍQUIDO + IVA indicado.
         if (!('productCode' in l) || !l.productCode) {
           const free = l as Extract<EmitLineInput, { description: string }>;
+          const ex = exemptionFor(free.ivaCode, free.exemptionCode);
           const exemptionReason = requiresExemptionReason(free.ivaCode)
-            ? (free.exemptionReason?.trim() || DEFAULT_EXEMPTION_REASON[free.ivaCode] || 'Isento')
+            ? (ex?.reason || free.exemptionReason?.trim() || DEFAULT_EXEMPTION_REASON[free.ivaCode] || 'Isento')
             : undefined;
           return {
             productCode: '', // marca de linha livre (sem produto/stock)
@@ -345,7 +358,7 @@ export class InvoiceService {
             ivaCode: free.ivaCode,
             discountRate: free.discountRate,
             exemptionReason,
-            exemptionCode: free.exemptionCode,
+            exemptionCode: ex?.code ?? free.exemptionCode,
           };
         }
         const p = byCode.get(l.productCode);
@@ -354,8 +367,9 @@ export class InvoiceService {
         }
         // IVA isento/não-sujeito (ISE/OUT) exige motivo: usa o do produto ou
         // um motivo por omissão (a venda nunca pode falhar por falta dele).
+        const ex = exemptionFor(p.iva_code, p.exemption_code);
         const exemptionReason = requiresExemptionReason(p.iva_code)
-          ? (p.exemption_reason?.trim() || DEFAULT_EXEMPTION_REASON[p.iva_code] || 'Isento')
+          ? (ex?.reason || p.exemption_reason?.trim() || DEFAULT_EXEMPTION_REASON[p.iva_code] || 'Isento')
           : undefined;
         return {
           productCode: l.productCode,
@@ -365,7 +379,7 @@ export class InvoiceService {
           ivaCode: p.iva_code,
           discountRate: l.discountRate,
           exemptionReason,
-          exemptionCode: p.exemption_code ?? undefined,
+          exemptionCode: ex?.code ?? p.exemption_code ?? undefined,
         };
       });
 
@@ -441,7 +455,7 @@ export class InvoiceService {
       // 4. Datas (ao segundo, formato AGT) e assinatura/cadeia (Modelo 8).
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const invoiceDate = luandaDate(now);
-      const systemEntryDate = now.toISOString();
+      const systemEntryDate = luandaDateTime(now);
       const docHeader = { invoiceDate, systemEntryDate, number, totals };
       const chain = await this.signAndChain(schema, tx, docHeader, serieRows[0].last_hash, platformKey, platformSigner);
       const { hash, signable, signature, signatureKeyVersion } = chain;
@@ -1248,7 +1262,7 @@ export class InvoiceService {
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const docHeader = {
         invoiceDate: luandaDate(now),
-        systemEntryDate: now.toISOString(),
+        systemEntryDate: luandaDateTime(now),
         number: ncNumber,
         totals: { netTotal: ncNet, ivaTotal: ncIva, grossTotal: ncGross, byTaxCode: [] as never[] },
       };
@@ -1436,7 +1450,7 @@ export class InvoiceService {
       const sequence = serie[0].last_sequence + 1;
       const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: ncSeries, year, sequence });
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
-      const ncHeader = { invoiceDate: luandaDate(now), systemEntryDate: now.toISOString(), number: ncNumber,
+      const ncHeader = { invoiceDate: luandaDate(now), systemEntryDate: luandaDateTime(now), number: ncNumber,
         totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] as never[] } };
       const ncChain = await this.signAndChain(schema, tx, ncHeader, serie[0].last_hash, platformKey, platformSigner);
       const { hash, signable } = ncChain;

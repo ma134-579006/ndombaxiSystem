@@ -1,4 +1,5 @@
 export * from './iva';
+export * from './exemptions';
 export * from './money';
 export * from './document-types';
 export * from './numbering';

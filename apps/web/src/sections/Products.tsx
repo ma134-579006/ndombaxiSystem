@@ -9,6 +9,7 @@ import { BarcodeScanner } from '../components/BarcodeScanner';
 import { StockEntryModal } from './Inventory';
 import { formatKz } from '../format';
 import { pollEvery, stopPoll } from '../poll';
+import { TAX_EXEMPTIONS } from '../exemptions';
 
 const IVA_OPTIONS: IvaCode[] = ['NOR', 'INT', 'RED', 'ISE', 'OUT'];
 
@@ -23,6 +24,8 @@ interface FormState {
   description: string;
   brand: string;
   ivaCode: IvaCode | 'AUTO';
+  /** Código de isenção AGT (M..) — obrigatório para IVA isento. */
+  exemptionCode: string;
   unitPrice: string;
   costPrice: string;
   stockQty: string;
@@ -47,6 +50,7 @@ const EMPTY: FormState = {
   description: '',
   brand: '',
   ivaCode: 'AUTO',
+  exemptionCode: '',
   unitPrice: '',
   costPrice: '',
   stockQty: '0',
@@ -98,6 +102,8 @@ export function Products() {
   const [editing, setEditing] = useState<ManagerProduct | null>(null);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY);
+  const [stats, setStats] = useState<Awaited<ReturnType<typeof api.products.stats>> | null>(null);
+  const isExempt = form.ivaCode === 'ISE' || form.ivaCode === 'OUT';
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -161,6 +167,7 @@ export function Products() {
       // CATÁLOGO UNIFICADO: produtos vendíveis + ingredientes (matéria-prima) na
       // MESMA lista. Os ingredientes distinguem-se pela etiqueta 'matéria-prima'.
       const { q: term, pages: n } = queryRef.current;
+      api.products.stats().then(setStats).catch(() => setStats(null));
       const [prods, ings] = await Promise.all([
         api.products.listAll({ q: term, limit: PAGE * n }),
         term ? Promise.resolve([] as ManagerProduct[]) : api.products.ingredients().catch(() => [] as ManagerProduct[]),
@@ -230,6 +237,7 @@ export function Products() {
       description: p.description ?? '',
       brand: p.brand ?? '',
       ivaCode: p.iva_code,
+      exemptionCode: p.exemption_code ?? '',
       unitPrice: p.unit_price,
       costPrice: p.cost_price ?? '',
       stockQty: p.stock_qty,
@@ -285,6 +293,7 @@ export function Products() {
           categoryId: form.categoryId || undefined,
           brand: form.brand.trim(),
           ivaCode: form.ivaCode,
+          ...(isExempt ? { exemptionCode: form.exemptionCode || undefined } : {}),
           unitPrice: price,
           costPrice: Number(form.costPrice) || 0,
           imageUrl: form.imageUrl || undefined,
@@ -311,6 +320,7 @@ export function Products() {
           categoryId: form.categoryId || undefined,
           brand: form.brand.trim() || undefined,
           ivaCode: form.ivaCode,
+          ...(isExempt ? { exemptionCode: form.exemptionCode || undefined } : {}),
           unitPrice: price,
           costPrice: unitCost,
           stockQty: qInit,
@@ -358,9 +368,11 @@ export function Products() {
   const kz = (n: number) => formatKz(n);
 
   const sellable = products.filter((p) => !p.is_ingredient && p.is_active);
-  const stockValue = sellable.reduce((s, p) => (p.is_production ? s : s + grossUnit(p) * Math.max(0, Number(p.stock_qty))), 0);
-  const outOfStock = sellable.filter((p) => !p.is_production && Number(p.stock_qty) <= 0).length;
-  const onlineCount = products.filter((p) => p.show_online && p.is_active && !p.is_ingredient).length;
+  // Totais do SERVIDOR (catálogo inteiro); a soma local só serve de recurso (offline).
+  const stockValueLocal = sellable.reduce((s, p) => (p.is_production ? s : s + grossUnit(p) * Math.max(0, Number(p.stock_qty))), 0);
+  const stockValue = stats?.stockValue ?? stockValueLocal;
+  const outOfStock = stats?.outOfStock ?? sellable.filter((p) => !p.is_production && Number(p.stock_qty) <= 0).length;
+  const onlineCount = stats?.online ?? products.filter((p) => p.show_online && p.is_active && !p.is_ingredient).length;
   // Desativados (ex.: produtos com vendas que se tentou eliminar) saem da lista normal
   // e ficam no separador "Inativos", de onde se podem reativar (Editar).
   const inactiveCount = products.filter((p) => !p.is_active).length;
@@ -398,7 +410,7 @@ export function Products() {
       </div>
 
       <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Produtos</div><div className="vl">{sellable.length}</div><div className="sb">{products.length - sellable.length} matérias-primas à parte</div></div></div>
+        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Produtos</div><div className="vl">{stats?.sellable ?? sellable.length}</div><div className="sb">{stats?.ingredients ?? (products.length - sellable.length)} matérias-primas à parte</div></div></div>
         <div className="fx-stat"><span className="ic"><IconWallet size={20} /></span><div><div className="lb">Valor em stock</div><div className="vl">{formatKz(stockValue)}</div><div className="sb">ao preço de venda (c/ IVA)</div></div></div>
         <div className="fx-stat"><span className="ic"><IconBell size={20} /></span><div><div className="lb">Sem stock</div><div className="vl"><span className={`fx-dot${outOfStock ? ' bad' : ' ok'}`} />{outOfStock}</div><div className="sb">a repor</div></div></div>
         <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Na loja online</div><div className="vl">{onlineCount}</div><div className="sb">visíveis aos clientes</div></div></div>
@@ -595,9 +607,18 @@ export function Products() {
                 <option key={c} value={c}>{c} ({IVA_RATE[c]}%)</option>
               ))}
             </select>
-            <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-              Isento/não sujeito? O motivo legal vai automaticamente no recibo — não precisas de escrever nada.
-            </p>
+            {isExempt ? (
+              <>
+                <select value={form.exemptionCode} onChange={(e) => setForm({ ...form, exemptionCode: e.target.value })}
+                  aria-label="Código de isenção (AGT)" style={{ marginTop: 8 }}>
+                  <option value="">{form.ivaCode === 'OUT' ? 'M02 — Operação não sujeita (por omissão)' : 'Escolha o motivo da isenção (obrigatório)…'}</option>
+                  {TAX_EXEMPTIONS.map((x) => <option key={x.code} value={x.code}>{x.code} — {x.hint}</option>)}
+                </select>
+                <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+                  Código oficial da AGT: vai no recibo, no SAF-T e na Facturação Electrónica (sem ele, a AGT rejeita o documento).
+                </p>
+              </>
+            ) : null}
           </div>
           {stores.length > 1 ? (
             <div className="field">

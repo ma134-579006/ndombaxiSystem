@@ -30,6 +30,12 @@ describe('document numbering', () => {
     ).toThrow(/sequence/);
   });
 
+  it('factura-recibo (interno FS) numera-se com o código AGT FR', () => {
+    const n = formatDocumentNumber({ type: DocumentType.FS, series: 'A', year: 2026, sequence: 3 });
+    expect(n).toBe('FR A2026/0003');
+    expect(parseDocumentNumber(n).type).toBe(DocumentType.FS);
+  });
+
   it('rejects malformed numbers and unknown types on parse', () => {
     expect(() => parseDocumentNumber('FT/2025/1')).toThrow(/Malformed/);
     expect(() => parseDocumentNumber('XX A2025/0001')).toThrow(/Unknown document type/);

@@ -491,6 +491,53 @@ export class PosRepository {
     );
   }
 
+  /** Totais dos clientes (cartões da Gestão) — sobre TODOS, não só a página carregada. */
+  async customerStats(schema: string): Promise<{ total: number; withPurchases: number; totalSpent: number; purchases: number }> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ total: number; with_purchases: number; total_spent: number; purchases: number }[]>(
+        Prisma.sql`SELECT (SELECT COUNT(*)::int FROM customers WHERE is_active = TRUE) AS total,
+                          COUNT(DISTINCT i.customer_id)::int AS with_purchases,
+                          COALESCE(SUM(i.gross_total), 0)::float AS total_spent,
+                          COUNT(i.id)::int AS purchases
+                   FROM invoices i JOIN customers c ON c.id = i.customer_id AND c.is_active = TRUE
+                   WHERE i.status = 'N' AND i.doc_type IN ('FT','FS')`,
+      ),
+    );
+    const r = rows[0];
+    return { total: r?.total ?? 0, withPurchases: r?.with_purchases ?? 0, totalSpent: r?.total_spent ?? 0, purchases: r?.purchases ?? 0 };
+  }
+
+  /** Totais do catálogo (cartões da Gestão) — calculados no servidor sobre todo o catálogo. */
+  async productStats(schema: string, storeId: string | null): Promise<{
+    sellable: number; ingredients: number; inactive: number; outOfStock: number; online: number; stockValue: number;
+  }> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ sellable: number; ingredients: number; inactive: number; out_of_stock: number; online: number; stock_value: number }[]>(
+        Prisma.sql`WITH p AS (
+                     SELECT p.is_active, p.is_ingredient, p.is_production, p.show_online, p.unit_price, p.iva_code,
+                            CASE WHEN p.shared_stock OR ${storeId ?? null}::uuid IS NULL
+                                 THEN p.stock_qty ELSE COALESCE(si.quantity, 0) END AS qty
+                     FROM products p
+                     LEFT JOIN stock_items si ON si.product_id = p.id AND si.warehouse_id = ${storeId ?? null}::uuid
+                   )
+                   SELECT COUNT(*) FILTER (WHERE is_active AND NOT is_ingredient)::int AS sellable,
+                          COUNT(*) FILTER (WHERE is_ingredient)::int AS ingredients,
+                          COUNT(*) FILTER (WHERE NOT is_active)::int AS inactive,
+                          COUNT(*) FILTER (WHERE is_active AND NOT is_ingredient AND NOT is_production AND qty <= 0)::int AS out_of_stock,
+                          COUNT(*) FILTER (WHERE is_active AND NOT is_ingredient AND show_online)::int AS online,
+                          COALESCE(SUM(CASE WHEN is_active AND NOT is_ingredient AND NOT is_production AND qty > 0
+                                            THEN qty * unit_price * (1 + CASE iva_code WHEN 'NOR' THEN 0.14 WHEN 'INT' THEN 0.07 WHEN 'RED' THEN 0.05 ELSE 0 END)
+                                       END), 0)::float AS stock_value
+                   FROM p`,
+      ),
+    );
+    const r = rows[0];
+    return {
+      sellable: r?.sellable ?? 0, ingredients: r?.ingredients ?? 0, inactive: r?.inactive ?? 0,
+      outOfStock: r?.out_of_stock ?? 0, online: r?.online ?? 0, stockValue: Math.round((r?.stock_value ?? 0) * 100) / 100,
+    };
+  }
+
   async updateCustomer(
     schema: string,
     id: string,

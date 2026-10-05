@@ -135,11 +135,34 @@ export interface RawReceipt {
   items?: Array<{ description: string; quantity: number; unitPrice: number; total: number }>;
   netTotal: number; ivaTotal: number; grossTotal: number;
   hash?: string | null;
+  /** Designação do documento (Factura, Factura-Recibo, Nota de Crédito…). */
+  docTitle?: string | null;
+  /** IVA discriminado por taxa (DP 312/18). */
+  taxRows?: Array<{ label: string; base: number; iva: number }>;
+  /** Motivos de isenção dos artigos isentos ("M12 …"). */
+  exemptions?: string[];
+  /** QR da AGT (Facturação Electrónica) — impresso no fim do talão. */
+  qr?: string | null;
   legends?: string[];
   footer?: string[];
 }
 
 const kz = (n: number) => n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kz';
+
+/**
+ * QR nativo da térmica (GS ( k, modelo 2, correcção M). A impressora desenha-o
+ * sozinha a partir do texto — sem imagem, nítido a qualquer largura.
+ */
+function qrCode(push: (...xs: number[]) => void, data: string, moduleSize: number) {
+  const bytes = Array.from(new TextEncoder().encode(data));
+  const len = bytes.length + 3;
+  push(0x1d, 0x28, 0x6b, 4, 0, 0x31, 0x41, 0x32, 0x00);              // modelo 2
+  push(0x1d, 0x28, 0x6b, 3, 0, 0x31, 0x43, moduleSize);              // tamanho do módulo
+  push(0x1d, 0x28, 0x6b, 3, 0, 0x31, 0x45, 0x31);                    // correcção M
+  push(0x1d, 0x28, 0x6b, len & 0xff, (len >> 8) & 0xff, 0x31, 0x50, 0x30, ...bytes); // dados
+  push(0x1d, 0x28, 0x6b, 3, 0, 0x31, 0x51, 0x30);                    // imprimir
+  push(0x0a);
+}
 
 /** Monta os bytes ESC/POS do recibo (largura 58mm=32 col, 80mm=48 col). */
 function buildBytes(r: RawReceipt, paper: '58' | '80'): Uint8Array {
@@ -163,6 +186,7 @@ function buildBytes(r: RawReceipt, paper: '58' | '80'): Uint8Array {
   if (r.company) { bold(true); line(r.company); bold(false); }
   if (r.meta) line(r.meta);
   line();
+  if (r.docTitle) { bold(true); line(r.docTitle.toUpperCase()); bold(false); }
   big(true); line(r.title); big(false);
   line(r.date);
   center(false);
@@ -178,11 +202,16 @@ function buildBytes(r: RawReceipt, paper: '58' | '80'): Uint8Array {
   }
   hr();
   kvLine('Base tributavel', kz(r.netTotal));
+  if (r.taxRows && r.taxRows.length) {
+    for (const t of r.taxRows) kvLine(`  ${t.label} s/ ${kz(t.base)}`, kz(t.iva));
+  }
   kvLine('IVA', kz(r.ivaTotal));
   bold(true); kvLine('TOTAL', kz(r.grossTotal)); bold(false);
   if (r.hash) kvLine('Controlo (Hash)', r.hash);
+  for (const e of r.exemptions ?? []) line(e);
   hr();
   center(true);
+  if (r.qr) qrCode(push, r.qr, paper === '58' ? 4 : 6);
   for (const l of r.legends ?? []) line(l);
   for (const l of r.footer ?? []) line(l);
   center(false);

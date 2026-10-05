@@ -4,14 +4,15 @@ import {
   Controller,
   Delete,
   Get,
-  Header,
   Param,
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { DocumentType } from '@nexus/agt-xml';
+import { DocumentType, findTaxExemption } from '@nexus/agt-xml';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -48,6 +49,28 @@ function isDuplicateOpViolation(e: unknown): boolean {
   return (msg.includes('23505') || /duplicate key value/i.test(msg))
     // O Postgres pode citar o índice OU só a coluna ("Key (client_op_id)=… already exists").
     && (msg.includes('invoices_client_op_uidx') || msg.includes('(client_op_id)'));
+}
+
+
+/**
+ * IVA isento (ISE) exige um código de isenção OFICIAL (M10 bens alimentares, M11
+ * medicamentos…): sem ele a Facturação Electrónica rejeita a linha (E18) e o SAF-T
+ * fica sem TaxExemptionCode. "Não sujeito" (OUT) sem código → M02. O motivo é sempre
+ * o texto oficial do código.
+ */
+function exemptionFields(ivaCode: string | undefined, code: string | null | undefined): { exemptionCode?: string | null; exemptionReason?: string | null } {
+  if (ivaCode === undefined) {
+    if (code === undefined || code === null || code === '') return {};
+    const ex = findTaxExemption(code);
+    if (!ex) throw new BadRequestException(`Código de isenção desconhecido: ${code}.`);
+    return { exemptionCode: ex.code, exemptionReason: ex.reason };
+  }
+  if (ivaCode !== 'ISE' && ivaCode !== 'OUT') return { exemptionCode: null, exemptionReason: null };
+  const ex = findTaxExemption(code) ?? (ivaCode === 'OUT' ? findTaxExemption('M02') : undefined);
+  if (!ex) {
+    throw new BadRequestException('Produto isento de IVA: escolha o código de isenção da AGT (ex.: M10 bens alimentares, M11 medicamentos, M13 livros).');
+  }
+  return { exemptionCode: ex.code, exemptionReason: ex.reason };
 }
 
 @ApiTags('pos')
@@ -106,6 +129,13 @@ export class PosController {
     return this.repo.listProducts(this.ctx.requireTenantSchema(), user.storeId ?? null, true, pageOpts(q, limit, offset));
   }
 
+  @Get('products/stats')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Totais do catálogo (produtos, sem stock, online, valor em stock)' })
+  productStats(@CurrentUser() user: JwtPayload) {
+    return this.repo.productStats(this.ctx.requireTenantSchema(), user.storeId ?? null);
+  }
+
   @Get('products/ingredients')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Lista ingredientes/matéria-prima (para a ficha técnica dos pratos)' })
@@ -126,6 +156,7 @@ export class PosController {
     // O stock inicial por loja entra na loja de quem cria (se tiver loja atribuída).
     return this.repo.createProduct(schema, {
       ...dto,
+      ...exemptionFields(ivaCode, dto.exemptionCode),
       code,
       ivaCode,
       initialStoreId: user.storeId ?? null,
@@ -138,7 +169,7 @@ export class PosController {
   async updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     const schema = this.ctx.requireTenantSchema();
     const ivaCode = dto.ivaCode === 'AUTO' ? await this.repo.defaultIvaCode(schema) : dto.ivaCode;
-    return this.repo.updateProduct(schema, id, { ...dto, ivaCode });
+    return this.repo.updateProduct(schema, id, { ...dto, ivaCode, ...exemptionFields(ivaCode, dto.exemptionCode) });
   }
 
   @Post('products/bulk-delete')
@@ -163,6 +194,12 @@ export class PosController {
     const items = await this.repo.listCustomerChanges(this.ctx.requireTenantSchema(), since ?? '', after || undefined, lim);
     const last = items[items.length - 1];
     return { items, next: items.length === lim && last ? { since: last.updated_cursor, after: last.id } : null };
+  }
+
+  @Get('customers/stats')
+  @ApiOperation({ summary: 'Totais dos clientes (quantos, quantos compraram, faturado, compra média)' })
+  customerStats() {
+    return this.repo.customerStats(this.ctx.requireTenantSchema());
   }
 
   @Get('customers')
@@ -321,14 +358,14 @@ export class PosController {
   // ── Exportação SAF-T (AGT) ─────────────────────────────────
   @Get('saft')
   @Roles(Role.COMPANY_ADMIN)
-  @Header('Content-Type', 'application/xml; charset=utf-8')
-  @ApiOperation({ summary: 'Exporta o SAF-T (Angola) mensal em XML' })
+  @ApiOperation({ summary: 'Exporta o SAF-T (Angola) mensal em XML (enviado por partes)' })
   @ApiQuery({ name: 'year', example: 2025 })
   @ApiQuery({ name: 'month', example: 1 })
-  saftExport(
+  async saftExport(
     @Query('year') year: string,
     @Query('month') month: string,
     @CurrentUser() user: JwtPayload,
+    @Res() res: Response,
   ) {
     const y = Number(year);
     const m = Number(month);
@@ -338,7 +375,22 @@ export class PosController {
     if (!user.tenantId) {
       throw new BadRequestException('Contexto sem tenant');
     }
-    return this.saft.exportMonth(user.tenantId, this.ctx.requireTenantSchema(), y, m);
+    // POR PARTES: o ficheiro de um mês grande (milhões de documentos) não cabe numa
+    // string em memória. Escreve-se à medida que se lê, esperando que a ligação
+    // escoe (backpressure) antes de continuar.
+    const schema = this.ctx.requireTenantSchema();
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="SAFT-AO-${y}-${String(m).padStart(2, '0')}.xml"`);
+    try {
+      await this.saft.writeMonth(user.tenantId, schema, y, m, (chunk) =>
+        res.write(chunk) ? undefined : new Promise<void>((resolve) => res.once('drain', () => resolve())));
+      res.end();
+    } catch (e) {
+      // Erro antes do 1.º byte: resposta de erro normal. Depois: corta a ligação
+      // (um XML truncado nunca pode parecer um ficheiro válido).
+      if (!res.headersSent) throw e;
+      res.destroy(e instanceof Error ? e : new Error(String(e)));
+    }
   }
 
   // ── Chave de assinatura digital RSA-2048 (AGT) ─────────────

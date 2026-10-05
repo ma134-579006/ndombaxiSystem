@@ -288,5 +288,5 @@ export const FE_RESULT = { ALL_VALID: 0, MIXED: 1, NONE_VALID: 2, PREMATURE: 7, 
 export function formatFeDocumentNo(type: string, seriesCode: string, sequence: number): string {
   if (!/^[A-Za-z0-9]{3,60}$/.test(seriesCode)) throw new Error(`Código de série AGT inválido: "${seriesCode}"`);
   if (!Number.isInteger(sequence) || sequence < 1) throw new Error(`Sequência inválida: ${sequence}`);
-  return `${type} ${seriesCode}/${sequence}`;
+  return `${toFeDocumentType(type) ?? type} ${seriesCode}/${sequence}`;
 }
