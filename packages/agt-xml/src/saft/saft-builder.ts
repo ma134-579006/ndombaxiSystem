@@ -1,3 +1,4 @@
+import { agtDocumentCode } from '../document-types';
 import { IvaCode, SAFT_TAX_TYPE } from '../iva';
 import { money } from '../money';
 import { FiscalDocument } from '../types';
@@ -267,7 +268,7 @@ function buildInvoice(doc: FiscalDocument, sw: Required<SaftSoftware>): string {
     el('Hash', saftHash(doc)),
     el('HashControl', String(doc.signatureKeyVersion ?? 1)),
     el('InvoiceDate', doc.invoiceDate),
-    el('InvoiceType', doc.type),
+    el('InvoiceType', agtDocumentCode(doc.type)),
     node('SpecialRegimes', [
       el('SelfBillingIndicator', '0'),
       el('CashVATSchemeIndicator', '0'),

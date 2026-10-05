@@ -1,4 +1,4 @@
-import { DocumentType } from './document-types';
+import { agtDocumentCode, DocumentType } from './document-types';
 
 /**
  * Sequential fiscal numbering per AGT (§7). Format: "FT A2025/0001" — o padrão
@@ -35,7 +35,7 @@ export function formatDocumentNumber(parts: DocumentNumberParts): string {
     throw new Error(`Invalid sequence ${sequence}: must be a positive integer`);
   }
   const seq = String(sequence).padStart(PAD, '0');
-  return `${type} ${series}${year}/${seq}`;
+  return `${agtDocumentCode(type)} ${series}${year}/${seq}`;
 }
 
 // Aceita o formato actual ("FT A2025/0001") e o legado ("FT A/2025/0001").
@@ -46,7 +46,8 @@ export function parseDocumentNumber(value: string): DocumentNumberParts {
   if (!m) {
     throw new Error(`Malformed document number: "${value}"`);
   }
-  const [, type, series, year, seq] = m;
+  const [, code, series, year, seq] = m;
+  const type = code === 'FR' ? DocumentType.FS : code; // FR = factura-recibo (interno FS)
   if (!(Object.values(DocumentType) as string[]).includes(type)) {
     throw new Error(`Unknown document type "${type}" in "${value}"`);
   }

@@ -7,6 +7,7 @@ import {
   IvaCode,
   writeSaftXml,
 } from '@nexus/agt-xml';
+import { signedEntryDate } from '../common/luanda-date';
 import { AgtConfigService } from '../fiscal/agt-config.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -16,6 +17,7 @@ interface InvoiceHeaderRow {
   doc_type: DocumentType;
   invoice_date: Date;
   system_entry_date: Date;
+  signable_string: string | null;
   customer_tax_id: string | null;
   net_total: string;
   iva_total: string;
@@ -168,7 +170,7 @@ export class SaftService {
         const headers: Header[] = await tx.$queryRaw<Header[]>(
           // SAF-T AGT inclui TODOS os documentos do período: válidos (N), anulados
           // (A, com estado) e notas de crédito (NC). Anular nada some — só muda de estado.
-          Prisma.sql`SELECT i.id, i.number, i.doc_type, i.series, i.year, i.sequence, i.invoice_date, i.system_entry_date,
+          Prisma.sql`SELECT i.id, i.number, i.doc_type, i.series, i.year, i.sequence, i.invoice_date, i.system_entry_date, i.signable_string,
                             i.customer_tax_id, i.net_total, i.iva_total, i.gross_total, i.hash, i.signature,
                             i.signature_key_version,
                             i.status, (SELECT s.number FROM invoices s WHERE s.id = i.source_invoice_id) AS reference
@@ -211,7 +213,7 @@ function toFiscalDocument(h: InvoiceHeaderRow, items: InvoiceItemRow[]): FiscalD
     status: h.status,
     reference: h.reference ?? undefined,
     invoiceDate: h.invoice_date.toISOString().slice(0, 10),
-    systemEntryDate: h.system_entry_date.toISOString(),
+    systemEntryDate: signedEntryDate(h.signable_string, h.system_entry_date),
     customerTaxId: h.customer_tax_id ?? undefined,
     // No SAF-T o campo Hash leva a assinatura digital (se existir) ou o hash
     // encadeado; o HashControl leva a versão da chave que assinou.

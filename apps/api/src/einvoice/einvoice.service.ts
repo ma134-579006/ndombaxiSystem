@@ -21,12 +21,34 @@ import {
 } from '@nexus/agt-xml';
 import { createHash } from 'node:crypto';
 import { decryptSecret, encryptSecret } from '../common/crypto/secret-box';
+import { luandaYear, signedEntryDate } from '../common/luanda-date';
 import type { Env } from '../config/env.validation';
 import { PrismaService } from '../prisma/prisma.service';
 
 const CFG_KEY = 'AGT_FE';
 const MAX_ATTEMPTS = 6;
 const TICK_MS = 60_000;
+/** Tipos que uma empresa tem de ter em série AGT antes de activar a FE. */
+const REQUIRED_TYPES = ['FT', 'FR', 'NC'] as const;
+/** Pedido de série falhado: só se repete passado este tempo (não martelar a AGT). */
+const SERIES_RETRY_MS = 60 * 60_000;
+
+/**
+ * As séries ficam SEPARADAS por ambiente: um código de homologação nunca pode
+ * numerar documentos de produção. Chave: "PROD:FT-2026"; as antigas sem
+ * prefixo ("FT-2026") são de homologação.
+ */
+function seriesKey(env: FeEnvironment, feType: string, year: number): string {
+  return `${env}:${feType}-${year}`;
+}
+export function envSeries(map: unknown, env: FeEnvironment): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries((map as Record<string, string> | null) ?? {})) {
+    const m = /^(?:(HML|PROD):)?([A-Z]{2}-\d{4})$/.exec(k);
+    if (m && (m[1] ?? 'HML') === env && typeof v === 'string') out[m[2]] = v;
+  }
+  return out;
+}
 
 export interface FeSettings {
   environment: FeEnvironment;
@@ -73,6 +95,7 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EinvoiceService.name);
   private timer: NodeJS.Timeout | null = null;
   private running = false;
+  private readonly seriesRetryAt = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -110,6 +133,7 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
       const companies = await this.prisma.einvoiceCompany.findMany({ where: { enabled: true } });
       for (const c of companies) {
         try {
+          await this.ensureSeries(c.companyId, settings.environment);
           await this.collect(c.companyId);
           await this.submit(c.companyId);
           await this.poll(c.companyId);
@@ -170,6 +194,7 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
   async updateConfig(dto: Partial<FeSettings> & { basicPassword?: string }) {
     const { settings, secrets } = await this.loadConfig();
     const next: FeSettings = { ...settings };
+    const envChanged = !!dto.environment && dto.environment !== settings.environment;
     if (dto.environment) next.environment = dto.environment;
     if (dto.basicUser !== undefined) next.basicUser = dto.basicUser.trim();
     if (dto.productId !== undefined) next.productId = dto.productId.trim();
@@ -183,6 +208,18 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
       );
     }
     await this.saveConfig(next, secrets);
+    if (envChanged) {
+      // HML ⇄ PROD: nada do outro ambiente pode seguir. As empresas ficam inactivas
+      // até pedirem séries do novo ambiente e voltarem a activar (nova data de início).
+      await this.prisma.$transaction([
+        this.prisma.einvoiceCompany.updateMany({ data: { enabled: false, enabledFrom: null } }),
+        this.prisma.einvoiceDocument.updateMany({
+          where: { status: { in: ['QUEUED', 'SENDING', 'ERROR', 'SENT'] } },
+          data: { status: 'SKIPPED', errors: [{ code: 'ENV', message: `Documento de ${settings.environment}: não é enviado para ${next.environment}.` }] as object },
+        }),
+        this.prisma.einvoiceSubmission.updateMany({ where: { status: 'SENT' }, data: { status: 'CANCELLED' } }),
+      ]);
+    }
     return this.getConfigSafe();
   }
 
@@ -215,6 +252,10 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     await this.companyOrThrow(companyId);
     const row = await this.prisma.einvoiceCompany.findUnique({ where: { companyId } });
     const counts = await this.prisma.einvoiceDocument.groupBy({ by: ['status'], where: { companyId }, _count: true });
+    const { settings } = await this.loadConfig();
+    const series = envSeries(row?.series, settings.environment);
+    const year = luandaYear();
+    const missing = REQUIRED_TYPES.filter((t) => !series[`${t}-${year}`]);
     const byStatus: Record<string, number> = {};
     for (const c of counts) byStatus[c.status] = c._count;
     return {
@@ -223,7 +264,10 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
       establishmentNumber: row?.establishmentNumber ?? '1',
       hasTaxpayerKey: !!row?.taxpayerKeyEnc,
       taxpayerKeyBits: row?.taxpayerKeyBits ?? 0,
-      series: (row?.series as Record<string, string> | null) ?? {},
+      environment: settings.environment,
+      series,
+      /** Tipos obrigatórios sem série AGT para o ano corrente (com a FE activa, a venda desses tipos é recusada). */
+      missingSeries: missing,
       documents: byStatus,
     };
   }
@@ -249,9 +293,16 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     if (dto.enabled !== undefined) {
       if (dto.enabled) {
         const hasKey = !!(data.taxpayerKeyEnc ?? existing?.taxpayerKeyEnc);
-        const hasSeries = Object.keys((existing?.series as object | null) ?? {}).length > 0;
+        const { settings } = await this.loadConfig();
+        const series = envSeries(existing?.series, settings.environment);
+        const year = luandaYear();
+        const missing = REQUIRED_TYPES.filter((t) => !series[`${t}-${year}`]);
         if (!hasKey) throw new BadRequestException('Falta a chave privada do contribuinte (AGT).');
-        if (!hasSeries) throw new BadRequestException('Peça primeiro pelo menos uma série à AGT (solicitarSerie).');
+        if (missing.length) {
+          throw new BadRequestException(
+            `Peça primeiro à AGT as séries ${year} de ${missing.join(', ')} (${settings.environment}): sem série, esses documentos não podem ser comunicados.`,
+          );
+        }
         data.enabled = true;
         if (!existing?.enabledFrom) data.enabledFrom = new Date();
       } else {
@@ -266,16 +317,55 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     return this.companyStatus(companyId);
   }
 
-  /** Código de série AGT configurado para (tipo, ano) — usado pela numeração. */
-  async seriesFor(schema: string, docType: string, year: number): Promise<string | null> {
+  /**
+   * Código de série AGT para (tipo, ano) — usado pela numeração.
+   * Com a FE activa (plataforma + empresa), um tipo comunicável SEM série não pode
+   * ser emitido: ficaria fora da AGT sem ninguém saber. Tenta pedir a série na hora;
+   * se a AGT não a der, recusa (`strict`) — o Super Admin vê o motivo e pede-a.
+   */
+  async seriesFor(schema: string, docType: string, year: number, opts: { strict?: boolean } = {}): Promise<string | null> {
     const feType = toFeDocumentType(docType);
     if (!feType) return null;
     const company = await this.prisma.company.findUnique({ where: { schemaName: schema }, select: { id: true } });
     if (!company) return null;
     const row = await this.prisma.einvoiceCompany.findUnique({ where: { companyId: company.id } });
     if (!row?.enabled) return null;
-    const map = (row.series as Record<string, string> | null) ?? {};
-    return map[`${feType}-${year}`] ?? null;
+    const { settings } = await this.loadConfig();
+    const code = envSeries(row.series, settings.environment)[`${feType}-${year}`];
+    if (code) return code;
+    if (!settings.enabled) return null;
+    try {
+      return (await this.requestSeries(company.id, feType, year)).seriesCode;
+    } catch (e) {
+      const why = e instanceof Error ? e.message : String(e);
+      this.logger.warn(`FE ${company.id}: sem série ${feType} ${year} (${why})`);
+      if (opts.strict === false) return null;
+      throw new BadRequestException(
+        `Facturação Electrónica activa mas sem série AGT ${feType} ${year}. Peça a série no Super Admin › Facturação Electrónica (${why}).`,
+      );
+    }
+  }
+
+  /** Garante as séries do ano (e, em Dezembro, as do ano seguinte) antes de fazerem falta. */
+  private async ensureSeries(companyId: string, env: FeEnvironment): Promise<void> {
+    const row = await this.prisma.einvoiceCompany.findUnique({ where: { companyId } });
+    if (!row?.enabled) return;
+    const have = envSeries(row.series, env);
+    const year = luandaYear();
+    const years = luandaYear(Date.now() + 31 * 86_400_000) > year ? [year, year + 1] : [year];
+    const types = new Set<string>([...REQUIRED_TYPES, ...Object.keys(have).map((k) => k.slice(0, 2))]);
+    for (const y of years) {
+      for (const t of types) {
+        const key = `${companyId}:${env}:${t}-${y}`;
+        if (have[`${t}-${y}`] || (this.seriesRetryAt.get(key) ?? 0) > Date.now()) continue;
+        try {
+          await this.requestSeries(companyId, t, y);
+        } catch (e) {
+          this.seriesRetryAt.set(key, Date.now() + SERIES_RETRY_MS);
+          this.logger.warn(`FE ${companyId}: pedido automático da série ${t} ${y} falhou: ${e instanceof Error ? e.message : e}`);
+        }
+      }
+    }
   }
 
   /** true se `series` é um código de série AGT activo desta empresa (para o QR da AGT nos recibos). */
@@ -285,7 +375,8 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     if (!company) return false;
     const row = await this.prisma.einvoiceCompany.findUnique({ where: { companyId: company.id } });
     if (!row?.enabled) return false;
-    return Object.values((row.series as Record<string, string> | null) ?? {}).includes(series);
+    const { settings } = await this.loadConfig();
+    return Object.values(envSeries(row.series, settings.environment)).includes(series);
   }
 
   // ── HTTP ────────────────────────────────────────────────────────────────
@@ -348,13 +439,13 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     if (r.status !== 200 || !result?.seriesCode) {
       throw new BadRequestException(`AGT recusou o pedido de série: ${this.errList(r.json).map((e) => `${e.code} ${e.message}`).join('; ') || `HTTP ${r.status}`}`);
     }
-    const map = { ...((row?.series as Record<string, string> | null) ?? {}), [`${feType}-${year}`]: result.seriesCode };
+    const map = { ...((row?.series as Record<string, string> | null) ?? {}), [seriesKey(settings.environment, feType, year)]: result.seriesCode };
     await this.prisma.einvoiceCompany.upsert({
       where: { companyId },
       create: { companyId, series: map },
       update: { series: map },
     });
-    return { seriesCode: result.seriesCode, authorizedQuantity: result.authorizedQuantity ?? null, series: map };
+    return { seriesCode: result.seriesCode, authorizedQuantity: result.authorizedQuantity ?? null, series: envSeries(map, settings.environment) };
   }
 
   async listRemoteSeries(companyId: string) {
@@ -376,13 +467,20 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     const cfg = await this.prisma.einvoiceCompany.findUnique({ where: { companyId } });
     if (!cfg?.enabled || !cfg.enabledFrom) return 0;
     const company = await this.companyOrThrow(companyId);
-    const codes = new Set(Object.values((cfg.series as Record<string, string> | null) ?? {}));
+    const { settings } = await this.loadConfig();
+    const codes = new Set(Object.values(envSeries(cfg.series, settings.environment)));
     if (!codes.size) return 0;
+    // Os já enfileirados ficam de fora NA PRÓPRIA consulta: antes, com LIMIT 500
+    // sobre todos os documentos desde a activação, a partir do 501.º nada novo
+    // voltava a entrar na fila (em silêncio).
     const rows = await this.prisma.runInTenant(company.schemaName, (tx) =>
       tx.$queryRaw<{ id: string; number: string }[]>(
-        Prisma.sql`SELECT id::text AS id, number FROM invoices
-                   WHERE doc_type IN ('FT','FS','NC','ND') AND system_entry_date >= ${cfg.enabledFrom}
-                   ORDER BY system_entry_date ASC LIMIT 500`,
+        Prisma.sql`SELECT i.id::text AS id, i.number FROM invoices i
+                   WHERE i.doc_type IN ('FT','FS','NC','ND') AND i.system_entry_date >= ${cfg.enabledFrom}
+                     AND split_part(split_part(i.number, ' ', 2), '/', 1) IN (${Prisma.join([...codes])})
+                     AND NOT EXISTS (SELECT 1 FROM nexus_public.einvoice_documents d
+                                     WHERE d."companyId" = ${companyId}::uuid AND d."documentNo" = i.number)
+                   ORDER BY i.system_entry_date ASC LIMIT 500`,
       ),
     );
     const fe = rows.filter((r) => {
@@ -411,13 +509,19 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.runInTenant(schema, async (tx) => {
       const heads = await tx.$queryRaw<
         {
-          id: string; number: string; doc_type: string; invoice_date: Date; system_entry_date: Date;
+          id: string; number: string; doc_type: string; invoice_date: Date; system_entry_date: Date; signable_string: string | null;
           customer_tax_id: string | null; customer_name: string | null;
-          net_total: string; iva_total: string; gross_total: string; source_number: string | null;
+          net_total: string; iva_total: string; gross_total: string; source_number: string | null; reference_reason: string | null;
         }[]
       >(
-        Prisma.sql`SELECT i.id::text AS id, i.number, i.doc_type, i.invoice_date, i.system_entry_date, i.customer_tax_id,
-                          c.name AS customer_name, i.net_total, i.iva_total, i.gross_total, s.number AS source_number
+        Prisma.sql`SELECT i.id::text AS id, i.number, i.doc_type, i.invoice_date, i.system_entry_date, i.signable_string, i.customer_tax_id,
+                          c.name AS customer_name, i.net_total, i.iva_total, i.gross_total, s.number AS source_number,
+                          (SELECT COALESCE(NULLIF(a.details->>'reason', ''),
+                                           CASE a.action WHEN 'SALE_RETURNED' THEN 'Devolução de mercadoria' ELSE 'Anulação do documento' END)
+                             FROM tenant_audit_log a
+                            WHERE a.action IN ('SALE_CANCELLED', 'SALE_RETURNED')
+                              AND a.entity_id = i.source_invoice_id::text AND a.details->>'creditNote' = i.number
+                            LIMIT 1) AS reference_reason
                    FROM invoices i
                    LEFT JOIN customers c ON c.id = i.customer_id
                    LEFT JOIN invoices s ON s.id = i.source_invoice_id
@@ -439,11 +543,13 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
           type: h.doc_type,
           number: h.number,
           invoiceDate: h.invoice_date.toISOString().slice(0, 10),
-          systemEntryDate: h.system_entry_date.toISOString().slice(0, 19),
+          systemEntryDate: signedEntryDate(h.signable_string, h.system_entry_date),
           customerTaxId: h.customer_tax_id,
           customerName: h.customer_name,
           totals: { netTotal: Number(h.net_total), ivaTotal: Number(h.iva_total), grossTotal: Number(h.gross_total) },
           reference: h.source_number ?? undefined,
+          // Motivo da nota de crédito (referenceInfo.reason): o que o operador escreveu ao anular/devolver.
+          referenceReason: h.doc_type === 'NC' ? (h.reference_reason ?? 'Rectificação do documento') : undefined,
           lines: items
             .filter((it) => it.invoice_id === h.id)
             .map((it) => ({
@@ -468,17 +574,35 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
   /** Envia até 30 documentos em fila (registarFactura). */
   async submit(companyId: string): Promise<{ sent: number; invalid: number; deferred: number; requestId?: string }> {
     const retryBefore = new Date(Date.now() - 5 * 60_000);
+    const staleBefore = new Date(Date.now() - 10 * 60_000);
+    // Reserva atómica (SENDING + SKIP LOCKED): o envio manual, o agendador e várias
+    // instâncias da API nunca mandam o mesmo documento duas vezes.
+    const claimed = await this.prisma.$queryRaw<{ id: string }[]>(
+      Prisma.sql`UPDATE nexus_public.einvoice_documents SET status = 'SENDING', "lastAttemptAt" = now(), "updatedAt" = now()
+                 WHERE id IN (
+                   SELECT id FROM nexus_public.einvoice_documents
+                   WHERE "companyId" = ${companyId}::uuid
+                     AND (status = 'QUEUED'
+                          OR (status = 'ERROR' AND attempts < ${MAX_ATTEMPTS} AND "lastAttemptAt" < ${retryBefore})
+                          OR (status = 'SENDING' AND "lastAttemptAt" < ${staleBefore}))
+                   ORDER BY "createdAt" ASC LIMIT ${FE_MAX_DOCUMENTS}
+                   FOR UPDATE SKIP LOCKED)
+                 RETURNING id::text AS id`,
+    );
+    if (!claimed.length) return { sent: 0, invalid: 0, deferred: 0 };
     const queue = await this.prisma.einvoiceDocument.findMany({
-      where: {
-        companyId,
-        OR: [{ status: 'QUEUED' }, { status: 'ERROR', attempts: { lt: MAX_ATTEMPTS }, lastAttemptAt: { lt: retryBefore } }],
-      },
+      where: { id: { in: claimed.map((c) => c.id) } },
       orderBy: { createdAt: 'asc' },
-      take: FE_MAX_DOCUMENTS,
     });
-    if (!queue.length) return { sent: 0, invalid: 0, deferred: 0 };
 
-    const { ctx, settings, secrets, company } = await this.signingContext(companyId);
+    let signing: Awaited<ReturnType<EinvoiceService['signingContext']>>;
+    try {
+      signing = await this.signingContext(companyId);
+    } catch (e) {
+      await this.bumpAttempts(queue.map((q) => q.id), e instanceof Error ? e.message : 'configuração');
+      throw e;
+    }
+    const { ctx, settings, secrets, company } = signing;
     const sources = await this.loadSources(company.schemaName, queue.map((q) => q.invoiceId));
 
     const valid: { q: (typeof queue)[number]; doc: FeSourceDocument }[] = [];
@@ -585,10 +709,30 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
         if (ok) valid += 1;
         else invalid += 1;
       }
-      // resultCode 0 sem lista detalhada: todos válidos.
-      if (code === FE_RESULT.ALL_VALID && !list.length) {
-        const n = await this.prisma.einvoiceDocument.updateMany({ where: { companyId, requestId: s.requestId, status: 'SENT' }, data: { status: 'VALID' } });
-        valid += n.count;
+      // Documentos do pedido que a AGT não listou. resultCode 0 = todos válidos;
+      // 2 = nenhum válido; 1 (misto) sem estado próprio → volta a ser enviado
+      // (antes ficavam em SENT para sempre).
+      const rest = await this.prisma.einvoiceDocument.findMany({
+        where: { companyId, requestId: s.requestId, status: 'SENT', documentNo: { notIn: [...seen] } },
+        select: { id: true },
+      });
+      if (rest.length) {
+        const ids = rest.map((d) => d.id);
+        if (code === FE_RESULT.ALL_VALID) {
+          await this.prisma.einvoiceDocument.updateMany({ where: { id: { in: ids } }, data: { status: 'VALID', errors: Prisma.DbNull } });
+          valid += ids.length;
+        } else if (code === FE_RESULT.NONE_VALID) {
+          await this.prisma.einvoiceDocument.updateMany({
+            where: { id: { in: ids } },
+            data: { status: 'INVALID', errors: ((res.errorList as unknown[] | undefined) ?? [{ code: 'E99', message: 'Rejeitado pela AGT sem detalhe' }]) as object },
+          });
+          invalid += ids.length;
+        } else {
+          await this.prisma.einvoiceDocument.updateMany({
+            where: { id: { in: ids } },
+            data: { status: 'ERROR', requestId: null, errors: [{ code: 'NOSTATUS', message: `Sem estado na resposta da AGT (resultCode ${code}); reenvio automático.` }] as object },
+          });
+        }
       }
       await this.prisma.einvoiceSubmission.update({ where: { id: s.id }, data: { status: 'DONE', resultCode: code, response: res as object } });
     }

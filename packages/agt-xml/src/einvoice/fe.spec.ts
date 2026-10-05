@@ -78,8 +78,9 @@ describe('Facturação Electrónica AGT (JWS RS256)', () => {
   });
 
   it('FS → FR e NC usa debitAmount + referenceInfo', () => {
-    const fs = buildRegistarFactura(ctx, [doc({ type: 'FS', number: 'FS FS6325S2C/5' })]) as Record<string, any>;
+    const fs = buildRegistarFactura(ctx, [doc({ type: 'FS', number: 'FR FR6325S2C/5' })]) as Record<string, any>;
     expect(fs.documents[0].documentType).toBe('FR');
+    expect(formatFeDocumentNo('FS', 'FR6325S2C', 5)).toBe('FR FR6325S2C/5');
     const nc = buildRegistarFactura(ctx, [doc({ type: 'NC', number: 'NC NC6325S2C/1', reference: 'FT FT6325S2C/1000020' })]) as Record<string, any>;
     expect(nc.documents[0].lines[0].debitAmount).toBe(1000);
     expect(nc.documents[0].lines[0].creditAmount).toBeUndefined();

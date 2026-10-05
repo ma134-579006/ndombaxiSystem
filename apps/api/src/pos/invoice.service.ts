@@ -26,7 +26,7 @@ import { PlatformSigningService } from '../fiscal/platform-signing.service';
 import { EinvoiceService } from '../einvoice/einvoice.service';
 import { StockService } from '../erp/stock.service';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
-import { luandaDate, luandaYear } from '../common/luanda-date';
+import { luandaDate, luandaDateTime, luandaYear } from '../common/luanda-date';
 
 export interface EmitInvoiceInput {
   docType: DocumentType;
@@ -209,7 +209,7 @@ export class InvoiceService {
     // pool e, lá dentro, N vendas em simultâneo seguravam todas as ligações à espera
     // de uma (N+1.ª) — bloqueio até ao timeout (HTTP 500) com 5 ligações no pool.
     const year = luandaYear();
-    const agtSeries = await this.einvoice.seriesFor(schema, input.docType, year);
+    const agtSeries = await this.einvoice.seriesFor(schema, input.docType, year, { strict: !input.offline });
     const platformKey = await this.platformSigning.getPrivateKeyForSigning();
     const platformSigner = await this.signing.getPlatformSigner();
     const result = await this.prisma.runInTenant(schema, async (tx) => {
@@ -441,7 +441,7 @@ export class InvoiceService {
       // 4. Datas (ao segundo, formato AGT) e assinatura/cadeia (Modelo 8).
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const invoiceDate = luandaDate(now);
-      const systemEntryDate = now.toISOString();
+      const systemEntryDate = luandaDateTime(now);
       const docHeader = { invoiceDate, systemEntryDate, number, totals };
       const chain = await this.signAndChain(schema, tx, docHeader, serieRows[0].last_hash, platformKey, platformSigner);
       const { hash, signable, signature, signatureKeyVersion } = chain;
@@ -1248,7 +1248,7 @@ export class InvoiceService {
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
       const docHeader = {
         invoiceDate: luandaDate(now),
-        systemEntryDate: now.toISOString(),
+        systemEntryDate: luandaDateTime(now),
         number: ncNumber,
         totals: { netTotal: ncNet, ivaTotal: ncIva, grossTotal: ncGross, byTaxCode: [] as never[] },
       };
@@ -1436,7 +1436,7 @@ export class InvoiceService {
       const sequence = serie[0].last_sequence + 1;
       const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: ncSeries, year, sequence });
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
-      const ncHeader = { invoiceDate: luandaDate(now), systemEntryDate: now.toISOString(), number: ncNumber,
+      const ncHeader = { invoiceDate: luandaDate(now), systemEntryDate: luandaDateTime(now), number: ncNumber,
         totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] as never[] } };
       const ncChain = await this.signAndChain(schema, tx, ncHeader, serie[0].last_hash, platformKey, platformSigner);
       const { hash, signable } = ncChain;
