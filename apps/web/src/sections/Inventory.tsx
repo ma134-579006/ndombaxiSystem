@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError } from '../api/client';
 import type { DashLowStock, ExpiringBatch, ManagerProduct, StockCountDetail, StockCountRow, WarehouseRow } from '../api/types';
 import { Modal } from '../components/ui';
+import { StockCheckModal } from '../components/StockCheckModal';
 import { ProductPicker } from '../components/ProductPicker';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { IconAudit, IconBell, IconCalendar, IconCheck, IconCube, IconPlus, IconReceipt, IconTrash, IconTruck } from '../components/Icons';
@@ -21,6 +22,7 @@ export function Inventory() {
   const [entering, setEntering] = useState(false);
   const [writingOff, setWritingOff] = useState(false);
   const [transferring, setTransferring] = useState(false);
+  const [checkingStock, setCheckingStock] = useState(false);
   const [batches, setBatches] = useState<ExpiringBatch[]>([]);
   const [lowStock, setLowStock] = useState<DashLowStock[]>([]);
   const [woInit, setWoInit] = useState<{ productId: string; quantity?: number } | null>(null);
@@ -70,6 +72,9 @@ export function Inventory() {
       <div className="content-head">
         <h2>Inventário</h2>
         <span className="spacer" />
+        <button className="btn ghost" onClick={() => setCheckingStock(true)}>
+          <IconCheck size={16} /> Verificar stock
+        </button>
         <button className="btn ghost" onClick={() => setWritingOff(true)} disabled={warehouses.length === 0 || products.length === 0}>
           <IconTrash size={16} /> Baixa de stock
         </button>
@@ -186,6 +191,7 @@ export function Inventory() {
           onSaved={() => { setWritingOff(false); setWoInit(null); void load(); }}
         />
       ) : null}
+      {checkingStock ? <StockCheckModal onClose={() => { setCheckingStock(false); void load(); }} /> : null}
       {transferring ? (
         <TransferModal
           products={products}

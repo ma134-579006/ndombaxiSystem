@@ -9,6 +9,13 @@ import { luandaYear } from '../common/luanda-date';
 
 interface Actor { id?: string | null; name?: string | null }
 
+export interface StockCheckRow { id: string; code: string; name: string; isActive: boolean; shown: number; stores: number }
+export interface StockCheck {
+  checked: number;
+  semSaldoPorLoja: { total: number; items: StockCheckRow[] };
+  diferencas: { total: number; items: StockCheckRow[] };
+}
+
 /**
  * Inventário profissional:
  *  • baixa de stock (quebra/perda) com motivo obrigatório — auditada
@@ -318,5 +325,74 @@ export class InventoryService {
       Prisma.sql`SELECT id FROM stores WHERE id::text = ${id} AND is_active = TRUE LIMIT 1`,
     );
     if (!r[0]) throw new BadRequestException('Loja/armazém inexistente ou inativo.');
+  }
+
+  // ── Verificação de coerência do stock ──────────────────────
+  /**
+   * O stock tem DOIS números que têm de bater: `products.stock_qty` (o que o cartão
+   * do produto, o Caixa e a loja mostram) e a soma dos saldos por loja
+   * (`stock_items`, onde as vendas e entradas realmente mexem). Só relata:
+   *  • `semSaldoPorLoja` — mostra stock mas não tem saldo em nenhuma loja (típico de
+   *    produtos migrados/importados). Reparável sem ambiguidade (ver stockRepair).
+   *  • `diferencas` — os dois números diferem. NÃO se corrige sozinho: não há como saber
+   *    qual dos dois é o certo (ex.: vendas feitas depois da migração deixam a soma por
+   *    loja negativa e o total certo). Resolve-se com uma contagem de inventário.
+   */
+  async stockCheck(schema: string): Promise<StockCheck> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const semWhere = Prisma.sql`COALESCE(p.is_production, FALSE) = FALSE AND p.stock_qty <> 0
+        AND NOT EXISTS (SELECT 1 FROM stock_items si WHERE si.product_id = p.id)`;
+      const semSaldoPorLoja = await tx.$queryRaw<StockCheckRow[]>(Prisma.sql`
+        SELECT p.id, p.code, p.name, p.is_active AS "isActive", p.stock_qty::float AS shown, 0::float AS stores
+        FROM products p WHERE ${semWhere} ORDER BY p.name LIMIT 200`);
+      const semTotal = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`
+        SELECT COUNT(*)::int AS n FROM products p WHERE ${semWhere}`);
+      const difFrom = Prisma.sql`FROM products p
+        JOIN (SELECT product_id, SUM(quantity) AS total FROM stock_items GROUP BY product_id) s ON s.product_id = p.id
+        WHERE ROUND(p.stock_qty::numeric, 3) <> ROUND(s.total::numeric, 3)`;
+      const diferencas = await tx.$queryRaw<StockCheckRow[]>(Prisma.sql`
+        SELECT p.id, p.code, p.name, p.is_active AS "isActive", p.stock_qty::float AS shown, s.total::float AS stores
+        ${difFrom} ORDER BY p.name LIMIT 200`);
+      const difTotal = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n ${difFrom}`);
+      const checked = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n FROM products`);
+      return {
+        checked: checked[0]?.n ?? 0,
+        semSaldoPorLoja: { total: semTotal[0]?.n ?? 0, items: semSaldoPorLoja },
+        diferencas: { total: difTotal[0]?.n ?? 0, items: diferencas },
+      };
+    });
+  }
+
+  /**
+   * Repara só o caso SEM ambiguidade: produto com stock mas sem saldo em nenhuma loja.
+   * Cria o saldo na loja principal (igual ao total mostrado) com um movimento
+   * "Saldo inicial (acerto)" — o total mostrado NÃO muda, apenas passa a existir o saldo
+   * por loja que as vendas e as contagens usam. Auditado.
+   */
+  async stockRepair(schema: string, actor: Actor): Promise<{ fixed: number }> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const store = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT id FROM stores WHERE is_active = TRUE ORDER BY is_default DESC, created_at ASC LIMIT 1`,
+      );
+      if (!store[0]) throw new BadRequestException('Não há nenhuma loja ativa onde registar o saldo.');
+      const where = Prisma.sql`COALESCE(p.is_production, FALSE) = FALSE AND p.stock_qty > 0
+        AND NOT EXISTS (SELECT 1 FROM stock_items si WHERE si.product_id = p.id)`;
+      // Movimento primeiro (a condição depende de ainda não haver stock_items).
+      await tx.$executeRaw(Prisma.sql`
+        INSERT INTO stock_movements (product_id, warehouse_id, type, quantity, balance_after, reference, created_by)
+        SELECT p.id, ${store[0].id}::uuid, 'ADJUST', p.stock_qty, p.stock_qty, 'Saldo inicial (acerto)', ${actor.id ?? null}::uuid
+        FROM products p WHERE ${where}`);
+      const fixed = await tx.$executeRaw(Prisma.sql`
+        INSERT INTO stock_items (product_id, warehouse_id, quantity)
+        SELECT p.id, ${store[0].id}::uuid, p.stock_qty FROM products p WHERE ${where}
+        ON CONFLICT (product_id, warehouse_id) DO NOTHING`);
+      if (fixed > 0) {
+        await this.audit.recordInTx(tx, {
+          actorId: actor.id, actorName: actor.name, action: 'STOCK_RECONCILE', entity: 'product',
+          details: { fixed, storeId: store[0].id },
+        });
+      }
+      return { fixed };
+    });
   }
 }

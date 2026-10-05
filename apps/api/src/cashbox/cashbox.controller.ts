@@ -98,6 +98,19 @@ export class InventoryController {
     return this.inv.writeOff(this.ctx.requireTenantSchema(), dto, actor(u));
   }
 
+  @Get('stock-check')
+  @ApiOperation({ summary: 'Verifica se o stock mostrado bate com os saldos por loja (só relata)' })
+  stockCheck() {
+    return this.inv.stockCheck(this.ctx.requireTenantSchema());
+  }
+
+  @Post('stock-check/repair')
+  @Roles(Role.COMPANY_ADMIN)
+  @ApiOperation({ summary: 'Cria o saldo por loja dos produtos com stock mas sem saldo (auditado)' })
+  stockRepair(@CurrentUser() u: JwtPayload) {
+    return this.inv.stockRepair(this.ctx.requireTenantSchema(), actor(u));
+  }
+
   @Get('counts')
   @ApiOperation({ summary: 'Lista folhas de contagem de inventário' })
   listCounts() {
