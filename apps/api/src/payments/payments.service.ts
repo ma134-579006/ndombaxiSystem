@@ -1,7 +1,16 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { validatePaymentMethod } from './payment-methods';
+import { validatePaymentMethod as validarMetodo } from './payment-methods';
+
+/** Dados inválidos do método de pagamento são erro do pedido (400), não falha interna (500). */
+function validatePaymentMethod(input: Parameters<typeof validarMetodo>[0]): ReturnType<typeof validarMetodo> {
+  try {
+    return validarMetodo(input);
+  } catch (e) {
+    throw new BadRequestException(e instanceof Error ? e.message : 'Método de pagamento inválido.');
+  }
+}
 import { generateReference, isValidEntity } from './reference';
 import type {
   CreatePaymentMethodDto,

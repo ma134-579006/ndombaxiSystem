@@ -287,6 +287,8 @@ export class PosController {
     return this.invoices.cancelInvoice(this.ctx.requireTenantSchema(), id, dto.reason, {
       id: user.sub,
       name: user.name ?? user.email,
+      storeId: user.storeId ?? null,
+      role: user.role,
     });
   }
 
@@ -298,7 +300,7 @@ export class PosController {
     try {
       return await this.invoices.returnItems(
         schema, id, dto.items, dto.reason,
-        { id: user.sub, name: user.name ?? user.email },
+        { id: user.sub, name: user.name ?? user.email, storeId: user.storeId ?? null, role: user.role },
         dto.clientOpId ?? null,
       );
     } catch (e) {

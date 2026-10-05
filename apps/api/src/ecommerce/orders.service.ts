@@ -192,8 +192,8 @@ export class OrdersService {
 
     try {
       const lines = await this.prisma.runInTenant(schema, (tx) =>
-        tx.$queryRaw<{ product_code: string; quantity: string }[]>(
-          Prisma.sql`SELECT product_code, quantity FROM web_order_items
+        tx.$queryRaw<{ product_code: string; quantity: string; unit_price: string }[]>(
+          Prisma.sql`SELECT product_code, quantity, unit_price FROM web_order_items
                      WHERE order_id = ${orderId}::uuid ORDER BY line_number`,
         ),
       );
@@ -203,7 +203,9 @@ export class OrdersService {
         docType: DocumentType.FT,
         series: 'WEB',
         customerTaxId: order.customer_tax_id,
-        lines: lines.map((l) => ({ productCode: l.product_code, quantity: Number(l.quantity) })),
+        // Preço CONGELADO do checkout: se o gestor mudar o preço entre o pedido e o pagamento,
+        // a fatura continua igual ao que o cliente viu e pagou.
+        lines: lines.map((l) => ({ productCode: l.product_code, quantity: Number(l.quantity), unitPrice: Number(l.unit_price) })),
       });
 
       // 3. Liga a factura e marca PAID (liberta a reserva).
@@ -439,10 +441,15 @@ export class OrdersService {
       CANCELLED: ['PENDING'],
     };
     await this.prisma.runInTenant(schema, async (tx) => {
-      const rows = await tx.$queryRaw<{ status: string }[]>(
-        Prisma.sql`SELECT status FROM web_orders WHERE id = ${orderId}::uuid FOR UPDATE`,
+      const rows = await tx.$queryRaw<{ status: string; claimed: boolean }[]>(
+        Prisma.sql`SELECT status, (payment_claimed_at IS NOT NULL AND payment_claimed_at > now() - interval '2 minutes') AS claimed
+                   FROM web_orders WHERE id = ${orderId}::uuid FOR UPDATE`,
       );
       if (rows.length === 0) throw new NotFoundException('Encomenda não encontrada');
+      // Pagamento em curso (fatura a ser emitida): cancelar agora deixava uma fatura órfã.
+      if (next === 'CANCELLED' && rows[0].claimed) {
+        throw new BadRequestException('O pagamento desta encomenda está a ser processado — aguarde uns segundos antes de cancelar.');
+      }
       if (!allowed[next].includes(rows[0].status)) {
         throw new BadRequestException(`Transição inválida de ${rows[0].status} para ${next}`);
       }

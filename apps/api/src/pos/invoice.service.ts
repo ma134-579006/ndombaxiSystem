@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   AgtDocumentSigner,
@@ -75,7 +75,8 @@ export interface EmitInvoiceInput {
 }
 
 export type EmitLineInput =
-  | { productCode: string; quantity: number; discountRate?: number }
+  // `unitPrice` só o usam serviços internos (ex.: loja online congela o preço do checkout); o POS não o expõe.
+  | { productCode: string; quantity: number; discountRate?: number; unitPrice?: number }
   | { productCode?: undefined; description: string; unitPrice: number; ivaCode: IvaCode; quantity: number; discountRate?: number; exemptionReason?: string; exemptionCode?: string };
 
 export interface EmittedInvoice {
@@ -114,6 +115,17 @@ const DEFAULT_EXEMPTION_REASON: Partial<Record<IvaCode, string>> = {
   [IvaCode.ISE]: 'Isento de IVA',
   [IvaCode.OUT]: 'Não sujeito a IVA',
 };
+
+/**
+ * Gerente/supervisor/caixa de UMA loja não anula nem devolve vendas de OUTRA loja.
+ * Gerente regional e acima (e tokens sem loja, p.ex. servidor local) não têm esta restrição.
+ */
+const PAPEIS_DE_LOJA = new Set(['STORE_MANAGER', 'SHIFT_SUPERVISOR', 'CASHIER', 'ATTENDANT']);
+function assertOwnStore(actor: { storeId?: string | null; role?: string | null }, invoiceStoreId: string | null): void {
+  if (actor.storeId && actor.role && PAPEIS_DE_LOJA.has(actor.role) && invoiceStoreId && invoiceStoreId !== actor.storeId) {
+    throw new ForbiddenException('Esta venda pertence a outra loja — só a pode anular/devolver a própria loja ou a direção.');
+  }
+}
 
 type PlatformKey = Awaited<ReturnType<PlatformSigningService['getPrivateKeyForSigning']>>;
 
@@ -330,7 +342,7 @@ export class InvoiceService {
           productCode: l.productCode,
           description: p.name ?? p.description ?? l.productCode,
           quantity: l.quantity,
-          unitPrice: Number(p.unit_price),
+          unitPrice: l.unitPrice ?? Number(p.unit_price),
           ivaCode: p.iva_code,
           discountRate: l.discountRate,
           exemptionReason,
@@ -1034,7 +1046,7 @@ export class InvoiceService {
     schema: string,
     invoiceId: string,
     reason: string,
-    actor: { id?: string | null; name?: string | null },
+    actor: { id?: string | null; name?: string | null; storeId?: string | null; role?: string | null },
   ): Promise<{ creditNoteNumber: string; grossTotal: number }> {
     // Série AGT lida ANTES da transacção (usa outra ligação ao pool; dentro dela bloqueia sob carga).
     const year = luandaYear();
@@ -1051,6 +1063,7 @@ export class InvoiceService {
       );
       if (!invRows[0]) throw new BadRequestException('Factura não encontrada');
       const inv = invRows[0];
+      assertOwnStore(actor, inv.store_id);
       if (inv.status === 'A') throw new BadRequestException('Esta venda já foi anulada.');
       // Só faturas se anulam. Anular uma NC repunha o stock e tirava o dinheiro da
       // gaveta OUTRA vez (e gerava uma NC sobre a NC).
@@ -1219,7 +1232,7 @@ export class InvoiceService {
     invoiceId: string,
     returns: { productCode: string; quantity: number }[],
     reason: string,
-    actor: { id?: string | null; name?: string | null },
+    actor: { id?: string | null; name?: string | null; storeId?: string | null; role?: string | null },
     /**
      * Chave de idempotência do posto. A ANULAÇÃO é idempotente sozinha (o estado
      * passa a 'A' e a segunda tentativa é recusada), mas a DEVOLUÇÃO PARCIAL não
@@ -1248,6 +1261,7 @@ export class InvoiceService {
         throw new BadRequestException('Só se devolvem artigos de faturas — este documento não é uma venda.');
       }
       const inv = invRows[0];
+      assertOwnStore(actor, inv.store_id);
 
       const items = await tx.$queryRaw<
         { product_id: string | null; product_code: string; description: string; quantity: string;
