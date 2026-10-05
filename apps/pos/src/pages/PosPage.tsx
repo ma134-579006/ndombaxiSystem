@@ -36,7 +36,7 @@ import { IdleLock } from '../components/IdleLock';
 import { ThemePicker } from '../components/ThemePicker';
 import { PaymentModal } from '../components/PaymentModal';
 import { IconReceipt } from '../components/Icons';
-import { cartTotals, cartTotalsWithDiscount, lineGross, type CartLine } from '../pos/cart';
+import { cartTotals, cartTotalsWithDiscount, lineGross, lineIva, lineNet, type CartLine } from '../pos/cart';
 import { bestPromoForLine, type PromoRow } from '../pos/promo';
 import { useBarcodeScanner } from '../pos/useBarcodeScanner';
 import { formatKz, formatNumber } from '../format';
@@ -287,7 +287,11 @@ export function PosPage() {
   const receiptCustomer = (c: typeof customer) => (c ? (c.tax_id?.trim() && c.tax_id.trim() !== '999999999' ? `${c.name} · NIF ${c.tax_id.trim()}` : c.name) : null);
   const buildItems = (lines: CartLine[]) => lines.map((l) => {
     const total = lineGross(l);
-    return { description: l.product.name, quantity: l.quantity, unitPrice: l.quantity ? Math.round((total / l.quantity) * 100) / 100 : total, total };
+    return {
+      description: l.product.name, quantity: l.quantity, unitPrice: l.quantity ? Math.round((total / l.quantity) * 100) / 100 : total, total,
+      // Para o quadro de IVA por taxa e o motivo de isenção no talão (menções obrigatórias).
+      ivaRate: IVA_RATE[l.product.iva_code], net: lineNet(l), iva: lineIva(l), exemptionCode: l.product.exemption_code ?? null,
+    };
   });
 
   useEffect(() => {
