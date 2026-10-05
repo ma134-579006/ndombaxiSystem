@@ -36,8 +36,11 @@ export function Modal({
   children,
   toolbar,
   footer,
+  wide,
 }: {
   title: string;
+  /** Modal largo (mapas, tabelas). */
+  wide?: boolean;
   onClose(): void;
   children: React.ReactNode;
   /** Pesquisa/seleção FIXA por baixo do cabeçalho (não rola). */
@@ -83,7 +86,7 @@ export function Modal({
   // modal aberto sobre outro nunca cai para trás.
   return createPortal(
     <div className="modal-bg" onClick={onClose}>
-      <div className="modal" ref={boxRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+      <div className={`modal${wide ? ' modal-wide' : ''}`} ref={boxRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="mh">
           <h3>{title}</h3>
           <span className="spacer" />

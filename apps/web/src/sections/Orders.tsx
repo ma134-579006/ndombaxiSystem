@@ -3,6 +3,8 @@ import { api, ApiError } from '../api/client';
 import type { OrderLocation, OrderMessage, OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
 import { IconCpu, IconTruck } from '../components/Icons';
 import { Modal } from '../components/ui';
+import { toast } from '../components/feedback';
+import { LiveMap } from '../components/LiveMap';
 import { formatDate, formatKz, statusLabel } from '../format';
 import { pollEvery, stopPoll } from '../poll';
 
@@ -151,7 +153,7 @@ export function Orders() {
           <div className="loading">A carregar…</div>
         </Modal>
       ) : detail ? (
-        <Modal title={detail.order_number} onClose={() => setDetail(null)}>
+        <Modal title={detail.order_number} onClose={() => setDetail(null)} wide={showGeo}>
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
             <OrderBadge status={detail.status} />
             <strong style={{ fontSize: 18 }}>{formatKz(detail.gross_total)}</strong>
@@ -238,7 +240,7 @@ export function Orders() {
           </div>
 
           <div style={{ marginTop: 12 }}>
-            <button className="btn ghost block" onClick={() => setShowGeo((v) => !v)}>
+            <button className="btn ghost" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setShowGeo((v) => !v)}>
               {showGeo ? 'Ocultar localização' : 'Ver localização do cliente (GPS em tempo real)'}
             </button>
             {showGeo ? <LiveOrderMap orderId={detail.id} /> : null}
@@ -269,21 +271,39 @@ function sinceLabel(iso: string | null): string {
   return `há ${h} h`;
 }
 
+/** Distância aproximada em metros entre duas coordenadas (para o trajeto). */
+function metersBetween(a: [number, number], b: [number, number]): number {
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (b[0] - a[0]) * rad, dLng = (b[1] - a[1]) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * rad) * Math.cos(b[0] * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 /**
- * Mapa Google AO VIVO com a posição exata do cliente (entrega). Atualiza a cada
- * 4s (polling) e mostra precisão + última leitura. Sem chave de API: usa o embed
- * público do Google Maps centrado nas coordenadas GPS.
+ * Localização do cliente AO VIVO (entrega). Atualiza a cada 4 s e desenha o mapa
+ * próprio (LiveMap) com marcador, precisão GPS e o trajeto desde que se abriu.
+ * Antes era um iframe do Google Maps que ficava BRANCO nas aplicações.
  */
 function LiveOrderMap({ orderId }: { orderId: string }) {
   const [loc, setLoc] = useState<OrderLocation | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [trail, setTrail] = useState<[number, number][]>([]);
+  const [copied, setCopied] = useState(false);
   const [, force] = useState(0); // re-render p/ atualizar "há X min"
 
   useEffect(() => {
     let alive = true;
+    setTrail([]);
     const tick = () => {
-      api.orders.location(orderId).then((r) => { if (alive) { setLoc(r); setErr(null); } })
-        .catch((e) => { if (alive) setErr(e instanceof ApiError ? e.message : 'Falha ao obter localização.'); });
+      api.orders.location(orderId).then((r) => {
+        if (!alive) return;
+        setLoc(r); setErr(null);
+        if (r.lat != null && r.lng != null) {
+          const pt: [number, number] = [r.lat, r.lng];
+          // Só junta ao trajeto quando o cliente se moveu (> 5 m); guarda os últimos 120 pontos.
+          setTrail((t) => (t.length && metersBetween(t[t.length - 1], pt) < 5 ? t : [...t.slice(-119), pt]));
+        }
+      }).catch((e) => { if (alive) setErr(e instanceof ApiError ? e.message : 'Falha ao obter localização.'); });
     };
     tick();
     const t = pollEvery(tick, 4000);
@@ -294,46 +314,52 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
   if (err) return <div className="banner danger" style={{ marginTop: 10 }}>{err}</div>;
   if (!loc) return <div className="loading" style={{ marginTop: 10 }}>A obter localização…</div>;
 
-  const has = loc.lat != null && loc.lng != null;
-  if (!has) {
+  if (loc.lat == null || loc.lng == null) {
     return (
-      <div className="banner info" style={{ marginTop: 10 }}>
+      <div className="loc-empty">
+        <span className="ic" aria-hidden>⌖</span>
         <div>
+          <strong>{loc.consent ? 'À espera do sinal GPS do cliente' : 'Localização não partilhada'}</strong>
           {loc.consent
-            ? 'À espera do sinal GPS do cliente. A posição aparece quando o cliente tiver a loja aberta com o GPS ligado.'
-            : 'Este cliente ainda não partilhou a localização GPS desta encomenda.'}
+            ? 'A posição aparece aqui assim que o cliente tiver a loja aberta com o GPS ligado.'
+            : 'O cliente não autorizou a partilha da localização GPS nesta encomenda. Use a morada de entrega abaixo ou contacte-o.'}
         </div>
       </div>
     );
   }
 
-  const q = `${loc.lat},${loc.lng}`;
-  const embed = `https://www.google.com/maps?q=${q}&z=18&hl=pt&output=embed`;
-  const open = `https://www.google.com/maps/search/?api=1&query=${q}`;
+  const q = `${loc.lat.toFixed(6)},${loc.lng.toFixed(6)}`;
   const dir = `https://www.google.com/maps/dir/?api=1&destination=${q}`;
-  const fresh = loc.updatedAt && Date.now() - new Date(loc.updatedAt).getTime() < 15000;
+  const waze = `https://waze.com/ul?ll=${q}&navigate=yes`;
+  const fresh = !!loc.updatedAt && Date.now() - new Date(loc.updatedAt).getTime() < 15000;
+  const address = [loc.shippingAddress, loc.neighborhood, loc.municipality, loc.province].filter(Boolean).join(', ');
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(q); setCopied(true); setTimeout(() => setCopied(false), 1800); }
+    catch { toast.info(q); }
+  };
 
   return (
-    <div style={{ marginTop: 10 }}>
-      <div className="row" style={{ alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-        <span className="badge" style={{ color: fresh ? 'var(--success)' : 'var(--muted)', borderColor: fresh ? 'var(--success)' : 'var(--muted)' }}>
-          <span className="dot" /> {fresh ? 'Ao vivo' : 'Última posição'}
-        </span>
-        <span className="muted" style={{ fontSize: 12.5 }}>
+    <div className="loc-card">
+      <div className="loc-head">
+        <h4>Localização do cliente</h4>
+        <span className={`loc-pill${fresh ? ' live' : ''}`}><i />{fresh ? 'Ao vivo' : 'Última posição'}</span>
+        <span className="loc-meta">
           Atualizado {sinceLabel(loc.updatedAt)}{loc.accuracy != null ? ` · precisão ±${Math.round(loc.accuracy)} m` : ''}
         </span>
       </div>
-      <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', height: 320 }}>
-        <iframe
-          key={q} title="Localização do cliente" src={embed}
-          width="100%" height="100%" style={{ border: 0, display: 'block' }}
-          loading="lazy" referrerPolicy="no-referrer-when-downgrade"
-        />
+      <div className="loc-body">
+        <LiveMap lat={loc.lat} lng={loc.lng} accuracy={loc.accuracy} trail={trail} live={fresh} />
       </div>
-      <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-        <a className="btn" href={dir} target="_blank" rel="noreferrer">Como chegar</a>
-        <a className="btn ghost" href={open} target="_blank" rel="noreferrer">Abrir no Google Maps</a>
-        <span className="muted" style={{ fontSize: 11.5, alignSelf: 'center' }}>{q}</span>
+      <div className="loc-info">
+        <div><span className="k">Cliente</span><span className="v">{loc.customerName || '—'}</span></div>
+        <div><span className="k">Telefone</span><span className="v">{loc.customerPhone ? <a href={`tel:${loc.customerPhone}`}>{loc.customerPhone}</a> : '—'}</span></div>
+        <div><span className="k">Morada de entrega</span><span className="v">{address || '—'}</span></div>
+        <div><span className="k">Coordenadas</span><span className="v">{q}</span></div>
+      </div>
+      <div className="loc-actions">
+        <a className="btn" href={dir} target="_blank" rel="noreferrer">Como chegar (Google Maps)</a>
+        <a className="btn ghost" href={waze} target="_blank" rel="noreferrer">Abrir no Waze</a>
+        <button type="button" className="btn ghost" onClick={() => void copy()}>{copied ? 'Copiado ✓' : 'Copiar coordenadas'}</button>
       </div>
     </div>
   );
