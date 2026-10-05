@@ -37,6 +37,9 @@ jobs:
         run: |
           node apps/mobile-shell/scripts/prepare-web.mjs
           pnpm --filter @nexus/mobile-shell exec cap add android || true
+          # Versão do produto no APK (versionName/versionCode). Tem de ser DEPOIS do
+          # cap add: antes, o projeto Android ainda não existe e o APK saía "1.0".
+          node apps/mobile-shell/scripts/sync-android-version.mjs
           pnpm --filter @nexus/mobile-shell exec cap sync android
           # Ícones a partir do logótipo único (apps/web/public/logo.png, sem fundo).
           node apps/mobile-shell/scripts/gen-android-icons.mjs

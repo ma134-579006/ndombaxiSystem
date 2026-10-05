@@ -236,6 +236,8 @@ const ICONS: Record<ToastKind, React.ReactNode> = {
 };
 
 const TOAST_MS = 4600;
+/** Frases longas precisam de mais tempo para se ler: ~65 ms por carácter, entre 4,6 s e 12 s. */
+const toastMs = (text: string) => Math.min(12_000, Math.max(TOAST_MS, text.length * 65));
 
 /** Montar UMA vez (no App). Aloja os toasts e o diálogo de confirmação. */
 export function FeedbackHost() {
@@ -247,9 +249,10 @@ export function FeedbackHost() {
   useEffect(() => {
     pushToast = (kind, text) => {
       const id = seq++;
+      const ms = toastMs(text);
       setToasts((p) => [...p.slice(-4), { id, kind, text }]);
-      window.setTimeout(() => setToasts((p) => p.map((t) => (t.id === id ? { ...t, leaving: true } : t))), TOAST_MS - 300);
-      window.setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), TOAST_MS);
+      window.setTimeout(() => setToasts((p) => p.map((t) => (t.id === id ? { ...t, leaving: true } : t))), ms - 300);
+      window.setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), ms);
     };
     openConfirm = (c) => setConfirm(c);
     setBulkUi = (s) => setBulk(s);

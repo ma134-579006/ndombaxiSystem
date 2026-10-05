@@ -15,6 +15,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { appVersion, syncAndroidVersion } from './sync-android-version.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const shell = path.resolve(here, '..');
@@ -23,35 +24,10 @@ const repo = path.resolve(shell, '..', '..');
 const API_URL = process.env.NDOMBAXI_API_URL || 'https://ndombaxi-api-3nmz.onrender.com';
 
 /**
- * A versão do produto — UMA só, para as duas plataformas.
- *
- * Sai do `package.json` da aplicação Windows de propósito: Windows e Android
- * são publicados como um par, e a atualização obrigatória compara versões. Com
- * duas fontes diferentes, mais cedo ou mais tarde uma delas ficava para trás e
- * os aparelhos passariam a receber (ou a não receber) bloqueios errados. O
- * `versionName` do Android estava, aliás, esquecido em "1.0" desde o início.
+ * A versão do produto — UMA só, para as duas plataformas (ver
+ * `sync-android-version.mjs`, que também a escreve no projeto Android).
  */
-const APP_VERSION = JSON.parse(
-  fs.readFileSync(path.join(repo, 'apps', 'desktop', 'package.json'), 'utf-8'),
-).version;
-
-/**
- * Escreve a mesma versão no Android (`versionName`) e sobe o `versionCode`, que
- * o Android exige que cresça a cada publicação. Sem isto, o APK dizia uma versão
- * e a aplicação lá dentro dizia outra.
- */
-function syncAndroidVersion() {
-  const gradle = path.join(shell, 'android', 'app', 'build.gradle');
-  if (!fs.existsSync(gradle)) return; // projeto Android ainda não gerado
-  let g = fs.readFileSync(gradle, 'utf-8');
-  const atual = /versionName\s+"([^"]+)"/.exec(g)?.[1];
-  if (atual === APP_VERSION) return;
-  const code = Number(/versionCode\s+(\d+)/.exec(g)?.[1] ?? 1);
-  g = g.replace(/versionName\s+"[^"]+"/, `versionName "${APP_VERSION}"`)
-    .replace(/versionCode\s+\d+/, `versionCode ${code + 1}`);
-  fs.writeFileSync(gradle, g);
-  log(`Android: versão ${atual} → ${APP_VERSION} (versionCode ${code + 1})`);
-}
+const APP_VERSION = appVersion();
 
 const MODULES = [
   { app: 'web', target: 'gestao', label: 'Painel de Gestão' },
