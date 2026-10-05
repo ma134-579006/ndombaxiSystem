@@ -132,7 +132,7 @@ export interface RawReceipt {
   date: string;
   customer?: string | null;
   operator?: string | null;
-  items?: Array<{ description: string; quantity: number; unitPrice: number; total: number }>;
+  items?: Array<{ description: string; quantity: number; unitPrice: number; total: number; discount?: number; discountRate?: number }>;
   netTotal: number; ivaTotal: number; grossTotal: number;
   hash?: string | null;
   /** Designação do documento (Factura, Factura-Recibo, Nota de Crédito…). */
@@ -197,7 +197,8 @@ function buildBytes(r: RawReceipt, paper: '58' | '80'): Uint8Array {
     hr();
     for (const it of r.items) {
       line(it.description);
-      kvLine(`  ${it.quantity} x ${kz(it.unitPrice)}`, kz(it.total));
+      kvLine(`  ${it.quantity} x ${kz(it.unitPrice)}`, kz(it.total + (it.discount ?? 0)));
+      if (it.discount && it.discount > 0) kvLine(`  Desconto ${(Math.round((it.discountRate ?? 0) * 1000) / 10).toLocaleString('pt-PT')}%`, `-${kz(it.discount)}`);
     }
   }
   hr();

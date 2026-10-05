@@ -112,6 +112,12 @@ export class EmitInvoiceDto {
   @IsBoolean()
   offline?: boolean;
 
+  /** Desconto manual (acima da promoção): PIN do supervisor/gerente que o aprova. */
+  @IsOptional()
+  @IsString()
+  @Length(4, 12)
+  approvalPin?: string;
+
   /** Dinheiro entregue pelo cliente (numerário). */
   /** PAGAMENTO MISTO (ex.: parte numerário + parte TPA): soma = total da venda. */
   @IsOptional()
@@ -183,4 +189,11 @@ export class ReturnItemsDto {
   @IsOptional()
   @IsUUID()
   clientOpId?: string;
+}
+
+/** PIN do supervisor/gerente que aprova um desconto manual no balcão. */
+export class ApproveDiscountDto {
+  @IsString()
+  @Length(4, 12)
+  pin!: string;
 }

@@ -32,6 +32,7 @@ function makeController(
   return new PosController(
     {} as never, invoices as never, {} as never, {} as never, ctx as never, {} as never,
     devices as never,
+    { check: () => Promise.resolve() } as never,
   );
 }
 

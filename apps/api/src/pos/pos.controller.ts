@@ -27,6 +27,8 @@ import { FiscalSigningService } from './fiscal-signing.service';
 import { InvoiceService } from './invoice.service';
 import { PosRepository } from './pos.repository';
 import { SaftService } from './saft.service';
+import { DiscountGuardService } from './discount-guard.service';
+import { ApproveDiscountDto } from './dto/emit-invoice.dto';
 import { PlanLimitsService } from '../plans/plan-limits.service';
 import { DevicesService } from '../devices/devices.service';
 
@@ -84,6 +86,7 @@ export class PosController {
     private readonly ctx: TenantContext,
     private readonly planLimits: PlanLimitsService,
     private readonly devices: DevicesService,
+    private readonly discounts: DiscountGuardService,
   ) {}
 
   // ── Catálogo de produtos ───────────────────────────────────
@@ -253,6 +256,13 @@ export class PosController {
   }
 
   // ── Emissão fiscal ─────────────────────────────────────────
+  @Post('discount/approve')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Confirma o PIN do supervisor/gerente que aprova um desconto manual' })
+  approveDiscount(@Body() dto: ApproveDiscountDto, @CurrentUser() user: JwtPayload) {
+    return this.discounts.approve(this.ctx.requireTenantSchema(), user, dto.pin);
+  }
+
   @Post('invoices')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Emite um documento fiscal (FT/FS/...) com hash AGT' })
@@ -269,6 +279,8 @@ export class PosController {
     // Posto não registado → 'A', como sempre. É deliberado: as aplicações já
     // instaladas ainda não se registam, e recusar a venda deixaria lojas
     // paradas por causa de uma funcionalidade nova.
+    // Desconto acima da promoção = manual: só com supervisor/gerente (ou o PIN dele).
+    await this.discounts.check(schema, user, dto.lines, { approvalPin: dto.approvalPin, offline: dto.offline === true });
     const deviceSeries = await this.devices.seriesFor(schema, dto.deviceKey);
     try {
       return await this.invoices.emit(schema, {

@@ -16,6 +16,8 @@ export interface ReceiptItem {
   description: string; quantity: number; unitPrice: number; total: number;
   /** Opcionais (venda feita agora no POS): IVA por taxa e isenção no talão. */
   ivaRate?: number; net?: number; iva?: number; exemptionCode?: string | null;
+  /** Desconto da linha em Kz e fração (promoção ou manual). */
+  discount?: number; discountRate?: number;
 }
 
 /** Designação do documento pelo prefixo do número (FR = Factura-Recibo; FS é o nome antigo). */
@@ -78,6 +80,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
   const shownDate = dateLabel ?? formatDateTime();
   const designation = provisional ? 'Comprovativo provisório' : docDesignation(invoice.number);
   const tax = taxSummary(items, invoice.netTotal);
+  const totalDiscount = Math.round((items ?? []).reduce((s, it) => s + (it.discount ?? 0), 0) * 100) / 100;
   // Conteúdo do QR de verificação (campos-chave do documento).
   const qrData = invoice.feQr && identity?.nif
     ? `https://quiosqueagt.minfin.gov.ao/facturacao-eletronica/consultar-fe?emissor=${encodeURIComponent(identity.nif)}&document=${invoice.number.replace(/ /g, '%20')}`
@@ -291,7 +294,9 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
               <tbody>
                 {items.map((it, i) => (
                   <tr key={i}>
-                    <td>{it.description}</td>
+                    <td>{it.description}{it.discount && it.discount > 0 ? (
+                      <div className="muted" style={{ fontSize: 11.5 }}>Desconto −{(Math.round((it.discountRate ?? 0) * 1000) / 10).toLocaleString('pt-PT')} % (−{formatKz(it.discount)})</div>
+                    ) : null}</td>
                     <td style={{ textAlign: 'center' }}>{it.quantity}</td>
                     <td style={{ textAlign: 'right' }}>{formatKz(it.unitPrice)}</td>
                     <td style={{ textAlign: 'right' }}>{formatKz(it.total)}</td>
@@ -301,6 +306,9 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
             </table>
           ) : null}
 
+          {totalDiscount > 0 ? (
+            <div className="kv"><span className="k">Descontos</span><span className="v">−{formatKz(totalDiscount)}</span></div>
+          ) : null}
           <div className="kv">
             <span className="k">Base tributável</span>
             <span className="v">{formatKz(invoice.netTotal)}</span>

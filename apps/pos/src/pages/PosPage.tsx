@@ -22,6 +22,7 @@ import {
   IconUser,
 } from '../components/Icons';
 import { ReceiptModal } from '../components/ReceiptModal';
+import { DiscountModal } from '../components/DiscountModal';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { SalesHistoryModal } from '../components/SalesHistoryModal';
 import { KitchenOrdersModal } from '../components/KitchenOrdersModal';
@@ -286,11 +287,16 @@ export function PosPage() {
   // Fatura a cliente com NIF: o NIF do adquirente tem de constar no documento.
   const receiptCustomer = (c: typeof customer) => (c ? (c.tax_id?.trim() && c.tax_id.trim() !== '999999999' ? `${c.name} · NIF ${c.tax_id.trim()}` : c.name) : null);
   const buildItems = (lines: CartLine[]) => lines.map((l) => {
-    const total = lineGross(l);
+    // Desconto da linha (promoção ou manual) — o talão tem de bater com o total emitido.
+    const rate = discountRateByProduct[l.product.id] ?? 0;
+    const gross = lineGross(l);
+    const total = Math.round(gross * (1 - rate) * 100) / 100;
+    const net = Math.round(lineNet(l) * (1 - rate) * 100) / 100;
     return {
-      description: l.product.name, quantity: l.quantity, unitPrice: l.quantity ? Math.round((total / l.quantity) * 100) / 100 : total, total,
+      description: l.product.name, quantity: l.quantity, unitPrice: l.quantity ? Math.round((gross / l.quantity) * 100) / 100 : gross, total,
+      discount: Math.round((gross - total) * 100) / 100, discountRate: rate,
       // Para o quadro de IVA por taxa e o motivo de isenção no talão (menções obrigatórias).
-      ivaRate: IVA_RATE[l.product.iva_code], net: lineNet(l), iva: lineIva(l), exemptionCode: l.product.exemption_code ?? null,
+      ivaRate: IVA_RATE[l.product.iva_code], net, iva: rate > 0 ? Math.round((total - net) * 100) / 100 : lineIva(l), exemptionCode: l.product.exemption_code ?? null,
     };
   });
 
@@ -480,11 +486,19 @@ export function PosPage() {
     return out;
   }, [cart, promotions]);
 
+  // Desconto MANUAL por artigo (aprovado por supervisor/gerente). Vale o maior
+  // entre a promoção e o manual — não acumulam.
+  const [manualDisc, setManualDisc] = useState<Record<string, number>>({});
+  const [discApproval, setDiscApproval] = useState<{ pin: string; name: string } | null>(null);
+  const [discLine, setDiscLine] = useState<CartLine | null>(null);
+  useEffect(() => { if (cart.length === 0) { setManualDisc({}); setDiscApproval(null); } }, [cart.length]);
+  const hasManual = cart.some((l) => (manualDisc[l.product.id] ?? 0) > (promoByProduct[l.product.id]?.discountRate ?? 0));
+
   const discountRateByProduct = useMemo(() => {
     const m: Record<string, number> = {};
-    for (const id in promoByProduct) m[id] = promoByProduct[id].discountRate;
+    for (const id in promoByProduct) m[id] = Math.max(promoByProduct[id].discountRate, manualDisc[id] ?? 0);
     return m;
-  }, [promoByProduct]);
+  }, [promoByProduct, manualDisc]);
 
   const totals = cartTotalsWithDiscount(cart, discountRateByProduct);
 
@@ -812,6 +826,7 @@ export function PosPage() {
         changeGiven: pay.changeGiven,
         ...(pay.prescriptionRef ? { prescriptionRef: pay.prescriptionRef } : {}),
         ...(pay.payments?.length ? { payments: pay.payments } : {}),
+        ...(hasManual && discApproval ? { approvalPin: discApproval.pin } : {}),
         clientOpId,
         // Identidade do posto: é ela que decide a SÉRIE fiscal desta venda, e
         // com isso impede que duas caixas escrevam na mesma cadeia de hash.
@@ -1090,14 +1105,17 @@ export function PosPage() {
                           <IconPlus size={18} />
                         </button>
                       </div>
+                      <button className="btn sm ghost cl-disc" onClick={() => setDiscLine(l)} title="Desconto neste artigo">
+                        {(manualDisc[l.product.id] ?? 0) > 0 ? `−${(Math.round((manualDisc[l.product.id] ?? 0) * 1000) / 10).toLocaleString('pt-PT')} %` : '% Desc.'}
+                      </button>
                       {(() => {
-                        const promo = promoByProduct[l.product.id];
+                        const rate = discountRateByProduct[l.product.id] ?? 0;
                         const gross = lineGross(l);
-                        if (promo && promo.discount > 0) {
+                        if (rate > 0) {
                           return (
                             <span className="cl-total" style={{ textAlign: 'right' }}>
                               <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontWeight: 600, fontSize: 12, display: 'block' }}>{formatKz(gross)}</span>
-                              <span style={{ color: 'var(--success)' }}>{formatKz(gross - promo.discount)}</span>
+                              <span style={{ color: 'var(--success)' }}>{formatKz(Math.round(gross * (1 - rate) * 100) / 100)}</span>
                             </span>
                           );
                         }
@@ -1131,7 +1149,7 @@ export function PosPage() {
                 </div>
                 {totals.discount > 0 ? (
                   <div className="t-row" style={{ color: 'var(--success)' }}>
-                    <span>Desconto promoções</span>
+                    <span>{hasManual ? 'Descontos' : 'Desconto promoções'}</span>
                     <span>−{formatKz(totals.discount)}</span>
                   </div>
                 ) : null}
@@ -1173,6 +1191,24 @@ export function PosPage() {
           <FooterCredit compact />
         </footer>
       </div>
+
+      {discLine ? (
+        <DiscountModal
+          name={discLine.product.name}
+          lineGross={lineGross(discLine)}
+          current={manualDisc[discLine.product.id] ?? 0}
+          promoRate={promoByProduct[discLine.product.id]?.discountRate ?? 0}
+          role={user?.role}
+          approvedBy={discApproval?.name ?? null}
+          onApply={(rate, approval) => {
+            const id = discLine.product.id;
+            setManualDisc((m) => { const n = { ...m }; if (rate > 0) n[id] = rate; else delete n[id]; return n; });
+            if (approval) setDiscApproval(approval);
+            setDiscLine(null);
+          }}
+          onClose={() => setDiscLine(null)}
+        />
+      ) : null}
 
       {showCustomer ? (
         <CustomerModal
