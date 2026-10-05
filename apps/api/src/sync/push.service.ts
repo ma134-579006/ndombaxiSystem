@@ -148,6 +148,9 @@ export class PushService {
         // não passa a ser uma venda de segunda nos relatórios de operação.
         operationDate: (p.operationDate as string) ?? op.createdAt.slice(0, 10),
         clientOpId: op.opId, // ← 1.ª camada: unicidade imposta pelo Postgres
+        // Venda que vem da fila do posto JÁ ACONTECEU sem rede: regista-se mesmo com stock
+        // desatualizado (como no POST /pos/invoices com offline:true), em vez de ficar presa.
+        offline: true,
         lines: p.lines as never,
       });
 
