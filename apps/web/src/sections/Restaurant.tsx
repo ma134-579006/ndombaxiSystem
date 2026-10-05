@@ -94,6 +94,21 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
     await api.restaurant.removeItem(itemId).catch(() => undefined);
     await refreshDetail(detail.order.id);
   };
+  // FATURAR A COMANDA: emite a fatura a partir dos artigos e fecha-a ligada a ela
+  // (antes "Fechar conta" só mudava o estado e a cobrança no caixa ficava à parte).
+  const [payOpen, setPayOpen] = useState(false);
+  const [payType, setPayType] = useState('CASH');
+  const [paying, setPaying] = useState(false);
+  const invoiceOrder = async () => {
+    if (!detail || paying) return;
+    setPaying(true);
+    try {
+      const r = await api.restaurant.invoiceOrder(detail.order.id, { paymentType: payType });
+      toast.success(`Fatura ${r.invoiceNumber} emitida — ${KZ(r.grossTotal)}. Comanda fechada.`);
+      setPayOpen(false); setDetail(null); await loadTables();
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao faturar.'); }
+    finally { setPaying(false); }
+  };
   const closeOrder = async () => {
     if (!detail) return;
     if (!(await confirmDialog({ message: `Fechar a conta da ${detail.order.table_name}? Total ${KZ(detail.order.total)}.` }))) return;
@@ -228,7 +243,21 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
             </div>
           ) : (
             <div className="row" style={{ gap: 8 }}>
-              <button className="btn lg" style={{ flex: 1 }} onClick={() => void closeOrder()} disabled={detail.items.length === 0}>Fechar conta</button>
+              {payOpen ? (
+                <>
+                  <select aria-label="Meio de pagamento" value={payType} onChange={(e) => setPayType(e.target.value)} style={{ flex: 1 }}>
+                    <option value="CASH">Numerário</option>
+                    <option value="CARD">Multicaixa (TPA)</option>
+                    <option value="TRANSFER">Transferência</option>
+                    <option value="EXPRESS">Multicaixa Express</option>
+                    <option value="REFERENCE">Referência</option>
+                  </select>
+                  <button className="btn lg" onClick={() => void invoiceOrder()} disabled={paying}>{paying ? 'A faturar…' : `Faturar ${KZ(detail.order.total)}`}</button>
+                </>
+              ) : (
+                <button className="btn lg" style={{ flex: 1 }} onClick={() => setPayOpen(true)} disabled={detail.items.length === 0}>Faturar e fechar</button>
+              )}
+              <button className="btn ghost" onClick={() => void closeOrder()} disabled={detail.items.length === 0} title="Fechar sem faturar aqui (cobrança no caixa)">Fechar (cobrar no caixa)</button>
               <button className="btn ghost" onClick={() => setCancelOpen(true)} title="Cancelar a comanda com motivo (auditado)">Cancelar comanda</button>
             </div>
           )}

@@ -1,5 +1,6 @@
-import { ArrayMaxSize, IsArray, IsInt, IsNumber, IsOptional, IsString, Length, Max, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Max, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PaymentPartDto } from '../../pos/dto/emit-invoice.dto';
 
 export class CreateTableDto {
   @IsOptional() @IsString() @Length(1, 20) code?: string;
@@ -22,6 +23,16 @@ export class AddItemDto {
 
 export class KitchenStatusDto {
   @IsString() status!: string; // PENDING | PREPARING | READY | SERVED
+}
+
+/** Faturar a comanda: meio de pagamento (ou pagamento misto) e cliente opcional. */
+export class InvoiceOrderDto {
+  @IsOptional() @IsIn(['CASH', 'CARD', 'TRANSFER', 'REFERENCE', 'EXPRESS', 'CREDIT'])
+  paymentType?: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS' | 'CREDIT';
+  @IsOptional() @IsNumber() @Min(0) tendered?: number;
+  @IsOptional() @IsUUID() customerId?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(4) @ValidateNested({ each: true }) @Type(() => PaymentPartDto)
+  payments?: PaymentPartDto[];
 }
 
 export class CloseOrderDto {

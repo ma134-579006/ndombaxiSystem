@@ -3,6 +3,9 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../erp/stock.service';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
+import { InvoiceService } from '../pos/invoice.service';
+import { DocumentType } from '@nexus/agt-xml';
+import { billingOpId, rethrowIfAlreadyBilled } from '../common/billing-guard';
 
 /** IVA por código (espelha o frontend) — para congelar o preço c/ IVA na comanda. */
 const IVA_RATE: Record<string, number> = { NOR: 14, INT: 7, RED: 5, ISE: 0, NS: 0 };
@@ -17,6 +20,7 @@ export class RestaurantService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: TenantAuditService,
+    private readonly invoices: InvoiceService,
   ) {}
 
   /** A coluna product_recipes.waste_pct pode ainda não existir (auto-migração
@@ -258,6 +262,43 @@ export class RestaurantService {
       }
       return { ok: true, chargedToFolio: !!chargeToReservationId };
     });
+  }
+
+  /**
+   * FATURA A COMANDA e fecha-a, ligada à fatura (antes "Fechar conta" só mudava o
+   * estado e a cobrança no caixa ficava à parte: comandas fechadas sem cobrança,
+   * ou cobradas duas vezes). A emissão baixa os ingredientes (como no caixa) e a
+   * chave fixa por comanda impede faturá-la duas vezes.
+   */
+  async invoiceOrder(schema: string, orderId: string, opener: { id: string | null; name: string; storeId?: string | null }, pay: {
+    paymentType?: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS' | 'CREDIT'; tendered?: number; customerId?: string;
+    payments?: { type: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS'; amount: number }[];
+  }) {
+    const ord = await this.prisma.runInTenant(schema, async (tx) => {
+      const o = await tx.$queryRaw<{ status: string; invoice_id: string | null; table_name: string | null }[]>(
+        Prisma.sql`SELECT status, invoice_id, table_name FROM restaurant_orders WHERE id = ${orderId}::uuid`);
+      if (!o[0]) throw new NotFoundException('Comanda não encontrada.');
+      if (o[0].invoice_id) throw new BadRequestException('Esta comanda já foi faturada.');
+      if (o[0].status !== 'OPEN') throw new BadRequestException('A comanda já não está aberta.');
+      const items = await tx.$queryRaw<{ product_code: string; quantity: string }[]>(
+        Prisma.sql`SELECT product_code, SUM(quantity) AS quantity FROM restaurant_order_items
+                   WHERE order_id = ${orderId}::uuid GROUP BY product_code`);
+      if (!items.length) throw new BadRequestException('A comanda não tem artigos.');
+      return { ...o[0], items };
+    });
+    const inv = await this.invoices.emit(schema, {
+      docType: DocumentType.FT, series: 'A',
+      customerId: pay.customerId ?? null,
+      cashierId: opener.id, cashierName: opener.name, storeId: opener.storeId ?? null,
+      paymentType: pay.paymentType ?? 'CASH', tendered: pay.tendered ?? null, payments: pay.payments ?? null,
+      allowAnyOpenSession: true,
+      clientOpId: billingOpId('RESTAURANT_ORDER', orderId),
+      lines: ord.items.map((i) => ({ productCode: i.product_code, quantity: Number(i.quantity) })),
+    }).catch((e) => rethrowIfAlreadyBilled(e, 'Esta comanda já foi faturada.'));
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
+      UPDATE restaurant_orders SET invoice_id = ${inv.id}::uuid, status = 'CLOSED', closed_at = COALESCE(closed_at, now())
+      WHERE id = ${orderId}::uuid`));
+    return { invoiceId: inv.id, invoiceNumber: inv.number, grossTotal: inv.grossTotal };
   }
 
   /** Baixa o stock dos ingredientes (receita) de cada prato vendido. */

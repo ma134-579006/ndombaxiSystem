@@ -961,6 +961,9 @@ export const api = {
     addItem: (orderId: string, productCode: string, quantity: number, notes?: string) => request<{ ok: boolean }>('POST', `/restaurant/orders/${orderId}/items`, { productCode, quantity, notes }),
     removeItem: (itemId: string) => request<{ ok: boolean }>('DELETE', `/restaurant/items/${itemId}`),
     itemKitchen: (itemId: string, status: string) => request<{ ok: boolean }>('POST', `/restaurant/items/${itemId}/kitchen`, { status }),
+    /** Fatura a comanda (FT ligada à comanda) e fecha-a. */
+    invoiceOrder: (id: string, dto: { paymentType: string; tendered?: number }) =>
+      request<{ invoiceId: string; invoiceNumber: string; grossTotal: number }>('POST', `/restaurant/orders/${id}/invoice`, dto),
     closeOrder: (id: string, chargeToReservationId?: string) => request<{ ok: boolean; chargedToFolio?: boolean }>('POST', `/restaurant/orders/${id}/close`, chargeToReservationId ? { chargeToReservationId } : {}),
     kitchen: () => request<RestaurantKitchenItem[]>('GET', '/restaurant/kitchen'),
     dashboard: () => request<RestaurantDashboard>('GET', '/restaurant/dashboard'),
