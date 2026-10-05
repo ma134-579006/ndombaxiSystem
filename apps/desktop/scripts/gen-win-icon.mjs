@@ -102,9 +102,10 @@ function buildIco(entries) {
 
 async function main() {
   const Jimp = loadJimp();
-  // Ícone de APLICAÇÃO quadrado (apps/web/scripts/gen-app-icon.py), não o
-  // logótipo largo: encolhido a 16–48 px o logótipo virava um borrão claro.
-  // Até 32 px usa-se a versão só com "LPS" (o "VENDAS" seria ilegível).
+  // O LOGÓTIPO OFICIAL (o do site) recortado e centrado num quadrado branco
+  // (apps/web/scripts/gen-app-icon.py) — o ficheiro original tem muita margem e
+  // encolhido a 16–48 px virava um borrão. Até 32 px usa-se a versão com menos
+  // margem, para o desenho ocupar o máximo possível.
   const pub = path.join(repo, 'apps', 'web', 'public');
   const grande = await Jimp.read(path.join(pub, 'app-icon.png'));
   const pequeno = await Jimp.read(path.join(pub, 'app-icon-small.png'));

@@ -110,8 +110,8 @@ fs.copyFileSync(logo, path.join(modulesDir, 'launcher', 'logo.png'));
 
 const buildDir = path.join(desktop, 'build');
 fs.mkdirSync(buildDir, { recursive: true });
-// Ícone da janela/atalhos: o ícone de APLICAÇÃO quadrado (o logótipo largo
-// ficava ilegível em pequeno). O ecrã de arranque continua com o logótipo.
+// Ícone da janela/atalhos: o MESMO logótipo oficial, já recortado e centrado num
+// quadrado branco (apps/web/scripts/gen-app-icon.py).
 fs.copyFileSync(path.join(repo, 'apps', 'web', 'public', 'app-icon.png'), path.join(buildDir, 'icon.png'));
 
 // Ícone Windows NÍTIDO (.ico 16→256px). Gerar cada tamanho à parte evita o

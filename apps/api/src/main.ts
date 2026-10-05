@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import type { Env } from './config/env.validation';
+import { startKeepAwake } from './common/keep-awake';
 
 async function bootstrap(): Promise<void> {
   // bodyParser:false → registamos nós o parser com um limite generoso, porque
@@ -93,6 +94,11 @@ async function bootstrap(): Promise<void> {
   const port = config.get('PORT', { infer: true });
   await app.listen(port);
   logger.log(`LPS Vendas API em http://localhost:${port}${prefix ? '/' + prefix : ''}`);
+
+  // Render grátis: a API visita-se a si própria para nunca adormecer (só no Render).
+  if (startKeepAwake(process.env.RENDER_EXTERNAL_URL, { log: (m) => logger.warn(m) })) {
+    logger.log('Keep-awake ligado: a API chama o seu endereço público de 9 em 9 minutos.');
+  }
 }
 
 void bootstrap();
