@@ -11,7 +11,7 @@ interface Props {
   customerName?: string | null;
   /** Medicamentos do carrinho sujeitos a receita (pede o nº da receita). */
   prescriptionItems?: string[];
-  onConfirm(p: { paymentType: PaymentType; tendered?: number; changeGiven?: number; prescriptionRef?: string }): void;
+  onConfirm(p: { paymentType: PaymentType; tendered?: number; changeGiven?: number; prescriptionRef?: string; payments?: { type: Exclude<PaymentType, 'CREDIT'>; amount: number }[] }): void;
   onClose(): void;
   busy?: boolean;
 }
@@ -30,6 +30,13 @@ export function PaymentModal({ total, customerName, prescriptionItems = [], onCo
   const [type, setType] = useState<PaymentType>('CASH');
   const [tendered, setTendered] = useState('');
   const [rxRef, setRxRef] = useState('');
+  // PAGAMENTO MISTO: parte em numerário + o resto noutro meio (TPA, transferência…).
+  const [mixed, setMixed] = useState(false);
+  const [mixCash, setMixCash] = useState('');
+  const [mixOther, setMixOther] = useState<Exclude<PaymentType, 'CREDIT' | 'CASH'>>('CARD');
+  const mixCashNum = Math.min(total, Math.max(0, parseKz(mixCash) || 0));
+  const mixRest = Math.round((total - mixCashNum) * 100) / 100;
+  const mixInvalid = mixed && (!(mixCashNum > 0) || !(mixRest > 0));
   const rxMissing = prescriptionItems.length > 0 && !rxRef.trim();
 
   const tenderedNum = parseKz(tendered) || 0;
@@ -54,8 +61,12 @@ export function PaymentModal({ total, customerName, prescriptionItems = [], onCo
     // GUARDA: o botão fica desativado quando insuficiente/sem cliente, mas o Enter
     // do teclado (onSubmit) chamava confirm() diretamente, contornando-o e emitindo
     // a fatura com pagamento a menos (furo de caixa). Bloqueia também aqui.
-    if (busy || insufficient || creditNoCustomer || rxMissing) return;
+    if (busy || (!mixed && (insufficient || creditNoCustomer)) || rxMissing || mixInvalid) return;
     const rx = prescriptionItems.length ? { prescriptionRef: rxRef.trim() } : {};
+    if (mixed) {
+      onConfirm({ paymentType: 'CASH', tendered: mixCashNum, changeGiven: 0, payments: [{ type: 'CASH', amount: mixCashNum }, { type: mixOther, amount: mixRest }], ...rx });
+      return;
+    }
     if (type === 'CASH') {
       onConfirm({ paymentType: 'CASH', tendered: tenderedNum || total, changeGiven: change, ...rx });
     } else {
@@ -85,14 +96,36 @@ export function PaymentModal({ total, customerName, prescriptionItems = [], onCo
 
         <div className="pay-methods">
           {METHODS.map((m) => (
-            <button key={m.type} className={`pay-method${type === m.type ? ' on' : ''}`} onClick={() => setType(m.type)} aria-pressed={type === m.type}>
+            <button key={m.type} className={`pay-method${!mixed && type === m.type ? ' on' : ''}`} onClick={() => { setMixed(false); setType(m.type); }} aria-pressed={!mixed && type === m.type}>
               <UiIcon e={m.icon} size={20} className="pay-ic" />
               <span>{m.label}</span>
             </button>
           ))}
+          <button className={`pay-method${mixed ? ' on' : ''}`} onClick={() => setMixed(true)} aria-pressed={mixed}>
+            <UiIcon e="money" size={20} className="pay-ic" />
+            <span>Misto</span>
+          </button>
         </div>
 
-        {type === 'CASH' ? (
+        {mixed ? (
+          <div style={{ marginTop: 14 }}>
+            <KeyboardInput label="Parte em numerário (Kz)" value={mixCash} onChange={setMixCash} numeric placeholder="0" onSubmit={confirm} />
+            <div className="pay-methods" style={{ marginTop: 10 }}>
+              {METHODS.filter((m) => m.type !== 'CASH' && m.type !== 'CREDIT').map((m) => (
+                <button key={m.type} className={`pay-method${mixOther === m.type ? ' on' : ''}`} onClick={() => setMixOther(m.type as Exclude<PaymentType, 'CREDIT' | 'CASH'>)} aria-pressed={mixOther === m.type}>
+                  <UiIcon e={m.icon} size={20} className="pay-ic" />
+                  <span>{m.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="change-box" style={{ borderColor: mixInvalid ? 'var(--danger)' : 'var(--success)' }}>
+              <span>Restante em {METHODS.find((m) => m.type === mixOther)?.label}</span>
+              <strong style={{ color: mixInvalid ? 'var(--danger)' : 'var(--success)' }}>
+                {mixInvalid ? 'Indique a parte em numerário' : formatKz(mixRest)}
+              </strong>
+            </div>
+          </div>
+        ) : type === 'CASH' ? (
           <div style={{ marginTop: 14 }}>
             <KeyboardInput label="Dinheiro entregue (Kz)" value={tendered} onChange={setTendered} numeric placeholder={String(total)} onSubmit={confirm} />
             <div className="quick-cash">
@@ -127,7 +160,7 @@ export function PaymentModal({ total, customerName, prescriptionItems = [], onCo
           </p>
         )}
 
-        <button className="btn success lg block" style={{ marginTop: 16 }} onClick={confirm} disabled={busy || insufficient || creditNoCustomer || rxMissing}>
+        <button className="btn success lg block" style={{ marginTop: 16 }} onClick={confirm} disabled={busy || (!mixed && (insufficient || creditNoCustomer)) || rxMissing || mixInvalid}>
           {busy ? 'A emitir…' : type === 'CREDIT' ? 'Confirmar venda a crédito' : 'Confirmar e emitir factura'}
         </button>
       </div>

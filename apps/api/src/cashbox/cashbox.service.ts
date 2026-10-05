@@ -127,14 +127,17 @@ export class CashboxService {
                    GROUP BY type, payment_type`,
       );
 
-      let salesTotal = 0, cashIn = 0, cashOut = 0, salesCount = 0;
+      // Nº de vendas = faturas distintas (um pagamento misto grava uma linha por meio).
+      const scRows = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(DISTINCT COALESCE(reference_id::text, id::text))::int AS n
+        FROM cash_movements WHERE session_id = ${session.id}::uuid AND type = 'SALE'`);
+      let salesTotal = 0, cashIn = 0, cashOut = 0, salesCount = scRows[0]?.n ?? 0;
       let cashSales = 0; // só vendas pagas em numerário entram no esperado físico
       let cashRefunds = 0; // reembolsos em numerário SAEM da gaveta (anulações/devoluções)
       const byPayment: Record<string, number> = {};
       for (const r of agg) {
         const total = Number(r.total);
         if (r.type === 'SALE') {
-          salesTotal += total; salesCount += r.n;
+          salesTotal += total;
           const pt = r.payment_type ?? 'CASH';
           byPayment[pt] = round2((byPayment[pt] ?? 0) + total);
           if (pt === 'CASH') cashSales += total;
@@ -244,12 +247,15 @@ export class CashboxService {
         Prisma.sql`SELECT type, payment_type, COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS n
                    FROM cash_movements WHERE session_id = ${session.id}::uuid GROUP BY type, payment_type`,
       );
-      let salesTotal = 0, cashIn = 0, cashOut = 0, salesCount = 0, cashSales = 0, cashRefunds = 0;
+      // Nº de vendas = faturas distintas (um pagamento misto grava uma linha por meio).
+      const scRows = await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(DISTINCT COALESCE(reference_id::text, id::text))::int AS n
+        FROM cash_movements WHERE session_id = ${session.id}::uuid AND type = 'SALE'`);
+      let salesTotal = 0, cashIn = 0, cashOut = 0, salesCount = scRows[0]?.n ?? 0, cashSales = 0, cashRefunds = 0;
       const byPayment: Record<string, number> = {};
       for (const r of agg) {
         const total = Number(r.total);
         if (r.type === 'SALE') {
-          salesTotal += total; salesCount += r.n;
+          salesTotal += total;
           const pt = r.payment_type ?? 'CASH';
           byPayment[pt] = (byPayment[pt] ?? 0) + total;
           if (pt === 'CASH') cashSales += total;

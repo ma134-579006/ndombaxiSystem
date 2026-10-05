@@ -51,6 +51,8 @@ export interface PendingSale {
   paymentType?: string;
   tendered?: number;
   changeGiven?: number;
+  /** Pagamento misto (parte numerário + parte TPA…). */
+  payments?: { type: string; amount: number }[];
   lines: PendingSaleLine[];
   netTotal: number;
   ivaTotal: number;
@@ -93,7 +95,7 @@ export function buildPendingSale(
   totals: { net: number; iva: number; gross: number },
   customer: { id: string; name: string } | null,
   clientOpId?: string,
-  pay?: { paymentType: string; tendered?: number; changeGiven?: number },
+  pay?: { paymentType: string; tendered?: number; changeGiven?: number; payments?: { type: string; amount: number }[] },
   discountRateByProduct: Record<string, number> = {},
 ): PendingSale {
   const rand = Math.random().toString(16).slice(2, 6).toUpperCase();
@@ -106,6 +108,7 @@ export function buildPendingSale(
     paymentType: pay?.paymentType,
     tendered: pay?.tendered,
     changeGiven: pay?.changeGiven,
+    ...(pay?.payments?.length ? { payments: pay.payments } : {}),
     lines: cart.map((l) => {
       const rate = discountRateByProduct[l.product.id] ?? 0;
       return {
