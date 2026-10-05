@@ -55,9 +55,12 @@ export class OrdersService {
         tx.$queryRaw<{
           number: string; doc_type: string; invoice_date: Date; system_entry_date: Date;
           net_total: string; iva_total: string; gross_total: string; hash: string;
+          status: string; credit_notes: string | null;
         }[]>(
           Prisma.sql`SELECT number, doc_type, invoice_date, system_entry_date,
-                            net_total, iva_total, gross_total, hash
+                            net_total, iva_total, gross_total, hash, status,
+                            (SELECT string_agg(nc.number, ', ' ORDER BY nc.created_at) FROM invoices nc
+                              WHERE nc.source_invoice_id = invoices.id AND nc.doc_type = 'NC') AS credit_notes
                      FROM invoices WHERE id = ${invId}::uuid LIMIT 1`,
         ),
       ),
@@ -87,6 +90,9 @@ export class OrdersService {
       ivaTotal: Number(h.iva_total),
       grossTotal: Number(h.gross_total),
       hash: h.hash,
+      // A fatura pode ter sido anulada/devolvida no caixa (NC): o cliente tem de o saber.
+      annulled: h.status === 'A',
+      creditNotes: h.credit_notes,
       company: {
         name: company.companyName || company.brandName || '',
         nif: company.nif || '',

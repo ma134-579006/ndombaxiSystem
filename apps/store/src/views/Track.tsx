@@ -39,6 +39,13 @@ async function downloadInvoicePdf(inv: StoreInvoice): Promise<void> {
   doc.setFontSize(9.5); doc.setTextColor(100, 116, 139);
   doc.text(dateOnly(inv.invoiceDate), W - M, y + 31, { align: 'right' });
   doc.text(`Encomenda ${inv.orderNumber}`, W - M, y + 44, { align: 'right' });
+  if (inv.annulled || inv.creditNotes) {
+    // Fatura anulada/corrigida por nota de crédito: o PDF tem de o dizer claramente.
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(185, 28, 28);
+    doc.text(inv.annulled ? `ANULADA — NC ${inv.creditNotes ?? ''}`.trim() : `Retificada — NC ${inv.creditNotes}`, W - M, y + 58, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(15, 23, 42);
+    y += 14;
+  }
 
   y = Math.max(my, y + 52) + 8;
   doc.setDrawColor(...accent); doc.setLineWidth(2); doc.line(M, y, W - M, y);

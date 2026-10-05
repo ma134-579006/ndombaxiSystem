@@ -218,7 +218,7 @@ export class PosRepository {
       const reservedExpr = regWeb[0]?.r
         ? Prisma.sql`COALESCE((SELECT SUM(wi.quantity)::float8 FROM web_order_items wi
                        JOIN web_orders wo ON wo.id = wi.order_id
-                       WHERE wi.product_id = p.id AND wo.status = 'PENDING'), 0)`
+                       WHERE wi.product_id = p.id AND wo.status = 'PENDING' AND wo.created_at > now() - interval '48 hours'), 0)`
         : Prisma.sql`0`;
       const q = (opts?.q ?? '').trim();
       const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;

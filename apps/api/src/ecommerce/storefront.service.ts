@@ -80,11 +80,12 @@ export class StorefrontService {
       // RESERVA (Available-To-Promise): stock já prometido a encomendas online
       // PENDING (por confirmar). O catálogo mostra o stock DISPONÍVEL de facto,
       // evitando prometer a mesma última unidade a dois clientes / ao caixa.
+      // Encomendas por pagar há mais de 48 h deixam de prender stock (um anónimo esgotava o catálogo).
       const regWeb = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('web_order_items')::text AS r`);
       const reservedExpr = regWeb[0]?.r
         ? Prisma.sql`COALESCE((SELECT SUM(wi.quantity)::float8 FROM web_order_items wi
                        JOIN web_orders wo ON wo.id = wi.order_id
-                       WHERE wi.product_id = p.id AND wo.status = 'PENDING'), 0)`
+                       WHERE wi.product_id = p.id AND wo.status = 'PENDING' AND wo.created_at > now() - interval '48 hours'), 0)`
         : Prisma.sql`0`;
       return tx.$queryRaw<CatalogRow[]>(
         Prisma.sql`SELECT p.id, p.code, p.name, p.description, p.iva_code, p.unit_price, p.stock_qty,
@@ -174,7 +175,7 @@ export class StorefrontService {
         const reservedRows = await tx.$queryRaw<{ n: number }[]>(
           Prisma.sql`SELECT COALESCE(SUM(wi.quantity), 0)::float8 AS n
                      FROM web_order_items wi JOIN web_orders wo ON wo.id = wi.order_id
-                     WHERE wi.product_id = ${p.id}::uuid AND wo.status = 'PENDING'`,
+                     WHERE wi.product_id = ${p.id}::uuid AND wo.status = 'PENDING' AND wo.created_at > now() - interval '48 hours'`,
         ).catch(() => [{ n: 0 }]);
         const available = Math.max(0, Math.floor(Number(p.stock_qty)) - Math.floor(Number(reservedRows[0]?.n ?? 0)));
         if (line.quantity > available) {

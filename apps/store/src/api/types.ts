@@ -217,6 +217,10 @@ export interface StoreInvoice {
   ivaTotal: number;
   grossTotal: number;
   hash: string;
+  /** Anulada no caixa (nota de crédito total). */
+  annulled?: boolean;
+  /** Números das notas de crédito ligadas (anulação/devoluções). */
+  creditNotes?: string | null;
   company: {
     name: string;
     nif: string;
