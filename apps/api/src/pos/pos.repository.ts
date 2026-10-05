@@ -93,6 +93,8 @@ export class PosRepository {
       isProduction?: boolean;
       /** Unidade de medida (un, kg, g, L, ml, fatia, folha…). */
       unit?: string | null;
+      requiresPrescription?: boolean;
+      activeIngredient?: string | null;
     },
   ): Promise<ProductRow> {
     return this.prisma.runInTenant(schema, async (tx) => {
@@ -118,6 +120,11 @@ export class PosRepository {
           RETURNING *`,
       );
       const product = rows[0];
+      if (input.requiresPrescription !== undefined || input.activeIngredient !== undefined) {
+        await tx.$executeRaw(Prisma.sql`UPDATE products SET requires_prescription = ${!!input.requiresPrescription},
+            active_ingredient = ${input.activeIngredient?.trim() || null} WHERE id = ${product.id}::uuid`);
+        Object.assign(product, { requires_prescription: !!input.requiresPrescription, active_ingredient: input.activeIngredient?.trim() || null });
+      }
 
       // Cria a linha de saldo (0) em TODAS as lojas activas, para o produto poder
       // ser gerido em qualquer loja. O stock_items usa o id da LOJA.
@@ -245,6 +252,7 @@ export class PosRepository {
                  CASE WHEN p.shared_stock OR ${storeId ?? null}::uuid IS NULL
                       THEN p.stock_qty ELSE COALESCE(si.quantity, 0) END AS stock_qty,
                  p.image_url, p.gallery, p.show_online, p.shared_stock, p.is_ingredient, p.is_production, p.unit, p.is_active,
+                 COALESCE((to_jsonb(p) ->> 'requires_prescription')::boolean, FALSE) AS requires_prescription,
                  ${hasRecipeExpr} AS has_recipe,
                  ${reservedExpr} AS reserved,
                  ${portionsExpr} AS portions_available
@@ -305,9 +313,13 @@ export class PosRepository {
       isIngredient?: boolean;
       isProduction?: boolean;
       unit?: string | null;
+      requiresPrescription?: boolean;
+      activeIngredient?: string | null;
     },
   ): Promise<ProductRow> {
     const sets: Prisma.Sql[] = [];
+    if (input.requiresPrescription !== undefined) sets.push(Prisma.sql`requires_prescription = ${input.requiresPrescription}`);
+    if (input.activeIngredient !== undefined) sets.push(Prisma.sql`active_ingredient = ${input.activeIngredient?.trim() || null}`);
     if (input.name !== undefined) sets.push(Prisma.sql`name = ${input.name}`);
     if (input.description !== undefined) sets.push(Prisma.sql`description = ${input.description}`);
     if (input.categoryId !== undefined) sets.push(Prisma.sql`category_id = ${input.categoryId || null}::uuid`);

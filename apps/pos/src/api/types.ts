@@ -46,6 +46,8 @@ export interface Product {
   /** TRUE = produto de PRODUÇÃO (fabricado): a venda passa pela disponibilidade
    *  (Livre/Ocupado/Esgotado) — se não estiver Livre, solicita produção. */
   is_production?: boolean;
+  /** Farmácia: medicamento sujeito a receita médica (o pagamento pede o nº da receita). */
+  requires_prescription?: boolean;
   /** Quantidade já RESERVADA a encomendas online por confirmar (PENDING).
    *  O caixa é AVISADO (não bloqueado) antes de vender esse stock prometido. */
   reserved?: string | number | null;
@@ -103,6 +105,8 @@ export interface EmitInvoiceInput {
   paymentType?: PaymentType;
   tendered?: number;
   changeGiven?: number;
+  /** Farmácia: nº da receita médica apresentada pelo cliente. */
+  prescriptionRef?: string;
   /** Vencimento da dívida (venda a crédito); default +30 dias no servidor. */
   dueDate?: string;
   /** Documento retroativo: data da compra ORIGINAL (YYYY-MM-DD). A data fiscal continua a ser hoje. */

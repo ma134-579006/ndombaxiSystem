@@ -9,7 +9,9 @@ interface Props {
   total: number;
   /** Nome do cliente selecionado (obrigatório para venda a crédito). */
   customerName?: string | null;
-  onConfirm(p: { paymentType: PaymentType; tendered?: number; changeGiven?: number }): void;
+  /** Medicamentos do carrinho sujeitos a receita (pede o nº da receita). */
+  prescriptionItems?: string[];
+  onConfirm(p: { paymentType: PaymentType; tendered?: number; changeGiven?: number; prescriptionRef?: string }): void;
   onClose(): void;
   busy?: boolean;
 }
@@ -24,9 +26,11 @@ const METHODS: { type: PaymentType; label: string; icon: string }[] = [
 ];
 
 /** Selecção do método + (numerário) dinheiro entregue → troco automático. */
-export function PaymentModal({ total, customerName, onConfirm, onClose, busy }: Props) {
+export function PaymentModal({ total, customerName, prescriptionItems = [], onConfirm, onClose, busy }: Props) {
   const [type, setType] = useState<PaymentType>('CASH');
   const [tendered, setTendered] = useState('');
+  const [rxRef, setRxRef] = useState('');
+  const rxMissing = prescriptionItems.length > 0 && !rxRef.trim();
 
   const tenderedNum = parseKz(tendered) || 0;
   const change = useMemo(() => Math.max(0, tenderedNum - total), [tenderedNum, total]);
@@ -50,11 +54,12 @@ export function PaymentModal({ total, customerName, onConfirm, onClose, busy }: 
     // GUARDA: o botão fica desativado quando insuficiente/sem cliente, mas o Enter
     // do teclado (onSubmit) chamava confirm() diretamente, contornando-o e emitindo
     // a fatura com pagamento a menos (furo de caixa). Bloqueia também aqui.
-    if (busy || insufficient || creditNoCustomer) return;
+    if (busy || insufficient || creditNoCustomer || rxMissing) return;
+    const rx = prescriptionItems.length ? { prescriptionRef: rxRef.trim() } : {};
     if (type === 'CASH') {
-      onConfirm({ paymentType: 'CASH', tendered: tenderedNum || total, changeGiven: change });
+      onConfirm({ paymentType: 'CASH', tendered: tenderedNum || total, changeGiven: change, ...rx });
     } else {
-      onConfirm({ paymentType: type });
+      onConfirm({ paymentType: type, ...rx });
     }
   };
 
@@ -70,6 +75,13 @@ export function PaymentModal({ total, customerName, onConfirm, onClose, busy }: 
         <div className="totals" style={{ marginBottom: 14 }}>
           <div className="t-row grand"><span>Total a pagar</span><span>{formatKz(total)}</span></div>
         </div>
+
+        {prescriptionItems.length ? (
+          <div style={{ marginBottom: 12 }}>
+            <KeyboardInput label={`Nº da receita médica (${prescriptionItems.join(', ')})`} value={rxRef} onChange={setRxRef} placeholder="Ex.: RX/2026/0012 ou nº da receita em papel" />
+            {rxMissing ? <p className="muted" style={{ fontSize: 12, margin: '4px 0 0', color: 'var(--danger)' }}>Medicamento sujeito a receita: indique o nº da receita para vender.</p> : null}
+          </div>
+        ) : null}
 
         <div className="pay-methods">
           {METHODS.map((m) => (
@@ -115,7 +127,7 @@ export function PaymentModal({ total, customerName, onConfirm, onClose, busy }: 
           </p>
         )}
 
-        <button className="btn success lg block" style={{ marginTop: 16 }} onClick={confirm} disabled={busy || insufficient || creditNoCustomer}>
+        <button className="btn success lg block" style={{ marginTop: 16 }} onClick={confirm} disabled={busy || insufficient || creditNoCustomer || rxMissing}>
           {busy ? 'A emitir…' : type === 'CREDIT' ? 'Confirmar venda a crédito' : 'Confirmar e emitir factura'}
         </button>
       </div>

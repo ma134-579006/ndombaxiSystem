@@ -251,6 +251,7 @@ export class PosController {
         operationDate: dto.operationDate ?? null,
         clientOpId: dto.clientOpId ?? null,
         offline: dto.offline === true,
+        prescriptionRef: dto.prescriptionRef ?? null,
         lines: dto.lines,
       });
     } catch (e) {

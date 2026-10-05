@@ -107,6 +107,17 @@ export class CreateProductDto {
   @IsBoolean()
   showOnline?: boolean;
 
+  /** Farmácia: medicamento sujeito a RECEITA MÉDICA (o caixa pede o nº da receita). */
+  @IsOptional()
+  @IsBoolean()
+  requiresPrescription?: boolean;
+
+  /** Farmácia: substância ativa (DCI), informativa. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 120)
+  activeIngredient?: string;
+
   /** TRUE = ingrediente/matéria-prima: não se vende no caixa nem na loja; só para
    *  a ficha técnica dos pratos (restauração). */
   @IsOptional()
@@ -195,6 +206,17 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  /** Farmácia: medicamento sujeito a RECEITA MÉDICA (o caixa pede o nº da receita). */
+  @IsOptional()
+  @IsBoolean()
+  requiresPrescription?: boolean;
+
+  /** Farmácia: substância ativa (DCI), informativa. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 120)
+  activeIngredient?: string;
 
   /** Marcar/desmarcar como ingrediente (matéria-prima). */
   @IsOptional()

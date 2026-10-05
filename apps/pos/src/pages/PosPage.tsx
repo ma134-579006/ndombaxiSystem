@@ -792,7 +792,7 @@ export function PosPage() {
   };
 
   // Emissão real após escolher o método de pagamento (+ troco).
-  const doEmit = async (pay: { paymentType: PaymentType; tendered?: number; changeGiven?: number }) => {
+  const doEmit = async (pay: { paymentType: PaymentType; tendered?: number; changeGiven?: number; prescriptionRef?: string }) => {
     if (cart.length === 0 || emitting) return;
     setEmitting(true);
     setEmitError(null);
@@ -806,6 +806,7 @@ export function PosPage() {
         paymentType: pay.paymentType,
         tendered: pay.tendered,
         changeGiven: pay.changeGiven,
+        ...(pay.prescriptionRef ? { prescriptionRef: pay.prescriptionRef } : {}),
         clientOpId,
         // Identidade do posto: é ela que decide a SÉRIE fiscal desta venda, e
         // com isso impede que duas caixas escrevam na mesma cadeia de hash.
@@ -1258,6 +1259,7 @@ export function PosPage() {
         <PaymentModal
           total={totals.gross}
           customerName={customer?.name ?? null}
+          prescriptionItems={cart.filter((l) => l.product.requires_prescription).map((l) => l.product.name)}
           busy={emitting}
           onConfirm={doEmit}
           onClose={() => setShowPayment(false)}

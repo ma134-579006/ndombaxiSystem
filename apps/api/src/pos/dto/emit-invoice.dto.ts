@@ -102,6 +102,12 @@ export class EmitInvoiceDto {
   offline?: boolean;
 
   /** Dinheiro entregue pelo cliente (numerário). */
+  /** Farmácia: nº da receita médica (exigido quando há medicamentos sujeitos a receita). */
+  @IsOptional()
+  @IsString()
+  @Length(1, 60)
+  prescriptionRef?: string;
+
   @IsOptional()
   @IsNumber()
   @Min(0)

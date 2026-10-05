@@ -54,6 +54,10 @@ export interface EmitInvoiceInput {
    * fica `false` (o caixa tem sempre o seu turno), pelo que nada muda lá.
    */
   allowAnyOpenSession?: boolean;
+  /** Farmácia: nº da receita médica apresentada (obrigatório para medicamentos sujeitos a receita). */
+  prescriptionRef?: string | null;
+  /** Interno: venda que vem da DISPENSA de uma receita do sistema (já validada). */
+  prescriptionDispensed?: boolean;
   /**
    * OFFLINE-FIRST: UUID da operação gerado no posto que originou esta venda.
    * Fica gravado com índice ÚNICO — se a mesma venda for reenviada (o ACK
@@ -225,6 +229,19 @@ export class InvoiceService {
         : [];
       const byCode = new Map<string, ProductForEmission & { code: string; name: string }>();
       for (const p of productRows) byCode.set(p.code, p);
+
+      // MEDICAMENTOS SUJEITOS A RECEITA: ao balcão só com o nº da receita (fica na
+      // auditoria) ou pela dispensa de uma receita do sistema. Venda offline já aconteceu.
+      let rxNames: string[] = [];
+      if (productRows.length && !input.offline && !input.prescriptionDispensed) {
+        const rx = await tx.$queryRaw<{ name: string }[]>(Prisma.sql`
+          SELECT name FROM products p WHERE p.id = ANY(ARRAY[${Prisma.join(productRows.map((r) => r.id))}]::uuid[])
+            AND COALESCE((to_jsonb(p) ->> 'requires_prescription')::boolean, FALSE)`);
+        rxNames = rx.map((r) => r.name);
+        if (rxNames.length && !input.prescriptionRef?.trim()) {
+          throw new BadRequestException(`Medicamento sujeito a receita médica: ${rxNames.join(', ')}. Indique o nº da receita.`);
+        }
+      }
 
       // FICHA TÉCNICA (BOM): produtos compostos (ex.: hambúrguer) não têm stock
       // próprio — consomem INGREDIENTES. Carrega as receitas dos produtos vendidos;
@@ -681,6 +698,7 @@ export class InvoiceService {
           ivaTotal: totals.ivaTotal,
           paymentType: input.paymentType ?? 'CASH',
           items: lines.length,
+          ...(rxNames.length ? { prescriptionRef: input.prescriptionRef?.trim(), prescriptionItems: rxNames } : {}),
         },
       });
 
