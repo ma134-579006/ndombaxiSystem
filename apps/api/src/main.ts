@@ -64,7 +64,8 @@ async function bootstrap(): Promise<void> {
       } catch {
         /* origin malformado → rejeitar abaixo */
       }
-      return callback(new Error(`Origin não permitida por CORS: ${origin}`), false);
+      // Origem não permitida: sem cabeçalhos CORS (o browser bloqueia) — e não um 500 no preflight.
+      return callback(null, false);
     },
   });
 
