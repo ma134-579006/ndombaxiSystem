@@ -1,0 +1,63 @@
+# Compila o APK da app "LPS Loja" (loja online para os clientes) na nuvem.
+# Sem secrets → APK de DEBUG assinado com a chave estável do repositório
+# (instala por cima das versões anteriores). Para a Play Store é preciso uma
+# keystore própria (não incluída).
+name: Android build (LPS Loja)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-store:
+    runs-on: ubuntu-latest
+    env:
+      NDOMBAXI_API_URL: https://ndombaxi-api-3nmz.onrender.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+      - name: Preparar web e projeto Android
+        run: |
+          node apps/store-shell/scripts/prepare-web.mjs
+          pnpm --filter @nexus/store-shell exec cap add android || true
+          pnpm --filter @nexus/store-shell exec cap sync android
+          # Versão, permissões (câmara/GPS), ligações diretas, barras e arranque.
+          node apps/store-shell/scripts/patch-android.mjs
+          # Ícone próprio da LPS Loja (índigo + logótipo) e ecrã de arranque.
+          node apps/store-shell/scripts/gen-icons.mjs
+      - name: Assinatura estável
+        run: |
+          mkdir -p ~/.android
+          cp apps/mobile-shell/keystore/debug.keystore ~/.android/debug.keystore
+      - name: Compilar APK debug
+        working-directory: apps/store-shell/android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lps-loja-android-debug
+          path: apps/store-shell/android/app/build/outputs/apk/debug/*.apk
+      # Link direto: https://github.com/<dono>/<repo>/releases/download/android-loja-latest/LPSLoja-Android.apk
+      - name: Publicar APK (Releases → android-loja-latest)
+        working-directory: apps/store-shell/android/app/build/outputs/apk/debug
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk=$(ls *.apk | head -1)
+          cp "$apk" LPSLoja-Android.apk
+          gh release delete android-loja-latest --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          gh release create android-loja-latest LPSLoja-Android.apk \
+            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
+            --title "LPS Loja para Android (mais recente)" \
+            --notes "App da loja online LPS Vendas para os clientes. Commit ${GITHUB_SHA::7}, build #${GITHUB_RUN_NUMBER}. Para instalar: abrir o ficheiro no telemóvel e permitir 'instalar apps desconhecidas' para o navegador."

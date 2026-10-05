@@ -1,0 +1,21 @@
+{
+  "name": "@nexus/store-shell",
+  "version": "1.5.0",
+  "private": true,
+  "description": "LPS Loja — app Android da loja online (Capacitor sobre apps/store).",
+  "scripts": {
+    "prepare:web": "node scripts/prepare-web.mjs",
+    "add:android": "cap add android",
+    "native": "node scripts/patch-android.mjs && node scripts/gen-icons.mjs",
+    "sync": "pnpm prepare:web && cap sync android",
+    "open:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.2.1",
+    "@capacitor/app": "6.0.2",
+    "@capacitor/core": "6.2.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.2.1"
+  }
+}

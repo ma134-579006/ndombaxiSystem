@@ -12,7 +12,13 @@ import { beep } from '../beep';
  * `onDetected(code)` deve devolver `true` se o código corresponde a um produto
  * (para fazer bip + fechar); caso contrário a câmara continua a ler.
  */
-export function BarcodeScanner({ onDetected }: { onDetected(code: string): boolean | void }) {
+export function BarcodeScanner({ onDetected, mode = 'retail', label }: {
+  onDetected(code: string): boolean | void;
+  /** `qr`: lê o QR de uma loja (ecrã de entrada da app). */
+  mode?: 'retail' | 'qr';
+  /** Com texto: botão largo (ex.: "Ler QR da loja") em vez do ícone da pesquisa. */
+  label?: string;
+}) {
   const [scanning, setScanning] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -31,7 +37,7 @@ export function BarcodeScanner({ onDetected }: { onDetected(code: string): boole
   const start = async () => {
     setErr(null);
     try {
-      const detect = await makeDetector(); // nativo ou ZXing (iPhone)
+      const detect = await makeDetector(mode); // nativo ou ZXing (iPhone)
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       streamRef.current = stream;
       setScanning(true);
@@ -68,15 +74,23 @@ export function BarcodeScanner({ onDetected }: { onDetected(code: string): boole
 
   return (
     <>
-      <button type="button" className="scan-btn" title="Procurar produto pela câmara" onClick={() => (scanning ? stop() : start())}>
-        <span style={{ fontSize: 20 }}>{scanning ? <IconClose size={18} /> : <IconCamera size={18} />}</span>
-      </button>
+      {label ? (
+        <button type="button" className="btn ghost lg block" onClick={() => (scanning ? stop() : start())}>
+          <IconCamera size={18} /> {label}
+        </button>
+      ) : (
+        <button type="button" className="scan-btn" title="Procurar produto pela câmara" onClick={() => (scanning ? stop() : start())}>
+          <span style={{ fontSize: 20 }}>{scanning ? <IconClose size={18} /> : <IconCamera size={18} />}</span>
+        </button>
+      )}
       {err ? <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{err}</div> : null}
       {scanning ? (
         <div className="scan-overlay" onClick={stop}>
           <div className="scan-box" onClick={(e) => e.stopPropagation()}>
             <video ref={videoRef} playsInline muted />
-            <div className="scan-hint">Aponte ao código de barras — faz um bip e adiciona ao reconhecer o produto.</div>
+            <div className="scan-hint">{mode === 'qr'
+              ? 'Aponte ao QR da loja (no balcão, no talão ou no link partilhado) — a loja abre sozinha.'
+              : 'Aponte ao código de barras — faz um bip e adiciona ao reconhecer o produto.'}</div>
             <button type="button" className="scan-cancel" onClick={stop}>Cancelar</button>
           </div>
         </div>

@@ -9,10 +9,12 @@ import { initTheme } from './theme';
 import { initTouchUi } from './touchUi';
 import { initAutoUpdate } from './autoUpdate';
 import { initScrollReveal } from './scrollReveal';
+import { initNativeApp, isNativeApp } from './native';
 
 initTheme();
 initTouchUi(); // ecrãs táteis: comportamento de telemóvel + campos acima do teclado
-initAutoUpdate(); // recarrega sozinho quando há nova versão publicada
+initNativeApp(); // app Android: ligações diretas e botão voltar
+if (!isNativeApp) initAutoUpdate(); // site: recarrega sozinho quando há nova versão publicada (a app traz a sua)
 initScrollReveal(); // conteúdo materializa-se ao rolar (efeito de catálogo premium)
 
 const container = document.getElementById('root');

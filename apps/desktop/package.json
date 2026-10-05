@@ -1,6 +1,6 @@
 {
   "name": "@nexus/desktop",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "LPS Vendas — aplicação Windows Offline-First (Gestão, Caixa e Loja num só instalador).",
   "author": "LPS Vendas",

@@ -5,6 +5,7 @@ import { useCustomer } from '../store/customer';
 import { UserAvatar } from './UserAvatar';
 import { IconCart, IconSearch, IconStore } from './Icons';
 import { ThemePicker } from './ThemePicker';
+import { isNativeApp } from '../native';
 
 function IconUser({ size = 22 }: { size?: number }) {
   return (
@@ -35,7 +36,7 @@ export function Header({ onHome, onCart, onAccount, search, onSearchChange, onSe
   onSearchSubmit?(): void;
   onImageSearch?(): void;
 }) {
-  const { data, cart, code } = useStore();
+  const { data, cart, code, setCode } = useStore();
   const customer = useCustomer(code);
   const s = data?.settings;
   const name = s?.brand_name || data?.storeName || 'Loja';
@@ -75,6 +76,13 @@ export function Header({ onHome, onCart, onAccount, search, onSearchChange, onSe
         ) : <span className="spacer" />}
 
         <div className="ax-actions">
+          {isNativeApp ? (
+            // App LPS Loja: o cliente compra em várias lojas — volta ao ecrã de lojas.
+            <button className="ax-icon-btn" onClick={() => setCode('')} title="Trocar de loja" aria-label="Trocar de loja">
+              <IconStore size={22} />
+              <span className="lbl">Lojas</span>
+            </button>
+          ) : null}
           <ThemePicker />
           {onAccount ? (
             <button className={`ax-icon-btn${customer ? ' in' : ''}`} onClick={onAccount}

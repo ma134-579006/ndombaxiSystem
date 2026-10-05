@@ -22,6 +22,7 @@ import { cartTotal } from '../store/cart';
 import { Checkout } from '../views/Checkout';
 import { Confirmation } from '../views/Confirmation';
 import { Track } from '../views/Track';
+import { useNativeBack } from '../native';
 
 type View = 'home' | 'results' | 'product' | 'visual' | 'checkout' | 'confirmation' | 'track';
 type Sort = 'relevance' | 'price-asc' | 'price-desc' | 'name';
@@ -167,6 +168,16 @@ export function Storefront() {
   const total = cartTotal(cart);
 
   const goHome = () => { setView('home'); setCartOpen(false); };
+
+  // Botão VOLTAR do Android (app LPS Loja): fecha camadas e recua uma vista.
+  useNativeBack(() => {
+    if (cartOpen) { setCartOpen(false); return true; }
+    if (accountOpen) { setAccountOpen(false); return true; }
+    if (view === 'product') { setView(search.trim() || cat ? 'results' : 'home'); return true; }
+    if (view === 'results' || view === 'visual') { setSearch(''); setCat(''); setView('home'); return true; }
+    if (view !== 'home') { goHome(); return true; }
+    return false;
+  });
   const openCategory = (c: string) => { setCat(c); setSearch(''); setView('results'); window.scrollTo({ top: 0 }); };
   const openProduct = (p: CatalogProduct) => { setSelected(p); setView('product'); };
 

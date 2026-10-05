@@ -14,10 +14,11 @@ const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'it
 
 interface NativeDetector { detect(src: unknown): Promise<{ rawValue: string }[]> }
 
-export async function makeDetector(): Promise<FrameDetector> {
+/** `qr`: só QR (abrir uma loja pelo QR dela); por omissão, códigos de barras de retalho. */
+export async function makeDetector(kind: 'retail' | 'qr' = 'retail'): Promise<FrameDetector> {
   const BD = (window as unknown as { BarcodeDetector?: new (o?: unknown) => NativeDetector }).BarcodeDetector;
   if (BD) {
-    const d = new BD({ formats: FORMATS } as unknown);
+    const d = new BD({ formats: kind === 'qr' ? ['qr_code'] : FORMATS } as unknown);
     return async (video) => {
       try {
         const codes = await d.detect(video);
@@ -32,7 +33,7 @@ export async function makeDetector(): Promise<FrameDetector> {
     import('@zxing/library'),
   ]);
   const hints = new Map();
-  hints.set(zx.DecodeHintType.POSSIBLE_FORMATS, [
+  hints.set(zx.DecodeHintType.POSSIBLE_FORMATS, kind === 'qr' ? [zx.BarcodeFormat.QR_CODE] : [
     zx.BarcodeFormat.EAN_13, zx.BarcodeFormat.EAN_8, zx.BarcodeFormat.UPC_A,
     zx.BarcodeFormat.UPC_E, zx.BarcodeFormat.CODE_128, zx.BarcodeFormat.CODE_39, zx.BarcodeFormat.ITF,
   ]);
