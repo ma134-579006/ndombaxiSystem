@@ -8,6 +8,7 @@ import { useStore } from '../state/StoreContext';
 import { cartTotal } from '../store/cart';
 import { useCustomer } from '../store/customer';
 import { getHighAccuracyPosition, GeoError } from '../store/geo';
+import { shownEmail } from '../store/customer';
 
 // As 21 províncias de Angola (reforma da divisão político-administrativa de 2024:
 // Cuando Cubango → Cuando + Cubango; novas Icolo e Bengo e Moxico Leste).
@@ -69,21 +70,21 @@ export function Checkout({
   // assim não precisa de reintroduzir nome, telefone, bairro, etc.
   useEffect(() => {
     if (!session?.token) return;
-    setEmail((v) => v || session.customer.email);
-    setName((v) => v || session.customer.name);
+    // Com conta, os dados são OPCIONAIS: o formulário começa fechado (só o GPS conta).
+    setEditing(false);
+    setEmail((v) => v || shownEmail(session.customer.email));
+    setName((v) => v || (session.customer.name === 'Cliente' ? '' : session.customer.name));
     let alive = true;
     void api.myProfile(code, session.token).then((p) => {
       if (!alive || !p) return;
-      if (p.name) setName(p.name);
-      if (p.email) setEmail(p.email);
+      if (p.name && p.name !== 'Cliente') setName(p.name);
+      if (shownEmail(p.email)) setEmail(shownEmail(p.email));
       if (p.phone) setPhone(p.phone);
       if (p.taxId) setNif(p.taxId);
       if (p.province) setProvince(p.province);
       if (p.municipality) setMunicipality(p.municipality);
       if (p.neighborhood) setNeighborhood(p.neighborhood);
       if (p.address) setAddress(p.address);
-      // perfil completo → colapsa o formulário (só confirmar e pagar)
-      if (p.name && p.province && p.municipality && p.neighborhood) setEditing(false);
     }).catch(() => undefined);
     return () => { alive = false; };
   }, [code, session?.token]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -93,10 +94,6 @@ export function Checkout({
 
   const submit = async () => {
     setError(null);
-    if (!name.trim() || !province.trim() || !municipality.trim() || !neighborhood.trim()) {
-      setError('Preencha o nome e a localização (província, município e bairro).');
-      return;
-    }
     if (!selected) {
       setError('Escolha a forma de pagamento (IBAN/transferência, Multicaixa Express, Referência ou Numerário).');
       return;
@@ -118,14 +115,15 @@ export function Checkout({
 
     setSubmitting(true);
     const base = {
-      customerName: name.trim(),
+      customerName: name.trim() || undefined,
       customerPhone: phone.trim() || undefined,
-      customerEmail: email.trim() || undefined,
+      // Liga a encomenda à conta (mesmo a conta rápida, cujo email interno não se mostra).
+      customerEmail: email.trim() || session?.customer.email || undefined,
       customerTaxId: nif.trim() || undefined,
       shippingAddress: address.trim() || undefined,
-      province: province.trim(),
-      municipality: municipality.trim(),
-      neighborhood: neighborhood.trim(),
+      province: province.trim() || undefined,
+      municipality: municipality.trim() || undefined,
+      neighborhood: neighborhood.trim() || undefined,
       paymentMethod: selected?.type,
       lines: cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity })),
     };
@@ -166,27 +164,28 @@ export function Checkout({
         <div className="card">
           <div className="kv" style={{ alignItems: 'flex-start' }}>
             <div>
-              <h3 style={{ margin: '0 0 6px' }}>Entrega para {name}</h3>
+              <h3 style={{ margin: '0 0 6px' }}>Entrega {name ? `para ${name}` : 'na sua localização GPS'}</h3>
               <div className="muted" style={{ fontSize: 14, lineHeight: 1.5 }}>
                 {[neighborhood, municipality, province].filter(Boolean).join(', ')}
                 {address ? <><br />{address}</> : null}
                 {phone ? <><br />{phone}</> : null}
                 {email ? <><br />{email}</> : null}
+                {!name && !neighborhood && !municipality && !province && !address && !phone ? 'A loja entrega no sítio indicado pelo GPS do telemóvel.' : null}
               </div>
             </div>
-            <button className="btn ghost" onClick={() => setEditing(true)}>Editar</button>
+            <button className="btn ghost" onClick={() => setEditing(true)}>{name || phone || neighborhood ? 'Editar' : 'Acrescentar dados'}</button>
           </div>
           <div className="banner success" style={{ marginTop: 12, fontSize: 13 }}>
-            <div>Dados do teu registo — não precisas de os reintroduzir. Confirma e paga.</div>
+            <div>Não precisa de preencher nada: confirme e ative o GPS para a entrega.</div>
           </div>
         </div>
       ) : (
       <>
       <div className="card">
-        <h3>Os seus dados</h3>
+        <h3>Os seus dados <span className="muted" style={{ fontWeight: 600, fontSize: 14 }}>(opcional)</span></h3>
         {session ? <div className="banner info" style={{ marginBottom: 12, fontSize: 13 }}><div>Os dados ficam guardados na tua conta para as próximas compras.</div></div> : null}
         <div className="field">
-          <label>Nome completo *</label>
+          <label>Nome</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="O seu nome" />
         </div>
         <div className="grid-2">
@@ -206,10 +205,10 @@ export function Checkout({
       </div>
 
       <div className="card">
-        <h3>Entrega</h3>
+        <h3>Entrega <span className="muted" style={{ fontWeight: 600, fontSize: 14 }}>(opcional — guiamo-nos pelo GPS)</span></h3>
         <div className="grid-2">
           <div className="field">
-            <label>Província *</label>
+            <label>Província</label>
             <input list="provinces" value={province} onChange={(e) => setProvince(e.target.value)} placeholder="ex.: Luanda" />
             <datalist id="provinces">
               {PROVINCES.map((p) => (
@@ -218,12 +217,12 @@ export function Checkout({
             </datalist>
           </div>
           <div className="field">
-            <label>Município *</label>
+            <label>Município</label>
             <input value={municipality} onChange={(e) => setMunicipality(e.target.value)} placeholder="ex.: Belas" />
           </div>
         </div>
         <div className="field">
-          <label>Bairro *</label>
+          <label>Bairro</label>
           <input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} placeholder="ex.: Talatona" />
         </div>
         <div className="field">

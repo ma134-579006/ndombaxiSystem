@@ -66,8 +66,9 @@ const CSP = [
   "img-src 'self' data: blob: https: http://127.0.0.1:* http://localhost:*",
   "media-src 'self' data: blob: https:",
   "connect-src 'self' https: wss: http://127.0.0.1:* http://localhost:*",
-  // O Google Sign-In desenha o seu seletor de conta num iframe próprio.
-  "frame-src https://accounts.google.com",
+  // O Google Sign-In desenha o seu seletor de conta num iframe próprio; o mapa
+  // do Google é a reserva da localização do cliente quando os mosaicos falham.
+  "frame-src https://accounts.google.com https://www.google.com https://maps.google.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",

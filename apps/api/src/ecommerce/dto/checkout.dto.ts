@@ -55,10 +55,11 @@ export class CustomerLocationDto {
 }
 
 export class CheckoutDto {
+  /** Opcional: sem nome a encomenda fica como "Cliente" (o GPS é que é obrigatório). */
+  @IsOptional()
   @IsString()
-  @Length(1, 200)
-  @Matches(/\S/, { message: 'Indique o nome do cliente.' })
-  customerName!: string;
+  @Length(0, 200)
+  customerName?: string;
 
   @IsOptional()
   @IsEmail()
@@ -80,20 +81,23 @@ export class CheckoutDto {
   @MaxLength(400)
   shippingAddress?: string;
 
-  /** Província (ex.: Luanda). */
+  /** Província (ex.: Luanda) — opcional: a entrega guia-se pelo GPS. */
+  @IsOptional()
   @IsString()
-  @Length(1, 80)
-  province!: string;
+  @Length(0, 80)
+  province?: string;
 
-  /** Município (ex.: Belas). */
+  /** Município (ex.: Belas) — opcional. */
+  @IsOptional()
   @IsString()
-  @Length(1, 80)
-  municipality!: string;
+  @Length(0, 80)
+  municipality?: string;
 
-  /** Bairro (ex.: Talatona). */
+  /** Bairro (ex.: Talatona) — opcional. */
+  @IsOptional()
   @IsString()
-  @Length(1, 120)
-  neighborhood!: string;
+  @Length(0, 120)
+  neighborhood?: string;
 
   /** Forma de pagamento escolhida no checkout. */
   @IsOptional()

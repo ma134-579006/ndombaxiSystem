@@ -1,5 +1,22 @@
 import { IsBoolean, IsEmail, IsOptional, IsString, Length } from 'class-validator';
 
+/** Conta RÁPIDA (sem código): nada é obrigatório — o GPS é pedido no telemóvel. */
+export class CustomerQuickSignupDto {
+  @IsOptional()
+  @IsString()
+  @Length(0, 120)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 32)
+  phone?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+}
+
 export class CustomerEmailLoginDto {
   @IsEmail()
   email!: string;

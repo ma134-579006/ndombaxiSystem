@@ -995,3 +995,20 @@ html.touch-ui .btn.sm { min-height: 40px; }
 .sp-foot { text-align: center; color: var(--muted); font-size: var(--nx-text-xs); margin: 0; }
 /* App nativa: sem zoom de duplo toque, toques sem realce azul do Android. */
 .native-app body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+
+/* ── Conta do cliente: criar conta só com o GPS ─────────────────────────── */
+.seg-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 14px;
+  background: var(--surface-2, #eef1f6); border-radius: var(--nx-radius-md); }
+.seg-tabs button { border: 0; background: transparent; color: var(--muted); font-weight: 700; font-size: 14px;
+  padding: 10px 8px; border-radius: calc(var(--nx-radius-md) - 3px); cursor: pointer; }
+.seg-tabs button.on { background: var(--surface); color: var(--text); box-shadow: var(--nx-shadow-1); }
+.gps-hero { display: flex; gap: 12px; align-items: flex-start; padding: 14px; margin-bottom: 14px;
+  border-radius: var(--nx-radius-md); background: color-mix(in srgb, var(--nx-success) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--nx-success) 35%, transparent); }
+.gps-hero .gps-ic { flex: none; width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center;
+  background: var(--nx-success); color: #fff; }
+.gps-hero strong { display: block; font-size: 15px; margin-bottom: 2px; }
+.gps-hero span { color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+.link-btn { display: block; border: 0; background: transparent; color: var(--accent); font-weight: 700; font-size: 14px;
+  padding: 6px 0 14px; cursor: pointer; text-align: left; }
+.btn.lg.block svg { vertical-align: -3px; }

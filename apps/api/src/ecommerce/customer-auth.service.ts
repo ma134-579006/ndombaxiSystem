@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -7,10 +8,14 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import { createHash, randomInt } from 'node:crypto';
+import { createHash, randomBytes, randomInt } from 'node:crypto';
 import { MailService } from '../common/mail/mail.service';
 import type { Env } from '../config/env.validation';
 import { PrismaService } from '../prisma/prisma.service';
+
+/** Domínio das contas rápidas sem email (nunca se mostra nem se envia email para ele). */
+export const PLACEHOLDER_EMAIL_DOMAIN = '@sem-email.lps';
+export const isPlaceholderEmail = (e?: string | null): boolean => !!e && e.toLowerCase().endsWith(PLACEHOLDER_EMAIL_DOMAIN);
 
 export interface CustomerSession {
   token: string;
@@ -65,21 +70,44 @@ export class CustomerAuthService {
   ) {}
 
   /** Formas de entrar disponíveis nesta instalação (a loja esconde as que não existem). */
-  async loginMethods(): Promise<{ email: boolean; google: boolean }> {
+  async loginMethods(): Promise<{ email: boolean; google: boolean; quick: boolean }> {
     const email = await this.mail.isEnabled().catch(() => false);
     const google = /\.apps\.googleusercontent\.com$/.test(process.env.GOOGLE_CLIENT_ID ?? '');
-    return { email, google };
+    // Conta rápida (sem código) está sempre disponível.
+    return { email, google, quick: true };
   }
 
   private get secret(): string {
     return this.config.get('JWT_ACCESS_SECRET', { infer: true });
   }
 
-  private sign(schema: string, email: string, name: string): Promise<string> {
+  private sign(schema: string, email: string, name: string, expiresIn: string = '30d'): Promise<string> {
     return this.jwt.signAsync(
       { sub: email, email, name, schema, typ: 'customer' },
-      { secret: this.secret, expiresIn: '30d' },
+      { secret: this.secret, expiresIn },
     );
+  }
+
+  /**
+   * CONTA RÁPIDA — sem código nem formulário: o cliente toca "Criar conta",
+   * autoriza o GPS (pedido no telemóvel) e já pode comprar. Nome, telefone e
+   * email são opcionais. Sem email, a conta fica ligada a este aparelho (sessão
+   * longa). Um email JÁ registado nunca é entregue assim (isso daria a conta de
+   * outra pessoa a quem só soubesse o email): para essa usa-se "Entrar".
+   */
+  async quickSignup(schema: string, p: { name?: string; phone?: string; email?: string }): Promise<CustomerSession> {
+    let e = p.email?.trim().toLowerCase() || '';
+    if (e) {
+      const exists = await this.prisma.runInTenant(schema, (tx) =>
+        tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM customers WHERE lower(email) = ${e} LIMIT 1`),
+      );
+      if (exists[0]) throw new ConflictException('Já existe uma conta com este email nesta loja. Toque em "Entrar".');
+    } else {
+      e = `cliente-${randomBytes(6).toString('hex')}${PLACEHOLDER_EMAIL_DOMAIN}`;
+    }
+    const nm = (p.name?.trim() || (p.email ? e.split('@')[0] : 'Cliente')).slice(0, 120);
+    await this.upsertCustomer(schema, e, nm, { phone: p.phone });
+    return { token: await this.sign(schema, e, nm, '730d'), customer: { email: e, name: nm } };
   }
 
   /** Cria/atualiza o registo do cliente (por email) — para histórico/CRM e

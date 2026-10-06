@@ -84,14 +84,14 @@ export interface CheckoutLine {
 }
 
 export interface CheckoutInput {
-  customerName: string;
+  customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
   customerTaxId?: string;
   shippingAddress?: string;
-  province: string;
-  municipality: string;
-  neighborhood: string;
+  province?: string;
+  municipality?: string;
+  neighborhood?: string;
   paymentMethod?: string;
   /** Localização GPS do cliente (entrega) — obrigatória na loja. */
   geoLat?: number;

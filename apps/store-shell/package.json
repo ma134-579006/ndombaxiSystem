@@ -1,6 +1,6 @@
 {
   "name": "@nexus/store-shell",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": true,
   "description": "LPS Loja — app Android da loja online (Capacitor sobre apps/store).",
   "scripts": {

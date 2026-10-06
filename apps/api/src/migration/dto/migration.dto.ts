@@ -1,4 +1,4 @@
-import { IsIn, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsObject, IsOptional, IsString, Matches } from 'class-validator';
 
 export const MIGRATION_KINDS = ['products', 'customers', 'suppliers'] as const;
 export type MigrationKind = (typeof MIGRATION_KINDS)[number];
@@ -26,4 +26,27 @@ export class MigrationFileDto {
   @IsOptional()
   @IsObject()
   mapping?: Record<string, string>;
+
+  /** Só produtos: IVA a aplicar aos produtos do ficheiro (omisso = IVA normal, como antes). */
+  @IsOptional()
+  @IsIn(['NOR', 'INT', 'RED', 'ISE', 'OUT'])
+  ivaCode?: 'NOR' | 'INT' | 'RED' | 'ISE' | 'OUT';
+
+  /** Só produtos isentos: código de isenção AGT (M10, M11…). */
+  @IsOptional()
+  @IsString()
+  @Matches(/^M\d{2}$/)
+  exemptionCode?: string;
+
+  /** Só produtos: os preços de venda do ficheiro já incluem IVA (PVP)? */
+  @IsOptional()
+  @IsBoolean()
+  pricesIncludeIva?: boolean;
+}
+
+/** Opções de IVA da importação de produtos. */
+export interface MigrationTaxOptions {
+  ivaCode: 'NOR' | 'INT' | 'RED' | 'ISE' | 'OUT';
+  exemptionCode?: string | null;
+  pricesIncludeIva: boolean;
 }

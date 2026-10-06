@@ -9,7 +9,7 @@ import { PaymentGatewayService } from '../payments/payment-gateway.service';
 import { SiteService } from '../site/site.service';
 import { CheckoutDto, CustomerLocationDto, VisualSearchDto } from './dto/checkout.dto';
 import { AssistantService } from '../ai/assistant.service';
-import { CustomerEmailLoginDto, CustomerGoogleLoginDto } from './dto/customer-auth.dto';
+import { CustomerEmailLoginDto, CustomerGoogleLoginDto, CustomerQuickSignupDto } from './dto/customer-auth.dto';
 import { ExpressPayDto } from './dto/express-pay.dto';
 import { PostMessageDto } from './dto/order-message.dto';
 import { CustomerAuthService } from './customer-auth.service';
@@ -67,6 +67,13 @@ export class StorefrontController {
   async authMethods(@Param('code') code: string) {
     await this.resolver.resolveByCode(code);
     return this.customers.loginMethods();
+  }
+
+  @Post('auth/quick')
+  @ApiOperation({ summary: 'Conta rápida do cliente (sem código; nome/telefone/email opcionais)' })
+  async authQuick(@Param('code') code: string, @Body() dto: CustomerQuickSignupDto) {
+    const tenant = await this.resolver.resolveByCode(code);
+    return this.customers.quickSignup(tenant.schema, dto);
   }
 
   @Post('auth/email/code')
@@ -353,6 +360,12 @@ export class StorefrontController {
   @ApiOperation({ summary: 'Cria uma encomenda online (PENDING)' })
   async checkout(@Param('code') code: string, @Body() dto: CheckoutDto, @Headers('authorization') auth?: string) {
     const tenant = await this.resolver.resolveByCode(code);
+    // Só o GPS é obrigatório: sem nome, usa o da conta (ou "Cliente"); morada opcional.
+    const claimsForName = !dto.customerName?.trim() && auth ? await this.customers.verify(tenant.schema, auth).catch(() => null) : null;
+    dto.customerName = (dto.customerName?.trim() || claimsForName?.name || 'Cliente').slice(0, 200);
+    dto.province = dto.province?.trim() || undefined;
+    dto.municipality = dto.municipality?.trim() || undefined;
+    dto.neighborhood = dto.neighborhood?.trim() || undefined;
     const result = await this.storefront.checkout(tenant.schema, dto);
     // Lembra/atualiza o perfil do cliente (e sincroniza com o caixa/gestor):
     // assim, na próxima compra os dados já vêm preenchidos. Só ATUALIZA um

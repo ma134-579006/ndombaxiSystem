@@ -110,7 +110,10 @@ export const api = {
   // ── Conta do cliente ───────────────────────────────────────
   /** Formas de entrar disponíveis; sem nenhuma, compra-se como convidado. */
   authMethods: (code: string) =>
-    request<{ email: boolean; google: boolean }>('GET', `/store/${enc(code)}/auth/methods`),
+    request<{ email: boolean; google: boolean; quick?: boolean }>('GET', `/store/${enc(code)}/auth/methods`),
+  /** Conta rápida: sem código; nome, telefone e email opcionais (o GPS é pedido antes). */
+  authQuick: (code: string, data: { name?: string; phone?: string; email?: string }) =>
+    request<CustomerSession>('POST', `/store/${enc(code)}/auth/quick`, data),
   /** Passo 1: pede o código de verificação (chega por email). */
   authEmailCode: (code: string, email: string, existing?: boolean) =>
     request<{ sent: true }>('POST', `/store/${enc(code)}/auth/email/code`, { email, existing }),

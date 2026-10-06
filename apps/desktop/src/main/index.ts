@@ -12,7 +12,7 @@
  *   • instância única                → dois postos a escrever no mesmo SQLite dava
  *                                     corrupção; a 2.ª execução foca a 1.ª janela.
  */
-import { app, BrowserWindow, ipcMain, shell, dialog, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, dialog, screen, session as electronSession } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { registerScheme, serveModules, SCHEME } from './protocol';
@@ -623,6 +623,15 @@ app.on('second-instance', () => {
 });
 
 void app.whenReady().then(async () => {
+  // MAPAS: as páginas vêm de ndombaxi:// e o Chromium não envia Referer para
+  // https a partir de um esquema próprio. O OpenStreetMap recusa mosaicos sem
+  // Referer — identificamos a app como o site oficial (só para os mosaicos).
+  electronSession.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://tile.openstreetmap.org/*', 'https://server.arcgisonline.com/*'] },
+    (details, callback) => {
+      callback({ requestHeaders: { ...details.requestHeaders, Referer: 'https://ndombaxisystem.com/' } });
+    },
+  );
   const root = modulesRoot();
   serveModules({
     gestao: path.join(root, 'gestao'),

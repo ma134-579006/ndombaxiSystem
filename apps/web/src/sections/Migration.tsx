@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import type { MigrationTax } from '../api/client';
+import { TAX_EXEMPTIONS } from '../exemptions';
 import { api, ApiError } from '../api/client';
 import type { MigrationApplyResult, MigrationKind, MigrationPreview, WarehouseRow } from '../api/types';
 import { toast, confirmDialog, readFileProgress } from '../components/feedback';
@@ -65,6 +67,12 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
   // (stock partilhado); um id de loja = stock só nessa loja.
   const [stores, setStores] = useState<WarehouseRow[]>([]);
   const [storeId, setStoreId] = useState('');
+  // IVA dos produtos importados: taxa (ou isenção, com o código AGT) e se os
+  // preços do ficheiro já trazem IVA (PVP) — o sistema guarda o preço líquido.
+  const [ivaCode, setIvaCode] = useState<MigrationTax['ivaCode']>('NOR');
+  const [exemptionCode, setExemptionCode] = useState('');
+  const [pricesIncludeIva, setPricesIncludeIva] = useState(true);
+  const exempt = ivaCode === 'ISE' || ivaCode === 'OUT';
   useEffect(() => { if (kind === 'products') api.inventory.warehouses().then(setStores).catch(() => setStores([])); }, [kind]);
 
   const onPick = async (file: File | undefined) => {
@@ -101,6 +109,10 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
 
   const apply = async () => {
     if (!contentB64) return;
+    if (kind === 'products' && ivaCode === 'ISE' && !exemptionCode) {
+      setError('Produtos isentos de IVA: escolha o código de isenção da AGT antes de importar.');
+      return;
+    }
     if (!(await confirmDialog({ message: `Importar ${KIND_LABEL[kind].toLowerCase()}? Vai criar/atualizar registos — nada é apagado.` }))) return;
     setBusy(true); setError(null);
     const total0 = preview?.totalRows ?? 0;
@@ -108,9 +120,12 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
     try {
       const sid = kind === 'products' ? (storeId || null) : null;
       const map = kind === 'products' ? mapping : null;
+      const tax: MigrationTax | null = kind === 'products'
+        ? { ivaCode, pricesIncludeIva, ...(exempt && exemptionCode ? { exemptionCode } : {}) }
+        : null;
       let r: MigrationApplyResult;
       try {
-        const { jobId } = await api.migration.applyAsync(kind, contentB64, fileName ?? undefined, sid, map);
+        const { jobId } = await api.migration.applyAsync(kind, contentB64, fileName ?? undefined, sid, map, tax);
         // Consulta o progresso até terminar.
         for (;;) {
           await new Promise((res) => setTimeout(res, 700));
@@ -122,7 +137,7 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
       } catch (e) {
         // API ainda sem importação em segundo plano (deploy em curso): pedido único.
         if (!(e instanceof ApiError) || e.status !== 404) throw e;
-        r = await api.migration.apply(kind, contentB64, fileName ?? undefined, sid, map);
+        r = await api.migration.apply(kind, contentB64, fileName ?? undefined, sid, map, tax);
       }
       setProgress((p) => (p ? { ...p, done: p.total } : p));
       await new Promise((res) => setTimeout(res, 500));
@@ -243,6 +258,33 @@ function MigrationCard({ kind }: { kind: MigrationKind }) {
                   <p className="mig-unused">Não usadas: {preview.unmappedColumns.slice(0, 8).join(', ')}{preview.unmappedColumns.length > 8 ? '…' : ''}</p>
                 ) : null}
               </section>
+
+              {kind === 'products' ? (
+                <section className="mig-panel">
+                  <h4>IVA dos produtos</h4>
+                  <select className="mig-select" value={ivaCode} aria-label="IVA dos produtos importados"
+                    onChange={(e) => setIvaCode(e.target.value as MigrationTax['ivaCode'])}>
+                    <option value="NOR">Com IVA — taxa normal (14 %)</option>
+                    <option value="INT">Com IVA — taxa intermédia (7 %)</option>
+                    <option value="RED">Com IVA — taxa reduzida (5 %)</option>
+                    <option value="ISE">Isento de IVA</option>
+                    <option value="OUT">Não sujeito a IVA</option>
+                  </select>
+                  {exempt ? (
+                    <select className="mig-select" value={exemptionCode} aria-label="Código de isenção (AGT)" style={{ marginTop: 8 }}
+                      onChange={(e) => setExemptionCode(e.target.value)}>
+                      <option value="">{ivaCode === 'OUT' ? 'M02 — Operação não sujeita (por omissão)' : 'Motivo da isenção (obrigatório)…'}</option>
+                      {TAX_EXEMPTIONS.map((x) => <option key={x.code} value={x.code}>{x.code} — {x.hint}</option>)}
+                    </select>
+                  ) : (
+                    <label className="mig-check">
+                      <input type="checkbox" checked={pricesIncludeIva} onChange={(e) => setPricesIncludeIva(e.target.checked)} />
+                      <span>Os preços de venda do ficheiro já incluem IVA (PVP)</span>
+                    </label>
+                  )}
+                  <p className="mig-unused">Aplica-se a todos os produtos deste ficheiro (novos e atualizados). Pode mudar cada produto depois.</p>
+                </section>
+              ) : null}
 
               {kind === 'products' && (preview.detectedColumns.stock || preview.storeStock?.length) ? (
                 <section className="mig-panel">
