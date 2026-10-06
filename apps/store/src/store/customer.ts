@@ -39,3 +39,8 @@ export function useCustomer(code: string): CustomerSession | null {
   }, [code]);
   return session;
 }
+
+/** Contas rápidas sem email usam um endereço interno (@sem-email.lps) — nunca se mostra. */
+export function shownEmail(e?: string | null): string {
+  return e && !e.toLowerCase().endsWith('@sem-email.lps') ? e : '';
+}

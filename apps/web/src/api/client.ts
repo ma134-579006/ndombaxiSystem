@@ -160,6 +160,9 @@ import type {
   FeedbackStats,
 } from './types';
 
+/** IVA dos produtos importados (migração). */
+export interface MigrationTax { ivaCode: 'NOR' | 'INT' | 'RED' | 'ISE' | 'OUT'; exemptionCode?: string; pricesIncludeIva: boolean }
+
 /** Constrói uma query string a partir de pares definidos (?from=…&to=…). */
 function qs(params: Record<string, string | undefined>): string {
   const p = new URLSearchParams();
@@ -548,11 +551,11 @@ export const api = {
       request<MigrationPreview>('POST', '/migration/preview', { kind, contentBase64, fileName, ...(mapping ? { mapping } : {}) }, { timeoutMs: 300_000 }),
     /** `storeId`: só produtos — loja específica (stock por loja) ou omisso/null = todas as lojas (partilhado).
      *  Timeout longo: um ficheiro grande (milhares de linhas) demora minutos no servidor (lotes). */
-    apply: (kind: MigrationKind, contentBase64: string, fileName?: string, storeId?: string | null, mapping?: Record<string, string> | null) =>
-      request<MigrationApplyResult>('POST', '/migration/apply', { kind, contentBase64, fileName, storeId, ...(mapping ? { mapping } : {}) }, { timeoutMs: 600_000 }),
+    apply: (kind: MigrationKind, contentBase64: string, fileName?: string, storeId?: string | null, mapping?: Record<string, string> | null, tax?: MigrationTax | null) =>
+      request<MigrationApplyResult>('POST', '/migration/apply', { kind, contentBase64, fileName, storeId, ...(mapping ? { mapping } : {}), ...(tax ?? {}) }, { timeoutMs: 600_000 }),
     /** Importação em segundo plano (barra de progresso real): devolve o id do trabalho. */
-    applyAsync: (kind: MigrationKind, contentBase64: string, fileName?: string, storeId?: string | null, mapping?: Record<string, string> | null) =>
-      request<{ jobId: string }>('POST', '/migration/apply-async', { kind, contentBase64, fileName, storeId, ...(mapping ? { mapping } : {}) }, { timeoutMs: 120_000 }),
+    applyAsync: (kind: MigrationKind, contentBase64: string, fileName?: string, storeId?: string | null, mapping?: Record<string, string> | null, tax?: MigrationTax | null) =>
+      request<{ jobId: string }>('POST', '/migration/apply-async', { kind, contentBase64, fileName, storeId, ...(mapping ? { mapping } : {}), ...(tax ?? {}) }, { timeoutMs: 120_000 }),
     job: (id: string) =>
       request<{ id: string; total: number; processed: number; status: 'running' | 'done' | 'error'; result?: MigrationApplyResult; error?: string }>('GET', `/migration/jobs/${id}`),
   },

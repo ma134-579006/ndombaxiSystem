@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { UserAvatar } from './UserAvatar';
 import { api, ApiError } from '../api/client';
 import { GOOGLE_CLIENT_ID } from '../config';
-import { setSession, clearSession } from '../store/customer';
+import { setSession, clearSession, shownEmail } from '../store/customer';
 import type { CustomerProfile, CustomerSession, MyClinical, MyPrescriptionDetail, MyOrderRow } from '../api/types';
 import { formatKz } from '../format';
-import { IconClose, IconStore } from './Icons';
+import { IconClose, IconPin, IconStore } from './Icons';
+import { getHighAccuracyPosition, GeoError } from '../store/geo';
 
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
 
@@ -45,7 +46,7 @@ export function CustomerModal({
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="mh">
-          <h3>{session ? (clinic ? 'A minha área' : 'A minha conta') : 'Entrar'}</h3>
+          <h3>{session ? (clinic ? 'A minha área' : 'A minha conta') : 'A sua conta'}</h3>
           <span className="spacer" />
           <button className="icon-x" onClick={onClose}><IconClose size={22} /></button>
         </div>
@@ -60,15 +61,19 @@ export function CustomerModal({
 }
 
 function Login({ code, onClose }: { code: string; onClose(): void }) {
-  // Fluxos SEPARADOS (enterprise): ENTRAR = conta existente (não cria nada);
-  // CRIAR CONTA = registo novo. Evita contas acidentais por gralha no email.
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  // CRIAR CONTA (por omissão): sem código e sem formulário obrigatório — só o
+  // GPS tem de ficar ativo (é por ele que a loja entrega). ENTRAR numa conta que
+  // já existe (outro telemóvel) continua a pedir o código ou o Google: entregar
+  // uma conta só por alguém saber o email expunha moradas e encomendas.
+  const [mode, setMode] = useState<'signup' | 'login'>('signup');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  // Verificação do email: o código enviado prova que o email é do cliente.
+  const [phone, setPhone] = useState('');
+  const [more, setMore] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const gbtn = useRef<HTMLDivElement | null>(null);
 
@@ -96,62 +101,123 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
       }
     }).catch(() => { /* GIS indisponível — fica só o email */ });
     return () => { alive = false; };
-  }, [code, onClose]);
+  }, [code, onClose, mode]);
 
-  const submit = async () => {
+  const signup = async () => {
     setErr(null);
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr('Indique um email válido.'); return; }
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) { setErr('O email não parece válido (ou deixe-o em branco).'); return; }
+    setBusy(true);
+    try {
+      // ÚNICO passo obrigatório: autorizar a localização (entrega).
+      setStep('A ativar o GPS…');
+      try {
+        await getHighAccuracyPosition();
+      } catch (e) {
+        const kind = e instanceof GeoError ? e.kind : 'unavailable';
+        setErr(kind === 'denied'
+          ? 'Para criar a conta é obrigatório ativar o GPS. Ligue a localização do telemóvel e toque em «Permitir».'
+          : kind === 'unsupported'
+            ? 'Este aparelho não tem GPS disponível. Use um telemóvel com localização para criar a conta.'
+            : 'Não conseguimos obter a sua localização. Ligue o GPS (localização) do telemóvel e tente de novo.');
+        return;
+      }
+      setStep('A criar a conta…');
+      setSession(code, await api.authQuick(code, {
+        name: name.trim() || undefined, phone: phone.trim() || undefined, email: email.trim() || undefined,
+      }));
+      onClose();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Não foi possível criar a conta.');
+    } finally { setBusy(false); setStep(null); }
+  };
+
+  const login = async () => {
+    setErr(null);
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr('Indique o email da sua conta.'); return; }
     setBusy(true);
     try {
       if (!codeSent) {
-        await api.authEmailCode(code, email.trim(), mode === 'login');
+        await api.authEmailCode(code, email.trim(), true);
         setCodeSent(true);
         return;
       }
       if (!/^\d{6}$/.test(otp.trim())) { setErr('Indique o código de 6 dígitos que recebeu por email.'); return; }
-      setSession(code, await api.authEmail(code, email.trim(), name.trim() || undefined, mode === 'login', otp.trim()));
+      setSession(code, await api.authEmail(code, email.trim(), undefined, true, otp.trim()));
       onClose();
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível entrar.'); }
     finally { setBusy(false); }
   };
 
+  const switchTo = (m: 'signup' | 'login') => { setMode(m); setErr(null); setCodeSent(false); setOtp(''); };
   const googleOn = GOOGLE_CLIENT_ID.includes('.apps.googleusercontent.com');
 
   return (
     <>
-      {/* Alternador Entrar / Criar conta (fluxos distintos, estilo enterprise). */}
-      <div className="row" style={{ gap: 8, marginBottom: 12 }}>
-        <button className={`btn sm${mode === 'login' ? '' : ' ghost'}`} style={{ flex: 1 }}
-          onClick={() => { setMode('login'); setErr(null); setCodeSent(false); setOtp(''); }}>Entrar</button>
-        <button className={`btn sm${mode === 'signup' ? '' : ' ghost'}`} style={{ flex: 1 }}
-          onClick={() => { setMode('signup'); setErr(null); setCodeSent(false); setOtp(''); }}>Criar conta</button>
+      <div className="seg-tabs" role="tablist">
+        <button role="tab" aria-selected={mode === 'signup'} className={mode === 'signup' ? 'on' : ''} onClick={() => switchTo('signup')}>Criar conta</button>
+        <button role="tab" aria-selected={mode === 'login'} className={mode === 'login' ? 'on' : ''} onClick={() => switchTo('login')}>Já tenho conta</button>
       </div>
-      <p className="muted" style={{ marginTop: 0 }}>
-        {mode === 'login'
-          ? <>Já tens conta? Entra com o teu email para <strong>acompanhar as tuas encomendas</strong> e faturas.</>
-          : <>Cria a tua conta para <strong>comprar, acompanhar encomendas</strong> e falar com a loja.</>}
-      </p>
       {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
-      {googleOn ? (
-        <>
-          <div ref={gbtn} style={{ display: 'flex', justifyContent: 'center', minHeight: 44, marginBottom: 4 }} />
-          <div className="or-sep"><span>ou com email</span></div>
-        </>
-      ) : null}
-      <div className="field"><label>Email</label>
-        <input value={email} onChange={(e) => { setEmail(e.target.value); setCodeSent(false); setOtp(''); }} placeholder="o-teu-email@exemplo.com" inputMode="email" /></div>
+
       {mode === 'signup' ? (
-        <div className="field"><label>Nome (opcional)</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="O teu nome" /></div>
-      ) : null}
-      {codeSent ? (
-        <div className="field"><label>Código enviado para {email.trim()}</label>
-          <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="6 dígitos" inputMode="numeric" autoComplete="one-time-code" /></div>
-      ) : null}
-      <button className="btn lg block" onClick={submit} disabled={busy}>
-        {busy ? 'Um momento…' : !codeSent ? 'Enviar código' : mode === 'login' ? 'Entrar' : 'Criar conta'}
-      </button>
+        <>
+          <div className="gps-hero">
+            <span className="gps-ic" aria-hidden><IconPin size={22} /></span>
+            <div>
+              <strong>Só precisa de ativar o GPS</strong>
+              <span>É por ele que a loja lhe entrega a encomenda. Não pedimos código nem formulários.</span>
+            </div>
+          </div>
+          {more ? (
+            <>
+              <div className="field"><label>Nome (opcional)</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Como o devemos tratar" autoComplete="name" /></div>
+              <div className="field"><label>Telefone (opcional)</label>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="9XX XXX XXX" inputMode="tel" autoComplete="tel" /></div>
+              <div className="field"><label>Email (opcional — para entrar noutro telemóvel)</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="o-seu-email@exemplo.com" inputMode="email" autoComplete="email" /></div>
+            </>
+          ) : (
+            <button type="button" className="link-btn" onClick={() => setMore(true)}>+ Acrescentar nome ou telefone (opcional)</button>
+          )}
+          <button className="btn lg block" onClick={() => void signup()} disabled={busy}>
+            <IconPin size={18} /> {busy ? (step ?? 'Um momento…') : 'Ativar GPS e criar conta'}
+          </button>
+          {googleOn ? (
+            <>
+              <div className="or-sep"><span>ou</span></div>
+              <div ref={gbtn} style={{ display: 'flex', justifyContent: 'center', minHeight: 44 }} />
+            </>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Já criou conta <strong>neste telemóvel</strong>? Continua aberta — não precisa de entrar. Noutro aparelho, entre com o email da conta.
+          </p>
+          {googleOn ? (
+            <>
+              <div ref={gbtn} style={{ display: 'flex', justifyContent: 'center', minHeight: 44, marginBottom: 4 }} />
+              <div className="or-sep"><span>ou com email</span></div>
+            </>
+          ) : null}
+          <div className="field"><label>Email</label>
+            <input value={email} onChange={(e) => { setEmail(e.target.value); setCodeSent(false); setOtp(''); }} placeholder="o-seu-email@exemplo.com" inputMode="email" disabled={codeSent} /></div>
+          {codeSent ? (
+            <div className="field"><label>Código enviado para {email.trim()}</label>
+              <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="6 dígitos" inputMode="numeric" autoComplete="one-time-code" autoFocus /></div>
+          ) : null}
+          <button className="btn lg block" onClick={() => void login()} disabled={busy}>
+            {busy ? 'Um momento…' : !codeSent ? 'Continuar' : 'Entrar'}
+          </button>
+          {codeSent ? (
+            <button type="button" className="btn ghost block" style={{ marginTop: 8 }} onClick={() => { setCodeSent(false); setOtp(''); setErr(null); }} disabled={busy}>
+              Cancelar
+            </button>
+          ) : null}
+        </>
+      )}
     </>
   );
 }
@@ -362,7 +428,7 @@ function Account({
         <UserAvatar name={session.customer.name} email={session.customer.email} size={44} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 800 }}>{session.customer.name}</div>
-          <div className="muted" style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.customer.email}</div>
+          <div className="muted" style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownEmail(session.customer.email) || 'Conta neste telemóvel'}</div>
         </div>
         <button className="btn ghost" onClick={() => { clearSession(code); onClose(); }}>Sair</button>
       </div>

@@ -218,10 +218,10 @@ export class StorefrontService {
              shipping_address, province, municipality, neighborhood, payment_method,
              status, net_total, iva_total, gross_total,
              geo_lat, geo_lng, geo_accuracy, geo_consent, geo_updated_at)
-          VALUES (${orderNumber}, ${dto.customerName}, ${dto.customerEmail ?? null},
+          VALUES (${orderNumber}, ${dto.customerName || 'Cliente'}, ${dto.customerEmail ?? null},
                   ${dto.customerPhone ?? null}, ${dto.customerTaxId ?? null},
-                  ${dto.shippingAddress ?? null}, ${dto.province}, ${dto.municipality},
-                  ${dto.neighborhood}, ${dto.paymentMethod ?? null}, 'PENDING',
+                  ${dto.shippingAddress ?? null}, ${dto.province ?? null}, ${dto.municipality ?? null},
+                  ${dto.neighborhood ?? null}, ${dto.paymentMethod ?? null}, 'PENDING',
                   ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal},
                   ${hasGeo ? dto.geoLat : null}, ${hasGeo ? dto.geoLng : null},
                   ${hasGeo && Number.isFinite(dto.geoAccuracy) ? dto.geoAccuracy : null},

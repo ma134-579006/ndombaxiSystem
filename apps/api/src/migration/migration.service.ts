@@ -13,7 +13,8 @@ import {
 import { cleanName, hasLetters, isValidGtin, readBarcode, readCode, readStock } from './cell-values';
 import { detectProductColumns } from './product-columns';
 import { parseUploadedFile } from './parse-file';
-import type { MigrationKind } from './dto/migration.dto';
+import type { MigrationKind, MigrationTaxOptions } from './dto/migration.dto';
+import { findTaxExemption, IVA_RATE, type IvaCode } from '@nexus/agt-xml';
 
 export interface PreviewRow { action: 'CREATE' | 'UPDATE'; data: Record<string, unknown> }
 export interface MigrationPreview {
@@ -123,10 +124,11 @@ export class MigrationService {
   apply(
     schema: string, kind: MigrationKind, buffer: Buffer, fileName: string | undefined, actor: Actor,
     storeId?: string | null, mapping?: Record<string, string> | null, onProgress?: OnProgress,
+    tax: MigrationTaxOptions | null = null,
   ): Promise<MigrationApplyResult> {
     const { headers, rows } = parseUploadedFile(buffer, fileName, kind);
     onProgress?.(0, rows.length);
-    if (kind === 'products') return this.applyProducts(schema, headers, rows, actor, fileName, storeId ?? null, mapping ?? null, onProgress);
+    if (kind === 'products') return this.applyProducts(schema, headers, rows, actor, fileName, storeId ?? null, mapping ?? null, onProgress, tax);
     if (kind === 'customers') return this.applyCustomers(schema, headers, rows, actor, fileName, onProgress);
     return this.applySuppliers(schema, headers, rows, actor, fileName, onProgress);
   }
@@ -137,14 +139,14 @@ export class MigrationService {
   /** Inicia a importação em segundo plano e devolve o id para consultar o progresso. */
   startApply(
     schema: string, kind: MigrationKind, buffer: Buffer, fileName: string | undefined, actor: Actor,
-    storeId?: string | null, mapping?: Record<string, string> | null,
+    storeId?: string | null, mapping?: Record<string, string> | null, tax: MigrationTaxOptions | null = null,
   ): { jobId: string } {
     // Limpa trabalhos com mais de 1 h (memória).
     const cutoff = Date.now() - 3600_000;
     for (const [k, j] of this.jobs) if (j.startedAt < cutoff) this.jobs.delete(k);
     const job: MigrationJob & { schema: string } = { id: randomUUID(), schema, kind, total: 0, processed: 0, status: 'running', startedAt: Date.now() };
     this.jobs.set(job.id, job);
-    void this.apply(schema, kind, buffer, fileName, actor, storeId, mapping, (done, total) => { job.processed = done; job.total = total; })
+    void this.apply(schema, kind, buffer, fileName, actor, storeId, mapping, (done, total) => { job.processed = done; job.total = total; }, tax)
       .then((res) => { job.result = res; job.processed = job.total; job.status = 'done'; })
       .catch((e: unknown) => { job.status = 'error'; job.error = e instanceof Error ? e.message : 'Falha na importação.'; this.logger.warn(`Migração em segundo plano falhou: ${job.error}`); });
     return { jobId: job.id };
@@ -326,10 +328,23 @@ export class MigrationService {
   private async applyProducts(
     schema: string, headers: string[], rows: Record<string, unknown>[], actor: Actor, fileName?: string,
     storeId: string | null = null, override: Record<string, string> | null = null, onProgress?: OnProgress,
+    tax: MigrationTaxOptions | null = null,
   ): Promise<MigrationApplyResult> {
     const cols = detectProductColumns(headers, rows, override);
     const { mapping } = cols;
     if (!mapping.name) throw new BadRequestException('Não encontrei a coluna de nome do produto.');
+    // IVA escolhido no ecrã: taxa dos produtos e, se o ficheiro trouxer PVP (com
+    // IVA), o preço guardado é o LÍQUIDO (o sistema soma o IVA na venda).
+    const ivaCode = tax?.ivaCode ?? 'NOR';
+    const ivaRate = IVA_RATE[ivaCode as IvaCode] ?? 0;
+    let exemption: { code: string; reason: string } | null = null;
+    if (ivaCode === 'ISE' || ivaCode === 'OUT') {
+      const ex = findTaxExemption(tax?.exemptionCode) ?? (ivaCode === 'OUT' ? findTaxExemption('M02') : undefined);
+      if (!ex) throw new BadRequestException('Produtos isentos de IVA: escolha o código de isenção da AGT (ex.: M10 bens alimentares, M11 medicamentos).');
+      exemption = { code: ex.code, reason: ex.reason };
+    }
+    const toNet = (gross: number | null): number | null =>
+      gross === null ? null : tax?.pricesIncludeIva && ivaRate > 0 ? Math.round((gross / (1 + ivaRate / 100)) * 100) / 100 : gross;
     let noBarcodeSci = 0, clampedStock = 0;
     let created = 0, updated = 0, skipped = 0;
     const errors: string[] = [];
@@ -399,7 +414,7 @@ export class MigrationService {
           const barcode = cells.barcode;
           const stock = stockFor(cells);
           const costPrice = cells.cost;
-          const salePrice = cells.sale;
+          const salePrice = toNet(cells.sale);
           if (cells.barcodeWarning) noBarcodeSci++;
           if (cells.stockWarning) clampedStock++;
 
@@ -432,6 +447,11 @@ export class MigrationService {
             if (categoryId) sets.push(Prisma.sql`category_id = ${categoryId}::uuid`);
             if (costPrice !== null) sets.push(Prisma.sql`cost_price = ${costPrice}`);
             if (salePrice !== null) sets.push(Prisma.sql`unit_price = ${salePrice}`);
+            if (tax) {
+              sets.push(Prisma.sql`iva_code = ${ivaCode}`);
+              sets.push(Prisma.sql`exemption_code = ${exemption?.code ?? null}`);
+              sets.push(Prisma.sql`exemption_reason = ${exemption?.reason ?? null}`);
+            }
             if (perStoreMode && !existingRow.shared_stock) {
               for (const sc of storeColMap) {
                 const v = cells.perStore.find((p) => p.label === sc.label)?.value;
@@ -456,8 +476,8 @@ export class MigrationService {
             const finalCode = code || barcode || generateInternalCode('MIG');
             const shared = !targetStore && !perStoreMode;
             const insertedRows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-              INSERT INTO products (code, barcode, name, category_id, iva_code, unit_price, cost_price, stock_qty, shared_stock, show_online)
-              VALUES (${finalCode}, ${barcode || null}, ${name}, ${categoryId}::uuid, 'NOR', ${salePrice ?? 0}, ${costPrice ?? 0}, 0, ${shared}, TRUE)
+              INSERT INTO products (code, barcode, name, category_id, iva_code, exemption_code, exemption_reason, unit_price, cost_price, stock_qty, shared_stock, show_online)
+              VALUES (${finalCode}, ${barcode || null}, ${name}, ${categoryId}::uuid, ${ivaCode}, ${exemption?.code ?? null}, ${exemption?.reason ?? null}, ${salePrice ?? 0}, ${costPrice ?? 0}, 0, ${shared}, TRUE)
               RETURNING id`);
             // Partilhado: o stock importado entra pela loja principal (saldo + movimento + total).
             if (shared && (stock ?? 0) > 0) {

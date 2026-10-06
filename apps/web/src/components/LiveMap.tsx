@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { THEMES } from '../theme';
 
 /**
  * Mapa próprio, sem iframe nem biblioteca externa: desenha os mosaicos (tiles)
- * do OpenStreetMap/CARTO como imagens e põe por cima o marcador, o círculo de
- * precisão GPS e o trajeto.
+ * do OpenStreetMap como imagens e põe por cima o marcador, o círculo de
+ * precisão GPS e o trajeto. Se um fornecedor falhar, passa sozinho ao seguinte
+ * (OpenStreetMap → Esri); sem nenhum, mostra o mapa do Google incorporado.
+ * (O CARTO deixou de servir mosaicos sem chave de API: "API KEY REQUIRED".)
  *
  * Porquê: o mapa era um iframe do Google Maps. Nas APLICAÇÕES (Windows/Android)
  * a política de segurança só permite iframes do Google Sign-In — o mapa ficava
@@ -12,6 +15,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
  */
 
 const TILE = 256;
+
+/** Fornecedores de mosaicos SEM chave, por ordem de preferência. */
+const PROVIDERS: { name: string; url: (z: number, x: number, y: number, sub: string) => string; attr: string }[] = [
+  { name: 'osm', url: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`, attr: '© OpenStreetMap' },
+  { name: 'esri', url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`, attr: '© Esri · © OpenStreetMap' },
+];
 const MIN_Z = 3;
 const MAX_Z = 19;
 
@@ -31,7 +40,8 @@ function metersPerPixel(lat: number, z: number): number {
 }
 
 function isLightTheme(): boolean {
-  return document.documentElement.getAttribute('data-theme') === 'claro';
+  const id = document.documentElement.getAttribute('data-theme') ?? '';
+  return !!THEMES.find((t) => t.id === id)?.light;
 }
 
 export interface LiveMapProps {
@@ -54,6 +64,15 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
   const [center, setCenter] = useState<{ lat: number; lng: number }>({ lat, lng });
   const [follow, setFollow] = useState(true);
   const [light, setLight] = useState(isLightTheme);
+  // Fornecedor atual; ao falhar um mosaico passa ao seguinte. `failed` = nenhum serviu.
+  const [prov, setProv] = useState(0);
+  const [failed, setFailed] = useState(false);
+  const loadedOk = useRef(false);
+  const onTileError = () => {
+    if (loadedOk.current) return; // um mosaico solto a falhar não troca de fornecedor
+    if (prov + 1 < PROVIDERS.length) setProv(prov + 1);
+    else setFailed(true);
+  };
   const drag = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
 
   useEffect(() => { if (follow) setCenter({ lat, lng }); }, [lat, lng, follow]);
@@ -78,21 +97,21 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
     const out: { key: string; src: string; left: number; top: number }[] = [];
     const x0 = Math.floor(origin.x / TILE), x1 = Math.floor((origin.x + size.w) / TILE);
     const y0 = Math.max(0, Math.floor(origin.y / TILE)), y1 = Math.min(n - 1, Math.floor((origin.y + size.h) / TILE));
-    const style = light ? 'rastertiles/voyager' : 'dark_all';
+    const p = PROVIDERS[prov];
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
         const wx = ((tx % n) + n) % n; // dá a volta ao mundo na horizontal
-        const sub = 'abcd'[(wx + ty) % 4];
+        const sub = 'abc'[(wx + ty) % 3];
         out.push({
-          key: `${zoom}/${tx}/${ty}/${style}`,
-          src: `https://${sub}.basemaps.cartocdn.com/${style}/${zoom}/${wx}/${ty}@2x.png`,
+          key: `${zoom}/${tx}/${ty}/${p.name}`,
+          src: p.url(zoom, wx, ty, sub),
           left: tx * TILE - origin.x,
           top: ty * TILE - origin.y,
         });
       }
     }
     return out;
-  }, [origin.x, origin.y, size.w, size.h, zoom, light, n]);
+  }, [origin.x, origin.y, size.w, size.h, zoom, n, prov]);
 
   const p = project(lat, lng, zoom);
   const marker = { left: p.x - origin.x, top: p.y - origin.y };
@@ -122,7 +141,7 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
   const onPointerUp = () => { drag.current = null; };
 
   return (
-    <div className="lmap" ref={box} style={{ height }}
+    <div className={`lmap${light ? '' : ' dark'}`} ref={box} style={{ height }}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
       onWheel={(e) => zoomBy(e.deltaY < 0 ? 1 : -1)}
       onDoubleClick={() => zoomBy(1)}
@@ -130,6 +149,8 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
       <div className="lmap-tiles" aria-hidden>
         {tiles.map((t) => (
           <img key={t.key} src={t.src} alt="" draggable={false} width={TILE} height={TILE}
+            referrerPolicy="strict-origin-when-cross-origin"
+            onLoad={() => { loadedOk.current = true; }} onError={onTileError}
             style={{ left: t.left, top: t.top }} />
         ))}
       </div>
@@ -141,12 +162,17 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
         <span className="lmap-pulse" />
         <span className="lmap-dot" />
       </div>
-      <div className="lmap-ctrl" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="lmap-ctrl" style={failed ? { display: 'none' } : undefined} onPointerDown={(e) => e.stopPropagation()}>
         <button type="button" onClick={() => zoomBy(1)} aria-label="Aproximar">+</button>
         <button type="button" onClick={() => zoomBy(-1)} aria-label="Afastar">−</button>
         <button type="button" className={follow ? 'on' : ''} onClick={recenter} aria-label="Centrar no cliente" title="Centrar no cliente">◎</button>
       </div>
-      <div className="lmap-attr">© OpenStreetMap · © CARTO</div>
+      {failed ? (
+        // Última reserva: o mapa do Google (iframe) — o marcador é o do próprio Google.
+        <iframe className="lmap-fail" title="Mapa (Google)" loading="lazy" referrerPolicy="no-referrer-when-downgrade"
+          src={`https://www.google.com/maps?q=${lat},${lng}&z=${zoom}&output=embed`} />
+      ) : null}
+      {failed ? null : <div className="lmap-attr">{PROVIDERS[prov].attr}</div>}
     </div>
   );
 }

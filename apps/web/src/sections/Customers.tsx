@@ -8,6 +8,9 @@ import { Modal } from '../components/ui';
 import { formatKz, formatDate } from '../format';
 import { isNetworkError, queueCustomer } from '../offline/writes';
 
+/** Contas rápidas da loja online sem email usam um endereço interno — não se mostra. */
+const shownEmail = (e?: string | null): string => (e && !e.toLowerCase().endsWith('@sem-email.lps') ? e : '');
+
 const EMPTY = { name: '', phone: '', email: '', taxId: '', address: '', province: '', municipality: '' };
 
 /**
@@ -56,7 +59,7 @@ export function Customers() {
   const openCreate = () => { setEditing(null); setForm({ ...EMPTY }); setOpen(true); };
   const openEdit = (c: CustomerRow) => {
     setEditing(c);
-    setForm({ name: c.name, phone: c.phone ?? '', email: c.email ?? '', taxId: c.tax_id ?? '', address: c.address ?? '', province: c.province ?? '', municipality: c.municipality ?? '' });
+    setForm({ name: c.name, phone: c.phone ?? '', email: shownEmail(c.email), taxId: c.tax_id ?? '', address: c.address ?? '', province: c.province ?? '', municipality: c.municipality ?? '' });
     setOpen(true);
   };
 
@@ -175,8 +178,8 @@ export function Customers() {
                 <div className="co-main">
                   <div className="co-name">{c.name}</div>
                   <div className="co-meta">
-                    {[c.phone, c.email, c.tax_id ? `NIF ${c.tax_id}` : null].filter(Boolean).map((x) => <span key={String(x)}>{x}</span>)}
-                    {!c.phone && !c.email && !c.tax_id ? <span>sem contactos</span> : null}
+                    {[c.phone, shownEmail(c.email), c.tax_id ? `NIF ${c.tax_id}` : null].filter(Boolean).map((x) => <span key={String(x)}>{x}</span>)}
+                    {!c.phone && !shownEmail(c.email) && !c.tax_id ? <span>sem contactos</span> : null}
                   </div>
                   <div className="co-state">
                     {(c.purchases ?? 0) > 0

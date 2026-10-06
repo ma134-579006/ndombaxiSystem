@@ -5,8 +5,14 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
-import { MigrationFileDto } from './dto/migration.dto';
+import { MigrationFileDto, type MigrationTaxOptions } from './dto/migration.dto';
 import { MigrationService } from './migration.service';
+
+/** IVA escolhido no ecrã de importação (só produtos); omisso = comportamento antigo. */
+function taxOf(dto: MigrationFileDto): MigrationTaxOptions | null {
+  if (dto.kind !== 'products' || !dto.ivaCode) return null;
+  return { ivaCode: dto.ivaCode, exemptionCode: dto.exemptionCode ?? null, pricesIncludeIva: dto.pricesIncludeIva !== false };
+}
 
 /** Migração inteligente de dados de outros sistemas (Vendus, Primavera, PHC/
  *  "Negócio", Excel genérico) — produtos, clientes e fornecedores. */
@@ -30,14 +36,14 @@ export class MigrationController {
   @ApiOperation({ summary: 'Aplica a importação (upsert por código/NIF/nome; nunca apaga nada)' })
   apply(@Body() dto: MigrationFileDto, @CurrentUser() user: JwtPayload) {
     const buf = Buffer.from(dto.contentBase64, 'base64');
-    return this.svc.apply(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName, { id: user.sub, name: user.name }, dto.storeId ?? null, dto.mapping ?? null);
+    return this.svc.apply(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName, { id: user.sub, name: user.name }, dto.storeId ?? null, dto.mapping ?? null, undefined, taxOf(dto));
   }
 
   @Post('apply-async')
   @ApiOperation({ summary: 'Inicia a importação em segundo plano (progresso em GET migration/jobs/:id)' })
   applyAsync(@Body() dto: MigrationFileDto, @CurrentUser() user: JwtPayload) {
     const buf = Buffer.from(dto.contentBase64, 'base64');
-    return this.svc.startApply(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName, { id: user.sub, name: user.name }, dto.storeId ?? null, dto.mapping ?? null);
+    return this.svc.startApply(this.ctx.requireTenantSchema(), dto.kind, buf, dto.fileName, { id: user.sub, name: user.name }, dto.storeId ?? null, dto.mapping ?? null, taxOf(dto));
   }
 
   @Get('jobs/:id')

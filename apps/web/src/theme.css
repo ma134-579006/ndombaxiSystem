@@ -3418,16 +3418,23 @@ img.u-av { background: var(--surface-2); }
   box-shadow: 0 1px 2px rgba(15,23,42,.04); transition: box-shadow .15s, border-color .15s, transform .12s; }
 .emp-card:hover { box-shadow: 0 14px 30px -20px rgba(15,23,42,.5); transform: translateY(-2px); }
 .emp-card.sel { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
-.emp-check { position: absolute; top: 12px; right: 12px; opacity: 0; transition: opacity .12s; }
+/* Caixa de seleção: SEMPRE por cima de tudo (z-index) e com área de clique de
+   36px, para o rato e para o toque. Antes, no computador, a etiqueta do estado
+   (Activo/Cessado) ficava por cima da caixa — invisível no hover mas ainda a
+   apanhar o clique — e com o rato não se conseguia marcar o funcionário. */
+.emp-check { position: absolute; top: 8px; right: 8px; z-index: 2; width: 36px; height: 36px; display: grid; place-items: center;
+  border-radius: 10px; cursor: pointer; opacity: .55; transition: opacity .12s, background .12s; }
+.emp-check:hover { background: var(--nx-hover-overlay, rgba(15,23,42,.05)); }
+.emp-check input { width: 18px; height: 18px; cursor: pointer; accent-color: var(--nx-primary, var(--primary)); }
 .emp-card:hover .emp-check, .emp-card.sel .emp-check, .emp-check:focus-within { opacity: 1; }
-.emp-top { display: flex; align-items: center; gap: 14px; padding-right: 24px; }
+.emp-top { display: flex; align-items: center; gap: 14px; padding-right: 124px; }
 .emp-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .emp-id strong { font-size: 15.5px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .emp-id span { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.emp-st { position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; color: #15803d; background: rgba(22,163,74,.12); }
+.emp-st { position: absolute; top: 15px; right: 48px; pointer-events: none; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; color: #15803d; background: rgba(22,163,74,.12); }
 .emp-st.off { color: #b45309; background: rgba(217,119,6,.13); } .emp-st.end { color: #b91c1c; background: rgba(220,38,38,.12); }
 .emp-check + .emp-top + .emp-meta { margin-top: 0; }
-.emp-card:hover .emp-st { opacity: 0; } .emp-card.sel .emp-st { opacity: 0; }
+/* O estado fica sempre visível, ao lado da caixa (não por baixo). */
 /* ECRÃS DE TOQUE (telemóvel/tablet): não há "passar o rato", por isso a caixa de
    seleção — que só aparecia no hover — ficava invisível e não se conseguia marcar
    funcionários para eliminar. Aqui fica SEMPRE visível, com área de toque de 40px,
@@ -3939,3 +3946,9 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
 .modal.modal-wide { max-width: min(960px, 96vw); }
 .loc-actions a.btn, .loc-info a { text-decoration: none; }
 .loc-info a { color: var(--nx-brand-500); }
+.mig-check { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13.5px; cursor: pointer; }
+.mig-check input { width: 18px; height: 18px; accent-color: var(--nx-brand-600); }
+/* Tema escuro: os mosaicos (claros) são invertidos para não encandear. */
+.lmap.dark .lmap-tiles img { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.92) saturate(.8); }
+.lmap-fail { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; z-index: 3; background: var(--surface-2, var(--surface)); }
+.lmap-ctrl, .lmap-attr { z-index: 2; }

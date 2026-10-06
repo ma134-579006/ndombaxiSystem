@@ -119,7 +119,7 @@ export function Storefront() {
   const [guestMode, setGuestMode] = useState(false);
   useEffect(() => {
     let alive = true;
-    api.authMethods(code).then((m) => { if (alive) setGuestMode(!m.email && !m.google); }).catch(() => undefined);
+    api.authMethods(code).then((m) => { if (alive) setGuestMode(!m.email && !m.google && !m.quick); }).catch(() => undefined);
     return () => { alive = false; };
   }, [code]);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
