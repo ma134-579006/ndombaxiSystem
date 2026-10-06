@@ -36,6 +36,7 @@ export class DownloadsPublicController {
   @Get('latest')
   @ApiOperation({ summary: 'Versão publicada mais recente de uma plataforma (usado pelas apps)' })
   latest(@Query('platform') platform = 'windows') {
+    this.releases.syncIfStale();
     return this.downloads.latest(platform);
   }
 
