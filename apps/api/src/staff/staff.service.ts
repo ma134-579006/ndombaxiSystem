@@ -97,6 +97,16 @@ export class StaffService {
     return this.repo.listStaff(schema);
   }
 
+  /**
+   * Desfaz uma conta criada há instantes cuja ficha de funcionário falhou: apaga-a
+   * (liberta o e-mail para nova tentativa); se não der para apagar, desativa-a.
+   */
+  async discardFailedCreate(schema: string, actor: StaffActor, id: string): Promise<void> {
+    if (await this.repo.deleteFreshUser(schema, id)) return;
+    await this.repo.updateStaff(schema, id, { isActive: false }).catch(() => undefined);
+    void actor;
+  }
+
   async createStaff(schema: string, actor: StaffActor, dto: CreateStaffDto): Promise<CreatedStaff> {
     await this.planLimits.assertCanCreate(schema, 'users');
     const role = assertAssignableRole(actor.role as Role, dto.role);

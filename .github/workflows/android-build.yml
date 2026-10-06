@@ -74,6 +74,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Só se publica a partir de main e nunca uma versão MAIS BAIXA do que a
+          # publicada (senão o ficheiro descarregado seria uma versão já bloqueada).
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then echo "::error::Só se publica a partir de main (ref: $GITHUB_REF)."; exit 1; fi
+          cur=$(gh release view android-latest -R "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null | grep -oE 'Vers[^:]*: [0-9]+\.[0-9]+\.[0-9]+' | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+          if [ -n "$cur" ] && [ "$(printf '%s\n%s\n' "$cur" "$APP_VERSION" | sort -V | tail -1)" != "$APP_VERSION" ]; then
+            echo "::error::Versão $APP_VERSION é mais baixa do que a publicada ($cur) — não se substitui."; exit 1
+          fi
           apk=$(ls *.apk | head -1)
           cp "$apk" LPSVendas-Android.apk
           gh release delete android-latest --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
@@ -85,6 +92,7 @@ jobs:
       # apps antigas ficam bloqueadas (com o botão para o site oficial). Se o
       # aviso falhar, o servidor apanha-a sozinho em <= 10 minutos.
       - name: Bloquear versões anteriores (avisar o servidor)
+        if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
           curl -fsS -X POST --max-time 90 "${NDOMBAXI_API_URL:-https://ndombaxi-api-3nmz.onrender.com}/downloads/sync" || echo "Servidor indisponível agora — sincroniza sozinho em até 10 min."

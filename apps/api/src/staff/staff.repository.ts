@@ -156,6 +156,16 @@ export class StaffRepository {
     return rows[0];
   }
 
+  /** Apaga uma conta ACABADA de criar (sem histórico) — devolve false se algo a referencia. */
+  async deleteFreshUser(schema: string, id: string): Promise<boolean> {
+    try {
+      await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`DELETE FROM users WHERE id = ${id}::uuid`));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async existsByEmail(schema: string, email: string): Promise<boolean> {
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM users WHERE email = ${email} LIMIT 1`),
