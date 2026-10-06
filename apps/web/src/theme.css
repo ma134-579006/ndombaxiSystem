@@ -4027,3 +4027,22 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
 @media (hover: none) { .emc-check { width: 40px; height: 40px; } .emc-check input { width: 22px; height: 22px; } }
 
 .emc-facts div:last-child dd { white-space: normal; line-height: 1.25; }
+/* Câmaras públicas (Windy Webcams) perto do cliente */
+.lmap-cam.pub { background: #047857; }
+.pubcams { margin: 0 16px 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--nx-radius-lg); background: var(--surface); }
+.pubcams-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.pubcams-head strong { font-size: 14px; }
+.pubcams-head span { font-size: 12.5px; color: var(--text-muted, #64748b); }
+.pubcams-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+.pubcam { display: flex; flex-direction: column; gap: 3px; padding: 0 0 8px; border: 1px solid var(--border); border-radius: var(--nx-radius-md, 10px);
+  background: var(--surface); overflow: hidden; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.pubcam:hover { border-color: var(--nx-brand-600, #2430e8); }
+.pubcam img, .pubcam-ph { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--surface-2, #eef1f6); display: block; }
+.pubcam-t { padding: 0 8px; font-size: 13px; font-weight: 600; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pubcam-d { padding: 0 8px; font-size: 12px; color: var(--text-muted, #64748b); }
+.pubcams-attr { display: inline-block; margin-top: 8px; font-size: 11.5px; color: var(--text-muted, #64748b); }
+.pubcam-view iframe, .pubcam-view img { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: var(--nx-radius-md, 10px); background: #000; display: block; }
+.pubcam-view-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--text-muted, #64748b); }
+.pubcam-ph { display: grid; place-items: center; color: var(--text-muted, #64748b); font-size: 12px; }
+.pubcam-ph::after { content: 'Sem imagem'; }
+.pubcam-view-foot a, .pubcams-attr:hover { color: var(--nx-brand-600, #2430e8); font-weight: 600; }

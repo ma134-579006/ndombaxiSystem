@@ -1277,6 +1277,25 @@ export interface CustomerRow {
 }
 
 /** Câmara de vigilância configurada. */
+/** Câmara pública (Windy Webcams) perto de um ponto do mapa. */
+export interface PublicWebcam {
+  id: string;
+  title: string;
+  lat: number;
+  lng: number;
+  city: string | null;
+  image: string | null;
+  player: string | null;
+  pageUrl: string;
+  updatedAt: string | null;
+}
+export interface PublicWebcamsResult {
+  configured: boolean;
+  radiusKm: number;
+  items: PublicWebcam[];
+  error?: string;
+}
+
 export interface CameraRow {
   id: string;
   name: string;

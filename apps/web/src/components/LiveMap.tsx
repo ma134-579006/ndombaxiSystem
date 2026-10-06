@@ -31,7 +31,8 @@ const SAT_LABELS = [
 ];
 
 /** Câmara da empresa com posição no mapa. */
-export interface MapCamera { id: string; name: string; lat: number; lng: number }
+/** `public` = câmara pública (Windy Webcams) perto do cliente; sem `kind` = câmara da empresa. */
+export interface MapCamera { id: string; name: string; lat: number; lng: number; kind?: 'public' }
 const MIN_Z = 3;
 const MAX_Z = 19;
 
@@ -218,7 +219,8 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, st
       {cameras.map((cam) => {
         const q = toPx(cam.lat, cam.lng);
         return (
-          <button key={cam.id} type="button" className="lmap-cam" style={{ left: q.x, top: q.y }} title={`Câmara: ${cam.name}`}
+          <button key={cam.id} type="button" className={`lmap-cam${cam.kind === 'public' ? ' pub' : ''}`} style={{ left: q.x, top: q.y }}
+            title={`${cam.kind === 'public' ? 'Câmara pública' : 'Câmara'}: ${cam.name}`}
             aria-label={`Ver câmara ${cam.name}`} onPointerDown={(e) => e.stopPropagation()} onClick={() => onCamera?.(cam.id)}>
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z" /><rect x="1" y="5" width="15" height="14" rx="2" /></svg>
           </button>

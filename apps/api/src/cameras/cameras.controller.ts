@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Header, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { Type } from 'class-transformer';
 import type { JwtPayload } from '@nexus/types';
 import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -9,6 +10,7 @@ import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { CamerasService } from './cameras.service';
 import { CameraRecorderService } from './recorder.service';
+import { PublicWebcamsService } from './public-webcams.service';
 
 class CameraDto {
   @IsString() @Length(1, 120)
@@ -90,6 +92,17 @@ class CameraUpdateDto {
   geoLng?: number | null;
 }
 
+class NearbyQuery {
+  @Type(() => Number) @IsNumber() @Min(-90) @Max(90)
+  lat!: number;
+
+  @Type(() => Number) @IsNumber() @Min(-180) @Max(180)
+  lng!: number;
+
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(1) @Max(250)
+  radiusKm?: number;
+}
+
 /** Câmaras: configurar (manual/QR), ver ao vivo e gravações (30 dias). */
 @ApiTags('cameras')
 @ApiBearerAuth()
@@ -99,7 +112,16 @@ export class CamerasController {
     private readonly cameras: CamerasService,
     private readonly recorder: CameraRecorderService,
     private readonly ctx: TenantContext,
+    private readonly webcams: PublicWebcamsService,
   ) {}
+
+  @Get('public/nearby')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Câmaras públicas (Windy Webcams) perto de um ponto do mapa' })
+  publicNearby(@Query() q: NearbyQuery) {
+    this.ctx.requireTenantSchema();
+    return this.webcams.nearby(q.lat, q.lng, q.radiusKm ?? 25);
+  }
 
   @Get()
   @Roles(Role.STORE_MANAGER)
