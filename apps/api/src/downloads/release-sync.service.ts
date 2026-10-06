@@ -8,6 +8,8 @@ const API = process.env.RELEASES_API_URL || 'https://api.github.com';
 const EVERY_MS = 10 * 60 * 1000;
 /** Um pedido manual (CI) não pode martelar o GitHub. */
 const MIN_GAP_MS = 20 * 1000;
+/** Uma app a perguntar pela versão dispara uma sincronização se a última for mais antiga. */
+const STALE_MS = 5 * 60 * 1000;
 
 /** Cada app: a release `*-latest` que o CI substitui e o ficheiro de nome fixo. */
 export const RELEASE_SOURCES: { platform: Platform; tag: string; asset: string }[] = [
@@ -57,6 +59,17 @@ export class ReleaseSyncService implements OnApplicationBootstrap {
     if (process.env.NODE_ENV === 'test' || process.env.RELEASE_SYNC === 'off') return;
     setTimeout(() => void this.sync().catch(() => undefined), 15_000);
     setInterval(() => void this.sync().catch(() => undefined), EVERY_MS);
+  }
+
+  /**
+   * Chamado quando uma app pergunta pela versão: se a última sincronização tem
+   * mais de 5 min, sincroniza em segundo plano. Garante a atualização mesmo com
+   * o servidor gratuito a dormir (o setInterval não corre enquanto dorme).
+   */
+  syncIfStale(): void {
+    if (process.env.NODE_ENV === 'test' || process.env.RELEASE_SYNC === 'off') return;
+    if (Date.now() - this.lastRun < STALE_MS) return;
+    void this.sync().catch(() => undefined);
   }
 
   /** Sincroniza agora (pedidos repetidos em menos de 20 s reutilizam o anterior). */

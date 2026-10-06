@@ -62,8 +62,8 @@ export const INTEGRATION_CATALOG: IntegrationCatalogEntry[] = [
     secretLabel: 'Access token (Meta Cloud API)',
   },
   {
-    key: 'PUBLIC_WEBCAMS', label: 'Câmaras públicas — Windy Webcams',
-    description: 'Mostra no mapa das encomendas as câmaras públicas (publicadas pelos donos na Windy Webcams) perto do cliente, automaticamente. Chave gratuita em api.windy.com/keys (produto "Webcams API").',
+    key: 'PUBLIC_WEBCAMS', label: 'Câmaras públicas — Windy Webcams (opcional)',
+    description: 'As câmaras públicas do OpenStreetMap já funcionam sozinhas, sem chave. Com uma chave gratuita da Windy (api.windy.com/keys, produto "Webcams API") juntam-se também as webcams da Windy, muitas com vídeo.',
     hasBaseUrl: false, baseUrlLabel: '',
     settingsFields: [],
     secretLabel: 'Chave da API (x-windy-api-key)',

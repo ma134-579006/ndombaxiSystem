@@ -106,6 +106,8 @@ export function useNavigation(dest: LatLng | null) {
 
   const start = useCallback(() => {
     if (!navigator.geolocation) { setS((p) => ({ ...p, error: 'Este aparelho não tem localização (GPS).' })); return; }
+    // Nunca dois "watch" ao mesmo tempo (recomeçar depois de um erro).
+    if (watch.current != null) { navigator.geolocation.clearWatch(watch.current); watch.current = null; }
     setS((p) => ({ ...p, active: true, error: null }));
     watch.current = navigator.geolocation.watchPosition(
       (pos) => {
@@ -113,7 +115,10 @@ export function useNavigation(dest: LatLng | null) {
         setS((p) => ({ ...p, start: here, heading: pos.coords.heading != null && !Number.isNaN(pos.coords.heading) && (pos.coords.speed ?? 0) > 1 ? pos.coords.heading : p.heading }));
         if (!lastRouted.current || distanceM(lastRouted.current, here) > 60) void route(here);
       },
-      (e) => setS((p) => ({ ...p, active: false, error: geoErrorMessage(e.code) })),
+      (e) => {
+        if (watch.current != null) { navigator.geolocation.clearWatch(watch.current); watch.current = null; }
+        setS((p) => ({ ...p, active: false, error: geoErrorMessage(e.code) }));
+      },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
     );
   }, [route]);

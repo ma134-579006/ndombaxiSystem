@@ -48,6 +48,14 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         immersive();
+        // GPS automático: pede a localização UMA vez, ao abrir a app (não em
+        // onResume/foco — fechar o diálogo voltaria a abri-lo em ciclo).
+        if (savedInstanceState == null
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[] {
+                Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, 4801);
+        }
         // TECLADO: com o conteúdo a ocupar o ecrã todo, o Android deixa de encolher
         // a WebView quando o teclado abre — e o teclado tapava os campos e o botão
         // de gravar. A app encolhe exatamente a altura do teclado (e volta ao fechar).
@@ -91,12 +99,6 @@ public class MainActivity extends BridgeActivity {
         c.setAppearanceLightStatusBars(false);
         c.hide(WindowInsetsCompat.Type.systemBars());
         c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-        // GPS automático: pede a localização ao abrir (só da primeira vez).
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[] {
-                Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, 4801);
-        }
     }
 }
 `;

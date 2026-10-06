@@ -4,7 +4,7 @@ import type { LocatedClient, PublicWebcam, PublicWebcamsResult } from '../api/ty
 import { LiveMap } from '../components/LiveMap';
 import { distanceM, formatDistance } from '../components/RouteCompass';
 import { Modal } from '../components/ui';
-import { PublicCamView } from '../components/PublicCams';
+import { PublicCamView, PublicCamsAttribution, camLinkLabel } from '../components/PublicCams';
 import { formatDate } from '../format';
 
 type Target = { lat: number; lng: number; label: string; sub: string; accuracy?: number; live?: boolean };
@@ -25,7 +25,8 @@ function sinceLabel(iso: string | null): string {
  * recente) e o sistema procura sozinho as câmaras PÚBLICAS mais próximas da
  * posição dele: começa em 10 km e, se não houver nenhuma, alarga o raio até as
  * encontrar. A mais próxima abre logo em vídeo; as outras ficam ao lado.
- * Só fontes legítimas: webcams publicadas pelos donos como públicas (Windy).
+ * Só fontes legítimas: webcams publicadas como públicas (OpenStreetMap, sem chave;
+ * Windy Webcams quando há chave).
  */
 export function GodsEye() {
   const [clients, setClients] = useState<LocatedClient[] | null>(null);
@@ -129,21 +130,21 @@ export function GodsEye() {
           </div>
           {loadingPub ? <div className="ge-player-empty">A procurar câmaras públicas perto do cliente…</div>
             : !pub ? <div className="ge-player-empty">Sem resposta do serviço de câmaras públicas.</div>
-            : !pub.configured ? (
-              <div className="ge-player-empty">
-                As câmaras públicas (Windy Webcams) ainda não estão ativas. O administrador da plataforma ativa-as em
-                <b> Super Admin › Integrações › Câmaras públicas</b> com a chave gratuita da Windy.
-              </div>
-            ) : pub.error ? <div className="ge-player-empty">{pub.error}</div>
+            : pub.error ? <div className="ge-player-empty">{pub.error}</div>
             : !playing ? <div className="ge-player-empty">Nenhuma câmara pública até {pub.radiusKm} km deste cliente.</div>
             : playing.player ? (
               <iframe key={playing.id} className="ge-player" src={playing.player} title={playing.title} allow="autoplay; fullscreen" referrerPolicy="no-referrer" />
             ) : playing.image ? <img className="ge-player" src={playing.image} alt={playing.title} referrerPolicy="no-referrer" />
-            : <div className="ge-player-empty">Esta câmara não tem imagem agora.</div>}
+            : (
+              <div className="ge-player-empty">
+                Esta câmara abre no site do dono.
+                <a className="btn sm" href={playing.pageUrl} target="_blank" rel="noreferrer">Abrir a câmara</a>
+              </div>
+            )}
           {playing ? (
             <div className="ge-watch-foot">
               <button type="button" className="btn ghost sm" onClick={() => setZoomCam(playing)}>Ampliar</button>
-              <a href={playing.pageUrl} target="_blank" rel="noreferrer">Abrir em Windy.com</a>
+              <a href={playing.pageUrl} target="_blank" rel="noreferrer">{camLinkLabel(playing)}</a>
             </div>
           ) : null}
 
@@ -161,7 +162,7 @@ export function GodsEye() {
                   </button>
                 ))}
               </div>
-              <a className="pubcams-attr" href="https://www.windy.com/webcams" target="_blank" rel="noreferrer">Webcams fornecidas por Windy.com</a>
+              <PublicCamsAttribution sources={pub.sources} />
             </>
           ) : null}
         </div>

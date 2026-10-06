@@ -1294,6 +1294,8 @@ export interface PublicWebcam {
   player: string | null;
   pageUrl: string;
   updatedAt: string | null;
+  /** Windy Webcams (com chave) ou OpenStreetMap (sem chave, automático). */
+  source?: 'windy' | 'osm';
 }
 export interface PublicWebcamsResult {
   configured: boolean;
@@ -1302,6 +1304,7 @@ export interface PublicWebcamsResult {
   expanded?: boolean;
   items: PublicWebcam[];
   error?: string;
+  sources?: ('windy' | 'osm')[];
 }
 
 export interface CameraRow {

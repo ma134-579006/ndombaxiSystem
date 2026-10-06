@@ -92,3 +92,22 @@ describe('ReleaseSyncService', () => {
     expect(f).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('ReleaseSyncService.syncIfStale', () => {
+  const realFetch = global.fetch;
+  const env = process.env.NODE_ENV;
+  afterEach(() => { global.fetch = realFetch; process.env.NODE_ENV = env; });
+
+  it('uma app a perguntar a versão dispara a sincronização só se a última for antiga', async () => {
+    process.env.NODE_ENV = 'production';
+    const f = jest.fn(async () => release('windows-latest', '1.5.900', 'LPSVendas-Setup-x64.exe'));
+    global.fetch = f as never;
+    const svc = new ReleaseSyncService(fakePrisma([]) as never);
+    svc.syncIfStale();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(f).toHaveBeenCalledTimes(3);
+    svc.syncIfStale();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(f).toHaveBeenCalledTimes(3);
+  });
+});

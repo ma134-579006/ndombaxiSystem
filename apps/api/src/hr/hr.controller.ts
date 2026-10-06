@@ -52,7 +52,7 @@ export class HrController {
     const schema = this.ctx.requireTenantSchema();
     // Todo o funcionário nasce COM acesso ao sistema (email + senha obrigatórios):
     // primeiro a conta (valida email único, papel e limite do plano), depois a
-    // ficha ligada a ela. Se a ficha falhar, a conta acabada de criar é desativada.
+    // ficha ligada a ela. Se a ficha falhar, a conta acabada de criar é desfeita (e-mail livre).
     const role = dto.role ?? (/caixa|operador/i.test(dto.position ?? '') ? 'CASHIER'
       : /gerente|gestor|manager/i.test(dto.position ?? '') ? 'STORE_MANAGER' : 'ATTENDANT');
     const { user: account } = await this.staff.createStaff(schema, { sub: user.sub, role: user.role }, {
@@ -62,7 +62,8 @@ export class HrController {
       const emp = await this.employees.create(schema, { ...dto, userId: account.id });
       return { ...emp, user_email: account.email, user_role: account.role };
     } catch (e) {
-      await this.staff.updateStaff(schema, { sub: user.sub, role: user.role }, account.id, { isActive: false }).catch(() => undefined);
+      // Desfaz a conta (liberta o e-mail): corrigir o erro e voltar a gravar tem de funcionar.
+      await this.staff.discardFailedCreate(schema, { sub: user.sub, role: user.role }, account.id).catch(() => undefined);
       throw e;
     }
   }

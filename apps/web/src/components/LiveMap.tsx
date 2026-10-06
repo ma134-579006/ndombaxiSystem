@@ -131,15 +131,21 @@ function Tile({ url, z, x, y, left, top, label, detect, onOk, onFirstError }: {
   // Primeiro com CORS (para poder ver os píxeis); se o servidor recusar, sem CORS.
   const [cors, setCors] = useState(!!detect);
   if (gone) return null;
-  const fail = () => {
-    if (up === 0 && onFirstError?.()) return;
+  // Sobe um nível de zoom (ou desiste, nas camadas de nomes / no limite).
+  const goUp = () => {
     // As camadas de nomes são transparentes: sem imagem, simplesmente não aparecem.
     if (label || up >= MAX_UP || z - up - 1 < MIN_Z) setGone(true);
     else setUp(up + 1);
   };
+  const fail = () => {
+    if (up === 0 && onFirstError?.()) return;
+    goUp();
+  };
   const onError = () => { if (cors) setCors(false); else fail(); };
   const onLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    if (cors && isNoDataTile(e.currentTarget)) { fail(); return; }
+    // Quadrado "sem dados": o servidor RESPONDEU (não é falha do fornecedor) →
+    // conta como carregado e sobe de zoom, sem trocar de fornecedor.
+    if (cors && isNoDataTile(e.currentTarget)) { onOk?.(); goUp(); return; }
     onOk?.();
   };
   const cls = label ? 'lbl' : undefined;
