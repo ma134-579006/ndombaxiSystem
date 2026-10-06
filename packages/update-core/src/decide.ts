@@ -16,11 +16,13 @@
  *    internet durante cinco dias tem de continuar a vender. Bloquear por falta
  *    de rede seria transformar uma falha da operadora numa paragem do negócio.
  *
- * 3. **Nunca se tranca alguém sem lhe dar a saída.** Se a versão está marcada
- *    como obrigatória mas não veio uma página de downloads utilizável (https),
- *    a decisão desce a AVISO. Bloquear sem caminho para atualizar é o pior de
- *    todos os desfechos: o utilizador fica parado e sem nada que possa fazer.
+ * 3. **Nunca se tranca alguém sem lhe dar a saída.** Toda a versão nova é
+ *    obrigatória; se não vier uma página de downloads utilizável (https), o
+ *    botão leva à página oficial do site (OFFICIAL_DOWNLOAD_PAGE).
  */
+
+/** Página oficial de downloads — saída garantida do ecrã de bloqueio. */
+export const OFFICIAL_DOWNLOAD_PAGE = 'https://ndombaxisystem.com/baixar';
 
 /** O que o servidor oficial publica sobre uma versão. */
 export interface OfficialRelease {
@@ -146,28 +148,16 @@ export function decideUpdate(
   // publicou.
   if (!isNewer) return NONE(current, 'já está na versão publicada mais recente');
 
-  const obrigatoria = release.mandatory || belowMinimum;
-  if (!obrigatoria) {
-    return { state: 'optional', current, release, reason: 'há uma versão mais recente' };
-  }
-
-  // Obrigatória, mas sem caminho para atualizar → só avisa. Trancar aqui deixava
-  // o utilizador parado e sem nada que pudesse fazer.
-  if (!release.downloadPageUrl) {
-    return {
-      state: 'optional',
-      current,
-      release,
-      reason: 'obrigatória, mas sem página oficial de downloads válida — não se tranca sem saída',
-    };
-  }
-
+  // POLÍTICA DO PRODUTO: toda a versão nova publicada é OBRIGATÓRIA — a app
+  // antiga fica bloqueada até atualizar. A saída está sempre garantida: sem
+  // página própria, o botão leva à página oficial de downloads do site.
+  const comSaida: OfficialRelease = release.downloadPageUrl ? release : { ...release, downloadPageUrl: OFFICIAL_DOWNLOAD_PAGE };
   return {
     state: 'mandatory',
     current,
-    release,
+    release: comSaida,
     reason: belowMinimum
       ? `versão instalada abaixo do mínimo suportado (${release.minSupported})`
-      : 'versão publicada como obrigatória',
+      : 'há uma versão mais recente (todas as atualizações são obrigatórias)',
   };
 }

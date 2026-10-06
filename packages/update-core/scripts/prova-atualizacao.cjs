@@ -31,8 +31,8 @@ check('1.10.0 > 1.9.9', compareVersions('1.10.0', '1.9.9') > 0);
 
 // ── O caminho normal ────────────────────────────────────────────────
 check('mesma versão → nada a fazer', decideUpdate('1.3.0', base, WIN).state === 'none');
-check('versão mais recente, não obrigatória → aviso',
-  decideUpdate('1.2.4', base, WIN).state === 'optional');
+check('versão mais recente (mesmo sem marca de obrigatória) → TRANCA (todas são obrigatórias)',
+  decideUpdate('1.2.4', base, WIN).state === 'mandatory');
 check('versão mais recente e obrigatória → TRANCA',
   decideUpdate('1.2.4', { ...base, mandatory: true }, WIN).state === 'mandatory');
 check('abaixo do mínimo suportado → TRANCA',
@@ -59,10 +59,10 @@ check('canal ausente conta como produção',
   decideUpdate('1.2.4', { ...base, mandatory: true }, WIN).state === 'mandatory');
 
 // Trancar sem dar a saída é o pior desfecho possível.
-check('obrigatória SEM página de downloads → desce a aviso',
-  decideUpdate('1.2.4', { ...base, mandatory: true, downloadPageUrl: null }, WIN).state === 'optional');
-check('página não-https (http/file) → não serve para trancar',
-  decideUpdate('1.2.4', { ...base, mandatory: true, downloadPageUrl: 'file:///C:/x.exe' }, WIN).state === 'optional');
+check('SEM página de downloads → tranca com a página OFICIAL do site (nunca sem saída)',
+  decideUpdate('1.2.4', { ...base, downloadPageUrl: null }, WIN).release.downloadPageUrl === 'https://ndombaxisystem.com/baixar');
+check('página não-https (http/file) → nunca é usada; vai para a página oficial',
+  decideUpdate('1.2.4', { ...base, downloadPageUrl: 'file:///C:/x.exe' }, WIN).release.downloadPageUrl === 'https://ndombaxisystem.com/baixar');
 
 // Lixo e enganos.
 check('resposta sem versão → ignorada', decideUpdate('1.2.4', { platform: 'windows' }, WIN).state === 'none');

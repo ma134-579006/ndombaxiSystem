@@ -2,6 +2,9 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { AppRelease } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
+/** Página oficial de downloads (site) — destino do botão "Atualizar Agora". */
+export const OFFICIAL_DOWNLOAD_PAGE = 'https://ndombaxisystem.com/baixar';
+
 export type Platform = 'windows' | 'android' | 'ios';
 const PLATFORMS: Platform[] = ['windows', 'android', 'ios'];
 
@@ -43,13 +46,17 @@ export class DownloadsService {
       platform: r.platform as Platform,
       version: r.version,
       minSupported: r.minSupported,
-      downloadPageUrl: r.downloadPageUrl,
+      // Sempre há saída: sem página própria, manda para a página oficial do site.
+      downloadPageUrl: r.downloadPageUrl?.trim() || OFFICIAL_DOWNLOAD_PAGE,
       fileSize: r.fileSize,
       sha256: r.sha256,
       notes: Array.isArray(r.notes) ? (r.notes as string[]) : [],
       fixes: Array.isArray(r.fixes) ? (r.fixes as string[]) : [],
       requirements: r.requirements,
-      mandatory: r.mandatory,
+      // POLÍTICA: toda a versão nova é obrigatória — a app antiga fica bloqueada
+      // (com o botão para o site oficial) até ser atualizada. Também é o que faz
+      // trancar as apps já instaladas, que ainda leem este campo.
+      mandatory: true,
       releasedAt: r.releasedAt.toISOString(),
     };
   }
