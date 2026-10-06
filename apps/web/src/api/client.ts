@@ -141,6 +141,7 @@ import type {
   AgentEvent,
   CameraInput,
   CameraRow,
+  PublicWebcamsResult,
   CustomerRow,
   TenantLoginInput,
   TenantTokenPair,
@@ -1154,6 +1155,9 @@ export const api = {
   // ── Câmaras de vigilância ───────────────────────────────────
   cameras: {
     list: () => request<CameraRow[]>('GET', '/cameras'),
+    /** Câmaras PÚBLICAS (Windy Webcams) perto de um ponto — configuradas no Super Admin. */
+    publicNearby: (lat: number, lng: number, radiusKm = 25) =>
+      request<PublicWebcamsResult>('GET', `/cameras/public/nearby?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}&radiusKm=${radiusKm}`),
     create: (input: CameraInput) => request<CameraRow>('POST', '/cameras', input),
     update: (id: string, input: Partial<CameraInput>) => request<CameraRow>('PATCH', `/cameras/${id}`, input),
     test: (id: string) => request<{ ok: boolean; status: number; contentType: string | null; kind: string; warning?: string; secure?: boolean }>('POST', `/cameras/${id}/test`),

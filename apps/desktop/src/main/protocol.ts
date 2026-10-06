@@ -68,7 +68,7 @@ const CSP = [
   "connect-src 'self' https: wss: http://127.0.0.1:* http://localhost:*",
   // O Google Sign-In desenha o seu seletor de conta num iframe próprio; o mapa
   // do Google é a reserva da localização do cliente quando os mosaicos falham.
-  "frame-src https://accounts.google.com https://www.google.com https://maps.google.com",
+  "frame-src https://accounts.google.com https://www.google.com https://maps.google.com https://webcams.windy.com https://*.windy.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",

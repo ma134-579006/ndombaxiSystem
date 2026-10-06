@@ -6,7 +6,7 @@ import {
   STAFF_ROLES, STAFF_ROLE_LABELS,
   type CreateEmployeeInput, type EmployeeConsumption, type ManagerEmployee, type ManagerStaff, type ManagerStore, type StaffRoleName,
 } from '../api/types';
-import { IconBadge, IconCheck, IconEdit, IconImage, IconPlus, IconSearch, IconShield, IconUser, IconUsers, IconWallet } from '../components/Icons';
+import { IconBadge, IconCheck, IconEdit, IconMail, IconImage, IconPlus, IconSearch, IconShield, IconUser, IconUsers, IconWallet } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatDate, formatKz } from '../format';
 
@@ -16,12 +16,18 @@ interface FormState {
   employeeNumber: string; fullName: string; position: string; department: string;
   baseSalary: string; iban: string; taxId: string; inssNumber: string; photoUrl: string;
   bonus: string; absenceDays: string;
+  /** Acesso ao sistema (só na criação — obrigatório: email + senha). */
+  email: string; password: string; role: StaffRoleName | ''; storeId: string; pin: string;
 }
 const EMPTY: FormState = {
   employeeNumber: '', fullName: '', position: '', department: '',
   baseSalary: '', iban: '', taxId: '', inssNumber: '', photoUrl: '',
   bonus: '', absenceDays: '',
+  email: '', password: '', role: '', storeId: '', pin: '',
 };
+/** Papel sugerido pela função escrita (o administrador pode mudar). */
+const roleFor = (position: string): StaffRoleName =>
+  /caixa|operador/i.test(position) ? 'CASHIER' : /gerente|gestor|manager/i.test(position) ? 'STORE_MANAGER' : 'ATTENDANT';
 
 /** Funcionários (RH): ficha com foto (qualquer formato), criar/editar; a foto
  *  aparece no cartão. Criar/editar exige COMPANY_ADMIN (a API valida). */
@@ -39,6 +45,7 @@ export function Employees() {
   const [accessFor, setAccessFor] = useState<ManagerEmployee | null>(null);
   const [manageFor, setManageFor] = useState<{ user: ManagerStaff; name: string } | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
+  const [showPwd, setShowPwd] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -100,6 +107,7 @@ export function Employees() {
       taxId: e.tax_id ?? '', inssNumber: e.inss_number ?? '', photoUrl: e.photo_url ?? '',
       bonus: Number(e.bonus ?? 0) > 0 ? String(Number(e.bonus)) : '',
       absenceDays: days > 0 ? String(days) : '',
+      email: '', password: '', role: '', storeId: '', pin: '',
     });
     setFormError(null); setEditing(e);
   };
@@ -126,6 +134,11 @@ export function Employees() {
       return;
     }
     const salary = Number(form.baseSalary) || 0;
+    if (!editing) {
+      if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) { setFormError('Indique o email do funcionário — é o login dele no sistema.'); return; }
+      if (form.password.length < 8) { setFormError('Defina a senha do funcionário (mínimo 8 caracteres).'); return; }
+      if (form.pin && !/^\d{6}$/.test(form.pin)) { setFormError('O PIN da caixa tem de ter 6 dígitos (ou deixe vazio).'); return; }
+    }
     setSaving(true);
     try {
       if (editing) {
@@ -144,8 +157,11 @@ export function Employees() {
           baseSalary: salary, iban: iban || undefined,
           taxId: taxId || undefined, inssNumber: form.inssNumber.trim() || undefined,
           photoUrl: form.photoUrl || undefined,
+          email: form.email.trim().toLowerCase(), password: form.password,
+          role: form.role || roleFor(form.position), storeId: form.storeId || undefined, pin: form.pin || undefined,
         };
         await api.hr.createEmployee(payload);
+        setInfo(`Funcionário criado. Entra no sistema com ${payload.email} e a senha definida${payload.pin ? ' (e na caixa com o PIN)' : ''}.`);
       }
       close(); await load();
     } catch (e) {
@@ -215,39 +231,47 @@ export function Employees() {
         : filtered.length === 0 ? (
           <div className="card"><div className="empty"><IconBadge size={40} /><p>Sem funcionários. Crie o primeiro.</p></div></div>
         ) : (
-          <div className="emp-grid">
+          <div className="emc-grid">
             {filtered.map((e) => {
-              const u = accessOf(e);
+              // Conta ligada à ficha (user_id); fichas antigas: pelo nome.
+              const u = (e.user_id ? users.find((x) => x.id === e.user_id) : undefined) ?? accessOf(e);
+              const email = e.user_email ?? u?.email ?? null;
+              const roleKey = e.user_role ?? u?.role ?? null;
+              const hasPin = e.user_has_pin ?? u?.has_pin ?? false;
               const st = e.status === 'ACTIVE' ? 'on' : e.status === 'TERMINATED' ? 'end' : 'off';
               return (
-                <div className={`emp-card${selected.has(e.id) ? ' sel' : ''}`} key={e.id}>
-                  <label className="emp-check" onClick={(ev) => ev.stopPropagation()}>
+                <article className={`emc${selected.has(e.id) ? ' sel' : ''}${st !== 'on' ? ' dim' : ''}`} key={e.id}>
+                  <label className="emc-check" onClick={(ev) => ev.stopPropagation()}>
                     <input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSel(e.id)} aria-label={`Selecionar ${e.full_name}`} />
                   </label>
-                  <div className="emp-top">
-                    <UserAvatar photo={e.photo_url} name={e.full_name} size={56} />
-                    <div className="emp-id">
-                      <strong>{e.full_name}</strong>
+                  <header className="emc-head">
+                    <UserAvatar photo={e.photo_url} name={e.full_name} size={52} />
+                    <div className="emc-id">
+                      <strong title={e.full_name}>{e.full_name}</strong>
                       <span>{e.position || 'Sem função definida'}{e.department ? ` · ${e.department}` : ''}</span>
                     </div>
-                    <span className={`emp-st ${st}`}>{e.status === 'ACTIVE' ? 'Activo' : e.status === 'TERMINATED' ? 'Cessado' : 'Suspenso'}</span>
+                  </header>
+                  <div className={`emc-mail${email ? '' : ' none'}`}>
+                    <IconMail size={15} />
+                    {email ? <a href={`mailto:${email}`} title={email}>{email}</a> : <span>Sem acesso ao sistema</span>}
                   </div>
-                  <div className="emp-meta">
-                    <div><small>Nº</small><b>{e.employee_number}</b></div>
-                    <div><small>Salário base</small><b>{formatKz(Number(e.base_salary))}</b></div>
-                  </div>
-                  <div className="emp-acc">
-                    {u ? (
-                      <>
-                        <span className="emp-role" title={u.email}><IconShield size={12} /> {STAFF_ROLE_LABELS[u.role] ?? u.role}{u.has_pin ? ' · PIN' : ''}</span>
-                        <button className="btn sm ghost" onClick={() => setManageFor({ user: u, name: e.full_name })}>Gerir acesso</button>
-                      </>
-                    ) : e.status === 'ACTIVE' ? (
-                      <button className="btn sm ghost" onClick={() => setAccessFor(e)}><IconShield size={13} /> Dar acesso</button>
-                    ) : <span className="muted" style={{ fontSize: 12 }}>Sem acesso</span>}
-                    <button className="btn sm ghost" onClick={() => openEdit(e)}><IconEdit size={14} /> Editar</button>
-                  </div>
-                </div>
+                  <dl className="emc-facts">
+                    <div><dt>Nº</dt><dd>{e.employee_number}</dd></div>
+                    <div><dt>Salário base</dt><dd>{formatKz(Number(e.base_salary))}</dd></div>
+                    <div><dt>Acesso</dt><dd>{roleKey ? <>{STAFF_ROLE_LABELS[roleKey as StaffRoleName] ?? roleKey}{hasPin ? <em> · PIN</em> : null}</> : '—'}</dd></div>
+                  </dl>
+                  <footer className="emc-foot">
+                    <span className={`emc-st ${st}`}><i />{e.status === 'ACTIVE' ? 'Activo' : e.status === 'TERMINATED' ? 'Cessado' : 'Suspenso'}</span>
+                    <span className="emc-actions">
+                      {u ? (
+                        <button className="btn sm ghost" onClick={() => setManageFor({ user: u, name: e.full_name })}><IconShield size={13} /> Acesso</button>
+                      ) : e.status === 'ACTIVE' && !email ? (
+                        <button className="btn sm ghost" onClick={() => setAccessFor(e)}><IconShield size={13} /> Dar acesso</button>
+                      ) : null}
+                      <button className="btn sm ghost" onClick={() => openEdit(e)}><IconEdit size={14} /> Editar</button>
+                    </span>
+                  </footer>
+                </article>
               );
             })}
           </div>
@@ -293,6 +317,34 @@ export function Employees() {
               <div className="field"><label>IBAN</label>
                 <input value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} placeholder="AO06…" /></div>
             </div>
+
+            {!editing ? (
+              <>
+                <div className="emp-sec">Acesso ao sistema <span className="emp-req">obrigatório</span></div>
+                <div className="grid-2">
+                  <div className="field"><label>Email (login) *</label>
+                    <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nome@empresa.ao" inputMode="email" autoComplete="off" /></div>
+                  <div className="field"><label>Senha * <span className="muted">(mín. 8)</span></label>
+                    <div className="emp-pwd">
+                      <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} type={showPwd ? 'text' : 'password'} autoComplete="new-password" placeholder="••••••••" />
+                      <button type="button" onClick={() => setShowPwd((v) => !v)} aria-label={showPwd ? 'Esconder senha' : 'Mostrar senha'}>{showPwd ? 'Esconder' : 'Mostrar'}</button>
+                    </div></div>
+                </div>
+                <div className="grid-2">
+                  <div className="field"><label>Papel (permissões)</label>
+                    <select value={form.role || roleFor(form.position)} onChange={(e) => setForm({ ...form, role: e.target.value as StaffRoleName })}>
+                      {STAFF_ROLES.map((r) => <option key={r} value={r}>{STAFF_ROLE_LABELS[r]}</option>)}
+                    </select></div>
+                  <div className="field"><label>Loja</label>
+                    <select value={form.storeId} onChange={(e) => setForm({ ...form, storeId: e.target.value })}>
+                      <option value="">(sem loja específica)</option>
+                      {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select></div>
+                </div>
+                <div className="field"><label>PIN da caixa <span className="muted">(opcional — 6 dígitos, para entrar na Caixa)</span></label>
+                  <input value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 6) })} inputMode="numeric" placeholder="ex.: 482915" /></div>
+              </>
+            ) : null}
 
             <div className="emp-sec">Identificação fiscal e social</div>
             <div className="grid-2">
@@ -471,7 +523,7 @@ function AccessModal({
     setErr(null);
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr('Indique um email válido.'); return; }
     if (!/^\d{6}$/.test(pin)) { setErr('Defina o PIN de 6 dígitos — é necessário para o funcionário aparecer e entrar na caixa.'); return; }
-    if (password && password.length < 6) { setErr('A senha do painel tem de ter pelo menos 6 caracteres (ou deixa vazio para gerar automática).'); return; }
+    if (password && password.length < 8) { setErr('A senha do painel tem de ter pelo menos 8 caracteres (ou deixa vazio para gerar automática).'); return; }
     setBusy(true);
     try {
       const r = await api.staff.createUser({

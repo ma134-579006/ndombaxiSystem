@@ -62,6 +62,13 @@ export const INTEGRATION_CATALOG: IntegrationCatalogEntry[] = [
     secretLabel: 'Access token (Meta Cloud API)',
   },
   {
+    key: 'PUBLIC_WEBCAMS', label: 'Câmaras públicas — Windy Webcams',
+    description: 'Mostra no mapa das encomendas as câmaras públicas (publicadas pelos donos na Windy Webcams) perto do cliente, automaticamente. Chave gratuita em api.windy.com/keys (produto "Webcams API").',
+    hasBaseUrl: false, baseUrlLabel: '',
+    settingsFields: [],
+    secretLabel: 'Chave da API (x-windy-api-key)',
+  },
+  {
     key: 'BIOMETRIC', label: 'Ponto biométrico',
     description: 'Controlo de assiduidade por dispositivo biométrico.',
     hasBaseUrl: true, baseUrlLabel: 'Endpoint do dispositivo/ponte',

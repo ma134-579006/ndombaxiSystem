@@ -910,10 +910,15 @@ export interface ManagerEmployee {
   department: string | null; base_salary: string; iban: string | null;
   photo_url: string | null; status: string;
   bonus?: string; absence_discount_pct?: string;
+  hire_date?: string | null;
+  /** Conta de acesso ligada (login): email, papel e se tem PIN da caixa. */
+  user_id?: string | null; user_email?: string | null; user_role?: string | null; user_has_pin?: boolean | null;
 }
 export interface CreateEmployeeInput {
   employeeNumber?: string; fullName: string; position?: string; department?: string;
   baseSalary: number; iban?: string; taxId?: string; inssNumber?: string; photoUrl?: string;
+  /** Acesso ao sistema — obrigatório ao criar. */
+  email: string; password: string; role?: string; storeId?: string; pin?: string;
 }
 export interface UpdateEmployeeInput {
   employeeNumber?: string; fullName?: string; position?: string; department?: string;
@@ -1272,6 +1277,25 @@ export interface CustomerRow {
 }
 
 /** Câmara de vigilância configurada. */
+/** Câmara pública (Windy Webcams) perto de um ponto do mapa. */
+export interface PublicWebcam {
+  id: string;
+  title: string;
+  lat: number;
+  lng: number;
+  city: string | null;
+  image: string | null;
+  player: string | null;
+  pageUrl: string;
+  updatedAt: string | null;
+}
+export interface PublicWebcamsResult {
+  configured: boolean;
+  radiusKm: number;
+  items: PublicWebcam[];
+  error?: string;
+}
+
 export interface CameraRow {
   id: string;
   name: string;
@@ -1286,6 +1310,9 @@ export interface CameraRow {
   record: boolean;
   is_active: boolean;
   created_at: string;
+  /** Posição no mapa (NUMERIC → string). */
+  geo_lat?: string | number | null;
+  geo_lng?: string | number | null;
 }
 export interface CameraInput {
   name: string;
@@ -1299,6 +1326,8 @@ export interface CameraInput {
   notes?: string;
   record?: boolean;
   isActive?: boolean;
+  geoLat?: number | null;
+  geoLng?: number | null;
 }
 // Relatório de vendas do restaurante: comercial vs produção (fatia 7)
 export interface RestaurantReportGroup {

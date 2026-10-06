@@ -189,6 +189,18 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
   const [appAndroid, setAppAndroid] = useState(cam?.app_android ?? '');
   const [record, setRecord] = useState(cam?.record ?? false);
   const [notes, setNotes] = useState(cam?.notes ?? '');
+  // Posição da câmara no mapa (aparece na localização das encomendas).
+  const [geo, setGeo] = useState(cam?.geo_lat != null && cam?.geo_lng != null ? `${Number(cam.geo_lat).toFixed(6)}, ${Number(cam.geo_lng).toFixed(6)}` : '');
+  const [locating, setLocating] = useState(false);
+  const useMyLocation = () => {
+    if (!navigator.geolocation) { toast.warning('Este aparelho não tem localização.'); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (p) => { setGeo(`${p.coords.latitude.toFixed(6)}, ${p.coords.longitude.toFixed(6)}`); setLocating(false); },
+      () => { toast.warning('Não foi possível obter a localização. Permita o acesso ou escreva as coordenadas.'); setLocating(false); },
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  };
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [decoding, setDecoding] = useState(false);
@@ -326,8 +338,12 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
         ? { name: name.trim(), connType, deviceSn: deviceSn.trim(), appIos: appIos.trim() || undefined, appAndroid: appAndroid.trim() || undefined,
             streamUrl: streamUrl.trim() || undefined, snapshotUrl: snapshotUrl.trim() || undefined, record, notes: notes.trim() || undefined }
         : { name: name.trim(), connType, streamUrl: streamUrl.trim(), snapshotUrl: snapshotUrl.trim() || undefined, record, notes: notes.trim() || undefined };
-      if (cam) await api.cameras.update(cam.id, input);
-      else await api.cameras.create(input);
+      // Coordenadas "lat, lng" (vazio = sem posição no mapa).
+      const m = /^\s*(-?\d+(?:\.\d+)?)\s*[,; ]\s*(-?\d+(?:\.\d+)?)\s*$/.exec(geo);
+      if (geo.trim() && !m) { toast.warning('Posição no mapa: escreva «latitude, longitude» (ex.: -8.8383, 13.2344) ou use a sua localização.'); setSaving(false); return; }
+      const pos = m ? { geoLat: Number(m[1]), geoLng: Number(m[2]) } : { geoLat: null, geoLng: null };
+      if (cam) await api.cameras.update(cam.id, { ...input, ...pos });
+      else await api.cameras.create({ ...input, ...(m ? pos : {}) });
       toast.success(`Câmara «${name.trim()}» ${cam ? 'atualizada' : 'ligada'}.`);
       onSaved();
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível guardar.'); }
@@ -425,6 +441,14 @@ function CamForm({ cam, onClose, onSaved }: { cam: CameraRow | null; onClose(): 
             <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="localização, credenciais do DVR…" /></div>
         </div>
       ) : null}
+      <div className="field">
+        <label>Posição no mapa (opcional)</label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input value={geo} onChange={(e) => setGeo(e.target.value)} placeholder="latitude, longitude — ex.: -8.8383, 13.2344" inputMode="decimal" style={{ flex: 1 }} />
+          <button type="button" className="btn ghost" onClick={useMyLocation} disabled={locating}>{locating ? 'A localizar…' : 'Usar a minha localização'}</button>
+        </div>
+        <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>A câmara aparece no mapa da localização das encomendas; tocar nela mostra a imagem ao vivo.</p>
+      </div>
 
       <button className="btn lg block" style={{ marginTop: 14 }} onClick={() => void save()} disabled={saving}>{saving ? 'A guardar…' : cam ? 'Guardar alterações' : 'Ligar câmara'}</button>
     </Modal>
@@ -476,7 +500,7 @@ function CamerasLive({ rows, loading, error }: { rows: CameraRow[]; loading: boo
  *   • As falhas mostram a CAUSA real (mixed-content, CORS, sem sinal), não um
  *     "sem sinal" genérico.
  */
-function LivePlayer({ cam, thumb = false }: { cam: CameraRow; thumb?: boolean }) {
+export function LivePlayer({ cam, thumb = false }: { cam: CameraRow; thumb?: boolean }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [snap, setSnap] = useState<string | null>(null);

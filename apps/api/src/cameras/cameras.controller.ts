@@ -1,14 +1,16 @@
 import { Body, Controller, Get, Header, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { Type } from 'class-transformer';
 import type { JwtPayload } from '@nexus/types';
-import { IsBoolean, IsIn, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { CamerasService } from './cameras.service';
 import { CameraRecorderService } from './recorder.service';
+import { PublicWebcamsService } from './public-webcams.service';
 
 class CameraDto {
   @IsString() @Length(1, 120)
@@ -40,6 +42,12 @@ class CameraDto {
 
   @IsOptional() @IsBoolean()
   record?: boolean;
+
+  @IsOptional() @IsNumber() @Min(-90) @Max(90)
+  geoLat?: number | null;
+
+  @IsOptional() @IsNumber() @Min(-180) @Max(180)
+  geoLng?: number | null;
 }
 
 class CameraUpdateDto {
@@ -75,6 +83,24 @@ class CameraUpdateDto {
 
   @IsOptional() @IsBoolean()
   isActive?: boolean;
+
+  /** Posição no mapa; envie ambos (ou null para limpar). */
+  @IsOptional() @IsNumber() @Min(-90) @Max(90)
+  geoLat?: number | null;
+
+  @IsOptional() @IsNumber() @Min(-180) @Max(180)
+  geoLng?: number | null;
+}
+
+class NearbyQuery {
+  @Type(() => Number) @IsNumber() @Min(-90) @Max(90)
+  lat!: number;
+
+  @Type(() => Number) @IsNumber() @Min(-180) @Max(180)
+  lng!: number;
+
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(1) @Max(250)
+  radiusKm?: number;
 }
 
 /** Câmaras: configurar (manual/QR), ver ao vivo e gravações (30 dias). */
@@ -86,7 +112,16 @@ export class CamerasController {
     private readonly cameras: CamerasService,
     private readonly recorder: CameraRecorderService,
     private readonly ctx: TenantContext,
+    private readonly webcams: PublicWebcamsService,
   ) {}
+
+  @Get('public/nearby')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Câmaras públicas (Windy Webcams) perto de um ponto do mapa' })
+  publicNearby(@Query() q: NearbyQuery) {
+    this.ctx.requireTenantSchema();
+    return this.webcams.nearby(q.lat, q.lng, q.radiusKm ?? 25);
+  }
 
   @Get()
   @Roles(Role.STORE_MANAGER)

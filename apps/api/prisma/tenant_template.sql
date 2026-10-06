@@ -808,6 +808,8 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."cameras" (
   notes TEXT,
   record BOOLEAN NOT NULL DEFAULT FALSE,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  geo_lat NUMERIC(10,7),               -- posição da câmara no mapa (opcional)
+  geo_lng NUMERIC(10,7),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

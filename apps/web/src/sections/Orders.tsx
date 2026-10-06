@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { OrderLocation, OrderMessage, OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
+import type { CameraRow, OrderLocation, PublicWebcam, PublicWebcamsResult, OrderMessage, OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
 import { IconCpu, IconTruck } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { toast } from '../components/feedback';
 import { LiveMap } from '../components/LiveMap';
+import { Compass, distanceM, formatDistance, useNavigation } from '../components/RouteCompass';
+import { LivePlayer } from './Cameras';
 import { formatDate, formatKz, statusLabel } from '../format';
 import { pollEvery, stopPoll } from '../poll';
 
@@ -290,6 +292,25 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
   const [trail, setTrail] = useState<[number, number][]>([]);
   const [copied, setCopied] = useState(false);
   const [, force] = useState(0); // re-render p/ atualizar "há X min"
+  // Caminho + bússola a partir deste aparelho até ao cliente.
+  const { nav, start, stop } = useNavigation(loc?.lat != null && loc?.lng != null ? { lat: loc.lat, lng: loc.lng } : null);
+  // Câmaras da empresa com posição no mapa (tocar → imagem ao vivo).
+  const [cams, setCams] = useState<CameraRow[]>([]);
+  const [camOpen, setCamOpen] = useState<CameraRow | null>(null);
+  useEffect(() => { api.cameras.list().then((r) => setCams(r.filter((c) => c.is_active && c.geo_lat != null && c.geo_lng != null))).catch(() => setCams([])); }, []);
+  // Câmaras PÚBLICAS perto do cliente — pedidas automaticamente quando há GPS
+  // (e de novo se o cliente se afastar ~1 km). Só aparecem se o serviço
+  // estiver activo no Super Admin › Integrações.
+  const [pub, setPub] = useState<PublicWebcamsResult | null>(null);
+  const [pubOpen, setPubOpen] = useState<PublicWebcam | null>(null);
+  const pubKey = loc?.lat != null && loc?.lng != null ? `${loc.lat.toFixed(2)},${loc.lng.toFixed(2)}` : null;
+  useEffect(() => {
+    if (!pubKey) return;
+    let alive = true;
+    const [la, ln] = pubKey.split(',').map(Number);
+    api.cameras.publicNearby(la, ln).then((r) => { if (alive) setPub(r); }).catch(() => { if (alive) setPub(null); });
+    return () => { alive = false; };
+  }, [pubKey]);
 
   useEffect(() => {
     let alive = true;
@@ -348,7 +369,20 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
         </span>
       </div>
       <div className="loc-body">
-        <LiveMap lat={loc.lat} lng={loc.lng} accuracy={loc.accuracy} trail={trail} live={fresh} />
+        <LiveMap lat={loc.lat} lng={loc.lng} accuracy={loc.accuracy} trail={trail} live={fresh}
+          start={nav.start} route={nav.route} fitKey={nav.fitKey}
+          cameras={[
+            ...cams.map((c) => ({ id: c.id, name: c.name, lat: Number(c.geo_lat), lng: Number(c.geo_lng) })),
+            ...(pub?.items ?? []).map((w) => ({ id: `pub:${w.id}`, name: w.title, lat: w.lat, lng: w.lng, kind: 'public' as const })),
+          ]}
+          onCamera={(id) => {
+            if (id.startsWith('pub:')) setPubOpen(pub?.items.find((w) => `pub:${w.id}` === id) ?? null);
+            else setCamOpen(cams.find((c) => c.id === id) ?? null);
+          }} />
+        {nav.active && nav.start ? (
+          <Compass from={nav.start} to={{ lat: loc.lat, lng: loc.lng }} heading={nav.heading}
+            distance={nav.distance} duration={nav.duration} mode={nav.mode} />
+        ) : null}
       </div>
       <div className="loc-info">
         <div><span className="k">Cliente</span><span className="v">{loc.customerName || '—'}</span></div>
@@ -356,10 +390,72 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
         <div><span className="k">Morada de entrega</span><span className="v">{address || '—'}</span></div>
         <div><span className="k">Coordenadas</span><span className="v">{q}</span></div>
       </div>
+      {nav.error ? <div className="banner danger" style={{ margin: '0 16px 10px' }}>{nav.error}</div> : null}
+      {pub?.configured ? (
+        <PublicCams result={pub} from={{ lat: loc.lat, lng: loc.lng }} onOpen={setPubOpen} />
+      ) : null}
+      {pubOpen ? (
+        <Modal title={`Câmara pública · ${pubOpen.title}`} onClose={() => setPubOpen(null)} wide>
+          <PublicCamView cam={pubOpen} />
+        </Modal>
+      ) : null}
+      {camOpen ? (
+        <Modal title={`Câmara · ${camOpen.name}`} onClose={() => setCamOpen(null)} wide>
+          <LivePlayer cam={camOpen} />
+        </Modal>
+      ) : null}
       <div className="loc-actions">
-        <a className="btn" href={dir} target="_blank" rel="noreferrer">Como chegar (Google Maps)</a>
+        <button type="button" className={`btn${nav.active ? ' on' : ''}`} onClick={() => (nav.active ? stop() : start())}>
+          {nav.active ? (nav.start ? 'Parar caminho' : 'A localizar este aparelho…') : 'Traçar caminho até ao cliente'}
+        </button>
+        <a className="btn ghost" href={dir} target="_blank" rel="noreferrer">Como chegar (Google Maps)</a>
         <a className="btn ghost" href={waze} target="_blank" rel="noreferrer">Abrir no Waze</a>
         <button type="button" className="btn ghost" onClick={() => void copy()}>{copied ? 'Copiado ✓' : 'Copiar coordenadas'}</button>
+      </div>
+    </div>
+  );
+}
+
+/** Lista das câmaras públicas perto do cliente (a mais próxima primeiro). */
+function PublicCams({ result, from, onOpen }: { result: PublicWebcamsResult; from: { lat: number; lng: number }; onOpen(w: PublicWebcam): void }) {
+  return (
+    <div className="pubcams">
+      <div className="pubcams-head">
+        <strong>Câmaras públicas perto do cliente</strong>
+        <span>{result.error ?? (result.items.length
+          ? `${result.items.length} num raio de ${result.radiusKm} km`
+          : `Nenhuma num raio de ${result.radiusKm} km`)}</span>
+      </div>
+      {result.items.length ? (
+        <div className="pubcams-list">
+          {result.items.slice(0, 12).map((w) => (
+            <button key={w.id} type="button" className="pubcam" onClick={() => onOpen(w)}>
+              {w.image ? <img src={w.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="pubcam-ph" />}
+              <span className="pubcam-t">{w.title}</span>
+              <span className="pubcam-d">{formatDistance(distanceM(from, w))}{w.city ? ` · ${w.city}` : ''}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <a className="pubcams-attr" href="https://www.windy.com/webcams" target="_blank" rel="noreferrer">Webcams fornecidas por Windy.com</a>
+    </div>
+  );
+}
+
+/** Imagem / leitor de uma câmara pública (página oficial da Windy embutida). */
+function PublicCamView({ cam }: { cam: PublicWebcam }) {
+  return (
+    <div className="pubcam-view">
+      {cam.player ? (
+        <iframe src={cam.player} title={cam.title} allow="autoplay; fullscreen" referrerPolicy="no-referrer" />
+      ) : cam.image ? (
+        <img src={cam.image} alt={cam.title} referrerPolicy="no-referrer" />
+      ) : (
+        <div className="loading">Esta câmara não tem imagem disponível agora.</div>
+      )}
+      <div className="pubcam-view-foot">
+        <span>{[cam.city, cam.updatedAt ? `atualizada ${formatDate(cam.updatedAt)}` : null].filter(Boolean).join(' · ')}</span>
+        <a href={cam.pageUrl} target="_blank" rel="noreferrer">Abrir em Windy.com</a>
       </div>
     </div>
   );

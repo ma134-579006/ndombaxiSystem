@@ -29,7 +29,7 @@ export interface EmployeeRow {
 export class HrRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(schema: string, input: CreateEmployeeDto): Promise<EmployeeRow> {
+  create(schema: string, input: Omit<CreateEmployeeDto, 'email' | 'password'> & { userId?: string }): Promise<EmployeeRow> {
     return this.prisma.runInTenant(schema, async (tx) => {
       // Nº de funcionário ATRIBUÍDO automaticamente quando não é indicado:
       // procura o maior número existente e gera o seguinte (F-001, F-002, …).
@@ -54,14 +54,14 @@ export class HrRepository {
       const rows = await tx.$queryRaw<EmployeeRow[]>(
         Prisma.sql`INSERT INTO employees
             (employee_number, full_name, tax_id, inss_number, position, department,
-             store_id, hire_date, base_salary, taxable_allowances, exempt_allowances, iban, photo_url)
+             store_id, hire_date, base_salary, taxable_allowances, exempt_allowances, iban, photo_url, user_id)
           VALUES (${employeeNumber}, ${input.fullName}, ${input.taxId ?? null},
                   ${input.inssNumber ?? null}, ${input.position ?? null}, ${input.department ?? null},
                   ${input.storeId ?? null}::uuid,
                   COALESCE(${input.hireDate ?? null}::date, CURRENT_DATE),
                   ${input.baseSalary}, ${input.taxableAllowances ?? 0},
                   ${input.exemptAllowances ?? 0}, ${input.iban ? normalizeIban(input.iban) : null},
-                  ${input.photoUrl ?? null})
+                  ${input.photoUrl ?? null}, ${input.userId ?? null}::uuid)
           RETURNING *`,
       );
       return rows[0];
@@ -72,8 +72,10 @@ export class HrRepository {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<EmployeeRow[]>(
         includeInactive
-          ? Prisma.sql`SELECT * FROM employees ORDER BY full_name`
-          : Prisma.sql`SELECT * FROM employees WHERE status = 'ACTIVE' ORDER BY full_name`,
+          ? Prisma.sql`SELECT e.*, u.email AS user_email, u.role AS user_role, (u.pin_hash IS NOT NULL) AS user_has_pin
+                       FROM employees e LEFT JOIN users u ON u.id = e.user_id ORDER BY e.full_name`
+          : Prisma.sql`SELECT e.*, u.email AS user_email, u.role AS user_role, (u.pin_hash IS NOT NULL) AS user_has_pin
+                       FROM employees e LEFT JOIN users u ON u.id = e.user_id WHERE e.status = 'ACTIVE' ORDER BY e.full_name`,
       ),
     );
   }
