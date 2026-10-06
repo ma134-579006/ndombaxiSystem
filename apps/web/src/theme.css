@@ -3952,3 +3952,33 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
 .lmap.dark .lmap-tiles img { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.92) saturate(.8); }
 .lmap-fail { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; z-index: 3; background: var(--surface-2, var(--surface)); }
 .lmap-ctrl, .lmap-attr { z-index: 2; }
+/* Mapa: satélite, caminho, "você" e câmaras */
+.lmap.sat .lmap-tiles img.lbl { mix-blend-mode: normal; }
+.lmap-route-casing { fill: none; stroke: #fff; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; opacity: .9; }
+.lmap-route { fill: none; stroke: var(--nx-brand-600, #2430e8); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.lmap-route-air { stroke-dasharray: 2 10; stroke-width: 4; }
+.lmap-me { position: absolute; width: 0; height: 0; z-index: 1; pointer-events: none; }
+.lmap-me span { position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 999px; background: #0ea5e9;
+  border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(14,165,233,.25), 0 2px 6px rgba(0,0,0,.35); }
+.lmap-cam { position: absolute; z-index: 2; transform: translate(-50%, -50%); width: 30px; height: 30px; border-radius: 999px;
+  display: grid; place-items: center; border: 2px solid #fff; background: #111827; color: #fff; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4); padding: 0; }
+.lmap-cam:hover { background: var(--nx-brand-600, #2430e8); }
+/* Bússola / caminho até ao cliente */
+.loc-body { position: relative; }
+.rc-compass { position: absolute; left: 12px; bottom: 12px; z-index: 4; display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px 10px 10px; border-radius: var(--nx-radius-lg); background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--nx-shadow-2); max-width: calc(100% - 24px); }
+.rc-dial { position: relative; flex: none; width: 56px; height: 56px; border-radius: 999px; display: grid; place-items: center;
+  background: radial-gradient(circle, var(--surface) 55%, var(--surface-2, #eef1f6) 56%); border: 1px solid var(--border);
+  color: var(--nx-brand-600, #2430e8); }
+.rc-dial svg { transition: transform .4s var(--nx-ease-out, ease); }
+.rc-n { position: absolute; top: 50%; left: 50%; margin: -7px 0 0 -4px; font-size: 10px; font-weight: 800; color: #dc2626; transform-origin: 4px 7px; }
+.rc-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rc-tx strong { font-size: 14px; } .rc-tx strong small { color: var(--muted); font-weight: 600; }
+.rc-tx span { font-size: 12.5px; color: var(--muted); }
+.loc-actions .btn.on { background: var(--nx-success); border-color: var(--nx-success); color: #fff; }
+.lmap-pin { z-index: 3; }
+@media (max-width: 600px) {
+  .rc-compass { position: static; margin: 10px 0 0; max-width: none; box-shadow: none; }
+}

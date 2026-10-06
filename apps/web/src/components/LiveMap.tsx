@@ -21,6 +21,17 @@ const PROVIDERS: { name: string; url: (z: number, x: number, y: number, sub: str
   { name: 'osm', url: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`, attr: '© OpenStreetMap' },
   { name: 'esri', url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`, attr: '© Esri · © OpenStreetMap' },
 ];
+
+/** SATÉLITE (Esri World Imagery, sem chave) + camadas de nomes: estradas e bairros/localidades. */
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services';
+const SATELLITE = (z: number, x: number, y: number) => `${ESRI}/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+const SAT_LABELS = [
+  (z: number, x: number, y: number) => `${ESRI}/Reference/World_Transportation/MapServer/tile/${z}/${y}/${x}`,
+  (z: number, x: number, y: number) => `${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/${z}/${y}/${x}`,
+];
+
+/** Câmara da empresa com posição no mapa. */
+export interface MapCamera { id: string; name: string; lat: number; lng: number }
 const MIN_Z = 3;
 const MAX_Z = 19;
 
@@ -54,9 +65,20 @@ export interface LiveMapProps {
   /** Verde a pulsar quando a posição é recente. */
   live?: boolean;
   height?: number;
+  /** Ponto de partida (quem entrega / este aparelho) — marcador azul "Você". */
+  start?: { lat: number; lng: number } | null;
+  /** Caminho a desenhar (lat, lng) da origem até ao cliente. */
+  route?: [number, number][] | null;
+  /** Ao mudar, o mapa enquadra origem + cliente (ex.: depois de traçar o caminho). */
+  fitKey?: number;
+  /** Câmaras da empresa com posição — tocar abre a imagem ao vivo. */
+  cameras?: MapCamera[];
+  onCamera?(id: string): void;
 }
 
-export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: LiveMapProps) {
+export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, start, route, fitKey, cameras = [], onCamera }: LiveMapProps) {
+  // Camada: mapa de ruas ou SATÉLITE (com estradas e nomes de bairros por cima).
+  const [layer, setLayer] = useState<'map' | 'sat'>('map');
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 600, h: height });
   const [zoom, setZoom] = useState(17);
@@ -77,6 +99,26 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
 
   useEffect(() => { if (follow) setCenter({ lat, lng }); }, [lat, lng, follow]);
 
+  // Enquadra origem + cliente (zoom máximo que mostra os dois com margem).
+  useEffect(() => {
+    if (!fitKey || !start) return;
+    const pts: [number, number][] = [[lat, lng], [start.lat, start.lng], ...(route ?? [])];
+    const las = pts.map((q) => q[0]), los = pts.map((q) => q[1]);
+    const box = { n: Math.max(...las), s: Math.min(...las), e: Math.max(...los), w: Math.min(...los) };
+    let z = MAX_Z;
+    for (; z > MIN_Z; z--) {
+      const a = project(box.n, box.w, z), b = project(box.s, box.e, z);
+      // Margem generosa: os controlos (direita) e a bússola (em baixo) não tapam os pontos.
+      if (Math.abs(b.x - a.x) < size.w - 160 && Math.abs(b.y - a.y) < size.h - 220) break;
+    }
+    setFollow(false);
+    setZoom(z);
+    // Centro ligeiramente abaixo do meio do caminho → os pontos sobem, longe da bússola.
+    const mid = project((box.n + box.s) / 2, (box.e + box.w) / 2, z);
+    const scale = TILE * 2 ** z, y = mid.y + 45;
+    setCenter({ lat: (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / scale))) * 180) / Math.PI, lng: (box.e + box.w) / 2 });
+  }, [fitKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -94,7 +136,7 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
   const n = 2 ** zoom;
 
   const tiles = useMemo(() => {
-    const out: { key: string; src: string; left: number; top: number }[] = [];
+    const out: { key: string; src: string; left: number; top: number; label?: boolean }[] = [];
     const x0 = Math.floor(origin.x / TILE), x1 = Math.floor((origin.x + size.w) / TILE);
     const y0 = Math.max(0, Math.floor(origin.y / TILE)), y1 = Math.min(n - 1, Math.floor((origin.y + size.h) / TILE));
     const p = PROVIDERS[prov];
@@ -102,16 +144,17 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
       for (let tx = x0; tx <= x1; tx++) {
         const wx = ((tx % n) + n) % n; // dá a volta ao mundo na horizontal
         const sub = 'abc'[(wx + ty) % 3];
-        out.push({
-          key: `${zoom}/${tx}/${ty}/${p.name}`,
-          src: p.url(zoom, wx, ty, sub),
-          left: tx * TILE - origin.x,
-          top: ty * TILE - origin.y,
-        });
+        const left = tx * TILE - origin.x, top = ty * TILE - origin.y;
+        if (layer === 'sat') {
+          out.push({ key: `${zoom}/${tx}/${ty}/sat`, src: SATELLITE(zoom, wx, ty), left, top });
+          SAT_LABELS.forEach((f, i) => out.push({ key: `${zoom}/${tx}/${ty}/lbl${i}`, src: f(zoom, wx, ty), left, top, label: true }));
+        } else {
+          out.push({ key: `${zoom}/${tx}/${ty}/${p.name}`, src: p.url(zoom, wx, ty, sub), left, top });
+        }
       }
     }
     return out;
-  }, [origin.x, origin.y, size.w, size.h, zoom, n, prov]);
+  }, [origin.x, origin.y, size.w, size.h, zoom, n, prov, layer]);
 
   const p = project(lat, lng, zoom);
   const marker = { left: p.x - origin.x, top: p.y - origin.y };
@@ -119,6 +162,10 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
   const path = trail.length > 1
     ? trail.map(([la, lo]) => { const q = project(la, lo, zoom); return `${(q.x - origin.x).toFixed(1)},${(q.y - origin.y).toFixed(1)}`; }).join(' ')
     : '';
+
+  const toPx = (la: number, lo: number) => { const q = project(la, lo, zoom); return { x: q.x - origin.x, y: q.y - origin.y }; };
+  const routePts = route && route.length > 1 ? route.map(([la, lo]) => { const q = toPx(la, lo); return `${q.x.toFixed(1)},${q.y.toFixed(1)}`; }).join(' ') : '';
+  const from = start ? toPx(start.lat, start.lng) : null;
 
   const zoomBy = (d: number) => setZoom((z) => Math.max(MIN_Z, Math.min(MAX_Z, z + d)));
   const recenter = () => { setFollow(true); setCenter({ lat, lng }); };
@@ -141,7 +188,7 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
   const onPointerUp = () => { drag.current = null; };
 
   return (
-    <div className={`lmap${light ? '' : ' dark'}`} ref={box} style={{ height }}
+    <div className={`lmap${light || layer === 'sat' ? '' : ' dark'}${layer === 'sat' ? ' sat' : ''}`} ref={box} style={{ height }}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
       onWheel={(e) => zoomBy(e.deltaY < 0 ? 1 : -1)}
       onDoubleClick={() => zoomBy(1)}
@@ -149,20 +196,41 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
       <div className="lmap-tiles" aria-hidden>
         {tiles.map((t) => (
           <img key={t.key} src={t.src} alt="" draggable={false} width={TILE} height={TILE}
-            referrerPolicy="strict-origin-when-cross-origin"
-            onLoad={() => { loadedOk.current = true; }} onError={onTileError}
+            referrerPolicy="strict-origin-when-cross-origin" className={t.label ? 'lbl' : undefined}
+            onLoad={() => { loadedOk.current = true; }} onError={layer === 'map' ? onTileError : undefined}
             style={{ left: t.left, top: t.top }} />
         ))}
       </div>
       <svg className="lmap-overlay" width={size.w} height={size.h} aria-hidden>
         {path ? <polyline points={path} className="lmap-trail" /> : null}
+        {routePts ? <polyline points={routePts} className="lmap-route-casing" /> : null}
+        {routePts ? <polyline points={routePts} className="lmap-route" /> : null}
+        {!routePts && from ? <line x1={from.x} y1={from.y} x2={marker.left} y2={marker.top} className="lmap-route lmap-route-air" /> : null}
         {accPx > 6 ? <circle cx={marker.left} cy={marker.top} r={accPx} className="lmap-acc" /> : null}
       </svg>
       <div className={`lmap-pin${live ? ' live' : ''}`} style={{ left: marker.left, top: marker.top }} aria-hidden>
         <span className="lmap-pulse" />
         <span className="lmap-dot" />
       </div>
+      {from ? (
+        <div className="lmap-me" style={{ left: from.x, top: from.y }} aria-hidden title="Você"><span /></div>
+      ) : null}
+      {cameras.map((cam) => {
+        const q = toPx(cam.lat, cam.lng);
+        return (
+          <button key={cam.id} type="button" className="lmap-cam" style={{ left: q.x, top: q.y }} title={`Câmara: ${cam.name}`}
+            aria-label={`Ver câmara ${cam.name}`} onPointerDown={(e) => e.stopPropagation()} onClick={() => onCamera?.(cam.id)}>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z" /><rect x="1" y="5" width="15" height="14" rx="2" /></svg>
+          </button>
+        );
+      })}
       <div className="lmap-ctrl" style={failed ? { display: 'none' } : undefined} onPointerDown={(e) => e.stopPropagation()}>
+        <button type="button" className={layer === 'sat' ? 'on' : ''} onClick={() => setLayer(layer === 'sat' ? 'map' : 'sat')}
+          aria-label={layer === 'sat' ? 'Ver mapa de ruas' : 'Ver satélite'} title={layer === 'sat' ? 'Mapa de ruas' : 'Satélite'}>
+          {layer === 'sat'
+            ? <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z" /><path d="M8 2v16M16 6v16" /></svg>
+            : <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20" /></svg>}
+        </button>
         <button type="button" onClick={() => zoomBy(1)} aria-label="Aproximar">+</button>
         <button type="button" onClick={() => zoomBy(-1)} aria-label="Afastar">−</button>
         <button type="button" className={follow ? 'on' : ''} onClick={recenter} aria-label="Centrar no cliente" title="Centrar no cliente">◎</button>
@@ -172,7 +240,7 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380 }: 
         <iframe className="lmap-fail" title="Mapa (Google)" loading="lazy" referrerPolicy="no-referrer-when-downgrade"
           src={`https://www.google.com/maps?q=${lat},${lng}&z=${zoom}&output=embed`} />
       ) : null}
-      {failed ? null : <div className="lmap-attr">{PROVIDERS[prov].attr}</div>}
+      {failed ? null : <div className="lmap-attr">{layer === 'sat' ? '© Esri · Maxar · Earthstar' : PROVIDERS[prov].attr}</div>}
     </div>
   );
 }

@@ -30,6 +30,9 @@ export interface CameraInput {
   appAndroid?: string | null;
   notes?: string | null;
   record?: boolean;
+  /** Posição no mapa (null limpa). */
+  geoLat?: number | null;
+  geoLng?: number | null;
   isActive?: boolean;
 }
 
@@ -89,10 +92,12 @@ export class CamerasService {
       streamUrl = this.validateUrl(input.streamUrl ?? '');
     }
     const kind = KINDS.has(input.kind ?? '') ? input.kind! : 'AUTO';
+    const geoOk = typeof input.geoLat === 'number' && typeof input.geoLng === 'number' && Math.abs(input.geoLat) <= 90 && Math.abs(input.geoLng) <= 180;
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<CameraRow[]>(Prisma.sql`
-        INSERT INTO cameras (name, stream_url, snapshot_url, kind, conn_type, device_sn, app_ios, app_android, notes, record)
-        VALUES (${name}, ${streamUrl}, ${input.snapshotUrl?.trim() || null}, ${kind}, ${connType}, ${deviceSn}, ${appIos}, ${appAndroid}, ${input.notes?.trim() || null}, ${input.record ?? false})
+        INSERT INTO cameras (name, stream_url, snapshot_url, kind, conn_type, device_sn, app_ios, app_android, notes, record, geo_lat, geo_lng)
+        VALUES (${name}, ${streamUrl}, ${input.snapshotUrl?.trim() || null}, ${kind}, ${connType}, ${deviceSn}, ${appIos}, ${appAndroid}, ${input.notes?.trim() || null}, ${input.record ?? false},
+                ${geoOk ? input.geoLat : null}, ${geoOk ? input.geoLng : null})
         RETURNING *`),
     );
     await this.audit.record({ actorType: 'TENANT', actorId, tenantSchema: schema, action: 'CAMERA_CREATED', entity: 'Camera', entityId: rows[0].id, after: { name, connType, streamUrl, deviceSn } });
@@ -113,6 +118,11 @@ export class CamerasService {
     if (input.notes !== undefined) sets.push(Prisma.sql`notes = ${input.notes?.trim() || null}`);
     if (input.record !== undefined) sets.push(Prisma.sql`record = ${input.record}`);
     if (input.isActive !== undefined) sets.push(Prisma.sql`is_active = ${input.isActive}`);
+    if (input.geoLat !== undefined || input.geoLng !== undefined) {
+      const ok = typeof input.geoLat === 'number' && typeof input.geoLng === 'number'
+        && Math.abs(input.geoLat) <= 90 && Math.abs(input.geoLng) <= 180;
+      sets.push(Prisma.sql`geo_lat = ${ok ? input.geoLat : null}`, Prisma.sql`geo_lng = ${ok ? input.geoLng : null}`);
+    }
     if (!sets.length) throw new BadRequestException('Nada para alterar.');
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<CameraRow[]>(Prisma.sql`UPDATE cameras SET ${Prisma.join(sets, ', ')} WHERE id = ${id}::uuid RETURNING *`),

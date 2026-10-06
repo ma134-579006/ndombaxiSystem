@@ -1286,6 +1286,9 @@ export interface CameraRow {
   record: boolean;
   is_active: boolean;
   created_at: string;
+  /** Posição no mapa (NUMERIC → string). */
+  geo_lat?: string | number | null;
+  geo_lng?: string | number | null;
 }
 export interface CameraInput {
   name: string;
@@ -1299,6 +1302,8 @@ export interface CameraInput {
   notes?: string;
   record?: boolean;
   isActive?: boolean;
+  geoLat?: number | null;
+  geoLng?: number | null;
 }
 // Relatório de vendas do restaurante: comercial vs produção (fatia 7)
 export interface RestaurantReportGroup {

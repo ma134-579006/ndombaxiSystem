@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { OrderLocation, OrderMessage, OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
+import type { CameraRow, OrderLocation, OrderMessage, OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
 import { IconCpu, IconTruck } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { toast } from '../components/feedback';
 import { LiveMap } from '../components/LiveMap';
+import { Compass, useNavigation } from '../components/RouteCompass';
+import { LivePlayer } from './Cameras';
 import { formatDate, formatKz, statusLabel } from '../format';
 import { pollEvery, stopPoll } from '../poll';
 
@@ -290,6 +292,12 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
   const [trail, setTrail] = useState<[number, number][]>([]);
   const [copied, setCopied] = useState(false);
   const [, force] = useState(0); // re-render p/ atualizar "há X min"
+  // Caminho + bússola a partir deste aparelho até ao cliente.
+  const { nav, start, stop } = useNavigation(loc?.lat != null && loc?.lng != null ? { lat: loc.lat, lng: loc.lng } : null);
+  // Câmaras da empresa com posição no mapa (tocar → imagem ao vivo).
+  const [cams, setCams] = useState<CameraRow[]>([]);
+  const [camOpen, setCamOpen] = useState<CameraRow | null>(null);
+  useEffect(() => { api.cameras.list().then((r) => setCams(r.filter((c) => c.is_active && c.geo_lat != null && c.geo_lng != null))).catch(() => setCams([])); }, []);
 
   useEffect(() => {
     let alive = true;
@@ -348,7 +356,14 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
         </span>
       </div>
       <div className="loc-body">
-        <LiveMap lat={loc.lat} lng={loc.lng} accuracy={loc.accuracy} trail={trail} live={fresh} />
+        <LiveMap lat={loc.lat} lng={loc.lng} accuracy={loc.accuracy} trail={trail} live={fresh}
+          start={nav.start} route={nav.route} fitKey={nav.fitKey}
+          cameras={cams.map((c) => ({ id: c.id, name: c.name, lat: Number(c.geo_lat), lng: Number(c.geo_lng) }))}
+          onCamera={(id) => setCamOpen(cams.find((c) => c.id === id) ?? null)} />
+        {nav.active && nav.start ? (
+          <Compass from={nav.start} to={{ lat: loc.lat, lng: loc.lng }} heading={nav.heading}
+            distance={nav.distance} duration={nav.duration} mode={nav.mode} />
+        ) : null}
       </div>
       <div className="loc-info">
         <div><span className="k">Cliente</span><span className="v">{loc.customerName || '—'}</span></div>
@@ -356,8 +371,17 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
         <div><span className="k">Morada de entrega</span><span className="v">{address || '—'}</span></div>
         <div><span className="k">Coordenadas</span><span className="v">{q}</span></div>
       </div>
+      {nav.error ? <div className="banner danger" style={{ margin: '0 16px 10px' }}>{nav.error}</div> : null}
+      {camOpen ? (
+        <Modal title={`Câmara · ${camOpen.name}`} onClose={() => setCamOpen(null)} wide>
+          <LivePlayer cam={camOpen} />
+        </Modal>
+      ) : null}
       <div className="loc-actions">
-        <a className="btn" href={dir} target="_blank" rel="noreferrer">Como chegar (Google Maps)</a>
+        <button type="button" className={`btn${nav.active ? ' on' : ''}`} onClick={() => (nav.active ? stop() : start())}>
+          {nav.active ? (nav.start ? 'Parar caminho' : 'A localizar este aparelho…') : 'Traçar caminho até ao cliente'}
+        </button>
+        <a className="btn ghost" href={dir} target="_blank" rel="noreferrer">Como chegar (Google Maps)</a>
         <a className="btn ghost" href={waze} target="_blank" rel="noreferrer">Abrir no Waze</a>
         <button type="button" className="btn ghost" onClick={() => void copy()}>{copied ? 'Copiado ✓' : 'Copiar coordenadas'}</button>
       </div>

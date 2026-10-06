@@ -2,7 +2,7 @@ import { Body, Controller, Get, Header, Param, Patch, Post, Query, Res } from '@
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import type { JwtPayload } from '@nexus/types';
-import { IsBoolean, IsIn, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
@@ -40,6 +40,12 @@ class CameraDto {
 
   @IsOptional() @IsBoolean()
   record?: boolean;
+
+  @IsOptional() @IsNumber() @Min(-90) @Max(90)
+  geoLat?: number | null;
+
+  @IsOptional() @IsNumber() @Min(-180) @Max(180)
+  geoLng?: number | null;
 }
 
 class CameraUpdateDto {
@@ -75,6 +81,13 @@ class CameraUpdateDto {
 
   @IsOptional() @IsBoolean()
   isActive?: boolean;
+
+  /** Posição no mapa; envie ambos (ou null para limpar). */
+  @IsOptional() @IsNumber() @Min(-90) @Max(90)
+  geoLat?: number | null;
+
+  @IsOptional() @IsNumber() @Min(-180) @Max(180)
+  geoLng?: number | null;
 }
 
 /** Câmaras: configurar (manual/QR), ver ao vivo e gravações (30 dias). */
