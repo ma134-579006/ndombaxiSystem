@@ -6,7 +6,7 @@ import type { JwtPayload } from '@nexus/types';
 import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '../rbac/roles.enum';
+import { Role, roleHasAtLeast } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { CamerasService } from './cameras.service';
 import { CameraRecorderService } from './recorder.service';
@@ -115,6 +115,21 @@ export class CamerasController {
     private readonly webcams: PublicWebcamsService,
   ) {}
 
+  /**
+   * Câmaras da empresa para o mapa "Olho de Deus" — também para o SUPERVISOR.
+   * Sem URLs (podem levar utilizador/senha da câmara): o supervisor vê a imagem
+   * só pelo proxy do servidor (fotograma), nunca o endereço da câmara.
+   */
+  @Get('map')
+  @Roles(Role.SHIFT_SUPERVISOR)
+  @ApiOperation({ summary: 'Câmaras com posição no mapa (sem URLs)' })
+  async mapList() {
+    const rows = await this.cameras.list(this.ctx.requireTenantSchema());
+    return rows
+      .filter((c) => c.is_active && c.geo_lat != null && c.geo_lng != null)
+      .map((c) => ({ id: c.id, name: c.name, lat: Number(c.geo_lat), lng: Number(c.geo_lng), snapshot: !!c.snapshot_url }));
+  }
+
   @Get('public/nearby')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Câmaras públicas (Windy Webcams) perto de um ponto do mapa' })
@@ -179,13 +194,17 @@ export class CamerasController {
 
   /** PROXY do stream para o browser (resolve CORS/mixed-content do MJPEG). */
   @Get(':id/live')
-  @Roles(Role.STORE_MANAGER)
-  @ApiOperation({ summary: 'Stream ao vivo via proxy (MJPEG/MP4)' })
-  async live(@Param('id') id: string, @Res() res: Response, @Query('snapshot') snapshot?: string) {
+  @Roles(Role.SHIFT_SUPERVISOR)
+  @ApiOperation({ summary: 'Stream ao vivo via proxy (MJPEG/MP4); supervisor só fotogramas' })
+  async live(@Param('id') id: string, @Res() res: Response, @CurrentUser() user: JwtPayload, @Query('snapshot') snapshot?: string) {
     const schema = this.ctx.requireTenantSchema();
     const cams = await this.cameras.list(schema);
     const cam = cams.find((c) => c.id === id);
     if (!cam) { res.status(404).json({ message: 'Câmara não encontrada.' }); return; }
+    // O supervisor vê apenas fotogramas de câmaras activas com URL de fotograma (Olho de Deus).
+    if (!roleHasAtLeast(user.role as Role, Role.STORE_MANAGER) && (snapshot !== '1' || !cam.snapshot_url || !cam.is_active)) {
+      res.status(403).json({ message: 'O supervisor só vê fotogramas das câmaras no mapa.' }); return;
+    }
     const url = snapshot === '1' && cam.snapshot_url ? cam.snapshot_url : cam.stream_url;
     if (!url) { res.status(400).json({ message: 'Câmara de nuvem (P2P) não tem stream HTTP — vê-se na app pelo Guia (3 QR).' }); return; }
     try {

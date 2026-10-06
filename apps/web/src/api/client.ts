@@ -142,6 +142,7 @@ import type {
   CameraInput,
   CameraRow,
   PublicWebcamsResult,
+  CameraMapPin,
   CustomerRow,
   TenantLoginInput,
   TenantTokenPair,
@@ -1155,6 +1156,8 @@ export const api = {
   // ── Câmaras de vigilância ───────────────────────────────────
   cameras: {
     list: () => request<CameraRow[]>('GET', '/cameras'),
+    /** Câmaras com posição no mapa, sem URLs (gerente e supervisor). */
+    mapList: () => request<CameraMapPin[]>('GET', '/cameras/map'),
     /** Câmaras PÚBLICAS (Windy Webcams) perto de um ponto — configuradas no Super Admin. */
     publicNearby: (lat: number, lng: number, radiusKm = 25) =>
       request<PublicWebcamsResult>('GET', `/cameras/public/nearby?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}&radiusKm=${radiusKm}`),

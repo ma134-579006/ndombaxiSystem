@@ -4046,3 +4046,24 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
 .pubcam-ph { display: grid; place-items: center; color: var(--text-muted, #64748b); font-size: 12px; }
 .pubcam-ph::after { content: 'Sem imagem'; }
 .pubcam-view-foot a, .pubcams-attr:hover { color: var(--nx-brand-600, #2430e8); font-weight: 600; }
+/* Mosaico ampliado do zoom de cima (sem imagem no zoom atual) */
+.lmap-tiles .lmap-up { position: absolute; width: 256px; height: 256px; overflow: hidden; }
+.lmap-tiles .lmap-up img { position: absolute; max-width: none; }
+/* Mapa maximizado (ecrã inteiro) */
+.lmap.max { position: fixed !important; inset: 0; z-index: 2000; height: 100% !important; width: 100%; border-radius: 0; }
+.pubcams-off { margin: 8px 0 0; font-size: 13px; color: var(--text-muted, #64748b); line-height: 1.45; }
+/* Olho de Deus */
+.ge-sub { margin: -6px 0 12px; color: var(--text-muted, #64748b); font-size: 13.5px; }
+.ge-radius { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted, #64748b); }
+.ge-radius select { height: 36px; border-radius: var(--nx-radius-md, 10px); border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 0 10px; }
+.ge-map { padding: 0; overflow: hidden; margin-bottom: 12px; }
+.ge-map .lmap { border-radius: 0; }
+.ge-own, .ge-map + .pubcams { margin-left: 0; margin-right: 0; }
+.pubcams.ge-own + .pubcams { margin: 0 0 12px; }
+.ge-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 10px; }
+.ge-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: var(--nx-radius-md, 10px); background: var(--surface); cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.ge-item:hover { border-color: var(--nx-brand-600, #2430e8); }
+.ge-item .pubcam-t, .ge-item .pubcam-d { padding: 0; }
+.ge-dot { width: 10px; height: 10px; border-radius: 999px; background: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,.15); }
+@media (max-width: 600px) { .ge-map .lmap { height: 420px !important; } .content-head .ge-radius { order: 3; } }

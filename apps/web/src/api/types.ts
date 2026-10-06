@@ -1277,6 +1277,9 @@ export interface CustomerRow {
 }
 
 /** Câmara de vigilância configurada. */
+/** Câmara da empresa no mapa (sem URLs — também para o supervisor). */
+export interface CameraMapPin { id: string; name: string; lat: number; lng: number; snapshot: boolean }
+
 /** Câmara pública (Windy Webcams) perto de um ponto do mapa. */
 export interface PublicWebcam {
   id: string;

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api, ApiError } from '../api/client';
-import type { CameraRow } from '../api/types';
+import type { CameraMapPin, CameraRow } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
 import { IconPlus } from '../components/Icons';
 import { Modal, Switch } from '../components/ui';
@@ -500,6 +500,42 @@ function CamerasLive({ rows, loading, error }: { rows: CameraRow[]; loading: boo
  *   • As falhas mostram a CAUSA real (mixed-content, CORS, sem sinal), não um
  *     "sem sinal" genérico.
  */
+/**
+ * Câmara da empresa aberta a partir do mapa. O gerente (com a lista completa)
+ * vê o leitor normal; o SUPERVISOR vê fotogramas ao vivo pelo proxy do servidor
+ * (1 por ~1,5 s), sem nunca receber o endereço/senha da câmara.
+ */
+export function CompanyCamView({ pin, full }: { pin: CameraMapPin; full?: CameraRow | null }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (full || !pin.snapshot) return;
+    let alive = true; let last: string | null = null; let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      try {
+        const u = await api.cameras.liveSnapshotUrl(pin.id);
+        if (!alive) { URL.revokeObjectURL(u); return; }
+        setSrc(u); setErr(null);
+        if (last) URL.revokeObjectURL(last);
+        last = u;
+      } catch (e) { if (alive) setErr(e instanceof ApiError ? e.message : 'Sem ligação à câmara.'); }
+      if (alive) timer = setTimeout(() => void tick(), 1500);
+    };
+    void tick();
+    return () => { alive = false; if (timer) clearTimeout(timer); if (last) URL.revokeObjectURL(last); };
+  }, [pin.id, pin.snapshot, full]);
+  if (full) return <LivePlayer cam={full} />;
+  if (!pin.snapshot) {
+    return <div className="banner">Esta câmara não tem URL de fotograma: só um gerente a pode abrir (Câmaras › Abrir).</div>;
+  }
+  return (
+    <div className="pubcam-view">
+      {src ? <img src={src} alt={pin.name} /> : <div className="loading">{err ?? 'A ligar à câmara…'}</div>}
+      {src && err ? <div className="pubcam-view-foot"><span>{err}</span></div> : null}
+    </div>
+  );
+}
+
 export function LivePlayer({ cam, thumb = false }: { cam: CameraRow; thumb?: boolean }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
