@@ -1,7 +1,26 @@
-import { IsDateString, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { IsDateString, IsEmail, IsNumber, IsOptional, IsString, Length, Matches, Min } from 'class-validator';
 import { IsAngolaIban, IsAngolaNif } from '../../common/validation/angola';
 
 export class CreateEmployeeDto {
+  /** Acesso ao sistema — OBRIGATÓRIO ao criar: email (login) e senha (8+). */
+  @IsEmail({}, { message: 'Indique o email do funcionário (é o login no sistema).' })
+  email!: string;
+
+  @IsString()
+  @Length(8, 72, { message: 'A senha tem de ter entre 8 e 72 caracteres.' })
+  password!: string;
+
+  /** Papel (permissões). Por omissão, deduzido da função (caixa/gerente/atendente). */
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  /** PIN da caixa (6 dígitos) — opcional. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'O PIN deve ter exactamente 6 dígitos.' })
+  pin?: string;
+
   /** Opcional: se vazio, o sistema atribui automaticamente (F-001, F-002, …). */
   @IsOptional()
   @IsString()

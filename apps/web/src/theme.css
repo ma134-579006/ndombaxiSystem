@@ -3982,3 +3982,48 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
 @media (max-width: 600px) {
   .rc-compass { position: static; margin: 10px 0 0; max-width: none; box-shadow: none; }
 }
+
+/* ── Funcionários: cartão profissional (emc) ──────────────────────────────── */
+.emc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: var(--nx-space-4); }
+.emc { position: relative; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--nx-radius-lg); box-shadow: var(--nx-shadow-1); overflow: hidden;
+  transition: box-shadow var(--nx-dur-enter) var(--nx-ease-out), border-color var(--nx-dur-micro); }
+.emc:hover { box-shadow: var(--nx-shadow-2); border-color: color-mix(in srgb, var(--nx-brand-600) 25%, var(--border)); }
+.emc.sel { border-color: var(--nx-brand-600); box-shadow: 0 0 0 3px color-mix(in srgb, var(--nx-brand-600) 18%, transparent); }
+.emc.dim .emc-head, .emc.dim .emc-facts { opacity: .62; }
+.emc-check { position: absolute; top: 10px; right: 10px; z-index: 2; width: 34px; height: 34px; display: grid; place-items: center;
+  border-radius: var(--nx-radius-sm); cursor: pointer; }
+.emc-check:hover { background: var(--nx-hover-overlay, rgba(15,23,42,.05)); }
+.emc-check input { width: 18px; height: 18px; cursor: pointer; accent-color: var(--nx-brand-600); }
+.emc-head { display: flex; align-items: center; gap: var(--nx-space-3); padding: var(--nx-space-4) 52px var(--nx-space-3) var(--nx-space-4); }
+.emc-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.emc-id strong { font-family: var(--nx-font-title); font-size: 15.5px; font-weight: 700; letter-spacing: -.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.emc-id span { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emc-mail { display: flex; align-items: center; gap: 8px; margin: 0 var(--nx-space-4); padding: 8px 10px;
+  border-radius: var(--nx-radius-sm); background: var(--surface-2, #f1f5f9); font-size: 13px; min-width: 0; color: var(--muted); }
+.emc-mail svg { flex: none; color: var(--nx-brand-600); }
+.emc-mail a { color: var(--text); font-weight: 600; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emc-mail a:hover { color: var(--nx-brand-600); text-decoration: underline; }
+.emc-mail.none svg { color: var(--muted); }
+.emc-facts { display: grid; grid-template-columns: .7fr 1.25fr 1.25fr; gap: var(--nx-space-3); margin: var(--nx-space-3) var(--nx-space-4) var(--nx-space-4); }
+.emc-facts div { min-width: 0; }
+.emc-facts dt { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.emc-facts dd { margin: 0; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emc-facts dd em { font-style: normal; color: var(--muted); font-weight: 600; }
+.emc-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto;
+  padding: 10px var(--nx-space-4); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--surface-2, #f1f5f9) 45%, var(--surface)); }
+.emc-st { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #15803d; }
+.emc-st i { width: 8px; height: 8px; border-radius: 999px; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent); }
+.emc-st.off { color: #b45309; } .emc-st.end { color: #b91c1c; }
+.emc-actions { display: inline-flex; gap: 6px; }
+.emc-actions .btn.sm { height: 32px; padding: 0 10px; border-radius: var(--nx-radius-sm); }
+.emp-req { margin-left: 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--nx-danger);
+  background: color-mix(in srgb, var(--nx-danger) 10%, transparent); padding: 2px 7px; border-radius: 999px; vertical-align: 2px; }
+.emp-pwd { display: flex; gap: 6px; } .emp-pwd input { flex: 1; min-width: 0; }
+.emp-pwd button { flex: none; border: 1px solid var(--border); background: var(--surface); color: var(--muted); border-radius: var(--nx-radius-sm);
+  padding: 0 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+@media (hover: none) { .emc-check { width: 40px; height: 40px; } .emc-check input { width: 22px; height: 22px; } }
+
+.emc-facts div:last-child dd { white-space: normal; line-height: 1.25; }

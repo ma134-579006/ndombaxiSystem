@@ -910,10 +910,15 @@ export interface ManagerEmployee {
   department: string | null; base_salary: string; iban: string | null;
   photo_url: string | null; status: string;
   bonus?: string; absence_discount_pct?: string;
+  hire_date?: string | null;
+  /** Conta de acesso ligada (login): email, papel e se tem PIN da caixa. */
+  user_id?: string | null; user_email?: string | null; user_role?: string | null; user_has_pin?: boolean | null;
 }
 export interface CreateEmployeeInput {
   employeeNumber?: string; fullName: string; position?: string; department?: string;
   baseSalary: number; iban?: string; taxId?: string; inssNumber?: string; photoUrl?: string;
+  /** Acesso ao sistema — obrigatório ao criar. */
+  email: string; password: string; role?: string; storeId?: string; pin?: string;
 }
 export interface UpdateEmployeeInput {
   employeeNumber?: string; fullName?: string; position?: string; department?: string;

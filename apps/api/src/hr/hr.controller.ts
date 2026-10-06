@@ -11,6 +11,7 @@ import {
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { StaffService } from '../staff/staff.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
@@ -27,6 +28,7 @@ export class HrController {
     private readonly employees: HrRepository,
     private readonly payroll: PayrollService,
     private readonly ctx: TenantContext,
+    private readonly staff: StaffService,
   ) {}
 
   // ── Trabalhadores ──────────────────────────────────────────
@@ -46,8 +48,23 @@ export class HrController {
   @Post('employees')
   @Roles(Role.COMPANY_ADMIN)
   @ApiOperation({ summary: 'Cria trabalhador' })
-  createEmployee(@Body() dto: CreateEmployeeDto) {
-    return this.employees.create(this.ctx.requireTenantSchema(), dto);
+  async createEmployee(@Body() dto: CreateEmployeeDto, @CurrentUser() user: JwtPayload) {
+    const schema = this.ctx.requireTenantSchema();
+    // Todo o funcionário nasce COM acesso ao sistema (email + senha obrigatórios):
+    // primeiro a conta (valida email único, papel e limite do plano), depois a
+    // ficha ligada a ela. Se a ficha falhar, a conta acabada de criar é desativada.
+    const role = dto.role ?? (/caixa|operador/i.test(dto.position ?? '') ? 'CASHIER'
+      : /gerente|gestor|manager/i.test(dto.position ?? '') ? 'STORE_MANAGER' : 'ATTENDANT');
+    const { user: account } = await this.staff.createStaff(schema, { sub: user.sub, role: user.role }, {
+      name: dto.fullName, email: dto.email, role, storeId: dto.storeId, password: dto.password, pin: dto.pin,
+    });
+    try {
+      const emp = await this.employees.create(schema, { ...dto, userId: account.id });
+      return { ...emp, user_email: account.email, user_role: account.role };
+    } catch (e) {
+      await this.staff.updateStaff(schema, { sub: user.sub, role: user.role }, account.id, { isActive: false }).catch(() => undefined);
+      throw e;
+    }
   }
 
   @Patch('employees/:id')
