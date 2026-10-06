@@ -9,16 +9,11 @@ export function PublicCams({ result, from, onOpen, title = 'Câmaras públicas p
     <div className="pubcams">
       <div className="pubcams-head">
         <strong>{title}</strong>
-        <span>{!result.configured ? 'Serviço não ativado' : result.error ?? (result.items.length
+        <span>{result.error ?? (result.items.length
           ? `${result.items.length} num raio de ${result.radiusKm} km${result.expanded ? ' (procura alargada: não havia mais perto)' : ''}`
           : `Nenhuma câmara pública num raio de ${result.radiusKm} km`)}</span>
       </div>
-      {!result.configured ? (
-        <p className="pubcams-off">
-          As câmaras públicas (Windy Webcams) ainda não estão ativas nesta plataforma. O administrador da plataforma
-          ativa-as em <b>Super Admin › Integrações › Câmaras públicas</b> com a chave gratuita da Windy.
-        </p>
-      ) : null}
+
       {result.items.length ? (
         <div className="pubcams-list">
           {result.items.slice(0, 12).map((w) => (
@@ -30,12 +25,12 @@ export function PublicCams({ result, from, onOpen, title = 'Câmaras públicas p
           ))}
         </div>
       ) : null}
-      {result.configured ? <a className="pubcams-attr" href="https://www.windy.com/webcams" target="_blank" rel="noreferrer">Webcams fornecidas por Windy.com</a> : null}
+      <PublicCamsAttribution sources={result.sources} />
     </div>
   );
 }
 
-/** Imagem / leitor de uma câmara pública (página oficial da Windy embutida). */
+/** Imagem / leitor de uma câmara pública (leitor da Windy, imagem direta ou link para a câmara). */
 export function PublicCamView({ cam }: { cam: PublicWebcam }) {
   return (
     <div className="pubcam-view">
@@ -44,13 +39,28 @@ export function PublicCamView({ cam }: { cam: PublicWebcam }) {
       ) : cam.image ? (
         <img src={cam.image} alt={cam.title} referrerPolicy="no-referrer" />
       ) : (
-        <div className="loading">Esta câmara não tem imagem disponível agora.</div>
+        <div className="loading">Esta câmara abre no site do dono: use «Abrir a câmara».</div>
       )}
       <div className="pubcam-view-foot">
         <span>{[cam.city, cam.updatedAt ? `atualizada ${formatDate(cam.updatedAt)}` : null].filter(Boolean).join(' · ')}</span>
-        <a href={cam.pageUrl} target="_blank" rel="noreferrer">Abrir em Windy.com</a>
+        <a href={cam.pageUrl} target="_blank" rel="noreferrer">{camLinkLabel(cam)}</a>
       </div>
     </div>
   );
 }
 
+/** Atribuição das fontes usadas (obrigatória para Windy e OpenStreetMap). */
+export function PublicCamsAttribution({ sources }: { sources?: ('windy' | 'osm')[] }) {
+  const s = sources?.length ? sources : ['osm'];
+  return (
+    <span className="pubcams-attr">
+      Câmaras públicas:{' '}
+      {s.includes('osm') ? <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a> : null}
+      {s.includes('osm') && s.includes('windy') ? ' · ' : null}
+      {s.includes('windy') ? <a href="https://www.windy.com/webcams" target="_blank" rel="noreferrer">Windy.com</a> : null}
+    </span>
+  );
+}
+
+/** Texto do link para a página da câmara, conforme a fonte. */
+export const camLinkLabel = (w: { source?: string }) => (w.source === 'windy' ? 'Abrir em Windy.com' : 'Abrir a câmara');

@@ -4084,3 +4084,7 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
 @media (max-width: 1000px) { .ge-layout { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .ge-map .lmap { height: 360px !important; } .ge-radius select { max-width: 200px; } }
 @media (max-width: 600px) { .ge-target em { flex-basis: 100%; text-align: center; } }
+.ge-player-empty .btn { margin-top: 10px; }
+.ge-player-empty { gap: 6px; align-content: center; }
+.pubcams-attr a { color: inherit; text-decoration: underline; }
+.ge-cam .pubcam-ph { display: grid; place-items: center; }
