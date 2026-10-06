@@ -1,71 +1,85 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
-import type { CameraMapPin, CameraRow, PublicWebcam, PublicWebcamsResult } from '../api/types';
+import type { LocatedClient, PublicWebcam, PublicWebcamsResult } from '../api/types';
 import { LiveMap } from '../components/LiveMap';
-import { PublicCams, PublicCamView } from '../components/PublicCams';
 import { distanceM, formatDistance } from '../components/RouteCompass';
 import { Modal } from '../components/ui';
-import { CompanyCamView } from './Cameras';
+import { PublicCamView } from '../components/PublicCams';
+import { formatDate } from '../format';
 
-type Center = { lat: number; lng: number; source: 'gps' | 'cams' | 'default'; accuracy?: number };
-/** Centro de Luanda — usado só quando não há GPS nem câmaras com posição. */
-const LUANDA: Center = { lat: -8.8383, lng: 13.2344, source: 'default' };
-const RADII = [10, 25, 50, 100, 250];
+type Target = { lat: number; lng: number; label: string; sub: string; accuracy?: number; live?: boolean };
+
+function sinceLabel(iso: string | null): string {
+  if (!iso) return '';
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return 'agora';
+  if (m < 60) return `há ${m} min`;
+  const h = Math.round(m / 60);
+  return h < 48 ? `há ${h} h` : `em ${formatDate(iso)}`;
+}
 
 /**
- * OLHO DE DEUS — mapa grande em satélite com as câmaras da EMPRESA (com
- * posição) e as câmaras PÚBLICAS (Windy Webcams) à volta. Aberto também ao
- * supervisor da loja: vê as câmaras da empresa por fotogramas via servidor.
- * Só fontes legítimas: câmaras da própria empresa e webcams publicadas pelos
- * donos como públicas — nunca câmaras privadas de terceiros.
+ * OLHO DE DEUS — onde está o CLIENTE e o que se vê à volta dele.
+ *
+ * Escolhe-se um cliente com GPS (encomendas recentes; por omissão o mais
+ * recente) e o sistema procura sozinho as câmaras PÚBLICAS mais próximas da
+ * posição dele: começa em 10 km e, se não houver nenhuma, alarga o raio até as
+ * encontrar. A mais próxima abre logo em vídeo; as outras ficam ao lado.
+ * Só fontes legítimas: webcams publicadas pelos donos como públicas (Windy).
  */
 export function GodsEye() {
-  const [center, setCenter] = useState<Center | null>(null);
-  const [gpsMsg, setGpsMsg] = useState<string | null>(null);
-  const [radius, setRadius] = useState(25);
-  const [cams, setCams] = useState<CameraMapPin[] | null>(null);
-  const [fullCams, setFullCams] = useState<CameraRow[]>([]);
+  const [clients, setClients] = useState<LocatedClient[] | null>(null);
+  const [sel, setSel] = useState<string>(''); // orderId | 'me'
+  const [me, setMe] = useState<Target | null>(null);
+  const [meErr, setMeErr] = useState<string | null>(null);
   const [pub, setPub] = useState<PublicWebcamsResult | null>(null);
-  const [camOpen, setCamOpen] = useState<CameraMapPin | null>(null);
-  const [pubOpen, setPubOpen] = useState<PublicWebcam | null>(null);
+  const [loadingPub, setLoadingPub] = useState(false);
+  const [playing, setPlaying] = useState<PublicWebcam | null>(null);
+  const [zoomCam, setZoomCam] = useState<PublicWebcam | null>(null);
 
   useEffect(() => {
-    api.cameras.mapList().then(setCams).catch(() => setCams([]));
-    api.cameras.list().then(setFullCams).catch(() => setFullCams([]));
+    api.orders.located().then((r) => { setClients(r); if (r.length) setSel((s) => s || r[0].orderId); else setSel((s) => s || 'me'); })
+      .catch(() => { setClients([]); setSel((s) => s || 'me'); });
   }, []);
 
-  // Centro automático: GPS deste aparelho → câmaras da empresa → Luanda.
-  const locate = () => {
-    if (!navigator.geolocation) { setGpsMsg('Este aparelho não tem GPS.'); return; }
-    setGpsMsg('A obter a sua localização…');
+  // "A minha localização" (sem clientes com GPS, ou escolhido à mão).
+  useEffect(() => {
+    if (sel !== 'me' || me) return;
+    if (!navigator.geolocation) { setMeErr('Este aparelho não tem GPS.'); return; }
     navigator.geolocation.getCurrentPosition(
-      (p) => { setCenter({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy, source: 'gps' }); setGpsMsg(null); },
-      () => setGpsMsg('Sem acesso ao GPS — ative a localização para centrar o mapa em si.'),
+      (p) => setMe({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy, label: 'A minha localização', sub: 'GPS deste aparelho', live: true }),
+      () => setMeErr('Sem acesso ao GPS deste aparelho.'),
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
     );
-  };
-  useEffect(() => { locate(); }, []);
-  useEffect(() => {
-    if (center?.source === 'gps' || !cams) return;
-    if (cams.length) {
-      const lat = cams.reduce((a, c) => a + c.lat, 0) / cams.length;
-      const lng = cams.reduce((a, c) => a + c.lng, 0) / cams.length;
-      setCenter((c) => (c?.source === 'gps' ? c : { lat, lng, source: 'cams' }));
-    } else setCenter((c) => c ?? LUANDA);
-  }, [cams, center?.source]);
+  }, [sel, me]);
 
-  const pubKey = center ? `${center.lat.toFixed(2)},${center.lng.toFixed(2)},${radius}` : null;
+  const target: Target | null = useMemo(() => {
+    if (sel === 'me') return me;
+    const c = clients?.find((x) => x.orderId === sel);
+    return c ? { lat: c.lat, lng: c.lng, label: c.customerName || 'Cliente', sub: `${c.orderNumber}${c.address ? ` · ${c.address}` : ''} · posição ${sinceLabel(c.updatedAt)}` } : null;
+  }, [sel, me, clients]);
+
+  // Câmaras públicas mais próximas do alvo (raio automático) → a 1.ª abre logo.
+  const key = target ? `${target.lat.toFixed(3)},${target.lng.toFixed(3)}` : null;
   useEffect(() => {
-    if (!pubKey) return;
+    if (!key) return;
     let alive = true;
-    const [la, ln, r] = pubKey.split(',').map(Number);
-    setPub(null);
-    api.cameras.publicNearby(la, ln, r).then((x) => { if (alive) setPub(x); }).catch(() => { if (alive) setPub(null); });
+    const [la, ln] = key.split(',').map(Number);
+    setPub(null); setPlaying(null); setLoadingPub(true);
+    api.cameras.publicNearby(la, ln, 10, true)
+      // abre logo a mais próxima COM VÍDEO (sem vídeo em nenhuma: a mais próxima, em imagem)
+      .then((r) => { if (!alive) return; setPub(r); setPlaying(r.items.find((w) => w.player) ?? r.items[0] ?? null); })
+      .catch(() => { if (alive) setPub(null); })
+      .finally(() => { if (alive) setLoadingPub(false); });
     return () => { alive = false; };
-  }, [pubKey]);
+  }, [key]);
 
-  const here = center ?? LUANDA;
-  const zoom = radius <= 10 ? 13 : radius <= 25 ? 12 : radius <= 50 ? 11 : radius <= 100 ? 10 : 8;
+  const nearest = pub?.items[0];
+  const zoom = !nearest || !target ? 15 : (() => {
+    const d = distanceM(target, nearest) / 1000;
+    // zoom em que a câmara mais próxima cabe no mapa (com margem)
+    return d < 0.5 ? 16 : d < 1.2 ? 15 : d < 2.5 ? 14 : d < 5 ? 13 : d < 10 ? 12 : d < 20 ? 11 : d < 40 ? 10 : d < 80 ? 9 : 8;
+  })();
 
   return (
     <>
@@ -73,64 +87,89 @@ export function GodsEye() {
         <h2>Olho de Deus</h2>
         <span className="spacer" />
         <label className="ge-radius">
-          Raio
-          <select value={radius} onChange={(e) => setRadius(Number(e.target.value))}>
-            {RADII.map((r) => <option key={r} value={r}>{r} km</option>)}
+          Cliente
+          <select value={sel} onChange={(e) => setSel(e.target.value)} aria-label="Escolher cliente">
+            {(clients ?? []).map((c) => (
+              <option key={c.orderId} value={c.orderId}>{c.customerName || 'Cliente'} · {c.orderNumber}</option>
+            ))}
+            <option value="me">A minha localização</option>
           </select>
         </label>
-        <button type="button" className="btn ghost" onClick={locate}>Usar a minha localização</button>
       </div>
       <p className="ge-sub">
-        Satélite com estradas e bairros, as câmaras da empresa e as câmaras públicas à volta.{' '}
-        {here.source === 'gps' ? 'Centrado na sua localização.' : here.source === 'cams' ? 'Centrado nas câmaras da empresa.' : 'Centrado em Luanda.'}
+        Câmaras públicas mais próximas da localização do cliente (GPS), procuradas automaticamente.
       </p>
-      {gpsMsg ? <div className="banner" style={{ marginBottom: 12 }}>{gpsMsg}</div> : null}
-
-      <div className="card ge-map" style={{ padding: 0 }}>
-        {center ? (
-          <LiveMap key={`${here.source}-${zoom}`} lat={here.lat} lng={here.lng} accuracy={here.accuracy} live={here.source === 'gps'}
-            height={560} initialLayer="sat" initialZoom={zoom}
-            cameras={[
-              ...(cams ?? []).map((c) => ({ id: c.id, name: c.name, lat: c.lat, lng: c.lng })),
-              ...(pub?.items ?? []).map((w) => ({ id: `pub:${w.id}`, name: w.title, lat: w.lat, lng: w.lng, kind: 'public' as const })),
-            ]}
-            onCamera={(id) => {
-              if (id.startsWith('pub:')) setPubOpen(pub?.items.find((w) => `pub:${w.id}` === id) ?? null);
-              else setCamOpen(cams?.find((c) => c.id === id) ?? null);
-            }} />
-        ) : <div className="loading" style={{ height: 560 }}>A preparar o mapa…</div>}
-      </div>
-
-      <div className="pubcams ge-own">
-        <div className="pubcams-head">
-          <strong>Câmaras da empresa</strong>
-          <span>{cams == null ? 'A carregar…' : cams.length ? `${cams.length} com posição no mapa` : 'Nenhuma com posição no mapa'}</span>
-        </div>
-        {cams && cams.length ? (
-          <div className="ge-list">
-            {cams.map((c) => (
-              <button key={c.id} type="button" className="ge-item" onClick={() => setCamOpen(c)}>
-                <span className="ge-dot" aria-hidden />
-                <span className="pubcam-t">{c.name}</span>
-                <span className="pubcam-d">{formatDistance(distanceM(here, c))}</span>
-              </button>
-            ))}
-          </div>
-        ) : cams ? (
-          <p className="pubcams-off">Defina a posição de cada câmara em Câmaras › Configurar › «Posição no mapa» para a ver aqui.</p>
-        ) : null}
-      </div>
-
-      {pub ? <PublicCams result={pub} from={here} onOpen={setPubOpen} title="Câmaras públicas à volta" /> : null}
-
-      {camOpen ? (
-        <Modal title={`Câmara · ${camOpen.name}`} onClose={() => setCamOpen(null)} wide>
-          <CompanyCamView pin={camOpen} full={fullCams.find((c) => c.id === camOpen.id)} />
-        </Modal>
+      {clients && clients.length === 0 ? (
+        <div className="banner" style={{ marginBottom: 12 }}>Ainda não há clientes com localização GPS. A mostrar a sua localização.</div>
       ) : null}
-      {pubOpen ? (
-        <Modal title={`Câmara pública · ${pubOpen.title}`} onClose={() => setPubOpen(null)} wide>
-          <PublicCamView cam={pubOpen} />
+      {sel === 'me' && meErr ? <div className="banner danger" style={{ marginBottom: 12 }}>{meErr}</div> : null}
+
+      {target ? (
+        <div className="ge-target">
+          <span className="ge-pin" aria-hidden />
+          <div><b>{target.label}</b><span>{target.sub}</span></div>
+          {nearest ? <em>Câmara mais próxima: {formatDistance(distanceM(target, nearest))}</em> : null}
+        </div>
+      ) : null}
+
+      <div className="ge-layout">
+        <div className="card ge-map" style={{ padding: 0 }}>
+          {target ? (
+            <LiveMap key={`${key}-${zoom}`} lat={target.lat} lng={target.lng} accuracy={target.accuracy} live={target.live}
+              height={520} initialLayer="sat" initialZoom={zoom}
+              cameras={(pub?.items ?? []).map((w) => ({ id: w.id, name: w.title, lat: w.lat, lng: w.lng, kind: 'public' as const }))}
+              onCamera={(id) => setPlaying(pub?.items.find((w) => w.id === id) ?? null)} />
+          ) : <div className="loading" style={{ height: 520 }}>{clients == null ? 'A carregar clientes…' : 'A obter a localização…'}</div>}
+        </div>
+
+        <div className="card ge-watch">
+          <div className="ge-watch-head">
+            <strong>{playing ? playing.title : 'Vídeo da câmara pública'}</strong>
+            {playing && target ? <span>{formatDistance(distanceM(target, playing))} do cliente{playing.city ? ` · ${playing.city}` : ''}</span> : null}
+          </div>
+          {loadingPub ? <div className="ge-player-empty">A procurar câmaras públicas perto do cliente…</div>
+            : !pub ? <div className="ge-player-empty">Sem resposta do serviço de câmaras públicas.</div>
+            : !pub.configured ? (
+              <div className="ge-player-empty">
+                As câmaras públicas (Windy Webcams) ainda não estão ativas. O administrador da plataforma ativa-as em
+                <b> Super Admin › Integrações › Câmaras públicas</b> com a chave gratuita da Windy.
+              </div>
+            ) : pub.error ? <div className="ge-player-empty">{pub.error}</div>
+            : !playing ? <div className="ge-player-empty">Nenhuma câmara pública até {pub.radiusKm} km deste cliente.</div>
+            : playing.player ? (
+              <iframe key={playing.id} className="ge-player" src={playing.player} title={playing.title} allow="autoplay; fullscreen" referrerPolicy="no-referrer" />
+            ) : playing.image ? <img className="ge-player" src={playing.image} alt={playing.title} referrerPolicy="no-referrer" />
+            : <div className="ge-player-empty">Esta câmara não tem imagem agora.</div>}
+          {playing ? (
+            <div className="ge-watch-foot">
+              <button type="button" className="btn ghost sm" onClick={() => setZoomCam(playing)}>Ampliar</button>
+              <a href={playing.pageUrl} target="_blank" rel="noreferrer">Abrir em Windy.com</a>
+            </div>
+          ) : null}
+
+          {pub?.items.length ? (
+            <>
+              <div className="ge-list-title">
+                {pub.items.length} câmara(s) até {pub.radiusKm} km{pub.expanded ? ' — procura alargada automaticamente' : ''}
+              </div>
+              <div className="ge-cams">
+                {pub.items.slice(0, 12).map((w) => (
+                  <button key={w.id} type="button" className={`ge-cam${playing?.id === w.id ? ' on' : ''}`} onClick={() => setPlaying(w)}>
+                    {w.image ? <img src={w.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="pubcam-ph" />}
+                    <span className="pubcam-t">{w.title}</span>
+                    <span className="pubcam-d">{target ? formatDistance(distanceM(target, w)) : ''}{w.city ? ` · ${w.city}` : ''}</span>
+                  </button>
+                ))}
+              </div>
+              <a className="pubcams-attr" href="https://www.windy.com/webcams" target="_blank" rel="noreferrer">Webcams fornecidas por Windy.com</a>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      {zoomCam ? (
+        <Modal title={`Câmara pública · ${zoomCam.title}`} onClose={() => setZoomCam(null)} wide>
+          <PublicCamView cam={zoomCam} />
         </Modal>
       ) : null}
     </>

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DownloadsPublicController, DownloadsAdminController } from './downloads.controller';
 import { DownloadsService } from './downloads.service';
+import { ReleaseSyncService } from './release-sync.service';
 
 /**
  * Gestão de Downloads das aplicações (Windows/Android/iOS).
@@ -8,7 +9,7 @@ import { DownloadsService } from './downloads.service';
  */
 @Module({
   controllers: [DownloadsPublicController, DownloadsAdminController],
-  providers: [DownloadsService],
+  providers: [DownloadsService, ReleaseSyncService],
   exports: [DownloadsService],
 })
 export class DownloadsModule {}

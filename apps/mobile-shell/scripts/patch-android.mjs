@@ -7,6 +7,11 @@
  * instantes e voltam a esconder-se sozinhas. Funciona do Android 6 ao atual
  * (WindowInsetsControllerCompat trata das versões antigas).
  *
+ * LOCALIZAÇÃO: o manifesto passa a declarar ACCESS_FINE/COARSE_LOCATION (sem
+ * isto o Android recusava SEMPRE o GPS — "Permita o acesso à localização…" ao
+ * traçar o caminho até ao cliente) e a app pede a permissão logo ao abrir, uma
+ * única vez; depois o mapa usa o GPS sem perguntar.
+ *
  *   node scripts/patch-android.mjs
  */
 import fs from 'node:fs';
@@ -22,11 +27,15 @@ if (!fs.existsSync(javaDir)) {
 
 const activity = `package com.ndombaxi.system;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -82,8 +91,27 @@ public class MainActivity extends BridgeActivity {
         c.setAppearanceLightStatusBars(false);
         c.hide(WindowInsetsCompat.Type.systemBars());
         c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        // GPS automático: pede a localização ao abrir (só da primeira vez).
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[] {
+                Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, 4801);
+        }
     }
 }
 `;
 fs.writeFileSync(path.join(javaDir, 'MainActivity.java'), activity);
 process.stdout.write('  MainActivity: ecrã inteiro (imersivo) aplicado\n');
+
+// ── Manifesto: localização (GPS) ─────────────────────────────────────────
+const manifestPath = path.join(shell, 'android', 'app', 'src', 'main', 'AndroidManifest.xml');
+let manifest = fs.readFileSync(manifestPath, 'utf-8');
+for (const p of [
+  '<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />',
+  '<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />',
+  '<uses-feature android:name="android.hardware.location.gps" android:required="false" />',
+]) {
+  if (!manifest.includes(p)) manifest = manifest.replace('</manifest>', `    ${p}\n</manifest>`);
+}
+fs.writeFileSync(manifestPath, manifest);
+process.stdout.write('  Manifesto: permissões de localização (GPS) declaradas\n');

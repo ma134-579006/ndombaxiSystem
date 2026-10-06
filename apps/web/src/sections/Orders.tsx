@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { CameraMapPin, CameraRow, OrderLocation, PublicWebcam, PublicWebcamsResult, OrderMessage, OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
+import type { OrderLocation, PublicWebcam, PublicWebcamsResult, OrderMessage, OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
 import { IconCpu, IconTruck } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { toast } from '../components/feedback';
 import { LiveMap } from '../components/LiveMap';
 import { Compass, useNavigation } from '../components/RouteCompass';
-import { CompanyCamView } from './Cameras';
 import { PublicCams, PublicCamView } from '../components/PublicCams';
 import { formatDate, formatKz, statusLabel } from '../format';
 import { pollEvery, stopPoll } from '../poll';
@@ -295,15 +294,15 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
   const [, force] = useState(0); // re-render p/ atualizar "há X min"
   // Caminho + bússola a partir deste aparelho até ao cliente.
   const { nav, start, stop } = useNavigation(loc?.lat != null && loc?.lng != null ? { lat: loc.lat, lng: loc.lng } : null);
-  // Câmaras da empresa com posição no mapa (tocar → imagem ao vivo).
-  // (o supervisor recebe só as posições; o gerente também a lista completa → leitor normal)
-  const [cams, setCams] = useState<CameraMapPin[]>([]);
-  const [fullCams, setFullCams] = useState<CameraRow[]>([]);
-  const [camOpen, setCamOpen] = useState<CameraMapPin | null>(null);
+  // Automático: assim que há a posição do cliente, traça o caminho a partir deste
+  // aparelho (a permissão do GPS é pedida/usada sem ser preciso tocar em nada).
+  const autoNav = useRef(false);
+  const hasClient = loc?.lat != null && loc?.lng != null;
   useEffect(() => {
-    api.cameras.mapList().then(setCams).catch(() => setCams([]));
-    api.cameras.list().then(setFullCams).catch(() => setFullCams([]));
-  }, []);
+    if (!hasClient || autoNav.current) return;
+    autoNav.current = true;
+    start();
+  }, [hasClient, start]);
   // Câmaras PÚBLICAS perto do cliente — pedidas automaticamente quando há GPS
   // (e de novo se o cliente se afastar ~1 km). Só aparecem se o serviço
   // estiver activo no Super Admin › Integrações.
@@ -314,7 +313,8 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
     if (!pubKey) return;
     let alive = true;
     const [la, ln] = pubKey.split(',').map(Number);
-    api.cameras.publicNearby(la, ln).then((r) => { if (alive) setPub(r); }).catch(() => { if (alive) setPub(null); });
+    // auto: começa em 10 km e alarga sozinho até encontrar as câmaras mais próximas.
+    api.cameras.publicNearby(la, ln, 10, true).then((r) => { if (alive) setPub(r); }).catch(() => { if (alive) setPub(null); });
     return () => { alive = false; };
   }, [pubKey]);
 
@@ -377,14 +377,8 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
       <div className="loc-body">
         <LiveMap lat={loc.lat} lng={loc.lng} accuracy={loc.accuracy} trail={trail} live={fresh}
           start={nav.start} route={nav.route} fitKey={nav.fitKey}
-          cameras={[
-            ...cams.map((c) => ({ id: c.id, name: c.name, lat: c.lat, lng: c.lng })),
-            ...(pub?.items ?? []).map((w) => ({ id: `pub:${w.id}`, name: w.title, lat: w.lat, lng: w.lng, kind: 'public' as const })),
-          ]}
-          onCamera={(id) => {
-            if (id.startsWith('pub:')) setPubOpen(pub?.items.find((w) => `pub:${w.id}` === id) ?? null);
-            else setCamOpen(cams.find((c) => c.id === id) ?? null);
-          }} />
+          cameras={(pub?.items ?? []).map((w) => ({ id: `pub:${w.id}`, name: w.title, lat: w.lat, lng: w.lng, kind: 'public' as const }))}
+          onCamera={(id) => setPubOpen(pub?.items.find((w) => `pub:${w.id}` === id) ?? null)} />
         {nav.active && nav.start ? (
           <Compass from={nav.start} to={{ lat: loc.lat, lng: loc.lng }} heading={nav.heading}
             distance={nav.distance} duration={nav.duration} mode={nav.mode} />
@@ -403,11 +397,6 @@ function LiveOrderMap({ orderId }: { orderId: string }) {
       {pubOpen ? (
         <Modal title={`Câmara pública · ${pubOpen.title}`} onClose={() => setPubOpen(null)} wide>
           <PublicCamView cam={pubOpen} />
-        </Modal>
-      ) : null}
-      {camOpen ? (
-        <Modal title={`Câmara · ${camOpen.name}`} onClose={() => setCamOpen(null)} wide>
-          <CompanyCamView pin={camOpen} full={fullCams.find((c) => c.id === camOpen.id)} />
         </Modal>
       ) : null}
       <div className="loc-actions">

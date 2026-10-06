@@ -450,6 +450,34 @@ export class OrdersService {
     };
   }
 
+  /**
+   * Clientes com posição GPS (encomendas recentes com localização partilhada) —
+   * alimenta o "Olho de Deus": câmaras públicas mais próximas de cada cliente.
+   */
+  async located(schema: string): Promise<{
+    orderId: string; orderNumber: string; status: string; customerName: string;
+    lat: number; lng: number; updatedAt: string | null; address: string;
+  }[]> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{
+        id: string; order_number: string; status: string; customer_name: string;
+        geo_lat: string; geo_lng: string; geo_updated_at: Date | null;
+        province: string | null; municipality: string | null; neighborhood: string | null; shipping_address: string | null;
+      }[]>(
+        Prisma.sql`SELECT id, order_number, status, customer_name, geo_lat, geo_lng, geo_updated_at,
+                          province, municipality, neighborhood, shipping_address
+                   FROM web_orders
+                   WHERE geo_lat IS NOT NULL AND geo_lng IS NOT NULL AND status <> 'CANCELLED'
+                   ORDER BY COALESCE(geo_updated_at, created_at) DESC LIMIT 50`,
+      ),
+    );
+    return rows.map((r) => ({
+      orderId: r.id, orderNumber: r.order_number, status: r.status, customerName: r.customer_name,
+      lat: Number(r.geo_lat), lng: Number(r.geo_lng), updatedAt: r.geo_updated_at ? r.geo_updated_at.toISOString() : null,
+      address: [r.shipping_address, r.neighborhood, r.municipality, r.province].filter(Boolean).join(', '),
+    }));
+  }
+
   /** Transições logísticas simples PAID → SHIPPED → DELIVERED. */
   async setStatus(schema: string, orderId: string, next: 'SHIPPED' | 'DELIVERED' | 'CANCELLED'): Promise<void> {
     const allowed: Record<string, string[]> = {

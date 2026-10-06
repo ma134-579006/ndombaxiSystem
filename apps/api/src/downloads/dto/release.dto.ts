@@ -2,11 +2,11 @@ import {
   IsArray, IsBoolean, IsInt, IsIn, IsOptional, IsString, Min,
 } from 'class-validator';
 
-const PLATFORMS = ['windows', 'android', 'ios'] as const;
+const PLATFORMS = ['windows', 'android', 'android-loja', 'ios'] as const;
 
 export class CreateReleaseDto {
   @IsIn(PLATFORMS)
-  platform!: 'windows' | 'android' | 'ios';
+  platform!: (typeof PLATFORMS)[number];
 
   @IsString()
   version!: string;
@@ -48,7 +48,7 @@ export class CreateReleaseDto {
 /** Atualização parcial — todos os campos opcionais. */
 export class UpdateReleaseDto {
   @IsOptional() @IsIn(PLATFORMS)
-  platform?: 'windows' | 'android' | 'ios';
+  platform?: (typeof PLATFORMS)[number];
 
   @IsOptional() @IsString()
   version?: string;

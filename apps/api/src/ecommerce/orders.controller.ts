@@ -31,6 +31,13 @@ export class OrdersController {
     return this.orders.pendingCount(this.ctx.requireTenantSchema());
   }
 
+  @Get('located')
+  @Roles(Role.SHIFT_SUPERVISOR)
+  @ApiOperation({ summary: 'Clientes com posição GPS (encomendas recentes) — Olho de Deus' })
+  located() {
+    return this.orders.located(this.ctx.requireTenantSchema());
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalhe de uma encomenda' })
   get(@Param('id') id: string) {

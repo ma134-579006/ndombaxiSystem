@@ -4,6 +4,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { DownloadsService } from './downloads.service';
+import { ReleaseSyncService } from './release-sync.service';
 import { CreateReleaseDto, UpdateReleaseDto } from './dto/release.dto';
 
 /**
@@ -17,7 +18,19 @@ import { CreateReleaseDto, UpdateReleaseDto } from './dto/release.dto';
 @ApiTags('public')
 @Controller('downloads')
 export class DownloadsPublicController {
-  constructor(private readonly downloads: DownloadsService) {}
+  constructor(private readonly downloads: DownloadsService, private readonly releases: ReleaseSyncService) {}
+
+  /**
+   * O CI chama isto depois de publicar uma release: o servidor vai ao GitHub
+   * (público) buscar a versão nova e bloqueia as anteriores. Não aceita dados
+   * de quem chama — só lê o GitHub —, por isso não precisa de segredo.
+   */
+  @Public()
+  @Post('sync')
+  @ApiOperation({ summary: 'Sincroniza as versões publicadas a partir das releases do GitHub' })
+  sync() {
+    return this.releases.sync();
+  }
 
   @Public()
   @Get('latest')

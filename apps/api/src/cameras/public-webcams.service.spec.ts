@@ -79,3 +79,35 @@ describe('PublicWebcamsService', () => {
     expect((await make('x').nearby(1, 1)).error).toMatch(/indisponível/);
   });
 });
+
+describe('PublicWebcamsService.nearest (raio automático)', () => {
+  const realFetch = global.fetch;
+  afterEach(() => { global.fetch = realFetch; });
+
+  it('alarga o raio até encontrar câmaras e marca expanded', async () => {
+    const radii: number[] = [];
+    global.fetch = jest.fn(async (url: string) => {
+      const r = Number(/nearby=[^,]+,[^,]+,(\d+)/.exec(url)![1]);
+      radii.push(r);
+      const body = r >= 100 ? windyBody : { webcams: [] };
+      return { ok: true, status: 200, json: async () => body };
+    }) as never;
+    const svc = new PublicWebcamsService({ getActive: jest.fn().mockResolvedValue({ secret: 'k' }) } as never);
+    const out = await svc.nearest(-12.5, 13.4, 10);
+    expect(radii).toEqual([10, 25, 50, 100]);
+    expect(out).toMatchObject({ radiusKm: 100, expanded: true });
+    expect(out.items.length).toBe(2);
+  });
+
+  it('pára logo se não estiver configurado ou houver erro', async () => {
+    const f = jest.fn(); global.fetch = f as never;
+    const off = new PublicWebcamsService({ getActive: jest.fn().mockResolvedValue(null) } as never);
+    expect(await off.nearest(1, 1)).toMatchObject({ configured: false });
+    expect(f).not.toHaveBeenCalled();
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 }) as never;
+    const svc = new PublicWebcamsService({ getActive: jest.fn().mockResolvedValue({ secret: 'k' }) } as never);
+    const out = await svc.nearest(1, 1);
+    expect(out.error).toBeTruthy();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});

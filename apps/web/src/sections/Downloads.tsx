@@ -29,6 +29,10 @@ const PLATFORMS: { id: AppPlatform; label: string; hint: string; icon: React.Rea
     icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 9h12v8a2 2 0 0 1-2 2h-1v3h-2v-3h-2v3H9v-3H8a2 2 0 0 1-2-2zM4 9.5A1.5 1.5 0 0 1 5.5 11v4A1.5 1.5 0 0 1 2.5 15v-4A1.5 1.5 0 0 1 4 9.5m16 0A1.5 1.5 0 0 1 21.5 11v4a1.5 1.5 0 0 1-3 0v-4A1.5 1.5 0 0 1 20 9.5M7.2 7.8A6 6 0 0 1 12 5.5a6 6 0 0 1 4.8 2.3z"/></svg>,
   },
   {
+    id: 'android-loja', label: 'LPS Loja (Android)', hint: 'APK da app da loja online para os clientes (publicada automaticamente pelo CI)',
+    icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1.5-5h15L21 9M3 9v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9M3 9h18M9 13h6"/></svg>,
+  },
+  {
     id: 'ios', label: 'iPhone (iOS)', hint: 'Ficheiro .ipa ou link da App Store (iOS 13+)',
     icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 3c.1 1.2-.4 2.3-1.1 3.1-.8.9-2 1.5-3 1.4-.1-1.1.4-2.3 1.1-3 .8-.9 2.1-1.5 3-1.5M18.7 17c-.5 1.2-.8 1.7-1.4 2.7-1 1.5-2.3 3.3-4 3.3-1.5 0-1.9-1-4-1-2 0-2.5 1-4 1-1.6 0-2.9-1.7-3.8-3.1C-.7 15.6-.2 9 3.8 8.2c1.2-.2 2 .5 3.1.5 1 0 1.7-.7 3.1-.7 1.3 0 2.4.6 3.1.9-2.8 1.6-2.3 5.6.5 6.3z"/></svg>,
   },

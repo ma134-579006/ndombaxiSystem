@@ -28,6 +28,8 @@ export interface PublicWebcam {
 export interface PublicWebcamsResult {
   configured: boolean;
   radiusKm: number;
+  /** true = não havia câmaras no raio pedido e o raio foi alargado sozinho. */
+  expanded?: boolean;
   items: PublicWebcam[];
   /** Mensagem para o utilizador quando a pesquisa falhou. */
   error?: string;
@@ -45,6 +47,21 @@ export class PublicWebcamsService {
   private readonly cache = new Map<string, { at: number; value: PublicWebcamsResult }>();
 
   constructor(private readonly integrations: IntegrationsService) {}
+
+  /**
+   * "Inteligente": começa no raio pedido e, se não houver nenhuma câmara pública,
+   * alarga sozinho (… 50, 100, 250 km) até encontrar as mais próximas do ponto.
+   */
+  async nearest(lat: number, lng: number, startKm = 10): Promise<PublicWebcamsResult> {
+    const steps = [startKm, ...[10, 25, 50, 100, MAX_RADIUS_KM].filter((r) => r > startKm)];
+    let last: PublicWebcamsResult | null = null;
+    for (const r of steps) {
+      last = await this.nearby(lat, lng, r);
+      if (!last.configured || last.error || last.items.length) break;
+    }
+    const out = last!;
+    return out.radiusKm > startKm && out.items.length ? { ...out, expanded: true } : out;
+  }
 
   async nearby(lat: number, lng: number, radiusKm = 25): Promise<PublicWebcamsResult> {
     const radius = Math.max(1, Math.min(MAX_RADIUS_KM, Math.round(radiusKm)));

@@ -54,6 +54,22 @@ export interface NavState {
 }
 
 /** Posição deste aparelho + caminho até `dest` (recalcula quando anda > 60 m). */
+/** Mensagem clara por plataforma quando o GPS falha (diz ONDE ligar). */
+export function geoErrorMessage(code: number): string {
+  const w = window as unknown as { ndombaxi?: { version?: unknown }; __NDOMBAXI_NATIVE__?: boolean; Capacitor?: unknown };
+  const app = w.ndombaxi?.version ? 'windows' : w.__NDOMBAXI_NATIVE__ || w.Capacitor ? 'android' : 'web';
+  if (code === 1) {
+    return app === 'android'
+      ? 'A localização está desligada para a app: Definições › Apps › LPS Vendas › Permissões › Localização › Permitir.'
+      : app === 'windows'
+        ? 'Ligue a localização do Windows: Definições › Privacidade e segurança › Localização (e "Permitir que as apps acedam à localização").'
+        : 'O navegador bloqueou a localização: toque no cadeado ao lado do endereço › Localização › Permitir, e recarregue.';
+  }
+  return app === 'windows'
+    ? 'O Windows não deu a posição: confirme que a localização do Windows está ligada.'
+    : 'Não foi possível obter a posição: ligue o GPS/localização do aparelho.';
+}
+
 export function useNavigation(dest: LatLng | null) {
   const [s, setS] = useState<NavState>({ active: false, start: null, route: null, distance: null, duration: null, mode: null, heading: null, error: null, fitKey: 0 });
   const watch = useRef<number | null>(null);
@@ -97,9 +113,7 @@ export function useNavigation(dest: LatLng | null) {
         setS((p) => ({ ...p, start: here, heading: pos.coords.heading != null && !Number.isNaN(pos.coords.heading) && (pos.coords.speed ?? 0) > 1 ? pos.coords.heading : p.heading }));
         if (!lastRouted.current || distanceM(lastRouted.current, here) > 60) void route(here);
       },
-      (e) => setS((p) => ({ ...p, active: false, error: e.code === e.PERMISSION_DENIED
-        ? 'Permita o acesso à localização deste aparelho para traçar o caminho.'
-        : 'Não foi possível obter a localização deste aparelho.' })),
+      (e) => setS((p) => ({ ...p, active: false, error: geoErrorMessage(e.code) })),
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
     );
   }, [route]);

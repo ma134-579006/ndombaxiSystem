@@ -10,8 +10,8 @@ export function PublicCams({ result, from, onOpen, title = 'Câmaras públicas p
       <div className="pubcams-head">
         <strong>{title}</strong>
         <span>{!result.configured ? 'Serviço não ativado' : result.error ?? (result.items.length
-          ? `${result.items.length} num raio de ${result.radiusKm} km`
-          : `Nenhuma num raio de ${result.radiusKm} km`)}</span>
+          ? `${result.items.length} num raio de ${result.radiusKm} km${result.expanded ? ' (procura alargada: não havia mais perto)' : ''}`
+          : `Nenhuma câmara pública num raio de ${result.radiusKm} km`)}</span>
       </div>
       {!result.configured ? (
         <p className="pubcams-off">

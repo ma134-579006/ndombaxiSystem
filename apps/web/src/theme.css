@@ -4055,15 +4055,32 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
 /* Olho de Deus */
 .ge-sub { margin: -6px 0 12px; color: var(--text-muted, #64748b); font-size: 13.5px; }
 .ge-radius { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted, #64748b); }
-.ge-radius select { height: 36px; border-radius: var(--nx-radius-md, 10px); border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 0 10px; }
-.ge-map { padding: 0; overflow: hidden; margin-bottom: 12px; }
+.ge-radius select { height: 38px; max-width: 320px; border-radius: var(--nx-radius-md, 10px); border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 0 10px; font: inherit; }
+.ge-target { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; margin-bottom: 12px; border: 1px solid var(--border);
+  border-radius: var(--nx-radius-lg); background: var(--surface); }
+.ge-target > div { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.ge-target b { font-size: 15px; }
+.ge-target span { font-size: 12.5px; color: var(--text-muted, #64748b); overflow: hidden; text-overflow: ellipsis; }
+.ge-target em { font-style: normal; font-size: 12.5px; font-weight: 700; color: #047857; background: rgba(4,120,87,.1); padding: 4px 10px; border-radius: 999px; }
+.ge-pin { width: 14px; height: 14px; border-radius: 999px; background: var(--nx-brand-600, #2430e8); box-shadow: 0 0 0 5px rgba(36,48,232,.18); flex: none; }
+.ge-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.ge-map { overflow: hidden; margin: 0; }
 .ge-map .lmap { border-radius: 0; }
-.ge-own, .ge-map + .pubcams { margin-left: 0; margin-right: 0; }
-.pubcams.ge-own + .pubcams { margin: 0 0 12px; }
-.ge-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 10px; }
-.ge-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border);
-  border-radius: var(--nx-radius-md, 10px); background: var(--surface); cursor: pointer; text-align: left; font: inherit; color: inherit; }
-.ge-item:hover { border-color: var(--nx-brand-600, #2430e8); }
-.ge-item .pubcam-t, .ge-item .pubcam-d { padding: 0; }
-.ge-dot { width: 10px; height: 10px; border-radius: 999px; background: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,.15); }
-@media (max-width: 600px) { .ge-map .lmap { height: 420px !important; } .content-head .ge-radius { order: 3; } }
+.ge-watch { padding: 14px; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.ge-watch-head { display: flex; flex-direction: column; gap: 2px; }
+.ge-watch-head strong { font-size: 15px; }
+.ge-watch-head span { font-size: 12.5px; color: var(--text-muted, #64748b); }
+.ge-player { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: var(--nx-radius-md, 10px); background: #000; display: block; object-fit: cover; }
+.ge-player-empty { aspect-ratio: 16 / 9; display: grid; place-items: center; text-align: center; padding: 16px; border-radius: var(--nx-radius-md, 10px);
+  background: var(--surface-2, #eef1f6); color: var(--text-muted, #64748b); font-size: 13.5px; line-height: 1.5; }
+.ge-watch-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
+.ge-watch-foot a { color: var(--nx-brand-600, #2430e8); font-weight: 600; }
+.ge-list-title { font-size: 12.5px; font-weight: 700; color: var(--text-muted, #64748b); text-transform: uppercase; letter-spacing: .04em; margin-top: 4px; }
+.ge-cams { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.ge-cam { display: flex; flex-direction: column; gap: 3px; padding: 0 0 8px; border: 1px solid var(--border); border-radius: var(--nx-radius-md, 10px);
+  background: var(--surface); overflow: hidden; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.ge-cam img, .ge-cam .pubcam-ph { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--surface-2, #eef1f6); display: block; }
+.ge-cam.on { border-color: var(--nx-brand-600, #2430e8); box-shadow: 0 0 0 2px rgba(36,48,232,.25); }
+@media (max-width: 1000px) { .ge-layout { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .ge-map .lmap { height: 360px !important; } .ge-radius select { max-width: 200px; } }
+@media (max-width: 600px) { .ge-target em { flex-basis: 100%; text-align: center; } }

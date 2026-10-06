@@ -5,8 +5,9 @@ import { PrismaService } from '../prisma/prisma.service';
 /** Página oficial de downloads (site) — destino do botão "Atualizar Agora". */
 export const OFFICIAL_DOWNLOAD_PAGE = 'https://ndombaxisystem.com/baixar';
 
-export type Platform = 'windows' | 'android' | 'ios';
-const PLATFORMS: Platform[] = ['windows', 'android', 'ios'];
+/** `android-loja` = app LPS Loja (clientes da loja online). */
+export type Platform = 'windows' | 'android' | 'android-loja' | 'ios';
+export const PLATFORMS: Platform[] = ['windows', 'android', 'android-loja', 'ios'];
 
 /** Forma pública de uma versão — o que o site e as apps podem ver. */
 export interface PublicRelease {
@@ -14,6 +15,8 @@ export interface PublicRelease {
   version: string;
   minSupported: string | null;
   downloadPageUrl: string | null;
+  /** Link direto — só para ficheiros das releases do GitHub do próprio sistema. */
+  downloadUrl: string | null;
   fileSize: number | null;
   sha256: string | null;
   notes: string[];
@@ -29,7 +32,7 @@ export class DownloadsService {
 
   private static assertPlatform(p: string): Platform {
     if (!PLATFORMS.includes(p as Platform)) {
-      throw new BadRequestException(`Plataforma inválida: ${p}. Use windows, android ou ios.`);
+      throw new BadRequestException(`Plataforma inválida: ${p}. Use windows, android, android-loja ou ios.`);
     }
     return p as Platform;
   }
@@ -48,6 +51,9 @@ export class DownloadsService {
       minSupported: r.minSupported,
       // Sempre há saída: sem página própria, manda para a página oficial do site.
       downloadPageUrl: r.downloadPageUrl?.trim() || OFFICIAL_DOWNLOAD_PAGE,
+      // O instalador publicado pelo CI (GitHub Releases, repositório público) pode
+      // ser descarregado diretamente pela página oficial; outros links ficam ocultos.
+      downloadUrl: /^https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\//.test(r.fileUrl) ? r.fileUrl : null,
       fileSize: r.fileSize,
       sha256: r.sha256,
       notes: Array.isArray(r.notes) ? (r.notes as string[]) : [],
@@ -73,7 +79,7 @@ export class DownloadsService {
 
   /** A mais recente de cada plataforma — alimenta a página oficial de downloads. */
   async publicLatestAll(): Promise<Record<Platform, PublicRelease | null>> {
-    const out = { windows: null, android: null, ios: null } as Record<Platform, PublicRelease | null>;
+    const out = { windows: null, android: null, 'android-loja': null, ios: null } as Record<Platform, PublicRelease | null>;
     await Promise.all(PLATFORMS.map(async (p) => { out[p] = await this.latest(p); }));
     return out;
   }

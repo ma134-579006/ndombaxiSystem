@@ -92,12 +92,44 @@ const MAX_UP = 5;
  * aproximar. `onFirstError` devolve true quando o erro foi tratado de outra
  * forma (troca de fornecedor).
  */
-function Tile({ url, z, x, y, left, top, label, onOk, onFirstError }: {
-  url: TileUrl; z: number; x: number; y: number; left: number; top: number; label?: boolean;
+/**
+ * O Esri responde com um quadrado cinzento "Map data not yet available" (HTTP
+ * 200) onde não tem imagem nesse zoom. Deteta-se pela cor: quase todo o
+ * mosaico do mesmo cinzento neutro. Só funciona com CORS (crossOrigin); sem
+ * CORS a imagem é mostrada como veio (e o `blankTile=false` fica de reserva).
+ */
+export function isNoDataTile(img: HTMLImageElement): boolean {
+  try {
+    const c = document.createElement('canvas');
+    c.width = 16; c.height = 16;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    if (!g) return false;
+    g.drawImage(img, 0, 0, 16, 16);
+    const d = g.getImageData(0, 0, 16, 16).data;
+    let grey = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], gg = d[i + 1], b = d[i + 2];
+      if (Math.abs(r - gg) < 6 && Math.abs(gg - b) < 6 && r > 180 && r < 245) grey++;
+    }
+    return grey / 256 >= 0.85;
+  } catch { return false; } // canvas "tainted" (sem CORS) → não dá para ver
+}
+
+/**
+ * Mosaico com RESERVA: quando o servidor não tem imagem neste zoom (comum no
+ * satélite e no mapa Esri em Angola: "Map data not yet available"), mostra o
+ * mosaico do zoom de cima ampliado — o mapa nunca fica "indisponível" ao
+ * aproximar. `onFirstError` devolve true quando o erro foi tratado de outra
+ * forma (troca de fornecedor). `detect` = verificar o quadrado cinzento do Esri.
+ */
+function Tile({ url, z, x, y, left, top, label, detect, onOk, onFirstError }: {
+  url: TileUrl; z: number; x: number; y: number; left: number; top: number; label?: boolean; detect?: boolean;
   onOk?(): void; onFirstError?(): boolean;
 }) {
   const [up, setUp] = useState(0);
   const [gone, setGone] = useState(false);
+  // Primeiro com CORS (para poder ver os píxeis); se o servidor recusar, sem CORS.
+  const [cors, setCors] = useState(!!detect);
   if (gone) return null;
   const fail = () => {
     if (up === 0 && onFirstError?.()) return;
@@ -105,19 +137,22 @@ function Tile({ url, z, x, y, left, top, label, onOk, onFirstError }: {
     if (label || up >= MAX_UP || z - up - 1 < MIN_Z) setGone(true);
     else setUp(up + 1);
   };
+  const onError = () => { if (cors) setCors(false); else fail(); };
+  const onLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (cors && isNoDataTile(e.currentTarget)) { fail(); return; }
+    onOk?.();
+  };
   const cls = label ? 'lbl' : undefined;
-  if (up === 0) {
-    return <img src={url(z, x, y)} alt="" draggable={false} width={TILE} height={TILE} className={cls}
-      referrerPolicy="strict-origin-when-cross-origin" onLoad={onOk} onError={fail} style={{ left, top }} />;
-  }
   const k = 2 ** up;
-  return (
-    <div className="lmap-up" style={{ left, top }}>
-      <img src={url(z - up, Math.floor(x / k), Math.floor(y / k))} alt="" draggable={false} className={cls}
-        referrerPolicy="strict-origin-when-cross-origin" onError={fail}
-        style={{ width: TILE * k, height: TILE * k, left: -(x % k) * TILE, top: -(y % k) * TILE }} />
-    </div>
+  const src = up === 0 ? url(z, x, y) : url(z - up, Math.floor(x / k), Math.floor(y / k));
+  const img = (
+    <img key={`${src}|${cors ? 'c' : 'p'}`} src={src} alt="" draggable={false} className={cls}
+      crossOrigin={cors ? 'anonymous' : undefined}
+      referrerPolicy="strict-origin-when-cross-origin" onLoad={onLoad} onError={onError}
+      width={up === 0 ? TILE : undefined} height={up === 0 ? TILE : undefined}
+      style={up === 0 ? { left, top } : { width: TILE * k, height: TILE * k, left: -(x % k) * TILE, top: -(y % k) * TILE }} />
   );
+  return up === 0 ? img : <div className="lmap-up" style={{ left, top }}>{img}</div>;
 }
 
 export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, start, route, fitKey, cameras = [], onCamera, initialZoom = 17, initialLayer = 'map' }: LiveMapProps) {
@@ -190,7 +225,7 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, st
   const n = 2 ** zoom;
 
   const tiles = useMemo(() => {
-    const out: { key: string; url: TileUrl; x: number; y: number; left: number; top: number; label?: boolean }[] = [];
+    const out: { key: string; url: TileUrl; x: number; y: number; left: number; top: number; label?: boolean; detect?: boolean }[] = [];
     const x0 = Math.floor(origin.x / TILE), x1 = Math.floor((origin.x + size.w) / TILE);
     const y0 = Math.max(0, Math.floor(origin.y / TILE)), y1 = Math.min(n - 1, Math.floor((origin.y + size.h) / TILE));
     const p = PROVIDERS[prov];
@@ -199,10 +234,10 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, st
         const wx = ((tx % n) + n) % n; // dá a volta ao mundo na horizontal
         const left = tx * TILE - origin.x, top = ty * TILE - origin.y;
         if (layer === 'sat') {
-          out.push({ key: `${zoom}/${tx}/${ty}/sat`, url: SATELLITE, x: wx, y: ty, left, top });
+          out.push({ key: `${zoom}/${tx}/${ty}/sat`, url: SATELLITE, x: wx, y: ty, left, top, detect: true });
           SAT_LABELS.forEach((f, i) => out.push({ key: `${zoom}/${tx}/${ty}/lbl${i}`, url: f, x: wx, y: ty, left, top, label: true }));
         } else {
-          out.push({ key: `${zoom}/${tx}/${ty}/${p.name}`, url: (z, x, y) => p.url(z, x, y, 'abc'[(x + y) % 3]), x: wx, y: ty, left, top });
+          out.push({ key: `${zoom}/${tx}/${ty}/${p.name}`, url: (z, x, y) => p.url(z, x, y, 'abc'[(x + y) % 3]), x: wx, y: ty, left, top, detect: p.name === 'esri' });
         }
       }
     }
@@ -248,7 +283,7 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, st
       role="application" aria-label="Mapa com a localização do cliente">
       <div className="lmap-tiles" aria-hidden>
         {tiles.map((t) => (
-          <Tile key={t.key} url={t.url} z={zoom} x={t.x} y={t.y} left={t.left} top={t.top} label={t.label}
+          <Tile key={t.key} url={t.url} z={zoom} x={t.x} y={t.y} left={t.left} top={t.top} label={t.label} detect={t.detect}
             onOk={() => { loadedOk.current = true; }}
             onFirstError={layer === 'map' ? onTileError : undefined} />
         ))}
