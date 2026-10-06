@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { THEMES } from '../theme';
 
 /**
@@ -19,15 +20,15 @@ const TILE = 256;
 /** Fornecedores de mosaicos SEM chave, por ordem de preferência. */
 const PROVIDERS: { name: string; url: (z: number, x: number, y: number, sub: string) => string; attr: string }[] = [
   { name: 'osm', url: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`, attr: '© OpenStreetMap' },
-  { name: 'esri', url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`, attr: '© Esri · © OpenStreetMap' },
+  { name: 'esri', url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}?blankTile=false`, attr: '© Esri · © OpenStreetMap' },
 ];
 
 /** SATÉLITE (Esri World Imagery, sem chave) + camadas de nomes: estradas e bairros/localidades. */
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services';
-const SATELLITE = (z: number, x: number, y: number) => `${ESRI}/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+const SATELLITE = (z: number, x: number, y: number) => `${ESRI}/World_Imagery/MapServer/tile/${z}/${y}/${x}?blankTile=false`;
 const SAT_LABELS = [
-  (z: number, x: number, y: number) => `${ESRI}/Reference/World_Transportation/MapServer/tile/${z}/${y}/${x}`,
-  (z: number, x: number, y: number) => `${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/${z}/${y}/${x}`,
+  (z: number, x: number, y: number) => `${ESRI}/Reference/World_Transportation/MapServer/tile/${z}/${y}/${x}?blankTile=false`,
+  (z: number, x: number, y: number) => `${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/${z}/${y}/${x}?blankTile=false`,
 ];
 
 /** Câmara da empresa com posição no mapa. */
@@ -75,14 +76,99 @@ export interface LiveMapProps {
   /** Câmaras da empresa com posição — tocar abre a imagem ao vivo. */
   cameras?: MapCamera[];
   onCamera?(id: string): void;
+  /** Zoom e camada iniciais (por omissão 17 e mapa de ruas). */
+  initialZoom?: number;
+  initialLayer?: 'map' | 'sat';
 }
 
-export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, start, route, fitKey, cameras = [], onCamera }: LiveMapProps) {
+type TileUrl = (z: number, x: number, y: number) => string;
+/** Quantos níveis de zoom se pode subir à procura de imagem. */
+const MAX_UP = 5;
+
+/**
+ * Mosaico com RESERVA: quando o servidor não tem imagem neste zoom (comum no
+ * satélite e no mapa Esri em Angola: "Map data not yet available"), mostra o
+ * mosaico do zoom de cima ampliado — o mapa nunca fica "indisponível" ao
+ * aproximar. `onFirstError` devolve true quando o erro foi tratado de outra
+ * forma (troca de fornecedor).
+ */
+/**
+ * O Esri responde com um quadrado cinzento "Map data not yet available" (HTTP
+ * 200) onde não tem imagem nesse zoom. Deteta-se pela cor: quase todo o
+ * mosaico do mesmo cinzento neutro. Só funciona com CORS (crossOrigin); sem
+ * CORS a imagem é mostrada como veio (e o `blankTile=false` fica de reserva).
+ */
+export function isNoDataTile(img: HTMLImageElement): boolean {
+  try {
+    const c = document.createElement('canvas');
+    c.width = 16; c.height = 16;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    if (!g) return false;
+    g.drawImage(img, 0, 0, 16, 16);
+    const d = g.getImageData(0, 0, 16, 16).data;
+    let grey = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], gg = d[i + 1], b = d[i + 2];
+      if (Math.abs(r - gg) < 6 && Math.abs(gg - b) < 6 && r > 180 && r < 245) grey++;
+    }
+    return grey / 256 >= 0.85;
+  } catch { return false; } // canvas "tainted" (sem CORS) → não dá para ver
+}
+
+/**
+ * Mosaico com RESERVA: quando o servidor não tem imagem neste zoom (comum no
+ * satélite e no mapa Esri em Angola: "Map data not yet available"), mostra o
+ * mosaico do zoom de cima ampliado — o mapa nunca fica "indisponível" ao
+ * aproximar. `onFirstError` devolve true quando o erro foi tratado de outra
+ * forma (troca de fornecedor). `detect` = verificar o quadrado cinzento do Esri.
+ */
+function Tile({ url, z, x, y, left, top, label, detect, onOk, onFirstError }: {
+  url: TileUrl; z: number; x: number; y: number; left: number; top: number; label?: boolean; detect?: boolean;
+  onOk?(): void; onFirstError?(): boolean;
+}) {
+  const [up, setUp] = useState(0);
+  const [gone, setGone] = useState(false);
+  // Primeiro com CORS (para poder ver os píxeis); se o servidor recusar, sem CORS.
+  const [cors, setCors] = useState(!!detect);
+  if (gone) return null;
+  const fail = () => {
+    if (up === 0 && onFirstError?.()) return;
+    // As camadas de nomes são transparentes: sem imagem, simplesmente não aparecem.
+    if (label || up >= MAX_UP || z - up - 1 < MIN_Z) setGone(true);
+    else setUp(up + 1);
+  };
+  const onError = () => { if (cors) setCors(false); else fail(); };
+  const onLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (cors && isNoDataTile(e.currentTarget)) { fail(); return; }
+    onOk?.();
+  };
+  const cls = label ? 'lbl' : undefined;
+  const k = 2 ** up;
+  const src = up === 0 ? url(z, x, y) : url(z - up, Math.floor(x / k), Math.floor(y / k));
+  const img = (
+    <img key={`${src}|${cors ? 'c' : 'p'}`} src={src} alt="" draggable={false} className={cls}
+      crossOrigin={cors ? 'anonymous' : undefined}
+      referrerPolicy="strict-origin-when-cross-origin" onLoad={onLoad} onError={onError}
+      width={up === 0 ? TILE : undefined} height={up === 0 ? TILE : undefined}
+      style={up === 0 ? { left, top } : { width: TILE * k, height: TILE * k, left: -(x % k) * TILE, top: -(y % k) * TILE }} />
+  );
+  return up === 0 ? img : <div className="lmap-up" style={{ left, top }}>{img}</div>;
+}
+
+export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, start, route, fitKey, cameras = [], onCamera, initialZoom = 17, initialLayer = 'map' }: LiveMapProps) {
   // Camada: mapa de ruas ou SATÉLITE (com estradas e nomes de bairros por cima).
-  const [layer, setLayer] = useState<'map' | 'sat'>('map');
+  const [layer, setLayer] = useState<'map' | 'sat'>(initialLayer);
+  // Maximizado: o mapa ocupa o ecrã todo (sem a Fullscreen API, que falha nas apps).
+  const [max, setMax] = useState(false);
+  useEffect(() => {
+    if (!max) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setMax(false); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [max]);
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 600, h: height });
-  const [zoom, setZoom] = useState(17);
+  const [zoom, setZoom] = useState(initialZoom);
   // Centro do mapa; `follow` = acompanha o cliente (desliga quando se arrasta).
   const [center, setCenter] = useState<{ lat: number; lng: number }>({ lat, lng });
   const [follow, setFollow] = useState(true);
@@ -91,10 +177,12 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, st
   const [prov, setProv] = useState(0);
   const [failed, setFailed] = useState(false);
   const loadedOk = useRef(false);
-  const onTileError = () => {
-    if (loadedOk.current) return; // um mosaico solto a falhar não troca de fornecedor
+  /** true = tratado (trocou de fornecedor); false = o mosaico usa o zoom de cima. */
+  const onTileError = (): boolean => {
+    if (loadedOk.current) return false; // fornecedor a funcionar: só falta este mosaico
     if (prov + 1 < PROVIDERS.length) setProv(prov + 1);
     else setFailed(true);
+    return true;
   };
   const drag = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
 
@@ -130,27 +218,26 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, st
     const mo = new MutationObserver(() => setLight(isLightTheme()));
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => { ro.disconnect(); mo.disconnect(); };
-  }, []);
+  }, [max]);
 
   const c = project(center.lat, center.lng, zoom);
   const origin = { x: c.x - size.w / 2, y: c.y - size.h / 2 };
   const n = 2 ** zoom;
 
   const tiles = useMemo(() => {
-    const out: { key: string; src: string; left: number; top: number; label?: boolean }[] = [];
+    const out: { key: string; url: TileUrl; x: number; y: number; left: number; top: number; label?: boolean; detect?: boolean }[] = [];
     const x0 = Math.floor(origin.x / TILE), x1 = Math.floor((origin.x + size.w) / TILE);
     const y0 = Math.max(0, Math.floor(origin.y / TILE)), y1 = Math.min(n - 1, Math.floor((origin.y + size.h) / TILE));
     const p = PROVIDERS[prov];
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
         const wx = ((tx % n) + n) % n; // dá a volta ao mundo na horizontal
-        const sub = 'abc'[(wx + ty) % 3];
         const left = tx * TILE - origin.x, top = ty * TILE - origin.y;
         if (layer === 'sat') {
-          out.push({ key: `${zoom}/${tx}/${ty}/sat`, src: SATELLITE(zoom, wx, ty), left, top });
-          SAT_LABELS.forEach((f, i) => out.push({ key: `${zoom}/${tx}/${ty}/lbl${i}`, src: f(zoom, wx, ty), left, top, label: true }));
+          out.push({ key: `${zoom}/${tx}/${ty}/sat`, url: SATELLITE, x: wx, y: ty, left, top, detect: true });
+          SAT_LABELS.forEach((f, i) => out.push({ key: `${zoom}/${tx}/${ty}/lbl${i}`, url: f, x: wx, y: ty, left, top, label: true }));
         } else {
-          out.push({ key: `${zoom}/${tx}/${ty}/${p.name}`, src: p.url(zoom, wx, ty, sub), left, top });
+          out.push({ key: `${zoom}/${tx}/${ty}/${p.name}`, url: (z, x, y) => p.url(z, x, y, 'abc'[(x + y) % 3]), x: wx, y: ty, left, top, detect: p.name === 'esri' });
         }
       }
     }
@@ -188,18 +275,17 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, st
   };
   const onPointerUp = () => { drag.current = null; };
 
-  return (
-    <div className={`lmap${light || layer === 'sat' ? '' : ' dark'}${layer === 'sat' ? ' sat' : ''}`} ref={box} style={{ height }}
+  const map = (
+    <div className={`lmap${light || layer === 'sat' ? '' : ' dark'}${layer === 'sat' ? ' sat' : ''}${max ? ' max' : ''}`} ref={box} style={max ? undefined : { height }}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
       onWheel={(e) => zoomBy(e.deltaY < 0 ? 1 : -1)}
       onDoubleClick={() => zoomBy(1)}
       role="application" aria-label="Mapa com a localização do cliente">
       <div className="lmap-tiles" aria-hidden>
         {tiles.map((t) => (
-          <img key={t.key} src={t.src} alt="" draggable={false} width={TILE} height={TILE}
-            referrerPolicy="strict-origin-when-cross-origin" className={t.label ? 'lbl' : undefined}
-            onLoad={() => { loadedOk.current = true; }} onError={layer === 'map' ? onTileError : undefined}
-            style={{ left: t.left, top: t.top }} />
+          <Tile key={t.key} url={t.url} z={zoom} x={t.x} y={t.y} left={t.left} top={t.top} label={t.label} detect={t.detect}
+            onOk={() => { loadedOk.current = true; }}
+            onFirstError={layer === 'map' ? onTileError : undefined} />
         ))}
       </div>
       <svg className="lmap-overlay" width={size.w} height={size.h} aria-hidden>
@@ -236,6 +322,12 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, st
         <button type="button" onClick={() => zoomBy(1)} aria-label="Aproximar">+</button>
         <button type="button" onClick={() => zoomBy(-1)} aria-label="Afastar">−</button>
         <button type="button" className={follow ? 'on' : ''} onClick={recenter} aria-label="Centrar no cliente" title="Centrar no cliente">◎</button>
+        <button type="button" className={max ? 'on' : ''} onClick={() => setMax(!max)}
+          aria-label={max ? 'Sair de ecrã inteiro' : 'Maximizar mapa'} title={max ? 'Sair de ecrã inteiro (Esc)' : 'Maximizar mapa'}>
+          {max
+            ? <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3" /></svg>
+            : <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" /></svg>}
+        </button>
       </div>
       {failed ? (
         // Última reserva: o mapa do Google (iframe) — o marcador é o do próprio Google.
@@ -245,4 +337,6 @@ export function LiveMap({ lat, lng, accuracy, trail = [], live, height = 380, st
       {failed ? null : <div className="lmap-attr">{layer === 'sat' ? '© Esri · Maxar · Earthstar' : PROVIDERS[prov].attr}</div>}
     </div>
   );
+  // Maximizado vai para o <body>: um modal com transform não o prende.
+  return max ? createPortal(map, document.body) : map;
 }

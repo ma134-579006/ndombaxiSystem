@@ -19,9 +19,10 @@ import { syncController } from '../offline/sync';
 import { listPendingSales } from '../offline/db';
 
 /** Tempo até à 1.ª verificação. A app já está a ser usada; ninguém repara. */
-const FIRST_CHECK_MS = 4_000;
+const FIRST_CHECK_MS = 1_500;
 /** Postos ficam ligados dias seguidos — daí voltar a perguntar. */
-const EVERY_MS = 6 * 60 * 60 * 1000;
+// 15 min: uma versão publicada bloqueia as antigas no próprio dia, não 6 h depois.
+const EVERY_MS = 15 * 60 * 1000;
 /** Curto: isto é de segundo plano, ninguém espera por uma verificação. */
 const TIMEOUT_MS = 10_000;
 /** Com pendentes por enviar, volta a olhar para a fila neste ritmo. */
@@ -150,6 +151,8 @@ class MandatoryUpdate {
     // A internet voltou depois de dias offline: é exatamente a altura de olhar.
     window.addEventListener('online', run);
     window.addEventListener('focus', run);
+    // Android: voltar à app (sair do segundo plano) também verifica.
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') run(); });
   }
 
   private async check(platform: string): Promise<void> {

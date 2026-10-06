@@ -6,6 +6,7 @@ import { Storefront } from './pages/Storefront';
 import { StoreChat } from './components/StoreChat';
 import { StoreProvider, useStore } from './state/StoreContext';
 import { RepairTrack } from './views/RepairTrack';
+import { MandatoryUpdate } from './components/MandatoryUpdate';
 
 function Gate() {
   const { code, setCode, status, error } = useStore();
@@ -48,6 +49,8 @@ export function App() {
       <KeyboardProvider>
         <Gate />
       </KeyboardProvider>
+      {/* Por cima de tudo: versão antiga da app → bloqueada até atualizar. */}
+      <MandatoryUpdate />
     </StoreProvider>
   );
 }

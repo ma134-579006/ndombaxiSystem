@@ -72,6 +72,7 @@ const Purchasing = lazyRetry(() => import('./sections/Purchasing').then((m) => (
 const Accounting = lazyRetry(() => import('./sections/Accounting').then((m) => ({ default: m.Accounting })));
 const Assistant = lazyRetry(() => import('./sections/Assistant').then((m) => ({ default: m.Assistant })));
 const Cameras = lazyRetry(() => import('./sections/Cameras').then((m) => ({ default: m.Cameras })));
+const GodsEye = lazyRetry(() => import('./sections/GodsEye').then((m) => ({ default: m.GodsEye })));
 const Customers = lazyRetry(() => import('./sections/Customers').then((m) => ({ default: m.Customers })));
 const Leave = lazyRetry(() => import('./sections/Leave').then((m) => ({ default: m.Leave })));
 const Stores = lazyRetry(() => import('./sections/Stores').then((m) => ({ default: m.Stores })));
@@ -162,6 +163,8 @@ const TENANT_NAV: NavItem[] = [
     key: 'cameras-group', label: 'Câmaras', icon: IconCamera, children: [
       { key: 'cameras-config', label: 'Configurar', icon: IconGear, min: 1 },
       { key: 'cameras-live', label: 'Abrir', icon: IconCamera },
+      // Supervisor incluído: mapa com câmaras da empresa (fotogramas) e públicas.
+      { key: 'cameras-map', label: 'Olho de Deus', icon: IconCamera, min: 4 },
     ],
   },
   { key: 'saft', label: 'Fiscal · SAF-T', icon: IconReceipt, min: 1 },
@@ -186,8 +189,10 @@ const ROLE_LEVEL: Record<string, number> = {
 function navForRole(items: NavItem[], role: string | undefined): NavItem[] {
   const level = ROLE_LEVEL[role ?? ''] ?? 3;
   const ok = (it: NavItem) => level <= (it.min ?? 3);
+  // Um grupo sem `min` próprio aparece se algum sub-item for permitido (ex.: o
+  // supervisor vê «Câmaras › Olho de Deus» e «Encomendas», que têm min:4).
   return items
-    .filter(ok)
+    .filter((it) => (it.children && it.min === undefined ? true : ok(it)))
     .map((it) => (it.children ? { ...it, children: it.children.filter(ok) } : it))
     .filter((it) => !it.children || it.children.length > 0);
 }
@@ -416,6 +421,7 @@ function TenantPanel() {
       {section === 'accounting' ? <Accounting /> : null}
       {section === 'cameras-config' ? <Cameras mode="config" /> : null}
       {section === 'cameras-live' ? <Cameras mode="live" /> : null}
+      {section === 'cameras-map' ? <GodsEye /> : null}
       {section === 'operations' ? <Operations /> : null}
       {section === 'reports' ? <Reports /> : null}
       {section === 'saft' ? <Saft /> : null}

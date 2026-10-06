@@ -17,8 +17,9 @@ import { decideUpdate, readyToBlock, type UpdateDecision } from '@nexus/update-c
 import { API_URL } from '../config';
 import { getOfflineEngine, getSyncStatus } from '../offline/boot';
 
-const FIRST_CHECK_MS = 4_000;
-const EVERY_MS = 6 * 60 * 60 * 1000;
+const FIRST_CHECK_MS = 1_500;
+// 15 min: uma versão publicada bloqueia as antigas no próprio dia, não 6 h depois.
+const EVERY_MS = 15 * 60 * 1000;
 const TIMEOUT_MS = 10_000;
 const DRAIN_TICK_MS = 5_000;
 
@@ -127,6 +128,8 @@ class MandatoryUpdate {
     window.setInterval(run, EVERY_MS);
     window.addEventListener('online', run);
     window.addEventListener('focus', run);
+    // Android: voltar à app (sair do segundo plano) também verifica.
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') run(); });
   }
 
   private async check(platform: string): Promise<void> {

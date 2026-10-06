@@ -164,9 +164,11 @@ function injectBackButton(): void {
   // A entrada é feita numa SPA (sem recarregar): reavaliamos periodicamente e
   // nos eventos de foco/armazenamento — a seta desaparece assim que a sessão é
   // criada e reaparece no logout.
-  const sync = () => { btn.style.display = isLoggedIn() ? 'none' : 'grid'; };
+  // Com a atualização obrigatória no ecrã, a seta também some (nada por cima do bloqueio).
+  const blocked = () => !!document.querySelector('[role="alertdialog"][aria-label="Atualização obrigatória"]');
+  const sync = () => { btn.style.display = isLoggedIn() || blocked() ? 'none' : 'grid'; };
   sync();
-  setInterval(sync, 800);
+  setInterval(sync, 300);
   window.addEventListener('focus', sync);
   document.addEventListener('visibilitychange', sync);
   window.addEventListener('storage', sync);

@@ -142,6 +142,8 @@ import type {
   CameraInput,
   CameraRow,
   PublicWebcamsResult,
+  AppPlatform,
+  LocatedClient,
   CustomerRow,
   TenantLoginInput,
   TenantTokenPair,
@@ -631,7 +633,7 @@ export const api = {
 
   // ── Downloads públicos (para a secção "Baixar Aplicativo") ──
   publicDownloads: () =>
-    request<Record<'windows' | 'android' | 'ios', PublicRelease | null>>(
+    request<Record<AppPlatform, PublicRelease | null>>(
       'GET', '/downloads/public', undefined, { auth: false }),
 
   // ── Suporte (chat com o assistente do sistema) + comentários públicos ──
@@ -872,6 +874,8 @@ export const api = {
       request<{ orderId: string; invoiceNumber: string | null; status: string; alreadyPaid: boolean }>(
         'POST', '/ecommerce/orders/reference/confirm', input),
     location: (id: string) => request<OrderLocation>('GET', `/ecommerce/orders/${id}/location`),
+    /** Clientes com posição GPS (encomendas recentes) — Olho de Deus. */
+    located: () => request<LocatedClient[]>('GET', '/ecommerce/orders/located'),
   },
   advances: {
     pending: () => request<SalaryAdvanceReq[]>('GET', '/hr/salary-advance/pending'),
@@ -1156,8 +1160,8 @@ export const api = {
   cameras: {
     list: () => request<CameraRow[]>('GET', '/cameras'),
     /** Câmaras PÚBLICAS (Windy Webcams) perto de um ponto — configuradas no Super Admin. */
-    publicNearby: (lat: number, lng: number, radiusKm = 25) =>
-      request<PublicWebcamsResult>('GET', `/cameras/public/nearby?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}&radiusKm=${radiusKm}`),
+    publicNearby: (lat: number, lng: number, radiusKm = 25, auto = false) =>
+      request<PublicWebcamsResult>('GET', `/cameras/public/nearby?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}&radiusKm=${radiusKm}${auto ? '&auto=1' : ''}`),
     create: (input: CameraInput) => request<CameraRow>('POST', '/cameras', input),
     update: (id: string, input: Partial<CameraInput>) => request<CameraRow>('PATCH', `/cameras/${id}`, input),
     test: (id: string) => request<{ ok: boolean; status: number; contentType: string | null; kind: string; warning?: string; secure?: boolean }>('POST', `/cameras/${id}/test`),

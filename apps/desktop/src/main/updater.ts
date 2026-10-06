@@ -108,6 +108,6 @@ export function scheduleUpdateCheck(win: BrowserWindow): void {
   };
   // 5 s depois de abrir — a app já está a ser usada, ninguém repara.
   setTimeout(() => { void run(); }, 5_000);
-  // E de 6 em 6 horas, para postos que ficam ligados dias seguidos.
-  setInterval(() => { void run(); }, 6 * 60 * 60 * 1000);
+  // E de 15 em 15 min: uma versão publicada bloqueia as antigas no próprio dia.
+  setInterval(() => { void run(); }, 15 * 60 * 1000);
 }

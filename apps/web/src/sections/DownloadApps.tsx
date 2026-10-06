@@ -48,6 +48,7 @@ const DlIcon = () => (
 const PLATFORMS: PlatformMeta[] = [
   { id: 'windows', label: 'Windows', tagline: 'Para o computador da loja e do escritório.', defaultReq: 'Windows 10 ou 11 · 64-bit', icon: <WinIcon /> },
   { id: 'android', label: 'Android', tagline: 'Venda e faça a gestão a partir do telemóvel.', defaultReq: 'Android 6 ou superior', icon: <AndroidIcon /> },
+  { id: 'android-loja', label: 'LPS Loja', tagline: 'A loja online da sua empresa, no telemóvel dos seus clientes.', defaultReq: 'Android 6 ou superior', icon: <AndroidIcon /> },
   { id: 'ios', label: 'iPhone', tagline: 'A mesma experiência, no seu iOS.', defaultReq: 'iOS 13 ou superior', icon: <AppleIcon /> },
 ];
 
@@ -97,7 +98,7 @@ export function DownloadApps() {
             const available = Boolean(rel);
             // A app encaminha sempre para a página oficial; aqui o botão leva ao
             // link definido pelo Super Admin (que pode ser a própria página).
-            const href = rel?.downloadPageUrl || undefined;
+            const href = rel?.downloadUrl || rel?.downloadPageUrl || undefined;
 
             return (
               <article className={`dl-card dl-${p.id} ${available ? '' : 'soon'}`} key={p.id}>

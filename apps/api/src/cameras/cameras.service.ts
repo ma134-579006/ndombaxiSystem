@@ -16,6 +16,8 @@ export interface CameraRow {
   notes: string | null;
   record: boolean;
   is_active: boolean;
+  geo_lat: string | number | null;
+  geo_lng: string | number | null;
   created_at: Date;
 }
 

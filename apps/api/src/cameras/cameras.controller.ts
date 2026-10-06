@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Header, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import type { JwtPayload } from '@nexus/types';
 import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -101,6 +101,9 @@ class NearbyQuery {
 
   @IsOptional() @Type(() => Number) @IsNumber() @Min(1) @Max(250)
   radiusKm?: number;
+
+  @IsOptional() @Transform(({ obj }) => obj.auto === true || obj.auto === '1' || obj.auto === 'true') @IsBoolean()
+  auto?: boolean;
 }
 
 /** Câmaras: configurar (manual/QR), ver ao vivo e gravações (30 dias). */
@@ -120,7 +123,8 @@ export class CamerasController {
   @ApiOperation({ summary: 'Câmaras públicas (Windy Webcams) perto de um ponto do mapa' })
   publicNearby(@Query() q: NearbyQuery) {
     this.ctx.requireTenantSchema();
-    return this.webcams.nearby(q.lat, q.lng, q.radiusKm ?? 25);
+    // auto=1 → alarga o raio sozinho até encontrar as câmaras mais próximas.
+    return q.auto ? this.webcams.nearest(q.lat, q.lng, q.radiusKm ?? 10) : this.webcams.nearby(q.lat, q.lng, q.radiusKm ?? 25);
   }
 
   @Get()

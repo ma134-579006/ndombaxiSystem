@@ -17,6 +17,13 @@ jobs:
       NDOMBAXI_API_URL: https://ndombaxi-api-3nmz.onrender.com
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Clone completo: a versão da build é o nº de commits (scripts/ci-version.mjs).
+          fetch-depth: 0
+      # REGRA PERMANENTE: cada build publicada tem versão maior → bloqueia as anteriores.
+      - name: Versão automática desta build
+        shell: bash
+        run: node scripts/ci-version.mjs
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -60,4 +67,11 @@ jobs:
           gh release create android-loja-latest LPSLoja-Android.apk \
             -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
             --title "LPS Loja para Android (mais recente)" \
-            --notes "App da loja online LPS Vendas para os clientes. Commit ${GITHUB_SHA::7}, build #${GITHUB_RUN_NUMBER}. Para instalar: abrir o ficheiro no telemóvel e permitir 'instalar apps desconhecidas' para o navegador."
+            --notes "App da loja online LPS Vendas para os clientes. Versão: ${APP_VERSION}. Commit ${GITHUB_SHA::7}, build #${GITHUB_RUN_NUMBER}. Para instalar: abrir o ficheiro no telemóvel e permitir 'instalar apps desconhecidas' para o navegador."
+      # O servidor lê esta release do GitHub e passa a exigir esta versão: as
+      # apps antigas ficam bloqueadas (com o botão para o site oficial). Se o
+      # aviso falhar, o servidor apanha-a sozinho em <= 10 minutos.
+      - name: Bloquear versões anteriores (avisar o servidor)
+        shell: bash
+        run: |
+          curl -fsS -X POST --max-time 90 "${NDOMBAXI_API_URL:-https://ndombaxi-api-3nmz.onrender.com}/downloads/sync" || echo "Servidor indisponível agora — sincroniza sozinho em até 10 min."

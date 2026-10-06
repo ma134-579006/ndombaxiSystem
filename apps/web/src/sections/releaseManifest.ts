@@ -61,6 +61,13 @@ export const RELEASE_MANIFEST: Record<AppPlatform, ReleaseManifestEntry> = {
       'Corrigido o recibo cujos dados saíam para fora da estrutura',
     ],
   },
+  'android-loja': {
+    version: '1.0.0',
+    minSupported: '1.0.0',
+    requirements: 'Android 6 ou superior',
+    notes: ['App da loja online para os clientes (publicada automaticamente pelo CI)'],
+    fixes: [],
+  },
   ios: {
     version: '1.0.4',
     minSupported: '1.0.0',

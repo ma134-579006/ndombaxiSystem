@@ -31,7 +31,8 @@ const log = (m) => process.stdout.write(`  ${m}\n`);
 // ── Versão ───────────────────────────────────────────────────────────────
 const version = JSON.parse(fs.readFileSync(path.join(repo, 'apps', 'desktop', 'package.json'), 'utf-8')).version;
 const m = /^(\d+)\.(\d+)\.(\d+)/.exec(version);
-const code = m ? Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]) : 1;
+// Igual ao LPS Vendas (mobile-shell/scripts/sync-android-version.mjs): 1.5.612 → 1050612.
+const code = m ? Number(m[1]) * 1_000_000 + Number(m[2]) * 10_000 + Number(m[3]) : 1;
 const gradlePath = path.join(app, 'build.gradle');
 let gradle = fs.readFileSync(gradlePath, 'utf-8');
 gradle = gradle.replace(/versionName\s+"[^"]+"/, `versionName "${version}"`).replace(/versionCode\s+\d+/, `versionCode ${code}`);

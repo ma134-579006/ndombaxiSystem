@@ -119,3 +119,6 @@
 .dl-changelog summary { display: inline-flex; align-items: center; gap: 6px; }
 .dl-changelog summary::after { content: '▾'; font-size: 11px; transition: transform .2s; } .dl-changelog[open] summary::after { transform: rotate(180deg); }
 @media (max-width: 900px) { .dl-section .dl-grid { max-width: 460px; } }
+/* 4 apps (Windows, Android, LPS Loja, iPhone): 2×2 em ecrãs médios, 4 em largos */
+@media (min-width: 901px) { .dl-section .dl-grid { grid-template-columns: repeat(2, 1fr); max-width: 980px; margin-inline: auto; } }
+@media (min-width: 1360px) { .dl-section .dl-grid { grid-template-columns: repeat(4, 1fr); max-width: none; } }

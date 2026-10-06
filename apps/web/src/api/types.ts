@@ -1277,6 +1277,12 @@ export interface CustomerRow {
 }
 
 /** Câmara de vigilância configurada. */
+/** Cliente com posição GPS (encomenda recente) — Olho de Deus. */
+export interface LocatedClient {
+  orderId: string; orderNumber: string; status: string; customerName: string;
+  lat: number; lng: number; updatedAt: string | null; address: string;
+}
+
 /** Câmara pública (Windy Webcams) perto de um ponto do mapa. */
 export interface PublicWebcam {
   id: string;
@@ -1292,6 +1298,8 @@ export interface PublicWebcam {
 export interface PublicWebcamsResult {
   configured: boolean;
   radiusKm: number;
+  /** O raio foi alargado sozinho até encontrar câmaras. */
+  expanded?: boolean;
   items: PublicWebcam[];
   error?: string;
 }
@@ -1356,7 +1364,7 @@ export interface ServicesDashboard {
 }
 
 // ── Gestão de Downloads das aplicações (Super Admin) ─────────
-export type AppPlatform = 'windows' | 'android' | 'ios';
+export type AppPlatform = 'windows' | 'android' | 'android-loja' | 'ios';
 export interface AppReleaseRow {
   id: string;
   platform: AppPlatform;
@@ -1396,6 +1404,8 @@ export interface PublicRelease {
   version: string;
   minSupported: string | null;
   downloadPageUrl: string | null;
+  /** Link direto do ficheiro, só para releases do GitHub do próprio sistema (CI). */
+  downloadUrl?: string | null;
   fileSize: number | null;
   sha256: string | null;
   notes: string[];

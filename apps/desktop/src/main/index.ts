@@ -33,6 +33,9 @@ registerScheme(); // obrigatoriamente antes de `whenReady`
  * definições dos postos existentes continuem exactamente onde estão.
  */
 app.setPath('userData', path.join(app.getPath('appData'), 'Ndombaxi System'));
+// GPS no Windows: usa o serviço de localização do próprio Windows (o mapa traça
+// o caminho até ao cliente sem pedir nada — o Electron concede a permissão).
+app.commandLine.appendSwitch('enable-features', 'WinrtGeolocationImplementation');
 
 /** Um único posto por máquina — protege a integridade da base local. */
 if (!app.requestSingleInstanceLock()) {
