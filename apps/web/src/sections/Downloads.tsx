@@ -249,10 +249,9 @@ export function Downloads({ onOpenWizard }: { onOpenWizard?: () => void } = {}) 
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, margin: '8px 0 16px', flexWrap: 'wrap' }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Switch checked={!!form.mandatory} onChange={(v) => set({ mandatory: v })} />
-            Atualização obrigatória (bloqueia a app antiga)
-          </label>
+          <span className="muted" style={{ fontSize: 13 }}>
+            Todas as versões publicadas são <strong>obrigatórias</strong>: a app antiga fica bloqueada, com o botão para a página oficial de downloads.
+          </span>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <Switch checked={!!form.published} onChange={(v) => set({ published: v })} />
             Publicar já (torna-a a versão mais recente)
@@ -288,7 +287,7 @@ export function Downloads({ onOpenWizard }: { onOpenWizard?: () => void } = {}) 
                 <tr key={r.id}>
                   <td>
                     <b>{r.version}</b>
-                    {r.mandatory && <span className="badge warning" style={{ marginLeft: 6 }}>obrigatória</span>}
+                    <span className="badge warning" style={{ marginLeft: 6 }}>obrigatória</span>
                     {r.minSupported && <div className="muted" style={{ fontSize: 12 }}>mín. {r.minSupported}</div>}
                   </td>
                   <td>
