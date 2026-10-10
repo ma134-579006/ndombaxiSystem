@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 const shell = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repo = path.resolve(shell, '..', '..');
-const API_URL = process.env.NDOMBAXI_API_URL || 'https://ndombaxi-api-3nmz.onrender.com';
+const API_URL = process.env.NDOMBAXI_API_URL || 'https://ndombaxi-api-bwwr.onrender.com';
 const VERSION = JSON.parse(fs.readFileSync(path.join(repo, 'apps', 'desktop', 'package.json'), 'utf-8')).version;
 const www = path.join(shell, 'www');
 const log = (m) => process.stdout.write(`  ${m}\n`);

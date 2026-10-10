@@ -11,7 +11,7 @@ export default defineConfig({
     // domínio permitido (contorna o CORS para testar no preview com dados reais).
     proxy: {
       '/papi': {
-        target: 'https://ndombaxi-api-3nmz.onrender.com',
+        target: 'https://ndombaxi-api-bwwr.onrender.com',
         changeOrigin: true,
         secure: true,
         rewrite: (p) => p.replace(/^\/papi/, ''),

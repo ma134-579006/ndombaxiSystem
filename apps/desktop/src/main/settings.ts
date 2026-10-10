@@ -45,7 +45,7 @@ export interface Settings {
 }
 
 /** API de produção. O instalador não pergunta nada ao lojista. */
-const DEFAULT_API = 'https://ndombaxi-api-3nmz.onrender.com';
+const DEFAULT_API = 'https://ndombaxi-api-bwwr.onrender.com';
 
 const DEFAULTS: Settings = {
   module: null,

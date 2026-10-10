@@ -21,7 +21,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const shell = path.resolve(here, '..');
 const repo = path.resolve(shell, '..', '..');
 
-const API_URL = process.env.NDOMBAXI_API_URL || 'https://ndombaxi-api-3nmz.onrender.com';
+const API_URL = process.env.NDOMBAXI_API_URL || 'https://ndombaxi-api-bwwr.onrender.com';
 
 /**
  * A versão do produto — UMA só, para as duas plataformas (ver
