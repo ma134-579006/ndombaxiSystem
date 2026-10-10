@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Ping /health (acorda e mantém a API quente)
         env:
-          BASE_URL: ${{ vars.KEEP_WARM_URL || 'https://ndombaxi-api-3nmz.onrender.com' }}
+          BASE_URL: ${{ vars.KEEP_WARM_URL || 'https://ndombaxi-api-bwwr.onrender.com' }}
         run: |
           set -u
           URL="${BASE_URL%/}/health"
