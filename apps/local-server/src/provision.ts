@@ -36,7 +36,7 @@ export interface SnapshotTable {
 
 /** O que é preciso para falar com a API da nuvem. */
 export interface CloudAccess {
-  /** URL base da API (ex.: https://ndombaxi-api-3nmz.onrender.com). */
+  /** URL base da API (ex.: https://ndombaxi-api-bwwr.onrender.com). */
   apiUrl: string;
   /** Token de acesso de um COMPANY_ADMIN. */
   accessToken: string;

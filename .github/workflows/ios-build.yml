@@ -29,7 +29,7 @@ jobs:
   build-ios:
     runs-on: macos-14
     env:
-      NDOMBAXI_API_URL: https://ndombaxi-api-3nmz.onrender.com
+      NDOMBAXI_API_URL: https://ndombaxi-api-bwwr.onrender.com
       # Mapeado ao job para os `if:` conseguirem detetar se há assinatura.
       IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
     steps:
