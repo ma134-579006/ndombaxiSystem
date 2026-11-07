@@ -1,83 +1,71 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type {
-  DashLowStock,
-  DashSalesSeries,
-  DashStoreSales,
-  DashTopProduct,
-  ManagerStore,
-  OpsAlert,
-  ProfitSummary,
-  ReportCategoryRow,
-  ReportPaymentRow,
-  ReportUserRow,
-  SalesRange,
-} from '../api/types';
+import type { DashLowStock, DashSalesSeries, DashStoreSales, DashTopProduct, ManagerStore, OpsAlert, ProfitProduct, ProfitSummary } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { AreaChart, type AreaPoint } from '../components/AreaChart';
 import { ColumnChart, type ColumnPoint } from '../components/ColumnChart';
-import { DonutChart } from '../components/DonutChart';
-import { IconCard, IconChart, IconCube, IconReceipt, IconRefresh, IconWallet } from '../components/Icons';
+import { IconBars, IconCalendar, IconCart, IconCube, IconStar, IconTrendUp } from '../components/Icons';
 import { formatKz } from '../format';
 import { PendingPosSales } from '../components/PendingPosSales';
 import { pollEvery, stopPoll } from '../poll';
 
-const RANGES: { key: SalesRange; label: string }[] = [
-  { key: 'today', label: 'Hoje' },
-  { key: 'yesterday', label: 'Ontem' },
-  { key: '7d', label: '7 dias' },
-  { key: '1m', label: '1 mês' },
-  { key: '3m', label: '3 meses' },
-  { key: '6m', label: '6 meses' },
-  { key: '1y', label: '1 ano' },
-];
-const DAYS: Record<string, number> = { '7d': 7, '1m': 30, '3m': 90, '6m': 180, '1y': 365 };
-const PAY_PT: Record<string, string> = {
-  CASH: 'Numerário', CARD: 'Multicaixa/Cartão', TRANSFER: 'Transferência',
-  REFERENCE: 'Referência', EXPRESS: 'Multicaixa Express', CREDIT: 'A crédito', SEM_TURNO: 'Sem turno de caixa',
-};
+/* Dashboard no padrão do backoffice de referência:
+   1) cartão com Faturação Hoje / Mensal / Anual (+ variação face ao período
+      anterior equivalente) e o gráfico de área dos últimos 30 dias;
+   2) Mais Vendidos · Mais Rentáveis (hoje) · Últimos 6 meses;
+   3) Stock e alertas; vendas por loja quando há várias.
+   As cores vêm do tema (barra lateral e paleta do LPS Vendas mantidas). */
 
-function iso(d: Date): string { return d.toISOString().slice(0, 10); }
-function rangeToDates(r: SalesRange): { from: string; to: string } {
-  const today = new Date();
-  if (r === 'today') return { from: iso(today), to: iso(today) };
-  if (r === 'yesterday') { const y = new Date(Date.now() - 86400000); return { from: iso(y), to: iso(y) }; }
-  const d = DAYS[r] ?? 7;
-  return { from: iso(new Date(Date.now() - (d - 1) * 86400000)), to: iso(today) };
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+
+/** Períodos: hoje vs ontem; mês até hoje vs o mesmo intervalo do mês anterior;
+ *  ano até hoje vs o mesmo intervalo do ano anterior. */
+function periods(now = new Date()) {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const d = today.getDate();
+  const pmStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const pmLast = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+  return {
+    day: [iso(today), iso(today)], dayPrev: [iso(addDays(today, -1)), iso(addDays(today, -1))],
+    month: [iso(new Date(today.getFullYear(), today.getMonth(), 1)), iso(today)],
+    monthPrev: [iso(pmStart), iso(new Date(pmStart.getFullYear(), pmStart.getMonth(), Math.min(d, pmLast)))],
+    year: [iso(new Date(today.getFullYear(), 0, 1)), iso(today)],
+    yearPrev: [iso(new Date(today.getFullYear() - 1, 0, 1)), iso(new Date(today.getFullYear() - 1, today.getMonth(), d))],
+  } as const;
 }
+
+function variation(cur: number, prev: number): number | null {
+  if (!prev) return cur ? null : 0;
+  return ((cur - prev) / Math.abs(prev)) * 100;
+}
+
 function bucketLabel(isoStr: string, gran: DashSalesSeries['granularity']): string {
   const d = new Date(isoStr);
+  if (gran === 'month') return d.toLocaleDateString('pt-PT', { month: 'short', year: '2-digit' });
   if (gran === 'hour') return `${String(d.getHours()).padStart(2, '0')}h`;
-  if (gran === 'month') return d.toLocaleDateString('pt-PT', { month: 'short' });
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-/** Visão geral do gestor: cockpit em tempo real, guiado por intervalo
- *  (hoje, ontem, 7d, 1m, 3m, 6m, 1 ano) — vendas, cancelamentos, lucro e gastos,
- *  gráfico moderno, top produtos, stock baixo e alertas. */
+type Sums = Record<'day' | 'dayPrev' | 'month' | 'monthPrev' | 'year' | 'yearPrev', ProfitSummary | null>;
+
 export function Overview() {
   const { user } = useAuth();
-  // Só o ADMIN DA EMPRESA (gestor principal) vê todas as lojas e o seletor.
   const isAdmin = user?.role === 'COMPANY_ADMIN';
   const [stores, setStores] = useState<ManagerStore[]>([]);
   const [storeId, setStoreId] = useState('');
   const sid = storeId || undefined;
-  const [range, setRange] = useState<SalesRange>('7d');
-  const [sum, setSum] = useState<ProfitSummary | null>(null);
-  const [series, setSeries] = useState<DashSalesSeries | null>(null);
+  const [withVat, setWithVat] = useState(true);
+  const [sums, setSums] = useState<Sums | null>(null);
+  const [series30, setSeries30] = useState<DashSalesSeries | null>(null);
+  const [series6, setSeries6] = useState<DashSalesSeries | null>(null);
   const [top, setTop] = useState<DashTopProduct[]>([]);
+  const [rent, setRent] = useState<ProfitProduct[]>([]);
   const [low, setLow] = useState<DashLowStock[]>([]);
   const [byStore, setByStore] = useState<DashStoreSales[]>([]);
-  const [byUser, setByUser] = useState<ReportUserRow[]>([]);
-  const [byCustomer, setByCustomer] = useState<ReportUserRow[]>([]);
-  const [byCategory, setByCategory] = useState<ReportCategoryRow[]>([]);
-  const [byPayment, setByPayment] = useState<ReportPaymentRow[]>([]);
-  const [storeDays, setStoreDays] = useState(1); // 1=hoje, 7, 30
   const [alerts, setAlerts] = useState<OpsAlert[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const timer = useRef<number | null>(null);
 
   // Alertas dispensados (limpar notificações), guardados por dispositivo.
   const ALERTS_LS = 'ndombaxi.alerts.dismissed';
@@ -91,233 +79,180 @@ export function Overview() {
 
   const load = useCallback(async () => {
     setError(null);
-    const { from, to } = rangeToDates(range);
+    const p = periods();
+    const keys = Object.keys(p) as (keyof Sums)[];
     try {
-      const [s, ser, t, l, a, bs, bu, bc, cat, pay] = await Promise.all([
-        api.profit.summary(from, to, sid),
-        api.dashboard.series(range, sid),
-        api.dashboard.topProducts(8, sid),
-        api.dashboard.lowStock(sid),
-        api.alerts(),
-        api.dashboard.salesByStore(storeDays).catch(() => [] as DashStoreSales[]),
-        api.reports.salesByUser(from, to, sid).catch(() => [] as ReportUserRow[]),
-        api.reports.salesByCustomer(from, to, sid).catch(() => [] as ReportUserRow[]),
-        api.reports.salesByCategory(from, to, sid).catch(() => [] as ReportCategoryRow[]),
-        api.reports.paymentMethods(from, to).catch(() => [] as ReportPaymentRow[]),
+      const [sumArr, s30, s6, t, r, l, a, bs] = await Promise.all([
+        Promise.all(keys.map((k) => api.profit.summary(p[k][0], p[k][1], sid).catch(() => null))),
+        api.dashboard.series('1m', sid).catch(() => null),
+        api.dashboard.series('6m', sid).catch(() => null),
+        api.dashboard.topProducts(5, sid).catch(() => [] as DashTopProduct[]),
+        api.profit.byProduct(p.day[0], p.day[1], sid).catch(() => [] as ProfitProduct[]),
+        api.dashboard.lowStock(sid).catch(() => [] as DashLowStock[]),
+        api.alerts().catch(() => [] as OpsAlert[]),
+        api.dashboard.salesByStore(1).catch(() => [] as DashStoreSales[]),
       ]);
-      setSum(s); setSeries(ser); setTop(t); setLow(l); setAlerts(a); setByStore(bs); setByUser(bu); setByCustomer(bc);
-      setByCategory(cat); setByPayment(pay);
-      setUpdatedAt(new Date());
+      setSums(Object.fromEntries(keys.map((k, i) => [k, sumArr[i]])) as Sums);
+      setSeries30(s30); setSeries6(s6); setTop(t);
+      setRent([...r].filter((x) => x.profit > 0).sort((x, y) => y.profit - x.profit).slice(0, 5));
+      setLow(l); setAlerts(a); setByStore(bs);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Falha ao carregar a visão geral.');
+      setError(e instanceof ApiError ? e.message : 'Falha ao carregar o dashboard.');
     } finally { setLoading(false); }
-  }, [range, sid, storeDays]);
+  }, [sid]);
 
   useEffect(() => { if (isAdmin) api.staff.listStores().then(setStores).catch(() => undefined); }, [isAdmin]);
-
   useEffect(() => {
     void load();
-    timer.current = pollEvery(() => void load(), 20_000);
-    return () => { if (timer.current) stopPoll(timer.current); };
+    const t = pollEvery(() => void load(), 30_000);
+    return () => stopPoll(t);
   }, [load]);
 
-  const chartPoints: AreaPoint[] = (series?.points ?? []).map((p) => ({
-    label: bucketLabel(p.bucket, series!.granularity),
-    value: p.grossTotal,
-    sub: p.cancelledTotal,
-    sub2: p.expenseTotal ?? 0,
-  }));
-  const hasCancel = (series?.points ?? []).some((p) => p.cancelledTotal > 0);
-  const hasExpense = (series?.points ?? []).some((p) => (p.expenseTotal ?? 0) > 0);
-  const rangeLabel = RANGES.find((r) => r.key === range)?.label ?? '';
+  const val = (s: ProfitSummary | null | undefined) => (s ? (withVat ? s.salesGross : s.salesNet) : 0);
+  // O gráfico vem em valores c/ IVA; s/ IVA aplica a proporção líquida/bruta do período.
+  const netRatio = sums?.month && sums.month.salesGross > 0 ? sums.month.salesNet / sums.month.salesGross : 1;
+  const k = withVat ? 1 : netRatio;
+  const chart30: AreaPoint[] = (series30?.points ?? []).map((pt) => ({ label: bucketLabel(pt.bucket, series30!.granularity), value: pt.grossTotal * k }));
+  const chart6: ColumnPoint[] = (series6?.points ?? []).map((pt) => ({ label: bucketLabel(pt.bucket, series6!.granularity), value: pt.grossTotal * k }));
+  const visibleAlerts = alerts.filter((a) => !dismissed.has(alertKey(a)));
+  const lowOut = low.filter((s) => s.quantity <= 0);
+
+  const Kpi = ({ icon, period, cur, prev }: { icon: React.ReactNode; period: string; cur: ProfitSummary | null | undefined; prev: ProfitSummary | null | undefined }) => {
+    const v = variation(val(cur), val(prev));
+    return (
+      <div className="vd-kpi">
+        <span className="vd-kpi-ic">{icon}</span>
+        <div className="vd-kpi-tx">
+          <div className="vd-kpi-lb">Faturação <b>{period}</b></div>
+          <div className="vd-kpi-vl">{formatKz(val(cur))}</div>
+          <div className="vd-kpi-cmp">
+            {v === null ? <span className="vd-var up">novo</span>
+              : <span className={`vd-var ${v > 0 ? 'up' : v < 0 ? 'down' : ''}`}>{v > 0 ? '+' : ''}{v.toFixed(2).replace('.', ',')}%</span>}
+            <span>Anterior: {formatKz(val(prev))}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="profit-page">
+    <div className="vd-page vd-dash">
       <PendingPosSales />
-      <div className="content-head">
-        <h2>Visão geral</h2>
-        <span className="ov-live"><span className="live-dot" /> Ao vivo{updatedAt ? <span className="ov-live-t"> · {updatedAt.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span> : null}</span>
+      <div className="vd-head">
+        <label className="vd-toggle">
+          <span>Valores c/IVA</span>
+          <button type="button" role="switch" aria-checked={withVat} className={`vd-sw${withVat ? ' on' : ''}`} onClick={() => setWithVat((v) => !v)}><span /></button>
+        </label>
         <span className="spacer" />
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
-      </div>
-
-      {/* Selector de intervalo (+ loja, para o admin que vê todas) */}
-      <div className="ov-toolbar">
-        <div className="ov-seg" role="tablist" aria-label="Período">
-          {RANGES.map((r) => (
-            <button key={r.key} role="tab" aria-selected={range === r.key} className={range === r.key ? 'on' : ''} onClick={() => setRange(r.key)}>{r.label}</button>
-          ))}
-        </div>
         {isAdmin && stores.length > 1 ? (
-          <>
-            <span className="spacer" />
-            <select className="seg-select" value={storeId} onChange={(e) => setStoreId(e.target.value)}
-              style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px', color: 'var(--text)' }}>
-              <option value="">Todas as lojas</option>
-              {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </>
+          <select className="vd-in" style={{ width: 'auto', minWidth: 180 }} value={storeId} onChange={(e) => setStoreId(e.target.value)} aria-label="Loja">
+            <option value="">Todas as lojas</option>
+            {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
         ) : null}
       </div>
 
-      {error ? <div className="banner danger">{error}</div> : null}
+      {error ? <div className="vd-err" role="alert">{error}</div> : null}
 
-      {/* KPIs do intervalo */}
-      <div className="kpi-grid">
-        <KpiCard tone="primary" icon={<IconCard size={20} />} label={`Vendas · ${rangeLabel}`}
-          value={formatKz(sum?.salesGross ?? 0)} sub={`${sum?.salesCount ?? 0} venda(s) · média ${formatKz(sum?.ticketAvg ?? 0)}`} />
-        <KpiCard tone="danger" icon={<IconReceipt size={20} />} label="Cancelamentos"
-          value={formatKz(sum?.cancelledAmount ?? 0)} sub={`${sum?.cancelledCount ?? 0} venda(s) anulada(s)`} />
-        <KpiCard tone="success" icon={<IconChart size={20} />} label="Lucro líquido"
-          value={formatKz(sum?.netProfit ?? 0)} sub={`Bruto ${formatKz(sum?.grossProfit ?? 0)} · margem ${sum?.marginPct ?? 0}%`} />
-        <KpiCard tone="warning" icon={<IconWallet size={20} />} label="Gastos / Despesas"
-          value={formatKz(sum?.otherExpenses ?? 0)} sub="saídas registadas no período" />
-      </div>
-
-      {/* Gráfico de vendas (+ anulados) */}
-      <div className="card">
-        <div className="row" style={{ alignItems: 'center' }}>
-          <h3 style={{ margin: 0 }}>Evolução de vendas</h3>
-          <span className="spacer" />
-          <div className="legend-row" style={{ margin: 0 }}>
-            <span><span className="dot" style={{ background: 'var(--primary)' }} /> Vendas</span>
-            {hasCancel ? <span><span className="dot" style={{ background: 'var(--danger)' }} /> Anulado</span> : null}
-            {hasExpense ? <span><span className="dot" style={{ background: 'var(--warning)' }} /> Gastos</span> : null}
-          </div>
+      <div className="vd-card vd-dash-main">
+        <div className="vd-kpis">
+          <Kpi icon={<IconCart size={30} />} period="Hoje" cur={sums?.day} prev={sums?.dayPrev} />
+          <Kpi icon={<IconCalendar size={30} />} period="Mensal" cur={sums?.month} prev={sums?.monthPrev} />
+          <Kpi icon={<IconBars size={30} />} period="Anual" cur={sums?.year} prev={sums?.yearPrev} />
         </div>
-        {loading && !series ? <div className="loading">A carregar…</div> : (
-          <AreaChart points={chartPoints} color="var(--primary)"
-            subColor={hasCancel ? 'var(--danger)' : undefined}
-            sub2Color={hasExpense ? 'var(--warning)' : undefined}
-            subLabel="Anulado" sub2Label="Gastos" format={formatKz} />
-        )}
-      </div>
-
-      {/* Composição (donuts, estilo enterprise como no super admin) */}
-      <div className="cols-2">
-        <div className="card">
-          <h3>Vendas por categoria</h3>
-          {byCategory.some((c) => c.gross > 0) ? (
-            <DonutChart
-              data={byCategory.filter((c) => c.gross > 0).slice(0, 8).map((c) => ({ label: c.name || 'Sem categoria', value: c.gross }))}
-              centerLabel="Vendas" format={formatKz} />
-          ) : <p className="ov-empty">Sem vendas por categoria no período.</p>}
-        </div>
-        <div className="card">
-          <h3>Métodos de pagamento</h3>
-          {byPayment.some((p) => p.total > 0) ? (
-            <DonutChart
-              data={byPayment.filter((p) => p.total > 0).map((p) => ({ label: PAY_PT[p.method] ?? p.method, value: p.total }))}
-              centerLabel="Recebido" format={formatKz} />
-          ) : <p className="ov-empty">Sem pagamentos no período.</p>}
+        <div className="vd-dash-chart">
+          {loading && !series30 ? <div className="vd-empty">A carregar…</div>
+            : <AreaChart points={chart30} color="var(--primary)" format={formatKz} height={230} />}
         </div>
       </div>
 
-      {/* Vendas por loja (multi-loja, tempo real) — período selecionável */}
-      {byStore.length > 1 ? (
-        <div className="card">
-          <div className="row" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <h3 style={{ margin: 0 }}><span className="live-dot" /> Lojas ao vivo</h3>
-            <span className="spacer" />
-            <div style={{ display: 'flex', gap: 6 }}>
-              {[{ d: 1, l: 'Hoje' }, { d: 7, l: '7 dias' }, { d: 30, l: '30 dias' }].map((o) => (
-                <button key={o.d} className={`chip ${storeDays === o.d ? 'active' : ''}`} onClick={() => setStoreDays(o.d)}>{o.l}</button>
+      <div className="vd-dash-row">
+        <div className="vd-card vd-panel">
+          <h3 className="vd-panel-h"><IconTrendUp size={20} /> Mais <b>Vendidos</b></h3>
+          {top.length === 0 ? <div className="vd-panel-empty"><IconCube size={34} /><span>Sem vendas</span></div> : (
+            <ol className="vd-rank">
+              {top.map((p, i) => (
+                <li key={p.productCode} style={{ animationDelay: `${i * 40}ms` }}>
+                  <span className="pos">{i + 1}</span>
+                  <span className="nm" title={p.description}>{p.description}</span>
+                  <span className="qt">{p.quantity.toLocaleString('pt-PT')} un.</span>
+                  <span className="vl">{formatKz(p.grossTotal * k)}</span>
+                </li>
               ))}
-            </div>
-            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
-              Total {formatKz(byStore.reduce((t, s) => t + s.grossTotal, 0))}
+            </ol>
+          )}
+        </div>
+        <div className="vd-card vd-panel">
+          <h3 className="vd-panel-h"><IconStar size={20} /> Mais <b>Rentáveis</b> <small>| Hoje</small></h3>
+          {rent.length === 0 ? <div className="vd-panel-empty"><IconCube size={34} /><span>Sem vendas hoje</span></div> : (
+            <ol className="vd-rank">
+              {rent.map((p, i) => (
+                <li key={p.productCode} style={{ animationDelay: `${i * 40}ms` }}>
+                  <span className="pos">{i + 1}</span>
+                  <span className="nm" title={p.description}>{p.description}</span>
+                  <span className="qt">{p.marginPct.toFixed(0)}%</span>
+                  <span className="vl">{formatKz(p.profit)}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+        <div className="vd-card vd-panel">
+          <h3 className="vd-panel-h"><IconBars size={20} /> Últimos <b>6 meses</b></h3>
+          {chart6.length === 0 ? <div className="vd-panel-empty"><IconBars size={34} /><span>Sem dados</span></div>
+            : <ColumnChart data={chart6} color="var(--primary)" format={formatKz} />}
+        </div>
+      </div>
+
+      <div className="vd-dash-row two">
+        <div className="vd-card vd-panel">
+          <h3 className="vd-panel-h"><IconCube size={20} /> <b>Stock</b>
+            <span className="vd-panel-badges">
+              <span className="vd-badge warn" title="Abaixo do mínimo">{low.length - lowOut.length}</span>
+              <span className="vd-badge bad" title="Sem stock">{lowOut.length}</span>
             </span>
-          </div>
-          <div style={{ marginTop: 14 }}>
-            <ColumnChart
-              data={byStore.map((s): ColumnPoint => ({ label: `${s.storeName}${s.isDefault ? ' · principal' : ''}`, value: s.grossTotal, hint: `${s.invoiceCount} venda(s)` }))}
-              format={formatKz}
-            />
-          </div>
+          </h3>
+          {low.length === 0 ? <div className="vd-panel-empty"><IconCube size={34} /><span>Tudo acima do mínimo</span></div> : (
+            <table className="vd-table">
+              <thead><tr><th>Produto</th><th>Loja</th><th className="ctr">Stock</th><th className="ctr">Mínimo</th></tr></thead>
+              <tbody>
+                {low.slice(0, 8).map((s) => (
+                  <tr key={`${s.productCode}-${s.warehouseCode}`}>
+                    <td>{s.productName}<span className="sub">{s.productCode}</span></td>
+                    <td>{s.warehouseCode}</td>
+                    <td className="ctr"><span className={`vd-badge${s.quantity <= 0 ? ' bad' : ' warn'}`}>{s.quantity}</span></td>
+                    <td className="ctr">{s.minQty}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-      ) : null}
-
-      {/* Gráficos de ranking — produtos, funcionários, clientes */}
-      <div className="cols-2">
-        <div className="card">
-          <h3>Produtos que mais vendem</h3>
-          <ColumnChart color="var(--primary)" format={formatKz}
-            data={top.map((p): ColumnPoint => ({ label: p.description, value: p.grossTotal, hint: `${p.quantity} un.` }))} />
-        </div>
-        <div className="card">
-          <h3>Funcionários que mais vendem</h3>
-          <ColumnChart color="var(--accent)" format={formatKz}
-            data={byUser.map((u): ColumnPoint => ({ label: u.name, value: u.gross, hint: `${u.sales} venda(s)` }))} />
-        </div>
-      </div>
-      <div className="cols-2">
-        <div className="card">
-          <h3>Clientes que mais compram</h3>
-          <ColumnChart color="var(--success)" format={formatKz}
-            data={byCustomer.map((cst): ColumnPoint => ({ label: cst.name, value: cst.gross, hint: `${cst.sales} compra(s)` }))} />
-        </div>
-
-        <div className="card">
-          <h3>Stock baixo {low.length > 0 ? <span className="pill off">{low.length}</span> : null}</h3>
-          {low.length === 0 ? <p className="ov-empty">Tudo acima do mínimo</p> : (
-            <div className="minilist">
-              {low.slice(0, 12).map((s) => (
-                <div className="minirow l-warning" key={`${s.productCode}-${s.warehouseCode}`}>
-                  <IconCube size={18} />
-                  <div className="mr-main">
-                    <div className="mr-title">{s.productName}</div>
-                    <div className="mr-sub">{s.productCode} · {s.warehouseCode}</div>
-                  </div>
-                  <div className="mr-val" style={{ color: s.quantity <= 0 ? 'var(--danger)' : 'var(--warning)' }}>
-                    {s.quantity} / mín {s.minQty}
-                  </div>
-                </div>
+        <div className="vd-card vd-panel">
+          <h3 className="vd-panel-h"><b>Alertas</b>
+            {visibleAlerts.length > 0 ? <button className="vd-clear" style={{ marginLeft: 'auto' }} onClick={clearAllAlerts}>✕ Limpar tudo</button> : null}
+          </h3>
+          {visibleAlerts.length === 0 ? <div className="vd-panel-empty"><span>Sem alertas</span></div> : (
+            <ul className="vd-alerts">
+              {visibleAlerts.map((a, i) => (
+                <li key={i} className={`l-${a.level}`}>
+                  <div><b>{a.title}</b><span>{a.detail}</span></div>
+                  <span className={`vd-tag ${a.level === 'danger' ? 'bad' : 'warn'}`}>{a.category}</span>
+                  <button className="vd-clear" title="Limpar" aria-label="Limpar alerta" onClick={() => dismissAlert(a)}>✕</button>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
       </div>
 
-      {/* Alertas operacionais */}
-      {(() => {
-        const visibleAlerts = alerts.filter((a) => !dismissed.has(alertKey(a)));
-        return (
-          <div className="card">
-            <div className="row" style={{ alignItems: 'center', marginBottom: 6 }}>
-              <h3 style={{ margin: 0 }}>Alertas operacionais</h3>
-              <span className="spacer" style={{ flex: 1 }} />
-              {visibleAlerts.length > 0 ? (
-                <button className="btn sm ghost" onClick={clearAllAlerts}>Limpar tudo</button>
-              ) : null}
-            </div>
-            {visibleAlerts.length === 0 ? <p className="ov-empty">Sem alertas. Tudo em ordem</p> : (
-              <div className="minilist">
-                {visibleAlerts.map((a, i) => (
-                  <div className={`minirow l-${a.level}`} key={i}>
-                    <div className="mr-main">
-                      <div className="mr-title">{a.title}</div>
-                      <div className="mr-sub">{a.detail}</div>
-                    </div>
-                    <span className={`pill ${a.level === 'danger' ? 'off' : 'on'}`}>{a.category}</span>
-                    <button className="btn sm ghost" title="Limpar" onClick={() => dismissAlert(a)} style={{ marginLeft: 8, padding: '4px 9px' }}>✕</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })()}
-    </div>
-  );
-}
-
-function KpiCard({ tone, icon, label, value, sub }: { tone: string; icon: React.ReactNode; label: string; value: string; sub: string }) {
-  return (
-    <div className={`kpi-card ${tone}`}>
-      <div className="kpi-ic">{icon}</div>
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value">{value}</div>
-      <div className="kpi-sub">{sub}</div>
+      {byStore.length > 1 ? (
+        <div className="vd-card vd-panel">
+          <h3 className="vd-panel-h"><b>Vendas por loja</b> <small>| Hoje</small></h3>
+          <ColumnChart format={formatKz}
+            data={byStore.map((s): ColumnPoint => ({ label: `${s.storeName}${s.isDefault ? ' · principal' : ''}`, value: s.grossTotal, hint: `${s.invoiceCount} venda(s)` }))} />
+        </div>
+      ) : null}
     </div>
   );
 }
