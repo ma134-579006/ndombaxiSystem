@@ -563,3 +563,65 @@
 .vproc-bg { background: color-mix(in srgb, var(--primary, #3b5bff) 22%, rgba(8, 12, 26, .86)) !important; }
 .vproc-bg.vproc-boot { background: #0b1020 !important; }
 
+
+/* ── Administração Geral Tributária (layout de referência) ── */
+.vd-ok { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 40%, transparent); padding: 10px 14px; border-radius: 4px; font-size: 14px; }
+.vd-agt-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 240px)); gap: 30px; }
+.vd-agt-cards.cfg { grid-template-columns: repeat(auto-fill, minmax(260px, 300px)); }
+.vd-agt-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; display: flex; flex-direction: column; animation: vd-rise var(--vd-med) var(--vd-ease) both; overflow: hidden; }
+.vd-agt-card:nth-child(2) { animation-delay: .05s; } .vd-agt-card:nth-child(3) { animation-delay: .1s; }
+.vd-agt-card .ic { display: grid; place-items: center; padding: 30px 0 6px; color: var(--text); background: var(--surface-2); }
+.vd-agt-card h3 { margin: 0; padding: 6px 16px 0; font-size: 24px; font-weight: 400; text-align: center; background: var(--surface-2); }
+.vd-agt-card > p { margin: 0; padding: 4px 18px 18px; font-size: 14px; color: var(--muted); text-align: center; background: var(--surface-2); flex: 1; }
+.vd-agt-card .sel { display: flex; gap: 6px; padding: 12px 14px 0; }
+.vd-agt-card .sel select { flex: 1; height: 34px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); padding: 0 6px; }
+.vd-agt-card .act { display: grid; justify-items: center; gap: 4px; padding: 16px 14px 14px; }
+.vd-agt-card .act small { font-size: 12px; color: var(--muted); }
+.vd-agt-card .bad, .vd-agt-card.cfg .bad { color: var(--danger); }
+.vd-btn.big { width: 100%; height: 50px; justify-content: center; font-size: 18px; }
+.vd-btn.ok, .vd-btn.big.ok { background: var(--success); border-color: var(--success); }
+.vd-btn.outline-ok { background: transparent; color: var(--success); border-color: var(--success); height: 50px; padding: 0 40px; font-size: 18px; }
+.vd-btn.outline-ok:hover { background: color-mix(in srgb, var(--success) 12%, transparent); filter: none; }
+.vd-agt-card.cfg .hd { background: var(--primary-soft); padding: 26px 16px 22px; text-align: center; min-height: 160px; }
+.vd-agt-card.cfg .hd h3 { background: none; padding: 0; font-size: 24px; font-weight: 700; }
+.vd-agt-card.cfg .hd p { margin: 4px 0 0; font-size: 14px; color: var(--text); }
+.vd-agt-card.cfg .bd { padding: 24px 18px; display: grid; justify-items: center; gap: 14px; text-align: center; font-size: 14px; color: var(--muted); }
+.vd-agt-card.cfg .bd p { margin: 0; line-height: 1.6; }
+.vd-agt-card.cfg .bd .vd-btn.danger { height: 50px; padding: 0 22px; font-size: 18px; }
+.vd-state { display: inline-block; padding: 8px 12px; border-radius: 3px; font-weight: 700; font-size: 15px; }
+.vd-state.ok { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
+.vd-state.off { background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning); }
+.vd-modal-bg { position: fixed; inset: 0; z-index: 150; background: rgba(0,0,0,.45); display: grid; place-items: start center; padding: 10px 16px; overflow: auto; animation: v-fade .3s ease both; }
+.vd-modal { position: relative; width: min(600px, 100%); background: var(--surface); color: var(--text); border-radius: 4px; padding: 26px 22px; box-shadow: 0 30px 80px -30px rgba(0,0,0,.6); animation: vd-modal var(--vd-med) var(--vd-ease) both; }
+.vd-modal h2 { margin: 0 0 8px; text-align: center; font-size: 30px; font-weight: 700; color: var(--text); }
+.vd-modal .lead { text-align: center; color: var(--muted); margin: 0 0 20px; }
+.vd-modal .foot { text-align: center; color: var(--muted); font-size: 14px; margin: 20px 0 14px; }
+.vd-modal .x { position: absolute; top: 12px; right: 16px; border: 0; background: none; color: var(--muted); font-size: 30px; cursor: pointer; line-height: 1; }
+.vd-none { display: grid; justify-items: center; gap: 6px; padding: 40px 10px; color: var(--muted); text-align: center; }
+.vd-none b { color: var(--text); font-size: 18px; }
+.vd-pre { text-align: left; max-height: 260px; overflow: auto; background: var(--surface-2); padding: 10px; border-radius: 4px; font-size: 12px; margin-top: 10px; }
+@media (max-width: 640px) { .vd-agt-cards, .vd-agt-cards.cfg { grid-template-columns: 1fr; } }
+
+/* Como na referência: o CENTRO (círculo branco + logótipo) fica PARADO e só o
+   anel roda à volta; logótipo grande, a ocupar quase todo o círculo. */
+.vproc-ring img { left: 9% !important; width: 82% !important; }
+.vproc-sm .vproc-ring img { left: 8% !important; width: 84% !important; }
+.loading { position: relative; }
+.loading::before { animation: none !important; border-color: transparent !important; width: 84px !important; height: 84px !important;
+  background: #fff url('/logo.png') center / 84% no-repeat !important; }
+.loading::after { content: ''; position: absolute; top: 34px; left: 50%; width: 96px; height: 96px; margin-left: -48px; margin-top: -6px; border-radius: 999px;
+  border: 4px solid transparent; border-top-color: var(--primary); border-right-color: var(--primary); animation: vproc-spin 1.1s cubic-bezier(.5,.1,.5,.9) infinite; pointer-events: none; }
+
+/* Migração (layout de referência) */
+.vd-agt-cards.mig4 { grid-template-columns: repeat(auto-fill, minmax(210px, 230px)); }
+.vd-modal.wide { width: min(900px, 100%); }
+.vd-modal .mig-card { box-shadow: none; border: 0; padding: 0; background: transparent; }
+.mig-structure { display: grid; justify-items: center; gap: 4px; text-align: center; margin-top: 16px; font-size: 13.5px; color: var(--muted); }
+.mig-structure b { color: var(--text); font-size: 15px; }
+
+/* A entrada da página NÃO pode deixar "transform" no fim: um transform no
+   antepassado transforma os elementos fixos (ícone de mensagem, assistente)
+   em relativos à página e eles desciam com o scroll. "backwards" aplica o
+   estado inicial só antes de começar e no fim não fica transform nenhum. */
+.admin .content > .page-anim { animation-fill-mode: backwards !important; }
+.admin .content > .page-anim { transform: none; }

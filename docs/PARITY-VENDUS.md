@@ -49,3 +49,18 @@ Venda offline com série por posto e idempotência; loja online própria; restau
 | Funcionalidades fiscais (A3 Modo Formação, A4 Documento Manual, séries AGT, rejeitados) | POR FAZER (confirmar requisitos AGT) | — |
 
 Limitação: a verificação visual com sessão iniciada exige o login do utilizador (as credenciais nunca são introduzidas pelo agente).
+
+## Pendentes (lista viva, 2026-11-07 — pedidos do dono do produto)
+Feito desde a última atualização: talão térmico e A4 no formato do Vendus; círculo de processamento único com o logótipo; página AGT da empresa (SAF-T, Comunicação, Configuração: Estado/Séries/Rejeitados) e endpoints da empresa; migração no layout do Vendus; ícone de mensagem fixo; publicação em produção (PR #131, merge f8f49bd).
+
+Por fazer (por ordem):
+1. Abas/separadores e janelas iguais às do Vendus em TODO o sistema (admin, super admin, caixa, landing) — estudar no Vendus uma página com abas antes de desenhar.
+2. Páginas uma a uma no layout do Vendus: Inventário, Movimentos de stock, Compras, Promoções, Equipa, Clientes, Câmaras, Backup e Restauro, Configurações, Subscrição e Planos, Relatórios.
+3. Migração: cartão "Stock" (Referência; Quantidade; Loja; Operação) — exige endpoint novo de atualização de stock por ficheiro.
+4. Super admin: página Fiscal (AGT) com o mesmo layout de cartões; Dashboard da plataforma sem "Ao vivo"/"Atualizar".
+5. Loja online no padrão Vendus GO.
+6. Setores do Vendus (restauração, hotelaria, farmácia, saúde, serviços) — estudar e copiar.
+7. Fiscal: A3 Modo Formação, A4 Documento Manual (confirmar requisitos AGT em fonte oficial), restantes A5–A12.
+8. Formatos de impressão dos relatórios (PDF) iguais aos do Vendus.
+9. Verificação visual de cada página com sessão (o agente não introduz credenciais — o utilizador entra).
+10. Segurança: a palavra-passe do super admin foi escrita na conversa — deve ser alterada pelo utilizador.

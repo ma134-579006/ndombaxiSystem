@@ -32,24 +32,79 @@ async function readAsBase64(file: File): Promise<string> {
  *  "Negócio", SAF-T da AGT, dumps .sql, Excel/CSV genérico) — produtos, clientes
  *  e fornecedores. Mapeamento determinístico de colunas (nunca "alucina"); mostra
  *  sempre uma pré-visualização antes de aplicar; nunca apaga nada (upsert). */
-export function Migration() {
-  return (
-    <>
-      <div className="content-head"><h2><IconUpload size={20} /> Migração de dados</h2></div>
-      <div className="mig-formats">
-        {['Excel .xlsx', 'CSV', 'SAF-T .xml (AGT)', 'Base de dados .sql'].map((f) => (
-          <span key={f} className="mig-chip">{f}</span>
-        ))}
-      </div>
-      <div className="mig-grid">
-        <MigrationCard kind="products" />
-        <MigrationCard kind="customers" />
-        <MigrationCard kind="suppliers" />
-      </div>
-    </>
-  );
+/* Cabeçalhos dos ficheiros de exemplo (mesmos nomes de colunas que o sistema
+   reconhece nas exportações de outros programas). */
+const EXAMPLE: Record<MigrationKind, { head: string[]; row: string[] }> = {
+  products: {
+    head: ['Nome', 'Categoria', 'Marca', 'Referência', 'Código de Barras', 'Descrição', 'PVP', 'Preço de Custo', 'Unidade', 'Stock', 'IVA - Taxa', 'IVA - Isenção (Código)'],
+    row: ['Água 1,5L', 'Bebidas', 'Pura', 'AG15', '5601234567890', 'Água mineral', '350', '200', 'un', '24', '14', ''],
+  },
+  customers: {
+    head: ['Nome', 'NIF', 'Morada', 'Localidade', 'País', 'Telefone', 'Telemóvel', 'E-mail', 'Saldo em dívida', 'Observações'],
+    row: ['Cliente Exemplo, Lda', '5000000000', 'Rua 1', 'Luanda', 'Angola', '', '923000000', 'cliente@exemplo.ao', '0', ''],
+  },
+  suppliers: {
+    head: ['Nome', 'NIF', 'Morada', 'Localidade', 'País', 'Telefone', 'Telemóvel', 'E-mail', 'Conta a pagar'],
+    row: ['Fornecedor Exemplo, Lda', '5000000001', 'Rua 2', 'Luanda', 'Angola', '', '924000000', 'fornecedor@exemplo.ao', '0'],
+  },
+};
+const CARD_TEXT: Record<MigrationKind, string> = {
+  products: 'Importação de produtos ou serviços em formato CSV, Excel ou SAF-T (XML).',
+  customers: 'Importação de clientes em formato CSV, Excel ou SAF-T (XML).',
+  suppliers: 'Importação de fornecedores em formato CSV ou Excel.',
+};
+function downloadExample(kind: MigrationKind) {
+  const { head, row } = EXAMPLE[kind];
+  const csv = '\ufeff' + [head, row].map((r) => r.map((c) => (/[;"\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `exemplo-${kind}.csv`; document.body.appendChild(a); a.click(); a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
+/** Migração de dados no layout do backoffice de referência: um cartão por tipo
+ *  (ícone, título, formato) com "Importar" (abre a janela de importação com
+ *  pré-visualização e confirmação) e "Download Ficheiro Exemplo". */
+export function Migration() {
+  const [open, setOpen] = useState<MigrationKind | null>(null);
+  const kinds: MigrationKind[] = ['products', 'customers', 'suppliers'];
+  return (
+    <div className="vd-page">
+      <div className="vd-head"><p className="vd-crumb"><span>Migração de Dados</span></p></div>
+      <div className="vd-agt-cards mig4">
+        {kinds.map((k) => {
+          const Icon = KIND_ICON[k];
+          return (
+            <div className="vd-agt-card" key={k}>
+              <div className="ic"><Icon size={46} /></div>
+              <h3>{KIND_LABEL[k]}</h3>
+              <p>{CARD_TEXT[k]}</p>
+              <div className="act">
+                <button className="vd-btn big" onClick={() => setOpen(k)}><IconUpload size={18} /> Importar</button>
+                <button className="vd-clear" onClick={() => downloadExample(k)}>Download Ficheiro Exemplo</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {open ? (
+        <div className="vd-modal-bg" onClick={() => setOpen(null)}>
+          <div className="vd-modal wide" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <button className="x" onClick={() => setOpen(null)} aria-label="Fechar">×</button>
+            <h2>Importação de {KIND_LABEL[open]}</h2>
+            <p className="lead">Escolha um ficheiro (.CSV, .XLSX, .XML, .SQL) para iniciar o processo. Após o envio, poderá confirmar os registos antes de proceder à importação.</p>
+            <MigrationCard kind={open} />
+            <div className="mig-structure">
+              <b>Estrutura da Importação</b>
+              <span>{EXAMPLE[open].head.join(', ')}</span>
+              <button className="vd-clear" onClick={() => downloadExample(open)}>Download Exemplo (CSV)</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 function MigrationCard({ kind }: { kind: MigrationKind }) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [contentB64, setContentB64] = useState<string | null>(null);
