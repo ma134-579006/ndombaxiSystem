@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "lib": ["ES2022"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noUnusedLocals": true,
+    "outDir": ".test-build",
+    "rootDir": "src",
+    "typeRoots": ["../api/node_modules/@types"],
+    "types": ["node"]
+  },
+  "include": ["src/pos/cartPersist.ts", "src/pos/__tests__/**/*.ts"]
+}

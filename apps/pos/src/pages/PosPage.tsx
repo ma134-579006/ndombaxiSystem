@@ -53,6 +53,7 @@ import { isNativeApp } from '../config';
 import { adjustCatalogStock, syncCatalog } from '../offline/catalog';
 import { customersStore } from '../offline/indexedList';
 import { setSaleInProgress } from '../pos/saleActivity';
+import { decideHydration, describeReconcile, parseStoredCart, reconcileWithCatalog, type StoredCart } from '../pos/cartPersist';
 
 const CACHE_PRODUCTS = 'cache:products';
 // Dados de apoio da Caixa, também guardados para VENDER 100% OFFLINE (clientes,
@@ -65,6 +66,11 @@ const CACHE_PROMOS = 'cache:promotions';
 /** Rascunho do carrinho no servidor por apagar (venda concluída sem rede). */
 const DRAFT_STALE = 'ndx:cart-draft-stale';
 const marcarRascunhoVelho = () => { try { localStorage.setItem(DRAFT_STALE, '1'); } catch { /* ignora */ } };
+const readLocal = (key: string): string | null => { try { return localStorage.getItem(key); } catch { return null; } };
+/** Cópia de segurança do carrinho na base local (IndexedDB), além do localStorage. */
+const cartBackupKey = (cartKey: string) => `${cartKey}:backup`;
+const cartSignature = (lines: CartLine[], customerId: string | null) =>
+  `${customerId ?? ''}|${lines.map((l) => `${l.product.id}:${l.quantity}`).join(',')}`;
 
 const ROLE_LABELS: Record<string, string> = {
   COMPANY_ADMIN: 'Administrador',
@@ -233,10 +239,25 @@ export function PosPage() {
   // acidental, até ser finalizado ou limpo pelo MESMO funcionário). Multiutilizador:
   // cada operador tem a sua chave, e o stock é sempre reconfirmado no servidor.
   const cartKey = user?.sub ? `pos:cart:${user.sub}` : null;
+  // Chave cujo conteúdo já foi carregado para o estado. Enquanto não coincidir com
+  // `cartKey`, a persistência NÃO escreve — senão um carrinho vazio do 1.º render
+  // (utilizador ainda por decidir) apagava o que estava guardado (B-03).
+  const loadedKeyRef = useRef<string | null>(null);
+  // Cópia guardada mais recente (com updatedAt/syncedAt) — base da hidratação (B-01).
+  const storedRef = useRef<StoredCart<Product> | null>(null);
+  // O próximo conteúdo gravado veio do SERVIDOR → já está sincronizado.
+  const fromServerRef = useRef(false);
   const [cart, setCart] = useState<CartLine[]>(() => {
-    try { const raw = cartKey ? localStorage.getItem(cartKey) : null; return raw ? (JSON.parse(raw) as CartLine[]) : []; }
-    catch { return []; }
+    const s = cartKey ? parseStoredCart<Product>(readLocal(cartKey)) : null;
+    storedRef.current = s;
+    loadedKeyRef.current = cartKey;
+    return s?.lines ?? [];
   });
+  const cartRef = useRef(cart);
+  cartRef.current = cart;
+  // O cliente da venda guardada já foi reposto (ou a lista de clientes chegou)?
+  const customerRestoredRef = useRef(false);
+  const [cartStorageWarn, setCartStorageWarn] = useState(false);
   const [cartSel, setCartSel] = useState<Set<string>>(new Set());
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [showCustomer, setShowCustomer] = useState(false);
@@ -587,14 +608,75 @@ export function PosPage() {
     }
   };
 
-  // Persiste o carrinho do operador (ou limpa a chave quando esvazia).
+  // Troca de operador/chave: carrega o carrinho guardado dessa chave ANTES de
+  // permitir qualquer escrita (B-03). Se o localStorage não tiver nada, tenta a
+  // cópia de segurança na base local (IndexedDB).
   useEffect(() => {
-    if (!cartKey) return;
+    if (!cartKey || loadedKeyRef.current === cartKey) return;
+    let cancel = false;
+    const s = parseStoredCart<Product>(readLocal(cartKey));
+    if (s) {
+      storedRef.current = s;
+      loadedKeyRef.current = cartKey;
+      setCart(s.lines);
+      return;
+    }
+    void kvGet<StoredCart<Product>>(cartBackupKey(cartKey)).then((b) => {
+      if (cancel) return;
+      const backup = b ? parseStoredCart<Product>(JSON.stringify(b)) : null;
+      storedRef.current = backup;
+      loadedKeyRef.current = cartKey;
+      if (backup?.lines.length) setCart(backup.lines);
+    }).catch(() => { if (!cancel) loadedKeyRef.current = cartKey; });
+    return () => { cancel = true; };
+  }, [cartKey]);
+
+  // Persiste o carrinho do operador IMEDIATAMENTE após cada alteração:
+  // localStorage (síncrono, sobrevive a refresh/fecho) + cópia na base local.
+  // Falha de escrita deixa de ser silenciosa (B-05).
+  useEffect(() => {
+    if (!cartKey || loadedKeyRef.current !== cartKey) return;
+    const now = Date.now();
+    const synced = fromServerRef.current;
+    fromServerRef.current = false;
+    const prev = storedRef.current;
+    // Cliente ainda por restaurar (lista de clientes a carregar): mantém o guardado.
+    const customerId = customer?.id ?? (customerRestoredRef.current ? null : prev?.customerId ?? null);
+    // Só conta como ALTERAÇÃO o que muda a venda (artigos, quantidades, cliente) —
+    // não um preço/stock atualizado do catálogo; senão cada refresh tornava o local
+    // "mais recente" que o servidor e a hidratação entre aparelhos nunca aplicava.
+    const changed = !prev || cartSignature(prev.lines, prev.customerId) !== cartSignature(cart, customerId);
+    const stored: StoredCart<Product> = {
+      v: 2,
+      lines: cart,
+      customerId,
+      updatedAt: synced ? now : changed ? now : (prev?.updatedAt ?? now),
+      syncedAt: synced ? now : (prev?.syncedAt ?? 0),
+    };
+    storedRef.current = stored;
+    let ok = true;
     try {
-      if (cart.length) localStorage.setItem(cartKey, JSON.stringify(cart));
+      if (cart.length) localStorage.setItem(cartKey, JSON.stringify(stored));
       else localStorage.removeItem(cartKey);
-    } catch { /* storage cheio/indisponível — ignora */ }
-  }, [cart, cartKey]);
+    } catch { ok = false; }
+    void (cart.length ? kvSet(cartBackupKey(cartKey), stored) : kvSet(cartBackupKey(cartKey), null))
+      .then(() => { if (!ok) setCartStorageWarn(false); })
+      .catch(() => { if (!ok) setCartStorageWarn(true); });
+    if (ok) setCartStorageWarn(false);
+  }, [cart, cartKey, customer]);
+
+  // Repõe o cliente da venda guardada quando a lista de clientes chega (online
+  // ou da cache local) — o cliente associado sobrevive a refresh/reinício.
+  useEffect(() => {
+    if (customerRestoredRef.current || customers.length === 0) return;
+    customerRestoredRef.current = true;
+    const id = storedRef.current?.customerId;
+    if (id && !customer && cartRef.current.length) {
+      const c = customers.find((x) => x.id === id);
+      if (c) setCustomer(c);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customers]);
 
   // Diz ao posto que a caixa está OCUPADA — turno aberto, carrinho com artigos
   // ou fatura a ser emitida. É o único sinal que só este ecrã tem, e é o que
@@ -618,29 +700,16 @@ export function PosPage() {
 
   // Reconcilia o carrinho com o STOCK ATUAL (ex.: outro caixa vendeu entretanto):
   // remove o que esgotou/saiu do catálogo e ajusta quantidades ao disponível.
+  // Pratos SOB ENCOMENDA (ficha técnica) nunca são removidos nem limitados aqui
+  // (o stock real está nos ingredientes; a emissão valida-os). O que for retirado
+  // ou ajustado é AVISADO ao funcionário — nunca desaparece em silêncio (B-02).
   useEffect(() => {
-    if (products.length === 0) return;
-    setCart((prev) => {
-      if (prev.length === 0) return prev;
-      let changed = false;
-      const out: CartLine[] = [];
-      for (const l of prev) {
-        const fresh = products.find((p) => p.id === l.product.id);
-        if (!fresh) { changed = true; continue; }
-        // Pratos SOB ENCOMENDA (ficha técnica) têm stock próprio 0 por natureza —
-        // o stock real está nos ingredientes. NÃO os remover nem clampar aqui,
-        // senão a reconciliação apaga-os do carrinho logo no refetch seguinte
-        // (a emissão é que valida os ingredientes). Espelha addToCart/changeQty.
-        const madeToOrder = !!fresh.has_recipe;
-        const stock = Number(fresh.stock_qty);
-        if (!madeToOrder && stock <= 0) { changed = true; continue; }
-        const qty = madeToOrder ? l.quantity : Math.min(l.quantity, stock);
-        if (qty !== l.quantity || fresh !== l.product) changed = true;
-        out.push({ product: fresh, quantity: qty });
-      }
-      // Ajuste SILENCIOSO ao stock atual (o utilizador não precisa de ver o aviso).
-      return changed ? out : prev;
-    });
+    if (products.length === 0 || cartRef.current.length === 0) return;
+    const r = reconcileWithCatalog(cartRef.current, products);
+    if (!r.changed) return;
+    setCart(r.lines);
+    const msg = describeReconcile(r);
+    if (msg) { setEmitError(msg); setTimeout(() => setEmitError(null), 8000); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
 
@@ -663,6 +732,16 @@ export function PosPage() {
           return;
         }
         const draft = await api.getCartDraft();
+        const serverHasLines = !!draft && Array.isArray(draft.lines) && draft.lines.length > 0;
+        // B-01: alterações locais ainda não enviadas (ex.: feitas sem rede) ganham
+        // SEMPRE ao rascunho do servidor — nunca são substituídas às cegas.
+        if (decideHydration(storedRef.current, serverHasLines) === 'local') return;
+        if (!serverHasLines) {
+          // Local já sincronizado e servidor vazio: a venda foi concluída/limpa
+          // noutro aparelho deste operador.
+          if (cartRef.current.length) { fromServerRef.current = true; setCart([]); }
+          return;
+        }
         if (draft && Array.isArray(draft.lines) && draft.lines.length) {
           const lines: CartLine[] = [];
           for (const d of draft.lines) {
@@ -675,7 +754,7 @@ export function PosPage() {
             if (!madeToOrder && stock <= 0) continue;
             lines.push({ product: p, quantity: madeToOrder ? d.quantity : Math.min(d.quantity, stock) });
           }
-          if (lines.length) setCart(lines);
+          if (lines.length) { fromServerRef.current = true; setCart(lines); }
           if (draft.customerId) {
             const c = customers.find((x) => x.id === draft.customerId);
             if (c) setCustomer(c);
@@ -693,8 +772,18 @@ export function PosPage() {
     if (!hydratedRef.current || !sync.online) return;
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => {
-      if (cart.length === 0) void api.clearCartDraft().catch(() => undefined);
-      else void api.saveCartDraft(cart.map((l) => ({ productId: l.product.id, quantity: l.quantity })), customer?.id ?? null).catch(() => undefined);
+      // Marca como sincronizado SÓ o conteúdo que o servidor confirmou.
+      const sent = storedRef.current?.updatedAt ?? 0;
+      const markSynced = () => {
+        const s = storedRef.current;
+        if (!s || s.updatedAt !== sent || !cartKey) return;
+        const next = { ...s, syncedAt: s.updatedAt };
+        storedRef.current = next;
+        try { if (next.lines.length) localStorage.setItem(cartKey, JSON.stringify(next)); } catch { /* aviso já tratado na persistência */ }
+        if (next.lines.length) void kvSet(cartBackupKey(cartKey), next).catch(() => undefined);
+      };
+      if (cart.length === 0) void api.clearCartDraft().then(markSynced).catch(() => undefined);
+      else void api.saveCartDraft(cart.map((l) => ({ productId: l.product.id, quantity: l.quantity })), customer?.id ?? null).then(markSynced).catch(() => undefined);
     }, 700);
     return () => { if (saveTimer.current) window.clearTimeout(saveTimer.current); };
   }, [cart, customer, sync.online]);
@@ -1136,6 +1225,7 @@ export function PosPage() {
               </button>
 
               {emitError ? <div className="banner danger">{emitError}</div> : null}
+              {cartStorageWarn ? <div className="banner danger">Não foi possível guardar o carrinho neste aparelho. Conclua a venda antes de fechar a aplicação.</div> : null}
               {okMsg ? <div className="banner" style={{ background: 'color-mix(in srgb, var(--success, #30a46c) 16%, transparent)', color: 'var(--success, #1a7f4b)', fontWeight: 700 }}>{okMsg}</div> : null}
 
               <div className="totals">
