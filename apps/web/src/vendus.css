@@ -6,7 +6,19 @@
    Prefixo .vd- para não colidir com o theme.css.
    ════════════════════════════════════════════════════════════════════ */
 
-:root { --vd-ease: cubic-bezier(.2, .7, .2, 1); --vd-fast: .16s; --vd-med: .28s; }
+/* Movimento medido no backoffice/POS de referência (transições mais usadas):
+   0.3s simples; 500ms cubic-bezier(.075,.82,.165,1) (ease-out circular);
+   300ms cubic-bezier(.77,0,.175,1) (ease-in-out) para painéis que abrem. */
+:root {
+  --vd-ease: cubic-bezier(.075, .82, .165, 1);
+  --vd-ease-io: cubic-bezier(.77, 0, .175, 1);
+  --vd-fast: .3s; --vd-med: .5s;
+}
+/* Mudança de página: entrada curta em ease-out circular (sem deslizes longos). */
+.admin .content > .page-anim { animation: vd-page var(--vd-med) var(--vd-ease) both !important; }
+@keyframes vd-page { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.admin .btn, .admin .vd-btn, .admin .chip, .admin .nav button, .admin .nav-group-head { transition-duration: var(--vd-fast) !important; transition-timing-function: ease !important; }
+@media (prefers-reduced-motion: reduce) { .admin .content > .page-anim { animation: none !important; } }
 
 /* ── Barra de topo ─────────────────────────────────────────────────── */
 .admin .topbar {

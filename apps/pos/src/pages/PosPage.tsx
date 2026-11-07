@@ -281,7 +281,31 @@ export function PosPage() {
   const [session, setSession] = useState<CashSession | null>(null);
   const [showShift, setShowShift] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
-
+  // ── Layout do POS de referência: menus do topo, separadores de categorias,
+  // painel "Opções" e linhas da venda expansíveis ──
+  const [topMenu, setTopMenu] = useState<'auto' | 'caixa' | 'docs' | null>(null);
+  const topMenuRef = useRef<HTMLElement | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [catMenu, setCatMenu] = useState(false);
+  const catMenuRef = useRef<HTMLDivElement | null>(null);
+  const [catFilter, setCatFilter] = useState('');
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [optsOpen, setOptsOpen] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [openLine, setOpenLine] = useState<string | null>(null);
+  useEffect(() => { api.categories().then(setCategories).catch(() => undefined); }, []);
+  // Fecha os menus do topo e o de categorias ao clicar fora / Esc.
+  useEffect(() => {
+    if (!topMenu && !catMenu) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (topMenuRef.current?.contains(t) || catMenuRef.current?.contains(t)) return;
+      setTopMenu(null); setCatMenu(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setTopMenu(null); setCatMenu(false); } };
+    document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [topMenu, catMenu]);
   // Chat de equipa (caixa ↔ gerente): badge de não-lidas + janela.
   const [showChat, setShowChat] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
@@ -480,7 +504,16 @@ export function PosPage() {
     const ids = new Set(local.map((p) => p.id));
     return [...local, ...searchHits.filter((p) => !ids.has(p.id))];
   }, [products, search, searchHits]);
-  /** Procura UM produto por código/código de barras: primeiro no que já está carregado,
+  /** Separadores: só as categorias que têm produtos carregados (como na referência). */
+  const catTabs = useMemo(() => {
+    const used = new Set(products.map((p) => p.category_id).filter(Boolean) as string[]);
+    return categories.filter((c) => used.has(c.id));
+  }, [categories, products]);
+  /** Grelha: pesquisa tem prioridade; sem pesquisa, filtra pela categoria escolhida. */
+  const shown = useMemo(
+    () => (search.trim() || !catFilter ? filtered : filtered.filter((p) => p.category_id === catFilter)),
+    [filtered, catFilter, search],
+  );  /** Procura UM produto por código/código de barras: primeiro no que já está carregado,
    *  depois no servidor/memória interna (catálogos que não cabem na grelha). */
   const lookupCode = useCallback(async (code: string): Promise<Product | null> => {
     const c = code.trim().toLowerCase();
@@ -1052,58 +1085,68 @@ export function PosPage() {
   return (
     <div className="app-bg">
       <div className="pos">
-        <header className="topbar">
+        {/* Barra de topo no padrão do POS de referência: ☰ + marca à esquerda;
+            menus Autoconsumo / Caixa / Documentos e o operador à direita.
+            Logótipo e nome são os do LPS Vendas / da empresa. */}
+        <header className="topbar vtop">
           <img className="topbar-logo" src={identity?.logoUrl || LOGO_SRC} alt={identity?.companyName || SYSTEM_SHORT} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
           <div className="who">
             <div className="name">{identity?.companyName || `${SYSTEM_SHORT} · Caixa`}</div>
-            {user?.storeName ? <div className="store-tag">{user.storeName}</div> : null}
           </div>
           <span className="spacer" />
-          <button
-            className={`conn ${session ? 'on' : 'off'}`}
-            onClick={() => setShowShift(true)}
-            title={session ? 'Turno aberto — clique para fechar' : 'Sem turno — clique para abrir'}
-          >
-            <IconReceipt size={18} />
-            <span className="conn-label">{session ? 'Turno aberto' : 'Abrir turno'}</span>
-          </button>
-          <button className="conn" onClick={() => setShowSales(true)} title="Histórico de vendas / cancelar">
-            <IconCart size={18} />
-            <span className="conn-label">Vendas</span>
-          </button>
-          {identity?.businessType === 'RESTAURANT' ? (
-            <button className="conn" onClick={() => setShowKitchen(true)} title="Pedidos prontos da cozinha (balcão)">
-              <IconReceipt size={18} />
-              <span className="conn-label">Cozinha</span>
-              {kitchenReady > 0 ? <span className="conn-badge" style={{ background: '#e5484d' }}>{kitchenReady > 99 ? '99+' : kitchenReady}</span> : null}
+          <nav className="vtop-menus" ref={topMenuRef}>
+            <div className="vtop-m">
+              <button className={topMenu === 'auto' ? 'on' : ''} onClick={() => setTopMenu((m) => (m === 'auto' ? null : 'auto'))} aria-expanded={topMenu === 'auto'}>Autoconsumo <Chev /></button>
+              {topMenu === 'auto' ? (
+                <div className="vtop-drop" role="menu">
+                  <button role="menuitem" onClick={() => { setTopMenu(null); setShowConsumption(true); }}>Registar</button>
+                </div>
+              ) : null}
+            </div>
+            <div className="vtop-m">
+              <button className={topMenu === 'caixa' ? 'on' : ''} onClick={() => setTopMenu((m) => (m === 'caixa' ? null : 'caixa'))} aria-expanded={topMenu === 'caixa'}>
+                Caixa <span className={`vtop-dot ${session ? 'ok' : 'off'}`} aria-label={session ? 'Turno aberto' : 'Sem turno'} /> <Chev />
+              </button>
+              {topMenu === 'caixa' ? (
+                <div className="vtop-drop" role="menu">
+                  <div className="vtop-state">Estado da Caixa <b className={session ? 'ok' : 'off'}>{session ? 'Caixa Aberta' : 'Caixa Fechada'}</b></div>
+                  <button role="menuitem" onClick={() => { setTopMenu(null); setShowShift(true); }}>{session ? 'Fechar Caixa' : 'Abrir Caixa'}<small>{session ? 'Contagem e fecho do turno' : 'Abrir turno para vender'}</small></button>
+                  {session ? <button role="menuitem" onClick={() => { setTopMenu(null); setShowShift(true); }}>Entrada / Saída de dinheiro<small>Reforço ou sangria manual</small></button> : null}
+                  {session ? <button role="menuitem" onClick={() => { setTopMenu(null); setShowShift(true); }}>Ponto de Caixa<small>Ponto de situação dos movimentos</small></button> : null}
+                  {identity?.businessType === 'RESTAURANT' ? (
+                    <button role="menuitem" onClick={() => { setTopMenu(null); setShowKitchen(true); }}>Cozinha{kitchenReady > 0 ? ` (${kitchenReady})` : ''}<small>Pedidos prontos do balcão</small></button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="vtop-m">
+              <button className={topMenu === 'docs' ? 'on' : ''} onClick={() => setTopMenu((m) => (m === 'docs' ? null : 'docs'))} aria-expanded={topMenu === 'docs'}>Documentos <Chev /></button>
+              {topMenu === 'docs' ? (
+                <div className="vtop-drop" role="menu">
+                  <button role="menuitem" onClick={() => { setTopMenu(null); setShowSales(true); }}>Faturação<small>Faturas, recibos e anulações</small></button>
+                  {isNativeApp() && sync.pending > 0 ? (
+                    <button role="menuitem" onClick={() => { setTopMenu(null); setShowQueue(true); }}>Por enviar ({sync.pending})<small>{sync.online ? 'A enviar sozinhas' : 'Sem rede — enviam quando houver ligação'}</small></button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </nav>
+          {/* Sincronização automática e invisível; só aparece se o servidor RECUSAR algo. */}
+          {isNativeApp() && !!sync.lastError && sync.pending > 0 ? (
+            <button className={`conn ${sync.online ? 'on' : 'off'}`} onClick={() => setShowQueue(true)}
+              title={sync.online ? 'Vendas guardadas no aparelho — enviam-se sozinhas' : 'Sem rede — envia sozinho quando houver ligação'}>
+              {sync.online ? <IconCloud size={18} /> : <IconCloudOff size={18} />}
+              <span className="conn-badge">{sync.pending}</span>
             </button>
           ) : null}
-          {/* A sincronização é AUTOMÁTICA e INVISÍVEL (decisão do dono do produto): nada aparece
-              enquanto se trabalha com ou sem rede. Só surge um aviso se o servidor RECUSAR algo
-              (ex.: uma venda com erro), para o operador poder rever. */}
-          {isNativeApp() && !!sync.lastError && sync.pending > 0 ? (
-          <button
-            className={`conn ${sync.online ? 'on' : 'off'}`}
-            onClick={() => setShowQueue(true)}
-            title={sync.online ? 'Vendas guardadas no aparelho — enviam-se sozinhas' : 'Sem rede — a trabalhar no aparelho; envia sozinho quando houver ligação'}
-          >
-            {sync.online ? <IconCloud size={18} /> : <IconCloudOff size={18} />}
-            <span className="conn-label">{sync.online ? 'A enviar' : 'Sem rede'}</span>
-            {sync.pending > 0 ? <span className="conn-badge">{sync.pending}</span> : null}
-          </button>
-          ) : null}
-          <button
-            className={`icon-btn${kbd.enabled ? ' on' : ''}`}
-            onClick={kbd.toggle}
-            title="Teclado no ecrã"
-          >
-            <IconKeyboard size={22} />
+          <button className={`icon-btn${kbd.enabled ? ' on' : ''}`} onClick={kbd.toggle} title="Teclado no ecrã" aria-label="Teclado no ecrã">
+            <IconKeyboard size={20} />
           </button>
           <ThemePicker />
           <OperatorMenu
             photo={operatorPhoto}
             name={user?.name || user?.email || 'Operador'}
-            email={user?.email || ''}
+            email={user?.storeName || user?.email || ''}
             role={user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
             unread={chatUnread}
             custUnread={custUnread}
@@ -1118,251 +1161,195 @@ export function PosPage() {
           />
         </header>
 
-        <div className="pos-body">
-          {/* Catálogo */}
-          <section className="catalog">
-            <div className="search-bar">
-              <div style={{ flex: 1 }}>
-                <KeyboardInput
-                  icon={<IconSearch size={18} />}
-                  placeholder="Procurar produto por nome, código ou código de barras…"
-                  value={search}
-                  onChange={setSearch}
-                  onSubmit={onSearchEnter}
-                />
+        <div className="pos-body vpos">
+          {/* Catálogo: separadores (pesquisa, todas as categorias, categorias) + grelha */}
+          <section className="catalog vcat">
+            <div className="vtabs" role="tablist" aria-label="Categorias">
+              <button className={`vtab ic${showSearch ? ' on' : ''}`} onClick={() => setShowSearch((v) => !v)} aria-label="Pesquisar" aria-pressed={showSearch}><IconSearch size={18} /></button>
+              <div className="vtab-wrap" ref={catMenuRef}>
+                <button className={`vtab ic${catMenu ? ' on' : ''}`} onClick={() => setCatMenu((v) => !v)} aria-label="Todas as categorias" aria-expanded={catMenu}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor" /><path d="m8 10 4 4 4-4" fill="none" stroke="var(--vpos-tab, #0eaaa6)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+                {catMenu ? (
+                  <div className="vtop-drop vcat-drop" role="menu">
+                    <button role="menuitem" className={catFilter === '' ? 'on' : ''} onClick={() => { setCatFilter(''); setCatMenu(false); }}>Todos os produtos</button>
+                    {catTabs.map((c) => (
+                      <button role="menuitem" key={c.id} className={catFilter === c.id ? 'on' : ''} onClick={() => { setCatFilter(c.id); setCatMenu(false); }}>{c.name}</button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-              <BarcodeScanner continuous onDetected={(code) => scanResolve(code)} />
-              <button className="icon-btn" title="Atualizar produtos" onClick={() => void refreshProducts()}>
-                <IconSync size={20} />
-              </button>
+              {catTabs.slice(0, 8).map((c) => (
+                <button key={c.id} role="tab" aria-selected={catFilter === c.id} className={`vtab${catFilter === c.id ? ' sel' : ''}`} onClick={() => setCatFilter((f) => (f === c.id ? '' : c.id))}>{c.name}</button>
+              ))}
             </div>
 
-            {loading ? (
-              <div className="empty">A carregar produtos…</div>
-            ) : error ? (
-              <div className="empty">
-                <div className="banner danger">{error}</div>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="empty">
-                <IconCube size={40} />
-                <div>{search ? 'Nenhum produto encontrado.' : 'Sem produtos activos.'}</div>
-              </div>
-            ) : (
-              <div className="grid">
-                {filtered.map((p) => {
-                  const stock = Number(p.stock_qty);
-                  // Prato com ficha técnica: "Sob encomenda" (nunca "Esgotado") —
-                  // o stock real está nos ingredientes.
-                  const madeToOrder = !!p.has_recipe;
-                  const out = !madeToOrder && stock <= 0;
-                  return (
-                    <button key={p.id} className={`prod prod2${out ? ' out' : ''}`} onClick={() => addToCart(p)} title={p.name}>
-                      <div className="prod2-top">
-                        {p.image_url
-                          ? <img className="prod2-img" src={p.image_url} alt="" loading="lazy" />
-                          : <span className="prod2-mono" style={{ background: monoColor(p.name) }} aria-hidden="true">{monoOf(p.name)}</span>}
-                        <div className="prod2-txt">
-                          <div className="pname">{p.name}</div>
-                          <div className="pcode">{p.code}</div>
-                        </div>
-                      </div>
-                      <div className="pstock">
-                        {madeToOrder
-                          ? (() => {
-                              // Fornada na prateleira (padaria): mostra o stock produzido.
-                              if (stock > 0) return <span className={`stock-ok${stock <= 5 ? ' low' : ''}`}>{formatNumber(stock)} na prateleira</span>;
-                              // Doses possíveis com o stock atual dos ingredientes.
-                              const doses = p.portions_available == null ? null : Number(p.portions_available);
-                              if (doses != null && doses <= 0) return <span className="stock-out">Ingredientes esgotados</span>;
-                              return (
-                                <span className="stock-mto">
-                                  Sob encomenda{doses != null && doses < 100 ? ` · ${formatNumber(doses)} disp.` : ''}
-                                </span>
-                              );
-                            })()
-                          : out
-                            ? <span className="stock-out">Esgotado</span>
-                            : <span className={`stock-ok${stock <= 5 ? ' low' : ''}`}>{formatNumber(stock)} em stock</span>}
-                      </div>
-                      <div className="pfoot">
-                        <span className="pprice">{formatKz(grossUnit(p))}</span>
-                        <span className="iva-badge">{p.iva_code}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <div className="vcat-body">
+              {showSearch || search ? (
+                <div className="search-bar vsearch">
+                  <div style={{ flex: 1 }}>
+                    <KeyboardInput
+                      icon={<IconSearch size={18} />}
+                      placeholder="Pesquisar por nome, código ou código de barras"
+                      value={search}
+                      onChange={setSearch}
+                      onSubmit={onSearchEnter}
+                    />
+                  </div>
+                  <BarcodeScanner continuous onDetected={(code) => scanResolve(code)} />
+                  <button className="icon-btn" title="Atualizar produtos" aria-label="Atualizar produtos" onClick={() => void refreshProducts()}>
+                    <IconSync size={20} />
+                  </button>
+                </div>
+              ) : null}
+
+              {loading ? (
+                <div className="empty">A carregar produtos…</div>
+              ) : error ? (
+                <div className="empty"><div className="banner danger">{error}</div></div>
+              ) : shown.length === 0 ? (
+                <div className="empty">
+                  <IconCube size={40} />
+                  <div>{search ? 'Nenhum produto encontrado.' : catFilter ? 'Sem produtos nesta categoria.' : 'Sem produtos activos.'}</div>
+                </div>
+              ) : (
+                <div className="vgrid">
+                  {shown.map((p, i) => {
+                    const stock = Number(p.stock_qty);
+                    const madeToOrder = !!p.has_recipe;
+                    const out = !madeToOrder && stock <= 0;
+                    return (
+                      <button key={p.id} className={`vtile${out ? ' out' : ''}${p.image_url ? ' img' : ''}`} onClick={() => addToCart(p)} title={`${p.name} · ${p.code}${madeToOrder ? '' : ` · ${out ? 'Esgotado' : `${formatNumber(stock)} em stock`}`}`}
+                        style={{ animationDelay: `${Math.min(i, 24) * 12}ms` }}>
+                        {p.image_url ? <img src={p.image_url} alt="" loading="lazy" /> : null}
+                        <span className="vt-name">{p.name}</span>
+                        <span className="vt-price">{formatKz(grossUnit(p))}</span>
+                        {out ? <span className="vt-flag">Esgotado</span> : stock > 0 && stock <= 5 && !madeToOrder ? <span className="vt-flag low">{formatNumber(stock)}</span> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </section>
 
-          {/* Carrinho */}
-          <aside className="cart">
-            <h2>
-              <IconCart size={20} /> Carrinho{' '}
-              {totals.count > 0 ? <span className="muted">· {formatNumber(totals.count)} un</span> : null}
-              <span className="spacer" style={{ flex: 1 }} />
-              {parked.length > 0 ? (
-                <button className="btn sm ghost" onClick={() => setShowParked((v) => !v)} aria-expanded={showParked}>
-                  Suspensas ({parked.length})
-                </button>
-              ) : null}
-              {cart.length > 0 ? (
-                <button className="btn sm" onClick={parkCurrent} title="Suspende esta venda e começa outra">
-                  Nova venda
-                </button>
-              ) : null}
-            </h2>
+          {/* Venda: navegação entre vendas, tabela, total, Opções e FINALIZAR */}
+          <aside className="cart vcart">
+            <div className="vsale-nav">
+              <button onClick={() => parked.length && resumeParked(parked[parked.length - 1].id)} disabled={parked.length === 0} aria-label="Venda anterior">‹</button>
+              <span>Venda (<b>{parked.length + 1}/{parked.length + 1}</b>)</span>
+              <button onClick={() => parked.length && resumeParked(parked[0].id)} disabled={parked.length === 0} aria-label="Venda seguinte">›</button>
+            </div>
 
-            {showParked && parked.length > 0 ? (
-              <div className="parked-list" role="list">
-                {parked.map((s) => {
-                  const t = cartTotals(s.lines);
-                  const cli = s.customerId ? customers.find((c) => c.id === s.customerId)?.name : null;
-                  return (
-                    <div className="parked-item" role="listitem" key={s.id}>
-                      <div className="parked-info">
-                        <strong>{formatKz(t.gross)}</strong>
-                        <span className="muted">
-                          {formatNumber(t.count)} un · {new Date(s.parkedAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
-                          {cli ? ` · ${cli}` : ''}
-                        </span>
-                      </div>
-                      <button className="btn sm" onClick={() => resumeParked(s.id)}>Retomar</button>
-                      <button className="btn sm ghost" onClick={() => discardParkedSale(s.id)}>
-                        {confirmDiscard === s.id ? 'Confirmar descarte' : 'Descartar'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
-
-            {cart.length === 0 ? (
-              <div className="empty">
-                <IconCart size={40} />
-                <div>Carrinho vazio</div>
-                <div className="muted" style={{ fontSize: 13 }}>
-                  Toque num produto para adicionar.
+            <div className="vcart-box">
+              {optsOpen ? (
+                <div className="vopts" role="menu">
+                  <button role="menuitem" onClick={() => { setOptsOpen(false); setShowCustomer(true); }}><IconUser size={18} /> {customer ? `Cliente: ${customer.name}` : 'Cliente'}</button>
+                  <button role="menuitem" onClick={() => { setOptsOpen(false); parkCurrent(); }} disabled={cart.length === 0}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><path d="M17 21v-8H7v8M7 3v5h8" /></svg> Nova Venda
+                  </button>
+                  {parked.length > 0 ? (
+                    <button role="menuitem" onClick={() => { setOptsOpen(false); setShowParked(true); }}><IconReceipt size={18} /> Vendas suspensas ({parked.length})</button>
+                  ) : null}
+                  {identity?.businessType === 'RESTAURANT' && session && sync.online ? (
+                    <button role="menuitem" onClick={() => { setOptsOpen(false); void fireToKitchen(); }} disabled={cart.length === 0 || firing || emitting}><IconReceipt size={18} /> {firing ? 'A enviar…' : 'Enviar para cozinha'}</button>
+                  ) : null}
+                  {!session && sync.online ? (
+                    <button role="menuitem" onClick={() => { setOptsOpen(false); setShowShift(true); }}><IconReceipt size={18} /> Abrir Caixa</button>
+                  ) : null}
+                  <button role="menuitem" onClick={() => { if (confirmCancel) { setCart([]); setCartSel(new Set()); setCustomer(null); setConfirmCancel(false); setOptsOpen(false); } else setConfirmCancel(true); }} disabled={cart.length === 0}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg> {confirmCancel ? 'Confirmar: cancelar venda' : 'Cancelar Venda'}
+                  </button>
                 </div>
-              </div>
-            ) : (
-              <div className="cart-lines">
-                {/* Barra de seleção só aparece DEPOIS de marcar ≥1 produto —
-                    não estraga a estética do carrinho ao lançar. */}
-                {cartSel.size > 0 ? (
-                  <div className="row" style={{ gap: 8, alignItems: 'center', padding: '0 2px 6px' }}>
-                    <label className="row" style={{ gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={allCartSel} onChange={toggleAllCart} aria-label="Selecionar tudo" />
-                      Selecionar tudo
-                    </label>
-                    <span className="spacer" style={{ flex: 1 }} />
-                    <button className="btn sm ghost" onClick={clearCart}>Limpar ({cartSel.size})</button>
-                  </div>
-                ) : null}
-                {cart.map((l) => (
-                  <div className="cart-line" key={l.product.id}>
-                    <div className="cl-top">
-                      <input type="checkbox" style={{ marginRight: 8 }} checked={cartSel.has(l.product.id)} onChange={() => toggleCartSel(l.product.id)} aria-label={`Selecionar ${l.product.name}`} />
-                      <div>
-                        <div className="cl-name">{l.product.name}</div>
-                        <div className="cl-sub">
-                          {formatKz(grossUnit(l.product))} · {l.product.iva_code}
-                        </div>
-                      </div>
-                      <button className="trash" onClick={() => removeLine(l.product.id)} aria-label="Remover">
-                        <IconTrash size={18} />
-                      </button>
+              ) : (
+                <>
+                  {showParked && parked.length > 0 ? (
+                    <div className="parked-list" role="list">
+                      {parked.map((s) => {
+                        const t = cartTotals(s.lines);
+                        const cli = s.customerId ? customers.find((c) => c.id === s.customerId)?.name : null;
+                        return (
+                          <div className="parked-item" role="listitem" key={s.id}>
+                            <div className="parked-info">
+                              <strong>{formatKz(t.gross)}</strong>
+                              <span className="muted">{formatNumber(t.count)} un · {new Date(s.parkedAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}{cli ? ` · ${cli}` : ''}</span>
+                            </div>
+                            <button className="btn sm" onClick={() => resumeParked(s.id)}>Retomar</button>
+                            <button className="btn sm ghost" onClick={() => discardParkedSale(s.id)}>{confirmDiscard === s.id ? 'Confirmar descarte' : 'Descartar'}</button>
+                          </div>
+                        );
+                      })}
+                      <button className="btn sm ghost block" onClick={() => setShowParked(false)}>Fechar</button>
                     </div>
-                    <div className="cl-bottom">
-                      <div className="stepper">
-                        <button onClick={() => changeQty(l.product.id, -1)} aria-label="Menos">
-                          <IconMinus size={18} />
-                        </button>
-                        <span className="qty">{l.quantity}</span>
-                        <button onClick={() => changeQty(l.product.id, +1)} aria-label="Mais">
-                          <IconPlus size={18} />
-                        </button>
-                      </div>
-                      <button className="btn sm ghost cl-disc" onClick={() => setDiscLine(l)} title="Desconto neste artigo">
-                        {(manualDisc[l.product.id] ?? 0) > 0 ? `−${(Math.round((manualDisc[l.product.id] ?? 0) * 1000) / 10).toLocaleString('pt-PT')} %` : '% Desc.'}
-                      </button>
-                      {(() => {
+                  ) : null}
+                  <div className="vtable-h"><span>Produto</span><span>Qtd</span><span>Preço</span><span /></div>
+                  {cart.length === 0 ? (
+                    <div className="vtable-empty">Para começar a faturar, adicione produtos à venda.</div>
+                  ) : (
+                    <div className="vtable-b cart-lines">
+                      {cart.map((l) => {
                         const rate = discountRateByProduct[l.product.id] ?? 0;
                         const gross = lineGross(l);
-                        if (rate > 0) {
-                          return (
-                            <span className="cl-total" style={{ textAlign: 'right' }}>
-                              <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontWeight: 600, fontSize: 12, display: 'block' }}>{formatKz(gross)}</span>
-                              <span style={{ color: 'var(--success)' }}>{formatKz(Math.round(gross * (1 - rate) * 100) / 100)}</span>
-                            </span>
-                          );
-                        }
-                        return <span className="cl-total">{formatKz(gross)}</span>;
-                      })()}
+                        const open = openLine === l.product.id;
+                        return (
+                          <div className={`vline${open ? ' open' : ''}`} key={l.product.id}>
+                            <button className="vline-main" onClick={() => setOpenLine(open ? null : l.product.id)} aria-expanded={open}>
+                              <span className="vl-name">{l.product.name}{promoByProduct[l.product.id]?.name ? <small>{promoByProduct[l.product.id].name}</small> : null}</span>
+                              <span className="vl-qty">{formatNumber(l.quantity)}</span>
+                              <span className="vl-price">
+                                {rate > 0 ? <><s>{formatKz(gross)}</s>{formatKz(Math.round(gross * (1 - rate) * 100) / 100)}</> : formatKz(gross)}
+                              </span>
+                            </button>
+                            <button className="vl-del" onClick={() => removeLine(l.product.id)} aria-label={`Remover ${l.product.name}`}>✕</button>
+                            {open ? (
+                              <div className="vline-ctl">
+                                <div className="stepper">
+                                  <button onClick={() => changeQty(l.product.id, -1)} aria-label="Menos"><IconMinus size={16} /></button>
+                                  <span className="qty">{l.quantity}</span>
+                                  <button onClick={() => changeQty(l.product.id, +1)} aria-label="Mais"><IconPlus size={16} /></button>
+                                </div>
+                                <span className="muted" style={{ fontSize: 12 }}>{formatKz(grossUnit(l.product))} · {l.product.iva_code}</span>
+                                <button className="btn sm ghost" onClick={() => setDiscLine(l)}>
+                                  {(manualDisc[l.product.id] ?? 0) > 0 ? `−${(Math.round((manualDisc[l.product.id] ?? 0) * 1000) / 10).toLocaleString('pt-PT')} %` : '% Desconto'}
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
                     </div>
-                    {promoByProduct[l.product.id]?.name ? (
-                      <div className="cl-promo">{promoByProduct[l.product.id].name}</div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="cart-foot">
-              <button className="btn ghost block" onClick={() => setShowCustomer(true)}>
-                <IconUser size={18} /> {customer ? customer.name : 'Consumidor final'}
-              </button>
-
-              {emitError ? <div className="banner danger">{emitError}</div> : null}
-              {cartStorageWarn ? <div className="banner danger">Não foi possível guardar o carrinho neste aparelho. Conclua a venda antes de fechar a aplicação.</div> : null}
-              {okMsg ? <div className="banner" style={{ background: 'color-mix(in srgb, var(--success, #30a46c) 16%, transparent)', color: 'var(--success, #1a7f4b)', fontWeight: 700 }}>{okMsg}</div> : null}
-
-              <div className="totals">
-                <div className="t-row">
-                  <span>Base tributável</span>
-                  <span>{formatKz(totals.net)}</span>
-                </div>
-                <div className="t-row">
-                  <span>IVA</span>
-                  <span>{formatKz(totals.iva)}</span>
-                </div>
-                {totals.discount > 0 ? (
-                  <div className="t-row" style={{ color: 'var(--success)' }}>
-                    <span>{hasManual ? 'Descontos' : 'Desconto promoções'}</span>
-                    <span>−{formatKz(totals.discount)}</span>
-                  </div>
-                ) : null}
-                <div className="t-row grand">
-                  <span>Total</span>
-                  <span>{formatKz(totals.gross)}</span>
-                </div>
-              </div>
-
-              {!session && sync.online ? (
-                <button className="btn lg block" onClick={() => setShowShift(true)}>
-                  <IconReceipt size={18} /> Abrir turno para vender
-                </button>
-              ) : (
-                <button
-                  className="btn success lg block"
-                  onClick={finalize}
-                  disabled={cart.length === 0 || emitting}
-                >
-                  {emitting
-                    ? 'A emitir…'
-                    : sync.online
-                      ? 'Finalizar venda'
-                      : 'Guardar venda (offline)'}
-                </button>
+                  )}
+                  {customer ? (
+                    <button className="vcust" onClick={() => setShowCustomer(true)}><IconUser size={16} /> {customer.name}</button>
+                  ) : null}
+                </>
               )}
-              {/* BALCÃO: enviar o pedido à cozinha (produz-se e depois chama-se o pronto).
-                  SÓ na restauração — noutros setores (retalho, serviços, clínica…) a
-                  cozinha não existe, por isso o botão não aparece. */}
-              {identity?.businessType === 'RESTAURANT' && session && sync.online && cart.length > 0 ? (
-                <button className="btn ghost lg block" style={{ marginTop: 8 }} onClick={() => void fireToKitchen()} disabled={firing || emitting}>
-                  {firing ? 'A enviar…' : 'Enviar para cozinha'}
-                </button>
+            </div>
+
+            {emitError ? <div className="banner danger">{emitError}</div> : null}
+            {cartStorageWarn ? <div className="banner danger">Não foi possível guardar o carrinho neste aparelho. Conclua a venda antes de fechar a aplicação.</div> : null}
+            {okMsg ? <div className="banner" style={{ background: 'color-mix(in srgb, var(--success, #30a46c) 16%, transparent)', color: 'var(--success, #1a7f4b)', fontWeight: 700 }}>{okMsg}</div> : null}
+
+            <div className="vtotal">
+              <span>TOTAL</span>
+              <div>
+                <b>{formatKz(totals.gross)}</b>
+                <small>{cart.length} Produtos / {formatNumber(totals.count)} Uni.{totals.discount > 0 ? ` · −${formatKz(totals.discount)}` : ''}</small>
+              </div>
+            </div>
+            <div className="vactions">
+              <button className={`vopt-btn${optsOpen ? ' on' : ''}`} onClick={() => { setOptsOpen((v) => !v); setConfirmCancel(false); }} aria-expanded={optsOpen}>
+                <span className="car" aria-hidden="true">{optsOpen ? '⌄' : '⌃'}</span> Opções
+              </button>
+              {!optsOpen ? (
+                !session && sync.online ? (
+                  <button className="vfinal" onClick={() => setShowShift(true)}>ABRIR CAIXA</button>
+                ) : (
+                  <button className="vfinal" onClick={finalize} disabled={cart.length === 0 || emitting}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                    {emitting ? 'A EMITIR…' : sync.online ? 'FINALIZAR' : 'GUARDAR'}
+                  </button>
+                )
               ) : null}
             </div>
           </aside>
@@ -1481,6 +1468,8 @@ export function PosPage() {
           total={totals.gross}
           customerName={customer?.name ?? null}
           prescriptionItems={cart.filter((l) => l.product.requires_prescription).map((l) => l.product.name)}
+          lines={cart.map((l) => ({ name: l.product.name, qty: l.quantity, gross: lineGross(l) }))}
+          onEditCustomer={() => setShowCustomer(true)}
           busy={emitting}
           onConfirm={doEmit}
           onClose={() => setShowPayment(false)}
@@ -1533,3 +1522,5 @@ function ProductionPrompt({
     </div>
   );
 }
+
+const Chev = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>;
