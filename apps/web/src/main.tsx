@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import '@nexus/tokens/tokens.css';
 import './theme.css';
+import './vendus.css';
 import { initTheme } from './theme';
 import { initTouchUi } from './touchUi';
 import { initAutoUpdate } from './autoUpdate';

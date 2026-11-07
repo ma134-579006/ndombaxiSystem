@@ -3,7 +3,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CreateProductInput, IvaCode, ManagerProduct, WarehouseRow } from '../api/types';
 import { IVA_RATE } from '../api/types';
-import { IconBell, IconCube, IconEdit, IconImage, IconPlus, IconSearch, IconStore, IconTruck, IconWallet } from '../components/Icons';
+import { IconChevronDown, IconEdit, IconImage, IconPlus, IconSearch, IconTruck } from '../components/Icons';
+import { takeQuickCreate } from '../components/TopStatus';
 import { Modal, Switch } from '../components/ui';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { StockEntryModal } from './Inventory';
@@ -12,6 +13,9 @@ import { pollEvery, stopPoll } from '../poll';
 import { TAX_EXEMPTIONS } from '../exemptions';
 
 const IVA_OPTIONS: IvaCode[] = ['NOR', 'INT', 'RED', 'ISE', 'OUT'];
+type SortKey = 'code' | 'name' | 'price' | 'cost' | 'iva' | 'stock';
+/** Colunas visíveis da listagem (preferência deste aparelho). */
+const COLS_KEY = 'nx:products:cols';
 
 function grossUnit(p: ManagerProduct): number {
   return Number(p.unit_price) * (1 + IVA_RATE[p.iva_code] / 100);
@@ -111,15 +115,46 @@ export function Products() {
   const [busy, setBusy] = useState(false);
   const [entering, setEntering] = useState(false);
   const [producing, setProducing] = useState(false);
+  // Filtros, colunas, ordenação e paginação da listagem.
+  const [fCat, setFCat] = useState('');
+  const [fType, setFType] = useState<'ALL' | 'PRODUCT' | 'INGREDIENT' | 'PRODUCTION'>('ALL');
+  const [fOnline, setFOnline] = useState<'ALL' | 'ON' | 'OFF'>('ALL');
+  const [fPvpMin, setFPvpMin] = useState('');
+  const [fPvpMax, setFPvpMax] = useState('');
+  const [fCostMin, setFCostMin] = useState('');
+  const [fCostMax, setFCostMax] = useState('');
+  const [cols, setCols] = useState(() => {
+    const def = { code: true, price: true, cost: true, iva: true, stock: true, cat: false };
+    try { return { ...def, ...JSON.parse(localStorage.getItem(COLS_KEY) || '{}') } as typeof def; } catch { return def; }
+  });
+  useEffect(() => { try { localStorage.setItem(COLS_KEY, JSON.stringify(cols)); } catch { /* ignora */ } }, [cols]);
+  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'name', dir: 'asc' });
+  const [perPage, setPerPage] = useState(20);
+  const [page, setPage] = useState(1);
+  const [headMenu, setHeadMenu] = useState<'add' | 'more' | null>(null);
+  const [rowMenu, setRowMenu] = useState<string | null>(null);
+  const headMenuRef = useRef<HTMLDivElement | null>(null);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
+  const rowMenuRef = useRef<HTMLDivElement | null>(null);
+  // Fecha os menus (cabeçalho e "Opções" da linha) ao clicar fora ou com Esc.
+  useEffect(() => {
+    if (!headMenu && !rowMenu) return;
+    const inside = (t: Node) => [headMenuRef, moreMenuRef, rowMenuRef].some((r) => r.current?.contains(t));
+    const onDoc = (e: MouseEvent) => { if (!inside(e.target as Node)) { setHeadMenu(null); setRowMenu(null); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setHeadMenu(null); setRowMenu(null); } };
+    document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [headMenu, rowMenu]);
 
   const toggleSel = (id: string) => setSelected((prev) => {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
   });
 
-  const bulkDelete = async () => {
-    if (!(await confirmDialog({ message: `Eliminar ${selected.size} produto(s)? Produtos com vendas não podem ser apagados (constam de faturas): ficam apenas desativados.`, danger: true }))) return;
+  const bulkDelete = async (only?: string[]) => {
+    const ids = only ?? [...selected];
+    if (!ids.length) return;
+    if (!(await confirmDialog({ message: `Eliminar ${ids.length} produto(s)? Produtos com vendas não podem ser apagados (constam de faturas): ficam apenas desativados.`, danger: true }))) return;
     setBusy(true); setError(null);
-    const ids = [...selected];
     let del = 0, deact = 0;
     try {
       // Lotes de 200 no endpoint em lote: rápido e com percentagem real no ecrã.
@@ -139,7 +174,7 @@ export function Products() {
         },
       });
       setProducts((prev) => prev.filter((p) => !ids.includes(p.id)));
-      setSelected(new Set()); await load({ silent: true });
+      setSelected((prev) => { const n = new Set(prev); ids.forEach((id) => n.delete(id)); return n; }); await load({ silent: true });
       // Produto JÁ VENDIDO consta de faturas emitidas e a lei não deixa apagá-lo: é
       // DESATIVADO (sai do Caixa e da loja; o histórico fica). Não é um erro — só
       // as falhas verdadeiras vão a vermelho.
@@ -228,6 +263,8 @@ export function Products() {
     setFormError(null);
     setCreating(true);
   };
+  // "+" da barra de topo → "Produto": abre já o formulário de criação.
+  useEffect(() => { if (takeQuickCreate('products')) openCreate(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openEdit = (p: ManagerProduct) => {
     setForm({
@@ -389,288 +426,431 @@ export function Products() {
     return true;
   });
 
-  return (
-    <div className="fx-wide">
-      <div className="content-head">
-        <h2>Catálogo de produtos</h2>
-        <span className="spacer" />
-        {/* Fornada (padaria/pastelaria/produção): só aparece se houver
-            produtos com ficha técnica — não polui os outros negócios. */}
-        {products.some((p) => p.has_recipe) ? (
-          <button className="btn ghost" onClick={() => setProducing(true)}>
-            Fornada
-          </button>
-        ) : null}
-        <button className="btn ghost" onClick={() => setEntering(true)} disabled={stores.length === 0 || products.length === 0}>
-          <IconTruck size={16} /> Adicionar stock
-        </button>
-        <button className="btn" onClick={openCreate}>
-          <IconPlus size={18} /> Novo produto
-        </button>
-      </div>
+  // ── Filtros e tabela (padrão de listagem: filtros → "Mostrar N registos" →
+  // tabela ordenável → paginação). Os filtros atuam sobre o que já foi
+  // carregado; a pesquisa por texto continua no servidor. ──
+  const num = (s: string) => (s.trim() === '' ? null : Number(s.replace(',', '.')));
+  const pvpMinN = num(fPvpMin), pvpMaxN = num(fPvpMax), costMinN = num(fCostMin), costMaxN = num(fCostMax);
+  const rows = visible.filter((p) => {
+    if (fCat && p.category_id !== fCat) return false;
+    if (fType === 'PRODUCT' && (p.is_ingredient || p.is_production)) return false;
+    if (fType === 'INGREDIENT' && !p.is_ingredient) return false;
+    if (fType === 'PRODUCTION' && !p.is_production) return false;
+    if (fOnline === 'ON' && !p.show_online) return false;
+    if (fOnline === 'OFF' && p.show_online) return false;
+    const pvp = grossUnit(p), cost = Number(p.cost_price) || 0;
+    if (pvpMinN != null && pvp < pvpMinN) return false;
+    if (pvpMaxN != null && pvp > pvpMaxN) return false;
+    if (costMinN != null && cost < costMinN) return false;
+    if (costMaxN != null && cost > costMaxN) return false;
+    return true;
+  });
+  const sortVal = (p: ManagerProduct): string | number => {
+    switch (sort.key) {
+      case 'code': return p.code;
+      case 'price': return grossUnit(p);
+      case 'cost': return Number(p.cost_price) || 0;
+      case 'iva': return IVA_RATE[p.iva_code];
+      case 'stock': return Number(p.stock_qty);
+      default: return p.name.toLocaleLowerCase('pt');
+    }
+  };
+  const sorted = [...rows].sort((a, b) => {
+    const x = sortVal(a), y = sortVal(b);
+    const r = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'pt');
+    return sort.dir === 'asc' ? r : -r;
+  });
+  const pageCount = Math.max(1, Math.ceil(sorted.length / perPage));
+  const curPage = Math.min(page, pageCount);
+  const pageRows = sorted.slice((curPage - 1) * perPage, curPage * perPage);
+  const from = sorted.length ? (curPage - 1) * perPage + 1 : 0;
+  const to = Math.min(curPage * perPage, sorted.length);
+  useEffect(() => { setPage(1); }, [pfilter, fCat, fType, fOnline, fPvpMin, fPvpMax, fCostMin, fCostMax, perPage, search]);
+  const pageSel = pageRows.length > 0 && pageRows.every((p) => selected.has(p.id));
+  const togglePage = () => setSelected((prev) => {
+    const n = new Set(prev);
+    if (pageSel) pageRows.forEach((p) => n.delete(p.id)); else pageRows.forEach((p) => n.add(p.id));
+    return n;
+  });
+  const clearFilters = () => {
+    setSearch(''); setPfilter('ALL'); setFCat(''); setFType('ALL'); setFOnline('ALL');
+    setFPvpMin(''); setFPvpMax(''); setFCostMin(''); setFCostMax('');
+  };
+  const searchNow = () => { setPages(1); queryRef.current = { q: search.trim(), pages: 1 }; void load(); };
+  const sortBy = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
+  const Th = ({ k, children, className }: { k: SortKey; children: React.ReactNode; className?: string }) => (
+    <th className={`sort${sort.key === k ? ` ${sort.dir}` : ''}${className ? ` ${className}` : ''}`} onClick={() => sortBy(k)}
+      aria-sort={sort.key === k ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <span className="ar" aria-hidden="true"><span className="u">▲</span><span className="d">▼</span></span>{children}
+    </th>
+  );
+  const pagerNums = (() => {
+    const out: (number | '…')[] = [];
+    for (let i = 1; i <= pageCount; i++) {
+      if (i === 1 || i === pageCount || Math.abs(i - curPage) <= 1) out.push(i);
+      else if (out[out.length - 1] !== '…') out.push('…');
+    }
+    return out;
+  })();
+  const catName = (id: string | null) => (id ? categories.find((c) => c.id === id)?.name : undefined);
 
-      <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconCube size={20} /></span><div><div className="lb">Produtos</div><div className="vl">{stats?.sellable ?? sellable.length}</div><div className="sb">{stats?.ingredients ?? (products.length - sellable.length)} matérias-primas à parte</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconWallet size={20} /></span><div><div className="lb">Valor em stock</div><div className="vl">{formatKz(stockValue)}</div><div className="sb">ao preço de venda (c/ IVA)</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconBell size={20} /></span><div><div className="lb">Sem stock</div><div className="vl"><span className={`fx-dot${outOfStock ? ' bad' : ' ok'}`} />{outOfStock}</div><div className="sb">a repor</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Na loja online</div><div className="vl">{onlineCount}</div><div className="sb">visíveis aos clientes</div></div></div>
-      </div>
-
-      <div className="fx-toolbar">
-        <div className="fx-tabs" role="tablist" aria-label="Filtrar produtos">
-          {([['ALL', 'Todos'], ['IN', 'Com stock'], ['OUT', 'Sem stock'], ['ONLINE', 'Online'], ...(inactiveCount > 0 || pfilter === 'OFF' ? [['OFF', `Inativos (${inactiveLabel})`]] : [])] as [typeof pfilter, string][]).map(([k, l]) => (
-            <button key={k} role="tab" aria-selected={pfilter === k} className={pfilter === k ? 'on' : ''} onClick={() => setPfilter(k)}>{l}</button>
-          ))}
+  // ── FORMULÁRIO (página própria, como na referência) ──
+  if (creating || editing) {
+    const L = ({ children, hint }: { children: React.ReactNode; hint?: string }) => (
+      <div className="vd-lbl">{children}{hint ? <span className="q" title={hint} aria-label={hint}>?</span> : null} :</div>
+    );
+    const pvpPreview = (Number(form.unitPrice) || 0) * (1 + (form.ivaCode === 'AUTO' ? 0 : IVA_RATE[form.ivaCode]) / 100);
+    return (
+      <div className="vd-page">
+        <div className="vd-head">
+          <p className="vd-crumb">
+            <button onClick={close}>Produtos</button><span className="sep">/</span>
+            <span>{editing ? 'Editar produto' : 'Adicionar produto'}</span>
+          </p>
         </div>
-        <label className="fx-search">
-          <IconSearch size={17} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar por nome ou código…" aria-label="Procurar produtos" />
-        </label>
-        {filtered.length > 0 ? (
-          <label className="row" style={{ gap: 6, fontSize: 13, whiteSpace: 'nowrap', cursor: 'pointer' }}>
-            <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /> Selecionar todos
-          </label>
-        ) : null}
-      </div>
+        {formError ? <div className="vd-err" role="alert">{formError}</div> : null}
 
-      {selected.size > 0 ? (
-        <div className="fx-card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
-          <strong>{selected.size} selecionado(s)</strong>
-          <span className="spacer" />
-          <button className="btn sm ghost" onClick={() => setSelected(new Set())} disabled={busy}>Limpar</button>
-          <button className="btn sm danger" onClick={bulkDelete} disabled={busy}>Eliminar</button>
-        </div>
-      ) : null}
-
-      {error ? <div className="banner danger">{error}</div> : null}
-
-      {loading ? (
-        <div className="card"><div className="loading">A carregar produtos…</div></div>
-      ) : visible.length === 0 ? (
-        <div className="card">
-          <div className="empty">
-            <IconCube size={40} />
-            <p>{q || pfilter !== 'ALL' ? 'Nenhum produto encontrado.' : 'Ainda não há produtos. Crie o primeiro.'}</p>
-          </div>
-        </div>
-      ) : (
-        <div className="pgrid">
-          {visible.map((p) => {
-            const qty = Number(p.stock_qty);
-            const stockTone = p.is_production || p.is_ingredient ? '' : qty <= 0 ? ' out' : qty <= 5 ? ' low' : ' ok';
-            return (
-            <div className={`pcard pc2${selected.has(p.id) ? ' sel' : ''}${!p.is_active ? ' inactive' : ''}`} key={p.id}>
-              <label className="pcard-check" onClick={(e) => e.stopPropagation()}>
-                <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSel(p.id)} aria-label={`Selecionar ${p.name}`} />
-              </label>
-              <div className={`thumb${p.image_url ? '' : ' mono'}`} style={p.image_url ? undefined : { ['--mono' as string]: monoColor(p.name) }}>
-                {p.image_url ? <img src={p.image_url} alt={p.name} loading="lazy" /> : <span aria-hidden="true">{monoOf(p.name)}</span>}
-              </div>
-              <div className="pinfo">
-                <div className="pname" title={p.name}>{p.name}</div>
-                <div className="pcode">{p.code}{p.barcode && p.barcode !== p.code ? ` · ${p.barcode}` : ''}</div>
-                <div className="pc2-tags">
-                  {p.is_ingredient ? <span className="pc2-tag warn">Matéria-prima</span> : null}
-                  {p.is_production ? <span className="pc2-tag info">Produção</span> : null}
-                  {p.is_production ? availBadge(p.id) : null}
-                  {!p.is_production && !p.is_ingredient ? (
-                    <span className={`pc2-tag stock${stockTone}`}>{qty <= 0 ? 'Sem stock' : `${qty.toLocaleString('pt-PT')}${p.unit ? ` ${p.unit}` : ' un.'}`}</span>
-                  ) : null}
-                  {!p.is_active ? <span className="pc2-tag off">Inativo</span> : !p.is_ingredient && !p.is_production ? <span className={`pc2-tag ${p.show_online ? 'on' : 'muted'}`}>{p.show_online ? 'Online' : 'Oculto'}</span> : null}
-                </div>
-                <div className="pfoot">
-                  <span className="pprice">{p.is_ingredient ? '—' : formatKz(grossUnit(p))}</span>
-                  <button className="pc2-edit" onClick={() => openEdit(p)} aria-label={`Editar ${p.name}`} title="Editar">
-                    <IconEdit size={15} /> Editar
-                  </button>
-                </div>
-              </div>
-            </div>
-            );
-          })}
-        </div>
-      )}
-      {!loading && hasMore ? (
-        <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0' }}>
-          <button className="btn" onClick={loadMore}>Carregar mais produtos ({products.length} mostrados)</button>
-        </div>
-      ) : null}
-
-      {creating || editing ? (
-        <Modal title={editing ? 'Editar produto' : 'Novo produto'} onClose={close}>
-          {formError ? <div className="banner danger" style={{ marginBottom: 12 }}>{formError}</div> : null}
-
-          <div className="thumb" style={{ height: 130, borderRadius: 12, border: '1px solid var(--border)', marginBottom: 12, background: 'var(--surface-2)', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-            {form.imageUrl ? (
-              <img src={form.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <IconImage size={34} />
-            )}
-          </div>
-          <label className="btn sm ghost block" style={{ marginBottom: 12, cursor: 'pointer' }}>
-            <IconImage size={15} /> {form.imageUrl ? 'Trocar imagem' : 'Carregar imagem'}
-            <input type="file" accept="image/*" hidden onChange={(e) => onPickImage(e.target.files?.[0])} />
-          </label>
-
+        <div className="vd-card vd-form">
+          <div className="vd-row"><L hint="Nome que aparece no caixa, nas faturas e na loja online.">Nome do produto</L>
+            <div className="vd-ctl"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome do produto" autoFocus /></div></div>
           {!editing ? (
-            <div className="field">
-              <label>Código de barras (opcional)</label>
-              <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
-                <input style={{ flex: 1 }} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Leia pela câmara, escreva — ou deixe vazio" inputMode="text" />
+            <div className="vd-row"><L hint="Opcional. Vazio: o sistema gera automaticamente um código de barras EAN-13.">Código de barras</L>
+              <div className="vd-ctl"><div className="vd-inline">
+                <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Código de barras" inputMode="text" />
                 <BarcodeScanner onDetected={(code) => setForm((f) => ({ ...f, code }))} />
-              </div>
-              <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-                Se deixares vazio, o sistema <strong>gera automaticamente</strong> um código de barras (EAN-13) para este produto.
-              </p>
-            </div>
-          ) : null}
-          <div className="field">
-            <label>Nome</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome do produto" />
-          </div>
-          <div className="field">
-            <label>Descrição</label>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Opcional" />
-          </div>
-          <div className="field">
-            <label>Marca (opcional)</label>
-            <input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="ex.: Coca-Cola, Nestlé" />
-          </div>
-          <div className="field">
-            <label>Categoria (opcional)</label>
-            <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
-              <option value="">— Sem categoria —</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <div className="row" style={{ gap: 8, marginTop: 6 }}>
-              <input style={{ flex: 1 }} value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Nova categoria…"
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void addCategory(); } }} />
-              <button type="button" className="btn sm ghost" onClick={() => void addCategory()} disabled={!newCategory.trim()}>+ Criar</button>
-            </div>
-          </div>
-          <div className="field">
-            <label>Preço de venda (Kz, sem IVA)</label>
-            <input inputMode="decimal" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="0" />
-          </div>
-          <div className="field">
-            <label>Unidade de medida{form.isIngredient ? '' : ' (opcional)'}</label>
-            <select value={UNIT_OPTIONS.includes(form.unit) ? form.unit : (form.unit ? '__outra' : '')}
-              onChange={(e) => setForm({ ...form, unit: e.target.value === '__outra' ? form.unit : e.target.value })}>
-              <option value="">— Sem unidade —</option>
-              {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
-              <option value="__outra">Outra…</option>
-            </select>
-            {!UNIT_OPTIONS.includes(form.unit) && form.unit !== '' ? (
-              <input style={{ marginTop: 6 }} value={form.unit} maxLength={16}
-                onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="ex.: rolo, saco…" />
-            ) : null}
-            <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-              Como este produto se mede: o stock, as compras e a ficha técnica passam a mostrar esta unidade (ex.: carne em <strong>kg</strong>, queijo à <strong>fatia</strong>, molho em <strong>ml</strong>).
-            </p>
-          </div>
-          {/* PRODUÇÃO: o custo vem da ficha técnica e o estoque das fornadas —
-              escondem-se estoque/custo/compra (deixam de fazer sentido). */}
-          {form.isProduction ? (
-            <div className="card" style={{ background: 'var(--surface-2)', padding: 12, margin: '0 0 12px', borderLeft: '3px solid var(--primary)' }}>
-              <div style={{ fontWeight: 700 }}>Produto de produção</div>
-              <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
-                O <strong>custo</strong> é calculado automaticamente pela ficha técnica (ingredientes) e o <strong>estoque</strong> vem das fornadas. Defina a receita no separador do restaurante.
-              </p>
-            </div>
-          ) : !editing ? (
-            <div className="card" style={{ background: 'var(--surface-2)', padding: 12, margin: '0 0 12px' }}>
-              <div style={{ fontWeight: 700, marginBottom: 8 }}>Stock inicial (opcional)</div>
-              <div className="field">
-                <label>Quantidade</label>
-                <input inputMode="decimal" value={form.stockQty} onChange={(e) => setForm({ ...form, stockQty: e.target.value })} placeholder="0" />
-              </div>
-              <div className="field">
-                <label>Valor de compra (total da quantidade, Kz)</label>
-                <input inputMode="decimal" value={form.purchaseTotal} onChange={(e) => setForm({ ...form, purchaseTotal: e.target.value })} placeholder="0" />
-              </div>
-              <div className="kv"><span className="k">Custo unitário</span><span className="v">{kz(siUnitCost)}</span></div>
-              <div className="kv"><span className="k">Lucro unitário</span><span className="v" style={{ color: siUnitProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>{kz(siUnitProfit)}</span></div>
-              <div className="kv"><span className="k">Lucro total</span><span className="v" style={{ color: siTotalProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>{kz(siTotalProfit)}</span></div>
-              <div className="kv"><span className="k">Margem</span><span className="v">{siMargin.toFixed(1)}%</span></div>
-            </div>
+              </div></div></div>
           ) : (
-            <div className="field">
-              <label>Custo unitário (Kz)</label>
-              <input inputMode="decimal" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} placeholder="0" />
-            </div>
+            <div className="vd-row"><L>Referência</L>
+              <div className="vd-ctl"><input value={`${editing.code}${editing.barcode && editing.barcode !== editing.code ? ` · ${editing.barcode}` : ''}`} readOnly disabled /></div></div>
           )}
-          <div className="field">
-            <label>IVA</label>
-            <select value={form.ivaCode} onChange={(e) => setForm({ ...form, ivaCode: e.target.value as IvaCode | 'AUTO' })}>
-              <option value="AUTO">Automático (padrão da empresa — configurável em Configurações)</option>
-              {IVA_OPTIONS.map((c) => (
-                <option key={c} value={c}>{c} ({IVA_RATE[c]}%)</option>
-              ))}
-            </select>
-            {isExempt ? (
-              <>
-                <select value={form.exemptionCode} onChange={(e) => setForm({ ...form, exemptionCode: e.target.value })}
-                  aria-label="Código de isenção (AGT)" style={{ marginTop: 8 }}>
+          <div className="vd-row"><L>Descrição</L>
+            <div className="vd-ctl"><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Descrição" /></div></div>
+          <div className="vd-row"><L hint="Máximo ~1,5 MB.">Imagem</L>
+            <div className="vd-ctl"><div className="vd-file">
+              <span className="pv">{form.imageUrl ? <img src={form.imageUrl} alt="" /> : <IconImage size={22} />}</span>
+              <label className="vd-btn plain" style={{ cursor: 'pointer' }}>
+                <IconImage size={15} /> {form.imageUrl ? 'Trocar imagem' : 'Escolher imagem'}
+                <input type="file" accept="image/*" hidden onChange={(e) => onPickImage(e.target.files?.[0])} />
+              </label>
+              {form.imageUrl ? <button type="button" className="vd-clear" onClick={() => setForm({ ...form, imageUrl: '' })}>Remover</button> : null}
+            </div></div></div>
+        </div>
+
+        <div className="vd-card vd-form">
+          <div className="vd-row two">
+            <L>Categoria</L>
+            <div className="vd-ctl">
+              <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
+                <option value="">-- Sem categoria --</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <div className="vd-inline">
+                <input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Nova categoria"
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void addCategory(); } }} />
+                <button type="button" className="vd-btn outline sm" onClick={() => void addCategory()} disabled={!newCategory.trim()}>Criar</button>
+              </div>
+            </div>
+            <L>Marca</L>
+            <div className="vd-ctl"><input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="Marca" /></div>
+          </div>
+          <div className="vd-row two">
+            <L hint="Como este produto se mede: o stock, as compras e a ficha técnica passam a mostrar esta unidade.">Unidade</L>
+            <div className="vd-ctl">
+              <select value={UNIT_OPTIONS.includes(form.unit) ? form.unit : (form.unit ? '__outra' : '')}
+                onChange={(e) => setForm({ ...form, unit: e.target.value === '__outra' ? (form.unit || ' ') : e.target.value })}>
+                <option value="">-- Sem unidade --</option>
+                {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+                <option value="__outra">Outra…</option>
+              </select>
+              {!UNIT_OPTIONS.includes(form.unit) && form.unit !== '' ? (
+                <input value={form.unit.trim()} maxLength={16} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="ex.: rolo, saco" />
+              ) : null}
+            </div>
+            <L>Tipo</L>
+            <div className="vd-ctl">
+              <select value={form.isIngredient ? 'ING' : form.isProduction ? 'PROD' : 'P'} disabled={!isRestaurant}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setForm({ ...form, isIngredient: v === 'ING', isProduction: v === 'PROD', showOnline: v === 'ING' ? false : form.showOnline });
+                }}>
+                <option value="P">Produto</option>
+                {isRestaurant ? <option value="ING">Matéria-prima (ingrediente)</option> : null}
+                {isRestaurant ? <option value="PROD">Produção (ficha técnica)</option> : null}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="vd-card vd-form">
+          <p className="vd-sect">Preço e imposto</p>
+          <div className="vd-row two">
+            <L hint="Preço de venda sem IVA, em Kz.">Preço s/ IVA</L>
+            <div className="vd-ctl"><input inputMode="decimal" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="0" /></div>
+            <L>PVP</L>
+            <div className="vd-ctl"><input value={form.ivaCode === 'AUTO' ? 'IVA da empresa' : kz(pvpPreview)} readOnly disabled /></div>
+          </div>
+          <div className="vd-row"><L hint="Automático usa o IVA padrão da empresa (Configurações).">Imposto</L>
+            <div className="vd-ctl">
+              <select value={form.ivaCode} onChange={(e) => setForm({ ...form, ivaCode: e.target.value as IvaCode | 'AUTO' })}>
+                <option value="AUTO">Automático (padrão da empresa)</option>
+                {IVA_OPTIONS.map((c) => <option key={c} value={c}>{c} ({IVA_RATE[c]}%)</option>)}
+              </select>
+            </div></div>
+          {isExempt ? (
+            <div className="vd-row"><L hint="Código oficial da AGT: vai no recibo, no SAF-T e na Facturação Electrónica. Sem ele a AGT rejeita o documento.">Motivo de isenção</L>
+              <div className="vd-ctl">
+                <select value={form.exemptionCode} onChange={(e) => setForm({ ...form, exemptionCode: e.target.value })} aria-label="Código de isenção (AGT)">
                   <option value="">{form.ivaCode === 'OUT' ? 'M02 — Operação não sujeita (por omissão)' : 'Escolha o motivo da isenção (obrigatório)…'}</option>
                   {TAX_EXEMPTIONS.map((x) => <option key={x.code} value={x.code}>{x.code} — {x.hint}</option>)}
                 </select>
-                <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-                  Código oficial da AGT: vai no recibo, no SAF-T e na Facturação Electrónica (sem ele, a AGT rejeita o documento).
-                </p>
-              </>
+              </div></div>
+          ) : null}
+          {form.isProduction ? (
+            <div className="vd-row"><L>Custo e stock</L>
+              <div className="vd-ctl" style={{ paddingTop: 8, fontSize: 14 }}>Calculados pela ficha técnica e pelas fornadas.</div></div>
+          ) : !editing ? (
+            <>
+              <div className="vd-row two">
+                <L>Stock inicial</L>
+                <div className="vd-ctl"><input inputMode="decimal" value={form.stockQty} onChange={(e) => setForm({ ...form, stockQty: e.target.value })} placeholder="0" /></div>
+                <L hint="Total pago pela quantidade inicial. O custo unitário é calculado automaticamente.">Valor de compra</L>
+                <div className="vd-ctl"><input inputMode="decimal" value={form.purchaseTotal} onChange={(e) => setForm({ ...form, purchaseTotal: e.target.value })} placeholder="0" /></div>
+              </div>
+              <div className="vd-row"><div />
+                <div className="vd-ctl" style={{ maxWidth: 'none' }}>
+                  <div className="vd-kv">
+                    <div><small>Custo unitário</small><b>{kz(siUnitCost)}</b></div>
+                    <div><small>Lucro unitário</small><b style={{ color: siUnitProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>{kz(siUnitProfit)}</b></div>
+                    <div><small>Lucro total</small><b style={{ color: siTotalProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>{kz(siTotalProfit)}</b></div>
+                    <div><small>Margem</small><b>{siMargin.toFixed(1)}%</b></div>
+                  </div>
+                </div></div>
+            </>
+          ) : (
+            <div className="vd-row"><L>Preço de custo</L>
+              <div className="vd-ctl"><input inputMode="decimal" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} placeholder="0" /></div></div>
+          )}
+        </div>
+
+        <div className="vd-card">
+          <div className="vd-form">
+            <p className="vd-sect">Opções</p>
+            {stores.length > 1 ? (
+              <div className="vd-row"><L hint={form.sharedStock ? 'Stock único partilhado por todas as lojas.' : 'Cada loja gere o seu próprio stock.'}>Stock partilhado</L>
+                <div className="vd-ctl"><div className="vd-check"><Switch checked={form.sharedStock} onChange={(v) => setForm({ ...form, sharedStock: v })} /> {form.sharedStock ? 'Sim' : 'Não'}</div></div></div>
+            ) : null}
+            {isHealth && !form.isIngredient ? (
+              <div className="vd-row"><L hint="O caixa só vende com o nº da receita (fica registado na auditoria).">Exige receita médica</L>
+                <div className="vd-ctl"><div className="vd-check"><Switch checked={form.requiresPrescription} onChange={(v) => setForm({ ...form, requiresPrescription: v })} /> {form.requiresPrescription ? 'Sim' : 'Não'}</div></div></div>
+            ) : null}
+            {!form.isIngredient ? (
+              <div className="vd-row"><L>Loja online</L>
+                <div className="vd-ctl"><div className="vd-check"><Switch checked={form.showOnline} onChange={(v) => setForm({ ...form, showOnline: v })} /> {form.showOnline ? 'Visível' : 'Oculto'}</div></div></div>
+            ) : null}
+            {editing ? (
+              <div className="vd-row"><L hint="Inativo: sai do caixa e da loja online; o histórico fica.">Estado</L>
+                <div className="vd-ctl"><div className="vd-check"><Switch checked={form.isActive} onChange={(v) => setForm({ ...form, isActive: v })} /> {form.isActive ? 'Ativo' : 'Inativo'}</div></div></div>
             ) : null}
           </div>
-          {stores.length > 1 ? (
-            <div className="field">
-              <div className="switch-row" style={{ padding: 0 }}>
-                <span>Stock central partilhado</span>
-                <Switch checked={form.sharedStock} onChange={(v) => setForm({ ...form, sharedStock: v })} />
+          <div className="vd-actions">
+            <button className="vd-btn plain" onClick={close} disabled={saving}>Cancelar</button>
+            <button className="vd-btn" onClick={save} disabled={saving}>{saving ? 'A guardar…' : editing ? 'Guardar alterações' : 'Adicionar produto'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── LISTAGEM ──
+  const hasRecipes = products.some((p) => p.has_recipe);
+  return (
+    <div className="vd-page">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Produtos</span><span className="sep">/</span><span>Listagem</span></p>
+        <span className="spacer" />
+        <div className="vd-split" ref={headMenuRef}>
+          <button className="vd-btn" onClick={openCreate}><IconPlus size={16} /> Adicionar produto</button>
+          <button className="vd-btn caret" aria-label="Mais opções de criação" aria-expanded={headMenu === 'add'} onClick={() => setHeadMenu((m) => (m === 'add' ? null : 'add'))}><IconChevronDown size={16} /></button>
+          {headMenu === 'add' ? (
+            <div className="vd-drop" role="menu">
+              <button role="menuitem" onClick={() => { setHeadMenu(null); setEntering(true); }} disabled={stores.length === 0 || products.length === 0}><IconTruck size={15} /> Adicionar stock</button>
+              {hasRecipes ? <button role="menuitem" onClick={() => { setHeadMenu(null); setProducing(true); }}>Registar fornada</button> : null}
+            </div>
+          ) : null}
+        </div>
+        <div className="vd-split" ref={moreMenuRef}>
+          <button className="vd-btn outline" aria-expanded={headMenu === 'more'} onClick={() => setHeadMenu((m) => (m === 'more' ? null : 'more'))}><IconChevronDown size={15} /> Mais</button>
+          {headMenu === 'more' ? (
+            <div className="vd-drop" role="menu">
+              <button role="menuitem" onClick={() => { setHeadMenu(null); toggleAll(); }} disabled={filtered.length === 0}>{allSel ? 'Desmarcar todos' : 'Selecionar todos'}</button>
+              <button role="menuitem" onClick={() => { setHeadMenu(null); setPfilter('OFF'); }} disabled={inactiveCount === 0}>Ver inativos ({inactiveLabel})</button>
+              <hr />
+              <button role="menuitem" className="danger" onClick={() => { setHeadMenu(null); void bulkDelete(); }} disabled={selected.size === 0 || busy}>Eliminar selecionados ({selected.size})</button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <form className="vd-card vd-filters" onSubmit={(e) => { e.preventDefault(); searchNow(); }}>
+        <div className="vd-frow">
+          <label className="vd-f grow"><input className="vd-in" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisa por nome, referência ou código de barras" aria-label="Procurar produtos" /></label>
+          <label className="vd-f"><select value={fCat} onChange={(e) => setFCat(e.target.value)} aria-label="Categorias">
+            <option value="">Categorias</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select></label>
+          <label className="vd-f"><select value={fOnline} onChange={(e) => setFOnline(e.target.value as typeof fOnline)} aria-label="Loja online">
+            <option value="ALL">Loja online</option><option value="ON">Visível online</option><option value="OFF">Oculto online</option>
+          </select></label>
+        </div>
+        <div className="vd-frow">
+          <div className="vd-f"><span>PVP</span><div className="vd-range">
+            <input inputMode="decimal" value={fPvpMin} onChange={(e) => setFPvpMin(e.target.value)} placeholder="Min" aria-label="PVP mínimo" />
+            <span className="mid">até</span>
+            <input inputMode="decimal" value={fPvpMax} onChange={(e) => setFPvpMax(e.target.value)} placeholder="Max" aria-label="PVP máximo" />
+          </div></div>
+          <div className="vd-f"><span>Preço de custo</span><div className="vd-range">
+            <input inputMode="decimal" value={fCostMin} onChange={(e) => setFCostMin(e.target.value)} placeholder="Min" aria-label="Custo mínimo" />
+            <span className="mid">até</span>
+            <input inputMode="decimal" value={fCostMax} onChange={(e) => setFCostMax(e.target.value)} placeholder="Max" aria-label="Custo máximo" />
+          </div></div>
+          <label className="vd-f"><span>Stock</span><select value={pfilter === 'IN' || pfilter === 'OUT' ? pfilter : 'ALL'} onChange={(e) => setPfilter(e.target.value as typeof pfilter)}>
+            <option value="ALL">Todos</option><option value="IN">Com stock</option><option value="OUT">Sem stock</option>
+          </select></label>
+          <label className="vd-f"><span>Estado</span><select value={pfilter === 'OFF' ? 'OFF' : 'ON'} onChange={(e) => setPfilter(e.target.value === 'OFF' ? 'OFF' : 'ALL')}>
+            <option value="ON">Ativo</option><option value="OFF">Inativo</option>
+          </select></label>
+          <label className="vd-f"><span>Filtrar por tipo</span><select value={fType} onChange={(e) => setFType(e.target.value as typeof fType)}>
+            <option value="ALL">Todos</option><option value="PRODUCT">Produto</option>
+            {isRestaurant || products.some((p) => p.is_ingredient) ? <option value="INGREDIENT">Matéria-prima</option> : null}
+            {isRestaurant || products.some((p) => p.is_production) ? <option value="PRODUCTION">Produção</option> : null}
+          </select></label>
+        </div>
+        <div className="vd-frow" style={{ alignItems: 'center' }}>
+          <div className="vd-cols">
+            {([['code', 'Referência'], ['price', 'Preço'], ['cost', 'Preço de custo'], ['iva', 'Imposto'], ['stock', 'Stock'], ['cat', 'Categoria']] as [keyof typeof cols, string][]).map(([k, l]) => (
+              <label key={k}><input type="checkbox" checked={cols[k]} onChange={() => setCols((c) => ({ ...c, [k]: !c[k] }))} /> {l}</label>
+            ))}
+          </div>
+          <span style={{ flex: 1 }} />
+          <button type="button" className="vd-clear" onClick={clearFilters}>✕ Limpar</button>
+          <button type="submit" className="vd-btn outline"><IconSearch size={15} /> Pesquisar</button>
+        </div>
+      </form>
+
+      {error ? <div className="vd-err" role="alert">{error}</div> : null}
+
+      <div className="vd-card vd-tablecard">
+        <div className="vd-tbar">
+          <label>Mostrar <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))}>
+            {[20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select> registos</label>
+          <span className="spacer" />
+          <div className="vd-sum">
+            <span>Produtos <b>{stats?.sellable ?? sellable.length}</b></span>
+            <span>Valor em stock <b>{formatKz(stockValue)}</b></span>
+            <span>Sem stock <b className={outOfStock ? 'bad' : ''}>{outOfStock}</b></span>
+            <span>Online <b>{onlineCount}</b></span>
+          </div>
+        </div>
+        {selected.size > 0 ? (
+          <div className="vd-bulk">
+            <strong>{selected.size} selecionado(s)</strong>
+            <span className="spacer" />
+            <button className="vd-btn plain sm" onClick={() => setSelected(new Set())} disabled={busy}>Limpar</button>
+            <button className="vd-btn danger sm" onClick={() => void bulkDelete()} disabled={busy}>Eliminar</button>
+          </div>
+        ) : null}
+        {loading ? (
+          <div className="vd-empty">A carregar produtos…</div>
+        ) : pageRows.length === 0 ? (
+          <div className="vd-empty">{q || pfilter !== 'ALL' || fCat || fType !== 'ALL' || fOnline !== 'ALL' ? 'Nenhum produto encontrado.' : 'Ainda não há produtos.'}</div>
+        ) : (
+          <div className="vd-tablewrap">
+            <table className="vd-table">
+              <thead>
+                <tr>
+                  <th className="chk"><input type="checkbox" checked={pageSel} onChange={togglePage} aria-label="Selecionar a página" /></th>
+                  {cols.code ? <Th k="code">Ref</Th> : null}
+                  <Th k="name">Nome</Th>
+                  {cols.cat ? <th>Categoria</th> : null}
+                  {cols.price ? <Th k="price" className="num">Preço</Th> : null}
+                  {cols.cost ? <Th k="cost" className="num">Preço de custo</Th> : null}
+                  {cols.iva ? <Th k="iva" className="ctr">IVA</Th> : null}
+                  {cols.stock ? <Th k="stock" className="ctr">Stock</Th> : null}
+                  <th aria-label="Opções" />
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.map((p, i) => {
+                  const qty = Number(p.stock_qty);
+                  const tracked = !p.is_production && !p.is_ingredient;
+                  return (
+                    <tr key={p.id} className={`${selected.has(p.id) ? 'sel' : ''}${!p.is_active ? ' off' : ''}`} style={{ animationDelay: `${Math.min(i, 12) * 18}ms` }}>
+                      <td className="chk"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSel(p.id)} aria-label={`Selecionar ${p.name}`} /></td>
+                      {cols.code ? <td><button className="vd-link" onClick={() => openEdit(p)}>{p.code}</button>{p.barcode && p.barcode !== p.code ? <span className="sub">{p.barcode}</span> : null}</td> : null}
+                      <td>
+                        <div className="vd-name">
+                          {p.image_url ? <img className="vd-thumb" src={p.image_url} alt="" loading="lazy" />
+                            : <span className="vd-thumb" style={{ background: monoColor(p.name) }} aria-hidden="true">{monoOf(p.name)}</span>}
+                          <div>
+                            <button className="vd-link" onClick={() => openEdit(p)}>{p.name}</button>
+                            <div>
+                              {p.is_ingredient ? <span className="vd-tag warn">Matéria-prima</span> : null}
+                              {p.is_production ? <span className="vd-tag info">Produção</span> : null}
+                              {p.is_production ? availBadge(p.id) : null}
+                              {!p.is_active ? <span className="vd-tag bad">Inativo</span> : tracked && p.show_online ? <span className="vd-tag ok">Online</span> : null}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      {cols.cat ? <td>{catName(p.category_id) ?? '—'}</td> : null}
+                      {cols.price ? <td className="num">{p.is_ingredient ? '—' : formatKz(grossUnit(p))}{!p.is_ingredient ? <span className="sub">S/IVA: {formatKz(Number(p.unit_price))}</span> : null}</td> : null}
+                      {cols.cost ? <td className="num">{formatKz(Number(p.cost_price) || 0)}</td> : null}
+                      {cols.iva ? <td className="ctr">{IVA_RATE[p.iva_code]}%</td> : null}
+                      {cols.stock ? (
+                        <td className="ctr">
+                          {p.is_production ? <span className="vd-badge mute">—</span>
+                            : <span className={`vd-badge${qty <= 0 ? ' bad' : qty <= 5 && !p.is_ingredient ? ' warn' : ''}`}>{qty.toLocaleString('pt-PT')}</span>}
+                          {p.unit ? <span className="sub">{p.unit}</span> : null}
+                        </td>
+                      ) : null}
+                      <td className="num">
+                        <div className="vd-opts" ref={rowMenu === p.id ? rowMenuRef : undefined}>
+                          <button className="vd-btn plain" aria-expanded={rowMenu === p.id} onClick={() => setRowMenu((m) => (m === p.id ? null : p.id))}>Opções <IconChevronDown size={13} /></button>
+                          {rowMenu === p.id ? (
+                            <div className="vd-drop" role="menu">
+                              <button role="menuitem" onClick={() => { setRowMenu(null); openEdit(p); }}><IconEdit size={15} /> Editar</button>
+                              <button role="menuitem" onClick={() => { setRowMenu(null); setEntering(true); }} disabled={stores.length === 0}><IconTruck size={15} /> Adicionar stock</button>
+                              <hr />
+                              <button role="menuitem" className="danger" onClick={() => { setRowMenu(null); void bulkDelete([p.id]); }} disabled={busy}>Eliminar</button>
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!loading && sorted.length > 0 ? (
+          <div className="vd-foot">
+            <span>A mostrar {from} a {to} de {sorted.length}{hasMore ? '+' : ''} registos</span>
+            <span className="spacer" />
+            {hasMore ? <button className="vd-btn outline sm" onClick={loadMore}>Carregar mais do servidor</button> : null}
+            {pageCount > 1 ? (
+              <div className="vd-pager">
+                <button onClick={() => setPage(curPage - 1)} disabled={curPage <= 1}>Anterior</button>
+                {pagerNums.map((n, i) => n === '…'
+                  ? <button key={`e${i}`} disabled>…</button>
+                  : <button key={n} className={n === curPage ? 'on' : ''} onClick={() => setPage(n)}>{n}</button>)}
+                <button onClick={() => setPage(curPage + 1)} disabled={curPage >= pageCount}>Seguinte</button>
               </div>
-              <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-                {form.sharedStock
-                  ? 'Stock único partilhado por todas as lojas — qualquer loja vende do mesmo saldo.'
-                  : 'Stock por loja — cada loja gere e vê o seu próprio stock. Dê entrada de stock em cada loja.'}
-              </p>
-            </div>
-          ) : null}
-
-          {/* Ingrediente/Produção (ficha técnica) só fazem sentido na RESTAURAÇÃO. */}
-          {isRestaurant && !form.isProduction ? (
-            <div className="switch-row">
-              <span>É ingrediente (matéria-prima)<br /><small className="muted">Não se vende no caixa nem na loja — só para a ficha técnica dos pratos.</small></span>
-              <Switch checked={form.isIngredient} onChange={(v) => setForm({ ...form, isIngredient: v, showOnline: v ? false : form.showOnline })} />
-            </div>
-          ) : null}
-          {isRestaurant && !form.isIngredient ? (
-            <div className="switch-row">
-              <span>Ativar produção<br /><small className="muted">Produto FABRICADO: o custo vem da ficha técnica e o estoque das fornadas (esconde custo/estoque/compra).</small></span>
-              <Switch checked={form.isProduction} onChange={(v) => setForm({ ...form, isProduction: v })} />
-            </div>
-          ) : null}
-          {isHealth && !form.isIngredient ? (
-            <div className="switch-row">
-              <span>Exige receita médica<br /><small className="muted">O caixa só vende com o nº da receita (fica registado na auditoria).</small></span>
-              <Switch checked={form.requiresPrescription} onChange={(v) => setForm({ ...form, requiresPrescription: v })} />
-            </div>
-          ) : null}
-          {!form.isIngredient ? (
-            <div className="switch-row">
-              <span>Mostrar na loja online</span>
-              <Switch checked={form.showOnline} onChange={(v) => setForm({ ...form, showOnline: v })} />
-            </div>
-          ) : null}
-          {editing ? (
-            <div className="switch-row">
-              <span>Produto activo</span>
-              <Switch checked={form.isActive} onChange={(v) => setForm({ ...form, isActive: v })} />
-            </div>
-          ) : null}
-
-          <button className="btn lg block" style={{ marginTop: 14 }} onClick={save} disabled={saving}>
-            {saving ? 'A guardar…' : editing ? 'Guardar alterações' : 'Criar produto'}
-          </button>
-        </Modal>
-      ) : null}
+            ) : null}
+          </div>
+        ) : null}
+      </div>
 
       {entering ? (
         <StockEntryModal
@@ -691,6 +871,7 @@ export function Products() {
     </div>
   );
 }
+
 
 /** Ordem de produção (fornada) — padaria/pastelaria/produção em lote: escolhe
  *  o produto com ficha técnica e a quantidade; o sistema consome os

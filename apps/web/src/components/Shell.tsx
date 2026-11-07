@@ -14,6 +14,7 @@ import { UserAvatar, displayName } from './UserAvatar';
 import type { SalaryAdvanceReq } from '../api/types';
 import { openCaixaTerminal } from '../config';
 import { pollEvery, stopPoll } from '../poll';
+import { AgtStatus, SubscriptionRing, TopActions, TopDivider, TopTitle, type QuickItem } from './TopStatus';
 
 /** Sino de notificações (Super Admin): conversas por responder + comentários
  *  novos do site — com badge e dropdown estilo rede social. */
@@ -261,6 +262,7 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
         aria-label={`Conta de ${shown}`} aria-haspopup="menu" aria-expanded={open}>
         <UserAvatar photo={photo} name={shown} email={email} size={34} />
         {totalBadge > 0 ? <span className="acct-badge">{totalBadge > 99 ? '99+' : totalBadge}</span> : null}
+        <span className="acct2-id"><b>{shown}</b>{email ? <small>{email}</small> : null}</span>
         <MenuIcon d={ICON_PATHS.chevron} size={15} className="acct2-caret" />
       </button>
       {open ? (
@@ -404,6 +406,17 @@ export function Shell({
   // Procura o item activo, mesmo dentro de grupos.
   const flat = nav.flatMap((n) => (n.children ? n.children : [n]));
   const current = flat.find((n) => n.key === section);
+  const has = (k: string) => flat.some((n) => n.key === k);
+  const userLevel = ROLE_LEVEL[user?.role ?? ''] ?? 9;
+  // Criações rápidas do "+": só as secções que este papel vê na navegação.
+  const quick: QuickItem[] = ([
+    { key: 'products', label: 'Produto', create: true },
+    { key: 'customers', label: 'Cliente' },
+    { key: 'purchasing', label: 'Compra' },
+    { key: 'expenses', label: 'Gasto' },
+    { key: 'employees', label: 'Funcionário' },
+    { key: 'tenants', label: 'Empresa' },
+  ] as QuickItem[]).filter((q) => has(q.key));
   const [menuOpen, setMenuOpen] = useState(false);
   // Grupos abertos (abre automaticamente o que contém a secção activa).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
@@ -512,9 +525,18 @@ export function Shell({
           <button className="menu-toggle" onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
             <IconMenu size={22} />
           </button>
-          {/* Sem título duplicado na barra: cada página já mostra o seu nome
-              no cabeçalho do conteúdo (padrão enterprise — a barra é só ações). */}
+          {/* Padrão do backoffice de referência: título da página à esquerda;
+              subscrição, AGT, "+" e "?" e a conta à direita, separados por divisórias. */}
+          <TopTitle title={current?.label ?? (section === 'profile' ? 'Perfil' : brandName)} />
           <span className="spacer" />
+          <SubscriptionRing enabled={isTenant && userLevel <= ROLE_LEVEL.COMPANY_ADMIN && has('subscription')} onGo={() => setSection('subscription')} />
+          <AgtStatus
+            mode={!isTenant ? (has('fiscal') ? 'platform' : 'none') : userLevel <= ROLE_LEVEL.STORE_MANAGER ? 'tenant' : 'none'}
+            onGo={() => setSection(isTenant ? (has('saft') ? 'saft' : section) : 'fiscal')}
+          />
+          <TopDivider />
+          <TopActions quick={quick} help={has('assistant') ? 'assistant' : has('support') ? 'support' : null} onGo={setSection} />
+          <TopDivider />
           <SyncStatusPill />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
           {isTenant ? <OrdersBell onGo={(s) => setSection(s)} /> : null}

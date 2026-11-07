@@ -10,6 +10,7 @@ import {
   IconDatabase, IconDownload, IconGauge, IconGear, IconHeadset, IconHistory, IconLedger, IconMail,
   IconMessage, IconPercent, IconPlug, IconReceipt, IconReport, IconSparkles,
   IconStore, IconTag, IconTrendUp, IconTruck, IconUpload, IconUsers, IconWallet,
+  IconActivity, IconBag, IconBars, IconFolder, IconShieldCheck, IconUserGroup,
 } from './components/Icons';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
@@ -93,14 +94,14 @@ const Migration = lazyRetry(() => import('./sections/Migration').then((m) => ({ 
    função (dashboard=velocímetro, empresas=edifício, suporte=auscultadores,
    IA=faíscas, integrações=ficha, e-mail=envelope…). Uma só biblioteca. */
 const PLATFORM_NAV: NavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: IconGauge },
+  { key: 'dashboard', label: 'Dashboard', icon: IconActivity },
   { key: 'tenants', label: 'Empresas', icon: IconBuilding },
   { key: 'subs', label: 'Subscrições & Pagamentos', icon: IconCard },
   { key: 'support', label: 'Suporte do site', icon: IconHeadset },
   { key: 'feedback', label: 'Comentários do site', icon: IconMessage },
   { key: 'plans', label: 'Planos & Página inicial', icon: IconTag },
   { key: 'ai', label: 'Inteligência Artificial', icon: IconSparkles },
-  { key: 'fiscal', label: 'Fiscal (AGT)', icon: IconReceipt },
+  { key: 'fiscal', label: 'Fiscal (AGT)', icon: IconShieldCheck },
   { key: 'gateways', label: 'Gateways de Pagamento', icon: IconBank },
   { key: 'integrations', label: 'Integrações', icon: IconPlug },
   { key: 'mail', label: 'E-mail (SMTP)', icon: IconMail },
@@ -112,25 +113,25 @@ const PLATFORM_NAV: NavItem[] = [
 // O supervisor (4) entra no painel mas só vê monitorização/aprovação (min:4); o
 // CRUD do sistema continua reservado a gerente de loja e acima (backend e nav).
 const TENANT_NAV: NavItem[] = [
-  { key: 'overview', label: 'Visão geral', icon: IconGauge, min: 4 },
+  { key: 'overview', label: 'Visão geral', icon: IconActivity, min: 4 },
   { key: 'assistant', label: 'Assistente IA', icon: IconSparkles, min: 2 },
   { key: 'subscription', label: 'Subscrição & Plano', icon: IconCard, min: 1 },
   {
     key: 'stores-group', label: 'Lojas', icon: IconStore, children: [
       { key: 'stores', label: 'Criar lojas', icon: IconStore, min: 2 },
       { key: 'store', label: 'Loja & Marca', icon: IconTag, min: 1 },
-      { key: 'orders', label: 'Encomendas', icon: IconTruck, min: 4 },
+      { key: 'orders', label: 'Encomendas', icon: IconFolder, min: 4 },
       { key: 'commissions', label: 'Comissões', icon: IconPercent, min: 2 },
     ],
   },
   {
-    key: 'products-group', label: 'Produtos', icon: IconCube, children: [
-      { key: 'products', label: 'Criar produtos', icon: IconCube },
+    key: 'products-group', label: 'Produtos', icon: IconBag, children: [
+      { key: 'products', label: 'Criar produtos', icon: IconBag },
       // Inventário ÚNICO (o antigo 'Inventário' + 'Inventário PRO' + 'Análise de
       // stock' são agora ABAS dentro desta secção — ver InventoryIntel).
       { key: 'inventory', label: 'Inventário', icon: IconBoxes },
       { key: 'stock-movements', label: 'Movimentos de stock', icon: IconHistory },
-      { key: 'purchasing', label: 'Compras', icon: IconCartIn, min: 2 },
+      { key: 'purchasing', label: 'Compras', icon: IconTruck, min: 2 },
       { key: 'promotions', label: 'Promoções', icon: IconTag },
     ],
   },
@@ -148,7 +149,7 @@ const TENANT_NAV: NavItem[] = [
       { key: 'receivables', label: 'Contas a Receber', icon: IconCoins, min: 2 },
       { key: 'accounting', label: 'Contabilidade', icon: IconLedger, min: 2 },
       { key: 'operations', label: 'Caixa & Auditoria', icon: IconCashRegister, min: 4 },
-      { key: 'reports', label: 'Relatórios', icon: IconReport },
+      { key: 'reports', label: 'Relatórios', icon: IconBars },
     ],
   },
   {
@@ -158,7 +159,7 @@ const TENANT_NAV: NavItem[] = [
       { key: 'leave', label: 'Férias', icon: IconCalendar },
     ],
   },
-  { key: 'customers', label: 'Clientes', icon: IconUsers },
+  { key: 'customers', label: 'Clientes', icon: IconUserGroup },
   {
     key: 'cameras-group', label: 'Câmaras', icon: IconCamera, children: [
       { key: 'cameras-config', label: 'Configurar', icon: IconGear, min: 1 },
@@ -167,7 +168,7 @@ const TENANT_NAV: NavItem[] = [
       { key: 'cameras-map', label: 'Olho de Deus', icon: IconCamera, min: 4 },
     ],
   },
-  { key: 'saft', label: 'Fiscal · SAF-T', icon: IconReceipt, min: 1 },
+  { key: 'saft', label: 'Fiscal · SAF-T', icon: IconShieldCheck, min: 1 },
   {
     key: 'backup-group', label: 'Backup & Restauro', icon: IconDatabase, min: 1, children: [
       { key: 'backup', label: 'Backup', icon: IconDatabase, min: 1 },
