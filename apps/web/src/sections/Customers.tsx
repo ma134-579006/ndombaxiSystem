@@ -29,6 +29,17 @@ export function Customers() {
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [state, setState] = useState<'ALL' | 'ON' | 'OFF'>('ALL');
+  const [page, setPage] = useState(1);
+  const [more, setMore] = useState(false);
+  const [rowMenu, setRowMenu] = useState<string | null>(null);
+  const moreRef = React.useRef<HTMLDivElement | null>(null);
+  const rowRef = React.useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!more && !rowMenu) return;
+    const h = (e: MouseEvent) => { const t = e.target as Node; if (moreRef.current?.contains(t) || rowRef.current?.contains(t)) return; setMore(false); setRowMenu(null); };
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
+  }, [more, rowMenu]);
   const toggleSel = (id: string) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   // Muitos clientes: páginas de 200 e pesquisa no servidor (ou na memória, sem rede).
@@ -135,76 +146,119 @@ export function Customers() {
     return n > 0 ? totalSpent / n : 0;
   }, [rows, totalSpent, stats]);
 
+  // ── Listagem no padrão de referência: Todos/Ativo/Inativo, Pesquisar, tabela
+  // Nome | NIF | Localidade | Telemóvel | Compras | Estado | Opções, 20 por página. ──
+  const shownRows = filtered.filter((c) => (state === 'ALL' ? true : state === 'ON' ? c.is_active : !c.is_active));
+  const perPage = 20;
+  const pageCount = Math.max(1, Math.ceil(shownRows.length / perPage));
+  const cur = Math.min(page, pageCount);
+  const pageRows = shownRows.slice((cur - 1) * perPage, cur * perPage);
+  const pageSel = pageRows.length > 0 && pageRows.every((c) => selected.has(c.id));
+  const togglePage = () => setSelected((p) => { const n = new Set(p); if (pageSel) pageRows.forEach((c) => n.delete(c.id)); else pageRows.forEach((c) => n.add(c.id)); return n; });
+  const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^\d]/g, '').replace(/^(?!244)(\d{9})$/, '244$1')}`;
+
   return (
-    <div className="fx-wide">
-      <div className="content-head">
-        <h2>Clientes</h2>
+    <div className="vd-page">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Clientes</span><span className="sep">/</span><span>Listagem</span></p>
         <span className="spacer" />
-        <button className="btn" onClick={openCreate}><IconPlus size={17} /> Novo cliente</button>
+        <button className="vd-btn" onClick={openCreate}><IconPlus size={16} /> Adicionar Cliente</button>
+        <div className="vd-split" ref={moreRef}>
+          <button className="vd-btn outline" onClick={() => setMore((v) => !v)} aria-expanded={more}>Opções ▾</button>
+          {more ? (
+            <div className="vd-drop" role="menu">
+              <button role="menuitem" onClick={() => { setMore(false); toggleAll(); }} disabled={filtered.length === 0}>{allSel ? 'Desmarcar todos' : 'Selecionar todos'}</button>
+              <hr />
+              <button role="menuitem" className="danger" onClick={() => { setMore(false); void bulkDelete(); }} disabled={selected.size === 0 || bulkBusy}>Eliminar selecionados ({selected.size})</button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconUsers size={20} /></span><div><div className="lb">Clientes</div><div className="vl">{stats?.total ?? rows.length}</div><div className="sb">{withPurchases} já compraram</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconReceipt size={20} /></span><div><div className="lb">Faturado a clientes</div><div className="vl">{formatKz(totalSpent)}</div><div className="sb">compras identificadas</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconTrendUp size={20} /></span><div><div className="lb">Compra média</div><div className="vl">{formatKz(avgTicket)}</div><div className="sb">por compra</div></div></div>
-      </div>
+      <form className="vd-card vd-filters" onSubmit={(e) => { e.preventDefault(); setPage(1); }}>
+        <div className="vd-frow" style={{ alignItems: 'center' }}>
+          <div className="vd-seg" role="tablist" aria-label="Estado">
+            {([['ALL', 'Todos'], ['ON', 'Ativo'], ['OFF', 'Inativo']] as const).map(([k, l]) => (
+              <button key={k} type="button" role="tab" aria-selected={state === k} className={state === k ? 'on' : ''} onClick={() => { setState(k); setPage(1); }}>{l}</button>
+            ))}
+          </div>
+          <label className="vd-f grow"><input className="vd-in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar por nome, NIF, telefone ou e-mail" aria-label="Procurar clientes" /></label>
+          <button type="submit" className="vd-btn outline"><IconSearch size={15} /> Pesquisar</button>
+        </div>
+      </form>
 
-      <div className="fx-toolbar">
-        <label className="fx-search" style={{ maxWidth: 520 }}>
-          <IconSearch size={17} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar por nome, telefone, e-mail ou NIF…" aria-label="Procurar clientes" />
-        </label>
+      {error ? <div className="vd-err" role="alert">{error}</div> : null}
+
+      <div className="vd-card vd-tablecard">
+        <div className="vd-tbar">
+          <span>{shownRows.length.toLocaleString('pt-PT')}{hasMore ? '+' : ''} registos</span>
+          <span className="spacer" />
+          <div className="vd-sum">
+            <span>Clientes <b>{stats?.total ?? rows.length}</b></span>
+            <span>Já compraram <b>{withPurchases}</b></span>
+            <span>Faturado <b>{formatKz(totalSpent)}</b></span>
+            <span>Compra média <b>{formatKz(avgTicket)}</b></span>
+          </div>
+        </div>
         {selected.size > 0 ? (
-          <div className="row" style={{ gap: 10 }}>
-            <strong>{selected.size} selecionado(s)</strong>
-            <button className="btn sm danger" onClick={() => void bulkDelete()} disabled={bulkBusy}>Eliminar selecionados</button>
+          <div className="vd-bulk"><strong>{selected.size} selecionado(s)</strong><span className="spacer" />
+            <button className="vd-btn plain sm" onClick={() => setSelected(new Set())} disabled={bulkBusy}>Limpar</button>
+            <button className="vd-btn danger sm" onClick={() => void bulkDelete()} disabled={bulkBusy}>Eliminar</button></div>
+        ) : null}
+        {loading ? <div className="loading">A carregar…</div> : pageRows.length === 0 ? (
+          <div className="vd-empty">{q || state !== 'ALL' ? 'Sem resultados.' : 'Ainda não há clientes.'}</div>
+        ) : (
+          <div className="vd-tablewrap">
+            <table className="vd-table">
+              <thead><tr>
+                <th className="chk"><input type="checkbox" checked={pageSel} onChange={togglePage} aria-label="Selecionar a página" /></th>
+                <th>Nome</th><th>NIF</th><th>Localidade</th><th>Telemóvel</th><th className="num">Compras</th><th className="ctr">Estado</th><th aria-label="Opções" />
+              </tr></thead>
+              <tbody>
+                {pageRows.map((c, i) => (
+                  <tr key={c.id} className={`${selected.has(c.id) ? 'sel' : ''}${!c.is_active ? ' off' : ''}`} style={{ animationDelay: `${Math.min(i, 12) * 18}ms` }}>
+                    <td className="chk"><input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSel(c.id)} aria-label={`Selecionar ${c.name}`} /></td>
+                    <td><button className="vd-link" onClick={() => openEdit(c)}>{c.name}</button>{shownEmail(c.email) ? <span className="sub">{shownEmail(c.email)}</span> : null}</td>
+                    <td>{c.tax_id || '—'}</td>
+                    <td>{[c.municipality, c.province].filter(Boolean).join(', ') || '—'}</td>
+                    <td>{c.phone || '—'}</td>
+                    <td className="num">{(c.purchases ?? 0) > 0 ? <>{formatKz(c.total_spent ?? 0)}<span className="sub">{c.purchases} compra(s){c.last_purchase ? ` · ${formatDate(c.last_purchase)}` : ''}</span></> : '—'}</td>
+                    <td className="ctr"><span className={`vd-badge${c.is_active ? '' : ' mute'}`}>{c.is_active ? 'Ativo' : 'Inativo'}</span></td>
+                    <td className="num">
+                      <div className="vd-opts" ref={rowMenu === c.id ? rowRef : undefined}>
+                        <button className="vd-btn plain" aria-expanded={rowMenu === c.id} onClick={() => setRowMenu((m) => (m === c.id ? null : c.id))}>Opções ▾</button>
+                        {rowMenu === c.id ? (
+                          <div className="vd-drop" role="menu">
+                            <button role="menuitem" onClick={() => { setRowMenu(null); openEdit(c); }}>Editar</button>
+                            {c.phone ? <button role="menuitem" onClick={() => { setRowMenu(null); window.open(waLink(c.phone!), '_blank', 'noopener'); }}>WhatsApp</button> : null}
+                            {c.phone ? <button role="menuitem" onClick={() => { setRowMenu(null); window.location.href = `tel:${c.phone}`; }}>Ligar</button> : null}
+                            <hr />
+                            <button role="menuitem" className="danger" onClick={() => { setRowMenu(null); void remove(c); }}>Eliminar</button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!loading && shownRows.length > 0 ? (
+          <div className="vd-foot">
+            <span>Página {cur} de {pageCount}</span>
+            <span className="spacer" />
+            {hasMore ? <button className="vd-btn outline sm" onClick={loadMore}>Carregar mais do servidor</button> : null}
+            {pageCount > 1 ? (
+              <div className="vd-pager">
+                <button onClick={() => setPage(cur - 1)} disabled={cur <= 1}>Anterior</button>
+                <button className="on">{cur}</button>
+                <button onClick={() => setPage(cur + 1)} disabled={cur >= pageCount}>Seguinte</button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
-
-      {error ? <div className="banner danger">{error}</div> : null}
-
-      <div className="fx-card" style={{ padding: 8 }}>
-        {loading ? <div className="loading" style={{ padding: 26 }}>A carregar…</div>
-          : filtered.length === 0 ? <div className="empty" style={{ padding: 30 }}><p>{q ? 'Sem resultados.' : 'Ainda não há clientes — cria o primeiro ou regista-os no caixa durante a venda.'}</p></div>
-          : <>
-            <label className="row" style={{ padding: '8px 14px', gap: 10, fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer' }}>
-              <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /> Selecionar todos ({filtered.length})
-            </label>
-            {filtered.map((c) => (
-              <div key={c.id} className="co-row">
-                <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSel(c.id)} aria-label={`Selecionar ${c.name}`} />
-                <span className="co-av" aria-hidden="true">{c.name.slice(0, 1).toUpperCase()}</span>
-                <div className="co-main">
-                  <div className="co-name">{c.name}</div>
-                  <div className="co-meta">
-                    {[c.phone, shownEmail(c.email), c.tax_id ? `NIF ${c.tax_id}` : null].filter(Boolean).map((x) => <span key={String(x)}>{x}</span>)}
-                    {!c.phone && !shownEmail(c.email) && !c.tax_id ? <span>sem contactos</span> : null}
-                  </div>
-                  <div className="co-state">
-                    {(c.purchases ?? 0) > 0
-                      ? <><span className="fx-dot ok" />{c.purchases} compra(s) · <strong style={{ marginLeft: 4, color: 'var(--text)' }}>{formatKz(c.total_spent ?? 0)}</strong>{c.last_purchase ? ` · última ${formatDate(c.last_purchase)}` : ''}</>
-                      : <><span className="fx-dot" />sem compras ainda</>}
-                  </div>
-                </div>
-                <div className="co-actions">
-                  {c.phone ? (
-                    <a className="btn sm ghost" href={`https://wa.me/${c.phone.replace(/[^\d]/g, '').replace(/^(?!244)(\d{9})$/, '244$1')}`} target="_blank" rel="noreferrer">WhatsApp</a>
-                  ) : null}
-                  {c.phone ? <a className="btn sm ghost" href={`tel:${c.phone}`}>Ligar</a> : null}
-                  <button className="btn sm ghost" onClick={() => openEdit(c)}>Editar</button>
-                  <button className="btn sm ghost" onClick={() => void remove(c)} title="Eliminar" aria-label={`Eliminar ${c.name}`}><IconTrash size={15} /></button>
-                </div>
-              </div>
-            ))}
-          </>}
-      </div>
-      {!loading && hasMore ? (
-        <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0' }}>
-          <button className="btn" onClick={loadMore}>Carregar mais clientes ({rows.length} mostrados)</button>
-        </div>
-      ) : null}
-
       {open ? (
         <Modal title={editing ? 'Editar cliente' : 'Novo cliente'} onClose={() => setOpen(false)}>
           <div className="field"><label>Nome</label>

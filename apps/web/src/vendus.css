@@ -699,3 +699,8 @@
 .loading, .admin .content .loading { animation: none !important; flex-direction: column; }
 .loading::before, .admin .content .loading::before { -webkit-mask: none !important; mask: none !important; order: 0 !important; transform: none !important; }
 .loading::after, .admin .content .loading::after { order: 0 !important; overflow: visible !important; }
+/* Seletor de estado (Todos / Ativo / Inativo) como na referência. */
+.vd-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; flex: none; }
+.vd-seg button { height: 36px; padding: 0 16px; border: 0; border-right: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 14px; cursor: pointer; transition: background var(--vd-fast), color var(--vd-fast); }
+.vd-seg button:last-child { border-right: 0; }
+.vd-seg button.on { background: var(--primary); color: #fff; }
