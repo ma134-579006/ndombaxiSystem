@@ -310,3 +310,17 @@
 .app-bg .modal table td { border-bottom: 1px solid var(--border); }
 .app-bg .modal input, .app-bg .modal select, .app-bg .modal textarea { border-radius: 4px !important; }
 .app-bg .modal .chip, .app-bg .modal .seg button { border-radius: 4px !important; }
+
+/* ── Indicador de PROCESSAMENTO no padrão de referência: círculo claro com
+   dois arcos a rodar em sentidos opostos e a mensagem por baixo, sobre um véu.
+   Usado na emissão, sincronização e carregamentos (desenho próprio). ── */
+.vproc-bg { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: color-mix(in srgb, var(--primary) 30%, color-mix(in srgb, var(--bg, #0b1220) 82%, transparent)); animation: v-fade var(--v-fast, .3s) ease both; }
+.vproc { display: grid; justify-items: center; gap: 14px; color: #fff; font-size: 14px; text-shadow: 0 1px 6px rgba(0,0,0,.35); }
+.vproc-ring { position: relative; width: 150px; height: 150px; }
+.vproc-ring::before { content: ''; position: absolute; inset: 7px; border-radius: 999px; background: #fff; box-shadow: 0 10px 40px -10px rgba(0,0,0,.45); }
+.vproc-ring i, .vproc-ring b { position: absolute; inset: 0; border-radius: 999px; border: 4px solid transparent; }
+.vproc-ring i { border-top-color: #fff; border-right-color: #fff; animation: vproc-spin 1.2s cubic-bezier(.5, .1, .5, .9) infinite; }
+.vproc-ring b { inset: 2px; border-bottom-color: var(--primary); border-left-color: var(--primary); animation: vproc-spin 1.8s linear infinite reverse; }
+@keyframes vproc-spin { to { transform: rotate(360deg); } }
+.vproc-sm .vproc-ring { width: 56px; height: 56px; } .vproc-sm .vproc-ring::before { inset: 4px; } .vproc-sm .vproc-ring i, .vproc-sm .vproc-ring b { border-width: 3px; }
+@media (prefers-reduced-motion: reduce) { .vproc-ring i, .vproc-ring b { animation-duration: 3s; } }

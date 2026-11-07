@@ -148,7 +148,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
   };
 
   const [pdfBusy, setPdfBusy] = useState(false);
-  const makePdf = () => buildInvoicePdf({ invoice, identity, info, customerName, operatorName, items, provisional });
+  const makePdf = () => buildInvoicePdf({ invoice, identity, info, customerName, operatorName, items, provisional, reprint, payments: payLines });
 
   // ── Impressão: tenta a TÉRMICA DIRETA (ESC/POS via USB, sem driver) e só
   // se não houver impressora emparelhada/compatível cai no diálogo do sistema.

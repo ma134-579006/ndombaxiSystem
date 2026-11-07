@@ -1204,7 +1204,7 @@ export function PosPage() {
               ) : null}
 
               {loading ? (
-                <div className="empty">A carregar produtos…</div>
+                <div className="empty"><div className="vproc vproc-sm" style={{ color: 'var(--muted)', textShadow: 'none' }}><div className="vproc-ring"><i /><b /></div><span>A sincronizar produtos…</span></div></div>
               ) : error ? (
                 <div className="empty"><div className="banner danger">{error}</div></div>
               ) : shown.length === 0 ? (
@@ -1462,6 +1462,10 @@ export function PosPage() {
         name={user?.name || user?.email || 'Operador'}
         role={user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
       />
+
+      {emitting ? (
+        <div className="vproc-bg" role="status" aria-live="polite"><div className="vproc"><div className="vproc-ring"><i /><b /></div><span>A processar documento…</span></div></div>
+      ) : null}
 
       {showPayment ? (
         <PaymentModal

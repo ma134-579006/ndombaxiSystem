@@ -521,3 +521,20 @@
   .admin .content > .page-anim > :not(.vd-crumbbar) .content-head:first-child,
   .admin .content > .page-anim > .content-head:first-of-type { margin-top: 0 !important; padding-left: 0; }
 }
+
+/* ── Indicador de PROCESSAMENTO no padrão de referência: círculo claro com
+   dois arcos a rodar em sentidos opostos e a mensagem por baixo, sobre um véu.
+   Usado na emissão, sincronização e carregamentos (desenho próprio). ── */
+.vproc-bg { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: color-mix(in srgb, var(--primary) 30%, color-mix(in srgb, var(--bg, #0b1220) 82%, transparent)); animation: v-fade .3s ease both; }
+.vproc { display: grid; justify-items: center; gap: 14px; color: #fff; font-size: 14px; text-shadow: 0 1px 6px rgba(0,0,0,.35); }
+.vproc-ring { position: relative; width: 150px; height: 150px; }
+.vproc-ring::before { content: ''; position: absolute; inset: 7px; border-radius: 999px; background: #fff; box-shadow: 0 10px 40px -10px rgba(0,0,0,.45); }
+.vproc-ring i, .vproc-ring b { position: absolute; inset: 0; border-radius: 999px; border: 4px solid transparent; }
+.vproc-ring i { border-top-color: #fff; border-right-color: #fff; animation: vproc-spin 1.2s cubic-bezier(.5, .1, .5, .9) infinite; }
+.vproc-ring b { inset: 2px; border-bottom-color: var(--primary); border-left-color: var(--primary); animation: vproc-spin 1.8s linear infinite reverse; }
+@keyframes vproc-spin { to { transform: rotate(360deg); } }
+.vproc-sm .vproc-ring { width: 56px; height: 56px; } .vproc-sm .vproc-ring::before { inset: 4px; } .vproc-sm .vproc-ring i, .vproc-sm .vproc-ring b { border-width: 3px; }
+@media (prefers-reduced-motion: reduce) { .vproc-ring i, .vproc-ring b { animation-duration: 3s; } }/* Carregamentos do admin (".loading" e o fallback das secções) com o mesmo anel. */
+.admin .content .loading, .admin .content .vd-empty:has(> :empty) { display: grid; justify-items: center; gap: 12px; padding: 40px 10px; color: var(--muted); }
+.admin .content .loading::before { content: ''; width: 46px; height: 46px; border-radius: 999px; border: 3px solid var(--border); border-top-color: var(--primary); border-right-color: var(--primary); animation: vproc-spin 1s cubic-bezier(.5,.1,.5,.9) infinite; }
+@keyframes v-fade { from { opacity: 0; } to { opacity: 1; } }
