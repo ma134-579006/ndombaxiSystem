@@ -564,6 +564,17 @@ export const api = {
     status: () => request<AgtCommStatus>('GET', '/fiscal/agt/status'),
     communicate: () => request<AgtCommResult>('POST', '/fiscal/agt/communicate'),
   },
+  // ── Facturação Electrónica da própria empresa (como no backoffice de referência) ──
+  fe: {
+    status: () => request<{
+      enabled: boolean; enabledFrom: string | null; environment: string; establishmentNumber: string;
+      hasTaxpayerKey: boolean; series: Record<string, string>; missingSeries: string[]; documents: Record<string, number>;
+    }>('GET', '/fiscal/einvoice/status'),
+    sync: () => request<Record<string, unknown>>('POST', '/fiscal/einvoice/sync'),
+    remoteSeries: () => request<unknown>('GET', '/fiscal/einvoice/series'),
+    documents: (status?: string) => request<Array<{ documentNo: string; status: string; attempts?: number; errors?: unknown; createdAt: string; updatedAt?: string }>>('GET', `/fiscal/einvoice/documents${status ? `?status=${status}` : ''}`),
+    requeue: (documentNo: string) => request<{ requeued: number }>('POST', '/fiscal/einvoice/requeue', { documentNo }),
+  },
 
   // ── Backup & Restauro (dados de gestão nunca se perdem) ────
   backup: {

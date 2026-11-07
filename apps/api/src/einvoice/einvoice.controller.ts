@@ -125,4 +125,28 @@ export class EinvoiceTenantController {
   sync(@CurrentUser() user: JwtPayload) {
     return this.fe.syncNow(user.tenantId as string);
   }
+
+  // ── Como no backoffice de referência, a própria empresa consulta as suas
+  // séries comunicadas à AGT (e o limite de emissão) e os documentos
+  // rejeitados — sem depender do Super Admin. Só leitura + repor na fila. ──
+  @Get('series')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Séries desta empresa na AGT (listarSeries)' })
+  listSeries(@CurrentUser() user: JwtPayload) {
+    return this.fe.listRemoteSeries(user.tenantId as string);
+  }
+
+  @Get('documents')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Documentos desta empresa na fila/enviados/rejeitados (até 200)' })
+  documents(@CurrentUser() user: JwtPayload, @Query('status') status?: string) {
+    return this.fe.listDocuments(user.tenantId as string, status);
+  }
+
+  @Post('requeue')
+  @Roles(Role.COMPANY_ADMIN)
+  @ApiOperation({ summary: 'Repõe na fila um documento rejeitado/com erro desta empresa' })
+  requeue(@CurrentUser() user: JwtPayload, @Body() body: { documentNo: string }) {
+    return this.fe.requeue(user.tenantId as string, String(body?.documentNo ?? ''));
+  }
 }

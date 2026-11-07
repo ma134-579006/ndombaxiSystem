@@ -1,43 +1,48 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { runDownload } from '../components/feedback';
 import { api, ApiError } from '../api/client';
 import type { AgtCommStatus } from '../api/types';
-import { IconReceipt } from '../components/Icons';
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const DOC_TYPE: Record<string, string> = { FT: 'Factura', FR: 'Factura-Recibo', NC: 'Nota de Crédito', ND: 'Nota de Débito', RC: 'Recibo', GR: 'Guia de Remessa', GT: 'Guia de Transporte', PF: 'Factura Pró-forma', OR: 'Orçamento' };
+type FeStatus = Awaited<ReturnType<typeof api.fe.status>>;
+type FeDoc = Awaited<ReturnType<typeof api.fe.documents>>[number];
 
-/** Exportação do ficheiro SAF-T (AO) mensal — auditoria fiscal exigida pela AGT. */
+/**
+ * Administração Geral Tributária — no layout do backoffice de referência:
+ *  • início: cartões SAF-T (exportar, "até ao dia 15"), Comunicação à AGT e
+ *    Configuração;
+ *  • Configuração: Estado da configuração, Séries de faturação (com as séries
+ *    comunicadas à AGT; as que faltam são pedidas automaticamente na emissão)
+ *    e Documentos rejeitados (com "Repor na fila").
+ */
 export function Saft() {
   const now = new Date();
+  const [view, setView] = useState<'home' | 'config'>('home');
   const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [month, setMonth] = useState(now.getMonth() === 0 ? 12 : now.getMonth());
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-
-  // Comunicação eletrónica à AGT (DP 71/25) — contrato configurado pelo Super Admin;
-  // aqui a empresa comunica os SEUS documentos.
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [comm, setComm] = useState<AgtCommStatus | null>(null);
   const [commBusy, setCommBusy] = useState(false);
-  const [commMsg, setCommMsg] = useState<string | null>(null);
-  const loadComm = () => { api.agtComm.status().then(setComm).catch(() => setComm(null)); };
-  useEffect(() => { loadComm(); }, []);
-  const communicate = async () => {
-    setCommBusy(true); setCommMsg(null);
-    try {
-      const r = await api.agtComm.communicate();
-      setCommMsg(`${r.sent} documento(s) comunicado(s)${r.failed ? `, ${r.failed} falharam` : ''}.`);
-      loadComm();
-    } catch (e) {
-      setCommMsg(e instanceof ApiError ? e.message : 'Não foi possível comunicar à AGT.');
-    } finally { setCommBusy(false); }
-  };
+  const [fe, setFe] = useState<FeStatus | null>(null);
+  const [feErr, setFeErr] = useState<string | null>(null);
+  const [modal, setModal] = useState<'series' | 'rejected' | null>(null);
+  const [rejected, setRejected] = useState<FeDoc[] | null>(null);
+  const [remote, setRemote] = useState<unknown>(null);
+  const [remoteBusy, setRemoteBusy] = useState(false);
+
+  const load = useCallback(() => {
+    api.agtComm.status().then(setComm).catch(() => setComm(null));
+    api.fe.status().then((s) => { setFe(s); setFeErr(null); }).catch((e) => { setFe(null); setFeErr(e instanceof ApiError ? e.message : null); });
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
   const years: number[] = [];
   for (let y = now.getFullYear(); y >= now.getFullYear() - 4; y--) years.push(y);
 
   const exportSaft = async () => {
-    setError(null); setInfo(null); setBusy(true);
+    setMsg(null); setBusy(true);
     try {
       await runDownload({
         title: `A exportar SAF-T de ${MONTHS[month - 1]} ${year}`,
@@ -48,74 +53,151 @@ export function Saft() {
           return new Blob([xml], { type: 'application/xml;charset=utf-8' });
         },
       });
-      setInfo(`SAF-T de ${MONTHS[month - 1]} de ${year} descarregado.`);
+      setMsg({ ok: true, text: `SAF-T de ${MONTHS[month - 1]} de ${year} exportado.` });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível exportar o SAF-T.');
-    } finally {
-      setBusy(false);
-    }
+      setMsg({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível exportar o SAF-T.' });
+    } finally { setBusy(false); }
   };
 
+  const communicate = async () => {
+    setCommBusy(true); setMsg(null);
+    try {
+      const r = await api.agtComm.communicate();
+      setMsg({ ok: !r.failed, text: `${r.sent} documento(s) comunicado(s)${r.failed ? `, ${r.failed} falharam` : ''}.` });
+      load();
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível comunicar à AGT.' });
+    } finally { setCommBusy(false); }
+  };
+
+  const openRejected = async () => {
+    setModal('rejected'); setRejected(null);
+    try {
+      const [inv, err] = await Promise.all([api.fe.documents('INVALID'), api.fe.documents('ERROR')]);
+      setRejected([...inv, ...err].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)));
+    } catch { setRejected([]); }
+  };
+  const requeue = async (no: string) => {
+    try {
+      const r = await api.fe.requeue(no);
+      setMsg({ ok: true, text: r.requeued ? `${no} reposto na fila de envio.` : `${no} já não estava rejeitado.` });
+      void openRejected(); load();
+    } catch (e) { setMsg({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível repor o documento.' }); }
+  };
+  const consultRemote = async () => {
+    setRemoteBusy(true);
+    try { setRemote(await api.fe.remoteSeries()); } catch (e) { setRemote({ erro: e instanceof ApiError ? e.message : 'Sem resposta da AGT.' }); }
+    finally { setRemoteBusy(false); }
+  };
+
+  const feActive = !!fe?.enabled;
+  const seriesRows = Object.entries(fe?.series ?? {}).map(([k, code]) => ({ type: k.split('-')[0], year: k.split('-')[1], code }))
+    .sort((a, b) => b.year.localeCompare(a.year) || a.type.localeCompare(b.type));
+  const rejectedCount = (fe?.documents?.INVALID ?? 0) + (fe?.documents?.ERROR ?? 0);
+
   return (
-    <>
-      <div className="content-head"><h2>Fiscal · SAF-T (AGT)</h2></div>
-
-      {info ? <div className="banner success" style={{ marginBottom: 12 }}>{info}</div> : null}
-      {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
-
-      <div className="card" style={{ maxWidth: 520 }}>
-        <h3 style={{ marginTop: 0 }}>Comunicação eletrónica à AGT</h3>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          Decreto Presidencial 71/25 — envia os teus documentos emitidos à AGT.
+    <div className="vd-page">
+      <div className="vd-head">
+        <p className="vd-crumb">
+          {view === 'config'
+            ? <><button onClick={() => setView('home')}>Administração Geral Tributária</button><span className="sep">/</span><span>Configuração</span></>
+            : <span>Administração Geral Tributária</span>}
         </p>
-        {!comm ? (
-          <p className="muted" style={{ fontSize: 13 }}>A carregar…</p>
-        ) : !comm.enabled ? (
-          <div className="banner" style={{ fontSize: 13 }}>A comunicação eletrónica ainda não foi ativada pela plataforma.</div>
-        ) : !comm.configured ? (
-          <div className="banner warn" style={{ fontSize: 13 }}>Falta configurar o endpoint da AGT (Super Admin).</div>
-        ) : (
-          <>
-            <div className="grid-2" style={{ marginBottom: 10 }}>
-              <div className="field" style={{ margin: 0 }}><label>Por comunicar</label><strong style={{ fontSize: 20 }}>{comm.pending}</strong></div>
-              <div className="field" style={{ margin: 0 }}><label>Já comunicados</label><strong style={{ fontSize: 20 }}>{comm.communicated}</strong></div>
-            </div>
-            <button className="btn lg block" onClick={communicate} disabled={commBusy || comm.pending === 0}>
-              {commBusy ? 'A comunicar…' : comm.pending === 0 ? 'Sem documentos pendentes' : `Comunicar ${comm.pending} documento(s)`}
-            </button>
-          </>
-        )}
-        {commMsg ? <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>{commMsg}</p> : null}
       </div>
+      {msg ? <div className={msg.ok ? 'vd-ok' : 'vd-err'} role="status">{msg.text}</div> : null}
 
-      <div className="card" style={{ maxWidth: 520 }}>
-        <h3 style={{ marginTop: 0 }}>Exportar ficheiro SAF-T (AO)</h3>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          Gera o ficheiro de auditoria fiscal mensal (XML) exigido pela AGT, com todas as
-          facturas e documentos emitidos no período.
-        </p>
-        <div className="grid-2">
-          <div className="field">
-            <label>Mês</label>
-            <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-              {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-            </select>
+      {view === 'home' ? (
+        <div className="vd-agt-cards">
+          <div className="vd-agt-card">
+            <div className="ic"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><text x="8" y="18" fontSize="5" fill="currentColor" stroke="none">XML</text></svg></div>
+            <h3>SAF-T</h3>
+            <p>Ficheiro SAF-T (AO) com os documentos emitidos no mês, para entregar à AGT.</p>
+            <div className="sel">
+              <select value={month} onChange={(e) => setMonth(Number(e.target.value))} aria-label="Mês">{MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}</select>
+              <select value={year} onChange={(e) => setYear(Number(e.target.value))} aria-label="Ano">{years.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+            </div>
+            <div className="act"><button className="vd-btn big" onClick={exportSaft} disabled={busy}>{busy ? 'A exportar…' : 'Exportar'}</button><small>Envie até ao dia 15 de cada mês</small></div>
           </div>
-          <div className="field">
-            <label>Ano</label>
-            <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
-              {years.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
+          <div className="vd-agt-card">
+            <div className="ic"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z" /></svg></div>
+            <h3>Comunicação AGT</h3>
+            <p>{!comm ? '—' : !comm.enabled ? 'Comunicação eletrónica por ativar na plataforma.' : !comm.configured ? 'Endpoint da AGT por configurar.' : `${comm.pending} por comunicar · ${comm.communicated} comunicados.`}</p>
+            <div className="act"><button className="vd-btn big" onClick={communicate} disabled={commBusy || !comm?.enabled || !comm?.configured || comm.pending === 0}>{commBusy ? 'A comunicar…' : 'Comunicar'}</button><small>Documentos emitidos ainda não comunicados</small></div>
+          </div>
+          <div className="vd-agt-card">
+            <div className="ic"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg></div>
+            <h3>Configuração</h3>
+            <p>Estado da Facturação Electrónica, séries comunicadas à AGT e documentos rejeitados.</p>
+            <div className="act"><button className="vd-btn big ok" onClick={() => setView('config')}>Configurar</button>{rejectedCount ? <small className="bad">{rejectedCount} documento(s) rejeitado(s)</small> : <small>&nbsp;</small>}</div>
           </div>
         </div>
-        <button className="btn lg block" style={{ marginTop: 8 }} onClick={exportSaft} disabled={busy}>
-          <IconReceipt size={18} /> {busy ? 'A gerar…' : 'Exportar SAF-T'}
-        </button>
-        <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-          O ficheiro descarrega-se como <strong>SAFT-AO-{year}-{String(month).padStart(2, '0')}.xml</strong>.
-          Entrega-o à AGT ou importa-o no portal fiscal.
-        </p>
-      </div>
-    </>
+      ) : (
+        <div className="vd-agt-cards cfg">
+          <div className="vd-agt-card cfg">
+            <div className="hd"><h3>Estado da Configuração</h3><p>{feActive ? 'Comunicação ativa.' : 'Comunicação inativa.'}</p></div>
+            <div className="bd">
+              <span className={`vd-state ${feActive ? 'ok' : 'off'}`}>{feActive ? '✓ Estado: Ativo' : '! Estado: Inativo'}</span>
+              {feErr ? <p className="bad">{feErr}</p> : !fe ? <p>—</p> : (
+                <p>
+                  Ambiente: <b>{fe.environment === 'PRODUCTION' ? 'Produção' : 'Testes'}</b> · Estabelecimento n.º <b>{fe.establishmentNumber}</b><br />
+                  {fe.missingSeries.length ? <span className="bad">Sem série AGT {now.getFullYear()} para: {fe.missingSeries.join(', ')} — é pedida automaticamente na emissão.</span> : 'Séries do ano em dia.'}
+                  {!fe.hasTaxpayerKey ? <><br /><span className="bad">Chave do contribuinte por configurar (Super Admin).</span></> : null}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="vd-agt-card cfg">
+            <div className="hd"><h3>Séries de faturação</h3><p>Consulte as suas séries de faturação.</p></div>
+            <div className="bd"><p>Verifique todas as séries de faturação comunicadas à AGT.</p><button className="vd-btn outline-ok" onClick={() => setModal('series')}>Consultar séries</button></div>
+          </div>
+          <div className="vd-agt-card cfg">
+            <div className="hd"><h3>Documentos Rejeitados</h3><p>Consulte a lista de documentos rejeitados pela AGT.</p></div>
+            <div className="bd"><p>Verifique os documentos comunicados à AGT e que foram rejeitados pela mesma.</p><button className="vd-btn danger" onClick={() => void openRejected()}>Documentos Rejeitados{rejectedCount ? ` (${rejectedCount})` : ''}</button></div>
+          </div>
+        </div>
+      )}
+
+      {modal ? (
+        <div className="vd-modal-bg" onClick={() => setModal(null)}>
+          <div className="vd-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <button className="x" onClick={() => setModal(null)} aria-label="Fechar">×</button>
+            {modal === 'series' ? (
+              <>
+                <h2>Séries de Faturação</h2>
+                <p className="lead">Séries de faturação já comunicadas à AGT para os documentos emitidos.</p>
+                {seriesRows.length === 0 ? (
+                  <div className="vd-none"><b>Não existem registos</b><span>Ainda não há séries comunicadas à AGT.</span></div>
+                ) : (
+                  <table className="vd-table vd-plain"><thead><tr><th>Tipo</th><th>Ano</th><th>Série AGT</th></tr></thead>
+                    <tbody>{seriesRows.map((s) => <tr key={`${s.type}-${s.year}`}><td>{DOC_TYPE[s.type] ?? s.type} ({s.type})</td><td>{s.year}</td><td><b>{s.code}</b></td></tr>)}</tbody></table>
+                )}
+                <p className="foot">Se precisar de emitir um documento de um tipo que ainda não tenha série comunicada, o sistema faz essa comunicação no momento da emissão.</p>
+                <div style={{ textAlign: 'center' }}>
+                  <button className="vd-btn outline" onClick={() => void consultRemote()} disabled={remoteBusy || !feActive}>{remoteBusy ? 'A consultar a AGT…' : 'Consultar na AGT (limite de emissão)'}</button>
+                  {remote ? <pre className="vd-pre">{JSON.stringify(remote, null, 2).slice(0, 4000)}</pre> : null}
+                </div>
+              </>
+            ) : (
+              <>
+                <h2>Documentos Rejeitados</h2>
+                <p className="lead">Documentos comunicados à AGT e rejeitados pela mesma.</p>
+                {rejected === null ? <div className="loading">A carregar…</div> : rejected.length === 0 ? (
+                  <div className="vd-none"><b>Não existem registos</b><span>Nenhum documento foi rejeitado pela AGT.</span></div>
+                ) : (
+                  <table className="vd-table vd-plain"><thead><tr><th>Documento</th><th>Estado</th><th>Tentativas</th><th>Motivo</th><th /></tr></thead>
+                    <tbody>{rejected.map((d) => (
+                      <tr key={d.documentNo}><td><b>{d.documentNo}</b><span className="sub">{new Date(d.createdAt).toLocaleString('pt-PT')}</span></td>
+                        <td><span className="vd-badge bad">{d.status === 'INVALID' ? 'Rejeitado' : 'Erro'}</span></td>
+                        <td className="ctr">{d.attempts ?? 0}</td>
+                        <td style={{ maxWidth: 320, fontSize: 12.5 }}>{typeof d.errors === 'string' ? d.errors : d.errors ? JSON.stringify(d.errors).slice(0, 240) : '—'}</td>
+                        <td className="num"><button className="vd-btn sm" onClick={() => void requeue(d.documentNo)}>Repor na fila</button></td></tr>
+                    ))}</tbody></table>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
