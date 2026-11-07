@@ -218,7 +218,7 @@ function PlatformPanel() {
   const [section, setSection] = useWorkspace('dashboard');
   return (
     <Shell nav={PLATFORM_NAV} section={section} setSection={setSection} roleLabel="Super Admin" subtitle="Administração">
-      <React.Suspense fallback={<div className="loading">A carregar…</div>}>
+      <React.Suspense fallback={<div className="vproc-bg" role="status" aria-live="polite"><div className="vproc"><div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div><span>A carregar…</span></div></div>}>
       {section === 'dashboard' ? <PlatformDashboard /> : null}
       {section === 'tenants' ? <Tenants /> : null}
       {section === 'subs' ? <SubsAdmin /> : null}
@@ -398,7 +398,7 @@ function TenantPanel() {
   }
   return (
     <Shell nav={nav} section={safeSection} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
-      <React.Suspense fallback={<div className="loading">A carregar…</div>}>
+      <React.Suspense fallback={<div className="vproc-bg" role="status" aria-live="polite"><div className="vproc"><div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div><span>A carregar…</span></div></div>}>
       {section === 'overview' ? <Overview /> : null}
       {section === 'service-hub' ? (bizType === 'RESTAURANT' ? <RestaurantHome onGo={setSection} /> : bizType === 'HOSPITALITY' ? <HotelHome onGo={setSection} /> : bizType === 'CLINIC' ? <ClinicHome onGo={setSection} /> : bizType === 'SERVICES' ? <ServicesHome onGo={setSection} /> : <ServiceHub businessType={bizType} onGo={setSection} />) : null}
       {section === 'restaurant' ? <Restaurant onGo={setSection} /> : null}
