@@ -304,11 +304,44 @@ async function guardarNaFila(method: string, path: string, body: unknown, opId: 
   return res;
 }
 
+/**
+ * PROCESSAMENTO VISÍVEL (padrão de referência): toda a operação de ESCRITA
+ * (POST/PUT/PATCH/DELETE) iniciada pelo utilizador avisa o ecrã — o componente
+ * <GlobalProcessing/> mostra o círculo com o logótipo se demorar >350ms.
+ * Pedidos automáticos/de fundo (presença, leituras de chat, sincronização,
+ * telemetria) ficam de fora para o ecrã não piscar.
+ */
+const SILENT_WRITE = /\/(heartbeat|presence|ping|read|typing|seen|track|telemetry|analytics|sync|devices?|cart-draft|preferences|refresh|notifications?\/read|messages\/read)(\/|$|\?)/i;
+export type BusyKind = 'save' | 'delete' | 'process' | 'login';
+function busyKind(method: string, path: string): BusyKind {
+  if (/\/auth\/.*login|\/login(\?|$)/i.test(path)) return 'login';
+  const m = method.toUpperCase();
+  if (m === 'DELETE') return 'delete';
+  if (m === 'PUT' || m === 'PATCH') return 'save';
+  return 'process';
+}
+function emitBusy(delta: 1 | -1, kind: BusyKind) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('nx:busy', { detail: { delta, kind } }));
+}
+
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  opts: { auth?: boolean; retry?: boolean; timeoutMs?: number; queue?: boolean } = {},
+  opts: { auth?: boolean; retry?: boolean; timeoutMs?: number; queue?: boolean; silent?: boolean } = {},
+): Promise<T> {
+  const track = method.toUpperCase() !== 'GET' && !opts.silent && !SILENT_WRITE.test(path);
+  const kind = busyKind(method, path);
+  if (track) emitBusy(1, kind);
+  try { return await requestInner<T>(method, path, body, opts); }
+  finally { if (track) emitBusy(-1, kind); }
+}
+
+async function requestInner<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  opts: { auth?: boolean; retry?: boolean; timeoutMs?: number; queue?: boolean; silent?: boolean } = {},
 ): Promise<T> {
   const { auth = true, retry = true, timeoutMs = 90_000 } = opts;
   // OFFLINE-FIRST (read-through cache): as LEITURAS (GET) são guardadas na cache

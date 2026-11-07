@@ -549,3 +549,17 @@
   width: 64px !important; height: 64px !important; border-width: 3px !important;
   background: #fff url('/logo.png') center / 78% no-repeat; box-shadow: 0 6px 20px -8px rgba(0,0,0,.35);
 }
+
+.vproc-sub { display: block; max-width: 320px; text-align: center; font-size: 12px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* Todos os ".loading" do sistema (landing, login, admin) com o círculo novo. */
+.loading { display: grid !important; justify-items: center; gap: 12px; padding: 40px 10px; }
+.loading::before { content: ''; width: 64px; height: 64px; border-radius: 999px; border: 3px solid var(--border, rgba(255,255,255,.2)); border-top-color: var(--primary); border-right-color: var(--primary);
+  background: #fff url('/logo.png') center / 78% no-repeat; box-shadow: 0 6px 20px -8px rgba(0,0,0,.35); animation: vproc-spin 1s cubic-bezier(.5,.1,.5,.9) infinite; }
+.vproc-boot { background: var(--bg, #0b1020) !important; }
+
+/* Véu sempre escuro (contraste do texto branco em qualquer tema/landing). */
+.vproc-bg { background: color-mix(in srgb, var(--primary, #3b5bff) 22%, rgba(8, 12, 26, .86)) !important; }
+.vproc-bg.vproc-boot { background: #0b1020 !important; }
+

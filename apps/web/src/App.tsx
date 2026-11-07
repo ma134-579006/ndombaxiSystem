@@ -1,4 +1,5 @@
 import { lazyRetry } from './lazyRetry';
+import { LOGO_ROUND } from './brand';
 import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { loadSection, restoreDrafts, saveSection, startDraftCapture } from './workspace';
@@ -22,6 +23,7 @@ import { Register } from './pages/Register';
 import { api } from './api/client';
 import './landing.css';
 import { SupportChat } from './components/SupportChat';
+import { GlobalProcessing } from './components/GlobalProcessing';
 import { FeedbackHost } from './components/feedback';
 import { UpdateGate } from './update/UpdateGate';
 
@@ -216,7 +218,7 @@ function PlatformPanel() {
   const [section, setSection] = useWorkspace('dashboard');
   return (
     <Shell nav={PLATFORM_NAV} section={section} setSection={setSection} roleLabel="Super Admin" subtitle="Administração">
-      <React.Suspense fallback={<div className="card"><div className="loading">A carregar…</div></div>}>
+      <React.Suspense fallback={<div className="loading">A carregar…</div>}>
       {section === 'dashboard' ? <PlatformDashboard /> : null}
       {section === 'tenants' ? <Tenants /> : null}
       {section === 'subs' ? <SubsAdmin /> : null}
@@ -396,7 +398,7 @@ function TenantPanel() {
   }
   return (
     <Shell nav={nav} section={safeSection} setSection={setSection} roleLabel="Gestor" subtitle="Gestão da empresa">
-      <React.Suspense fallback={<div className="card"><div className="loading">A carregar…</div></div>}>
+      <React.Suspense fallback={<div className="loading">A carregar…</div>}>
       {section === 'overview' ? <Overview /> : null}
       {section === 'service-hub' ? (bizType === 'RESTAURANT' ? <RestaurantHome onGo={setSection} /> : bizType === 'HOSPITALITY' ? <HotelHome onGo={setSection} /> : bizType === 'CLINIC' ? <ClinicHome onGo={setSection} /> : bizType === 'SERVICES' ? <ServicesHome onGo={setSection} /> : <ServiceHub businessType={bizType} onGo={setSection} />) : null}
       {section === 'restaurant' ? <Restaurant onGo={setSection} /> : null}
@@ -491,9 +493,7 @@ function Gate() {
 
   if (status === 'loading') {
     return (
-      <div className="login">
-        <div className="loading">A carregar…</div>
-      </div>
+      <div className="vproc-bg vproc-boot"><div className="vproc"><div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div><span>A carregar…</span></div></div>
     );
   }
   if (status !== 'authed') {
@@ -527,6 +527,8 @@ export function App() {
         <Gate />
         {/* Toasts + diálogos de confirmação enterprise (todo o painel). */}
         <FeedbackHost />
+        {/* Círculo de processamento (landing, admin, super admin). */}
+        <GlobalProcessing />
         {/* Por cima de tudo, e FORA do Gate: a atualização obrigatória tem de
             aparecer esteja o utilizador no login ou dentro do painel. */}
         <UpdateGate />
