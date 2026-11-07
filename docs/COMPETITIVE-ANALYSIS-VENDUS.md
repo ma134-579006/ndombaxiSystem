@@ -4,6 +4,27 @@ Fonte: só páginas públicas, sem login: vendus.co.ao (/, /ajuda/, /planos-prec
 
 **Aviso:** parte do conteúdo parece herdado do site português (Multibanco, MB Way, IRS/IRC, RGPD). Há contradição na certificação ("Software Validado Nº 142/AGT" vs "certificado com o Nº 2230") e nos preços em Kz (23 999 Kz vs 6 333 Kz). Tratar como UNVERIFIED para Angola.
 
+## Observação funcional na conta real (2026-11-07, só leitura)
+Conta do utilizador no Chrome (Loja da Mulher). Nenhuma venda, documento ou registo foi criado; a caixa observada tinha a subscrição expirada (não fatura).
+
+**POS** (`/app/pos/`, existe também "NOVO POS" em pos.vendus.co.ao):
+- Escolha de caixa por loja ao entrar (3 caixas em 2 lojas).
+- **Várias vendas em paralelo**: "Venda (n/m)" com setas anterior/seguinte; "Nova Venda" estaciona a atual (`#/sales/park/`) — é a suspensão de vendas.
+- Métodos de pagamento: Dinheiro, Multibanco, Cartão de Crédito, Conta Corrente, Transferência Bancária, Compensação de Saldos C/C; teclado numérico no ecrã.
+- Cliente (Consumidor Final por omissão), **Depósito** (saldo/adiantamento do cliente), desconto global e por linha, escolha do tipo de documento, **Documento Manual** (integração de faturas manuais), Imprimir Pedido, Cancelar Venda, Abrir Gaveta.
+- Caixa: Estado/Fechar Caixa, Entrada e Saída de dinheiro manuais, **Ponto de Caixa** (situação dos movimentos), Abrir Gaveta.
+- **Modo Formação/Testes**: documentos sem validade fiscal para treinar funcionários.
+- Documentos no POS: pesquisa por número/cliente; Faturação; Informativos (orçamento, pró-forma); Transportes; **Trocas, Devoluções ou Anulações** como assistente passo a passo.
+- Autoconsumo (registar/consultar), Talões de Desconto, Consultar Stock, Bloquear Ecrã, Trocar de Utilizador, Tempo de Suspensão.
+- "Vendus Dispositivos": app Windows local para impressoras, visor de cliente e balanças.
+- Pesquisa por nome ou referência; categorias como botões rápidos.
+
+**AGT** (`/app/agt/`): exportação SAF-T mensal com histórico (data, utilizador, estado, incl. erros); exportação de inventário (CSV/XML); **comunicação de séries de faturação à AGT** com certificado e "limite de emissão atual" por série; **lista de documentos rejeitados pela AGT**.
+
+**Backoffice**: Documentos com Rascunhos, Avenças, Formação, Faturas por Liquidar, Rejeitados AGT; Talões de Desconto e Campanhas; Conta Corrente de clientes; relatórios por produto, variação, cliente, fornecedor, marca, categoria, loja, utilizador, diário, por hora, dia da semana, mensal, autoconsumo; contabilidade (listagem de documentos, mapa de impostos, vendas diárias, tipos de pagamento, mapa de impostos de fornecedores); compras (fornecedores, encomendas, faturas).
+
+**Não verificado**: comportamento offline do POS (não se cortou a rede numa conta real).
+
 ## O que o Vendus anuncia
 - POS: múltiplas vendas em simultâneo; vários tipos de pagamento e troco; leitor de códigos de barras; talão e A4, ESC/POS, Bluetooth, rede, etiquetas, gaveta; POS em ecrã inteiro; folha de fecho de caixa; movimentos por utilizador.
 - Documentos: FT, FS, FR, NC (incl. parcial), pró-forma, orçamento, encomenda, consulta de mesa, guias, recibo; original/duplicado/triplicado; trocas e devoluções.
