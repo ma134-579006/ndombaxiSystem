@@ -5,8 +5,8 @@ Vendus: observado na conta real (ver `VENDUS-PAGES.md`, `COMPETITIVE-ANALYSIS-VE
 ## A. Falta no LPS Vendas → ADICIONAR (por prioridade)
 | # | Funcionalidade (Vendus) | Prova da ausência | Notas |
 |---|---|---|---|
-| A1 | Várias vendas em paralelo / "Nova Venda" estaciona a atual | POS tem 1 carrinho por operador; `QueueModal` é a fila offline, não suspensão | Persistir cada venda (mesma camada `cartPersist`) |
-| A2 | Ponto de Caixa (situação a meio do turno, sem fechar) | 0 ocorrências | Backend já tem movimentos de caixa (`cashbox/`) |
+| A1 | Várias vendas em paralelo / "Nova Venda" estaciona a atual | POS tinha 1 carrinho por operador; `QueueModal` é a fila offline, não suspensão | **FEITO** (commit 9bd68e7, `pos/parkedSales.ts`, 6 testes) |
+| A2 | Ponto de Caixa (situação a meio do turno, sem fechar) | ~~0 ocorrências~~ ERRO da pesquisa: já existe como "Relatório X" (`GET /cashbox/report/x`, `ShiftModal.tsx`) | **JÁ EXISTIA**; botão renomeado "Ponto de caixa (Relatório X)" |
 | A3 | Modo Formação (documentos sem validade fiscal) | só em textos de landing/fiscal | Série própria de formação, nunca no SAF-T; exige backend |
 | A4 | Documento Manual (integrar faturas emitidas à mão quando o sistema falha) | 0 ocorrências | Requisito AGT a confirmar em fonte oficial |
 | A5 | Grupos de Preço por cliente | 0 ocorrências | Produto com preço por grupo |
