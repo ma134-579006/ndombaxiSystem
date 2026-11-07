@@ -293,3 +293,20 @@
   .receipt .vrc table { font-size: 9.5pt; }
   .receipt .vrc .vrc-co { font-size: 14pt; }
 }
+
+/* ── Janelas da caixa no padrão de referência (Documentos, Turno, Cliente,
+   Autoconsumo…): cantos rectos, cabeçalho a cheio na cor principal, linhas
+   planas, botões rectangulares; entrada 500ms ease-out circular. ── */
+.pos ~ .modal-bg .modal, .app-bg .modal-bg > .modal, .app-bg .modal-bg > .card:not(.receipt) {
+  border-radius: 4px !important; box-shadow: 0 30px 80px -30px rgba(0,0,0,.6) !important; animation: v-tile var(--v-med) var(--v-ease) both;
+}
+.app-bg .modal-bg { animation: v-fade var(--v-fast) ease both; }
+.app-bg .modal .mh, .app-bg .modal > .row:first-child, .app-bg .modal-bg > .card > .row:first-child {
+  background: var(--primary); color: #fff; margin: -1px -1px 12px; padding: 14px 18px; border-radius: 4px 4px 0 0;
+}
+.app-bg .modal .mh *, .app-bg .modal .mh h3 { color: #fff !important; }
+.app-bg .modal .btn, .app-bg .modal-bg .card .btn { border-radius: 4px !important; box-shadow: none !important; }
+.app-bg .modal table th { font-weight: 700; text-transform: none; letter-spacing: 0; border-bottom: 2px solid var(--border); }
+.app-bg .modal table td { border-bottom: 1px solid var(--border); }
+.app-bg .modal input, .app-bg .modal select, .app-bg .modal textarea { border-radius: 4px !important; }
+.app-bg .modal .chip, .app-bg .modal .seg button { border-radius: 4px !important; }

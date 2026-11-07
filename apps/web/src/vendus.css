@@ -503,3 +503,21 @@
 .modal { border-radius: 6px !important; animation: vd-modal var(--vd-med) var(--vd-ease) both; }
 @keyframes vd-modal { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .admin .content .card, .admin .content .fx-card, .admin .content .kpi-card, .admin .content .fx-stat, .admin .content table.ptable tbody tr, .modal { animation: none !important; } }
+
+/* ── Breadcrumb global (todas as páginas) na linha das ações ── */
+.admin .content > .page-anim { position: relative; padding-top: 50px; }
+.admin .content > .page-anim > .vd-crumbbar { position: absolute; top: 0; left: 0; right: 50%; height: 38px; display: flex; align-items: center; z-index: 1; }
+.admin .content > .page-anim > .vd-crumbbar .vd-crumb { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin .content > .page-anim .content-head:not(:has(> :not(h2))) { display: none !important; }
+/* O 1.º cabeçalho de ações sobe para a linha do breadcrumb. */
+.admin .content > .page-anim > :not(.vd-crumbbar):not(.print-only):not(style) .content-head:first-child,
+.admin .content > .page-anim > .content-head:first-of-type { margin-top: -50px !important; min-height: 38px; padding-left: 50%; }
+/* Páginas que já têm o seu próprio breadcrumb (Produtos, Dashboard) não repetem. */
+.admin .content > .page-anim:has(.vd-page) { padding-top: 0; }
+.admin .content > .page-anim:has(.vd-page) > .vd-crumbbar { display: none; }
+@media (max-width: 760px) {
+  .admin .content > .page-anim { padding-top: 40px; }
+  .admin .content > .page-anim > .vd-crumbbar { right: 0; height: 32px; }
+  .admin .content > .page-anim > :not(.vd-crumbbar) .content-head:first-child,
+  .admin .content > .page-anim > .content-head:first-of-type { margin-top: 0 !important; padding-left: 0; }
+}

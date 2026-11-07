@@ -407,6 +407,7 @@ export function Shell({
   const flat = nav.flatMap((n) => (n.children ? n.children : [n]));
   const current = flat.find((n) => n.key === section);
   const has = (k: string) => flat.some((n) => n.key === k);
+  const currentGroup = nav.find((n) => n.children?.some((c) => c.key === section)) ?? null;
   const userLevel = ROLE_LEVEL[user?.role ?? ''] ?? 9;
   // Criações rápidas do "+": só as secções que este papel vê na navegação.
   const quick: QuickItem[] = ([
@@ -585,6 +586,14 @@ export function Shell({
           />
         </header>
         <div className="content"><div className="page-anim" key={section} data-sec={section}>
+          {/* Breadcrumb do padrão de referência ("Grupo / Página"); as ações do
+              cabeçalho da página ficam na mesma linha, à direita. */}
+          <div className="vd-crumbbar no-print">
+            <p className="vd-crumb">
+              {currentGroup ? <><button onClick={() => setOpenGroups({ [currentGroup.key]: true })}>{currentGroup.label}</button><span className="sep">/</span></> : null}
+              <span>{current?.label ?? (section === 'profile' ? 'Perfil' : '')}</span>
+            </p>
+          </div>
           <PrintBrandHead title={current?.label} />
           {children}
           <PrintBrandFoot />
