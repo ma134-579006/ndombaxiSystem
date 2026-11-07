@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { LOGO_ROUND } from './brand';
 
 /**
  * Progresso de UPLOAD / DOWNLOAD / GERAÇÃO de ficheiros — o mesmo ecrã (anel com %,
@@ -45,37 +46,21 @@ export function readFileProgress(file: File, mode: 'dataURL' | 'text' = 'dataURL
   });
 }
 
-const PATHS: Record<Kind, string> = {
-  upload: 'M12 19V6M6.5 11.5 12 6l5.5 5.5M5 20h14',
-  download: 'M12 5v13M6.5 12.5 12 18l5.5-5.5M5 4h14',
-  generate: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 14h6M9 17h4',
-};
-
 /** Montar UMA vez (main.tsx), ao lado da App. */
 export function TransferHost() {
   const [s, setS] = useState<State | null>(null);
   useEffect(() => { setUi = setS; return () => { setUi = null; }; }, []);
   if (!s) return null;
   const pct = Math.round(s.pct);
+  // Círculo de processamento ÚNICO do sistema (logótipo + anel), com a
+  // percentagem real por baixo — substitui o antigo anel com barra.
   return (
-    <div className="xf-bg" role="dialog" aria-modal="true" aria-label={s.title}>
-      <div className="xf-box">
-        <div className={`xf-ring${s.finished ? ' ok' : ''}`} style={{ ['--p' as string]: pct }}>
-          <span>{s.finished
-            ? <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-            : `${pct}%`}</span>
-        </div>
-        <h4>{s.finished ? 'Concluído' : s.title}</h4>
-        {s.file ? (
-          <div className="xf-file">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={PATHS[s.kind]} /></svg>
-            <span>{s.file}</span>
-          </div>
-        ) : null}
-        <p aria-live="polite">{s.finished ? (s.kind === 'upload' ? 'Ficheiro carregado' : s.kind === 'download' ? 'Ficheiro guardado' : 'Ficheiro pronto') : (s.detail || (s.kind === 'upload' ? 'A enviar…' : s.kind === 'download' ? 'A preparar o ficheiro…' : 'A gerar…'))}</p>
-        <div className="xf-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}><i style={{ width: `${pct}%` }} /></div>
-        {!s.finished ? <small>Não feche esta janela.</small> : null}
+    <div className="vproc-bg" role="dialog" aria-modal="true" aria-label={s.title}>
+      <div className="vproc">
+        <div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div>
+        <span>{s.finished ? 'Concluído' : s.title}{!s.finished ? ` · ${pct}%` : ''}</span>
+        {s.file ? <small className="vproc-sub">{s.file}</small> : null}
+        {s.detail && !s.finished ? <small className="vproc-sub">{s.detail}</small> : null}
       </div>
     </div>
-  );
-}
+  );}

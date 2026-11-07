@@ -25,21 +25,42 @@ export class ReportsService {
     return storeId ? Prisma.sql` AND i.store_id = ${storeId}::uuid` : Prisma.empty;
   }
 
+  /**
+   * Linhas de venda do período, já LÍQUIDAS de devoluções parciais: linhas das
+   * FT/FS não anuladas (+) e linhas das NC cuja fatura de origem NÃO foi
+   * anulada (−, com o cliente/operador da venda de origem). Anulações totais
+   * saem só por status <> 'A' — nunca se desconta a mesma venda duas vezes
+   * (mesma regra dos Lucros).
+   */
+  private saleLines(f: string, t: string, storeId?: string): Prisma.Sql {
+    const st = (alias: string) => (storeId ? Prisma.sql` AND ${Prisma.raw(alias)}.store_id = ${storeId}::uuid` : Prisma.empty);
+    return Prisma.sql`(
+      SELECT i.id AS sale_id, i.customer_id, i.cashier_id, i.store_id, ii.product_id, ii.iva_rate,
+             ii.quantity AS qty, ii.net_amount AS net, ii.iva_amount AS iva, ii.gross_amount AS gross, TRUE AS is_sale
+        FROM invoices i JOIN invoice_items ii ON ii.invoice_id = i.id
+       WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
+         AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)${st('i')}
+      UNION ALL
+      SELECT src.id, src.customer_id, src.cashier_id, nc.store_id, nii.product_id, nii.iva_rate,
+             -nii.quantity, -nii.net_amount, -nii.iva_amount, -nii.gross_amount, FALSE
+        FROM invoices nc JOIN invoice_items nii ON nii.invoice_id = nc.id
+        JOIN invoices src ON src.id = nc.source_invoice_id
+       WHERE nc.doc_type = 'NC' AND src.status <> 'A'
+         AND nc.system_entry_date >= ${f}::date AND nc.system_entry_date < (${t}::date + 1)${st('nc')}
+    ) sl`;
+  }
+
   /** Vendas por utilizador (operador): nº de vendas e total faturado. */
   async salesByUser(schema: string, from?: string, to?: string, storeId?: string) {
     const { from: f, to: t } = this.range(from, to);
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
         SELECT COALESCE(u.name, '—') AS name,
-               COUNT(DISTINCT i.id)::int AS sales,
-               ROUND(SUM(ii.net_amount), 2)::float AS net,
-               ROUND(SUM(ii.gross_amount), 2)::float AS gross
-        FROM invoices i
-        JOIN invoice_items ii ON ii.invoice_id = i.id
-        LEFT JOIN users u ON u.id = i.cashier_id
-        WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
-          AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
-          ${this.storeCond(storeId)}
+               COUNT(DISTINCT sl.sale_id) FILTER (WHERE sl.is_sale)::int AS sales,
+               ROUND(SUM(sl.net), 2)::float AS net,
+               ROUND(SUM(sl.gross), 2)::float AS gross
+        FROM ${this.saleLines(f, t, storeId)}
+        LEFT JOIN users u ON u.id = sl.cashier_id
         GROUP BY u.name ORDER BY gross DESC`),
     );
   }
@@ -50,15 +71,11 @@ export class ReportsService {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
         SELECT COALESCE(NULLIF(c.name, ''), 'Consumidor final') AS name,
-               COUNT(DISTINCT i.id)::int AS sales,
-               ROUND(SUM(ii.net_amount), 2)::float AS net,
-               ROUND(SUM(ii.gross_amount), 2)::float AS gross
-        FROM invoices i
-        JOIN invoice_items ii ON ii.invoice_id = i.id
-        LEFT JOIN customers c ON c.id = i.customer_id
-        WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
-          AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
-          ${this.storeCond(storeId)}
+               COUNT(DISTINCT sl.sale_id) FILTER (WHERE sl.is_sale)::int AS sales,
+               ROUND(SUM(sl.net), 2)::float AS net,
+               ROUND(SUM(sl.gross), 2)::float AS gross
+        FROM ${this.saleLines(f, t, storeId)}
+        LEFT JOIN customers c ON c.id = sl.customer_id
         GROUP BY COALESCE(NULLIF(c.name, ''), 'Consumidor final')
         ORDER BY gross DESC LIMIT 8`),
     );
@@ -70,16 +87,12 @@ export class ReportsService {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
         SELECT COALESCE(c.name, 'Sem categoria') AS name,
-               ROUND(SUM(ii.quantity), 3)::float AS qty,
-               ROUND(SUM(ii.net_amount), 2)::float AS net,
-               ROUND(SUM(ii.gross_amount), 2)::float AS gross
-        FROM invoices i
-        JOIN invoice_items ii ON ii.invoice_id = i.id
-        LEFT JOIN products p ON p.id = ii.product_id
+               ROUND(SUM(sl.qty), 3)::float AS qty,
+               ROUND(SUM(sl.net), 2)::float AS net,
+               ROUND(SUM(sl.gross), 2)::float AS gross
+        FROM ${this.saleLines(f, t, storeId)}
+        LEFT JOIN products p ON p.id = sl.product_id
         LEFT JOIN product_categories c ON c.id = p.category_id
-        WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
-          AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
-          ${this.storeCond(storeId)}
         GROUP BY c.name ORDER BY gross DESC`),
     );
   }
@@ -90,15 +103,11 @@ export class ReportsService {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
         SELECT COALESCE(w.name, '—') AS name,
-               COUNT(DISTINCT i.id)::int AS sales,
-               ROUND(SUM(ii.net_amount), 2)::float AS net,
-               ROUND(SUM(ii.gross_amount), 2)::float AS gross
-        FROM invoices i
-        JOIN invoice_items ii ON ii.invoice_id = i.id
-        LEFT JOIN stores w ON w.id = i.store_id
-        WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
-          AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
-          ${this.storeCond(storeId)}
+               COUNT(DISTINCT sl.sale_id) FILTER (WHERE sl.is_sale)::int AS sales,
+               ROUND(SUM(sl.net), 2)::float AS net,
+               ROUND(SUM(sl.gross), 2)::float AS gross
+        FROM ${this.saleLines(f, t, storeId)}
+        LEFT JOIN stores w ON w.id = sl.store_id
         GROUP BY w.name ORDER BY gross DESC`),
     );
   }
@@ -154,15 +163,11 @@ export class ReportsService {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
         SELECT COALESCE(NULLIF(p.brand, ''), 'Sem marca') AS name,
-               ROUND(SUM(ii.quantity), 3)::float AS qty,
-               ROUND(SUM(ii.net_amount), 2)::float AS net,
-               ROUND(SUM(ii.gross_amount), 2)::float AS gross
-        FROM invoices i
-        JOIN invoice_items ii ON ii.invoice_id = i.id
-        LEFT JOIN products p ON p.id = ii.product_id
-        WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
-          AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
-          ${this.storeCond(storeId)}
+               ROUND(SUM(sl.qty), 3)::float AS qty,
+               ROUND(SUM(sl.net), 2)::float AS net,
+               ROUND(SUM(sl.gross), 2)::float AS gross
+        FROM ${this.saleLines(f, t, storeId)}
+        LEFT JOIN products p ON p.id = sl.product_id
         GROUP BY COALESCE(NULLIF(p.brand, ''), 'Sem marca') ORDER BY gross DESC`),
     );
   }
@@ -172,16 +177,12 @@ export class ReportsService {
     const { from: f, to: t } = this.range(from, to);
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(Prisma.sql`
-        SELECT ii.iva_rate::float AS rate,
-               ROUND(SUM(ii.net_amount), 2)::float AS net,
-               ROUND(SUM(ii.iva_amount), 2)::float AS iva,
-               ROUND(SUM(ii.gross_amount), 2)::float AS gross
-        FROM invoices i
-        JOIN invoice_items ii ON ii.invoice_id = i.id
-        WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
-          AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)
-          ${this.storeCond(storeId)}
-        GROUP BY ii.iva_rate ORDER BY ii.iva_rate`),
+        SELECT sl.iva_rate::float AS rate,
+               ROUND(SUM(sl.net), 2)::float AS net,
+               ROUND(SUM(sl.iva), 2)::float AS iva,
+               ROUND(SUM(sl.gross), 2)::float AS gross
+        FROM ${this.saleLines(f, t, storeId)}
+        GROUP BY sl.iva_rate ORDER BY sl.iva_rate`),
     );
   }
 

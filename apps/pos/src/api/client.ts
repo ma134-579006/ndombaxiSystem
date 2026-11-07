@@ -319,6 +319,8 @@ export const api = {
     if (o.offset) p.set('offset', String(o.offset));
     return request<Product[]>('GET', `/pos/products?${p.toString()}`);
   },
+  /** Categorias de produto (separadores do catálogo no POS). */
+  categories: () => request<Array<{ id: string; name: string }>>('GET', '/erp/stock/categories'),
   /** Alterações do catálogo (memória interna aos poucos). */
   productChanges: (since: string, after: string, limit = 5000) =>
     request<{ items: Product[]; next: { since: string; after: string } | null }>(

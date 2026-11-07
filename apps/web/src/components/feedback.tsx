@@ -1,3 +1,4 @@
+import { LOGO_ROUND } from '../brand';
 import React, { useEffect, useState } from 'react';
 
 /**
@@ -176,28 +177,17 @@ export function runDownload(opts: { title: string; fileName: string; make: (ctl:
   });
 }
 
+/* Círculo de processamento ÚNICO do sistema (logótipo + anel), com a
+   percentagem real por baixo — substitui os antigos anéis com barra. */
 function TransferProgress({ s }: { s: TransferState }) {
   const pct = Math.round(s.pct);
-  const label = s.finished ? 'Concluído' : s.title;
-  const ic = s.kind === 'upload' ? 'M12 19V6M6.5 11.5 12 6l5.5 5.5M5 20h14' : s.kind === 'download' ? 'M12 5v13M6.5 12.5 12 18l5.5-5.5M5 4h14' : 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 14h6M9 17h4';
   return (
-    <div className="fb-confirm-bg" role="dialog" aria-modal="true" aria-label={label}>
-      <div className="fb-confirm fb-bulk fb-xfer">
-        <div className={`fb-bulk-ring${s.finished ? ' ok' : ''}`} style={{ ['--p' as string]: pct }}>
-          <span>{s.finished
-            ? <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-            : `${pct}%`}</span>
-        </div>
-        <h4>{label}</h4>
-        {s.file ? (
-          <div className="fb-xfer-file">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={ic} /></svg>
-            <span>{s.file}</span>
-          </div>
-        ) : null}
-        <p aria-live="polite">{s.finished ? (s.kind === 'upload' ? 'Ficheiro carregado' : s.kind === 'download' ? 'Ficheiro guardado' : 'Ficheiro pronto') : (s.detail || (s.kind === 'upload' ? 'A enviar…' : s.kind === 'download' ? 'A preparar o ficheiro…' : 'A gerar…'))}</p>
-        <div className="fb-bulk-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}><i style={{ width: `${pct}%` }} /></div>
-        {!s.finished ? <small className="fb-bulk-hint">Não feche esta janela.</small> : null}
+    <div className="vproc-bg" role="dialog" aria-modal="true" aria-label={s.title}>
+      <div className="vproc">
+        <div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div>
+        <span>{s.finished ? 'Concluído' : `${s.title} · ${pct}%`}</span>
+        {s.file ? <small className="vproc-sub">{s.file}</small> : null}
+        {s.detail && !s.finished ? <small className="vproc-sub">{s.detail}</small> : null}
       </div>
     </div>
   );
@@ -207,27 +197,18 @@ function BulkProgress({ s }: { s: BulkState }) {
   const processed = s.done + s.failed;
   const pct = s.total ? Math.round((processed / s.total) * 100) : 100;
   return (
-    <div className="fb-confirm-bg" role="dialog" aria-modal="true" aria-label={s.title}>
-      <div className="fb-confirm fb-bulk">
-        <div className={`fb-bulk-ring${s.finished ? ' ok' : ''}`} style={{ ['--p' as string]: pct }}>
-          <span>{s.finished && !s.failed
-            ? <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-            : `${pct}%`}</span>
-        </div>
-        <h4>{s.finished ? 'Concluído' : s.title}</h4>
-        <p aria-live="polite">
+    <div className="vproc-bg" role="dialog" aria-modal="true" aria-label={s.title}>
+      <div className="vproc">
+        <div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div>
+        <span>{s.finished ? 'Concluído' : `${s.title} · ${pct}%`}</span>
+        <small className="vproc-sub">
           {processed.toLocaleString('pt-PT')} de {s.total.toLocaleString('pt-PT')}
           {s.failed ? ` · ${s.failed.toLocaleString('pt-PT')} com erro` : ''}
-        </p>
-        <div className="fb-bulk-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-          <i style={{ width: `${pct}%` }} />
-        </div>
-        {!s.finished ? <small className="fb-bulk-hint">Não feche esta janela.</small> : null}
+        </small>
       </div>
     </div>
   );
 }
-
 const ICONS: Record<ToastKind, React.ReactNode> = {
   success: <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>,
   error: <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 7.5v5.5M12 16.4v.2" /></svg>,

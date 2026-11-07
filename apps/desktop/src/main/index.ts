@@ -13,6 +13,7 @@
  *                                     corrupção; a 2.ª execução foca a 1.ª janela.
  */
 import { app, BrowserWindow, ipcMain, shell, dialog, screen, session as electronSession } from 'electron';
+import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { registerScheme, serveModules, SCHEME } from './protocol';
@@ -463,8 +464,34 @@ function openModule(id: ModuleId): void {
 
 // ── Canais IPC ───────────────────────────────────────────────
 
+/**
+ * Só as páginas da PRÓPRIA aplicação (protocolo ndombaxi://) podem usar os
+ * canais IPC. Defesa em profundidade: a navegação já está limitada a este
+ * protocolo, mas canais como `db-exec` (SQL na base local) ou `device-secret`
+ * não podem depender só disso — qualquer frame externo que chegasse a carregar
+ * ficava com acesso total à base do posto. (Achado da análise REA ao app.asar
+ * instalado: 17 handlers sem validação do remetente.)
+ */
+function isTrustedSender(e: IpcMainEvent | IpcMainInvokeEvent): boolean {
+  const url = e.senderFrame?.url ?? '';
+  return url.startsWith(`${SCHEME}://`);
+}
+
+function handleTrusted(
+  channel: string,
+  listener: (e: IpcMainInvokeEvent, ...args: any[]) => unknown,
+): void {
+  ipcMain.handle(channel, (e, ...args) => {
+    if (!isTrustedSender(e)) {
+      logLocal(`IPC recusado (${channel}) de origem não autorizada`);
+      throw new Error('Origem não autorizada.');
+    }
+    return listener(e, ...args);
+  });
+}
+
 function registerIpc(): void {
-  ipcMain.handle('ndombaxi:version', () => app.getVersion());
+  handleTrusted('ndombaxi:version', () => app.getVersion());
 
   /**
    * CÓPIA AUTOMÁTICA da empresa para este posto.
@@ -475,7 +502,7 @@ function registerIpc(): void {
    *
    * O token não é guardado em lado nenhum — é usado no momento e esquecido.
    */
-  ipcMain.handle('ndombaxi:local-provision', async (_e, session: {
+  handleTrusted('ndombaxi:local-provision', async (_e, session: {
     accessToken: string; companyCode: string; apiUrl: string; role: string; busy?: boolean;
   }) => {
     try {
@@ -490,14 +517,14 @@ function registerIpc(): void {
   // SÍNCRONO de propósito: o `preload` precisa do endereço ANTES de o bundle do
   // frontend arrancar, para o primeiro pedido já sair para o sítio certo. É uma
   // leitura de uma variável em memória — não há trabalho a bloquear.
-  ipcMain.on('ndombaxi:api-url', (e) => { e.returnValue = localApiUrl; });
+  ipcMain.on('ndombaxi:api-url', (e) => { e.returnValue = isTrustedSender(e) ? localApiUrl : null; });
 
-  ipcMain.handle('ndombaxi:db-query', (_e, sql: string, params?: unknown[]) => query(sql, params ?? []));
-  ipcMain.handle('ndombaxi:db-exec', (_e, sql: string, params?: unknown[]) => exec(sql, params ?? []));
-  ipcMain.handle('ndombaxi:db-batch', (_e, statements: { sql: string; params?: unknown[] }[]) =>
+  handleTrusted('ndombaxi:db-query', (_e, sql: string, params?: unknown[]) => query(sql, params ?? []));
+  handleTrusted('ndombaxi:db-exec', (_e, sql: string, params?: unknown[]) => exec(sql, params ?? []));
+  handleTrusted('ndombaxi:db-batch', (_e, statements: { sql: string; params?: unknown[] }[]) =>
     batch(statements ?? []));
 
-  ipcMain.handle('ndombaxi:db-backup', async () => {
+  handleTrusted('ndombaxi:db-backup', async () => {
     const dir = path.join(app.getPath('documents'), 'Ndombaxi', 'Backups');
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const dest = path.join(dir, `lps-vendas-${stamp}.db`);
@@ -509,20 +536,20 @@ function registerIpc(): void {
     }
   });
 
-  ipcMain.handle('ndombaxi:device-secret', () => deviceSecret());
+  handleTrusted('ndombaxi:device-secret', () => deviceSecret());
 
-  ipcMain.handle('ndombaxi:settings-read', () => {
+  handleTrusted('ndombaxi:settings-read', () => {
     const s = readSettings();
     // A janela guardada não interessa ao frontend e só suja o objeto.
     return { module: s.module, apiUrl: s.apiUrl };
   });
 
-  ipcMain.handle('ndombaxi:settings-module', (_e, moduleId: string) => {
+  handleTrusted('ndombaxi:settings-module', (_e, moduleId: string) => {
     if (moduleId === 'gestao' || moduleId === 'caixa') openModule(moduleId);
   });
 
   // Controlos da janela (seta discreta do canto, injetada pelo preload).
-  ipcMain.handle('ndombaxi:window', (_e, action: string) => {
+  handleTrusted('ndombaxi:window', (_e, action: string) => {
     const w = mainWindow;
     if (!w || w.isDestroyed()) return false;
     if (action === 'minimize') w.minimize();
@@ -532,7 +559,7 @@ function registerIpc(): void {
   });
 
   // Voltar ao lançador (seta de voltar dentro de cada módulo).
-  ipcMain.handle('ndombaxi:open-launcher', () => {
+  handleTrusted('ndombaxi:open-launcher', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       void mainWindow.loadURL(`${SCHEME}://launcher/index.html`);
     }
@@ -543,7 +570,7 @@ function registerIpc(): void {
    * janela (o Google recusa o seu login em WebViews). Devolve o `id_token`, que
    * segue o mesmo caminho do botão do site.
    */
-  ipcMain.handle('ndombaxi:google-signin', async () => {
+  handleTrusted('ndombaxi:google-signin', async () => {
     try {
       return { idToken: await signInWithGoogle() };
     } catch (e) {
@@ -558,7 +585,7 @@ function registerIpc(): void {
    * empresa já foi copiada para cá, se está a servir, e em que endereço os
    * outros aparelhos o encontram. Quem explica ao utilizador é a interface.
    */
-  ipcMain.handle('ndombaxi:local-status', async () => {
+  handleTrusted('ndombaxi:local-status', async () => {
     try {
       const ls = await import('@nexus/local-server');
       const paths = ls.layout({
@@ -589,13 +616,13 @@ function registerIpc(): void {
    * clica: reiniciar o servidor por baixo de quem está a cobrar seria cortar
    * uma venda a meio para mudar uma definição.
    */
-  ipcMain.handle('ndombaxi:local-share', (_e, ligar: boolean) => {
+  handleTrusted('ndombaxi:local-share', (_e, ligar: boolean) => {
     writeSettings({ shareOnLan: ligar === true });
     logLocal(`partilha na loja ${ligar ? 'LIGADA' : 'desligada'} (aplica-se ao reabrir)`);
     return { sharing: ligar === true, needsRestart: true };
   });
 
-  ipcMain.handle('ndombaxi:update-check', () => checkForUpdates());
+  handleTrusted('ndombaxi:update-check', () => checkForUpdates());
 
   /**
    * "Atualizar Agora": abre a página oficial e ENCERRA a aplicação.
@@ -608,7 +635,7 @@ function registerIpc(): void {
    *
    * Usa-se o que a última verificação trouxe e, na falta dele, a página oficial.
    */
-  ipcMain.handle('ndombaxi:update-open', async () => {
+  handleTrusted('ndombaxi:update-open', async () => {
     const aberto = await openDownloadPage(lastDecision()?.release?.downloadPageUrl);
     // Não se encerra se a página não chegou a abrir: encerrar aí deixava o
     // lojista sem aplicação E sem saber onde ir buscar a nova.

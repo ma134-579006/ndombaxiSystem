@@ -127,27 +127,40 @@ function encodePt(s: string): number[] {
 /** Documento de recibo estruturado (o ReceiptModal preenche). */
 export interface RawReceipt {
   company?: string | null;
-  meta?: string | null;      // NIF · morada
-  title: string;             // nº do documento (+ "2ª via")
+  meta?: string | null;      // NIF · morada (compatibilidade)
+  /** Linhas do cabeçalho centradas (morada, NIF, e-mail, telefones) — uma por linha. */
+  headerLines?: string[];
+  /** Slogan/mensagem da empresa (a negrito, por baixo do nome). */
+  slogan?: string | null;
+  title: string;             // nº do documento
   date: string;
+  /** "Original" ou "Segunda Via cf. Original". */
+  via?: string | null;
   customer?: string | null;
+  customerNif?: string | null;
   operator?: string | null;
-  items?: Array<{ description: string; quantity: number; unitPrice: number; total: number; discount?: number; discountRate?: number }>;
+  items?: Array<{ code?: string; description: string; quantity: number; unitPrice: number; total: number; discount?: number; discountRate?: number; ivaRate?: number; exempt?: boolean }>;
   netTotal: number; ivaTotal: number; grossTotal: number;
   hash?: string | null;
   /** Designação do documento (Factura, Factura-Recibo, Nota de Crédito…). */
   docTitle?: string | null;
   /** IVA discriminado por taxa (DP 312/18). */
-  taxRows?: Array<{ label: string; base: number; iva: number }>;
+  taxRows?: Array<{ label: string; base: number; iva: number; rate?: number }>;
   /** Motivos de isenção dos artigos isentos ("M12 …"). */
   exemptions?: string[];
+  /** Meios de pagamento (Numerário 5.000,00 …) e troco. */
+  payments?: Array<{ label: string; amount: number }>;
+  change?: number | null;
+  /** "Processado por programa validado n.º …" (com o hash à frente). */
+  processedBy?: string | null;
   /** QR da AGT (Facturação Electrónica) — impresso no fim do talão. */
   qr?: string | null;
   legends?: string[];
   footer?: string[];
 }
 
-const kz = (n: number) => n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kz';
+const num = (n: number) => n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const kz = (n: number) => `${num(n)} Kz`;
 
 /**
  * QR nativo da térmica (GS ( k, modelo 2, correcção M). A impressora desenha-o
@@ -164,63 +177,105 @@ function qrCode(push: (...xs: number[]) => void, data: string, moduleSize: numbe
   push(0x0a);
 }
 
-/** Monta os bytes ESC/POS do recibo (largura 58mm=32 col, 80mm=48 col). */
+/**
+ * Bytes ESC/POS do talão (58mm=32 col, 80mm=48 col) na ORDEM do talão de
+ * referência: empresa (nome grande, slogan, morada/NIF/contactos centrados)
+ * → faixa tracejada "Designação | Nº" → via + data/hora → Nome do cliente →
+ * "Referência Produto" / "Qtd. x Preço | Taxa | Total" → artigos → nota de
+ * isenção (*) → Total grande + meios de pagamento → quadro %IVA/Incidência/IVA
+ * → "{hash}-Processado por programa validado…" → QR/legendas/rodapé.
+ */
 function buildBytes(r: RawReceipt, paper: '58' | '80'): Uint8Array {
   const COLS = paper === '58' ? 32 : 48;
   const b: number[] = [];
   const push = (...xs: number[]) => b.push(...xs);
   const raw = (s: string) => push(...encodePt(s));
   const line = (s = '') => { raw(s.length > COLS ? s.slice(0, COLS) : s); push(0x0a); };
+  const wrap = (s: string) => { let rest = s; while (rest.length > COLS) { const cut = rest.lastIndexOf(' ', COLS); const at = cut > 8 ? cut : COLS; line(rest.slice(0, at)); rest = rest.slice(at).trimStart(); } line(rest); };
   const center = (on: boolean) => push(0x1b, 0x61, on ? 1 : 0);
   const bold = (on: boolean) => push(0x1b, 0x45, on ? 1 : 0);
-  const big = (on: boolean) => push(0x1d, 0x21, on ? 0x11 : 0x00);
-  const hr = () => line('-'.repeat(COLS));
-  const kvLine = (k: string, v: string) => {
-    const space = COLS - k.length - v.length;
+  const size = (w2: boolean, h2: boolean) => push(0x1d, 0x21, (w2 ? 0x10 : 0) | (h2 ? 0x01 : 0));
+  const dashed = () => line('-'.repeat(COLS));
+  const kvLine = (k: string, v: string, cols = COLS) => {
+    const space = cols - k.length - v.length;
     line(space > 0 ? k + ' '.repeat(space) + v : `${k} ${v}`);
+  };
+  // 3 colunas: esquerda | centro (taxa) | direita (total)
+  const col3 = (a: string, m: string, z: string) => {
+    const wz = Math.max(z.length, paper === '58' ? 10 : 14), wm = paper === '58' ? 5 : 8;
+    const wa = COLS - wm - wz;
+    const A = a.length > wa ? a.slice(0, wa) : a + ' '.repeat(wa - a.length);
+    const pad = Math.max(0, wm - m.length), M = ' '.repeat(Math.floor(pad / 2)) + m + ' '.repeat(Math.ceil(pad / 2));
+    const Z = ' '.repeat(Math.max(0, wz - z.length)) + z;
+    line(A + M + Z);
   };
 
   push(0x1b, 0x40);            // init
   push(0x1b, 0x74, 3);         // codepage 3 = CP860 (português)
+
+  // ── Cabeçalho da empresa ──
   center(true);
-  if (r.company) { bold(true); line(r.company); bold(false); }
-  if (r.meta) line(r.meta);
-  line();
-  if (r.docTitle) { bold(true); line(r.docTitle.toUpperCase()); bold(false); }
-  big(true); line(r.title); big(false);
-  line(r.date);
+  if (r.company) { bold(true); size(false, true); wrap(r.company); size(false, false); bold(false); }
+  if (r.slogan) { bold(true); wrap(r.slogan); bold(false); }
+  const head = r.headerLines?.length ? r.headerLines : (r.meta ? [r.meta] : []);
+  for (const h of head) wrap(h);
   center(false);
-  hr();
-  if (r.customer) line(`Cliente: ${r.customer}`);
+  line();
+
+  // ── Designação | Nº ──
+  dashed();
+  kvLine(r.docTitle || 'Documento', r.title);
+  dashed();
+  kvLine(r.via || 'Original', r.date);
+  line();
+  if (r.customer) line(`Nome: ${r.customer}`);
+  if (r.customerNif) line(`NIF: ${r.customerNif}`);
   if (r.operator) line(`Operador: ${r.operator}`);
+
+  // ── Artigos ──
   if (r.items?.length) {
-    hr();
+    line('Referencia Produto');
+    col3('Qtd. x Preco', 'Taxa', 'Total');
+    dashed();
     for (const it of r.items) {
-      line(it.description);
-      kvLine(`  ${it.quantity} x ${kz(it.unitPrice)}`, kz(it.total + (it.discount ?? 0)));
-      if (it.discount && it.discount > 0) kvLine(`  Desconto ${(Math.round((it.discountRate ?? 0) * 1000) / 10).toLocaleString('pt-PT')}%`, `-${kz(it.discount)}`);
+      wrap(`${it.code ? `${it.code} ` : ''}${it.description}${it.exempt ? '*' : ''}`);
+      col3(`${it.quantity} x ${num(it.unitPrice)}`, it.ivaRate != null ? `${it.ivaRate}%` : '', num(it.total + (it.discount ?? 0)));
+      if (it.discount && it.discount > 0) kvLine(`  Desconto ${(Math.round((it.discountRate ?? 0) * 1000) / 10).toLocaleString('pt-PT')}%`, `-${num(it.discount)}`);
     }
+    dashed();
   }
-  hr();
-  kvLine('Base tributavel', kz(r.netTotal));
-  if (r.taxRows && r.taxRows.length) {
-    for (const t of r.taxRows) kvLine(`  ${t.label} s/ ${kz(t.base)}`, kz(t.iva));
-  }
-  kvLine('IVA', kz(r.ivaTotal));
-  bold(true); kvLine('TOTAL', kz(r.grossTotal)); bold(false);
-  if (r.hash) kvLine('Controlo (Hash)', r.hash);
-  for (const e of r.exemptions ?? []) line(e);
-  hr();
+  for (const e of r.exemptions ?? []) wrap(`* ${e}`);
+  line();
+
+  // ── Total e pagamentos ──
+  bold(true); size(false, true); kvLine('Total', `Kz ${num(r.grossTotal)}`); size(false, false); bold(false);
+  for (const p of r.payments ?? []) kvLine(p.label, `Kz ${num(p.amount)}`);
+  if (r.change != null && r.change > 0) kvLine('Troco', `Kz ${num(r.change)}`);
+  line();
+
+  // ── Quadro de IVA ──
+  const rows = r.taxRows?.length ? r.taxRows : [{ label: '', base: r.netTotal, iva: r.ivaTotal, rate: r.netTotal > 0 ? Math.round((r.ivaTotal / r.netTotal) * 100) : 0 }];
+  // %IVA | Incidência | IVA (incidência no meio, alinhada à direita da coluna)
+  const ivaRow = (a: string, m: string, z: string) => {
+    const wz = paper === '58' ? 9 : 12, wm = paper === '58' ? 12 : 16, wa = COLS - wm - wz;
+    line((a + ' '.repeat(wa)).slice(0, wa) + (' '.repeat(wm) + m).slice(-wm) + (' '.repeat(wz) + z).slice(-wz));
+  };
+  ivaRow('%IVA', 'Incidencia', 'IVA');
+  for (const t of rows) ivaRow(String(t.rate ?? (t.label.replace(/[^\d]/g, '') || '0')), num(t.base), num(t.iva));
+  dashed();
+
+  // ── Processado por… (hash à frente), QR, legendas e rodapé ──
   center(true);
+  if (r.processedBy) wrap(`${r.hash ? `${r.hash}-` : ''}${r.processedBy}`);
+  else if (r.hash) line(`Controlo (Hash): ${r.hash}`);
   if (r.qr) qrCode(push, r.qr, paper === '58' ? 4 : 6);
-  for (const l of r.legends ?? []) line(l);
-  for (const l of r.footer ?? []) line(l);
+  for (const l of r.legends ?? []) wrap(l);
+  for (const l of r.footer ?? []) wrap(l);
   center(false);
   push(0x0a, 0x0a, 0x0a, 0x0a);      // avanço para o corte
   push(0x1d, 0x56, 0x42, 0x00);      // corte parcial (GS V B 0)
   return new Uint8Array(b);
 }
-
 /**
  * Imprime DIRETO na térmica emparelhada. Devolve true se saiu; false se não há
  * impressora utilizável (o chamador deve cair no window.print()).

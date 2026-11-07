@@ -371,7 +371,7 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
           <button className="btn ghost lg" style={{ flex: 1 }} onClick={() => { setError(null); setMovDone(null); setMov('CASH_IN'); }} disabled={busy}>Reforço</button>
         </div>
         <button className="btn ghost lg block" style={{ marginTop: 10 }} onClick={loadX} disabled={busy}>
-          Relatório X (ler sem fechar)
+          Ponto de caixa (Relatório X)
         </button>
         <button className="btn danger lg block" style={{ marginTop: 10 }} onClick={close} disabled={busy || cartCount > 0}>
           {busy ? 'A fechar…' : 'Fechar turno e conferir (Z)'}

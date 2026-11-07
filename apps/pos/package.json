@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node -e \"require('fs').writeFileSync('.test-build/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\" && node --test \".test-build/pos/__tests__/*.test.js\""
   },
   "dependencies": {
     "@nexus/shop-link": "workspace:*",

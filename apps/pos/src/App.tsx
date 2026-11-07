@@ -1,3 +1,4 @@
+import { LOGO_ROUND } from './brand';
 import React from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { KeyboardProvider } from './keyboard/KeyboardProvider';
@@ -9,11 +10,7 @@ function Gate() {
   const { status } = useAuth();
   if (status === 'loading') {
     return (
-      <div className="app-bg">
-        <div className="login-screen">
-          <div className="loading">A carregar…</div>
-        </div>
-      </div>
+      <div className="vproc-bg vproc-boot"><div className="vproc"><div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div><span>A carregar…</span></div></div>
     );
   }
   return status === 'authed' ? <PosPage /> : <LoginPage />;

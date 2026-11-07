@@ -3,28 +3,24 @@
 import type { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import type { DocumentIdentity, EmittedInvoice, ReceiptFiscalInfo } from '../api/types';
-import { formatDateTime, formatKz } from '../format';
 
 export interface InvoicePdfArgs {
   invoice: EmittedInvoice;
   identity?: DocumentIdentity | null;
   info?: ReceiptFiscalInfo | null;
   customerName?: string | null;
+  customerNif?: string | null;
   operatorName?: string | null;
-  items?: { description: string; quantity: number; unitPrice: number; total: number }[];
+  items?: { code?: string; description: string; quantity: number; unitPrice: number; total: number; ivaRate?: number; net?: number; iva?: number; exemptionCode?: string | null; discount?: number }[];
   provisional?: boolean;
+  /** 2.ª via (reimpressão). */
+  reprint?: boolean;
+  /** Meios de pagamento para o bloco "Meio de Pagamento". */
+  payments?: { label: string; amount: number }[];
 }
 
-/* ── Paleta SÓBRIA (enterprise) ──────────────────────────────────────────────
-   O antigo layout usava barras cor de laranja e cantos redondos que ficavam
-   "infantis". Uma fatura fiscal séria vive de tinta escura, cinzentos e réguas
-   finas, com molduras a delimitar cada bloco (à imagem das faturas Primavera/AGT
-   que os clientes reconhecem). */
-const INK: [number, number, number] = [17, 24, 39];
-const SUB: [number, number, number] = [92, 101, 116];
-const LINE: [number, number, number] = [203, 210, 221];
-const ZEBRA: [number, number, number] = [246, 248, 251];
-const HEAD: [number, number, number] = [30, 38, 52];
+const INK: [number, number, number] = [17, 17, 17];
+const SUB: [number, number, number] = [70, 70, 70];
 
 /** Assinatura AGT (4 caracteres do hash nas posições 1, 11, 21, 31 — DP 71/25). */
 function agtSignature(hash: string): string {
@@ -32,200 +28,191 @@ function agtSignature(hash: string): string {
   return [0, 10, 20, 30].map((i) => hash[i] ?? '').join('');
 }
 
-/** Gera uma FATURA A4 profissional (fiscal, densa, com moldura) em PDF. */
+const n2 = (v: number) => v.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * FATURA A4 no formato do documento de referência (estudado só em leitura;
+ * desenho e código próprios): logótipo + dados da empresa à esquerda e cliente
+ * à direita; "Factura n.º …" com "Original"/"2.ª via"; faixa Data de Emissão /
+ * Vencimento / Contribuinte / V/ Ref.; Observações; tabela Código / Descrição /
+ * Pr. Unitário / Uni. / Qtd. / IVA / Total; em baixo, à esquerda o quadro
+ * Taxa / Incidência / IVA (+ motivos de isenção) e o Meio de Pagamento, à
+ * direita o Sumário e o Total; rodapé "Página x/y" e "{hash}-Processado por
+ * programa validado n.º …" (só com certificado configurado).
+ */
 export async function buildInvoicePdf(a: InvoicePdfArgs): Promise<jsPDF> {
   const { jsPDF } = await import('jspdf');
-  const { invoice, identity, info, customerName, operatorName, items, provisional } = a;
+  const { invoice, identity, info, customerName, customerNif, items, provisional, reprint, payments } = a;
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
-  const M = 40;
-  const empresa = identity?.companyName || identity?.brandName || 'Fatura';
-  const title = provisional ? 'COMPROVATIVO' : 'FATURA';
-  // Taxa de IVA do documento (derivada — não há taxa por linha na venda).
-  const ivaRate = invoice.netTotal > 0 ? Math.round((invoice.ivaTotal / invoice.netTotal) * 100) : 0;
+  const M = 46;
+  const usable = W - 2 * M;
+  const empresa = identity?.companyName || identity?.brandName || 'Empresa';
+  const designation = provisional ? 'Comprovativo' : ({ FT: 'Factura', FR: 'Factura-Recibo', FS: 'Factura-Recibo', NC: 'Nota de Crédito', ND: 'Nota de Débito', RC: 'Recibo' } as Record<string, string>)[invoice.number.split(' ')[0]] ?? 'Documento';
+  const issue = new Date();
+  const isoDate = `${issue.getFullYear()}-${String(issue.getMonth() + 1).padStart(2, '0')}-${String(issue.getDate()).padStart(2, '0')}`;
+  const certOk = !!info?.softwareCertificateNumber && String(info.softwareCertificateNumber) !== '0';
 
-  // ── Cabeçalho: identidade da empresa (esq.) + bloco do documento (dir.) ──
-  let y = 46;
-  let logoW = 0;
+  // ── Cabeçalho: logótipo + empresa (esq.) e cliente (dir.) ──
+  let y = 48;
   if (identity?.logoUrl) {
     try {
       const logo = await loadLogo(identity.logoUrl);
       if (logo) {
-        // Encaixa o logótipo numa caixa 52×46 mantendo a PROPORÇÃO (sem distorcer).
-        const scale = Math.min(52 / logo.w, 46 / logo.h);
-        const dw = Math.max(1, logo.w * scale), dh = Math.max(1, logo.h * scale);
-        doc.addImage(logo.data, 'PNG', M, y - 10, dw, dh, undefined, 'FAST');
-        logoW = dw;
+        const scale = Math.min(70 / logo.w, 62 / logo.h);
+        doc.addImage(logo.data, 'PNG', M, y, Math.max(1, logo.w * scale), Math.max(1, logo.h * scale), undefined, 'FAST');
+        y += Math.max(1, logo.h * scale) + 8;
       }
     } catch { /* logo opcional */ }
   }
-  const tx = logoW ? M + logoW + 12 : M;
-  // O bloco do documento fica no canto superior direito: o nome tem de QUEBRAR
-  // dentro da coluna esquerda para nunca lhe passar por cima (empresas com nome
-  // legal comprido — "… (SU), LDA" — são a regra em Angola).
-  const bx = W - M - 200, bw = 200, bh = 60;
-  const nameW = bx - tx - 16;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...INK);
-  const nameLines = doc.splitTextToSize(empresa, nameW);
-  nameLines.forEach((ln: string, i: number) => doc.text(String(ln), tx, y + i * 15));
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor(...SUB);
-  let hy = y + (nameLines.length - 1) * 15 + 13;
-  if (identity?.nif) { doc.text(`Contribuinte n.º ${identity.nif}`, tx, hy); hy += 11; }
-  if (identity?.address) { for (const ln of doc.splitTextToSize(identity.address, 250)) { doc.text(String(ln), tx, hy); hy += 11; } }
-  const contact = [identity?.phone, identity?.email].filter(Boolean).join('  ·  ');
-  if (contact) { doc.text(contact, tx, hy); hy += 11; }
+  const leftW = usable * 0.55;
+  doc.setTextColor(...INK);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+  for (const ln of doc.splitTextToSize(empresa, leftW)) { doc.text(String(ln), M, y); y += 12; }
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  for (const ln of (identity?.address ? identity.address.split(/\n|,\s*/).map((s) => s.trim()).filter(Boolean) : [])) { doc.text(ln, M, y); y += 11.5; }
+  const kv = (k: string, v: string) => { doc.setFont('helvetica', 'bold'); doc.text(`${k}:`, M, y); const w = doc.getTextWidth(`${k}: `); doc.setFont('helvetica', 'normal'); doc.text(v, M + w, y); y += 11.5; };
+  if (identity?.nif) kv('Contribuinte', identity.nif);
+  if (identity?.email) kv('E-mail', identity.email);
+  if (identity?.phone) kv('Tel', identity.phone);
+  // Cliente à direita, à altura do bloco da empresa
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+  const cx = M + usable * 0.6;
+  let cy = 118;
+  for (const ln of doc.splitTextToSize(customerName || 'Consumidor Final', usable * 0.4)) { doc.text(String(ln), cx, cy); cy += 12; }
+  if (customerNif) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text(`Contribuinte: ${customerNif}`, cx, cy); cy += 11.5; }
 
-  // Bloco do documento (moldura à direita)
-  doc.setDrawColor(...LINE); doc.setLineWidth(0.8); doc.roundedRect(bx, y - 12, bw, bh, 3, 3, 'S');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(...INK);
-  doc.text(title, bx + 12, y + 3);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...SUB);
-  doc.text('ORIGINAL', bx + bw - 12, y + 2, { align: 'right' });
-  doc.setDrawColor(...LINE); doc.setLineWidth(0.5); doc.line(bx + 12, y + 12, bx + bw - 12, y + 12);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...INK);
-  doc.text(invoice.number, bx + 12, y + 26);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.4); doc.setTextColor(...SUB);
-  doc.text(`Data de emissão: ${formatDateTime()}`, bx + 12, y + 39);
+  // ── Título + via ──
+  y = Math.max(y, cy) + 22;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(14);
+  doc.text(`${designation} n.º ${invoice.number}`, M, y);
+  doc.setFontSize(9);
+  doc.text(provisional ? 'Provisório' : reprint ? '2.ª Via' : 'Original', W - M, y, { align: 'right' });
+  y += 5; doc.setDrawColor(0); doc.setLineWidth(0.8); doc.line(M, y, W - M, y);
 
-  y = Math.max(hy + 6, y + bh - 2);
-  doc.setDrawColor(...INK); doc.setLineWidth(1); doc.line(M, y, W - M, y);
+  // ── Faixa de dados: Data de Emissão | Vencimento | Contribuinte | V/ Ref. ──
+  y += 16;
+  const metaCols = [['Data de Emissão', isoDate], ['Vencimento', isoDate], ['Contribuinte', customerNif || 'Consumidor Final'], ['V/ Ref.', invoice.number]];
+  const mw = usable / 4;
+  doc.setFontSize(8.6);
+  metaCols.forEach(([k, v], i) => {
+    const x = M + i * mw;
+    doc.setTextColor(...SUB); doc.text(k, x, y);
+    doc.setDrawColor(0); doc.setLineWidth(0.5); doc.line(x, y + 5, x + mw - 14, y + 5);
+    doc.setTextColor(...INK); doc.text(String(v), x, y + 20);
+  });
+  y += 32; doc.setLineWidth(0.5); doc.line(M, y, W - M, y);
   y += 14;
-
-  // ── Adquirente (cliente) + meta ──
-  const halfW = (W - 2 * M);
-  doc.setDrawColor(...LINE); doc.setLineWidth(0.8); doc.roundedRect(M, y, halfW, 44, 3, 3, 'S');
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...SUB);
-  doc.text('EXMO(S) SENHOR(ES)', M + 10, y + 14);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...INK);
-  doc.text(customerName || 'Consumidor final', M + 10, y + 30);
-  // Coluna direita do bloco: operador + condição + página
-  const rx = M + halfW - 190;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...SUB);
-  const metaPairs: [string, string][] = [
-    ['Operador', operatorName || '—'],
-    ['Pagamento', 'Pronto pagamento'],
-    ['Página', '1 / 1'],
-  ];
-  let myy = y + 13;
-  for (const [k, v] of metaPairs) {
-    doc.setTextColor(...SUB); doc.text(k, rx, myy);
-    doc.setTextColor(...INK); doc.text(v, M + halfW - 10, myy, { align: 'right' });
-    myy += 12;
+  if (info?.receiptLegend) {
+    doc.setFont('helvetica', 'bold'); doc.text('Observações:', M, y);
+    doc.setFont('helvetica', 'normal');
+    const lw = doc.getTextWidth('Observações: ');
+    const obs = doc.splitTextToSize(info.receiptLegend, usable - lw);
+    obs.forEach((ln: string, i: number) => doc.text(String(ln), M + (i ? 0 : lw), y + i * 11));
+    y += obs.length * 11 + 8;
   }
-  y += 44 + 16;
 
-  // ── Tabela de ARTIGOS ──
-  const usable = W - 2 * M;
-  const cols = ['DESCRIÇÃO', 'QTD', 'UNI', 'P.UNIT', `IVA${ivaRate ? ` ${ivaRate}%` : ''}`, 'TOTAL'];
-  const weights = [3.5, 0.8, 0.7, 1.25, 0.9, 1.35];
-  const wsum = weights.reduce((s, w) => s + w, 0);
-  const colW = weights.map((w) => (w / wsum) * usable);
-  const colX: number[] = []; { let acc = M; for (const w of colW) { colX.push(acc); acc += w; } }
-  const right = [false, false, false, true, true, true];
-  const center = [false, true, true, false, false, false];
-
-  const drawHead = () => {
-    doc.setFillColor(...HEAD); doc.rect(M, y, usable, 20, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.2); doc.setTextColor(255, 255, 255);
-    cols.forEach((c, i) => {
-      const x = right[i] ? colX[i] + colW[i] - 6 : center[i] ? colX[i] + colW[i] / 2 : colX[i] + 6;
-      doc.text(c, x, y + 13, { align: right[i] ? 'right' : center[i] ? 'center' : 'left' });
-    });
-    y += 20;
+  // ── Tabela de artigos ──
+  y += 10;
+  const cols = [
+    { h: 'Código', w: 1.5, al: 'left' as const }, { h: 'Descrição', w: 3.6, al: 'left' as const },
+    { h: 'Pr. Unitário', w: 1.4, al: 'right' as const }, { h: 'Uni.', w: 0.6, al: 'center' as const },
+    { h: 'Qtd.', w: 0.6, al: 'center' as const }, { h: 'IVA', w: 0.8, al: 'right' as const }, { h: 'Total', w: 1.4, al: 'right' as const },
+  ];
+  const ws = cols.reduce((s, c) => s + c.w, 0);
+  const cw = cols.map((c) => (c.w / ws) * usable);
+  const cxs: number[] = []; { let acc = M; for (const w of cw) { cxs.push(acc); acc += w; } }
+  const tx = (i: number) => (cols[i].al === 'right' ? cxs[i] + cw[i] - 3 : cols[i].al === 'center' ? cxs[i] + cw[i] / 2 : cxs[i] + 2);
+  const head = () => {
+    doc.setDrawColor(0); doc.setLineWidth(0.9); doc.line(M, y - 11, W - M, y - 11);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.8); doc.setTextColor(...INK);
+    cols.forEach((c, i) => doc.text(c.h, tx(i), y, { align: c.al }));
+    y += 6; doc.setLineWidth(0.5); doc.line(M, y, W - M, y); y += 14;
   };
-  drawHead();
-
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6);
-  let alt = false;
+  head();
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.8);
+  const exempt = new Set<string>();
   for (const it of items ?? []) {
-    const descLines = doc.splitTextToSize(it.description, colW[0] - 12);
-    const rowH = Math.max(18, descLines.length * 10 + 8);
-    if (y + rowH > H - 210) { doc.addPage(); y = 46; drawHead(); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); alt = false; }
-    if (alt) { doc.setFillColor(...ZEBRA); doc.rect(M, y, usable, rowH, 'F'); }
-    alt = !alt;
-    doc.setTextColor(...INK);
-    const cells = [
-      descLines,
-      String(Number(it.quantity)),
-      'UND',
-      formatKz(it.unitPrice),
-      ivaRate ? `${ivaRate}%` : 'Isento',
-      formatKz(it.total),
-    ];
-    cells.forEach((val, i) => {
-      const x = right[i] ? colX[i] + colW[i] - 6 : center[i] ? colX[i] + colW[i] / 2 : colX[i] + 6;
-      if (Array.isArray(val)) {
-        val.forEach((ln: string, k: number) => doc.text(String(ln), x, y + 12 + k * 10, { align: 'left' }));
-      } else {
-        doc.text(String(val), x, y + 12, { align: right[i] ? 'right' : center[i] ? 'center' : 'left' });
-      }
-    });
+    const desc = doc.splitTextToSize(it.description, cw[1] - 6);
+    const rowH = Math.max(16, desc.length * 10.5 + 4);
+    if (y + rowH > H - 230) { doc.addPage(); y = 60; head(); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.8); }
+    const rate = it.ivaRate ?? (invoice.netTotal > 0 ? Math.round((invoice.ivaTotal / invoice.netTotal) * 100) : 0);
+    if (rate === 0) exempt.add(it.exemptionCode ? `${it.exemptionCode}` : 'Isento de IVA');
+    doc.text(String(it.code ?? ''), tx(0), y, { align: 'left' });
+    desc.forEach((ln: string, k: number) => doc.text(String(ln), tx(1), y + k * 10.5));
+    doc.text(`${n2(it.unitPrice)} Kz`, tx(2), y, { align: 'right' });
+    doc.text('Uni', tx(3), y, { align: 'center' });
+    doc.text(String(it.quantity), tx(4), y, { align: 'center' });
+    doc.text(`${rate}%${rate === 0 ? ' (1)' : ''}`, tx(5), y, { align: 'right' });
+    doc.text(`${n2(it.total + (it.discount ?? 0))} Kz`, tx(6), y, { align: 'right' });
     y += rowH;
   }
-  doc.setDrawColor(...LINE); doc.setLineWidth(0.8); doc.line(M, y, W - M, y);
-  y += 16;
+  doc.setLineWidth(0.9); doc.line(M, y - 6, W - M, y - 6);
 
-  // ── Resumo de impostos + TOTAL (painel à direita) ──
-  const panelW = 250; const px = W - M - panelW;
-  if (y + 118 > H - 90) { doc.addPage(); y = 46; }
-  const rows: [string, string][] = [
-    ['Mercadorias / Serviços', formatKz(invoice.netTotal)],
-    ['Descontos', formatKz(0)],
-    ['Líquido (base tributável)', formatKz(invoice.netTotal)],
-    [`Imposto (IVA${ivaRate ? ` ${ivaRate}%` : ''})`, formatKz(invoice.ivaTotal)],
-  ];
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-  for (const [k, v] of rows) {
-    doc.setTextColor(...SUB); doc.text(k, px, y);
-    doc.setTextColor(...INK); doc.text(v, px + panelW, y, { align: 'right' });
-    y += 16;
+  // ── Rodapé fiscal: quadro de IVA + pagamento (esq.) · Sumário + Total (dir.) ──
+  let by = Math.max(y + 30, H - 210);
+  if (by + 120 > H - 40) { doc.addPage(); by = 80; }
+  const lw = usable * 0.5, lx = M, rx = M + usable * 0.6, rw = usable * 0.4;
+  const rowsByRate = new Map<number, { base: number; iva: number }>();
+  for (const it of items ?? []) {
+    if (it.ivaRate == null || it.net == null) continue;
+    const r = rowsByRate.get(it.ivaRate) ?? { base: 0, iva: 0 }; r.base += it.net; r.iva += it.iva ?? 0; rowsByRate.set(it.ivaRate, r);
   }
-  y += 4;
-  doc.setFillColor(...HEAD); doc.roundedRect(px, y - 12, panelW, 30, 3, 3, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
-  doc.text('TOTAL DO DOCUMENTO', px + 12, y + 6);
-  doc.setFontSize(13); doc.text(formatKz(invoice.grossTotal), px + panelW - 12, y + 6, { align: 'right' });
-  y += 34;
+  const taxRows = rowsByRate.size ? [...rowsByRate.entries()].sort((p, q) => q[0] - p[0]) : [[invoice.netTotal > 0 ? Math.round((invoice.ivaTotal / invoice.netTotal) * 100) : 0, { base: invoice.netTotal, iva: invoice.ivaTotal }] as [number, { base: number; iva: number }]];
+  const block = (title: string, x: number, w: number, yy: number) => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text(title, x, yy);
+    doc.setLineWidth(0.8); doc.line(x, yy + 4, x + w, yy + 4);
+  };
+  // Taxa | Incidência | IVA
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+  doc.text('Taxa', lx, by); doc.text('Incidência', lx + lw * 0.62, by, { align: 'right' }); doc.text('IVA', lx + lw, by, { align: 'right' });
+  doc.setLineWidth(0.8); doc.line(lx, by + 4, lx + lw, by + 4);
+  let ly = by + 16; doc.setFont('helvetica', 'normal');
+  for (const [rate, v] of taxRows) {
+    doc.text(`${rate}%`, lx, ly); doc.text(`${n2(v.base)} Kz`, lx + lw * 0.62, ly, { align: 'right' }); doc.text(`${n2(v.iva)} Kz`, lx + lw, ly, { align: 'right' }); ly += 11;
+  }
+  if (exempt.size) { doc.setFontSize(7.5); doc.text(`(1) ${[...exempt].join(' · ')}`, lx, ly); ly += 10; doc.setFontSize(9); }
+  ly += 10;
+  if (payments?.length) {
+    block('Meio de Pagamento', lx, lw, ly); ly += 16; doc.setFont('helvetica', 'normal');
+    for (const p of payments) { doc.text(p.label, lx, ly); doc.text(`${n2(p.amount)} Kz`, lx + lw, ly, { align: 'right' }); ly += 11; }
+  }
+  // Sumário
+  block('Sumário', rx, rw, by);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  doc.text('S/IVA', rx, by + 16); doc.text(`${n2(invoice.netTotal)} Kz`, rx + rw, by + 16, { align: 'right' });
+  doc.text('IVA', rx, by + 28); doc.text(`${n2(invoice.ivaTotal)} Kz`, rx + rw, by + 28, { align: 'right' });
+  doc.setLineWidth(0.9); doc.line(rx, by + 52, rx + rw, by + 52);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12.5);
+  doc.text('Total', rx, by + 68); doc.text(`${n2(invoice.grossTotal)} Kz`, rx + rw, by + 68, { align: 'right' });
 
-  // ── Legendas fiscais + assinatura AGT (canto inferior esquerdo) ──
-  const sig = agtSignature(invoice.hash);
-  let ly = Math.max(y + 6, H - 150);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...SUB);
-  if (!provisional && sig) { doc.text(`${sig} — Processado por programa validado`, M, ly); ly += 11; }
-  if (!provisional && invoice.hash) { doc.text(`Controlo (Hash): ${invoice.hash.slice(0, 20)}`, M, ly); ly += 11; }
-  for (const f of info?.fields ?? []) { doc.text(`${f.label}: ${f.value}`, M, ly); ly += 11; }
-  if (info?.softwareCertificateNumber && String(info.softwareCertificateNumber) !== '0') { doc.text(`Software certificado AGT n.º ${info.softwareCertificateNumber}`, M, ly); ly += 11; }
-  if (info?.receiptLegend) { for (const ln of doc.splitTextToSize(info.receiptLegend, W - 2 * M - 110)) { doc.text(String(ln), M, ly); ly += 11; } }
-
-  // ── QR de verificação (canto inferior direito) ──
+  // ── QR de verificação (acima do sumário à direita, quando há hash) ──
   if (!provisional && invoice.hash) {
     try {
       const qrData = invoice.feQr && identity?.nif
         ? `https://quiosqueagt.minfin.gov.ao/facturacao-eletronica/consultar-fe?emissor=${encodeURIComponent(identity.nif)}&document=${invoice.number.replace(/ /g, '%20')}`
-        : [empresa, invoice.number, identity?.nif ? `NIF:${identity.nif}` : '',
-        `Total:${invoice.grossTotal}`, `IVA:${invoice.ivaTotal}`, new Date().toISOString().slice(0, 10),
-        `H:${invoice.hash.slice(0, 16)}`].filter(Boolean).join('|');
-      const qr = await QRCode.toDataURL(qrData, { margin: 1, width: 220 });
-      doc.addImage(qr, 'PNG', W - M - 84, H - 156, 84, 84, undefined, 'FAST');
-      doc.setFontSize(7.5); doc.setTextColor(...SUB);
-      doc.text('Verificação · leia o QR', W - M - 84, H - 66);
+        : [empresa, invoice.number, identity?.nif ? `NIF:${identity.nif}` : '', `Total:${invoice.grossTotal}`, `IVA:${invoice.ivaTotal}`, isoDate, `H:${invoice.hash.slice(0, 16)}`].filter(Boolean).join('|');
+      const qr = await QRCode.toDataURL(qrData, { margin: 1, width: 200 });
+      doc.addImage(qr, 'PNG', rx + rw - 64, by + 80, 64, 64, undefined, 'FAST');
     } catch { /* QR opcional */ }
   }
 
-  // ── Rodapé ──
-  const fy = H - 44;
-  doc.setDrawColor(...LINE); doc.setLineWidth(0.8); doc.line(M, fy - 10, W - M, fy - 10);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.4); doc.setTextColor(...SUB);
-  const foot = [identity?.address, contact].filter(Boolean) as string[];
-  let fyy = fy;
-  for (const line of foot) { doc.text(line, W / 2, fyy, { align: 'center' }); fyy += 11; }
-  doc.setFont('helvetica', 'bold'); doc.setTextColor(...INK);
-  doc.text(identity?.receiptMessage || 'Obrigado pela preferência!', W / 2, fyy + 1, { align: 'center' });
-
+  // ── Rodapé de todas as páginas ──
+  const sig = agtSignature(invoice.hash);
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.4); doc.setTextColor(...INK);
+    doc.text(`Página ${p}/${pages}`, M, H - 36);
+    const proc = provisional ? 'Comprovativo provisório — sem validade fiscal' : certOk
+      ? `${sig ? `${sig}-` : ''}Processado por programa validado n.º ${info!.softwareCertificateNumber}`
+      : sig ? `Controlo (Hash): ${sig}` : '';
+    if (proc) doc.text(proc, W - M, H - 36, { align: 'right' });
+    for (const [i, f] of (info?.fields ?? []).entries()) doc.text(`${f.label}: ${f.value}`, M, H - 50 - i * 10);
+  }
   return doc;
 }
-
 /** Nome de ficheiro limpo para a fatura. */
 export function invoiceFileName(invoice: EmittedInvoice): string {
   return `Fatura-${invoice.number.replace(/[^\w-]/g, '_')}.pdf`;

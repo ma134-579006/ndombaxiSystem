@@ -4,7 +4,7 @@ import { api, ApiError } from '../api/client';
 import type { CashSession, Customer, DocumentIdentity, EmittedInvoice, PaymentType, Product, ReceiptFiscalInfo } from '../api/types';
 import { IVA_RATE } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
-import { LOGO_SRC, SYSTEM_SHORT } from '../brand';
+import { LOGO_ROUND, LOGO_SRC, SYSTEM_SHORT } from '../brand';
 import { CustomerModal } from '../components/CustomerModal';
 import { FooterCredit } from '../components/FooterCredit';
 import {
@@ -53,6 +53,8 @@ import { isNativeApp } from '../config';
 import { adjustCatalogStock, syncCatalog } from '../offline/catalog';
 import { customersStore } from '../offline/indexedList';
 import { setSaleInProgress } from '../pos/saleActivity';
+import { decideHydration, describeReconcile, parseStoredCart, reconcileWithCatalog, type StoredCart } from '../pos/cartPersist';
+import { discard as discardParked, park, parseParked, resume, type ParkedSale } from '../pos/parkedSales';
 
 const CACHE_PRODUCTS = 'cache:products';
 // Dados de apoio da Caixa, também guardados para VENDER 100% OFFLINE (clientes,
@@ -65,6 +67,11 @@ const CACHE_PROMOS = 'cache:promotions';
 /** Rascunho do carrinho no servidor por apagar (venda concluída sem rede). */
 const DRAFT_STALE = 'ndx:cart-draft-stale';
 const marcarRascunhoVelho = () => { try { localStorage.setItem(DRAFT_STALE, '1'); } catch { /* ignora */ } };
+const readLocal = (key: string): string | null => { try { return localStorage.getItem(key); } catch { return null; } };
+/** Cópia de segurança do carrinho na base local (IndexedDB), além do localStorage. */
+const cartBackupKey = (cartKey: string) => `${cartKey}:backup`;
+const cartSignature = (lines: CartLine[], customerId: string | null) =>
+  `${customerId ?? ''}|${lines.map((l) => `${l.product.id}:${l.quantity}`).join(',')}`;
 
 const ROLE_LABELS: Record<string, string> = {
   COMPANY_ADMIN: 'Administrador',
@@ -233,10 +240,31 @@ export function PosPage() {
   // acidental, até ser finalizado ou limpo pelo MESMO funcionário). Multiutilizador:
   // cada operador tem a sua chave, e o stock é sempre reconfirmado no servidor.
   const cartKey = user?.sub ? `pos:cart:${user.sub}` : null;
+  // Chave cujo conteúdo já foi carregado para o estado. Enquanto não coincidir com
+  // `cartKey`, a persistência NÃO escreve — senão um carrinho vazio do 1.º render
+  // (utilizador ainda por decidir) apagava o que estava guardado (B-03).
+  const loadedKeyRef = useRef<string | null>(null);
+  // Cópia guardada mais recente (com updatedAt/syncedAt) — base da hidratação (B-01).
+  const storedRef = useRef<StoredCart<Product> | null>(null);
+  // O próximo conteúdo gravado veio do SERVIDOR → já está sincronizado.
+  const fromServerRef = useRef(false);
   const [cart, setCart] = useState<CartLine[]>(() => {
-    try { const raw = cartKey ? localStorage.getItem(cartKey) : null; return raw ? (JSON.parse(raw) as CartLine[]) : []; }
-    catch { return []; }
+    const s = cartKey ? parseStoredCart<Product>(readLocal(cartKey)) : null;
+    storedRef.current = s;
+    loadedKeyRef.current = cartKey;
+    return s?.lines ?? [];
   });
+  const cartRef = useRef(cart);
+  cartRef.current = cart;
+  // O cliente da venda guardada já foi reposto (ou a lista de clientes chegou)?
+  const customerRestoredRef = useRef(false);
+  const [cartStorageWarn, setCartStorageWarn] = useState(false);
+  // Vendas SUSPENSAS deste operador (paridade Vendus: "Nova Venda" estaciona a
+  // atual). Persistidas no aparelho: sobrevivem a refresh, fecho e falta de rede.
+  const parkedKey = user?.sub ? `pos:parked:${user.sub}` : null;
+  const [parked, setParked] = useState<ParkedSale<CartLine>[]>(() => (parkedKey ? parseParked<CartLine>(readLocal(parkedKey)) : []));
+  const [showParked, setShowParked] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
   const [cartSel, setCartSel] = useState<Set<string>>(new Set());
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [showCustomer, setShowCustomer] = useState(false);
@@ -253,7 +281,31 @@ export function PosPage() {
   const [session, setSession] = useState<CashSession | null>(null);
   const [showShift, setShowShift] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
-
+  // ── Layout do POS de referência: menus do topo, separadores de categorias,
+  // painel "Opções" e linhas da venda expansíveis ──
+  const [topMenu, setTopMenu] = useState<'auto' | 'caixa' | 'docs' | null>(null);
+  const topMenuRef = useRef<HTMLElement | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [catMenu, setCatMenu] = useState(false);
+  const catMenuRef = useRef<HTMLDivElement | null>(null);
+  const [catFilter, setCatFilter] = useState('');
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [optsOpen, setOptsOpen] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [openLine, setOpenLine] = useState<string | null>(null);
+  useEffect(() => { api.categories().then(setCategories).catch(() => undefined); }, []);
+  // Fecha os menus do topo e o de categorias ao clicar fora / Esc.
+  useEffect(() => {
+    if (!topMenu && !catMenu) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (topMenuRef.current?.contains(t) || catMenuRef.current?.contains(t)) return;
+      setTopMenu(null); setCatMenu(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setTopMenu(null); setCatMenu(false); } };
+    document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [topMenu, catMenu]);
   // Chat de equipa (caixa ↔ gerente): badge de não-lidas + janela.
   const [showChat, setShowChat] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
@@ -293,7 +345,7 @@ export function PosPage() {
     const total = Math.round(gross * (1 - rate) * 100) / 100;
     const net = Math.round(lineNet(l) * (1 - rate) * 100) / 100;
     return {
-      description: l.product.name, quantity: l.quantity, unitPrice: l.quantity ? Math.round((gross / l.quantity) * 100) / 100 : gross, total,
+      code: l.product.code, description: l.product.name, quantity: l.quantity, unitPrice: l.quantity ? Math.round((gross / l.quantity) * 100) / 100 : gross, total,
       discount: Math.round((gross - total) * 100) / 100, discountRate: rate,
       // Para o quadro de IVA por taxa e o motivo de isenção no talão (menções obrigatórias).
       ivaRate: IVA_RATE[l.product.iva_code], net, iva: rate > 0 ? Math.round((total - net) * 100) / 100 : lineIva(l), exemptionCode: l.product.exemption_code ?? null,
@@ -452,7 +504,16 @@ export function PosPage() {
     const ids = new Set(local.map((p) => p.id));
     return [...local, ...searchHits.filter((p) => !ids.has(p.id))];
   }, [products, search, searchHits]);
-  /** Procura UM produto por código/código de barras: primeiro no que já está carregado,
+  /** Separadores: só as categorias que têm produtos carregados (como na referência). */
+  const catTabs = useMemo(() => {
+    const used = new Set(products.map((p) => p.category_id).filter(Boolean) as string[]);
+    return categories.filter((c) => used.has(c.id));
+  }, [categories, products]);
+  /** Grelha: pesquisa tem prioridade; sem pesquisa, filtra pela categoria escolhida. */
+  const shown = useMemo(
+    () => (search.trim() || !catFilter ? filtered : filtered.filter((p) => p.category_id === catFilter)),
+    [filtered, catFilter, search],
+  );  /** Procura UM produto por código/código de barras: primeiro no que já está carregado,
    *  depois no servidor/memória interna (catálogos que não cabem na grelha). */
   const lookupCode = useCallback(async (code: string): Promise<Product | null> => {
     const c = code.trim().toLowerCase();
@@ -587,14 +648,123 @@ export function PosPage() {
     }
   };
 
-  // Persiste o carrinho do operador (ou limpa a chave quando esvazia).
+  // Troca de operador/chave: carrega o carrinho guardado dessa chave ANTES de
+  // permitir qualquer escrita (B-03). Se o localStorage não tiver nada, tenta a
+  // cópia de segurança na base local (IndexedDB).
   useEffect(() => {
-    if (!cartKey) return;
+    if (!cartKey || loadedKeyRef.current === cartKey) return;
+    let cancel = false;
+    const s = parseStoredCart<Product>(readLocal(cartKey));
+    if (s) {
+      storedRef.current = s;
+      loadedKeyRef.current = cartKey;
+      setCart(s.lines);
+      return;
+    }
+    void kvGet<StoredCart<Product>>(cartBackupKey(cartKey)).then((b) => {
+      if (cancel) return;
+      const backup = b ? parseStoredCart<Product>(JSON.stringify(b)) : null;
+      storedRef.current = backup;
+      loadedKeyRef.current = cartKey;
+      if (backup?.lines.length) setCart(backup.lines);
+    }).catch(() => { if (!cancel) loadedKeyRef.current = cartKey; });
+    return () => { cancel = true; };
+  }, [cartKey]);
+
+  // Persiste o carrinho do operador IMEDIATAMENTE após cada alteração:
+  // localStorage (síncrono, sobrevive a refresh/fecho) + cópia na base local.
+  // Falha de escrita deixa de ser silenciosa (B-05).
+  useEffect(() => {
+    if (!cartKey || loadedKeyRef.current !== cartKey) return;
+    const now = Date.now();
+    const synced = fromServerRef.current;
+    fromServerRef.current = false;
+    const prev = storedRef.current;
+    // Cliente ainda por restaurar (lista de clientes a carregar): mantém o guardado.
+    const customerId = customer?.id ?? (customerRestoredRef.current ? null : prev?.customerId ?? null);
+    // Só conta como ALTERAÇÃO o que muda a venda (artigos, quantidades, cliente) —
+    // não um preço/stock atualizado do catálogo; senão cada refresh tornava o local
+    // "mais recente" que o servidor e a hidratação entre aparelhos nunca aplicava.
+    const changed = !prev || cartSignature(prev.lines, prev.customerId) !== cartSignature(cart, customerId);
+    const stored: StoredCart<Product> = {
+      v: 2,
+      lines: cart,
+      customerId,
+      updatedAt: synced ? now : changed ? now : (prev?.updatedAt ?? now),
+      syncedAt: synced ? now : (prev?.syncedAt ?? 0),
+    };
+    storedRef.current = stored;
+    let ok = true;
     try {
-      if (cart.length) localStorage.setItem(cartKey, JSON.stringify(cart));
+      if (cart.length) localStorage.setItem(cartKey, JSON.stringify(stored));
       else localStorage.removeItem(cartKey);
-    } catch { /* storage cheio/indisponível — ignora */ }
-  }, [cart, cartKey]);
+    } catch { ok = false; }
+    void (cart.length ? kvSet(cartBackupKey(cartKey), stored) : kvSet(cartBackupKey(cartKey), null))
+      .then(() => { if (!ok) setCartStorageWarn(false); })
+      .catch(() => { if (!ok) setCartStorageWarn(true); });
+    if (ok) setCartStorageWarn(false);
+  }, [cart, cartKey, customer]);
+
+  // Troca de operador: carrega as vendas suspensas DESSE operador.
+  const parkedLoadedRef = useRef(parkedKey);
+  useEffect(() => {
+    if (parkedLoadedRef.current === parkedKey) return;
+    parkedLoadedRef.current = parkedKey;
+    setParked(parkedKey ? parseParked<CartLine>(readLocal(parkedKey)) : []);
+  }, [parkedKey]);
+  // Persiste as vendas suspensas a cada alteração (localStorage + base local).
+  useEffect(() => {
+    if (!parkedKey || parkedLoadedRef.current !== parkedKey) return;
+    try {
+      if (parked.length) localStorage.setItem(parkedKey, JSON.stringify(parked));
+      else localStorage.removeItem(parkedKey);
+    } catch { setCartStorageWarn(true); }
+    void kvSet(`${parkedKey}:backup`, parked.length ? parked : null).catch(() => undefined);
+  }, [parked, parkedKey]);
+
+  /** "Nova venda": suspende a atual (se tiver artigos) e começa uma vazia. */
+  const parkCurrent = () => {
+    const r = park(parked, { lines: cart, customerId: customer?.id ?? null }, newUuid(), Date.now());
+    if (r.full) { flashError('Limite de vendas suspensas atingido. Retome ou descarte uma venda suspensa.'); return; }
+    if (!r.parked) return;
+    setParked(r.list);
+    setCart([]); setCartSel(new Set()); setCustomer(null);
+  };
+
+  /** Retoma uma venda suspensa; a atual (se tiver artigos) fica suspensa no lugar. */
+  const resumeParked = (id: string) => {
+    const r = resume(parked, id, { lines: cart, customerId: customer?.id ?? null }, newUuid(), Date.now());
+    if (!r.sale) return;
+    // Preços e stock reconfirmados com o catálogo atual — com aviso do que mudou.
+    const rec = products.length ? reconcileWithCatalog(r.sale.lines, products) : null;
+    setParked(r.list);
+    setCart(rec ? rec.lines : r.sale.lines);
+    setCartSel(new Set());
+    const c = r.sale.customerId ? customers.find((x) => x.id === r.sale!.customerId) ?? null : null;
+    setCustomer(c);
+    setShowParked(false);
+    const msg = rec ? describeReconcile(rec) : null;
+    if (msg) { setEmitError(msg); setTimeout(() => setEmitError(null), 8000); }
+  };
+
+  const discardParkedSale = (id: string) => {
+    if (confirmDiscard !== id) { setConfirmDiscard(id); return; }
+    setParked((prev) => discardParked(prev, id));
+    setConfirmDiscard(null);
+  };
+
+  // Repõe o cliente da venda guardada quando a lista de clientes chega (online
+  // ou da cache local) — o cliente associado sobrevive a refresh/reinício.
+  useEffect(() => {
+    if (customerRestoredRef.current || customers.length === 0) return;
+    customerRestoredRef.current = true;
+    const id = storedRef.current?.customerId;
+    if (id && !customer && cartRef.current.length) {
+      const c = customers.find((x) => x.id === id);
+      if (c) setCustomer(c);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customers]);
 
   // Diz ao posto que a caixa está OCUPADA — turno aberto, carrinho com artigos
   // ou fatura a ser emitida. É o único sinal que só este ecrã tem, e é o que
@@ -618,29 +788,16 @@ export function PosPage() {
 
   // Reconcilia o carrinho com o STOCK ATUAL (ex.: outro caixa vendeu entretanto):
   // remove o que esgotou/saiu do catálogo e ajusta quantidades ao disponível.
+  // Pratos SOB ENCOMENDA (ficha técnica) nunca são removidos nem limitados aqui
+  // (o stock real está nos ingredientes; a emissão valida-os). O que for retirado
+  // ou ajustado é AVISADO ao funcionário — nunca desaparece em silêncio (B-02).
   useEffect(() => {
-    if (products.length === 0) return;
-    setCart((prev) => {
-      if (prev.length === 0) return prev;
-      let changed = false;
-      const out: CartLine[] = [];
-      for (const l of prev) {
-        const fresh = products.find((p) => p.id === l.product.id);
-        if (!fresh) { changed = true; continue; }
-        // Pratos SOB ENCOMENDA (ficha técnica) têm stock próprio 0 por natureza —
-        // o stock real está nos ingredientes. NÃO os remover nem clampar aqui,
-        // senão a reconciliação apaga-os do carrinho logo no refetch seguinte
-        // (a emissão é que valida os ingredientes). Espelha addToCart/changeQty.
-        const madeToOrder = !!fresh.has_recipe;
-        const stock = Number(fresh.stock_qty);
-        if (!madeToOrder && stock <= 0) { changed = true; continue; }
-        const qty = madeToOrder ? l.quantity : Math.min(l.quantity, stock);
-        if (qty !== l.quantity || fresh !== l.product) changed = true;
-        out.push({ product: fresh, quantity: qty });
-      }
-      // Ajuste SILENCIOSO ao stock atual (o utilizador não precisa de ver o aviso).
-      return changed ? out : prev;
-    });
+    if (products.length === 0 || cartRef.current.length === 0) return;
+    const r = reconcileWithCatalog(cartRef.current, products);
+    if (!r.changed) return;
+    setCart(r.lines);
+    const msg = describeReconcile(r);
+    if (msg) { setEmitError(msg); setTimeout(() => setEmitError(null), 8000); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
 
@@ -663,6 +820,16 @@ export function PosPage() {
           return;
         }
         const draft = await api.getCartDraft();
+        const serverHasLines = !!draft && Array.isArray(draft.lines) && draft.lines.length > 0;
+        // B-01: alterações locais ainda não enviadas (ex.: feitas sem rede) ganham
+        // SEMPRE ao rascunho do servidor — nunca são substituídas às cegas.
+        if (decideHydration(storedRef.current, serverHasLines) === 'local') return;
+        if (!serverHasLines) {
+          // Local já sincronizado e servidor vazio: a venda foi concluída/limpa
+          // noutro aparelho deste operador.
+          if (cartRef.current.length) { fromServerRef.current = true; setCart([]); }
+          return;
+        }
         if (draft && Array.isArray(draft.lines) && draft.lines.length) {
           const lines: CartLine[] = [];
           for (const d of draft.lines) {
@@ -675,7 +842,7 @@ export function PosPage() {
             if (!madeToOrder && stock <= 0) continue;
             lines.push({ product: p, quantity: madeToOrder ? d.quantity : Math.min(d.quantity, stock) });
           }
-          if (lines.length) setCart(lines);
+          if (lines.length) { fromServerRef.current = true; setCart(lines); }
           if (draft.customerId) {
             const c = customers.find((x) => x.id === draft.customerId);
             if (c) setCustomer(c);
@@ -693,8 +860,18 @@ export function PosPage() {
     if (!hydratedRef.current || !sync.online) return;
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => {
-      if (cart.length === 0) void api.clearCartDraft().catch(() => undefined);
-      else void api.saveCartDraft(cart.map((l) => ({ productId: l.product.id, quantity: l.quantity })), customer?.id ?? null).catch(() => undefined);
+      // Marca como sincronizado SÓ o conteúdo que o servidor confirmou.
+      const sent = storedRef.current?.updatedAt ?? 0;
+      const markSynced = () => {
+        const s = storedRef.current;
+        if (!s || s.updatedAt !== sent || !cartKey) return;
+        const next = { ...s, syncedAt: s.updatedAt };
+        storedRef.current = next;
+        try { if (next.lines.length) localStorage.setItem(cartKey, JSON.stringify(next)); } catch { /* aviso já tratado na persistência */ }
+        if (next.lines.length) void kvSet(cartBackupKey(cartKey), next).catch(() => undefined);
+      };
+      if (cart.length === 0) void api.clearCartDraft().then(markSynced).catch(() => undefined);
+      else void api.saveCartDraft(cart.map((l) => ({ productId: l.product.id, quantity: l.quantity })), customer?.id ?? null).then(markSynced).catch(() => undefined);
     }, 700);
     return () => { if (saveTimer.current) window.clearTimeout(saveTimer.current); };
   }, [cart, customer, sync.online]);
@@ -908,58 +1085,68 @@ export function PosPage() {
   return (
     <div className="app-bg">
       <div className="pos">
-        <header className="topbar">
+        {/* Barra de topo no padrão do POS de referência: ☰ + marca à esquerda;
+            menus Autoconsumo / Caixa / Documentos e o operador à direita.
+            Logótipo e nome são os do LPS Vendas / da empresa. */}
+        <header className="topbar vtop">
           <img className="topbar-logo" src={identity?.logoUrl || LOGO_SRC} alt={identity?.companyName || SYSTEM_SHORT} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
           <div className="who">
             <div className="name">{identity?.companyName || `${SYSTEM_SHORT} · Caixa`}</div>
-            {user?.storeName ? <div className="store-tag">{user.storeName}</div> : null}
           </div>
           <span className="spacer" />
-          <button
-            className={`conn ${session ? 'on' : 'off'}`}
-            onClick={() => setShowShift(true)}
-            title={session ? 'Turno aberto — clique para fechar' : 'Sem turno — clique para abrir'}
-          >
-            <IconReceipt size={18} />
-            <span className="conn-label">{session ? 'Turno aberto' : 'Abrir turno'}</span>
-          </button>
-          <button className="conn" onClick={() => setShowSales(true)} title="Histórico de vendas / cancelar">
-            <IconCart size={18} />
-            <span className="conn-label">Vendas</span>
-          </button>
-          {identity?.businessType === 'RESTAURANT' ? (
-            <button className="conn" onClick={() => setShowKitchen(true)} title="Pedidos prontos da cozinha (balcão)">
-              <IconReceipt size={18} />
-              <span className="conn-label">Cozinha</span>
-              {kitchenReady > 0 ? <span className="conn-badge" style={{ background: '#e5484d' }}>{kitchenReady > 99 ? '99+' : kitchenReady}</span> : null}
+          <nav className="vtop-menus" ref={topMenuRef}>
+            <div className="vtop-m">
+              <button className={topMenu === 'auto' ? 'on' : ''} onClick={() => setTopMenu((m) => (m === 'auto' ? null : 'auto'))} aria-expanded={topMenu === 'auto'}>Autoconsumo <Chev /></button>
+              {topMenu === 'auto' ? (
+                <div className="vtop-drop" role="menu">
+                  <button role="menuitem" onClick={() => { setTopMenu(null); setShowConsumption(true); }}>Registar</button>
+                </div>
+              ) : null}
+            </div>
+            <div className="vtop-m">
+              <button className={topMenu === 'caixa' ? 'on' : ''} onClick={() => setTopMenu((m) => (m === 'caixa' ? null : 'caixa'))} aria-expanded={topMenu === 'caixa'}>
+                Caixa <span className={`vtop-dot ${session ? 'ok' : 'off'}`} aria-label={session ? 'Turno aberto' : 'Sem turno'} /> <Chev />
+              </button>
+              {topMenu === 'caixa' ? (
+                <div className="vtop-drop" role="menu">
+                  <div className="vtop-state">Estado da Caixa <b className={session ? 'ok' : 'off'}>{session ? 'Caixa Aberta' : 'Caixa Fechada'}</b></div>
+                  <button role="menuitem" onClick={() => { setTopMenu(null); setShowShift(true); }}>{session ? 'Fechar Caixa' : 'Abrir Caixa'}<small>{session ? 'Contagem e fecho do turno' : 'Abrir turno para vender'}</small></button>
+                  {session ? <button role="menuitem" onClick={() => { setTopMenu(null); setShowShift(true); }}>Entrada / Saída de dinheiro<small>Reforço ou sangria manual</small></button> : null}
+                  {session ? <button role="menuitem" onClick={() => { setTopMenu(null); setShowShift(true); }}>Ponto de Caixa<small>Ponto de situação dos movimentos</small></button> : null}
+                  {identity?.businessType === 'RESTAURANT' ? (
+                    <button role="menuitem" onClick={() => { setTopMenu(null); setShowKitchen(true); }}>Cozinha{kitchenReady > 0 ? ` (${kitchenReady})` : ''}<small>Pedidos prontos do balcão</small></button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="vtop-m">
+              <button className={topMenu === 'docs' ? 'on' : ''} onClick={() => setTopMenu((m) => (m === 'docs' ? null : 'docs'))} aria-expanded={topMenu === 'docs'}>Documentos <Chev /></button>
+              {topMenu === 'docs' ? (
+                <div className="vtop-drop" role="menu">
+                  <button role="menuitem" onClick={() => { setTopMenu(null); setShowSales(true); }}>Faturação<small>Faturas, recibos e anulações</small></button>
+                  {isNativeApp() && sync.pending > 0 ? (
+                    <button role="menuitem" onClick={() => { setTopMenu(null); setShowQueue(true); }}>Por enviar ({sync.pending})<small>{sync.online ? 'A enviar sozinhas' : 'Sem rede — enviam quando houver ligação'}</small></button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </nav>
+          {/* Sincronização automática e invisível; só aparece se o servidor RECUSAR algo. */}
+          {isNativeApp() && !!sync.lastError && sync.pending > 0 ? (
+            <button className={`conn ${sync.online ? 'on' : 'off'}`} onClick={() => setShowQueue(true)}
+              title={sync.online ? 'Vendas guardadas no aparelho — enviam-se sozinhas' : 'Sem rede — envia sozinho quando houver ligação'}>
+              {sync.online ? <IconCloud size={18} /> : <IconCloudOff size={18} />}
+              <span className="conn-badge">{sync.pending}</span>
             </button>
           ) : null}
-          {/* A sincronização é AUTOMÁTICA e INVISÍVEL (decisão do dono do produto): nada aparece
-              enquanto se trabalha com ou sem rede. Só surge um aviso se o servidor RECUSAR algo
-              (ex.: uma venda com erro), para o operador poder rever. */}
-          {isNativeApp() && !!sync.lastError && sync.pending > 0 ? (
-          <button
-            className={`conn ${sync.online ? 'on' : 'off'}`}
-            onClick={() => setShowQueue(true)}
-            title={sync.online ? 'Vendas guardadas no aparelho — enviam-se sozinhas' : 'Sem rede — a trabalhar no aparelho; envia sozinho quando houver ligação'}
-          >
-            {sync.online ? <IconCloud size={18} /> : <IconCloudOff size={18} />}
-            <span className="conn-label">{sync.online ? 'A enviar' : 'Sem rede'}</span>
-            {sync.pending > 0 ? <span className="conn-badge">{sync.pending}</span> : null}
-          </button>
-          ) : null}
-          <button
-            className={`icon-btn${kbd.enabled ? ' on' : ''}`}
-            onClick={kbd.toggle}
-            title="Teclado no ecrã"
-          >
-            <IconKeyboard size={22} />
+          <button className={`icon-btn${kbd.enabled ? ' on' : ''}`} onClick={kbd.toggle} title="Teclado no ecrã" aria-label="Teclado no ecrã">
+            <IconKeyboard size={20} />
           </button>
           <ThemePicker />
           <OperatorMenu
             photo={operatorPhoto}
             name={user?.name || user?.email || 'Operador'}
-            email={user?.email || ''}
+            email={user?.storeName || user?.email || ''}
             role={user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
             unread={chatUnread}
             custUnread={custUnread}
@@ -974,215 +1161,195 @@ export function PosPage() {
           />
         </header>
 
-        <div className="pos-body">
-          {/* Catálogo */}
-          <section className="catalog">
-            <div className="search-bar">
-              <div style={{ flex: 1 }}>
-                <KeyboardInput
-                  icon={<IconSearch size={18} />}
-                  placeholder="Procurar produto por nome, código ou código de barras…"
-                  value={search}
-                  onChange={setSearch}
-                  onSubmit={onSearchEnter}
-                />
+        <div className="pos-body vpos">
+          {/* Catálogo: separadores (pesquisa, todas as categorias, categorias) + grelha */}
+          <section className="catalog vcat">
+            <div className="vtabs" role="tablist" aria-label="Categorias">
+              <button className={`vtab ic${showSearch ? ' on' : ''}`} onClick={() => setShowSearch((v) => !v)} aria-label="Pesquisar" aria-pressed={showSearch}><IconSearch size={18} /></button>
+              <div className="vtab-wrap" ref={catMenuRef}>
+                <button className={`vtab ic${catMenu ? ' on' : ''}`} onClick={() => setCatMenu((v) => !v)} aria-label="Todas as categorias" aria-expanded={catMenu}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor" /><path d="m8 10 4 4 4-4" fill="none" stroke="var(--vpos-tab, #0eaaa6)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+                {catMenu ? (
+                  <div className="vtop-drop vcat-drop" role="menu">
+                    <button role="menuitem" className={catFilter === '' ? 'on' : ''} onClick={() => { setCatFilter(''); setCatMenu(false); }}>Todos os produtos</button>
+                    {catTabs.map((c) => (
+                      <button role="menuitem" key={c.id} className={catFilter === c.id ? 'on' : ''} onClick={() => { setCatFilter(c.id); setCatMenu(false); }}>{c.name}</button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-              <BarcodeScanner continuous onDetected={(code) => scanResolve(code)} />
-              <button className="icon-btn" title="Atualizar produtos" onClick={() => void refreshProducts()}>
-                <IconSync size={20} />
-              </button>
+              {catTabs.slice(0, 8).map((c) => (
+                <button key={c.id} role="tab" aria-selected={catFilter === c.id} className={`vtab${catFilter === c.id ? ' sel' : ''}`} onClick={() => setCatFilter((f) => (f === c.id ? '' : c.id))}>{c.name}</button>
+              ))}
             </div>
 
-            {loading ? (
-              <div className="empty">A carregar produtos…</div>
-            ) : error ? (
-              <div className="empty">
-                <div className="banner danger">{error}</div>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="empty">
-                <IconCube size={40} />
-                <div>{search ? 'Nenhum produto encontrado.' : 'Sem produtos activos.'}</div>
-              </div>
-            ) : (
-              <div className="grid">
-                {filtered.map((p) => {
-                  const stock = Number(p.stock_qty);
-                  // Prato com ficha técnica: "Sob encomenda" (nunca "Esgotado") —
-                  // o stock real está nos ingredientes.
-                  const madeToOrder = !!p.has_recipe;
-                  const out = !madeToOrder && stock <= 0;
-                  return (
-                    <button key={p.id} className={`prod prod2${out ? ' out' : ''}`} onClick={() => addToCart(p)} title={p.name}>
-                      <div className="prod2-top">
-                        {p.image_url
-                          ? <img className="prod2-img" src={p.image_url} alt="" loading="lazy" />
-                          : <span className="prod2-mono" style={{ background: monoColor(p.name) }} aria-hidden="true">{monoOf(p.name)}</span>}
-                        <div className="prod2-txt">
-                          <div className="pname">{p.name}</div>
-                          <div className="pcode">{p.code}</div>
-                        </div>
-                      </div>
-                      <div className="pstock">
-                        {madeToOrder
-                          ? (() => {
-                              // Fornada na prateleira (padaria): mostra o stock produzido.
-                              if (stock > 0) return <span className={`stock-ok${stock <= 5 ? ' low' : ''}`}>{formatNumber(stock)} na prateleira</span>;
-                              // Doses possíveis com o stock atual dos ingredientes.
-                              const doses = p.portions_available == null ? null : Number(p.portions_available);
-                              if (doses != null && doses <= 0) return <span className="stock-out">Ingredientes esgotados</span>;
-                              return (
-                                <span className="stock-mto">
-                                  Sob encomenda{doses != null && doses < 100 ? ` · ${formatNumber(doses)} disp.` : ''}
-                                </span>
-                              );
-                            })()
-                          : out
-                            ? <span className="stock-out">Esgotado</span>
-                            : <span className={`stock-ok${stock <= 5 ? ' low' : ''}`}>{formatNumber(stock)} em stock</span>}
-                      </div>
-                      <div className="pfoot">
-                        <span className="pprice">{formatKz(grossUnit(p))}</span>
-                        <span className="iva-badge">{p.iva_code}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <div className="vcat-body">
+              {showSearch || search ? (
+                <div className="search-bar vsearch">
+                  <div style={{ flex: 1 }}>
+                    <KeyboardInput
+                      icon={<IconSearch size={18} />}
+                      placeholder="Pesquisar por nome, código ou código de barras"
+                      value={search}
+                      onChange={setSearch}
+                      onSubmit={onSearchEnter}
+                    />
+                  </div>
+                  <BarcodeScanner continuous onDetected={(code) => scanResolve(code)} />
+                  <button className="icon-btn" title="Atualizar produtos" aria-label="Atualizar produtos" onClick={() => void refreshProducts()}>
+                    <IconSync size={20} />
+                  </button>
+                </div>
+              ) : null}
+
+              {loading ? (
+                <div className="empty"><div className="vproc vproc-sm" style={{ color: 'var(--muted)', textShadow: 'none' }}><div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div><span>A sincronizar produtos…</span></div></div>
+              ) : error ? (
+                <div className="empty"><div className="banner danger">{error}</div></div>
+              ) : shown.length === 0 ? (
+                <div className="empty">
+                  <IconCube size={40} />
+                  <div>{search ? 'Nenhum produto encontrado.' : catFilter ? 'Sem produtos nesta categoria.' : 'Sem produtos activos.'}</div>
+                </div>
+              ) : (
+                <div className="vgrid">
+                  {shown.map((p, i) => {
+                    const stock = Number(p.stock_qty);
+                    const madeToOrder = !!p.has_recipe;
+                    const out = !madeToOrder && stock <= 0;
+                    return (
+                      <button key={p.id} className={`vtile${out ? ' out' : ''}${p.image_url ? ' img' : ''}`} onClick={() => addToCart(p)} title={`${p.name} · ${p.code}${madeToOrder ? '' : ` · ${out ? 'Esgotado' : `${formatNumber(stock)} em stock`}`}`}
+                        style={{ animationDelay: `${Math.min(i, 24) * 12}ms` }}>
+                        {p.image_url ? <img src={p.image_url} alt="" loading="lazy" /> : null}
+                        <span className="vt-name">{p.name}</span>
+                        <span className="vt-price">{formatKz(grossUnit(p))}</span>
+                        {out ? <span className="vt-flag">Esgotado</span> : stock > 0 && stock <= 5 && !madeToOrder ? <span className="vt-flag low">{formatNumber(stock)}</span> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </section>
 
-          {/* Carrinho */}
-          <aside className="cart">
-            <h2>
-              <IconCart size={20} /> Carrinho{' '}
-              {totals.count > 0 ? <span className="muted">· {formatNumber(totals.count)} un</span> : null}
-            </h2>
+          {/* Venda: navegação entre vendas, tabela, total, Opções e FINALIZAR */}
+          <aside className="cart vcart">
+            <div className="vsale-nav">
+              <button onClick={() => parked.length && resumeParked(parked[parked.length - 1].id)} disabled={parked.length === 0} aria-label="Venda anterior">‹</button>
+              <span>Venda (<b>{parked.length + 1}/{parked.length + 1}</b>)</span>
+              <button onClick={() => parked.length && resumeParked(parked[0].id)} disabled={parked.length === 0} aria-label="Venda seguinte">›</button>
+            </div>
 
-            {cart.length === 0 ? (
-              <div className="empty">
-                <IconCart size={40} />
-                <div>Carrinho vazio</div>
-                <div className="muted" style={{ fontSize: 13 }}>
-                  Toque num produto para adicionar.
+            <div className="vcart-box">
+              {optsOpen ? (
+                <div className="vopts" role="menu">
+                  <button role="menuitem" onClick={() => { setOptsOpen(false); setShowCustomer(true); }}><IconUser size={18} /> {customer ? `Cliente: ${customer.name}` : 'Cliente'}</button>
+                  <button role="menuitem" onClick={() => { setOptsOpen(false); parkCurrent(); }} disabled={cart.length === 0}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><path d="M17 21v-8H7v8M7 3v5h8" /></svg> Nova Venda
+                  </button>
+                  {parked.length > 0 ? (
+                    <button role="menuitem" onClick={() => { setOptsOpen(false); setShowParked(true); }}><IconReceipt size={18} /> Vendas suspensas ({parked.length})</button>
+                  ) : null}
+                  {identity?.businessType === 'RESTAURANT' && session && sync.online ? (
+                    <button role="menuitem" onClick={() => { setOptsOpen(false); void fireToKitchen(); }} disabled={cart.length === 0 || firing || emitting}><IconReceipt size={18} /> {firing ? 'A enviar…' : 'Enviar para cozinha'}</button>
+                  ) : null}
+                  {!session && sync.online ? (
+                    <button role="menuitem" onClick={() => { setOptsOpen(false); setShowShift(true); }}><IconReceipt size={18} /> Abrir Caixa</button>
+                  ) : null}
+                  <button role="menuitem" onClick={() => { if (confirmCancel) { setCart([]); setCartSel(new Set()); setCustomer(null); setConfirmCancel(false); setOptsOpen(false); } else setConfirmCancel(true); }} disabled={cart.length === 0}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg> {confirmCancel ? 'Confirmar: cancelar venda' : 'Cancelar Venda'}
+                  </button>
                 </div>
-              </div>
-            ) : (
-              <div className="cart-lines">
-                {/* Barra de seleção só aparece DEPOIS de marcar ≥1 produto —
-                    não estraga a estética do carrinho ao lançar. */}
-                {cartSel.size > 0 ? (
-                  <div className="row" style={{ gap: 8, alignItems: 'center', padding: '0 2px 6px' }}>
-                    <label className="row" style={{ gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={allCartSel} onChange={toggleAllCart} aria-label="Selecionar tudo" />
-                      Selecionar tudo
-                    </label>
-                    <span className="spacer" style={{ flex: 1 }} />
-                    <button className="btn sm ghost" onClick={clearCart}>Limpar ({cartSel.size})</button>
-                  </div>
-                ) : null}
-                {cart.map((l) => (
-                  <div className="cart-line" key={l.product.id}>
-                    <div className="cl-top">
-                      <input type="checkbox" style={{ marginRight: 8 }} checked={cartSel.has(l.product.id)} onChange={() => toggleCartSel(l.product.id)} aria-label={`Selecionar ${l.product.name}`} />
-                      <div>
-                        <div className="cl-name">{l.product.name}</div>
-                        <div className="cl-sub">
-                          {formatKz(grossUnit(l.product))} · {l.product.iva_code}
-                        </div>
-                      </div>
-                      <button className="trash" onClick={() => removeLine(l.product.id)} aria-label="Remover">
-                        <IconTrash size={18} />
-                      </button>
+              ) : (
+                <>
+                  {showParked && parked.length > 0 ? (
+                    <div className="parked-list" role="list">
+                      {parked.map((s) => {
+                        const t = cartTotals(s.lines);
+                        const cli = s.customerId ? customers.find((c) => c.id === s.customerId)?.name : null;
+                        return (
+                          <div className="parked-item" role="listitem" key={s.id}>
+                            <div className="parked-info">
+                              <strong>{formatKz(t.gross)}</strong>
+                              <span className="muted">{formatNumber(t.count)} un · {new Date(s.parkedAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}{cli ? ` · ${cli}` : ''}</span>
+                            </div>
+                            <button className="btn sm" onClick={() => resumeParked(s.id)}>Retomar</button>
+                            <button className="btn sm ghost" onClick={() => discardParkedSale(s.id)}>{confirmDiscard === s.id ? 'Confirmar descarte' : 'Descartar'}</button>
+                          </div>
+                        );
+                      })}
+                      <button className="btn sm ghost block" onClick={() => setShowParked(false)}>Fechar</button>
                     </div>
-                    <div className="cl-bottom">
-                      <div className="stepper">
-                        <button onClick={() => changeQty(l.product.id, -1)} aria-label="Menos">
-                          <IconMinus size={18} />
-                        </button>
-                        <span className="qty">{l.quantity}</span>
-                        <button onClick={() => changeQty(l.product.id, +1)} aria-label="Mais">
-                          <IconPlus size={18} />
-                        </button>
-                      </div>
-                      <button className="btn sm ghost cl-disc" onClick={() => setDiscLine(l)} title="Desconto neste artigo">
-                        {(manualDisc[l.product.id] ?? 0) > 0 ? `−${(Math.round((manualDisc[l.product.id] ?? 0) * 1000) / 10).toLocaleString('pt-PT')} %` : '% Desc.'}
-                      </button>
-                      {(() => {
+                  ) : null}
+                  <div className="vtable-h"><span>Produto</span><span>Qtd</span><span>Preço</span><span /></div>
+                  {cart.length === 0 ? (
+                    <div className="vtable-empty">Para começar a faturar, adicione produtos à venda.</div>
+                  ) : (
+                    <div className="vtable-b cart-lines">
+                      {cart.map((l) => {
                         const rate = discountRateByProduct[l.product.id] ?? 0;
                         const gross = lineGross(l);
-                        if (rate > 0) {
-                          return (
-                            <span className="cl-total" style={{ textAlign: 'right' }}>
-                              <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontWeight: 600, fontSize: 12, display: 'block' }}>{formatKz(gross)}</span>
-                              <span style={{ color: 'var(--success)' }}>{formatKz(Math.round(gross * (1 - rate) * 100) / 100)}</span>
-                            </span>
-                          );
-                        }
-                        return <span className="cl-total">{formatKz(gross)}</span>;
-                      })()}
+                        const open = openLine === l.product.id;
+                        return (
+                          <div className={`vline${open ? ' open' : ''}`} key={l.product.id}>
+                            <button className="vline-main" onClick={() => setOpenLine(open ? null : l.product.id)} aria-expanded={open}>
+                              <span className="vl-name">{l.product.name}{promoByProduct[l.product.id]?.name ? <small>{promoByProduct[l.product.id].name}</small> : null}</span>
+                              <span className="vl-qty">{formatNumber(l.quantity)}</span>
+                              <span className="vl-price">
+                                {rate > 0 ? <><s>{formatKz(gross)}</s>{formatKz(Math.round(gross * (1 - rate) * 100) / 100)}</> : formatKz(gross)}
+                              </span>
+                            </button>
+                            <button className="vl-del" onClick={() => removeLine(l.product.id)} aria-label={`Remover ${l.product.name}`}>✕</button>
+                            {open ? (
+                              <div className="vline-ctl">
+                                <div className="stepper">
+                                  <button onClick={() => changeQty(l.product.id, -1)} aria-label="Menos"><IconMinus size={16} /></button>
+                                  <span className="qty">{l.quantity}</span>
+                                  <button onClick={() => changeQty(l.product.id, +1)} aria-label="Mais"><IconPlus size={16} /></button>
+                                </div>
+                                <span className="muted" style={{ fontSize: 12 }}>{formatKz(grossUnit(l.product))} · {l.product.iva_code}</span>
+                                <button className="btn sm ghost" onClick={() => setDiscLine(l)}>
+                                  {(manualDisc[l.product.id] ?? 0) > 0 ? `−${(Math.round((manualDisc[l.product.id] ?? 0) * 1000) / 10).toLocaleString('pt-PT')} %` : '% Desconto'}
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
                     </div>
-                    {promoByProduct[l.product.id]?.name ? (
-                      <div className="cl-promo">{promoByProduct[l.product.id].name}</div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="cart-foot">
-              <button className="btn ghost block" onClick={() => setShowCustomer(true)}>
-                <IconUser size={18} /> {customer ? customer.name : 'Consumidor final'}
-              </button>
-
-              {emitError ? <div className="banner danger">{emitError}</div> : null}
-              {okMsg ? <div className="banner" style={{ background: 'color-mix(in srgb, var(--success, #30a46c) 16%, transparent)', color: 'var(--success, #1a7f4b)', fontWeight: 700 }}>{okMsg}</div> : null}
-
-              <div className="totals">
-                <div className="t-row">
-                  <span>Base tributável</span>
-                  <span>{formatKz(totals.net)}</span>
-                </div>
-                <div className="t-row">
-                  <span>IVA</span>
-                  <span>{formatKz(totals.iva)}</span>
-                </div>
-                {totals.discount > 0 ? (
-                  <div className="t-row" style={{ color: 'var(--success)' }}>
-                    <span>{hasManual ? 'Descontos' : 'Desconto promoções'}</span>
-                    <span>−{formatKz(totals.discount)}</span>
-                  </div>
-                ) : null}
-                <div className="t-row grand">
-                  <span>Total</span>
-                  <span>{formatKz(totals.gross)}</span>
-                </div>
-              </div>
-
-              {!session && sync.online ? (
-                <button className="btn lg block" onClick={() => setShowShift(true)}>
-                  <IconReceipt size={18} /> Abrir turno para vender
-                </button>
-              ) : (
-                <button
-                  className="btn success lg block"
-                  onClick={finalize}
-                  disabled={cart.length === 0 || emitting}
-                >
-                  {emitting
-                    ? 'A emitir…'
-                    : sync.online
-                      ? 'Finalizar venda'
-                      : 'Guardar venda (offline)'}
-                </button>
+                  )}
+                  {customer ? (
+                    <button className="vcust" onClick={() => setShowCustomer(true)}><IconUser size={16} /> {customer.name}</button>
+                  ) : null}
+                </>
               )}
-              {/* BALCÃO: enviar o pedido à cozinha (produz-se e depois chama-se o pronto).
-                  SÓ na restauração — noutros setores (retalho, serviços, clínica…) a
-                  cozinha não existe, por isso o botão não aparece. */}
-              {identity?.businessType === 'RESTAURANT' && session && sync.online && cart.length > 0 ? (
-                <button className="btn ghost lg block" style={{ marginTop: 8 }} onClick={() => void fireToKitchen()} disabled={firing || emitting}>
-                  {firing ? 'A enviar…' : 'Enviar para cozinha'}
-                </button>
+            </div>
+
+            {emitError ? <div className="banner danger">{emitError}</div> : null}
+            {cartStorageWarn ? <div className="banner danger">Não foi possível guardar o carrinho neste aparelho. Conclua a venda antes de fechar a aplicação.</div> : null}
+            {okMsg ? <div className="banner" style={{ background: 'color-mix(in srgb, var(--success, #30a46c) 16%, transparent)', color: 'var(--success, #1a7f4b)', fontWeight: 700 }}>{okMsg}</div> : null}
+
+            <div className="vtotal">
+              <span>TOTAL</span>
+              <div>
+                <b>{formatKz(totals.gross)}</b>
+                <small>{cart.length} Produtos / {formatNumber(totals.count)} Uni.{totals.discount > 0 ? ` · −${formatKz(totals.discount)}` : ''}</small>
+              </div>
+            </div>
+            <div className="vactions">
+              <button className={`vopt-btn${optsOpen ? ' on' : ''}`} onClick={() => { setOptsOpen((v) => !v); setConfirmCancel(false); }} aria-expanded={optsOpen}>
+                <span className="car" aria-hidden="true">{optsOpen ? '⌄' : '⌃'}</span> Opções
+              </button>
+              {!optsOpen ? (
+                !session && sync.online ? (
+                  <button className="vfinal" onClick={() => setShowShift(true)}>ABRIR CAIXA</button>
+                ) : (
+                  <button className="vfinal" onClick={finalize} disabled={cart.length === 0 || emitting}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                    {emitting ? 'A EMITIR…' : sync.online ? 'FINALIZAR' : 'GUARDAR'}
+                  </button>
+                )
               ) : null}
             </div>
           </aside>
@@ -1296,11 +1463,17 @@ export function PosPage() {
         role={user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Equipa'}
       />
 
+      {emitting ? (
+        <div className="vproc-bg" role="status" aria-live="polite"><div className="vproc"><div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div><span>A processar documento…</span></div></div>
+      ) : null}
+
       {showPayment ? (
         <PaymentModal
           total={totals.gross}
           customerName={customer?.name ?? null}
           prescriptionItems={cart.filter((l) => l.product.requires_prescription).map((l) => l.product.name)}
+          lines={cart.map((l) => ({ name: l.product.name, qty: l.quantity, gross: lineGross(l) }))}
+          onEditCustomer={() => setShowCustomer(true)}
           busy={emitting}
           onConfirm={doEmit}
           onClose={() => setShowPayment(false)}
@@ -1353,3 +1526,5 @@ function ProductionPrompt({
     </div>
   );
 }
+
+const Chev = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>;

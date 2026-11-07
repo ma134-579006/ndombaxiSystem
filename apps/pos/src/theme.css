@@ -351,6 +351,13 @@ html.kbd-open .login-card .footer-credit { display: none; }
 .cart { border-left: 1px solid var(--border); background: var(--bg-2); display: flex; flex-direction: column; min-height: 0; }
 .cart h2 { margin: 0; padding: 16px 18px; font-size: 18px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:10px;}
 .cart-lines { flex: 1; overflow: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+/* Vendas suspensas (lista recolhível sob o cabeçalho do carrinho). */
+.parked-list { border-bottom: 1px solid var(--border); padding: 8px 14px; display: flex; flex-direction: column; gap: 6px; max-height: 40%; overflow: auto; animation: parked-in .16s ease-out; }
+.parked-item { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; }
+.parked-info { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13px; }
+.parked-info .muted { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@keyframes parked-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .parked-list { animation: none; } }
 .cart-line { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
 .cart-line .cl-top { display: flex; justify-content: space-between; gap: 8px; }
 .cart-line .cl-name { font-weight: 700; font-size: 14px; }

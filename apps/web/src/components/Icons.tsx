@@ -406,3 +406,55 @@ export const IconUpload = svg(
     <path d="m7 8 5-5 5 5M12 3v12" />
   </>,
 );
+
+/* ── Ícones com as mesmas METÁFORAS do backoffice de referência (desenho
+   próprio, traço 2px): pulso=dashboard, saco=produtos, pasta=documentos,
+   barras=relatórios, escudo-visto=AGT, ajuda=?, divisas=compras. ── */
+export const IconActivity = svg(<path d="M22 12h-4l-3 9L9 3l-3 9H2" />);
+export const IconBag = svg(
+  <>
+    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+    <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
+  </>,
+);
+export const IconFolder = svg(<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2Z" />);
+export const IconBars = svg(<path d="M12 20V10M18 20V4M6 20v-4" />);
+export const IconShieldCheck = svg(
+  <>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+    <path d="m9 12 2 2 4-4" />
+  </>,
+);
+export const IconCheckCircle = svg(
+  <>
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <path d="M22 4 12 14.01l-3-3" />
+  </>,
+);
+export const IconAlertCircle = svg(
+  <>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 8v4M12 16h.01" />
+  </>,
+);
+export const IconHelp = svg(
+  <>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" />
+  </>,
+);
+export const IconChevronDown = svg(<path d="m6 9 6 6 6-6" />);
+export const IconSort = svg(<path d="m8 9 4-4 4 4M16 15l-4 4-4-4" />);
+export const IconLayers = svg(
+  <>
+    <path d="m12 2 10 5-10 5L2 7Z" />
+    <path d="m2 17 10 5 10-5M2 12l10 5 10-5" />
+  </>,
+);
+export const IconUserGroup = svg(
+  <>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+  </>,
+);

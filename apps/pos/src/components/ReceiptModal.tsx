@@ -14,6 +14,8 @@ import { UiIcon } from './UiIcon';
 /** Linha de artigo da fatura (para a tabela no recibo/PDF). */
 export interface ReceiptItem {
   description: string; quantity: number; unitPrice: number; total: number;
+  /** Referência do produto (1.ª coluna do talão, como no modelo de referência). */
+  code?: string;
   /** Opcionais (venda feita agora no POS): IVA por taxa e isenção no talão. */
   ivaRate?: number; net?: number; iva?: number; exemptionCode?: string | null;
   /** Desconto da linha em Kz e fração (promoção ou manual). */
@@ -42,7 +44,7 @@ function taxSummary(items: ReceiptItem[] | undefined, netTotal: number) {
   if (Math.abs(sum - netTotal) > 0.05) return { rows: [], exemptions: [...exempt] };
   return {
     rows: [...rows.entries()].sort((a, b) => b[0] - a[0]).map(([rate, v]) => ({
-      label: rate === 0 ? 'Isento' : `IVA ${rate}%`, base: Math.round(v.base * 100) / 100, iva: Math.round(v.iva * 100) / 100,
+      label: rate === 0 ? 'Isento' : `IVA ${rate}%`, rate, base: Math.round(v.base * 100) / 100, iva: Math.round(v.iva * 100) / 100,
     })),
     exemptions: [...exempt],
   };
@@ -94,6 +96,22 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
   const companyMeta = identity
     ? [identity.nif ? `NIF ${identity.nif}` : '', identity.address ?? ''].filter(Boolean).join(' · ')
     : '';
+  // ── Estrutura do talão de referência ──
+  const headerLines = [
+    ...(identity?.address ? identity.address.split(/\n|,\s*/).map((s) => s.trim()).filter(Boolean) : []),
+    ...(identity?.nif ? [`NIF: ${identity.nif}`] : []),
+    ...(identity?.email ? [identity.email] : []),
+    ...(identity?.phone ? [`Tel.: ${identity.phone}`] : []),
+  ];
+  const viaLabel = provisional ? 'Provisório' : reprint ? 'Segunda Via cf. Original' : 'Original';
+  const certOk = !!info?.softwareCertificateNumber && String(info.softwareCertificateNumber) !== '0';
+  // Só se escreve "processado por programa validado" quando o nº de certificado está configurado.
+  const processedBy = !provisional && certOk ? `Processado por programa validado n.º ${info!.softwareCertificateNumber}` : null;
+  const PAYL: Record<string, string> = { CASH: 'Dinheiro', CARD: 'Multicaixa (TPA)', TRANSFER: 'Transferência', REFERENCE: 'Referência', EXPRESS: 'Multicaixa Express', CREDIT: 'Conta Corrente' };
+  const payLines = pay?.payments?.length
+    ? pay.payments.map((p) => ({ label: PAYL[p.type] ?? p.type, amount: p.amount }))
+    : pay ? [{ label: PAYL[pay.paymentType] ?? pay.paymentType, amount: pay.paymentType === 'CASH' && pay.tendered ? pay.tendered : invoice.grossTotal }] : [];
+  const changeGiven = !pay?.payments?.length && pay?.paymentType === 'CASH' && pay.tendered ? Math.max(0, pay.tendered - invoice.grossTotal) : null;
 
   // FATURA DIGITAL por WhatsApp: monta um resumo legível do documento e abre o
   // WhatsApp (app/Web) pronto a enviar. Funciona no telemóvel e no PC, sem app.
@@ -130,7 +148,7 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
   };
 
   const [pdfBusy, setPdfBusy] = useState(false);
-  const makePdf = () => buildInvoicePdf({ invoice, identity, info, customerName, operatorName, items, provisional });
+  const makePdf = () => buildInvoicePdf({ invoice, identity, info, customerName, operatorName, items, provisional, reprint, payments: payLines });
 
   // ── Impressão: tenta a TÉRMICA DIRETA (ESC/POS via USB, sem driver) e só
   // se não houver impressora emparelhada/compatível cai no diálogo do sistema.
@@ -146,30 +164,30 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
     setPrintBusy(true);
     try {
       const contact = [identity?.phone, identity?.email].filter(Boolean).join(' · ');
+      void contact;
       const ok = await printRaw({
         company: identity?.companyName || identity?.brandName || null,
-        meta: companyMeta || null,
-        title: `${invoice.number}${reprint ? ' - 2a via' : ''}${provisional ? ' (provisorio)' : ''}`,
+        headerLines: headerLines,
+        title: `${invoice.number}${provisional ? ' (provisorio)' : ''}`,
+        via: viaLabel,
         docTitle: designation,
-        taxRows: tax.rows.length > 1 || tax.exemptions.length ? tax.rows : undefined,
+        taxRows: tax.rows.length ? tax.rows : undefined,
         exemptions: tax.exemptions,
         qr: !provisional && invoice.feQr ? qrData : null,
         date: shownDate,
-        customer: customerName || 'Consumidor final',
+        customer: customerName || 'Consumidor Final',
         operator: operatorName || null,
-        items,
+        items: (items ?? []).map((it) => ({ ...it, exempt: it.ivaRate === 0 })),
+        payments: payLines,
+        change: changeGiven,
         netTotal: invoice.netTotal, ivaTotal: invoice.ivaTotal, grossTotal: invoice.grossTotal,
         hash: provisional ? null : hashShort,
+        processedBy: processedBy,
         legends: [
           ...(info?.fields.map((f) => `${f.label}: ${f.value}`) ?? []),
-          ...(info?.softwareCertificateNumber && String(info.softwareCertificateNumber) !== '0' ? [`Software certificado AGT n. ${info.softwareCertificateNumber}`] : []),
           ...(info?.receiptLegend ? [info.receiptLegend] : []),
         ],
-        footer: [
-          ...(identity?.address ? [identity.address] : []),
-          ...(contact ? [contact] : []),
-          identity?.receiptMessage || 'Obrigado pela preferência!',
-        ],
+        footer: [identity?.receiptMessage || 'Obrigado pela preferência!'],
       }, getPaper());
       if (!ok) window.print();
     } catch { window.print(); }
@@ -247,146 +265,79 @@ export function ReceiptModal({ invoice, info, identity, customerName, operatorNa
   return (
     <div className="modal-bg" onClick={onClose}>
       <div className="card receipt" onClick={(e) => e.stopPropagation()}>
-        {identity && (identity.companyName || identity.brandName) ? (
-          <div className="r-company">
-            {identity.logoUrl ? <img src={identity.logoUrl} alt={identity.companyName} /> : null}
-            <div>
-              <div className="c-name">{identity.companyName || identity.brandName}</div>
-              {companyMeta ? <div className="c-meta">{companyMeta}</div> : null}
-            </div>
-          </div>
-        ) : null}
+        {/* Talão no formato de referência (80mm): o mesmo que sai na térmica. */}
+        <div className="vrc">
+          {identity?.logoUrl ? <img className="vrc-logo" src={identity.logoUrl} alt="" /> : null}
+          {identity && (identity.companyName || identity.brandName) ? <div className="vrc-co">{identity.companyName || identity.brandName}</div> : null}
+          <div className="vrc-head">{headerLines.map((h, i) => <div key={i}>{h}</div>)}</div>
 
-        <div className="r-head" style={provisional ? { background: 'var(--warning-soft, rgba(245,158,11,.14))', borderColor: 'rgba(245,158,11,.4)' } : undefined}>
-          <div className="check" style={provisional ? { background: 'var(--warning)', color: '#20160a' } : undefined}>
-            <IconCheck size={30} />
-          </div>
-          <div className="sub" style={{ fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' }}>{designation}</div>
-          <div className="num">{invoice.number}{reprint ? ' · 2ª via' : ''}</div>
-          <div className="sub">{shownDate}</div>
-        </div>
-
-        <div className="r-body">
           {provisional ? (
-            <div className="banner" style={{ marginBottom: 12, justifyContent: 'center', background: 'rgba(245,158,11,.14)', border: '1px solid rgba(245,158,11,.4)', color: '#fcd9a3' }}>
-              Comprovativo provisório (sem internet). A factura fiscal será emitida automaticamente quando a ligação voltar.
-            </div>
+            <div className="vrc-note">Comprovativo provisório (sem internet). A factura fiscal é emitida automaticamente quando a ligação voltar.</div>
           ) : info && info.environment !== 'PRODUCTION' ? (
-            <div className="banner info" style={{ marginBottom: 12, justifyContent: 'center' }}>
-              Ambiente de {info.environment}
-            </div>
+            <div className="vrc-note">Ambiente de {info.environment}</div>
           ) : null}
 
-          <div className="kv">
-            <span className="k">Cliente</span>
-            <span className="v">{customerName || 'Consumidor final'}</span>
-          </div>
-          {operatorName ? (
-            <div className="kv">
-              <span className="k">Operador</span>
-              <span className="v">{operatorName}</span>
-            </div>
-          ) : null}
+          <table className="vrc-type"><tbody><tr><td>{designation}</td><td className="r">{invoice.number}</td></tr></tbody></table>
+          <table className="vrc-w"><tbody><tr><td>{viaLabel}</td><td className="r">{shownDate}</td></tr></tbody></table>
+          <table className="vrc-w vrc-cli"><tbody>
+            <tr><td className="k">Nome:</td><td>{customerName || 'Consumidor Final'}</td></tr>
+            {operatorName ? <tr><td className="k">Operador:</td><td>{operatorName}</td></tr> : null}
+          </tbody></table>
 
           {items && items.length ? (
-            <table className="r-items">
-              <thead><tr><th>Artigo</th><th>Qt</th><th>Preço</th><th>Total</th></tr></thead>
+            <table className="vrc-w vrc-items">
+              <thead>
+                <tr><th colSpan={3} className="l">Referência Produto</th></tr>
+                <tr className="bb"><th className="l">Qtd. x Preço</th><th className="c">Taxa</th><th className="r">Total</th></tr>
+              </thead>
               <tbody>
                 {items.map((it, i) => (
-                  <tr key={i}>
-                    <td>{it.description}{it.discount && it.discount > 0 ? (
-                      <div className="muted" style={{ fontSize: 11.5 }}>Desconto −{(Math.round((it.discountRate ?? 0) * 1000) / 10).toLocaleString('pt-PT')} % (−{formatKz(it.discount)})</div>
-                    ) : null}</td>
-                    <td style={{ textAlign: 'center' }}>{it.quantity}</td>
-                    <td style={{ textAlign: 'right' }}>{formatKz(it.unitPrice)}</td>
-                    <td style={{ textAlign: 'right' }}>{formatKz(it.total)}</td>
-                  </tr>
+                  <React.Fragment key={i}>
+                    <tr><td colSpan={3} className="l">{it.code ? `${it.code} ` : ''}{it.description}{it.ivaRate === 0 ? <sup>*</sup> : null}</td></tr>
+                    <tr className={i === items.length - 1 ? 'bb' : ''}>
+                      <td className="l">{it.quantity} x {it.unitPrice.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="c">{it.ivaRate != null ? `${it.ivaRate}%` : ''}</td>
+                      <td className="r">{(it.total + (it.discount ?? 0)).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                    {it.discount && it.discount > 0 ? (
+                      <tr><td colSpan={2} className="l sm">Desconto {(Math.round((it.discountRate ?? 0) * 1000) / 10).toLocaleString('pt-PT')}%</td><td className="r sm">-{it.discount.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}</td></tr>
+                    ) : null}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
           ) : null}
+          {tax.exemptions.length ? <div className="vrc-ex">{tax.exemptions.map((e) => <div key={e}>* {e}</div>)}</div> : null}
+          {totalDiscount > 0 ? <table className="vrc-w"><tbody><tr><td>Descontos</td><td className="r">-{formatKz(totalDiscount)}</td></tr></tbody></table> : null}
 
-          {totalDiscount > 0 ? (
-            <div className="kv"><span className="k">Descontos</span><span className="v">−{formatKz(totalDiscount)}</span></div>
-          ) : null}
-          <div className="kv">
-            <span className="k">Base tributável</span>
-            <span className="v">{formatKz(invoice.netTotal)}</span>
-          </div>
-          {tax.rows.length > 1 || tax.exemptions.length ? tax.rows.map((t) => (
-            <div className="kv" key={t.label} style={{ fontSize: 12.5 }}>
-              <span className="k">{t.label} s/ {formatKz(t.base)}</span>
-              <span className="v">{formatKz(t.iva)}</span>
-            </div>
-          )) : null}
-          <div className="kv">
-            <span className="k">IVA</span>
-            <span className="v">{formatKz(invoice.ivaTotal)}</span>
-          </div>
-          {tax.exemptions.map((e) => (
-            <div key={e} className="muted" style={{ fontSize: 12 }}>{e}</div>
-          ))}
-          <div className="kv" style={{ borderTop: '1px solid var(--border)', marginTop: 6, paddingTop: 10 }}>
-            <span className="k">Total</span>
-            <span className="v grand">{formatKz(invoice.grossTotal)}</span>
-          </div>
-          {pay?.payments?.length ? pay.payments.map((p) => (
-            <div className="kv" key={p.type}>
-              <span className="k">Pago em {PAY_LABEL[p.type] ?? p.type}</span>
-              <span className="v">{formatKz(p.amount)}</span>
-            </div>
-          )) : pay ? (
-            <div className="kv">
-              <span className="k">Pagamento</span>
-              <span className="v">{PAY_LABEL[pay.paymentType] ?? pay.paymentType}</span>
-            </div>
-          ) : null}
-          {!pay?.payments?.length && pay?.paymentType === 'CASH' && pay.tendered != null && pay.tendered > 0 ? (
-            <>
-              <div className="kv"><span className="k">Entregue</span><span className="v">{formatKz(pay.tendered)}</span></div>
-              <div className="kv"><span className="k">Troco</span><span className="v">{formatKz(Math.max(0, pay.tendered - invoice.grossTotal))}</span></div>
-            </>
-          ) : null}
-          <div className="kv">
-            <span className="k">{provisional ? 'Referência local' : 'Controlo (Hash)'}</span>
-            <span className="v hash">{provisional ? invoice.number : hashShort}</span>
-          </div>
+          <table className="vrc-w vrc-total"><tbody>
+            <tr className="big"><td>Total</td><td className="r">Kz {invoice.grossTotal.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>
+            {payLines.map((p) => <tr key={p.label}><td>{p.label}</td><td className="r">Kz {p.amount.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>)}
+            {changeGiven ? <tr><td>Troco</td><td className="r">Kz {changeGiven.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr> : null}
+          </tbody></table>
 
-          {info && (info.receiptLegend || info.fields.length > 0 || (info.softwareCertificateNumber && String(info.softwareCertificateNumber) !== '0')) ? (
-            <div className="legend">
-              {info.fields.map((f) => (
-                <div key={f.label}>
-                  <strong>{f.label}:</strong> {f.value}
-                </div>
+          <table className="vrc-w vrc-iva">
+            <thead><tr className="bb"><th className="l">%IVA</th><th className="r">Incidência</th><th className="r">IVA</th></tr></thead>
+            <tbody>
+              {(tax.rows.length ? tax.rows : [{ label: '', rate: invoice.netTotal > 0 ? Math.round((invoice.ivaTotal / invoice.netTotal) * 100) : 0, base: invoice.netTotal, iva: invoice.ivaTotal }]).map((t, i, arr) => (
+                <tr key={i} className={i === arr.length - 1 ? 'bb' : ''}><td className="l">{t.rate}</td><td className="r">{formatKz(t.base).replace(' Kz', '')}</td><td className="r">{formatKz(t.iva).replace(' Kz', '')}</td></tr>
               ))}
-              {info.softwareCertificateNumber && String(info.softwareCertificateNumber) !== '0' ? (
-                <div>Software certificado AGT nº {info.softwareCertificateNumber}</div>
-              ) : null}
-              {info.receiptLegend ? <div>{info.receiptLegend}</div> : null}
-            </div>
-          ) : null}
+            </tbody>
+          </table>
 
-          {!provisional && invoice.hash ? (
-            <div style={{ display: 'grid', placeItems: 'center', gap: 6, padding: '14px 0 4px' }}>
-              <div style={{ background: '#fff', padding: 8, borderRadius: 8 }}>
-                <QRCodeSVG value={qrData} size={116} level="M" />
-              </div>
-              <div className="muted" style={{ fontSize: 11 }}>{invoice.feQr ? 'Consulte no Quiosque AGT · leia o QR' : 'Verificação · leia o QR'}</div>
-            </div>
-          ) : null}
-        </div>
-
-        {identity && (identity.address || identity.phone || identity.email || identity.receiptMessage) ? (
-          <div className="r-foot-company">
-            {identity.address ? <div>{identity.address}</div> : null}
-            {(identity.phone || identity.email) ? (
-              <div>{[identity.phone, identity.email].filter(Boolean).join(' · ')}</div>
-            ) : null}
-            {identity.receiptMessage ? <div className="r-foot-msg">{identity.receiptMessage}</div> : null}
-            <div className="r-foot-thanks">Obrigado pela preferência!</div>
+          <div className="vrc-foot">
+            {processedBy ? <div>{hashShort}-{processedBy}</div> : !provisional && invoice.hash ? <div>Controlo (Hash): {hashShort}</div> : <div>Referência local: {invoice.number}</div>}
+            {info?.fields.map((f) => <div key={f.label}>{f.label}: {f.value}</div>)}
+            {info?.receiptLegend ? <div>{info.receiptLegend}</div> : null}
           </div>
-        ) : null}
-
+          {!provisional && invoice.hash ? (
+            <div className="vrc-qr">
+              <QRCodeSVG value={qrData} size={112} level="M" />
+              <div>{invoice.feQr ? 'Consulte no Quiosque AGT · leia o QR' : 'Verificação · leia o QR'}</div>
+            </div>
+          ) : null}
+          <div className="vrc-thanks">{identity?.receiptMessage || 'Obrigado pela preferência!'}</div>
+        </div>
         <PaperSizeToggle />
         {rawPrintSupported() ? (
           <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', padding: '2px 0 6px' }}>

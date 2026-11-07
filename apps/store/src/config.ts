@@ -5,7 +5,21 @@
 // Se faltar, a app pede o código ao utilizador.
 const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 
-export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000').replace(
+const PROD_API_URL = 'https://ndombaxi-api-bwwr.onrender.com';
+/**
+ * Endereços de API ANTIGOS (serviços do Render já apagados). O Cloudflare Pages
+ * ainda pode injetar um destes em VITE_API_URL — por exemplo nos builds de
+ * PREVIEW, cuja variável ficou com o serviço antigo quando a API mudou de
+ * serviço no Render. Sem acesso ao painel do Cloudflare, é o código que se
+ * adapta: um endereço retirado é trocado pela API atual.
+ */
+const RETIRED_API_HOSTS = ['ndombaxi-api-3nmz.onrender.com'];
+function envApiUrl(): string | undefined {
+  const v = import.meta.env.VITE_API_URL as string | undefined;
+  if (!v) return undefined;
+  return RETIRED_API_HOSTS.some((h) => v.includes(h)) ? PROD_API_URL : v;
+}
+export const API_URL = (envApiUrl() ?? 'http://localhost:3000').replace(
   /\/$/,
   '',
 );

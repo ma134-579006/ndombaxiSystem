@@ -1,0 +1,565 @@
+/* ════════════════════════════════════════════════════════════════════
+   LAYOUT DE PÁGINA no padrão do backoffice de referência (ver
+   docs/VENDUS-PAGES.md). Só estrutura, espaçamento e movimento: TODAS as
+   cores vêm dos tokens do tema ativo (--surface, --primary, …), por isso
+   cada tema do LPS Vendas mantém a sua paleta e a barra lateral fica igual.
+   Prefixo .vd- para não colidir com o theme.css.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Movimento medido no backoffice/POS de referência (transições mais usadas):
+   0.3s simples; 500ms cubic-bezier(.075,.82,.165,1) (ease-out circular);
+   300ms cubic-bezier(.77,0,.175,1) (ease-in-out) para painéis que abrem. */
+:root {
+  --vd-ease: cubic-bezier(.075, .82, .165, 1);
+  --vd-ease-io: cubic-bezier(.77, 0, .175, 1);
+  --vd-fast: .3s; --vd-med: .5s;
+}
+/* Mudança de página: entrada curta em ease-out circular (sem deslizes longos). */
+.admin .content > .page-anim { animation: vd-page var(--vd-med) var(--vd-ease) both !important; }
+@keyframes vd-page { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.admin .btn, .admin .vd-btn, .admin .chip, .admin .nav button, .admin .nav-group-head { transition-duration: var(--vd-fast) !important; transition-timing-function: ease !important; }
+@media (prefers-reduced-motion: reduce) { .admin .content > .page-anim { animation: none !important; } }
+
+/* ── Barra de topo ─────────────────────────────────────────────────── */
+.admin .topbar {
+  background: var(--surface); min-height: 60px; padding: 0 0 0 24px; gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+.admin .topbar > * { flex: none; }
+.admin .topbar > .spacer { flex: 1 1 auto; }
+.admin .topbar > .menu-toggle { margin-right: 10px; }
+.tb-title {
+  margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.01em; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42vw;
+  animation: vd-title var(--vd-med) var(--vd-ease) both;
+}
+@keyframes vd-title { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+.tb-div { align-self: stretch; width: 1px; background: var(--border); margin: 0 4px; }
+.admin .topbar .icon-btn, .admin .topbar .acct, .admin .topbar .sync-pill { margin: 0 6px; }
+
+.tb-sub {
+  display: inline-flex; align-items: center; gap: 10px; padding: 0 18px; height: 60px;
+  color: var(--danger); font-size: 14px; font-weight: 500; background: none; border: 0; cursor: pointer;
+}
+.tb-sub:hover .tb-sub-tx { text-decoration: underline; }
+.tb-ring { position: relative; width: 38px; height: 38px; display: grid; place-items: center; }
+.tb-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.tb-ring circle { fill: none; stroke-width: 3; }
+.tb-ring .trk { stroke: var(--border); }
+.tb-ring .val { stroke: var(--danger); stroke-linecap: round; transition: stroke-dashoffset .8s var(--vd-ease); }
+.tb-ring b { font-size: 9.5px; font-weight: 700; }
+
+.tb-agt {
+  display: inline-flex; align-items: center; gap: 12px; height: 60px; padding: 0 22px;
+  border-left: 1px solid var(--border); background: none; border-top: 0; border-bottom: 0; border-right: 0; cursor: pointer;
+  transition: background var(--vd-fast);
+}
+.tb-agt:hover { background: var(--surface-2); }
+.tb-agt.on { color: var(--success); }
+.tb-agt.off { color: var(--warning); }
+.tb-agt-tx { display: grid; line-height: 1.15; text-align: left; }
+.tb-agt-tx b { font-size: 13.5px; font-weight: 700; }
+.tb-agt-tx small { font-size: 12px; opacity: .85; }
+.tb-agt.on svg { animation: vd-pop .5s var(--vd-ease) both; }
+@keyframes vd-pop { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.08); } 100% { transform: none; opacity: 1; } }
+
+.tb-actions { display: inline-flex; align-items: center; gap: 12px; padding: 0 18px; }
+.tb-quick { position: relative; }
+.tb-round {
+  width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center;
+  background: var(--surface-2); color: var(--primary); border: 0; cursor: pointer;
+  transition: background var(--vd-fast), transform var(--vd-fast), color var(--vd-fast);
+}
+.tb-round.help { color: var(--text); }
+.tb-round:hover { background: var(--primary-soft); transform: translateY(-1px); }
+.tb-round.on { background: var(--primary); color: #fff; }
+.tb-round.on svg { transform: rotate(45deg); }
+.tb-round svg { transition: transform var(--vd-med) var(--vd-ease); }
+.tb-menu {
+  position: absolute; top: calc(100% + 10px); right: -8px; min-width: 190px; z-index: 60;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px;
+  box-shadow: 0 16px 40px -12px rgba(0,0,0,.35); transform-origin: top right;
+  animation: vd-drop var(--vd-fast) var(--vd-ease) both;
+}
+.tb-menu button {
+  display: block; width: 100%; text-align: left; padding: 9px 12px; border-radius: 6px;
+  font-size: 14px; color: var(--text); background: none; border: 0; cursor: pointer;
+}
+.tb-menu button:hover { background: var(--surface-2); color: var(--primary); }
+@keyframes vd-drop { from { opacity: 0; transform: translateY(-4px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* Conta: avatar + nome + e-mail + seta (como na referência). */
+.admin .topbar .acct { margin: 0; padding: 0 16px; }
+.acct2-id { display: none; }
+.admin .topbar .acct2-btn { gap: 10px; }
+.admin .topbar .acct2-id { display: grid; text-align: left; line-height: 1.2; max-width: 180px; }
+.acct2-id b { font-size: 14px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct2-id small { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 1100px) {
+  .tb-sub-tx, .admin .topbar .acct2-id { display: none; }
+  .tb-agt { padding: 0 14px; }
+}
+@media (max-width: 760px) {
+  .admin .topbar { padding-left: 10px; }
+  .tb-title { font-size: 16px; max-width: 34vw; }
+  .tb-agt-tx, .tb-div { display: none; }
+  .tb-agt { padding: 0 8px; border-left: 0; }
+  .tb-actions { gap: 6px; padding: 0 6px; }
+  .tb-sub { padding: 0 6px; }
+  .admin .topbar .acct { padding: 0 8px; }
+}
+
+/* ── Cabeçalho do conteúdo: breadcrumb + ações ─────────────────────── */
+.vd-page { display: grid; gap: 22px; }
+.vd-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-height: 38px; }
+.vd-crumb { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); margin: 0; }
+.vd-crumb a, .vd-crumb button { color: var(--primary); background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
+.vd-crumb a:hover, .vd-crumb button:hover { text-decoration: underline; }
+.vd-crumb .sep { opacity: .55; }
+.vd-head .spacer { flex: 1; }
+
+/* Botão principal com seta (split) e botão "Mais". */
+.vd-split { display: inline-flex; position: relative; }
+.vd-btn {
+  display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 16px; border-radius: 4px;
+  font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  background: var(--primary); color: #fff; border: 1px solid var(--primary);
+  transition: filter var(--vd-fast), background var(--vd-fast), transform var(--vd-fast);
+}
+.vd-btn:hover { filter: brightness(1.08); }
+.vd-btn:active { transform: translateY(1px); }
+.vd-btn:disabled { opacity: .55; cursor: not-allowed; }
+.vd-btn.outline { background: transparent; color: var(--primary); }
+.vd-btn.outline:hover { background: var(--primary-soft); filter: none; }
+.vd-btn.plain { background: var(--surface); color: var(--text); border-color: var(--border); }
+.vd-btn.plain:hover { background: var(--surface-2); filter: none; }
+.vd-btn.danger { background: var(--danger); border-color: var(--danger); }
+.vd-btn.sm { height: 30px; padding: 0 10px; font-size: 13px; }
+.vd-split > .vd-btn:first-child { border-radius: 4px 0 0 4px; }
+.vd-split > .vd-btn.caret { border-radius: 0 4px 4px 0; padding: 0 9px; border-left: 1px solid rgba(255,255,255,.28); }
+.vd-drop {
+  position: absolute; top: calc(100% + 6px); right: 0; min-width: 200px; z-index: 40;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 0;
+  box-shadow: 0 14px 34px -12px rgba(0,0,0,.35); transform-origin: top right;
+  animation: vd-drop var(--vd-fast) var(--vd-ease) both;
+}
+.vd-drop button {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 16px; font-size: 14px;
+  background: none; border: 0; color: var(--text); text-align: left; cursor: pointer;
+}
+.vd-drop button:hover:not(:disabled) { background: var(--surface-2); color: var(--primary); }
+.vd-drop button:disabled { opacity: .5; cursor: not-allowed; }
+.vd-drop button.danger { color: var(--danger); }
+.vd-drop hr { border: 0; border-top: 1px solid var(--border); margin: 5px 0; }
+
+/* ── Cartões ───────────────────────────────────────────────────────── */
+.vd-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+  animation: vd-rise var(--vd-med) var(--vd-ease) both;
+}
+.vd-page > .vd-card:nth-of-type(2) { animation-delay: .04s; }
+.vd-page > .vd-card:nth-of-type(3) { animation-delay: .08s; }
+@keyframes vd-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ── Cartão de filtros ─────────────────────────────────────────────── */
+.vd-filters { background: var(--surface-2); padding: 0; overflow: visible; }
+.vd-frow { display: flex; flex-wrap: wrap; gap: 14px 18px; padding: 16px; align-items: flex-end; }
+.vd-frow + .vd-frow { border-top: 1px solid var(--border); }
+.vd-f { display: grid; gap: 6px; min-width: 150px; flex: 1 1 170px; }
+.vd-f.grow { flex: 2 1 260px; }
+.vd-f > span { font-size: 14px; color: var(--text); }
+.vd-in, .vd-f select, .vd-f input {
+  height: 36px; padding: 0 12px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 14px; width: 100%; min-width: 0;
+  transition: border-color var(--vd-fast), box-shadow var(--vd-fast);
+}
+.vd-in:focus, .vd-f select:focus, .vd-f input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.vd-range { display: flex; }
+.vd-range input { border-radius: 0; text-align: center; }
+.vd-range input:first-child { border-radius: 4px 0 0 4px; }
+.vd-range input:last-child { border-radius: 0 4px 4px 0; }
+.vd-range .mid { display: grid; place-items: center; padding: 0 14px; font-size: 14px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-left: 0; border-right: 0; }
+.vd-cols { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.vd-cols label { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; cursor: pointer; }
+.vd-cols input { accent-color: var(--primary); width: 15px; height: 15px; }
+.vd-clear { color: var(--primary); background: none; border: 0; font-size: 14px; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+.vd-clear:hover { text-decoration: underline; }
+
+/* ── Tabela ────────────────────────────────────────────────────────── */
+.vd-tablecard { padding: 20px; }
+.vd-tbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 16px; font-size: 14px; }
+.vd-tbar select { height: 34px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 0 8px; }
+.vd-tbar .spacer { flex: 1; }
+.vd-sum { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 13px; }
+.vd-sum b { color: var(--text); font-weight: 600; }
+.vd-sum .bad { color: var(--danger); }
+.vd-tablewrap { overflow-x: auto; margin: 0 -20px; padding: 0 20px; }
+.vd-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.vd-table th {
+  text-align: left; font-weight: 700; color: var(--text); padding: 10px 10px; vertical-align: bottom;
+  border-bottom: 2px solid var(--border); white-space: nowrap; user-select: none;
+}
+.vd-table th.sort { cursor: pointer; }
+.vd-table th.sort .ar { display: inline-flex; flex-direction: column; vertical-align: middle; margin-right: 6px; opacity: .35; font-size: 8px; line-height: 7px; }
+.vd-table th.sort.asc .ar .u, .vd-table th.sort.desc .ar .d { color: var(--primary); opacity: 1; }
+.vd-table th.sort.asc .ar, .vd-table th.sort.desc .ar { opacity: 1; }
+.vd-table th.sort.asc .ar .d, .vd-table th.sort.desc .ar .u { opacity: .3; }
+.vd-table td { padding: 12px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.vd-table tbody tr { animation: vd-row .32s var(--vd-ease) both; transition: background var(--vd-fast); }
+.vd-table tbody tr:nth-child(odd) { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+.vd-table tbody tr:hover { background: var(--primary-soft); }
+.vd-table tbody tr.sel { background: var(--primary-soft); }
+.vd-table tbody tr.off { opacity: .6; }
+@keyframes vd-row { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.vd-table .num { text-align: right; white-space: nowrap; }
+.vd-table .ctr { text-align: center; }
+.vd-table .chk { width: 34px; }
+.vd-table .chk input { accent-color: var(--primary); width: 15px; height: 15px; }
+.vd-table .sub { display: block; font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.vd-link { color: var(--primary); background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; }
+.vd-link:hover { text-decoration: underline; }
+.vd-badge {
+  display: inline-block; min-width: 26px; padding: 3px 7px; border-radius: 3px; text-align: center;
+  font-size: 12.5px; font-weight: 700; color: #fff; background: var(--primary);
+}
+.vd-badge.bad { background: var(--danger); }
+.vd-badge.warn { background: var(--warning); }
+.vd-badge.mute { background: var(--surface-2); color: var(--muted); }
+.vd-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin: 3px 4px 0 0; border: 1px solid var(--border); color: var(--muted); }
+.vd-tag.info { color: var(--primary); border-color: var(--primary); }
+.vd-tag.warn { color: var(--warning); border-color: var(--warning); }
+.vd-tag.ok { color: var(--success); border-color: var(--success); }
+.vd-tag.bad { color: var(--danger); border-color: var(--danger); }
+.vd-name { display: flex; gap: 10px; align-items: flex-start; }
+.vd-thumb { width: 34px; height: 34px; border-radius: 4px; flex: none; object-fit: cover; display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; }
+.vd-opts { position: relative; display: inline-block; }
+.vd-opts > .vd-btn { height: 30px; padding: 0 10px; font-size: 13px; }
+.vd-opts .vd-drop { min-width: 170px; }
+.vd-empty { padding: 34px 10px; text-align: center; color: var(--muted); font-size: 14px; }
+.vd-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; font-size: 14px; color: var(--muted); }
+.vd-foot .spacer { flex: 1; }
+.vd-pager { display: inline-flex; }
+.vd-pager button {
+  min-width: 36px; height: 34px; padding: 0 10px; border: 1px solid var(--border); margin-left: -1px;
+  background: var(--surface); color: var(--primary); cursor: pointer; font-size: 14px;
+}
+.vd-pager button:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
+.vd-pager button:last-child { border-radius: 0 4px 4px 0; }
+.vd-pager button.on { background: var(--primary); color: #fff; border-color: var(--primary); position: relative; z-index: 1; }
+.vd-pager button:disabled { color: var(--muted); cursor: not-allowed; }
+.vd-bulk {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 14px;
+  background: var(--primary-soft); border-radius: 4px; font-size: 14px; animation: vd-drop var(--vd-fast) var(--vd-ease) both;
+}
+.vd-bulk .spacer { flex: 1; }
+
+/* ── Formulário: rótulo à direita em negrito, campo à esquerda ─────── */
+.vd-form { padding: 22px 26px; display: grid; gap: 16px; }
+.vd-form + .vd-form { margin-top: 0; }
+.vd-sect { font-size: 15px; font-weight: 700; margin: 0 0 2px; color: var(--text); }
+.vd-row { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 8px 28px; align-items: start; }
+.vd-row.two { grid-template-columns: 220px minmax(0, 1fr) 140px minmax(0, 1fr); }
+.vd-lbl { text-align: right; font-weight: 700; font-size: 14px; padding-top: 8px; color: var(--text); }
+.vd-lbl .q {
+  display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 999px; margin-left: 5px;
+  background: var(--warning); color: #fff; font-size: 10px; font-weight: 800; cursor: help; vertical-align: 1px;
+}
+.vd-ctl { display: grid; gap: 6px; max-width: 520px; min-width: 0; }
+.vd-row.two .vd-ctl { max-width: none; }
+.vd-ctl input:not([type=checkbox]):not([type=radio]):not([type=file]), .vd-ctl select, .vd-ctl textarea {
+  height: 36px; padding: 0 12px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 14px; width: 100%;
+  transition: border-color var(--vd-fast), box-shadow var(--vd-fast);
+}
+.vd-ctl textarea { height: auto; min-height: 64px; padding: 8px 12px; resize: vertical; }
+.vd-ctl input:focus, .vd-ctl select:focus, .vd-ctl textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.vd-inline { display: flex; gap: 8px; align-items: center; }
+.vd-inline > input, .vd-inline > select { flex: 1; }
+.vd-file { display: flex; align-items: center; gap: 12px; }
+.vd-file .pv { width: 56px; height: 56px; border-radius: 4px; border: 1px solid var(--border); object-fit: cover; display: grid; place-items: center; color: var(--muted); background: var(--surface-2); overflow: hidden; }
+.vd-file .pv img { width: 100%; height: 100%; object-fit: cover; }
+.vd-check { display: flex; align-items: center; gap: 10px; padding-top: 6px; font-size: 14px; }
+.vd-kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.vd-kv > div { background: var(--surface-2); border-radius: 4px; padding: 8px 12px; }
+.vd-kv small { display: block; color: var(--muted); font-size: 12px; }
+.vd-kv b { font-size: 15px; }
+.vd-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 26px; border-top: 1px solid var(--border); }
+.vd-err { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); padding: 10px 14px; border-radius: 4px; font-size: 14px; }
+
+@media (max-width: 860px) {
+  .vd-row, .vd-row.two { grid-template-columns: 1fr; gap: 6px; }
+  .vd-lbl { text-align: left; padding-top: 0; }
+  .vd-ctl { max-width: none; }
+  .vd-form { padding: 16px; }
+  .vd-actions { padding: 14px 16px; }
+}
+@media (max-width: 640px) {
+  .vd-tablecard { padding: 14px; }
+  .vd-tablewrap { margin: 0 -14px; padding: 0 14px; }
+  .vd-head .vd-crumb { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tb-title, .tb-agt.on svg, .tb-menu, .vd-drop, .vd-card, .vd-table tbody tr, .vd-bulk { animation: none !important; }
+  .tb-ring .val, .tb-round svg { transition: none !important; }
+}
+
+/* ── Barra lateral ESQUERDA sem scroll: cabe sempre na altura da janela ──
+   A altura de cada linha = espaço livre ÷ nº de linhas visíveis (--nav-n,
+   definido no Shell, conta os sub-itens do grupo aberto). Entre 24px e 44px;
+   o texto e os ícones acompanham. O aspeto (cores, ícones, rail) não muda. */
+.admin .sidebar { height: 100vh; height: 100dvh; max-height: 100dvh; overflow: hidden; }
+.admin .sidebar .nav {
+  overflow: hidden !important; min-height: 0; flex: 1 1 auto;
+  --nav-free: calc(100dvh - var(--nav-chrome, 150px));
+  --row: clamp(24px, calc(var(--nav-free) / var(--nav-n, 12) - 3px), 44px);
+  gap: clamp(0px, calc(var(--row) / 16), 3px); padding-top: clamp(2px, .8vh, 8px); padding-bottom: clamp(2px, .8vh, 8px);
+}
+.admin .sidebar .nav > *, .admin .sidebar .nav-group, .admin .sidebar .nav-sub, .admin .sidebar .nav-sub > * { flex: none !important; }
+.admin .sidebar .nav button, .admin .sidebar .nav-group-head, .admin .sidebar .nav-sub button {
+  height: var(--row) !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important;
+  font-size: clamp(11.5px, calc(var(--row) * .34), 14px) !important; line-height: 1.1;
+}
+.admin .sidebar .nav button svg, .admin .sidebar .nav-group-head svg { width: clamp(14px, calc(var(--row) * .45), 18px); height: clamp(14px, calc(var(--row) * .45), 18px); }
+.admin .sidebar .nav-sub { margin-top: 0 !important; margin-bottom: 0 !important; gap: clamp(0px, calc(var(--row) / 16), 2px) !important; }
+.admin .sidebar .brand { padding-top: clamp(6px, 2vh, 18px) !important; padding-bottom: clamp(6px, 1.6vh, 14px) !important; flex: none; }
+.admin .sidebar .brand img { width: clamp(32px, 6vh, 46px) !important; height: clamp(32px, 6vh, 46px) !important; }
+.admin .sidebar .sig { flex: none; padding-top: clamp(4px, 1.2vh, 14px); padding-bottom: clamp(4px, 1.2vh, 14px); font-size: clamp(9.5px, 1.4vh, 11px); }
+@media (max-height: 560px) { .admin .sidebar .sig { display: none; } .admin .sidebar .nav { --nav-chrome: 70px; } }
+@media (max-height: 760px) and (min-height: 561px) { .admin .sidebar .nav { --nav-chrome: 130px; } }
+
+/* ── Título da página UMA só vez: já está na barra de topo (.tb-title). ──
+   Esconde o <h2> do cabeçalho do conteúdo em todas as páginas; um cabeçalho
+   que só tinha o título desaparece; as ações ao lado continuam. Na impressão
+   o cabeçalho de marca (PrintBrandHead) continua a levar o nome da página. */
+.admin .content .content-head > h2 { display: none !important; }
+.admin .content .content-head:not(:has(> :not(h2))) { display: none !important; }
+.admin .content .content-head:has(> h2) { min-height: 0; }
+
+/* ── Dashboard (padrão de referência) ─────────────────────────────── */
+.vd-toggle { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; color: var(--primary); cursor: pointer; }
+.vd-sw { width: 38px; height: 20px; border-radius: 999px; border: 0; padding: 2px; background: var(--border); cursor: pointer; transition: background var(--vd-fast); display: inline-flex; }
+.vd-sw span { width: 16px; height: 16px; border-radius: 999px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform var(--vd-med) var(--vd-ease); }
+.vd-sw.on { background: var(--primary); }
+.vd-sw.on span { transform: translateX(18px); }
+.vd-dash-main { padding: 22px 24px 14px; }
+.vd-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-bottom: 8px; }
+.vd-kpi { display: flex; gap: 16px; align-items: center; min-width: 0; animation: vd-rise var(--vd-med) var(--vd-ease) both; }
+.vd-kpi:nth-child(2) { animation-delay: .05s; } .vd-kpi:nth-child(3) { animation-delay: .1s; }
+.vd-kpi-ic { width: 72px; height: 72px; border-radius: 999px; flex: none; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); }
+.vd-kpi-tx { min-width: 0; }
+.vd-kpi-lb { font-size: 15px; color: var(--muted); }
+.vd-kpi-lb b { color: var(--text); font-weight: 700; }
+.vd-kpi-vl { font-size: clamp(18px, 2vw, 24px); font-weight: 700; color: var(--primary); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vd-kpi-cmp { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+.vd-var { padding: 1px 6px; border-radius: 3px; font-weight: 700; background: var(--surface-2); color: var(--muted); }
+.vd-var.up { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); }
+.vd-var.down { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
+.vd-dash-chart { margin-top: 6px; }
+.vd-dash-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.vd-dash-row.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.vd-panel { padding: 18px 20px; min-width: 0; }
+.vd-panel-h { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 19px; font-weight: 400; color: var(--text); }
+.vd-panel-h svg { color: var(--primary); flex: none; }
+.vd-panel-h b { font-weight: 700; }
+.vd-panel-h small { font-size: 13px; color: var(--muted); font-weight: 400; }
+.vd-panel-badges { margin-left: auto; display: inline-flex; gap: 6px; }
+.vd-panel-empty { display: grid; place-items: center; gap: 8px; min-height: 150px; color: var(--muted); font-size: 14px; text-align: center; }
+.vd-panel-empty svg { opacity: .45; }
+.vd-rank { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.vd-rank li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 9px 4px; border-bottom: 1px solid var(--border); font-size: 14px; animation: vd-row .32s var(--vd-ease) both; }
+.vd-rank li:last-child { border-bottom: 0; }
+.vd-rank .pos { width: 22px; height: 22px; border-radius: 999px; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; background: var(--primary-soft); color: var(--primary); }
+.vd-rank .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-rank .qt { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.vd-rank .vl { font-weight: 600; white-space: nowrap; }
+.vd-alerts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 340px; overflow: auto; }
+.vd-alerts li { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 4px; background: var(--surface-2); border-left: 3px solid var(--warning); font-size: 13.5px; }
+.vd-alerts li.l-danger { border-left-color: var(--danger); }
+.vd-alerts li > div { flex: 1; min-width: 0; display: grid; }
+.vd-alerts li span { color: var(--muted); font-size: 12.5px; }
+@media (max-width: 1100px) { .vd-dash-row { grid-template-columns: 1fr 1fr; } .vd-dash-row > :last-child:nth-child(3) { grid-column: 1 / -1; } }
+@media (max-width: 900px) { .vd-kpis { grid-template-columns: 1fr; } .vd-kpi-ic { width: 56px; height: 56px; } }
+@media (max-width: 760px) { .vd-dash-row, .vd-dash-row.two { grid-template-columns: 1fr; } .vd-dash-main { padding: 16px; } }
+@media (prefers-reduced-motion: reduce) { .vd-kpi, .vd-rank li { animation: none !important; } .vd-sw span { transition: none !important; } }
+
+/* ── Gráficos VdCharts + linhas por loja ─────────────────────────── */
+.vd-chart { position: relative; }
+.vd-chart svg { display: block; overflow: visible; }
+.vd-grid { stroke: var(--border); stroke-width: 1; }
+.vd-axis { fill: var(--muted); font-size: 11px; }
+.vd-axis.sm { font-size: 9.5px; }
+.vd-hoverline { stroke: var(--primary); stroke-dasharray: 3 3; opacity: .6; }
+.vd-area-fill { animation: vd-fade .6s var(--vd-ease) both; }
+.vd-area-line { stroke-dasharray: 3000; stroke-dashoffset: 3000; animation: vd-draw 1.1s var(--vd-ease) forwards; }
+@keyframes vd-draw { to { stroke-dashoffset: 0; } }
+@keyframes vd-fade { from { opacity: 0; } to { opacity: 1; } }
+.vd-bar { transform-box: fill-box; transform-origin: bottom; animation: vd-grow .55s var(--vd-ease) both; }
+@keyframes vd-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.vd-tip { position: absolute; top: 0; transform: translate(-50%, -6px); background: var(--text); color: var(--surface); font-size: 12px; padding: 5px 9px; border-radius: 4px; white-space: nowrap; pointer-events: none; display: grid; gap: 1px; box-shadow: 0 8px 20px -8px rgba(0,0,0,.4); }
+.vd-tip b { font-weight: 600; opacity: .75; font-size: 11px; }
+.vd-spark { display: block; }
+.vd-donut { display: grid; justify-items: center; gap: 12px; }
+.vd-slice { transform-origin: 100px 100px; animation: vd-pop-s .5s var(--vd-ease) both; transition: opacity var(--vd-fast); cursor: default; }
+@keyframes vd-pop-s { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+.vd-donut-lbl polyline { stroke: var(--muted); stroke-width: .8; }
+.vd-donut-lbl text { fill: var(--muted); font-size: 9px; }
+.vd-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font-size: 13.5px; }
+.vd-legend li { display: inline-flex; align-items: center; gap: 7px; }
+.vd-legend li span { width: 11px; height: 11px; border-radius: 999px; }
+.vd-table.vd-plain tbody tr:nth-child(odd) { background: transparent; }
+.vd-table.vd-plain th { color: var(--text); font-weight: 600; }
+.vd-table.vd-plain td { border-bottom: 1px solid var(--border); }
+.vd-storerow { display: grid; grid-template-columns: 30px minmax(90px, 140px) 56px minmax(150px, 1fr) 120px 1px 70px minmax(150px, 1fr) 110px; gap: 10px 14px; align-items: center; padding: 14px 20px; }
+.vd-storerow > svg { color: var(--primary); }
+.vd-sr-name { font-weight: 700; font-size: 14px; color: var(--text); line-height: 1.2; }
+.vd-sr-lbl { font-weight: 700; font-size: 14px; color: var(--text); text-align: right; }
+.vd-sr-vl { font-size: 20px; font-weight: 700; color: var(--primary); white-space: nowrap; }
+.vd-sr-chart { display: grid; place-items: center; }
+.vd-sr-none { font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.3; }
+.vd-sr-div { align-self: stretch; background: var(--border); }
+@media (max-width: 1200px) { .vd-storerow { grid-template-columns: 30px 1fr 56px 1fr 110px; } .vd-sr-div { display: none; } .vd-storerow > :nth-child(7) { grid-column: 3; } }
+@media (max-width: 700px) { .vd-storerow { grid-template-columns: 1fr 1fr; } .vd-storerow > svg { display: none; } .vd-sr-name { grid-column: 1 / -1; } .vd-sr-lbl { text-align: left; grid-column: 1 / -1; } .vd-storerow > :nth-child(7) { grid-column: auto; } }
+@media (prefers-reduced-motion: reduce) { .vd-area-line, .vd-area-fill, .vd-bar, .vd-slice { animation: none !important; stroke-dashoffset: 0 !important; } }
+
+/* ════════════════════════════════════════════════════════════════════
+   PELE GLOBAL "padrão de referência" para TODAS as páginas do admin e do
+   super admin (classes partilhadas: card, btn, field, ptable, kpi, chips…).
+   Só estrutura, raio, espaçamento, tipografia e movimento — as cores
+   continuam a ser os tokens de cada tema.
+   ════════════════════════════════════════════════════════════════════ */
+.admin .content { background: var(--bg); }
+.admin .content .card, .admin .content .fx-card {
+  border-radius: 4px !important; border: 1px solid var(--border) !important; box-shadow: none !important;
+  background: var(--surface) !important; padding: 20px; animation: vd-rise var(--vd-med) var(--vd-ease) both;
+}
+.admin .content .card > h3, .admin .content .fx-card-h h3, .admin .content .fx-card > h3 {
+  font-size: 18px; font-weight: 400; margin: 0 0 14px; color: var(--text);
+}
+.admin .content .card > h3 b, .admin .content .card > h3 strong { font-weight: 700; }
+/* Botões: rectângulos 4px, primário cheio; "ghost" passa a contorno primário. */
+.admin .content .btn {
+  border-radius: 4px !important; box-shadow: none !important; height: 36px; padding: 0 16px; font-size: 14px; font-weight: 500;
+  background: var(--primary); border: 1px solid var(--primary); color: #fff; background-image: none !important;
+}
+.admin .content .btn.sm { height: 30px; padding: 0 11px; font-size: 13px; }
+.admin .content .btn.lg { height: 44px; font-size: 15px; }
+.admin .content .btn.ghost { background: transparent !important; color: var(--primary) !important; border-color: var(--primary) !important; }
+.admin .content .btn.ghost:hover { background: var(--primary-soft) !important; }
+.admin .content .btn.danger { background: var(--danger) !important; border-color: var(--danger) !important; color: #fff !important; }
+.admin .content .btn.success { background: var(--success) !important; border-color: var(--success) !important; color: #fff !important; }
+.admin .content .btn:hover:not(:disabled) { filter: brightness(1.07); }
+/* Campos: rótulo em cima em negrito pequeno; controlos 36px, raio 4px, foco com halo. */
+.admin .content .field > label { font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.admin .content .field input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=color]),
+.admin .content .field select, .admin .content .field textarea,
+.admin .content input.input, .admin .content select.seg-select {
+  border-radius: 4px !important; border: 1px solid var(--border) !important; background: var(--surface) !important;
+  min-height: 36px; font-size: 14px; box-shadow: none !important; transition: border-color var(--vd-fast), box-shadow var(--vd-fast);
+}
+.admin .content .field input:focus, .admin .content .field select:focus, .admin .content .field textarea:focus {
+  border-color: var(--primary) !important; box-shadow: 0 0 0 3px var(--primary-soft) !important; outline: none;
+}
+/* Tabelas (ptable e tabelas soltas): cabeçalho a negrito com linha dupla, linhas alternadas. */
+.admin .content table.ptable, .admin .content .card table:not(.vd-table) { width: 100%; border-collapse: collapse; font-size: 14px; }
+.admin .content table.ptable th, .admin .content .card table:not(.vd-table) th {
+  text-align: left; font-weight: 700; color: var(--text) !important; background: transparent !important; text-transform: none !important;
+  letter-spacing: 0 !important; font-size: 14px !important; padding: 10px !important; border-bottom: 2px solid var(--border) !important;
+}
+.admin .content table.ptable td, .admin .content .card table:not(.vd-table) td { padding: 11px 10px !important; border-bottom: 1px solid var(--border) !important; }
+.admin .content table.ptable tbody tr:nth-child(odd), .admin .content .card table:not(.vd-table) tbody tr:nth-child(odd) { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+.admin .content table.ptable tbody tr:hover, .admin .content .card table:not(.vd-table) tbody tr:hover { background: var(--primary-soft); }
+.admin .content table.ptable tbody tr { animation: vd-row .32s var(--vd-ease) both; }
+/* KPIs: ícone em círculo suave, valor na cor primária (como os cartões de faturação). */
+.admin .content .kpi-card, .admin .content .fx-stat {
+  border-radius: 4px !important; border: 1px solid var(--border) !important; box-shadow: none !important; background: var(--surface) !important;
+  animation: vd-rise var(--vd-med) var(--vd-ease) both;
+}
+.admin .content .kpi-card .kpi-ic, .admin .content .fx-stat .ic {
+  border-radius: 999px !important; background: var(--primary-soft) !important; color: var(--primary) !important; box-shadow: none !important;
+}
+.admin .content .kpi-value, .admin .content .fx-stat .vl { color: var(--primary) !important; font-weight: 700 !important; }
+.admin .content .kpi-grid > :nth-child(2), .admin .content .fx-stats > :nth-child(2) { animation-delay: .05s; }
+.admin .content .kpi-grid > :nth-child(3), .admin .content .fx-stats > :nth-child(3) { animation-delay: .1s; }
+.admin .content .kpi-grid > :nth-child(4), .admin .content .fx-stats > :nth-child(4) { animation-delay: .15s; }
+/* Separadores (fx-tabs / seg / chips) como abas rectas com a ativa a cheio. */
+.admin .content .fx-tabs, .admin .content .seg { border-radius: 4px !important; background: transparent !important; border: 1px solid var(--border); padding: 0 !important; gap: 0 !important; overflow: hidden; box-shadow: none !important; }
+.admin .content .fx-tabs button, .admin .content .seg button { border-radius: 0 !important; height: 36px; padding: 0 14px; border-right: 1px solid var(--border) !important; box-shadow: none !important; background: var(--surface) !important; color: var(--text) !important; transition: background var(--vd-fast), color var(--vd-fast); }
+.admin .content .fx-tabs button:last-child, .admin .content .seg button:last-child { border-right: 0 !important; }
+.admin .content .fx-tabs button.on, .admin .content .fx-tabs button[aria-selected=true], .admin .content .seg button.on, .admin .content .seg button.active { background: var(--primary) !important; color: #fff !important; }
+.admin .content .chip { border-radius: 4px !important; }
+.admin .content .chip.active, .admin .content .chip.on { background: var(--primary) !important; color: #fff !important; border-color: var(--primary) !important; }
+/* Avisos, vazios, listas. */
+.admin .content .banner { border-radius: 4px !important; box-shadow: none !important; }
+.admin .content .empty { padding: 34px 10px; color: var(--muted); }
+.admin .content .pill { border-radius: 3px !important; }
+.admin .content .list-row { border-radius: 0 !important; border: 0 !important; border-bottom: 1px solid var(--border) !important; background: transparent !important; box-shadow: none !important; transition: background var(--vd-fast); }
+.admin .content .list-row:hover { background: var(--primary-soft) !important; }
+/* Cabeçalho de página com ações: ações à direita, como o botão principal da referência. */
+.admin .content .content-head { justify-content: flex-end; min-height: 38px; }
+.admin .content .content-head > .spacer:first-child { display: none; }
+/* Modais: cantos 4px, cabeçalho simples, entrada ease-out circular. */
+.modal { border-radius: 6px !important; animation: vd-modal var(--vd-med) var(--vd-ease) both; }
+@keyframes vd-modal { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .admin .content .card, .admin .content .fx-card, .admin .content .kpi-card, .admin .content .fx-stat, .admin .content table.ptable tbody tr, .modal { animation: none !important; } }
+
+/* ── Breadcrumb global (todas as páginas) na linha das ações ── */
+.admin .content > .page-anim { position: relative; padding-top: 50px; }
+.admin .content > .page-anim > .vd-crumbbar { position: absolute; top: 0; left: 0; right: 50%; height: 38px; display: flex; align-items: center; z-index: 1; }
+.admin .content > .page-anim > .vd-crumbbar .vd-crumb { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin .content > .page-anim .content-head:not(:has(> :not(h2))) { display: none !important; }
+/* O 1.º cabeçalho de ações sobe para a linha do breadcrumb. */
+.admin .content > .page-anim > :not(.vd-crumbbar):not(.print-only):not(style) .content-head:first-child,
+.admin .content > .page-anim > .content-head:first-of-type { margin-top: -50px !important; min-height: 38px; padding-left: 50%; }
+/* Páginas que já têm o seu próprio breadcrumb (Produtos, Dashboard) não repetem. */
+.admin .content > .page-anim:has(.vd-page) { padding-top: 0; }
+.admin .content > .page-anim:has(.vd-page) > .vd-crumbbar { display: none; }
+@media (max-width: 760px) {
+  .admin .content > .page-anim { padding-top: 40px; }
+  .admin .content > .page-anim > .vd-crumbbar { right: 0; height: 32px; }
+  .admin .content > .page-anim > :not(.vd-crumbbar) .content-head:first-child,
+  .admin .content > .page-anim > .content-head:first-of-type { margin-top: 0 !important; padding-left: 0; }
+}
+
+/* ── Indicador de PROCESSAMENTO no padrão de referência: círculo claro com
+   dois arcos a rodar em sentidos opostos e a mensagem por baixo, sobre um véu.
+   Usado na emissão, sincronização e carregamentos (desenho próprio). ── */
+.vproc-bg { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: color-mix(in srgb, var(--primary) 30%, color-mix(in srgb, var(--bg, #0b1220) 82%, transparent)); animation: v-fade .3s ease both; }
+.vproc { display: grid; justify-items: center; gap: 14px; color: #fff; font-size: 14px; text-shadow: 0 1px 6px rgba(0,0,0,.35); }
+.vproc-ring { position: relative; width: 150px; height: 150px; }
+.vproc-ring::before { content: ''; position: absolute; inset: 7px; border-radius: 999px; background: #fff; box-shadow: 0 10px 40px -10px rgba(0,0,0,.45); }
+.vproc-ring i, .vproc-ring b { position: absolute; inset: 0; border-radius: 999px; border: 4px solid transparent; }
+.vproc-ring i { border-top-color: #fff; border-right-color: #fff; animation: vproc-spin 1.2s cubic-bezier(.5, .1, .5, .9) infinite; }
+.vproc-ring b { inset: 2px; border-bottom-color: var(--primary); border-left-color: var(--primary); animation: vproc-spin 1.8s linear infinite reverse; }
+@keyframes vproc-spin { to { transform: rotate(360deg); } }
+.vproc-sm .vproc-ring { width: 56px; height: 56px; } .vproc-sm .vproc-ring::before { inset: 4px; } .vproc-sm .vproc-ring i, .vproc-sm .vproc-ring b { border-width: 3px; }
+@media (prefers-reduced-motion: reduce) { .vproc-ring i, .vproc-ring b { animation-duration: 3s; } }/* Carregamentos do admin (".loading" e o fallback das secções) com o mesmo anel. */
+.admin .content .loading, .admin .content .vd-empty:has(> :empty) { display: grid; justify-items: center; gap: 12px; padding: 40px 10px; color: var(--muted); }
+.admin .content .loading::before { content: ''; width: 46px; height: 46px; border-radius: 999px; border: 3px solid var(--border); border-top-color: var(--primary); border-right-color: var(--primary); animation: vproc-spin 1s cubic-bezier(.5,.1,.5,.9) infinite; }
+@keyframes v-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Logótipo do LPS Vendas (o da landing) dentro do círculo de processamento. */
+.vproc-ring img { position: absolute; z-index: 1; left: 22%; right: 22%; top: 50%; width: 56%; transform: translateY(-50%); object-fit: contain; pointer-events: none; }
+.vproc-sm .vproc-ring img { left: 16%; width: 68%; }
+
+
+/* Carregamentos do admin e da landing: círculo branco com o logótipo e o anel. */
+.admin .content .loading::before, .lp-loading::before {
+  width: 64px !important; height: 64px !important; border-width: 3px !important;
+  background: #fff url('/logo.png') center / 78% no-repeat; box-shadow: 0 6px 20px -8px rgba(0,0,0,.35);
+}
+
+.vproc-sub { display: block; max-width: 320px; text-align: center; font-size: 12px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* Todos os ".loading" do sistema (landing, login, admin) com o círculo novo. */
+.loading { display: grid !important; justify-items: center; gap: 12px; padding: 40px 10px; }
+.loading::before { content: ''; width: 64px; height: 64px; border-radius: 999px; border: 3px solid var(--border, rgba(255,255,255,.2)); border-top-color: var(--primary); border-right-color: var(--primary);
+  background: #fff url('/logo.png') center / 78% no-repeat; box-shadow: 0 6px 20px -8px rgba(0,0,0,.35); animation: vproc-spin 1s cubic-bezier(.5,.1,.5,.9) infinite; }
+.vproc-boot { background: var(--bg, #0b1020) !important; }
+
+/* Véu sempre escuro (contraste do texto branco em qualquer tema/landing). */
+.vproc-bg { background: color-mix(in srgb, var(--primary, #3b5bff) 22%, rgba(8, 12, 26, .86)) !important; }
+.vproc-bg.vproc-boot { background: #0b1020 !important; }
+
