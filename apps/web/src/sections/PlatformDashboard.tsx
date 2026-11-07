@@ -48,11 +48,6 @@ export function PlatformDashboard() {
     <>
       <div className="content-head">
         <h2>Visão geral da plataforma</h2>
-        <span className="spacer" />
-        <span className="muted" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span className="live-dot" /> Ao vivo{lastUpdate ? ` · ${lastUpdate.toLocaleTimeString('pt-PT')}` : ''}
-        </span>
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
       </div>
 
       {error ? <div className="banner danger">{error}</div> : null}
