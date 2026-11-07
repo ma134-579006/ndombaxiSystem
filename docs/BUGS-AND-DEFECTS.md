@@ -17,3 +17,12 @@ Encontrados por leitura de código. Estado: **por confirmar com teste** salvo in
 | B-11 | Média | instalador Windows | `LPS Vendas.exe` sem tabela Authenticode (sem assinatura). **Evidência REA:** `inspect_pe_certificates` (ev_100db76d…). | SmartScreen avisa; não é possível provar a origem do binário. Exige certificado de assinatura de código (dependência externa, do proprietário). |
 
 Bugs que o Vendus não tem por construção: o Vendus anuncia-se "100% online" (sem modo offline), por isso B-01/B-02 não se comparam diretamente; são defeitos da camada offline do Ndombaxi que tem de ser fiável.
+
+## B-12 — Relatórios contavam artigos devolvidos (NC parcial) como vendidos (CORRIGIDO)
+- Onde: `apps/api/src/reports/reports.service.ts` (por utilizador, cliente, categoria, loja, marca, mapa de IVA).
+- Causa: só excluíam faturas anuladas (status A); as devoluções parciais (NC com fatura de origem válida) não eram descontadas — ao contrário dos Lucros (`profit.service.ts`).
+- Correção: `saleLines()` junta as linhas das FT/FS válidas (+) e das NC parciais (−). Anulações totais continuam a sair por status A — nunca há desconto duplo.
+- Análise da anulação (2026-11-07), verificada com uma venda real de teste anulada na caixa:
+  - Online: uma transação faz NC assinada/encadeada (entra no SAF-T), fatura → A/ANNULLED, conta a receber CANCELLED, stock reposto na loja da venda (ingredientes para pratos com ficha técnica), estorno no turno (REFUND, mesmo meio de pagamento), auditoria SALE_CANCELLED e evento em tempo real.
+  - Offline: anular nunca vai para a fila (lista NEVER do outbox) — exige o servidor para numerar/assinar a NC; sem rede dá erro e nada muda. No desktop com servidor local corre na API local.
+  - Venda a crédito com dinheiro já recebido: a anulação é recusada até estornar os recebimentos (sem dinheiro perdido).
