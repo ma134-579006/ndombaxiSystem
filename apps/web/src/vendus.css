@@ -704,3 +704,20 @@
 .vd-seg button { height: 36px; padding: 0 16px; border: 0; border-right: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 14px; cursor: pointer; transition: background var(--vd-fast), color var(--vd-fast); }
 .vd-seg button:last-child { border-right: 0; }
 .vd-seg button.on { background: var(--primary); color: #fff; }
+
+/* ── UM SÓ círculo em todas as fases (arranque → página → dados): mesmo
+   tamanho (150px), mesmos dois anéis e mesmo tempo que o ecrã de arranque.
+   Antes o carregamento dentro da página era menor e com um só anel — era
+   isso que "vinha bom e depois saía da lógica". ── */
+.loading, .admin .content .loading { min-height: 240px !important; padding: 34px 10px 24px !important; gap: 16px !important; }
+.loading::before, .admin .content .loading::before { width: 136px !important; height: 136px !important; margin-top: 7px !important; background-size: 82% !important; }
+.loading::after, .admin .content .loading::after {
+  top: 34px !important; width: 150px !important; height: 150px !important;
+  border-top-color: var(--primary) !important; border-right-color: var(--primary) !important;
+  border-bottom-color: color-mix(in srgb, var(--primary) 30%, transparent) !important; border-left-color: color-mix(in srgb, var(--primary) 30%, transparent) !important;
+  animation: vproc-spin-c 1.2s cubic-bezier(.5,.1,.5,.9) infinite !important;
+}
+.vproc-sm .vproc-ring { width: 150px !important; height: 150px !important; }
+.vproc-sm .vproc-ring::before { inset: 7px !important; }
+.vproc-sm .vproc-ring i, .vproc-sm .vproc-ring b { border-width: 4px !important; }
+.vproc-sm .vproc-ring img { left: 9% !important; width: 82% !important; }
