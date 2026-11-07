@@ -140,7 +140,7 @@ export function Ai() {
         <div className="fx-stat"><span className="ic"><IconSparkles size={20} /></span><div><div className="lb">Capacidades</div><div className="vl">{caps.size}</div><div className="sb">{[...caps].slice(0, 4).join(', ') || 'nenhuma'}</div></div></div>
       </div>
 
-      <div className="fx-tabs" role="tablist" aria-label="Inteligência artificial">
+      <div className="fx-tabs inv-tabs" role="tablist" aria-label="Inteligência artificial">
         <button role="tab" aria-selected={aiTab === 'providers'} className={aiTab === 'providers' ? 'on' : ''} onClick={() => setAiTab('providers')}>Provedores</button>
         <button role="tab" aria-selected={aiTab === 'assistant'} className={aiTab === 'assistant' ? 'on' : ''} onClick={() => setAiTab('assistant')}>Assistente e canais</button>
       </div>

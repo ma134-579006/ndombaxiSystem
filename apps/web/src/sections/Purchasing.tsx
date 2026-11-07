@@ -74,7 +74,7 @@ export function Purchasing() {
         <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Fornecedores</div><div className="vl">{suppliers.length}</div><div className="sb">registados</div></div></div>
       </div>
 
-      <div className="fx-tabs" role="tablist" aria-label="Compras">
+      <div className="fx-tabs inv-tabs" role="tablist" aria-label="Compras">
         <button role="tab" aria-selected={tab === 'orders'} className={tab === 'orders' ? 'on' : ''} onClick={() => setTab('orders')}>Encomendas de compra</button>
         <button role="tab" aria-selected={tab === 'suppliers'} className={tab === 'suppliers' ? 'on' : ''} onClick={() => setTab('suppliers')}>Fornecedores</button>
       </div>

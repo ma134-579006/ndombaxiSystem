@@ -133,7 +133,7 @@ export function Fiscal() {
         </div>
       </div>
 
-      <div className="fx-tabs" role="tablist" aria-label="Secções fiscais">
+      <div className="fx-tabs inv-tabs" role="tablist" aria-label="Secções fiscais">
         <button role="tab" aria-selected={tab === 'saft'} className={tab === 'saft' ? 'on' : ''} onClick={() => setTab('saft')}>SAF-T e certificação</button>
         <button role="tab" aria-selected={tab === 'fe'} className={tab === 'fe' ? 'on' : ''} onClick={() => setTab('fe')}>Facturação electrónica</button>
         <button role="tab" aria-selected={tab === 'docs'} className={tab === 'docs' ? 'on' : ''} onClick={() => setTab('docs')}>Documentos e legendas</button>
