@@ -292,3 +292,35 @@
   .tb-title, .tb-agt.on svg, .tb-menu, .vd-drop, .vd-card, .vd-table tbody tr, .vd-bulk { animation: none !important; }
   .tb-ring .val, .tb-round svg { transition: none !important; }
 }
+
+/* ── Barra lateral ESQUERDA sem scroll: cabe sempre na altura da janela ──
+   A altura de cada linha = espaço livre ÷ nº de linhas visíveis (--nav-n,
+   definido no Shell, conta os sub-itens do grupo aberto). Entre 24px e 44px;
+   o texto e os ícones acompanham. O aspeto (cores, ícones, rail) não muda. */
+.admin .sidebar { height: 100vh; height: 100dvh; max-height: 100dvh; overflow: hidden; }
+.admin .sidebar .nav {
+  overflow: hidden !important; min-height: 0; flex: 1 1 auto;
+  --nav-free: calc(100dvh - var(--nav-chrome, 150px));
+  --row: clamp(24px, calc(var(--nav-free) / var(--nav-n, 12) - 3px), 44px);
+  gap: clamp(0px, calc(var(--row) / 16), 3px); padding-top: clamp(2px, .8vh, 8px); padding-bottom: clamp(2px, .8vh, 8px);
+}
+.admin .sidebar .nav > *, .admin .sidebar .nav-group, .admin .sidebar .nav-sub, .admin .sidebar .nav-sub > * { flex: none !important; }
+.admin .sidebar .nav button, .admin .sidebar .nav-group-head, .admin .sidebar .nav-sub button {
+  height: var(--row) !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important;
+  font-size: clamp(11.5px, calc(var(--row) * .34), 14px) !important; line-height: 1.1;
+}
+.admin .sidebar .nav button svg, .admin .sidebar .nav-group-head svg { width: clamp(14px, calc(var(--row) * .45), 18px); height: clamp(14px, calc(var(--row) * .45), 18px); }
+.admin .sidebar .nav-sub { margin-top: 0 !important; margin-bottom: 0 !important; gap: clamp(0px, calc(var(--row) / 16), 2px) !important; }
+.admin .sidebar .brand { padding-top: clamp(6px, 2vh, 18px) !important; padding-bottom: clamp(6px, 1.6vh, 14px) !important; flex: none; }
+.admin .sidebar .brand img { width: clamp(32px, 6vh, 46px) !important; height: clamp(32px, 6vh, 46px) !important; }
+.admin .sidebar .sig { flex: none; padding-top: clamp(4px, 1.2vh, 14px); padding-bottom: clamp(4px, 1.2vh, 14px); font-size: clamp(9.5px, 1.4vh, 11px); }
+@media (max-height: 560px) { .admin .sidebar .sig { display: none; } .admin .sidebar .nav { --nav-chrome: 70px; } }
+@media (max-height: 760px) and (min-height: 561px) { .admin .sidebar .nav { --nav-chrome: 130px; } }
+
+/* ── Título da página UMA só vez: já está na barra de topo (.tb-title). ──
+   Esconde o <h2> do cabeçalho do conteúdo em todas as páginas; um cabeçalho
+   que só tinha o título desaparece; as ações ao lado continuam. Na impressão
+   o cabeçalho de marca (PrintBrandHead) continua a levar o nome da página. */
+.admin .content .content-head > h2 { display: none !important; }
+.admin .content .content-head:not(:has(> :not(h2))) { display: none !important; }
+.admin .content .content-head:has(> h2) { min-height: 0; }

@@ -460,7 +460,10 @@ export function Shell({
   return (
     <div className="admin nav-rail">
       {menuOpen ? <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} /> : null}
-      <aside ref={asideRef} className={`sidebar${menuOpen ? ' open' : ''}`} onMouseLeave={() => setOpenGroups({})}>
+      <aside ref={asideRef} className={`sidebar${menuOpen ? ' open' : ''}`} onMouseLeave={() => setOpenGroups({})}
+        /* Nº de linhas visíveis (itens + sub-itens do grupo aberto): o CSS divide a
+           altura da janela por este número — a barra cabe SEMPRE, sem scroll. */
+        style={{ ['--nav-n' as string]: nav.length + nav.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0) }}>
         <div className="brand">
           <img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
           <div className="brand-tx">
