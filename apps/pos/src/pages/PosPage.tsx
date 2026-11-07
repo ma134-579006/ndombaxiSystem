@@ -54,6 +54,7 @@ import { adjustCatalogStock, syncCatalog } from '../offline/catalog';
 import { customersStore } from '../offline/indexedList';
 import { setSaleInProgress } from '../pos/saleActivity';
 import { decideHydration, describeReconcile, parseStoredCart, reconcileWithCatalog, type StoredCart } from '../pos/cartPersist';
+import { discard as discardParked, park, parseParked, resume, type ParkedSale } from '../pos/parkedSales';
 
 const CACHE_PRODUCTS = 'cache:products';
 // Dados de apoio da Caixa, também guardados para VENDER 100% OFFLINE (clientes,
@@ -258,6 +259,12 @@ export function PosPage() {
   // O cliente da venda guardada já foi reposto (ou a lista de clientes chegou)?
   const customerRestoredRef = useRef(false);
   const [cartStorageWarn, setCartStorageWarn] = useState(false);
+  // Vendas SUSPENSAS deste operador (paridade Vendus: "Nova Venda" estaciona a
+  // atual). Persistidas no aparelho: sobrevivem a refresh, fecho e falta de rede.
+  const parkedKey = user?.sub ? `pos:parked:${user.sub}` : null;
+  const [parked, setParked] = useState<ParkedSale<CartLine>[]>(() => (parkedKey ? parseParked<CartLine>(readLocal(parkedKey)) : []));
+  const [showParked, setShowParked] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
   const [cartSel, setCartSel] = useState<Set<string>>(new Set());
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [showCustomer, setShowCustomer] = useState(false);
@@ -664,6 +671,54 @@ export function PosPage() {
       .catch(() => { if (!ok) setCartStorageWarn(true); });
     if (ok) setCartStorageWarn(false);
   }, [cart, cartKey, customer]);
+
+  // Troca de operador: carrega as vendas suspensas DESSE operador.
+  const parkedLoadedRef = useRef(parkedKey);
+  useEffect(() => {
+    if (parkedLoadedRef.current === parkedKey) return;
+    parkedLoadedRef.current = parkedKey;
+    setParked(parkedKey ? parseParked<CartLine>(readLocal(parkedKey)) : []);
+  }, [parkedKey]);
+  // Persiste as vendas suspensas a cada alteração (localStorage + base local).
+  useEffect(() => {
+    if (!parkedKey || parkedLoadedRef.current !== parkedKey) return;
+    try {
+      if (parked.length) localStorage.setItem(parkedKey, JSON.stringify(parked));
+      else localStorage.removeItem(parkedKey);
+    } catch { setCartStorageWarn(true); }
+    void kvSet(`${parkedKey}:backup`, parked.length ? parked : null).catch(() => undefined);
+  }, [parked, parkedKey]);
+
+  /** "Nova venda": suspende a atual (se tiver artigos) e começa uma vazia. */
+  const parkCurrent = () => {
+    const r = park(parked, { lines: cart, customerId: customer?.id ?? null }, newUuid(), Date.now());
+    if (r.full) { flashError('Limite de vendas suspensas atingido. Retome ou descarte uma venda suspensa.'); return; }
+    if (!r.parked) return;
+    setParked(r.list);
+    setCart([]); setCartSel(new Set()); setCustomer(null);
+  };
+
+  /** Retoma uma venda suspensa; a atual (se tiver artigos) fica suspensa no lugar. */
+  const resumeParked = (id: string) => {
+    const r = resume(parked, id, { lines: cart, customerId: customer?.id ?? null }, newUuid(), Date.now());
+    if (!r.sale) return;
+    // Preços e stock reconfirmados com o catálogo atual — com aviso do que mudou.
+    const rec = products.length ? reconcileWithCatalog(r.sale.lines, products) : null;
+    setParked(r.list);
+    setCart(rec ? rec.lines : r.sale.lines);
+    setCartSel(new Set());
+    const c = r.sale.customerId ? customers.find((x) => x.id === r.sale!.customerId) ?? null : null;
+    setCustomer(c);
+    setShowParked(false);
+    const msg = rec ? describeReconcile(rec) : null;
+    if (msg) { setEmitError(msg); setTimeout(() => setEmitError(null), 8000); }
+  };
+
+  const discardParkedSale = (id: string) => {
+    if (confirmDiscard !== id) { setConfirmDiscard(id); return; }
+    setParked((prev) => discardParked(prev, id));
+    setConfirmDiscard(null);
+  };
 
   // Repõe o cliente da venda guardada quando a lista de clientes chega (online
   // ou da cache local) — o cliente associado sobrevive a refresh/reinício.
@@ -1146,7 +1201,42 @@ export function PosPage() {
             <h2>
               <IconCart size={20} /> Carrinho{' '}
               {totals.count > 0 ? <span className="muted">· {formatNumber(totals.count)} un</span> : null}
+              <span className="spacer" style={{ flex: 1 }} />
+              {parked.length > 0 ? (
+                <button className="btn sm ghost" onClick={() => setShowParked((v) => !v)} aria-expanded={showParked}>
+                  Suspensas ({parked.length})
+                </button>
+              ) : null}
+              {cart.length > 0 ? (
+                <button className="btn sm" onClick={parkCurrent} title="Suspende esta venda e começa outra">
+                  Nova venda
+                </button>
+              ) : null}
             </h2>
+
+            {showParked && parked.length > 0 ? (
+              <div className="parked-list" role="list">
+                {parked.map((s) => {
+                  const t = cartTotals(s.lines);
+                  const cli = s.customerId ? customers.find((c) => c.id === s.customerId)?.name : null;
+                  return (
+                    <div className="parked-item" role="listitem" key={s.id}>
+                      <div className="parked-info">
+                        <strong>{formatKz(t.gross)}</strong>
+                        <span className="muted">
+                          {formatNumber(t.count)} un · {new Date(s.parkedAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                          {cli ? ` · ${cli}` : ''}
+                        </span>
+                      </div>
+                      <button className="btn sm" onClick={() => resumeParked(s.id)}>Retomar</button>
+                      <button className="btn sm ghost" onClick={() => discardParkedSale(s.id)}>
+                        {confirmDiscard === s.id ? 'Confirmar descarte' : 'Descartar'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
 
             {cart.length === 0 ? (
               <div className="empty">

@@ -13,5 +13,5 @@
     "typeRoots": ["../api/node_modules/@types"],
     "types": ["node"]
   },
-  "include": ["src/pos/cartPersist.ts", "src/pos/__tests__/**/*.ts"]
+  "include": ["src/pos/cartPersist.ts", "src/pos/parkedSales.ts", "src/pos/__tests__/**/*.ts"]
 }
