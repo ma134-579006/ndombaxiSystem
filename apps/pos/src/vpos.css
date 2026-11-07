@@ -261,3 +261,35 @@
   .vtop .icon-btn { width: 34px; height: 34px; }
   .vtop .icon-btn svg { width: 17px; height: 17px; }
 }
+
+/* ── Talão no formato de referência (ecrã + impressão 80/58mm) ──
+   Papel branco, texto preto, tracejados; o mesmo desenho sai no diálogo de
+   impressão e na térmica (ESC/POS) — desenho próprio, estrutura igual. */
+.receipt .vrc { background: #fff; color: #000; font-family: Arial, Helvetica, sans-serif; font-size: 11.5px; line-height: 1.35;
+  width: min(100%, 320px); margin: 4px auto 10px; padding: 14px 14px 10px; box-shadow: 0 6px 22px -10px rgba(0,0,0,.45); border-radius: 2px; }
+.vrc-logo { display: block; max-width: 120px; max-height: 90px; margin: 0 auto 6px; object-fit: contain; }
+.vrc-co { text-align: center; font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.vrc-head { text-align: center; margin-bottom: 12px; }
+.vrc-note { text-align: center; font-size: 11px; border: 1px dashed #000; padding: 5px; margin-bottom: 8px; }
+.vrc table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.vrc td, .vrc th { padding: 2px 2px; vertical-align: top; font-weight: 400; }
+.vrc .r { text-align: right; } .vrc .c { text-align: center; } .vrc .l { text-align: left; }
+.vrc .sm { font-size: 10px; }
+.vrc-type { border-top: 1px dashed #000; border-bottom: 1px dashed #000; margin: 4px 0; }
+.vrc-type td { padding: 5px 2px; }
+.vrc-w { margin: 6px 0; }
+.vrc-cli td.k { width: 1%; white-space: nowrap; padding-right: 6px; }
+.vrc-items thead tr.bb th, .vrc-items tbody tr.bb td, .vrc-iva tr.bb th, .vrc-iva tr.bb td { border-bottom: 1px dashed #000; }
+.vrc-items th { font-weight: 400; }
+.vrc-items sup { font-size: 8px; }
+.vrc-ex { font-size: 9.5px; margin: 4px 0 8px; }
+.vrc-total tr.big td { font-size: 16px; padding-top: 6px; }
+.vrc-iva th { font-weight: 400; }
+.vrc-foot { text-align: center; font-size: 10px; margin-top: 8px; display: grid; gap: 2px; }
+.vrc-qr { display: grid; justify-items: center; gap: 4px; margin-top: 10px; font-size: 9.5px; }
+.vrc-thanks { text-align: center; font-size: 10.5px; margin-top: 8px; }
+@media print {
+  .receipt .vrc { box-shadow: none; width: 100%; margin: 0; padding: 0 2mm; font-size: 10.5pt; }
+  .receipt .vrc table { font-size: 9.5pt; }
+  .receipt .vrc .vrc-co { font-size: 14pt; }
+}

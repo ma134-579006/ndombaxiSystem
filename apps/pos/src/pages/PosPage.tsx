@@ -345,7 +345,7 @@ export function PosPage() {
     const total = Math.round(gross * (1 - rate) * 100) / 100;
     const net = Math.round(lineNet(l) * (1 - rate) * 100) / 100;
     return {
-      description: l.product.name, quantity: l.quantity, unitPrice: l.quantity ? Math.round((gross / l.quantity) * 100) / 100 : gross, total,
+      code: l.product.code, description: l.product.name, quantity: l.quantity, unitPrice: l.quantity ? Math.round((gross / l.quantity) * 100) / 100 : gross, total,
       discount: Math.round((gross - total) * 100) / 100, discountRate: rate,
       // Para o quadro de IVA por taxa e o motivo de isenção no talão (menções obrigatórias).
       ivaRate: IVA_RATE[l.product.iva_code], net, iva: rate > 0 ? Math.round((total - net) * 100) / 100 : lineIva(l), exemptionCode: l.product.exemption_code ?? null,
