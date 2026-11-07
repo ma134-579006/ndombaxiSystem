@@ -5,6 +5,13 @@ import type { Env } from '../../config/env.validation';
 import { PrismaService } from '../../prisma/prisma.service';
 import { decryptSecret, encryptSecret, maskSecret } from '../crypto/secret-box';
 
+/** "joao.silva@x.com" → "jo***@x.com" (para logs: identifica sem expor). */
+export function maskEmail(email: string): string {
+  const at = email.indexOf('@');
+  if (at < 1) return '***';
+  return `${email.slice(0, Math.min(2, at))}***${email.slice(at)}`;
+}
+
 /**
  * Envio de e-mails transaccionais (boas-vindas, recuperação de senha/PIN, alertas).
  *
@@ -90,14 +97,17 @@ export class MailService {
   /** Envia texto simples (ou regista no log se não houver SMTP). */
   async send(to: string, subject: string, body: string): Promise<void> {
     const r = await this.resolve();
-    if (!r) { this.logger.log(`[MAIL-LOG] to=${to} subject="${subject}"\n${body}`); return; }
+    // Sem SMTP: regista só destinatário (mascarado) e assunto. NUNCA o corpo —
+    // leva senhas temporárias e links de recuperação, que ficavam legíveis nos
+    // logs do servidor (achado na auditoria, logs do Render 2026-11-07).
+    if (!r) { this.logger.warn(`[MAIL-LOG] e-mail NÃO enviado (SMTP não configurado) to=${maskEmail(to)} subject="${subject}" (${body.length} caracteres)`); return; }
     await r.transporter.sendMail({ from: r.from, to, subject, text: body });
   }
 
   /** Envia HTML. Lança se o SMTP não estiver configurado (para a UI avisar). */
   async sendHtml(to: string, subject: string, html: string): Promise<void> {
     const r = await this.resolve();
-    if (!r) { this.logger.log(`[MAIL-LOG html] to=${to} subject="${subject}"`); throw new Error('Serviço de e-mail não configurado.'); }
+    if (!r) { this.logger.warn(`[MAIL-LOG html] to=${maskEmail(to)} subject="${subject}"`); throw new Error('Serviço de e-mail não configurado.'); }
     await r.transporter.sendMail({ from: r.from, to, subject, html });
   }
 
