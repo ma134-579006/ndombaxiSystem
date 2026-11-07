@@ -6,6 +6,8 @@ const BASE = import.meta.env.BASE_URL || '/';
 export const LOGO_SRC = `${BASE}logo-mark.png`;
 /** Logo completa (com "Vendas"), transparente — para cabecalhos e ecras onde cabe. */
 export const LOGO_WIDE = `${BASE}logo-horizontal.png`;
+/** Logótipo de fundo branco (512px) — para o círculo de processamento. */
+export const LOGO_ROUND = `${BASE}logo.png`;
 
 export function copyrightLine(year: number = new Date().getFullYear()): string {
   return `© ${year} ${SYSTEM_NAME}`;

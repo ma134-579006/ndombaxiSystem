@@ -324,3 +324,12 @@
 @keyframes vproc-spin { to { transform: rotate(360deg); } }
 .vproc-sm .vproc-ring { width: 56px; height: 56px; } .vproc-sm .vproc-ring::before { inset: 4px; } .vproc-sm .vproc-ring i, .vproc-sm .vproc-ring b { border-width: 3px; }
 @media (prefers-reduced-motion: reduce) { .vproc-ring i, .vproc-ring b { animation-duration: 3s; } }
+
+/* Logótipo do LPS Vendas (o da landing) dentro do círculo de processamento. */
+.vproc-ring img { position: absolute; z-index: 1; left: 22%; right: 22%; top: 50%; width: 56%; transform: translateY(-50%); object-fit: contain; pointer-events: none; }
+.vproc-sm .vproc-ring img { left: 16%; width: 68%; }
+
+
+/* Logótipo de fundo branco (mais nítido) e maior dentro do círculo. */
+.vproc-ring img { left: 14% !important; width: 72% !important; image-rendering: auto; }
+

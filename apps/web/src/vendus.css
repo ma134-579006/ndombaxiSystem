@@ -538,3 +538,14 @@
 .admin .content .loading, .admin .content .vd-empty:has(> :empty) { display: grid; justify-items: center; gap: 12px; padding: 40px 10px; color: var(--muted); }
 .admin .content .loading::before { content: ''; width: 46px; height: 46px; border-radius: 999px; border: 3px solid var(--border); border-top-color: var(--primary); border-right-color: var(--primary); animation: vproc-spin 1s cubic-bezier(.5,.1,.5,.9) infinite; }
 @keyframes v-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Logótipo do LPS Vendas (o da landing) dentro do círculo de processamento. */
+.vproc-ring img { position: absolute; z-index: 1; left: 22%; right: 22%; top: 50%; width: 56%; transform: translateY(-50%); object-fit: contain; pointer-events: none; }
+.vproc-sm .vproc-ring img { left: 16%; width: 68%; }
+
+
+/* Carregamentos do admin e da landing: círculo branco com o logótipo e o anel. */
+.admin .content .loading::before, .lp-loading::before {
+  width: 64px !important; height: 64px !important; border-width: 3px !important;
+  background: #fff url('/logo.png') center / 78% no-repeat; box-shadow: 0 6px 20px -8px rgba(0,0,0,.35);
+}

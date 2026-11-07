@@ -4,7 +4,7 @@ import { api, ApiError } from '../api/client';
 import type { CashSession, Customer, DocumentIdentity, EmittedInvoice, PaymentType, Product, ReceiptFiscalInfo } from '../api/types';
 import { IVA_RATE } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
-import { LOGO_SRC, SYSTEM_SHORT } from '../brand';
+import { LOGO_ROUND, LOGO_SRC, SYSTEM_SHORT } from '../brand';
 import { CustomerModal } from '../components/CustomerModal';
 import { FooterCredit } from '../components/FooterCredit';
 import {
@@ -1204,7 +1204,7 @@ export function PosPage() {
               ) : null}
 
               {loading ? (
-                <div className="empty"><div className="vproc vproc-sm" style={{ color: 'var(--muted)', textShadow: 'none' }}><div className="vproc-ring"><i /><b /></div><span>A sincronizar produtos…</span></div></div>
+                <div className="empty"><div className="vproc vproc-sm" style={{ color: 'var(--muted)', textShadow: 'none' }}><div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div><span>A sincronizar produtos…</span></div></div>
               ) : error ? (
                 <div className="empty"><div className="banner danger">{error}</div></div>
               ) : shown.length === 0 ? (
@@ -1464,7 +1464,7 @@ export function PosPage() {
       />
 
       {emitting ? (
-        <div className="vproc-bg" role="status" aria-live="polite"><div className="vproc"><div className="vproc-ring"><i /><b /></div><span>A processar documento…</span></div></div>
+        <div className="vproc-bg" role="status" aria-live="polite"><div className="vproc"><div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div><span>A processar documento…</span></div></div>
       ) : null}
 
       {showPayment ? (
