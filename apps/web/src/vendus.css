@@ -422,3 +422,84 @@
 @media (max-width: 1200px) { .vd-storerow { grid-template-columns: 30px 1fr 56px 1fr 110px; } .vd-sr-div { display: none; } .vd-storerow > :nth-child(7) { grid-column: 3; } }
 @media (max-width: 700px) { .vd-storerow { grid-template-columns: 1fr 1fr; } .vd-storerow > svg { display: none; } .vd-sr-name { grid-column: 1 / -1; } .vd-sr-lbl { text-align: left; grid-column: 1 / -1; } .vd-storerow > :nth-child(7) { grid-column: auto; } }
 @media (prefers-reduced-motion: reduce) { .vd-area-line, .vd-area-fill, .vd-bar, .vd-slice { animation: none !important; stroke-dashoffset: 0 !important; } }
+
+/* ════════════════════════════════════════════════════════════════════
+   PELE GLOBAL "padrão de referência" para TODAS as páginas do admin e do
+   super admin (classes partilhadas: card, btn, field, ptable, kpi, chips…).
+   Só estrutura, raio, espaçamento, tipografia e movimento — as cores
+   continuam a ser os tokens de cada tema.
+   ════════════════════════════════════════════════════════════════════ */
+.admin .content { background: var(--bg); }
+.admin .content .card, .admin .content .fx-card {
+  border-radius: 4px !important; border: 1px solid var(--border) !important; box-shadow: none !important;
+  background: var(--surface) !important; padding: 20px; animation: vd-rise var(--vd-med) var(--vd-ease) both;
+}
+.admin .content .card > h3, .admin .content .fx-card-h h3, .admin .content .fx-card > h3 {
+  font-size: 18px; font-weight: 400; margin: 0 0 14px; color: var(--text);
+}
+.admin .content .card > h3 b, .admin .content .card > h3 strong { font-weight: 700; }
+/* Botões: rectângulos 4px, primário cheio; "ghost" passa a contorno primário. */
+.admin .content .btn {
+  border-radius: 4px !important; box-shadow: none !important; height: 36px; padding: 0 16px; font-size: 14px; font-weight: 500;
+  background: var(--primary); border: 1px solid var(--primary); color: #fff; background-image: none !important;
+}
+.admin .content .btn.sm { height: 30px; padding: 0 11px; font-size: 13px; }
+.admin .content .btn.lg { height: 44px; font-size: 15px; }
+.admin .content .btn.ghost { background: transparent !important; color: var(--primary) !important; border-color: var(--primary) !important; }
+.admin .content .btn.ghost:hover { background: var(--primary-soft) !important; }
+.admin .content .btn.danger { background: var(--danger) !important; border-color: var(--danger) !important; color: #fff !important; }
+.admin .content .btn.success { background: var(--success) !important; border-color: var(--success) !important; color: #fff !important; }
+.admin .content .btn:hover:not(:disabled) { filter: brightness(1.07); }
+/* Campos: rótulo em cima em negrito pequeno; controlos 36px, raio 4px, foco com halo. */
+.admin .content .field > label { font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.admin .content .field input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=color]),
+.admin .content .field select, .admin .content .field textarea,
+.admin .content input.input, .admin .content select.seg-select {
+  border-radius: 4px !important; border: 1px solid var(--border) !important; background: var(--surface) !important;
+  min-height: 36px; font-size: 14px; box-shadow: none !important; transition: border-color var(--vd-fast), box-shadow var(--vd-fast);
+}
+.admin .content .field input:focus, .admin .content .field select:focus, .admin .content .field textarea:focus {
+  border-color: var(--primary) !important; box-shadow: 0 0 0 3px var(--primary-soft) !important; outline: none;
+}
+/* Tabelas (ptable e tabelas soltas): cabeçalho a negrito com linha dupla, linhas alternadas. */
+.admin .content table.ptable, .admin .content .card table:not(.vd-table) { width: 100%; border-collapse: collapse; font-size: 14px; }
+.admin .content table.ptable th, .admin .content .card table:not(.vd-table) th {
+  text-align: left; font-weight: 700; color: var(--text) !important; background: transparent !important; text-transform: none !important;
+  letter-spacing: 0 !important; font-size: 14px !important; padding: 10px !important; border-bottom: 2px solid var(--border) !important;
+}
+.admin .content table.ptable td, .admin .content .card table:not(.vd-table) td { padding: 11px 10px !important; border-bottom: 1px solid var(--border) !important; }
+.admin .content table.ptable tbody tr:nth-child(odd), .admin .content .card table:not(.vd-table) tbody tr:nth-child(odd) { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+.admin .content table.ptable tbody tr:hover, .admin .content .card table:not(.vd-table) tbody tr:hover { background: var(--primary-soft); }
+.admin .content table.ptable tbody tr { animation: vd-row .32s var(--vd-ease) both; }
+/* KPIs: ícone em círculo suave, valor na cor primária (como os cartões de faturação). */
+.admin .content .kpi-card, .admin .content .fx-stat {
+  border-radius: 4px !important; border: 1px solid var(--border) !important; box-shadow: none !important; background: var(--surface) !important;
+  animation: vd-rise var(--vd-med) var(--vd-ease) both;
+}
+.admin .content .kpi-card .kpi-ic, .admin .content .fx-stat .ic {
+  border-radius: 999px !important; background: var(--primary-soft) !important; color: var(--primary) !important; box-shadow: none !important;
+}
+.admin .content .kpi-value, .admin .content .fx-stat .vl { color: var(--primary) !important; font-weight: 700 !important; }
+.admin .content .kpi-grid > :nth-child(2), .admin .content .fx-stats > :nth-child(2) { animation-delay: .05s; }
+.admin .content .kpi-grid > :nth-child(3), .admin .content .fx-stats > :nth-child(3) { animation-delay: .1s; }
+.admin .content .kpi-grid > :nth-child(4), .admin .content .fx-stats > :nth-child(4) { animation-delay: .15s; }
+/* Separadores (fx-tabs / seg / chips) como abas rectas com a ativa a cheio. */
+.admin .content .fx-tabs, .admin .content .seg { border-radius: 4px !important; background: transparent !important; border: 1px solid var(--border); padding: 0 !important; gap: 0 !important; overflow: hidden; box-shadow: none !important; }
+.admin .content .fx-tabs button, .admin .content .seg button { border-radius: 0 !important; height: 36px; padding: 0 14px; border-right: 1px solid var(--border) !important; box-shadow: none !important; background: var(--surface) !important; color: var(--text) !important; transition: background var(--vd-fast), color var(--vd-fast); }
+.admin .content .fx-tabs button:last-child, .admin .content .seg button:last-child { border-right: 0 !important; }
+.admin .content .fx-tabs button.on, .admin .content .fx-tabs button[aria-selected=true], .admin .content .seg button.on, .admin .content .seg button.active { background: var(--primary) !important; color: #fff !important; }
+.admin .content .chip { border-radius: 4px !important; }
+.admin .content .chip.active, .admin .content .chip.on { background: var(--primary) !important; color: #fff !important; border-color: var(--primary) !important; }
+/* Avisos, vazios, listas. */
+.admin .content .banner { border-radius: 4px !important; box-shadow: none !important; }
+.admin .content .empty { padding: 34px 10px; color: var(--muted); }
+.admin .content .pill { border-radius: 3px !important; }
+.admin .content .list-row { border-radius: 0 !important; border: 0 !important; border-bottom: 1px solid var(--border) !important; background: transparent !important; box-shadow: none !important; transition: background var(--vd-fast); }
+.admin .content .list-row:hover { background: var(--primary-soft) !important; }
+/* Cabeçalho de página com ações: ações à direita, como o botão principal da referência. */
+.admin .content .content-head { justify-content: flex-end; min-height: 38px; }
+.admin .content .content-head > .spacer:first-child { display: none; }
+/* Modais: cantos 4px, cabeçalho simples, entrada ease-out circular. */
+.modal { border-radius: 6px !important; animation: vd-modal var(--vd-med) var(--vd-ease) both; }
+@keyframes vd-modal { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .admin .content .card, .admin .content .fx-card, .admin .content .kpi-card, .admin .content .fx-stat, .admin .content table.ptable tbody tr, .modal { animation: none !important; } }
