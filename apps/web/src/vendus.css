@@ -611,3 +611,10 @@
   background: #fff url('/logo.png') center / 84% no-repeat !important; }
 .loading::after { content: ''; position: absolute; top: 34px; left: 50%; width: 96px; height: 96px; margin-left: -48px; margin-top: -6px; border-radius: 999px;
   border: 4px solid transparent; border-top-color: var(--primary); border-right-color: var(--primary); animation: vproc-spin 1.1s cubic-bezier(.5,.1,.5,.9) infinite; pointer-events: none; }
+
+/* Migração (layout de referência) */
+.vd-agt-cards.mig4 { grid-template-columns: repeat(auto-fill, minmax(210px, 230px)); }
+.vd-modal.wide { width: min(900px, 100%); }
+.vd-modal .mig-card { box-shadow: none; border: 0; padding: 0; background: transparent; }
+.mig-structure { display: grid; justify-items: center; gap: 4px; text-align: center; margin-top: 16px; font-size: 13.5px; color: var(--muted); }
+.mig-structure b { color: var(--text); font-size: 15px; }
