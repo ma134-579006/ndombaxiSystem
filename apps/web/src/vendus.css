@@ -618,3 +618,10 @@
 .vd-modal .mig-card { box-shadow: none; border: 0; padding: 0; background: transparent; }
 .mig-structure { display: grid; justify-items: center; gap: 4px; text-align: center; margin-top: 16px; font-size: 13.5px; color: var(--muted); }
 .mig-structure b { color: var(--text); font-size: 15px; }
+
+/* A entrada da página NÃO pode deixar "transform" no fim: um transform no
+   antepassado transforma os elementos fixos (ícone de mensagem, assistente)
+   em relativos à página e eles desciam com o scroll. "backwards" aplica o
+   estado inicial só antes de começar e no fim não fica transform nenhum. */
+.admin .content > .page-anim { animation-fill-mode: backwards !important; }
+.admin .content > .page-anim { transform: none; }
