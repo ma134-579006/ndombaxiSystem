@@ -184,3 +184,80 @@
 @media (prefers-reduced-motion: reduce) {
   .vtop-drop, .vtile, .vline, .vline-ctl, .vopts, .vfin, .vfin-bg, .vfin-in, .vsearch { animation: none !important; }
 }
+
+/* ── SEM SCROLL: a caixa cabe sempre na janela e escala proporcionalmente ──
+   Só a grelha de produtos e as linhas da venda deslizam por dentro.
+   Tamanhos com clamp(vw/vh) para ficar "justo" de telemóvel a ecrã grande. */
+.app-bg:has(.pos) { height: 100dvh; overflow: hidden; }
+.pos { height: 100dvh !important; max-height: 100dvh; overflow: hidden; }
+.pos > .topbar.vtop { flex: none; min-height: 0; padding-top: clamp(4px, 1vh, 10px) !important; padding-bottom: clamp(4px, 1vh, 10px) !important; }
+.vtop .topbar-logo { width: clamp(26px, 4.4vh, 40px); height: clamp(26px, 4.4vh, 40px); }
+.vtop .who .name { font-size: clamp(14px, 2.4vh, 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30vw; }
+.pos > .pos-footer { flex: none; padding: 2px 8px !important; }
+.pos > .pos-footer .footer-credit { font-size: 10px; }
+.pos-body.vpos {
+  flex: 1 1 auto; min-height: 0; overflow: hidden !important; display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 30vw, 400px);
+  grid-template-rows: minmax(0, 1fr);
+  gap: clamp(8px, 2vw, 30px); padding: clamp(6px, 2vh, 22px) clamp(6px, 4vw, 60px) clamp(6px, 1.6vh, 18px) !important;
+}
+.vcat { display: flex !important; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
+.vtab { height: clamp(36px, 6.5vh, 50px); padding: 0 clamp(10px, 1.6vw, 20px); font-size: clamp(13px, 2vh, 16px); }
+.vtab.ic { width: clamp(38px, 6.5vh, 56px); }
+.vcat-body { min-height: 0; overflow: hidden; padding: clamp(6px, 1.6vh, 16px); }
+.vcat-body > .vgrid { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.vgrid { grid-template-columns: repeat(auto-fill, minmax(clamp(92px, 11vw, 138px), 1fr)); grid-auto-rows: clamp(72px, 15vh, 137px); }
+.vtile { min-height: 0; height: 100%; padding: clamp(4px, 1vh, 10px); gap: 2px; }
+.vtile.img img { height: 45%; min-height: 0; }
+.vt-name { font-size: clamp(12px, 1.9vh, 15px); color: var(--text); }
+.vt-price { font-size: clamp(11px, 1.7vh, 13px); color: var(--text); }
+.vt-flag { font-size: clamp(9px, 1.4vh, 10.5px); }
+.cart.vcart { min-height: 0; min-width: 0; overflow: hidden; height: auto !important; max-height: none !important; position: static !important; }
+.vsale-nav { height: clamp(32px, 6.5vh, 50px); font-size: clamp(14px, 2.4vh, 18px); }
+.vcart-box { min-height: 0; flex: 1 1 auto; }
+.vtable-h { height: clamp(32px, 6vh, 50px); font-size: clamp(12px, 1.9vh, 14px); }
+.vline-main { padding-top: clamp(7px, 1.6vh, 13px); padding-bottom: clamp(7px, 1.6vh, 13px); font-size: clamp(12.5px, 1.9vh, 14px); }
+.vtable-empty { padding: clamp(10px, 3vh, 30px) 12px; }
+.vtotal { padding: clamp(6px, 1.6vh, 14px) clamp(10px, 1.4vw, 16px); }
+.vtotal b { font-size: clamp(20px, 4.6vh, 34px); }
+.vtotal small { font-size: clamp(10.5px, 1.6vh, 12.5px); }
+.vtotal > span { font-size: clamp(12px, 2vh, 16px); }
+.vactions { height: clamp(52px, 13vh, 100px); }
+.vopt-btn { font-size: clamp(13px, 2.2vh, 18px); }
+.vfinal { font-size: clamp(15px, 3vh, 24px); gap: clamp(4px, 1vw, 10px); }
+.vcart .banner { font-size: 12.5px; padding: 6px 10px; }
+/* Ecrãs estreitos (telemóvel/tablet ao alto): produtos em cima, venda em baixo —
+   ainda sem scroll da página; cada zona desliza por dentro. */
+@media (max-width: 760px) {
+  .pos-body.vpos { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, auto); gap: 6px; padding: 6px !important; }
+  .cart.vcart { max-height: 52dvh !important; }
+  .vcart-box { min-height: 90px; }
+  .vsale-nav { height: 30px; font-size: 14px; }
+  .vtop-menus { display: none; }
+  .vgrid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); grid-auto-rows: clamp(64px, 11vh, 100px); }
+  .vactions { height: clamp(48px, 9vh, 70px); }
+}
+/* Janelas muito baixas: esconde o rodapé e reduz o topo. */
+@media (max-height: 520px) { .pos > .pos-footer { display: none; } }
+
+/* Ajustes finos: etiqueta de stock por baixo do preço (não tapa o nome) e o
+   bloco do TOTAL sempre escuro, como na referência, em qualquer tema. */
+.vt-flag { position: static !important; margin-top: 2px; padding: 0 5px; line-height: 1.5; }
+.vtotal { background: color-mix(in srgb, #000 62%, var(--surface)) !important; color: #fff !important; }
+.vfin-side { background: color-mix(in srgb, #000 48%, var(--surface)) !important; color: #fff !important; }
+.vfin-close { background: color-mix(in srgb, #000 62%, var(--surface)) !important; color: #fff !important; }
+.vfin-side-h { border-bottom-color: rgba(255,255,255,.35) !important; }
+.vfin-side-l { border-bottom-color: rgba(255,255,255,.14) !important; }
+
+/* Tablet ao alto (≤900px em retrato) usa a disposição empilhada; topo numa só linha. */
+@media (max-width: 900px) and (orientation: portrait) {
+  .pos-body.vpos { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, auto); gap: 8px; padding: 8px !important; }
+  .cart.vcart { max-height: 48dvh !important; }
+  .vcart-box { min-height: 100px; }
+}
+.pos > .topbar.vtop { flex-wrap: nowrap !important; }
+@media (max-width: 520px) {
+  .vtop .who .name { max-width: 42vw; font-size: 15px; }
+  .vtop .icon-btn { width: 34px; height: 34px; }
+  .vtop .icon-btn svg { width: 17px; height: 17px; }
+}
