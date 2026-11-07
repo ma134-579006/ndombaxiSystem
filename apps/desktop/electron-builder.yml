@@ -49,6 +49,21 @@ extraResources:
 npmRebuild: false
 nodeGypRebuild: false
 
+# Fuses do Electron (achado da análise REA ao "LPS Vendas.exe" instalado: todos
+# estavam nos valores por omissão, inseguros). Desligamos o que a app NÃO usa:
+#   • NODE_OPTIONS e --inspect permitiam a qualquer processo local injetar código
+#     no executável (ex.: um atalho modificado com --inspect).
+# Ficam por decisão consciente:
+#   • runAsNode: o servidor local (apps/local-server/src/supervisor.ts) arranca a
+#     API e o prisma com ELECTRON_RUN_AS_NODE=1. Desligar exige migrar para
+#     utilityProcess ou um Node empacotado — tarefa própria.
+#   • cookieEncryption / asarIntegrity / onlyLoadAppFromAsar: mudam o arranque
+#     ou invalidam dados existentes; só com teste do instalador real.
+electronFuses:
+  runAsNode: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+
 win:
   # .ico NÍTIDO com 16→256px, gerado a partir do logótipo oficial pelo
   # prepare-resources (scripts/gen-win-icon.mjs). Antes usávamos um único PNG de
