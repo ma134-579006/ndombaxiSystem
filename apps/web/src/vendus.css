@@ -561,7 +561,7 @@
 
 /* Véu sempre escuro (contraste do texto branco em qualquer tema/landing). */
 .vproc-bg { background: color-mix(in srgb, var(--primary, #3b5bff) 22%, rgba(8, 12, 26, .86)) !important; }
-.vproc-bg.vproc-boot { background: #0b1020 !important; }
+.vproc-bg.vproc-boot { background: #0b1020 !important; animation: none !important; } /* arranque: opaco e sem desvanecer, continua o ecrã do index.html */
 
 
 /* ── Administração Geral Tributária (layout de referência) ── */

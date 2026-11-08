@@ -385,7 +385,8 @@ function TenantPanel() {
     return () => { alive = false; };
   }, []);
   if (gate === null) {
-    return <div className="login"><div className="loading">A carregar…</div></div>;
+    // Mesmo ecrã do arranque (sem salto escuro → claro → escuro).
+    return <div className="vproc-bg vproc-boot" role="status" aria-live="polite"><div className="vproc"><div className="vproc-ring"><img src={LOGO_ROUND} alt="" /><i /><b /></div><span>A carregar…</span></div></div>;
   }
   if (!gate.setupCompleted) {
     return <CompanySetup onDone={() => setGate({ setupCompleted: true, approved: false, expired: false })} />;
