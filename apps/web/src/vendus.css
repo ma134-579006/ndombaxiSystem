@@ -789,3 +789,16 @@
 .tb-sub.warn .tb-ring .val { stroke: #f08c00; }
 .tb-sub.bad .tb-sub-tx, .tb-sub.bad .tb-ring b { color: var(--danger); }
 .tb-sub.bad .tb-ring .val { stroke: var(--danger); }
+/* Migalha do topo por cima do cabeçalho fixo da página (que é opaco). */
+.admin .content > .page-anim > .vd-crumbbar { z-index: 35; }
+/* Menu de abas vertical ocupa toda a coluna (sem espaço vazio antes do conteúdo). */
+:is(.admin .content > .page-anim, .admin .content > .page-anim > div) > .fx-tabs.inv-tabs { width: auto !important; justify-self: stretch; }
+/* KPIs do topo das páginas com abas: largura toda e cartões alinhados. */
+:is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .kpi-grid:not(.fx-tabs ~ *) { grid-column: 1 / -1 !important; align-items: stretch; margin-bottom: 18px; }
+:is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .kpi-grid > * { margin-top: 0 !important; }
+/* Cabeçalhos e avisos DEPOIS das abas pertencem ao conteúdo da aba (coluna 2), não à largura toda. */
+:is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .fx-tabs.inv-tabs ~ :is(.content-head, .banner, .print-only) { grid-column: 2; }
+:is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .fx-tabs.inv-tabs ~ .content-head { padding: 0 0 0 20px; margin: 0 0 12px; position: static; background: none; }
+:is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .fx-tabs.inv-tabs ~ .content-head > h2 { display: block; font-size: 22px; font-weight: 300; }
+:is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .fx-tabs.inv-tabs + .content-head { min-height: 0 !important; align-items: center; padding-top: 14px !important; }
+:is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .fx-tabs.inv-tabs + .content-head + * { border-radius: 0 4px 4px 0 !important; }
