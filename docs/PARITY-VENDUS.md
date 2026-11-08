@@ -80,3 +80,15 @@ Testados de ponta a ponta numa conta real (afrotalentt4, modo shadow): **clínic
 Cloudflare: a gestão voltou a publicar depois de dar mais memória ao Node no build (`--max-old-space-size=4096`) e de desligar o cálculo gzip.
 
 Ainda por fazer: zonas cozinha/bar configuráveis; "Utilizador" vazio no saldo inicial; páginas Inventário, Compras, Promoções, Câmaras, Backup, Configurações, Subscrição e Relatórios no padrão Vendus; venda de medicamento na caixa com receita (não testada nesta ronda).
+
+### Atualização 2026-11-08 (noite) — revisão de pendentes
+Feito (PRs #147–#149): botões "Atualizar" retirados; menus "Opções" das tabelas por cima de tudo (já não ficam cortados); ecrã de bloqueio da gestão aos 5 min; zonas cozinha/bar por categoria (Restauração → Zonas); utilizador no saldo inicial; barras de deslocamento visíveis em gestão, caixa e loja. Verificado em produção com super admin (3 empresas e lojas).
+
+**Pendentes reais (por ordem):**
+1. Páginas no padrão Vendus: Inventário, Compras, Promoções, Câmaras, Backup e Restauro, Configurações, Subscrição e Planos, Relatórios.
+2. Super admin: página Fiscal (AGT) em cartões.
+3. Migração: cartão "Stock" (exige endpoint de atualização de stock por ficheiro).
+4. PDF dos relatórios no formato do Vendus.
+5. Caixa: teste da venda de medicamento com receita.
+6. Fiscal A3 Modo Formação / A4 Documento Manual — só depois de confirmar requisitos da AGT em fonte oficial.
+7. Utilizador: mudar a palavra-passe do super admin.
