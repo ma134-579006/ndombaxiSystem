@@ -767,3 +767,5 @@
 .rt-actions > .btn.ghost { flex: 1 1 0; white-space: nowrap; }
 /* O botão fixo de mensagens não tapa a última linha/botão das páginas. */
 .admin .content { padding-bottom: max(96px, var(--content-pad-b, 0px)) !important; }
+/* Cartões lado a lado (.row) alinhados pelo topo. */
+.vd-page .row > .card + .card { margin-top: 0; }
