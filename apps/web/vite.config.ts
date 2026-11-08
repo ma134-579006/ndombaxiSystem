@@ -31,6 +31,9 @@ export default defineConfig({
   },
   preview: { port: 5175 },
   build: {
+    // Sem cálculo de tamanhos gzip no relatório: build mais leve (tempo/memória
+    // no Cloudflare Pages); o resultado publicado é o mesmo.
+    reportCompressedSize: false,
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
