@@ -757,3 +757,6 @@
 .vd-home .list-row:last-child { border-bottom: 0; }
 .vd-home .pill.on { background: var(--primary-soft); color: var(--primary); }
 .vd-home .ui-ic-lg { width: 56px; height: 56px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; }
+/* Centros de comando: espaçamento entre blocos como no painel de referência. */
+.vd-home.vd-page > .card, .vd-home.vd-page > .kpi-grid, .vd-home.vd-page > .grid-2, .vd-home.vd-page > .pgrid { margin-bottom: 0 !important; }
+.vd-home.vd-page .vd-sec { margin-top: 8px; }
