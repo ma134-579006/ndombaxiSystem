@@ -821,3 +821,20 @@
 *::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 70%, transparent) !important; background-clip: padding-box; }
 .vd-tabs, .fx-tabs, .vd-seg, .sx-tabs, .admin aside, .admin aside * { scrollbar-width: none !important; }
 .vd-tabs::-webkit-scrollbar, .fx-tabs::-webkit-scrollbar, .vd-seg::-webkit-scrollbar, .admin aside::-webkit-scrollbar, .admin aside *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+
+/* ── Blocos comuns das páginas (Inventário, Compras, Câmaras, Subscrição,
+   Funcionários, Backup…) no desenho do painel de referência: KPI com ícone em
+   círculo à esquerda e valor na cor primária; cartões brancos de canto 4px;
+   títulos de secção leves e sublinhados. ── */
+.admin .content .fx-stats { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.admin .content .fx-stat { display: flex !important; align-items: center; gap: 14px; padding: 16px 18px !important; border: 1px solid var(--border); border-radius: 4px !important; background: var(--surface); box-shadow: none !important; animation: vd-rise var(--vd-med, .5s) var(--vd-ease, ease) backwards; }
+.admin .content .fx-stat .ic { position: static !important; width: 56px !important; height: 56px !important; border-radius: 999px !important; background: var(--primary-soft) !important; color: var(--primary); flex: none; }
+.admin .content .fx-stat .lb { font-size: 14px !important; text-transform: none !important; letter-spacing: 0 !important; font-weight: 400 !important; color: var(--muted); }
+.admin .content .fx-stat .vl { font-size: clamp(18px, 2vw, 24px) !important; font-weight: 700; color: var(--primary); margin-top: 2px; }
+.admin .content .fx-stat .sb { font-size: 12.5px; }
+.admin .content .fx-card { border-radius: 4px !important; box-shadow: none !important; padding: 18px 20px !important; }
+.admin .content .fx-card-h h3, .admin .content .card > h3:first-child { font-size: 22px !important; font-weight: 300 !important; letter-spacing: 0; }
+.admin .content .fx-card-h { padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.admin .content .card { border-radius: 4px; box-shadow: none; }
+.admin .content .ptable thead th { background: var(--surface-2); font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; font-size: 13.5px; }
+.admin .content .ptable tbody tr:hover { background: var(--primary-soft); }
