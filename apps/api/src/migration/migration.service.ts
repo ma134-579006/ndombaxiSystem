@@ -8,6 +8,7 @@ import {
   CUSTOMER_ALIASES, CustomerField,
   PRODUCT_ALIASES, ProductField,
   SUPPLIER_ALIASES, SupplierField,
+  STOCK_ALIASES, StockField,
   mapHeaders, parseFlexibleNumber,
 } from './column-aliases';
 import { cleanName, hasLetters, isValidGtin, readBarcode, readCode, readStock } from './cell-values';
@@ -112,6 +113,7 @@ export class MigrationService {
     const { headers, rows } = parseUploadedFile(buffer, fileName, kind);
     if (kind === 'products') return this.previewProducts(schema, headers, rows, mapping ?? null);
     if (kind === 'customers') return this.previewCustomers(schema, headers, rows);
+    if (kind === 'stock') return this.previewStock(schema, headers, rows);
     return this.previewSuppliers(schema, headers, rows);
   }
 
@@ -130,6 +132,7 @@ export class MigrationService {
     onProgress?.(0, rows.length);
     if (kind === 'products') return this.applyProducts(schema, headers, rows, actor, fileName, storeId ?? null, mapping ?? null, onProgress, tax);
     if (kind === 'customers') return this.applyCustomers(schema, headers, rows, actor, fileName, onProgress);
+    if (kind === 'stock') return this.applyStock(schema, headers, rows, actor, fileName, onProgress);
     return this.applySuppliers(schema, headers, rows, actor, fileName, onProgress);
   }
 
@@ -786,5 +789,113 @@ export class MigrationService {
       entity: 'suppliers', details: { fileName, created, updated, skipped },
     });
     return { kind: 'suppliers', created, updated, skipped, errors };
+  }
+
+  // ── STOCK por ficheiro: Referência; Quantidade; Loja; Operação ──────────
+  // Operação: Entrada (soma), Saída (subtrai) ou Acerto (fica com a quantidade
+  // indicada). Sem operação = Entrada. Loja vazia = loja principal. Nunca apaga.
+  private static stockOp(v: unknown): 'IN' | 'OUT' | 'SET' {
+    const t = String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+    if (/^(s|saida|out|sai|-)/.test(t)) return 'OUT';
+    if (/^(a|acerto|ajuste|set|inventario|contagem|=)/.test(t)) return 'SET';
+    return 'IN';
+  }
+
+  private async previewStock(schema: string, headers: string[], rows: Record<string, unknown>[]): Promise<MigrationPreview> {
+    const { mapping, unmapped } = mapHeaders<StockField>(headers, STOCK_ALIASES);
+    if (!mapping.ref || !mapping.qty) throw new BadRequestException(`O ficheiro precisa das colunas Referência e Quantidade. Colunas do ficheiro: ${headers.join(', ')}`);
+    const { products, stores } = await this.prisma.runInTenant(schema, async (tx) => ({
+      products: await tx.$queryRaw<{ code: string; barcode: string | null }[]>(Prisma.sql`SELECT code, barcode FROM products WHERE is_active = TRUE`),
+      stores: await tx.$queryRaw<{ name: string }[]>(Prisma.sql`SELECT name FROM stores WHERE is_active = TRUE`),
+    }));
+    const refs = new Set<string>();
+    for (const p of products) { refs.add(p.code.trim().toLowerCase()); if (p.barcode) refs.add(p.barcode.trim().toLowerCase()); }
+    const storeNames = new Set(stores.map((x) => x.name.trim().toLowerCase()));
+    let toUpdate = 0, toSkip = 0;
+    const sample: PreviewRow[] = [];
+    const skippedSamples: { row: number; reason: string }[] = [];
+    rows.forEach((r, i) => {
+      const ref = String(r[mapping.ref!] ?? '').trim();
+      const qty = parseFlexibleNumber(r[mapping.qty!]);
+      const store = mapping.store ? String(r[mapping.store] ?? '').trim() : '';
+      let reason = '';
+      if (!ref) reason = 'sem referência';
+      else if (!refs.has(ref.toLowerCase())) reason = `referência ${ref} não existe`;
+      else if (!Number.isFinite(qty) || qty < 0) reason = 'quantidade inválida';
+      else if (store && !storeNames.has(store.toLowerCase())) reason = `loja «${store}» não existe`;
+      if (reason) { toSkip++; if (skippedSamples.length < 10) skippedSamples.push({ row: i + 2, reason }); return; }
+      toUpdate++;
+      if (sample.length < SAMPLE_SIZE) {
+        const op = MigrationService.stockOp(mapping.op ? r[mapping.op] : '');
+        sample.push({ action: 'UPDATE', data: { referência: ref, quantidade: qty, loja: store || 'principal', operação: op === 'IN' ? 'Entrada' : op === 'OUT' ? 'Saída' : 'Acerto' } });
+      }
+    });
+    return { kind: 'stock', detectedColumns: mapping as Record<string, string>, unmappedColumns: unmapped, totalRows: rows.length, toCreate: 0, toUpdate, toSkip, sample, skippedSamples, headers };
+  }
+
+  private async applyStock(
+    schema: string, headers: string[], rows: Record<string, unknown>[], actor: Actor, fileName?: string, onProgress?: OnProgress,
+  ): Promise<MigrationApplyResult> {
+    const { mapping } = mapHeaders<StockField>(headers, STOCK_ALIASES);
+    if (!mapping.ref || !mapping.qty) throw new BadRequestException('O ficheiro precisa das colunas Referência e Quantidade.');
+    let updated = 0, skipped = 0;
+    const errors: string[] = [];
+    const reference = `Importação de stock (${fileName || 'ficheiro'})`;
+    for (let start = 0; start < rows.length; start += BATCH_SIZE) {
+      const end = Math.min(start + BATCH_SIZE, rows.length);
+      onProgress?.(start, rows.length);
+      let bUpdated = 0, bSkipped = 0;
+      const bErrors: string[] = [];
+      try {
+        await this.prisma.runInTenant(schema, async (tx) => {
+          const defStore = await StockService.resolveDefaultWarehouse(tx);
+          const actorId = (await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM users WHERE id = ${actor.id ?? null}::uuid`))[0]?.id ?? null;
+          for (let i = start; i < end; i++) {
+            const r = rows[i];
+            const ref = String(r[mapping.ref!] ?? '').trim();
+            try {
+              const qty = parseFlexibleNumber(r[mapping.qty!]);
+              if (!ref || !Number.isFinite(qty) || qty < 0) { bSkipped++; continue; }
+              const p = (await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+                SELECT id FROM products WHERE is_active = TRUE AND (lower(code) = ${ref.toLowerCase()} OR lower(barcode) = ${ref.toLowerCase()}) LIMIT 1`))[0];
+              if (!p) { bSkipped++; if (bErrors.length < 15) bErrors.push(`Linha ${i + 2}: referência ${ref} não existe`); continue; }
+              const storeName = mapping.store ? String(r[mapping.store] ?? '').trim() : '';
+              const st = storeName
+                ? (await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM stores WHERE is_active = TRUE AND lower(trim(name)) = ${storeName.toLowerCase()} LIMIT 1`))[0]?.id
+                : defStore;
+              if (!st) { bSkipped++; if (bErrors.length < 15) bErrors.push(`Linha ${i + 2}: loja «${storeName}» não existe`); continue; }
+              const op = MigrationService.stockOp(mapping.op ? r[mapping.op] : '');
+              let delta = qty;
+              if (op === 'OUT') delta = -qty;
+              if (op === 'SET') {
+                const cur = (await tx.$queryRaw<{ q: string }[]>(Prisma.sql`SELECT COALESCE((SELECT quantity FROM stock_items WHERE product_id = ${p.id}::uuid AND warehouse_id = ${st}::uuid), 0) AS q`))[0];
+                delta = qty - Number(cur?.q ?? 0);
+                if (delta === 0) { bUpdated++; continue; }
+              }
+              await StockService.applyMovement(tx, {
+                productId: p.id, warehouseId: st, type: op === 'SET' ? 'ADJUST' : op === 'OUT' ? 'OUT' : 'IN',
+                quantity: delta, reference, createdBy: actorId, allowNegative: op !== 'OUT',
+              });
+              bUpdated++;
+            } catch (e) {
+              bSkipped++;
+              const msg = firstErrorLine(e);
+              if (bErrors.length < 15) bErrors.push(`Linha ${i + 2} (${ref}): ${msg.slice(0, 90)}`);
+            }
+          }
+        });
+        updated += bUpdated; skipped += bSkipped;
+        for (const e of bErrors) if (errors.length < 15) errors.push(e);
+      } catch (e) {
+        skipped += end - start;
+        const msg = firstErrorLine(e);
+        if (errors.length < 15) errors.push(`Linhas ${start + 2}–${end + 1}: lote falhou (${msg.slice(0, 90)})`);
+      }
+    }
+    await this.audit.record(schema, {
+      actorId: actor.id, actorName: actor.name, action: 'MIGRATION_IMPORT',
+      entity: 'stock', details: { fileName, updated, skipped },
+    });
+    return { kind: 'stock', created: 0, updated, skipped, errors };
   }
 }

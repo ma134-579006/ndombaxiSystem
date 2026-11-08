@@ -1,6 +1,6 @@
 import { IsBoolean, IsIn, IsObject, IsOptional, IsString, Matches } from 'class-validator';
 
-export const MIGRATION_KINDS = ['products', 'customers', 'suppliers'] as const;
+export const MIGRATION_KINDS = ['products', 'customers', 'suppliers', 'stock'] as const;
 export type MigrationKind = (typeof MIGRATION_KINDS)[number];
 
 /** Importação de dados de outro sistema (Vendus, Primavera, Negócio, etc.) — o

@@ -8,6 +8,7 @@
 export type ProductField = 'barcode' | 'code' | 'name' | 'category' | 'stock' | 'costPrice' | 'salePrice' | 'profit';
 export type CustomerField = 'name' | 'taxId' | 'phone' | 'email' | 'address' | 'debt' | 'history';
 export type SupplierField = 'name' | 'taxId' | 'phone' | 'email' | 'address' | 'debt' | 'history';
+export type StockField = 'ref' | 'qty' | 'store' | 'op';
 
 export const PRODUCT_ALIASES: Record<ProductField, string[]> = {
   barcode: ['codigo de barras', 'codigos de barras', 'codigo de barra', 'codigo barras', 'codigo barra', 'cod barras', 'cod barra', 'cod de barras', 'cod de barra', 'codbarras', 'codbarra', 'c barras', 'barras', 'barra', 'ean', 'ean13', 'ean 13', 'ean8', 'ean 8', 'codigo ean', 'cod ean', 'upc', 'barcode', 'bar code', 'gtin', 'cb'],
@@ -51,6 +52,14 @@ export const SUPPLIER_ALIASES: Record<SupplierField, string[]> = {
   address: ['morada', 'endereco'],
   debt: ['saldo', 'divida', 'saldo devedor', 'conta a pagar', 'valor em divida', 'saldo em aberto', 'divida atual', 'valor devido'],
   history: ['historico', 'observacoes', 'notas', 'obs'],
+};
+
+/** Atualização de stock por ficheiro (Referência; Quantidade; Loja; Operação). */
+export const STOCK_ALIASES: Record<StockField, string[]> = {
+  ref: ['referencia', 'ref', 'codigo', 'codigo de barras', 'cod barras', 'barcode', 'ean', 'sku', 'artigo'],
+  qty: ['quantidade', 'qtd', 'qty', 'stock', 'unidades'],
+  store: ['loja', 'armazem', 'local'],
+  op: ['operacao', 'tipo', 'movimento', 'operacao de stock'],
 };
 
 /** Remove acentos, baixa para minúsculas e normaliza espaços/pontuação. */
