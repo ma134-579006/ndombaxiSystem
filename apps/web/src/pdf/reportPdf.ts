@@ -1,175 +1,156 @@
 import { jsPDF } from 'jspdf';
-import QRCode from 'qrcode';
 import type { DocumentIdentity } from '../api/types';
-import { localIso } from '../format';
 
 export interface ReportTable {
   heading?: string;
   columns: string[];
   rows: string[][];
+  /** Cabeçalho de grupo por cima das colunas (ex.: "IVA" sobre Código/Taxa). */
+  groups?: { label: string; from: number; span: number }[];
 }
 export interface ReportPdfArgs {
   identity?: DocumentIdentity | null;
   title: string;
+  /** Período ou filtro (ex.: "01/11/2026 a 30/11/2026"). */
   subtitle?: string;
-  /** Linhas de resumo (rótulo → valor), estilo "totais" da fatura. */
+  /** Linhas de resumo (rótulo → valor). */
   summary?: [string, string][];
   tables: ReportTable[];
+  /** Quem gerou (rodapé "Gerado Online / <nome>"). */
+  generatedBy?: string | null;
 }
 
-const ACCENT: [number, number, number] = [36, 48, 232];
-const INK: [number, number, number] = [20, 24, 32];
-const MUTED: [number, number, number] = [110, 120, 135];
+const INK: [number, number, number] = [0, 0, 0];
+const GREY: [number, number, number] = [90, 90, 90];
+const LINE: [number, number, number] = [205, 205, 205];
 
 /**
- * Documento A4 profissional com EXATAMENTE o mesmo design da fatura PDF:
- * cabeçalho (logo + empresa + NIF + morada / título + data), linha de acento,
- * resumo, tabelas (cabeçalho escuro + linhas alternadas), QR e rodapé com os
- * dados da empresa. Reutilizável por qualquer secção que tenha "Imprimir".
+ * Relatório A4 no formato de referência: título com o período à esquerda,
+ * empresa e contribuinte à direita; tabela simples (texto preto, cabeçalho a
+ * negrito com linha por baixo, células que quebram em várias linhas, sem cores
+ * de fundo); rodapé em todas as páginas com "Gerado Online", quem gerou, data e
+ * "Página x / y". Reutilizável por qualquer secção que tenha "Imprimir".
  */
 export async function buildReportPdf(a: ReportPdfArgs): Promise<jsPDF> {
-  const { identity, title, subtitle, summary, tables } = a;
+  const { identity, title, subtitle, summary, tables, generatedBy } = a;
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
-  const M = 48;
-  const empresa = identity?.companyName || identity?.brandName || 'Relatório';
+  const M = 28;
+  const empresa = identity?.companyName || identity?.brandName || '';
   const now = new Date();
-  const dateStr = now.toLocaleString('pt-PT');
+  const two = (n: number) => String(n).padStart(2, '0');
+  const dateStr = `${two(now.getDate())}/${two(now.getMonth() + 1)}/${now.getFullYear()} ${two(now.getHours())}:${two(now.getMinutes())}`;
+  const footerSafe = 56;
+  const top = 40;
 
-  // ── Cabeçalho ──
-  let y = 54;
-  if (identity?.logoUrl) {
-    try {
-      const logo = await toDataUrl(identity.logoUrl);
-      if (logo) doc.addImage(logo, 'PNG', M, y - 16, 54, 54, undefined, 'FAST');
-    } catch { /* logo opcional */ }
-  }
-  const tx = identity?.logoUrl ? M + 68 : M;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(...INK);
-  doc.text(empresa, tx, y);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(90, 100, 115);
-  if (identity?.nif) doc.text(`NIF: ${identity.nif}`, tx, y + 16);
-  if (identity?.address) doc.text(doc.splitTextToSize(identity.address, W - tx - M), tx, y + 30);
-
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...ACCENT);
-  doc.text(title.toUpperCase(), W - M, y, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
-  if (subtitle) { doc.text(subtitle, W - M, y + 16, { align: 'right' }); }
-  doc.text(dateStr, W - M, y + (subtitle ? 30 : 16), { align: 'right' });
-
-  y += 64;
-  doc.setDrawColor(...ACCENT); doc.setLineWidth(2); doc.line(M, y, W - M, y);
-  y += 26;
-
-  const footerSafe = 84; // espaço reservado p/ rodapé/QR
-
-  // ── Resumo (estilo totais) ──
-  if (summary && summary.length) {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
-    for (const [k, val] of summary) {
-      if (y > H - footerSafe) { doc.addPage(); y = 54; }
-      doc.setFillColor(247, 249, 252); doc.rect(M, y - 14, W - 2 * M, 26, 'F');
-      doc.setTextColor(70, 80, 95); doc.text(String(k), M + 12, y + 3);
-      doc.setTextColor(...INK); doc.setFont('helvetica', 'bold');
-      doc.text(String(val), W - M - 12, y + 3, { align: 'right' });
-      doc.setFont('helvetica', 'normal');
-      y += 30;
+  // ── Cabeçalho (repetido em todas as páginas) ──
+  const drawHeader = () => {
+    doc.setTextColor(...INK);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
+    const head = subtitle ? `${title} - ${subtitle}` : title;
+    doc.text(doc.splitTextToSize(head, W / 2 - M)[0] ?? head, M, top);
+    if (empresa) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text(empresa, W - M, top, { align: 'right' });
     }
-    y += 8;
+    if (identity?.nif) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...GREY);
+      doc.text(`Contribuinte ${identity.nif}`, W - M, top + 11, { align: 'right' });
+    }
+  };
+  drawHeader();
+  let y = top + 44;
+  const newPage = () => { doc.addPage(); drawHeader(); y = top + 44; };
+
+  // ── Resumo (rótulo → valor), em duas colunas compactas ──
+  if (summary && summary.length) {
+    doc.setFontSize(8);
+    const colW = (W - 2 * M) / 2;
+    summary.forEach(([k, v], i) => {
+      const cx = M + (i % 2) * colW;
+      if (i % 2 === 0 && i > 0) y += 13;
+      if (y > H - footerSafe) newPage();
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...GREY); doc.text(String(k), cx, y);
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(...INK); doc.text(String(v), cx + colW - 12, y, { align: 'right' });
+    });
+    y += 24;
   }
 
   // ── Tabelas ──
   for (const t of tables) {
     if (!t.columns.length || !t.rows.length) continue;
     const usable = W - 2 * M;
-    const n = t.columns.length;
-    // pesos: 1ª coluna (texto) mais larga
-    const weights = t.columns.map((_, i) => (i === 0 ? 2 : 1));
-    const wsum = weights.reduce((s, w) => s + w, 0);
-    const colW = weights.map((w) => (w / wsum) * usable);
+    const fs = t.columns.length > 9 ? 6.5 : t.columns.length > 6 ? 7 : 8;
+    const lh = fs + 2.6; // altura de linha de texto
+    // Larguras pelo conteúdo (amostra), com mínimo e a 1.ª coluna de texto mais larga.
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(fs);
+    const sample = t.rows.slice(0, 60);
+    const natural = t.columns.map((c, i) => {
+      const lens = [doc.getTextWidth(c), ...sample.map((r) => doc.getTextWidth(String(r[i] ?? '')))];
+      lens.sort((p, q) => p - q);
+      return Math.min(150, Math.max(34, lens[Math.floor(lens.length * 0.9)] ?? 34) + 10);
+    });
+    const nsum = natural.reduce((s, w) => s + w, 0);
+    const colW = natural.map((w) => (w / nsum) * usable);
     const colX: number[] = [];
     let acc = M;
     for (const w of colW) { colX.push(acc); acc += w; }
-    // alinhamento por coluna: numérica → direita
     const rightAlign = t.columns.map((_, i) => {
-      const sample = t.rows.slice(0, 12).map((r) => r[i] ?? '');
-      const num = sample.filter((v) => /^[\s]*[+-]?[\d.,]+\s*(kz|aoa|%)?\s*$/i.test(v.trim()) && /\d/.test(v)).length;
-      return i !== 0 && num >= Math.max(1, sample.length * 0.5);
+      const s = sample.slice(0, 20).map((r) => String(r[i] ?? '').trim()).filter(Boolean);
+      const num = s.filter((v) => /^[+-]?[\d.\s]*\d(,\d+)?\s*(kz|aoa|%)?$/i.test(v)).length;
+      return i !== 0 && s.length > 0 && num >= s.length * 0.6;
     });
+    const cellX = (i: number) => (rightAlign[i] ? colX[i] + colW[i] - 4 : colX[i] + 2);
 
     if (t.heading) {
-      if (y > H - footerSafe) { doc.addPage(); y = 54; }
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(...INK);
-      doc.text(t.heading, M, y); y += 18;
+      if (y > H - footerSafe - 40) newPage();
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...INK);
+      doc.text(t.heading, M, y); y += 16;
     }
 
     const drawHead = () => {
-      doc.setFillColor(...INK); doc.rect(M, y - 14, usable, 24, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(255, 255, 255);
-      t.columns.forEach((c, i) => {
-        const x = rightAlign[i] ? colX[i] + colW[i] - 8 : colX[i] + 8;
-        const txt = doc.splitTextToSize(c, colW[i] - 12)[0] ?? c;
-        doc.text(String(txt), x, y + 2, { align: rightAlign[i] ? 'right' : 'left' });
-      });
-      y += 24;
+      doc.setTextColor(...INK); doc.setFont('helvetica', 'bold'); doc.setFontSize(fs);
+      if (t.groups?.length) {
+        for (const g of t.groups) {
+          const gx = colX[g.from]; const gw = colW.slice(g.from, g.from + g.span).reduce((s, w) => s + w, 0);
+          doc.text(g.label, gx + gw / 2, y, { align: 'center' });
+          doc.setDrawColor(...LINE); doc.setLineWidth(0.6); doc.line(gx + 2, y + 3, gx + gw - 2, y + 3);
+        }
+        y += lh + 4;
+      }
+      let hh = 1;
+      const heads = t.columns.map((c, i) => { const ls = doc.splitTextToSize(c, colW[i] - 6) as string[]; hh = Math.max(hh, ls.length); return ls; });
+      heads.forEach((ls, i) => doc.text(ls, cellX(i), y, { align: rightAlign[i] ? 'right' : 'left' }));
+      y += (hh - 1) * lh + 5;
+      doc.setDrawColor(...INK); doc.setLineWidth(0.7); doc.line(M, y, W - M, y);
+      y += lh + 3;
     };
     drawHead();
 
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
-    let alt = false;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(fs); doc.setTextColor(...INK);
     for (const row of t.rows) {
-      if (y > H - footerSafe) { doc.addPage(); y = 54; drawHead(); doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); alt = false; }
-      if (alt) { doc.setFillColor(247, 249, 252); doc.rect(M, y - 13, usable, 22, 'F'); }
-      alt = !alt;
-      doc.setTextColor(30, 36, 46);
-      t.columns.forEach((_, i) => {
-        const val = row[i] ?? '';
-        const x = rightAlign[i] ? colX[i] + colW[i] - 8 : colX[i] + 8;
-        const txt = doc.splitTextToSize(String(val), colW[i] - 12)[0] ?? String(val);
-        doc.text(String(txt), x, y + 2, { align: rightAlign[i] ? 'right' : 'left' });
-      });
-      y += 22;
+      const cells = t.columns.map((_, i) => doc.splitTextToSize(String(row[i] ?? ''), colW[i] - 6) as string[]);
+      const lines = Math.max(1, ...cells.map((c) => c.length));
+      const rowH = lines * lh + 6;
+      if (y + rowH - lh > H - footerSafe) { newPage(); drawHead(); doc.setFont('helvetica', 'normal'); doc.setFontSize(fs); doc.setTextColor(...INK); }
+      cells.forEach((c, i) => doc.text(c, cellX(i), y, { align: rightAlign[i] ? 'right' : 'left' }));
+      y += rowH;
     }
-    y += 18;
+    y += 14;
   }
 
-  // ── QR (paridade visual com a fatura) ──
-  const qy = H - footerSafe - 4;
-  try {
-    const qrData = [empresa, title, identity?.nif ? `NIF:${identity.nif}` : '', localIso(now)].filter(Boolean).join('|');
-    const qr = await QRCode.toDataURL(qrData, { margin: 1, width: 200 });
-    doc.addImage(qr, 'PNG', W - M - 70, qy - 70, 70, 70, undefined, 'FAST');
-  } catch { /* QR opcional */ }
-
-  // ── Rodapé (em todas as páginas) ──
+  // ── Rodapé em todas as páginas ──
   const pages = doc.getNumberOfPages();
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p);
-    const fy = H - 60;
-    doc.setDrawColor(225, 230, 240); doc.setLineWidth(1); doc.line(M, fy, W - M, fy);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
-    const foot = [identity?.address, [identity?.phone, identity?.email].filter(Boolean).join(' · ')].filter(Boolean);
-    let fyy = fy + 16;
-    for (const line of foot) { doc.text(String(line), W / 2, fyy, { align: 'center' }); fyy += 13; }
-    doc.setTextColor(...ACCENT); doc.setFont('helvetica', 'bold');
-    doc.text(identity?.receiptMessage || empresa, W / 2, fyy + 2, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setTextColor(170, 178, 190); doc.setFontSize(8);
-    doc.text(`Página ${p}/${pages}`, W - M, H - 24, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...GREY);
+    const fy = H - 38;
+    doc.text('Gerado Online', M, fy);
+    if (generatedBy) doc.text(String(generatedBy), M, fy + 10);
+    doc.text(dateStr, M, fy + (generatedBy ? 20 : 10));
+    doc.text(`Página ${p} / ${pages}`, W - M, fy + 10, { align: 'right' });
   }
 
   return doc;
-}
-
-async function toDataUrl(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, { mode: 'cors' });
-    const blob = await res.blob();
-    return await new Promise((resolve) => {
-      const r = new FileReader();
-      r.onload = () => resolve(String(r.result));
-      r.onerror = () => resolve(null);
-      r.readAsDataURL(blob);
-    });
-  } catch { return null; }
 }
