@@ -9,6 +9,7 @@ import { initTouchUi } from './touchUi';
 import { initAutoUpdate } from './autoUpdate';
 import { initScrollReveal } from './scrollReveal';
 import { initStickyStack } from './stickyStack';
+import { initFloatingMenus } from './floatingMenus';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { mandatoryUpdate } from './update/mandatoryUpdate';
 import { isNativeApp } from './config';
@@ -28,6 +29,7 @@ initAutoUpdate(); // recarrega sozinho quando há nova versão publicada
 mandatoryUpdate.start();
 initScrollReveal();
 initStickyStack(); // conteúdo materializa-se ao rolar (animação em todo o sistema)
+initFloatingMenus(); // menus "Opções" das tabelas por cima de tudo (não ficam cortados)
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Elemento #root não encontrado');

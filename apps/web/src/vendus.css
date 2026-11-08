@@ -808,3 +808,6 @@
 .hotel-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important; }
 .hotel-room .rt-foot { flex-wrap: wrap; gap: 6px; }
 .hotel-room .rt-foot .btn, .hotel-room .rt-foot button { flex: none; }
+/* As animações de entrada não guardam o transform no fim: um transform (mesmo neutro)
+   prende os menus fixos "Opções" dentro da linha/cartão e corta-os. */
+.vd-card, .vd-table tbody tr, .vd-kpi, .vd-storerow, .vd-home .ui-tile { animation-fill-mode: backwards !important; }
