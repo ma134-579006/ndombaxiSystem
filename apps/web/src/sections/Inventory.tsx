@@ -405,14 +405,16 @@ const todayISO = () => localIso();
 
 /** Entrada de stock em lote com cálculo automático de custo unitário e lucro. */
 export function StockEntryModal({
-  products, warehouses, onClose, onSaved,
+  products, warehouses, onClose, onSaved, initialProductId,
 }: {
   products: ManagerProduct[];
   warehouses: WarehouseRow[];
   onClose(): void;
   onSaved(): void;
+  /** Aberto a partir da linha de um produto: já vem escolhido. */
+  initialProductId?: string;
 }) {
-  const [productId, setProductId] = useState('');
+  const [productId, setProductId] = useState(initialProductId ?? '');
   const [warehouseId, setWarehouseId] = useState(warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? '');
   const [qty, setQty] = useState('');
   const [totalCost, setTotalCost] = useState('');
@@ -486,7 +488,7 @@ export function StockEntryModal({
         <div className="field"><label>Custo total pago (Kz)</label>
           <input inputMode="decimal" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} placeholder="ex.: 40000" /></div>
       </div>
-      <div className="field"><label>Preço de venda por unidade (Kz)</label>
+      <div className="field"><label>Preço de venda por unidade (Kz, sem IVA)</label>
         <input inputMode="decimal" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="ex.: 5000" /></div>
       <div className="grid-2">
         <div className="field"><label>Código do lote (opcional)</label>

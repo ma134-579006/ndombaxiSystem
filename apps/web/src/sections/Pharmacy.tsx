@@ -3,7 +3,8 @@ import { api } from '../api/client';
 import type { PharmacyBatch } from '../api/types';
 import { IconSearch } from '../components/Icons';
 
-const fmtDate = (s: string) => { try { return new Date(s + 'T00:00:00').toLocaleDateString('pt-PT'); } catch { return s; } };
+// Validade vem como AAAA-MM-DD ou ISO completo → DD/MM/AAAA (antes dava "Invalid Date").
+const fmtDate = (s: string) => { const v = String(s || '').slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v.split('-').reverse().join('/') : '—'; };
 
 /**
  * Farmácia — controlo de validade (lotes), no padrão de listagem de referência:

@@ -116,6 +116,7 @@ export function Products() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pfilter, setPfilter] = useState<'ALL' | 'IN' | 'OUT' | 'ONLINE' | 'OFF'>('ALL');
   const [busy, setBusy] = useState(false);
+  const [enterFor, setEnterFor] = useState<string | undefined>(undefined);
   const [entering, setEntering] = useState(false);
   const [producing, setProducing] = useState(false);
   // Filtros, colunas, ordenação e paginação da listagem.
@@ -676,7 +677,7 @@ export function Products() {
           <button className="vd-btn caret" aria-label="Mais opções de criação" aria-expanded={headMenu === 'add'} onClick={() => setHeadMenu((m) => (m === 'add' ? null : 'add'))}><IconChevronDown size={16} /></button>
           {headMenu === 'add' ? (
             <div className="vd-drop" role="menu">
-              <button role="menuitem" onClick={() => { setHeadMenu(null); setEntering(true); }} disabled={stores.length === 0 || products.length === 0}><IconTruck size={15} /> Adicionar stock</button>
+              <button role="menuitem" onClick={() => { setHeadMenu(null); setEnterFor(undefined); setEntering(true); }} disabled={stores.length === 0 || products.length === 0}><IconTruck size={15} /> Adicionar stock</button>
               {hasRecipes ? <button role="menuitem" onClick={() => { setHeadMenu(null); setProducing(true); }}>Registar fornada</button> : null}
             </div>
           ) : null}
@@ -823,7 +824,7 @@ export function Products() {
                           {rowMenu === p.id ? (
                             <div className="vd-drop" role="menu">
                               <button role="menuitem" onClick={() => { setRowMenu(null); openEdit(p); }}><IconEdit size={15} /> Editar</button>
-                              <button role="menuitem" onClick={() => { setRowMenu(null); setEntering(true); }} disabled={stores.length === 0}><IconTruck size={15} /> Adicionar stock</button>
+                              <button role="menuitem" onClick={() => { setRowMenu(null); setEnterFor(p.id); setEntering(true); }} disabled={stores.length === 0}><IconTruck size={15} /> Adicionar stock</button>
                               <hr />
                               <button role="menuitem" className="danger" onClick={() => { setRowMenu(null); void bulkDelete([p.id]); }} disabled={busy}>Eliminar</button>
                             </div>
@@ -857,6 +858,7 @@ export function Products() {
 
       {entering ? (
         <StockEntryModal
+          initialProductId={enterFor}
           products={products}
           warehouses={stores}
           onClose={() => setEntering(false)}

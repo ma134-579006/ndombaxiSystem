@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { InvoiceShareModal, type IssuedInvoice } from '../components/InvoiceShare';
 import { api, ApiError } from '../api/client';
 import type { ManagerProduct, ServiceAgendaRow, ServiceChecklistItem, ServiceEquipment, ServiceOrderDetail, ServiceOrderRow } from '../api/types';
 import { toast, runTransfer } from '../components/feedback';
@@ -67,6 +68,7 @@ export function ServiceOrders() {
     catch { /* sessionStorage indisponível */ }
   }, []);
   const [creating, setCreating] = useState(false);
+  const [issued, setIssued] = useState<{ inv: IssuedInvoice; phone: string | null } | null>(null);
   const [detail, setDetail] = useState<ServiceOrderDetail | null>(null);
 
   const load = useCallback(async () => {
@@ -116,7 +118,9 @@ export function ServiceOrders() {
       )}
 
       {creating ? <CreateOS onClose={() => setCreating(false)} onCreated={async (id) => { setCreating(false); await load(); await openOS(id); }} /> : null}
-      {detail ? <OSDetail detail={detail} onClose={() => setDetail(null)} onChanged={async () => { setDetail(await api.serviceOrders.get(detail.order.id)); await load(); }} /> : null}
+      {detail ? <OSDetail detail={detail} onClose={() => setDetail(null)} onChanged={async () => { setDetail(await api.serviceOrders.get(detail.order.id)); await load(); }}
+        onInvoiced={(inv, phone) => setIssued({ inv, phone })} /> : null}
+      {issued ? <InvoiceShareModal inv={issued.inv} phone={issued.phone} onClose={() => setIssued(null)} /> : null}
     </div>
   );
 }
@@ -587,7 +591,7 @@ function WorkflowBar({ o, onChanged }: { o: ServiceOrderDetail['order']; onChang
   );
 }
 
-function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; onClose(): void; onChanged(): void }) {
+function OSDetail({ detail, onClose, onChanged, onInvoiced }: { detail: ServiceOrderDetail; onClose(): void; onChanged(): void; onInvoiced?(inv: IssuedInvoice, phone: string | null): void }) {
   const o = detail.order;
   const isVehicle = (o.equipment_type ?? '').toUpperCase() === 'VEHICLE';
   const { companyCode } = useAuth();
@@ -627,9 +631,9 @@ function OSDetail({ detail, onClose, onChanged }: { detail: ServiceOrderDetail; 
       // baixa stock/atualiza financeiro (no servidor). Depois gera a impressão.
       const r = await api.serviceOrders.invoice(o.id);
       toast.success(`Fatura ${r.invoiceNumber} emitida. OS entregue e registada no Caixa.`);
-      try { await printInvoicePdf(r.invoiceId); }
-      catch { toast.warning('Fatura emitida, mas o PDF falhou. Use "Imprimir 2ª via".'); }
       onChanged();
+      // O cliente escolhe: fatura física (imprimir) ou digital (PDF, WhatsApp, e-mail).
+      onInvoiced?.({ id: r.invoiceId, number: r.invoiceNumber, total: detail.items.reduce((s2, it) => s2 + Number(it.unit_price) * Number(it.quantity), 0) }, o.customer_phone ?? null);
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao faturar.'); }
     finally { setBilling(false); }
   };
