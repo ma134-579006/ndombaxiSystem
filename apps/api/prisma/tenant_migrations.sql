@@ -689,3 +689,37 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."customer_login_codes" (
 
 -- Zona de preparação por categoria (restauração): KITCHEN | BAR | NULL (automático pelo nome).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."product_categories" ADD COLUMN IF NOT EXISTS prep_zone TEXT;
+
+-- Loja online: cupões (código, % ou Kz, valor mínimo, limites de uso, validade).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."store_coupons" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code         TEXT NOT NULL UNIQUE,
+  type         TEXT NOT NULL,              -- PERCENT | AMOUNT
+  value        NUMERIC(14,2) NOT NULL,
+  min_order    NUMERIC(14,2) NOT NULL DEFAULT 0,
+  max_uses     INT,                        -- NULL = sem limite total
+  per_customer INT NOT NULL DEFAULT 1,
+  starts_at    TIMESTAMPTZ,
+  ends_at      TIMESTAMPTZ,
+  is_public    BOOLEAN NOT NULL DEFAULT FALSE, -- mostrado na montra
+  is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS coupon_code TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS coupon_discount NUMERIC(14,2);
+
+-- Loja online: avaliações de produtos por clientes que compraram (1 por cliente/produto).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."store_reviews" (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id     UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,
+  customer_email TEXT NOT NULL,
+  customer_name  TEXT,
+  rating         INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment        TEXT,
+  is_hidden      BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (product_id, customer_email)
+);
+CREATE INDEX IF NOT EXISTS store_reviews_product_idx ON "{{SCHEMA}}"."store_reviews"(product_id);

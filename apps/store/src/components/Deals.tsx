@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import type { CatalogProduct } from '../api/types';
+import type { CatalogProduct, PublicCoupon } from '../api/types';
+import { api } from '../api/client';
+import { formatKz } from '../format';
 import { IconChevronRight, IconClock } from './Icons';
 import { ProductCard } from './ProductCard';
+
+export const COUPON_KEY = 'ndombaxi.store.coupon';
 
 /** Tempo restante até `endsAt` (actualiza a cada segundo); null sem fim/expirado. */
 export function useCountdown(endsAt: string | null | undefined): { d: number; h: number; m: number; s: number } | null {
@@ -73,5 +77,35 @@ export function FlashDeals({ products, onOpen, onAdd, onMore }: {
   return (
     <ProductRail className="ax-flash" title="Ofertas relâmpago" extra={<Countdown endsAt={ends} />}
       items={deals.slice(0, 16)} onOpen={onOpen} onAdd={onAdd} onMore={onMore} />
+  );
+}
+
+/** Cupões que a loja mostra na montra: "Usar" guarda o código para o checkout. */
+export function CouponStrip({ code }: { code: string }) {
+  const [list, setList] = useState<PublicCoupon[]>([]);
+  const [picked, setPicked] = useState<string | null>(() => { try { return sessionStorage.getItem(COUPON_KEY); } catch { return null; } });
+  useEffect(() => {
+    let alive = true;
+    api.coupons(code).then((l) => { if (alive) setList(l); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [code]);
+  if (!list.length) return null;
+  const use = (c: string) => {
+    try { sessionStorage.setItem(COUPON_KEY, c); } catch { /* sem armazenamento */ }
+    void navigator.clipboard?.writeText(c).catch(() => undefined);
+    setPicked(c);
+  };
+  return (
+    <section className="ax-coupons" aria-label="Cupões">
+      {list.map((c) => (
+        <div className="ax-ticket" key={c.code}>
+          <div className="v">{c.type === 'PERCENT' ? `${c.value}% off` : `${formatKz(c.value)} off`}</div>
+          {c.minOrder > 0 ? <div className="m">em compras a partir de {formatKz(c.minOrder)}</div> : null}
+          <div className="c">Código: <b>{c.code}</b></div>
+          {c.endsAt ? <Countdown endsAt={c.endsAt} label="Termina em" /> : null}
+          <button className={`btn sm${picked === c.code ? ' ghost' : ''}`} onClick={() => use(c.code)}>{picked === c.code ? 'Guardado' : 'Usar'}</button>
+        </div>
+      ))}
+    </section>
   );
 }

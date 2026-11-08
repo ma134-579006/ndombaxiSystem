@@ -18,9 +18,12 @@ import { StorefrontService } from './storefront.service';
 import { OrdersService } from './orders.service';
 import { TenantResolverService } from './tenant-resolver.service';
 
+import { MarketingController } from './marketing.controller';
+import { MarketingService } from './marketing.service';
+
 @Module({
   imports: [PosModule, SiteModule, PaymentsModule, AiModule, HotelModule, ServiceOrdersModule, ClinicModule, FiscalModule, JwtModule.register({})],
-  controllers: [StorefrontController, OrdersController, CustomerChatController],
+  controllers: [StorefrontController, OrdersController, CustomerChatController, MarketingController],
   providers: [
     StorefrontService,
     OrdersService,
@@ -28,6 +31,7 @@ import { TenantResolverService } from './tenant-resolver.service';
     CustomerChatService,
     CustomerAuthService,
     TenantResolverService,
+    MarketingService,
   ],
 })
 export class EcommerceModule {}

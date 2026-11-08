@@ -55,6 +55,12 @@ export class CustomerLocationDto {
 }
 
 export class CheckoutDto {
+  /** Código de cupão (opcional; exige sessão do cliente). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  couponCode?: string;
+
   /** Opcional: sem nome a encomenda fica como "Cliente" (o GPS é que é obrigatório). */
   @IsOptional()
   @IsString()

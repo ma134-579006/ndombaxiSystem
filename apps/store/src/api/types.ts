@@ -62,6 +62,18 @@ export interface CatalogProduct {
   promo?: { name: string; percent: number; endsAt: string | null };
   /** Unidades vendidas. */
   sold?: number;
+  /** Média e nº de avaliações. */
+  rating?: number;
+  reviews?: number;
+}
+
+export interface PublicCoupon { code: string; type: 'PERCENT' | 'AMOUNT'; value: number; minOrder: number; endsAt: string | null }
+export interface CouponPreview { code: string; type: 'PERCENT' | 'AMOUNT'; value: number; minOrder: number; discount: number }
+export interface ProductReviews {
+  average: number; count: number; distribution: number[];
+  items: { id: string; name: string; rating: number; comment: string | null; date: string }[];
+  mine: { rating: number; comment: string | null } | null;
+  canReview: boolean;
 }
 
 export interface CatalogResponse {
@@ -104,6 +116,8 @@ export interface CheckoutInput {
   geoLng?: number;
   geoAccuracy?: number;
   geoConsent?: boolean;
+  /** Cupão (exige sessão do cliente). */
+  couponCode?: string;
   lines: CheckoutLine[];
 }
 

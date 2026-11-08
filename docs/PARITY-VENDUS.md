@@ -111,4 +111,7 @@ Feito: a loja online ganhou as funções que um marketplace tem e ela não tinha
 - **Filtros:** intervalo de preço, "Em promoção", "Disponível" e ordenação por mais vendidos.
 - Barra lateral flutuante (carrinho, favoritos, topo) e botão de carrinho sobre a imagem.
 
-Por fazer (precisam de tabelas novas e de regras do utilizador): avaliações dos produtos por clientes que compraram; cupões com código e valor mínimo.
+Feito a seguir (avaliações e cupões), com regras provisórias escolhidas pela opção mais segura — o utilizador pode pedir para mudar:
+- **Avaliações:** só avalia quem tem conta e uma encomenda online paga, enviada ou entregue com o produto. Uma avaliação por cliente e por produto (reenviar edita). Na montra aparece "Primeiro nome + inicial do apelido", nunca o email. A gestão oculta ou volta a mostrar em Loja & Marca → Avaliações dos produtos. Média e estrelas nos cartões e na página do produto.
+- **Cupões** (gestão em Promoções → Cupões da loja online): código, % ou valor em Kz, compra mínima, limite total, usos por cliente (por omissão 1), início/fim e se aparece na montra. Só com sessão iniciada (o limite por cliente usa o email verificado). O desconto soma-se às promoções, é aplicado no servidor e repartido pelas linhas, e a fatura herda-o. Encomendas canceladas não contam como uso.
+- Promoções ganharam "Termina em" (data de fim) para a contagem das ofertas relâmpago.

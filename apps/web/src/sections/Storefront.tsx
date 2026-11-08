@@ -6,6 +6,7 @@ import { IconImage, IconStore } from '../components/Icons';
 import { Switch } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { STORE_URL } from '../config';
+import { ReviewsCard } from './StoreMarketing';
 
 export function Storefront() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
@@ -287,6 +288,8 @@ export function Storefront() {
       <button className="btn lg" onClick={save} disabled={saving}>
         {saving ? 'A guardar…' : 'Guardar definições'}
       </button>
+
+      <ReviewsCard />
     </>
   );
 }

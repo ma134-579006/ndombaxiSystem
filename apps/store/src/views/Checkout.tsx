@@ -1,7 +1,7 @@
 import { IconPin } from '../components/Icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { CheckoutResult, PaymentMethod } from '../api/types';
+import type { CheckoutResult, CouponPreview, PaymentMethod } from '../api/types';
 import { IconChevronLeft } from '../components/Icons';
 import { formatKz, methodLabel } from '../format';
 import { useStore } from '../state/StoreContext';
@@ -90,6 +90,25 @@ export function Checkout({
   }, [code, session?.token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const total = useMemo(() => cartTotal(cart), [cart]);
+  // Cupão: pré-visualização (o servidor volta a validar ao confirmar).
+  const [couponInput, setCouponInput] = useState(() => { try { return sessionStorage.getItem('ndombaxi.store.coupon') ?? ''; } catch { return ''; } });
+  const [coupon, setCoupon] = useState<CouponPreview | null>(null);
+  const [couponErr, setCouponErr] = useState<string | null>(null);
+  const [couponBusy, setCouponBusy] = useState(false);
+  const applyCoupon = async (raw = couponInput) => {
+    const c = raw.trim().toUpperCase();
+    setCouponErr(null);
+    if (!c) { setCoupon(null); return; }
+    if (!session?.token) { setCouponErr('Inicie sessão para usar um cupão.'); return; }
+    setCouponBusy(true);
+    try { setCoupon(await api.couponCheck(code, { code: c, total }, session.token)); }
+    catch (e) { setCoupon(null); setCouponErr(e instanceof ApiError ? e.message : 'Cupão inválido.'); }
+    finally { setCouponBusy(false); }
+  };
+  // Total mudou (carrinho) → volta a validar o cupão aplicado.
+  useEffect(() => { if (coupon) void applyCoupon(coupon.code); }, [total]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (couponInput && session?.token && !coupon) void applyCoupon(); }, [session?.token]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toPay = Math.max(0, total - (coupon?.discount ?? 0));
   const selected = methods.find((m) => m.id === methodId) ?? null;
 
   const submit = async () => {
@@ -125,6 +144,7 @@ export function Checkout({
       municipality: municipality.trim() || undefined,
       neighborhood: neighborhood.trim() || undefined,
       paymentMethod: selected?.type,
+      ...(coupon ? { couponCode: coupon.code } : {}),
       lines: cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity })),
     };
     try {
@@ -143,6 +163,7 @@ export function Checkout({
           throw e;
         }
       }
+      if (coupon) { try { sessionStorage.removeItem('ndombaxi.store.coupon'); } catch { /* sem armazenamento */ } }
       onDone(result, selected);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Não foi possível concluir a encomenda.');
@@ -253,9 +274,23 @@ export function Checkout({
       ) : null}
 
       <div className="card">
+        <div className="ax-coupon">
+          <input value={couponInput} onChange={(e) => { setCouponInput(e.target.value.toUpperCase().replace(/\s+/g, '')); setCoupon(null); setCouponErr(null); }}
+            placeholder="Código do cupão" aria-label="Código do cupão" maxLength={32} />
+          {coupon
+            ? <button className="btn ghost" onClick={() => { setCoupon(null); setCouponInput(''); }}>Remover</button>
+            : <button className="btn ghost" onClick={() => void applyCoupon()} disabled={couponBusy || !couponInput.trim()}>{couponBusy ? 'A validar…' : 'Aplicar'}</button>}
+        </div>
+        {couponErr ? <div className="banner danger" style={{ margin: '8px 0' }}>{couponErr}</div> : null}
+        {coupon ? (
+          <>
+            <div className="kv"><span className="k">Subtotal</span><span className="v">{formatKz(total)}</span></div>
+            <div className="kv"><span className="k">Cupão {coupon.code}</span><span className="v" style={{ color: '#e5484d' }}>-{formatKz(coupon.discount)}</span></div>
+          </>
+        ) : null}
         <div className="kv">
           <span className="k">Total a pagar</span>
-          <span className="v" style={{ fontSize: 22, fontWeight: 900 }}>{formatKz(total)}</span>
+          <span className="v" style={{ fontSize: 22, fontWeight: 900 }}>{formatKz(toPay)}</span>
         </div>
         <div className="banner info" style={{ margin: '12px 0', fontSize: 13 }}>
           <div><IconPin size={15} /> <strong>Localização GPS obrigatória</strong> — ao confirmar, o telemóvel vai pedir acesso à sua localização para a loja entregar no sítio certo. Sem permissão, a encomenda não é criada.</div>
