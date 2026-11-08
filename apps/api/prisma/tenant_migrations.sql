@@ -686,3 +686,6 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."customer_login_codes" (
   attempts    INT NOT NULL DEFAULT 0,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Zona de preparação por categoria (restauração): KITCHEN | BAR | NULL (automático pelo nome).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."product_categories" ADD COLUMN IF NOT EXISTS prep_zone TEXT;

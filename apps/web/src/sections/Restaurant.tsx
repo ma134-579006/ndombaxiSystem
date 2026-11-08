@@ -31,7 +31,7 @@ function groupItems<T extends { id: string; description: string; unit_price: str
 }
 
 export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
-  const [tab, setTab] = useState<'mesas' | 'cozinha' | 'receitas' | 'producao' | 'relatorios'>('mesas');
+  const [tab, setTab] = useState<'mesas' | 'cozinha' | 'receitas' | 'producao' | 'zonas' | 'relatorios'>('mesas');
   // Deep-link do Centro de Comando: abre no separador pedido. NUM efeito (não no
   // inicializador do useState) — o StrictMode invoca o inicializador 2× e um
   // removeItem lá dentro consumia o valor no 1º e devolvia 'mesas' no 2º (usado).
@@ -188,7 +188,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
   const [tableState, setTableState] = useState<'ALL' | 'FREE' | 'BUSY'>('ALL');
   const shownTables = tables.filter((t) => (area === 'ALL' || (t.area || 'Sala') === area)
     && (tableState === 'ALL' || (tableState === 'BUSY' ? !!t.order_id : !t.order_id)));
-  const TABS = [['mesas', 'Mesas'], ['cozinha', `Cozinha${kds.length ? ` (${kds.length})` : ''}`], ['receitas', 'Receitas'], ['producao', 'Produção'], ['relatorios', 'Relatórios']] as const;
+  const TABS = [['mesas', 'Mesas'], ['cozinha', `Cozinha${kds.length ? ` (${kds.length})` : ''}`], ['receitas', 'Receitas'], ['producao', 'Produção'], ['zonas', 'Zonas'], ['relatorios', 'Relatórios']] as const;
 
   return (
     <div className="vd-page">
@@ -205,7 +205,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
         ))}
       </div>
 
-      {tab === 'relatorios' ? <ReportsTab /> : tab === 'producao' ? <ProductionTab products={products} onProduced={loadProducts} onGo={onGo} /> : tab === 'receitas' ? <RecipesTab products={products} /> : tab === 'mesas' ? (
+      {tab === 'relatorios' ? <ReportsTab /> : tab === 'zonas' ? <ZonesTab /> : tab === 'producao' ? <ProductionTab products={products} onProduced={loadProducts} onGo={onGo} /> : tab === 'receitas' ? <RecipesTab products={products} /> : tab === 'mesas' ? (
         <>
           <div className="vd-card vd-filters">
             <div className="vd-frow" style={{ alignItems: 'center' }}>
@@ -774,5 +774,43 @@ function ReportsTab() {
         </div>
       )}
     </>
+  );
+}
+
+/** ZONAS — cada categoria vai para a COZINHA (fila do KDS) ou para o BAR (servido
+ *  logo, sem passar pela cozinha), como as zonas de impressão da referência. */
+function ZonesTab() {
+  const [rows, setRows] = useState<Array<{ id: string; name: string; prep_zone: string | null; effective: 'KITCHEN' | 'BAR' }> | null>(null);
+  const load = useCallback(async () => { try { setRows(await api.restaurant.zones()); } catch { setRows([]); } }, []);
+  useEffect(() => { void load(); }, [load]);
+  const set = async (id: string, zone: 'KITCHEN' | 'BAR' | null) => {
+    try { await api.restaurant.setZone(id, zone); await load(); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao guardar a zona.'); }
+  };
+  return (
+    <div className="vd-card vd-tablecard">
+      <div className="vd-tbar"><span>{rows?.length ?? 0} categorias</span></div>
+      {rows === null ? <div className="loading">A carregar…</div> : rows.length === 0 ? <div className="vd-empty">Sem categorias.</div> : (
+        <div className="vd-tablewrap">
+          <table className="vd-table">
+            <thead><tr><th>Categoria</th><th className="ctr">Zona</th></tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td><strong>{r.name}</strong>{!r.prep_zone ? <span className="sub">automático</span> : null}</td>
+                  <td className="ctr">
+                    <div className="vd-seg" style={{ justifyContent: 'center' }}>
+                      <button type="button" className={r.effective === 'KITCHEN' ? 'on' : ''} onClick={() => void set(r.id, 'KITCHEN')}>Cozinha</button>
+                      <button type="button" className={r.effective === 'BAR' ? 'on' : ''} onClick={() => void set(r.id, 'BAR')}>Bar</button>
+                      <button type="button" className={!r.prep_zone ? 'on' : ''} onClick={() => void set(r.id, null)}>Automático</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }

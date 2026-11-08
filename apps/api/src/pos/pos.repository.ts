@@ -84,6 +84,8 @@ export class PosRepository {
       sharedStock?: boolean;
       /** Loja onde entra o stock inicial (stock por loja). Default = loja principal. */
       initialStoreId?: string | null;
+      /** Quem criou (fica no movimento de saldo inicial). */
+      createdBy?: string | null;
       imageUrl?: string | null;
       gallery?: string[];
       showOnline?: boolean;
@@ -150,8 +152,9 @@ export class PosRepository {
         );
         if (q > 0) {
           await tx.$executeRaw(
-            Prisma.sql`INSERT INTO stock_movements (product_id, warehouse_id, type, quantity, balance_after, reference)
-                       VALUES (${product.id}::uuid, ${st.id}::uuid, 'IN', ${q}, ${q}, 'Saldo inicial')`,
+            Prisma.sql`INSERT INTO stock_movements (product_id, warehouse_id, type, quantity, balance_after, reference, created_by)
+                       VALUES (${product.id}::uuid, ${st.id}::uuid, 'IN', ${q}, ${q}, 'Saldo inicial',
+                               (SELECT id FROM users WHERE id = ${input.createdBy ?? null}::uuid))`,
           );
           // Auditoria: o stock inicial fica registado como "Entrada de stock".
           await this.audit.recordInTx(tx, {

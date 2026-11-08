@@ -1020,6 +1020,9 @@ export const api = {
     /** Fatura a comanda (FT ligada à comanda) e fecha-a. */
     invoiceOrder: (id: string, dto: { paymentType: string; tendered?: number }) =>
       request<{ invoiceId: string; invoiceNumber: string; grossTotal: number }>('POST', `/restaurant/orders/${id}/invoice`, dto),
+    /** Zonas de preparação (cozinha/bar) por categoria. */
+    zones: () => request<Array<{ id: string; name: string; prep_zone: string | null; effective: 'KITCHEN' | 'BAR' }>>('GET', '/restaurant/zones'),
+    setZone: (categoryId: string, zone: 'KITCHEN' | 'BAR' | null) => request<{ ok: boolean }>('POST', `/restaurant/zones/${categoryId}`, { zone }),
     /** Transfere a comanda para outra mesa livre. */
     transferOrder: (id: string, tableId: string) => request<{ ok: boolean; tableName: string }>('POST', `/restaurant/orders/${id}/transfer`, { tableId }),
     /** Divide a conta: fatura só os artigos escolhidos; o resto fica na mesa. */
