@@ -4,6 +4,7 @@ import { api, ApiError } from '../api/client';
 import type { ProfitAbcRow, ProfitPoint, ProfitProduct, ProfitSummary } from '../api/types';
 import { IconChart, IconRefresh } from '../components/Icons';
 import { pollEvery, stopPoll } from '../poll';
+import { localIso } from '../format';
 
 function kz(n: number): string {
   return (n ?? 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kz';
@@ -13,7 +14,7 @@ function kzShort(n: number): string {
   if (Math.abs(n) >= 1_000) return (n / 1_000).toLocaleString('pt-PT', { maximumFractionDigits: 0 }) + 'k';
   return String(Math.round(n));
 }
-function todayISO(d = new Date()): string { return d.toISOString().slice(0, 10); }
+function todayISO(d = new Date()): string { return localIso(d); }
 
 /** Página de Lucros do gestor: vendas, custo, lucro bruto/líquido, gráficos,
  *  filtro por datas e impressão dos dados filtrados. Atualiza em tempo real. */

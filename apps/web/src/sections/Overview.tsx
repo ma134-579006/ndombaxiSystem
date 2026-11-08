@@ -15,7 +15,8 @@ import { pollEvery, stopPoll } from '../poll';
    3) Stock e alertas; vendas por loja quando há várias.
    As cores vêm do tema (barra lateral e paleta do LPS Vendas mantidas). */
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+// Data LOCAL (AAAA-MM-DD). toISOString() dava o dia anterior em UTC+1 (Angola) para a meia-noite local.
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 
 /** Períodos: hoje vs ontem; mês até hoje vs o mesmo intervalo do mês anterior;

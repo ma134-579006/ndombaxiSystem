@@ -15,6 +15,11 @@ export interface TableRow {
   is_active: boolean; sort_order: number;
 }
 
+/** Categorias de BAR (não vão para a cozinha): bebidas, cervejas, sumos, vinhos, águas, cafés… */
+export function isBarCategory(name: string | null | undefined): boolean {
+  return !!name && /bebida|bar|^bar|drink|cervej|sumo|vinho|água|agua|refriger|refresco|cocktail|whisk|licor|café|cafe/i.test(name);
+}
+
 @Injectable()
 export class RestaurantService {
   constructor(
@@ -194,13 +199,18 @@ export class RestaurantService {
       const ord = await tx.$queryRaw<{ status: string }[]>(Prisma.sql`SELECT status FROM restaurant_orders WHERE id = ${orderId}::uuid`);
       if (!ord[0]) throw new NotFoundException('Comanda não encontrada.');
       if (ord[0].status !== 'OPEN') throw new BadRequestException('A comanda não está aberta.');
-      const p = await tx.$queryRaw<{ id: string; name: string; unit_price: string; iva_code: string }[]>(
-        Prisma.sql`SELECT id, name, unit_price, iva_code FROM products WHERE code = ${productCode} AND is_active = TRUE LIMIT 1`);
+      const p = await tx.$queryRaw<{ id: string; name: string; unit_price: string; iva_code: string; category: string | null }[]>(
+        Prisma.sql`SELECT p.id, p.name, p.unit_price, p.iva_code, c.name AS category
+                   FROM products p LEFT JOIN product_categories c ON c.id = p.category_id
+                   WHERE p.code = ${productCode} AND p.is_active = TRUE LIMIT 1`);
       if (!p[0]) throw new NotFoundException('Produto não encontrado.');
       const gross = Math.round(Number(p[0].unit_price) * (1 + (IVA_RATE[p[0].iva_code] ?? 14) / 100) * 100) / 100;
       const qty = quantity > 0 ? quantity : 1;
-      await tx.$executeRaw(Prisma.sql`INSERT INTO restaurant_order_items (order_id, product_id, product_code, description, unit_price, quantity, notes, created_by)
-        VALUES (${orderId}::uuid, ${p[0].id}::uuid, ${productCode}, ${p[0].name}, ${gross}, ${qty}, ${notes?.trim() || null}, ${by}::uuid)`);
+      // BAR × COZINHA (como as zonas de impressão da referência): artigos de bar
+      // (bebidas) não vão para a fila da cozinha — são servidos ao balcão/bar.
+      const status = isBarCategory(p[0].category) ? 'SERVED' : 'PENDING';
+      await tx.$executeRaw(Prisma.sql`INSERT INTO restaurant_order_items (order_id, product_id, product_code, description, unit_price, quantity, notes, created_by, kitchen_status)
+        VALUES (${orderId}::uuid, ${p[0].id}::uuid, ${productCode}, ${p[0].name}, ${gross}, ${qty}, ${notes?.trim() || null}, ${by}::uuid, ${status})`);
       await this.recomputeTotal(tx, orderId);
       return { ok: true };
     });

@@ -406,3 +406,16 @@
 .vproc-sm .vproc-ring::before { inset: 7px !important; }
 .vproc-sm .vproc-ring i, .vproc-sm .vproc-ring b { border-width: 4px !important; }
 .vproc-sm .vproc-ring img { left: 9% !important; width: 82% !important; }
+
+/* Subscrição na barra da caixa: verde ≤60%, laranja 61–80%, vermelho >80%. */
+.vsub { display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.vsub-ring { position: relative; width: 32px; height: 32px; display: grid; place-items: center; }
+.vsub-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.vsub-ring circle { fill: none; stroke-width: 3; }
+.vsub-ring .trk { stroke: rgba(127, 127, 127, .25); }
+.vsub-ring .val { stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.075, .82, .165, 1); }
+.vsub-ring b { font-size: 8.5px; font-weight: 700; }
+.vsub.ok { color: #2b8a3e; } .vsub.ok .val { stroke: #2b8a3e; }
+.vsub.warn { color: #f08c00; } .vsub.warn .val { stroke: #f08c00; }
+.vsub.bad { color: #e03131; } .vsub.bad .val { stroke: #e03131; }
+@media (max-width: 900px) { .vsub-tx { display: none; } }

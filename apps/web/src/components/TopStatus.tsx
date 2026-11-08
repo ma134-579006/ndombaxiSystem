@@ -23,27 +23,34 @@ export function TopTitle({ title }: { title: string }) {
 }
 
 /** Anel da subscrição: aparece só a COMPANY_ADMIN e quando faltam ≤30 dias. */
-export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo(): void }) {
+export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: () => void }) {
   const [info, setInfo] = useState<{ left: number; pct: number } | null>(null);
   useEffect(() => {
     if (!enabled) { setInfo(null); return; }
     let alive = true;
-    api.subscription.mine().then((subs) => {
-      const act = subs.filter((s) => s.status === 'ACTIVE' && s.expiresAt)
+    // Endpoint resumido (todas as funções); se ainda não existir na API, calcula a partir das subscrições.
+    const fromMine = () => api.subscription.mine().then((subs) => {
+      const act = subs.filter((x) => x.status === 'ACTIVE' && x.expiresAt)
         .sort((a, b) => Date.parse(b.expiresAt!) - Date.parse(a.expiresAt!))[0];
-      if (!alive || !act?.expiresAt) return;
+      if (!act?.expiresAt) return null;
       const end = Date.parse(act.expiresAt);
       const start = act.startsAt ? Date.parse(act.startsAt) : end - (act.durationDays ?? act.durationMonths * 30) * 864e5;
-      const left = Math.max(0, Math.ceil((end - Date.now()) / 864e5));
       const pct = end > start ? Math.min(100, Math.max(0, Math.round(((Date.now() - start) / (end - start)) * 100))) : 100;
-      setInfo({ left, pct });
-    }).catch(() => undefined);
+      return { left: Math.max(0, Math.ceil((end - Date.now()) / 864e5)), pct };
+    });
+    api.subscription.status()
+      .then((st) => (st.active ? { left: st.daysLeft, pct: st.pct } : null))
+      .catch(() => fromMine())
+      .then((v) => { if (alive) setInfo(v); })
+      .catch(() => undefined);
     return () => { alive = false; };
   }, [enabled]);
-  if (!info || info.left > 30) return null;
+  if (!info) return null;
+  // Cor pelo tempo já gasto: até 60% verde, 61–80% laranja, acima de 80% vermelho.
+  const tone = info.pct <= 60 ? 'ok' : info.pct <= 80 ? 'warn' : 'bad';
   const r = 15, c = 2 * Math.PI * r;
   return (
-    <button className="tb-sub" onClick={onGo} title={`${info.left} dia(s) até ao fim da subscrição`}>
+    <button className={`tb-sub ${tone}`} onClick={onGo} disabled={!onGo} title={`${info.left} dia(s) até ao fim da subscrição`}>
       <span className="tb-sub-tx">Renovar subscrição</span>
       <span className="tb-ring" aria-hidden="true">
         <svg width="38" height="38" viewBox="0 0 38 38">

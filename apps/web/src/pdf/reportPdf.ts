@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import type { DocumentIdentity } from '../api/types';
+import { localIso } from '../format';
 
 export interface ReportTable {
   heading?: string;
@@ -136,7 +137,7 @@ export async function buildReportPdf(a: ReportPdfArgs): Promise<jsPDF> {
   // ── QR (paridade visual com a fatura) ──
   const qy = H - footerSafe - 4;
   try {
-    const qrData = [empresa, title, identity?.nif ? `NIF:${identity.nif}` : '', now.toISOString().slice(0, 10)].filter(Boolean).join('|');
+    const qrData = [empresa, title, identity?.nif ? `NIF:${identity.nif}` : '', localIso(now)].filter(Boolean).join('|');
     const qr = await QRCode.toDataURL(qrData, { margin: 1, width: 200 });
     doc.addImage(qr, 'PNG', W - M - 70, qy - 70, 70, 70, undefined, 'FAST');
   } catch { /* QR opcional */ }

@@ -3,7 +3,7 @@ import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { StockAnalysis as StockAnalysisData, WarehouseRow } from '../api/types';
 import { IconSearch, IconCube } from '../components/Icons';
-import { formatKz } from '../format';
+import { formatKz, localIso } from '../format';
 
 const PERIODS: Array<{ label: string; days: number }> = [
   { label: 'Últimos 7 dias', days: 7 },
@@ -18,8 +18,8 @@ const STATES: Array<{ value: string; label: string }> = [
   { value: 'low', label: 'Abaixo do mínimo' },
 ];
 
-const isoMinusDays = (d: number) => new Date(Date.now() - d * 86400000).toISOString().slice(0, 10);
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const isoMinusDays = (d: number) => localIso(new Date(Date.now() - d * 86400000));
+const todayISO = () => localIso();
 
 /** Análise de stock: valor, vendas e previsão por produto/loja, com filtros. */
 export function StockAnalysis() {

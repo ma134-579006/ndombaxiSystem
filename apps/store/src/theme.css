@@ -1027,3 +1027,50 @@ html.touch-ui .btn.sm { min-height: 40px; }
 .mu-vers b { font-size: 19px; }
 .mu-btn { display: flex; align-items: center; justify-content: center; margin-top: 24px; height: 52px; border-radius: 999px; background: #2430E8;
   color: #fff !important; font-size: 16px; font-weight: 700; text-decoration: none; }
+
+/* ── Montra por setor (restaurante, hotel, clínica, serviços, farmácia) ── */
+.sx { scroll-margin-top: 90px; }
+.sx-meta { display: flex; gap: 14px; color: var(--muted); font-size: 13px; }
+.sx-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.sx-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 12px; position: sticky; top: 64px; z-index: 5; background: var(--bg); }
+.sx-tabs button { flex: none; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 600; font-size: 13.5px; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
+.sx-tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.sx-h3 { margin: 14px 0 8px; font-size: 16px; font-weight: 800; }
+.sx-menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.sx-dish { position: relative; display: flex; align-items: stretch; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: box-shadow .2s, transform .2s; }
+.sx-dish:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.sx-dish.off { opacity: .6; }
+.sx-dish-main { flex: 1; display: flex; gap: 12px; align-items: center; padding: 12px; background: none; border: 0; text-align: left; cursor: pointer; color: inherit; min-width: 0; }
+.sx-dish-tx { flex: 1; display: grid; gap: 4px; min-width: 0; }
+.sx-dish-tx strong { font-size: 15px; }
+.sx-desc { font-size: 12.5px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sx-price { color: var(--price, var(--accent)); font-weight: 800; }
+.sx-dish-img { width: 84px; height: 84px; flex: none; border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2); display: grid; place-items: center; color: var(--muted); }
+.sx-dish-img img { width: 100%; height: 100%; object-fit: cover; }
+.sx-add { align-self: center; margin-right: 12px; min-width: 40px; height: 40px; border-radius: 999px; border: 0; background: var(--accent); color: #fff; display: grid; place-items: center; cursor: pointer; font-weight: 700; padding: 0 12px; }
+.sx-add:disabled { background: var(--surface-2); color: var(--muted); cursor: default; font-size: 12px; }
+.sx-dates { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; }
+.sx-dates label { display: grid; gap: 5px; font-size: 12.5px; color: var(--muted); flex: 1 1 160px; }
+.sx-dates label span { display: inline-flex; gap: 5px; align-items: center; }
+.sx-dates input { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font: inherit; }
+.sx-nights { font-weight: 700; padding: 10px 4px; }
+.sx-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.sx-cards.sm { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.sx-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; transition: box-shadow .2s, transform .2s; }
+.sx-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+.sx-card.row { flex-direction: row; align-items: center; gap: 12px; padding: 12px; }
+.sx-card-img { aspect-ratio: 16/10; background: var(--surface-2); display: grid; place-items: center; color: var(--muted); }
+.sx-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.sx-card-bd { padding: 12px 14px; display: grid; gap: 5px; flex: 1; min-width: 0; }
+.sx-card.row .sx-card-bd { padding: 0; }
+.sx-card-ft { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+.sx-total { font-size: 12px; color: var(--muted); }
+.sx-avatar { width: 48px; height: 48px; flex: none; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); display: grid; place-items: center; }
+.sx-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.sx-action { display: flex; gap: 12px; align-items: center; text-align: left; padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; transition: border-color .2s, box-shadow .2s; }
+.sx-action:hover { border-color: var(--accent); box-shadow: var(--shadow); }
+.sx-action .ic { width: 48px; height: 48px; flex: none; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); display: grid; place-items: center; }
+.sx-action strong { display: block; font-size: 15px; }
+.sx-action small { color: var(--muted); font-size: 12.5px; }
+.sx-add.txt { border-radius: var(--radius-sm); }
+@media (max-width: 560px) { .sx-menu { grid-template-columns: 1fr; } .sx-dish-img { width: 72px; height: 72px; } }

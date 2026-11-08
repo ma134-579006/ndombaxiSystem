@@ -4,7 +4,7 @@ import type { HotelHousekeepingRow, HotelMaintenanceRow, HotelReservationDetail,
 import { toast, readFileProgress } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
-import { formatKz } from '../format';
+import { formatKz, localIso } from '../format';
 import { UiIcon } from '../components/UiIcon';
 
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
@@ -24,8 +24,8 @@ const ROOM_STATE: Record<string, { label: string; color: string; dot: string }> 
 };
 const TASK_L: Record<string, string> = { CLEAN: 'Limpar', CHANGE_LINEN: 'Trocar roupa', INSPECT: 'Inspecionar' };
 const MT_L: Record<string, string> = { OPEN: 'Aberto', IN_REPAIR: 'Em reparação', DONE: 'Concluído' };
-const today = () => new Date().toISOString().slice(0, 10);
-const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+const today = () => localIso();
+const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return localIso(x); };
 
 /** Hotelaria — mapa de quartos, reservas e conta do hóspede (folio). */
 export function Hotel() {
@@ -360,7 +360,7 @@ function ResDetail({ detail, onClose, onChanged }: { detail: HotelReservationDet
   const removeItem = async (id: string) => { await api.hotel.removeFolio(id).catch(() => undefined); onChanged(); };
   const setStatus = async (s: string) => { await api.hotel.status(r.id, s).catch(() => undefined); onChanged(); };
   const extendStay = async () => {
-    const suggest = (() => { const d = new Date(`${r.check_out}T00:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+    const suggest = (() => { const d = new Date(`${r.check_out}T00:00:00`); d.setDate(d.getDate() + 1); return localIso(d); })();
     const nd = window.prompt(`Estender a estadia até (a atual é ${r.check_out}). Nova data de saída (AAAA-MM-DD):`, suggest);
     if (!nd) return;
     try { const res = await api.hotel.extend(r.id, nd.trim()); toast.success(`Estadia estendida: ${res.nights} noite(s), saída ${res.checkOut}. Total ${KZ(res.total)}.`); onChanged(); }

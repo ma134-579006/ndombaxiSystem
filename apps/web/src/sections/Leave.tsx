@@ -4,6 +4,7 @@ import { api, ApiError } from '../api/client';
 import type { CreateLeaveInput, LeaveEmployee, LeaveRow, LeaveSummary, LeaveType } from '../api/types';
 import { IconBuilding, IconPlus, IconRefresh } from '../components/Icons';
 import { Modal } from '../components/ui';
+import { localIso } from '../format';
 
 const TYPE_LABEL: Record<LeaveType, string> = { FERIAS: 'Férias', FALTA: 'Falta', LICENCA: 'Licença', OUTRO: 'Outro' };
 const FILTERS = [
@@ -12,7 +13,7 @@ const FILTERS = [
   { key: 'REJECTED', label: 'Rejeitados' },
   { key: '', label: 'Todos' },
 ];
-function todayISO(d = new Date()): string { return d.toISOString().slice(0, 10); }
+function todayISO(d = new Date()): string { return localIso(d); }
 
 /** Férias / ausências: pedidos por funcionário, aprovação do gestor e saldo. */
 export function Leave() {

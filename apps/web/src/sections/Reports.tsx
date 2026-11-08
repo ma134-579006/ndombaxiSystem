@@ -11,7 +11,7 @@ import { IconChart } from '../components/Icons';
 import { AreaChart } from '../components/AreaChart';
 import { ColumnChart } from '../components/ColumnChart';
 import { DonutChart } from '../components/DonutChart';
-import { formatKz } from '../format';
+import { formatKz, localIso } from '../format';
 
 type Tab = 'all' | 'product' | 'user' | 'store' | 'category' | 'brand' | 'evolution' | 'tax' | 'payments' | 'documents' | 'cashbox';
 const TABS: { key: Tab; label: string; group: string }[] = [
@@ -27,7 +27,7 @@ const TABS: { key: Tab; label: string; group: string }[] = [
   { key: 'cashbox', label: 'Fecho de caixa', group: 'Caixa' },
   { key: 'payments', label: 'Métodos de pagamento', group: 'Caixa' },
 ];
-const todayISO = (d = new Date()) => d.toISOString().slice(0, 10);
+const todayISO = (d = new Date()) => localIso(d);
 const fmtDT = (s: string) => { try { return new Date(s).toLocaleString('pt-PT'); } catch { return s; } };
 const PAY_LABEL: Record<string, string> = {
   CASH: 'Numerário', CARD: 'Multicaixa/Cartão', TRANSFER: 'Transferência',

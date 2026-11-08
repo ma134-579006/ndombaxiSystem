@@ -30,3 +30,9 @@ export function formatKz(value: number | string): string {
   const sign = n < 0 && (int !== '0' || dec !== '00') ? '-' : '';
   return `${sign}${int.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${dec} Kz`;
 }
+
+/** Data LOCAL no formato AAAA-MM-DD (para campos de data e filtros por dia).
+ *  Não usar toISOString(): em UTC+1 a meia-noite local cai no dia anterior. */
+export function localIso(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}

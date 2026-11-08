@@ -4,8 +4,9 @@ import type { StoreRoom } from '../api/types';
 import { formatKz } from '../format';
 import { IconClose, IconStethoscope, IconBed, IconWrench, IconCheck } from './Icons';
 
-const today = () => new Date().toISOString().slice(0, 10);
-const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+const ymd = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+const today = () => ymd(new Date());
+const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return ymd(x); };
 
 /** Modal genérico simples da loja. */
 function Sheet({ title, onClose, children }: { title: string; onClose(): void; children: React.ReactNode }) {
@@ -65,11 +66,11 @@ export function VerticalCTA({ code, businessType, prefill }: { code: string; bus
   return null;
 }
 
-function ReservationModal({ code, prefill, onClose }: { code: string; prefill?: { name?: string; phone?: string; email?: string }; onClose(): void }) {
+export function ReservationModal({ code, prefill, onClose, initial }: { code: string; prefill?: { name?: string; phone?: string; email?: string }; onClose(): void; initial?: { roomId?: string; checkIn?: string; checkOut?: string } }) {
   const [rooms, setRooms] = useState<StoreRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const ci = today();
-  const [f, setF] = useState({ roomId: '', guestName: prefill?.name || '', guestPhone: prefill?.phone || '', guestEmail: prefill?.email || '', checkIn: ci, checkOut: addDays(ci, 1), guests: '1' });
+  const [f, setF] = useState({ roomId: initial?.roomId || '', guestName: prefill?.name || '', guestPhone: prefill?.phone || '', guestEmail: prefill?.email || '', checkIn: initial?.checkIn || ci, checkOut: initial?.checkOut || addDays(initial?.checkIn || ci, 1), guests: '1' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -152,7 +153,7 @@ function ReservationModal({ code, prefill, onClose }: { code: string; prefill?: 
   );
 }
 
-function ServiceRequestModal({ code, prefill, onClose }: { code: string; prefill?: { name?: string; phone?: string; email?: string }; onClose(): void }) {
+export function ServiceRequestModal({ code, prefill, onClose }: { code: string; prefill?: { name?: string; phone?: string; email?: string }; onClose(): void }) {
   const [f, setF] = useState({ customerName: prefill?.name || '', customerPhone: prefill?.phone || '', customerEmail: prefill?.email || '', equipmentType: 'OTHER', equipmentLabel: '', equipmentRef: '', problem: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -214,8 +215,8 @@ function ServiceRequestModal({ code, prefill, onClose }: { code: string; prefill
   );
 }
 
-function AppointmentModal({ code, prefill, onClose }: { code: string; prefill?: { name?: string; phone?: string; email?: string }; onClose(): void }) {
-  const [f, setF] = useState({ patientName: prefill?.name || '', patientPhone: prefill?.phone || '', patientEmail: prefill?.email || '', professional: '', specialty: '', date: today(), time: '09:00', reason: '' });
+export function AppointmentModal({ code, prefill, onClose, initial }: { code: string; prefill?: { name?: string; phone?: string; email?: string }; onClose(): void; initial?: { professional?: string; specialty?: string } }) {
+  const [f, setF] = useState({ patientName: prefill?.name || '', patientPhone: prefill?.phone || '', patientEmail: prefill?.email || '', professional: initial?.professional || '', specialty: initial?.specialty || '', date: today(), time: '09:00', reason: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);

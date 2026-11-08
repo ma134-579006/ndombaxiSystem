@@ -5,12 +5,12 @@ import type {
   ReplenishmentReport, TransferRequestRow, ValuationReport, WarehouseRow,
 } from '../api/types';
 import { IconChart, IconCube, IconSearch, IconShield, IconTruck } from '../components/Icons';
-import { formatKz } from '../format';
+import { formatKz, localIso } from '../format';
 import { Inventory } from './Inventory';
 import { StockAnalysis } from './StockAnalysis';
 
-const isoMinusDays = (d: number) => new Date(Date.now() - d * 86400000).toISOString().slice(0, 10);
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const isoMinusDays = (d: number) => localIso(new Date(Date.now() - d * 86400000));
+const todayISO = () => localIso();
 const fmtDT = (s: string) => { try { return new Date(s).toLocaleString('pt-PT'); } catch { return s; } };
 
 type Tab = 'stock' | 'analysis' | 'abc' | 'replenish' | 'valuation' | 'fraud' | 'transfers' | 'locations' | 'audit';

@@ -5,7 +5,7 @@ import type { Company, CompanyStatus } from '../api/types';
 import { IconBuilding, IconCheck, IconHistory, IconLock, IconSearch } from '../components/Icons';
 import { StatusBadge, Modal } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
-import { formatDate } from '../format';
+import { formatDate, localIso } from '../format';
 import { pollEvery, stopPoll } from '../poll';
 
 const FILTERS: { key: '' | CompanyStatus; label: string }[] = [
@@ -84,7 +84,7 @@ export function Tenants() {
     try {
       await runDownload({
         title: `A exportar dados de ${c.name ?? c.code}`,
-        fileName: `${c.code}-dados-${new Date().toISOString().slice(0, 10)}.json`,
+        fileName: `${c.code}-dados-${localIso()}.json`,
         make: async () => new Blob([JSON.stringify(await api.tenants.exportData(c.id), null, 2)], { type: 'application/json' }),
       });
     } catch (e) {

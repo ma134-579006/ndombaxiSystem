@@ -769,3 +769,23 @@
 .admin .content { padding-bottom: max(96px, var(--content-pad-b, 0px)) !important; }
 /* Cartões lado a lado (.row) alinhados pelo topo. */
 .vd-page .row > .card + .card { margin-top: 0; }
+
+/* Restauração: eliminar mesa, fatura física/digital, QR do cardápio. */
+.rt-cell { position: relative; }
+.rt-cell > .rt-table { width: 100%; }
+.rt-del { position: absolute; bottom: 10px; right: 10px; z-index: 2; width: 28px; height: 28px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); display: grid; place-items: center; cursor: pointer; opacity: 0; transition: opacity .2s, color .2s, border-color .2s; }
+.rt-cell:hover .rt-del, .rt-del:focus-visible { opacity: 1; }
+.rt-del:hover { color: var(--danger); border-color: var(--danger); }
+@media (hover: none) { .rt-del { opacity: 1; } }
+.rt-inv-total { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0 14px; font-size: 15px; }
+.rt-inv-total strong { font-size: 24px; color: var(--primary); }
+.rt-inv-opts { display: grid; gap: 8px; }
+.rt-inv-opts .vd-btn { justify-content: center; text-decoration: none; }
+.rt-qr { display: grid; justify-items: center; gap: 8px; text-align: center; }
+/* Subscrição: verde até 60%, laranja 61–80%, vermelho acima de 80% do período gasto. */
+.tb-sub.ok .tb-sub-tx, .tb-sub.ok .tb-ring b { color: var(--success); }
+.tb-sub.ok .tb-ring .val { stroke: var(--success); }
+.tb-sub.warn .tb-sub-tx, .tb-sub.warn .tb-ring b { color: #f08c00; }
+.tb-sub.warn .tb-ring .val { stroke: #f08c00; }
+.tb-sub.bad .tb-sub-tx, .tb-sub.bad .tb-ring b { color: var(--danger); }
+.tb-sub.bad .tb-ring .val { stroke: var(--danger); }

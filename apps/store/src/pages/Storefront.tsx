@@ -14,7 +14,7 @@ import { useStore } from '../state/StoreContext';
 import { useCustomer } from '../store/customer';
 import { CustomerModal } from '../components/CustomerModal';
 import { ProductCard } from '../components/ProductCard';
-import { VerticalCTA } from '../components/VerticalRequest';
+import { SectorHome, SECTOR_REPLACES_FEED } from '../components/SectorHome';
 import { Typewriter } from '../components/Typewriter';
 import { LiveLocation } from '../components/LiveLocation';
 import { ProductPage } from './ProductPage';
@@ -35,8 +35,8 @@ const PORTALS: Record<string, Portal> = {
   PHARMACY: { tagline: 'Medicamentos e bem-estar — encomende online com segurança.', cta: 'Ver produtos', badges: [['pill', 'Medicamentos'], ['shield', 'Compra segura'], ['truck', 'Entrega']], feed: 'Produtos' },
   RESTAURANT: { tagline: 'Peça já — comida fresca, entregue a sua casa.', cta: 'Ver cardápio', badges: [['utensils', 'Cardápio'], ['bike', 'Entrega'], ['clock', 'Rápido']], feed: 'Cardápio' },
   HOSPITALITY: { tagline: 'Reserve a sua estadia — quartos disponíveis online.', cta: 'Ver quartos', badges: [['bed', 'Reservas'], ['calendar', 'Disponibilidade'], ['chat', 'Apoio']], feed: 'Também disponível' },
-  SERVICES: { tagline: 'Peça assistência — abrimos a sua ordem de serviço online.', cta: 'Ver loja', badges: [['wrench', 'Serviços'], ['receipt', 'Orçamento'], ['chat', 'Acompanhamento']], feed: 'Também disponível' },
-  CLINIC: { tagline: 'Marque a sua consulta — escolha o dia e a hora.', cta: 'Ver loja', badges: [['stethoscope', 'Consultas'], ['calendar', 'Marcações'], ['lock', 'Privacidade']], feed: 'Também disponível' },
+  SERVICES: { tagline: 'Peça assistência — abrimos a sua ordem de serviço online.', cta: 'Pedir serviço', badges: [['wrench', 'Serviços'], ['receipt', 'Orçamento'], ['chat', 'Acompanhamento']], feed: 'Também disponível' },
+  CLINIC: { tagline: 'Marque a sua consulta — escolha o dia e a hora.', cta: 'Marcar consulta', badges: [['stethoscope', 'Consultas'], ['calendar', 'Marcações'], ['lock', 'Privacidade']], feed: 'Também disponível' },
 };
 
 const SORTS: { key: Sort; label: string }[] = [
@@ -62,6 +62,7 @@ export function Storefront() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customer = useCustomer(code);
   const portal = PORTALS[data?.businessType ?? 'RETAIL'] ?? PORTALS.RETAIL;
+  const sectorFeed = SECTOR_REPLACES_FEED.has(data?.businessType ?? '');
 
   // Adiciona ao carrinho SEM abrir a gaveta (no telemóvel abrir a cada produto
   // impedia continuar a comprar). Mostra um toast breve como confirmação.
@@ -352,18 +353,17 @@ export function Storefront() {
             <div className="ax-hero-tx">
               <h1>{data?.settings.brand_name || storeName}</h1>
               <p><Typewriter text={data?.settings.tagline || portal.tagline} /></p>
-              <button className="btn lg" onClick={() => { setCat(''); setSearch(''); setView('results'); }}>{portal.cta}</button>
+              <button className="btn lg" onClick={() => {
+                const el = document.getElementById('setor');
+                if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+                setCat(''); setSearch(''); setView('results');
+              }}>{portal.cta}</button>
             </div>
             <div className="ax-hero-badges">
               {portal.badges.map(([ic, tx]) => <div className="b" key={tx}><span><BadgeIcon name={ic} /></span> {tx}</div>)}
             </div>
           </section>
 
-          {/* CTA do vertical (Hotelaria → reservar; Serviços → pedir serviço) */}
-          {data?.businessType ? (
-            <VerticalCTA code={code} businessType={data.businessType}
-              prefill={customer ? { name: customer.customer.name, email: customer.customer.email } : undefined} />
-          ) : null}
 
           {gateMsg && !customer ? <div className="banner danger" style={{ marginTop: 12 }}>{gateMsg}</div> : null}
           {!customer ? (
@@ -381,8 +381,15 @@ export function Storefront() {
             </button>
           ) : null}
 
+          {/* Montra própria do setor (cardápio, quartos, médicos, serviços, farmácia) */}
+          {data?.businessType ? (
+            <SectorHome code={code} businessType={data.businessType} products={products}
+              prefill={customer ? { name: customer.customer.name, email: customer.customer.email } : undefined}
+              onAdd={(x) => addWithToast(x)} onOpen={openProduct} onCategory={openCategory} />
+          ) : null}
+
           {/* Destaques (carrossel horizontal) */}
-          {featured.length > 0 ? (
+          {featured.length > 0 && !sectorFeed ? (
             <section className="ax-section">
               <div className="ax-section-head">
                 <h2 className="ax-section-title">Em destaque</h2>
@@ -394,7 +401,8 @@ export function Storefront() {
             </section>
           ) : null}
 
-          {/* Feed principal */}
+          {/* Feed principal (o restaurante usa o cardápio; hotel/clínica sem produtos não mostram vazio) */}
+          {sectorFeed || (products.length === 0 && ['HOSPITALITY', 'CLINIC', 'SERVICES'].includes(data?.businessType ?? '')) ? null : (
           <section className="ax-section">
             <h2 className="ax-section-title">{portal.feed}</h2>
             {products.length === 0 ? (
@@ -403,6 +411,7 @@ export function Storefront() {
               <ProgressiveGrid items={products} render={(p) => <ProductCard key={p.code} product={p} onOpen={openProduct} onAdd={(x) => addWithToast(x)} />} />
             )}
           </section>
+          )}
         </div>
 
         <FooterBar />

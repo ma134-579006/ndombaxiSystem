@@ -4,11 +4,11 @@ import type { ClinicAppointment, ClinicPatient, ClinicPatientDetail } from '../a
 import { toast } from '../components/feedback';
 import { IconPlus, IconSearch } from '../components/Icons';
 import { Modal } from '../components/ui';
-import { formatKz } from '../format';
+import { formatKz, localIso } from '../format';
 import { BedsTab, EmergencyTab, ExamsTab, InsurersTab, PatientRecordModal, PrescriptionsTab, ProfessionalsTab } from './ClinicHospitalTabs';
 
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => localIso();
 const APPT: Record<string, { label: string; tone: string }> = {
   SCHEDULED: { label: 'Marcada', tone: 'var(--primary)' }, DONE: { label: 'Realizada', tone: 'var(--success)' },
   CANCELLED: { label: 'Cancelada', tone: 'var(--muted)' }, NO_SHOW: { label: 'Faltou', tone: 'var(--danger)' },

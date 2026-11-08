@@ -4,10 +4,10 @@ import { api, ApiError } from '../api/client';
 import type { CashflowForecast, CashflowPoint, CashflowSummary } from '../api/types';
 import { AreaChart, type AreaPoint } from '../components/AreaChart';
 import { IconCard, IconChart, IconRefresh } from '../components/Icons';
-import { formatKz } from '../format';
+import { formatKz, localIso } from '../format';
 import { pollEvery, stopPoll } from '../poll';
 
-function iso(d: Date): string { return d.toISOString().slice(0, 10); }
+function iso(d: Date): string { return localIso(d); }
 function ddmm(s: string): string { const d = new Date(s); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`; }
 
 /** Fluxo de caixa do gestor: entradas vs saídas, saldo do período, gráfico e
