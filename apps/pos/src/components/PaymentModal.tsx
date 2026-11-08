@@ -118,6 +118,13 @@ export function PaymentModal({ total, customerName, prescriptionItems = [], line
           ) : (
             <div className="vfin-scroll vfin-in">
               <div className="vfin-row"><span>Total</span><b>{formatKz(total)}</b><span className="vfin-edit ghost" /></div>
+              {/* Receita obrigatória: sempre visível logo a seguir ao total (antes ficava escondida em "Mais Opções"). */}
+              {prescriptionItems.length ? (
+                <div className="vfin-field vfin-rx">
+                  <KeyboardInput label={`Nº da receita médica (${prescriptionItems.join(', ')})`} value={rxRef} onChange={setRxRef} placeholder="Ex.: RX/2026/0012" />
+                  {rxMissing ? <small className="bad">Medicamento sujeito a receita: indique o nº da receita.</small> : null}
+                </div>
+              ) : null}
               <div className="vfin-row"><span>Cliente</span><b className={creditNoCustomer ? 'bad' : ''}>{customerName || 'Consumidor Final'}</b>
                 <button className="vfin-edit" onClick={onEditCustomer} disabled={!onEditCustomer} aria-label="Escolher cliente"><Pencil /></button></div>
               <div className="vfin-row"><span>Pagamento</span><b>{methodLabel}</b>
@@ -125,12 +132,6 @@ export function PaymentModal({ total, customerName, prescriptionItems = [], line
               <button className="vfin-more" onClick={() => setMore((v) => !v)} aria-expanded={more}>{more ? '▴' : '▾'} Mais Opções</button>
               {more ? (
                 <div className="vfin-extra vfin-in">
-                  {prescriptionItems.length ? (
-                    <div className="vfin-field">
-                      <KeyboardInput label={`Nº da receita médica (${prescriptionItems.join(', ')})`} value={rxRef} onChange={setRxRef} placeholder="Ex.: RX/2026/0012" />
-                      {rxMissing ? <small className="bad">Medicamento sujeito a receita: indique o nº da receita.</small> : null}
-                    </div>
-                  ) : null}
                   {mixed ? (
                     <div className="vfin-field">
                       <KeyboardInput label="Parte em numerário (Kz)" value={mixCash} onChange={setMixCash} numeric placeholder="0" onSubmit={confirm} />
