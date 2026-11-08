@@ -322,7 +322,7 @@ export const api = {
   /** Categorias de produto (separadores do catálogo no POS). */
   categories: () => request<Array<{ id: string; name: string }>>('GET', '/erp/stock/categories'),
   /** Estado resumido da subscrição (todas as funções): % do período gasto e dias restantes. */
-  subscriptionStatus: () => request<{ active: boolean; pct: number; daysLeft: number; expiresAt: string | null }>('GET', '/subscription/status'),
+  subscriptionStatus: () => request<{ active: boolean; pct: number; leftPct?: number; totalDays?: number; usedDays?: number; daysLeft: number; expiresAt: string | null }>('GET', '/subscription/status'),
   /** Alterações do catálogo (memória interna aos poucos). */
   productChanges: (since: string, after: string, limit = 5000) =>
     request<{ items: Product[]; next: { since: string; after: string } | null }>(

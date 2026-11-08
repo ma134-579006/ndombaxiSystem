@@ -44,16 +44,15 @@ export class SubscriptionController {
     }>;
     const act = subs.filter((s) => s.status === 'ACTIVE' && s.expiresAt)
       .sort((a, b) => new Date(b.expiresAt as string).getTime() - new Date(a.expiresAt as string).getTime())[0];
-    if (!act?.expiresAt) return { active: false, pct: 100, daysLeft: 0, expiresAt: null };
+    if (!act?.expiresAt) return { active: false, pct: 100, leftPct: 0, totalDays: 0, usedDays: 0, daysLeft: 0, expiresAt: null };
     const end = new Date(act.expiresAt).getTime();
     const start = act.startsAt ? new Date(act.startsAt).getTime() : end - (act.durationDays ?? (act.durationMonths ?? 1) * 30) * 864e5;
-    const now = Date.now();
-    void start;
-    // % pelos DIAS QUE FALTAM para a renovação, numa janela de 30 dias:
-    // 30+ dias → 0%, 14 dias → 53%, 7 → 77%, 0 → 100% (a barra enche à medida que a renovação se aproxima).
-    const daysLeft = Math.max(0, Math.ceil((end - now) / 864e5));
-    const pct = Math.min(100, Math.max(0, Math.round(((30 - daysLeft) / 30) * 100)));
-    return { active: true, pct, daysLeft, expiresAt: new Date(end).toISOString() };
+    // Período em DIAS: ex. 14 dias → já consumiu X dias = Y%; faltam Z dias = (100 − Y)%.
+    const totalDays = Math.max(1, Math.round((end - start) / 864e5));
+    const daysLeft = Math.min(totalDays, Math.max(0, Math.ceil((end - Date.now()) / 864e5)));
+    const usedDays = totalDays - daysLeft;
+    const pct = Math.round((usedDays / totalDays) * 100);
+    return { active: true, pct, leftPct: 100 - pct, totalDays, usedDays, daysLeft, expiresAt: new Date(end).toISOString() };
   }
 
   @Get('mine')

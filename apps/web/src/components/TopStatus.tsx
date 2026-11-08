@@ -24,10 +24,17 @@ export function TopTitle({ title }: { title: string }) {
 
 /** Anel da subscrição: aparece só a COMPANY_ADMIN e quando faltam ≤30 dias. */
 export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: () => void }) {
-  const [info, setInfo] = useState<{ left: number; pct: number } | null>(null);
+  // Período em dias: consumidos (X de N = Y%) e restantes (Z dias = 100 − Y %).
+  const [info, setInfo] = useState<{ total: number; used: number; left: number; pct: number } | null>(null);
   useEffect(() => {
     if (!enabled) { setInfo(null); return; }
     let alive = true;
+    const calc = (end: number, start: number) => {
+      const total = Math.max(1, Math.round((end - start) / 864e5));
+      const left = Math.min(total, Math.max(0, Math.ceil((end - Date.now()) / 864e5)));
+      const used = total - left;
+      return { total, used, left, pct: Math.round((used / total) * 100) };
+    };
     // Endpoint resumido (todas as funções); se ainda não existir na API, calcula a partir das subscrições.
     const fromMine = () => api.subscription.mine().then((subs) => {
       const act = subs.filter((x) => x.status === 'ACTIVE' && x.expiresAt)
@@ -35,25 +42,27 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
       if (!act?.expiresAt) return null;
       const end = Date.parse(act.expiresAt);
       const start = act.startsAt ? Date.parse(act.startsAt) : end - (act.durationDays ?? act.durationMonths * 30) * 864e5;
-      void start;
-      // % pelos dias que faltam para a renovação (janela de 30 dias), igual ao servidor.
-      const left = Math.max(0, Math.ceil((end - Date.now()) / 864e5));
-      return { left, pct: Math.min(100, Math.max(0, Math.round(((30 - left) / 30) * 100))) };
+      return calc(end, start);
     });
     api.subscription.status()
-      .then((st) => (st.active ? { left: st.daysLeft, pct: st.pct } : null))
+      .then((st) => {
+        if (!st.active) return null;
+        if (st.totalDays) return { total: st.totalDays, used: st.usedDays ?? st.totalDays - st.daysLeft, left: st.daysLeft, pct: st.pct };
+        return fromMine();
+      })
       .catch(() => fromMine())
       .then((v) => { if (alive) setInfo(v); })
       .catch(() => undefined);
     return () => { alive = false; };
   }, [enabled]);
   if (!info) return null;
-  // Cor pelo tempo já gasto: até 60% verde, 61–80% laranja, acima de 80% vermelho.
+  // Cor pelo consumido: até 60% verde, 61–80% laranja, acima de 80% vermelho.
   const tone = info.pct <= 60 ? 'ok' : info.pct <= 80 ? 'warn' : 'bad';
   const r = 15, c = 2 * Math.PI * r;
+  const tip = `${info.total} dias de subscrição · consumidos ${info.used} (${info.pct}%) · faltam ${info.left} (${100 - info.pct}%)`;
   return (
-    <button className={`tb-sub ${tone}`} onClick={onGo} disabled={!onGo} title={`${info.left} dia(s) até ao fim da subscrição`}>
-      <span className="tb-sub-tx">Renovar subscrição</span>
+    <button className={`tb-sub ${tone}`} onClick={onGo} disabled={!onGo} title={tip} aria-label={tip}>
+      <span className="tb-sub-tx">Renovar subscrição<small>{info.used} de {info.total} dias · faltam {info.left}</small></span>
       <span className="tb-ring" aria-hidden="true">
         <svg width="38" height="38" viewBox="0 0 38 38">
           <circle cx="19" cy="19" r={r} className="trk" />
