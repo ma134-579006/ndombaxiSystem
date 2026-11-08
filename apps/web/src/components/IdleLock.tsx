@@ -6,7 +6,7 @@ import { LS_PREV_ACCESS, LS_PREV_REFRESH, useAuth } from '../auth/AuthContext';
 import { API_URL } from '../config';
 import { verifyOffline } from '../offline/session';
 
-const IDLE_MS = 10 * 60 * 1000; // 10 min no PAINEL DE GESTÃO (leitura demora; a caixa mantém o bloqueio curto)
+const IDLE_MS = 5 * 60 * 1000; // 5 min sem atividade no painel de gestão (empresa e super admin) → ecrã de bloqueio
 const WEEKDAYS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 /**
  * Em MODO SHADOW quem está ao teclado é o Super Admin (não sabe a senha do
