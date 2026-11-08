@@ -103,7 +103,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ]);
       setData({
         storeName: site.store,
-        businessType: site.businessType || 'RETAIL',
+        // Só em desenvolvimento local: ndx_dev_biz pré-visualiza a loja de outro setor.
+        businessType: (import.meta.env.DEV ? (() => { try { return localStorage.getItem('ndx_dev_biz'); } catch { return null; } })() : null) || site.businessType || 'RETAIL',
         settings: site.settings,
         products: catalog.products,
         paymentMethods: methods,

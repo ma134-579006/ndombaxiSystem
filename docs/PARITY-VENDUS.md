@@ -64,3 +64,13 @@ Por fazer (por ordem):
 8. Formatos de impressão dos relatórios (PDF) iguais aos do Vendus.
 9. Verificação visual de cada página com sessão (o agente não introduz credenciais — o utilizador entra).
 10. Segurança: a palavra-passe do super admin foi escrita na conversa — deve ser alterada pelo utilizador.
+
+### Atualização 2026-11-08
+Feito (PRs #136–#138): círculo de carregamento sem salto; setores no estilo Vendus (farmácia, restaurante, hotel, clínica, serviços); restaurante com transferir mesa, dividir conta, consulta de mesa, eliminar mesa, fatura física/digital, QR do cardápio, bebidas fora da cozinha; Movimentos de stock e Funcionários no padrão Vendus; loja online com montra por setor; datas locais (Visão geral "Hoje" estava a 0 Kz); "Renovar subscrição" com cores em gestão e caixa; AGT inativo a vermelho. Teste real do restaurante numa conta (2 faturas, relatório certo).
+
+Bloqueios / por fazer:
+- **Cloudflare Pages falha todos os builds desde 2026-11-08 08:40** (admin, caixa e loja, também na main e num commit vazio; o build local passa). O frontend novo não está publicado. Precisa de alguém com acesso à conta Cloudflare do projeto para ver os logs (provável limite de builds).
+- Loja online por setor ainda não verificada no ecrã: a loja da conta de teste não está publicada.
+- Movimentos de stock: "Utilizador" vazio no saldo inicial.
+- Bebidas fora da cozinha por nome de categoria; falta configuração explícita de zonas (cozinha/bar) como as impressoras por zona do Vendus.
+- Restantes páginas no padrão Vendus: Inventário, Compras, Promoções, Câmaras, Backup, Configurações, Subscrição, Relatórios.
