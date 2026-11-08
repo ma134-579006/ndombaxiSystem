@@ -1209,7 +1209,7 @@ export interface RestoreTableResult { table: string; inserted: number; updated: 
 export interface RestoreResult { applied: boolean; tables: RestoreTableResult[] }
 
 // ── Migração (Vendus/Primavera/Negócio/etc.) ──────────────────
-export type MigrationKind = 'products' | 'customers' | 'suppliers';
+export type MigrationKind = 'products' | 'customers' | 'suppliers' | 'stock';
 export interface MigrationPreviewRow { action: 'CREATE' | 'UPDATE'; data: Record<string, unknown> }
 export interface MigrationPreview {
   kind: MigrationKind;

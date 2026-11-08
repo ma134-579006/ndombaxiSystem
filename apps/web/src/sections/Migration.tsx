@@ -6,14 +6,15 @@ import type { MigrationApplyResult, MigrationKind, MigrationPreview, WarehouseRo
 import { toast, confirmDialog, readFileProgress } from '../components/feedback';
 import { IconUpload, IconCube, IconUsers, IconTruck, IconCheck, IconClose, IconRefresh } from '../components/Icons';
 
-const KIND_LABEL: Record<MigrationKind, string> = { products: 'Produtos', customers: 'Clientes', suppliers: 'Fornecedores' };
+const KIND_LABEL: Record<MigrationKind, string> = { products: 'Produtos', customers: 'Clientes', suppliers: 'Fornecedores', stock: 'Stock' };
 const KIND_HINT: Record<MigrationKind, string> = {
   products: 'Nome, código, código de barras, categoria, stock, custo e preço',
   customers: 'Nome, NIF, telefone, e-mail, morada e saldo em dívida',
   suppliers: 'Nome, NIF, telefone, e-mail, morada e conta a pagar',
+  stock: 'Referência, quantidade, loja e operação',
 };
 // Ícones SEMÂNTICOS: produtos=caixa, clientes=pessoas, fornecedores=camião.
-const KIND_ICON: Record<MigrationKind, React.ComponentType<{ size?: number }>> = { products: IconCube, customers: IconUsers, suppliers: IconTruck };
+const KIND_ICON: Record<MigrationKind, React.ComponentType<{ size?: number }>> = { products: IconCube, customers: IconUsers, suppliers: IconTruck, stock: IconRefresh };
 const FIELD_LABEL: Record<string, string> = {
   barcode: 'Código de barras', code: 'Código', name: 'Nome', category: 'Categoria', stock: 'Stock',
   costPrice: 'Valor unitário (custo)', salePrice: 'Valor de venda', profit: 'Lucro',
@@ -47,11 +48,16 @@ const EXAMPLE: Record<MigrationKind, { head: string[]; row: string[] }> = {
     head: ['Nome', 'NIF', 'Morada', 'Localidade', 'País', 'Telefone', 'Telemóvel', 'E-mail', 'Conta a pagar'],
     row: ['Fornecedor Exemplo, Lda', '5000000001', 'Rua 2', 'Luanda', 'Angola', '', '924000000', 'fornecedor@exemplo.ao', '0'],
   },
+  stock: {
+    head: ['Referência', 'Quantidade', 'Loja', 'Operação'],
+    row: ['AG15', '24', '', 'Entrada'],
+  },
 };
 const CARD_TEXT: Record<MigrationKind, string> = {
   products: 'Importação de produtos ou serviços em formato CSV, Excel ou SAF-T (XML).',
   customers: 'Importação de clientes em formato CSV, Excel ou SAF-T (XML).',
   suppliers: 'Importação de fornecedores em formato CSV ou Excel.',
+  stock: 'Atualização de stock em formato CSV ou Excel: Entrada, Saída ou Acerto.',
 };
 function downloadExample(kind: MigrationKind) {
   const { head, row } = EXAMPLE[kind];
@@ -67,7 +73,7 @@ function downloadExample(kind: MigrationKind) {
  *  pré-visualização e confirmação) e "Download Ficheiro Exemplo". */
 export function Migration() {
   const [open, setOpen] = useState<MigrationKind | null>(null);
-  const kinds: MigrationKind[] = ['products', 'customers', 'suppliers'];
+  const kinds: MigrationKind[] = ['products', 'customers', 'suppliers', 'stock'];
   return (
     <div className="vd-page">
       <div className="vd-head"><p className="vd-crumb"><span>Migração de Dados</span></p></div>

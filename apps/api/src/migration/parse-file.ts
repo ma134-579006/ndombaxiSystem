@@ -179,6 +179,7 @@ const SQL_TABLE_HINTS: Record<MigrationKind, RegExp> = {
   products: /produt|product|artigo|item/i,
   customers: /client|customer/i,
   suppliers: /fornec|supplier|vendor/i,
+  stock: /stock|inventar|existenc/i,
 };
 
 /**
