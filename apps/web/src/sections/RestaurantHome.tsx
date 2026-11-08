@@ -35,11 +35,11 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
   const kitchenTone = d ? (d.kitchen.oldestWaitMin >= 15 ? 'crit' : d.kitchen.queue > 0 ? 'warn' : 'ok') : 'ok';
 
   return (
-    <>
-      <div className="content-head">
-        <h2>Restauração — Centro de comando</h2>
+    <div className="vd-page vd-home">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Restauração</span><span className="sep">/</span><span>Centro de comando</span></p>
         <span className="spacer" />
-        <button className="btn primary" onClick={() => goRest('mesas')}>Abrir mesas</button>
+        <button className="vd-btn" onClick={() => goRest('mesas')}>Abrir mesas</button>
       </div>
 
       {err && !d ? (
@@ -115,7 +115,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
       ) : null}
 
       {/* ── Ações próprias do restaurante ── */}
-      <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }}>Operação</h3>
+      <h3 className="vd-sec">Operação</h3>
       <div className="pgrid">
         <ActionCard icon="🍽️" title="Mesas & Comandas" desc="Mapa de sala, abrir mesa, lançar pedidos." onClick={() => goRest('mesas')} />
         <ActionCard icon="👨‍🍳" title="Cozinha (KDS)" desc="Fila em tempo real, marcar pronto/servido." onClick={() => onGo('restaurant-kds')} badge={d && d.kitchen.queue > 0 ? String(d.kitchen.queue) : undefined} />
@@ -124,7 +124,7 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
       </div>
 
       {/* ── Fecho do dia ── */}
-      <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }}>Hoje</h3>
+      <h3 className="vd-sec">Hoje</h3>
       <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 14 }}>
         <Tile label="Contas fechadas" value={d ? String(d.today.closedCount) : '—'} hint="comandas do dia" />
         <Tile label="Receita (mesas)" value={d ? KZ(d.today.revenue) : '—'} hint="comandas fechadas hoje" />
@@ -133,14 +133,14 @@ export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
       </div>
 
       {/* ── Gestão (secundário: partilhado com o núcleo) ── */}
-      <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }} className="muted">Gestão</h3>
+      <h3 className="vd-sec">Gestão</h3>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button className="btn ghost" onClick={() => onGo('operations')}>Caixa & Faturação</button>
         <button className="btn ghost" onClick={() => onGo('reports')}>Relatórios & SAF-T</button>
         <button className="btn ghost" onClick={() => onGo('employees')}>Equipa & Folha</button>
         <button className="btn ghost" onClick={() => onGo('customers')}>Clientes</button>
       </div>
-    </>
+    </div>
   );
 }
 

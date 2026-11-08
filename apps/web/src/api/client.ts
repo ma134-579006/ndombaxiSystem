@@ -1018,6 +1018,11 @@ export const api = {
     /** Fatura a comanda (FT ligada à comanda) e fecha-a. */
     invoiceOrder: (id: string, dto: { paymentType: string; tendered?: number }) =>
       request<{ invoiceId: string; invoiceNumber: string; grossTotal: number }>('POST', `/restaurant/orders/${id}/invoice`, dto),
+    /** Transfere a comanda para outra mesa livre. */
+    transferOrder: (id: string, tableId: string) => request<{ ok: boolean; tableName: string }>('POST', `/restaurant/orders/${id}/transfer`, { tableId }),
+    /** Divide a conta: fatura só os artigos escolhidos; o resto fica na mesa. */
+    splitInvoice: (id: string, dto: { paymentType: string; items: { itemId: string; quantity: number }[] }) =>
+      request<{ invoiceId: string; invoiceNumber: string; grossTotal: number }>('POST', `/restaurant/orders/${id}/split-invoice`, dto),
     closeOrder: (id: string, chargeToReservationId?: string) => request<{ ok: boolean; chargedToFolio?: boolean }>('POST', `/restaurant/orders/${id}/close`, chargeToReservationId ? { chargeToReservationId } : {}),
     kitchen: () => request<RestaurantKitchenItem[]>('GET', '/restaurant/kitchen'),
     dashboard: () => request<RestaurantDashboard>('GET', '/restaurant/dashboard'),

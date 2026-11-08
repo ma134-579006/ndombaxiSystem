@@ -35,11 +35,11 @@ export function HotelHome({ onGo }: { onGo(section: string): void }) {
   const opsPending = d ? d.ops.housekeepingPending + d.ops.maintenanceOpen : 0;
 
   return (
-    <>
-      <div className="content-head">
-        <h2>Hotelaria — Centro de comando</h2>
+    <div className="vd-page vd-home">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Hotelaria</span><span className="sep">/</span><span>Centro de comando</span></p>
         <span className="spacer" />
-        <button className="btn primary" onClick={() => goHotel('rooms')}>Ver quartos</button>
+        <button className="vd-btn" onClick={() => goHotel('rooms')}>Ver quartos</button>
       </div>
 
       {err && !d ? (
@@ -108,7 +108,7 @@ export function HotelHome({ onGo }: { onGo(section: string): void }) {
       </div>
 
       {/* ── Ações próprias do hotel ── */}
-      <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }}>Operação</h3>
+      <h3 className="vd-sec">Operação</h3>
       <div className="pgrid">
         <ActionCard icon="🛏️" title="Quartos" desc="Mapa de quartos, estados e tarifas." onClick={() => goHotel('rooms')} />
         <ActionCard icon="📅" title="Reservas & check-in/out" desc="Reservar, dar entrada/saída, folio e fatura." onClick={() => goHotel('reservations')} badge={d && d.today.pendingOnline > 0 ? String(d.today.pendingOnline) : undefined} />
@@ -117,7 +117,7 @@ export function HotelHome({ onGo }: { onGo(section: string): void }) {
       </div>
 
       {/* ── Estado dos quartos ── */}
-      <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }}>Quartos</h3>
+      <h3 className="vd-sec">Quartos</h3>
       <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 14 }}>
         <Tile label="Livres" value={d ? String(d.rooms.available) : '—'} tone="info" />
         <Tile label="Ocupados" value={d ? String(d.rooms.occupied) : '—'} />
@@ -127,14 +127,14 @@ export function HotelHome({ onGo }: { onGo(section: string): void }) {
       </div>
 
       {/* ── Gestão (secundário: partilhado com o núcleo) ── */}
-      <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }} className="muted">Gestão</h3>
+      <h3 className="vd-sec">Gestão</h3>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button className="btn ghost" onClick={() => onGo('operations')}>Caixa & Faturação</button>
         <button className="btn ghost" onClick={() => onGo('reports')}>Relatórios & SAF-T</button>
         <button className="btn ghost" onClick={() => onGo('employees')}>Equipa & Folha</button>
         <button className="btn ghost" onClick={() => onGo('customers')}>Hóspedes</button>
       </div>
-    </>
+    </div>
   );
 }
 

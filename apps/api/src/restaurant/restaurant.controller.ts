@@ -6,7 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { RestaurantService } from './restaurant.service';
-import { AddItemDto, CloseOrderDto, InvoiceOrderDto, CreateTableDto, KitchenStatusDto, OpenOrderDto, ProductionDto, SetRecipeDto } from './dto/restaurant.dto';
+import { AddItemDto, CloseOrderDto, InvoiceOrderDto, CreateTableDto, KitchenStatusDto, OpenOrderDto, ProductionDto, SetRecipeDto, SplitInvoiceDto, TransferOrderDto } from './dto/restaurant.dto';
 
 /** Restauração — mesas, comandas e cozinha (vertical RESTAURANT). */
 @ApiTags('restaurant')
@@ -74,6 +74,22 @@ export class RestaurantController {
   @ApiOperation({ summary: 'Fatura a comanda (FT ligada à comanda), fecha-a e baixa ingredientes' })
   invoiceOrder(@Param('id') id: string, @Body() dto: InvoiceOrderDto, @CurrentUser() user: JwtPayload) {
     return this.svc.invoiceOrder(this.ctx.requireTenantSchema(), id, { id: user.sub, name: user.name ?? user.email, storeId: user.storeId ?? null }, dto);
+  }
+
+  @Post('orders/:id/transfer')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Transfere a comanda para outra mesa livre' })
+  transferOrder(@Param('id') id: string, @Body() dto: TransferOrderDto) {
+    return this.svc.transferOrder(this.ctx.requireTenantSchema(), id, dto.tableId);
+  }
+
+  @Post('orders/:id/split-invoice')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Divide a conta: fatura só os artigos escolhidos; o resto fica na mesa' })
+  splitInvoice(@Param('id') id: string, @Body() dto: SplitInvoiceDto, @CurrentUser() user: JwtPayload) {
+    const { items, ...pay } = dto;
+    return this.svc.splitInvoice(this.ctx.requireTenantSchema(), id, items,
+      { id: user.sub, name: user.name ?? user.email, storeId: user.storeId ?? null }, pay);
   }
 
   @Post('orders/:id/close')

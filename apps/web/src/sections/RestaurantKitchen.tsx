@@ -171,7 +171,7 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
   const totalItems = items.length;
 
   return (
-    <>
+    <div className="vd-home">
       <div className="content-head">
         <h2>Cozinha (KDS)</h2>
         <span className="spacer" />
@@ -277,6 +277,6 @@ export function RestaurantKitchen({ onGo }: { onGo?: (section: string) => void }
           })}
         </div>
       )}
-    </>
+    </div>
   );
 }

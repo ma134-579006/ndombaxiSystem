@@ -109,6 +109,50 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao faturar.'); }
     finally { setPaying(false); }
   };
+  // TRANSFERIR MESA e DIVIDIR CONTA (como na referência).
+  const [transferOpen, setTransferOpen] = useState(false);
+  const transfer = async (toId: string) => {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      const r = await api.restaurant.transferOrder(detail.order.id, toId);
+      toast.success(`Comanda transferida para a ${r.tableName}.`);
+      setTransferOpen(false); await refreshDetail(detail.order.id);
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao transferir.'); }
+    finally { setBusy(false); }
+  };
+  const [splitOpen, setSplitOpen] = useState(false);
+  const [splitQty, setSplitQty] = useState<Record<string, number>>({});
+  const splitTotal = detail ? detail.items.reduce((s2, it) => s2 + (splitQty[it.id] ?? 0) * Number(it.unit_price), 0) : 0;
+  const doSplit = async () => {
+    if (!detail || paying) return;
+    const items = Object.entries(splitQty).filter(([, q]) => q > 0).map(([itemId, quantity]) => ({ itemId, quantity }));
+    if (!items.length) { toast.warning('Escolha os artigos a pagar.'); return; }
+    setPaying(true);
+    try {
+      const r = await api.restaurant.splitInvoice(detail.order.id, { paymentType: payType, items });
+      toast.success(`Fatura ${r.invoiceNumber} emitida — ${KZ(r.grossTotal)}. O resto fica na mesa.`);
+      setSplitOpen(false); setSplitQty({}); await refreshDetail(detail.order.id);
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao dividir a conta.'); }
+    finally { setPaying(false); }
+  };
+  /** Consulta de mesa: talão (80 mm) com os artigos e o total — não é fatura. */
+  const printCheck = () => {
+    if (!detail) return;
+    const esc = (x: string) => x.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+    const lines = groupItems(detail.items).map((it) => `<tr><td>${Number(it.quantity)}</td><td>${esc(it.description)}</td><td class="r">${KZ(Number(it.unit_price) * Number(it.quantity))}</td></tr>`).join('');
+    const w = window.open('', '_blank', 'width=380,height=640');
+    if (!w) { toast.warning('Permita janelas para imprimir.'); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Consulta de mesa</title><style>
+      @page{size:80mm auto;margin:0}body{width:72mm;margin:4mm;font:12px/1.35 monospace;color:#000}
+      h1{font-size:14px;text-align:center;margin:0 0 6px}p{margin:2px 0;text-align:center}table{width:100%;border-collapse:collapse;margin:8px 0}
+      td{padding:2px 0;vertical-align:top}td:first-child{width:22px}.r{text-align:right;white-space:nowrap}hr{border:0;border-top:1px dashed #000}
+      .t{display:flex;justify-content:space-between;font-weight:700;font-size:14px}</style></head><body>
+      <h1>CONSULTA DE MESA</h1><p>${esc(detail.order.table_name ?? 'Mesa')}</p><p>${new Date().toLocaleString('pt-PT')}</p><hr>
+      <table>${lines}</table><hr><div class="t"><span>TOTAL</span><span>${KZ(detail.order.total)}</span></div><hr>
+      <p>Este documento não serve de fatura</p><script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}<\/script></body></html>`);
+    w.document.close();
+  };
   const closeOrder = async () => {
     if (!detail) return;
     if (!(await confirmDialog({ message: `Fechar a conta da ${detail.order.table_name}? Total ${KZ(detail.order.total)}.` }))) return;
@@ -121,72 +165,105 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
     ? products.filter((p) => `${p.name} ${p.code}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 30)
     : products.slice(0, 24);
 
+  const areas = [...new Set(tables.map((t) => t.area || 'Sala'))];
+  const [area, setArea] = useState<string>('ALL');
+  const [tableState, setTableState] = useState<'ALL' | 'FREE' | 'BUSY'>('ALL');
+  const shownTables = tables.filter((t) => (area === 'ALL' || (t.area || 'Sala') === area)
+    && (tableState === 'ALL' || (tableState === 'BUSY' ? !!t.order_id : !t.order_id)));
+  const TABS = [['mesas', 'Mesas'], ['cozinha', `Cozinha${kds.length ? ` (${kds.length})` : ''}`], ['receitas', 'Receitas'], ['producao', 'Produção'], ['relatorios', 'Relatórios']] as const;
+
   return (
-    <>
-      <div className="content-head">
-        <h2>Mesas & Comandas</h2>
+    <div className="vd-page">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Restauração</span><span className="sep">/</span><span>{TABS.find(([k]) => k === tab)?.[1].replace(/ \(\d+\)$/, '')}</span></p>
         <span className="spacer" />
-        <button className="btn ghost" onClick={() => setNewTable(true)}><IconPlus size={16} /> Nova mesa</button>
+        {tab === 'mesas' ? <button className="vd-btn" onClick={() => setNewTable(true)}><IconPlus size={16} /> Adicionar Mesa</button> : null}
       </div>
 
-      <div className="seg" style={{ marginBottom: 14, maxWidth: 620 }}>
-        <button className={tab === 'mesas' ? 'active' : ''} onClick={() => setTab('mesas')}>Mesas</button>
-        <button className={tab === 'cozinha' ? 'active' : ''} onClick={() => setTab('cozinha')}>Cozinha (KDS){kds.length ? ` · ${kds.length}` : ''}</button>
-        <button className={tab === 'receitas' ? 'active' : ''} onClick={() => setTab('receitas')}>Receitas</button>
-        <button className={tab === 'producao' ? 'active' : ''} onClick={() => setTab('producao')}>Produção</button>
-        <button className={tab === 'relatorios' ? 'active' : ''} onClick={() => setTab('relatorios')}>Relatórios</button>
+      <div className="vd-tabs" role="tablist" aria-label="Restauração">
+        {TABS.map(([k, l]) => (
+          <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>
+        ))}
       </div>
 
       {tab === 'relatorios' ? <ReportsTab /> : tab === 'producao' ? <ProductionTab products={products} onProduced={loadProducts} onGo={onGo} /> : tab === 'receitas' ? <RecipesTab products={products} /> : tab === 'mesas' ? (
-        tables.length === 0 ? (
-          <div className="card"><div className="empty"><p>Sem mesas. Cria a primeira mesa.</p></div></div>
-        ) : (
-          <>
-            <div className="rt-summary">
-              <span className="rt-chip free"><i /> {tables.filter((t) => !t.order_id).length} livres</span>
-              <span className="rt-chip busy"><i /> {tables.filter((t) => !!t.order_id).length} ocupadas</span>
-              <span className="rt-chip">Em aberto <b>{KZ(tables.reduce((sum, t) => sum + Number(t.order_total ?? 0), 0))}</b></span>
-            </div>
-            <div className="rt-grid">
-              {tables.map((t) => {
-                const occupied = !!t.order_id;
-                return (
-                  <button key={t.id} className={`rt-table${occupied ? ' busy' : ' free'}`} onClick={() => void openTable(t)} disabled={busy}
-                    aria-label={`${t.name} — ${occupied ? 'ocupada' : 'livre'}`}>
-                    <div className="rt-top">
-                      <span className="rt-num">{t.code || t.name.replace(/\D+/g, '') || '—'}</span>
-                      <span className="rt-state">{occupied ? 'Ocupada' : 'Livre'}</span>
-                    </div>
-                    <div className="rt-name">{t.name}</div>
-                    <div className="rt-meta">
-                      <UiIcon e="users" size={14} /> {occupied && t.guests ? `${t.guests}/${t.seats}` : `${t.seats} lugares`}
-                      {t.area ? <span className="rt-area">· {t.area}</span> : null}
-                    </div>
-                    <div className="rt-foot">
-                      {occupied
-                        ? <><span className="rt-total">{KZ(t.order_total ?? 0)}</span><span className="rt-time"><UiIcon e="clock" size={13} /> {t.opened_at_label}</span></>
-                        : <span className="rt-open">Abrir comanda</span>}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )
-      ) : (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          {kds.length === 0 ? <div className="empty" style={{ padding: 26 }}><p>Sem itens por preparar</p></div>
-            : kds.map((i) => (
-              <div key={i.id} className="list-row" style={{ padding: '12px 16px' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ fontSize: 14 }}>{Number(i.quantity)}× {i.description}</strong>
-                  <div className="muted" style={{ fontSize: 12.5 }}>{i.table_name ?? 'Mesa'} · {KITCHEN_LABEL[i.kitchen_status] ?? i.kitchen_status}{i.notes ? ` · ${i.notes}` : ''}</div>
-                </div>
-                <button className="btn sm" onClick={async () => { await api.restaurant.itemKitchen(i.id, NEXT[i.kitchen_status] ?? 'SERVED').catch(() => undefined); await loadKds(); }}>
-                  {i.kitchen_status === 'PENDING' ? 'Iniciar' : 'Pronto ✓'}
-                </button>
+        <>
+          <div className="vd-card vd-filters">
+            <div className="vd-frow" style={{ alignItems: 'center' }}>
+              <div className="vd-seg" role="tablist" aria-label="Sala">
+                <button type="button" className={area === 'ALL' ? 'on' : ''} aria-selected={area === 'ALL'} onClick={() => setArea('ALL')}>Todas as salas</button>
+                {areas.map((a) => <button key={a} type="button" className={area === a ? 'on' : ''} aria-selected={area === a} onClick={() => setArea(a)}>{a}</button>)}
               </div>
-            ))}
+              <div className="vd-seg" role="tablist" aria-label="Estado">
+                {([['ALL', 'Todas'], ['FREE', 'Livres'], ['BUSY', 'Ocupadas']] as const).map(([k, l]) => (
+                  <button key={k} type="button" className={tableState === k ? 'on' : ''} aria-selected={tableState === k} onClick={() => setTableState(k)}>{l}</button>
+                ))}
+              </div>
+              <span className="spacer" />
+              <div className="vd-sum">
+                <span>Livres <b>{tables.filter((t) => !t.order_id).length}</b></span>
+                <span>Ocupadas <b>{tables.filter((t) => !!t.order_id).length}</b></span>
+                <span>Em aberto <b>{KZ(tables.reduce((sum, t) => sum + Number(t.order_total ?? 0), 0))}</b></span>
+              </div>
+            </div>
+          </div>
+          {shownTables.length === 0 ? (
+            <div className="vd-card"><div className="vd-empty">{tables.length === 0 ? 'Ainda não há mesas.' : 'Sem mesas.'}</div></div>
+          ) : (
+            <div className="vd-card">
+              <div className="rt-grid vd-tables">
+                {shownTables.map((t) => {
+                  const occupied = !!t.order_id;
+                  return (
+                    <button key={t.id} className={`rt-table${occupied ? ' busy' : ' free'}`} onClick={() => void openTable(t)} disabled={busy}
+                      aria-label={`${t.name} — ${occupied ? 'ocupada' : 'livre'}`}>
+                      <div className="rt-top">
+                        <span className="rt-num">{(t.code && t.code !== t.name ? t.code : t.name.replace(/\D+/g, '')) || t.name.slice(0, 3)}</span>
+                        <span className="rt-state">{occupied ? 'Ocupada' : 'Livre'}</span>
+                      </div>
+                      <div className="rt-name">{t.name}</div>
+                      <div className="rt-meta">
+                        <UiIcon e="users" size={14} /> {occupied && t.guests ? `${t.guests}/${t.seats}` : `${t.seats} lugares`}
+                        {t.area ? <span className="rt-area">· {t.area}</span> : null}
+                      </div>
+                      <div className="rt-foot">
+                        {occupied
+                          ? <><span className="rt-total">{KZ(t.order_total ?? 0)}</span><span className="rt-time"><UiIcon e="clock" size={13} /> {t.opened_at_label}</span></>
+                          : <span className="rt-open">Abrir mesa</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="vd-card vd-tablecard">
+          <div className="vd-tbar"><span>{kds.length} por preparar</span></div>
+          {kds.length === 0 ? <div className="vd-empty">Sem pedidos por preparar.</div> : (
+            <div className="vd-tablewrap">
+              <table className="vd-table">
+                <thead><tr><th className="num">Qtd.</th><th>Artigo</th><th>Mesa</th><th>Notas</th><th className="ctr">Estado</th><th aria-label="Ação" /></tr></thead>
+                <tbody>
+                  {kds.map((i) => (
+                    <tr key={i.id}>
+                      <td className="num"><b>{Number(i.quantity)}</b></td>
+                      <td><strong>{i.description}</strong></td>
+                      <td>{i.table_name ?? 'Balcão'}</td>
+                      <td>{i.notes || '—'}</td>
+                      <td className="ctr"><span className={`vd-badge${i.kitchen_status === 'PENDING' ? ' warn' : ''}`}>{KITCHEN_LABEL[i.kitchen_status] ?? i.kitchen_status}</span></td>
+                      <td className="num">
+                        <button className="vd-btn sm" onClick={async () => { await api.restaurant.itemKitchen(i.id, NEXT[i.kitchen_status] ?? 'SERVED').catch(() => undefined); await loadKds(); }}>
+                          {i.kitchen_status === 'PENDING' ? 'Iniciar' : i.kitchen_status === 'PREPARING' ? 'Pronto' : 'Servido'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -242,7 +319,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
               </div>
             </div>
           ) : (
-            <div className="row" style={{ gap: 8 }}>
+            <div className="rt-actions">
               {payOpen ? (
                 <>
                   <select aria-label="Meio de pagamento" value={payType} onChange={(e) => setPayType(e.target.value)} style={{ flex: 1 }}>
@@ -255,17 +332,60 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
                   <button className="btn lg" onClick={() => void invoiceOrder()} disabled={paying}>{paying ? 'A faturar…' : `Faturar ${KZ(detail.order.total)}`}</button>
                 </>
               ) : (
-                <button className="btn lg" style={{ flex: 1 }} onClick={() => setPayOpen(true)} disabled={detail.items.length === 0}>Faturar e fechar</button>
+                <button className="btn lg rt-pay" onClick={() => setPayOpen(true)} disabled={detail.items.length === 0}>Faturar e fechar</button>
               )}
               <button className="btn ghost" onClick={() => void closeOrder()} disabled={detail.items.length === 0} title="Fechar sem faturar aqui (cobrança no caixa)">Fechar (cobrar no caixa)</button>
               <button className="btn ghost" onClick={() => setCancelOpen(true)} title="Cancelar a comanda com motivo (auditado)">Cancelar comanda</button>
             </div>
           )}
+          {!cancelOpen ? (
+            <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+              <button className="vd-btn outline sm" onClick={printCheck} disabled={detail.items.length === 0}>Consulta de mesa</button>
+              <button className="vd-btn outline sm" onClick={() => { setTransferOpen((v) => !v); setSplitOpen(false); }}>Transferir mesa</button>
+              <button className="vd-btn outline sm" onClick={() => { setSplitOpen((v) => !v); setTransferOpen(false); setSplitQty({}); }} disabled={detail.items.length === 0}>Dividir conta</button>
+            </div>
+          ) : null}
+          {transferOpen ? (
+            <div className="vd-card" style={{ marginTop: 10 }}>
+              <div className="vd-lbl" style={{ marginBottom: 8 }}>Mesa de destino</div>
+              {tables.some((t) => !t.order_id) ? (
+                <div className="vd-seg" style={{ flexWrap: 'wrap' }}>
+                  {tables.filter((t) => !t.order_id).map((t) => <button key={t.id} type="button" onClick={() => void transfer(t.id)} disabled={busy}>{t.name}</button>)}
+                </div>
+              ) : <div className="vd-empty">Sem mesas livres.</div>}
+            </div>
+          ) : null}
+          {splitOpen ? (
+            <div className="vd-card" style={{ marginTop: 10 }}>
+              <table className="vd-table">
+                <thead><tr><th>Artigo</th><th className="num">Na mesa</th><th className="num">Pagar agora</th></tr></thead>
+                <tbody>
+                  {detail.items.map((it) => (
+                    <tr key={it.id}>
+                      <td>{it.description}<span className="sub">{KZ(it.unit_price)}</span></td>
+                      <td className="num">{Number(it.quantity)}</td>
+                      <td className="num">
+                        <input className="vd-in" style={{ width: 70, textAlign: 'right' }} inputMode="decimal" value={splitQty[it.id] ?? ''} placeholder="0"
+                          onChange={(e) => { const v = Math.min(Number(it.quantity), Math.max(0, Number(e.target.value.replace(',', '.')) || 0)); setSplitQty({ ...splitQty, [it.id]: v }); }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="row" style={{ gap: 8, marginTop: 10, alignItems: 'center' }}>
+                <select aria-label="Meio de pagamento" value={payType} onChange={(e) => setPayType(e.target.value)} style={{ flex: 1 }}>
+                  <option value="CASH">Numerário</option><option value="CARD">Multicaixa (TPA)</option><option value="TRANSFER">Transferência</option>
+                  <option value="EXPRESS">Multicaixa Express</option><option value="REFERENCE">Referência</option>
+                </select>
+                <button className="vd-btn" onClick={() => void doSplit()} disabled={paying || splitTotal <= 0}>{paying ? 'A faturar…' : `Faturar ${KZ(splitTotal)}`}</button>
+              </div>
+            </div>
+          ) : null}
         </Modal>
       ) : null}
 
       {newTable ? <NewTableModal onClose={() => setNewTable(false)} onCreated={() => { setNewTable(false); void loadTables(); }} /> : null}
-    </>
+    </div>
   );
 }
 

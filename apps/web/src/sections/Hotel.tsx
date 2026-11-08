@@ -63,7 +63,7 @@ export function Hotel() {
   const openMt = mt.filter((m) => m.status !== 'DONE').length;
 
   return (
-    <>
+    <div className="vd-home">
       <div className="content-head">
         <h2>Hotelaria</h2>
         <span className="spacer" />
@@ -146,7 +146,7 @@ export function Hotel() {
       {booking ? <BookRoom room={booking} onClose={() => setBooking(null)} onCreated={async (id) => { setBooking(null); await refresh(); await openRes(id); }} /> : null}
       {roomMenu ? <RoomMenuModal room={roomMenu} onClose={() => setRoomMenu(null)} onChanged={async () => { setRoomMenu(null); await loadRooms(); }} /> : null}
       {detail ? <ResDetail detail={detail} onClose={() => setDetail(null)} onChanged={async () => { setDetail(await api.hotel.reservation(detail.reservation.id)); await refresh(); }} /> : null}
-    </>
+    </div>
   );
 }
 

@@ -252,7 +252,9 @@ function TenantPanel() {
   const [storeEnabled, setStoreEnabled] = useState(true);
   React.useEffect(() => {
     let alive = true;
-    api.branding().then((b) => { if (alive) { setBizType(b.businessType || 'RETAIL'); setStoreEnabled(b.onlineStoreEnabled !== false); } }).catch(() => undefined);
+    // Só em desenvolvimento local: pré-visualizar o painel de outro setor sem mudar a conta.
+    const devBiz = import.meta.env.DEV ? (() => { try { return localStorage.getItem('ndx_dev_biz'); } catch { return null; } })() : null;
+    api.branding().then((b) => { if (alive) { setBizType(devBiz || b.businessType || 'RETAIL'); setStoreEnabled(b.onlineStoreEnabled !== false); } }).catch(() => undefined);
     return () => { alive = false; };
   }, [section]); // recarrega ao voltar de Configurações (reflete o toggle na hora)
   const nav = React.useMemo(() => {

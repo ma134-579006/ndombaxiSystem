@@ -77,7 +77,7 @@ export function ServiceOrders() {
   const openOS = async (id: string) => { try { setDetail(await api.serviceOrders.get(id)); } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha.'); } };
 
   return (
-    <>
+    <div className="vd-home">
       <div className="content-head">
         <h2>Assistência técnica</h2>
         <span className="spacer" />
@@ -117,7 +117,7 @@ export function ServiceOrders() {
 
       {creating ? <CreateOS onClose={() => setCreating(false)} onCreated={async (id) => { setCreating(false); await load(); await openOS(id); }} /> : null}
       {detail ? <OSDetail detail={detail} onClose={() => setDetail(null)} onChanged={async () => { setDetail(await api.serviceOrders.get(detail.order.id)); await load(); }} /> : null}
-    </>
+    </div>
   );
 }
 

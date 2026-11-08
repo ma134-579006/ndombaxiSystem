@@ -92,6 +92,9 @@ export function Products() {
   const [stores, setStores] = useState<WarehouseRow[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [newCategory, setNewCategory] = useState('');
+  // IVA padrão da empresa — para o PVP mostrar o preço final também em "Automático".
+  const [companyIva, setCompanyIva] = useState<string | null>(null);
+  useEffect(() => { api.site.get().then((st) => setCompanyIva(st.default_iva_code || null)).catch(() => undefined); }, []);
   const [search, setSearch] = useState('');
   // CATÁLOGOS GRANDES: páginas de 100 e pesquisa no SERVIDOR (ou na memória
   // interna, sem rede) — nunca o catálogo inteiro de uma vez.
@@ -499,7 +502,7 @@ export function Products() {
     const L = ({ children, hint }: { children: React.ReactNode; hint?: string }) => (
       <div className="vd-lbl">{children}{hint ? <span className="q" title={hint} aria-label={hint}>?</span> : null} :</div>
     );
-    const pvpPreview = (Number(form.unitPrice) || 0) * (1 + (form.ivaCode === 'AUTO' ? 0 : IVA_RATE[form.ivaCode]) / 100);
+    const pvpPreview = (Number(form.unitPrice) || 0) * (1 + (form.ivaCode === 'AUTO' ? (companyIva ? IVA_RATE[companyIva] ?? 0 : 0) : IVA_RATE[form.ivaCode]) / 100);
     return (
       <div className="vd-page">
         <div className="vd-head">
@@ -587,7 +590,7 @@ export function Products() {
             <L hint="Preço de venda sem IVA, em Kz.">Preço s/ IVA</L>
             <div className="vd-ctl"><input inputMode="decimal" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="0" /></div>
             <L>PVP</L>
-            <div className="vd-ctl"><input value={form.ivaCode === 'AUTO' ? 'IVA da empresa' : kz(pvpPreview)} readOnly disabled /></div>
+            <div className="vd-ctl"><input value={form.ivaCode === 'AUTO' && !companyIva ? 'IVA da empresa' : kz(pvpPreview)} readOnly disabled /></div>
           </div>
           <div className="vd-row"><L hint="Automático usa o IVA padrão da empresa (Configurações).">Imposto</L>
             <div className="vd-ctl">

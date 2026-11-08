@@ -96,7 +96,7 @@ export function ServiceHub({ businessType, onGo }: { businessType: string; onGo(
     return () => { alive = false; };
   }, [businessType]);
   return (
-    <>
+    <div className="vd-home">
       <div className="content-head">
         <h2>{v.label}</h2>
       </div>
@@ -133,6 +133,6 @@ export function ServiceHub({ businessType, onGo }: { businessType: string; onGo(
           </button>
         ))}
       </div>
-    </>
+    </div>
   );
 }
