@@ -802,3 +802,9 @@
 :is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .fx-tabs.inv-tabs ~ .content-head > h2 { display: block; font-size: 22px; font-weight: 300; }
 :is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .fx-tabs.inv-tabs + .content-head { min-height: 0 !important; align-items: center; padding-top: 14px !important; }
 :is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .fx-tabs.inv-tabs + .content-head + * { border-radius: 0 4px 4px 0 !important; }
+/* O primeiro bloco depois das abas fica com a altura do conteúdo (barras de pesquisa não ficam centradas num cartão alto). */
+:is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .fx-tabs.inv-tabs + *, :is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) > .card:first-of-type { min-height: 0 !important; }
+/* Hotel: cartões de quarto com largura suficiente; o botão "Estado" não sai do cartão. */
+.hotel-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important; }
+.hotel-room .rt-foot { flex-wrap: wrap; gap: 6px; }
+.hotel-room .rt-foot .btn, .hotel-room .rt-foot button { flex: none; }

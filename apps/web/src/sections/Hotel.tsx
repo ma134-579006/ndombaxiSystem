@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { InvoiceShareModal, type IssuedInvoice } from '../components/InvoiceShare';
 import { api, ApiError } from '../api/client';
 import type { HotelHousekeepingRow, HotelMaintenanceRow, HotelReservationDetail, HotelReservationRow, HotelRoomMapRow, ManagerProduct } from '../api/types';
 import { toast, readFileProgress } from '../components/feedback';
@@ -8,6 +9,9 @@ import { formatKz, localIso } from '../format';
 import { UiIcon } from '../components/UiIcon';
 
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
+/** Data de estadia (vem como AAAA-MM-DD ou ISO) → DD/MM/AAAA. */
+const ymd = (s?: string | null) => (s ? String(s).slice(0, 10) : '');
+const fd = (s?: string | null) => { const v = ymd(s); return v ? v.split('-').reverse().join('/') : '—'; };
 const STATUS: { id: string; label: string }[] = [
   { id: 'BOOKED', label: 'Reservada' }, { id: 'CHECKED_IN', label: 'Hospedado' },
   { id: 'CHECKED_OUT', label: 'Saiu' }, { id: 'CANCELLED', label: 'Cancelada' },
@@ -47,6 +51,8 @@ export function Hotel() {
   const [filter, setFilter] = useState('');
   const [newRoom, setNewRoom] = useState(false);
   const [booking, setBooking] = useState<HotelRoomMapRow | null>(null);
+  const [pickRoom, setPickRoom] = useState(false);
+  const [issued, setIssued] = useState<{ inv: IssuedInvoice; phone: string | null } | null>(null);
   const [roomMenu, setRoomMenu] = useState<HotelRoomMapRow | null>(null);
   const [detail, setDetail] = useState<HotelReservationDetail | null>(null);
 
@@ -69,7 +75,9 @@ export function Hotel() {
         <span className="spacer" />
         {tab === 'rooms'
           ? <button className="btn ghost" onClick={() => setNewRoom(true)}><IconPlus size={17} /> Quarto</button>
-          : null}
+          : tab === 'reservations'
+            ? <button className="btn" onClick={() => setPickRoom(true)}><IconPlus size={17} /> Nova Reserva</button>
+            : null}
       </div>
 
       <div className="fx-tabs inv-tabs">
@@ -104,7 +112,7 @@ export function Hotel() {
                     </div>
                     <div className="rt-name">{r.category || r.room_type || 'Quarto'}{r.floor ? ` · ${r.floor}º andar` : ''}</div>
                     <div className="rt-meta"><UiIcon e="👥" size={14} /> {r.capacity} pessoa{r.capacity === 1 ? '' : 's'}</div>
-                    {occupied ? <div className="rt-meta rt-area"><UiIcon e="🛏️" size={14} /> {r.guest_name || 'Hóspede'} · saída {r.check_out}</div> : null}
+                    {occupied ? <div className="rt-meta rt-area"><UiIcon e="🛏️" size={14} /> {r.guest_name || 'Hóspede'} · saída {fd(r.check_out)}</div> : null}
                     <div className="rt-foot">
                       <span className="rt-total">{KZ(r.rate)}<small>/noite</small></span>
                       <button className="btn sm ghost" onClick={(e) => { e.stopPropagation(); setRoomMenu(r); }}>Estado</button>
@@ -131,7 +139,7 @@ export function Hotel() {
                   <span className="rc-ic"><UiIcon e="🛏️" size={20} /></span>
                   <div className="rc-main">
                     <strong>{r.number} · {r.guest_name || 'Hóspede'}{r.source === 'ONLINE' && r.status === 'BOOKED' ? <span className="rc-tag">Online</span> : null}</strong>
-                    <div className="muted">{r.room_name || '—'} · {r.check_in} → {r.check_out} ({r.nights} noites)</div>
+                    <div className="muted">{r.room_name || '—'} · {fd(r.check_in)} → {fd(r.check_out)} ({r.nights} noites)</div>
                   </div>
                   <span className="rc-amt">{KZ(r.total)}</span>
                   <span className="rc-state">{SL(r.status)}</span>
@@ -143,9 +151,26 @@ export function Hotel() {
       )}
 
       {newRoom ? <NewRoom onClose={() => setNewRoom(false)} onCreated={async () => { setNewRoom(false); await loadRooms(); }} /> : null}
+      {pickRoom ? (
+        <Modal title="Nova reserva — escolher quarto" onClose={() => setPickRoom(false)}>
+          {rooms.filter((r) => !r.reservation_id && (r.status === 'AVAILABLE' || r.status === 'RESERVED')).length === 0
+            ? <div className="empty" style={{ padding: 18 }}><p>Sem quartos livres.</p></div>
+            : (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {rooms.filter((r) => !r.reservation_id && (r.status === 'AVAILABLE' || r.status === 'RESERVED')).map((r) => (
+                  <button key={r.id} className="vd-btn outline" style={{ justifyContent: 'space-between' }} onClick={() => { setPickRoom(false); setBooking(r); }}>
+                    <span>{r.name}{r.category ? ` · ${r.category}` : ''}</span><b>{KZ(r.rate)}/noite</b>
+                  </button>
+                ))}
+              </div>
+            )}
+        </Modal>
+      ) : null}
       {booking ? <BookRoom room={booking} onClose={() => setBooking(null)} onCreated={async (id) => { setBooking(null); await refresh(); await openRes(id); }} /> : null}
       {roomMenu ? <RoomMenuModal room={roomMenu} onClose={() => setRoomMenu(null)} onChanged={async () => { setRoomMenu(null); await loadRooms(); }} /> : null}
-      {detail ? <ResDetail detail={detail} onClose={() => setDetail(null)} onChanged={async () => { setDetail(await api.hotel.reservation(detail.reservation.id)); await refresh(); }} /> : null}
+      {detail ? <ResDetail detail={detail} onClose={() => setDetail(null)} onChanged={async () => { setDetail(await api.hotel.reservation(detail.reservation.id)); await refresh(); }}
+        onInvoiced={async (inv, phone) => { setDetail(null); await refresh(); setIssued({ inv, phone }); }} /> : null}
+      {issued ? <InvoiceShareModal inv={issued.inv} phone={issued.phone} onClose={() => setIssued(null)} /> : null}
     </div>
   );
 }
@@ -344,7 +369,7 @@ function BookRoom({ room, onClose, onCreated }: { room: HotelRoomMapRow; onClose
   );
 }
 
-function ResDetail({ detail, onClose, onChanged }: { detail: HotelReservationDetail; onClose(): void; onChanged(): void }) {
+function ResDetail({ detail, onClose, onChanged, onInvoiced }: { detail: HotelReservationDetail; onClose(): void; onChanged(): void; onInvoiced(inv: IssuedInvoice, phone: string | null): void }) {
   const r = detail.reservation;
   const [products, setProducts] = useState<ManagerProduct[]>([]);
   const [q, setQ] = useState('');
@@ -360,8 +385,8 @@ function ResDetail({ detail, onClose, onChanged }: { detail: HotelReservationDet
   const removeItem = async (id: string) => { await api.hotel.removeFolio(id).catch(() => undefined); onChanged(); };
   const setStatus = async (s: string) => { await api.hotel.status(r.id, s).catch(() => undefined); onChanged(); };
   const extendStay = async () => {
-    const suggest = (() => { const d = new Date(`${r.check_out}T00:00:00`); d.setDate(d.getDate() + 1); return localIso(d); })();
-    const nd = window.prompt(`Estender a estadia até (a atual é ${r.check_out}). Nova data de saída (AAAA-MM-DD):`, suggest);
+    const suggest = (() => { const d = new Date(`${ymd(r.check_out)}T00:00:00`); d.setDate(d.getDate() + 1); return localIso(d); })();
+    const nd = window.prompt(`Estender a estadia até (a atual é ${fd(r.check_out)}). Nova data de saída (AAAA-MM-DD):`, suggest);
     if (!nd) return;
     try { const res = await api.hotel.extend(r.id, nd.trim()); toast.success(`Estadia estendida: ${res.nights} noite(s), saída ${res.checkOut}. Total ${KZ(res.total)}.`); onChanged(); }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao estender a estadia.'); }
@@ -369,7 +394,11 @@ function ResDetail({ detail, onClose, onChanged }: { detail: HotelReservationDet
   const [billing, setBilling] = useState(false);
   const invoice = async () => {
     setBilling(true);
-    try { const inv = await api.hotel.invoice(r.id); toast.success(`Fatura ${inv.invoiceNumber} emitida. Check-out feito.`); onClose(); }
+    try {
+      const inv = await api.hotel.invoice(r.id);
+      toast.success(`Fatura ${inv.invoiceNumber} emitida. Check-out feito.`);
+      onInvoiced({ id: inv.invoiceId, number: inv.invoiceNumber, total: Number(r.total) || 0 }, (r as { guest_phone?: string | null }).guest_phone ?? null);
+    }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao faturar.'); } finally { setBilling(false); }
   };
   const roomCharge = Number(r.nights) * Number(r.rate);
@@ -379,7 +408,7 @@ function ResDetail({ detail, onClose, onChanged }: { detail: HotelReservationDet
     <Modal title={`${r.number} — ${SL(r.status)}`} onClose={onClose}>
       <div className="card" style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 13.5 }}><strong>{r.guest_name || 'Hóspede'}</strong>{r.guest_phone ? ` · ${r.guest_phone}` : ''}</div>
-        <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{r.room_name || '—'} · {r.check_in} → {r.check_out} · {r.nights} noite(s) · {r.guests}p</div>
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{r.room_name || '—'} · {fd(r.check_in)} → {fd(r.check_out)} · {r.nights} noite(s) · {r.guests}p</div>
       </div>
 
       <div className="row" style={{ gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
