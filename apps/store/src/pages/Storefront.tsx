@@ -18,14 +18,17 @@ import { SectorHome, SECTOR_REPLACES_FEED } from '../components/SectorHome';
 import { Typewriter } from '../components/Typewriter';
 import { LiveLocation } from '../components/LiveLocation';
 import { ProductPage } from './ProductPage';
+import { FlashDeals, ProductRail } from '../components/Deals';
+import { clearSeen, markSeen, usePrefs } from '../store/prefs';
+import { IconHeart } from '../components/Icons';
 import { cartTotal } from '../store/cart';
 import { Checkout } from '../views/Checkout';
 import { Confirmation } from '../views/Confirmation';
 import { Track } from '../views/Track';
 import { useNativeBack } from '../native';
 
-type View = 'home' | 'results' | 'product' | 'visual' | 'checkout' | 'confirmation' | 'track';
-type Sort = 'relevance' | 'price-asc' | 'price-desc' | 'name';
+type View = 'home' | 'results' | 'product' | 'visual' | 'checkout' | 'confirmation' | 'track' | 'favorites';
+type Sort = 'relevance' | 'sold' | 'price-asc' | 'price-desc' | 'name';
 const lastOrderKey = (code: string) => `ndombaxi.store.lastorder.${code}`;
 
 /** Portal por MODELO de negócio: ajusta título, CTA e selos da montra. */
@@ -41,6 +44,7 @@ const PORTALS: Record<string, Portal> = {
 
 const SORTS: { key: Sort; label: string }[] = [
   { key: 'relevance', label: 'Relevância' },
+  { key: 'sold', label: 'Mais vendidos' },
   { key: 'price-asc', label: 'Preço ↑' },
   { key: 'price-desc', label: 'Preço ↓' },
   { key: 'name', label: 'Nome' },
@@ -54,6 +58,12 @@ export function Storefront() {
   const [search, setSearch] = useState('');
   const [cat, setCat] = useState('');
   const [sort, setSort] = useState<Sort>('relevance');
+  // Filtros da listagem (preço, promoção, stock).
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
+  const [onlyPromo, setOnlyPromo] = useState(false);
+  const [onlyStock, setOnlyStock] = useState(false);
+  const { favorites, seen } = usePrefs(code);
   const [checkout, setCheckout] = useState<{ result: CheckoutResult; method: PaymentMethod | null } | null>(null);
   const [trackId, setTrackId] = useState<string | null>(null);
   const [savedOrder, setSavedOrder] = useState<{ id: string; orderNumber: string } | null>(null);
@@ -153,8 +163,14 @@ export function Storefront() {
 
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const lo = Number(priceMin.replace(',', '.')) || 0;
+    const hi = Number(priceMax.replace(',', '.')) || 0;
     let list = products.filter((p) => {
       if (cat && p.category !== cat) return false;
+      if (lo && p.grossPrice < lo) return false;
+      if (hi && p.grossPrice > hi) return false;
+      if (onlyPromo && !p.promo) return false;
+      if (onlyStock && !p.inStock) return false;
       if (!q) return true;
       return p.name.toLowerCase().includes(q)
         || (p.description ?? '').toLowerCase().includes(q)
@@ -163,8 +179,15 @@ export function Storefront() {
     if (sort === 'price-asc') list = [...list].sort((a, b) => a.grossPrice - b.grossPrice);
     else if (sort === 'price-desc') list = [...list].sort((a, b) => b.grossPrice - a.grossPrice);
     else if (sort === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    else if (sort === 'sold') list = [...list].sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
     return list;
-  }, [products, search, cat, sort]);
+  }, [products, search, cat, sort, priceMin, priceMax, onlyPromo, onlyStock]);
+  const byCode = useMemo(() => new Map(products.map((p) => [p.code, p])), [products]);
+  const favProducts = useMemo(() => favorites.map((c) => byCode.get(c)).filter((p): p is CatalogProduct => !!p), [favorites, byCode]);
+  const seenProducts = useMemo(() => seen.map((c) => byCode.get(c)).filter((p): p is CatalogProduct => !!p), [seen, byCode]);
+  const bestSellers = useMemo(() => products.filter((p) => (p.sold ?? 0) > 0).sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0)).slice(0, 12), [products]);
+  const filtersOn = !!(priceMin || priceMax || onlyPromo || onlyStock);
+  const clearFilters = () => { setPriceMin(''); setPriceMax(''); setOnlyPromo(false); setOnlyStock(false); };
 
   const total = cartTotal(cart);
 
@@ -175,12 +198,19 @@ export function Storefront() {
     if (cartOpen) { setCartOpen(false); return true; }
     if (accountOpen) { setAccountOpen(false); return true; }
     if (view === 'product') { setView(search.trim() || cat ? 'results' : 'home'); return true; }
-    if (view === 'results' || view === 'visual') { setSearch(''); setCat(''); setView('home'); return true; }
+    if (view === 'results' || view === 'visual' || view === 'favorites') { setSearch(''); setCat(''); setView('home'); return true; }
     if (view !== 'home') { goHome(); return true; }
     return false;
   });
   const openCategory = (c: string) => { setCat(c); setSearch(''); setView('results'); window.scrollTo({ top: 0 }); };
-  const openProduct = (p: CatalogProduct) => { setSelected(p); setView('product'); };
+  const openProduct = (p: CatalogProduct) => { markSeen(code, p.code); setSelected(p); setView('product'); };
+  const openAll = (o?: { promo?: boolean; sort?: Sort }) => {
+    setCat(''); setSearch(''); clearFilters();
+    if (o?.promo) setOnlyPromo(true);
+    setSort(o?.sort ?? 'relevance');
+    setView('results'); window.scrollTo({ top: 0 });
+  };
+  const openFavorites = () => { setCartOpen(false); setView('favorites'); window.scrollTo({ top: 0 }); };
 
   // Pesquisa AUTOMÁTICA: ao escrever, mostra os resultados; ao limpar (sem
   // categoria) volta à página inicial. Não interfere com produto/checkout.
@@ -206,6 +236,7 @@ export function Storefront() {
     onHome: goHome,
     onCart: () => setCartOpen(true),
     onAccount: () => setAccountOpen(true),
+    onFavorites: openFavorites, favCount: favorites.length,
     search, onSearchChange: setSearch, onSearchSubmit: () => undefined, onImageSearch,
   };
 
@@ -238,6 +269,32 @@ export function Storefront() {
       <FooterBar />
     </>);
   }
+  if (view === 'favorites') {
+    return (
+      <>
+        <Header {...headerProps} />
+        {accountModal}
+        <div className="wrap">
+          <button className="ax-back" onClick={goHome} style={{ marginTop: 14 }}><IconChevronLeft size={18} /> Voltar à loja</button>
+          <div className="ax-results-head">
+            <div className="ax-results-title">Favoritos<span className="ax-results-count">{favProducts.length} produto(s)</span></div>
+          </div>
+          {favProducts.length === 0 ? (
+            <div className="empty"><IconHeart size={48} /><p>Sem favoritos.</p></div>
+          ) : (
+            <div className="ax-grid">
+              {favProducts.map((p) => <ProductCard key={p.code} product={p} onOpen={openProduct} onAdd={(x) => addWithToast(x)} />)}
+            </div>
+          )}
+          <ProductRail title="Vistos recentemente" items={seenProducts.filter((p) => !favorites.includes(p.code))} onOpen={openProduct} onAdd={(x) => addWithToast(x)} />
+        </div>
+        <FooterBar />
+        {renderCart()}
+        {toastNode}
+      </>
+    );
+  }
+
   if (view === 'visual') {
     return (
       <>
@@ -273,6 +330,11 @@ export function Storefront() {
       <>
       <input ref={fileRef} type="file" accept="image/*" capture="environment" aria-label="Pesquisar por imagem" style={{ display: 'none' }}
         onChange={(e) => void onImagePicked(e.target.files?.[0] ?? undefined)} />
+      <nav className="ax-side" aria-label="Atalhos">
+        <button onClick={() => setCartOpen(true)} aria-label="Carrinho" title="Carrinho"><IconCart size={20} />{cart.length ? <i>{cart.length}</i> : null}</button>
+        <button onClick={openFavorites} aria-label="Favoritos" title="Favoritos"><IconHeart size={20} />{favorites.length ? <i>{favorites.length}</i> : null}</button>
+        <button className="top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Voltar ao topo" title="Voltar ao topo"><IconChevronLeft size={20} /></button>
+      </nav>
       <footer className="ax-footer">
         <div className="wrap in">
           <div className="store-info">{s?.brand_name || storeName}</div>
@@ -342,7 +404,7 @@ export function Storefront() {
         {/* Tira de categorias estilo AliExpress */}
         {categories.length > 0 ? (
           <div className="ax-catbar"><div className="wrap ax-catbar-in">
-            <button className="ax-catchip" onClick={() => { setCat(''); setSearch(''); setView('results'); }}>Todos os produtos</button>
+            <button className="ax-catchip" onClick={() => openAll()}>Todos os produtos</button>
             {categories.map((c) => <button key={c} className="ax-catchip" onClick={() => openCategory(c)}>{c}</button>)}
           </div></div>
         ) : null}
@@ -387,6 +449,16 @@ export function Storefront() {
               prefill={customer ? { name: customer.customer.name, email: customer.customer.email } : undefined}
               onAdd={(x) => addWithToast(x)} onOpen={openProduct} onCategory={openCategory} />
           ) : null}
+
+          {/* Ofertas relâmpago (Promoções activas da gestão) */}
+          <FlashDeals products={products} onOpen={openProduct} onAdd={(x) => addWithToast(x)} onMore={() => openAll({ promo: true })} />
+
+          {!sectorFeed ? (
+            <ProductRail title="Mais vendidos" items={bestSellers} onOpen={openProduct} onAdd={(x) => addWithToast(x)} onMore={() => openAll({ sort: 'sold' })} />
+          ) : null}
+
+          <ProductRail title="Vistos recentemente" items={seenProducts.slice(0, 12)} onOpen={openProduct} onAdd={(x) => addWithToast(x)}
+            onMore={() => clearSeen(code)} moreLabel="Limpar" />
 
           {/* Destaques (carrossel horizontal) */}
           {featured.length > 0 && !sectorFeed ? (
@@ -445,6 +517,19 @@ export function Storefront() {
               <button key={sopt.key} className={`ax-sort-chip${sort === sopt.key ? ' on' : ''}`} onClick={() => setSort(sopt.key)}>{sopt.label}</button>
             ))}
           </div>
+        </div>
+
+        <div className="ax-filters">
+          <label className="ax-price-f">
+            <span>Preço</span>
+            <input inputMode="decimal" placeholder="Mín." value={priceMin} onChange={(e) => setPriceMin(e.target.value.replace(/[^\d.,]/g, ''))} aria-label="Preço mínimo" />
+            <span>–</span>
+            <input inputMode="decimal" placeholder="Máx." value={priceMax} onChange={(e) => setPriceMax(e.target.value.replace(/[^\d.,]/g, ''))} aria-label="Preço máximo" />
+            <span>Kz</span>
+          </label>
+          <button className={`ax-sort-chip${onlyPromo ? ' on' : ''}`} aria-pressed={onlyPromo} onClick={() => setOnlyPromo((v) => !v)}>Em promoção</button>
+          <button className={`ax-sort-chip${onlyStock ? ' on' : ''}`} aria-pressed={onlyStock} onClick={() => setOnlyStock((v) => !v)}>Disponível</button>
+          {filtersOn ? <button className="ax-link" onClick={clearFilters}>Limpar filtros</button> : null}
         </div>
 
         {results.length === 0 ? (

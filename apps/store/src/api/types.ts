@@ -56,6 +56,12 @@ export interface CatalogProduct {
   imageUrl: string | null;
   gallery: string[];
   category?: string | null;
+  /** Preço com IVA antes da promoção (só quando há promoção activa). */
+  listPrice?: number;
+  /** Promoção activa (das Promoções da gestão): nome, desconto e fim. */
+  promo?: { name: string; percent: number; endsAt: string | null };
+  /** Unidades vendidas. */
+  sold?: number;
 }
 
 export interface CatalogResponse {
