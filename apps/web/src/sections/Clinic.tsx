@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { InvoiceShareModal, type IssuedInvoice } from '../components/InvoiceShare';
 import { api, ApiError } from '../api/client';
 import type { ClinicAppointment, ClinicPatient, ClinicPatientDetail } from '../api/types';
 import { toast } from '../components/feedback';
@@ -29,6 +30,7 @@ export function Clinic() {
       if (t && (CLINIC_TABS as string[]).includes(t)) { setTab(t as ClinicTab); sessionStorage.removeItem('ndx_clinic_tab'); }
     } catch { /* indisponível */ }
   }, []);
+  const [issued, setIssued] = useState<{ inv: IssuedInvoice; phone: string | null } | null>(null);
   const [kpi, setKpi] = useState<{ todayAppointments: number; todayConsultations: number; patients: number; revenue30: number } | null>(null);
   const [day, setDay] = useState(todayISO());
   const [appts, setAppts] = useState<ClinicAppointment[]>([]);
@@ -130,7 +132,7 @@ export function Clinic() {
             <div className="rc-list">
               {patients.map((p) => (
                 <div key={p.id} className="rc-row rc-static" style={{ ['--sc' as string]: '#2563eb' }}>
-                  <span className="rc-av">{(p.name || '?').split(/s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>
+                  <span className="rc-av">{(p.name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>
                   <button className="rc-main rc-btn" onClick={() => setPatientId(p.id)}>
                     <strong>{p.name}</strong>
                     <div className="muted">{[p.phone, p.sex, p.blood_type].filter(Boolean).join(' · ') || '—'}{p.allergies ? ` · Alergias: ${p.allergies}` : ''}</div>
@@ -145,8 +147,9 @@ export function Clinic() {
       )}
 
       {newAppt ? <NewAppointment patients={patients} onClose={() => setNewAppt(false)} onCreated={async () => { setNewAppt(false); await refresh(); }} /> : null}
-      {newPatient ? <NewPatient onClose={() => setNewPatient(false)} onCreated={async () => { setNewPatient(false); await loadPatients(); }} /> : null}
-      {consultFor ? <ConsultModal appointment={consultFor} onClose={() => setConsultFor(null)} onDone={async () => { setConsultFor(null); await refresh(); }} /> : null}
+      {newPatient ? <NewPatient onClose={() => setNewPatient(false)} onCreated={async () => { setNewPatient(false); await loadPatients(); await loadKpi(); }} /> : null}
+      {consultFor ? <ConsultModal appointment={consultFor} onClose={() => setConsultFor(null)} onDone={async (inv) => { const ph = patients.find((p) => p.id === consultFor.patient_id)?.phone ?? null; setConsultFor(null); await refresh(); if (inv) setIssued({ inv, phone: ph }); }} /> : null}
+      {issued ? <InvoiceShareModal inv={issued.inv} phone={issued.phone} onClose={() => setIssued(null)} /> : null}
       {patientId ? <PatientDetail id={patientId} onClose={() => setPatientId(null)} /> : null}
       {recordFor ? <PatientRecordModal patientId={recordFor} onClose={() => setRecordFor(null)} /> : null}
     </div>
@@ -196,6 +199,8 @@ function NewAppointment({ patients, onClose, onCreated }: { patients: ClinicPati
   const [f, setF] = useState({ patientId: '', professional: '', date: todayISO(), time: '09:00', reason: '' });
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (patients.length === 0) api.clinic.patients().then(setAll).catch(() => undefined); }, [patients]);
+  const [pros, setPros] = useState<{ name: string; specialty: string | null }[]>([]);
+  useEffect(() => { api.clinic.professionals().then((r) => setPros(r.filter((x) => x.is_active !== false))).catch(() => setPros([])); }, []);
   const save = async () => {
     if (!f.patientId) { toast.warning('Escolha o paciente.'); return; }
     setBusy(true);
@@ -214,14 +219,21 @@ function NewAppointment({ patients, onClose, onCreated }: { patients: ClinicPati
         <div className="field"><label>Data</label><input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>
         <div className="field"><label>Hora</label><input type="time" value={f.time} onChange={(e) => setF({ ...f, time: e.target.value })} /></div>
       </div>
-      <div className="field"><label>Profissional</label><input value={f.professional} onChange={(e) => setF({ ...f, professional: e.target.value })} placeholder="Dr(a). …" /></div>
+      <div className="field"><label>Profissional</label>
+        {pros.length > 0 ? (
+          <select value={f.professional} onChange={(e) => setF({ ...f, professional: e.target.value })}>
+            <option value="">Sem preferência</option>
+            {pros.map((p) => <option key={p.name} value={p.name}>{p.name}{p.specialty ? ` — ${p.specialty}` : ''}</option>)}
+          </select>
+        ) : <input value={f.professional} onChange={(e) => setF({ ...f, professional: e.target.value })} placeholder="Dr(a). …" />}
+      </div>
       <div className="field"><label>Motivo</label><input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} /></div>
       <button className="btn lg block" onClick={() => void save()} disabled={busy}>{busy ? 'A criar…' : 'Marcar'}</button>
     </Modal>
   );
 }
 
-function ConsultModal({ appointment, onClose, onDone }: { appointment: ClinicAppointment; onClose(): void; onDone(): void }) {
+function ConsultModal({ appointment, onClose, onDone }: { appointment: ClinicAppointment; onClose(): void; onDone(inv?: IssuedInvoice): void }) {
   const [f, setF] = useState({ symptoms: '', diagnosis: '', prescription: '', fee: '' });
   const [busy, setBusy] = useState(false);
   const [invoiceAfter, setInvoiceAfter] = useState(true);
@@ -239,6 +251,7 @@ function ConsultModal({ appointment, onClose, onDone }: { appointment: ClinicApp
           toast.success(`Consulta registada. Convénio ${inv.insurer}: cobre ${KZ(inv.covered)}, ${pac}.`);
         } else if (inv) toast.success(`Consulta registada e faturada (${inv.invoiceNumber}).`);
         else toast.success('Consulta registada.');
+        if (inv?.invoiceId && inv.invoiceNumber) { onDone({ id: inv.invoiceId, number: inv.invoiceNumber, total: Number(inv.copay ?? f.fee) || 0 }); return; }
       } else toast.success('Consulta registada.');
       onDone();
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha.'); setBusy(false); }

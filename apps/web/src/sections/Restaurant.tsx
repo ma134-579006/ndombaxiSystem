@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { IVA_RATE } from '../api/types';
 import type { ManagerProduct, RecipeIngredient, RestaurantKitchenItem, RestaurantOrderDetail, RestaurantSalesReport, RestaurantTableMapRow } from '../api/types';
-import { confirmDialog, runTransfer, toast } from '../components/feedback';
+import { confirmDialog, toast } from '../components/feedback';
+import { InvoiceShareModal } from '../components/InvoiceShare';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz } from '../format';
@@ -14,17 +15,6 @@ import { useAuth } from '../auth/AuthContext';
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
 const KITCHEN_LABEL: Record<string, string> = { PENDING: 'Por preparar', PREPARING: 'Em preparação', READY: 'Pronto', SERVED: 'Servido' };
 const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY', READY: 'SERVED' };
-
-/** Gera e descarrega o PDF da fatura (fatura física = imprimir; digital = enviar o PDF). */
-async function invoicePdf(invoiceId: string): Promise<void> {
-  await runTransfer({ title: 'A gerar a fatura em PDF', kind: 'generate', task: async () => {
-    const [{ buildInvoicePdf, invoiceFileName }, sale, identity] = await Promise.all([
-      import('../pdf/invoicePdf'), api.sales.detail(invoiceId), api.branding().catch(() => null),
-    ]);
-    const pdf = await buildInvoicePdf(sale, identity);
-    pdf.save(invoiceFileName(sale));
-  } });
-}
 
 /** Restauração: mapa de mesas + comanda (lançar itens, conta) e ecrã de cozinha (KDS). */
 /** Junta linhas iguais da comanda (mesmo prato, preço e estado) numa só, com a quantidade somada; remover tira a última linha do grupo. */
@@ -416,19 +406,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
         </Modal>
       ) : null}
 
-      {lastInv ? (
-        <Modal title={`Fatura ${lastInv.number}`} onClose={() => setLastInv(null)}>
-          <div className="rt-inv-total"><span>Total</span><strong>{KZ(lastInv.total)}</strong></div>
-          <div className="rt-inv-opts">
-            <button className="vd-btn" onClick={() => void invoicePdf(lastInv.id)}>Imprimir (fatura física)</button>
-            <button className="vd-btn outline" onClick={() => void invoicePdf(lastInv.id)}>Descarregar PDF</button>
-            <a className="vd-btn outline" target="_blank" rel="noopener noreferrer"
-              href={`https://wa.me/?text=${encodeURIComponent(`Fatura ${lastInv.number} — ${KZ(lastInv.total)}. Obrigado pela preferência!`)}`}>Enviar por WhatsApp</a>
-            <a className="vd-btn outline" href={`mailto:?subject=${encodeURIComponent(`Fatura ${lastInv.number}`)}&body=${encodeURIComponent(`Segue a fatura ${lastInv.number} no valor de ${KZ(lastInv.total)}.`)}`}>Enviar por e-mail</a>
-          </div>
-          <button className="btn ghost block" style={{ marginTop: 10 }} onClick={() => setLastInv(null)}>Concluir</button>
-        </Modal>
-      ) : null}
+      {lastInv ? <InvoiceShareModal inv={lastInv} onClose={() => setLastInv(null)} /> : null}
       {qrOpen ? (
         <Modal title="QR do cardápio" onClose={() => setQrOpen(false)}>
           <div className="rt-qr" id="rt-qr-print">
