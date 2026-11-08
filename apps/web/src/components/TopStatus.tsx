@@ -35,8 +35,10 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
       if (!act?.expiresAt) return null;
       const end = Date.parse(act.expiresAt);
       const start = act.startsAt ? Date.parse(act.startsAt) : end - (act.durationDays ?? act.durationMonths * 30) * 864e5;
-      const pct = end > start ? Math.min(100, Math.max(0, Math.round(((Date.now() - start) / (end - start)) * 100))) : 100;
-      return { left: Math.max(0, Math.ceil((end - Date.now()) / 864e5)), pct };
+      void start;
+      // % pelos dias que faltam para a renovação (janela de 30 dias), igual ao servidor.
+      const left = Math.max(0, Math.ceil((end - Date.now()) / 864e5));
+      return { left, pct: Math.min(100, Math.max(0, Math.round(((30 - left) / 30) * 100))) };
     });
     api.subscription.status()
       .then((st) => (st.active ? { left: st.daysLeft, pct: st.pct } : null))
