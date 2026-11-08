@@ -8,7 +8,7 @@ import type {
   ReceivableSummary,
   RecordPaymentInput,
 } from '../api/types';
-import { IconCard, IconPlus, IconRefresh } from '../components/Icons';
+import { IconCard, IconPlus } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz, localIso } from '../format';
 
@@ -60,7 +60,6 @@ export function Receivables() {
       <div className="content-head no-print">
         <h2>Contas a receber</h2>
         <span className="spacer" />
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
         <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Nova conta</button>
       </div>

@@ -3,7 +3,7 @@ import { readFileProgress } from '../components/feedback';
 import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { BankTx, ImportStatementRow, ReconSummary } from '../api/types';
-import { IconCard, IconRefresh } from '../components/Icons';
+import { IconCard } from '../components/Icons';
 import { formatKz } from '../format';
 
 const FILTERS = [
@@ -119,7 +119,6 @@ export function Reconciliation() {
           Carregar extrato (CSV)
           <input type="file" accept=".csv,.txt" hidden onChange={(e) => onFile(e.target.files?.[0])} />
         </label>
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
         <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
       </div>
 

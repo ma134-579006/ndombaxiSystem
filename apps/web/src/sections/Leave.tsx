@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { CreateLeaveInput, LeaveEmployee, LeaveRow, LeaveSummary, LeaveType } from '../api/types';
-import { IconBuilding, IconPlus, IconRefresh } from '../components/Icons';
+import { IconBuilding, IconPlus } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { localIso } from '../format';
 
@@ -49,7 +49,6 @@ export function Leave() {
       <div className="content-head no-print">
         <h2>Férias & ausências</h2>
         <span className="spacer" />
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
         <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Novo pedido</button>
       </div>

@@ -7,7 +7,7 @@ import type {
   PayableSummary,
   RecordPayablePaymentInput,
 } from '../api/types';
-import { IconPlus, IconRefresh, IconTruck } from '../components/Icons';
+import { IconPlus, IconTruck } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz, localIso } from '../format';
 
@@ -60,7 +60,6 @@ export function Payables() {
       <div className="content-head no-print">
         <h2>Contas a pagar</h2>
         <span className="spacer" />
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
         <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Nova conta</button>
       </div>

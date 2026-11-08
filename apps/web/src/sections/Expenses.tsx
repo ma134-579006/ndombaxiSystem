@@ -11,7 +11,7 @@ import {
   type ExpensePayment,
   type ExpenseSummary,
 } from '../api/types';
-import { IconPlus, IconRefresh, IconReceipt, IconTrash } from '../components/Icons';
+import { IconPlus, IconReceipt, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz, localIso } from '../format';
 import { pollEvery, stopPoll } from '../poll';
@@ -165,7 +165,6 @@ export function Expenses() {
             <button className="chip" onClick={() => setPreset(90)}>90 dias</button>
           </div>
           <span className="spacer" />
-          <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
           <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
         </div>
       </div>

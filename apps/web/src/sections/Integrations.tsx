@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Integration } from '../api/types';
-import { IconCpu, IconRefresh } from '../components/Icons';
+import { IconCpu } from '../components/Icons';
 import { Switch } from '../components/ui';
 
 /** Integrações externas configuradas 100% pelo Super Admin (Open Finance,
@@ -28,7 +28,6 @@ export function Integrations() {
       <div className="content-head">
         <h2>Integrações externas</h2>
         <span className="spacer" />
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
       </div>
 
       <div className="banner info" style={{ marginBottom: 12 }}>
