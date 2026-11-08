@@ -92,3 +92,12 @@ Feito (PRs #147–#149): botões "Atualizar" retirados; menus "Opções" das tab
 5. Caixa: teste da venda de medicamento com receita.
 6. Fiscal A3 Modo Formação / A4 Documento Manual — só depois de confirmar requisitos da AGT em fonte oficial.
 7. Utilizador: mudar a palavra-passe do super admin.
+
+### Atualização 2026-11-08 (noite, 2)
+Feito (PRs #151–#153): as 8 páginas no desenho do Vendus — Inventário, Compras, Promoções, Câmaras, Backup e Restauro, Configurações, Subscrição e Relatórios (KPIs com ícone em círculo e valor na cor primária, cartões de canto 4px, títulos leves, tabelas; KPIs a toda a largura antes das abas); super admin Fiscal (AGT) em cartões; Migração com cartão **Stock** (Referência; Quantidade; Loja; Operação — Entrada/Saída/Acerto). Verificado em produção.
+
+**Pendentes reais:**
+1. PDF dos relatórios no formato do Vendus (precisa de sessão no Vendus para comparar o formato).
+2. Caixa: teste da venda de medicamento com receita (precisa de sessão na caixa da empresa de teste).
+3. Fiscal A3 Modo Formação / A4 Documento Manual — só depois de confirmar requisitos da AGT em fonte oficial.
+4. Utilizador: mudar a palavra-passe do super admin.
