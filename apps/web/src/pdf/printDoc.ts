@@ -81,7 +81,9 @@ export async function printSectionReport(opts?: { title?: string; subtitle?: str
  */
 export async function printReportPdf(args: { title: string; subtitle?: string; summary?: [string, string][]; tables: ReportTable[] }): Promise<void> {
   const [{ buildReportPdf }, identity] = await Promise.all([import('./reportPdf'), branding()]);
-  const doc = await buildReportPdf({ identity, ...args });
+  // Quem gera (rodapé "Gerado Online / <nome>"): o nome mostrado no botão da conta.
+  const who = document.querySelector('[aria-label^="Conta de "]')?.getAttribute('aria-label')?.replace(/^Conta de /, '') ?? null;
+  const doc = await buildReportPdf({ identity, generatedBy: who, ...args });
   const filename = `${args.title.replace(/[^\wÀ-ſ -]/g, '').trim().replace(/\s+/g, '-') || 'Relatorio'}.pdf`;
   try {
     const url = doc.output('bloburl');
