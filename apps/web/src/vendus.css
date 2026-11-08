@@ -856,3 +856,6 @@
 .vd-prof-item:hover, .vd-prof-item:focus-visible { background: var(--surface-2); outline: none; }
 .vd-prof-item .acct2-ic { color: var(--text); width: 16px; height: 16px; flex: none; }
 .vd-prof-item .acct-item-badge { margin-left: auto; }
+/* O menu de perfil fica por cima do botão fixo de mensagens. */
+.topbar .acct2-pop.vd-prof { z-index: 1300; }
+.admin .topbar:has(.acct2-pop), .admin .topbar:has(.noti-pop) { z-index: 1300 !important; }
