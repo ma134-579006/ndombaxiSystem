@@ -216,6 +216,10 @@ const ICON_PATHS = {
   palette: 'M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.4 17 3 12 3zM7.5 12.5v.01M9.5 8v.01M14.5 8v.01M17 11.5v.01',
   settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+  lock: 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4M12 15v2',
+  hash: 'M4 9h16M4 15h16M10 3 8 21M16 3l-2 18',
+  building: 'M4 21V5l8-2v18M12 21V9l8 2v10M2 21h20M7 8h2M7 12h2M7 16h2M15 13h2M15 17h2',
+  card: 'M3 6h18v12H3zM3 10h18M7 15h4',
 } as const;
 
 function MenuIcon({ d, size = 18, className }: { d: string; size?: number; className?: string }) {
@@ -227,8 +231,10 @@ function MenuIcon({ d, size = 18, className }: { d: string; size?: number; class
 
 /** Menu da conta do gestor (canto superior direito): avatar + seta → nome,
  *  email, Configurações e Terminar sessão. Fecha ao clicar fora. */
-function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat, canOpenCash, canAdvances, advancesCount, onOpenCash, onChat, onCustChat, onAdvances, onSettings, onLogout }: {
+function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat, canOpenCash, canAdvances, advancesCount, onOpenCash, onChat, onCustChat, onAdvances, onSettings, onLogout, onCompany, onSubscription }: {
   photo: string | null; name: string; email: string; role: string; unread: number; custUnread: number; canCustChat: boolean; canOpenCash: boolean; canAdvances: boolean; advancesCount: number; onOpenCash(): void; onChat(): void; onCustChat(): void; onAdvances(): void; onSettings(): void; onLogout(): void;
+  /** Dados da Empresa / Subscrição (só quando o utilizador tem acesso). */
+  onCompany?: () => void; onSubscription?: () => void;
 }) {
   const totalBadge = unread + (canCustChat ? custUnread : 0) + (canAdvances ? advancesCount : 0);
   const [open, setOpen] = useState(false);
@@ -266,37 +272,57 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
         <MenuIcon d={ICON_PATHS.chevron} size={15} className="acct2-caret" />
       </button>
       {open ? (
-        <div className="acct2-pop" role="menu" aria-label="Conta">
-          <div className="acct2-head">
-            <UserAvatar photo={photo} name={shown} email={email} size={44} />
-            <div className="acct2-who">
-              <div className="acct2-name">{shown}</div>
-              {email ? <div className="acct2-email">{email}</div> : null}
-            </div>
+        <div className="acct2-pop vd-prof" role="menu" aria-label="Conta">
+          {/* Perfil no desenho de referência: avatar grande ao centro, nome e e-mail. */}
+          <div className="vd-prof-head">
+            <UserAvatar photo={photo} name={shown} email={email} size={64} />
+            <div className="vd-prof-name">{shown}</div>
+            {email ? <div className="vd-prof-email">{email}</div> : null}
+            <div className="vd-prof-role">{role}</div>
           </div>
-          <div className="acct2-role">{role}</div>
-          <div className="acct2-group">
-            {canOpenCash ? (
-              <button role="menuitem" className="acct2-item" onClick={go(onOpenCash)}>
-                <MenuIcon d={ICON_PATHS.register} /> Abrir caixa
-              </button>
-            ) : null}
-            {canAdvances ? (
-              <button role="menuitem" className="acct2-item" onClick={go(onAdvances)}>
-                <MenuIcon d={ICON_PATHS.banknote} /> Pedidos de adiantamento
-                {advancesCount > 0 ? <span className="acct-item-badge">{advancesCount > 99 ? '99+' : advancesCount}</span> : null}
-              </button>
-            ) : null}
-            <button role="menuitem" className="acct2-item" onClick={go(() => setThemeOpen(true))}>
+          <div className="vd-prof-group">
+            <button role="menuitem" className="vd-prof-item" onClick={go(onSettings)}>
+              <MenuIcon d={ICON_PATHS.lock} /> Alterar Password
+            </button>
+            <button role="menuitem" className="vd-prof-item" onClick={go(onSettings)}>
+              <MenuIcon d={ICON_PATHS.hash} /> Alterar PIN
+            </button>
+            <button role="menuitem" className="vd-prof-item" onClick={go(() => setThemeOpen(true))}>
               <MenuIcon d={ICON_PATHS.palette} /> Tema do painel
             </button>
-            <button role="menuitem" className="acct2-item" onClick={go(onSettings)}>
-              <MenuIcon d={ICON_PATHS.settings} /> Configurações
-            </button>
           </div>
-          <div className="acct2-group">
-            <button role="menuitem" className="acct2-item danger" onClick={go(onLogout)}>
-              <MenuIcon d={ICON_PATHS.logout} /> Terminar sessão
+          {canOpenCash || canAdvances ? (
+            <div className="vd-prof-group">
+              {canOpenCash ? (
+                <button role="menuitem" className="vd-prof-item" onClick={go(onOpenCash)}>
+                  <MenuIcon d={ICON_PATHS.register} /> Abrir caixa
+                </button>
+              ) : null}
+              {canAdvances ? (
+                <button role="menuitem" className="vd-prof-item" onClick={go(onAdvances)}>
+                  <MenuIcon d={ICON_PATHS.banknote} /> Pedidos de adiantamento
+                  {advancesCount > 0 ? <span className="acct-item-badge">{advancesCount > 99 ? '99+' : advancesCount}</span> : null}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {onCompany || onSubscription ? (
+            <div className="vd-prof-group">
+              {onCompany ? (
+                <button role="menuitem" className="vd-prof-item" onClick={go(onCompany)}>
+                  <MenuIcon d={ICON_PATHS.building} /> Dados da Empresa
+                </button>
+              ) : null}
+              {onSubscription ? (
+                <button role="menuitem" className="vd-prof-item" onClick={go(onSubscription)}>
+                  <MenuIcon d={ICON_PATHS.card} /> Subscrição
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="vd-prof-group">
+            <button role="menuitem" className="vd-prof-item" onClick={go(onLogout)}>
+              <MenuIcon d={ICON_PATHS.logout} /> Terminar Sessão
             </button>
           </div>
         </div>
@@ -582,6 +608,8 @@ export function Shell({
             onChat={() => setChatOpen(true)}
             onCustChat={() => setCustChatOpen(true)}
             onSettings={() => setSection('profile')}
+            onCompany={isTenant && has('settings') ? () => setSection('settings') : undefined}
+            onSubscription={isTenant && has('subscription') ? () => setSection('subscription') : undefined}
             onLogout={logout}
           />
         </header>
