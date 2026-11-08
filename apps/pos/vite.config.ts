@@ -26,4 +26,8 @@ export default defineConfig({
     },
   },
   preview: { port: 5173 },
+  build: {
+    // Build mais leve no Cloudflare Pages (sem tamanhos gzip no relatório).
+    reportCompressedSize: false,
+  },
 });
