@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { AdminChat, SupportMsg } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
-import { IconHeadset, IconMessage, IconRefresh } from '../components/Icons';
+import { IconHeadset, IconMessage } from '../components/Icons';
 import { MsgBody } from '../components/SupportChat';
 import { pollEvery, stopPoll } from '../poll';
 
@@ -143,7 +143,6 @@ export function SupportAdmin() {
       <div className="content-head">
         <h2>Suporte do site</h2>
         <span className="spacer" />
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
 

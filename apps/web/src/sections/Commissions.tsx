@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { CommissionReport } from '../api/types';
-import { IconChart, IconRefresh } from '../components/Icons';
+import { IconChart } from '../components/Icons';
 import { formatKz, localIso } from '../format';
 
 function iso(d: Date): string { return localIso(d); }
@@ -52,7 +52,6 @@ export function Commissions() {
       <div className="content-head no-print">
         <h2>Comissões de vendedores</h2>
         <span className="spacer" />
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
         <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
       </div>
 

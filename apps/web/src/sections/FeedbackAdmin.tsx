@@ -3,7 +3,6 @@ import { api, ApiError } from '../api/client';
 import type { FeedbackStats, SiteFeedbackAdmin } from '../api/types';
 import { ColumnChart } from '../components/ColumnChart';
 import { DonutChart } from '../components/DonutChart';
-import { IconRefresh } from '../components/Icons';
 
 /** Comentários do site (Super Admin): tudo o que a comunidade sugere, com
  *  dashboard (sentimento por votos + evolução diária). */
@@ -28,7 +27,6 @@ export function FeedbackAdmin() {
       <div className="content-head">
         <h2>Comentários do site</h2>
         <span className="spacer" />
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
       </div>
       {error ? <div className="banner danger">{error}</div> : null}
 

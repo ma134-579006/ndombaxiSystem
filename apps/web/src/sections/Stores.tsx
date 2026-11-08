@@ -2,7 +2,7 @@ import { confirmDialog, runBulk } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CreateStoreInput, ManagerStore } from '../api/types';
-import { IconCheck, IconEdit, IconLock, IconPlus, IconRefresh, IconStore } from '../components/Icons';
+import { IconCheck, IconEdit, IconLock, IconPlus, IconStore } from '../components/Icons';
 import { Modal, Switch } from '../components/ui';
 
 /** Lojas da empresa (multi-loja / lojas filhas). Criar/editar exige administrador.
@@ -73,7 +73,6 @@ export function Stores() {
           </label>
         ) : null}
         <span className="spacer" />
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Nova loja</button>
       </div>
 

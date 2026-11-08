@@ -5,7 +5,7 @@ import {
   STAFF_ROLES, STAFF_ROLE_LABELS,
   type CreateStaffInput, type ManagerStaff, type ManagerStore, type StaffRoleName,
 } from '../api/types';
-import { IconBuilding, IconCheck, IconEdit, IconKey, IconLock, IconPlus, IconRefresh, IconShield, IconUsers } from '../components/Icons';
+import { IconBuilding, IconCheck, IconEdit, IconKey, IconLock, IconPlus, IconShield, IconUsers } from '../components/Icons';
 import { Modal } from '../components/ui';
 
 /** Equipa: utilizadores, papéis (permissões), senha, PIN do POS e loja.
@@ -59,7 +59,6 @@ export function Team() {
       <div className="content-head">
         <h2>Equipa & acessos</h2>
         <span className="spacer" />
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
         <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Novo utilizador</button>
       </div>
 

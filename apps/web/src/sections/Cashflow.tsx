@@ -3,7 +3,7 @@ import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { CashflowForecast, CashflowPoint, CashflowSummary } from '../api/types';
 import { AreaChart, type AreaPoint } from '../components/AreaChart';
-import { IconCard, IconChart, IconRefresh } from '../components/Icons';
+import { IconCard, IconChart } from '../components/Icons';
 import { formatKz, localIso } from '../format';
 import { pollEvery, stopPoll } from '../poll';
 
@@ -58,7 +58,6 @@ export function Cashflow() {
           <span className="live-dot" /> Ao vivo{updatedAt ? ` · ${updatedAt.toLocaleTimeString('pt-PT')}` : ''}
         </span>
         <span className="spacer" />
-        <button className="btn sm ghost" onClick={() => void load()}><IconRefresh size={15} /> Atualizar</button>
         <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
       </div>
 
