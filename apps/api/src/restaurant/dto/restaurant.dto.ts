@@ -58,3 +58,18 @@ export class ProductionDto {
   @IsNumber() @Min(0.001) @Max(100000) quantity!: number;
   @IsOptional() @IsString() @Length(1, 200) note?: string;
 }
+
+export class TransferOrderDto {
+  @IsUUID() tableId!: string;
+}
+
+export class SplitPartDto {
+  @IsUUID() itemId!: string;
+  @IsNumber() @Min(0.001) quantity!: number;
+}
+
+/** Dividir a conta: artigos a pagar agora + pagamento (como em Faturar). */
+export class SplitInvoiceDto extends InvoiceOrderDto {
+  @IsArray() @ArrayMaxSize(200) @ValidateNested({ each: true }) @Type(() => SplitPartDto)
+  items!: SplitPartDto[];
+}

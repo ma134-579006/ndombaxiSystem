@@ -301,6 +301,80 @@ export class RestaurantService {
     return { invoiceId: inv.id, invoiceNumber: inv.number, grossTotal: inv.grossTotal };
   }
 
+  /** TRANSFERIR MESA: a comanda aberta passa para outra mesa livre. */
+  async transferOrder(schema: string, orderId: string, toTableId: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const o = await tx.$queryRaw<{ status: string; table_id: string | null }[]>(
+        Prisma.sql`SELECT status, table_id FROM restaurant_orders WHERE id = ${orderId}::uuid FOR UPDATE`);
+      if (!o[0]) throw new NotFoundException('Comanda não encontrada.');
+      if (o[0].status !== 'OPEN') throw new BadRequestException('A comanda já não está aberta.');
+      if (o[0].table_id === toTableId) throw new BadRequestException('A comanda já está nesta mesa.');
+      const t = await tx.$queryRaw<{ name: string; is_active: boolean }[]>(
+        Prisma.sql`SELECT name, is_active FROM restaurant_tables WHERE id = ${toTableId}::uuid FOR UPDATE`);
+      if (!t[0] || !t[0].is_active) throw new NotFoundException('Mesa de destino não encontrada.');
+      const busy = await tx.$queryRaw<{ id: string }[]>(
+        Prisma.sql`SELECT id FROM restaurant_orders WHERE table_id = ${toTableId}::uuid AND status = 'OPEN' LIMIT 1`);
+      if (busy[0]) throw new BadRequestException(`A ${t[0].name} está ocupada.`);
+      await tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders SET table_id = ${toTableId}::uuid, table_name = ${t[0].name} WHERE id = ${orderId}::uuid`);
+      return { ok: true, tableName: t[0].name };
+    });
+  }
+
+  /**
+   * DIVIDIR A CONTA: os artigos escolhidos (e quantidades) passam para uma
+   * comanda própria que é faturada já; o resto fica na mesa. Se a fatura
+   * falhar, os artigos voltam à comanda original.
+   */
+  async splitInvoice(schema: string, orderId: string, parts: { itemId: string; quantity: number }[],
+    opener: { id: string | null; name: string; storeId?: string | null }, pay: Parameters<RestaurantService['invoiceOrder']>[3]) {
+    if (!parts.length) throw new BadRequestException('Escolha os artigos a pagar.');
+    const splitId = await this.prisma.runInTenant(schema, async (tx) => {
+      const o = await tx.$queryRaw<{ status: string; table_id: string | null; table_name: string | null; guests: number }[]>(
+        Prisma.sql`SELECT status, table_id, table_name, guests FROM restaurant_orders WHERE id = ${orderId}::uuid FOR UPDATE`);
+      if (!o[0]) throw new NotFoundException('Comanda não encontrada.');
+      if (o[0].status !== 'OPEN') throw new BadRequestException('A comanda já não está aberta.');
+      const items = await tx.$queryRaw<{ id: string; quantity: string }[]>(
+        Prisma.sql`SELECT id, quantity FROM restaurant_order_items WHERE order_id = ${orderId}::uuid`);
+      const byId = new Map(items.map((i) => [i.id, Number(i.quantity)]));
+      const moveAll = parts.every((p) => byId.get(p.itemId) !== undefined && p.quantity >= (byId.get(p.itemId) ?? 0))
+        && parts.length === items.length;
+      if (moveAll) throw new BadRequestException('Escolheu a conta toda — use "Faturar".');
+      const created = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+        INSERT INTO restaurant_orders (table_id, table_name, guests, opened_by, opened_by_name, status)
+        VALUES (${o[0].table_id}::uuid, ${o[0].table_name}, 1, ${opener.id}::uuid, ${opener.name}, 'SPLIT') RETURNING id`);
+      const nid = created[0].id;
+      for (const p of parts) {
+        const have = byId.get(p.itemId);
+        if (have === undefined) throw new BadRequestException('Artigo não pertence a esta comanda.');
+        const q = Math.min(have, Math.max(0, Number(p.quantity) || 0));
+        if (q <= 0) continue;
+        if (q >= have) {
+          await tx.$executeRaw(Prisma.sql`UPDATE restaurant_order_items SET order_id = ${nid}::uuid WHERE id = ${p.itemId}::uuid`);
+        } else {
+          await tx.$executeRaw(Prisma.sql`UPDATE restaurant_order_items SET quantity = quantity - ${q} WHERE id = ${p.itemId}::uuid`);
+          await tx.$executeRaw(Prisma.sql`INSERT INTO restaurant_order_items (order_id, product_id, product_code, description, unit_price, quantity, kitchen_status, notes, created_by)
+            SELECT ${nid}::uuid, product_id, product_code, description, unit_price, ${q}, kitchen_status, notes, created_by
+            FROM restaurant_order_items WHERE id = ${p.itemId}::uuid`);
+        }
+      }
+      await this.recomputeTotal(tx, orderId);
+      await this.recomputeTotal(tx, nid);
+      // Fica 'OPEN' só para a faturação; o estado 'SPLIT' acima evita aparecer no mapa entretanto.
+      await tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders SET status = 'OPEN', table_id = NULL WHERE id = ${nid}::uuid`);
+      return nid;
+    });
+    try {
+      return await this.invoiceOrder(schema, splitId, opener, pay);
+    } catch (e) {
+      await this.prisma.runInTenant(schema, async (tx) => {
+        await tx.$executeRaw(Prisma.sql`UPDATE restaurant_order_items SET order_id = ${orderId}::uuid WHERE order_id = ${splitId}::uuid`);
+        await tx.$executeRaw(Prisma.sql`DELETE FROM restaurant_orders WHERE id = ${splitId}::uuid AND invoice_id IS NULL`);
+        await this.recomputeTotal(tx, orderId);
+      });
+      throw e;
+    }
+  }
+
   /** Baixa o stock dos ingredientes (receita) de cada prato vendido. */
   private async deductIngredients(tx: Prisma.TransactionClient, items: { product_id: string | null; quantity: string }[]): Promise<void> {
     const wh = await StockService.resolveDefaultWarehouse(tx);

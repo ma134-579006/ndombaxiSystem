@@ -31,11 +31,11 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
   }, []);
 
   return (
-    <>
-      <div className="content-head">
-        <h2>Clínica — Centro de comando</h2>
+    <div className="vd-page vd-home">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Clínica</span><span className="sep">/</span><span>Centro de comando</span></p>
         <span className="spacer" />
-        <button className="btn primary" onClick={() => goClinic('agenda')}>Ver agenda</button>
+        <button className="vd-btn" onClick={() => goClinic('agenda')}>Ver agenda</button>
       </div>
 
       {err && !d ? (
@@ -115,7 +115,7 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
       </div>
 
       {/* ── Ações próprias da clínica ── */}
-      <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }}>Operação</h3>
+      <h3 className="vd-sec">Operação</h3>
       <div className="pgrid">
         <ActionCard icon="🚑" title="Emergência" desc="Triagem, classificação de risco, fila." onClick={() => goClinic('emergency')} badge={d?.hospital && d.hospital.emergencyWaiting > 0 ? String(d.hospital.emergencyWaiting) : undefined} />
         <ActionCard icon="📅" title="Agenda & Marcações" desc="Marcar, ver o dia, dar entrada." onClick={() => goClinic('agenda')} badge={d && d.today.scheduled > 0 ? String(d.today.scheduled) : undefined} />
@@ -128,14 +128,14 @@ export function ClinicHome({ onGo }: { onGo(section: string): void }) {
       </div>
 
       {/* ── Gestão (secundário) ── */}
-      <h3 style={{ margin: '18px 0 10px', fontSize: 14, letterSpacing: 0.3 }} className="muted">Gestão</h3>
+      <h3 className="vd-sec">Gestão</h3>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button className="btn ghost" onClick={() => onGo('operations')}>Caixa & Faturação</button>
         <button className="btn ghost" onClick={() => onGo('reports')}>Relatórios & SAF-T</button>
         <button className="btn ghost" onClick={() => onGo('employees')}>Profissionais & Folha</button>
         <button className="btn ghost" onClick={() => onGo('customers')}>Pacientes (clientes)</button>
       </div>
-    </>
+    </div>
   );
 }
 

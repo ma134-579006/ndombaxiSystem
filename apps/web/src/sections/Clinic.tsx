@@ -55,7 +55,7 @@ export function Clinic() {
   const refresh = async () => { await loadKpi(); await loadAppts(); };
 
   return (
-    <>
+    <div className="vd-home">
       <div className="content-head">
         <h2>Clínica / Hospital</h2>
         <span className="spacer" />
@@ -149,7 +149,7 @@ export function Clinic() {
       {consultFor ? <ConsultModal appointment={consultFor} onClose={() => setConsultFor(null)} onDone={async () => { setConsultFor(null); await refresh(); }} /> : null}
       {patientId ? <PatientDetail id={patientId} onClose={() => setPatientId(null)} /> : null}
       {recordFor ? <PatientRecordModal patientId={recordFor} onClose={() => setRecordFor(null)} /> : null}
-    </>
+    </div>
   );
 }
 

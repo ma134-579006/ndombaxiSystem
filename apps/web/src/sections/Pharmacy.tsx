@@ -1,75 +1,121 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { PharmacyBatch } from '../api/types';
+import { IconSearch } from '../components/Icons';
 
 const fmtDate = (s: string) => { try { return new Date(s + 'T00:00:00').toLocaleDateString('pt-PT'); } catch { return s; } };
 
-/** Farmácia — controlo de validade: medicamentos a expirar e expirados (lotes). */
+/**
+ * Farmácia — controlo de validade (lotes), no padrão de listagem de referência:
+ * migalhas + filtros (prazo, estado, pesquisa) + tabela paginada + resumo.
+ */
 export function Pharmacy() {
   const [kpi, setKpi] = useState<{ expiring: number; expired: number; prescription: number; lowStock: number } | null>(null);
   const [days, setDays] = useState(30);
+  const [state, setState] = useState<'ALL' | 'EXPIRED' | 'SOON' | 'OK'>('ALL');
+  const [q, setQ] = useState('');
   const [rows, setRows] = useState<PharmacyBatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
-    try { setRows(await api.pharmacy.expiring(days)); } catch { /* */ }
+    setLoading(true);
+    try { setRows(await api.pharmacy.expiring(days)); } catch { setRows([]); } finally { setLoading(false); }
   }, [days]);
   useEffect(() => { api.pharmacy.metrics().then(setKpi).catch(() => undefined); }, []);
   useEffect(() => { void load(); }, [load]);
 
+  const lvl = (b: PharmacyBatch) => (b.days_left < 0 ? 'EXPIRED' : b.days_left <= 7 ? 'SOON' : 'OK');
+  const term = q.trim().toLowerCase();
+  const shown = rows.filter((b) => (state === 'ALL' || lvl(b) === state)
+    && (!term || `${b.product_name} ${b.product_code ?? ''} ${b.active_ingredient ?? ''} ${b.batch_code ?? ''}`.toLowerCase().includes(term)));
+  const perPage = 20;
+  const pageCount = Math.max(1, Math.ceil(shown.length / perPage));
+  const cur = Math.min(page, pageCount);
+  const pageRows = shown.slice((cur - 1) * perPage, cur * perPage);
+
   return (
-    <>
-      <div className="content-head"><h2>Farmácia — validade & lotes</h2></div>
-
-      {kpi ? (
-        <div className="kpi-grid ph-kpis">
-          {[
-            { label: 'A expirar (≤30 dias)', value: kpi.expiring, tone: 'warn', hint: 'lotes a vencer' },
-            { label: 'Expirados', value: kpi.expired, tone: kpi.expired ? 'bad' : '', hint: 'retirar da venda' },
-            { label: 'Exigem receita', value: kpi.prescription, tone: 'info', hint: 'dispensa controlada' },
-            { label: 'Stock baixo', value: kpi.lowStock, tone: kpi.lowStock ? 'warn' : '', hint: 'repor em breve' },
-          ].map((k) => (
-            <div key={k.label} className={`ui-tile ${k.tone}`}>
-              <div className="ui-tile-l">{k.label}</div>
-              <div className="ui-tile-v">{k.value}</div>
-              <div className="ui-tile-h">{k.hint}</div>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="card toolbar-sticky" style={{ display: 'flex', gap: 6, padding: '8px 10px', alignItems: 'center' }}>
-        <span className="muted" style={{ fontSize: 13 }}>Mostrar a expirar em:</span>
-        {[15, 30, 60, 90].map((d) => (
-          <button key={d} className={`chip${days === d ? ' active' : ''}`} onClick={() => setDays(d)}>{d} dias</button>
-        ))}
+    <div className="vd-page">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Farmácia</span><span className="sep">/</span><span>Validade e lotes</span></p>
+        <span className="spacer" />
       </div>
 
-      {rows.length === 0 ? <div className="card empty" style={{ padding: 24 }}><p>Sem lotes a expirar neste período.</p></div> : (
-        <div className="ph-list">
-          {rows.map((b) => {
-            const expired = b.days_left < 0;
-            const soon = b.days_left >= 0 && b.days_left <= 7;
-            const lvl = expired ? 'bad' : soon ? 'warn' : 'ok';
-            const pct = expired ? 100 : Math.max(6, Math.min(100, 100 - (b.days_left / Math.max(days, 1)) * 100));
-            return (
-              <div key={b.id} className={`ph-row ${lvl}`}>
-                <div className="ph-main">
-                  <strong>{b.product_name}</strong>
-                  <div className="muted">
-                    {b.product_code}{b.active_ingredient ? ` · ${b.active_ingredient}` : ''}{b.batch_code ? ` · lote ${b.batch_code}` : ''}
-                  </div>
-                  <div className="ph-bar"><i style={{ width: `${pct}%` }} /></div>
-                </div>
-                <div className="ph-qty"><b>{Number(b.quantity)}</b><span>un.</span></div>
-                <div className="ph-exp">
-                  <span className="ph-badge">{expired ? 'Expirado' : b.days_left === 0 ? 'Expira hoje' : `${b.days_left} dia(s)`}</span>
-                  <small>{fmtDate(b.expiry_date)}</small>
-                </div>
-              </div>
-            );
-          })}
+      <form className="vd-card vd-filters" onSubmit={(e) => { e.preventDefault(); setPage(1); }}>
+        <div className="vd-frow" style={{ alignItems: 'center' }}>
+          <div className="vd-seg" role="tablist" aria-label="Prazo">
+            {[15, 30, 60, 90].map((d) => (
+              <button key={d} type="button" role="tab" aria-selected={days === d} className={days === d ? 'on' : ''} onClick={() => { setDays(d); setPage(1); }}>{d} dias</button>
+            ))}
+          </div>
+          <div className="vd-seg" role="tablist" aria-label="Estado">
+            {([['ALL', 'Todos'], ['EXPIRED', 'Expirados'], ['SOON', '≤ 7 dias'], ['OK', 'Dentro do prazo']] as const).map(([k, l]) => (
+              <button key={k} type="button" role="tab" aria-selected={state === k} className={state === k ? 'on' : ''} onClick={() => { setState(k); setPage(1); }}>{l}</button>
+            ))}
+          </div>
+          <label className="vd-f grow"><input className="vd-in" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="Pesquisar por produto, código, princípio ativo ou lote" aria-label="Pesquisar lotes" /></label>
+          <button type="submit" className="vd-btn outline"><IconSearch size={15} /> Pesquisar</button>
         </div>
-      )}
-    </>
+      </form>
+
+      <div className="vd-card vd-tablecard">
+        <div className="vd-tbar">
+          <span>{shown.length.toLocaleString('pt-PT')} registos</span>
+          <span className="spacer" />
+          {kpi ? (
+            <div className="vd-sum">
+              <span>A expirar <b>{kpi.expiring}</b></span>
+              <span>Expirados <b style={kpi.expired ? { color: 'var(--danger)' } : undefined}>{kpi.expired}</b></span>
+              <span>Exigem receita <b>{kpi.prescription}</b></span>
+              <span>Stock baixo <b>{kpi.lowStock}</b></span>
+            </div>
+          ) : null}
+        </div>
+        {loading ? <div className="loading">A carregar…</div> : pageRows.length === 0 ? (
+          <div className="vd-empty">Sem lotes.</div>
+        ) : (
+          <div className="vd-tablewrap">
+            <table className="vd-table">
+              <thead><tr>
+                <th>Produto</th><th>Código</th><th>Princípio ativo</th><th>Lote</th><th className="num">Quantidade</th><th>Validade</th><th className="ctr">Estado</th>
+              </tr></thead>
+              <tbody>
+                {pageRows.map((b, i) => {
+                  const l = lvl(b);
+                  return (
+                    <tr key={b.id} style={{ animationDelay: `${Math.min(i, 12) * 18}ms` }}>
+                      <td><strong>{b.product_name}</strong></td>
+                      <td>{b.product_code || '—'}</td>
+                      <td>{b.active_ingredient || '—'}</td>
+                      <td>{b.batch_code || '—'}</td>
+                      <td className="num">{Number(b.quantity).toLocaleString('pt-PT')}</td>
+                      <td>{fmtDate(b.expiry_date)}</td>
+                      <td className="ctr">
+                        <span className={`vd-badge${l === 'EXPIRED' ? ' bad' : l === 'SOON' ? ' warn' : ''}`}>
+                          {l === 'EXPIRED' ? 'Expirado' : b.days_left === 0 ? 'Expira hoje' : `${b.days_left} dia(s)`}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!loading && shown.length > 0 ? (
+          <div className="vd-foot">
+            <span>Página {cur} de {pageCount}</span>
+            <span className="spacer" />
+            {pageCount > 1 ? (
+              <div className="vd-pager">
+                <button onClick={() => setPage(cur - 1)} disabled={cur <= 1}>Anterior</button>
+                <button className="on">{cur}</button>
+                <button onClick={() => setPage(cur + 1)} disabled={cur >= pageCount}>Seguinte</button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }

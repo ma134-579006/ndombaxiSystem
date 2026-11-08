@@ -47,11 +47,11 @@ export function ServicesHome({ onGo }: { onGo(section: string): void }) {
   const late = d?.oldestInProgress && d.oldestInProgress.days >= 7;
 
   return (
-    <>
-      <div className="content-head">
-        <h2>Serviços — Centro de comando</h2>
+    <div className="vd-page vd-home">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Serviços</span><span className="sep">/</span><span>Centro de comando</span></p>
         <span className="spacer" />
-        <button className="btn primary" onClick={() => goOrders()}>Abrir ordens de serviço</button>
+        <button className="vd-btn" onClick={() => goOrders()}>Abrir ordens de serviço</button>
       </div>
 
       {err && !d ? (
@@ -133,7 +133,7 @@ export function ServicesHome({ onGo }: { onGo(section: string): void }) {
         <button className="btn ghost" onClick={() => onGo('customers')}>Clientes</button>
         <button className="btn ghost" onClick={() => onGo('reports')}>Relatórios</button>
       </div>
-    </>
+    </div>
   );
 }
 
