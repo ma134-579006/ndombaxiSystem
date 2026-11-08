@@ -181,10 +181,10 @@ export function Employees() {
   return (
     <div className="fx-wide">
       <div className="sticky-top">
-        <div className="content-head">
-          <h2>Funcionários</h2>
+        <div className="vd-head" style={{ marginBottom: 16 }}>
+          <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Funcionários</span><span className="sep">/</span><span>Listagem</span></p>
           <span className="spacer" />
-          <button className="btn" onClick={openCreate}><IconPlus size={18} /> Novo funcionário</button>
+          <button className="vd-btn" onClick={openCreate}><IconPlus size={16} /> Adicionar Funcionário</button>
         </div>
 
         <div className="fx-stats" style={{ marginBottom: 0 }}>

@@ -2,15 +2,29 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { IVA_RATE } from '../api/types';
 import type { ManagerProduct, RecipeIngredient, RestaurantKitchenItem, RestaurantOrderDetail, RestaurantSalesReport, RestaurantTableMapRow } from '../api/types';
-import { confirmDialog, toast } from '../components/feedback';
+import { confirmDialog, runTransfer, toast } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz } from '../format';
 import { UiIcon } from '../components/UiIcon';
+import { QRCodeSVG } from 'qrcode.react';
+import { STORE_URL } from '../config';
+import { useAuth } from '../auth/AuthContext';
 
 const KZ = (n: string | number) => formatKz(Number(n) || 0);
 const KITCHEN_LABEL: Record<string, string> = { PENDING: 'Por preparar', PREPARING: 'Em preparação', READY: 'Pronto', SERVED: 'Servido' };
 const NEXT: Record<string, string> = { PENDING: 'PREPARING', PREPARING: 'READY', READY: 'SERVED' };
+
+/** Gera e descarrega o PDF da fatura (fatura física = imprimir; digital = enviar o PDF). */
+async function invoicePdf(invoiceId: string): Promise<void> {
+  await runTransfer({ title: 'A gerar a fatura em PDF', kind: 'generate', task: async () => {
+    const [{ buildInvoicePdf, invoiceFileName }, sale, identity] = await Promise.all([
+      import('../pdf/invoicePdf'), api.sales.detail(invoiceId), api.branding().catch(() => null),
+    ]);
+    const pdf = await buildInvoicePdf(sale, identity);
+    pdf.save(invoiceFileName(sale));
+  } });
+}
 
 /** Restauração: mapa de mesas + comanda (lançar itens, conta) e ecrã de cozinha (KDS). */
 /** Junta linhas iguais da comanda (mesmo prato, preço e estado) numa só, com a quantidade somada; remover tira a última linha do grupo. */
@@ -44,8 +58,20 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [newTable, setNewTable] = useState(false);
   const [kds, setKds] = useState<RestaurantKitchenItem[]>([]);
+  // Depois de faturar: o cliente escolhe fatura física (imprimir) ou digital (PDF/WhatsApp/e-mail).
+  const [lastInv, setLastInv] = useState<{ id: string; number: string; total: number } | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
+  const { companyCode } = useAuth();
+  const menuUrl = companyCode ? `${STORE_URL}/?loja=${encodeURIComponent(companyCode)}` : STORE_URL;
+  const removeTable = async (t: RestaurantTableMapRow) => {
+    if (t.order_id) { toast.warning('A mesa tem uma comanda aberta — feche-a primeiro.'); return; }
+    if (!(await confirmDialog({ message: `Eliminar a ${t.name}?`, danger: true }))) return;
+    try { await api.restaurant.removeTable(t.id); toast.success('Mesa eliminada.'); await loadTables(); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao eliminar a mesa.'); }
+  };
 
-  const loadTables = useCallback(async () => { try { setTables(await api.restaurant.tableMap()); } catch { /* */ } }, []);
+  const [tablesLoaded, setTablesLoaded] = useState(false);
+  const loadTables = useCallback(async () => { try { setTables(await api.restaurant.tableMap()); } catch { /* */ } finally { setTablesLoaded(true); } }, []);
   const loadKds = useCallback(async () => { try { setKds(await api.restaurant.kitchen()); } catch { /* */ } }, []);
   const loadProducts = useCallback(() => { void api.products.list().then(setProducts).catch(() => undefined); }, []);
   useEffect(() => { void loadTables(); loadProducts(); }, [loadTables, loadProducts]);
@@ -106,6 +132,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
       const r = await api.restaurant.invoiceOrder(detail.order.id, { paymentType: payType });
       toast.success(`Fatura ${r.invoiceNumber} emitida — ${KZ(r.grossTotal)}. Comanda fechada.`);
       setPayOpen(false); setDetail(null); await loadTables();
+      setLastInv({ id: r.invoiceId, number: r.invoiceNumber, total: Number(r.grossTotal) });
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao faturar.'); }
     finally { setPaying(false); }
   };
@@ -133,6 +160,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
       const r = await api.restaurant.splitInvoice(detail.order.id, { paymentType: payType, items });
       toast.success(`Fatura ${r.invoiceNumber} emitida — ${KZ(r.grossTotal)}. O resto fica na mesa.`);
       setSplitOpen(false); setSplitQty({}); await refreshDetail(detail.order.id);
+      setLastInv({ id: r.invoiceId, number: r.invoiceNumber, total: Number(r.grossTotal) });
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao dividir a conta.'); }
     finally { setPaying(false); }
   };
@@ -177,6 +205,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
       <div className="vd-head">
         <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Restauração</span><span className="sep">/</span><span>{TABS.find(([k]) => k === tab)?.[1].replace(/ \(\d+\)$/, '')}</span></p>
         <span className="spacer" />
+        {tab === 'mesas' ? <button className="vd-btn outline" onClick={() => setQrOpen(true)}>QR do cardápio</button> : null}
         {tab === 'mesas' ? <button className="vd-btn" onClick={() => setNewTable(true)}><IconPlus size={16} /> Adicionar Mesa</button> : null}
       </div>
 
@@ -207,7 +236,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
               </div>
             </div>
           </div>
-          {shownTables.length === 0 ? (
+          {!tablesLoaded ? <div className="vd-card"><div className="loading">A carregar…</div></div> : shownTables.length === 0 ? (
             <div className="vd-card"><div className="vd-empty">{tables.length === 0 ? 'Ainda não há mesas.' : 'Sem mesas.'}</div></div>
           ) : (
             <div className="vd-card">
@@ -215,7 +244,9 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
                 {shownTables.map((t) => {
                   const occupied = !!t.order_id;
                   return (
-                    <button key={t.id} className={`rt-table${occupied ? ' busy' : ' free'}`} onClick={() => void openTable(t)} disabled={busy}
+                    <div key={t.id} className="rt-cell">
+                    {!occupied ? <button className="rt-del" title={`Eliminar ${t.name}`} aria-label={`Eliminar ${t.name}`} onClick={() => void removeTable(t)}><IconTrash size={14} /></button> : null}
+                    <button className={`rt-table${occupied ? ' busy' : ' free'}`} onClick={() => void openTable(t)} disabled={busy}
                       aria-label={`${t.name} — ${occupied ? 'ocupada' : 'livre'}`}>
                       <div className="rt-top">
                         <span className="rt-num">{(t.code && t.code !== t.name ? t.code : t.name.replace(/\D+/g, '')) || t.name.slice(0, 3)}</span>
@@ -232,6 +263,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
                           : <span className="rt-open">Abrir mesa</span>}
                       </div>
                     </button>
+                    </div>
                   );
                 })}
               </div>
@@ -384,6 +416,38 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
         </Modal>
       ) : null}
 
+      {lastInv ? (
+        <Modal title={`Fatura ${lastInv.number}`} onClose={() => setLastInv(null)}>
+          <div className="rt-inv-total"><span>Total</span><strong>{KZ(lastInv.total)}</strong></div>
+          <div className="rt-inv-opts">
+            <button className="vd-btn" onClick={() => void invoicePdf(lastInv.id)}>Imprimir (fatura física)</button>
+            <button className="vd-btn outline" onClick={() => void invoicePdf(lastInv.id)}>Descarregar PDF</button>
+            <a className="vd-btn outline" target="_blank" rel="noopener noreferrer"
+              href={`https://wa.me/?text=${encodeURIComponent(`Fatura ${lastInv.number} — ${KZ(lastInv.total)}. Obrigado pela preferência!`)}`}>Enviar por WhatsApp</a>
+            <a className="vd-btn outline" href={`mailto:?subject=${encodeURIComponent(`Fatura ${lastInv.number}`)}&body=${encodeURIComponent(`Segue a fatura ${lastInv.number} no valor de ${KZ(lastInv.total)}.`)}`}>Enviar por e-mail</a>
+          </div>
+          <button className="btn ghost block" style={{ marginTop: 10 }} onClick={() => setLastInv(null)}>Concluir</button>
+        </Modal>
+      ) : null}
+      {qrOpen ? (
+        <Modal title="QR do cardápio" onClose={() => setQrOpen(false)}>
+          <div className="rt-qr" id="rt-qr-print">
+            <QRCodeSVG value={menuUrl} size={220} includeMargin />
+            <strong>Leia o código para ver o cardápio</strong>
+            <span className="muted" style={{ fontSize: 12, wordBreak: 'break-all' }}>{menuUrl}</span>
+          </div>
+          <div className="row" style={{ gap: 8, marginTop: 12 }}>
+            <button className="vd-btn" style={{ flex: 1 }} onClick={() => {
+              const svg = document.querySelector('#rt-qr-print svg')?.outerHTML ?? '';
+              const w = window.open('', '_blank', 'width=420,height=560');
+              if (!w) { toast.warning('Permita janelas para imprimir.'); return; }
+              w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Cardápio</title><style>body{font:16px system-ui;text-align:center;padding:24px}svg{width:260px;height:260px}</style></head><body><h2>Cardápio</h2>${svg}<p>Leia o código com o telemóvel</p><script>window.onload=()=>{window.print()}<\/script></body></html>`);
+              w.document.close();
+            }}>Imprimir para as mesas</button>
+            <button className="vd-btn outline" onClick={() => { void navigator.clipboard?.writeText(menuUrl).then(() => toast.success('Link copiado.')); }}>Copiar link</button>
+          </div>
+        </Modal>
+      ) : null}
       {newTable ? <NewTableModal onClose={() => setNewTable(false)} onCreated={() => { setNewTable(false); void loadTables(); }} /> : null}
     </div>
   );

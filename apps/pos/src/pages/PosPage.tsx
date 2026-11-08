@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { SubscriptionRing } from '../components/SubscriptionRing';
 import { UserAvatar, displayName } from '../components/UserAvatar';
 import { api, ApiError } from '../api/client';
 import type { CashSession, Customer, DocumentIdentity, EmittedInvoice, PaymentType, Product, ReceiptFiscalInfo } from '../api/types';
@@ -1094,6 +1095,7 @@ export function PosPage() {
             <div className="name">{identity?.companyName || `${SYSTEM_SHORT} · Caixa`}</div>
           </div>
           <span className="spacer" />
+          <SubscriptionRing />
           <nav className="vtop-menus" ref={topMenuRef}>
             <div className="vtop-m">
               <button className={topMenu === 'auto' ? 'on' : ''} onClick={() => setTopMenu((m) => (m === 'auto' ? null : 'auto'))} aria-expanded={topMenu === 'auto'}>Autoconsumo <Chev /></button>

@@ -3,9 +3,9 @@ import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { CommissionReport } from '../api/types';
 import { IconChart, IconRefresh } from '../components/Icons';
-import { formatKz } from '../format';
+import { formatKz, localIso } from '../format';
 
-function iso(d: Date): string { return d.toISOString().slice(0, 10); }
+function iso(d: Date): string { return localIso(d); }
 
 /** Comissões de vendedores: vendas por operador no período × % configurável. */
 export function Commissions() {

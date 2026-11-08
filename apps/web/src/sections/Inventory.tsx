@@ -8,7 +8,7 @@ import { StockCheckModal } from '../components/StockCheckModal';
 import { ProductPicker } from '../components/ProductPicker';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { IconAudit, IconBell, IconCalendar, IconCheck, IconCube, IconPlus, IconReceipt, IconTrash, IconTruck } from '../components/Icons';
-import { formatKz, formatDate } from '../format';
+import { formatKz, formatDate, localIso } from '../format';
 
 /** Inventário profissional: entrada de stock (custo/lucro), contagens e baixas. */
 export function Inventory() {
@@ -401,7 +401,7 @@ function WriteOffModal({
   );
 }
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => localIso();
 
 /** Entrada de stock em lote com cálculo automático de custo unitário e lucro. */
 export function StockEntryModal({

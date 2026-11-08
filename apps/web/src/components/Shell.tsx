@@ -533,7 +533,7 @@ export function Shell({
               subscrição, AGT, "+" e "?" e a conta à direita, separados por divisórias. */}
           <TopTitle title={current?.label ?? (section === 'profile' ? 'Perfil' : brandName)} />
           <span className="spacer" />
-          <SubscriptionRing enabled={isTenant && userLevel <= ROLE_LEVEL.COMPANY_ADMIN && has('subscription')} onGo={() => setSection('subscription')} />
+          <SubscriptionRing enabled={isTenant} onGo={has('subscription') ? () => setSection('subscription') : undefined} />
           <AgtStatus
             mode={!isTenant ? (has('fiscal') ? 'platform' : 'none') : userLevel <= ROLE_LEVEL.STORE_MANAGER ? 'tenant' : 'none'}
             onGo={() => setSection(isTenant ? (has('saft') ? 'saft' : section) : 'fiscal')}

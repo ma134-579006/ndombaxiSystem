@@ -9,7 +9,7 @@ import type {
 } from '../api/types';
 import { IconPlus, IconRefresh, IconTruck } from '../components/Icons';
 import { Modal } from '../components/ui';
-import { formatKz } from '../format';
+import { formatKz, localIso } from '../format';
 
 const FILTERS: { key: string; label: string }[] = [
   { key: 'open', label: 'Em aberto' },
@@ -29,7 +29,7 @@ function statusInfo(p: Payable): { label: string; cls: string } {
   if (p.status === 'PARTIAL') return { label: 'Parcial', cls: '' };
   return { label: 'Em aberto', cls: '' };
 }
-function todayISO(d = new Date()): string { return d.toISOString().slice(0, 10); }
+function todayISO(d = new Date()): string { return localIso(d); }
 
 /** Contas a pagar (fornecedores): saldo em dívida, antiguidade, comprovativos. */
 export function Payables() {

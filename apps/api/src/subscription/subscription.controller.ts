@@ -33,6 +33,25 @@ export class SubscriptionController {
     return this.subs.listBankAccounts(true);
   }
 
+  /** Estado resumido (percentagem do período gasto e dias restantes) para a
+   *  barra de topo de TODOS os módulos — qualquer utilizador da empresa. */
+  @Get('status')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Estado resumido da subscrição activa (só leitura)' })
+  async status(@CurrentUser() user: JwtPayload) {
+    const subs = (await this.subs.list({ companyId: this.companyId(user) })) as Array<{
+      status: string; expiresAt?: string | Date | null; startsAt?: string | Date | null; durationDays?: number | null; durationMonths?: number | null;
+    }>;
+    const act = subs.filter((s) => s.status === 'ACTIVE' && s.expiresAt)
+      .sort((a, b) => new Date(b.expiresAt as string).getTime() - new Date(a.expiresAt as string).getTime())[0];
+    if (!act?.expiresAt) return { active: false, pct: 100, daysLeft: 0, expiresAt: null };
+    const end = new Date(act.expiresAt).getTime();
+    const start = act.startsAt ? new Date(act.startsAt).getTime() : end - (act.durationDays ?? (act.durationMonths ?? 1) * 30) * 864e5;
+    const now = Date.now();
+    const pct = end > start ? Math.min(100, Math.max(0, Math.round(((now - start) / (end - start)) * 100))) : 100;
+    return { active: true, pct, daysLeft: Math.max(0, Math.ceil((end - now) / 864e5)), expiresAt: new Date(end).toISOString() };
+  }
+
   @Get('mine')
   @Roles(Role.COMPANY_ADMIN)
   @ApiOperation({ summary: 'Subscrições da minha empresa' })

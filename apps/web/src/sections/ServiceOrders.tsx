@@ -4,7 +4,7 @@ import type { ManagerProduct, ServiceAgendaRow, ServiceChecklistItem, ServiceEqu
 import { toast, runTransfer } from '../components/feedback';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
-import { formatKz } from '../format';
+import { formatKz, localIso } from '../format';
 import { useAuth } from '../auth/AuthContext';
 import { STORE_URL } from '../config';
 import { UiIcon } from '../components/UiIcon';
@@ -137,12 +137,12 @@ function AgendaTab({ onOpen }: { onOpen(id: string): void }) {
     const m = new Map<string, ServiceAgendaRow[]>();
     for (const r of rows) {
       const d = new Date(r.scheduled_at);
-      const key = d.toISOString().slice(0, 10);
+      const key = localIso(d);
       (m.get(key) ?? m.set(key, []).get(key)!).push(r);
     }
     return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [rows]);
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = localIso();
   const dayLabel = (key: string) => {
     const d = new Date(key + 'T00:00:00');
     const s = d.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });

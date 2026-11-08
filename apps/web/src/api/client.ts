@@ -766,6 +766,8 @@ export const api = {
   // Lado da EMPRESA (gestor)
   subscription: {
     mine: () => request<Subscription[]>('GET', '/subscription/mine'),
+    /** Estado resumido (todas as funções): % do período gasto e dias restantes. */
+    status: () => request<{ active: boolean; pct: number; daysLeft: number; expiresAt: string | null }>('GET', '/subscription/status'),
     create: (dto: { planId: string; method: 'IBAN' | 'REFERENCE'; bankAccountId?: string }) =>
       request<Subscription>('POST', '/subscription', dto),
     get: (id: string) => request<Subscription>('GET', `/subscription/${id}`),

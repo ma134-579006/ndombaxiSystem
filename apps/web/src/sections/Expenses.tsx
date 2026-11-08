@@ -13,14 +13,14 @@ import {
 } from '../api/types';
 import { IconPlus, IconRefresh, IconReceipt, IconTrash } from '../components/Icons';
 import { Modal } from '../components/ui';
-import { formatKz } from '../format';
+import { formatKz, localIso } from '../format';
 import { pollEvery, stopPoll } from '../poll';
 
 const PAYMENT_LABELS: Record<ExpensePayment, string> = {
   CASH: 'Dinheiro', TRANSFER: 'Transferência', REFERENCE: 'Referência', CARD: 'Cartão',
 };
 
-function todayISO(d = new Date()): string { return d.toISOString().slice(0, 10); }
+function todayISO(d = new Date()): string { return localIso(d); }
 
 interface FormState {
   category: ExpenseCategory;

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { printSectionReport } from "../pdf/printDoc";
 import { api, ApiError } from '../api/client';
 import type { ExpenseSummary, ProfitSummary, ReportTaxRow } from '../api/types';
-import { formatKz } from '../format';
+import { formatKz, localIso } from '../format';
 
 /**
  * CONTABILIDADE — visão profissional alinhada à lógica fiscal angolana (AGT):
@@ -19,7 +19,7 @@ function monthRange(offset = 0): { from: string; to: string; label: string } {
   const d = new Date();
   const first = new Date(d.getFullYear(), d.getMonth() + offset, 1);
   const last = new Date(d.getFullYear(), d.getMonth() + offset + 1, 0);
-  const iso = (x: Date) => x.toISOString().slice(0, 10);
+  const iso = (x: Date) => localIso(x);
   return { from: iso(first), to: iso(last), label: first.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }) };
 }
 
