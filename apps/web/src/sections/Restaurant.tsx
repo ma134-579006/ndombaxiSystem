@@ -70,7 +70,8 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao eliminar a mesa.'); }
   };
 
-  const loadTables = useCallback(async () => { try { setTables(await api.restaurant.tableMap()); } catch { /* */ } }, []);
+  const [tablesLoaded, setTablesLoaded] = useState(false);
+  const loadTables = useCallback(async () => { try { setTables(await api.restaurant.tableMap()); } catch { /* */ } finally { setTablesLoaded(true); } }, []);
   const loadKds = useCallback(async () => { try { setKds(await api.restaurant.kitchen()); } catch { /* */ } }, []);
   const loadProducts = useCallback(() => { void api.products.list().then(setProducts).catch(() => undefined); }, []);
   useEffect(() => { void loadTables(); loadProducts(); }, [loadTables, loadProducts]);
@@ -235,7 +236,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
               </div>
             </div>
           </div>
-          {shownTables.length === 0 ? (
+          {!tablesLoaded ? <div className="vd-card"><div className="loading">A carregar…</div></div> : shownTables.length === 0 ? (
             <div className="vd-card"><div className="vd-empty">{tables.length === 0 ? 'Ainda não há mesas.' : 'Sem mesas.'}</div></div>
           ) : (
             <div className="vd-card">
