@@ -419,3 +419,11 @@
 .vsub.warn { color: #f08c00; } .vsub.warn .val { stroke: #f08c00; }
 .vsub.bad { color: #e03131; } .vsub.bad .val { stroke: #e03131; }
 @media (max-width: 900px) { .vsub-tx { display: none; } }
+
+/* Barras de deslocamento VISÍVEIS (finas, na cor do tema); faixas de abas/categorias sem barra. */
+* { scrollbar-width: thin !important; scrollbar-color: color-mix(in srgb, var(--muted, #888) 55%, transparent) transparent; -ms-overflow-style: auto !important; }
+*::-webkit-scrollbar { display: block !important; width: 10px !important; height: 10px !important; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted, #888) 45%, transparent) !important; border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+.vtabs, .ax-catbar-in, .sx-tabs, .ax-rail { scrollbar-width: none !important; }
+.vtabs::-webkit-scrollbar, .ax-catbar-in::-webkit-scrollbar, .sx-tabs::-webkit-scrollbar, .ax-rail::-webkit-scrollbar { display: none !important; height: 0 !important; }

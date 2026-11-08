@@ -811,3 +811,13 @@
 /* As animações de entrada não guardam o transform no fim: um transform (mesmo neutro)
    prende os menus fixos "Opções" dentro da linha/cartão e corta-os. */
 .vd-card, .vd-table tbody tr, .vd-kpi, .vd-storerow, .vd-home .ui-tile { animation-fill-mode: backwards !important; }
+
+/* Barras de deslocamento VISÍVEIS em todo o sistema (o tema escondia-as). Finas,
+   na cor do tema; só as faixas de abas/categorias deslizantes ficam sem barra. */
+* { scrollbar-width: thin !important; scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent; -ms-overflow-style: auto !important; }
+*::-webkit-scrollbar { display: block !important; width: 10px !important; height: 10px !important; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 45%, transparent) !important; border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 70%, transparent) !important; background-clip: padding-box; }
+.vd-tabs, .fx-tabs, .vd-seg, .sx-tabs, .admin aside, .admin aside * { scrollbar-width: none !important; }
+.vd-tabs::-webkit-scrollbar, .fx-tabs::-webkit-scrollbar, .vd-seg::-webkit-scrollbar, .admin aside::-webkit-scrollbar, .admin aside *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }

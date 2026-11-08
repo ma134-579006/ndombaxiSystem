@@ -1074,3 +1074,11 @@ html.touch-ui .btn.sm { min-height: 40px; }
 .sx-action small { color: var(--muted); font-size: 12.5px; }
 .sx-add.txt { border-radius: var(--radius-sm); }
 @media (max-width: 560px) { .sx-menu { grid-template-columns: 1fr; } .sx-dish-img { width: 72px; height: 72px; } }
+
+/* Barras de deslocamento VISÍVEIS (finas, na cor do tema); faixas de abas/categorias sem barra. */
+* { scrollbar-width: thin !important; scrollbar-color: color-mix(in srgb, var(--muted, #888) 55%, transparent) transparent; -ms-overflow-style: auto !important; }
+*::-webkit-scrollbar { display: block !important; width: 10px !important; height: 10px !important; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted, #888) 45%, transparent) !important; border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+.vtabs, .ax-catbar-in, .sx-tabs, .ax-rail { scrollbar-width: none !important; }
+.vtabs::-webkit-scrollbar, .ax-catbar-in::-webkit-scrollbar, .sx-tabs::-webkit-scrollbar, .ax-rail::-webkit-scrollbar { display: none !important; height: 0 !important; }

@@ -31,6 +31,33 @@ export class RestaurantService {
   /** A coluna product_recipes.waste_pct pode ainda não existir (auto-migração
    *  em fundo nos tenants antigos) — verificar antes de a usar, senão as
    *  fichas técnicas rebentavam com 42703 até a migração chegar. */
+  /** A coluna prep_zone (zona cozinha/bar por categoria) já existe neste schema? */
+  private async hasZoneCol(tx: Prisma.TransactionClient): Promise<boolean> {
+    const rows = await tx.$queryRaw<{ n: number }[]>(
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = 'product_categories' AND column_name = 'prep_zone'`,
+    );
+    return (rows[0]?.n ?? 0) > 0;
+  }
+
+  /** Zonas de preparação: cada categoria vai para a COZINHA ou para o BAR. */
+  async listZones(schema: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const zoneExpr = (await this.hasZoneCol(tx)) ? Prisma.sql`prep_zone` : Prisma.sql`NULL::text`;
+      const rows = await tx.$queryRaw<{ id: string; name: string; prep_zone: string | null }[]>(
+        Prisma.sql`SELECT id, name, ${zoneExpr} AS prep_zone FROM product_categories WHERE is_active = TRUE ORDER BY name`);
+      return rows.map((r) => ({ ...r, effective: r.prep_zone ?? (isBarCategory(r.name) ? 'BAR' : 'KITCHEN') }));
+    });
+  }
+
+  async setZone(schema: string, categoryId: string, zone: 'KITCHEN' | 'BAR' | null) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      if (!(await this.hasZoneCol(tx))) throw new BadRequestException('Atualização da base de dados pendente — tente dentro de instantes.');
+      await tx.$executeRaw(Prisma.sql`UPDATE product_categories SET prep_zone = ${zone}, updated_at = now() WHERE id = ${categoryId}::uuid`);
+      return { ok: true };
+    });
+  }
+
   private async hasWasteCol(tx: Prisma.TransactionClient): Promise<boolean> {
     const rows = await tx.$queryRaw<{ n: number }[]>(
       Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
@@ -199,8 +226,9 @@ export class RestaurantService {
       const ord = await tx.$queryRaw<{ status: string }[]>(Prisma.sql`SELECT status FROM restaurant_orders WHERE id = ${orderId}::uuid`);
       if (!ord[0]) throw new NotFoundException('Comanda não encontrada.');
       if (ord[0].status !== 'OPEN') throw new BadRequestException('A comanda não está aberta.');
-      const p = await tx.$queryRaw<{ id: string; name: string; unit_price: string; iva_code: string; category: string | null }[]>(
-        Prisma.sql`SELECT p.id, p.name, p.unit_price, p.iva_code, c.name AS category
+      const zoneExpr = (await this.hasZoneCol(tx)) ? Prisma.sql`c.prep_zone` : Prisma.sql`NULL::text`;
+      const p = await tx.$queryRaw<{ id: string; name: string; unit_price: string; iva_code: string; category: string | null; prep_zone: string | null }[]>(
+        Prisma.sql`SELECT p.id, p.name, p.unit_price, p.iva_code, c.name AS category, ${zoneExpr} AS prep_zone
                    FROM products p LEFT JOIN product_categories c ON c.id = p.category_id
                    WHERE p.code = ${productCode} AND p.is_active = TRUE LIMIT 1`);
       if (!p[0]) throw new NotFoundException('Produto não encontrado.');
@@ -208,7 +236,9 @@ export class RestaurantService {
       const qty = quantity > 0 ? quantity : 1;
       // BAR × COZINHA (como as zonas de impressão da referência): artigos de bar
       // (bebidas) não vão para a fila da cozinha — são servidos ao balcão/bar.
-      const status = isBarCategory(p[0].category) ? 'SERVED' : 'PENDING';
+      // Zona escolhida pelo gestor (Restauração → Zonas); sem escolha, decide pelo nome da categoria.
+      const zone = p[0].prep_zone ?? (isBarCategory(p[0].category) ? 'BAR' : 'KITCHEN');
+      const status = zone === 'BAR' ? 'SERVED' : 'PENDING';
       await tx.$executeRaw(Prisma.sql`INSERT INTO restaurant_order_items (order_id, product_id, product_code, description, unit_price, quantity, notes, created_by, kitchen_status)
         VALUES (${orderId}::uuid, ${p[0].id}::uuid, ${productCode}, ${p[0].name}, ${gross}, ${qty}, ${notes?.trim() || null}, ${by}::uuid, ${status})`);
       await this.recomputeTotal(tx, orderId);

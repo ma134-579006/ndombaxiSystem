@@ -163,6 +163,7 @@ export class PosController {
       code,
       ivaCode,
       initialStoreId: user.storeId ?? null,
+      createdBy: user.sub ?? null,
     });
   }
 

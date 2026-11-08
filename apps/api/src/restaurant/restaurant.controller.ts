@@ -76,6 +76,19 @@ export class RestaurantController {
     return this.svc.invoiceOrder(this.ctx.requireTenantSchema(), id, { id: user.sub, name: user.name ?? user.email, storeId: user.storeId ?? null }, dto);
   }
 
+  @Get('zones')
+  @Roles(Role.CASHIER)
+  @ApiOperation({ summary: 'Zonas de preparação por categoria (cozinha ou bar)' })
+  zones() { return this.svc.listZones(this.ctx.requireTenantSchema()); }
+
+  @Post('zones/:categoryId')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Define a zona de uma categoria: KITCHEN, BAR ou automático (null)' })
+  setZone(@Param('categoryId') categoryId: string, @Body() dto: { zone?: string | null }) {
+    const z = dto?.zone === 'BAR' || dto?.zone === 'KITCHEN' ? dto.zone : null;
+    return this.svc.setZone(this.ctx.requireTenantSchema(), categoryId, z);
+  }
+
   @Post('orders/:id/transfer')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Transfere a comanda para outra mesa livre' })
