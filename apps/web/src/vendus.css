@@ -514,7 +514,7 @@
 .admin .content > .page-anim > .content-head:first-of-type { margin-top: -50px !important; min-height: 38px; padding-left: 50%; }
 /* Páginas que já têm o seu próprio breadcrumb (Produtos, Dashboard) não repetem. */
 .admin .content > .page-anim:has(.vd-page) { padding-top: 0; }
-.admin .content > .page-anim:has(.vd-page) > .vd-crumbbar { display: none; }
+.admin .content > .page-anim:has(.vd-page) > .vd-crumbbar, .admin .content > .page-anim:has(.vd-head) > .vd-crumbbar { display: none; }
 @media (max-width: 760px) {
   .admin .content > .page-anim { padding-top: 40px; }
   .admin .content > .page-anim > .vd-crumbbar { right: 0; height: 32px; }
