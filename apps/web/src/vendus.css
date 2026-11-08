@@ -859,3 +859,7 @@
 /* O menu de perfil fica por cima do botão fixo de mensagens. */
 .topbar .acct2-pop.vd-prof { z-index: 1300; }
 .admin .topbar:has(.acct2-pop), .admin .topbar:has(.noti-pop) { z-index: 1300 !important; }
+
+/* Renovar subscrição: linha com os dias consumidos e os que faltam. */
+.tb-sub-tx { display: grid; line-height: 1.15; text-align: right; }
+.tb-sub-tx small { font-size: 11px; font-weight: 400; opacity: .85; }
