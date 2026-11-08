@@ -56,7 +56,7 @@
 }
 .tb-agt:hover { background: var(--surface-2); }
 .tb-agt.on { color: var(--success); }
-.tb-agt.off { color: var(--warning); }
+.tb-agt.off { color: var(--danger); }
 .tb-agt-tx { display: grid; line-height: 1.15; text-align: left; }
 .tb-agt-tx b { font-size: 13.5px; font-weight: 700; }
 .tb-agt-tx small { font-size: 12px; opacity: .85; }
