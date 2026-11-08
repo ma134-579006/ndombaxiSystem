@@ -101,3 +101,14 @@ Feito (PRs #151–#153): as 8 páginas no desenho do Vendus — Inventário, Com
 2. Caixa: teste da venda de medicamento com receita (precisa de sessão na caixa da empresa de teste).
 3. Fiscal A3 Modo Formação / A4 Documento Manual — só depois de confirmar requisitos da AGT em fonte oficial.
 4. Utilizador: mudar a palavra-passe do super admin.
+
+### Atualização 2026-11-08 (loja online — funções de marketplace)
+Feito: a loja online ganhou as funções que um marketplace tem e ela não tinha, com desenho e código próprios e as cores do LPS.
+- **Promoções na loja:** as Promoções da gestão (desconto em % ou em Kz, por produto, categoria ou tudo) aplicam-se agora à loja. A montra mostra o preço com desconto, o antigo riscado e o selo "-X%". A encomenda e a fatura cobram esse mesmo preço, calculado no servidor (nunca vem do cliente). Ficam de fora da loja o "leve X, pague Y" e os escalões por quantidade.
+- **Ofertas relâmpago:** secção com contagem decrescente até ao fim da promoção.
+- **Vendidos:** "N vendidos" por produto, contados nas faturas válidas, e secção "Mais vendidos".
+- **Favoritos e vistos recentemente** neste navegador: coração no cartão e na página do produto, página Favoritos.
+- **Filtros:** intervalo de preço, "Em promoção", "Disponível" e ordenação por mais vendidos.
+- Barra lateral flutuante (carrinho, favoritos, topo) e botão de carrinho sobre a imagem.
+
+Por fazer (precisam de tabelas novas e de regras do utilizador): avaliações dos produtos por clientes que compraram; cupões com código e valor mínimo.

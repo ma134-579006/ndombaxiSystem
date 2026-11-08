@@ -1,7 +1,9 @@
 import React from 'react';
 import type { CatalogProduct } from '../api/types';
 import { formatKz } from '../format';
-import { IconPlus } from './Icons';
+import { IconCart, IconHeart, IconTruck } from './Icons';
+import { useStore } from '../state/StoreContext';
+import { toggleFavorite, usePrefs } from '../store/prefs';
 
 /** Iniciais do produto (sem foto) e cor estável — iguais às do painel. */
 function monoOf(name: string): string {
@@ -16,18 +18,30 @@ function monoColor(name: string): string {
 }
 
 
-/** Cartão de produto estilo AliExpress: imagem quadrada, título a 2 linhas,
- *  preço grande laranja, etiquetas e botão de adicionar. */
+/** "1,2 mil" a partir de mil — como os marketplaces mostram as vendas. */
+export function soldLabel(n: number): string {
+  if (n >= 1000) return `${(Math.floor(n / 100) / 10).toLocaleString('pt-PT')} mil+ vendidos`;
+  return `${n} vendido${n === 1 ? '' : 's'}`;
+}
+
+const kz = (v: number) => formatKz(v).replace(/\s*Kz\s*/i, '').trim();
+
+/** Cartão de produto estilo marketplace: imagem com favorito, selo de desconto
+ *  e carrinho; título a 2 linhas; vendidos; preço com o antigo riscado. */
 export function ProductCard({ product, onOpen, onAdd }: {
   product: CatalogProduct;
   onOpen(p: CatalogProduct): void;
   onAdd(p: CatalogProduct): void;
 }) {
+  const { code } = useStore();
+  const { favorites } = usePrefs(code);
+  const fav = favorites.includes(product.code);
   const lowStock = typeof product.stockQty === 'number' && product.stockQty > 0 && product.stockQty <= 5;
   // Produção: pode encomendar-se mesmo esgotado (solicita produção → aprovação).
   const canOrder = product.inStock || !!product.canProduce;
   // Só mostra "Esgotado" se NÃO puder ser produzido (comercial sem stock).
   const showOut = !product.inStock && !product.canProduce;
+  const promo = product.promo && product.listPrice && product.listPrice > product.grossPrice ? product.promo : null;
   return (
     <div className="ax-card" onClick={() => onOpen(product)}>
       <div className={`ax-card-img${product.imageUrl ? '' : ' mono'}`} style={product.imageUrl ? undefined : { ['--mono' as string]: monoColor(product.name) }}>
@@ -35,30 +49,36 @@ export function ProductCard({ product, onOpen, onAdd }: {
         {showOut ? <span className="ax-out">Esgotado</span> : null}
         {product.isProduction && product.availability === 'BUSY' ? <span className="ax-out" style={{ background: '#f5a623' }}>Em produção</span> : null}
         {product.isProduction && product.availability === 'OUT' ? <span className="ax-out" style={{ background: '#e5484d' }}>Esgotado</span> : null}
+        {promo ? <span className="ax-off">-{promo.percent}%</span> : null}
+        <button className={`ax-fav${fav ? ' on' : ''}`} aria-pressed={fav} aria-label={fav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+          onClick={(e) => { e.stopPropagation(); toggleFavorite(code, product.code); }}>
+          <IconHeart size={17} />
+        </button>
+        {canOrder ? (
+          <button className="ax-add ax-add-img" onClick={(e) => { e.stopPropagation(); onAdd(product); }}
+            aria-label={product.isProduction && product.availability !== 'FREE' ? 'Solicitar produção' : 'Adicionar ao carrinho'}>
+            <IconCart size={18} />
+          </button>
+        ) : null}
+        {promo ? <span className="ax-ribbon">{promo.name}</span> : null}
       </div>
       <div className="ax-card-body">
         <div className="ax-card-name">{product.name}</div>
+        {product.sold ? <div className="ax-sold">{soldLabel(product.sold)}</div> : null}
+        <div className="ax-price">
+          {/* Mesmo formato do resto da loja: "81.914,70 Kz". */}
+          <span className="val">{kz(product.grossPrice)}</span>
+          <span className="cur">Kz</span>
+          {promo ? <s className="was">{kz(product.listPrice!)} Kz</s> : null}
+        </div>
         <div className="ax-card-tags">
-          <span className="ax-tag ship">Envio p/ Angola</span>
+          <span className="ax-tag ship"><IconTruck size={12} /> Envio p/ Angola</span>
           {product.isProduction
             ? (product.availability === 'FREE'
                 ? <span className="ax-tag">Pronto</span>
                 : <span className="ax-tag">Sob produção</span>)
             : product.madeToOrder ? <span className="ax-tag">Sob encomenda</span>
             : lowStock ? <span className="ax-tag low">Só {product.stockQty} restam</span> : null}
-        </div>
-        <div className="ax-card-foot">
-          <div className="ax-price">
-            {/* Mesmo formato do resto da loja: "81.914,70 Kz" (antes "Kz 81.914,70" só nos cartões). */}
-            <span className="val">{formatKz(product.grossPrice).replace(/\s*Kz\s*/i, '').trim()}</span>
-            <span className="cur" style={{ marginLeft: 4 }}>Kz</span>
-          </div>
-          {canOrder ? (
-            <button className="ax-add" onClick={(e) => { e.stopPropagation(); onAdd(product); }}
-              aria-label={product.isProduction && product.availability !== 'FREE' ? 'Solicitar produção' : 'Adicionar ao carrinho'}>
-              <IconPlus size={18} />
-            </button>
-          ) : null}
         </div>
       </div>
     </div>

@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { CatalogProduct } from '../api/types';
 import { formatKz } from '../format';
-import { IconChevronLeft, IconImage, IconMinus, IconPlus, IconTruck, IconShield, IconReturn } from '../components/Icons';
-import { ProductCard } from '../components/ProductCard';
+import { IconChevronLeft, IconHeart, IconImage, IconMinus, IconPlus, IconTruck, IconShield, IconReturn } from '../components/Icons';
+import { ProductCard, soldLabel } from '../components/ProductCard';
+import { Countdown } from '../components/Deals';
+import { useStore } from '../state/StoreContext';
+import { toggleFavorite, usePrefs } from '../store/prefs';
 
 /** Página de produto (PDP) estilo AliExpress: galeria com miniaturas, bloco de
  *  preço, quantidade, comprar/adicionar, garantias de envio, loja, descrição e
@@ -25,6 +28,11 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
   useEffect(() => { setActive(0); setQty(1); window.scrollTo({ top: 0 }); }, [product.code]);
 
   const main = gallery[active] ?? null;
+  const { code } = useStore();
+  const { favorites } = usePrefs(code);
+  const fav = favorites.includes(product.code);
+  const promo = product.promo && product.listPrice && product.listPrice > product.grossPrice ? product.promo : null;
+  const kz = (v: number) => formatKz(v).replace(/\s*Kz\s*/i, '').trim();
 
   return (
     <div className="ax-pdp wrap">
@@ -50,11 +58,25 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
 
         {/* Info + compra */}
         <div className="ax-buybox">
-          <h1 className="ax-pdp-title">{product.name}</h1>
+          {promo ? (
+            <div className="ax-pdp-deal">
+              <span className="nm">{promo.name}</span>
+              <Countdown endsAt={promo.endsAt} />
+            </div>
+          ) : null}
+          <div className="ax-pdp-head">
+            <h1 className="ax-pdp-title">{product.name}</h1>
+            <button className={`ax-fav lg${fav ? ' on' : ''}`} aria-pressed={fav} aria-label={fav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+              onClick={() => toggleFavorite(code, product.code)}>
+              <IconHeart size={20} />
+            </button>
+          </div>
+          {product.sold ? <div className="ax-sold">{soldLabel(product.sold)}</div> : null}
 
           <div className="ax-pdp-price">
+            <span className="val">{kz(product.grossPrice)}</span>
             <span className="cur">Kz</span>
-            <span className="val">{formatKz(product.grossPrice).replace(/\s*Kz\s*/i, '').trim()}</span>
+            {promo ? <><s className="was">{kz(product.listPrice!)} Kz</s><span className="off">-{promo.percent}%</span></> : null}
           </div>
           <div className="ax-pdp-tax">Preço com IVA incluído</div>
 

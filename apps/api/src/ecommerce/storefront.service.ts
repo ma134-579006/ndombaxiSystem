@@ -5,6 +5,50 @@ import { allocateDocumentNumber, formatCounterNumber } from '../common/document-
 import { PrismaService } from '../prisma/prisma.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { luandaYear } from '../common/luanda-date';
+import { isPromoActive, type Promotion } from '../promotions/promo-engine';
+
+interface PromoRow {
+  id: string; name: string; type: string; scope: string; target_id: string | null;
+  percent: string | null; amount: string | null; priority: number; is_active: boolean;
+  starts_at: Date | null; ends_at: Date | null; weekdays: number[] | null;
+  start_time: string | null; end_time: string | null;
+}
+
+/** Promoções de preço unitário (PERCENT/AMOUNT) activas agora — as mesmas da
+ *  gestão (Promoções). Leve-X/pague-Y e escalões dependem da quantidade e
+ *  ficam fora da loja online. */
+async function activeUnitPromos(tx: Prisma.TransactionClient): Promise<Promotion[]> {
+  const reg = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('promotions')::text AS r`);
+  if (!reg[0]?.r) return [];
+  const rows = await tx.$queryRaw<PromoRow[]>(
+    Prisma.sql`SELECT id, name, type, scope, target_id, percent, amount, priority, is_active,
+                      starts_at, ends_at, weekdays, start_time, end_time
+               FROM promotions WHERE is_active = TRUE AND type IN ('PERCENT','AMOUNT')`,
+  );
+  const now = new Date();
+  return rows.map((r): Promotion => ({
+    id: r.id, name: r.name, type: r.type as Promotion['type'], scope: r.scope as Promotion['scope'],
+    targetId: r.target_id, percent: r.percent != null ? Number(r.percent) : null,
+    amount: r.amount != null ? Number(r.amount) : null, priority: r.priority, active: r.is_active,
+    startsAt: r.starts_at?.toISOString() ?? null, endsAt: r.ends_at?.toISOString() ?? null,
+    weekdays: r.weekdays, startTime: r.start_time, endTime: r.end_time,
+  })).filter((p) => isPromoActive(p, now));
+}
+
+/** Melhor desconto (fracção 0..1 do preço) para um produto. */
+function bestPromo(promos: Promotion[], productId: string, categoryId: string | null, unitGross: number): { promo: Promotion; rate: number } | null {
+  let best: { promo: Promotion; rate: number } | null = null;
+  for (const p of promos) {
+    const hit = p.scope === 'ALL' || (p.scope === 'PRODUCT' && p.targetId === productId)
+      || (p.scope === 'CATEGORY' && !!categoryId && p.targetId === categoryId);
+    if (!hit) continue;
+    // AMOUNT é em Kz por unidade sobre o preço com IVA; converte-se em fracção do preço.
+    const rate = p.type === 'PERCENT' ? (p.percent ?? 0) / 100 : unitGross > 0 ? (p.amount ?? 0) / unitGross : 0;
+    const r = Math.min(1, Math.max(0, rate));
+    if (r > 0 && (!best || r > best.rate || (r === best.rate && (p.priority ?? 0) > (best.promo.priority ?? 0)))) best = { promo: p, rate: r };
+  }
+  return best;
+}
 
 /** Motivo de isenção por omissão p/ IVA que o exige (igual ao do POS). */
 const DEFAULT_EXEMPTION_REASON: Partial<Record<IvaCode, string>> = {
@@ -29,6 +73,8 @@ interface CatalogRow {
   is_production?: boolean;
   in_production?: string | number;
   reserved?: string | number;
+  category_id?: string | null;
+  sold?: string | number;
 }
 
 export interface CatalogProduct {
@@ -52,6 +98,12 @@ export interface CatalogProduct {
   imageUrl: string | null;
   gallery: string[];
   category: string | null;
+  /** Preço com IVA antes da promoção (só quando há promoção activa). */
+  listPrice?: number;
+  /** Promoção activa: nome, desconto (%) e fim (para a contagem decrescente). */
+  promo?: { name: string; percent: number; endsAt: string | null };
+  /** Unidades vendidas (facturas válidas), para "N vendidos". */
+  sold?: number;
 }
 
 @Injectable()
@@ -87,9 +139,18 @@ export class StorefrontService {
                        JOIN web_orders wo ON wo.id = wi.order_id
                        WHERE wi.product_id = p.id AND wo.status = 'PENDING' AND wo.created_at > now() - interval '48 hours'), 0)`
         : Prisma.sql`0`;
-      return tx.$queryRaw<CatalogRow[]>(
+      // Unidades vendidas em facturas válidas (não anuladas) — "N vendidos" na montra.
+      const sold = await tx.$queryRaw<{ product_id: string; n: number }[]>(
+        Prisma.sql`SELECT ii.product_id::text AS product_id, SUM(ii.quantity)::float8 AS n
+                   FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
+                   WHERE ii.product_id IS NOT NULL AND i.status <> 'A' AND i.doc_type IN ('FT','FR','FS')
+                   GROUP BY ii.product_id`,
+      ).catch(() => [] as { product_id: string; n: number }[]);
+      const soldBy = new Map(sold.map((x) => [x.product_id, Math.floor(Number(x.n))]));
+      const promos = await activeUnitPromos(tx).catch(() => [] as Promotion[]);
+      const list = await tx.$queryRaw<CatalogRow[]>(
         Prisma.sql`SELECT p.id, p.code, p.name, p.description, p.iva_code, p.unit_price, p.stock_qty,
-                          p.image_url, p.gallery, pc.name AS category,
+                          p.image_url, p.gallery, pc.name AS category, p.category_id::text AS category_id,
                           ${hasRecipeExpr} AS has_recipe, p.is_production, ${inProdExpr} AS in_production,
                           ${reservedExpr} AS reserved
                    FROM products p
@@ -97,8 +158,10 @@ export class StorefrontService {
                    WHERE p.is_active = TRUE AND p.show_online = TRUE AND p.is_ingredient = FALSE
                    ORDER BY p.name`,
       );
+      return { list, promos, soldBy };
     });
-    return rows.map((r) => {
+    const { promos, soldBy } = rows;
+    return rows.list.map((r) => {
       const netPrice = Number(r.unit_price);
       const rate = resolveRate(r.iva_code);
       const madeToOrder = !!r.has_recipe;
@@ -113,13 +176,23 @@ export class StorefrontService {
       const availability: 'FREE' | 'BUSY' | 'OUT' | undefined = isProduction
         ? (stock > 0 ? 'FREE' : Number(r.in_production) > 0 ? 'BUSY' : 'OUT')
         : undefined;
+      const listGross = round2(netPrice * (1 + rate / 100));
+      const bp = bestPromo(promos, r.id, r.category_id ?? null, listGross);
+      // Mesmo cálculo da encomenda (desconto por linha sobre o líquido) → o preço mostrado é o cobrado.
+      const promoGross = bp ? computeInvoice([{ productCode: r.code, description: r.name, quantity: 1, unitPrice: netPrice, ivaCode: r.iva_code, discountRate: bp.rate, exemptionReason: requiresExemptionReason(r.iva_code) ? 'Isento' : undefined }]).totals.grossTotal : listGross;
+      const n = soldBy.get(r.id) ?? 0;
       return {
         code: r.code,
         name: r.name,
         description: r.description,
         ivaCode: r.iva_code,
         netPrice,
-        grossPrice: round2(netPrice * (1 + rate / 100)),
+        grossPrice: promoGross,
+        ...(bp && promoGross < listGross ? {
+          listPrice: listGross,
+          promo: { name: bp.promo.name, percent: Math.round(bp.rate * 100), endsAt: bp.promo.endsAt ?? null },
+        } : {}),
+        ...(n > 0 ? { sold: n } : {}),
         // Produção: "em stock" = há fornada pronta (🟢). Sob encomenda legado
         // (has_recipe sem is_production): sempre disponível. Comercial: stock>0.
         inStock: isProduction ? availability === 'FREE' : madeToOrder ? true : stock > 0,
@@ -156,6 +229,15 @@ export class StorefrontService {
                    FOR UPDATE`,
       );
       const byCode = new Map(products.map((p) => [p.code, p]));
+      // Promoções activas: o mesmo desconto que a montra mostra (nunca vem do cliente).
+      const promos = await activeUnitPromos(tx).catch(() => [] as Promotion[]);
+      const catRows = products.length > 0
+        ? await tx.$queryRaw<{ id: string; category_id: string | null }[]>(
+            Prisma.sql`SELECT id::text AS id, category_id::text AS category_id FROM products
+                       WHERE id IN (${Prisma.join(products.map((p) => Prisma.sql`${p.id}::uuid`))})`,
+          )
+        : [];
+      const catOf = new Map(catRows.map((x) => [x.id, x.category_id]));
 
       // Available-To-Promise: para produtos COMERCIAIS (não produção, não sob
       // encomenda), o pedido não pode exceder o stock livre = stock − reservado
@@ -200,6 +282,11 @@ export class StorefrontService {
           quantity: l.quantity,
           unitPrice: Number(p.unit_price),
           ivaCode: p.iva_code,
+          ...(() => {
+            const gross = round2(Number(p.unit_price) * (1 + resolveRate(p.iva_code) / 100));
+            const bp = bestPromo(promos, p.id, catOf.get(p.id) ?? null, gross);
+            return bp ? { discountRate: bp.rate } : {};
+          })(),
           exemptionReason,
           exemptionCode: p.exemption_code ?? undefined,
         };

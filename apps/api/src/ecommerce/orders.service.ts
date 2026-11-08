@@ -200,8 +200,8 @@ export class OrdersService {
 
     try {
       const lines = await this.prisma.runInTenant(schema, (tx) =>
-        tx.$queryRaw<{ product_code: string; quantity: string; unit_price: string }[]>(
-          Prisma.sql`SELECT product_code, quantity, unit_price FROM web_order_items
+        tx.$queryRaw<{ product_code: string; quantity: string; unit_price: string; net_amount: string }[]>(
+          Prisma.sql`SELECT product_code, quantity, unit_price, net_amount FROM web_order_items
                      WHERE order_id = ${orderId}::uuid ORDER BY line_number`,
         ),
       );
@@ -213,7 +213,12 @@ export class OrdersService {
         customerTaxId: order.customer_tax_id,
         // Preço CONGELADO do checkout: se o gestor mudar o preço entre o pedido e o pagamento,
         // a fatura continua igual ao que o cliente viu e pagou.
-        lines: lines.map((l) => ({ productCode: l.product_code, quantity: Number(l.quantity), unitPrice: Number(l.unit_price) })),
+        // Desconto de promoção congelado no checkout: líquido da linha < preço × quantidade.
+        lines: lines.map((l) => {
+          const base = Number(l.unit_price) * Number(l.quantity);
+          const rate = base > 0 ? Math.round((1 - Number(l.net_amount) / base) * 1e6) / 1e6 : 0;
+          return { productCode: l.product_code, quantity: Number(l.quantity), unitPrice: Number(l.unit_price), ...(rate > 0.000001 ? { discountRate: Math.min(1, rate) } : {}) };
+        }),
       });
 
       // 3. Liga a factura e marca PAID (liberta a reserva).

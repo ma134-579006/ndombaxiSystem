@@ -3,7 +3,7 @@ import { useStore } from '../state/StoreContext';
 import { cartCount } from '../store/cart';
 import { useCustomer } from '../store/customer';
 import { UserAvatar } from './UserAvatar';
-import { IconCart, IconSearch, IconStore } from './Icons';
+import { IconCart, IconHeart, IconSearch, IconStore } from './Icons';
 import { ThemePicker } from './ThemePicker';
 import { isNativeApp } from '../native';
 
@@ -27,10 +27,12 @@ function IconImageSearch({ size = 20 }: { size?: number }) {
 
 /** Cabeçalho estilo AliExpress: marca + barra de pesquisa AUTOMÁTICA (filtra ao
  *  escrever, sem botão) + pesquisa por imagem + conta + carrinho. */
-export function Header({ onHome, onCart, onAccount, search, onSearchChange, onSearchSubmit, onImageSearch }: {
+export function Header({ onHome, onCart, onAccount, onFavorites, favCount = 0, search, onSearchChange, onSearchSubmit, onImageSearch }: {
   onHome(): void;
   onCart(): void;
   onAccount?(): void;
+  onFavorites?(): void;
+  favCount?: number;
   search?: string;
   onSearchChange?(v: string): void;
   onSearchSubmit?(): void;
@@ -91,6 +93,13 @@ export function Header({ onHome, onCart, onAccount, search, onSearchChange, onSe
                 ? <UserAvatar name={customer.customer.name} email={customer.customer.email} size={26} />
                 : <IconUser size={22} />}
               <span className="lbl">{customer ? 'Conta' : 'Entrar'}</span>
+            </button>
+          ) : null}
+          {onFavorites ? (
+            <button className="ax-icon-btn cart" onClick={onFavorites} aria-label="Favoritos" title="Favoritos">
+              <IconHeart size={22} />
+              <span className="lbl">Favoritos</span>
+              {favCount > 0 ? <span className="count">{favCount > 99 ? '99+' : favCount}</span> : null}
             </button>
           ) : null}
           <button className="ax-icon-btn cart" onClick={onCart} aria-label="Carrinho">
