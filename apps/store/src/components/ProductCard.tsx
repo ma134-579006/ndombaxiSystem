@@ -4,6 +4,7 @@ import { formatKz } from '../format';
 import { IconCart, IconHeart, IconTruck } from './Icons';
 import { useStore } from '../state/StoreContext';
 import { toggleFavorite, usePrefs } from '../store/prefs';
+import { Stars } from './Reviews';
 
 /** Iniciais do produto (sem foto) e cor estável — iguais às do painel. */
 function monoOf(name: string): string {
@@ -64,7 +65,13 @@ export function ProductCard({ product, onOpen, onAdd }: {
       </div>
       <div className="ax-card-body">
         <div className="ax-card-name">{product.name}</div>
-        {product.sold ? <div className="ax-sold">{soldLabel(product.sold)}</div> : null}
+        {product.sold || product.reviews ? (
+          <div className="ax-sold">
+            {product.sold ? soldLabel(product.sold) : null}
+            {product.sold && product.reviews ? <span className="sep" aria-hidden>|</span> : null}
+            {product.reviews ? <><Stars value={product.rating ?? 0} /> <span>{(product.rating ?? 0).toLocaleString('pt-PT')}</span></> : null}
+          </div>
+        ) : null}
         <div className="ax-price">
           {/* Mesmo formato do resto da loja: "81.914,70 Kz". */}
           <span className="val">{kz(product.grossPrice)}</span>

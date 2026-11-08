@@ -18,7 +18,7 @@ import { SectorHome, SECTOR_REPLACES_FEED } from '../components/SectorHome';
 import { Typewriter } from '../components/Typewriter';
 import { LiveLocation } from '../components/LiveLocation';
 import { ProductPage } from './ProductPage';
-import { FlashDeals, ProductRail } from '../components/Deals';
+import { CouponStrip, FlashDeals, ProductRail } from '../components/Deals';
 import { clearSeen, markSeen, usePrefs } from '../store/prefs';
 import { IconHeart } from '../components/Icons';
 import { cartTotal } from '../store/cart';
@@ -449,6 +449,8 @@ export function Storefront() {
               prefill={customer ? { name: customer.customer.name, email: customer.customer.email } : undefined}
               onAdd={(x) => addWithToast(x)} onOpen={openProduct} onCategory={openCategory} />
           ) : null}
+
+          <CouponStrip code={code} />
 
           {/* Ofertas relâmpago (Promoções activas da gestão) */}
           <FlashDeals products={products} onOpen={openProduct} onAdd={(x) => addWithToast(x)} onMore={() => openAll({ promo: true })} />

@@ -5,6 +5,9 @@ import type {
   CheckoutInput,
   CheckoutResult,
   CustomerProfile,
+  CouponPreview,
+  ProductReviews,
+  PublicCoupon,
   CustomerSession,
   ExpressPayInput,
   MyClinical,
@@ -73,6 +76,13 @@ export const api = {
   catalog: (code: string) => request<CatalogResponse>('GET', `/store/${enc(code)}/catalog`),
   paymentMethods: (code: string) =>
     request<PaymentMethod[]>('GET', `/store/${enc(code)}/payment-methods`),
+  coupons: (code: string) => request<PublicCoupon[]>('GET', `/store/${enc(code)}/coupons`),
+  couponCheck: (code: string, body: { code: string; total: number }, token: string) =>
+    request<CouponPreview>('POST', `/store/${enc(code)}/coupon/check`, body, token),
+  reviews: (code: string, productCode: string, token?: string) =>
+    request<ProductReviews>('GET', `/store/${enc(code)}/products/${enc(productCode)}/reviews`, undefined, token),
+  submitReview: (code: string, productCode: string, body: { rating: number; comment?: string }, token: string) =>
+    request<{ ok: true }>('POST', `/store/${enc(code)}/products/${enc(productCode)}/reviews`, body, token),
   checkout: (code: string, input: CheckoutInput, token?: string) =>
     request<CheckoutResult>('POST', `/store/${enc(code)}/checkout`, input, token),
   visualSearch: (code: string, imageBase64: string, mimeType?: string) =>

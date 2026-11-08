@@ -634,6 +634,21 @@ export interface PromotionInput {
   isActive?: boolean;
   startTime?: string;
   endTime?: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+}
+export interface StoreCoupon {
+  id: string; code: string; type: 'PERCENT' | 'AMOUNT'; value: string; min_order: string;
+  max_uses: number | null; per_customer: number; starts_at: string | null; ends_at: string | null;
+  is_public: boolean; is_active: boolean; created_at: string; uses?: number;
+}
+export interface StoreCouponInput {
+  code?: string; type?: 'PERCENT' | 'AMOUNT'; value?: number; minOrder?: number; maxUses?: number | null;
+  perCustomer?: number; startsAt?: string | null; endsAt?: string | null; isPublic?: boolean; isActive?: boolean;
+}
+export interface StoreReviewRow {
+  id: string; rating: number; comment: string | null; customer_name: string | null; customer_email: string;
+  is_hidden: boolean; created_at: string; product_code: string; product_name: string;
 }
 export interface OpsAlert {
   level: 'info' | 'warning' | 'danger';

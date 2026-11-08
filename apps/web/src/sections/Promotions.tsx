@@ -4,6 +4,7 @@ import { api, ApiError } from '../api/client';
 import type { OpsAlert, Promotion, PromotionInput, PromoType } from '../api/types';
 import { Modal, Switch } from '../components/ui';
 import { IconPlus, IconStar, IconTrash } from '../components/Icons';
+import { CouponsCard } from './StoreMarketing';
 
 const TYPE_LABEL: Record<PromoType, string> = {
   PERCENT: 'Desconto %',
@@ -121,6 +122,8 @@ export function Promotions() {
         ))}
       </div>
 
+      <CouponsCard />
+
       {creating ? <PromoEditor onClose={() => setCreating(false)} onSaved={() => { setCreating(false); void load(); }} /> : null}
     </>
   );
@@ -137,6 +140,7 @@ function PromoEditor({ onClose, onSaved }: { onClose(): void; onSaved(): void })
   const [tierPercent, setTierPercent] = useState('5');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [endsAt, setEndsAt] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -151,6 +155,7 @@ function PromoEditor({ onClose, onSaved }: { onClose(): void; onSaved(): void })
       if (type === 'BUY_X_PAY_Y') { dto.buyQty = Number(buyQty) || 0; dto.payQty = Number(payQty) || 0; }
       if (type === 'QTY_TIERED') { dto.minQty = Number(minQty) || 0; dto.tierPercent = Number(tierPercent) || 0; }
       if (startTime && endTime) { dto.startTime = startTime; dto.endTime = endTime; }
+      if (endsAt) dto.endsAt = new Date(endsAt).toISOString();
       await api.promotions.create(dto);
       onSaved();
     } catch (e) {
@@ -186,6 +191,7 @@ function PromoEditor({ onClose, onSaved }: { onClose(): void; onSaved(): void })
         <div className="field"><label>Happy-hour início (opcional)</label><input value={startTime} onChange={(e) => setStartTime(e.target.value)} placeholder="14:00" /></div>
         <div className="field"><label>Happy-hour fim (opcional)</label><input value={endTime} onChange={(e) => setEndTime(e.target.value)} placeholder="16:00" /></div>
       </div>
+      <div className="field"><label>Termina em</label><input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} /></div>
       <button className="btn lg block" style={{ marginTop: 12 }} onClick={save} disabled={saving}>{saving ? 'A guardar…' : 'Criar promoção'}</button>
     </Modal>
   );

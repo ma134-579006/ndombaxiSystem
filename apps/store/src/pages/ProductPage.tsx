@@ -6,6 +6,7 @@ import { ProductCard, soldLabel } from '../components/ProductCard';
 import { Countdown } from '../components/Deals';
 import { useStore } from '../state/StoreContext';
 import { toggleFavorite, usePrefs } from '../store/prefs';
+import { ProductReviewsSection, Stars } from '../components/Reviews';
 
 /** Página de produto (PDP) estilo AliExpress: galeria com miniaturas, bloco de
  *  preço, quantidade, comprar/adicionar, garantias de envio, loja, descrição e
@@ -71,7 +72,13 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
               <IconHeart size={20} />
             </button>
           </div>
-          {product.sold ? <div className="ax-sold">{soldLabel(product.sold)}</div> : null}
+          {product.sold || product.reviews ? (
+            <div className="ax-sold">
+              {product.reviews ? <><Stars value={product.rating ?? 0} size={15} /> <b>{(product.rating ?? 0).toLocaleString('pt-PT')}</b> <span>({product.reviews} avaliações)</span></> : null}
+              {product.sold && product.reviews ? <span className="sep" aria-hidden>|</span> : null}
+              {product.sold ? soldLabel(product.sold) : null}
+            </div>
+          ) : null}
 
           <div className="ax-pdp-price">
             <span className="val">{kz(product.grossPrice)}</span>
@@ -146,6 +153,8 @@ export function ProductPage({ product, storeName, related, onBack, onAdd, onBuyN
           <p className="ax-desc">{product.description}</p>
         </div>
       ) : null}
+
+      <ProductReviewsSection code={code} productCode={product.code} />
 
       {/* Relacionados */}
       {related.length > 0 ? (

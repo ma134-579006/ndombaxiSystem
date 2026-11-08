@@ -80,6 +80,9 @@ import type {
   CashSessionRow,
   ManagerProduct,
   OpsAlert,
+  StoreCoupon,
+  StoreCouponInput,
+  StoreReviewRow,
   ProfitAbcRow,
   ProfitPoint,
   ProfitProduct,
@@ -942,6 +945,15 @@ export const api = {
     create: (dto: PromotionInput) => request<Promotion>('POST', '/promotions', dto),
     update: (id: string, dto: Partial<PromotionInput>) => request<Promotion>('PATCH', `/promotions/${id}`, dto),
     remove: (id: string) => request<{ id: string }>('DELETE', `/promotions/${id}`),
+  },
+  // ── Loja online: cupões e avaliações (gestão) ─────────────
+  marketing: {
+    coupons: () => request<StoreCoupon[]>('GET', '/ecommerce/coupons'),
+    createCoupon: (dto: StoreCouponInput) => request<StoreCoupon>('POST', '/ecommerce/coupons', dto),
+    updateCoupon: (id: string, dto: Partial<StoreCouponInput>) => request<StoreCoupon>('PATCH', `/ecommerce/coupons/${id}`, dto),
+    removeCoupon: (id: string) => request<{ id: string }>('DELETE', `/ecommerce/coupons/${id}`),
+    reviews: () => request<StoreReviewRow[]>('GET', '/ecommerce/reviews'),
+    hideReview: (id: string, hidden: boolean) => request<{ id: string; hidden: boolean }>('PATCH', `/ecommerce/reviews/${id}`, { hidden }),
   },
   alerts: () => request<OpsAlert[]>('GET', '/alerts'),
   // ── Visão geral do gestor (dashboard em tempo real) ────────

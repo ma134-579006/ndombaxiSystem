@@ -22,6 +22,17 @@ import { HotelService } from '../hotel/hotel.service';
 import { ServiceOrdersService } from '../services/service-orders.service';
 import { ClinicService } from '../clinic/clinic.service';
 import { OnlineAppointmentDto, OnlineReservationDto, OnlineServiceRequestDto } from './dto/online-request.dto';
+import { MarketingService } from './marketing.service';
+import { IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+
+class CouponCheckDto {
+  @IsString() @MaxLength(32) code!: string;
+  @IsNumber() @Min(0) total!: number;
+}
+class ReviewDto {
+  @IsInt() @Min(1) @Max(5) rating!: number;
+  @IsOptional() @IsString() @MaxLength(1000) comment?: string;
+}
 
 /** Montra pública (sem autenticação). O tenant é resolvido pelo código da empresa. */
 @ApiTags('storefront')
@@ -42,6 +53,7 @@ export class StorefrontController {
     private readonly hotel: HotelService,
     private readonly serviceOrders: ServiceOrdersService,
     private readonly clinic: ClinicService,
+    private readonly marketing: MarketingService,
   ) {}
 
   // ── Chat livre com a loja (cliente autenticado, sem encomenda) ─
@@ -356,6 +368,37 @@ export class StorefrontController {
     }
   }
 
+  @Get('coupons')
+  @ApiOperation({ summary: 'Cupões que a loja mostra na montra' })
+  async coupons(@Param('code') code: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    return this.marketing.publicCoupons(tenant.schema);
+  }
+
+  @Post('coupon/check')
+  @ApiOperation({ summary: 'Valida um cupão para o cliente com sessão e devolve o desconto' })
+  async couponCheck(@Param('code') code: string, @Body() dto: CouponCheckDto, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.marketing.previewCoupon(tenant.schema, dto.code, claims.email, dto.total);
+  }
+
+  @Get('products/:productCode/reviews')
+  @ApiOperation({ summary: 'Avaliações visíveis de um produto (+ a do cliente com sessão)' })
+  async reviews(@Param('code') code: string, @Param('productCode') productCode: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = auth ? await this.customers.verify(tenant.schema, auth).catch(() => null) : null;
+    return this.marketing.productReviews(tenant.schema, productCode, claims?.email ?? null);
+  }
+
+  @Post('products/:productCode/reviews')
+  @ApiOperation({ summary: 'Avalia um produto comprado (1 por cliente; volta a enviar para editar)' })
+  async review(@Param('code') code: string, @Param('productCode') productCode: string, @Body() dto: ReviewDto, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.marketing.submitReview(tenant.schema, productCode, claims.email, claims.name || 'Cliente', dto.rating, dto.comment);
+  }
+
   @Post('checkout')
   @ApiOperation({ summary: 'Cria uma encomenda online (PENDING)' })
   async checkout(@Param('code') code: string, @Body() dto: CheckoutDto, @Headers('authorization') auth?: string) {
@@ -366,7 +409,14 @@ export class StorefrontController {
     dto.province = dto.province?.trim() || undefined;
     dto.municipality = dto.municipality?.trim() || undefined;
     dto.neighborhood = dto.neighborhood?.trim() || undefined;
-    const result = await this.storefront.checkout(tenant.schema, dto);
+    // Cupão: só com sessão; a encomenda fica no email verificado (limites por cliente).
+    let couponEmail: string | null = null;
+    if (dto.couponCode?.trim()) {
+      const claims = await this.customers.verify(tenant.schema, auth);
+      couponEmail = claims.email.toLowerCase();
+      dto.customerEmail = couponEmail;
+    }
+    const result = await this.storefront.checkout(tenant.schema, dto, couponEmail);
     // Lembra/atualiza o perfil do cliente (e sincroniza com o caixa/gestor):
     // assim, na próxima compra os dados já vêm preenchidos. Só ATUALIZA um
     // cliente existente com sessão desse mesmo email; anónimo apenas cria.

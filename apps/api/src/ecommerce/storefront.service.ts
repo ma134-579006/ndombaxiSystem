@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { luandaYear } from '../common/luanda-date';
 import { isPromoActive, type Promotion } from '../promotions/promo-engine';
+import { checkCoupon } from './marketing.service';
 
 interface PromoRow {
   id: string; name: string; type: string; scope: string; target_id: string | null;
@@ -104,6 +105,9 @@ export interface CatalogProduct {
   promo?: { name: string; percent: number; endsAt: string | null };
   /** Unidades vendidas (facturas válidas), para "N vendidos". */
   sold?: number;
+  /** Média e nº de avaliações visíveis. */
+  rating?: number;
+  reviews?: number;
 }
 
 @Injectable()
@@ -148,6 +152,14 @@ export class StorefrontService {
       ).catch(() => [] as { product_id: string; n: number }[]);
       const soldBy = new Map(sold.map((x) => [x.product_id, Math.floor(Number(x.n))]));
       const promos = await activeUnitPromos(tx).catch(() => [] as Promotion[]);
+      const regRev = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('store_reviews')::text AS r`);
+      const revs = regRev[0]?.r
+        ? await tx.$queryRaw<{ product_id: string; avg: number; n: number }[]>(
+            Prisma.sql`SELECT product_id::text AS product_id, AVG(rating)::float8 AS avg, COUNT(*)::int AS n
+                       FROM store_reviews WHERE NOT is_hidden GROUP BY product_id`,
+          ).catch(() => [] as { product_id: string; avg: number; n: number }[])
+        : [];
+      const revBy = new Map(revs.map((x) => [x.product_id, x]));
       const list = await tx.$queryRaw<CatalogRow[]>(
         Prisma.sql`SELECT p.id, p.code, p.name, p.description, p.iva_code, p.unit_price, p.stock_qty,
                           p.image_url, p.gallery, pc.name AS category, p.category_id::text AS category_id,
@@ -158,9 +170,9 @@ export class StorefrontService {
                    WHERE p.is_active = TRUE AND p.show_online = TRUE AND p.is_ingredient = FALSE
                    ORDER BY p.name`,
       );
-      return { list, promos, soldBy };
+      return { list, promos, soldBy, revBy };
     });
-    const { promos, soldBy } = rows;
+    const { promos, soldBy, revBy } = rows;
     return rows.list.map((r) => {
       const netPrice = Number(r.unit_price);
       const rate = resolveRate(r.iva_code);
@@ -193,6 +205,7 @@ export class StorefrontService {
           promo: { name: bp.promo.name, percent: Math.round(bp.rate * 100), endsAt: bp.promo.endsAt ?? null },
         } : {}),
         ...(n > 0 ? { sold: n } : {}),
+        ...(revBy.get(r.id) ? { rating: Math.round(revBy.get(r.id)!.avg * 10) / 10, reviews: revBy.get(r.id)!.n } : {}),
         // Produção: "em stock" = há fornada pronta (🟢). Sob encomenda legado
         // (has_recipe sem is_production): sempre disponível. Comercial: stock>0.
         inStock: isProduction ? availability === 'FREE' : madeToOrder ? true : stock > 0,
@@ -209,7 +222,8 @@ export class StorefrontService {
   }
 
   /** Cria uma encomenda online em estado PENDING (sem emitir factura ainda). */
-  async checkout(schema: string, dto: CheckoutDto): Promise<{ id: string; orderNumber: string; grossTotal: number }> {
+  /** `couponEmail`: email verificado da sessão do cliente (obrigatório para usar cupão). */
+  async checkout(schema: string, dto: CheckoutDto, couponEmail?: string | null): Promise<{ id: string; orderNumber: string; grossTotal: number; couponDiscount?: number }> {
     // Linhas repetidas do mesmo produto juntam-se numa só: senão cada uma era
     // validada isoladamente contra o stock livre e, somadas, excediam-no.
     const merged = new Map<string, CheckoutDto['lines'][number]>();
@@ -291,7 +305,23 @@ export class StorefrontService {
           exemptionCode: p.exemption_code ?? undefined,
         };
       });
-      const { lines, totals } = computeInvoice(lineInputs);
+      let { lines, totals } = computeInvoice(lineInputs);
+
+      // Cupão: desconto sobre o total já com promoções, repartido por todas as
+      // linhas (taxa extra por linha) — a fatura herda-o pelo líquido congelado.
+      let couponCode: string | null = null;
+      let couponDiscount = 0;
+      if (dto.couponCode?.trim()) {
+        if (!couponEmail) throw new BadRequestException('Inicie sessão para usar um cupão.');
+        const { coupon, discount } = await checkCoupon(tx, dto.couponCode, couponEmail, totals.grossTotal, true);
+        const f = totals.grossTotal > 0 ? discount / totals.grossTotal : 0;
+        if (f > 0) {
+          const before = totals.grossTotal;
+          ({ lines, totals } = computeInvoice(lineInputs.map((l) => ({ ...l, discountRate: Math.min(1, 1 - (1 - (l.discountRate ?? 0)) * (1 - f)) }))));
+          couponCode = coupon.code;
+          couponDiscount = Math.round((before - totals.grossTotal) * 100) / 100;
+        }
+      }
 
       const year = luandaYear();
       // Numeração atómica (sem race): contador por (kind, year).
@@ -304,7 +334,7 @@ export class StorefrontService {
             (order_number, customer_name, customer_email, customer_phone, customer_tax_id,
              shipping_address, province, municipality, neighborhood, payment_method,
              status, net_total, iva_total, gross_total,
-             geo_lat, geo_lng, geo_accuracy, geo_consent, geo_updated_at)
+             geo_lat, geo_lng, geo_accuracy, geo_consent, geo_updated_at${couponCode ? Prisma.sql`, coupon_code, coupon_discount` : Prisma.empty})
           VALUES (${orderNumber}, ${dto.customerName || 'Cliente'}, ${dto.customerEmail ?? null},
                   ${dto.customerPhone ?? null}, ${dto.customerTaxId ?? null},
                   ${dto.shippingAddress ?? null}, ${dto.province ?? null}, ${dto.municipality ?? null},
@@ -312,7 +342,7 @@ export class StorefrontService {
                   ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal},
                   ${hasGeo ? dto.geoLat : null}, ${hasGeo ? dto.geoLng : null},
                   ${hasGeo && Number.isFinite(dto.geoAccuracy) ? dto.geoAccuracy : null},
-                  ${dto.geoConsent === true}, ${hasGeo ? Prisma.sql`now()` : Prisma.sql`NULL`})
+                  ${dto.geoConsent === true}, ${hasGeo ? Prisma.sql`now()` : Prisma.sql`NULL`}${couponCode ? Prisma.sql`, ${couponCode}, ${couponDiscount}` : Prisma.empty})
           RETURNING id`,
       );
       const orderId = orderRows[0].id;
@@ -331,7 +361,7 @@ export class StorefrontService {
         );
       }
 
-      return { id: orderId, orderNumber, grossTotal: totals.grossTotal };
+      return { id: orderId, orderNumber, grossTotal: totals.grossTotal, ...(couponCode ? { couponDiscount } : {}) };
     });
   }
 }
