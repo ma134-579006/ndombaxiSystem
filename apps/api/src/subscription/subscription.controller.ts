@@ -48,8 +48,12 @@ export class SubscriptionController {
     const end = new Date(act.expiresAt).getTime();
     const start = act.startsAt ? new Date(act.startsAt).getTime() : end - (act.durationDays ?? (act.durationMonths ?? 1) * 30) * 864e5;
     const now = Date.now();
-    const pct = end > start ? Math.min(100, Math.max(0, Math.round(((now - start) / (end - start)) * 100))) : 100;
-    return { active: true, pct, daysLeft: Math.max(0, Math.ceil((end - now) / 864e5)), expiresAt: new Date(end).toISOString() };
+    void start;
+    // % pelos DIAS QUE FALTAM para a renovação, numa janela de 30 dias:
+    // 30+ dias → 0%, 14 dias → 53%, 7 → 77%, 0 → 100% (a barra enche à medida que a renovação se aproxima).
+    const daysLeft = Math.max(0, Math.ceil((end - now) / 864e5));
+    const pct = Math.min(100, Math.max(0, Math.round(((30 - daysLeft) / 30) * 100)));
+    return { active: true, pct, daysLeft, expiresAt: new Date(end).toISOString() };
   }
 
   @Get('mine')
