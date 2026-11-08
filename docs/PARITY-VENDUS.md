@@ -74,3 +74,9 @@ Bloqueios / por fazer:
 - Movimentos de stock: "Utilizador" vazio no saldo inicial.
 - Bebidas fora da cozinha por nome de categoria; falta configuração explícita de zonas (cozinha/bar) como as impressoras por zona do Vendus.
 - Restantes páginas no padrão Vendus: Inventário, Compras, Promoções, Câmaras, Backup, Configurações, Subscrição, Relatórios.
+
+### Atualização 2026-11-08 (tarde)
+Testados de ponta a ponta numa conta real (afrotalentt4, modo shadow): **clínica** (profissional, paciente, marcação, consulta, FT 15.000 Kz), **hotel** (quarto, reserva, check-in, extra, FT 53.000 Kz), **serviços** (OS aberta → orçamento → aprovada → em curso → pronta → entregue + fatura 12.000 Kz), **farmácia** (medicamento, entrada com lote e validade, página Validade & Lotes). Corrigidos os defeitos encontrados (PRs #141–#145): abas com conteúdo ao lado do menu, migalha tapada, KPIs, Nova Reserva, datas ISO/"Invalid Date", lista que não atualizava após check-out, profissional em lista, fatura física/digital em restaurante/clínica/hotel/serviços, produto já escolhido em "Adicionar stock", rótulo do preço sem IVA.
+Cloudflare: a gestão voltou a publicar depois de dar mais memória ao Node no build (`--max-old-space-size=4096`) e de desligar o cálculo gzip.
+
+Ainda por fazer: zonas cozinha/bar configuráveis; "Utilizador" vazio no saldo inicial; páginas Inventário, Compras, Promoções, Câmaras, Backup, Configurações, Subscrição e Relatórios no padrão Vendus; venda de medicamento na caixa com receita (não testada nesta ronda).
