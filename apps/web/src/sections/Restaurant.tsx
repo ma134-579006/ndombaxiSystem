@@ -218,7 +218,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
                     <button key={t.id} className={`rt-table${occupied ? ' busy' : ' free'}`} onClick={() => void openTable(t)} disabled={busy}
                       aria-label={`${t.name} — ${occupied ? 'ocupada' : 'livre'}`}>
                       <div className="rt-top">
-                        <span className="rt-num">{t.code || t.name.replace(/\D+/g, '') || '—'}</span>
+                        <span className="rt-num">{(t.code && t.code !== t.name ? t.code : t.name.replace(/\D+/g, '')) || t.name.slice(0, 3)}</span>
                         <span className="rt-state">{occupied ? 'Ocupada' : 'Livre'}</span>
                       </div>
                       <div className="rt-name">{t.name}</div>
@@ -319,7 +319,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
               </div>
             </div>
           ) : (
-            <div className="row" style={{ gap: 8 }}>
+            <div className="rt-actions">
               {payOpen ? (
                 <>
                   <select aria-label="Meio de pagamento" value={payType} onChange={(e) => setPayType(e.target.value)} style={{ flex: 1 }}>
@@ -332,7 +332,7 @@ export function Restaurant({ onGo }: { onGo?: (section: string) => void }) {
                   <button className="btn lg" onClick={() => void invoiceOrder()} disabled={paying}>{paying ? 'A faturar…' : `Faturar ${KZ(detail.order.total)}`}</button>
                 </>
               ) : (
-                <button className="btn lg" style={{ flex: 1 }} onClick={() => setPayOpen(true)} disabled={detail.items.length === 0}>Faturar e fechar</button>
+                <button className="btn lg rt-pay" onClick={() => setPayOpen(true)} disabled={detail.items.length === 0}>Faturar e fechar</button>
               )}
               <button className="btn ghost" onClick={() => void closeOrder()} disabled={detail.items.length === 0} title="Fechar sem faturar aqui (cobrança no caixa)">Fechar (cobrar no caixa)</button>
               <button className="btn ghost" onClick={() => setCancelOpen(true)} title="Cancelar a comanda com motivo (auditado)">Cancelar comanda</button>

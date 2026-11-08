@@ -760,3 +760,8 @@
 /* Centros de comando: espaçamento entre blocos como no painel de referência. */
 .vd-home.vd-page > .card, .vd-home.vd-page > .kpi-grid, .vd-home.vd-page > .grid-2, .vd-home.vd-page > .pgrid { margin-bottom: 0 !important; }
 .vd-home.vd-page .vd-sec { margin-top: 8px; }
+/* Comanda: ação principal em toda a largura, secundárias lado a lado. */
+.rt-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.rt-actions > .rt-pay, .rt-actions > select { flex: 1 1 100%; }
+.rt-actions > .btn.lg:not(.rt-pay) { flex: 1 1 auto; }
+.rt-actions > .btn.ghost { flex: 1 1 0; white-space: nowrap; }
