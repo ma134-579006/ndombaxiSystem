@@ -112,6 +112,11 @@ export function Products() {
   const [stats, setStats] = useState<Awaited<ReturnType<typeof api.products.stats>> | null>(null);
   const isExempt = form.ivaCode === 'ISE' || form.ivaCode === 'OUT';
   const [saving, setSaving] = useState(false);
+  // Como no backoffice de referência: preço escrito com ou sem IVA, e
+  // "Continuar a adicionar" (grava e abre logo outro formulário vazio).
+  const [priceMode, setPriceMode] = useState<'NET' | 'GROSS'>('NET');
+  const [grossInput, setGrossInput] = useState('');
+  const [keepAdding, setKeepAdding] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pfilter, setPfilter] = useState<'ALL' | 'IN' | 'OUT' | 'ONLINE' | 'OFF'>('ALL');
@@ -121,6 +126,7 @@ export function Products() {
   const [producing, setProducing] = useState(false);
   // Filtros, colunas, ordenação e paginação da listagem.
   const [fCat, setFCat] = useState('');
+  const [fBrand, setFBrand] = useState('');
   const [fType, setFType] = useState<'ALL' | 'PRODUCT' | 'INGREDIENT' | 'PRODUCTION'>('ALL');
   const [fOnline, setFOnline] = useState<'ALL' | 'ON' | 'OFF'>('ALL');
   const [fPvpMin, setFPvpMin] = useState('');
@@ -354,8 +360,8 @@ export function Products() {
         const unitCost = qInit > 0 && buyTotal > 0 ? Math.round((buyTotal / qInit) * 100) / 100 : (Number(form.costPrice) || 0);
         // Código de barras OPCIONAL — vazio: o sistema gera um EAN-13 interno.
         const payload: CreateProductInput = {
-          code: form.code.trim() || undefined,
-          barcode: form.code.trim() || undefined,
+          code: form.code.trim() || form.barcode.trim() || undefined,
+          barcode: form.barcode.trim() || form.code.trim() || undefined,
           name: form.name.trim(),
           description: form.description.trim() || undefined,
           categoryId: form.categoryId || undefined,
@@ -374,6 +380,13 @@ export function Products() {
           ...(isHealth ? { requiresPrescription: form.requiresPrescription } : {}),
         };
         await api.products.create(payload);
+        if (keepAdding) {
+          toast.success(`«${payload.name}» adicionado.`);
+          setForm({ ...EMPTY, categoryId: form.categoryId, brand: form.brand, ivaCode: form.ivaCode, unit: form.unit });
+          setGrossInput('');
+          void load({ silent: true });
+          return;
+        }
       }
       close();
       await load();
@@ -437,6 +450,7 @@ export function Products() {
   const pvpMinN = num(fPvpMin), pvpMaxN = num(fPvpMax), costMinN = num(fCostMin), costMaxN = num(fCostMax);
   const rows = visible.filter((p) => {
     if (fCat && p.category_id !== fCat) return false;
+    if (fBrand && (p.brand ?? '').trim() !== fBrand) return false;
     if (fType === 'PRODUCT' && (p.is_ingredient || p.is_production)) return false;
     if (fType === 'INGREDIENT' && !p.is_ingredient) return false;
     if (fType === 'PRODUCTION' && !p.is_production) return false;
@@ -469,7 +483,7 @@ export function Products() {
   const pageRows = sorted.slice((curPage - 1) * perPage, curPage * perPage);
   const from = sorted.length ? (curPage - 1) * perPage + 1 : 0;
   const to = Math.min(curPage * perPage, sorted.length);
-  useEffect(() => { setPage(1); }, [pfilter, fCat, fType, fOnline, fPvpMin, fPvpMax, fCostMin, fCostMax, perPage, search]);
+  useEffect(() => { setPage(1); }, [pfilter, fCat, fBrand, fType, fOnline, fPvpMin, fPvpMax, fCostMin, fCostMax, perPage, search]);
   const pageSel = pageRows.length > 0 && pageRows.every((p) => selected.has(p.id));
   const togglePage = () => setSelected((prev) => {
     const n = new Set(prev);
@@ -477,7 +491,7 @@ export function Products() {
     return n;
   });
   const clearFilters = () => {
-    setSearch(''); setPfilter('ALL'); setFCat(''); setFType('ALL'); setFOnline('ALL');
+    setSearch(''); setPfilter('ALL'); setFCat(''); setFBrand(''); setFType('ALL'); setFOnline('ALL');
     setFPvpMin(''); setFPvpMax(''); setFCostMin(''); setFCostMax('');
   };
   const searchNow = () => { setPages(1); queryRef.current = { q: search.trim(), pages: 1 }; void load(); };
@@ -503,7 +517,7 @@ export function Products() {
     const L = ({ children, hint }: { children: React.ReactNode; hint?: string }) => (
       <div className="vd-lbl">{children}{hint ? <span className="q" title={hint} aria-label={hint}>?</span> : null} :</div>
     );
-    const pvpPreview = (Number(form.unitPrice) || 0) * (1 + (form.ivaCode === 'AUTO' ? (companyIva ? IVA_RATE[companyIva] ?? 0 : 0) : IVA_RATE[form.ivaCode]) / 100);
+    const pvpPreview = (Number(form.unitPrice) || 0) * (1 + (form.ivaCode === 'AUTO' ? (companyIva ? IVA_RATE[companyIva as IvaCode] ?? 0 : 0) : IVA_RATE[form.ivaCode]) / 100);
     return (
       <div className="vd-page">
         <div className="vd-head">
@@ -518,11 +532,15 @@ export function Products() {
           <div className="vd-row"><L hint="Nome que aparece no caixa, nas faturas e na loja online.">Nome do produto</L>
             <div className="vd-ctl"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome do produto" autoFocus /></div></div>
           {!editing ? (
+            <>
+            <div className="vd-row"><L hint="Opcional. Código interno do produto; vazio: usa o código de barras.">Referência</L>
+              <div className="vd-ctl"><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Referência" maxLength={64} /></div></div>
             <div className="vd-row"><L hint="Opcional. Vazio: o sistema gera automaticamente um código de barras EAN-13.">Código de barras</L>
               <div className="vd-ctl"><div className="vd-inline">
-                <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Código de barras" inputMode="text" />
-                <BarcodeScanner onDetected={(code) => setForm((f) => ({ ...f, code }))} />
+                <input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Código de barras" inputMode="text" maxLength={64} />
+                <BarcodeScanner onDetected={(code) => setForm((f) => ({ ...f, barcode: code }))} />
               </div></div></div>
+            </>
           ) : (
             <div className="vd-row"><L>Referência</L>
               <div className="vd-ctl"><input value={`${editing.code}${editing.barcode && editing.barcode !== editing.code ? ` · ${editing.barcode}` : ''}`} readOnly disabled /></div></div>
@@ -588,10 +606,26 @@ export function Products() {
         <div className="vd-card vd-form">
           <p className="vd-sect">Preço e imposto</p>
           <div className="vd-row two">
-            <L hint="Preço de venda sem IVA, em Kz.">Preço s/ IVA</L>
-            <div className="vd-ctl"><input inputMode="decimal" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="0" /></div>
-            <L>PVP</L>
-            <div className="vd-ctl"><input value={form.ivaCode === 'AUTO' && !companyIva ? 'IVA da empresa' : kz(pvpPreview)} readOnly disabled /></div>
+            <L hint="Escreva o preço com ou sem IVA; o outro valor é calculado.">Preço</L>
+            <div className="vd-ctl">
+              <div className="vd-seg" role="group" aria-label="Preço com ou sem IVA">
+                <button type="button" className={priceMode === 'GROSS' ? 'on' : ''} onClick={() => { setPriceMode('GROSS'); setGrossInput(form.unitPrice ? String(Math.round(pvpPreview * 100) / 100) : ''); }}>c/IVA</button>
+                <button type="button" className={priceMode === 'NET' ? 'on' : ''} onClick={() => setPriceMode('NET')}>s/IVA</button>
+              </div>
+              {priceMode === 'NET' ? (
+                <input inputMode="decimal" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="0" aria-label="Preço sem IVA" />
+              ) : (
+                <input inputMode="decimal" value={grossInput} aria-label="Preço com IVA" placeholder="0"
+                  onChange={(e) => {
+                    const v = e.target.value; setGrossInput(v);
+                    const g = Number(v.replace(',', '.'));
+                    const rate = form.ivaCode === 'AUTO' ? (companyIva ? IVA_RATE[companyIva as IvaCode] ?? 0 : 0) : IVA_RATE[form.ivaCode];
+                    setForm((f) => ({ ...f, unitPrice: Number.isFinite(g) && v.trim() !== '' ? String(Math.round((g / (1 + rate / 100)) * 100) / 100) : '' }));
+                  }} />
+              )}
+            </div>
+            <L>{priceMode === 'NET' ? 'PVP' : 'Preço s/ IVA'}</L>
+            <div className="vd-ctl"><input value={priceMode === 'NET' ? (form.ivaCode === 'AUTO' && !companyIva ? 'IVA da empresa' : kz(pvpPreview)) : kz(Number(form.unitPrice) || 0)} readOnly disabled /></div>
           </div>
           <div className="vd-row"><L hint="Automático usa o IVA padrão da empresa (Configurações).">Imposto</L>
             <div className="vd-ctl">
@@ -658,12 +692,55 @@ export function Products() {
           </div>
           <div className="vd-actions">
             <button className="vd-btn plain" onClick={close} disabled={saving}>Cancelar</button>
+            {!editing ? <label className="vd-check" style={{ marginRight: 'auto' }}><input type="checkbox" checked={keepAdding} onChange={(e) => setKeepAdding(e.target.checked)} /> Continuar a adicionar</label> : null}
             <button className="vd-btn" onClick={save} disabled={saving}>{saving ? 'A guardar…' : editing ? 'Guardar alterações' : 'Adicionar produto'}</button>
           </div>
         </div>
       </div>
     );
   }
+
+  // Marcas existentes no catálogo (para o filtro, como no backoffice de referência).
+  const brands = [...new Set(products.map((p) => (p.brand ?? '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt'));
+
+  /** Duplicar: abre o formulário de criação já preenchido (nova referência). */
+  const duplicate = (p: ManagerProduct) => {
+    openEdit(p);
+    setEditing(null);
+    setForm((f) => ({ ...f, code: '', barcode: '', name: `${p.name} (cópia)`, stockQty: '0' }));
+    setCreating(true);
+  };
+  /** Suspender / Ativar (o produto suspenso deixa de aparecer no caixa e na loja). */
+  const toggleActive = async (p: ManagerProduct) => {
+    setBusy(true);
+    try { await api.products.update(p.id, { isActive: !p.is_active } as never); await load({ silent: true }); }
+    catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível alterar o estado do produto.'); }
+    finally { setBusy(false); }
+  };
+  /** Loja online: mostrar/ocultar os selecionados (em lote). */
+  const bulkOnline = async (on: boolean) => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    setBusy(true);
+    try {
+      for (let i = 0; i < ids.length; i += 8) {
+        await Promise.all(ids.slice(i, i + 8).map((id) => api.products.update(id, { showOnline: on } as never)));
+      }
+      setSelected(new Set());
+      await load({ silent: true });
+    } catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível atualizar a loja online.'); }
+    finally { setBusy(false); }
+  };
+  /** Exportar produtos (CSV com os filtros aplicados). */
+  const exportCsv = () => {
+    const esc = (v: unknown) => { const t = String(v ?? ''); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const head = ['Referência', 'Código de barras', 'Nome', 'Marca', 'Categoria', 'PVP (c/IVA)', 'Preço s/IVA', 'Preço de custo', 'IVA %', 'Stock', 'Online', 'Ativo'];
+    const lines = sorted.map((p) => [p.code, p.barcode ?? '', p.name, p.brand ?? '', catName(p.category_id) ?? '', grossUnit(p).toFixed(2), Number(p.unit_price).toFixed(2),
+      (Number(p.cost_price) || 0).toFixed(2), IVA_RATE[p.iva_code], Number(p.stock_qty), p.show_online ? 'Sim' : 'Não', p.is_active ? 'Sim' : 'Não'].map(esc).join(';'));
+    const blob = new Blob(['\ufeff' + [head.join(';'), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `produtos-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
 
   // ── LISTAGEM ──
   const hasRecipes = products.some((p) => p.has_recipe);
@@ -689,6 +766,10 @@ export function Products() {
               <button role="menuitem" onClick={() => { setHeadMenu(null); toggleAll(); }} disabled={filtered.length === 0}>{allSel ? 'Desmarcar todos' : 'Selecionar todos'}</button>
               <button role="menuitem" onClick={() => { setHeadMenu(null); setPfilter('OFF'); }} disabled={inactiveCount === 0}>Ver inativos ({inactiveLabel})</button>
               <hr />
+              <button role="menuitem" onClick={() => { setHeadMenu(null); void bulkOnline(true); }} disabled={selected.size === 0 || busy}>Loja online — mostrar selecionados</button>
+              <button role="menuitem" onClick={() => { setHeadMenu(null); void bulkOnline(false); }} disabled={selected.size === 0 || busy}>Loja online — ocultar selecionados</button>
+              <button role="menuitem" onClick={() => { setHeadMenu(null); exportCsv(); }} disabled={sorted.length === 0}>Exportar produtos (CSV)</button>
+              <hr />
               <button role="menuitem" className="danger" onClick={() => { setHeadMenu(null); void bulkDelete(); }} disabled={selected.size === 0 || busy}>Eliminar selecionados ({selected.size})</button>
             </div>
           ) : null}
@@ -701,6 +782,10 @@ export function Products() {
           <label className="vd-f"><select value={fCat} onChange={(e) => setFCat(e.target.value)} aria-label="Categorias">
             <option value="">Categorias</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select></label>
+          <label className="vd-f"><select value={fBrand} onChange={(e) => setFBrand(e.target.value)} aria-label="Marcas">
+            <option value="">Marcas</option>
+            {brands.map((b) => <option key={b} value={b}>{b}</option>)}
           </select></label>
           <label className="vd-f"><select value={fOnline} onChange={(e) => setFOnline(e.target.value as typeof fOnline)} aria-label="Loja online">
             <option value="ALL">Loja online</option><option value="ON">Visível online</option><option value="OFF">Oculto online</option>
@@ -824,7 +909,9 @@ export function Products() {
                           {rowMenu === p.id ? (
                             <div className="vd-drop" role="menu">
                               <button role="menuitem" onClick={() => { setRowMenu(null); openEdit(p); }}><IconEdit size={15} /> Editar</button>
+                              <button role="menuitem" onClick={() => { setRowMenu(null); duplicate(p); }}>Duplicar</button>
                               <button role="menuitem" onClick={() => { setRowMenu(null); setEnterFor(p.id); setEntering(true); }} disabled={stores.length === 0}><IconTruck size={15} /> Adicionar stock</button>
+                              <button role="menuitem" onClick={() => { setRowMenu(null); void toggleActive(p); }} disabled={busy}>{p.is_active ? 'Suspender produto' : 'Ativar produto'}</button>
                               <hr />
                               <button role="menuitem" className="danger" onClick={() => { setRowMenu(null); void bulkDelete([p.id]); }} disabled={busy}>Eliminar</button>
                             </div>

@@ -436,14 +436,23 @@ export function Shell({
   const currentGroup = nav.find((n) => n.children?.some((c) => c.key === section)) ?? null;
   const userLevel = ROLE_LEVEL[user?.role ?? ''] ?? 9;
   // Criações rápidas do "+": só as secções que este papel vê na navegação.
+  // Ordem e nomes como no "+" do backoffice de referência.
+  const canPos = isTenant && userLevel <= ROLE_LEVEL.SHIFT_SUPERVISOR;
   const quick: QuickItem[] = ([
-    { key: 'products', label: 'Produto', create: true },
-    { key: 'customers', label: 'Cliente' },
-    { key: 'purchasing', label: 'Compra' },
+    ...(canPos ? [{ key: '__pos', label: 'Iniciar POS' }] : []),
+    { key: 'documents', label: 'Documentos' },
+    { key: 'products', label: 'Produto ou Serviço', create: true },
+    { key: 'saft', label: 'Exportar SAF-T' },
+    { key: 'customers', label: 'Cliente', create: true },
+    { key: 'purchasing', label: 'Compra / Fornecedor' },
     { key: 'expenses', label: 'Gasto' },
     { key: 'employees', label: 'Funcionário' },
     { key: 'tenants', label: 'Empresa' },
-  ] as QuickItem[]).filter((q) => has(q.key));
+  ] as QuickItem[]).filter((q) => q.key === '__pos' || has(q.key));
+  const onQuick = (key: string) => {
+    if (key === '__pos') { openCaixaTerminal({ staff: user?.email || '', nome: user?.name, empresa: companyCode || undefined }); return; }
+    setSection(key);
+  };
   const [menuOpen, setMenuOpen] = useState(false);
   // Grupos abertos (abre automaticamente o que contém a secção activa).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
@@ -565,7 +574,7 @@ export function Shell({
             onGo={() => setSection(isTenant ? (has('saft') ? 'saft' : section) : 'fiscal')}
           />
           <TopDivider />
-          <TopActions quick={quick} help={has('assistant') ? 'assistant' : has('support') ? 'support' : null} onGo={setSection} />
+          <TopActions quick={quick} help={has('assistant') ? 'assistant' : has('support') ? 'support' : null} onGo={onQuick} />
           <TopDivider />
           <SyncStatusPill />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}

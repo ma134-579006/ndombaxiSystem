@@ -6,7 +6,7 @@ import {
   STAFF_ROLES, STAFF_ROLE_LABELS,
   type CreateEmployeeInput, type EmployeeConsumption, type ManagerEmployee, type ManagerStaff, type ManagerStore, type StaffRoleName,
 } from '../api/types';
-import { IconBadge, IconCheck, IconEdit, IconMail, IconImage, IconPlus, IconSearch, IconShield, IconUser, IconUsers, IconWallet } from '../components/Icons';
+import { IconBadge, IconCheck, IconChevronDown, IconEdit, IconMail, IconImage, IconPlus, IconSearch, IconShield, IconUser, IconUsers, IconWallet } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatDate, formatKz } from '../format';
 
@@ -71,6 +71,30 @@ export function Employees() {
       if (deact > 0) setInfo(`${del} eliminado(s); ${deact} com histórico foram cessados.`);
       if (r.failed) setError(`${r.failed} não puderam ser eliminados (${r.firstError}).`);
     } catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao eliminar.'); } finally { setBulkBusy(false); }
+  };
+
+  // Opções por linha (como na listagem de Utilizadores do backoffice de referência).
+  const [rowMenu, setRowMenu] = useState<string | null>(null);
+  useEffect(() => {
+    if (!rowMenu) return;
+    const close = (ev: MouseEvent) => { if (!(ev.target as HTMLElement).closest?.('.vd-opts')) setRowMenu(null); };
+    const esc = (ev: KeyboardEvent) => { if (ev.key === 'Escape') setRowMenu(null); };
+    document.addEventListener('mousedown', close); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [rowMenu]);
+  const rowStatus = async (id: string, activate: boolean) => {
+    setBulkBusy(true); setError(null);
+    try {
+      if (activate) { await api.hr.reactivateEmployee(id); setInfo('Acesso restabelecido (funcionário ativo).'); }
+      else await api.hr.terminateEmployee(id);
+      await load();
+    } catch (er) { setError(er instanceof ApiError ? er.message : 'Não foi possível alterar o estado.'); } finally { setBulkBusy(false); }
+  };
+  const rowRemove = async (e: ManagerEmployee) => {
+    if (!(await confirmDialog({ message: `Remover ${e.full_name}? Com histórico de folha, fica apenas cessado.`, danger: true }))) return;
+    setBulkBusy(true); setError(null);
+    try { const x = await api.hr.removeEmployee(e.id); if (!x.deleted) setInfo(`${e.full_name} tem histórico: foi cessado.`); await load(); }
+    catch (er) { setError(er instanceof ApiError ? er.message : 'Não foi possível remover.'); } finally { setBulkBusy(false); }
   };
 
   const load = useCallback(async () => {
@@ -231,49 +255,67 @@ export function Employees() {
         : filtered.length === 0 ? (
           <div className="card"><div className="empty"><IconBadge size={40} /><p>Sem funcionários. Crie o primeiro.</p></div></div>
         ) : (
-          <div className="emc-grid">
-            {filtered.map((e) => {
-              // Conta ligada à ficha (user_id); fichas antigas: pelo nome.
-              const u = (e.user_id ? users.find((x) => x.id === e.user_id) : undefined) ?? accessOf(e);
-              const email = e.user_email ?? u?.email ?? null;
-              const roleKey = e.user_role ?? u?.role ?? null;
-              const hasPin = e.user_has_pin ?? u?.has_pin ?? false;
-              const st = e.status === 'ACTIVE' ? 'on' : e.status === 'TERMINATED' ? 'end' : 'off';
-              return (
-                <article className={`emc${selected.has(e.id) ? ' sel' : ''}${st !== 'on' ? ' dim' : ''}`} key={e.id}>
-                  <label className="emc-check" onClick={(ev) => ev.stopPropagation()}>
-                    <input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSel(e.id)} aria-label={`Selecionar ${e.full_name}`} />
-                  </label>
-                  <header className="emc-head">
-                    <UserAvatar photo={e.photo_url} name={e.full_name} size={52} />
-                    <div className="emc-id">
-                      <strong title={e.full_name}>{e.full_name}</strong>
-                      <span>{e.position || 'Sem função definida'}{e.department ? ` · ${e.department}` : ''}</span>
-                    </div>
-                  </header>
-                  <div className={`emc-mail${email ? '' : ' none'}`}>
-                    <IconMail size={15} />
-                    {email ? <a href={`mailto:${email}`} title={email}>{email}</a> : <span>Sem acesso ao sistema</span>}
-                  </div>
-                  <dl className="emc-facts">
-                    <div><dt>Nº</dt><dd>{e.employee_number}</dd></div>
-                    <div><dt>Salário base</dt><dd>{formatKz(Number(e.base_salary))}</dd></div>
-                    <div><dt>Acesso</dt><dd>{roleKey ? <>{STAFF_ROLE_LABELS[roleKey as StaffRoleName] ?? roleKey}{hasPin ? <em> · PIN</em> : null}</> : '—'}</dd></div>
-                  </dl>
-                  <footer className="emc-foot">
-                    <span className={`emc-st ${st}`}><i />{e.status === 'ACTIVE' ? 'Activo' : e.status === 'TERMINATED' ? 'Cessado' : 'Suspenso'}</span>
-                    <span className="emc-actions">
-                      {u ? (
-                        <button className="btn sm ghost" onClick={() => setManageFor({ user: u, name: e.full_name })}><IconShield size={13} /> Acesso</button>
-                      ) : e.status === 'ACTIVE' && !email ? (
-                        <button className="btn sm ghost" onClick={() => setAccessFor(e)}><IconShield size={13} /> Dar acesso</button>
-                      ) : null}
-                      <button className="btn sm ghost" onClick={() => openEdit(e)}><IconEdit size={14} /> Editar</button>
-                    </span>
-                  </footer>
-                </article>
-              );
-            })}
+          <div className="vd-card vd-tablecard">
+            <div className="vd-tablewrap">
+              <table className="vd-table">
+                <thead>
+                  <tr>
+                    <th className="chk"><input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todos" /></th>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Perfil</th>
+                    <th className="num">Salário base</th>
+                    <th>Estado</th>
+                    <th aria-label="Opções" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((e, i) => {
+                    // Conta ligada à ficha (user_id); fichas antigas: pelo nome.
+                    const u = (e.user_id ? users.find((x) => x.id === e.user_id) : undefined) ?? accessOf(e);
+                    const email = e.user_email ?? u?.email ?? null;
+                    const roleKey = e.user_role ?? u?.role ?? null;
+                    const hasPin = e.user_has_pin ?? u?.has_pin ?? false;
+                    const active = e.status === 'ACTIVE';
+                    return (
+                      <tr key={e.id} className={`${selected.has(e.id) ? 'sel' : ''}${active ? '' : ' off'}`} style={{ animationDelay: `${Math.min(i, 12) * 18}ms` }}>
+                        <td className="chk"><input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSel(e.id)} aria-label={`Selecionar ${e.full_name}`} /></td>
+                        <td>
+                          <div className="vd-name">
+                            <UserAvatar photo={e.photo_url} name={e.full_name} size={34} />
+                            <div>
+                              <button className="vd-link" onClick={() => openEdit(e)}>{e.full_name}</button>
+                              <span className="sub">{e.employee_number}{e.position ? ` · ${e.position}` : ''}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td>{email ? <a className="vd-link" href={`mailto:${email}`}>{email}</a> : <span className="sub">Sem acesso ao sistema</span>}</td>
+                        <td>{roleKey ? <>{STAFF_ROLE_LABELS[roleKey as StaffRoleName] ?? roleKey}{hasPin ? <span className="sub">com PIN da Caixa</span> : null}</> : '—'}</td>
+                        <td className="num">{formatKz(Number(e.base_salary))}</td>
+                        <td><span className={`vd-tag ${active ? 'ok' : e.status === 'TERMINATED' ? 'bad' : 'warn'}`}>{active ? 'Ativo' : e.status === 'TERMINATED' ? 'Cessado' : 'Suspenso'}</span></td>
+                        <td className="num">
+                          <div className="vd-opts">
+                            <button className="vd-btn plain" aria-expanded={rowMenu === e.id} onClick={() => setRowMenu((m) => (m === e.id ? null : e.id))}>Opções <IconChevronDown size={13} /></button>
+                            {rowMenu === e.id ? (
+                              <div className="vd-drop" role="menu">
+                                <button role="menuitem" onClick={() => { setRowMenu(null); openEdit(e); }}><IconEdit size={15} /> Editar</button>
+                                {u ? <button role="menuitem" onClick={() => { setRowMenu(null); setManageFor({ user: u, name: e.full_name }); }}><IconShield size={15} /> Alterar PIN/Password</button>
+                                  : active ? <button role="menuitem" onClick={() => { setRowMenu(null); setAccessFor(e); }}><IconShield size={15} /> Dar acesso ao sistema</button> : null}
+                                {active
+                                  ? <button role="menuitem" onClick={() => { setRowMenu(null); void rowStatus(e.id, false); }} disabled={bulkBusy}>Desativar funcionário</button>
+                                  : <button role="menuitem" onClick={() => { setRowMenu(null); void rowStatus(e.id, true); }} disabled={bulkBusy}>Ativar funcionário</button>}
+                                <hr />
+                                <button role="menuitem" className="danger" onClick={() => { setRowMenu(null); void rowRemove(e); }} disabled={bulkBusy}>Remover funcionário</button>
+                              </div>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
