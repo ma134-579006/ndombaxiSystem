@@ -52,6 +52,9 @@ async function bootstrap(): Promise<void> {
   ];
   app.enableCors({
     credentials: true,
+    // Cache do pré-pedido (OPTIONS): sem isto o browser repete-o a cada ~5 s por
+    // endereço, e cada um custa um round-trip inteiro até à API.
+    maxAge: 86400,
     origin(origin, callback) {
       if (!origin) return callback(null, true);
       if (allowList.includes(origin)) return callback(null, true);

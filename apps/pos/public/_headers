@@ -1,7 +1,8 @@
-# POS é offline-first: HTML usa `no-cache` (revalida sempre que há rede, mas
-# pode servir a cópia local quando offline). Assets com hash são imutáveis.
+# POS é offline-first: o HTML não tem Cache-Control próprio (o Cloudflare Pages
+# usa `max-age=0, must-revalidate`: revalida com rede e serve a cópia local sem
+# rede). NUNCA pôr `no-store`/`no-cache` em `/*`: o Cloudflare junta as regras e
+# anulava a cache dos ficheiros com hash.
 /*
-  Cache-Control: no-cache
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -14,3 +15,6 @@
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+/fonts/*
+  Cache-Control: public, max-age=86400

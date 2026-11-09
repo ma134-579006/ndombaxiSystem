@@ -1,7 +1,8 @@
-# Cache: o HTML nunca fica em cache (mostra sempre a versão publicada);
-# os assets têm hash no nome, por isso podem ser imutáveis para sempre.
+# Cache: o HTML não tem Cache-Control próprio (o Cloudflare Pages usa
+# `max-age=0, must-revalidate`: revalida sempre e mostra a versão publicada).
+# NUNCA pôr `no-store` em `/*`: o Cloudflare junta as regras e anulava a cache
+# dos ficheiros com hash (cada visita descarregava tudo outra vez).
 /*
-  Cache-Control: no-store, must-revalidate
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -14,3 +15,6 @@
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+/fonts/*
+  Cache-Control: public, max-age=86400
