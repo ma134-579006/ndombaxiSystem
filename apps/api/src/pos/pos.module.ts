@@ -16,6 +16,6 @@ import { DiscountGuardService } from './discount-guard.service';
   imports: [FiscalModule, CashboxModule, DevicesModule, PromotionsModule],
   controllers: [PosController],
   providers: [PosRepository, InvoiceService, FiscalSigningService, SaftService, PlanLimitsService, PasswordService, DiscountGuardService],
-  exports: [PosRepository, InvoiceService, FiscalSigningService, SaftService],
+  exports: [PosRepository, InvoiceService, FiscalSigningService, SaftService, DiscountGuardService],
 })
 export class PosModule {}

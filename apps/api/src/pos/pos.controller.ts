@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { DocumentType, findTaxExemption } from '@nexus/agt-xml';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -257,6 +258,8 @@ export class PosController {
   }
 
   // ── Emissão fiscal ─────────────────────────────────────────
+  // PIN de supervisor: sem limite próprio dava para o adivinhar por tentativas.
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('discount/approve')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Confirma o PIN do supervisor/gerente que aprova um desconto manual' })
