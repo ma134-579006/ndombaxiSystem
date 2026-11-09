@@ -2,29 +2,29 @@ name: Keep API warm
 
 # ════════════════════════════════════════════════════════════════════════════
 # PROBLEMA: a API corre no plano FREE do Render, que ADORMECE após ~15 min sem
-# tráfego e demora ~30-50s a acordar no 1.º pedido seguinte. Efeito visível: ao
-# publicar/partilhar a loja online, o primeiro visitante apanha esse cold start
-# e "a loja demora muito para ficar disponível".
+# tráfego (30–50 s a acordar). O cron "*/10" do GitHub NÃO chega: em repositórios
+# com pouca atividade o GitHub corre-o de ~4 em ~4 horas (observado em
+# 2026-11-08/09: 08:13, 15:22, 19:52, 23:30, 02:57, 11:17) — a API dormia.
 #
-# SOLUÇÃO: este workflow faz um ping periódico a /health, mantendo a instância
-# acordada — assim a loja abre quase instantaneamente para os clientes.
+# SOLUÇÃO: uma tarefa CONTÍNUA. Cada execução faz ping a /health de 5 em 5 min
+# durante ~5 h 45 (o limite de uma tarefa é 6 h) e, no fim, RELANÇA-SE a si
+# própria (workflow_dispatch — permitido com o GITHUB_TOKEN). O cron de hora a
+# hora é só a rede de segurança: se a corrente se partir, volta a arrancar.
+# A concorrência garante que só corre UMA de cada vez (as outras ficam canceladas).
+# Repositório público → minutos de Actions sem custo.
 #
-# LIMITAÇÃO HONESTA: o agendador (cron) do GitHub Actions é "best-effort" e por
-# vezes atrasa alguns minutos em picos de carga, pelo que raras vezes ainda pode
-# escapar um cold start. Para eliminação total do sono, um plano pago do Render
-# (Starter) ou um Cloudflare Worker cron são mais determinísticos.
-#
-# CONFIGURAÇÃO: por defeito faz ping ao serviço de imagem vivo. Para apontar a
-# outra URL sem editar este ficheiro, define a variável de repositório
-# `KEEP_WARM_URL` (Settings → Secrets and variables → Actions → Variables).
+# CONFIGURAÇÃO: `KEEP_WARM_URL` (variável do repositório) muda o alvo sem editar.
 # ════════════════════════════════════════════════════════════════════════════
 
 on:
   schedule:
-    - cron: '*/10 * * * *' # a cada 10 minutos (< janela de 15 min do Render free)
+    - cron: '7 * * * *' # rede de segurança: relança a corrente se tiver parado
   workflow_dispatch: {}
 
-# Se um ping ainda estiver a decorrer (a acordar a instância), não empilha outro.
+permissions:
+  actions: write # para se relançar no fim
+
+# Uma só corrente viva: um arranque novo enquanto outra corre é descartado.
 concurrency:
   group: keep-warm
   cancel-in-progress: false
@@ -32,28 +32,35 @@ concurrency:
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 355
     steps:
-      - name: Ping /health (acorda e mantém a API quente)
+      - name: Já há outra corrente viva?
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # O cron de hora a hora não deve abrir uma 2.ª corrente em paralelo.
+          vivas=$(gh run list -R "$GITHUB_REPOSITORY" --workflow keep-warm.yml --status in_progress --json databaseId -q "[.[] | select(.databaseId != ${GITHUB_RUN_ID})] | length")
+          echo "outras correntes vivas: $vivas"
+          echo "skip=$([ "$vivas" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Ping /health de 5 em 5 min (~5 h 45)
+        if: steps.guard.outputs.skip != 'true'
         env:
           BASE_URL: ${{ vars.KEEP_WARM_URL || 'https://ndombaxi-api-bwwr.onrender.com' }}
         run: |
           set -u
           URL="${BASE_URL%/}/health"
-          echo "Ping keep-warm → $URL"
-          # Até 6 tentativas com pausa: se a instância estava a dormir, o 1.º
-          # pedido inicia o arranque (~30-50s); repetimos até responder 200.
-          for i in $(seq 1 6); do
-            start=$(date +%s)
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 \
-              -H 'origin: https://ndombaxisystem.com' "$URL" || echo 000)
-            took=$(( $(date +%s) - start ))
-            echo "  tentativa $i: HTTP $code em ${took}s"
-            if [ "$code" = "200" ]; then
-              echo "API acordada e a responder. ✓"
-              exit 0
-            fi
-            sleep 15
+          fim=$(( $(date +%s) + 345*60 ))
+          while [ "$(date +%s)" -lt "$fim" ]; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 -H 'origin: https://ndombaxisystem.com' "$URL" || echo 000)
+            echo "$(date -u +%H:%M:%S) HTTP $code"
+            if [ "$code" != "200" ]; then sleep 20; continue; fi
+            sleep 300
           done
-          # Não falha o workflow com ruído vermelho: o objetivo (enviar tráfego
-          # que acorda a instância) foi cumprido mesmo que o 200 tarde a chegar.
-          echo "::warning::A API não devolveu 200 dentro do tempo — pode estar a acordar. O ping foi enviado."
+
+      - name: Relança a corrente
+        if: steps.guard.outputs.skip != 'true' && always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run keep-warm.yml -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
