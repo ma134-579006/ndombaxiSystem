@@ -5,6 +5,7 @@ import type { CustomerRow } from '../api/types';
 import { confirmDialog, runBulk, toast } from '../components/feedback';
 import { IconPlus, IconReceipt, IconSearch, IconTrash, IconTrendUp, IconUser, IconUsers } from '../components/Icons';
 import { Modal } from '../components/ui';
+import { takeQuickCreate } from '../components/TopStatus';
 import { formatKz, formatDate } from '../format';
 import { isNetworkError, queueCustomer } from '../offline/writes';
 
@@ -68,6 +69,8 @@ export function Customers() {
   const loadMore = () => { const n = pages + 1; setPages(n); qRef.current = { q: q.trim(), pages: n }; void load(); };
 
   const openCreate = () => { setEditing(null); setForm({ ...EMPTY }); setOpen(true); };
+  // "+" da barra de topo → "Cliente": abre já o formulário.
+  useEffect(() => { if (takeQuickCreate('customers')) openCreate(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const openEdit = (c: CustomerRow) => {
     setEditing(c);
     setForm({ name: c.name, phone: c.phone ?? '', email: shownEmail(c.email), taxId: c.tax_id ?? '', address: c.address ?? '', province: c.province ?? '', municipality: c.municipality ?? '' });
