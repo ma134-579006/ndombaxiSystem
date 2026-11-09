@@ -111,3 +111,28 @@ describe('ReleaseSyncService.syncIfStale', () => {
     expect(f).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('ReleaseSyncService — API do GitHub em 403 (auditoria 2026-11-09)', () => {
+  const ATOM = `<?xml version="1.0"?><feed>
+  <entry><id>tag:github.com,2008:Repository/1/windows-latest</id><updated>2026-11-09T12:00:36Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/ma134-579006/ndombaxiSystem/releases/tag/windows-latest"/>
+    <content type="html">&lt;p&gt;Instalador. Versão: 1.5.966&lt;/p&gt;</content></entry>
+  <entry><id>tag:github.com,2008:Repository/1/android-latest</id><updated>2026-11-09T11:21:20Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/ma134-579006/ndombaxiSystem/releases/tag/android-latest"/>
+    <content type="html">&lt;p&gt;APK. Versão: 1.5.964&lt;/p&gt;</content></entry>
+</feed>`;
+
+  it('lê a versão pelo feed público e publica com o link fixo do ficheiro', async () => {
+    const rows: Row[] = [];
+    global.fetch = jest.fn(async (url: string) => {
+      if (url.endsWith('/releases.atom')) return { ok: true, status: 200, text: async () => ATOM, headers: { get: (): string | null => null } };
+      return { ok: false, status: 403, headers: { get: (): string | null => null } };
+    }) as never;
+    const out = await new ReleaseSyncService(fakePrisma(rows) as never).sync(true);
+    expect(out.map((r) => r.action)).toEqual(['published', 'published', 'skipped']); // a Loja não está no feed de teste
+    const win = rows.find((r) => r.platform === 'windows')!;
+    expect(win.version).toBe('1.5.966');
+    expect(win.mandatory).toBe(true);
+    expect(win.fileUrl).toBe('https://github.com/ma134-579006/ndombaxiSystem/releases/download/windows-latest/LPSVendas-Setup-x64.exe');
+  });
+});
