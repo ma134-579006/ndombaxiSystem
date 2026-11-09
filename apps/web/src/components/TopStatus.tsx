@@ -25,7 +25,16 @@ export function TopTitle({ title }: { title: string }) {
 /** Anel da subscrição: aparece só a COMPANY_ADMIN e quando faltam ≤30 dias. */
 export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: () => void }) {
   // Período em dias: consumidos (X de N = Y%) e restantes (Z dias = 100 − Y %).
-  const [info, setInfo] = useState<{ total: number; used: number; left: number; pct: number } | null>(null);
+  const [info, setInfo] = useState<{ total: number; used: number; left: number; pct: number; end?: string | null } | null>(null);
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false); };
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', h); document.addEventListener('keydown', k);
+    return () => { document.removeEventListener('mousedown', h); document.removeEventListener('keydown', k); };
+  }, [open]);
   useEffect(() => {
     if (!enabled) { setInfo(null); return; }
     let alive = true;
@@ -42,12 +51,12 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
       if (!act?.expiresAt) return null;
       const end = Date.parse(act.expiresAt);
       const start = act.startsAt ? Date.parse(act.startsAt) : end - (act.durationDays ?? act.durationMonths * 30) * 864e5;
-      return calc(end, start);
+      return { ...calc(end, start), end: act.expiresAt };
     });
     api.subscription.status()
       .then((st) => {
         if (!st.active) return null;
-        if (st.totalDays) return { total: st.totalDays, used: st.usedDays ?? st.totalDays - st.daysLeft, left: st.daysLeft, pct: st.pct };
+        if (st.totalDays) return { total: st.totalDays, used: st.usedDays ?? st.totalDays - st.daysLeft, left: st.daysLeft, pct: st.pct, end: st.expiresAt };
         return fromMine();
       })
       .catch(() => fromMine())
@@ -62,9 +71,18 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
   // Como no backoffice de referência: só o texto e o anel; os dias que faltam
   // aparecem numa dica ANIMADA ao passar o rato (ou ao focar com o teclado).
   const tip = info.left === 0 ? 'A subscrição termina hoje' : `Falta${info.left === 1 ? '' : 'm'} ${info.left} dia${info.left === 1 ? '' : 's'} para renovar`;
+  const endTx = info.end ? new Date(info.end).toLocaleDateString('pt-PT') : null;
   return (
-    <button className={`tb-sub ${tone}`} onClick={onGo} disabled={!onGo} aria-label={tip}>
-      <span className="tb-sub-tip" role="tooltip">{tip}</span>
+    <div className="tb-sub-wrap" ref={boxRef}>
+    {open ? (
+      <div className="tb-menu tb-sub-menu" role="dialog" aria-label="Subscrição">
+        <b>{tip}</b>
+        {endTx ? <span>Termina a {endTx}</span> : null}
+        {onGo ? <button className="vd-btn" onClick={() => { setOpen(false); onGo(); }}>Renovar subscrição</button> : null}
+      </div>
+    ) : null}
+    <button className={`tb-sub ${tone}`} onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={tip}>
+      {open ? null : <span className="tb-sub-tip" role="tooltip">{tip}</span>}
       <span className="tb-sub-tx">Renovar subscrição</span>
       <span className="tb-ring" aria-hidden="true">
         <svg width="38" height="38" viewBox="0 0 38 38">
@@ -74,6 +92,7 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
         <b>{info.pct}%</b>
       </span>
     </button>
+    </div>
   );
 }
 

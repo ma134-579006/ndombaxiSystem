@@ -903,3 +903,10 @@
 .doc-tot { display: flex; justify-content: flex-end; gap: 18px; padding: 10px 0; border-top: 1px solid var(--border); }
 .doc-tot b { margin-left: 6px; }
 @media (max-width: 1020px) { .doc-layout { flex-direction: column-reverse; } .doc-filters { position: static; flex-basis: auto; width: 100%; } }
+/* Menu da subscrição ao carregar no anel (plano, dias, data, Renovar). */
+.tb-sub-wrap { position: relative; display: inline-flex; }
+.tb-sub-menu { position: absolute; top: 100%; right: 0; z-index: 70; min-width: 240px; padding: 14px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 18px 40px -16px rgba(16,24,40,.35); animation: vd-drop .18s var(--vd-ease) both; }
+.tb-sub-menu b { font-size: 14px; }
+.tb-sub-menu span { color: var(--muted); font-size: 13px; }
+.tb-sub-menu .vd-btn { margin-top: 8px; justify-content: center; }
