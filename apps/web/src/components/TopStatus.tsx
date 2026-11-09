@@ -59,10 +59,13 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
   // Cor pelo consumido: até 60% verde, 61–80% laranja, acima de 80% vermelho.
   const tone = info.pct <= 60 ? 'ok' : info.pct <= 80 ? 'warn' : 'bad';
   const r = 15, c = 2 * Math.PI * r;
-  const tip = `${info.total} dias de subscrição · consumidos ${info.used} (${info.pct}%) · faltam ${info.left} (${100 - info.pct}%)`;
+  // Como no backoffice de referência: só o texto e o anel; os dias que faltam
+  // aparecem numa dica ANIMADA ao passar o rato (ou ao focar com o teclado).
+  const tip = info.left === 0 ? 'A subscrição termina hoje' : `Falta${info.left === 1 ? '' : 'm'} ${info.left} dia${info.left === 1 ? '' : 's'} para renovar`;
   return (
-    <button className={`tb-sub ${tone}`} onClick={onGo} disabled={!onGo} title={tip} aria-label={tip}>
-      <span className="tb-sub-tx">Renovar subscrição<small>{info.used} de {info.total} dias · faltam {info.left}</small></span>
+    <button className={`tb-sub ${tone}`} onClick={onGo} disabled={!onGo} aria-label={tip}>
+      <span className="tb-sub-tip" role="tooltip">{tip}</span>
+      <span className="tb-sub-tx">Renovar subscrição</span>
       <span className="tb-ring" aria-hidden="true">
         <svg width="38" height="38" viewBox="0 0 38 38">
           <circle cx="19" cy="19" r={r} className="trk" />

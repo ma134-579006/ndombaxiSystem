@@ -114,8 +114,34 @@ export interface CatalogProduct {
 export class StorefrontService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * CACHE do catálogo por loja. Cada visitante pedia o catálogo inteiro a cada
+   * 12 s e cada pedido refazia tudo — incluindo a soma das unidades vendidas de
+   * TODO o histórico de faturas: 11 s por pedido numa loja com ~2 200 artigos,
+   * no plano free do Render. Agora:
+   *   • o catálogo serve-se da memória durante 10 s (stock quase em tempo real);
+   *   • os "N vendidos" recalculam-se no máximo de 5 em 5 min;
+   *   • pedidos em simultâneo da mesma loja partilham a MESMA consulta.
+   */
+  private readonly catalogCache = new Map<string, { at: number; data: Promise<CatalogProduct[]> }>();
+  private readonly soldCache = new Map<string, { at: number; data: Map<string, number> }>();
+  private static readonly CATALOG_TTL_MS = 10_000;
+  private static readonly SOLD_TTL_MS = 5 * 60_000;
+
   /** Catálogo público: produtos activos e visíveis online, com preço bruto (IVA incluído). */
   async catalog(schema: string): Promise<CatalogProduct[]> {
+    const hit = this.catalogCache.get(schema);
+    if (hit && Date.now() - hit.at < StorefrontService.CATALOG_TTL_MS) return hit.data;
+    const data = this.loadCatalog(schema);
+    this.catalogCache.set(schema, { at: Date.now(), data });
+    // Um erro não pode ficar em cache (o próximo pedido tenta de novo).
+    data.catch(() => { if (this.catalogCache.get(schema)?.data === data) this.catalogCache.delete(schema); });
+    return data;
+  }
+
+  private async loadCatalog(schema: string): Promise<CatalogProduct[]> {
+    const soldHit = this.soldCache.get(schema);
+    const soldFresh = soldHit && Date.now() - soldHit.at < StorefrontService.SOLD_TTL_MS ? soldHit.data : null;
     const rows = await this.prisma.runInTenant(schema, async (tx) => {
       // Pratos SOB ENCOMENDA (ficha técnica) têm stock próprio 0 por natureza —
       // são vendíveis online na mesma (a emissão valida/baixa os ingredientes).
@@ -144,13 +170,17 @@ export class StorefrontService {
                        WHERE wi.product_id = p.id AND wo.status = 'PENDING' AND wo.created_at > now() - interval '48 hours'), 0)`
         : Prisma.sql`0`;
       // Unidades vendidas em facturas válidas (não anuladas) — "N vendidos" na montra.
-      const sold = await tx.$queryRaw<{ product_id: string; n: number }[]>(
-        Prisma.sql`SELECT ii.product_id::text AS product_id, SUM(ii.quantity)::float8 AS n
-                   FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
-                   WHERE ii.product_id IS NOT NULL AND i.status <> 'A' AND i.doc_type IN ('FT','FR','FS')
-                   GROUP BY ii.product_id`,
-      ).catch(() => [] as { product_id: string; n: number }[]);
-      const soldBy = new Map(sold.map((x) => [x.product_id, Math.floor(Number(x.n))]));
+      let soldBy = soldFresh;
+      if (!soldBy) {
+        const sold = await tx.$queryRaw<{ product_id: string; n: number }[]>(
+          Prisma.sql`SELECT ii.product_id::text AS product_id, SUM(ii.quantity)::float8 AS n
+                     FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
+                     WHERE ii.product_id IS NOT NULL AND i.status <> 'A' AND i.doc_type IN ('FT','FR','FS')
+                     GROUP BY ii.product_id`,
+        ).catch(() => [] as { product_id: string; n: number }[]);
+        soldBy = new Map(sold.map((x) => [x.product_id, Math.floor(Number(x.n))]));
+        this.soldCache.set(schema, { at: Date.now(), data: soldBy });
+      }
       const promos = await activeUnitPromos(tx).catch(() => [] as Promotion[]);
       const regRev = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('store_reviews')::text AS r`);
       const revs = regRev[0]?.r
@@ -334,7 +364,7 @@ export class StorefrontService {
             (order_number, customer_name, customer_email, customer_phone, customer_tax_id,
              shipping_address, province, municipality, neighborhood, payment_method,
              status, net_total, iva_total, gross_total,
-             geo_lat, geo_lng, geo_accuracy, geo_consent, geo_updated_at${couponCode ? Prisma.sql`, coupon_code, coupon_discount` : Prisma.empty})
+             geo_lat, geo_lng, geo_accuracy, geo_consent, geo_updated_at, delivery_method, notes${couponCode ? Prisma.sql`, coupon_code, coupon_discount` : Prisma.empty})
           VALUES (${orderNumber}, ${dto.customerName || 'Cliente'}, ${dto.customerEmail ?? null},
                   ${dto.customerPhone ?? null}, ${dto.customerTaxId ?? null},
                   ${dto.shippingAddress ?? null}, ${dto.province ?? null}, ${dto.municipality ?? null},
@@ -342,7 +372,8 @@ export class StorefrontService {
                   ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal},
                   ${hasGeo ? dto.geoLat : null}, ${hasGeo ? dto.geoLng : null},
                   ${hasGeo && Number.isFinite(dto.geoAccuracy) ? dto.geoAccuracy : null},
-                  ${dto.geoConsent === true}, ${hasGeo ? Prisma.sql`now()` : Prisma.sql`NULL`}${couponCode ? Prisma.sql`, ${couponCode}, ${couponDiscount}` : Prisma.empty})
+                  ${dto.geoConsent === true}, ${hasGeo ? Prisma.sql`now()` : Prisma.sql`NULL`},
+                  ${dto.deliveryMethod === 'PICKUP' ? 'PICKUP' : 'DELIVERY'}, ${dto.notes?.trim() || null}${couponCode ? Prisma.sql`, ${couponCode}, ${couponDiscount}` : Prisma.empty})
           RETURNING id`,
       );
       const orderId = orderRows[0].id;

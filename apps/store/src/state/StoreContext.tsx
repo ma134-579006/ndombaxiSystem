@@ -96,8 +96,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       // O `site` é o essencial (resolve a loja). Catálogo e métodos NÃO devem
       // impedir a loja de abrir (verticais podem não ter produtos/pagamentos).
-      const site = await api.site(code);
-      const [catalog, methods] = await Promise.all([
+      // Os três pedidos em PARALELO: antes o catálogo só começava depois de o
+      // `site` chegar (2–4 s a mais em cada abertura da loja).
+      const [site, catalog, methods] = await Promise.all([
+        api.site(code),
         api.catalog(code).catch(() => ({ products: [] as CatalogProduct[] })),
         api.paymentMethods(code).catch(() => []),
       ]);
@@ -126,11 +128,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // de outro cliente reflete-se no stock disponível em segundos.
   useEffect(() => {
     if (!code) return;
+    // 30 s e só com o separador VISÍVEL: o catálogo inteiro a cada 12 s, em cada
+    // visitante, gastava dados móveis e sobrecarregava a API.
     const t = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       api.catalog(code)
         .then((c) => setData((prev) => (prev ? { ...prev, products: c.products } : prev)))
         .catch(() => undefined);
-    }, 12000);
+    }, 30000);
     return () => window.clearInterval(t);
   }, [code]);
 

@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsIn,
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
@@ -104,6 +105,17 @@ export class CheckoutDto {
   @IsString()
   @Length(0, 120)
   neighborhood?: string;
+
+  /** Levantar na loja (PICKUP) ou entrega numa morada (DELIVERY). Por omissão: entrega. */
+  @IsOptional()
+  @IsIn(['PICKUP', 'DELIVERY'])
+  deliveryMethod?: 'PICKUP' | 'DELIVERY';
+
+  /** Observações do cliente para a loja. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
 
   /** Forma de pagamento escolhida no checkout. */
   @IsOptional()
