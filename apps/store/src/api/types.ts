@@ -118,6 +118,10 @@ export interface CheckoutInput {
   geoConsent?: boolean;
   /** Cupão (exige sessão do cliente). */
   couponCode?: string;
+  /** Levantar na loja ou entrega numa morada. */
+  deliveryMethod?: 'PICKUP' | 'DELIVERY';
+  /** Observações para a loja. */
+  notes?: string;
   lines: CheckoutLine[];
 }
 

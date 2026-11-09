@@ -723,3 +723,8 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."store_reviews" (
   UNIQUE (product_id, customer_email)
 );
 CREATE INDEX IF NOT EXISTS store_reviews_product_idx ON "{{SCHEMA}}"."store_reviews"(product_id);
+
+-- Loja online (modelo das lojas de faturação): levantar na loja vs. entrega e
+-- observações do cliente no checkout.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS delivery_method TEXT NOT NULL DEFAULT 'DELIVERY';
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS notes TEXT;

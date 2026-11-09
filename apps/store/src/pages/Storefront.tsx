@@ -14,6 +14,8 @@ import { useStore } from '../state/StoreContext';
 import { useCustomer } from '../store/customer';
 import { CustomerModal } from '../components/CustomerModal';
 import { ProductCard } from '../components/ProductCard';
+import { GoStorefront } from '../components/GoStorefront';
+import { GoCheckout } from '../components/GoCheckout';
 import { SectorHome, SECTOR_REPLACES_FEED } from '../components/SectorHome';
 import { Typewriter } from '../components/Typewriter';
 import { LiveLocation } from '../components/LiveLocation';
@@ -141,12 +143,13 @@ export function Storefront() {
   };
   useEffect(() => { if (customer) setGateMsg(null); }, [customer]);
   useEffect(() => {
-    if (!customer && !guestMode && (view === 'checkout' || view === 'track')) {
+    const go = !SECTOR_REPLACES_FEED.has(data?.businessType ?? '') && ['RETAIL', 'PHARMACY'].includes(data?.businessType ?? 'RETAIL');
+    if (!customer && !guestMode && ((view === 'checkout' && !go) || view === 'track')) {
       setView('home');
       setAccountOpen(true);
       setGateMsg('Entre na sua conta para continuar.');
     }
-  }, [customer, view, guestMode]);
+  }, [customer, view, guestMode, data?.businessType]);
 
   useEffect(() => {
     try { const raw = localStorage.getItem(lastOrderKey(code)); setSavedOrder(raw ? JSON.parse(raw) : null); }
@@ -215,6 +218,7 @@ export function Storefront() {
   // Pesquisa AUTOMÁTICA: ao escrever, mostra os resultados; ao limpar (sem
   // categoria) volta à página inicial. Não interfere com produto/checkout.
   useEffect(() => {
+    if (['RETAIL', 'PHARMACY'].includes(data?.businessType ?? 'RETAIL') && !SECTOR_REPLACES_FEED.has(data?.businessType ?? '')) return;
     if (search.trim() && view === 'home') setView('results');
     else if (!search.trim() && !cat && view === 'results') setView('home');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -239,6 +243,25 @@ export function Storefront() {
     onFavorites: openFavorites, favCount: favorites.length,
     search, onSearchChange: setSearch, onSearchSubmit: () => undefined, onImageSearch,
   };
+
+  // Modelo das lojas de faturação (retalho/farmácia): produto e finalizar
+  // abrem dentro da mesma montra (capa + carrinho), e compra-se SEM conta.
+  const goShop = !sectorFeed && ['RETAIL', 'PHARMACY'].includes(data?.businessType ?? 'RETAIL');
+  const goProps = {
+    storeName: data?.settings.brand_name || storeName, tagline: data?.settings.tagline || portal.tagline,
+    products, categories, search, onOpen: openProduct, onAdd: (p: CatalogProduct, q: number) => addWithToast(p, q),
+    onCheckout: () => { setCartOpen(false); setView('checkout'); window.scrollTo({ top: 0 }); },
+  };
+  if (goShop && view === 'checkout') {
+    return (<><Header {...headerProps} />{accountModal}
+      <GoStorefront {...goProps} title="Finalizar"><GoCheckout onBack={goHome} onDone={onCheckoutDone} /></GoStorefront>
+      <FooterBar />{toastNode}</>);
+  }
+  if (goShop && view === 'product' && selected) {
+    return (<><Header {...headerProps} />{accountModal}
+      <GoStorefront {...goProps} product={selected} onBack={() => { setView('home'); }} />
+      <FooterBar />{renderCart()}{toastNode}</>);
+  }
 
   // ── Vistas dedicadas (checkout/confirmação/track) ──
   if (view === 'checkout') {
@@ -383,7 +406,7 @@ export function Storefront() {
               </div>
               <div className="foot">
                 <div className="totline grand"><span>Total</span><span>{formatKz(total)}</span></div>
-                <button className="btn lg block" onClick={() => requireAccount('Crie uma conta ou entre para finalizar a compra.', () => { setCartOpen(false); setView('checkout'); })}>
+                <button className="btn lg block" onClick={() => (goShop ? (setCartOpen(false), setView('checkout'), window.scrollTo({ top: 0 })) : requireAccount('Crie uma conta ou entre para finalizar a compra.', () => { setCartOpen(false); setView('checkout'); }))}>
                   Finalizar compra
                 </button>
               </div>
@@ -391,6 +414,31 @@ export function Storefront() {
           )}
         </div>
       </div>
+    );
+  }
+
+  // ── HOME de RETALHO/FARMÁCIA: montra no modelo das lojas online de faturação
+  // (capa + logótipo, carrinho e menu à esquerda, grelha paginada). Os setores com
+  // montra própria (restaurante, hotel, clínica, serviços) seguem abaixo.
+  const goMode = !sectorFeed && ['RETAIL', 'PHARMACY'].includes(data?.businessType ?? 'RETAIL');
+  if (goMode && (view === 'home' || view === 'results')) {
+    return (
+      <>
+        <Header {...headerProps} />
+        {accountModal}
+        {gateMsg && !customer ? <div className="wrap"><div className="banner danger" style={{ marginTop: 12 }}>{gateMsg}</div></div> : null}
+        <GoStorefront {...goProps} />
+        {savedOrder ? (
+          <div className="wrap"><button className="ax-cta" onClick={() => requireAccount('Entre na sua conta para acompanhar as suas encomendas.', () => { setTrackId(savedOrder.id); setView('track'); })}>
+            <span className="ic" aria-hidden><IconBox size={18} /></span>
+            <span className="tx">Acompanhar a sua encomenda <strong>{savedOrder.orderNumber}</strong></span>
+            <span className="chev" aria-hidden><IconChevronRight size={18} /></span>
+          </button></div>
+        ) : null}
+        <FooterBar />
+        {renderCart()}
+        {toastNode}
+      </>
     );
   }
 

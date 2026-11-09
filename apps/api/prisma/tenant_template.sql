@@ -382,6 +382,8 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."web_orders" (
   geo_accuracy     NUMERIC(8,2),
   geo_updated_at   TIMESTAMPTZ,
   geo_consent      BOOLEAN NOT NULL DEFAULT FALSE,
+  delivery_method  TEXT NOT NULL DEFAULT 'DELIVERY', -- PICKUP (levantar na loja) / DELIVERY
+  notes            TEXT,                             -- observações do cliente
   -- RESERVA de pagamento (anti-corrida): carimbada atomicamente quando um
   -- processo começa a emitir a fatura; impede que dois callbacks/aprovações
   -- simultâneos emitam DUAS faturas fiscais para a mesma encomenda.
