@@ -56,6 +56,7 @@ const StockMovements = lazyRetry(() => import('./sections/StockMovements').then(
 const StockAnalysis = lazyRetry(() => import('./sections/StockAnalysis').then((m) => ({ default: m.StockAnalysis })));
 const InventoryIntel = lazyRetry(() => import('./sections/InventoryIntel').then((m) => ({ default: m.InventoryIntel })));
 const Reports = lazyRetry(() => import('./sections/Reports').then((m) => ({ default: m.Reports })));
+const Documents = lazyRetry(() => import('./sections/Documents').then((m) => ({ default: m.Documents })));
 const Settings = lazyRetry(() => import('./sections/Settings').then((m) => ({ default: m.Settings })));
 const Profile = lazyRetry(() => import('./sections/Profile').then((m) => ({ default: m.Profile })));
 const Promotions = lazyRetry(() => import('./sections/Promotions').then((m) => ({ default: m.Promotions })));
@@ -141,6 +142,7 @@ const TENANT_NAV: NavItem[] = [
     // Caixa & Auditoria e Relatórios; os itens financeiros mantêm min:2 (ocultos
     // ao gerente de loja, como antes).
     key: 'movements-group', label: 'Movimentações', icon: IconCoins, children: [
+      { key: 'documents', label: 'Documentos', icon: IconReceipt },
       { key: 'payments', label: 'Pagamentos', icon: IconCard, min: 2 },
       { key: 'profit', label: 'Lucros', icon: IconTrendUp, min: 2 },
       { key: 'expenses', label: 'Gastos', icon: IconReceipt, min: 2 },
@@ -429,6 +431,7 @@ function TenantPanel() {
       {section === 'cameras-map' ? <GodsEye /> : null}
       {section === 'operations' ? <Operations /> : null}
       {section === 'reports' ? <Reports /> : null}
+      {section === 'documents' ? <Documents /> : null}
       {section === 'saft' ? <Saft /> : null}
       {section === 'backup' ? <Backup /> : null}
       {section === 'backup-restore' ? <BackupRestore /> : null}

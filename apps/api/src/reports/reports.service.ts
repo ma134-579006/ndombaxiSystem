@@ -126,11 +126,13 @@ export class ReportsService {
       if (filters.storeId) conds.push(Prisma.sql`i.store_id = ${filters.storeId}::uuid`);
       if (filters.docType) conds.push(Prisma.sql`i.doc_type = ${filters.docType}`);
       return tx.$queryRaw(Prisma.sql`
-        SELECT i.number, i.doc_type, i.system_entry_date, i.gross_total, i.net_total, i.iva_total,
-               i.status, i.customer_tax_id, w.name AS store_name, u.name AS cashier_name
+        SELECT i.id::text AS id, i.number, i.doc_type, i.system_entry_date, i.gross_total, i.net_total, i.iva_total,
+               i.status, i.customer_tax_id, w.name AS store_name, u.name AS cashier_name,
+               c.name AS customer_name
         FROM invoices i
         LEFT JOIN stores w ON w.id = i.store_id
         LEFT JOIN users u ON u.id = i.cashier_id
+        LEFT JOIN customers c ON c.id = i.customer_id
         WHERE ${Prisma.join(conds, ' AND ')}
         ORDER BY i.system_entry_date DESC LIMIT 1000`);
     });

@@ -563,6 +563,7 @@ export interface ReportCategoryRow { name: string; qty: number; net: number; gro
 export interface ReportTaxRow { rate: number; net: number; iva: number; gross: number }
 export interface ReportPaymentRow { method: string; count: number; total: number }
 export interface ReportDocRow {
+  id?: string; customer_name?: string | null;
   number: string; doc_type: string; system_entry_date: string;
   gross_total: string; net_total: string; iva_total: string; status: string;
   customer_tax_id: string | null; store_name: string | null; cashier_name: string | null;

@@ -873,3 +873,33 @@
 /* Renovar subscrição: linha com os dias consumidos e os que faltam. */
 .tb-sub-tx { display: grid; line-height: 1.15; text-align: right; }
 .tb-sub-tx small { font-size: 11px; font-weight: 400; opacity: .85; }
+
+/* ── Documentos (faturação): lista em cartões + filtros à direita ── */
+.doc-layout { display: flex; align-items: flex-start; gap: 18px; }
+.doc-main { flex: 1 1 auto; min-width: 0; }
+.doc-filters { flex: 0 0 290px; position: sticky; top: 76px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.doc-filters .vd-f { display: flex; flex-direction: column; gap: 6px; }
+.doc-filters select, .doc-filters input { width: 100%; }
+.doc-filters .block { width: 100%; justify-content: center; }
+.doc-search { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 14px; margin-bottom: 12px; }
+.doc-search .vd-in { flex: 1 1 260px; }
+.doc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.doc-list li { animation: vd-row .4s var(--vd-ease) both; }
+.doc-item { width: 100%; display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  text-align: left; cursor: pointer; transition: box-shadow var(--vd-fast), transform var(--vd-fast), border-color var(--vd-fast); }
+.doc-item:hover { box-shadow: 0 10px 26px -14px rgba(16,24,40,.35); border-color: var(--primary); transform: translateY(-1px); }
+.doc-item.off { opacity: .6; }
+.doc-badge { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff; background: var(--primary); }
+.doc-badge.t-NC { background: var(--danger); }
+.doc-badge.t-FR { background: #0e9f6e; }
+.doc-badge.t-FS { background: #7c3aed; }
+.doc-id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.doc-id b { font-weight: 700; }
+.doc-id small, .doc-val small { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-val { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; }
+.doc-val b { font-weight: 800; }
+.doc-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font-size: 13.5px; margin-bottom: 12px; align-items: center; }
+.doc-lines { margin-bottom: 10px; }
+.doc-tot { display: flex; justify-content: flex-end; gap: 18px; padding: 10px 0; border-top: 1px solid var(--border); }
+.doc-tot b { margin-left: 6px; }
+@media (max-width: 1020px) { .doc-layout { flex-direction: column-reverse; } .doc-filters { position: static; flex-basis: auto; width: 100%; } }
