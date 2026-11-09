@@ -39,12 +39,15 @@ function hostApiUrl(): string | null {
 }
 
 /** A NUVEM (nunca o servidor local): destino da sincronização em segundo plano. */
+// `import.meta.env.DEV` é CONSTANTE no build: o minificador elimina o ramo de
+// desenvolvimento e o literal `localhost:3000` não chega ao bundle (a barreira
+// dos builds das apps — prepare-web — procura-o e recusava o build).
 export const CLOUD_API_URL = (envApiUrl()
-  || (isNativeApp() ? PROD_API_URL : 'http://localhost:3000')).replace(/\/$/, '');
+  || (isNativeApp() ? PROD_API_URL : (import.meta.env.DEV ? 'http://localhost:3000' : PROD_API_URL))).replace(/\/$/, '');
 
 export const API_URL = (hostApiUrl()
   || envApiUrl()
-  || (isNativeApp() ? PROD_API_URL : 'http://localhost:3000')).replace(/\/$/, '');
+  || (isNativeApp() ? PROD_API_URL : (import.meta.env.DEV ? 'http://localhost:3000' : PROD_API_URL))).replace(/\/$/, '');
 
 /** Base da loja online (apps/store). O link partilhável de cada empresa é
  *  `${STORE_URL}/${companyCode}`. Configurável no build via VITE_STORE_URL. */

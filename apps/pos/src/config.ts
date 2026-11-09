@@ -45,12 +45,15 @@ function hostApiUrl(): string | null {
 }
 
 /** A NUVEM (nunca o servidor local). */
+// `import.meta.env.DEV` é CONSTANTE no build: o minificador elimina o ramo de
+// desenvolvimento e o literal `localhost:3000` não chega ao bundle (a barreira
+// dos builds das apps — prepare-web — procura-o e recusava o build).
 export const CLOUD_API_URL = (envApiUrl()
-  || (isNativeApp() ? PROD_API_URL : 'http://localhost:3000')).replace(/\/$/, '');
+  || (isNativeApp() ? PROD_API_URL : (import.meta.env.DEV ? 'http://localhost:3000' : PROD_API_URL))).replace(/\/$/, '');
 
 export const API_URL = (hostApiUrl()
   || envApiUrl()
-  || (isNativeApp() ? PROD_API_URL : 'http://localhost:3000')).replace(/\/$/, '');
+  || (isNativeApp() ? PROD_API_URL : (import.meta.env.DEV ? 'http://localhost:3000' : PROD_API_URL))).replace(/\/$/, '');
 
 /** Google Sign-In Client ID (público — o mesmo do painel de gestão).
  *  Configurável no build via VITE_GOOGLE_CLIENT_ID. */
