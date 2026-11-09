@@ -259,7 +259,7 @@ export class PosController {
 
   // ── Emissão fiscal ─────────────────────────────────────────
   // PIN de supervisor: sem limite próprio dava para o adivinhar por tentativas.
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Throttle({ default: { limit: Number(process.env.AUTH_RATE_LIMIT_PER_MIN) || 20, ttl: 60_000 } })
   @Post('discount/approve')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Confirma o PIN do supervisor/gerente que aprova um desconto manual' })

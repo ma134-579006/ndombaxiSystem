@@ -276,8 +276,7 @@ export class InvoiceService {
       // senão a venda inteira rebentava com 42703. qtd efetiva = qtd×(1+q/100).
       const wasteCol = hasRecipes
         ? await tx.$queryRaw<{ n: number }[]>(
-            Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
-                       WHERE table_schema = current_schema() AND table_name = 'product_recipes' AND column_name = 'waste_pct'`)
+            Prisma.sql`SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.product_recipes') AND attname = 'waste_pct' AND NOT attisdropped`)
         : [{ n: 0 }];
       const wasteExpr = (wasteCol[0]?.n ?? 0) > 0 ? Prisma.sql`r.waste_pct` : Prisma.sql`0`;
       const effQty = (q: string | number, w: string | number | null | undefined) =>
@@ -1007,8 +1006,7 @@ export class InvoiceService {
     // Quebra/desperdício (espelho EXATO da emissão): coluna pode não existir
     // em tenants antigos — verificar antes de ler (senão o estorno rebentava).
     const wasteCol = await tx.$queryRaw<{ n: number }[]>(
-      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
-                 WHERE table_schema = current_schema() AND table_name = 'product_recipes' AND column_name = 'waste_pct'`,
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.product_recipes') AND attname = 'waste_pct' AND NOT attisdropped`,
     );
     const wasteExpr = (wasteCol[0]?.n ?? 0) > 0 ? Prisma.sql`r.waste_pct` : Prisma.sql`0`;
     const effQty = (q: string | number, w: string | number | null | undefined) =>

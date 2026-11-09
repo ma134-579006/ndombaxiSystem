@@ -106,9 +106,7 @@ export class AlertsService {
 
       // 6. Venda abaixo do custo (margem negativa), 30 dias — exige coluna unit_cost.
       const hasCost = await tx.$queryRaw<{ ok: number }[]>(
-        Prisma.sql`SELECT 1 AS ok FROM information_schema.columns
-                   WHERE table_schema = current_schema() AND table_name = 'invoice_items'
-                     AND column_name = 'unit_cost' LIMIT 1`,
+        Prisma.sql`SELECT 1 AS ok FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.invoice_items') AND attname = 'unit_cost' AND NOT attisdropped LIMIT 1`,
       );
       if (hasCost.length > 0) {
         const below = await tx.$queryRaw<{ description: string; n: number }[]>(

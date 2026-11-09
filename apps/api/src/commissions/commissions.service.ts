@@ -44,9 +44,7 @@ export class CommissionsService {
 
   private async hasRateColumn(tx: Prisma.TransactionClient): Promise<boolean> {
     const r = await tx.$queryRaw<{ ok: number }[]>(
-      Prisma.sql`SELECT 1 AS ok FROM information_schema.columns
-                 WHERE table_schema = current_schema() AND table_name = 'users'
-                   AND column_name = 'commission_rate' LIMIT 1`,
+      Prisma.sql`SELECT 1 AS ok FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.users') AND attname = 'commission_rate' AND NOT attisdropped LIMIT 1`,
     );
     return r.length > 0;
   }

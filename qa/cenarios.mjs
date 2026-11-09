@@ -15,7 +15,7 @@ import { call, ok, db, uuid, Report, round2, jwtPayload } from './lib.mjs';
 
 const S = JSON.parse(fs.readFileSync(process.env.QA_STATE ?? 'qa/.state.json', 'utf8'));
 const R = new Report('cenarios');
-const A = S.A.token;
+let A = S.A.token;
 
 async function login(nick) {
   const email = `${nick}@grupo-kwanza.qa.test`;
@@ -30,6 +30,11 @@ async function stockOf(c, productId, storeId) {
 }
 
 async function main() {
+  // O token guardado expira (15 min): entra de novo como administrador.
+  const al = await ok('POST', '/auth/login', { body: { email: 'admin@grupo-kwanza.qa.test', password: S.pass } });
+  A = al.tokens?.accessToken ?? al.accessToken; S.A.token = A;
+  const bl = await ok('POST', '/auth/login', { body: { email: 'admin@kwanza-servicos.qa.test', password: S.pass } });
+  S.B.token = bl.tokens?.accessToken ?? bl.accessToken;
   const c = await db(S.A.schema);
   const P = S.products;
   const cx = await login('caixa1');       // SUP1
@@ -235,12 +240,12 @@ async function main() {
   const badTot = tot.filter((t) => Math.abs(Number(t.net_total) + Number(t.iva_total) - Number(t.gross_total)) > 0.011 || Math.abs(Number(t.sg) - Number(t.gross_total)) > 0.05 || Math.abs(Number(t.sn) - Number(t.net_total)) > 0.05);
   R.check('F-5', 'totais das faturas = soma das linhas (líquido + IVA = bruto)', badTot.length === 0, `${tot.length} docs, divergentes ${badTot.length} ${JSON.stringify(badTot.slice(0, 3))}`);
   // Stock: saldo = último balance_after dos movimentos; produto = soma das lojas.
-  const stk = (await c.query(`SELECT si.product_id, si.warehouse_id, si.quantity,
-                                     (SELECT balance_after FROM stock_movements m WHERE m.product_id=si.product_id AND m.warehouse_id=si.warehouse_id ORDER BY created_at DESC, id DESC LIMIT 1) last_bal,
-                                     (SELECT COALESCE(sum(CASE WHEN type IN ('IN','RETURN','TRANSFER_IN','ADJUST_IN','PURCHASE') THEN quantity ELSE 0 END),0) FROM stock_movements m WHERE m.product_id=si.product_id AND m.warehouse_id=si.warehouse_id) ins
-                                FROM stock_items si`)).rows;
-  const badStk = stk.filter((s) => s.last_bal !== null && Math.abs(Number(s.last_bal) - Number(s.quantity)) > 0.0001);
-  R.check('S-1', 'saldo de stock por loja = saldo do último movimento', badStk.length === 0, `${stk.length} saldos, divergentes ${badStk.length} ${JSON.stringify(badStk.slice(0, 3))}`);
+  // Stock: saldo de cada loja = soma de TODOS os movimentos (entradas +, saídas −).
+  const badStk = (await c.query(`SELECT si.product_id, si.warehouse_id, si.quantity, COALESCE(sum(m.quantity),0) s
+                                   FROM stock_items si LEFT JOIN stock_movements m ON m.product_id=si.product_id AND m.warehouse_id=si.warehouse_id
+                                  GROUP BY si.id HAVING abs(si.quantity - COALESCE(sum(m.quantity),0)) > 0.0001`)).rows;
+  const nStk = Number((await c.query('SELECT count(*) n FROM stock_items')).rows[0].n);
+  R.check('S-1', 'saldo de stock por loja = soma dos movimentos (inicial + entradas − saídas + ajustes)', badStk.length === 0, `${nStk} saldos, divergentes ${badStk.length} ${JSON.stringify(badStk.slice(0, 3))}`);
   const mvTypes = (await c.query('SELECT type, sign(quantity) sg, count(*) n FROM stock_movements GROUP BY 1,2 ORDER BY 1')).rows;
   const agg = (await c.query(`SELECT p.code, p.stock_qty, COALESCE(sum(si.quantity),0) s FROM products p LEFT JOIN stock_items si ON si.product_id=p.id GROUP BY p.id HAVING abs(p.stock_qty - COALESCE(sum(si.quantity),0)) > 0.0001`)).rows;
   R.check('S-2', 'stock do produto = soma do stock das lojas', agg.length === 0, `${agg.length} produtos divergentes ${JSON.stringify(agg.slice(0, 3))} tipos ${JSON.stringify(mvTypes)}`);

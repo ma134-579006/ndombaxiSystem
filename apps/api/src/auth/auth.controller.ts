@@ -19,7 +19,8 @@ import { Throttle } from '@nestjs/throttler';
  * PIN, código): o limite global (100/min) deixava testar ~6 000 PINs por hora.
  * 20/min chega para uma loja inteira trocar de turno atrás do mesmo router.
  */
-const SECRET_THROTTLE = { default: { limit: 20, ttl: 60_000 } };
+export const SECRET_LIMIT = Number(process.env.AUTH_RATE_LIMIT_PER_MIN) || 20;
+const SECRET_THROTTLE = { default: { limit: SECRET_LIMIT, ttl: 60_000 } };
 import type { JwtPayload } from '@nexus/types';
 import { AuthService } from './auth.service';
 import {
