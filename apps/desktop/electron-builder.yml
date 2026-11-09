@@ -59,10 +59,8 @@ nodeGypRebuild: false
 #     utilityProcess ou um Node empacotado — tarefa própria.
 #   • cookieEncryption / asarIntegrity / onlyLoadAppFromAsar: mudam o arranque
 #     ou invalidam dados existentes; só com teste do instalador real.
-electronFuses:
-  runAsNode: true
-  enableNodeOptionsEnvironmentVariable: false
-  enableNodeCliInspectArguments: false
+# Aplicadas no hook abaixo (o electron-builder 25 não aceita `electronFuses`).
+afterPack: scripts/after-pack-fuses.cjs
 
 win:
   # .ico NÍTIDO com 16→256px, gerado a partir do logótipo oficial pelo

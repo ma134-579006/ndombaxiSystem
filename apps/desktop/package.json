@@ -21,6 +21,7 @@
     "better-sqlite3": "11.10.0"
   },
   "devDependencies": {
+    "@electron/fuses": "1.8.0",
     "@types/better-sqlite3": "7.6.11",
     "@types/node": "20.19.41",
     "electron": "33.4.11",
