@@ -35,6 +35,26 @@ export function versionFromNotes(body: unknown): string | null {
   return m ? m[1] : null;
 }
 
+/**
+ * Plano B quando a API do GitHub recusa (403/429 — limite de 60 pedidos/hora por
+ * IP sem token; o IP do Render é PARTILHADO, por isso o limite esgota-se com
+ * pedidos de outros clientes e a sincronização ficava parada: as versões novas
+ * nunca eram publicadas como obrigatórias). O feed público `releases.atom` não
+ * conta para esse limite e traz as notas ("Versão: x.y.z") de cada release; o
+ * ficheiro tem nome fixo, por isso o link de download monta-se a partir da tag.
+ */
+export function releaseFromAtom(atom: string, tag: string): { body: string; published_at?: string } | null {
+  for (const entry of atom.split('<entry>').slice(1)) {
+    if (!entry.includes(`/releases/tag/${tag}"`)) continue;
+    const html = (/<content type="html">([\s\S]*?)<\/content>/.exec(entry) ?? [])[1] ?? '';
+    const body = html.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&').replace(/<[^>]+>/g, ' ');
+    const updated = (/<updated>([^<]+)<\/updated>/.exec(entry) ?? [])[1];
+    return { body, published_at: updated };
+  }
+  return null;
+}
+
 export interface SyncResult { platform: Platform; version: string | null; action: 'published' | 'unchanged' | 'skipped'; reason?: string }
 
 /**
@@ -91,8 +111,20 @@ export class ReleaseSyncService implements OnApplicationBootstrap {
     if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) });
     if (res.status === 304) return { platform: src.platform, version: null, action: 'unchanged', reason: 'sem alterações' };
-    if (!res.ok) return { platform: src.platform, version: null, action: 'skipped', reason: `GitHub ${res.status}` };
-    const rel = (await res.json()) as { body?: string; published_at?: string; assets?: { name: string; browser_download_url: string; size?: number }[] };
+    let rel: { body?: string; published_at?: string; assets?: { name: string; browser_download_url: string; size?: number }[] };
+    if (res.ok) {
+      rel = (await res.json()) as typeof rel;
+    } else if (res.status === 403 || res.status === 429) {
+      // Limite da API esgotado: lê o feed público e monta o link fixo do ficheiro.
+      const feed = await fetch(`https://github.com/${REPO}/releases.atom`, {
+        headers: { 'User-Agent': 'lps-vendas-api' }, signal: AbortSignal.timeout(10_000),
+      });
+      const fromAtom = feed.ok ? releaseFromAtom(await feed.text(), src.tag) : null;
+      if (!fromAtom) return { platform: src.platform, version: null, action: 'skipped', reason: `GitHub ${res.status} (feed sem a release)` };
+      rel = { ...fromAtom, assets: [{ name: src.asset, browser_download_url: `https://github.com/${REPO}/releases/download/${src.tag}/${src.asset}` }] };
+    } else {
+      return { platform: src.platform, version: null, action: 'skipped', reason: `GitHub ${res.status}` };
+    }
     const version = versionFromNotes(rel.body);
     if (!version) return { platform: src.platform, version: null, action: 'skipped', reason: 'release sem "Versão:" nas notas' };
     const asset = rel.assets?.find((a) => a.name === src.asset);
