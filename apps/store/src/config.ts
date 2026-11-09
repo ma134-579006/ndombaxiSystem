@@ -19,7 +19,10 @@ function envApiUrl(): string | undefined {
   if (!v) return undefined;
   return RETIRED_API_HOSTS.some((h) => v.includes(h)) ? PROD_API_URL : v;
 }
-export const API_URL = (envApiUrl() ?? 'http://localhost:3000').replace(
+// `import.meta.env.DEV` é CONSTANTE no build: o minificador elimina o ramo de
+// desenvolvimento e o literal `localhost:3000` não chega ao bundle (a barreira
+// dos builds das apps — prepare-web — procura-o e recusava o build).
+export const API_URL = (envApiUrl() ?? (import.meta.env.DEV ? 'http://localhost:3000' : PROD_API_URL)).replace(
   /\/$/,
   '',
 );
