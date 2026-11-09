@@ -44,6 +44,16 @@ export function StockMovements() {
   }, [search]);
 
   const shown = type ? rows.filter((m) => m.type === type) : rows;
+  // Exportar CSV (como no backoffice de referência), com os filtros aplicados.
+  const exportCsv = () => {
+    const esc = (v: unknown) => { const t = String(v ?? ''); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const head = ['Data', 'Produto', 'Referência', 'Operação', 'Qtd', 'Saldo', 'Loja', 'Utilizador', 'Observação'];
+    const lines = shown.map((m) => [fmtDateTime(m.created_at), m.product_name, m.product_code, TYPE_LABEL[m.type] ?? m.type, Number(m.quantity), Number(m.balance_after),
+      m.warehouse_name ?? '', m.created_by ?? '', m.reference ?? ''].map(esc).join(';'));
+    const blob = new Blob(['\ufeff' + [head.join(';'), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `movimentos-stock-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
   const perPage = 20;
   const pageCount = Math.max(1, Math.ceil(shown.length / perPage));
   const cur = Math.min(page, pageCount);
@@ -56,6 +66,7 @@ export function StockMovements() {
       <div className="vd-head">
         <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Movimentos de Stock</span><span className="sep">/</span><span>Listagem</span></p>
         <span className="spacer" />
+        <button className="vd-btn outline no-print" onClick={exportCsv} disabled={shown.length === 0}>Exportar CSV</button>
         <button className="vd-btn outline no-print" onClick={() => void printSectionReport()}>Imprimir</button>
       </div>
 

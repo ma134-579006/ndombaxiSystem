@@ -14,8 +14,10 @@ import { Modal } from '../components/ui';
  *   • abrir um documento: detalhe com as linhas e 2.ª via em PDF.
  */
 const DOC_LABEL: Record<string, string> = { FT: 'Fatura', FR: 'Fatura-Recibo', FS: 'Fatura Simplificada', NC: 'Nota de Crédito', ND: 'Nota de Débito', RC: 'Recibo' };
-const today = () => new Date().toISOString().slice(0, 10);
-const monthStart = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10); };
+// Datas LOCAIS (toISOString converte para UTC e recuava um dia em Angola, UTC+1).
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const today = () => ymd(new Date());
+const monthStart = () => { const d = new Date(); return ymd(new Date(d.getFullYear(), d.getMonth(), 1)); };
 const fmtDT = (s: string) => { const d = new Date(s); return Number.isNaN(d.getTime()) ? s : d.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
 const num = (s: string | number | null | undefined) => Number(s) || 0;
 
@@ -51,7 +53,8 @@ export function Documents() {
       return true;
     });
   }, [rows, applied, q]);
-  const total = list.filter((d) => d.status !== 'A').reduce((t, d) => t + num(d.gross_total), 0);
+  // Total líquido: vendas válidas menos notas de crédito (as NC estornam).
+  const total = list.filter((d) => d.status !== 'A').reduce((t, d) => t + (d.doc_type === 'NC' ? -1 : 1) * num(d.gross_total), 0);
 
   const openDoc = async (row: ReportDocRow) => {
     setOpen({ row, detail: null });
@@ -101,7 +104,7 @@ export function Documents() {
                         <small>{d.customer_name || (d.customer_tax_id ? `NIF ${d.customer_tax_id}` : 'Consumidor final')}{d.store_name ? ` · ${d.store_name}` : ''}</small>
                       </span>
                       <span className="doc-val">
-                        <b>{formatKz(num(d.gross_total))}</b>
+                        <b className={d.doc_type === 'NC' ? 'neg' : ''}>{d.doc_type === 'NC' ? '−' : ''}{formatKz(num(d.gross_total))}</b>
                         <small>{fmtDT(d.system_entry_date)}</small>
                       </span>
                       {d.status === 'A' ? <span className="vd-tag bad">Anulado</span> : null}

@@ -35,6 +35,13 @@ export class ReportsController {
     return this.reports.salesByCustomer(this.ctx.requireTenantSchema(), from, to, effectiveStoreId(user, storeId));
   }
 
+  @Get('sales-by-time')
+  @ApiOperation({ summary: 'Vendas por hora, dia da semana, dia ou mês (hora de Luanda)' })
+  salesByTime(@CurrentUser() user: JwtPayload, @Query('by') by?: string, @Query('from') from?: string, @Query('to') to?: string, @Query('storeId') storeId?: string) {
+    const b = by === 'hour' || by === 'weekday' || by === 'month' ? by : 'day';
+    return this.reports.salesByTime(this.ctx.requireTenantSchema(), b, from, to, effectiveStoreId(user, storeId));
+  }
+
   @Get('sales-by-store')
   @ApiOperation({ summary: 'Vendas por loja' })
   salesByStore(@CurrentUser() user: JwtPayload, @Query('from') from?: string, @Query('to') to?: string) {
