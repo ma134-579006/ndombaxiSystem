@@ -127,7 +127,7 @@ const TENANT_NAV: NavItem[] = [
   },
   {
     key: 'products-group', label: 'Produtos', icon: IconBag, children: [
-      { key: 'products', label: 'Criar produtos', icon: IconBag },
+      { key: 'products', label: 'Produtos', icon: IconBag },
       // Inventário ÚNICO (o antigo 'Inventário' + 'Inventário PRO' + 'Análise de
       // stock' são agora ABAS dentro desta secção — ver InventoryIntel).
       { key: 'inventory', label: 'Inventário', icon: IconBoxes },

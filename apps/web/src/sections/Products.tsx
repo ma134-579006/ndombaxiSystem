@@ -121,6 +121,7 @@ export function Products() {
   const [producing, setProducing] = useState(false);
   // Filtros, colunas, ordenação e paginação da listagem.
   const [fCat, setFCat] = useState('');
+  const [fBrand, setFBrand] = useState('');
   const [fType, setFType] = useState<'ALL' | 'PRODUCT' | 'INGREDIENT' | 'PRODUCTION'>('ALL');
   const [fOnline, setFOnline] = useState<'ALL' | 'ON' | 'OFF'>('ALL');
   const [fPvpMin, setFPvpMin] = useState('');
@@ -437,6 +438,7 @@ export function Products() {
   const pvpMinN = num(fPvpMin), pvpMaxN = num(fPvpMax), costMinN = num(fCostMin), costMaxN = num(fCostMax);
   const rows = visible.filter((p) => {
     if (fCat && p.category_id !== fCat) return false;
+    if (fBrand && (p.brand ?? '').trim() !== fBrand) return false;
     if (fType === 'PRODUCT' && (p.is_ingredient || p.is_production)) return false;
     if (fType === 'INGREDIENT' && !p.is_ingredient) return false;
     if (fType === 'PRODUCTION' && !p.is_production) return false;
@@ -469,7 +471,7 @@ export function Products() {
   const pageRows = sorted.slice((curPage - 1) * perPage, curPage * perPage);
   const from = sorted.length ? (curPage - 1) * perPage + 1 : 0;
   const to = Math.min(curPage * perPage, sorted.length);
-  useEffect(() => { setPage(1); }, [pfilter, fCat, fType, fOnline, fPvpMin, fPvpMax, fCostMin, fCostMax, perPage, search]);
+  useEffect(() => { setPage(1); }, [pfilter, fCat, fBrand, fType, fOnline, fPvpMin, fPvpMax, fCostMin, fCostMax, perPage, search]);
   const pageSel = pageRows.length > 0 && pageRows.every((p) => selected.has(p.id));
   const togglePage = () => setSelected((prev) => {
     const n = new Set(prev);
@@ -477,7 +479,7 @@ export function Products() {
     return n;
   });
   const clearFilters = () => {
-    setSearch(''); setPfilter('ALL'); setFCat(''); setFType('ALL'); setFOnline('ALL');
+    setSearch(''); setPfilter('ALL'); setFCat(''); setFBrand(''); setFType('ALL'); setFOnline('ALL');
     setFPvpMin(''); setFPvpMax(''); setFCostMin(''); setFCostMax('');
   };
   const searchNow = () => { setPages(1); queryRef.current = { q: search.trim(), pages: 1 }; void load(); };
@@ -503,7 +505,7 @@ export function Products() {
     const L = ({ children, hint }: { children: React.ReactNode; hint?: string }) => (
       <div className="vd-lbl">{children}{hint ? <span className="q" title={hint} aria-label={hint}>?</span> : null} :</div>
     );
-    const pvpPreview = (Number(form.unitPrice) || 0) * (1 + (form.ivaCode === 'AUTO' ? (companyIva ? IVA_RATE[companyIva] ?? 0 : 0) : IVA_RATE[form.ivaCode]) / 100);
+    const pvpPreview = (Number(form.unitPrice) || 0) * (1 + (form.ivaCode === 'AUTO' ? (companyIva ? IVA_RATE[companyIva as IvaCode] ?? 0 : 0) : IVA_RATE[form.ivaCode]) / 100);
     return (
       <div className="vd-page">
         <div className="vd-head">
@@ -665,6 +667,48 @@ export function Products() {
     );
   }
 
+  // Marcas existentes no catálogo (para o filtro, como no backoffice de referência).
+  const brands = [...new Set(products.map((p) => (p.brand ?? '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt'));
+
+  /** Duplicar: abre o formulário de criação já preenchido (nova referência). */
+  const duplicate = (p: ManagerProduct) => {
+    openEdit(p);
+    setEditing(null);
+    setForm((f) => ({ ...f, code: '', barcode: '', name: `${p.name} (cópia)`, stockQty: '0' }));
+    setCreating(true);
+  };
+  /** Suspender / Ativar (o produto suspenso deixa de aparecer no caixa e na loja). */
+  const toggleActive = async (p: ManagerProduct) => {
+    setBusy(true);
+    try { await api.products.update(p.id, { isActive: !p.is_active } as never); await load({ silent: true }); }
+    catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível alterar o estado do produto.'); }
+    finally { setBusy(false); }
+  };
+  /** Loja online: mostrar/ocultar os selecionados (em lote). */
+  const bulkOnline = async (on: boolean) => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    setBusy(true);
+    try {
+      for (let i = 0; i < ids.length; i += 8) {
+        await Promise.all(ids.slice(i, i + 8).map((id) => api.products.update(id, { showOnline: on } as never)));
+      }
+      setSelected(new Set());
+      await load({ silent: true });
+    } catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível atualizar a loja online.'); }
+    finally { setBusy(false); }
+  };
+  /** Exportar produtos (CSV com os filtros aplicados). */
+  const exportCsv = () => {
+    const esc = (v: unknown) => { const t = String(v ?? ''); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const head = ['Referência', 'Código de barras', 'Nome', 'Marca', 'Categoria', 'PVP (c/IVA)', 'Preço s/IVA', 'Preço de custo', 'IVA %', 'Stock', 'Online', 'Ativo'];
+    const lines = sorted.map((p) => [p.code, p.barcode ?? '', p.name, p.brand ?? '', catName(p.category_id) ?? '', grossUnit(p).toFixed(2), Number(p.unit_price).toFixed(2),
+      (Number(p.cost_price) || 0).toFixed(2), IVA_RATE[p.iva_code], Number(p.stock_qty), p.show_online ? 'Sim' : 'Não', p.is_active ? 'Sim' : 'Não'].map(esc).join(';'));
+    const blob = new Blob(['\ufeff' + [head.join(';'), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `produtos-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+
   // ── LISTAGEM ──
   const hasRecipes = products.some((p) => p.has_recipe);
   return (
@@ -689,6 +733,10 @@ export function Products() {
               <button role="menuitem" onClick={() => { setHeadMenu(null); toggleAll(); }} disabled={filtered.length === 0}>{allSel ? 'Desmarcar todos' : 'Selecionar todos'}</button>
               <button role="menuitem" onClick={() => { setHeadMenu(null); setPfilter('OFF'); }} disabled={inactiveCount === 0}>Ver inativos ({inactiveLabel})</button>
               <hr />
+              <button role="menuitem" onClick={() => { setHeadMenu(null); void bulkOnline(true); }} disabled={selected.size === 0 || busy}>Loja online — mostrar selecionados</button>
+              <button role="menuitem" onClick={() => { setHeadMenu(null); void bulkOnline(false); }} disabled={selected.size === 0 || busy}>Loja online — ocultar selecionados</button>
+              <button role="menuitem" onClick={() => { setHeadMenu(null); exportCsv(); }} disabled={sorted.length === 0}>Exportar produtos (CSV)</button>
+              <hr />
               <button role="menuitem" className="danger" onClick={() => { setHeadMenu(null); void bulkDelete(); }} disabled={selected.size === 0 || busy}>Eliminar selecionados ({selected.size})</button>
             </div>
           ) : null}
@@ -701,6 +749,10 @@ export function Products() {
           <label className="vd-f"><select value={fCat} onChange={(e) => setFCat(e.target.value)} aria-label="Categorias">
             <option value="">Categorias</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select></label>
+          <label className="vd-f"><select value={fBrand} onChange={(e) => setFBrand(e.target.value)} aria-label="Marcas">
+            <option value="">Marcas</option>
+            {brands.map((b) => <option key={b} value={b}>{b}</option>)}
           </select></label>
           <label className="vd-f"><select value={fOnline} onChange={(e) => setFOnline(e.target.value as typeof fOnline)} aria-label="Loja online">
             <option value="ALL">Loja online</option><option value="ON">Visível online</option><option value="OFF">Oculto online</option>
@@ -824,7 +876,9 @@ export function Products() {
                           {rowMenu === p.id ? (
                             <div className="vd-drop" role="menu">
                               <button role="menuitem" onClick={() => { setRowMenu(null); openEdit(p); }}><IconEdit size={15} /> Editar</button>
+                              <button role="menuitem" onClick={() => { setRowMenu(null); duplicate(p); }}>Duplicar</button>
                               <button role="menuitem" onClick={() => { setRowMenu(null); setEnterFor(p.id); setEntering(true); }} disabled={stores.length === 0}><IconTruck size={15} /> Adicionar stock</button>
+                              <button role="menuitem" onClick={() => { setRowMenu(null); void toggleActive(p); }} disabled={busy}>{p.is_active ? 'Suspender produto' : 'Ativar produto'}</button>
                               <hr />
                               <button role="menuitem" className="danger" onClick={() => { setRowMenu(null); void bulkDelete([p.id]); }} disabled={busy}>Eliminar</button>
                             </div>
