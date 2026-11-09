@@ -260,10 +260,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .composer .send { flex: none; width: 48px; height: 48px; border-radius: 12px; background: var(--accent); color: #fff; display: grid; place-items: center; }
 
 /* ── Gate (código da loja) ──────────────────────────────── */
-.gate { min-height: calc(100vh / var(--uz, 1)); min-height: calc(100dvh / var(--uz, 1)); display: flex; flex-direction: column;
+.gate { min-height: calc(100vh / var(--uz, 1)); min-height: calc(100vh / var(--uz, 1)); min-height: calc(100dvh / var(--uz, 1)); display: flex; flex-direction: column;
   justify-content: safe center; align-items: center; padding: clamp(10px, calc(2vh / var(--uz, 1)), 24px) 18px; overflow-y: auto; }
 .gate .card { max-width: 420px; width: 100%; text-align: center; margin: auto; }
-.gate .logo { width: clamp(48px, calc(8vh / var(--uz, 1)), 64px); height: clamp(48px, calc(8vh / var(--uz, 1)), 64px); border-radius: clamp(14px, calc(2.2vh / var(--uz, 1)), 18px); background: var(--accent); color: #fff; display: grid; place-items: center; margin: 0 auto clamp(8px, calc(1.6vh / var(--uz, 1)), 14px); }
+.gate .logo { width: 48px; width: clamp(48px, calc(8vh / var(--uz, 1)), 64px); height: 48px; height: clamp(48px, calc(8vh / var(--uz, 1)), 64px); border-radius: clamp(14px, calc(2.2vh / var(--uz, 1)), 18px); background: var(--accent); color: #fff; display: grid; place-items: center; margin: 0 auto clamp(8px, calc(1.6vh / var(--uz, 1)), 14px); }
 
 /* ── Chat flutuante com a loja ──────────────────────────── */
 .store-chat-fab { position: fixed; right: 18px; bottom: 18px; z-index: 80; width: 54px; height: 54px; border-radius: 999px;
@@ -271,7 +271,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   box-shadow: 0 12px 30px -8px rgba(0,0,0,.45); }
 .store-chat-fab:active { transform: translateY(1px); }
 .store-chat { position: fixed; right: 18px; bottom: 84px; z-index: 81; width: min(380px, calc(100vw - 24px));
-  height: min(560px, calc(calc(100dvh / var(--uz, 1)) - 120px)); background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  height: min(560px, calc(calc(100vh / var(--uz, 1)) - 120px)); height: min(560px, calc(calc(100dvh / var(--uz, 1)) - 120px)); background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
   display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 30px 70px -20px rgba(0,0,0,.55); }
 .store-chat-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
 .store-chat-dot { width: 10px; height: 10px; border-radius: 999px; flex: none; }
@@ -347,14 +347,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .kbd-bar .acts button { color: var(--muted); font-size: 13px; font-weight: 700; background: none; border: none; cursor: pointer; }
 .kbd-row { display: flex; gap: clamp(3px, 1vw, 6px); margin-top: clamp(3px, 1vw, 6px); }
 .key {
-  flex: 1 1 0; min-width: 0; height: clamp(38px, 7.2vw, 50px); border-radius: 9px;
+  flex: 1 1 0; min-width: 0; height: 38px; height: clamp(38px, 7.2vw, 50px); border-radius: 9px;
   background: var(--surface-2); color: var(--text);
-  border: 1px solid var(--border); font-size: clamp(14px, 4.2vw, 18px); font-weight: 600;
+  border: 1px solid var(--border); font-size: 14px; font-size: clamp(14px, 4.2vw, 18px); font-weight: 600;
   display: grid; place-items: center; cursor: pointer; transition: background .08s, transform .04s;
 }
 .key:hover { background: #eef2f9; }
 .key:active { transform: translateY(1px); }
-.key.action { background: #eef2f9; font-size: clamp(12px, 3.4vw, 15px); }
+.key.action { background: #eef2f9; font-size: 12px; font-size: clamp(12px, 3.4vw, 15px); }
 .key.accent { background: var(--accent, #2563eb); border-color: var(--accent, #2563eb); color: #fff; }
 .key.wide-15 { flex: 1.5 1 0; } .key.wide-16 { flex: 1.6 1 0; } .key.wide-4 { flex: 4 1 0; }
 @media (min-width: 720px) { .key { height: 50px; font-size: 18px; } .key.action { font-size: 15px; } .kbd-row { gap: 6px; } }
@@ -553,7 +553,7 @@ button, .btn, .add-btn, .chip, .product { -webkit-tap-highlight-color: transpare
 .ax-hero { display: flex; align-items: center; gap: 20px; margin: 18px 0; padding: 28px 30px; border-radius: 20px;
   background: linear-gradient(120deg, var(--accent), var(--accent-2)); color: #fff; box-shadow: 0 18px 40px -22px var(--accent); overflow: hidden; }
 .ax-hero-tx { flex: 1; min-width: 0; }
-.ax-hero-tx h1 { margin: 0 0 6px; font-size: clamp(22px, 3.4vw, 34px); font-weight: 900; letter-spacing: -.02em; }
+.ax-hero-tx h1 { margin: 0 0 6px; font-size: 22px; font-size: clamp(22px, 3.4vw, 34px); font-weight: 900; letter-spacing: -.02em; }
 .ax-hero-tx p { margin: 0 0 16px; font-size: 15px; opacity: .95; }
 .ax-hero .btn { background: #fff; color: var(--accent); box-shadow: none; }
 .ax-hero .btn:hover { box-shadow: 0 10px 24px -12px rgba(0,0,0,.4); }
@@ -932,7 +932,7 @@ img.u-av { background: var(--surface-2); }
 @keyframes xf-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* ══ ECRÃS TÁTEIS: campos nunca tapados pelo teclado no ecrã ══ */
-html.touch-ui .modal { max-height: min(calc(var(--vvh, 100dvh) - 16px), calc(92dvh / var(--uz, 1))); }
+html.touch-ui .modal { max-height: min(calc(var(--vvh, 100vh) - 16px), calc(92vh / var(--uz, 1))); max-height: min(calc(var(--vvh, 100dvh) - 16px), calc(92dvh / var(--uz, 1))); }
 html.kb-open .modal-bg { align-items: flex-start; padding-top: 8px; padding-bottom: 8px; }
 html.touch-ui.input-focus .modal .mb, html.touch-ui.input-focus .consume-body, html.touch-ui.input-focus .cv-msgs { padding-bottom: calc(var(--kb, 0px) + 38vh); }
 html.touch-ui.input-focus .content { padding-bottom: calc(var(--kb, 0px) + 42vh); }
@@ -947,7 +947,7 @@ html.touch-ui .btn.sm { min-height: 40px; }
 }
 
 /* ── Entrada na loja (StorePicker) — ecrã inicial da app LPS Loja ───────── */
-.sp { min-height: calc(100dvh / var(--uz, 1)); display: flex; justify-content: center; overflow-y: auto;
+.sp { min-height: calc(100vh / var(--uz, 1)); min-height: calc(100dvh / var(--uz, 1)); display: flex; justify-content: center; overflow-y: auto;
   padding: max(24px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
   background:
     radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--nx-brand-600) 16%, transparent) 0%, transparent 60%),

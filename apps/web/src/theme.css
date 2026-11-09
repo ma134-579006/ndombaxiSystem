@@ -144,7 +144,7 @@ input, textarea, select { font-family: inherit; }
 /* ── Layout admin ───────────────────────────────────────── */
 /* iPhone/Safari: calc(100vh / var(--uz, 1)) inclui a barra de endereço → o fundo ficava cortado.
    calc(100dvh / var(--uz, 1)) segue a altura VISÍVEL; o calc(100vh / var(--uz, 1)) fica como fallback (Safari antigo). */
-.admin { display: flex; height: calc(100vh / var(--uz, 1)); height: calc(100dvh / var(--uz, 1)); }
+.admin { display: flex; height: calc(100vh / var(--uz, 1)); height: calc(100vh / var(--uz, 1)); height: calc(100dvh / var(--uz, 1)); }
 .sidebar { width: 252px; flex: none; background: linear-gradient(180deg, var(--bg-2), var(--bg) 120%); border-right: 1px solid var(--border-soft); display: flex; flex-direction: column; }
 .sidebar .brand { display: flex; align-items: center; gap: 12px; padding: 20px 18px 16px; }
 .sidebar .brand img { width: 40px; height: 40px; border-radius: 12px; object-fit: contain; background: var(--surface-2); border: 1px solid var(--border); padding: 3px; }
@@ -160,7 +160,7 @@ input, textarea, select { font-family: inherit; }
 .or-sep { display: flex; align-items: center; gap: 10px; margin: clamp(6px, calc(1.2vh / var(--uz, 1)), 12px) 0; color: var(--muted); font-size: 12px; }
 .or-sep::before, .or-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 /* Link compacto "Tenho código 2FA" (poupa altura no login) */
-.link-2fa { background: none; border: none; color: var(--muted); font-size: clamp(11px, calc(1.5vh / var(--uz, 1)), 13px); cursor: pointer; padding: 2px 0; margin-bottom: clamp(4px, calc(1vh / var(--uz, 1)), 10px); text-decoration: underline; align-self: flex-start; }
+.link-2fa { background: none; border: none; color: var(--muted); font-size: 11px; font-size: clamp(11px, calc(1.5vh / var(--uz, 1)), 13px); cursor: pointer; padding: 2px 0; margin-bottom: clamp(4px, calc(1vh / var(--uz, 1)), 10px); text-decoration: underline; align-self: flex-start; }
 .link-2fa:hover { color: var(--text); }
 .login .google-row { display: flex; flex-direction: column; align-items: center; }
 /* Chat de aprovação (empresa ↔ super admin) */
@@ -277,7 +277,7 @@ input, textarea, select { font-family: inherit; }
 .menu-toggle { display: none; width: 40px; height: 40px; border-radius: 11px; align-items: center; justify-content: center; color: var(--text); border: 1px solid var(--border); background: var(--surface); flex: none; }
 .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); z-index: 90; }
 @media (max-width: 900px) {
-  .admin { height: calc(100dvh / var(--uz, 1)); }
+  .admin { height: calc(100vh / var(--uz, 1)); height: calc(100dvh / var(--uz, 1)); }
   .menu-toggle { display: inline-flex; }
   .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 84vw; max-width: 300px; transform: translateX(-100%); transition: transform .25s ease; z-index: 100; }
   .sidebar.open { transform: translateX(0); box-shadow: 0 0 60px rgba(0,0,0,.6); }
@@ -393,7 +393,7 @@ input, textarea, select { font-family: inherit; }
    botão) escalam de forma contínua com a altura do ecrã via clamp()+vh.
    Quanto mais baixo o ecrã, mais compacto fica — a logo só encolhe
    (object-fit:contain), nunca distorce. */
-.login { height: calc(100vh / var(--uz, 1)); height: calc(100dvh / var(--uz, 1)); display: flex; flex-direction: column;
+.login { height: calc(100vh / var(--uz, 1)); height: calc(100vh / var(--uz, 1)); height: calc(100dvh / var(--uz, 1)); display: flex; flex-direction: column;
   justify-content: safe center; align-items: center; overflow: hidden;
   padding: clamp(6px, calc(1.6vh / var(--uz, 1)), 24px) 18px;
   /* Segue o TEMA (claro/escuro): luzes de cor por cima do fundo do tema —
@@ -406,19 +406,19 @@ input, textarea, select { font-family: inherit; }
 /* Logo "modo enterprise": SEM caixa de fundo — flutua limpa sobre o vídeo,
    com profundidade (sombra) + leve halo na cor da marca. A imagem é a mesma
    (PNG com fundo tornado transparente), só muda a apresentação. */
-.login .brand img { width: clamp(44px, calc(8.6vh / var(--uz, 1)), 90px); height: clamp(44px, calc(8.6vh / var(--uz, 1)), 90px); object-fit: contain; margin-bottom: clamp(5px, calc(1.3vh / var(--uz, 1)), 13px); filter: drop-shadow(0 8px 20px rgba(0,0,0,.5)) drop-shadow(0 0 12px var(--primary-soft)); }
-.login .brand h1 { margin: 0; font-size: clamp(16px, calc(2.8vh / var(--uz, 1)), 23px); font-weight: 900; line-height: 1.1; color: var(--primary); text-shadow: 0 1px 22px var(--primary-soft); }
-.login .brand .tg { color: var(--muted); font-size: clamp(11px, calc(1.6vh / var(--uz, 1)), 13px); margin-top: 2px; }
+.login .brand img { width: 44px; width: clamp(44px, calc(8.6vh / var(--uz, 1)), 90px); height: 44px; height: clamp(44px, calc(8.6vh / var(--uz, 1)), 90px); object-fit: contain; margin-bottom: clamp(5px, calc(1.3vh / var(--uz, 1)), 13px); filter: drop-shadow(0 8px 20px rgba(0,0,0,.5)) drop-shadow(0 0 12px var(--primary-soft)); }
+.login .brand h1 { margin: 0; font-size: 16px; font-size: clamp(16px, calc(2.8vh / var(--uz, 1)), 23px); font-weight: 900; line-height: 1.1; color: var(--primary); text-shadow: 0 1px 22px var(--primary-soft); }
+.login .brand .tg { color: var(--muted); font-size: 11px; font-size: clamp(11px, calc(1.6vh / var(--uz, 1)), 13px); margin-top: 2px; }
 .login .card { background: linear-gradient(180deg, rgba(255,255,255,.04), transparent 40%), var(--surface); box-shadow: var(--shadow); padding: clamp(11px, calc(2.2vh / var(--uz, 1)), 20px); }
 
 /* Controlos do login encolhem com a altura do ecrã (escopo .login só). */
 .login .card .seg { margin-bottom: clamp(7px, calc(1.6vh / var(--uz, 1)), 16px) !important; }
 .login .seg button { padding: clamp(6px, calc(1.3vh / var(--uz, 1)), 10px); }
 .login .field { margin-bottom: clamp(4px, calc(1.1vh / var(--uz, 1)), 14px); gap: clamp(2px, calc(0.6vh / var(--uz, 1)), 6px); }
-.login .field > label { font-size: clamp(11px, calc(1.5vh / var(--uz, 1)), 13px); }
+.login .field > label { font-size: 11px; font-size: clamp(11px, calc(1.5vh / var(--uz, 1)), 13px); }
 .login .field input { padding: clamp(7px, calc(1.3vh / var(--uz, 1)), 12px) 13px; }
 .login .kbd-toggle { margin: clamp(7px, calc(1.3vh / var(--uz, 1)), 14px) 0; padding: clamp(7px, calc(1.2vh / var(--uz, 1)), 11px) 12px; }
-.login .btn.lg { height: clamp(40px, calc(6.4vh / var(--uz, 1)), 52px); }
+.login .btn.lg { height: 40px; height: clamp(40px, calc(6.4vh / var(--uz, 1)), 52px); }
 .login .box > p { margin-top: clamp(7px, calc(1.2vh / var(--uz, 1)), 14px) !important; }
 
 /* Telemóveis (largura pequena): o teclado-no-ecrã não é preciso (têm
@@ -472,7 +472,7 @@ html.kbd-open .login .box > p { display: none; }
 .modal-bg { position: fixed; inset: 0; background: rgba(4,8,16,.72); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); z-index: 1000; display: grid; place-items: center; padding: 18px; }
 /* Modal como COLUNA flex: cabeçalho FIXO no topo + corpo a rolar por dentro,
    cabendo sempre no ecrã (sem rolar o título nem a página). */
-.modal { background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 30%), var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 540px; max-height: calc(92vh / var(--uz, 1)); max-height: calc(92dvh / var(--uz, 1)); overflow: hidden; box-shadow: 0 40px 90px -24px rgba(0,0,0,.75); display: flex; flex-direction: column; }
+.modal { background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 30%), var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 540px; max-height: calc(92vh / var(--uz, 1)); max-height: calc(92vh / var(--uz, 1)); max-height: calc(92dvh / var(--uz, 1)); overflow: hidden; box-shadow: 0 40px 90px -24px rgba(0,0,0,.75); display: flex; flex-direction: column; }
 .modal .mh { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-soft); flex: none; }
 .modal .mh h3 { margin: 0; font-size: 17px; font-weight: 700; }
 .modal .mb { padding: 20px; overflow: auto; flex: 1 1 auto; min-height: 0; -webkit-overflow-scrolling: touch; }
@@ -508,14 +508,14 @@ html.kbd-open .login .box > p { display: none; }
 .kbd-bar .acts button { color: var(--muted); font-size: 13px; font-weight: 700; }
 .kbd-row { display: flex; gap: clamp(3px, 1vw, 6px); margin-top: clamp(3px, 1vw, 6px); }
 .key {
-  flex: 1 1 0; min-width: 0; height: clamp(38px, 7.2vw, 50px); border-radius: 9px;
+  flex: 1 1 0; min-width: 0; height: 38px; height: clamp(38px, 7.2vw, 50px); border-radius: 9px;
   background: var(--surface); color: var(--text);
-  border: 1px solid var(--border); font-size: clamp(14px, 4.2vw, 18px); font-weight: 600;
+  border: 1px solid var(--border); font-size: 14px; font-size: clamp(14px, 4.2vw, 18px); font-weight: 600;
   display: grid; place-items: center; transition: background .08s, transform .04s;
 }
 .key:hover { background: var(--surface-2); }
 .key:active { transform: translateY(1px); background: var(--primary-soft); }
-.key.action { background: var(--bg); font-size: clamp(12px, 3.4vw, 15px); }
+.key.action { background: var(--bg); font-size: 12px; font-size: clamp(12px, 3.4vw, 15px); }
 .key.accent { background: var(--grad-primary); border-color: transparent; color: #fff; }
 .key.wide-15 { flex: 1.5 1 0; } .key.wide-16 { flex: 1.6 1 0; } .key.wide-4 { flex: 4 1 0; }
 /* Ecrãs largos: o teclado é centrado (max 900px) e usa teclas fixas e confortáveis. */
@@ -1612,25 +1612,25 @@ body:has(.emp-card.sel) .agent-activity-fab {
   background:
     linear-gradient(90deg, #0a0e1a 0%, #0a0e1a 24%, rgba(10,14,26,.92) 38%, rgba(10,14,26,.55) 55%, rgba(10,14,26,.12) 74%, rgba(10,14,26,0) 88%),
     linear-gradient(0deg, rgba(7,10,20,.45), rgba(7,10,20,0) 35%); }
-.auth-panel { position: relative; z-index: 2; width: clamp(360px, 46%, 600px); flex: none; display: flex; align-items: center; justify-content: center;
-  padding: clamp(12px, calc(3dvh / var(--uz, 1)), 28px) clamp(22px, 4vw, 60px); overflow-y: auto; background: transparent; }
+.auth-panel { position: relative; z-index: 2; width: 360px; width: clamp(360px, 46%, 600px); flex: none; display: flex; align-items: center; justify-content: center;
+  padding: clamp(12px, calc(3vh / var(--uz, 1)), 28px) clamp(22px, 4vw, 60px); padding: clamp(12px, calc(3dvh / var(--uz, 1)), 28px) clamp(22px, 4vw, 60px); overflow-y: auto; background: transparent; }
 /* O formulário ADAPTA-SE 100% à altura do ecrã (qualquer ângulo) sem scroll:
    alturas e espaçamentos seguem a altura visível (dvh) com limites mínimos. */
 .auth-form { width: 100%; max-width: 380px; }
-.auth-title { margin: 0 0 clamp(12px, calc(2.6dvh / var(--uz, 1)), 22px); font-family: var(--font-display, inherit); font-size: clamp(22px, calc(4.2dvh / var(--uz, 1)), 34px); font-weight: 800; letter-spacing: -.02em; color: #fff; }
-.auth-label { display: block; font-size: 13px; color: #9fb0cc; margin: clamp(8px, calc(1.6dvh / var(--uz, 1)), 14px) 0 clamp(4px, .8dvh, 6px); font-weight: 600; }
-.auth-input { width: 100%; height: clamp(42px, calc(6.6dvh / var(--uz, 1)), 50px); border-radius: 12px; border: 1px solid #232d44; background: #121a2e; color: #fff;
+.auth-title { margin: 0 0 clamp(12px, calc(2.6vh / var(--uz, 1)), 22px); margin: 0 0 clamp(12px, calc(2.6dvh / var(--uz, 1)), 22px); font-family: var(--font-display, inherit); font-size: 22px; font-size: clamp(22px, calc(4.2vh / var(--uz, 1)), 34px); font-size: clamp(22px, calc(4.2dvh / var(--uz, 1)), 34px); font-weight: 800; letter-spacing: -.02em; color: #fff; }
+.auth-label { display: block; font-size: 13px; color: #9fb0cc; margin: clamp(8px, calc(1.6vh / var(--uz, 1)), 14px) 0 clamp(4px, .8vh, 6px); margin: clamp(8px, calc(1.6dvh / var(--uz, 1)), 14px) 0 clamp(4px, .8dvh, 6px); font-weight: 600; }
+.auth-input { width: 100%; height: 42px; height: clamp(42px, calc(6.6vh / var(--uz, 1)), 50px); height: clamp(42px, calc(6.6dvh / var(--uz, 1)), 50px); border-radius: 12px; border: 1px solid #232d44; background: #121a2e; color: #fff;
   padding: 0 15px; font-size: 15px; outline: none; transition: border-color .15s, box-shadow .15s; }
 .auth-input::placeholder { color: #5d6b85; }
 .auth-input:focus { border-color: #7b5cff; box-shadow: 0 0 0 3px rgba(123,92,255,.22); }
-.auth-sublinks { display: flex; justify-content: space-between; align-items: center; margin: clamp(8px, calc(1.4dvh / var(--uz, 1)), 12px) 2px clamp(12px, calc(2dvh / var(--uz, 1)), 18px); font-size: 13px; }
+.auth-sublinks { display: flex; justify-content: space-between; align-items: center; margin: clamp(8px, calc(1.4vh / var(--uz, 1)), 12px) 2px clamp(12px, calc(2vh / var(--uz, 1)), 18px); margin: clamp(8px, calc(1.4dvh / var(--uz, 1)), 12px) 2px clamp(12px, calc(2dvh / var(--uz, 1)), 18px); font-size: 13px; }
 .auth-remember { display: inline-flex; align-items: center; gap: 7px; color: #9fb0cc; cursor: pointer; user-select: none; }
 .auth-remember input { width: 16px; height: 16px; accent-color: #7b5cff; cursor: pointer; }
-.auth-2fa-link { display: inline-block; margin: -6px 2px clamp(12px, calc(2dvh / var(--uz, 1)), 18px); font-size: 13px; color: #8ea6ff; cursor: pointer; }
+.auth-2fa-link { display: inline-block; margin: -6px 2px clamp(12px, calc(2vh / var(--uz, 1)), 18px); margin: -6px 2px clamp(12px, calc(2dvh / var(--uz, 1)), 18px); font-size: 13px; color: #8ea6ff; cursor: pointer; }
 .auth-2fa-link:hover { text-decoration: underline; }
 .auth-sublinks a { color: #8ea6ff; cursor: pointer; text-decoration: none; }
 .auth-sublinks a:hover { text-decoration: underline; }
-.auth-btn { width: 100%; height: clamp(44px, calc(7dvh / var(--uz, 1)), 52px); border: none; border-radius: 12px; cursor: pointer; color: #fff;
+.auth-btn { width: 100%; height: 44px; height: clamp(44px, calc(7vh / var(--uz, 1)), 52px); height: clamp(44px, calc(7dvh / var(--uz, 1)), 52px); border: none; border-radius: 12px; cursor: pointer; color: #fff;
   font-size: 16px; font-weight: 800; letter-spacing: .2px;
   /* Identidade única da marca (auditoria 2026-07): índigo #2430E8 — o gradiente
      magenta lia-se como app de consumo e divergia do azul da landing. */
@@ -1641,10 +1641,10 @@ body:has(.emp-card.sel) .agent-activity-fab {
 .auth-btn:disabled { opacity: .65; cursor: default; }
 .auth-caixa { display: block; text-align: center; margin: 14px 0 4px; color: #9fb0cc; font-size: 13.5px; cursor: pointer; text-decoration: none; }
 .auth-caixa:hover { color: #fff; }
-.auth-or { display: flex; align-items: center; gap: 12px; color: #5d6b85; font-size: 12px; margin: clamp(10px, calc(2dvh / var(--uz, 1)), 16px) 0; }
+.auth-or { display: flex; align-items: center; gap: 12px; color: #5d6b85; font-size: 12px; margin: clamp(10px, calc(2vh / var(--uz, 1)), 16px) 0; margin: clamp(10px, calc(2dvh / var(--uz, 1)), 16px) 0; }
 .auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: #232d44; }
 .auth-google { display: flex; justify-content: center; }
-.auth-foot { text-align: center; margin: clamp(10px, calc(2dvh / var(--uz, 1)), 16px) 0 0; font-size: 13.5px; color: #9fb0cc; }
+.auth-foot { text-align: center; margin: clamp(10px, calc(2vh / var(--uz, 1)), 16px) 0 0; margin: clamp(10px, calc(2dvh / var(--uz, 1)), 16px) 0 0; font-size: 13.5px; color: #9fb0cc; }
 .auth-foot a { color: #8ea6ff; cursor: pointer; font-weight: 600; text-decoration: none; }
 .auth-foot a:hover { text-decoration: underline; }
 .auth-error { background: rgba(239,68,68,.14); border: 1px solid rgba(239,68,68,.4); color: #fecaca;
@@ -1684,7 +1684,7 @@ body:has(.emp-card.sel) .agent-activity-fab {
    design antigo (.login/.box), por isso nada aqui o afeta.
    ============================================================ */
 .auth-glass { background: rgba(18,26,46,.68); border: 1px solid #232d44;
-  border-radius: 18px; padding: clamp(15px,calc(2.3dvh / var(--uz, 1)),22px);
+  border-radius: 18px; padding: clamp(15px,calc(2.3vh / var(--uz, 1)),22px); padding: clamp(15px,calc(2.3dvh / var(--uz, 1)),22px);
   backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
   box-shadow: 0 24px 60px -26px rgba(0,0,0,.72), inset 0 1px 0 rgba(255,255,255,.04);
   animation: authRise .45s cubic-bezier(.22,.61,.36,1) both; }
@@ -1692,15 +1692,15 @@ body:has(.emp-card.sel) .agent-activity-fab {
 @keyframes authFade { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
 .auth-stepanim { animation: authFade .32s ease both; }
 
-.auth-brandhead { display: flex; align-items: center; gap: 13px; margin-bottom: clamp(12px,calc(2.2dvh / var(--uz, 1)),20px); }
+.auth-brandhead { display: flex; align-items: center; gap: 13px; margin-bottom: clamp(12px,calc(2.2vh / var(--uz, 1)),20px); margin-bottom: clamp(12px,calc(2.2dvh / var(--uz, 1)),20px); }
 .auth-brandhead .ic { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; flex: none;
   background: linear-gradient(135deg, #3d4bff 0%, #2430e8 60%, #1b23ae 100%); color: #fff;
   box-shadow: 0 12px 30px -10px rgba(36,48,232,.6); }
-.auth-brandhead h1 { margin: 0; font-size: clamp(19px,calc(3.2dvh / var(--uz, 1)),26px); font-weight: 800; letter-spacing: -.02em; color: #fff; line-height: 1.15; }
+.auth-brandhead h1 { margin: 0; font-size: 19px; font-size: clamp(19px,calc(3.2vh / var(--uz, 1)),26px); font-size: clamp(19px,calc(3.2dvh / var(--uz, 1)),26px); font-weight: 800; letter-spacing: -.02em; color: #fff; line-height: 1.15; }
 .auth-brandhead .sub { margin: 3px 0 0; font-size: 12.5px; color: #9fb0cc; }
 
 /* Progresso por passos numerados (Pagamento → Dados) */
-.setup-steps { display: flex; align-items: flex-start; margin: 0 0 clamp(14px,calc(2.4dvh / var(--uz, 1)),22px); }
+.setup-steps { display: flex; align-items: flex-start; margin: 0 0 clamp(14px,calc(2.4vh / var(--uz, 1)),22px); margin: 0 0 clamp(14px,calc(2.4dvh / var(--uz, 1)),22px); }
 .setup-steps .st { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none; }
 .setup-steps .dot { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
   font-weight: 800; font-size: 14px; background: #121a2e; border: 1.5px solid #2a3550; color: #7c89a6;
@@ -1715,7 +1715,7 @@ body:has(.emp-card.sel) .agent-activity-fab {
 .setup-steps .bar.done::after { width: 100%; }
 
 /* Campo com validação viva (check/x + dica) */
-.auth-field { margin-bottom: clamp(6px,calc(1.1dvh / var(--uz, 1)),10px); }
+.auth-field { margin-bottom: clamp(6px,calc(1.1vh / var(--uz, 1)),10px); margin-bottom: clamp(6px,calc(1.1dvh / var(--uz, 1)),10px); }
 .auth-inwrap { position: relative; }
 .auth-inwrap .vmark { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; pointer-events: none; animation: authFade .2s ease both; }
 .auth-input.ok { border-color: #22c55e; padding-right: 40px; }
@@ -1736,7 +1736,7 @@ body:has(.emp-card.sel) .agent-activity-fab {
 .auth-note .bankrow + .bankrow { margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.07); }
 
 /* Botão de upload no estilo auth (comprovativo / logótipo) */
-.auth-file { display: flex; align-items: center; gap: 10px; width: 100%; min-height: clamp(44px,calc(7dvh / var(--uz, 1)),50px);
+.auth-file { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; min-height: clamp(44px,calc(7vh / var(--uz, 1)),50px); min-height: clamp(44px,calc(7dvh / var(--uz, 1)),50px);
   border-radius: 12px; border: 1.5px dashed #2a3550; background: #121a2e; color: #9fb0cc; cursor: pointer;
   padding: 10px 15px; font-size: 13.5px; font-weight: 600; text-align: left;
   transition: border-color .15s, color .15s, background .15s; margin-bottom: 12px; }
@@ -1745,7 +1745,7 @@ body:has(.emp-card.sel) .agent-activity-fab {
 .auth-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Logótipo (passo Dados) */
-.auth-logo { display: flex; align-items: center; gap: 14px; margin-bottom: clamp(8px,calc(1.4dvh / var(--uz, 1)),14px); }
+.auth-logo { display: flex; align-items: center; gap: 14px; margin-bottom: clamp(8px,calc(1.4vh / var(--uz, 1)),14px); margin-bottom: clamp(8px,calc(1.4dvh / var(--uz, 1)),14px); }
 .auth-logo .lgbox { width: 60px; height: 60px; border-radius: 14px; border: 1px solid #2a3550;
   display: grid; place-items: center; overflow: hidden; background: #121a2e; flex: none; }
 .auth-logo .lgbox img { width: 100%; height: 100%; object-fit: contain; }
@@ -1776,11 +1776,11 @@ body:has(.emp-card.sel) .agent-activity-fab {
 .oskb-x { background: transparent; border: none; color: var(--muted); cursor: pointer; font-weight: 700; font-size: 13px; flex: none; }
 /* As linhas centram-se e nunca passam de 760px (confortável em monitores largos). */
 .oskb-row { display: flex; gap: clamp(3px,1.1vw,6px); justify-content: center; width: 100%; max-width: 760px; margin: 0 auto; }
-.oskb-k { flex: 1 1 0; min-width: 0; max-width: 64px; height: clamp(38px, calc(6.2vh / var(--uz, 1)), 46px); border-radius: 9px; border: 1px solid var(--border);
-  background: var(--surface); color: var(--text); font-size: clamp(14px, 4.2vw, 17px); font-weight: 600; cursor: pointer; display: grid; place-items: center; }
+.oskb-k { flex: 1 1 0; min-width: 0; max-width: 64px; height: 38px; height: clamp(38px, calc(6.2vh / var(--uz, 1)), 46px); border-radius: 9px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 14px; font-size: clamp(14px, 4.2vw, 17px); font-weight: 600; cursor: pointer; display: grid; place-items: center; }
 .oskb-k:active { background: var(--primary); color: #fff; border-color: var(--primary); }
 .oskb-k.wide { max-width: 72px; }
-.oskb-k.space { max-width: 240px; flex: 2 1 0; font-size: clamp(12px, 3vw, 13px); }
+.oskb-k.space { max-width: 240px; flex: 2 1 0; font-size: 12px; font-size: clamp(12px, 3vw, 13px); }
 @media (max-width: 560px) { .oskb-toggle, .oskb { display: none !important; } }
 /* O rótulo do botão flutuante recolhe-se em ecrãs estreitos (fica só o ícone). */
 @media (max-width: 680px) { .oskb-toggle-lbl { display: none; } .oskb-toggle { padding: 10px; } }
@@ -1831,8 +1831,8 @@ body:has(.emp-card.sel) .agent-activity-fab {
 .lock-logo { width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 6px 18px -6px rgba(0,0,0,.6); }
 .lock-sys { font-weight: 800; letter-spacing: .3px; font-size: 16px; opacity: .92; }
 .lock-clock { margin-top: calc(16vh / var(--uz, 1)); text-align: center; text-shadow: 0 6px 30px rgba(0,0,0,.5); }
-.lock-time { font-size: clamp(64px, 16vw, 132px); font-weight: 200; line-height: .95; letter-spacing: 2px; }
-.lock-date { margin-top: 6px; font-size: clamp(14px, 3.6vw, 20px); opacity: .85; text-transform: capitalize; }
+.lock-time { font-size: 64px; font-size: clamp(64px, 16vw, 132px); font-weight: 200; line-height: .95; letter-spacing: 2px; }
+.lock-date { margin-top: 6px; font-size: 14px; font-size: clamp(14px, 3.6vw, 20px); opacity: .85; text-transform: capitalize; }
 .lock-card { margin-top: auto; margin-bottom: clamp(36px, calc(8vh / var(--uz, 1)), 90px); display: flex; flex-direction: column; align-items: center;
   gap: 8px; padding: 22px 26px; width: min(380px, 90vw); border-radius: 20px;
   background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
@@ -2349,7 +2349,7 @@ input[type="checkbox"], input[type="radio"] {
 /* Alturas curtas: nada sobrepõe (relógio + cartão empilham e compactam) */
 @media (max-height: 640px) {
   .lock-clock { margin-top: calc(11vh / var(--uz, 1)); }
-  .lock-time { font-size: clamp(44px, calc(12vh / var(--uz, 1)), 96px); }
+  .lock-time { font-size: 44px; font-size: clamp(44px, calc(12vh / var(--uz, 1)), 96px); }
   .lock-card { margin-bottom: 44px; padding: 14px 18px; }
   .lock-av { width: 52px; height: 52px; }
   .lock-form { margin-top: 8px; }
@@ -2747,7 +2747,7 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .pil
 .agent-sendbtn { border-radius: 12px; background: var(--primary); }
 
 /* ── Logo LPS Vendas: sempre visível (v9) ─────────────────────────────── */
-.auth-logo-wide { display: block; width: auto; height: clamp(44px, calc(9.5dvh / var(--uz, 1)), 84px); max-width: 100%; object-fit: contain; margin: 0 0 clamp(6px, calc(1.6dvh / var(--uz, 1)), 16px) -6px; filter: drop-shadow(0 6px 18px rgba(0,0,0,.45)); }
+.auth-logo-wide { display: block; width: auto; height: 64px; max-height: 84px; max-width: min(100%, 300px); height: 44px; height: clamp(44px, calc(9.5vh / var(--uz, 1)), 84px); height: clamp(44px, calc(9.5dvh / var(--uz, 1)), 84px); max-width: 100%; object-fit: contain; margin: 0 0 clamp(6px, calc(1.6vh / var(--uz, 1)), 16px) -6px; margin: 0 0 clamp(6px, calc(1.6dvh / var(--uz, 1)), 16px) -6px; filter: drop-shadow(0 6px 18px rgba(0,0,0,.45)); }
 .sidebar .brand img { width: 46px; height: 46px; padding: 2px; border-radius: 12px; background: rgba(255,255,255,.04); }
 .lock-logo { width: 46px; height: 46px; border-radius: 10px; }
 
@@ -2892,8 +2892,8 @@ img.u-av { background: var(--surface-2); }
 .lock-screen.v3 .lock-state { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
   color: rgba(243,246,252,.8); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
 .lock-screen.v3 .lock-clock { position: relative; margin-top: clamp(84px, calc(16vh / var(--uz, 1)), 150px); text-align: center; text-shadow: none; }
-.lock-screen.v3 .lock-time { font-size: clamp(64px, 13vw, 112px); font-weight: 300; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
-.lock-screen.v3 .lock-date { margin-top: 10px; font-size: clamp(14px, 2.4vw, 17px); font-weight: 500; opacity: .72; text-transform: none; }
+.lock-screen.v3 .lock-time { font-size: 64px; font-size: clamp(64px, 13vw, 112px); font-weight: 300; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.lock-screen.v3 .lock-date { margin-top: 10px; font-size: 14px; font-size: clamp(14px, 2.4vw, 17px); font-weight: 500; opacity: .72; text-transform: none; }
 .lock-screen.v3 .lock-date::first-letter { text-transform: uppercase; }
 .lock-screen.v3 .lock-card { position: relative; width: min(360px, calc(100vw - 32px)); margin: auto auto clamp(56px, calc(10vh / var(--uz, 1)), 110px); padding: 26px 24px 18px;
   display: flex; flex-direction: column; align-items: center; gap: 4px; border-radius: 20px;
@@ -2946,14 +2946,14 @@ img.u-av { background: var(--surface-2); }
 .kpi-card.violet .kpi-ic { color: #7c3aed; background: rgba(124,58,237,.1) !important; }
 .kpi-card .kpi-label { padding-right: 46px; font-size: 13px !important; font-weight: 500 !important; text-transform: none !important; letter-spacing: 0 !important;
   opacity: 1 !important; color: var(--muted); line-height: 1.35; min-height: 34px; display: flex; align-items: center; }
-.kpi-card .kpi-value { margin: 8px 0 4px !important; font-size: clamp(22px, 2.2vw, 28px) !important; font-weight: 650 !important; letter-spacing: -.02em;
+.kpi-card .kpi-value { margin: 8px 0 4px !important; font-size: 22px; font-size: clamp(22px, 2.2vw, 28px) !important; font-weight: 650 !important; letter-spacing: -.02em;
   color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi-card .kpi-sub { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
 
 /* Cabeçalho, período e secções da Visão geral */
 /* O cabeçalho é sticky: precisa de fundo opaco, senão o conteúdo passa por baixo e sobrepõe-se */
 .profit-page .content-head { align-items: center; gap: 12px; margin-bottom: 6px; padding: 10px 0; background: var(--bg); border: 0; }
-.profit-page .content-head h2 { font-size: clamp(22px, 2.4vw, 26px); font-weight: 650; letter-spacing: -.02em; margin: 0; }
+.profit-page .content-head h2 { font-size: 22px; font-size: clamp(22px, 2.4vw, 26px); font-weight: 650; letter-spacing: -.02em; margin: 0; }
 .ov-live { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
   color: #15803d; background: rgba(22,163,74,.08); border: 1px solid rgba(22,163,74,.18); }
 .ov-live-t { color: var(--muted); font-weight: 500; }
@@ -2981,7 +2981,7 @@ img.u-av { background: var(--surface-2); }
 
 /* ── Mesmo estilo moderno em TODAS as páginas do painel ── */
 .content-head { align-items: center; gap: 12px; }
-.content-head h2 { font-size: clamp(22px, 2.4vw, 26px); font-weight: 650; letter-spacing: -.02em; }
+.content-head h2 { font-size: 22px; font-size: clamp(22px, 2.4vw, 26px); font-weight: 650; letter-spacing: -.02em; }
 .content .card { border-radius: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
 .content .card > h3, .content .card .row > h3 { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
 /* Chips de filtro/período: activo discreto (sem gradiente) */
@@ -2995,12 +2995,12 @@ img.u-av { background: var(--surface-2); }
 .fx-stat .ic { position: absolute; top: 16px; right: 16px; width: 34px; height: 34px; border-radius: 10px; background: color-mix(in srgb, var(--primary) 10%, transparent); }
 .fx-stat .ic svg { width: 18px; height: 18px; }
 .fx-stat .lb { padding-right: 46px; min-height: 34px; display: flex; align-items: center; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; }
-.fx-stat .vl { margin-top: 8px; font-size: clamp(20px, 2vw, 26px); font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.fx-stat .vl { margin-top: 8px; font-size: 20px; font-size: clamp(20px, 2vw, 26px); font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .fx-stat .sb { margin-top: 4px; }
 /* Mosaicos dos centros de comando (restaurante, hotel, clínica) */
 .ui-tile { padding: 16px 18px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(15,23,42,.04); }
 .ui-tile-l { font-size: 13px; font-weight: 500; color: var(--muted); }
-.ui-tile-v { margin: 6px 0 2px; font-size: clamp(20px, 2vw, 26px); font-weight: 650; letter-spacing: -.02em; color: var(--text); font-variant-numeric: tabular-nums; }
+.ui-tile-v { margin: 6px 0 2px; font-size: 20px; font-size: clamp(20px, 2vw, 26px); font-weight: 650; letter-spacing: -.02em; color: var(--text); font-variant-numeric: tabular-nums; }
 .ui-tile.info .ui-tile-v { color: var(--primary); }
 .ui-tile.warn .ui-tile-v { color: #b45309; }
 .ui-tile-h { font-size: 12.5px; color: var(--muted); }
@@ -3403,7 +3403,7 @@ img.u-av { background: var(--surface-2); }
 .cv-send { width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer; display: grid; place-items: center; color: #fff; flex: none;
   background: linear-gradient(145deg, var(--primary, #4f7cff), #7c4dff); transition: transform .12s, opacity .15s; }
 .cv-send:hover:not(:disabled) { transform: scale(1.06); } .cv-send:disabled { opacity: .4; cursor: default; }
-@media (max-width: 520px) { .modal-bg:has(.cv-sheet) { padding: 0; place-items: stretch; } .cv-sheet { width: 100%; height: calc(100dvh / var(--uz, 1)); border-radius: 0; } }
+@media (max-width: 520px) { .modal-bg:has(.cv-sheet) { padding: 0; place-items: stretch; } .cv-sheet { width: 100%; height: calc(100vh / var(--uz, 1)); height: calc(100dvh / var(--uz, 1)); border-radius: 0; } }
 
 /* Todas as páginas ocupam a largura toda do ecrã (como a Visão geral), em qualquer monitor */
 .fx, .fx-wide { max-width: none; width: 100%; }
@@ -3763,7 +3763,7 @@ img.u-av { background: var(--surface-2); }
 
 /* Indicadores: o valor ajusta-se à largura do cartão (nunca é cortado com reticências) */
 .kpi-card { container-type: inline-size; }
-.kpi-card .kpi-value { font-size: clamp(15px, 12cqw, 28px) !important; text-overflow: clip !important; overflow: visible !important; }
+.kpi-card .kpi-value { font-size: 15px; font-size: clamp(15px, 12cqw, 28px) !important; text-overflow: clip !important; overflow: visible !important; }
 /* Pesquisa das listas ocupa a largura toda */
 .content .fx-toolbar .fx-search { max-width: none; flex: 1 1 260px; }
 
@@ -3836,7 +3836,7 @@ img.u-av { background: var(--surface-2); }
 .fb-xfer-file svg { color: var(--primary); flex: none; } .fb-xfer-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ══ ECRÃS TÁTEIS: campos nunca tapados pelo teclado no ecrã ══ */
-html.touch-ui .modal { max-height: min(calc(var(--vvh, 100dvh) - 16px), calc(92dvh / var(--uz, 1))); }
+html.touch-ui .modal { max-height: min(calc(var(--vvh, 100vh) - 16px), calc(92vh / var(--uz, 1))); max-height: min(calc(var(--vvh, 100dvh) - 16px), calc(92dvh / var(--uz, 1))); }
 html.kb-open .modal-bg { align-items: flex-start; padding-top: 8px; padding-bottom: 8px; }
 html.touch-ui.input-focus .modal .mb, html.touch-ui.input-focus .consume-body, html.touch-ui.input-focus .cv-msgs { padding-bottom: calc(var(--kb, 0px) + 38vh); }
 html.touch-ui.input-focus .content { padding-bottom: calc(var(--kb, 0px) + 42vh); }
@@ -3891,7 +3891,7 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
   body:has(.sc-fab) .admin .content { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
 }
 /* Valores dos KPI: o "Kz" não salta sozinho para a linha seguinte; números grandes encolhem. */
-.kpi-value { white-space: nowrap; font-size: clamp(18px, 2.2vw, 28px); overflow: hidden; text-overflow: ellipsis; }
+.kpi-value { white-space: nowrap; font-size: 18px; font-size: clamp(18px, 2.2vw, 28px); overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Localização do cliente em tempo real (mapa próprio, sem iframe) ─────────── */
 .lmap { position: relative; overflow: hidden; border-radius: var(--nx-radius-lg); background: var(--surface-2, var(--surface));
