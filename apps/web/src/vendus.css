@@ -42,6 +42,16 @@
   color: var(--danger); font-size: 14px; font-weight: 500; background: none; border: 0; cursor: pointer;
 }
 .tb-sub:hover .tb-sub-tx { text-decoration: underline; }
+/* Dica dos dias que faltam (como o tooltip do backoffice de referência):
+   aparece por baixo com fade + deslize ao passar o rato ou focar. */
+.tb-sub { position: relative; }
+.tb-sub-tip { position: absolute; top: 100%; left: 50%; z-index: 60; margin-top: 2px; padding: 7px 11px; border-radius: 6px;
+  background: #1b1f2a; color: #fff; font-size: 12.5px; font-weight: 500; line-height: 1.3; white-space: nowrap; pointer-events: none;
+  opacity: 0; visibility: hidden; -webkit-transform: translate(-50%, -6px); transform: translate(-50%, -6px);
+  -webkit-transition: opacity .18s ease, transform .18s ease, visibility .18s; transition: opacity .18s ease, transform .18s ease, visibility .18s; }
+.tb-sub-tip::before { content: ""; position: absolute; top: -5px; left: 50%; margin-left: -5px; border: 5px solid transparent; border-top: 0; border-bottom-color: #1b1f2a; }
+.tb-sub:hover .tb-sub-tip, .tb-sub:focus-visible .tb-sub-tip { opacity: 1; visibility: visible; -webkit-transform: translate(-50%, 0); transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) { .tb-sub-tip { -webkit-transition: none; transition: none; } }
 .tb-ring { position: relative; width: 38px; height: 38px; display: grid; place-items: center; }
 .tb-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
 .tb-ring circle { fill: none; stroke-width: 3; }
