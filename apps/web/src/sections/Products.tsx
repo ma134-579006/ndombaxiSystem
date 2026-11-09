@@ -112,6 +112,11 @@ export function Products() {
   const [stats, setStats] = useState<Awaited<ReturnType<typeof api.products.stats>> | null>(null);
   const isExempt = form.ivaCode === 'ISE' || form.ivaCode === 'OUT';
   const [saving, setSaving] = useState(false);
+  // Como no backoffice de referência: preço escrito com ou sem IVA, e
+  // "Continuar a adicionar" (grava e abre logo outro formulário vazio).
+  const [priceMode, setPriceMode] = useState<'NET' | 'GROSS'>('NET');
+  const [grossInput, setGrossInput] = useState('');
+  const [keepAdding, setKeepAdding] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pfilter, setPfilter] = useState<'ALL' | 'IN' | 'OUT' | 'ONLINE' | 'OFF'>('ALL');
@@ -355,8 +360,8 @@ export function Products() {
         const unitCost = qInit > 0 && buyTotal > 0 ? Math.round((buyTotal / qInit) * 100) / 100 : (Number(form.costPrice) || 0);
         // Código de barras OPCIONAL — vazio: o sistema gera um EAN-13 interno.
         const payload: CreateProductInput = {
-          code: form.code.trim() || undefined,
-          barcode: form.code.trim() || undefined,
+          code: form.code.trim() || form.barcode.trim() || undefined,
+          barcode: form.barcode.trim() || form.code.trim() || undefined,
           name: form.name.trim(),
           description: form.description.trim() || undefined,
           categoryId: form.categoryId || undefined,
@@ -375,6 +380,13 @@ export function Products() {
           ...(isHealth ? { requiresPrescription: form.requiresPrescription } : {}),
         };
         await api.products.create(payload);
+        if (keepAdding) {
+          toast.success(`«${payload.name}» adicionado.`);
+          setForm({ ...EMPTY, categoryId: form.categoryId, brand: form.brand, ivaCode: form.ivaCode, unit: form.unit });
+          setGrossInput('');
+          void load({ silent: true });
+          return;
+        }
       }
       close();
       await load();
@@ -520,11 +532,15 @@ export function Products() {
           <div className="vd-row"><L hint="Nome que aparece no caixa, nas faturas e na loja online.">Nome do produto</L>
             <div className="vd-ctl"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome do produto" autoFocus /></div></div>
           {!editing ? (
+            <>
+            <div className="vd-row"><L hint="Opcional. Código interno do produto; vazio: usa o código de barras.">Referência</L>
+              <div className="vd-ctl"><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Referência" maxLength={64} /></div></div>
             <div className="vd-row"><L hint="Opcional. Vazio: o sistema gera automaticamente um código de barras EAN-13.">Código de barras</L>
               <div className="vd-ctl"><div className="vd-inline">
-                <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Código de barras" inputMode="text" />
-                <BarcodeScanner onDetected={(code) => setForm((f) => ({ ...f, code }))} />
+                <input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Código de barras" inputMode="text" maxLength={64} />
+                <BarcodeScanner onDetected={(code) => setForm((f) => ({ ...f, barcode: code }))} />
               </div></div></div>
+            </>
           ) : (
             <div className="vd-row"><L>Referência</L>
               <div className="vd-ctl"><input value={`${editing.code}${editing.barcode && editing.barcode !== editing.code ? ` · ${editing.barcode}` : ''}`} readOnly disabled /></div></div>
@@ -590,10 +606,26 @@ export function Products() {
         <div className="vd-card vd-form">
           <p className="vd-sect">Preço e imposto</p>
           <div className="vd-row two">
-            <L hint="Preço de venda sem IVA, em Kz.">Preço s/ IVA</L>
-            <div className="vd-ctl"><input inputMode="decimal" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="0" /></div>
-            <L>PVP</L>
-            <div className="vd-ctl"><input value={form.ivaCode === 'AUTO' && !companyIva ? 'IVA da empresa' : kz(pvpPreview)} readOnly disabled /></div>
+            <L hint="Escreva o preço com ou sem IVA; o outro valor é calculado.">Preço</L>
+            <div className="vd-ctl">
+              <div className="vd-seg" role="group" aria-label="Preço com ou sem IVA">
+                <button type="button" className={priceMode === 'GROSS' ? 'on' : ''} onClick={() => { setPriceMode('GROSS'); setGrossInput(form.unitPrice ? String(Math.round(pvpPreview * 100) / 100) : ''); }}>c/IVA</button>
+                <button type="button" className={priceMode === 'NET' ? 'on' : ''} onClick={() => setPriceMode('NET')}>s/IVA</button>
+              </div>
+              {priceMode === 'NET' ? (
+                <input inputMode="decimal" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="0" aria-label="Preço sem IVA" />
+              ) : (
+                <input inputMode="decimal" value={grossInput} aria-label="Preço com IVA" placeholder="0"
+                  onChange={(e) => {
+                    const v = e.target.value; setGrossInput(v);
+                    const g = Number(v.replace(',', '.'));
+                    const rate = form.ivaCode === 'AUTO' ? (companyIva ? IVA_RATE[companyIva as IvaCode] ?? 0 : 0) : IVA_RATE[form.ivaCode];
+                    setForm((f) => ({ ...f, unitPrice: Number.isFinite(g) && v.trim() !== '' ? String(Math.round((g / (1 + rate / 100)) * 100) / 100) : '' }));
+                  }} />
+              )}
+            </div>
+            <L>{priceMode === 'NET' ? 'PVP' : 'Preço s/ IVA'}</L>
+            <div className="vd-ctl"><input value={priceMode === 'NET' ? (form.ivaCode === 'AUTO' && !companyIva ? 'IVA da empresa' : kz(pvpPreview)) : kz(Number(form.unitPrice) || 0)} readOnly disabled /></div>
           </div>
           <div className="vd-row"><L hint="Automático usa o IVA padrão da empresa (Configurações).">Imposto</L>
             <div className="vd-ctl">
@@ -660,6 +692,7 @@ export function Products() {
           </div>
           <div className="vd-actions">
             <button className="vd-btn plain" onClick={close} disabled={saving}>Cancelar</button>
+            {!editing ? <label className="vd-check" style={{ marginRight: 'auto' }}><input type="checkbox" checked={keepAdding} onChange={(e) => setKeepAdding(e.target.checked)} /> Continuar a adicionar</label> : null}
             <button className="vd-btn" onClick={save} disabled={saving}>{saving ? 'A guardar…' : editing ? 'Guardar alterações' : 'Adicionar produto'}</button>
           </div>
         </div>
