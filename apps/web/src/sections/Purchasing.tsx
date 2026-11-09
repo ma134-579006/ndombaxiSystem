@@ -59,7 +59,17 @@ export function Purchasing() {
         <h2>Compras</h2>
         <span className="spacer" />
         {tab === 'suppliers' ? (
+          <>
+          <button className="btn ghost" onClick={() => {
+            // Exportar fornecedores (CSV), como no backoffice de referência.
+            const esc = (v: unknown) => { const t = String(v ?? ''); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+            const lines = suppliers.map((x) => [x.name, x.nif ?? '', x.phone ?? '', x.email ?? ''].map(esc).join(';'));
+            const blob = new Blob(['\ufeff' + ['Nome;NIF;Telemóvel;E-mail', ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'fornecedores.csv'; a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+          }} disabled={suppliers.length === 0}>Exportar Fornecedores</button>
           <button className="btn" onClick={() => setNewSupplier(true)}><IconPlus size={16} /> Novo fornecedor</button>
+          </>
         ) : (
           <button className="btn" onClick={() => setNewOrder(true)} disabled={suppliers.length === 0 || warehouses.length === 0}>
             <IconPlus size={16} /> Nova encomenda
