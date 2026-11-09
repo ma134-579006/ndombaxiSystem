@@ -157,12 +157,23 @@ export function Customers() {
   const togglePage = () => setSelected((p) => { const n = new Set(p); if (pageSel) pageRows.forEach((c) => n.delete(c.id)); else pageRows.forEach((c) => n.add(c.id)); return n; });
   const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^\d]/g, '').replace(/^(?!244)(\d{9})$/, '244$1')}`;
 
+  /** Exportar clientes (CSV com o filtro atual), como no backoffice de referência. */
+  const exportCsv = () => {
+    const esc = (v: unknown) => { const t = String(v ?? ''); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const head = ['Nome', 'NIF', 'Telemóvel', 'E-mail', 'Morada', 'Município', 'Província'];
+    const lines = filtered.map((c) => [c.name, c.tax_id ?? '', c.phone ?? '', shownEmail(c.email), c.address ?? '', c.municipality ?? '', c.province ?? ''].map(esc).join(';'));
+    const blob = new Blob(['\ufeff' + [head.join(';'), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `clientes-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+
   return (
     <div className="vd-page">
       <div className="vd-head">
         <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Clientes</span><span className="sep">/</span><span>Listagem</span></p>
         <span className="spacer" />
         <button className="vd-btn" onClick={openCreate}><IconPlus size={16} /> Adicionar Cliente</button>
+        <button className="vd-btn outline" onClick={exportCsv} disabled={filtered.length === 0}>Exportar Clientes</button>
         <div className="vd-split" ref={moreRef}>
           <button className="vd-btn outline" onClick={() => setMore((v) => !v)} aria-expanded={more}>Opções ▾</button>
           {more ? (
