@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import type { JwtPayload } from '@nexus/types';
 import { PushService, type PushOpDto } from './push.service';
 
@@ -44,6 +45,7 @@ function makeService(opts: {
   emitImpl?: jest.Mock;
   movementImpl?: jest.Mock;
   closeImpl?: jest.Mock;
+  deviceSeries?: string | null;
 } = {}) {
   const queue = [...(opts.rows ?? [])];
   const tx = {
@@ -61,10 +63,14 @@ function makeService(opts: {
   const invoices = { emit: opts.emitImpl ?? jest.fn(() => Promise.resolve({ id: 'inv-1', number: 'FT A/1' })) };
   const pos = { createCustomer: jest.fn(), updateCustomer: jest.fn() };
 
+  const discounts = { check: jest.fn(() => Promise.resolve()) };
+  const devices = { seriesFor: jest.fn(() => Promise.resolve(opts.deviceSeries ?? null)) };
+
   const service = new PushService(
     prisma as never, invoices as never, pos as never, cashbox as never,
+    discounts as never, devices as never,
   );
-  return { service, cashbox, invoices, tx };
+  return { service, cashbox, invoices, tx, discounts };
 }
 
 describe('PushService — turnos de caixa offline', () => {
@@ -77,7 +83,7 @@ describe('PushService — turnos de caixa offline', () => {
 
     // O lote chega com a venda ANTES da abertura (ordem de rede, não de negócio).
     await service.push('t1', [
-      op({ opId: '00000000-0000-4000-8000-00000000000b', seq: 2, entity: 'sale', payload: { lines: [] } }),
+      op({ opId: '00000000-0000-4000-8000-00000000000b', seq: 2, entity: 'sale', payload: { lines: [{ productCode: 'P1', quantity: 1 }] } }),
       op({ opId: '00000000-0000-4000-8000-00000000000a', seq: 1, entity: 'cashSession', payload: { openingFloat: 5000 } }),
     ], USER);
 
@@ -111,7 +117,7 @@ describe('PushService — turnos de caixa offline', () => {
 
   it('um turno recusado NÃO impede as operações seguintes de entrar', async () => {
     const { service, cashbox } = makeService({
-      openImpl: jest.fn(() => Promise.reject(new Error('Já tem um turno aberto.'))),
+      openImpl: jest.fn(() => Promise.reject(new BadRequestException('Já tem um turno aberto.'))),
     });
 
     const results = await service.push('t1', [
@@ -158,5 +164,56 @@ describe('PushService — turnos de caixa offline', () => {
 
     expect(res.status).toBe('rejected');
     expect(res.code).toBe('ENTITY_NOT_SUPPORTED');
+  });
+});
+
+const SALE = (payload: Record<string, unknown>, over: Partial<PushOpDto> = {}) =>
+  op({ entity: 'sale', opId: '00000000-0000-4000-8000-0000000000e1', payload, ...over });
+
+describe('PushService — vendas da fila (auditoria 2026-11-09)', () => {
+  it('falha MOMENTÂNEA (base caiu) não é gravada como recusa: sem resultado, o posto repete', async () => {
+    const { service, tx } = makeService({
+      emitImpl: jest.fn(() => Promise.reject(new Error('Cannot reach database server'))),
+    });
+    const results = await service.push('t1', [SALE({ lines: [{ productCode: 'P1', quantity: 1 }] })], USER);
+    expect(results).toEqual([]);
+    // nada escrito no livro de operações (senão o reenvio receberia "rejected" para sempre)
+    expect(tx.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it('erro de dados do Postgres (22P02) é recusa definitiva', async () => {
+    const { service } = makeService({
+      emitImpl: jest.fn(() => Promise.reject(Object.assign(new Error('invalid input syntax for type uuid'), { meta: { code: '22P02' } }))),
+    });
+    const [res] = await service.push('t1', [SALE({ lines: [{ productCode: 'P1', quantity: 1 }] })], USER);
+    expect(res.status).toBe('rejected');
+  });
+
+  it('recusa quantidade negativa e ignora unitPrice imposto pelo posto', async () => {
+    const { service, invoices } = makeService();
+    const [neg] = await service.push('t1', [SALE({ lines: [{ productCode: 'P1', quantity: -5 }] })], USER);
+    expect(neg.status).toBe('rejected');
+    expect(invoices.emit).not.toHaveBeenCalled();
+
+    await service.push('t1', [SALE({ lines: [{ productCode: 'P1', quantity: 2, unitPrice: 1 }] },
+      { opId: '00000000-0000-4000-8000-0000000000e2' })], USER);
+    const lines = (invoices.emit as jest.Mock).mock.calls[0][1].lines;
+    expect(lines[0].unitPrice).toBeUndefined();
+  });
+
+  it('recusa linha livre sem produto (valor arbitrário)', async () => {
+    const { service, invoices } = makeService();
+    const [res] = await service.push('t1', [SALE({ lines: [{ description: 'x', unitPrice: 1, ivaCode: 'NOR', quantity: 1 }] })], USER);
+    expect(res.status).toBe('rejected');
+    expect(invoices.emit).not.toHaveBeenCalled();
+  });
+
+  it('NC pedida pela fila é emitida como FT e a série é a do posto registado', async () => {
+    const { service, invoices, discounts } = makeService({ deviceSeries: 'C2' });
+    await service.push('t1', [SALE({ docType: 'NC', series: 'Z', deviceKey: 'posto-0001', lines: [{ productCode: 'P1', quantity: 1, discountRate: 0.5 }] })], USER);
+    const input = (invoices.emit as jest.Mock).mock.calls[0][1];
+    expect(input.docType).toBe('FT');
+    expect(input.series).toBe('C2');
+    expect(discounts.check).toHaveBeenCalledWith('t1', USER, expect.any(Array), expect.objectContaining({ offline: true }));
   });
 });

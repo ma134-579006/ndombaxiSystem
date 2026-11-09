@@ -205,8 +205,7 @@ export class PosRepository {
       // ainda não existir em tenants antigos (guarda de coluna).
       const wc = reg[0]?.r
         ? await tx.$queryRaw<{ n: number }[]>(
-            Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
-                       WHERE table_schema = current_schema() AND table_name = 'product_recipes' AND column_name = 'waste_pct'`)
+            Prisma.sql`SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.product_recipes') AND attname = 'waste_pct' AND NOT attisdropped`)
         : [{ n: 0 }];
       const w1 = (wc[0]?.n ?? 0) > 0 ? Prisma.sql`(1 + COALESCE(r.waste_pct, 0) / 100)` : Prisma.sql`1`;
       const w2 = (wc[0]?.n ?? 0) > 0 ? Prisma.sql`(1 + COALESCE(r2.waste_pct, 0) / 100)` : Prisma.sql`1`;

@@ -12,6 +12,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+
+/**
+ * Limite APERTADO por IP nos pontos que verificam um segredo (palavra-passe,
+ * PIN, código): o limite global (100/min) deixava testar ~6 000 PINs por hora.
+ * 20/min chega para uma loja inteira trocar de turno atrás do mesmo router.
+ */
+export const SECRET_LIMIT = Number(process.env.AUTH_RATE_LIMIT_PER_MIN) || 20;
+const SECRET_THROTTLE = { default: { limit: SECRET_LIMIT, ttl: 60_000 } };
 import type { JwtPayload } from '@nexus/types';
 import { AuthService } from './auth.service';
 import {
@@ -38,6 +47,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Public()
+  @Throttle(SECRET_THROTTLE)
   @Post('super-admin/login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login do Super Admin (plataforma)' })
@@ -50,6 +60,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle(SECRET_THROTTLE)
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Esqueci a senha/PIN — envia link de recuperação por e-mail' })
@@ -58,6 +69,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle(SECRET_THROTTLE)
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Define a nova senha/PIN a partir do token do e-mail' })
@@ -66,6 +78,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle(SECRET_THROTTLE)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login de utilizador de empresa (tenant)' })
@@ -91,6 +104,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle(SECRET_THROTTLE)
   @Post('login/pin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login do operador da caixa por nome (id) + PIN' })
@@ -105,6 +119,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle(SECRET_THROTTLE)
   @Post('login/staff')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login da caixa por E-MAIL do funcionário + PIN (descobre empresa+loja)' })
@@ -117,6 +132,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle(SECRET_THROTTLE)
   @Post('login/google')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login de empresa com Google (ID token) + companyCode' })
@@ -178,6 +194,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Throttle(SECRET_THROTTLE)
   @Post('verify-pin')
   @ApiOperation({ summary: 'Re-verifica o PIN do próprio utilizador (desbloqueio do POS)' })
   verifyPin(@CurrentUser() user: JwtPayload, @Body() dto: VerifyPinDto) {
@@ -186,6 +203,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Throttle(SECRET_THROTTLE)
   @Post('verify-password')
   @ApiOperation({ summary: 'Re-verifica a palavra-passe do próprio utilizador (desbloqueio do painel)' })
   verifyPassword(@CurrentUser() user: JwtPayload, @Body() dto: VerifyPasswordDto) {
@@ -202,6 +220,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Throttle(SECRET_THROTTLE)
   @Post('2fa/confirm')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Confirma e activa o 2FA' })

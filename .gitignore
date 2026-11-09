@@ -50,3 +50,5 @@ pdf_text.txt
 
 # Builds do Electron (gerados)
 **/win-unpacked/
+qa/.state.json
+qa/out/

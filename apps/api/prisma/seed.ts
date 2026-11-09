@@ -76,7 +76,18 @@ async function main(): Promise<void> {
 
   // Super Admin bootstrap
   const email = (process.env.SUPER_ADMIN_EMAIL ?? 'admin@nexus-erp.ao').toLowerCase();
-  const password = process.env.SUPER_ADMIN_PASSWORD ?? 'ChangeMe!Admin2025';
+  const DEFAULT_PW = 'ChangeMe!Admin2025';
+  const password = process.env.SUPER_ADMIN_PASSWORD ?? DEFAULT_PW;
+  // Em produção NUNCA se cria o Super Admin com a senha por omissão (pública no
+  // repositório): uma instalação nova sem a variável ficava com o "deus do
+  // sistema" à mercê de quem lesse o código. Sem senha própria → não cria.
+  if (process.env.NODE_ENV === 'production' && (password === DEFAULT_PW || password.length < 12)) {
+    const exists = await prisma.platformUser.findUnique({ where: { email } });
+    if (!exists) {
+      console.error('SUPER_ADMIN_PASSWORD em falta, por omissão ou com menos de 12 caracteres: Super Admin NÃO criado.');
+    }
+    return;
+  }
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
 
   await prisma.platformUser.upsert({

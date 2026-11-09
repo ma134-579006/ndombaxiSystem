@@ -276,8 +276,7 @@ export class InvoiceService {
       // senão a venda inteira rebentava com 42703. qtd efetiva = qtd×(1+q/100).
       const wasteCol = hasRecipes
         ? await tx.$queryRaw<{ n: number }[]>(
-            Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
-                       WHERE table_schema = current_schema() AND table_name = 'product_recipes' AND column_name = 'waste_pct'`)
+            Prisma.sql`SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.product_recipes') AND attname = 'waste_pct' AND NOT attisdropped`)
         : [{ n: 0 }];
       const wasteExpr = (wasteCol[0]?.n ?? 0) > 0 ? Prisma.sql`r.waste_pct` : Prisma.sql`0`;
       const effQty = (q: string | number, w: string | number | null | undefined) =>
@@ -1007,8 +1006,7 @@ export class InvoiceService {
     // Quebra/desperdício (espelho EXATO da emissão): coluna pode não existir
     // em tenants antigos — verificar antes de ler (senão o estorno rebentava).
     const wasteCol = await tx.$queryRaw<{ n: number }[]>(
-      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
-                 WHERE table_schema = current_schema() AND table_name = 'product_recipes' AND column_name = 'waste_pct'`,
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.product_recipes') AND attname = 'waste_pct' AND NOT attisdropped`,
     );
     const wasteExpr = (wasteCol[0]?.n ?? 0) > 0 ? Prisma.sql`r.waste_pct` : Prisma.sql`0`;
     const effQty = (q: string | number, w: string | number | null | undefined) =>
@@ -1131,6 +1129,8 @@ export class InvoiceService {
     actorId: string | null,
     amount: number,
     ncNumber: string,
+    /** Valor adicional devolvido em NUMERÁRIO (crédito já pago pelo cliente). */
+    opts?: { cashExtra?: number },
   ): Promise<void> {
     const orig = await tx.$queryRaw<{ session_id: string; payment_type: string | null; status: string }[]>(
       Prisma.sql`SELECT cm.session_id, cm.payment_type, s.status
@@ -1147,10 +1147,18 @@ export class InvoiceService {
       sessionId = open[0]?.id ?? null;
     }
     if (!sessionId) return;
-    await tx.$executeRaw(
-      Prisma.sql`INSERT INTO cash_movements (session_id, type, amount, payment_type, reference, reference_id, created_by)
-        VALUES (${sessionId}::uuid, 'REFUND', ${amount}, ${paymentType}, ${ncNumber}, ${invoiceId}::uuid, ${actorId}::uuid)`,
-    );
+    if (amount > 0) {
+      await tx.$executeRaw(
+        Prisma.sql`INSERT INTO cash_movements (session_id, type, amount, payment_type, reference, reference_id, created_by)
+          VALUES (${sessionId}::uuid, 'REFUND', ${amount}, ${paymentType}, ${ncNumber}, ${invoiceId}::uuid, ${actorId}::uuid)`,
+      );
+    }
+    if (opts?.cashExtra && opts.cashExtra > 0) {
+      await tx.$executeRaw(
+        Prisma.sql`INSERT INTO cash_movements (session_id, type, amount, payment_type, reference, reference_id, created_by)
+          VALUES (${sessionId}::uuid, 'REFUND', ${opts.cashExtra}, 'CASH', ${ncNumber}, ${invoiceId}::uuid, ${actorId}::uuid)`,
+      );
+    }
   }
 
   async cancelInvoice(
@@ -1488,15 +1496,33 @@ export class InvoiceService {
         });
       }
 
-      // Estorno no caixa: turno ABERTO da venda original (tipo de pagamento
-      // original); senão o turno aberto de quem devolve (como antes).
-      await this.recordCashRefund(tx, invoiceId, actor.id ?? null, refundGross, ncNumber);
-
-      // Se era venda a crédito, reduz a dívida pelo valor devolvido (nunca abaixo
-      // do que já foi pago; liquida se o saldo ficar a zero). Guarda to_regclass.
+      // Venda a CRÉDITO já parcialmente paga: a dívida só pode descer até ao que
+      // o cliente já pagou. O resto do valor devolvido (o que ele pagou A MAIS
+      // pelos artigos que ficou) tem de lhe ser DEVOLVIDO — antes perdia-se: a NC
+      // dizia 616 Kz, a dívida descia 462 e os 154 pagos ficavam sem rasto.
       const hasRec = await tx.$queryRaw<{ reg: string | null }[]>(
         Prisma.sql`SELECT to_regclass('receivables')::text AS reg`,
       );
+      let paidExcess = 0;
+      if (hasRec[0]?.reg) {
+        const rec = await tx.$queryRaw<{ original_amount: string; paid_amount: string }[]>(
+          Prisma.sql`SELECT original_amount, paid_amount FROM receivables
+                     WHERE invoice_id = ${invoiceId}::uuid AND status NOT IN ('CANCELLED') FOR UPDATE`,
+        );
+        if (rec[0]) {
+          const outstanding = round2(Number(rec[0].original_amount) - Number(rec[0].paid_amount));
+          paidExcess = Math.max(0, round2(refundGross - Math.max(0, outstanding)));
+        }
+      }
+
+      // Estorno no caixa: turno ABERTO da venda original (tipo de pagamento
+      // original); senão o turno aberto de quem devolve (como antes). A parte já
+      // paga pelo cliente sai em NUMERÁRIO (é dinheiro que lhe é devolvido).
+      await this.recordCashRefund(tx, invoiceId, actor.id ?? null, round2(refundGross - paidExcess), ncNumber,
+        paidExcess > 0 ? { cashExtra: paidExcess } : undefined);
+
+      // Se era venda a crédito, reduz a dívida pelo valor devolvido (nunca abaixo
+      // do que já foi pago; liquida se o saldo ficar a zero).
       if (hasRec[0]?.reg) {
         await tx.$executeRaw(
           Prisma.sql`UPDATE receivables

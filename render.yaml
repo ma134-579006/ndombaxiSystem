@@ -28,8 +28,11 @@ services:
       npx -y pnpm@9.15.9 --filter @nexus/replication build &&
       npx -y pnpm@9.15.9 --filter @nexus/api exec prisma generate &&
       npx -y pnpm@9.15.9 --filter @nexus/api build
+    # SEM --accept-data-loss: uma alteração ao schema que apagasse colunas/tabelas
+    # apagava dados de produção em silêncio no arranque. Assim o arranque falha,
+    # o Render mantém a versão anterior no ar e a migração faz-se à mão.
     startCommand: >-
-      npx -y pnpm@9.15.9 --filter @nexus/api exec prisma db push --accept-data-loss &&
+      npx -y pnpm@9.15.9 --filter @nexus/api exec prisma db push &&
       (npx -y pnpm@9.15.9 --filter @nexus/api exec prisma db seed || true) &&
       node apps/api/dist/main.js
     healthCheckPath: /health

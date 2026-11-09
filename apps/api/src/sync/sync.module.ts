@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CashboxModule } from '../cashbox/cashbox.module';
 import { PosModule } from '../pos/pos.module';
+import { DevicesModule } from '../devices/devices.module';
 import { SyncController } from './sync.controller';
 import { SyncService } from './sync.service';
 import { PushService } from './push.service';
@@ -14,7 +15,7 @@ import { PushService } from './push.service';
  * segunda implementação das regras de negócio.
  */
 @Module({
-  imports: [PosModule, CashboxModule],
+  imports: [PosModule, CashboxModule, DevicesModule],
   controllers: [SyncController],
   providers: [SyncService, PushService],
   exports: [SyncService],

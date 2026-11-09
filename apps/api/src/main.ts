@@ -17,6 +17,14 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService<Env, true>);
   const logger = new Logger('Bootstrap');
 
+  // IP REAL do cliente atrás do proxy do Render: sem isto, `req.ip` era o do
+  // balanceador e o limite de pedidos (ThrottlerGuard, por IP) era PARTILHADO por
+  // todos os clientes — com várias lojas a vender ao mesmo tempo, toda a gente
+  // recebia 429. TRUST_PROXY_HOPS define os saltos (Render = 1; local = 0).
+  const hops = Number(process.env.TRUST_PROXY_HOPS ?? (process.env.RENDER ? 1 : 0));
+  if (Number.isInteger(hops) && hops > 0) {
+    (app.getHttpAdapter().getInstance() as { set(k: string, v: unknown): void }).set('trust proxy', hops);
+  }
   app.use(helmet());
   // 50 MB: os ficheiros de migração (Excel/CSV/SAF-T XML/.sql) chegam como
   // base64 (infla ~33%), logo um ficheiro binário de ~30 MB precisa de ~40 MB

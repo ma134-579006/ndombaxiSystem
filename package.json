@@ -21,5 +21,11 @@
     "db:seed": "pnpm --filter @nexus/api exec prisma db seed",
     "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker/docker-compose.yml down"
+  },
+  "pnpm": {
+    "overrides": {
+      "dompurify@<3.4.17": "3.4.17",
+      "proxy-addr@<2.0.8": "2.0.8"
+    }
   }
 }

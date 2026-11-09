@@ -17,7 +17,10 @@
  * saltos, o mesmo encadeamento de hash e a mesma baixa de stock. Este módulo é
  * uma porta de entrada, não uma segunda versão do sistema.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, Logger } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validateSync } from 'class-validator';
+import { EmitInvoiceDto } from '../pos/dto/emit-invoice.dto';
 import { Prisma } from '@prisma/client';
 import { DocumentType } from '@nexus/agt-xml';
 import type { JwtPayload } from '@nexus/types';
@@ -25,6 +28,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CashboxService } from '../cashbox/cashbox.service';
 import { InvoiceService } from '../pos/invoice.service';
 import { PosRepository } from '../pos/pos.repository';
+import { DiscountGuardService } from '../pos/discount-guard.service';
+import { DevicesService } from '../devices/devices.service';
+import { localSeries } from '../common/device-series';
 import type { PullChangeDto } from './sync.service';
 
 export interface PushOpDto {
@@ -63,6 +69,48 @@ function isUniqueViolation(e: unknown, indexHint?: string): boolean {
   return isUnique && (!indexHint || msg.includes(indexHint) || byColumn);
 }
 
+/**
+ * Recusa DEFINITIVA (de negócio ou de dados) vs. falha MOMENTÂNEA.
+ *
+ * Só as primeiras podem ir para o livro como `rejected`: o posto bloqueia a
+ * operação e o livro devolve a mesma recusa para sempre. Uma falha momentânea
+ * (ligação à base caiu, deadlock, pool esgotado, timeout) gravada como recusa
+ * fazia o posto DESCARTAR uma venda ou um fecho de turno válidos.
+ *   • definitiva: HttpException 4xx (stock, turno, validação) ou erro de dados do
+ *     Postgres (SQLSTATE classe 22 — valor inválido; 23 — restrição violada);
+ *   • tudo o resto é momentâneo → sem resultado para essa operação, e o motor do
+ *     posto repõe-na na fila com espera crescente (reenviar é idempotente).
+ */
+export function isPermanentRejection(e: unknown): boolean {
+  if (e instanceof HttpException) return e.getStatus() < 500;
+  const err = e as { code?: unknown; meta?: { code?: unknown }; message?: unknown };
+  const candidates = [err?.meta?.code, err?.code].filter((c): c is string => typeof c === 'string');
+  const msg = typeof err?.message === 'string' ? err.message : '';
+  const fromMsg = msg.match(/(2[23][0-9A-Z]{3})/);
+  if (fromMsg) candidates.push(fromMsg[1]);
+  return candidates.some((c) => /^2[23][0-9A-Z]{3}$/.test(c));
+}
+
+/**
+ * Valida o payload de uma venda vinda da fila com o MESMO DTO do POST
+ * /pos/invoices. Inválido → recusa definitiva (400), nunca emissão parcial.
+ */
+export function sanitizeSalePayload(payload: Record<string, unknown>): EmitInvoiceDto & Record<string, unknown> {
+  const dto = plainToInstance(EmitInvoiceDto, payload ?? {});
+  const errors = validateSync(dto, { whitelist: true, forbidUnknownValues: false });
+  if (errors.length) {
+    const msg = errors.flatMap((e) => [
+      ...Object.values(e.constraints ?? {}),
+      ...(e.children ?? []).flatMap((c) => (c.children ?? []).flatMap((cc) => Object.values(cc.constraints ?? {}))),
+    ]).slice(0, 3).join('; ');
+    throw new BadRequestException(`Venda inválida: ${msg || 'dados recusados'}`);
+  }
+  return dto as EmitInvoiceDto & Record<string, unknown>;
+}
+
+/** Falha momentânea durante uma operação: não se grava nada, o posto volta a tentar. */
+class TransientPushError extends Error {}
+
 @Injectable()
 export class PushService {
   private readonly logger = new Logger(PushService.name);
@@ -72,6 +120,8 @@ export class PushService {
     private readonly invoices: InvoiceService,
     private readonly pos: PosRepository,
     private readonly cashbox: CashboxService,
+    private readonly discounts: DiscountGuardService,
+    private readonly devices: DevicesService,
   ) {}
 
   /**
@@ -88,14 +138,10 @@ export class PushService {
         results.push(await this.applyOne(schema, op, user));
       } catch (e) {
         // Uma falha inesperada não pode ser lida como "recusada" — isso faria o
-        // posto descartar trabalho válido. Devolvemos algo que o motor repete.
-        this.logger.error(`push ${op.entity}/${op.opId} falhou: ${(e as Error).message}`);
-        results.push({
-          opId: op.opId,
-          status: 'rejected',
-          message: (e as Error).message,
-          code: 'SERVER_ERROR',
-        });
+        // posto BLOQUEAR (ou descartar) trabalho válido. Sem resultado para esta
+        // operação, o posto repõe-na na fila e volta a tentar mais tarde.
+        const cause = e instanceof TransientPushError ? (e.cause as Error) : (e as Error);
+        this.logger.error(`push ${op.entity}/${op.opId} falhou (fica para nova tentativa): ${cause?.message ?? e}`);
       }
     }
     return results;
@@ -130,11 +176,29 @@ export class PushService {
   // ── Vendas ─────────────────────────────────────────────────
 
   private async applySale(schema: string, op: PushOpDto, user: JwtPayload): Promise<PushResultDto> {
-    const p = op.payload;
     try {
+      // O payload chega como objeto livre (IsObject): sem isto, uma venda pela fila
+      // podia trazer `unitPrice` à escolha numa linha de produto, quantidades
+      // negativas (total negativo e stock a SUBIR) ou linhas livres de valor
+      // arbitrário — tudo o que o POST /pos/invoices recusa. Passa pela MESMA
+      // validação (whitelist: campos desconhecidos são descartados).
+      const p = sanitizeSalePayload(op.payload);
+      const lines = p.lines;
+      // As MESMAS regras do POST /pos/invoices (ver pos.controller.ts):
+      //  • desconto acima da promoção fica auditado (offline → "não verificado");
+      //  • pelo caixa só se VENDE (FT/FS) — uma "NC" vinda da fila baixava stock e
+      //    contava como venda no turno;
+      //  • a SÉRIE é a do posto registado, não a que o pedido escolher (duas caixas
+      //    na mesma série sem rede = duas cadeias de hash divergentes).
+      if (Array.isArray(lines)) {
+        await this.discounts.check(schema, user, lines, {
+          approvalPin: typeof p.approvalPin === 'string' ? p.approvalPin : null, offline: true,
+        });
+      }
+      const deviceSeries = await this.devices.seriesFor(schema, typeof p.deviceKey === 'string' ? p.deviceKey : null);
       const invoice = await this.invoices.emit(schema, {
-        docType: (p.docType as DocumentType) ?? DocumentType.FT,
-        series: (p.series as string) ?? 'A',
+        docType: p.docType === DocumentType.FS ? DocumentType.FS : DocumentType.FT,
+        series: localSeries() ?? deviceSeries ?? (typeof p.series === 'string' && /^[A-Z0-9]{1,5}$/.test(p.series) ? p.series : 'A'),
         customerId: (p.customerId as string) ?? null,
         cashierId: user.sub,
         cashierName: user.name ?? user.email,
@@ -152,7 +216,7 @@ export class PushService {
         // desatualizado (como no POST /pos/invoices com offline:true), em vez de ficar presa.
         offline: true,
         payments: (p.payments as never) ?? null,
-        lines: p.lines as never,
+        lines: p.lines,
       });
 
       const result: PushResultDto = {
@@ -193,6 +257,7 @@ export class PushService {
       // Recusa de negócio (stock, série fechada, turno fechado): fica registada
       // para não voltar a ser tentada em ciclo, e o posto mostra o motivo.
       const message = (e as Error).message;
+      if (!isPermanentRejection(e)) throw new TransientPushError('falha momentânea', { cause: e });
       const result: PushResultDto = {
         opId: op.opId, status: 'rejected', message, code: 'SALE_REJECTED',
       };
@@ -256,6 +321,7 @@ export class PushService {
         }
         // Recusa de negócio (ex.: já tem um turno aberto no servidor). Fica
         // registada para não repetir em ciclo e o posto mostra o motivo.
+        if (!isPermanentRejection(e)) throw new TransientPushError('falha momentânea', { cause: e });
         const result: PushResultDto = {
           opId: op.opId, status: 'rejected',
           message: (e as Error).message, code: 'SHIFT_REJECTED',
@@ -285,6 +351,7 @@ export class PushService {
         await this.recordLedger(schema, op, user, 'applied', op.localId, result);
         return result;
       } catch (e) {
+        if (!isPermanentRejection(e)) throw new TransientPushError('falha momentânea', { cause: e });
         const result: PushResultDto = {
           opId: op.opId, status: 'rejected',
           message: (e as Error).message, code: 'SHIFT_CLOSE_REJECTED',
@@ -344,6 +411,7 @@ export class PushService {
           };
         }
       }
+      if (!isPermanentRejection(e)) throw new TransientPushError('falha momentânea', { cause: e });
       const result: PushResultDto = {
         opId: op.opId, status: 'rejected',
         message: (e as Error).message, code: 'CASH_MOVEMENT_REJECTED',

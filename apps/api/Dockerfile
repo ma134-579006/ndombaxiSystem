@@ -13,7 +13,9 @@ WORKDIR /repo
 COPY . .
 # Normaliza o entrypoint (Windows pode gravar CRLF / sem bit +x) para arrancar no Linux.
 RUN sed -i 's/\r$//' apps/api/docker-entrypoint.sh && chmod +x apps/api/docker-entrypoint.sh
-RUN pnpm install --frozen-lockfile
+# Só a API e os pacotes de que ela depende: instalar o workspace inteiro puxava
+# o `better-sqlite3` do desktop (módulo nativo, precisa de Python) e partia a imagem.
+RUN pnpm install --frozen-lockfile --filter "@nexus/api..."
 # Cada pacote do monorepo que a API importa TEM de ser construído aqui: o
 # `dist/` deles não vai no repositório, e uma máquina de quem já os construiu
 # antes não dá pela falta. Foi assim que `@nexus/agt-xml` partiu a imagem uma

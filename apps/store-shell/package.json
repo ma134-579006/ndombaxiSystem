@@ -11,11 +11,11 @@
     "open:android": "cap open android"
   },
   "dependencies": {
-    "@capacitor/android": "6.2.1",
+    "@capacitor/android": "6.2.3",
     "@capacitor/app": "6.0.2",
-    "@capacitor/core": "6.2.1"
+    "@capacitor/core": "6.2.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "6.2.1"
+    "@capacitor/cli": "6.2.3"
   }
 }

@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { DocumentType, findTaxExemption } from '@nexus/agt-xml';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -257,6 +258,8 @@ export class PosController {
   }
 
   // ── Emissão fiscal ─────────────────────────────────────────
+  // PIN de supervisor: sem limite próprio dava para o adivinhar por tentativas.
+  @Throttle({ default: { limit: Number(process.env.AUTH_RATE_LIMIT_PER_MIN) || 20, ttl: 60_000 } })
   @Post('discount/approve')
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Confirma o PIN do supervisor/gerente que aprova um desconto manual' })
@@ -288,8 +291,11 @@ export class PosController {
         // Pelo caixa só se VENDE (FT/FS). Notas de crédito nascem da anulação/devolução;
         // um "NC" pedido aqui baixava stock e contava como venda no turno.
         docType: dto.docType === DocumentType.FS ? DocumentType.FS : DocumentType.FT,
-        // Servidor local de um posto: série própria do posto (DEVICE_SERIES).
-        series: deviceSeries ?? localSeries() ?? dto.series ?? 'A',
+        // Servidor LOCAL de um posto: a série própria do posto (DEVICE_SERIES, `L…`)
+        // manda SEMPRE. Antes perdia para a série do registo local (`A1`, `A2`… de
+        // um contador LOCAL), que colidia com as séries atribuídas pela nuvem: o
+        // número já existia lá, a replicação recusava e a fatura ficava só no posto.
+        series: localSeries() ?? deviceSeries ?? dto.series ?? 'A',
         customerId: dto.customerId ?? null,
         cashierId: user.sub,
         cashierName: user.name ?? user.email,

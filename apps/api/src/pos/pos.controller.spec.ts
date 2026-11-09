@@ -148,3 +148,25 @@ describe('PosController — a série vem do POSTO, não do pedido', () => {
     expect(emit.mock.calls[0][1]).toMatchObject({ series: 'B' });
   });
 });
+
+describe('PosController — série no servidor LOCAL do posto (auditoria 2026-11-09)', () => {
+  const prev = process.env.DEVICE_SERIES;
+  afterEach(() => { if (prev === undefined) delete process.env.DEVICE_SERIES; else process.env.DEVICE_SERIES = prev; });
+
+  it('no servidor local a série do posto (L…) ganha à série do registo local', async () => {
+    process.env.DEVICE_SERIES = 'L7K2';
+    const emit = jest.fn(() => Promise.resolve({ id: 'inv-1' }));
+    // O registo no servidor LOCAL atribui "A1" de um contador local — colidia com a nuvem.
+    const controller = makeController({ emit }, { seriesFor: () => Promise.resolve('A1') });
+    await controller.emitInvoice(dto({ deviceKey: 'posto-local-01' }), USER);
+    expect(emit).toHaveBeenCalledWith('tenant_1', expect.objectContaining({ series: 'L7K2' }));
+  });
+
+  it('na nuvem (sem DEVICE_SERIES) continua a mandar a série do posto registado', async () => {
+    delete process.env.DEVICE_SERIES;
+    const emit = jest.fn(() => Promise.resolve({ id: 'inv-1' }));
+    const controller = makeController({ emit }, { seriesFor: () => Promise.resolve('A3') });
+    await controller.emitInvoice(dto({ deviceKey: 'posto-nuvem-01', series: 'Z' }), USER);
+    expect(emit).toHaveBeenCalledWith('tenant_1', expect.objectContaining({ series: 'A3' }));
+  });
+});

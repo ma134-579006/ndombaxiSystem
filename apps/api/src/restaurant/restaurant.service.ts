@@ -34,8 +34,7 @@ export class RestaurantService {
   /** A coluna prep_zone (zona cozinha/bar por categoria) já existe neste schema? */
   private async hasZoneCol(tx: Prisma.TransactionClient): Promise<boolean> {
     const rows = await tx.$queryRaw<{ n: number }[]>(
-      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
-                 WHERE table_schema = current_schema() AND table_name = 'product_categories' AND column_name = 'prep_zone'`,
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.product_categories') AND attname = 'prep_zone' AND NOT attisdropped`,
     );
     return (rows[0]?.n ?? 0) > 0;
   }
@@ -60,8 +59,7 @@ export class RestaurantService {
 
   private async hasWasteCol(tx: Prisma.TransactionClient): Promise<boolean> {
     const rows = await tx.$queryRaw<{ n: number }[]>(
-      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
-                 WHERE table_schema = current_schema() AND table_name = 'product_recipes' AND column_name = 'waste_pct'`,
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.product_recipes') AND attname = 'waste_pct' AND NOT attisdropped`,
     );
     return (rows[0]?.n ?? 0) > 0;
   }
@@ -645,8 +643,7 @@ export class RestaurantService {
       // Motivo visível na própria comanda (coluna notes do template; guarda
       // defensiva para tenants antigos que possam não a ter).
       const hasNotes = await tx.$queryRaw<{ n: number }[]>(
-        Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
-                   WHERE table_schema = current_schema() AND table_name = 'restaurant_orders' AND column_name = 'notes'`);
+        Prisma.sql`SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.restaurant_orders') AND attname = 'notes' AND NOT attisdropped`);
       const cancelNote = `CANCELADA: ${motivo}${actor?.name ? ` · por ${actor.name}` : ''}`;
       if ((hasNotes[0]?.n ?? 0) > 0) {
         await tx.$executeRaw(Prisma.sql`UPDATE restaurant_orders
@@ -817,8 +814,7 @@ export class RestaurantService {
    *  em fundo) — verificar antes de as usar, senão o KDS rebentava até chegar. */
   private async hasWebKitchenCols(tx: Prisma.TransactionClient): Promise<boolean> {
     const rows = await tx.$queryRaw<{ n: number }[]>(
-      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
-                 WHERE table_schema = current_schema() AND table_name = 'web_orders' AND column_name = 'kitchen_status'`);
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.web_orders') AND attname = 'kitchen_status' AND NOT attisdropped`);
     return (rows[0]?.n ?? 0) > 0;
   }
 
@@ -893,16 +889,14 @@ export class RestaurantService {
   /** prep_eta_min pode ainda não existir em restaurant_orders (auto-migração). */
   private async hasOrderEtaCol(tx: Prisma.TransactionClient): Promise<boolean> {
     const rows = await tx.$queryRaw<{ n: number }[]>(
-      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
-                 WHERE table_schema = current_schema() AND table_name = 'restaurant_orders' AND column_name = 'prep_eta_min'`);
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.restaurant_orders') AND attname = 'prep_eta_min' AND NOT attisdropped`);
     return (rows[0]?.n ?? 0) > 0;
   }
 
   /** A coluna restaurant_orders.priority pode ainda não existir (auto-migração). */
   private async hasOrderPriorityCol(tx: Prisma.TransactionClient): Promise<boolean> {
     const rows = await tx.$queryRaw<{ n: number }[]>(
-      Prisma.sql`SELECT COUNT(*)::int AS n FROM information_schema.columns
-                 WHERE table_schema = current_schema() AND table_name = 'restaurant_orders' AND column_name = 'priority'`);
+      Prisma.sql`SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass(quote_ident(current_schema()) || '.restaurant_orders') AND attname = 'priority' AND NOT attisdropped`);
     return (rows[0]?.n ?? 0) > 0;
   }
 
