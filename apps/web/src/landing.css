@@ -109,11 +109,11 @@
 @media (prefers-reduced-motion: reduce) { .tw-caret { animation: none; } }
 .lp-hero h1 {
   margin: 0 0 16px; color: #fff; font-weight: 900; letter-spacing: -0.5px;
-  font-size: clamp(32px, 5vw, 56px); line-height: 1.05; max-width: 800px;
+  font-size: 32px; font-size: clamp(32px, 5vw, 56px); line-height: 1.05; max-width: 800px;
   text-shadow: 0 2px 30px rgba(0, 0, 0, 0.4);
 }
 .lp-hero p.sub {
-  margin: 0 0 30px; color: #cfd8e8; font-size: clamp(16px, 2vw, 20px);
+  margin: 0 0 30px; color: #cfd8e8; font-size: 16px; font-size: clamp(16px, 2vw, 20px);
   max-width: 620px; line-height: 1.5;
 }
 .lp-hero .cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
@@ -139,7 +139,7 @@
 .lp-section { background: #f4f6fb; padding: 76px 28px; }
 .lp-section.alt { background: #fff; }
 .lp-section .wrap { max-width: 1080px; margin: 0 auto; }
-.lp-section h2 { text-align: center; font-size: clamp(26px, 3.4vw, 38px); font-weight: 900; margin: 0 0 8px; color: #0f1729; }
+.lp-section h2 { text-align: center; font-size: 26px; font-size: clamp(26px, 3.4vw, 38px); font-weight: 900; margin: 0 0 8px; color: #0f1729; }
 .lp-section .lead { text-align: center; color: #5a6679; font-size: 17px; margin: 0 auto 44px; max-width: 560px; }
 
 /* Funcionalidades */
@@ -377,7 +377,7 @@
   width: min(380px, calc(100vw - 32px));
   /* Safari iOS antigo não conhece dvh — o calc(100vh / var(--uz, 1)) fica como fallback. */
   height: min(540px, calc(calc(100vh / var(--uz, 1)) - 130px));
-  height: min(540px, calc(calc(100dvh / var(--uz, 1)) - 130px));
+  height: min(540px, calc(calc(100vh / var(--uz, 1)) - 130px)); height: min(540px, calc(calc(100dvh / var(--uz, 1)) - 130px));
   display: flex; flex-direction: column; overflow: hidden;
   background: #fff; color: #0f1729; border-radius: 18px;
   box-shadow: 0 30px 80px rgba(8,14,28,.4), 0 0 0 1px rgba(20,30,60,.06);
@@ -420,7 +420,7 @@
   animation: sc-in .18s ease both;
 }
 .sc-lightbox img {
-  max-width: min(96vw, 1280px); max-height: calc(88vh / var(--uz, 1)); max-height: calc(88dvh / var(--uz, 1)); cursor: default;
+  max-width: min(96vw, 1280px); max-height: calc(88vh / var(--uz, 1)); max-height: calc(88vh / var(--uz, 1)); max-height: calc(88dvh / var(--uz, 1)); cursor: default;
   border-radius: 14px; box-shadow: 0 40px 120px rgba(0,0,0,.7); background: #fff;
 }
 .sc-lightbox-x {
@@ -486,7 +486,7 @@ html { scroll-behavior: smooth; }
   display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
 }
 .lp-cta-band h2 {
-  margin: 0; color: #fff; font-size: clamp(20px, 3vw, 30px); font-weight: 900;
+  margin: 0; color: #fff; font-size: 20px; font-size: clamp(20px, 3vw, 30px); font-weight: 900;
   letter-spacing: .01em; text-transform: uppercase;
 }
 .lp-cta-band button {
@@ -817,7 +817,7 @@ a.fc-line:hover { color: #fff; }
    amador). Título mais contido, linhas equilibradas e badge/nav sem cortes. */
 .lp-hero h1 { text-wrap: balance; }
 @media (max-width: 640px) {
-  .lp-hero h1 { font-size: clamp(23px, 6.6vw, 30px); line-height: 1.18; letter-spacing: -0.3px; margin-bottom: 12px; }
+  .lp-hero h1 { font-size: 23px; font-size: clamp(23px, 6.6vw, 30px); line-height: 1.18; letter-spacing: -0.3px; margin-bottom: 12px; }
   .lp-hero p.sub { font-size: 14.5px; line-height: 1.55; }
   .lp-hero .badge-pill { font-size: 11.5px; padding: 6px 11px; max-width: 100%; }
   .lp-verticals span { font-size: 11.5px; padding: 6px 10px; }
@@ -924,7 +924,7 @@ a.fc-line:hover { color: #fff; }
 }
 .lp .lp-nav.open .lp-mobile-inner { overflow-y: auto; }
 .lp .lp-nav.open .lp-mobile-menu { grid-template-rows: 1fr; visibility: visible; transition: grid-template-rows .3s ease, visibility 0s; }
-.lp .lp-mobile-inner { overflow: hidden; min-height: 0; max-height: calc(calc(100dvh / var(--uz, 1)) - 72px); overscroll-behavior: contain; padding: 0 20px; display: flex; flex-direction: column; gap: 2px; max-width: 1280px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+.lp .lp-mobile-inner { overflow: hidden; min-height: 0; max-height: calc(calc(100vh / var(--uz, 1)) - 72px); max-height: calc(calc(100dvh / var(--uz, 1)) - 72px); overscroll-behavior: contain; padding: 0 20px; display: flex; flex-direction: column; gap: 2px; max-width: 1280px; margin: 0 auto; width: 100%; box-sizing: border-box; }
 .lp .lp-mobile-inner > a {
   padding: 14px 12px; border-radius: 10px; font-size: 16px; font-weight: 600; color: #dbe5f5; text-decoration: none;
   opacity: 0; transform: translateY(-6px); transition: opacity .25s ease, transform .25s ease, background .18s ease;
@@ -976,7 +976,7 @@ a.fc-line:hover { color: #fff; }
   font-family: var(--nx-font-title);
 }
 .lp-hero h1 { font-weight: 700; letter-spacing: -.035em; line-height: 1.06; }
-.lp-hero p.sub { font-size: clamp(16px, 1.5vw, 19px); line-height: 1.6; color: #c9d3e6; }
+.lp-hero p.sub { font-size: 16px; font-size: clamp(16px, 1.5vw, 19px); line-height: 1.6; color: #c9d3e6; }
 
 /* Aurora só em índigo, mais discreta */
 .lp-hero::after {
@@ -998,7 +998,7 @@ a.fc-line:hover { color: #fff; }
 .lp-section { background: var(--nx-gray-50, #f8fafc); padding: clamp(64px, 8vw, 104px) 24px; }
 .lp-section.alt { background: #fff; }
 .lp-section h2 {
-  font-weight: 700; font-size: clamp(28px, 3.4vw, 40px); letter-spacing: -.03em; line-height: 1.12;
+  font-weight: 700; font-size: 28px; font-size: clamp(28px, 3.4vw, 40px); letter-spacing: -.03em; line-height: 1.12;
   color: var(--nx-gray-900, #0b1020); padding-bottom: 0;
 }
 .lp-section h2::after { display: none; }
@@ -1080,7 +1080,7 @@ a.fc-line:hover { color: #fff; }
 .lp-cta-band { background: none; padding: 0 20px; position: relative; z-index: 2; }
 .lp-cta-band .band-inner { max-width: 1080px; margin: 0 auto; padding: 34px 40px; border-radius: 22px; display: flex; align-items: center; justify-content: space-between; gap: 22px 32px; flex-wrap: wrap; background: linear-gradient(120deg, #1a24b8, #3a49ff 62%, #22d3ee 160%); box-shadow: 0 34px 60px -28px rgba(36, 48, 232, .65), inset 0 1px 0 rgba(255,255,255,.18); }
 .lp-cta-band .band-txt { flex: 1 1 360px; min-width: 0; }
-.lp-cta-band .band-txt h2 { margin: 0; font-size: clamp(22px, 3.4vw, 31px); line-height: 1.15; letter-spacing: -.02em; text-transform: none; color: #fff; }
+.lp-cta-band .band-txt h2 { margin: 0; font-size: 22px; font-size: clamp(22px, 3.4vw, 31px); line-height: 1.15; letter-spacing: -.02em; text-transform: none; color: #fff; }
 .lp-cta-band .band-txt p { margin: 10px 0 0; max-width: 54ch; font-size: 15px; line-height: 1.55; color: rgba(255,255,255,.84); }
 .lp-cta-band .band-act { display: flex; gap: 12px; flex-wrap: wrap; }
 .lp-cta-band .band-act button { cursor: pointer; font: inherit; font-weight: 700; font-size: 15px; padding: 13px 22px; border-radius: 12px; transition: transform .15s, background .15s, box-shadow .2s; }
@@ -1120,7 +1120,7 @@ a.fc-line:hover { color: #fff; }
 
 /* 1) Fundo: retira a aurora e as camadas antigas; uma única pilha de sobreposições sobre as fotos */
 .lp .lp-hero::before, .lp .lp-hero::after { content: none; display: none; animation: none; }
-.lp .lp-hero { --hero-pad: clamp(20px, 5vw, 40px); min-height: clamp(560px, calc(88svh / var(--uz, 1)), 880px); padding: clamp(36px, calc(7vh / var(--uz, 1)), 84px) var(--hero-pad) 0; }
+.lp .lp-hero { --hero-pad: clamp(20px, 5vw, 40px); min-height: 560px; min-height: clamp(560px, calc(88vh / var(--uz, 1)), 880px); min-height: clamp(560px, calc(88svh / var(--uz, 1)), 880px); padding: clamp(36px, calc(7vh / var(--uz, 1)), 84px) var(--hero-pad) 0; }
 .lp .lp-hero-bg { z-index: -1; background: #060a16; }
 .lp .lp-hero-slide { background-position: center; filter: saturate(.82) contrast(1.03); transition: opacity 1.4s cubic-bezier(.4, 0, .2, 1); }
 .lp .lp-hero-slide.on { animation: lp-hero-drift 14s ease-out forwards; }
@@ -1144,7 +1144,7 @@ a.fc-line:hover { color: #fff; }
    (sem barras vazias). Sem zoom de deriva. */
 @media (max-width: 767px), (max-width: 1023px) and (orientation: portrait) {
   .lp .lp-hero { background: #060a16; }
-  .lp .lp-hero-bg { bottom: auto; height: min(100%, calc(100svh / var(--uz, 1))); overflow: hidden; }
+  .lp .lp-hero-bg { bottom: auto; height: min(100%, calc(100vh / var(--uz, 1))); height: min(100%, calc(100svh / var(--uz, 1))); overflow: hidden; }
   .lp .lp-hero-slide, .lp .lp-hero-slide.on { animation: none; transform: none; background-size: 0 0; background-repeat: no-repeat; }
   .lp .lp-hero-slide::before, .lp .lp-hero-slide::after { content: ''; position: absolute; background-image: inherit; background-repeat: no-repeat; }
   .lp .lp-hero-slide::before { inset: -40px; background-size: cover; background-position: center; filter: blur(22px) saturate(.9) brightness(.7); }
@@ -1173,9 +1173,9 @@ a.fc-line:hover { color: #fff; }
 }
 .lp .lp-hero .hero-eyebrow { display: inline-flex; align-items: flex-start; gap: 10px; max-width: 34ch; font-size: 12px; font-weight: 650; letter-spacing: .14em; line-height: 1.6; text-transform: uppercase; color: #c3d0ee; }
 .lp .lp-hero .hero-eyebrow i { flex: none; width: 8px; height: 8px; margin-top: .55em; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 3px rgba(52, 211, 153, .18); }
-.lp .lp-hero h1 { font-family: Sora, 'Sora Fallback', 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; margin: clamp(14px, calc(2.4vh / var(--uz, 1)), 20px) 0 clamp(14px, calc(2.2vh / var(--uz, 1)), 18px); font-size: clamp(1.75rem, 1.05rem + 3.4vw, 3.5rem); line-height: 1.06; letter-spacing: -.03em; font-weight: 700; color: #fff; background: none; -webkit-text-fill-color: #fff; animation: none; text-wrap: balance; }
+.lp .lp-hero h1 { font-family: Sora, 'Sora Fallback', 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; margin: clamp(14px, calc(2.4vh / var(--uz, 1)), 20px) 0 clamp(14px, calc(2.2vh / var(--uz, 1)), 18px); font-size: 1.75rem; font-size: clamp(1.75rem, 1.05rem + 3.4vw, 3.5rem); line-height: 1.06; letter-spacing: -.03em; font-weight: 700; color: #fff; background: none; -webkit-text-fill-color: #fff; animation: none; text-wrap: balance; }
 .lp .lp-hero h1 em { font-style: normal; background: linear-gradient(90deg, #8fb0ff 5%, #4cc9f0 95%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-.lp .lp-hero p.sub { max-width: 34rem; margin: 0 0 clamp(18px, calc(3vh / var(--uz, 1)), 26px); font-size: clamp(1rem, .94rem + .35vw, 1.1875rem); line-height: 1.6; color: rgba(232, 238, 250, .86); text-wrap: pretty; }
+.lp .lp-hero p.sub { max-width: 34rem; margin: 0 0 clamp(18px, calc(3vh / var(--uz, 1)), 26px); font-size: 1rem; font-size: clamp(1rem, .94rem + .35vw, 1.1875rem); line-height: 1.6; color: rgba(232, 238, 250, .86); text-wrap: pretty; }
 
 /* 3) Controlo do carrossel (acessível; fora do fundo aria-hidden) */
 .lp .lp-hero-ctrl { display: flex; align-items: center; justify-content: flex-start; gap: 14px; max-width: 34rem; margin: 0 0 clamp(14px, calc(2.2vh / var(--uz, 1)), 18px); padding-top: clamp(12px, calc(2vh / var(--uz, 1)), 16px); border-top: 1px solid rgba(255, 255, 255, .12); }

@@ -27,6 +27,13 @@ export default defineConfig({
   },
   preview: { port: 5173 },
   build: {
+    // COMPATIBILIDADE com navegadores antigos (Safari 12–14 do iPhone/iPad,
+    // WebViews Android antigas, Samsung Internet, Edge 79+): o esbuild converte o
+    // JS moderno (?. ??) e o CSS moderno (ex.: `inset` → top/right/bottom/left)
+    // para o que esses navegadores entendem. Sem isto, modais e ecrãs inteiros
+    // desmontavam-se fora do Chrome recente.
+    target: ['es2019', 'chrome64', 'edge79', 'firefox67', 'safari12'],
+    cssTarget: ['chrome64', 'edge79', 'firefox67', 'safari12'],
     // Build mais leve no Cloudflare Pages (sem tamanhos gzip no relatório).
     reportCompressedSize: false,
   },
