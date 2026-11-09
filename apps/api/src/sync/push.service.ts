@@ -198,7 +198,7 @@ export class PushService {
       const deviceSeries = await this.devices.seriesFor(schema, typeof p.deviceKey === 'string' ? p.deviceKey : null);
       const invoice = await this.invoices.emit(schema, {
         docType: p.docType === DocumentType.FS ? DocumentType.FS : DocumentType.FT,
-        series: deviceSeries ?? localSeries() ?? (typeof p.series === 'string' && /^[A-Z0-9]{1,5}$/.test(p.series) ? p.series : 'A'),
+        series: localSeries() ?? deviceSeries ?? (typeof p.series === 'string' && /^[A-Z0-9]{1,5}$/.test(p.series) ? p.series : 'A'),
         customerId: (p.customerId as string) ?? null,
         cashierId: user.sub,
         cashierName: user.name ?? user.email,

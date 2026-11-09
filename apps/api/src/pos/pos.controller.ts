@@ -291,8 +291,11 @@ export class PosController {
         // Pelo caixa só se VENDE (FT/FS). Notas de crédito nascem da anulação/devolução;
         // um "NC" pedido aqui baixava stock e contava como venda no turno.
         docType: dto.docType === DocumentType.FS ? DocumentType.FS : DocumentType.FT,
-        // Servidor local de um posto: série própria do posto (DEVICE_SERIES).
-        series: deviceSeries ?? localSeries() ?? dto.series ?? 'A',
+        // Servidor LOCAL de um posto: a série própria do posto (DEVICE_SERIES, `L…`)
+        // manda SEMPRE. Antes perdia para a série do registo local (`A1`, `A2`… de
+        // um contador LOCAL), que colidia com as séries atribuídas pela nuvem: o
+        // número já existia lá, a replicação recusava e a fatura ficava só no posto.
+        series: localSeries() ?? deviceSeries ?? dto.series ?? 'A',
         customerId: dto.customerId ?? null,
         cashierId: user.sub,
         cashierName: user.name ?? user.email,

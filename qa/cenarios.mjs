@@ -294,6 +294,19 @@ async function main() {
   const esc = await call('POST', '/staff/users', { token: ger.token, body: { name: 'x', email: 'z@x.qa.test', role: 'COMPANY_ADMIN', password: 'Abcdefgh1!' } });
   R.check('P-ESC', 'STORE_MANAGER não cria COMPANY_ADMIN (escalada)', esc.status === 403, esc.status);
 
+  // ── Replicação com sessão de caixa (servidor local) ──────
+  const repl = (rows) => call('POST', '/replication/push', { token: cx.token, body: { rows } });
+  const pX = prod(11);
+  const sx0 = await stockOf(c, pX.id, sup1);
+  const fake = await repl([{ table: 'stock_movements', id: uuid(), data: { id: uuid(), product_id: pX.id, warehouse_id: sup1, type: 'IN', quantity: 1000000, reference: 'x' } }]);
+  const sx1 = await stockOf(c, pX.id, sup1);
+  R.check('R-1', 'caixa não injeta ENTRADA de stock pela replicação', sx1 === sx0 && fake.body?.[0]?.applied === false, `${fake.status} ${JSON.stringify(fake.body).slice(0, 160)} stock ${sx0}→${sx1}`);
+  if (v6.status < 300) {
+    const mid = uuid();
+    const legit = await repl([{ table: 'stock_movements', id: mid, data: { id: mid, product_id: prod(2).id, warehouse_id: sup1, type: 'IN', quantity: 1, unit_cost: 0, balance_after: 0, created_at: new Date().toISOString(), reference: 'Devolução (posto)', reference_id: v6.body.id } }]);
+    R.check('R-2', 'entrada ligada a venda devolvida (NC) continua aceite', legit.body?.[0]?.applied === true, JSON.stringify(legit.body).slice(0, 160));
+  }
+
   // ── Injeção ──────────────────────────────────────────────
   for (const q of ["' OR 1=1--", "'; DROP TABLE products;--", '%\' UNION SELECT password_hash FROM users--', '<script>alert(1)</script>']) {
     const r = await call('GET', `/pos/products?q=${encodeURIComponent(q)}&limit=5`, { token: cx.token });

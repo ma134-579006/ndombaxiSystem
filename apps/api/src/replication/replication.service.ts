@@ -102,6 +102,7 @@ export class ReplicationService {
           // A política deixaria, o PAPEL não: ex. um caixa a enviar produtos.
           throw new ForbiddenException(`o papel desta sessão não envia ${row.table}`);
         }
+        if (tier === 'sales' && row.table === 'stock_movements') await this.assertSalesStockMovement(schema, row);
         out.push(await this.applyOne(schema, row));
       } catch (e) {
         const reason = e instanceof Error
@@ -111,6 +112,30 @@ export class ReplicationService {
       }
     }
     return out;
+  }
+
+  /**
+   * Caixa/supervisor só produzem ENTRADAS de stock ao anular ou devolver uma
+   * venda (o stock volta). Sem esta verificação, uma sessão de caixa podia
+   * enviar por aqui um movimento "+1 000 000" de qualquer artigo — algo que na
+   * aplicação lhe é recusado (ajustes e entradas são de gerente para cima).
+   * Exige-se que a entrada aponte para uma fatura anulada ou com nota de crédito.
+   */
+  private async assertSalesStockMovement(schema: string, row: IncomingRow): Promise<void> {
+    const q = Number(row.data?.quantity);
+    if (!Number.isFinite(q) || q <= 0) return; // saídas (vendas, consumos) seguem como antes
+    const ref = typeof row.data?.reference_id === 'string' ? row.data.reference_id : '';
+    if (!/^[0-9a-f-]{36}$/i.test(ref)) {
+      throw new ForbiddenException('entrada de stock sem venda anulada/devolvida associada');
+    }
+    const ok = await this.prisma.$queryRawUnsafe<{ ok: number }[]>(
+      `SELECT 1 AS ok FROM "${schema}"."invoices" i
+        WHERE i.id = $1::uuid
+          AND (i.status = 'A' OR EXISTS (SELECT 1 FROM "${schema}"."invoices" nc
+                                          WHERE nc.source_invoice_id = i.id AND nc.doc_type = 'NC'))
+        LIMIT 1`, ref,
+    );
+    if (!ok[0]) throw new ForbiddenException('entrada de stock sem venda anulada/devolvida associada');
   }
 
   private async applyOne(schema: string, row: IncomingRow): Promise<ApplyOutcome> {
