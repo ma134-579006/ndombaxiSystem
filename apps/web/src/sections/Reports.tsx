@@ -13,7 +13,11 @@ import { ColumnChart } from '../components/ColumnChart';
 import { DonutChart } from '../components/DonutChart';
 import { formatKz, localIso } from '../format';
 
-type Tab = 'all' | 'product' | 'user' | 'store' | 'category' | 'brand' | 'evolution' | 'tax' | 'payments' | 'documents' | 'cashbox';
+type Tab = 'all' | 'product' | 'user' | 'store' | 'category' | 'brand' | 'evolution' | 'tax' | 'payments' | 'documents' | 'cashbox' | 'customer' | 'hour' | 'weekday' | 'daily' | 'month';
+type TimeTab = 'hour' | 'weekday' | 'daily' | 'month';
+const TIME_BY: Record<TimeTab, 'hour' | 'weekday' | 'day' | 'month'> = { hour: 'hour', weekday: 'weekday', daily: 'day', month: 'month' };
+const WEEKDAY = ['', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+const isTime = (t: Tab): t is TimeTab => t === 'hour' || t === 'weekday' || t === 'daily' || t === 'month';
 const TABS: { key: Tab; label: string; group: string }[] = [
   { key: 'all', label: 'Tudo (resumo)', group: 'Vendas' },
   { key: 'product', label: 'Por produto', group: 'Vendas' },
@@ -21,6 +25,11 @@ const TABS: { key: Tab; label: string; group: string }[] = [
   { key: 'store', label: 'Por loja', group: 'Vendas' },
   { key: 'category', label: 'Por categoria', group: 'Vendas' },
   { key: 'brand', label: 'Por marca', group: 'Vendas' },
+  { key: 'customer', label: 'Por cliente', group: 'Vendas' },
+  { key: 'daily', label: 'Vendas diárias', group: 'Vendas no tempo' },
+  { key: 'hour', label: 'Por hora', group: 'Vendas no tempo' },
+  { key: 'weekday', label: 'Dias da semana', group: 'Vendas no tempo' },
+  { key: 'month', label: 'Mensal', group: 'Vendas no tempo' },
   { key: 'evolution', label: 'Evolução temporal', group: 'Vendas' },
   { key: 'documents', label: 'Documentos', group: 'Contabilidade' },
   { key: 'tax', label: 'Mapa de IVA', group: 'Contabilidade' },
@@ -47,10 +56,12 @@ export function Reports() {
   const [error, setError] = useState<string | null>(null);
 
   // Tabs que suportam filtro por loja (multi-loja).
-  const STORE_FILTERABLE: Tab[] = ['all', 'user', 'category', 'brand', 'tax', 'documents'];
+  const STORE_FILTERABLE: Tab[] = ['all', 'user', 'category', 'brand', 'tax', 'documents', 'customer', 'hour', 'weekday', 'daily', 'month'];
 
   const [byProduct, setByProduct] = useState<ProfitProduct[]>([]);
   const [byUser, setByUser] = useState<ReportUserRow[]>([]);
+  const [byCustomer, setByCustomer] = useState<ReportUserRow[]>([]);
+  const [byTime, setByTime] = useState<{ bucket: string; sales: number; net: number; gross: number }[]>([]);
   const [byStore, setByStore] = useState<ReportUserRow[]>([]);
   const [byCategory, setByCategory] = useState<ReportCategoryRow[]>([]);
   const [byBrand, setByBrand] = useState<ReportCategoryRow[]>([]);
@@ -83,6 +94,8 @@ export function Reports() {
       }
       else if (tab === 'product') setByProduct(await api.profit.byProduct(from, to));
       else if (tab === 'user') setByUser(await api.reports.salesByUser(from, to, sid));
+      else if (tab === 'customer') setByCustomer(await api.reports.salesByCustomer(from, to, sid));
+      else if (isTime(tab)) setByTime(await api.reports.salesByTime(TIME_BY[tab], from, to, sid));
       else if (tab === 'store') setByStore(await api.reports.salesByStore(from, to));
       else if (tab === 'category') setByCategory(await api.reports.salesByCategory(from, to, sid));
       else if (tab === 'brand') setByBrand(await api.reports.salesByBrand(from, to, sid));
@@ -98,10 +111,19 @@ export function Reports() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const timeLabel = (b: string) => (tab === 'weekday' ? WEEKDAY[Number(b)] ?? b : tab === 'hour' ? `${b}h` : b);
+  // Por hora / dias da semana: mostra TODOS os períodos (os sem vendas a zero), como no backoffice de referência.
+  const timeRows = (() => {
+    if (tab === 'hour') return Array.from({ length: 24 }, (_, h) => { const b = String(h).padStart(2, '0'); return byTime.find((r) => r.bucket === b) ?? { bucket: b, sales: 0, net: 0, gross: 0 }; });
+    if (tab === 'weekday') return Array.from({ length: 7 }, (_, d) => { const b = String(d + 1); return byTime.find((r) => r.bucket === b) ?? { bucket: b, sales: 0, net: 0, gross: 0 }; });
+    return byTime;
+  })();
   const buildCsv = (): { name: string; csv: string } => {
     let headers: string[] = []; let rows: (string | number)[][] = [];
     if (tab === 'product') { headers = ['Produto', 'Qt', 'Vendas', 'Custo', 'Lucro', 'Margem%']; rows = byProduct.map((p) => [p.description, p.qty, p.salesNet, p.cost, p.profit, p.marginPct]); }
     else if (tab === 'user') { headers = ['Utilizador', 'Vendas', 'Líquido', 'Total']; rows = byUser.map((r) => [r.name, r.sales, r.net, r.gross]); }
+    else if (tab === 'customer') { headers = ['Cliente', 'Vendas', 'Líquido', 'Total']; rows = byCustomer.map((r) => [r.name, r.sales, r.net, r.gross]); }
+    else if (isTime(tab)) { headers = ['Período', 'Vendas', 'Líquido', 'Total']; rows = timeRows.map((r) => [timeLabel(r.bucket), r.sales, r.net, r.gross]); }
     else if (tab === 'store') { headers = ['Loja', 'Vendas', 'Líquido', 'Total']; rows = byStore.map((r) => [r.name, r.sales, r.net, r.gross]); }
     else if (tab === 'category') { headers = ['Categoria', 'Qt', 'Líquido', 'Total']; rows = byCategory.map((r) => [r.name, r.qty, r.net, r.gross]); }
     else if (tab === 'brand') { headers = ['Marca', 'Qt', 'Líquido', 'Total']; rows = byBrand.map((r) => [r.name, r.qty, r.net, r.gross]); }
@@ -143,6 +165,12 @@ export function Reports() {
   const reportChart: React.ReactNode = (() => {
     if (tab === 'product' && byProduct.length)
       return <ColumnChart data={byProduct.slice(0, 8).map((p) => ({ label: p.description, value: p.salesNet, hint: `${p.qty} un. · lucro ${formatKz(p.profit)}` }))} format={formatKz} />;
+    if (tab === 'customer' && byCustomer.length)
+      return <ColumnChart data={byCustomer.slice(0, 8).map((r) => ({ label: r.name, value: r.gross, hint: `${r.sales} venda(s)` }))} format={formatKz} />;
+    if (isTime(tab) && timeRows.length)
+      return tab === 'daily' || tab === 'month'
+        ? <AreaChart points={timeRows.map((r) => ({ label: timeLabel(r.bucket), value: r.gross }))} format={formatKz} />
+        : <ColumnChart data={timeRows.map((r) => ({ label: timeLabel(r.bucket), value: r.gross, hint: `${r.sales} venda(s)` }))} format={formatKz} />;
     if (tab === 'user' && byUser.length)
       return <ColumnChart data={byUser.slice(0, 8).map((r) => ({ label: r.name, value: r.gross, hint: `${r.sales} venda(s)` }))} color="var(--accent)" format={formatKz} />;
     if (tab === 'store' && byStore.length)
@@ -172,6 +200,8 @@ export function Reports() {
       { l: lab, v: String(rows.reduce((t, r) => t + num(r[k]), 0)), h: `${rows.length} linha(s)` },
     ];
     if (tab === 'user') return grp(byUser, 'sales', 'Nº de vendas');
+    if (tab === 'customer') return grp(byCustomer, 'sales', 'Nº de vendas');
+    if (isTime(tab)) return grp(timeRows, 'sales', 'Nº de vendas');
     if (tab === 'store') return grp(byStore, 'sales', 'Nº de vendas');
     if (tab === 'category') return grp(byCategory, 'qty', 'Quantidade');
     if (tab === 'brand') return grp(byBrand, 'qty', 'Quantidade');
@@ -299,6 +329,14 @@ export function Reports() {
             {tab === 'product' ? (
               <Table head={['Produto', 'Qt', 'Vendas', 'Custo', 'Lucro', 'Margem']}
                 rows={byProduct.map((p) => [p.description, String(p.qty), formatKz(p.salesNet), formatKz(p.cost), formatKz(p.profit), `${p.marginPct}%`])} />
+            ) : null}
+            {tab === 'customer' ? (
+              <Table head={['Cliente', 'Nº vendas', 'Líquido', 'Total faturado']}
+                rows={byCustomer.map((r) => [r.name, String(r.sales), formatKz(r.net), formatKz(r.gross)])} />
+            ) : null}
+            {isTime(tab) ? (
+              <Table head={[tab === 'hour' ? 'Hora' : tab === 'weekday' ? 'Dia da semana' : tab === 'month' ? 'Mês' : 'Dia', 'Nº vendas', 'Líquido', 'Total faturado']}
+                rows={timeRows.map((r) => [timeLabel(r.bucket), String(r.sales), formatKz(r.net), formatKz(r.gross)])} />
             ) : null}
             {tab === 'user' ? (
               <Table head={['Utilizador', 'Nº vendas', 'Líquido', 'Total faturado']}

@@ -36,18 +36,44 @@ export class ReportsService {
     const st = (alias: string) => (storeId ? Prisma.sql` AND ${Prisma.raw(alias)}.store_id = ${storeId}::uuid` : Prisma.empty);
     return Prisma.sql`(
       SELECT i.id AS sale_id, i.customer_id, i.cashier_id, i.store_id, ii.product_id, ii.iva_rate,
-             ii.quantity AS qty, ii.net_amount AS net, ii.iva_amount AS iva, ii.gross_amount AS gross, TRUE AS is_sale
+             ii.quantity AS qty, ii.net_amount AS net, ii.iva_amount AS iva, ii.gross_amount AS gross, TRUE AS is_sale,
+             i.system_entry_date AS at
         FROM invoices i JOIN invoice_items ii ON ii.invoice_id = i.id
        WHERE i.status <> 'A' AND i.doc_type IN ('FT','FS')
          AND i.system_entry_date >= ${f}::date AND i.system_entry_date < (${t}::date + 1)${st('i')}
       UNION ALL
       SELECT src.id, src.customer_id, src.cashier_id, nc.store_id, nii.product_id, nii.iva_rate,
-             -nii.quantity, -nii.net_amount, -nii.iva_amount, -nii.gross_amount, FALSE
+             -nii.quantity, -nii.net_amount, -nii.iva_amount, -nii.gross_amount, FALSE,
+             nc.system_entry_date
         FROM invoices nc JOIN invoice_items nii ON nii.invoice_id = nc.id
         JOIN invoices src ON src.id = nc.source_invoice_id
        WHERE nc.doc_type = 'NC' AND src.status <> 'A'
          AND nc.system_entry_date >= ${f}::date AND nc.system_entry_date < (${t}::date + 1)${st('nc')}
     ) sl`;
+  }
+
+  /**
+   * Vendas no tempo (hora de Luanda): por HORA do dia, DIA DA SEMANA, DIA ou MÊS —
+   * as vistas "Por Hora", "Dias da Semana", "Diário"/"Vendas Diárias" e "Mensal"
+   * do backoffice de referência. Mesma base líquida de devoluções dos outros
+   * relatórios (saleLines).
+   */
+  async salesByTime(schema: string, by: 'hour' | 'weekday' | 'day' | 'month', from?: string, to?: string, storeId?: string) {
+    const { from: f, to: t } = this.range(from, to);
+    const local = Prisma.sql`(sl.at AT TIME ZONE 'Africa/Luanda')`;
+    const bucket = by === 'hour' ? Prisma.sql`LPAD(EXTRACT(HOUR FROM ${local})::int::text, 2, '0')`
+      : by === 'weekday' ? Prisma.sql`EXTRACT(ISODOW FROM ${local})::int::text`
+      : by === 'month' ? Prisma.sql`to_char(${local}, 'YYYY-MM')`
+      : Prisma.sql`to_char(${local}, 'YYYY-MM-DD')`;
+    return this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw(Prisma.sql`
+        SELECT ${bucket} AS bucket,
+               COUNT(DISTINCT sl.sale_id) FILTER (WHERE sl.is_sale)::int AS sales,
+               ROUND(SUM(sl.net), 2)::float AS net,
+               ROUND(SUM(sl.gross), 2)::float AS gross
+        FROM ${this.saleLines(f, t, storeId)}
+        GROUP BY 1 ORDER BY 1`),
+    );
   }
 
   /** Vendas por utilizador (operador): nº de vendas e total faturado. */

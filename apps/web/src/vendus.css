@@ -910,3 +910,6 @@
 .tb-sub-menu b { font-size: 14px; }
 .tb-sub-menu span { color: var(--muted); font-size: 13px; }
 .tb-sub-menu .vd-btn { margin-top: 8px; justify-content: center; }
+.doc-filters .vd-f { flex: none; height: auto; min-height: 0; margin: 0; }
+.doc-filters .vd-range { display: flex; }
+.doc-val b.neg { color: var(--danger); }

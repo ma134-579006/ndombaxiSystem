@@ -979,6 +979,8 @@ export const api = {
       request<ReportUserRow[]>('GET', `/reports/sales-by-user${qs({ from, to, storeId })}`),
     salesByCategory: (from?: string, to?: string, storeId?: string) =>
       request<ReportCategoryRow[]>('GET', `/reports/sales-by-category${qs({ from, to, storeId })}`),
+    salesByTime: (by: 'hour' | 'weekday' | 'day' | 'month', from?: string, to?: string, storeId?: string) =>
+      request<{ bucket: string; sales: number; net: number; gross: number }[]>('GET', `/reports/sales-by-time${qs({ by, from, to, storeId })}`),
     salesByCustomer: (from?: string, to?: string, storeId?: string) =>
       request<ReportUserRow[]>('GET', `/reports/sales-by-customer${qs({ from, to, storeId })}`),
     taxMap: (from?: string, to?: string, storeId?: string) =>
