@@ -1,3 +1,4 @@
+import { VWindow } from './VWindow';
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { AdvanceLimit, SalaryAdvance } from '../api/types';
@@ -62,13 +63,8 @@ export function SalaryAdvanceModal({ onClose }: { onClose(): void }) {
   };
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="consume-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="consume-head">
-          <span className="ch-ic" aria-hidden="true"><UiIcon e="money" size={20} /></span>
-          <div className="ch-tx"><h3>Adiantamento salarial</h3><small>Pedido ao gestor · descontado na folha do mês</small></div>
-          <button className="x" onClick={onClose} aria-label="Fechar">✕</button>
-        </div>
+    <VWindow title="Adiantamento salarial" onClose={onClose}>
+        
 
         <div className="consume-body">
           {msg ? <div className="banner success" style={{ marginBottom: 12 }}>{msg}</div> : null}
@@ -148,7 +144,6 @@ export function SalaryAdvanceModal({ onClose }: { onClose(): void }) {
             </button>
           </div>
         ) : null}
-      </div>
-    </div>
+      </VWindow>
   );
 }

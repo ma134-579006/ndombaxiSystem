@@ -1,3 +1,4 @@
+import { VWindow } from './VWindow';
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Customer } from '../api/types';
@@ -56,20 +57,8 @@ export function CustomerModal({ customers, onPick, onCreated, onClose }: Props) 
   };
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div
-        className="card"
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 460, maxHeight: 'calc(88vh / var(--uz, 1))', display: 'flex', flexDirection: 'column' }}
-      >
-        <div className="row" style={{ padding: 16, borderBottom: '1px solid var(--border)', gap: 10 }}>
-          <IconUser size={20} />
-          <h2 style={{ margin: 0, fontSize: 18 }}>Cliente</h2>
-          <span className="spacer" />
-          <button className="trash" onClick={onClose} aria-label="Fechar">
-            <IconClose size={22} />
-          </button>
-        </div>
+    <VWindow title="Cliente" onClose={onClose} narrow>
+        
 
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto' }}>
           <button className="btn ghost block" onClick={() => onPick(null)}>
@@ -113,7 +102,6 @@ export function CustomerModal({ customers, onPick, onCreated, onClose }: Props) 
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </VWindow>
   );
 }
