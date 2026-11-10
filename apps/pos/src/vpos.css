@@ -630,3 +630,8 @@
 .vw-card .banner { border-radius: 4px; }
 .vw-card .chip { border-radius: 4px; }
 .vw-card .erp-kpi { background: none; border: 0; border-bottom: 1px solid var(--border); padding: 8px 0; }
+
+/* Perfil no topo SEM moldura (como no backoffice de referência): só avatar,
+   nome, e-mail e seta — sem cápsula, sem contorno nem anel ao abrir/focar. */
+.acct2-btn, .acct2-btn:hover, .acct2-btn.open { border: 0 !important; background: transparent !important; box-shadow: none !important; border-radius: 4px !important; padding: 3px 4px !important; }
+.acct2-btn:hover { background: color-mix(in srgb, var(--text) 5%, transparent) !important; }

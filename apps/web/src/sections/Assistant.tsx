@@ -174,8 +174,35 @@ export function Assistant() {
       <div className="card" style={{ display: 'flex' }}><NeedsNetwork what="O assistente de IA" /></div>
     </>
   );
+  // Caixa de escrita (desenho de chat moderno): ao centro sem conversa, no fundo com conversa.
+  const composer = (
+    <div className="agent-composer-wrap">
+            <div className="agent-composer">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(input); } }}
+                placeholder={recording ? 'A ouvir… toca no quadrado para enviar' : `Pergunta ao ${name} ou pede uma ação…`}
+                rows={1}
+              />
+              <div className="agent-composer-row">
+                <span className="spacer" />
+                {voiceOk ? (
+                  <button className={`agent-iconbtn${recording ? ' rec' : ''}`} onClick={() => void toggleMic()} disabled={busy} title={recording ? 'Enviar' : 'Falar'}>
+                    {recording ? <IconStop size={16} /> : <IconMic size={17} />}
+                  </button>
+                ) : null}
+                {voiceOk ? (
+                  <button className="agent-iconbtn" onClick={() => setCallOpen(true)} title="Chamada de voz"><IconPhone size={16} /></button>
+                ) : null}
+                <button className="agent-sendbtn" onClick={() => void send(input)} disabled={busy || !input.trim()} title="Enviar"><IconSend /></button>
+              </div>
+            </div>
+          </div>
+  );
+
   return (
-    <div className="agent">
+    <div className={`agent gpt${steps.length ? ' has-steps' : ''}`}>
       {/* coluna principal (estilo claude.ai) */}
       <div className="agent-main">
         <div ref={scroller} className="agent-scroll">
@@ -186,10 +213,9 @@ export function Assistant() {
               </div>
             ) : null}
             {empty ? (
-              <div className="agent-hero">
-                <div className="agent-hero-ic"><IconCpu size={30} /></div>
-                <h2>Olá! Sou o {name}.</h2>
-                <p>Analiso as vendas, deteto quebras e indícios de fraude, crio planilhas, PDFs e imagens, ensino com screenshots reais e contacto a equipa por WhatsApp — tudo com os dados reais da tua empresa.</p>
+              <div className="agent-hero gpt">
+                <h2>Em que posso ajudar?</h2>
+                {composer}
                 <div className="agent-sugs">
                   {SUGGESTIONS.map((s) => <button key={s} className="agent-sug" onClick={() => void send(s)}>{s}</button>)}
                 </div>
@@ -200,31 +226,7 @@ export function Assistant() {
           </div>
         </div>
 
-        {/* compositor */}
-        <div className="agent-composer-wrap">
-          <div className="agent-composer">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(input); } }}
-              placeholder={recording ? 'A ouvir… toca no quadrado para enviar' : `Pergunta ao ${name} ou pede uma ação…`}
-              rows={1}
-            />
-            <div className="agent-composer-row">
-              <span className="agent-hint">O agente usa dados reais · nunca elimina nada · ações ficam na auditoria</span>
-              <span className="spacer" />
-              {voiceOk ? (
-                <button className={`agent-iconbtn${recording ? ' rec' : ''}`} onClick={() => void toggleMic()} disabled={busy} title={recording ? 'Enviar' : 'Falar'}>
-                  {recording ? <IconStop size={16} /> : <IconMic size={17} />}
-                </button>
-              ) : null}
-              {voiceOk ? (
-                <button className="agent-iconbtn" onClick={() => setCallOpen(true)} title="Chamada de voz"><IconPhone size={16} /></button>
-              ) : null}
-              <button className="agent-sendbtn" onClick={() => void send(input)} disabled={busy || !input.trim()} title="Enviar"><IconSend /></button>
-            </div>
-          </div>
-        </div>
+        {empty ? null : composer}
       </div>
 
       {/* CANVAS ao vivo: tudo o que o agente faz, em tempo real (desktop fixo · mobile gaveta) */}
