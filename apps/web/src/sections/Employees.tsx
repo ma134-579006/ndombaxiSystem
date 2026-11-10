@@ -1,3 +1,4 @@
+import { PermissionsTable, type PermArea } from '../components/PermissionsTable';
 import { UserAvatar } from '../components/UserAvatar';
 import { confirmDialog, runBulk, readFileProgress } from '../components/feedback';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -32,6 +33,18 @@ const roleFor = (position: string): StaffRoleName =>
 /** Funcionários (RH): ficha com foto (qualquer formato), criar/editar; a foto
  *  aparece no cartão. Criar/editar exige COMPANY_ADMIN (a API valida). */
 export function Employees() {
+  // Tabela de Permissões: áreas e níveis lidos do próprio menu (import dinâmico
+  // para não criar dependência circular com o App).
+  const [perms, setPerms] = useState<PermArea[] | null>(null);
+  const openPerms = async () => {
+    const { TENANT_NAV } = await import('../App');
+    const out: PermArea[] = [];
+    for (const n of TENANT_NAV) {
+      if (n.children?.length) for (const c of n.children) out.push({ label: c.label, group: n.label, min: c.min ?? n.min });
+      else out.push({ label: n.label, min: n.min });
+    }
+    setPerms(out);
+  };
   const [items, setItems] = useState<ManagerEmployee[]>([]);
   const [users, setUsers] = useState<ManagerStaff[]>([]);
   const [stores, setStores] = useState<ManagerStore[]>([]);
@@ -204,10 +217,12 @@ export function Employees() {
 
   return (
     <div className="fx-wide">
+      {perms ? <PermissionsTable areas={perms} onClose={() => setPerms(null)} /> : null}
       <div className="sticky-top">
         <div className="vd-head" style={{ marginBottom: 16 }}>
           <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Funcionários</span><span className="sep">/</span><span>Listagem</span></p>
           <span className="spacer" />
+          <button className="vd-btn outline" onClick={() => void openPerms()}>Tabela de Permissões</button>
           <button className="vd-btn" onClick={openCreate}><IconPlus size={16} /> Adicionar Funcionário</button>
         </div>
 

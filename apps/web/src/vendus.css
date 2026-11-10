@@ -1005,3 +1005,37 @@
 .fb-confirm-row .btn { width: auto !important; flex: none !important; border-radius: .25em !important; padding: .625em 1.1em !important; font-size: 1.0625em !important; font-weight: 500 !important; box-shadow: none !important; }
 .fb-confirm-row .btn.ghost { background: #6e7881 !important; color: #fff !important; border: 0 !important; }
 .fb-confirm-row .btn.danger { background: var(--primary) !important; }
+
+/* ════════════════════════════════════════════════════════════
+   UNIFORMIZAÇÃO GERAL no modelo do backoffice de referência (cores LPS):
+   cabeçalhos dos ecrãs antigos (content-head) como migalhas + botões à
+   direita; tabelas antigas (ptable) como as da referência; pesquisas com
+   campo de 34px e cantos de 4px; linhas aparecem de imediato (sem animação). */
+.content-head { min-height: 38px; margin: 0 0 20px !important; gap: 12px; }
+.content-head h2 { font-size: 14px !important; font-weight: 400 !important; color: var(--primary) !important; letter-spacing: 0 !important;
+  font-family: inherit !important; display: inline-flex; align-items: center; gap: 8px; }
+.content-head h2 svg { display: none; }
+.content-head .btn, .content-head button.btn { height: 36px; padding: 0 16px; border-radius: 4px; font-size: 14px; font-weight: 500;
+  box-shadow: none; background: var(--primary); color: #fff; border: 1px solid var(--primary); }
+.content-head .btn.ghost, .content-head .btn.secondary, .content-head .btn.outline { background: transparent; color: var(--primary); }
+.content-head .btn:hover { filter: brightness(1.08); transform: none; }
+
+.ptable { font-size: 14px; }
+.ptable th { text-transform: none !important; letter-spacing: 0 !important; font-size: 14px !important; font-weight: 700 !important;
+  color: var(--text) !important; padding: 10px !important; border-bottom: 2px solid var(--border) !important; white-space: nowrap; }
+.ptable td { padding: 12px 10px !important; border-bottom: 1px solid var(--border) !important; }
+.ptable tbody tr:nth-child(odd) { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+.ptable tbody tr:hover { background: var(--primary-soft) !important; }
+.vd-table tbody tr { animation: none; transition: none; }
+
+.fx-search { height: 34px; border-radius: 4px; max-width: 520px; padding: 0 12px; box-shadow: rgba(0,0,0,.075) 0 1px 1px 0 inset; }
+.fx-search:focus-within { box-shadow: none; }
+.toolbar-sticky { border-radius: 4px !important; box-shadow: none !important; }
+.toolbar-sticky input, .fx-toolbar input[type="search"], .fx-toolbar input[type="text"] { height: 34px; border-radius: 4px !important; }
+.fx-stat { border-radius: 4px !important; box-shadow: none !important; }
+
+/* Tabela de Permissões */
+.perm-table td.ok { color: #2b8a3e; font-weight: 700; }
+.perm-table td.no { color: var(--muted); }
+.perm-table tr.perm-group td { background: var(--surface-2) !important; font-weight: 700; color: var(--primary); }
+.perm-note { margin: 16px 0 0; font-size: 13px; color: var(--muted); }

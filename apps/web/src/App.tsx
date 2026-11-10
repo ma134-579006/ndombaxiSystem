@@ -115,7 +115,7 @@ const PLATFORM_NAV: NavItem[] = [
 // 3=STORE_MANAGER, 4=SHIFT_SUPERVISOR. Omisso → 3 (visível a gerente de loja e acima).
 // O supervisor (4) entra no painel mas só vê monitorização/aprovação (min:4); o
 // CRUD do sistema continua reservado a gerente de loja e acima (backend e nav).
-const TENANT_NAV: NavItem[] = [
+export const TENANT_NAV: NavItem[] = [
   { key: 'overview', label: 'Visão geral', icon: IconActivity, min: 4 },
   { key: 'assistant', label: 'Assistente IA', icon: IconSparkles, min: 2 },
   { key: 'subscription', label: 'Subscrição & Plano', icon: IconCard, min: 1 },
