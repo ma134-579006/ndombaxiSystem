@@ -6,6 +6,7 @@ import type { BankAccount, PublicPlan } from '../api/types';
 import { IconBuilding, IconCard, IconImage, IconLogout, IconCheck } from '../components/Icons';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { ScreenKeyboard } from '../components/ScreenKeyboard';
+import { LOGO_WIDE } from '../brand';
 
 /**
  * Assistente de ATIVAÇÃO da empresa — reconstruído com a MESMA identidade
@@ -39,10 +40,11 @@ export function CompanySetup({ onDone }: { onDone(): void }) {
   const payDone = trial || step === 'data';
 
   return (
-    <div className="auth">
+    <div className="auth auth-scroll">
       <ScreenKeyboard />
       <div className="auth-panel">
         <div className="auth-form">
+          <img className="auth-logo-wide" src={LOGO_WIDE} alt="LPS Vendas" />
           <div className="auth-brandhead">
             <div className="ic"><IconBuilding size={26} /></div>
             <div>

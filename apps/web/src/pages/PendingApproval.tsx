@@ -3,6 +3,9 @@ import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { SubMessage, Subscription } from '../api/types';
 import { IconLogout, IconReceipt } from '../components/Icons';
+import { LOGO_WIDE } from '../brand';
+import { LoginShowcase } from '../components/LoginShowcase';
+import { ScreenKeyboard } from '../components/ScreenKeyboard';
 
 /**
  * Ecrã de ESPERA: a empresa concluiu o setup/pagamento mas aguarda APROVAÇÃO
@@ -10,7 +13,7 @@ import { IconLogout, IconReceipt } from '../components/Icons';
  * Faz polling: assim que for aprovada, entra automaticamente no painel.
  */
 export function PendingApproval({
-  onApproved, title = 'Conta em aprovação', subtitle = 'O administrador está a validar o seu pagamento', intro,
+  onApproved, title = 'Conta em aprovação', subtitle = 'O administrador está a validar a sua conta', intro,
 }: {
   onApproved(): void;
   title?: string;
@@ -57,52 +60,65 @@ export function PendingApproval({
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao enviar.'); }
   };
 
-  return (
-    <div className="login">
-      <div className="box" style={{ maxWidth: 560 }}>
-        <div className="brand">
-          <div style={{ width: 56, height: 56, borderRadius: 16, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', marginBottom: 10 }}>
-            <IconReceipt size={26} />
-          </div>
-          <h1>{title}</h1>
-          <div className="tg">{subtitle}</div>
-        </div>
-        <div className="card">
-          <div className="banner info" style={{ marginBottom: 12 }}>
-            {intro ?? <>A sua conta foi criada e o comprovativo enviado. Assim que o <strong>Super Admin</strong> aprovar, o painel desbloqueia automaticamente (esta página atualiza sozinha).</>}
-          </div>
-          {sub ? (
-            <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-              Subscrição: <strong>{sub.plan?.name ?? sub.planId}</strong> · estado <strong>{sub.status}</strong>
-              {sub.reviewNote ? <> · nota: {sub.reviewNote}</> : null}
-            </p>
-          ) : null}
+  const statusLabel: Record<string, string> = {
+    ACTIVE: 'Ativa', IN_REVIEW: 'Em análise', PENDING_PAYMENT: 'A aguardar pagamento', EXPIRED: 'Expirada', REJECTED: 'Rejeitada',
+  };
 
-          <h3 style={{ margin: '6px 0 8px' }}>Conversa com o administrador</h3>
-          <div className="chat-box">
-            {msgs.length === 0 ? <div className="muted" style={{ fontSize: 13, padding: 8 }}>Sem mensagens. Escreva ao administrador se precisar.</div>
-              : msgs.map((m) => (
-                <div key={m.id} className={`chat-msg ${m.sender === 'COMPANY' ? 'me' : 'them'}`}>
-                  <div className="cm-who">{m.sender === 'COMPANY' ? (user?.name || 'Eu') : (m.senderName || 'Administrador')}</div>
-                  <div className="cm-body">{m.body}</div>
-                </div>
-              ))}
-            <div ref={endRef} />
+  // Mesma identidade do login e da ativação: painel escuro à esquerda, vídeo à direita.
+  return (
+    <div className="auth auth-scroll">
+      <ScreenKeyboard />
+      <div className="auth-panel">
+        <div className="auth-form">
+          <img className="auth-logo-wide" src={LOGO_WIDE} alt="LPS Vendas" />
+          <div className="auth-brandhead">
+            <div className="ic"><IconReceipt size={24} /></div>
+            <div>
+              <h1>{title}</h1>
+              <p className="sub">{subtitle}</p>
+            </div>
           </div>
-          {err ? <div className="banner danger" style={{ margin: '8px 0' }}>{err}</div> : null}
-          <div className="row" style={{ gap: 8, marginTop: 10 }}>
-            <input style={{ flex: 1, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '11px 13px', color: 'var(--text)' }}
-              value={text} onChange={(e) => setText(e.target.value)} placeholder="Escrever mensagem…"
-              onKeyDown={(e) => { if (e.key === 'Enter') void send(); }} disabled={!sub} />
-            <button className="btn" onClick={() => void send()} disabled={!sub || !text.trim()}>Enviar</button>
+
+          <div className="auth-glass auth-stepanim">
+            <div className="auth-note pa-note">
+              <span className="pa-pulse" aria-hidden />
+              <div>{intro ?? <>A sua conta foi criada. Assim que o <strong>administrador</strong> aprovar, o painel desbloqueia automaticamente.</>}</div>
+            </div>
+            {sub ? (
+              <div className="pa-sub">
+                <span>Plano <b>{sub.plan?.name ?? sub.planId}</b></span>
+                <span className={`pa-chip s-${sub.status.toLowerCase()}`}>{statusLabel[sub.status] ?? sub.status}</span>
+                {sub.reviewNote ? <small>{sub.reviewNote}</small> : null}
+              </div>
+            ) : null}
+
+            <label className="auth-label">Conversa com o administrador</label>
+            <div className="pa-chat">
+              {msgs.length === 0 ? <div className="pa-empty">Sem mensagens</div>
+                : msgs.map((m) => (
+                  <div key={m.id} className={`pa-msg ${m.sender === 'COMPANY' ? 'me' : 'them'}`}>
+                    <div className="pa-who">{m.sender === 'COMPANY' ? (user?.name || 'Eu') : (m.senderName || 'Administrador')}</div>
+                    <div className="pa-body">{m.body}</div>
+                  </div>
+                ))}
+              <div ref={endRef} />
+            </div>
+            {err ? <div className="auth-error">{err}</div> : null}
+            <div className="pa-send">
+              <input className="auth-input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Escrever mensagem…"
+                onKeyDown={(e) => { if (e.key === 'Enter') void send(); }} disabled={!sub} />
+              <button className="auth-btn" onClick={() => void send()} disabled={!sub || !text.trim()} aria-label="Enviar">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M22 2 11 13" /><path d="m22 2-7 20-4-9-9-4 20-7Z" /></svg>
+              </button>
+            </div>
           </div>
+
+          <p className="auth-foot logout">
+            <a onClick={() => void logout()}><IconLogout size={15} /> Terminar sessão</a>
+          </p>
         </div>
-        <p style={{ textAlign: 'center', marginTop: 12 }}>
-          <a onClick={() => void logout()} style={{ color: 'var(--muted)', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <IconLogout size={15} /> Terminar sessão
-          </a>
-        </p>
       </div>
+      <div className="auth-media"><LoginShowcase /></div>
     </div>
   );
 }

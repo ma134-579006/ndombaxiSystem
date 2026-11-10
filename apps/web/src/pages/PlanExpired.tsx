@@ -47,7 +47,7 @@ export function PlanExpired({ onResolved }: { onResolved(): void }) {
               </button>
             </div>
           ) : (
-            <div className="pe-card"><PayStep onNext={() => setStep('waiting')} allowPlanChoice /></div>
+            <PayStep auth onNext={() => setStep('waiting')} allowPlanChoice />
           )}
           <p className="auth-foot">
             <a onClick={() => void logout()} className="pe-out"><IconLogout size={15} /> Terminar sessão</a>
