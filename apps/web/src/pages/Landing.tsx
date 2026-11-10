@@ -1,539 +1,516 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import { initLandingReveal } from '../landingReveal';
 import { useAuth } from '../auth/AuthContext';
 import type {
+  AppPlatform,
   BankAccount,
   LandingConfig,
   PlanTier,
   PublicPlan,
+  PublicRelease,
   RegisterCompanyResult,
 } from '../api/types';
 import { LOGO_WIDE } from '../brand';
 import { CAIXA_URL, STORE_URL } from '../config';
-import {
-  IconBoxes, IconBuilding, IconCalendar, IconCart, IconCartIn, IconCashRegister, IconCheck,
-  IconGauge, IconHeadset, IconMail, IconReceipt, IconShield, IconSparkles,
-  IconStore, IconTruck, IconUsers, IconWallet,
-} from '../components/Icons';
+import { IconCheck } from '../components/Icons';
 import { SupportChat } from '../components/SupportChat';
 import { FeedbackSection } from '../components/FeedbackSection';
 import { DownloadApps } from '../sections/DownloadApps';
+import { LANGS, dict, fill, initialLang, type LandingLang } from './landingI18n';
+import '../landingV.css';
 
-/** Imagens de fundo realistas — carrossel por SERVIÇO, em pares (2 imagens
- *  seguidas por vertical): vendas & retalho → restauração/hamburgueria →
- *  clínica → hotelaria → reparações/serviços → supermercado → pagamentos POS
- *  → armazém → boutique → mercado. Usadas quando o Super Admin não define
- *  as suas. Unsplash, alta qualidade, tom profissional. */
-const DEFAULT_HERO_IMAGES = [
-  // Vendas & retalho
-  'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1920&q=80', // loja moderna
-  'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=1920&q=80', // retalho/mercado
-  // Restauração & hamburgueria
-  'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1920&q=80',   // restaurante interior
-  'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1920&q=80', // hambúrguer artesanal
-  // Clínica & saúde
-  'https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?auto=format&fit=crop&w=1920&q=80', // médico de bata (neutro, sem sinalética)
-  'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1920&q=80', // médico com tablet
-  // Hotelaria
-  'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1920&q=80', // hotel resort
-  'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1920&q=80',   // quarto de hotel
-  // Reparações & serviços técnicos
-  'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1920&q=80', // mecânico/oficina
-  'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=1920&q=80', // técnico/engenharia
-  // Supermercado
-  'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1920&q=80', // prateleiras
-  'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1920&q=80',   // mercado fresco
-  // Pagamentos & POS
-  'https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&w=1920&q=80',   // pagamento cartão
-  'https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?auto=format&fit=crop&w=1920&q=80',   // POS móvel
-  // Armazém & logística
-  'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1920&q=80', // armazém
-  'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1920&q=80',   // logística moderna
-  // Boutique & moda
-  'https://images.unsplash.com/photo-1521335629791-ce4aec67dd15?auto=format&fit=crop&w=1920&q=80', // loja de roupa
-  'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=1920&q=80', // boutique
-  // Atendimento & balcão
-  'https://images.unsplash.com/photo-1567448400815-59d5a71b1a6c?auto=format&fit=crop&w=1920&q=80', // balcão atendimento
-  'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?auto=format&fit=crop&w=1920&q=80',   // profissional negócio
-];
-const DEFAULT_HERO = DEFAULT_HERO_IMAGES[0];
-
-function kz(n: number): string {
-  return n.toLocaleString('pt-PT', { maximumFractionDigits: 0 }) + ' Kz';
-}
 /** Duração do ciclo do plano: 1 → "mês", N → "N meses". */
 function dur(months: number): string {
   return months <= 1 ? 'mês' : `${months} meses`;
 }
 
+function kzNum(n: number): string {
+  return n.toLocaleString('pt-PT', { maximumFractionDigits: 0 });
+}
+function kz(n: number): string {
+  return kzNum(n) + ' Kz';
+}
 
 interface Props {
   onGoLogin(): void; // abre o painel de login normal
   onGoRegister?(): void; // abre o registo simples (email/Google)
 }
 
-const NAV_LINKS = [
-  { href: '#modulos', label: 'Funcionalidades' },
-  { href: '#planos', label: 'Planos' },
-  { href: '#porque', label: 'Sobre' },
-  { href: '#contacto', label: 'Contacto' },
-];
+const IMG = (f: string) => `${import.meta.env.BASE_URL}landing/${f}`;
+const UNSPLASH = (id: string, w = 900) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=80`;
+/** Fotos da secção "Porquê escolher" (uma por slide). */
+const WHY_PHOTOS = ['photo-1522529599102-193c0d76b5b6', 'photo-1531123897727-8f129e1688ce', 'photo-1611432579699-484f7990b127', 'photo-1615813967515-e1838c1c5116'];
+
+type SolTab = 'fat' | 'ret' | 'rest';
+type Peek = 'desktop' | 'mobile' | 'tablet';
+
+/** Mostra o elemento (classe .in) quando entra no ecrã — as entradas suaves da referência. */
+function useInView<T extends Element>(): [React.RefObject<T>, boolean] {
+  const ref = useRef<T>(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || seen) return;
+    if (typeof IntersectionObserver === 'undefined') { setSeen(true); return; }
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { setSeen(true); io.disconnect(); } }, { threshold: 0.18 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [seen]);
+  return [ref, seen];
+}
+
+/** Número que conta de 0 até ao valor quando aparece. */
+function CountUp({ to, prefix = '', suffix = '', decimals = 0, run }: { to: number; prefix?: string; suffix?: string; decimals?: number; run: boolean }) {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    if (!run) return;
+    let raf = 0; const t0 = performance.now(); const D = 1600;
+    const step = (t: number) => { const p = Math.min(1, (t - t0) / D); setV(to * (1 - Math.pow(1 - p, 3))); if (p < 1) raf = requestAnimationFrame(step); };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [run, to]);
+  return <>{prefix}{v.toLocaleString('pt-PT', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}{suffix}</>;
+}
+
+/** Terminal POS (monitor com pé) com a captura real do caixa. */
+function PosTerminal({ src, className = '' }: { src: string; className?: string }) {
+  return (
+    <div className={`lv-term ${className}`} aria-hidden="true">
+      <div className="lv-term-screen"><img src={src} alt="" loading="eager" /></div>
+      <div className="lv-term-neck" />
+      <div className="lv-term-base" />
+    </div>
+  );
+}
+
+function Laptop({ src }: { src: string }) {
+  return (
+    <div className="lv-laptop" aria-hidden="true">
+      <div className="lv-laptop-lid"><img src={src} alt="" loading="lazy" /></div>
+      <div className="lv-laptop-base" />
+    </div>
+  );
+}
+
+function Tablet({ src, className = '' }: { src: string; className?: string }) {
+  return <div className={`lv-tablet ${className}`} aria-hidden="true"><img src={src} alt="" loading="lazy" /></div>;
+}
+
+function Phone({ src, className = '' }: { src: string; className?: string }) {
+  return <div className={`lv-phone ${className}`} aria-hidden="true"><i /><img src={src} alt="" loading="lazy" /></div>;
+}
+
+const SOCIAL = {
+  whatsapp: <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden><path d="M19.05 4.91A9.82 9.82 0 0 0 12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.02zm-7.01 15.24a8.23 8.23 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.24-8.23 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.54-3.69 8.23-8.23 8.23zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.39.11-.51.11-.11.25-.29.37-.43.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07s.89 2.4 1.01 2.56c.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z" /></svg>,
+  mail: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>,
+  phone: <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.9.5 2.8.6a2 2 0 0 1 1.8 2Z" /></svg>,
+  store: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 7h12l1 13H5L6 7Z" /><path d="M9 10V6a3 3 0 0 1 6 0v4" /></svg>,
+};
+
+const BADGE_ICONS: Record<'android' | 'windows' | 'store', React.ReactNode> = {
+  android: <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden><path fill="#3ddc84" d="M17.6 9.5a.9.9 0 1 1 1.8 0v5.6a.9.9 0 1 1-1.8 0zM4.6 9.5a.9.9 0 1 1 1.8 0v5.6a.9.9 0 1 1-1.8 0zM7 8.9h10v8.1a1.2 1.2 0 0 1-1.2 1.2h-.9v2.6a1.1 1.1 0 0 1-2.2 0v-2.6h-1.4v2.6a1.1 1.1 0 0 1-2.2 0v-2.6h-.9A1.2 1.2 0 0 1 7 17zM7.1 8.3a5 5 0 0 1 9.8 0z" /></svg>,
+  windows: <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden><path fill="#fff" d="M2.5 4.9 10.2 3.8v7.5H2.5zM11.3 3.65 21.5 2.2v9.1H11.3zM2.5 12.4h7.7v7.5l-7.7-1.1zM11.3 12.4h10.2v9.4l-10.2-1.4z" /></svg>,
+  store: <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 7h12l1 13H5L6 7Z" /><path d="M9 10V6a3 3 0 0 1 6 0v4" /></svg>,
+};
 
 export function Landing({ onGoLogin, onGoRegister }: Props) {
   const { loginTenant } = useAuth();
   const [data, setData] = useState<{ config: LandingConfig; plans: PublicPlan[] } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showRegister, setShowRegister] = useState(false);
   const [presetTier, setPresetTier] = useState<PlanTier>('BUSINESS');
+  const [releases, setReleases] = useState<Record<AppPlatform, PublicRelease | null> | null>(null);
+  const [lang, setLang] = useState<LandingLang>(initialLang);
+  const [langOpen, setLangOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [sol, setSol] = useState<SolTab>('fat');
+  const [why, setWhy] = useState(0);
+  const [faqOpen, setFaqOpen] = useState<number | null>(null);
+  const [peek, setPeek] = useState<Peek>('desktop');
+  const t = dict(lang);
 
   useEffect(() => {
-    api
-      .publicLanding()
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+    api.publicLanding().then(setData).catch(() => setData(null));
+    api.publicDownloads().then(setReleases).catch(() => setReleases(null));
   }, []);
 
-  // MOTION enterprise: scroll-reveal bidirecional + parallax do mockup
-  // (landingReveal.ts). Arranca DEPOIS do conteúdo renderizar (loading falso)
-  // para o observador apanhar todas as secções; teardown ao sair da landing.
   useEffect(() => {
-    if (loading) return;
-    const stop = initLandingReveal();
-    return stop;
-  }, [loading]);
-
-  const cfg = data?.config;
-  const primary = cfg?.primaryColor || 'var(--nx-brand-600)';
-  const accent = cfg?.accentColor || 'var(--nx-brand-400)';
-  // Carrossel: heroImages (várias, rodam sozinhas) → heroImageUrl → default.
-  // Usa as imagens do Super Admin SÓ se forem várias (≥2) E não forem uma
-  // cópia gravada dos padrões ANTIGOS (v1 tinha 10; se a config for só isso,
-  // é lista obsoleta → usa o conjunto novo de 20 em pares por serviço).
-  const OLD_DEFAULT_IDS = [
-    'photo-1604719312566', 'photo-1556740758', 'photo-1441986300917', 'photo-1542838132',
-    'photo-1578916171728', 'photo-1567448400815', 'photo-1607082348824', 'photo-1556742502',
-    'photo-1521335629791', 'photo-1583258292688',
-  ];
-  const isStaleDefaults = (list: string[]) =>
-    list.length > 0 && list.every((u) => OLD_DEFAULT_IDS.some((id) => u.includes(id)));
-  const heroImages =
-    cfg?.heroImages && cfg.heroImages.length >= 2 && !isStaleDefaults(cfg.heroImages)
-      ? cfg.heroImages
-      : DEFAULT_HERO_IMAGES;
-  const heroInterval = cfg?.heroIntervalMs || 5000;
-  const [slideIdx, setSlideIdx] = useHeroSlides(heroImages.length, heroInterval);
-  const trialDays = cfg?.trialDays ?? 14;
-  const plans = data?.plans ?? [];
-  const ads = (cfg?.showAds && cfg?.ads?.filter((a) => a.active !== false)) || [];
-
-  const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const closeMenu = () => setMenuOpen(false);
+    try { localStorage.setItem('lps:lang', lang); } catch { /* */ }
+    document.documentElement.lang = lang === 'pt' ? 'pt-AO' : lang;
+  }, [lang]);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
+    const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Fecha os menus suspensos ao clicar fora / Esc.
   useEffect(() => {
-    if (!menuOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
-    const onResize = () => { if (window.innerWidth >= 960) setMenuOpen(false); };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('resize', onResize);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('resize', onResize);
+    if (!langOpen && !helpOpen && !menuOpen) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent && e.key !== 'Escape') return;
+      const el = e.target as HTMLElement | null;
+      if (e.type === 'pointerdown' && el?.closest('.lv-dd, .lv-burger, .lv-mmenu')) return;
+      setLangOpen(false); setHelpOpen(false); if (e.type === 'keydown') setMenuOpen(false);
     };
-  }, [menuOpen]);
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', close);
+    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', close); };
+  }, [langOpen, helpOpen, menuOpen]);
 
-  const openRegister = (tier: PlanTier) => {
-    // Novo fluxo simples (email/Google) quando disponível; senão, modal antigo.
+  // Slides "Porquê escolher": rodam sozinhos.
+  useEffect(() => {
+    const id = window.setInterval(() => setWhy((w) => (w + 1) % 4), 6500);
+    return () => window.clearInterval(id);
+  }, [why]);
+
+  const cfg = data?.config;
+  const brand = cfg?.brandName ?? 'LPS Vendas';
+  const trialDays = cfg?.trialDays ?? 14;
+  const plans = data?.plans ?? [];
+  const ads = (cfg?.showAds && cfg?.ads?.filter((a) => a.active !== false)) || [];
+
+  const openRegister = (tier: PlanTier = 'BUSINESS') => {
     if (onGoRegister) { onGoRegister(); return; }
     setPresetTier(tier);
     setShowRegister(true);
   };
+  const goSol = (s: SolTab) => {
+    setSol(s); setMenuOpen(false);
+    document.getElementById('solucoes')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const relHref = (p: AppPlatform) => releases?.[p]?.downloadUrl || releases?.[p]?.downloadPageUrl || '#baixar';
+
+  const [statsRef, statsIn] = useInView<HTMLElement>();
+  const [solRef, solIn] = useInView<HTMLElement>();
+  const [plansRef, plansIn] = useInView<HTMLElement>();
+  const [peekRef, peekIn] = useInView<HTMLElement>();
+
+  const SOL: Record<SolTab, { title: string; items: string[]; tags: string[]; media: React.ReactNode }> = {
+    fat: { title: t.tabFatT, items: t.tabFat, tags: t.tabFatFor, media: <Laptop src={IMG('painel.webp')} /> },
+    ret: { title: t.tabRetT, items: t.tabRet, tags: t.tabRetFor, media: <PosTerminal src={IMG('caixa-pos.webp')} className="sm" /> },
+    rest: { title: t.tabRestT, items: t.tabRest, tags: t.tabRestFor, media: <div className="lv-duo"><Tablet src={IMG('caixa-pos.webp')} /><Phone src={IMG('caixa-grelha.webp')} className="over" /></div> },
+  };
+  const WHY = [[t.why1T, t.why1], [t.why2T, t.why2], [t.why3T, t.why3], [t.why4T, t.why4]];
+  const curLang = LANGS.find((l) => l.code === lang)!;
+
+  const Cta = ({ className = '', label = t.tryFree }: { className?: string; label?: string }) => (
+    <button type="button" className={`lv-btn ${className}`} onClick={() => openRegister('BUSINESS')}>{label}</button>
+  );
 
   return (
-    <div className="lp" id="top" style={{ ['--lp-primary' as string]: primary, ['--lp-accent' as string]: accent }}>
-      {/* NAV */}
-      <nav className={`lp-nav${scrolled ? ' scrolled' : ''}${menuOpen ? ' open' : ''}`}>
-        <div className="lp-nav-bar">
-          <a className="lp-brand" href="#top" onClick={closeMenu} aria-label={cfg?.brandName ?? 'LPS Vendas'}>
-            <img className="logo" src={LOGO_WIDE} alt="" />
-          </a>
-          <div className="lp-nav-links" aria-label="Secções da página">
-            {NAV_LINKS.map((l) => (
-              <a key={l.href} href={l.href}>{l.label}</a>
-            ))}
-            <a href="#baixar">Baixar Aplicativo</a>
+    <div className="lv" id="top">
+      {/* ── Barra de topo fixa ───────────────────────────── */}
+      <nav className={`lv-nav${scrolled ? ' scrolled' : ''}`}>
+        <div className="lv-nav-in">
+          <a className="lv-logo" href="#top" aria-label={brand}><img src={LOGO_WIDE} alt="" /></a>
+          <div className="lv-dd lv-lang">
+            <button type="button" className="lv-lang-btn" aria-haspopup="menu" aria-expanded={langOpen} onClick={() => { setLangOpen((v) => !v); setHelpOpen(false); }}>
+              {curLang.short}<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            {langOpen ? (
+              <div className="lv-menu" role="menu">
+                {LANGS.map((l) => (
+                  <button key={l.code} type="button" role="menuitemradio" aria-checked={l.code === lang} className={l.code === lang ? 'on' : ''} onClick={() => { setLang(l.code); setLangOpen(false); }}>
+                    <b>{l.short}</b>{l.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
-          <span className="spacer" />
-          <div className="lp-nav-actions">
-            <button type="button" className="nav-login" onClick={onGoLogin}>Entrar</button>
-            <button type="button" className="nav-signup" onClick={() => openRegister('BUSINESS')}>Criar Conta</button>
+          <div className="lv-links lv-links-l">
+            <button type="button" onClick={() => goSol('fat')}>{t.navFat}</button>
+            <button type="button" onClick={() => goSol('ret')}>{t.navRet}</button>
+            <button type="button" onClick={() => goSol('rest')}>{t.navRest}</button>
           </div>
-          <button
-            type="button"
-            className="lp-burger"
-            aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
-            aria-expanded={menuOpen}
-            aria-controls="lp-mobile-menu"
-            onClick={() => setMenuOpen((v) => !v)}
-          >
-            <span /><span /><span />
-          </button>
-        </div>
-        <div id="lp-mobile-menu" className="lp-mobile-menu" aria-hidden={!menuOpen}>
-          <div className="lp-mobile-inner">
-            {NAV_LINKS.map((l) => (
-              <a key={l.href} href={l.href} onClick={closeMenu} tabIndex={menuOpen ? 0 : -1}>{l.label}</a>
-            ))}
-            <div className="lp-mobile-cta">
-              <button type="button" className="nav-signup" tabIndex={menuOpen ? 0 : -1} onClick={() => { closeMenu(); openRegister('BUSINESS'); }}>Criar Conta</button>
-              <button type="button" className="nav-login" tabIndex={menuOpen ? 0 : -1} onClick={() => { closeMenu(); onGoLogin(); }}>Entrar</button>
-              <a className="dl-nav-btn" href="#baixar" tabIndex={menuOpen ? 0 : -1} onClick={closeMenu}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-                <span>Baixar Aplicativo</span>
-              </a>
+          <span className="lv-sp" />
+          <div className="lv-links">
+            <a href="#planos">{t.navPrices}</a>
+            <a href="#baixar">{t.navApps}</a>
+            <div className="lv-dd">
+              <button type="button" aria-haspopup="menu" aria-expanded={helpOpen} onClick={() => { setHelpOpen((v) => !v); setLangOpen(false); }}>
+                {t.navHelp}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+              </button>
+              {helpOpen ? (
+                <div className="lv-menu right" role="menu">
+                  <a role="menuitem" href="#faq" onClick={() => setHelpOpen(false)}>{t.navFaq}</a>
+                  <a role="menuitem" href="#contacto" onClick={() => setHelpOpen(false)}>{t.navContact}</a>
+                  <a role="menuitem" href="#comentarios" onClick={() => setHelpOpen(false)}>{t.navComments}</a>
+                </div>
+              ) : null}
             </div>
+          </div>
+          <button type="button" className="lv-btn-o" onClick={onGoLogin}>{t.login}</button>
+          <button type="button" className="lv-btn sm" onClick={() => openRegister('BUSINESS')}>{t.signup}</button>
+          <button type="button" className="lv-burger" aria-label="Menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}><span /><span /><span /></button>
+        </div>
+        <div className={`lv-mmenu${menuOpen ? ' open' : ''}`} aria-hidden={!menuOpen}>
+          <button type="button" onClick={() => goSol('fat')}>{t.navFat}</button>
+          <button type="button" onClick={() => goSol('ret')}>{t.navRet}</button>
+          <button type="button" onClick={() => goSol('rest')}>{t.navRest}</button>
+          <a href="#planos" onClick={() => setMenuOpen(false)}>{t.navPrices}</a>
+          <a href="#baixar" onClick={() => setMenuOpen(false)}>{t.navApps}</a>
+          <a href="#faq" onClick={() => setMenuOpen(false)}>{t.navFaq}</a>
+          <div className="lv-mmenu-acts">
+            <button type="button" className="lv-btn-o" onClick={() => { setMenuOpen(false); onGoLogin(); }}>{t.login}</button>
+            <button type="button" className="lv-btn" onClick={() => { setMenuOpen(false); openRegister('BUSINESS'); }}>{t.signup}</button>
           </div>
         </div>
       </nav>
 
-      {/* HERO com carrossel animado de imagens realistas */}
-      <header className="lp-hero">
-        <HeroSlides images={heroImages} idx={slideIdx} />
-        <div className="lp-hero-inner lp-hero-grid">
-          <div className="lp-hero-copy">
-            <span className={`hero-eyebrow${cfg ? '' : ' pending'}`}><i aria-hidden="true" />{`${trialDays} dias grátis · sem cartão · cancele quando quiser`}</span>
-            <h1>
-              {(() => {
-                const w = (cfg?.heroTitle ?? 'O ERP Multi-setorial mais completo para Angola').split(' ');
-                const cut = Math.max(1, w.length - 2);
-                const words = (list: string[]) => list.map((x, i) => (
-                  <React.Fragment key={i}>{i > 0 ? ' ' : ''}{x.includes('-') ? <span className="nb">{x}</span> : x}</React.Fragment>
-                ));
-                return <>{words(w.slice(0, cut))} <em>{words(w.slice(cut))}</em></>;
-              })()}
-            </h1>
-            <p className="sub">
-              {cfg?.heroSubtitle ??
-                'POS, facturação certificada AGT, stock, financeiro, hotelaria, clínicas, farmácias, restaurantes, serviços, loja online e IA — tudo numa única plataforma.'}
-            </p>
-            <div className="cta-row">
-              <button className="lp-btn primary" onClick={() => openRegister('BUSINESS')}>
-                {cfg?.heroCtaPrimary ?? `Começar grátis — ${trialDays} dias`}
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
-              </button>
-              <button className="lp-btn outline" onClick={onGoLogin}>
-                {cfg?.heroCtaSecondary ?? 'Entrar'}
-              </button>
+      {/* ── HERO ─────────────────────────────────────────── */}
+      <header className="lv-hero">
+        <div className="lv-hero-in">
+          <div className="lv-hero-copy">
+            <h1><span className="lv-up d1">{t.heroA}</span><b className="lv-up d2">{t.heroB}</b></h1>
+            <p className="lv-up d3">{t.heroSub}</p>
+            <div className="lv-up d4">
+              <Cta className="white big" />
+              <small className="lv-trial">{fill(t.trialNote, { n: trialDays })}</small>
             </div>
-            <HeroControls count={heroImages.length} idx={slideIdx} onPick={setSlideIdx} />
-            <div className="lp-verticals" role="list" aria-labelledby="lp-vt-label">
-              <small id="lp-vt-label">Feito para</small>
-              {VERTICALS.map((v) => (
-                <span key={v.label} role="listitem" className="vt">
-                  <i aria-hidden="true">{v.icon}</i>{v.label}
-                </span>
-              ))}
-            </div>
-            {/* (Sem linha de selos aqui: o trial já está no badge acima e a AGT/
-                disponibilidade nos INDICADORES logo abaixo — evitar repetição.) */}
           </div>
-          {/* Mockup do produto (CSS puro — sem imagens, nítido em qualquer ecrã):
-              o visitante VÊ o painel em <1s, como Stripe/Linear mostram o produto. */}
-          <div className="lp-mockup" aria-hidden="true">
-            <div className="mk-frame">
-              <div className="mk-bar"><i /><i /><i /><span className="mk-url">painel · {cfg?.brandName ?? 'LPS Vendas'}</span></div>
-              <div className="mk-body">
-                <div className="mk-side">
-                  <div className="mk-si on" /><div className="mk-si" /><div className="mk-si" /><div className="mk-si" /><div className="mk-si" />
-                </div>
-                <div className="mk-main">
-                  <div className="mk-kpis">
-                    <div className="mk-kpi"><small>Vendas hoje</small><b>184 300 Kz</b><em className="up">▲ 12%</em></div>
-                    <div className="mk-kpi"><small>Lucro líquido</small><b>62 040 Kz</b><em className="up">▲ 8%</em></div>
-                    <div className="mk-kpi"><small>Faturas AGT</small><b>37</b><em>hoje</em></div>
-                  </div>
-                  <div className="mk-chart">
-                    <i style={{ ['--h' as never]: '38%' }} /><i style={{ ['--h' as never]: '52%' }} /><i style={{ ['--h' as never]: '44%' }} /><i style={{ ['--h' as never]: '66%' }} /><i style={{ ['--h' as never]: '58%' }} /><i style={{ ['--h' as never]: '82%' }} /><i style={{ ['--h' as never]: '74%' }} />
-                  </div>
-                  {/* Documentos REAIS do produto (facturação AGT) — em vez de linhas cinzentas. */}
-                  <div className="mk-docs">
-                    <div className="mk-doc"><span className="mk-doc-n">FT A/2026/0042</span><span className="mk-doc-ok">✓ assinada</span><b>12 400 Kz</b></div>
-                    <div className="mk-doc"><span className="mk-doc-n">FT A/2026/0041</span><span className="mk-doc-ok">✓ assinada</span><b>7 850 Kz</b></div>
-                    <div className="mk-doc"><span className="mk-doc-n">SAF-T · Julho</span><span className="mk-doc-ok">pronto</span><b>—</b></div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="lv-cert lv-up d5">
+            <span className="lv-cert-ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="m8.5 12 2.5 2.5 4.5-5" /></svg>
+            </span>
+            <b>{t.certified}</b>
           </div>
         </div>
-        {/* Indicadores de confiança — âncoras numéricas sob o hero */}
-        <div className="lp-stats" role="list">
-          <div role="listitem"><b>15+</b><span>módulos integrados</span></div>
-          <div role="listitem"><b>10+</b><span>setores de atividade</span></div>
-          <div role="listitem"><b>99,9%</b><span>disponibilidade</span></div>
-          <div role="listitem"><b>AGT</b><span>facturação certificada</span></div>
+        <div className="lv-hero-art" aria-hidden="true">
+          <div className="lv-hero-panel" />
+          <PosTerminal src={IMG('caixa-pos.webp')} className="hero" />
+          <img className="lv-hero-person" src={IMG('pessoa-hero.webp')} alt="" />
         </div>
       </header>
 
-      {/* MÓDULOS — a prova de "ERP completo": sempre visível (não depende da config) */}
-      <section className="lp-section" id="modulos">
-        <div className="wrap">
-          <h2>Um sistema, 15 módulos</h2>
-          <p className="lead">Tudo integrado: o que se vende na caixa baixa no stock, entra no financeiro e sai na facturação AGT.</p>
-          <div className="lp-modules">
-            {[
-              [<IconCashRegister size={20} key="i" />, 'POS / Caixa', 'Venda rápida, offline e com impressão térmica'],
-              [<IconReceipt size={20} key="i" />, 'Facturação AGT', 'Documentos certificados, SAF-T pronto'],
-              [<IconBoxes size={20} key="i" />, 'Inventário', 'Stock por loja, lotes, validades e alertas'],
-              [<IconCartIn size={20} key="i" />, 'Compras', 'Fornecedores, encomendas e custo médio'],
-              [<IconWallet size={20} key="i" />, 'Financeiro', 'Caixa, despesas, contas a pagar/receber'],
-              [<IconUsers size={20} key="i" />, 'RH & Salários', 'Folha salarial com INSS e IRT'],
-              [<IconBuilding size={20} key="i" />, 'Hotelaria', 'Reservas, quartos e conta do hóspede'],
-              [<IconCalendar size={20} key="i" />, 'Clínicas', 'Pacientes, consultas e receitas'],
-              [<IconShield size={20} key="i" />, 'Farmácias', 'Validades, lotes e princípio ativo'],
-              [<IconStore size={20} key="i" />, 'Restaurantes', 'Mesas, comandas, cozinha e fichas técnicas'],
-              [<IconTruck size={20} key="i" />, 'Serviços & Oficina', 'Ordens de serviço e assistência técnica'],
-              [<IconCart size={20} key="i" />, 'Loja Online', 'Montra pública com encomendas e entregas'],
-              [<IconHeadset size={20} key="i" />, 'CRM', 'Clientes, crédito e histórico de compras'],
-              [<IconSparkles size={20} key="i" />, 'IA integrada', 'Assistente que responde com os seus dados'],
-              [<IconGauge size={20} key="i" />, 'Relatórios', 'Lucro real, KPIs e fecho de caixa'],
-            ].map(([ic, t, d], i) => (
-              <div className="lp-mod" key={i}>
-                <span className="mic">{ic}</span>
-                <div><h3>{t}</h3><p>{d}</p></div>
+      {/* ── Separadores Faturação / Retalho / Restauração ── */}
+      <section className={`lv-sol${solIn ? ' in' : ''}`} id="solucoes" ref={solRef}>
+        <div className="lv-wrap">
+          <h2 className="lv-h2 center">{t.tabsTitle}</h2>
+          <div className="lv-tabs" role="tablist">
+            {(['fat', 'ret', 'rest'] as SolTab[]).map((k) => (
+              <button key={k} type="button" role="tab" aria-selected={sol === k} className={sol === k ? 'on' : ''} onClick={() => setSol(k)}>
+                {k === 'fat' ? t.navFat : k === 'ret' ? t.navRet : t.navRest}
+              </button>
+            ))}
+          </div>
+          <div className="lv-sol-body" key={sol + lang}>
+            <div className="lv-sol-media lv-fade f10">{SOL[sol].media}</div>
+            <div className="lv-sol-txt">
+              <h3 className="lv-fade f15">{SOL[sol].title}</h3>
+              <ul className="lv-fade f20">{SOL[sol].items.map((x) => <li key={x}>{x}</li>)}</ul>
+              <small className="lv-fade f20">{t.idealFor}</small>
+              <div className="lv-tags lv-fade f20">{SOL[sol].tags.map((x) => <span key={x}>{x}</span>)}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Números ─────────────────────────────────────── */}
+      <section className={`lv-stats${statsIn ? ' in' : ''}`} ref={statsRef}>
+        <div className="lv-wrap lv-stats-in">
+          <div className="lv-stats-txt lv-rise">
+            <h2 className="lv-h2">{t.statsTitle}</h2>
+            <p>{t.statsText}</p>
+            <Cta />
+          </div>
+          <div className="lv-stats-nums">
+            <div className="lv-rise r1"><b><CountUp to={15} prefix="+" run={statsIn} /></b><span>{t.st1}</span></div>
+            <div className="lv-rise r2"><b><CountUp to={10} prefix="+" run={statsIn} /></b><span>{t.st2}</span></div>
+            <div className="lv-rise r3"><b><CountUp to={99.9} decimals={1} suffix="%" run={statsIn} /></b><span>{t.st3}</span></div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Porquê escolher (pessoa à esquerda) ─────────── */}
+      <section className="lv-why" id="porque">
+        <div className="lv-wrap">
+          <div className="lv-why-card">
+            <div className="lv-why-media" key={'m' + why}>
+              <img className="lv-why-photo" src={UNSPLASH(WHY_PHOTOS[why], 700)} alt="" />
+              <Tablet src={IMG('caixa-pos.webp')} className="lv-why-tab" />
+            </div>
+            <div className="lv-why-txt" key={'t' + why + lang}>
+              <p className="lv-eyebrow">{t.whyEyebrow}</p>
+              <h3>{WHY[why][0]}</h3>
+              <p>{WHY[why][1]}</p>
+              <Cta />
+            </div>
+          </div>
+          <div className="lv-dots" role="tablist" aria-label={t.whyEyebrow}>
+            {WHY.map((_, i) => <button key={i} type="button" role="tab" aria-selected={why === i} aria-label={String(i + 1)} className={why === i ? 'on' : ''} onClick={() => setWhy(i)} />)}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Planos ──────────────────────────────────────── */}
+      {cfg?.showPricing !== false && plans.length > 0 ? (
+        <section className={`lv-plans${plansIn ? ' in' : ''}`} id="planos" ref={plansRef}>
+          <div className="lv-wrap">
+            <h2 className="lv-h2 center narrow">{fill(t.plansTitle, { n: trialDays })}</h2>
+            <p className="lv-lead center">{t.plansSub}</p>
+            <div className="lv-plan-grid">
+              {plans.map((p, i) => (
+                <article className={`lv-plan lv-rise r${Math.min(i + 1, 3)}${p.highlight ? ' hi' : ''}`} key={p.id}>
+                  <div className="lv-plan-h">
+                    <div><h3>{p.name}</h3><p>{p.tagline ?? ''}</p></div>
+                    {p.highlight ? <span className="lv-pop">{t.popular}</span> : null}
+                  </div>
+                  {p.tier === 'FREE' ? (
+                    <div className="lv-price"><b>{t.free}</b></div>
+                  ) : p.priceKz > 0 ? (
+                    <div className="lv-price"><i>Kz</i><b>{kzNum(p.priceKz)}</b><em>{p.durationMonths <= 1 ? t.perMonth : fill(t.perN, { n: p.durationMonths })}</em></div>
+                  ) : (
+                    <div className="lv-price"><b className="sm">{t.onConsult}</b></div>
+                  )}
+                  <button type="button" className="lv-btn block" onClick={() => openRegister(p.tier)}>{t.tryFree}</button>
+                  <ul>
+                    <li><IconCheck size={16} /> {p.maxStores === -1 ? t.storesInf : fill(t.stores, { n: p.maxStores })}</li>
+                    <li><IconCheck size={16} /> {p.maxUsers === -1 ? t.usersInf : fill(t.users, { n: p.maxUsers })}</li>
+                    <li><IconCheck size={16} /> {p.maxProducts === -1 ? t.productsInf : fill(t.products, { n: p.maxProducts.toLocaleString('pt-PT') })}</li>
+                    {p.modules.slice(0, 5).map((m) => <li key={m}><IconCheck size={16} /> {moduleLabel(m)}</li>)}
+                  </ul>
+                </article>
+              ))}
+            </div>
+            <p className="lv-note">{t.pricesNote}</p>
+          </div>
+        </section>
+      ) : null}
+
+      {ads.length > 0 ? (
+        <section className="lv-ads" id="novidades">
+          <div className="lv-wrap lv-ads-grid">
+            {ads.map((a, i) => (
+              <div className="lv-ad" key={i} style={a.imageUrl ? { backgroundImage: `url('${a.imageUrl}')` } : undefined}>
+                <h4>{a.title}</h4>
+                {a.text ? <p>{a.text}</p> : null}
+                {a.ctaLabel && a.ctaUrl ? <a href={a.ctaUrl} target="_blank" rel="noreferrer">{a.ctaLabel}</a> : null}
               </div>
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {/* ── Testemunhos (comentários da comunidade) ─────── */}
+      <section className="lv-testi" id="comentarios">
+        <div className="lv-wrap">
+          <div className="lv-testi-h">
+            <div><h2 className="lv-h2">{t.testiTitle}</h2><p>{t.testiSub}</p></div>
+            <div className="lv-arrows">
+              <button type="button" aria-label="‹" onClick={() => document.querySelector('.lv-testi .fb-list')?.scrollBy({ left: -360, behavior: 'smooth' })}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden><path d="M19 12H5M11 6l-6 6 6 6" /></svg></button>
+              <button type="button" className="on" aria-label="›" onClick={() => document.querySelector('.lv-testi .fb-list')?.scrollBy({ left: 360, behavior: 'smooth' })}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg></button>
+            </div>
+          </div>
+          <FeedbackSection />
         </div>
       </section>
 
-      {/* (Secção "Funcionalidades" da config REMOVIDA: era um subconjunto da
-          grelha de módulos acima — informação duplicada não vende duas vezes.) */}
+      {/* ── Perguntas frequentes ────────────────────────── */}
+      <section className="lv-faq" id="faq">
+        <div className="lv-wrap lv-faq-in">
+          <div className="lv-faq-list">
+            <h2 className="lv-h3">{t.faqTitle}</h2>
+            {t.faq.map(([q, a], i) => (
+              <div className={`lv-qa${faqOpen === i ? ' open' : ''}`} key={q}>
+                <button type="button" aria-expanded={faqOpen === i} onClick={() => setFaqOpen(faqOpen === i ? null : i)}>
+                  <span>{q.replace('{n}', String(trialDays))}</span><i aria-hidden="true">+</i>
+                </button>
+                <div className="lv-qa-a"><p>{a}</p></div>
+              </div>
+            ))}
+          </div>
+          <aside className="lv-faq-aside">
+            <h3>{t.faqAside}</h3>
+            <a className="lv-btn" href={cfg?.contactPhone ? `https://wa.me/${cfg.contactPhone.replace(/\D/g, '')}` : cfg?.contactEmail ? `mailto:${cfg.contactEmail}` : '#contacto'} target={cfg?.contactPhone ? '_blank' : undefined} rel="noreferrer">{t.talk}</a>
+          </aside>
+        </div>
+      </section>
 
-      {/* COMO FUNCIONA — 3 passos até vender */}
-      <section className="lp-section alt" id="como-funciona">
-        <div className="wrap">
-          <h2>A vender em 3 passos</h2>
-          <p className="lead">Sem instalação, sem técnico, sem cartão de crédito. Só precisa de um telemóvel ou computador.</p>
-          <div className="lp-steps">
-            <div className="lp-step">
-              <span className="num">1</span>
-              <h3>Crie a conta</h3>
-              <p>Registo em 2 minutos com e-mail ou Google — comece a testar no mesmo instante.</p>
-            </div>
-            <div className="lp-step">
-              <span className="num">2</span>
-              <h3>Configure o negócio</h3>
-              <p>Escolha o setor, adicione produtos e a equipa. O painel adapta-se ao seu ramo.</p>
-            </div>
-            <div className="lp-step">
-              <span className="num">3</span>
-              <h3>Comece a vender</h3>
-              <p>Caixa a funcionar (mesmo offline), facturas AGT e relatórios de lucro em tempo real.</p>
-            </div>
+      {/* ── Espreitar (Desktop / Mobile / Tablet) + faixa azul ── */}
+      <section className={`lv-peek${peekIn ? ' in' : ''}`} ref={peekRef}>
+        <div className="lv-wrap">
+          <h2 className="lv-h2 center">{t.peekTitleA}<br />{t.peekTitleB}</h2>
+          <div className="lv-tabs" role="tablist">
+            {(['desktop', 'mobile', 'tablet'] as Peek[]).map((k) => (
+              <button key={k} type="button" role="tab" aria-selected={peek === k} className={peek === k ? 'on' : ''} onClick={() => setPeek(k)}>{t[k]}</button>
+            ))}
+          </div>
+        </div>
+        <div className="lv-peek-stage">
+          <div className="lv-peek-dev" key={peek}>
+            {peek === 'desktop' ? <PosTerminal src={IMG('caixa-pos.webp')} className="peek" /> : peek === 'mobile' ? <Phone src={IMG('caixa-grelha.webp')} className="peek" /> : <Tablet src={IMG('caixa-pos.webp')} className="peek" />}
+          </div>
+        </div>
+        <div className="lv-band">
+          <div className="lv-wrap center">
+            <h2>{t.ctaTitle}</h2>
+            <p>{fill(t.ctaSub, { n: trialDays })}</p>
+            <Cta className="white big" />
           </div>
         </div>
       </section>
 
-      {/* PORQUÊ O LPS VENDAS — diferenciais */}
-      <section className="lp-section" id="porque">
-        <div className="wrap">
-          <h2>Feito para a realidade angolana</h2>
-          <p className="lead">Não é um software estrangeiro adaptado — foi desenhado de raiz para como se trabalha em Angola.</p>
-          <div className="lp-why">
-            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Tudo em Kwanzas</h3><p>Preços, facturas e relatórios na sua moeda, com IVA angolano.</p></div></div>
-            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Multi-loja</h3><p>Várias lojas com stock próprio, transferências e relatórios por loja.</p></div></div>
-            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Funciona offline</h3><p>A caixa continua a vender sem internet e sincroniza depois.</p></div></div>
-            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Multi-setor real</h3><p>Restaurante com fichas técnicas, hotel com folio, farmácia com validades.</p></div></div>
-            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Venda a crédito (fiado)</h3><p>Controle dívidas de clientes como se faz no comércio local.</p></div></div>
-            <div className="lp-whyi"><IconCheck size={18} /><div><h3>Suporte em português</h3><p>Chat integrado e acompanhamento por quem conhece o mercado.</p></div></div>
-          </div>
-        </div>
-      </section>
-
-      {/* BAIXAR APLICATIVO — apps Windows/Android/iOS (Offline-First) */}
+      {/* ── Aplicações ──────────────────────────────────── */}
       <DownloadApps />
 
-      {/* PLANOS / PREÇOS */}
-      {cfg?.showPricing !== false && plans.length > 0 && (
-        <section className="lp-section alt" id="planos">
-          <div className="wrap">
-            <h2>Planos simples, preços em Kwanzas</h2>
-            <p className="lead">
-              Comece com <strong>{trialDays} dias grátis</strong> em qualquer plano — sem cartão. Só paga se quiser continuar.
-            </p>
-            <div className="lp-plans">
-              {plans.map((p) => (
-                <div className={`lp-plan${p.highlight ? ' highlight' : ''}`} key={p.id}>
-                  {p.highlight && <span className="pop">Mais popular</span>}
-                  <div className="pname">{p.name}</div>
-                  <div className="ptag">{p.tagline ?? ''}</div>
-                  {p.tier === 'FREE' ? (
-                    <div className="price">Grátis<small> · {trialDays} dias</small></div>
-                  ) : p.priceKz > 0 ? (
-                    <div className="price">{kz(p.priceKz)}<small> /{dur(p.durationMonths)}</small></div>
-                  ) : (
-                    <div className="price neg">Sob consulta</div>
-                  )}
-                  <ul>
-                    <li><IconCheck size={16} /> {p.maxStores === -1 ? 'Lojas ilimitadas' : `${p.maxStores} loja(s)`}</li>
-                    <li><IconCheck size={16} /> {p.maxUsers === -1 ? 'Utilizadores ilimitados' : `${p.maxUsers} utilizadores`}</li>
-                    <li><IconCheck size={16} /> {p.maxProducts === -1 ? 'Produtos ilimitados' : `${p.maxProducts.toLocaleString('pt-PT')} produtos`}</li>
-                    {p.modules.map((m) => (
-                      <li key={m}><IconCheck size={16} /> {moduleLabel(m)}</li>
-                    ))}
-                  </ul>
-                  <button className="pick" onClick={() => openRegister(p.tier)}>
-                    {p.tier === 'FREE' ? 'Começar grátis' : p.priceKz > 0 ? 'Começar agora' : 'Falar connosco'}
-                  </button>
-                </div>
-              ))}
+      {/* ── Rodapé ──────────────────────────────────────── */}
+      <footer className="lv-foot" id="contacto">
+        <div className="lv-wrap">
+          <div className="lv-about">
+            <h4>{t.aboutTitle}</h4>
+            <p>{t.about}</p>
+          </div>
+          <div className="lv-fcols">
+            <div><h5>{t.fWhy}</h5>
+              <a href={STORE_URL} target="_blank" rel="noreferrer">{t.fStore}</a>
+              <a href="#baixar">{t.fApps}</a>
+              <a href="#comentarios">{t.fComments}</a>
+              <a href={CAIXA_URL} target="_blank" rel="noreferrer">{t.fPos}</a>
+            </div>
+            <div><h5>{t.fBiz}</h5>
+              <button type="button" onClick={() => goSol('fat')}>{t.fBizFat}</button>
+              <button type="button" onClick={() => goSol('ret')}>{t.fBizPos}</button>
+              <button type="button" onClick={() => goSol('rest')}>{t.fBizRest}</button>
+              <button type="button" onClick={() => goSol('ret')}>{t.fBizShop}</button>
+              <button type="button" onClick={() => goSol('ret')}>{t.fBizPharm}</button>
+              <button type="button" onClick={() => goSol('fat')}>{t.fBizHotel}</button>
+            </div>
+            <div><h5>{t.fSupport}</h5>
+              <a href="#faq">{t.fFaq}</a>
+              {cfg?.contactEmail ? <a href={`mailto:${cfg.contactEmail}`}>{t.fHelp}</a> : <a href="#faq">{t.fHelp}</a>}
+              {cfg?.contactPhone ? <a href={`tel:${cfg.contactPhone}`}>{t.fContacts}</a> : null}
+            </div>
+            <div><h5>{t.fAccount}</h5>
+              <button type="button" onClick={onGoLogin}>{t.fLogin}</button>
+              <button type="button" onClick={() => openRegister('BUSINESS')}>{t.fSignup}</button>
             </div>
           </div>
-        </section>
-      )}
-
-      {/* ANÚNCIOS / PUBLICIDADES */}
-      {ads.length > 0 && (
-        <section className="lp-section" id="novidades">
-          <div className="wrap">
-            <h2>Novidades</h2>
-            <div className="lp-ads">
-              {ads.map((a, i) => (
-                <div className="lp-ad" key={i} style={a.imageUrl ? { backgroundImage: `url('${a.imageUrl}')` } : undefined}>
-                  <h4>{a.title}</h4>
-                  {a.text && <p>{a.text}</p>}
-                  {a.ctaLabel && a.ctaUrl && <a href={a.ctaUrl} target="_blank" rel="noreferrer">{a.ctaLabel}</a>}
-                </div>
-              ))}
+          <div className="lv-fbar">
+            <img className="lv-flogo" src={LOGO_WIDE} alt={brand} />
+            <div className="lv-social">
+              {cfg?.contactPhone ? <a href={`https://wa.me/${cfg.contactPhone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" aria-label="WhatsApp">{SOCIAL.whatsapp}</a> : null}
+              {cfg?.contactEmail ? <a href={`mailto:${cfg.contactEmail}`} aria-label="E-mail">{SOCIAL.mail}</a> : null}
+              {cfg?.contactPhone ? <a href={`tel:${cfg.contactPhone}`} aria-label="Telefone">{SOCIAL.phone}</a> : null}
+              <a href={STORE_URL} target="_blank" rel="noreferrer" aria-label={t.fStore}>{SOCIAL.store}</a>
+            </div>
+            <div className="lv-badges">
+              <a className="lv-badge" href={relHref('android')} target={relHref('android').startsWith('#') ? undefined : '_blank'} rel="noreferrer">{BADGE_ICONS.android}<span><small>{t.availableOn}</small>Android</span></a>
+              <a className="lv-badge" href={relHref('windows')} target={relHref('windows').startsWith('#') ? undefined : '_blank'} rel="noreferrer">{BADGE_ICONS.windows}<span><small>{t.availableOn}</small>Windows</span></a>
+              <a className="lv-badge" href={relHref('android-loja')} target={relHref('android-loja').startsWith('#') ? undefined : '_blank'} rel="noreferrer">{BADGE_ICONS.store}<span><small>{t.availableOn}</small>LPS Loja</span></a>
             </div>
           </div>
-        </section>
-      )}
-
-      {/* FAQ — responde às objeções antes de pedirem o cartão */}
-      <section className="lp-section alt" id="faq">
-        <div className="wrap lp-faq-wrap">
-          <h2>Perguntas frequentes</h2>
-          <p className="lead">Tudo o que os gestores nos perguntam antes de começar.</p>
-          <div className="lp-faq">
-            <details>
-              <summary>Preciso de cartão de crédito para testar?</summary>
-              <p>Não. Cria a conta e usa {trialDays} dias grátis com todos os módulos do plano. Só paga se decidir continuar — por transferência bancária ou referência.</p>
-            </details>
-            <details>
-              <summary>A facturação é aceite pela AGT?</summary>
-              <p>Sim. Os documentos seguem o regime jurídico das facturas (numeração, hash e assinatura) e o sistema exporta o ficheiro SAF-T (AO) para entregar à AGT.</p>
-            </details>
-            <details>
-              <summary>E se a internet falhar na loja?</summary>
-              <p>A caixa continua a vender offline e sincroniza automaticamente quando a ligação voltar. Não perde vendas por causa da rede.</p>
-            </details>
-            <details>
-              <summary>Serve para o meu ramo?</summary>
-              <p>O painel adapta-se ao setor: restaurantes têm mesas e fichas técnicas, hotéis têm reservas e conta do hóspede, farmácias têm lotes e validades, oficinas têm ordens de serviço — tudo no mesmo sistema.</p>
-            </details>
-            <details>
-              <summary>Os meus dados estão seguros?</summary>
-              <p>Cada empresa tem os seus dados isolados, com cópias de segurança automáticas e acesso protegido por perfis e PIN. Pode exportar os seus dados quando quiser.</p>
-            </details>
-            <details>
-              <summary>Quantas lojas e funcionários posso ter?</summary>
-              <p>Depende do plano — desde 1 loja até lojas e utilizadores ilimitados. Pode mudar de plano em qualquer altura sem perder dados.</p>
-            </details>
-          </div>
-        </div>
-      </section>
-
-      {/* COMENTÁRIOS DA COMUNIDADE */}
-      <div id="comentarios"><FeedbackSection /></div>
-
-      {/* CHAT DE SUPORTE (balão flutuante) */}
-      <SupportChat />
-
-      {/* RODAPÉ enterprise em 2 camadas: faixa CTA + colunas (estilo INUKA,
-          adaptado à marca). Só links REAIS: âncoras das secções, caixa/loja
-          e contactos configurados no Super Admin. */}
-      <footer className="lp-footer2" id="contacto">
-        <div className="lp-cta-band">
-          <div className="wrap band-inner">
-            <div className="band-txt">
-              <h2>Comece hoje com o {cfg?.brandName ?? 'LPS Vendas'}</h2>
-              <p>Teste grátis, sem cartão. Venda, controle o stock e emita facturas certificadas AGT numa só plataforma.</p>
-            </div>
-            <div className="band-act">
-              <button className="band-primary" onClick={() => openRegister('BUSINESS')}>Criar conta grátis</button>
-              <button className="band-ghost" onClick={onGoLogin}>Entrar no painel</button>
-            </div>
-          </div>
-        </div>
-        <div className="lp-foot-main">
-          <div className="wrap lp-foot-cols">
-            <div className="lp-fcol lp-fbrand">
-              <div className="fb-logo-row">
-                <img src={LOGO_WIDE} alt={cfg?.brandName ?? 'LPS Vendas'} />
-              </div>
-              <p className="fdesc">Gestão, caixa e loja online num só sistema — com facturação certificada AGT, em Kwanzas.</p>
-              {cfg?.contactPhone ? (
-                <a className="fc-line" href={`tel:${cfg.contactPhone}`}>
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.9.5 2.8.6a2 2 0 0 1 1.8 2Z" /></svg>
-                  {cfg.contactPhone}
-                </a>
-              ) : null}
-              {cfg?.contactEmail ? (
-                <a className="fc-line" href={`mailto:${cfg.contactEmail}`}>
-                  <IconMail size={16} /> {cfg.contactEmail}
-                </a>
-              ) : null}
-              <div className="lp-fsocial">
-                {cfg?.contactPhone ? (
-                  <a href={`https://wa.me/${cfg.contactPhone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" aria-label="WhatsApp" title="WhatsApp">
-                    <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden><path d="M19.05 4.91A9.82 9.82 0 0 0 12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.004c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.02zM12.05 20.15h-.004a8.23 8.23 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.24-8.23 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.54-3.69 8.24-8.23 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.39.11-.51.11-.11.25-.29.37-.43.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/></svg>
-                  </a>
-                ) : null}
-                {cfg?.contactEmail ? (
-                  <a href={`mailto:${cfg.contactEmail}`} aria-label="E-mail" title="E-mail"><IconMail size={16} /></a>
-                ) : null}
-              </div>
-            </div>
-            <div className="lp-fcol">
-              <h5>Comece</h5>
-              <button onClick={() => openRegister('BUSINESS')}>Criar conta</button>
-              <button onClick={onGoLogin}>Entrar no painel</button>
-              <a href={CAIXA_URL} target="_blank" rel="noreferrer">Abrir a caixa (POS)</a>
-              <a href={STORE_URL} target="_blank" rel="noreferrer">Loja online</a>
-            </div>
-            <div className="lp-fcol">
-              <h5>Produto</h5>
-              <a href="#modulos">Módulos</a>
-              <a href="#planos">Planos e preços</a>
-              <a href="#novidades">Novidades</a>
-              <a href="#comentarios">Comentários</a>
-            </div>
-            <div className="lp-fcol">
-              <h5>Precisa de ajuda?</h5>
-              {cfg?.contactEmail ? <a href={`mailto:${cfg.contactEmail}`}>Fale connosco</a> : null}
-              {cfg?.contactPhone ? <a href={`tel:${cfg.contactPhone}`}>Ligar agora</a> : null}
-              <a href="#comentarios">Deixar comentário</a>
-            </div>
-          </div>
-          <div className="wrap lp-foot-bottom">
-            <span>{cfg?.footerText || `© ${new Date().getFullYear()} ${cfg?.brandName ?? 'LPS Vendas'}. Todos os direitos reservados.`}</span>
-            <span className="lp-foot-credits">Direitos reservados a <strong>Manuel Mbala Ndombaxi</strong> · Patrocinado pela <strong>Loja das Mulheres</strong></span>
+          <div className="lv-copy">
+            <span>{cfg?.footerText || `© ${new Date().getFullYear()} ${brand}. ${t.rights}`}</span>
+            <span>Direitos reservados a <strong>Manuel Mbala Ndombaxi</strong> · Patrocinado pela <strong>Loja das Mulheres</strong></span>
           </div>
         </div>
       </footer>
 
-      {loading && null}
+      <SupportChat />
 
       {showRegister && (
         <RegisterModal
@@ -544,109 +521,6 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           loginTenant={loginTenant}
         />
       )}
-    </div>
-  );
-}
-
-/** Carrossel de fundo do hero — crossfade automático entre imagens.
- *  PERFORMANCE: só monta o slide ATUAL + o SEGUINTE (pré-carrega) — antes
- *  montava as 20 imagens 1920px de uma vez (~10 MB no primeiro load, LCP
- *  péssimo em redes móveis angolanas). O resto carrega à medida que roda. */
-const VT_SVG = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
-const VERTICALS: { label: string; icon: React.ReactNode }[] = [
-  { label: 'Vendas & stock', icon: <svg {...VT_SVG}><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /><path d="M2.5 3.5h2.6l2.1 11.2a1.6 1.6 0 0 0 1.6 1.3h8.1a1.6 1.6 0 0 0 1.6-1.2L20.5 8H6.1" /></svg> },
-  { label: 'Restauração', icon: <svg {...VT_SVG}><path d="M6 3v7a2 2 0 0 0 4 0V3M8 3v18" /><path d="M17 21V3c-2.2 1.3-3.5 3.6-3.5 6.5 0 2 1.2 3.5 3.5 3.5" /></svg> },
-  { label: 'Serviços', icon: <svg {...VT_SVG}><circle cx="12" cy="12" r="3" /><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" /></svg> },
-  { label: 'Hotelaria', icon: <svg {...VT_SVG}><path d="M3 18V7M3 13h18v5M21 13v-2a3 3 0 0 0-3-3h-7v5" /><circle cx="7" cy="10.2" r="1.5" /></svg> },
-  { label: 'Clínicas', icon: <svg {...VT_SVG}><path d="M6 3v6a4 4 0 0 0 8 0V3" /><path d="M10 13v2a4 4 0 0 0 8 0v-1.5" /><circle cx="18" cy="11.8" r="1.8" /></svg> },
-  { label: 'Farmácias', icon: <svg {...VT_SVG}><rect x="3" y="8.5" width="18" height="7" rx="3.5" transform="rotate(-35 12 12)" /><path d="m9.5 9.5 5 5" /></svg> },
-];
-
-function useHeroSlides(count: number, intervalMs: number) {
-  const [idx, setIdx] = useState(0);
-  useEffect(() => {
-    if (count < 2) return;
-    // Quem pede «menos movimento» não tem mudança automática de imagem.
-    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const t = setInterval(() => {
-      if (document.visibilityState === 'hidden') return; // separador em 2.º plano: não roda
-      setIdx((i) => (i + 1) % count);
-    }, Math.max(2000, intervalMs));
-    return () => clearInterval(t);
-  }, [count, intervalMs]);
-  return [idx, setIdx] as const;
-}
-
-/** Unsplash permite pedir a largura: em ecrãs pequenos não se descarregam 1920 px (melhora o LCP). */
-function sizedHeroImage(src: string): string {
-  try {
-    const u = new URL(src);
-    if (u.hostname !== 'images.unsplash.com') return src;
-    // Largura que a foto (3:2) ocupa realmente em `cover` × densidade do ecrã (máx. 1,5),
-    // arredondada a tamanhos fixos (cache). Evita fotos desfocadas ou pesadas demais.
-    const vw = typeof window !== 'undefined' ? window.innerWidth : 1440;
-    const vh = typeof window !== 'undefined' ? window.innerHeight : 900;
-    const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
-    const narrow = vw < 768 || (vw < 1024 && vh > vw);
-    // Ecrã estreito: a foto aparece inteira à largura do ecrã; senão, em `cover`.
-    const need = (narrow ? vw : Math.max(vw, Math.min(880, vh) * 1.5)) * dpr;
-    u.searchParams.set('w', String([640, 900, 1200, 1600, 1920].find((s) => s >= need) ?? 1920));
-    u.searchParams.set('q', '70');
-    return u.toString();
-  } catch { return src; }
-}
-
-/** Fundo: a imagem atual monta logo; a SEGUINTE só depois de 2,5 s (não compete com o LCP) e serve de pré-carregamento. */
-function HeroSlides({ images, idx }: { images: string[]; idx: number }) {
-  const [showNext, setShowNext] = useState(false);
-  useEffect(() => {
-    setShowNext(false);
-    const t = setTimeout(() => setShowNext(true), 2500);
-    return () => clearTimeout(t);
-  }, [idx]);
-  const next = (idx + 1) % images.length;
-  return (
-    <div className="lp-hero-bg" aria-hidden="true">
-      {images.map((src, i) => (
-        i === idx || (showNext && i === next) ? (
-          <div key={i} className={`lp-hero-slide${i === idx ? ' on' : ''}`} style={{ backgroundImage: `url('${sizedHeroImage(src)}')` }} />
-        ) : null
-      ))}
-    </div>
-  );
-}
-
-/** Controlos: acessíveis por teclado/leitor de ecrã (ficam FORA do fundo aria-hidden). */
-function HeroControls({ count, idx, onPick }: { count: number; idx: number; onPick(i: number): void }) {
-  if (count < 2) return null;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return (
-    <div className="lp-hero-ctrl" role="group" aria-label="Imagens do carrossel">
-      {count > 8 ? (
-        // Muitas imagens: pontos seriam ruído — setas + contador.
-        <div className="arrows">
-          <button type="button" aria-label="Imagem anterior" onClick={() => onPick((idx - 1 + count) % count)}>
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
-          </button>
-          <button type="button" aria-label="Imagem seguinte" onClick={() => onPick((idx + 1) % count)}>
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-          </button>
-        </div>
-      ) : (
-        <div className="dots">
-          {Array.from({ length: count }, (_, i) => (
-            <button
-              key={i}
-              type="button"
-              aria-label={`Imagem ${i + 1} de ${count}`}
-              aria-current={i === idx ? 'true' : undefined}
-              className={i === idx ? 'on' : ''}
-              onClick={() => onPick(i)}
-            />
-          ))}
-        </div>
-      )}
-      <span className="ctr" aria-hidden="true">{pad(idx + 1)} / {pad(count)}</span>
     </div>
   );
 }

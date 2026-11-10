@@ -1,0 +1,230 @@
+/**
+ * Textos da página inicial em 4 idiomas (seletor junto ao logótipo, como o
+ * seletor de país do site de referência). Português é a base: qualquer chave
+ * em falta noutro idioma cai para o português.
+ */
+export type LandingLang = 'pt' | 'en' | 'fr' | 'es';
+
+export const LANGS: { code: LandingLang; short: string; label: string }[] = [
+  { code: 'pt', short: 'PT', label: 'Português' },
+  { code: 'en', short: 'EN', label: 'English' },
+  { code: 'fr', short: 'FR', label: 'Français' },
+  { code: 'es', short: 'ES', label: 'Español' },
+];
+
+const pt = {
+  navFat: 'Faturação', navRet: 'Retalho', navRest: 'Restauração', navPrices: 'Preços', navApps: 'Aplicações', navHelp: 'Ajuda',
+  navFaq: 'Perguntas Frequentes', navContact: 'Contactos', navComments: 'Comentários',
+  login: 'Entrar', signup: 'Criar Conta',
+  heroA: 'Software de', heroB: 'Faturação Online e POS',
+  heroSub: 'Fature em segundos e acompanhe as suas vendas no computador, telemóvel ou tablet, de forma simples e prática!',
+  tryFree: 'Experimente Grátis', trialNote: '{n} dias gratuitos sem compromisso', certified: 'Faturação certificada AGT',
+  tabsTitle: 'Software de faturação online ideal para escritórios, retalho e restauração!',
+  tabFatT: 'Faturação simples para si, rápida para os seus clientes!',
+  tabFat: ['Compatível com qualquer equipamento', 'Impressão em A4, talão e fatura eletrónica', 'Vendas a crédito e pagamentos a prazo', 'Conta corrente de clientes', 'Relatórios e SAF-T (AO)'],
+  tabFatFor: ['Escritórios', 'Agências', 'Prestadores de Serviços'],
+  tabRetT: 'O Ponto de Venda (POS) pensado para o comércio angolano!',
+  tabRet: ['Caixa rápida com leitor de código de barras', 'Funciona mesmo sem internet', 'Stock por loja, lotes e validades', 'Várias lojas e várias caixas', 'Loja online integrada'],
+  tabRetFor: ['Mercearias', 'Supermercados', 'Lojas de Roupa', 'Farmácias'],
+  tabRestT: 'Mesas, pedidos e cozinha sempre em sintonia!',
+  tabRest: ['Gestão de mesas e comandas', 'Pedidos enviados para a cozinha', 'Fichas técnicas e custos', 'Divisão de conta', 'Fecho de caixa por turno'],
+  tabRestFor: ['Restaurantes', 'Bares', 'Pastelarias', 'Hamburguerias'],
+  idealFor: 'A solução ideal para:',
+  statsTitle: 'A solução que precisa para gerir o seu negócio, sem complicações!',
+  statsText: 'Caixa, stock, financeiro, recursos humanos e loja online num único sistema, feito em Angola e em Kwanzas. Descomplicámos ao máximo para que se concentre no que importa: vender.',
+  st1: 'módulos integrados num só sistema', st2: 'setores de atividade suportados', st3: 'de disponibilidade da plataforma',
+  whyEyebrow: 'Porquê escolher o LPS Vendas?',
+  why1T: 'É simples, prático e intuitivo.', why1: 'Pensado para quem está ao balcão: em poucos minutos qualquer funcionário aprende a vender, a emitir faturas e a fechar a caixa.',
+  why2T: 'Sem contratos, nem burocracias.', why2: 'Pode cancelar a sua subscrição a qualquer momento. Acreditamos que a fidelização vem da satisfação.',
+  why3T: 'Suporte próximo e em português.', why3: 'Chat integrado na plataforma e uma equipa que conhece o mercado angolano, pronta para ajudar sempre que precisar.',
+  why4T: 'Funciona mesmo sem internet.', why4: 'A caixa continua a vender quando a rede falha e sincroniza tudo automaticamente quando a ligação volta.',
+  plansTitle: 'Crie já a sua conta LPS Vendas e experimente durante {n} dias grátis',
+  plansSub: 'Escolha o melhor plano para o seu negócio e comece já a testar o software de faturação e POS feito para Angola.',
+  popular: 'Popular', perMonth: '/ Mês', perN: '/ {n} meses', onConsult: 'Sob consulta', free: 'Grátis',
+  stores: '{n} loja(s)', storesInf: 'Lojas ilimitadas', users: '{n} utilizadores', usersInf: 'Utilizadores ilimitados', products: '{n} produtos', productsInf: 'Produtos ilimitados',
+  pricesNote: 'Os preços indicados são em Kwanzas.',
+  testiTitle: 'O que dizem os nossos clientes?', testiSub: 'Conheça a opinião de quem usa o LPS Vendas todos os dias para gerir o seu negócio.',
+  faqTitle: 'Perguntas Frequentes',
+  faq: [
+    ['É necessário instalar o LPS Vendas?', 'Não. O LPS Vendas funciona 100% online no navegador. Se preferir, existem aplicações para Windows e Android que também funcionam sem internet.'],
+    ['Preciso de cartão de crédito para testar?', 'Não. Cria a conta e usa os dias grátis com todos os módulos do plano. Só paga se decidir continuar, por transferência bancária ou referência.'],
+    ['A faturação é aceite pela AGT?', 'Sim. Os documentos seguem o regime jurídico das faturas (numeração, hash e assinatura) e o sistema exporta o ficheiro SAF-T (AO).'],
+    ['E se a internet falhar na loja?', 'A caixa continua a vender offline e sincroniza automaticamente quando a ligação voltar. Não perde vendas por causa da rede.'],
+    ['Impressoras térmicas ou A4?', 'Ambas. Pode imprimir em talão (58/80 mm) ou A4, com o seu logótipo, ou enviar a fatura eletrónica em PDF por e-mail ou WhatsApp.'],
+    ['Existe algum período de fidelização?', 'Não. Pode deixar de usar o LPS Vendas a qualquer momento, sem períodos mínimos de subscrição.'],
+  ] as [string, string][],
+  faqAside: 'Tem dúvidas se o LPS Vendas é o software ideal para o seu negócio?', talk: 'Fale Connosco',
+  peekTitleA: 'Será que o LPS Vendas é para si?', peekTitleB: 'Pedimos-lhe apenas 5 segundos para espreitar!',
+  desktop: 'Desktop', mobile: 'Mobile', tablet: 'Tablet',
+  ctaTitle: 'Gostaria de continuar a explorar o LPS Vendas?', ctaSub: 'Registe-se hoje mesmo e usufrua de {n} dias gratuitos, sem compromisso!',
+  aboutTitle: 'Sobre o LPS Vendas',
+  about: 'O LPS Vendas é um programa de faturação certificado e POS online que permite gerir uma ou várias lojas em qualquer lugar, porque funciona na cloud. Fature em segundos numa mercearia, restaurante, farmácia, hotel ou qualquer outro tipo de comércio.',
+  fWhy: 'Porquê o LPS Vendas?', fBiz: 'Negócios', fSupport: 'Suporte', fAccount: 'Conta',
+  fStore: 'Loja Online', fApps: 'Aplicações', fComments: 'Testemunhos', fPos: 'Abrir a Caixa (POS)',
+  fBizFat: 'Software de Faturação', fBizPos: 'Software POS', fBizRest: 'Software POS Restauração', fBizShop: 'Software Loja de Roupa', fBizPharm: 'Software Farmácia', fBizHotel: 'Software Hotelaria',
+  fHelp: 'Centro de Ajuda', fContacts: 'Contactos', fFaq: 'Perguntas Frequentes',
+  fLogin: 'Login', fSignup: 'Criar Conta Grátis', fTerms: 'Termos e Condições', fPrivacy: 'Política de Privacidade',
+  availableOn: 'DISPONÍVEL PARA', rights: 'Todos os direitos reservados.',
+};
+
+type Dict = typeof pt;
+
+const en: Partial<Dict> = {
+  navFat: 'Invoicing', navRet: 'Retail', navRest: 'Restaurants', navPrices: 'Pricing', navApps: 'Apps', navHelp: 'Help',
+  navFaq: 'FAQ', navContact: 'Contacts', navComments: 'Reviews', login: 'Log in', signup: 'Sign up',
+  heroA: 'Software for', heroB: 'Online Invoicing and POS',
+  heroSub: 'Invoice in seconds and follow your sales on your computer, phone or tablet, simply and easily!',
+  tryFree: 'Try it Free', trialNote: '{n} free days, no commitment', certified: 'AGT certified invoicing',
+  tabsTitle: 'Online invoicing software for offices, retail and restaurants!',
+  tabFatT: 'Simple invoicing for you, fast for your customers!',
+  tabFat: ['Works with any device', 'A4, receipt and electronic invoice printing', 'Credit sales and instalments', 'Customer current accounts', 'Reports and SAF-T (AO)'],
+  tabFatFor: ['Offices', 'Agencies', 'Service providers'],
+  tabRetT: 'The Point of Sale (POS) built for Angolan retail!',
+  tabRet: ['Fast checkout with barcode scanner', 'Works even without internet', 'Stock per store, batches and expiry dates', 'Multiple stores and registers', 'Built-in online store'],
+  tabRetFor: ['Grocery stores', 'Supermarkets', 'Clothing stores', 'Pharmacies'],
+  tabRestT: 'Tables, orders and kitchen always in sync!',
+  tabRest: ['Table and order management', 'Orders sent to the kitchen', 'Recipes and costs', 'Split the bill', 'Shift cash closing'],
+  tabRestFor: ['Restaurants', 'Bars', 'Bakeries', 'Burger shops'],
+  idealFor: 'The ideal solution for:',
+  statsTitle: 'The solution you need to run your business, hassle-free!',
+  statsText: 'POS, stock, finance, HR and online store in one system, made in Angola and priced in Kwanzas. We made it as simple as possible so you can focus on what matters: selling.',
+  st1: 'integrated modules in one system', st2: 'business sectors supported', st3: 'platform availability',
+  whyEyebrow: 'Why choose LPS Vendas?',
+  why1T: 'Simple, practical and intuitive.', why1: 'Designed for the counter: in a few minutes any employee learns to sell, issue invoices and close the register.',
+  why2T: 'No contracts, no red tape.', why2: 'Cancel your subscription at any time. We believe loyalty comes from satisfaction.',
+  why3T: 'Close support, in your language.', why3: 'Built-in chat and a team that knows the Angolan market, ready to help whenever you need.',
+  why4T: 'Works even offline.', why4: 'The register keeps selling when the network fails and syncs everything automatically when it comes back.',
+  plansTitle: 'Create your LPS Vendas account now and try it free for {n} days',
+  plansSub: 'Choose the best plan for your business and start testing the invoicing and POS software made for Angola.',
+  perMonth: '/ Month', perN: '/ {n} months', onConsult: 'On request', free: 'Free',
+  stores: '{n} store(s)', storesInf: 'Unlimited stores', users: '{n} users', usersInf: 'Unlimited users', products: '{n} products', productsInf: 'Unlimited products',
+  pricesNote: 'Prices shown in Kwanzas.',
+  testiTitle: 'What our customers say', testiSub: 'See what people who use LPS Vendas every day think about it.',
+  faqTitle: 'Frequently Asked Questions',
+  faq: [
+    ['Do I need to install LPS Vendas?', 'No. LPS Vendas runs 100% online in the browser. There are also Windows and Android apps that work offline.'],
+    ['Do I need a credit card to try it?', 'No. Create your account and use the free days with every module of the plan. You only pay if you decide to continue.'],
+    ['Is invoicing accepted by AGT?', 'Yes. Documents follow the invoicing rules (numbering, hash and signature) and the system exports the SAF-T (AO) file.'],
+    ['What if the internet goes down?', 'The register keeps selling offline and syncs automatically when the connection returns.'],
+    ['Thermal or A4 printers?', 'Both. Print receipts (58/80 mm) or A4 with your logo, or send the electronic PDF invoice by e-mail or WhatsApp.'],
+    ['Is there a minimum commitment?', 'No. You can stop using LPS Vendas at any time, with no minimum subscription period.'],
+  ],
+  faqAside: 'Not sure if LPS Vendas is right for your business?', talk: 'Contact Us',
+  peekTitleA: 'Is LPS Vendas right for you?', peekTitleB: 'Give us just 5 seconds to take a look!',
+  ctaTitle: 'Would you like to keep exploring LPS Vendas?', ctaSub: 'Sign up today and enjoy {n} free days, no commitment!',
+  aboutTitle: 'About LPS Vendas',
+  about: 'LPS Vendas is certified invoicing and online POS software to run one or more stores from anywhere, in the cloud. Invoice in seconds at a grocery, restaurant, pharmacy, hotel or any other business.',
+  fWhy: 'Why LPS Vendas?', fBiz: 'Business', fSupport: 'Support', fAccount: 'Account',
+  fStore: 'Online Store', fApps: 'Apps', fComments: 'Testimonials', fPos: 'Open the Register (POS)',
+  fBizFat: 'Invoicing Software', fBizPos: 'POS Software', fBizRest: 'Restaurant POS', fBizShop: 'Clothing Store Software', fBizPharm: 'Pharmacy Software', fBizHotel: 'Hotel Software',
+  fHelp: 'Help Center', fContacts: 'Contacts', fFaq: 'FAQ', fLogin: 'Login', fSignup: 'Create Free Account', fTerms: 'Terms and Conditions', fPrivacy: 'Privacy Policy',
+  availableOn: 'AVAILABLE FOR', rights: 'All rights reserved.',
+};
+
+const fr: Partial<Dict> = {
+  navFat: 'Facturation', navRet: 'Commerce', navRest: 'Restauration', navPrices: 'Tarifs', navApps: 'Applications', navHelp: 'Aide',
+  navFaq: 'Questions fréquentes', navContact: 'Contacts', navComments: 'Avis', login: 'Connexion', signup: 'Créer un compte',
+  heroA: 'Logiciel de', heroB: 'Facturation en ligne et POS',
+  heroSub: 'Facturez en quelques secondes et suivez vos ventes sur ordinateur, téléphone ou tablette, simplement !',
+  tryFree: 'Essai gratuit', trialNote: '{n} jours gratuits sans engagement', certified: 'Facturation certifiée AGT',
+  tabsTitle: 'Logiciel de facturation en ligne idéal pour bureaux, commerces et restaurants !',
+  tabFatT: 'Une facturation simple pour vous, rapide pour vos clients !',
+  tabFat: ['Compatible avec tout appareil', 'Impression A4, ticket et facture électronique', 'Ventes à crédit et paiements échelonnés', 'Compte courant clients', 'Rapports et SAF-T (AO)'],
+  tabFatFor: ['Bureaux', 'Agences', 'Prestataires de services'],
+  tabRetT: 'Le point de vente (POS) pensé pour le commerce angolais !',
+  tabRet: ['Caisse rapide avec lecteur de code-barres', 'Fonctionne même sans internet', 'Stock par magasin, lots et dates', 'Plusieurs magasins et caisses', 'Boutique en ligne intégrée'],
+  tabRetFor: ['Épiceries', 'Supermarchés', 'Boutiques de vêtements', 'Pharmacies'],
+  tabRestT: 'Tables, commandes et cuisine toujours synchronisées !',
+  tabRest: ['Gestion des tables et commandes', 'Commandes envoyées en cuisine', 'Fiches techniques et coûts', 'Partage de l’addition', 'Clôture de caisse par service'],
+  tabRestFor: ['Restaurants', 'Bars', 'Pâtisseries', 'Burgers'],
+  idealFor: 'La solution idéale pour :',
+  statsTitle: 'La solution qu’il vous faut pour gérer votre entreprise, sans complications !',
+  statsText: 'Caisse, stock, finances, RH et boutique en ligne dans un seul système, conçu en Angola et en Kwanzas.',
+  st1: 'modules intégrés dans un seul système', st2: 'secteurs d’activité pris en charge', st3: 'de disponibilité de la plateforme',
+  whyEyebrow: 'Pourquoi choisir LPS Vendas ?',
+  why1T: 'Simple, pratique et intuitif.', why1: 'Pensé pour le comptoir : en quelques minutes, tout employé apprend à vendre, facturer et clôturer la caisse.',
+  why2T: 'Sans contrat ni paperasse.', why2: 'Annulez votre abonnement à tout moment. La fidélité vient de la satisfaction.',
+  why3T: 'Un support proche.', why3: 'Chat intégré et une équipe qui connaît le marché angolais, prête à vous aider.',
+  why4T: 'Fonctionne même hors ligne.', why4: 'La caisse continue de vendre quand le réseau tombe et synchronise tout au retour de la connexion.',
+  plansTitle: 'Créez votre compte LPS Vendas et essayez-le gratuitement pendant {n} jours',
+  plansSub: 'Choisissez le meilleur plan pour votre entreprise et commencez dès maintenant.',
+  perMonth: '/ Mois', perN: '/ {n} mois', onConsult: 'Sur demande', free: 'Gratuit',
+  stores: '{n} magasin(s)', storesInf: 'Magasins illimités', users: '{n} utilisateurs', usersInf: 'Utilisateurs illimités', products: '{n} produits', productsInf: 'Produits illimités',
+  pricesNote: 'Prix indiqués en Kwanzas.',
+  testiTitle: 'Ce que disent nos clients', testiSub: 'Découvrez l’avis de ceux qui utilisent LPS Vendas chaque jour.',
+  faqTitle: 'Questions fréquentes',
+  faqAside: 'Vous hésitez sur LPS Vendas pour votre entreprise ?', talk: 'Contactez-nous',
+  peekTitleA: 'LPS Vendas est-il fait pour vous ?', peekTitleB: 'Accordez-nous 5 secondes pour jeter un œil !',
+  ctaTitle: 'Envie de continuer à découvrir LPS Vendas ?', ctaSub: 'Inscrivez-vous aujourd’hui et profitez de {n} jours gratuits, sans engagement !',
+  aboutTitle: 'À propos de LPS Vendas',
+  about: 'LPS Vendas est un logiciel de facturation certifié et de caisse en ligne pour gérer un ou plusieurs magasins depuis n’importe où, dans le cloud.',
+  fWhy: 'Pourquoi LPS Vendas ?', fBiz: 'Métiers', fSupport: 'Support', fAccount: 'Compte',
+  fStore: 'Boutique en ligne', fApps: 'Applications', fComments: 'Témoignages', fPos: 'Ouvrir la caisse (POS)',
+  fBizFat: 'Logiciel de facturation', fBizPos: 'Logiciel POS', fBizRest: 'POS Restaurant', fBizShop: 'Logiciel boutique', fBizPharm: 'Logiciel pharmacie', fBizHotel: 'Logiciel hôtellerie',
+  fHelp: 'Centre d’aide', fContacts: 'Contacts', fFaq: 'Questions fréquentes', fLogin: 'Connexion', fSignup: 'Créer un compte gratuit', fTerms: 'Conditions générales', fPrivacy: 'Confidentialité',
+  availableOn: 'DISPONIBLE POUR', rights: 'Tous droits réservés.',
+};
+
+const es: Partial<Dict> = {
+  navFat: 'Facturación', navRet: 'Comercio', navRest: 'Restauración', navPrices: 'Precios', navApps: 'Aplicaciones', navHelp: 'Ayuda',
+  navFaq: 'Preguntas frecuentes', navContact: 'Contactos', navComments: 'Opiniones', login: 'Entrar', signup: 'Crear cuenta',
+  heroA: 'Software de', heroB: 'Facturación Online y POS',
+  heroSub: '¡Facture en segundos y siga sus ventas en el ordenador, móvil o tableta, de forma simple y práctica!',
+  tryFree: 'Pruebe Gratis', trialNote: '{n} días gratis sin compromiso', certified: 'Facturación certificada AGT',
+  tabsTitle: '¡Software de facturación online ideal para oficinas, comercio y restauración!',
+  tabFatT: '¡Facturación simple para usted, rápida para sus clientes!',
+  tabFat: ['Compatible con cualquier equipo', 'Impresión A4, ticket y factura electrónica', 'Ventas a crédito y pagos a plazos', 'Cuenta corriente de clientes', 'Informes y SAF-T (AO)'],
+  tabFatFor: ['Oficinas', 'Agencias', 'Proveedores de servicios'],
+  tabRetT: '¡El punto de venta (POS) pensado para el comercio angoleño!',
+  tabRet: ['Caja rápida con lector de códigos', 'Funciona incluso sin internet', 'Stock por tienda, lotes y caducidades', 'Varias tiendas y cajas', 'Tienda online integrada'],
+  tabRetFor: ['Tiendas de alimentación', 'Supermercados', 'Tiendas de ropa', 'Farmacias'],
+  tabRestT: '¡Mesas, pedidos y cocina siempre sincronizados!',
+  tabRest: ['Gestión de mesas y comandas', 'Pedidos enviados a cocina', 'Escandallos y costes', 'Dividir la cuenta', 'Cierre de caja por turno'],
+  tabRestFor: ['Restaurantes', 'Bares', 'Pastelerías', 'Hamburgueserías'],
+  idealFor: 'La solución ideal para:',
+  statsTitle: '¡La solución que necesita para gestionar su negocio, sin complicaciones!',
+  statsText: 'Caja, stock, finanzas, RR. HH. y tienda online en un único sistema, hecho en Angola y en Kwanzas.',
+  st1: 'módulos integrados en un solo sistema', st2: 'sectores de actividad soportados', st3: 'de disponibilidad de la plataforma',
+  whyEyebrow: '¿Por qué elegir LPS Vendas?',
+  why1T: 'Es simple, práctico e intuitivo.', why1: 'Pensado para el mostrador: en minutos cualquier empleado aprende a vender, facturar y cerrar la caja.',
+  why2T: 'Sin contratos ni burocracia.', why2: 'Puede cancelar su suscripción en cualquier momento. La fidelidad viene de la satisfacción.',
+  why3T: 'Soporte cercano.', why3: 'Chat integrado y un equipo que conoce el mercado angoleño, listo para ayudar.',
+  why4T: 'Funciona incluso sin internet.', why4: 'La caja sigue vendiendo cuando falla la red y sincroniza todo al volver la conexión.',
+  plansTitle: 'Cree ya su cuenta LPS Vendas y pruébela gratis durante {n} días',
+  plansSub: 'Elija el mejor plan para su negocio y empiece a probar ya.',
+  perMonth: '/ Mes', perN: '/ {n} meses', onConsult: 'Bajo consulta', free: 'Gratis',
+  stores: '{n} tienda(s)', storesInf: 'Tiendas ilimitadas', users: '{n} usuarios', usersInf: 'Usuarios ilimitados', products: '{n} productos', productsInf: 'Productos ilimitados',
+  pricesNote: 'Precios indicados en Kwanzas.',
+  testiTitle: '¿Qué dicen nuestros clientes?', testiSub: 'Conozca la opinión de quienes usan LPS Vendas cada día.',
+  faqTitle: 'Preguntas frecuentes',
+  faqAside: '¿Tiene dudas de si LPS Vendas es ideal para su negocio?', talk: 'Hable con nosotros',
+  peekTitleA: '¿LPS Vendas es para usted?', peekTitleB: '¡Le pedimos solo 5 segundos para echar un vistazo!',
+  ctaTitle: '¿Le gustaría seguir explorando LPS Vendas?', ctaSub: '¡Regístrese hoy y disfrute de {n} días gratis, sin compromiso!',
+  aboutTitle: 'Sobre LPS Vendas',
+  about: 'LPS Vendas es un programa de facturación certificado y POS online para gestionar una o varias tiendas desde cualquier lugar, en la nube.',
+  fWhy: '¿Por qué LPS Vendas?', fBiz: 'Negocios', fSupport: 'Soporte', fAccount: 'Cuenta',
+  fStore: 'Tienda online', fApps: 'Aplicaciones', fComments: 'Testimonios', fPos: 'Abrir la caja (POS)',
+  fBizFat: 'Software de facturación', fBizPos: 'Software POS', fBizRest: 'POS Restauración', fBizShop: 'Software tienda de ropa', fBizPharm: 'Software farmacia', fBizHotel: 'Software hotelería',
+  fHelp: 'Centro de ayuda', fContacts: 'Contactos', fFaq: 'Preguntas frecuentes', fLogin: 'Entrar', fSignup: 'Crear cuenta gratis', fTerms: 'Términos y condiciones', fPrivacy: 'Política de privacidad',
+  availableOn: 'DISPONIBLE PARA', rights: 'Todos los derechos reservados.',
+};
+
+const DICTS: Record<LandingLang, Partial<Dict>> = { pt, en, fr, es };
+
+export function dict(lang: LandingLang): Dict {
+  return { ...pt, ...DICTS[lang] } as Dict;
+}
+
+/** Substitui {n} (e afins) num texto. */
+export function fill(s: string, v: Record<string, string | number>): string {
+  return s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ''));
+}
+
+export function initialLang(): LandingLang {
+  try {
+    const saved = localStorage.getItem('lps:lang') as LandingLang | null;
+    if (saved && saved in DICTS) return saved;
+  } catch { /* sem armazenamento */ }
+  const nav = (navigator.language || 'pt').slice(0, 2) as LandingLang;
+  return nav in DICTS ? nav : 'pt';
+}

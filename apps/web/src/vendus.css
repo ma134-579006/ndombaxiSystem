@@ -1077,3 +1077,23 @@
    nome, e-mail e seta — sem cápsula, sem contorno nem anel ao abrir/focar. */
 .acct2-btn, .acct2-btn:hover, .acct2-btn.open { border: 0 !important; background: transparent !important; box-shadow: none !important; border-radius: 4px !important; padding: 3px 4px !important; }
 .acct2-btn:hover { background: color-mix(in srgb, var(--text) 5%, transparent) !important; }
+
+/* Página de formulário (Definições da Conta e afins): igual aos formulários em página. */
+.vd-formpage { padding: 20px 30px 30px; }
+.vd-formpage .field { display: grid; grid-template-columns: min(25%, 260px) minmax(0, 430px); align-items: center; column-gap: 30px;
+  padding: 0 15px 20px; margin: 0 -15px 15px; border-bottom: 1px solid var(--border-soft); }
+.vd-formpage .field > label { text-align: right; font-size: 14px; font-weight: 700; color: var(--text); margin: 0; }
+.vd-formpage .field > label::after { content: ":"; }
+.vd-formpage .field > :not(label) { grid-column: 2; }
+.vd-formpage .field input, .vd-formpage .field select, .vd-formpage .field textarea { height: 34px; padding: 6px 16px; font-size: 14px; border-radius: 4px; }
+.vd-formpage .field textarea { height: auto; min-height: 54px; }
+.vd-formpage .field input:disabled { background: color-mix(in srgb, var(--text) 6%, var(--surface)); color: var(--muted); }
+.vd-formpage-acts { padding-left: calc(min(25%, 260px) + 15px); }
+.vd-btn.big { height: auto; padding: 10px 16px; font-size: 18px; }
+@media (max-width: 760px) {
+  .vd-formpage { padding: 16px; }
+  .vd-formpage .field { grid-template-columns: 1fr; row-gap: 6px; }
+  .vd-formpage .field > label { text-align: left; }
+  .vd-formpage .field > :not(label) { grid-column: 1; }
+  .vd-formpage-acts { padding-left: 0; }
+}

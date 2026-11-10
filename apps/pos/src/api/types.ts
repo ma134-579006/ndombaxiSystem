@@ -256,6 +256,9 @@ export interface DocumentIdentity {
   phone: string | null;
   email: string | null;
   receiptMessage?: string | null;
+  /** Definições da Conta (cabeçalho/rodapé da fatura A4). */
+  slogan?: string | null; tradeName?: string | null; shareCapital?: string | null; registry?: string | null;
+  postalCode?: string | null; city?: string | null; region?: string | null; website?: string | null; cae?: string | null; iban?: string | null;
   /** Vertical de negócio (RETAIL | RESTAURANT | SERVICES | HOSPITALITY | CLINIC | PHARMACY).
    *  Usado para mostrar funcionalidades próprias do setor (ex.: "Enviar para cozinha"
    *  só na restauração). */

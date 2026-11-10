@@ -8,8 +8,25 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+/** Dados da empresa (Definições da Conta) — todos opcionais, texto curto. */
+export class CompanyProfileDto {
+  @IsOptional() @IsString() @Length(0, 120) tradeName?: string;
+  @IsOptional() @IsString() @Length(0, 60) shareCapital?: string;
+  @IsOptional() @IsString() @Length(0, 120) registry?: string;
+  @IsOptional() @IsString() @Length(0, 20) postalCode?: string;
+  @IsOptional() @IsString() @Length(0, 80) city?: string;
+  @IsOptional() @IsString() @Length(0, 80) region?: string;
+  @IsOptional() @IsString() @Length(0, 160) website?: string;
+  @IsOptional() @IsString() @Length(0, 40) cae?: string;
+  /** IBAN (bloco "Dados Bancários" da fatura). Só letras, números e espaços. */
+  @IsOptional() @IsString() @Matches(/^$|^[A-Z]{2}[0-9]{2}[A-Z0-9 ]{10,40}$/i, { message: 'IBAN inválido.' }) iban?: string;
+}
 
 /** Branding / definições visuais da montra (linha única por tenant, §8). */
 export class UpdateSiteSettingsDto {
@@ -57,6 +74,12 @@ export class UpdateSiteSettingsDto {
   @IsString()
   @Length(0, 500)
   receiptMessage?: string;
+
+  /** Dados da empresa para os documentos (Definições da Conta). */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CompanyProfileDto)
+  companyProfile?: CompanyProfileDto;
 
   /** IVA aplicado quando o produto escolhe "Automático" (padrão da empresa). */
   @IsOptional()
@@ -129,3 +152,4 @@ export class UpdatePageDto {
   @Min(0)
   sortOrder?: number;
 }
+

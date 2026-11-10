@@ -27,6 +27,7 @@ export interface SiteSettingsRow {
   custom_css: string | null;
   is_published: boolean;
   online_store_enabled: boolean;
+  company_profile?: Record<string, string> | null;
   updated_at: Date;
 }
 
@@ -83,6 +84,8 @@ export class SiteService {
     if (dto.customCss !== undefined) sets.push(Prisma.sql`custom_css = ${dto.customCss}`);
     if (dto.isPublished !== undefined) sets.push(Prisma.sql`is_published = ${dto.isPublished}`);
     if (dto.onlineStoreEnabled !== undefined) sets.push(Prisma.sql`online_store_enabled = ${dto.onlineStoreEnabled}`);
+    // Junta (não substitui) os dados da empresa: só os campos enviados mudam.
+    if (dto.companyProfile !== undefined) sets.push(Prisma.sql`company_profile = COALESCE(company_profile, '{}'::jsonb) || ${JSON.stringify(dto.companyProfile)}::jsonb`);
 
     if (sets.length === 0) return current;
     sets.push(Prisma.sql`updated_at = now()`);

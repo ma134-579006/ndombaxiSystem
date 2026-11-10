@@ -292,6 +292,9 @@ CREATE INDEX IF NOT EXISTS stock_transfer_requests_status_idx ON "{{SCHEMA}}"."s
 -- comportamento atual (lojas existentes continuam online). Quando FALSE, o
 -- portal público fica indisponível e o painel esconde os menus da loja.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS online_store_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+-- Dados da empresa para os documentos (modelo "Definições da Conta"): nome comercial,
+-- capital social, conservatoria, codigo postal, cidade, regiao, website, CAE e IBAN.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS company_profile JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 -- Folha salarial ENTERPRISE: discriminar cada desconto (transparência/auditoria).
 -- Os 3 já eram calculados em separado mas ficavam fundidos em other_deductions;
