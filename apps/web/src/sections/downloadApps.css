@@ -101,6 +101,7 @@
 .dl-card .dl-icon { width: 64px; height: 64px; border-radius: 18px; margin: 0; flex: none; color: #fff; box-shadow: 0 14px 26px -14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.25); }
 .dl-windows .dl-icon { background: linear-gradient(145deg, #2ab4ff, #0067c0); }
 .dl-android .dl-icon { background: linear-gradient(145deg, #4ee58f, #1fa463); }
+.dl-android-loja .dl-icon { background: none; overflow: hidden; padding: 0; }
 .dl-ios .dl-icon { background: linear-gradient(145deg, #3a3a42, #0b0b0f); }
 .dl-card h3 { margin: 0; font-size: 21px; letter-spacing: -.01em; }
 .dl-card .dl-tag { margin: 3px 0 0; font-size: 13.5px; }

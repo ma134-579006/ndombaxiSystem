@@ -18,6 +18,7 @@ import { FeedbackSection } from '../components/FeedbackSection';
 import { DownloadApps } from '../sections/DownloadApps';
 import { LANGS, dict, fill, initialLang, type LandingLang } from './landingI18n';
 import '../landingV.css';
+import { initLandingReveal } from '../landingReveal';
 
 /** Duração do ciclo do plano: 1 → "mês", N → "N meses". */
 function dur(months: number): string {
@@ -110,7 +111,7 @@ const SOCIAL = {
 const BADGE_ICONS: Record<'android' | 'windows' | 'store', React.ReactNode> = {
   android: <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden><path fill="#3ddc84" d="M17.6 9.5a.9.9 0 1 1 1.8 0v5.6a.9.9 0 1 1-1.8 0zM4.6 9.5a.9.9 0 1 1 1.8 0v5.6a.9.9 0 1 1-1.8 0zM7 8.9h10v8.1a1.2 1.2 0 0 1-1.2 1.2h-.9v2.6a1.1 1.1 0 0 1-2.2 0v-2.6h-1.4v2.6a1.1 1.1 0 0 1-2.2 0v-2.6h-.9A1.2 1.2 0 0 1 7 17zM7.1 8.3a5 5 0 0 1 9.8 0z" /></svg>,
   windows: <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden><path fill="#fff" d="M2.5 4.9 10.2 3.8v7.5H2.5zM11.3 3.65 21.5 2.2v9.1H11.3zM2.5 12.4h7.7v7.5l-7.7-1.1zM11.3 12.4h10.2v9.4l-10.2-1.4z" /></svg>,
-  store: <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 7h12l1 13H5L6 7Z" /><path d="M9 10V6a3 3 0 0 1 6 0v4" /></svg>,
+  store: <img src={`${import.meta.env.BASE_URL}app-icon-loja.png`} alt="" width={26} height={26} style={{ borderRadius: 6 }} />,
 };
 
 export function Landing({ onGoLogin, onGoRegister }: Props) {
@@ -129,6 +130,10 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
   const [peek, setPeek] = useState<Peek>('desktop');
   const t = dict(lang);
+
+  // Aparecer/desaparecer ao rolar (nos dois sentidos); conteúdo que chega
+  // depois (planos, comentários) é apanhado pelo MutationObserver do módulo.
+  useEffect(() => initLandingReveal(), []);
 
   useEffect(() => {
     api.publicLanding().then(setData).catch(() => setData(null));
@@ -312,15 +317,15 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
       {/* ── Números ─────────────────────────────────────── */}
       <section className={`lv-stats${statsIn ? ' in' : ''}`} ref={statsRef}>
         <div className="lv-wrap lv-stats-in">
-          <div className="lv-stats-txt lv-rise">
+          <div className="lv-stats-txt">
             <h2 className="lv-h2">{t.statsTitle}</h2>
             <p>{t.statsText}</p>
             <Cta />
           </div>
           <div className="lv-stats-nums">
-            <div className="lv-rise r1"><b><CountUp to={15} prefix="+" run={statsIn} /></b><span>{t.st1}</span></div>
-            <div className="lv-rise r2"><b><CountUp to={10} prefix="+" run={statsIn} /></b><span>{t.st2}</span></div>
-            <div className="lv-rise r3"><b><CountUp to={99.9} decimals={1} suffix="%" run={statsIn} /></b><span>{t.st3}</span></div>
+            <div><b><CountUp to={15} prefix="+" run={statsIn} /></b><span>{t.st1}</span></div>
+            <div><b><CountUp to={10} prefix="+" run={statsIn} /></b><span>{t.st2}</span></div>
+            <div><b><CountUp to={99.9} decimals={1} suffix="%" run={statsIn} /></b><span>{t.st3}</span></div>
           </div>
         </div>
       </section>
@@ -354,7 +359,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             <p className="lv-lead center">{t.plansSub}</p>
             <div className="lv-plan-grid">
               {plans.map((p, i) => (
-                <article className={`lv-plan lv-rise r${Math.min(i + 1, 3)}${p.highlight ? ' hi' : ''}`} key={p.id}>
+                <article className={`lv-plan${p.highlight ? ' hi' : ''}`} key={p.id}>
                   <div className="lv-plan-h">
                     <div><h3>{p.name}</h3><p>{p.tagline ?? ''}</p></div>
                     {p.highlight ? <span className="lv-pop">{t.popular}</span> : null}
