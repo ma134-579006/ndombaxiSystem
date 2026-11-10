@@ -2,8 +2,8 @@
  * Ícones e ecrã de arranque da app LPS Loja.
  *
  * Identidade própria (distingue-se da app de gestão no telemóvel do cliente):
- * fundo índigo da marca (#2430E8 → #131A66) com o logótipo oficial num disco
- * branco. Fonte: apps/web/public/app-icon-foreground.png (logótipo oficial já
+ * fundo índigo da marca (#2430E8 → #131A66) com o logótipo oficial num saco
+ * de compras branco. Fonte: apps/web/public/app-icon-foreground.png (logótipo oficial já
  * recortado). Gera ícone legado, redondo, foreground adaptativo + fundo índigo,
  * e os splash.png de todas as densidades.
  *
@@ -74,16 +74,53 @@ async function disc(size, logo) {
   return d;
 }
 
+/**
+ * SACO DE COMPRAS branco (identidade da app da LOJA online): corpo de cantos
+ * arredondados + asa em arco, com o logótipo LPS Vendas no centro do corpo.
+ */
+async function bag(size, logo) {
+  const d = new Jimp(size, size, 0x00000000);
+  const bx0 = size * 0.1, bx1 = size * 0.9, by0 = size * 0.3, by1 = size * 0.96, br = size * 0.09;
+  const hcx = size / 2, hcy = size * 0.33, hro = size * 0.2, hri = size * 0.165;
+  const put = (idx, a) => {
+    const cur = d.bitmap.data[idx + 3];
+    if (a <= cur) return;
+    d.bitmap.data[idx] = 255; d.bitmap.data[idx + 1] = 255; d.bitmap.data[idx + 2] = 255; d.bitmap.data[idx + 3] = a;
+  };
+  d.scan(0, 0, size, size, function (x, y, idx) {
+    // corpo (retângulo de cantos arredondados, anti-aliasing de 1,5 px)
+    const cx = Math.min(Math.max(x, bx0 + br), bx1 - br);
+    const cy = Math.min(Math.max(y, by0 + br), by1 - br);
+    const dd = Math.hypot(x - cx, y - cy);
+    if (x >= bx0 - 1 && x <= bx1 + 1 && y >= by0 - 1 && y <= by1 + 1) {
+      if (dd <= br - 1.5) put(idx, 255); else if (dd <= br) put(idx, Math.round(255 * (br - dd) / 1.5));
+    }
+    // asa: anel superior
+    if (y <= hcy + 2) {
+      const r = Math.hypot(x - hcx, y - hcy);
+      if (r <= hro && r >= hri) {
+        const edge = Math.min(hro - r, r - hri);
+        put(idx, edge >= 1.5 ? 255 : Math.round(255 * edge / 1.5));
+      }
+    }
+  });
+  const bodyW = bx1 - bx0, bodyH = by1 - by0;
+  const l = logo.clone().resize(Math.round(bodyW * 0.8), Jimp.AUTO, Jimp.RESIZE_BICUBIC);
+  if (l.bitmap.height > bodyH * 0.7) l.resize(Jimp.AUTO, Math.round(bodyH * 0.7), Jimp.RESIZE_BICUBIC);
+  d.composite(l, Math.round(bx0 + (bodyW - l.bitmap.width) / 2), Math.round(by0 + (bodyH - l.bitmap.height) / 2));
+  return d;
+}
+
 const logo = (await Jimp.read(LOGO)).autocrop({ tolerance: 0.02, cropOnlyFrames: false });
 const S = 1024;
 // Ícone completo (legado/redondo): degradê + disco branco com o logótipo.
 const full = gradient(S);
-full.composite(await disc(Math.round(S * 0.78), logo), Math.round(S * 0.11), Math.round(S * 0.11));
+full.composite(await bag(Math.round(S * 0.78), logo), Math.round(S * 0.11), Math.round(S * 0.11));
 const square = mask(full.clone(), Math.round(S * 0.22));
 const round = mask(full.clone(), S / 2);
 // Foreground adaptativo: só o disco, dentro da zona segura (66/108 do lado).
 const fg = new Jimp(S, S, 0x00000000);
-const fgDisc = await disc(Math.round(S * 0.6), logo);
+const fgDisc = await bag(Math.round(S * 0.6), logo);
 fg.composite(fgDisc, Math.round((S - fgDisc.bitmap.width) / 2), Math.round((S - fgDisc.bitmap.height) / 2));
 
 if (OUT_PREVIEW) {
@@ -117,7 +154,7 @@ for (const d of fs.readdirSync(RES).filter((n) => n.startsWith('drawable'))) {
   const { width: w, height: h } = cur.bitmap;
   const splash = new Jimp(w, h, 0xffffffff);
   const side = Math.round(Math.min(w, h) * 0.42);
-  const l = await disc(side, logo);
+  const l = await bag(side, logo);
   splash.composite(l, Math.round((w - side) / 2), Math.round((h - side) / 2));
   await splash.writeAsync(file);
 }
