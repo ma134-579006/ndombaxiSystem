@@ -913,3 +913,7 @@
 .doc-filters .vd-f { flex: none; height: auto; min-height: 0; margin: 0; }
 .doc-filters .vd-range { display: flex; }
 .doc-val b.neg { color: var(--danger); }
+
+/* Formulário de caixa (Lojas → Caixas): campos em duas colunas, rótulo por cima. */
+.vd-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; padding: 4px 0 16px; }
+@media (max-width: 640px) { .vd-form { grid-template-columns: 1fr; } }

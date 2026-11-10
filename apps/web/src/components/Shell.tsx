@@ -8,6 +8,7 @@ import { PrintBrandHead, PrintBrandFoot } from './PrintBrand';
 import { ChatModal } from './ChatModal';
 import { CustomerChatModal } from './CustomerChatModal';
 import { IdleLock } from './IdleLock';
+import { cachedPhoto, rememberPhoto } from '../photoCache';
 import { SyncStatusPill } from '../offline/SyncStatusPill';
 import { Modal } from './ui';
 import { UserAvatar, displayName } from './UserAvatar';
@@ -420,13 +421,19 @@ export function Shell({
   // Foto do utilizador logado (avatar do menu da conta). Sem foto → ícone.
   const [avatar, setAvatar] = useState<string | null>(null);
   useEffect(() => {
-    if (!isTenant || !user?.sub) { setAvatar(null); return; }
+    if (!user?.sub) { setAvatar(null); return; }
     let alive = true;
-    api.staff.listUsers()
-      .then((list) => { const me = list.find((u) => u.id === user.sub); if (alive) setAvatar(me?.photo_url ?? null); })
+    // Mostra já a foto guardada no aparelho e confirma no servidor.
+    setAvatar(cachedPhoto(user.email));
+    const done = (p: string | null) => { if (!alive) return; setAvatar(p); rememberPhoto(user.email, p); };
+    api.preferences.myPhoto()
+      .then((r) => r.photoUrl ?? (isTenant
+        ? api.staff.listUsers().then((list) => list.find((u) => u.id === user.sub)?.photo_url ?? null).catch(() => null)
+        : null))
+      .then(done)
       .catch(() => undefined);
     return () => { alive = false; };
-  }, [isTenant, user?.sub]);
+  }, [isTenant, user?.sub, user?.email]);
   const brandName = brand?.name || SYSTEM_NAME;
   const brandLogo = brand?.logo || LOGO_SRC;
   // Procura o item activo, mesmo dentro de grupos.

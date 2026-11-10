@@ -41,6 +41,8 @@ export interface PendingSale {
    * Opcional porque vendas já em fila (versões anteriores) não a têm.
    */
   clientOpId?: string;
+  /** Documento predefinido da caixa (FT/FS); sem valor sobe como FT. */
+  docType?: 'FT' | 'FS';
   createdAt: string; // ISO
   customerId: string | null;
   customerName: string | null;

@@ -94,6 +94,10 @@ export async function registerDevice(): Promise<string | null> {
     const { api } = await import('../api/client');
     const d = await api.registerDevice({ deviceKey: key, name: defaultName(), platform: platform() });
     await durableSet('device:series', d.series);
+    if (d.settings) {
+      await durableSet(SETTINGS_KEY, d.settings);
+      try { window.dispatchEvent(new CustomEvent(SETTINGS_EVENT, { detail: d.settings })); } catch { /* ignora */ }
+    }
     return d.series;
   } catch {
     return null;
@@ -103,4 +107,28 @@ export async function registerDevice(): Promise<string | null> {
 /** A série atribuída a este posto (null enquanto nunca se registou). */
 export async function deviceSeries(): Promise<string | null> {
   try { return await durableGet<string>('device:series'); } catch { return null; }
+}
+
+/**
+ * DEFINIÇÕES DA CAIXA (Admin → Lojas → Caixas): documento predefinido, preços
+ * com/sem IVA, referência na grelha e largura do papel. Chegam com o registo
+ * do posto e ficam guardadas para funcionar também sem rede.
+ */
+export interface DeviceSettings { defaultDocType: 'FT' | 'FS'; pricesWithTax: boolean; showReference: boolean; paperWidth: '80' | '58' | null }
+export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = { defaultDocType: 'FT', pricesWithTax: true, showReference: false, paperWidth: null };
+const SETTINGS_KEY = 'device:settings';
+export const SETTINGS_EVENT = 'ndbx:device-settings';
+
+export function normalizeSettings(raw: unknown): DeviceSettings {
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    defaultDocType: o.defaultDocType === 'FS' ? 'FS' : 'FT',
+    pricesWithTax: o.pricesWithTax !== false,
+    showReference: o.showReference === true,
+    paperWidth: o.paperWidth === '80' || o.paperWidth === '58' ? o.paperWidth : null,
+  };
+}
+
+export async function deviceSettings(): Promise<DeviceSettings> {
+  try { return normalizeSettings(await durableGet<unknown>(SETTINGS_KEY)); } catch { return { ...DEFAULT_DEVICE_SETTINGS }; }
 }

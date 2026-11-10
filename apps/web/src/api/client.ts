@@ -7,6 +7,8 @@ import { sharedGet, sharedSet } from '../sharedCache';
 import { applyToCatalog, queryCatalog } from '../offline/catalog';
 import { customersStore } from '../offline/indexedList';
 import type {
+  DeviceRow,
+  DeviceSettings,
   AgtCommResult,
   AgtCommStatus,
   AgtConfig,
@@ -613,6 +615,8 @@ export const api = {
   // ── Preferências do utilizador (tema por perfil) ───────────
   preferences: {
     get: () => request<{ theme: string }>('GET', '/auth/me/preferences'),
+    /** Foto do utilizador autenticado (utilizador ou ficha de funcionário ligada). */
+    myPhoto: () => request<{ photoUrl: string | null }>('GET', '/auth/me/photo'),
     setTheme: (theme: string) =>
       request<{ theme: string }>('PATCH', '/auth/me/preferences', { theme }),
   },
@@ -1007,6 +1011,12 @@ export const api = {
   commissions: {
     report: (from?: string, to?: string) => request<CommissionReport>('GET', `/commissions${qs({ from, to })}`),
     setRate: (userId: string, rate: number) => request<{ userId: string; rate: number }>('POST', `/commissions/${userId}/rate`, { rate }),
+  },
+  /** Caixas (postos) da empresa: nome, loja e definições. A série não muda. */
+  devices: {
+    list: () => request<DeviceRow[]>('GET', '/devices'),
+    update: (id: string, dto: { name?: string; storeId?: string | null; settings?: Partial<DeviceSettings> }) =>
+      request<DeviceRow>('PATCH', `/devices/${id}`, dto),
   },
   staff: {
     listStores: () => request<ManagerStore[]>('GET', '/staff/stores'),

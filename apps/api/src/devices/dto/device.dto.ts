@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, ValidateIf, ValidateNested } from 'class-validator';
 
 export class RegisterDeviceDto {
   @ApiProperty({
@@ -27,4 +28,33 @@ export class RegisterDeviceDto {
   @IsOptional()
   @IsUUID()
   storeId?: string;
+}
+
+/** Definições da caixa (Admin → Lojas → Caixas). */
+export class DeviceSettingsDto {
+  @IsOptional() @IsIn(['FT', 'FS'])
+  defaultDocType?: 'FT' | 'FS';
+
+  @IsOptional() @IsBoolean()
+  pricesWithTax?: boolean;
+
+  @IsOptional() @IsBoolean()
+  showReference?: boolean;
+
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsIn(['80', '58'])
+  paperWidth?: '80' | '58' | null;
+}
+
+export class UpdateDeviceDto {
+  @ApiPropertyOptional({ description: 'Nome da caixa', example: 'Caixa principal' })
+  @IsOptional() @IsString() @Length(1, 80)
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Loja da caixa (null = sem loja)' })
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsUUID()
+  storeId?: string | null;
+
+  @ApiPropertyOptional({ type: DeviceSettingsDto })
+  @IsOptional() @ValidateNested() @Type(() => DeviceSettingsDto)
+  settings?: DeviceSettingsDto;
 }

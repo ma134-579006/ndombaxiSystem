@@ -4093,3 +4093,6 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
 .ge-player-empty { gap: 6px; align-content: center; }
 .pubcams-attr a { color: inherit; text-decoration: underline; }
 .ge-cam .pubcam-ph { display: grid; place-items: center; }
+
+/* Foto da conta lembrada no ecrã de login. */
+.auth-photo { display: block; width: 72px; height: 72px; border-radius: 50%; object-fit: cover; margin: 0 auto 10px; box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--primary-soft, rgba(37,99,235,.25)); }

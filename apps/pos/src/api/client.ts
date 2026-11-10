@@ -343,7 +343,7 @@ export const api = {
     request<EmittedInvoice>('POST', '/pos/invoices', input),
   /** Apresenta este posto e recebe a sua série fiscal exclusiva (idempotente). */
   registerDevice: (input: { deviceKey: string; name: string; platform: string; storeId?: string }) =>
-    request<{ deviceKey: string; name: string; series: string; storeId: string | null }>(
+    request<{ deviceKey: string; name: string; series: string; storeId: string | null; settings?: { defaultDocType: 'FT' | 'FS'; pricesWithTax: boolean; showReference: boolean; paperWidth: '80' | '58' | null } }>(
       'POST', '/devices/register', input,
     ),
   cancelInvoice: (id: string, reason: string) =>
@@ -417,6 +417,8 @@ export const api = {
 
   // ── Desbloqueio do ecrã de bloqueio (re-verifica o PIN do próprio caixa) ──
   verifyPin: (pin: string) => request<{ ok: boolean }>('POST', '/auth/verify-pin', { pin }),
+  /** Foto do utilizador autenticado (utilizador ou ficha de funcionário ligada). */
+  myPhoto: () => request<{ photoUrl: string | null }>('GET', '/auth/me/photo'),
 
   // ── Consumo próprio (desconta no salário) ──────────────────
   registerConsumption: (productId: string, quantity: number) =>

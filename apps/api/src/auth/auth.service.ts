@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { JwtPayload, RoleName } from '@nexus/types';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantUserRepository, type TenantUser } from '../tenancy/tenant-user.repository';
 import { AuditService } from '../audit/audit.service';
@@ -92,6 +93,30 @@ export class AuthService {
       return { theme };
     } catch {
       return { theme: '' };
+    }
+  }
+
+  /**
+   * Foto do utilizador autenticado, para TODOS os sítios com perfil (menu da
+   * conta, ecrã de bloqueio, login seguinte). Usa a foto do utilizador e, se não
+   * houver, a da ficha de funcionário ligada a este login. Nunca falha o pedido.
+   */
+  async getMyPhoto(user: JwtPayload): Promise<{ photoUrl: string | null }> {
+    if (user.subjectType === 'PLATFORM' || !user.tenantSchema) return { photoUrl: null };
+    try {
+      const rows = await this.prisma.runInTenant(user.tenantSchema, (tx) =>
+        tx.$queryRaw<{ photo_url: string | null }[]>(Prisma.sql`
+          SELECT COALESCE(
+                   NULLIF(u.photo_url, ''),
+                   (SELECT NULLIF(e.photo_url, '') FROM employees e
+                     WHERE e.user_id = u.id AND e.photo_url IS NOT NULL AND e.photo_url <> ''
+                     ORDER BY e.updated_at DESC LIMIT 1)
+                 ) AS photo_url
+            FROM users u WHERE u.id = ${user.sub}::uuid LIMIT 1`),
+      );
+      return { photoUrl: rows[0]?.photo_url ?? null };
+    } catch {
+      return { photoUrl: null };
     }
   }
 

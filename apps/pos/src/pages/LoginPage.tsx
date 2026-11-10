@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
+import { cachedPhoto } from '../photoCache';
 import { ScreenKeyboard } from '../components/ScreenKeyboard';
 import { nativeGoogleAvailable, nativeGoogleSignIn } from '../offline/nativeGoogle';
 import { desktopGoogleAvailable, desktopGoogleSignIn } from '../offline/desktopGoogle';
@@ -199,6 +200,7 @@ function OpenCashHandoff({ email, name }: { email: string; name: string }) {
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const photo = cachedPhoto(email);
   const initials = (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0]?.toUpperCase()).join('') || '?';
 
   const submit = async () => {
@@ -218,7 +220,7 @@ function OpenCashHandoff({ email, name }: { email: string; name: string }) {
   return (
     <>
       <div className="handoff-card">
-        <div className="handoff-avatar" aria-hidden>{initials}</div>
+        {photo ? <img className="handoff-avatar" src={photo} alt="" style={{ objectFit: 'cover' }} /> : <div className="handoff-avatar" aria-hidden>{initials}</div>}
         <h1 className="auth-title" style={{ marginBottom: 2 }}>Abrir caixa</h1>
         <div className="handoff-name">{name || email}</div>
         {name ? <div className="handoff-email">{email}</div> : null}
