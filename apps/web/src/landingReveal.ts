@@ -33,6 +33,30 @@ const CHOREOGRAPHY: [selector: string, fx: FxKind, staggerMs: number][] = [
   ['.lp-cta-band', 'scale', 0],
   // Comentários da comunidade: cada cartão de utilizador entra em cascata.
   ['.fb-list .fb-item', 'up', 90],
+  // Página inicial nova (estrutura da referência): cada bloco entra ao descer
+  // e recua ao sair, nos dois sentidos do scroll.
+  ['.lv-h2', 'title', 0],
+  ['.lv-lead', 'title', 120],
+  ['.lv-tabs', 'up', 0],
+  ['.lv-sol-media', 'left', 0],
+  ['.lv-sol-txt', 'right', 120],
+  ['.lv-stats-txt', 'left', 0],
+  ['.lv-stats-nums > div', 'up', 120],
+  ['.lv-why-card', 'scale', 0],
+  ['.lv-plan', 'scale', 110],
+  ['.lv-note', 'up', 0],
+  ['.lv-testi-h', 'up', 0],
+  ['.lv-testi .fb-form', 'up', 0],
+  ['.lv-faq-list .lv-h3', 'title', 0],
+  ['.lv-qa', 'up', 70],
+  ['.lv-faq-aside', 'right', 0],
+  ['.lv-peek-stage', 'scale', 0],
+  ['.lv-band .lv-wrap > *', 'up', 110],
+  ['.dl-section .dl-trust', 'up', 0],
+  ['.dl-card', 'up', 100],
+  ['.lv-about', 'up', 0],
+  ['.lv-fcols > div', 'up', 90],
+  ['.lv-fbar', 'up', 0],
 ];
 
 let io: IntersectionObserver | null = null;
@@ -44,14 +68,15 @@ let onScroll: (() => void) | null = null;
 function applyChoreography(): void {
   for (const [sel, fx, stagger] of CHOREOGRAPHY) {
     document.querySelectorAll<HTMLElement>(sel).forEach((el, i) => {
-      if (el.dataset.fx) return;
+      // Já marcado (ex.: o efeito voltou a montar): basta voltar a observar.
+      if (el.dataset.fx) { io?.observe(el); return; }
       el.dataset.fx = fx;
       if (stagger) el.style.setProperty('--fxd', `${Math.min(i, 6) * stagger}ms`);
       io?.observe(el);
     });
   }
   document.querySelectorAll<HTMLElement>('.lp-steps .lp-step').forEach((el, i) => {
-    if (el.dataset.fx) return;
+    if (el.dataset.fx) { io?.observe(el); return; }
     el.dataset.fx = i % 2 === 0 ? 'left' : 'right';
     el.style.setProperty('--fxd', `${Math.min(i, 6) * 110}ms`);
     io?.observe(el);

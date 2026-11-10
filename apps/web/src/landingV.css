@@ -139,7 +139,7 @@
 .lv-tabs button:hover { color: var(--lv-ink); }
 .lv-tabs button.on { color: var(--lv-brand); }
 .lv-tabs button.on::after { transform: scaleX(1); }
-.lv-sol-body { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; margin-top: 60px; min-height: 360px; animation: lvFade .5s ease both; }
+.lv-sol-body { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; margin-top: 60px; min-height: 360px; animation: lvFade .5s ease backwards; }
 .lv-sol-txt h3 { color: var(--lv-ink); font-size: 26px; line-height: 1.15; font-weight: 700; }
 .lv-sol-txt ul { margin: 22px 0 30px; padding-left: 12px; }
 .lv-sol-txt li { font-size: 17px; line-height: 1.7; color: var(--lv-text); }
@@ -149,7 +149,7 @@
 .lv-tags span { background: #fff; padding: 9px 12px; border-radius: 2px; font-size: 14px; font-weight: 500; color: var(--lv-ink); transition: transform .25s var(--lv-ease), box-shadow .25s; }
 .lv-tags span:hover { transform: translateY(-2px); box-shadow: 0 6px 14px -8px rgba(20, 28, 77, .35); }
 /* Entradas escalonadas ao trocar de separador (1s / 1,5s / 2s) */
-.lv-fade { animation: lvFadeUp 1s var(--lv-ease) both; }
+.lv-fade { animation: lvFadeUp 1s var(--lv-ease) backwards; }
 .lv-fade.f15 { animation-duration: 1.5s; }
 .lv-fade.f20 { animation-duration: 2s; }
 
@@ -179,7 +179,7 @@
 
 /* ── Planos ───────────────────────────────────────────── */
 .lv-plans { padding: 40px 0 120px; }
-.lv-plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 30px; margin-top: 70px; }
+.lv-plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; margin-top: 70px; }
 .lv-plan { padding: 30px 20px; border: 1px solid #d9dde6; border-radius: 12px; background: #fff; transition: transform .3s var(--lv-ease), box-shadow .3s; }
 .lv-plan:hover, .lv-plan.hi { box-shadow: 0 6px 24px -6px rgba(36, 48, 232, .18); }
 .lv-plan:hover { transform: translateY(-4px); }
@@ -271,12 +271,8 @@
 @keyframes lvPanel { from { opacity: 0; transform: skewY(-11deg) translateX(80px); } to { opacity: 1; transform: skewY(-11deg); } }
 .lv-up { animation: lvFadeUp .9s var(--lv-ease) both; }
 .lv-up.d2 { animation-delay: .12s; } .lv-up.d3 { animation-delay: .24s; } .lv-up.d4 { animation-delay: .36s; } .lv-up.d5 { animation-delay: .5s; }
-.lv-rise { opacity: 0; transform: translateY(26px); transition: opacity .9s var(--lv-ease), transform .9s var(--lv-ease); }
-.in .lv-rise { opacity: 1; transform: none; }
-.in .lv-rise.r2 { transition-delay: .15s; } .in .lv-rise.r3 { transition-delay: .3s; }
 @media (prefers-reduced-motion: reduce) {
   .lv *, .lv *::before, .lv *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
-  .lv-rise { opacity: 1; transform: none; }
 }
 
 /* ── Responsivo ───────────────────────────────────────── */
@@ -340,3 +336,7 @@
 .lv-testi .fb-card { border-radius: 12px; box-shadow: none; border: 1px solid #e3e7ef; }
 .lv-testi .lp-btn.primary { background: var(--lv-brand); color: #fff; border: 0; border-radius: 50px; padding: 0 24px; font-weight: 600; box-shadow: none; }
 .lv-testi .lp-btn.primary:hover { background: var(--lv-brand-700); }
+/* 4 planos numa linha: preço compacto e sem partir o "/ Mês". */
+.lv-price { margin: 26px 0; flex-wrap: nowrap; white-space: nowrap; }
+.lv-price b { font-size: clamp(30px, 2.9vw, 44px); }
+.lv-price em { font-size: 16px; }
