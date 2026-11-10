@@ -566,7 +566,7 @@ export function Shell({
         <div className="sig">{copyrightLine()}</div>
       </aside>
 
-      <div className="main">
+      <div className="main" data-crumb={current?.label ?? ''}>
         <header className="topbar">
           <button className="menu-toggle" onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
             <IconMenu size={22} />

@@ -917,3 +917,91 @@
 /* Formulário de caixa (Lojas → Caixas): campos em duas colunas, rótulo por cima. */
 .vd-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; padding: 4px 0 16px; }
 @media (max-width: 640px) { .vd-form { grid-template-columns: 1fr; } }
+
+/* ════════════════════════════════════════════════════════════
+   FORMULÁRIOS EM PÁGINA (todas as janelas do admin e do super admin), no
+   modelo do backoffice de referência — cores do LPS:
+   abre dentro do painel (sem fundo escuro nem caixa flutuante), migalhas no
+   topo, cartão branco a toda a largura, rótulo à esquerda (negrito, alinhado à
+   direita), campo de 34px, linhas separadas por um traço, Guardar por baixo.
+   ════════════════════════════════════════════════════════════ */
+.modal-bg.vf-page {
+  position: fixed; right: 0; bottom: 0; z-index: 900; display: block; padding: 0 30px 30px; overflow-y: auto;
+  background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; animation: none;
+}
+.vf-load { position: fixed; top: 0; left: 0; height: 4px; width: 100%; background: var(--primary); z-index: 9000;
+  transform-origin: left; animation: vf-load .5s cubic-bezier(.42, 0, 1, 1) both; pointer-events: none;
+  box-shadow: rgba(0, 0, 0, .75) -2px 7px 2px -5px; }
+@keyframes vf-load { 0% { transform: scaleX(0); opacity: 1; } 85% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
+.modal.vf {
+  max-width: none !important; width: 100%; max-height: none; overflow: visible; display: block;
+  border: 0; border-radius: 0; box-shadow: none; background: none; animation: none;
+}
+.vf-crumb { display: flex; align-items: center; gap: 8px; margin: 0; padding: 22px 0 10px; font-size: 14px; color: var(--muted); }
+.vf-crumb button:not(.vf-x) { border: 0; background: none; padding: 0; color: var(--primary); font: inherit; cursor: pointer; }
+.vf-crumb button:not(.vf-x):hover { text-decoration: underline; }
+.vf-crumb .sep { color: var(--muted); opacity: .7; }
+.vf-x { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--muted); cursor: pointer; }
+.vf-x:hover { color: var(--text); }
+.modal.vf > .mt { background: var(--surface); padding: 16px 30px; border-bottom: 1px solid var(--border-soft); }
+.modal.vf > .mb { background: var(--surface); padding: 20px 30px 10px; overflow: visible; max-height: none; }
+.modal.vf > .mf { background: var(--surface); padding: 6px 30px 30px calc(30px + min(25%, 260px) + 15px); border: 0; position: static; box-shadow: none; }
+.modal.vf > .mf > .btn, .modal.vf > .mf > button { display: inline-flex !important; width: auto !important; min-width: 0; height: auto; padding: 10px 16px; font-size: 18px; font-weight: 500; border-radius: 4px; }
+.modal.vf > .mf { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+/* Campos em linha: rótulo à esquerda, campo à direita, traço por baixo. */
+.modal.vf .field { display: grid; grid-template-columns: min(25%, 260px) minmax(0, 430px); align-items: center; column-gap: 30px;
+  padding: 0 15px 20px; margin: 0 -15px 15px; border-bottom: 1px solid var(--border-soft); }
+.modal.vf .field > label { text-align: right; font-size: 14px; font-weight: 700; color: var(--text); margin: 0; }
+.modal.vf .field > label::after { content: ":"; }
+.modal.vf .field > :not(label) { grid-column: 2; }
+.modal.vf .field input, .modal.vf .field select, .modal.vf .field textarea {
+  height: 34px; padding: 6px 16px; font-size: 14px; border-radius: 4px; box-shadow: rgba(0, 0, 0, .075) 0 1px 1px 0 inset;
+}
+.modal.vf .field textarea { height: auto; min-height: 54px; }
+.modal.vf .switch-row { display: grid; grid-template-columns: min(25%, 260px) auto; justify-content: start; align-items: center; column-gap: 30px;
+  padding: 0 15px 20px; margin: 0 -15px 15px; border-bottom: 1px solid var(--border-soft); }
+.modal.vf .switch-row > span:first-child { text-align: right; font-size: 14px; font-weight: 700; color: var(--text); }
+.modal.vf .vd-form { display: block; }
+.modal.vf .vd-f { display: grid; grid-template-columns: min(25%, 260px) minmax(0, 430px); align-items: center; column-gap: 30px;
+  padding: 0 15px 20px; margin: 0 -15px 15px; border-bottom: 1px solid var(--border-soft); }
+.modal.vf .vd-f > span { text-align: right; font-weight: 700; }
+.modal.vf .vd-actions { justify-content: flex-start; border: 0; padding: 6px 0 20px calc(min(25%, 260px) + 15px); }
+@media (max-width: 760px) {
+  .modal-bg.vf-page { padding: 0 10px 20px; }
+  .modal.vf > .mb, .modal.vf > .mt { padding-left: 14px; padding-right: 14px; }
+  .modal.vf > .mf { padding: 6px 14px 20px; }
+  .modal.vf .field, .modal.vf .switch-row, .modal.vf .vd-f { grid-template-columns: 1fr; row-gap: 6px; }
+  .modal.vf .field > label, .modal.vf .switch-row > span:first-child, .modal.vf .vd-f > span { text-align: left; }
+  .modal.vf .field > :not(label) { grid-column: 1; }
+  .modal.vf .vd-actions { padding-left: 0; }
+}
+/* Grelhas de campos (2/3 colunas) passam a uma coluna, como na referência. */
+.modal.vf .cols-2, .modal.vf .grid-2, .modal.vf .grid-3, .modal.vf .grid-4, .modal.vf .form-grid { display: block !important; }
+
+/* Lojas (modelo do backoffice de referência): cartão por loja com as caixas. */
+.st-card { padding: 20px 20px 16px; margin-bottom: 30px; }
+.st-head { display: flex; align-items: center; gap: 10px; }
+.st-head h3 { margin: 0; font-size: 18px; font-weight: 400; color: var(--primary); display: flex; align-items: center; }
+.st-sub { margin: 4px 0 14px; font-size: 13px; color: var(--muted); }
+.st-regs th { font-weight: 700; }
+.st-none { color: var(--muted); }
+.sm-opt { height: 26px; padding: 0 10px; font-size: 12.5px; border: 1px solid var(--border); }
+
+/* Confirmações no modelo do backoffice de referência (caixa de alerta central):
+   ícone redondo grande com contorno, título grande, texto, botões lado a lado
+   (confirmar primeiro). Entrada com "pop" curto. Cores LPS. */
+.fb-confirm-bg { background: rgba(0, 0, 0, .4) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.fb-confirm { max-width: 32em !important; padding: 1.25em 1.25em 1.6em !important; border-radius: 5px !important; border: 0 !important;
+  text-align: center; background: var(--surface) !important; box-shadow: none !important; animation: vd-swal .3s both !important; }
+@keyframes vd-swal { 0% { transform: scale(.7); } 45% { transform: scale(1.05); } 80% { transform: scale(.95); } 100% { transform: scale(1); } }
+.fb-confirm-ic { width: 5em !important; height: 5em !important; margin: 1.25em auto 1.875em !important; border-radius: 50% !important;
+  border: .25em solid color-mix(in srgb, var(--primary) 45%, transparent) !important; background: none !important; color: var(--primary) !important; display: grid; place-items: center; box-shadow: none !important; }
+.fb-confirm-ic.danger { border-color: #facea8 !important; color: #f8bb86 !important; }
+.fb-confirm-ic svg { width: 2.6em; height: 2.6em; }
+.fb-confirm h4 { font-size: 1.875em !important; font-weight: 600 !important; color: var(--text) !important; margin: 0 0 .4em !important; }
+.fb-confirm p { font-size: 1.125em !important; color: var(--muted) !important; margin: 0 0 1.25em !important; }
+.fb-confirm-row { display: flex !important; flex-direction: row-reverse; justify-content: center !important; gap: .6em !important; }
+.fb-confirm-row .btn { width: auto !important; flex: none !important; border-radius: .25em !important; padding: .625em 1.1em !important; font-size: 1.0625em !important; font-weight: 500 !important; box-shadow: none !important; }
+.fb-confirm-row .btn.ghost { background: #6e7881 !important; color: #fff !important; border: 0 !important; }
+.fb-confirm-row .btn.danger { background: var(--primary) !important; }

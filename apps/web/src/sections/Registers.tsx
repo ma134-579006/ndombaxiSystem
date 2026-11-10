@@ -83,7 +83,7 @@ export function Registers() {
   );
 }
 
-function RegisterForm({ row, stores, onClose, onSaved }: { row: DeviceRow; stores: ManagerStore[]; onClose(): void; onSaved(): void }) {
+export function RegisterForm({ row, stores, onClose, onSaved }: { row: DeviceRow; stores: ManagerStore[]; onClose(): void; onSaved(): void }) {
   const [name, setName] = useState(row.name);
   const [storeId, setStoreId] = useState(row.store_id ?? '');
   const [s, setS] = useState<DeviceSettings>(row.settings);

@@ -1,8 +1,8 @@
-import { confirmDialog, runBulk } from '../components/feedback';
-import React, { useCallback, useEffect, useState } from 'react';
+import { confirmDialog, toast } from '../components/feedback';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { CreateStoreInput, ManagerStore } from '../api/types';
-import { IconCheck, IconEdit, IconLock, IconPlus, IconStore } from '../components/Icons';
+import type { CreateStoreInput, DeviceRow, ManagerStore } from '../api/types';
+import { RegisterForm } from './Registers';
 import { Modal, Switch } from '../components/ui';
 
 /** Lojas da empresa (multi-loja / lojas filhas). Criar/editar exige administrador.
@@ -10,119 +10,115 @@ import { Modal, Switch } from '../components/ui';
  *  histórico fica apenas desativada — igual ao padrão dos Produtos). */
 export function Stores() {
   const [items, setItems] = useState<ManagerStore[]>([]);
+  const [devices, setDevices] = useState<DeviceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [editing, setEditing] = useState<ManagerStore | null>(null);
   const [creating, setCreating] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkBusy, setBulkBusy] = useState(false);
+  const [editReg, setEditReg] = useState<DeviceRow | null>(null);
+  const [menu, setMenu] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
-    try { setItems(await api.staff.listStores()); }
-    catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao carregar lojas.'); }
+    try {
+      const [s, d] = await Promise.all([api.staff.listStores(), api.devices.list().catch(() => [] as DeviceRow[])]);
+      setItems(s); setDevices(d);
+    } catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao carregar lojas.'); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!menu) return;
+    const h = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(null); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [menu]);
 
-  const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const selectable = items.filter((s) => !s.is_default); // a principal nunca é selecionável
-  const allSel = selectable.length > 0 && selectable.every((s) => selected.has(s.id));
-  const toggleAll = () => setSelected(allSel ? new Set() : new Set(selectable.map((s) => s.id)));
-
-  const bulkDeactivate = async () => {
-    setBulkBusy(true); setError(null); setInfo(null);
-    let done = 0, skipped = 0;
-    try {
-      for (const id of selected) {
-        const st = items.find((s) => s.id === id);
-        if (!st || st.is_default) { skipped++; continue; } // a principal nunca
-        await api.staff.updateStore(id, { isActive: false });
-        done++;
-      }
-      setSelected(new Set()); await load();
-      setInfo(`${done} loja(s) desativada(s).${skipped ? ` A loja principal não pode ser desativada (${skipped} ignorada).` : ''}`);
-    } catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao desativar.'); }
-    finally { setBulkBusy(false); }
+  const toggleActive = async (s: ManagerStore) => {
+    setMenu(null);
+    if (s.is_default) { toast.error('A loja principal não pode ser desativada.'); return; }
+    try { await api.staff.updateStore(s.id, { isActive: !s.is_active }); toast.success(s.is_active ? 'Loja desativada.' : 'Loja ativada.'); await load(); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível alterar a loja.'); }
   };
-
-  const bulkDelete = async () => {
-    if (!(await confirmDialog({ message: `Eliminar ${selected.size} loja(s)? As que têm vendas/stock/equipa ficam apenas desativadas.`, danger: true }))) return;
-    setBulkBusy(true); setError(null); setInfo(null);
-    let del = 0, deact = 0, skipped = 0;
-    try {
-      const ids = [...selected].filter((id) => { const st = items.find((s) => s.id === id); if (!st || st.is_default) { skipped++; return false; } return true; });
-      const r = await runBulk({ title: 'A eliminar lojas', items: ids, concurrency: 3, run: async ([id]) => { const x = await api.staff.deleteStore(id); if (x.deleted) del++; else deact++; } });
-      if (r.failed) setError(`${r.failed} não puderam ser eliminadas (${r.firstError}).`);
-      setSelected(new Set()); await load();
-      setInfo(`${del} eliminada(s)${deact ? `; ${deact} com histórico ficaram desativadas` : ''}.${skipped ? ' A loja principal foi ignorada.' : ''}`);
-    } catch (er) { setError(er instanceof ApiError ? er.message : 'Falha ao eliminar.'); }
-    finally { setBulkBusy(false); }
+  const remove = async (s: ManagerStore) => {
+    setMenu(null);
+    if (s.is_default) { toast.error('A loja principal não pode ser eliminada.'); return; }
+    if (!(await confirmDialog({ message: `Eliminar a loja "${s.name}"? Com vendas, stock ou equipa fica apenas desativada.`, danger: true }))) return;
+    try { const r = await api.staff.deleteStore(s.id); toast.success(r.deleted ? 'Loja eliminada.' : 'Loja com histórico: ficou desativada.'); await load(); }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível eliminar a loja.'); }
   };
+  const fmtDT = (v: string | null) => (v ? new Date(v).toLocaleDateString('pt-PT') : '—');
 
-  const activeCount = items.filter((s) => s.is_active).length;
-
+  // Modelo do backoffice de referência: um cartão por loja (nome + Opções) com a
+  // tabela das suas caixas; "Adicionar Loja" no topo.
+  const orphan = devices.filter((d) => !d.store_id || !items.some((s) => s.id === d.store_id));
   return (
-    <div className="fx-wide">
-      <div className="content-head">
-        <h2>Lojas da empresa</h2>
-        {selectable.length > 0 ? (
-          <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer', marginLeft: 8 }}>
-            <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todas" /> Todas
-          </label>
-        ) : null}
+    <div className="vd-page">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Definições</span><span className="sep">/</span><span>Lojas</span></p>
         <span className="spacer" />
-        <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Nova loja</button>
+        <button className="vd-btn" onClick={() => setCreating(true)}>+ Adicionar Loja</button>
       </div>
-
-      <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Lojas</div><div className="vl">{items.length}</div><div className="sb">na empresa</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Activas</div><div className="vl"><span className="fx-dot ok" />{activeCount}</div><div className="sb">a vender</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconLock size={20} /></span><div><div className="lb">Inactivas</div><div className="vl"><span className={`fx-dot${items.length - activeCount ? ' bad' : ''}`} />{items.length - activeCount}</div><div className="sb">desativadas</div></div></div>
-      </div>
-
-      {selected.size > 0 ? (
-        <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px', marginBottom: 12 }}>
-          <strong>{selected.size} selecionada(s)</strong>
-          <span className="spacer" />
-          <button className="btn sm ghost" onClick={() => setSelected(new Set())} disabled={bulkBusy}>Limpar</button>
-          <button className="btn sm warn" onClick={bulkDeactivate} disabled={bulkBusy}>Desativar</button>
-          <button className="btn sm danger" onClick={bulkDelete} disabled={bulkBusy}>Eliminar</button>
-        </div>
-      ) : null}
-
-      {info ? <div className="banner success">{info}</div> : null}
-      {error ? <div className="banner danger">{error}</div> : null}
-
-      {loading ? <div className="card"><div className="loading">A carregar…</div></div>
-        : items.length === 0 ? (
-          <div className="card"><div className="empty"><IconStore size={40} /><p>Ainda só tens a loja principal. Cria as lojas filhas aqui.</p></div></div>
-        ) : (
-          <div className="pgrid">
-            {items.map((s) => (
-              <div className={`pcard${selected.has(s.id) ? ' sel' : ''}`} key={s.id}>
-                {!s.is_default ? (
-                  <label className="pcard-check" onClick={(ev) => ev.stopPropagation()}>
-                    <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggleSel(s.id)} />
-                  </label>
-                ) : null}
-                <div className="thumb"><IconStore size={30} /></div>
-                <div className="pinfo">
-                  <div className="pname">{s.name} {s.is_default ? <span className="pill on">Principal</span> : null}</div>
-                  <div className="pcode">{s.code}{s.address ? ` · ${s.address}` : ''}</div>
-                  <div className="pfoot">
-                    <span className={`pill ${s.is_active ? 'on' : 'off'}`}>{s.is_active ? 'Activa' : 'Inactiva'}</span>
+      {error ? <div className="vd-err" role="alert">{error}</div> : null}
+      {loading ? <div className="vd-card vd-empty">A carregar…</div> : (
+        <>
+          {items.map((s) => {
+            const regs = devices.filter((d) => d.store_id === s.id);
+            return (
+              <section className="vd-card st-card" key={s.id}>
+                <div className="st-head">
+                  <h3>{s.name}{s.is_default ? <span className="vd-tag ok" style={{ marginLeft: 10 }}>Principal</span> : null}{!s.is_active ? <span className="vd-tag bad" style={{ marginLeft: 10 }}>Inativa</span> : null}</h3>
+                  <span className="spacer" />
+                  <div className="vd-opts" ref={menu === s.id ? menuRef : undefined}>
+                    <button className="vd-btn outline" aria-expanded={menu === s.id} onClick={() => setMenu((m) => (m === s.id ? null : s.id))}>Opções ▾</button>
+                    {menu === s.id ? (
+                      <div className="vd-drop" role="menu">
+                        <button role="menuitem" onClick={() => { setMenu(null); setEditing(s); }}>Editar</button>
+                        {!s.is_default ? <button role="menuitem" onClick={() => void toggleActive(s)}>{s.is_active ? 'Desativar' : 'Ativar'}</button> : null}
+                        {!s.is_default ? <><hr /><button role="menuitem" className="danger" onClick={() => void remove(s)}>Eliminar</button></> : null}
+                      </div>
+                    ) : null}
                   </div>
-                  <button className="btn sm ghost block" style={{ marginTop: 8 }} onClick={() => setEditing(s)}><IconEdit size={15} /> Editar</button>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+                {s.address ? <p className="st-sub">{s.code} · {s.address}</p> : <p className="st-sub">{s.code}</p>}
+                <table className="vd-table st-regs">
+                  <thead><tr><th>Caixa</th><th>Série</th><th>Última atividade</th><th>Estado</th><th aria-label="Opções" /></tr></thead>
+                  <tbody>
+                    {regs.length === 0 ? <tr><td colSpan={5} className="st-none">Sem caixas</td></tr> : regs.map((r) => (
+                      <tr key={r.id}>
+                        <td>{r.name}</td>
+                        <td>{r.series}</td>
+                        <td style={{ color: 'var(--primary)' }}>{fmtDT(r.last_seen_at)}</td>
+                        <td>{r.is_active ? '✓ Ativa' : 'Inativa'}</td>
+                        <td className="num"><button className="vd-btn plain sm-opt" onClick={() => setEditReg(r)}>Editar</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            );
+          })}
+          {orphan.length ? (
+            <section className="vd-card st-card">
+              <div className="st-head"><h3>Caixas sem loja</h3></div>
+              <table className="vd-table st-regs">
+                <thead><tr><th>Caixa</th><th>Série</th><th>Última atividade</th><th>Estado</th><th aria-label="Opções" /></tr></thead>
+                <tbody>
+                  {orphan.map((r) => (
+                    <tr key={r.id}><td>{r.name}</td><td>{r.series}</td><td style={{ color: 'var(--primary)' }}>{fmtDT(r.last_seen_at)}</td><td>{r.is_active ? '✓ Ativa' : 'Inativa'}</td>
+                      <td className="num"><button className="vd-btn plain sm-opt" onClick={() => setEditReg(r)}>Editar</button></td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          ) : null}
+        </>
+      )}
 
-      {creating ? <StoreModal onClose={() => setCreating(false)} onSaved={() => { setCreating(false); void load(); }} /> : null}
-      {editing ? <StoreModal store={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void load(); }} /> : null}
+      {creating ? <StoreModal onClose={() => setCreating(false)} onSaved={() => { setCreating(false); toast.success('Loja criada.'); void load(); }} /> : null}
+      {editing ? <StoreModal store={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); toast.success('Loja guardada.'); void load(); }} /> : null}
+      {editReg ? <RegisterForm row={editReg} stores={items} onClose={() => setEditReg(null)} onSaved={() => { setEditReg(null); toast.success('Caixa guardada.'); void load(); }} /> : null}
     </div>
   );
 }
