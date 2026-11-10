@@ -1039,3 +1039,12 @@
 .perm-table td.no { color: var(--muted); }
 .perm-table tr.perm-group td { background: var(--surface-2) !important; font-weight: 700; color: var(--primary); }
 .perm-note { margin: 16px 0 0; font-size: 13px; color: var(--muted); }
+
+/* Chats do admin: abrem como as restantes janelas (página dentro do painel). */
+.cv-sheet.in-vw { width: auto; height: auto; min-height: 60vh; max-height: none; border: 0; border-radius: 0; box-shadow: none; background: none; overflow: visible; display: flex; flex-direction: column; }
+.cv-sheet.in-vw > .cv-head:not(.cv-conv) { display: none; }
+.cv-sheet.in-vw .cv-head { background: none; padding: 0 0 14px; }
+.cv-sheet.in-vw .cv-search { border-radius: 4px; height: 34px; }
+.cv-sheet.in-vw .cv-list { overflow: visible; }
+.cv-sheet.in-vw .cv-contact { border-radius: 0; border-bottom: 1px solid var(--border-soft); }
+.cv-sheet.in-vw .cv-msgs, .cv-sheet.in-vw .cv-body { min-height: 50vh; }

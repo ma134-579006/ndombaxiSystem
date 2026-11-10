@@ -102,32 +102,25 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
     <VWindow title="Documentos" onClose={onClose}>
       <div className="sales-modal in-vw">
 
-        <div className="erp-kpis">
-          <div className="erp-kpi"><span>Documentos</span><b>{rows.length}</b></div>
-          <div className="erp-kpi hi"><span>Total faturado</span><b>{formatKz(rows.filter((r) => r.status !== 'A').reduce((t, r) => t + Number(r.gross_total), 0))}</b></div>
-          <div className="erp-kpi"><span>Anulados</span><b>{rows.filter((r) => r.status === 'A').length}</b></div>
+        {/* Modelo do "Consultar" do POS de referência: título pequeno, filtros
+            com rótulo por cima e botão de pesquisa; resumo à direita. */}
+        <div className="vw-titlerow">
+          <h3 className="vw-sec">Histórico de Documentos</h3>
+          <span className="vw-summ">Documentos <b>{rows.length}</b> · Total <b>{formatKz(rows.filter((r) => r.status !== 'A').reduce((t, r) => t + Number(r.gross_total), 0))}</b> · Anulados <b>{rows.filter((r) => r.status === 'A').length}</b></span>
         </div>
-
-        <div className="sm-search">
-          <UiIcon e="search" size={16} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar por documento, produto ou operador…" />
-          {q ? <button onClick={() => setQ('')} aria-label="Limpar">✕</button> : null}
-        </div>
-
-        <div className="sm-filters sm-toolbar">
-          <div className="sm-quick">
-            <button className="chip" onClick={() => { setFrom(todayISO()); setTo(todayISO()); }}>Hoje</button>
-            <button className="chip" onClick={() => { const d = new Date(); d.setDate(d.getDate() - 6); setFrom(d.toISOString().slice(0, 10)); setTo(todayISO()); }}>7 dias</button>
-            <button className="chip" onClick={() => { const d = new Date(); d.setDate(d.getDate() - 29); setFrom(d.toISOString().slice(0, 10)); setTo(todayISO()); }}>30 dias</button>
+        <div className="vw-filters">
+          <label className="vw-f grow"><span>Pesquisar</span><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Documento, produto ou operador" /></label>
+          <label className="vw-f"><span>Data de início</span><input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></label>
+          <label className="vw-f"><span>Data de fim</span><input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></label>
+          <div className="vw-f quick"><span>&nbsp;</span>
+            <div className="vw-chips">
+              <button type="button" onClick={() => { setFrom(todayISO()); setTo(todayISO()); }}>Hoje</button>
+              <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() - 6); setFrom(d.toISOString().slice(0, 10)); setTo(todayISO()); }}>7 dias</button>
+              <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() - 29); setFrom(d.toISOString().slice(0, 10)); setTo(todayISO()); }}>30 dias</button>
+            </div>
           </div>
-          <label>De <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></label>
-          <label>até <input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></label>
-          {loading ? <span className="muted" style={{ fontSize: 12.5 }}>A carregar…</span> : null}
-          <span style={{ flex: 1 }} />
-          {canCancel
-            ? <span className="muted" style={{ fontSize: 12.5 }}>Cancela artigos por venda (seleção múltipla).</span>
-            : <span className="muted" style={{ fontSize: 12.5 }}>Só o gerente/gestor pode cancelar vendas.</span>}
         </div>
+        {loading ? <p className="vw-foot-note" style={{ textAlign: 'left' }}>A carregar…</p> : null}
 
         {err ? <div className="banner danger">{err}</div> : null}
         {msg ? <div className="banner success">{msg}</div> : null}
@@ -150,7 +143,7 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
         ) : null}
 
         <div className="sm-list">
-          {rows.length === 0 && !loading ? <div className="empty">Sem vendas no período.</div> : (
+          {rows.length === 0 && !loading ? <div className="vw-empty">Sem resultados</div> : (
             <table className="sales-table">
               <thead>
                 <tr>

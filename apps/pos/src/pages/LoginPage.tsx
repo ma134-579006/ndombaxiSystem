@@ -1,11 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { LOGO_WIDE } from '../brand';
 import { useAuth } from '../auth/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
-import { cachedPhoto } from '../photoCache';
+import { cachedPhoto, rememberPhoto } from '../photoCache';
 import { ScreenKeyboard } from '../components/ScreenKeyboard';
 import { nativeGoogleAvailable, nativeGoogleSignIn } from '../offline/nativeGoogle';
 import { desktopGoogleAvailable, desktopGoogleSignIn } from '../offline/desktopGoogle';
@@ -200,7 +200,22 @@ function OpenCashHandoff({ email, name }: { email: string; name: string }) {
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const photo = cachedPhoto(email);
+  // Foto do perfil: a guardada neste aparelho e, se não houver, a do servidor
+  // (lista pública de operadores da empresa da URL, a mesma do ecrã de PIN).
+  const [photo, setPhoto] = useState<string | null>(() => cachedPhoto(email));
+  useEffect(() => {
+    if (photo) return;
+    const company = new URLSearchParams(window.location.search).get('empresa') ?? '';
+    if (!company) return;
+    let alive = true;
+    const nm = (name || '').trim().toLowerCase();
+    const local = email.split('@')[0].toLowerCase();
+    api.operators(company).then((r) => {
+      const op = r.operators.find((o) => o.name.trim().toLowerCase() === nm) ?? r.operators.find((o) => o.name.trim().toLowerCase() === local);
+      if (alive && op?.photo_url) { setPhoto(op.photo_url); rememberPhoto(email, op.photo_url); }
+    }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [email, name]); // eslint-disable-line react-hooks/exhaustive-deps
   const initials = (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0]?.toUpperCase()).join('') || '?';
 
   const submit = async () => {

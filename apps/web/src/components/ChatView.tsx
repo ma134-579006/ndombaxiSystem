@@ -1,3 +1,4 @@
+import { Modal } from './ui';
 import React, { useEffect, useRef } from 'react';
 import { NeedsNetwork, useNetwork } from './NeedsNetwork';
 
@@ -25,8 +26,8 @@ export function ChatView(p: {
   const totalUnread = p.contacts.reduce((s, c) => s + c.unread, 0);
 
   return (
-    <div className="modal-bg" onClick={p.onClose}>
-      <div className="cv-sheet" onClick={(e) => e.stopPropagation()}>
+    <Modal title={p.peer ? p.peer.name : p.title} onClose={p.onClose} wide>
+      <div className="cv-sheet in-vw">
         {!online ? (
           <>
             <div className="cv-head">
@@ -107,6 +108,6 @@ export function ChatView(p: {
           </>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

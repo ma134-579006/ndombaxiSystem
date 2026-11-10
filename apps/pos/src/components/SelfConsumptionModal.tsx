@@ -3,7 +3,8 @@ import { api, ApiError } from '../api/client';
 import { IVA_RATE, type ConsumptionLimit, type Product, type SelfConsumption } from '../api/types';
 import { formatKz } from '../format';
 import { BarcodeScanner } from './BarcodeScanner';
-import { VSearch, VWindow } from './VWindow';
+import { VWindow } from './VWindow';
+import { useAuth } from '../auth/AuthContext';
 
 function grossUnit(p: Product): number {
   return Number(p.unit_price) * (1 + IVA_RATE[p.iva_code] / 100);
@@ -24,6 +25,7 @@ interface CartLine { product: Product; qty: number }
  * uma vez; o sistema baixa o stock e desconta no salário (RH).
  */
 export function SelfConsumptionModal({ products, onClose }: { products: Product[]; onClose(): void }) {
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [scan, setScan] = useState(false);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -86,98 +88,97 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
 
   const pendingTotal = mine.filter((c) => c.status === 'PENDING').reduce((s, c) => s + Number(c.total), 0);
 
+  const now = new Date();
+  const dateTx = now.toLocaleDateString('pt-PT');
+  const timeTx = now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+  const searching = search.trim().length > 0;
+
+  // Estrutura do "Registar autoconsumo" do POS de referência: Utilizador / Data
+  // / Hora; barra "Produtos consumidos"; pesquisa; linhas; Total; Cancelar e
+  // Guardar à direita. Por baixo, o histórico em tabela.
   return (
-    <VWindow title="Consumo próprio" onClose={onClose} footer={cart.length > 0 ? (
-      <>
-        <div className="vw-sum"><span>{cartCount} item(ns)</span><b>{formatKz(cartTotal)}</b></div>
-        <button className="vw-btn ghost" onClick={() => setCart([])}>Limpar</button>
-        <button className="vw-btn" disabled={busy} onClick={() => void registerAll()}>{busy ? 'A registar…' : 'Registar consumo'}</button>
-      </>
-    ) : undefined}>
-        <VSearch value={search} onChange={setSearch} placeholder="Pesquisar Produtos por Nome ou Referência" autoFocus
-          extra={IS_MOBILE ? (
-            <button type="button" className={`consume-cam${scan ? ' on' : ''}`} onClick={() => setScan((v) => !v)} title="Ler com a câmara"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" /><circle cx="12" cy="14" r="3.4" /></svg></button>
-          ) : null} />
+    <VWindow title="Consumo próprio" onClose={onClose}>
+      <div className="vw-grid3">
+        <label className="vw-f"><span>Utilizador</span><input value={user?.name || user?.email || ''} readOnly disabled /></label>
+        <label className="vw-f"><span>Data do consumo</span><input value={dateTx} readOnly disabled /></label>
+        <label className="vw-f"><span>Hora</span><input value={timeTx} readOnly disabled /></label>
+      </div>
 
-        <div className="consume-body vw-body">
-          {lim && lim.employeeLinked ? (
-            <>
-              <div className="erp-kpis erp-kpis4">
-                <div className="erp-kpi"><span>Salário mensal</span><b>{formatKz(lim.monthlyPay)}</b></div>
-                <div className="erp-kpi"><span>Adiantamentos</span><b>{formatKz(lim.advances ?? 0)}</b></div>
-                <div className="erp-kpi"><span>Consumo próprio</span><b>{formatKz(lim.consumed)}</b></div>
-                <div className={`erp-kpi ${lim.available <= 0 ? 'bad' : 'hi'}`}><span>Saldo disponível</span><b>{formatKz(Math.max(lim.available, 0))}</b></div>
-              </div>
-              <div className="erp-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.round(((lim.consumed + (lim.advances ?? 0)) / Math.max(lim.monthlyPay, 1)) * 100))}%` }} /></div>
-              <div className="erp-bar-l">O saldo é partilhado com o Adiantamento salarial.</div>
-              {lim.available <= 0 ? <div className="banner danger" style={{ margin: '10px 0 12px' }}>Atingiste o limite deste mês. Só podes voltar a consumir no próximo mês.</div> : <div style={{ height: 12 }} />}
-            </>
-          ) : null}
-          {msg ? <div className="banner success" style={{ marginBottom: 12 }}>{msg}</div> : null}
-          {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
-
-          {scan && IS_MOBILE ? (
-            <div style={{ marginBottom: 14 }}>
-              <BarcodeScanner continuous onDetected={(code) => pickByCode(code)} />
-            </div>
-          ) : null}
-
-          {/* Carrinho de seleção (vários produtos) */}
-          {cart.length > 0 ? (
-            <div className="consume-cart">
-              <div className="consume-cart-head">Selecionados ({cart.length})</div>
-              {cart.map((l) => (
-                <div key={l.product.id} className="consume-cart-row">
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="nm">{l.product.name}</div>
-                    <div className="meta">{formatKz(grossUnit(l.product))} /un</div>
-                  </div>
-                  <div className="consume-stepper">
-                    <button onClick={() => setQty(l.product.id, l.qty - 1)} aria-label="Menos">−</button>
-                    <input inputMode="numeric" value={l.qty}
-                      onChange={(e) => setQty(l.product.id, Number(e.target.value.replace(/\D/g, '')) || 1)} />
-                    <button onClick={() => setQty(l.product.id, l.qty + 1)} aria-label="Mais">+</button>
-                  </div>
-                  <strong style={{ width: 92, textAlign: 'right' }}>{formatKz(grossUnit(l.product) * l.qty)}</strong>
-                  <button className="consume-rm" onClick={() => removeLine(l.product.id)} aria-label="Remover">✕</button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {/* Lista de produtos — toca para adicionar */}
-          <div className="consume-list">
-            {filtered.length === 0 ? (
-              <div className="consume-empty">Sem produtos para esta pesquisa.</div>
-            ) : filtered.map((p) => (
-              <button key={p.id} className={`consume-item${inCart(p.id) ? ' sel' : ''}`} onClick={() => addToCart(p)}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="nm">{p.name}</div>
-                  <div className="meta">{p.code}{p.barcode ? ` · ${p.barcode}` : ''} · stock {Number(p.stock_qty)}</div>
-                </div>
-                <span className="price">{formatKz(grossUnit(p))}</span>
-                <span className="consume-add" aria-hidden>{inCart(p.id) ? '✓' : '+'}</span>
-              </button>
-            ))}
-          </div>
-
-          {mine.length > 0 ? (
-            <div className="consume-mine">
-              <div className="row" style={{ alignItems: 'center', marginBottom: 6 }}>
-                <div className="erp-sec" style={{ margin: 0 }}>Os meus consumos <span>{mine.length}</span></div>
-                <span className="spacer" />
-                <span className="muted" style={{ fontSize: 13 }}>Por descontar: <strong>{formatKz(pendingTotal)}</strong></span>
-              </div>
-              {mine.slice(0, 20).map((c) => (
-                <div key={c.id} className="consume-mine-row">
-                  <span style={{ flex: 1, minWidth: 0 }}>{Number(c.quantity)}× {c.description}</span>
-                  <span className={`consume-tag${c.status === 'DEDUCTED' ? ' done' : ''}`}>{c.status === 'DEDUCTED' ? 'descontado' : 'pendente'}</span>
-                  <strong>{formatKz(c.total)}</strong>
-                </div>
-              ))}
-            </div>
-          ) : null}
+      {lim && lim.employeeLinked ? (
+        <div className="vw-limits">
+          <span>Salário <b>{formatKz(lim.monthlyPay)}</b></span>
+          <span>Adiantamentos <b>{formatKz(lim.advances ?? 0)}</b></span>
+          <span>Consumido <b>{formatKz(lim.consumed)}</b></span>
+          <span className={lim.available <= 0 ? 'bad' : 'hi'}>Saldo disponível <b>{formatKz(Math.max(lim.available, 0))}</b></span>
         </div>
+      ) : null}
+      {lim && lim.employeeLinked && lim.available <= 0 ? <div className="banner danger" style={{ marginBottom: 12 }}>Atingiste o limite deste mês.</div> : null}
+      {msg ? <div className="banner success" style={{ marginBottom: 12 }}>{msg}</div> : null}
+      {err ? <div className="banner danger" style={{ marginBottom: 12 }}>{err}</div> : null}
+
+      <div className="vw-bar">Produtos consumidos</div>
+      <div className="vw-insearch">
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquise os produtos a registar" autoFocus aria-label="Pesquise os produtos a registar" />
+        {IS_MOBILE ? (
+          <button type="button" className={`consume-cam${scan ? ' on' : ''}`} onClick={() => setScan((v) => !v)} aria-label="Ler com a câmara"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" /><circle cx="12" cy="14" r="3.4" /></svg></button>
+        ) : <svg className="ic" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5L21 21" /></svg>}
+      </div>
+      {scan && IS_MOBILE ? <div style={{ margin: '10px 0' }}><BarcodeScanner continuous onDetected={(code) => pickByCode(code)} /></div> : null}
+
+      {searching ? (
+        <div className="vw-results">
+          {filtered.length === 0 ? <div className="vw-empty">Sem resultados</div> : filtered.map((p) => (
+            <button key={p.id} type="button" className={`vw-res${inCart(p.id) ? ' sel' : ''}`} onClick={() => { addToCart(p); setSearch(''); }}>
+              <span className="nm">{p.name}<small>{p.code} · stock {Number(p.stock_qty)}</small></span>
+              <b>{formatKz(grossUnit(p))}</b>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {cart.length > 0 ? (
+        <table className="vw-lines">
+          <tbody>
+            {cart.map((l) => (
+              <tr key={l.product.id}>
+                <td>{l.product.name}<small>{formatKz(grossUnit(l.product))} /un</small></td>
+                <td className="qty">
+                  <div className="consume-stepper">
+                    <button type="button" onClick={() => setQty(l.product.id, l.qty - 1)} aria-label="Menos">−</button>
+                    <input inputMode="numeric" value={l.qty} onChange={(e) => setQty(l.product.id, Number(e.target.value.replace(/\D/g, '')) || 1)} />
+                    <button type="button" onClick={() => setQty(l.product.id, l.qty + 1)} aria-label="Mais">+</button>
+                  </div>
+                </td>
+                <td className="num">{formatKz(grossUnit(l.product) * l.qty)}</td>
+                <td className="rm"><button type="button" className="consume-rm" onClick={() => removeLine(l.product.id)} aria-label="Remover">✕</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : !searching ? <div className="vw-empty">Pesquise os produtos a registar</div> : null}
+
+      <div className="vw-total"><b>Total</b><span>{cartCount} unids.</span><strong>{formatKz(cartTotal)}</strong></div>
+      <div className="vw-acts">
+        <button type="button" className="vw-b cancel" onClick={onClose}>Cancelar</button>
+        <button type="button" className="vw-b ok" disabled={busy || cart.length === 0} onClick={() => void registerAll()}>{busy ? 'A guardar…' : 'Guardar'}</button>
+      </div>
+
+      <h3 className="vw-sec" style={{ marginTop: 34 }}>Histórico de Autoconsumos</h3>
+      <table>
+        <thead><tr><th>Data do consumo</th><th>Produto</th><th className="num">Nº de itens</th><th className="num">Total</th><th>Estado</th></tr></thead>
+        <tbody>
+          {mine.length === 0 ? <tr><td colSpan={5} className="vw-empty">Sem resultados</td></tr> : mine.slice(0, 30).map((c) => (
+            <tr key={c.id}>
+              <td>{new Date(c.created_at).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+              <td>{c.description}</td>
+              <td className="num">{Number(c.quantity)}</td>
+              <td className="num">{formatKz(c.total)}</td>
+              <td>{c.status === 'DEDUCTED' ? 'Descontado' : 'Por descontar'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {mine.length > 0 ? <p className="vw-foot-note">Por descontar: <b>{formatKz(pendingTotal)}</b></p> : null}
     </VWindow>
   );
 }
