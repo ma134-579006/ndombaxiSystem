@@ -110,18 +110,20 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
    *  2) se não houver empresa, tenta como super admin (plataforma). */
   const submit = async (companyCode?: string) => {
     setError(null); setChoices(null);
-    if (!email.trim() || !password) { setError('Indica o e-mail e a palavra-passe.'); return; }
+    const mail = email.trim().toLowerCase();
+    if (!mail || !password) { setError('Indica o e-mail e a palavra-passe.'); return; }
+    if (!/^\S+@\S+\.\S+$/.test(mail)) { setError('E-mail inválido.'); return; }
     // "Lembrar-me": guarda só o e-mail (nunca a senha) para pré-preencher.
-    try { if (remember) localStorage.setItem('ndx:remember_email', email.trim()); else localStorage.removeItem('ndx:remember_email'); } catch { /* storage indisponível */ }
+    try { if (remember) localStorage.setItem('ndx:remember_email', mail); else localStorage.removeItem('ndx:remember_email'); } catch { /* storage indisponível */ }
     setLoading(true);
     const twoFaToken = twoFa.trim() || undefined;
     try {
-      await loginTenant({ companyCode, email: email.trim(), password, twoFaToken });
+      await loginTenant({ companyCode, email: mail, password, twoFaToken });
     } catch (e) {
       const c = choicesFrom(e);
       if (c) { setChoices(c); setPending({ kind: 'password' }); setLoading(false); return; }
       try {
-        await loginPlatform({ email: email.trim(), password, twoFaToken });
+        await loginPlatform({ email: mail, password, twoFaToken });
       } catch {
         setError(e instanceof ApiError ? e.message : 'E-mail ou palavra-passe incorretos.');
       }
@@ -173,7 +175,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
             <>
               <h1 className="auth-title">Inicie sessão</h1>
 
-              {error ? <div className="auth-error">{error}</div> : null}
+              {error ? <div className="auth-error" role="alert">{error}</div> : null}
 
               {choices ? (
                 <div className="auth-choices">

@@ -15,7 +15,13 @@ export function PasswordField(props: {
   // Anti-autofill: começa readOnly (o browser não preenche ao carregar) e fica
   // editável ao focar — sem quebrar o React (estado, não removeAttribute).
   const [ro, setRo] = useState(true);
+  // Aviso de Caps Lock (só em senhas de texto; um PIN numérico não precisa).
+  const [caps, setCaps] = useState(false);
+  const onCaps = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!props.digitsOnly && typeof e.getModifierState === 'function') setCaps(e.getModifierState('CapsLock'));
+  };
   return (
+    <>
     <div className="auth-pass">
       <input
         className="auth-input"
@@ -37,7 +43,9 @@ export function PasswordField(props: {
         onPointerDown={() => setRo(false)}
         placeholder={props.placeholder}
         onChange={(e) => props.onChange(props.digitsOnly ? e.target.value.replace(/\D/g, '').slice(0, props.maxLength ?? 8) : e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter' && props.onEnter) props.onEnter(); }}
+        onKeyDown={(e) => { onCaps(e); if (e.key === 'Enter' && props.onEnter) props.onEnter(); }}
+        onKeyUp={onCaps}
+        onBlur={() => setCaps(false)}
       />
       <button type="button" className="auth-eye" onClick={() => setShow((s) => !s)}
         aria-label={show ? 'Esconder' : 'Mostrar'} title={show ? 'Esconder' : 'Mostrar'}>
@@ -48,5 +56,7 @@ export function PasswordField(props: {
         )}
       </button>
     </div>
+    {caps ? <div className="auth-hint bad" role="status" style={{ marginTop: 4 }}>Caps Lock está ativado</div> : null}
+    </>
   );
 }
