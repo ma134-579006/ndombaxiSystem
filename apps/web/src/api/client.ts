@@ -615,6 +615,8 @@ export const api = {
   // ── Preferências do utilizador (tema por perfil) ───────────
   preferences: {
     get: () => request<{ theme: string }>('GET', '/auth/me/preferences'),
+    /** Foto do utilizador autenticado (utilizador ou ficha de funcionário ligada). */
+    myPhoto: () => request<{ photoUrl: string | null }>('GET', '/auth/me/photo'),
     setTheme: (theme: string) =>
       request<{ theme: string }>('PATCH', '/auth/me/preferences', { theme }),
   },

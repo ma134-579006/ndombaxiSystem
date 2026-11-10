@@ -49,6 +49,7 @@ import { syncController } from '../offline/sync';
 import { useSync } from '../offline/useSync';
 import { deviceKey, deviceSettings, normalizeSettings, SETTINGS_EVENT, DEFAULT_DEVICE_SETTINGS, type DeviceSettings } from '../offline/device';
 import { setPaper } from '../print';
+import { cachedPhoto, rememberPhoto } from '../photoCache';
 import { setPosBusy } from '../offline/localServer';
 import { espelharTurnoServidor, turnoAbertoLocal } from '../offline/shifts';
 import { isNativeApp } from '../config';
@@ -220,11 +221,14 @@ export function PosPage() {
   useEffect(() => {
     if (!companyCode || !user?.sub) return;
     let alive = true;
-    api.operators(companyCode)
-      .then((r) => { if (alive) setOperatorPhoto(r.operators.find((o) => o.id === user.sub)?.photo_url ?? null); })
-      .catch(() => { /* sem rede → ícone */ });
+    setOperatorPhoto(cachedPhoto(user.email));
+    const done = (p: string | null) => { if (!alive) return; setOperatorPhoto(p); rememberPhoto(user.email, p); };
+    api.myPhoto()
+      .then((r) => r.photoUrl ?? api.operators(companyCode).then((o) => o.operators.find((x) => x.id === user.sub)?.photo_url ?? null))
+      .then(done)
+      .catch(() => { /* sem rede → foto guardada ou ícone */ });
     return () => { alive = false; };
-  }, [companyCode, user?.sub]);
+  }, [companyCode, user?.sub, user?.email]);
 
   const [products, setProducts] = useState<Product[]>([]);
   // Definições desta caixa (Admin → Lojas → Caixas). Guardadas no aparelho.

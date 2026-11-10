@@ -176,6 +176,14 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Get('me/photo')
+  @ApiOperation({ summary: 'Foto do utilizador autenticado (utilizador ou ficha de funcionário)' })
+  getMyPhoto(@CurrentUser() user: JwtPayload) {
+    return this.auth.getMyPhoto(user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Patch('me/preferences')
   @ApiOperation({ summary: 'Grava preferências do utilizador (tema por perfil)' })
   setPreferences(@CurrentUser() user: JwtPayload, @Body() dto: UpdateThemeDto) {

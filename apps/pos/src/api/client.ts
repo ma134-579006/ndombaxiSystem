@@ -417,6 +417,8 @@ export const api = {
 
   // ── Desbloqueio do ecrã de bloqueio (re-verifica o PIN do próprio caixa) ──
   verifyPin: (pin: string) => request<{ ok: boolean }>('POST', '/auth/verify-pin', { pin }),
+  /** Foto do utilizador autenticado (utilizador ou ficha de funcionário ligada). */
+  myPhoto: () => request<{ photoUrl: string | null }>('GET', '/auth/me/photo'),
 
   // ── Consumo próprio (desconta no salário) ──────────────────
   registerConsumption: (productId: string, quantity: number) =>

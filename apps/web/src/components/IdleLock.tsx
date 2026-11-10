@@ -7,6 +7,23 @@ import { API_URL } from '../config';
 import { verifyOffline } from '../offline/session';
 
 const IDLE_MS = 5 * 60 * 1000; // 5 min sem atividade no painel de gestão (empresa e super admin) → ecrã de bloqueio
+const LOCK_KEY = 'ndombaxi.admin.idle';
+type LockState = { who: string; last: number; locked: boolean };
+function readLockState(who: string): LockState | null {
+  if (!who) return null;
+  try {
+    const v = JSON.parse(sessionStorage.getItem(LOCK_KEY) ?? 'null') as LockState | null;
+    if (!v || v.who !== who || typeof v.last !== 'number') return null;
+    // Login novo depois da última atividade gravada → começa desbloqueado.
+    const start = Number(sessionStorage.getItem('ndombaxi.web.session_start') ?? 0);
+    return start > v.last ? null : v;
+  } catch { return null; }
+}
+function writeLockState(who: string, v: { last: number; locked: boolean }): void {
+  if (!who) return;
+  try { sessionStorage.setItem(LOCK_KEY, JSON.stringify({ who, ...v })); } catch { /* sem armazenamento */ }
+}
+function clearLockState(): void { try { sessionStorage.removeItem(LOCK_KEY); } catch { /* ignora */ } }
 const WEEKDAYS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 /**
  * Em MODO SHADOW quem está ao teclado é o Super Admin (não sabe a senha do
@@ -38,7 +55,7 @@ async function verifyPlatformPassword(password: string): Promise<boolean> {
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
 /**
- * Bloqueio de ecrã do painel (estilo Windows 11, enterprise): após 10 min sem
+ * Bloqueio de ecrã do painel (estilo Windows 11, enterprise): após 5 min sem
  * rato/teclado (o timer reinicia a cada interação real), hiberna num ecrã com
  * o logo do sistema, data/hora em tempo real
  * e o perfil do gestor. Para voltar, pede a PALAVRA-PASSE do próprio utilizador
@@ -46,7 +63,12 @@ const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'jul
  */
 export function IdleLock({ photo, name, role }: { photo: string | null; name: string; role: string }) {
   const { logout, shadow, user, companyCode } = useAuth();
-  const [locked, setLocked] = useState(false);
+  // Estado guardado no separador (sessionStorage): recarregar a página (F5) não
+  // pode desbloquear sem senha, e uma página reaberta depois de 5 min parada
+  // abre já bloqueada. Associado ao utilizador, para um login novo começar limpo.
+  const who = user?.sub ?? user?.email ?? '';
+  const saved = readLockState(who);
+  const [locked, setLockedRaw] = useState(() => !!saved && (saved.locked || Date.now() - saved.last >= IDLE_MS));
   const [now, setNow] = useState(() => new Date());
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
@@ -54,19 +76,41 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
   const timer = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  // Hora da última interação real. O temporizador sozinho falha quando o
+  // computador suspende ou o separador fica em segundo plano (os timers param
+  // ou atrasam): por isso confere-se também a hora real, a cada 15 s e ao voltar.
+  const lastActivity = useRef(saved && !locked ? saved.last : Date.now());
+  const setLocked = useCallback((v: boolean) => {
+    setLockedRaw(v);
+    if (!v) lastActivity.current = Date.now();
+    writeLockState(who, { last: lastActivity.current, locked: v });
+  }, [who]);
+  const lastWrite = useRef(0);
   const arm = useCallback(() => {
+    const t = Date.now();
+    lastActivity.current = t;
+    // Grava no máximo 1x/5 s (mousemove dispara dezenas de vezes por segundo).
+    if (t - lastWrite.current > 5000) { lastWrite.current = t; writeLockState(who, { last: t, locked: false }); }
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setLocked(true), IDLE_MS);
-  }, []);
+  }, [who, setLocked]);
 
   useEffect(() => {
     if (locked) return;
     arm();
     const reset = () => arm();
+    const check = () => { if (Date.now() - lastActivity.current >= IDLE_MS) setLocked(true); };
+    const onVisible = () => { if (!document.hidden) check(); };
     const evs: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'wheel'];
     evs.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    const iv = window.setInterval(check, 15_000);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', check);
     return () => {
       if (timer.current) window.clearTimeout(timer.current);
+      window.clearInterval(iv);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', check);
       evs.forEach((e) => window.removeEventListener(e, reset));
     };
   }, [locked, arm]);
@@ -174,7 +218,7 @@ export function IdleLock({ photo, name, role }: { photo: string | null; name: st
           </div>
         </form>
         {err ? <div className="lock-err" role="alert">{err}</div> : null}
-        <button className="lock-other" type="button" onClick={() => { setLocked(false); logout(); }}>
+        <button className="lock-other" type="button" onClick={() => { clearLockState(); setLockedRaw(false); logout(); }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
           Terminar sessão
         </button>

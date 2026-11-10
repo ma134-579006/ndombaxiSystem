@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 
-/** "Renovar subscrição" + % do período gasto (igual à Gestão):
- *  até 60% verde, 61–80% laranja, acima de 80% vermelho. */
+/** "Renovar subscrição" + anel do período gasto, como no backoffice de
+ *  referência: só o texto e o anel; os dias que faltam aparecem numa dica
+ *  animada ao passar o rato (ou ao focar). Até 60% verde, 61–80% laranja,
+ *  acima de 80% vermelho. */
 export function SubscriptionRing() {
   const [info, setInfo] = useState<{ total: number; used: number; left: number; pct: number } | null>(null);
   useEffect(() => {
@@ -17,9 +19,11 @@ export function SubscriptionRing() {
   if (!info) return null;
   const tone = info.pct <= 60 ? 'ok' : info.pct <= 80 ? 'warn' : 'bad';
   const r = 13, c = 2 * Math.PI * r;
+  const tip = info.left === 0 ? 'A subscrição termina hoje' : `Falta${info.left === 1 ? '' : 'm'} ${info.left} dia${info.left === 1 ? '' : 's'} para renovar`;
   return (
-    <span className={`vsub ${tone}`} title={`${info.total} dias de subscrição · consumidos ${info.used} (${info.pct}%) · faltam ${info.left} (${100 - info.pct}%)`}>
-      <span className="vsub-tx">Renovar subscrição<small>{info.used} de {info.total} dias · faltam {info.left}</small></span>
+    <span className={`vsub ${tone}`} tabIndex={0} aria-label={tip}>
+      <span className="vsub-tip" role="tooltip">{tip}</span>
+      <span className="vsub-tx">Renovar subscrição</span>
       <span className="vsub-ring" aria-hidden="true">
         <svg width="32" height="32" viewBox="0 0 32 32">
           <circle cx="16" cy="16" r={r} className="trk" />
