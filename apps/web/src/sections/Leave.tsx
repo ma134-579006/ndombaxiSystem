@@ -44,55 +44,68 @@ export function Leave() {
     finally { setBusy(false); }
   };
 
+  // Lista no modelo do backoffice de referência: migalhas + botões, filtro
+  // segmentado com o resumo, tabela com Opções (Aprovar / Rejeitar).
+  const fmtD = (v: string) => new Date(v).toLocaleDateString('pt-PT');
   return (
-    <div className="profit-page">
-      <div className="content-head no-print">
-        <h2>Férias & ausências</h2>
+    <div className="vd-page">
+      <div className="vd-head no-print">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Férias</span><span className="sep">/</span><span>Listagem</span></p>
         <span className="spacer" />
-        <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
-        <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Novo pedido</button>
+        <button className="vd-btn outline" onClick={() => void printSectionReport()}>Imprimir</button>
+        <button className="vd-btn" onClick={() => setCreating(true)}><IconPlus size={16} /> Adicionar Pedido</button>
       </div>
-
-      {error ? <div className="banner danger no-print">{error}</div> : null}
-
+      {error ? <div className="vd-err no-print" role="alert">{error}</div> : null}
       <div className="print-only print-header"><h2>Férias & Ausências</h2><p>{new Date().toLocaleDateString('pt-PT')}</p></div>
 
-      <div className="ph-kpis no-print">
-        <div className={`ui-tile${(sum?.pending ?? 0) > 0 ? ' warn' : ''}`}><div className="ui-tile-l">Pedidos pendentes</div><div className="ui-tile-v">{sum?.pending ?? 0}</div><div className="ui-tile-h">a aguardar decisão</div></div>
-        <div className="ui-tile info"><div className="ui-tile-l">Dias de férias (ano)</div><div className="ui-tile-v">{sum?.ferasDaysYear ?? 0}</div><div className="ui-tile-h">aprovados este ano</div></div>
-      </div>
-
-      <div className="fx-tabs inv-tabs no-print">
-        {FILTERS.map((f) => (
-          <button key={f.label} className={filter === f.key ? 'on' : ''} onClick={() => setFilter(f.key)}>{f.label}</button>
-        ))}
-      </div>
-
-      {loading ? <div className="card"><div className="loading">A carregar…</div></div>
-        : rows.length === 0 ? <div className="card"><div className="empty"><IconBuilding size={40} /><p>Sem pedidos neste filtro.</p></div></div>
-        : (
-          <div className="rc-list">
-            {rows.map((r) => (
-              <div key={r.id} className={`rc-row rc-static lv-row lt-${r.type} st-${r.status === 'APPROVED' ? 'READY' : r.status === 'REJECTED' ? 'CANCELLED' : 'IN_PROGRESS'}`}>
-                <span className="rc-av">{(r.employee_name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>
-                <div className="rc-main">
-                  <strong>{r.employee_name || '—'}<span className="lv-type">{TYPE_LABEL[r.type] ?? r.type}</span></strong>
-                  <div className="muted">{new Date(r.start_date).toLocaleDateString('pt-PT')} → {new Date(r.end_date).toLocaleDateString('pt-PT')} · {r.reason || 'sem motivo'}</div>
-                </div>
-                <span className="rc-amt">{r.days}<small>{r.days === 1 ? 'dia' : 'dias'}</small></span>
-                <span className="rc-state">{r.status === 'APPROVED' ? 'Aprovado' : r.status === 'REJECTED' ? 'Rejeitado' : 'Pendente'}</span>
-                <div className="lv-act no-print">
-                  {r.status === 'PENDING' ? (
-                    <>
-                      <button className="btn sm success" disabled={busy} onClick={() => review(r.id, 'APPROVED')}>Aprovar</button>
-                      <button className="btn sm ghost" disabled={busy} onClick={() => review(r.id, 'REJECTED')}>Rejeitar</button>
-                    </>
-                  ) : <span className="muted" style={{ fontSize: 12 }}>{r.reviewed_by_name ?? ''}</span>}
-                </div>
-              </div>
+      <div className="vd-card vd-filters no-print">
+        <div className="vd-frow" style={{ alignItems: 'center' }}>
+          <div className="vd-seg" role="tablist" aria-label="Estado">
+            {FILTERS.map((f) => (
+              <button key={f.label} type="button" role="tab" aria-selected={filter === f.key} className={filter === f.key ? 'on' : ''} onClick={() => setFilter(f.key)}>{f.label}</button>
             ))}
           </div>
-        )}
+          <span className="spacer" style={{ flex: 1 }} />
+          <div className="vd-sum">
+            <span>Pendentes <b className={(sum?.pending ?? 0) > 0 ? 'bad' : ''}>{sum?.pending ?? 0}</b></span>
+            <span>Dias de férias aprovados (ano) <b>{sum?.ferasDaysYear ?? 0}</b></span>
+          </div>
+        </div>
+      </div>
+
+      <div className="vd-card vd-tablecard">
+        {loading ? <div className="vd-empty">A carregar…</div>
+          : rows.length === 0 ? <div className="vd-empty">Não existem registos</div>
+          : (
+            <div className="vd-tablewrap">
+              <table className="vd-table">
+                <thead><tr><th>Funcionário</th><th>Tipo</th><th>Início</th><th>Fim</th><th className="num">Dias</th><th>Motivo</th><th>Estado</th><th className="no-print" aria-label="Opções" /></tr></thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id}>
+                      <td><b>{r.employee_name || '—'}</b></td>
+                      <td>{TYPE_LABEL[r.type] ?? r.type}</td>
+                      <td>{fmtD(r.start_date)}</td>
+                      <td>{fmtD(r.end_date)}</td>
+                      <td className="num">{r.days}</td>
+                      <td>{r.reason || '—'}</td>
+                      <td>{r.status === 'APPROVED' ? <span className="vd-tag ok">Aprovado</span> : r.status === 'REJECTED' ? <span className="vd-tag bad">Rejeitado</span> : <span className="vd-tag">Pendente</span>}
+                        {r.reviewed_by_name ? <span className="sub">{r.reviewed_by_name}</span> : null}</td>
+                      <td className="num no-print">
+                        {r.status === 'PENDING' ? (
+                          <span style={{ display: 'inline-flex', gap: 6 }}>
+                            <button className="vd-btn sm" disabled={busy} onClick={() => review(r.id, 'APPROVED')}>Aprovar</button>
+                            <button className="vd-btn sm plain" disabled={busy} onClick={() => review(r.id, 'REJECTED')}>Rejeitar</button>
+                          </span>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+      </div>
 
       {creating ? <NewModal onClose={() => setCreating(false)} onCreated={() => { setCreating(false); void load(); }} /> : null}
     </div>
