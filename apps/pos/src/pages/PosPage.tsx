@@ -1233,18 +1233,22 @@ export function PosPage() {
                 </div>
               ) : (
                 <div className="vgrid">
-                  {shown.map((p, i) => {
+                  {shown.map((p) => {
                     const stock = Number(p.stock_qty);
                     const madeToOrder = !!p.has_recipe;
                     const out = !madeToOrder && stock <= 0;
+                    // Como no POS de referência: triângulo no canto — verde com
+                    // stock, laranja com pouco (≤5), vermelho esgotado; sem
+                    // triângulo nos pratos sob encomenda. Sem dica ao passar o rato.
+                    const stockCls = madeToOrder ? '' : out ? ' no' : stock <= 5 ? ' alert' : '';
+                    const label = `${p.name}${madeToOrder ? '' : ` · ${out ? 'Esgotado' : `${formatNumber(stock)} em stock`}`}`;
                     return (
-                      <button key={p.id} className={`vtile${out ? ' out' : ''}${p.image_url ? ' img' : ''}`} onClick={() => addToCart(p)} title={`${p.name} · ${p.code}${madeToOrder ? '' : ` · ${out ? 'Esgotado' : `${formatNumber(stock)} em stock`}`}`}
-                        style={{ animationDelay: `${Math.min(i, 24) * 12}ms` }}>
+                      <button key={p.id} className={`vtile${p.image_url ? ' img' : ''}${regCfg.showReference ? ' ref' : ''}`} onClick={() => addToCart(p)} aria-label={label}>
                         {p.image_url ? <img src={p.image_url} alt="" loading="lazy" /> : null}
+                        {madeToOrder ? null : <><span className={`vt-stock${stockCls}`} aria-hidden="true" /><span className="vt-stock line" aria-hidden="true" /></>}
                         <span className="vt-name">{p.name}</span>
                         {regCfg.showReference ? <span className="vt-ref">{p.code}</span> : null}
                         <span className="vt-price">{formatKz(regCfg.pricesWithTax ? grossUnit(p) : Number(p.unit_price))}</span>
-                        {out ? <span className="vt-flag">Esgotado</span> : stock > 0 && stock <= 5 && !madeToOrder ? <span className="vt-flag low">{formatNumber(stock)}</span> : null}
                       </button>
                     );
                   })}
