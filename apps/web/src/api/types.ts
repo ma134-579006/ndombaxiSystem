@@ -803,6 +803,12 @@ export interface ManagerStaff {
   must_reset_pw: boolean; has_pin: boolean; photo_url: string | null; last_login_at: string | null;
   locked_until: string | null;
 }
+/** Definições da caixa (Admin → Lojas → Caixas), aplicadas pelo POS do posto. */
+export interface DeviceSettings { defaultDocType: 'FT' | 'FS'; pricesWithTax: boolean; showReference: boolean; paperWidth: '80' | '58' | null }
+export interface DeviceRow {
+  id: string; device_key: string; name: string; platform: string; store_id: string | null; store_name?: string | null;
+  series: string; is_active: boolean; registered_at: string; last_seen_at: string | null; settings: DeviceSettings;
+}
 export interface CreateStoreInput { code: string; name: string; address?: string; isDefault?: boolean }
 export interface UpdateStoreInput { name?: string; address?: string; isActive?: boolean; isDefault?: boolean }
 export interface CreateStaffInput { name: string; email: string; role: StaffRoleName; storeId?: string; password?: string; pin?: string }

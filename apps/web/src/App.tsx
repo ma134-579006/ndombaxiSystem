@@ -79,6 +79,7 @@ const GodsEye = lazyRetry(() => import('./sections/GodsEye').then((m) => ({ defa
 const Customers = lazyRetry(() => import('./sections/Customers').then((m) => ({ default: m.Customers })));
 const Leave = lazyRetry(() => import('./sections/Leave').then((m) => ({ default: m.Leave })));
 const Stores = lazyRetry(() => import('./sections/Stores').then((m) => ({ default: m.Stores })));
+const Registers = lazyRetry(() => import('./sections/Registers').then((m) => ({ default: m.Registers })));
 const Subscription = lazyRetry(() => import('./sections/Subscription').then((m) => ({ default: m.Subscription })));
 const Storefront = lazyRetry(() => import('./sections/Storefront').then((m) => ({ default: m.Storefront })));
 const PlansAdmin = lazyRetry(() => import('./sections/PlansAdmin').then((m) => ({ default: m.PlansAdmin })));
@@ -121,6 +122,7 @@ const TENANT_NAV: NavItem[] = [
   {
     key: 'stores-group', label: 'Lojas', icon: IconStore, children: [
       { key: 'stores', label: 'Criar lojas', icon: IconStore, min: 2 },
+      { key: 'registers', label: 'Caixas', icon: IconCashRegister, min: 3 },
       { key: 'store', label: 'Loja & Marca', icon: IconTag, min: 1 },
       { key: 'orders', label: 'Encomendas', icon: IconFolder, min: 4 },
       { key: 'commissions', label: 'Comissões', icon: IconPercent, min: 2 },
@@ -415,6 +417,7 @@ function TenantPanel() {
       {section === 'assistant' ? <Assistant /> : null}
       {section === 'subscription' ? <Subscription /> : null}
       {section === 'stores' ? <Stores /> : null}
+      {section === 'registers' ? <Registers /> : null}
       {section === 'products' ? <Products /> : null}
       {/* Inventário ÚNICO com abas (Stock, Análise, ABC, Reposição, Valorização,
           Antifraude, Transferências, Localização, Auditoria). */}

@@ -47,7 +47,8 @@ import { useKeyboard } from '../keyboard/KeyboardProvider';
 import { buildPendingSale, kvGet, kvSet, newUuid, queueSale } from '../offline/db';
 import { syncController } from '../offline/sync';
 import { useSync } from '../offline/useSync';
-import { deviceKey } from '../offline/device';
+import { deviceKey, deviceSettings, normalizeSettings, SETTINGS_EVENT, DEFAULT_DEVICE_SETTINGS, type DeviceSettings } from '../offline/device';
+import { setPaper } from '../print';
 import { setPosBusy } from '../offline/localServer';
 import { espelharTurnoServidor, turnoAbertoLocal } from '../offline/shifts';
 import { isNativeApp } from '../config';
@@ -226,6 +227,16 @@ export function PosPage() {
   }, [companyCode, user?.sub]);
 
   const [products, setProducts] = useState<Product[]>([]);
+  // Definições desta caixa (Admin → Lojas → Caixas). Guardadas no aparelho.
+  const [regCfg, setRegCfg] = useState<DeviceSettings>(DEFAULT_DEVICE_SETTINGS);
+  useEffect(() => {
+    let alive = true;
+    const apply = (c: DeviceSettings) => { if (!alive) return; setRegCfg(c); if (c.paperWidth) setPaper(c.paperWidth); };
+    void deviceSettings().then(apply);
+    const on = (e: Event) => apply(normalizeSettings((e as CustomEvent).detail));
+    window.addEventListener(SETTINGS_EVENT, on);
+    return () => { alive = false; window.removeEventListener(SETTINGS_EVENT, on); };
+  }, []);
   // Disponibilidade dos produtos de PRODUÇÃO + prompt de solicitação à cozinha.
   const [availMap, setAvailMap] = useState<Record<string, 'FREE' | 'BUSY' | 'OUT'>>({});
   const [prodPrompt, setProdPrompt] = useState<{ product: Product; status: 'BUSY' | 'OUT' } | null>(null);
@@ -953,7 +964,7 @@ export function PosPage() {
    *   servidor devolve a fatura original em vez de emitir uma segunda.
    */
   const finalizeOffline = async (clientOpId?: string, pay?: { paymentType: PaymentType; tendered?: number; changeGiven?: number; payments?: { type: Exclude<PaymentType, 'CREDIT'>; amount: number }[] }) => {
-    const sale = buildPendingSale(cart, totals, customer ? { id: customer.id, name: customer.name } : null, clientOpId, pay, discountRateByProduct);
+    const sale = { ...buildPendingSale(cart, totals, customer ? { id: customer.id, name: customer.name } : null, clientOpId, pay, discountRateByProduct), docType: regCfg.defaultDocType };
     await queueSale(sale);
     // Memória partilhada com o Gestão: o stock desce já, antes de a venda subir.
     if (companyCode) for (const l of sale.lines) void adjustCatalogStock(companyCode, l.productCode, -l.quantity).catch(() => undefined);
@@ -998,6 +1009,7 @@ export function PosPage() {
     const clientOpId = newUuid();
     try {
       const invoice = await api.emitInvoice({
+        docType: regCfg.defaultDocType,
         customerId: customer?.id,
         paymentType: pay.paymentType,
         tendered: pay.tendered,
@@ -1225,7 +1237,8 @@ export function PosPage() {
                         style={{ animationDelay: `${Math.min(i, 24) * 12}ms` }}>
                         {p.image_url ? <img src={p.image_url} alt="" loading="lazy" /> : null}
                         <span className="vt-name">{p.name}</span>
-                        <span className="vt-price">{formatKz(grossUnit(p))}</span>
+                        {regCfg.showReference ? <span className="vt-ref">{p.code}</span> : null}
+                        <span className="vt-price">{formatKz(regCfg.pricesWithTax ? grossUnit(p) : Number(p.unit_price))}</span>
                         {out ? <span className="vt-flag">Esgotado</span> : stock > 0 && stock <= 5 && !madeToOrder ? <span className="vt-flag low">{formatNumber(stock)}</span> : null}
                       </button>
                     );

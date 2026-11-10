@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { allocateDocumentNumber } from '../common/document-counter';
@@ -37,6 +37,43 @@ export interface DeviceRow {
   is_active: boolean;
   registered_at: Date;
   last_seen_at: Date | null;
+  settings?: unknown;
+}
+
+/**
+ * Definições da caixa (modelo "Definições da caixa" do backoffice de
+ * referência), aplicadas pelo POS deste posto. Só o que o POS cumpre de facto.
+ */
+export interface DeviceSettings {
+  /** Documento emitido por omissão no POS. */
+  defaultDocType: 'FT' | 'FS';
+  /** Preços dos produtos mostrados com IVA (true) ou sem IVA (false). */
+  pricesWithTax: boolean;
+  /** Mostrar a referência (código) do produto na grelha. */
+  showReference: boolean;
+  /** Largura do papel térmico; null = escolha do operador no aparelho. */
+  paperWidth: '80' | '58' | null;
+}
+
+export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = {
+  defaultDocType: 'FT', pricesWithTax: true, showReference: false, paperWidth: null,
+};
+
+/** Normaliza o JSON guardado (ou recebido) — campos desconhecidos são descartados. */
+export function normalizeDeviceSettings(raw: unknown): DeviceSettings {
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    defaultDocType: o.defaultDocType === 'FS' ? 'FS' : 'FT',
+    pricesWithTax: o.pricesWithTax !== false,
+    showReference: o.showReference === true,
+    paperWidth: o.paperWidth === '80' || o.paperWidth === '58' ? o.paperWidth : null,
+  };
+}
+
+export interface UpdateDeviceInput {
+  name?: string;
+  storeId?: string | null;
+  settings?: Partial<DeviceSettings>;
 }
 
 export interface RegisterDeviceInput {
@@ -69,10 +106,11 @@ export class DevicesService {
         Prisma.sql`SELECT * FROM devices WHERE device_key = ${key} LIMIT 1`,
       );
       if (existing[0]) {
-        // Já registado: atualiza o que é descritivo e devolve a MESMA série.
+        // Já registado: mantém o NOME (pode ter sido dado no admin; o aparelho
+        // só sugere um nome genérico) e devolve a MESMA série.
         const updated = await tx.$queryRaw<DeviceRow[]>(
           Prisma.sql`UPDATE devices
-                        SET name = ${input.name || existing[0].name},
+                        SET name = ${existing[0].name},
                             platform = ${input.platform || existing[0].platform},
                             store_id = ${input.storeId ?? existing[0].store_id}::uuid,
                             last_seen_at = now()
@@ -108,6 +146,32 @@ export class DevicesService {
                    ORDER BY d.registered_at`,
       ),
     );
+  }
+
+  /**
+   * Admin → Lojas → Caixas: nome, loja e definições da caixa. A série fiscal
+   * NUNCA se altera aqui (é a invariante que protege a cadeia de hash).
+   */
+  async update(schema: string, id: string, input: UpdateDeviceInput): Promise<DeviceRow> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const cur = await tx.$queryRaw<DeviceRow[]>(Prisma.sql`SELECT * FROM devices WHERE id = ${id}::uuid LIMIT 1`);
+      const d = cur[0];
+      if (!d) throw new NotFoundException('Caixa não encontrada.');
+      const name = input.name !== undefined ? input.name.trim() : d.name;
+      if (name.length < 1 || name.length > 80) throw new BadRequestException('Nome da caixa inválido.');
+      if (input.storeId) {
+        const st = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM stores WHERE id = ${input.storeId}::uuid LIMIT 1`);
+        if (!st[0]) throw new BadRequestException('Loja inválida.');
+      }
+      const storeId = input.storeId !== undefined ? input.storeId : d.store_id;
+      const settings = normalizeDeviceSettings({ ...normalizeDeviceSettings(d.settings), ...(input.settings ?? {}) });
+      const rows = await tx.$queryRaw<DeviceRow[]>(
+        Prisma.sql`UPDATE devices SET name = ${name}, store_id = ${storeId}::uuid,
+                          settings = ${JSON.stringify(settings)}::jsonb
+                    WHERE id = ${id}::uuid RETURNING *`,
+      );
+      return rows[0];
+    });
   }
 
   /**

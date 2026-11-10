@@ -430,3 +430,6 @@
 
 .vsub-tx { display: grid; line-height: 1.15; text-align: right; }
 .vsub-tx small { font-size: 10.5px; font-weight: 400; opacity: .85; }
+
+/* Referência do produto na grelha (definição da caixa "Mostrar Referência"). */
+.vt-ref { font-size: 11px; color: var(--muted); letter-spacing: .02em; }

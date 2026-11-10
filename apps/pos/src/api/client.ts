@@ -343,7 +343,7 @@ export const api = {
     request<EmittedInvoice>('POST', '/pos/invoices', input),
   /** Apresenta este posto e recebe a sua série fiscal exclusiva (idempotente). */
   registerDevice: (input: { deviceKey: string; name: string; platform: string; storeId?: string }) =>
-    request<{ deviceKey: string; name: string; series: string; storeId: string | null }>(
+    request<{ deviceKey: string; name: string; series: string; storeId: string | null; settings?: { defaultDocType: 'FT' | 'FS'; pricesWithTax: boolean; showReference: boolean; paperWidth: '80' | '58' | null } }>(
       'POST', '/devices/register', input,
     ),
   cancelInvoice: (id: string, reason: string) =>

@@ -666,6 +666,10 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."devices" (
 -- aplicacional perderia a corrida entre dois registos simultaneos; esta nao.
 CREATE UNIQUE INDEX IF NOT EXISTS devices_series_uidx ON "{{SCHEMA}}"."devices"(series);
 CREATE INDEX IF NOT EXISTS devices_store_idx ON "{{SCHEMA}}"."devices"(store_id);
+-- DEFINICOES DA CAIXA (por posto), editadas no admin em Lojas > Caixas:
+-- documento predefinido (FT/FS), precos com/sem IVA, mostrar referencia,
+-- largura do papel. JSON validado na API; vazio = comportamento de sempre.
+ALTER TABLE "{{SCHEMA}}"."devices" ADD COLUMN IF NOT EXISTS settings JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 -- CATALOGOS GRANDES (centenas de milhares a milhoes de produtos): pesquisa por
 -- nome/codigo de barras e alteracoes incrementais (memoria interna das apps)

@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { DevicesService } from './devices.service';
+import { DevicesService, normalizeDeviceSettings } from './devices.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -27,6 +27,17 @@ function fakeDb() {
       if (sql.includes('INSERT INTO document_counters')) {
         counter += 1;
         return [{ last_sequence: counter }];
+      }
+      const byId = (id: unknown) => Object.values(devices).find((d) => d.id === id);
+      if (sql.includes('SELECT * FROM devices WHERE id')) {
+        const d = byId(v[0]);
+        return d ? [d] : [];
+      }
+      if (sql.includes('SELECT id FROM stores')) return v[0] === 'loja-ok' ? [{ id: v[0] }] : [];
+      if (sql.includes('settings = ')) {
+        const d = byId(v[3]);
+        if (d) { d.name = v[0]; d.store_id = v[1]; d.settings = JSON.parse(String(v[2])); }
+        return d ? [d] : [];
       }
       if (sql.includes('SELECT * FROM devices WHERE device_key')) {
         const d = devices[String(v[0])];
@@ -126,5 +137,43 @@ describe('DevicesService — série por posto', () => {
     await svc.register('t', { deviceKey: 'posto-caixa-1', name: 'Caixa 1', platform: 'windows' });
     (db.devices['posto-caixa-1'] as { is_active: boolean }).is_active = false;
     expect(await svc.seriesFor('t', 'posto-caixa-1')).toBeNull();
+  });
+});
+
+describe('DevicesService — definições da caixa', () => {
+  it('reinstalar/arrancar NÃO apaga o nome dado no admin', async () => {
+    const db = fakeDb();
+    const svc = new DevicesService(db.prisma);
+    const a = await svc.register('t', { deviceKey: 'posto-caixa-1', name: 'Caixa (Windows)', platform: 'windows' });
+    await svc.update('t', a.id, { name: 'Caixa principal' });
+    const b = await svc.register('t', { deviceKey: 'posto-caixa-1', name: 'Caixa (Windows)', platform: 'windows' });
+    expect(b.name).toBe('Caixa principal');
+  });
+
+  it('altera nome, loja e definições sem tocar na série fiscal', async () => {
+    const db = fakeDb();
+    const svc = new DevicesService(db.prisma);
+    const a = await svc.register('t', { deviceKey: 'posto-caixa-1', name: 'Caixa 1', platform: 'windows' });
+    const u = await svc.update('t', a.id, { name: 'Balcão', storeId: 'loja-ok', settings: { defaultDocType: 'FS', paperWidth: '58' } });
+    expect(u.series).toBe(a.series);
+    expect(u.store_id).toBe('loja-ok');
+    expect(normalizeDeviceSettings(u.settings)).toEqual({ defaultDocType: 'FS', pricesWithTax: true, showReference: false, paperWidth: '58' });
+    // Alteração parcial mantém o resto.
+    const u2 = await svc.update('t', a.id, { settings: { showReference: true } });
+    expect(normalizeDeviceSettings(u2.settings)).toMatchObject({ defaultDocType: 'FS', showReference: true, paperWidth: '58' });
+  });
+
+  it('recusa loja inexistente e caixa inexistente', async () => {
+    const db = fakeDb();
+    const svc = new DevicesService(db.prisma);
+    const a = await svc.register('t', { deviceKey: 'posto-caixa-1', name: 'Caixa 1', platform: 'windows' });
+    await expect(svc.update('t', a.id, { storeId: 'loja-falsa' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(svc.update('t', 'nao-existe', { name: 'x' })).rejects.toThrow('Caixa não encontrada');
+  });
+
+  it('normaliza: valores inválidos voltam ao comportamento de sempre', () => {
+    expect(normalizeDeviceSettings({ defaultDocType: 'NC', pricesWithTax: 'x', paperWidth: '100', extra: 1 }))
+      .toEqual({ defaultDocType: 'FT', pricesWithTax: true, showReference: false, paperWidth: null });
+    expect(normalizeDeviceSettings(null)).toEqual({ defaultDocType: 'FT', pricesWithTax: true, showReference: false, paperWidth: null });
   });
 });
