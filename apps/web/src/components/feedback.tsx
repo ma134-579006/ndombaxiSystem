@@ -2,8 +2,8 @@ import { LOGO_ROUND } from '../brand';
 import React, { useEffect, useState } from 'react';
 
 /**
- * FEEDBACK enterprise do sistema: TOASTS (canto superior direito, com ícone,
- * barra de progresso e entrada animada) + DIÁLOGO DE CONFIRMAÇÃO moderno —
+ * FEEDBACK do sistema: AVISOS em barra a toda a largura no topo (modelo do
+ * backoffice de referência: azul/verde/vermelho, ícone à esquerda, desce de cima) + DIÁLOGO DE CONFIRMAÇÃO moderno —
  * substituem os alert()/confirm() nativos do browser em todo o painel.
  *
  * Uso:  toast.success('Guardado.');  toast.error('Falhou.');
@@ -231,7 +231,7 @@ export function FeedbackHost() {
     pushToast = (kind, text) => {
       const id = seq++;
       const ms = toastMs(text);
-      setToasts((p) => [...p.slice(-4), { id, kind, text }]);
+      setToasts((p) => [...p.slice(-2), { id, kind, text }]);
       window.setTimeout(() => setToasts((p) => p.map((t) => (t.id === id ? { ...t, leaving: true } : t))), ms - 300);
       window.setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), ms);
     };
@@ -259,7 +259,8 @@ export function FeedbackHost() {
             onClick={() => setToasts((p) => p.filter((x) => x.id !== t.id))}>
             <span className="fb-toast-ic">{ICONS[t.kind]}</span>
             <span className="fb-toast-tx">{t.text}</span>
-            <span className="fb-toast-bar" style={{ animationDuration: `${TOAST_MS}ms` }} />
+            <span className="fb-toast-x" aria-hidden="true">×</span>
+            <span className="fb-toast-bar" style={{ animationDuration: `${toastMs(t.text)}ms` }} />
           </div>
         ))}
       </div>
