@@ -110,12 +110,24 @@ export async function buildInvoicePdf(a: InvoicePdfArgs): Promise<jsPDF> {
   doc.setTextColor(...INK);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
   for (const ln of doc.splitTextToSize(empresa, leftW)) { doc.text(String(ln), M, y); y += 12; }
+  // Como no documento de referência: slogan a negrito, nome comercial, morada,
+  // código postal + cidade, região; depois Contribuinte, contactos, Website,
+  // Conservatória, Capital Social e CAE (só os preenchidos em Definições da Conta).
+  if (identity?.slogan) { for (const ln of doc.splitTextToSize(identity.slogan, leftW)) { doc.text(String(ln), M, y); y += 12; } }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  if (identity?.tradeName && identity.tradeName !== empresa) { doc.text(identity.tradeName, M, y); y += 11.5; }
   for (const ln of (identity?.address ? identity.address.split(/\n|,\s*/).map((s) => s.trim()).filter(Boolean) : [])) { doc.text(ln, M, y); y += 11.5; }
+  const pcCity = [identity?.postalCode, identity?.city].filter(Boolean).join(' ');
+  if (pcCity) { doc.text(pcCity, M, y); y += 11.5; }
+  if (identity?.region) { doc.text(identity.region, M, y); y += 11.5; }
   const kv = (k: string, v: string) => { doc.setFont('helvetica', 'bold'); doc.text(`${k}:`, M, y); const w = doc.getTextWidth(`${k}: `); doc.setFont('helvetica', 'normal'); doc.text(v, M + w, y); y += 11.5; };
   if (identity?.nif) kv('Contribuinte', identity.nif);
   if (identity?.email) kv('E-mail', identity.email);
   if (identity?.phone) kv('Tel', identity.phone);
+  if (identity?.website) kv('Website', identity.website);
+  if (identity?.registry) kv('Conservatória', identity.registry);
+  if (identity?.shareCapital) kv('Capital Social', identity.shareCapital);
+  if (identity?.cae) kv('CAE', identity.cae);
   // Cliente à direita, à altura do bloco da empresa
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
   const cx = M + usable * 0.6;
@@ -226,6 +238,11 @@ export async function buildInvoicePdf(a: InvoicePdfArgs): Promise<jsPDF> {
   if (payments?.length) {
     block('Meio de Pagamento', lx, lw, ly); ly += 16; doc.setFont('helvetica', 'normal');
     for (const p of payments) { doc.text(p.label, lx, ly); doc.text(`${n2(p.amount)} Kz`, lx + lw, ly, { align: 'right' }); ly += 11; }
+  }
+  if (identity?.iban) {
+    ly += 8;
+    block('Dados Bancários', lx, lw, ly); ly += 16; doc.setFont('helvetica', 'normal');
+    doc.text('IBAN', lx, ly); doc.text(identity.iban, lx + lw, ly, { align: 'right' }); ly += 11;
   }
   // Sumário
   block('Sumário', rx, rw, by);

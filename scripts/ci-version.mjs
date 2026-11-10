@@ -5,7 +5,7 @@
  * isso, cada build tem de ter uma versão MAIOR do que a anterior — mesmo sem
  * ninguém mexer no package.json. A versão passa a ser:
  *
- *     <maior>.<menor>.<nº de commits em main>     ex.: 1.5.612
+ *     <maior>.<menor>.<nº de commits em main>     ex.: 2.0.612
  *
  * `maior.menor` vêm de apps/desktop/package.json (decisão humana); o terceiro
  * número cresce sozinho a cada commit e é igual nas três apps para o mesmo

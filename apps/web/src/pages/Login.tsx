@@ -7,7 +7,6 @@ import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
 import { ScreenKeyboard } from '../components/ScreenKeyboard';
 import { openCaixaTerminal } from '../config';
-import { cachedPhoto } from '../photoCache';
 import { nativeGoogleAvailable, nativeGoogleSignIn } from '../nativeGoogle';
 import { desktopGoogleAvailable, desktopGoogleSignIn } from '../desktopGoogle';
 
@@ -51,7 +50,6 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   }, []);
   const [forgot, setForgot] = useState(false);
   const [email, setEmail] = useState(() => { try { return localStorage.getItem('ndx:remember_email') ?? ''; } catch { return ''; } });
-  const loginPhoto = useMemo(() => cachedPhoto(email), [email]);
   const [remember, setRemember] = useState(() => { try { return !!localStorage.getItem('ndx:remember_email'); } catch { return false; } });
   const [emailRO, setEmailRO] = useState(true); // anti-autofill (editável após focar)
   const [password, setPassword] = useState('');
@@ -173,7 +171,6 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
             </>
           ) : (
             <>
-              {loginPhoto ? <img className="auth-photo" src={loginPhoto} alt="" /> : null}
               <h1 className="auth-title">Inicie sessão</h1>
 
               {error ? <div className="auth-error">{error}</div> : null}

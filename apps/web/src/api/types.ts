@@ -301,8 +301,10 @@ export interface SalaryAdvanceReq {
 }
 
 /** Branding da montra (site_settings). */
+export interface CompanyProfile { tradeName?: string; shareCapital?: string; registry?: string; postalCode?: string; city?: string; region?: string; website?: string; cae?: string; iban?: string }
 export interface SiteSettings {
   id: string;
+  company_profile?: CompanyProfile | null;
   brand_name: string | null;
   tagline: string | null;
   logo_url: string | null;
@@ -317,7 +319,7 @@ export interface SiteSettings {
   is_published: boolean;
   online_store_enabled: boolean;
 }
-export interface UpdateSiteSettingsInput {
+export interface UpdateSiteSettingsInput { companyProfile?: CompanyProfile;
   brandName?: string;
   tagline?: string;
   logoUrl?: string;
@@ -547,6 +549,8 @@ export interface DocumentIdentity {
   companyName: string; nif: string; brandName: string | null; logoUrl: string | null;
   address: string | null; phone: string | null; email: string | null;
   receiptMessage?: string | null; businessType?: string; onlineStoreEnabled?: boolean; copyright: string;
+  slogan?: string | null; tradeName?: string | null; shareCapital?: string | null; registry?: string | null;
+  postalCode?: string | null; city?: string | null; region?: string | null; website?: string | null; cae?: string | null; iban?: string | null;
 }
 
 /** Detalhe de um documento fiscal emitido (2ª via / reimpressão). */

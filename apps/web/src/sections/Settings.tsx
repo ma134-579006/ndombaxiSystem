@@ -1,3 +1,4 @@
+import type { CompanyProfile } from '../api/types';
 import { confirmDialog, toast, readFileProgress } from '../components/feedback';
 import React, { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
@@ -91,6 +92,9 @@ function BrandingCard() {
   const [receiptMessage, setReceiptMessage] = useState('');
   const [defaultIva, setDefaultIva] = useState('NOR');
   const [clinicalIva, setClinicalIva] = useState('NOR');
+  const [slogan, setSlogan] = useState('');
+  const [profile, setProfile] = useState<CompanyProfile>({});
+  const [legal, setLegal] = useState<{ nif: string; companyName: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -103,7 +107,9 @@ function BrandingCard() {
       setAddress(x.address ?? ''); setReceiptMessage(x.receipt_message ?? '');
       setDefaultIva(x.default_iva_code || 'NOR');
       setClinicalIva(x.clinical_iva_code || 'NOR');
+      setSlogan(x.tagline ?? ''); setProfile(x.company_profile ?? {});
     }).catch((e) => setErr(e instanceof ApiError ? e.message : 'Falha ao carregar.'));
+    api.branding().then((b) => setLegal({ nif: b.nif, companyName: b.companyName })).catch(() => undefined);
   }, []);
 
   const onLogo = (file?: File) => {
@@ -115,61 +121,63 @@ function BrandingCard() {
   const save = async () => {
     setBusy(true); setMsg(null); setErr(null);
     try {
-      await api.site.update({ brandName: brandName.trim() || undefined, logoUrl: logoUrl || undefined, contactPhone, contactEmail, address, receiptMessage, defaultIvaCode: defaultIva, clinicalIvaCode: clinicalIva });
-      setMsg('Guardado. Aparece no admin, no caixa e nos recibos.');
+      await api.site.update({ brandName: brandName.trim() || undefined, logoUrl: logoUrl || undefined, contactPhone, contactEmail, address, receiptMessage, defaultIvaCode: defaultIva, clinicalIvaCode: clinicalIva, tagline: slogan, companyProfile: profile });
+      setMsg('Guardado.');
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Falha ao guardar.'); }
     finally { setBusy(false); }
   };
 
   if (!s) return <div className="card"><div className="loading">A carregar…</div></div>;
+  const P = (k: keyof CompanyProfile) => ({ value: profile[k] ?? '', onChange: (e: React.ChangeEvent<HTMLInputElement>) => setProfile({ ...profile, [k]: e.target.value }) });
+  // Modelo "Definições da Conta" do backoffice de referência: rótulo à esquerda,
+  // campo à direita, linhas com traço; Contribuinte e Empresa vêm do registo legal.
   return (
-    <div className="card">
-      <h3><IconBuilding size={18} /> Empresa & Recibos</h3>
-      {err ? <div className="banner danger">{err}</div> : null}
+    <div className="vd-card vd-formpage">
+      <p className="vd-sect">Definições da Conta</p>
+      {err ? <div className="vd-err" role="alert">{err}</div> : null}
       {msg ? <div className="banner success">{msg}</div> : null}
-      <div className="row" style={{ gap: 16, alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ width: 72, height: 72, borderRadius: 12, border: '1px solid var(--border)', display: 'grid', placeItems: 'center', overflow: 'hidden', background: 'var(--surface-2)' }}>
-          {logoUrl ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <IconImage size={28} />}
-        </div>
-        <label className="btn ghost sm">
-          <IconImage size={15} /> {logoUrl ? 'Trocar logótipo' : 'Carregar logótipo'}
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onLogo(e.target.files?.[0])} />
-        </label>
-        {logoUrl ? <button className="btn ghost sm" onClick={() => setLogoUrl('')}>Remover</button> : null}
-      </div>
-      <div className="field"><label>Nome da empresa (aparece no topo)</label>
-        <input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Nome comercial" /></div>
-      <div className="grid-2">
-        <div className="field"><label>Telefone</label>
-          <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+244 ..." /></div>
-        <div className="field"><label>E-mail</label>
-          <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="loja@empresa.ao" /></div>
-      </div>
-      <div className="field"><label>Morada (rodapé do recibo)</label>
-        <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, bairro, município" /></div>
-      <div className="field"><label>Dizeres do recibo (rodapé)</label>
-        <textarea value={receiptMessage} onChange={(e) => setReceiptMessage(e.target.value)} rows={2}
-          placeholder="Ex.: Os bens/serviços foram colocados à disposição do adquirente. Obrigado!" /></div>
-      <div className="field"><label>IVA padrão (usado quando o produto escolhe «Automático»)</label>
+      <div className="field"><label>Logótipo</label>
+        <div className="row" style={{ gap: 12, alignItems: 'center' }}>
+          <div style={{ width: 64, height: 64, borderRadius: 4, border: '1px solid var(--border)', display: 'grid', placeItems: 'center', overflow: 'hidden', background: 'var(--surface-2)' }}>
+            {logoUrl ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <IconImage size={26} />}
+          </div>
+          <label className="vd-btn outline">
+            {logoUrl ? 'Trocar logótipo' : 'Carregar logótipo'}
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onLogo(e.target.files?.[0])} />
+          </label>
+          {logoUrl ? <button className="vd-btn plain" onClick={() => setLogoUrl('')}>Remover</button> : null}
+        </div></div>
+      <div className="field"><label>Contribuinte</label><input value={legal?.nif ?? ''} readOnly disabled /></div>
+      <div className="field"><label>Empresa</label><input value={legal?.companyName ?? ''} readOnly disabled /></div>
+      <div className="field"><label>Nome Comercial</label><input value={brandName} onChange={(e) => setBrandName(e.target.value)} maxLength={120} /></div>
+      <div className="field"><label>Slogan</label><input value={slogan} onChange={(e) => setSlogan(e.target.value)} maxLength={160} /></div>
+      <div className="field"><label>Capital Social</label><input {...P('shareCapital')} maxLength={60} /></div>
+      <div className="field"><label>Conservatória</label><input {...P('registry')} maxLength={120} /></div>
+      <div className="field"><label>Morada</label><input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+      <div className="field"><label>Código Postal</label><input {...P('postalCode')} maxLength={20} /></div>
+      <div className="field"><label>Cidade</label><input {...P('city')} maxLength={80} /></div>
+      <div className="field"><label>Região</label><input {...P('region')} maxLength={80} /></div>
+      <div className="field"><label>Telefone/Telemóvel</label><input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} /></div>
+      <div className="field"><label>E-mail</label><input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} /></div>
+      <div className="field"><label>Website</label><input {...P('website')} maxLength={160} /></div>
+      <div className="field"><label>Moeda</label><input value="Kwanza (AOA)" readOnly disabled /></div>
+      <div className="field"><label>Taxa de IVA Predefinida</label>
         <select value={defaultIva} onChange={(e) => setDefaultIva(e.target.value)}>
           <option value="NOR">NOR (14%)</option>
           <option value="INT">INT (7%)</option>
           <option value="RED">RED (5%)</option>
           <option value="ISE">ISE (0% — isento)</option>
           <option value="OUT">OUT (0% — não sujeito)</option>
-        </select>
-        <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-          Ao criar produtos com IVA «Automático», é esta taxa que fica aplicada.
-        </p></div>
-      <div className="field"><label htmlFor="clinical-iva">IVA dos atos de saúde (consultas, exames, internamento)</label>
+        </select></div>
+      <div className="field"><label htmlFor="clinical-iva">IVA dos atos de saúde</label>
         <select id="clinical-iva" value={clinicalIva} onChange={(e) => setClinicalIva(e.target.value)}>
-          <option value="NOR">NOR (14%) — o valor do ato inclui IVA</option>
-          <option value="ISE">ISE (isento) — serviços médicos e sanitários</option>
-        </select>
-        <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-          Só para clínicas/hospitais. Isento: a fatura sai sem IVA e com o motivo de isenção. Confirme com o seu contabilista o enquadramento da sua atividade.
-        </p></div>
-      <button className="btn" onClick={save} disabled={busy}>{busy ? 'A guardar…' : 'Guardar'}</button>
+          <option value="NOR">NOR (14%)</option>
+          <option value="ISE">ISE (isento)</option>
+        </select></div>
+      <div className="field"><label>CAE</label><input {...P('cae')} maxLength={40} /></div>
+      <div className="field"><label>IBAN</label><input {...P('iban')} placeholder="AO06 …" maxLength={50} /></div>
+      <div className="field"><label>Dizeres do recibo</label><textarea value={receiptMessage} onChange={(e) => setReceiptMessage(e.target.value)} rows={2} maxLength={500} /></div>
+      <div className="vd-formpage-acts"><button className="vd-btn big" onClick={save} disabled={busy}>{busy ? 'A guardar…' : 'Guardar'}</button></div>
     </div>
   );
 }
