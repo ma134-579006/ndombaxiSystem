@@ -34,6 +34,42 @@ function agtSignature(hash: string): string {
 
 const n2 = (v: number) => v.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+/** Valor por extenso em português (kwanzas e cêntimos), como nas Observações do documento de referência. */
+function extensoKz(v: number): string {
+  const U = ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze', 'treze', 'catorze', 'quinze', 'dezasseis', 'dezassete', 'dezoito', 'dezanove'];
+  const D = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+  const C = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+  const ate999 = (n: number): string => {
+    if (n === 100) return 'cem';
+    const c = Math.floor(n / 100), r = n % 100;
+    const parts: string[] = [];
+    if (c) parts.push(C[c]);
+    if (r) parts.push(r < 20 ? U[r] : D[Math.floor(r / 10)] + (r % 10 ? ` e ${U[r % 10]}` : ''));
+    return parts.join(' e ');
+  };
+  const inteiro = (n: number): string => {
+    if (n === 0) return 'zero';
+    // Grupos (milhares de milhão, milhões, milhares, unidades); "e" antes do
+    // último grupo quando é < 100 ou centena redonda (mil e cinco, mil e duzentos).
+    const g: { q: number; tx: string }[] = [];
+    let rest = n;
+    for (const [base, sing, plur] of [[1e9, 'mil milhões', 'mil milhões'], [1e6, 'milhão', 'milhões'], [1e3, 'mil', 'mil']] as [number, string, string][]) {
+      const q = Math.floor(rest / base);
+      if (!q) continue;
+      rest %= base;
+      g.push({ q, tx: base === 1e3 ? (q === 1 ? 'mil' : `${ate999(q)} mil`) : `${q === 1 ? 'um' : ate999(q)} ${q === 1 ? sing : plur}` });
+    }
+    if (rest) g.push({ q: rest, tx: ate999(rest) });
+    if (g.length === 1) return g[0].tx;
+    const last = g[g.length - 1];
+    return g.slice(0, -1).map((x) => x.tx).join(' ') + (last.q < 100 || last.q % 100 === 0 ? ' e ' : ' ') + last.tx;
+  };
+  const total = Math.round(Math.abs(v) * 100);
+  const kz = Math.floor(total / 100), ct = total % 100;
+  const kzTx = `${inteiro(kz)} ${kz >= 1e6 && kz % 1e6 === 0 ? 'de ' : ''}${kz === 1 ? 'kwanza' : 'kwanzas'}`;
+  return ct ? `${kzTx} e ${inteiro(ct)} ${ct === 1 ? 'cêntimo' : 'cêntimos'}` : kzTx;
+}
+
 /**
  * FATURA A4 no formato do documento de referência (estudado só em leitura;
  * desenho e código próprios): logótipo + dados da empresa à esquerda e cliente
@@ -108,13 +144,22 @@ export async function buildInvoicePdf(a: InvoicePdfArgs): Promise<jsPDF> {
   });
   y += 32; doc.setLineWidth(0.5); doc.line(M, y, W - M, y);
   y += 14;
-  if (info?.receiptLegend) {
-    doc.setFont('helvetica', 'bold'); doc.text('Observações:', M, y);
-    doc.setFont('helvetica', 'normal');
-    const lw = doc.getTextWidth('Observações: ');
-    const obs = doc.splitTextToSize(info.receiptLegend, usable - lw);
-    obs.forEach((ln: string, i: number) => doc.text(String(ln), M + (i ? 0 : lw), y + i * 11));
-    y += obs.length * 11 + 8;
+  {
+    // Como no documento de referência: total por extenso e a menção de que os
+    // bens/serviços foram colocados à disposição na data do documento (+ legenda própria).
+    const obsText = [
+      provisional ? '' : `Total: ${extensoKz(invoice.grossTotal)}.`,
+      provisional ? '' : 'Os bens/serviços foram colocados à disposição do adquirente na data do documento.',
+      info?.receiptLegend ?? '',
+    ].filter(Boolean).join(' ');
+    if (obsText) {
+      doc.setFont('helvetica', 'bold'); doc.text('Observações:', M, y);
+      doc.setFont('helvetica', 'normal');
+      const lw = doc.getTextWidth('Observações: ');
+      const obs = doc.splitTextToSize(obsText, usable - lw);
+      obs.forEach((ln: string, i: number) => doc.text(String(ln), M + (i ? 0 : lw), y + i * 11));
+      y += obs.length * 11 + 8;
+    }
   }
 
   // ── Tabela de artigos ──
@@ -214,6 +259,14 @@ export async function buildInvoicePdf(a: InvoicePdfArgs): Promise<jsPDF> {
       : sig ? `Controlo (Hash): ${sig}` : '';
     if (proc) doc.text(proc, W - M, H - 36, { align: 'right' });
     for (const [i, f] of (info?.fields ?? []).entries()) doc.text(`${f.label}: ${f.value}`, M, H - 50 - i * 10);
+    // Linha vertical na margem esquerda (como na referência): documento
+    // eletrónico, momento de geração (UTC) e o hash do documento.
+    if (!provisional) {
+      const ts = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      doc.setFontSize(6.6); doc.setTextColor(...SUB);
+      doc.text(`Documento Eletrónico LPS Vendas - ${ts} UTC${invoice.hash ? ` · ${invoice.hash.slice(0, 40)}` : ''}`, M - 22, H - 120, { angle: 90 });
+      doc.setTextColor(...INK);
+    }
   }
   return doc;
 }
