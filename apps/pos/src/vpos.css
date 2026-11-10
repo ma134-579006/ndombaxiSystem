@@ -565,3 +565,68 @@
   .vt-name { font-size: 13px; }
   .vt-price, .vt-ref { font-size: 12px; }
 }
+
+/* ── Interior das janelas (modelo do POS de referência) ── */
+.vw-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px; margin-bottom: 16px; }
+.vw-f { display: flex; flex-direction: column; gap: 6px; }
+.vw-f > span { font-size: 14px; font-weight: 700; color: var(--text); }
+.vw-f input, .vw-f select { height: 34px; padding: 6px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); }
+.vw-f input:disabled { background: color-mix(in srgb, var(--text) 7%, var(--surface)); color: var(--muted); opacity: 1; }
+.vw-limits { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+.vw-limits b { color: var(--text); font-weight: 600; }
+.vw-limits .hi b { color: var(--primary); }
+.vw-limits .bad b { color: var(--danger); }
+.vw-bar { background: color-mix(in srgb, var(--primary) 10%, var(--surface)); color: var(--primary); font-size: 15px; font-weight: 600; padding: 14px 15px; border-bottom: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border)); margin: 0 0 10px; }
+.vw-insearch { position: relative; display: flex; align-items: center; }
+.vw-insearch input { flex: 1; height: 44px; padding: 0 44px 0 12px; font-size: 17px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); outline: none; }
+.vw-insearch input:focus { border-color: var(--primary); }
+.vw-insearch .ic { position: absolute; right: 14px; color: var(--muted); pointer-events: none; }
+.vw-insearch .consume-cam { position: absolute; right: 6px; }
+.vw-results { max-height: 280px; overflow-y: auto; border: 1px solid var(--border); border-top: 0; margin-bottom: 8px; }
+.vw-res { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--border); background: var(--surface); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.vw-res:hover, .vw-res.sel { background: color-mix(in srgb, var(--primary) 7%, var(--surface)); }
+.vw-res .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.vw-res small, .vw-lines small { display: block; font-size: 12px; color: var(--muted); }
+.vw-lines td { padding: 10px 6px !important; vertical-align: middle; }
+.vw-lines td.qty { width: 140px; }
+.vw-lines td.num { text-align: right; white-space: nowrap; width: 120px; }
+.vw-lines td.rm { width: 40px; text-align: right; }
+.vw-card .vw-empty { padding: 26px 0; }
+.vw-total { display: flex; align-items: baseline; gap: 14px; margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--border); }
+.vw-total b { font-size: 15px; }
+.vw-total span { margin-left: auto; color: var(--muted); }
+.vw-total strong { font-size: 18px; color: var(--text); }
+.vw-acts { display: flex; justify-content: flex-end; gap: 4px; margin-top: 16px; }
+.vw-b { height: 34px; padding: 0 14px; border: 0; border-radius: 4px; font-size: 14px; color: #fff; cursor: pointer; }
+.vw-b.cancel { background: #a8adb4; }
+.vw-b.ok { background: var(--primary); }
+.vw-b:disabled { opacity: .6; cursor: default; }
+.vw-card td.num, .vw-card th.num { text-align: right; }
+.vw-foot-note { margin: 10px 0 0; font-size: 13px; color: var(--muted); text-align: right; }
+@media (max-width: 760px) { .vw-grid3 { grid-template-columns: 1fr; gap: 12px; } }
+.vw-titlerow { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; }
+.vw-titlerow .vw-sec { margin: 0; }
+.vw-summ { margin-left: auto; font-size: 13px; color: var(--muted); }
+.vw-summ b { color: var(--text); font-weight: 600; }
+.vw-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 30px; margin-bottom: 16px; }
+.vw-filters .vw-f { flex: 0 1 200px; }
+.vw-filters .vw-f.grow { flex: 1 1 240px; }
+.vw-filters .vw-f.quick { flex: 0 0 auto; }
+.vw-chips { display: flex; gap: 0; }
+.vw-chips button { height: 34px; padding: 0 12px; border: 1px solid var(--border); background: color-mix(in srgb, var(--primary) 7%, var(--surface)); color: var(--primary); cursor: pointer; font-size: 13px; }
+.vw-chips button + button { border-left: 0; }
+.vw-chips button:first-child { border-radius: 4px 0 0 4px; }
+.vw-chips button:last-child { border-radius: 0 4px 4px 0; }
+.sales-modal.in-vw .sales-table th { background: color-mix(in srgb, var(--primary) 10%, var(--surface)); color: var(--primary); font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: 0; padding: 14px 12px; }
+.sales-modal.in-vw .sm-list { overflow: visible; max-height: none; }
+/* Campos e botões dentro de QUALQUER janela do caixa (como no POS de referência). */
+.vw-card .field > label { font-size: 14px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
+.vw-card .field input, .vw-card .field select, .vw-card .field textarea, .vw-card .input-wrap input {
+  min-height: 34px; border-radius: 4px !important; font-size: 14px; }
+.vw-card .input-wrap { border-radius: 4px !important; }
+.vw-card .btn { border-radius: 4px !important; box-shadow: none !important; min-height: 34px; font-weight: 500; }
+.vw-card .btn.lg, .vw-card .btn.block { min-height: 44px; font-size: 16px; }
+.vw-card .btn.ghost { background: #a8adb4 !important; color: #fff !important; border: 0 !important; }
+.vw-card .banner { border-radius: 4px; }
+.vw-card .chip { border-radius: 4px; }
+.vw-card .erp-kpi { background: none; border: 0; border-bottom: 1px solid var(--border); padding: 8px 0; }
