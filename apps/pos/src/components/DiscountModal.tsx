@@ -1,3 +1,4 @@
+import { VWindow } from './VWindow';
 import React, { useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { formatKz, parseKz } from '../format';
@@ -53,13 +54,8 @@ export function DiscountModal({ name, lineGross, current, promoRate, role, appro
   };
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, padding: 22 }}>
-        <div className="row" style={{ marginBottom: 6 }}>
-          <h2 style={{ margin: 0, fontSize: 18 }}>Desconto no artigo</h2>
-          <span className="spacer" />
-          <button className="trash" onClick={onClose} aria-label="Fechar"><IconClose size={22} /></button>
-        </div>
+    <VWindow title="Desconto no artigo" onClose={onClose} narrow>
+        
         <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>{name} · {formatKz(lineGross)}</p>
         {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
         <div className="seg" role="tablist" style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -82,7 +78,6 @@ export function DiscountModal({ name, lineGross, current, promoRate, role, appro
             {busy ? 'A confirmar…' : 'Aplicar desconto'}
           </button>
         </div>
-      </div>
-    </div>
+      </VWindow>
   );
 }

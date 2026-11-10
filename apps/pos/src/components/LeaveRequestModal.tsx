@@ -1,3 +1,4 @@
+import { VWindow } from './VWindow';
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { MyLeave } from '../api/types';
@@ -54,13 +55,8 @@ export function LeaveRequestModal({ onClose }: { onClose(): void }) {
   };
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="consume-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="consume-head">
-          <span className="ch-ic" aria-hidden="true"><UiIcon e="clock" size={20} /></span>
-          <div className="ch-tx"><h3>Férias e ausências</h3><small>Pedido ao gestor · ligado ao RH</small></div>
-          <button className="x" onClick={onClose} aria-label="Fechar">✕</button>
-        </div>
+    <VWindow title="Férias e ausências" onClose={onClose}>
+        
 
         <div className="consume-body">
           {msg ? <div className="banner success" style={{ marginBottom: 12 }}>{msg}</div> : null}
@@ -119,7 +115,6 @@ export function LeaveRequestModal({ onClose }: { onClose(): void }) {
             </button>
           </div>
         ) : null}
-      </div>
-    </div>
+      </VWindow>
   );
 }

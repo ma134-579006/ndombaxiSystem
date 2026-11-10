@@ -1,3 +1,4 @@
+import { VWindow } from './VWindow';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { newUuid } from '../offline/db';
@@ -98,14 +99,8 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
 
   return (
     <>
-    <div className="scan-overlay" onClick={onClose}>
-      <div className="sales-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="sm-head">
-          <span className="ch-ic" aria-hidden="true"><UiIcon e="doc" size={20} /></span>
-          <div className="ch-tx"><h2>Documentos e vendas</h2><small>Histórico, 2ª via e cancelamentos</small></div>
-          <span style={{ flex: 1 }} />
-          <button className="icon-btn" onClick={onClose} aria-label="Fechar"><span style={{ fontSize: 20 }}>✕</span></button>
-        </div>
+    <VWindow title="Documentos" onClose={onClose}>
+      <div className="sales-modal in-vw">
 
         <div className="erp-kpis">
           <div className="erp-kpi"><span>Documentos</span><b>{rows.length}</b></div>
@@ -208,7 +203,7 @@ export function SalesHistoryModal({ onClose, onChanged, canCancel = false }: { o
           )}
         </div>
       </div>
-    </div>
+    </VWindow>
 
     {cancelTarget ? (
       <CancelItemsModal sale={cancelTarget} onClose={() => setCancelTarget(null)} onDone={onCancelled} />

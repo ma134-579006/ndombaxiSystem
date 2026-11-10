@@ -17,7 +17,7 @@ export default defineConfig({
     // local com dados reais (auditoria/QA). Nunca afeta builds de produção.
     proxy: {
       '/papi': {
-        target: 'https://ndombaxi-api-bwwr.onrender.com',
+        target: process.env.PAPI_TARGET || 'https://ndombaxi-api-bwwr.onrender.com',
         changeOrigin: true,
         secure: true,
         rewrite: (p) => p.replace(/^\/papi/, ''),

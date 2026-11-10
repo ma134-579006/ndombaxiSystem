@@ -3,7 +3,7 @@ import { api, ApiError } from '../api/client';
 import { IVA_RATE, type ConsumptionLimit, type Product, type SelfConsumption } from '../api/types';
 import { formatKz } from '../format';
 import { BarcodeScanner } from './BarcodeScanner';
-import { UiIcon } from './UiIcon';
+import { VSearch, VWindow } from './VWindow';
 
 function grossUnit(p: Product): number {
   return Number(p.unit_price) * (1 + IVA_RATE[p.iva_code] / 100);
@@ -87,27 +87,19 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
   const pendingTotal = mine.filter((c) => c.status === 'PENDING').reduce((s, c) => s + Number(c.total), 0);
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="consume-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="consume-head">
-          <span className="ch-ic" aria-hidden="true"><UiIcon e="cart" size={20} /></span>
-          <div className="ch-tx"><h3>Consumo próprio</h3><small>Produtos para o próprio · descontado no salário</small></div>
-          <button className="x" onClick={onClose} aria-label="Fechar">✕</button>
-        </div>
+    <VWindow title="Consumo próprio" onClose={onClose} footer={cart.length > 0 ? (
+      <>
+        <div className="vw-sum"><span>{cartCount} item(ns)</span><b>{formatKz(cartTotal)}</b></div>
+        <button className="vw-btn ghost" onClick={() => setCart([])}>Limpar</button>
+        <button className="vw-btn" disabled={busy} onClick={() => void registerAll()}>{busy ? 'A registar…' : 'Registar consumo'}</button>
+      </>
+    ) : undefined}>
+        <VSearch value={search} onChange={setSearch} placeholder="Pesquisar Produtos por Nome ou Referência" autoFocus
+          extra={IS_MOBILE ? (
+            <button type="button" className={`consume-cam${scan ? ' on' : ''}`} onClick={() => setScan((v) => !v)} title="Ler com a câmara"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" /><circle cx="12" cy="14" r="3.4" /></svg></button>
+          ) : null} />
 
-        {/* Pesquisa FIXA no topo (não rola com a lista) */}
-        <div className="consume-search">
-          <div className="field">
-            <UiIcon e="search" size={16} />
-            <input value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Pesquisar por nome ou código de barras…" autoFocus />
-          </div>
-          {IS_MOBILE ? (
-            <button className={`consume-cam${scan ? ' on' : ''}`} onClick={() => setScan((v) => !v)} title="Ler com a câmara"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" /><circle cx="12" cy="14" r="3.4" /></svg></button>
-          ) : null}
-        </div>
-
-        <div className="consume-body">
+        <div className="consume-body vw-body">
           {lim && lim.employeeLinked ? (
             <>
               <div className="erp-kpis erp-kpis4">
@@ -186,17 +178,6 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
             </div>
           ) : null}
         </div>
-
-        {cart.length > 0 ? (
-          <div className="consume-foot row">
-            <div className="cf-sum"><span>{cartCount} item(ns)</span><b>{formatKz(cartTotal)}</b></div>
-            <button className="btn ghost" onClick={() => setCart([])}>Limpar</button>
-            <button className="btn" disabled={busy} onClick={() => void registerAll()}>
-              {busy ? 'A registar…' : 'Registar consumo'}
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </div>
+    </VWindow>
   );
 }

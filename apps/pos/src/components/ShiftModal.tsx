@@ -1,3 +1,4 @@
+import { VWindow } from './VWindow';
 import React, { useState } from 'react';
 import { runTransfer } from '../transfer';
 import { api, ApiError } from '../api/client';
@@ -303,20 +304,14 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
   // ── Abrir turno ──────────────────────────────────────────
   if (!session) {
     return (
-      <div className="modal-bg" onClick={onClose}>
-        <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, padding: 22 }}>
-          <div className="row" style={{ marginBottom: 14 }}>
-            <h2 style={{ margin: 0, fontSize: 18 }}>Abrir turno de caixa</h2>
-            <span className="spacer" />
-            <button className="trash" onClick={onClose}><IconClose size={22} /></button>
-          </div>
+      <VWindow title="Abrir turno de caixa" onClose={onClose} narrow>
+          
           {error ? <div className="banner danger" style={{ marginBottom: 12 }}>{error}</div> : null}
           <KeyboardInput label="Fundo de troco inicial (Kz)" value={openingFloat} onChange={setOpeningFloat} numeric placeholder="0" onSubmit={open} />
           <button className="btn success lg block" style={{ marginTop: 14 }} onClick={open} disabled={busy}>
             {busy ? 'A abrir…' : 'Abrir turno'}
           </button>
-        </div>
-      </div>
+        </VWindow>
     );
   }
 
@@ -324,13 +319,8 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
   if (mov) {
     const out = mov === 'CASH_OUT';
     return (
-      <div className="modal-bg" onClick={() => setMov(null)}>
-        <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, padding: 22 }}>
-          <div className="row" style={{ marginBottom: 8 }}>
-            <h2 style={{ margin: 0, fontSize: 18 }}>{out ? 'Sangria — retirar da gaveta' : 'Reforço — pôr troco na gaveta'}</h2>
-            <span className="spacer" />
-            <button className="trash" onClick={() => setMov(null)} aria-label="Voltar"><IconClose size={22} /></button>
-          </div>
+      <VWindow titleNode={<>{out ? 'Sangria — retirar da gaveta' : 'Reforço — pôr troco na gaveta'}</>} title="" onClose={() => setMov(null)} narrow>
+          
           <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
             {out ? 'O valor sai do dinheiro esperado no fecho (ex.: depósito no cofre).' : 'O valor soma ao dinheiro esperado no fecho (ex.: troco trazido do cofre).'}
           </p>
@@ -340,20 +330,14 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
           <button className={`btn ${out ? 'danger' : 'success'} lg block`} style={{ marginTop: 14 }} onClick={saveMovement} disabled={busy}>
             {busy ? 'A registar…' : out ? 'Registar sangria' : 'Registar reforço'}
           </button>
-        </div>
-      </div>
+        </VWindow>
     );
   }
 
   // ── Fechar turno ─────────────────────────────────────────
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, padding: 22 }}>
-        <div className="row" style={{ marginBottom: 8 }}>
-          <h2 style={{ margin: 0, fontSize: 18 }}>Fechar turno</h2>
-          <span className="spacer" />
-          <button className="trash" onClick={onClose}><IconClose size={22} /></button>
-        </div>
+    <VWindow title="Fechar turno" onClose={onClose} narrow>
+        
         <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
           Aberto por {session.opened_by_name} · {new Date(session.opened_at).toLocaleString('pt-PT')}
         </p>
@@ -376,7 +360,6 @@ export function ShiftModal({ session, cartCount = 0, identity, operatorName, onO
         <button className="btn danger lg block" style={{ marginTop: 10 }} onClick={close} disabled={busy || cartCount > 0}>
           {busy ? 'A fechar…' : 'Fechar turno e conferir (Z)'}
         </button>
-      </div>
-    </div>
+      </VWindow>
   );
 }

@@ -1,3 +1,4 @@
+import { VWindow } from './VWindow';
 import React, { useCallback, useEffect, useState } from 'react';
 import { listPendingSales, type PendingSale, type PendingSaleStatus } from '../offline/db';
 import { syncController } from '../offline/sync';
@@ -71,22 +72,8 @@ export function QueueModal({ onClose }: Props) {
   const hasRetryable = sales.some((s) => s.status !== 'SYNCING');
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div
-        className="card"
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 520, maxHeight: 'calc(88vh / var(--uz, 1))', display: 'flex', flexDirection: 'column' }}
-      >
-        <div className="row" style={{ padding: 16, borderBottom: '1px solid var(--border)', gap: 10 }}>
-          <IconReceipt size={20} />
-          <h2 style={{ margin: 0, fontSize: 18 }}>
-            Fila de vendas offline {sales.length > 0 ? <span className="muted">· {sales.length}</span> : null}
-          </h2>
-          <span className="spacer" />
-          <button className="trash" onClick={onClose} aria-label="Fechar">
-            <IconClose size={22} />
-          </button>
-        </div>
+    <VWindow titleNode={<>Fila de vendas offline {sales.length > 0 ? <span className="muted">· {sales.length}</span> : null}</>} title="Fila de vendas offline  : null}" onClose={onClose}>
+        
 
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto' }}>
           {!online ? (
@@ -158,7 +145,6 @@ export function QueueModal({ onClose }: Props) {
             </>
           )}
         </div>
-      </div>
-    </div>
+      </VWindow>
   );
 }

@@ -1,3 +1,4 @@
+import { VWindow } from './VWindow';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { formatKz } from '../format';
@@ -22,14 +23,8 @@ export function KitchenOrdersModal({ onClose, onRecall }: { onClose(): void; onR
   useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [load]);
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="card" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: 'calc(88vh / var(--uz, 1))', display: 'flex', flexDirection: 'column' }}>
-        <div className="row" style={{ padding: 16, borderBottom: '1px solid var(--border)', gap: 10 }}>
-          <IconReceipt size={20} />
-          <h2 style={{ margin: 0, fontSize: 18 }}>Pedidos da cozinha{orders.length ? <span className="muted"> · {orders.length}</span> : null}</h2>
-          <span className="spacer" />
-          <button className="trash" onClick={onClose} aria-label="Fechar"><IconClose size={22} /></button>
-        </div>
+    <VWindow titleNode={<>Pedidos da cozinha{orders.length ? <span className="muted"> · {orders.length}</span> : null}</>} title="Pedidos da cozinha : null}" onClose={onClose}>
+        
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto' }}>
           {loaded && orders.length === 0 ? (
             <p className="muted" style={{ textAlign: 'center', padding: 20 }}>
@@ -52,7 +47,6 @@ export function KitchenOrdersModal({ onClose, onRecall }: { onClose(): void; onR
             </div>
           ))}
         </div>
-      </div>
-    </div>
+      </VWindow>
   );
 }

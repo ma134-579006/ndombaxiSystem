@@ -81,19 +81,35 @@ export function Modal({
     if (boxRef.current && !boxRef.current.contains(document.activeElement)) boxRef.current.focus({ preventScroll: true });
     return () => { document.removeEventListener('keydown', onKey); before?.focus?.({ preventScroll: true }); };
   }, []);
-  // Portal para o <body>: o modal sai de qualquer stacking context local (cartões
-  // com transform, painéis animados, etc.), por isso fica SEMPRE à frente e um
-  // modal aberto sobre outro nunca cai para trás.
+  // FORMULÁRIO EM PÁGINA (modelo do backoffice de referência): abre DENTRO do
+  // painel — por baixo da barra de topo e à direita do menu —, com as migalhas
+  // "Secção / Título" (a secção volta atrás), rótulos à esquerda e o botão de
+  // gravar por baixo dos campos. A barra fina de carregamento corre no topo,
+  // como na referência. Fora do painel (login, etc.) ocupa o ecrã todo.
+  // Portal para o <body>: fica sempre à frente de qualquer contexto local.
+  const [area, setArea] = React.useState<{ left: number; top: number; crumb: string }>({ left: 0, top: 0, crumb: '' });
+  React.useLayoutEffect(() => {
+    const measure = () => {
+      const main = document.querySelector<HTMLElement>('.main');
+      if (!main) { setArea({ left: 0, top: 0, crumb: '' }); return; }
+      const bar = main.querySelector<HTMLElement>('.topbar');
+      const r = main.getBoundingClientRect();
+      setArea({ left: Math.max(0, Math.round(r.left)), top: bar ? Math.round(bar.getBoundingClientRect().bottom) : 0, crumb: main.dataset.crumb ?? '' });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
   return createPortal(
-    <div className="modal-bg" onClick={onClose}>
-      <div className={`modal${wide ? ' modal-wide' : ''}`} ref={boxRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
-        <div className="mh">
-          <h3>{title}</h3>
+    <div className="modal-bg vf-page" style={{ left: area.left, top: area.top }}>
+      <span className="vf-load" aria-hidden="true" />
+      <div className={`modal vf${wide ? ' modal-wide' : ''}`} ref={boxRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+        <p className="vf-crumb">
+          {area.crumb ? <><button type="button" onClick={onClose}>{area.crumb}</button><span className="sep">/</span></> : null}
+          <span>{title}</span>
           <span className="spacer" />
-          <button className="icon-btn" style={{ width: 36, height: 36 }} onClick={onClose} aria-label="Fechar">
-            <IconClose size={18} />
-          </button>
-        </div>
+          <button type="button" className="vf-x" onClick={onClose} aria-label="Fechar"><IconClose size={18} /></button>
+        </p>
         {toolbar ? <div className="mt">{toolbar}</div> : null}
         <div className="mb">{body}</div>
         {foot ? <div className="mf">{foot}</div> : null}

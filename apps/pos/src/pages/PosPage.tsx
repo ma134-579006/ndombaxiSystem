@@ -23,6 +23,7 @@ import {
   IconUser,
 } from '../components/Icons';
 import { ReceiptModal } from '../components/ReceiptModal';
+import { VSearch } from '../components/VWindow';
 import { DiscountModal } from '../components/DiscountModal';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { SalesHistoryModal } from '../components/SalesHistoryModal';
@@ -1204,21 +1205,21 @@ export function PosPage() {
 
             <div className="vcat-body">
               {showSearch || search ? (
-                <div className="search-bar vsearch">
-                  <div style={{ flex: 1 }}>
+                <VSearch
+                  value={search}
+                  onChange={setSearch}
+                  onSubmit={onSearchEnter}
+                  input={(
                     <KeyboardInput
-                      icon={<IconSearch size={18} />}
-                      placeholder="Pesquisar por nome, código ou código de barras"
+                      placeholder="Pesquisar Produtos por Nome ou Referência"
                       value={search}
                       onChange={setSearch}
                       onSubmit={onSearchEnter}
+                      autoFocus
                     />
-                  </div>
-                  <BarcodeScanner continuous onDetected={(code) => scanResolve(code)} />
-                  <button className="icon-btn" title="Atualizar produtos" aria-label="Atualizar produtos" onClick={() => void refreshProducts()}>
-                    <IconSync size={20} />
-                  </button>
-                </div>
+                  )}
+                  extra={<BarcodeScanner continuous onDetected={(code) => scanResolve(code)} />}
+                />
               ) : null}
 
               {loading ? (
