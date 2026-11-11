@@ -62,6 +62,8 @@ export interface CatalogProduct {
   promo?: { name: string; percent: number; endsAt: string | null };
   /** Unidades vendidas. */
   sold?: number;
+  /** Visualizações da página do produto. */
+  views?: number;
   /** Média e nº de avaliações. */
   rating?: number;
   reviews?: number;

@@ -16,6 +16,11 @@ export function Product({ code: storeCode, token, products, productCode, storeNa
   const [rev, setRev] = useState<ProductReviews | null>(null);
   useEffect(() => { setImg(0); setQty(1); setMore(false); window.scrollTo({ top: 0 }); if (p) pushRecent(storeCode, p.code); }, [productCode]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setRev(null); api.reviews(storeCode, productCode, token).then(setRev).catch(() => setRev(null)); }, [storeCode, productCode, token]);
+  useEffect(() => {
+    const k = `ndombaxi.kw.viewed.${storeCode}.${productCode}`;
+    try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, '1'); } catch { /* sem armazenamento: conta na mesma */ }
+    void api.productView(storeCode, productCode).catch(() => undefined);
+  }, [storeCode, productCode]);
 
   const similar = useMemo(() => (p ? products.filter((x) => x.code !== p.code && x.category && x.category === p.category).slice(0, 12) : []), [products, p]);
   const recent = useMemo(() => readRecent(storeCode).filter((c) => c !== productCode).map((c) => products.find((x) => x.code === c)).filter((x): x is CatalogProduct => !!x).slice(0, 12), [products, productCode, storeCode]);
@@ -80,7 +85,12 @@ export function Product({ code: storeCode, token, products, productCode, storeNa
             <div className="kw-pdp-info">
               <h1>{p.name}</h1>
               {p.rating ? <div className="kw-stars" aria-label={`${p.rating.toFixed(1)} de 5`}>{'★'.repeat(Math.round(p.rating))}{'☆'.repeat(5 - Math.round(p.rating))}<small>{p.rating.toFixed(1)} ({p.reviews ?? 0})</small></div> : null}
-              {(p.sold ?? 0) > 0 ? <span className="kw-pill-soft"><I d={P.bag} size={14} /> {p.sold} vendidos</span> : null}
+              {(p.sold ?? 0) > 0 || (p.views ?? 0) > 0 ? (
+                <div className="kw-pdp-meta">
+                  {(p.sold ?? 0) > 0 ? <span className="kw-pill-soft"><I d={P.bag} size={14} /> {p.sold} vendidos</span> : null}
+                  {(p.views ?? 0) > 0 ? <span className="kw-pill-soft"><I d={P.eye} size={14} /> {p.views} visualizações</span> : null}
+                </div>
+              ) : null}
               <div className={`kw-pricebox${d > 0 ? ' promo' : ''}`}>
                 {d > 0 && p.promo ? <span className="kw-pricebox-tag">{p.promo.name}</span> : null}
                 <div><b>{kz(p.grossPrice)}</b>{d > 0 && p.listPrice ? <span className="kw-save">Poupe {kz(p.listPrice - p.grossPrice)}</span> : null}</div>

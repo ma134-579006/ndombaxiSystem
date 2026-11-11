@@ -162,7 +162,7 @@ export function MembersApp() {
   }
 
   let body: React.ReactNode;
-  if (route.name === 'home') body = <Home products={products} banners={banners} methods={methods} card={card} openSearch={openSearch} openProduct={openProduct} openLink={openLink} />;
+  if (route.name === 'home') body = <Home products={products} banners={banners} methods={methods} card={card} openSearch={openSearch} openProduct={openProduct} openLink={openLink} tagline={data?.settings.tagline} storeName={storeName} />;
   else if (!products) body = <div className="kw-container"><div className="kw-loader" aria-busy="true"><i /><i /><i /></div></div>;
   else if (route.name === 'search') body = <Search products={products} state={route.s} card={card} onState={(s) => go({ name: 'search', s })} />;
   else if (route.name === 'product') body = <Product code={code} token={token} products={products} productCode={route.code} storeName={storeName} methods={methods} cod={cod} contact={contact} onAdd={add} onBuy={(p, n) => { addToCart(p, n); go({ name: 'cart' }); }} card={card} />;
@@ -186,13 +186,14 @@ export function MembersApp() {
         <div className="kw-strip">
           <div className="kw-container kw-strip-in">
             <span className="kw-strip-l">
+              <button onClick={() => go({ name: 'associates', tab: 'market' })}>Central do Associado</button>
               {contact.email ? <a href={`mailto:${contact.email}`}><I d={P.mail} size={13} />{contact.email}</a> : null}
               {contact.phone ? <a href={`tel:${contact.phone}`}><I d={P.phone} size={13} />{contact.phone}</a> : null}
             </span>
             <span className="kw-strip-r">
-              <button onClick={() => go({ name: 'associates', tab: 'market' })} aria-label="Associados"><I d={P.share} size={16} /><span>Mercado de Associados</span></button>
+              <button onClick={() => go({ name: 'associates', tab: 'market' })} aria-label="Associados"><I d={P.share} size={16} /><span>Associados</span></button>
               <button onClick={openChat} aria-label="Ajuda"><I d={P.help} size={16} /><span>Ajuda</span></button>
-              <button onClick={() => go({ name: 'account', tab: 'orders' })} aria-label="Conta"><I d={P.user} size={16} /><span>{first}</span></button>
+              <button className="kw-strip-me" onClick={() => go({ name: 'account', tab: 'orders' })} aria-label="Conta"><i>{first.slice(0, 1).toUpperCase()}</i><span>{first}</span></button>
             </span>
           </div>
         </div>

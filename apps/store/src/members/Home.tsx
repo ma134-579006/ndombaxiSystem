@@ -12,6 +12,8 @@ export interface HomeProps {
   openSearch(q: string, opts?: { cat?: string; promo?: boolean }): void;
   openProduct(code: string): void;
   openLink(link: string | null): void;
+  tagline?: string | null;
+  storeName?: string;
 }
 
 /** Categorias com contagem e uma imagem representativa (1.º produto com foto). */
@@ -30,7 +32,7 @@ export function useCategories(products: CatalogProduct[] | null) {
   }, [products]);
 }
 
-export function Home({ products, banners, methods, card, openSearch, openProduct, openLink }: HomeProps) {
+export function Home({ products, banners, methods, card, openSearch, openProduct, openLink, tagline, storeName }: HomeProps) {
   const list = products ?? [];
   const cats = useCategories(products);
   const flash = useMemo(() => list.filter((p) => pct(p) > 0).sort((a, b) => pct(b) - pct(a)).slice(0, 12), [list]);
@@ -100,6 +102,7 @@ export function Home({ products, banners, methods, card, openSearch, openProduct
               <button className="kw-arrow r" onClick={() => catTrack.current?.scrollBy({ left: 400, behavior: 'smooth' })} aria-label="Mais categorias"><I d={P.next} size={16} /></button>
             </div>
           ) : null}
+          {tagline ? <p className="kw-tagline">“{tagline}”</p> : null}
         </section>
       </div>
 
@@ -147,6 +150,21 @@ export function Home({ products, banners, methods, card, openSearch, openProduct
           <header className="kw-disc-head"><h2>DESCOBERTAS DO DIA</h2></header>
           <div className="kw-grid6">{discover.slice(0, shown).map((p) => <div key={p.code} className="kw-reveal">{card(p)}</div>)}</div>
           {shown < discover.length ? <div ref={sentinel} className="kw-loader" aria-busy="true"><i /><i /><i /></div> : null}
+        </section>
+
+        {/* Comprar na LPS Kwanza + perguntas frequentes (só o que o sistema faz de facto) */}
+        <section className="kw-info kw-reveal">
+          <h2>Comprar na {BRAND}</h2>
+          <p>A {BRAND} é a loja online reservada aos associados{storeName ? ` da ${storeName}` : ''}: os mesmos produtos, preços e promoções da loja, com acesso aprovado pela empresa. Pagamento por {methods.length ? methods.map((m) => m.label).join(', ') : 'Numerário'}. Cada encomenda pode ser acompanhada em tempo real e a loja responde pelo chat.</p>
+          <p>Também pode ganhar como associado: escolha produtos com comissão no Mercado de Associados, partilhe a sua ligação e receba a comissão de cada venda entregue, com pedido de saque do saldo disponível.</p>
+          <h3>Perguntas frequentes</h3>
+          <div className="kw-faq">
+            <details><summary>Como comprar na {BRAND}?</summary><p>Procure o produto pela pesquisa ou pelas categorias, abra a página do produto, adicione ao carrinho e conclua a compra escolhendo a forma de pagamento. É preciso ser associado aprovado.</p></details>
+            <details><summary>Que meios de pagamento são aceites?</summary><p>{methods.length ? methods.map((m) => m.label).join(', ') : 'Numerário'}. Os preços estão sempre em kwanzas (Kz).</p></details>
+            <details><summary>Como acompanho a minha encomenda?</summary><p>Em Conta → Minhas compras abre cada encomenda com o estado atualizado e a conversa com a loja.</p></details>
+            <details><summary>Como funciona o programa de associados?</summary><p>No Mercado de Associados vê os produtos com comissão, copia a sua ligação e partilha. A venda feita pela ligação (último clique) gera comissão: fica pendente até a encomenda ser entregue e depois passa para o saldo disponível.</p></details>
+            <details><summary>Como peço o saque?</summary><p>Em Mercado de Associados → Saldo e saques indique o valor e onde quer receber (Multicaixa Express ou transferência). A loja confirma o pagamento.</p></details>
+          </div>
         </section>
 
         {/* Selos com o que a loja realmente oferece */}
