@@ -253,7 +253,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           </div>
           <button type="button" className="lv-btn-o" onClick={onGoLogin}>{t.login}</button>
           <button type="button" className="lv-btn sm" onClick={() => openRegister('BUSINESS')}>{t.signup}</button>
-          <button type="button" className="lv-burger" aria-label="Menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}><span /><span /><span /></button>
+          <button type="button" className="lv-burger" aria-label="Menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}><svg width="24" height="18" viewBox="0 0 24 18" aria-hidden="true" focusable="false"><rect y="0" width="24" height="2.4" rx="1.2" fill="currentColor" /><rect y="7.8" width="24" height="2.4" rx="1.2" fill="currentColor" /><rect y="15.6" width="24" height="2.4" rx="1.2" fill="currentColor" /></svg></button>
         </div>
         <div className={`lv-mmenu${menuOpen ? ' open' : ''}`} aria-hidden={!menuOpen}>
           <button type="button" onClick={() => goSol('fat')}>{t.navFat}</button>

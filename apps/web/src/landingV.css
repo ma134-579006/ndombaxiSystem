@@ -77,11 +77,19 @@
 .lv-menu > a:hover, .lv-menu > button:hover, .lv-menu > button.on { background: var(--lv-brand-50); color: var(--lv-brand); }
 .lv-menu b { width: 26px; font-size: 12px; color: #8a93ad; }
 @keyframes lvDrop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-.lv-burger { display: none; width: 42px; height: 42px; border: 0; background: none; cursor: pointer; flex-direction: column; justify-content: center; gap: 5px; padding: 0 9px; color: var(--lv-ink); }
-/* Linhas desenhadas como TRAÇO (border), não como fundo: o modo escuro forçado
-   dos telemóveis (Chrome/Samsung Internet) escurece os fundos e deixava as
-   linhas escuras sobre a barra escurecida — o botão ficava invisível. */
-.lv-burger span { display: block; height: 0; border-top: 2px solid currentColor; border-radius: 2px; }
+/* Botão do menu (telemóvel): ícone em SVG (preenchido com currentColor) em vez de
+   linhas em <span> — funciona igual em qualquer navegador (Safari do iPhone, versões
+   antigas sem flex em <button>/gap, modo escuro forçado). Não encolhe na barra
+   (flex: none) e tem cor explícita, sem depender do estilo nativo do botão. */
+.lv-burger {
+  display: none; -webkit-box-flex: 0; -webkit-flex: none; flex: none; position: relative; z-index: 2;
+  width: 44px; height: 44px; min-width: 44px; margin: 0 -6px 0 0; padding: 0; border: 0; border-radius: 8px;
+  background: transparent; color: #141c4d; color: var(--lv-ink, #141c4d); cursor: pointer; line-height: 0; text-align: center;
+  -webkit-appearance: none; -moz-appearance: none; appearance: none; -webkit-tap-highlight-color: transparent;
+}
+.lv-burger svg { display: inline-block; vertical-align: middle; width: 24px; height: 18px; fill: currentColor; pointer-events: none; }
+.lv-logo { min-width: 0; -webkit-flex-shrink: 1; flex-shrink: 1; }
+.lv-logo img { max-width: 100%; }
 .lv-mmenu { display: none; }
 
 /* ── Hero ──────────────────────────────────────────────── */
@@ -288,7 +296,7 @@
 }
 @media (max-width: 900px) {
   .lv-links, .lv-nav-in > .lv-btn-o, .lv-nav-in > .lv-btn { display: none; }
-  .lv-burger { display: flex; }
+  .lv-burger { display: inline-block; }
   .lv-mmenu { display: flex; flex-direction: column; max-height: 0; overflow: hidden; background: #fff; transition: max-height .35s var(--lv-ease); }
   .lv-mmenu.open { max-height: 560px; border-top: 1px solid var(--lv-line); }
   .lv-mmenu > a, .lv-mmenu > button { padding: 14px 20px; border: 0; background: none; text-align: left; color: var(--lv-ink); font-size: 16px; font-weight: 600; cursor: pointer; }
