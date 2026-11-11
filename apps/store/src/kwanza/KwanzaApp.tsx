@@ -6,6 +6,7 @@ import { formatDateTime } from '../format';
 import { readFileProgress } from '../transfer';
 import { BRAND, Card, Carousel, I, Mark, P, Pic, Shelf, type Slide, kz, useInfinite, useReveal } from '../members/parts';
 import { Search, type SearchState } from '../members/Search';
+import { Messages, NotesBell } from './Inbox';
 import { kw, session, shareLink, type Affiliation, type Associate, type Dashboard, type Listing, type PayoutAccount } from './api';
 
 /** Produto do marketplace no formato dos cartões (código = empresa::produto). */
@@ -21,7 +22,7 @@ const com = (l: Listing, pct?: number) => Math.round(l.grossPrice * (pct ?? l.co
 type Route =
   | { n: 'home' } | { n: 'search'; s: SearchState } | { n: 'product'; c: string; p: string }
   | { n: 'login' } | { n: 'register' } | { n: 'recover' }
-  | { n: 'panel' } | { n: 'sales' } | { n: 'affs' } | { n: 'withdraw' } | { n: 'accounts' } | { n: 'profile' };
+  | { n: 'panel' } | { n: 'sales' } | { n: 'affs' } | { n: 'withdraw' } | { n: 'accounts' } | { n: 'profile' } | { n: 'msgs'; c?: string };
 const parse = (h: string): Route => {
   const [path, qs] = h.replace(/^#\/?/, '').split('?'); const s = path.split('/').filter(Boolean).map(decodeURIComponent); const q = new URLSearchParams(qs ?? '');
   switch (s[0]) {
@@ -30,6 +31,7 @@ const parse = (h: string): Route => {
     case 'entrar': return { n: 'login' }; case 'registar': return { n: 'register' }; case 'recuperar': return { n: 'recover' };
     case 'painel': return { n: 'panel' }; case 'vendas': return { n: 'sales' }; case 'afiliacoes': return { n: 'affs' };
     case 'saques': return { n: 'withdraw' }; case 'contas': return { n: 'accounts' }; case 'perfil': return { n: 'profile' };
+    case 'mensagens': return { n: 'msgs', c: s[1] || undefined };
     default: return { n: 'home' };
   }
 };
@@ -39,10 +41,11 @@ const hashOf = (r: Route): string => {
     case 'product': return `#/p/${encodeURIComponent(r.c)}/${encodeURIComponent(r.p)}`;
     case 'login': return '#/entrar'; case 'register': return '#/registar'; case 'recover': return '#/recuperar';
     case 'panel': return '#/painel'; case 'sales': return '#/vendas'; case 'affs': return '#/afiliacoes'; case 'withdraw': return '#/saques'; case 'accounts': return '#/contas'; case 'profile': return '#/perfil';
+    case 'msgs': return r.c ? `#/mensagens/${encodeURIComponent(r.c)}` : '#/mensagens';
     default: return '#/';
   }
 };
-const PRIVATE = new Set(['panel', 'sales', 'affs', 'withdraw', 'accounts', 'profile']);
+const PRIVATE = new Set(['panel', 'sales', 'affs', 'withdraw', 'accounts', 'profile', 'msgs']);
 
 export function KwanzaApp() {
   const [route, setRoute] = useState<Route>(() => parse(location.hash));
@@ -71,7 +74,7 @@ export function KwanzaApp() {
   else if (route.n === 'recover') body = <Recover go={go} flash={flash} />;
   else if (route.n === 'search') body = list === null ? <Loader /> : <Search products={products} state={route.s} card={card} onState={(s) => go({ n: 'search', s })} />;
   else if (route.n === 'product') body = <Product listing={list?.find((l) => l.companyCode === route.c && l.productCode === route.p) ?? null} loading={list === null} sess={sess} go={go} flash={flash} card={card} products={products} />;
-  else if (PRIVATE.has(route.n) && sess) body = <Area route={route.n as AreaTab} go={go} token={sess.token} me={sess.associate} flash={flash} products={products} />;
+  else if (PRIVATE.has(route.n) && sess) body = <Area route={route.n as AreaTab} chat={route.n === 'msgs' ? route.c : undefined} go={go} token={sess.token} me={sess.associate} flash={flash} products={products} />;
   else body = <Home products={list === null ? null : products} go={go} card={card} />;
 
   return (
@@ -92,6 +95,8 @@ export function KwanzaApp() {
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produtos, marcas e muito mais…" aria-label="Pesquisar" />
             <button aria-label="Pesquisar"><I d={P.search} size={18} /></button>
           </form>
+          {sess ? <button className="kw-head-ic" onClick={() => go({ n: 'msgs' })} aria-label="Mensagens"><I d={P.chat} size={23} /></button> : null}
+          {sess ? <NotesBell token={sess.token} /> : null}
           <button className="kw-head-ic" onClick={() => go({ n: sess ? 'panel' : 'login' })} aria-label="Conta"><I d={P.user} size={24} /></button>
         </div>
       </header>
@@ -208,6 +213,7 @@ function Product({ listing: l, loading, sess, go, flash, card, products }: { lis
         <aside className="kw-pdp-side kw-pdp-side-on">
           <div className="kw-side-price"><b>{kz(l.grossPrice)}</b></div>
           <div className="kw-side-row">Vendido por: <b>{l.companyName}</b></div>
+          {sess ? <button className="kw-btn kw-block" onClick={() => go({ n: 'msgs', c: l.companyCode })}><I d={P.chat} size={16} /> Falar com a empresa</button> : null}
           <a className="kw-btn kw-btn-outline kw-block" href={`${location.origin}/${encodeURIComponent(l.companyCode)}?p=${encodeURIComponent(l.productCode)}`}>Comprar na loja</a>
           {aff?.status === 'APPROVED' ? (
             <>
@@ -298,10 +304,10 @@ function Recover({ go, flash }: { go(r: Route): void; flash(t: string): void }) 
 }
 
 /* ───────────── área do associado ───────────── */
-type AreaTab = 'panel' | 'sales' | 'affs' | 'withdraw' | 'accounts' | 'profile';
+type AreaTab = 'panel' | 'sales' | 'affs' | 'withdraw' | 'accounts' | 'profile' | 'msgs';
 const STATE: Record<string, [string, string]> = { PENDING: ['Pendente', 'kw-st-PENDING'], AVAILABLE: ['Disponível', 'kw-st-PAID'], CANCELLED: ['Cancelada', 'kw-st-CANCELLED'], APPROVED: ['Aprovada', 'kw-st-PAID'], REJECTED: ['Recusada', 'kw-st-CANCELLED'], REQUESTED: ['Em análise', 'kw-st-PENDING'], PAID: ['Pago', 'kw-st-PAID'] };
 
-function Area({ route, go, token, me, flash, products }: { route: AreaTab; go(r: Route): void; token: string; me: Associate; flash(t: string): void; products: MP[] }) {
+function Area({ route, chat, go, token, me, flash, products }: { route: AreaTab; chat?: string; go(r: Route): void; token: string; me: Associate; flash(t: string): void; products: MP[] }) {
   const [d, setD] = useState<Dashboard | null>(null);
   const [drawer, setDrawer] = useState(false);
   const load = useCallback(() => kw.dashboard(token).then(setD).catch(() => undefined), [token]);
@@ -311,6 +317,7 @@ function Area({ route, go, token, me, flash, products }: { route: AreaTab; go(r:
       <div className="kw-affmenu-g">VENDAS 🔥</div>
       {([['panel', 'Painel do associado', P.grid], ['sales', 'Minhas Vendas', P.card], ['affs', 'Minhas afiliações', P.share], ['withdraw', 'Transações (Saques)', P.box]] as const).map(([k, l, ic]) => <button key={k} className={route === k ? 'on' : ''} onClick={() => go({ n: k })}><I d={ic} size={17} /> {l}</button>)}
       <button onClick={() => go({ n: 'search', s: { q: '' } })}><I d={P.bag} size={17} /> Mercado de Associados <em>Venda +</em></button>
+      <button className={route === 'msgs' ? 'on' : ''} onClick={() => go({ n: 'msgs' })}><I d={P.chat} size={17} /> Mensagens</button>
       <div className="kw-affmenu-g">CONTA</div>
       <button className={route === 'accounts' ? 'on' : ''} onClick={() => go({ n: 'accounts' })}><I d={P.shield} size={17} /> Contas bancárias</button>
       <button className={route === 'profile' ? 'on' : ''} onClick={() => go({ n: 'profile' })}><I d={P.user} size={17} /> Perfil</button>
@@ -323,6 +330,7 @@ function Area({ route, go, token, me, flash, products }: { route: AreaTab; go(r:
   else if (route === 'affs') body = <Affs token={token} go={go} />;
   else if (route === 'withdraw') body = <Withdraw token={token} d={d} onDone={() => { void load(); flash('Pedido de saque enviado'); }} go={go} />;
   else if (route === 'accounts') body = <Accounts token={token} flash={flash} />;
+  else if (route === 'msgs') body = <MsgsRoute token={token} chat={chat} go={go} />;
   else body = <Profile token={token} me={me} flash={flash} />;
   return (
     <div className="kw-container kw-affwrap">
@@ -331,6 +339,14 @@ function Area({ route, go, token, me, flash, products }: { route: AreaTab; go(r:
       {drawer ? <><div className="kw-scrim" onClick={() => setDrawer(false)} /><div className="kw-affdrawer kw-pop" role="dialog" aria-label="Menu"><div className="kw-affdrawer-h"><b>Menu</b><button className="kw-x" onClick={() => setDrawer(false)} aria-label="Fechar"><I d={P.close} size={18} /></button></div><div onClick={() => setDrawer(false)}>{menu}</div></div></> : null}
     </div>
   );
+}
+
+/** Conversas: empresas das afiliações aparecem para iniciar uma conversa nova. */
+function MsgsRoute({ token, chat, go }: { token: string; chat?: string; go(r: Route): void }) {
+  const [affs, setAffs] = useState<Affiliation[]>([]);
+  useEffect(() => { kw.affiliations(token).then(setAffs).catch(() => undefined); }, [token]);
+  const companies = useMemo(() => [...new Map(affs.map((a) => [a.companyCode, { code: a.companyCode, name: a.companyName }])).values()], [affs]);
+  return <Messages token={token} company={chat} companies={companies} go={(c) => go({ n: 'msgs', c })} />;
 }
 
 function Panel({ d, me, go, products }: { d: Dashboard | null; me: Associate; go(r: Route): void; products: MP[] }) {

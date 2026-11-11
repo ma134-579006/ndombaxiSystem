@@ -26,6 +26,18 @@ function describe(p: Promotion): string {
 export function Promotions() {
   const [promos, setPromos] = useState<Promotion[]>([]);
   const [alerts, setAlerts] = useState<OpsAlert[]>([]);
+  const [alertSel, setAlertSel] = useState<Set<string>>(new Set());
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  const dismissAlerts = async (keys: string[]) => {
+    if (!keys.length) return;
+    try { await api.alertsDismiss(keys); setAlerts((x) => x.filter((a) => !keys.includes(a.key ?? `${a.category}|${a.title}|${a.detail}`))); setAlertSel(new Set()); }
+    catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível eliminar.'); }
+  };
+  const dismissAllAlerts = async () => {
+    if (!(await confirmDialog({ message: `Eliminar os ${alerts.length} alertas?`, confirmLabel: 'Eliminar', danger: true }))) return;
+    try { await api.alertsDismissAll(); setAlerts([]); setAlertSel(new Set()); }
+    catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível eliminar.'); }
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -74,19 +86,29 @@ export function Promotions() {
 
       {/* Alertas operacionais */}
       {alerts.length > 0 ? (
-        <div className="card">
-          <h3>Alertas ({alerts.length})</h3>
-          {alerts.slice(0, 8).map((a, i) => (
-            <div className="list-row" key={i}>
-              <span className="badge" style={{ color: a.level === 'danger' ? 'var(--danger)' : a.level === 'warning' ? 'var(--warning)' : 'var(--primary)', borderColor: 'currentColor' }}>
-                {a.category}
-              </span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700 }}>{a.title}</div>
-                <div className="muted" style={{ fontSize: 13 }}>{a.detail}</div>
-              </div>
-            </div>
-          ))}
+        <div className="vd-card vd-tablecard al-card">
+          <div className="al-head">
+            <strong>Alertas</strong><span className="vd-badge mute">{alerts.length}</span>
+            <span className="spacer" />
+            {alertSel.size ? <button className="vd-btn danger sm" onClick={() => void dismissAlerts([...alertSel])}>Eliminar {alertSel.size}</button> : null}
+            <button className="vd-btn plain sm" onClick={() => void dismissAllAlerts()}>Eliminar todos</button>
+          </div>
+          <div className="al-list">
+            {(alertsOpen ? alerts : alerts.slice(0, 8)).map((a) => {
+              const k = a.key ?? `${a.category}|${a.title}|${a.detail}`;
+              return (
+                <div className={`al-row${alertSel.has(k) ? ' on' : ''}`} key={k}>
+                  <input type="checkbox" checked={alertSel.has(k)} onChange={() => setAlertSel((x) => { const n = new Set(x); if (n.has(k)) n.delete(k); else n.add(k); return n; })} aria-label={`Selecionar: ${a.title}`} />
+                  <span className={`vd-badge al-${a.level}`}>{a.category === 'STOCK' ? 'Stock' : a.category === 'CASH' ? 'Caixa' : 'Vendas'}</span>
+                  <div className="al-txt"><b>{a.title}</b><span>{a.detail}</span></div>
+                  <button className="al-x" title="Eliminar" aria-label={`Eliminar: ${a.title}`} onClick={() => void dismissAlerts([k])}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {alerts.length > 8 ? <button className="al-more" onClick={() => setAlertsOpen((v) => !v)}>{alertsOpen ? 'Mostrar menos' : `Mostrar todos (${alerts.length})`}</button> : null}
         </div>
       ) : null}
 

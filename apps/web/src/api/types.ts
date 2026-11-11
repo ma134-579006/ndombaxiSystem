@@ -237,6 +237,8 @@ export interface UpdateProductInput {
 /** Encomenda online (web_orders). Campos snake_case do raw SQL. */
 export type OrderStatus = 'PENDING' | 'PAID' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export interface WebOrder {
+  admin_seen_at?: string | null;
+  admin_hidden_at?: string | null;
   id: string;
   order_number: string;
   status: OrderStatus;
@@ -656,6 +658,7 @@ export interface StoreReviewRow {
   is_hidden: boolean; created_at: string; product_code: string; product_name: string;
 }
 export interface OpsAlert {
+  key?: string;
   level: 'info' | 'warning' | 'danger';
   category: 'STOCK' | 'CASH' | 'SALES';
   title: string;
@@ -1447,6 +1450,10 @@ export interface PublicRelease {
 export interface StoreMember {
   id: string; name: string; email: string; phone: string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED'; note: string | null; requestedAt: string | null; decidedAt: string | null;
+}
+
+export interface AdminNote {
+  id: string; kind: string; title: string; body: string | null; section: string | null; ref: string | null; read: boolean; createdAt: string;
 }
 
 export interface StoreBanner {

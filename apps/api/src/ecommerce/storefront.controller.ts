@@ -27,6 +27,7 @@ import { MembersService } from './members.service';
 import { BannersService } from './banners.service';
 import { AffiliatesService } from './affiliates.service';
 import { KwanzaService } from './kwanza.service';
+import { AdminNotificationsService } from './admin-notifications';
 import { IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 class CouponCheckDto {
@@ -77,6 +78,7 @@ export class StorefrontController {
     private readonly banners: BannersService,
     private readonly affiliates: AffiliatesService,
     private readonly kwanza: KwanzaService,
+    private readonly adminNotes: AdminNotificationsService,
   ) {}
 
   // ── Chat livre com a loja (cliente autenticado, sem encomenda) ─
@@ -559,6 +561,7 @@ export class StorefrontController {
       // Associado do marketplace central (LPS Kwanza): código global.
       await this.kwanza.attribute(tenant, code, result.id, dto.affiliateCode, buyer?.email ?? dto.customerEmail ?? null, markups).catch(() => undefined);
     }
+    await this.adminNotes.push(tenant.schema, { kind: 'ORDER', title: `Nova encomenda ${result.orderNumber}`, body: `${dto.customerName} · ${Number(result.grossTotal).toLocaleString('pt-PT')} Kz${dto.affiliateCode ? ' · via associado' : ''}`, section: 'orders', ref: result.id });
     // Lembra/atualiza o perfil do cliente (e sincroniza com o caixa/gestor):
     // assim, na próxima compra os dados já vêm preenchidos. Só ATUALIZA um
     // cliente existente com sessão desse mesmo email; anónimo apenas cria.

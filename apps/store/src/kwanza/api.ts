@@ -21,6 +21,9 @@ export interface Dashboard {
   withdrawals: { id: string; companyCode: string; companyName: string; amount: number; method: string; details: string | null; status: string; note: string | null; proofUrl: string | null; date: string }[];
 }
 export interface PayoutAccount { id: string; method: string; bank: string | null; holder: string; details: string; createdAt: string }
+export interface KNote { id: string; kind: string; title: string; body: string | null; link: string | null; read: boolean; createdAt: string }
+export interface KChat { companyCode: string; companyName: string; last: string; at: string; unread: number }
+export interface KMsg { id: string; sender: 'ASSOCIATE' | 'COMPANY'; senderName: string; body: string; createdAt: string }
 type Session = { token: string; associate: Associate };
 
 const KEY = 'ndombaxi.kwanza.session';
@@ -48,6 +51,14 @@ export const kw = {
   accounts: (t: string) => request<PayoutAccount[]>('GET', '/kwanza/me/accounts', undefined, t),
   addAccount: (t: string, b: { method: string; bank?: string; holder: string; details: string }) => request<{ ok: true }>('POST', '/kwanza/me/accounts', b, t),
   removeAccount: (t: string, id: string) => request<{ ok: true }>('DELETE', `/kwanza/me/accounts/${e(id)}`, undefined, t),
+  notes: (t: string) => request<{ unread: number; items: KNote[] }>('GET', '/kwanza/me/notifications', undefined, t),
+  notesRead: (t: string, ids: string[], read = true) => request<{ ok: true }>('POST', `/kwanza/me/notifications/${read ? 'read' : 'unread'}`, { ids }, t),
+  notesReadAll: (t: string) => request<{ ok: true }>('POST', '/kwanza/me/notifications/read-all', undefined, t),
+  notesDelete: (t: string, ids: string[]) => request<{ ok: true }>('POST', '/kwanza/me/notifications/delete', { ids }, t),
+  notesDeleteAll: (t: string) => request<{ ok: true }>('DELETE', '/kwanza/me/notifications', undefined, t),
+  chats: (t: string) => request<KChat[]>('GET', '/kwanza/me/chats', undefined, t),
+  chat: (t: string, c: string) => request<KMsg[]>('GET', `/kwanza/me/chats/${e(c)}`, undefined, t),
+  send: (t: string, c: string, body: string) => request<KMsg[]>('POST', `/kwanza/me/chats/${e(c)}`, { body }, t),
   withdraw: (t: string, companyCode: string, amount: number, accountId: string) => request<{ ok: true }>('POST', '/kwanza/me/withdrawals', { companyCode, amount, accountId }, t),
 };
 

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { ArrayMaxSize, IsArray, IsIn, IsString } from 'class-validator';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -8,6 +9,11 @@ import { TenantContext } from '../tenancy/tenant-context';
 import { PostMessageDto } from './dto/order-message.dto';
 import { OrderChatService } from './order-chat.service';
 import { OrdersService } from './orders.service';
+
+class OrdersBulkDto {
+  @IsArray() @ArrayMaxSize(500) @IsString({ each: true }) ids!: string[];
+  @IsIn(['seen', 'unseen', 'hide', 'restore']) action!: 'seen' | 'unseen' | 'hide' | 'restore';
+}
 
 /** Gestão de encomendas online (back-office autenticado). */
 @ApiTags('ecommerce')
@@ -21,8 +27,15 @@ export class OrdersController {
 
   @Get()
   @ApiOperation({ summary: 'Lista encomendas online' })
-  list() {
-    return this.orders.list(this.ctx.requireTenantSchema());
+  list(@Query('hidden') hidden?: string) {
+    return this.orders.list(this.ctx.requireTenantSchema(), hidden === '1');
+  }
+
+  @Post('bulk')
+  @Roles(Role.STORE_MANAGER)
+  @ApiOperation({ summary: 'Marca como vistas/novas, elimina da lista (só terminadas) ou restaura' })
+  bulk(@Body() dto: OrdersBulkDto) {
+    return this.orders.bulk(this.ctx.requireTenantSchema(), dto.ids, dto.action);
   }
 
   @Get('count/pending')
@@ -40,8 +53,10 @@ export class OrdersController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Detalhe de uma encomenda' })
-  get(@Param('id') id: string) {
-    return this.orders.get(this.ctx.requireTenantSchema(), id);
+  async get(@Param('id') id: string) {
+    const schema = this.ctx.requireTenantSchema();
+    await this.orders.markSeen(schema, id);
+    return this.orders.get(schema, id);
   }
 
   @Post(':id/pay')

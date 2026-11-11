@@ -8,6 +8,7 @@ import { MailService } from '../common/mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorefrontService } from './storefront.service';
 import { SOLD_STATUSES } from './affiliates.service';
+import { AdminNotificationsService } from './admin-notifications';
 
 /**
  * LPS KWANZA — marketplace central de associados (todas as empresas que aderirem).
@@ -42,6 +43,7 @@ export class KwanzaService implements OnModuleInit {
     private readonly config: ConfigService,
     private readonly mail: MailService,
     private readonly storefront: StorefrontService,
+    private readonly adminNotes: AdminNotificationsService,
   ) {}
 
   /** Mantém os preços/stock do marketplace alinhados com as lojas (a cada 10 min). */
@@ -223,6 +225,7 @@ export class KwanzaService implements OnModuleInit {
       ON CONFLICT ("associateId", "companyId", "productCode") DO UPDATE SET
         status = CASE WHEN ${T('kwanza_affiliations')}.status = 'APPROVED' THEN 'APPROVED' ELSE EXCLUDED.status END,
         note = COALESCE(EXCLUDED.note, ${T('kwanza_affiliations')}.note), "updatedAt" = now()`);
+    if (status === 'PENDING') await this.notifyCompany(l.companyId, { kind: 'KWANZA_REQUEST', title: `Pedido de afiliação de ${a.name}`, body: `Produto ${productCode}${note ? ` — “${note.slice(0, 120)}”` : ''}`, section: 'kwanza', ref: 'requests' });
     return { status };
   }
 
@@ -309,6 +312,7 @@ export class KwanzaService implements OnModuleInit {
       await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_listings')} SET sold = sold + ${Math.max(1, Math.round(num(it.q)))} WHERE "companyId" = ${tenant.companyId}::uuid AND "productCode" = ${it.code}`);
       any = true;
     }
+    if (any) await this.notifyAssociate(a.id, { kind: 'SALE', title: 'Nova venda pela tua ligação', body: `Encomenda ${items[0]?.n ?? ''} — a comissão fica disponível quando a loja a marcar como vendida.`, link: '#/vendas' });
     if (any) await this.prisma.runInTenant(tenant.schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE web_orders SET affiliate_code = ${code} WHERE id = ${orderId}::uuid AND affiliate_code IS NULL`)).catch(() => undefined);
   }
 
@@ -386,6 +390,7 @@ export class KwanzaService implements OnModuleInit {
     await this.prisma.$executeRaw(Prisma.sql`
       INSERT INTO ${T('kwanza_withdrawals')} (id, "associateId", "companyId", amount, method, details, status, "createdAt")
       VALUES (gen_random_uuid(), ${a.id}::uuid, ${pc.companyId}::uuid, ${v}, ${label}, ${`${acc.details} · ${acc.holder}`}, 'REQUESTED', now())`);
+    await this.notifyCompany(pc.companyId, { kind: 'KWANZA_WITHDRAWAL', title: `Pedido de saque de ${a.name}`, body: `${v.toLocaleString('pt-PT')} Kz · ${label}`, section: 'kwanza', ref: 'withdrawals' });
     return { ok: true as const };
   }
 
@@ -463,6 +468,9 @@ export class KwanzaService implements OnModuleInit {
         "commissionPct" = CASE WHEN ${pct !== undefined} THEN ${pct ?? null} ELSE "commissionPct" END, "updatedAt" = now()
       WHERE id = ${id}::uuid AND "companyId" = ${companyId}::uuid`);
     if (!n) throw new NotFoundException('Pedido não encontrado.');
+    const f = await this.prisma.$queryRaw<{ a: string; p: string; c: string }[]>(Prisma.sql`SELECT f."associateId"::text AS a, f."productCode" AS p, c.name AS c FROM ${T('kwanza_affiliations')} f JOIN nexus_public.companies c ON c.id = f."companyId" WHERE f.id = ${id}::uuid`);
+    if (f[0] && p.status) await this.notifyAssociate(f[0].a, { kind: p.status === 'APPROVED' ? 'AFF_APPROVED' : 'AFF_REJECTED', title: p.status === 'APPROVED' ? `Afiliação aprovada por ${f[0].c}` : `Afiliação recusada por ${f[0].c}`, body: `Produto ${f[0].p}`, link: '#/afiliacoes' });
+    else if (f[0] && pct !== undefined) await this.notifyAssociate(f[0].a, { kind: 'AFF_COMMISSION', title: `${f[0].c} negociou a tua comissão`, body: `Produto ${f[0].p}: ${pct ?? 'base'}%`, link: '#/afiliacoes' });
     return { ok: true as const };
   }
 
@@ -509,6 +517,103 @@ export class KwanzaService implements OnModuleInit {
       UPDATE ${T('kwanza_withdrawals')} SET status = ${paid ? 'PAID' : 'REJECTED'}, note = ${(note ?? '').trim().slice(0, 300) || null}, "proofUrl" = ${paid ? (proofUrl || null) : null}, "decidedAt" = now()
       WHERE id = ${id}::uuid AND "companyId" = ${companyId}::uuid AND status = 'REQUESTED'`);
     if (!n) throw new NotFoundException('Pedido de saque não encontrado ou já decidido.');
+    const w = await this.prisma.$queryRaw<{ a: string; v: unknown; c: string }[]>(Prisma.sql`SELECT w."associateId"::text AS a, w.amount AS v, c.name AS c FROM ${T('kwanza_withdrawals')} w JOIN nexus_public.companies c ON c.id = w."companyId" WHERE w.id = ${id}::uuid`);
+    if (w[0]) await this.notifyAssociate(w[0].a, { kind: paid ? 'WITHDRAWAL_PAID' : 'WITHDRAWAL_REJECTED', title: paid ? `${w[0].c} pagou o teu saque` : `${w[0].c} recusou o teu saque`, body: `${num(w[0].v).toLocaleString('pt-PT')} Kz${note ? ` — ${note.slice(0, 120)}` : ''}`, link: '#/saques' });
     return { ok: true as const };
+  }
+
+  /* ═══════════════ notificações ═══════════════ */
+  private async notifyCompany(companyId: string, n: { kind: string; title: string; body?: string; section?: string; ref?: string }) {
+    const c = await this.prisma.company.findUnique({ where: { id: companyId } }).catch(() => null);
+    if (c) await this.adminNotes.push(c.schemaName, n);
+  }
+  private async notifyAssociate(associateId: string, n: { kind: string; title: string; body?: string; link?: string }) {
+    await this.prisma.$executeRaw(Prisma.sql`
+      INSERT INTO ${T('kwanza_notifications')} (id, "associateId", kind, title, body, link, "createdAt")
+      VALUES (gen_random_uuid(), ${associateId}::uuid, ${n.kind}, ${n.title.slice(0, 160)}, ${(n.body ?? '').slice(0, 400) || null}, ${n.link ?? null}, now())`).catch(() => undefined);
+  }
+  async notifications(a: AssociateRow) {
+    const items = await this.prisma.$queryRaw<{ id: string; kind: string; title: string; body: string | null; link: string | null; readAt: Date | null; createdAt: Date }[]>(Prisma.sql`
+      SELECT id, kind, title, body, link, "readAt", "createdAt" FROM ${T('kwanza_notifications')} WHERE "associateId" = ${a.id}::uuid ORDER BY "createdAt" DESC LIMIT 200`);
+    return { unread: items.filter((i) => !i.readAt).length, items: items.map((i) => ({ id: i.id, kind: i.kind, title: i.title, body: i.body, link: i.link, read: !!i.readAt, createdAt: i.createdAt.toISOString() })) };
+  }
+  async markNotifications(a: AssociateRow, ids: string[] | 'all', read = true) {
+    if (ids === 'all') await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_notifications')} SET "readAt" = now() WHERE "associateId" = ${a.id}::uuid AND "readAt" IS NULL`);
+    else if (ids.length) await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_notifications')} SET "readAt" = ${read ? new Date() : null} WHERE "associateId" = ${a.id}::uuid AND id = ANY(${ids}::uuid[])`);
+    return { ok: true as const };
+  }
+  async deleteNotifications(a: AssociateRow, ids: string[] | 'all') {
+    if (ids === 'all') await this.prisma.$executeRaw(Prisma.sql`DELETE FROM ${T('kwanza_notifications')} WHERE "associateId" = ${a.id}::uuid`);
+    else if (ids.length) await this.prisma.$executeRaw(Prisma.sql`DELETE FROM ${T('kwanza_notifications')} WHERE "associateId" = ${a.id}::uuid AND id = ANY(${ids}::uuid[])`);
+    return { ok: true as const };
+  }
+
+  /* ═══════════════ chat associado ↔ empresa ═══════════════ */
+  private async companyByCode(code: string) {
+    const c = await this.prisma.company.findUnique({ where: { code } });
+    if (!c || c.status !== 'ACTIVE') throw new NotFoundException('Empresa não encontrada.');
+    return c;
+  }
+  async associateChats(a: AssociateRow) {
+    const rows = await this.prisma.$queryRaw<{ cid: string; code: string; name: string; last: string; at: Date; unread: bigint }[]>(Prisma.sql`
+      SELECT m."companyId"::text AS cid, c.code, c.name,
+        (SELECT body FROM ${T('kwanza_messages')} x WHERE x."associateId" = m."associateId" AND x."companyId" = m."companyId" ORDER BY "createdAt" DESC LIMIT 1) AS last,
+        MAX(m."createdAt") AS at,
+        COUNT(*) FILTER (WHERE m.sender = 'COMPANY' AND m."readAt" IS NULL) AS unread
+      FROM ${T('kwanza_messages')} m JOIN nexus_public.companies c ON c.id = m."companyId"
+      WHERE m."associateId" = ${a.id}::uuid GROUP BY m."companyId", m."associateId", c.code, c.name ORDER BY at DESC`);
+    // Empresas com quem já trabalha (afiliações) aparecem mesmo sem mensagens.
+    const affs = await this.prisma.$queryRaw<{ code: string; name: string }[]>(Prisma.sql`
+      SELECT DISTINCT c.code, c.name FROM ${T('kwanza_affiliations')} f JOIN nexus_public.companies c ON c.id = f."companyId" WHERE f."associateId" = ${a.id}::uuid`);
+    const out = rows.map((r) => ({ companyCode: r.code, companyName: r.name, last: r.last, at: r.at.toISOString(), unread: Number(r.unread) }));
+    for (const f of affs) if (!out.some((o) => o.companyCode === f.code)) out.push({ companyCode: f.code, companyName: f.name, last: '', at: '', unread: 0 });
+    return out;
+  }
+  async associateThread(a: AssociateRow, companyCode: string) {
+    const c = await this.companyByCode(companyCode);
+    await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_messages')} SET "readAt" = now() WHERE "associateId" = ${a.id}::uuid AND "companyId" = ${c.id}::uuid AND sender = 'COMPANY' AND "readAt" IS NULL`);
+    // Abrir a conversa marca como lidos os avisos dessa conversa.
+    await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_notifications')} SET "readAt" = now() WHERE "associateId" = ${a.id}::uuid AND kind = 'MESSAGE' AND link = ${`#/mensagens/${c.code}`} AND "readAt" IS NULL`).catch(() => undefined);
+    return this.thread(a.id, c.id);
+  }
+  async associateSend(a: AssociateRow, companyCode: string, body: string) {
+    const c = await this.companyByCode(companyCode);
+    const text = (body ?? '').trim().slice(0, 2000);
+    if (!text) throw new BadRequestException('Escreva a mensagem.');
+    await this.prisma.$executeRaw(Prisma.sql`INSERT INTO ${T('kwanza_messages')} (id, "associateId", "companyId", sender, "senderName", body, "createdAt") VALUES (gen_random_uuid(), ${a.id}::uuid, ${c.id}::uuid, 'ASSOCIATE', ${a.name}, ${text}, now())`);
+    await this.adminNotes.push(c.schemaName, { kind: 'KWANZA_MESSAGE', title: `Mensagem de ${a.name}`, body: text.slice(0, 160), section: 'kwanza', ref: `chat:${a.id}` });
+    return this.thread(a.id, c.id);
+  }
+  private async thread(associateId: string, companyId: string) {
+    const rows = await this.prisma.$queryRaw<{ id: string; sender: string; senderName: string; body: string; createdAt: Date }[]>(Prisma.sql`
+      SELECT id, sender, "senderName", body, "createdAt" FROM ${T('kwanza_messages')} WHERE "associateId" = ${associateId}::uuid AND "companyId" = ${companyId}::uuid ORDER BY "createdAt" ASC LIMIT 500`);
+    return rows.map((r) => ({ id: r.id, sender: r.sender, senderName: r.senderName, body: r.body, createdAt: r.createdAt.toISOString() }));
+  }
+  async companyChats(companyId: string) {
+    const rows = await this.prisma.$queryRaw<{ aid: string; name: string; phone: string; photo: string | null; last: string; at: Date; unread: bigint }[]>(Prisma.sql`
+      SELECT a.id::text AS aid, a.name, a.phone, a."photoUrl" AS photo,
+        (SELECT body FROM ${T('kwanza_messages')} x WHERE x."associateId" = a.id AND x."companyId" = ${companyId}::uuid ORDER BY "createdAt" DESC LIMIT 1) AS last,
+        MAX(m."createdAt") AS at, COUNT(*) FILTER (WHERE m.sender = 'ASSOCIATE' AND m."readAt" IS NULL) AS unread
+      FROM ${T('kwanza_messages')} m JOIN ${T('kwanza_associates')} a ON a.id = m."associateId"
+      WHERE m."companyId" = ${companyId}::uuid GROUP BY a.id ORDER BY at DESC`);
+    return rows.map((r) => ({ associateId: r.aid, name: r.name, phone: r.phone, photoUrl: r.photo, last: r.last, at: r.at.toISOString(), unread: Number(r.unread) }));
+  }
+  async companyThread(companyId: string, associateId: string) {
+    await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_messages')} SET "readAt" = now() WHERE "associateId" = ${associateId}::uuid AND "companyId" = ${companyId}::uuid AND sender = 'ASSOCIATE' AND "readAt" IS NULL`);
+    const co = await this.prisma.company.findUnique({ where: { id: companyId }, select: { schemaName: true } });
+    if (co?.schemaName) {
+      await this.prisma.runInTenant(co.schemaName, (tx) => tx.$executeRaw(Prisma.sql`UPDATE admin_notifications SET read_at = now() WHERE kind = 'KWANZA_MESSAGE' AND ref = ${`chat:${associateId}`} AND read_at IS NULL`)).catch(() => undefined);
+    }
+    return this.thread(associateId, companyId);
+  }
+  async companySend(companyId: string, associateId: string, senderName: string, body: string) {
+    const text = (body ?? '').trim().slice(0, 2000);
+    if (!text) throw new BadRequestException('Escreva a mensagem.');
+    const ok = await this.prisma.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT 1 AS n FROM ${T('kwanza_associates')} WHERE id = ${associateId}::uuid`);
+    if (!ok.length) throw new NotFoundException('Associado não encontrado.');
+    const c = await this.prisma.company.findUnique({ where: { id: companyId } });
+    await this.prisma.$executeRaw(Prisma.sql`INSERT INTO ${T('kwanza_messages')} (id, "associateId", "companyId", sender, "senderName", body, "createdAt") VALUES (gen_random_uuid(), ${associateId}::uuid, ${companyId}::uuid, 'COMPANY', ${c?.name ?? senderName}, ${text}, now())`);
+    await this.notifyAssociate(associateId, { kind: 'MESSAGE', title: `Mensagem de ${c?.name ?? 'uma empresa'}`, body: text.slice(0, 160), link: `#/mensagens/${c?.code ?? ''}` });
+    return this.thread(associateId, companyId);
   }
 }

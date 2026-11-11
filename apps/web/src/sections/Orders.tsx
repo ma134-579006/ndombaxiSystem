@@ -3,7 +3,7 @@ import { api, ApiError } from '../api/client';
 import type { OrderLocation, PublicWebcam, PublicWebcamsResult, OrderMessage, OrderStatus, WebOrder, WebOrderDetail } from '../api/types';
 import { IconCpu, IconTruck } from '../components/Icons';
 import { Modal } from '../components/ui';
-import { toast } from '../components/feedback';
+import { confirmDialog, toast } from '../components/feedback';
 import { LiveMap } from '../components/LiveMap';
 import { Compass, useNavigation } from '../components/RouteCompass';
 import { PublicCams, PublicCamView } from '../components/PublicCams';
@@ -18,6 +18,7 @@ const FILTERS: { key: '' | OrderStatus; label: string }[] = [
   { key: 'PAID', label: 'Pagas' },
   { key: 'SHIPPED', label: 'Expedidas' },
   { key: 'DELIVERED', label: 'Entregues' },
+  { key: 'CANCELLED', label: 'Canceladas' },
 ];
 
 const STATUS_TONE: Record<string, string> = {
@@ -48,12 +49,15 @@ export function Orders() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showGeo, setShowGeo] = useState(false);
+  const [trash, setTrash] = useState(false);
+  const [sel, setSel] = useState<Set<string>>(new Set());
 
+  const trashRef = useRef(false);
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     setError(null);
     try {
-      setOrders(await api.orders.list());
+      setOrders(await api.orders.list(trashRef.current));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar encomendas.');
     } finally {
@@ -106,47 +110,102 @@ export function Orders() {
   };
 
   const filtered = filter ? orders.filter((o) => o.status === filter) : orders;
+  const ids = [...sel].filter((id) => filtered.some((o) => o.id === id));
+  const toggle = (id: string) => setSel((s) => { const x = new Set(s); if (x.has(id)) x.delete(id); else x.add(id); return x; });
+  const switchTrash = (v: boolean) => { trashRef.current = v; setTrash(v); setSel(new Set()); void load(); };
+  const bulk = async (action: 'seen' | 'unseen' | 'hide' | 'restore', list = ids) => {
+    if (!list.length) return;
+    if (action === 'hide') {
+      const done = orders.filter((o) => list.includes(o.id) && (o.status === 'DELIVERED' || o.status === 'CANCELLED')).length;
+      if (!done) { toast.warning('Só é possível eliminar encomendas entregues ou canceladas.'); return; }
+      if (!(await confirmDialog({ message: `Eliminar ${done} encomenda(s) da lista?${done < list.length ? ` ${list.length - done} por terminar ficam.` : ''}`, confirmLabel: 'Eliminar', danger: true }))) return;
+    }
+    try {
+      const r = await api.orders.bulk(list, action);
+      if (action === 'hide') toast.success(`${r.updated} encomenda(s) eliminada(s)`);
+      else if (action === 'restore') toast.success(`${r.updated} encomenda(s) restaurada(s)`);
+      setSel(new Set()); await load({ silent: true });
+    } catch (e) { setError(e instanceof ApiError ? e.message : 'A operação falhou.'); }
+  };
+  const isNew = (o: WebOrder) => !o.admin_seen_at;
+  const unseen = orders.filter(isNew).length;
 
   return (
-    <>
-      <div className="content-head">
-        <h2>Encomendas online</h2>
+    <div className="vd-page">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Encomendas online</span><span className="sep">/</span><span>{trash ? 'Eliminadas' : 'Todas'}</span></p>
+        {!trash && unseen ? <span className="vd-badge warn">{unseen} nova(s)</span> : null}
         <span className="spacer" />
-        <div className="wrapcols" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {FILTERS.map((f) => (
-            <button key={f.label} className={`chip${filter === f.key ? ' active' : ''}`} onClick={() => setFilter(f.key)}>
-              {f.label}
-            </button>
-          ))}
+        <button className="vd-btn outline" onClick={() => switchTrash(!trash)}>{trash ? 'Voltar às encomendas' : 'Eliminadas'}</button>
+      </div>
+
+      {error ? <div className="vd-err" role="alert">{error}</div> : null}
+
+      <div className="vd-card vd-filters">
+        <div className="vd-seg od-seg" role="tablist" aria-label="Estado">
+          {FILTERS.map((f) => {
+            const n = f.key ? orders.filter((o) => o.status === f.key).length : orders.length;
+            return <button key={f.label} role="tab" aria-selected={filter === f.key} className={filter === f.key ? 'on' : ''} onClick={() => { setFilter(f.key); setSel(new Set()); }}>{f.label}{n ? <span className="od-n">{n}</span> : null}</button>;
+          })}
         </div>
       </div>
 
-      {error ? <div className="banner danger">{error}</div> : null}
-
-      <div className="card">
-        {loading ? (
-          <div className="loading">A carregar encomendas…</div>
-        ) : filtered.length === 0 ? (
-          <div className="empty">
-            <IconTruck size={40} />
-            <p>Sem encomendas neste filtro.</p>
+      <div className="vd-card vd-tablecard">
+        {ids.length ? (
+          <div className="vd-bulk">
+            <strong>{ids.length} selecionada(s)</strong><span className="spacer" />
+            <button className="vd-btn plain sm" onClick={() => setSel(new Set())}>Limpar</button>
+            {trash ? <button className="vd-btn sm" onClick={() => void bulk('restore')}>Restaurar</button> : (
+              <>
+                <button className="vd-btn outline sm" onClick={() => void bulk('seen')}>Marcar como vistas</button>
+                <button className="vd-btn outline sm" onClick={() => void bulk('unseen')}>Marcar como novas</button>
+                <button className="vd-btn danger sm" onClick={() => void bulk('hide')}>Eliminar</button>
+              </>
+            )}
           </div>
+        ) : null}
+        {loading ? <div className="vd-empty">A carregar…</div> : filtered.length === 0 ? (
+          <div className="vd-empty"><IconTruck size={36} /><div>{trash ? 'Sem encomendas eliminadas.' : 'Sem encomendas.'}</div></div>
         ) : (
-          filtered.map((o) => (
-            <div className="list-row" key={o.id} style={{ cursor: 'pointer' }} onClick={() => open(o.id)}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>
-                  {o.order_number}{' '}
-                  <span className="muted" style={{ fontWeight: 500 }}>· {o.customer_name || 'Cliente'}</span>
-                </div>
-                <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>
-                  {[o.province, o.municipality].filter(Boolean).join(', ') || '—'} · {formatDate(o.created_at)}
-                </div>
-              </div>
-              <strong>{formatKz(o.gross_total)}</strong>
-              <OrderBadge status={o.status} />
-            </div>
-          ))
+          <div className="vd-tablewrap">
+            <table className="vd-table od-table">
+              <thead>
+                <tr>
+                  <th className="ctr"><input type="checkbox" aria-label="Selecionar todas" checked={filtered.length > 0 && filtered.every((o) => sel.has(o.id))} onChange={(e) => setSel(e.target.checked ? new Set(filtered.map((o) => o.id)) : new Set())} /></th>
+                  <th>Encomenda</th><th>Cliente</th><th>Local</th><th>Data</th><th className="num">Total</th><th className="ctr">Estado</th><th />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((o) => (
+                  <tr key={o.id} className={`${isNew(o) && !trash ? 'od-new' : ''}${sel.has(o.id) ? ' od-sel' : ''}`}>
+                    <td className="ctr"><input type="checkbox" checked={sel.has(o.id)} onChange={() => toggle(o.id)} aria-label={`Selecionar ${o.order_number}`} /></td>
+                    <td><button className="vd-link od-num" onClick={() => void open(o.id)}>{isNew(o) && !trash ? <i className="od-dot" aria-label="Nova" /> : null}{o.order_number}</button></td>
+                    <td>{o.customer_name || 'Cliente'}</td>
+                    <td>{[o.province, o.municipality].filter(Boolean).join(', ') || '—'}</td>
+                    <td>{formatDate(o.created_at)}</td>
+                    <td className="num"><strong>{formatKz(o.gross_total)}</strong></td>
+                    <td className="ctr"><OrderBadge status={o.status} /></td>
+                    <td className="ctr">
+                      <div className="vd-opts od-acts">
+                        {trash ? <button className="vd-btn outline sm" onClick={() => void bulk('restore', [o.id])}>Restaurar</button> : (
+                          <>
+                            <button className="od-ic" title={isNew(o) ? 'Marcar como vista' : 'Marcar como nova'} aria-label={isNew(o) ? 'Marcar como vista' : 'Marcar como nova'} onClick={() => void bulk(isNew(o) ? 'seen' : 'unseen', [o.id])}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{isNew(o) ? <path d="M20 6 9 17l-5-5" /> : <circle cx="12" cy="12" r="5" />}</svg>
+                            </button>
+                            {o.status === 'DELIVERED' || o.status === 'CANCELLED' ? (
+                              <button className="od-ic danger" title="Eliminar" aria-label="Eliminar" onClick={() => void bulk('hide', [o.id])}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>
+                              </button>
+                            ) : null}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -257,7 +316,7 @@ export function Orders() {
           )}
         </Modal>
       ) : null}
-    </>
+    </div>
   );
 }
 

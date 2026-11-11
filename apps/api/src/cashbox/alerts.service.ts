@@ -7,7 +7,11 @@ export interface Alert {
   category: 'STOCK' | 'CASH' | 'SALES';
   title: string;
   detail: string;
+  /** Chave estável do alerta (categoria + título + detalhe) — usada para o eliminar. */
+  key?: string;
 }
+
+const keyOf = (a: Alert) => `${a.category}|${a.title}|${a.detail}`.slice(0, 500);
 
 /**
  * Centro de alertas do gestor: reúne sinais que exigem atenção —
@@ -39,8 +43,8 @@ export class AlertsService {
       }
 
       // 2. Quebras de caixa nos últimos 7 dias.
-      const breaks = await tx.$queryRaw<{ opened_by_name: string | null; difference: string; closed_at: Date }[]>(
-        Prisma.sql`SELECT opened_by_name, difference, closed_at FROM cash_sessions
+      const breaks = await tx.$queryRaw<{ id: string; opened_by_name: string | null; difference: string; closed_at: Date }[]>(
+        Prisma.sql`SELECT id::text AS id, opened_by_name, difference, closed_at FROM cash_sessions
                    WHERE status = 'CLOSED' AND difference <> 0 AND closed_at >= now() - interval '7 days'
                    ORDER BY closed_at DESC LIMIT 20`,
       );
@@ -51,12 +55,13 @@ export class AlertsService {
           category: 'CASH',
           title: d < 0 ? `Quebra de caixa: ${b.opened_by_name ?? '—'}` : `Sobra de caixa: ${b.opened_by_name ?? '—'}`,
           detail: `${d.toLocaleString('pt-PT')} Kz · ${new Date(b.closed_at).toLocaleDateString('pt-PT')}`,
+          key: `CASH|break|${b.id}`,
         });
       }
 
       // 3. Turnos abertos há mais de 16h (provavelmente esquecidos por fechar).
-      const stale = await tx.$queryRaw<{ opened_by_name: string | null; opened_at: Date }[]>(
-        Prisma.sql`SELECT opened_by_name, opened_at FROM cash_sessions
+      const stale = await tx.$queryRaw<{ id: string; opened_by_name: string | null; opened_at: Date }[]>(
+        Prisma.sql`SELECT id::text AS id, opened_by_name, opened_at FROM cash_sessions
                    WHERE status = 'OPEN' AND opened_at < now() - interval '16 hours' LIMIT 20`,
       );
       for (const s of stale) {
@@ -65,6 +70,7 @@ export class AlertsService {
           category: 'CASH',
           title: `Turno por fechar: ${s.opened_by_name ?? '—'}`,
           detail: `Aberto desde ${new Date(s.opened_at).toLocaleString('pt-PT')}`,
+          key: `CASH|open|${s.id}`,
         });
       }
 
@@ -144,7 +150,25 @@ export class AlertsService {
         });
       }
 
-      return alerts;
+      // Os eliminados no painel não voltam a aparecer (um alerta com detalhe novo é outro alerta).
+      const gone = await tx.$queryRaw<{ key: string }[]>(Prisma.sql`SELECT key FROM dismissed_alerts`).catch(() => [] as { key: string }[]);
+      const hidden = new Set(gone.map((g) => g.key));
+      return alerts.map((a) => ({ ...a, key: a.key ?? keyOf(a) })).filter((a) => !hidden.has(a.key));
     });
+  }
+
+  async dismiss(schema: string, keys: string[] | 'all') {
+    const list = keys === 'all' ? (await this.list(schema)).map((a) => a.key as string) : keys.map((k) => String(k).slice(0, 500));
+    if (!list.length) return { dismissed: 0 };
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`
+      INSERT INTO dismissed_alerts (key) SELECT unnest(${list}::text[]) ON CONFLICT (key) DO NOTHING`));
+    // Limpeza: chaves com mais de 180 dias já não correspondem a alertas atuais.
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`DELETE FROM dismissed_alerts WHERE dismissed_at < now() - interval '180 days'`)).catch(() => undefined);
+    return { dismissed: list.length };
+  }
+
+  async restoreAll(schema: string) {
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`DELETE FROM dismissed_alerts`));
+    return { ok: true as const };
   }
 }

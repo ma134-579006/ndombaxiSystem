@@ -748,3 +748,35 @@ model KwanzaPasswordReset {
   @@map("kwanza_password_resets")
   @@schema("nexus_public")
 }
+
+/// LPS Kwanza: conversa entre um associado e uma empresa.
+model KwanzaMessage {
+  id          String    @id @default(uuid()) @db.Uuid
+  associateId String    @db.Uuid
+  companyId   String    @db.Uuid
+  sender      String // ASSOCIATE | COMPANY
+  senderName  String
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([associateId, companyId])
+  @@map("kwanza_messages")
+  @@schema("nexus_public")
+}
+
+/// LPS Kwanza: notificações do associado (afiliação aprovada, venda, saque pago, mensagem).
+model KwanzaNotification {
+  id          String    @id @default(uuid()) @db.Uuid
+  associateId String    @db.Uuid
+  kind        String
+  title       String
+  body        String?
+  link        String?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([associateId, createdAt])
+  @@map("kwanza_notifications")
+  @@schema("nexus_public")
+}
