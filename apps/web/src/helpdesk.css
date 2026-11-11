@@ -54,7 +54,7 @@
 .hd-x:hover, .hd-icbtn:hover { background: var(--hd-soft); }
 
 /* Início */
-.hd-home { background: linear-gradient(180deg, color-mix(in srgb, var(--hd-primary) 7%, #fff) 0, #fff 260px); }
+.hd-home { background: #fff; background: linear-gradient(180deg, #f3f4fe 0, #fff 260px); background: linear-gradient(180deg, color-mix(in srgb, var(--hd-primary) 7%, #fff) 0, #fff 260px); }
 .hd-home-top { display: flex; align-items: center; justify-content: space-between; padding: 24px 28px 0 40px; }
 .hd-logo { height: 40px; width: auto; max-width: 190px; object-fit: contain; }
 .hd-msgr .hd-hello { margin: 64px 40px 32px; font-size: 28px; line-height: 1.25; font-weight: 600; letter-spacing: -.01em; color: var(--hd-text); }
@@ -110,7 +110,7 @@
 .hd-body .sc-msg.me { align-self: flex-end; background: var(--hd-primary) !important; background-image: none !important; color: #fff; }
 .hd-quick { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .hd-quick button { padding: 8px 14px; border: 1px solid var(--hd-primary); border-radius: 999px; background: #fff; color: var(--hd-primary); font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s ease; }
-.hd-quick button:hover { background: color-mix(in srgb, var(--hd-primary) 8%, #fff); }
+.hd-quick button:hover { background: #eef0ff; background: color-mix(in srgb, var(--hd-primary) 8%, #fff); }
 .hd-composer {
   flex: none; display: flex; align-items: center; gap: 8px; margin: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   padding: 6px 6px 6px 16px; border: 1px solid var(--hd-line); border-radius: 12px; transition: border-color .15s ease, box-shadow .15s ease;
