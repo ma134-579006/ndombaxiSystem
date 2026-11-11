@@ -96,6 +96,7 @@ const enc = encodeURIComponent;
 export const api = {
   site: (code: string) => request<SiteResponse>('GET', `/store/${enc(code)}/site`),
   catalog: (code: string) => request<CatalogResponse>('GET', `/store/${enc(code)}/catalog`),
+  refMarkups: (code: string, ref: string) => request<Record<string, number>>('GET', `/store/${enc(code)}/ref-markups?ref=${enc(ref)}`),
   paymentMethods: (code: string) =>
     request<PaymentMethod[]>('GET', `/store/${enc(code)}/payment-methods`),
   coupons: (code: string) => request<PublicCoupon[]>('GET', `/store/${enc(code)}/coupons`),

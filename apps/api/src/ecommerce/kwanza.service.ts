@@ -252,8 +252,23 @@ export class KwanzaService implements OnModuleInit {
     }));
   }
 
+  /** Preço próprio aprovado do associado (só produtos publicados que o permitem): { códigoProduto: % }. */
+  async markupsFor(companyId: string, rawCode: string | undefined): Promise<Record<string, number>> {
+    const code = (rawCode ?? '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{6}$/.test(code)) return {};
+    const rows = await this.prisma.$queryRaw<{ p: string; mk: unknown; max: unknown }[]>(Prisma.sql`
+      SELECT f."productCode" AS p, f."markupPct" AS mk, l."maxMarkupPct" AS max
+      FROM ${T('kwanza_affiliations')} f
+      JOIN ${T('kwanza_associates')} a ON a.id = f."associateId" AND a.code = ${code} AND a.status = 'ACTIVE'
+      JOIN ${T('kwanza_listings')} l ON l."companyId" = f."companyId" AND l."productCode" = f."productCode" AND l.active = TRUE AND l."allowMarkup" = TRUE
+      WHERE f."companyId" = ${companyId}::uuid AND f.status = 'APPROVED' AND f."markupPct" > 0`);
+    const out: Record<string, number> = {};
+    for (const r of rows) out[r.p] = Math.min(num(r.mk), r.max == null ? 100 : num(r.max));
+    return out;
+  }
+
   /* ═══════════════ atribuição na encomenda (chamada pelo checkout de cada loja) ═══════════════ */
-  async attribute(tenant: { companyId: string; schema: string }, companyCode: string, orderId: string, rawCode: string | undefined, buyerEmail: string | null) {
+  async attribute(tenant: { companyId: string; schema: string }, companyCode: string, orderId: string, rawCode: string | undefined, buyerEmail: string | null, markups: Record<string, number> = {}) {
     const code = (rawCode ?? '').trim().toUpperCase();
     if (!/^[A-Z0-9]{6}$/.test(code)) return;
     // Código de um associado da própria loja: já tratado pelo programa da loja (sem comissão a dobrar).
@@ -281,10 +296,15 @@ export class KwanzaService implements OnModuleInit {
       if (f && f.status === 'REJECTED') continue;
       const pct = f?.pct == null ? num(l.pct) : num(f.pct);
       if (pct <= 0) continue;
-      const base = num(it.g);
+      // Com preço próprio, a linha já vem com o acréscimo: a comissão é sobre o preço base
+      // e o acréscimo inteiro fica para o associado.
+      const mk = markups[it.code] ?? 0;
+      const gross = num(it.g);
+      const base = mk > 0 ? r2(gross / (1 + mk / 100)) : gross;
+      const markupAmount = r2(gross - base);
       await this.prisma.$executeRaw(Prisma.sql`
         INSERT INTO ${T('kwanza_commissions')} (id, "associateId", "companyId", "companyCode", "orderId", "orderNumber", "productCode", "productName", quantity, "baseAmount", percent, amount, "markupAmount", "createdAt")
-        VALUES (gen_random_uuid(), ${a.id}::uuid, ${tenant.companyId}::uuid, ${companyCode}, ${orderId}::uuid, ${it.n}, ${it.code}, ${it.name}, ${num(it.q)}, ${base}, ${pct}, ${r2((base * pct) / 100)}, 0, now())
+        VALUES (gen_random_uuid(), ${a.id}::uuid, ${tenant.companyId}::uuid, ${companyCode}, ${orderId}::uuid, ${it.n}, ${it.code}, ${it.name}, ${num(it.q)}, ${base}, ${pct}, ${r2((base * pct) / 100 + markupAmount)}, ${markupAmount}, now())
         ON CONFLICT ("companyId", "orderId", "productCode") DO NOTHING`);
       await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_listings')} SET sold = sold + ${Math.max(1, Math.round(num(it.q)))} WHERE "companyId" = ${tenant.companyId}::uuid AND "productCode" = ${it.code}`);
       any = true;
