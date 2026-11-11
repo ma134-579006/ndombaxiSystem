@@ -741,3 +741,49 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS member_s
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS member_note TEXT;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS member_requested_at TIMESTAMPTZ;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS member_decided_at TIMESTAMPTZ;
+
+-- Loja de associados: anúncios (carrossel da página inicial) geridos no painel.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."store_banners" (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title        TEXT NOT NULL,
+  subtitle     TEXT,
+  image_url    TEXT,
+  link_url     TEXT,
+  button_label TEXT,
+  sort_order   INT NOT NULL DEFAULT 0,
+  is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- LPS Kwanza: programa de associados (comissão por produto, código pessoal, saldo e saques).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS affiliate_percent NUMERIC(5,2);
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS affiliate_code TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS customers_affiliate_code_uq ON "{{SCHEMA}}"."customers"(affiliate_code) WHERE affiliate_code IS NOT NULL;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS affiliate_customer_id UUID;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS affiliate_code TEXT;
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."affiliate_commissions" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id    UUID NOT NULL REFERENCES "{{SCHEMA}}"."web_orders"(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE CASCADE,
+  product_id  UUID REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE SET NULL,
+  quantity    NUMERIC(14,3) NOT NULL DEFAULT 1,
+  base_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
+  percent     NUMERIC(5,2) NOT NULL DEFAULT 0,
+  amount      NUMERIC(14,2) NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (order_id, product_id)
+);
+CREATE INDEX IF NOT EXISTS affiliate_commissions_customer_idx ON "{{SCHEMA}}"."affiliate_commissions"(customer_id);
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."affiliate_withdrawals" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE CASCADE,
+  amount      NUMERIC(14,2) NOT NULL,
+  method      TEXT NOT NULL,
+  details     TEXT,
+  status      TEXT NOT NULL DEFAULT 'REQUESTED',
+  note        TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  decided_at  TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS affiliate_withdrawals_customer_idx ON "{{SCHEMA}}"."affiliate_withdrawals"(customer_id);

@@ -24,6 +24,27 @@ import type {
   RepairStatus,
 } from './types';
 
+/* Associado que trouxe o cliente (?ref=CÓDIGO): guardado 30 dias por loja; o último clique ganha. */
+const REF_KEY = (code: string) => `ndombaxi.kw.ref.${code}`;
+export function captureAffiliateRef(code: string): void {
+  try {
+    const ref = new URLSearchParams(window.location.search).get('ref') ?? new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('ref');
+    if (ref && /^[A-Za-z0-9]{6}$/.test(ref)) localStorage.setItem(REF_KEY(code), JSON.stringify({ ref: ref.toUpperCase(), at: Date.now() }));
+  } catch { /* armazenamento indisponível */ }
+}
+export function readAffiliateRef(code: string): string | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(REF_KEY(code)) || 'null') as { ref: string; at: number } | null;
+    return v && Date.now() - v.at < 30 * 86400000 ? v.ref : null;
+  } catch { return null; }
+}
+
+export interface AffiliateSummary {
+  code: string; pending: number; available: number; withdrawn: number; requested: number; balance: number;
+  sales: { orderNumber: string; date: string; product: string; quantity: number; amount: number; state: 'PENDING' | 'AVAILABLE' | 'CANCELLED' }[];
+  withdrawals: { id: string; amount: number; method: string; status: string; date: string; note: string | null }[];
+}
+
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) {
     super(message);
@@ -84,7 +105,7 @@ export const api = {
   submitReview: (code: string, productCode: string, body: { rating: number; comment?: string }, token: string) =>
     request<{ ok: true }>('POST', `/store/${enc(code)}/products/${enc(productCode)}/reviews`, body, token),
   checkout: (code: string, input: CheckoutInput, token?: string) =>
-    request<CheckoutResult>('POST', `/store/${enc(code)}/checkout`, input, token),
+    request<CheckoutResult>('POST', `/store/${enc(code)}/checkout`, { ...input, affiliateCode: readAffiliateRef(code) ?? undefined }, token),
   visualSearch: (code: string, imageBase64: string, mimeType?: string) =>
     request<{ available: boolean; products: CatalogProduct[]; message?: string }>(
       'POST', `/store/${enc(code)}/visual-search`, { imageBase64, mimeType }),
@@ -136,6 +157,14 @@ export const api = {
     request<{ status: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED' }>('GET', `/store/${enc(code)}/my/membership`, undefined, token),
   requestMembership: (code: string, token: string, note?: string) =>
     request<{ status: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED' }>('POST', `/store/${enc(code)}/my/membership/request`, { note }, token),
+  membersBanners: (code: string, token: string) =>
+    request<Array<{ id: string; title: string; subtitle: string | null; imageUrl: string | null; linkUrl: string | null; buttonLabel: string | null }>>('GET', `/store/${enc(code)}/members/banners`, undefined, token),
+  membersMarket: (code: string, token: string) =>
+    request<Array<{ productCode: string; percent: number }>>('GET', `/store/${enc(code)}/members/market`, undefined, token),
+  membersAffiliate: (code: string, token: string) =>
+    request<AffiliateSummary>('GET', `/store/${enc(code)}/members/affiliate`, undefined, token),
+  membersWithdraw: (code: string, token: string, body: { amount: number; method: string; details: string }) =>
+    request<{ ok: true }>('POST', `/store/${enc(code)}/members/withdrawals`, body, token),
   membersCatalog: (code: string, token: string) =>
     request<CatalogResponse>('GET', `/store/${enc(code)}/members/catalog`, undefined, token),
   myOrders: (code: string, token: string) =>

@@ -84,6 +84,11 @@ import type {
   OpsAlert,
   StoreCoupon,
   StoreMember,
+  StoreBanner,
+  AffiliateProductRow,
+  AffiliateAssociateRow,
+  AffiliateWithdrawalRow,
+  StoreBannerInput,
   StoreCouponInput,
   StoreReviewRow,
   ProfitAbcRow,
@@ -952,6 +957,20 @@ export const api = {
     remove: (id: string) => request<{ id: string }>('DELETE', `/promotions/${id}`),
   },
   // ── Loja online: cupões e avaliações (gestão) ─────────────
+  affiliates: {
+    products: (q?: string) => request<AffiliateProductRow[]>('GET', `/ecommerce/affiliates/products${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    setPercent: (code: string, percent: number | null) => request<{ ok: true }>('PATCH', `/ecommerce/affiliates/products/${encodeURIComponent(code)}`, { percent }),
+    associates: () => request<AffiliateAssociateRow[]>('GET', '/ecommerce/affiliates/associates'),
+    withdrawals: () => request<AffiliateWithdrawalRow[]>('GET', '/ecommerce/affiliates/withdrawals'),
+    pay: (id: string, note?: string) => request<{ ok: true }>('POST', `/ecommerce/affiliates/withdrawals/${id}/pay`, { note }),
+    reject: (id: string, note?: string) => request<{ ok: true }>('POST', `/ecommerce/affiliates/withdrawals/${id}/reject`, { note }),
+  },
+  banners: {
+    list: () => request<StoreBanner[]>('GET', '/ecommerce/banners'),
+    create: (dto: StoreBannerInput) => request<StoreBanner>('POST', '/ecommerce/banners', dto),
+    update: (id: string, dto: StoreBannerInput) => request<StoreBanner>('PATCH', `/ecommerce/banners/${id}`, dto),
+    remove: (id: string) => request<{ id: string }>('DELETE', `/ecommerce/banners/${id}`),
+  },
   members: {
     list: (status?: string) => request<StoreMember[]>('GET', `/ecommerce/members${status ? `?status=${status}` : ''}`),
     approve: (id: string) => request<{ ok: true }>('POST', `/ecommerce/members/${id}/approve`),

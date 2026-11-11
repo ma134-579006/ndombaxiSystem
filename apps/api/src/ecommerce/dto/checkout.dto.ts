@@ -56,6 +56,12 @@ export class CustomerLocationDto {
 }
 
 export class CheckoutDto {
+  /** Código do associado que trouxe o cliente (ligação ?ref=…; último clique). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  affiliateCode?: string;
+
   /** Código de cupão (opcional; exige sessão do cliente). */
   @IsOptional()
   @IsString()

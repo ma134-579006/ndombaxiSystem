@@ -207,6 +207,14 @@ export function Storefront() {
   });
   const openCategory = (c: string) => { setCat(c); setSearch(''); setView('results'); window.scrollTo({ top: 0 }); };
   const openProduct = (p: CatalogProduct) => { markSeen(code, p.code); setSelected(p); setView('product'); };
+  // Ligação direta a um produto (?p=CÓDIGO), usada pelas ligações dos associados da LPS Kwanza.
+  const deepLinked = useRef(false);
+  useEffect(() => {
+    if (deepLinked.current || !products.length) return;
+    const pc = new URLSearchParams(window.location.search).get('p');
+    const hit = pc ? products.find((x) => x.code === pc) : undefined;
+    if (hit) { deepLinked.current = true; openProduct(hit); }
+  }, [products]); // eslint-disable-line react-hooks/exhaustive-deps
   const openAll = (o?: { promo?: boolean; sort?: Sort }) => {
     setCat(''); setSearch(''); clearFilters();
     if (o?.promo) setOnlyPromo(true);
