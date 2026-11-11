@@ -1739,7 +1739,7 @@ html.touch-ui .btn.sm { min-height: 40px; }
 @keyframes langDrop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
 
 /* ── Login / registo: retoque (mesmo layout e cores) ─────────────────────── */
-.auth-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.auth-top { position: relative; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px; } /* acima do título e dos campos (a animação de entrada cria camadas próprias) */
 .auth-top .auth-logo-wide { margin-bottom: 0; }
 .auth-top + * { margin-top: clamp(8px, calc(1.6vh / var(--uz, 1)), 16px); }
 .auth-input { transition: border-color var(--nx-dur-micro, .12s) var(--nx-ease-out, ease), box-shadow var(--nx-dur-enter, .2s) var(--nx-ease-out, ease), background var(--nx-dur-enter, .2s) var(--nx-ease-out, ease); }
