@@ -13,6 +13,7 @@ import { initFloatingMenus } from './floatingMenus';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { mandatoryUpdate } from './update/mandatoryUpdate';
 import { isNativeApp } from './config';
+import { startI18n } from '@nexus/i18n';
 
 // APLICAÇÃO INSTALADA: marca-se o documento para o CSS poder distinguir a app
 // do site. Serve para o conteúdo OCUPAR O ECRÃ TODO quando a janela está
@@ -22,6 +23,7 @@ import { isNativeApp } from './config';
 if (isNativeApp()) document.documentElement.classList.add('app-instalada');
 
 initTheme();
+void startI18n(); // idioma do sistema (PT/EN/FR/ES), partilhado com a Caixa
 initTouchUi(); // ecrãs táteis: comportamento de telemóvel + campos acima do teclado
 initAutoUpdate(); // recarrega sozinho quando há nova versão publicada
 // Verificação da versão INSTALADA (app Windows/Android) contra o servidor

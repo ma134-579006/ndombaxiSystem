@@ -13,8 +13,10 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { TransferHost } from './transfer';
 import { mandatoryUpdate } from './update/mandatoryUpdate';
 import { isSaleInProgress } from './pos/saleActivity';
+import { startI18n } from '@nexus/i18n';
 
 initTheme();
+void startI18n(); // idioma do sistema (PT/EN/FR/ES), o mesmo da gestão
 initTouchUi(); // ecrãs táteis: comportamento de telemóvel + campos acima do teclado
 initScrollReveal();
 initPaper();

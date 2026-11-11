@@ -17,6 +17,7 @@ import { SupportChat } from '../components/SupportChat';
 import { FeedbackSection } from '../components/FeedbackSection';
 import { DownloadApps } from '../sections/DownloadApps';
 import { LANGS, dict, fill, initialLang, type LandingLang } from './landingI18n';
+import { getLang, setLang as setSystemLang } from '@nexus/i18n';
 import '../landingV.css';
 import { initLandingReveal } from '../landingReveal';
 
@@ -141,7 +142,9 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem('lps:lang', lang); } catch { /* */ }
+    // O idioma da página inicial é o do SISTEMA: escolhido aqui, vale também
+    // para o login, a gestão, o super admin e a Caixa (@nexus/i18n).
+    if (getLang() !== lang) setSystemLang(lang);
     document.documentElement.lang = lang === 'pt' ? 'pt-AO' : lang;
   }, [lang]);
 

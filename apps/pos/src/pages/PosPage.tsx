@@ -37,6 +37,7 @@ import { SalaryAdvanceModal } from '../components/SalaryAdvanceModal';
 import { LeaveRequestModal } from '../components/LeaveRequestModal';
 import { IdleLock } from '../components/IdleLock';
 import { ThemePicker } from '../components/ThemePicker';
+import { LangPicker } from '../components/LangPicker';
 import { PaymentModal } from '../components/PaymentModal';
 import { IconReceipt } from '../components/Icons';
 import { cartTotals, cartTotalsWithDiscount, lineGross, lineIva, lineNet, type CartLine } from '../pos/cart';
@@ -1161,6 +1162,7 @@ export function PosPage() {
           <button className={`icon-btn${kbd.enabled ? ' on' : ''}`} onClick={kbd.toggle} title="Teclado no ecrã" aria-label="Teclado no ecrã">
             <IconKeyboard size={20} />
           </button>
+          <LangPicker />
           <ThemePicker />
           <OperatorMenu
             photo={operatorPhoto}

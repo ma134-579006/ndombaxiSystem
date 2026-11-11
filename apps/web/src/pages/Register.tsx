@@ -5,7 +5,8 @@ import type { PublicPlan } from '../api/types';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
-import { ScreenKeyboard } from '../components/ScreenKeyboard';
+import { LOGO_WIDE } from '../brand';
+import { LangPicker } from '../components/LangPicker';
 
 /**
  * Criar conta de empresa — registo SIMPLES (só email + palavra-passe ou Google).
@@ -62,7 +63,11 @@ export function Register({ onBack }: { onBack?: () => void }) {
   return (
     <div className="auth">
       <div className="auth-panel">
-        <div className="auth-form">
+        <div className="auth-form auth-enter">
+          <div className="auth-top">
+            <img className="auth-logo-wide" src={LOGO_WIDE} alt="LPS Vendas" />
+            <LangPicker variant="dark" />
+          </div>
           <h1 className="auth-title">Criar conta</h1>
 
           {error ? <div className="auth-error">{error}</div> : null}
@@ -101,7 +106,6 @@ export function Register({ onBack }: { onBack?: () => void }) {
         </div>
       </div>
       <div className="auth-media"><LoginShowcase /></div>
-      <ScreenKeyboard />
     </div>
   );
 }

@@ -77,8 +77,11 @@
 .lv-menu > a:hover, .lv-menu > button:hover, .lv-menu > button.on { background: var(--lv-brand-50); color: var(--lv-brand); }
 .lv-menu b { width: 26px; font-size: 12px; color: #8a93ad; }
 @keyframes lvDrop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-.lv-burger { display: none; width: 42px; height: 42px; border: 0; background: none; cursor: pointer; flex-direction: column; justify-content: center; gap: 5px; padding: 0 9px; }
-.lv-burger span { display: block; height: 2px; background: var(--lv-ink); border-radius: 2px; }
+.lv-burger { display: none; width: 42px; height: 42px; border: 0; background: none; cursor: pointer; flex-direction: column; justify-content: center; gap: 5px; padding: 0 9px; color: var(--lv-ink); }
+/* Linhas desenhadas como TRAÇO (border), não como fundo: o modo escuro forçado
+   dos telemóveis (Chrome/Samsung Internet) escurece os fundos e deixava as
+   linhas escuras sobre a barra escurecida — o botão ficava invisível. */
+.lv-burger span { display: block; height: 0; border-top: 2px solid currentColor; border-radius: 2px; }
 .lv-mmenu { display: none; }
 
 /* ── Hero ──────────────────────────────────────────────── */
