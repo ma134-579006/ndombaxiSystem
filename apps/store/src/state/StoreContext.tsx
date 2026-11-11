@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api, ApiError } from '../api/client';
+import { api, ApiError, captureAffiliateRef } from '../api/client';
 import type { CatalogProduct, PaymentMethod, SiteSettings } from '../api/types';
 import { INITIAL_STORE_CODE } from '../config';
 import { OPEN_STORE_EVENT, takePendingStoreCode } from '../native';
@@ -85,6 +85,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener(OPEN_STORE_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_STORE_EVENT, onOpen);
   }, [setCode]);
+
+  useEffect(() => { if (code) captureAffiliateRef(code); }, [code]);
 
   const load = useCallback(async () => {
     if (!code) {

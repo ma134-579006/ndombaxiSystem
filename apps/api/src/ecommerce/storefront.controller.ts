@@ -24,6 +24,8 @@ import { ClinicService } from '../clinic/clinic.service';
 import { OnlineAppointmentDto, OnlineReservationDto, OnlineServiceRequestDto } from './dto/online-request.dto';
 import { MarketingService } from './marketing.service';
 import { MembersService } from './members.service';
+import { BannersService } from './banners.service';
+import { AffiliatesService } from './affiliates.service';
 import { IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 class CouponCheckDto {
@@ -32,6 +34,11 @@ class CouponCheckDto {
 }
 class MemberRequestDto {
   @IsOptional() @IsString() @MaxLength(300) note?: string;
+}
+class WithdrawalDto {
+  @IsNumber() @Min(1) amount!: number;
+  @IsString() @MaxLength(40) method!: string;
+  @IsString() @MaxLength(300) details!: string;
 }
 class ReviewDto {
   @IsInt() @Min(1) @Max(5) rating!: number;
@@ -59,6 +66,8 @@ export class StorefrontController {
     private readonly clinic: ClinicService,
     private readonly marketing: MarketingService,
     private readonly members: MembersService,
+    private readonly banners: BannersService,
+    private readonly affiliates: AffiliatesService,
   ) {}
 
   // ── Chat livre com a loja (cliente autenticado, sem encomenda) ─
@@ -358,6 +367,42 @@ export class StorefrontController {
     return this.members.request(tenant.schema, claims.email, dto.note);
   }
 
+  @Get('members/banners')
+  @ApiOperation({ summary: 'Anúncios do carrossel da loja de associados (só associados aprovados)' })
+  async membersBanners(@Param('code') code: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    await this.members.assertApproved(tenant.schema, claims.email);
+    return this.banners.list(tenant.schema, true);
+  }
+
+  @Get('members/market')
+  @ApiOperation({ summary: 'Mercado de associados: produtos com comissão (só associados aprovados)' })
+  async membersMarket(@Param('code') code: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    await this.members.assertApproved(tenant.schema, claims.email);
+    return this.affiliates.market(tenant.schema);
+  }
+
+  @Get('members/affiliate')
+  @ApiOperation({ summary: 'Painel do associado: código, vendas, saldo e saques' })
+  async membersAffiliate(@Param('code') code: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    await this.members.assertApproved(tenant.schema, claims.email);
+    return this.affiliates.summary(tenant.schema, claims.email);
+  }
+
+  @Post('members/withdrawals')
+  @ApiOperation({ summary: 'Pede o saque do saldo disponível' })
+  async membersWithdraw(@Param('code') code: string, @Body() dto: WithdrawalDto, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    await this.members.assertApproved(tenant.schema, claims.email);
+    return this.affiliates.requestWithdrawal(tenant.schema, claims.email, dto.amount, dto.method, dto.details);
+  }
+
   @Get('members/catalog')
   @ApiOperation({ summary: 'Catálogo da loja de associados (só associados aprovados)' })
   async membersCatalog(@Param('code') code: string, @Headers('authorization') auth?: string) {
@@ -449,6 +494,10 @@ export class StorefrontController {
       dto.customerEmail = couponEmail;
     }
     const result = await this.storefront.checkout(tenant.schema, dto, couponEmail);
+    if (dto.affiliateCode) {
+      const buyer = auth ? await this.customers.verify(tenant.schema, auth).catch(() => null) : null;
+      await this.affiliates.attribute(tenant.schema, result.id, dto.affiliateCode, buyer?.email ?? dto.customerEmail ?? null).catch(() => undefined);
+    }
     // Lembra/atualiza o perfil do cliente (e sincroniza com o caixa/gestor):
     // assim, na próxima compra os dados já vêm preenchidos. Só ATUALIZA um
     // cliente existente com sessão desse mesmo email; anónimo apenas cria.

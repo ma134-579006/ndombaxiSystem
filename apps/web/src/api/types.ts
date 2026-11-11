@@ -1448,3 +1448,13 @@ export interface StoreMember {
   id: string; name: string; email: string; phone: string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED'; note: string | null; requestedAt: string | null; decidedAt: string | null;
 }
+
+export interface StoreBanner {
+  id: string; title: string; subtitle: string | null; imageUrl: string | null; linkUrl: string | null;
+  buttonLabel: string | null; sortOrder: number; isActive: boolean;
+}
+export type StoreBannerInput = Partial<Omit<StoreBanner, 'id'>>;
+
+export interface AffiliateProductRow { code: string; name: string; percent: number | null }
+export interface AffiliateAssociateRow { id: string; name: string; code: string | null; sales: number; pending: number; available: number; paid: number; requested: number }
+export interface AffiliateWithdrawalRow { id: string; name: string; amount: number; method: string; details: string | null; status: string; date: string; note: string | null }
