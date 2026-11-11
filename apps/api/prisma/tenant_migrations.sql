@@ -789,3 +789,16 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."affiliate_withdrawals" (
 CREATE INDEX IF NOT EXISTS affiliate_withdrawals_customer_idx ON "{{SCHEMA}}"."affiliate_withdrawals"(customer_id);
 -- LPS Kwanza: visualizações de cada produto (o selo com o olho nos cartões, como no Kikolo).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS view_count INT NOT NULL DEFAULT 0;
+
+-- LPS Kwanza: contas do associado para receber os saques (até 3) e comprovativo do pagamento.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."affiliate_payout_accounts" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES "{{SCHEMA}}"."customers"(id) ON DELETE CASCADE,
+  method      TEXT NOT NULL,
+  bank        TEXT,
+  holder      TEXT NOT NULL,
+  details     TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS affiliate_payout_accounts_customer_idx ON "{{SCHEMA}}"."affiliate_payout_accounts"(customer_id);
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."affiliate_withdrawals" ADD COLUMN IF NOT EXISTS proof_url TEXT;

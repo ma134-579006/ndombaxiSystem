@@ -42,8 +42,9 @@ export function readAffiliateRef(code: string): string | null {
 export interface AffiliateSummary {
   code: string; pending: number; available: number; withdrawn: number; requested: number; balance: number;
   sales: { orderNumber: string; date: string; product: string; quantity: number; amount: number; state: 'PENDING' | 'AVAILABLE' | 'CANCELLED' }[];
-  withdrawals: { id: string; amount: number; method: string; status: string; date: string; note: string | null }[];
+  withdrawals: { id: string; amount: number; method: string; details: string | null; status: string; date: string; note: string | null; proofUrl: string | null }[];
 }
+export interface PayoutAccount { id: string; method: string; bank: string | null; holder: string; details: string; createdAt: string }
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -165,8 +166,14 @@ export const api = {
     request<Array<{ productCode: string; percent: number }>>('GET', `/store/${enc(code)}/members/market`, undefined, token),
   membersAffiliate: (code: string, token: string) =>
     request<AffiliateSummary>('GET', `/store/${enc(code)}/members/affiliate`, undefined, token),
-  membersWithdraw: (code: string, token: string, body: { amount: number; method: string; details: string }) =>
+  membersWithdraw: (code: string, token: string, body: { amount: number; accountId?: string; method?: string; details?: string }) =>
     request<{ ok: true }>('POST', `/store/${enc(code)}/members/withdrawals`, body, token),
+  membersAccounts: (code: string, token: string) =>
+    request<PayoutAccount[]>('GET', `/store/${enc(code)}/members/accounts`, undefined, token),
+  membersAddAccount: (code: string, token: string, body: { method: string; bank?: string; holder: string; details: string }) =>
+    request<{ ok: true }>('POST', `/store/${enc(code)}/members/accounts`, body, token),
+  membersRemoveAccount: (code: string, token: string, id: string) =>
+    request<{ ok: true }>('POST', `/store/${enc(code)}/members/accounts/${enc(id)}/delete`, undefined, token),
   membersCatalog: (code: string, token: string) =>
     request<CatalogResponse>('GET', `/store/${enc(code)}/members/catalog`, undefined, token),
   myOrders: (code: string, token: string) =>

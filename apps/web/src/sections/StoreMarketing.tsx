@@ -377,9 +377,11 @@ export function AffiliatesCard() {
     try { await api.affiliates.setPercent(code, v); setDrafts((d) => { const n = { ...d }; delete n[code]; return n; }); await load(); }
     catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível guardar.'); }
   };
+  const [paying, setPaying] = useState<AffiliateWithdrawalRow | null>(null);
   const decide = async (w: AffiliateWithdrawalRow, pay: boolean) => {
-    if (!(await confirmDialog({ message: pay ? `Marcar como pago o saque de ${kz(w.amount)} a ${w.name}?` : `Recusar o saque de ${kz(w.amount)} a ${w.name}?`, danger: !pay }))) return;
-    try { if (pay) await api.affiliates.pay(w.id); else await api.affiliates.reject(w.id); } catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível concluir.'); }
+    if (pay) { setPaying(w); return; }
+    if (!(await confirmDialog({ message: `Recusar o saque de ${kz(w.amount)} a ${w.name}?`, danger: true }))) return;
+    try { await api.affiliates.reject(w.id); } catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível concluir.'); }
     await load();
   };
 
@@ -395,6 +397,7 @@ export function AffiliatesCard() {
       </div>
       {error ? <div className="banner danger" style={{ marginTop: 10 }}>{error}</div> : null}
       {tab === 'products' ? <input style={{ marginTop: 10, width: '100%' }} placeholder="Procurar produto" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Procurar produto" /> : null}
+      {paying ? <PayWithdrawal w={paying} onClose={() => setPaying(null)} onDone={() => { setPaying(null); void load(); }} /> : null}
       {loading ? <div className="loading">A carregar…</div> : (
         <div className="table-wrap" style={{ marginTop: 10 }}>
           {tab === 'products' ? (
@@ -435,5 +438,39 @@ export function AffiliatesCard() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Marcar um saque como pago, com nota e comprovativo opcionais (imagem ou PDF). */
+function PayWithdrawal({ w, onClose, onDone }: { w: AffiliateWithdrawalRow; onClose(): void; onDone(): void }) {
+  const [note, setNote] = useState('');
+  const [proof, setProof] = useState<string>('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const pick = (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 2_000_000) { setErr('Ficheiro demasiado grande (máx. ~2 MB).'); return; }
+    void readFileProgress(file).then(setProof);
+  };
+  const save = async () => {
+    setBusy(true); setErr(null);
+    try { await api.affiliates.pay(w.id, note || undefined, proof || undefined); onDone(); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível concluir.'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <Modal title={`Pagar ${kz(w.amount)} a ${w.name}`} onClose={onClose}>
+      {err ? <div className="banner danger" style={{ marginBottom: 10 }}>{err}</div> : null}
+      <div style={{ display: 'grid', gap: 10 }}>
+        <div className="muted wrap">{w.method}{w.details ? ` · ${w.details}` : ''}</div>
+        <label className="field"><span>Nota (opcional)</span><input value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} /></label>
+        <label className="btn sm ghost" style={{ cursor: 'pointer', justifySelf: 'start' }}>
+          {proof ? 'Trocar comprovativo' : 'Anexar comprovativo'}
+          <input type="file" accept="image/*,application/pdf" hidden onChange={(e) => pick(e.target.files?.[0])} />
+        </label>
+        {proof ? <span className="muted">Comprovativo anexado</span> : null}
+        <button className="btn block" disabled={busy} onClick={() => void save()}>{busy ? 'A guardar…' : 'Marcar como pago'}</button>
+      </div>
+    </Modal>
   );
 }
