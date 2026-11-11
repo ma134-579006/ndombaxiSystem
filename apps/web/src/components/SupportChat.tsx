@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import type { SupportMsg } from '../api/types';
 import { pollEvery, stopPoll } from '../poll';
+import { LOGO_ROUND, LOGO_WIDE } from '../brand';
 import '../helpdesk.css';
 
 /** Perguntas rápidas (lista "Perguntas frequentes" da gaveta e atalhos do chat). */
@@ -18,6 +19,11 @@ const Ico = {
   team: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M21.5 20a6.5 6.5 0 0 0-4-6" /></svg>,
   back: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 18 9 12l6-6" /></svg>,
   reset: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>,
+  home: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden><path d="M3.5 10.2 12 4l8.5 6.2V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19z" /><path d="M8.5 14.5c1 1 2.2 1.5 3.5 1.5s2.5-.5 3.5-1.5" strokeLinecap="round" /></svg>,
+  msgs: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden><path d="M4 4.5h16v12H9.5L5 20v-3.5H4z" /><path d="M8 9h8M8 12.5h5" strokeLinecap="round" /></svg>,
+  chev: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m9 6 6 6-6 6" /></svg>,
+  sendFill: <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M3.4 20.4 21 12 3.4 3.6l.1 6.5L15 12 3.5 13.9z" /></svg>,
+  up: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" /></svg>,
   send: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m22 2-7 20-4-9-9-4z" /><path d="M22 2 11 13" /></svg>,
 };
 
@@ -96,16 +102,32 @@ export function MsgBody({ body, sender }: { body: string; sender?: string }) {
 }
 
 /**
- * Ajuda / chat de suporte (landing e gestão), no formato da gaveta de Ajuda do
- * sistema de referência: botão flutuante → gaveta à direita com "Ajuda",
- * pesquisa, estado do atendimento, Chat · Telefone · E-mail e perguntas
- * frequentes. O Chat é o assistente IA do sistema; se o bot não souber (ou o
- * visitante pedir), escala para o Super Admin, que responde na mesma conversa.
+ * Botão flutuante de mensagens (landing, gestão e super admin): círculo azul
+ * com balão cheio e sorriso, no estilo do lançador do sistema de referência.
+ */
+export function SupportFab({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button className="sc-fab" onClick={onClick} aria-label={label} title={label}>
+      <svg className="sc-fab-ic" width="24" height="27" viewBox="0 0 28 32" aria-hidden="true">
+        <path fill="currentColor" d="M4 0h20a4 4 0 0 1 4 4v18.6L28 32l-8.6-3.4H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4z" />
+        <path className="sc-fab-smile" fill="none" strokeWidth="2.2" strokeLinecap="round" d="M6.2 19.4c1.9 1.7 4.6 2.8 7.8 2.8s5.9-1.1 7.8-2.8" />
+      </svg>
+    </button>
+  );
+}
+
+/**
+ * Ajuda / chat de suporte (landing e gestão) no formato do mensageiro do
+ * sistema de referência: o lançador abre um cartão flutuante por cima dele com
+ * as abas Início (saudação, "Envie-nos uma mensagem", "Procure ajuda"),
+ * Mensagens (conversa) e Ajuda (pesquisa + perguntas frequentes). A conversa é
+ * com o assistente IA; se o bot não souber (ou o visitante pedir), escala para
+ * o Super Admin, que responde na mesma conversa.
  */
 export function SupportChat() {
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
-  const [view, setView] = useState<'home' | 'chat'>('home');
+  const [view, setView] = useState<'home' | 'chat' | 'help'>('home');
   const [query, setQuery] = useState('');
   const [pending, setPending] = useState<string | null>(null);
   const [contacts, setContacts] = useState<{ email: string | null; phone: string | null }>({ email: null, phone: null });
@@ -140,7 +162,7 @@ export function SupportChat() {
 
   const close = () => {
     setClosing(true);
-    window.setTimeout(() => { setOpen(false); setClosing(false); setView('home'); }, 260);
+    window.setTimeout(() => { setOpen(false); setClosing(false); setView('home'); }, 200);
   };
 
   // Esc fecha a gaveta (ou volta da conversa para a Ajuda).
@@ -148,7 +170,7 @@ export function SupportChat() {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || document.querySelector('.sc-lightbox')) return;
-      if (view === 'chat') setView('home'); else close();
+      if (view !== 'home') setView('home'); else close();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -261,103 +283,117 @@ export function SupportChat() {
 
   const q = query.trim().toLowerCase();
   const questions = q ? QUICK.filter((x) => x.toLowerCase().includes(q)) : QUICK;
-  const status = human
-    ? { icon: Ico.team, title: 'Equipa chamada — respondemos aqui', sub: 'Assistente LPS Vendas' }
-    : { icon: Ico.ok, title: 'Assistente LPS Vendas', sub: 'Responde na hora · IA' };
+  const subtitle = human ? 'Equipa chamada — respondemos aqui' : 'A equipa também pode ajudar';
+  const toggle = () => { if (open) close(); else { setView('home'); setOpen(true); } };
+
+  const tabs = (
+    <nav className="hd-tabs" aria-label="Ajuda">
+      <button type="button" className={view === 'home' ? 'on' : ''} onClick={() => setView('home')}>{Ico.home}<span>Início</span></button>
+      <button type="button" onClick={() => openChat()}>{Ico.msgs}<span>Mensagens</span></button>
+      <button type="button" className={view === 'help' ? 'on' : ''} onClick={() => setView('help')}>{Ico.help}<span>Ajuda</span></button>
+    </nav>
+  );
 
   return (
     <>
-      {/* Botão flutuante — só quando FECHADO (evita sobrepor-se à gaveta) */}
-      {!open ? (
-        <button className="sc-fab" onClick={() => setOpen(true)} aria-label="Falar connosco">
-          {/* Balão cheio com sorriso (no estilo do botão de mensagens do sistema de referência). */}
-          <svg className="sc-fab-ic" width="24" height="27" viewBox="0 0 28 32" aria-hidden="true">
-            <path fill="currentColor" d="M4 0h20a4 4 0 0 1 4 4v18.6L28 32l-8.6-3.4H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4z" />
-            <path className="sc-fab-smile" fill="none" strokeWidth="2.2" strokeLinecap="round" d="M6.2 19.4c1.9 1.7 4.6 2.8 7.8 2.8s5.9-1.1 7.8-2.8" />
-          </svg>
-        </button>
-      ) : null}
+      {/* Lançador: fica sempre visível; aberto mostra a seta para baixo (fecha). */}
+      <button className={`sc-fab${open && !closing ? ' on' : ''}`} onClick={toggle} aria-label={open ? 'Fechar' : 'Falar connosco'} aria-expanded={open}>
+        <svg className="sc-fab-ic sc-fab-open" width="24" height="27" viewBox="0 0 28 32" aria-hidden="true">
+          <path fill="currentColor" d="M4 0h20a4 4 0 0 1 4 4v18.6L28 32l-8.6-3.4H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4z" />
+          <path className="sc-fab-smile" fill="none" strokeWidth="2.2" strokeLinecap="round" d="M6.2 19.4c1.9 1.7 4.6 2.8 7.8 2.8s5.9-1.1 7.8-2.8" />
+        </svg>
+        <svg className="sc-fab-ic sc-fab-min" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M18.6 8.4a.85.85 0 0 0-1.2 0L12 13.8 6.6 8.4a.85.85 0 1 0-1.2 1.2l6 6a.85.85 0 0 0 1.2 0l6-6a.85.85 0 0 0 0-1.2z" />
+        </svg>
+      </button>
 
       {open ? (
-        <>
-          <div className={`hd-overlay${closing ? ' out' : ''}`} onClick={close} />
-          <aside className={`hd-panel${closing ? ' out' : ''}`} role="dialog" aria-modal="true" aria-label="Ajuda">
-            <button className="hd-close" onClick={close} aria-label="Fechar">{Ico.close}</button>
-
-            {view === 'home' ? (
-              <div className="hd-view" key="home">
-                <div className="hd-head">
-                  <h1 className="hd-title">Ajuda</h1>
-                  <label className="hd-search">
-                    {Ico.search}
-                    <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar"
-                      onKeyDown={(e) => { if (e.key === 'Enter' && query.trim()) openChat(query); }} />
-                  </label>
+        <section className={`hd-msgr${closing ? ' out' : ''}`} role="dialog" aria-label="Ajuda">
+          {view === 'home' ? (
+            <div className="hd-view hd-home" key="home">
+              <div className="hd-scroll">
+                <div className="hd-home-top">
+                  <img className="hd-logo" src={LOGO_WIDE} alt="LPS Vendas" />
+                  <button type="button" className="hd-x" onClick={close} aria-label="Fechar">{Ico.close}</button>
                 </div>
-
-                <div className={`hd-status${human ? ' team' : ''}`}>
-                  <span className="hd-status-ic">{status.icon}</span>
-                  <span className="hd-status-txt"><b>{status.title}</b><small>{status.sub}</small></span>
-                </div>
-
-                <div className={`hd-actions n${1 + (contacts.phone ? 1 : 0) + (contacts.email ? 1 : 0)}`}>
-                  <button type="button" className="hd-action" onClick={() => openChat()}>
-                    {Ico.chat}<span>Chat</span>
+                <h2 className="hd-hello">Olá <span aria-hidden>👋</span><br />Como podemos ajudar?</h2>
+                <div className="hd-cards">
+                  <button type="button" className="hd-card" onClick={() => openChat()}>
+                    <span>Envie-nos uma mensagem</span><i className="hd-card-ic">{Ico.sendFill}</i>
                   </button>
-                  {contacts.phone ? (
-                    <a className="hd-action" href={`tel:${contacts.phone.replace(/\s+/g, '')}`}>{Ico.phone}<span>Telefone</span></a>
-                  ) : null}
-                  {contacts.email ? (
-                    <a className="hd-action" href={`mailto:${contacts.email}`}>{Ico.mail}<span>E-mail</span></a>
-                  ) : null}
-                </div>
-
-                <div className="hd-list">
-                  {questions.map((x) => (
-                    <button key={x} type="button" className="hd-item" onClick={() => openChat(x)}>
-                      <span className="hd-item-ic">{Ico.help}</span>
-                      <span className="hd-item-txt"><b>{x}</b><small>Perguntar ao assistente</small></span>
-                    </button>
-                  ))}
-                  {q && questions.length === 0 ? (
-                    <button type="button" className="hd-item" onClick={() => openChat(query)}>
-                      <span className="hd-item-ic">{Ico.chat}</span>
-                      <span className="hd-item-txt"><b>{query.trim()}</b><small>Perguntar ao assistente</small></span>
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
-              <div className="hd-view hd-chat" key="chat">
-                <div className="hd-chathead">
-                  <button type="button" className="hd-icbtn" onClick={() => setView('home')} aria-label="Voltar">{Ico.back}</button>
-                  <span className={`hd-chat-dot${human ? ' team' : ''}`} aria-hidden />
-                  <span className="hd-chat-title"><b>Chat</b><small>{human ? 'Equipa chamada — respondemos aqui' : 'Responde na hora · IA'}</small></span>
-                  <button type="button" className="hd-icbtn" onClick={() => void resetChat()} title="Nova conversa (volta ao assistente)" aria-label="Nova conversa">{Ico.reset}</button>
-                </div>
-                <div className="hd-body" ref={scroller}>
-                  {msgs.map((m) => (
-                    <div key={m.id} className={`sc-msg ${m.sender === 'VISITOR' ? 'me' : m.sender === 'ADMIN' ? 'adm' : 'bot'}`}>
-                      {m.sender === 'ADMIN' ? <span className="sc-who">Equipa LPS Vendas</span> : null}
-                      <MsgBody body={m.body} sender={m.sender} />
-                    </div>
-                  ))}
-                  {busy ? <div className="sc-msg bot sc-typing" aria-label="a escrever"><i /><i /><i /></div> : null}
-                  {msgs.length <= 1 && !busy && !pending ? (
-                    <div className="hd-quick">
-                      {QUICK.map((x) => <button key={x} type="button" onClick={() => void send(x)}>{x}</button>)}
+                  <button type="button" className="hd-card" onClick={() => setView('help')}>
+                    <span>Procure ajuda</span><i className="hd-card-ic">{Ico.search}</i>
+                  </button>
+                  {contacts.phone || contacts.email ? (
+                    <div className="hd-card hd-contacts">
+                      {contacts.phone ? <a href={`tel:${contacts.phone.replace(/\s+/g, '')}`}>{Ico.phone}<span>{contacts.phone}</span></a> : null}
+                      {contacts.email ? <a href={`mailto:${contacts.email}`}>{Ico.mail}<span>{contacts.email}</span></a> : null}
                     </div>
                   ) : null}
                 </div>
-                <div className="hd-foot">
-                  <input value={input} onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') void send(); }} placeholder="Escreve a tua pergunta…" />
-                  <button type="button" onClick={() => void send()} disabled={busy || !input.trim()} aria-label="Enviar">{Ico.send}</button>
-                </div>
               </div>
-            )}
-          </aside>
-        </>
+              {tabs}
+            </div>
+          ) : view === 'help' ? (
+            <div className="hd-view hd-help" key="help">
+              <div className="hd-bar">
+                <span className="hd-bar-title">Ajuda</span>
+                <button type="button" className="hd-x" onClick={close} aria-label="Fechar">{Ico.close}</button>
+              </div>
+              <div className="hd-searchwrap">
+                <label className="hd-search">
+                  <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Procure ajuda"
+                    onKeyDown={(e) => { if (e.key === 'Enter' && query.trim()) openChat(query); }} />
+                  {Ico.search}
+                </label>
+              </div>
+              <div className="hd-scroll hd-list">
+                {questions.map((x) => (
+                  <button key={x} type="button" className="hd-item" onClick={() => openChat(x)}>
+                    <span className="hd-item-txt"><b>{x}</b><small>Perguntar ao assistente</small></span>
+                    <i className="hd-chev">{Ico.chev}</i>
+                  </button>
+                ))}
+                {q && questions.length === 0 ? (
+                  <button type="button" className="hd-item" onClick={() => openChat(query)}>
+                    <span className="hd-item-txt"><b>{query.trim()}</b><small>Perguntar ao assistente</small></span>
+                    <i className="hd-chev">{Ico.chev}</i>
+                  </button>
+                ) : null}
+              </div>
+              {tabs}
+            </div>
+          ) : (
+            <div className="hd-view hd-chat" key="chat">
+              <div className="hd-chathead">
+                <button type="button" className="hd-icbtn" onClick={() => setView('home')} aria-label="Voltar">{Ico.back}</button>
+                <img className="hd-avatar" src={LOGO_ROUND} alt="" />
+                <span className="hd-chat-title"><b>Assistente LPS</b><small>{subtitle}</small></span>
+                <button type="button" className="hd-icbtn" onClick={() => void resetChat()} title="Nova conversa (volta ao assistente)" aria-label="Nova conversa">{Ico.reset}</button>
+                <button type="button" className="hd-icbtn" onClick={close} aria-label="Fechar">{Ico.close}</button>
+              </div>
+              <div className="hd-body" ref={scroller}>
+                {msgs.map((m) => (
+                  <div key={m.id} className={`sc-msg ${m.sender === 'VISITOR' ? 'me' : m.sender === 'ADMIN' ? 'adm' : 'bot'}`}>
+                    {m.sender === 'ADMIN' ? <span className="sc-who">Equipa LPS Vendas</span> : null}
+                    <MsgBody body={m.body} sender={m.sender} />
+                  </div>
+                ))}
+                {busy ? <div className="sc-msg bot sc-typing" aria-label="a escrever"><i /><i /><i /></div> : null}
+                {msgs.length <= 1 && !busy && !pending ? (
+                  <div className="hd-quick">
+                    {QUICK.map((x) => <button key={x} type="button" onClick={() => void send(x)}>{x}</button>)}
+                  </div>
+                ) : null}
+              </div>
+              <div className="hd-composer">
+                <input value={input} onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') void send(); }} placeholder="Envie uma mensagem…" />
+                <button type="button" onClick={() => void send()} disabled={busy || !input.trim()} aria-label="Enviar">{Ico.up}</button>
+              </div>
+            </div>
+          )}
+        </section>
       ) : null}
     </>
   );

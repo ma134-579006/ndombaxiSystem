@@ -92,8 +92,10 @@
 .lv-hero h1 b { font-weight: 700; }
 .lv-hero-copy > p { margin: 14px 0 34px; max-width: 480px; font-size: 16px; font-weight: 600; line-height: 1.75; }
 .lv-trial { display: block; margin-top: 14px; font-size: 12px; font-weight: 600; opacity: .95; }
-.lv-cert { display: inline-flex; align-items: center; gap: 10px; margin-top: 60px; font-size: 14px; }
-.lv-cert-ic { width: 46px; height: 46px; border-radius: 6px; display: grid; place-items: center; background: rgba(255, 255, 255, .22); }
+.lv-cert { display: inline-flex; align-items: center; gap: 16px; margin-top: 60px; font-size: 14px; }
+.lv-cert b { font-weight: 600; }
+.lv-cert-ic { flex: none; width: 48px; height: 48px; border-radius: 8px; display: grid; place-items: center; background: rgba(255, 255, 255, .4); border: 1px solid rgba(255, 255, 255, .04); }
+.lv-cert-ic img { width: 14px; height: 28px; object-fit: contain; }
 .lv-hero-art { position: absolute; inset: 0 0 0 auto; width: 52%; z-index: 1; pointer-events: none; }
 .lv-hero-panel {
   position: absolute; right: 0; bottom: 0; width: 82%; height: 74%;

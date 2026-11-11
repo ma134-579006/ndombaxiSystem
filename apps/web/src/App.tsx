@@ -22,7 +22,7 @@ import { PlanExpired } from './pages/PlanExpired';
 import { Register } from './pages/Register';
 import { api } from './api/client';
 import './landing.css';
-import { SupportChat } from './components/SupportChat';
+import { SupportChat, SupportFab } from './components/SupportChat';
 import { GlobalProcessing } from './components/GlobalProcessing';
 import { FeedbackHost } from './components/feedback';
 import { UpdateGate } from './update/UpdateGate';
@@ -237,6 +237,8 @@ function PlatformPanel() {
       {section === 'downloads' ? <Downloads onOpenWizard={() => setSection('downloads-wizard')} /> : null}
       {section === 'downloads-wizard' ? <DownloadWizard onDone={() => setSection('downloads')} onCancel={() => setSection('downloads')} /> : null}
       {section === 'profile' ? <Profile /> : null}
+      {/* Super Admin: o mesmo botão de mensagens abre as conversas de suporte. */}
+      {section !== 'support' ? <SupportFab onClick={() => setSection('support')} label="Suporte do site" /> : null}
     </React.Suspense>
     </Shell>
   );
