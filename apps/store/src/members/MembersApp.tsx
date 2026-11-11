@@ -14,7 +14,7 @@ import { Home, type Banner } from './Home';
 import { Search, type SearchState } from './Search';
 import { Product } from './Product';
 import { Account, CartView, LoginScreen, MembershipScreen, type Membership } from './Pages';
-import { Affiliates } from './Affiliates';
+import { Affiliates, type AffTab } from './Affiliates';
 
 /* ───────────── rotas no endereço (#/…): o botão voltar do navegador funciona ───────────── */
 type Route =
@@ -25,7 +25,7 @@ type Route =
   | { name: 'checkout' }
   | { name: 'track'; id: string }
   | { name: 'account'; tab: 'orders' | 'coupons' | 'profile' }
-  | { name: 'associates'; tab: 'market' | 'sales' | 'mine' | 'balance' };
+  | { name: 'associates'; tab: AffTab };
 
 function parse(hash: string): Route {
   const [path, qs] = hash.replace(/^#\/?/, '').split('?');
@@ -37,7 +37,7 @@ function parse(hash: string): Route {
     case 'carrinho': return { name: 'cart' };
     case 'pagamento': return { name: 'checkout' };
     case 'encomenda': return seg[1] ? { name: 'track', id: seg[1] } : { name: 'home' };
-    case 'associados': return { name: 'associates', tab: seg[1] === 'vendas' ? 'sales' : seg[1] === 'meus' ? 'mine' : seg[1] === 'saldo' ? 'balance' : 'market' };
+    case 'associados': return { name: 'associates', tab: ({ painel: 'dashboard', vendas: 'sales', meus: 'mine', saques: 'transactions', saldo: 'transactions', contas: 'accounts', mercado: 'market' } as Record<string, AffTab>)[seg[1] ?? ''] ?? 'dashboard' };
     case 'conta': return { name: 'account', tab: seg[1] === 'cupoes' ? 'coupons' : seg[1] === 'perfil' ? 'profile' : 'orders' };
     default: return { name: 'home' };
   }
@@ -57,7 +57,7 @@ function toHash(r: Route): string {
     case 'checkout': return '#/pagamento';
     case 'track': return `#/encomenda/${encodeURIComponent(r.id)}`;
     case 'account': return `#/conta/${r.tab === 'coupons' ? 'cupoes' : r.tab === 'profile' ? 'perfil' : 'compras'}`;
-    case 'associates': return `#/associados/${r.tab === 'sales' ? 'vendas' : r.tab === 'mine' ? 'meus' : r.tab === 'balance' ? 'saldo' : 'mercado'}`;
+    case 'associates': return `#/associados/${({ dashboard: 'painel', sales: 'vendas', mine: 'meus', transactions: 'saques', accounts: 'contas', market: 'mercado' } as Record<AffTab, string>)[r.tab]}`;
     default: return '#/';
   }
 }
@@ -186,7 +186,7 @@ export function MembersApp() {
         <div className="kw-strip">
           <div className="kw-container kw-strip-in">
             <span className="kw-strip-l">
-              <button onClick={() => go({ name: 'associates', tab: 'market' })}>Central do Associado</button>
+              <button onClick={() => go({ name: 'associates', tab: 'dashboard' })}>Central do Associado</button>
               {contact.email ? <a href={`mailto:${contact.email}`}><I d={P.mail} size={13} />{contact.email}</a> : null}
               {contact.phone ? <a href={`tel:${contact.phone}`}><I d={P.phone} size={13} />{contact.phone}</a> : null}
             </span>
@@ -221,7 +221,7 @@ export function MembersApp() {
             <button onClick={() => go({ name: 'account', tab: 'coupons' })}>Meus cupões</button>
             <button onClick={() => go({ name: 'account', tab: 'profile' })}>Perfil e endereço</button>
             <button onClick={() => go({ name: 'associates', tab: 'market' })}>Mercado de Associados</button>
-            <button onClick={() => go({ name: 'associates', tab: 'balance' })}>Saldo e saques</button>
+            <button onClick={() => go({ name: 'associates', tab: 'transactions' })}>Transações (Saques)</button>
           </div>
           <div>
             <h4>Consumidor</h4>

@@ -962,7 +962,7 @@ export const api = {
     setPercent: (code: string, percent: number | null) => request<{ ok: true }>('PATCH', `/ecommerce/affiliates/products/${encodeURIComponent(code)}`, { percent }),
     associates: () => request<AffiliateAssociateRow[]>('GET', '/ecommerce/affiliates/associates'),
     withdrawals: () => request<AffiliateWithdrawalRow[]>('GET', '/ecommerce/affiliates/withdrawals'),
-    pay: (id: string, note?: string) => request<{ ok: true }>('POST', `/ecommerce/affiliates/withdrawals/${id}/pay`, { note }),
+    pay: (id: string, note?: string, proofUrl?: string) => request<{ ok: true }>('POST', `/ecommerce/affiliates/withdrawals/${id}/pay`, { note, proofUrl }),
     reject: (id: string, note?: string) => request<{ ok: true }>('POST', `/ecommerce/affiliates/withdrawals/${id}/reject`, { note }),
   },
   banners: {

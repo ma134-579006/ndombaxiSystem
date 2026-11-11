@@ -13,6 +13,8 @@ export class AffiliatePercentDto {
 }
 export class WithdrawalDecisionDto {
   @IsOptional() @IsString() @MaxLength(300) note?: string;
+  /** Comprovativo do pagamento (imagem/PDF em data URL, como as imagens dos produtos). */
+  @IsOptional() @IsString() @MaxLength(3_000_000) proofUrl?: string;
 }
 
 /** Gestão do programa de associados (comissões por produto, associados, saques). */
@@ -44,7 +46,7 @@ export class AffiliatesController {
   @Post('withdrawals/:id/pay')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Marca o saque como pago' })
-  pay(@Param('id') id: string, @Body() dto: WithdrawalDecisionDto) { return this.aff.decideWithdrawal(this.ctx.requireTenantSchema(), id, true, dto.note); }
+  pay(@Param('id') id: string, @Body() dto: WithdrawalDecisionDto) { return this.aff.decideWithdrawal(this.ctx.requireTenantSchema(), id, true, dto.note, dto.proofUrl); }
 
   @Post('withdrawals/:id/reject')
   @Roles(Role.STORE_MANAGER)

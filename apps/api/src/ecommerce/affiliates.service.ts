@@ -24,7 +24,7 @@ export interface AffiliateSummary {
   code: string;
   pending: number; available: number; withdrawn: number; requested: number; balance: number;
   sales: { orderNumber: string; date: string; product: string; quantity: number; amount: number; state: CommissionState }[];
-  withdrawals: { id: string; amount: number; method: string; status: string; date: string; note: string | null }[];
+  withdrawals: { id: string; amount: number; method: string; details: string | null; status: string; date: string; note: string | null; proofUrl: string | null }[];
 }
 
 @Injectable()
@@ -96,8 +96,8 @@ export class AffiliatesService {
         SELECT wo.order_number AS n, ac.created_at AS d, COALESCE(p.name, '—') AS prod, ac.quantity AS q, ac.amount AS amt, wo.status AS st
         FROM affiliate_commissions ac JOIN web_orders wo ON wo.id = ac.order_id LEFT JOIN products p ON p.id = ac.product_id
         WHERE ac.customer_id = ${id}::uuid ORDER BY ac.created_at DESC LIMIT 300`);
-      const wd = await tx.$queryRaw<{ id: string; amt: unknown; m: string; s: string; d: Date; note: string | null }[]>(Prisma.sql`
-        SELECT id, amount AS amt, method AS m, status AS s, created_at AS d, note FROM affiliate_withdrawals
+      const wd = await tx.$queryRaw<{ id: string; amt: unknown; m: string; det: string | null; s: string; d: Date; note: string | null; proof: string | null }[]>(Prisma.sql`
+        SELECT id, amount AS amt, method AS m, details AS det, status AS s, created_at AS d, note, proof_url AS proof FROM affiliate_withdrawals
         WHERE customer_id = ${id}::uuid ORDER BY created_at DESC LIMIT 100`);
       let pending = 0; let available = 0;
       const list = sales.map((s) => {
@@ -112,7 +112,7 @@ export class AffiliatesService {
         code, pending: round2(pending), available: round2(available), withdrawn: round2(withdrawn), requested: round2(requested),
         balance: round2(Math.max(0, available - withdrawn - requested)),
         sales: list,
-        withdrawals: wd.map((w) => ({ id: w.id, amount: num(w.amt), method: w.m, status: w.s, date: w.d.toISOString(), note: w.note })),
+        withdrawals: wd.map((w) => ({ id: w.id, amount: num(w.amt), method: w.m, details: w.det, status: w.s, date: w.d.toISOString(), note: w.note, proofUrl: w.proof })),
       };
     });
   }
@@ -175,12 +175,56 @@ export class AffiliatesService {
     return rows.map((r) => ({ id: r.id, name: r.name, amount: num(r.amt), method: r.m, details: r.det, status: r.s, date: r.d.toISOString(), note: r.note }));
   }
 
-  async decideWithdrawal(schema: string, id: string, paid: boolean, note?: string): Promise<{ ok: true }> {
+  async decideWithdrawal(schema: string, id: string, paid: boolean, note?: string, proofUrl?: string): Promise<{ ok: true }> {
     const n = await this.prisma.runInTenant(schema, (tx) =>
       tx.$executeRaw(Prisma.sql`
-        UPDATE affiliate_withdrawals SET status = ${paid ? 'PAID' : 'REJECTED'}, note = ${(note ?? '').trim().slice(0, 300) || null}, decided_at = now()
+        UPDATE affiliate_withdrawals SET status = ${paid ? 'PAID' : 'REJECTED'}, note = ${(note ?? '').trim().slice(0, 300) || null}, proof_url = ${paid ? (proofUrl || null) : null}, decided_at = now()
         WHERE id = ${id}::uuid AND status = 'REQUESTED'`));
     if (!n) throw new NotFoundException('Pedido de saque não encontrado ou já decidido.');
     return { ok: true };
   }
+
+  /* ───────────── contas para receber os saques (até 3) ───────────── */
+  async listAccounts(schema: string, email: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const id = await this.customerId(tx, email);
+      const rows = await tx.$queryRaw<{ id: string; method: string; bank: string | null; holder: string; details: string; d: Date }[]>(Prisma.sql`
+        SELECT id, method, bank, holder, details, created_at AS d FROM affiliate_payout_accounts WHERE customer_id = ${id}::uuid ORDER BY created_at`);
+      return rows.map((r) => ({ id: r.id, method: r.method, bank: r.bank, holder: r.holder, details: r.details, createdAt: r.d.toISOString() }));
+    });
+  }
+
+  async addAccount(schema: string, email: string, a: { method: string; bank?: string; holder: string; details: string }) {
+    const method = a.method.trim().slice(0, 40);
+    const holder = a.holder.trim().slice(0, 120);
+    const details = a.details.trim().slice(0, 60);
+    if (!method || holder.length < 3 || details.length < 6) throw new BadRequestException('Preencha o titular e o número da conta.');
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const id = await this.customerId(tx, email);
+      const n = await tx.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS n FROM affiliate_payout_accounts WHERE customer_id = ${id}::uuid`);
+      if (Number(n[0]?.n ?? 0) >= 3) throw new BadRequestException('Pode ter no máximo 3 contas.');
+      await tx.$executeRaw(Prisma.sql`
+        INSERT INTO affiliate_payout_accounts (customer_id, method, bank, holder, details)
+        VALUES (${id}::uuid, ${method}, ${(a.bank ?? '').trim().slice(0, 60) || null}, ${holder}, ${details})`);
+      return { ok: true as const };
+    });
+  }
+
+  async removeAccount(schema: string, email: string, accountId: string) {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const id = await this.customerId(tx, email);
+      const n = await tx.$executeRaw(Prisma.sql`DELETE FROM affiliate_payout_accounts WHERE id = ${accountId}::uuid AND customer_id = ${id}::uuid`);
+      if (!n) throw new NotFoundException('Conta não encontrada.');
+      return { ok: true as const };
+    });
+  }
+
+  /** Saque para uma conta guardada (os dados ficam copiados no pedido). */
+  async withdrawToAccount(schema: string, email: string, amount: number, accountId: string): Promise<{ ok: true }> {
+    const acc = (await this.listAccounts(schema, email)).find((x) => x.id === accountId);
+    if (!acc) throw new BadRequestException('Escolha uma conta para receber.');
+    const label = acc.method === 'Multicaixa Express' ? acc.method : `${acc.method}${acc.bank ? ` · ${acc.bank}` : ''}`;
+    return this.requestWithdrawal(schema, email, amount, label, `${acc.details} · ${acc.holder}`);
+  }
 }
+

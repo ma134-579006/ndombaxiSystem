@@ -37,8 +37,15 @@ class MemberRequestDto {
 }
 class WithdrawalDto {
   @IsNumber() @Min(1) amount!: number;
+  @IsOptional() @IsString() @MaxLength(40) accountId?: string;
+  @IsOptional() @IsString() @MaxLength(40) method?: string;
+  @IsOptional() @IsString() @MaxLength(300) details?: string;
+}
+class PayoutAccountDto {
   @IsString() @MaxLength(40) method!: string;
-  @IsString() @MaxLength(300) details!: string;
+  @IsOptional() @IsString() @MaxLength(60) bank?: string;
+  @IsString() @MaxLength(120) holder!: string;
+  @IsString() @MaxLength(60) details!: string;
 }
 class ReviewDto {
   @IsInt() @Min(1) @Max(5) rating!: number;
@@ -400,7 +407,36 @@ export class StorefrontController {
     const tenant = await this.resolver.resolveByCode(code);
     const claims = await this.customers.verify(tenant.schema, auth);
     await this.members.assertApproved(tenant.schema, claims.email);
+    if (dto.accountId) return this.affiliates.withdrawToAccount(tenant.schema, claims.email, dto.amount, dto.accountId);
+    if (!dto.method || !dto.details) throw new BadRequestException('Escolha uma conta para receber.');
     return this.affiliates.requestWithdrawal(tenant.schema, claims.email, dto.amount, dto.method, dto.details);
+  }
+
+  @Get('members/accounts')
+  @ApiOperation({ summary: 'Contas do associado para receber os saques' })
+  async membersAccounts(@Param('code') code: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    await this.members.assertApproved(tenant.schema, claims.email);
+    return this.affiliates.listAccounts(tenant.schema, claims.email);
+  }
+
+  @Post('members/accounts')
+  @ApiOperation({ summary: 'Regista uma conta para receber os saques (máx. 3)' })
+  async membersAddAccount(@Param('code') code: string, @Body() dto: PayoutAccountDto, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    await this.members.assertApproved(tenant.schema, claims.email);
+    return this.affiliates.addAccount(tenant.schema, claims.email, dto);
+  }
+
+  @Post('members/accounts/:accountId/delete')
+  @ApiOperation({ summary: 'Elimina uma conta de saque' })
+  async membersRemoveAccount(@Param('code') code: string, @Param('accountId') accountId: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    await this.members.assertApproved(tenant.schema, claims.email);
+    return this.affiliates.removeAccount(tenant.schema, claims.email, accountId);
   }
 
   @Get('members/catalog')
@@ -500,6 +536,11 @@ export class StorefrontController {
       const claims = await this.customers.verify(tenant.schema, auth);
       couponEmail = claims.email.toLowerCase();
       dto.customerEmail = couponEmail;
+    }
+    // Com sessão, a encomenda fica sempre ligada à conta do cliente ("Minhas compras").
+    if (!dto.customerEmail && auth) {
+      const owner = await this.customers.verify(tenant.schema, auth).catch(() => null);
+      if (owner) dto.customerEmail = owner.email.toLowerCase();
     }
     const result = await this.storefront.checkout(tenant.schema, dto, couponEmail);
     if (dto.affiliateCode) {

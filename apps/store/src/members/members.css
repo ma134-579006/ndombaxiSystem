@@ -606,3 +606,83 @@
 .kw-faq details[open] summary::after { transform: rotate(45deg); }
 .kw-faq details p { margin-top: 10px; color: #555; animation: kw-fade .25s ease both; }
 .kw-card-sold svg { stroke-width: 2.4; }
+
+/* ── área do associado: menu lateral + painel (como o painel do vendedor do Kikolo) ── */
+.kw-affwrap { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 20px; padding-top: 18px; padding-bottom: 32px; align-items: start; }
+.kw-affside { position: sticky; top: 76px; background: #fff; border-radius: 6px; padding: 10px 6px; }
+.kw-affmenu { display: grid; gap: 2px; }
+.kw-affmenu-g { font-size: 11.5px; font-weight: 700; color: #888; padding: 12px 12px 6px; letter-spacing: .3px; }
+.kw-affmenu button { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 10px 12px; border-radius: 4px; text-align: left; color: #444; font-size: 14px; position: relative; transition: background .2s, color .2s; }
+.kw-affmenu button:hover { background: var(--kw-soft); color: var(--kw-p); }
+.kw-affmenu button.on { color: var(--kw-p); background: var(--kw-soft); font-weight: 600; }
+.kw-affmenu button.on::before { content: ''; position: absolute; left: -6px; top: 6px; bottom: 6px; width: 3px; border-radius: 3px; background: var(--kw-p); }
+.kw-affmenu em { font-style: normal; font-size: 11px; color: #b45309; border: 1px solid #f5c26b; background: #fff7e6; border-radius: 999px; padding: 0 8px; }
+.kw-affmain { min-width: 0; display: grid; gap: 16px; }
+.kw-affmenu-btn { display: none; justify-self: start; }
+.kw-affdrawer { position: fixed; top: 0; left: 0; bottom: 0; width: min(300px, 86vw); background: #fff; z-index: 70; padding: 14px 10px; overflow: auto; box-shadow: 4px 0 24px rgba(0,0,0,.2); }
+.kw-affdrawer-h { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 8px; font-size: 17px; border-bottom: 1px solid var(--kw-line); margin-bottom: 6px; }
+@media (max-width: 900px) { .kw-affwrap { grid-template-columns: minmax(0, 1fr); } .kw-affside { display: none; } .kw-affmenu-btn { display: inline-flex; } }
+.kw-dash { display: grid; gap: 16px; min-width: 0; }
+.kw-dash-card { background: #fff; border-radius: 8px; padding: 22px; display: grid; gap: 16px; }
+.kw-dash-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.kw-dash-stats > div { display: grid; grid-template-columns: 36px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
+.kw-dash-stats .kw-dot { grid-row: 1 / span 2; }
+.kw-dash-stats small { color: #555; font-size: 13px; }
+.kw-dash-stats b { font-size: 15px; }
+.kw-dash-card > .kw-btn { justify-self: start; min-width: 180px; }
+.kw-dot { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.kw-dot.g { background: #e7f8ef; color: #12b76a; } .kw-dot.b { background: var(--kw-soft); color: var(--kw-p); } .kw-dot.o { background: #fff1ea; color: #f97316; }
+.kw-dash-row { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+.kw-cal { background: #fff; border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.kw-cal header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; text-transform: capitalize; }
+.kw-cal-g { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; text-align: center; }
+.kw-cal-h { font-size: 11.5px; color: #888; padding: 4px 0; }
+.kw-cal-g button { border: 0; background: none; height: 32px; border-radius: 4px; font-size: 13px; position: relative; transition: background .15s; }
+.kw-cal-g button:hover { background: var(--kw-soft); }
+.kw-cal-g button.out { color: #c4c4c4; }
+.kw-cal-g button.on { background: var(--kw-p); color: #fff; font-weight: 700; }
+.kw-cal-g button.has::after { content: ''; position: absolute; bottom: 3px; left: 50%; width: 4px; height: 4px; border-radius: 50%; background: #12b76a; transform: translateX(-50%); }
+.kw-perf2 { background: #fff; border-radius: 8px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.kw-perf2 h3 { font-size: 15px; margin-bottom: 10px; }
+.kw-perf2-in { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.kw-perf2-l { display: grid; gap: 2px; }
+.kw-perf2-l small { color: #666; font-size: 12.5px; margin-top: 8px; display: flex; gap: 10px; }
+.kw-perf2-l b { color: #f97316; font-size: 18px; }
+.kw-perf2-l em { font-style: normal; font-weight: 700; }
+.kw-perf2-l em.up { color: #12b76a; } .kw-perf2-l em.down { color: #e53935; }
+.kw-ring { position: relative; width: 150px; height: 150px; flex: none; margin: 0 auto; }
+.kw-ring > div { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.kw-ring b { font-size: 16px; } .kw-ring small { font-size: 11px; color: #666; }
+.kw-ring-arc { transition: stroke-dasharray 1s ease; }
+.kw-dash-sum { background: #fff; border-radius: 8px; padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 10px 28px; }
+.kw-dash-sum > div { display: flex; align-items: center; gap: 8px; color: #555; }
+.kw-dash-sum b { color: var(--kw-ink); font-size: 16px; } .kw-dash-sum b.g { color: #12b76a; font-size: 20px; }
+.kw-dash-top { background: #fff; border-radius: 8px; padding: 16px 18px; display: grid; gap: 12px; }
+.kw-dash-top header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.kw-dash-top h3 { font-size: 15px; display: flex; align-items: center; gap: 8px; color: #12b76a; }
+.kw-dash-top ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.kw-dash-top li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; border-bottom: 1px solid var(--kw-line); padding-bottom: 8px; }
+.kw-dash-top li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kw-dash-top li small { color: #666; display: inline-flex; gap: 4px; align-items: center; }
+.kw-dash-top li b { color: #12b76a; }
+.kw-dash-pic { width: 44px !important; height: 44px !important; border-radius: 6px; object-fit: cover; font-size: 16px !important; }
+.kw-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.kw-switch input { display: none; }
+.kw-switch i { width: 36px; height: 20px; border-radius: 999px; background: #333; position: relative; transition: background .2s; }
+.kw-switch i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.kw-switch input:checked + i { background: var(--kw-p); }
+.kw-switch input:checked + i::after { transform: translateX(16px); }
+.kw-trans-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.kw-btn-green { background: #12b76a; border-color: #12b76a; color: #fff; font-weight: 700; letter-spacing: .3px; }
+.kw-btn-green:hover:not(:disabled) { background: #0e9f5b; border-color: #0e9f5b; color: #fff; }
+.kw-acc-pick { display: grid; gap: 8px; }
+.kw-acc-opt { display: flex; gap: 10px; align-items: center; border: 1px solid var(--kw-line); border-radius: 6px; padding: 10px 12px; cursor: pointer; transition: border-color .2s, background .2s; }
+.kw-acc-opt.on { border-color: var(--kw-p); background: var(--kw-soft); }
+.kw-acc-opt input { accent-color: var(--kw-p); }
+.kw-acc-opt span { display: grid; min-width: 0; } .kw-acc-opt small { color: #666; overflow-wrap: anywhere; }
+.kw-warn { background: #fff7e6; color: #8a5300; border: 1px solid #f5d08a; border-radius: 6px; padding: 10px 12px; font-size: 13.5px; }
+.kw-accounts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.kw-accounts li { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 6px; padding: 12px 14px; }
+.kw-accounts li > div { flex: 1; min-width: 0; display: grid; }
+.kw-accounts small { color: #666; overflow-wrap: anywhere; }
+@media (max-width: 760px) { .kw-dash-stats { grid-template-columns: minmax(0, 1fr); } .kw-dash-row { grid-template-columns: minmax(0, 1fr); } .kw-dash-top li { grid-template-columns: 40px minmax(0, 1fr) auto; } .kw-dash-top li small { display: none; } }
