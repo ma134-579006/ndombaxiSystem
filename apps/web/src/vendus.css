@@ -1123,3 +1123,37 @@
 .tabs { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 .tabs > * { flex: none; white-space: nowrap; }
+
+/* ── Menu do perfil: cabe SEMPRE na janela (qualquer navegador, altura ou zoom).
+   Limita a altura ao espaço sob a barra do topo e vai compactando conforme a
+   janela é mais baixa; o scroll só aparece em último caso. ── */
+.acct2-pop.vd-prof {
+  max-width: calc(100vw - 16px);
+  max-height: calc((100vh - 70px) / var(--uz, 1));
+  max-height: calc((100dvh - 70px) / var(--uz, 1));
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.vd-prof-email, .vd-prof-name { max-width: 100%; overflow-wrap: anywhere; }
+@media (max-height: 820px) {
+  .vd-prof-head { padding: 10px 14px 8px; }
+  .vd-prof-head > :first-child { margin-bottom: 4px; width: 48px !important; height: 48px !important; }
+  .vd-prof-item { padding: 6px 16px; }
+  .vd-prof-group { padding: 2px 0; }
+  .vd-prof-group.acct2-lang { padding: 6px 14px 8px !important; }
+  .acct2-lang-h { margin-bottom: 4px; }
+}
+@media (max-height: 640px) {
+  .vd-prof-head { display: flex; align-items: center; justify-items: initial; gap: 10px; text-align: left; padding: 8px 12px; }
+  .vd-prof-head > :first-child { width: 36px !important; height: 36px !important; margin: 0; flex: none; }
+  .vd-prof-head > div { min-width: 0; }
+  .vd-prof-item { padding: 5px 14px; font-size: 13.5px; }
+  .vd-prof-role { display: none; }
+}
+@media (max-width: 380px) { .acct2-pop.vd-prof { width: calc(100vw - 16px); position: fixed; top: 58px; right: 8px; } }
+/* Idiomas no menu do perfil: encolhem para caber (nunca cortados à direita). */
+.acct2-pop .lang-choice { flex-wrap: nowrap; min-width: 0; }
+.acct2-pop .lang-choice button { min-width: 0; flex: 1 1 0; padding-left: 2px; padding-right: 2px; overflow: hidden; }
+.acct2-pop .lang-choice button > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.acct2-lang { min-width: 0; box-sizing: border-box; }
+.acct2-pop.vd-prof { right: 6px; }
