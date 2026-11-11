@@ -7,9 +7,11 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * `scripts/prepare-web.mjs`. `androidScheme: 'https'` dá contexto seguro à WebView
  * (crypto.subtle, geolocalização para a entrega, câmara para ler QR de lojas).
  */
+// LPS_APP=kwanza → app LPS Kwanza (marketplace de associados), mesmo shell, identidade própria.
+const kwanza = process.env.LPS_APP === 'kwanza';
 const config: CapacitorConfig = {
-  appId: 'com.lpsvendas.loja',
-  appName: 'LPS Loja',
+  appId: kwanza ? 'com.lpsvendas.kwanza' : 'com.lpsvendas.loja',
+  appName: kwanza ? 'LPS Kwanza' : 'LPS Loja',
   webDir: 'www',
   server: { androidScheme: 'https' },
   android: {

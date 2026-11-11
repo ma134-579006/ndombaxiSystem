@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { API_URL } from '../config';
+import { API_URL, KWANZA_APP } from '../config';
 import { isNativeApp } from '../native';
 
 /**
@@ -15,7 +15,10 @@ import { isNativeApp } from '../native';
  *  - só se bloqueia com uma versão oficial válida e MAIOR do que a instalada;
  *  - o botão só abre páginas https.
  */
-const INSTALLED = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? '';
+const INSTALLED = KWANZA_APP?.version || ((import.meta.env.VITE_APP_VERSION as string | undefined) ?? '');
+/** Que app é: LPS Kwanza (Android/Windows) ou LPS Loja (Android). */
+const PLATFORM = KWANZA_APP ? `${KWANZA_APP.os}-kwanza` : 'android-loja';
+const BRAND = KWANZA_APP ? 'LPS Kwanza' : 'LPS Loja';
 const OFFICIAL_PAGE = 'https://ndombaxisystem.com/baixar';
 const EVERY_MS = 15 * 60 * 1000;
 
@@ -46,11 +49,11 @@ export function MandatoryUpdate() {
   const [block, setBlock] = useState<Official | null>(null);
 
   useEffect(() => {
-    if (!isNativeApp || !INSTALLED) return;
+    if (!(isNativeApp || KWANZA_APP) || !INSTALLED) return;
     let alive = true;
     const check = async () => {
       try {
-        const res = await fetch(`${API_URL}/downloads/latest?platform=android-loja`, { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
+        const res = await fetch(`${API_URL}/downloads/latest?platform=${PLATFORM}`, { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
         if (!res.ok) return; // servidor sem resposta útil → não bloqueia
         const raw = await res.json().catch(() => null);
         const b = mustBlock(INSTALLED, raw);
@@ -69,9 +72,9 @@ export function MandatoryUpdate() {
   return (
     <div className="mu-wrap" role="alertdialog" aria-modal="true" aria-label="Atualização obrigatória">
       <div className="mu-card">
-        <div className="mu-brand">LPS Loja</div>
+        <div className="mu-brand">{BRAND}</div>
         <h1>Nova versão disponível</h1>
-        <p>Foi publicada uma nova versão da app. Para continuar a comprar é obrigatório atualizar.</p>
+        <p>Foi publicada uma nova versão da app. Para continuar é obrigatório atualizar.</p>
         <div className="mu-vers">
           <div><span>Versão instalada</span><b>{INSTALLED}</b></div>
           <div className="new"><span>Nova versão</span><b>{block.version}</b></div>

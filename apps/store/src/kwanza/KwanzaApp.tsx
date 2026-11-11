@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../members/members.css';
 import { ApiError } from '../api/client';
+import { PUBLIC_ORIGIN } from '../config';
 import type { CatalogProduct } from '../api/types';
 import { formatDateTime } from '../format';
 import { readFileProgress } from '../transfer';
@@ -58,7 +59,10 @@ export function KwanzaApp() {
   useEffect(() => { const on = () => setSess(session.get()); window.addEventListener('kwanza:session', on); return () => window.removeEventListener('kwanza:session', on); }, []);
   useEffect(() => { const on = () => setCompact(window.scrollY > 60); on(); window.addEventListener('scroll', on, { passive: true }); return () => window.removeEventListener('scroll', on); }, []);
   useEffect(() => { kw.market().then(setList).catch(() => setList([])); }, []);
-  useEffect(() => { document.title = 'LPS Kwanza'; }, []);
+  useEffect(() => {
+    const l = route.n === 'product' ? list?.find((x) => x.companyCode === route.c && x.productCode === route.p) : null;
+    document.title = l ? `${l.name} — LPS Kwanza` : 'LPS Kwanza — Marketplace de associados';
+  }, [route, list]);
   const go = useCallback((r: Route) => { const h = hashOf(r); if (location.hash === h) setRoute(r); else location.hash = h; window.scrollTo({ top: 0 }); }, []);
   const flash = useCallback((t: string) => { const id = Date.now(); setToast({ id, t }); window.setTimeout(() => setToast((x) => (x?.id === id ? null : x)), 2600); }, []);
   const products = useMemo(() => (list ?? []).map(toMP), [list]);
@@ -214,7 +218,7 @@ function Product({ listing: l, loading, sess, go, flash, card, products }: { lis
           <div className="kw-side-price"><b>{kz(l.grossPrice)}</b></div>
           <div className="kw-side-row">Vendido por: <b>{l.companyName}</b></div>
           {sess ? <button className="kw-btn kw-block" onClick={() => go({ n: 'msgs', c: l.companyCode })}><I d={P.chat} size={16} /> Falar com a empresa</button> : null}
-          <a className="kw-btn kw-btn-outline kw-block" href={`${location.origin}/${encodeURIComponent(l.companyCode)}?p=${encodeURIComponent(l.productCode)}`}>Comprar na loja</a>
+          <a className="kw-btn kw-btn-outline kw-block" href={`${PUBLIC_ORIGIN}/${encodeURIComponent(l.companyCode)}?p=${encodeURIComponent(l.productCode)}`}>Comprar na loja</a>
           {aff?.status === 'APPROVED' ? (
             <>
               <div className="kw-aff-link"><input readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Ligação de associado" /></div>

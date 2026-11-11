@@ -10,6 +10,7 @@ import { MandatoryUpdate } from './components/MandatoryUpdate';
 import { MembersApp } from './members/MembersApp';
 import { isMembersArea } from './members/area';
 import { KwanzaApp } from './kwanza/KwanzaApp';
+import { KWANZA_APP } from './config';
 
 function Gate() {
   const { code, setCode, status, error } = useStore();
@@ -40,7 +41,7 @@ export function App() {
   // PORTAL DO CLIENTE: se o URL trouxer ?os=<token>&loja=<code> (QR da folha de
   // serviço), mostra o rastreio do reparo — página autónoma, sem gate nem carrinho.
   // LPS KWANZA: marketplace central (todas as empresas), fora de qualquer loja.
-  if (window.location.pathname.split('/').filter(Boolean)[0]?.toLowerCase() === 'kwanza') {
+  if (KWANZA_APP || window.location.pathname.split('/').filter(Boolean)[0]?.toLowerCase() === 'kwanza') {
     return <><KwanzaApp /><MandatoryUpdate /></>;
   }
   const params = new URLSearchParams(window.location.search);

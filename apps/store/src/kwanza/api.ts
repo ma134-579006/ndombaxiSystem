@@ -1,4 +1,5 @@
 import { request } from '../api/client';
+import { PUBLIC_ORIGIN } from '../config';
 
 /** LPS Kwanza — cliente da API do marketplace central (contas globais de associado). */
 export interface Listing {
@@ -64,4 +65,4 @@ export const kw = {
 
 /** Ligação pública: abre o produto na loja da empresa e guarda o código do associado. */
 export const shareLink = (companyCode: string, productCode: string, ref: string) =>
-  `${location.origin}/${e(companyCode)}?p=${e(productCode)}&ref=${ref}`;
+  `${PUBLIC_ORIGIN}/${e(companyCode)}?p=${e(productCode)}&ref=${ref}`;
