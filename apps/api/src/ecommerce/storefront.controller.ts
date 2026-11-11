@@ -26,6 +26,7 @@ import { MarketingService } from './marketing.service';
 import { MembersService } from './members.service';
 import { BannersService } from './banners.service';
 import { AffiliatesService } from './affiliates.service';
+import { KwanzaService } from './kwanza.service';
 import { IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 class CouponCheckDto {
@@ -75,6 +76,7 @@ export class StorefrontController {
     private readonly members: MembersService,
     private readonly banners: BannersService,
     private readonly affiliates: AffiliatesService,
+    private readonly kwanza: KwanzaService,
   ) {}
 
   // ── Chat livre com a loja (cliente autenticado, sem encomenda) ─
@@ -546,6 +548,8 @@ export class StorefrontController {
     if (dto.affiliateCode) {
       const buyer = auth ? await this.customers.verify(tenant.schema, auth).catch(() => null) : null;
       await this.affiliates.attribute(tenant.schema, result.id, dto.affiliateCode, buyer?.email ?? dto.customerEmail ?? null).catch(() => undefined);
+      // Associado do marketplace central (LPS Kwanza): código global.
+      await this.kwanza.attribute(tenant, code, result.id, dto.affiliateCode, buyer?.email ?? dto.customerEmail ?? null).catch(() => undefined);
     }
     // Lembra/atualiza o perfil do cliente (e sincroniza com o caixa/gestor):
     // assim, na próxima compra os dados já vêm preenchidos. Só ATUALIZA um

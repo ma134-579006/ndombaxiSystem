@@ -802,3 +802,10 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."affiliate_payout_accounts" (
 );
 CREATE INDEX IF NOT EXISTS affiliate_payout_accounts_customer_idx ON "{{SCHEMA}}"."affiliate_payout_accounts"(customer_id);
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."affiliate_withdrawals" ADD COLUMN IF NOT EXISTS proof_url TEXT;
+
+-- LPS Kwanza (marketplace central): o que cada empresa publica para os associados.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS kwanza_published BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS affiliate_mode TEXT NOT NULL DEFAULT 'OPEN';
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS allow_markup BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS max_markup_pct NUMERIC(5,2);
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS affiliate_materials JSONB NOT NULL DEFAULT '[]'::jsonb;

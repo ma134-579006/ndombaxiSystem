@@ -26,10 +26,12 @@ import { BannersController } from './banners.controller';
 import { BannersService } from './banners.service';
 import { AffiliatesController } from './affiliates.controller';
 import { AffiliatesService } from './affiliates.service';
+import { KwanzaAdminController, KwanzaPublicController } from './kwanza.controller';
+import { KwanzaService } from './kwanza.service';
 
 @Module({
   imports: [PosModule, SiteModule, PaymentsModule, AiModule, HotelModule, ServiceOrdersModule, ClinicModule, FiscalModule, JwtModule.register({})],
-  controllers: [StorefrontController, OrdersController, CustomerChatController, MarketingController, MembersController, BannersController, AffiliatesController],
+  controllers: [StorefrontController, OrdersController, CustomerChatController, MarketingController, MembersController, BannersController, AffiliatesController, KwanzaPublicController, KwanzaAdminController],
   providers: [
     StorefrontService,
     OrdersService,
@@ -41,6 +43,7 @@ import { AffiliatesService } from './affiliates.service';
     MembersService,
     BannersService,
     AffiliatesService,
+    KwanzaService,
   ],
 })
 export class EcommerceModule {}

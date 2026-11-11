@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
  *  • o gestor define a % de comissão em cada produto (sem % = produto fora do mercado);
  *  • cada associado aprovado tem um código pessoal (6 caracteres) para as suas ligações;
  *  • a encomenda feita com esse código (último clique) gera comissão por linha;
- *  • a comissão fica "pendente" até a encomenda ser ENTREGUE, "cancelada" se a encomenda for cancelada;
+ *  • a comissão fica "pendente" até a empresa marcar a encomenda como VENDIDA (paga/faturada), "cancelada" se for cancelada;
  *  • o saldo disponível pode ser pedido em saque; o gestor marca como pago ou recusa.
  */
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -17,8 +17,10 @@ const num = (v: unknown) => Number(v ?? 0) || 0;
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
 export type CommissionState = 'PENDING' | 'AVAILABLE' | 'CANCELLED';
+/** Vendida = a empresa marcou a encomenda como paga (faturada); daí em diante a comissão é do associado. */
+export const SOLD_STATUSES = ['PAID', 'SHIPPED', 'DELIVERED'];
 export const stateOf = (orderStatus: string): CommissionState =>
-  orderStatus === 'DELIVERED' ? 'AVAILABLE' : orderStatus === 'CANCELLED' ? 'CANCELLED' : 'PENDING';
+  SOLD_STATUSES.includes(orderStatus) ? 'AVAILABLE' : orderStatus === 'CANCELLED' ? 'CANCELLED' : 'PENDING';
 
 export interface AffiliateSummary {
   code: string;
@@ -156,8 +158,8 @@ export class AffiliatesService {
       tx.$queryRaw<{ id: string; name: string; code: string | null; sales: bigint; pending: unknown; available: unknown; paid: unknown; requested: unknown }[]>(Prisma.sql`
         SELECT c.id, c.name, c.affiliate_code AS code,
           (SELECT COUNT(DISTINCT ac.order_id) FROM affiliate_commissions ac WHERE ac.customer_id = c.id) AS sales,
-          (SELECT COALESCE(SUM(ac.amount),0) FROM affiliate_commissions ac JOIN web_orders wo ON wo.id = ac.order_id WHERE ac.customer_id = c.id AND wo.status NOT IN ('DELIVERED','CANCELLED')) AS pending,
-          (SELECT COALESCE(SUM(ac.amount),0) FROM affiliate_commissions ac JOIN web_orders wo ON wo.id = ac.order_id WHERE ac.customer_id = c.id AND wo.status = 'DELIVERED') AS available,
+          (SELECT COALESCE(SUM(ac.amount),0) FROM affiliate_commissions ac JOIN web_orders wo ON wo.id = ac.order_id WHERE ac.customer_id = c.id AND wo.status NOT IN ('PAID','SHIPPED','DELIVERED','CANCELLED')) AS pending,
+          (SELECT COALESCE(SUM(ac.amount),0) FROM affiliate_commissions ac JOIN web_orders wo ON wo.id = ac.order_id WHERE ac.customer_id = c.id AND wo.status IN ('PAID','SHIPPED','DELIVERED')) AS available,
           (SELECT COALESCE(SUM(w.amount),0) FROM affiliate_withdrawals w WHERE w.customer_id = c.id AND w.status = 'PAID') AS paid,
           (SELECT COALESCE(SUM(w.amount),0) FROM affiliate_withdrawals w WHERE w.customer_id = c.id AND w.status = 'REQUESTED') AS requested
         FROM customers c WHERE c.affiliate_code IS NOT NULL ORDER BY c.name LIMIT 500`),
