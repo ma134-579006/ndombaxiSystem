@@ -4267,3 +4267,7 @@ img, video, canvas { max-width: 100%; }
 .acct2-lang { padding: 10px 14px 12px; }
 .acct2-lang-h { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
 .vd-prof-group.acct2-lang { padding: 10px 16px 12px !important; }
+
+/* Botão de fechar injetado nas janelas que não trazem o seu (modalClose.ts). */
+.modal-x-auto { position: absolute; top: 10px; right: 10px; z-index: 5; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgba(120,130,150,.18); color: var(--text, #141c4d); cursor: pointer; padding: 0; }
+.modal-x-auto:hover { background: rgba(120,130,150,.32); }

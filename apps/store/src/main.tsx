@@ -1,5 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { installModalClose } from './modalClose';
+import { installBigScreen } from './bigScreen';
 import { App } from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { TransferHost } from './transfer';
@@ -20,6 +22,8 @@ initScrollReveal(); // conteúdo materializa-se ao rolar (efeito de catálogo pr
 const container = document.getElementById('root');
 if (!container) throw new Error('Elemento #root não encontrado');
 
+installModalClose();
+installBigScreen();
 createRoot(container).render(
   <React.StrictMode>
     <ErrorBoundary>

@@ -96,6 +96,7 @@ export function PaymentModal({ total, customerName, prescriptionItems = [], line
     <div className="vfin-bg" role="dialog" aria-modal="true" aria-label="Finalizar venda">
       <div className="vfin">
         <div className="vfin-main">
+          <div className="vfin-bar"><b>Finalizar venda</b><button type="button" className="vfin-x" onClick={onClose} disabled={busy} aria-label="Fechar">✕</button></div>
           {view === 'method' ? (
             <div className="vfin-scroll vfin-in">
               <button className="vfin-back" onClick={() => setView('main')} aria-label="Voltar">←</button>

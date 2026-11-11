@@ -1097,3 +1097,29 @@
   .vd-formpage .field > :not(label) { grid-column: 1; }
   .vd-formpage-acts { padding-left: 0; }
 }
+
+/* Responsivo geral: a grelha da página nunca cresce além do ecrã (min-width:0). */
+.vd-page { grid-template-columns: minmax(0, 1fr); }
+.vd-page > *, .page-anim > *, .content > * { min-width: 0; max-width: 100%; }
+.vd-head { min-width: 0; }
+/* Tabelas largas: deslizam na horizontal dentro do próprio cartão, nunca cortam. */
+@media (max-width: 900px) {
+  .content table:not(.stack):not(.ptable) { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .content table:not(.stack):not(.ptable) th, .content table:not(.stack):not(.ptable) td { white-space: nowrap; }
+  .content td .wrap, .content td.wrap, .content td.wrap-ok { white-space: normal; }
+}
+@media (max-width: 1020px) { .doc-layout { align-items: stretch; } .doc-main { width: 100%; } }
+.vd-seg { max-width: 100%; overflow-x: auto; }
+.vd-seg button { white-space: nowrap; flex: none; }
+.rc-row { box-sizing: border-box; max-width: 100%; }
+@media (max-width: 640px) {
+  .ptable.stack, .ptable.stack tbody, .ptable.stack tfoot { display: block; width: 100%; max-width: 100%; }
+  .ptable.stack tbody td { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+}
+/* Abas: deslizam na horizontal (nunca ficam cortadas nem passam o ecrã). */
+.fx-tabs, .vd-tabs, .sx-tabs { max-width: 100%; overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+.fx-tabs > *, .vd-tabs > *, .sx-tabs > * { flex: none; white-space: nowrap; }
+.fx-toolbar { max-width: 100%; min-width: 0; }
+.tabs { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs > * { flex: none; white-space: nowrap; }
