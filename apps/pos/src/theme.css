@@ -1788,3 +1788,27 @@ html.touch-ui .btn.sm { min-height: 40px; }
 /* Botão de fechar injetado nas janelas que não trazem o seu (modalClose.ts). */
 .modal-x-auto { position: absolute; top: 10px; right: 10px; z-index: 5; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgba(120,130,150,.18); color: var(--text, #141c4d); cursor: pointer; padding: 0; }
 .modal-x-auto:hover { background: rgba(120,130,150,.32); }
+
+/* ── Menu do perfil da Caixa: cabe SEMPRE na janela (altura, largura, zoom, qualquer navegador).
+   Altura limitada ao espaço sob a barra; compacta-se em janelas baixas; scroll só em último caso. ── */
+.acct2-pop {
+  right: 6px; max-width: calc(100vw - 16px);
+  max-height: calc((100vh - 70px) / var(--uz, 1));
+  max-height: calc((100dvh - 70px) / var(--uz, 1));
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+}
+.acct2-pop .lang-choice { flex-wrap: nowrap; min-width: 0; }
+.acct2-pop .lang-choice button { min-width: 0; flex: 1 1 0; padding-left: 2px; padding-right: 2px; overflow: hidden; }
+.acct2-lang { min-width: 0; box-sizing: border-box; }
+@media (max-height: 820px) {
+  .acct2-pop { padding: 6px; }
+  .acct2-head { padding: 6px 8px 4px; }
+  .acct2-role { margin: 0 8px 4px; }
+  .acct2-group { padding-top: 3px; margin-top: 3px; }
+  .acct2-item { min-height: 34px; padding: 5px 10px; }
+}
+@media (max-height: 640px) {
+  .acct2-item { min-height: 30px; padding: 3px 10px; font-size: 13.5px; }
+  .acct2-head .u-av, .acct2-head img { width: 34px !important; height: 34px !important; }
+}
+@media (max-width: 380px) { .acct2-pop { width: calc(100vw - 16px); position: fixed; top: 58px; right: 8px; } }

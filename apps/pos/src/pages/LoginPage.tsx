@@ -6,7 +6,6 @@ import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
 import { cachedPhoto, rememberPhoto } from '../photoCache';
-import { ScreenKeyboard } from '../components/ScreenKeyboard';
 import { LangPicker } from '../components/LangPicker';
 import { nativeGoogleAvailable, nativeGoogleSignIn } from '../offline/nativeGoogle';
 import { desktopGoogleAvailable, desktopGoogleSignIn } from '../offline/desktopGoogle';
@@ -130,7 +129,6 @@ export function LoginPage() {
 
   return (
     <div className="auth">
-      <ScreenKeyboard />
       <div className="auth-panel">
         <div className="auth-form auth-enter">
           <div className="auth-top">
