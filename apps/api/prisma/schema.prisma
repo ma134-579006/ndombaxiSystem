@@ -603,3 +603,148 @@ model PasswordReset {
   @@map("password_resets")
   @@schema("nexus_public")
 }
+
+// ─────────────────────────────────────────────────────────────
+// LPS KWANZA — marketplace central de associados (todas as empresas)
+// Cada empresa publica no seu painel LPS Vendas os produtos que quer vender
+// por associados; os associados (contas globais) promovem-nos com a sua ligação.
+// A venda e a entrega acontecem na loja da empresa (equipa dela, GPS do cliente);
+// a comissão fica registada aqui quando a encomenda é criada.
+// ─────────────────────────────────────────────────────────────
+model KwanzaAssociate {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  phone        String   @unique
+  email        String?  @unique
+  passwordHash String
+  code         String   @unique // código pessoal das ligações (6 caracteres)
+  photoUrl     String?
+  taxId        String?
+  province     String?
+  municipality String?
+  address      String?
+  bio          String?
+  status       String   @default("ACTIVE") // ACTIVE | BLOCKED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("kwanza_associates")
+  @@schema("nexus_public")
+}
+
+model KwanzaListing {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @db.Uuid
+  companyCode   String
+  companyName   String
+  productCode   String
+  name          String
+  description   String?
+  imageUrl      String?
+  gallery       Json     @default("[]")
+  category      String?
+  grossPrice    Decimal  @db.Decimal(14, 2)
+  listPrice     Decimal? @db.Decimal(14, 2)
+  inStock       Boolean  @default(true)
+  commissionPct Decimal  @db.Decimal(5, 2)
+  affiliation   String   @default("OPEN") // OPEN | RESTRICTED
+  allowMarkup   Boolean  @default(false) // "venda no teu preço"
+  maxMarkupPct  Decimal? @db.Decimal(5, 2)
+  materials     Json     @default("[]") // ligações de vídeos/imagens para os associados
+  views         Int      @default(0)
+  sold          Int      @default(0)
+  active        Boolean  @default(true)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([companyId, productCode])
+  @@index([active])
+  @@map("kwanza_listings")
+  @@schema("nexus_public")
+}
+
+model KwanzaAffiliation {
+  id            String   @id @default(uuid()) @db.Uuid
+  associateId   String   @db.Uuid
+  companyId     String   @db.Uuid
+  productCode   String
+  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  commissionPct Decimal? @db.Decimal(5, 2) // % negociada só para este associado
+  markupPct     Decimal? @db.Decimal(5, 2) // preço próprio do associado (acima do base)
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([associateId, companyId, productCode])
+  @@index([companyId, status])
+  @@map("kwanza_affiliations")
+  @@schema("nexus_public")
+}
+
+model KwanzaCommission {
+  id           String   @id @default(uuid()) @db.Uuid
+  associateId  String   @db.Uuid
+  companyId    String   @db.Uuid
+  companyCode  String
+  orderId      String   @db.Uuid
+  orderNumber  String
+  productCode  String
+  productName  String
+  quantity     Decimal  @db.Decimal(14, 3)
+  baseAmount   Decimal  @db.Decimal(14, 2)
+  percent      Decimal  @db.Decimal(5, 2)
+  amount       Decimal  @db.Decimal(14, 2)
+  markupAmount Decimal  @default(0) @db.Decimal(14, 2)
+  createdAt    DateTime @default(now())
+
+  @@unique([companyId, orderId, productCode])
+  @@index([associateId])
+  @@map("kwanza_commissions")
+  @@schema("nexus_public")
+}
+
+model KwanzaWithdrawal {
+  id          String    @id @default(uuid()) @db.Uuid
+  associateId String    @db.Uuid
+  companyId   String    @db.Uuid
+  amount      Decimal   @db.Decimal(14, 2)
+  method      String
+  details     String?
+  status      String    @default("REQUESTED") // REQUESTED | PAID | REJECTED
+  note        String?
+  proofUrl    String?
+  createdAt   DateTime  @default(now())
+  decidedAt   DateTime?
+
+  @@index([associateId])
+  @@index([companyId, status])
+  @@map("kwanza_withdrawals")
+  @@schema("nexus_public")
+}
+
+model KwanzaPayoutAccount {
+  id          String   @id @default(uuid()) @db.Uuid
+  associateId String   @db.Uuid
+  method      String
+  bank        String?
+  holder      String
+  details     String
+  createdAt   DateTime @default(now())
+
+  @@index([associateId])
+  @@map("kwanza_payout_accounts")
+  @@schema("nexus_public")
+}
+
+model KwanzaPasswordReset {
+  id          String    @id @default(uuid()) @db.Uuid
+  associateId String    @db.Uuid
+  codeHash    String
+  attempts    Int       @default(0)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([associateId])
+  @@map("kwanza_password_resets")
+  @@schema("nexus_public")
+}

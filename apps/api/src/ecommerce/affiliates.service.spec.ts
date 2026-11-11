@@ -1,10 +1,10 @@
 import { AffiliatesService, stateOf } from './affiliates.service';
 
 describe('programa de associados (LPS Kwanza)', () => {
-  it('comissão só fica disponível quando a encomenda é entregue', () => {
-    expect(stateOf('DELIVERED')).toBe('AVAILABLE');
+  it('comissão fica disponível quando a empresa marca a encomenda como vendida', () => {
+    for (const s of ['PAID', 'SHIPPED', 'DELIVERED']) expect(stateOf(s)).toBe('AVAILABLE');
     expect(stateOf('CANCELLED')).toBe('CANCELLED');
-    for (const s of ['PENDING', 'PAID', 'SHIPPED']) expect(stateOf(s)).toBe('PENDING');
+    expect(stateOf('PENDING')).toBe('PENDING');
   });
   it('código inválido não toca na base de dados', async () => {
     const runInTenant = jest.fn();

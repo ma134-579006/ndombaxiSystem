@@ -53,7 +53,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown, token?: string): Promise<T> {
+export async function request<T>(method: string, path: string, body?: unknown, token?: string): Promise<T> {
   let res: Response;
   // Timeout defensivo: evita ficar pendurado quando o servidor está a acordar.
   const ctrl = new AbortController();
