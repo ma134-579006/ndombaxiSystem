@@ -4,7 +4,7 @@ import { api, ApiError } from '../api/client';
 import type { OpsAlert, Promotion, PromotionInput, PromoType } from '../api/types';
 import { Modal, Switch } from '../components/ui';
 import { IconPlus, IconStar, IconTrash } from '../components/Icons';
-import { CouponsCard } from './StoreMarketing';
+import { CouponsCard, MembersCard } from './StoreMarketing';
 
 const TYPE_LABEL: Record<PromoType, string> = {
   PERCENT: 'Desconto %',
@@ -123,6 +123,7 @@ export function Promotions() {
       </div>
 
       <CouponsCard />
+      <MembersCard />
 
       {creating ? <PromoEditor onClose={() => setCreating(false)} onSaved={() => { setCreating(false); void load(); }} /> : null}
     </>

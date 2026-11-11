@@ -1443,3 +1443,8 @@ export interface PublicRelease {
   mandatory: boolean;
   releasedAt: string;
 }
+
+export interface StoreMember {
+  id: string; name: string; email: string; phone: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'; note: string | null; requestedAt: string | null; decidedAt: string | null;
+}

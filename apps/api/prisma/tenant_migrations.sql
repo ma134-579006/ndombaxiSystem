@@ -735,3 +735,9 @@ CREATE INDEX IF NOT EXISTS store_reviews_product_idx ON "{{SCHEMA}}"."store_revi
 -- observações do cliente no checkout.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS delivery_method TEXT NOT NULL DEFAULT 'DELIVERY';
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- Loja de associados: o cliente pede adesão e o gestor aprova (NONE → PENDING → APPROVED/REJECTED).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS member_status TEXT NOT NULL DEFAULT 'NONE';
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS member_note TEXT;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS member_requested_at TIMESTAMPTZ;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS member_decided_at TIMESTAMPTZ;

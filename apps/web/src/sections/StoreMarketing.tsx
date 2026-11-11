@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { StoreCoupon, StoreCouponInput, StoreReviewRow } from '../api/types';
+import type { StoreCoupon, StoreCouponInput, StoreMember, StoreReviewRow } from '../api/types';
 import { confirmDialog } from '../components/feedback';
 import { Modal, Switch } from '../components/ui';
 import { IconPlus, IconTrash } from '../components/Icons';
@@ -164,6 +164,72 @@ export function ReviewsCard() {
                   <td aria-label={`${r.rating} de 5`} style={{ color: '#f5a623', whiteSpace: 'nowrap' }}>{'★'.repeat(r.rating)}<span style={{ color: 'var(--border)' }}>{'★'.repeat(5 - r.rating)}</span></td>
                   <td style={{ maxWidth: 360 }}>{r.comment || '—'}</td>
                   <td><Switch checked={!r.is_hidden} onChange={() => void toggle(r)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const MEMBER_LABEL: Record<string, string> = { PENDING: 'Pendente', APPROVED: 'Aprovado', REJECTED: 'Recusado' };
+
+/** Associados da loja online (segunda loja): aprovação das adesões pedidas pelos clientes. */
+export function MembersCard() {
+  const [rows, setRows] = useState<StoreMember[]>([]);
+  const [filter, setFilter] = useState<'' | 'PENDING' | 'APPROVED' | 'REJECTED'>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setRows(await api.members.list(filter || undefined)); setError(null); }
+    catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao carregar.'); }
+    finally { setLoading(false); }
+  }, [filter]);
+  useEffect(() => { void load(); }, [load]);
+
+  const act = async (fn: () => Promise<unknown>) => {
+    try { await fn(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível concluir.'); }
+    await load();
+  };
+  const revoke = async (m: StoreMember) => {
+    if (!(await confirmDialog({ message: `Retirar o acesso de ${m.name}?`, danger: true }))) return;
+    await act(() => api.members.revoke(m.id));
+  };
+
+  return (
+    <div className="card">
+      <div className="row" style={{ alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0, flex: 1 }}>Associados da loja online</h3>
+        <select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} aria-label="Estado">
+          <option value="">Todos</option><option value="PENDING">Pendentes</option><option value="APPROVED">Aprovados</option><option value="REJECTED">Recusados</option>
+        </select>
+      </div>
+      {error ? <div className="banner danger" style={{ marginTop: 10 }}>{error}</div> : null}
+      {loading ? <div className="loading">A carregar…</div> : rows.length === 0 ? (
+        <div className="empty"><p>Sem pedidos.</p></div>
+      ) : (
+        <div className="table-wrap" style={{ marginTop: 10 }}>
+          <table className="vd-table">
+            <thead><tr><th>Nome</th><th>Email</th><th>Telefone</th><th>Pedido</th><th>Estado</th><th /></tr></thead>
+            <tbody>
+              {rows.map((m) => (
+                <tr key={m.id}>
+                  <td><strong>{m.name}</strong>{m.note ? <div className="muted wrap">{m.note}</div> : null}</td>
+                  <td className="wrap">{m.email}</td>
+                  <td>{m.phone ?? '—'}</td>
+                  <td>{dt(m.requestedAt)}</td>
+                  <td>{MEMBER_LABEL[m.status] ?? m.status}</td>
+                  <td>
+                    <div className="row" style={{ gap: 6 }}>
+                      {m.status !== 'APPROVED' ? <button className="btn sm" onClick={() => void act(() => api.members.approve(m.id))}>Aprovar</button> : null}
+                      {m.status === 'PENDING' ? <button className="btn sm ghost" onClick={() => void act(() => api.members.reject(m.id))}>Recusar</button> : null}
+                      {m.status === 'APPROVED' ? <button className="btn sm ghost" onClick={() => void revoke(m)}>Retirar acesso</button> : null}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
