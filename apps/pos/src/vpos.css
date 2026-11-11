@@ -670,3 +670,12 @@
   .topbar.vtop { --vt-ic: 30px; gap: 2px !important; padding-left: 4px !important; padding-right: 4px !important; }
   .topbar.vtop > .who { display: none; }
 }
+
+/* Finalizar venda: barra com ✕ quando o painel lateral (com «Fechar») está oculto. */
+.vfin-bar { display: none; }
+@media (max-width: 900px) {
+  .vfin-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; }
+  .vfin-bar b { font-size: 16px; font-weight: 700; }
+  .vfin-x { width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--surface); color: var(--text); font-size: 18px; cursor: pointer; display: grid; place-items: center; box-shadow: 0 0 0 1px var(--border); }
+  .vfin-x:disabled { opacity: .5; }
+}
