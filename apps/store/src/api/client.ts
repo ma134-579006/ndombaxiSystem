@@ -132,6 +132,12 @@ export const api = {
     request<CustomerSession>('POST', `/store/${enc(code)}/auth/email`, { email, name, existing, code: otp }),
   authGoogle: (code: string, idToken: string) =>
     request<CustomerSession>('POST', `/store/${enc(code)}/auth/google`, { idToken }),
+  myMembership: (code: string, token: string) =>
+    request<{ status: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED' }>('GET', `/store/${enc(code)}/my/membership`, undefined, token),
+  requestMembership: (code: string, token: string, note?: string) =>
+    request<{ status: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED' }>('POST', `/store/${enc(code)}/my/membership/request`, { note }, token),
+  membersCatalog: (code: string, token: string) =>
+    request<CatalogResponse>('GET', `/store/${enc(code)}/members/catalog`, undefined, token),
   myOrders: (code: string, token: string) =>
     request<MyOrderRow[]>('GET', `/store/${enc(code)}/my/orders`, undefined, token),
   myProfile: (code: string, token: string) =>

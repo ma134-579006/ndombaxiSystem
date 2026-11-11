@@ -23,11 +23,15 @@ import { ServiceOrdersService } from '../services/service-orders.service';
 import { ClinicService } from '../clinic/clinic.service';
 import { OnlineAppointmentDto, OnlineReservationDto, OnlineServiceRequestDto } from './dto/online-request.dto';
 import { MarketingService } from './marketing.service';
+import { MembersService } from './members.service';
 import { IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 class CouponCheckDto {
   @IsString() @MaxLength(32) code!: string;
   @IsNumber() @Min(0) total!: number;
+}
+class MemberRequestDto {
+  @IsOptional() @IsString() @MaxLength(300) note?: string;
 }
 class ReviewDto {
   @IsInt() @Min(1) @Max(5) rating!: number;
@@ -54,6 +58,7 @@ export class StorefrontController {
     private readonly serviceOrders: ServiceOrdersService,
     private readonly clinic: ClinicService,
     private readonly marketing: MarketingService,
+    private readonly members: MembersService,
   ) {}
 
   // ── Chat livre com a loja (cliente autenticado, sem encomenda) ─
@@ -334,6 +339,33 @@ export class StorefrontController {
   ) {
     const tenant = await this.resolver.resolveByCode(code);
     return this.chat.postCustomerMessage(tenant.schema, orderId, dto.body, dto.senderName);
+  }
+
+  // ── Loja de associados (acesso só para clientes aprovados) ─
+  @Get('my/membership')
+  @ApiOperation({ summary: 'Estado de associado do cliente (NONE/PENDING/APPROVED/REJECTED)' })
+  async myMembership(@Param('code') code: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.members.statusOf(tenant.schema, claims.email);
+  }
+
+  @Post('my/membership/request')
+  @ApiOperation({ summary: 'Pede adesão à loja de associados' })
+  async requestMembership(@Param('code') code: string, @Body() dto: MemberRequestDto, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    return this.members.request(tenant.schema, claims.email, dto.note);
+  }
+
+  @Get('members/catalog')
+  @ApiOperation({ summary: 'Catálogo da loja de associados (só associados aprovados)' })
+  async membersCatalog(@Param('code') code: string, @Headers('authorization') auth?: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const claims = await this.customers.verify(tenant.schema, auth);
+    await this.members.assertApproved(tenant.schema, claims.email);
+    const products = await this.storefront.catalog(tenant.schema);
+    return { store: tenant.name, products };
   }
 
   @Get('catalog')

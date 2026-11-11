@@ -7,6 +7,8 @@ import { StoreChat } from './components/StoreChat';
 import { StoreProvider, useStore } from './state/StoreContext';
 import { RepairTrack } from './views/RepairTrack';
 import { MandatoryUpdate } from './components/MandatoryUpdate';
+import { MembersApp } from './members/MembersApp';
+import { isMembersArea } from './members/area';
 
 function Gate() {
   const { code, setCode, status, error } = useStore();
@@ -22,6 +24,8 @@ function Gate() {
   if (status === 'error') {
     return <StorePicker onOpen={setCode} error={error ? `Não foi possível abrir a loja “${code}”: ${error}` : null} />;
   }
+
+  if (isMembersArea()) return <MembersApp />;
 
   return (
     <>

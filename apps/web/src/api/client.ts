@@ -83,6 +83,7 @@ import type {
   ManagerProduct,
   OpsAlert,
   StoreCoupon,
+  StoreMember,
   StoreCouponInput,
   StoreReviewRow,
   ProfitAbcRow,
@@ -951,6 +952,12 @@ export const api = {
     remove: (id: string) => request<{ id: string }>('DELETE', `/promotions/${id}`),
   },
   // ── Loja online: cupões e avaliações (gestão) ─────────────
+  members: {
+    list: (status?: string) => request<StoreMember[]>('GET', `/ecommerce/members${status ? `?status=${status}` : ''}`),
+    approve: (id: string) => request<{ ok: true }>('POST', `/ecommerce/members/${id}/approve`),
+    reject: (id: string) => request<{ ok: true }>('POST', `/ecommerce/members/${id}/reject`),
+    revoke: (id: string) => request<{ ok: true }>('POST', `/ecommerce/members/${id}/revoke`),
+  },
   marketing: {
     coupons: () => request<StoreCoupon[]>('GET', '/ecommerce/coupons'),
     createCoupon: (dto: StoreCouponInput) => request<StoreCoupon>('POST', '/ecommerce/coupons', dto),
