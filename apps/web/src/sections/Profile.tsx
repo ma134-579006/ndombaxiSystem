@@ -1,3 +1,4 @@
+import { LangChoice, IconGlobe } from '../components/LangPicker';
 import React, { useEffect, useRef, useState } from 'react';
 import { readFileProgress } from '../components/feedback';
 import { api, ApiError } from '../api/client';
@@ -109,6 +110,11 @@ export function Profile() {
           <button className="btn lg" onClick={openCash} style={{ flex: 'none' }}>Abrir caixa</button>
         </div>
       ) : null}
+
+      <div className="card acc-lang" style={{ marginBottom: 16 }}>
+        <h3 className="acc-h"><IconGlobe size={18} /> Idioma</h3>
+        <LangChoice />
+      </div>
 
       <div className="cols-2">
         {/* Perfil: foto + nome + email + NIF */}

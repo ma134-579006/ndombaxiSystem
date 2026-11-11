@@ -142,3 +142,13 @@
 @media (prefers-reduced-motion: reduce) {
   .hd-msgr, .hd-view, .hd-body .sc-msg, .sc-fab-ic { animation-duration: .01s !important; transition: none !important; }
 }
+
+/* Fechar sempre visível: X maior com fundo suave e, no telemóvel (ecrã inteiro),
+   abaixo da barra de estado / entalhe do iPhone e das apps (safe-area). */
+.hd-x { width: 40px; height: 40px; border-radius: 50%; background: #f0f1f4; color: #1a1a1a; }
+.hd-x svg { width: 18px; height: 18px; }
+.hd-x:hover { background: #e4e6eb; }
+@media (max-width: 560px) {
+  .hd-msgr { padding-top: env(safe-area-inset-top, 0px); }
+  .hd-home-top .hd-x, .hd-bar .hd-x { width: 42px; height: 42px; }
+}

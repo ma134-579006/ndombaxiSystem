@@ -4167,3 +4167,103 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
 }
 @keyframes authRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes authShake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+
+/* ════════════════════════════════════════════════════════════════════
+   Barra do topo 100% adaptável (gestão e super admin): nunca quebra nem
+   transborda. O título encolhe com reticências; os ícones mantêm-se numa
+   linha e diminuem com o ecrã; o idioma passou para as Configurações; os
+   chats saem da barra em ecrãs pequenos (continuam no menu da conta).
+   ════════════════════════════════════════════════════════════════════ */
+.topbar { -webkit-flex-wrap: nowrap; flex-wrap: nowrap; min-width: 0; max-width: 100%; --tb-ic: 42px; }
+.topbar > * { -webkit-flex-shrink: 0; flex-shrink: 0; min-width: 0; }
+.topbar > .tb-title, .topbar > h1 { -webkit-flex: 1 1 auto !important; flex: 1 1 auto !important; min-width: 0 !important; max-width: none !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar > .spacer { -webkit-flex: 0 0 0px; flex: 0 0 0px; width: 0; }
+@media (max-width: 1100px) { .topbar .tb-sub-tx, .topbar .tb-agt-tx { display: none; } }
+@media (max-width: 900px) {
+  .topbar { gap: 6px; }
+  .topbar .tb-div { display: none; }
+  .topbar .acct2-id, .topbar .acct2-caret { display: none; }
+  .topbar .acct2-btn { padding: 3px; }
+}
+@media (max-width: 760px) {
+  .topbar { --tb-ic: 36px; gap: 4px !important; padding-left: 8px !important; padding-right: 8px !important; }
+  .topbar > * { margin-left: 0 !important; margin-right: 0 !important; }
+  .topbar > .tb-title, .topbar > h1 { margin-left: 4px !important; }
+  .topbar .acct2 { padding: 0 !important; }
+  .topbar .menu-toggle, .topbar .icon-btn, .topbar .tb-round, .topbar .tb-agt, .topbar .acct2-btn {
+    width: var(--tb-ic); height: var(--tb-ic); min-width: var(--tb-ic); padding: 0; border-radius: 10px;
+  }
+  .topbar .acct2-btn { -webkit-justify-content: center; justify-content: center; }
+  .topbar .acct2-btn .u-av, .topbar .acct2-btn img { width: calc(var(--tb-ic) - 6px) !important; height: calc(var(--tb-ic) - 6px) !important; }
+  .topbar .tb-actions { gap: 4px; padding: 0 !important; margin: 0 !important; }
+  .topbar .tb-sub { width: var(--tb-ic) !important; min-width: var(--tb-ic); height: var(--tb-ic); -webkit-justify-content: center; justify-content: center; }
+  .topbar .tb-ring { -webkit-transform: scale(.86); transform: scale(.86); }
+  .topbar .tb-sub { padding: 0; }
+  .topbar .icon-btn svg, .topbar .tb-round svg, .topbar .menu-toggle svg { width: 18px; height: 18px; }
+}
+@media (max-width: 480px) {
+  .topbar { --tb-ic: 30px; gap: 3px !important; padding-left: 6px !important; padding-right: 6px !important; }
+  .topbar > .tb-title, .topbar > h1 { font-size: 14px; }
+  .topbar .icon-btn svg, .topbar .tb-round svg, .topbar .menu-toggle svg { width: 16px; height: 16px; }
+  .topbar .tb-ring { -webkit-transform: scale(.74); transform: scale(.74); }
+  .topbar .noti-badge { min-width: 15px; height: 15px; font-size: 9px; top: -4px; right: -4px; }
+}
+@media (max-width: 360px) {
+  .topbar { --tb-ic: 27px; gap: 2px !important; padding-left: 4px !important; padding-right: 4px !important; }
+  .topbar .icon-btn svg, .topbar .tb-round svg, .topbar .menu-toggle svg { width: 15px; height: 15px; }
+  .topbar .tb-ring { -webkit-transform: scale(.66); transform: scale(.66); }
+}
+
+/* Idioma nas Configurações (PT · EN · FR · ES em linha). */
+.lang-choice { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; gap: 8px; }
+.lang-choice button {
+  display: -webkit-inline-flex; display: inline-flex; -webkit-align-items: center; align-items: center; gap: 8px;
+  min-height: 40px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); color: var(--text); font-size: 14px; cursor: pointer; transition: border-color .15s, background .15s;
+}
+.lang-choice button b { font-size: 12px; letter-spacing: .04em; color: var(--muted); }
+.lang-choice button:hover { border-color: var(--primary); }
+.lang-choice button.on { border-color: var(--primary); background: var(--primary); color: #fff; }
+.lang-choice button.on b { color: rgba(255, 255, 255, .85); }
+.lang-choice.compact { gap: 6px; }
+.lang-choice.compact button { -webkit-flex: 1 1 0; flex: 1 1 0; -webkit-justify-content: center; justify-content: center; min-height: 34px; padding: 6px 4px; }
+.lang-choice.compact button b { color: inherit; font-size: 13px; }
+
+/* Responsivo geral: nada passa da largura do ecrã. */
+img, video, canvas { max-width: 100%; }
+.main, .content { min-width: 0; }
+.content .card, .content .table-wrap, .content .cols-2 > *, .content .cols-3 > * { min-width: 0; }
+.content table { max-width: 100%; }
+.content .table-wrap, .content .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.content .fx-tabs, .content .inv-tabs, .content .seg { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.content .fx-tabs::-webkit-scrollbar, .content .inv-tabs::-webkit-scrollbar, .content .seg::-webkit-scrollbar { display: none; }
+@media (max-width: 760px) {
+  .content .cols-2, .content .cols-3, .content .cols-4 { grid-template-columns: minmax(0, 1fr) !important; }
+  .content .row { -webkit-flex-wrap: wrap; flex-wrap: wrap; }
+  .modal { max-width: calc(100vw - 16px); }
+}
+
+/* Login e registo: o preenchimento automático do navegador (e-mail/senha
+   sugeridos) não muda a cor dos campos — mantém o fundo escuro e o texto branco. */
+.auth-input:-webkit-autofill, .auth-input:-webkit-autofill:hover, .auth-input:-webkit-autofill:focus, .auth-input:-webkit-autofill:active,
+.auth-form input:-webkit-autofill, .auth-form input:-webkit-autofill:hover, .auth-form input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #121a2e inset !important; box-shadow: 0 0 0 1000px #121a2e inset !important;
+  -webkit-text-fill-color: #fff !important; caret-color: #fff; border-color: #232d44;
+  -webkit-transition: background-color 600000s 0s, color 600000s 0s; transition: background-color 600000s 0s, color 600000s 0s;
+}
+.auth-input:-webkit-autofill:focus, .auth-form input:-webkit-autofill:focus {
+  border-color: #7b5cff; -webkit-box-shadow: 0 0 0 1000px #121a2e inset, 0 0 0 3px rgba(123, 92, 255, .22) !important; box-shadow: 0 0 0 1000px #121a2e inset, 0 0 0 3px rgba(123, 92, 255, .22) !important;
+}
+.auth-input:autofill, .auth-form input:autofill { filter: none; background-color: #121a2e !important; color: #fff !important; }
+
+/* Título da barra do topo SEMPRE visível: a entrada antiga começava em
+   opacidade 0 e, quando a animação não corre (WebView das apps, iPhone em
+   poupança de energia), o título ficava invisível depois de tocar no menu. */
+.topbar .tb-title { opacity: 1 !important; color: var(--text); -webkit-text-fill-color: currentColor; -webkit-animation: tb-title-in .25s ease; animation: tb-title-in .25s ease; }
+@-webkit-keyframes tb-title-in { from { -webkit-transform: translateX(-6px); } to { -webkit-transform: none; } }
+@keyframes tb-title-in { from { transform: translateX(-6px); } to { transform: none; } }
+
+/* Idioma no menu da conta (gestão e super admin). */
+.acct2-lang { padding: 10px 14px 12px; }
+.acct2-lang-h { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.vd-prof-group.acct2-lang { padding: 10px 16px 12px !important; }

@@ -1,3 +1,4 @@
+import { LangChoice, IconGlobe } from '../components/LangPicker';
 import type { CompanyProfile } from '../api/types';
 import { confirmDialog, toast, readFileProgress } from '../components/feedback';
 import React, { useEffect, useRef, useState } from 'react';
@@ -13,7 +14,7 @@ import { ShopServerCard } from './ShopServerCard';
  * recibos, reposição de senhas/PIN dos funcionários, plano e impressora.
  */
 export function Settings() {
-  const [tab, setTab] = useState<'brand' | 'modules' | 'passwords' | 'printer' | 'loja'>('brand');
+  const [tab, setTab] = useState<'brand' | 'modules' | 'passwords' | 'printer' | 'loja' | 'lang'>('brand');
   return (
     <>
       <div className="content-head">
@@ -25,12 +26,14 @@ export function Settings() {
         <button className={tab === 'passwords' ? 'on' : ''} onClick={() => setTab('passwords')}>Senhas dos funcionários</button>
         <button className={tab === 'printer' ? 'on' : ''} onClick={() => setTab('printer')}>Impressora & Plano</button>
         <button className={tab === 'loja' ? 'on' : ''} onClick={() => setTab('loja')}>Servidor da loja</button>
+        <button className={tab === 'lang' ? 'on' : ''} onClick={() => setTab('lang')}>Idioma</button>
       </div>
       {tab === 'brand' ? <BrandingCard /> : null}
       {tab === 'modules' ? <ModulesCard /> : null}
       {tab === 'passwords' ? <PasswordsCard /> : null}
       {tab === 'printer' ? <PrinterCard /> : null}
       {tab === 'loja' ? <ShopServerCard /> : null}
+      {tab === 'lang' ? <div className="card acc-lang"><h3 className="acc-h"><IconGlobe size={18} /> Idioma</h3><LangChoice /></div> : null}
     </>
   );
 }

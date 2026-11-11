@@ -635,3 +635,38 @@
    nome, e-mail e seta — sem cápsula, sem contorno nem anel ao abrir/focar. */
 .acct2-btn, .acct2-btn:hover, .acct2-btn.open { border: 0 !important; background: transparent !important; box-shadow: none !important; border-radius: 4px !important; padding: 3px 4px !important; }
 .acct2-btn:hover { background: color-mix(in srgb, var(--text) 5%, transparent) !important; }
+
+/* ════════════════════════════════════════════════════════════════════
+   Barra do topo da caixa 100% adaptável: nunca quebra nem transborda.
+   Em ecrãs pequenos os menus Autoconsumo/Caixa/Documentos juntam-se num só
+   botão (☰); o idioma passou para o menu da conta; os ícones encolhem.
+   ════════════════════════════════════════════════════════════════════ */
+.vtop-m-mob { display: none; }
+.topbar.vtop { -webkit-flex-wrap: nowrap !important; flex-wrap: nowrap !important; min-width: 0; max-width: 100%; --vt-ic: 38px; }
+.topbar.vtop > * { -webkit-flex-shrink: 0; flex-shrink: 0; }
+.topbar.vtop > .who { -webkit-flex-shrink: 1; flex-shrink: 1; min-width: 0; overflow: hidden; }
+.topbar.vtop > .who .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar.vtop > .spacer { -webkit-flex: 1 1 0px !important; flex: 1 1 0px !important; min-width: 0 !important; width: auto !important; }
+.vsub-tip { position: absolute; }
+@media (max-width: 900px) {
+  .topbar.vtop .vtop-menus { display: -webkit-flex !important; display: flex !important; margin-right: 0; }
+  .topbar.vtop .vtop-menus > .vtop-m:not(.vtop-m-mob) { display: none !important; }
+  .topbar.vtop .vtop-m-mob { display: block; position: relative; }
+  .vtop-m-mob > button { display: -webkit-inline-flex; display: inline-flex; -webkit-align-items: center; align-items: center; gap: 4px; width: auto; min-width: var(--vt-ic); height: var(--vt-ic); padding: 0 8px; }
+  .vtop-drop-mob { left: auto; right: 0; min-width: 260px; max-width: calc(100vw - 16px); max-height: 70vh; max-height: 70dvh; overflow-y: auto; }
+  .topbar.vtop .vsub { padding: 0 4px; }
+  .topbar.vtop .vsub-tx { display: none !important; }
+}
+@media (max-width: 760px) {
+  .topbar.vtop { --vt-ic: 34px; gap: 4px !important; padding-left: 8px !important; padding-right: 8px !important; }
+  .topbar.vtop > * { margin-left: 0 !important; margin-right: 0 !important; }
+  .topbar.vtop .icon-btn, .topbar.vtop .theme-btn, .topbar.vtop .acct2-btn { width: var(--vt-ic) !important; height: var(--vt-ic) !important; min-width: var(--vt-ic); padding: 0 !important; }
+  .topbar.vtop .acct2-btn .u-av, .topbar.vtop .acct2-btn img { width: calc(var(--vt-ic) - 6px) !important; height: calc(var(--vt-ic) - 6px) !important; }
+  .topbar.vtop .acct2-caret { display: none; }
+  .topbar.vtop .topbar-logo { height: 30px; width: auto; }
+  .topbar.vtop .vsub-ring { -webkit-transform: scale(.85); transform: scale(.85); }
+}
+@media (max-width: 360px) {
+  .topbar.vtop { --vt-ic: 30px; gap: 2px !important; padding-left: 4px !important; padding-right: 4px !important; }
+  .topbar.vtop > .who { display: none; }
+}
