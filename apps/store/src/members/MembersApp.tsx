@@ -39,17 +39,20 @@ const P = {
   out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
 };
 
-/** Marca própria da loja de associados (quadrado laranja com etiqueta). */
+/** Marca da LPS Kwanza: azul cromado e carrinho, no estilo do logótipo LPS Vendas. */
 function Mark({ size = 34 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
-      <defs><linearGradient id="ma-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffa726" /><stop offset="1" stopColor="#ef6c00" /></linearGradient></defs>
+      <defs><linearGradient id="ma-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#5d6bff" /><stop offset="1" stopColor="#1a24c4" /></linearGradient></defs>
       <rect width="40" height="40" rx="10" fill="url(#ma-g)" />
-      <path d="M12 12v13a3 3 0 0 0 3 3h13" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="26.5" cy="14.5" r="3" fill="#fff" />
+      <path d="M6 11h4l3.2 13a2 2 0 0 0 2 1.5h10.6a2 2 0 0 0 2-1.5L30 15H11" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="16" cy="31" r="2.2" fill="#fff" /><circle cx="26" cy="31" r="2.2" fill="#fff" />
+      <path d="M4 21c4-8 14-12 30-9" fill="none" stroke="#bcc6ff" strokeWidth="1.6" strokeLinecap="round" opacity=".85" />
     </svg>
   );
 }
+
+const BRAND = 'LPS Kwanza';
 
 const pct = (p: CatalogProduct): number => p.promo?.percent ?? (p.listPrice && p.listPrice > p.grossPrice ? Math.round((1 - p.grossPrice / p.listPrice) * 100) : 0);
 
@@ -81,8 +84,12 @@ function LoginScreen({ code, brand }: { code: string; brand: string }) {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [phone, setPhone] = useState('');
+  const [methods, setMethods] = useState<{ email: boolean; google: boolean; quick?: boolean } | null>(null);
   const gbtn = useRef<HTMLDivElement | null>(null);
-  const googleOn = GOOGLE_CLIENT_ID.includes('.apps.googleusercontent.com');
+  useEffect(() => { api.authMethods(code).then(setMethods).catch(() => setMethods({ email: false, google: false, quick: true })); }, [code]);
+  const googleOn = GOOGLE_CLIENT_ID.includes('.apps.googleusercontent.com') && (methods?.google ?? true);
+  const emailOn = !!methods?.email;
 
   useEffect(() => {
     if (!googleOn) return;
@@ -108,6 +115,15 @@ function LoginScreen({ code, brand }: { code: string; brand: string }) {
   const submit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     setErr(null);
+    if (!emailOn) {
+      // Conta rápida (sem email): nome e telefone chegam; o gestor aprova a adesão.
+      if (!name.trim() || phone.replace(/\D/g, '').length < 9) { setErr('Indique o nome e o telefone.'); return; }
+      setBusy(true);
+      try { setSession(code, await api.authQuick(code, { name: name.trim(), phone: phone.trim() })); }
+      catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível entrar.'); }
+      finally { setBusy(false); }
+      return;
+    }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr('Indique um email válido.'); return; }
     setBusy(true);
     try {
@@ -121,21 +137,30 @@ function LoginScreen({ code, brand }: { code: string; brand: string }) {
   return (
     <div className="ma-root ma-auth">
       <form className="ma-auth-card" onSubmit={(e) => void submit(e)}>
-        <div className="ma-auth-brand"><Mark size={56} /><strong>{brand}</strong></div>
+        <div className="ma-auth-brand"><img className="ma-auth-logo" src="/logo-mark.png" alt="LPS Vendas" width={150} height={150} /><strong>{brand}</strong></div>
         {googleOn ? <><div ref={gbtn} className="ma-gbtn" /><div className="ma-or"><span>ou</span></div></> : null}
-        <h2>Entra com o seu email</h2>
-        <label className="ma-f"><span>Email</span>
-          <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setSent(false); setOtp(''); }} placeholder="exemplo@email.com" autoComplete="email" disabled={sent} /></label>
-        {sent ? (
+        <h2>{emailOn ? 'Entra com o seu email' : 'Entra com o seu contacto'}</h2>
+        {!methods ? <div className="ma-state" aria-busy="true" /> : emailOn ? (
           <>
-            <label className="ma-f"><span>Nome (se é a primeira vez)</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
-            <label className="ma-f"><span>Código recebido por email</span>
-              <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" autoFocus /></label>
+            <label className="ma-f"><span>Email</span>
+              <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setSent(false); setOtp(''); }} placeholder="exemplo@email.com" autoComplete="email" disabled={sent} /></label>
+            {sent ? (
+              <>
+                <label className="ma-f"><span>Nome (se é a primeira vez)</span>
+                  <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
+                <label className="ma-f"><span>Código recebido por email</span>
+                  <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" autoFocus /></label>
+              </>
+            ) : null}
           </>
-        ) : null}
+        ) : (
+          <>
+            <label className="ma-f"><span>Nome</span><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
+            <label className="ma-f"><span>Telefone</span><input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="9XX XXX XXX" /></label>
+          </>
+        )}
         {err ? <div className="ma-err" role="alert">{err}</div> : null}
-        <button className="ma-btn ma-btn-primary ma-block" disabled={busy}>{busy ? 'Um momento…' : sent ? 'Entrar' : 'Próximo'}</button>
+        <button className="ma-btn ma-btn-primary ma-block" disabled={busy}>{busy ? 'Um momento…' : !emailOn || sent ? 'Entrar' : 'Próximo'}</button>
         {sent ? <button type="button" className="ma-link" onClick={() => { setSent(false); setOtp(''); setErr(null); }}>Mudar de email</button> : null}
       </form>
     </div>
@@ -150,7 +175,7 @@ function MembershipScreen({ status, brand, busy, onRequest, onLogout }: {
   return (
     <div className="ma-root ma-auth">
       <div className="ma-auth-card">
-        <div className="ma-auth-brand"><Mark size={56} /><strong>{brand}</strong></div>
+        <div className="ma-auth-brand"><img className="ma-auth-logo" src="/logo-mark.png" alt="LPS Vendas" width={150} height={150} /><strong>{brand}</strong></div>
         {status === 'PENDING' ? (
           <div className="ma-state"><span className="ma-pill ma-pill-warn">Pedido em análise</span></div>
         ) : (
@@ -212,7 +237,7 @@ function Shelf({ title, items, render, action }: { title: React.ReactNode; items
 export function MembersApp() {
   const { code, data, cart, addToCart, setQty, removeFromCart, clearCart } = useStore();
   const session = useCustomer(code);
-  const brand = data?.settings.brand_name || data?.storeName || 'Loja de associados';
+  const brand = BRAND;
   const [member, setMember] = useState<Membership | null>(null);
   const [busy, setBusy] = useState(false);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
@@ -233,11 +258,23 @@ export function MembersApp() {
     return () => { alive = false; };
   }, [code, token]);
 
+  // Pedido pendente: a loja abre sozinha quando o gestor aprova.
+  useEffect(() => {
+    if (member !== 'PENDING' || !token) return;
+    const t = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
+      api.myMembership(code, token).then((r) => setMember(r.status)).catch(() => undefined);
+    }, 15000);
+    return () => window.clearInterval(t);
+  }, [code, token, member]);
+
   // Catálogo reservado (só associados aprovados) e atualização em segundo plano.
   useEffect(() => {
     if (member !== 'APPROVED' || !token) return;
     let alive = true;
-    const load = () => api.membersCatalog(code, token).then((r) => { if (alive) setProducts(r.products); }).catch(() => undefined);
+    const load = () => api.membersCatalog(code, token).then((r) => { if (alive) setProducts(r.products); })
+      // Acesso retirado pelo gestor: volta a perguntar o estado e fecha a loja.
+      .catch((e) => { if (e instanceof ApiError && (e.status === 400 || e.status === 403)) api.myMembership(code, token).then((m) => { if (alive) setMember(m.status); }).catch(() => undefined); });
     void load();
     const t = window.setInterval(() => { if (document.visibilityState !== 'hidden') void load(); }, 30000);
     return () => { alive = false; window.clearInterval(t); };

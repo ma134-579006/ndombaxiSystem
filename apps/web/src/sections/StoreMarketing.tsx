@@ -219,7 +219,7 @@ export function MembersCard() {
               {rows.map((m) => (
                 <tr key={m.id}>
                   <td><strong>{m.name}</strong>{m.note ? <div className="muted wrap">{m.note}</div> : null}</td>
-                  <td className="wrap">{m.email}</td>
+                  <td className="wrap">{m.email.endsWith('@sem-email.lps') ? '—' : m.email}</td>
                   <td>{m.phone ?? '—'}</td>
                   <td>{dt(m.requestedAt)}</td>
                   <td>{MEMBER_LABEL[m.status] ?? m.status}</td>
