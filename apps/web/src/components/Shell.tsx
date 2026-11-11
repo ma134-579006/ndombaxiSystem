@@ -12,6 +12,7 @@ import { cachedPhoto, rememberPhoto } from '../photoCache';
 import { SyncStatusPill } from '../offline/SyncStatusPill';
 import { Modal } from './ui';
 import { UserAvatar, displayName } from './UserAvatar';
+import { LangPicker } from './LangPicker';
 import type { SalaryAdvanceReq } from '../api/types';
 import { openCaixaTerminal } from '../config';
 import { pollEvery, stopPoll } from '../poll';
@@ -584,6 +585,7 @@ export function Shell({
           <TopActions quick={quick} help={has('assistant') ? 'assistant' : has('support') ? 'support' : null} onGo={onQuick} />
           <TopDivider />
           <SyncStatusPill />
+          <LangPicker />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
           {isTenant ? <OrdersBell onGo={(s) => setSection(s)} /> : null}
           {/* Chats visíveis na barra (antes escondidos no menu do perfil):

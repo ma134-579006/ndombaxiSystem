@@ -17,6 +17,7 @@ import { SupportChat } from '../components/SupportChat';
 import { FeedbackSection } from '../components/FeedbackSection';
 import { DownloadApps } from '../sections/DownloadApps';
 import { LANGS, dict, fill, initialLang, type LandingLang } from './landingI18n';
+import { getLang, setLang as setSystemLang } from '@nexus/i18n';
 import '../landingV.css';
 import { initLandingReveal } from '../landingReveal';
 
@@ -141,7 +142,9 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem('lps:lang', lang); } catch { /* */ }
+    // O idioma da página inicial é o do SISTEMA: escolhido aqui, vale também
+    // para o login, a gestão, o super admin e a Caixa (@nexus/i18n).
+    if (getLang() !== lang) setSystemLang(lang);
     document.documentElement.lang = lang === 'pt' ? 'pt-AO' : lang;
   }, [lang]);
 
@@ -278,10 +281,12 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             </div>
           </div>
           <div className="lv-cert lv-up d5">
+            {/* Selo no formato do sistema de referência: quadrado translúcido de 48px
+                com o emblema da AGT (engrenagem e estrela, do portal oficial) + "Software Validado Nº …/AGT". */}
             <span className="lv-cert-ic" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="m8.5 12 2.5 2.5 4.5-5" /></svg>
+              <img src={`${import.meta.env.BASE_URL || '/'}agt-emblem.png`} alt="" width="14" height="28" />
             </span>
-            <b>{t.certified}</b>
+            <b translate="no">{data?.agtCertificate ? `Software Validado Nº ${data.agtCertificate}/AGT` : t.certified}</b>
           </div>
         </div>
         <div className="lv-hero-art" aria-hidden="true">

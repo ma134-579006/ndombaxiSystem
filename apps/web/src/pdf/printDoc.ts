@@ -32,7 +32,21 @@ function scrapeTable(table: HTMLTableElement): ReportTable | null {
     if (row.some((c) => c !== '')) rows.push(row);
   }
   if (!rows.length) return null;
-  return { columns, rows };
+  // Linhas de total (tfoot) → rodapé da tabela, a negrito, como no relatório de referência.
+  const foot: string[][] = [];
+  for (const tr of Array.from(table.querySelectorAll('tfoot tr'))) {
+    const cells = Array.from(tr.children) as HTMLElement[];
+    // Células com colspan ocupam várias colunas: expande para alinhar com o cabeçalho.
+    const expanded: string[] = [];
+    const hidden: boolean[] = [];
+    for (const td of cells) {
+      const span = Math.max(1, Number(td.getAttribute('colspan')) || 1);
+      for (let k = 0; k < span; k++) { expanded.push(k === 0 ? txt(td) : ''); hidden.push(isHidden(td)); }
+    }
+    const row = expanded.filter((_, i) => keep[i] ?? !hidden[i]);
+    if (row.some((c) => c !== '')) foot.push(row);
+  }
+  return foot.length ? { columns, rows, foot } : { columns, rows };
 }
 
 /** Recolhe cartões de indicador (.kpi-card) como linhas de resumo [rótulo, valor]. */

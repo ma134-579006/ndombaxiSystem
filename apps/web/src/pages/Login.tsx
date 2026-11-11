@@ -5,8 +5,8 @@ import { useAuth } from '../auth/AuthContext';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
-import { ScreenKeyboard } from '../components/ScreenKeyboard';
 import { openCaixaTerminal } from '../config';
+import { LangPicker } from '../components/LangPicker';
 import { nativeGoogleAvailable, nativeGoogleSignIn } from '../nativeGoogle';
 import { desktopGoogleAvailable, desktopGoogleSignIn } from '../desktopGoogle';
 
@@ -162,10 +162,12 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
 
   return (
     <div className="auth">
-      <ScreenKeyboard />
       <div className="auth-panel">
-        <div className="auth-form">
-          <img className="auth-logo-wide" src={LOGO_WIDE} alt="LPS Vendas" />
+        <div className="auth-form auth-enter">
+          <div className="auth-top">
+            <img className="auth-logo-wide" src={LOGO_WIDE} alt="LPS Vendas" />
+            <LangPicker variant="dark" />
+          </div>
           {resetToken ? (
             <>
               <h1 className="auth-title">Nova palavra-passe</h1>

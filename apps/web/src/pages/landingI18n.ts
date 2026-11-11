@@ -222,6 +222,9 @@ export function fill(s: string, v: Record<string, string | number>): string {
 
 export function initialLang(): LandingLang {
   try {
+    // Escolha do sistema (cookie do domínio, partilhado com a Caixa) → localStorage.
+    const c = document.cookie.match(/(?:^|;\s*)lps_lang=([a-z]{2})/)?.[1] as LandingLang | undefined;
+    if (c && c in DICTS) return c;
     const saved = localStorage.getItem('lps:lang') as LandingLang | null;
     if (saved && saved in DICTS) return saved;
   } catch { /* sem armazenamento */ }

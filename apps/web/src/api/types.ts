@@ -125,7 +125,7 @@ export interface LandingConfig {
   showAds: boolean;
   trialDays: number;
 }
-export interface PublicLanding { config: LandingConfig; plans: PublicPlan[] }
+export interface PublicLanding { config: LandingConfig; plans: PublicPlan[]; /** Nº de validação AGT do software (null = sem número). */ agtCertificate?: string | null }
 
 export interface MailConfigView {
   host: string | null; port: number; secure: boolean;

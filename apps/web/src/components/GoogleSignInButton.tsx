@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GOOGLE_CLIENT_ID } from '../config';
+import { getLang, onLangChange } from '@nexus/i18n';
 
 interface GoogleIdApi {
   accounts: {
@@ -50,10 +51,14 @@ export function GoogleSignInButton({ onCredential }: { onCredential(idToken: str
   const cbRef = useRef(onCredential);
   cbRef.current = onCredential;
   const [failed, setFailed] = useState(false);
+  // O botão é desenhado pela Google (iframe): segue o idioma do sistema.
+  const [lang, setLangState] = useState(getLang());
+  useEffect(() => onLangChange(setLangState), []);
 
   useEffect(() => {
     if (isNativeApp) return;               // app instalada: Google escondido
     let cancelled = false;
+    if (ref.current) ref.current.innerHTML = '';
     loadGsi().then(() => {
       if (cancelled || !ref.current) return;
       const g = (window as unknown as { google?: GoogleIdApi }).google;
@@ -68,6 +73,7 @@ export function GoogleSignInButton({ onCredential }: { onCredential(idToken: str
         });
         g.accounts.id.renderButton(ref.current, {
           theme: 'outline', size: 'large', width: 280, text: 'continue_with', shape: 'pill',
+          locale: lang === 'pt' ? 'pt-PT' : lang,
         });
         // Se em 3s o botão não renderizou (origem não autorizada), mostra aviso.
         window.setTimeout(() => {
@@ -78,7 +84,7 @@ export function GoogleSignInButton({ onCredential }: { onCredential(idToken: str
       }
     }).catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
-  }, []);
+  }, [lang]);
 
   if (isNativeApp) return null; // app instalada: sem Google (usa-se e-mail/PIN)
   if (failed) {

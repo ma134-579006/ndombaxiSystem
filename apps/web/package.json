@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@nexus/i18n": "workspace:*",
     "@nexus/offline-core": "workspace:*",
     "@nexus/shop-link": "workspace:*",
     "@nexus/tokens": "workspace:*",

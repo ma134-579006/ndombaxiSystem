@@ -77,8 +77,14 @@ export class LandingService {
   }
 
   /** Pacote completo para a landing pública (config + planos visíveis). */
-  async getPublicLanding(): Promise<{ config: LandingConfig; plans: Plan[] }> {
-    const [config, plans] = await Promise.all([this.get(), this.listPublicPlans()]);
-    return { config, plans };
+  async getPublicLanding(): Promise<{ config: LandingConfig; plans: Plan[]; agtCertificate: string | null }> {
+    const [config, plans, agt] = await Promise.all([
+      this.get(),
+      this.listPublicPlans(),
+      // Nº de validação do software (Super Admin → Fiscal). "0"/vazio = ainda sem número.
+      this.prisma.agtFiscalConfig.findFirst({ select: { softwareCertificateNumber: true } }).catch(() => null),
+    ]);
+    const n = agt?.softwareCertificateNumber?.trim();
+    return { config, plans, agtCertificate: n && n !== '0' ? n : null };
   }
 }

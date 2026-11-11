@@ -77,8 +77,11 @@
 .lv-menu > a:hover, .lv-menu > button:hover, .lv-menu > button.on { background: var(--lv-brand-50); color: var(--lv-brand); }
 .lv-menu b { width: 26px; font-size: 12px; color: #8a93ad; }
 @keyframes lvDrop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-.lv-burger { display: none; width: 42px; height: 42px; border: 0; background: none; cursor: pointer; flex-direction: column; justify-content: center; gap: 5px; padding: 0 9px; }
-.lv-burger span { display: block; height: 2px; background: var(--lv-ink); border-radius: 2px; }
+.lv-burger { display: none; width: 42px; height: 42px; border: 0; background: none; cursor: pointer; flex-direction: column; justify-content: center; gap: 5px; padding: 0 9px; color: var(--lv-ink); }
+/* Linhas desenhadas como TRAÇO (border), não como fundo: o modo escuro forçado
+   dos telemóveis (Chrome/Samsung Internet) escurece os fundos e deixava as
+   linhas escuras sobre a barra escurecida — o botão ficava invisível. */
+.lv-burger span { display: block; height: 0; border-top: 2px solid currentColor; border-radius: 2px; }
 .lv-mmenu { display: none; }
 
 /* ── Hero ──────────────────────────────────────────────── */
@@ -89,8 +92,10 @@
 .lv-hero h1 b { font-weight: 700; }
 .lv-hero-copy > p { margin: 14px 0 34px; max-width: 480px; font-size: 16px; font-weight: 600; line-height: 1.75; }
 .lv-trial { display: block; margin-top: 14px; font-size: 12px; font-weight: 600; opacity: .95; }
-.lv-cert { display: inline-flex; align-items: center; gap: 10px; margin-top: 60px; font-size: 14px; }
-.lv-cert-ic { width: 46px; height: 46px; border-radius: 6px; display: grid; place-items: center; background: rgba(255, 255, 255, .22); }
+.lv-cert { display: inline-flex; align-items: center; gap: 16px; margin-top: 60px; font-size: 14px; }
+.lv-cert b { font-weight: 600; }
+.lv-cert-ic { flex: none; width: 48px; height: 48px; border-radius: 8px; display: grid; place-items: center; background: rgba(255, 255, 255, .4); border: 1px solid rgba(255, 255, 255, .04); }
+.lv-cert-ic img { width: 14px; height: 28px; object-fit: contain; }
 .lv-hero-art { position: absolute; inset: 0 0 0 auto; width: 52%; z-index: 1; pointer-events: none; }
 .lv-hero-panel {
   position: absolute; right: 0; bottom: 0; width: 82%; height: 74%;

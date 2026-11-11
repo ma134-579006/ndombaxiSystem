@@ -7,6 +7,7 @@ import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
 import { cachedPhoto, rememberPhoto } from '../photoCache';
 import { ScreenKeyboard } from '../components/ScreenKeyboard';
+import { LangPicker } from '../components/LangPicker';
 import { nativeGoogleAvailable, nativeGoogleSignIn } from '../offline/nativeGoogle';
 import { desktopGoogleAvailable, desktopGoogleSignIn } from '../offline/desktopGoogle';
 
@@ -131,7 +132,11 @@ export function LoginPage() {
     <div className="auth">
       <ScreenKeyboard />
       <div className="auth-panel">
-        <div className="auth-form"><img className="auth-logo-wide" src={LOGO_WIDE} alt="LPS Vendas" />
+        <div className="auth-form auth-enter">
+          <div className="auth-top">
+            <img className="auth-logo-wide" src={LOGO_WIDE} alt="LPS Vendas" />
+            <LangPicker variant="dark" />
+          </div>
           {resetToken ? (
             <>
               <h1 className="auth-title">Novo PIN</h1>

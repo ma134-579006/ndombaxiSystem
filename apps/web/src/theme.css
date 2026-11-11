@@ -4120,3 +4120,50 @@ body:has(.sc-fab) .admin .content { padding-bottom: calc(96px + env(safe-area-in
 .pa-send { display: flex; gap: 8px; margin-top: 10px; }
 .pa-send .auth-input { flex: 1; margin: 0; }
 .pa-send .auth-btn { width: 52px; flex: none; margin: 0; padding: 0; display: grid; place-items: center; }
+
+/* ── Idioma do sistema (seletor) ─────────────────────────────────────────── */
+.lang-pick { position: relative; }
+.lang-pick-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.lang-pick-topbar .lang-pick-btn { width: auto; padding: 0 10px; }
+.lang-pick-code { font-size: 12.5px; font-weight: 700; letter-spacing: .04em; }
+.lang-pick-dark .lang-pick-btn { height: 34px; padding: 0 12px; border-radius: var(--nx-radius-full, 999px); border: 1px solid #2a3550; background: rgba(18,26,46,.55); color: #cdd8ee; transition: border-color var(--nx-dur-micro, .12s) var(--nx-ease-out, ease), background var(--nx-dur-micro, .12s) var(--nx-ease-out, ease); }
+.lang-pick-dark .lang-pick-btn:hover, .lang-pick-dark .lang-pick-btn[aria-expanded="true"] { border-color: #7b5cff; background: rgba(123,92,255,.14); color: #fff; }
+.lang-pick-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 80; min-width: 170px; padding: 6px; border-radius: var(--nx-radius-md, 10px); background: var(--surface, #fff); border: 1px solid var(--border, #e3e7f0); box-shadow: var(--nx-shadow-2, 0 10px 30px rgba(0,0,0,.18)); animation: langDrop var(--nx-dur-enter, .2s) var(--nx-ease-out, ease) both; }
+.lang-pick-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: var(--nx-radius-sm, 6px); background: none; color: var(--text, #1d2433); font-size: 14px; text-align: left; cursor: pointer; }
+.lang-pick-menu button b { width: 24px; font-size: 12px; color: var(--muted, #8a93ad); }
+.lang-pick-menu button:hover { background: var(--nx-hover-overlay, rgba(0,0,0,.05)); }
+.lang-pick-menu button.on { color: var(--nx-primary, #2563eb); font-weight: 700; }
+.lang-pick-menu button.on b { color: inherit; }
+.lang-pick-dark .lang-pick-menu { background: #121a2e; border-color: #2a3550; }
+.lang-pick-dark .lang-pick-menu button { color: #dbe4f5; }
+.lang-pick-dark .lang-pick-menu button:hover { background: rgba(255,255,255,.06); }
+.lang-pick-dark .lang-pick-menu button.on { color: #b9a8ff; }
+@keyframes langDrop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* ── Login / registo: retoque (mesmo layout e cores) ─────────────────────── */
+.auth-top { position: relative; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px; } /* acima do título e dos campos (a animação de entrada cria camadas próprias) */
+.auth-top .auth-logo-wide { margin-bottom: 0; }
+.auth-top + * { margin-top: clamp(8px, calc(1.6vh / var(--uz, 1)), 16px); }
+.auth-input { transition: border-color var(--nx-dur-micro, .12s) var(--nx-ease-out, ease), box-shadow var(--nx-dur-enter, .2s) var(--nx-ease-out, ease), background var(--nx-dur-enter, .2s) var(--nx-ease-out, ease); }
+.auth-input:focus { background-color: rgba(123,92,255,.06); }
+.auth-btn { position: relative; overflow: hidden; transition: filter var(--nx-dur-micro, .12s) var(--nx-ease-out, ease), transform var(--nx-dur-micro, .12s) var(--nx-ease-out, ease), box-shadow var(--nx-dur-enter, .2s) var(--nx-ease-out, ease); }
+.auth-btn::after { content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; pointer-events: none; background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent); transform: skewX(-18deg); opacity: 0; }
+.auth-btn:hover:not(:disabled) { box-shadow: 0 10px 28px rgba(91,76,255,.38); }
+.auth-btn:hover:not(:disabled)::after { opacity: 1; animation: authSheen .9s var(--nx-ease-out, ease) both; }
+.auth-btn:active:not(:disabled) { transform: translateY(1px) scale(.995); }
+@keyframes authSheen { from { left: -60%; } to { left: 120%; } }
+@media (prefers-reduced-motion: no-preference) {
+  .auth-enter > * { animation: authRise .5s var(--nx-ease-out, cubic-bezier(.16,1,.3,1)) both; }
+  .auth-enter > :nth-child(1) { animation-delay: .02s; }
+  .auth-enter > :nth-child(2) { animation-delay: .06s; }
+  .auth-enter > :nth-child(3) { animation-delay: .1s; }
+  .auth-enter > :nth-child(4) { animation-delay: .13s; }
+  .auth-enter > :nth-child(5) { animation-delay: .16s; }
+  .auth-enter > :nth-child(6) { animation-delay: .19s; }
+  .auth-enter > :nth-child(7) { animation-delay: .22s; }
+  .auth-enter > :nth-child(8) { animation-delay: .25s; }
+  .auth-enter > :nth-child(n+9) { animation-delay: .28s; }
+  .auth-error { animation: authShake .42s var(--nx-ease-out, ease) both; }
+}
+@keyframes authRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes authShake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
