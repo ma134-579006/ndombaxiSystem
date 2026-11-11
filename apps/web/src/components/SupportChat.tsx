@@ -270,7 +270,11 @@ export function SupportChat() {
       {/* Botão flutuante — só quando FECHADO (evita sobrepor-se à gaveta) */}
       {!open ? (
         <button className="sc-fab" onClick={() => setOpen(true)} aria-label="Falar connosco">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+          {/* Balão cheio com sorriso (no estilo do botão de mensagens do sistema de referência). */}
+          <svg className="sc-fab-ic" width="24" height="27" viewBox="0 0 28 32" aria-hidden="true">
+            <path fill="currentColor" d="M4 0h20a4 4 0 0 1 4 4v18.6L28 32l-8.6-3.4H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4z" />
+            <path className="sc-fab-smile" fill="none" strokeWidth="2.2" strokeLinecap="round" d="M6.2 19.4c1.9 1.7 4.6 2.8 7.8 2.8s5.9-1.1 7.8-2.8" />
+          </svg>
         </button>
       ) : null}
 

@@ -96,6 +96,20 @@
 .hd-foot button:hover:not(:disabled) { filter: brightness(1.08); }
 .hd-foot button:active:not(:disabled) { transform: scale(.96); }
 .hd-foot button:disabled { opacity: .45; cursor: default; }
+/* Botão flutuante de mensagens: círculo azul liso com balão cheio e sorriso,
+   sombra suave e leve aumento ao passar (como o lançador do sistema de referência). */
+.sc-fab {
+  width: 56px !important; height: 56px !important; color: #fff;
+  background: var(--nx-brand-600, #2430e8) !important; background-image: none !important;
+  box-shadow: rgba(0, 0, 0, .06) 0 1px 6px 0, rgba(0, 0, 0, .16) 0 2px 32px 0 !important;
+  transition: transform .17s cubic-bezier(.4, 0, 1, 1) !important;
+}
+.sc-fab:hover { transform: scale(1.1) !important; }
+.sc-fab:active { transform: scale(.94) !important; }
+.sc-fab::after { display: none !important; }
+.sc-fab-smile { stroke: var(--nx-brand-600, #2430e8); }
+@media (max-width: 560px) { .sc-fab { width: 48px !important; height: 48px !important; } .sc-fab-ic { width: 21px; height: 24px; } }
+
 /* O guia ampliado abre por cima da gaveta. */
 .sc-lightbox { z-index: 9500 !important; }
 
