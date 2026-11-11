@@ -76,7 +76,7 @@ export function Card({ p, onOpen, onAdd, cod, hot }: { p: CatalogProduct; onOpen
       <div className="kw-card-img">
         <button className="kw-card-imgbtn" onClick={onOpen} aria-label={p.name} tabIndex={-1}><Pic p={p} /></button>
         <button className="kw-card-cart" onClick={onAdd} disabled={!ok} aria-label={`Adicionar ${p.name} ao carrinho`}><I d={P.cart} size={16} /></button>
-        {(p.sold ?? 0) > 0 ? <span className="kw-card-sold" title="Vendidos"><I d={P.bag} size={12} />{p.sold}</span> : null}
+        {(p.views ?? 0) > 0 ? <span className="kw-card-sold" title="Visualizações"><I d={P.eye} size={13} />{p.views}</span> : null}
         {hot ? <span className="kw-card-hot">Em alta</span> : null}
         {cod ? <span className="kw-card-pay"><i aria-hidden="true" />Pagamento na entrega</span> : null}
         {d > 0 ? <span className="kw-card-off">-{d}%</span> : null}
@@ -88,8 +88,8 @@ export function Card({ p, onOpen, onAdd, cod, hot }: { p: CatalogProduct; onOpen
           <b>{kz(p.grossPrice)}</b>
         </div>
         <div className="kw-card-ship">
-          <span className={`kw-card-tag${ok ? '' : ' out'}`}>{ok ? 'Disponível' : 'Esgotado'}</span>
-          {ok && p.stockQty != null && !p.madeToOrder ? <small>{Math.floor(p.stockQty)} em <b>stock</b></small> : null}
+          <span className={`kw-card-tag${ok ? '' : ' out'}`}>{ok ? 'Disponível ⚡' : 'Esgotado'}</span>
+          {ok ? <small>{p.stockQty != null && !p.madeToOrder && p.stockQty <= 10 ? <>Restam <b>{Math.floor(p.stockQty)}</b></> : <>Pronto para <b>envio</b></>}</small> : null}
         </div>
       </button>
     </article>

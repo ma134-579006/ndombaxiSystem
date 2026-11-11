@@ -787,3 +787,5 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."affiliate_withdrawals" (
   decided_at  TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS affiliate_withdrawals_customer_idx ON "{{SCHEMA}}"."affiliate_withdrawals"(customer_id);
+-- LPS Kwanza: visualizações de cada produto (o selo com o olho nos cartões, como no Kikolo).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS view_count INT NOT NULL DEFAULT 0;

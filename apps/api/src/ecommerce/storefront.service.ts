@@ -58,6 +58,7 @@ const DEFAULT_EXEMPTION_REASON: Partial<Record<IvaCode, string>> = {
 };
 
 interface CatalogRow {
+  view_count?: number | string | null;
   id: string;
   code: string;
   name: string;
@@ -105,6 +106,8 @@ export interface CatalogProduct {
   promo?: { name: string; percent: number; endsAt: string | null };
   /** Unidades vendidas (facturas válidas), para "N vendidos". */
   sold?: number;
+  /** Visualizações da página do produto. */
+  views?: number;
   /** Média e nº de avaliações visíveis. */
   rating?: number;
   reviews?: number;
@@ -192,7 +195,7 @@ export class StorefrontService {
       const revBy = new Map(revs.map((x) => [x.product_id, x]));
       const list = await tx.$queryRaw<CatalogRow[]>(
         Prisma.sql`SELECT p.id, p.code, p.name, p.description, p.iva_code, p.unit_price, p.stock_qty,
-                          p.image_url, p.gallery, pc.name AS category, p.category_id::text AS category_id,
+                          p.image_url, p.gallery, pc.name AS category, p.category_id::text AS category_id, COALESCE(p.view_count, 0) AS view_count,
                           ${hasRecipeExpr} AS has_recipe, p.is_production, ${inProdExpr} AS in_production,
                           ${reservedExpr} AS reserved
                    FROM products p
@@ -235,6 +238,7 @@ export class StorefrontService {
           promo: { name: bp.promo.name, percent: Math.round(bp.rate * 100), endsAt: bp.promo.endsAt ?? null },
         } : {}),
         ...(n > 0 ? { sold: n } : {}),
+        ...(Number(r.view_count) > 0 ? { views: Number(r.view_count) } : {}),
         ...(revBy.get(r.id) ? { rating: Math.round(revBy.get(r.id)!.avg * 10) / 10, reviews: revBy.get(r.id)!.n } : {}),
         // Produção: "em stock" = há fornada pronta (🟢). Sob encomenda legado
         // (has_recipe sem is_production): sempre disponível. Comercial: stock>0.
@@ -395,4 +399,12 @@ export class StorefrontService {
       return { id: orderId, orderNumber, grossTotal: totals.grossTotal, ...(couponCode ? { couponDiscount } : {}) };
     });
   }
+
+  /** +1 visualização (selo com o olho nos cartões da LPS Kwanza). */
+  async countView(schema: string, productCode: string): Promise<void> {
+    await this.prisma.runInTenant(schema, (tx) =>
+      tx.$executeRaw(Prisma.sql`UPDATE products SET view_count = COALESCE(view_count, 0) + 1 WHERE code = ${productCode} AND is_active = TRUE`));
+  }
 }
+
+

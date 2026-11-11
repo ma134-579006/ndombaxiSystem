@@ -460,6 +460,14 @@ export class StorefrontController {
     return this.marketing.previewCoupon(tenant.schema, dto.code, claims.email, dto.total);
   }
 
+  @Post('products/:productCode/view')
+  @ApiOperation({ summary: 'Conta uma visualização da página do produto' })
+  async productView(@Param('code') code: string, @Param('productCode') productCode: string) {
+    const tenant = await this.resolver.resolveByCode(code);
+    await this.storefront.countView(tenant.schema, productCode).catch(() => undefined);
+    return { ok: true };
+  }
+
   @Get('products/:productCode/reviews')
   @ApiOperation({ summary: 'Avaliações visíveis de um produto (+ a do cliente com sessão)' })
   async reviews(@Param('code') code: string, @Param('productCode') productCode: string, @Headers('authorization') auth?: string) {

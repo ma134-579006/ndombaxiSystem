@@ -586,3 +586,23 @@
 .kw-perf span { color: #666; font-size: 12.5px; }
 .kw-perf b { color: var(--kw-ink); font-size: 18px; }
 @media (max-width: 640px) { .kw-perf { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ── fidelidade ao Kikolo (medições a 1280px) ── */
+.kw-sec-head h2, .kw-disc-head h2 { color: #333; font-size: 18px; }
+.kw-disc-head { border-bottom-color: var(--kw-p); }
+.kw-tagline { text-align: center; font-weight: 700; color: #333; margin: 10px 0 0; font-size: 13px; }
+.kw-strip-me { gap: 6px !important; }
+.kw-strip-me i { width: 22px; height: 22px; border-radius: 50%; background: #fff; color: var(--kw-p); font-style: normal; font-weight: 700; font-size: 12px; display: grid; place-items: center; }
+.kw-pdp-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.kw-info { background: transparent; padding: 28px 0 8px; display: grid; gap: 12px; color: #444; }
+.kw-info h2 { font-size: 22px; color: #333; }
+.kw-info h3 { font-size: 18px; color: #333; margin-top: 10px; }
+.kw-info p { line-height: 1.65; font-size: 14.5px; }
+.kw-faq { display: grid; gap: 8px; }
+.kw-faq details { background: #fff; border-radius: 6px; padding: 14px 16px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.kw-faq summary { cursor: pointer; font-weight: 700; color: #333; list-style: none; display: flex; justify-content: space-between; gap: 10px; }
+.kw-faq summary::-webkit-details-marker { display: none; }
+.kw-faq summary::after { content: '+'; color: var(--kw-p); font-size: 20px; line-height: 1; transition: transform .2s; }
+.kw-faq details[open] summary::after { transform: rotate(45deg); }
+.kw-faq details p { margin-top: 10px; color: #555; animation: kw-fade .25s ease both; }
+.kw-card-sold svg { stroke-width: 2.4; }

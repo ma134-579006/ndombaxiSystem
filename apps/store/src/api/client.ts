@@ -100,6 +100,8 @@ export const api = {
   coupons: (code: string) => request<PublicCoupon[]>('GET', `/store/${enc(code)}/coupons`),
   couponCheck: (code: string, body: { code: string; total: number }, token: string) =>
     request<CouponPreview>('POST', `/store/${enc(code)}/coupon/check`, body, token),
+  productView: (code: string, productCode: string) =>
+    request<{ ok: true }>('POST', `/store/${enc(code)}/products/${enc(productCode)}/view`),
   reviews: (code: string, productCode: string, token?: string) =>
     request<ProductReviews>('GET', `/store/${enc(code)}/products/${enc(productCode)}/reviews`, undefined, token),
   submitReview: (code: string, productCode: string, body: { rating: number; comment?: string }, token: string) =>
