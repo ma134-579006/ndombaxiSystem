@@ -1765,3 +1765,22 @@ html.touch-ui .btn.sm { min-height: 40px; }
 }
 @keyframes authRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes authShake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+
+/* Idioma no menu da conta da caixa (antes na barra do topo). */
+.acct2-lang { padding: 10px 14px 12px; }
+.acct2-lang-h { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.lang-choice { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; gap: 6px; }
+.lang-choice button {
+  -webkit-flex: 1 1 0; flex: 1 1 0; display: -webkit-inline-flex; display: inline-flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  min-height: 34px; padding: 6px 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 13px; cursor: pointer;
+}
+.lang-choice button.on { border-color: var(--primary); background: var(--primary); color: #fff; }
+
+/* Login da caixa: o preenchimento automático do navegador não muda a cor dos campos. */
+.auth-input:-webkit-autofill, .auth-input:-webkit-autofill:hover, .auth-input:-webkit-autofill:focus, .auth-input:-webkit-autofill:active,
+.auth-form input:-webkit-autofill, .auth-form input:-webkit-autofill:hover, .auth-form input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #121a2e inset !important; box-shadow: 0 0 0 1000px #121a2e inset !important;
+  -webkit-text-fill-color: #fff !important; caret-color: #fff;
+  -webkit-transition: background-color 600000s 0s, color 600000s 0s; transition: background-color 600000s 0s, color 600000s 0s;
+}
+.auth-input:autofill, .auth-form input:autofill { filter: none; background-color: #121a2e !important; color: #fff !important; }

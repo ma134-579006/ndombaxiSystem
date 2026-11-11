@@ -53,3 +53,24 @@ export function LangPicker({ variant = 'topbar' }: { variant?: 'topbar' | 'dark'
     </div>
   );
 }
+
+/**
+ * Escolha do idioma em linha (PT · EN · FR · ES), para as Configurações e o
+ * menu da conta — a barra do topo fica só com os ícones essenciais.
+ */
+export function LangChoice({ compact = false }: { compact?: boolean }) {
+  const [lang, setCur] = useState<Lang>(getLang());
+  useEffect(() => onLangChange(setCur), []);
+  return (
+    <div className={`lang-choice${compact ? ' compact' : ''}`} role="radiogroup" aria-label="Idioma" translate="no">
+      {LANGS.map((l) => (
+        <button key={l.code} type="button" role="radio" aria-checked={l.code === lang}
+          className={l.code === lang ? 'on' : ''} onClick={() => { setLang(l.code); setCur(l.code); }} title={l.label}>
+          <b>{l.short}</b>{compact ? null : <span>{l.label}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export { IconGlobe };

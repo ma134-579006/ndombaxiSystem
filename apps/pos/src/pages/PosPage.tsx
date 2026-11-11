@@ -37,7 +37,7 @@ import { SalaryAdvanceModal } from '../components/SalaryAdvanceModal';
 import { LeaveRequestModal } from '../components/LeaveRequestModal';
 import { IdleLock } from '../components/IdleLock';
 import { ThemePicker } from '../components/ThemePicker';
-import { LangPicker } from '../components/LangPicker';
+import { LangChoice, IconGlobe } from '../components/LangPicker';
 import { PaymentModal } from '../components/PaymentModal';
 import { IconReceipt } from '../components/Icons';
 import { cartTotals, cartTotalsWithDiscount, lineGross, lineIva, lineNet, type CartLine } from '../pos/cart';
@@ -166,6 +166,11 @@ function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustCha
             <button role="menuitem" className="acct2-item" onClick={go(onDocumento)}>
               <MenuIcon d={OP_ICONS.doc} /> Documento
             </button>
+          </div>
+          {/* Idioma do sistema (antes na barra do topo): escolha em linha no menu da conta. */}
+          <div className="acct2-group acct2-lang">
+            <div className="acct2-lang-h"><IconGlobe size={16} /> Idioma</div>
+            <LangChoice compact />
           </div>
           <div className="acct2-group">
             <button role="menuitem" className="acct2-item" onClick={go(() => window.dispatchEvent(new Event('ndx-lock')))}>
@@ -301,7 +306,7 @@ export function PosPage() {
   const [showPayment, setShowPayment] = useState(false);
   // ── Layout do POS de referência: menus do topo, separadores de categorias,
   // painel "Opções" e linhas da venda expansíveis ──
-  const [topMenu, setTopMenu] = useState<'auto' | 'caixa' | 'docs' | null>(null);
+  const [topMenu, setTopMenu] = useState<'auto' | 'caixa' | 'docs' | 'mob' | null>(null);
   const topMenuRef = useRef<HTMLElement | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [catMenu, setCatMenu] = useState(false);
@@ -1115,6 +1120,29 @@ export function PosPage() {
           <span className="spacer" />
           <SubscriptionRing />
           <nav className="vtop-menus" ref={topMenuRef}>
+            {/* Ecrãs pequenos: os três menus num só botão (☰), sempre visível. */}
+            <div className="vtop-m vtop-m-mob">
+              <button className={topMenu === 'mob' ? 'on' : ''} onClick={() => setTopMenu((m) => (m === 'mob' ? null : 'mob'))} aria-expanded={topMenu === 'mob'} aria-label="Menu da caixa">
+                <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="2.2" rx="1.1" fill="currentColor" /><rect x="3" y="10.9" width="18" height="2.2" rx="1.1" fill="currentColor" /><rect x="3" y="16.8" width="18" height="2.2" rx="1.1" fill="currentColor" /></svg>
+                <span className={`vtop-dot ${session ? 'ok' : 'off'}`} aria-label={session ? 'Turno aberto' : 'Sem turno'} />
+              </button>
+              {topMenu === 'mob' ? (
+                <div className="vtop-drop vtop-drop-mob" role="menu">
+                  <div className="vtop-state">Estado da Caixa <b className={session ? 'ok' : 'off'}>{session ? 'Caixa Aberta' : 'Caixa Fechada'}</b></div>
+                  <button role="menuitem" onClick={() => { setTopMenu(null); setShowShift(true); }}>{session ? 'Fechar Caixa' : 'Abrir Caixa'}<small>{session ? 'Contagem e fecho do turno' : 'Abrir turno para vender'}</small></button>
+                  {session ? <button role="menuitem" onClick={() => { setTopMenu(null); setShowShift(true); }}>Entrada / Saída de dinheiro<small>Reforço ou sangria manual</small></button> : null}
+                  {session ? <button role="menuitem" onClick={() => { setTopMenu(null); setShowShift(true); }}>Ponto de Caixa<small>Ponto de situação dos movimentos</small></button> : null}
+                  {identity?.businessType === 'RESTAURANT' ? (
+                    <button role="menuitem" onClick={() => { setTopMenu(null); setShowKitchen(true); }}>Cozinha{kitchenReady > 0 ? ` (${kitchenReady})` : ''}<small>Pedidos prontos do balcão</small></button>
+                  ) : null}
+                  <button role="menuitem" onClick={() => { setTopMenu(null); setShowSales(true); }}>Faturação<small>Faturas, recibos e anulações</small></button>
+                  {isNativeApp() && sync.pending > 0 ? (
+                    <button role="menuitem" onClick={() => { setTopMenu(null); setShowQueue(true); }}>Por enviar ({sync.pending})<small>{sync.online ? 'A enviar sozinhas' : 'Sem rede — enviam quando houver ligação'}</small></button>
+                  ) : null}
+                  <button role="menuitem" onClick={() => { setTopMenu(null); setShowConsumption(true); }}>Autoconsumo<small>Registar</small></button>
+                </div>
+              ) : null}
+            </div>
             <div className="vtop-m">
               <button className={topMenu === 'auto' ? 'on' : ''} onClick={() => setTopMenu((m) => (m === 'auto' ? null : 'auto'))} aria-expanded={topMenu === 'auto'}>Autoconsumo <Chev /></button>
               {topMenu === 'auto' ? (
@@ -1162,7 +1190,6 @@ export function PosPage() {
           <button className={`icon-btn${kbd.enabled ? ' on' : ''}`} onClick={kbd.toggle} title="Teclado no ecrã" aria-label="Teclado no ecrã">
             <IconKeyboard size={20} />
           </button>
-          <LangPicker />
           <ThemePicker />
           <OperatorMenu
             photo={operatorPhoto}

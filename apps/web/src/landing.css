@@ -1272,3 +1272,11 @@ a.fc-line:hover { color: #fff; }
 .fb-more { align-self: flex-start; background: none; border: 0; padding: 0; margin-bottom: 10px; color: var(--lp-primary, #2563eb); font-weight: 700; font-size: 13px; cursor: pointer; }
 .fb-votes { margin-top: auto; padding-top: 14px; border-top: 1px solid #eef1f6; }
 .fb-votes button { height: 34px; padding: 0 14px; gap: 7px; display: inline-flex; align-items: center; font-weight: 700; }
+
+/* Formulários do landing: o preenchimento automático do navegador não muda a cor dos campos. */
+.lp-field input:-webkit-autofill, .lp-field input:-webkit-autofill:hover, .lp-field input:-webkit-autofill:focus, .lp-field input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset !important; box-shadow: 0 0 0 1000px #fff inset !important;
+  -webkit-text-fill-color: #0f172a !important; caret-color: #0f172a;
+  -webkit-transition: background-color 600000s 0s, color 600000s 0s; transition: background-color 600000s 0s, color 600000s 0s;
+}
+.lp-field input:autofill { filter: none; background-color: #fff !important; }
