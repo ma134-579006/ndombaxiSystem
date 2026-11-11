@@ -957,6 +957,19 @@ export const api = {
     remove: (id: string) => request<{ id: string }>('DELETE', `/promotions/${id}`),
   },
   // ── Loja online: cupões e avaliações (gestão) ─────────────
+  kwanza: {
+    products: (q?: string) => request<unknown[]>('GET', `/ecommerce/kwanza/products${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    saveProduct: (code: string, dto: { published: boolean; percent: number | null; mode: 'OPEN' | 'RESTRICTED'; allowMarkup: boolean; maxMarkupPct: number | null; materials: string[] }) =>
+      request<{ ok: true }>('PATCH', `/ecommerce/kwanza/products/${encodeURIComponent(code)}`, dto),
+    sync: () => request<{ ok: true }>('POST', '/ecommerce/kwanza/sync'),
+    requests: () => request<unknown[]>('GET', '/ecommerce/kwanza/requests'),
+    decide: (id: string, dto: { status?: 'APPROVED' | 'REJECTED'; commissionPct?: number | null }) => request<{ ok: true }>('PATCH', `/ecommerce/kwanza/requests/${id}`, dto),
+    associates: () => request<unknown[]>('GET', '/ecommerce/kwanza/associates'),
+    sales: () => request<unknown[]>('GET', '/ecommerce/kwanza/sales'),
+    withdrawals: () => request<unknown[]>('GET', '/ecommerce/kwanza/withdrawals'),
+    pay: (id: string, note?: string, proofUrl?: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/pay`, { note, proofUrl }),
+    reject: (id: string, note?: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/reject`, { note }),
+  },
   affiliates: {
     products: (q?: string) => request<AffiliateProductRow[]>('GET', `/ecommerce/affiliates/products${q ? `?q=${encodeURIComponent(q)}` : ''}`),
     setPercent: (code: string, percent: number | null) => request<{ ok: true }>('PATCH', `/ecommerce/affiliates/products/${encodeURIComponent(code)}`, { percent }),
