@@ -115,3 +115,12 @@ Feito a seguir (avaliações e cupões), com regras provisórias escolhidas pela
 - **Avaliações:** só avalia quem tem conta e uma encomenda online paga, enviada ou entregue com o produto. Uma avaliação por cliente e por produto (reenviar edita). Na montra aparece "Primeiro nome + inicial do apelido", nunca o email. A gestão oculta ou volta a mostrar em Loja & Marca → Avaliações dos produtos. Média e estrelas nos cartões e na página do produto.
 - **Cupões** (gestão em Promoções → Cupões da loja online): código, % ou valor em Kz, compra mínima, limite total, usos por cliente (por omissão 1), início/fim e se aparece na montra. Só com sessão iniciada (o limite por cliente usa o email verificado). O desconto soma-se às promoções, é aplicado no servidor e repartido pelas linhas, e a fatura herda-o. Encomendas canceladas não contam como uso.
 - Promoções ganharam "Termina em" (data de fim) para a contagem das ofertas relâmpago.
+
+### Atualização 2026-11-11 (PR #182)
+Feito: idioma do sistema PT/EN/FR/ES (gestão, super admin, caixa; pacote `@nexus/i18n`); login/registo sem teclado no ecrã e retocados; botão do menu do landing visível no modo escuro forçado; **PDF dos relatórios no formato do Vendus** (medido no PDF de Produtos do Vendus: faixa #EEE no topo, linhas alternadas, total a negrito, notas, rodapé "Gerado Online · Página x / y"); Ajuda como o mensageiro do Vendus (Início/Mensagens/Ajuda, lançador azul com balão, também no super admin); selo AGT do landing no formato do Vendus ("Software Validado Nº …/AGT" quando o número está em Fiscal).
+
+**Pendentes reais:**
+1. Caixa: teste da venda de medicamento com receita (precisa de sessão na caixa da empresa de teste).
+2. Fiscal A3 Modo Formação / A4 Documento Manual — só depois de confirmar requisitos da AGT em fonte oficial.
+3. Utilizador: mudar a palavra-passe do super admin; preencher o nº de validação AGT em Super Admin → Fiscal quando existir.
+4. Variações, "controlar stock", stock por loja nas colunas, conta corrente cliente/fornecedor, perfis personalizados (RBAC no backend).
