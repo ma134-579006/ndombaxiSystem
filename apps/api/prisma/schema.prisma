@@ -786,3 +786,82 @@ model KwanzaNotification {
   @@map("kwanza_notifications")
   @@schema("nexus_public")
 }
+
+/// LPS Kwanza — avaliações (só de quem comprou; uma por telefone e produto).
+model KwanzaReview {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  productCode String
+  name        String
+  phone       String
+  rating      Int
+  comment     String?
+  reply       String?
+  hidden      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@unique([companyId, productCode, phone])
+  @@index([companyId, productCode, hidden])
+  @@map("kwanza_reviews")
+  @@schema("nexus_public")
+}
+
+/// LPS Kwanza — gosto / não gosto (um por dispositivo e produto).
+model KwanzaReaction {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  productCode String
+  device      String
+  value       Int
+  createdAt   DateTime @default(now())
+
+  @@unique([companyId, productCode, device])
+  @@map("kwanza_reactions")
+  @@schema("nexus_public")
+}
+
+/// LPS Kwanza — reclamações dos clientes (acompanhadas pelo código).
+model KwanzaComplaint {
+  id            String    @id @default(uuid()) @db.Uuid
+  code          String    @unique
+  companyId     String    @db.Uuid
+  productCode   String?
+  associateCode String?
+  orderNumber   String?
+  name          String
+  phone         String
+  kind          String
+  body          String
+  status        String    @default("OPEN")
+  reply         String?
+  repliedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([companyId, status, createdAt])
+  @@map("kwanza_complaints")
+  @@schema("nexus_public")
+}
+
+/// LPS Kwanza — política de devolução de cada empresa.
+model KwanzaPolicy {
+  companyId  String   @id @db.Uuid
+  returnDays Int      @default(7)
+  text       String?
+  updatedAt  DateTime @default(now())
+
+  @@map("kwanza_policies")
+  @@schema("nexus_public")
+}
+
+/// LPS Kwanza — saldo de um associado congelado por uma empresa (bloqueia o saque).
+model KwanzaFreeze {
+  companyId   String   @db.Uuid
+  associateId String   @db.Uuid
+  reason      String
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@id([companyId, associateId])
+  @@map("kwanza_freezes")
+  @@schema("nexus_public")
+}

@@ -9,6 +9,7 @@ import { BRAND, Card, Carousel, I, Mark, P, Pic, Shelf, type Slide, kz, useInfin
 import { Search, type SearchState } from '../members/Search';
 import { Messages, NotesBell } from './Inbox';
 import { PostEditor } from './PostEditor';
+import { Claims, ProductSocial } from './Trust';
 import { kw, session, shareLink, type Affiliation, type Associate, type Dashboard, type Listing, type PayoutAccount } from './api';
 
 /** Produto do marketplace no formato dos cartões (código = empresa::produto). */
@@ -23,13 +24,14 @@ const com = (l: Listing, pct?: number) => Math.round(l.grossPrice * (pct ?? l.co
 
 type Route =
   | { n: 'home' } | { n: 'search'; s: SearchState } | { n: 'product'; c: string; p: string; a?: string }
-  | { n: 'login' } | { n: 'register' } | { n: 'recover' }
+  | { n: 'login' } | { n: 'register' } | { n: 'recover' } | { n: 'claims' }
   | { n: 'panel' } | { n: 'sales' } | { n: 'affs' } | { n: 'withdraw' } | { n: 'accounts' } | { n: 'profile' } | { n: 'msgs'; c?: string };
 const parse = (h: string): Route => {
   const [path, qs] = h.replace(/^#\/?/, '').split('?'); const s = path.split('/').filter(Boolean).map(decodeURIComponent); const q = new URLSearchParams(qs ?? '');
   switch (s[0]) {
     case 'busca': return { n: 'search', s: { q: q.get('q') ?? '', cat: q.get('cat') ?? undefined, promo: q.get('promo') === '1' } };
     case 'p': return s[1] && s[2] ? { n: 'product', c: s[1], p: s[2], a: s[3] || undefined } : { n: 'home' };
+    case 'reclamacoes': return { n: 'claims' };
     case 'entrar': return { n: 'login' }; case 'registar': return { n: 'register' }; case 'recuperar': return { n: 'recover' };
     case 'painel': return { n: 'panel' }; case 'vendas': return { n: 'sales' }; case 'afiliacoes': return { n: 'affs' };
     case 'saques': return { n: 'withdraw' }; case 'contas': return { n: 'accounts' }; case 'perfil': return { n: 'profile' };
@@ -41,6 +43,7 @@ const hashOf = (r: Route): string => {
   switch (r.n) {
     case 'search': { const q = new URLSearchParams(); if (r.s.q) q.set('q', r.s.q); if (r.s.cat) q.set('cat', r.s.cat); if (r.s.promo) q.set('promo', '1'); const x = q.toString(); return `#/busca${x ? `?${x}` : ''}`; }
     case 'product': return `#/p/${encodeURIComponent(r.c)}/${encodeURIComponent(r.p)}${r.a ? `/${encodeURIComponent(r.a)}` : ''}`;
+    case 'claims': return '#/reclamacoes';
     case 'login': return '#/entrar'; case 'register': return '#/registar'; case 'recover': return '#/recuperar';
     case 'panel': return '#/painel'; case 'sales': return '#/vendas'; case 'affs': return '#/afiliacoes'; case 'withdraw': return '#/saques'; case 'accounts': return '#/contas'; case 'profile': return '#/perfil';
     case 'msgs': return r.c ? `#/mensagens/${encodeURIComponent(r.c)}` : '#/mensagens';
@@ -87,10 +90,25 @@ export function KwanzaApp() {
   if (needLogin || route.n === 'login') body = <Login onDone={() => go(route.n === 'login' ? { n: 'panel' } : route)} go={go} />;
   else if (route.n === 'register') body = <Register onDone={() => go({ n: 'panel' })} go={go} />;
   else if (route.n === 'recover') body = <Recover go={go} flash={flash} />;
+  else if (route.n === 'claims') body = <Claims companies={[...new Map((list ?? []).map((l) => [l.companyCode, { code: l.companyCode, name: l.companyName }])).values()]} />;
   else if (route.n === 'search') body = list === null ? <Loader /> : <Search products={products} state={route.s} card={card} onState={(s) => go({ n: 'search', s })} />;
   else if (route.n === 'product') body = <Product listing={list?.find((l) => l.companyCode === route.c && l.productCode === route.p && (!route.a || l.associate?.code === route.a)) ?? null} loading={list === null} sess={sess} go={go} flash={flash} card={card} products={products} />;
   else if (PRIVATE.has(route.n) && sess) body = <Area route={route.n as AreaTab} chat={route.n === 'msgs' ? route.c : undefined} go={go} token={sess.token} me={sess.associate} flash={flash} products={products} />;
   else body = <Home products={list === null ? null : products} go={go} card={card} buyer={!sess} />;
+
+  // Entrar / criar conta / recuperar: UM ecrã só, sem barra nem rodapé e sem scroll da página.
+  if (needLogin || route.n === 'login' || route.n === 'register' || route.n === 'recover') {
+    return (
+      <div className="kw-root kw-authscreen">
+        <div className="kw-as-art" aria-hidden="true"><img src="/kwanza-auth.svg" alt="" /></div>
+        <main className="kw-as-main">
+          <button className="kw-as-back" onClick={() => go({ n: 'home' })} aria-label="Voltar ao marketplace"><I d={P.back} size={20} /></button>
+          {body}
+        </main>
+        {toast ? <div key={toast.id} className="kw-toast" role="status"><span className="kw-toast-ic"><I d={P.check} size={16} /></span>{toast.t}<i className="kw-toast-bar" /></div> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="kw-root">
@@ -123,6 +141,7 @@ export function KwanzaApp() {
           <div><h4>{BRAND}</h4><button onClick={() => go({ n: 'home' })}>Marketplace</button><button onClick={() => go({ n: 'search', s: { q: '' } })}>Todos os produtos</button></div>
           <div><h4>Associados</h4><button onClick={() => go({ n: sess ? 'panel' : 'register' })}>Central do Associado</button><button onClick={() => go({ n: 'affs' })}>Minhas afiliações</button><button onClick={() => go({ n: 'withdraw' })}>Transações (Saques)</button></div>
           <div><h4>Conta</h4><button onClick={() => go({ n: 'profile' })}>Perfil</button><button onClick={() => go({ n: 'recover' })}>Recuperar senha</button>{sess ? <button onClick={() => { session.clear(); go({ n: 'home' }); }}>Terminar sessão</button> : null}</div>
+          <div><h4>Ajuda</h4><button onClick={() => go({ n: 'claims' })}>Reclamações</button><button onClick={() => go({ n: 'claims' })}>Devoluções e reembolsos</button></div>
           <div><h4>Empresas</h4><span>{new Set((list ?? []).map((l) => l.companyCode)).size} empresas · {(list ?? []).length} produtos</span></div>
         </div>
         <div className="kw-foot-copy">© {new Date().getFullYear()} {BRAND} TODOS OS DIREITOS RESERVADOS</div>
@@ -260,6 +279,7 @@ function Product({ listing: l, loading, sess, go, flash, card, products }: { lis
           {l.materials.length && aff?.status === 'APPROVED' ? <div className="kw-mats"><b>Materiais de divulgação</b>{l.materials.map((m, i) => <a key={m} href={m} target="_blank" rel="noopener noreferrer"><I d={P.doc} size={14} /> Material {i + 1}</a>)}</div> : null}
         </aside>
       </div>
+      <ProductSocial l={l} flash={flash} />
       <Shelf title="Produtos similares" items={similar} render={card} />
       {editing && aff && sess ? <PostEditor token={sess.token} a={aff} onClose={() => setEditing(false)} onSaved={(m) => { setEditing(false); flash(m); void kw.affiliations(sess.token).then((r) => setAff(r.find((x) => x.companyCode === l.companyCode && x.productCode === l.productCode) ?? null)); }} /> : null}
     </div>
@@ -268,7 +288,7 @@ function Product({ listing: l, loading, sess, go, flash, card, products }: { lis
 
 /* ───────────── entrar / criar conta / recuperar ───────────── */
 function AuthCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div className="kw-container kw-authwrap"><div className="kw-auth-card kw-pop"><div className="kw-auth-brand"><img src="/logo-mark.png" alt="LPS Vendas" width={120} height={120} /><strong>{BRAND}</strong></div><h2 className="kw-auth-t">{title}</h2>{children}</div></div>;
+  return <div className="kw-auth-card kw-pop"><div className="kw-auth-brand"><img src="/logo-mark.png" alt="LPS Vendas" width={120} height={120} /><strong>{BRAND}</strong></div><h2 className="kw-auth-t">{title}</h2>{children}</div>;
 }
 function Login({ onDone, go }: { onDone(): void; go(r: Route): void }) {
   const [login, setLogin] = useState(''); const [pw, setPw] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
@@ -552,8 +572,10 @@ function Withdraw({ token, d, onDone, go }: { token: string; d: Dashboard | null
   useEffect(() => { const c = d?.companies.find((x) => x.balance > 0); if (c && !company) setCompany(c.companyCode); }, [d, company]);
   if (!d) return <Loader />;
   const cur = d.companies.find((c) => c.companyCode === company);
+  const frozenWhy = d.frozen?.[company];
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setErr(null); const a = Number(amount.replace(',', '.'));
+    if (frozenWhy !== undefined) { setErr(`Saldo congelado por esta empresa: ${frozenWhy}`); return; }
     if (!cur) { setErr('Escolha a empresa.'); return; } if (!(a > 0) || a > cur.balance) { setErr('Valor inválido para o saldo desta empresa.'); return; } if (!acc) { setErr('Escolha a conta.'); return; }
     setBusy(true); try { await kw.withdraw(token, company, a, acc); setAmount(''); onDone(); } catch (er) { setErr(er instanceof ApiError ? er.message : 'Não foi possível.'); } finally { setBusy(false); }
   };
@@ -571,6 +593,7 @@ function Withdraw({ token, d, onDone, go }: { token: string; d: Dashboard | null
           <label className="kw-f"><span>Empresa que paga</span><select value={company} onChange={(e) => setCompany(e.target.value)}><option value="">Escolha</option>{d.companies.map((c) => <option key={c.companyCode} value={c.companyCode}>{c.companyName} — {kz(c.balance)}</option>)}</select></label>
           <label className="kw-f"><span>Valor (Kz)</span><div className="kw-amt"><input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0" />{cur && cur.balance > 0 ? <button type="button" onClick={() => setAmount(String(cur.balance))}>Tudo</button> : null}</div></label>
           <div className="kw-f kw-f-wide"><span>Conta para receber</span>{accs && accs.length ? <div className="kw-acc-pick">{accs.map((a) => <label key={a.id} className={`kw-acc-opt${acc === a.id ? ' on' : ''}`}><input type="radio" name="acc" checked={acc === a.id} onChange={() => setAcc(a.id)} /><span><b>{a.method}{a.bank ? ` · ${a.bank}` : ''}</b><small>{a.details} · {a.holder}</small></span></label>)}</div> : <button type="button" className="kw-btn kw-btn-outline" onClick={() => go({ n: 'accounts' })}>+ Registar conta bancária</button>}</div>
+          {frozenWhy !== undefined && !err ? <div className="kw-err kw-f-wide" role="alert">Saldo congelado por esta empresa: {frozenWhy}</div> : null}
           {err ? <div className="kw-err kw-f-wide" role="alert">{err}</div> : null}
           <div className="kw-f-wide kw-form-act"><button className="kw-btn kw-btn-primary" disabled={busy || !accs?.length || !d.balance}>{busy ? 'A enviar…' : 'Pedir saque'}</button></div>
         </form>

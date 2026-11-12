@@ -5,6 +5,7 @@ import { Modal, Switch } from '../components/ui';
 import { STORE_URL } from '../config';
 import { useAuth } from '../auth/AuthContext';
 import { AffiliatesCard, BannersCard, MembersCard } from './StoreMarketing';
+import { Complaints, FreezeDialog, ReturnPolicy, Reviews, type KFreeze } from './KwanzaTrust';
 
 const kz = (n: number | string) => `${Number(n).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz`;
 const dt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
@@ -17,8 +18,8 @@ interface KWithdrawal { id: string; name: string; amount: number; method: string
 interface KChat { associateId: string; name: string; phone: string; photoUrl: string | null; last: string; at: string; unread: number }
 interface KMsg { id: string; sender: 'ASSOCIATE' | 'COMPANY'; senderName: string; body: string; createdAt: string }
 
-type Tab = 'products' | 'requests' | 'associates' | 'sales' | 'withdrawals' | 'chat' | 'own';
-const TABS: Array<[Tab, string]> = [['products', 'Produtos'], ['requests', 'Pedidos'], ['associates', 'Associados'], ['sales', 'Vendas'], ['withdrawals', 'Saques'], ['chat', 'Mensagens'], ['own', 'Loja de associados']];
+type Tab = 'products' | 'requests' | 'associates' | 'sales' | 'withdrawals' | 'complaints' | 'reviews' | 'policy' | 'chat' | 'own';
+const TABS: Array<[Tab, string]> = [['products', 'Produtos'], ['requests', 'Pedidos'], ['associates', 'Associados'], ['sales', 'Vendas'], ['withdrawals', 'Saques'], ['complaints', 'Reclamações'], ['reviews', 'Avaliações'], ['policy', 'Devoluções'], ['chat', 'Mensagens'], ['own', 'Loja de associados']];
 const ST: Record<string, [string, string]> = { PENDING: ['Pendente', 'warn'], APPROVED: ['Aprovada', ''], REJECTED: ['Recusada', 'mute'], REQUESTED: ['Por pagar', 'warn'], PAID: ['Pago', ''] };
 
 /** LPS Kwanza — página própria no painel de cada empresa (marketplace central + loja de associados). */
@@ -38,6 +39,7 @@ export function Kwanza({ onGo }: { onGo?(section: string): void } = {}) {
   useEffect(() => { void loadStats(); }, [loadStats, tab]);
   // Notificação com ligação direta (ref "requests", "withdrawals" ou "chat:<associado>") abre o separador certo.
   const [chatWith, setChatWith] = useState<string | null>(null);
+  const [freezeCode, setFreezeCode] = useState<string | null>(null);
   useEffect(() => {
     const apply = () => {
       try {
@@ -70,7 +72,8 @@ export function Kwanza({ onGo }: { onGo?(section: string): void } = {}) {
           {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => go(k)}>{l}{k === 'requests' && stats?.req ? <i className="kz-dot">{stats.req}</i> : null}{k === 'chat' && stats?.unread ? <i className="kz-dot">{stats.unread}</i> : null}</button>)}
         </div>
       </div>
-      {tab === 'products' ? <Products onChange={loadStats} onGo={onGo} /> : tab === 'requests' ? <Requests onChange={loadStats} /> : tab === 'associates' ? <Associates onChat={(id) => { setChatWith(id); go('chat'); }} />
+      {tab === 'products' ? <Products onChange={loadStats} onGo={onGo} /> : tab === 'requests' ? <Requests onChange={loadStats} /> : tab === 'associates' ? <Associates key={freezeCode ?? ''} freezeCode={freezeCode} onChat={(id) => { setChatWith(id); go('chat'); }} />
+        : tab === 'complaints' ? <Complaints onChange={loadStats} onFreeze={(code) => { setFreezeCode(code); go('associates'); }} /> : tab === 'reviews' ? <Reviews /> : tab === 'policy' ? <ReturnPolicy />
         : tab === 'sales' ? <Sales /> : tab === 'withdrawals' ? <Withdrawals onChange={loadStats} /> : tab === 'chat' ? <Chats key={chatWith ?? ''} initial={chatWith} onChange={loadStats} />
         : <div className="kz-own"><MembersCard /><BannersCard /><AffiliatesCard /></div>}
     </div>
@@ -256,8 +259,19 @@ function Requests({ onChange }: { onChange(): void }) {
 }
 
 /* ── associados ── */
-function Associates({ onChat }: { onChat(id: string): void }) {
-  const { data, error } = useLoad(() => api.kwanza.associates() as Promise<KAssociate[]>);
+function Associates({ onChat, freezeCode }: { onChat(id: string): void; freezeCode?: string | null }) {
+  const { data, error, setError } = useLoad(() => api.kwanza.associates() as Promise<KAssociate[]>);
+  const [frozen, setFrozen] = useState<Map<string, KFreeze>>(new Map());
+  const [freezing, setFreezing] = useState<KAssociate | null>(null);
+  const [asked, setAsked] = useState(false);
+  const loadFrozen = useCallback(() => { api.kwanza.freezes().then((f) => setFrozen(new Map(f.map((x) => [x.associateId, x])))).catch(() => undefined); }, []);
+  useEffect(() => { loadFrozen(); const t = window.setInterval(loadFrozen, 10_000); return () => window.clearInterval(t); }, [loadFrozen]);
+  // Vindo de uma reclamação: abre logo a janela de congelar desse associado.
+  useEffect(() => { if (asked || !freezeCode || !data) return; const a = data.find((x) => x.code === freezeCode); setAsked(true); if (a) setFreezing(a); }, [asked, freezeCode, data]);
+  const unfreeze = async (a: KAssociate) => {
+    if (!(await confirmDialog({ message: `Descongelar o saldo de ${a.name}?` }))) return;
+    try { await api.kwanza.unfreeze(a.id); toast.success('Saldo descongelado'); loadFrozen(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Falhou.'); }
+  };
   return (
     <>
       {error ? <div className="vd-err">{error}</div> : null}
@@ -265,10 +279,11 @@ function Associates({ onChat }: { onChat(id: string): void }) {
         {!data ? <div className="vd-empty">A carregar…</div> : !data.length ? <Empty t="Ainda sem associados a vender os seus produtos." /> : (
           <div className="vd-tablewrap"><table className="vd-table">
             <thead><tr><th>Associado</th><th className="ctr">Código</th><th className="ctr">Vendas</th><th className="num">Em processo</th><th className="num">A pagar</th><th className="num">Por pagar (pedido)</th><th className="num">Pago</th><th /></tr></thead>
-            <tbody>{data.map((a) => <tr key={a.id}><td><div className="kz-prod">{a.photoUrl ? <img src={a.photoUrl} alt="" className="round" /> : <span className="kz-av">{a.name.slice(0, 1)}</span>}<div><strong>{a.name}</strong><span className="sub">{a.phone}</span></div></div></td><td className="ctr">{a.code}</td><td className="ctr">{a.sales}</td><td className="num">{kz(a.pending)}</td><td className="num"><strong>{kz(a.balance)}</strong></td><td className="num">{kz(a.requested)}</td><td className="num">{kz(a.paid)}</td><td className="ctr"><button className="vd-btn outline sm" onClick={() => onChat(a.id)}>Mensagem</button></td></tr>)}</tbody>
+            <tbody>{data.map((a) => <tr key={a.id}><td><div className="kz-prod">{a.photoUrl ? <img src={a.photoUrl} alt="" className="round" /> : <span className="kz-av">{a.name.slice(0, 1)}</span>}<div><strong>{a.name}</strong><span className="sub">{a.phone}</span></div></div></td><td className="ctr">{a.code}</td><td className="ctr">{a.sales}</td><td className="num">{kz(a.pending)}</td><td className="num"><strong>{kz(a.balance)}</strong></td><td className="num">{kz(a.requested)}</td><td className="num">{kz(a.paid)}</td><td className="ctr" style={{ whiteSpace: 'nowrap' }}>{frozen.has(a.id) ? <span className="vd-badge warn" title={frozen.get(a.id)!.reason}>Congelado</span> : null} <button className="vd-btn outline sm" onClick={() => onChat(a.id)}>Mensagem</button> {frozen.has(a.id) ? <button className="vd-btn plain sm" onClick={() => void unfreeze(a)}>Descongelar</button> : <button className="vd-btn danger sm" onClick={() => setFreezing(a)}>Congelar saldo</button>}</td></tr>)}</tbody>
           </table></div>
         )}
       </div>
+      {freezing ? <FreezeDialog associateId={freezing.id} name={freezing.name} onClose={() => setFreezing(null)} onDone={() => { setFreezing(null); loadFrozen(); }} /> : null}
     </>
   );
 }

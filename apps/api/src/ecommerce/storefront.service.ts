@@ -132,6 +132,9 @@ export class StorefrontService {
   private static readonly SOLD_TTL_MS = 5 * 60_000;
 
   /** Catálogo público: produtos activos e visíveis online, com preço bruto (IVA incluído). */
+  /** Esquece o catálogo em cache desta empresa (ex.: um produto acabou de ser publicado). */
+  forgetCatalog(schema: string): void { this.catalogCache.delete(schema); }
+
   async catalog(schema: string): Promise<CatalogProduct[]> {
     const hit = this.catalogCache.get(schema);
     if (hit && Date.now() - hit.at < StorefrontService.CATALOG_TTL_MS) return hit.data;

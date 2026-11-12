@@ -39,6 +39,7 @@ const b2 = await call('POST', `${K}/products/bulk`, { token: adm, body: { codes:
 const st2 = (await c.query('SELECT affiliate_percent pct, affiliate_mode m, kwanza_published p FROM products WHERE code = ANY($1)', [codes.slice(0, 3)])).rows;
 R.check('KL-5', 'alterar só a comissão não mexe nos outros campos', b2.status < 300 && st2.every((r) => Number(r.pct) === 20 && r.m === 'RESTRICTED' && r.p), JSON.stringify(st2));
 // publicar sem % produtos que nunca tiveram comissão → ficam de fora
+await call('POST', `${K}/products/bulk`, { token: adm, body: { codes: [P[40].code, P[41].code], percent: 0, published: false } });
 const b3 = await call('POST', `${K}/products/bulk`, { token: adm, body: { codes: [P[40].code, P[41].code], published: true } });
 const st3 = (await c.query('SELECT kwanza_published p FROM products WHERE code = ANY($1)', [[P[40].code, P[41].code]])).rows;
 R.check('KL-6', 'publicar em lote sem comissão definida não publica (conta como ignorados)', b3.status < 300 && st3.every((r) => !r.p) && b3.body.skipped === 2, `${b3.status} ${JSON.stringify(b3.body)}`);
@@ -57,6 +58,8 @@ R.check('KL-9', '"todos os da pesquisa": aplica a todos os que correspondem e s�
 // tempo real: associado vê preço e stock novos sem "Atualizar"
 const a = (await ok('POST', '/kwanza/auth/register', { body: { name: 'Associado Lote', phone: `95${String(Date.now()).slice(-7)}`, password: 'segredo123' } }));
 const mk = async () => (await ok('GET', '/kwanza/market', { token: a.token })).find((x) => x.companyCode === CODE && x.productCode === codes[5]);
+const off5 = (await c.query('SELECT show_online FROM products WHERE code=$1', [codes[5]])).rows[0];
+R.check('KL-9b', 'publicar no LPS Kwanza põe o produto na loja online (onde a compra acontece)', off5.show_online === true, JSON.stringify(off5));
 const before = await mk();
 R.check('KL-10', 'produto configurado em lote aparece no marketplace dos associados', !!before && before.commissionPct === 12.5, JSON.stringify(before ?? null).slice(0, 160));
 const newPrice = Math.round((P[5].price + 777) * 100) / 100;

@@ -963,6 +963,15 @@ export const api = {
     products: (q?: string) => request<unknown[]>('GET', `/ecommerce/kwanza/products${q ? `?q=${encodeURIComponent(q)}` : ''}`),
     saveProduct: (code: string, dto: { published: boolean; percent: number | null; mode: 'OPEN' | 'RESTRICTED'; allowMarkup: boolean; maxMarkupPct: number | null; materials: string[] }) =>
       request<{ ok: true }>('PATCH', `/ecommerce/kwanza/products/${encodeURIComponent(code)}`, dto),
+    complaints: () => request<unknown[]>('GET', '/ecommerce/kwanza/complaints'),
+    answerComplaint: (id: string, dto: { reply?: string; status?: 'OPEN' | 'ANSWERED' | 'RESOLVED' }) => request<{ ok: true }>('PATCH', `/ecommerce/kwanza/complaints/${encodeURIComponent(id)}`, dto),
+    reviews: () => request<unknown[]>('GET', '/ecommerce/kwanza/reviews'),
+    moderateReview: (id: string, dto: { hidden?: boolean; reply?: string }) => request<{ ok: true }>('PATCH', `/ecommerce/kwanza/reviews/${encodeURIComponent(id)}`, dto),
+    policy: () => request<{ returnDays: number; text: string | null }>('GET', '/ecommerce/kwanza/policy'),
+    savePolicy: (dto: { returnDays: number; text: string | null }) => request<{ returnDays: number; text: string | null }>('PUT', '/ecommerce/kwanza/policy', dto),
+    freezes: () => request<{ associateId: string; reason: string; date: string }[]>('GET', '/ecommerce/kwanza/freezes'),
+    freeze: (associateId: string, reason: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/associates/${encodeURIComponent(associateId)}/freeze`, { reason }),
+    unfreeze: (associateId: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/associates/${encodeURIComponent(associateId)}/unfreeze`),
     saveProducts: (dto: { codes?: string[]; all?: boolean; q?: string; published?: boolean; percent?: number | null; mode?: 'OPEN' | 'RESTRICTED'; allowMarkup?: boolean; maxMarkupPct?: number | null }) =>
       request<{ ok: true; updated: number; skipped: number }>('POST', '/ecommerce/kwanza/products/bulk', dto),
     sync: () => request<{ ok: true }>('POST', '/ecommerce/kwanza/sync'),
