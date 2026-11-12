@@ -454,7 +454,7 @@ function TenantPanel() {
       {section === 'payroll' ? <Payroll /> : null}
       {section === 'leave' ? <Leave /> : null}
       {section === 'store' ? <Storefront /> : null}
-      {section === 'kwanza' ? <Kwanza /> : null}
+      {section === 'kwanza' ? <Kwanza onGo={setSection} /> : null}
       {section === 'settings' ? <Settings /> : null}
       {section === 'profile' ? <Profile /> : null}
       {/* O mesmo assistente IA da landing, disponível dentro do painel. */}

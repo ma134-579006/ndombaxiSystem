@@ -123,6 +123,23 @@ export function Products() {
   const [busy, setBusy] = useState(false);
   const [enterFor, setEnterFor] = useState<string | undefined>(undefined);
   const [entering, setEntering] = useState(false);
+  // Vindo do LPS Kwanza ("Adicionar stock"): abre logo a entrada de stock desse produto.
+  useEffect(() => {
+    if (!products.length || !stores.length) return;
+    let raw: string | null = null;
+    try { raw = sessionStorage.getItem('ndombaxi.products.stockFor'); if (raw) sessionStorage.removeItem('ndombaxi.products.stockFor'); } catch { /* sem armazenamento */ }
+    if (!raw) return;
+    const [id, code] = raw.split('|');
+    const open = () => { setEnterFor(id); setEntering(true); };
+    if (products.some((p) => p.id === id)) { open(); return; }
+    // A lista é paginada: o produto pode não estar carregado — vai buscá-lo pelo código.
+    void api.products.listAll({ q: code, limit: 20 }).then((found) => {
+      const p = found.find((x) => x.id === id);
+      if (!p) return;
+      setProducts((prev) => (prev.some((x) => x.id === id) ? prev : [...prev, p]));
+      open();
+    }).catch(() => undefined);
+  }, [products, stores.length]);
   const [producing, setProducing] = useState(false);
   // Filtros, colunas, ordenação e paginação da listagem.
   const [fCat, setFCat] = useState('');
