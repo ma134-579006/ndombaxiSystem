@@ -865,3 +865,22 @@ model KwanzaFreeze {
   @@map("kwanza_freezes")
   @@schema("nexus_public")
 }
+
+/// LPS Kwanza — compra feita no marketplace: código do cliente para acompanhar (sem conta).
+model KwanzaOrder {
+  id          String   @id @default(uuid()) @db.Uuid
+  token       String   @unique
+  companyId   String   @db.Uuid
+  companyCode String
+  orderId     String   @db.Uuid
+  orderNumber String
+  associateId String?  @db.Uuid
+  phone       String
+  device      String?
+  createdAt   DateTime @default(now())
+
+  @@index([phone, orderNumber])
+  @@index([associateId])
+  @@map("kwanza_orders")
+  @@schema("nexus_public")
+}
