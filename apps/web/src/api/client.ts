@@ -963,6 +963,8 @@ export const api = {
     products: (q?: string) => request<unknown[]>('GET', `/ecommerce/kwanza/products${q ? `?q=${encodeURIComponent(q)}` : ''}`),
     saveProduct: (code: string, dto: { published: boolean; percent: number | null; mode: 'OPEN' | 'RESTRICTED'; allowMarkup: boolean; maxMarkupPct: number | null; materials: string[] }) =>
       request<{ ok: true }>('PATCH', `/ecommerce/kwanza/products/${encodeURIComponent(code)}`, dto),
+    saveProducts: (dto: { codes?: string[]; all?: boolean; q?: string; published?: boolean; percent?: number | null; mode?: 'OPEN' | 'RESTRICTED'; allowMarkup?: boolean; maxMarkupPct?: number | null }) =>
+      request<{ ok: true; updated: number; skipped: number }>('POST', '/ecommerce/kwanza/products/bulk', dto),
     sync: () => request<{ ok: true }>('POST', '/ecommerce/kwanza/sync'),
     requests: () => request<unknown[]>('GET', '/ecommerce/kwanza/requests'),
     decide: (id: string, dto: { status?: 'APPROVED' | 'REJECTED'; commissionPct?: number | null }) => request<{ ok: true }>('PATCH', `/ecommerce/kwanza/requests/${id}`, dto),

@@ -60,7 +60,16 @@ export function KwanzaApp() {
   useEffect(() => { const on = () => setSess(session.get()); window.addEventListener('kwanza:session', on); return () => window.removeEventListener('kwanza:session', on); }, []);
   useEffect(() => { const on = () => setCompact((c) => (c ? window.scrollY > 10 : window.scrollY > 90)); on(); window.addEventListener('scroll', on, { passive: true }); return () => window.removeEventListener('scroll', on); }, []);
   // Associados veem todos os produtos; clientes sem sessão só os que já têm associado.
-  useEffect(() => { setList(null); kw.market(sess?.token).then(setList).catch(() => setList([])); }, [sess?.token]);
+  useEffect(() => {
+    setList(null);
+    kw.market(sess?.token).then(setList).catch(() => setList([]));
+    // Tempo real: preços, stock e publicações voltam a ser lidos sozinhos (sem recarregar a página).
+    const again = () => { if (document.visibilityState === 'visible') kw.market(sess?.token).then(setList).catch(() => undefined); };
+    const t = window.setInterval(again, 10_000);
+    document.addEventListener('visibilitychange', again);
+    window.addEventListener('focus', again);
+    return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', again); window.removeEventListener('focus', again); };
+  }, [sess?.token]);
   useEffect(() => {
     const l = route.n === 'product' ? list?.find((x) => x.companyCode === route.c && x.productCode === route.p && (!route.a || x.associate?.code === route.a)) : null;
     document.title = l ? `${l.name} — LPS Kwanza` : 'LPS Kwanza — Marketplace de associados';

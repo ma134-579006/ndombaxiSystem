@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
@@ -84,6 +84,16 @@ class ListingDto {
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(100) maxMarkupPct?: number | null;
   @IsOptional() @IsArray() @IsString({ each: true }) materials?: string[];
 }
+class BulkListingDto {
+  @IsOptional() @IsArray() @ArrayMaxSize(5000) @IsString({ each: true }) codes?: string[];
+  @IsOptional() @IsBoolean() all?: boolean;
+  @IsOptional() @IsString() @MaxLength(120) q?: string;
+  @IsOptional() @IsBoolean() published?: boolean;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(90) percent?: number | null;
+  @IsOptional() @IsIn(['OPEN', 'RESTRICTED']) mode?: 'OPEN' | 'RESTRICTED';
+  @IsOptional() @IsBoolean() allowMarkup?: boolean;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(100) maxMarkupPct?: number | null;
+}
 class DecideDto { @IsOptional() @IsIn(['APPROVED', 'REJECTED']) status?: 'APPROVED' | 'REJECTED'; @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(90) commissionPct?: number | null; }
 class MsgAdminDto { @IsString() @MaxLength(2000) body!: string; }
 class PayDto { @IsOptional() @IsString() @MaxLength(300) note?: string; @IsOptional() @IsString() @MaxLength(3_000_000) proofUrl?: string; }
@@ -101,6 +111,8 @@ export class KwanzaAdminController {
 
   @Get('products') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Produtos e definições do LPS Kwanza' })
   products(@Query('q') q?: string) { return this.k.companyProducts(this.ctx.requireTenantSchema(), q); }
+  @Post('products/bulk') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Configura vários produtos de uma vez (marcados ou todos)' })
+  async saveBulk(@Body() d: BulkListingDto) { return this.k.saveCompanyProductsBulk(await this.tenant(), d); }
   @Patch('products/:code') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Publica/altera um produto no LPS Kwanza' })
   async save(@Param('code') code: string, @Body() d: ListingDto) { return this.k.saveCompanyProduct(await this.tenant(), code, d); }
   @Post('sync') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Atualiza preços e stock no marketplace' })

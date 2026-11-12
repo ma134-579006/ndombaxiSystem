@@ -9,7 +9,7 @@ import { AffiliatesCard, BannersCard, MembersCard } from './StoreMarketing';
 const kz = (n: number | string) => `${Number(n).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz`;
 const dt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
 
-interface KProduct { code: string; name: string; imageUrl: string | null; published: boolean; percent: number | null; mode: 'OPEN' | 'RESTRICTED'; allowMarkup: boolean; maxMarkupPct: number | null; materials: string[] }
+interface KProduct { id: string; stock: number; canPublish: boolean; code: string; name: string; imageUrl: string | null; published: boolean; percent: number | null; mode: 'OPEN' | 'RESTRICTED'; allowMarkup: boolean; maxMarkupPct: number | null; materials: string[] }
 interface KRequest { id: string; status: string; productCode: string; product: string | null; associate: string; phone: string; photoUrl: string | null; note: string | null; commissionPct: number | null; basePct: number; markupPct: number | null; date: string }
 interface KAssociate { id: string; name: string; phone: string; code: string; photoUrl: string | null; sales: number; pending: number; available: number; paid: number; requested: number; balance: number }
 interface KSale { orderNumber: string; product: string; quantity: number; amount: number; associate: string; code: string; date: string }
@@ -22,7 +22,7 @@ const TABS: Array<[Tab, string]> = [['products', 'Produtos'], ['requests', 'Pedi
 const ST: Record<string, [string, string]> = { PENDING: ['Pendente', 'warn'], APPROVED: ['Aprovada', ''], REJECTED: ['Recusada', 'mute'], REQUESTED: ['Por pagar', 'warn'], PAID: ['Pago', ''] };
 
 /** LPS Kwanza — página própria no painel de cada empresa (marketplace central + loja de associados). */
-export function Kwanza() {
+export function Kwanza({ onGo }: { onGo?(section: string): void } = {}) {
   const { companyCode } = useAuth();
   const [tab, setTab] = useState<Tab>(() => { try { return (sessionStorage.getItem('ndombaxi.kwanza.tab') as Tab) || 'products'; } catch { return 'products'; } });
   const [stats, setStats] = useState<{ pub: number; req: number; assoc: number; pay: number; unread: number } | null>(null);
@@ -70,7 +70,7 @@ export function Kwanza() {
           {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => go(k)}>{l}{k === 'requests' && stats?.req ? <i className="kz-dot">{stats.req}</i> : null}{k === 'chat' && stats?.unread ? <i className="kz-dot">{stats.unread}</i> : null}</button>)}
         </div>
       </div>
-      {tab === 'products' ? <Products onChange={loadStats} /> : tab === 'requests' ? <Requests onChange={loadStats} /> : tab === 'associates' ? <Associates onChat={(id) => { setChatWith(id); go('chat'); }} />
+      {tab === 'products' ? <Products onChange={loadStats} onGo={onGo} /> : tab === 'requests' ? <Requests onChange={loadStats} /> : tab === 'associates' ? <Associates onChat={(id) => { setChatWith(id); go('chat'); }} />
         : tab === 'sales' ? <Sales /> : tab === 'withdrawals' ? <Withdrawals onChange={loadStats} /> : tab === 'chat' ? <Chats key={chatWith ?? ''} initial={chatWith} onChange={loadStats} />
         : <div className="kz-own"><MembersCard /><BannersCard /><AffiliatesCard /></div>}
     </div>
@@ -87,21 +87,28 @@ function useLoad<T>(fn: () => Promise<T>, deps: unknown[] = []) {
 const Empty = ({ t }: { t: string }) => <div className="vd-empty">{t}</div>;
 
 /* ── produtos ── */
-function Products({ onChange }: { onChange(): void }) {
+function Products({ onChange, onGo }: { onChange(): void; onGo?(section: string): void }) {
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<'all' | 'pub' | 'off'>('all');
   const { data, error, load, setError } = useLoad(() => api.kwanza.products(q || undefined) as Promise<KProduct[]>, [q]);
   const [edit, setEdit] = useState<KProduct | null>(null);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [bulk, setBulk] = useState<'sel' | 'all' | null>(null);
   const rows = useMemo(() => (data ?? []).filter((p) => filter === 'all' || (filter === 'pub' ? p.published : !p.published)), [data, filter]);
-  const sync = async () => { setBusy(true); try { await api.kwanza.sync(); await load(); toast.success('Preços e stock atualizados'); } catch (e) { setError(e instanceof ApiError ? e.message : 'Falhou.'); } finally { setBusy(false); } };
   const unpublish = async () => {
     if (!(await confirmDialog({ message: `Retirar ${sel.size} produto(s) do marketplace?` }))) return;
     setBusy(true);
-    for (const code of sel) { const p = data?.find((x) => x.code === code); if (p) await api.kwanza.saveProduct(code, { ...p, published: false }).catch(() => undefined); }
-    setSel(new Set()); setBusy(false); await load(); onChange();
+    try { await api.kwanza.saveProducts({ codes: [...sel], published: false }); setSel(new Set()); await load(); onChange(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Falhou.'); } finally { setBusy(false); }
   };
+  // Tempo real: stock, preços e estado voltam a ser lidos sozinhos.
+  useEffect(() => {
+    const again = () => { if (document.visibilityState === 'visible') void load(); };
+    const t = window.setInterval(again, 8000);
+    window.addEventListener('focus', again);
+    return () => { window.clearInterval(t); window.removeEventListener('focus', again); };
+  }, [load]);
+  const addStock = (p: KProduct) => { try { sessionStorage.setItem('ndombaxi.products.stockFor', `${p.id}|${p.code}`); } catch { /* sem armazenamento */ } onGo?.('products'); };
   const toggle = (code: string) => setSel((s) => { const n = new Set(s); if (n.has(code)) n.delete(code); else n.add(code); return n; });
   return (
     <>
@@ -111,36 +118,76 @@ function Products({ onChange }: { onChange(): void }) {
             {([['all', 'Todos'], ['pub', 'Publicados'], ['off', 'Não publicados']] as const).map(([k, l]) => <button type="button" key={k} className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>{l}</button>)}
           </div>
           <label className="vd-f grow"><input className="vd-in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar por nome ou código" aria-label="Pesquisar produtos" /></label>
-          <button type="button" className="vd-btn outline" disabled={busy} onClick={() => void sync()}>{busy ? 'A atualizar…' : 'Atualizar preços e stock'}</button>
+          <button type="button" className="vd-btn outline" disabled={!data?.length} onClick={() => setBulk('all')}>{q.trim() ? 'Configurar os da pesquisa' : 'Configurar todos'}</button>
         </div>
       </form>
       {error ? <div className="vd-err" role="alert">{error}</div> : null}
       <div className="vd-card vd-tablecard">
-        {sel.size ? <div className="vd-bulk"><strong>{sel.size} selecionado(s)</strong><span className="spacer" /><button className="vd-btn plain sm" onClick={() => setSel(new Set())}>Limpar</button><button className="vd-btn danger sm" disabled={busy} onClick={() => void unpublish()}>Retirar do marketplace</button></div> : null}
+        {sel.size ? <div className="vd-bulk"><strong>{sel.size} selecionado(s)</strong><span className="spacer" /><button className="vd-btn plain sm" onClick={() => setSel(new Set())}>Limpar</button><button className="vd-btn sm" disabled={busy} onClick={() => setBulk('sel')}>Configurar selecionados</button><button className="vd-btn danger sm" disabled={busy} onClick={() => void unpublish()}>Retirar do marketplace</button></div> : null}
         {!data ? <div className="vd-empty">A carregar…</div> : !rows.length ? <Empty t="Sem produtos." /> : (
           <div className="vd-tablewrap"><table className="vd-table">
-            <thead><tr><th className="ctr"><input type="checkbox" aria-label="Selecionar todos" checked={rows.length > 0 && rows.every((r) => sel.has(r.code))} onChange={(e) => setSel(e.target.checked ? new Set(rows.map((r) => r.code)) : new Set())} /></th><th>Produto</th><th className="ctr">Marketplace</th><th className="ctr">Comissão</th><th className="ctr">Afiliação</th><th className="ctr">Preço próprio</th><th /></tr></thead>
+            <thead><tr><th className="ctr"><input type="checkbox" aria-label="Selecionar todos" checked={rows.length > 0 && rows.every((r) => sel.has(r.code))} onChange={(e) => setSel(e.target.checked ? new Set(rows.map((r) => r.code)) : new Set())} /></th><th>Produto</th><th className="ctr">Stock</th><th className="ctr">Marketplace</th><th className="ctr">Comissão</th><th className="ctr">Afiliação</th><th className="ctr">Preço próprio</th><th /></tr></thead>
             <tbody>{rows.map((p) => (
               <tr key={p.code}>
                 <td className="ctr"><input type="checkbox" checked={sel.has(p.code)} onChange={() => toggle(p.code)} aria-label={`Selecionar ${p.name}`} /></td>
                 <td><div className="kz-prod">{p.imageUrl ? <img src={p.imageUrl} alt="" /> : <span className="kz-noimg" />}<div><button className="vd-link" onClick={() => setEdit(p)}>{p.name}</button><span className="sub">{p.code}</span></div></div></td>
+                <td className="ctr">{p.canPublish ? (p.stock > 0 ? p.stock.toLocaleString('pt-PT') : 'Por encomenda') : <span className="vd-badge warn" style={{ whiteSpace: 'nowrap' }}>Sem stock</span>}</td>
                 <td className="ctr"><span className={`vd-badge${p.published ? '' : ' mute'}`}>{p.published ? 'Publicado' : 'Não publicado'}</span></td>
                 <td className="ctr">{p.percent ? `${p.percent}%` : '—'}</td>
                 <td className="ctr">{p.mode === 'RESTRICTED' ? <span className="vd-badge warn">Restrita</span> : 'Aberta'}</td>
                 <td className="ctr">{p.allowMarkup ? `até ${p.maxMarkupPct ?? 100}%` : '—'}</td>
-                <td className="ctr"><button className="vd-btn outline sm" onClick={() => setEdit(p)}>Configurar</button></td>
+                <td className="ctr">{p.canPublish ? <button className="vd-btn outline sm" onClick={() => setEdit(p)}>Configurar</button> : <button className="vd-btn sm" onClick={() => addStock(p)}>Adicionar stock</button>}</td>
               </tr>
             ))}</tbody>
           </table></div>
         )}
       </div>
-      {edit ? <ProductEditor p={edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); void load(); onChange(); }} /> : null}
+      {edit ? <ProductEditor p={edit} onAddStock={() => addStock(edit)} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); void load(); onChange(); }} /> : null}
+      {bulk ? <BulkEditor codes={bulk === 'sel' ? [...sel] : null} q={q.trim()} total={bulk === 'sel' ? sel.size : null} onClose={() => setBulk(null)} onSaved={() => { setBulk(null); setSel(new Set()); void load(); onChange(); }} /> : null}
     </>
   );
 }
 
-function ProductEditor({ p, onClose, onSaved }: { p: KProduct; onClose(): void; onSaved(): void }) {
-  const [f, setF] = useState({ published: p.published || !p.percent, percent: p.percent == null ? '' : String(p.percent), mode: p.mode, allowMarkup: p.allowMarkup, maxMarkupPct: p.maxMarkupPct == null ? '' : String(p.maxMarkupPct), materials: p.materials.join('\n') });
+/** Configura de uma vez os produtos marcados (codes) ou todos (codes = null; com pesquisa, só os da pesquisa). */
+function BulkEditor({ codes, q, total, onClose, onSaved }: { codes: string[] | null; q: string; total: number | null; onClose(): void; onSaved(): void }) {
+  const [f, setF] = useState({ published: '' as '' | 'yes' | 'no', percent: '', mode: '' as '' | 'OPEN' | 'RESTRICTED', markup: '' as '' | 'yes' | 'no', maxMarkupPct: '' });
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const pct = f.percent.trim() ? Number(f.percent.replace(',', '.')) : undefined;
+  const max = f.maxMarkupPct.trim() ? Number(f.maxMarkupPct.replace(',', '.')) : undefined;
+  const nothing = !f.published && pct === undefined && !f.mode && !f.markup && max === undefined;
+  const save = async () => {
+    if (pct !== undefined && !(pct > 0 && pct <= 90)) { setErr('Comissão entre 0,01 e 90 %.'); return; }
+    if (max !== undefined && !(max >= 0 && max <= 100)) { setErr('Acréscimo máximo entre 0 e 100 %.'); return; }
+    if (!codes && !(await confirmDialog({ message: q ? `Aplicar a todos os produtos da pesquisa “${q}”?` : 'Aplicar a TODOS os produtos da empresa?' }))) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.kwanza.saveProducts({
+        ...(codes ? { codes } : { all: true, q: q || undefined }),
+        ...(f.published ? { published: f.published === 'yes' } : {}), ...(pct !== undefined ? { percent: pct } : {}), ...(f.mode ? { mode: f.mode } : {}),
+        ...(f.markup ? { allowMarkup: f.markup === 'yes' } : {}), ...(max !== undefined ? { maxMarkupPct: max } : {}),
+      });
+      if (r.skipped) toast.error(`${r.skipped} produto(s) sem comissão não foram publicados`); else toast.success(`${r.updated} produto(s) configurados`);
+      onSaved();
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível guardar.'); } finally { setBusy(false); }
+  };
+  return (
+    <Modal title={codes ? `Configurar ${total} produto(s)` : q ? `Configurar os produtos de “${q}”` : 'Configurar todos os produtos'} onClose={onClose}>
+      {err ? <div className="vd-err" style={{ marginBottom: 10 }} role="alert">{err}</div> : null}
+      <div className="kz-form">
+        <label className="vd-f"><span>Marketplace</span><select className="vd-in" value={f.published} onChange={(e) => setF({ ...f, published: e.target.value as typeof f.published })}><option value="">Não alterar</option><option value="yes">Publicar</option><option value="no">Retirar</option></select></label>
+        <label className="vd-f"><span>Comissão do associado (%)</span><input className="vd-in" inputMode="decimal" value={f.percent} onChange={(e) => setF({ ...f, percent: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="Não alterar" /></label>
+        <label className="vd-f"><span>Afiliação</span><select className="vd-in" value={f.mode} onChange={(e) => setF({ ...f, mode: e.target.value as typeof f.mode })}><option value="">Não alterar</option><option value="OPEN">Aberta (qualquer associado)</option><option value="RESTRICTED">Restrita (a empresa aprova)</option></select></label>
+        <label className="vd-f"><span>Venda no preço do associado</span><select className="vd-in" value={f.markup} onChange={(e) => setF({ ...f, markup: e.target.value as typeof f.markup })}><option value="">Não alterar</option><option value="yes">Permitir</option><option value="no">Não permitir</option></select></label>
+        {f.markup !== 'no' ? <label className="vd-f"><span>Acréscimo máximo (%)</span><input className="vd-in" inputMode="decimal" value={f.maxMarkupPct} onChange={(e) => setF({ ...f, maxMarkupPct: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="Não alterar" /></label> : null}
+        <button className="vd-btn" disabled={busy || nothing} onClick={() => void save()}>{busy ? 'A guardar…' : 'Aplicar'}</button>
+      </div>
+    </Modal>
+  );
+}
+
+function ProductEditor({ p, onClose, onSaved, onAddStock }: { p: KProduct; onClose(): void; onSaved(): void; onAddStock(): void }) {
+  const [f, setF] = useState({ published: p.canPublish && (p.published || !p.percent), percent: p.percent == null ? '' : String(p.percent), mode: p.mode, allowMarkup: p.allowMarkup, maxMarkupPct: p.maxMarkupPct == null ? '' : String(p.maxMarkupPct), materials: p.materials.join('\n') });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const save = async () => {
@@ -154,7 +201,9 @@ function ProductEditor({ p, onClose, onSaved }: { p: KProduct; onClose(): void; 
     <Modal title={p.name} onClose={onClose}>
       {err ? <div className="vd-err" style={{ marginBottom: 10 }}>{err}</div> : null}
       <div className="kz-form">
-        <div className="switch-row"><strong>Publicar no LPS Kwanza</strong><Switch checked={f.published} onChange={(v) => setF({ ...f, published: v })} /></div>
+        {p.canPublish
+          ? <div className="switch-row"><strong>Publicar no LPS Kwanza</strong><Switch checked={f.published} onChange={(v) => setF({ ...f, published: v })} /></div>
+          : <div className="switch-row"><strong>Sem stock</strong><button type="button" className="vd-btn sm" onClick={onAddStock}>Adicionar stock</button></div>}
         <label className="vd-f"><span>Comissão do associado (%)</span><input className="vd-in" inputMode="decimal" value={f.percent} onChange={(e) => setF({ ...f, percent: e.target.value })} /></label>
         <label className="vd-f"><span>Afiliação</span><select className="vd-in" value={f.mode} onChange={(e) => setF({ ...f, mode: e.target.value as 'OPEN' | 'RESTRICTED' })}><option value="OPEN">Aberta (qualquer associado)</option><option value="RESTRICTED">Restrita (a empresa aprova)</option></select></label>
         <div className="switch-row"><strong>Venda no teu preço</strong><Switch checked={f.allowMarkup} onChange={(v) => setF({ ...f, allowMarkup: v })} /></div>

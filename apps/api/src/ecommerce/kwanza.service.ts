@@ -32,6 +32,9 @@ export interface AssociateRow {
   id: string; name: string; phone: string; email: string | null; code: string; photoUrl: string | null; taxId: string | null;
   province: string | null; municipality: string | null; address: string | null; bio: string | null; status: string; createdAt: Date;
 }
+/** Stock total do produto (todas as lojas); sem saldos por loja, o stock da ficha. */
+const STOCK = Prisma.sql`COALESCE((SELECT SUM(si.quantity) FROM stock_items si WHERE si.product_id = p.id), p.stock_qty, 0)`;
+
 export interface ListingInput { published: boolean; percent?: number | null; mode?: 'OPEN' | 'RESTRICTED'; allowMarkup?: boolean; maxMarkupPct?: number | null; materials?: string[] }
 
 @Injectable()
@@ -188,7 +191,28 @@ export class KwanzaService implements OnModuleInit {
    * Produtos do marketplace. Os associados (com sessão) veem todos para se afiliarem;
    * os clientes sem sessão de associado só veem os produtos que já têm um associado aprovado.
    */
+  /* ── tempo real ──
+   * O marketplace lê um retrato (kwanza_listings) dos produtos de cada empresa. Antes de o
+   * servir, volta a copiar preços, stock, nomes e imagens das empresas cujo retrato tem mais
+   * de FRESH_MS — sem ninguém ter de carregar em "Atualizar". Um só refrescamento de cada vez. */
+  private static readonly FRESH_MS = 8_000;
+  private readonly syncedAt = new Map<string, number>();
+  private refreshing: Promise<void> | null = null;
+  private refresh(): Promise<void> {
+    if (this.refreshing) return this.refreshing;
+    this.refreshing = (async () => {
+      const ids = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT DISTINCT "companyId"::text AS id FROM ${T('kwanza_listings')} WHERE active = TRUE`);
+      await Promise.all(ids.map(async ({ id }) => {
+        if (Date.now() - (this.syncedAt.get(id) ?? 0) < KwanzaService.FRESH_MS) return;
+        this.syncedAt.set(id, Date.now());
+        await this.syncCompany(id).catch(() => this.syncedAt.delete(id));
+      }));
+    })().catch(() => undefined).finally(() => { this.refreshing = null; });
+    return this.refreshing;
+  }
+
   async market(forAssociate = false) {
+    await this.refresh();
     if (!forAssociate) return this.posts();
     const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
       SELECT "companyCode", "companyName", "productCode", name, description, "imageUrl", gallery, category, "grossPrice", "listPrice", "inStock",
@@ -248,6 +272,11 @@ export class KwanzaService implements OnModuleInit {
     const l = await this.prisma.$queryRaw<{ companyId: string; grossPrice: unknown; allowMarkup: boolean; maxMarkupPct: unknown }[]>(Prisma.sql`
       SELECT "companyId", "grossPrice", "allowMarkup", "maxMarkupPct" FROM ${T('kwanza_listings')} WHERE "companyCode" = ${companyCode} AND "productCode" = ${productCode} AND active = TRUE`);
     if (!l[0]) throw new NotFoundException('Produto indisponível no marketplace.');
+    // O preço mínimo é o da empresa AGORA (não o do último retrato).
+    await this.syncCompany(l[0].companyId).catch(() => undefined);
+    const fresh = await this.prisma.$queryRaw<{ grossPrice: unknown }[]>(Prisma.sql`SELECT "grossPrice" FROM ${T('kwanza_listings')} WHERE "companyCode" = ${companyCode} AND "productCode" = ${productCode} AND active = TRUE`);
+    if (!fresh[0]) throw new NotFoundException('Produto indisponível no marketplace.');
+    l[0].grossPrice = fresh[0].grossPrice;
     const base = num(l[0].grossPrice);
     const max = l[0].maxMarkupPct == null ? 100 : num(l[0].maxMarkupPct);
     let mk: number | null = null;
@@ -316,6 +345,7 @@ export class KwanzaService implements OnModuleInit {
   }
 
   async myAffiliations(a: AssociateRow) {
+    await this.refresh();
     const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
       SELECT f.id, f.status, f."productCode", f."commissionPct" AS "ownPct", f."markupPct", f.note, f.published, f."postImages", f."postVideo", f."postCaption",
              l."companyCode", l."companyName", l.name, l."imageUrl",
@@ -474,16 +504,29 @@ export class KwanzaService implements OnModuleInit {
   /* ═══════════════ painel da empresa (LPS Vendas → LPS Kwanza) ═══════════════ */
   async companyProducts(schema: string, q?: string) {
     const term = `%${(q ?? '').trim().toLowerCase()}%`;
-    const rows = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-      SELECT code, name, image_url, kwanza_published AS pub, affiliate_percent AS pct, affiliate_mode AS mode, allow_markup AS mk, max_markup_pct AS maxmk, affiliate_materials AS mats
-      FROM products WHERE is_active = TRUE AND (lower(name) LIKE ${term} OR lower(code) LIKE ${term})
-      ORDER BY kwanza_published DESC, name LIMIT 80`));
-    return rows.map((r) => ({ code: r.code, name: r.name, imageUrl: r.image_url, published: !!r.pub, percent: r.pct == null ? null : num(r.pct), mode: r.mode ?? 'OPEN', allowMarkup: !!r.mk, maxMarkupPct: r.maxmk == null ? null : num(r.maxmk), materials: Array.isArray(r.mats) ? r.mats : [] }));
+    const rows = await this.prisma.runInTenant(schema, async (tx) => tx.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
+      SELECT p.id::text AS id, code, name, image_url, kwanza_published AS pub, affiliate_percent AS pct, affiliate_mode AS mode, allow_markup AS mk, max_markup_pct AS maxmk, affiliate_materials AS mats,
+             ${STOCK}::float8 AS stock, ${await this.madeToOrder(tx)} AS mto
+      FROM products p WHERE is_active = TRUE AND (lower(name) LIKE ${term} OR lower(code) LIKE ${term})
+      ORDER BY kwanza_published DESC, name LIMIT 500`));
+    return rows.map((r) => ({ id: r.id, stock: num(r.stock), canPublish: num(r.stock) > 0 || !!r.mto, code: r.code, name: r.name, imageUrl: r.image_url, published: !!r.pub, percent: r.pct == null ? null : num(r.pct), mode: r.mode ?? 'OPEN', allowMarkup: !!r.mk, maxMarkupPct: r.maxmk == null ? null : num(r.maxmk), materials: Array.isArray(r.mats) ? r.mats : [] }));
+  }
+
+  /** Produto feito por encomenda (ficha técnica): vende-se sem stock próprio. */
+  private async madeToOrder(tx: Prisma.TransactionClient): Promise<Prisma.Sql> {
+    const reg = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('product_recipes')::text AS r`);
+    return reg[0]?.r ? Prisma.sql`EXISTS (SELECT 1 FROM product_recipes r WHERE r.product_id = p.id)` : Prisma.sql`FALSE`;
   }
 
   async saveCompanyProduct(tenant: { companyId: string; schema: string }, productCode: string, p: ListingInput) {
     const pct = p.percent == null || p.percent <= 0 ? null : Math.min(90, r2(p.percent));
     if (p.published && !pct) throw new BadRequestException('Defina a % de comissão para publicar no LPS Kwanza.');
+    if (p.published) {
+      // Sem stock não se publica (o associado ia divulgar um produto que a empresa não tem).
+      const st = await this.prisma.runInTenant(tenant.schema, async (tx) => tx.$queryRaw<{ ok: boolean }[]>(Prisma.sql`
+        SELECT (${STOCK} > 0 OR ${await this.madeToOrder(tx)}) AS ok FROM products p WHERE code = ${productCode}`));
+      if (st[0] && !st[0].ok) throw new BadRequestException('Produto sem stock: adicione stock antes de publicar no LPS Kwanza.');
+    }
     const mats = (p.materials ?? []).map((m) => String(m).trim()).filter((m) => /^https?:\/\//i.test(m)).slice(0, 10);
     const n = await this.prisma.runInTenant(tenant.schema, (tx) => tx.$executeRaw(Prisma.sql`
       UPDATE products SET kwanza_published = ${!!p.published}, affiliate_percent = ${pct}, affiliate_mode = ${p.mode === 'RESTRICTED' ? 'RESTRICTED' : 'OPEN'},
@@ -492,6 +535,46 @@ export class KwanzaService implements OnModuleInit {
     if (!n) throw new NotFoundException('Produto não encontrado.');
     await this.syncCompany(tenant.companyId);
     return { ok: true as const };
+  }
+
+  /**
+   * Configura VÁRIOS produtos de uma vez: os marcados (`codes`) ou todos os ativos (`all`,
+   * opcionalmente só os que correspondem à pesquisa `q`). Só mexe nos campos enviados; os
+   * outros ficam como estão em cada produto. Publicar exige comissão: os produtos sem % (e
+   * sem % neste pedido) ficam de fora e são contados em `skipped`.
+   */
+  async saveCompanyProductsBulk(tenant: { companyId: string; schema: string }, p: { codes?: string[]; all?: boolean; q?: string; published?: boolean; percent?: number | null; mode?: 'OPEN' | 'RESTRICTED'; allowMarkup?: boolean; maxMarkupPct?: number | null }) {
+    const codes = [...new Set((p.codes ?? []).map((c) => String(c)))];
+    if (!p.all && !codes.length) throw new BadRequestException('Escolha pelo menos um produto.');
+    const sets: Prisma.Sql[] = [];
+    const mto = await this.prisma.runInTenant(tenant.schema, (tx) => this.madeToOrder(tx));
+    const pct = p.percent === undefined ? undefined : p.percent == null || p.percent <= 0 ? null : Math.min(90, r2(p.percent));
+    if (pct !== undefined) sets.push(Prisma.sql`affiliate_percent = ${pct}`);
+    if (p.mode !== undefined) sets.push(Prisma.sql`affiliate_mode = ${p.mode === 'RESTRICTED' ? 'RESTRICTED' : 'OPEN'}`);
+    if (p.allowMarkup !== undefined) sets.push(Prisma.sql`allow_markup = ${!!p.allowMarkup}`);
+    if (p.maxMarkupPct !== undefined) sets.push(Prisma.sql`max_markup_pct = ${p.maxMarkupPct == null ? null : Math.min(100, r2(p.maxMarkupPct))}`);
+    if (p.published !== undefined) {
+      // Publicar só o que fica com comissão (a nova, ou a que o produto já tem).
+      sets.push(p.published
+        ? Prisma.sql`kwanza_published = ((${pct ?? null}::numeric IS NOT NULL OR (${pct === undefined} AND COALESCE(affiliate_percent, 0) > 0)) AND (${STOCK} > 0 OR ${mto}))`
+        : Prisma.sql`kwanza_published = FALSE`);
+    }
+    if (!sets.length) throw new BadRequestException('Nada para alterar.');
+    void mto;
+    if (p.published && pct === null) throw new BadRequestException('Defina a % de comissão para publicar no LPS Kwanza.');
+    const term = `%${(p.q ?? '').trim().toLowerCase()}%`;
+    const where = p.all
+      ? Prisma.sql`is_active = TRUE AND (lower(name) LIKE ${term} OR lower(code) LIKE ${term})`
+      : Prisma.sql`is_active = TRUE AND code = ANY(${codes}::text[])`;
+    const res = await this.prisma.runInTenant(tenant.schema, async (tx) => {
+      const updated = await tx.$executeRaw(Prisma.sql`UPDATE products p SET ${Prisma.join(sets, ', ')}, updated_at = now() WHERE ${where}`);
+      const skipped = p.published
+        ? await tx.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS n FROM products WHERE ${where} AND kwanza_published = FALSE`)
+        : [{ n: 0 }];
+      return { updated: Number(updated), skipped: skipped[0]?.n ?? 0 };
+    });
+    await this.syncCompany(tenant.companyId);
+    return { ok: true as const, ...res };
   }
 
   /** Copia para o marketplace os produtos publicados da empresa (preço com IVA e promoções do catálogo). */
