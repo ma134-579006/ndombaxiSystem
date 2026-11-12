@@ -671,6 +671,12 @@ model KwanzaAffiliation {
   commissionPct Decimal? @db.Decimal(5, 2) // % negociada só para este associado
   markupPct     Decimal? @db.Decimal(5, 2) // preço próprio do associado (acima do base)
   note          String?
+  /// Publicação do associado no marketplace: o cliente normal só vê produtos publicados por um associado.
+  published     Boolean   @default(false)
+  postImages    Json      @default("[]") // imagens publicitárias (data: ou https:)
+  postVideo     String? // ligação https do vídeo (YouTube, TikTok, Drive…)
+  postCaption   String?
+  publishedAt   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

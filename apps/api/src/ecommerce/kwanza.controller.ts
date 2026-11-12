@@ -25,6 +25,7 @@ class MarkupDto { @IsString() @MaxLength(60) companyCode!: string; @IsString() @
 class AccountDto { @IsString() @MaxLength(40) method!: string; @IsOptional() @IsString() @MaxLength(60) bank?: string; @IsString() @MaxLength(120) holder!: string; @IsString() @MaxLength(60) details!: string; }
 class IdsDto { @IsArray() @IsString({ each: true }) ids!: string[]; }
 class MsgDto { @IsString() @MaxLength(2000) body!: string; }
+class PostDto { @IsString() @MaxLength(60) companyCode!: string; @IsString() @MaxLength(80) productCode!: string; @IsOptional() @Type(() => Number) @IsNumber() @Min(0) price?: number | null; @IsOptional() @IsArray() @IsString({ each: true }) images?: string[]; @IsOptional() @IsString() @MaxLength(500) videoUrl?: string | null; @IsOptional() @IsString() @MaxLength(600) caption?: string | null; @IsBoolean() published!: boolean; }
 class WithdrawDto { @IsString() @MaxLength(60) companyCode!: string; @Type(() => Number) @IsNumber() @Min(1) amount!: number; @IsString() @MaxLength(40) accountId!: string; }
 
 /** LPS Kwanza — site do marketplace e contas dos associados (público + sessão do associado). */
@@ -44,7 +45,11 @@ export class KwanzaPublicController {
   recoverConfirm(@Body() d: RecoverConfirmDto) { return this.k.recoverConfirm(d.login, d.code, d.password); }
 
   @Get('market') @ApiOperation({ summary: 'Produtos de todas as empresas no marketplace' })
-  market() { return this.k.market(); }
+  async market(@Headers('authorization') a?: string) {
+    // Com sessão de associado válida → catálogo completo (para se afiliar); sem → só as publicações dos associados.
+    const isAssociate = a ? await this.k.verify(a).then(() => true, () => false) : false;
+    return this.k.market(isAssociate);
+  }
   @Post('market/:companyCode/:productCode/view') @ApiOperation({ summary: 'Conta uma visualização' })
   view(@Param('companyCode') c: string, @Param('productCode') p: string) { return this.k.view(c, p); }
 
@@ -54,6 +59,7 @@ export class KwanzaPublicController {
   @Get('me/dashboard') async dashboard(@Headers('authorization') a?: string) { return this.k.dashboard(await this.k.verify(a)); }
   @Get('me/affiliations') async affiliations(@Headers('authorization') a?: string) { return this.k.myAffiliations(await this.k.verify(a)); }
   @Post('me/affiliations') async affiliate(@Body() d: AffiliateDto, @Headers('authorization') a?: string) { return this.k.affiliate(await this.k.verify(a), d.companyCode, d.productCode, d.note); }
+  @Put('me/posts') async post(@Body() d: PostDto, @Headers('authorization') a?: string) { return this.k.savePost(await this.k.verify(a), d.companyCode, d.productCode, d); }
   @Post('me/markup') async markup(@Body() d: MarkupDto, @Headers('authorization') a?: string) { return this.k.setMarkup(await this.k.verify(a), d.companyCode, d.productCode, d.markupPct ?? null); }
   @Get('me/accounts') async accounts(@Headers('authorization') a?: string) { return this.k.accounts(await this.k.verify(a)); }
   @Post('me/accounts') async addAccount(@Body() d: AccountDto, @Headers('authorization') a?: string) { return this.k.addAccount(await this.k.verify(a), d); }

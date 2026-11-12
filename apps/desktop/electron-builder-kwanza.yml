@@ -1,0 +1,46 @@
+# Instalador Windows do LPS Kwanza (marketplace de associados).
+# Mesmo processo do LPS Vendas: versão automática do CI, release `windows-kwanza-latest`
+# e atualização obrigatória (a página bloqueia versões antigas).
+# A app é só a janela de kwanza/main.cjs — não leva o servidor local nem os módulos do LPS Vendas.
+appId: com.lpsvendas.kwanza
+productName: LPS Kwanza
+copyright: © LPS Vendas
+
+directories:
+  output: release-kwanza
+  buildResources: kwanza
+
+extraMetadata:
+  name: lps-kwanza
+  main: kwanza/main.cjs
+  description: LPS Kwanza — marketplace de associados
+  dependencies: {}
+
+files:
+  - kwanza/main.cjs
+  - kwanza/icon.ico
+  - package.json
+  - "!node_modules/**/*"
+
+npmRebuild: false
+nodeGypRebuild: false
+
+win:
+  icon: kwanza/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+  signAndEditExecutable: true
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: LPS Kwanza
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  artifactName: LPSKwanza-Setup-${version}-${arch}.${ext}
+  uninstallDisplayName: LPS Kwanza

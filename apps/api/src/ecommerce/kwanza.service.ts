@@ -184,10 +184,16 @@ export class KwanzaService implements OnModuleInit {
   }
 
   /* ═══════════════ mercado ═══════════════ */
-  async market() {
+  /**
+   * Produtos do marketplace. Os associados (com sessão) veem todos para se afiliarem;
+   * os clientes sem sessão de associado só veem os produtos que já têm um associado aprovado.
+   */
+  async market(forAssociate = false) {
+    if (!forAssociate) return this.posts();
     const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
       SELECT "companyCode", "companyName", "productCode", name, description, "imageUrl", gallery, category, "grossPrice", "listPrice", "inStock",
-             "commissionPct", affiliation, "allowMarkup", "maxMarkupPct", materials, views, sold
+             "commissionPct", affiliation, "allowMarkup", "maxMarkupPct", materials, views, sold,
+             (SELECT COUNT(*) FROM ${T('kwanza_affiliations')} f WHERE f."companyId" = l."companyId" AND f."productCode" = l."productCode" AND f.status = 'APPROVED') AS associates
       FROM ${T('kwanza_listings')} l
       WHERE active = TRUE AND EXISTS (SELECT 1 FROM nexus_public.companies c WHERE c.id = l."companyId" AND c.status = 'ACTIVE')
       ORDER BY sold DESC, views DESC LIMIT 2000`);
@@ -196,8 +202,76 @@ export class KwanzaService implements OnModuleInit {
       imageUrl: r.imageUrl, gallery: Array.isArray(r.gallery) ? r.gallery : [], category: r.category, grossPrice: num(r.grossPrice),
       listPrice: r.listPrice == null ? null : num(r.listPrice), inStock: !!r.inStock, commissionPct: num(r.commissionPct),
       affiliation: r.affiliation, allowMarkup: !!r.allowMarkup, maxMarkupPct: r.maxMarkupPct == null ? null : num(r.maxMarkupPct),
-      materials: Array.isArray(r.materials) ? r.materials : [], views: num(r.views), sold: num(r.sold),
+      materials: Array.isArray(r.materials) ? r.materials : [], views: num(r.views), sold: num(r.sold), associates: num(r.associates),
     }));
+  }
+
+  /**
+   * Publicações dos associados (o que o cliente normal vê e compra): o preço é o do associado
+   * (nunca abaixo do da empresa), com as suas imagens, vídeo e texto. A compra leva o código
+   * do associado, por isso a comissão e a diferença do preço ficam atribuídas automaticamente.
+   */
+  async posts() {
+    const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
+      SELECT f.id AS "postId", f."markupPct", f."postImages", f."postVideo", f."postCaption", f."publishedAt",
+             a.code AS "aCode", a.name AS "aName", a."photoUrl" AS "aPhoto",
+             l."companyCode", l."companyName", l."productCode", l.name, l.description, l."imageUrl", l.gallery, l.category, l."grossPrice", l."listPrice", l."inStock",
+             COALESCE(f."commissionPct", l."commissionPct") AS "commissionPct", l.affiliation, l."allowMarkup", l."maxMarkupPct", l.materials, l.views, l.sold
+      FROM ${T('kwanza_affiliations')} f
+      JOIN ${T('kwanza_associates')} a ON a.id = f."associateId" AND a.status = 'ACTIVE'
+      JOIN ${T('kwanza_listings')} l ON l."companyId" = f."companyId" AND l."productCode" = f."productCode" AND l.active = TRUE
+      WHERE f.status = 'APPROVED' AND f.published = TRUE
+        AND EXISTS (SELECT 1 FROM nexus_public.companies c WHERE c.id = l."companyId" AND c.status = 'ACTIVE')
+      ORDER BY f."publishedAt" DESC NULLS LAST LIMIT 3000`);
+    return rows.map((r) => {
+      const base = num(r.grossPrice);
+      const mk = r.allowMarkup && r.markupPct != null ? Math.min(num(r.markupPct), r.maxMarkupPct == null ? 100 : num(r.maxMarkupPct)) : 0;
+      const imgs = (Array.isArray(r.postImages) ? r.postImages : []).filter((x): x is string => typeof x === 'string');
+      const gallery = Array.isArray(r.gallery) ? (r.gallery as string[]) : [];
+      return {
+        postId: r.postId, companyCode: r.companyCode, companyName: r.companyName, productCode: r.productCode, name: r.name, description: r.description,
+        imageUrl: imgs[0] ?? r.imageUrl, gallery: [...imgs.slice(1), ...(r.imageUrl && imgs.length ? [r.imageUrl as string] : []), ...gallery],
+        category: r.category, grossPrice: r2(base * (1 + mk / 100)), basePrice: base, listPrice: null, inStock: !!r.inStock,
+        commissionPct: num(r.commissionPct), affiliation: r.affiliation, allowMarkup: !!r.allowMarkup, maxMarkupPct: r.maxMarkupPct == null ? null : num(r.maxMarkupPct),
+        materials: [], views: num(r.views), sold: num(r.sold), associates: 1,
+        associate: { code: r.aCode, name: r.aName, photoUrl: r.aPhoto ?? null },
+        videoUrl: r.postVideo ?? null, caption: r.postCaption ?? null, publishedAt: r.publishedAt ? (r.publishedAt as Date).toISOString() : null,
+      };
+    });
+  }
+
+  /**
+   * O associado publica o produto: o seu preço (≥ preço da empresa e ≤ limite que a empresa
+   * definir), imagens publicitárias, vídeo e texto. Só com a afiliação aprovada.
+   */
+  async savePost(a: AssociateRow, companyCode: string, productCode: string, d: { price?: number | null; images?: string[]; videoUrl?: string | null; caption?: string | null; published: boolean }) {
+    const l = await this.prisma.$queryRaw<{ companyId: string; grossPrice: unknown; allowMarkup: boolean; maxMarkupPct: unknown }[]>(Prisma.sql`
+      SELECT "companyId", "grossPrice", "allowMarkup", "maxMarkupPct" FROM ${T('kwanza_listings')} WHERE "companyCode" = ${companyCode} AND "productCode" = ${productCode} AND active = TRUE`);
+    if (!l[0]) throw new NotFoundException('Produto indisponível no marketplace.');
+    const base = num(l[0].grossPrice);
+    const max = l[0].maxMarkupPct == null ? 100 : num(l[0].maxMarkupPct);
+    let mk: number | null = null;
+    if (d.price != null && d.price > 0) {
+      const price = r2(d.price);
+      if (price < base) throw new BadRequestException(`O preço não pode ser abaixo do preço da empresa (${base.toLocaleString('pt-PT')} Kz).`);
+      if (price > base) {
+        if (!l[0].allowMarkup) throw new BadRequestException('Esta empresa não permite preço próprio neste produto.');
+        mk = r2((price / base - 1) * 100);
+        if (mk > max) throw new BadRequestException(`O preço máximo permitido é ${r2(base * (1 + max / 100)).toLocaleString('pt-PT')} Kz.`);
+      }
+    }
+    const images = (d.images ?? []).filter((x) => typeof x === 'string' && (/^https:\/\//i.test(x) || /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(x)));
+    if (images.length > 6) throw new BadRequestException('Máximo de 6 imagens.');
+    if (images.some((x) => x.length > 1_200_000)) throw new BadRequestException('Cada imagem pode ter até ~900 KB.');
+    const video = (d.videoUrl ?? '').trim();
+    if (video && (!/^https:\/\/\S+$/i.test(video) || video.length > 500)) throw new BadRequestException('Indique uma ligação https válida para o vídeo.');
+    const caption = (d.caption ?? '').trim().slice(0, 600) || null;
+    const n = await this.prisma.$executeRaw(Prisma.sql`
+      UPDATE ${T('kwanza_affiliations')} SET "markupPct" = ${mk}, "postImages" = ${JSON.stringify(images)}::jsonb, "postVideo" = ${video || null}, "postCaption" = ${caption},
+        published = ${!!d.published}, "publishedAt" = CASE WHEN ${!!d.published} THEN COALESCE("publishedAt", now()) ELSE NULL END, "updatedAt" = now()
+      WHERE "associateId" = ${a.id}::uuid AND "companyId" = ${l[0].companyId}::uuid AND "productCode" = ${productCode} AND status = 'APPROVED'`);
+    if (!n) throw new BadRequestException('A afiliação a este produto ainda não foi aprovada.');
+    return { ok: true as const, price: r2(base * (1 + (mk ?? 0) / 100)), published: !!d.published };
   }
 
   async view(companyCode: string, productCode: string) {
@@ -243,7 +317,8 @@ export class KwanzaService implements OnModuleInit {
 
   async myAffiliations(a: AssociateRow) {
     const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-      SELECT f.id, f.status, f."productCode", f."commissionPct" AS "ownPct", f."markupPct", f.note, l."companyCode", l."companyName", l.name, l."imageUrl",
+      SELECT f.id, f.status, f."productCode", f."commissionPct" AS "ownPct", f."markupPct", f.note, f.published, f."postImages", f."postVideo", f."postCaption",
+             l."companyCode", l."companyName", l.name, l."imageUrl",
              l."grossPrice", l."commissionPct", l.affiliation, l."allowMarkup", l."maxMarkupPct"
       FROM ${T('kwanza_affiliations')} f JOIN ${T('kwanza_listings')} l ON l."companyId" = f."companyId" AND l."productCode" = f."productCode"
       WHERE f."associateId" = ${a.id}::uuid ORDER BY f."updatedAt" DESC`);
@@ -252,6 +327,8 @@ export class KwanzaService implements OnModuleInit {
       grossPrice: num(r.grossPrice), commissionPct: r.ownPct == null ? num(r.commissionPct) : num(r.ownPct), negotiated: r.ownPct != null,
       markupPct: r.markupPct == null ? null : num(r.markupPct), affiliation: r.affiliation, allowMarkup: !!r.allowMarkup,
       maxMarkupPct: r.maxMarkupPct == null ? null : num(r.maxMarkupPct),
+      published: !!r.published, postImages: Array.isArray(r.postImages) ? r.postImages : [], postVideo: r.postVideo ?? null, postCaption: r.postCaption ?? null,
+      price: r2(num(r.grossPrice) * (1 + (r.markupPct == null ? 0 : num(r.markupPct)) / 100)),
     }));
   }
 

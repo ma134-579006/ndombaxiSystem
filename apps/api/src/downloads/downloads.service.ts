@@ -5,9 +5,9 @@ import { PrismaService } from '../prisma/prisma.service';
 /** Página oficial de downloads (site) — destino do botão "Atualizar Agora". */
 export const OFFICIAL_DOWNLOAD_PAGE = 'https://ndombaxisystem.com/baixar';
 
-/** `android-loja` = app LPS Loja (clientes da loja online). */
-export type Platform = 'windows' | 'android' | 'android-loja' | 'ios';
-export const PLATFORMS: Platform[] = ['windows', 'android', 'android-loja', 'ios'];
+/** `android-loja` = app LPS Loja (clientes da loja online). `*-kwanza` = app LPS Kwanza (associados). */
+export type Platform = 'windows' | 'android' | 'android-loja' | 'android-kwanza' | 'windows-kwanza' | 'ios';
+export const PLATFORMS: Platform[] = ['windows', 'android', 'android-loja', 'android-kwanza', 'windows-kwanza', 'ios'];
 
 /** Forma pública de uma versão — o que o site e as apps podem ver. */
 export interface PublicRelease {
@@ -32,7 +32,7 @@ export class DownloadsService {
 
   private static assertPlatform(p: string): Platform {
     if (!PLATFORMS.includes(p as Platform)) {
-      throw new BadRequestException(`Plataforma inválida: ${p}. Use windows, android, android-loja ou ios.`);
+      throw new BadRequestException(`Plataforma inválida: ${p}. Use windows, android, android-loja, android-kwanza, windows-kwanza ou ios.`);
     }
     return p as Platform;
   }
@@ -79,7 +79,7 @@ export class DownloadsService {
 
   /** A mais recente de cada plataforma — alimenta a página oficial de downloads. */
   async publicLatestAll(): Promise<Record<Platform, PublicRelease | null>> {
-    const out = { windows: null, android: null, 'android-loja': null, ios: null } as Record<Platform, PublicRelease | null>;
+    const out = { windows: null, android: null, 'android-loja': null, 'android-kwanza': null, 'windows-kwanza': null, ios: null } as Record<Platform, PublicRelease | null>;
     await Promise.all(PLATFORMS.map(async (p) => { out[p] = await this.latest(p); }));
     return out;
   }

@@ -68,6 +68,20 @@ export const RELEASE_MANIFEST: Record<AppPlatform, ReleaseManifestEntry> = {
     notes: ['App da loja online para os clientes (publicada automaticamente pelo CI)'],
     fixes: [],
   },
+  'android-kwanza': {
+    version: '1.0.0',
+    minSupported: '1.0.0',
+    requirements: 'Android 6 ou superior',
+    notes: ['App LPS Kwanza para os associados (publicada automaticamente pelo CI)'],
+    fixes: [],
+  },
+  'windows-kwanza': {
+    version: '1.0.0',
+    minSupported: '1.0.0',
+    requirements: 'Windows 10 ou 11 · 64-bit',
+    notes: ['App LPS Kwanza para Windows (publicada automaticamente pelo CI)'],
+    fixes: [],
+  },
   ios: {
     version: '1.0.4',
     minSupported: '1.0.0',

@@ -29,3 +29,4 @@ build/icon.png
 
 # Instalador gerado — NUNCA versionar (binário grande; sai do electron-builder).
 setup/
+release-kwanza/

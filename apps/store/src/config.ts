@@ -53,7 +53,7 @@ export const GOOGLE_CLIENT_ID = ((import.meta.env.VITE_GOOGLE_CLIENT_ID as strin
 
 /** Endereço público da loja (ligações partilhadas). Nas apps a página corre em file:// ou https://localhost. */
 export const PUBLIC_ORIGIN: string = ((import.meta.env.VITE_PUBLIC_ORIGIN as string | undefined)?.replace(/\/$/, ''))
-  || (typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && !/^(localhost|127\.)/.test(location.hostname) ? location.origin : 'https://loja.ndombaxisystem.com');
+  || (typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && (import.meta.env.DEV || !/^(localhost|127\.)/.test(location.hostname)) ? location.origin : 'https://loja.ndombaxisystem.com');
 
 /** App LPS Kwanza: a app Android (build próprio) ou a janela Windows (?app=kwanza&appOs=windows&appVersion=x.y.z). */
 const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();

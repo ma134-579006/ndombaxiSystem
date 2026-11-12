@@ -49,11 +49,33 @@ const DlIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" /></svg>
 );
 
-const PLATFORMS: PlatformMeta[] = [
-  { id: 'windows', label: 'Windows', tagline: 'Para o computador da loja e do escritório.', defaultReq: 'Windows 10 ou 11 · 64-bit', icon: <WinIcon /> },
-  { id: 'android', label: 'Android', tagline: 'Venda e faça a gestão a partir do telemóvel.', defaultReq: 'Android 6 ou superior', icon: <AndroidIcon /> },
-  { id: 'android-loja', label: 'LPS Loja', tagline: 'A loja online da sua empresa, no telemóvel dos seus clientes.', defaultReq: 'Android 6 ou superior', icon: <StoreAppIcon /> },
-  { id: 'ios', label: 'iPhone', tagline: 'A mesma experiência, no seu iOS.', defaultReq: 'iOS 13 ou superior', icon: <AppleIcon /> },
+/** Ícone da app LPS Kwanza: o mesmo da app instalada (carrinho branco em azul). */
+const KwanzaAppIcon = () => (
+  <img src={`${import.meta.env.BASE_URL}app-icon-kwanza.png`} alt="" width={64} height={64} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+);
+const Arrow = () => (
+  <svg className="dl-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+);
+
+interface Group { id: string; title: string; brand: React.ReactNode; apps: PlatformMeta[] }
+
+const GROUPS: Group[] = [
+  {
+    id: 'vendas', title: 'LPS Vendas', brand: <img src={`${import.meta.env.BASE_URL}app-icon-foreground.png`} alt="" />,
+    apps: [
+      { id: 'windows', label: 'Windows', tagline: 'Gestão e caixa no computador', defaultReq: 'Windows 10 ou 11 · 64-bit', icon: <WinIcon /> },
+      { id: 'android', label: 'Android', tagline: 'Gestão e caixa no telemóvel', defaultReq: 'Android 6 ou superior', icon: <AndroidIcon /> },
+      { id: 'ios', label: 'iPhone', tagline: 'Gestão e caixa no iPhone', defaultReq: 'iOS 13 ou superior', icon: <AppleIcon /> },
+      { id: 'android-loja', label: 'LPS Loja', tagline: 'Loja online para os clientes', defaultReq: 'Android 6 ou superior', icon: <StoreAppIcon /> },
+    ],
+  },
+  {
+    id: 'kwanza', title: 'LPS Kwanza', brand: <img src={`${import.meta.env.BASE_URL}app-icon-kwanza.png`} alt="" />,
+    apps: [
+      { id: 'android-kwanza', label: 'Android', tagline: 'Marketplace de associados', defaultReq: 'Android 6 ou superior', icon: <KwanzaAppIcon /> },
+      { id: 'windows-kwanza', label: 'Windows', tagline: 'Marketplace de associados', defaultReq: 'Windows 10 ou 11 · 64-bit', icon: <KwanzaAppIcon /> },
+    ],
+  },
 ];
 
 function fmtSize(n: number | null): string | null {
@@ -64,7 +86,7 @@ function fmtSize(n: number | null): string | null {
 
 function fmtDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' });
+    return new Date(iso).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
   } catch {
     return '';
   }
@@ -84,81 +106,58 @@ export function DownloadApps() {
   return (
     <section className="lp-section dl-section" id="baixar">
       <div className="wrap">
-        <h2>Leve o LPS Vendas consigo</h2>
-        <p className="lead">
-          A mesma aplicação do site, agora instalada no seu equipamento — a funcionar mesmo
-          sem internet e a sincronizar sozinha quando a ligação voltar.
-        </p>
+        <h2>Baixar aplicativos</h2>
 
-        <div className="dl-trust">
-          <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg> Funciona sem internet</span>
-          <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5" /></svg> Sincroniza sozinha</span>
-          <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /></svg> Instalador oficial verificado</span>
-        </div>
-
-        <div className="dl-grid">
-          {PLATFORMS.map((p) => {
-            const rel = releases?.[p.id] ?? null;
-            const available = Boolean(rel);
-            // A app encaminha sempre para a página oficial; aqui o botão leva ao
-            // link definido pelo Super Admin (que pode ser a própria página).
-            const href = rel?.downloadUrl || rel?.downloadPageUrl || undefined;
-
-            return (
-              <article className={`dl-card dl-${p.id} ${available ? '' : 'soon'}`} key={p.id}>
-                <div className="dl-head">
-                  <div className="dl-icon" aria-hidden="true">{p.icon}</div>
-                  <div className="dl-ht">
-                    <h3>{p.label}</h3>
-                    <p className="dl-tag">{p.tagline}</p>
-                  </div>
-                  <span className={`dl-badge${available ? '' : ' soon'}`}>{available ? `v${rel!.version}` : 'Em breve'}</span>
-                </div>
-
-                <div className="dl-facts">
-                  <div className="full"><span>Requisitos</span><b>{rel?.requirements || p.defaultReq}</b></div>
-                  {available && (
-                    <>
-                      <div><span>Atualizado</span><b>{fmtDate(rel!.releasedAt)}</b></div>
-                      <div><span>Tamanho</span><b>{fmtSize(rel!.fileSize) || '—'}</b></div>
-                    </>
-                  )}
-                </div>
-
-                {available && (rel!.notes.length > 0 || rel!.fixes.length > 0) && (
-                  <details className="dl-changelog">
-                    <summary>Novidades desta versão</summary>
-                    <ul>
-                      {rel!.notes.map((n, i) => <li key={`n${i}`}>{n}</li>)}
-                      {rel!.fixes.map((f, i) => <li key={`f${i}`} className="fix">Correção: {f}</li>)}
-                    </ul>
-                  </details>
-                )}
-
-                {available ? (
-                  <a className="dl-btn" href={href} target="_blank" rel="noreferrer">
-                    <DlIcon /> Baixar para {p.label}
-                  </a>
-                ) : (
-                  <span className="dl-btn disabled" aria-disabled="true">
-                    {loaded ? 'Disponível em breve' : 'A carregar…'}
-                  </span>
-                )}
-
-                {available && rel!.sha256 && (
-                  <p className="dl-hash" title="Impressão digital para confirmar a integridade do ficheiro">
-                    SHA-256 <code>{rel!.sha256.slice(0, 16)}…</code>
-                  </p>
-                )}
-              </article>
-            );
-          })}
-        </div>
-
-        <p className="dl-foot">
-          Por sua segurança, o download passa sempre pela página oficial — é onde confirma a
-          versão e a impressão digital do ficheiro.
-        </p>
+        {GROUPS.map((g) => (
+          <div className={`dl-group dl-g-${g.id}`} key={g.id} id={g.id === 'kwanza' ? 'baixar-kwanza' : undefined}>
+            <div className="dl-group-h">
+              <span className="dl-group-logo" aria-hidden="true">{g.brand}</span>
+              <h3>{g.title}</h3>
+              <span className="dl-group-n">{g.apps.length} apps</span>
+            </div>
+            <div className="dl-grid">
+              {g.apps.map((p) => {
+                const rel = releases?.[p.id] ?? null;
+                const href = rel?.downloadUrl || rel?.downloadPageUrl || undefined;
+                const size = rel ? fmtSize(rel.fileSize) : null;
+                return (
+                  <article className={`dl-card dl-${p.id}`} key={p.id}>
+                    <div className="dl-head">
+                      <div className="dl-icon" aria-hidden="true">{p.icon}</div>
+                      <div className="dl-ht">
+                        <h4>{p.label}</h4>
+                        <p className="dl-tag">{p.tagline}</p>
+                      </div>
+                    </div>
+                    <dl className="dl-facts">
+                      <div><dt>Versão</dt><dd>{rel ? rel.version : '—'}</dd></div>
+                      <div><dt>Tamanho</dt><dd>{size || '—'}</dd></div>
+                      <div className="full"><dt>Requisitos</dt><dd>{rel?.requirements || p.defaultReq}</dd></div>
+                      {rel ? <div className="full"><dt>Atualizado</dt><dd>{fmtDate(rel.releasedAt)}</dd></div> : null}
+                    </dl>
+                    {rel && (rel.notes.length > 0 || rel.fixes.length > 0) ? (
+                      <details className="dl-changelog">
+                        <summary>Novidades</summary>
+                        <ul>
+                          {rel.notes.map((n, i) => <li key={`n${i}`}>{n}</li>)}
+                          {rel.fixes.map((f, i) => <li key={`f${i}`} className="fix">Correção: {f}</li>)}
+                        </ul>
+                      </details>
+                    ) : null}
+                    {rel && href ? (
+                      <a className="dl-btn" href={href} target="_blank" rel="noreferrer" aria-label={`Baixar ${g.title} para ${p.label}`}>
+                        <DlIcon /><span>Baixar</span><Arrow />
+                      </a>
+                    ) : (
+                      <span className="dl-btn disabled" aria-disabled="true">{loaded ? 'Em breve' : 'A carregar…'}</span>
+                    )}
+                    {rel?.sha256 ? <p className="dl-hash" title="SHA-256">SHA-256 <code>{rel.sha256.slice(0, 16)}…</code></p> : null}
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );

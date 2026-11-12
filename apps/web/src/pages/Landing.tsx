@@ -109,10 +109,11 @@ const SOCIAL = {
   store: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 7h12l1 13H5L6 7Z" /><path d="M9 10V6a3 3 0 0 1 6 0v4" /></svg>,
 };
 
-const BADGE_ICONS: Record<'android' | 'windows' | 'store', React.ReactNode> = {
+const BADGE_ICONS: Record<'android' | 'windows' | 'store' | 'kwanza', React.ReactNode> = {
   android: <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden><path fill="#3ddc84" d="M17.6 9.5a.9.9 0 1 1 1.8 0v5.6a.9.9 0 1 1-1.8 0zM4.6 9.5a.9.9 0 1 1 1.8 0v5.6a.9.9 0 1 1-1.8 0zM7 8.9h10v8.1a1.2 1.2 0 0 1-1.2 1.2h-.9v2.6a1.1 1.1 0 0 1-2.2 0v-2.6h-1.4v2.6a1.1 1.1 0 0 1-2.2 0v-2.6h-.9A1.2 1.2 0 0 1 7 17zM7.1 8.3a5 5 0 0 1 9.8 0z" /></svg>,
   windows: <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden><path fill="#fff" d="M2.5 4.9 10.2 3.8v7.5H2.5zM11.3 3.65 21.5 2.2v9.1H11.3zM2.5 12.4h7.7v7.5l-7.7-1.1zM11.3 12.4h10.2v9.4l-10.2-1.4z" /></svg>,
   store: <img src={`${import.meta.env.BASE_URL}app-icon-loja.png`} alt="" width={26} height={26} style={{ borderRadius: 6 }} />,
+  kwanza: <img src={`${import.meta.env.BASE_URL}app-icon-kwanza.png`} alt="" width={26} height={26} style={{ borderRadius: 6 }} />,
 };
 
 export function Landing({ onGoLogin, onGoRegister }: Props) {
@@ -511,6 +512,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
               <a className="lv-badge" href={relHref('android')} target={relHref('android').startsWith('#') ? undefined : '_blank'} rel="noreferrer">{BADGE_ICONS.android}<span><small>{t.availableOn}</small>Android</span></a>
               <a className="lv-badge" href={relHref('windows')} target={relHref('windows').startsWith('#') ? undefined : '_blank'} rel="noreferrer">{BADGE_ICONS.windows}<span><small>{t.availableOn}</small>Windows</span></a>
               <a className="lv-badge" href={relHref('android-loja')} target={relHref('android-loja').startsWith('#') ? undefined : '_blank'} rel="noreferrer">{BADGE_ICONS.store}<span><small>{t.availableOn}</small>LPS Loja</span></a>
+              <a className="lv-badge" href="#baixar-kwanza">{BADGE_ICONS.kwanza}<span><small>{t.availableOn}</small>LPS Kwanza</span></a>
             </div>
           </div>
           <div className="lv-copy">
