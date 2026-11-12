@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 
 /** Abertura de turno de caixa. */
 export class OpenSessionDto {
@@ -10,7 +10,7 @@ export class OpenSessionDto {
 /** Movimento manual de dinheiro: reforço (CASH_IN) ou sangria (CASH_OUT). */
 export class CashMovementDto {
   @IsIn(['CASH_IN', 'CASH_OUT']) type!: 'CASH_IN' | 'CASH_OUT';
-  @IsNumber() @Min(0) amount!: number;
+  @IsNumber() @Min(0.01) @Max(99_999_999_999) amount!: number; // 0 Kz não é movimento
   @IsOptional() @IsString() @Length(0, 200) reference?: string;
 }
 

@@ -18,6 +18,8 @@ import {
   type TaxExemption,
   RSA_DOC_MODULUS_LENGTH,
   round2,
+  mulRound2,
+  complement,
   RsaDocumentSigner,
 } from '@nexus/agt-xml';
 import { PrismaService } from '../prisma/prisma.service';
@@ -1428,9 +1430,9 @@ export class InvoiceService {
         }
         // Consome o remanescente também DENTRO do mesmo pedido (código repetido).
         alreadyByCode.set(r.productCode, already + r.quantity);
-        const unitNet = Number(it.unit_price) * (1 - Number(it.discount_rate || 0));
-        const lineNet = round2(unitNet * r.quantity);
-        const lineIva = round2((lineNet * Number(it.iva_rate)) / 100);
+        // Mesma aritmética exata da emissão (uma devolução total tem de dar a linha original ao cêntimo).
+        const lineNet = mulRound2(r.quantity, Number(it.unit_price), complement(Number(it.discount_rate || 0)));
+        const lineIva = mulRound2(lineNet, Number(it.iva_rate), 0.01);
         refundNet += lineNet; refundIva += lineIva;
         toRevert.push({ productId: it.product_id, qty: r.quantity, code: r.productCode, sharedStock: !!it.shared_stock });
         ncLines.push({

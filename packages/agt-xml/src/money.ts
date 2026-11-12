@@ -30,6 +30,53 @@ export function round2(value: number): number {
   return (sign * Number(`${rounded}e-2`)) || 0; // `|| 0` collapses -0 → 0
 }
 
+/** Decimal exato de um número: mantissa inteira e nº de casas (null se vier em notação exponencial). */
+function toDecimal(value: number): { m: bigint; s: number } | null {
+  const txt = String(Math.abs(value));
+  if (!/^\d+(\.\d+)?$/.test(txt)) return null;
+  const [int, frac = ''] = txt.split('.');
+  return { m: BigInt(int + frac) * (value < 0 ? -1n : 1n), s: frac.length };
+}
+
+/**
+ * Produto de vários fatores arredondado a 2 casas, meio para cima, SEM passar por
+ * vírgula flutuante: 12 × 11828.65 × 0.875 = 124200.825 exatos, mas em float dá
+ * 124200.82499999998 e `round2` arredondava para BAIXO (1 cêntimo a menos na linha
+ * e no IVA). Os fatores entram pelo seu decimal exato (quantidade a 3 casas, preço
+ * a 2, desconto a 4), multiplicam-se em inteiros e só o resultado é arredondado.
+ */
+export function mulRound2(...factors: number[]): number {
+  let m = 1n;
+  let s = 0;
+  for (const f of factors) {
+    if (!Number.isFinite(f)) throw new Error(`mulRound2: value must be finite, got ${f}`);
+    const d = toDecimal(f);
+    if (!d) return round2(factors.reduce((a, b) => a * b, 1)); // notação exponencial: caminho antigo
+    m *= d.m;
+    s += d.s;
+  }
+  const neg = m < 0n;
+  if (neg) m = -m;
+  let cents: bigint;
+  if (s <= 2) cents = m * 10n ** BigInt(2 - s);
+  else {
+    const div = 10n ** BigInt(s - 2);
+    cents = (m * 2n + div) / (div * 2n); // meio para cima
+  }
+  if (cents > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('mulRound2: amount out of range');
+  const out = Number(cents) / 100;
+  return neg ? -out || 0 : out;
+}
+
+/** `1 - rate` exato (0.125 → 0.875) para não introduzir drift antes do produto. */
+export function complement(rate: number): number {
+  const d = toDecimal(rate);
+  if (!d) return 1 - rate;
+  const one = 10n ** BigInt(d.s);
+  const txt = (one - d.m).toString().padStart(d.s + 1, '0');
+  return Number(d.s ? `${txt.slice(0, -d.s)}.${txt.slice(-d.s)}` : txt);
+}
+
 /** Format an amount as a SAF-T monetary string: fixed 2 decimals, dot separator. */
 export function money(value: number): string {
   return round2(value).toFixed(2);

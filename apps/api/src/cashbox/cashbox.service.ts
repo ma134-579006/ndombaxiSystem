@@ -93,6 +93,22 @@ export class CashboxService {
   ): Promise<{ id: string }> {
     return this.prisma.runInTenant(schema, async (tx) => {
       const session = await this.requireOpenSession(tx, actor.id);
+      // Sangria maior do que o dinheiro na gaveta: aceitava-se (ex.: 99 999 999 Kz) e o
+      // esperado do turno ficava NEGATIVO — o fecho deixava de ser possível. Uma sangria
+      // feita SEM REDE já aconteceu: grava-se como veio (clientOpId), como nas vendas.
+      if (dto.type === 'CASH_OUT' && !clientOpId) {
+        const d = await tx.$queryRaw<{ drawer: string }[]>(
+          Prisma.sql`SELECT COALESCE(SUM(CASE
+                       WHEN type IN ('SALE','CASH_IN') THEN amount
+                       WHEN type IN ('CASH_OUT','REFUND') THEN -amount ELSE 0 END), 0) AS drawer
+                     FROM cash_movements
+                     WHERE session_id = ${session.id}::uuid AND COALESCE(payment_type, 'CASH') = 'CASH'`,
+        );
+        const drawer = round2(Number(session.opening_float) + Number(d[0]?.drawer ?? 0));
+        if (round2(dto.amount) > drawer + 0.005) {
+          throw new BadRequestException(`A sangria (${round2(dto.amount).toFixed(2)} Kz) é superior ao dinheiro em caixa (${Math.max(0, drawer).toFixed(2)} Kz).`);
+        }
+      }
       const rows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO cash_movements
             (session_id, type, amount, payment_type, reference, created_by, client_op_id)

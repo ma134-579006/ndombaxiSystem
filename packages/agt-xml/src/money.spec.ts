@@ -1,4 +1,4 @@
-import { money, round2, sum2 } from './money';
+import { complement, money, mulRound2, round2, sum2 } from './money';
 
 describe('round2 — half-up robusto em qualquer magnitude', () => {
   it('arredonda meio-acima em valores pequenos (caso clássico do float)', () => {
@@ -55,5 +55,31 @@ describe('sum2 — soma e arredonda uma única vez', () => {
   });
   it('soma vazia é 0', () => {
     expect(sum2([])).toBe(0);
+  });
+});
+
+describe('mulRound2 — produto decimal exato (regressão da auditoria 2026-11-12)', () => {
+  it('12 × 11828.65 × 0.875 = 124200.825 → 124200.83 (o float dava .82)', () => {
+    expect(round2(12 * 11828.65 * (1 - 0.125))).toBe(124200.82); // o defeito
+    expect(mulRound2(12, 11828.65, complement(0.125))).toBe(124200.83);
+  });
+  it('meios exatos sobem sempre', () => {
+    expect(mulRound2(3, 0.335)).toBe(1.01);
+    expect(mulRound2(1.005, 1)).toBe(1.01);
+    expect(mulRound2(2.5, 0.41, 0.5)).toBe(0.51); // 0.5125
+    expect(mulRound2(124200.83, 14, 0.01)).toBe(17388.12); // IVA de 17388.1162
+  });
+  it('valores mínimos, zero, negativos e grandes', () => {
+    expect(mulRound2(0.001, 0.01)).toBe(0);
+    expect(mulRound2(1, 0.01)).toBe(0.01);
+    expect(mulRound2(0, 99999999.99)).toBe(0);
+    expect(mulRound2(-3, 0.335)).toBe(-1.01);
+    expect(mulRound2(999, 1234567.89)).toBe(1233333322.11);
+  });
+  it('complement é exato', () => {
+    expect(complement(0.125)).toBe(0.875);
+    expect(complement(0.3333)).toBe(0.6667);
+    expect(complement(0)).toBe(1);
+    expect(complement(0.9999)).toBe(0.0001);
   });
 });
