@@ -1,0 +1,66 @@
+# Compila o instalador Windows da app "LPS Kwanza" (marketplace de associados).
+# Mesmo processo do LPS Vendas: versão automática (nº de commits), release
+# `windows-kwanza-latest` e aviso ao servidor → as versões antigas ficam bloqueadas.
+name: Windows build (LPS Kwanza)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-kwanza:
+    runs-on: windows-latest
+    env:
+      NDOMBAXI_API_URL: https://ndombaxi-api-bwwr.onrender.com
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # REGRA PERMANENTE: cada build publicada tem versão maior → bloqueia as anteriores.
+      - name: Versão automática desta build
+        shell: bash
+        run: node scripts/ci-version.mjs
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+      - name: Ícone LPS Kwanza (.ico nítido)
+        shell: bash
+        run: ICON_SRC=apps/store-shell/kwanza/icon-1024.png ICON_OUT=apps/desktop/kwanza/icon.ico node apps/desktop/scripts/gen-win-icon.mjs
+      - name: Gerar instalador
+        working-directory: apps/desktop
+        run: pnpm exec electron-builder --config electron-builder-kwanza.yml --win --x64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lps-kwanza-windows
+          path: apps/desktop/release-kwanza/*.exe
+          if-no-files-found: error
+      # Link direto: https://github.com/<dono>/<repo>/releases/download/windows-kwanza-latest/LPSKwanza-Setup-x64.exe
+      - name: Publicar instalador (Releases → windows-kwanza-latest)
+        shell: bash
+        working-directory: apps/desktop/release-kwanza
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then echo "::error::Só se publica a partir de main (ref: $GITHUB_REF)."; exit 1; fi
+          cur=$(gh release view windows-kwanza-latest -R "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null | grep -oE 'Vers[^:]*: [0-9]+\.[0-9]+\.[0-9]+' | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+          if [ -n "$cur" ] && [ "$(printf '%s\n%s\n' "$cur" "$APP_VERSION" | sort -V | tail -1)" != "$APP_VERSION" ]; then
+            echo "::error::Versão $APP_VERSION é mais baixa do que a publicada ($cur) — não se substitui."; exit 1
+          fi
+          exe=$(ls LPSKwanza-Setup-*-x64.exe | head -1)
+          cp "$exe" LPSKwanza-Setup-x64.exe
+          gh release delete windows-kwanza-latest --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          gh release create windows-kwanza-latest "$exe" LPSKwanza-Setup-x64.exe \
+            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
+            --title "LPS Kwanza para Windows (mais recente)" \
+            --notes "Instalador do LPS Kwanza para Windows 10/11 (64 bits). Versão: ${APP_VERSION}. Commit ${GITHUB_SHA::7}, build #${GITHUB_RUN_NUMBER}. Sem assinatura digital: na primeira instalação o Windows avisa — Mais informações → Executar mesmo assim."
+      - name: Bloquear versões anteriores (avisar o servidor)
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          curl -fsS -X POST --max-time 90 "${NDOMBAXI_API_URL:-https://ndombaxi-api-bwwr.onrender.com}/downloads/sync" || echo "Servidor indisponível agora — sincroniza sozinho em até 10 min."
