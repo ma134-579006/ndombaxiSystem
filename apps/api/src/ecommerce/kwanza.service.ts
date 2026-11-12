@@ -211,6 +211,19 @@ export class KwanzaService implements OnModuleInit {
     return this.refreshing;
   }
 
+  /** Um produto aberto pela ligação de um associado (ou sem associado): para o cliente sem conta. */
+  async listing(companyCode: string, productCode: string, associateCode?: string) {
+    await this.refresh();
+    if (associateCode && /^[A-Za-z0-9]{6}$/.test(associateCode)) {
+      const p = await this.posts({ companyCode, productCode, associateCode });
+      if (p[0]) return p[0];
+    }
+    const all = await this.market(true);
+    const l = all.find((x) => x.companyCode === companyCode && x.productCode === productCode);
+    if (!l) throw new NotFoundException('Produto indisponível no marketplace.');
+    return l;
+  }
+
   async market(forAssociate = false) {
     await this.refresh();
     if (!forAssociate) return this.posts();
@@ -235,7 +248,12 @@ export class KwanzaService implements OnModuleInit {
    * (nunca abaixo do da empresa), com as suas imagens, vídeo e texto. A compra leva o código
    * do associado, por isso a comissão e a diferença do preço ficam atribuídas automaticamente.
    */
-  async posts() {
+  async posts(only?: { companyCode: string; productCode: string; associateCode: string }) {
+    // `only`: a ligação de UM associado para um produto (mesmo sem publicação) — o cliente
+    // que a abre vê o produto ao preço desse associado e a compra fica atribuída.
+    const filter = only
+      ? Prisma.sql`f.status = 'APPROVED' AND l."companyCode" = ${only.companyCode} AND l."productCode" = ${only.productCode} AND a.code = ${only.associateCode.toUpperCase()}`
+      : Prisma.sql`f.status = 'APPROVED' AND f.published = TRUE`;
     const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
       SELECT f.id AS "postId", f."markupPct", f."postImages", f."postVideo", f."postCaption", f."publishedAt",
              a.code AS "aCode", a.name AS "aName", a."photoUrl" AS "aPhoto",
@@ -244,7 +262,7 @@ export class KwanzaService implements OnModuleInit {
       FROM ${T('kwanza_affiliations')} f
       JOIN ${T('kwanza_associates')} a ON a.id = f."associateId" AND a.status = 'ACTIVE'
       JOIN ${T('kwanza_listings')} l ON l."companyId" = f."companyId" AND l."productCode" = f."productCode" AND l.active = TRUE
-      WHERE f.status = 'APPROVED' AND f.published = TRUE
+      WHERE ${filter}
         AND EXISTS (SELECT 1 FROM nexus_public.companies c WHERE c.id = l."companyId" AND c.status = 'ACTIVE')
       ORDER BY f."publishedAt" DESC NULLS LAST LIMIT 3000`);
     return rows.map((r) => {
@@ -433,9 +451,10 @@ export class KwanzaService implements OnModuleInit {
     const bySchema = new Map<string, string[]>();
     for (const c of cs) { const s = String(c.schemaName); bySchema.set(s, [...(bySchema.get(s) ?? []), String(c.orderId)]); }
     const status = new Map<string, string>();
+    const detail = new Map<string, { claimed: boolean; at: Date }>();
     for (const [schema, ids] of bySchema) {
-      const rows = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<{ id: string; status: string }[]>(Prisma.sql`SELECT id::text, status FROM web_orders WHERE id = ANY(${ids}::uuid[])`)).catch(() => []);
-      for (const r of rows) status.set(r.id, r.status);
+      const rows = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<{ id: string; status: string; claimed: boolean; upd: Date }[]>(Prisma.sql`SELECT w.id::text, w.status, (w.payment_claimed_at IS NOT NULL OR EXISTS (SELECT 1 FROM payment_proofs pp WHERE pp.order_id = w.id AND pp.status = 'PENDING')) AS claimed, w.updated_at AS upd FROM web_orders w WHERE w.id = ANY(${ids}::uuid[])`)).catch(() => []);
+      for (const r of rows) { status.set(r.id, r.status); detail.set(r.id, { claimed: r.claimed, at: r.upd }); }
     }
     const wd = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
       SELECT w.id, w."companyId", c.code AS "companyCode", c.name AS "companyName", w.amount, w.method, w.details, w.status, w.note, w."proofUrl", w."createdAt"
@@ -451,7 +470,9 @@ export class KwanzaService implements OnModuleInit {
       const pc = company(String(c.companyId), String(c.companyCode), String(c.companyName));
       if (state === 'PENDING') pc.pending += num(c.amount);
       if (state === 'AVAILABLE') pc.available += num(c.amount);
-      return { companyCode: c.companyCode, companyName: c.companyName, orderNumber: c.orderNumber, product: c.productName, quantity: num(c.quantity), amount: num(c.amount), date: (c.createdAt as Date).toISOString(), state };
+      return { companyCode: c.companyCode, companyName: c.companyName, orderNumber: c.orderNumber, product: c.productName, quantity: num(c.quantity), amount: num(c.amount), date: (c.createdAt as Date).toISOString(), state,
+        // Estado da encomenda na empresa, para o associado acompanhar passo a passo.
+        orderStatus: st, paymentClaimed: detail.get(String(c.orderId))?.claimed ?? false, updatedAt: (detail.get(String(c.orderId))?.at ?? (c.createdAt as Date)).toISOString() };
     });
     for (const w of wd) {
       const pc = company(String(w.companyId), String(w.companyCode), String(w.companyName));

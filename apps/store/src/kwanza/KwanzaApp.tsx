@@ -10,6 +10,7 @@ import { Search, type SearchState } from '../members/Search';
 import { Messages, NotesBell } from './Inbox';
 import { PostEditor } from './PostEditor';
 import { Claims, ProductSocial } from './Trust';
+import { Checkout, ORDER_LABEL, Orders, cart, useCart } from './Shop';
 import { kw, session, shareLink, type Affiliation, type Associate, type Dashboard, type Listing, type PayoutAccount } from './api';
 
 /** Produto do marketplace no formato dos cartões (código = empresa::produto). */
@@ -24,7 +25,7 @@ const com = (l: Listing, pct?: number) => Math.round(l.grossPrice * (pct ?? l.co
 
 type Route =
   | { n: 'home' } | { n: 'search'; s: SearchState } | { n: 'product'; c: string; p: string; a?: string }
-  | { n: 'login' } | { n: 'register' } | { n: 'recover' } | { n: 'claims' }
+  | { n: 'login' } | { n: 'register' } | { n: 'recover' } | { n: 'claims' } | { n: 'cart' } | { n: 'orders' }
   | { n: 'panel' } | { n: 'sales' } | { n: 'affs' } | { n: 'withdraw' } | { n: 'accounts' } | { n: 'profile' } | { n: 'msgs'; c?: string };
 const parse = (h: string): Route => {
   const [path, qs] = h.replace(/^#\/?/, '').split('?'); const s = path.split('/').filter(Boolean).map(decodeURIComponent); const q = new URLSearchParams(qs ?? '');
@@ -32,6 +33,7 @@ const parse = (h: string): Route => {
     case 'busca': return { n: 'search', s: { q: q.get('q') ?? '', cat: q.get('cat') ?? undefined, promo: q.get('promo') === '1' } };
     case 'p': return s[1] && s[2] ? { n: 'product', c: s[1], p: s[2], a: s[3] || undefined } : { n: 'home' };
     case 'reclamacoes': return { n: 'claims' };
+    case 'carrinho': return { n: 'cart' }; case 'compras': return { n: 'orders' };
     case 'entrar': return { n: 'login' }; case 'registar': return { n: 'register' }; case 'recuperar': return { n: 'recover' };
     case 'painel': return { n: 'panel' }; case 'vendas': return { n: 'sales' }; case 'afiliacoes': return { n: 'affs' };
     case 'saques': return { n: 'withdraw' }; case 'contas': return { n: 'accounts' }; case 'perfil': return { n: 'profile' };
@@ -44,6 +46,7 @@ const hashOf = (r: Route): string => {
     case 'search': { const q = new URLSearchParams(); if (r.s.q) q.set('q', r.s.q); if (r.s.cat) q.set('cat', r.s.cat); if (r.s.promo) q.set('promo', '1'); const x = q.toString(); return `#/busca${x ? `?${x}` : ''}`; }
     case 'product': return `#/p/${encodeURIComponent(r.c)}/${encodeURIComponent(r.p)}${r.a ? `/${encodeURIComponent(r.a)}` : ''}`;
     case 'claims': return '#/reclamacoes';
+    case 'cart': return '#/carrinho'; case 'orders': return '#/compras';
     case 'login': return '#/entrar'; case 'register': return '#/registar'; case 'recover': return '#/recuperar';
     case 'panel': return '#/painel'; case 'sales': return '#/vendas'; case 'affs': return '#/afiliacoes'; case 'withdraw': return '#/saques'; case 'accounts': return '#/contas'; case 'profile': return '#/perfil';
     case 'msgs': return r.c ? `#/mensagens/${encodeURIComponent(r.c)}` : '#/mensagens';
@@ -90,9 +93,11 @@ export function KwanzaApp() {
   if (needLogin || route.n === 'login') body = <Login onDone={() => go(route.n === 'login' ? { n: 'panel' } : route)} go={go} />;
   else if (route.n === 'register') body = <Register onDone={() => go({ n: 'panel' })} go={go} />;
   else if (route.n === 'recover') body = <Recover go={go} flash={flash} />;
+  else if (route.n === 'cart') body = <Checkout go={go} flash={flash} />;
+  else if (route.n === 'orders') body = <Orders go={go} />;
   else if (route.n === 'claims') body = <Claims companies={[...new Map((list ?? []).map((l) => [l.companyCode, { code: l.companyCode, name: l.companyName }])).values()]} />;
   else if (route.n === 'search') body = list === null ? <Loader /> : <Search products={products} state={route.s} card={card} onState={(s) => go({ n: 'search', s })} />;
-  else if (route.n === 'product') body = <Product listing={list?.find((l) => l.companyCode === route.c && l.productCode === route.p && (!route.a || l.associate?.code === route.a)) ?? null} loading={list === null} sess={sess} go={go} flash={flash} card={card} products={products} />;
+  else if (route.n === 'product') body = <ProductRoute key={`${route.c}/${route.p}/${route.a ?? ''}`} route={route} list={list} sess={sess} go={go} flash={flash} card={card} products={products} />;
   else if (PRIVATE.has(route.n) && sess) body = <Area route={route.n as AreaTab} chat={route.n === 'msgs' ? route.c : undefined} go={go} token={sess.token} me={sess.associate} flash={flash} products={products} />;
   else body = <Home products={list === null ? null : products} go={go} card={card} buyer={!sess} />;
 
@@ -115,7 +120,7 @@ export function KwanzaApp() {
       <header className={`kw-head${compact ? ' compact' : ''}`}>
         <div className="kw-strip">
           <div className="kw-container kw-strip-in">
-            <span className="kw-strip-l"><button onClick={() => go({ n: sess ? 'panel' : 'register' })}>Central do Associado</button></span>
+            <span className="kw-strip-l"><button onClick={() => go({ n: sess ? 'panel' : 'register' })}>Central do Associado</button><button onClick={() => go({ n: 'orders' })}>Minhas compras</button></span>
             <span className="kw-strip-r">
               {sess ? <><button className="kw-strip-me" onClick={() => go({ n: 'panel' })}>{sess.associate.photoUrl ? <img src={sess.associate.photoUrl} alt="" className="kw-strip-ph" /> : <i>{sess.associate.name.slice(0, 1).toUpperCase()}</i>}<span>{sess.associate.name.split(' ')[0]}</span></button>
                 <button className="kw-strip-out" onClick={() => { session.clear(); go({ n: 'home' }); }}><I d={P.out} size={15} /><span>Terminar sessão</span></button></>
@@ -131,6 +136,7 @@ export function KwanzaApp() {
           </form>
           {sess ? <button className="kw-head-ic" onClick={() => go({ n: 'msgs' })} aria-label="Mensagens"><I d={P.chat} size={23} /></button> : null}
           {sess ? <NotesBell token={sess.token} /> : null}
+          <CartIcon onClick={() => go({ n: 'cart' })} />
           <button className="kw-head-ic" onClick={() => go({ n: sess ? 'panel' : 'login' })} aria-label="Conta"><I d={P.user} size={24} /></button>
         </div>
       </header>
@@ -141,7 +147,7 @@ export function KwanzaApp() {
           <div><h4>{BRAND}</h4><button onClick={() => go({ n: 'home' })}>Marketplace</button><button onClick={() => go({ n: 'search', s: { q: '' } })}>Todos os produtos</button></div>
           <div><h4>Associados</h4><button onClick={() => go({ n: sess ? 'panel' : 'register' })}>Central do Associado</button><button onClick={() => go({ n: 'affs' })}>Minhas afiliações</button><button onClick={() => go({ n: 'withdraw' })}>Transações (Saques)</button></div>
           <div><h4>Conta</h4><button onClick={() => go({ n: 'profile' })}>Perfil</button><button onClick={() => go({ n: 'recover' })}>Recuperar senha</button>{sess ? <button onClick={() => { session.clear(); go({ n: 'home' }); }}>Terminar sessão</button> : null}</div>
-          <div><h4>Ajuda</h4><button onClick={() => go({ n: 'claims' })}>Reclamações</button><button onClick={() => go({ n: 'claims' })}>Devoluções e reembolsos</button></div>
+          <div><h4>Ajuda</h4><button onClick={() => go({ n: 'orders' })}>Minhas compras</button><button onClick={() => go({ n: 'claims' })}>Reclamações</button><button onClick={() => go({ n: 'claims' })}>Devoluções e reembolsos</button></div>
           <div><h4>Empresas</h4><span>{new Set((list ?? []).map((l) => l.companyCode)).size} empresas · {(list ?? []).length} produtos</span></div>
         </div>
         <div className="kw-foot-copy">© {new Date().getFullYear()} {BRAND} TODOS OS DIREITOS RESERVADOS</div>
@@ -207,7 +213,28 @@ function Home({ products, go, card, buyer }: { products: MP[] | null; go(r: Rout
 }
 
 /* ───────────── produto do marketplace ───────────── */
-function Product({ listing: l, loading, sess, go, flash, card, products }: { listing: Listing | null; loading: boolean; sess: ReturnType<typeof session.get>; go(r: Route): void; flash(t: string): void; card(p: CatalogProduct): React.ReactNode; products: MP[] }) {
+/** Produto aberto pela lista ou pela ligação de um associado (o cliente sem conta vê-o sempre). */
+function ProductRoute({ route, list, sess, go, flash, card, products }: { route: { c: string; p: string; a?: string }; list: Listing[] | null; sess: ReturnType<typeof session.get>; go(r: Route): void; flash(t: string): void; card(p: CatalogProduct): React.ReactNode; products: MP[] }) {
+  const inList = list?.find((l) => l.companyCode === route.c && l.productCode === route.p && (route.a ? l.associate?.code === route.a.toUpperCase() : true)) ?? null;
+  const [fetched, setFetched] = useState<Listing | null | undefined>(undefined);
+  useEffect(() => {
+    // O código do associado da ligação fica guardado (30 dias, o último clique ganha).
+    if (route.a && /^[A-Za-z0-9]{6}$/.test(route.a)) { try { localStorage.setItem(`kw.ref.${route.c}.${route.p}`, JSON.stringify({ a: route.a.toUpperCase(), at: Date.now() })); } catch { /* sem armazenamento */ } }
+    if (list === null || inList) return;
+    kw.listing(route.c, route.p, route.a).then(setFetched).catch(() => setFetched(null));
+  }, [list === null, !!inList]); // eslint-disable-line react-hooks/exhaustive-deps
+  const l = inList ?? fetched ?? null;
+  return <Product listing={l} loading={list === null || (!inList && fetched === undefined)} refCode={route.a?.toUpperCase()} sess={sess} go={go} flash={flash} card={card} products={products} />;
+}
+const savedRef = (c: string, p: string): string | null => {
+  try { const v = JSON.parse(localStorage.getItem(`kw.ref.${c}.${p}`) || 'null') as { a: string; at: number } | null; return v && Date.now() - v.at < 30 * 86400000 ? v.a : null; } catch { return null; }
+};
+function CartIcon({ onClick }: { onClick(): void }) {
+  const n = useCart().reduce((s, i) => s + i.qty, 0);
+  return <button className="kw-head-ic" onClick={onClick} aria-label={`Carrinho${n ? ` (${n})` : ''}`}><I d={P.cart} size={24} />{n ? <em className="kw-badge">{n > 99 ? '99+' : n}</em> : null}</button>;
+}
+
+function Product({ listing: l, loading, refCode, sess, go, flash, card, products }: { listing: Listing | null; loading: boolean; refCode?: string; sess: ReturnType<typeof session.get>; go(r: Route): void; flash(t: string): void; card(p: CatalogProduct): React.ReactNode; products: MP[] }) {
   const [img, setImg] = useState(0);
   const [aff, setAff] = useState<Affiliation | null | undefined>(undefined);
   const [mk, setMk] = useState('');
@@ -224,7 +251,10 @@ function Product({ listing: l, loading, sess, go, flash, card, products }: { lis
   const pics = [l.imageUrl, ...l.gallery].filter((x, i, a): x is string => !!x && a.indexOf(x) === i);
   // Publicação de um associado: o cliente compra pela ligação dele (comissão e preço próprio atribuídos).
   const post = l.associate ? l : null;
-  const buy = post ? shareLink(l.companyCode, l.productCode, post.associate!.code) : `${PUBLIC_ORIGIN}/${encodeURIComponent(l.companyCode)}?p=${encodeURIComponent(l.productCode)}`;
+  // A compra faz-se aqui no LPS Kwanza, com o associado que trouxe o cliente.
+  const assocCode = post?.associate?.code ?? refCode ?? savedRef(l.companyCode, l.productCode);
+  const mine = !!sess && assocCode === sess.associate.code;
+  const addToCart = (andGo: boolean) => { cart.add(l, 1, mine ? null : assocCode ?? null); if (andGo) go({ n: 'cart' }); else flash('Adicionado ao carrinho'); };
   const yt = l.videoUrl ? /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/i.exec(l.videoUrl)?.[1] : undefined;
   const pct = aff?.status === 'APPROVED' ? aff.commissionPct : l.commissionPct;
   const link = sess ? shareLink(l.companyCode, l.productCode, sess.associate.code) : '';
@@ -262,8 +292,11 @@ function Product({ listing: l, loading, sess, go, flash, card, products }: { lis
           <div className="kw-side-price"><b>{kz(l.grossPrice)}</b></div>
           <div className="kw-side-row">Vendido por: <b>{l.companyName}</b></div>
           {sess ? <button className="kw-btn kw-block" onClick={() => go({ n: 'msgs', c: l.companyCode })}><I d={P.chat} size={16} /> Falar com a empresa</button> : null}
-          <a className={`kw-btn kw-block ${post ? 'kw-btn-primary kw-buy' : 'kw-btn-outline'}`} href={buy}>{post ? <><I d={P.cart} size={18} /> Comprar agora</> : 'Comprar na loja'}</a>
-          {post ? <div className="kw-buy-info"><span><I d={P.truck} size={15} /> Entrega pela equipa da {l.companyName}</span><span><I d={P.card} size={15} /> Numerário, transferência, Express ou referência</span></div> : null}
+          {l.inStock ? <>
+            <button className="kw-btn kw-btn-primary kw-block kw-buy" onClick={() => addToCart(true)}><I d={P.cart} size={18} /> Comprar agora</button>
+            <button className="kw-btn kw-btn-outline kw-block" onClick={() => addToCart(false)}>Adicionar ao carrinho</button>
+          </> : <span className="kw-pill kw-st-CANCELLED">Esgotado</span>}
+          {post || assocCode ? <div className="kw-buy-info"><span><I d={P.truck} size={15} /> Entrega pela equipa da {l.companyName}</span><span><I d={P.card} size={15} /> Numerário, transferência, Express ou referência</span></div> : null}
           {!sess && post ? null : aff?.status === 'APPROVED' ? (
             <>
               <div className="kw-aff-link"><input readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Ligação de associado" /></div>
@@ -358,7 +391,14 @@ function Area({ route, chat, go, token, me, flash, products }: { route: AreaTab;
   const [d, setD] = useState<Dashboard | null>(null);
   const [drawer, setDrawer] = useState(false);
   const load = useCallback(() => kw.dashboard(token).then(setD).catch(() => undefined), [token]);
-  useEffect(() => { void load(); }, [load]);
+  // Tempo real: vendas, estado das encomendas e saldo voltam a ser lidos sozinhos.
+  useEffect(() => {
+    void load();
+    const again = () => { if (document.visibilityState === 'visible') void load(); };
+    const t = window.setInterval(again, 8000);
+    window.addEventListener('focus', again);
+    return () => { window.clearInterval(t); window.removeEventListener('focus', again); };
+  }, [load]);
   const menu = (
     <nav className="kw-affmenu" aria-label="Área do associado">
       <div className="kw-affmenu-g">VENDAS 🔥</div>
@@ -499,11 +539,11 @@ function SalesT({ d }: { d: Dashboard | null }) {
       </div>
       {!rows.length ? <div className="kw-empty">{d.sales.length ? 'Nenhuma venda neste filtro' : 'Ainda sem vendas'}</div> : (
         <div className="kw-sales-list">
-          <div className="kw-sales-row head" aria-hidden="true"><span>Produto</span><span>Encomenda</span><span>Data</span><span className="r">Comissão</span><span className="c">Estado</span></div>
+          <div className="kw-sales-row head" aria-hidden="true"><span>Produto</span><span>Encomenda</span><span>Data</span><span className="r">Comissão</span><span className="c">Comissão</span></div>
           {rows.map((s, i) => (
             <div className="kw-sales-row" key={`${s.orderNumber}-${i}`}>
               <div className="kw-sales-prod"><b>{s.product}</b><small>{s.companyName} · {s.quantity} un.</small></div>
-              <div className="kw-sales-ord"><small className="lbl">Encomenda</small>{s.orderNumber}</div>
+              <div className="kw-sales-ord"><small className="lbl">Encomenda</small>{s.orderNumber}{s.orderStatus ? <span className={`kw-ost kw-ost-${s.orderStatus}`}>{s.orderStatus === 'PENDING' && s.paymentClaimed ? 'Pagamento enviado' : ORDER_LABEL[s.orderStatus] ?? s.orderStatus}</span> : null}</div>
               <div className="kw-sales-date"><small className="lbl">Data</small>{formatDateTime(s.date)}</div>
               <div className="kw-sales-amt r"><small className="lbl">Comissão</small><b>{kz(s.amount)}</b></div>
               <div className="c"><span className={`kw-pill ${STATE[s.state][1]}`}>{STATE[s.state][0]}</span></div>

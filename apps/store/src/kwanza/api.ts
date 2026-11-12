@@ -19,6 +19,11 @@ export interface Affiliation {
   published: boolean; postImages: string[]; postVideo: string | null; postCaption: string | null; price: number;
 }
 export interface CompanyBalance { companyId: string; companyCode: string; companyName: string; pending: number; available: number; withdrawn: number; requested: number; balance: number }
+export interface KOrder {
+  token: string; companyCode: string; companyName: string; orderId: string; orderNumber: string; status: string; total: number; paymentMethod: string | null; paymentClaimed: boolean;
+  deliveryMethod: string | null; address: string | null; invoiced: boolean; gpsAt: string | null; date: string; updatedAt: string;
+  items: { productCode: string; name: string; quantity: number; total: number; imageUrl: string | null }[];
+}
 export interface Social {
   rating: number; count: number; stars: Record<number, number>; likes: number; dislikes: number; mine: number;
   reviews: { id: string; name: string; rating: number; comment: string | null; reply: string | null; date: string }[];
@@ -28,7 +33,7 @@ export interface Complaint { code: string; kind: string; body: string; status: s
 export interface Dashboard {
   frozen?: Record<string, string>;
   code: string; pending: number; available: number; withdrawn: number; requested: number; balance: number; companies: CompanyBalance[];
-  sales: { companyCode: string; companyName: string; orderNumber: string; product: string; quantity: number; amount: number; date: string; state: 'PENDING' | 'AVAILABLE' | 'CANCELLED' }[];
+  sales: { companyCode: string; companyName: string; orderNumber: string; product: string; quantity: number; amount: number; date: string; state: 'PENDING' | 'AVAILABLE' | 'CANCELLED'; orderStatus?: string; paymentClaimed?: boolean; updatedAt?: string }[];
   withdrawals: { id: string; companyCode: string; companyName: string; amount: number; method: string; details: string | null; status: string; note: string | null; proofUrl: string | null; date: string }[];
 }
 export interface PayoutAccount { id: string; method: string; bank: string | null; holder: string; details: string; createdAt: string }
@@ -72,6 +77,12 @@ export const kw = {
   chats: (t: string) => request<KChat[]>('GET', '/kwanza/me/chats', undefined, t),
   chat: (t: string, c: string) => request<KMsg[]>('GET', `/kwanza/me/chats/${e(c)}`, undefined, t),
   send: (t: string, c: string, body: string) => request<KMsg[]>('POST', `/kwanza/me/chats/${e(c)}`, { body }, t),
+  listing: (c: string, p: string, a?: string) => request<Listing>('GET', `/kwanza/listing/${e(c)}/${e(p)}${a ? `?a=${e(a)}` : ''}`),
+  checkout: (b: { companyCode: string; associateCode?: string; lines: { productCode: string; quantity: number }[]; name: string; phone: string; address?: string; province?: string; municipality?: string; deliveryMethod: 'DELIVERY' | 'PICKUP'; paymentMethod?: string; notes?: string; geoLat: number; geoLng: number; geoAccuracy?: number; geoConsent: true; device?: string }) =>
+    request<{ token: string; orderId: string; orderNumber: string; grossTotal: number; companyCode: string; companyName: string }>('POST', '/kwanza/checkout', b),
+  orders: (tokens: string[]) => request<KOrder[]>('POST', '/kwanza/orders/list', { tokens }),
+  findOrder: (phone: string, orderNumber: string) => request<KOrder>('POST', '/kwanza/orders/find', { phone, orderNumber }),
+  orderLocation: (token: string, b: { lat: number; lng: number; accuracy?: number }) => request<{ ok: true }>('POST', `/kwanza/orders/${e(token)}/location`, b),
   social: (c: string, p: string, device: string) => request<Social>('GET', `/kwanza/social/${e(c)}/${e(p)}?device=${e(device)}`),
   react: (c: string, p: string, device: string, value: number) => request<Social>('POST', `/kwanza/social/${e(c)}/${e(p)}/react`, { device, value }),
   review: (c: string, p: string, b: { name: string; phone: string; rating: number; comment?: string }) => request<{ ok: true }>('POST', `/kwanza/social/${e(c)}/${e(p)}/review`, b),
@@ -80,6 +91,6 @@ export const kw = {
   withdraw: (t: string, companyCode: string, amount: number, accountId: string) => request<{ ok: true }>('POST', '/kwanza/me/withdrawals', { companyCode, amount, accountId }, t),
 };
 
-/** Ligação pública: abre o produto na loja da empresa e guarda o código do associado. */
+/** Ligação do associado: abre o produto NO LPS KWANZA (a compra faz-se lá) com o código dele. */
 export const shareLink = (companyCode: string, productCode: string, ref: string) =>
-  `${PUBLIC_ORIGIN}/${e(companyCode)}?p=${e(productCode)}&ref=${ref}`;
+  `${PUBLIC_ORIGIN}/kwanza#/p/${e(companyCode)}/${e(productCode)}/${ref}`;
