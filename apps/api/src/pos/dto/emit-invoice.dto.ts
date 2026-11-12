@@ -24,6 +24,7 @@ export class EmitInvoiceLineDto {
 
   @IsNumber()
   @Min(0.001)
+  @Max(99_999_999) // acima disto o total rebenta o numeric(14,2) e dava erro 500
   quantity!: number;
 
   /** Desconto de linha como fracção [0,1). */
@@ -165,6 +166,7 @@ export class ReturnItemDto {
 
   @IsNumber()
   @Min(0.001)
+  @Max(99_999_999) // acima disto o total rebenta o numeric(14,2) e dava erro 500
   quantity!: number;
 }
 

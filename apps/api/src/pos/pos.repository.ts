@@ -381,7 +381,9 @@ export class PosRepository {
       await tx.$executeRaw(Prisma.sql`DELETE FROM stock_movements WHERE product_id = ${id}::uuid`);
       await tx.$executeRaw(Prisma.sql`DELETE FROM stock_items WHERE product_id = ${id}::uuid`);
       await tx.$executeRaw(Prisma.sql`DELETE FROM product_batches WHERE product_id = ${id}::uuid`);
-      await tx.$executeRaw(Prisma.sql`DELETE FROM products WHERE id = ${id}::uuid`);
+      const n = await tx.$executeRaw(Prisma.sql`DELETE FROM products WHERE id = ${id}::uuid`);
+      // Um id que não existe NESTA empresa respondia "deleted: true".
+      if (!n) throw new NotFoundException('Produto não encontrado.');
       return { deleted: true, deactivated: false };
     });
   }
@@ -579,7 +581,8 @@ export class PosRepository {
         await tx.$executeRaw(Prisma.sql`UPDATE customers SET is_active = FALSE, updated_at = now() WHERE id = ${id}::uuid`);
         return { deleted: false, deactivated: true };
       }
-      await tx.$executeRaw(Prisma.sql`DELETE FROM customers WHERE id = ${id}::uuid`);
+      const n = await tx.$executeRaw(Prisma.sql`DELETE FROM customers WHERE id = ${id}::uuid`);
+      if (!n) throw new NotFoundException('Cliente não encontrado.');
       return { deleted: true, deactivated: false };
     });
   }

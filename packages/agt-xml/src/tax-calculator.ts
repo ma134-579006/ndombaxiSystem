@@ -1,5 +1,5 @@
 import { IvaCode, requiresExemptionReason, resolveRate } from './iva';
-import { round2, sum2 } from './money';
+import { complement, mulRound2, round2, sum2 } from './money';
 import {
   InvoiceLineComputed,
   InvoiceLineInput,
@@ -30,8 +30,9 @@ export function computeLine(line: InvoiceLineInput): InvoiceLineComputed {
   }
 
   const ivaRate = resolveRate(line.ivaCode);
-  const netAmount = round2(line.quantity * line.unitPrice * (1 - discountRate));
-  const ivaAmount = round2((netAmount * ivaRate) / 100);
+  // Aritmética decimal exata (ver mulRound2): o produto em float perdia 1 cêntimo em meios exatos.
+  const netAmount = mulRound2(line.quantity, line.unitPrice, complement(discountRate));
+  const ivaAmount = mulRound2(netAmount, ivaRate, 0.01);
   const grossAmount = round2(netAmount + ivaAmount);
 
   return { ...line, ivaRate, netAmount, ivaAmount, grossAmount };

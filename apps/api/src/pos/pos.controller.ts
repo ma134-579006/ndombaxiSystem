@@ -272,6 +272,16 @@ export class PosController {
   @ApiOperation({ summary: 'Emite um documento fiscal (FT/FS/...) com hash AGT' })
   async emitInvoice(@Body() dto: EmitInvoiceDto, @CurrentUser() user: JwtPayload) {
     const schema = this.ctx.requireTenantSchema();
+    // Data da operação: aceitava-se "2099-01-01" ou "1900-01-01". Tem de ser uma data
+    // real, não futura e do último ano (uma venda sem rede sincroniza por outro caminho).
+    if (dto.operationDate != null) {
+      const d = new Date(`${dto.operationDate}T00:00:00Z`);
+      const today = Date.now();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dto.operationDate) || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== dto.operationDate
+        || d.getTime() > today + 86_400_000 || d.getTime() < today - 366 * 86_400_000) {
+        throw new BadRequestException('Data da operação inválida: tem de ser uma data do último ano, não futura.');
+      }
+    }
     // SÉRIE DO POSTO — e não a que o cliente pedir.
     //
     // Cada documento leva o hash do anterior da mesma série: se dois postos
