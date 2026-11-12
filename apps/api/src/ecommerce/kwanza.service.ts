@@ -459,10 +459,13 @@ export class KwanzaService implements OnModuleInit {
       if (w.status === 'REQUESTED') pc.requested += num(w.amount);
     }
     const companies = [...perCompany.values()].map((p) => ({ ...p, pending: r2(p.pending), available: r2(p.available), withdrawn: r2(p.withdrawn), requested: r2(p.requested), balance: r2(Math.max(0, p.available - p.withdrawn - p.requested)) }));
+    // Saldo congelado pela empresa (reclamações em análise, fraude…): o saque fica bloqueado.
+    const fz = await this.prisma.$queryRaw<{ code: string; reason: string }[]>(Prisma.sql`SELECT c.code, f.reason FROM ${T('kwanza_freezes')} f JOIN nexus_public.companies c ON c.id = f."companyId" WHERE f."associateId" = ${a.id}::uuid`);
+    const frozen: Record<string, string> = Object.fromEntries(fz.map((r) => [r.code, r.reason]));
     const tot = (k: 'pending' | 'available' | 'withdrawn' | 'requested' | 'balance') => r2(companies.reduce((s, p) => s + p[k], 0));
     return {
       code: a.code, pending: tot('pending'), available: tot('available'), withdrawn: tot('withdrawn'), requested: tot('requested'), balance: tot('balance'),
-      companies, sales,
+      companies, sales, frozen,
       withdrawals: wd.map((w) => ({ id: w.id, companyCode: w.companyCode, companyName: w.companyName, amount: num(w.amount), method: w.method, details: w.details, status: w.status, note: w.note, proofUrl: w.proofUrl, date: (w.createdAt as Date).toISOString() })),
     };
   }
@@ -490,6 +493,7 @@ export class KwanzaService implements OnModuleInit {
     const pc = d.companies.find((c) => c.companyCode === companyCode);
     const v = r2(amount);
     if (!(v > 0)) throw new BadRequestException('Indique o valor do saque.');
+    if (d.frozen[companyCode] !== undefined) throw new BadRequestException(`O seu saldo nesta empresa está congelado: ${d.frozen[companyCode]}`);
     if (!pc || v > pc.balance) throw new BadRequestException('O valor é maior do que o saldo disponível nesta empresa.');
     const acc = (await this.accounts(a)).find((x) => x.id === accountId);
     if (!acc) throw new BadRequestException('Escolha uma conta para receber.');
@@ -529,10 +533,11 @@ export class KwanzaService implements OnModuleInit {
     }
     const mats = (p.materials ?? []).map((m) => String(m).trim()).filter((m) => /^https?:\/\//i.test(m)).slice(0, 10);
     const n = await this.prisma.runInTenant(tenant.schema, (tx) => tx.$executeRaw(Prisma.sql`
-      UPDATE products SET kwanza_published = ${!!p.published}, affiliate_percent = ${pct}, affiliate_mode = ${p.mode === 'RESTRICTED' ? 'RESTRICTED' : 'OPEN'},
+      UPDATE products SET kwanza_published = ${!!p.published}, show_online = (show_online OR ${!!p.published}), affiliate_percent = ${pct}, affiliate_mode = ${p.mode === 'RESTRICTED' ? 'RESTRICTED' : 'OPEN'},
         allow_markup = ${!!p.allowMarkup}, max_markup_pct = ${p.maxMarkupPct == null ? null : Math.min(100, r2(p.maxMarkupPct))}, affiliate_materials = ${JSON.stringify(mats)}::jsonb
       WHERE code = ${productCode}`));
     if (!n) throw new NotFoundException('Produto não encontrado.');
+    this.storefront.forgetCatalog(tenant.schema);
     await this.syncCompany(tenant.companyId);
     return { ok: true as const };
   }
@@ -558,6 +563,8 @@ export class KwanzaService implements OnModuleInit {
       sets.push(p.published
         ? Prisma.sql`kwanza_published = ((${pct ?? null}::numeric IS NOT NULL OR (${pct === undefined} AND COALESCE(affiliate_percent, 0) > 0)) AND (${STOCK} > 0 OR ${mto}))`
         : Prisma.sql`kwanza_published = FALSE`);
+      // A compra faz-se na loja online da empresa: o que se publica aqui tem de estar lá.
+      if (p.published) sets.push(Prisma.sql`show_online = (show_online OR ((${pct ?? null}::numeric IS NOT NULL OR (${pct === undefined} AND COALESCE(affiliate_percent, 0) > 0)) AND (${STOCK} > 0 OR ${mto})))`);
     }
     if (!sets.length) throw new BadRequestException('Nada para alterar.');
     void mto;
@@ -573,6 +580,7 @@ export class KwanzaService implements OnModuleInit {
         : [{ n: 0 }];
       return { updated: Number(updated), skipped: skipped[0]?.n ?? 0 };
     });
+    this.storefront.forgetCatalog(tenant.schema);
     await this.syncCompany(tenant.companyId);
     return { ok: true as const, ...res };
   }

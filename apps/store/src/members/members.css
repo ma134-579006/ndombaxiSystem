@@ -440,7 +440,7 @@
 
 /* ── rodapé ── */
 .kw-foot { background: #fff; border-top: 4px solid var(--kw-p); margin-top: 8px; }
-.kw-foot-in { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; padding-top: 30px; padding-bottom: 24px; }
+.kw-foot-in { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px; padding-top: 30px; padding-bottom: 24px; }
 .kw-foot h4 { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--kw-ink); margin-bottom: 10px; }
 .kw-foot-in > div { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .kw-foot-in button, .kw-foot-in a, .kw-foot-in span { background: none; border: 0; padding: 0; text-align: left; color: #666; font-size: 13px; text-decoration: none; overflow-wrap: anywhere; }
@@ -976,3 +976,117 @@
 @media (max-width: 560px) { .kw-post { inset: auto 0 0 0; margin: 0; } }
 /* Sem sessão: o ícone de conta fica só no cabeçalho (a faixa superior tem só texto e sai no telemóvel). */
 @media (max-width: 640px) { .kw-strip-auth { display: none !important; } }
+
+/* ───────────── entrar / criar conta: um ecrã só ─────────────
+   Sem barra nem rodapé. A página nunca faz scroll: a imagem cobre o ecrã (ou metade, em
+   ecrãs largos) e o cartão cabe sempre na altura visível (100dvh conta com a barra do
+   navegador do telemóvel); só em ecrãs muito baixos é que o próprio cartão desliza. */
+.kw-authscreen { position: fixed; inset: 0; height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(360px, .95fr); background: #10178a; }
+.kw-as-art { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.kw-as-art img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: center; }
+.kw-as-main { position: relative; min-width: 0; min-height: 0; display: grid; place-items: center; padding: clamp(10px, 2.2vh, 28px) clamp(12px, 3vw, 40px); background: #f7f9fa; overflow: hidden; }
+.kw-as-back { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 12px; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--kw-line); background: #fff; color: var(--kw-p); display: grid; place-items: center; z-index: 2; transition: transform .15s ease, box-shadow .15s ease; }
+.kw-as-back:hover { transform: translateX(-2px); box-shadow: 0 6px 16px -8px rgba(16,23,138,.5); }
+.kw-as-back:focus-visible { outline: 3px solid var(--kw-p2); outline-offset: 2px; }
+.kw-authscreen .kw-auth-card { width: min(400px, 100%); max-height: 100%; overflow-y: auto; overscroll-behavior: contain; padding: clamp(14px, 3vh, 28px) clamp(16px, 4vw, 26px); gap: clamp(8px, 1.6vh, 14px); }
+.kw-authscreen .kw-auth-form { gap: clamp(8px, 1.5vh, 14px); }
+.kw-authscreen .kw-auth-brand img { width: clamp(56px, 12vh, 110px); }
+.kw-authscreen .kw-auth-brand { font-size: clamp(16px, 2.6vh, 20px); }
+.kw-authscreen .kw-f input { height: clamp(38px, 6vh, 46px); }
+@media (max-width: 860px) {
+  /* Telemóvel/tablet ao alto: a imagem fica por trás, em ecrã inteiro, e o cartão por cima. */
+  .kw-authscreen { grid-template-columns: minmax(0, 1fr); }
+  .kw-as-art { position: absolute; inset: 0; }
+  .kw-as-main { background: linear-gradient(180deg, rgba(16,23,138,.25), rgba(16,23,138,.55)); }
+  .kw-authscreen .kw-auth-card { box-shadow: 0 20px 50px -18px rgba(5,10,77,.7); }
+}
+@media (max-width: 860px) {
+  /* O botão de voltar fica dentro do canto do cartão (não tapa nada). */
+  .kw-as-back { top: calc(clamp(10px, 2.2vh, 28px) + 8px); left: calc(clamp(12px, 3vw, 40px) + 8px); width: 34px; height: 34px; border-color: transparent; background: var(--kw-soft); }
+}
+@media (max-height: 640px) {
+  .kw-authscreen .kw-auth-brand img { display: none; }
+  .kw-authscreen .kw-auth-links { gap: 2px; font-size: 12.5px; }
+  .kw-authscreen .kw-auth-card { gap: 8px; padding-top: 14px; padding-bottom: 12px; }
+  .kw-authscreen .kw-auth-form { gap: 7px; }
+  .kw-authscreen .kw-f { gap: 3px; }
+  .kw-authscreen .kw-f input { height: 38px; }
+  .kw-authscreen .kw-auth-t { font-size: 14px; }
+}
+@media (max-height: 430px) and (min-width: 600px) {
+  /* Telemóvel deitado: campos em duas colunas para caber sem scroll. */
+  .kw-authscreen .kw-auth-card { width: min(640px, 100%); }
+  .kw-authscreen .kw-auth-form { grid-template-columns: 1fr 1fr; align-items: end; }
+  .kw-authscreen .kw-auth-form > :is(.kw-err, .kw-auth-links, .kw-btn, p) { grid-column: 1 / -1; }
+}
+
+/* ───────────── confiança: estrelas, gostos, devolução, reclamações ───────────── */
+.kw-stars { display: inline-flex; gap: 2px; color: #d9dce6; vertical-align: middle; }
+.kw-stars i, .kw-stars button { display: grid; place-items: center; padding: 0; border: 0; background: none; color: inherit; font-style: normal; }
+.kw-stars .on { color: #f5a623; }
+.kw-stars .on svg { fill: currentColor; }
+.kw-stars.pick button { cursor: pointer; padding: 3px; border-radius: 6px; transition: transform .12s ease; }
+.kw-stars.pick button:hover { transform: scale(1.15); }
+.kw-stars.pick button:focus-visible { outline: 2px solid var(--kw-p2); outline-offset: 1px; }
+.kw-social { background: #fff; border: 1px solid #edf0f5; border-radius: 10px; margin: 16px 0; display: grid; }
+.kw-social-top { display: grid; grid-template-columns: auto minmax(160px, 1fr) auto; gap: 24px; align-items: center; padding: 18px; border-bottom: 1px solid #f0f2f6; }
+.kw-rate { display: flex; align-items: center; gap: 12px; }
+.kw-rate > b { font-size: 40px; line-height: 1; color: var(--kw-ink); font-weight: 700; }
+.kw-rate small { display: block; color: var(--kw-mut); font-size: 12.5px; margin-top: 2px; }
+.kw-rate-bars { display: grid; gap: 4px; min-width: 0; max-width: 340px; }
+.kw-rate-bars > div { display: grid; grid-template-columns: 12px 1fr 26px; gap: 8px; align-items: center; font-size: 12px; color: var(--kw-mut); }
+.kw-rate-bars i { height: 6px; border-radius: 3px; background: #eef0f5; overflow: hidden; display: block; }
+.kw-rate-bars em { display: block; height: 100%; background: #f5a623; border-radius: 3px; transition: width .4s ease; }
+.kw-react { display: flex; gap: 8px; }
+.kw-react-b { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid #dfe3ec; background: #fff; color: #555; font-size: 13.5px; transition: background .15s ease, border-color .15s ease, color .15s ease, transform .12s ease; }
+.kw-react-b b { font-weight: 600; }
+.kw-react-b:hover:not(:disabled) { border-color: var(--kw-p); color: var(--kw-p); transform: translateY(-1px); }
+.kw-react-b:active:not(:disabled) { transform: scale(.96); }
+.kw-react-b:focus-visible { outline: 2px solid var(--kw-p2); outline-offset: 2px; }
+.kw-react-b.on { background: var(--kw-soft); border-color: var(--kw-p); color: var(--kw-p); }
+.kw-react-b.on svg { fill: currentColor; }
+.kw-react-b.down.on { background: #fff0ed; border-color: var(--kw-red); color: var(--kw-red); }
+.kw-guar { display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: center; padding: 14px 18px; border-bottom: 1px solid #f0f2f6; background: #fafbff; }
+.kw-guar-i { display: flex; align-items: flex-start; gap: 8px; min-width: 0; font-size: 13.5px; }
+.kw-guar-i > span { color: var(--kw-green); flex: none; margin-top: 1px; }
+.kw-guar-i p { color: #666; font-size: 12.5px; margin-top: 2px; max-width: 46ch; white-space: pre-line; }
+.kw-guar > .kw-btn { margin-left: auto; }
+.kw-revs { padding: 16px 18px; display: grid; gap: 14px; }
+.kw-revs-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.kw-revs-h h3 { font-size: 16px; font-weight: 600; }
+.kw-rev { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; padding-top: 14px; border-top: 1px solid #f0f2f6; }
+.kw-rev-av { width: 38px; height: 38px; border-radius: 50%; background: var(--kw-soft); color: var(--kw-p); display: grid; place-items: center; font-weight: 700; }
+.kw-rev-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 3px; }
+.kw-rev-h small { color: var(--kw-mut); font-size: 12px; margin-left: auto; }
+.kw-rev p { font-size: 14px; color: #444; margin-top: 6px; overflow-wrap: anywhere; white-space: pre-line; }
+.kw-claim-reply { margin-top: 8px; padding: 8px 12px; border-left: 3px solid var(--kw-p); background: var(--kw-soft); border-radius: 0 6px 6px 0; }
+.kw-claim-reply small { color: var(--kw-p); font-weight: 600; font-size: 12px; }
+.kw-claim-reply p { margin-top: 2px; font-size: 13.5px; }
+.kw-empty2 { color: var(--kw-mut); font-size: 13.5px; padding: 8px 0; }
+.kw-sheet { width: min(560px, calc(100vw - 24px)); }
+@media (max-width: 560px) { .kw-sheet { width: 100%; } }
+.kw-claim-ok { display: flex; align-items: center; gap: 12px; padding: 18px; border-radius: 10px; background: #eafaf1; }
+.kw-claim-ok small { display: block; color: #3a7a55; font-size: 12.5px; }
+.kw-claim-ok b { font-size: 24px; letter-spacing: 2px; color: #116b3a; }
+.kw-claims { display: grid; gap: 16px; padding-top: 18px; padding-bottom: 28px; max-width: 760px; }
+.kw-sec-b { padding: 16px 18px; }
+.kw-track { display: grid; gap: 12px; }
+.kw-track-f { display: flex; gap: 8px; }
+.kw-track-f input { flex: 1; min-width: 0; height: 44px; border: 1px solid #d9dce6; border-radius: 6px; padding: 0 12px; font: inherit; letter-spacing: 1px; text-transform: uppercase; }
+.kw-track-f input:focus { outline: 2px solid var(--kw-p2); outline-offset: 1px; border-color: var(--kw-p); }
+.kw-claim { border: 1px solid #edf0f5; border-radius: 8px; padding: 14px; display: grid; gap: 6px; }
+.kw-claim-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.kw-claim small { color: var(--kw-mut); font-size: 12.5px; }
+.kw-claim p { font-size: 14px; overflow-wrap: anywhere; white-space: pre-line; }
+.kw-cl-OPEN { background: #fff5e0; color: #9a6400; }
+.kw-cl-ANSWERED { background: var(--kw-soft); color: var(--kw-p); }
+.kw-cl-RESOLVED { background: #eafaf1; color: #116b3a; }
+@media (max-width: 760px) {
+  .kw-social-top { grid-template-columns: 1fr; gap: 14px; }
+  .kw-rate-bars { max-width: none; }
+  .kw-react-b { flex: 1; justify-content: center; }
+  .kw-guar > .kw-btn { margin-left: 0; width: 100%; }
+  .kw-rev-h small { margin-left: 0; flex-basis: 100%; }
+  .kw-track-f { flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) { .kw-react-b, .kw-stars.pick button, .kw-rate-bars em { transition: none; } }

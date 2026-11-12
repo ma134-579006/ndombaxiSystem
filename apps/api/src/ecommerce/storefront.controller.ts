@@ -535,6 +535,12 @@ export class StorefrontController {
   @ApiOperation({ summary: 'Cria uma encomenda online (PENDING)' })
   async checkout(@Param('code') code: string, @Body() dto: CheckoutDto, @Headers('authorization') auth?: string) {
     const tenant = await this.resolver.resolveByCode(code);
+    // GPS OBRIGATÓRIO em todas as encomendas (a equipa da empresa precisa da localização
+    // exata do cliente). Só o ecrã da loja o exigia: um pedido direto à API criava a
+    // encomenda sem localização.
+    if (typeof dto.geoLat !== 'number' || typeof dto.geoLng !== 'number' || !Number.isFinite(dto.geoLat) || !Number.isFinite(dto.geoLng) || dto.geoConsent !== true) {
+      throw new BadRequestException('É obrigatório partilhar a localização GPS para concluir a encomenda.');
+    }
     // Só o GPS é obrigatório: sem nome, usa o da conta (ou "Cliente"); morada opcional.
     const claimsForName = !dto.customerName?.trim() && auth ? await this.customers.verify(tenant.schema, auth).catch(() => null) : null;
     dto.customerName = (dto.customerName?.trim() || claimsForName?.name || 'Cliente').slice(0, 200);

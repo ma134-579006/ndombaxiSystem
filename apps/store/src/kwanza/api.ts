@@ -19,7 +19,14 @@ export interface Affiliation {
   published: boolean; postImages: string[]; postVideo: string | null; postCaption: string | null; price: number;
 }
 export interface CompanyBalance { companyId: string; companyCode: string; companyName: string; pending: number; available: number; withdrawn: number; requested: number; balance: number }
+export interface Social {
+  rating: number; count: number; stars: Record<number, number>; likes: number; dislikes: number; mine: number;
+  reviews: { id: string; name: string; rating: number; comment: string | null; reply: string | null; date: string }[];
+  policy: { returnDays: number; text: string | null };
+}
+export interface Complaint { code: string; kind: string; body: string; status: string; reply: string | null; company: string; date: string; repliedAt: string | null }
 export interface Dashboard {
+  frozen?: Record<string, string>;
   code: string; pending: number; available: number; withdrawn: number; requested: number; balance: number; companies: CompanyBalance[];
   sales: { companyCode: string; companyName: string; orderNumber: string; product: string; quantity: number; amount: number; date: string; state: 'PENDING' | 'AVAILABLE' | 'CANCELLED' }[];
   withdrawals: { id: string; companyCode: string; companyName: string; amount: number; method: string; details: string | null; status: string; note: string | null; proofUrl: string | null; date: string }[];
@@ -65,6 +72,11 @@ export const kw = {
   chats: (t: string) => request<KChat[]>('GET', '/kwanza/me/chats', undefined, t),
   chat: (t: string, c: string) => request<KMsg[]>('GET', `/kwanza/me/chats/${e(c)}`, undefined, t),
   send: (t: string, c: string, body: string) => request<KMsg[]>('POST', `/kwanza/me/chats/${e(c)}`, { body }, t),
+  social: (c: string, p: string, device: string) => request<Social>('GET', `/kwanza/social/${e(c)}/${e(p)}?device=${e(device)}`),
+  react: (c: string, p: string, device: string, value: number) => request<Social>('POST', `/kwanza/social/${e(c)}/${e(p)}/react`, { device, value }),
+  review: (c: string, p: string, b: { name: string; phone: string; rating: number; comment?: string }) => request<{ ok: true }>('POST', `/kwanza/social/${e(c)}/${e(p)}/review`, b),
+  complain: (b: { companyCode: string; productCode?: string; associateCode?: string; orderNumber?: string; name: string; phone: string; kind: string; body: string }) => request<{ ok: true; code: string }>('POST', '/kwanza/complaints', b),
+  complaint: (code: string) => request<Complaint>('GET', `/kwanza/complaints/${e(code.trim())}`),
   withdraw: (t: string, companyCode: string, amount: number, accountId: string) => request<{ ok: true }>('POST', '/kwanza/me/withdrawals', { companyCode, amount, accountId }, t),
 };
 

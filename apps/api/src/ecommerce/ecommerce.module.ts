@@ -28,11 +28,12 @@ import { AffiliatesController } from './affiliates.controller';
 import { AffiliatesService } from './affiliates.service';
 import { KwanzaAdminController, KwanzaPublicController } from './kwanza.controller';
 import { KwanzaService } from './kwanza.service';
+import { KwanzaTrustAdminController, KwanzaTrustPublicController, KwanzaTrustService } from './kwanza-trust';
 import { AdminNotificationsController, AdminNotificationsService } from './admin-notifications';
 
 @Module({
   imports: [PosModule, SiteModule, PaymentsModule, AiModule, HotelModule, ServiceOrdersModule, ClinicModule, FiscalModule, JwtModule.register({})],
-  controllers: [StorefrontController, OrdersController, CustomerChatController, MarketingController, MembersController, BannersController, AffiliatesController, KwanzaPublicController, KwanzaAdminController, AdminNotificationsController],
+  controllers: [StorefrontController, OrdersController, CustomerChatController, MarketingController, MembersController, BannersController, AffiliatesController, KwanzaPublicController, KwanzaAdminController, KwanzaTrustPublicController, KwanzaTrustAdminController, AdminNotificationsController],
   providers: [
     StorefrontService,
     OrdersService,
@@ -45,6 +46,7 @@ import { AdminNotificationsController, AdminNotificationsService } from './admin
     BannersService,
     AffiliatesService,
     KwanzaService,
+    KwanzaTrustService,
     AdminNotificationsService,
   ],
   exports: [AdminNotificationsService],

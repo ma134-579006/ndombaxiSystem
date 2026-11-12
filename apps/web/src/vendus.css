@@ -1317,3 +1317,13 @@
 .al-x:hover { color: var(--danger); border-color: var(--danger); }
 .al-more { width: 100%; border: 0; border-top: 1px solid var(--border); background: none; padding: 10px; color: var(--primary); font: inherit; font-size: 13px; cursor: pointer; }
 .al-more:hover { background: var(--surface-2); }
+
+/* LPS Kwanza — reclamações e avaliações */
+.kz-claim { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line, #e6e9f0); border-radius: 8px; background: #fafbff; font-size: 13.5px; }
+.kz-claim p { margin: 4px 0 0; white-space: pre-line; overflow-wrap: anywhere; color: var(--ink, #222); }
+.kz-claim .sub { color: var(--muted, #6b7280); font-size: 12.5px; }
+.kz-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.kz-stars { color: #f5a623; letter-spacing: 1px; }
+.kz-stars i { color: #d9dce6; font-style: normal; }
+.kz-wrap { max-width: 340px; white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .kz-acts .vd-btn { flex: 1 1 100%; } }
