@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantAuditService } from '../cashbox/tenant-audit.service';
@@ -409,6 +409,23 @@ export class PosRepository {
   }
 
   // ── Clientes ───────────────────────────────────────────────
+  /**
+   * Um NIF pertence a um só cliente ativo (compara só letras e dígitos, sem maiúsculas).
+   * O NIF genérico do consumidor final (999999999) pode repetir-se. Verificação na
+   * aplicação e não por índice único: bases antigas podem já ter repetidos.
+   */
+  private async assertTaxIdFree(tx: Prisma.TransactionClient, taxId: string | null, exceptId: string | null): Promise<void> {
+    const key = (taxId ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (!key || key === '999999999') return;
+    const dup = await tx.$queryRaw<{ name: string }[]>(
+      Prisma.sql`SELECT name FROM customers
+                 WHERE is_active AND upper(regexp_replace(COALESCE(tax_id, ''), '[^A-Za-z0-9]', '', 'g')) = ${key}
+                   AND (${exceptId}::uuid IS NULL OR id <> ${exceptId}::uuid)
+                 LIMIT 1`,
+    );
+    if (dup[0]) throw new ConflictException(`Já existe um cliente com este NIF: ${dup[0].name}.`);
+  }
+
   createCustomer(
     schema: string,
     input: {
@@ -420,6 +437,7 @@ export class PosRepository {
     },
   ): Promise<CustomerRow> {
     return this.prisma.runInTenant(schema, async (tx) => {
+      await this.assertTaxIdFree(tx, input.taxId ?? null, null);
       const rows = await tx.$queryRaw<CustomerRow[]>(
         Prisma.sql`INSERT INTO customers (tax_id, name, email, phone, address)
           VALUES (${input.taxId ?? null}, ${input.name}, ${input.email ?? null},
@@ -562,11 +580,12 @@ export class PosRepository {
       if (!cur[0]) throw new NotFoundException('Cliente não encontrado.');
       return cur[0];
     }
-    const rows = await this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw<CustomerRow[]>(
+    const rows = await this.prisma.runInTenant(schema, async (tx) => {
+      if (input.taxId) await this.assertTaxIdFree(tx, input.taxId, id);
+      return tx.$queryRaw<CustomerRow[]>(
         Prisma.sql`UPDATE customers SET ${Prisma.join([...sets, Prisma.sql`updated_at = now()`], ', ')} WHERE id = ${id}::uuid RETURNING *`,
-      ),
-    );
+      );
+    });
     if (!rows[0]) throw new NotFoundException('Cliente não encontrado.');
     return rows[0];
   }

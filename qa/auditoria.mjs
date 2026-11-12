@@ -58,6 +58,9 @@ async function checkInvoice(c, body) {
 async function main() {
   const cA = await db(S.A.schema);
   const A = await tk('A'); const ger = await tk('A', 'gerente'); const cx1 = await tk('A', 'caixa1');
+  // Online só se vende com o turno aberto (como no POS): abre o turno de quem vende nos testes.
+  const shift = async (t) => { const cur = await call('GET', '/cashbox/session/current', { token: t }); if (!cur.body?.id) await call('POST', '/cashbox/session/open', { token: t, body: { openingFloat: 0 } }); };
+  await shift(ger); await shift(cx1);
   const P = S.A.products;
   const gerPin = S.A.users.gerente.pin;
 
@@ -183,6 +186,7 @@ async function main() {
 
   // ── STOCK / concorrência ─────────────────────────────────────────────────
   if (run('stock')) {
+    await shift(cx1);
     const tag = String(Date.now()).slice(-6);
     const code = `S${tag}`;
     const p = await ok('POST', '/pos/products', { token: A, body: { code, name: 'Últimas unidades', ivaCode: 'NOR', unitPrice: 100, costPrice: 50, stockQty: 0 } });

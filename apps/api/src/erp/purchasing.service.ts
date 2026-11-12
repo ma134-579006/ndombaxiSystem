@@ -198,6 +198,24 @@ export class PurchasingService {
                    WHERE id = ${poId}::uuid`,
       );
 
+      // Conta a pagar ao fornecedor: a mercadoria recebida fica em dívida até ser paga
+      // (Financeiro → Contas a pagar), vencimento a 30 dias. Referência = nº da encomenda,
+      // por isso nunca se cria duas vezes para a mesma compra.
+      const hasPayables = await tx.$queryRaw<{ r: string | null }[]>(Prisma.sql`SELECT to_regclass('payables')::text AS r`);
+      if (hasPayables[0]?.r && received > 0) {
+        await tx.$executeRaw(
+          Prisma.sql`INSERT INTO payables
+              (supplier_id, supplier_name, reference, original_amount, paid_amount, due_date, status, notes, created_by, created_by_name)
+            SELECT po.supplier_id, s.name, po.number, po.gross_total, 0, CURRENT_DATE + 30, 'OPEN',
+                   'Compra rececionada', u.id, u.name
+            FROM purchase_orders po
+            JOIN suppliers s ON s.id = po.supplier_id
+            LEFT JOIN users u ON u.id = ${receivedBy ?? null}::uuid
+            WHERE po.id = ${poId}::uuid AND po.gross_total > 0
+              AND NOT EXISTS (SELECT 1 FROM payables p WHERE p.reference = po.number AND p.supplier_id = po.supplier_id)`,
+        );
+      }
+
       // Auditoria: entrada de stock (recepção de encomenda de compra).
       await this.audit.recordInTx(tx, {
         actorId: receivedBy ?? null,

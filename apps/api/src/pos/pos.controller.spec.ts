@@ -27,12 +27,14 @@ function makeController(
   // Por omissão, posto NÃO registado (série `null`) — é o comportamento das
   // aplicações já instaladas, e o que estes testes de idempotência exercitam.
   devices: Partial<Record<string, unknown>> = { seriesFor: () => Promise.resolve(null) },
+  openSession: unknown = { id: 'sess-1' },
 ) {
   const ctx = { requireTenantSchema: () => 'tenant_1' };
   return new PosController(
     {} as never, invoices as never, {} as never, {} as never, ctx as never, {} as never,
     devices as never,
     { check: () => Promise.resolve() } as never,
+    { currentSession: () => Promise.resolve(openSession) } as never,
   );
 }
 
@@ -168,5 +170,30 @@ describe('PosController — série no servidor LOCAL do posto (auditoria 2026-11
     const controller = makeController({ emit }, { seriesFor: () => Promise.resolve('A3') });
     await controller.emitInvoice(dto({ deviceKey: 'posto-nuvem-01', series: 'Z' }), USER);
     expect(emit).toHaveBeenCalledWith('tenant_1', expect.objectContaining({ series: 'A3' }));
+  });
+});
+
+describe('PosController — venda com rede exige turno aberto', () => {
+  const noSeries = { seriesFor: () => Promise.resolve(null) };
+
+  it('sem turno, a venda com rede é recusada e nada é emitido', async () => {
+    const emit = jest.fn();
+    const controller = makeController({ emit, findByClientOpId: () => Promise.resolve(null) }, noSeries, null);
+    await expect(controller.emitInvoice(dto({ paymentType: 'CASH' } as Partial<EmitInvoiceDto>), USER)).rejects.toThrow(/abra o turno/);
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('venda da fila offline continua a sincronizar sem turno', async () => {
+    const emit = jest.fn(() => Promise.resolve({ id: 'inv-9' }));
+    const controller = makeController({ emit }, noSeries, null);
+    await expect(controller.emitInvoice(dto({ offline: true, clientOpId: OP_ID }), USER)).resolves.toEqual({ id: 'inv-9' });
+  });
+
+  it('reenvio de venda já emitida devolve o original mesmo com o turno fechado', async () => {
+    const original = { id: 'inv-1', number: 'FT A/9' };
+    const emit = jest.fn();
+    const controller = makeController({ emit, findByClientOpId: () => Promise.resolve(original) }, noSeries, null);
+    await expect(controller.emitInvoice(dto({ clientOpId: OP_ID }), USER)).resolves.toEqual(original);
+    expect(emit).not.toHaveBeenCalled();
   });
 });

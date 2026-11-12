@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
@@ -32,6 +33,7 @@ import { DiscountGuardService } from './discount-guard.service';
 import { ApproveDiscountDto } from './dto/emit-invoice.dto';
 import { PlanLimitsService } from '../plans/plan-limits.service';
 import { DevicesService } from '../devices/devices.service';
+import { CashboxService } from '../cashbox/cashbox.service';
 
 /** Gera um código de barras EAN-13 interno (prefixo 200 = uso interno GS1)
  *  com dígito de controlo válido — usado quando o produto é criado sem código. */
@@ -88,6 +90,7 @@ export class PosController {
     private readonly planLimits: PlanLimitsService,
     private readonly devices: DevicesService,
     private readonly discounts: DiscountGuardService,
+    private readonly cashbox: CashboxService,
   ) {}
 
   // ── Catálogo de produtos ───────────────────────────────────
@@ -295,6 +298,15 @@ export class PosController {
     // paradas por causa de uma funcionalidade nova.
     // Desconto acima da promoção = manual: só com supervisor/gerente (ou o PIN dele).
     await this.discounts.check(schema, user, dto.lines, { approvalPin: dto.approvalPin, offline: dto.offline === true });
+    // Venda com rede só com o turno aberto (como no botão "Abrir Caixa" do POS): sem turno o
+    // dinheiro não entrava em nenhuma caixa e o fecho não batia. As vendas da fila offline
+    // (offline=true) e o servidor local do posto seguem como antes; o reenvio de uma venda
+    // já emitida devolve o documento original.
+    if (dto.offline !== true && !localSeries() && !(await this.cashbox.currentSession(schema, user.sub))) {
+      const existing = dto.clientOpId ? await this.invoices.findByClientOpId(schema, dto.clientOpId) : null;
+      if (existing) return existing;
+      throw new ConflictException('Caixa fechada: abra o turno antes de vender.');
+    }
     const deviceSeries = await this.devices.seriesFor(schema, dto.deviceKey);
     try {
       return await this.invoices.emit(schema, {
