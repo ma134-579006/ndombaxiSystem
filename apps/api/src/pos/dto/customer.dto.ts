@@ -2,6 +2,8 @@ import { Transform } from 'class-transformer';
 import { IsEmail, IsOptional, IsString, Length, Matches } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
+// NIF vazio ("") de clientes antigos conta como não indicado.
+const trimOpt = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() || undefined : value);
 /**
  * NIF, BI ou passaporte: 5 a 32 caracteres, a começar e a acabar em letra ou dígito
  * (aceita espaços, pontos, hífens e barras no meio). "abc" não é identificação fiscal.
@@ -11,7 +13,7 @@ const TAX_ID_MSG = { message: 'NIF inválido: 5 a 32 letras ou dígitos.' };
 
 export class CreateCustomerDto {
   @IsOptional()
-  @Transform(trim)
+  @Transform(trimOpt)
   @IsString()
   @Matches(TAX_ID, TAX_ID_MSG)
   taxId?: string;
@@ -40,7 +42,7 @@ export class CreateCustomerDto {
 }
 
 export class UpdateCustomerDto {
-  @IsOptional() @Transform(trim) @IsString() @Matches(TAX_ID, TAX_ID_MSG) taxId?: string;
+  @IsOptional() @Transform(trimOpt) @IsString() @Matches(TAX_ID, TAX_ID_MSG) taxId?: string;
   @IsOptional() @Transform(trim) @IsString() @Length(1, 200) name?: string;
   @IsOptional() @IsEmail() @Length(3, 200) email?: string;
   @IsOptional() @IsString() @Length(0, 40) phone?: string;
