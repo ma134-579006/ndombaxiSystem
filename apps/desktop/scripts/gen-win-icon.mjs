@@ -107,10 +107,13 @@ async function main() {
   // encolhido a 16–48 px virava um borrão. Até 32 px usa-se a versão com menos
   // margem, para o desenho ocupar o máximo possível.
   const pub = path.join(repo, 'apps', 'web', 'public');
-  const grande = await Jimp.read(path.join(pub, 'app-icon.png'));
-  const pequeno = await Jimp.read(path.join(pub, 'app-icon-small.png'));
+  // ICON_SRC/ICON_OUT: outra app (ex.: LPS Kwanza) com o mesmo gerador.
+  const src = process.env.ICON_SRC ? path.resolve(repo, process.env.ICON_SRC) : null;
+  const grande = await Jimp.read(src ?? path.join(pub, 'app-icon.png'));
+  const pequeno = await Jimp.read(src ?? path.join(pub, 'app-icon-small.png'));
 
-  const buildDir = path.join(desktop, 'build');
+  const out = process.env.ICON_OUT ? path.resolve(repo, process.env.ICON_OUT) : path.join(desktop, 'build', 'icon.ico');
+  const buildDir = path.dirname(out);
   fs.mkdirSync(buildDir, { recursive: true });
 
   const entries = [];
@@ -129,7 +132,6 @@ async function main() {
     entries.push({ size, png });
   }
 
-  const out = path.join(buildDir, 'icon.ico');
   fs.writeFileSync(out, buildIco(entries));
   process.stdout.write(`  Ícone Windows nítido gerado: ${path.relative(repo, out)} (${SIZES.join(', ')} px)\n`);
 }

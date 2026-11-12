@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api, ApiError, captureAffiliateRef } from '../api/client';
+import { api, ApiError, captureAffiliateRef, readAffiliateRef } from '../api/client';
 import type { CatalogProduct, PaymentMethod, SiteSettings } from '../api/types';
 import { INITIAL_STORE_CODE } from '../config';
 import { OPEN_STORE_EVENT, takePendingStoreCode } from '../native';
@@ -26,6 +26,16 @@ function rememberStore(code: string, name: string) {
   try { localStorage.setItem(LS_RECENT, JSON.stringify(next)); } catch { /* armazenamento indisponível */ }
 }
 const cartKey = (code: string) => `ndombaxi.store.cart.${code}`;
+
+/** Preço próprio do associado da ligação (LPS Kwanza): a montra mostra o mesmo preço que o checkout cobra. */
+async function withMarkups(code: string, products: CatalogProduct[]): Promise<CatalogProduct[]> {
+  const ref = readAffiliateRef(code);
+  if (!ref) return products;
+  const mk = await api.refMarkups(code, ref).catch(() => ({} as Record<string, number>));
+  if (!Object.keys(mk).length) return products;
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  return products.map((p) => (mk[p.code] ? { ...p, grossPrice: r2(p.grossPrice * (1 + mk[p.code] / 100)), netPrice: r2(p.netPrice * (1 + mk[p.code] / 100)), listPrice: undefined, promo: undefined } : p));
+}
 
 interface StoreData {
   storeName: string;
@@ -110,7 +120,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // Só em desenvolvimento local: ndx_dev_biz pré-visualiza a loja de outro setor.
         businessType: (import.meta.env.DEV ? (() => { try { return localStorage.getItem('ndx_dev_biz'); } catch { return null; } })() : null) || site.businessType || 'RETAIL',
         settings: site.settings,
-        products: catalog.products,
+        products: await withMarkups(code, catalog.products),
         paymentMethods: methods,
       });
       rememberStore(code, site.store || code);
@@ -135,7 +145,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const t = window.setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       api.catalog(code)
-        .then((c) => setData((prev) => (prev ? { ...prev, products: c.products } : prev)))
+        .then(async (c) => { const products = await withMarkups(code, c.products); setData((prev) => (prev ? { ...prev, products } : prev)); })
         .catch(() => undefined);
     }, 30000);
     return () => window.clearInterval(t);

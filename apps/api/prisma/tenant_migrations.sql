@@ -809,3 +809,26 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS affiliate
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS allow_markup BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS max_markup_pct NUMERIC(5,2);
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS affiliate_materials JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- Central de notificações do painel (marcar como lida / eliminar).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."admin_notifications" (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind       TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  body       TEXT,
+  section    TEXT,
+  ref        TEXT,
+  read_at    TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS admin_notifications_created_idx ON "{{SCHEMA}}"."admin_notifications"(created_at DESC);
+
+-- Encomendas no painel: marcar como vista/nova e eliminar da lista (sem apagar a encomenda nem a fatura).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS admin_seen_at   TIMESTAMPTZ;
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."web_orders" ADD COLUMN IF NOT EXISTS admin_hidden_at TIMESTAMPTZ;
+
+-- Alertas operacionais dispensados no painel (são calculados; aqui fica só a chave do que foi eliminado).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."dismissed_alerts" (
+  key          TEXT PRIMARY KEY,
+  dismissed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

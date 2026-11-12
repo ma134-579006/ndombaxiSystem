@@ -114,12 +114,36 @@ export class OrdersService {
     };
   }
 
-  list(schema: string) {
+  /** Lista do painel: por omissão sem as eliminadas; `hidden` mostra só as eliminadas. */
+  list(schema: string, hidden = false) {
     return this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw(
-        Prisma.sql`SELECT * FROM web_orders ORDER BY created_at DESC`,
+        hidden
+          ? Prisma.sql`SELECT * FROM web_orders WHERE admin_hidden_at IS NOT NULL ORDER BY created_at DESC`
+          : Prisma.sql`SELECT * FROM web_orders WHERE admin_hidden_at IS NULL ORDER BY created_at DESC`,
       ),
     );
+  }
+
+  /**
+   * Ações em massa do painel. "Eliminar" só esconde da lista (a encomenda e a fatura ficam) e
+   * só se aplica a encomendas terminadas (entregues ou canceladas), para nada por tratar se perder.
+   */
+  async bulk(schema: string, ids: string[], action: 'seen' | 'unseen' | 'hide' | 'restore') {
+    if (!ids.length) return { updated: 0, skipped: 0 };
+    return this.prisma.runInTenant(schema, async (tx) => {
+      let n = 0;
+      if (action === 'seen') n = await tx.$executeRaw(Prisma.sql`UPDATE web_orders SET admin_seen_at = now() WHERE id = ANY(${ids}::uuid[]) AND admin_seen_at IS NULL`);
+      else if (action === 'unseen') n = await tx.$executeRaw(Prisma.sql`UPDATE web_orders SET admin_seen_at = NULL WHERE id = ANY(${ids}::uuid[])`);
+      else if (action === 'restore') n = await tx.$executeRaw(Prisma.sql`UPDATE web_orders SET admin_hidden_at = NULL WHERE id = ANY(${ids}::uuid[])`);
+      else n = await tx.$executeRaw(Prisma.sql`UPDATE web_orders SET admin_hidden_at = now() WHERE id = ANY(${ids}::uuid[]) AND status IN ('DELIVERED','CANCELLED') AND admin_hidden_at IS NULL`);
+      return { updated: n, skipped: action === 'hide' ? ids.length - n : 0 };
+    });
+  }
+
+  /** Abrir o detalhe marca a encomenda como vista. */
+  async markSeen(schema: string, id: string) {
+    await this.prisma.runInTenant(schema, (tx) => tx.$executeRaw(Prisma.sql`UPDATE web_orders SET admin_seen_at = now() WHERE id = ${id}::uuid AND admin_seen_at IS NULL`)).catch(() => undefined);
   }
 
   /** Encomendas NOVAS por tratar (PENDING) — para o sino de notificações. */

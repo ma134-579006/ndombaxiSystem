@@ -16,6 +16,8 @@ export const RELEASE_SOURCES: { platform: Platform; tag: string; asset: string }
   { platform: 'windows', tag: 'windows-latest', asset: 'LPSVendas-Setup-x64.exe' },
   { platform: 'android', tag: 'android-latest', asset: 'LPSVendas-Android.apk' },
   { platform: 'android-loja', tag: 'android-loja-latest', asset: 'LPSLoja-Android.apk' },
+  { platform: 'android-kwanza', tag: 'android-kwanza-latest', asset: 'LPSKwanza-Android.apk' },
+  { platform: 'windows-kwanza', tag: 'windows-kwanza-latest', asset: 'LPSKwanza-Setup-x64.exe' },
 ];
 
 /** 1.5.10 > 1.5.9 (igual à de @nexus/update-core, que as apps usam). */

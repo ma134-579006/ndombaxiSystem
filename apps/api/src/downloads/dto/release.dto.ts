@@ -2,7 +2,7 @@ import {
   IsArray, IsBoolean, IsInt, IsIn, IsOptional, IsString, Min,
 } from 'class-validator';
 
-const PLATFORMS = ['windows', 'android', 'android-loja', 'ios'] as const;
+const PLATFORMS = ['windows', 'android', 'android-loja', 'android-kwanza', 'windows-kwanza', 'ios'] as const;
 
 export class CreateReleaseDto {
   @IsIn(PLATFORMS)

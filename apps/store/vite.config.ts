@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { kwanzaSeo } from './seo-kwanza';
 
 // Montra pública LPS Vendas. VITE_API_URL define a API; VITE_STORE_CODE o código da loja.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), kwanzaSeo()],
   server: {
     port: 5174,
     host: true,

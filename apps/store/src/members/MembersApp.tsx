@@ -94,7 +94,7 @@ export function MembersApp() {
 
   // Cabeçalho compacto ao descer (a faixa de contactos recolhe).
   useEffect(() => {
-    const on = () => setCompact(window.scrollY > 60);
+    const on = () => setCompact((c) => (c ? window.scrollY > 10 : window.scrollY > 90));
     on(); window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
   }, []);

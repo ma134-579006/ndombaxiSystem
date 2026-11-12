@@ -23,6 +23,9 @@ class RecoverConfirmDto { @IsString() @MaxLength(160) login!: string; @IsString(
 class AffiliateDto { @IsString() @MaxLength(60) companyCode!: string; @IsString() @MaxLength(80) productCode!: string; @IsOptional() @IsString() @MaxLength(300) note?: string; }
 class MarkupDto { @IsString() @MaxLength(60) companyCode!: string; @IsString() @MaxLength(80) productCode!: string; @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(100) markupPct?: number | null; }
 class AccountDto { @IsString() @MaxLength(40) method!: string; @IsOptional() @IsString() @MaxLength(60) bank?: string; @IsString() @MaxLength(120) holder!: string; @IsString() @MaxLength(60) details!: string; }
+class IdsDto { @IsArray() @IsString({ each: true }) ids!: string[]; }
+class MsgDto { @IsString() @MaxLength(2000) body!: string; }
+class PostDto { @IsString() @MaxLength(60) companyCode!: string; @IsString() @MaxLength(80) productCode!: string; @IsOptional() @Type(() => Number) @IsNumber() @Min(0) price?: number | null; @IsOptional() @IsArray() @IsString({ each: true }) images?: string[]; @IsOptional() @IsString() @MaxLength(500) videoUrl?: string | null; @IsOptional() @IsString() @MaxLength(600) caption?: string | null; @IsBoolean() published!: boolean; }
 class WithdrawDto { @IsString() @MaxLength(60) companyCode!: string; @Type(() => Number) @IsNumber() @Min(1) amount!: number; @IsString() @MaxLength(40) accountId!: string; }
 
 /** LPS Kwanza — site do marketplace e contas dos associados (público + sessão do associado). */
@@ -42,7 +45,11 @@ export class KwanzaPublicController {
   recoverConfirm(@Body() d: RecoverConfirmDto) { return this.k.recoverConfirm(d.login, d.code, d.password); }
 
   @Get('market') @ApiOperation({ summary: 'Produtos de todas as empresas no marketplace' })
-  market() { return this.k.market(); }
+  async market(@Headers('authorization') a?: string) {
+    // Com sessão de associado válida → catálogo completo (para se afiliar); sem → só as publicações dos associados.
+    const isAssociate = a ? await this.k.verify(a).then(() => true, () => false) : false;
+    return this.k.market(isAssociate);
+  }
   @Post('market/:companyCode/:productCode/view') @ApiOperation({ summary: 'Conta uma visualização' })
   view(@Param('companyCode') c: string, @Param('productCode') p: string) { return this.k.view(c, p); }
 
@@ -52,10 +59,20 @@ export class KwanzaPublicController {
   @Get('me/dashboard') async dashboard(@Headers('authorization') a?: string) { return this.k.dashboard(await this.k.verify(a)); }
   @Get('me/affiliations') async affiliations(@Headers('authorization') a?: string) { return this.k.myAffiliations(await this.k.verify(a)); }
   @Post('me/affiliations') async affiliate(@Body() d: AffiliateDto, @Headers('authorization') a?: string) { return this.k.affiliate(await this.k.verify(a), d.companyCode, d.productCode, d.note); }
+  @Put('me/posts') async post(@Body() d: PostDto, @Headers('authorization') a?: string) { return this.k.savePost(await this.k.verify(a), d.companyCode, d.productCode, d); }
   @Post('me/markup') async markup(@Body() d: MarkupDto, @Headers('authorization') a?: string) { return this.k.setMarkup(await this.k.verify(a), d.companyCode, d.productCode, d.markupPct ?? null); }
   @Get('me/accounts') async accounts(@Headers('authorization') a?: string) { return this.k.accounts(await this.k.verify(a)); }
   @Post('me/accounts') async addAccount(@Body() d: AccountDto, @Headers('authorization') a?: string) { return this.k.addAccount(await this.k.verify(a), d); }
   @Delete('me/accounts/:id') async removeAccount(@Param('id') id: string, @Headers('authorization') a?: string) { return this.k.removeAccount(await this.k.verify(a), id); }
+  @Get('me/notifications') async notes(@Headers('authorization') a?: string) { return this.k.notifications(await this.k.verify(a)); }
+  @Post('me/notifications/read') async notesRead(@Body() d: IdsDto, @Headers('authorization') a?: string) { return this.k.markNotifications(await this.k.verify(a), d.ids, true); }
+  @Post('me/notifications/unread') async notesUnread(@Body() d: IdsDto, @Headers('authorization') a?: string) { return this.k.markNotifications(await this.k.verify(a), d.ids, false); }
+  @Post('me/notifications/read-all') async notesReadAll(@Headers('authorization') a?: string) { return this.k.markNotifications(await this.k.verify(a), 'all'); }
+  @Post('me/notifications/delete') async notesDelete(@Body() d: IdsDto, @Headers('authorization') a?: string) { return this.k.deleteNotifications(await this.k.verify(a), d.ids); }
+  @Delete('me/notifications') async notesDeleteAll(@Headers('authorization') a?: string) { return this.k.deleteNotifications(await this.k.verify(a), 'all'); }
+  @Get('me/chats') async chats(@Headers('authorization') a?: string) { return this.k.associateChats(await this.k.verify(a)); }
+  @Get('me/chats/:companyCode') async chat(@Param('companyCode') c: string, @Headers('authorization') a?: string) { return this.k.associateThread(await this.k.verify(a), c); }
+  @Post('me/chats/:companyCode') async send(@Param('companyCode') c: string, @Body() d: MsgDto, @Headers('authorization') a?: string) { return this.k.associateSend(await this.k.verify(a), c, d.body); }
   @Post('me/withdrawals') async withdraw(@Body() d: WithdrawDto, @Headers('authorization') a?: string) { return this.k.withdraw(await this.k.verify(a), d.companyCode, d.amount, d.accountId); }
 }
 
@@ -68,6 +85,7 @@ class ListingDto {
   @IsOptional() @IsArray() @IsString({ each: true }) materials?: string[];
 }
 class DecideDto { @IsOptional() @IsIn(['APPROVED', 'REJECTED']) status?: 'APPROVED' | 'REJECTED'; @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(90) commissionPct?: number | null; }
+class MsgAdminDto { @IsString() @MaxLength(2000) body!: string; }
 class PayDto { @IsOptional() @IsString() @MaxLength(300) note?: string; @IsOptional() @IsString() @MaxLength(3_000_000) proofUrl?: string; }
 
 /** LPS Kwanza no painel LPS Vendas de cada empresa: produtos publicados, pedidos, associados e saques. */
@@ -95,6 +113,12 @@ export class KwanzaAdminController {
   async associates() { const t = await this.tenant(); return this.k.companyAssociates(t.companyId, t.schema); }
   @Get('sales') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Vendas feitas por associados' })
   async sales() { return this.k.companySales((await this.tenant()).companyId); }
+  @Get('chats') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Conversas com associados' })
+  async chats() { return this.k.companyChats((await this.tenant()).companyId); }
+  @Get('chats/:associateId') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Conversa com um associado' })
+  async chat(@Param('associateId') id: string) { return this.k.companyThread((await this.tenant()).companyId, id); }
+  @Post('chats/:associateId') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Responde a um associado' })
+  async send(@Param('associateId') id: string, @Body() d: MsgAdminDto) { return this.k.companySend((await this.tenant()).companyId, id, 'Empresa', d.body); }
   @Get('withdrawals') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Pedidos de saque dos associados' })
   async withdrawals() { return this.k.companyWithdrawals((await this.tenant()).companyId); }
   @Post('withdrawals/:id/pay') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Marca o saque como pago (com comprovativo)' })

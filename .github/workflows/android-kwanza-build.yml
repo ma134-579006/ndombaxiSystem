@@ -1,0 +1,87 @@
+# Compila o APK da app "LPS Kwanza" (marketplace de associados) na nuvem — mesmo processo do LPS Vendas.
+# Sem secrets → APK de DEBUG assinado com a chave estável do repositório
+# (instala por cima das versões anteriores). Para a Play Store é preciso uma
+# keystore própria (não incluída).
+name: Android build (LPS Kwanza)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-store:
+    runs-on: ubuntu-latest
+    env:
+      NDOMBAXI_API_URL: https://ndombaxi-api-bwwr.onrender.com
+      # O mesmo shell da LPS Loja, com a identidade e o arranque do LPS Kwanza.
+      LPS_APP: kwanza
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Clone completo: a versão da build é o nº de commits (scripts/ci-version.mjs).
+          fetch-depth: 0
+      # REGRA PERMANENTE: cada build publicada tem versão maior → bloqueia as anteriores.
+      - name: Versão automática desta build
+        shell: bash
+        run: node scripts/ci-version.mjs
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+      - name: Preparar web e projeto Android
+        run: |
+          node apps/store-shell/scripts/prepare-web.mjs
+          pnpm --filter @nexus/store-shell exec cap add android || true
+          pnpm --filter @nexus/store-shell exec cap sync android
+          # Versão, permissões (câmara/GPS), ligações diretas, barras e arranque.
+          node apps/store-shell/scripts/patch-android.mjs
+          # Ícone próprio da LPS Kwanza (índigo + logótipo) e ecrã de arranque.
+          node apps/store-shell/scripts/gen-icons-kwanza.mjs
+      - name: Assinatura estável
+        run: |
+          mkdir -p ~/.android
+          cp apps/mobile-shell/keystore/debug.keystore ~/.android/debug.keystore
+      - name: Compilar APK debug
+        working-directory: apps/store-shell/android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lps-kwanza-android-debug
+          path: apps/store-shell/android/app/build/outputs/apk/debug/*.apk
+      # Link direto: https://github.com/<dono>/<repo>/releases/download/android-kwanza-latest/LPSKwanza-Android.apk
+      - name: Publicar APK (Releases → android-kwanza-latest)
+        working-directory: apps/store-shell/android/app/build/outputs/apk/debug
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Só se publica a partir de main e nunca uma versão MAIS BAIXA do que a
+          # publicada (senão o ficheiro descarregado seria uma versão já bloqueada).
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then echo "::error::Só se publica a partir de main (ref: $GITHUB_REF)."; exit 1; fi
+          cur=$(gh release view android-kwanza-latest -R "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null | grep -oE 'Vers[^:]*: [0-9]+\.[0-9]+\.[0-9]+' | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+          if [ -n "$cur" ] && [ "$(printf '%s\n%s\n' "$cur" "$APP_VERSION" | sort -V | tail -1)" != "$APP_VERSION" ]; then
+            echo "::error::Versão $APP_VERSION é mais baixa do que a publicada ($cur) — não se substitui."; exit 1
+          fi
+          apk=$(ls *.apk | head -1)
+          cp "$apk" LPSKwanza-Android.apk
+          gh release delete android-kwanza-latest --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          gh release create android-kwanza-latest LPSKwanza-Android.apk \
+            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
+            --title "LPS Kwanza para Android (mais recente)" \
+            --notes "App LPS Kwanza (marketplace de associados). Versão: ${APP_VERSION}. Commit ${GITHUB_SHA::7}, build #${GITHUB_RUN_NUMBER}. Para instalar: abrir o ficheiro no telemóvel e permitir 'instalar apps desconhecidas' para o navegador."
+      # O servidor lê esta release do GitHub e passa a exigir esta versão: as
+      # apps antigas ficam bloqueadas (com o botão para o site oficial). Se o
+      # aviso falhar, o servidor apanha-a sozinho em <= 10 minutos.
+      - name: Bloquear versões anteriores (avisar o servidor)
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          curl -fsS -X POST --max-time 90 "${NDOMBAXI_API_URL:-https://ndombaxi-api-bwwr.onrender.com}/downloads/sync" || echo "Servidor indisponível agora — sincroniza sozinho em até 10 min."

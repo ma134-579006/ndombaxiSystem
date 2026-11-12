@@ -15,6 +15,8 @@ const repo = path.resolve(shell, '..', '..');
 const API_URL = process.env.NDOMBAXI_API_URL || 'https://ndombaxi-api-bwwr.onrender.com';
 const VERSION = JSON.parse(fs.readFileSync(path.join(repo, 'apps', 'desktop', 'package.json'), 'utf-8')).version;
 const www = path.join(shell, 'www');
+// LPS_APP=kwanza → a app abre diretamente o marketplace LPS Kwanza.
+const KWANZA = process.env.LPS_APP === 'kwanza';
 const log = (m) => process.stdout.write(`  ${m}\n`);
 
 process.stdout.write('\nLPS Loja — a preparar a pasta www\n\n');
@@ -23,7 +25,8 @@ fs.rmSync(www, { recursive: true, force: true });
 execSync(`pnpm --filter @nexus/store exec vite build --base=./ --outDir "${www}" --emptyOutDir`, {
   cwd: repo,
   stdio: 'inherit',
-  env: { ...process.env, VITE_API_URL: API_URL, VITE_NATIVE_APP: '1', VITE_APP_VERSION: VERSION },
+  env: { ...process.env, VITE_API_URL: API_URL, VITE_NATIVE_APP: '1', VITE_APP_VERSION: VERSION,
+    VITE_PUBLIC_ORIGIN: 'https://loja.ndombaxisystem.com', ...(KWANZA ? { VITE_KWANZA_APP: '1' } : {}) },
 });
 
 if (!/localhost/.test(API_URL)) {

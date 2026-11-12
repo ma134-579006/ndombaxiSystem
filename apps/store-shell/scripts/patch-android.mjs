@@ -67,7 +67,24 @@ const deepLinks = `
                 <data android:scheme="lpsloja" />
             </intent-filter>
 `;
-if (!manifest.includes('loja.ndombaxisystem.com')) {
+const KWANZA = process.env.LPS_APP === 'kwanza';
+if (KWANZA && !manifest.includes('lpskwanza')) {
+  // App LPS Kwanza: só o marketplace (não captura as ligações das lojas).
+  manifest = manifest.replace(/(<category android:name="android\.intent\.category\.LAUNCHER" \/>\s*<\/intent-filter>)/, `$1
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="loja.ndombaxisystem.com" android:pathPrefix="/kwanza" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="lpskwanza" />
+            </intent-filter>
+`);
+} else if (!KWANZA && !manifest.includes('loja.ndombaxisystem.com')) {
   // Dentro da MainActivity, logo a seguir ao intent-filter do LAUNCHER.
   manifest = manifest.replace(/(<category android:name="android\.intent\.category\.LAUNCHER" \/>\s*<\/intent-filter>)/, `$1\n${deepLinks}`);
 }

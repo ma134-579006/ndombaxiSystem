@@ -16,6 +16,7 @@ import { UserAvatar, displayName } from './UserAvatar';
 import type { SalaryAdvanceReq } from '../api/types';
 import { openCaixaTerminal } from '../config';
 import { pollEvery, stopPoll } from '../poll';
+import { NotificationCenter } from './NotificationCenter';
 import { AgtStatus, SubscriptionRing, TopActions, TopDivider, TopTitle, type QuickItem } from './TopStatus';
 
 /** Sino de notificações (Super Admin): conversas por responder + comentários
@@ -76,41 +77,6 @@ function NotifyBell({ onGo }: { onGo(section: string): void }) {
         </div>
       ) : null}
     </div>
-  );
-}
-
-/** Sino de PEDIDOS DA LOJA (gestor): encomendas novas + pedidos de serviço +
- *  reservas vindas da loja online. Badge soma os três; clicar abre a secção mais
- *  relevante (encomendas → ordens de serviço → reservas). */
-function OrdersBell({ onGo }: { onGo(section: string): void }) {
-  const [orders, setOrders] = useState(0);
-  const [services, setServices] = useState(0);
-  const [rooms, setRooms] = useState(0);
-  const [leaves, setLeaves] = useState(0);
-  useEffect(() => {
-    let alive = true;
-    const tick = () => {
-      api.leave.summary().then((r) => { if (alive) setLeaves(r.pending); }).catch(() => undefined);
-      api.orders.pendingCount().then((r) => { if (alive) setOrders(r.count); }).catch(() => undefined);
-      api.serviceOrders.pendingOnline().then((r) => { if (alive) setServices(r.count); }).catch(() => undefined);
-      api.hotel.pendingOnline().then((r) => { if (alive) setRooms(r.count); }).catch(() => undefined);
-    };
-    tick();
-    const t = pollEvery(tick, 15000);
-    const onFocus = () => tick();
-    window.addEventListener('focus', onFocus);
-    return () => { alive = false; stopPoll(t); window.removeEventListener('focus', onFocus); };
-  }, []);
-  const n = orders + services + rooms + leaves;
-  const target = orders > 0 ? 'orders' : services > 0 ? 'service-orders' : rooms > 0 ? 'hotel' : leaves > 0 ? 'leave' : 'orders';
-  return (
-    <button className="icon-btn noti-btn" onClick={() => onGo(target)}
-      title={n > 0 ? `${n} pedido(s) novo(s)${leaves > 0 ? ` (${leaves} de férias/ausência)` : ''}` : 'Pedidos da loja'} aria-label="Pedidos da loja">
-      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-      </svg>
-      {n > 0 ? <span className="noti-badge">{n > 99 ? '99+' : n}</span> : null}
-    </button>
   );
 }
 
@@ -591,7 +557,7 @@ export function Shell({
           <TopDivider />
           <SyncStatusPill />
           {!isTenant ? <NotifyBell onGo={(s) => setSection(s)} /> : null}
-          {isTenant ? <OrdersBell onGo={(s) => setSection(s)} /> : null}
+          {isTenant ? <NotificationCenter onGo={(s) => setSection(s)} /> : null}
           {/* Chats visíveis na barra (antes escondidos no menu do perfil):
               chat com a caixa e chat com clientes — cada um com badge de não-lidas. */}
           {isTenant ? (

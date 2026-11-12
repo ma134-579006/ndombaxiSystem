@@ -1,79 +1,86 @@
-/* Secção "Baixar Aplicativo" da landing — estética sóbria (Apple/Stripe).
-   Reutiliza a grelha e as cores da landing; nada aqui altera outras secções. */
+/* Secção "Baixar aplicativos" da landing.
+   Os cartões são informação (estáticos); a interação e a animação estão nos BOTÕES. */
 
-.dl-section .dl-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-top: 8px;
-}
+.dl-section h2 { margin-bottom: 28px; }
+
+.dl-group { margin: 0 auto 40px; max-width: 1180px; }
+.dl-group:last-child { margin-bottom: 0; }
+.dl-group-h { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; }
+.dl-group-logo { width: 36px; height: 36px; border-radius: 10px; overflow: hidden; display: grid; place-items: center; background: #fff; border: 1px solid #e4e9f2; flex: none; }
+.dl-group-logo img { width: 100%; height: 100%; object-fit: contain; }
+.dl-g-kwanza .dl-group-logo { border: 0; }
+.dl-group-h h3 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.01em; color: #0f1729; }
+.dl-group-n { margin-left: auto; font-size: 12.5px; font-weight: 700; color: #8a94a6; }
+
+.dl-section .dl-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+.dl-g-kwanza .dl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 590px; }
 
 .dl-card {
-  background: #fff;
-  border: 1px solid #e6ebf3;
-  border-radius: 18px;
-  padding: 28px 24px;
-  display: flex;
-  flex-direction: column;
-  text-align: left;
+  background: #fff; border: 1px solid #e4e9f2; border-radius: 18px; padding: 20px;
+  display: flex; flex-direction: column; text-align: left; min-width: 0;
   box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
-  transition: transform .2s cubic-bezier(.2, .8, .2, 1), box-shadow .2s ease, border-color .2s ease;
-}
-.dl-card:hover {
-  transform: translateY(-4px);
-  border-color: color-mix(in srgb, var(--lp-primary) 40%, #e6ebf3);
-  box-shadow: 0 20px 44px rgba(16, 24, 40, .12);
-}
-.dl-card.soon { opacity: .82; }
-
-.dl-icon {
-  width: 56px; height: 56px;
-  border-radius: 14px;
-  display: grid; place-items: center;
-  color: var(--lp-primary);
-  background: color-mix(in srgb, var(--lp-primary) 10%, #fff);
-  margin-bottom: 16px;
+  cursor: default;
 }
 
-.dl-card h3 { margin: 0 0 4px; font-size: 20px; font-weight: 800; color: #0f1729; }
-.dl-tag { margin: 0 0 18px; color: #5a6679; font-size: 14px; line-height: 1.5; }
+.dl-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.dl-ht { min-width: 0; flex: 1; }
+.dl-icon { width: 54px; height: 54px; border-radius: 15px; display: grid; place-items: center; flex: none; color: #fff; overflow: hidden; }
+.dl-windows .dl-icon { background: linear-gradient(145deg, #2ab4ff, #0067c0); }
+.dl-android .dl-icon { background: linear-gradient(145deg, #4ee58f, #1fa463); }
+.dl-ios .dl-icon { background: linear-gradient(145deg, #3a3a42, #0b0b0f); }
+.dl-android-loja .dl-icon, .dl-android-kwanza .dl-icon, .dl-windows-kwanza .dl-icon { background: none; }
+.dl-card h4 { margin: 0; font-size: 17px; font-weight: 800; color: #0f1729; }
+.dl-tag { margin: 2px 0 0; font-size: 13px; color: #5a6679; line-height: 1.4; }
 
-.dl-meta { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.dl-meta li { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; border-bottom: 1px dashed #eef1f6; padding-bottom: 8px; }
-.dl-meta li:last-child { border-bottom: 0; padding-bottom: 0; }
-.dl-meta span { color: #8a94a6; }
-.dl-meta b { color: #22314c; font-weight: 700; text-align: right; }
+.dl-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
+.dl-facts > div { padding: 9px 11px; border-radius: 11px; background: #f5f7fb; min-width: 0; }
+.dl-facts > .full { grid-column: 1 / -1; }
+.dl-facts dt { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: #8a94a6; }
+.dl-facts dd { margin: 2px 0 0; font-size: 13.5px; color: #1a2640; font-weight: 700; overflow-wrap: anywhere; }
 
-.dl-changelog { margin: 0 0 18px; }
-.dl-changelog summary {
-  cursor: pointer; font-size: 13px; font-weight: 700; color: var(--lp-primary);
-  list-style: none; user-select: none;
-}
+.dl-changelog { margin: 0 0 14px; }
+.dl-changelog summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--lp-primary); list-style: none; user-select: none; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; }
 .dl-changelog summary::-webkit-details-marker { display: none; }
-.dl-changelog summary::before { content: '＋ '; }
-.dl-changelog[open] summary::before { content: '－ '; }
-.dl-changelog ul { margin: 10px 0 0; padding-left: 18px; }
-.dl-changelog li { font-size: 13px; color: #4a5568; line-height: 1.6; }
+.dl-changelog summary::after { content: '▾'; font-size: 11px; transition: transform .2s; }
+.dl-changelog[open] summary::after { transform: rotate(180deg); }
+.dl-changelog summary:focus-visible { outline: 2px solid var(--lp-primary); outline-offset: 2px; }
+.dl-changelog ul { margin: 8px 0 0; padding-left: 18px; }
+.dl-changelog li { font-size: 13px; color: #4a5568; line-height: 1.55; }
 .dl-changelog li.fix { color: #6b7280; }
 
+/* ── O botão é o elemento interativo ── */
 .dl-btn {
-  margin-top: auto;
-  display: inline-block; text-align: center;
-  padding: 13px 18px; border-radius: 12px;
-  background: var(--lp-primary); color: #fff;
-  font-weight: 800; font-size: 15px; text-decoration: none;
-  transition: filter .15s ease, transform .15s ease;
+  position: relative; overflow: hidden; isolation: isolate;
+  margin-top: auto; display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  padding: 13px 18px; border-radius: 12px; border: 0;
+  background: linear-gradient(135deg, var(--lp-primary), color-mix(in srgb, var(--lp-primary) 62%, #7c3aed));
+  color: #fff; font-weight: 800; font-size: 15px; text-decoration: none; cursor: pointer;
+  box-shadow: 0 10px 22px -14px var(--lp-primary);
+  transition: transform .22s cubic-bezier(.2, .8, .2, 1), box-shadow .22s ease, filter .2s ease;
 }
-.dl-btn:hover { filter: brightness(1.08); }
-.dl-btn:active { transform: translateY(1px); }
-.dl-btn.disabled {
-  background: #eef1f6; color: #98a2b3; cursor: default; pointer-events: none;
+.dl-btn::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .38) 50%, transparent 70%);
+  transform: translateX(-120%); transition: transform .6s ease;
 }
+.dl-btn .dl-arrow { transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+.dl-btn:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -14px var(--lp-primary); filter: brightness(1.06); }
+.dl-btn:hover::before { transform: translateX(120%); }
+.dl-btn:hover .dl-arrow { transform: translateX(4px); }
+.dl-btn:active { transform: translateY(0) scale(.98); box-shadow: 0 6px 14px -10px var(--lp-primary); }
+.dl-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--lp-primary) 45%, #fff); outline-offset: 3px; }
+.dl-g-kwanza .dl-btn { background: linear-gradient(135deg, #2f3dff, #121a8f); box-shadow: 0 10px 22px -14px #2f3dff; }
+.dl-g-kwanza .dl-btn:hover { box-shadow: 0 16px 30px -14px #2f3dff; }
+.dl-btn.disabled { background: #eef1f6; color: #98a2b3; box-shadow: none; cursor: default; pointer-events: none; }
+.dl-btn.disabled::before { display: none; }
 
-.dl-hash { margin: 12px 0 0; font-size: 11px; color: #98a2b3; text-align: center; }
+.dl-hash { margin: 10px 0 0; font-size: 11px; color: #98a2b3; text-align: center; }
 .dl-hash code { font-family: ui-monospace, "SF Mono", Menlo, monospace; color: #667085; }
 
-.dl-foot { text-align: center; color: #8a94a6; font-size: 13px; margin: 36px auto 0; max-width: 520px; }
+@media (prefers-reduced-motion: reduce) {
+  .dl-btn, .dl-btn::before, .dl-btn .dl-arrow { transition: none; }
+  .dl-btn:hover { transform: none; }
+}
 
 /* Botão "Baixar app" na barra de topo — distinto sem gritar. */
 .lp-nav .dl-nav-btn {
@@ -85,41 +92,8 @@
 .lp-nav .dl-nav-btn:hover { background: color-mix(in srgb, var(--lp-primary) 26%, transparent); }
 .lp-nav .dl-nav-btn svg { width: 15px; height: 15px; }
 
-@media (max-width: 900px) {
-  .dl-section .dl-grid { grid-template-columns: 1fr; max-width: 420px; margin-inline: auto; }
+@media (max-width: 1100px) { .dl-section .dl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .dl-section .dl-grid, .dl-g-kwanza .dl-grid { grid-template-columns: 1fr; max-width: 420px; margin-inline: auto; }
+  .dl-group-h { max-width: 420px; margin-inline: auto; }
 }
-
-/* ══ Baixar aplicativo — redesenho profissional ══ */
-.dl-trust { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 22px; margin: 0 0 30px; }
-.dl-trust span { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: #3b4a63; }
-.dl-trust svg { color: #16a34a; }
-.dl-section .dl-grid { gap: 22px; align-items: stretch; }
-.dl-card { border-radius: 22px; padding: 26px; gap: 0; border: 1px solid #e4e9f2; box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 12px 32px -18px rgba(16,24,40,.18); }
-.dl-card:hover { box-shadow: 0 26px 56px -24px rgba(16,24,40,.28); }
-.dl-head { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; position: relative; }
-.dl-ht { min-width: 0; flex: 1; }
-.dl-card .dl-icon { width: 64px; height: 64px; border-radius: 18px; margin: 0; flex: none; color: #fff; box-shadow: 0 14px 26px -14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.25); }
-.dl-windows .dl-icon { background: linear-gradient(145deg, #2ab4ff, #0067c0); }
-.dl-android .dl-icon { background: linear-gradient(145deg, #4ee58f, #1fa463); }
-.dl-android-loja .dl-icon { background: none; overflow: hidden; padding: 0; }
-.dl-ios .dl-icon { background: linear-gradient(145deg, #3a3a42, #0b0b0f); }
-.dl-card h3 { margin: 0; font-size: 21px; letter-spacing: -.01em; }
-.dl-card .dl-tag { margin: 3px 0 0; font-size: 13.5px; }
-.dl-badge { position: absolute; top: -6px; right: -6px; font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 99px; color: #0f5132; background: #d1f5df; border: 1px solid #a7e8c3; }
-.dl-badge.soon { color: #7a5200; background: #fff0c9; border-color: #f6d98a; }
-.dl-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-.dl-facts > div { padding: 12px 14px; border-radius: 14px; background: #f5f7fb; border: 1px solid #edf0f6; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.dl-facts > .full { grid-column: 1 / -1; }
-.dl-facts span { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: #8a94a6; }
-.dl-facts b { font-size: 14px; color: #1a2640; font-weight: 700; }
-.dl-card .dl-btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 15px 18px; border-radius: 14px; background: linear-gradient(135deg, var(--lp-primary), color-mix(in srgb, var(--lp-primary) 62%, #7c3aed)); box-shadow: 0 14px 26px -14px var(--lp-primary); }
-.dl-card .dl-btn.disabled { background: #eef1f6; box-shadow: none; }
-.dl-card.soon { opacity: 1; }
-.dl-card.soon .dl-icon { filter: saturate(.7); }
-.dl-changelog summary::before { content: none; }
-.dl-changelog summary { display: inline-flex; align-items: center; gap: 6px; }
-.dl-changelog summary::after { content: '▾'; font-size: 11px; transition: transform .2s; } .dl-changelog[open] summary::after { transform: rotate(180deg); }
-@media (max-width: 900px) { .dl-section .dl-grid { max-width: 460px; } }
-/* 4 apps (Windows, Android, LPS Loja, iPhone): 2×2 em ecrãs médios, 4 em largos */
-@media (min-width: 901px) { .dl-section .dl-grid { grid-template-columns: repeat(2, 1fr); max-width: 980px; margin-inline: auto; } }
-@media (min-width: 1360px) { .dl-section .dl-grid { grid-template-columns: repeat(4, 1fr); max-width: none; } }

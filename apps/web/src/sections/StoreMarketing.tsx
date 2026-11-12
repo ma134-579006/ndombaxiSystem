@@ -34,7 +34,7 @@ export function CouponsCard() {
   };
 
   return (
-    <div className="card">
+    <div className="card sm-card">
       <div className="row" style={{ alignItems: 'center' }}>
         <h3 style={{ margin: 0, flex: 1 }}>Cupões da loja online</h3>
         <button className="btn sm" onClick={() => setCreating(true)}><IconPlus size={15} /> Novo cupão</button>
@@ -146,7 +146,7 @@ export function ReviewsCard() {
     await load();
   };
   return (
-    <div className="card">
+    <div className="card sm-card">
       <h3 style={{ marginTop: 0 }}>Avaliações dos produtos <span className="muted" style={{ fontWeight: 500 }}>({rows.length})</span></h3>
       {error ? <div className="banner danger">{error}</div> : null}
       {loading ? <div className="loading">A carregar…</div> : rows.length === 0 ? (
@@ -201,7 +201,7 @@ export function MembersCard() {
   };
 
   return (
-    <div className="card">
+    <div className="card sm-card">
       <div className="row" style={{ alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, flex: 1 }}>Associados da loja online</h3>
         <select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} aria-label="Estado">
@@ -266,7 +266,7 @@ export function BannersCard() {
   };
 
   return (
-    <div className="card">
+    <div className="card sm-card">
       <div className="row" style={{ alignItems: 'center' }}>
         <h3 style={{ margin: 0, flex: 1 }}>Anúncios da loja de associados</h3>
         <button className="btn sm" onClick={() => setEditing('new')}><IconPlus size={15} /> Novo anúncio</button>
@@ -386,7 +386,7 @@ export function AffiliatesCard() {
   };
 
   return (
-    <div className="card">
+    <div className="card sm-card">
       <div className="row" style={{ alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, flex: 1 }}>Programa de associados</h3>
         <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>

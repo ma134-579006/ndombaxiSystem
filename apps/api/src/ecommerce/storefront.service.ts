@@ -257,7 +257,7 @@ export class StorefrontService {
 
   /** Cria uma encomenda online em estado PENDING (sem emitir factura ainda). */
   /** `couponEmail`: email verificado da sessão do cliente (obrigatório para usar cupão). */
-  async checkout(schema: string, dto: CheckoutDto, couponEmail?: string | null): Promise<{ id: string; orderNumber: string; grossTotal: number; couponDiscount?: number }> {
+  async checkout(schema: string, dto: CheckoutDto, couponEmail?: string | null, markups?: Record<string, number>): Promise<{ id: string; orderNumber: string; grossTotal: number; couponDiscount?: number }> {
     // Linhas repetidas do mesmo produto juntam-se numa só: senão cada uma era
     // validada isoladamente contra o stock livre e, somadas, excediam-no.
     const merged = new Map<string, CheckoutDto['lines'][number]>();
@@ -328,10 +328,11 @@ export class StorefrontService {
           productCode: l.productCode,
           description: p.name,
           quantity: l.quantity,
-          unitPrice: Number(p.unit_price),
+          // Preço próprio do associado (LPS Kwanza), calculado no servidor a partir da afiliação aprovada.
+          unitPrice: round2(Number(p.unit_price) * (1 + (markups?.[l.productCode] ?? 0) / 100)),
           ivaCode: p.iva_code,
           ...(() => {
-            const gross = round2(Number(p.unit_price) * (1 + resolveRate(p.iva_code) / 100));
+            const gross = round2(Number(p.unit_price) * (1 + (markups?.[l.productCode] ?? 0) / 100) * (1 + resolveRate(p.iva_code) / 100));
             const bp = bestPromo(promos, p.id, catOf.get(p.id) ?? null, gross);
             return bp ? { discountRate: bp.rate } : {};
           })(),

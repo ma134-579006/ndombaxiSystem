@@ -671,6 +671,12 @@ model KwanzaAffiliation {
   commissionPct Decimal? @db.Decimal(5, 2) // % negociada só para este associado
   markupPct     Decimal? @db.Decimal(5, 2) // preço próprio do associado (acima do base)
   note          String?
+  /// Publicação do associado no marketplace: o cliente normal só vê produtos publicados por um associado.
+  published     Boolean   @default(false)
+  postImages    Json      @default("[]") // imagens publicitárias (data: ou https:)
+  postVideo     String? // ligação https do vídeo (YouTube, TikTok, Drive…)
+  postCaption   String?
+  publishedAt   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -746,5 +752,37 @@ model KwanzaPasswordReset {
 
   @@index([associateId])
   @@map("kwanza_password_resets")
+  @@schema("nexus_public")
+}
+
+/// LPS Kwanza: conversa entre um associado e uma empresa.
+model KwanzaMessage {
+  id          String    @id @default(uuid()) @db.Uuid
+  associateId String    @db.Uuid
+  companyId   String    @db.Uuid
+  sender      String // ASSOCIATE | COMPANY
+  senderName  String
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([associateId, companyId])
+  @@map("kwanza_messages")
+  @@schema("nexus_public")
+}
+
+/// LPS Kwanza: notificações do associado (afiliação aprovada, venda, saque pago, mensagem).
+model KwanzaNotification {
+  id          String    @id @default(uuid()) @db.Uuid
+  associateId String    @db.Uuid
+  kind        String
+  title       String
+  body        String?
+  link        String?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([associateId, createdAt])
+  @@map("kwanza_notifications")
   @@schema("nexus_public")
 }

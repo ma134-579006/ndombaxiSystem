@@ -82,6 +82,7 @@ const Stores = lazyRetry(() => import('./sections/Stores').then((m) => ({ defaul
 const Registers = lazyRetry(() => import('./sections/Registers').then((m) => ({ default: m.Registers })));
 const Subscription = lazyRetry(() => import('./sections/Subscription').then((m) => ({ default: m.Subscription })));
 const Storefront = lazyRetry(() => import('./sections/Storefront').then((m) => ({ default: m.Storefront })));
+const Kwanza = lazyRetry(() => import('./sections/Kwanza').then((m) => ({ default: m.Kwanza })));
 const PlansAdmin = lazyRetry(() => import('./sections/PlansAdmin').then((m) => ({ default: m.PlansAdmin })));
 const SubsAdmin = lazyRetry(() => import('./sections/SubsAdmin').then((m) => ({ default: m.SubsAdmin })));
 const PlatformDashboard = lazyRetry(() => import('./sections/PlatformDashboard').then((m) => ({ default: m.PlatformDashboard })));
@@ -123,7 +124,8 @@ export const TENANT_NAV: NavItem[] = [
     key: 'stores-group', label: 'Lojas', icon: IconStore, children: [
       { key: 'stores', label: 'Criar lojas', icon: IconStore, min: 2 },
       { key: 'registers', label: 'Caixas', icon: IconCashRegister, min: 3 },
-      { key: 'store', label: 'Loja & Marca', icon: IconTag, min: 1 },
+      { key: 'store', label: 'Loja online', icon: IconTag, min: 1 },
+      { key: 'kwanza', label: 'LPS Kwanza', icon: IconUsers },
       { key: 'orders', label: 'Encomendas', icon: IconFolder, min: 4 },
       { key: 'commissions', label: 'Comissões', icon: IconPercent, min: 2 },
     ],
@@ -265,7 +267,7 @@ function TenantPanel() {
   }, [section]); // recarrega ao voltar de Configurações (reflete o toggle na hora)
   const nav = React.useMemo(() => {
     // Loja Online desligada → remove "Loja & Marca" (montra) e "Encomendas".
-    const ONLINE_KEYS = new Set(['store', 'orders']);
+    const ONLINE_KEYS = new Set(['store', 'kwanza', 'orders']);
     const gateStore = (items: NavItem[]): NavItem[] => storeEnabled ? items : items
       .map((it) => it.children ? { ...it, children: it.children.filter((c) => !ONLINE_KEYS.has(c.key)) } : it)
       .filter((it) => !ONLINE_KEYS.has(it.key) && !(it.children && it.children.length === 0));
@@ -452,6 +454,7 @@ function TenantPanel() {
       {section === 'payroll' ? <Payroll /> : null}
       {section === 'leave' ? <Leave /> : null}
       {section === 'store' ? <Storefront /> : null}
+      {section === 'kwanza' ? <Kwanza /> : null}
       {section === 'settings' ? <Settings /> : null}
       {section === 'profile' ? <Profile /> : null}
       {/* O mesmo assistente IA da landing, disponível dentro do painel. */}

@@ -50,3 +50,16 @@ export const INITIAL_STORE_CODE =
  *  Tem de terminar em `.apps.googleusercontent.com` para o botão aparecer. */
 export const GOOGLE_CLIENT_ID = ((import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)
   ?? '522636462932-m67fvuutei11ug355aion1sh00h1k2br.apps.googleusercontent.com').trim();
+
+/** Endereço público da loja (ligações partilhadas). Nas apps a página corre em file:// ou https://localhost. */
+export const PUBLIC_ORIGIN: string = ((import.meta.env.VITE_PUBLIC_ORIGIN as string | undefined)?.replace(/\/$/, ''))
+  || (typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && (import.meta.env.DEV || !/^(localhost|127\.)/.test(location.hostname)) ? location.origin : 'https://loja.ndombaxisystem.com');
+
+/** App LPS Kwanza: a app Android (build próprio) ou a janela Windows (?app=kwanza&appOs=windows&appVersion=x.y.z). */
+const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
+export const KWANZA_APP: { os: 'android' | 'windows'; version: string } | null =
+  import.meta.env.VITE_KWANZA_APP === '1'
+    ? { os: 'android', version: (import.meta.env.VITE_APP_VERSION as string | undefined) ?? '' }
+    : Q.get('app') === 'kwanza' && /^(windows|android)$/.test(Q.get('appOs') ?? '') && /^\d+\.\d+\.\d+$/.test(Q.get('appVersion') ?? '')
+      ? { os: Q.get('appOs') as 'android' | 'windows', version: Q.get('appVersion') as string }
+      : null;

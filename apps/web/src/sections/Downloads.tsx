@@ -33,6 +33,14 @@ const PLATFORMS: { id: AppPlatform; label: string; hint: string; icon: React.Rea
     icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1.5-5h15L21 9M3 9v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9M3 9h18M9 13h6"/></svg>,
   },
   {
+    id: 'android-kwanza', label: 'LPS Kwanza (Android)', hint: 'APK da app LPS Kwanza para os associados (publicada automaticamente pelo CI)',
+    icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6M10 21h.01M18 21h.01"/></svg>,
+  },
+  {
+    id: 'windows-kwanza', label: 'LPS Kwanza (Windows)', hint: 'Instalador da app LPS Kwanza para Windows (publicado automaticamente pelo CI)',
+    icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6M10 21h.01M18 21h.01"/></svg>,
+  },
+  {
     id: 'ios', label: 'iPhone (iOS)', hint: 'Ficheiro .ipa ou link da App Store (iOS 13+)',
     icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 3c.1 1.2-.4 2.3-1.1 3.1-.8.9-2 1.5-3 1.4-.1-1.1.4-2.3 1.1-3 .8-.9 2.1-1.5 3-1.5M18.7 17c-.5 1.2-.8 1.7-1.4 2.7-1 1.5-2.3 3.3-4 3.3-1.5 0-1.9-1-4-1-2 0-2.5 1-4 1-1.6 0-2.9-1.7-3.8-3.1C-.7 15.6-.2 9 3.8 8.2c1.2-.2 2 .5 3.1.5 1 0 1.7-.7 3.1-.7 1.3 0 2.4.6 3.1.9-2.8 1.6-2.3 5.6.5 6.3z"/></svg>,
   },

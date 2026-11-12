@@ -85,6 +85,7 @@ import type {
   StoreCoupon,
   StoreMember,
   StoreBanner,
+  AdminNote,
   AffiliateProductRow,
   AffiliateAssociateRow,
   AffiliateWithdrawalRow,
@@ -918,7 +919,8 @@ export const api = {
       request<{ produced: number; unitCost: number; costPrice: number; stockAfter: number }>('POST', '/restaurant/production', dto),
   },
   orders: {
-    list: () => request<WebOrder[]>('GET', '/ecommerce/orders'),
+    list: (hidden = false) => request<WebOrder[]>('GET', `/ecommerce/orders${hidden ? '?hidden=1' : ''}`),
+    bulk: (ids: string[], action: 'seen' | 'unseen' | 'hide' | 'restore') => request<{ updated: number; skipped: number }>('POST', '/ecommerce/orders/bulk', { ids, action }),
     pendingCount: () => request<{ count: number }>('GET', '/ecommerce/orders/count/pending'),
     get: (id: string) => request<WebOrderDetail>('GET', `/ecommerce/orders/${id}`),
     pay: (id: string) =>
@@ -969,6 +971,17 @@ export const api = {
     withdrawals: () => request<unknown[]>('GET', '/ecommerce/kwanza/withdrawals'),
     pay: (id: string, note?: string, proofUrl?: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/pay`, { note, proofUrl }),
     reject: (id: string, note?: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/reject`, { note }),
+    chats: () => request<unknown[]>('GET', '/ecommerce/kwanza/chats'),
+    chat: (associateId: string) => request<unknown[]>('GET', `/ecommerce/kwanza/chats/${associateId}`),
+    send: (associateId: string, body: string) => request<unknown[]>('POST', `/ecommerce/kwanza/chats/${associateId}`, { body }),
+  },
+  adminNotes: {
+    list: () => request<{ unread: number; items: AdminNote[] }>('GET', '/notifications'),
+    read: (ids: string[]) => request<{ ok: true }>('POST', '/notifications/read', { ids }, { silent: true }),
+    unread: (ids: string[]) => request<{ ok: true }>('POST', '/notifications/unread', { ids }, { silent: true }),
+    readAll: () => request<{ ok: true }>('POST', '/notifications/read-all', undefined, { silent: true }),
+    remove: (ids: string[]) => request<{ ok: true }>('POST', '/notifications/delete', { ids }),
+    removeAll: () => request<{ ok: true }>('DELETE', '/notifications/all'),
   },
   affiliates: {
     products: (q?: string) => request<AffiliateProductRow[]>('GET', `/ecommerce/affiliates/products${q ? `?q=${encodeURIComponent(q)}` : ''}`),
@@ -999,6 +1012,9 @@ export const api = {
     hideReview: (id: string, hidden: boolean) => request<{ id: string; hidden: boolean }>('PATCH', `/ecommerce/reviews/${id}`, { hidden }),
   },
   alerts: () => request<OpsAlert[]>('GET', '/alerts'),
+  alertsDismiss: (keys: string[]) => request<{ dismissed: number }>('POST', '/alerts/dismiss', { keys }),
+  alertsDismissAll: () => request<{ dismissed: number }>('POST', '/alerts/dismiss-all'),
+  alertsRestore: () => request<{ ok: true }>('POST', '/alerts/restore'),
   // ── Visão geral do gestor (dashboard em tempo real) ────────
   dashboard: {
     salesToday: (storeId?: string) => request<DashSalesSummary>('GET', `/dashboard/sales/today${qs({ storeId })}`),

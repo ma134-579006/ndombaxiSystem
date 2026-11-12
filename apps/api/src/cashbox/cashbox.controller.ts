@@ -1,3 +1,4 @@
+import { ArrayMaxSize, IsArray, IsString } from 'class-validator';
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
@@ -65,6 +66,8 @@ export class CashboxController {
   }
 }
 
+class DismissAlertsDto { @IsArray() @ArrayMaxSize(200) @IsString({ each: true }) keys!: string[]; }
+
 /** Centro de alertas do gestor (stock baixo, quebras, turnos por fechar). */
 @ApiTags('alerts')
 @Controller('alerts')
@@ -79,6 +82,24 @@ export class AlertsController {
   @ApiOperation({ summary: 'Alertas operacionais (stock/caixa)' })
   list() {
     return this.alerts.list(this.ctx.requireTenantSchema());
+  }
+
+  @Post('dismiss')
+  @ApiOperation({ summary: 'Elimina alertas da lista (pelas chaves)' })
+  dismiss(@Body() dto: DismissAlertsDto) {
+    return this.alerts.dismiss(this.ctx.requireTenantSchema(), dto.keys);
+  }
+
+  @Post('dismiss-all')
+  @ApiOperation({ summary: 'Elimina todos os alertas atuais' })
+  dismissAll() {
+    return this.alerts.dismiss(this.ctx.requireTenantSchema(), 'all');
+  }
+
+  @Post('restore')
+  @ApiOperation({ summary: 'Volta a mostrar os alertas eliminados' })
+  restore() {
+    return this.alerts.restoreAll(this.ctx.requireTenantSchema());
   }
 }
 
