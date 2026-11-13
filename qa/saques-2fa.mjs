@@ -31,7 +31,7 @@ const near = (a, b) => Math.abs(a - b) < 0.02;
 /** Último código de teste escrito no registo para este destino e finalidade (depois de `since`). */
 async function code(target, purpose, since) {
   for (let i = 0; i < 40; i++) {
-    const txt = fs.readFileSync(LOG, 'utf8').slice(since);
+    const txt = fs.readFileSync(LOG).subarray(since).toString('utf8'); // posição em bytes (o registo tem acentos)
     const re = new RegExp(`\\[2FA-DEV\\] ${purpose} (EMAIL|WHATSAPP) ${target.replace(/[.+]/g, '\\$&')} código (\\d{6})`, 'g');
     const all = [...txt.matchAll(re)];
     if (all.length) return all[all.length - 1][2];
@@ -57,8 +57,10 @@ const mark = () => fs.statSync(LOG).size;
 const login = async (email, password = S.pass, extra = {}) => call('POST', '/auth/login', { body: { email, password, ...extra } });
 const tok = (r) => r.body?.tokens?.accessToken ?? r.body?.accessToken;
 const co = { k: 'E', code: 'loja-welwitschia-qa' };
-co.adm = tok(await login(S.E.email));
 co.db = await db(S.E.schema);
+// Começa limpo: códigos de corridas anteriores não contam para o limite por hora desta.
+await co.db.query(`DELETE FROM nexus_public.two_factor_codes WHERE subject LIKE $1`, [`TENANT:${S.E.schema}:%`]);
+co.adm = tok(await login(S.E.email));
 const base = 20 + (Number(tag) % 30);
 co.prod = S.E.products[base];
 await ok('POST', '/erp/stock/entry', { token: co.adm, body: { productId: co.prod.id, warehouseId: S.E.storeId, quantity: 200, unitCost: co.prod.cost } });
@@ -286,6 +288,14 @@ const back1 = await login(S.E.email);
 const back = await login(S.E.email, S.pass, { twoFaToken: await code(email, 'LOGIN', m0) });
 R.check('2E-3', 'empresa: recuperar a senha pelo link pede também o código da 2FA', rs1.status === 401 && rs1.body.error === 'TwoFaRequired' && rs2.status === 200 && back1.status === 401 && back.status === 200, `${rs1.status}/${rs2.status}/${back.status}`);
 co.adm = tok(back);
+{
+  // Limite de 6 códigos por hora: ao 7.º, a resposta diz que pediu demasiados (nunca finge que enviou).
+  const subj = `TENANT:${S.E.schema}:${uid}`;
+  await co.db.query(`INSERT INTO nexus_public.two_factor_codes (id, subject, purpose, channel, target, "codeHash", attempts, "expiresAt", "usedAt", "createdAt") SELECT gen_random_uuid(), $1, 'LOGIN', 'EMAIL', $2, 'x', 0, now(), now(), now() FROM generate_series(1, 6)`, [subj, email]);
+  const lim = await login(S.E.email);
+  await co.db.query(`DELETE FROM nexus_public.two_factor_codes WHERE subject = $1 AND "codeHash" = 'x'`, [subj]);
+  R.check('2E-5', 'limite por hora: ao exceder, diz "pediu demasiados códigos" em vez de fingir que enviou', lim.status === 429 && lim.body.error === 'TwoFaLimit', `${lim.status} ${lim.body?.error}`);
+}
 m0 = mark();
 await ok('POST', '/auth/two-factor/disable/request', { token: co.adm });
 const off = await call('POST', '/auth/two-factor/disable', { token: co.adm, body: { code: await code(email, 'DISABLE', m0) } });

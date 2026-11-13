@@ -136,7 +136,7 @@ export class TwoFactorService {
     const recent = await this.prisma.twoFactorCode.findMany({ where: { subject, purpose, createdAt: { gt: new Date(Date.now() - 3_600_000) } }, orderBy: { createdAt: 'desc' }, select: { createdAt: true, usedAt: true } });
     // 30 s entre envios só enquanto o último código ainda está por usar (depois de usado, pode pedir outro já).
     if (recent[0] && !recent[0].usedAt && Date.now() - recent[0].createdAt.getTime() < 30_000) throw new HttpException({ message: 'Aguarde uns segundos antes de pedir outro código.', error: 'TwoFaWait' }, HttpStatus.TOO_MANY_REQUESTS);
-    if (recent.length >= 6) throw new HttpException({ message: 'Pediu demasiados códigos. Tente de novo dentro de uma hora.', error: 'TwoFaWait' }, HttpStatus.TOO_MANY_REQUESTS);
+    if (recent.length >= 6) throw new HttpException({ message: 'Pediu demasiados códigos. Tente de novo dentro de uma hora.', error: 'TwoFaLimit' }, HttpStatus.TOO_MANY_REQUESTS);
     const minutes = (await this.config()).codeMinutes;
     const code = String(randomInt(100000, 1000000));
     await this.prisma.twoFactorCode.updateMany({ where: { subject, purpose, usedAt: null }, data: { usedAt: new Date() } });
@@ -178,7 +178,7 @@ export class TwoFactorService {
       let sent: { channel: TwoFaMethod; to: string };
       try { sent = await this.send(subject, purpose, method, target); } catch (e) {
         // Pedido repetido dentro dos 30 s: o código anterior continua válido — volta a pedir o campo.
-        if (e instanceof HttpException && e.getStatus() === HttpStatus.TOO_MANY_REQUESTS && !resend) sent = { channel: method, to: method === 'WHATSAPP' ? maskPhone(target) : maskEmail(target) };
+        if (e instanceof HttpException && (e.getResponse() as { error?: string })?.error === 'TwoFaWait' && !resend) sent = { channel: method, to: method === 'WHATSAPP' ? maskPhone(target) : maskEmail(target) };
         else throw e;
       }
       throw new UnauthorizedException({ message: `Enviámos um código de verificação ${sent.channel === 'WHATSAPP' ? 'por WhatsApp' : 'por e-mail'} para ${sent.to}.`, error: 'TwoFaRequired', channel: sent.channel, to: sent.to });
