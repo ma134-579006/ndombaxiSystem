@@ -321,6 +321,30 @@ function AdCarousel({ ads, className = '', interval = 4500 }: { ads: Ad[]; class
 }
 
 /* ───────────── início ───────────── */
+/** Categorias do marketplace sempre visíveis (como no Kikolo); com produtos, usam a foto de um deles. */
+const BASE_CATS: Array<[string, string, string]> = [
+  ['Alimentos e Bebidas', '#ffe9d6', '🍎'], ['Casa e Cozinha', '#e6f0ff', '🏠'], ['Electrónicos', '#ede7ff', '📱'], ['Beleza e Cuidado Pessoal', '#ffe4ef', '💄'],
+  ['Moda e Calçado', '#fff3d6', '👟'], ['Bebés', '#e3f7ff', '🍼'], ['Saúde', '#e4f8ec', '💊'], ['Desporto', '#e8f5e9', '⚽'],
+  ['Papelaria', '#fff8e1', '✏️'], ['Ferramentas', '#eceff1', '🔧'], ['Animais', '#fbe9e7', '🐾'], ['Acessórios para Veículos', '#e8eaf6', '🚗'],
+];
+/** Ofertas do dia: a seleção muda à meia-noite (a contagem é verdadeira). */
+function useDayLeft(): [string, string, string] {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, []);
+  const end = new Date(now); end.setHours(24, 0, 0, 0);
+  const s = Math.max(0, Math.floor((end.getTime() - now) / 1000));
+  const p = (n: number) => String(n).padStart(2, '0');
+  return [p(Math.floor(s / 3600)), p(Math.floor((s % 3600) / 60)), p(s % 60)];
+}
+const daySeed = () => { const d = new Date(); return d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate(); };
+function dayShuffle<T>(arr: T[]): T[] {
+  let x = daySeed(); const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { x = (x * 9301 + 49297) % 233280; const j = Math.floor((x / 233280) * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+/** Anúncios de origem do LPS Kwanza (até as empresas publicarem os seus). */
+const DEFAULT_MAIN = ['h1', 'h2', 'h3', 'h4'];
+const DEFAULT_SIDE = ['s1', 's2'];
 function Home({ products, cats, ads, adGo, go, card, buyer }: {
   products: MP[] | null; cats: Array<[string, { n: number; img: MP }]>; ads: KBanner[]; adGo(b: KBanner): void; go(r: Route): void;
   card(p: CatalogProduct, hot?: boolean): React.ReactNode; buyer: boolean;
@@ -334,32 +358,40 @@ function Home({ products, cats, ads, adGo, go, card, buyer }: {
   const [shown, sentinel] = useInfinite(list.length, 24, list.length);
   useReveal(`${list.length}-${shown}`);
   const withImg = ads.filter((b) => b.image);
-  const heroAds: Ad[] = useMemo(() => {
-    if (withImg.length) return withImg.slice(0, 8).map((b) => ({ id: b.id, image: bannerSrc(b), title: b.title, onClick: () => adGo(b) }));
-    // Sem anúncios das empresas: slides gerados a partir dos produtos.
-    const s: Ad[] = [];
-    if (best[0]) s.push(buyer
-      ? { id: 'b', image: null, title: 'Compre aos nossos associados', subtitle: `${list.length} produtos com entrega pela empresa`, cta: 'Ver produtos', onClick: () => go({ n: 'search', s: { q: '' } }) }
-      : { id: 'b', image: null, title: 'Ganhe a vender', subtitle: `Comissões até ${kz(com(best[0].listing))} por venda`, cta: 'Ver produtos', onClick: () => go({ n: 'market' }) });
-    for (const [code, c] of companies.slice(0, 4)) s.push({ id: `c-${code}`, image: null, title: c.name, subtitle: `${c.n} produtos`, cta: 'Ver', onClick: () => go({ n: 'search', s: { q: c.name } }) });
-    return s;
-  }, [withImg, best, companies, buyer, list.length, go, adGo]);
+  // Anúncios das empresas primeiro; os de origem do LPS Kwanza completam o carrossel e os laterais.
+  const defGo: Record<string, () => void> = {
+    h1: () => go({ n: 'search', s: { q: '' } }), h2: () => go({ n: 'search', s: { q: '' } }), h3: () => go(buyer ? { n: 'register' } : { n: 'market' }), h4: () => go({ n: 'claims' }),
+    s1: () => go({ n: 'search', s: { q: '' } }), s2: () => go({ n: 'search', s: { q: '' } }),
+  };
+  const def = (id: string): Ad => ({ id: `def-${id}`, image: `/kwanza-ads/${id}.svg`, title: 'LPS Kwanza', onClick: defGo[id] });
+  const companyAds: Ad[] = withImg.map((b) => ({ id: b.id, image: bannerSrc(b), title: b.title, onClick: () => adGo(b) }));
+  const heroAds: Ad[] = [...companyAds.slice(0, 6), ...DEFAULT_MAIN.map(def)].slice(0, Math.max(4, Math.min(8, companyAds.length + 2)));
+  const sideAds: Ad[] = [...companyAds.slice(6, 8), ...DEFAULT_SIDE.map(def)].slice(0, 2);
   const mid = withImg.slice(8, 10);
+  const dayItems = useMemo(() => dayShuffle(list).slice(0, 18), [list]);
+  const [hh, mm, ss] = useDayLeft();
+  const circles: Array<[string, React.ReactNode]> = (cats.length >= 6 ? cats.slice(0, 12).map(([name, c]) => [name, <Pic p={c.img} />] as [string, React.ReactNode])
+    : [...cats.map(([name, c]) => [name, <Pic p={c.img} />] as [string, React.ReactNode]), ...BASE_CATS.filter(([n]) => !cats.some(([c]) => c === n)).map(([n, bg, e]) => [n, <i className="kk-emoji" style={{ background: bg }}>{e}</i>] as [string, React.ReactNode])].slice(0, 12));
   if (products === null) return <KLoader overlay={false} />;
   if (!list.length) return <div className="kk-page"><div className="kk-wrap kk-empty">Ainda sem produtos no marketplace</div></div>;
-  const shelf = promos.length >= 4 ? promos : best;
+  const shelf = promos.length >= 4 ? promos : dayItems;
   return (
     <>
-      <section className="kk-hero"><AdCarousel ads={heroAds} /></section>
-      {cats.length ? (
-        <section className="kk-band"><div className="kk-wrap"><div className="kk-circles">
-          {cats.slice(0, 14).map(([name, c]) => <button key={name} className="kk-circle" onClick={() => go({ n: 'search', s: { q: '', cat: name } })}><span><Pic p={c.img} /></span><small>{name}</small></button>)}
-        </div></div></section>
-      ) : null}
+      {/* Telemóvel: o anúncio sobe por baixo do cabeçalho. Computador: carrossel + 2 laterais numa faixa branca. */}
+      <section className="kk-hero kk-hero-m"><AdCarousel ads={heroAds} /></section>
+      <section className="kk-band">
+        <div className="kk-wrap">
+          <div className="kk-herogrid"><AdCarousel ads={heroAds} className="kk-hg-main" /><div className="kk-hg-side">{sideAds.map((a) => <button key={a.id} className="kk-hg-ad" onClick={a.onClick} aria-label={a.title}><img src={a.image!} alt="" /></button>)}</div></div>
+          <div className="kk-circles">
+            {circles.map(([name, pic]) => <button key={name} className="kk-circle" onClick={() => go({ n: 'search', s: { q: '', cat: cats.some(([c]) => c === name) ? name : undefined, ...(cats.some(([c]) => c === name) ? {} : { q: name }) } })}><span>{pic}</span><small>{name}</small></button>)}
+          </div>
+        </div>
+      </section>
       <div className="kk-wrap kk-stack">
         <section className="kk-flash kw-reveal">
-          <header className="kk-flash-h"><h2><I d={P.bolt} size={20} /> {promos.length >= 4 ? 'OFERTAS' : buyer ? 'NOVIDADES' : 'MAIS COMISSÃO'}</h2>
-            <button onClick={() => go(promos.length >= 4 ? { n: 'search', s: { q: '', promo: true } } : buyer ? { n: 'search', s: { q: '' } } : { n: 'market' })}>Ver tudo <I d={P.next} size={14} /></button></header>
+          <header className="kk-flash-h"><h2><I d={P.bolt} size={20} /> {promos.length >= 4 ? 'OFERTA RELÂMPAGO' : 'OFERTAS DO DIA'}</h2>
+            <span className="kk-flash-r">{promos.length >= 4 ? null : <span className="kk-count"><small>Termina em</small><b>{hh}</b>:<b>{mm}</b>:<b>{ss}</b></span>}
+              <button onClick={() => go(promos.length >= 4 ? { n: 'search', s: { q: '', promo: true } } : { n: 'search', s: { q: '' } })}>Ver tudo <I d={P.next} size={14} /></button></span></header>
           <KShelf items={shelf} render={(p) => card(p)} />
         </section>
         {mid.length ? <div className={`kk-mid${mid.length > 1 ? ' two' : ''}`}>{mid.map((b) => <button key={b.id} className="kk-mid-ad" onClick={() => adGo(b)} aria-label={b.title}><img src={bannerSrc(b)!} alt="" loading="lazy" /></button>)}</div> : null}

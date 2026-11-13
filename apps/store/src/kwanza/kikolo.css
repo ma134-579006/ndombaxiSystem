@@ -479,10 +479,46 @@
   .kk-circle { width: 20%; }
   .kk-circle:nth-child(n+11) { display: none; }
   .kk-circles { flex-wrap: wrap; justify-content: flex-start; gap: 14px 0; overflow: visible; }
-  .kk-ad { min-height: calc(var(--kk-head, 110px) + 150px); }
+
   .kk-steps { gap: 8px; }
 }
 @media (max-width: 420px) { .kk-hide-xs { display: none; } .kk-circle small { font-size: 12px; } .kk-ob, .kk-sb { font-size: 13.5px; } }
 .kk .kw-seg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .kk .kw-seg2 button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; border: 1px solid #dfe2e8; border-radius: 4px; background: #fff; color: #555; font-size: 14px; }
 .kk .kw-seg2 button.on { border-color: var(--kk-p); color: var(--kk-p); box-shadow: inset 0 0 0 1px var(--kk-p); background: #f7f8ff; font-weight: 700; }
+
+/* ───── início: telemóvel com o anúncio por baixo do cabeçalho; computador com grelha ───── */
+.kk-herogrid { display: none; }
+@media (min-width: 1024px) {
+  .kk-hero-m { display: none; }
+  .kk-head.clear { background: var(--kk-grad); box-shadow: 0 1px 6px rgba(0, 0, 0, .12); }
+  .kk-main.under { margin-top: 0; }
+  .kk-band { padding-top: 16px; }
+  .kk-herogrid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; margin-bottom: 20px; }
+  .kk-hg-main { aspect-ratio: 1366 / 500; }
+  .kk-hg-main .kk-car-track { height: 100%; }
+  .kk-hg-main .kk-ad { height: 100%; aspect-ratio: auto; max-height: none; }
+  .kk-hg-side { display: grid; grid-template-rows: 1fr 1fr; gap: 10px; min-height: 0; height: 100%; }
+  .kk-hg-ad { min-height: 0; position: relative; }
+  .kk-hg-ad img { position: absolute; inset: 0; }
+  .kk-hg-ad { border: 0; padding: 0; overflow: hidden; background: var(--kk-soft); }
+  .kk-hg-ad img { width: 100%; height: 100%; object-fit: cover; display: block; }
+}
+.kk-emoji { width: 100%; height: 100%; display: grid; place-items: center; font-size: 24px; font-style: normal; }
+.kk-cat .kk-emoji { font-size: 30px; }
+.kk-flash-r { display: inline-flex; align-items: center; gap: 16px; }
+.kk-count { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.kk-count small { font-size: 14px; font-weight: 700; margin-right: 6px; }
+.kk-count b { background: #1f2333; color: #fff; border-radius: 4px; min-width: 32px; height: 30px; display: inline-grid; place-items: center; font-size: 15px; }
+@media (max-width: 760px) {
+  .kk-count small { display: none; }
+  .kk-count b { min-width: 28px; height: 26px; font-size: 13px; }
+  .kk-flash-r button { font-size: 0; gap: 0; width: 28px; height: 28px; border-radius: 50%; background: rgba(255, 255, 255, .25); justify-content: center; }
+  .kk-flash-r button svg { width: 16px; height: 16px; }
+  /* pesquisa como no Kikolo em telemóvel: ícone dentro do campo */
+  .kk-search button { background: transparent; color: var(--kk-p); }
+}
+
+@media (max-width: 1023px) { .kk-hero-m { padding-top: var(--kk-head, 110px); background: var(--kk-grad-v); } .kk-hero-m .kk-ad { aspect-ratio: 2 / 1; height: auto; } }
+.kk-stack > *, .kk-pdp .kk-wrap > *, .kk-dash > *, .kk-area-main > * { min-width: 0; }
+@media (max-width: 760px) { .kk-flash-h h2 { font-size: 16px; white-space: nowrap; } .kk-flash-h { padding: 8px 10px; } }
