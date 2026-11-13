@@ -122,9 +122,14 @@ export class AffiliatesService {
   async requestWithdrawal(schema: string, email: string, amount: number, method: string, details: string): Promise<{ ok: true }> {
     const a = round2(amount);
     if (!(a > 0)) throw new BadRequestException('Indique o valor do saque.');
-    const s = await this.summary(schema, email);
-    if (a > s.balance) throw new BadRequestException('O valor é maior do que o saldo disponível.');
+    // Um pedido de cada vez por associado: pedidos simultâneos liam o mesmo saldo e eram
+    // todos aceites. O lock da transação só se solta com o pedido gravado; um pedido em
+    // paralelo não espera (não prende ligações) — é recusado.
     await this.prisma.runInTenant(schema, async (tx) => {
+      const lock = await tx.$queryRaw<{ ok: boolean }[]>(Prisma.sql`SELECT pg_try_advisory_xact_lock(hashtext(${`aff_wd:${schema}:${email.toLowerCase()}`})) AS ok`);
+      if (!lock[0]?.ok) throw new BadRequestException('Já há um pedido de saque a ser processado. Tente de novo dentro de instantes.');
+      const s = await this.summary(schema, email);
+      if (a > s.balance) throw new BadRequestException('O valor é maior do que o saldo disponível.');
       const id = await this.customerId(tx, email);
       await tx.$executeRaw(Prisma.sql`
         INSERT INTO affiliate_withdrawals (customer_id, amount, method, details, status)

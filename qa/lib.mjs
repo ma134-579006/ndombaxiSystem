@@ -1,7 +1,8 @@
 /**
- * QA — utilitários do simulador empresarial (só para ambientes LOCAIS de teste).
- * Recusa-se a correr contra algo que não seja 127.0.0.1/localhost: os cenários
- * criam empresas, vendas e notas de crédito FICTÍCIAS.
+ * QA — utilitários do simulador empresarial (só para ambientes de TESTE).
+ * Recusa-se a correr contra algo que não seja localhost ou, com QA_STAGING=1, um
+ * anfitrião com "staging" no nome: os cenários criam empresas, vendas e notas de
+ * crédito FICTÍCIAS. Produção nunca.
  */
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -12,10 +13,16 @@ export const pg = require('pg');
 
 export const API = process.env.QA_API ?? 'http://127.0.0.1:3901';
 export const DB = process.env.QA_DB ?? 'postgresql://postgres@127.0.0.1:55433/nexus_qa';
+// Staging explícito (QA_STAGING=1): só aceita anfitriões cujo nome diga "staging"
+// (ex.: ndombaxi-api-staging.onrender.com e o serviço Aiven ndombaxi-staging-…).
+// Produção nunca passa nesta verificação: os nomes dela não têm "staging".
+export const STAGING = process.env.QA_STAGING === '1';
 for (const u of [API, DB]) {
   const host = new URL(u).hostname;
-  if (!['127.0.0.1', 'localhost', '::1'].includes(host)) {
-    throw new Error(`QA recusa-se a correr fora de localhost (${host}).`);
+  const local = ['127.0.0.1', 'localhost', '::1'].includes(host);
+  const staging = STAGING && /(^|[.-])staging([.-]|$)/.test(host);
+  if (!local && !staging) {
+    throw new Error(`QA recusa-se a correr fora de localhost${STAGING ? ' ou de um anfitrião "staging"' : ''} (${host}).`);
   }
 }
 
@@ -55,7 +62,10 @@ export function jwtPayload(token) {
 
 /** Ligação directa ao Postgres de teste, com search_path no schema da empresa. */
 export async function db(schema) {
-  const c = new pg.Client({ connectionString: DB });
+  // Aiven (staging): TLS obrigatório; com QA_DB_CA verifica o certificado da CA do projeto.
+  const remote = !['127.0.0.1', 'localhost', '::1'].includes(new URL(DB).hostname);
+  const ssl = remote ? (process.env.QA_DB_CA ? { ca: (await import('node:fs')).readFileSync(process.env.QA_DB_CA, 'utf8') } : { rejectUnauthorized: false }) : undefined;
+  const c = new pg.Client({ connectionString: remote ? DB.replace(/[?&]sslmode=[^&]*/, '') : DB, ssl });
   await c.connect();
   if (schema) await c.query(`SET search_path TO "${schema}"`);
   return c;

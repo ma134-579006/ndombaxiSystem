@@ -31,6 +31,13 @@ export function Affiliates({ code, token, products, cod, bannerImage, tab, onTab
   useEffect(() => {
     api.membersMarket(code, token).then((r) => setMarket(new Map(r.map((x) => [x.productCode, x.percent])))).catch(() => setMarket(new Map()));
     void reload(); void reloadAcc();
+    // Tempo real: vendas, estado das encomendas e saldo voltam a ser lidos sozinhos
+    // (antes só ao abrir a página — o saldo não subia depois da venda/pagamento).
+    const again = () => { if (document.visibilityState === 'visible') void reload(); };
+    const t = window.setInterval(again, 8000);
+    window.addEventListener('focus', again);
+    document.addEventListener('visibilitychange', again);
+    return () => { window.clearInterval(t); window.removeEventListener('focus', again); document.removeEventListener('visibilitychange', again); };
   }, [code, token]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setDrawer(false); window.scrollTo({ top: 0 }); }, [tab]);
 
