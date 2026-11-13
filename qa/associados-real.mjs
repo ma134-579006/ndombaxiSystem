@@ -185,12 +185,12 @@ for (const co of COMPANIES) {
   for (const [j, w] of list.entries()) {
     const a = A.find((x) => w.name === `Associado ${x.i + 1} ${tag}`);
     if (!a) continue;
-    if (j % 4 === 3) { await ok('POST', `${AK}/withdrawals/${w.id}/reject`, { token: co.adm, body: { note: 'Dados da conta incompletos' } }); bump(a, co, 'requested', -Number(w.amount)); rejN++; }
+    if (j % 4 === 3) { await ok('POST', `${AK}/withdrawals/${w.id}/postpone`, { token: co.adm, body: { note: 'Dados da conta por confirmar', until: new Date(Date.now() + 48 * 3600_000).toISOString() } }); rejN++; }
     else { await ok('POST', `${AK}/withdrawals/${w.id}/pay`, { token: co.adm, body: { note: `Transferência ${tag}${j}` } }); bump(a, co, 'requested', -Number(w.amount)); bump(a, co, 'withdrawn', Number(w.amount)); paidN++; }
   }
 }
-R.check('AS-10', `a empresa paga ${paidN} saques e recusa ${rejN}`, paidN > 0 && rejN > 0, `${paidN} pagos, ${rejN} recusados`);
-await checkPanels('AS-11', 'saque pago fica "levantado"; recusado volta ao saldo disponível');
+R.check('AS-10', `a empresa paga ${paidN} saques e adia ${rejN} (não pode recusar)`, paidN > 0 && rejN > 0, `${paidN} pagos, ${rejN} adiados`);
+await checkPanels('AS-11', 'saque pago fica "levantado"; adiado continua "pedido"');
 
 // Dois saques do saldo inteiro ao mesmo tempo: só um pode passar.
 {

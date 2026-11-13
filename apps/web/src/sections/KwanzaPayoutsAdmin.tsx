@@ -10,7 +10,7 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-PT', { day:
 const left = (iso: string | null, now: number) => { if (!iso) return null; const s = Math.floor((new Date(iso).getTime() - now) / 1000); if (s <= 0) return null; const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return `${h} h ${String(m).padStart(2, '0')} min`; };
 type F = 'open' | 'overdue' | 'closed' | 'all';
 const FILTERS: Array<[F, string]> = [['open', 'Reclamações abertas'], ['overdue', 'Fora do prazo'], ['closed', 'Encerradas'], ['all', 'Todas']];
-const STEP: Record<string, [string, string]> = { OPEN: ['Reclamado', 'warn'], NOTIFIED: ['Empresa avisada', 'info'], RESOLVED: ['Pago pela empresa', 'ok'], REFUNDED: ['Reembolsado · empresa banida', 'bad'] };
+const STEP: Record<string, [string, string]> = { OPEN: ['Reclamado', 'warn'], CONTEST: ['Recusa contestada', 'warn'], NOTIFIED: ['Empresa avisada', 'info'], RESOLVED: ['Pago pela empresa', 'ok'], REFUNDED: ['Reembolsado · empresa banida', 'bad'] };
 
 export function KwanzaPayoutsAdmin() {
   const [f, setF] = useState<F>('open');
@@ -26,9 +26,13 @@ export function KwanzaPayoutsAdmin() {
     if (!(await confirmDialog({ message: `Avisar ${r.company.name} e dar mais 24 h para pagar ${kz(r.amount)} a ${r.associate.name}?` }))) return;
     try { await api.kwanzaPayouts.notify(r.id); toast.success('Empresa avisada · +24 h'); void load(); } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível.'); }
   };
+  const close = async (r: PayoutRow) => {
+    if (!(await confirmDialog({ message: `Encerrar a contestação de ${r.associate.name}?` }))) return;
+    try { await api.kwanzaPayouts.close(r.id); toast.success('Contestação encerrada'); void load(); } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível.'); }
+  };
   const unban = async (id: string, name: string) => {
-    if (!(await confirmDialog({ message: `Readmitir ${name} no LPS Kwanza?` }))) return;
-    try { await api.kwanzaPayouts.unban(id); toast.success('Empresa readmitida'); void load(); } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível.'); }
+    if (!(await confirmDialog({ message: `Reativar ${name} no LPS Kwanza?` }))) return;
+    try { await api.kwanzaPayouts.unban(id); toast.success('Empresa reativada'); void load(); } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Não foi possível.'); }
   };
 
   const c = data?.counts;
@@ -55,7 +59,7 @@ export function KwanzaPayoutsAdmin() {
               <article key={r.id} className={`card kp-row ${r.escalation ? `s-${r.escalation.toLowerCase()}` : 'late'}`}>
                 <div className="kp-row-top">
                   <div className="kp-amt"><b>{kz(r.amount)}</b><small>{r.method}{r.details ? ` · ${r.details}` : ''}</small></div>
-                  <span className={`kp-step ${r.escalation ? STEP[r.escalation]?.[1] : 'bad'}`}>{r.escalation ? STEP[r.escalation]?.[0] : 'Fora do prazo · sem reclamação'}</span>
+                  <span className={`kp-step ${r.escalation ? STEP[r.escalation]?.[1] : 'bad'}`}>{r.status === 'REJECTED' && r.escalation === 'OPEN' ? 'Recusa contestada' : r.status === 'REJECTED' && r.escalation === 'NOTIFIED' ? 'Recusa contestada · empresa avisada' : r.escalation ? STEP[r.escalation]?.[0] : 'Fora do prazo · sem reclamação'}</span>
                 </div>
                 <div className="kp-people">
                   <div><small>Associado</small><b>{r.associate.name}</b><span className="kp-code">{r.associate.code}</span><span>{r.associate.phone}{r.associate.email ? ` · ${r.associate.email}` : ''}</span></div>
@@ -68,11 +72,14 @@ export function KwanzaPayoutsAdmin() {
                   <li className={r.notifiedAt ? 'done' : ''}><i /><span>Aviso +24 h</span><small>{r.extendedUntil ? `até ${dt(r.extendedUntil)}` : '—'}</small></li>
                   <li className={r.escalation === 'RESOLVED' || r.escalation === 'REFUNDED' ? 'done' : ''}><i /><span>{r.escalation === 'REFUNDED' ? 'Reembolso' : 'Pagamento'}</span><small>{r.escalation === 'REFUNDED' ? `${dt(r.refundedAt)}${r.refundRef ? ` · ${r.refundRef}` : ''}` : dt(r.decidedAt)}</small></li>
                 </ol>
+                {r.status === 'REJECTED' ? <p className="kp-reason"><b>Motivo da recusa:</b> {r.note ?? '—'}</p> : null}
+                {r.postponedAt ? <p className="kp-reason"><b>Adiado pela empresa</b> até {dt(r.dueAt)} · <b>Motivo:</b> {r.note ?? '—'}</p> : null}
                 {r.complaint ? <blockquote className="kp-quote">{r.complaint}</blockquote> : null}
                 {r.adminNote ? <p className="kp-note">Nota: {r.adminNote}</p> : null}
                 <div className="kp-acts">
-                  {r.escalation === 'OPEN' ? <button className="btn" onClick={() => void notify(r)}>Avisar a empresa · +24 h</button> : null}
-                  {r.escalation === 'NOTIFIED' ? (waitExtra
+                  {r.escalation === 'OPEN' ? <button className="btn" onClick={() => void notify(r)}>{r.status === 'REJECTED' ? 'Avisar a empresa' : 'Avisar a empresa · +24 h'}</button> : null}
+                  {r.status === 'REJECTED' && (r.escalation === 'OPEN' || r.escalation === 'NOTIFIED') ? <button className="btn ghost" onClick={() => void close(r)}>Encerrar</button> : null}
+                  {r.escalation === 'NOTIFIED' && r.status === 'REQUESTED' ? (waitExtra
                     ? <span className="kp-wait">A empresa ainda tem {waitExtra}</span>
                     : <button className="btn danger" onClick={() => setRefund(r)}>Banir a empresa e reembolsar</button>) : null}
                   {late ? <span className="kp-wait">Aguarda a reclamação do associado</span> : null}
@@ -89,7 +96,8 @@ export function KwanzaPayoutsAdmin() {
             <div key={b.companyId} className="kp-banrow">
               <div><b>{b.name}</b><small>{b.code} · {dt(b.date)}</small><small>{b.reason}</small></div>
               <div className="kp-debt"><small>Dívida</small><b>{kz(b.debt)}</b></div>
-              <button className="btn ghost" onClick={() => void unban(b.companyId, b.name)}>Readmitir</button>
+              {b.canLift ? <button className="btn" onClick={() => void unban(b.companyId, b.name)}>Reativar</button>
+                : <span className="kp-wait">Reativar a partir de {dt(b.liftAt)}</span>}
             </div>
           ))}
         </section>

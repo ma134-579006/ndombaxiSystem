@@ -148,8 +148,32 @@ await panels('RE-8', 'empresa B paga dentro do prazo: saldo levantado sobe, pedi
   R.check('RE-9', 'antes do prazo ninguém consegue reclamar', early.status === 400, early.body?.message);
 }
 
+/* ── C adia metade dos saques (não pode recusar); os associados contestam logo ── */
+const cW = W.filter((x) => x.co.k === 'C');
+{
+  const w0 = cW[0];
+  const rej = await call('POST', `${AK}/withdrawals/${w0.id}/reject`, { token: w0.co.adm, body: { note: 'Não queremos pagar agora' } });
+  const noWhy = await call('POST', `${AK}/withdrawals/${w0.id}/postpone`, { token: w0.co.adm, body: { note: 'curto', until: new Date(Date.now() + 48 * 3600_000).toISOString() } });
+  const tooFar = await call('POST', `${AK}/withdrawals/${w0.id}/postpone`, { token: w0.co.adm, body: { note: 'Conta bancária em verificação', until: new Date(Date.now() + 15 * 86400_000).toISOString() } });
+  R.check('AD-1', 'a empresa não pode recusar; adiar exige motivo e no máximo 7 dias depois do prazo', rej.status === 400 && noWhy.status === 400 && tooFar.status === 400, `${rej.status}/${noWhy.status}/${tooFar.status}`);
+}
+const postponed = cW.filter((_, j) => j % 2 === 0);
+for (const w of postponed) await ok('POST', `${AK}/withdrawals/${w.id}/postpone`, { token: w.co.adm, body: { note: 'Conta bancária em verificação no banco', until: new Date(Date.now() + 72 * 3600_000).toISOString() } });
+{
+  const again = await call('POST', `${AK}/withdrawals/${postponed[0].id}/postpone`, { token: postponed[0].co.adm, body: { note: 'Mais uma vez por favor', until: new Date(Date.now() + 96 * 3600_000).toISOString() } });
+  const d = await ok('GET', `${K}/me/dashboard`, { token: postponed[0].a.token });
+  const wd = d.withdrawals.find((x) => x.id === postponed[0].id);
+  const note = await pub.query(`SELECT 1 FROM nexus_public.kwanza_notifications n JOIN nexus_public.kwanza_associates a ON a.id = n."associateId" WHERE a.code = $1 AND n.kind = 'WITHDRAWAL_POSTPONED'`, [postponed[0].a.code]);
+  R.check('AD-2', 'adiamento só uma vez; o associado vê o motivo, a nova data e é notificado', again.status === 400 && wd?.postponedAt && wd.note?.includes('verificação') && note.rows.length >= 1, `${again.status} ${wd?.note}`);
+}
+await panels('AD-3', 'saques adiados continuam "pedido" nos painéis (nada se perde)');
+// Os associados com saque adiado contestam já (sem esperar a nova data).
+const ctst = await Promise.all(postponed.map((w) => call('POST', `${K}/me/withdrawals/${w.id}/complain`, { token: w.a.token, body: { text: `Não concordo com o adiamento (${w.a.code})` } })));
+R.check('AD-4', 'o associado que não concorda contesta o adiamento logo ao Super Admin', ctst.every((r) => r.status === 200), ctst.map((r) => r.status).join(','));
+
 /* ── o prazo de C e E passa ── */
 const late = W.filter((x) => x.co.k !== 'B');
+const toComplain = late.filter((w) => !postponed.includes(w));
 await pub.query(`UPDATE nexus_public.kwanza_withdrawals SET "dueAt" = now() - interval '3 hours' WHERE id = ANY($1::uuid[])`, [late.map((w) => w.id)]);
 
 // Super Admin de teste (só para esta corrida)
@@ -160,16 +184,16 @@ const SA = tok(await ok('POST', '/auth/super-admin/login', { body: { email: saEm
 
 {
   const over = await ok('GET', '/super-admin/kwanza/withdrawals?status=overdue', { token: SA });
-  const mine = over.rows.filter((r) => late.some((w) => w.id === r.id));
-  R.check('RE-10', 'Super Admin vê os saques fora do prazo (ainda sem reclamação)', mine.length === late.length, `${mine.length}/${late.length}`);
+  const mine = over.rows.filter((r) => toComplain.some((w) => w.id === r.id));
+  R.check('RE-10', 'Super Admin vê os saques fora do prazo (ainda sem reclamação)', mine.length === toComplain.length, `${mine.length}/${toComplain.length}`);
 }
 // Todos os associados de C e E reclamam ao mesmo tempo (e alguns carregam duas vezes).
-const comp = await Promise.all(late.flatMap((w) => [
+const comp = await Promise.all(toComplain.flatMap((w) => [
   call('POST', `${K}/me/withdrawals/${w.id}/complain`, { token: w.a.token, body: { text: `Sem pagamento da ${w.co.k} (${w.a.code})` } }),
   ...(w.a.i % 2 ? [call('POST', `${K}/me/withdrawals/${w.id}/complain`, { token: w.a.token, body: {} })] : []),
 ]));
 const compOk = comp.filter((r) => r.status === 200).length;
-R.check('RE-11', 'reclamações em simultâneo: uma por saque (repetidas recusadas)', compOk === late.length, `${compOk} aceites / ${comp.length} pedidos`);
+R.check('RE-11', 'reclamações em simultâneo: uma por saque (repetidas recusadas)', compOk === toComplain.length, `${compOk} aceites / ${comp.length} pedidos`);
 {
   const one = late[0];
   const byCode = await ok('GET', `/super-admin/kwanza/withdrawals?q=${one.a.code}`, { token: SA });
@@ -245,6 +269,9 @@ await panels('RE-22', 'associados de E reembolsados pela plataforma: valor como 
   if (okBuy.status < 300) { const k = (await pub.query('SELECT COALESCE(SUM(amount),0)::float s FROM nexus_public.kwanza_commissions WHERE "orderId" = $1', [okBuy.body.orderId])).rows[0].s; E(A[1], CO[1]).pending = r2(E(A[1], CO[1]).pending + k); }
   R.check('RE-29', 'as empresas que cumprem continuam a vender normalmente', okBuy.status === 201 || okBuy.status === 200, okBuy.status);
   // Readmissão (deixa o QA limpo para as outras suítes)
+  const liftEarly = await call('POST', `/super-admin/kwanza/bans/${b.companyId}/lift`, { token: SA });
+  R.check('RE-29b', 'reativar a empresa banida só depois de 15 dias (antes é recusado)', liftEarly.status === 400 && !b.canLift, liftEarly.body?.message);
+  await pub.query(`UPDATE nexus_public.kwanza_bans SET "createdAt" = now() - interval '16 days' WHERE "companyId" = $1`, [b.companyId]);
   const lift = await call('POST', `/super-admin/kwanza/bans/${b.companyId}/lift`, { token: SA });
   await ok('PATCH', `${AK}/products/${eco.prods[0].code}`, { token: eco.adm, body: { published: true, percent: 12, mode: 'OPEN', allowMarkup: false, maxMarkupPct: null, materials: [] } });
   const back = (await ok('GET', `${K}/market`, { token: A[0].token })).some((l) => l.companyCode === eco.code);

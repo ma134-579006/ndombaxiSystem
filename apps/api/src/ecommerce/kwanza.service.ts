@@ -479,7 +479,7 @@ export class KwanzaService implements OnModuleInit {
     }
     const wd = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
       SELECT w.id, w."companyId", c.code AS "companyCode", c.name AS "companyName", w.amount, w.method, w.details, w.status, w.note, w."proofUrl", w."createdAt",
-             w."dueAt", w.escalation, w."extendedUntil", w."complainedAt", w."refundRef", w."decidedAt"
+             w."dueAt", w.escalation, w."extendedUntil", w."complainedAt", w."refundRef", w."decidedAt", w."postponedAt"
       FROM ${T('kwanza_withdrawals')} w JOIN nexus_public.companies c ON c.id = w."companyId" WHERE w."associateId" = ${a.id}::uuid ORDER BY w."createdAt" DESC LIMIT 300`);
     const perCompany = new Map<string, { companyId: string; companyCode: string; companyName: string; pending: number; available: number; withdrawn: number; requested: number; balance: number }>();
     const company = (id: string, code: string, name: string) => {
@@ -517,6 +517,7 @@ export class KwanzaService implements OnModuleInit {
         date: (w.createdAt as Date).toISOString(), dueAt: ((w.dueAt as Date | null) ?? withdrawalDue(w.createdAt as Date)).toISOString(), escalation: (w.escalation as string | null) ?? null,
         extendedUntil: w.extendedUntil ? (w.extendedUntil as Date).toISOString() : null, complainedAt: w.complainedAt ? (w.complainedAt as Date).toISOString() : null,
         refundRef: (w.refundRef as string | null) ?? null, decidedAt: w.decidedAt ? (w.decidedAt as Date).toISOString() : null,
+        postponedAt: w.postponedAt ? (w.postponedAt as Date).toISOString() : null,
       })),
     };
   }
@@ -746,7 +747,7 @@ export class KwanzaService implements OnModuleInit {
 
   async companyWithdrawals(companyId: string) {
     const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-      SELECT w.id, a.name, a.code, w.amount, w.method, w.details, w.status, w.note, w."proofUrl", w."createdAt", w."dueAt", w.escalation, w."extendedUntil", w."refundRef"
+      SELECT w.id, a.name, a.code, w.amount, w.method, w.details, w.status, w.note, w."proofUrl", w."createdAt", w."dueAt", w.escalation, w."extendedUntil", w."refundRef", w."postponedAt"
       FROM ${T('kwanza_withdrawals')} w
       JOIN ${T('kwanza_associates')} a ON a.id = w."associateId" WHERE w."companyId" = ${companyId}::uuid
       ORDER BY (w.status = 'REQUESTED') DESC, COALESCE(w."extendedUntil", w."dueAt", w."createdAt") ASC, w."createdAt" DESC LIMIT 300`);
@@ -754,15 +755,15 @@ export class KwanzaService implements OnModuleInit {
       id: r.id, name: r.name, code: r.code, amount: num(r.amount), method: r.method, details: r.details, status: r.status, note: r.note, proofUrl: r.proofUrl, date: (r.createdAt as Date).toISOString(),
       dueAt: ((r.dueAt as Date | null) ?? withdrawalDue(r.createdAt as Date)).toISOString(), escalation: (r.escalation as string | null) ?? null,
       extendedUntil: r.extendedUntil ? (r.extendedUntil as Date).toISOString() : null, refundRef: (r.refundRef as string | null) ?? null,
+      postponedAt: r.postponedAt ? (r.postponedAt as Date).toISOString() : null,
     }));
   }
 
   async decideWithdrawal(companyId: string, id: string, paid: boolean, note?: string, proofUrl?: string) {
-    // Com reclamação aberta no Super Admin, a empresa já não pode recusar — só pagar.
-    if (!paid) {
-      const esc = await this.prisma.$queryRaw<{ e: string | null }[]>(Prisma.sql`SELECT escalation AS e FROM ${T('kwanza_withdrawals')} WHERE id = ${id}::uuid AND "companyId" = ${companyId}::uuid`);
-      if (esc[0]?.e === 'OPEN' || esc[0]?.e === 'NOTIFIED') throw new BadRequestException('Este saque está em reclamação na equipa do LPS Kwanza: só pode ser pago.');
-    }
+    // Recusa: só com o motivo escrito e só dentro do prazo (depois do prazo, ou com
+    // reclamação aberta no Super Admin, a empresa já só pode pagar).
+    // Regra do LPS Kwanza: a empresa NÃO recusa saques — paga ou adia (uma vez, com motivo).
+    if (!paid) throw new BadRequestException('A empresa não pode recusar saques: pague ou adie com o motivo.');
     const n = await this.prisma.$executeRaw(Prisma.sql`
       UPDATE ${T('kwanza_withdrawals')} SET status = ${paid ? 'PAID' : 'REJECTED'}, note = ${(note ?? '').trim().slice(0, 300) || null}, "proofUrl" = ${paid ? (proofUrl || null) : null}, "decidedAt" = now(),
         escalation = CASE WHEN escalation IN ('OPEN', 'NOTIFIED') THEN 'RESOLVED' ELSE escalation END
@@ -790,6 +791,35 @@ export class KwanzaService implements OnModuleInit {
   twoFaDisableRequest(a: AssociateRow) { return this.twoFactor.requestDisable(TwoFactorService.kwanza(a.id)); }
   twoFaDisable(a: AssociateRow, code: string) { return this.twoFactor.disable(TwoFactorService.kwanza(a.id), code); }
   twoFaCode(a: AssociateRow) { return this.twoFactor.requestCode(TwoFactorService.kwanza(a.id), 'CHANGE_PW'); }
+
+  /**
+   * Adiar um saque (em vez de recusar): uma só vez, com o motivo escrito e uma data nova até
+   * 7 dias depois do prazo. O associado vê o motivo e, se não concordar, contesta ao Super Admin.
+   */
+  async postponeWithdrawal(companyId: string, id: string, note: string, until: string) {
+    const why = (note ?? '').trim().slice(0, 300);
+    if (why.length < 10) throw new BadRequestException('Escreva o motivo do adiamento (pelo menos 10 caracteres).');
+    const at = new Date(until);
+    if (Number.isNaN(at.getTime()) || at.getTime() <= Date.now() + 60 * 60_000) throw new BadRequestException('Escolha a nova data (pelo menos 1 hora a partir de agora).');
+    const r = await this.prisma.$queryRaw<{ esc: string | null; st: string; post: Date | null; okDate: boolean }[]>(Prisma.sql`
+      SELECT escalation AS esc, status AS st, "postponedAt" AS post,
+             ${at} <= COALESCE("dueAt", "createdAt" + interval '24 hours') + interval '7 days' AS "okDate"
+      FROM ${T('kwanza_withdrawals')} WHERE id = ${id}::uuid AND "companyId" = ${companyId}::uuid`);
+    const w = r[0];
+    if (!w) throw new NotFoundException('Pedido de saque não encontrado.');
+    if (w.st !== 'REQUESTED') throw new BadRequestException('Este saque já foi decidido.');
+    if (w.esc === 'OPEN' || w.esc === 'NOTIFIED') throw new BadRequestException('Este saque está em reclamação na equipa do LPS Kwanza: só pode ser pago.');
+    if (w.post) throw new BadRequestException('Este saque já foi adiado uma vez: agora só pode ser pago.');
+    if (!w.okDate) throw new BadRequestException('O adiamento pode ir no máximo até 7 dias depois do prazo.');
+    const n = await this.prisma.$executeRaw(Prisma.sql`
+      UPDATE ${T('kwanza_withdrawals')} SET note = ${why}, "dueAt" = ${at}, "postponedAt" = now()
+      WHERE id = ${id}::uuid AND "companyId" = ${companyId}::uuid AND status = 'REQUESTED' AND "postponedAt" IS NULL AND escalation IS NULL`);
+    if (!n) throw new BadRequestException('O pedido mudou entretanto. Atualize a lista.');
+    const x = await this.prisma.$queryRaw<{ a: string; v: unknown; c: string }[]>(Prisma.sql`SELECT w."associateId"::text AS a, w.amount AS v, c.name AS c FROM ${T('kwanza_withdrawals')} w JOIN nexus_public.companies c ON c.id = w."companyId" WHERE w.id = ${id}::uuid`);
+    const quando = at.toLocaleString('pt-PT', { timeZone: 'Africa/Luanda', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    if (x[0]) await this.notifyAssociate(x[0].a, { kind: 'WITHDRAWAL_POSTPONED', title: `${x[0].c} adiou o teu saque`, body: `${num(x[0].v).toLocaleString('pt-PT')} Kz — até ${quando}. Motivo: ${why.slice(0, 160)}`, link: '#/saques' });
+    return { ok: true as const };
+  }
 
   /* ═══════════════ notificações ═══════════════ */
   private async notifyCompany(companyId: string, n: { kind: string; title: string; body?: string; section?: string; ref?: string }) {

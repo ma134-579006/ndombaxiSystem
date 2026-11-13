@@ -1476,14 +1476,14 @@ export interface SecurityView {
   stats: { total: number; platform: number; tenant: number; kwanza: number; email: number; whatsapp: number };
 }
 export interface PayoutRow {
-  id: string; amount: number; method: string; details: string | null; status: string; escalation: string | null;
-  createdAt: string; dueAt: string; complainedAt: string | null; complaint: string | null; notifiedAt: string | null; extendedUntil: string | null;
+  id: string; amount: number; method: string; details: string | null; status: string; escalation: string | null; note?: string | null;
+  createdAt: string; dueAt: string; postponedAt?: string | null; complainedAt: string | null; complaint: string | null; notifiedAt: string | null; extendedUntil: string | null;
   refundedAt: string | null; refundRef: string | null; adminNote: string | null; decidedAt: string | null;
   associate: { name: string; code: string; phone: string; email: string | null };
   company: { id: string; name: string; code: string; email: string; phone: string | null; banned: boolean };
 }
 export interface PayoutsView {
   counts: { open: number; notified: number; overdue: number; refunded: number; resolved: number; debt: number; banned: number };
-  bans: Array<{ companyId: string; name: string; code: string; reason: string; date: string; debt: number }>;
+  bans: Array<{ companyId: string; name: string; code: string; reason: string; date: string; debt: number; liftAt: string; canLift: boolean }>;
   rows: PayoutRow[];
 }

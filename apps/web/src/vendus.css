@@ -1350,3 +1350,5 @@ tr.kz-late td:first-child { box-shadow: inset 4px 0 0 #dc2626; }
 .kz-bank-add { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
 .kz-bank-add input { height: 40px; border-radius: 10px; border: 1px solid var(--border, #e2e8f0); padding: 0 12px; min-width: 180px; flex: 1; max-width: 280px; }
 .kz-bank-add .spacer { flex: 1; }
+.kz-reject p { margin: 0 0 10px; }
+.kz-reject textarea { width: 100%; border-radius: 10px; border: 1px solid var(--border, #e2e8f0); padding: 10px; font: inherit; }

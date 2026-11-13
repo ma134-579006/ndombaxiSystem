@@ -593,6 +593,7 @@ export const api = {
     notify: (id: string, note?: string) => request<{ ok: true; extendedUntil: string }>('POST', `/super-admin/kwanza/withdrawals/${id}/notify`, { note }),
     banRefund: (id: string, refundRef: string, note?: string) => request<{ ok: true }>('POST', `/super-admin/kwanza/withdrawals/${id}/ban-refund`, { refundRef, note }),
     unban: (companyId: string) => request<{ ok: true }>('POST', `/super-admin/kwanza/bans/${companyId}/lift`, {}),
+    close: (id: string, note?: string) => request<{ ok: true }>('POST', `/super-admin/kwanza/withdrawals/${id}/close`, { note }),
   },
 
   // ── SAF-T (AGT): exporta o XML fiscal mensal ───────────────
@@ -1013,6 +1014,7 @@ export const api = {
     saveBanks: (banks: string[]) => request<{ banks: string[]; catalog: string[] }>('PUT', '/ecommerce/kwanza/banks', { banks }),
     pay: (id: string, note?: string, proofUrl?: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/pay`, { note, proofUrl }),
     reject: (id: string, note?: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/reject`, { note }),
+    postpone: (id: string, note: string, until: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/postpone`, { note, until }),
     chats: () => request<unknown[]>('GET', '/ecommerce/kwanza/chats'),
     chat: (associateId: string) => request<unknown[]>('GET', `/ecommerce/kwanza/chats/${associateId}`),
     send: (associateId: string, body: string) => request<unknown[]>('POST', `/ecommerce/kwanza/chats/${associateId}`, { body }),
