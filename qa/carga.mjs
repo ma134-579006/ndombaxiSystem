@@ -45,7 +45,11 @@ async function tokens() {
   for (const [email, u] of Object.entries(S.users)) {
     if (u.role !== 'CASHIER') continue;
     const r = await ok('POST', '/auth/login', { body: { email, password: S.pass } });
-    out.push(r.tokens?.accessToken ?? r.accessToken);
+    const token = r.tokens?.accessToken ?? r.accessToken;
+    // Com rede só se vende com o turno aberto (PR #200).
+    const cur = await call('GET', '/cashbox/session/current', { token });
+    if (!cur.body?.id) await call('POST', '/cashbox/session/open', { token, body: { openingFloat: 0 } });
+    out.push(token);
   }
   return out;
 }
