@@ -522,3 +522,71 @@
 @media (max-width: 1023px) { .kk-hero-m { padding-top: var(--kk-head, 110px); background: var(--kk-grad-v); } .kk-hero-m .kk-ad { aspect-ratio: 2 / 1; height: auto; } }
 .kk-stack > *, .kk-pdp .kk-wrap > *, .kk-dash > *, .kk-area-main > * { min-width: 0; }
 @media (max-width: 760px) { .kk-flash-h h2 { font-size: 16px; white-space: nowrap; } .kk-flash-h { padding: 8px 10px; } }
+
+/* ───── animação ao rolar (uma só, entra uma vez, escalonada) ───── */
+.kk .kw-reveal { opacity: 0; -webkit-transform: translate3d(0, 18px, 0); transform: translate3d(0, 18px, 0); transition: opacity .6s cubic-bezier(.22, .61, .36, 1) var(--rv, 0ms), -webkit-transform .6s cubic-bezier(.22, .61, .36, 1) var(--rv, 0ms); transition: opacity .6s cubic-bezier(.22, .61, .36, 1) var(--rv, 0ms), transform .6s cubic-bezier(.22, .61, .36, 1) var(--rv, 0ms); will-change: opacity, transform; }
+.kk .kw-reveal.in { opacity: 1; -webkit-transform: none; transform: none; will-change: auto; }
+@media (prefers-reduced-motion: reduce) { .kk .kw-reveal { opacity: 1; transform: none; transition: none; } }
+.kk-page, .kk-stack { -webkit-animation: kk-page-in .35s ease both; animation: kk-page-in .35s ease both; }
+@-webkit-keyframes kk-page-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kk-page-in { from { opacity: 0; } to { opacity: 1; } }
+.kk-car-track { will-change: transform; -webkit-transition: -webkit-transform .7s cubic-bezier(.22, .61, .36, 1); transition: transform .7s cubic-bezier(.22, .61, .36, 1); }
+.kk-card { -webkit-transition: box-shadow .25s ease, -webkit-transform .25s ease; transition: box-shadow .25s ease, transform .25s ease; }
+@media (hover: hover) { .kk-card:hover { -webkit-transform: translateY(-3px); transform: translateY(-3px); } }
+
+/* ───── compatibilidade com navegadores antigos (Safari 12–14, WebViews Android, Samsung Internet) ───── */
+@supports not (aspect-ratio: 1 / 1) {
+  .kk-card-img { height: 0; padding-top: 100%; }
+  .kk-card-img > img, .kk-card-img > div, .kk-card-img > span:first-child { position: absolute; top: 0; left: 0; }
+  .kk-gal-main { position: relative; height: 0; padding-top: 100%; }
+  .kk-gal-main > * { position: absolute; top: 0; left: 0; }
+  .kk-ad { height: 0; padding-top: 50%; }
+  .kk-ad img { position: absolute; top: 0; left: 0; }
+  .kk-ad-txt { top: 50%; }
+  .kk-hg-main { height: 300px; }
+  .kk-hg-main .kk-ad { height: 300px; padding-top: 0; }
+  .kk-mid-ad img, .kk-dash-ad { height: auto; }
+}
+/* clamp() antes do Safari 13.1 */
+@supports not (font-size: clamp(1px, 1vw, 2px)) { .kk-ad-txt strong { font-size: 30px; } .kk-ad-txt small { font-size: 15px; } }
+/* gap em flexbox antes do Safari 14.1: margens equivalentes */
+@supports not (inset: 0) {
+  .kk-strip-r > * + *, .kk-strip-l > * + * { margin-left: 4px; }
+  .kk-bar > * + * { margin-left: 16px; }
+  .kk-buybtns > * + * { margin-left: 0; }
+  .kk-info-meta > * { margin: 0 8px 8px 0; }
+  .kk-payicons > * { margin: 0 10px 10px 0; }
+}
+/* toque: alvos com pelo menos 40 px e sem atraso de toque */
+.kk button, .kk a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.kk input, .kk select, .kk textarea { font-size: 16px; } /* iOS não faz zoom ao focar */
+@media (min-width: 761px) { .kk .kk-search input { font-size: 14px; } }
+/* ecrãs muito pequenos e muito grandes */
+@media (max-width: 340px) { .kk-wrap { padding: 0 10px; } .kk-grid, .kk-grid.tight { gap: 8px; } .kk-card-body { padding: 10px; } .kk-logo svg { width: 36px; height: 36px; } }
+@media (min-width: 1700px) { .kk-wrap { max-width: 1480px; } .kk-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+@media (min-width: 2400px) { .kk { font-size: 15px; } .kk-wrap { max-width: 1800px; } .kk-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+/* telemóvel na horizontal: o anúncio não ocupa o ecrã todo */
+@media (max-width: 1023px) and (orientation: landscape) and (max-height: 500px) { .kk-hero-m .kk-ad { max-height: 60vh; } .kk-head { position: relative; } .kk-main.under { margin-top: 0; } .kk-hero-m { padding-top: 0; } }
+/* zona segura do iPhone (entalhe e barra inferior) */
+.kk-head { padding-top: env(safe-area-inset-top, 0px); }
+.kk-buybar { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.kk-drawer { padding-bottom: env(safe-area-inset-bottom, 0px); }
+/* impressão: sem cabeçalho, barras e gavetas */
+@media print { .kk-head, .kk-buybar, .kk-foot, .kk-scrim, .kk-drawer, .kk-side, .kk-menu-btn { display: none !important; } .kk { background: #fff; } }
+
+/* ───── botão flutuante de mensagens ───── */
+.kk-fab { position: fixed; right: 18px; bottom: 22px; z-index: 70; display: grid; justify-items: end; gap: 10px; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.kk-fab.up { bottom: 92px; }
+.kk-fab-btn { position: relative; width: 60px; height: 60px; border-radius: 50%; border: 0; background: var(--kk-grad); color: #fff; display: grid; place-items: center; box-shadow: 0 0 0 8px rgba(59, 91, 255, .16), 0 6px 18px rgba(26, 36, 196, .35); -webkit-transition: -webkit-transform .2s ease; transition: transform .2s ease; }
+.kk-fab-btn:hover { -webkit-transform: scale(1.05); transform: scale(1.05); }
+.kk-fab-btn em { position: absolute; top: -2px; right: -2px; min-width: 22px; height: 22px; border-radius: 11px; background: #e5262f; color: #fff; font: 700 12px/22px Roboto, sans-serif; font-style: normal; text-align: center; padding: 0 5px; box-shadow: 0 0 0 2px #fff; }
+.kk-fab-menu { width: 280px; background: #fff; border-radius: 12px; box-shadow: 0 12px 34px rgba(3, 0, 71, .22); overflow: hidden; display: grid; -webkit-animation: kk-fab-in .2s ease; animation: kk-fab-in .2s ease; }
+.kk-fab-menu > b { background: var(--kk-grad); color: #fff; padding: 14px 16px; font-size: 16px; }
+.kk-fab-menu button { display: flex; align-items: center; gap: 12px; background: #fff; border: 0; border-top: 1px solid #f1f3f6; padding: 13px 16px; font-size: 14.5px; color: var(--kk-ink); text-align: left; }
+.kk-fab-menu button:hover { background: #f6f8ff; color: var(--kk-p); }
+.kk-fab-menu button svg { color: var(--kk-p); flex: none; }
+.kk-fab-menu button em { margin-left: auto; font-style: normal; background: #e5262f; color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 12px; font-weight: 700; }
+@-webkit-keyframes kk-fab-in { from { opacity: 0; -webkit-transform: translateY(8px); } }
+@keyframes kk-fab-in { from { opacity: 0; transform: translateY(8px); } }
+@media (max-width: 520px) { .kk-fab { right: 12px; bottom: 16px; } .kk-fab.up { bottom: 84px; } .kk-fab-btn { width: 54px; height: 54px; } }
+@media print { .kk-fab { display: none !important; } }

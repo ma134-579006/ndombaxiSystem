@@ -92,6 +92,14 @@ export function KwanzaApp() {
     window.addEventListener('focus', again);
     return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', again); window.removeEventListener('focus', again); };
   }, [sess?.token]);
+  // Mensagens por ler (associado), em tempo real.
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    if (!sess) { setUnread(0); return; }
+    const get = () => { if (document.visibilityState === 'visible') kw.chats(sess.token).then((c) => setUnread(c.reduce((a, x) => a + (x.unread || 0), 0))).catch(() => undefined); };
+    get(); const t = window.setInterval(get, 15_000); window.addEventListener('focus', get);
+    return () => { window.clearInterval(t); window.removeEventListener('focus', get); };
+  }, [sess?.token]);
   // Anúncios das empresas (geridos no painel de cada empresa).
   useEffect(() => {
     const get = () => loadBanners().then(setAds).catch(() => undefined);
@@ -147,10 +155,11 @@ export function KwanzaApp() {
   const overHero = route.n === 'home' && list !== null && list.length > 0;
   return (
     <div className="kw-root kk">
-      <Header sess={sess} go={go} q={q} setQ={setQ} clear={overHero && !scrolled} cats={cats} showCats={route.n !== 'home'} onCart={() => setDrawer(true)} />
+      <Header sess={sess} go={go} q={q} setQ={setQ} clear={overHero && !scrolled} cats={cats} showCats={route.n !== 'home'} onCart={() => setDrawer(true)} unread={unread} />
       <main className={`kk-main${overHero ? ' under' : ''}`} key={hashOf(route)}>{body}</main>
       {toast ? <div key={toast.id} className="kw-toast" role="status"><span className="kw-toast-ic"><I d={P.check} size={16} /></span>{toast.t}<i className="kw-toast-bar" /></div> : null}
       {drawer ? <CartDrawer onClose={() => setDrawer(false)} onCart={() => go({ n: 'cart' })} /> : null}
+      {route.n !== 'msgs' ? <MsgFab sess={!!sess} unread={unread} go={go} lifted={route.n === 'product'} /> : null}
       <Footer go={go} sess={!!sess} />
     </div>
   );
@@ -180,9 +189,9 @@ function Drop({ label, icon, children, align = 'right', className = '' }: { labe
   );
 }
 
-function Header({ sess, go, q, setQ, clear, cats, showCats, onCart }: {
+function Header({ sess, go, q, setQ, clear, cats, showCats, onCart, unread }: {
   sess: ReturnType<typeof session.get>; go(r: Route): void; q: string; setQ(v: string): void; clear: boolean;
-  cats: Array<[string, { n: number; img: MP }]>; showCats: boolean; onCart(): void;
+  cats: Array<[string, { n: number; img: MP }]>; showCats: boolean; onCart(): void; unread: number;
 }) {
   const n = useCart().reduce((s, i) => s + i.qty, 0);
   return (
@@ -219,6 +228,7 @@ function Header({ sess, go, q, setQ, clear, cats, showCats, onCart }: {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produtos, marcas e muito mais…" aria-label="Pesquisar" />
           <button aria-label="Pesquisar"><I d={P.search} size={18} /></button>
         </form>
+        {sess ? <button type="button" className="kk-cart" onClick={() => go({ n: 'msgs' })} aria-label={`Mensagens${unread ? ` (${unread} por ler)` : ''}`}><I d={P.chat} size={26} />{unread ? <em>{unread > 99 ? '99+' : unread}</em> : null}</button> : null}
         <button type="button" className="kk-cart" onClick={onCart} aria-label={`Carrinho${n ? ` (${n})` : ''}`}><I d={P.cart} size={27} />{n ? <em>{n > 99 ? '99+' : n}</em> : null}</button>
       </div>
       {showCats && cats.length ? (
@@ -229,6 +239,29 @@ function Header({ sess, go, q, setQ, clear, cats, showCats, onCart }: {
         </div></div>
       ) : null}
     </header>
+  );
+}
+
+/* ───────────── botão flutuante de mensagens (como o de conversa do Kikolo) ───────────── */
+function MsgFab({ sess, unread, go, lifted }: { sess: boolean; unread: number; go(r: Route): void; lifted: boolean }) {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const ref = useOutside(open, close);
+  return (
+    <div className={`kk-fab${lifted ? ' up' : ''}`} ref={ref}>
+      {open ? (
+        <div className="kk-fab-menu" role="menu">
+          <b>LPS Kwanza</b>
+          {sess ? <button role="menuitem" onClick={() => { close(); go({ n: 'msgs' }); }}><I d={P.chat} size={18} /> Mensagens com as empresas{unread ? <em>{unread}</em> : null}</button> : null}
+          <button role="menuitem" onClick={() => { close(); go({ n: 'orders' }); }}><I d={P.box} size={18} /> Minhas compras</button>
+          <button role="menuitem" onClick={() => { close(); go({ n: 'claims' }); }}><I d={P.flag} size={18} /> Reclamações e devoluções</button>
+          {!sess ? <button role="menuitem" onClick={() => { close(); go({ n: 'login' }); }}><I d={P.user} size={18} /> Entrar para falar com as empresas</button> : null}
+        </div>
+      ) : null}
+      <button className="kk-fab-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={`Mensagens${unread ? ` (${unread} por ler)` : ''}`}>
+        <I d={open ? P.close : P.chat} size={28} />{unread && !open ? <em>{unread > 99 ? '99+' : unread}</em> : null}
+      </button>
+    </div>
   );
 }
 

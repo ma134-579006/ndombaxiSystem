@@ -12,7 +12,7 @@
 const SELECTOR =
   '.card, .kpi-card, .ui-tile, .fx-stat, .fx-card, .pcard, .pc2, .prod, .ax-card, .ax-sec, .rt-table, .rc-row, .ph-row, .chart-card, .bar-card, ' +
   '.ptable, .minilist, .store-info, .order-card';
-const SKIP = '.login, .modal-bg, .modal, .sidebar, .topbar, .header, .ax-header, .drawer, .cart-drawer, .lock, .shadow-bar, .toolbar-sticky, .fx-toolbar, .gate, .lp-section, .lp-hero, .lp-cta-band, .dl-section, [data-fx]';
+const SKIP = '.kk, .kw-root, .login, .modal-bg, .modal, .sidebar, .topbar, .header, .ax-header, .drawer, .cart-drawer, .lock, .shadow-bar, .toolbar-sticky, .fx-toolbar, .gate, .lp-section, .lp-hero, .lp-cta-band, .dl-section, [data-fx]';
 const VARIANTS = ['up', 'down', 'left', 'right', 'zoom', 'tilt'];
 
 let io: IntersectionObserver | null = null;

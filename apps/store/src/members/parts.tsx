@@ -218,12 +218,29 @@ export function useCountdown(endsAt: string | null): [string, string, string] | 
 export function useReveal(dep: unknown) {
   useEffect(() => {
     const els = Array.from(document.querySelectorAll<HTMLElement>('.kw-reveal:not(.in)'));
-    if (typeof IntersectionObserver === 'undefined') { els.forEach((e) => e.classList.add('in')); return; }
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
-    }, { rootMargin: '0px 0px -40px 0px' });
+    if (!els.length) return;
+    // Sem IntersectionObserver (navegadores antigos) ou com movimento reduzido: tudo visível logo.
+    const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (typeof IntersectionObserver === 'undefined' || reduce) { els.forEach((e) => e.classList.add('in')); return; }
+    // Entra UMA vez (rolar para cima não volta a esconder) e os blocos que entram juntos escalonam-se.
+    let k = 0; let t = 0;
+    const show = (el: HTMLElement) => {
+      if (el.classList.contains('in')) return;
+      el.style.setProperty('--rv', `${Math.min(k++, 6) * 60}ms`);
+      el.classList.add('in');
+      io.unobserve(el);
+      window.clearTimeout(t); t = window.setTimeout(() => { k = 0; }, 120);
+    };
+    const io = new IntersectionObserver((entries) => { entries.forEach((en) => { if (en.isIntersecting) show(en.target as HTMLElement); }); }, { rootMargin: '0px 0px -6% 0px', threshold: 0.01 });
     els.forEach((e) => io.observe(e));
-    return () => io.disconnect();
+    // Garantia: o que já está no ecrã nunca fica escondido (observador atrasado, separador em segundo plano).
+    let raf = 0;
+    const check = () => { raf = 0; const h = window.innerHeight; for (const el of els) { if (el.classList.contains('in')) continue; const r = el.getBoundingClientRect(); if (r.top < h * 0.96 && r.bottom > 0) show(el); } };
+    const onScroll = () => { if (!raf) raf = window.requestAnimationFrame(check); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    const first = window.setTimeout(check, 60);
+    return () => { io.disconnect(); window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); window.clearTimeout(first); window.clearTimeout(t); if (raf) window.cancelAnimationFrame(raf); };
   }, [dep]);
 }
 
