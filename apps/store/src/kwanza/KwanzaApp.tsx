@@ -1,17 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../members/members.css';
+import './kikolo.css';
 import { ApiError } from '../api/client';
-import { PUBLIC_ORIGIN } from '../config';
+import { API_URL, PUBLIC_ORIGIN } from '../config';
 import type { CatalogProduct } from '../api/types';
 import { formatDateTime } from '../format';
 import { readFileProgress } from '../transfer';
-import { BRAND, Card, Carousel, I, Mark, P, Pic, Shelf, type Slide, kz, useInfinite, useReveal } from '../members/parts';
+import { BRAND, I, KLoader, Mark, P, Pic, kz, useInfinite, useReveal } from '../members/parts';
 import { Search, type SearchState } from '../members/Search';
 import { Messages, NotesBell } from './Inbox';
 import { PostEditor } from './PostEditor';
 import { Claims, ProductSocial } from './Trust';
-import { Checkout, ORDER_LABEL, Orders, cart, useCart } from './Shop';
-import { kw, session, shareLink, type Affiliation, type Associate, type Dashboard, type Listing, type PayoutAccount } from './api';
+import { CartDrawer, Checkout, ORDER_LABEL, Orders, cart, useCart } from './Shop';
+import { banners as loadBanners, kw, session, shareLink, type Affiliation, type Associate, type Dashboard, type KBanner, type Listing, type PayoutAccount } from './api';
+
+/* LPS Kwanza — marketplace de associados com a estrutura do Kikolo Online (cabeçalho por cima
+   do anúncio, carrosséis, faixa de ofertas, categorias, descobertas do dia, página de produto com
+   barra de compra fixa, carrinho em gaveta, área do associado com menu lateral). Marca, cores,
+   imagens e textos são do LPS Kwanza. */
 
 /** Produto do marketplace no formato dos cartões (código = empresa::produto). */
 type MP = CatalogProduct & { listing: Listing };
@@ -22,11 +28,12 @@ const toMP = (l: Listing): MP => ({
   sold: l.sold, views: l.views, listing: l,
 });
 const com = (l: Listing, pct?: number) => Math.round(l.grossPrice * (pct ?? l.commissionPct)) / 100;
+const off = (l: Listing) => (l.listPrice && l.listPrice > l.grossPrice ? Math.round((1 - l.grossPrice / l.listPrice) * 100) : 0);
 
 type Route =
   | { n: 'home' } | { n: 'search'; s: SearchState } | { n: 'product'; c: string; p: string; a?: string }
   | { n: 'login' } | { n: 'register' } | { n: 'recover' } | { n: 'claims' } | { n: 'cart' } | { n: 'orders' }
-  | { n: 'panel' } | { n: 'sales' } | { n: 'affs' } | { n: 'withdraw' } | { n: 'accounts' } | { n: 'profile' } | { n: 'msgs'; c?: string };
+  | { n: 'panel' } | { n: 'sales' } | { n: 'market' } | { n: 'affs' } | { n: 'withdraw' } | { n: 'accounts' } | { n: 'profile' } | { n: 'msgs'; c?: string };
 const parse = (h: string): Route => {
   const [path, qs] = h.replace(/^#\/?/, '').split('?'); const s = path.split('/').filter(Boolean).map(decodeURIComponent); const q = new URLSearchParams(qs ?? '');
   switch (s[0]) {
@@ -35,7 +42,7 @@ const parse = (h: string): Route => {
     case 'reclamacoes': return { n: 'claims' };
     case 'carrinho': return { n: 'cart' }; case 'compras': return { n: 'orders' };
     case 'entrar': return { n: 'login' }; case 'registar': return { n: 'register' }; case 'recuperar': return { n: 'recover' };
-    case 'painel': return { n: 'panel' }; case 'vendas': return { n: 'sales' }; case 'afiliacoes': return { n: 'affs' };
+    case 'painel': return { n: 'panel' }; case 'vendas': return { n: 'sales' }; case 'mercado': return { n: 'market' }; case 'afiliacoes': return { n: 'affs' };
     case 'saques': return { n: 'withdraw' }; case 'contas': return { n: 'accounts' }; case 'perfil': return { n: 'profile' };
     case 'mensagens': return { n: 'msgs', c: s[1] || undefined };
     default: return { n: 'home' };
@@ -48,23 +55,32 @@ const hashOf = (r: Route): string => {
     case 'claims': return '#/reclamacoes';
     case 'cart': return '#/carrinho'; case 'orders': return '#/compras';
     case 'login': return '#/entrar'; case 'register': return '#/registar'; case 'recover': return '#/recuperar';
-    case 'panel': return '#/painel'; case 'sales': return '#/vendas'; case 'affs': return '#/afiliacoes'; case 'withdraw': return '#/saques'; case 'accounts': return '#/contas'; case 'profile': return '#/perfil';
+    case 'panel': return '#/painel'; case 'sales': return '#/vendas'; case 'market': return '#/mercado'; case 'affs': return '#/afiliacoes'; case 'withdraw': return '#/saques'; case 'accounts': return '#/contas'; case 'profile': return '#/perfil';
     case 'msgs': return r.c ? `#/mensagens/${encodeURIComponent(r.c)}` : '#/mensagens';
     default: return '#/';
   }
 };
-const PRIVATE = new Set(['panel', 'sales', 'affs', 'withdraw', 'accounts', 'profile', 'msgs']);
+const PRIVATE = new Set(['panel', 'sales', 'market', 'affs', 'withdraw', 'accounts', 'profile', 'msgs']);
+const bannerSrc = (b: KBanner) => (b.image ? `${API_URL}${b.image}` : null);
 
 export function KwanzaApp() {
   const [route, setRoute] = useState<Route>(() => parse(location.hash));
   const [sess, setSess] = useState(() => session.get());
   const [list, setList] = useState<Listing[] | null>(null);
+  const [ads, setAds] = useState<KBanner[]>([]);
   const [q, setQ] = useState('');
   const [toast, setToast] = useState<{ id: number; t: string } | null>(null);
-  const [compact, setCompact] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [drawer, setDrawer] = useState(false);
   useEffect(() => { const on = () => setRoute(parse(location.hash)); window.addEventListener('hashchange', on); return () => window.removeEventListener('hashchange', on); }, []);
   useEffect(() => { const on = () => setSess(session.get()); window.addEventListener('kwanza:session', on); return () => window.removeEventListener('kwanza:session', on); }, []);
-  useEffect(() => { const on = () => setCompact((c) => (c ? window.scrollY > 10 : window.scrollY > 90)); on(); window.addEventListener('scroll', on, { passive: true }); return () => window.removeEventListener('scroll', on); }, []);
+  useEffect(() => { const on = () => setScrolled(window.scrollY > 24); on(); window.addEventListener('scroll', on, { passive: true }); return () => window.removeEventListener('scroll', on); }, []);
+  // Altura real do cabeçalho: o anúncio do início sobe por baixo dele (como no Kikolo).
+  useEffect(() => {
+    const h = document.querySelector('.kk-head'); if (!h) return;
+    const set = () => document.documentElement.style.setProperty('--kk-head', `${Math.round(h.getBoundingClientRect().height)}px`);
+    set(); const ro = new ResizeObserver(set); ro.observe(h); return () => ro.disconnect();
+  });
   // Associados veem todos os produtos; clientes sem sessão só os que já têm associado.
   useEffect(() => {
     setList(null);
@@ -76,15 +92,27 @@ export function KwanzaApp() {
     window.addEventListener('focus', again);
     return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', again); window.removeEventListener('focus', again); };
   }, [sess?.token]);
+  // Anúncios das empresas (geridos no painel de cada empresa).
+  useEffect(() => {
+    const get = () => loadBanners().then(setAds).catch(() => undefined);
+    void get(); const t = window.setInterval(get, 60_000); return () => window.clearInterval(t);
+  }, []);
   useEffect(() => {
     const l = route.n === 'product' ? list?.find((x) => x.companyCode === route.c && x.productCode === route.p && (!route.a || x.associate?.code === route.a)) : null;
     document.title = l ? `${l.name} — LPS Kwanza` : 'LPS Kwanza — Marketplace de associados';
   }, [route, list]);
-  const go = useCallback((r: Route) => { const h = hashOf(r); if (location.hash === h) setRoute(r); else location.hash = h; window.scrollTo({ top: 0 }); }, []);
+  const go = useCallback((r: Route) => { const h = hashOf(r); setDrawer(false); if (location.hash === h) setRoute(r); else location.hash = h; window.scrollTo({ top: 0 }); }, []);
   const flash = useCallback((t: string) => { const id = Date.now(); setToast({ id, t }); window.setTimeout(() => setToast((x) => (x?.id === id ? null : x)), 2600); }, []);
   const products = useMemo(() => (list ?? []).map(toMP), [list]);
-  const open = (p: CatalogProduct) => { const [c, pc, a] = p.code.split('::'); go({ n: 'product', c, p: pc, a }); };
-  const card = (p: CatalogProduct, hot?: boolean) => <Card p={p} cod={false} hot={hot} onOpen={() => open(p)} onAdd={() => open(p)} />;
+  const cats = useMemo(() => { const m = new Map<string, { n: number; img: MP }>(); for (const p of products) if (p.category) { const c = m.get(p.category); if (c) c.n++; else m.set(p.category, { n: 1, img: p }); } return [...m.entries()].sort((a, b) => b[1].n - a[1].n); }, [products]);
+  const open = useCallback((p: CatalogProduct) => { const [c, pc, a] = p.code.split('::'); go({ n: 'product', c, p: pc, a }); }, [go]);
+  const card = (p: CatalogProduct, hot?: boolean) => <KCard p={p as MP} hot={hot} onOpen={() => open(p)} />;
+  const adGo = useCallback((b: KBanner) => {
+    if (!b.link) { go({ n: 'search', s: { q: b.companyName } }); return; }
+    if (b.link.kind === 'url') { window.open(b.link.value, '_blank', 'noopener'); return; }
+    if (b.link.kind === 'product') go({ n: 'product', c: b.companyCode, p: b.link.value });
+    else go({ n: 'search', s: { q: b.link.value } });
+  }, [go]);
   // Sessão expirada → volta a entrar.
   useEffect(() => { if (sess) kw.me(sess.token).catch((e) => { if (e instanceof ApiError && e.status === 401) session.clear(); }); }, [sess?.token]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -95,11 +123,11 @@ export function KwanzaApp() {
   else if (route.n === 'recover') body = <Recover go={go} flash={flash} />;
   else if (route.n === 'cart') body = <Checkout go={go} flash={flash} />;
   else if (route.n === 'orders') body = <Orders go={go} />;
-  else if (route.n === 'claims') body = <Claims companies={[...new Map((list ?? []).map((l) => [l.companyCode, { code: l.companyCode, name: l.companyName }])).values()]} />;
-  else if (route.n === 'search') body = list === null ? <Loader /> : <Search products={products} state={route.s} card={card} onState={(s) => go({ n: 'search', s })} />;
+  else if (route.n === 'claims') body = <div className="kk-page"><div className="kk-wrap"><Claims companies={[...new Map((list ?? []).map((l) => [l.companyCode, { code: l.companyCode, name: l.companyName }])).values()]} /></div></div>;
+  else if (route.n === 'search') body = list === null ? <KLoader overlay={false} /> : <div className="kk-page"><div className="kk-wrap"><Search products={products} state={route.s} card={card} onState={(s) => go({ n: 'search', s })} /></div></div>;
   else if (route.n === 'product') body = <ProductRoute key={`${route.c}/${route.p}/${route.a ?? ''}`} route={route} list={list} sess={sess} go={go} flash={flash} card={card} products={products} />;
-  else if (PRIVATE.has(route.n) && sess) body = <Area route={route.n as AreaTab} chat={route.n === 'msgs' ? route.c : undefined} go={go} token={sess.token} me={sess.associate} flash={flash} products={products} />;
-  else body = <Home products={list === null ? null : products} go={go} card={card} buyer={!sess} />;
+  else if (PRIVATE.has(route.n) && sess) body = <Area route={route.n as AreaTab} chat={route.n === 'msgs' ? route.c : undefined} go={go} token={sess.token} me={sess.associate} flash={flash} products={products} ads={ads} />;
+  else body = <Home products={list === null ? null : products} cats={cats} ads={ads} adGo={adGo} go={go} card={card} buyer={!sess} />;
 
   // Entrar / criar conta / recuperar: UM ecrã só, sem barra nem rodapé e sem scroll da página.
   if (needLogin || route.n === 'login' || route.n === 'register' || route.n === 'recover') {
@@ -115,97 +143,242 @@ export function KwanzaApp() {
     );
   }
 
+  // No início o cabeçalho fica por cima do anúncio (transparente) até se fazer scroll.
+  const overHero = route.n === 'home' && list !== null && list.length > 0;
   return (
-    <div className="kw-root">
-      <header className={`kw-head${compact ? ' compact' : ''}`}>
-        <div className="kw-strip">
-          <div className="kw-container kw-strip-in">
-            <span className="kw-strip-l"><button onClick={() => go({ n: sess ? 'panel' : 'register' })}>Central do Associado</button><button onClick={() => go({ n: 'orders' })}>Minhas compras</button></span>
-            <span className="kw-strip-r">
-              {sess ? <><button className="kw-strip-me" onClick={() => go({ n: 'panel' })}>{sess.associate.photoUrl ? <img src={sess.associate.photoUrl} alt="" className="kw-strip-ph" /> : <i>{sess.associate.name.slice(0, 1).toUpperCase()}</i>}<span>{sess.associate.name.split(' ')[0]}</span></button>
-                <button className="kw-strip-out" onClick={() => { session.clear(); go({ n: 'home' }); }}><I d={P.out} size={15} /><span>Terminar sessão</span></button></>
-                : <><button className="kw-strip-auth" onClick={() => go({ n: 'register' })}><span>Criar conta</span></button><button className="kw-strip-auth" onClick={() => go({ n: 'login' })}><span>Entrar</span></button></>}
-            </span>
-          </div>
-        </div>
-        <div className="kw-container kw-head-in">
-          <button className="kw-logo" onClick={() => go({ n: 'home' })} aria-label={BRAND}><Mark size={40} /><span><b>LPS</b> Kwanza</span></button>
-          <form className="kw-search" role="search" onSubmit={(e) => { e.preventDefault(); go({ n: 'search', s: { q: q.trim() } }); }}>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produtos, marcas e muito mais…" aria-label="Pesquisar" />
-            <button aria-label="Pesquisar"><I d={P.search} size={18} /></button>
-          </form>
-          {sess ? <button className="kw-head-ic" onClick={() => go({ n: 'msgs' })} aria-label="Mensagens"><I d={P.chat} size={23} /></button> : null}
-          {sess ? <NotesBell token={sess.token} /> : null}
-          <CartIcon onClick={() => go({ n: 'cart' })} />
-          <button className="kw-head-ic" onClick={() => go({ n: sess ? 'panel' : 'login' })} aria-label="Conta"><I d={P.user} size={24} /></button>
-        </div>
-      </header>
-      <main className="kw-main" key={hashOf(route)}>{body}</main>
+    <div className="kw-root kk">
+      <Header sess={sess} go={go} q={q} setQ={setQ} clear={overHero && !scrolled} cats={cats} showCats={route.n !== 'home'} onCart={() => setDrawer(true)} />
+      <main className={`kk-main${overHero ? ' under' : ''}`} key={hashOf(route)}>{body}</main>
       {toast ? <div key={toast.id} className="kw-toast" role="status"><span className="kw-toast-ic"><I d={P.check} size={16} /></span>{toast.t}<i className="kw-toast-bar" /></div> : null}
-      <footer className="kw-foot">
-        <div className="kw-container kw-foot-in">
-          <div><h4>{BRAND}</h4><button onClick={() => go({ n: 'home' })}>Marketplace</button><button onClick={() => go({ n: 'search', s: { q: '' } })}>Todos os produtos</button></div>
-          <div><h4>Associados</h4><button onClick={() => go({ n: sess ? 'panel' : 'register' })}>Central do Associado</button><button onClick={() => go({ n: 'affs' })}>Minhas afiliações</button><button onClick={() => go({ n: 'withdraw' })}>Transações (Saques)</button></div>
-          <div><h4>Conta</h4><button onClick={() => go({ n: 'profile' })}>Perfil</button><button onClick={() => go({ n: 'recover' })}>Recuperar senha</button>{sess ? <button onClick={() => { session.clear(); go({ n: 'home' }); }}>Terminar sessão</button> : null}</div>
-          <div><h4>Ajuda</h4><button onClick={() => go({ n: 'orders' })}>Minhas compras</button><button onClick={() => go({ n: 'claims' })}>Reclamações</button><button onClick={() => go({ n: 'claims' })}>Devoluções e reembolsos</button></div>
-          <div><h4>Empresas</h4><span>{new Set((list ?? []).map((l) => l.companyCode)).size} empresas · {(list ?? []).length} produtos</span></div>
-        </div>
-        <div className="kw-foot-copy">© {new Date().getFullYear()} {BRAND} TODOS OS DIREITOS RESERVADOS</div>
-      </footer>
+      {drawer ? <CartDrawer onClose={() => setDrawer(false)} onCart={() => go({ n: 'cart' })} /> : null}
+      <Footer go={go} sess={!!sess} />
     </div>
   );
 }
 
-const Loader = () => <div className="kw-container"><div className="kw-loader" aria-busy="true"><i /><i /><i /></div></div>;
+/* ───────────── cabeçalho (faixa de topo + logótipo, pesquisa e carrinho) ───────────── */
+function useOutside(open: boolean, close: () => void) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const on = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) close(); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('mousedown', on); document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('mousedown', on); document.removeEventListener('keydown', key); };
+  }, [open, close]);
+  return ref;
+}
+function Drop({ label, icon, children, align = 'right', className = '' }: { label: React.ReactNode; icon?: string; children(close: () => void): React.ReactNode; align?: 'left' | 'right'; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const ref = useOutside(open, close);
+  return (
+    <div className={`kk-drop ${className}`} ref={ref}>
+      <button type="button" className="kk-strip-btn" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{icon ? <I d={icon} size={17} /> : null}{label}</button>
+      {open ? <div className={`kk-menu ${align}`} role="menu">{children(close)}</div> : null}
+    </div>
+  );
+}
 
-/* ───────────── início do marketplace ───────────── */
-function Home({ products, go, card, buyer }: { products: MP[] | null; go(r: Route): void; card(p: CatalogProduct, hot?: boolean): React.ReactNode; buyer: boolean }) {
+function Header({ sess, go, q, setQ, clear, cats, showCats, onCart }: {
+  sess: ReturnType<typeof session.get>; go(r: Route): void; q: string; setQ(v: string): void; clear: boolean;
+  cats: Array<[string, { n: number; img: MP }]>; showCats: boolean; onCart(): void;
+}) {
+  const n = useCart().reduce((s, i) => s + i.qty, 0);
+  return (
+    <header className={`kk-head${clear ? ' clear' : ''}`}>
+      <div className="kk-strip">
+        <div className="kk-wrap kk-strip-in">
+          <span className="kk-strip-l">
+            <button type="button" className="kk-strip-btn" onClick={() => go({ n: sess ? 'panel' : 'register' })}>Central do Associado</button>
+            <button type="button" className="kk-strip-btn" onClick={() => go({ n: 'orders' })}>Minhas compras</button>
+          </span>
+          <span className="kk-strip-r">
+            {sess ? <span className="kk-bell"><NotesBell token={sess.token} /><span className="kk-hide-sm">Notificações</span></span> : null}
+            <Drop icon={P.help} label={<span className="kk-hide-xs">Ajuda</span>}>{(close) => <>
+              <button role="menuitem" onClick={() => { close(); go({ n: 'orders' }); }}>Minhas compras</button>
+              <button role="menuitem" onClick={() => { close(); go({ n: 'claims' }); }}>Reclamações</button>
+              <button role="menuitem" onClick={() => { close(); go({ n: 'claims' }); }}>Devoluções e reembolsos</button>
+            </>}</Drop>
+            <Drop icon={P.globe} label={<><span className="kk-hide-xs">Português (AO)</span><span className="kk-caret" aria-hidden="true">▾</span></>}>{(close) => <button role="menuitem" className="on" onClick={close}>Português (AO)</button>}</Drop>
+            {sess ? (
+              <Drop className="kk-me" label={<span className="kk-avatar">{sess.associate.photoUrl ? <img src={sess.associate.photoUrl} alt="" /> : <b>{sess.associate.name.slice(0, 1).toUpperCase()}</b>}</span>}>{(close) => <>
+                <button role="menuitem" onClick={() => { close(); go({ n: 'panel' }); }}>Minha conta</button>
+                <button role="menuitem" onClick={() => { close(); go({ n: 'sales' }); }}>Minhas vendas</button>
+                <button role="menuitem" onClick={() => { close(); go({ n: 'msgs' }); }}>Mensagens</button>
+                <button role="menuitem" onClick={() => { close(); go({ n: 'orders' }); }}>Minhas compras</button>
+                <button role="menuitem" onClick={() => { close(); session.clear(); go({ n: 'home' }); }}>Sair</button>
+              </>}</Drop>
+            ) : <button type="button" className="kk-strip-btn" onClick={() => go({ n: 'login' })}><I d={P.user} size={17} /> Entrar</button>}
+          </span>
+        </div>
+      </div>
+      <div className="kk-wrap kk-bar">
+        <button className="kk-logo" onClick={() => go({ n: 'home' })} aria-label={BRAND}><Mark size={42} /><span className="kk-logo-txt"><b>LPS</b> Kwanza</span></button>
+        <form className="kk-search" role="search" onSubmit={(e) => { e.preventDefault(); go({ n: 'search', s: { q: q.trim() } }); }}>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produtos, marcas e muito mais…" aria-label="Pesquisar" />
+          <button aria-label="Pesquisar"><I d={P.search} size={18} /></button>
+        </form>
+        <button type="button" className="kk-cart" onClick={onCart} aria-label={`Carrinho${n ? ` (${n})` : ''}`}><I d={P.cart} size={27} />{n ? <em>{n > 99 ? '99+' : n}</em> : null}</button>
+      </div>
+      {showCats && cats.length ? (
+        <div className="kk-catbar"><div className="kk-wrap">
+          <Drop align="left" className="kk-catdrop" label={<><I d={P.grid} size={16} /> Categorias <I d={P.next} size={14} /></>}>{(close) => cats.map(([name, c]) => (
+            <button key={name} role="menuitem" onClick={() => { close(); go({ n: 'search', s: { q: '', cat: name } }); }}><span>{name}</span><small>{c.n}</small></button>
+          ))}</Drop>
+        </div></div>
+      ) : null}
+    </header>
+  );
+}
+
+/* ───────────── rodapé ───────────── */
+function Footer({ go, sess }: { go(r: Route): void; sess: boolean }) {
+  return (
+    <footer className="kk-foot">
+      <div className="kk-wrap kk-foot-in">
+        <div className="kk-foot-brand"><Mark size={70} inverse /><p>© {new Date().getFullYear()} {BRAND} TODOS OS DIREITOS RESERVADOS</p></div>
+        <div><h4>LPS Kwanza</h4><button onClick={() => go({ n: 'home' })}>Marketplace</button><button onClick={() => go({ n: 'search', s: { q: '' } })}>Todos os produtos</button><button onClick={() => go({ n: sess ? 'panel' : 'register' })}>Central do Associado</button></div>
+        <div><h4>Consumidor</h4><button onClick={() => go({ n: 'orders' })}>Minhas compras</button><button onClick={() => go({ n: 'claims' })}>Reclamações</button><button onClick={() => go({ n: 'claims' })}>Devoluções e reembolsos</button></div>
+        <div><h4>Associados</h4><button onClick={() => go({ n: 'market' })}>Mercado de Associados</button><button onClick={() => go({ n: 'withdraw' })}>Transações (Saques)</button><button onClick={() => go({ n: 'profile' })}>Perfil</button></div>
+      </div>
+    </footer>
+  );
+}
+
+/* ───────────── cartão de produto ───────────── */
+function KCard({ p, onOpen, hot, aff }: { p: MP; onOpen(): void; hot?: boolean; aff?: boolean }) {
+  const l = p.listing; const d = off(l);
+  return (
+    <article className="kk-card">
+      <button className="kk-card-img" onClick={onOpen} aria-label={p.name} tabIndex={-1}>
+        <Pic p={p} />
+        <span className="kk-card-cart" aria-hidden="true"><I d={P.cart} size={15} /></span>
+        {(l.views ?? 0) > 0 ? <span className="kk-card-views"><I d={P.eye} size={13} />{l.views}</span> : null}
+        {hot ? <span className="kk-card-hot">Em alta</span> : null}
+        <span className="kk-card-pay"><I d={P.truck} size={12} />Entrega pela empresa</span>
+        {d > 0 ? <span className="kk-card-off">-{d}%</span> : null}
+      </button>
+      <button className="kk-card-body" onClick={onOpen}>
+        <h3>{p.name}</h3>
+        {aff ? <>
+          {l.affiliation === 'RESTRICTED' ? <span className="kk-card-restr"><I d={P.close} size={13} /> Afiliação Restrita</span> : null}
+          <small className="kk-card-k">Comissão de até</small><b className="kk-card-com">{kz(com(l))}</b>
+          <small className="kk-card-k">Valor de venda</small><b className="kk-card-val">{kz(l.grossPrice)}</b>
+        </> : <>
+          {d > 0 && l.listPrice ? <s className="kk-card-old">{kz(l.listPrice)}</s> : null}
+          <b className="kk-card-price">{kz(l.grossPrice)}</b>
+          <span className="kk-card-ship">{p.inStock ? <><em>Disponível ⚡</em> Pronto para <b>envio</b></> : <em className="out">Esgotado</em>}</span>
+        </>}
+      </button>
+    </article>
+  );
+}
+
+/* ───────────── prateleira horizontal com setas ───────────── */
+function KShelf({ items, render }: { items: MP[]; render(p: MP): React.ReactNode }) {
+  const track = useRef<HTMLDivElement | null>(null);
+  const [edge, setEdge] = useState({ l: true, r: false });
+  const upd = useCallback(() => { const t = track.current; if (!t) return; setEdge({ l: t.scrollLeft <= 4, r: t.scrollLeft + t.clientWidth >= t.scrollWidth - 4 }); }, []);
+  useEffect(() => { upd(); }, [items, upd]);
+  const move = (dir: number) => { const t = track.current; if (t) t.scrollBy({ left: dir * t.clientWidth * 0.9, behavior: 'smooth' }); };
+  return (
+    <div className="kk-shelf">
+      {!edge.l ? <button className="kk-arrow l" onClick={() => move(-1)} aria-label="Anteriores"><I d={P.back} size={18} /></button> : null}
+      <div className="kk-shelf-track" ref={track} onScroll={upd}>{items.map((p) => <div className="kk-shelf-item" key={p.code}>{render(p)}</div>)}</div>
+      {!edge.r ? <button className="kk-arrow r" onClick={() => move(1)} aria-label="Seguintes"><I d={P.next} size={18} /></button> : null}
+    </div>
+  );
+}
+
+/* ───────────── carrossel de anúncios (imagem inteira; pontos por baixo) ───────────── */
+interface Ad { id: string; image: string | null; title?: string; subtitle?: string | null; cta?: string | null; onClick(): void }
+function AdCarousel({ ads, className = '', interval = 4500 }: { ads: Ad[]; className?: string; interval?: number }) {
+  const [i, setI] = useState(0); const [paused, setPaused] = useState(false); const touch = useRef<number | null>(null);
+  const n = ads.length;
+  useEffect(() => { if (i >= n) setI(0); }, [n, i]);
+  useEffect(() => {
+    if (n < 2 || paused) return;
+    if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const t = window.setInterval(() => setI((x) => (x + 1) % n), interval); return () => window.clearInterval(t);
+  }, [n, paused, interval]);
+  if (!n) return null;
+  return (
+    <div className={`kk-car ${className}`} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
+      onTouchStart={(e) => { touch.current = e.touches[0].clientX; setPaused(true); }}
+      onTouchEnd={(e) => { const s = touch.current; touch.current = null; setPaused(false); if (s == null) return; const dx = e.changedTouches[0].clientX - s; if (Math.abs(dx) > 40) setI((x) => (x + (dx < 0 ? 1 : -1) + n) % n); }}>
+      <div className="kk-car-track" style={{ transform: `translateX(-${i * 100}%)` }}>
+        {ads.map((a, k) => (
+          <button key={a.id} className={`kk-ad${a.image ? '' : ' txt'}`} onClick={a.onClick} aria-hidden={k !== i} tabIndex={k === i ? 0 : -1} aria-label={a.title ?? 'Anúncio'}>
+            {a.image ? <img src={a.image} alt="" loading={k === 0 ? 'eager' : 'lazy'} /> : null}
+            {!a.image ? <span className="kk-ad-txt"><strong>{a.title}</strong>{a.subtitle ? <small>{a.subtitle}</small> : null}{a.cta ? <em>{a.cta}</em> : null}</span> : null}
+          </button>
+        ))}
+      </div>
+      {n > 1 ? <div className="kk-car-dots">{ads.map((a, k) => <button key={a.id} className={k === i ? 'on' : ''} onClick={() => setI(k)} aria-label={`Anúncio ${k + 1}`} />)}</div> : null}
+    </div>
+  );
+}
+
+/* ───────────── início ───────────── */
+function Home({ products, cats, ads, adGo, go, card, buyer }: {
+  products: MP[] | null; cats: Array<[string, { n: number; img: MP }]>; ads: KBanner[]; adGo(b: KBanner): void; go(r: Route): void;
+  card(p: CatalogProduct, hot?: boolean): React.ReactNode; buyer: boolean;
+}) {
   const list = products ?? [];
-  const cats = useMemo(() => { const m = new Map<string, { n: number; img: MP }>(); for (const p of list) if (p.category) { const c = m.get(p.category); if (c) c.n++; else m.set(p.category, { n: 1, img: p }); } return [...m.entries()].sort((a, b) => b[1].n - a[1].n); }, [list]);
-  // Associado: produtos com mais comissão. Cliente: publicações mais recentes dos associados (a ordem do servidor).
-  const best = useMemo(() => (buyer ? list.slice(0, 12) : [...list].sort((a, b) => com(b.listing) - com(a.listing)).slice(0, 12)), [list, buyer]);
-  const top = useMemo(() => [...list].sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0)).slice(0, 12), [list]);
+  const promos = useMemo(() => list.filter((p) => off(p.listing) > 0).slice(0, 18), [list]);
+  // Associado: produtos com mais comissão. Cliente: publicações mais recentes dos associados.
+  const best = useMemo(() => (buyer ? list.slice(0, 18) : [...list].sort((a, b) => com(b.listing) - com(a.listing)).slice(0, 18)), [list, buyer]);
+  const top = useMemo(() => [...list].sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0)).slice(0, 18), [list]);
   const companies = useMemo(() => { const m = new Map<string, { name: string; n: number; img: MP }>(); for (const p of list) { const c = m.get(p.listing.companyCode); if (c) c.n++; else m.set(p.listing.companyCode, { name: p.listing.companyName, n: 1, img: p }); } return [...m.entries()]; }, [list]);
-  const rest = useMemo(() => list.filter((p) => !top.includes(p)), [list, top]);
-  const [shown, sentinel] = useInfinite(rest.length, 20, rest.length);
+  const [shown, sentinel] = useInfinite(list.length, 24, list.length);
   useReveal(`${list.length}-${shown}`);
-  const slides: Slide[] = useMemo(() => {
-    const s: Slide[] = [];
+  const withImg = ads.filter((b) => b.image);
+  const heroAds: Ad[] = useMemo(() => {
+    if (withImg.length) return withImg.slice(0, 8).map((b) => ({ id: b.id, image: bannerSrc(b), title: b.title, onClick: () => adGo(b) }));
+    // Sem anúncios das empresas: slides gerados a partir dos produtos.
+    const s: Ad[] = [];
     if (best[0]) s.push(buyer
-      ? { id: 'b', title: 'Compre aos nossos associados', subtitle: `${list.length} produtos com entrega pela empresa`, image: best[0].imageUrl, cta: 'Ver produtos', tone: 0, onClick: () => go({ n: 'search', s: { q: '' } }) }
-      : { id: 'b', title: 'Ganhe a vender', subtitle: `Comissões até ${kz(com(best[0].listing))} por venda`, image: best[0].imageUrl, cta: 'Ver produtos', tone: 0, onClick: () => go({ n: 'search', s: { q: '' } }) });
-    for (const [code, c] of companies.slice(0, 3)) s.push({ id: `c-${code}`, title: c.name, subtitle: `${c.n} produtos`, image: c.img.imageUrl, cta: 'Ver', tone: s.length, onClick: () => go({ n: 'search', s: { q: c.name } }) });
+      ? { id: 'b', image: null, title: 'Compre aos nossos associados', subtitle: `${list.length} produtos com entrega pela empresa`, cta: 'Ver produtos', onClick: () => go({ n: 'search', s: { q: '' } }) }
+      : { id: 'b', image: null, title: 'Ganhe a vender', subtitle: `Comissões até ${kz(com(best[0].listing))} por venda`, cta: 'Ver produtos', onClick: () => go({ n: 'market' }) });
+    for (const [code, c] of companies.slice(0, 4)) s.push({ id: `c-${code}`, image: null, title: c.name, subtitle: `${c.n} produtos`, cta: 'Ver', onClick: () => go({ n: 'search', s: { q: c.name } }) });
     return s;
-  }, [best, companies, go, buyer, list.length]);
-  if (products === null) return <Loader />;
-  if (!list.length) return <div className="kw-container kw-empty">Ainda sem produtos no marketplace</div>;
+  }, [withImg, best, companies, buyer, list.length, go, adGo]);
+  const mid = withImg.slice(8, 10);
+  if (products === null) return <KLoader overlay={false} />;
+  if (!list.length) return <div className="kk-page"><div className="kk-wrap kk-empty">Ainda sem produtos no marketplace</div></div>;
+  const shelf = promos.length >= 4 ? promos : best;
   return (
     <>
-      <div className="kw-herowrap">
-        <section className="kw-container kw-hero">
-          <div className={`kw-hero-grid${slides.length > 2 ? '' : ' one'}`}>
-            <Carousel slides={slides.slice(0, Math.max(1, slides.length - 2))} className="kw-hero-main" />
-            {slides.length > 2 ? <div className="kw-hero-side">{slides.slice(-2).map((s) => <button key={s.id} className={`kw-slide kw-side tone-${s.tone % 4}`} onClick={s.onClick}>{s.image ? <img src={s.image} alt="" loading="lazy" /> : null}<span className="kw-slide-txt"><strong>{s.title}</strong>{s.subtitle ? <small>{s.subtitle}</small> : null}</span></button>)}</div> : null}
-          </div>
-          {cats.length ? (
-            <div className="kw-circles"><div className="kw-circles-track">
-              {cats.map(([name, c]) => <button key={name} className="kw-circle" onClick={() => go({ n: 'search', s: { q: '', cat: name } })}><span className="kw-circle-img"><Pic p={c.img} /></span><span className="kw-circle-lbl">{name}</span></button>)}
-            </div></div>
-          ) : null}
+      <section className="kk-hero"><AdCarousel ads={heroAds} /></section>
+      {cats.length ? (
+        <section className="kk-band"><div className="kk-wrap"><div className="kk-circles">
+          {cats.slice(0, 14).map(([name, c]) => <button key={name} className="kk-circle" onClick={() => go({ n: 'search', s: { q: '', cat: name } })}><span><Pic p={c.img} /></span><small>{name}</small></button>)}
+        </div></div></section>
+      ) : null}
+      <div className="kk-wrap kk-stack">
+        <section className="kk-flash kw-reveal">
+          <header className="kk-flash-h"><h2><I d={P.bolt} size={20} /> {promos.length >= 4 ? 'OFERTAS' : buyer ? 'NOVIDADES' : 'MAIS COMISSÃO'}</h2>
+            <button onClick={() => go(promos.length >= 4 ? { n: 'search', s: { q: '', promo: true } } : buyer ? { n: 'search', s: { q: '' } } : { n: 'market' })}>Ver tudo <I d={P.next} size={14} /></button></header>
+          <KShelf items={shelf} render={(p) => card(p)} />
         </section>
-      </div>
-      <div className="kw-container kw-stack">
-        <Shelf className="kw-flash" title={buyer ? 'NOVIDADES' : 'MAIS COMISSÃO'} items={best} render={(p) => card(p)}
-          head={<header className="kw-flash-head"><h2><I d={P.bolt} size={20} /> {buyer ? 'NOVIDADES' : 'MAIS COMISSÃO'}</h2><button className="kw-flash-all" onClick={() => go({ n: 'search', s: { q: '' } })}>Ver tudo <I d={P.next} size={14} /></button></header>} />
-        {companies.length > 1 ? (
-          <section className="kw-sec kw-reveal"><header className="kw-sec-head"><h2>EMPRESAS</h2></header>
-            <div className="kw-catgrid">{companies.map(([code, c]) => <button key={code} className="kw-cat" onClick={() => go({ n: 'search', s: { q: c.name } })}><span className="kw-cat-img"><Pic p={c.img} /></span><span className="kw-cat-lbl">{c.name}</span></button>)}</div>
+        {mid.length ? <div className={`kk-mid${mid.length > 1 ? ' two' : ''}`}>{mid.map((b) => <button key={b.id} className="kk-mid-ad" onClick={() => adGo(b)} aria-label={b.title}><img src={bannerSrc(b)!} alt="" loading="lazy" /></button>)}</div> : null}
+        {cats.length > 1 ? (
+          <section className="kk-box kw-reveal"><header className="kk-box-h"><h2>CATEGORIAS</h2></header>
+            <div className="kk-catgrid">{cats.map(([name, c]) => <button key={name} className="kk-cat" onClick={() => go({ n: 'search', s: { q: '', cat: name } })}><span><Pic p={c.img} /></span><small>{name}</small></button>)}</div>
           </section>
         ) : null}
-        <Shelf title="DESTAQUE" items={top} render={(p) => card(p, true)} />
-        <section className="kw-disc"><header className="kw-disc-head"><h2>DESCOBERTAS DO DIA</h2></header>
-          <div className="kw-grid6">{rest.slice(0, shown).map((p) => <div key={p.code} className="kw-reveal">{card(p)}</div>)}</div>
-          {shown < rest.length ? <div ref={sentinel} className="kw-loader" aria-busy="true"><i /><i /><i /></div> : null}
+        {companies.length > 1 ? (
+          <section className="kk-box kw-reveal"><header className="kk-box-h"><h2>LOJAS</h2></header>
+            <div className="kk-catgrid">{companies.map(([code, c]) => <button key={code} className="kk-cat" onClick={() => go({ n: 'search', s: { q: c.name } })}><span><Pic p={c.img} /></span><small>{c.name}</small></button>)}</div>
+          </section>
+        ) : null}
+        <section className="kk-box kw-reveal"><header className="kk-box-h"><h2 className="red">DESTAQUE</h2><button className="kk-more" onClick={() => go({ n: 'search', s: { q: '' } })}>Ver Tudo <I d={P.next} size={14} /></button></header>
+          <KShelf items={top} render={(p) => card(p, true)} />
+        </section>
+        <section className="kk-disc"><header className="kk-disc-h"><h2>DESCOBERTAS DO DIA</h2></header>
+          <div className="kk-grid">{list.slice(0, shown).map((p) => <div key={p.code} className="kw-reveal">{card(p)}</div>)}</div>
+          {shown < list.length ? <div ref={sentinel} className="kk-more-load"><KLoader overlay={false} /></div> : null}
         </section>
       </div>
     </>
@@ -229,10 +402,7 @@ function ProductRoute({ route, list, sess, go, flash, card, products }: { route:
 const savedRef = (c: string, p: string): string | null => {
   try { const v = JSON.parse(localStorage.getItem(`kw.ref.${c}.${p}`) || 'null') as { a: string; at: number } | null; return v && Date.now() - v.at < 30 * 86400000 ? v.a : null; } catch { return null; }
 };
-function CartIcon({ onClick }: { onClick(): void }) {
-  const n = useCart().reduce((s, i) => s + i.qty, 0);
-  return <button className="kw-head-ic" onClick={onClick} aria-label={`Carrinho${n ? ` (${n})` : ''}`}><I d={P.cart} size={24} />{n ? <em className="kw-badge">{n > 99 ? '99+' : n}</em> : null}</button>;
-}
+const PAY_ICONS: Array<[string, string]> = [[P.card, 'Numerário na entrega'], [P.box, 'Transferência'], [P.phone, 'Multicaixa Express'], [P.doc, 'Referência']];
 
 function Product({ listing: l, loading, refCode, sess, go, flash, card, products }: { listing: Listing | null; loading: boolean; refCode?: string; sess: ReturnType<typeof session.get>; go(r: Route): void; flash(t: string): void; card(p: CatalogProduct): React.ReactNode; products: MP[] }) {
   const [img, setImg] = useState(0);
@@ -240,14 +410,15 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
   const [mk, setMk] = useState('');
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [more, setMore] = useState(false);
   const viewed = useRef(false);
   useEffect(() => { if (l && !viewed.current) { viewed.current = true; void kw.view(l.companyCode, l.productCode).catch(() => undefined); } }, [l]);
   useEffect(() => {
     if (!sess || !l) { setAff(null); return; }
     kw.affiliations(sess.token).then((r) => { const f = r.find((x) => x.companyCode === l.companyCode && x.productCode === l.productCode) ?? null; setAff(f); setMk(f?.markupPct ? String(f.markupPct) : ''); }).catch(() => setAff(null));
   }, [sess?.token, l?.companyCode, l?.productCode]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (loading) return <Loader />;
-  if (!l) return <div className="kw-container kw-empty">Produto indisponível</div>;
+  if (loading) return <KLoader overlay={false} />;
+  if (!l) return <div className="kk-page"><div className="kk-wrap kk-empty">Produto indisponível</div></div>;
   const pics = [l.imageUrl, ...l.gallery].filter((x, i, a): x is string => !!x && a.indexOf(x) === i);
   // Publicação de um associado: o cliente compra pela ligação dele (comissão e preço próprio atribuídos).
   const post = l.associate ? l : null;
@@ -258,62 +429,89 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
   const yt = l.videoUrl ? /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/i.exec(l.videoUrl)?.[1] : undefined;
   const pct = aff?.status === 'APPROVED' ? aff.commissionPct : l.commissionPct;
   const link = sess ? shareLink(l.companyCode, l.productCode, sess.associate.code) : '';
-  const similar = products.filter((p) => p.code !== toMP(l).code && p.category && p.category === l.category).slice(0, 12);
+  const self = toMP(l).code;
+  const similar = products.filter((p) => p.code !== self && p.category && p.category === l.category).slice(0, 12);
+  const fromStore = products.filter((p) => p.code !== self && p.listing.companyCode === l.companyCode && !similar.includes(p)).slice(0, 12);
   const join = async () => {
-    if (!sess) { go({ n: 'login' }); return; }
+    if (!sess) { go({ n: 'register' }); return; }
     setBusy(true);
     try { const r = await kw.affiliate(sess.token, l.companyCode, l.productCode); flash(r.status === 'APPROVED' ? 'Associado a este produto' : 'Pedido de afiliação enviado'); const all = await kw.affiliations(sess.token); setAff(all.find((x) => x.companyCode === l.companyCode && x.productCode === l.productCode) ?? null); }
     catch (e) { flash(e instanceof ApiError ? e.message : 'Não foi possível'); } finally { setBusy(false); }
   };
   const saveMk = async () => { if (!sess) return; try { const r = await kw.markup(sess.token, l.companyCode, l.productCode, mk ? Number(mk) : null); setMk(r.markupPct ? String(r.markupPct) : ''); flash('Preço próprio guardado'); } catch (e) { flash(e instanceof ApiError ? e.message : 'Não foi possível'); } };
   const copy = async () => { try { await navigator.clipboard.writeText(link); flash('Ligação copiada'); } catch { window.prompt('Copie:', link); } };
+  const d = off(l);
   return (
-    <div className="kw-container kw-pdp">
-      <div className="kw-pdp-grid">
-        <div className="kw-pdp-main"><div className="kw-pdp-top">
-          <div className="kw-gal">
-            {pics.length > 1 ? <div className="kw-thumbs">{pics.map((u, i) => <button key={u} className={i === img ? 'on' : ''} onMouseEnter={() => setImg(i)} onClick={() => setImg(i)} aria-label={`Imagem ${i + 1}`}><img src={u} alt="" loading="lazy" /></button>)}</div> : null}
-            <div className="kw-gal-main">{pics.length ? <img src={pics[img] ?? pics[0]} alt={l.name} /> : <Pic p={toMP(l)} />}</div>
+    <div className="kk-page kk-pdp">
+      <div className="kk-wrap">
+        <div className="kk-pdp-top">
+          <div className="kk-gal">
+            {pics.length > 1 ? <div className="kk-thumbs">{pics.map((u, i) => <button key={u} className={i === img ? 'on' : ''} onMouseEnter={() => setImg(i)} onClick={() => setImg(i)} aria-label={`Imagem ${i + 1}`}><img src={u} alt="" loading="lazy" /></button>)}</div> : null}
+            <div className="kk-gal-main">{pics.length ? <img src={pics[img] ?? pics[0]} alt={l.name} /> : <Pic p={toMP(l)} />}</div>
           </div>
-          <div className="kw-pdp-info">
+          <div className="kk-info">
             <h1>{l.name}</h1>
-            <div className="kw-pdp-meta"><span className="kw-pill-soft"><I d={P.bag} size={14} /> {l.companyName}</span>{l.views ? <span className="kw-pill-soft"><I d={P.eye} size={14} /> {l.views}</span> : null}{l.affiliation === 'RESTRICTED' ? <span className="kw-pill kw-st-PENDING">Afiliação restrita</span> : null}</div>
-            <div className="kw-pricebox"><div><b>{kz(l.grossPrice)}</b></div>{l.listPrice && l.listPrice > l.grossPrice ? <s>{kz(l.listPrice)}</s> : null}</div>
-            {post ? (
-              <div className="kw-post-by"><span className="kw-post-by-ph">{post.associate!.photoUrl ? <img src={post.associate!.photoUrl} alt="" /> : <b>{post.associate!.name.slice(0, 1).toUpperCase()}</b>}</span><div><small>Publicado por</small><b>{post.associate!.name}</b></div></div>
-            ) : <div className="kw-aff-modal-p"><div><span>Comissão de até</span><b className="kw-aff-com">{kz(com(l, pct))}</b></div><div><span>Comissionamento</span><b className="kw-aff-val">{pct}% · último clique</b></div></div>}
-            {post?.caption ? <p className="kw-desc kw-post-cap">{post.caption}</p> : null}
-            {l.videoUrl ? (yt ? <div className="kw-video"><iframe src={`https://www.youtube-nocookie.com/embed/${yt}`} title="Vídeo do produto" loading="lazy" allow="accelerometer; encrypted-media; picture-in-picture" allowFullScreen /></div>
-              : <a className="kw-btn kw-btn-outline kw-video-link" href={l.videoUrl} target="_blank" rel="noopener noreferrer"><I d={P.eye} size={16} /> Ver vídeo</a>) : null}
-            {l.description ? <p className="kw-desc">{l.description}</p> : null}
+            <div className="kk-info-meta">
+              <span className="kk-chip"><I d={P.bag} size={14} /> {l.companyName}</span>
+              {l.views ? <span className="kk-chip"><I d={P.eye} size={14} /> {l.views}</span> : null}
+              {l.sold ? <span className="kk-chip">{l.sold} vendidos</span> : null}
+            </div>
+            <div className="kk-offer">
+              {d > 0 ? <div className="kk-offer-h">-{d}%</div> : null}
+              <div className="kk-offer-b">{d > 0 && l.listPrice ? <s>{kz(l.listPrice)}</s> : null}<b>{kz(l.grossPrice)}</b></div>
+            </div>
+            {!post ? <button className="kk-aff-link" onClick={() => void join()} disabled={busy}><I d={P.share} size={16} /> {aff?.status === 'APPROVED' ? `Associado · comissão de até ${kz(com(l, pct))}` : `Vender como associado · comissão de até ${kz(com(l, pct))}`}</button> : null}
+            <div className="kk-sold-by"><I d={P.pin} size={18} /> Vendido por: <b>{l.companyName}</b></div>
+            <div className="kk-paybox"><h3>Formas de pagamento</h3><div className="kk-payicons">{PAY_ICONS.map(([ic, t]) => <span key={t}><I d={ic} size={20} /><small>{t}</small></span>)}</div></div>
+            {post ? <div className="kk-post-by"><span className="kk-avatar big">{post.associate!.photoUrl ? <img src={post.associate!.photoUrl} alt="" /> : <b>{post.associate!.name.slice(0, 1).toUpperCase()}</b>}</span><div><small>Publicado por</small><b>{post.associate!.name}</b></div></div> : null}
+            {post?.caption ? <p className="kk-cap">{post.caption}</p> : null}
+            <div className="kk-buy-desk">
+              {l.inStock ? <div className="kk-buybtns"><button className="kk-btn-add" onClick={() => addToCart(false)}><I d={P.cart} size={18} /> Adicionar ao carrinho</button><button className="kk-btn-buy" onClick={() => addToCart(true)}>Comprar</button></div> : <span className="kw-pill kw-st-CANCELLED">Esgotado</span>}
+            </div>
+            {sess ? <button className="kk-ghost" onClick={() => go({ n: 'msgs', c: l.companyCode })}><I d={P.chat} size={16} /> Falar com a empresa</button> : null}
+            {/* Ferramentas do associado (afiliação, ligação, preço próprio, publicação). */}
+            {!sess && post ? null : aff?.status === 'APPROVED' ? (
+              <div className="kk-aff">
+                <div className="kk-aff-row"><span>Comissão</span><b>{pct}% · {kz(com(l, pct))}{aff.negotiated ? ' · negociada' : ''}</b></div>
+                <div className="kw-aff-link"><input readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Ligação de associado" /></div>
+                <div className="kk-aff-acts">
+                  <button className="kk-btn-buy sm" onClick={() => void copy()}>Copiar ligação</button>
+                  <a className="kk-btn-wa" href={`https://wa.me/?text=${encodeURIComponent(`${l.name} — ${kz(l.grossPrice)}\n${link}`)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                  <button className="kk-ghost" onClick={() => setEditing(true)}><I d={P.share} size={16} /> {aff.published ? 'Editar publicação' : 'Publicar no marketplace'}</button>
+                </div>
+                {l.allowMarkup ? <div className="kk-aff-mk"><label className="kw-f"><span>Preço próprio (+%{l.maxMarkupPct != null ? ` até ${l.maxMarkupPct}%` : ''})</span><input inputMode="decimal" value={mk} onChange={(e) => setMk(e.target.value.replace(/[^\d.]/g, ''))} /></label><button className="kk-ghost" onClick={() => void saveMk()}>Guardar</button></div> : null}
+                {l.materials.length ? <div className="kw-mats"><b>Materiais de divulgação</b>{l.materials.map((m, i) => <a key={m} href={m} target="_blank" rel="noopener noreferrer"><I d={P.doc} size={14} /> Material {i + 1}</a>)}</div> : null}
+              </div>
+            ) : aff?.status === 'PENDING' ? <span className="kw-pill kw-st-PENDING">Pedido de afiliação em análise</span>
+              : aff?.status === 'REJECTED' ? <span className="kw-pill kw-st-CANCELLED">Afiliação recusada</span>
+              : l.affiliation === 'RESTRICTED' ? <span className="kk-card-restr"><I d={P.close} size={13} /> Afiliação Restrita</span> : null}
           </div>
-        </div></div>
-        <aside className="kw-pdp-side kw-pdp-side-on">
-          <div className="kw-side-price"><b>{kz(l.grossPrice)}</b></div>
-          <div className="kw-side-row">Vendido por: <b>{l.companyName}</b></div>
-          {sess ? <button className="kw-btn kw-block" onClick={() => go({ n: 'msgs', c: l.companyCode })}><I d={P.chat} size={16} /> Falar com a empresa</button> : null}
-          {l.inStock ? <>
-            <button className="kw-btn kw-btn-primary kw-block kw-buy" onClick={() => addToCart(true)}><I d={P.cart} size={18} /> Comprar agora</button>
-            <button className="kw-btn kw-btn-outline kw-block" onClick={() => addToCart(false)}>Adicionar ao carrinho</button>
-          </> : <span className="kw-pill kw-st-CANCELLED">Esgotado</span>}
-          {post || assocCode ? <div className="kw-buy-info"><span><I d={P.truck} size={15} /> Entrega pela equipa da {l.companyName}</span><span><I d={P.card} size={15} /> Numerário, transferência, Express ou referência</span></div> : null}
-          {!sess && post ? null : aff?.status === 'APPROVED' ? (
-            <>
-              <div className="kw-aff-link"><input readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Ligação de associado" /></div>
-              <button className="kw-btn kw-btn-primary kw-block" onClick={() => void copy()}>Copiar ligação de associado</button>
-              <a className="kw-btn kw-btn-green kw-block" href={`https://wa.me/?text=${encodeURIComponent(`${l.name} — ${kz(l.grossPrice)}\n${link}`)}`} target="_blank" rel="noopener noreferrer">Partilhar no WhatsApp</a>
-              {aff.negotiated ? <span className="kw-pill kw-st-PAID">Comissão negociada: {aff.commissionPct}%</span> : null}
-              <button className="kw-btn kw-btn-outline kw-block" onClick={() => setEditing(true)}><I d={P.share} size={16} /> {aff.published ? 'Editar publicação' : 'Publicar no marketplace'}</button>
-            </>
-          ) : aff?.status === 'PENDING' ? <span className="kw-pill kw-st-PENDING">Pedido de afiliação em análise</span>
-            : aff?.status === 'REJECTED' ? <span className="kw-pill kw-st-CANCELLED">Afiliação recusada</span>
-            : sess ? <button className="kw-btn kw-btn-primary kw-block" disabled={busy} onClick={() => void join()}>{l.affiliation === 'RESTRICTED' ? 'Solicitar afiliação' : 'Associar-me'}</button>
-            : <button className="kw-btn kw-block" onClick={() => go({ n: 'register' })}>Seja associado e ganhe comissões</button>}
-          {l.materials.length && aff?.status === 'APPROVED' ? <div className="kw-mats"><b>Materiais de divulgação</b>{l.materials.map((m, i) => <a key={m} href={m} target="_blank" rel="noopener noreferrer"><I d={P.doc} size={14} /> Material {i + 1}</a>)}</div> : null}
-        </aside>
+        </div>
+        <section className="kk-box"><header className="kk-box-h"><h2>Detalhes</h2></header>
+          <div className={`kk-desc${more ? ' open' : ''}`}>
+            <h3>O que precisa de saber sobre este produto</h3>
+            {l.category ? <p className="kk-desc-k"><span>Categoria:</span> {l.category}</p> : null}
+            {l.description ? <p>{l.description}</p> : null}
+            {l.videoUrl ? (yt ? <div className="kw-video"><iframe src={`https://www.youtube-nocookie.com/embed/${yt}`} title="Vídeo do produto" loading="lazy" allow="accelerometer; encrypted-media; picture-in-picture" allowFullScreen /></div>
+              : <a className="kk-ghost" href={l.videoUrl} target="_blank" rel="noopener noreferrer"><I d={P.eye} size={16} /> Ver vídeo</a>) : null}
+            {pics.slice(1, 4).map((u) => <img key={u} src={u} alt="" loading="lazy" className="kk-desc-img" />)}
+          </div>
+          {(l.description?.length ?? 0) > 280 || pics.length > 1 ? <div className="kk-desc-more"><button onClick={() => setMore((m) => !m)}>{more ? 'Ver menos' : 'Ver mais'}</button></div> : null}
+        </section>
+        <section className="kk-box"><header className="kk-box-h"><h2>Loja</h2></header>
+          <div className="kk-store"><span className="kk-store-ic"><I d={P.bag} size={22} /></span><div><b>{l.companyName}</b><small>{products.filter((p) => p.listing.companyCode === l.companyCode).length} produtos no LPS Kwanza</small></div>
+            <button className="kk-more" onClick={() => go({ n: 'search', s: { q: l.companyName } })}>Ver todos desta loja <I d={P.next} size={14} /></button></div>
+        </section>
+        <ProductSocial l={l} flash={flash} />
+        {similar.length ? <section className="kk-box"><header className="kk-box-h"><h2>Produtos similares</h2>{l.category ? <button className="kk-more" onClick={() => go({ n: 'search', s: { q: '', cat: l.category! } })}>Ver todos em {l.category} <I d={P.next} size={14} /></button> : null}</header><div className="kk-grid">{similar.map((p) => <div key={p.code}>{card(p)}</div>)}</div></section> : null}
+        {fromStore.length ? <section className="kk-box"><header className="kk-box-h"><h2>Mais de {l.companyName}</h2><button className="kk-more" onClick={() => go({ n: 'search', s: { q: l.companyName } })}>Ver todos desta loja <I d={P.next} size={14} /></button></header><div className="kk-grid">{fromStore.map((p) => <div key={p.code}>{card(p)}</div>)}</div></section> : null}
       </div>
-      <ProductSocial l={l} flash={flash} />
-      <Shelf title="Produtos similares" items={similar} render={card} />
+      {l.inStock ? (
+        <div className="kk-buybar"><div className="kk-wrap kk-buybar-in">
+          <b className="kk-buybar-price">{kz(l.grossPrice)}</b>
+          <div className="kk-buybtns"><button className="kk-btn-add" onClick={() => addToCart(false)}><I d={P.cart} size={18} /> Adicionar ao carrinho</button><button className="kk-btn-buy" onClick={() => addToCart(true)}>Comprar</button></div>
+        </div></div>
+      ) : null}
       {editing && aff && sess ? <PostEditor token={sess.token} a={aff} onClose={() => setEditing(false)} onSaved={(m) => { setEditing(false); flash(m); void kw.affiliations(sess.token).then((r) => setAff(r.find((x) => x.companyCode === l.companyCode && x.productCode === l.productCode) ?? null)); }} /> : null}
     </div>
   );
@@ -383,11 +581,40 @@ function Recover({ go, flash }: { go(r: Route): void; flash(t: string): void }) 
   );
 }
 
-/* ───────────── área do associado ───────────── */
-type AreaTab = 'panel' | 'sales' | 'affs' | 'withdraw' | 'accounts' | 'profile' | 'msgs';
-const STATE: Record<string, [string, string]> = { PENDING: ['Pendente', 'kw-st-PENDING'], AVAILABLE: ['Disponível', 'kw-st-PAID'], CANCELLED: ['Cancelada', 'kw-st-CANCELLED'], APPROVED: ['Aprovada', 'kw-st-PAID'], REJECTED: ['Recusada', 'kw-st-CANCELLED'], REQUESTED: ['Em análise', 'kw-st-PENDING'], PAID: ['Pago', 'kw-st-PAID'] };
 
-function Area({ route, chat, go, token, me, flash, products }: { route: AreaTab; chat?: string; go(r: Route): void; token: string; me: Associate; flash(t: string): void; products: MP[] }) {
+const Loader = () => <KLoader overlay={false} />;
+
+/* ───────────── área do associado (menu lateral como no Kikolo) ───────────── */
+type AreaTab = 'panel' | 'sales' | 'market' | 'affs' | 'withdraw' | 'accounts' | 'profile' | 'msgs';
+const STATE: Record<string, [string, string]> = { PENDING: ['Pendente', 'kw-st-PENDING'], AVAILABLE: ['Disponível', 'kw-st-PAID'], CANCELLED: ['Cancelada', 'kw-st-CANCELLED'], APPROVED: ['Aprovada', 'kw-st-PAID'], REJECTED: ['Recusada', 'kw-st-CANCELLED'], REQUESTED: ['Em análise', 'kw-st-PENDING'], PAID: ['Pago', 'kw-st-PAID'] };
+const TITLES: Record<AreaTab, [string, string]> = {
+  panel: ['Dashboard', P.grid], sales: ['Minhas vendas', P.bag], market: ['Mercado de Associados', P.share], affs: ['Minhas afiliações', P.share],
+  withdraw: ['Histórico de transações', P.card], accounts: ['Contas bancárias', P.shield], profile: ['Meu Perfil', P.user], msgs: ['Mensagens', P.chat],
+};
+
+function AreaMenu({ route, go, onPick }: { route: AreaTab; go(r: Route): void; onPick?(): void }) {
+  const [openG, setOpenG] = useState<Record<string, boolean>>({ v: true, p: true, m: true, c: true });
+  const item = (k: AreaTab, label: string, ic: string, tag?: string) => (
+    <button key={k} className={`kk-nav-i${route === k ? ' on' : ''}`} onClick={() => { onPick?.(); go({ n: k } as Route); }}><I d={ic} size={18} /><span>{label}</span>{tag ? <em>{tag}</em> : null}</button>
+  );
+  const group = (id: string, title: string, items: React.ReactNode) => (
+    <div className="kk-nav-g" key={id}>
+      <button className="kk-nav-gh" aria-expanded={openG[id]} onClick={() => setOpenG((g) => ({ ...g, [id]: !g[id] }))}><span>{title}</span><I d={openG[id] ? P.up : P.down} size={16} /></button>
+      {openG[id] ? <div className="kk-nav-gb">{items}</div> : null}
+    </div>
+  );
+  return (
+    <nav className="kk-nav" aria-label="Área do associado">
+      {group('v', 'VENDAS 🔥', <>{item('panel', 'Painel do associado', P.grid)}{item('sales', 'Minhas Vendas', P.card)}{item('market', 'Para Associados', P.share, 'Venda +')}{item('withdraw', 'Transações (Saques)', P.box)}</>)}
+      {group('p', 'PRODUTOS', <>{item('affs', 'Minhas afiliações', P.bag)}</>)}
+      {group('m', 'MENSAGENS', <>{item('msgs', 'Mensagens', P.chat)}</>)}
+      {group('c', 'DEFINIÇÕES DA CONTA', <>{item('profile', 'Perfil', P.user)}{item('accounts', 'Contas bancárias', P.shield)}</>)}
+      <button className="kk-nav-i out" onClick={() => { onPick?.(); session.clear(); go({ n: 'home' }); }}><I d={P.close} size={18} /><span>Terminar sessão</span></button>
+    </nav>
+  );
+}
+
+function Area({ route, chat, go, token, me, flash, products, ads }: { route: AreaTab; chat?: string; go(r: Route): void; token: string; me: Associate; flash(t: string): void; products: MP[]; ads: KBanner[] }) {
   const [d, setD] = useState<Dashboard | null>(null);
   const [drawer, setDrawer] = useState(false);
   const load = useCallback(() => kw.dashboard(token).then(setD).catch(() => undefined), [token]);
@@ -399,32 +626,27 @@ function Area({ route, chat, go, token, me, flash, products }: { route: AreaTab;
     window.addEventListener('focus', again);
     return () => { window.clearInterval(t); window.removeEventListener('focus', again); };
   }, [load]);
-  const menu = (
-    <nav className="kw-affmenu" aria-label="Área do associado">
-      <div className="kw-affmenu-g">VENDAS 🔥</div>
-      {([['panel', 'Painel do associado', P.grid], ['sales', 'Minhas Vendas', P.card], ['affs', 'Minhas afiliações', P.share], ['withdraw', 'Transações (Saques)', P.box]] as const).map(([k, l, ic]) => <button key={k} className={route === k ? 'on' : ''} onClick={() => go({ n: k })}><I d={ic} size={17} /> {l}</button>)}
-      <button onClick={() => go({ n: 'search', s: { q: '' } })}><I d={P.bag} size={17} /> Mercado de Associados <em>Venda +</em></button>
-      <button className={route === 'msgs' ? 'on' : ''} onClick={() => go({ n: 'msgs' })}><I d={P.chat} size={17} /> Mensagens</button>
-      <div className="kw-affmenu-g">CONTA</div>
-      <button className={route === 'accounts' ? 'on' : ''} onClick={() => go({ n: 'accounts' })}><I d={P.shield} size={17} /> Contas bancárias</button>
-      <button className={route === 'profile' ? 'on' : ''} onClick={() => go({ n: 'profile' })}><I d={P.user} size={17} /> Perfil</button>
-      <button onClick={() => { session.clear(); go({ n: 'home' }); }}><I d={P.out} size={17} /> Terminar sessão</button>
-    </nav>
-  );
+  const banner = ads.find((b) => b.image);
   let body: React.ReactNode;
-  if (route === 'panel') body = <Panel d={d} me={me} go={go} products={products} />;
+  if (route === 'panel') body = <Panel d={d} go={go} products={products} banner={banner} />;
   else if (route === 'sales') body = <SalesT d={d} />;
+  else if (route === 'market') body = <Market products={products} go={go} banner={banner} />;
   else if (route === 'affs') body = <Affs token={token} go={go} flash={flash} />;
   else if (route === 'withdraw') body = <Withdraw token={token} d={d} onDone={() => { void load(); flash('Pedido de saque enviado'); }} go={go} />;
   else if (route === 'accounts') body = <Accounts token={token} flash={flash} />;
   else if (route === 'msgs') body = <MsgsRoute token={token} chat={chat} go={go} />;
   else body = <Profile token={token} me={me} flash={flash} />;
+  const [title, icon] = TITLES[route];
   return (
-    <div className="kw-container kw-affwrap">
-      <aside className="kw-affside">{menu}</aside>
-      <section className="kw-affmain"><button className="kw-btn kw-affmenu-btn" onClick={() => setDrawer(true)}><I d={P.filter} size={16} /> Menu</button>{body}</section>
-      {drawer ? <><div className="kw-scrim" onClick={() => setDrawer(false)} /><div className="kw-affdrawer kw-pop" role="dialog" aria-label="Menu"><div className="kw-affdrawer-h"><b>Menu</b><button className="kw-x" onClick={() => setDrawer(false)} aria-label="Fechar"><I d={P.close} size={18} /></button></div><div onClick={() => setDrawer(false)}>{menu}</div></div></> : null}
-    </div>
+    <div className="kk-page"><div className="kk-wrap kk-area">
+      <aside className="kk-side"><AreaMenu route={route} go={go} /></aside>
+      <section className="kk-area-main">
+        <button className="kk-menu-btn" onClick={() => setDrawer(true)}><I d={P.filter} size={18} /> Menu</button>
+        <h1 className="kk-ptitle"><span><I d={icon} size={20} /></span>{title}</h1>
+        {body}
+      </section>
+      {drawer ? <><div className="kk-scrim" onClick={() => setDrawer(false)} /><div className="kk-drawer left" role="dialog" aria-label="Menu"><div className="kk-drawer-h"><b>Menu</b><button className="kk-x" onClick={() => setDrawer(false)} aria-label="Fechar"><I d={P.close} size={20} /></button></div><AreaMenu route={route} go={go} onPick={() => setDrawer(false)} /></div></> : null}
+    </div></div>
   );
 }
 
@@ -436,79 +658,121 @@ function MsgsRoute({ token, chat, go }: { token: string; chat?: string; go(r: Ro
   return <Messages token={token} company={chat} companies={companies} go={(c) => go({ n: 'msgs', c })} />;
 }
 
-/** Cartão de secção da área do associado (título + conteúdo). */
-function Sec({ title, action, children, className = '' }: { title?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
+/** Cartão branco da área do associado. */
+function Sec({ title, action, children, className = '' }: { title?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`kw-sec ${className}`}>
-      {title || action ? <header className="kw-sec-h">{title ? <h3>{title}</h3> : null}{action}</header> : null}
+    <section className={`kk-card2 ${className}`}>
+      {title || action ? <header className="kk-card2-h">{title ? <h3>{title}</h3> : null}{action}</header> : null}
       {children}
     </section>
   );
 }
 function Kpi({ label, value, sub, tone = '' }: { label: string; value: string; sub?: string; tone?: '' | 'main' | 'ok' | 'off' | 'warn' }) {
-  return <div className={`kw-sales-kpi ${tone}`}><span>{label}</span><b>{value}</b>{sub ? <small>{sub}</small> : null}</div>;
+  return <div className={`kk-kpi ${tone}`}><b>{value}</b><span>{label}</span>{sub ? <small>{sub}</small> : null}</div>;
 }
 
-function Panel({ d, me, go, products }: { d: Dashboard | null; me: Associate; go(r: Route): void; products: MP[] }) {
+/** Calendário do mês (como no painel do Kikolo): hoje marcado, dias futuros esbatidos. */
+function MonthCal() {
+  const [ref, setRef] = useState(() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1); });
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const start = new Date(ref); const wd = (start.getDay() + 6) % 7; start.setDate(1 - wd);
+  const days = Array.from({ length: 42 }, (_, i) => { const x = new Date(start); x.setDate(start.getDate() + i); return x; });
+  const label = ref.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
+  return (
+    <div className="kk-cal">
+      <div className="kk-cal-h"><button onClick={() => setRef(new Date(ref.getFullYear(), ref.getMonth() - 1, 1))} aria-label="Mês anterior"><I d={P.back} size={16} /></button><b>{label}</b>
+        <button onClick={() => setRef(new Date(ref.getFullYear(), ref.getMonth() + 1, 1))} disabled={ref.getFullYear() === today.getFullYear() && ref.getMonth() === today.getMonth()} aria-label="Mês seguinte"><I d={P.next} size={16} /></button></div>
+      <div className="kk-cal-g">{['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map((w) => <small key={w}>{w}</small>)}
+        {days.map((x) => <span key={x.toISOString()} className={`${x.getMonth() !== ref.getMonth() ? 'out ' : ''}${x.getTime() === today.getTime() ? 'today ' : ''}${x > today ? 'future' : ''}`}>{x.getDate()}</span>)}</div>
+    </div>
+  );
+}
+
+function Panel({ d, go, products, banner }: { d: Dashboard | null; go(r: Route): void; products: MP[]; banner?: KBanner }) {
+  const [byViews, setByViews] = useState(true);
   const valid = (d?.sales ?? []).filter((s) => s.state !== 'CANCELLED');
   const since = (days: number) => valid.filter((s) => new Date(s.date).getTime() >= Date.now() - days * 86400000).reduce((a, s) => a + s.amount, 0);
   const today = (() => { const t = new Date(); t.setHours(0, 0, 0, 0); return valid.filter((s) => new Date(s.date) >= t).reduce((a, s) => a + s.amount, 0); })();
+  const yesterday = (() => { const t = new Date(); t.setHours(0, 0, 0, 0); const y = new Date(t); y.setDate(t.getDate() - 1); return valid.filter((s) => { const x = new Date(s.date); return x >= y && x < t; }).reduce((a, s) => a + s.amount, 0); })();
+  const trend = yesterday > 0 ? Math.round(((today - yesterday) / yesterday) * 100) : today > 0 ? 100 : 0;
   const total = (d?.withdrawn ?? 0) + (d?.balance ?? 0) + (d?.pending ?? 0);
   const ring = total > 0 ? (d?.withdrawn ?? 0) / total : 0;
-  const top = [...products].sort((a, b) => (b.views ?? 0) - (a.views ?? 0)).slice(0, 6);
+  const top = [...products].sort((a, b) => (byViews ? (b.views ?? 0) - (a.views ?? 0) : com(b.listing) - com(a.listing))).slice(0, 8);
+  const done = (d?.sales ?? []).filter((s) => s.state === 'AVAILABLE');
+  const cancelled = (d?.sales ?? []).filter((s) => s.state === 'CANCELLED');
   return (
-    <div className="kw-dash kw-sales">
-      <div className="kw-hello kw-pop">
-        <span className="kw-hello-ph">{me.photoUrl ? <img src={me.photoUrl} alt="" /> : <b>{me.name.slice(0, 1).toUpperCase()}</b>}</span>
-        <div><strong>Olá, {me.name.split(' ')[0]}</strong><small>Código de associado <b>{me.code}</b></small></div>
-        <button className="kw-btn kw-hello-btn" onClick={() => go({ n: 'withdraw' })}>Solicitar saque</button>
-      </div>
-      <div className="kw-sales-kpis">
-        <Kpi tone="main" label="Saldo disponível" value={kz(d?.balance ?? 0)} />
-        <Kpi label="Vendas em processo" value={kz(d?.pending ?? 0)} />
-        <Kpi tone="warn" label="Saque em análise" value={kz(d?.requested ?? 0)} />
-        <Kpi tone="ok" label="Total já retirado" value={kz(d?.withdrawn ?? 0)} />
-      </div>
-      <div className="kw-sec-row">
-        <Sec title="Desempenho de vendas">
-          <div className="kw-perf3">
-            <div><small>Hoje</small><b>{kz(today)}</b></div>
-            <div><small>Últimos 7 dias</small><b>{kz(since(7))}</b></div>
-            <div><small>Últimos 30 dias</small><b>{kz(since(30))}</b></div>
+    <div className="kk-dash">
+      {banner ? <img className="kk-dash-ad" src={bannerSrc(banner)!} alt="" /> : null}
+      <Sec className="kk-bal">
+        <div className="kk-bal-main">
+          <div className="kk-stat"><span className="kk-stat-ic green"><I d={P.card} size={20} /></span><div><small>Saldo disponível</small><b>{kz(d?.balance ?? 0)}</b></div></div>
+          <button className="kk-btn-primary" onClick={() => go({ n: 'withdraw' })}>Solicitar saque</button>
+        </div>
+        <div className="kk-bal-row">
+          <div className="kk-stat"><span className="kk-stat-ic blue"><I d={P.clock} size={20} /></span><div><small>Vendas em processo</small><b>{kz(d?.pending ?? 0)}</b></div></div>
+          <div className="kk-stat"><span className="kk-stat-ic soft"><I d={P.box} size={20} /></span><div><small>Saldo pendente</small><b>{kz(d?.requested ?? 0)}</b></div></div>
+        </div>
+        <div className="kk-bal-perf">
+          <MonthCal />
+          <div className="kk-perf">
+            <h3>Desempenho de vendas</h3>
+            <div className="kk-perf-in">
+              <div className="kk-perf-l">
+                <div><small>Hoje <em className={trend < 0 ? 'down' : 'up'}>{trend}%</em></small><b className="o">{kz(today)}</b></div>
+                <div><small>Total últimos 7 dias</small><b className="o">{kz(since(7))}</b></div>
+                <div><small>Total últimos 30 dias</small><b>{kz(since(30))}</b></div>
+              </div>
+              <div className="kk-ring"><svg viewBox="0 0 120 120" width="150" height="150"><circle cx="60" cy="60" r="50" fill="none" stroke="var(--kk-ring)" strokeWidth="12" />{ring > 0 ? <circle cx="60" cy="60" r="50" fill="none" stroke="var(--kk-p)" strokeWidth="12" strokeLinecap="round" strokeDasharray={`${ring * 314} 314`} transform="rotate(-90 60 60)" /> : null}</svg><div><b>{kz(d?.withdrawn ?? 0)}</b><small>Total já retirado</small></div></div>
+            </div>
           </div>
-        </Sec>
-        <Sec title="Total já retirado">
-          <div className="kw-ring"><svg viewBox="0 0 120 120" width="130" height="130"><circle cx="60" cy="60" r="48" fill="none" stroke="#e8ebf3" strokeWidth="14" />{ring > 0 ? <circle cx="60" cy="60" r="48" fill="none" stroke="var(--kw-p)" strokeWidth="14" strokeLinecap="round" strokeDasharray={`${ring * 301.6} 301.6`} transform="rotate(-90 60 60)" className="kw-ring-arc" /> : null}</svg><div><b>{kz(d?.withdrawn ?? 0)}</b><small>{Math.round(ring * 100)}% do ganho</small></div></div>
-        </Sec>
-      </div>
+        </div>
+        <div className="kk-bal-sum">
+          <div><span>Vendas completas :</span><b className="ok">{kz(done.reduce((a, s) => a + s.amount, 0))}</b></div>
+          <div><span>Número de vendas :</span><b>{valid.length}</b></div>
+          <div><span>Vendas canceladas :</span><b>{cancelled.length}</b></div>
+        </div>
+      </Sec>
       {d?.companies.length ? (
         <Sec title="Saldo por empresa">
-          <div className="kw-list">
-            <div className="kw-row kw-row-co head" aria-hidden="true"><span>Empresa</span><span className="r">Em processo</span><span className="r">Disponível</span><span className="r">Em análise</span><span className="r">Retirado</span></div>
+          <div className="kk-rows">
             {d.companies.map((c) => (
-              <div className="kw-row kw-row-co" key={c.companyId}>
-                <div className="kw-row-main"><b>{c.companyName}</b></div>
-                <div className="r"><small className="lbl">Em processo</small>{kz(c.pending)}</div>
-                <div className="r"><small className="lbl">Disponível</small><b className="kw-blue">{kz(c.balance)}</b></div>
-                <div className="r"><small className="lbl">Em análise</small>{kz(c.requested)}</div>
-                <div className="r"><small className="lbl">Retirado</small>{kz(c.withdrawn)}</div>
+              <div className="kk-row4" key={c.companyId}>
+                <b>{c.companyName}</b>
+                <span><small>Em processo</small>{kz(c.pending)}</span>
+                <span><small>Disponível</small><b className="kk-p">{kz(c.balance)}</b></span>
+                <span><small>Retirado</small>{kz(c.withdrawn)}</span>
               </div>
             ))}
           </div>
         </Sec>
       ) : null}
-      <Sec title="Produtos mais vistos" action={<button className="kw-sec-link" onClick={() => go({ n: 'search', s: { q: '' } })}>Ver mercado</button>}>
-        <div className="kw-list">
-          {top.map((p) => (
-            <button className="kw-row kw-row-top" key={p.code} onClick={() => { const [c, pc] = p.code.split('::'); go({ n: 'product', c, p: pc }); }}>
-              <Pic p={p} className="kw-row-pic" />
-              <div className="kw-row-main"><b>{p.name}</b><small>{p.listing.companyName}</small></div>
-              <span className="kw-row-views"><I d={P.eye} size={13} /> {p.views ?? 0}</span>
-              <b className="kw-blue r">{kz(com(p.listing))}</b>
-            </button>
-          ))}
-        </div>
+      <Sec title={<><I d={P.grid} size={18} /> Seus produtos com mais cliques</>} action={<label className="kk-toggle"><input type="checkbox" checked={!byViews} onChange={(e) => setByViews(!e.target.checked)} /><i aria-hidden="true" />{byViews ? 'Vistos agora' : 'Mais comissão'}</label>}>
+        {top.length ? <div className="kk-grid tight">{top.map((p) => <div key={p.code}><KCard p={p} aff onOpen={() => { const [c, pc] = p.code.split('::'); go({ n: 'product', c, p: pc }); }} /></div>)}</div> : <div className="kk-empty">Sem produtos disponíveis</div>}
       </Sec>
+    </div>
+  );
+}
+
+function Market({ products, go, banner }: { products: MP[]; go(r: Route): void; banner?: KBanner }) {
+  const [q, setQ] = useState('');
+  const term = q.trim().toLowerCase();
+  // Cada produto da empresa uma vez (sem as publicações repetidas dos associados).
+  const base = useMemo(() => { const m = new Map<string, MP>(); for (const p of products) { const k = `${p.listing.companyCode}::${p.listing.productCode}`; if (!m.has(k) || !p.listing.associate) m.set(k, p); } return [...m.values()]; }, [products]);
+  const rows = base.filter((p) => !term || `${p.name} ${p.listing.companyName} ${p.category ?? ''}`.toLowerCase().includes(term));
+  const [shown, sentinel] = useInfinite(rows.length, 24, `${rows.length}-${term}`);
+  return (
+    <div className="kk-dash">
+      {banner ? <img className="kk-dash-ad" src={bannerSrc(banner)!} alt="" /> : null}
+      <div className="kk-mk-btns">
+        <button className="kk-ob" onClick={() => go({ n: 'sales' })}>Minhas Vendas 🔥</button>
+        <button className="kk-sb" onClick={() => go({ n: 'affs' })}>Minhas afiliações</button>
+        <button className="kk-ob blue" onClick={() => go({ n: 'withdraw' })}>Transações (Saques)</button>
+        <button className="kk-ob blue" onClick={() => go({ n: 'msgs' })}>Mensagens</button>
+      </div>
+      <label className="kk-input"><I d={P.search} size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produto" aria-label="Buscar produto" /></label>
+      <h2 className="kk-sub"><I d={P.star} size={20} /> Produtos</h2>
+      {!rows.length ? <div className="kk-empty">Sem produtos disponíveis</div> : <div className="kk-grid">{rows.slice(0, shown).map((p) => <div key={p.code}><KCard p={p} aff onOpen={() => { const [c, pc] = p.code.split('::'); go({ n: 'product', c, p: pc }); }} /></div>)}</div>}
+      {shown < rows.length ? <div ref={sentinel} className="kk-more-load"><KLoader overlay={false} /></div> : null}
     </div>
   );
 }
@@ -516,37 +780,72 @@ function Panel({ d, me, go, products }: { d: Dashboard | null; me: Associate; go
 function SalesT({ d }: { d: Dashboard | null }) {
   const [f, setF] = useState<'ALL' | 'PENDING' | 'AVAILABLE' | 'CANCELLED'>('ALL');
   const [q, setQ] = useState('');
-  if (!d) return <Loader />;
-  const sum = (st?: string) => d.sales.filter((s) => !st || s.state === st).reduce((a, s) => a + s.amount, 0);
-  const count = (st?: string) => d.sales.filter((s) => !st || s.state === st).length;
+  if (!d) return <KLoader overlay={false} />;
   const term = q.trim().toLowerCase();
   const rows = d.sales.filter((s) => (f === 'ALL' || s.state === f) && (!term || `${s.companyName} ${s.orderNumber} ${s.product}`.toLowerCase().includes(term)));
-  const tabs: Array<[typeof f, string]> = [['ALL', 'Todas'], ['PENDING', 'Em processo'], ['AVAILABLE', 'Disponíveis'], ['CANCELLED', 'Canceladas']];
   return (
-    <div className="kw-dash kw-sales">
-      <h1 className="kw-aff-title"><I d={P.card} size={22} /> Minhas vendas</h1>
-      <div className="kw-sales-kpis">
-        <div className="kw-sales-kpi main"><span>Comissões (total)</span><b>{kz(sum('PENDING') + sum('AVAILABLE'))}</b><small>{count('PENDING') + count('AVAILABLE')} venda(s)</small></div>
-        <div className="kw-sales-kpi"><span>Em processo</span><b>{kz(sum('PENDING'))}</b><small>{count('PENDING')} venda(s)</small></div>
-        <div className="kw-sales-kpi ok"><span>Disponível</span><b>{kz(sum('AVAILABLE'))}</b><small>{count('AVAILABLE')} venda(s)</small></div>
-        <div className="kw-sales-kpi off"><span>Canceladas</span><b>{kz(sum('CANCELLED'))}</b><small>{count('CANCELLED')} venda(s)</small></div>
+    <div className="kk-dash">
+      <div className="kk-filters">
+        <select value={f} onChange={(e) => setF(e.target.value as typeof f)} aria-label="Estado"><option value="ALL">Todas as vendas</option><option value="PENDING">Em processo</option><option value="AVAILABLE">Disponíveis</option><option value="CANCELLED">Canceladas</option></select>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Por encomenda, produto ou empresa" aria-label="Pesquisar vendas" />
       </div>
-      <div className="kw-sales-bar">
-        <div className="kw-sales-tabs" role="tablist" aria-label="Estado">
-          {tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={f === k} className={f === k ? 'on' : ''} onClick={() => setF(k)}>{l}<em>{count(k === 'ALL' ? undefined : k)}</em></button>)}
-        </div>
-        <label className="kw-sales-q"><I d={P.search} size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar encomenda, produto ou empresa" aria-label="Pesquisar vendas" /></label>
-      </div>
-      {!rows.length ? <div className="kw-empty">{d.sales.length ? 'Nenhuma venda neste filtro' : 'Ainda sem vendas'}</div> : (
-        <div className="kw-sales-list">
-          <div className="kw-sales-row head" aria-hidden="true"><span>Produto</span><span>Encomenda</span><span>Data</span><span className="r">Comissão</span><span className="c">Comissão</span></div>
+      {!rows.length ? <div className="kk-empty">{d.sales.length ? 'Nenhuma venda neste filtro' : 'Ainda sem vendas'}</div> : (
+        <div className="kk-rows">
           {rows.map((s, i) => (
-            <div className="kw-sales-row" key={`${s.orderNumber}-${i}`}>
-              <div className="kw-sales-prod"><b>{s.product}</b><small>{s.companyName} · {s.quantity} un.</small></div>
-              <div className="kw-sales-ord"><small className="lbl">Encomenda</small>{s.orderNumber}{s.orderStatus ? <span className={`kw-ost kw-ost-${s.orderStatus}`}>{s.orderStatus === 'PENDING' && s.paymentClaimed ? 'Pagamento enviado' : ORDER_LABEL[s.orderStatus] ?? s.orderStatus}</span> : null}</div>
-              <div className="kw-sales-date"><small className="lbl">Data</small>{formatDateTime(s.date)}</div>
-              <div className="kw-sales-amt r"><small className="lbl">Comissão</small><b>{kz(s.amount)}</b></div>
-              <div className="c"><span className={`kw-pill ${STATE[s.state][1]}`}>{STATE[s.state][0]}</span></div>
+            <div className="kk-sale" key={`${s.orderNumber}-${i}`}>
+              <div className="kk-sale-m"><b>{s.product}</b><small>{s.companyName} · {s.quantity} un. · {formatDateTime(s.date)}</small>
+                <span className="kk-sale-o">{s.orderNumber}{s.orderStatus ? <span className={`kw-ost kw-ost-${s.orderStatus}`}>{s.orderStatus === 'PENDING' && s.paymentClaimed ? 'Pagamento enviado' : ORDER_LABEL[s.orderStatus] ?? s.orderStatus}</span> : null}</span></div>
+              <div className="kk-sale-r"><b>{kz(s.amount)}</b><span className={`kw-pill ${STATE[s.state][1]}`}>{STATE[s.state][0]}</span></div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Withdraw({ token, d, onDone, go }: { token: string; d: Dashboard | null; onDone(): void; go(r: Route): void }) {
+  const [accs, setAccs] = useState<PayoutAccount[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [company, setCompany] = useState(''); const [amount, setAmount] = useState(''); const [acc, setAcc] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
+  useEffect(() => { kw.accounts(token).then((r) => { setAccs(r); if (r[0]) setAcc(r[0].id); }).catch(() => setAccs([])); }, [token]);
+  useEffect(() => { const c = d?.companies.find((x) => x.balance > 0); if (c && !company) setCompany(c.companyCode); }, [d, company]);
+  if (!d) return <KLoader overlay={false} />;
+  const cur = d.companies.find((c) => c.companyCode === company);
+  const frozenWhy = d.frozen?.[company];
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setErr(null); const a = Number(amount.replace(',', '.'));
+    if (frozenWhy !== undefined) { setErr(`Saldo congelado por esta empresa: ${frozenWhy}`); return; }
+    if (!cur) { setErr('Escolha a empresa.'); return; } if (!(a > 0) || a > cur.balance) { setErr('Valor inválido para o saldo desta empresa.'); return; } if (!acc) { setErr('Escolha a conta.'); return; }
+    setBusy(true); try { await kw.withdraw(token, company, a, acc); setAmount(''); setOpen(false); onDone(); } catch (er) { setErr(er instanceof ApiError ? er.message : 'Não foi possível.'); } finally { setBusy(false); }
+  };
+  return (
+    <div className="kk-dash">
+      <div className="kk-kpis">
+        <Kpi tone="main" label="Saldo disponível" value={kz(d.balance)} />
+        <Kpi label="Vendas em processo" value={kz(d.pending)} />
+        <Kpi tone="warn" label="Saque em análise" value={kz(d.requested)} />
+        <Kpi tone="ok" label="Total já retirado" value={kz(d.withdrawn)} />
+      </div>
+      <button className="kk-btn-green" onClick={() => setOpen((o) => !o)}>FAZER SAQUES</button>
+      {open ? (
+        <Sec title="Fazer saque">
+          <form className="kw-form2" onSubmit={(e) => void submit(e)}>
+            <label className="kw-f"><span>Empresa que paga</span><select value={company} onChange={(e) => setCompany(e.target.value)}><option value="">Escolha</option>{d.companies.map((c) => <option key={c.companyCode} value={c.companyCode}>{c.companyName} — {kz(c.balance)}</option>)}</select></label>
+            <label className="kw-f"><span>Valor (Kz)</span><div className="kw-amt"><input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0" />{cur && cur.balance > 0 ? <button type="button" onClick={() => setAmount(String(cur.balance))}>Tudo</button> : null}</div></label>
+            <div className="kw-f kw-f-wide"><span>Conta para receber</span>{accs && accs.length ? <div className="kw-acc-pick">{accs.map((a) => <label key={a.id} className={`kw-acc-opt${acc === a.id ? ' on' : ''}`}><input type="radio" name="acc" checked={acc === a.id} onChange={() => setAcc(a.id)} /><span><b>{a.method}{a.bank ? ` · ${a.bank}` : ''}</b><small>{a.details} · {a.holder}</small></span></label>)}</div> : <button type="button" className="kk-ghost" onClick={() => go({ n: 'accounts' })}>+ Registar conta bancária</button>}</div>
+            {frozenWhy !== undefined && !err ? <div className="kw-err kw-f-wide" role="alert">Saldo congelado por esta empresa: {frozenWhy}</div> : null}
+            {err ? <div className="kw-err kw-f-wide" role="alert">{err}</div> : null}
+            <div className="kw-f-wide kw-form-act"><button className="kk-btn-primary" disabled={busy || !accs?.length || !d.balance}>{busy ? 'A enviar…' : 'Pedir saque'}</button></div>
+          </form>
+        </Sec>
+      ) : null}
+      {!d.withdrawals.length ? <div className="kk-empty">Sem transações</div> : (
+        <div className="kk-rows">
+          {d.withdrawals.map((w) => (
+            <div className="kk-sale" key={w.id}>
+              <div className="kk-sale-m"><b>{w.companyName}</b><small>{w.method}{w.details ? ` · ${w.details}` : ''} · {formatDateTime(w.date)}</small>{w.note ? <small>{w.note}</small> : null}</div>
+              <div className="kk-sale-r"><b>{kz(w.amount)}</b><span className={`kw-pill ${STATE[w.status]?.[1] ?? ''}`}>{STATE[w.status]?.[0] ?? w.status}</span>{w.proofUrl ? <a className="kw-link kw-proof" href={w.proofUrl} target="_blank" rel="noopener noreferrer" download={`comprovativo-${w.id}`}>Comprovativo</a> : null}</div>
             </div>
           ))}
         </div>
@@ -568,7 +867,6 @@ function Affs({ token, go, flash }: { token: string; go(r: Route): void; flash(t
   const tabs: Array<[typeof f, string]> = [['ALL', 'Todas'], ['APPROVED', 'Aprovadas'], ['PENDING', 'Pendentes'], ['REJECTED', 'Recusadas']];
   return (
     <div className="kw-dash kw-sales">
-      <h1 className="kw-aff-title"><I d={P.share} size={22} /> Minhas afiliações</h1>
       <div className="kw-sales-kpis">
         <Kpi tone="main" label="Produtos afiliados" value={String(count())} />
         <Kpi tone="ok" label="Aprovadas" value={String(count('APPROVED'))} />
@@ -605,59 +903,6 @@ function Affs({ token, go, flash }: { token: string; go(r: Route): void; flash(t
   );
 }
 
-function Withdraw({ token, d, onDone, go }: { token: string; d: Dashboard | null; onDone(): void; go(r: Route): void }) {
-  const [accs, setAccs] = useState<PayoutAccount[] | null>(null);
-  const [company, setCompany] = useState(''); const [amount, setAmount] = useState(''); const [acc, setAcc] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
-  useEffect(() => { kw.accounts(token).then((r) => { setAccs(r); if (r[0]) setAcc(r[0].id); }).catch(() => setAccs([])); }, [token]);
-  useEffect(() => { const c = d?.companies.find((x) => x.balance > 0); if (c && !company) setCompany(c.companyCode); }, [d, company]);
-  if (!d) return <Loader />;
-  const cur = d.companies.find((c) => c.companyCode === company);
-  const frozenWhy = d.frozen?.[company];
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); setErr(null); const a = Number(amount.replace(',', '.'));
-    if (frozenWhy !== undefined) { setErr(`Saldo congelado por esta empresa: ${frozenWhy}`); return; }
-    if (!cur) { setErr('Escolha a empresa.'); return; } if (!(a > 0) || a > cur.balance) { setErr('Valor inválido para o saldo desta empresa.'); return; } if (!acc) { setErr('Escolha a conta.'); return; }
-    setBusy(true); try { await kw.withdraw(token, company, a, acc); setAmount(''); onDone(); } catch (er) { setErr(er instanceof ApiError ? er.message : 'Não foi possível.'); } finally { setBusy(false); }
-  };
-  return (
-    <div className="kw-dash kw-sales">
-      <h1 className="kw-aff-title"><I d={P.box} size={22} /> Transações (Saques)</h1>
-      <div className="kw-sales-kpis">
-        <Kpi tone="main" label="Saldo disponível" value={kz(d.balance)} />
-        <Kpi label="Vendas em processo" value={kz(d.pending)} />
-        <Kpi tone="warn" label="Saque em análise" value={kz(d.requested)} />
-        <Kpi tone="ok" label="Total já retirado" value={kz(d.withdrawn)} />
-      </div>
-      <Sec title="Fazer saque">
-        <form className="kw-form2" onSubmit={(e) => void submit(e)}>
-          <label className="kw-f"><span>Empresa que paga</span><select value={company} onChange={(e) => setCompany(e.target.value)}><option value="">Escolha</option>{d.companies.map((c) => <option key={c.companyCode} value={c.companyCode}>{c.companyName} — {kz(c.balance)}</option>)}</select></label>
-          <label className="kw-f"><span>Valor (Kz)</span><div className="kw-amt"><input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0" />{cur && cur.balance > 0 ? <button type="button" onClick={() => setAmount(String(cur.balance))}>Tudo</button> : null}</div></label>
-          <div className="kw-f kw-f-wide"><span>Conta para receber</span>{accs && accs.length ? <div className="kw-acc-pick">{accs.map((a) => <label key={a.id} className={`kw-acc-opt${acc === a.id ? ' on' : ''}`}><input type="radio" name="acc" checked={acc === a.id} onChange={() => setAcc(a.id)} /><span><b>{a.method}{a.bank ? ` · ${a.bank}` : ''}</b><small>{a.details} · {a.holder}</small></span></label>)}</div> : <button type="button" className="kw-btn kw-btn-outline" onClick={() => go({ n: 'accounts' })}>+ Registar conta bancária</button>}</div>
-          {frozenWhy !== undefined && !err ? <div className="kw-err kw-f-wide" role="alert">Saldo congelado por esta empresa: {frozenWhy}</div> : null}
-          {err ? <div className="kw-err kw-f-wide" role="alert">{err}</div> : null}
-          <div className="kw-f-wide kw-form-act"><button className="kw-btn kw-btn-primary" disabled={busy || !accs?.length || !d.balance}>{busy ? 'A enviar…' : 'Pedir saque'}</button></div>
-        </form>
-      </Sec>
-      <Sec title="Histórico de transações">
-        {!d.withdrawals.length ? <div className="kw-empty">Sem transações</div> : (
-          <div className="kw-list">
-            <div className="kw-row kw-row-wd head" aria-hidden="true"><span>Empresa</span><span>Receber por</span><span>Data</span><span className="r">Valor</span><span className="c">Estado</span></div>
-            {d.withdrawals.map((w) => (
-              <div className="kw-row kw-row-wd" key={w.id}>
-                <div className="kw-row-main"><b>{w.companyName}</b>{w.note ? <small>{w.note}</small> : null}</div>
-                <div><small className="lbl">Receber por</small>{w.method}{w.details ? <small className="kw-muted"> · {w.details}</small> : null}</div>
-                <div><small className="lbl">Data</small>{formatDateTime(w.date)}</div>
-                <div className="r"><small className="lbl">Valor</small><b className="kw-blue">{kz(w.amount)}</b></div>
-                <div className="c"><span className={`kw-pill ${STATE[w.status]?.[1] ?? ''}`}>{STATE[w.status]?.[0] ?? w.status}</span>{w.proofUrl ? <a className="kw-link kw-proof" href={w.proofUrl} target="_blank" rel="noopener noreferrer" download={`comprovativo-${w.id}`}>Comprovativo</a> : null}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Sec>
-    </div>
-  );
-}
-
 const BANKS = ['BFA', 'BAI', 'BIC', 'Millennium Atlântico', 'Standard Bank', 'BCI', 'BPC', 'BNI', 'Banco Económico', 'Banco Sol', 'Banco Keve', 'Banco Yetu', 'Outro'];
 function Accounts({ token, flash }: { token: string; flash(t: string): void }) {
   const [rows, setRows] = useState<PayoutAccount[] | null>(null);
@@ -668,7 +913,6 @@ function Accounts({ token, flash }: { token: string; flash(t: string): void }) {
   const n = rows?.length ?? 0;
   return (
     <div className="kw-dash kw-sales">
-      <h1 className="kw-aff-title"><I d={P.shield} size={22} /> Contas bancárias <span className="kw-count">{n}/3</span></h1>
       <div className="kw-warn">Os dados bancários têm de estar em seu nome.</div>
       <Sec title="Contas registadas">
         {rows === null ? <Loader /> : !rows.length ? <div className="kw-empty">Sem contas</div> : (
@@ -713,7 +957,6 @@ function Profile({ token, me, flash }: { token: string; me: Associate; flash(t: 
   const changePw = async (e: React.FormEvent) => { e.preventDefault(); setErr(null); try { await kw.password(token, pw.current, pw.next); setPw({ current: '', next: '' }); flash('Senha alterada'); } catch (er) { setErr(er instanceof ApiError ? er.message : 'Não foi possível.'); } };
   return (
     <div className="kw-dash kw-sales">
-      <h1 className="kw-aff-title"><I d={P.user} size={22} /> Perfil</h1>
       <div className="kw-hello">
         <span className="kw-hello-ph big">{photo ? <img src={photo} alt="" /> : <b>{me.name.slice(0, 1).toUpperCase()}</b>}</span>
         <div><strong>{me.name}</strong><small>Código {me.code} · {me.phone}</small></div>

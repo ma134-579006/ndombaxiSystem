@@ -4,7 +4,7 @@ import type { PaymentMethod } from '../api/types';
 import { formatDateTime } from '../format';
 import { GeoError, getHighAccuracyPosition, type GeoFix } from '../store/geo';
 import { readFileProgress } from '../transfer';
-import { I, P, kz } from '../members/parts';
+import { I, KLoader, P, kz } from '../members/parts';
 import { kw, type KOrder, type Listing } from './api';
 
 /* ═══════════════ carrinho (no aparelho; sem conta) ═══════════════ */
@@ -73,10 +73,45 @@ function GpsBar({ g }: { g: ReturnType<typeof useGps> }) {
   );
 }
 
-/* ═══════════════ carrinho + compra ═══════════════ */
+/* ═══════════════ gaveta do carrinho (abre do ícone do cabeçalho) ═══════════════ */
+export function CartDrawer({ onClose, onCart }: { onClose(): void; onCart(): void }) {
+  const items = useCart();
+  const n = items.reduce((s, i) => s + i.qty, 0);
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k); }, [onClose]);
+  return (
+    <>
+      <div className="kk-scrim" onClick={onClose} />
+      <aside className="kk-drawer right kk-cartdrawer" role="dialog" aria-label="Carrinho">
+        <div className="kk-drawer-h"><b>{n} {n === 1 ? 'item' : 'itens'}</b><button className="kk-x" onClick={onClose} aria-label="Fechar"><I d={P.close} size={20} /></button></div>
+        {!items.length ? (
+          <div className="kk-cd-empty"><I d={P.cart} size={64} /><p>O seu carrinho de compras está vazio</p></div>
+        ) : (
+          <div className="kk-cd-list">
+            {items.map((i) => (
+              <div className="kk-cd-row" key={`${i.companyCode}|${i.productCode}|${i.associateCode}`}>
+                <div className="kk-cd-qty">
+                  <button onClick={() => cart.set(i, i.qty + 1)} aria-label="Mais">+</button>
+                  <b>{i.qty}</b>
+                  <button onClick={() => (i.qty > 1 ? cart.set(i, i.qty - 1) : cart.remove(i))} aria-label="Menos">−</button>
+                </div>
+                <span className="kk-cd-pic">{i.imageUrl ? <img src={i.imageUrl} alt="" /> : null}</span>
+                <div className="kk-cd-m"><b>{i.name}</b><small>{kz(i.price)} x {i.qty}</small><em>{kz(i.price * i.qty)}</em></div>
+                <button className="kk-cd-x" onClick={() => cart.remove(i)} aria-label={`Remover ${i.name}`}><I d={P.close} size={16} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+        {items.length ? <div className="kk-cd-foot"><button className="kk-btn-outline-o" onClick={() => { onClose(); onCart(); }}>Ver o carrinho</button></div> : null}
+      </aside>
+    </>
+  );
+}
+
+/* ═══════════════ carrinho (passo 1) + pagamento (passo 2) ═══════════════ */
 export function Checkout({ go, flash }: { go(r: { n: 'orders' } | { n: 'home' }): void; flash(t: string): void }) {
   const items = useCart();
-  const g = useGps(items.length > 0);
+  const [step, setStep] = useState<1 | 2>(1);
+  const g = useGps(step === 2 && items.length > 0);
   const saved = read<{ name: string; phone: string; address: string; province: string; municipality: string }>(BUYER_KEY, { name: '', phone: '', address: '', province: 'Luanda', municipality: '' });
   const [f, setF] = useState({ ...saved, delivery: 'DELIVERY' as 'DELIVERY' | 'PICKUP', notes: '' });
   const [methods, setMethods] = useState<Record<string, PaymentMethod[]>>({});
@@ -125,79 +160,100 @@ export function Checkout({ go, flash }: { go(r: { n: 'orders' } | { n: 'home' })
     } catch (er) { setErr(er instanceof ApiError ? er.message : 'Não foi possível concluir a encomenda.'); } finally { setBusy(false); }
   };
 
-  if (!items.length) return (
-    <div className="kw-container kw-shop"><div className="kw-shop-empty"><span><I d={P.cart} size={34} /></span><b>O carrinho está vazio</b><button className="kw-btn kw-btn-primary" onClick={() => go({ n: 'home' })}>Ver produtos</button><button className="kw-link" onClick={() => go({ n: 'orders' })}>Minhas compras</button></div></div>
+  const steps = (
+    <div className="kk-steps" role="tablist" aria-label="Passos">
+      <button role="tab" aria-selected={step === 1} className={step === 1 ? 'on' : ''} onClick={() => setStep(1)}>1. Carrinho</button>
+      <button role="tab" aria-selected={step === 2} className={step === 2 ? 'on' : ''} onClick={() => items.length && setStep(2)} disabled={!items.length}>2. Pagamento</button>
+    </div>
   );
-  return (
-    <form className="kw-container kw-shop" onSubmit={(e) => void submit(e)}>
-      <h1 className="kw-shop-t"><I d={P.cart} size={22} /> Carrinho</h1>
-      <div className="kw-shop-grid">
-        <div className="kw-shop-main">
-          <section className="kw-sec"><header className="kw-sec-h"><h3>Produtos</h3></header>
-            <div className="kw-cart">
-              {items.map((i) => (
-                <div className="kw-cart-row" key={`${i.companyCode}|${i.productCode}|${i.associateCode}`}>
-                  <span className="kw-cart-pic">{i.imageUrl ? <img src={i.imageUrl} alt="" /> : null}</span>
-                  <div className="kw-cart-main"><b>{i.name}</b><small>{i.companyName}</small><span className="kw-cart-price">{kz(i.price)}</span></div>
-                  <div className="kw-qty" role="group" aria-label={`Quantidade de ${i.name}`}>
-                    <button type="button" onClick={() => cart.set(i, i.qty - 1)} disabled={i.qty <= 1} aria-label="Menos">−</button>
-                    <input inputMode="numeric" value={i.qty} onChange={(e) => cart.set(i, Number(e.target.value.replace(/\D/g, '')) || 1)} aria-label="Quantidade" />
-                    <button type="button" onClick={() => cart.set(i, i.qty + 1)} aria-label="Mais">+</button>
-                  </div>
-                  <b className="kw-cart-sub">{kz(i.price * i.qty)}</b>
-                  <button type="button" className="kw-cart-x" onClick={() => cart.remove(i)} aria-label={`Remover ${i.name}`}><I d={P.trash} size={16} /></button>
-                </div>
-              ))}
-            </div>
-          </section>
-          <section className="kw-sec"><header className="kw-sec-h"><h3>Os seus dados</h3></header>
-            <div className="kw-form2 kw-sec-b">
-              <label className="kw-f"><span>Nome</span><input value={f.name} onChange={set('name')} autoComplete="name" required minLength={2} maxLength={120} /></label>
-              <label className="kw-f"><span>Telefone</span><input value={f.phone} onChange={set('phone')} inputMode="tel" autoComplete="tel" required placeholder="9XX XXX XXX" /></label>
-              <div className="kw-f kw-f-wide"><span>Entrega</span>
-                <div className="kw-seg2" role="radiogroup" aria-label="Entrega">
-                  <button type="button" role="radio" aria-checked={f.delivery === 'DELIVERY'} className={f.delivery === 'DELIVERY' ? 'on' : ''} onClick={() => setF({ ...f, delivery: 'DELIVERY' })}><I d={P.truck} size={16} /> Entregar na morada</button>
-                  <button type="button" role="radio" aria-checked={f.delivery === 'PICKUP'} className={f.delivery === 'PICKUP' ? 'on' : ''} onClick={() => setF({ ...f, delivery: 'PICKUP' })}><I d={P.bag} size={16} /> Levantar na loja</button>
+  if (!items.length) return (
+    <div className="kk-page"><div className="kk-wrap kk-shop">{steps}<div className="kk-cd-empty big"><I d={P.cart} size={72} /><p>O seu carrinho de compras está vazio</p><button className="kk-btn-primary" onClick={() => go({ n: 'home' })}>Ver produtos</button></div></div></div>
+  );
+  if (step === 1) return (
+    <div className="kk-page"><div className="kk-wrap kk-shop">
+      {steps}
+      <div className="kk-cartlist">
+        {items.map((i) => (
+          <div className="kk-cartrow" key={`${i.companyCode}|${i.productCode}|${i.associateCode}`}>
+            <span className="kk-cartrow-pic">{i.imageUrl ? <img src={i.imageUrl} alt="" /> : null}</span>
+            <div className="kk-cartrow-m">
+              <div className="kk-cartrow-t"><b>{i.name}</b><button className="kk-cd-x" onClick={() => cart.remove(i)} aria-label={`Remover ${i.name}`}><I d={P.close} size={20} /></button></div>
+              <small className="kk-cartrow-co">{i.companyName}</small>
+              <div className="kk-cartrow-b"><span>{kz(i.price)} x {i.qty} <em>{kz(i.price * i.qty)}</em></span>
+                <div className="kk-qty" role="group" aria-label={`Quantidade de ${i.name}`}>
+                  <button type="button" className="minus" onClick={() => cart.set(i, i.qty - 1)} disabled={i.qty <= 1} aria-label="Menos">−</button>
+                  <b>{i.qty}</b>
+                  <button type="button" className="plus" onClick={() => cart.set(i, i.qty + 1)} aria-label="Mais">+</button>
                 </div>
               </div>
-              {f.delivery === 'DELIVERY' ? <>
-                <label className="kw-f kw-f-wide"><span>Morada</span><input value={f.address} onChange={set('address')} autoComplete="street-address" maxLength={300} /></label>
-                <label className="kw-f"><span>Província</span><input value={f.province} onChange={set('province')} maxLength={80} /></label>
-                <label className="kw-f"><span>Município</span><input value={f.municipality} onChange={set('municipality')} maxLength={80} /></label>
-              </> : null}
-              <label className="kw-f kw-f-wide"><span>Observações</span><textarea rows={2} value={f.notes} onChange={set('notes')} maxLength={500} /></label>
             </div>
-          </section>
-          <section className="kw-sec"><header className="kw-sec-h"><h3>Pagamento</h3></header>
-            <div className="kw-sec-b kw-paygroups">
-              {companies.map(([code, name]) => (
-                <div key={code} className="kw-paygroup">
-                  {companies.length > 1 ? <small>{name}</small> : null}
-                  <div className="kw-paylist" role="radiogroup" aria-label={`Pagamento ${name}`}>
-                    {(methods[code]?.length ? methods[code] : [{ type: 'CASH', label: 'Numerário na entrega' } as PaymentMethod]).map((m) => (
-                      <button type="button" key={m.type} role="radio" aria-checked={pay[code] === m.type} className={pay[code] === m.type ? 'on' : ''} onClick={() => setPay({ ...pay, [code]: m.type })}>
-                        <I d={m.type === 'CASH' ? P.card : P.card} size={18} /><span>{m.label || PAY[m.type] || m.type}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-        <aside className="kw-shop-side">
-          <GpsBar g={g} />
-          <div className="kw-shop-sum">
-            <div><span>Produtos ({items.reduce((s, i) => s + i.qty, 0)})</span><b>{kz(total)}</b></div>
-            <div className="tot"><span>Total</span><b>{kz(total)}</b></div>
-            {err ? <div className="kw-err" role="alert">{err}</div> : null}
-            <button className="kw-btn kw-btn-primary kw-block kw-buy" disabled={busy || g.busy}>{busy ? 'A concluir…' : g.fix ? 'Concluir encomenda' : 'Ativar GPS e concluir'}</button>
           </div>
-        </aside>
+        ))}
       </div>
-    </form>
+      <div className="kk-sumcard">
+        <div className="kk-sum-note"><span><I d={P.truck} size={22} /></span><p>Entrega feita pela equipa de cada empresa</p></div>
+        <div className="kk-sum-line"><span>Subtotal:</span><b>{kz(total)}</b></div>
+        <button className="kk-btn-orange" onClick={() => { setStep(2); window.scrollTo({ top: 0 }); }}>Continuar com a compra</button>
+      </div>
+    </div></div>
+  );
+  return (
+    <div className="kk-page kk-pay"><div className="kk-wrap kk-shop">
+      {steps}
+      <form className="kk-paycard" onSubmit={(e) => void submit(e)}>
+        <div className="kk-secure"><I d={P.shield} size={20} /> COMPRA SEGURA</div>
+        <div className="kk-pay-items">
+          {items.map((i) => (
+            <div className="kk-pay-it" key={`${i.companyCode}|${i.productCode}|${i.associateCode}`}>
+              <span className="kk-cartrow-pic sm">{i.imageUrl ? <img src={i.imageUrl} alt="" /> : null}</span>
+              <div><b>{i.name}</b><small>Entregue pela {i.companyName}</small><em>{kz(i.price * i.qty)}{i.qty > 1 ? ` (${i.qty} un.)` : ''}</em></div>
+            </div>
+          ))}
+        </div>
+        <div className="kk-pay-f">
+          <label className="kk-fl"><span>Nome completo</span><input value={f.name} onChange={set('name')} autoComplete="name" required minLength={2} maxLength={120} placeholder="Digite o seu nome completo" /></label>
+          <label className="kk-fl"><span>Telefone ou WhatsApp</span><div className="kk-phone"><span aria-hidden="true">+244</span><input value={f.phone} onChange={set('phone')} inputMode="tel" autoComplete="tel" required placeholder="Digite o seu telefone" /></div></label>
+          <h3 className="kk-pay-h">Endereço de entrega</h3>
+          <div className="kk-seg2" role="radiogroup" aria-label="Entrega">
+            <button type="button" role="radio" aria-checked={f.delivery === 'DELIVERY'} className={f.delivery === 'DELIVERY' ? 'on' : ''} onClick={() => setF({ ...f, delivery: 'DELIVERY' })}><I d={P.truck} size={16} /> Entregar na morada</button>
+            <button type="button" role="radio" aria-checked={f.delivery === 'PICKUP'} className={f.delivery === 'PICKUP' ? 'on' : ''} onClick={() => setF({ ...f, delivery: 'PICKUP' })}><I d={P.bag} size={16} /> Levantar na loja</button>
+          </div>
+          {f.delivery === 'DELIVERY' ? <>
+            <div className="kk-two">
+              <label className="kk-fl"><span>Província</span><input value={f.province} onChange={set('province')} maxLength={80} /></label>
+              <label className="kk-fl"><span>Município</span><input value={f.municipality} onChange={set('municipality')} maxLength={80} /></label>
+            </div>
+            <label className="kk-fl"><span>Detalhe da rua ou bairro</span><input value={f.address} onChange={set('address')} autoComplete="street-address" maxLength={300} placeholder="Detalhe o endereço onde vai receber a compra" /></label>
+          </> : null}
+          <GpsBar g={g} />
+          <h3 className="kk-pay-h o">Pagar com :</h3>
+          <p className="kk-pay-sub">Selecione a forma de pagamento desejada</p>
+          {companies.map(([code, name]) => (
+            <div key={code} className="kk-paygroup">
+              {companies.length > 1 ? <small>{name}</small> : null}
+              <div className="kk-paytiles" role="radiogroup" aria-label={`Pagamento ${name}`}>
+                {(methods[code]?.length ? methods[code] : [{ type: 'CASH', label: 'Numerário na entrega' } as PaymentMethod]).map((m) => (
+                  <button type="button" key={m.type} role="radio" aria-checked={pay[code] === m.type} className={pay[code] === m.type ? 'on' : ''} onClick={() => setPay({ ...pay, [code]: m.type })}>
+                    <I d={PAY_ICON[m.type] ?? P.card} size={34} /><span>{m.label || PAY[m.type] || m.type}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <label className="kk-fl"><span>Observações</span><textarea rows={2} value={f.notes} onChange={set('notes')} maxLength={500} /></label>
+        </div>
+        <div className="kk-totals">
+          <div><span>Total dos produtos:</span><b>{kz(total)}</b></div>
+          <div><span>Entrega:</span><b>{f.delivery === 'PICKUP' ? 'Levantar na loja' : 'Combinada com a empresa'}</b></div>
+          <div className="tot"><span>Total:</span><b>{kz(total)}</b></div>
+        </div>
+        {err ? <div className="kw-err" role="alert">{err}</div> : null}
+        <button className="kk-btn-orange" disabled={busy || g.busy}>{busy ? 'A concluir…' : g.fix ? 'Comprar agora' : 'Ativar GPS e comprar'}</button>
+      </form>
+    </div></div>
   );
 }
+const PAY_ICON: Record<string, string> = { CASH: P.truck, BANK_TRANSFER: P.box, MULTICAIXA_EXPRESS: P.phone, REFERENCE: P.doc };
 const PAY: Record<string, string> = { CASH: 'Numerário na entrega', BANK_TRANSFER: 'Transferência bancária', MULTICAIXA_EXPRESS: 'Multicaixa Express', REFERENCE: 'Pagamento por referência' };
 
 /* ═══════════════ minhas compras (ativar GPS) ═══════════════ */
@@ -251,11 +307,17 @@ export function Orders({ go }: { go(r: { n: 'home' } | { n: 'cart' }): void }) {
     catch (er) { setFindErr(er instanceof ApiError ? er.message : 'Não foi possível procurar.'); }
   };
   return (
-    <div className="kw-container kw-shop">
-      <h1 className="kw-shop-t"><I d={P.box} size={22} /> Minhas compras</h1>
+    <div className="kk-page"><div className="kk-wrap kk-shop">
+      <h1 className="kk-ptitle"><span><I d={P.box} size={20} /></span>Meus Pedidos</h1>
       {!g.fix ? <div className="kw-orders-gate"><GpsBar g={g} /></div> : (
         <>
-          {list === null ? <div className="kw-loader" aria-busy="true"><i /><i /><i /></div>
+          <div className="kk-okpis">
+            <div><b>{list?.length ?? 0}</b><span>Todos os Pedidos</span></div>
+            <div><b>{list?.filter((x) => x.status === 'SHIPPED' || x.status === 'DELIVERED').length ?? 0}</b><span>Pacotes enviados</span></div>
+            <div><b>{list?.filter((x) => x.status === 'PENDING' || x.status === 'PAID').length ?? 0}</b><span>Aguardando o envio</span></div>
+            <div className="red"><b>{list?.filter((x) => x.status === 'CANCELLED').length ?? 0}</b><span>Cancelados</span></div>
+          </div>
+          {list === null ? <KLoader overlay={false} />
             : !list.length ? <div className="kw-shop-empty"><span><I d={P.box} size={34} /></span><b>Sem compras neste aparelho</b><button className="kw-btn kw-btn-primary" onClick={() => go({ n: 'home' })}>Ver produtos</button></div>
             : <div className="kw-orders">{list.map((o) => <OrderCard key={o.token} o={o} onChange={load} />)}</div>}
           <section className="kw-sec kw-find">
@@ -269,7 +331,7 @@ export function Orders({ go }: { go(r: { n: 'home' } | { n: 'cart' }): void }) {
           </section>
         </>
       )}
-    </div>
+    </div></div>
   );
 }
 
