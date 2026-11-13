@@ -8,6 +8,7 @@ import { IconCheck, IconImage } from '../components/Icons';
 import { openCaixaTerminal } from '../config';
 import { UiIcon } from '../components/UiIcon';
 import { UserAvatar } from '../components/UserAvatar';
+import { OwnPasswordForm, TwoFactorCard } from '../components/TwoFactorCard';
 
 /** Nível de cada papel (0 = mais poder), igual ao backend. */
 const ROLE_LEVEL: Record<string, number> = {
@@ -31,7 +32,7 @@ export function Profile() {
   const [name, setName] = useState(user?.name || '');
   const [photo, setPhoto] = useState<string | null>(null);
   const [brand, setBrand] = useState<DocumentIdentity | null>(null);
-  const [pw, setPw] = useState(''); const [pw2, setPw2] = useState('');
+  const [twoFaOn, setTwoFaOn] = useState(false);
   const [pin, setPin] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -61,15 +62,6 @@ export function Profile() {
       await api.staff.updateUser(uid, { name: name.trim() || undefined, photoUrl: photo ?? undefined });
       flash('Perfil guardado. Atualize a página para ver a nova foto no topo.');
     } catch (e) { fail(e); } finally { setBusy(false); }
-  };
-
-  const changePassword = async () => {
-    setErr(null);
-    if (pw.length < 8) { setErr('A nova palavra-passe deve ter pelo menos 8 caracteres.'); return; }
-    if (pw !== pw2) { setErr('As palavras-passe não coincidem.'); return; }
-    setBusy(true);
-    try { await api.staff.resetPassword(uid, pw); setPw(''); setPw2(''); flash('Senha alterada.'); }
-    catch (e) { fail(e); } finally { setBusy(false); }
   };
 
   const changePin = async () => {
@@ -142,18 +134,21 @@ export function Profile() {
         {/* Segurança: password + PIN */}
         <div className="card">
           <h3 className="acc-h"><UiIcon e="🛡️" size={18} /> Segurança</h3>
-          <div className="field"><label>Nova palavra-passe</label>
-            <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="mín. 8 caracteres" /></div>
-          <div className="field"><label>Confirmar palavra-passe</label>
-            <input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></div>
-          <button className="btn block" onClick={changePassword} disabled={busy}>Alterar palavra-passe</button>
+          <OwnPasswordForm twoFa={twoFaOn} onDone={flash} />
 
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '18px 0' }} />
-
-          <div className="field"><label>PIN da caixa (6 dígitos)</label>
-            <input inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="ex.: 123456" /></div>
-          <button className="btn block" onClick={changePin} disabled={busy}>Alterar PIN</button>
+          {isTenant ? (
+            <>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '18px 0' }} />
+              <div className="field"><label>PIN da caixa (6 dígitos)</label>
+                <input inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="ex.: 123456" /></div>
+              <button className="btn block" onClick={changePin} disabled={busy}>Alterar PIN</button>
+            </>
+          ) : null}
         </div>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <TwoFactorCard email={user?.email} onStatus={(s) => setTwoFaOn(s.enabled)} />
       </div>
     </div>
   );

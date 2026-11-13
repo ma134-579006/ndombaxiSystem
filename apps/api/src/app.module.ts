@@ -51,6 +51,7 @@ import { SupportModule } from './support/support.module';
 import { PayablesModule } from './payables/payables.module';
 import { CommissionsModule } from './commissions/commissions.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { SecurityModule } from './security/security.module';
 import { ReconciliationModule } from './reconciliation/reconciliation.module';
 import { LeaveModule } from './leave/leave.module';
 import { SyncModule } from './sync/sync.module';
@@ -118,6 +119,7 @@ import { HealthController } from './health.controller';
     PayablesModule,
     CommissionsModule,
     IntegrationsModule,
+    SecurityModule,
     ReconciliationModule,
     LeaveModule,
     SyncModule,

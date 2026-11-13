@@ -173,6 +173,9 @@ import type {
   SiteFeedbackAdmin,
   AdminChat,
   FeedbackStats,
+  TwoFaStatus,
+  SecurityView,
+  PayoutsView,
 } from './types';
 
 /** IVA dos produtos importados (migração). */
@@ -563,8 +566,34 @@ export const api = {
   forgotPassword: (email: string, companyCode?: string) =>
     request<{ ok: boolean; emailConfigured: boolean }>('POST', '/auth/forgot-password', { email, kind: 'PASSWORD', companyCode }, { auth: false }),
   /** Define a nova senha a partir do token recebido por e-mail. */
-  resetPassword: (token: string, secret: string) =>
-    request<{ ok: boolean; kind: string }>('POST', '/auth/reset-password', { token, secret }, { auth: false }),
+  resetPassword: (token: string, secret: string, twoFaCode?: string, twoFaResend?: boolean) =>
+    request<{ ok: boolean; kind: string }>('POST', '/auth/reset-password', { token, secret, twoFaCode, twoFaResend }, { auth: false }),
+  /** Muda a própria palavra-passe (com o código da verificação em 2 passos, quando ligada). */
+  changeOwnPassword: (current: string, next: string, twoFaCode?: string) =>
+    request<{ ok: true }>('POST', '/auth/me/password', { current, next, twoFaCode }),
+  /** Verificação em 2 passos da própria conta (Super Admin ou empresa). */
+  twoFactor: {
+    status: () => request<TwoFaStatus>('GET', '/auth/two-factor'),
+    setup: (method: 'EMAIL' | 'WHATSAPP', target: string) => request<{ channel: string; to: string }>('POST', '/auth/two-factor/setup', { method, target }),
+    confirm: (code: string) => request<TwoFaStatus>('POST', '/auth/two-factor/setup/confirm', { code }),
+    disableRequest: () => request<{ channel: string; to: string }>('POST', '/auth/two-factor/disable/request', {}),
+    disable: (code: string) => request<TwoFaStatus>('POST', '/auth/two-factor/disable', { code }),
+    code: () => request<{ channel: string | null; to: string | null }>('POST', '/auth/two-factor/code', { purpose: 'CHANGE_PW' }),
+  },
+  /** Super Admin → Segurança (2FA). */
+  security: {
+    get: () => request<SecurityView>('GET', '/super-admin/security'),
+    save: (dto: Partial<SecurityView['config']>) => request<SecurityView>('PUT', '/super-admin/security', dto),
+    test: (channel: 'EMAIL' | 'WHATSAPP', target: string) => request<{ ok: true }>('POST', '/super-admin/security/test', { channel, target }),
+    disableUser: (who: string) => request<{ disabled: number }>('POST', '/super-admin/security/disable-user', { who }),
+  },
+  /** Super Admin → Saques do LPS Kwanza (reclamações). */
+  kwanzaPayouts: {
+    list: (status: string, q?: string) => request<PayoutsView>('GET', `/super-admin/kwanza/withdrawals?status=${encodeURIComponent(status)}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
+    notify: (id: string, note?: string) => request<{ ok: true; extendedUntil: string }>('POST', `/super-admin/kwanza/withdrawals/${id}/notify`, { note }),
+    banRefund: (id: string, refundRef: string, note?: string) => request<{ ok: true }>('POST', `/super-admin/kwanza/withdrawals/${id}/ban-refund`, { refundRef, note }),
+    unban: (companyId: string) => request<{ ok: true }>('POST', `/super-admin/kwanza/bans/${companyId}/lift`, {}),
+  },
 
   // ── SAF-T (AGT): exporta o XML fiscal mensal ───────────────
   saft: {
@@ -980,6 +1009,8 @@ export const api = {
     associates: () => request<unknown[]>('GET', '/ecommerce/kwanza/associates'),
     sales: () => request<unknown[]>('GET', '/ecommerce/kwanza/sales'),
     withdrawals: () => request<unknown[]>('GET', '/ecommerce/kwanza/withdrawals'),
+    banks: () => request<{ banks: string[]; catalog: string[]; banned: { reason: string; createdAt: string } | null }>('GET', '/ecommerce/kwanza/banks'),
+    saveBanks: (banks: string[]) => request<{ banks: string[]; catalog: string[] }>('PUT', '/ecommerce/kwanza/banks', { banks }),
     pay: (id: string, note?: string, proofUrl?: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/pay`, { note, proofUrl }),
     reject: (id: string, note?: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/reject`, { note }),
     chats: () => request<unknown[]>('GET', '/ecommerce/kwanza/chats'),

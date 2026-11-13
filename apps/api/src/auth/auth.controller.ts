@@ -31,6 +31,7 @@ import {
   PlatformLoginDto,
   RefreshDto,
   ResetPasswordDto,
+  ChangeOwnPasswordDto,
   StaffPinLoginDto,
   TenantLoginDto,
   UpdateThemeDto,
@@ -74,7 +75,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Define a nova senha/PIN a partir do token do e-mail' })
   resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.auth.performPasswordReset(dto.token, dto.secret);
+    return this.auth.performPasswordReset(dto.token, dto.secret, dto.twoFaCode, dto.twoFaResend === true);
   }
 
   @Public()
@@ -216,6 +217,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Re-verifica a palavra-passe do próprio utilizador (desbloqueio do painel)' })
   verifyPassword(@CurrentUser() user: JwtPayload, @Body() dto: VerifyPasswordDto) {
     return this.auth.verifyPassword(user, dto.password);
+  }
+
+  @ApiBearerAuth()
+  @Throttle(SECRET_THROTTLE)
+  @Post('me/password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Muda a própria palavra-passe (pede o código da 2FA quando ligada)' })
+  changeOwnPassword(@CurrentUser() user: JwtPayload, @Body() dto: ChangeOwnPasswordDto) {
+    return this.auth.changeOwnPassword(user, dto.current, dto.next, dto.twoFaCode);
   }
 
   @UseGuards(JwtAuthGuard)

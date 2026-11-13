@@ -590,3 +590,49 @@
 @keyframes kk-fab-in { from { opacity: 0; transform: translateY(8px); } }
 @media (max-width: 520px) { .kk-fab { right: 12px; bottom: 16px; } .kk-fab.up { bottom: 84px; } .kk-fab-btn { width: 54px; height: 54px; } }
 @media print { .kk-fab { display: none !important; } }
+
+/* ───────── verificação em 2 passos, prazo dos saques, bancos e stock ───────── */
+.kw-2fa { margin: 6px 0 4px; padding: 14px; border-radius: 14px; border: 1px solid rgba(22,74,214,.25); background: linear-gradient(180deg, rgba(22,74,214,.07), rgba(22,74,214,.02)); animation: kwIn .25s ease-out; }
+.kw-2fa-h { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+.kw-2fa-h b { display: block; font-size: 14px; }
+.kw-2fa-h small { display: block; font-size: 12.5px; color: #5b6475; margin-top: 2px; word-break: break-word; }
+.kw-2fa-ic { width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #164ad6, #4f7cff); box-shadow: 0 6px 16px -6px rgba(22,74,214,.6); }
+.kw-2fa-code { width: 100%; height: 54px; border-radius: 12px; border: 1.5px solid #d5dbe7; background: #fff; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: 10px; font-variant-numeric: tabular-nums; outline: none; color: #111827; }
+.kw-2fa-code:focus { border-color: #164ad6; box-shadow: 0 0 0 3px rgba(22,74,214,.18); }
+.kw-2fa-resend { margin-top: 8px; background: none; border: 0; padding: 4px 0; color: #164ad6; font-weight: 600; font-size: 13px; cursor: pointer; }
+.kw-2fa-resend:disabled { color: #9aa3b2; cursor: default; }
+.kw-tf { margin-top: 16px; padding: 16px; border-radius: 16px; border: 1px solid #e3e7ef; background: #fff; position: relative; overflow: hidden; }
+.kw-tf::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: #cbd5e1; }
+.kw-tf.on::before { background: linear-gradient(90deg, #16a34a, #22c55e); }
+.kw-tf-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.kw-tf-h > div { flex: 1; min-width: 160px; }
+.kw-tf-h b { display: block; font-size: 15px; margin-bottom: 4px; }
+.kw-tf-sh { width: 46px; height: 46px; flex: none; border-radius: 14px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #64748b, #94a3b8); }
+.kw-tf.on .kw-tf-sh { background: linear-gradient(135deg, #15803d, #22c55e); }
+.kw-tf-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #64748b; background: #f1f5f9; }
+.kw-tf-pill.on { color: #15803d; background: rgba(34,197,94,.14); }
+.kw-tf-b { margin-top: 14px; max-width: 460px; animation: kwIn .25s ease-out; }
+.kw-tf-m { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.kw-tf-m button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; border-radius: 12px; border: 1.5px solid #d5dbe7; background: #fff; font-weight: 700; cursor: pointer; color: #111827; }
+.kw-tf-m button.sel { border-color: #164ad6; color: #164ad6; box-shadow: 0 0 0 3px rgba(22,74,214,.15); }
+.kw-tf-m button:disabled { opacity: .45; cursor: not-allowed; }
+.kw-tf-act { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
+.kw-btn-danger { background: #dc2626 !important; border-color: #dc2626 !important; color: #fff !important; }
+.kw-sla { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+.kw-sla-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #1e40af; background: rgba(22,74,214,.1); }
+.kw-sla-chip.late { color: #b91c1c; background: rgba(220,38,38,.1); }
+.kw-sla-chip.esc { color: #92400e; background: rgba(245,158,11,.16); }
+.kw-sla-btn { border: 0; border-radius: 999px; padding: 6px 14px; font-weight: 800; font-size: 12.5px; color: #fff; background: linear-gradient(135deg, #dc2626, #f97316); cursor: pointer; box-shadow: 0 6px 14px -6px rgba(220,38,38,.7); }
+.kw-sla-ok { display: block; margin-top: 4px; color: #15803d; font-weight: 700; }
+.kw-wd.late { border-left: 4px solid #dc2626; }
+.kw-claim { margin-top: 10px; }
+.kw-claim textarea { width: 100%; border-radius: 10px; border: 1.5px solid #d5dbe7; padding: 10px; font: inherit; resize: vertical; }
+.kw-banks { display: flex; flex-wrap: wrap; gap: 8px; }
+.kw-bank { padding: 6px 12px; border-radius: 10px; border: 1px solid #d5dbe7; background: #f8fafc; font-size: 13px; font-weight: 700; color: #334155; }
+.kw-bank.have { border-color: #22c55e; background: rgba(34,197,94,.1); color: #15803d; }
+.kw-same { display: inline-block; margin-top: 4px; font-style: normal; font-size: 12px; font-weight: 800; color: #15803d; }
+.kk-stock { color: #15803d !important; background: rgba(34,197,94,.12) !important; }
+.kk-stock.out { color: #b91c1c !important; background: rgba(220,38,38,.1) !important; }
+@keyframes kwIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .kw-2fa, .kw-tf-b { animation: none; } }
+@media (max-width: 480px) { .kw-tf-m { grid-template-columns: 1fr; } .kw-tf-act > .kw-btn { flex: 1; } }

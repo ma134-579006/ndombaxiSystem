@@ -14,19 +14,23 @@ interface KProduct { id: string; stock: number; canPublish: boolean; code: strin
 interface KRequest { id: string; status: string; productCode: string; product: string | null; associate: string; phone: string; photoUrl: string | null; note: string | null; commissionPct: number | null; basePct: number; markupPct: number | null; date: string }
 interface KAssociate { id: string; name: string; phone: string; code: string; photoUrl: string | null; sales: number; pending: number; available: number; paid: number; requested: number; balance: number }
 interface KSale { orderNumber: string; product: string; quantity: number; amount: number; associate: string; code: string; date: string }
-interface KWithdrawal { id: string; name: string; amount: number; method: string; details: string | null; status: string; note: string | null; proofUrl: string | null; date: string }
+interface KWithdrawal { id: string; name: string; code?: string; amount: number; method: string; details: string | null; status: string; note: string | null; proofUrl: string | null; date: string; dueAt?: string; escalation?: string | null; extendedUntil?: string | null; refundRef?: string | null }
+/** Tempo que falta até `iso` (null se já passou). */
+const left = (iso: string | null | undefined, now: number) => { if (!iso) return null; const s = Math.floor((new Date(iso).getTime() - now) / 1000); if (s <= 0) return null; const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h >= 24 ? `${Math.floor(h / 24)} d ${h % 24} h` : `${h} h ${String(m).padStart(2, '0')} min`; };
 interface KChat { associateId: string; name: string; phone: string; photoUrl: string | null; last: string; at: string; unread: number }
 interface KMsg { id: string; sender: 'ASSOCIATE' | 'COMPANY'; senderName: string; body: string; createdAt: string }
 
-type Tab = 'products' | 'requests' | 'associates' | 'sales' | 'withdrawals' | 'complaints' | 'reviews' | 'policy' | 'chat' | 'own';
-const TABS: Array<[Tab, string]> = [['products', 'Produtos'], ['requests', 'Pedidos'], ['associates', 'Associados'], ['sales', 'Vendas'], ['withdrawals', 'Saques'], ['complaints', 'Reclamações'], ['reviews', 'Avaliações'], ['policy', 'Devoluções'], ['chat', 'Mensagens'], ['own', 'Loja de associados']];
-const ST: Record<string, [string, string]> = { PENDING: ['Pendente', 'warn'], APPROVED: ['Aprovada', ''], REJECTED: ['Recusada', 'mute'], REQUESTED: ['Por pagar', 'warn'], PAID: ['Pago', ''] };
+type Tab = 'products' | 'requests' | 'associates' | 'sales' | 'withdrawals' | 'banks' | 'complaints' | 'reviews' | 'policy' | 'chat' | 'own';
+const TABS: Array<[Tab, string]> = [['products', 'Produtos'], ['requests', 'Pedidos'], ['associates', 'Associados'], ['sales', 'Vendas'], ['withdrawals', 'Saques'], ['banks', 'Bancos'], ['complaints', 'Reclamações'], ['reviews', 'Avaliações'], ['policy', 'Devoluções'], ['chat', 'Mensagens'], ['own', 'Loja de associados']];
+const ST: Record<string, [string, string]> = { PENDING: ['Pendente', 'warn'], APPROVED: ['Aprovada', ''], REJECTED: ['Recusada', 'mute'], REQUESTED: ['Por pagar', 'warn'], PAID: ['Pago', ''], REFUNDED: ['Reembolsado', 'mute'] };
 
 /** LPS Kwanza — página própria no painel de cada empresa (marketplace central + loja de associados). */
 export function Kwanza({ onGo }: { onGo?(section: string): void } = {}) {
   const { companyCode } = useAuth();
   const [tab, setTab] = useState<Tab>(() => { try { return (sessionStorage.getItem('ndombaxi.kwanza.tab') as Tab) || 'products'; } catch { return 'products'; } });
   const [stats, setStats] = useState<{ pub: number; req: number; assoc: number; pay: number; unread: number } | null>(null);
+  const [banned, setBanned] = useState<{ reason: string } | null>(null);
+  useEffect(() => { api.kwanza.banks().then((r) => setBanned(r.banned)).catch(() => undefined); }, []);
   const go = (t: Tab) => { setTab(t); try { sessionStorage.setItem('ndombaxi.kwanza.tab', t); } catch { /* */ } };
   const loadStats = useCallback(async () => {
     const [p, r, a, w, c] = await Promise.all([
@@ -61,6 +65,7 @@ export function Kwanza({ onGo }: { onGo?(section: string): void } = {}) {
         <a className="vd-btn" href={`${base}/kwanza`} target="_blank" rel="noopener noreferrer">Abrir o marketplace</a>
         {companyCode ? <a className="vd-btn outline" href={`${base}/${companyCode}/associados`} target="_blank" rel="noopener noreferrer">Abrir a loja de associados</a> : null}
       </div>
+      {banned ? <div className="kz-ban" role="alert"><b>Empresa banida do LPS Kwanza</b><span>{banned.reason}. Os produtos estão fora do marketplace até a equipa do LPS Kwanza readmitir a empresa.</span></div> : null}
       <div className="kz-kpis">
         <button className="vd-card kz-kpi" onClick={() => go('products')}><span>Produtos no marketplace</span><b>{stats?.pub ?? '—'}</b></button>
         <button className="vd-card kz-kpi" onClick={() => go('requests')}><span>Pedidos pendentes</span><b className={stats?.req ? 'warn' : ''}>{stats?.req ?? '—'}</b></button>
@@ -74,7 +79,7 @@ export function Kwanza({ onGo }: { onGo?(section: string): void } = {}) {
       </div>
       {tab === 'products' ? <Products onChange={loadStats} onGo={onGo} /> : tab === 'requests' ? <Requests onChange={loadStats} /> : tab === 'associates' ? <Associates key={freezeCode ?? ''} freezeCode={freezeCode} onChat={(id) => { setChatWith(id); go('chat'); }} />
         : tab === 'complaints' ? <Complaints onChange={loadStats} onFreeze={(code) => { setFreezeCode(code); go('associates'); }} /> : tab === 'reviews' ? <Reviews /> : tab === 'policy' ? <ReturnPolicy />
-        : tab === 'sales' ? <Sales /> : tab === 'withdrawals' ? <Withdrawals onChange={loadStats} /> : tab === 'chat' ? <Chats key={chatWith ?? ''} initial={chatWith} onChange={loadStats} />
+        : tab === 'sales' ? <Sales /> : tab === 'withdrawals' ? <Withdrawals onChange={loadStats} /> : tab === 'banks' ? <Banks /> : tab === 'chat' ? <Chats key={chatWith ?? ''} initial={chatWith} onChange={loadStats} />
         : <div className="kz-own"><MembersCard /><BannersCard /><AffiliatesCard /></div>}
     </div>
   );
@@ -312,6 +317,8 @@ function Sales() {
 function Withdrawals({ onChange }: { onChange(): void }) {
   const { data, error, load, setError } = useLoad(() => api.kwanza.withdrawals() as Promise<KWithdrawal[]>);
   const [paying, setPaying] = useState<KWithdrawal | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(t); }, []);
   const reject = async (w: KWithdrawal) => {
     if (!(await confirmDialog({ message: `Recusar o saque de ${kz(w.amount)} a ${w.name}?`, danger: true }))) return;
     try { await api.kwanza.reject(w.id); toast.success('Saque recusado'); await load(); onChange(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível.'); }
@@ -322,13 +329,18 @@ function Withdrawals({ onChange }: { onChange(): void }) {
       <div className="vd-card vd-tablecard">
         {!data ? <div className="vd-empty">A carregar…</div> : !data.length ? <Empty t="Sem pedidos de saque." /> : (
           <div className="vd-tablewrap"><table className="vd-table">
-            <thead><tr><th>Data</th><th>Associado</th><th className="num">Valor</th><th>Receber por</th><th className="ctr">Estado</th><th /></tr></thead>
+            <thead><tr><th>Data</th><th>Associado</th><th className="num">Valor</th><th>Receber por</th><th>Prazo</th><th className="ctr">Estado</th><th /></tr></thead>
             <tbody>{data.map((w) => (
-              <tr key={w.id}>
-                <td>{dt(w.date)}</td><td><strong>{w.name}</strong></td><td className="num"><strong>{kz(w.amount)}</strong></td>
+              <tr key={w.id} className={w.status === 'REQUESTED' && !left(w.extendedUntil ?? w.dueAt, now) ? 'kz-late' : ''}>
+                <td>{dt(w.date)}</td><td><strong>{w.name}</strong>{w.code ? <span className="sub">Código {w.code}</span> : null}</td><td className="num"><strong>{kz(w.amount)}</strong></td>
                 <td>{w.method}{w.details ? <span className="sub">{w.details}</span> : null}{w.note ? <span className="sub">{w.note}</span> : null}</td>
+                <td>{w.status === 'REQUESTED' ? (() => { const l = left(w.extendedUntil ?? w.dueAt, now); return (
+                  <span className={`kz-sla${l ? '' : ' late'}${w.escalation ? ' esc' : ''}`}>
+                    <b>{l ?? 'Prazo ultrapassado'}</b>
+                    <small>{w.escalation === 'NOTIFIED' ? `Aviso da equipa LPS Kwanza · até ${dt(w.extendedUntil ?? null)}` : w.escalation === 'OPEN' ? 'O associado reclamou à equipa LPS Kwanza' : `Até ${dt(w.dueAt ?? null)}`}</small>
+                  </span>); })() : w.status === 'REFUNDED' ? <span className="kz-sla late"><b>Reembolsado pela plataforma</b>{w.refundRef ? <small>Ref. {w.refundRef}</small> : null}</span> : <span className="sub">—</span>}</td>
                 <td className="ctr"><span className={`vd-badge ${ST[w.status]?.[1] ?? 'mute'}`}>{ST[w.status]?.[0] ?? 'Recusado'}</span>{w.proofUrl ? <a className="vd-link sub" href={w.proofUrl} target="_blank" rel="noopener noreferrer" download>Comprovativo</a> : null}</td>
-                <td className="ctr">{w.status === 'REQUESTED' ? <div className="kz-acts"><button className="vd-btn sm" onClick={() => setPaying(w)}>Marcar como pago</button><button className="vd-btn danger sm" onClick={() => void reject(w)}>Recusar</button></div> : null}</td>
+                <td className="ctr">{w.status === 'REQUESTED' ? <div className="kz-acts"><button className="vd-btn sm" onClick={() => setPaying(w)}>Marcar como pago</button>{w.escalation === 'OPEN' || w.escalation === 'NOTIFIED' ? null : <button className="vd-btn danger sm" onClick={() => void reject(w)}>Recusar</button>}</div> : null}</td>
               </tr>
             ))}</tbody>
           </table></div>
@@ -336,6 +348,42 @@ function Withdrawals({ onChange }: { onChange(): void }) {
       </div>
       {paying ? <Pay w={paying} onClose={() => setPaying(null)} onDone={() => { setPaying(null); toast.success('Saque marcado como pago'); void load(); onChange(); }} /> : null}
     </>
+  );
+}
+
+/** Bancos onde a empresa tem conta: o associado abre conta no mesmo banco e recebe na hora. */
+function Banks() {
+  const [sel, setSel] = useState<string[] | null>(null);
+  const [catalog, setCatalog] = useState<string[]>([]);
+  const [other, setOther] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => { api.kwanza.banks().then((r) => { setSel(r.banks); setCatalog(r.catalog); }).catch((e) => setErr(e instanceof ApiError ? e.message : 'Falha ao carregar.')); }, []);
+  if (!sel) return err ? <div className="vd-err">{err}</div> : <div className="vd-card vd-empty">A carregar…</div>;
+  const all = [...new Set([...catalog, ...sel])];
+  const toggle = (b: string) => setSel((s) => (s!.includes(b) ? s!.filter((x) => x !== b) : [...s!, b]));
+  const save = async () => {
+    setBusy(true); setErr(null);
+    try { const r = await api.kwanza.saveBanks(sel); setSel(r.banks); toast.success('Bancos guardados'); } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível guardar.'); } finally { setBusy(false); }
+  };
+  return (
+    <div className="vd-card kz-banks">
+      {err ? <div className="vd-err">{err}</div> : null}
+      <div className="kz-banks-h"><b>Bancos da empresa</b><span>{sel.length} selecionado{sel.length === 1 ? '' : 's'}</span></div>
+      <div className="kz-bank-grid">
+        {all.map((b) => (
+          <button key={b} type="button" role="checkbox" aria-checked={sel.includes(b)} className={`kz-bank${sel.includes(b) ? ' on' : ''}`} onClick={() => toggle(b)}>
+            <span className="kz-bank-ic">{b.replace(/^Banco\s+/i, '').slice(0, 2).toUpperCase()}</span><span>{b}</span>
+          </button>
+        ))}
+      </div>
+      <div className="kz-bank-add">
+        <input value={other} onChange={(e) => setOther(e.target.value)} placeholder="Outro banco" maxLength={60} onKeyDown={(e) => { if (e.key === 'Enter' && other.trim().length >= 2) { setSel((s) => [...new Set([...s!, other.trim()])]); setOther(''); } }} />
+        <button type="button" className="vd-btn outline" disabled={other.trim().length < 2} onClick={() => { setSel((s) => [...new Set([...s!, other.trim()])]); setOther(''); }}>Juntar</button>
+        <span className="spacer" />
+        <button type="button" className="vd-btn" disabled={busy} onClick={() => void save()}>{busy ? 'A guardar…' : 'Guardar bancos'}</button>
+      </div>
+    </div>
   );
 }
 

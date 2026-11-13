@@ -4,7 +4,7 @@ import { PUBLIC_ORIGIN } from '../config';
 /** LPS Kwanza — cliente da API do marketplace central (contas globais de associado). */
 export interface Listing {
   companyCode: string; companyName: string; productCode: string; name: string; description: string | null; imageUrl: string | null;
-  gallery: string[]; category: string | null; grossPrice: number; listPrice: number | null; inStock: boolean; commissionPct: number;
+  gallery: string[]; category: string | null; grossPrice: number; listPrice: number | null; inStock: boolean; stockQty?: number; commissionPct: number;
   affiliation: 'OPEN' | 'RESTRICTED'; allowMarkup: boolean; maxMarkupPct: number | null; materials: string[]; views: number; sold: number; associates?: number;
   /** Publicação de um associado (o que o cliente normal vê): preço do associado, imagens e vídeo. */
   postId?: string; basePrice?: number; associate?: { code: string; name: string; photoUrl: string | null }; videoUrl?: string | null; caption?: string | null;
@@ -18,7 +18,9 @@ export interface Affiliation {
   grossPrice: number; commissionPct: number; negotiated: boolean; markupPct: number | null; affiliation: string; allowMarkup: boolean; maxMarkupPct: number | null;
   published: boolean; postImages: string[]; postVideo: string | null; postCaption: string | null; price: number;
 }
-export interface CompanyBalance { companyId: string; companyCode: string; companyName: string; pending: number; available: number; withdrawn: number; requested: number; balance: number }
+export interface CompanyBalance { companyId: string; companyCode: string; companyName: string; pending: number; available: number; withdrawn: number; requested: number; balance: number; banks?: string[] }
+export interface TwoFaStatus { enabled: boolean; method: 'EMAIL' | 'WHATSAPP' | null; to: string | null; channels: { email: boolean; whatsapp: boolean } }
+type Sent = { channel: string; to: string };
 export interface KOrder {
   token: string; companyCode: string; companyName: string; orderId: string; orderNumber: string; status: string; total: number; paymentMethod: string | null; paymentClaimed: boolean;
   deliveryMethod: string | null; address: string | null; invoiced: boolean; gpsAt: string | null; date: string; updatedAt: string;
@@ -34,7 +36,8 @@ export interface Dashboard {
   frozen?: Record<string, string>;
   code: string; pending: number; available: number; withdrawn: number; requested: number; balance: number; companies: CompanyBalance[];
   sales: { companyCode: string; companyName: string; orderNumber: string; product: string; quantity: number; amount: number; date: string; state: 'PENDING' | 'AVAILABLE' | 'CANCELLED'; orderStatus?: string; paymentClaimed?: boolean; updatedAt?: string }[];
-  withdrawals: { id: string; companyCode: string; companyName: string; amount: number; method: string; details: string | null; status: string; note: string | null; proofUrl: string | null; date: string }[];
+  withdrawals: { id: string; companyCode: string; companyName: string; amount: number; method: string; details: string | null; status: string; note: string | null; proofUrl: string | null; date: string;
+    dueAt?: string; escalation?: string | null; extendedUntil?: string | null; complainedAt?: string | null; refundRef?: string | null; decidedAt?: string | null }[];
 }
 export interface PayoutAccount { id: string; method: string; bank: string | null; holder: string; details: string; createdAt: string }
 export interface KNote { id: string; kind: string; title: string; body: string | null; link: string | null; read: boolean; createdAt: string }
@@ -54,12 +57,21 @@ export const kw = {
   market: (t?: string) => request<Listing[]>('GET', '/kwanza/market', undefined, t),
   view: (c: string, p: string) => request<{ ok: true }>('POST', `/kwanza/market/${e(c)}/${e(p)}/view`),
   register: (b: { name: string; phone: string; email?: string; password: string }) => request<Session>('POST', '/kwanza/auth/register', b),
-  login: (b: { login: string; password: string }) => request<Session>('POST', '/kwanza/auth/login', b),
-  recover: (login: string) => request<{ sent: true; viaEmail: boolean }>('POST', '/kwanza/auth/recover', { login }),
-  recoverConfirm: (b: { login: string; code: string; password: string }) => request<{ ok: true }>('POST', '/kwanza/auth/recover/confirm', b),
+  login: (b: { login: string; password: string; twoFaCode?: string; twoFaResend?: boolean }) => request<Session>('POST', '/kwanza/auth/login', b),
+  recover: (login: string, via?: 'EMAIL' | 'WHATSAPP') => request<{ sent: true; viaEmail: boolean; via: 'EMAIL' | 'WHATSAPP' | null; to: string | null; twoFa: boolean }>('POST', '/kwanza/auth/recover', { login, via }),
+  recoverConfirm: (b: { login: string; code: string; password: string; twoFaCode?: string; twoFaResend?: boolean }) => request<{ ok: true }>('POST', '/kwanza/auth/recover/confirm', b),
   me: (t: string) => request<Associate>('GET', '/kwanza/me', undefined, t),
   saveProfile: (t: string, b: Partial<Associate>) => request<Associate>('PUT', '/kwanza/me', b, t),
-  password: (t: string, current: string, next: string) => request<{ ok: true }>('POST', '/kwanza/me/password', { current, next }, t),
+  password: (t: string, current: string, next: string, twoFaCode?: string) => request<{ ok: true }>('POST', '/kwanza/me/password', { current, next, twoFaCode }, t),
+  twoFa: {
+    status: (t: string) => request<TwoFaStatus>('GET', '/kwanza/me/two-factor', undefined, t),
+    setup: (t: string, method: 'EMAIL' | 'WHATSAPP', target: string) => request<Sent>('POST', '/kwanza/me/two-factor/setup', { method, target }, t),
+    confirm: (t: string, code: string) => request<TwoFaStatus>('POST', '/kwanza/me/two-factor/confirm', { code }, t),
+    disableRequest: (t: string) => request<Sent>('POST', '/kwanza/me/two-factor/disable/request', undefined, t),
+    disable: (t: string, code: string) => request<TwoFaStatus>('POST', '/kwanza/me/two-factor/disable', { code }, t),
+    code: (t: string) => request<{ channel: string | null; to: string | null }>('POST', '/kwanza/me/two-factor/code', undefined, t),
+  },
+  complainWithdrawal: (t: string, id: string, text?: string) => request<{ ok: true }>('POST', `/kwanza/me/withdrawals/${e(id)}/complain`, { text }, t),
   dashboard: (t: string) => request<Dashboard>('GET', '/kwanza/me/dashboard', undefined, t),
   affiliations: (t: string) => request<Affiliation[]>('GET', '/kwanza/me/affiliations', undefined, t),
   affiliate: (t: string, companyCode: string, productCode: string, note?: string) => request<{ status: string }>('POST', '/kwanza/me/affiliations', { companyCode, productCode, note }, t),
@@ -88,7 +100,7 @@ export const kw = {
   review: (c: string, p: string, b: { name: string; phone: string; rating: number; comment?: string }) => request<{ ok: true }>('POST', `/kwanza/social/${e(c)}/${e(p)}/review`, b),
   complain: (b: { companyCode: string; productCode?: string; associateCode?: string; orderNumber?: string; name: string; phone: string; kind: string; body: string }) => request<{ ok: true; code: string }>('POST', '/kwanza/complaints', b),
   complaint: (code: string) => request<Complaint>('GET', `/kwanza/complaints/${e(code.trim())}`),
-  withdraw: (t: string, companyCode: string, amount: number, accountId: string) => request<{ ok: true }>('POST', '/kwanza/me/withdrawals', { companyCode, amount, accountId }, t),
+  withdraw: (t: string, companyCode: string, amount: number, accountId: string, twoFaCode?: string, twoFaResend?: boolean) => request<{ ok: true }>('POST', '/kwanza/me/withdrawals', { companyCode, amount, accountId, twoFaCode, twoFaResend }, t),
 };
 
 /** Ligação do associado: abre o produto NO LPS KWANZA (a compra faz-se lá) com o código dele. */

@@ -646,6 +646,8 @@ model KwanzaListing {
   grossPrice    Decimal  @db.Decimal(14, 2)
   listPrice     Decimal? @db.Decimal(14, 2)
   inStock       Boolean  @default(true)
+  /// Quantidade disponível na empresa (stock menos o reservado), copiada na sincronização.
+  stockQty      Int      @default(0)
   commissionPct Decimal  @db.Decimal(5, 2)
   affiliation   String   @default("OPEN") // OPEN | RESTRICTED
   allowMarkup   Boolean  @default(false) // "venda no teu preço"
@@ -720,9 +722,22 @@ model KwanzaWithdrawal {
   proofUrl    String?
   createdAt   DateTime  @default(now())
   decidedAt   DateTime?
+  /// Prazo para a empresa pagar (pedido de segunda a quinta: 24 h; sexta a domingo: até ao fim de segunda-feira).
+  dueAt         DateTime?
+  /// Reclamação do associado ao Super Admin (só depois de o prazo passar).
+  complainedAt  DateTime?
+  complaint     String?
+  /// Escalada: OPEN (reclamado) → NOTIFIED (+24 h dadas à empresa) → RESOLVED (pago) | REFUNDED (empresa banida, associado reembolsado)
+  escalation    String?
+  notifiedAt    DateTime?
+  extendedUntil DateTime?
+  adminNote     String?
+  refundedAt    DateTime?
+  refundRef     String?
 
   @@index([associateId])
   @@index([companyId, status])
+  @@index([escalation])
   @@map("kwanza_withdrawals")
   @@schema("nexus_public")
 }
@@ -847,9 +862,22 @@ model KwanzaPolicy {
   companyId  String   @id @db.Uuid
   returnDays Int      @default(7)
   text       String?
+  /// Bancos onde a empresa tem conta (o associado abre conta no mesmo banco para receber na hora).
+  banks      Json     @default("[]")
   updatedAt  DateTime @default(now())
 
   @@map("kwanza_policies")
+  @@schema("nexus_public")
+}
+
+/// LPS Kwanza — empresa banida do marketplace pelo Super Admin (saque não pago depois da prorrogação).
+model KwanzaBan {
+  companyId String   @id @db.Uuid
+  reason    String
+  bannedBy  String?
+  createdAt DateTime @default(now())
+
+  @@map("kwanza_bans")
   @@schema("nexus_public")
 }
 
@@ -882,5 +910,57 @@ model KwanzaOrder {
   @@index([phone, orderNumber])
   @@index([associateId])
   @@map("kwanza_orders")
+  @@schema("nexus_public")
+}
+
+// ─────────────────────────────────────────────────────────────
+// VERIFICAÇÃO EM 2 PASSOS (opcional, desligada por omissão) — Super Admin,
+// utilizadores das empresas e associados do LPS Kwanza. Código por e-mail
+// (SMTP do Super Admin) ou WhatsApp (Meta Cloud API das Integrações).
+// ─────────────────────────────────────────────────────────────
+model TwoFactorSetting {
+  /// PLATFORM:<id> | TENANT:<schema>:<id> | KWANZA:<id>
+  subject   String   @id
+  enabled   Boolean  @default(false)
+  method    String   @default("EMAIL") // EMAIL | WHATSAPP
+  email     String?
+  phone     String?
+  label     String?
+  updatedAt DateTime @default(now())
+
+  @@index([email])
+  @@map("two_factor_settings")
+  @@schema("nexus_public")
+}
+
+model TwoFactorCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  subject   String
+  purpose   String // LOGIN | SETUP | RESET | CHANGE_PW | DISABLE
+  channel   String // EMAIL | WHATSAPP
+  target    String
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([subject, purpose, createdAt])
+  @@map("two_factor_codes")
+  @@schema("nexus_public")
+}
+
+model TwoFactorConfig {
+  id            String   @id @default("default")
+  allowEmail    Boolean  @default(true)
+  allowWhatsapp Boolean  @default(true)
+  /// Modelo aprovado na Meta (categoria Autenticação). Sem modelo, envia texto (só serve dentro da janela de 24 h).
+  waTemplate    String?
+  waLang        String   @default("pt_PT")
+  waAuthButton  Boolean  @default(true)
+  codeMinutes   Int      @default(10)
+  updatedAt     DateTime @default(now())
+
+  @@map("two_factor_config")
   @@schema("nexus_public")
 }

@@ -11,6 +11,7 @@ import { Search, type SearchState } from '../members/Search';
 import { Messages, NotesBell } from './Inbox';
 import { PostEditor } from './PostEditor';
 import { Claims, ProductSocial } from './Trust';
+import { CodeBox, TwoFaCard, codeAsk, leftText, useNow, type CodeAsk } from './Security';
 import { CartDrawer, Checkout, ORDER_LABEL, Orders, cart, useCart } from './Shop';
 import { banners as loadBanners, kw, session, shareLink, type Affiliation, type Associate, type Dashboard, type KBanner, type Listing, type PayoutAccount } from './api';
 
@@ -490,6 +491,8 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
   // A compra faz-se aqui no LPS Kwanza, com o associado que trouxe o cliente.
   const assocCode = post?.associate?.code ?? refCode ?? savedRef(l.companyCode, l.productCode);
   const mine = !!sess && assocCode === sess.associate.code;
+  // Publicação de OUTRO associado: o associado com sessão vê e compra, mas não a edita (cada um edita só a sua).
+  const othersPost = !!post && !!sess && post.associate!.code !== sess.associate.code;
   const addToCart = (andGo: boolean) => { cart.add(l, 1, mine ? null : assocCode ?? null); if (andGo) go({ n: 'cart' }); else flash('Adicionado ao carrinho'); };
   const yt = l.videoUrl ? /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/i.exec(l.videoUrl)?.[1] : undefined;
   const pct = aff?.status === 'APPROVED' ? aff.commissionPct : l.commissionPct;
@@ -520,6 +523,7 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
               <span className="kk-chip"><I d={P.bag} size={14} /> {l.companyName}</span>
               {l.views ? <span className="kk-chip"><I d={P.eye} size={14} /> {l.views}</span> : null}
               {l.sold ? <span className="kk-chip">{l.sold} vendidos</span> : null}
+              {l.inStock ? <span className="kk-chip kk-stock"><I d={P.box} size={14} /> {l.stockQty && l.stockQty > 0 ? `${l.stockQty} em stock` : 'Disponível'}</span> : <span className="kk-chip kk-stock out">Esgotado</span>}
             </div>
             <div className="kk-offer">
               {d > 0 ? <div className="kk-offer-h">-{d}%</div> : null}
@@ -535,7 +539,8 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
             </div>
             {sess ? <button className="kk-ghost" onClick={() => go({ n: 'msgs', c: l.companyCode })}><I d={P.chat} size={16} /> Falar com a empresa</button> : null}
             {/* Ferramentas do associado (afiliação, ligação, preço próprio, publicação). */}
-            {!sess && post ? null : aff?.status === 'APPROVED' ? (
+            {othersPost ? <button className="kk-ghost" onClick={() => go({ n: 'product', c: l.companyCode, p: l.productCode, a: sess!.associate.code })}><I d={P.share} size={16} /> Ver a minha publicação deste produto</button>
+              : !sess && post ? null : aff?.status === 'APPROVED' ? (
               <div className="kk-aff">
                 <div className="kk-aff-row"><span>Comissão</span><b>{pct}% · {kz(com(l, pct))}{aff.negotiated ? ' · negociada' : ''}</b></div>
                 <div className="kw-aff-link"><input readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Ligação de associado" /></div>
@@ -577,7 +582,7 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
           <div className="kk-buybtns"><button className="kk-btn-add" onClick={() => addToCart(false)}><I d={P.cart} size={18} /> Adicionar ao carrinho</button><button className="kk-btn-buy" onClick={() => addToCart(true)}>Comprar</button></div>
         </div></div>
       ) : null}
-      {editing && aff && sess ? <PostEditor token={sess.token} a={aff} onClose={() => setEditing(false)} onSaved={(m) => { setEditing(false); flash(m); void kw.affiliations(sess.token).then((r) => setAff(r.find((x) => x.companyCode === l.companyCode && x.productCode === l.productCode) ?? null)); }} /> : null}
+      {editing && aff && sess && !othersPost ? <PostEditor token={sess.token} a={aff} onClose={() => setEditing(false)} onSaved={(m) => { setEditing(false); flash(m); void kw.affiliations(sess.token).then((r) => setAff(r.find((x) => x.companyCode === l.companyCode && x.productCode === l.productCode) ?? null)); }} /> : null}
     </div>
   );
 }
@@ -588,14 +593,22 @@ function AuthCard({ title, children }: { title: string; children: React.ReactNod
 }
 function Login({ onDone, go }: { onDone(): void; go(r: Route): void }) {
   const [login, setLogin] = useState(''); const [pw, setPw] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
-  const submit = async (e: React.FormEvent) => { e.preventDefault(); setErr(null); setBusy(true); try { session.set(await kw.login({ login, password: pw })); onDone(); } catch (er) { setErr(er instanceof ApiError ? er.message : 'Não foi possível entrar.'); } finally { setBusy(false); } };
+  const [ask, setAsk] = useState<CodeAsk | null>(null); const [code, setCode] = useState('');
+  const send = async (resend = false) => {
+    setErr(null); setBusy(true);
+    try { session.set(await kw.login({ login, password: pw, twoFaCode: !resend && ask ? code : undefined, twoFaResend: resend || undefined })); onDone(); }
+    catch (er) { const a = codeAsk(er); if (a) { setAsk(a); setCode(''); } else setErr(er instanceof ApiError ? er.message : 'Não foi possível entrar.'); }
+    finally { setBusy(false); }
+  };
+  const submit = async (e: React.FormEvent) => { e.preventDefault(); await send(); };
   return (
     <AuthCard title="Entra com o teu telefone ou email">
       <form className="kw-auth-form" onSubmit={(e) => void submit(e)}>
         <label className="kw-f"><span>Telefone ou email</span><input value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" /></label>
         <label className="kw-f"><span>Senha</span><input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="current-password" /></label>
+        {ask ? <CodeBox ask={ask} code={code} setCode={setCode} busy={busy} onResend={() => void send(true)} onEnter={() => void send()} /> : null}
         {err ? <div className="kw-err" role="alert">{err}</div> : null}
-        <button className="kw-btn kw-btn-primary kw-block" disabled={busy}>{busy ? 'Um momento…' : 'Entrar'}</button>
+        <button className="kw-btn kw-btn-primary kw-block" disabled={busy || (!!ask && code.length !== 6)}>{busy ? 'Um momento…' : ask ? 'Confirmar código' : 'Entrar'}</button>
         <div className="kw-auth-links"><span>Esqueceu a senha? <button type="button" className="kw-link" onClick={() => go({ n: 'recover' })}>Recuperar</button></span><span>Não tem conta? <button type="button" className="kw-link" onClick={() => go({ n: 'register' })}>Criar conta</button></span></div>
       </form>
     </AuthCard>
@@ -621,12 +634,20 @@ function Register({ onDone, go }: { onDone(): void; go(r: Route): void }) {
 }
 function Recover({ go, flash }: { go(r: Route): void; flash(t: string): void }) {
   const [login, setLogin] = useState(''); const [code, setCode] = useState(''); const [pw, setPw] = useState(''); const [step, setStep] = useState<1 | 2>(1); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
+  const [via, setVia] = useState<{ via: string | null; to: string | null } | null>(null);
+  const [ask, setAsk] = useState<CodeAsk | null>(null); const [tf, setTf] = useState('');
+  const confirm = async (resend = false) => {
+    setErr(null); setBusy(true);
+    try { await kw.recoverConfirm({ login, code, password: pw, twoFaCode: !resend && ask ? tf : undefined, twoFaResend: resend || undefined }); flash('Senha alterada'); go({ n: 'login' }); }
+    catch (er) { const a = codeAsk(er); if (a) { setAsk(a); setTf(''); } else setErr(er instanceof ApiError ? er.message : 'Não foi possível.'); }
+    finally { setBusy(false); }
+  };
   const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); setErr(null); setBusy(true);
-    try {
-      if (step === 1) { await kw.recover(login); setStep(2); }
-      else { await kw.recoverConfirm({ login, code, password: pw }); flash('Senha alterada'); go({ n: 'login' }); }
-    } catch (er) { setErr(er instanceof ApiError ? er.message : 'Não foi possível.'); } finally { setBusy(false); }
+    e.preventDefault();
+    if (step === 2) { await confirm(); return; }
+    setErr(null); setBusy(true);
+    try { const r = await kw.recover(login); setVia({ via: r.via, to: r.to }); setStep(2); }
+    catch (er) { setErr(er instanceof ApiError ? er.message : 'Não foi possível.'); } finally { setBusy(false); }
   };
   return (
     <AuthCard title="Recuperar a senha">
@@ -634,8 +655,9 @@ function Recover({ go, flash }: { go(r: Route): void; flash(t: string): void }) 
         <label className="kw-f"><span>Telefone ou email da conta</span><input value={login} onChange={(e) => setLogin(e.target.value)} disabled={step === 2} /></label>
         {step === 2 ? (
           <>
-            <label className="kw-f"><span>Código recebido por email</span><input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" /></label>
+            <label className="kw-f"><span>{via?.via === 'WHATSAPP' ? 'Código recebido por WhatsApp' : 'Código recebido por email'}{via?.to ? ` (${via.to})` : ''}</span><input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" /></label>
             <label className="kw-f"><span>Nova senha</span><input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" /></label>
+            {ask ? <CodeBox ask={ask} code={tf} setCode={setTf} busy={busy} onResend={() => void confirm(true)} onEnter={() => void confirm()} /> : null}
           </>
         ) : null}
         {err ? <div className="kw-err" role="alert">{err}</div> : null}
@@ -651,7 +673,7 @@ const Loader = () => <KLoader overlay={false} />;
 
 /* ───────────── área do associado (menu lateral como no Kikolo) ───────────── */
 type AreaTab = 'panel' | 'sales' | 'market' | 'affs' | 'withdraw' | 'accounts' | 'profile' | 'msgs';
-const STATE: Record<string, [string, string]> = { PENDING: ['Pendente', 'kw-st-PENDING'], AVAILABLE: ['Disponível', 'kw-st-PAID'], CANCELLED: ['Cancelada', 'kw-st-CANCELLED'], APPROVED: ['Aprovada', 'kw-st-PAID'], REJECTED: ['Recusada', 'kw-st-CANCELLED'], REQUESTED: ['Em análise', 'kw-st-PENDING'], PAID: ['Pago', 'kw-st-PAID'] };
+const STATE: Record<string, [string, string]> = { PENDING: ['Pendente', 'kw-st-PENDING'], AVAILABLE: ['Disponível', 'kw-st-PAID'], CANCELLED: ['Cancelada', 'kw-st-CANCELLED'], APPROVED: ['Aprovada', 'kw-st-PAID'], REJECTED: ['Recusada', 'kw-st-CANCELLED'], REQUESTED: ['Em análise', 'kw-st-PENDING'], PAID: ['Pago', 'kw-st-PAID'], REFUNDED: ['Reembolsado', 'kw-st-PAID'] };
 const TITLES: Record<AreaTab, [string, string]> = {
   panel: ['Dashboard', P.grid], sales: ['Minhas vendas', P.bag], market: ['Mercado de Associados', P.share], affs: ['Minhas afiliações', P.share],
   withdraw: ['Histórico de transações', P.card], accounts: ['Contas bancárias', P.shield], profile: ['Meu Perfil', P.user], msgs: ['Mensagens', P.chat],
@@ -873,6 +895,9 @@ function Withdraw({ token, d, onDone, go }: { token: string; d: Dashboard | null
   const [accs, setAccs] = useState<PayoutAccount[] | null>(null);
   const [open, setOpen] = useState(false);
   const [company, setCompany] = useState(''); const [amount, setAmount] = useState(''); const [acc, setAcc] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
+  const [ask, setAsk] = useState<CodeAsk | null>(null); const [tf, setTf] = useState('');
+  const [claim, setClaim] = useState<string | null>(null); const [claimTx, setClaimTx] = useState(''); const [claimErr, setClaimErr] = useState<string | null>(null);
+  const now = useNow();
   useEffect(() => { kw.accounts(token).then((r) => { setAccs(r); if (r[0]) setAcc(r[0].id); }).catch(() => setAccs([])); }, [token]);
   useEffect(() => { const c = d?.companies.find((x) => x.balance > 0); if (c && !company) setCompany(c.companyCode); }, [d, company]);
   if (!d) return <KLoader overlay={false} />;
@@ -882,8 +907,21 @@ function Withdraw({ token, d, onDone, go }: { token: string; d: Dashboard | null
     e.preventDefault(); setErr(null); const a = Number(amount.replace(',', '.'));
     if (frozenWhy !== undefined) { setErr(`Saldo congelado por esta empresa: ${frozenWhy}`); return; }
     if (!cur) { setErr('Escolha a empresa.'); return; } if (!(a > 0) || a > cur.balance) { setErr('Valor inválido para o saldo desta empresa.'); return; } if (!acc) { setErr('Escolha a conta.'); return; }
-    setBusy(true); try { await kw.withdraw(token, company, a, acc); setAmount(''); setOpen(false); onDone(); } catch (er) { setErr(er instanceof ApiError ? er.message : 'Não foi possível.'); } finally { setBusy(false); }
+    await send(a);
   };
+  const send = async (a: number, resend = false) => {
+    setErr(null); setBusy(true);
+    try { await kw.withdraw(token, company, a, acc, !resend && ask ? tf : undefined, resend || undefined); setAmount(''); setOpen(false); setAsk(null); setTf(''); onDone(); }
+    catch (er) { const x = codeAsk(er); if (x) { setAsk(x); setTf(''); } else setErr(er instanceof ApiError ? er.message : 'Não foi possível.'); }
+    finally { setBusy(false); }
+  };
+  const complain = async (id: string) => {
+    setClaimErr(null); setBusy(true);
+    try { await kw.complainWithdrawal(token, id, claimTx.trim() || undefined); setClaim(null); setClaimTx(''); onDone(); }
+    catch (er) { setClaimErr(er instanceof ApiError ? er.message : 'Não foi possível.'); } finally { setBusy(false); }
+  };
+  const banks = cur?.banks ?? [];
+  const sameBank = (a: PayoutAccount) => !!a.bank && banks.some((b) => b.toLowerCase() === a.bank!.toLowerCase());
   return (
     <div className="kk-dash">
       <div className="kk-kpis">
@@ -898,21 +936,46 @@ function Withdraw({ token, d, onDone, go }: { token: string; d: Dashboard | null
           <form className="kw-form2" onSubmit={(e) => void submit(e)}>
             <label className="kw-f"><span>Empresa que paga</span><select value={company} onChange={(e) => setCompany(e.target.value)}><option value="">Escolha</option>{d.companies.map((c) => <option key={c.companyCode} value={c.companyCode}>{c.companyName} — {kz(c.balance)}</option>)}</select></label>
             <label className="kw-f"><span>Valor (Kz)</span><div className="kw-amt"><input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0" />{cur && cur.balance > 0 ? <button type="button" onClick={() => setAmount(String(cur.balance))}>Tudo</button> : null}</div></label>
-            <div className="kw-f kw-f-wide"><span>Conta para receber</span>{accs && accs.length ? <div className="kw-acc-pick">{accs.map((a) => <label key={a.id} className={`kw-acc-opt${acc === a.id ? ' on' : ''}`}><input type="radio" name="acc" checked={acc === a.id} onChange={() => setAcc(a.id)} /><span><b>{a.method}{a.bank ? ` · ${a.bank}` : ''}</b><small>{a.details} · {a.holder}</small></span></label>)}</div> : <button type="button" className="kk-ghost" onClick={() => go({ n: 'accounts' })}>+ Registar conta bancária</button>}</div>
+            {banks.length ? <div className="kw-f kw-f-wide"><span>Bancos de {cur?.companyName}</span><div className="kw-banks">{banks.map((b) => <span key={b} className={`kw-bank${accs?.some((a) => a.bank?.toLowerCase() === b.toLowerCase()) ? ' have' : ''}`}>{b}</span>)}</div></div> : null}
+            <div className="kw-f kw-f-wide"><span>Conta para receber</span>{accs && accs.length ? <div className="kw-acc-pick">{accs.map((a) => <label key={a.id} className={`kw-acc-opt${acc === a.id ? ' on' : ''}`}><input type="radio" name="acc" checked={acc === a.id} onChange={() => setAcc(a.id)} /><span><b>{a.method}{a.bank ? ` · ${a.bank}` : ''}</b><small>{a.details} · {a.holder}</small>{sameBank(a) ? <em className="kw-same">Mesmo banco · recebe na hora</em> : null}</span></label>)}</div> : <button type="button" className="kk-ghost" onClick={() => go({ n: 'accounts' })}>+ Registar conta bancária</button>}</div>
+            {ask ? <div className="kw-f kw-f-wide"><CodeBox ask={ask} code={tf} setCode={setTf} busy={busy} onResend={() => void send(Number(amount.replace(',', '.')), true)} onEnter={() => void send(Number(amount.replace(',', '.')))} /></div> : null}
             {frozenWhy !== undefined && !err ? <div className="kw-err kw-f-wide" role="alert">Saldo congelado por esta empresa: {frozenWhy}</div> : null}
             {err ? <div className="kw-err kw-f-wide" role="alert">{err}</div> : null}
-            <div className="kw-f-wide kw-form-act"><button className="kk-btn-primary" disabled={busy || !accs?.length || !d.balance}>{busy ? 'A enviar…' : 'Pedir saque'}</button></div>
+            <div className="kw-f-wide kw-form-act"><button className="kk-btn-primary" disabled={busy || !accs?.length || !d.balance || (!!ask && tf.length !== 6)}>{busy ? 'A enviar…' : ask ? 'Confirmar saque' : 'Pedir saque'}</button></div>
           </form>
         </Sec>
       ) : null}
       {!d.withdrawals.length ? <div className="kk-empty">Sem transações</div> : (
         <div className="kk-rows">
-          {d.withdrawals.map((w) => (
-            <div className="kk-sale" key={w.id}>
-              <div className="kk-sale-m"><b>{w.companyName}</b><small>{w.method}{w.details ? ` · ${w.details}` : ''} · {formatDateTime(w.date)}</small>{w.note ? <small>{w.note}</small> : null}</div>
-              <div className="kk-sale-r"><b>{kz(w.amount)}</b><span className={`kw-pill ${STATE[w.status]?.[1] ?? ''}`}>{STATE[w.status]?.[0] ?? w.status}</span>{w.proofUrl ? <a className="kw-link kw-proof" href={w.proofUrl} target="_blank" rel="noopener noreferrer" download={`comprovativo-${w.id}`}>Comprovativo</a> : null}</div>
-            </div>
-          ))}
+          {d.withdrawals.map((w) => {
+            const waiting = w.status === 'REQUESTED';
+            const limit = w.extendedUntil ?? w.dueAt;
+            const left = waiting && limit ? leftText(limit, now) : null;
+            const late = waiting && !!w.dueAt && !left;
+            return (
+              <div className={`kk-sale kw-wd${late ? ' late' : ''}`} key={w.id}>
+                <div className="kk-sale-m"><b>{w.companyName}</b><small>{w.method}{w.details ? ` · ${w.details}` : ''} · {formatDateTime(w.date)}</small>{w.note ? <small>{w.note}</small> : null}
+                  {waiting ? (
+                    <div className="kw-sla">
+                      {w.escalation === 'OPEN' ? <span className="kw-sla-chip esc">Reclamação enviada à equipa LPS Kwanza</span>
+                        : w.escalation === 'NOTIFIED' ? <span className="kw-sla-chip esc">Empresa avisada{left ? ` · ${left} para pagar` : ''}</span>
+                        : left ? <span className="kw-sla-chip">Prazo da empresa · {left}</span> : <span className="kw-sla-chip late">Prazo ultrapassado</span>}
+                      {late && !w.escalation ? <button type="button" className="kw-sla-btn" onClick={() => { setClaim(w.id); setClaimErr(null); }}>Reclamar</button> : null}
+                    </div>
+                  ) : null}
+                  {w.status === 'REFUNDED' ? <small className="kw-sla-ok">Reembolsado pela equipa LPS Kwanza{w.refundRef ? ` · ref. ${w.refundRef}` : ''}</small> : null}
+                  {claim === w.id ? (
+                    <div className="kw-claim">
+                      <textarea rows={2} maxLength={600} value={claimTx} onChange={(e) => setClaimTx(e.target.value)} placeholder="Descreva o que aconteceu" aria-label="Reclamação" />
+                      {claimErr ? <div className="kw-err">{claimErr}</div> : null}
+                      <div className="kw-tf-act"><button type="button" className="kw-btn" onClick={() => setClaim(null)}>Cancelar</button><button type="button" className="kw-btn kw-btn-primary" disabled={busy} onClick={() => void complain(w.id)}>Enviar reclamação</button></div>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="kk-sale-r"><b>{kz(w.amount)}</b><span className={`kw-pill ${STATE[w.status]?.[1] ?? ''}`}>{STATE[w.status]?.[0] ?? w.status}</span>{w.proofUrl ? <a className="kw-link kw-proof" href={w.proofUrl} target="_blank" rel="noopener noreferrer" download={`comprovativo-${w.id}`}>Comprovativo</a> : null}</div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1012,6 +1075,7 @@ function Profile({ token, me, flash }: { token: string; me: Associate; flash(t: 
   const [f, setF] = useState({ name: me.name, email: me.email ?? '', taxId: me.taxId ?? '', province: me.province ?? '', municipality: me.municipality ?? '', address: me.address ?? '', bio: me.bio ?? '' });
   const [photo, setPhoto] = useState<string | null>(me.photoUrl);
   const [pw, setPw] = useState({ current: '', next: '' }); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
+  const [pwAsk, setPwAsk] = useState<CodeAsk | null>(null); const [pwCode, setPwCode] = useState(''); const [pwErr, setPwErr] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
   const pick = (file?: File) => { if (!file) return; if (file.size > 1_000_000) { setErr('Imagem demasiado grande (máx. 1 MB).'); return; } void readFileProgress(file).then(setPhoto); };
   const save = async (e: React.FormEvent) => {
@@ -1019,7 +1083,11 @@ function Profile({ token, me, flash }: { token: string; me: Associate; flash(t: 
     try { const a = await kw.saveProfile(token, { ...f, photoUrl: photo }); const s = session.get(); if (s) session.set({ ...s, associate: a }); flash('Perfil guardado'); }
     catch (er) { setErr(er instanceof ApiError ? er.message : 'Não foi possível guardar.'); } finally { setBusy(false); }
   };
-  const changePw = async (e: React.FormEvent) => { e.preventDefault(); setErr(null); try { await kw.password(token, pw.current, pw.next); setPw({ current: '', next: '' }); flash('Senha alterada'); } catch (er) { setErr(er instanceof ApiError ? er.message : 'Não foi possível.'); } };
+  const changePw = async (e?: React.FormEvent) => {
+    e?.preventDefault(); setPwErr(null);
+    try { await kw.password(token, pw.current, pw.next, pwAsk ? pwCode : undefined); setPw({ current: '', next: '' }); setPwAsk(null); setPwCode(''); flash('Senha alterada'); }
+    catch (er) { const a = codeAsk(er); if (a) { setPwAsk(a); setPwCode(''); } else setPwErr(er instanceof ApiError ? er.message : 'Não foi possível.'); }
+  };
   return (
     <div className="kw-dash kw-sales">
       <div className="kw-hello">
@@ -1047,8 +1115,11 @@ function Profile({ token, me, flash }: { token: string; me: Associate; flash(t: 
         <form className="kw-form2" onSubmit={(e) => void changePw(e)}>
           <label className="kw-f"><span>Senha atual</span><input type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} autoComplete="current-password" /></label>
           <label className="kw-f"><span>Nova senha</span><input type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} autoComplete="new-password" /></label>
-          <div className="kw-f-wide kw-form-act"><button className="kw-btn kw-btn-primary">Mudar senha</button></div>
+          {pwAsk ? <div className="kw-f-wide"><CodeBox ask={pwAsk} code={pwCode} setCode={setPwCode} onResend={() => void kw.twoFa.code(token).catch(() => undefined)} onEnter={() => void changePw()} /></div> : null}
+          {pwErr ? <div className="kw-err kw-f-wide">{pwErr}</div> : null}
+          <div className="kw-f-wide kw-form-act"><button className="kw-btn kw-btn-primary" disabled={!!pwAsk && pwCode.length !== 6}>{pwAsk ? 'Confirmar código' : 'Mudar senha'}</button></div>
         </form>
+        <TwoFaCard token={token} email={me.email} phone={me.phone} />
       </Sec>
     </div>
   );

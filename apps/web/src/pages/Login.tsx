@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { LOGO_WIDE } from '../brand';
 import { useAuth } from '../auth/AuthContext';
@@ -55,6 +55,11 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   const [password, setPassword] = useState('');
   const [twoFa, setTwoFa] = useState('');
   const [show2fa, setShow2fa] = useState(false);
+  /** Código pedido pelo servidor (2FA por e-mail/WhatsApp): canal e destino mascarado. */
+  const [sentTo, setSentTo] = useState<{ channel: string; to: string } | null>(null);
+  const [resendAt, setResendAt] = useState(0);
+  const [, tickResend] = useState(0);
+  useEffect(() => { if (!sentTo) return; const t = window.setInterval(() => tickResend((n) => n + 1), 1000); return () => window.clearInterval(t); }, [sentTo]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [choices, setChoices] = useState<CompanyChoice[] | null>(null);
@@ -108,7 +113,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
 
   /** Entra discernindo o perfil: 1) tenta como empresa (gestor) pelo e-mail;
    *  2) se não houver empresa, tenta como super admin (plataforma). */
-  const submit = async (companyCode?: string) => {
+  const submit = async (companyCode?: string, resend = false) => {
     setError(null); setChoices(null);
     const mail = email.trim().toLowerCase();
     if (!mail || !password) { setError('Indica o e-mail e a palavra-passe.'); return; }
@@ -116,15 +121,26 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
     // "Lembrar-me": guarda só o e-mail (nunca a senha) para pré-preencher.
     try { if (remember) localStorage.setItem('ndx:remember_email', mail); else localStorage.removeItem('ndx:remember_email'); } catch { /* storage indisponível */ }
     setLoading(true);
-    const twoFaToken = twoFa.trim() || undefined;
+    const twoFaToken = resend ? undefined : (twoFa.trim() || undefined);
+    // O servidor pediu o código da verificação em 2 passos (enviado por e-mail ou WhatsApp).
+    const askCode = (e: unknown) => {
+      const d = e instanceof ApiError ? (e.data as { error?: string; channel?: string; to?: string } | undefined) : undefined;
+      if (d?.error !== 'TwoFaRequired') return false;
+      setSentTo({ channel: d.channel ?? 'EMAIL', to: d.to ?? '' }); setShow2fa(true); setTwoFa(''); setResendAt(Date.now() + 30_000);
+      return true;
+    };
     try {
-      await loginTenant({ companyCode, email: mail, password, twoFaToken });
+      await loginTenant({ companyCode, email: mail, password, twoFaToken, twoFaResend: resend || undefined });
     } catch (e) {
       const c = choicesFrom(e);
       if (c) { setChoices(c); setPending({ kind: 'password' }); setLoading(false); return; }
+      if (askCode(e)) return;
+      if (e instanceof ApiError && e.status === 401 && (e.data as { error?: string } | undefined)?.error === 'TwoFaInvalid') { setError(e.message); return; }
       try {
-        await loginPlatform({ email: mail, password, twoFaToken });
-      } catch {
+        await loginPlatform({ email: mail, password, twoFaToken, twoFaResend: resend || undefined });
+      } catch (pe) {
+        if (askCode(pe)) return;
+        if (pe instanceof ApiError && (pe.data as { error?: string } | undefined)?.error === 'TwoFaInvalid') { setError(pe.message); return; }
         setError(e instanceof ApiError ? e.message : 'E-mail ou palavra-passe incorretos.');
       }
     } finally { setLoading(false); }
@@ -202,12 +218,22 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
                     autoComplete="off" onEnter={() => void submit()} />
 
                   {show2fa ? (
-                    <>
-                      <label className="auth-label">Código 2FA</label>
-                      <input className="auth-input" value={twoFa} onChange={(e) => setTwoFa(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="000000" inputMode="numeric" maxLength={6}
+                    <div className={`auth-2fa${sentTo ? ' sent' : ''}`}>
+                      {sentTo ? (
+                        <div className="auth-2fa-h">
+                          <span className="auth-2fa-ic" aria-hidden>{sentTo.channel === 'WHATSAPP' ? <WaGlyph /> : <MailGlyph />}</span>
+                          <span><b>Verificação em 2 passos</b><small>Código enviado {sentTo.channel === 'WHATSAPP' ? 'por WhatsApp' : 'por e-mail'} para {sentTo.to}</small></span>
+                        </div>
+                      ) : <label className="auth-label">Código 2FA</label>}
+                      <input className="auth-input auth-code" value={twoFa} onChange={(e) => setTwoFa(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="000000" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus={!!sentTo}
                         onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
-                    </>
+                      {sentTo ? (
+                        <button type="button" className="auth-2fa-resend" disabled={loading || Date.now() < resendAt} onClick={() => void submit(undefined, true)}>
+                          {Date.now() < resendAt ? `Reenviar código (${Math.ceil((resendAt - Date.now()) / 1000)} s)` : 'Reenviar código'}
+                        </button>
+                      ) : null}
+                    </div>
                   ) : null}
 
                   <div className="auth-sublinks">
@@ -305,14 +331,20 @@ export function ResetView({ token, kind }: { token: string; kind: 'pw' | 'pin' }
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+  const [code, setCode] = useState('');
+  const [sentTo, setSentTo] = useState<{ channel: string; to: string } | null>(null);
   const isPin = kind === 'pin';
-  const submit = async () => {
+  const submit = async (resend = false) => {
     setErr(null);
     if (isPin ? !/^\d{6}$/.test(secret) : secret.length < 6) { setErr(isPin ? 'O PIN tem de ter 6 dígitos.' : 'A senha tem de ter pelo menos 6 caracteres.'); return; }
     if (secret !== confirm) { setErr('Os campos não coincidem.'); return; }
     setBusy(true);
-    try { await api.resetPassword(token, secret); setOk(true); }
-    catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível repor. Pede um novo link.'); }
+    try { await api.resetPassword(token, secret, resend ? undefined : (code || undefined), resend || undefined); setOk(true); }
+    catch (e) {
+      const d = e instanceof ApiError ? (e.data as { error?: string; channel?: string; to?: string } | undefined) : undefined;
+      if (d?.error === 'TwoFaRequired') { setSentTo({ channel: d.channel ?? 'EMAIL', to: d.to ?? '' }); setCode(''); }
+      else setErr(e instanceof ApiError ? e.message : 'Não foi possível repor. Pede um novo link.');
+    }
     finally { setBusy(false); }
   };
   if (ok) {
@@ -332,7 +364,25 @@ export function ResetView({ token, kind }: { token: string; kind: 'pw' | 'pin' }
       <label className="auth-label">Confirmar</label>
       <PasswordField value={confirm} onChange={setConfirm} placeholder={isPin ? '000000' : '••••••••'}
         digitsOnly={isPin} inputMode={isPin ? 'numeric' : undefined} maxLength={isPin ? 6 : undefined} />
-      <button className="auth-btn" onClick={() => void submit()} disabled={busy}>{busy ? 'A guardar…' : `Definir ${isPin ? 'PIN' : 'senha'}`}</button>
+      {sentTo ? (
+        <div className="auth-2fa sent">
+          <div className="auth-2fa-h">
+            <span className="auth-2fa-ic" aria-hidden>{sentTo.channel === 'WHATSAPP' ? <WaGlyph /> : <MailGlyph />}</span>
+            <span><b>Verificação em 2 passos</b><small>Código enviado {sentTo.channel === 'WHATSAPP' ? 'por WhatsApp' : 'por e-mail'} para {sentTo.to}</small></span>
+          </div>
+          <input className="auth-input auth-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus />
+          <button type="button" className="auth-2fa-resend" disabled={busy} onClick={() => void submit(true)}>Reenviar código</button>
+        </div>
+      ) : null}
+      <button className="auth-btn" onClick={() => void submit()} disabled={busy || (!!sentTo && code.length !== 6)}>{busy ? 'A guardar…' : `Definir ${isPin ? 'PIN' : 'senha'}`}</button>
     </>
   );
+}
+
+/** Ícones do passo do código (traço simples). */
+function MailGlyph() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>;
+}
+function WaGlyph() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.2A8.5 8.5 0 1 1 20 11.5Z" /><path d="M9 9.5c.3 1.8 1.7 3.6 3.6 4.4l1.2-1.1 1.7.8-.3 1.4c-3.4.3-6.8-3-6.6-6.4l1.4-.3.8 1.6Z" /></svg>;
 }
