@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorefrontService } from './storefront.service';
 import { SOLD_STATUSES } from './affiliates.service';
 import { AdminNotificationsService } from './admin-notifications';
-import { withdrawalDue } from './kwanza-rules';
+import { KwanzaRulesService, withdrawalDue } from './kwanza-rules';
 import { TwoFactorService, maskEmail, maskPhone } from '../security/two-factor.service';
 
 /**
@@ -50,6 +50,7 @@ export class KwanzaService implements OnModuleInit {
     private readonly storefront: StorefrontService,
     private readonly adminNotes: AdminNotificationsService,
     private readonly twoFactor: TwoFactorService,
+    private readonly rules: KwanzaRulesService,
   ) {}
 
   /** Mantém os preços/stock do marketplace alinhados com as lojas (a cada 10 min). */
@@ -545,6 +546,7 @@ export class KwanzaService implements OnModuleInit {
     if (!(v > 0)) throw new BadRequestException('Indique o valor do saque.');
     // Com a verificação em 2 passos ligada, o saque só segue com o código (e-mail/WhatsApp).
     await this.twoFactor.gate(TwoFactorService.kwanza(a.id), 'WITHDRAW', twoFaCode, twoFaResend);
+    const rulesNow = await this.rules.get();
     // Um pedido de cada vez por associado: sem isto, vários pedidos simultâneos liam o
     // mesmo saldo e eram todos aceites (pedia-se 3× o saldo). O lock é da transação e
     // só se solta depois de o pedido ficar gravado; um segundo pedido em paralelo não
@@ -561,11 +563,11 @@ export class KwanzaService implements OnModuleInit {
       const label = acc.method === 'Multicaixa Express' ? String(acc.method) : `${acc.method}${acc.bank ? ` · ${acc.bank}` : ''}`;
       await tx.$executeRaw(Prisma.sql`
         INSERT INTO ${T('kwanza_withdrawals')} (id, "associateId", "companyId", amount, method, details, status, "createdAt", "dueAt")
-        VALUES (gen_random_uuid(), ${a.id}::uuid, ${pc.companyId}::uuid, ${v}, ${label}, ${`${acc.details} · ${acc.holder}`}, 'REQUESTED', now(), ${withdrawalDue(new Date())})`);
+        VALUES (gen_random_uuid(), ${a.id}::uuid, ${pc.companyId}::uuid, ${v}, ${label}, ${`${acc.details} · ${acc.holder}`}, 'REQUESTED', now(), ${withdrawalDue(new Date(), rulesNow)})`);
       return { pc, label };
     }, { timeout: 20_000 });
     const { pc, label } = res;
-    const due = withdrawalDue(new Date()).toLocaleString('pt-PT', { timeZone: 'Africa/Luanda', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const due = withdrawalDue(new Date(), await this.rules.get()).toLocaleString('pt-PT', { timeZone: 'Africa/Luanda', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     await this.notifyCompany(pc.companyId, { kind: 'KWANZA_WITHDRAWAL', title: `Pedido de saque de ${a.name}`, body: `${v.toLocaleString('pt-PT')} Kz · ${label} · pagar até ${due}`, section: 'kwanza', ref: 'withdrawals' });
     return { ok: true as const };
   }
@@ -797,20 +799,21 @@ export class KwanzaService implements OnModuleInit {
    * 7 dias depois do prazo. O associado vê o motivo e, se não concordar, contesta ao Super Admin.
    */
   async postponeWithdrawal(companyId: string, id: string, note: string, until: string) {
+    const cfg = await this.rules.get();
     const why = (note ?? '').trim().slice(0, 300);
-    if (why.length < 10) throw new BadRequestException('Escreva o motivo do adiamento (pelo menos 10 caracteres).');
+    if (why.length < cfg.postponeReasonMin) throw new BadRequestException(`Escreva o motivo do adiamento (pelo menos ${cfg.postponeReasonMin} caracteres).`);
     const at = new Date(until);
     if (Number.isNaN(at.getTime()) || at.getTime() <= Date.now() + 60 * 60_000) throw new BadRequestException('Escolha a nova data (pelo menos 1 hora a partir de agora).');
     const r = await this.prisma.$queryRaw<{ esc: string | null; st: string; post: Date | null; okDate: boolean }[]>(Prisma.sql`
       SELECT escalation AS esc, status AS st, "postponedAt" AS post,
-             ${at} <= COALESCE("dueAt", "createdAt" + interval '24 hours') + interval '7 days' AS "okDate"
+             ${at} <= COALESCE("dueAt", "createdAt" + interval '24 hours') + (${cfg.postponeMaxDays}::int * interval '1 day') AS "okDate"
       FROM ${T('kwanza_withdrawals')} WHERE id = ${id}::uuid AND "companyId" = ${companyId}::uuid`);
     const w = r[0];
     if (!w) throw new NotFoundException('Pedido de saque não encontrado.');
     if (w.st !== 'REQUESTED') throw new BadRequestException('Este saque já foi decidido.');
     if (w.esc === 'OPEN' || w.esc === 'NOTIFIED') throw new BadRequestException('Este saque está em reclamação na equipa do LPS Kwanza: só pode ser pago.');
     if (w.post) throw new BadRequestException('Este saque já foi adiado uma vez: agora só pode ser pago.');
-    if (!w.okDate) throw new BadRequestException('O adiamento pode ir no máximo até 7 dias depois do prazo.');
+    if (!w.okDate) throw new BadRequestException(`O adiamento pode ir no máximo até ${cfg.postponeMaxDays} dias depois do prazo.`);
     const n = await this.prisma.$executeRaw(Prisma.sql`
       UPDATE ${T('kwanza_withdrawals')} SET note = ${why}, "dueAt" = ${at}, "postponedAt" = now()
       WHERE id = ${id}::uuid AND "companyId" = ${companyId}::uuid AND status = 'REQUESTED' AND "postponedAt" IS NULL AND escalation IS NULL`);

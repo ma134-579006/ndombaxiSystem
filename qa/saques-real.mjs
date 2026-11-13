@@ -202,9 +202,22 @@ R.check('RE-11', 'reclamações em simultâneo: uma por saque (repetidas recusad
   R.check('RE-13', 'empresa com reclamação aberta já não consegue recusar o saque', rej.status === 400);
 }
 
+/* ── regras configuráveis pelo Super Admin ── */
+{
+  const bad = await call('PUT', '/super-admin/kwanza/rules', { token: SA, body: { dueHours: 0 } });
+  const noCo = await call('PUT', '/super-admin/kwanza/rules', { token: CO[0].adm, body: { dueHours: 12 } });
+  const set = await call('PUT', '/super-admin/kwanza/rules', { token: SA, body: { dueHours: 24, weekendMode: 'MONDAY_END', extendHours: 12, postponeMaxDays: 7, postponeReasonMin: 10, banDays: 20 } });
+  const coSees = await ok('GET', `${AK}/rules`, { token: CO[0].adm });
+  R.check('CF-1', 'Super Admin configura as regras (validadas); a empresa lê-as mas não as muda', bad.status === 400 && noCo.status === 403 && set.status === 200 && coSees.extendHours === 12 && coSees.banDays === 20, `${bad.status}/${noCo.status}/${set.status}`);
+}
 /* ── Super Admin avisa C e E (+24 h); cliques duplos em simultâneo ── */
 const nt = await Promise.all(late.flatMap((w) => [call('POST', `/super-admin/kwanza/withdrawals/${w.id}/notify`, { token: SA, body: { note: 'Pague nas próximas 24 h.' } }), call('POST', `/super-admin/kwanza/withdrawals/${w.id}/notify`, { token: SA, body: {} })]));
 R.check('RE-14', 'aviso às empresas: cada saque avisado uma só vez (duplo clique recusado)', nt.filter((r) => r.status === 200).length === late.length, `${nt.filter((r) => r.status === 200).length}/${late.length}`);
+{
+  const eu = nt.find((r) => r.status === 200)?.body?.extendedUntil;
+  const h = eu ? (new Date(eu).getTime() - Date.now()) / 3_600_000 : 0;
+  R.check('CF-2', 'o tempo extra do aviso segue a regra configurada (12 h)', h > 11.8 && h <= 12, h.toFixed(2));
+}
 for (const co of CO.filter((c) => c.k !== 'B')) {
   const nWarn = (await co.db.query(`SELECT count(*)::int n FROM admin_notifications WHERE kind = 'KWANZA_WITHDRAWAL_WARNING' AND created_at > now() - interval '10 minutes'`)).rows[0].n;
   R.check(`RE-15${co.k}`, `empresa ${co.k} recebe um aviso por saque, com o prazo final`, nWarn >= late.filter((w) => w.co === co).length, nWarn);
@@ -269,6 +282,9 @@ await panels('RE-22', 'associados de E reembolsados pela plataforma: valor como 
   if (okBuy.status < 300) { const k = (await pub.query('SELECT COALESCE(SUM(amount),0)::float s FROM nexus_public.kwanza_commissions WHERE "orderId" = $1', [okBuy.body.orderId])).rows[0].s; E(A[1], CO[1]).pending = r2(E(A[1], CO[1]).pending + k); }
   R.check('RE-29', 'as empresas que cumprem continuam a vender normalmente', okBuy.status === 201 || okBuy.status === 200, okBuy.status);
   // Readmissão (deixa o QA limpo para as outras suítes)
+  const liftDays = (new Date(b.liftAt).getTime() - new Date(b.date).getTime()) / 86_400_000;
+  R.check('CF-3', 'a data de reativação segue a regra configurada (20 dias)', Math.abs(liftDays - 20) < 0.01, liftDays);
+  await ok('PUT', '/super-admin/kwanza/rules', { token: SA, body: { extendHours: 24, banDays: 15 } });
   const liftEarly = await call('POST', `/super-admin/kwanza/bans/${b.companyId}/lift`, { token: SA });
   R.check('RE-29b', 'reativar a empresa banida só depois de 15 dias (antes é recusado)', liftEarly.status === 400 && !b.canLift, liftEarly.body?.message);
   await pub.query(`UPDATE nexus_public.kwanza_bans SET "createdAt" = now() - interval '16 days' WHERE "companyId" = $1`, [b.companyId]);

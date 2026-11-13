@@ -323,6 +323,8 @@ function Withdrawals({ onChange }: { onChange(): void }) {
   const [rejecting, setRejecting] = useState<KWithdrawal | null>(null);
   const [why, setWhy] = useState('');
   const [until, setUntil] = useState('');
+  const [rules, setRules] = useState<{ postponeMaxDays: number; postponeReasonMin: number }>({ postponeMaxDays: 7, postponeReasonMin: 10 });
+  useEffect(() => { api.kwanza.rules().then(setRules).catch(() => undefined); }, []);
   const localInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
   const reject = (w: KWithdrawal) => { setWhy(''); setUntil(localInput(new Date(new Date(w.dueAt ?? w.date).getTime() + 2 * 86_400_000))); setRejecting(w); };
   const doReject = async () => {
@@ -357,8 +359,8 @@ function Withdrawals({ onChange }: { onChange(): void }) {
           <div className="kz-reject">
             <p><b>{kz(rejecting.amount)}</b> · {rejecting.name}{rejecting.code ? ` (${rejecting.code})` : ''}</p>
             <div className="field"><label>Motivo do adiamento</label><textarea rows={3} maxLength={300} value={why} onChange={(e) => setWhy(e.target.value)} autoFocus /></div>
-            <div className="field"><label>Pagar até</label><input type="datetime-local" value={until} min={localInput(new Date(Date.now() + 3_600_000))} max={localInput(new Date(new Date(rejecting.dueAt ?? rejecting.date).getTime() + 7 * 86_400_000))} onChange={(e) => setUntil(e.target.value)} /></div>
-            <div className="kz-acts" style={{ justifyContent: 'flex-end' }}><button className="vd-btn outline" onClick={() => setRejecting(null)}>Cancelar</button><button className="vd-btn" disabled={why.trim().length < 10 || !until} onClick={() => void doReject()}>Adiar saque</button></div>
+            <div className="field"><label>Pagar até</label><input type="datetime-local" value={until} min={localInput(new Date(Date.now() + 3_600_000))} max={localInput(new Date(new Date(rejecting.dueAt ?? rejecting.date).getTime() + rules.postponeMaxDays * 86_400_000))} onChange={(e) => setUntil(e.target.value)} /></div>
+            <div className="kz-acts" style={{ justifyContent: 'flex-end' }}><button className="vd-btn outline" onClick={() => setRejecting(null)}>Cancelar</button><button className="vd-btn" disabled={why.trim().length < rules.postponeReasonMin || !until} onClick={() => void doReject()}>Adiar saque</button></div>
           </div>
         </Modal>
       ) : null}

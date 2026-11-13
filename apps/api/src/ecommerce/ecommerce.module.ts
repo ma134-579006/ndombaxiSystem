@@ -1,4 +1,5 @@
 import { KwanzaBannersController, KwanzaBannersService } from './kwanza-banners';
+import { KwanzaRulesService } from './kwanza-rules';
 import { KwanzaPayoutsAdminController, KwanzaPayoutsPublicController, KwanzaPayoutsService, KwanzaPayoutsSuperController } from './kwanza-payouts';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
@@ -53,6 +54,7 @@ import { AdminNotificationsController, AdminNotificationsService } from './admin
     KwanzaCheckoutService,
     KwanzaBannersService,
     KwanzaPayoutsService,
+    KwanzaRulesService,
     AdminNotificationsService,
   ],
   exports: [AdminNotificationsService],

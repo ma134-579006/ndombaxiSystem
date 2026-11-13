@@ -966,3 +966,23 @@ model TwoFactorConfig {
   @@map("two_factor_config")
   @@schema("nexus_public")
 }
+
+/// LPS Kwanza — regras dos saques configuráveis pelo Super Admin (linha única "default").
+model KwanzaRules {
+  id                String   @id @default("default")
+  /// Horas que a empresa tem para pagar (pedido de segunda a quinta).
+  dueHours          Int      @default(24)
+  /// Pedido de sexta a domingo: MONDAY_END (até ao fim de segunda) ou SAME (mesmas horas).
+  weekendMode       String   @default("MONDAY_END")
+  /// Horas extra dadas pelo aviso do Super Admin.
+  extendHours       Int      @default(24)
+  /// Adiamento: máximo de dias depois do prazo e tamanho mínimo do motivo.
+  postponeMaxDays   Int      @default(7)
+  postponeReasonMin Int      @default(10)
+  /// Dias de banimento antes de se poder reativar a empresa.
+  banDays           Int      @default(15)
+  updatedAt         DateTime @default(now())
+
+  @@map("kwanza_rules")
+  @@schema("nexus_public")
+}
