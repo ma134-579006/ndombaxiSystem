@@ -1487,3 +1487,6 @@ export interface PayoutsView {
   bans: Array<{ companyId: string; name: string; code: string; reason: string; date: string; debt: number; liftAt: string; canLift: boolean }>;
   rows: PayoutRow[];
 }
+
+/** Regras dos saques do LPS Kwanza (Super Admin). */
+export interface KwanzaRules { dueHours: number; weekendMode: 'MONDAY_END' | 'SAME'; extendHours: number; postponeMaxDays: number; postponeReasonMin: number; banDays: number }

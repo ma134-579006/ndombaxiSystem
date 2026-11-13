@@ -176,6 +176,7 @@ import type {
   TwoFaStatus,
   SecurityView,
   PayoutsView,
+  KwanzaRules,
 } from './types';
 
 /** IVA dos produtos importados (migração). */
@@ -594,6 +595,8 @@ export const api = {
     banRefund: (id: string, refundRef: string, note?: string) => request<{ ok: true }>('POST', `/super-admin/kwanza/withdrawals/${id}/ban-refund`, { refundRef, note }),
     unban: (companyId: string) => request<{ ok: true }>('POST', `/super-admin/kwanza/bans/${companyId}/lift`, {}),
     close: (id: string, note?: string) => request<{ ok: true }>('POST', `/super-admin/kwanza/withdrawals/${id}/close`, { note }),
+    rules: () => request<KwanzaRules>('GET', '/super-admin/kwanza/rules'),
+    saveRules: (r: Partial<KwanzaRules>) => request<KwanzaRules>('PUT', '/super-admin/kwanza/rules', r),
   },
 
   // ── SAF-T (AGT): exporta o XML fiscal mensal ───────────────
@@ -1014,6 +1017,7 @@ export const api = {
     saveBanks: (banks: string[]) => request<{ banks: string[]; catalog: string[] }>('PUT', '/ecommerce/kwanza/banks', { banks }),
     pay: (id: string, note?: string, proofUrl?: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/pay`, { note, proofUrl }),
     reject: (id: string, note?: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/reject`, { note }),
+    rules: () => request<KwanzaRules>('GET', '/ecommerce/kwanza/rules'),
     postpone: (id: string, note: string, until: string) => request<{ ok: true }>('POST', `/ecommerce/kwanza/withdrawals/${id}/postpone`, { note, until }),
     chats: () => request<unknown[]>('GET', '/ecommerce/kwanza/chats'),
     chat: (associateId: string) => request<unknown[]>('GET', `/ecommerce/kwanza/chats/${associateId}`),

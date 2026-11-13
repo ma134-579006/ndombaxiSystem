@@ -4374,3 +4374,13 @@ img, video, canvas { max-width: 100%; }
 .sec-seg button { height: 40px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface, #fff); color: inherit; font-weight: 700; cursor: pointer; }
 .sec-seg button.on { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent); }
 .kp-reason { margin: 0 0 10px; padding: 10px 14px; border-radius: 10px; background: rgba(220,38,38,.07); border-left: 3px solid #dc2626; font-size: 13.5px; }
+.kp-rules { margin-top: 18px; }
+.kp-rules h3 { margin: 0 0 14px; }
+.kp-rules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.kp-rule { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: var(--surface-2, #f8fafc); }
+.kp-rule span { font-size: 13px; font-weight: 600; color: var(--muted, #64748b); }
+.kp-rule div { display: flex; align-items: center; gap: 8px; }
+.kp-rule input, .kp-rule select { height: 40px; border-radius: 10px; border: 1px solid var(--border); padding: 0 10px; background: var(--surface, #fff); color: inherit; font-weight: 700; }
+.kp-rule input { width: 100px; }
+.kp-rule select { width: 100%; }
+.kp-rule em { font-style: normal; color: var(--muted, #64748b); font-size: 13px; }

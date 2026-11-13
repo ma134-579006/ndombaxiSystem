@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, HttpCode, HttpStatus, Injectable, NotFoundException, Param, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 import { Prisma } from '@prisma/client';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -13,7 +14,7 @@ import { Role } from '../rbac/roles.enum';
 import { TenantContext } from '../tenancy/tenant-context';
 import { AdminNotificationsService } from './admin-notifications';
 import { KwanzaService } from './kwanza.service';
-import { ANGOLA_BANKS, withdrawalDue } from './kwanza-rules';
+import { ANGOLA_BANKS, KwanzaRulesService, type KwanzaRulesView, withdrawalDue } from './kwanza-rules';
 export { ANGOLA_BANKS, withdrawalDue };
 
 /**
@@ -31,8 +32,6 @@ export { ANGOLA_BANKS, withdrawalDue };
 const T = (name: string) => Prisma.raw(`nexus_public."${name}"`);
 const num = (v: unknown) => Number(v ?? 0) || 0;
 const H = 3_600_000;
-/** Dias mínimos de banimento antes de o Super Admin poder reativar a empresa (pedido: 15 a 20 dias). */
-export const BAN_DAYS = 15;
 
 interface WdRow {
   id: string; associateId: string; companyId: string; amount: unknown; method: string; details: string | null; status: string; note: string | null;
@@ -48,6 +47,7 @@ export class KwanzaPayoutsService {
     private readonly notes: AdminNotificationsService,
     private readonly mail: MailService,
     private readonly auditLog: AuditService,
+    private readonly rules: KwanzaRulesService,
   ) {}
 
   /* ─────────── bancos da empresa ─────────── */
@@ -108,6 +108,7 @@ export class KwanzaPayoutsService {
 
   /* ─────────── Super Admin ─────────── */
   async adminList(q?: string, status?: string) {
+    const BAN_DAYS = (await this.rules.get()).banDays;
     const term = String(q ?? '').trim();
     const filter = status === 'all' ? Prisma.sql`w.escalation IS NOT NULL`
       : status === 'overdue' ? Prisma.sql`w.status = 'REQUESTED' AND w.escalation IS NULL AND COALESCE(w."dueAt", w."createdAt" + interval '24 hours') < now()`
@@ -165,10 +166,11 @@ export class KwanzaPayoutsService {
     if (w.status === 'REJECTED') return this.notifyRejected(w, adminId, note);
     if (w.status !== 'REQUESTED') throw new BadRequestException('A empresa já decidiu este saque.');
     if (w.escalation !== 'OPEN') throw new BadRequestException(w.escalation === 'NOTIFIED' ? 'A empresa já foi notificada.' : 'Este saque não tem reclamação aberta.');
-    const until = new Date(Date.now() + 24 * H);
+    const ext = (await this.rules.get()).extendHours;
+    const until = new Date(Date.now() + ext * H);
     const msg = String(note ?? '').trim().slice(0, 500) || null;
     const n = await this.prisma.$executeRaw(Prisma.sql`
-      UPDATE ${T('kwanza_withdrawals')} SET escalation = 'NOTIFIED', "notifiedAt" = now(), "extendedUntil" = now() + interval '24 hours', "adminNote" = ${msg}
+      UPDATE ${T('kwanza_withdrawals')} SET escalation = 'NOTIFIED', "notifiedAt" = now(), "extendedUntil" = now() + (${ext}::int * interval '1 hour'), "adminNote" = ${msg}
       WHERE id = ${id}::uuid AND escalation = 'OPEN' AND status = 'REQUESTED'`);
     if (!n) throw new BadRequestException('A reclamação mudou entretanto. Atualize a lista.');
     const c = await this.prisma.company.findUnique({ where: { id: w.companyId } });
@@ -194,7 +196,7 @@ export class KwanzaPayoutsService {
     if (w.escalation !== 'OPEN') throw new BadRequestException(w.escalation === 'NOTIFIED' ? 'A empresa já foi notificada.' : 'Esta recusa não foi contestada.');
     const msg = String(note ?? '').trim().slice(0, 500) || null;
     const n = await this.prisma.$executeRaw(Prisma.sql`
-      UPDATE ${T('kwanza_withdrawals')} SET escalation = 'NOTIFIED', "notifiedAt" = now(), "extendedUntil" = now() + interval '24 hours', "adminNote" = ${msg}
+      UPDATE ${T('kwanza_withdrawals')} SET escalation = 'NOTIFIED', "notifiedAt" = now(), "extendedUntil" = now() + ((${(await this.rules.get()).extendHours})::int * interval '1 hour'), "adminNote" = ${msg}
       WHERE id = ${w.id}::uuid AND escalation = 'OPEN' AND status = 'REJECTED'`);
     if (!n) throw new BadRequestException('A contestação mudou entretanto. Atualize a lista.');
     const amount = `${num(w.amount).toLocaleString('pt-PT')} Kz`;
@@ -254,6 +256,7 @@ export class KwanzaPayoutsService {
   }
 
   async unban(companyId: string, adminId: string) {
+    const BAN_DAYS = (await this.rules.get()).banDays;
     const b = await this.prisma.$queryRaw<{ ready: boolean }[]>(Prisma.sql`SELECT "createdAt" <= now() - (${BAN_DAYS}::int * interval '1 day') AS ready FROM ${T('kwanza_bans')} WHERE "companyId" = ${companyId}::uuid`);
     if (!b[0]) throw new NotFoundException('A empresa não está banida.');
     if (!b[0].ready) throw new BadRequestException(`A empresa só pode ser reativada ${BAN_DAYS} dias depois do banimento.`);
@@ -280,6 +283,14 @@ export class KwanzaPayoutsService {
 }
 const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]!));
 
+class RulesDto implements Partial<KwanzaRulesView> {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(168) dueHours?: number;
+  @IsOptional() @IsIn(['MONDAY_END', 'SAME']) weekendMode?: 'MONDAY_END' | 'SAME';
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(168) extendHours?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(30) postponeMaxDays?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(5) @Max(200) postponeReasonMin?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(365) banDays?: number;
+}
 class BanksDto { @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(60, { each: true }) banks!: string[]; }
 class ComplainDto { @IsOptional() @IsString() @MaxLength(600) text?: string; }
 class NotifyDto { @IsOptional() @IsString() @MaxLength(500) note?: string; }
@@ -303,7 +314,9 @@ export class KwanzaPayoutsPublicController {
 @ApiTags('kwanza')
 @Controller('ecommerce/kwanza')
 export class KwanzaPayoutsAdminController {
-  constructor(private readonly p: KwanzaPayoutsService, private readonly ctx: TenantContext, private readonly prisma: PrismaService) {}
+  constructor(private readonly p: KwanzaPayoutsService, private readonly ctx: TenantContext, private readonly prisma: PrismaService, private readonly r: KwanzaRulesService) {}
+  @Get('rules') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Regras dos saques (definidas pelo Super Admin)' })
+  rules() { return this.r.get(); }
   private async companyId() {
     const c = await this.prisma.company.findUnique({ where: { schemaName: this.ctx.requireTenantSchema() } });
     if (!c) throw new ForbiddenException();
@@ -321,13 +334,17 @@ export class KwanzaPayoutsAdminController {
 @Roles(Role.SUPER_ADMIN)
 @Controller('super-admin/kwanza')
 export class KwanzaPayoutsSuperController {
-  constructor(private readonly p: KwanzaPayoutsService) {}
+  constructor(private readonly p: KwanzaPayoutsService, private readonly r: KwanzaRulesService) {}
   @Get('withdrawals') @ApiOperation({ summary: 'Reclamações de saques (procura pelo código do associado)' })
   list(@Query() q: ListQuery) { return this.p.adminList(q.q, q.status); }
   @Post('withdrawals/:id/notify') @HttpCode(HttpStatus.OK) @ApiOperation({ summary: 'Notifica a empresa e dá mais 24 h' })
   notify(@Param('id') id: string, @Body() d: NotifyDto, @CurrentUser() u: JwtPayload) { return this.p.notify(id, u.sub, d.note); }
   @Post('withdrawals/:id/ban-refund') @HttpCode(HttpStatus.OK) @ApiOperation({ summary: 'Bane a empresa e regista o reembolso ao associado' })
   banRefund(@Param('id') id: string, @Body() d: RefundDto, @CurrentUser() u: JwtPayload) { return this.p.banAndRefund(id, u.sub, d.refundRef, d.note); }
+  @Get('rules') @ApiOperation({ summary: 'Regras dos saques do LPS Kwanza' })
+  rulesGet() { return this.r.get(); }
+  @Put('rules') @ApiOperation({ summary: 'Guarda as regras dos saques' })
+  rulesSave(@Body() d: RulesDto) { return this.r.save(d); }
   @Post('withdrawals/:id/close') @HttpCode(HttpStatus.OK) @ApiOperation({ summary: 'Encerra a reclamação/contestação' })
   close(@Param('id') id: string, @Body() d: NotifyDto, @CurrentUser() u: JwtPayload) { return this.p.close(id, u.sub, d.note); }
   @Post('bans/:companyId/lift') @HttpCode(HttpStatus.OK) @ApiOperation({ summary: 'Readmite a empresa no LPS Kwanza' })

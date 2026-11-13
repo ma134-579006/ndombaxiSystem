@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { PayoutRow, PayoutsView } from '../api/types';
+import type { KwanzaRules, PayoutRow, PayoutsView } from '../api/types';
 import { confirmDialog, toast } from '../components/feedback';
 import { Modal } from '../components/ui';
 
@@ -102,6 +102,7 @@ export function KwanzaPayoutsAdmin() {
           ))}
         </section>
       ) : null}
+      <RulesCard />
       {refund ? <RefundModal r={refund} onClose={() => setRefund(null)} onDone={() => { setRefund(null); toast.success('Empresa banida · reembolso registado'); void load(); }} /> : null}
     </div>
   );
@@ -124,5 +125,36 @@ function RefundModal({ r, onClose, onDone }: { r: PayoutRow; onClose(): void; on
         <div className="kp-acts"><button className="btn ghost" onClick={onClose}>Cancelar</button><button className="btn danger" disabled={busy || ref.trim().length < 3} onClick={() => void go()}>{busy ? 'A registar…' : 'Banir e registar reembolso'}</button></div>
       </div>
     </Modal>
+  );
+}
+
+/** Regras dos saques — configuráveis pelo Super Admin. */
+function RulesCard() {
+  const [r, setR] = useState<KwanzaRules | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => { api.kwanzaPayouts.rules().then(setR).catch((e) => setErr(e instanceof ApiError ? e.message : 'Falha ao carregar.')); }, []);
+  if (!r) return err ? <div className="banner danger">{err}</div> : null;
+  const num = (k: keyof Omit<KwanzaRules, 'weekendMode'>, label: string, unit: string, min: number, max: number) => (
+    <label className="kp-rule"><span>{label}</span><div><input type="number" min={min} max={max} value={r[k]} onChange={(e) => setR({ ...r, [k]: Number(e.target.value) })} /><em>{unit}</em></div></label>
+  );
+  const save = async () => {
+    setBusy(true); setErr(null);
+    try { setR(await api.kwanzaPayouts.saveRules(r)); toast.success('Regras guardadas'); } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível guardar.'); } finally { setBusy(false); }
+  };
+  return (
+    <section className="card kp-rules">
+      <h3>Regras dos saques</h3>
+      {err ? <div className="banner danger">{err}</div> : null}
+      <div className="kp-rules-grid">
+        {num('dueHours', 'Prazo da empresa (segunda a quinta)', 'horas', 1, 168)}
+        <label className="kp-rule"><span>Pedido de sexta a domingo</span><div><select value={r.weekendMode} onChange={(e) => setR({ ...r, weekendMode: e.target.value as KwanzaRules['weekendMode'] })}><option value="MONDAY_END">Até ao fim de segunda-feira</option><option value="SAME">Mesmo prazo em horas</option></select></div></label>
+        {num('extendHours', 'Tempo extra após o aviso do Super Admin', 'horas', 1, 168)}
+        {num('postponeMaxDays', 'Adiamento máximo depois do prazo', 'dias', 1, 30)}
+        {num('postponeReasonMin', 'Motivo do adiamento (mínimo)', 'caracteres', 5, 200)}
+        {num('banDays', 'Reativar empresa banida após', 'dias', 1, 365)}
+      </div>
+      <div className="kp-acts"><button className="btn" disabled={busy} onClick={() => void save()}>{busy ? 'A guardar…' : 'Guardar regras'}</button></div>
+    </section>
   );
 }
