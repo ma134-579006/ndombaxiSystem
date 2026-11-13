@@ -510,18 +510,28 @@ export class KwanzaService implements OnModuleInit {
     return { ok: true as const };
   }
   async withdraw(a: AssociateRow, companyCode: string, amount: number, accountId: string) {
-    const d = await this.dashboard(a);
-    const pc = d.companies.find((c) => c.companyCode === companyCode);
     const v = r2(amount);
     if (!(v > 0)) throw new BadRequestException('Indique o valor do saque.');
-    if (d.frozen[companyCode] !== undefined) throw new BadRequestException(`O seu saldo nesta empresa está congelado: ${d.frozen[companyCode]}`);
-    if (!pc || v > pc.balance) throw new BadRequestException('O valor é maior do que o saldo disponível nesta empresa.');
-    const acc = (await this.accounts(a)).find((x) => x.id === accountId);
-    if (!acc) throw new BadRequestException('Escolha uma conta para receber.');
-    const label = acc.method === 'Multicaixa Express' ? String(acc.method) : `${acc.method}${acc.bank ? ` · ${acc.bank}` : ''}`;
-    await this.prisma.$executeRaw(Prisma.sql`
-      INSERT INTO ${T('kwanza_withdrawals')} (id, "associateId", "companyId", amount, method, details, status, "createdAt")
-      VALUES (gen_random_uuid(), ${a.id}::uuid, ${pc.companyId}::uuid, ${v}, ${label}, ${`${acc.details} · ${acc.holder}`}, 'REQUESTED', now())`);
+    // Um pedido de cada vez por associado: sem isto, vários pedidos simultâneos liam o
+    // mesmo saldo e eram todos aceites (pedia-se 3× o saldo). O lock é da transação e
+    // só se solta depois de o pedido ficar gravado; um segundo pedido em paralelo não
+    // espera (não prende ligações do pool) — é recusado e o associado tenta de novo.
+    const res = await this.prisma.$transaction(async (tx) => {
+      const lock = await tx.$queryRaw<{ ok: boolean }[]>(Prisma.sql`SELECT pg_try_advisory_xact_lock(hashtext(${`kwanza_wd:${a.id}`})) AS ok`);
+      if (!lock[0]?.ok) throw new BadRequestException('Já há um pedido de saque a ser processado. Tente de novo dentro de instantes.');
+      const d = await this.dashboard(a);
+      const pc = d.companies.find((c) => c.companyCode === companyCode);
+      if (d.frozen[companyCode] !== undefined) throw new BadRequestException(`O seu saldo nesta empresa está congelado: ${d.frozen[companyCode]}`);
+      if (!pc || v > pc.balance) throw new BadRequestException('O valor é maior do que o saldo disponível nesta empresa.');
+      const acc = (await this.accounts(a)).find((x) => x.id === accountId);
+      if (!acc) throw new BadRequestException('Escolha uma conta para receber.');
+      const label = acc.method === 'Multicaixa Express' ? String(acc.method) : `${acc.method}${acc.bank ? ` · ${acc.bank}` : ''}`;
+      await tx.$executeRaw(Prisma.sql`
+        INSERT INTO ${T('kwanza_withdrawals')} (id, "associateId", "companyId", amount, method, details, status, "createdAt")
+        VALUES (gen_random_uuid(), ${a.id}::uuid, ${pc.companyId}::uuid, ${v}, ${label}, ${`${acc.details} · ${acc.holder}`}, 'REQUESTED', now())`);
+      return { pc, label };
+    }, { timeout: 20_000 });
+    const { pc, label } = res;
     await this.notifyCompany(pc.companyId, { kind: 'KWANZA_WITHDRAWAL', title: `Pedido de saque de ${a.name}`, body: `${v.toLocaleString('pt-PT')} Kz · ${label}`, section: 'kwanza', ref: 'withdrawals' });
     return { ok: true as const };
   }

@@ -369,6 +369,16 @@ export function AffiliatesCard() {
     finally { setLoading(false); }
   }, [tab, q]);
   useEffect(() => { const t = window.setTimeout(() => void load(), tab === 'products' ? 300 : 0); return () => window.clearTimeout(t); }, [load, tab]);
+  // Tempo real nos associados e saques: saldos e pedidos voltam a ser lidos sozinhos (sem o indicador de carga).
+  useEffect(() => {
+    if (tab === 'products') return;
+    const quiet = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try { if (tab === 'associates') setAssoc(await api.affiliates.associates()); else setWd(await api.affiliates.withdrawals()); } catch { /* tenta no próximo ciclo */ }
+    };
+    const t = window.setInterval(() => void quiet(), 8000);
+    return () => window.clearInterval(t);
+  }, [tab]);
 
   const savePct = async (code: string) => {
     const raw = (drafts[code] ?? '').replace(',', '.').trim();
