@@ -1,3 +1,4 @@
+import { KwanzaBannersController, KwanzaBannersService } from './kwanza-banners';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { AiModule } from '../ai/ai.module';
@@ -34,7 +35,7 @@ import { AdminNotificationsController, AdminNotificationsService } from './admin
 
 @Module({
   imports: [PosModule, SiteModule, PaymentsModule, AiModule, HotelModule, ServiceOrdersModule, ClinicModule, FiscalModule, JwtModule.register({})],
-  controllers: [StorefrontController, OrdersController, CustomerChatController, MarketingController, MembersController, BannersController, AffiliatesController, KwanzaPublicController, KwanzaAdminController, KwanzaTrustPublicController, KwanzaTrustAdminController, KwanzaCheckoutController, AdminNotificationsController],
+  controllers: [StorefrontController, OrdersController, CustomerChatController, MarketingController, MembersController, BannersController, AffiliatesController, KwanzaPublicController, KwanzaAdminController, KwanzaTrustPublicController, KwanzaTrustAdminController, KwanzaCheckoutController, KwanzaBannersController, AdminNotificationsController],
   providers: [
     StorefrontService,
     OrdersService,
@@ -49,6 +50,7 @@ import { AdminNotificationsController, AdminNotificationsService } from './admin
     KwanzaService,
     KwanzaTrustService,
     KwanzaCheckoutService,
+    KwanzaBannersService,
     AdminNotificationsService,
   ],
   exports: [AdminNotificationsService],

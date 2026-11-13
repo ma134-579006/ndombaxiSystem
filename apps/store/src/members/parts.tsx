@@ -38,23 +38,40 @@ export const P = {
   clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2',
   share: 'M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8.6 13.5l6.8 4M15.4 6.5l-6.8 4',
   eye: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20',
+  up: 'M18 15l-6-6-6 6',
+  down: 'M6 9l6 6 6-6',
 };
 export const I = ({ d, size = 20 }: { d: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
 );
 
-/** Marca da LPS Kwanza: azul cromado com carrinho, no estilo do logótipo LPS Vendas. */
-export function Mark({ size = 34 }: { size?: number }) {
+/** Marca da LPS Kwanza: um "K" próprio (geométrico) num quadrado arredondado. */
+export function Mark({ size = 34, inverse = false }: { size?: number; inverse?: boolean }) {
+  // inverse = K branco em azul (ícone da app, carregamento); por omissão K azul em branco (cabeçalho).
+  const bg = inverse ? 'url(#mk-b)' : '#ffffff';
+  const fg = inverse ? '#ffffff' : 'url(#mk-b)';
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
-      <defs>
-        <linearGradient id="mk-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffffff" /><stop offset="1" stopColor="#dfe4ff" /></linearGradient>
-      </defs>
-      <rect width="40" height="40" rx="10" fill="url(#mk-g)" />
-      <path d="M6 11h4l3.2 13a2 2 0 0 0 2 1.5h10.6a2 2 0 0 0 2-1.5L30 15H11" fill="none" stroke="#1a24c4" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="16" cy="31" r="2.3" fill="#1a24c4" /><circle cx="26" cy="31" r="2.3" fill="#1a24c4" />
-      <path d="M4 21c4-8 14-12 30-9" fill="none" stroke="#3a4bff" strokeWidth="1.8" strokeLinecap="round" opacity=".7" />
+      <defs><linearGradient id="mk-b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#3b5bff" /><stop offset="1" stopColor="#1424b8" /></linearGradient></defs>
+      <rect width="40" height="40" rx="10" fill={bg} />
+      <path d={K_PATH} fill={fg} />
     </svg>
+  );
+}
+/** Desenho do K (o mesmo no logótipo, no carregamento e no ícone das apps). */
+export const K_PATH = 'M9.5 8.5h5.6v9.2l8-9.2h6.9l-8.9 9.8 9.5 13.2h-6.9l-6.5-9.4-2.1 2.3v7.1H9.5z';
+
+/** Carregamento do LPS Kwanza: o K desenha-se em contorno sobre uma camada translúcida. */
+export function KLoader({ overlay = true, label = 'A carregar' }: { overlay?: boolean; label?: string }) {
+  return (
+    <div className={overlay ? 'kk-loading' : 'kk-loading inline'} role="status" aria-live="polite" aria-label={label}>
+      <svg className="kk-loading-k" viewBox="0 0 40 40" width="70" height="70" aria-hidden="true">
+        <defs><linearGradient id="kk-lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#5b7bff" /><stop offset="1" stopColor="#1424b8" /></linearGradient></defs>
+        <rect className="kk-loading-sq" x="2" y="2" width="36" height="36" rx="9" pathLength="100" />
+        <path className="kk-loading-path" d={K_PATH} pathLength="100" />
+      </svg>
+    </div>
   );
 }
 

@@ -94,3 +94,10 @@ export const kw = {
 /** Ligação do associado: abre o produto NO LPS KWANZA (a compra faz-se lá) com o código dele. */
 export const shareLink = (companyCode: string, productCode: string, ref: string) =>
   `${PUBLIC_ORIGIN}/kwanza#/p/${e(companyCode)}/${e(productCode)}/${ref}`;
+
+/** Anúncio de uma empresa no marketplace (gerido no painel da empresa). */
+export interface KBanner {
+  id: string; companyCode: string; companyName: string; title: string; subtitle: string | null; buttonLabel: string | null;
+  link: { kind: 'product' | 'search' | 'url'; value: string } | null; image: string | null;
+}
+export const banners = () => request<KBanner[]>('GET', '/kwanza/banners');
