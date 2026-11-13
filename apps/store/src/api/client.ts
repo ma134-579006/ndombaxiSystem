@@ -47,7 +47,7 @@ export interface AffiliateSummary {
 export interface PayoutAccount { id: string; method: string; bank: string | null; holder: string; details: string; createdAt: string }
 
 export class ApiError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(public readonly status: number, message: string, public readonly data?: unknown) {
     super(message);
     this.name = 'ApiError';
   }
@@ -75,15 +75,17 @@ export async function request<T>(method: string, path: string, body?: unknown, t
   } finally { clearTimeout(timer); }
   if (!res.ok) {
     let message = `Erro ${res.status}`;
+    let data: unknown;
     try {
       const j = (await res.json()) as { message?: string | string[] };
+      data = j;
       if (Array.isArray(j.message)) message = j.message.join('; ');
       else if (j.message) message = j.message;
     } catch {
       /* sem corpo */
     }
     if (res.status === 404) message = 'Loja ou recurso não encontrado.';
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, data);
   }
   if (res.status === 204) return undefined as T;
   const text = await res.text();

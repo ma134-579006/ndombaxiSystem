@@ -1327,3 +1327,26 @@
 .kz-stars i { color: #d9dce6; font-style: normal; }
 .kz-wrap { max-width: 340px; white-space: normal; overflow-wrap: anywhere; }
 @media (max-width: 640px) { .kz-acts .vd-btn { flex: 1 1 100%; } }
+
+/* LPS Kwanza — prazo dos saques, bancos e banimento */
+.kz-ban { display: flex; flex-direction: column; gap: 4px; margin: 0 0 14px; padding: 14px 18px; border-radius: 14px; color: #7f1d1d; background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1px solid #fecaca; }
+.kz-ban b { font-size: 15px; }
+.kz-sla { display: inline-flex; flex-direction: column; gap: 2px; padding: 6px 10px; border-radius: 10px; background: rgba(22,74,214,.08); color: #1e3a8a; min-width: 140px; }
+.kz-sla b { font-size: 13px; font-variant-numeric: tabular-nums; }
+.kz-sla small { font-size: 11.5px; opacity: .85; }
+.kz-sla.esc { background: rgba(245,158,11,.14); color: #92400e; }
+.kz-sla.late { background: rgba(220,38,38,.1); color: #991b1b; }
+tr.kz-late td:first-child { box-shadow: inset 4px 0 0 #dc2626; }
+.kz-banks { padding: 18px; }
+.kz-banks-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+.kz-banks-h b { font-size: 16px; }
+.kz-banks-h span { color: var(--muted, #64748b); font-size: 13px; }
+.kz-bank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.kz-bank { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; border-radius: 12px; border: 1.5px solid var(--border, #e2e8f0); background: var(--surface, #fff); color: inherit; font-weight: 700; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.kz-bank:hover { transform: translateY(-1px); }
+.kz-bank.on { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(34,197,94,.15); }
+.kz-bank-ic { width: 34px; height: 34px; flex: none; border-radius: 10px; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #64748b, #94a3b8); }
+.kz-bank.on .kz-bank-ic { background: linear-gradient(135deg, #15803d, #22c55e); }
+.kz-bank-add { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+.kz-bank-add input { height: 40px; border-radius: 10px; border: 1px solid var(--border, #e2e8f0); padding: 0 12px; min-width: 180px; flex: 1; max-width: 280px; }
+.kz-bank-add .spacer { flex: 1; }

@@ -181,6 +181,30 @@ await ok('PATCH', `${AK}/products/${co.prod.code}`, { token: co.adm, body: { pub
 const mk3 = (await ok('GET', `${K}/market`, { token: A.token })).filter((l) => l.companyCode === co.code);
 R.check('BN-7', 'readmissão pelo Super Admin: a empresa volta a publicar', unban.status === 200 && mk3.length >= 1, `${unban.status} ${mk3.length}`);
 
+/* ═══════════ 4b. publicações: cada associado só edita a sua; stock e fotos do produto ═══════════ */
+{
+  const imgA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  await ok('PUT', `${K}/me/posts`, { token: A.token, body: { companyCode: co.code, productCode: co.prod.code, price: null, images: [imgA], videoUrl: null, caption: `Publicação A ${tag}`, published: true } });
+  const B = await ok('POST', `${K}/auth/register`, { body: { name: `Associado B ${tag}`, phone: `95${tag}9`.slice(0, 9), password: 'segredo123' } });
+  await ok('POST', `${K}/me/affiliations`, { token: B.token, body: { companyCode: co.code, productCode: co.prod.code } });
+  await ok('PUT', `${K}/me/posts`, { token: B.token, body: { companyCode: co.code, productCode: co.prod.code, price: null, images: [], videoUrl: null, caption: `Publicação B ${tag}`, published: true } });
+  const pa = await ok('GET', `${K}/listing/${co.code}/${co.prod.code}?a=${A.code}`);
+  const pb = await ok('GET', `${K}/listing/${co.code}/${co.prod.code}?a=${B.associate.code}`);
+  R.check('PB-1', 'cada associado edita só a sua publicação (a de B não altera a de A)', pa.caption === `Publicação A ${tag}` && pb.caption === `Publicação B ${tag}` && pa.associate.code === A.code, `${pa.caption} | ${pb.caption}`);
+  const mk = (await ok('GET', `${K}/market`)).find((l) => l.productCode === co.prod.code && l.associate?.code === A.code);
+  R.check('PB-2', 'o cliente sem conta vê o stock disponível do produto', mk && mk.stockQty > 0 && mk.inStock, `${mk?.stockQty}`);
+  const prodImg = (await ok('GET', `${K}/market`, { token: A.token })).find((l) => l.productCode === co.prod.code)?.imageUrl;
+  R.check('PB-3', 'a foto do produto vem primeiro; a imagem do associado fica na galeria', prodImg ? (mk.imageUrl === prodImg && mk.gallery.includes(imgA)) : mk.imageUrl === imgA, `${String(mk?.imageUrl).slice(0, 40)}`);
+  const social = await call('GET', `${K}/social/${co.code}/${co.prod.code}?device=${randomUUID()}`);
+  R.check('PB-4', 'página do produto: avaliações, estrelas e gostos/não gostos disponíveis sem conta', social.status === 200 && 'rating' in social.body && 'likes' in social.body && 'dislikes' in social.body && Array.isArray(social.body.reviews), social.status);
+}
+// Saldo novo para o saque com 2FA
+{
+  let r;
+  for (;;) { r = await call('POST', `${K}/checkout`, { body: { companyCode: co.code, associateCode: A.code, lines: [{ productCode: co.prod.code, quantity: 1 }], name: 'Cliente 2FA', phone: `93${tag}8`.slice(0, 9), address: 'Rua 2', deliveryMethod: 'DELIVERY', paymentMethod: 'CASH', device: randomUUID(), ...geo } }); if (r.status !== 429) break; await sleep(15000); }
+  await ok('POST', `/ecommerce/orders/${r.body.orderId}/pay`, { token: co.adm });
+}
+
 /* ═══════════ 5. 2FA do associado (WhatsApp) ═══════════ */
 const st0 = await ok('GET', `${K}/me/two-factor`, { token: A.token });
 R.check('2A-0', 'a verificação em 2 passos vem desligada por omissão', st0.enabled === false && st0.channels.whatsapp === true, JSON.stringify(st0));
@@ -212,6 +236,16 @@ const rc1 = await call('POST', `${K}/auth/recover/confirm`, { body: { login: A.p
 const r2fa = await code(A.phone, 'RESET', m0);
 const rc2 = await call('POST', `${K}/auth/recover/confirm`, { body: { login: A.phone, code: rc, password: 'recupera77', twoFaCode: r2fa } });
 R.check('2A-5', 'recuperar a senha: código pelo WhatsApp (conta sem e-mail) + código da 2FA', rq.via === 'WHATSAPP' && rq.twoFa === true && rc1.status === 401 && rc1.body.error === 'TwoFaRequired' && rc2.status === 201 && r2fa !== rc, `${rq.via} ${rc1.status}/${rc2.status}`);
+{
+  d = await ok('GET', `${K}/me/dashboard`, { token: A.token });
+  const bal = d.companies.find((c) => c.companyCode === co.code).balance;
+  m0 = mark();
+  const w0 = await call('POST', `${K}/me/withdrawals`, { token: A.token, body: { companyCode: co.code, amount: bal, accountId: A.accountId } });
+  const wc = await code(A.phone, 'WITHDRAW', m0);
+  const wBad = await call('POST', `${K}/me/withdrawals`, { token: A.token, body: { companyCode: co.code, amount: bal, accountId: A.accountId, twoFaCode: wc === '123456' ? '654321' : '123456' } });
+  const wOk = await call('POST', `${K}/me/withdrawals`, { token: A.token, body: { companyCode: co.code, amount: bal, accountId: A.accountId, twoFaCode: wc } });
+  R.check('2A-W', 'saque com 2FA ligada: pede o código, recusa o errado, segue com o certo', bal > 0 && w0.status === 401 && w0.body.error === 'TwoFaRequired' && wBad.status === 401 && wOk.status === 201, `${w0.status}/${wBad.status}/${wOk.status}`);
+}
 const dr1 = await call('POST', `${K}/me/two-factor/disable/request`, { token: A.token });
 const dr2 = await call('POST', `${K}/me/two-factor/disable/request`, { token: A.token });
 R.check('2A-6', 'limite de envios: novo código só 30 s depois', dr1.status === 201 && dr2.status === 429, `${dr1.status}/${dr2.status}`);

@@ -30,7 +30,7 @@ class AccountDto { @IsString() @MaxLength(40) method!: string; @IsOptional() @Is
 class IdsDto { @IsArray() @IsString({ each: true }) ids!: string[]; }
 class MsgDto { @IsString() @MaxLength(2000) body!: string; }
 class PostDto { @IsString() @MaxLength(60) companyCode!: string; @IsString() @MaxLength(80) productCode!: string; @IsOptional() @Type(() => Number) @IsNumber() @Min(0) price?: number | null; @IsOptional() @IsArray() @IsString({ each: true }) images?: string[]; @IsOptional() @IsString() @MaxLength(500) videoUrl?: string | null; @IsOptional() @IsString() @MaxLength(600) caption?: string | null; @IsBoolean() published!: boolean; }
-class WithdrawDto { @IsString() @MaxLength(60) companyCode!: string; @Type(() => Number) @IsNumber() @Min(1) amount!: number; @IsString() @MaxLength(40) accountId!: string; }
+class WithdrawDto { @IsString() @MaxLength(60) companyCode!: string; @Type(() => Number) @IsNumber() @Min(1) amount!: number; @IsString() @MaxLength(40) accountId!: string; @IsOptional() @IsString() @MaxLength(10) twoFaCode?: string; @IsOptional() @IsBoolean() twoFaResend?: boolean; }
 
 /** LPS Kwanza — site do marketplace e contas dos associados (público + sessão do associado). */
 @ApiTags('kwanza')
@@ -83,7 +83,7 @@ export class KwanzaPublicController {
   @Get('me/chats') async chats(@Headers('authorization') a?: string) { return this.k.associateChats(await this.k.verify(a)); }
   @Get('me/chats/:companyCode') async chat(@Param('companyCode') c: string, @Headers('authorization') a?: string) { return this.k.associateThread(await this.k.verify(a), c); }
   @Post('me/chats/:companyCode') async send(@Param('companyCode') c: string, @Body() d: MsgDto, @Headers('authorization') a?: string) { return this.k.associateSend(await this.k.verify(a), c, d.body); }
-  @Post('me/withdrawals') async withdraw(@Body() d: WithdrawDto, @Headers('authorization') a?: string) { return this.k.withdraw(await this.k.verify(a), d.companyCode, d.amount, d.accountId); }
+  @Post('me/withdrawals') async withdraw(@Body() d: WithdrawDto, @Headers('authorization') a?: string) { return this.k.withdraw(await this.k.verify(a), d.companyCode, d.amount, d.accountId, d.twoFaCode, d.twoFaResend === true); }
 }
 
 class ListingDto {

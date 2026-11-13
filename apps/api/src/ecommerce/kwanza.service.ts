@@ -247,7 +247,7 @@ export class KwanzaService implements OnModuleInit {
     await this.refresh();
     if (!forAssociate) return this.posts();
     const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-      SELECT "companyCode", "companyName", "productCode", name, description, "imageUrl", gallery, category, "grossPrice", "listPrice", "inStock",
+      SELECT "companyCode", "companyName", "productCode", name, description, "imageUrl", gallery, category, "grossPrice", "listPrice", "inStock", "stockQty",
              "commissionPct", affiliation, "allowMarkup", "maxMarkupPct", materials, views, sold,
              (SELECT COUNT(*) FROM ${T('kwanza_affiliations')} f WHERE f."companyId" = l."companyId" AND f."productCode" = l."productCode" AND f.status = 'APPROVED') AS associates
       FROM ${T('kwanza_listings')} l
@@ -256,7 +256,7 @@ export class KwanzaService implements OnModuleInit {
     return rows.map((r) => ({
       companyCode: r.companyCode, companyName: r.companyName, productCode: r.productCode, name: r.name, description: r.description,
       imageUrl: r.imageUrl, gallery: Array.isArray(r.gallery) ? r.gallery : [], category: r.category, grossPrice: num(r.grossPrice),
-      listPrice: r.listPrice == null ? null : num(r.listPrice), inStock: !!r.inStock, commissionPct: num(r.commissionPct),
+      listPrice: r.listPrice == null ? null : num(r.listPrice), inStock: !!r.inStock, stockQty: num(r.stockQty), commissionPct: num(r.commissionPct),
       affiliation: r.affiliation, allowMarkup: !!r.allowMarkup, maxMarkupPct: r.maxMarkupPct == null ? null : num(r.maxMarkupPct),
       materials: Array.isArray(r.materials) ? r.materials : [], views: num(r.views), sold: num(r.sold), associates: num(r.associates),
     }));
@@ -276,7 +276,7 @@ export class KwanzaService implements OnModuleInit {
     const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
       SELECT f.id AS "postId", f."markupPct", f."postImages", f."postVideo", f."postCaption", f."publishedAt",
              a.code AS "aCode", a.name AS "aName", a."photoUrl" AS "aPhoto",
-             l."companyCode", l."companyName", l."productCode", l.name, l.description, l."imageUrl", l.gallery, l.category, l."grossPrice", l."listPrice", l."inStock",
+             l."companyCode", l."companyName", l."productCode", l.name, l.description, l."imageUrl", l.gallery, l.category, l."grossPrice", l."listPrice", l."inStock", l."stockQty",
              COALESCE(f."commissionPct", l."commissionPct") AS "commissionPct", l.affiliation, l."allowMarkup", l."maxMarkupPct", l.materials, l.views, l.sold
       FROM ${T('kwanza_affiliations')} f
       JOIN ${T('kwanza_associates')} a ON a.id = f."associateId" AND a.status = 'ACTIVE'
@@ -291,8 +291,9 @@ export class KwanzaService implements OnModuleInit {
       const gallery = Array.isArray(r.gallery) ? (r.gallery as string[]) : [];
       return {
         postId: r.postId, companyCode: r.companyCode, companyName: r.companyName, productCode: r.productCode, name: r.name, description: r.description,
-        imageUrl: imgs[0] ?? r.imageUrl, gallery: [...imgs.slice(1), ...(r.imageUrl && imgs.length ? [r.imageUrl as string] : []), ...gallery],
-        category: r.category, grossPrice: r2(base * (1 + mk / 100)), basePrice: base, listPrice: null, inStock: !!r.inStock,
+        // As fotos do produto (da empresa) vêm primeiro; as imagens publicitárias do associado depois.
+        imageUrl: (r.imageUrl as string | null) ?? imgs[0] ?? null, gallery: [...gallery, ...(r.imageUrl ? imgs : imgs.slice(1))].filter((x, i, arr) => arr.indexOf(x) === i),
+        category: r.category, grossPrice: r2(base * (1 + mk / 100)), basePrice: base, listPrice: null, inStock: !!r.inStock, stockQty: num(r.stockQty),
         commissionPct: num(r.commissionPct), affiliation: r.affiliation, allowMarkup: !!r.allowMarkup, maxMarkupPct: r.maxMarkupPct == null ? null : num(r.maxMarkupPct),
         materials: [], views: num(r.views), sold: num(r.sold), associates: 1,
         associate: { code: r.aCode, name: r.aName, photoUrl: r.aPhoto ?? null },
@@ -537,9 +538,11 @@ export class KwanzaService implements OnModuleInit {
     if (!n) throw new NotFoundException('Conta não encontrada.');
     return { ok: true as const };
   }
-  async withdraw(a: AssociateRow, companyCode: string, amount: number, accountId: string) {
+  async withdraw(a: AssociateRow, companyCode: string, amount: number, accountId: string, twoFaCode?: string, twoFaResend = false) {
     const v = r2(amount);
     if (!(v > 0)) throw new BadRequestException('Indique o valor do saque.');
+    // Com a verificação em 2 passos ligada, o saque só segue com o código (e-mail/WhatsApp).
+    await this.twoFactor.gate(TwoFactorService.kwanza(a.id), 'WITHDRAW', twoFaCode, twoFaResend);
     // Um pedido de cada vez por associado: sem isto, vários pedidos simultâneos liam o
     // mesmo saldo e eram todos aceites (pedia-se 3× o saldo). O lock é da transação e
     // só se solta depois de o pedido ficar gravado; um segundo pedido em paralelo não
@@ -667,14 +670,14 @@ export class KwanzaService implements OnModuleInit {
       if (!cp) continue;
       live.push(cp.code);
       await this.prisma.$executeRaw(Prisma.sql`
-        INSERT INTO ${T('kwanza_listings')} (id, "companyId", "companyCode", "companyName", "productCode", name, description, "imageUrl", gallery, category, "grossPrice", "listPrice", "inStock",
+        INSERT INTO ${T('kwanza_listings')} (id, "companyId", "companyCode", "companyName", "productCode", name, description, "imageUrl", gallery, category, "grossPrice", "listPrice", "inStock", "stockQty",
           "commissionPct", affiliation, "allowMarkup", "maxMarkupPct", materials, views, sold, active, "updatedAt")
         VALUES (gen_random_uuid(), ${c.id}::uuid, ${c.code}, ${c.name}, ${cp.code}, ${cp.name}, ${cp.description}, ${cp.imageUrl}, ${JSON.stringify(cp.gallery ?? [])}::jsonb, ${cp.category ?? null},
-          ${cp.grossPrice}, ${cp.listPrice ?? null}, ${cp.inStock || !!cp.madeToOrder}, ${num(p.pct)}, ${p.mode === 'RESTRICTED' ? 'RESTRICTED' : 'OPEN'}, ${!!p.mk},
+          ${cp.grossPrice}, ${cp.listPrice ?? null}, ${cp.inStock || !!cp.madeToOrder}, ${Math.max(0, Math.floor(Number(cp.stockQty) || 0))}, ${num(p.pct)}, ${p.mode === 'RESTRICTED' ? 'RESTRICTED' : 'OPEN'}, ${!!p.mk},
           ${p.maxmk == null ? null : num(p.maxmk)}, ${JSON.stringify(Array.isArray(p.mats) ? p.mats : [])}::jsonb, ${cp.views ?? 0}, ${cp.sold ?? 0}, TRUE, now())
         ON CONFLICT ("companyId", "productCode") DO UPDATE SET "companyName" = EXCLUDED."companyName", name = EXCLUDED.name, description = EXCLUDED.description,
           "imageUrl" = EXCLUDED."imageUrl", gallery = EXCLUDED.gallery, category = EXCLUDED.category, "grossPrice" = EXCLUDED."grossPrice", "listPrice" = EXCLUDED."listPrice",
-          "inStock" = EXCLUDED."inStock", "commissionPct" = EXCLUDED."commissionPct", affiliation = EXCLUDED.affiliation, "allowMarkup" = EXCLUDED."allowMarkup",
+          "inStock" = EXCLUDED."inStock", "stockQty" = EXCLUDED."stockQty", "commissionPct" = EXCLUDED."commissionPct", affiliation = EXCLUDED.affiliation, "allowMarkup" = EXCLUDED."allowMarkup",
           "maxMarkupPct" = EXCLUDED."maxMarkupPct", materials = EXCLUDED.materials, views = GREATEST(${T('kwanza_listings')}.views, EXCLUDED.views), active = TRUE, "updatedAt" = now()`);
     }
     await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_listings')} SET active = FALSE, "updatedAt" = now() WHERE "companyId" = ${c.id}::uuid AND NOT ("productCode" = ANY(${live}::text[]))`);

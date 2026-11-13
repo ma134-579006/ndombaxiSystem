@@ -646,6 +646,8 @@ model KwanzaListing {
   grossPrice    Decimal  @db.Decimal(14, 2)
   listPrice     Decimal? @db.Decimal(14, 2)
   inStock       Boolean  @default(true)
+  /// Quantidade disponível na empresa (stock menos o reservado), copiada na sincronização.
+  stockQty      Int      @default(0)
   commissionPct Decimal  @db.Decimal(5, 2)
   affiliation   String   @default("OPEN") // OPEN | RESTRICTED
   allowMarkup   Boolean  @default(false) // "venda no teu preço"

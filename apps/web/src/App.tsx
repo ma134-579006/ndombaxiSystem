@@ -10,7 +10,7 @@ import {
   IconCamera, IconCard, IconCartIn, IconCashRegister, IconChart, IconCoins, IconCube,
   IconDatabase, IconDownload, IconGauge, IconGear, IconHeadset, IconHistory, IconLedger, IconMail,
   IconMessage, IconPercent, IconPlug, IconReceipt, IconReport, IconSparkles,
-  IconStore, IconTag, IconTrendUp, IconTruck, IconUpload, IconUsers, IconWallet,
+  IconStore, IconTag, IconTrendUp, IconTruck, IconUpload, IconUsers, IconWallet, IconLock,
   IconActivity, IconBag, IconBars, IconFolder, IconShieldCheck, IconUserGroup,
 } from './components/Icons';
 import { Login } from './pages/Login';
@@ -87,6 +87,8 @@ const PlansAdmin = lazyRetry(() => import('./sections/PlansAdmin').then((m) => (
 const SubsAdmin = lazyRetry(() => import('./sections/SubsAdmin').then((m) => ({ default: m.SubsAdmin })));
 const PlatformDashboard = lazyRetry(() => import('./sections/PlatformDashboard').then((m) => ({ default: m.PlatformDashboard })));
 const Integrations = lazyRetry(() => import('./sections/Integrations').then((m) => ({ default: m.Integrations })));
+const KwanzaPayoutsAdmin = lazyRetry(() => import('./sections/KwanzaPayoutsAdmin').then((m) => ({ default: m.KwanzaPayoutsAdmin })));
+const SecurityAdmin = lazyRetry(() => import('./sections/SecurityAdmin').then((m) => ({ default: m.SecurityAdmin })));
 const MailSettings = lazyRetry(() => import('./sections/MailSettings').then((m) => ({ default: m.MailSettings })));
 const Downloads = lazyRetry(() => import('./sections/Downloads').then((m) => ({ default: m.Downloads })));
 const DownloadWizard = lazyRetry(() => import('./sections/DownloadWizard').then((m) => ({ default: m.DownloadWizard })));
@@ -107,6 +109,8 @@ const PLATFORM_NAV: NavItem[] = [
   { key: 'ai', label: 'Inteligência Artificial', icon: IconSparkles },
   { key: 'fiscal', label: 'Fiscal (AGT)', icon: IconShieldCheck },
   { key: 'gateways', label: 'Gateways de Pagamento', icon: IconBank },
+  { key: 'kwanza-payouts', label: 'Saques LPS Kwanza', icon: IconWallet },
+  { key: 'security', label: 'Segurança (2FA)', icon: IconLock },
   { key: 'integrations', label: 'Integrações', icon: IconPlug },
   { key: 'mail', label: 'E-mail (SMTP)', icon: IconMail },
   { key: 'downloads', label: 'Gestão de Downloads', icon: IconDownload },
@@ -234,6 +238,8 @@ function PlatformPanel() {
       {section === 'ai' ? <Ai /> : null}
       {section === 'fiscal' ? <Fiscal /> : null}
       {section === 'gateways' ? <Gateways /> : null}
+      {section === 'kwanza-payouts' ? <KwanzaPayoutsAdmin /> : null}
+      {section === 'security' ? <SecurityAdmin onGo={setSection} /> : null}
       {section === 'integrations' ? <Integrations /> : null}
       {section === 'mail' ? <MailSettings /> : null}
       {section === 'downloads' ? <Downloads onOpenWizard={() => setSection('downloads-wizard')} /> : null}

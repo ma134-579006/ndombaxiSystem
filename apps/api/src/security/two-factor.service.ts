@@ -14,12 +14,12 @@ import { PrismaService } from '../prisma/prisma.service';
  *    O Super Admin escolhe os canais e o modelo do WhatsApp em "Segurança (2FA)".
  *  • Os códigos guardam-se só como hash, valem `codeMinutes`, aceitam 5 tentativas e há limite de envios.
  */
-export type TwoFaPurpose = 'LOGIN' | 'SETUP' | 'RESET' | 'CHANGE_PW' | 'DISABLE';
+export type TwoFaPurpose = 'LOGIN' | 'SETUP' | 'RESET' | 'CHANGE_PW' | 'DISABLE' | 'WITHDRAW';
 export type TwoFaMethod = 'EMAIL' | 'WHATSAPP';
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const PURPOSE_TEXT: Record<TwoFaPurpose, string> = {
   LOGIN: 'entrar na sua conta', SETUP: 'ativar a verificação em 2 passos', RESET: 'recuperar a sua senha',
-  CHANGE_PW: 'mudar a sua senha', DISABLE: 'desligar a verificação em 2 passos',
+  CHANGE_PW: 'mudar a sua senha', DISABLE: 'desligar a verificação em 2 passos', WITHDRAW: 'confirmar o seu pedido de saque',
 };
 
 export const maskEmail = (e: string) => { const [u, d] = e.split('@'); return d ? `${u.slice(0, 2)}${'•'.repeat(Math.max(2, u.length - 2))}@${d}` : e; };

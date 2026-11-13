@@ -4310,3 +4310,66 @@ img, video, canvas { max-width: 100%; }
 /* Botão de fechar injetado nas janelas que não trazem o seu (modalClose.ts). */
 .modal-x-auto { position: absolute; top: 10px; right: 10px; z-index: 5; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgba(120,130,150,.18); color: var(--text, #141c4d); cursor: pointer; padding: 0; }
 .modal-x-auto:hover { background: rgba(120,130,150,.32); }
+
+/* Super Admin → Saques LPS Kwanza */
+.kp-kpis, .sec-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kp-kpi, .sec-kpi { padding: 16px 18px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface, #fff); display: flex; flex-direction: column; gap: 4px; position: relative; overflow: hidden; }
+.kp-kpi::before, .sec-kpi::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--primary); }
+.kp-kpi.warn::before { background: #f59e0b; } .kp-kpi.info::before { background: #3b82f6; } .kp-kpi.bad::before { background: #dc2626; }
+.sec-kpi.main::before { background: #16a34a; }
+.kp-kpi span, .sec-kpi span { font-size: 12.5px; color: var(--muted, #64748b); font-weight: 600; }
+.kp-kpi b, .sec-kpi b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.kp-kpi small { color: var(--muted, #64748b); }
+.kp-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.kp-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.kp-tabs button { border: 1px solid var(--border); background: var(--surface, #fff); color: inherit; border-radius: 999px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
+.kp-tabs button.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.kp-search { flex: 1; min-width: 220px; height: 40px; border-radius: 12px; border: 1px solid var(--border); padding: 0 14px; background: var(--surface, #fff); color: inherit; }
+.kp-empty { text-align: center; color: var(--muted, #64748b); padding: 36px; }
+.kp-list { display: grid; gap: 14px; }
+.kp-row { position: relative; border-left: 5px solid #f59e0b !important; animation: kpIn .25s ease-out; }
+.kp-row.s-notified { border-left-color: #3b82f6 !important; } .kp-row.s-resolved { border-left-color: #16a34a !important; } .kp-row.s-refunded, .kp-row.late { border-left-color: #dc2626 !important; }
+.kp-row-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.kp-amt b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+.kp-amt small { color: var(--muted, #64748b); }
+.kp-step { padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 800; background: rgba(245,158,11,.15); color: #92400e; }
+.kp-step.info { background: rgba(59,130,246,.14); color: #1e40af; } .kp-step.ok { background: rgba(34,197,94,.14); color: #15803d; } .kp-step.bad { background: rgba(220,38,38,.12); color: #991b1b; }
+.kp-people { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+.kp-people > div { display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 12px; background: var(--surface-2, #f8fafc); min-width: 0; }
+.kp-people small { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted, #64748b); font-weight: 700; }
+.kp-people span { font-size: 13px; color: var(--muted, #64748b); word-break: break-word; }
+.kp-code { display: inline-block; align-self: flex-start; padding: 2px 8px; border-radius: 6px; background: var(--primary); color: #fff !important; font-weight: 800; letter-spacing: 1px; font-family: ui-monospace, monospace; }
+.kp-ban { margin-left: 8px; padding: 2px 8px; border-radius: 6px; background: #dc2626; color: #fff; font-style: normal; font-size: 11px; }
+.kp-time { list-style: none; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 0 0 12px; padding: 0; }
+.kp-time li { position: relative; display: flex; flex-direction: column; gap: 2px; padding-top: 18px; font-size: 12px; color: var(--muted, #64748b); }
+.kp-time li i { position: absolute; top: 2px; left: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--border); }
+.kp-time li::after { content: ""; position: absolute; top: 7px; left: 14px; right: 0; height: 2px; background: var(--border); }
+.kp-time li:last-child::after { display: none; }
+.kp-time li.done i { background: #16a34a; } .kp-time li.done.bad i { background: #dc2626; }
+.kp-time li span { font-weight: 700; color: var(--text, inherit); }
+.kp-quote { margin: 0 0 10px; padding: 10px 14px; border-left: 3px solid #f59e0b; background: rgba(245,158,11,.08); border-radius: 0 10px 10px 0; font-style: italic; }
+.kp-note { margin: 0 0 10px; font-size: 13px; color: var(--muted, #64748b); }
+.kp-acts { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
+.kp-wait { font-size: 13px; font-weight: 700; color: #1e40af; background: rgba(59,130,246,.1); padding: 8px 12px; border-radius: 10px; }
+.kp-bans { margin-top: 18px; }
+.kp-bans h3 { margin: 0 0 10px; }
+.kp-banrow { display: flex; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.kp-banrow > div:first-child { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+.kp-banrow small { color: var(--muted, #64748b); }
+.kp-debt { text-align: right; } .kp-debt b { display: block; color: #dc2626; font-size: 18px; }
+.kp-modal-sum { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 12px; background: var(--surface-2, #f8fafc); }
+.kp-modal-amt { font-size: 26px; }
+@keyframes kpIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (max-width: 720px) { .kp-people { grid-template-columns: 1fr; } .kp-time { grid-template-columns: 1fr; } .kp-time li::after { display: none; } .kp-time li { padding: 0 0 0 20px; } }
+@media (prefers-reduced-motion: reduce) { .kp-row { animation: none; } }
+/* Super Admin → Segurança (2FA) */
+.sec-card h3 { margin: 0 0 14px; }
+.sec-side { display: grid; gap: 16px; align-content: start; }
+.sec-ch { display: grid; gap: 10px; margin-bottom: 14px; }
+.sec-ch-row { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: var(--surface-2, #f8fafc); }
+.sec-ch-row > div { flex: 1; } .sec-ch-row small { display: block; color: var(--muted, #64748b); }
+.sec-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; } .sec-dot.ok { background: #16a34a; box-shadow: 0 0 0 4px rgba(34,197,94,.18); } .sec-dot.off { background: #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,.18); }
+.sec-check { display: flex; gap: 8px; align-items: center; margin: 4px 0 14px; font-size: 13px; }
+.sec-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.sec-seg button { height: 40px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface, #fff); color: inherit; font-weight: 700; cursor: pointer; }
+.sec-seg button.on { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent); }
