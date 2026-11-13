@@ -636,3 +636,7 @@
 @keyframes kwIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .kw-2fa, .kw-tf-b { animation: none; } }
 @media (max-width: 480px) { .kw-tf-m { grid-template-columns: 1fr; } .kw-tf-act > .kw-btn { flex: 1; } }
+.kk-post-imgs { margin: 10px 0 4px; }
+.kk-post-imgs small { display: block; font-weight: 700; color: #5b6475; margin-bottom: 6px; }
+.kk-post-imgs > div { display: flex; gap: 8px; overflow-x: auto; }
+.kk-post-imgs img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; border: 1px solid #e3e7ef; display: block; }

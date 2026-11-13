@@ -534,6 +534,7 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
             <div className="kk-paybox"><h3>Formas de pagamento</h3><div className="kk-payicons">{PAY_ICONS.map(([ic, t]) => <span key={t}><I d={ic} size={20} /><small>{t}</small></span>)}</div></div>
             {post ? <div className="kk-post-by"><span className="kk-avatar big">{post.associate!.photoUrl ? <img src={post.associate!.photoUrl} alt="" /> : <b>{post.associate!.name.slice(0, 1).toUpperCase()}</b>}</span><div><small>Publicado por</small><b>{post.associate!.name}</b></div></div> : null}
             {post?.caption ? <p className="kk-cap">{post.caption}</p> : null}
+            {post?.postImages?.length ? <div className="kk-post-imgs"><small>Imagens do associado</small><div>{post.postImages.map((u, i) => <a key={i} href={u} target="_blank" rel="noopener noreferrer"><img src={u} alt="" loading="lazy" /></a>)}</div></div> : null}
             <div className="kk-buy-desk">
               {l.inStock ? <div className="kk-buybtns"><button className="kk-btn-add" onClick={() => addToCart(false)}><I d={P.cart} size={18} /> Adicionar ao carrinho</button><button className="kk-btn-buy" onClick={() => addToCart(true)}>Comprar</button></div> : <span className="kw-pill kw-st-CANCELLED">Esgotado</span>}
             </div>

@@ -196,7 +196,7 @@ R.check('BN-7', 'readmissão pelo Super Admin: a empresa volta a publicar', unba
   const mk = (await ok('GET', `${K}/market`)).find((l) => l.productCode === co.prod.code && l.associate?.code === A.code);
   R.check('PB-2', 'o cliente sem conta vê o stock disponível do produto', mk && mk.stockQty > 0 && mk.inStock, `${mk?.stockQty}`);
   const prodImg = (await ok('GET', `${K}/market`, { token: A.token })).find((l) => l.productCode === co.prod.code)?.imageUrl;
-  R.check('PB-3', 'a foto do produto vem primeiro; a imagem do associado fica na galeria', prodImg ? (mk.imageUrl === prodImg && mk.gallery.includes(imgA)) : mk.imageUrl === imgA, `${String(mk?.imageUrl).slice(0, 40)}`);
+  R.check('PB-3', 'foto principal e galeria só da empresa; as imagens do associado vêm à parte', (mk.imageUrl ?? null) === (prodImg ?? null) && !mk.gallery.includes(imgA) && mk.postImages?.includes(imgA), `${String(mk?.imageUrl).slice(0, 40)}`);
   const social = await call('GET', `${K}/social/${co.code}/${co.prod.code}?device=${randomUUID()}`);
   R.check('PB-4', 'página do produto: avaliações, estrelas e gostos/não gostos disponíveis sem conta', social.status === 200 && 'rating' in social.body && 'likes' in social.body && 'dislikes' in social.body && Array.isArray(social.body.reviews), social.status);
 }

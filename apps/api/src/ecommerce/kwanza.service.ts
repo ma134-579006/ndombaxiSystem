@@ -292,7 +292,8 @@ export class KwanzaService implements OnModuleInit {
       return {
         postId: r.postId, companyCode: r.companyCode, companyName: r.companyName, productCode: r.productCode, name: r.name, description: r.description,
         // As fotos do produto (da empresa) vêm primeiro; as imagens publicitárias do associado depois.
-        imageUrl: (r.imageUrl as string | null) ?? imgs[0] ?? null, gallery: [...gallery, ...(r.imageUrl ? imgs : imgs.slice(1))].filter((x, i, arr) => arr.indexOf(x) === i),
+        // Foto principal e galeria = só as da empresa; as imagens do associado vão à parte (postImages).
+        imageUrl: (r.imageUrl as string | null) ?? null, gallery, postImages: imgs,
         category: r.category, grossPrice: r2(base * (1 + mk / 100)), basePrice: base, listPrice: null, inStock: !!r.inStock, stockQty: num(r.stockQty),
         commissionPct: num(r.commissionPct), affiliation: r.affiliation, allowMarkup: !!r.allowMarkup, maxMarkupPct: r.maxMarkupPct == null ? null : num(r.maxMarkupPct),
         materials: [], views: num(r.views), sold: num(r.sold), associates: 1,

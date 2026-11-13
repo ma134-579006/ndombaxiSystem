@@ -7,7 +7,7 @@ export interface Listing {
   gallery: string[]; category: string | null; grossPrice: number; listPrice: number | null; inStock: boolean; stockQty?: number; commissionPct: number;
   affiliation: 'OPEN' | 'RESTRICTED'; allowMarkup: boolean; maxMarkupPct: number | null; materials: string[]; views: number; sold: number; associates?: number;
   /** Publicação de um associado (o que o cliente normal vê): preço do associado, imagens e vídeo. */
-  postId?: string; basePrice?: number; associate?: { code: string; name: string; photoUrl: string | null }; videoUrl?: string | null; caption?: string | null;
+  postId?: string; postImages?: string[]; basePrice?: number; associate?: { code: string; name: string; photoUrl: string | null }; videoUrl?: string | null; caption?: string | null;
 }
 export interface Associate {
   id: string; name: string; phone: string; email: string | null; code: string; photoUrl: string | null; taxId: string | null;
