@@ -8,13 +8,16 @@ import { Modal } from '../components/ui';
 import { UserAvatar } from '../components/UserAvatar';
 import { IconBuilding, IconImage, IconReceipt } from '../components/Icons';
 import { ShopServerCard } from './ShopServerCard';
+import { TwoFactorCard } from '../components/TwoFactorCard';
+import { useAuth } from '../auth/AuthContext';
 
 /**
  * Configurações da empresa (admin): branding (logo/nome), dados e dizeres dos
  * recibos, reposição de senhas/PIN dos funcionários, plano e impressora.
  */
 export function Settings() {
-  const [tab, setTab] = useState<'brand' | 'modules' | 'passwords' | 'printer' | 'loja' | 'lang'>('brand');
+  const { user } = useAuth();
+  const [tab, setTab] = useState<'brand' | 'modules' | 'passwords' | 'security' | 'printer' | 'loja' | 'lang'>('brand');
   return (
     <>
       <div className="content-head">
@@ -24,6 +27,7 @@ export function Settings() {
         <button className={tab === 'brand' ? 'on' : ''} onClick={() => setTab('brand')}>Empresa & Recibos</button>
         <button className={tab === 'modules' ? 'on' : ''} onClick={() => setTab('modules')}>Módulos</button>
         <button className={tab === 'passwords' ? 'on' : ''} onClick={() => setTab('passwords')}>Senhas dos funcionários</button>
+        <button className={tab === 'security' ? 'on' : ''} onClick={() => setTab('security')}>Verificação em 2 passos</button>
         <button className={tab === 'printer' ? 'on' : ''} onClick={() => setTab('printer')}>Impressora & Plano</button>
         <button className={tab === 'loja' ? 'on' : ''} onClick={() => setTab('loja')}>Servidor da loja</button>
         <button className={tab === 'lang' ? 'on' : ''} onClick={() => setTab('lang')}>Idioma</button>
@@ -31,6 +35,7 @@ export function Settings() {
       {tab === 'brand' ? <BrandingCard /> : null}
       {tab === 'modules' ? <ModulesCard /> : null}
       {tab === 'passwords' ? <PasswordsCard /> : null}
+      {tab === 'security' ? <TwoFactorCard email={user?.email} /> : null}
       {tab === 'printer' ? <PrinterCard /> : null}
       {tab === 'loja' ? <ShopServerCard /> : null}
       {tab === 'lang' ? <div className="card acc-lang"><h3 className="acc-h"><IconGlobe size={18} /> Idioma</h3><LangChoice /></div> : null}

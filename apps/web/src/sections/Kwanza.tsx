@@ -14,7 +14,7 @@ interface KProduct { id: string; stock: number; canPublish: boolean; code: strin
 interface KRequest { id: string; status: string; productCode: string; product: string | null; associate: string; phone: string; photoUrl: string | null; note: string | null; commissionPct: number | null; basePct: number; markupPct: number | null; date: string }
 interface KAssociate { id: string; name: string; phone: string; code: string; photoUrl: string | null; sales: number; pending: number; available: number; paid: number; requested: number; balance: number }
 interface KSale { orderNumber: string; product: string; quantity: number; amount: number; associate: string; code: string; date: string }
-interface KWithdrawal { id: string; name: string; code?: string; amount: number; method: string; details: string | null; status: string; note: string | null; proofUrl: string | null; date: string; dueAt?: string; escalation?: string | null; extendedUntil?: string | null; refundRef?: string | null }
+interface KWithdrawal { postponedAt?: string | null; id: string; name: string; code?: string; amount: number; method: string; details: string | null; status: string; note: string | null; proofUrl: string | null; date: string; dueAt?: string; escalation?: string | null; extendedUntil?: string | null; refundRef?: string | null }
 /** Tempo que falta até `iso` (null se já passou). */
 const left = (iso: string | null | undefined, now: number) => { if (!iso) return null; const s = Math.floor((new Date(iso).getTime() - now) / 1000); if (s <= 0) return null; const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h >= 24 ? `${Math.floor(h / 24)} d ${h % 24} h` : `${h} h ${String(m).padStart(2, '0')} min`; };
 interface KChat { associateId: string; name: string; phone: string; photoUrl: string | null; last: string; at: string; unread: number }
@@ -319,9 +319,15 @@ function Withdrawals({ onChange }: { onChange(): void }) {
   const [paying, setPaying] = useState<KWithdrawal | null>(null);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(t); }, []);
-  const reject = async (w: KWithdrawal) => {
-    if (!(await confirmDialog({ message: `Recusar o saque de ${kz(w.amount)} a ${w.name}?`, danger: true }))) return;
-    try { await api.kwanza.reject(w.id); toast.success('Saque recusado'); await load(); onChange(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível.'); }
+  // A empresa não recusa saques: adia uma vez, com motivo e nova data (até 7 dias depois do prazo).
+  const [rejecting, setRejecting] = useState<KWithdrawal | null>(null);
+  const [why, setWhy] = useState('');
+  const [until, setUntil] = useState('');
+  const localInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  const reject = (w: KWithdrawal) => { setWhy(''); setUntil(localInput(new Date(new Date(w.dueAt ?? w.date).getTime() + 2 * 86_400_000))); setRejecting(w); };
+  const doReject = async () => {
+    if (!rejecting) return;
+    try { await api.kwanza.postpone(rejecting.id, why.trim(), new Date(until).toISOString()); toast.success('Saque adiado'); setRejecting(null); await load(); onChange(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível.'); setRejecting(null); }
   };
   return (
     <>
@@ -337,15 +343,25 @@ function Withdrawals({ onChange }: { onChange(): void }) {
                 <td>{w.status === 'REQUESTED' ? (() => { const l = left(w.extendedUntil ?? w.dueAt, now); return (
                   <span className={`kz-sla${l ? '' : ' late'}${w.escalation ? ' esc' : ''}`}>
                     <b>{l ?? 'Prazo ultrapassado'}</b>
-                    <small>{w.escalation === 'NOTIFIED' ? `Aviso da equipa LPS Kwanza · até ${dt(w.extendedUntil ?? null)}` : w.escalation === 'OPEN' ? 'O associado reclamou à equipa LPS Kwanza' : `Até ${dt(w.dueAt ?? null)}`}</small>
-                  </span>); })() : w.status === 'REFUNDED' ? <span className="kz-sla late"><b>Reembolsado pela plataforma</b>{w.refundRef ? <small>Ref. {w.refundRef}</small> : null}</span> : <span className="sub">—</span>}</td>
+                    <small>{w.escalation === 'NOTIFIED' ? `Aviso da equipa LPS Kwanza · até ${dt(w.extendedUntil ?? null)}` : w.escalation === 'OPEN' ? 'O associado reclamou à equipa LPS Kwanza' : `${w.postponedAt ? 'Adiado · ' : ''}até ${dt(w.dueAt ?? null)}`}</small>
+                  </span>); })() : w.status === 'REJECTED' && w.escalation ? <span className="kz-sla esc"><b>Recusa contestada</b><small>{w.escalation === 'NOTIFIED' ? 'Aviso da equipa LPS Kwanza: reveja com o associado' : 'O associado contestou junto da equipa LPS Kwanza'}</small></span> : w.status === 'REFUNDED' ? <span className="kz-sla late"><b>Reembolsado pela plataforma</b>{w.refundRef ? <small>Ref. {w.refundRef}</small> : null}</span> : <span className="sub">—</span>}</td>
                 <td className="ctr"><span className={`vd-badge ${ST[w.status]?.[1] ?? 'mute'}`}>{ST[w.status]?.[0] ?? 'Recusado'}</span>{w.proofUrl ? <a className="vd-link sub" href={w.proofUrl} target="_blank" rel="noopener noreferrer" download>Comprovativo</a> : null}</td>
-                <td className="ctr">{w.status === 'REQUESTED' ? <div className="kz-acts"><button className="vd-btn sm" onClick={() => setPaying(w)}>Marcar como pago</button>{w.escalation === 'OPEN' || w.escalation === 'NOTIFIED' ? null : <button className="vd-btn danger sm" onClick={() => void reject(w)}>Recusar</button>}</div> : null}</td>
+                <td className="ctr">{w.status === 'REQUESTED' ? <div className="kz-acts"><button className="vd-btn sm" onClick={() => setPaying(w)}>Marcar como pago</button>{w.escalation === 'OPEN' || w.escalation === 'NOTIFIED' || w.postponedAt ? null : <button className="vd-btn outline sm" onClick={() => reject(w)}>Adiar</button>}</div> : null}</td>
               </tr>
             ))}</tbody>
           </table></div>
         )}
       </div>
+      {rejecting ? (
+        <Modal title="Adiar saque" onClose={() => setRejecting(null)}>
+          <div className="kz-reject">
+            <p><b>{kz(rejecting.amount)}</b> · {rejecting.name}{rejecting.code ? ` (${rejecting.code})` : ''}</p>
+            <div className="field"><label>Motivo do adiamento</label><textarea rows={3} maxLength={300} value={why} onChange={(e) => setWhy(e.target.value)} autoFocus /></div>
+            <div className="field"><label>Pagar até</label><input type="datetime-local" value={until} min={localInput(new Date(Date.now() + 3_600_000))} max={localInput(new Date(new Date(rejecting.dueAt ?? rejecting.date).getTime() + 7 * 86_400_000))} onChange={(e) => setUntil(e.target.value)} /></div>
+            <div className="kz-acts" style={{ justifyContent: 'flex-end' }}><button className="vd-btn outline" onClick={() => setRejecting(null)}>Cancelar</button><button className="vd-btn" disabled={why.trim().length < 10 || !until} onClick={() => void doReject()}>Adiar saque</button></div>
+          </div>
+        </Modal>
+      ) : null}
       {paying ? <Pay w={paying} onClose={() => setPaying(null)} onDone={() => { setPaying(null); toast.success('Saque marcado como pago'); void load(); onChange(); }} /> : null}
     </>
   );

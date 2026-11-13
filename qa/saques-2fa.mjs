@@ -178,10 +178,13 @@ R.check('BN-5', 'Super Admin: empresa na lista de banidas com a dívida do reemb
 const refNote = (await pub.query(`SELECT 1 FROM nexus_public.kwanza_notifications n JOIN nexus_public.kwanza_associates a ON a.id = n."associateId" WHERE a.code = $1 AND n.kind = 'WITHDRAWAL_REFUNDED'`, [A.code])).rows;
 const banNote = (await co.db.query(`SELECT 1 FROM admin_notifications WHERE kind = 'KWANZA_BANNED'`)).rows;
 R.check('BN-6', 'associado e empresa notificados do reembolso e do banimento', refNote.length === 1 && banNote.length >= 1);
+const unbanEarly = await call('POST', `/super-admin/kwanza/bans/${bRow.companyId}/lift`, { token: SA });
+R.check('BN-6b', 'reativar antes de 15 dias é recusado (o painel mostra a data)', unbanEarly.status === 400 && !bRow.canLift && !!bRow.liftAt, unbanEarly.body?.message);
+await pub.query(`UPDATE nexus_public.kwanza_bans SET "createdAt" = now() - interval '16 days' WHERE "companyId" = $1`, [bRow.companyId]);
 const unban = await call('POST', `/super-admin/kwanza/bans/${bRow.companyId}/lift`, { token: SA });
 await ok('PATCH', `${AK}/products/${co.prod.code}`, { token: co.adm, body: { published: true, percent: 20, mode: 'OPEN', allowMarkup: false, maxMarkupPct: null, materials: [] } });
 const mk3 = (await ok('GET', `${K}/market`, { token: A.token })).filter((l) => l.companyCode === co.code);
-R.check('BN-7', 'readmissão pelo Super Admin: a empresa volta a publicar', unban.status === 200 && mk3.length >= 1, `${unban.status} ${mk3.length}`);
+R.check('BN-7', 'passados 15 dias o Super Admin reativa: a empresa volta a publicar', unban.status === 200 && mk3.length >= 1, `${unban.status} ${mk3.length}`);
 
 /* ═══════════ 4b. publicações: cada associado só edita a sua; stock e fotos do produto ═══════════ */
 {

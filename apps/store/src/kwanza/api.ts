@@ -37,7 +37,7 @@ export interface Dashboard {
   code: string; pending: number; available: number; withdrawn: number; requested: number; balance: number; companies: CompanyBalance[];
   sales: { companyCode: string; companyName: string; orderNumber: string; product: string; quantity: number; amount: number; date: string; state: 'PENDING' | 'AVAILABLE' | 'CANCELLED'; orderStatus?: string; paymentClaimed?: boolean; updatedAt?: string }[];
   withdrawals: { id: string; companyCode: string; companyName: string; amount: number; method: string; details: string | null; status: string; note: string | null; proofUrl: string | null; date: string;
-    dueAt?: string; escalation?: string | null; extendedUntil?: string | null; complainedAt?: string | null; refundRef?: string | null; decidedAt?: string | null }[];
+    dueAt?: string; postponedAt?: string | null; escalation?: string | null; extendedUntil?: string | null; complainedAt?: string | null; refundRef?: string | null; decidedAt?: string | null }[];
 }
 export interface PayoutAccount { id: string; method: string; bank: string | null; holder: string; details: string; createdAt: string }
 export interface KNote { id: string; kind: string; title: string; body: string | null; link: string | null; read: boolean; createdAt: string }

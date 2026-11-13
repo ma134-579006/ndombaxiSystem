@@ -760,25 +760,48 @@ function Kpi({ label, value, sub, tone = '' }: { label: string; value: string; s
 }
 
 /** Calendário do mês (como no painel do Kikolo): hoje marcado, dias futuros esbatidos. */
-function MonthCal() {
+/** Calendário do painel: escolhe um dia ou um intervalo (2 cliques) para filtrar o desempenho. */
+type Range = { from: Date; to: Date } | null;
+const dayKey = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+function MonthCal({ marks, sel, onSel }: { marks: Set<string>; sel: Range; onSel(r: Range): void }) {
   const [ref, setRef] = useState(() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1); });
+  const [anchor, setAnchor] = useState<Date | null>(null);
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const start = new Date(ref); const wd = (start.getDay() + 6) % 7; start.setDate(1 - wd);
   const days = Array.from({ length: 42 }, (_, i) => { const x = new Date(start); x.setDate(start.getDate() + i); return x; });
   const label = ref.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
+  const pick = (x: Date) => {
+    if (x > today) return;
+    if (anchor && !(sel && sel.from.getTime() !== sel.to.getTime())) {
+      const [a, b] = anchor <= x ? [anchor, x] : [x, anchor];
+      onSel({ from: a, to: b }); setAnchor(null);
+    } else { onSel({ from: x, to: x }); setAnchor(x); }
+  };
+  const inSel = (x: Date) => !!sel && x >= sel.from && x <= sel.to;
   return (
     <div className="kk-cal">
-      <div className="kk-cal-h"><button onClick={() => setRef(new Date(ref.getFullYear(), ref.getMonth() - 1, 1))} aria-label="Mês anterior"><I d={P.back} size={16} /></button><b>{label}</b>
-        <button onClick={() => setRef(new Date(ref.getFullYear(), ref.getMonth() + 1, 1))} disabled={ref.getFullYear() === today.getFullYear() && ref.getMonth() === today.getMonth()} aria-label="Mês seguinte"><I d={P.next} size={16} /></button></div>
-      <div className="kk-cal-g">{['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map((w) => <small key={w}>{w}</small>)}
-        {days.map((x) => <span key={x.toISOString()} className={`${x.getMonth() !== ref.getMonth() ? 'out ' : ''}${x.getTime() === today.getTime() ? 'today ' : ''}${x > today ? 'future' : ''}`}>{x.getDate()}</span>)}</div>
+      <div className="kk-cal-h"><button type="button" onClick={() => setRef(new Date(ref.getFullYear(), ref.getMonth() - 1, 1))} aria-label="Mês anterior"><I d={P.back} size={16} /></button><b>{label}</b>
+        <button type="button" onClick={() => setRef(new Date(ref.getFullYear(), ref.getMonth() + 1, 1))} disabled={ref.getFullYear() === today.getFullYear() && ref.getMonth() === today.getMonth()} aria-label="Mês seguinte"><I d={P.next} size={16} /></button></div>
+      <div className="kk-cal-g" role="grid">{['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map((w) => <small key={w}>{w}</small>)}
+        {days.map((x) => {
+          const fut = x > today;
+          const cls = `${x.getMonth() !== ref.getMonth() ? 'out ' : ''}${x.getTime() === today.getTime() ? 'today ' : ''}${fut ? 'future ' : ''}${inSel(x) ? 'sel ' : ''}${sel && (x.getTime() === sel.from.getTime() || x.getTime() === sel.to.getTime()) ? 'edge ' : ''}${marks.has(dayKey(x)) ? 'has' : ''}`;
+          return <button type="button" key={x.toISOString()} className={cls} disabled={fut} aria-pressed={inSel(x)} aria-label={x.toLocaleDateString('pt-PT')} onClick={() => pick(x)}>{x.getDate()}</button>;
+        })}</div>
+      {sel ? <button type="button" className="kk-cal-clear" onClick={() => { onSel(null); setAnchor(null); }}>Limpar filtro</button> : null}
     </div>
   );
 }
 
 function Panel({ d, go, products, banner }: { d: Dashboard | null; go(r: Route): void; products: MP[]; banner?: KBanner }) {
   const [byViews, setByViews] = useState(true);
+  const [sel, setSel] = useState<Range>(null);
+  const marks = useMemo(() => new Set((d?.sales ?? []).filter((s) => s.state !== 'CANCELLED').map((s) => dayKey(new Date(s.date)))), [d]);
+  const inRange = (iso: string) => { if (!sel) return true; const x = new Date(iso); const end = new Date(sel.to); end.setDate(end.getDate() + 1); return x >= sel.from && x < end; };
+  const ranged = (d?.sales ?? []).filter((s) => inRange(s.date));
   const valid = (d?.sales ?? []).filter((s) => s.state !== 'CANCELLED');
+  const rValid = ranged.filter((s) => s.state !== 'CANCELLED');
+  const rLabel = sel ? (sel.from.getTime() === sel.to.getTime() ? sel.from.toLocaleDateString('pt-PT') : `${sel.from.toLocaleDateString('pt-PT')} – ${sel.to.toLocaleDateString('pt-PT')}`) : '';
   const since = (days: number) => valid.filter((s) => new Date(s.date).getTime() >= Date.now() - days * 86400000).reduce((a, s) => a + s.amount, 0);
   const today = (() => { const t = new Date(); t.setHours(0, 0, 0, 0); return valid.filter((s) => new Date(s.date) >= t).reduce((a, s) => a + s.amount, 0); })();
   const yesterday = (() => { const t = new Date(); t.setHours(0, 0, 0, 0); const y = new Date(t); y.setDate(t.getDate() - 1); return valid.filter((s) => { const x = new Date(s.date); return x >= y && x < t; }).reduce((a, s) => a + s.amount, 0); })();
@@ -786,8 +809,8 @@ function Panel({ d, go, products, banner }: { d: Dashboard | null; go(r: Route):
   const total = (d?.withdrawn ?? 0) + (d?.balance ?? 0) + (d?.pending ?? 0);
   const ring = total > 0 ? (d?.withdrawn ?? 0) / total : 0;
   const top = [...products].sort((a, b) => (byViews ? (b.views ?? 0) - (a.views ?? 0) : com(b.listing) - com(a.listing))).slice(0, 8);
-  const done = (d?.sales ?? []).filter((s) => s.state === 'AVAILABLE');
-  const cancelled = (d?.sales ?? []).filter((s) => s.state === 'CANCELLED');
+  const done = ranged.filter((s) => s.state === 'AVAILABLE');
+  const cancelled = ranged.filter((s) => s.state === 'CANCELLED');
   return (
     <div className="kk-dash">
       {banner ? <img className="kk-dash-ad" src={bannerSrc(banner)!} alt="" /> : null}
@@ -801,22 +824,30 @@ function Panel({ d, go, products, banner }: { d: Dashboard | null; go(r: Route):
           <div className="kk-stat"><span className="kk-stat-ic soft"><I d={P.box} size={20} /></span><div><small>Saldo pendente</small><b>{kz(d?.requested ?? 0)}</b></div></div>
         </div>
         <div className="kk-bal-perf">
-          <MonthCal />
+          <MonthCal marks={marks} sel={sel} onSel={setSel} />
           <div className="kk-perf">
-            <h3>Desempenho de vendas</h3>
+            <h3>Desempenho de vendas{sel ? <span className="kk-perf-range">{rLabel}</span> : null}</h3>
             <div className="kk-perf-in">
-              <div className="kk-perf-l">
-                <div><small>Hoje <em className={trend < 0 ? 'down' : 'up'}>{trend}%</em></small><b className="o">{kz(today)}</b></div>
-                <div><small>Total últimos 7 dias</small><b className="o">{kz(since(7))}</b></div>
-                <div><small>Total últimos 30 dias</small><b>{kz(since(30))}</b></div>
-              </div>
+              {sel ? (
+                <div className="kk-perf-l">
+                  <div><small>Comissões no período</small><b className="o">{kz(rValid.reduce((a, s) => a + s.amount, 0))}</b></div>
+                  <div><small>Vendas no período</small><b className="o">{rValid.length}</b></div>
+                  <div><small>Já disponível</small><b>{kz(done.reduce((a, s) => a + s.amount, 0))}</b></div>
+                </div>
+              ) : (
+                <div className="kk-perf-l">
+                  <div><small>Hoje <em className={trend < 0 ? 'down' : 'up'}>{trend}%</em></small><b className="o">{kz(today)}</b></div>
+                  <div><small>Total últimos 7 dias</small><b className="o">{kz(since(7))}</b></div>
+                  <div><small>Total últimos 30 dias</small><b>{kz(since(30))}</b></div>
+                </div>
+              )}
               <div className="kk-ring"><svg viewBox="0 0 120 120" width="150" height="150"><circle cx="60" cy="60" r="50" fill="none" stroke="var(--kk-ring)" strokeWidth="12" />{ring > 0 ? <circle cx="60" cy="60" r="50" fill="none" stroke="var(--kk-p)" strokeWidth="12" strokeLinecap="round" strokeDasharray={`${ring * 314} 314`} transform="rotate(-90 60 60)" /> : null}</svg><div><b>{kz(d?.withdrawn ?? 0)}</b><small>Total já retirado</small></div></div>
             </div>
           </div>
         </div>
         <div className="kk-bal-sum">
           <div><span>Vendas completas :</span><b className="ok">{kz(done.reduce((a, s) => a + s.amount, 0))}</b></div>
-          <div><span>Número de vendas :</span><b>{valid.length}</b></div>
+          <div><span>Número de vendas{sel ? ` (${rLabel})` : ''} :</span><b>{rValid.length}</b></div>
           <div><span>Vendas canceladas :</span><b>{cancelled.length}</b></div>
         </div>
       </Sec>
@@ -955,19 +986,27 @@ function Withdraw({ token, d, onDone, go }: { token: string; d: Dashboard | null
             const late = waiting && !!w.dueAt && !left;
             return (
               <div className={`kk-sale kw-wd${late ? ' late' : ''}`} key={w.id}>
-                <div className="kk-sale-m"><b>{w.companyName}</b><small>{w.method}{w.details ? ` · ${w.details}` : ''} · {formatDateTime(w.date)}</small>{w.note ? <small>{w.note}</small> : null}
+                <div className="kk-sale-m"><b>{w.companyName}</b><small>{w.method}{w.details ? ` · ${w.details}` : ''} · {formatDateTime(w.date)}</small>{w.note ? <small className={w.status === 'REJECTED' || (waiting && w.postponedAt) ? 'kw-reason' : undefined}>{w.status === 'REJECTED' ? `Motivo da recusa: ${w.note}` : waiting && w.postponedAt ? `Motivo do adiamento: ${w.note}` : w.note}</small> : null}
                   {waiting ? (
                     <div className="kw-sla">
                       {w.escalation === 'OPEN' ? <span className="kw-sla-chip esc">Reclamação enviada à equipa LPS Kwanza</span>
                         : w.escalation === 'NOTIFIED' ? <span className="kw-sla-chip esc">Empresa avisada{left ? ` · ${left} para pagar` : ''}</span>
-                        : left ? <span className="kw-sla-chip">Prazo da empresa · {left}</span> : <span className="kw-sla-chip late">Prazo ultrapassado</span>}
-                      {late && !w.escalation ? <button type="button" className="kw-sla-btn" onClick={() => { setClaim(w.id); setClaimErr(null); }}>Reclamar</button> : null}
+                        : left ? <span className="kw-sla-chip">{w.postponedAt ? 'Adiado pela empresa' : 'Prazo da empresa'} · {left}</span> : <span className="kw-sla-chip late">Prazo ultrapassado</span>}
+                      {(late || w.postponedAt) && !w.escalation ? <button type="button" className="kw-sla-btn" onClick={() => { setClaim(w.id); setClaimErr(null); }}>{w.postponedAt && !late ? 'Contestar o adiamento' : 'Reclamar'}</button> : null}
+                    </div>
+                  ) : null}
+                  {w.status === 'REJECTED' ? (
+                    <div className="kw-sla">
+                      {w.escalation === 'OPEN' ? <span className="kw-sla-chip esc">Contestação enviada à equipa LPS Kwanza</span>
+                        : w.escalation === 'NOTIFIED' ? <span className="kw-sla-chip esc">A equipa LPS Kwanza avisou a empresa</span>
+                        : w.escalation === 'RESOLVED' ? <span className="kw-sla-chip">Contestação encerrada</span>
+                        : <button type="button" className="kw-sla-btn" onClick={() => { setClaim(w.id); setClaimErr(null); setClaimTx(''); }}>Contestar a recusa</button>}
                     </div>
                   ) : null}
                   {w.status === 'REFUNDED' ? <small className="kw-sla-ok">Reembolsado pela equipa LPS Kwanza{w.refundRef ? ` · ref. ${w.refundRef}` : ''}</small> : null}
                   {claim === w.id ? (
                     <div className="kw-claim">
-                      <textarea rows={2} maxLength={600} value={claimTx} onChange={(e) => setClaimTx(e.target.value)} placeholder="Descreva o que aconteceu" aria-label="Reclamação" />
+                      <textarea rows={2} maxLength={600} value={claimTx} onChange={(e) => setClaimTx(e.target.value)} placeholder={d.withdrawals.find((x) => x.id === claim)?.status === 'REJECTED' ? 'Porque não concorda com a recusa?' : 'Descreva o que aconteceu'} aria-label="Reclamação" />
                       {claimErr ? <div className="kw-err">{claimErr}</div> : null}
                       <div className="kw-tf-act"><button type="button" className="kw-btn" onClick={() => setClaim(null)}>Cancelar</button><button type="button" className="kw-btn kw-btn-primary" disabled={busy} onClick={() => void complain(w.id)}>Enviar reclamação</button></div>
                     </div>

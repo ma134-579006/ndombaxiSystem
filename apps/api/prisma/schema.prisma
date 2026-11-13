@@ -734,6 +734,8 @@ model KwanzaWithdrawal {
   adminNote     String?
   refundedAt    DateTime?
   refundRef     String?
+  /// Adiamento pela empresa (uma vez, com motivo em `note`): a empresa não recusa, adia.
+  postponedAt   DateTime?
 
   @@index([associateId])
   @@index([companyId, status])

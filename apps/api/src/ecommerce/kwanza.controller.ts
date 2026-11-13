@@ -106,6 +106,7 @@ class BulkListingDto {
 }
 class DecideDto { @IsOptional() @IsIn(['APPROVED', 'REJECTED']) status?: 'APPROVED' | 'REJECTED'; @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(90) commissionPct?: number | null; }
 class MsgAdminDto { @IsString() @MaxLength(2000) body!: string; }
+class PostponeDto { @IsString() @MaxLength(300) note!: string; @IsString() @MaxLength(40) until!: string; }
 class PayDto { @IsOptional() @IsString() @MaxLength(300) note?: string; @IsOptional() @IsString() @MaxLength(3_000_000) proofUrl?: string; }
 
 /** LPS Kwanza no painel LPS Vendas de cada empresa: produtos publicados, pedidos, associados e saques. */
@@ -145,6 +146,8 @@ export class KwanzaAdminController {
   async withdrawals() { return this.k.companyWithdrawals((await this.tenant()).companyId); }
   @Post('withdrawals/:id/pay') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Marca o saque como pago (com comprovativo)' })
   async pay(@Param('id') id: string, @Body() d: PayDto) { return this.k.decideWithdrawal((await this.tenant()).companyId, id, true, d.note, d.proofUrl); }
-  @Post('withdrawals/:id/reject') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Recusa o saque' })
+  @Post('withdrawals/:id/reject') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Recusar já não é permitido (use adiar)' })
   async reject(@Param('id') id: string, @Body() d: PayDto) { return this.k.decideWithdrawal((await this.tenant()).companyId, id, false, d.note); }
+  @Post('withdrawals/:id/postpone') @Roles(Role.STORE_MANAGER) @ApiOperation({ summary: 'Adia o saque (uma vez, com motivo e nova data)' })
+  async postpone(@Param('id') id: string, @Body() d: PostponeDto) { return this.k.postponeWithdrawal((await this.tenant()).companyId, id, d.note, d.until); }
 }
