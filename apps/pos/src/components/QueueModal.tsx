@@ -29,7 +29,7 @@ function shortTime(iso: string): string {
  * servidor; aqui nunca se inventa numeração fiscal.
  */
 export function QueueModal({ onClose }: Props) {
-  const { online, syncing } = useSync();
+  const { online } = useSync();
   const [sales, setSales] = useState<PendingSale[]>([]);
   const [busy, setBusy] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,12 +64,12 @@ export function QueueModal({ onClose }: Props) {
     }
   };
 
-  const syncAll = async () => {
-    await syncController.flush();
-    await refresh();
-  };
-
-  const hasRetryable = sales.some((s) => s.status !== 'SYNCING');
+  // Sem botão de sincronizar: a fila sobe sozinha quando a ligação volta (ver offline/sync.ts).
+  // Vendas que sobem saem da lista — atualiza enquanto a janela está aberta.
+  useEffect(() => {
+    const t = window.setInterval(() => { void refresh(); }, 5_000);
+    return () => window.clearInterval(t);
+  }, [refresh]);
 
   return (
     <VWindow titleNode={<>Fila de vendas offline {sales.length > 0 ? <span className="muted">· {sales.length}</span> : null}</>} title="Fila de vendas offline  : null}" onClose={onClose}>
@@ -115,12 +115,12 @@ export function QueueModal({ onClose }: Props) {
                     <div className="q-error">{s.lastError}</div>
                   ) : null}
 
-                  <div className="q-actions">
+                  {s.status === 'ERROR' ? <div className="q-actions">
                     <button
                       className="btn ghost"
                       style={{ height: 42, flex: 1 }}
                       onClick={() => s.id != null && retry(s.id)}
-                      disabled={!online || busy === s.id || s.status === 'SYNCING'}
+                      disabled={!online || busy === s.id}
                     >
                       <IconSync size={16} className={busy === s.id ? 'spin' : undefined} />{' '}
                       {busy === s.id ? 'A emitir…' : 'Reemitir'}
@@ -134,14 +134,10 @@ export function QueueModal({ onClose }: Props) {
                     >
                       <IconTrash size={16} />
                     </button>
-                  </div>
+                  </div> : null}
                 </div>
               ))}
 
-              <button className="btn block" onClick={syncAll} disabled={!online || syncing || !hasRetryable}>
-                <IconSync size={18} className={syncing ? 'spin' : undefined} />{' '}
-                {syncing ? 'A sincronizar…' : 'Sincronizar tudo'}
-              </button>
             </>
           )}
         </div>

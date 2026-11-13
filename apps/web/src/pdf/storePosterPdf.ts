@@ -19,6 +19,8 @@ export interface StorePosterArgs {
   contactPhone?: string;
   contactEmail?: string;
   address?: string;
+  /** 'online' = loja online; 'associados' = loja reservada aos associados (/<código>/associados). */
+  kind?: 'online' | 'associados';
 }
 
 type RGB = [number, number, number];
@@ -65,6 +67,7 @@ export async function buildStorePosterPdf(a: StorePosterArgs): Promise<jsPDF> {
   const phone = a.contactPhone || a.identity?.phone || '';
   const email = a.contactEmail || a.identity?.email || '';
   const addr = a.address || a.identity?.address || '';
+  const members = a.kind === 'associados';
 
   // ── Faixa de topo (cor da marca) ─────────────────────────────────────────
   doc.setFillColor(...brand);
@@ -86,9 +89,11 @@ export async function buildStorePosterPdf(a: StorePosterArgs): Promise<jsPDF> {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
   doc.text(empresa.toUpperCase(), tx, 54, { charSpace: 0.4 });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(24);
-  doc.text(doc.splitTextToSize(a.storeName || 'A nossa loja online', W - tx - M)[0], tx, 82);
+  doc.text(doc.splitTextToSize(members ? `${a.storeName || 'A nossa loja'} · Associados` : a.storeName || 'A nossa loja online', W - tx - M)[0], tx, 82);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
-  const desc = (a.tagline && a.tagline.trim()) || 'Compre online — rápido, sem filas e com entrega em Angola.';
+  const desc = members
+    ? 'Loja exclusiva para associados — compre online, sem filas e com entrega em Angola.'
+    : (a.tagline && a.tagline.trim()) || 'Compre online — rápido, sem filas e com entrega em Angola.';
   doc.text(doc.splitTextToSize(desc, W - tx - M).slice(0, 2), tx, 102);
 
   // ── QR em alta resolução, dentro de cartão arredondado ───────────────────
@@ -153,8 +158,21 @@ export async function buildStorePosterPdf(a: StorePosterArgs): Promise<jsPDF> {
     'Coloque o QR em cartões, faturas e montras.',
     'Peça ao cliente para apontar a câmara ao QR.',
   ];
-  const yL = section(leftX, 'Benefícios da loja online', benefits);
-  const yR = section(rightX, 'Como partilhar', share);
+  const mBenefits = [
+    'Loja reservada aos associados aprovados.',
+    'Produtos e anúncios só para associados.',
+    'Fatura certificada AGT em cada compra.',
+    'Pagamento por referência (Multicaixa Express).',
+    'Compra simples pelo telemóvel.',
+  ];
+  const mShare = [
+    'Envie o link por WhatsApp aos associados.',
+    'Imprima este cartaz e cole na loja física.',
+    'O cliente pede adesão e a empresa aprova.',
+    'Aponte a câmara do telemóvel ao QR.',
+  ];
+  const yL = section(leftX, members ? 'Benefícios da loja de associados' : 'Benefícios da loja online', members ? mBenefits : benefits);
+  const yR = section(rightX, 'Como partilhar', members ? mShare : share);
   y = Math.max(yL, yR) + 8;
 
   // ── Contactos ────────────────────────────────────────────────────────────
@@ -165,7 +183,7 @@ export async function buildStorePosterPdf(a: StorePosterArgs): Promise<jsPDF> {
   ].filter(Boolean);
   if (contacts.length) {
     doc.setFillColor(...LIGHT);
-    const boxH = 22 + contacts.length * 15;
+    const boxH = 30 + contacts.length * 15;
     doc.roundedRect(M, y, W - 2 * M, boxH, 12, 12, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...INK);
     doc.text('Contactos', M + 14, y + 18);
@@ -180,14 +198,14 @@ export async function buildStorePosterPdf(a: StorePosterArgs): Promise<jsPDF> {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...brand);
   doc.text(empresa, M, fy + 18);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(170, 178, 190);
-  doc.text('Loja online segura · Gerado por LPS Vendas', W - M, fy + 18, { align: 'right' });
+  doc.text(members ? 'Loja de associados segura · Gerado por LPS Vendas' : 'Loja online segura · Gerado por LPS Vendas', W - M, fy + 18, { align: 'right' });
 
   return doc;
 }
 
 /** Nome de ficheiro seguro para o PDF do cartaz. */
-export function posterFileName(storeName: string): string {
+export function posterFileName(storeName: string, kind: 'online' | 'associados' = 'online'): string {
   const slug = (storeName || 'loja').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'loja';
-  return `loja-online-${slug}.pdf`;
+  return `${kind === 'associados' ? 'loja-associados' : 'loja-online'}-${slug}.pdf`;
 }

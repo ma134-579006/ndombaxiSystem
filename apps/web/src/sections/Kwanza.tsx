@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import { confirmDialog, readFileProgress, toast } from '../components/feedback';
+import { confirmDialog, readFileProgress, runTransfer, toast } from '../components/feedback';
 import { Modal, Switch } from '../components/ui';
 import { STORE_URL } from '../config';
 import { useAuth } from '../auth/AuthContext';
@@ -30,6 +30,15 @@ export function Kwanza({ onGo }: { onGo?(section: string): void } = {}) {
   const [tab, setTab] = useState<Tab>(() => { try { return (sessionStorage.getItem('ndombaxi.kwanza.tab') as Tab) || 'products'; } catch { return 'products'; } });
   const [stats, setStats] = useState<{ pub: number; req: number; assoc: number; pay: number; unread: number } | null>(null);
   const [banned, setBanned] = useState<{ reason: string } | null>(null);
+  const [posterBusy, setPosterBusy] = useState(false);
+  const printMembers = async () => {
+    if (!companyCode || posterBusy) return;
+    setPosterBusy(true);
+    try {
+      const { downloadMembersPoster } = await import('../pdf/membersPoster');
+      await runTransfer({ title: 'A gerar o cartaz em PDF', kind: 'generate', task: () => downloadMembersPoster(companyCode) });
+    } catch { toast.error('Não foi possível gerar o PDF do cartaz.'); } finally { setPosterBusy(false); }
+  };
   useEffect(() => { api.kwanza.banks().then((r) => setBanned(r.banned)).catch(() => undefined); }, []);
   const go = (t: Tab) => { setTab(t); try { sessionStorage.setItem('ndombaxi.kwanza.tab', t); } catch { /* */ } };
   const loadStats = useCallback(async () => {
@@ -64,6 +73,7 @@ export function Kwanza({ onGo }: { onGo?(section: string): void } = {}) {
         <span className="spacer" />
         <a className="vd-btn" href={`${base}/kwanza`} target="_blank" rel="noopener noreferrer">Abrir o marketplace</a>
         {companyCode ? <a className="vd-btn outline" href={`${base}/${companyCode}/associados`} target="_blank" rel="noopener noreferrer">Abrir a loja de associados</a> : null}
+        {companyCode ? <button className="vd-btn outline" onClick={() => void printMembers()} disabled={posterBusy}>{posterBusy ? 'A gerar…' : 'Imprimir loja de associados (PDF)'}</button> : null}
       </div>
       {banned ? <div className="kz-ban" role="alert"><b>Empresa banida do LPS Kwanza</b><span>{banned.reason}. Os produtos estão fora do marketplace até a equipa do LPS Kwanza readmitir a empresa.</span></div> : null}
       <div className="kz-kpis">
