@@ -472,6 +472,7 @@ const PAY_ICONS: Array<[string, string]> = [[P.card, 'Numerário na entrega'], [
 
 function Product({ listing: l, loading, refCode, sess, go, flash, card, products }: { listing: Listing | null; loading: boolean; refCode?: string; sess: ReturnType<typeof session.get>; go(r: Route): void; flash(t: string): void; card(p: CatalogProduct): React.ReactNode; products: MP[] }) {
   const [img, setImg] = useState(0);
+  const swipe = useRef<number | null>(null);
   const [aff, setAff] = useState<Affiliation | null | undefined>(undefined);
   const [mk, setMk] = useState('');
   const [editing, setEditing] = useState(false);
@@ -515,7 +516,16 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
         <div className="kk-pdp-top">
           <div className="kk-gal">
             {pics.length > 1 ? <div className="kk-thumbs">{pics.map((u, i) => <button key={u} className={i === img ? 'on' : ''} onMouseEnter={() => setImg(i)} onClick={() => setImg(i)} aria-label={`Imagem ${i + 1}`}><img src={u} alt="" loading="lazy" /></button>)}</div> : null}
-            <div className="kk-gal-main">{pics.length ? <img src={pics[img] ?? pics[0]} alt={l.name} /> : <Pic p={toMP(l)} />}</div>
+            <div className="kk-gal-main" onTouchStart={(e) => { swipe.current = e.touches[0].clientX; }}
+              onTouchEnd={(e) => { const x0 = swipe.current; swipe.current = null; if (x0 == null || pics.length < 2) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) setImg((i) => (i + (dx < 0 ? 1 : -1) + pics.length) % pics.length); }}>
+              {pics.length ? <img src={pics[img] ?? pics[0]} alt={l.name} /> : <Pic p={toMP(l)} />}
+              {pics.length > 1 ? <>
+                <button type="button" className="kk-gal-nav prev" aria-label="Imagem anterior" onClick={() => setImg((i) => (i - 1 + pics.length) % pics.length)}><I d={P.back} size={18} /></button>
+                <button type="button" className="kk-gal-nav next" aria-label="Imagem seguinte" onClick={() => setImg((i) => (i + 1) % pics.length)}><I d={P.next} size={18} /></button>
+                <span className="kk-gal-dots">{pics.map((u, i) => <i key={u} className={i === img ? 'on' : ''} />)}</span>
+                <span className="kk-gal-n">{img + 1}/{pics.length}</span>
+              </> : null}
+            </div>
           </div>
           <div className="kk-info">
             <h1>{l.name}</h1>
@@ -534,7 +544,6 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
             <div className="kk-paybox"><h3>Formas de pagamento</h3><div className="kk-payicons">{PAY_ICONS.map(([ic, t]) => <span key={t}><I d={ic} size={20} /><small>{t}</small></span>)}</div></div>
             {post ? <div className="kk-post-by"><span className="kk-avatar big">{post.associate!.photoUrl ? <img src={post.associate!.photoUrl} alt="" /> : <b>{post.associate!.name.slice(0, 1).toUpperCase()}</b>}</span><div><small>Publicado por</small><b>{post.associate!.name}</b></div></div> : null}
             {post?.caption ? <p className="kk-cap">{post.caption}</p> : null}
-            {post?.postImages?.length ? <div className="kk-post-imgs"><small>Imagens do associado</small><div>{post.postImages.map((u, i) => <a key={i} href={u} target="_blank" rel="noopener noreferrer"><img src={u} alt="" loading="lazy" /></a>)}</div></div> : null}
             <div className="kk-buy-desk">
               {l.inStock ? <div className="kk-buybtns"><button className="kk-btn-add" onClick={() => addToCart(false)}><I d={P.cart} size={18} /> Adicionar ao carrinho</button><button className="kk-btn-buy" onClick={() => addToCart(true)}>Comprar</button></div> : <span className="kw-pill kw-st-CANCELLED">Esgotado</span>}
             </div>

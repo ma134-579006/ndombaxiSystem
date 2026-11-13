@@ -243,14 +243,41 @@ let replicationSession: {
 } | null = null;
 
 const REPLICATION_EVERY_MS = 2 * 60_000;
+/** De quanto em quanto tempo se verifica se a internet (a nuvem) voltou. */
+const NET_PROBE_MS = 15_000;
+let netTimer: NodeJS.Timeout | null = null;
+/** Último estado conhecido da ligação à nuvem (null = ainda não verificado). */
+let cloudOnline: boolean | null = null;
+let replicating = false;
 
 function startReplicationClock(): void {
-  if (replicationTimer) return;
+  if (replicationTimer || netTimer) return;
   replicationTimer = setInterval(() => { void replicateOnce(); }, REPLICATION_EVERY_MS);
+  // Sem botão: assim que a internet volta, o servidor local sobe para a nuvem
+  // (e desce dela) logo, sem esperar pela volta seguinte do relógio.
+  netTimer = setInterval(() => { void probeCloud(); }, NET_PROBE_MS);
+  void replicateOnce();
+}
+
+/** Verifica a nuvem; na passagem de sem rede → com rede, replica de imediato. */
+async function probeCloud(): Promise<void> {
+  if (!replicationSession) return;
+  let ok = false;
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 8_000);
+    try { ok = (await fetch(`${replicationSession.apiUrl.replace(/\/$/, '')}/health`, { signal: ctl.signal })).ok; } finally { clearTimeout(t); }
+  } catch { ok = false; }
+  const voltou = ok && cloudOnline === false;
+  if (ok !== cloudOnline) logLocal(ok ? 'internet: ligação à nuvem restabelecida' : 'internet: sem ligação à nuvem');
+  cloudOnline = ok;
+  if (voltou) void replicateOnce();
 }
 
 async function replicateOnce(): Promise<void> {
   if (!localApiUrl || !replicationSession) return; // sem servidor local, nada a fazer
+  if (replicating) return; // uma volta de cada vez (o relógio e o regresso da rede podem coincidir)
+  replicating = true;
   try {
     const ls = await import('@nexus/local-server');
     const paths = ls.layout({
@@ -317,7 +344,10 @@ async function replicateOnce(): Promise<void> {
     }
   } catch (e) {
     // Sem rede, sem base, sem sessão — nada disto é excecional num posto.
+    cloudOnline = false;
     logLocal(`replicação adiada: ${(e as Error).message}`);
+  } finally {
+    replicating = false;
   }
 }
 

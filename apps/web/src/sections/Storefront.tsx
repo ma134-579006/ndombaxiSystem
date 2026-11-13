@@ -78,6 +78,17 @@ export function Storefront() {
     } finally { setPdfBusy(false); }
   };
 
+  /** Cartaz A4 da loja de associados (/<código>/associados), igual ao da loja online. */
+  const [mPdfBusy, setMPdfBusy] = useState(false);
+  const downloadMembersPdf = async () => {
+    if (!companyCode || mPdfBusy) return;
+    setMPdfBusy(true);
+    try {
+      const { downloadMembersPoster } = await import('../pdf/membersPoster');
+      await runTransfer({ title: 'A gerar o cartaz em PDF', kind: 'generate', task: () => downloadMembersPoster(companyCode) });
+    } catch { setError('Não foi possível gerar o PDF do cartaz. Tente novamente.'); } finally { setMPdfBusy(false); }
+  };
+
   const hydrate = (s: SiteSettings) => {
     setSettings(s);
     setBrandName(s.brand_name ?? '');
@@ -171,6 +182,7 @@ export function Storefront() {
           <div className="lo-link-acts">
             <a className="vd-btn outline" href={`https://wa.me/?text=${encodeURIComponent('Visita a nossa loja online: ' + storeLink)}`} target="_blank" rel="noreferrer">WhatsApp</a>
             <button className="vd-btn outline" onClick={() => void downloadStorePdf()} disabled={pdfBusy}>{pdfBusy ? 'A gerar…' : 'Cartaz PDF (A4)'}</button>
+            <button className="vd-btn outline" onClick={() => void downloadMembersPdf()} disabled={mPdfBusy}>{mPdfBusy ? 'A gerar…' : 'Cartaz PDF da loja de associados'}</button>
           </div>
         ) : null}
       </div>
