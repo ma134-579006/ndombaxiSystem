@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+const CODE_THROTTLE = { default: { limit: 12, ttl: 60_000 } };
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -10,16 +12,18 @@ import { PrismaService } from '../prisma/prisma.service';
 import { KwanzaService } from './kwanza.service';
 
 class RegisterDto { @IsString() @MaxLength(120) name!: string; @IsString() @MaxLength(20) phone!: string; @IsOptional() @IsString() @MaxLength(160) email?: string; @IsString() @MaxLength(100) password!: string; }
-class LoginDto { @IsString() @MaxLength(160) login!: string; @IsString() @MaxLength(100) password!: string; }
+class LoginDto { @IsString() @MaxLength(160) login!: string; @IsString() @MaxLength(100) password!: string; @IsOptional() @IsString() @MaxLength(10) twoFaCode?: string; @IsOptional() @IsBoolean() twoFaResend?: boolean; }
 class ProfileDto {
   @IsOptional() @IsString() @MaxLength(120) name?: string; @IsOptional() @IsString() @MaxLength(160) email?: string;
   @IsOptional() @IsString() @MaxLength(1_500_000) photoUrl?: string | null; @IsOptional() @IsString() @MaxLength(20) taxId?: string;
   @IsOptional() @IsString() @MaxLength(60) province?: string; @IsOptional() @IsString() @MaxLength(60) municipality?: string;
   @IsOptional() @IsString() @MaxLength(200) address?: string; @IsOptional() @IsString() @MaxLength(400) bio?: string;
 }
-class PasswordDto { @IsString() @MaxLength(100) current!: string; @IsString() @MaxLength(100) next!: string; }
-class RecoverDto { @IsString() @MaxLength(160) login!: string; }
-class RecoverConfirmDto { @IsString() @MaxLength(160) login!: string; @IsString() @MaxLength(10) code!: string; @IsString() @MaxLength(100) password!: string; }
+class PasswordDto { @IsString() @MaxLength(100) current!: string; @IsString() @MaxLength(100) next!: string; @IsOptional() @IsString() @MaxLength(10) twoFaCode?: string; }
+class RecoverDto { @IsString() @MaxLength(160) login!: string; @IsOptional() @IsIn(['EMAIL', 'WHATSAPP']) via?: 'EMAIL' | 'WHATSAPP'; }
+class RecoverConfirmDto { @IsString() @MaxLength(160) login!: string; @IsString() @MaxLength(10) code!: string; @IsString() @MaxLength(100) password!: string; @IsOptional() @IsString() @MaxLength(10) twoFaCode?: string; @IsOptional() @IsBoolean() twoFaResend?: boolean; }
+class TwoFaSetupDto { @IsIn(['EMAIL', 'WHATSAPP']) method!: 'EMAIL' | 'WHATSAPP'; @IsOptional() @IsString() @MaxLength(160) target?: string; }
+class TwoFaCodeDto { @IsString() @MaxLength(10) code!: string; }
 class AffiliateDto { @IsString() @MaxLength(60) companyCode!: string; @IsString() @MaxLength(80) productCode!: string; @IsOptional() @IsString() @MaxLength(300) note?: string; }
 class MarkupDto { @IsString() @MaxLength(60) companyCode!: string; @IsString() @MaxLength(80) productCode!: string; @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(100) markupPct?: number | null; }
 class AccountDto { @IsString() @MaxLength(40) method!: string; @IsOptional() @IsString() @MaxLength(60) bank?: string; @IsString() @MaxLength(120) holder!: string; @IsString() @MaxLength(60) details!: string; }
@@ -40,9 +44,9 @@ export class KwanzaPublicController {
   @Post('auth/login') @ApiOperation({ summary: 'Entrar (telefone ou email + senha)' })
   login(@Body() d: LoginDto) { return this.k.login(d); }
   @Post('auth/recover') @ApiOperation({ summary: 'Pede o código para recuperar a senha (email)' })
-  recover(@Body() d: RecoverDto) { return this.k.recoverRequest(d.login); }
+  recover(@Body() d: RecoverDto) { return this.k.recoverRequest(d.login, d.via); }
   @Post('auth/recover/confirm') @ApiOperation({ summary: 'Define a nova senha com o código' })
-  recoverConfirm(@Body() d: RecoverConfirmDto) { return this.k.recoverConfirm(d.login, d.code, d.password); }
+  recoverConfirm(@Body() d: RecoverConfirmDto) { return this.k.recoverConfirm(d.login, d.code, d.password, d.twoFaCode, d.twoFaResend === true); }
 
   @Get('market') @ApiOperation({ summary: 'Produtos de todas as empresas no marketplace' })
   async market(@Headers('authorization') a?: string) {
@@ -55,7 +59,13 @@ export class KwanzaPublicController {
 
   @Get('me') async me(@Headers('authorization') a?: string) { return this.k.me(await this.k.verify(a)); }
   @Put('me') async profile(@Body() d: ProfileDto, @Headers('authorization') a?: string) { return this.k.updateProfile(await this.k.verify(a), d); }
-  @Post('me/password') async password(@Body() d: PasswordDto, @Headers('authorization') a?: string) { return this.k.changePassword(await this.k.verify(a), d.current, d.next); }
+  @Post('me/password') async password(@Body() d: PasswordDto, @Headers('authorization') a?: string) { return this.k.changePassword(await this.k.verify(a), d.current, d.next, d.twoFaCode); }
+  @Get('me/two-factor') async tfStatus(@Headers('authorization') a?: string) { return this.k.twoFaStatus(await this.k.verify(a)); }
+  @Throttle(CODE_THROTTLE) @Post('me/two-factor/setup') async tfSetup(@Body() d: TwoFaSetupDto, @Headers('authorization') a?: string) { return this.k.twoFaSetup(await this.k.verify(a), d.method, d.target); }
+  @Throttle(CODE_THROTTLE) @Post('me/two-factor/confirm') async tfConfirm(@Body() d: TwoFaCodeDto, @Headers('authorization') a?: string) { return this.k.twoFaConfirm(await this.k.verify(a), d.code); }
+  @Throttle(CODE_THROTTLE) @Post('me/two-factor/disable/request') async tfDisableReq(@Headers('authorization') a?: string) { return this.k.twoFaDisableRequest(await this.k.verify(a)); }
+  @Throttle(CODE_THROTTLE) @Post('me/two-factor/disable') async tfDisable(@Body() d: TwoFaCodeDto, @Headers('authorization') a?: string) { return this.k.twoFaDisable(await this.k.verify(a), d.code); }
+  @Throttle(CODE_THROTTLE) @Post('me/two-factor/code') async tfCode(@Headers('authorization') a?: string) { return this.k.twoFaCode(await this.k.verify(a)); }
   @Get('me/dashboard') async dashboard(@Headers('authorization') a?: string) { return this.k.dashboard(await this.k.verify(a)); }
   @Get('me/affiliations') async affiliations(@Headers('authorization') a?: string) { return this.k.myAffiliations(await this.k.verify(a)); }
   @Post('me/affiliations') async affiliate(@Body() d: AffiliateDto, @Headers('authorization') a?: string) { return this.k.affiliate(await this.k.verify(a), d.companyCode, d.productCode, d.note); }

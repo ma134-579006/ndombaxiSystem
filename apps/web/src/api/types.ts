@@ -20,6 +20,7 @@ export interface PlatformLoginInput {
   email: string;
   password: string;
   twoFaToken?: string;
+  twoFaResend?: boolean;
 }
 export type PlanTier = 'FREE' | 'STARTER' | 'BUSINESS' | 'ENTERPRISE' | 'WHITE_LABEL';
 
@@ -144,6 +145,7 @@ export interface TenantLoginInput {
   email: string;
   password: string;
   twoFaToken?: string;
+  twoFaResend?: boolean;
 }
 
 /** Resposta de login do tenant: tokens + empresa resolvida pelo e-mail. */
@@ -1465,3 +1467,23 @@ export type StoreBannerInput = Partial<Omit<StoreBanner, 'id'>>;
 export interface AffiliateProductRow { code: string; name: string; percent: number | null }
 export interface AffiliateAssociateRow { id: string; name: string; code: string | null; sales: number; pending: number; available: number; paid: number; requested: number }
 export interface AffiliateWithdrawalRow { id: string; name: string; amount: number; method: string; details: string | null; status: string; date: string; note: string | null }
+
+/** Verificação em 2 passos (estado da própria conta). */
+export interface TwoFaStatus { enabled: boolean; method: 'EMAIL' | 'WHATSAPP' | null; to: string | null; channels: { email: boolean; whatsapp: boolean } }
+export interface SecurityView {
+  config: { allowEmail: boolean; allowWhatsapp: boolean; waTemplate: string | null; waLang: string; waAuthButton: boolean; codeMinutes: number };
+  channels: { email: boolean; whatsapp: boolean };
+  stats: { total: number; platform: number; tenant: number; kwanza: number; email: number; whatsapp: number };
+}
+export interface PayoutRow {
+  id: string; amount: number; method: string; details: string | null; status: string; escalation: string | null;
+  createdAt: string; dueAt: string; complainedAt: string | null; complaint: string | null; notifiedAt: string | null; extendedUntil: string | null;
+  refundedAt: string | null; refundRef: string | null; adminNote: string | null; decidedAt: string | null;
+  associate: { name: string; code: string; phone: string; email: string | null };
+  company: { id: string; name: string; code: string; email: string; phone: string | null; banned: boolean };
+}
+export interface PayoutsView {
+  counts: { open: number; notified: number; overdue: number; refunded: number; resolved: number; debt: number; banned: number };
+  bans: Array<{ companyId: string; name: string; code: string; reason: string; date: string; debt: number }>;
+  rows: PayoutRow[];
+}

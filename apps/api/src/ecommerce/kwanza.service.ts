@@ -9,6 +9,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorefrontService } from './storefront.service';
 import { SOLD_STATUSES } from './affiliates.service';
 import { AdminNotificationsService } from './admin-notifications';
+import { withdrawalDue } from './kwanza-rules';
+import { TwoFactorService, maskEmail, maskPhone } from '../security/two-factor.service';
 
 /**
  * LPS KWANZA — marketplace central de associados (todas as empresas que aderirem).
@@ -47,6 +49,7 @@ export class KwanzaService implements OnModuleInit {
     private readonly mail: MailService,
     private readonly storefront: StorefrontService,
     private readonly adminNotes: AdminNotificationsService,
+    private readonly twoFactor: TwoFactorService,
   ) {}
 
   /** Mantém os preços/stock do marketplace alinhados com as lojas (a cada 10 min). */
@@ -89,7 +92,7 @@ export class KwanzaService implements OnModuleInit {
     throw new BadRequestException('Não foi possível criar a conta. Tente de novo.');
   }
 
-  async login(p: { login: string; password: string }) {
+  async login(p: { login: string; password: string; twoFaCode?: string; twoFaResend?: boolean }) {
     const l = (p.login ?? '').trim().toLowerCase();
     const phone = phoneNorm(l);
     const rows = await this.prisma.$queryRaw<(AssociateRow & { passwordHash: string })[]>(Prisma.sql`
@@ -98,6 +101,8 @@ export class KwanzaService implements OnModuleInit {
     const a = rows[0];
     if (!a || !(await argon2.verify(a.passwordHash, p.password ?? '').catch(() => false))) throw new UnauthorizedException('Telefone/email ou senha errados.');
     if (a.status !== 'ACTIVE') throw new UnauthorizedException('Conta bloqueada. Contacte o suporte.');
+    // Verificação em 2 passos (opcional): sem código, envia-o e pede-o; com código, confere.
+    await this.twoFactor.gate(TwoFactorService.kwanza(a.id), 'LOGIN', p.twoFaCode, p.twoFaResend === true);
     return { token: await this.sign(a), associate: this.publicAssociate(a) };
   }
 
@@ -142,32 +147,44 @@ export class KwanzaService implements OnModuleInit {
     return this.publicAssociate(rows[0]);
   }
 
-  async changePassword(a: AssociateRow, current: string, next: string) {
+  async changePassword(a: AssociateRow, current: string, next: string, twoFaCode?: string) {
     const rows = await this.prisma.$queryRaw<{ h: string }[]>(Prisma.sql`SELECT "passwordHash" AS h FROM ${T('kwanza_associates')} WHERE id = ${a.id}::uuid`);
     if (!(await argon2.verify(rows[0].h, current ?? '').catch(() => false))) throw new BadRequestException('A senha atual está errada.');
     if ((next ?? '').length < 6) throw new BadRequestException('A nova senha tem de ter pelo menos 6 caracteres.');
+    // Com a 2FA ligada, mudar a senha pede o código (enviado por "pedir código" ou na 1.ª tentativa).
+    await this.twoFactor.gate(TwoFactorService.kwanza(a.id), 'CHANGE_PW', twoFaCode);
     await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_associates')} SET "passwordHash" = ${await argon2.hash(next)}, "updatedAt" = now() WHERE id = ${a.id}::uuid`);
     return { ok: true as const };
   }
 
-  /** Recuperar a senha: código de 6 dígitos por email (a conta tem de ter email). */
-  async recoverRequest(login: string) {
+  /**
+   * Recuperar a senha: código de 6 dígitos por email; sem email (ou com `via: 'WHATSAPP'`),
+   * pelo WhatsApp do telefone da conta, quando o Super Admin o tem configurado.
+   * Com a verificação em 2 passos ligada, o confirmar pede também o código da 2FA.
+   */
+  async recoverRequest(login: string, via?: 'EMAIL' | 'WHATSAPP') {
     const l = (login ?? '').trim().toLowerCase();
-    const rows = await this.prisma.$queryRaw<{ id: string; email: string | null }[]>(Prisma.sql`SELECT id, email FROM ${T('kwanza_associates')} WHERE phone = ${phoneNorm(l)} OR email = ${l} LIMIT 1`);
+    const rows = await this.prisma.$queryRaw<{ id: string; email: string | null; phone: string }[]>(Prisma.sql`SELECT id, email, phone FROM ${T('kwanza_associates')} WHERE phone = ${phoneNorm(l)} OR email = ${l} LIMIT 1`);
     const a = rows[0];
+    const ch = await this.twoFactor.channels();
+    const emailOk = await this.mail.isEnabled().catch(() => false);
+    const useWa = !!a && ch.whatsapp && (via === 'WHATSAPP' || !a.email || !emailOk);
     // Resposta igual exista ou não a conta (não revela quem está registado).
-    if (!a || !a.email) return { sent: true as const, viaEmail: false };
-    if (!(await this.mail.isEnabled().catch(() => false))) throw new BadRequestException('A recuperação por email não está disponível de momento. Contacte o suporte.');
+    if (!a || (!a.email && !useWa)) return { sent: true as const, viaEmail: false, via: null, to: null, twoFa: false };
+    if (!useWa && !emailOk && !ch.email) throw new BadRequestException('A recuperação da senha não está disponível de momento. Contacte o suporte.');
     const code = String(randomInt(100000, 1000000));
     await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_password_resets')} SET "usedAt" = now() WHERE "associateId" = ${a.id}::uuid AND "usedAt" IS NULL`);
     await this.prisma.$executeRaw(Prisma.sql`
       INSERT INTO ${T('kwanza_password_resets')} (id, "associateId", "codeHash", attempts, "expiresAt", "createdAt")
       VALUES (gen_random_uuid(), ${a.id}::uuid, ${sha(code)}, 0, now() + interval '15 minutes', now())`);
-    await this.mail.send(a.email, 'LPS Kwanza — código para recuperar a senha', `O seu código é: ${code}\n\nVálido durante 15 minutos. Se não pediu, ignore este email.`);
-    return { sent: true as const, viaEmail: true };
+    if (useWa) await this.twoFactor.sendRaw('WHATSAPP', a.phone, code, 'RESET');
+    else if (emailOk) await this.mail.send(a.email!, 'LPS Kwanza — código para recuperar a senha', `O seu código é: ${code}\n\nVálido durante 15 minutos. Se não pediu, ignore este email.`);
+    else await this.twoFactor.sendRaw('EMAIL', a.email!, code, 'RESET');
+    const twoFa = await this.twoFactor.isEnabled(TwoFactorService.kwanza(a.id));
+    return { sent: true as const, viaEmail: !useWa, via: useWa ? 'WHATSAPP' : 'EMAIL', to: useWa ? maskPhone(a.phone) : maskEmail(a.email!), twoFa };
   }
 
-  async recoverConfirm(login: string, code: string, password: string) {
+  async recoverConfirm(login: string, code: string, password: string, twoFaCode?: string, twoFaResend = false) {
     if ((password ?? '').length < 6) throw new BadRequestException('A nova senha tem de ter pelo menos 6 caracteres.');
     const l = (login ?? '').trim().toLowerCase();
     const acc = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM ${T('kwanza_associates')} WHERE phone = ${phoneNorm(l)} OR email = ${l} LIMIT 1`);
@@ -181,6 +198,8 @@ export class KwanzaService implements OnModuleInit {
       await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_password_resets')} SET attempts = attempts + 1 WHERE id = ${r.id}::uuid`);
       throw new BadRequestException('Código inválido ou expirado.');
     }
+    // Conta com 2FA: o código de recuperação não chega — pede também o da verificação em 2 passos.
+    await this.twoFactor.gate(TwoFactorService.kwanza(acc[0].id), 'RESET', twoFaCode, twoFaResend);
     await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_password_resets')} SET "usedAt" = now() WHERE id = ${r.id}::uuid`);
     await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_associates')} SET "passwordHash" = ${await argon2.hash(password)}, "updatedAt" = now() WHERE id = ${acc[0].id}::uuid`);
     return { ok: true as const };
@@ -457,7 +476,8 @@ export class KwanzaService implements OnModuleInit {
       for (const r of rows) { status.set(r.id, r.status); detail.set(r.id, { claimed: r.claimed, at: r.upd }); }
     }
     const wd = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-      SELECT w.id, w."companyId", c.code AS "companyCode", c.name AS "companyName", w.amount, w.method, w.details, w.status, w.note, w."proofUrl", w."createdAt"
+      SELECT w.id, w."companyId", c.code AS "companyCode", c.name AS "companyName", w.amount, w.method, w.details, w.status, w.note, w."proofUrl", w."createdAt",
+             w."dueAt", w.escalation, w."extendedUntil", w."complainedAt", w."refundRef", w."decidedAt"
       FROM ${T('kwanza_withdrawals')} w JOIN nexus_public.companies c ON c.id = w."companyId" WHERE w."associateId" = ${a.id}::uuid ORDER BY w."createdAt" DESC LIMIT 300`);
     const perCompany = new Map<string, { companyId: string; companyCode: string; companyName: string; pending: number; available: number; withdrawn: number; requested: number; balance: number }>();
     const company = (id: string, code: string, name: string) => {
@@ -476,10 +496,13 @@ export class KwanzaService implements OnModuleInit {
     });
     for (const w of wd) {
       const pc = company(String(w.companyId), String(w.companyCode), String(w.companyName));
-      if (w.status === 'PAID') pc.withdrawn += num(w.amount);
+      if (w.status === 'PAID' || w.status === 'REFUNDED') pc.withdrawn += num(w.amount);
       if (w.status === 'REQUESTED') pc.requested += num(w.amount);
     }
-    const companies = [...perCompany.values()].map((p) => ({ ...p, pending: r2(p.pending), available: r2(p.available), withdrawn: r2(p.withdrawn), requested: r2(p.requested), balance: r2(Math.max(0, p.available - p.withdrawn - p.requested)) }));
+    // Bancos de cada empresa (o associado recebe na hora com conta no mesmo banco).
+    const bankRows = perCompany.size ? await this.prisma.$queryRaw<{ id: string; banks: unknown }[]>(Prisma.sql`SELECT "companyId"::text AS id, banks FROM ${T('kwanza_policies')} WHERE "companyId" = ANY(${[...perCompany.keys()]}::uuid[])`).catch(() => []) : [];
+    const banksOf = new Map(bankRows.map((b) => [b.id, Array.isArray(b.banks) ? (b.banks as unknown[]).map(String) : []]));
+    const companies = [...perCompany.values()].map((p) => ({ ...p, banks: banksOf.get(p.companyId) ?? [], pending: r2(p.pending), available: r2(p.available), withdrawn: r2(p.withdrawn), requested: r2(p.requested), balance: r2(Math.max(0, p.available - p.withdrawn - p.requested)) }));
     // Saldo congelado pela empresa (reclamações em análise, fraude…): o saque fica bloqueado.
     const fz = await this.prisma.$queryRaw<{ code: string; reason: string }[]>(Prisma.sql`SELECT c.code, f.reason FROM ${T('kwanza_freezes')} f JOIN nexus_public.companies c ON c.id = f."companyId" WHERE f."associateId" = ${a.id}::uuid`);
     const frozen: Record<string, string> = Object.fromEntries(fz.map((r) => [r.code, r.reason]));
@@ -487,7 +510,12 @@ export class KwanzaService implements OnModuleInit {
     return {
       code: a.code, pending: tot('pending'), available: tot('available'), withdrawn: tot('withdrawn'), requested: tot('requested'), balance: tot('balance'),
       companies, sales, frozen,
-      withdrawals: wd.map((w) => ({ id: w.id, companyCode: w.companyCode, companyName: w.companyName, amount: num(w.amount), method: w.method, details: w.details, status: w.status, note: w.note, proofUrl: w.proofUrl, date: (w.createdAt as Date).toISOString() })),
+      withdrawals: wd.map((w) => ({
+        id: w.id, companyCode: w.companyCode, companyName: w.companyName, amount: num(w.amount), method: w.method, details: w.details, status: w.status, note: w.note, proofUrl: w.proofUrl,
+        date: (w.createdAt as Date).toISOString(), dueAt: ((w.dueAt as Date | null) ?? withdrawalDue(w.createdAt as Date)).toISOString(), escalation: (w.escalation as string | null) ?? null,
+        extendedUntil: w.extendedUntil ? (w.extendedUntil as Date).toISOString() : null, complainedAt: w.complainedAt ? (w.complainedAt as Date).toISOString() : null,
+        refundRef: (w.refundRef as string | null) ?? null, decidedAt: w.decidedAt ? (w.decidedAt as Date).toISOString() : null,
+      })),
     };
   }
 
@@ -527,12 +555,13 @@ export class KwanzaService implements OnModuleInit {
       if (!acc) throw new BadRequestException('Escolha uma conta para receber.');
       const label = acc.method === 'Multicaixa Express' ? String(acc.method) : `${acc.method}${acc.bank ? ` · ${acc.bank}` : ''}`;
       await tx.$executeRaw(Prisma.sql`
-        INSERT INTO ${T('kwanza_withdrawals')} (id, "associateId", "companyId", amount, method, details, status, "createdAt")
-        VALUES (gen_random_uuid(), ${a.id}::uuid, ${pc.companyId}::uuid, ${v}, ${label}, ${`${acc.details} · ${acc.holder}`}, 'REQUESTED', now())`);
+        INSERT INTO ${T('kwanza_withdrawals')} (id, "associateId", "companyId", amount, method, details, status, "createdAt", "dueAt")
+        VALUES (gen_random_uuid(), ${a.id}::uuid, ${pc.companyId}::uuid, ${v}, ${label}, ${`${acc.details} · ${acc.holder}`}, 'REQUESTED', now(), ${withdrawalDue(new Date())})`);
       return { pc, label };
     }, { timeout: 20_000 });
     const { pc, label } = res;
-    await this.notifyCompany(pc.companyId, { kind: 'KWANZA_WITHDRAWAL', title: `Pedido de saque de ${a.name}`, body: `${v.toLocaleString('pt-PT')} Kz · ${label}`, section: 'kwanza', ref: 'withdrawals' });
+    const due = withdrawalDue(new Date()).toLocaleString('pt-PT', { timeZone: 'Africa/Luanda', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    await this.notifyCompany(pc.companyId, { kind: 'KWANZA_WITHDRAWAL', title: `Pedido de saque de ${a.name}`, body: `${v.toLocaleString('pt-PT')} Kz · ${label} · pagar até ${due}`, section: 'kwanza', ref: 'withdrawals' });
     return { ok: true as const };
   }
 
@@ -554,6 +583,7 @@ export class KwanzaService implements OnModuleInit {
   }
 
   async saveCompanyProduct(tenant: { companyId: string; schema: string }, productCode: string, p: ListingInput) {
+    if (p.published) await this.assertNotBanned(tenant.companyId);
     const pct = p.percent == null || p.percent <= 0 ? null : Math.min(90, r2(p.percent));
     if (p.published && !pct) throw new BadRequestException('Defina a % de comissão para publicar no LPS Kwanza.');
     if (p.published) {
@@ -580,6 +610,7 @@ export class KwanzaService implements OnModuleInit {
    * sem % neste pedido) ficam de fora e são contados em `skipped`.
    */
   async saveCompanyProductsBulk(tenant: { companyId: string; schema: string }, p: { codes?: string[]; all?: boolean; q?: string; published?: boolean; percent?: number | null; mode?: 'OPEN' | 'RESTRICTED'; allowMarkup?: boolean; maxMarkupPct?: number | null }) {
+    if (p.published) await this.assertNotBanned(tenant.companyId);
     const codes = [...new Set((p.codes ?? []).map((c) => String(c)))];
     if (!p.all && !codes.length) throw new BadRequestException('Escolha pelo menos um produto.');
     const sets: Prisma.Sql[] = [];
@@ -620,6 +651,11 @@ export class KwanzaService implements OnModuleInit {
   async syncCompany(companyId: string) {
     const c = await this.prisma.company.findUnique({ where: { id: companyId } });
     if (!c) return;
+    // Empresa banida pelo Super Admin (saque não pago): fica fora do marketplace.
+    if (await this.isBanned(c.id)) {
+      await this.prisma.$executeRaw(Prisma.sql`UPDATE ${T('kwanza_listings')} SET active = FALSE, "updatedAt" = now() WHERE "companyId" = ${c.id}::uuid AND active = TRUE`);
+      return;
+    }
     const pubs = await this.prisma.runInTenant(c.schemaName, (tx) => tx.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
       SELECT code, affiliate_percent AS pct, affiliate_mode AS mode, allow_markup AS mk, max_markup_pct AS maxmk, affiliate_materials AS mats
       FROM products WHERE kwanza_published = TRUE AND is_active = TRUE`)).catch(() => []);
@@ -706,20 +742,50 @@ export class KwanzaService implements OnModuleInit {
 
   async companyWithdrawals(companyId: string) {
     const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-      SELECT w.id, a.name, w.amount, w.method, w.details, w.status, w.note, w."proofUrl", w."createdAt" FROM ${T('kwanza_withdrawals')} w
-      JOIN ${T('kwanza_associates')} a ON a.id = w."associateId" WHERE w."companyId" = ${companyId}::uuid ORDER BY (w.status = 'REQUESTED') DESC, w."createdAt" DESC LIMIT 300`);
-    return rows.map((r) => ({ id: r.id, name: r.name, amount: num(r.amount), method: r.method, details: r.details, status: r.status, note: r.note, proofUrl: r.proofUrl, date: (r.createdAt as Date).toISOString() }));
+      SELECT w.id, a.name, a.code, w.amount, w.method, w.details, w.status, w.note, w."proofUrl", w."createdAt", w."dueAt", w.escalation, w."extendedUntil", w."refundRef"
+      FROM ${T('kwanza_withdrawals')} w
+      JOIN ${T('kwanza_associates')} a ON a.id = w."associateId" WHERE w."companyId" = ${companyId}::uuid
+      ORDER BY (w.status = 'REQUESTED') DESC, COALESCE(w."extendedUntil", w."dueAt", w."createdAt") ASC, w."createdAt" DESC LIMIT 300`);
+    return rows.map((r) => ({
+      id: r.id, name: r.name, code: r.code, amount: num(r.amount), method: r.method, details: r.details, status: r.status, note: r.note, proofUrl: r.proofUrl, date: (r.createdAt as Date).toISOString(),
+      dueAt: ((r.dueAt as Date | null) ?? withdrawalDue(r.createdAt as Date)).toISOString(), escalation: (r.escalation as string | null) ?? null,
+      extendedUntil: r.extendedUntil ? (r.extendedUntil as Date).toISOString() : null, refundRef: (r.refundRef as string | null) ?? null,
+    }));
   }
 
   async decideWithdrawal(companyId: string, id: string, paid: boolean, note?: string, proofUrl?: string) {
+    // Com reclamação aberta no Super Admin, a empresa já não pode recusar — só pagar.
+    if (!paid) {
+      const esc = await this.prisma.$queryRaw<{ e: string | null }[]>(Prisma.sql`SELECT escalation AS e FROM ${T('kwanza_withdrawals')} WHERE id = ${id}::uuid AND "companyId" = ${companyId}::uuid`);
+      if (esc[0]?.e === 'OPEN' || esc[0]?.e === 'NOTIFIED') throw new BadRequestException('Este saque está em reclamação na equipa do LPS Kwanza: só pode ser pago.');
+    }
     const n = await this.prisma.$executeRaw(Prisma.sql`
-      UPDATE ${T('kwanza_withdrawals')} SET status = ${paid ? 'PAID' : 'REJECTED'}, note = ${(note ?? '').trim().slice(0, 300) || null}, "proofUrl" = ${paid ? (proofUrl || null) : null}, "decidedAt" = now()
+      UPDATE ${T('kwanza_withdrawals')} SET status = ${paid ? 'PAID' : 'REJECTED'}, note = ${(note ?? '').trim().slice(0, 300) || null}, "proofUrl" = ${paid ? (proofUrl || null) : null}, "decidedAt" = now(),
+        escalation = CASE WHEN escalation IN ('OPEN', 'NOTIFIED') THEN 'RESOLVED' ELSE escalation END
       WHERE id = ${id}::uuid AND "companyId" = ${companyId}::uuid AND status = 'REQUESTED'`);
     if (!n) throw new NotFoundException('Pedido de saque não encontrado ou já decidido.');
     const w = await this.prisma.$queryRaw<{ a: string; v: unknown; c: string }[]>(Prisma.sql`SELECT w."associateId"::text AS a, w.amount AS v, c.name AS c FROM ${T('kwanza_withdrawals')} w JOIN nexus_public.companies c ON c.id = w."companyId" WHERE w.id = ${id}::uuid`);
     if (w[0]) await this.notifyAssociate(w[0].a, { kind: paid ? 'WITHDRAWAL_PAID' : 'WITHDRAWAL_REJECTED', title: paid ? `${w[0].c} pagou o teu saque` : `${w[0].c} recusou o teu saque`, body: `${num(w[0].v).toLocaleString('pt-PT')} Kz${note ? ` — ${note.slice(0, 120)}` : ''}`, link: '#/saques' });
     return { ok: true as const };
   }
+
+  async isBanned(companyId: string): Promise<boolean> {
+    const r = await this.prisma.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT 1 AS n FROM ${T('kwanza_bans')} WHERE "companyId" = ${companyId}::uuid`).catch(() => []);
+    return r.length > 0;
+  }
+  async assertNotBanned(companyId: string) {
+    if (await this.isBanned(companyId)) throw new BadRequestException('A empresa está banida do LPS Kwanza por um saque não pago. Contacte a equipa do LPS Kwanza.');
+  }
+
+  /* ═══════════ verificação em 2 passos do associado ═══════════ */
+  twoFaStatus(a: AssociateRow) { return this.twoFactor.status(TwoFactorService.kwanza(a.id)); }
+  twoFaSetup(a: AssociateRow, method: 'EMAIL' | 'WHATSAPP', target?: string) {
+    return this.twoFactor.startSetup(TwoFactorService.kwanza(a.id), method, (target ?? '').trim() || (method === 'WHATSAPP' ? a.phone : a.email ?? ''));
+  }
+  twoFaConfirm(a: AssociateRow, code: string) { return this.twoFactor.confirmSetup(TwoFactorService.kwanza(a.id), code, a.code.toLowerCase()); }
+  twoFaDisableRequest(a: AssociateRow) { return this.twoFactor.requestDisable(TwoFactorService.kwanza(a.id)); }
+  twoFaDisable(a: AssociateRow, code: string) { return this.twoFactor.disable(TwoFactorService.kwanza(a.id), code); }
+  twoFaCode(a: AssociateRow) { return this.twoFactor.requestCode(TwoFactorService.kwanza(a.id), 'CHANGE_PW'); }
 
   /* ═══════════════ notificações ═══════════════ */
   private async notifyCompany(companyId: string, n: { kind: string; title: string; body?: string; section?: string; ref?: string }) {

@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsIn,
   IsNotEmpty,
@@ -27,6 +28,24 @@ export class ResetPasswordDto {
   /** Nova senha (>=6) ou PIN (6 dígitos), conforme o tipo do token. */
   @IsString() @Length(4, 100)
   secret!: string;
+
+  /** Código da verificação em 2 passos (quando a conta a tem ligada). */
+  @IsOptional() @IsString() @Length(6, 6)
+  twoFaCode?: string;
+
+  @IsOptional() @IsBoolean()
+  twoFaResend?: boolean;
+}
+
+export class ChangeOwnPasswordDto {
+  @IsString() @Length(1, 100)
+  current!: string;
+
+  @IsString() @Length(8, 72)
+  next!: string;
+
+  @IsOptional() @IsString() @Length(6, 6)
+  twoFaCode?: string;
 }
 
 export class PlatformLoginDto {
@@ -41,6 +60,11 @@ export class PlatformLoginDto {
   @IsString()
   @Length(6, 6)
   twoFaToken?: string;
+
+  /** Pede outro código da verificação em 2 passos. */
+  @IsOptional()
+  @IsBoolean()
+  twoFaResend?: boolean;
 }
 
 export class TenantLoginDto {
@@ -61,6 +85,11 @@ export class TenantLoginDto {
   @IsString()
   @Length(6, 6)
   twoFaToken?: string;
+
+  /** Pede outro código da verificação em 2 passos. */
+  @IsOptional()
+  @IsBoolean()
+  twoFaResend?: boolean;
 }
 
 export class RefreshDto {

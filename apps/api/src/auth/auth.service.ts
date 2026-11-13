@@ -13,6 +13,7 @@ import { AuditService } from '../audit/audit.service';
 import { ROLE_LEVEL, Role } from '../rbac/roles.enum';
 import { PasswordService } from './password.service';
 import { TwoFaService } from './twofa.service';
+import { TwoFactorService } from '../security/two-factor.service';
 import { TokenService, TokenPair } from './token.service';
 import { GoogleAuthService } from './google-auth.service';
 import { OfflineCredentialsService, type OfflineBundle } from './offline-credentials.service';
@@ -39,6 +40,7 @@ export class AuthService {
     private readonly tenantUsers: TenantUserRepository,
     private readonly passwords: PasswordService,
     private readonly twoFa: TwoFaService,
+    private readonly twoFactor: TwoFactorService,
     private readonly tokens: TokenService,
     private readonly audit: AuditService,
     private readonly google: GoogleAuthService,
@@ -163,11 +165,9 @@ export class AuthService {
       throw new UnauthorizedException('E-mail ou palavra-passe incorretos.');
     }
 
-    const twoFaVerified = this.checkTwoFa(
-      user.twoFaEnabled,
-      user.twoFaSecret,
-      dto.twoFaToken,
-    );
+    // Verificação em 2 passos por e-mail/WhatsApp (opcional); sem ela, a antiga por aplicação (TOTP).
+    const twoFaVerified = (await this.twoFactor.gate(TwoFactorService.platform(user.id), 'LOGIN', dto.twoFaToken, dto.twoFaResend === true))
+      || this.checkTwoFa(user.twoFaEnabled, user.twoFaSecret, dto.twoFaToken);
 
     await this.prisma.platformUser.update({
       where: { id: user.id },
@@ -322,7 +322,7 @@ export class AuthService {
   }
 
   /** Aplica a nova senha/PIN a partir do token recebido por e-mail. */
-  async performPasswordReset(token: string, secret: string): Promise<{ ok: true; kind: 'PASSWORD' | 'PIN' }> {
+  async performPasswordReset(token: string, secret: string, twoFaCode?: string, twoFaResend = false): Promise<{ ok: true; kind: 'PASSWORD' | 'PIN' }> {
     if (!token || !secret) throw new BadRequestException('Dados incompletos.');
     const tokenHash = createHash('sha256').update(token).digest('hex');
     const pr = await this.prisma.passwordReset.findFirst({
@@ -336,6 +336,10 @@ export class AuthService {
     } else if (secret.length < 6) {
       throw new BadRequestException('A senha tem de ter pelo menos 6 caracteres.');
     }
+    // Com a verificação em 2 passos ligada, o link do e-mail não chega: pede também o código.
+    const subject = pr.scope === 'PLATFORM' && pr.userId ? TwoFactorService.platform(pr.userId)
+      : pr.scope === 'TENANT' && pr.tenantSchema && pr.userId ? TwoFactorService.tenant(pr.tenantSchema, pr.userId) : null;
+    if (subject) await this.twoFactor.gate(subject, 'RESET', twoFaCode, twoFaResend);
     const hash = await this.passwords.hash(secret);
     if (pr.scope === 'PLATFORM' && pr.userId) {
       await this.prisma.platformUser.update({ where: { id: pr.userId }, data: { passwordHash: hash } });
@@ -396,11 +400,8 @@ export class AuthService {
       throw new UnauthorizedException('E-mail ou palavra-passe incorretos.');
     }
 
-    const twoFaVerified = this.checkTwoFa(
-      user.two_fa_enabled,
-      user.two_fa_secret,
-      dto.twoFaToken,
-    );
+    const twoFaVerified = (await this.twoFactor.gate(TwoFactorService.tenant(company.schemaName, user.id), 'LOGIN', dto.twoFaToken, dto.twoFaResend === true))
+      || this.checkTwoFa(user.two_fa_enabled, user.two_fa_secret, dto.twoFaToken);
 
     await this.tenantUsers.markLoginSuccess(company.schemaName, user.id);
 
@@ -774,6 +775,29 @@ export class AuthService {
       return { ok: await this.passwords.verify(u.password_hash, pw) };
     }
     return { ok: false };
+  }
+
+  /**
+   * O próprio utilizador muda a senha (Super Admin ou empresa): pede a senha atual e,
+   * com a verificação em 2 passos ligada, o código enviado por e-mail/WhatsApp.
+   */
+  async changeOwnPassword(user: JwtPayload, current: string, next: string, twoFaCode?: string): Promise<{ ok: true }> {
+    if ((next ?? '').length < 8) throw new BadRequestException('A nova palavra-passe deve ter pelo menos 8 caracteres.');
+    if (!(await this.verifyPassword(user, current)).ok) throw new BadRequestException('A palavra-passe atual está errada.');
+    if (user.subjectType === 'PLATFORM') {
+      const subject = TwoFactorService.platform(user.sub);
+      if (await this.twoFactor.isEnabled(subject)) await this.twoFactor.check(subject, 'CHANGE_PW', twoFaCode);
+      await this.prisma.platformUser.update({ where: { id: user.sub }, data: { passwordHash: await this.passwords.hash(next) } });
+    } else if (user.subjectType === 'TENANT' && user.tenantSchema) {
+      const subject = TwoFactorService.tenant(user.tenantSchema, user.sub);
+      if (await this.twoFactor.isEnabled(subject)) await this.twoFactor.check(subject, 'CHANGE_PW', twoFaCode);
+      await this.tenantUsers.setPasswordHash(user.tenantSchema, user.sub, await this.passwords.hash(next));
+      await this.offlineCreds.remember(user.tenantSchema, user.sub, 'PASSWORD', next);
+    } else {
+      throw new BadRequestException('Conta inválida.');
+    }
+    await this.audit.record({ actorType: user.subjectType, actorId: user.sub, tenantSchema: user.tenantSchema ?? null, action: 'PASSWORD_CHANGED', ip: null });
+    return { ok: true };
   }
 
   // ─── Helpers ────────────────────────────────────────────────
