@@ -61,7 +61,9 @@ const mk = async () => (await ok('GET', '/kwanza/market', { token: a.token })).f
 const off5 = (await c.query('SELECT show_online FROM products WHERE code=$1', [codes[5]])).rows[0];
 R.check('KL-9b', 'publicar no LPS Kwanza põe o produto na loja online (onde a compra acontece)', off5.show_online === true, JSON.stringify(off5));
 const before = await mk();
-R.check('KL-10', 'produto configurado em lote aparece no marketplace dos associados', !!before && before.commissionPct === 12.5, JSON.stringify(before ?? null).slice(0, 160));
+// O passo KL-9 ("todos os Arroz" a 8 %) pode ter apanhado este produto: compara com a comissão configurada.
+const want5 = Number((await c.query('SELECT affiliate_percent FROM products WHERE code=$1', [codes[5]])).rows[0]?.affiliate_percent);
+R.check('KL-10', 'produto configurado em lote aparece no marketplace dos associados com a comissão configurada', !!before && before.commissionPct === want5, `${before?.commissionPct} vs ${want5}`);
 const newPrice = Math.round((P[5].price + 777) * 100) / 100;
 await ok('PATCH', `/pos/products/${P[5].id}`, { token: adm, body: { unitPrice: newPrice } });
 let after = null; const t0 = Date.now();
