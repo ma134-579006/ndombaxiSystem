@@ -4,6 +4,7 @@
  * comissão, remover afiliação) e partilha nas redes.
  */
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ApiError } from '../api/client';
 import { I, P, kz } from '../members/parts';
 import { kw, shareLink, type Affiliation, type Listing } from './api';
@@ -92,7 +93,8 @@ export function AffModal({ l, token, aff, onClose, onChanged, flash, onOpenProdu
     catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível.'); } finally { setBusy(false); }
   };
   const link = shareLink(l.companyCode, l.productCode, assocCode) + (qty > 1 ? `?q=${qty}` : '');
-  return (
+  // Na raiz da loja (.kk): dentro da página animada a janela ficava por baixo do cabeçalho fixo.
+  return createPortal(
     <div className="kk-modal-bg" role="presentation" onClick={onClose}>
       <div className="kk-qv" role="dialog" aria-modal="true" aria-label={l.name} onClick={(e) => e.stopPropagation()}>
         <button type="button" className="kk-x red" aria-label="Fechar" onClick={onClose}><I d={P.close} size={18} /></button>
@@ -160,6 +162,7 @@ export function AffModal({ l, token, aff, onClose, onChanged, flash, onOpenProdu
           {l.description ? <p>{l.description}</p> : <p>—</p>}
         </section>
       </div>
-    </div>
+    </div>,
+    document.querySelector('.kk') ?? document.body,
   );
 }
