@@ -10,6 +10,7 @@ import { BRAND, I, KLoader, Mark, P, Pic, kz, useInfinite, useReveal } from '../
 import { Search, type SearchState } from '../members/Search';
 import { Messages, NotesBell } from './Inbox';
 import { PostEditor } from './PostEditor';
+import { AffModal, ShareBar } from './Affiliate';
 import { Claims, ProductSocial } from './Trust';
 import { CodeBox, TwoFaCard, codeAsk, leftText, useNow, type CodeAsk } from './Security';
 import { CartDrawer, Checkout, ORDER_LABEL, Orders, cart, useCart } from './Shop';
@@ -32,18 +33,18 @@ const com = (l: Listing, pct?: number) => Math.round(l.grossPrice * (pct ?? l.co
 const off = (l: Listing) => (l.listPrice && l.listPrice > l.grossPrice ? Math.round((1 - l.grossPrice / l.listPrice) * 100) : 0);
 
 type Route =
-  | { n: 'home' } | { n: 'search'; s: SearchState } | { n: 'product'; c: string; p: string; a?: string }
+  | { n: 'home' } | { n: 'search'; s: SearchState } | { n: 'product'; c: string; p: string; a?: string; q?: number }
   | { n: 'login' } | { n: 'register' } | { n: 'recover' } | { n: 'claims' } | { n: 'cart' } | { n: 'orders' }
-  | { n: 'panel' } | { n: 'sales' } | { n: 'market' } | { n: 'affs' } | { n: 'withdraw' } | { n: 'accounts' } | { n: 'profile' } | { n: 'msgs'; c?: string };
+  | { n: 'panel' } | { n: 'sales' } | { n: 'market'; t?: 'mine' } | { n: 'affs' } | { n: 'withdraw' } | { n: 'accounts' } | { n: 'profile' } | { n: 'msgs'; c?: string };
 const parse = (h: string): Route => {
   const [path, qs] = h.replace(/^#\/?/, '').split('?'); const s = path.split('/').filter(Boolean).map(decodeURIComponent); const q = new URLSearchParams(qs ?? '');
   switch (s[0]) {
     case 'busca': return { n: 'search', s: { q: q.get('q') ?? '', cat: q.get('cat') ?? undefined, promo: q.get('promo') === '1' } };
-    case 'p': return s[1] && s[2] ? { n: 'product', c: s[1], p: s[2], a: s[3] || undefined } : { n: 'home' };
+    case 'p': return s[1] && s[2] ? { n: 'product', c: s[1], p: s[2], a: s[3] || undefined, q: Math.min(99, Math.max(0, Number(q.get('q')) || 0)) || undefined } : { n: 'home' };
     case 'reclamacoes': return { n: 'claims' };
     case 'carrinho': return { n: 'cart' }; case 'compras': return { n: 'orders' };
     case 'entrar': return { n: 'login' }; case 'registar': return { n: 'register' }; case 'recuperar': return { n: 'recover' };
-    case 'painel': return { n: 'panel' }; case 'vendas': return { n: 'sales' }; case 'mercado': return { n: 'market' }; case 'afiliacoes': return { n: 'affs' };
+    case 'painel': return { n: 'panel' }; case 'vendas': return { n: 'sales' }; case 'mercado': return s[1] === 'meus' ? { n: 'market', t: 'mine' } : { n: 'market' }; case 'afiliacoes': return { n: 'affs' };
     case 'saques': return { n: 'withdraw' }; case 'contas': return { n: 'accounts' }; case 'perfil': return { n: 'profile' };
     case 'mensagens': return { n: 'msgs', c: s[1] || undefined };
     default: return { n: 'home' };
@@ -56,7 +57,7 @@ const hashOf = (r: Route): string => {
     case 'claims': return '#/reclamacoes';
     case 'cart': return '#/carrinho'; case 'orders': return '#/compras';
     case 'login': return '#/entrar'; case 'register': return '#/registar'; case 'recover': return '#/recuperar';
-    case 'panel': return '#/painel'; case 'sales': return '#/vendas'; case 'market': return '#/mercado'; case 'affs': return '#/afiliacoes'; case 'withdraw': return '#/saques'; case 'accounts': return '#/contas'; case 'profile': return '#/perfil';
+    case 'panel': return '#/painel'; case 'sales': return '#/vendas'; case 'market': return r.t === 'mine' ? '#/mercado/meus' : '#/mercado'; case 'affs': return '#/afiliacoes'; case 'withdraw': return '#/saques'; case 'accounts': return '#/contas'; case 'profile': return '#/perfil';
     case 'msgs': return r.c ? `#/mensagens/${encodeURIComponent(r.c)}` : '#/mensagens';
     default: return '#/';
   }
@@ -134,8 +135,8 @@ export function KwanzaApp() {
   else if (route.n === 'orders') body = <Orders go={go} />;
   else if (route.n === 'claims') body = <div className="kk-page"><div className="kk-wrap"><Claims companies={[...new Map((list ?? []).map((l) => [l.companyCode, { code: l.companyCode, name: l.companyName }])).values()]} /></div></div>;
   else if (route.n === 'search') body = list === null ? <KLoader overlay={false} /> : <div className="kk-page"><div className="kk-wrap"><Search products={products} state={route.s} card={card} onState={(s) => go({ n: 'search', s })} /></div></div>;
-  else if (route.n === 'product') body = <ProductRoute key={`${route.c}/${route.p}/${route.a ?? ''}`} route={route} list={list} sess={sess} go={go} flash={flash} card={card} products={products} />;
-  else if (PRIVATE.has(route.n) && sess) body = <Area route={route.n as AreaTab} chat={route.n === 'msgs' ? route.c : undefined} go={go} token={sess.token} me={sess.associate} flash={flash} products={products} ads={ads} />;
+  else if (route.n === 'product') body = <ProductRoute key={`${route.c}/${route.p}/${route.a ?? ''}/${route.q ?? ''}`} route={route} list={list} sess={sess} go={go} flash={flash} card={card} products={products} />;
+  else if (PRIVATE.has(route.n) && sess) body = <Area route={route.n as AreaTab} mine={route.n === 'market' && route.t === 'mine'} chat={route.n === 'msgs' ? route.c : undefined} go={go} token={sess.token} me={sess.associate} flash={flash} products={products} ads={ads} />;
   else body = <Home products={list === null ? null : products} cats={cats} ads={ads} adGo={adGo} go={go} card={card} buyer={!sess} />;
 
   // Entrar / criar conta / recuperar: UM ecrã só, sem barra nem rodapé e sem scroll da página.
@@ -453,7 +454,7 @@ function Home({ products, cats, ads, adGo, go, card, buyer }: {
 
 /* ───────────── produto do marketplace ───────────── */
 /** Produto aberto pela lista ou pela ligação de um associado (o cliente sem conta vê-o sempre). */
-function ProductRoute({ route, list, sess, go, flash, card, products }: { route: { c: string; p: string; a?: string }; list: Listing[] | null; sess: ReturnType<typeof session.get>; go(r: Route): void; flash(t: string): void; card(p: CatalogProduct): React.ReactNode; products: MP[] }) {
+function ProductRoute({ route, list, sess, go, flash, card, products }: { route: { c: string; p: string; a?: string; q?: number }; list: Listing[] | null; sess: ReturnType<typeof session.get>; go(r: Route): void; flash(t: string): void; card(p: CatalogProduct): React.ReactNode; products: MP[] }) {
   const inList = list?.find((l) => l.companyCode === route.c && l.productCode === route.p && (route.a ? l.associate?.code === route.a.toUpperCase() : true)) ?? null;
   const [fetched, setFetched] = useState<Listing | null | undefined>(undefined);
   useEffect(() => {
@@ -463,14 +464,14 @@ function ProductRoute({ route, list, sess, go, flash, card, products }: { route:
     kw.listing(route.c, route.p, route.a).then(setFetched).catch(() => setFetched(null));
   }, [list === null, !!inList]); // eslint-disable-line react-hooks/exhaustive-deps
   const l = inList ?? fetched ?? null;
-  return <Product listing={l} loading={list === null || (!inList && fetched === undefined)} refCode={route.a?.toUpperCase()} sess={sess} go={go} flash={flash} card={card} products={products} />;
+  return <Product listing={l} loading={list === null || (!inList && fetched === undefined)} refCode={route.a?.toUpperCase()} qty={route.q} sess={sess} go={go} flash={flash} card={card} products={products} />;
 }
 const savedRef = (c: string, p: string): string | null => {
   try { const v = JSON.parse(localStorage.getItem(`kw.ref.${c}.${p}`) || 'null') as { a: string; at: number } | null; return v && Date.now() - v.at < 30 * 86400000 ? v.a : null; } catch { return null; }
 };
 const PAY_ICONS: Array<[string, string]> = [[P.card, 'Numerário na entrega'], [P.box, 'Transferência'], [P.phone, 'Multicaixa Express'], [P.doc, 'Referência']];
 
-function Product({ listing: l, loading, refCode, sess, go, flash, card, products }: { listing: Listing | null; loading: boolean; refCode?: string; sess: ReturnType<typeof session.get>; go(r: Route): void; flash(t: string): void; card(p: CatalogProduct): React.ReactNode; products: MP[] }) {
+function Product({ listing: l, loading, refCode, qty, sess, go, flash, card, products }: { listing: Listing | null; loading: boolean; refCode?: string; qty?: number; sess: ReturnType<typeof session.get>; go(r: Route): void; flash(t: string): void; card(p: CatalogProduct): React.ReactNode; products: MP[] }) {
   const [img, setImg] = useState(0);
   const swipe = useRef<number | null>(null);
   const [aff, setAff] = useState<Affiliation | null | undefined>(undefined);
@@ -494,7 +495,7 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
   const mine = !!sess && assocCode === sess.associate.code;
   // Publicação de OUTRO associado: o associado com sessão vê e compra, mas não a edita (cada um edita só a sua).
   const othersPost = !!post && !!sess && post.associate!.code !== sess.associate.code;
-  const addToCart = (andGo: boolean) => { cart.add(l, 1, mine ? null : assocCode ?? null); if (andGo) go({ n: 'cart' }); else flash('Adicionado ao carrinho'); };
+  const addToCart = (andGo: boolean) => { cart.add(l, qty && qty > 1 ? qty : 1, mine ? null : assocCode ?? null); if (andGo) go({ n: 'cart' }); else flash('Adicionado ao carrinho'); };
   const yt = l.videoUrl ? /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/i.exec(l.videoUrl)?.[1] : undefined;
   const pct = aff?.status === 'APPROVED' ? aff.commissionPct : l.commissionPct;
   const link = sess ? shareLink(l.companyCode, l.productCode, sess.associate.code) : '';
@@ -539,7 +540,11 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
               {d > 0 ? <div className="kk-offer-h">-{d}%</div> : null}
               <div className="kk-offer-b">{d > 0 && l.listPrice ? <s>{kz(l.listPrice)}</s> : null}<b>{kz(l.grossPrice)}</b></div>
             </div>
-            {!post ? <button className="kk-aff-link" onClick={() => void join()} disabled={busy}><I d={P.share} size={16} /> {aff?.status === 'APPROVED' ? `Associado · comissão de até ${kz(com(l, pct))}` : `Vender como associado · comissão de até ${kz(com(l, pct))}`}</button> : null}
+            {!post ? (aff?.status === 'APPROVED'
+              ? <div className="kk-aff-on"><I d={P.check} size={16} /> Associado · comissão de até {kz(com(l, pct))}</div>
+              : !aff || aff.status === 'REJECTED'
+                ? <button className="kk-btn-aff big" onClick={() => void join()} disabled={busy}><I d={P.share} size={18} /> {l.affiliation === 'RESTRICTED' ? 'Solicitar afiliação' : 'Afiliar-me e vender'} · comissão de até {kz(com(l, pct))}</button>
+                : null) : null}
             <div className="kk-sold-by"><I d={P.pin} size={18} /> Vendido por: <b>{l.companyName}</b></div>
             <div className="kk-paybox"><h3>Formas de pagamento</h3><div className="kk-payicons">{PAY_ICONS.map(([ic, t]) => <span key={t}><I d={ic} size={20} /><small>{t}</small></span>)}</div></div>
             {post ? <div className="kk-post-by"><span className="kk-avatar big">{post.associate!.photoUrl ? <img src={post.associate!.photoUrl} alt="" /> : <b>{post.associate!.name.slice(0, 1).toUpperCase()}</b>}</span><div><small>Publicado por</small><b>{post.associate!.name}</b></div></div> : null}
@@ -554,12 +559,11 @@ function Product({ listing: l, loading, refCode, sess, go, flash, card, products
               <div className="kk-aff">
                 <div className="kk-aff-row"><span>Comissão</span><b>{pct}% · {kz(com(l, pct))}{aff.negotiated ? ' · negociada' : ''}</b></div>
                 <div className="kw-aff-link"><input readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Ligação de associado" /></div>
+                <ShareBar link={link} text={`${l.name} — ${kz(l.grossPrice)}`} flash={flash} />
                 <div className="kk-aff-acts">
-                  <button className="kk-btn-buy sm" onClick={() => void copy()}>Copiar ligação</button>
-                  <a className="kk-btn-wa" href={`https://wa.me/?text=${encodeURIComponent(`${l.name} — ${kz(l.grossPrice)}\n${link}`)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
                   <button className="kk-ghost" onClick={() => setEditing(true)}><I d={P.share} size={16} /> {aff.published ? 'Editar publicação' : 'Publicar no marketplace'}</button>
                 </div>
-                {l.allowMarkup ? <div className="kk-aff-mk"><label className="kw-f"><span>Preço próprio (+%{l.maxMarkupPct != null ? ` até ${l.maxMarkupPct}%` : ''})</span><input inputMode="decimal" value={mk} onChange={(e) => setMk(e.target.value.replace(/[^\d.]/g, ''))} /></label><button className="kk-ghost" onClick={() => void saveMk()}>Guardar</button></div> : null}
+                {l.allowMarkup ? <div className="kk-aff-mk"><label className="kw-f"><span>Preço próprio: de 0% a +{l.maxMarkupPct ?? 100}% (até {kz(Math.floor((l.basePrice ?? l.grossPrice) * (1 + (l.maxMarkupPct ?? 100) / 100) * 100) / 100)})</span><input inputMode="decimal" value={mk} onChange={(e) => setMk(e.target.value.replace(/[^\d.]/g, ''))} /></label><button className="kk-ghost" onClick={() => void saveMk()}>Guardar</button></div> : null}
                 {l.materials.length ? <div className="kw-mats"><b>Materiais de divulgação</b>{l.materials.map((m, i) => <a key={m} href={m} target="_blank" rel="noopener noreferrer"><I d={P.doc} size={14} /> Material {i + 1}</a>)}</div> : null}
               </div>
             ) : aff?.status === 'PENDING' ? <span className="kw-pill kw-st-PENDING">Pedido de afiliação em análise</span>
@@ -711,7 +715,7 @@ function AreaMenu({ route, go, onPick }: { route: AreaTab; go(r: Route): void; o
   );
 }
 
-function Area({ route, chat, go, token, me, flash, products, ads }: { route: AreaTab; chat?: string; go(r: Route): void; token: string; me: Associate; flash(t: string): void; products: MP[]; ads: KBanner[] }) {
+function Area({ route, mine, chat, go, token, me, flash, products, ads }: { route: AreaTab; mine?: boolean; chat?: string; go(r: Route): void; token: string; me: Associate; flash(t: string): void; products: MP[]; ads: KBanner[] }) {
   const [d, setD] = useState<Dashboard | null>(null);
   const [drawer, setDrawer] = useState(false);
   const load = useCallback(() => kw.dashboard(token).then(setD).catch(() => undefined), [token]);
@@ -727,7 +731,7 @@ function Area({ route, chat, go, token, me, flash, products, ads }: { route: Are
   let body: React.ReactNode;
   if (route === 'panel') body = <Panel d={d} go={go} products={products} banner={banner} />;
   else if (route === 'sales') body = <SalesT d={d} />;
-  else if (route === 'market') body = <Market products={products} go={go} banner={banner} />;
+  else if (route === 'market') body = <Market products={products} go={go} banner={banner} token={token} me={me} flash={flash} mine={!!mine} />;
   else if (route === 'affs') body = <Affs token={token} go={go} flash={flash} />;
   else if (route === 'withdraw') body = <Withdraw token={token} d={d} onDone={() => { void load(); flash('Pedido de saque enviado'); }} go={go} />;
   else if (route === 'accounts') body = <Accounts token={token} flash={flash} />;
@@ -881,26 +885,65 @@ function Panel({ d, go, products, banner }: { d: Dashboard | null; go(r: Route):
   );
 }
 
-function Market({ products, go, banner }: { products: MP[]; go(r: Route): void; banner?: KBanner }) {
+function Market({ products, go, banner, token, me, flash, mine }: { products: MP[]; go(r: Route): void; banner?: KBanner; token: string; me: Associate; flash(t: string): void; mine: boolean }) {
   const [q, setQ] = useState('');
+  const [affs, setAffs] = useState<Affiliation[] | null>(null);
+  const [open, setOpen] = useState<MP | null>(null);
+  const [pick, setPick] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const loadAffs = useCallback(() => kw.affiliations(token).then(setAffs).catch(() => setAffs((x) => x ?? [])), [token]);
+  useEffect(() => { void loadAffs(); }, [loadAffs]);
+  const affOf = (p: MP) => (affs ?? []).find((a) => a.companyCode === p.listing.companyCode && a.productCode === p.listing.productCode) ?? null;
   const term = q.trim().toLowerCase();
   // Cada produto da empresa uma vez (sem as publicações repetidas dos associados).
   const base = useMemo(() => { const m = new Map<string, MP>(); for (const p of products) { const k = `${p.listing.companyCode}::${p.listing.productCode}`; if (!m.has(k) || !p.listing.associate) m.set(k, p); } return [...m.values()]; }, [products]);
-  const rows = base.filter((p) => !term || `${p.name} ${p.listing.companyName} ${p.category ?? ''}`.toLowerCase().includes(term));
-  const [shown, sentinel] = useInfinite(rows.length, 24, `${rows.length}-${term}`);
+  const rows = base.filter((p) => (!mine || affOf(p)) && (!term || `${p.name} ${p.listing.companyName} ${p.category ?? ''}`.toLowerCase().includes(term)));
+  const [shown, sentinel] = useInfinite(rows.length, 24, `${rows.length}-${term}-${mine}`);
+  const keyOf = (p: MP) => `${p.listing.companyCode}::${p.listing.productCode}`;
+  const toggle = (p: MP) => setPick((s0) => { const s1 = new Set(s0); const k = keyOf(p); if (s1.has(k)) s1.delete(k); else s1.add(k); return s1; });
+  const joinMany = async () => {
+    const items = [...pick].map((k) => { const [companyCode, productCode] = k.split('::'); return { companyCode, productCode }; });
+    if (!items.length) return;
+    setBusy(true);
+    try {
+      const r = await kw.affiliateMany(token, items);
+      const ok = r.filter((x) => x.status === 'APPROVED').length; const pend = r.filter((x) => x.status === 'PENDING').length; const bad = r.filter((x) => x.error);
+      flash([ok ? `${ok} associado${ok > 1 ? 's' : ''}` : '', pend ? `${pend} pedido${pend > 1 ? 's' : ''} enviado${pend > 1 ? 's' : ''}` : '', bad.length ? `${bad.length} não` : ''].filter(Boolean).join(' · ') || 'Feito');
+      setPick(new Set()); await loadAffs();
+    } catch (e) { flash(e instanceof ApiError ? e.message : 'Não foi possível'); } finally { setBusy(false); }
+  };
   return (
     <div className="kk-dash">
       {banner ? <img className="kk-dash-ad" src={bannerSrc(banner)!} alt="" /> : null}
       <div className="kk-mk-btns">
         <button className="kk-ob" onClick={() => go({ n: 'sales' })}>Minhas Vendas 🔥</button>
-        <button className="kk-sb" onClick={() => go({ n: 'affs' })}>Minhas afiliações</button>
+        <button className={mine ? 'kk-ob blue' : 'kk-sb'} onClick={() => go({ n: 'market' })}>Associar-me</button>
+        <button className={mine ? 'kk-sb' : 'kk-ob blue'} onClick={() => go({ n: 'market', t: 'mine' })}>Sou associado(a)</button>
         <button className="kk-ob blue" onClick={() => go({ n: 'withdraw' })}>Transações (Saques)</button>
-        <button className="kk-ob blue" onClick={() => go({ n: 'msgs' })}>Mensagens</button>
       </div>
       <label className="kk-input"><I d={P.search} size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar produto" aria-label="Buscar produto" /></label>
-      <h2 className="kk-sub"><I d={P.star} size={20} /> Produtos</h2>
-      {!rows.length ? <div className="kk-empty">Sem produtos disponíveis</div> : <div className="kk-grid">{rows.slice(0, shown).map((p) => <div key={p.code}><KCard p={p} aff onOpen={() => { const [c, pc] = p.code.split('::'); go({ n: 'product', c, p: pc }); }} /></div>)}</div>}
+      <h2 className="kk-sub"><I d={P.star} size={20} /> {mine ? 'Produtos a que estou associado(a)' : 'Produtos'}</h2>
+      {affs === null ? <KLoader overlay={false} /> : !rows.length ? <div className="kk-empty">Lista vazia</div> : <div className="kk-grid">{rows.slice(0, shown).map((p) => {
+        const a = affOf(p); const k = keyOf(p);
+        return (
+          <div key={p.code} className={`kk-pickw${pick.has(k) ? ' on' : ''}`}>
+            {!a && !mine ? <label className="kk-pick" title="Selecionar"><input type="checkbox" checked={pick.has(k)} onChange={() => toggle(p)} aria-label={`Selecionar ${p.name}`} /><span /></label> : null}
+            {a ? <span className={`kk-pick-st ${a.status}`}>{a.status === 'APPROVED' ? 'Associado' : a.status === 'PENDING' ? 'Pendente' : 'Recusado'}</span> : null}
+            <KCard p={p} aff onOpen={() => setOpen(p)} />
+          </div>
+        );
+      })}</div>}
       {shown < rows.length ? <div ref={sentinel} className="kk-more-load"><KLoader overlay={false} /></div> : null}
+      {pick.size ? (
+        <div className="kk-pickbar" role="region" aria-label="Produtos selecionados">
+          <b>{pick.size} selecionado{pick.size > 1 ? 's' : ''}</b>
+          <button className="kk-ghost" onClick={() => setPick(new Set())}>Limpar</button>
+          <button className="kk-btn-aff" disabled={busy} onClick={() => void joinMany()}>{busy ? 'Um momento…' : `Associar-me a ${pick.size}`}</button>
+        </div>
+      ) : null}
+      {open ? <AffModal l={open.listing} token={token} aff={affOf(open)} assocCode={me.code} flash={flash}
+        onClose={() => setOpen(null)} onChanged={() => void loadAffs()}
+        onOpenProduct={() => { const l = open.listing; setOpen(null); go({ n: 'product', c: l.companyCode, p: l.productCode }); }} /> : null}
     </div>
   );
 }

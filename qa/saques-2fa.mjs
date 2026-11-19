@@ -198,8 +198,9 @@ R.check('BN-7', 'passados 15 dias o Super Admin reativa: a empresa volta a publi
   R.check('PB-1', 'cada associado edita só a sua publicação (a de B não altera a de A)', pa.caption === `Publicação A ${tag}` && pb.caption === `Publicação B ${tag}` && pa.associate.code === A.code, `${pa.caption} | ${pb.caption}`);
   const mk = (await ok('GET', `${K}/market`)).find((l) => l.productCode === co.prod.code && l.associate?.code === A.code);
   R.check('PB-2', 'o cliente sem conta vê o stock disponível do produto', mk && mk.stockQty > 0 && mk.inStock, `${mk?.stockQty}`);
-  const prodImg = (await ok('GET', `${K}/market`, { token: A.token })).find((l) => l.productCode === co.prod.code)?.imageUrl;
-  R.check('PB-3', 'foto principal e galeria só da empresa; as imagens do associado vêm à parte', (mk.imageUrl ?? null) === (prodImg ?? null) && !mk.gallery.includes(imgA) && mk.postImages?.includes(imgA), `${String(mk?.imageUrl).slice(0, 40)}`);
+  // PR #211 (pedido do utilizador): na publicação, a imagem do associado é a foto principal;
+  // a da empresa só aparece quando o associado publica sem imagens.
+  R.check('PB-3', 'a foto principal da publicação é a imagem do associado', mk.imageUrl === imgA && mk.postImages?.includes(imgA), `${String(mk?.imageUrl).slice(0, 40)}`);
   const social = await call('GET', `${K}/social/${co.code}/${co.prod.code}?device=${randomUUID()}`);
   R.check('PB-4', 'página do produto: avaliações, estrelas e gostos/não gostos disponíveis sem conta', social.status === 200 && 'rating' in social.body && 'likes' in social.body && 'dislikes' in social.body && Array.isArray(social.body.reviews), social.status);
 }

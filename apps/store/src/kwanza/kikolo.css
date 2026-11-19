@@ -661,3 +661,101 @@
 .kk-cal-g button.edge.has::after { background: #fff; }
 .kk-cal-clear { display: block; width: calc(100% - 8px); margin: 0 4px 6px; padding: 7px; border: 1px solid #d5dbe7; border-radius: 6px; background: #fff; font-weight: 700; font-size: 12.5px; color: #164ad6; cursor: pointer; }
 .kk-perf-range { margin-left: 8px; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: rgba(22,74,214,.1); color: #164ad6; vertical-align: middle; }
+
+/* ───── botões de compra: aspeto de botão claro + animação ao passar o rato e ao carregar ───── */
+.kk-btn-add, .kk-btn-buy { cursor: pointer; border-radius: 8px; box-shadow: 0 2px 0 rgba(0,0,0,.12), 0 4px 12px rgba(26,36,196,.22); position: relative; overflow: hidden; transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
+.kk-buybtns { gap: 8px; }
+.kk-btn-add::after, .kk-btn-buy::after { content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent); transform: skewX(-20deg); transition: left .5s ease; pointer-events: none; }
+@media (hover: hover) {
+  .kk-btn-add:hover, .kk-btn-buy:hover { transform: translateY(-2px); box-shadow: 0 4px 0 rgba(0,0,0,.14), 0 10px 22px rgba(26,36,196,.32); filter: brightness(1.07); }
+  .kk-btn-add:hover::after, .kk-btn-buy:hover::after { left: 120%; }
+  .kk-btn-add:hover svg { animation: kk-cart-bump .5s ease; }
+}
+.kk-btn-add:active, .kk-btn-buy:active { transform: translateY(1px) scale(.98); box-shadow: 0 1px 0 rgba(0,0,0,.12), 0 2px 6px rgba(26,36,196,.2); }
+.kk-btn-add:focus-visible, .kk-btn-buy:focus-visible, .kk-btn-aff:focus-visible, .kk-sh:focus-visible { outline: 3px solid #ffb800; outline-offset: 2px; }
+@keyframes kk-cart-bump { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(3px) rotate(-8deg); } 60% { transform: translateX(-2px); } }
+
+/* ───── afiliação (botão principal, estado associado) ───── */
+.kk-btn-aff { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 8px; background: var(--kk-grad); color: #fff; font-weight: 700; font-size: 15px; padding: 12px 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(26,36,196,.25); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; text-align: center; }
+.kk-btn-aff.big { width: 100%; min-height: 50px; font-size: 16px; margin: 6px 0 4px; }
+.kk-btn-aff.sm { padding: 9px 14px; font-size: 14px; }
+.kk-btn-aff:disabled { opacity: .6; cursor: default; }
+@media (hover: hover) { .kk-btn-aff:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(26,36,196,.33); filter: brightness(1.07); } }
+.kk-btn-aff:not(:disabled):active { transform: translateY(1px) scale(.98); }
+.kk-aff-on { display: flex; align-items: center; gap: 8px; background: #e9f8ef; color: var(--kk-green); border: 1px solid #b9e6cb; border-radius: 8px; padding: 10px 14px; font-weight: 600; margin: 6px 0; }
+
+/* ───── partilha ───── */
+.kk-share { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.kk-sh { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 12px; border-radius: 8px; border: 0; color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; transition: transform .15s ease, filter .15s ease; flex: 1 1 120px; justify-content: center; }
+@media (hover: hover) { .kk-sh:hover { transform: translateY(-2px); filter: brightness(1.08); } }
+.kk-sh:active { transform: scale(.97); }
+.kk-sh-link { background: #2b3445; } .kk-sh-wa { background: #1fa855; } .kk-sh-fb { background: #1877f2; }
+.kk-sh-ig { background: linear-gradient(45deg, #f09433, #dc2743 50%, #bc1888); } .kk-sh-tg { background: #229ed9; } .kk-sh-more { background: #6b7280; }
+
+/* ───── janela rápida do produto (mercado) e avisos ───── */
+.kk-modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 16px; animation: kk-page-in .2s ease both; }
+.kk-qv { position: relative; background: #fff; border-radius: 10px; width: min(860px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; overflow-x: hidden; padding: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.25); }
+.kk-x { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 6px; border: 0; background: #f1f3f7; color: var(--kk-ink); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2; }
+.kk-x.red { background: #e53935; color: #fff; }
+.kk-qv-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.kk-qv-main { aspect-ratio: 1; background: #f3f5f8; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.kk-qv-main img { width: 100%; height: 100%; object-fit: cover; }
+.kk-qv-ph { font-size: 72px; font-weight: 800; color: var(--kk-p); }
+.kk-qv-th { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.kk-qv-th button { width: 56px; height: 56px; padding: 0; border: 1px solid var(--kk-line); border-radius: 6px; overflow: hidden; background: #fff; cursor: pointer; }
+.kk-qv-th button.on { border: 2px solid var(--kk-p); }
+.kk-qv-th img { width: 100%; height: 100%; object-fit: cover; }
+.kk-qv-info { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; padding-right: 30px; }
+.kk-qv-info h2 { margin: 4px 0; font-size: 22px; line-height: 1.25; overflow-wrap: anywhere; }
+.kk-qv-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--kk-pill); color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 4px; }
+.kk-qv-kv { display: flex; gap: 8px; font-size: 14px; color: var(--kk-mut); } .kk-qv-kv b { color: var(--kk-ink); }
+.kk-qv-k { color: var(--kk-mut); font-size: 13px; margin-top: 4px; }
+.kk-qv-com { color: var(--kk-green); font-size: 22px; } .kk-qv-val { font-size: 18px; }
+.kk-qv-go { color: var(--kk-green); font-style: normal; font-weight: 700; font-size: 14px; }
+.kk-qv-info .kk-btn-aff { width: 100%; }
+.kk-qv-vid a { display: inline-flex; gap: 6px; align-items: center; color: #d97706; font-weight: 600; font-size: 14px; }
+.kk-qv-aff { display: grid; gap: 12px; margin-top: 16px; }
+.kk-qv-box { border: 1px solid var(--kk-line); border-radius: 8px; padding: 14px; min-width: 0; }
+.kk-qv-box h3, .kk-qv-desc h3 { margin: 0 0 10px; font-size: 16px; }
+.kk-qv-gen { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.kk-qv-qty { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.kk-step { display: inline-flex; align-items: center; border: 1px solid var(--kk-line); border-radius: 6px; overflow: hidden; }
+.kk-step button { width: 34px; height: 34px; border: 0; background: #f1f3f7; font-size: 18px; cursor: pointer; } .kk-step b { min-width: 34px; text-align: center; }
+.kk-qv-prices { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.kk-qv-prices div, .kk-qv-row div { display: flex; flex-direction: column; } .kk-qv-prices small, .kk-qv-row small { color: var(--kk-mut); font-size: 12.5px; }
+.kk-qv-price { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; } .kk-qv-price .kw-f { flex: 1 1 180px; margin: 0; }
+.kk-qv-closed { color: var(--kk-red); font-size: 14px; margin: 0; }
+.kk-qv-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.kk-btn-rm { border: 1px solid var(--kk-red); color: var(--kk-red); background: #fff; border-radius: 8px; padding: 9px 14px; font-weight: 600; cursor: pointer; transition: background .15s ease, color .15s ease; }
+@media (hover: hover) { .kk-btn-rm:hover { background: var(--kk-red); color: #fff; } }
+.kk-qv-desc { margin-top: 16px; border-top: 1px solid var(--kk-line); padding-top: 14px; overflow-wrap: anywhere; } .kk-qv-desc p { margin: 0 0 8px; color: var(--kk-ink); }
+@media (max-width: 680px) { .kk-qv-top { grid-template-columns: 1fr; } .kk-qv-info { padding-right: 0; } .kk-qv { padding: 14px; } .kk-modal-bg { align-items: flex-end; padding: 0; } .kk-qv { border-radius: 14px 14px 0 0; max-height: 92vh; } }
+
+/* ───── seleção de vários produtos no mercado ───── */
+.kk-pickw { position: relative; }
+.kk-pickw.on .kk-card { outline: 3px solid var(--kk-p); outline-offset: 2px; border-radius: 8px; }
+.kk-pick { position: absolute; top: 8px; left: 8px; z-index: 3; width: 28px; height: 28px; cursor: pointer; }
+.kk-pick input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
+.kk-pick span { display: block; width: 28px; height: 28px; border-radius: 6px; background: #fff; border: 2px solid var(--kk-p); box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.kk-pick input:checked + span { background: var(--kk-p) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center/18px no-repeat; }
+.kk-pick input:focus-visible + span { outline: 3px solid #ffb800; outline-offset: 2px; }
+.kk-pick-st { position: absolute; top: 8px; left: 8px; z-index: 3; font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 4px; color: #fff; background: var(--kk-green); }
+.kk-pick-st.PENDING { background: #d97706; } .kk-pick-st.REJECTED { background: var(--kk-red); }
+.kk-pickbar { position: sticky; bottom: 12px; z-index: 50; margin-top: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--kk-line); border-radius: 12px; padding: 10px 14px; box-shadow: 0 10px 30px rgba(0,0,0,.15); }
+.kk-pickbar b { flex: 1 1 auto; }
+
+
+/* ───── barra de compra: botões com a largura do texto, separados, sem cortar nem sobrepor ───── */
+.kk-buybtns { flex: 0 1 auto; max-width: none; height: auto; border-radius: 0; overflow: visible; box-shadow: none; gap: 10px; margin-left: auto; }
+.kk-buybtns > * + * { margin-left: 0; }
+.kk-btn-add, .kk-btn-buy { flex: 0 0 auto; min-width: max-content; height: 48px; padding: 0 22px; border-radius: 10px; font-size: 15px; line-height: 1.15; white-space: nowrap; letter-spacing: .1px; }
+.kk-btn-add { background: #fff; color: var(--kk-p); border: 2px solid var(--kk-p); box-shadow: 0 2px 8px rgba(26,36,196,.12); }
+.kk-btn-buy { min-width: 150px; }
+@media (hover: hover) { .kk-btn-add:hover { background: var(--kk-soft); filter: none; } }
+.kk-btn-add::after { background: linear-gradient(100deg, transparent, rgba(26,36,196,.12), transparent); }
+@media (max-width: 640px) {
+  .kk-buybtns { flex: 1 1 auto; }
+  .kk-btn-add, .kk-btn-buy { flex: 1 1 0; min-width: 0; padding: 0 10px; font-size: 13.5px; white-space: normal; text-align: center; height: 46px; }
+  .kk-btn-buy { min-width: 0; }
+}
+@media (max-width: 360px) { .kk-buybar-price { font-size: 14px; } .kk-btn-add, .kk-btn-buy { font-size: 12.5px; padding: 0 6px; } .kk-buybar-in { gap: 8px; } }
