@@ -376,7 +376,10 @@ export class KwanzaService implements OnModuleInit {
     const l = await this.listingOf(companyCode, productCode);
     if (!l.allowMarkup) throw new BadRequestException('Esta empresa não permite preço próprio neste produto.');
     const max = l.maxMarkupPct == null ? 100 : num(l.maxMarkupPct);
-    const m = markupPct == null || markupPct <= 0 ? null : Math.min(max, r2(markupPct));
+    // Entre o preço da empresa (0%) e o máximo que a empresa definiu — nunca abaixo, nunca acima.
+    if (markupPct != null && markupPct < 0) throw new BadRequestException('O preço não pode ser abaixo do preço da empresa.');
+    if (markupPct != null && r2(markupPct) > max) throw new BadRequestException(`O máximo que esta empresa permite é +${max}%.`);
+    const m = markupPct == null || markupPct <= 0 ? null : r2(markupPct);
     const n = await this.prisma.$executeRaw(Prisma.sql`
       UPDATE ${T('kwanza_affiliations')} SET "markupPct" = ${m}, "updatedAt" = now()
       WHERE "associateId" = ${a.id}::uuid AND "companyId" = ${l.companyId}::uuid AND "productCode" = ${productCode} AND status = 'APPROVED'`);

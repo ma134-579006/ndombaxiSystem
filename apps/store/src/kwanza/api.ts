@@ -101,7 +101,11 @@ export const kw = {
   complain: (b: { companyCode: string; productCode?: string; associateCode?: string; orderNumber?: string; name: string; phone: string; kind: string; body: string }) => request<{ ok: true; code: string }>('POST', '/kwanza/complaints', b),
   complaint: (code: string) => request<Complaint>('GET', `/kwanza/complaints/${e(code.trim())}`),
   withdraw: (t: string, companyCode: string, amount: number, accountId: string, twoFaCode?: string, twoFaResend?: boolean) => request<{ ok: true }>('POST', '/kwanza/me/withdrawals', { companyCode, amount, accountId, twoFaCode, twoFaResend }, t),
+  affiliateMany: (t: string, items: { companyCode: string; productCode: string }[]) =>
+    request<{ companyCode: string; productCode: string; status?: string; error?: string }[]>('POST', '/kwanza/me/affiliations/bulk', { items }, t),
+  unaffiliate: (t: string, companyCode: string, productCode: string) => request<{ ok: true }>('DELETE', `/kwanza/me/affiliations/${e(companyCode)}/${e(productCode)}`, undefined, t),
 };
+
 
 /** Ligação do associado: abre o produto NO LPS KWANZA (a compra faz-se lá) com o código dele. */
 export const shareLink = (companyCode: string, productCode: string, ref: string) =>
