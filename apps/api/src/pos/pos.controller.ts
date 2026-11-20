@@ -396,6 +396,18 @@ export class PosController {
     }
   }
 
+  // ── Validação do SAF-T antes da entrega (XSD + conteúdo) ────
+  @Get('saft/validate')
+  @Roles(Role.COMPANY_ADMIN)
+  @ApiOperation({ summary: 'Relatório de validação do SAF-T (AO) mensal: XSD oficial, regras de conteúdo e configuração' })
+  async saftValidate(@Query('year') year: string, @Query('month') month: string, @CurrentUser() user: JwtPayload) {
+    const y = Number(year);
+    const m = Number(month);
+    if (!Number.isInteger(y) || !Number.isInteger(m)) throw new BadRequestException('year e month são obrigatórios (inteiros)');
+    if (!user.tenantId) throw new BadRequestException('Contexto sem tenant');
+    return this.saft.validateMonth(user.tenantId, this.ctx.requireTenantSchema(), y, m);
+  }
+
   // ── Exportação SAF-T (AGT) ─────────────────────────────────
   @Get('saft')
   @Roles(Role.COMPANY_ADMIN)
