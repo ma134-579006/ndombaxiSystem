@@ -444,7 +444,7 @@ export class OnboardingService {
   async completeSetup(
     tenantId: string | undefined,
     schema: string,
-    dto: { name: string; companyCode?: string; nif: string; logoUrl?: string },
+    dto: { name: string; companyCode?: string; nif: string; logoUrl?: string; address?: string; city?: string; responsibleName?: string; responsiblePhone?: string; responsibleRole?: string; usage?: string },
   ): Promise<{ ok: true; companyCode: string }> {
     if (!tenantId) throw new BadRequestException('Sessão inválida.');
     if (!dto.name?.trim()) throw new BadRequestException('Indique o nome da empresa.');
@@ -471,8 +471,19 @@ export class OnboardingService {
     // subscrição/pagamento. Só guarda os dados (nome, código, NIF).
     await this.prisma.company.update({
       where: { id: tenantId },
-      data: { name: dto.name.trim(), code, nif: dto.nif },
+      data: {
+        name: dto.name.trim(), code, nif: dto.nif,
+        ...(dto.responsibleName?.trim() ? { responsibleName: dto.responsibleName.trim() } : {}),
+        ...(dto.responsiblePhone?.trim() ? { responsiblePhone: dto.responsiblePhone.trim() } : {}),
+        // "Restauração" no objectivo adapta o painel ao vertical de restauração.
+        ...(dto.usage === 'RESTAURANT' ? { sector: 'RESTAURANT' } : {}),
+      },
     });
+    // Morada, localidade, cargo e objectivo (assistente estilo Vendus).
+    const profile: Record<string, string> = {};
+    if (dto.city?.trim()) profile.city = dto.city.trim();
+    if (dto.responsibleRole) profile.responsibleRole = dto.responsibleRole;
+    if (dto.usage) profile.usage = dto.usage;
 
     await this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<{ id: string }[]>(
@@ -482,13 +493,16 @@ export class OnboardingService {
         await tx.$executeRaw(
           Prisma.sql`UPDATE site_settings SET brand_name = ${dto.name.trim()},
                        logo_url = COALESCE(${dto.logoUrl ?? null}, logo_url),
+                       address = COALESCE(${dto.address?.trim() || null}, address),
+                       contact_phone = COALESCE(contact_phone, ${dto.responsiblePhone?.trim() || null}),
+                       company_profile = COALESCE(company_profile, '{}'::jsonb) || ${JSON.stringify(profile)}::jsonb,
                        setup_completed = TRUE, updated_at = now()
                      WHERE id = ${rows[0].id}::uuid`,
         );
       } else {
         await tx.$executeRaw(
-          Prisma.sql`INSERT INTO site_settings (brand_name, logo_url, setup_completed)
-                     VALUES (${dto.name.trim()}, ${dto.logoUrl ?? null}, TRUE)`,
+          Prisma.sql`INSERT INTO site_settings (brand_name, logo_url, address, contact_phone, company_profile, setup_completed)
+                     VALUES (${dto.name.trim()}, ${dto.logoUrl ?? null}, ${dto.address?.trim() || null}, ${dto.responsiblePhone?.trim() || null}, ${JSON.stringify(profile)}::jsonb, TRUE)`,
         );
       }
     });
@@ -498,5 +512,29 @@ export class OnboardingService {
       entity: 'Company', entityId: tenantId, after: { code, name: dto.name },
     });
     return { ok: true, companyCode: code };
+  }
+
+  /** "Validar NIF" do assistente: formato angolano (e AGT quando houver integração). */
+  async validateNif(nif: string): Promise<{ valid: boolean; reason?: string }> {
+    return this.nif.validateWithAgt(nif);
+  }
+
+  /**
+   * "Preencher Mais Tarde" (como no Vendus): entra já no painel e conclui os
+   * dados depois. Só com um NIF real indicado no registo — o emitente dos
+   * documentos fiscais nunca fica com o NIF provisório.
+   */
+  async skipSetup(tenantId: string | undefined, schema: string): Promise<{ ok: true }> {
+    if (!tenantId) throw new BadRequestException('Sessão inválida.');
+    const c = await this.prisma.company.findUnique({ where: { id: tenantId }, select: { nif: true } });
+    if (!c || c.nif.startsWith('TMP')) {
+      throw new BadRequestException('Para continuar mais tarde, indique primeiro o NIF da empresa.');
+    }
+    await this.setSetupCompleted(schema, true);
+    await this.audit.record({
+      actorType: 'TENANT', tenantSchema: schema, action: 'COMPANY_SETUP_SKIPPED',
+      entity: 'Company', entityId: tenantId,
+    });
+    return { ok: true };
   }
 }

@@ -761,8 +761,10 @@ export const api = {
   onboarding: {
     myPlan: () => request<{ planId: string; planName: string; priceKz: number; tier?: string } | null>('GET', '/onboarding/my-plan'),
     setupStatus: () => request<{ setupCompleted: boolean; status: string; approved: boolean; expired: boolean; expiresAt: string | null; nif?: string | null }>('GET', '/onboarding/setup-status'),
-    completeSetup: (dto: { name: string; companyCode?: string; nif: string; logoUrl?: string }) =>
+    completeSetup: (dto: { name: string; companyCode?: string; nif: string; logoUrl?: string; address?: string; city?: string; responsibleName?: string; responsiblePhone?: string; responsibleRole?: string; usage?: string }) =>
       request<{ ok: true; companyCode: string }>('POST', '/onboarding/complete-setup', dto),
+    validateNif: (nif: string) => request<{ valid: boolean; reason?: string }>('POST', '/onboarding/validate-nif', { nif }),
+    skipSetup: () => request<{ ok: true }>('POST', '/onboarding/skip-setup', {}),
   },
 
   // ── Subscrição na landing pós-registo (sem login, via setupToken) ──

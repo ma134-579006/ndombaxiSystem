@@ -1,87 +1,249 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { readFileProgress } from '../components/feedback';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { BankAccount, PublicPlan } from '../api/types';
-import { IconBuilding, IconCard, IconImage, IconLogout, IconCheck } from '../components/Icons';
+import { IconCard, IconImage, IconLogout, IconCheck } from '../components/Icons';
 import { lookVars, useAuthPublic, useFitHeight } from './vendusAuth';
 import { ScreenKeyboard } from '../components/ScreenKeyboard';
 import { LOGO_WIDE } from '../brand';
 
+/** Cargos e objectivos do assistente (iguais aos do Vendus). */
+const ROLES: { id: string; label: string }[] = [
+  { id: 'OWNER', label: 'Proprietário' },
+  { id: 'MANAGER', label: 'Gerente' },
+  { id: 'IT', label: 'Técnico de Informática' },
+  { id: 'ACCOUNTANT', label: 'Contabilista' },
+  { id: 'OTHER', label: 'Outro' },
+];
+const USAGES: { id: string; label: string }[] = [
+  { id: 'INVOICING', label: 'Faturação' },
+  { id: 'POS', label: 'POS' },
+  { id: 'RESTAURANT', label: 'Restauração' },
+  { id: 'ECOMMERCE', label: 'Comércio Eletrónico ou API' },
+];
+type StepId = 'welcome' | 'pay' | 'company' | 'user' | 'goal';
+const STEP_LABEL: Record<StepId, string> = {
+  welcome: 'Bem-Vindo!', pay: 'Pagamento', company: 'Dados da Empresa', user: 'Dados do Utilizador', goal: 'Objectivo do LPS Vendas',
+};
+const HELP_URL = '/guides/criar-conta.png';
+
 /**
- * Assistente de ATIVAÇÃO da empresa — reconstruído com a MESMA identidade
- * visual do Login/Criar Conta (layout `.auth`, showcase à direita, cartão de
- * vidro, progresso numerado e validação em tempo real).
- *
- * Fluxo (inalterado):
- *   1) Pagamento — IBAN da plataforma + comprovativo (ou ativação imediata no
- *      plano gratuito / teste grátis).
- *   2) Dados — logótipo, nome e NIF. Só depois o painel desbloqueia.
+ * Assistente de BOAS-VINDAS depois de criar a conta — igual ao do Vendus:
+ * coluna de passos à esquerda (Bem-Vindo, Dados da Empresa, Dados do
+ * Utilizador, Objectivo) e "Preencher Mais Tarde"; à direita o passo actual com
+ * etiquetas flutuantes, "Validar NIF", Anterior/Continuar e "Terminar".
+ * Sem teste grátis activo, o Pagamento entra como passo 2.
  */
 export function CompanySetup({ onDone }: { onDone(): void }) {
   const { logout } = useAuth();
   const pub = useAuthPublic();
-  const fitRef = useFitHeight<HTMLDivElement>();
-  const [step, setStep] = useState<'pay' | 'data'>('pay');
-  // Período de TESTE GRÁTIS: se já existe uma subscrição ativa válida (trial),
-  // não se pede pagamento — vai direto aos dados da empresa.
+  const fitRef = useFitHeight<HTMLDivElement>(0, true);
   const [trial, setTrial] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [step, setStep] = useState<StepId>('welcome');
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // Dados
+  const [nif, setNif] = useState('');
+  const [nifMsg, setNifMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [person, setPerson] = useState('');
+  const [phone, setPhone] = useState('');
+  const [role, setRole] = useState('');
+  const [usage, setUsage] = useState('');
+  const [mobileSteps, setMobileSteps] = useState(false);
+
   useEffect(() => {
     let alive = true;
     api.subscription.mine()
       .then((subs) => {
         const active = subs.some((s) => s.status === 'ACTIVE' && (!s.expiresAt || new Date(s.expiresAt) > new Date()));
-        if (alive) { setTrial(active); if (active) setStep('data'); }
+        if (alive) setTrial(active);
       })
       .catch(() => undefined)
       .finally(() => { if (alive) setChecked(true); });
+    api.onboarding.setupStatus().then((s) => { if (alive && s.nif) setNif((v) => v || s.nif!); }).catch(() => undefined);
     return () => { alive = false; };
   }, []);
 
-  const payDone = trial || step === 'data';
+  const steps: StepId[] = trial ? ['welcome', 'company', 'user', 'goal'] : ['welcome', 'pay', 'company', 'user', 'goal'];
+  const idx = steps.indexOf(step);
+  const go = (s: StepId) => { setErr(null); setStep(s); setMobileSteps(false); };
+  const next = () => go(steps[Math.min(steps.length - 1, idx + 1)]);
+  const prev = () => go(steps[Math.max(0, idx - 1)]);
+
+  const nifNorm = nif.trim().toUpperCase();
+  const nifOk = /^(\d{9,10}|\d{9}[A-Z]{2}\d{3})$/.test(nifNorm);
+
+  const validateNif = async () => {
+    setNifMsg(null);
+    if (!nifNorm) { setNifMsg({ ok: false, text: 'Indique o NIF.' }); return; }
+    try {
+      const r = await api.onboarding.validateNif(nifNorm);
+      setNifMsg(r.valid ? { ok: true, text: 'NIF válido.' } : { ok: false, text: r.reason ?? 'NIF inválido.' });
+    } catch (e) { setNifMsg({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível validar o NIF.' }); }
+  };
+
+  const companyNext = () => {
+    if (!nifOk) { setErr('NIF inválido (9–10 dígitos, ou 14 caracteres do BI).'); return; }
+    if (name.trim().length < 2) { setErr('Indique o nome da empresa.'); return; }
+    if (!address.trim()) { setErr('Indique a morada.'); return; }
+    if (!city.trim()) { setErr('Indique a localidade.'); return; }
+    next();
+  };
+  const userNext = () => {
+    if (person.trim().split(/\s+/).length < 2) { setErr('Indique o primeiro e o último nome.'); return; }
+    if (!/^[+\d\s()-]{9,30}$/.test(phone.trim())) { setErr('Indique um telefone válido.'); return; }
+    if (!role) { setErr('Selecione o cargo na empresa.'); return; }
+    next();
+  };
+  const finish = async () => {
+    if (!usage) { setErr('Selecione como pretende utilizar o LPS Vendas.'); return; }
+    setBusy(true); setErr(null);
+    try {
+      await api.onboarding.completeSetup({
+        name: name.trim(), nif: nifNorm, logoUrl: logoUrl || undefined, address: address.trim(), city: city.trim(),
+        responsibleName: person.trim(), responsiblePhone: phone.trim(), responsibleRole: role, usage,
+      });
+      onDone();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Não foi possível concluir.');
+    } finally { setBusy(false); }
+  };
+  const later = async () => {
+    setErr(null);
+    try { await api.onboarding.skipSetup(); onDone(); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível continuar mais tarde.'); go('company'); }
+  };
+  const onLogo = (file?: File) => {
+    if (!file) return;
+    if (file.size > 1_500_000) { setErr('Logótipo demasiado grande (máx. ~1,5 MB).'); return; }
+    void readFileProgress(file).then((data) => setLogoUrl(data));
+  };
+
+  const Help = () => <a className="vw-help" href={HELP_URL} target="_blank" rel="noreferrer"><span aria-hidden>?</span>Ajuda</a>;
+  const Req = () => <span className="vw-req">*</span>;
+
+  const stepList = (
+    <ol className="vw-steps">
+      {steps.map((s, i) => (
+        <li key={s} className={i < idx ? 'done' : i === idx ? 'on' : ''}>
+          <button type="button" onClick={() => (i <= idx ? go(s) : undefined)} disabled={i > idx}>
+            <span className="vw-num">{i + 1}</span><span>{STEP_LABEL[s]}</span>
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
 
   return (
-    <div className="va va-setup" style={lookVars(pub?.look)}>
+    <div className="va vw" style={lookVars(pub?.look)}>
       <ScreenKeyboard />
-      <div className="va-login">
-        <div className="va-col" ref={fitRef}>
-          <img className="va-logo" src={LOGO_WIDE} alt="LPS Vendas" />
-          <div className="auth-brandhead">
-            <div className="ic"><IconBuilding size={26} /></div>
-            <div>
-              <h1>Ativar a sua empresa</h1>
-              <p className="sub">{trial ? 'Teste grátis ativo — só faltam os dados' : 'Dois passos rápidos e está a faturar'}</p>
-            </div>
-          </div>
-
-          {!trial ? (
-            <div className="setup-steps" aria-hidden>
-              <div className={`st ${payDone ? 'done' : 'on'}`}>
-                <div className="dot">{payDone ? <IconCheck size={16} /> : '1'}</div>
-                <div className="lbl">Pagamento</div>
-              </div>
-              <div className={`bar ${payDone ? 'done' : ''}`} />
-              <div className={`st ${step === 'data' ? 'on' : ''}`}>
-                <div className="dot">2</div>
-                <div className="lbl">Dados</div>
-              </div>
-            </div>
-          ) : null}
-
-          {!checked ? (
-            <div className="auth-glass"><div className="loading" style={{ color: '#9fb0cc' }}>A preparar…</div></div>
-          ) : step === 'pay' ? (
-            <PayStep auth onNext={() => setStep('data')} />
-          ) : (
-            <DataStep onDone={onDone} onBack={trial ? undefined : () => setStep('pay')} />
-          )}
-
-          <p className="auth-foot logout">
-            <a onClick={() => void logout()}><IconLogout size={15} /> Terminar sessão</a>
-          </p>
+      <aside className="vw-side">
+        <img className="vw-logo" src={LOGO_WIDE} alt="LPS Vendas" />
+        {stepList}
+        <div className="vw-side-foot">
+          <a onClick={() => void later()}><span aria-hidden>↗</span> Preencher Mais Tarde</a>
+          <a onClick={() => void logout()}><IconLogout size={14} /> Terminar sessão</a>
         </div>
-      </div>
+      </aside>
+
+      <header className="vw-mhead">
+        <img src={LOGO_WIDE} alt="LPS Vendas" />
+        <button type="button" onClick={() => setMobileSteps((v) => !v)}>☰ Etapas</button>
+      </header>
+      {mobileSteps ? <div className="vw-mpanel">{stepList}<a onClick={() => void later()}>↗ Preencher Mais Tarde</a></div> : null}
+
+      <main className="vw-main">
+        <div className="vw-body" ref={fitRef}>
+          {!checked ? <div className="vw-loading">A preparar…</div> : step === 'welcome' ? (
+            <section className="vw-welcome">
+              <h2>Bem-Vindo ao LPS Vendas</h2>
+              <p>Fature em segundos e acompanhe as suas vendas no computador, telemóvel ou tablet, de forma simples e prática!</p>
+              <button type="button" className="vw-btn" onClick={next}>Continuar →</button>
+              <a className="vw-needhelp" href={HELP_URL} target="_blank" rel="noreferrer">Precisa de ajuda?</a>
+              <img className="vw-hero" src="/landing/painel.webp" alt="" />
+              <div className="vw-promo">
+                {trial
+                  ? <><b>Teste grátis de {pub?.trialDays ?? 14} dias ativo</b> — preencha os dados do seu negócio para começar a faturar.</>
+                  : <><b>Ative o seu plano</b> e preencha os dados do seu negócio para começar a faturar.</>}
+              </div>
+            </section>
+          ) : step === 'pay' ? (
+            <section>
+              <div className="vw-head"><h4>Pagamento</h4><Help /></div>
+              <PayStep auth onNext={next} />
+              <div className="vw-actions"><button type="button" className="vw-btn ghost" onClick={prev}>Anterior</button></div>
+            </section>
+          ) : step === 'company' ? (
+            <section>
+              <div className="vw-head"><h4>Dados da Empresa</h4><Help /></div>
+              {err ? <div className="vw-err" role="alert">{err}</div> : null}
+              <div className="vw-group">
+                <div className="vw-fl">
+                  <input id="vw-nif" placeholder="NIF" value={nif} inputMode="numeric"
+                    onChange={(e) => { setNif(e.target.value.replace(/[^0-9a-zA-Z]/g, '').toUpperCase().slice(0, 14)); setNifMsg(null); }} />
+                  <label htmlFor="vw-nif">NIF <Req /></label>
+                </div>
+                <button type="button" className="vw-append" onClick={() => void validateNif()}>Validar NIF</button>
+              </div>
+              {nifMsg ? <div className={`vw-hint ${nifMsg.ok ? 'ok' : 'bad'}`}>{nifMsg.text}</div> : null}
+              <div className="vw-fl"><input id="vw-name" placeholder="Nome da Empresa" value={name} onChange={(e) => setName(e.target.value)} /><label htmlFor="vw-name">Nome da Empresa <Req /></label></div>
+              <div className="vw-fl"><input id="vw-addr" placeholder="Morada" value={address} onChange={(e) => setAddress(e.target.value)} /><label htmlFor="vw-addr">Morada <Req /></label></div>
+              <div className="vw-fl"><input id="vw-city" placeholder="Localidade" value={city} onChange={(e) => setCity(e.target.value)} /><label htmlFor="vw-city">Localidade <Req /></label></div>
+              <label className="vw-logo-up">
+                <span className="vw-logo-box">{logoUrl ? <img src={logoUrl} alt="" /> : <IconImage size={18} />}</span>
+                <span>{logoUrl ? 'Trocar logótipo' : 'Logótipo (opcional)'}</span>
+                <input type="file" accept="image/*" hidden onChange={(e) => onLogo(e.target.files?.[0])} />
+              </label>
+              <div className="vw-actions">
+                <button type="button" className="vw-btn ghost" onClick={prev}>Anterior</button>
+                <button type="button" className="vw-btn" onClick={companyNext}>Continuar →</button>
+              </div>
+              <p className="vw-reqnote"><Req /> Campos de preenchimento obrigatório</p>
+            </section>
+          ) : step === 'user' ? (
+            <section>
+              <div className="vw-head"><h4>Dados Utilizador</h4><Help /></div>
+              {err ? <div className="vw-err" role="alert">{err}</div> : null}
+              <div className="vw-fl"><input id="vw-person" placeholder="Nome Completo" value={person} onChange={(e) => setPerson(e.target.value)} autoComplete="name" /><label htmlFor="vw-person">Primeiro e Último Nome <Req /></label></div>
+              <div className="vw-fl"><input id="vw-phone" type="tel" placeholder="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" /><label htmlFor="vw-phone">Telefone <Req /></label></div>
+              <div className="vw-fl">
+                <select id="vw-role" value={role} onChange={(e) => setRole(e.target.value)}>
+                  <option value="">Selecione uma opção</option>
+                  {ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                </select>
+                <label htmlFor="vw-role">Cargo na Empresa <Req /></label>
+              </div>
+              <div className="vw-actions">
+                <button type="button" className="vw-btn ghost" onClick={prev}>Anterior</button>
+                <button type="button" className="vw-btn" onClick={userNext}>Continuar →</button>
+              </div>
+              <p className="vw-reqnote"><Req /> Campos de preenchimento obrigatório</p>
+            </section>
+          ) : (
+            <section>
+              <div className="vw-head"><h4>Como pretende utilizar o LPS Vendas? <Req /></h4><Help /></div>
+              {err ? <div className="vw-err" role="alert">{err}</div> : null}
+              {USAGES.map((u) => (
+                <label key={u.id} className={`vw-radio${usage === u.id ? ' on' : ''}`}>
+                  <input type="radio" name="vw-usage" value={u.id} checked={usage === u.id} onChange={() => setUsage(u.id)} />
+                  <span>{u.label}</span>
+                </label>
+              ))}
+              <div className="vw-actions">
+                <button type="button" className="vw-btn ghost" onClick={prev} disabled={busy}>Anterior</button>
+                <button type="button" className="vw-btn" onClick={() => void finish()} disabled={busy}>{busy ? 'A concluir…' : '✓ Terminar'}</button>
+              </div>
+              <p className="vw-reqnote"><Req /> Campos de preenchimento obrigatório</p>
+            </section>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
@@ -268,106 +430,6 @@ export function PayStep({ onNext, allowPlanChoice = false, auth = false }: { onN
         <IconCard size={18} /> {busy ? 'A enviar…' : 'Enviar comprovativo e continuar'}
       </button>
       </>)}
-    </div>
-  );
-}
-
-function DataStep({ onDone, onBack }: { onDone(): void; onBack?: () => void }) {
-  const [name, setName] = useState('');
-  const [nif, setNif] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [touched, setTouched] = useState<{ name?: boolean; nif?: boolean }>({});
-  const fileRef = useRef<HTMLInputElement>(null);
-  // NIF já indicado no registo: vem preenchido.
-  useEffect(() => { api.onboarding.setupStatus().then((s) => { if (s.nif) setNif((v) => v || s.nif!); }).catch(() => undefined); }, []);
-
-  // Validação em tempo real
-  const nameOk = name.trim().length >= 2;
-  const nifDigits = nif.trim().toUpperCase();
-  const nifOk = /^(\d{9,10}|\d{9}[A-Z]{2}\d{3})$/.test(nifDigits);
-  const canSubmit = useMemo(() => nameOk && nifOk, [nameOk, nifOk]);
-
-  const onLogo = (file?: File) => {
-    if (!file) return;
-    if (file.size > 1_500_000) { setErr('Logótipo demasiado grande (máx. ~1,5 MB).'); return; }
-    void readFileProgress(file).then((data) => setLogoUrl(data));
-  };
-
-  const submit = async () => {
-    setErr(null);
-    setTouched({ name: true, nif: true });
-    if (!nameOk) { setErr('Indique o nome da empresa.'); return; }
-    if (!nifOk) { setErr('NIF inválido (9–10 dígitos, ou 14 caracteres do BI: 9 dígitos + 2 letras + 3 dígitos).'); return; }
-    setBusy(true);
-    try {
-      // O código da loja é gerado automaticamente a partir do nome (no servidor).
-      await api.onboarding.completeSetup({ name: name.trim(), nif: nifDigits, logoUrl: logoUrl || undefined });
-      onDone();
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'Não foi possível concluir o setup.');
-    } finally { setBusy(false); }
-  };
-
-  const nameState = !touched.name && !name ? 'neutral' : nameOk ? 'ok' : 'bad';
-  const nifState = !touched.nif && !nif ? 'neutral' : nifOk ? 'ok' : 'bad';
-
-  return (
-    <div className="auth-glass auth-stepanim">
-      {err ? <div className="auth-error">{err}</div> : null}
-
-      <div className="auth-logo">
-        <div className="lgbox">
-          {logoUrl ? <img src={logoUrl} alt="logótipo" /> : <IconImage size={26} />}
-        </div>
-        <label className="auth-btn ghost sm">
-          <IconImage size={15} /> {logoUrl ? 'Trocar logótipo' : 'Carregar logótipo'}
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onLogo(e.target.files?.[0])} />
-        </label>
-      </div>
-
-      <div className="auth-field">
-        <label className="auth-label" style={{ marginTop: 0 }}>Nome da empresa</label>
-        <div className="auth-inwrap">
-          <input
-            className={`auth-input ${nameState === 'neutral' ? '' : nameState}`}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => setTouched((t) => ({ ...t, name: true }))}
-            placeholder="Ex.: Nova Shop, Lda"
-          />
-          {nameState === 'ok' ? <span className="vmark" style={{ color: '#22c55e' }}><IconCheck size={16} /></span> : null}
-        </div>
-        <div className={`auth-hint ${nameState}`}>
-          {nameState === 'bad' ? 'Indique o nome legal da empresa.' : nameState === 'ok' ? 'Perfeito.' : 'Nome que aparece nas faturas e na loja.'}
-        </div>
-      </div>
-
-      <div className="auth-field">
-        <label className="auth-label" style={{ marginTop: 0 }}>NIF da empresa</label>
-        <div className="auth-inwrap">
-          <input
-            className={`auth-input ${nifState === 'neutral' ? '' : nifState}`}
-            value={nif}
-            onChange={(e) => setNif(e.target.value.replace(/[^0-9a-zA-Z]/g, '').toUpperCase().slice(0, 14))}
-            onBlur={() => setTouched((t) => ({ ...t, nif: true }))}
-            placeholder="5XXXXXXXX"
-            inputMode="numeric"
-          />
-          {nifState === 'ok' ? <span className="vmark" style={{ color: '#22c55e' }}><IconCheck size={16} /></span> : null}
-        </div>
-        <div className={`auth-hint ${nifState}`}>
-          {nifState === 'bad' ? `NIF inválido — ${nifDigits.length} caracteres.` : nifState === 'ok' ? 'NIF válido.' : 'Empresa: 9 a 10 dígitos. Particular: 14 caracteres do BI.'}
-        </div>
-      </div>
-
-      <div className="auth-btnrow" style={{ marginTop: 8 }}>
-        {onBack ? <button className="auth-btn ghost" style={{ flex: '0 0 auto', width: 'auto', padding: '0 18px' }} onClick={onBack} disabled={busy}>← Voltar</button> : null}
-        <button className="auth-btn" style={{ flex: 1 }} onClick={submit} disabled={busy || !canSubmit}>
-          {busy ? 'A concluir…' : 'Concluir e entrar'}
-        </button>
-      </div>
     </div>
   );
 }

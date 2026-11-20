@@ -67,4 +67,19 @@ export class CompleteSetupDto {
   @IsString()
   @Length(0, 2_600_000)
   logoUrl?: string;
+
+  // ── Assistente "Bem-Vindo" (estilo Vendus) ──
+  @IsOptional() @IsString() @Length(0, 200) address?: string;
+  @IsOptional() @IsString() @Length(0, 80) city?: string;
+  @IsOptional() @IsString() @Length(0, 120) responsibleName?: string;
+  @IsOptional() @IsString() @Matches(/^[+\d\s()-]{0,30}$/, { message: 'Telefone inválido.' }) responsiblePhone?: string;
+  @IsOptional() @IsString() @Matches(/^(OWNER|MANAGER|IT|ACCOUNTANT|OTHER)?$/, { message: 'Cargo inválido.' }) responsibleRole?: string;
+  @IsOptional() @IsString() @Matches(/^(INVOICING|POS|RESTAURANT|ECOMMERCE)?$/, { message: 'Objectivo inválido.' }) usage?: string;
+}
+
+/** "Validar NIF" do assistente. */
+export class ValidateNifDto {
+  @Transform(({ value }) => normalizeNif(value))
+  @IsString()
+  nif!: string;
 }
