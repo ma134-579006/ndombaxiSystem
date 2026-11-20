@@ -1,0 +1,48 @@
+# Publica a API no Render a cada merge na main que mexa na API.
+# O auto-deploy do próprio Render deixou de disparar (o webhook do GitHub não
+# chega ao Render), por isso usamos o "Deploy Hook" do serviço, guardado no
+# segredo RENDER_DEPLOY_HOOK (nunca no Git). No fim confirma no /health que a
+# produção já corre o commit novo.
+name: Publicar API (Render)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'render.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: render-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Pedir o deploy ao Render
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "::error::Falta o segredo RENDER_DEPLOY_HOOK"; exit 1; fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$HOOK")
+          echo "Render respondeu HTTP $code"
+          [ "$code" -ge 200 ] && [ "$code" -lt 300 ]
+
+      - name: Esperar que a produção corra este commit
+        run: |
+          want="${GITHUB_SHA::7}"
+          for i in $(seq 1 75); do
+            got=$(curl -s -m 10 https://ndombaxi-api-bwwr.onrender.com/health | sed -n 's/.*"commit":"\([^"]*\)".*/\1/p')
+            if [ "$got" = "$want" ]; then echo "Produção no commit $got"; exit 0; fi
+            echo "Ainda em $got (à espera de $want)…"; sleep 20
+          done
+          echo "::error::A produção não chegou ao commit $want em 25 minutos"; exit 1
