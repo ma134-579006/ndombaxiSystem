@@ -586,55 +586,23 @@ html.kbd-open .login-card .footer-credit { display: none; }
    TEMAS (data-theme) + seletor + responsividade do telemóvel
    ============================================================ */
 [data-theme="grafite"] {
-  --bg: #0c0e13; --bg-2: #12151c; --surface: #171b24; --surface-2: #1f2530; --border: #2b313d;
-  --primary: #5b95ff; --primary-700: #3b6fe0; --primary-soft: rgba(91,149,255,.16);
-  --grad-primary: linear-gradient(135deg, #6ba0ff, #3b6fe0); --glass: rgba(18,21,28,.7);
-  --app-bg: radial-gradient(1100px 540px at 12% -8%, rgba(91,149,255,.14), transparent 60%), linear-gradient(160deg, #0a0c11, #0c0e13);
+  --bg: #111317; --bg-2: #16191e; --surface: #1b1f25; --surface-2: #23282f; --border: #2e343c;
+  --primary: #4c7dff; --primary-700: #3563e0; --primary-soft: rgba(76,125,255,.16);
+  --grad-primary: linear-gradient(135deg, #4c7dff, #3563e0);
+  --glass: rgba(22,25,30,.70);
+  --app-bg: var(--bg);
 }
-[data-theme="oceano"] {
-  --bg: #07151b; --bg-2: #0a1f28; --surface: #0e2832; --surface-2: #133845; --border: #1d4452;
-  --primary: #06b6d4; --primary-700: #0891b2; --primary-soft: rgba(6,182,212,.18);
-  --grad-primary: linear-gradient(135deg, #22d3ee, #0891b2); --glass: rgba(10,31,40,.72);
-  --app-bg: radial-gradient(1100px 540px at 12% -8%, rgba(34,211,238,.16), transparent 60%), radial-gradient(900px 520px at 110% 120%, rgba(20,184,166,.12), transparent 55%), linear-gradient(160deg, #06121a, #07151b);
-}
-[data-theme="violeta"] {
-  --bg: #0d0a1a; --bg-2: #140f26; --surface: #1a1430; --surface-2: #241b40; --border: #342a54;
-  --primary: #8b5cf6; --primary-700: #7c3aed; --primary-soft: rgba(139,92,246,.18);
-  --grad-primary: linear-gradient(135deg, #a78bfa, #7c3aed); --glass: rgba(20,15,38,.72);
-  --app-bg: radial-gradient(1100px 540px at 12% -8%, rgba(167,139,250,.16), transparent 60%), radial-gradient(900px 520px at 110% 120%, rgba(217,70,239,.12), transparent 55%), linear-gradient(160deg, #0b0817, #0d0a1a);
-}
-[data-theme="esmeralda"] {
-  --bg: #07140f; --bg-2: #0a1f17; --surface: #0e271d; --surface-2: #143728; --border: #1d4836;
-  --primary: #10b981; --primary-700: #059669; --primary-soft: rgba(16,185,129,.18);
-  --grad-primary: linear-gradient(135deg, #34d399, #059669); --glass: rgba(10,31,23,.72);
-  --app-bg: radial-gradient(1100px 540px at 12% -8%, rgba(52,211,153,.15), transparent 60%), linear-gradient(160deg, #06110c, #07140f);
-}
-[data-theme="indigo"] {
-  --bg: #0a0c1c; --bg-2: #0f1228; --surface: #141934; --surface-2: #1d2347; --border: #2b3360;
-  --primary: #6366f1; --primary-700: #4f46e5; --primary-soft: rgba(99,102,241,.18);
-  --grad-primary: linear-gradient(135deg, #818cf8, #4f46e5); --glass: rgba(15,18,40,.72);
-  --app-bg: radial-gradient(1100px 540px at 12% -8%, rgba(129,140,248,.16), transparent 60%), radial-gradient(900px 520px at 110% 120%, rgba(168,85,247,.12), transparent 55%), linear-gradient(160deg, #080a16, #0a0c1c);
-}
-/* Tema NÉON — estilo "Microsoft 365 para Empresas": fundo quase preto,
-   brilhos néon ciano/roxo/magenta e gradiente vivo. */
-[data-theme="neon"] {
-  --bg: #060713; --bg-2: #0b0c1e; --surface: #0f1128; --surface-2: #181b3c; --border: #2e2566; --border-soft: rgba(168,85,247,.16);
-  --primary: #5b8cff; --primary-700: #7c3aed; --primary-soft: rgba(124,77,255,.22); --violet: #c084fc;
-  --grad-primary: linear-gradient(120deg, #22d3ee 0%, #4f7cff 38%, #a855f7 72%, #ec4899 100%); --glass: rgba(11,12,30,.7);
-  --app-bg: radial-gradient(1100px 540px at 12% -8%, rgba(34,211,238,.16), transparent 60%), radial-gradient(900px 520px at 110% 120%, rgba(236,72,153,.16), transparent 55%), radial-gradient(820px 560px at 50% 124%, rgba(124,77,255,.18), transparent 55%), linear-gradient(160deg, #08091a, #060713);
-}
-[data-theme="neon"] body { background: var(--app-bg); }
-[data-theme="neon"] .card { border-color: rgba(124,77,255,.26); box-shadow: 0 0 0 1px rgba(124,77,255,.08), 0 18px 44px -20px rgba(168,85,247,.45); }
-[data-theme="neon"] .btn { box-shadow: 0 8px 22px -8px rgba(124,77,255,.62); }
-[data-theme="neon"] .login-card { border: 1px solid rgba(124,77,255,.34); box-shadow: 0 0 0 1px rgba(124,77,255,.10), 0 24px 60px -26px rgba(168,85,247,.55); }
 
 [data-theme="claro"] {
-  --bg: #eef1f7; --bg-2: #e8ecf4; --surface: #ffffff; --surface-2: #f4f6fb; --border: #e1e6f0; --border-soft: #e6eaf2;
-  --primary: #2563eb; --primary-700: #1d4ed8; --primary-soft: rgba(37,99,235,.14);
-  --grad-primary: linear-gradient(135deg, #3b82f6, #2563eb);
-  --text: #131a2b; --muted: #5a6679; --glass: rgba(255,255,255,.82);
-  --shadow: 0 14px 32px -16px rgba(20,30,60,.22);
-  --app-bg: radial-gradient(1100px 540px at 12% -8%, rgba(37,99,235,.08), transparent 60%), linear-gradient(160deg, #f6f8fc, #eef1f7);
+  --bg: #f2f5f9; --bg-2: #eaeef4; --surface: #ffffff; --surface-2: #f7f9fc; --border: #e1e6ee;
+  --border-soft: rgba(17,24,39,.07);
+  --primary: #1b45f4; --primary-700: #1338d1; --primary-soft: rgba(27,69,244,.10); --accent: #0e66fc; --accent-2: #1b45f4;
+  --text: #1f2937; --muted: #5b6474;
+  --grad-primary: linear-gradient(135deg, #1b45f4, #1338d1);
+  --grad-accent: linear-gradient(120deg, #1b45f4, #0e66fc);
+  --shadow: 0 12px 32px -18px rgba(17,24,39,.18); --shadow-sm: 0 2px 8px -4px rgba(17,24,39,.12);
+  --glass: rgba(255,255,255,.86);
+  --app-bg: var(--bg);
 }
 [data-theme="claro"] .banner.danger { background: #fdeced; border-color: #f6c6c9; color: #b42318; }
 [data-theme="claro"] .banner.success { background: #e8f6ef; border-color: #bfe6d0; color: #15803d; }
@@ -642,27 +610,20 @@ html.kbd-open .login-card .footer-credit { display: none; }
 
 /* Tema PROFISSIONAL — claro, neutro, enterprise. */
 [data-theme="profissional"] {
-  --bg: #f5f6f9; --bg-2: #eceef3; --surface: #ffffff; --surface-2: #f6f8fb; --border: #e2e6ee; --border-soft: #e6eaf2;
-  --primary: #4f46e5; --primary-700: #4338ca; --primary-soft: rgba(79,70,229,.12);
-  --grad-primary: linear-gradient(135deg, #6366f1, #4338ca);
-  --text: #0f172a; --muted: #5b667a; --glass: rgba(255,255,255,.82);
-  --shadow: 0 14px 32px -16px rgba(15,23,42,.20);
-  --app-bg: radial-gradient(1100px 540px at 12% -8%, rgba(79,70,229,.07), transparent 60%), linear-gradient(160deg, #f7f8fc, #f1f3f8);
+  --bg: #f4f5f7; --bg-2: #eceef2; --surface: #ffffff; --surface-2: #f7f8fa; --border: #e3e6eb;
+  --border-soft: rgba(15,23,42,.07);
+  --primary: #1e3a8a; --primary-700: #172e6e; --primary-soft: rgba(30,58,138,.10); --accent: #0f766e; --accent-2: #1e3a8a;
+  --text: #111827; --muted: #5b6474;
+  --grad-primary: linear-gradient(135deg, #1e3a8a, #172e6e);
+  --grad-accent: linear-gradient(120deg, #1e3a8a, #0f766e);
+  --shadow: 0 12px 32px -18px rgba(15,23,42,.18); --shadow-sm: 0 2px 8px -4px rgba(15,23,42,.12);
+  --glass: rgba(255,255,255,.86);
+  --app-bg: var(--bg);
 }
 [data-theme="profissional"] .banner.danger { background: #fdeced; border-color: #f6c6c9; color: #b42318; }
 [data-theme="profissional"] .banner.success { background: #e8f6ef; border-color: #bfe6d0; color: #15803d; }
 [data-theme="profissional"] ::-webkit-scrollbar-thumb { background: #cdd5e3; }
 
-/* Tema APPLE DARK — preto profundo, alto contraste, acento azul Apple. */
-[data-theme="apple"] {
-  --bg: #000000; --bg-2: #0a0a0c; --surface: #1c1c1e; --surface-2: #2c2c2e; --border: #3a3a3c; --border-soft: rgba(255,255,255,.08);
-  --primary: #0a84ff; --primary-700: #0060df; --primary-soft: rgba(10,132,255,.22); --accent: #64d2ff;
-  --grad-primary: linear-gradient(135deg, #0a84ff, #0060df);
-  --text: #f5f5f7; --muted: #a1a1a6; --glass: rgba(28,28,30,.66);
-  --shadow: 0 18px 44px -20px rgba(0,0,0,.72);
-  --app-bg: radial-gradient(1100px 560px at 100% -10%, rgba(10,132,255,.12), transparent 55%), radial-gradient(900px 520px at -6% 0%, rgba(94,92,230,.10), transparent 52%), #000;
-}
-[data-theme="apple"] ::-webkit-scrollbar-thumb { background: #3a3a3c; }
 
 .theme-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; width: 200px; max-height: calc(70vh / var(--uz, 1)); overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 13px; box-shadow: var(--shadow); padding: 6px; }
 .theme-menu-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); padding: 7px 9px 4px; }

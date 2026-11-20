@@ -2,25 +2,24 @@
 export interface ThemeDef { id: string; label: string; swatch: string; light?: boolean }
 
 export const THEMES: ThemeDef[] = [
-  { id: '', label: 'Meia-noite', swatch: '#3b82f6' },
-  { id: 'grafite', label: 'Grafite', swatch: '#5b95ff' },
-  { id: 'oceano', label: 'Oceano', swatch: '#22d3ee' },
-  { id: 'violeta', label: 'Violeta', swatch: '#a78bfa' },
-  { id: 'esmeralda', label: 'Esmeralda', swatch: '#34d399' },
-  { id: 'indigo', label: 'Índigo', swatch: '#818cf8' },
-  { id: 'neon', label: 'Néon', swatch: 'linear-gradient(120deg, #22d3ee, #a855f7 55%, #ec4899)' },
-  { id: 'apple', label: 'Apple Dark', swatch: 'linear-gradient(135deg, #0a84ff, #5e5ce6)' },
-  { id: 'claro', label: 'Claro', swatch: '#2563eb', light: true },
-  { id: 'profissional', label: 'Profissional', swatch: 'linear-gradient(135deg, #6366f1, #0891b2)', light: true },
+  { id: 'claro', label: 'Claro', swatch: '#1b45f4', light: true },
+  { id: 'profissional', label: 'Profissional', swatch: '#1e3a8a', light: true },
+  { id: 'grafite', label: 'Grafite', swatch: '#4c7dff' },
+  { id: 'meianoite', label: 'Meia-noite', swatch: '#3b82f6' },
 ];
 
-const LS_KEY = 'ndombaxi.theme';
+/** v2: os temas antigos (néon, violeta…) foram retirados e todos recomeçam no Claro. */
+const LS_KEY = 'ndombaxi.theme.v2';
 /** Padrão (até escolher): CLARO — alinhado com o painel. */
 export const DEFAULT_THEME = 'claro';
-export function getTheme(): string { try { const v = localStorage.getItem(LS_KEY); return v === null ? DEFAULT_THEME : v; } catch { return DEFAULT_THEME; } }
+/** Tema válido (vazio, desconhecido ou retirado = Claro). */
+export function normalizeTheme(id: string | null | undefined): string { return id && THEMES.some((t) => t.id === id) ? id : DEFAULT_THEME; }
+export function getTheme(): string { try { return normalizeTheme(localStorage.getItem(LS_KEY)); } catch { return DEFAULT_THEME; } }
+/** Meia-noite é o tema base do CSS (sem atributo); os outros usam data-theme. */
 export function applyTheme(id: string): void {
   const el = document.documentElement;
-  if (id) el.setAttribute('data-theme', id); else el.removeAttribute('data-theme');
+  const t = normalizeTheme(id);
+  if (t === 'meianoite') el.removeAttribute('data-theme'); else el.setAttribute('data-theme', t);
 }
-export function setTheme(id: string): void { try { localStorage.setItem(LS_KEY, id); } catch { /* ignora */ } applyTheme(id); }
+export function setTheme(id: string): void { const t = normalizeTheme(id); try { localStorage.setItem(LS_KEY, t); } catch { /* ignora */ } applyTheme(t); }
 export function initTheme(): void { applyTheme(getTheme()); }

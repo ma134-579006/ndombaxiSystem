@@ -79,9 +79,12 @@ export class AuthService {
   }
 
   // ─── Preferências do utilizador (tema por perfil) ───────────
-  private static readonly THEME_WHITELIST = new Set([
-    '', 'grafite', 'oceano', 'violeta', 'esmeralda', 'indigo', 'neon', 'claro',
-  ]);
+  /** Temas profissionais (os de cores fortes foram retirados). O padrão é o Claro. */
+  private static readonly THEME_WHITELIST = new Set(['claro', 'profissional', 'grafite', 'meianoite']);
+  /** Tema guardado → tema válido (vazio ou retirado = Claro). */
+  private static themeOrDefault(t: string | null | undefined): string {
+    return t && AuthService.THEME_WHITELIST.has(t) ? t : 'claro';
+  }
 
   /** Tema guardado para o utilizador autenticado (vazio = padrão). */
   async getPreferences(user: JwtPayload): Promise<{ theme: string }> {
@@ -91,12 +94,12 @@ export class AuthService {
           where: { id: user.sub },
           select: { theme: true },
         });
-        return { theme: pu?.theme ?? '' };
+        return { theme: AuthService.themeOrDefault(pu?.theme) };
       }
       const theme = await this.tenantUsers.getTheme(user.tenantSchema!, user.sub);
-      return { theme };
+      return { theme: AuthService.themeOrDefault(theme) };
     } catch {
-      return { theme: '' };
+      return { theme: 'claro' };
     }
   }
 
@@ -126,7 +129,7 @@ export class AuthService {
 
   /** Grava o tema do utilizador (ignora valores fora da lista). */
   async setPreferences(user: JwtPayload, theme: string): Promise<{ theme: string }> {
-    const clean = AuthService.THEME_WHITELIST.has(theme) ? theme : '';
+    const clean = AuthService.themeOrDefault(theme);
     try {
       if (user.subjectType === 'PLATFORM') {
         await this.prisma.platformUser.update({
