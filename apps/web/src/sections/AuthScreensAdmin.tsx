@@ -14,9 +14,10 @@ function Color({ label, value, onChange }: { label: string; value: string; onCha
   return (
     <div className="field">
       <label>{label}</label>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <input type="color" className="swatch" value={value} onChange={(e) => onChange(e.target.value)} />
-        <input value={value} maxLength={7} onChange={(e) => onChange(e.target.value)} style={{ maxWidth: 110 }} />
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+        <input type="color" aria-label={label} value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#000000'} onChange={(e) => onChange(e.target.value)}
+          style={{ width: 44, height: 40, flex: 'none', padding: 2, borderRadius: 8, cursor: 'pointer' }} />
+        <input value={value} maxLength={7} onChange={(e) => onChange(e.target.value)} style={{ flex: 1, minWidth: 0, width: 'auto', fontFamily: 'ui-monospace, monospace' }} />
       </div>
     </div>
   );
