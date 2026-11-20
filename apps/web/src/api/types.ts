@@ -250,6 +250,7 @@ export interface WebOrder {
   province: string | null;
   municipality: string | null;
   neighborhood: string | null;
+  shipping_address?: string | null;
   payment_method: string | null;
   payment_entity?: string | null;
   payment_reference?: string | null;

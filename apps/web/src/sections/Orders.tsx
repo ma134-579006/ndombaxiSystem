@@ -29,6 +29,9 @@ const STATUS_TONE: Record<string, string> = {
   CANCELLED: 'var(--muted)',
 };
 
+/** Nome da forma de pagamento (a encomenda guarda o código). */
+const PAY_LABEL: Record<string, string> = { CASH: 'Numerário na entrega', BANK_TRANSFER: 'Transferência bancária', TRANSFER: 'Transferência bancária', REFERENCE: 'Pagamento por referência', MULTICAIXA_EXPRESS: 'Multicaixa Express', EXPRESS: 'Multicaixa Express', CARD: 'Cartão' };
+
 function OrderBadge({ status }: { status: string }) {
   const color = STATUS_TONE[status] ?? 'var(--muted)';
   return (
@@ -225,9 +228,9 @@ export function Orders() {
           <div className="kv"><span className="k">NIF</span><span className="v">{detail.customer_tax_id || '—'}</span></div>
           <div className="kv">
             <span className="k">Morada</span>
-            <span className="v">{[detail.neighborhood, detail.municipality, detail.province].filter(Boolean).join(', ') || '—'}</span>
+            <span className="v">{[detail.shipping_address, detail.neighborhood, detail.municipality, detail.province].filter(Boolean).join(', ') || '—'}</span>
           </div>
-          <div className="kv"><span className="k">Pagamento</span><span className="v">{detail.payment_method || '—'}</span></div>
+          <div className="kv"><span className="k">Pagamento</span><span className="v">{(detail.payment_method && PAY_LABEL[detail.payment_method]) || detail.payment_method || '—'}</span></div>
           {detail.payment_reference ? (
             <div className="kv"><span className="k">Referência</span>
               <span className="v">{detail.payment_entity ? `Ent. ${detail.payment_entity} · ` : ''}{detail.payment_reference}</span></div>

@@ -74,7 +74,7 @@ export class KwanzaCheckoutService {
     const c = await this.company(d.companyCode);
     const phone = digits(d.phone);
     if (phone.length < 9) throw new BadRequestException('Indique um número de telemóvel válido.');
-    if (d.deliveryMethod !== 'PICKUP' && (d.address ?? '').trim().length < 4) throw new BadRequestException('Indique a morada de entrega.');
+    // Morada opcional: a localização GPS exata (obrigatória) chega para a entrega.
     // Só produtos que a empresa publicou no LPS Kwanza.
     const codes = [...new Set(d.lines.map((l) => l.productCode))];
     const live = await this.prisma.$queryRaw<{ code: string }[]>(Prisma.sql`

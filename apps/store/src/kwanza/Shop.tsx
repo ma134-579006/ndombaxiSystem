@@ -132,7 +132,7 @@ export function Checkout({ go, flash }: { go(r: { n: 'orders' } | { n: 'home' })
     e.preventDefault(); setErr(null);
     if (f.name.trim().length < 2) return setErr('Indique o seu nome.');
     if (f.phone.replace(/\D/g, '').length < 9) return setErr('Indique um número de telemóvel válido.');
-    if (f.delivery === 'DELIVERY' && f.address.trim().length < 4) return setErr('Indique a morada de entrega.');
+    // Morada opcional: a localização GPS exata (obrigatória) chega para a entrega.
     let fix = g.fix;
     if (!fix) { await g.ask(); return setErr('É obrigatório partilhar a localização GPS para concluir a encomenda.'); }
     setBusy(true);

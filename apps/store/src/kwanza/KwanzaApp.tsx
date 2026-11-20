@@ -542,7 +542,7 @@ function Product({ listing: l, loading, refCode, qty, sess, go, flash, card, pro
             </div>
             {!post ? (aff?.status === 'APPROVED'
               ? <div className="kk-aff-on"><I d={P.check} size={16} /> Associado · comissão de até {kz(com(l, pct))}</div>
-              : !aff || aff.status === 'REJECTED'
+              : aff === null || aff?.status === 'REJECTED'
                 ? <button className="kk-btn-aff big" onClick={() => void join()} disabled={busy}><I d={P.share} size={18} /> {l.affiliation === 'RESTRICTED' ? 'Solicitar afiliação' : 'Afiliar-me e vender'} · comissão de até {kz(com(l, pct))}</button>
                 : null) : null}
             <div className="kk-sold-by"><I d={P.pin} size={18} /> Vendido por: <b>{l.companyName}</b></div>
