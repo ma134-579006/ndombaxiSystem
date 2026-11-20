@@ -193,10 +193,10 @@ export class PublicWebcamsService {
   private async fromOsm(lat: number, lng: number, radius: number): Promise<SourceResult> {
     const m = Math.round(radius * 1000);
     const at = `around:${m},${lat.toFixed(5)},${lng.toFixed(5)}`;
-    const q = `[out:json][timeout:15];(nwr(${at})["contact:webcam"];nwr(${at})["webcam"];);out center 60;`;
+    const q = `[out:json][timeout:25];(nwr(${at})["contact:webcam"];nwr(${at})["webcam"];);out center 60;`;
     // Vários servidores em paralelo: fica a primeira resposta válida (os outros são cancelados).
     const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 16_000);
+    const timer = setTimeout(() => ctl.abort(), 28_000); // o overpass-api.de chega a demorar ~26 s
     try {
       const body = await Promise.any(OVERPASS_URLS.map(async (url) => {
         const res = await fetch(url, {
