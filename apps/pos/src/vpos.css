@@ -679,3 +679,59 @@
   .vfin-x { width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--surface); color: var(--text); font-size: 18px; cursor: pointer; display: grid; place-items: center; box-shadow: 0 0 0 1px var(--border); }
   .vfin-x:disabled { opacity: .5; }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   POS igual ao do Vendus (/app/pos/, medido): separadores e "Opções"
+   turquesa #0ab2b2, "FINALIZAR" #089090, TOTAL #47464e, lista da venda
+   #fafafa às riscas, letra 18px/300 nos separadores. Nos temas CLAROS
+   (padrão) o fundo é o cinzento claro do Vendus (#eef3f6) em vez do
+   gradiente escuro — a Caixa continua no tema Claro por defeito.
+   ════════════════════════════════════════════════════════════════════ */
+.pos { --vp-a: #0ab2b2; --vp-a2: #089090; --vp-total: #47464e; --vp-list: #fafafa; }
+[data-theme="claro"] .pos, [data-theme="profissional"] .pos { background: #eef3f6 !important; }
+[data-theme="claro"] .app-bg:has(.pos), [data-theme="profissional"] .app-bg:has(.pos) { background: #eef3f6 !important; }
+.pos .vtab { background: var(--vp-a); font-size: 18px; font-weight: 300; border-right: 1px solid rgba(0,0,0,.08); }
+.pos .vtab.sel, .pos .vtab.on { background: #fff; color: var(--vp-a2); }
+.pos .vtop-m > button { color: var(--vp-a2); font-weight: 400; }
+.pos .vtop-m > button:hover, .pos .vtop-m > button.on { background: color-mix(in srgb, var(--vp-a) 12%, transparent); }
+.pos .vtop-drop button:hover:not(:disabled), .pos .vtop-drop button.on { background: color-mix(in srgb, var(--vp-a) 12%, transparent); color: var(--vp-a2); }
+.pos .vcart-box { background: #fff; }
+.pos .vtable-h { font-size: 13px; font-weight: 600; color: #333; background: #fff; }
+.pos .vtable-empty { background: repeating-linear-gradient(90deg, var(--vp-list) 0 6px, #f0f0f0 6px 7px); color: #888; font-size: 13px; }
+.pos .vline-main:hover, .pos .vline.open .vline-main { background: color-mix(in srgb, var(--vp-a) 10%, #fff); }
+.pos .vtotal { background: var(--vp-total) !important; color: #fff !important; }
+.pos .vtotal > span { font-size: 16px; font-weight: 300; }
+.pos .vtotal b { font-size: 32px; font-weight: 700; color: #fff; }
+.pos .vopt-btn { background: var(--vp-a); font-size: 18px; font-weight: 300; }
+.pos .vfinal { background: var(--vp-a2); font-size: 24px; font-weight: 400; }
+.pos .vopts { background: color-mix(in srgb, var(--vp-a2) 92%, #000); }
+.pos .vfin-emit, .pos .vfin-more, .pos .vfin-chips button.on { background: var(--vp-a2); border-color: var(--vp-a2); }
+.pos .vfin-list button:hover, .pos .vfin-quick button:hover { background: var(--vp-a); color: #fff; }
+.pos .vfin-edit { color: var(--vp-a2); }
+.pos .vfin-cash .calc { background: var(--vp-a); }
+.pos .vfin-cash input:focus { border-color: var(--vp-a); }
+.pos .vsale-nav { font-weight: 300; }
+
+/* "Caixa Fechada" (como o POS do Vendus) */
+.vclosed { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--vp-list, #fafafa); overflow: hidden; }
+.vclosed-top { flex: 1 1 auto; display: grid; place-items: center; align-content: center; gap: 6px; padding: clamp(10px, 3vh, 26px) 18px; text-align: center; color: #535353;
+  border-bottom: 1px solid #e3e3e3; background: linear-gradient(90deg, transparent 80%, #eee 75%); background-size: 7px 100%; }
+.vclosed-ic { width: clamp(34px, 6vh, 52px); height: clamp(34px, 6vh, 52px); color: #535353; }
+.vclosed-top h3 { margin: 0; font-size: clamp(17px, 3vh, 22px); font-weight: 400; color: #535353; }
+.vclosed-top p { margin: 0; max-width: 260px; font-size: 11.5px; color: #777; }
+.vclosed-form { flex: none; display: grid; justify-items: center; gap: 6px; padding: clamp(10px, 2.4vh, 20px) 33px; background: #fff; text-align: center; }
+.vclosed-form h4 { margin: 0; font-size: 16px; font-weight: 600; color: #333; }
+.vclosed-form p { margin: 0 0 4px; font-size: 11.5px; color: #777; max-width: 280px; }
+.vclosed-in { display: flex; width: 100%; max-width: 264px; }
+.vclosed-in input { flex: 1; min-width: 0; height: clamp(38px, 6.6vh, 46px); padding: 0 12px; border: 1px solid #ccc; border-right: 0; border-radius: 6px 0 0 6px; text-align: center; font: inherit; font-size: 18px; color: #555; background: #fff; }
+.vclosed-in input:focus { outline: none; border-color: var(--vp-a, #0ab2b2); }
+.vclosed-calc { width: 51px; flex: none; border: 0; border-radius: 0 6px 6px 0; background: color-mix(in srgb, var(--vp-a, #0ab2b2) 60%, #fff); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.vclosed-calc:hover { filter: brightness(1.05); }
+.vclosed-notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 264px; }
+.vclosed-notes button { padding: 6px 10px; border: 1px solid #d8d8d8; border-radius: 4px; background: #f7f7f7; color: #333; font-size: 13px; cursor: pointer; }
+.vclosed-notes button:hover { background: var(--vp-a, #0ab2b2); border-color: var(--vp-a, #0ab2b2); color: #fff; }
+.vclosed-open { width: 100%; max-width: 264px; height: clamp(38px, 6.6vh, 46px); margin-top: 6px; border: 0; background: var(--vp-a, #0ab2b2); color: #fff; font: inherit; font-size: 18px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: filter .3s; }
+.vclosed-open:hover:not(:disabled) { filter: brightness(1.08); }
+.vclosed-open:disabled { opacity: .65; cursor: default; }
+.vcart.closed .vtotal, .vcart.closed .vactions { display: none !important; }

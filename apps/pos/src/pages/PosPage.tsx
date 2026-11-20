@@ -1287,7 +1287,7 @@ export function PosPage() {
           </section>
 
           {/* Venda: navegação entre vendas, tabela, total, Opções e FINALIZAR */}
-          <aside className="cart vcart">
+          <aside className={`cart vcart${!session && sync.online && !optsOpen ? " closed" : ""}`}>
             <div className="vsale-nav">
               <button onClick={() => parked.length && resumeParked(parked[parked.length - 1].id)} disabled={parked.length === 0} aria-label="Venda anterior">‹</button>
               <span>Venda (<b>{parked.length + 1}/{parked.length + 1}</b>)</span>
@@ -1314,6 +1314,11 @@ export function PosPage() {
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg> {confirmCancel ? 'Confirmar: cancelar venda' : 'Cancelar Venda'}
                   </button>
                 </div>
+              ) : !session && sync.online ? (
+                <ClosedCash onOpened={async () => {
+                  const cur = await api.currentSession().catch(() => undefined);
+                  if (cur !== undefined) { setSession(cur); void espelharTurnoServidor(cur); }
+                }} />
               ) : (
                 <>
                   {showParked && parked.length > 0 ? (
@@ -1581,3 +1586,54 @@ function ProductionPrompt({
 }
 
 const Chev = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>;
+
+/**
+ * "Caixa Fechada" dentro da área da venda — igual ao POS do Vendus: aviso,
+ * Montante (com calculadora rápida de notas) e "Abrir Caixa". Sem rede, a
+ * abertura continua pela janela de turno (abre o turno no aparelho).
+ */
+function ClosedCash({ onOpened }: { onOpened(): void | Promise<void> }) {
+  const [amount, setAmount] = useState('0');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [calc, setCalc] = useState(false);
+  const notes = [500, 1000, 2000, 5000, 10000];
+  const value = Math.max(0, Number(String(amount).replace(/\s/g, '').replace(',', '.')) || 0);
+  const open = async () => {
+    setErr(null); setBusy(true);
+    try { await api.openSession(value); await onOpened(); }
+    catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível abrir a caixa.'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="vclosed">
+      <div className="vclosed-top">
+        <svg className="vclosed-ic" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="5" /><path d="M10 38 38 10" stroke="currentColor" strokeWidth="5" /><rect x="15" y="20" width="18" height="12" rx="2" fill="currentColor" /></svg>
+        <h3>Caixa Fechada</h3>
+        <p>Para efectuar operações de caixa, nomeadamente, faturar, deverá <b>Abrir a Caixa</b></p>
+      </div>
+      <div className="vclosed-form">
+        <h4>Montante</h4>
+        <p>Introduza o montante disponível em caixa no momento da abertura (pode ser zero).</p>
+        {err ? <div className="banner danger">{err}</div> : null}
+        <div className="vclosed-in">
+          <input value={amount} inputMode="decimal" onChange={(e) => setAmount(e.target.value.replace(/[^\d.,\s]/g, ''))}
+            onFocus={(e) => e.currentTarget.select()} onKeyDown={(e) => { if (e.key === 'Enter') void open(); }} aria-label="Montante" />
+          <button type="button" className="vclosed-calc" onClick={() => setCalc((v) => !v)} aria-label="Calculadora" aria-expanded={calc}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2" /><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h4" /></svg>
+          </button>
+        </div>
+        {calc ? (
+          <div className="vclosed-notes">
+            {notes.map((n) => <button key={n} type="button" onClick={() => setAmount(String(value + n))}>+{n.toLocaleString('pt-PT')}</button>)}
+            <button type="button" onClick={() => setAmount('0')}>Limpar</button>
+          </div>
+        ) : null}
+        <button type="button" className="vclosed-open" onClick={() => void open()} disabled={busy}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9h18l-2 11H5L3 9Zm4-5h10l2 4H5l2-4Z" /></svg>
+          {busy ? 'A abrir…' : 'Abrir Caixa'}
+        </button>
+      </div>
+    </div>
+  );
+}
