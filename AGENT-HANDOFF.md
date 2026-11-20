@@ -119,3 +119,13 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - **Servidor local**: cópia cria plataforma + schema da empresa (mesmo nome da nuvem), páginas 5000 por ctid, BIGINT em texto, tabelas com RULE sem ON CONFLICT. Verificado: serve login/páginas/relatórios iguais à nuvem.
 - **Inventário**: `/inventory/abc` agregado (80 MB → 176 KB); `/inventory/valuation` não rebenta acima de 32 767 produtos.
 - **Regra**: nunca devolver listas inteiras a crescer com o tempo; usar `limit` + pesquisa no servidor e a memória indexada para offline. Para medir: percorrer `ALL_READS` (prefetch.ts) contra uma empresa com dados em massa e procurar respostas > 1 MB ou > 1,5 s.
+
+## Atualização (2026-11-20) — login, registo, assistente, barra lateral e Caixa iguais ao Vendus (PRs #218–#222)
+- **Login/registo** (`apps/web/src/pages/Login.tsx`, `Register.tsx`, `vendus-auth.css`, `vendusAuth.tsx`): medidos no vendus.co.ao (/login, /criar-conta). Sem scroll de 240×320 a 4K (`useFitHeight` encolhe com CSS zoom).
+- **Super Admin → Login & Registo** (`landing_config.authConfig`): cores, textos, botões Google/Facebook (ligar, texto, fundo, texto, borda) e testemunhos. **Facebook Login** real: Integrações → `FACEBOOK_LOGIN` (App ID + App Secret cifrado + Testar). Google com botão próprio (access token verificado em `GoogleAuthService.verifyAccessToken`).
+- **Assistente Bem-Vindo** pós-registo (`CompanySetup.tsx`): igual ao /app/welcome do Vendus; endpoints `POST /onboarding/validate-nif` e `POST /onboarding/skip-setup` (só com NIF real); grava morada, localidade, responsável, telefone, cargo e objectivo (`site_settings.company_profile`).
+- **Barra lateral do painel** (`Shell.tsx` `.vds`, `vendus.css`): coluna de ícones (GESTÃO, POS, LOJA, APPS, Configuração) + menu escuro só com nomes; uma só imagem (perfil da empresa); seta indica o menu escondido; abre ao passar o rato; zero scroll por container query.
+- **Caixa** (`apps/pos`): login/Abrir caixa/Recuperar PIN no estilo Vendus; paleta do POS do Vendus (#0ab2b2/#089090, TOTAL #47464e); painel **Caixa Fechada** (`ClosedCash`).
+- **Temas**: só Claro (padrão), Profissional, Grafite, Meia-noite (`meianoite`); chave `ndombaxi.theme.v2`; preferência vazia/retirada → Claro (API e clientes).
+- QA: `qa/login-social.mjs` (17), `qa/assistente-boas-vindas.mjs` (12); `kwanza-compra` KP-3 segue a morada opcional.
+- **Depende do utilizador:** App ID/App Secret do Facebook; autorizar o deploy hook do Render (o auto-deploy não dispara — publicar à mão em Manual Deploy). "Validar NIF" só valida o formato (não há API pública da AGT para obter o nome).
