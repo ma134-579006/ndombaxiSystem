@@ -11,3 +11,5 @@ export * from './saft/xml';
 export * from './saft/saft-builder';
 export * from './einvoice/jws';
 export * from './einvoice/fe';
+export * from './saft/saft-semantic';
+export * from './saft/xsd-validate';

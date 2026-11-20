@@ -56,6 +56,8 @@ export interface SaftSoftware {
   sourceId?: string;
   /** Versão do esquema SAF-T (AuditFileVersion). */
   saftVersion?: string;
+  /** NIF da entidade PRODUTORA do software (Header/ProductCompanyTaxID). */
+  producerTaxId?: string;
 }
 
 const SAFT_SOFTWARE_DEFAULTS: Required<SaftSoftware> = {
@@ -66,6 +68,7 @@ const SAFT_SOFTWARE_DEFAULTS: Required<SaftSoftware> = {
   taxEntity: 'Global',
   sourceId: 'Ndombaxi',
   saftVersion: '1.01_01',
+  producerTaxId: '',
 };
 
 export interface SaftInput {
@@ -107,7 +110,10 @@ function buildHeader(c: SaftCompany, sw: Required<SaftSoftware>, dateCreated: st
     el('CurrencyCode', c.currencyCode ?? 'AOA'),
     el('DateCreated', dateCreated),
     el('TaxEntity', sw.taxEntity),
-    el('ProductCompanyTaxID', c.taxRegistrationNumber),
+    // XSD: "Identificação fiscal da entidade produtora do software" — o NIF do
+    // PRODUTOR (configurado no Super Admin), não o do contribuinte. Sem produtor
+    // configurado usa-se o NIF da empresa e o relatório de validação assinala-o.
+    el('ProductCompanyTaxID', sw.producerTaxId?.trim() || c.taxRegistrationNumber),
     // XSD AO: o elemento chama-se SoftwareValidationNumber (não o nome PT
     // SoftwareCertificateNumber) — validado contra o SAFTAO1.01_01.xsd oficial.
     el('SoftwareValidationNumber', sw.softwareCertificateNumber),
