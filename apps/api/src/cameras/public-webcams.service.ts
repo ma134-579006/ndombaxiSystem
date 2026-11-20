@@ -10,7 +10,17 @@ const WINDY_URL = process.env.WINDY_WEBCAMS_URL || 'https://api.windy.com/webcam
  * `contact:webcam`) — SEM CHAVE, funciona sempre e automaticamente.
  * `OVERPASS_URL` só serve para testes.
  */
-const OVERPASS_URL = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
+const OVERPASS_URLS = process.env.OVERPASS_URL
+  ? [process.env.OVERPASS_URL]
+  : ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
+/**
+ * Os servidores Overpass recusam/atrasam pedidos sem um User-Agent "com significado"
+ * (nome da aplicação + endereço). Com o antigo `lps-vendas-api` a pesquisa dava sempre
+ * "indisponível" (406/429/tempo esgotado).
+ */
+const OVERPASS_UA = 'LPS-Vendas/3.0 (+https://ndombaxisystem.com; camaras publicas)';
+/** Acima disto a consulta "à volta de um ponto" esgota o tempo nos servidores públicos. */
+const OSM_MAX_KM = 50;
 /** A Windy aceita no máximo 250 km no filtro `nearby`. */
 const MAX_RADIUS_KM = 250;
 /** As imagens do plano gratuito expiram em 10 min — a cache fica abaixo disso. */
@@ -66,12 +76,41 @@ export class PublicWebcamsService {
   async nearest(lat: number, lng: number, startKm = 10): Promise<PublicWebcamsResult> {
     const steps = [startKm, ...[10, 25, 50, 100, MAX_RADIUS_KM].filter((r) => r > startKm)];
     let last: PublicWebcamsResult | null = null;
+    let anyOk = false;
     for (const r of steps) {
       last = await this.nearby(lat, lng, r);
-      if (last.error || last.items.length) break;
+      if (!last.error) anyOk = true;
+      // Com câmaras, ou com o serviço em baixo (não adianta alargar), pára aqui.
+      if (last.items.length || last.error) break;
     }
-    const out = last!;
+    let out = last!;
+    // Ainda nada a 250 km: com a Windy procura numa área maior e devolve as mais próximas.
+    if (!out.items.length) {
+      const far = await this.farthest(lat, lng);
+      if (far) { out = far; anyOk = true; }
+    }
+    // Uma fonte respondeu "sem câmaras" → não é "indisponível".
+    if (!out.items.length && anyOk && out.error) out = { ...out, error: undefined };
     return out.radiusKm > startKm && out.items.length ? { ...out, expanded: true } : out;
+  }
+
+  /** Windy (com chave): caixa de ±12° e depois ±30° à volta do ponto, ordenada pela distância. */
+  private async farthest(lat: number, lng: number): Promise<PublicWebcamsResult | null> {
+    const cfg = await this.integrations.getActive(PUBLIC_WEBCAMS_KEY).catch(() => null);
+    if (!cfg?.secret) return null;
+    for (const deg of [12, 30]) {
+      const n = Math.min(85, lat + deg), s = Math.max(-85, lat - deg), e = Math.min(180, lng + deg), w = Math.max(-180, lng - deg);
+      const url = `${WINDY_URL}?bbox=${n.toFixed(3)},${e.toFixed(3)},${s.toFixed(3)},${w.toFixed(3)}&include=images,location,player,urls&limit=50&lang=pt`;
+      try {
+        const res = await fetch(url, { headers: { 'x-windy-api-key': cfg.secret, accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+        if (!res.ok) continue;
+        const items = parseWindy(await res.json());
+        if (!items.length) continue;
+        items.sort((a, b) => distanceKm(lat, lng, a.lat, a.lng) - distanceKm(lat, lng, b.lat, b.lng));
+        return { configured: true, radiusKm: Math.round(deg * 111), expanded: true, items, sources: ['windy'] };
+      } catch { /* tenta a área seguinte */ }
+    }
+    return null;
   }
 
   async nearby(lat: number, lng: number, radiusKm = 25): Promise<PublicWebcamsResult> {
@@ -85,7 +124,7 @@ export class PublicWebcamsService {
     if (hit && Date.now() - hit.at < CACHE_MS) return hit.value;
 
     const [osm, windy] = await Promise.all([
-      this.fromOsm(lat, lng, radius),
+      radius <= OSM_MAX_KM ? this.fromOsm(lat, lng, radius) : Promise.resolve(null),
       windyKey ? this.fromWindy(lat, lng, radius, windyKey) : Promise.resolve(null),
     ]);
     const parts = [osm, windy].filter((x): x is SourceResult => !!x);
@@ -98,6 +137,7 @@ export class PublicWebcamsService {
       // Só é erro quando NENHUMA fonte respondeu (a outra pode ter câmaras).
       ...(ok.length === 0 ? { error: parts.map((p) => p.error).filter(Boolean)[0] } : {}),
     };
+    // Guarda também "sem câmaras" (evita repetir as pesquisas ao alargar o raio).
     if (!value.error) {
       this.cache.set(key, { at: Date.now(), value });
       if (this.cache.size > 500) this.cache.delete(this.cache.keys().next().value as string);
@@ -127,18 +167,27 @@ export class PublicWebcamsService {
     const m = Math.round(radius * 1000);
     const at = `around:${m},${lat.toFixed(5)},${lng.toFixed(5)}`;
     const q = `[out:json][timeout:15];(nwr(${at})["contact:webcam"];nwr(${at})["webcam"];);out center 60;`;
+    // Vários servidores em paralelo: fica a primeira resposta válida (os outros são cancelados).
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 16_000);
     try {
-      const res = await fetch(OVERPASS_URL, {
-        method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json', 'user-agent': 'lps-vendas-api' },
-        body: `data=${encodeURIComponent(q)}`,
-        signal: AbortSignal.timeout(18_000),
-      });
-      if (!res.ok) return { source: 'osm', items: [], error: `OpenStreetMap respondeu ${res.status}.` };
-      return { source: 'osm', items: parseOverpass(await res.json()) };
+      const body = await Promise.any(OVERPASS_URLS.map(async (url) => {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json', 'user-agent': OVERPASS_UA },
+          body: `data=${encodeURIComponent(q)}`,
+          signal: ctl.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return (await res.json()) as unknown;
+      }));
+      ctl.abort();
+      return { source: 'osm', items: parseOverpass(body) };
     } catch (e) {
       this.logger.warn(`OpenStreetMap (Overpass) indisponível: ${(e as Error).message}`);
       return { source: 'osm', items: [], error: 'Serviço de câmaras públicas indisponível.' };
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

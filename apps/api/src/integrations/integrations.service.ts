@@ -63,7 +63,7 @@ export const INTEGRATION_CATALOG: IntegrationCatalogEntry[] = [
   },
   {
     key: 'PUBLIC_WEBCAMS', label: 'Câmaras públicas — Windy Webcams (opcional)',
-    description: 'As câmaras públicas do OpenStreetMap já funcionam sozinhas, sem chave. Com uma chave gratuita da Windy (api.windy.com/keys, produto "Webcams API") juntam-se também as webcams da Windy, muitas com vídeo.',
+    description: 'Chave gratuita em api.windy.com/keys (produto "Webcams API"). Sem chave usa só o OpenStreetMap, cujos servidores públicos ficam muitas vezes sobrecarregados.',
     hasBaseUrl: false, baseUrlLabel: '',
     settingsFields: [],
     secretLabel: 'Chave da API (x-windy-api-key)',
@@ -194,6 +194,22 @@ export class IntegrationsService {
         } catch (e) {
           result = { ok: false, status: `Sem ligação: ${(e as Error).message}` };
         }
+      }
+    } else if (key === 'PUBLIC_WEBCAMS' && row.secretEnc) {
+      // Teste real: pergunta à Windy com a chave guardada (câmaras perto de Luanda).
+      const secret = (await this.getActive(key).catch(() => null))?.secret;
+      try {
+        const res = await fetch(`${process.env.WINDY_WEBCAMS_URL || 'https://api.windy.com/webcams/api/v3/webcams'}?nearby=-8.8383,13.2344,250&limit=1`, {
+          headers: { 'x-windy-api-key': secret ?? '', accept: 'application/json' }, signal: AbortSignal.timeout(8000),
+        });
+        if (res.status === 401 || res.status === 403) result = { ok: false, status: 'Chave da Windy inválida' };
+        else if (!res.ok) result = { ok: false, status: `Windy respondeu HTTP ${res.status}` };
+        else {
+          const j = (await res.json().catch(() => ({}))) as { total?: number };
+          result = { ok: true, status: `Chave válida · ${typeof j.total === 'number' ? j.total : '?'} câmaras até 250 km de Luanda` };
+        }
+      } catch (e) {
+        result = { ok: false, status: `Sem ligação à Windy: ${(e as Error).message}` };
       }
     } else {
       result = row.secretEnc

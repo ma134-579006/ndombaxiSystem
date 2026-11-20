@@ -84,15 +84,26 @@ describe('PublicWebcamsService', () => {
     const f = jest.fn(async (url: string, _init?: unknown) => (/overpass/.test(url) ? ok(overpassBody) : ok(windyBody)));
     global.fetch = f as never;
     const svc = make('chave-teste');
-    const r = await svc.nearby(-12.5, 13.4, 999);
-    expect(r.radiusKm).toBe(250);
+    const r = await svc.nearby(-12.5, 13.4, 40);
+    expect(r.radiusKm).toBe(40);
     expect(r.sources?.sort()).toEqual(['osm', 'windy']);
     expect(r.items[0].title).toBe('Longe'); // Benguela, a mais perto de -12.5
     const w = f.mock.calls.find(([u]) => !/overpass/.test(u as string))!;
-    expect(w[0]).toContain('nearby=-12.50000,13.40000,250');
+    expect(w[0]).toContain('nearby=-12.50000,13.40000,40');
     expect((w[1] as unknown as { headers: Record<string, string> }).headers['x-windy-api-key']).toBe('chave-teste');
-    await svc.nearby(-12.5, 13.4, 999);
-    expect(f).toHaveBeenCalledTimes(2);
+    // O pedido ao OpenStreetMap leva um User-Agent com nome e endereço (senão os servidores recusam).
+    const o = f.mock.calls.find(([u]) => /overpass/.test(u as string))!;
+    expect((o[1] as unknown as { headers: Record<string, string> }).headers['user-agent']).toMatch(/LPS-Vendas\/.+https:\/\//);
+    const calls = f.mock.calls.length;
+    await svc.nearby(-12.5, 13.4, 40);
+    expect(f).toHaveBeenCalledTimes(calls); // cache
+    // Acima de 50 km o OpenStreetMap esgota o tempo: só a Windy (até 250 km).
+    const f2 = jest.fn(async (url: string) => (/overpass/.test(url) ? ok(overpassBody) : ok(windyBody)));
+    global.fetch = f2 as never;
+    const far = await make('k').nearby(-12.5, 13.4, 999);
+    expect(far.radiusKm).toBe(250);
+    expect(far.sources).toEqual(['windy']);
+    expect(f2.mock.calls.every(([u]) => !/overpass/.test(u as string))).toBe(true);
   });
 
   it('uma fonte em baixo não esconde a outra; erro só quando nenhuma responde', async () => {
@@ -116,13 +127,20 @@ describe('PublicWebcamsService.nearest (raio automático)', () => {
     global.fetch = jest.fn(async (url: string, init?: { body?: string }) => {
       const m = /around:(\d+)/.exec(decodeURIComponent(init?.body ?? ''));
       const r = m ? Number(m[1]) / 1000 : Number(/nearby=[^,]+,[^,]+,(\d+)/.exec(url)![1]);
-      if (/overpass/.test(url)) { radii.push(r); return ok(r >= 100 ? overpassBody : { elements: [] }); }
+      if (/overpass/.test(url)) { radii.push(r); return ok(r >= 50 ? overpassBody : { elements: [] }); }
       return ok({ webcams: [] });
     }) as never;
     const out = await make(null).nearest(-8.9, 13.19, 10);
-    expect(radii).toEqual([10, 25, 50, 100]);
-    expect(out).toMatchObject({ radiusKm: 100, expanded: true });
+    expect([...new Set(radii)]).toEqual([10, 25, 50]);
+    expect(out).toMatchObject({ radiusKm: 50, expanded: true });
     expect(out.items.length).toBe(2);
+  });
+
+  it('sem câmaras em lado nenhum (serviço a responder) → lista vazia, não "indisponível"', async () => {
+    global.fetch = jest.fn(async (url: string) => ok(/overpass/.test(url) ? { elements: [] } : { webcams: [] })) as never;
+    const out = await make(null).nearest(-8.9, 13.19, 10);
+    expect(out.items).toEqual([]);
+    expect(out.error).toBeUndefined();
   });
 
   it('pára logo quando o serviço falha', async () => {
@@ -130,7 +148,7 @@ describe('PublicWebcamsService.nearest (raio automático)', () => {
     global.fetch = f as never;
     const out = await make(null).nearest(1, 1);
     expect(out.error).toBeTruthy();
-    expect(f).toHaveBeenCalledTimes(1);
+    expect(f).toHaveBeenCalledTimes(3); // os 3 servidores do OpenStreetMap, uma só vez
   });
 
   const make = (secret: string | null) =>

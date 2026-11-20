@@ -101,7 +101,7 @@ await ok('POST', `${K}/me/withdrawals`, { token: A.token, body: { companyCode: c
 d = await ok('GET', `${K}/me/dashboard`, { token: A.token });
 const w1 = d.withdrawals[0];
 const dueH = (new Date(w1.dueAt).getTime() - new Date(w1.date).getTime()) / 3_600_000;
-R.check('SQ-1', 'o saque fica com prazo para a empresa (24 h, ou até ao fim de segunda se pedido sex–dom)', dueH >= 23.9 && dueH <= 87, `${dueH.toFixed(1)} h`);
+R.check('SQ-1', 'o saque fica com prazo para a empresa (24 h, ou até ao fim de segunda se pedido sex–dom)', dueH >= 23.9 && dueH <= 96.1, // sexta 00:00 → segunda 23:59 = 96 h `${dueH.toFixed(1)} h`);
 const early = await call('POST', `${K}/me/withdrawals/${w1.id}/complain`, { token: A.token, body: { text: 'cedo' } });
 R.check('SQ-2', 'reclamar antes do prazo é recusado', early.status === 400, early.body?.message);
 const cw = (await ok('GET', `${AK}/withdrawals`, { token: co.adm })).find((w) => w.id === w1.id);
