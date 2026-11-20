@@ -125,8 +125,18 @@ export interface LandingConfig {
   showPricing: boolean;
   showAds: boolean;
   trialDays: number;
+  /** Login & Registo (estilo Vendus). */
+  authConfig?: AuthLook;
 }
-export interface PublicLanding { config: LandingConfig; plans: PublicPlan[]; /** Nº de validação AGT do software (null = sem número). */ agtCertificate?: string | null }
+export interface AuthSocialBtn { enabled?: boolean; label?: string; bg?: string; color?: string; border?: string }
+export interface AuthTestimonial { text: string; name: string; company?: string; photoUrl?: string }
+/** Aparência do login e do registo, gerida pelo Super Admin. */
+export interface AuthLook {
+  primary?: string; pageBg?: string; linkColor?: string; sideFrom?: string; sideTo?: string;
+  registerTitle?: string; registerSubtitle?: string; optInLabel?: string; showNif?: boolean;
+  google?: AuthSocialBtn; facebook?: AuthSocialBtn; testimonials?: AuthTestimonial[];
+}
+export interface PublicLanding { config: LandingConfig; plans: PublicPlan[]; /** Nº de validação AGT do software (null = sem número). */ agtCertificate?: string | null; /** App ID público do Facebook Login (null = desligado). */ facebookAppId?: string | null }
 
 export interface MailConfigView {
   host: string | null; port: number; secure: boolean;

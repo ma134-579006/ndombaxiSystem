@@ -12,7 +12,7 @@ interface GoogleIdApi {
 }
 
 let scriptPromise: Promise<void> | null = null;
-function loadGsi(): Promise<void> {
+export function loadGsi(): Promise<void> {
   if (scriptPromise) return scriptPromise;
   scriptPromise = new Promise((resolve, reject) => {
     if ((window as unknown as { google?: GoogleIdApi }).google) { resolve(); return; }

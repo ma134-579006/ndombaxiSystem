@@ -48,6 +48,7 @@ interface AuthContextValue {
   loginPlatform(input: PlatformLoginInput): Promise<void>;
   loginTenant(input: TenantLoginInput): Promise<void>;
   loginGoogle(idToken: string, companyCode?: string): Promise<void>;
+  loginFacebook(accessToken: string, companyCode?: string): Promise<void>;
   adoptSession(tokens: TokenPair, companyCode: string): void;
   enterShadow(tokens: TokenPair, companyCode: string, companyName: string): void;
   exitShadow(): void;
@@ -419,8 +420,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const loginGoogle = useCallback(
-    async (idToken: string, companyCode?: string) => {
-      const r = await api.loginGoogle(idToken, companyCode);
+    async (idToken: string, companyCode?: string, provider: 'google' | 'facebook' = 'google') => {
+      const r = provider === 'facebook' ? await api.loginFacebook(idToken, companyCode) : await api.loginGoogle(idToken, companyCode);
       const code = companyCode ?? r.companyCode;
       companyRef.current = code;
       setCompanyCode(code);
@@ -430,6 +431,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus('authed');
     },
     [applyTokens],
+  );
+
+  const loginFacebook = useCallback(
+    (accessToken: string, companyCode?: string) => loginGoogle(accessToken, companyCode, 'facebook'),
+    [loginGoogle],
   );
 
   const enterShadow = useCallback(
@@ -490,12 +496,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loginPlatform,
       loginTenant,
       loginGoogle,
+      loginFacebook,
       adoptSession,
       enterShadow,
       exitShadow,
       logout,
     }),
-    [status, user, companyCode, shadow, loginPlatform, loginTenant, loginGoogle, adoptSession, enterShadow, exitShadow, logout],
+    [status, user, companyCode, shadow, loginPlatform, loginTenant, loginGoogle, loginFacebook, adoptSession, enterShadow, exitShadow, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

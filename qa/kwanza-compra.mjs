@@ -43,7 +43,8 @@ const noGps = await call('POST', `${K}/checkout`, { body });
 const noConsent = await call('POST', `${K}/checkout`, { body: { ...body, ...geo, geoConsent: false } });
 R.check('KP-2', 'compra sem GPS (ou sem consentimento) é recusada', noGps.status === 400 && noConsent.status === 400 && /GPS/.test(JSON.stringify(noConsent.body)), `${noGps.status} ${noConsent.status}`);
 const noAddr = await call('POST', `${K}/checkout`, { body: { ...body, ...geo, address: '' } });
-R.check('KP-3', 'entrega sem morada é recusada', noAddr.status === 400, noAddr.status);
+// A morada é opcional: o GPS exacto do cliente (obrigatório) já dá o local da entrega.
+R.check('KP-3', 'entrega sem morada mas com GPS é aceite', noAddr.status === 201 || noAddr.status === 200, noAddr.status);
 const notPub = await call('POST', `${K}/checkout`, { body: { ...body, ...geo, lines: [{ productCode: S.B.products[149].code, quantity: 1 }] } });
 R.check('KP-4', 'produto que a empresa não publicou no LPS Kwanza é recusado', notPub.status === 400, `${notPub.status} ${notPub.body?.message}`);
 const buy = await call('POST', `${K}/checkout`, { body: { ...body, ...geo } });

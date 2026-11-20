@@ -27,6 +27,7 @@ import {
   EnableTwoFaDto,
   ForgotPasswordDto,
   GoogleLoginDto,
+  FacebookLoginDto,
   PinLoginDto,
   PlatformLoginDto,
   RefreshDto,
@@ -130,6 +131,21 @@ export class AuthController {
     @Headers('user-agent') ua?: string,
   ) {
     return this.auth.staffPinLogin(dto, { ip, userAgent: ua });
+  }
+
+  @Public()
+  @Throttle(SECRET_THROTTLE)
+  @Post('login/facebook')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login de empresa com Facebook (access token)' })
+  facebookLogin(
+    @Body() dto: FacebookLoginDto,
+    @Ip() ip: string,
+    @Headers('x-tenant-code') headerCode?: string,
+    @Headers('user-agent') ua?: string,
+  ) {
+    if (!dto.companyCode && headerCode) dto.companyCode = headerCode.toLowerCase();
+    return this.auth.facebookLogin(dto, { ip, userAgent: ua });
   }
 
   @Public()

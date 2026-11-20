@@ -13,6 +13,7 @@ import { TenantProvisioningService } from '../tenancy/tenant-provisioning.servic
 import { TenantUserRepository } from '../tenancy/tenant-user.repository';
 import { PasswordService } from '../auth/password.service';
 import { GoogleAuthService } from '../auth/google-auth.service';
+import { FacebookAuthService } from '../auth/facebook-auth.service';
 import { TokenService, TokenPair } from '../auth/token.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../common/mail/mail.service';
@@ -50,6 +51,7 @@ export class OnboardingService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService<Env, true>,
     private readonly google: GoogleAuthService,
+    private readonly facebook: FacebookAuthService,
     private readonly tokens: TokenService,
     private readonly offlineCreds: OfflineCredentialsService,
     private readonly emails: EmailRegistryService,
@@ -199,7 +201,7 @@ export class OnboardingService {
    * (auto-login) para a empresa concluir o setup.
    */
   async registerSimple(
-    dto: { email?: string; password?: string; googleIdToken?: string; planTier: string; businessType?: string },
+    dto: { email?: string; password?: string; googleIdToken?: string; facebookAccessToken?: string; nif?: string; marketingOptIn?: boolean; planTier: string; businessType?: string },
     ctx: { ip?: string | null; userAgent?: string | null },
   ): Promise<{ tokens: TokenPair; companyCode: string; setupCompleted: false }> {
     let email: string;
@@ -208,6 +210,11 @@ export class OnboardingService {
 
     if (dto.googleIdToken) {
       const profile = await this.google.verify(dto.googleIdToken);
+      email = profile.email;
+      displayName = profile.name || email.split('@')[0];
+      passwordHash = await this.passwords.hash(randomBytes(18).toString('base64url'));
+    } else if (dto.facebookAccessToken) {
+      const profile = await this.facebook.verify(dto.facebookAccessToken);
       email = profile.email;
       displayName = profile.name || email.split('@')[0];
       passwordHash = await this.passwords.hash(randomBytes(18).toString('base64url'));
@@ -240,7 +247,7 @@ export class OnboardingService {
       data: {
         code: tempCode,
         name: displayName,
-        nif: tempNif,
+        nif: dto.nif || tempNif,
         responsibleName: displayName,
         responsibleEmail: email,
         // Tipo de negócio (adapta o painel ao vertical): guardado em `sector`.
@@ -294,7 +301,7 @@ export class OnboardingService {
 
     await this.audit.record({
       actorType: 'SYSTEM', tenantSchema: schemaName, action: 'COMPANY_REGISTERED_SIMPLE',
-      entity: 'Company', entityId: company.id, after: { email, via: dto.googleIdToken ? 'google' : 'password', trialDays },
+      entity: 'Company', entityId: company.id, after: { email, via: dto.googleIdToken ? 'google' : dto.facebookAccessToken ? 'facebook' : 'password', trialDays, marketingOptIn: !!dto.marketingOptIn },
     });
 
     const payload: JwtPayload = {
@@ -346,7 +353,7 @@ export class OnboardingService {
   async getSetupStatus(
     tenantId: string | undefined,
     schema: string,
-  ): Promise<{ setupCompleted: boolean; status: string; approved: boolean; expired: boolean; expiresAt: string | null }> {
+  ): Promise<{ setupCompleted: boolean; status: string; approved: boolean; expired: boolean; expiresAt: string | null; nif?: string | null }> {
     const rows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<{ setup_completed: boolean }[]>(
         Prisma.sql`SELECT setup_completed FROM site_settings LIMIT 1`,
@@ -355,9 +362,12 @@ export class OnboardingService {
     let status = 'ACTIVE';
     let expired = false;
     let expiresAt: string | null = null;
+    let nif: string | null = null;
     if (tenantId) {
-      const c = await this.prisma.company.findUnique({ where: { id: tenantId }, select: { status: true } });
+      const c = await this.prisma.company.findUnique({ where: { id: tenantId }, select: { status: true, nif: true } });
       status = c?.status ?? 'ACTIVE';
+      // NIF dado no registo (o provisório "TMP…" não conta) — pré-preenche o setup.
+      nif = c?.nif && !c.nif.startsWith('TMP') ? c.nif : null;
       // Validade do plano: só bloqueia se a empresa JÁ teve subscrições e nenhuma
       // está válida agora (empresas legadas sem subscrição NÃO são bloqueadas).
       const subs = await this.prisma.subscription.findMany({
@@ -396,6 +406,7 @@ export class OnboardingService {
       approved: status === 'ACTIVE',
       expired,
       expiresAt,
+      nif,
     };
   }
 

@@ -1,0 +1,238 @@
+/*
+ * Login e Registo no estilo Vendus (Cegid Vendus, login + criar-conta):
+ * medidas, cores e comportamento lidos do site deles (marvel275.css + CSS da
+ * página /criar-conta/). Cores principais vêm do Super Admin (Login & Registo)
+ * através das variáveis --va-*.
+ */
+.va {
+  --va-primary: #1b45f4;
+  --va-page: #f3f7fe;
+  --va-link: #007bff;
+  --va-side-from: rgba(0, 70, 254, .9);
+  --va-side-to: #002a98;
+  position: fixed; inset: 0; z-index: 1; overflow-x: hidden; overflow-y: auto;
+  font-family: 'DM Sans', 'Helvetica Neue', Arial, sans-serif; font-size: 16px; line-height: 1.5;
+  color: #212529; background: var(--va-page); -webkit-font-smoothing: antialiased;
+}
+.va *, .va *::before, .va *::after { box-sizing: border-box; }
+.va a { color: var(--va-link); text-decoration: none; cursor: pointer; }
+.va a:hover { text-decoration: underline; }
+
+/* ── LOGIN ─────────────────────────────────────────────── */
+.va-login { display: flex; min-height: 100%; align-items: center; justify-content: center; padding: 24px 15px;
+  border-top: .4px solid rgba(211, 211, 211, .9); border-bottom: .4px solid rgba(211, 211, 211, .9); }
+.va-col { width: 100%; max-width: 470px; text-align: center; }
+.va-logo { display: inline-block; height: 64px; width: auto; max-width: 100%; margin-bottom: 25px; object-fit: contain; }
+.va-card { background: #fff; border: 1px solid rgba(102, 102, 102, .11); box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
+  padding: 25px; text-align: left; }
+.va-card-gap { height: 24px; }
+.va-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.va-label { display: block; font-size: 13px; color: #333; margin: 0 0 8px; }
+.va-row .va-label { margin-bottom: 8px; }
+.va-mt { margin-top: 25px; }
+.va-link-sm { font-size: 13px; font-weight: 600; color: #209ffe !important; }
+.va-input { display: block; width: 100%; height: 45px; padding: 11px 16px; font: inherit; font-size: 13px; color: #212529;
+  background: #fff; border: 1px solid #c3cddf; border-radius: 4px; outline: 0; transition: border .2s; }
+.va-input::placeholder { color: #8a94a6; opacity: 1; }
+.va-input:focus { border-color: var(--va-primary); }
+.va-pass { position: relative; }
+.va-pass .va-input { padding-right: 46px; }
+.va-pass .auth-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; display: grid; place-items: center;
+  border: 0; background: transparent; color: #8a94a6; cursor: pointer; border-radius: 6px; }
+.va-pass .auth-eye:hover { color: #333; }
+.va-btn { display: block; width: 100%; margin-top: 25px; padding: 10px 20px; border: 0; border-radius: 50px; background: var(--va-primary); color: #fff;
+  font: inherit; font-size: 18px; font-weight: 600; text-align: center; cursor: pointer; transition: box-shadow .2s, transform .2s, filter .2s; }
+.va-btn:hover { box-shadow: 0 6px 14px rgba(13, 13, 18, .2); }
+.va-btn:active { transform: translateY(1px); }
+.va-btn:disabled { opacity: .8; cursor: default; box-shadow: none; background: #999; }
+.va-center { text-align: center; margin: 15px 0 0; }
+.va-or { position: relative; margin: 24px 0; border-top: 1px solid #e0e1e2; font-size: 14px; font-family: sans-serif; }
+.va-or span { position: absolute; left: 50%; top: -20px; width: 50px; margin-left: -25px; padding: 10px; background: #f9fafc; color: #999; line-height: 1.15; }
+.va-social { display: flex; align-items: center; justify-content: center; width: 100%; margin-top: .5rem; padding: 10px 12px; border: 0;
+  border-radius: 50px; font: inherit; font-size: 18px; font-weight: 600; cursor: pointer; transition: background-color .2s, box-shadow .2s, filter .2s; }
+.va-social img, .va-social svg { width: 26px; height: 26px; margin-right: 1rem; flex: none; }
+.va-social.g { background: #fff; color: #212529; box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075); }
+.va-social.g:hover { filter: brightness(.95); }
+.va-social.f { background: #4267b2; color: #fff; }
+.va-social.f:hover { filter: brightness(1.06); }
+.va-social:disabled { opacity: .7; cursor: default; }
+.va-back { margin: 1.5rem 0 0; color: #6c757d; text-align: center; }
+.va-foot-tools { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; }
+.va-error { margin: 0 0 14px; padding: 10px 12px; border-radius: 4px; background: #fdecec; border: 1px solid #f5c2c7; color: #842029; font-size: 13px; }
+.va-choices p { margin: 0 0 10px; font-size: 13px; color: #333; }
+.va-choice { display: block; width: 100%; margin-top: 8px; padding: 11px 16px; text-align: left; font: inherit; font-size: 14px; color: #212529;
+  background: #fff; border: 1px solid #c3cddf; border-radius: 4px; cursor: pointer; }
+.va-choice:hover { border-color: var(--va-primary); color: var(--va-primary); }
+.va-2fa { margin-top: 25px; padding: 14px; border: 1px solid #c3cddf; border-radius: 4px; background: #f8faff; }
+.va-2fa-h { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; font-size: 13px; color: #333; }
+.va-2fa-h small { display: block; color: #6c757d; }
+.va-2fa .va-input { letter-spacing: .4em; text-align: center; font-size: 18px; }
+.va-2fa-resend { margin-top: 8px; border: 0; background: none; padding: 0; color: #209ffe; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.va-2fa-resend:disabled { color: #9aa4b2; cursor: default; }
+
+/* ── REGISTO ───────────────────────────────────────────── */
+.va-reg { display: flex; min-height: 100%; background: #f2f5f9; }
+.va-side { position: fixed; top: 0; left: 0; bottom: 0; width: 447px; padding: 40px 20px; color: #fff;
+  background: linear-gradient(180deg, var(--va-side-from) 0%, var(--va-side-to) 100%); }
+.va-side-logo { margin-top: 12vh; margin-bottom: 3rem; text-align: center; }
+.va-side-logo img { width: 200px; max-width: 100%; height: auto; margin-bottom: 3rem; }
+.va-tst-wrap { position: relative; height: 250px; margin-bottom: 10vh; padding: 20px; }
+.va-tst { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; opacity: 0; visibility: hidden; transition: opacity .5s ease-in-out, visibility .5s; }
+.va-tst.on { opacity: 1; visibility: visible; }
+.va-avatar { width: 70px; height: 70px; margin: 0 auto 15px; border-radius: 50%; overflow: hidden; border: 3px solid rgba(255, 255, 255, .3);
+  display: grid; place-items: center; background: rgba(255, 255, 255, .14); font-weight: 600; font-size: 24px; }
+.va-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.va-tst-text { margin-bottom: 10px; font-style: italic; font-size: 1.1rem; text-align: center; }
+.va-tst-author { font-weight: 500; text-align: center; }
+.va-tst-company { font-size: .9rem; opacity: .9; text-align: center; }
+.va-dots { position: absolute; left: 0; bottom: -35px; width: 100%; display: flex; justify-content: center; }
+.va-dot { width: 8px; height: 8px; margin: 0 3px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .5); cursor: pointer; transition: background-color .3s; }
+.va-dot.on { background: #fff; }
+.va-main { width: calc(100% - 447px); margin-left: 447px; display: flex; justify-content: center; align-items: center; padding: 30px; background: #f2f5f9; }
+.va-form { width: 450px; max-width: 100%; padding: 20px; }
+.va-mlogo { display: none; text-align: center; margin-bottom: 30px; }
+.va-mlogo img { width: 240px; max-width: 100%; height: auto; margin: 0 auto 1rem; }
+.va-head { margin-bottom: 20px; }
+.va-head h1 { margin: 0 0 8px; font-size: 1.7rem; font-weight: 600; line-height: 1.2; color: #212529; }
+.va-head p { margin: 0 0 25px; color: #4b5563; }
+.va-fl { position: relative; margin-bottom: 1rem; }
+.va-fl input, .va-fl select { display: block; width: 100%; height: calc(3.5rem + 2px); padding: 24px .75rem .5rem; font: inherit; font-size: 1rem; line-height: 1.25; color: #212529;
+  background-color: #fff; border: 1px solid #d1d5db; border-radius: 5px; outline: 0; transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out; appearance: none; }
+.va-fl select { padding-right: 2.25rem; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat; background-position: right .75rem center; background-size: 16px 12px; }
+.va-fl input::placeholder { color: transparent; }
+.va-fl input:focus, .va-fl select:focus { border-color: #86b7fe; box-shadow: 0 0 0 .25rem rgba(13, 110, 253, .25); }
+.va-fl label { position: absolute; top: 0; left: 0; z-index: 2; height: 100%; padding: 1rem .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  pointer-events: none; border: 1px solid transparent; transform-origin: 0 0; transition: opacity .1s ease-in-out, transform .1s ease-in-out; color: #212529; }
+.va-fl input:focus ~ label, .va-fl input:not(:placeholder-shown) ~ label, .va-fl select ~ label {
+  transform: scale(.85) translateY(-.5rem) translateX(.15rem); color: rgba(33, 37, 41, .65); }
+.va-fl .auth-eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); z-index: 3; width: 36px; height: 36px; display: grid; place-items: center;
+  border: 0; background: transparent; color: #6b7280; cursor: pointer; border-radius: 6px; }
+.va-fl.pw input { padding-right: 48px; }
+.va-meter { height: 5px; width: 100%; margin-top: 5px; border-radius: 3px; background: #ddd; overflow: hidden; }
+.va-meter > i { display: block; height: 100%; border-radius: 3px; transition: width .3s ease, background-color .3s ease; }
+.va-meter-txt { display: flex; justify-content: space-between; margin-top: 5px; font-size: .8rem; }
+.va-reqs { margin-top: 10px; font-size: .8rem; color: #6c757d; }
+.va-req { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
+.va-req b { width: 1em; font-size: .9rem; text-align: center; color: #dc3545; }
+.va-req.ok b { color: #28a745; }
+.va-check { display: flex; align-items: flex-start; gap: .5em; margin: 25px 0; }
+.va-check input { width: 1em; height: 1em; margin-top: .25em; flex: none; accent-color: #0d6efd; }
+.va-check label { cursor: pointer; }
+.va-btn-sq { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; border: 0; border-radius: 5px; background: #1044e4; color: #fff;
+  font: inherit; font-size: 1.25rem; font-weight: 500; line-height: 1.5; cursor: pointer; transition: filter .15s, box-shadow .15s; }
+.va-btn-sq:hover { filter: brightness(.92); }
+.va-btn-sq:focus-visible { box-shadow: 0 0 0 .25rem rgba(49, 132, 253, .5); outline: 0; }
+.va-btn-sq:disabled { opacity: .65; cursor: default; }
+.va-spin { width: 1rem; height: 1rem; border: .2em solid currentColor; border-right-color: transparent; border-radius: 50%; animation: va-spin .75s linear infinite; }
+@keyframes va-spin { to { transform: rotate(360deg); } }
+.va-divider { position: relative; margin: 25px 0; text-align: center; color: #6b7280; }
+.va-divider::before, .va-divider::after { content: ''; position: absolute; top: 50%; width: 45%; height: 1px; background: #e5e7eb; }
+.va-divider::before { left: 0; }
+.va-divider::after { right: 0; }
+.va-srow { display: flex; gap: 15px; margin-bottom: 30px; }
+.va-sbtn { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; background: #fff;
+  color: #4b5563; font: inherit; font-weight: 500; font-size: .9rem; cursor: pointer; transition: background-color .15s, border-color .15s; }
+.va-sbtn:hover { background: #f8f9fb; border-color: #c2c8d0; }
+.va-sbtn svg { width: 18px; height: 18px; margin-right: 10px; flex: none; }
+.va-sbtn:disabled { opacity: .7; cursor: default; }
+.va-loginlink { text-align: center; font-size: .9rem; color: #4b5563; }
+.va-loginlink a { color: #1044e4; font-weight: 500; }
+.va-reg .va-error { margin-bottom: 1rem; }
+
+@media (min-width: 769px) and (max-width: 1280px) {
+  .va-side { width: 350px; }
+  .va-main { width: calc(100% - 350px); margin-left: 350px; }
+}
+@media (min-width: 1300px) { .va-form { width: 550px; } }
+@media (max-width: 768px) {
+  .va-reg { flex-direction: column; }
+  .va-head { text-align: center; }
+  .va-side { display: none; }
+  .va-main { width: 100%; margin: 0; padding: 20px; flex: 1; }
+  .va-mlogo { display: block; }
+  .va-form { width: 100%; max-width: 450px; padding: 10px; }
+  .va-srow { flex-direction: column; }
+  .va-sbtn { width: 100%; }
+}
+@media (max-width: 360px) {
+  .va-card { padding: 18px 14px; }
+  .va-social { font-size: 15px; }
+  .va-social img, .va-social svg { margin-right: .6rem; }
+  .va-btn { font-size: 16px; }
+  .va-head h1 { font-size: 1.4rem; }
+}
+@media (prefers-reduced-motion: reduce) { .va-tst { transition: none; } .va-spin { animation-duration: 2s; } }
+
+/* Títulos e mensagens do cartão (Recuperar / Nova Password). */
+.va-h1 { margin: 0 0 .5rem; font-size: 18px; font-weight: 500; line-height: 1.2; text-align: center; color: #212529; }
+.va-ok { margin: 10px 0 0; padding: 10px 12px; border-radius: 4px; background: #e8f6ee; border: 1px solid #badbcc; color: #0f5132; font-size: 13px; }
+.va-muted { margin: 1rem 0 0; color: #6c757d; text-align: center; font-size: 14px; }
+/* ResetView (partilhada com a Caixa) dentro do cartão claro. */
+.va .auth-error { margin: 0 0 14px; padding: 10px 12px; border-radius: 4px; background: #fdecec; border: 1px solid #f5c2c7; color: #842029; font-size: 13px; }
+.va .auth-label { display: block; margin: 25px 0 8px; font-size: 13px; color: #333; }
+.va .auth-pass { position: relative; }
+.va .auth-input { display: block; width: 100%; height: 45px; padding: 11px 46px 11px 16px; font: inherit; font-size: 13px; color: #212529; background: #fff;
+  border: 1px solid #c3cddf; border-radius: 4px; outline: 0; box-shadow: none; }
+.va .auth-input:focus { border-color: var(--va-primary); }
+.va .auth-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; display: grid; place-items: center; border: 0; background: transparent; color: #8a94a6; cursor: pointer; }
+.va .auth-btn { display: block; width: 100%; margin-top: 25px; padding: 10px 20px; border: 0; border-radius: 50px; background: var(--va-primary); color: #fff;
+  font: inherit; font-size: 18px; font-weight: 600; cursor: pointer; }
+.va .auth-btn:disabled { opacity: .8; background: #999; }
+.va .muted { color: #6c757d; }
+.va .banner.success { padding: 10px 12px; border-radius: 4px; background: #e8f6ee; border: 1px solid #badbcc; color: #0f5132; font-size: 13px; }
+.va .auth-2fa { margin-top: 25px; padding: 14px; border: 1px solid #c3cddf; border-radius: 4px; background: #f8faff; }
+.va .auth-2fa-h { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; font-size: 13px; color: #333; }
+.va .auth-2fa-h small { display: block; color: #6c757d; }
+.va .auth-2fa-resend { margin-top: 8px; border: 0; background: none; padding: 0; color: #209ffe; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.va .auth-hint.bad { color: #b02a37; font-size: 12px; }
+.va-pw { position: relative; }
+.va-adm-prev { margin-top: 14px; padding: 18px; border-radius: 10px; background: #f3f7fe; font-family: 'DM Sans', Arial, sans-serif; }
+.va-fl2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); column-gap: 1rem; }
+@media (max-width: 420px) { .va-fl2 { grid-template-columns: 1fr; } }
+
+/* ── Ativar a empresa (pós-registo) no estilo Vendus ───────────────────── */
+.va-setup .va-col { max-width: 520px; }
+.va .auth-brandhead { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0 0 20px; text-align: center; }
+.va .auth-brandhead .ic { display: none; }
+.va .auth-brandhead h1 { margin: 0; font-size: 1.7rem; font-weight: 600; line-height: 1.2; color: #212529; }
+.va .auth-brandhead .sub { margin: 6px 0 0; color: #4b5563; font-size: 1rem; }
+.va .setup-steps { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 18px; }
+.va .setup-steps .st { display: flex; align-items: center; gap: 8px; color: #6b7280; font-size: 14px; font-weight: 500; }
+.va .setup-steps .dot { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #e5e7eb; color: #4b5563; font-weight: 600; font-size: 13px; }
+.va .setup-steps .st.on .dot, .va .setup-steps .st.done .dot { background: var(--va-primary); color: #fff; }
+.va .setup-steps .st.on { color: #212529; }
+.va .setup-steps .bar { width: 48px; height: 2px; background: #e5e7eb; }
+.va .setup-steps .bar.done { background: var(--va-primary); }
+.va .auth-glass { background: #fff; border: 1px solid rgba(102, 102, 102, .11); box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075); padding: 25px; text-align: left; border-radius: 0; color: #212529; backdrop-filter: none; }
+.va .auth-glass .loading { color: #6c757d !important; text-align: center; }
+.va .auth-field { margin-bottom: 18px; }
+.va .auth-field .auth-label { margin-top: 0 !important; }
+.va .auth-inwrap { position: relative; }
+.va .auth-inwrap .vmark { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
+.va .auth-input.ok { border-color: #22c55e; }
+.va .auth-input.bad { border-color: #dc3545; }
+.va select.auth-input { appearance: auto; padding-right: 16px; }
+.va .auth-hint { margin-top: 6px; font-size: 12px; color: #6c757d; }
+.va .auth-hint.ok { color: #198754; }
+.va .auth-hint.bad { color: #b02a37; }
+.va .auth-logo { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.va .auth-logo .lgbox { width: 64px; height: 64px; flex: none; display: grid; place-items: center; border: 1px dashed #c3cddf; border-radius: 8px; background: #f8faff; color: #8a94a6; overflow: hidden; }
+.va .auth-logo .lgbox img { width: 100%; height: 100%; object-fit: contain; }
+.va .auth-btn.ghost { background: #fff; color: var(--va-primary); box-shadow: inset 0 0 0 1px var(--va-primary); }
+.va .auth-btn.ghost:hover { background: #f3f7fe; }
+.va .auth-btn.sm { width: auto; margin-top: 0; padding: 8px 18px; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.va .auth-btnrow { display: flex; gap: 10px; flex-wrap: wrap; }
+.va .auth-btnrow .auth-btn { margin-top: 10px; }
+.va .auth-note { margin: 0 0 14px; padding: 12px 14px; border-radius: 4px; background: #f3f7fe; border: 1px solid #d6e2fb; font-size: 13px; color: #333; }
+.va .auth-note.ok { background: #e8f6ee; border-color: #badbcc; color: #0f5132; }
+.va .auth-note .bankrow + .bankrow { margin-top: 8px; }
+.va .auth-note .iban { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+.va .auth-hint.neutral strong { color: #212529 !important; }
+.va .auth-file { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border: 1px dashed #c3cddf; border-radius: 4px; background: #f8faff; color: #4b5563; font-size: 13px; cursor: pointer; }
+.va .auth-file.has { border-style: solid; border-color: #22c55e; color: #0f5132; background: #e8f6ee; }
+.va .auth-foot { margin: 1.5rem 0 0; text-align: center; color: #6c757d; }
+.va .auth-foot a { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Sem scroll: ver useFitHeight (o conteúdo encolhe para caber na janela). */
+.va-col, .va-form { transform-origin: top center; }

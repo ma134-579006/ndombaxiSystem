@@ -289,6 +289,10 @@ export const api = {
   /** Login com Google (a empresa é encontrada pelo e-mail da conta). */
   loginGoogle: (idToken: string, companyCode?: string) =>
     request<TokenPair & { companyCode: string; companyName: string }>('POST', '/auth/login/google', { idToken, companyCode }, { auth: false }),
+  loginFacebook: (accessToken: string, companyCode?: string) =>
+    request<TokenPair & { companyCode: string; companyName: string }>('POST', '/auth/login/facebook', { accessToken, companyCode }, { auth: false }),
+  /** Aparência pública do login (cores e botões sociais do Super Admin) e App ID do Facebook. */
+  publicLanding: () => request<{ config?: { authConfig?: Record<string, unknown>; trialDays?: number }; plans?: unknown[]; facebookAppId?: string | null }>('GET', '/public/landing', undefined, { auth: false }),
   /** Login do operador por nome (id) + PIN. */
   loginPin: (input: { companyCode: string; userId: string; pin: string }) =>
     request<TokenPair>('POST', '/auth/login/pin', input, { auth: false }),

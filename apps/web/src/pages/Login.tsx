@@ -2,29 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { LOGO_WIDE } from '../brand';
 import { useAuth } from '../auth/AuthContext';
-import { GoogleSignInButton } from '../components/GoogleSignInButton';
-import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
 import { openCaixaTerminal } from '../config';
 import { LangPicker } from '../components/LangPicker';
-import { nativeGoogleAvailable, nativeGoogleSignIn } from '../nativeGoogle';
-import { desktopGoogleAvailable, desktopGoogleSignIn } from '../desktopGoogle';
-
-/**
- * O botão "Continuar com Google" da APP (Windows e Android). O site usa o botão
- * do próprio Google (GIS), que não funciona dentro de uma WebView — por isso a
- * app tem o seu, com o mesmo aspeto, e cada plataforma trata do login à sua
- * maneira por trás.
- */
-function GoogleAppButton({ onClick, disabled }: { onClick(): void; disabled?: boolean }) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled}
-      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, height: 46, borderRadius: 999, border: '1px solid #dadce0', background: '#fff', color: '#3c4043', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.9 6.1 29.7 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.9 6.1 29.7 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.6 0 10.7-2.1 14.6-5.6l-6.7-5.7C29.8 34.6 27 36 24 36c-5.2 0-9.6-3.3-11.2-8l-6.6 5.1C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.7 5.7c-.5.4 7.1-5.2 7.1-15.3 0-1.3-.1-2.3-.4-3.5z"/></svg>
-      Continuar com Google
-    </button>
-  );
-}
+import {
+  appKind, btnStyle, FacebookSquare, facebookToken, GoogleGlyph, googleToken, lookVars, useAuthPublic, usePreloadSocial, useFitHeight,
+} from './vendusAuth';
 
 /** Lista de empresas devolvida quando o e-mail existe em várias. */
 interface CompanyChoice { code: string; name: string }
@@ -37,20 +20,23 @@ function choicesFrom(e: unknown): CompanyChoice[] | null {
 }
 
 /**
- * Login ÚNICO (escuro, fixo): gestor de empresa E super admin entram no mesmo
- * formulário — o sistema descobre sozinho quem é (tenta empresa pelo e-mail e,
- * se não for, tenta plataforma). Sem escolher perfil. A Caixa abre-se por um
- * link próprio. Vídeo enterprise à direita.
+ * Login ÚNICO no estilo Vendus (fundo claro, cartão branco, botão em pílula,
+ * "Ou", Google e Facebook): gestor de empresa E super admin entram no mesmo
+ * formulário — o sistema descobre sozinho quem é. Cores, textos e botões
+ * sociais vêm do Super Admin (Login & Registo).
  */
 export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?: () => void }) {
-  const { loginTenant, loginPlatform, loginGoogle } = useAuth();
+  const { loginTenant, loginPlatform, loginGoogle, loginFacebook } = useAuth();
+  const pub = useAuthPublic();
+  const fitRef = useFitHeight<HTMLDivElement>();
+  const look = pub?.look;
+  usePreloadSocial(pub?.facebookAppId ?? null);
   const resetToken = useMemo(() => {
     const p = new URLSearchParams(location.search);
     return p.get('k') !== 'pin' ? p.get('reset') : null;
   }, []);
   const [forgot, setForgot] = useState(false);
   const [email, setEmail] = useState(() => { try { return localStorage.getItem('ndx:remember_email') ?? ''; } catch { return ''; } });
-  const [remember, setRemember] = useState(() => { try { return !!localStorage.getItem('ndx:remember_email'); } catch { return false; } });
   const [emailRO, setEmailRO] = useState(true); // anti-autofill (editável após focar)
   const [password, setPassword] = useState('');
   const [twoFa, setTwoFa] = useState('');
@@ -63,52 +49,29 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [choices, setChoices] = useState<CompanyChoice[] | null>(null);
-  const [pending, setPending] = useState<{ kind: 'password' | 'google'; idToken?: string } | null>(null);
+  const [pending, setPending] = useState<{ kind: 'password' | 'google' | 'facebook'; token?: string } | null>(null);
 
-  const onGoogle = async (idToken: string, companyCode?: string) => {
+  const social = async (kind: 'google' | 'facebook', token: string, companyCode?: string) => {
     setError(null); setLoading(true);
     try {
-      await loginGoogle(idToken, companyCode);
+      if (kind === 'google') await loginGoogle(token, companyCode);
+      else await loginFacebook(token, companyCode);
     } catch (e) {
       const c = choicesFrom(e);
-      if (c) { setChoices(c); setPending({ kind: 'google', idToken }); return; }
-      setError(e instanceof ApiError ? e.message : 'Não foi possível entrar com Google.');
+      if (c) { setChoices(c); setPending({ kind, token }); return; }
+      setError(e instanceof ApiError ? e.message : `Não foi possível entrar com ${kind === 'google' ? 'Google' : 'Facebook'}.`);
     } finally { setLoading(false); }
   };
 
-  // App instalada: Google NATIVO (o botão web GIS não funciona em WebView).
-  const onGoogleNative = async () => {
+  const startSocial = async (kind: 'google' | 'facebook') => {
     setError(null);
-    if (!nativeGoogleAvailable()) {
-      setError('Entrar com Google ainda não está disponível nesta versão da app. Atualize para a versão mais recente.');
-      return;
-    }
-    setLoading(true);
     try {
-      const idToken = await nativeGoogleSignIn();
-      if (idToken) await onGoogle(idToken);
-      else setError('Entrada com Google cancelada.');
+      const t = kind === 'google' ? await googleToken() : await facebookToken(pub?.facebookAppId ?? null);
+      if (t) await social(kind, t);
+      else setError(`Entrada com ${kind === 'google' ? 'Google' : 'Facebook'} cancelada.`);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível entrar com Google.');
-    } finally { setLoading(false); }
-  };
-
-  // App WINDOWS: o Google abre no NAVEGADOR do sistema (recusa WebViews) e
-  // devolve o token à app. Mesmo fluxo do móvel, outra porta de entrada.
-  const onGoogleDesktop = async () => {
-    setError(null);
-    if (!desktopGoogleAvailable()) {
-      setError('Entrar com Google ainda não está disponível nesta versão da app. Atualize para a versão mais recente.');
-      return;
+      setError(e instanceof Error ? e.message : 'Não foi possível entrar.');
     }
-    setLoading(true);
-    try {
-      const idToken = await desktopGoogleSignIn();
-      if (idToken) await onGoogle(idToken);
-      else setError('Entrada com Google cancelada.');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Não foi possível entrar com Google.');
-    } finally { setLoading(false); }
   };
 
   /** Entra discernindo o perfil: 1) tenta como empresa (gestor) pelo e-mail;
@@ -116,10 +79,9 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   const submit = async (companyCode?: string, resend = false) => {
     setError(null); setChoices(null);
     const mail = email.trim().toLowerCase();
-    if (!mail || !password) { setError('Indica o e-mail e a palavra-passe.'); return; }
+    if (!mail || !password) { setError('Indica o e-mail e a password.'); return; }
     if (!/^\S+@\S+\.\S+$/.test(mail)) { setError('E-mail inválido.'); return; }
-    // "Lembrar-me": guarda só o e-mail (nunca a senha) para pré-preencher.
-    try { if (remember) localStorage.setItem('ndx:remember_email', mail); else localStorage.removeItem('ndx:remember_email'); } catch { /* storage indisponível */ }
+    try { if (localStorage.getItem('ndx:remember_email')) localStorage.setItem('ndx:remember_email', mail); } catch { /* storage indisponível */ }
     setLoading(true);
     const twoFaToken = resend ? undefined : (twoFa.trim() || undefined);
     // O servidor pediu o código da verificação em 2 passos (enviado por e-mail ou WhatsApp).
@@ -141,154 +103,137 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
       } catch (pe) {
         if (askCode(pe)) return;
         if (pe instanceof ApiError && (pe.data as { error?: string } | undefined)?.error === 'TwoFaInvalid') { setError(pe.message); return; }
-        setError(e instanceof ApiError ? e.message : 'E-mail ou palavra-passe incorretos.');
+        setError(e instanceof ApiError ? e.message : 'E-mail ou password incorretos.');
       }
     } finally { setLoading(false); }
   };
 
   const pickCompany = async (code: string) => {
     setChoices(null);
-    if (pending?.kind === 'google' && pending.idToken) await onGoogle(pending.idToken, code);
+    if (pending && pending.kind !== 'password' && pending.token) await social(pending.kind, pending.token, code);
     else await submit(code);
     setPending(null);
   };
 
-  const openCaixa = () => openCaixaTerminal();
-
-  // App instalada (Android/desktop): a Caixa é outra app, "voltar à landing" não
-  // faz sentido e "criar conta" abre o site no NAVEGADOR do sistema. No site
-  // (navegador) mantém-se tudo como antes.
-  const nw = window as unknown as {
-    ndombaxi?: unknown; __NDOMBAXI_NATIVE__?: boolean;
-    Capacitor?: { isNativePlatform?: () => boolean };
-  };
-  const isNativeApp = window.location.protocol === 'ndombaxi:'
-    || typeof nw.ndombaxi !== 'undefined'
-    || nw.__NDOMBAXI_NATIVE__ === true
-    || !!nw.Capacitor?.isNativePlatform?.();
-  // App MÓVEL (Android/iOS) vs DESKTOP (Electron). NÃO dependemos de
-  // `window.Capacitor` para isto: esse global nem sempre chega ao frontend dentro
-  // da app (é por isso que a app usa a bandeira __NDOMBAXI_NATIVE__ para se
-  // detetar). O DESKTOP expõe `window.ndombaxi` (ponte do Electron); o móvel não.
-  // Logo "móvel" = é app nativa E não é desktop — assim o botão Google aparece no
-  // Android/iOS de forma fiável. No desktop o OAuth do Google é outro fluxo.
-  const isDesktopApp = window.location.protocol === 'ndombaxi:' || typeof nw.ndombaxi !== 'undefined';
-  const isMobileApp = isNativeApp && !isDesktopApp;
+  // App instalada: a Caixa é outra app, não há "voltar ao site" e "criar conta"
+  // abre o site no NAVEGADOR do sistema. O Facebook só existe no site.
+  const k = appKind();
   const openSignupInBrowser = () => window.open('https://ndombaxisystem.com/', '_blank');
+  const g = look?.google; const f = look?.facebook;
+  const showGoogle = g?.enabled !== false;
+  const showFacebook = f?.enabled !== false && !k.native;
 
   return (
-    <div className="auth">
-      <div className="auth-panel">
-        <div className="auth-form auth-enter">
-          <div className="auth-top">
-            <img className="auth-logo-wide" src={LOGO_WIDE} alt="LPS Vendas" />
-            <LangPicker variant="dark" />
-          </div>
-          {resetToken ? (
-            <>
-              <h1 className="auth-title">Nova palavra-passe</h1>
-              <ResetView token={resetToken} kind="pw" />
-            </>
-          ) : (
-            <>
-              <h1 className="auth-title">Inicie sessão</h1>
-
-              {error ? <div className="auth-error" role="alert">{error}</div> : null}
-
-              {choices ? (
-                <div className="auth-choices">
-                  <p>Este e-mail existe em várias empresas — escolhe:</p>
-                  {choices.map((c) => (
-                    <button key={c.code} className="auth-choice" onClick={() => void pickCompany(c.code)} disabled={loading}>{c.name}</button>
-                  ))}
-                </div>
-              ) : (
-                <>
-                  <label className="auth-label">E-mail</label>
-                  <input className="auth-input" value={email} onChange={(e) => setEmail(e.target.value)}
-                    placeholder="exemplo@empresa.ao" inputMode="email" type="text"
-                    autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                    name="ndx_field_acct" id="ndx_field_acct"
-                    data-lpignore="true" data-1p-ignore data-form-type="other" data-bwignore="true"
-                    readOnly={emailRO} onFocus={() => setEmailRO(false)} onPointerDown={() => setEmailRO(false)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
-
-                  <label className="auth-label">Senha</label>
-                  <PasswordField value={password} onChange={setPassword} placeholder="••••••••"
-                    autoComplete="off" onEnter={() => void submit()} />
-
-                  {show2fa ? (
-                    <div className={`auth-2fa${sentTo ? ' sent' : ''}`}>
-                      {sentTo ? (
-                        <div className="auth-2fa-h">
-                          <span className="auth-2fa-ic" aria-hidden>{sentTo.channel === 'WHATSAPP' ? <WaGlyph /> : <MailGlyph />}</span>
-                          <span><b>Verificação em 2 passos</b><small>Código enviado {sentTo.channel === 'WHATSAPP' ? 'por WhatsApp' : 'por e-mail'} para {sentTo.to}</small></span>
-                        </div>
-                      ) : <label className="auth-label">Código 2FA</label>}
-                      <input className="auth-input auth-code" value={twoFa} onChange={(e) => setTwoFa(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="000000" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus={!!sentTo}
-                        onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
-                      {sentTo ? (
-                        <button type="button" className="auth-2fa-resend" disabled={loading || Date.now() < resendAt} onClick={() => void submit(undefined, true)}>
-                          {Date.now() < resendAt ? `Reenviar código (${Math.ceil((resendAt - Date.now()) / 1000)} s)` : 'Reenviar código'}
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  <div className="auth-sublinks">
-                    <label className="auth-remember"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Lembrar-me</label>
-                    <a onClick={() => setForgot(true)}>Esqueci a senha</a>
+    <div className="va" style={lookVars(look)}>
+      <div className="va-login">
+        <div className="va-col" ref={fitRef}>
+          <a onClick={onBack && !k.native ? onBack : undefined} aria-label="LPS Vendas">
+            <img className="va-logo" src={LOGO_WIDE} alt="LPS Vendas" />
+          </a>
+          <div className="va-card">
+            {resetToken ? (
+              <>
+                <h1 className="va-h1">Nova Password</h1>
+                <ResetView token={resetToken} kind="pw" />
+              </>
+            ) : forgot ? (
+              <ForgotView initialEmail={email} />
+            ) : (
+              <>
+                <div className="va-card-gap" />
+                {error ? <div className="va-error" role="alert">{error}</div> : null}
+                {choices ? (
+                  <div className="va-choices">
+                    <p>Este e-mail existe em várias empresas — escolhe:</p>
+                    {choices.map((c) => (
+                      <button key={c.code} className="va-choice" onClick={() => void pickCompany(c.code)} disabled={loading}>{c.name}</button>
+                    ))}
                   </div>
-                  {!show2fa ? <a className="auth-2fa-link" onClick={() => setShow2fa(true)}>Tenho código 2FA</a> : null}
+                ) : (
+                  <>
+                    <label className="va-label" htmlFor="ndx_field_acct">E-Mail:</label>
+                    <input className="va-input" value={email} onChange={(e) => setEmail(e.target.value)}
+                      placeholder="E-Mail" inputMode="email" type="text"
+                      autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                      name="ndx_field_acct" id="ndx_field_acct"
+                      data-lpignore="true" data-1p-ignore data-form-type="other" data-bwignore="true"
+                      readOnly={emailRO} onFocus={() => setEmailRO(false)} onPointerDown={() => setEmailRO(false)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
 
-                  <button className="auth-btn" onClick={() => void submit()} disabled={loading}>
-                    {loading ? 'A entrar…' : 'Entrar'}
-                  </button>
+                    <div className="va-row va-mt">
+                      <label className="va-label" htmlFor="ndx_field_secret">Password:</label>
+                      <a className="va-label va-link-sm" onClick={() => setForgot(true)}>Recuperar Password</a>
+                    </div>
+                    <PasswordField id="ndx_field_secret" value={password} onChange={setPassword} placeholder="Password"
+                      autoComplete="off" onEnter={() => void submit()} inputClass="va-input" wrapClass="va-pass" />
 
-                  {/* "Entrar na Caixa" só no site: na app a Caixa é outra app. */}
-                  {!isNativeApp ? <a className="auth-caixa" onClick={openCaixa}>Entrar na Caixa (terminal de venda) →</a> : null}
+                    {show2fa ? (
+                      <div className="va-2fa">
+                        {sentTo ? (
+                          <div className="va-2fa-h">
+                            <span aria-hidden>{sentTo.channel === 'WHATSAPP' ? <WaGlyph /> : <MailGlyph />}</span>
+                            <span><b>Verificação em 2 passos</b><small>Código enviado {sentTo.channel === 'WHATSAPP' ? 'por WhatsApp' : 'por e-mail'} para {sentTo.to}</small></span>
+                          </div>
+                        ) : <label className="va-label">Código 2FA:</label>}
+                        <input className="va-input" value={twoFa} onChange={(e) => setTwoFa(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="000000" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus={!!sentTo}
+                          onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+                        {sentTo ? (
+                          <button type="button" className="va-2fa-resend" disabled={loading || Date.now() < resendAt} onClick={() => void submit(undefined, true)}>
+                            {Date.now() < resendAt ? `Reenviar código (${Math.ceil((resendAt - Date.now()) / 1000)} s)` : 'Reenviar código'}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
 
-                  {/* Google: no SITE o botão web (GIS); na app o botão próprio —
-                      no MÓVEL pelos Google Play Services, no WINDOWS pelo
-                      navegador do sistema. O GIS não funciona em WebView. */}
-                  {!isNativeApp ? (
-                    <>
-                      <div className="auth-or"><span>ou</span></div>
-                      <div className="auth-google"><GoogleSignInButton onCredential={(t) => void onGoogle(t)} /></div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="auth-or"><span>ou</span></div>
-                      <GoogleAppButton disabled={loading}
-                        onClick={() => void (isMobileApp ? onGoogleNative() : onGoogleDesktop())} />
-                    </>
-                  )}
+                    <button className="va-btn" onClick={() => void submit()} disabled={loading}>
+                      {loading ? 'A entrar…' : 'Iniciar Sessão'}
+                    </button>
+                    {k.native ? (
+                      <p className="va-center">Não tem uma conta? <a onClick={openSignupInBrowser}>Criar Conta</a></p>
+                    ) : onRegister ? (
+                      <p className="va-center">Não tem uma conta? <a onClick={onRegister}>Criar Conta</a></p>
+                    ) : null}
+                  </>
+                )}
+              </>
+            )}
+          </div>
 
-                  {/* Criar conta: no site abre o registo interno; na app abre o
-                      landing no NAVEGADOR do sistema (o registo é no site). */}
-                  {isNativeApp ? (
-                    <p className="auth-foot">Ainda não tem conta? <a onClick={openSignupInBrowser}>Criar conta</a></p>
-                  ) : onRegister ? (
-                    <p className="auth-foot">Ainda não tem conta? <a onClick={onRegister}>Criar conta</a></p>
-                  ) : null}
-                  {/* "Voltar à página inicial" só no site (na app não há landing). */}
-                  {onBack && !isNativeApp ? <p className="auth-foot"><a onClick={onBack}>← Voltar à página inicial</a></p> : null}
-                </>
-              )}
+          {!resetToken && !forgot && (showGoogle || showFacebook) ? (
+            <>
+              <div className="va-or"><span>Ou</span></div>
+              {showGoogle ? (
+                <button type="button" className="va-social g" style={btnStyle(g, true)} disabled={loading} onClick={() => void startSocial('google')}>
+                  <GoogleGlyph />{g?.label || 'Entrar com Google'}
+                </button>
+              ) : null}
+              {showFacebook ? (
+                <button type="button" className="va-social f" style={btnStyle(f, true)} disabled={loading} onClick={() => void startSocial('facebook')}>
+                  <FacebookSquare />{f?.label || 'Entrar com Facebook'}
+                </button>
+              ) : null}
             </>
-          )}
+          ) : null}
+
+          {forgot || resetToken ? (
+            <p className="va-back">Fazer <a onClick={() => { setForgot(false); if (resetToken) location.assign(location.pathname); }}>Login</a>{onRegister && !k.native ? <> ou <a onClick={onRegister}>Criar Conta</a></> : null}</p>
+          ) : onBack && !k.native ? (
+            <p className="va-back"><a onClick={onBack}>&lt; Voltar ao Site</a></p>
+          ) : null}
+          <div className="va-foot-tools">
+            {!k.native ? <a onClick={() => openCaixaTerminal()}>Entrar na Caixa</a> : null}
+            <LangPicker variant="topbar" />
+          </div>
         </div>
       </div>
-      <div className="auth-media"><LoginShowcase /></div>
-      {forgot ? <ForgotModal onClose={() => setForgot(false)} /> : null}
     </div>
   );
 }
 
-/** Pede o e-mail e envia o link de recuperação da senha. */
-function ForgotModal({ onClose }: { onClose(): void }) {
-  const [email, setEmail] = useState('');
+/** "Recuperar Password" (igual à página do Vendus): pede o e-mail e envia o link. */
+function ForgotView({ initialEmail }: { initialEmail: string }) {
+  const [email, setEmail] = useState(initialEmail);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [warn, setWarn] = useState<string | null>(null);
@@ -297,30 +242,27 @@ function ForgotModal({ onClose }: { onClose(): void }) {
     setBusy(true); setWarn(null);
     try {
       const r = await api.forgotPassword(email.trim().toLowerCase());
-      if (!r.emailConfigured) setWarn('O envio de e-mail ainda não está configurado. Pede ao administrador para repor a tua senha.');
+      if (!r.emailConfigured) setWarn('O envio de e-mail ainda não está configurado. Pede ao administrador para repor a tua password.');
       else setDone(true);
     } catch { setDone(true); }
     finally { setBusy(false); }
   };
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
-        <div className="mh"><h3>Recuperar senha</h3><span className="spacer" /><button className="btn sm ghost" onClick={onClose}>Fechar</button></div>
-        <div className="mb">
-          {done ? (
-            <div className="banner success"><div>Se existir uma conta com esse e-mail, enviámos um link para repor a senha. Verifica a tua caixa de entrada (e o spam).</div></div>
-          ) : (
-            <>
-              {warn ? <div className="banner danger" style={{ marginBottom: 12 }}>{warn}</div> : null}
-              <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Escreve o teu e-mail. Enviamos um link (válido 1 hora) para definires uma nova senha.</p>
-              <div className="field"><label>E-mail</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="exemplo@empresa.ao" inputMode="email" /></div>
-              <button className="btn lg block" onClick={() => void submit()} disabled={busy}>{busy ? 'A enviar…' : 'Enviar link de recuperação'}</button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+    <>
+      <h1 className="va-h1">Recuperar Password</h1>
+      {warn ? <div className="va-error">{warn}</div> : null}
+      {done ? (
+        <div className="va-ok">Se existir uma conta com esse e-mail, enviámos um link para definir uma nova Password (válido 1 hora).</div>
+      ) : (
+        <>
+          <label className="va-label" htmlFor="va-forgot">E-Mail:</label>
+          <input id="va-forgot" className="va-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-Mail" inputMode="email" type="email"
+            onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+          <button className="va-btn" onClick={() => void submit()} disabled={busy}>{busy ? 'A enviar…' : 'Recuperar Password'}</button>
+        </>
+      )}
+      <p className="va-muted">Receberá um e-mail do LPS Vendas com instruções para definir uma nova Password.</p>
+    </>
   );
 }
 

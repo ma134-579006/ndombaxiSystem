@@ -141,6 +141,18 @@ export class GoogleLoginDto {
   idToken!: string;
 }
 
+/** Login com Facebook (access token do SDK); a empresa vem do e-mail. */
+export class FacebookLoginDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-z0-9-]{2,40}$/)
+  companyCode?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  accessToken!: string;
+}
+
 export class UpdateThemeDto {
   /** Id do tema (vazio = padrão). Validado/whitelisted no serviço. */
   @IsString()

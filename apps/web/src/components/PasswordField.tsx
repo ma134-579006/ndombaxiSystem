@@ -10,6 +10,11 @@ export function PasswordField(props: {
   autoComplete?: string;
   digitsOnly?: boolean;
   onEnter?(): void;
+  /** Classes próprias (ecrãs estilo Vendus). */
+  inputClass?: string;
+  wrapClass?: string;
+  id?: string;
+  label?: React.ReactNode;
 }) {
   const [show, setShow] = useState(false);
   // Anti-autofill: começa readOnly (o browser não preenche ao carregar) e fica
@@ -22,9 +27,10 @@ export function PasswordField(props: {
   };
   return (
     <>
-    <div className="auth-pass">
+    <div className={props.wrapClass ?? 'auth-pass'}>
       <input
-        className="auth-input"
+        id={props.id}
+        className={props.inputClass ?? 'auth-input'}
         type={show ? 'text' : 'password'}
         value={props.value}
         inputMode={props.inputMode}
@@ -47,6 +53,7 @@ export function PasswordField(props: {
         onKeyUp={onCaps}
         onBlur={() => setCaps(false)}
       />
+      {props.label}
       <button type="button" className="auth-eye" onClick={() => setShow((s) => !s)}
         aria-label={show ? 'Esconder' : 'Mostrar'} title={show ? 'Esconder' : 'Mostrar'}>
         {show ? (

@@ -678,73 +678,24 @@ html.kbd-open .login .box > p { display: none; }
    TEMAS (data-theme no <html>) — escolhe-se no seletor do topo
    ============================================================ */
 [data-theme="grafite"] {
-  --bg: #0c0e13; --bg-2: #12151c; --surface: #171b24; --surface-2: #1f2530; --border: #2b313d;
-  --primary: #5b95ff; --primary-700: #3b6fe0; --primary-soft: rgba(91,149,255,.16);
-  --grad-primary: linear-gradient(135deg, #6ba0ff, #3b6fe0);
-  --glass: rgba(18,21,28,.62);
-  --app-bg: radial-gradient(1100px 600px at 100% -8%, rgba(91,149,255,.10), transparent 55%), var(--bg);
+  --bg: #111317; --bg-2: #16191e; --surface: #1b1f25; --surface-2: #23282f; --border: #2e343c;
+  --primary: #4c7dff; --primary-700: #3563e0; --primary-soft: rgba(76,125,255,.16);
+  --grad-primary: linear-gradient(135deg, #4c7dff, #3563e0);
+  --glass: rgba(22,25,30,.70);
+  --app-bg: var(--bg);
 }
-[data-theme="oceano"] {
-  --bg: #07151b; --bg-2: #0a1f28; --surface: #0e2832; --surface-2: #133845; --border: #1d4452;
-  --primary: #06b6d4; --primary-700: #0891b2; --primary-soft: rgba(6,182,212,.18); --accent: #14b8a6;
-  --grad-primary: linear-gradient(135deg, #22d3ee, #0891b2);
-  --glass: rgba(10,31,40,.64);
-  --app-bg: radial-gradient(1100px 600px at 100% -8%, rgba(34,211,238,.12), transparent 55%), radial-gradient(900px 520px at -6% 0%, rgba(20,184,166,.10), transparent 52%), var(--bg);
-}
-[data-theme="violeta"] {
-  --bg: #0d0a1a; --bg-2: #140f26; --surface: #1a1430; --surface-2: #241b40; --border: #342a54;
-  --primary: #8b5cf6; --primary-700: #7c3aed; --primary-soft: rgba(139,92,246,.18); --accent: #d946ef;
-  --grad-primary: linear-gradient(135deg, #a78bfa, #7c3aed);
-  --glass: rgba(20,15,38,.64);
-  --app-bg: radial-gradient(1100px 600px at 100% -8%, rgba(167,139,250,.14), transparent 55%), radial-gradient(900px 520px at -6% 0%, rgba(217,70,239,.10), transparent 52%), var(--bg);
-}
-[data-theme="esmeralda"] {
-  --bg: #07140f; --bg-2: #0a1f17; --surface: #0e271d; --surface-2: #143728; --border: #1d4836;
-  --primary: #10b981; --primary-700: #059669; --primary-soft: rgba(16,185,129,.18); --accent: #22c55e;
-  --grad-primary: linear-gradient(135deg, #34d399, #059669);
-  --glass: rgba(10,31,23,.64);
-  --app-bg: radial-gradient(1100px 600px at 100% -8%, rgba(52,211,153,.12), transparent 55%), var(--bg);
-}
-[data-theme="indigo"] {
-  --bg: #0a0c1c; --bg-2: #0f1228; --surface: #141934; --surface-2: #1d2347; --border: #2b3360;
-  --primary: #6366f1; --primary-700: #4f46e5; --primary-soft: rgba(99,102,241,.18); --accent: #a855f7;
-  --grad-primary: linear-gradient(135deg, #818cf8, #4f46e5);
-  --glass: rgba(15,18,40,.64);
-  --app-bg: radial-gradient(1100px 600px at 100% -8%, rgba(129,140,248,.12), transparent 55%), radial-gradient(900px 520px at -6% 0%, rgba(168,85,247,.10), transparent 52%), var(--bg);
-}
-/* Tema NÉON — inspirado em "Microsoft 365 para Empresas": fundo quase
-   preto, brilhos néon (ciano/roxo/magenta) e gradiente vivo. */
-[data-theme="neon"] {
-  --bg: #060713; --bg-2: #0b0c1e; --surface: #0f1128; --surface-2: #181b3c; --border: #2e2566;
-  --border-soft: rgba(168,85,247,.14);
-  --primary: #5b8cff; --primary-700: #7c3aed; --primary-soft: rgba(124,77,255,.22);
-  --accent: #22d3ee; --accent-2: #ec4899; --violet: #c084fc;
-  --grad-primary: linear-gradient(120deg, #22d3ee 0%, #4f7cff 38%, #a855f7 72%, #ec4899 100%);
-  --grad-accent: linear-gradient(120deg, #22d3ee, #a855f7 55%, #ec4899);
-  --glass: rgba(11,12,30,.66);
-  --app-bg:
-    radial-gradient(1100px 600px at 100% -8%, rgba(236,72,153,.20), transparent 55%),
-    radial-gradient(950px 560px at -6% 0%, rgba(34,211,238,.16), transparent 52%),
-    radial-gradient(900px 620px at 50% 122%, rgba(124,77,255,.22), transparent 55%),
-    var(--bg);
-}
-/* Brilho néon nos elementos-chave (só neste tema). */
-[data-theme="neon"] .card { border-color: rgba(124,77,255,.26); box-shadow: 0 0 0 1px rgba(124,77,255,.08), 0 22px 54px -24px rgba(168,85,247,.45); }
-[data-theme="neon"] .btn { box-shadow: 0 8px 24px -8px rgba(124,77,255,.62); }
-[data-theme="neon"] .nav button.active { box-shadow: 0 0 24px -6px rgba(124,77,255,.8); }
-[data-theme="neon"] .seg button.on { box-shadow: 0 6px 20px -6px rgba(168,85,247,.7); }
-[data-theme="neon"] .login .card { border: 1px solid rgba(124,77,255,.34); box-shadow: 0 0 0 1px rgba(124,77,255,.10), 0 26px 64px -26px rgba(168,85,247,.55); }
-[data-theme="neon"] .kpi-value, [data-theme="neon"] .topbar h1 { background: var(--grad-primary); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
 /* Tema CLARO — profissional, fundo claro */
 [data-theme="claro"] {
-  --bg: #eef1f7; --bg-2: #e8ecf4; --surface: #ffffff; --surface-2: #f4f6fb; --border: #e1e6f0;
-  --border-soft: rgba(20,30,60,.08);
-  --primary: var(--nx-brand-600, #2430e8); --primary-700: var(--nx-brand-700, #1b23ae); --primary-soft: rgba(36,48,232,.12); --accent: #0ea5e9;
-  --text: #131a2b; --muted: #5a6679;
-  --shadow: 0 18px 40px -20px rgba(20,30,60,.22); --shadow-sm: 0 6px 16px -8px rgba(20,30,60,.14);
-  --glass: rgba(255,255,255,.78);
-  --app-bg: radial-gradient(1100px 600px at 100% -8%, rgba(37,99,235,.08), transparent 55%), radial-gradient(900px 520px at -6% 0%, rgba(14,165,233,.07), transparent 52%), var(--bg);
+  --bg: #f2f5f9; --bg-2: #eaeef4; --surface: #ffffff; --surface-2: #f7f9fc; --border: #e1e6ee;
+  --border-soft: rgba(17,24,39,.07);
+  --primary: #1b45f4; --primary-700: #1338d1; --primary-soft: rgba(27,69,244,.10); --accent: #0e66fc; --accent-2: #1b45f4;
+  --text: #1f2937; --muted: #5b6474;
+  --grad-primary: linear-gradient(135deg, #1b45f4, #1338d1);
+  --grad-accent: linear-gradient(120deg, #1b45f4, #0e66fc);
+  --shadow: 0 12px 32px -18px rgba(17,24,39,.18); --shadow-sm: 0 2px 8px -4px rgba(17,24,39,.12);
+  --glass: rgba(255,255,255,.86);
+  --app-bg: var(--bg);
 }
 /* Ajustes de contraste no tema claro */
 [data-theme="claro"] .banner { background: var(--surface-2); border-color: var(--border); }
@@ -759,15 +710,15 @@ html.kbd-open .login .box > p { display: none; }
 
 /* Tema PROFISSIONAL — claro, neutro, enterprise (slate + índigo). */
 [data-theme="profissional"] {
-  --bg: #f5f6f9; --bg-2: #eceef3; --surface: #ffffff; --surface-2: #f6f8fb; --border: #e2e6ee;
+  --bg: #f4f5f7; --bg-2: #eceef2; --surface: #ffffff; --surface-2: #f7f8fa; --border: #e3e6eb;
   --border-soft: rgba(15,23,42,.07);
-  --primary: #4f46e5; --primary-700: #4338ca; --primary-soft: rgba(79,70,229,.12); --accent: #0891b2; --accent-2: #4f46e5;
-  --text: #0f172a; --muted: #5b667a;
-  --grad-primary: linear-gradient(135deg, #6366f1, #4338ca);
-  --grad-accent: linear-gradient(120deg, #4f46e5, #0891b2);
-  --shadow: 0 20px 44px -22px rgba(15,23,42,.20); --shadow-sm: 0 6px 16px -8px rgba(15,23,42,.12);
-  --glass: rgba(255,255,255,.80);
-  --app-bg: radial-gradient(1100px 600px at 100% -8%, rgba(79,70,229,.06), transparent 55%), radial-gradient(900px 520px at -6% 0%, rgba(8,145,178,.05), transparent 52%), var(--bg);
+  --primary: #1e3a8a; --primary-700: #172e6e; --primary-soft: rgba(30,58,138,.10); --accent: #0f766e; --accent-2: #1e3a8a;
+  --text: #111827; --muted: #5b6474;
+  --grad-primary: linear-gradient(135deg, #1e3a8a, #172e6e);
+  --grad-accent: linear-gradient(120deg, #1e3a8a, #0f766e);
+  --shadow: 0 12px 32px -18px rgba(15,23,42,.18); --shadow-sm: 0 2px 8px -4px rgba(15,23,42,.12);
+  --glass: rgba(255,255,255,.86);
+  --app-bg: var(--bg);
 }
 /* Profissional partilha os ajustes de contraste do tema claro. */
 [data-theme="profissional"] .banner { background: var(--surface-2); border-color: var(--border); }
@@ -780,20 +731,6 @@ html.kbd-open .login .box > p { display: none; }
 [data-theme="profissional"] .ptable tbody tr:hover { background: rgba(15,23,42,.03); }
 [data-theme="profissional"] ::-webkit-scrollbar-thumb { background: #cdd5e3; }
 
-/* Tema APPLE DARK — preto profundo, alto contraste, acento azul Apple. */
-[data-theme="apple"] {
-  --bg: #000000; --bg-2: #0a0a0c; --surface: #1c1c1e; --surface-2: #2c2c2e; --border: #3a3a3c;
-  --border-soft: rgba(255,255,255,.08);
-  --primary: #0a84ff; --primary-700: #0060df; --primary-soft: rgba(10,132,255,.22); --accent: #64d2ff; --accent-2: #5e5ce6; --violet: #bf5af2;
-  --text: #f5f5f7; --muted: #a1a1a6;
-  --grad-primary: linear-gradient(135deg, #0a84ff, #0060df);
-  --grad-accent: linear-gradient(120deg, #64d2ff, #0a84ff 60%, #5e5ce6);
-  --glass: rgba(28,28,30,.66);
-  --shadow: 0 22px 54px -22px rgba(0,0,0,.72); --shadow-sm: 0 8px 22px -10px rgba(0,0,0,.6);
-  --app-bg: radial-gradient(1200px 640px at 100% -10%, rgba(10,132,255,.12), transparent 55%), radial-gradient(900px 520px at -6% 0%, rgba(94,92,230,.10), transparent 52%), var(--bg);
-}
-[data-theme="apple"] .card { border-color: #2c2c2e; box-shadow: 0 1px 0 0 rgba(255,255,255,.03) inset, 0 18px 44px -24px rgba(0,0,0,.7); }
-[data-theme="apple"] ::-webkit-scrollbar-thumb { background: #3a3a3c; }
 
 /* ── Seletor de tema (menu no topo) ─────────────────────────── */
 .theme-menu {
@@ -2110,27 +2047,27 @@ body:has(.emp-card.sel) .agent-activity-fab {
    no topo, sem glows/blobs coloridos, hover discreto. Camada final da
    cascata. Só visual — nenhuma lógica alterada. (Neon fica de fora.)
    ════════════════════════════════════════════════════════════ */
-html:not([data-theme="neon"]) .card::before,
-html:not([data-theme="neon"]) .kpi-card::before,
-html:not([data-theme="neon"]) .pcard::before { display: none !important; }
-html:not([data-theme="neon"]) .kpi-card::after { display: none !important; }
-html:not([data-theme="neon"]) .card,
-html:not([data-theme="neon"]) .kpi-card,
-html:not([data-theme="neon"]) .pcard {
+html .card::before,
+html .kpi-card::before,
+html .pcard::before { display: none !important; }
+html .kpi-card::after { display: none !important; }
+html .card,
+html .kpi-card,
+html .pcard {
   background: var(--surface) !important; box-shadow: var(--elev-1) !important;
 }
-html:not([data-theme="neon"]) .card:hover,
-html:not([data-theme="neon"]) .kpi-card:hover,
-html:not([data-theme="neon"]) .pcard:hover {
+html .card:hover,
+html .kpi-card:hover,
+html .pcard:hover {
   transform: none !important; border-color: var(--border) !important; box-shadow: var(--elev-2) !important;
 }
-html:not([data-theme="neon"]) .kpi-ic {
+html .kpi-ic {
   box-shadow: none !important; background: var(--primary-soft) !important; color: var(--primary) !important;
 }
-html:not([data-theme="neon"]) .kpi-card.success .kpi-ic { background: color-mix(in srgb, var(--success) 16%, transparent) !important; color: var(--success) !important; }
-html:not([data-theme="neon"]) .kpi-card.warning .kpi-ic { background: color-mix(in srgb, var(--warning) 18%, transparent) !important; color: var(--warning) !important; }
-html:not([data-theme="neon"]) .kpi-card.danger  .kpi-ic { background: color-mix(in srgb, var(--danger) 16%, transparent) !important; color: var(--danger) !important; }
-html:not([data-theme="neon"]) .kpi-card.violet  .kpi-ic { background: color-mix(in srgb, var(--violet) 16%, transparent) !important; color: var(--violet) !important; }
+html .kpi-card.success .kpi-ic { background: color-mix(in srgb, var(--success) 16%, transparent) !important; color: var(--success) !important; }
+html .kpi-card.warning .kpi-ic { background: color-mix(in srgb, var(--warning) 18%, transparent) !important; color: var(--warning) !important; }
+html .kpi-card.danger  .kpi-ic { background: color-mix(in srgb, var(--danger) 16%, transparent) !important; color: var(--danger) !important; }
+html .kpi-card.violet  .kpi-ic { background: color-mix(in srgb, var(--violet) 16%, transparent) !important; color: var(--violet) !important; }
 
 /* ════════════════════════════════════════════════════════════
    VARREDURA ENTERPRISE (2026-07) — correções finais de mobile/
@@ -2451,29 +2388,29 @@ input[type="checkbox"], input[type="radio"] {
 
 /* Cards de KPI */
 html .kpi-grid { gap: 16px; }
-html:not([data-theme="neon"]) .kpi-card {
+html .kpi-card {
   border: 1px solid var(--border) !important; border-radius: 14px; padding: 18px 20px;
   background: var(--surface) !important; box-shadow: 0 1px 2px rgba(15,23,42,.06) !important;
   transition: box-shadow .25s ease, border-color .25s ease, transform .25s cubic-bezier(.2,.7,.3,1);
 }
-html:not([data-theme="neon"]) .kpi-card:hover {
+html .kpi-card:hover {
   transform: translateY(-2px) !important; border-color: var(--primary) !important;
   box-shadow: 0 12px 28px -14px rgba(0,0,0,.35) !important;
 }
-html:not([data-theme="neon"]) .kpi-ic {
+html .kpi-ic {
   width: 40px; height: 40px; border-radius: 11px; margin-bottom: 14px;
   background: var(--primary-soft) !important; color: var(--primary) !important;
   transition: transform .3s cubic-bezier(.2,.7,.3,1), background .2s ease;
 }
-html:not([data-theme="neon"]) .kpi-card.success .kpi-ic,
-html:not([data-theme="neon"]) .kpi-card.warning .kpi-ic,
-html:not([data-theme="neon"]) .kpi-card.violet .kpi-ic { background: var(--primary-soft) !important; color: var(--primary) !important; }
-html:not([data-theme="neon"]) .kpi-card.danger .kpi-ic { background: color-mix(in srgb, #dc2626 14%, transparent) !important; color: #ef4444 !important; }
-html:not([data-theme="neon"]) .kpi-ic svg { stroke-width: 1.75; }
+html .kpi-card.success .kpi-ic,
+html .kpi-card.warning .kpi-ic,
+html .kpi-card.violet .kpi-ic { background: var(--primary-soft) !important; color: var(--primary) !important; }
+html .kpi-card.danger .kpi-ic { background: color-mix(in srgb, #dc2626 14%, transparent) !important; color: #ef4444 !important; }
+html .kpi-ic svg { stroke-width: 1.75; }
 .kpi-card:hover .kpi-ic { transform: scale(1.08) rotate(-4deg); }
 .kpi-label { font-size: 11.5px; letter-spacing: .06em; color: var(--muted); }
 .kpi-value { font-family: var(--nx-font-title, inherit); font-weight: 700; font-size: 26px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-html:not([data-theme="neon"]) .card { border: 1px solid var(--border) !important; border-radius: 14px; }
+html .card { border: 1px solid var(--border) !important; border-radius: 14px; }
 .card h3 { font-family: var(--nx-font-title, inherit); font-weight: 650; }
 
 /* Filtros de período */
@@ -2494,26 +2431,8 @@ html:not([data-theme="neon"]) .card { border: 1px solid var(--border) !important
 }
 
 /* ═══ TEMAS v4 — sóbrios e profissionais (sem néon, sem brilhos, fundos discretos) ═══ */
-[data-theme="neon"] {
-  --primary: #6b7cff; --primary-700: #4f5fe6; --primary-soft: rgba(107,124,255,.16);
-  --accent: #98a3ff; --accent-2: #6b7cff; --violet: #98a3ff; --border: #262a4d; --border-soft: rgba(255,255,255,.07);
-  --grad-primary: linear-gradient(135deg, #6b7cff, #4353ff);
-  --grad-accent: linear-gradient(135deg, #6b7cff, #4353ff);
-  --app-bg: radial-gradient(1000px 520px at 100% -10%, rgba(67,83,255,.10), transparent 60%), var(--bg);
-}
-[data-theme="neon"] .card { border-color: var(--border); box-shadow: 0 1px 2px rgba(0,0,0,.35); }
-[data-theme="neon"] .btn { box-shadow: 0 1px 2px rgba(0,0,0,.35); }
-[data-theme="neon"] .nav button.active { box-shadow: none; }
-[data-theme="neon"] .seg button.on { box-shadow: none; }
-[data-theme="neon"] .login .card { border: 1px solid var(--border); box-shadow: 0 24px 56px -28px rgba(0,0,0,.7); }
-[data-theme="neon"] .kpi-value, [data-theme="neon"] .topbar h1 { background: none; -webkit-background-clip: initial; background-clip: initial; -webkit-text-fill-color: currentColor; color: var(--text); }
-[data-theme="oceano"], [data-theme="violeta"], [data-theme="esmeralda"], [data-theme="indigo"], [data-theme="grafite"] { --border-soft: rgba(255,255,255,.07); }
-[data-theme="oceano"] { --primary: #0ea5c4; --primary-700: #0b86a0; --grad-primary: linear-gradient(135deg,#0ea5c4,#0b86a0); --app-bg: radial-gradient(1000px 520px at 100% -10%, rgba(14,165,196,.08), transparent 60%), var(--bg); }
-[data-theme="violeta"] { --primary: #7c6cf0; --primary-700: #6555d8; --accent: #7c6cf0; --grad-primary: linear-gradient(135deg,#7c6cf0,#6555d8); --app-bg: radial-gradient(1000px 520px at 100% -10%, rgba(124,108,240,.08), transparent 60%), var(--bg); }
-[data-theme="esmeralda"] { --primary: #14a874; --primary-700: #0e8a5f; --accent: #14a874; --grad-primary: linear-gradient(135deg,#14a874,#0e8a5f); --app-bg: radial-gradient(1000px 520px at 100% -10%, rgba(20,168,116,.07), transparent 60%), var(--bg); }
-[data-theme="indigo"] { --primary: #4353ff; --primary-700: #2430e8; --accent: #6b7cff; --grad-primary: linear-gradient(135deg,#4353ff,#2430e8); --app-bg: radial-gradient(1000px 520px at 100% -10%, rgba(67,83,255,.09), transparent 60%), var(--bg); }
+[data-theme="grafite"] { --border-soft: rgba(255,255,255,.07); }
 [data-theme="grafite"] { --grad-primary: linear-gradient(135deg,#5b95ff,#3b6fe0); --app-bg: var(--bg); }
-[data-theme="apple"] { --accent-2: #0a84ff; --violet: #0a84ff; --app-bg: var(--bg); }
 [data-theme="claro"] { --bg: #f4f6fa; --bg-2: #eef1f6; --accent: var(--nx-brand-500, #4353ff);
   --app-bg: radial-gradient(1000px 520px at 100% -10%, rgba(36,48,232,.05), transparent 60%), var(--bg); }
 [data-theme="profissional"] { --accent: var(--nx-brand-500, #4353ff); --accent-2: var(--nx-brand-600, #2430e8); --grad-accent: linear-gradient(135deg,#4353ff,#2430e8); }
@@ -2551,9 +2470,6 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn
 .sidebar .nav > *, .sidebar .nav-group, .sidebar .nav button, .sidebar .nav-group-head, .sidebar .nav-sub, .sidebar .nav-sub > * { flex: none; }
 .sidebar .nav { overflow-y: auto; min-height: 0; }
 /* Neon: ícones de KPI tonais como nos restantes temas */
-[data-theme="neon"] .kpi-ic, [data-theme="neon"] .kpi-card.success .kpi-ic, [data-theme="neon"] .kpi-card.warning .kpi-ic, [data-theme="neon"] .kpi-card.violet .kpi-ic { background: var(--primary-soft) !important; color: var(--primary) !important; box-shadow: none !important; }
-[data-theme="neon"] .kpi-card.danger .kpi-ic { background: color-mix(in srgb, #dc2626 14%, transparent) !important; color: #ef4444 !important; box-shadow: none !important; }
-[data-theme="neon"] .kpi-card { background: var(--surface) !important; }
 
 /* ═══ FISCAL — layout de configuração (cartões, estado, separadores, passos) ═══ */
 .fx { max-width: 1040px; }

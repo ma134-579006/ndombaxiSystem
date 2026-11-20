@@ -7,11 +7,13 @@ import { PasswordService } from './password.service';
 import { TwoFaService } from './twofa.service';
 import { TokenService } from './token.service';
 import { GoogleAuthService } from './google-auth.service';
+import { FacebookAuthService } from './facebook-auth.service';
+import { IntegrationsModule } from '../integrations/integrations.module';
 import { OfflineCredentialsService } from './offline-credentials.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
-  imports: [PassportModule, JwtModule.register({})],
+  imports: [PassportModule, JwtModule.register({}), IntegrationsModule],
   controllers: [AuthController],
   providers: [
     AuthService,
@@ -19,9 +21,10 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     TwoFaService,
     TokenService,
     GoogleAuthService,
+    FacebookAuthService,
     OfflineCredentialsService,
     JwtStrategy,
   ],
-  exports: [AuthService, PasswordService, TokenService, GoogleAuthService, OfflineCredentialsService],
+  exports: [AuthService, PasswordService, TokenService, GoogleAuthService, FacebookAuthService, OfflineCredentialsService],
 })
 export class AuthModule {}

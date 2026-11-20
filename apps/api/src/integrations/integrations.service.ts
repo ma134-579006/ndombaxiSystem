@@ -69,6 +69,13 @@ export const INTEGRATION_CATALOG: IntegrationCatalogEntry[] = [
     secretLabel: 'Chave da API (x-windy-api-key)',
   },
   {
+    key: 'FACEBOOK_LOGIN', label: 'Facebook Login — Entrar com Facebook',
+    description: 'Botão "Entrar com Facebook" do login e do registo (developers.facebook.com → app → Facebook Login, domínio do site autorizado). Cores e textos do botão: Super Admin → Login & Registo.',
+    hasBaseUrl: false, baseUrlLabel: '',
+    settingsFields: [{ name: 'appId', label: 'App ID' }],
+    secretLabel: 'App Secret',
+  },
+  {
     key: 'BIOMETRIC', label: 'Ponto biométrico',
     description: 'Controlo de assiduidade por dispositivo biométrico.',
     hasBaseUrl: true, baseUrlLabel: 'Endpoint do dispositivo/ponte',
@@ -210,6 +217,24 @@ export class IntegrationsService {
         }
       } catch (e) {
         result = { ok: false, status: `Sem ligação à Windy: ${(e as Error).message}` };
+      }
+    } else if (key === 'FACEBOOK_LOGIN') {
+      // Teste real: pede o app token à Graph API com App ID + App Secret.
+      const appId = String((row.settings as Record<string, unknown> | null)?.appId ?? '').trim();
+      const secret = (await this.getActive(key).catch(() => null))?.secret;
+      if (!appId) result = { ok: false, status: 'Falta o App ID' };
+      else if (!secret) result = { ok: false, status: 'Falta o App Secret' };
+      else {
+        try {
+          const g = process.env.FACEBOOK_GRAPH_URL || 'https://graph.facebook.com/v19.0';
+          const res = await fetch(`${g}/oauth/access_token?client_id=${encodeURIComponent(appId)}&client_secret=${encodeURIComponent(secret)}&grant_type=client_credentials`, { signal: AbortSignal.timeout(8000) });
+          const j = (await res.json().catch(() => ({}))) as { access_token?: string; error?: { message?: string } };
+          result = res.ok && j.access_token
+            ? { ok: true, status: 'App ID e App Secret válidos' }
+            : { ok: false, status: `Facebook recusou: ${j.error?.message ?? `HTTP ${res.status}`}` };
+        } catch (e) {
+          result = { ok: false, status: `Sem ligação ao Facebook: ${(e as Error).message}` };
+        }
       }
     } else {
       result = row.secretEnc
