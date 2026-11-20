@@ -88,7 +88,7 @@
 .va-dots { position: absolute; left: 0; bottom: -35px; width: 100%; display: flex; justify-content: center; }
 .va-dot { width: 8px; height: 8px; margin: 0 3px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .5); cursor: pointer; transition: background-color .3s; }
 .va-dot.on { background: #fff; }
-.va-main { width: calc(100% - 447px); margin-left: 447px; display: flex; justify-content: center; align-items: center; padding: 30px; background: #f2f5f9; min-height: 100vh; min-height: 100dvh; }
+.va-main { width: calc(100% - 447px); margin-left: 447px; display: flex; justify-content: center; align-items: center; padding: 30px; background: #f2f5f9; }
 .va-form { width: 450px; max-width: 100%; padding: 20px; }
 .va-mlogo { display: none; text-align: center; margin-bottom: 30px; }
 .va-mlogo img { width: 240px; max-width: 100%; height: auto; margin: 0 auto 1rem; }
@@ -149,7 +149,7 @@
   .va-reg { flex-direction: column; }
   .va-head { text-align: center; }
   .va-side { display: none; }
-  .va-main { width: 100%; margin: 0; padding: 20px; }
+  .va-main { width: 100%; margin: 0; padding: 20px; flex: 1; }
   .va-mlogo { display: block; }
   .va-form { width: 100%; max-width: 450px; padding: 10px; }
   .va-srow { flex-direction: column; }
@@ -234,17 +234,5 @@
 .va .auth-foot { margin: 1.5rem 0 0; text-align: center; color: #6c757d; }
 .va .auth-foot a { display: inline-flex; align-items: center; gap: 6px; }
 
-/* Sem scroll: os ecrãs encolhem com a altura da janela (qualquer navegador). */
-@media (max-height: 820px) {
-  .va-head { margin-bottom: 10px; } .va-head h1 { font-size: 1.45rem; } .va-head p { margin-bottom: 12px; }
-  .va-fl { margin-bottom: .6rem; } .va-fl input, .va-fl select { height: 50px; padding-top: 20px; }
-  .va-fl label { padding: .8rem .75rem; } .va-check { margin: 12px 0; } .va-divider { margin: 14px 0; } .va-srow { margin-bottom: 14px; }
-  .va-btn-sq { padding: 9px; font-size: 1.1rem; } .va-reqs { display: grid; grid-template-columns: 1fr 1fr; column-gap: 10px; margin-top: 4px; }
-  .va-main { padding: 12px 30px; } .va-logo { height: 52px; margin-bottom: 16px; } .va-card { padding: 18px 25px; } .va-card-gap { height: 6px; }
-  .va-mt { margin-top: 16px; } .va-btn { margin-top: 16px; } .va-or { margin: 18px 0; } .va-back { margin-top: 1rem; }
-}
-@media (max-height: 640px) {
-  .va-head h1 { font-size: 1.25rem; } .va-fl input, .va-fl select { height: 44px; padding-top: 17px; font-size: .95rem; }
-  .va-fl label { padding: .65rem .75rem; } .va-social { padding: 7px 12px; font-size: 16px; } .va-logo { height: 40px; margin-bottom: 10px; }
-  .va-input { height: 40px; } .va-btn { padding: 8px 20px; font-size: 16px; }
-}
+/* Sem scroll: ver useFitHeight (o conteúdo encolhe para caber na janela). */
+.va-col, .va-form { transform-origin: top center; }

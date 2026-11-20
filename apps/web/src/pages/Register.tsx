@@ -5,7 +5,7 @@ import type { AuthTestimonial } from '../api/types';
 import { PasswordField } from '../components/PasswordField';
 import { LOGO_WIDE } from '../brand';
 import {
-  appKind, btnStyle, FacebookCircle, facebookToken, GoogleGlyph, googleToken, lookVars, useAuthPublic, usePreloadSocial,
+  appKind, btnStyle, FacebookCircle, facebookToken, GoogleGlyph, googleToken, lookVars, useAuthPublic, usePreloadSocial, useFitHeight,
 } from './vendusAuth';
 
 /** Tipos de negócio suportados (cada um adapta o painel ao seu serviço). */
@@ -47,6 +47,7 @@ const LEVELS = [
 export function Register({ onBack }: { onBack?: () => void }) {
   const { adoptSession } = useAuth();
   const pub = useAuthPublic();
+  const fitRef = useFitHeight<HTMLDivElement>(30);
   const look = pub?.look;
   usePreloadSocial(pub?.facebookAppId ?? null);
   const plans = pub?.plans ?? [];
@@ -128,7 +129,7 @@ export function Register({ onBack }: { onBack?: () => void }) {
         </aside>
 
         <main className="va-main">
-          <div className="va-form">
+          <div className="va-form" ref={fitRef}>
             <div className="va-mlogo"><img src={LOGO_WIDE} alt="LPS Vendas" /></div>
             <div className="va-head">
               <h1>{title}</h1>

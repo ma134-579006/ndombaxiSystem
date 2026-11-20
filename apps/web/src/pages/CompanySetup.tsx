@@ -4,7 +4,7 @@ import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { BankAccount, PublicPlan } from '../api/types';
 import { IconBuilding, IconCard, IconImage, IconLogout, IconCheck } from '../components/Icons';
-import { lookVars, useAuthPublic } from './vendusAuth';
+import { lookVars, useAuthPublic, useFitHeight } from './vendusAuth';
 import { ScreenKeyboard } from '../components/ScreenKeyboard';
 import { LOGO_WIDE } from '../brand';
 
@@ -21,6 +21,7 @@ import { LOGO_WIDE } from '../brand';
 export function CompanySetup({ onDone }: { onDone(): void }) {
   const { logout } = useAuth();
   const pub = useAuthPublic();
+  const fitRef = useFitHeight<HTMLDivElement>();
   const [step, setStep] = useState<'pay' | 'data'>('pay');
   // Período de TESTE GRÁTIS: se já existe uma subscrição ativa válida (trial),
   // não se pede pagamento — vai direto aos dados da empresa.
@@ -44,7 +45,7 @@ export function CompanySetup({ onDone }: { onDone(): void }) {
     <div className="va va-setup" style={lookVars(pub?.look)}>
       <ScreenKeyboard />
       <div className="va-login">
-        <div className="va-col">
+        <div className="va-col" ref={fitRef}>
           <img className="va-logo" src={LOGO_WIDE} alt="LPS Vendas" />
           <div className="auth-brandhead">
             <div className="ic"><IconBuilding size={26} /></div>

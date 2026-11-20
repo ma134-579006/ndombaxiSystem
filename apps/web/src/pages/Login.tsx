@@ -6,7 +6,7 @@ import { PasswordField } from '../components/PasswordField';
 import { openCaixaTerminal } from '../config';
 import { LangPicker } from '../components/LangPicker';
 import {
-  appKind, btnStyle, FacebookSquare, facebookToken, GoogleGlyph, googleToken, lookVars, useAuthPublic, usePreloadSocial,
+  appKind, btnStyle, FacebookSquare, facebookToken, GoogleGlyph, googleToken, lookVars, useAuthPublic, usePreloadSocial, useFitHeight,
 } from './vendusAuth';
 
 /** Lista de empresas devolvida quando o e-mail existe em várias. */
@@ -28,6 +28,7 @@ function choicesFrom(e: unknown): CompanyChoice[] | null {
 export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?: () => void }) {
   const { loginTenant, loginPlatform, loginGoogle, loginFacebook } = useAuth();
   const pub = useAuthPublic();
+  const fitRef = useFitHeight<HTMLDivElement>();
   const look = pub?.look;
   usePreloadSocial(pub?.facebookAppId ?? null);
   const resetToken = useMemo(() => {
@@ -125,7 +126,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   return (
     <div className="va" style={lookVars(look)}>
       <div className="va-login">
-        <div className="va-col">
+        <div className="va-col" ref={fitRef}>
           <a onClick={onBack && !k.native ? onBack : undefined} aria-label="LPS Vendas">
             <img className="va-logo" src={LOGO_WIDE} alt="LPS Vendas" />
           </a>

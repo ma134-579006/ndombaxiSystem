@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import type { AuthLook, PublicPlan } from '../api/types';
 import { GOOGLE_CLIENT_ID } from '../config';
@@ -151,4 +151,32 @@ export async function facebookToken(appId: string | null): Promise<string | null
   const FB = (window as unknown as { FB?: FBApi }).FB;
   if (!FB) throw new Error('Entrar com Facebook indisponível neste momento.');
   return new Promise((resolve) => FB.login((r) => resolve(r?.authResponse?.accessToken ?? null), { scope: 'email', auth_type: 'rerequest' }));
+}
+
+/**
+ * Sem scroll em nenhum ecrã: se o conteúdo for mais alto do que a janela,
+ * encolhe-o (CSS zoom, suportado por Chrome, Edge, Safari e Firefox ≥126)
+ * até caber. Recalcula ao redimensionar e quando o conteúdo muda.
+ */
+export function useFitHeight<T extends HTMLElement>(pad = 24): React.RefObject<T> {
+  const ref = useRef<T>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // Síncrono (sem requestAnimationFrame, que pára com a janela em segundo plano).
+    const fit = () => {
+      el.style.zoom = '';
+      const h = el.scrollHeight;
+      const avail = window.innerHeight - pad * 2;
+      el.style.zoom = h > avail && h > 0 ? String(Math.max(0.2, Math.floor(((avail - 4) / h) * 1000) / 1000)) : '';
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    const mo = new MutationObserver(fit);
+    mo.observe(el, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] });
+    const fonts = (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts;
+    void fonts?.ready.then(fit);
+    return () => { window.removeEventListener('resize', fit); mo.disconnect(); };
+  }, [pad]);
+  return ref;
 }
