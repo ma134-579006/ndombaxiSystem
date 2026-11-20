@@ -1,6 +1,6 @@
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
-import { Body, Controller, Get, Ip, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
 import { Public } from '../auth/decorators/public.decorator';
@@ -9,7 +9,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TenantContext } from '../tenancy/tenant-context';
 import { OnboardingService } from './onboarding.service';
 import { RegisterCompanyDto } from './dto/register-company.dto';
-import { CompleteSetupDto, RegisterSimpleDto } from './dto/register-simple.dto';
+import { CompleteSetupDto, RegisterSimpleDto, ValidateNifDto } from './dto/register-simple.dto';
 
 @ApiTags('onboarding')
 @Controller('onboarding')
@@ -66,5 +66,24 @@ export class OnboardingController {
   @ApiOperation({ summary: 'Conclui o setup obrigatório (nome, código, NIF, logo)' })
   completeSetup(@Body() dto: CompleteSetupDto, @CurrentUser() user: JwtPayload) {
     return this.onboarding.completeSetup(user.tenantId, this.ctx.requireTenantSchema(), dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('validate-nif')
+  @HttpCode(200)
+  @ApiOperation({ summary: '"Validar NIF" do assistente de boas-vindas' })
+  validateNif(@Body() dto: ValidateNifDto) {
+    return this.onboarding.validateNif(dto.nif);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('skip-setup')
+  @HttpCode(200)
+  @Roles(Role.COMPANY_ADMIN)
+  @ApiOperation({ summary: '"Preencher Mais Tarde": entra no painel (exige NIF real já indicado)' })
+  skipSetup(@CurrentUser() user: JwtPayload) {
+    return this.onboarding.skipSetup(user.tenantId, this.ctx.requireTenantSchema());
   }
 }

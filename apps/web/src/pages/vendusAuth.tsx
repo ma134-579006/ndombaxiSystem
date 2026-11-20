@@ -158,7 +158,7 @@ export async function facebookToken(appId: string | null): Promise<string | null
  * encolhe-o (CSS zoom, suportado por Chrome, Edge, Safari e Firefox ≥126)
  * até caber. Recalcula ao redimensionar e quando o conteúdo muda.
  */
-export function useFitHeight<T extends HTMLElement>(pad = 24): React.RefObject<T> {
+export function useFitHeight<T extends HTMLElement>(pad = 24, fromParent = false): React.RefObject<T> {
   const ref = useRef<T>(null);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -167,7 +167,12 @@ export function useFitHeight<T extends HTMLElement>(pad = 24): React.RefObject<T
     const fit = () => {
       el.style.zoom = '';
       const h = el.scrollHeight;
-      const avail = window.innerHeight - pad * 2;
+      // fromParent: o espaço é o do contentor (ex.: abaixo de um cabeçalho), sem o padding.
+      const par = el.parentElement;
+      const pcs = par ? getComputedStyle(par) : null;
+      const avail = fromParent && par && pcs
+        ? par.clientHeight - parseFloat(pcs.paddingTop) - parseFloat(pcs.paddingBottom)
+        : window.innerHeight - pad * 2;
       el.style.zoom = h > avail && h > 0 ? String(Math.max(0.2, Math.floor(((avail - 4) / h) * 1000) / 1000)) : '';
     };
     fit();
@@ -177,6 +182,6 @@ export function useFitHeight<T extends HTMLElement>(pad = 24): React.RefObject<T
     const fonts = (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts;
     void fonts?.ready.then(fit);
     return () => { window.removeEventListener('resize', fit); mo.disconnect(); };
-  }, [pad]);
+  }, [pad, fromParent]);
   return ref;
 }

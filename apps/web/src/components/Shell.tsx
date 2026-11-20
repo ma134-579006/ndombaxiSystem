@@ -14,7 +14,7 @@ import { SyncStatusPill } from '../offline/SyncStatusPill';
 import { Modal } from './ui';
 import { UserAvatar, displayName } from './UserAvatar';
 import type { SalaryAdvanceReq } from '../api/types';
-import { openCaixaTerminal } from '../config';
+import { openCaixaTerminal, STORE_URL } from '../config';
 import { pollEvery, stopPoll } from '../poll';
 import { NotificationCenter } from './NotificationCenter';
 import { AgtStatus, SubscriptionRing, TopActions, TopDivider, TopTitle, type QuickItem } from './TopStatus';
@@ -381,12 +381,12 @@ export function Shell({
   // Branding por empresa (tenant): logo + nome da própria empresa. Para o
   // super-admin (plataforma) mantém-se a marca do sistema.
   const isTenant = user?.subjectType === 'TENANT';
-  const [brand, setBrand] = useState<{ name: string; logo: string | null } | null>(null);
+  const [brand, setBrand] = useState<{ name: string; logo: string | null; nif: string | null } | null>(null);
   useEffect(() => {
     if (!isTenant) { setBrand(null); return; }
     let alive = true;
     api.branding()
-      .then((b) => { if (alive) setBrand({ name: b.brandName || b.companyName || SYSTEM_NAME, logo: b.logoUrl }); })
+      .then((b) => { if (alive) setBrand({ name: b.brandName || b.companyName || SYSTEM_NAME, logo: b.logoUrl, nif: b.nif && !b.nif.startsWith('TMP') ? b.nif : null }); })
       .catch(() => undefined);
     return () => { alive = false; };
   }, [isTenant]);
@@ -475,67 +475,98 @@ export function Shell({
   return (
     <div className="admin nav-rail">
       {menuOpen ? <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} /> : null}
-      <aside ref={asideRef} className={`sidebar${menuOpen ? ' open' : ''}`} onMouseLeave={() => setOpenGroups({})}
-        /* Nº de linhas visíveis (itens + sub-itens do grupo aberto): o CSS divide a
-           altura da janela por este número — a barra cabe SEMPRE, sem scroll. */
+      {/* Barra lateral estilo Vendus: coluna de ícones (GESTÃO, POS, LOJA, APPS,
+          Configurações) + menu da gestão, que mostra só os ícones e abre ao passar
+          o rato (animação do LPS). Sem scroll: as linhas encolhem para caber. */}
+      <aside ref={asideRef} className={`sidebar vds${menuOpen ? ' open' : ''}`} onMouseLeave={() => setOpenGroups({})}
         style={{ ['--nav-n' as string]: nav.length + nav.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0) }}>
-        <div className="brand">
-          <img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
-          <div className="brand-tx">
-            <div className="nm">{brandName}</div>
-            <div className="tg">{subtitle}</div>
-          </div>
+        <div className="vds-rail" aria-label="Aplicações">
+          <span className="vds-logo"><img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} /></span>
+          <button type="button" className="vds-tab on" title="Gestão" onClick={() => setSection(nav[0]?.key ?? section)}>
+            <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" /><rect x="13" y="3" width="8" height="5" rx="2" fill="currentColor" opacity=".55" /><rect x="13" y="10" width="8" height="11" rx="2" fill="currentColor" /><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity=".55" /></svg>
+            <span>GESTÃO</span>
+          </button>
+          {canPos ? (
+            <button type="button" className="vds-tab" title="Abrir a Caixa (POS)" onClick={() => onQuick('__pos')}>
+              <svg viewBox="0 0 24 24" aria-hidden><rect x="2.5" y="3.5" width="19" height="13" rx="2" fill="currentColor" /><rect x="9" y="18" width="6" height="2.5" rx="1" fill="currentColor" opacity=".6" /></svg>
+              <span>POS</span>
+            </button>
+          ) : null}
+          {isTenant ? (
+            <button type="button" className="vds-tab" title="Loja online" onClick={() => (has('store') ? setSection('store') : window.open(`${STORE_URL}/${companyCode ?? ''}`, '_blank'))}>
+              <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M5 7h14l-1 13a1.5 1.5 0 0 1-1.5 1.4h-9A1.5 1.5 0 0 1 6 20L5 7Z" /><path fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" d="M9 10.5a3 3 0 0 0 6 0" /></svg>
+              <span>LOJA</span>
+            </button>
+          ) : null}
+          <button type="button" className="vds-tab" title="Aplicações" onClick={() => (has('downloads') ? setSection('downloads') : window.open('/baixar', '_blank'))}>
+            <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="m12 2.5 9 4.6-9 4.6-9-4.6 9-4.6Z" /><path fill="currentColor" opacity=".7" d="m3 11.2 9 4.6 9-4.6v2.4l-9 4.6-9-4.6v-2.4Z" /><path fill="currentColor" opacity=".45" d="m3 15.6 9 4.6 9-4.6V18l-9 4.6L3 18v-2.4Z" /></svg>
+            <span>APPS</span>
+          </button>
+          <span className="vds-spacer" />
+          <button type="button" className={`vds-gear${section === 'settings' || section === 'profile' ? ' on' : ''}`} title="Configuração"
+            onClick={() => setSection(has('settings') ? 'settings' : 'profile')}>
+            <IconGear size={19} />
+          </button>
         </div>
-        <nav className="nav">
-          {nav.map((n) => {
-            const Icon = n.icon;
-            if (n.children && n.children.length) {
-              const open = !!openGroups[n.key];
-              const hasActive = n.children.some((c) => c.key === section);
+        <div className="vds-menu">
+          <div className="brand vds-company">
+            <img src={brandLogo} alt="" aria-hidden onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
+            <div className="brand-tx">
+              <div className="nm">{brandName}</div>
+              <div className="tg">{brand?.nif ? `NIF: ${brand.nif}` : subtitle}</div>
+            </div>
+          </div>
+          <nav className="nav">
+            {nav.map((n) => {
+              const Icon = n.icon;
+              if (n.children && n.children.length) {
+                const open = !!openGroups[n.key];
+                const hasActive = n.children.some((c) => c.key === section);
+                return (
+                  <div key={n.key} className="nav-group">
+                    <button
+                      className={`nav-group-head${hasActive ? ' has-active' : ''}`}
+                      title={n.label}
+                      onClick={() => {
+                        setOpenGroups((p) => (p[n.key] ? {} : { [n.key]: true }));
+                      }}
+                    >
+                      <Icon size={18} /> <span className="nav-label">{n.label}</span>
+                      <IconChevron open={open} />
+                    </button>
+                    {open ? (
+                      <div className="nav-sub">
+                        {n.children.map((c) => {
+                          const CIcon = c.icon;
+                          return (
+                            <button
+                              key={c.key}
+                              className={section === c.key ? 'active' : ''}
+                              onClick={() => { setSection(c.key); setOpenGroups({}); }}
+                            >
+                              <CIcon size={16} /> {c.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
               return (
-                <div key={n.key} className="nav-group">
-                  <button
-                    className={`nav-group-head${hasActive ? ' has-active' : ''}`}
-                    title={n.label}
-                    onClick={() => {
-                      setOpenGroups((p) => (p[n.key] ? {} : { [n.key]: true }));
-                    }}
-                  >
-                    <Icon size={18} /> <span className="nav-label">{n.label}</span>
-                    <IconChevron open={open} />
-                  </button>
-                  {open ? (
-                    <div className="nav-sub">
-                      {n.children.map((c) => {
-                        const CIcon = c.icon;
-                        return (
-                          <button
-                            key={c.key}
-                            className={section === c.key ? 'active' : ''}
-                            onClick={() => { setSection(c.key); setOpenGroups({}); }}
-                          >
-                            <CIcon size={16} /> {c.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
+                <button
+                  key={n.key}
+                  className={section === n.key ? 'active' : ''}
+                  title={n.label}
+                  onClick={() => setSection(n.key)}
+                >
+                  <Icon size={18} /> <span className="nav-label">{n.label}</span>
+                </button>
               );
-            }
-            return (
-              <button
-                key={n.key}
-                className={section === n.key ? 'active' : ''}
-                title={n.label}
-                onClick={() => setSection(n.key)}
-              >
-                <Icon size={18} /> <span className="nav-label">{n.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-        <div className="sig">{copyrightLine()}</div>
+            })}
+          </nav>
+          <div className="sig">{copyrightLine()}</div>
+        </div>
       </aside>
 
       <div className="main" data-crumb={current?.label ?? ''}>
