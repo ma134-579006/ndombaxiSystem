@@ -584,11 +584,11 @@ function Product({ listing: l, loading, refCode, qty, sess, go, flash, card, pro
         </section>
         <section className="kk-box"><header className="kk-box-h"><h2>Loja</h2></header>
           <div className="kk-store"><span className="kk-store-ic"><I d={P.bag} size={22} /></span><div><b>{l.companyName}</b><small>{products.filter((p) => p.listing.companyCode === l.companyCode).length} produtos no LPS Kwanza</small></div>
-            <button className="kk-more" onClick={() => go({ n: 'search', s: { q: l.companyName } })}>Ver todos desta loja <I d={P.next} size={14} /></button></div>
+            <button className="kk-more" onClick={() => go({ n: 'search', s: { q: l.companyCode } })}>Ver todos desta loja <I d={P.next} size={14} /></button></div>
         </section>
         <ProductSocial l={l} flash={flash} />
         {similar.length ? <section className="kk-box"><header className="kk-box-h"><h2>Produtos similares</h2>{l.category ? <button className="kk-more" onClick={() => go({ n: 'search', s: { q: '', cat: l.category! } })}>Ver todos em {l.category} <I d={P.next} size={14} /></button> : null}</header><div className="kk-grid">{similar.map((p) => <div key={p.code}>{card(p)}</div>)}</div></section> : null}
-        {fromStore.length ? <section className="kk-box"><header className="kk-box-h"><h2>Mais de {l.companyName}</h2><button className="kk-more" onClick={() => go({ n: 'search', s: { q: l.companyName } })}>Ver todos desta loja <I d={P.next} size={14} /></button></header><div className="kk-grid">{fromStore.map((p) => <div key={p.code}>{card(p)}</div>)}</div></section> : null}
+        {fromStore.length ? <section className="kk-box"><header className="kk-box-h"><h2>Mais de {l.companyName}</h2><button className="kk-more" onClick={() => go({ n: 'search', s: { q: l.companyCode } })}>Ver todos desta loja <I d={P.next} size={14} /></button></header><div className="kk-grid">{fromStore.map((p) => <div key={p.code}>{card(p)}</div>)}</div></section> : null}
       </div>
       {l.inStock ? (
         <div className="kk-buybar"><div className="kk-wrap kk-buybar-in">

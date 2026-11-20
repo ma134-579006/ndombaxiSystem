@@ -92,7 +92,7 @@ export async function buildStorePosterPdf(a: StorePosterArgs): Promise<jsPDF> {
   doc.text(doc.splitTextToSize(members ? `${a.storeName || 'A nossa loja'} · Associados` : a.storeName || 'A nossa loja online', W - tx - M)[0], tx, 82);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
   const desc = members
-    ? 'Loja exclusiva para associados — compre online, sem filas e com entrega em Angola.'
+    ? 'Compre no marketplace LPS Kwanza — sem criar conta, sem filas e com entrega em Angola.'
     : (a.tagline && a.tagline.trim()) || 'Compre online — rápido, sem filas e com entrega em Angola.';
   doc.text(doc.splitTextToSize(desc, W - tx - M).slice(0, 2), tx, 102);
 
@@ -159,19 +159,19 @@ export async function buildStorePosterPdf(a: StorePosterArgs): Promise<jsPDF> {
     'Peça ao cliente para apontar a câmara ao QR.',
   ];
   const mBenefits = [
-    'Loja reservada aos associados aprovados.',
-    'Produtos e anúncios só para associados.',
+    'Os produtos desta loja no marketplace LPS Kwanza.',
+    'Compra sem criar conta.',
     'Fatura certificada AGT em cada compra.',
     'Pagamento por referência (Multicaixa Express).',
     'Compra simples pelo telemóvel.',
   ];
   const mShare = [
-    'Envie o link por WhatsApp aos associados.',
+    'Envie o link por WhatsApp e redes sociais.',
     'Imprima este cartaz e cole na loja física.',
-    'O cliente pede adesão e a empresa aprova.',
+    'Os associados ganham comissão a partilhar.',
     'Aponte a câmara do telemóvel ao QR.',
   ];
-  const yL = section(leftX, members ? 'Benefícios da loja de associados' : 'Benefícios da loja online', members ? mBenefits : benefits);
+  const yL = section(leftX, members ? 'Benefícios do marketplace' : 'Benefícios da loja online', members ? mBenefits : benefits);
   const yR = section(rightX, 'Como partilhar', members ? mShare : share);
   y = Math.max(yL, yR) + 8;
 
@@ -198,7 +198,7 @@ export async function buildStorePosterPdf(a: StorePosterArgs): Promise<jsPDF> {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...brand);
   doc.text(empresa, M, fy + 18);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(170, 178, 190);
-  doc.text(members ? 'Loja de associados segura · Gerado por LPS Vendas' : 'Loja online segura · Gerado por LPS Vendas', W - M, fy + 18, { align: 'right' });
+  doc.text(members ? 'Marketplace LPS Kwanza · Gerado por LPS Vendas' : 'Loja online segura · Gerado por LPS Vendas', W - M, fy + 18, { align: 'right' });
 
   return doc;
 }
