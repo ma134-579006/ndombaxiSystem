@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   AgtDocumentSigner,
@@ -164,6 +164,19 @@ export class InvoiceService {
   private warnedNoPlatformKey = false;
 
   /**
+   * Chave Modelo 8 para assinar. Em produção subscrita à AGT, sem chave RSA-1024
+   * válida a emissão é RECUSADA (antes saía em modo legado sem assinatura e a
+   * cadeia recomeçava em silêncio no documento seguinte).
+   */
+  private async requireSigningKey(): Promise<PlatformKey> {
+    const key = await this.platformSigning.getPrivateKeyForSigning();
+    if ((!key || key.modulusBits !== RSA_DOC_MODULUS_LENGTH) && await this.platformSigning.signingRequired()) {
+      throw new ServiceUnavailableException('Assinatura AGT indisponível: a emissão de documentos está suspensa até a chave da plataforma ser reposta.');
+    }
+    return key;
+  }
+
+  /**
    * Assina e encadeia um documento conforme o MODELO 8 da AGT: assinatura RSA
    * (1024 bits, SHA-1, Base64 de 172 caracteres) com a chave do PRODUTOR do
    * software — a que a AGT recebeu na Declaração Modelo 8. O campo Hash do
@@ -224,7 +237,7 @@ export class InvoiceService {
     // de uma (N+1.ª) — bloqueio até ao timeout (HTTP 500) com 5 ligações no pool.
     const year = luandaYear();
     const agtSeries = await this.einvoice.seriesFor(schema, input.docType, year, { strict: !input.offline });
-    const platformKey = await this.platformSigning.getPrivateKeyForSigning();
+    const platformKey = await this.requireSigningKey();
     const platformSigner = await this.signing.getPlatformSigner();
     const result = await this.prisma.runInTenant(schema, async (tx) => {
       // Códigos só das linhas de PRODUTO (as linhas livres não têm produto).
@@ -455,6 +468,9 @@ export class InvoiceService {
 
       // 4. Datas (ao segundo, formato AGT) e assinatura/cadeia (Modelo 8).
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
+      // Viragem do ano entre a escolha da série (ano N) e este instante (ano N+1):
+      // sairia "FT A2026/…" com data de 2027. Recusa-se (o posto repete a venda).
+      if (luandaYear(now) !== year) throw new ServiceUnavailableException('Mudança de ano fiscal: repita a operação.');
       const invoiceDate = luandaDate(now);
       const systemEntryDate = luandaDateTime(now);
       const docHeader = { invoiceDate, systemEntryDate, number, totals };
@@ -1172,7 +1188,7 @@ export class InvoiceService {
     // Série AGT lida ANTES da transacção (usa outra ligação ao pool; dentro dela bloqueia sob carga).
     const year = luandaYear();
     const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
-    const platformKey = await this.platformSigning.getPrivateKeyForSigning();
+    const platformKey = await this.requireSigningKey();
     const platformSigner = await this.signing.getPlatformSigner();
     const result = await this.prisma.runInTenant(schema, async (tx) => {
       // 1. Carrega a factura + linhas (bloqueia).
@@ -1270,6 +1286,7 @@ export class InvoiceService {
       const sequence = serie[0].last_sequence + 1;
       const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: ncSeries, year, sequence });
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
+      if (luandaYear(now) !== year) throw new ServiceUnavailableException('Mudança de ano fiscal: repita a operação.');
       const docHeader = {
         invoiceDate: luandaDate(now),
         systemEntryDate: luandaDateTime(now),
@@ -1379,7 +1396,7 @@ export class InvoiceService {
     // Série AGT lida ANTES da transacção (usa outra ligação ao pool; dentro dela bloqueia sob carga).
     const year = luandaYear();
     const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
-    const platformKey = await this.platformSigning.getPrivateKeyForSigning();
+    const platformKey = await this.requireSigningKey();
     const platformSigner = await this.signing.getPlatformSigner();
 
     const result = await this.prisma.runInTenant(schema, async (tx) => {
@@ -1460,6 +1477,7 @@ export class InvoiceService {
       const sequence = serie[0].last_sequence + 1;
       const ncNumber = ncAgt ? formatFeDocumentNo(DocumentType.NC, ncAgt, sequence) : formatDocumentNumber({ type: DocumentType.NC, series: ncSeries, year, sequence });
       const now = new Date(Math.floor(Date.now() / 1000) * 1000);
+      if (luandaYear(now) !== year) throw new ServiceUnavailableException('Mudança de ano fiscal: repita a operação.');
       const ncHeader = { invoiceDate: luandaDate(now), systemEntryDate: luandaDateTime(now), number: ncNumber,
         totals: { netTotal: refundNet, ivaTotal: refundIva, grossTotal: refundGross, byTaxCode: [] as never[] } };
       const ncChain = await this.signAndChain(schema, tx, ncHeader, serie[0].last_hash, platformKey, platformSigner);

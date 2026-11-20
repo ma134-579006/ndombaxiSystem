@@ -275,6 +275,13 @@ export class PosController {
   @ApiOperation({ summary: 'Emite um documento fiscal (FT/FS/...) com hash AGT' })
   async emitInvoice(@Body() dto: EmitInvoiceDto, @CurrentUser() user: JwtPayload) {
     const schema = this.ctx.requireTenantSchema();
+    // `offline: true` desliga controlos (turno, stock, aprovação de desconto,
+    // série AGT estrita) e vem do cliente. Só a fila offline da Caixa o envia, e
+    // sempre com `clientOpId` (idempotência): sem chave, trata-se como venda normal.
+    if (dto.offline === true && !dto.clientOpId) dto.offline = false;
+    // Série pedida pelo cliente: nunca a de um posto local (L…) nem a da loja
+    // online (WEB) — dois escritores na mesma série partem a cadeia de hash.
+    if (dto.series && (/^L[A-Z0-9]{3}$/.test(dto.series) || dto.series === 'WEB')) dto.series = undefined;
     // Data da operação: aceitava-se "2099-01-01" ou "1900-01-01". Tem de ser uma data
     // real, não futura e do último ano (uma venda sem rede sincroniza por outro caminho).
     if (dto.operationDate != null) {

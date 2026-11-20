@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AGT_SIGNATURE_ALGORITHM, generateSigningKeyPair, RSA_DOC_MODULUS_LENGTH, RSA_MODULUS_LENGTH } from '@nexus/agt-xml';
 import { createHash } from 'node:crypto';
@@ -49,6 +49,7 @@ export interface PlatformSigningStatus {
  */
 @Injectable()
 export class PlatformSigningService {
+  private readonly logger = new Logger(PlatformSigningService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
@@ -145,6 +146,15 @@ export class PlatformSigningService {
     return { fileName: 'public.txt', pem: s.publicKey, keyVersion: s.keyVersion, algorithm: s.algorithm };
   }
 
+  /**
+   * Em PRODUÇÃO com o sistema subscrito à AGT, um documento NUNCA sai sem a
+   * assinatura Modelo 8 (o modo legado SHA-256 só serve em testes/demonstração).
+   */
+  async signingRequired(): Promise<boolean> {
+    const c = await this.prisma.agtFiscalConfig.findFirst({ select: { environment: true, subscribed: true } }).catch(() => null);
+    return !!c && c.subscribed && c.environment === 'PRODUCTION';
+  }
+
   /** Privada decifrada — SÓ para o motor de assinatura (nunca sai por API). */
   async getPrivateKeyForSigning(): Promise<{ privateKeyPem: string; keyVersion: number; modulusBits: number } | null> {
     const row = await this.getRow();
@@ -153,6 +163,8 @@ export class PlatformSigningService {
     try {
       return { privateKeyPem: decryptSecret(row.secretEnc, this.encKey), keyVersion: s.keyVersion, modulusBits: s.modulusBits ?? 2048 };
     } catch {
+      // Nunca silencioso: sem a privada os documentos saem sem assinatura AGT.
+      this.logger.error('Chave da plataforma não decifra (CONFIG_ENCRYPTION_KEY mudou?): documentos sem assinatura Modelo 8.');
       return null;
     }
   }
