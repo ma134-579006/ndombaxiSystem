@@ -40,6 +40,7 @@ interface AuthContextValue {
   companyCode: string | null;
   login(input: TenantLoginInput): Promise<void>;
   loginGoogle(idToken: string): Promise<void>;
+  loginFacebook(accessToken: string): Promise<void>;
   /** Login do operador por nome (id) + PIN (estilo Vendus). */
   loginPin(companyCode: string, userId: string, pin: string): Promise<void>;
   loginStaff(email: string, pin: string): Promise<void>;
@@ -239,10 +240,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const loginGoogle = useCallback(
-    async (idToken: string) => {
-      // A empresa é encontrada pelo e-mail da conta Google; a API devolve o
-      // código resolvido (fica guardado para o PIN/troca de operador).
-      const r = await api.loginGoogle(idToken);
+    async (idToken: string, provider: 'google' | 'facebook' = 'google') => {
+      // A empresa é encontrada pelo e-mail da conta Google/Facebook; a API devolve
+      // o código resolvido (fica guardado para o PIN/troca de operador).
+      const r = provider === 'facebook' ? await api.loginFacebook(idToken) : await api.loginGoogle(idToken);
       companyRef.current = r.companyCode;
       setCompanyCode(r.companyCode);
       localStorage.setItem(LS_COMPANY, r.companyCode);
@@ -251,6 +252,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     [applyTokens],
   );
+
+  const loginFacebook = useCallback((accessToken: string) => loginGoogle(accessToken, 'facebook'), [loginGoogle]);
 
   const loginPin = useCallback(
     async (code: string, userId: string, pin: string) => {
@@ -335,8 +338,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [clearSession]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, companyCode, login, loginGoogle, loginPin, loginStaff, logout }),
-    [status, user, companyCode, login, loginGoogle, loginPin, loginStaff, logout],
+    () => ({ status, user, companyCode, login, loginGoogle, loginFacebook, loginPin, loginStaff, logout }),
+    [status, user, companyCode, login, loginGoogle, loginFacebook, loginPin, loginStaff, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

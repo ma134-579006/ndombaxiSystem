@@ -2,37 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { LOGO_WIDE } from '../brand';
 import { useAuth } from '../auth/AuthContext';
-import { GoogleSignInButton } from '../components/GoogleSignInButton';
-import { LoginShowcase } from '../components/LoginShowcase';
 import { PasswordField } from '../components/PasswordField';
 import { cachedPhoto, rememberPhoto } from '../photoCache';
 import { LangPicker } from '../components/LangPicker';
-import { nativeGoogleAvailable, nativeGoogleSignIn } from '../offline/nativeGoogle';
-import { desktopGoogleAvailable, desktopGoogleSignIn } from '../offline/desktopGoogle';
+import {
+  btnStyle, FacebookSquare, facebookToken, GoogleGlyph, googleToken, lookVars, useAuthPublic, useFitHeight, usePreloadSocial,
+} from './vendusAuth';
 
-/**
- * O botão "Continuar com Google" da APP (Windows e Android). O site usa o botão
- * do próprio Google (GIS), que não funciona dentro de uma WebView — por isso a
- * app tem o seu, com o mesmo aspeto, e cada plataforma trata do login à sua
- * maneira por trás.
- */
-function GoogleAppButton({ onClick, disabled }: { onClick(): void; disabled?: boolean }) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled}
-      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, height: 46, borderRadius: 999, border: '1px solid #dadce0', background: '#fff', color: '#3c4043', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.9 6.1 29.7 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.9 6.1 29.7 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.6 0 10.7-2.1 14.6-5.6l-6.7-5.7C29.8 34.6 27 36 24 36c-5.2 0-9.6-3.3-11.2-8l-6.6 5.1C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.7 5.7c-.5.4 7.1-5.2 7.1-15.3 0-1.3-.1-2.3-.4-3.5z"/></svg>
-      Continuar com Google
-    </button>
-  );
-}
-
-/**
- * Login da CAIXA — mesmo design escuro do gestor. O FUNCIONÁRIO entra com o seu
- * e-mail + PIN num único ecrã; o sistema descobre a empresa e a loja a que
- * pertence (sem escolher empresa nem operador). Google mantém a mesma lógica.
- */
 export function LoginPage() {
-  const { loginStaff, loginGoogle } = useAuth();
+  const { loginStaff, loginGoogle, loginFacebook } = useAuth();
   const [email, setEmail] = useState(() => { try { return localStorage.getItem('ndx:caixa_remember_email') ?? ''; } catch { return ''; } });
   const [remember, setRemember] = useState(() => { try { return !!localStorage.getItem('ndx:caixa_remember_email'); } catch { return false; } });
   const [pin, setPin] = useState('');
@@ -70,48 +48,6 @@ export function LoginPage() {
     } finally { setLoading(false); }
   };
 
-  const onGoogle = async (idToken: string) => {
-    setError(null); setLoading(true);
-    try { await loginGoogle(idToken); }
-    catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível entrar com Google.'); }
-    finally { setLoading(false); }
-  };
-
-  // App instalada: Google NATIVO (o botão web não funciona em WebView).
-  const onGoogleNative = async () => {
-    setError(null);
-    if (!nativeGoogleAvailable()) {
-      setError('Entrar com Google ainda não está disponível nesta versão da app. Atualize para a versão mais recente.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const idToken = await nativeGoogleSignIn();
-      if (idToken) await loginGoogle(idToken);
-      else setError('Entrada com Google cancelada.');
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível entrar com Google.');
-    } finally { setLoading(false); }
-  };
-
-  // App WINDOWS: o Google abre no navegador do sistema (recusa WebViews) e
-  // devolve o token à app. Mesmo fluxo do móvel, outra porta de entrada.
-  const onGoogleDesktop = async () => {
-    setError(null);
-    if (!desktopGoogleAvailable()) {
-      setError('Entrar com Google ainda não está disponível nesta versão da app. Atualize para a versão mais recente.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const idToken = await desktopGoogleSignIn();
-      if (idToken) await loginGoogle(idToken);
-      else setError('Entrada com Google cancelada.');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Não foi possível entrar com Google.');
-    } finally { setLoading(false); }
-  };
-
   // Site (navegador) vs app; e app MÓVEL (Capacitor) vs DESKTOP (Electron). Em
   // cada uma o Google entra por uma porta diferente — o resto do fluxo é igual.
   const nw = window as unknown as {
@@ -122,73 +58,92 @@ export function LoginPage() {
     || typeof nw.ndombaxi !== 'undefined'
     || nw.__NDOMBAXI_NATIVE__ === true
     || !!nw.Capacitor?.isNativePlatform?.();
-  // "Móvel" = app nativa E não-desktop. NÃO dependemos de window.Capacitor (nem
-  // sempre chega ao frontend na app); o desktop expõe window.ndombaxi, o móvel não.
-  const isDesktopApp = window.location.protocol === 'ndombaxi:' || typeof nw.ndombaxi !== 'undefined';
-  const isMobileApp = isNativeApp && !isDesktopApp;
+
+  const pub = useAuthPublic();
+  const look = pub?.look;
+  usePreloadSocial(pub?.facebookAppId ?? null);
+  const fitRef = useFitHeight<HTMLDivElement>();
+  const g = look?.google; const f = look?.facebook;
+  const showGoogle = g?.enabled !== false;
+  const showFacebook = f?.enabled !== false && !isNativeApp;
+
+  const startSocial = async (kind: 'google' | 'facebook') => {
+    setError(null);
+    try {
+      const t = kind === 'google' ? await googleToken() : await facebookToken(pub?.facebookAppId ?? null);
+      if (!t) { setError(`Entrada com ${kind === 'google' ? 'Google' : 'Facebook'} cancelada.`); return; }
+      setLoading(true);
+      if (kind === 'google') await loginGoogle(t); else await loginFacebook(t);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Não foi possível entrar.');
+    } finally { setLoading(false); }
+  };
 
   return (
-    <div className="auth">
-      <div className="auth-panel">
-        <div className="auth-form auth-enter">
-          <div className="auth-top">
-            <img className="auth-logo-wide" src={LOGO_WIDE} alt="LPS Vendas" />
-            <LangPicker variant="dark" />
+    <div className="va" style={lookVars(look)}>
+      <div className="va-login">
+        <div className="va-col" ref={fitRef}>
+          <img className="va-logo" src={LOGO_WIDE} alt="LPS Vendas" />
+          <div className="va-card">
+            {resetToken ? (
+              <>
+                <h1 className="va-h1">Novo PIN</h1>
+                <PinResetView token={resetToken} />
+              </>
+            ) : handoff ? (
+              <OpenCashHandoff email={handoff.email} name={handoff.name} />
+            ) : forgot ? (
+              <ForgotPinView defaultEmail={email} />
+            ) : (
+              <>
+                <h1 className="va-h1">Entrar na Caixa</h1>
+                {error ? <div className="auth-error" role="alert">{error}</div> : null}
+
+                <label className="va-label" htmlFor="ndx_field_acct">E-Mail:</label>
+                <input className="va-input" value={email} onChange={(e) => setEmail(e.target.value)}
+                  placeholder="E-Mail" inputMode="email" type="text"
+                  autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                  name="ndx_field_acct" id="ndx_field_acct" aria-label="E-mail do funcionário"
+                  data-lpignore="true" data-1p-ignore data-form-type="other" data-bwignore="true"
+                  readOnly={emailRO} onFocus={() => setEmailRO(false)} onPointerDown={() => setEmailRO(false)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+
+                <div className="va-row va-mt">
+                  <label className="va-label">PIN:</label>
+                  <a className="va-label va-link-sm" onClick={() => setForgot(true)}>Recuperar PIN</a>
+                </div>
+                <PasswordField value={pin} onChange={setPin} placeholder="PIN" digitsOnly
+                  inputMode="numeric" maxLength={8} autoComplete="off" onEnter={() => void submit()} />
+
+                <label className="va-remember"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Lembrar-me</label>
+
+                <button className="va-btn" onClick={() => void submit()} disabled={loading}>
+                  {loading ? 'A entrar…' : 'Iniciar Sessão'}
+                </button>
+              </>
+            )}
           </div>
-          {resetToken ? (
+
+          {!resetToken && !handoff && !forgot && (showGoogle || showFacebook) ? (
             <>
-              <h1 className="auth-title">Novo PIN</h1>
-              <PinResetView token={resetToken} />
+              <div className="va-or"><span>Ou</span></div>
+              {showGoogle ? (
+                <button type="button" className="va-social g" style={btnStyle(g, true)} disabled={loading} onClick={() => void startSocial('google')}>
+                  <GoogleGlyph />{g?.label || 'Entrar com Google'}
+                </button>
+              ) : null}
+              {showFacebook ? (
+                <button type="button" className="va-social f" style={btnStyle(f, true)} disabled={loading} onClick={() => void startSocial('facebook')}>
+                  <FacebookSquare />{f?.label || 'Entrar com Facebook'}
+                </button>
+              ) : null}
             </>
-          ) : handoff ? (
-            <OpenCashHandoff email={handoff.email} name={handoff.name} />
-          ) : (
-            <>
-              <h1 className="auth-title">Entrar na Caixa</h1>
-              {error ? <div className="auth-error">{error}</div> : null}
+          ) : null}
 
-              <label className="auth-label">E-mail do funcionário</label>
-              <input className="auth-input" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="voce@empresa.ao" inputMode="email" type="text"
-                autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                name="ndx_field_acct" id="ndx_field_acct" aria-label="E-mail do funcionário"
-                data-lpignore="true" data-1p-ignore data-form-type="other" data-bwignore="true"
-                readOnly={emailRO} onFocus={() => setEmailRO(false)} onPointerDown={() => setEmailRO(false)}
-                onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
-
-              <label className="auth-label">PIN</label>
-              <PasswordField value={pin} onChange={setPin} placeholder="••••" digitsOnly
-                inputMode="numeric" maxLength={8} autoComplete="off" onEnter={() => void submit()} />
-
-              <div className="auth-sublinks">
-                <label className="auth-remember"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Lembrar-me</label>
-                <a onClick={() => setForgot(true)}>Esqueci o PIN</a>
-              </div>
-
-              <button className="auth-btn" onClick={() => void submit()} disabled={loading}>
-                {loading ? 'A entrar…' : 'Entrar'}
-              </button>
-
-              {/* Google: no SITE o botão web (GIS); na app MÓVEL o botão nativo
-                  (o GIS não funciona em WebView); no DESKTOP nada por agora. */}
-              {!isNativeApp ? (
-                <>
-                  <div className="auth-or"><span>ou</span></div>
-                  <div className="auth-google"><GoogleSignInButton onCredential={(t) => void onGoogle(t)} /></div>
-                </>
-              ) : (
-                <>
-                  <div className="auth-or"><span>ou</span></div>
-                  <GoogleAppButton disabled={loading}
-                    onClick={() => void (isMobileApp ? onGoogleNative() : onGoogleDesktop())} />
-                </>
-              )}
-            </>
-          )}
+          {forgot ? <p className="va-back"><a onClick={() => setForgot(false)}>&lt; Voltar</a></p> : null}
+          <div className="va-foot-tools"><LangPicker variant="topbar" /></div>
         </div>
       </div>
-      <div className="auth-media"><LoginShowcase /></div>
-      {forgot ? <ForgotPinModal defaultEmail={email} onClose={() => setForgot(false)} /> : null}
     </div>
   );
 }
@@ -239,7 +194,7 @@ function OpenCashHandoff({ email, name }: { email: string; name: string }) {
     <>
       <div className="handoff-card">
         {photo ? <img className="handoff-avatar" src={photo} alt="" style={{ objectFit: 'cover' }} /> : <div className="handoff-avatar" aria-hidden>{initials}</div>}
-        <h1 className="auth-title" style={{ marginBottom: 2 }}>Abrir caixa</h1>
+        <h1 className="va-h1" style={{ marginBottom: 2 }}>Abrir caixa</h1>
         <div className="handoff-name">{name || email}</div>
         {name ? <div className="handoff-email">{email}</div> : null}
       </div>
@@ -250,7 +205,7 @@ function OpenCashHandoff({ email, name }: { email: string; name: string }) {
       <PasswordField value={pin} onChange={setPin} placeholder="••••" digitsOnly
         inputMode="numeric" maxLength={8} autoComplete="off" onEnter={() => void submit()} />
 
-      <button className="auth-btn" onClick={() => void submit()} disabled={loading} style={{ marginTop: 14 }}>
+      <button className="va-btn" onClick={() => void submit()} disabled={loading}>
         {loading ? 'A entrar…' : 'Entrar na caixa'}
       </button>
 
@@ -262,7 +217,8 @@ function OpenCashHandoff({ email, name }: { email: string; name: string }) {
 }
 
 /** Pede o e-mail e envia o link de recuperação do PIN. */
-function ForgotPinModal({ defaultEmail, onClose }: { defaultEmail?: string; onClose(): void }) {
+/** "Recuperar PIN" dentro do cartão (como o "Recuperar Password" do Vendus). */
+function ForgotPinView({ defaultEmail }: { defaultEmail?: string }) {
   const [email, setEmail] = useState(defaultEmail && /@/.test(defaultEmail) ? defaultEmail : '');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -278,24 +234,21 @@ function ForgotPinModal({ defaultEmail, onClose }: { defaultEmail?: string; onCl
     finally { setBusy(false); }
   };
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
-        <div className="mh"><h3>Recuperar PIN</h3><span className="spacer" /><button className="btn sm ghost" onClick={onClose}>Fechar</button></div>
-        <div className="mb">
-          {done ? (
-            <div className="banner success"><div>Se existir uma conta com esse e-mail, enviámos um link para definires um novo PIN. Vê a tua caixa de entrada.</div></div>
-          ) : (
-            <>
-              {warn ? <div className="banner danger" style={{ marginBottom: 12 }}>{warn}</div> : null}
-              <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Escreve o teu e-mail. Enviamos um link (1 hora) para definires um novo PIN.</p>
-              <div className="field"><label>E-mail</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.ao" inputMode="email" /></div>
-              <button className="btn lg block" onClick={() => void submit()} disabled={busy}>{busy ? 'A enviar…' : 'Enviar link'}</button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+    <>
+      <h1 className="va-h1">Recuperar PIN</h1>
+      {warn ? <div className="auth-error">{warn}</div> : null}
+      {done ? (
+        <div className="va-ok">Se existir uma conta com esse e-mail, enviámos um link para definir um novo PIN (válido 1 hora).</div>
+      ) : (
+        <>
+          <label className="va-label" htmlFor="va-forgot-pin">E-Mail:</label>
+          <input id="va-forgot-pin" className="va-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-Mail" inputMode="email" type="email"
+            onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+          <button className="va-btn" onClick={() => void submit()} disabled={busy}>{busy ? 'A enviar…' : 'Recuperar PIN'}</button>
+        </>
+      )}
+      <p className="va-muted">Receberá um e-mail do LPS Vendas com instruções para definir um novo PIN.</p>
+    </>
   );
 }
 
