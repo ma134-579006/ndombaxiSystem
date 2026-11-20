@@ -64,7 +64,7 @@ export function GoCheckout({ onBack, onDone }: {
     if (!selected) return setError('Escolha o método de pagamento.');
     if (name.trim().length < 2) return setError('Indique o nome.');
     if (phone.replace(/\D/g, '').length < 9) return setError('Indique um número de telemóvel válido.');
-    if (delivery === 'DELIVERY' && address.trim().length < 4) return setError('Indique a morada de entrega.');
+    // Morada opcional: a localização GPS exata (obrigatória, abaixo) chega para a entrega.
     // GPS OBRIGATÓRIO em todas as encomendas (regra da loja): sem localização a
     // encomenda não é criada — também ao levantar na loja.
     let geo: { geoLat?: number; geoLng?: number; geoAccuracy?: number; geoConsent?: boolean };
@@ -82,7 +82,7 @@ export function GoCheckout({ onBack, onDone }: {
         customerName: name.trim(), customerPhone: phone.trim(),
         customerEmail: email.trim() || session?.customer.email || undefined,
         customerTaxId: nif.trim() || undefined,
-        shippingAddress: delivery === 'DELIVERY' ? address.trim() : undefined,
+        shippingAddress: delivery === 'DELIVERY' ? address.trim() || undefined : undefined,
         deliveryMethod: delivery, notes: notes.trim() || undefined,
         paymentMethod: selected.type, ...geo,
         lines: cart.map((l) => ({ productCode: l.product.code, quantity: l.quantity })),
