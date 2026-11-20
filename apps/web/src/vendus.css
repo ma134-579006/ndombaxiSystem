@@ -1422,3 +1422,21 @@ html.touch-ui .admin.nav-rail .sidebar.vds { width: min(92vw, 300px) !important;
 .admin .sidebar.vds .nav-sub { gap: 0 !important; }
 .admin .sidebar.vds .nav button, .admin .sidebar.vds .nav-group-head { font-size: clamp(9px, calc(var(--row) * .36), 14px) !important; }
 .admin .sidebar.vds .nav button svg, .admin .sidebar.vds .nav-group-head svg { width: clamp(10px, calc(var(--row) * .42), 17px) !important; height: clamp(10px, calc(var(--row) * .42), 17px) !important; }
+/* Pedido do utilizador: uma só imagem (perfil da empresa, na coluna de ícones)
+   e os botões das páginas só com o NOME. Fechada, a barra mostra só a coluna
+   de ícones; ao passar o rato abre o menu com os nomes (animação do LPS). */
+.admin .sidebar.vds .nav button > svg:first-child, .admin .sidebar.vds .nav-group-head > svg:first-child, .admin .sidebar.vds .nav-sub button > svg { display: none !important; }
+.admin .sidebar.vds .nav button, .admin .sidebar.vds .nav-group-head { padding-left: 20px !important; gap: 8px; }
+.admin .sidebar.vds .nav-group-head .nav-label { flex: 1 1 auto; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+.admin .sidebar.vds .nav-sub button { padding-left: 34px !important; }
+.admin .sidebar.vds .brand.vds-company { padding-left: 20px !important; }
+.admin .sidebar.vds .vds-logo { width: clamp(34px, 6.4vh, 44px); height: clamp(34px, 6.4vh, 44px); border-radius: 50%; }
+@media (min-width: 901px) {
+  .admin.nav-rail .main { margin-left: 60px !important; }
+  .admin.nav-rail .sidebar.vds { width: 60px !important; }
+  .admin.nav-rail .sidebar.vds:hover, .admin.nav-rail .sidebar.vds:has(:focus-visible) { width: 277px !important; }
+  .admin.nav-rail .sidebar.vds:not(:hover):not(:has(:focus-visible)) .vds-menu { opacity: 0; }
+  .admin.nav-rail .sidebar.vds .vds-menu { transition: opacity .2s ease .06s; }
+}
+@media (min-width: 901px) and (prefers-reduced-motion: reduce) { .admin.nav-rail .sidebar.vds .vds-menu { transition: none; } }
+.admin.nav-rail .sidebar.vds.open .vds-menu { opacity: 1 !important; }
