@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { IntegrationsService } from '../integrations/integrations.service';
 
 /** Chave da integração no Super Admin › Integrações. */
@@ -23,8 +24,12 @@ const OVERPASS_UA = 'LPS-Vendas/3.0 (+https://ndombaxisystem.com; camaras public
 const OSM_MAX_KM = 50;
 /** A Windy aceita no máximo 250 km no filtro `nearby`. */
 const MAX_RADIUS_KM = 250;
-/** As imagens do plano gratuito expiram em 10 min — a cache fica abaixo disso. */
+/** As imagens do plano gratuito da Windy expiram em 10 min — a cache fica abaixo disso. */
 const CACHE_MS = 5 * 60 * 1000;
+/** Só OpenStreetMap: as câmaras não mudam de sítio, o resultado vale 6 h. */
+const OSM_CACHE_MS = 6 * 60 * 60 * 1000;
+/** Com o OpenStreetMap em baixo, serve o último resultado bom até 7 dias. */
+const STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface PublicWebcam {
   id: string;
@@ -53,6 +58,8 @@ export interface PublicWebcamsResult {
   error?: string;
   /** Fontes consultadas nesta resposta. */
   sources?: ('windy' | 'osm')[];
+  /** true = o serviço estava em baixo e esta é a última lista boa guardada. */
+  stale?: boolean;
 }
 
 /**
@@ -67,7 +74,20 @@ export class PublicWebcamsService {
   private readonly logger = new Logger(PublicWebcamsService.name);
   private readonly cache = new Map<string, { at: number; value: PublicWebcamsResult }>();
 
-  constructor(private readonly integrations: IntegrationsService) {}
+  constructor(private readonly integrations: IntegrationsService, @Optional() private readonly prisma?: PrismaService) {}
+
+  /** Última resposta boa guardada na base (zona ~1 km + raio). */
+  private async stored(key: string): Promise<{ at: number; value: PublicWebcamsResult } | null> {
+    if (!this.prisma) return null;
+    const r = await this.prisma.publicWebcamCache.findUnique({ where: { key } }).catch(() => null);
+    return r ? { at: r.at.getTime(), value: r.data as unknown as PublicWebcamsResult } : null;
+  }
+
+  private async store(key: string, value: PublicWebcamsResult): Promise<void> {
+    if (!this.prisma) return;
+    const data = value as unknown as object;
+    await this.prisma.publicWebcamCache.upsert({ where: { key }, create: { key, data, at: new Date() }, update: { data, at: new Date() } }).catch(() => undefined);
+  }
 
   /**
    * "Inteligente": começa no raio pedido e, se não houver nenhuma câmara pública,
@@ -120,8 +140,11 @@ export class PublicWebcamsService {
 
     // ~1 km de precisão: clientes vizinhos partilham a mesma resposta.
     const key = `${lat.toFixed(2)},${lng.toFixed(2)},${radius},${windyKey ? 'w' : '-'}`;
+    const ttl = windyKey ? CACHE_MS : OSM_CACHE_MS;
     const hit = this.cache.get(key);
-    if (hit && Date.now() - hit.at < CACHE_MS) return hit.value;
+    if (hit && Date.now() - hit.at < ttl) return hit.value;
+    const db = await this.stored(key);
+    if (db && Date.now() - db.at < ttl) { this.cache.set(key, db); return db.value; }
 
     const [osm, windy] = await Promise.all([
       radius <= OSM_MAX_KM ? this.fromOsm(lat, lng, radius) : Promise.resolve(null),
@@ -141,7 +164,11 @@ export class PublicWebcamsService {
     if (!value.error) {
       this.cache.set(key, { at: Date.now(), value });
       if (this.cache.size > 500) this.cache.delete(this.cache.keys().next().value as string);
+      await this.store(key, value);
+      return value;
     }
+    // Serviço em baixo: a última lista boa (até 7 dias) em vez de "indisponível".
+    if (db && Date.now() - db.at < STALE_MS) return { ...db.value, stale: true };
     return value;
   }
 

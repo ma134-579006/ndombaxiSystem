@@ -88,6 +88,15 @@ R.check('CAM-8', 'sem chave + OSM sem câmaras → lista vazia, sem erro', !r.er
 mode.osm = 'ok';
 r = await search(pt());
 R.check('CAM-9', 'sem chave + OSM com câmaras → mostra as do OSM', !r.error && r.items.length >= 1 && r.items[0].source === 'osm', JSON.stringify({ n: r.items?.length }));
+// Último resultado bom: o mesmo ponto com o OSM em baixo — mesmo depois de reiniciar a API (vem da base).
+const same = pt();
+mode.osm = 'ok';
+const good = await search(same);
+await pub.query("UPDATE nexus_public.public_webcam_cache SET at = now() - interval '7 hours' WHERE key LIKE $1", [`${same.lat.toFixed(2)},${same.lng.toFixed(2)},%`]);
+mode.osm = 'busy';
+const stale = await ok('GET', `/cameras/public/nearby?lat=${same.lat + 0.001}&lng=${same.lng}&auto=1`, { token: adm });
+R.check('CAM-11', 'OSM em baixo → continua a mostrar a última lista boa (memória ou base), não "indisponível"', good.items.length >= 1 && !stale.error && stale.items.length === good.items.length, JSON.stringify({ good: good.items?.length, stale: stale.stale, n: stale.items?.length, err: stale.error }));
+mode.osm = 'ok';
 const anon = await call('GET', '/cameras/public/nearby?lat=1&lng=1&auto=1');
 R.check('CAM-10', 'sem sessão → 401', anon.status === 401, `${anon.status}`);
 

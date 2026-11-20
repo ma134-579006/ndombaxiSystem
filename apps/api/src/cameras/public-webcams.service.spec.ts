@@ -154,3 +154,56 @@ describe('PublicWebcamsService.nearest (raio automático)', () => {
   const make = (secret: string | null) =>
     new PublicWebcamsService({ getActive: jest.fn().mockResolvedValue(secret ? { secret } : null) } as never);
 });
+
+describe('PublicWebcamsService — cache na base (só OpenStreetMap)', () => {
+  const realFetch = global.fetch;
+  afterEach(() => { global.fetch = realFetch; });
+  const fakeDb = () => {
+    const rows = new Map<string, { key: string; data: unknown; at: Date }>();
+    return {
+      rows,
+      publicWebcamCache: {
+        findUnique: jest.fn(async ({ where }: { where: { key: string } }) => rows.get(where.key) ?? null),
+        upsert: jest.fn(async ({ where, create }: { where: { key: string }; create: { key: string; data: unknown; at: Date } }) => { rows.set(where.key, { ...create }); return create; }),
+      },
+    };
+  };
+  const make = (db: ReturnType<typeof fakeDb>) =>
+    new PublicWebcamsService({ getActive: jest.fn().mockResolvedValue(null) } as never, db as never);
+
+  it('guarda o resultado bom e, com o OSM em baixo, devolve a última lista (stale) em vez de "indisponível"', async () => {
+    const db = fakeDb();
+    global.fetch = jest.fn(async () => ok(overpassBody)) as never;
+    const r1 = await make(db).nearby(-8.9, 13.19);
+    expect(r1.items.length).toBe(2);
+    expect(db.rows.size).toBe(1);
+    // Outro processo (servidor reiniciado), 7 h depois, com o OSM sobrecarregado.
+    const row = [...db.rows.values()][0];
+    row.at = new Date(Date.now() - 7 * 3600_000);
+    global.fetch = jest.fn(async () => ({ ok: false, status: 502 })) as never;
+    const r2 = await make(db).nearby(-8.9, 13.19);
+    expect(r2.error).toBeUndefined();
+    expect(r2.stale).toBe(true);
+    expect(r2.items.length).toBe(2);
+  });
+
+  it('resultado com menos de 6 h vem da base sem perguntar ao OSM', async () => {
+    const db = fakeDb();
+    global.fetch = jest.fn(async () => ok(overpassBody)) as never;
+    await make(db).nearby(-8.9, 13.19);
+    const f = jest.fn(async () => ok({ elements: [] }));
+    global.fetch = f as never;
+    const r = await make(db).nearby(-8.9, 13.19);
+    expect(f).not.toHaveBeenCalled();
+    expect(r.items.length).toBe(2);
+  });
+
+  it('última lista com mais de 7 dias já não serve: "indisponível"', async () => {
+    const db = fakeDb();
+    global.fetch = jest.fn(async () => ok(overpassBody)) as never;
+    await make(db).nearby(-8.9, 13.19);
+    [...db.rows.values()][0].at = new Date(Date.now() - 8 * 24 * 3600_000);
+    global.fetch = jest.fn(async () => ({ ok: false, status: 502 })) as never;
+    expect((await make(db).nearby(-8.9, 13.19)).error).toMatch(/indispon/);
+  });
+});

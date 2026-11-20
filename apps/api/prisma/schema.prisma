@@ -872,6 +872,17 @@ model KwanzaPolicy {
   @@schema("nexus_public")
 }
 
+/// Câmaras públicas: último resultado bom por zona (~1 km) e raio. Serve quando o
+/// OpenStreetMap está sobrecarregado e sobrevive ao adormecer do servidor.
+model PublicWebcamCache {
+  key  String   @id
+  data Json
+  at   DateTime @default(now())
+
+  @@map("public_webcam_cache")
+  @@schema("nexus_public")
+}
+
 /// LPS Kwanza — empresa banida do marketplace pelo Super Admin (saque não pago depois da prorrogação).
 model KwanzaBan {
   companyId String   @id @db.Uuid
