@@ -124,3 +124,6 @@ Feito: idioma do sistema PT/EN/FR/ES (gestão, super admin, caixa; pacote `@nexu
 2. Fiscal A3 Modo Formação / A4 Documento Manual — só depois de confirmar requisitos da AGT em fonte oficial.
 3. Utilizador: mudar a palavra-passe do super admin; preencher o nº de validação AGT em Super Admin → Fiscal quando existir.
 4. Variações, "controlar stock", stock por loja nas colunas, conta corrente cliente/fornecedor, perfis personalizados (RBAC no backend).
+
+### Atualização 2026-11-20 (PRs #218–#222)
+Login, Criar Conta, assistente Bem-Vindo, barra lateral do painel e POS (Caixa Fechada, paleta) copiados da conta de teste do Vendus (conta-236481.vendus.co.ao). Diferenças assumidas: fonte DM Sans (a Gelion do Vendus é paga); fundo da Caixa claro (#eef3f6) em vez do gradiente escuro, porque o tema Claro é o padrão; "Validar NIF" só valida o formato.
