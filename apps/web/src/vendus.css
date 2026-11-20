@@ -1440,3 +1440,19 @@ html.touch-ui .admin.nav-rail .sidebar.vds { width: min(92vw, 300px) !important;
 }
 @media (min-width: 901px) and (prefers-reduced-motion: reduce) { .admin.nav-rail .sidebar.vds .vds-menu { transition: none; } }
 .admin.nav-rail .sidebar.vds.open .vds-menu { opacity: 1 !important; }
+/* Seta na borda da coluna de ícones: indica que há um menu escondido que
+   abre ao passar o rato. Some quando o menu está aberto. */
+.sidebar.vds .vds-rail { position: relative; }
+@media (min-width: 901px) {
+  .admin.nav-rail .sidebar.vds .vds-rail::after {
+    content: ''; position: absolute; right: 3px; top: auto; bottom: clamp(52px, 11vh, 84px); width: 16px; height: 44px;
+    border-radius: 8px; background: #1098f7 url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='m6 4 4 4-4 4'/%3e%3c/svg%3e") center / 12px 12px no-repeat;
+    box-shadow: -2px 0 10px rgba(16, 152, 247, .45); pointer-events: none;
+    animation: vds-hint 1.8s ease-in-out infinite; transition: opacity .2s ease;
+  }
+  .admin.nav-rail .sidebar.vds:hover .vds-rail::after,
+  .admin.nav-rail .sidebar.vds:has(:focus-visible) .vds-rail::after,
+  .admin.nav-rail .sidebar.vds.open .vds-rail::after { opacity: 0; animation: none; }
+}
+@keyframes vds-hint { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { .admin.nav-rail .sidebar.vds .vds-rail::after { animation: none; } }
