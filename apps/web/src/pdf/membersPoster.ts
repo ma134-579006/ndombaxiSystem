@@ -2,8 +2,8 @@ import { api } from '../api/client';
 import { STORE_URL } from '../config';
 import { buildStorePosterPdf, posterFileName } from './storePosterPdf';
 
-/** Link da loja de associados da empresa (segunda loja, só para associados aprovados). */
-export const membersStoreLink = (companyCode: string) => `${STORE_URL.replace(/\/$/, '')}/${encodeURIComponent(companyCode)}/associados`;
+/** Marketplace LPS Kwanza já filtrado nos produtos desta empresa (sem login: o cliente compra sem conta). */
+export const membersStoreLink = (companyCode: string) => `${STORE_URL.replace(/\/$/, '')}/kwanza#/busca?q=${encodeURIComponent(companyCode)}`;
 
 /**
  * Cartaz A4 da loja de associados — mesmo gerador e mesma organização do cartaz
