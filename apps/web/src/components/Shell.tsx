@@ -510,7 +510,6 @@ export function Shell({
         </div>
         <div className="vds-menu">
           <div className="brand vds-company">
-            <img src={brandLogo} alt="" aria-hidden onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} />
             <div className="brand-tx">
               <div className="nm">{brandName}</div>
               <div className="tg">{brand?.nif ? `NIF: ${brand.nif}` : subtitle}</div>
