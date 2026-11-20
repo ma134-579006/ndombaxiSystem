@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsHexColor,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Length,
@@ -32,6 +33,8 @@ export class UpdateLandingDto {
   @IsOptional() @IsBoolean() showPricing?: boolean;
   @IsOptional() @IsBoolean() showAds?: boolean;
   @IsOptional() @IsInt() @Min(1) trialDays?: number;
+  /** Login & Registo: textos, cores, botões sociais e testemunhos. */
+  @IsOptional() @IsObject() authConfig?: Record<string, unknown>;
 }
 
 /** Atualização de um plano (preço em Kz + apresentação) pelo Super Admin. */

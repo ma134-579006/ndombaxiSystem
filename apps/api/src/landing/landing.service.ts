@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LandingConfig, Plan, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { IntegrationsService } from '../integrations/integrations.service';
 import type { UpdateLandingDto, UpdatePlanDto } from './dto/landing.dto';
 
 /** Funcionalidades por defeito mostradas na landing (editáveis pelo Super Admin). */
@@ -28,7 +29,10 @@ const DEFAULT_HERO_IMAGES = [
  */
 @Injectable()
 export class LandingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly integrations: IntegrationsService,
+  ) {}
 
   /** Lê a config (cria a default com features na primeira leitura). */
   async get(): Promise<LandingConfig> {
@@ -45,7 +49,7 @@ export class LandingService {
   /** Atualização parcial pelo Super Admin. */
   async update(dto: UpdateLandingDto): Promise<LandingConfig> {
     const current = await this.get();
-    const { features, ads, heroImages, ...rest } = dto;
+    const { features, ads, heroImages, authConfig, ...rest } = dto;
     return this.prisma.landingConfig.update({
       where: { id: current.id },
       data: {
@@ -53,6 +57,7 @@ export class LandingService {
         ...(features !== undefined ? { features: features as unknown as Prisma.InputJsonValue } : {}),
         ...(ads !== undefined ? { ads: ads as unknown as Prisma.InputJsonValue } : {}),
         ...(heroImages !== undefined ? { heroImages: heroImages as unknown as Prisma.InputJsonValue } : {}),
+        ...(authConfig !== undefined ? { authConfig: sanitizeAuthConfig(authConfig) as unknown as Prisma.InputJsonValue } : {}),
       },
     });
   }
@@ -77,7 +82,7 @@ export class LandingService {
   }
 
   /** Pacote completo para a landing pública (config + planos visíveis). */
-  async getPublicLanding(): Promise<{ config: LandingConfig; plans: Plan[]; agtCertificate: string | null }> {
+  async getPublicLanding(): Promise<{ config: LandingConfig; plans: Plan[]; agtCertificate: string | null; facebookAppId: string | null }> {
     const [config, plans, agt] = await Promise.all([
       this.get(),
       this.listPublicPlans(),
@@ -85,6 +90,51 @@ export class LandingService {
       this.prisma.agtFiscalConfig.findFirst({ select: { softwareCertificateNumber: true } }).catch(() => null),
     ]);
     const n = agt?.softwareCertificateNumber?.trim();
-    return { config, plans, agtCertificate: n && n !== '0' ? n : null };
+    // App ID PÚBLICO do Facebook Login (só quando a integração está ligada e tem segredo).
+    const fb = await this.integrations.getActive('FACEBOOK_LOGIN').catch(() => null);
+    const fbId = String(fb?.settings?.appId ?? '').trim();
+    return { config, plans, agtCertificate: n && n !== '0' ? n : null, facebookAppId: fb && fb.secret && fbId ? fbId : null };
   }
+}
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const str = (v: unknown, max: number): string | undefined => (typeof v === 'string' ? v.trim().slice(0, max) : undefined);
+const col = (v: unknown): string | undefined => (typeof v === 'string' && HEX.test(v.trim()) ? v.trim() : undefined);
+const bool = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined);
+const clean = <T extends Record<string, unknown>>(o: T): T => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
+
+/** Botão social (Google/Facebook) do login e do registo. */
+function socialBtn(v: unknown) {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  return clean({ enabled: bool(o.enabled), label: str(o.label, 40), bg: col(o.bg), color: col(o.color), border: col(o.border) });
+}
+
+/**
+ * Valida a configuração do login/registo vinda do Super Admin: só campos
+ * conhecidos, cores #rrggbb, textos com limite e até 8 testemunhos (foto como
+ * URL https ou data-URI de imagem até ~300 KB).
+ */
+export function sanitizeAuthConfig(v: Record<string, unknown>) {
+  const t = Array.isArray(v.testimonials) ? v.testimonials.slice(0, 8) : [];
+  return clean({
+    primary: col(v.primary),
+    pageBg: col(v.pageBg),
+    linkColor: col(v.linkColor),
+    sideFrom: col(v.sideFrom),
+    sideTo: col(v.sideTo),
+    registerTitle: str(v.registerTitle, 80),
+    registerSubtitle: str(v.registerSubtitle, 120),
+    optInLabel: str(v.optInLabel, 140),
+    showNif: bool(v.showNif),
+    google: socialBtn(v.google),
+    facebook: socialBtn(v.facebook),
+    testimonials: t.map((x) => {
+      const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+      const photo = str(o.photoUrl, 400_000);
+      return clean({
+        text: str(o.text, 300) ?? '', name: str(o.name, 60) ?? '', company: str(o.company, 60),
+        photoUrl: photo && (/^https:\/\//.test(photo) || /^data:image\/(png|jpe?g|webp);base64,/.test(photo)) ? photo : undefined,
+      });
+    }).filter((x) => x.text && x.name),
+  });
 }

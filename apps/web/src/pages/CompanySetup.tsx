@@ -4,7 +4,7 @@ import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { BankAccount, PublicPlan } from '../api/types';
 import { IconBuilding, IconCard, IconImage, IconLogout, IconCheck } from '../components/Icons';
-import { LoginShowcase } from '../components/LoginShowcase';
+import { lookVars, useAuthPublic } from './vendusAuth';
 import { ScreenKeyboard } from '../components/ScreenKeyboard';
 import { LOGO_WIDE } from '../brand';
 
@@ -20,6 +20,7 @@ import { LOGO_WIDE } from '../brand';
  */
 export function CompanySetup({ onDone }: { onDone(): void }) {
   const { logout } = useAuth();
+  const pub = useAuthPublic();
   const [step, setStep] = useState<'pay' | 'data'>('pay');
   // Período de TESTE GRÁTIS: se já existe uma subscrição ativa válida (trial),
   // não se pede pagamento — vai direto aos dados da empresa.
@@ -40,11 +41,11 @@ export function CompanySetup({ onDone }: { onDone(): void }) {
   const payDone = trial || step === 'data';
 
   return (
-    <div className="auth auth-scroll">
+    <div className="va va-setup" style={lookVars(pub?.look)}>
       <ScreenKeyboard />
-      <div className="auth-panel">
-        <div className="auth-form">
-          <img className="auth-logo-wide" src={LOGO_WIDE} alt="LPS Vendas" />
+      <div className="va-login">
+        <div className="va-col">
+          <img className="va-logo" src={LOGO_WIDE} alt="LPS Vendas" />
           <div className="auth-brandhead">
             <div className="ic"><IconBuilding size={26} /></div>
             <div>
@@ -80,7 +81,6 @@ export function CompanySetup({ onDone }: { onDone(): void }) {
           </p>
         </div>
       </div>
-      <div className="auth-media"><LoginShowcase /></div>
     </div>
   );
 }
@@ -279,6 +279,8 @@ function DataStep({ onDone, onBack }: { onDone(): void; onBack?: () => void }) {
   const [err, setErr] = useState<string | null>(null);
   const [touched, setTouched] = useState<{ name?: boolean; nif?: boolean }>({});
   const fileRef = useRef<HTMLInputElement>(null);
+  // NIF já indicado no registo: vem preenchido.
+  useEffect(() => { api.onboarding.setupStatus().then((s) => { if (s.nif) setNif((v) => v || s.nif!); }).catch(() => undefined); }, []);
 
   // Validação em tempo real
   const nameOk = name.trim().length >= 2;

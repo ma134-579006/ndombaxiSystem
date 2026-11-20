@@ -96,6 +96,9 @@ model LandingConfig {
   // Dias do período de TESTE GRÁTIS dado a cada nova empresa (editável pelo
   // Super Admin). Ao fim destes dias a empresa é bloqueada até renovar.
   trialDays       Int      @default(14)
+  // Login e registo (estilo Vendus): textos, cores, botões Google/Facebook e
+  // testemunhos da coluna azul. JSON livre validado no serviço.
+  authConfig      Json     @default("{}")
   updatedAt       DateTime @updatedAt
 
   @@map("landing_config")

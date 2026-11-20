@@ -11,7 +11,7 @@ import {
   IconDatabase, IconDownload, IconGauge, IconGear, IconHeadset, IconHistory, IconLedger, IconMail,
   IconMessage, IconPercent, IconPlug, IconReceipt, IconReport, IconSparkles,
   IconStore, IconTag, IconTrendUp, IconTruck, IconUpload, IconUsers, IconWallet, IconLock,
-  IconActivity, IconBag, IconBars, IconFolder, IconShieldCheck, IconUserGroup,
+  IconActivity, IconBag, IconBars, IconFolder, IconShieldCheck, IconUserGroup, IconUser,
 } from './components/Icons';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
@@ -87,6 +87,7 @@ const PlansAdmin = lazyRetry(() => import('./sections/PlansAdmin').then((m) => (
 const SubsAdmin = lazyRetry(() => import('./sections/SubsAdmin').then((m) => ({ default: m.SubsAdmin })));
 const PlatformDashboard = lazyRetry(() => import('./sections/PlatformDashboard').then((m) => ({ default: m.PlatformDashboard })));
 const Integrations = lazyRetry(() => import('./sections/Integrations').then((m) => ({ default: m.Integrations })));
+const AuthScreensAdmin = lazyRetry(() => import('./sections/AuthScreensAdmin').then((m) => ({ default: m.AuthScreensAdmin })));
 const KwanzaPayoutsAdmin = lazyRetry(() => import('./sections/KwanzaPayoutsAdmin').then((m) => ({ default: m.KwanzaPayoutsAdmin })));
 const SecurityAdmin = lazyRetry(() => import('./sections/SecurityAdmin').then((m) => ({ default: m.SecurityAdmin })));
 const MailSettings = lazyRetry(() => import('./sections/MailSettings').then((m) => ({ default: m.MailSettings })));
@@ -106,6 +107,7 @@ const PLATFORM_NAV: NavItem[] = [
   { key: 'support', label: 'Suporte do site', icon: IconHeadset },
   { key: 'feedback', label: 'Comentários do site', icon: IconMessage },
   { key: 'plans', label: 'Planos & Página inicial', icon: IconTag },
+  { key: 'auth-screens', label: 'Login & Registo', icon: IconUser },
   { key: 'ai', label: 'Inteligência Artificial', icon: IconSparkles },
   { key: 'fiscal', label: 'Fiscal (AGT)', icon: IconShieldCheck },
   { key: 'gateways', label: 'Gateways de Pagamento', icon: IconBank },
@@ -235,6 +237,7 @@ function PlatformPanel() {
       {section === 'support' ? <SupportAdmin /> : null}
       {section === 'feedback' ? <FeedbackAdmin /> : null}
       {section === 'plans' ? <PlansAdmin /> : null}
+      {section === 'auth-screens' ? <AuthScreensAdmin onOpenIntegrations={() => setSection('integrations')} /> : null}
       {section === 'ai' ? <Ai /> : null}
       {section === 'fiscal' ? <Fiscal /> : null}
       {section === 'gateways' ? <Gateways /> : null}

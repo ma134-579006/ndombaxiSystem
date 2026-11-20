@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsOptional, IsString, Length, Matches, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, Length, Matches, MinLength } from 'class-validator';
 import { PlanTier } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import { NIF_MESSAGE, NIF_REGEX, normalizeNif } from '../nif.service';
@@ -18,6 +18,23 @@ export class RegisterSimpleDto {
   @IsOptional()
   @IsString()
   googleIdToken?: string;
+
+  /** Access token do Facebook (alternativa ao email/password). */
+  @IsOptional()
+  @IsString()
+  facebookAccessToken?: string;
+
+  /** NIF da empresa (opcional no registo; senão pede-se no setup). */
+  @IsOptional()
+  @Transform(({ value }) => (value ? normalizeNif(value) : undefined))
+  @IsString()
+  @Matches(NIF_REGEX, { message: NIF_MESSAGE })
+  nif?: string;
+
+  /** Aceita receber novidades e campanhas. */
+  @IsOptional()
+  @IsBoolean()
+  marketingOptIn?: boolean;
 
   @IsEnum(PlanTier)
   planTier!: PlanTier;

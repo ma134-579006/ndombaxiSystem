@@ -563,6 +563,9 @@ export const api = {
   /** Login do gestor com Google (ID token); a empresa vem do e-mail Google. */
   loginGoogle: (idToken: string, companyCode?: string) =>
     request<TenantTokenPair>('POST', '/auth/login/google', { companyCode, idToken }, { auth: false }),
+  /** Login do gestor com Facebook (access token do SDK). */
+  loginFacebook: (accessToken: string, companyCode?: string) =>
+    request<TenantTokenPair>('POST', '/auth/login/facebook', { companyCode, accessToken }, { auth: false }),
   /** Esqueci a senha — envia link de recuperação por e-mail. */
   forgotPassword: (email: string, companyCode?: string) =>
     request<{ ok: boolean; emailConfigured: boolean }>('POST', '/auth/forgot-password', { email, kind: 'PASSWORD', companyCode }, { auth: false }),
@@ -753,11 +756,11 @@ export const api = {
   registerCompany: (input: RegisterCompanyInput) =>
     request<RegisterCompanyResult>('POST', '/onboarding/register', input, { auth: false }),
   // Registo simples (email+senha OU Google) + setup obrigatório
-  registerSimple: (input: { email?: string; password?: string; googleIdToken?: string; planTier: string; businessType?: string }) =>
+  registerSimple: (input: { email?: string; password?: string; googleIdToken?: string; facebookAccessToken?: string; nif?: string; marketingOptIn?: boolean; planTier: string; businessType?: string }) =>
     request<{ tokens: TokenPair; companyCode: string; setupCompleted: boolean }>('POST', '/onboarding/register-simple', input, { auth: false }),
   onboarding: {
     myPlan: () => request<{ planId: string; planName: string; priceKz: number; tier?: string } | null>('GET', '/onboarding/my-plan'),
-    setupStatus: () => request<{ setupCompleted: boolean; status: string; approved: boolean; expired: boolean; expiresAt: string | null }>('GET', '/onboarding/setup-status'),
+    setupStatus: () => request<{ setupCompleted: boolean; status: string; approved: boolean; expired: boolean; expiresAt: string | null; nif?: string | null }>('GET', '/onboarding/setup-status'),
     completeSetup: (dto: { name: string; companyCode?: string; nif: string; logoUrl?: string }) =>
       request<{ ok: true; companyCode: string }>('POST', '/onboarding/complete-setup', dto),
   },

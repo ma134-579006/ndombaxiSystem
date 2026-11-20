@@ -16,6 +16,7 @@ import { TwoFaService } from './twofa.service';
 import { TwoFactorService } from '../security/two-factor.service';
 import { TokenService, TokenPair } from './token.service';
 import { GoogleAuthService } from './google-auth.service';
+import { FacebookAuthService } from './facebook-auth.service';
 import { OfflineCredentialsService, type OfflineBundle } from './offline-credentials.service';
 import { MailService } from '../common/mail/mail.service';
 import { PlatformLoginDto, TenantLoginDto } from './dto/auth.dto';
@@ -46,6 +47,7 @@ export class AuthService {
     private readonly google: GoogleAuthService,
     private readonly mail: MailService,
     private readonly offlineCreds: OfflineCredentialsService,
+    private readonly facebook: FacebookAuthService,
   ) {}
 
   /**
@@ -451,13 +453,31 @@ export class AuthService {
   ): Promise<TokenPair & { companyCode: string; companyName: string }> {
     const profile = await this.google.verify(dto.idToken);
     if (!profile.email) throw new UnauthorizedException('Conta Google sem e-mail.');
+    return this.socialLogin('GOOGLE', profile.email, dto.companyCode, ctx);
+  }
 
+  /** Login com Facebook (access token do SDK): mesmas regras do Google. */
+  async facebookLogin(
+    dto: { companyCode?: string; accessToken: string },
+    ctx: RequestCtx,
+  ): Promise<TokenPair & { companyCode: string; companyName: string }> {
+    const profile = await this.facebook.verify(dto.accessToken);
+    return this.socialLogin('FACEBOOK', profile.email, dto.companyCode, ctx);
+  }
+
+  /** Entrada por conta externa já verificada (Google/Facebook): empresa pelo e-mail. */
+  private async socialLogin(
+    provider: 'GOOGLE' | 'FACEBOOK', email: string, companyCode: string | undefined, ctx: RequestCtx,
+  ): Promise<TokenPair & { companyCode: string; companyName: string }> {
+    const label = provider === 'GOOGLE' ? 'Google' : 'Facebook';
+    const profile = { email };
+    const dto = { companyCode };
     const company = await this.resolveCompany(dto.companyCode, profile.email);
     if (company.status === 'SUSPENDED' || company.status === 'CANCELLED') throw new ForbiddenException(`Empresa ${company.status.toLowerCase()}`);
 
     const user = await this.tenantUsers.findByEmail(company.schemaName, profile.email);
     if (!user || !user.is_active) {
-      throw new UnauthorizedException('Esta conta Google não está associada a nenhum utilizador desta empresa.');
+      throw new UnauthorizedException(`Esta conta ${label} não está associada a nenhum utilizador desta empresa.`);
     }
 
     await this.tenantUsers.markLoginSuccess(company.schemaName, user.id);
@@ -471,11 +491,11 @@ export class AuthService {
       tenantId: company.id,
       tenantSchema: company.schemaName,
       storeId: user.store_id ?? undefined,
-      twoFaVerified: !user.two_fa_enabled, // Google já é 2º fator forte
+      twoFaVerified: !user.two_fa_enabled, // Google/Facebook já é 2º fator forte
     };
     await this.audit.record({
       actorType: 'TENANT', actorId: user.id, tenantSchema: company.schemaName,
-      action: 'LOGIN_SUCCESS_GOOGLE', entity: 'User', entityId: user.id, ip: ctx.ip,
+      action: `LOGIN_SUCCESS_${provider}`, entity: 'User', entityId: user.id, ip: ctx.ip,
     });
     const pair = await this.tokens.issuePair(payload, ctx);
     return { ...pair, companyCode: company.code, companyName: company.name };
