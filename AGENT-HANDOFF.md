@@ -129,3 +129,10 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - **Temas**: só Claro (padrão), Profissional, Grafite, Meia-noite (`meianoite`); chave `ndombaxi.theme.v2`; preferência vazia/retirada → Claro (API e clientes).
 - QA: `qa/login-social.mjs` (17), `qa/assistente-boas-vindas.mjs` (12); `kwanza-compra` KP-3 segue a morada opcional.
 - **Depende do utilizador:** App ID/App Secret do Facebook; autorizar o deploy hook do Render (o auto-deploy não dispara — publicar à mão em Manual Deploy). "Validar NIF" só valida o formato (não há API pública da AGT para obter o nome).
+
+
+## Auditoria fiscal AGT (2026-11-21, ramo fiscal/auditoria-agt)
+- Dossier completo em `docs/compliance/` (AUDITORIA-FISCAL-ANGOLA.md = relatório; MATRIZ-REQUISITOS-AGT.md = fontes e classificação; BLOQUEIOS-AGT.md = o que falta).
+- Corrigido: replicação de faturas validada; gatilhos de imutabilidade/TRUNCATE/auditoria (`apps/api/src/tenancy/fiscal-guards.ts`, aplicados no arranque); empresa com documentos não se elimina; cliente gravado na emissão (`invoices.customer_name`); NIF validado; TMP não emite; produção subscrita sem chave Modelo 8 não emite; art. 17.º (60 dias sem comunicar bloqueia a emissão); E09 reconciliado; recolha FE já não perde a 1.ª factura; SAF-T validado no XSD (`packages/agt-xml/xsd`) + `GET /pos/saft/validate`; NIF do produtor (Super Admin → Fiscal).
+- Testes: `qa/agt-fe-simulacao.mjs` (simulador AGT `qa/agt-fe-mock.mjs`; API com `AGT_FE_BASE_URL`, só fora de produção), `qa/fiscal-imutabilidade.mjs`, `qa/fiscal-emissao.mjs`.
+- Falta (nosso): recibos RC (FE + SAF-T Payments), contingência art. 18.º e séries C dos postos locais, SAF-T Contabilidade (não há contabilidade). Externo: credenciais Basic, registo produtor/software, nº de validação, chaves dos contribuintes.

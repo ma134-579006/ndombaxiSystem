@@ -497,6 +497,11 @@
 .admin .content .fx-tabs, .admin .content .seg { border-radius: 4px !important; background: transparent !important; border: 1px solid var(--border); padding: 0 !important; gap: 0 !important; overflow: hidden; box-shadow: none !important; }
 .admin .content .fx-tabs button, .admin .content .seg button { border-radius: 0 !important; height: 36px; padding: 0 14px; border-right: 1px solid var(--border) !important; box-shadow: none !important; background: var(--surface) !important; color: var(--text) !important; transition: background var(--vd-fast), color var(--vd-fast); }
 .admin .content .fx-tabs button:last-child, .admin .content .seg button:last-child { border-right: 0 !important; }
+/* Zero scroll lateral: em ecrãs estreitos os separadores quebram linha (antes
+   ficavam cortados/escondidos dentro da faixa). */
+.admin .content .fx-tabs, .admin .content .seg { flex-wrap: wrap; overflow: visible; max-width: 100%; }
+.admin .content .fx-tabs button, .admin .content .seg button { max-width: 100%; white-space: normal; }
+.admin .content .fx-card .btn { max-width: 100%; white-space: normal; }
 .admin .content .fx-tabs button.on, .admin .content .fx-tabs button[aria-selected=true], .admin .content .seg button.on, .admin .content .seg button.active { background: var(--primary) !important; color: #fff !important; }
 .admin .content .chip { border-radius: 4px !important; }
 .admin .content .chip.active, .admin .content .chip.on { background: var(--primary) !important; color: #fff !important; border-color: var(--primary) !important; }
@@ -672,8 +677,8 @@
 }
 @media (max-width: 860px) {
   :is(.admin .content > .page-anim, .admin .content > .page-anim > div):has(> .fx-tabs.inv-tabs) { display: block; }
-  :is(.admin .content > .page-anim, .admin .content > .page-anim > div) > .fx-tabs.inv-tabs { flex-direction: row; overflow-x: auto; position: static; min-height: 0; padding: 0 !important; border-right: 1px solid var(--border) !important; border-radius: 4px !important; margin-bottom: 12px; }
-  :is(.admin .content > .page-anim, .admin .content > .page-anim > div) > .fx-tabs.inv-tabs button { white-space: nowrap; border-left: 0 !important; border-bottom: 3px solid transparent !important; }
+  :is(.admin .content > .page-anim, .admin .content > .page-anim > div) > .fx-tabs.inv-tabs { flex-direction: row; flex-wrap: wrap; overflow: visible; position: static; min-height: 0; padding: 0 !important; border-right: 1px solid var(--border) !important; border-radius: 4px !important; margin-bottom: 12px; }
+  :is(.admin .content > .page-anim, .admin .content > .page-anim > div) > .fx-tabs.inv-tabs button { flex: 1 1 auto; white-space: normal; border-left: 0 !important; border-bottom: 3px solid transparent !important; }
   :is(.admin .content > .page-anim, .admin .content > .page-anim > div) > .fx-tabs.inv-tabs button.on { border-bottom-color: var(--primary) !important; }
 }
 

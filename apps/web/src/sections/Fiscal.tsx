@@ -64,6 +64,8 @@ export function Fiscal() {
       const dto: UpdateAgtInput = {
         environment: cfg.environment,
         softwareCertificateNumber: cfg.softwareCertificateNumber,
+        producerTaxId: (cfg.producerTaxId ?? '').trim(),
+        producerName: cfg.producerName ?? '',
         productId: cfg.productId,
         productVersion: cfg.productVersion,
         sourceId: cfg.sourceId,
@@ -170,6 +172,8 @@ export function Fiscal() {
                   <option value="PRODUCTION">Produção</option>
                 </select>
               </div>
+              <div className="field"><label>NIF do produtor do software</label><input inputMode="numeric" value={cfg.producerTaxId ?? ''} onChange={(e) => set('producerTaxId', e.target.value)} /></div>
+              <div className="field"><label>Produtor do software</label><input value={cfg.producerName ?? ''} onChange={(e) => set('producerName', e.target.value)} /></div>
               <div className="field"><label>Nº de validação AGT</label><input value={cfg.softwareCertificateNumber} onChange={(e) => set('softwareCertificateNumber', e.target.value)} /></div>
               <div className="field"><label>ProductID</label><input value={cfg.productId} onChange={(e) => set('productId', e.target.value)} /></div>
               <div className="field"><label>Versão do produto</label><input value={cfg.productVersion} onChange={(e) => set('productVersion', e.target.value)} /></div>
