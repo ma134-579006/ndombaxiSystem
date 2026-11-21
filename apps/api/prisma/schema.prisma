@@ -500,6 +500,10 @@ model AgtFiscalConfig {
   subscribedAt              DateTime?
   environment               String    @default("TEST") // TEST | PRODUCTION
   softwareCertificateNumber String    @default("0") // nº de validação atribuído pela AGT
+  // PRODUTOR do software (SAF-T Header/ProductCompanyTaxID = NIF da entidade
+  // produtora; Portal do Parceiro → registo do software). Vazio = por configurar.
+  producerTaxId             String    @default("")
+  producerName              String    @default("")
   productId                 String    @default("Ndombaxi System/Ndombaxi") // ProductID SAF-T
   productVersion            String    @default("3.0.0")
   sourceId                  String    @default("Ndombaxi")

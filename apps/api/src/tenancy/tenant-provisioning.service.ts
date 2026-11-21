@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService, assertValidSchemaName } from '../prisma/prisma.service';
+import { fiscalGuardStatements } from './fiscal-guards';
 
 /**
  * Divide um ficheiro SQL em statements (parser SIMPLES: strip de comentários
@@ -105,6 +106,24 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
     }
     this.logger.log(`Tenant schema provisioned: ${schema} (${statements.length} template + ${migOk}/${migrations.length} migrações)`);
     await this.ensureForeignKeyIndexes(schema);
+    await this.ensureFiscalGuards(schema);
+  }
+
+  /**
+   * Gatilhos fiscais (ver fiscal-guards.ts). Best-effort por statement, mas as
+   * falhas ficam a WARN: sem eles a imutabilidade fica só nas regras.
+   */
+  async ensureFiscalGuards(schema: string): Promise<number> {
+    assertValidSchemaName(schema);
+    let failed = 0;
+    for (const stmt of fiscalGuardStatements(schema)) {
+      try { await this.prisma.$executeRawUnsafe(stmt); }
+      catch (err) {
+        failed += 1;
+        this.logger.warn(`guarda fiscal falhou (${schema}): ${err instanceof Error ? err.message.split('\n')[0].slice(0, 200) : 'erro'}`);
+      }
+    }
+    return failed;
   }
 
   /**
@@ -142,6 +161,7 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
     }
     await this.fixInvoiceItemsProductFk(schema);
     await this.ensureForeignKeyIndexes(schema);
+    failed += await this.ensureFiscalGuards(schema);
     // Só regista "alinhado" se NADA falhou: com falhas, o próximo arranque tenta de novo.
     if (failed === 0) await this.storeSchemaHash(schema, hash);
     return { applied, failed };
@@ -152,6 +172,8 @@ export class TenantProvisioningService implements OnApplicationBootstrap {
     const h = createHash('sha256');
     h.update(`logic:${SCHEMA_LOGIC_VERSION}\n`);
     for (const f of ['tenant_template.sql', 'tenant_migrations.sql']) h.update(readFileSync(this.resolvePrismaFile(f)));
+    // Os gatilhos fiscais também fazem parte do alinhamento (mudam → realinha).
+    h.update(fiscalGuardStatements('{{SCHEMA}}').join(';\n'));
     return h.digest('hex');
   }
 

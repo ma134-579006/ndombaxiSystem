@@ -5,7 +5,11 @@ import {
   FiscalDocument,
   InvoiceLineComputed,
   IvaCode,
+  validateSaftSemantics,
+  validateSaftXsd,
   writeSaftXml,
+  type SemanticIssue,
+  type XsdIssue,
 } from '@nexus/agt-xml';
 import { signedEntryDate } from '../common/luanda-date';
 import { AgtConfigService } from '../fiscal/agt-config.service';
@@ -86,12 +90,13 @@ export class SaftService {
     // Clientes com NIF no período — nomes reais para o MasterFiles/Customer.
     const custRows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<{ tax_id: string; name: string; address: string | null }[]>(
-        Prisma.sql`SELECT DISTINCT c.tax_id, c.name, c.address
-                   FROM customers c
-                   WHERE c.tax_id IS NOT NULL AND c.tax_id <> ''
-                     AND EXISTS (SELECT 1 FROM invoices i
-                                 WHERE i.customer_tax_id = c.tax_id
-                                   AND i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date)`,
+        // Nome DA EMISSÃO (gravado na factura; documentos antigos caem na ficha).
+        Prisma.sql`SELECT DISTINCT ON (i.customer_tax_id) i.customer_tax_id AS tax_id,
+                          COALESCE(i.customer_name, c.name, 'Desconhecido') AS name, c.address
+                   FROM invoices i LEFT JOIN customers c ON c.id = i.customer_id
+                   WHERE i.customer_tax_id IS NOT NULL AND i.customer_tax_id <> ''
+                     AND i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date
+                   ORDER BY i.customer_tax_id, i.system_entry_date DESC`,
       ),
     ).catch(() => [] as { tax_id: string; name: string; address: string | null }[]);
 
@@ -145,6 +150,38 @@ export class SaftService {
       software,
       documents: this.iterateDocuments(schema, start, end),
     });
+  }
+
+  /**
+   * Relatório de validação do SAF-T de um mês ANTES da entrega: estrutura (XSD
+   * SAFTAO1.01_01, libxml2) + conteúdo (sequências, totais, IVA, NIF,
+   * referências) + configuração do produtor/software. Cada problema indica o
+   * elemento/documento, a regra e a causa.
+   */
+  async validateMonth(tenantId: string, schema: string, year: number, month: number): Promise<{
+    period: string; documents: number; xsd: { valid: boolean; issues: XsdIssue[] };
+    semantic: SemanticIssue[]; configuration: string[]; valid: boolean;
+  }> {
+    const xml = await this.exportMonth(tenantId, schema, year, month);
+    const start = `${year}-${String(month).padStart(2, '0')}-01`;
+    const end = `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
+    const docs: FiscalDocument[] = [];
+    for await (const d of this.iterateDocuments(schema, start, end)) {
+      docs.push(d);
+      if (docs.length > 200_000) break;
+    }
+    const xsd = await validateSaftXsd(xml);
+    const semantic = validateSaftSemantics(docs, { startDate: start, endDate: end });
+    const sw = await this.agtConfig.getSaftSoftware();
+    const configuration: string[] = [];
+    if (!sw.producerTaxId?.trim()) configuration.push('NIF do produtor do software por configurar (ProductCompanyTaxID usa o NIF da empresa).');
+    if (!sw.softwareCertificateNumber || sw.softwareCertificateNumber === '0') configuration.push('Nº de validação do software (SoftwareValidationNumber) ainda "0".');
+    return {
+      period: `${start}..${end}`, documents: docs.length,
+      xsd: { valid: xsd.valid, issues: xsd.issues.slice(0, 100) },
+      semantic: semantic.slice(0, 500), configuration,
+      valid: xsd.valid && semantic.length === 0,
+    };
   }
 
   /** Versão em string (testes / períodos pequenos): junta as partes. */

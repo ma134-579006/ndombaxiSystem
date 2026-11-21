@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   BadRequestException,
   Injectable,
   NotFoundException,
@@ -264,6 +265,15 @@ export class TenantsService {
   /** Excluir empresa com limpeza completa do schema (§2.2). */
   async remove(id: string, ctx: ActorCtx) {
     const company = await this.get(id);
+    // Conservação legal (DP 71/25): documentos fiscais emitidos não podem ser
+    // destruídos. O DROP SCHEMA ... CASCADE apagava-os todos. Empresa com
+    // faturas só se suspende.
+    const fiscal = await this.prisma.$queryRawUnsafe<{ n: number }[]>(
+      `SELECT COUNT(*)::int AS n FROM "${company.schemaName}"."invoices"`,
+    ).catch(() => [{ n: 0 }]);
+    if ((fiscal[0]?.n ?? 0) > 0) {
+      throw new ConflictException(`A empresa tem ${fiscal[0].n} documento(s) fiscal(is) emitido(s) e não pode ser eliminada; suspenda-a.`);
+    }
     await this.provisioning.dropTenantSchema(company.schemaName);
     await this.prisma.refreshToken.deleteMany({
       where: { tenantSchema: company.schemaName },

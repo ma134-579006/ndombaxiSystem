@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import {
+  buildConsultarFactura,
   buildListarSeries,
   buildObterEstado,
   buildRegistarFactura,
@@ -27,6 +28,8 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const CFG_KEY = 'AGT_FE';
 const MAX_ATTEMPTS = 6;
+/** DP 71/25, art. 17.º — dias de falha de comunicação até bloquear a emissão. */
+export const COMMUNICATION_BLOCK_DAYS = 60;
 const TICK_MS = 60_000;
 /** Tipos que uma empresa tem de ter em série AGT antes de activar a FE. */
 const REQUIRED_TYPES = ['FT', 'FR', 'NC'] as const;
@@ -59,6 +62,8 @@ export interface FeSettings {
   signatureVersion: number;
   softwarePublicKey?: string;
   enabled: boolean;
+  /** "typ" do header JWS — a documentação oficial contradiz-se (JWT no texto, JOSE nos exemplos). */
+  jwsTyp?: 'JWT' | 'JOSE';
 }
 interface FeSecrets {
   basicPassword?: string;
@@ -182,7 +187,7 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
       softwareKeyFingerprint: settings.softwarePublicKey
         ? createHash('sha256').update(settings.softwarePublicKey).digest('hex')
         : null,
-      baseUrl: FE_BASE_URL[settings.environment],
+      baseUrl: this.baseUrl(settings.environment),
       ready: this.isReady(settings, secrets),
     };
   }
@@ -201,6 +206,7 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     if (dto.productVersion !== undefined) next.productVersion = dto.productVersion.trim();
     if (dto.softwareValidationNumber !== undefined) next.softwareValidationNumber = dto.softwareValidationNumber.trim();
     if (dto.enabled !== undefined) next.enabled = dto.enabled;
+    if (dto.jwsTyp === 'JWT' || dto.jwsTyp === 'JOSE') next.jwsTyp = dto.jwsTyp;
     if (dto.basicPassword) secrets.basicPassword = dto.basicPassword;
     if (next.enabled && !this.isReady(next, secrets)) {
       throw new BadRequestException(
@@ -269,6 +275,8 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
       /** Tipos obrigatórios sem série AGT para o ano corrente (com a FE activa, a venda desses tipos é recusada). */
       missingSeries: missing,
       documents: byStatus,
+      /** Comunicação: documento mais antigo por validar, dias e documentos parados (tentativas esgotadas). */
+      communication: { ...(await this.communicationBacklog(companyId)), blockAfterDays: COMMUNICATION_BLOCK_DAYS },
     };
   }
 
@@ -330,6 +338,7 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     if (!company) return null;
     const row = await this.prisma.einvoiceCompany.findUnique({ where: { companyId: company.id } });
     if (!row?.enabled) return null;
+    await this.assertCommunicationWithin60Days(company.id);
     const { settings } = await this.loadConfig();
     const code = envSeries(row.series, settings.environment)[`${feType}-${year}`];
     if (code) return code;
@@ -342,6 +351,32 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
       if (opts.strict === false) return null;
       throw new BadRequestException(
         `Facturação Electrónica activa mas sem série AGT ${feType} ${year}. Peça a série no Super Admin › Facturação Electrónica (${why}).`,
+      );
+    }
+  }
+
+  /**
+   * DP 71/25, art. 17.º: se a comunicação com a AGT falhar por mais de 60 dias,
+   * o sistema bloqueia a emissão de novas facturas. Conta-se a partir do
+   * documento mais antigo AINDA NÃO validado pela AGT (por enviar, em erro ou
+   * enviado sem resposta).
+   */
+  async communicationBacklog(companyId: string): Promise<{ oldestPendingAt: Date | null; days: number; elapsedMs: number; stuck: number }> {
+    const oldest = await this.prisma.einvoiceDocument.findFirst({
+      where: { companyId, status: { in: ['QUEUED', 'SENDING', 'ERROR', 'SENT'] } },
+      orderBy: { createdAt: 'asc' }, select: { createdAt: true },
+    });
+    const stuck = await this.prisma.einvoiceDocument.count({ where: { companyId, status: 'ERROR', attempts: { gte: MAX_ATTEMPTS } } });
+    const elapsedMs = oldest ? Date.now() - oldest.createdAt.getTime() : 0;
+    return { oldestPendingAt: oldest?.createdAt ?? null, days: Math.floor(elapsedMs / 86_400_000), elapsedMs, stuck };
+  }
+
+  private async assertCommunicationWithin60Days(companyId: string): Promise<void> {
+    const b = await this.communicationBacklog(companyId);
+    // "mais de 60 dias": tempo exacto (60 dias e 1 hora já excede), não dias inteiros.
+    if (b.elapsedMs > COMMUNICATION_BLOCK_DAYS * 86_400_000) {
+      throw new ForbiddenException(
+        `Emissão bloqueada: há documentos por comunicar à AGT há mais de ${b.days} dias (máximo ${COMMUNICATION_BLOCK_DAYS}, DP 71/25 art. 17.º). Regularize a comunicação na Facturação Electrónica.`,
       );
     }
   }
@@ -400,12 +435,22 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
         },
         softwarePrivateKeyPem: secrets.softwarePrivateKey!,
         taxpayerPrivateKeyPem: decryptSecret(row.taxpayerKeyEnc, this.encKey),
+        jwsTyp: settings.jwsTyp ?? 'JWT',
       },
     };
   }
 
+  /**
+   * Endereço da AGT. `AGT_FE_BASE_URL` só é aceite FORA de produção — serve para
+   * apontar a um simulador local (qa/agt-fe-mock.mjs) nos testes de conformidade.
+   */
+  private baseUrl(env: FeEnvironment): string {
+    const o = process.env.AGT_FE_BASE_URL?.trim();
+    return o && process.env.NODE_ENV !== 'production' ? o.replace(/\/+$/, '') : FE_BASE_URL[env];
+  }
+
   private async call(settings: FeSettings, secrets: FeSecrets, service: string, body: object): Promise<CallResult> {
-    const url = `${FE_BASE_URL[settings.environment]}/${service}`;
+    const url = `${this.baseUrl(settings.environment)}/${service}`;
     const auth = Buffer.from(`${settings.basicUser}:${secrets.basicPassword}`).toString('base64');
     const res = await fetch(url, {
       method: 'POST',
@@ -476,7 +521,11 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     const rows = await this.prisma.runInTenant(company.schemaName, (tx) =>
       tx.$queryRaw<{ id: string; number: string }[]>(
         Prisma.sql`SELECT i.id::text AS id, i.number FROM invoices i
-                   WHERE i.doc_type IN ('FT','FS','NC','ND') AND i.system_entry_date >= ${cfg.enabledFrom}
+                   -- Todo o documento numa série AGT tem de ser comunicado. Antes filtrava-se
+                   -- também por system_entry_date >= enabledFrom: a data de entrada é truncada
+                   -- ao segundo e a 1.ª factura emitida no segundo da activação ficava de fora
+                   -- para sempre (encontrado pela simulação qa/agt-fe-simulacao.mjs).
+                   WHERE i.doc_type IN ('FT','FS','NC','ND')
                      AND split_part(split_part(i.number, ' ', 2), '/', 1) IN (${Prisma.join([...codes])})
                      AND NOT EXISTS (SELECT 1 FROM nexus_public.einvoice_documents d
                                      WHERE d."companyId" = ${companyId}::uuid AND d."documentNo" = i.number)
@@ -515,7 +564,7 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
         }[]
       >(
         Prisma.sql`SELECT i.id::text AS id, i.number, i.doc_type, i.invoice_date, i.system_entry_date, i.signable_string, i.customer_tax_id,
-                          c.name AS customer_name, i.net_total, i.iva_total, i.gross_total, s.number AS source_number,
+                          COALESCE(i.customer_name, c.name) AS customer_name, i.net_total, i.iva_total, i.gross_total, s.number AS source_number,
                           (SELECT COALESCE(NULLIF(a.details->>'reason', ''),
                                            CASE a.action WHEN 'SALE_RETURNED' THEN 'Devolução de mercadoria' ELSE 'Anulação do documento' END)
                              FROM tenant_audit_log a
@@ -647,6 +696,11 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
       for (const e of errs) (e.documentNo ? perDoc.set(e.documentNo, [...(perDoc.get(e.documentNo) ?? []), e]) : global.push(e));
       for (const v of valid) {
         const own = [...(perDoc.get(v.q.documentNo) ?? []), ...global];
+        if (own.length && isDuplicateOnly(own)) {
+          // Já registado na AGT (reenvio): confirma o estado real em vez de o dar por inválido.
+          await this.reconcileDuplicate(ctx, settings, secrets, v.q.id, v.q.documentNo);
+          continue;
+        }
         await this.prisma.einvoiceDocument.update({
           where: { id: v.q.id },
           data: { status: own.length ? 'INVALID' : 'ERROR', errors: (own.length ? own : [{ code: 'E99', message: 'Rejeitado sem detalhe' }]) as object, attempts: { increment: 1 }, lastAttemptAt: new Date() },
@@ -658,6 +712,26 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     // 401/403/422/429/5xx: tenta de novo mais tarde.
     await this.bumpAttempts(valid.map((v) => v.q.id), `HTTP ${r.status}`);
     return { sent: 0, invalid, deferred: valid.length };
+  }
+
+  /** consultarFactura: V/P → VALID, I → INVALID; sem resposta conclusiva → ERROR (E09) para nova tentativa. */
+  private async reconcileDuplicate(ctx: FeSigningContext, settings: FeSettings, secrets: FeSecrets, id: string, documentNo: string): Promise<void> {
+    let st: string | null = null;
+    try {
+      const r = await this.call(settings, secrets, 'consultarFactura', buildConsultarFactura(ctx, documentNo));
+      const res = (r.json.statusResult ?? r.json.statusFEResult ?? r.json) as Record<string, unknown>;
+      st = r.status === 200 ? String(res.validationStatus ?? res.documentStatus ?? '') : null;
+    } catch { st = null; }
+    if (st === 'V' || st === 'P') {
+      await this.prisma.einvoiceDocument.update({ where: { id }, data: { status: 'VALID', errors: Prisma.DbNull, lastAttemptAt: new Date() } });
+    } else if (st === 'I') {
+      await this.prisma.einvoiceDocument.update({ where: { id }, data: { status: 'INVALID', errors: [{ code: 'E09', message: 'Já registado na AGT e inválido (consultarFactura).' }] as object } });
+    } else {
+      await this.prisma.einvoiceDocument.update({
+        where: { id },
+        data: { status: 'ERROR', attempts: { increment: 1 }, lastAttemptAt: new Date(), errors: [{ code: 'E09', message: 'Já existe na AGT; estado por confirmar (consultarFactura).' }] as object },
+      });
+    }
   }
 
   private async bumpAttempts(ids: string[], message: string): Promise<void> {
@@ -701,7 +775,10 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
       for (const d of list) {
         if (!d.documentNo) continue;
         seen.add(d.documentNo);
-        const ok = d.documentStatus === 'V' || d.documentStatus === 'P';
+        // E09 = "documento já existe": já foi validado noutro pedido (successRequestID)
+        // — típico de um reenvio depois de uma resposta perdida. Não é rejeição.
+        const dup = isDuplicateOnly(d.errorList);
+        const ok = d.documentStatus === 'V' || d.documentStatus === 'P' || dup;
         await this.prisma.einvoiceDocument.updateMany({
           where: { companyId, documentNo: d.documentNo },
           data: { status: ok ? 'VALID' : 'INVALID', errors: ok ? Prisma.DbNull : ((d.errorList ?? []) as object) },
@@ -763,4 +840,13 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
     });
     return { requeued: r.count };
   }
+}
+
+/** Só o erro E09 ("documento já existe") — o documento já está registado na AGT. */
+export function isDuplicateOnly(errors: unknown): boolean {
+  if (!Array.isArray(errors) || errors.length === 0) return false;
+  return errors.every((e) => {
+    const o = (e ?? {}) as Record<string, unknown>;
+    return String(o.code ?? o.errorCode ?? o.idError ?? '') === 'E09';
+  });
 }

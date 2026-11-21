@@ -2490,7 +2490,8 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn
 .fx-card-h { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
 .fx-card-h h3 { margin: 0; font-size: 16px; font-family: var(--nx-font-title, inherit); font-weight: 650; }
 .fx-card-h p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; max-width: 66ch; }
-.fx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 16px; }
+.fx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 4px 16px; }
+.fx-grid > .field, .fx-grid input, .fx-grid select { min-width: 0; max-width: 100%; }
 .fx-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
 .fx-note { display: flex; gap: 10px; padding: 12px 14px; border-radius: 11px; background: var(--primary-soft); font-size: 13px; line-height: 1.55; margin-bottom: 14px; }
 .fx-note.bad { background: color-mix(in srgb, #dc2626 9%, transparent); border: 1px solid color-mix(in srgb, #dc2626 26%, transparent); }

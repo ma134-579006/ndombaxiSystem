@@ -15,6 +15,7 @@ export class UpdateFeConfigDto {
   @IsOptional() @IsString() @Length(0, 40) productVersion?: string;
   @IsOptional() @IsString() @Length(0, 40) softwareValidationNumber?: string;
   @IsOptional() @IsBoolean() enabled?: boolean;
+  @IsOptional() @IsIn(['JWT', 'JOSE']) jwsTyp?: 'JWT' | 'JOSE';
 }
 
 export class ProvisionKeyDto {

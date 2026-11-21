@@ -5,6 +5,7 @@ import {
   type ReplicationTier, type Version,
 } from '@nexus/replication';
 import { PrismaService, assertValidSchemaName } from '../prisma/prisma.service';
+import { checkReplicatedInvoice, checkReplicatedItem, type LastInSeries } from './fiscal-replication.guard';
 
 /**
  * REPLICAÇÃO — a nuvem a receber o que os postos fizeram sem internet.
@@ -138,6 +139,46 @@ export class ReplicationService {
     if (!ok[0]) throw new ForbiddenException('entrada de stock sem venda anulada/devolvida associada');
   }
 
+  private async guardInvoice(schema: string, d: Record<string, unknown>): Promise<void> {
+    // Reenvio de uma fatura que já cá está (o posto repete o lote): não se valida
+    // de novo — o INSERT seguinte não faz nada e responde "já existia".
+    const exists = await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+      `SELECT id::text FROM "${schema}"."invoices" WHERE id::text = $1 LIMIT 1`, String(d.id ?? ''),
+    );
+    if (exists[0]?.id) return;
+    const last = (await this.prisma.$queryRawUnsafe<LastInSeries[]>(
+      `SELECT sequence, to_char(invoice_date, 'YYYY-MM-DD') AS invoice_date FROM "${schema}"."invoices"
+        WHERE doc_type = $1 AND series = $2 AND year = $3::int
+        ORDER BY sequence DESC LIMIT 1`,
+      String(d.doc_type ?? ''), String(d.series ?? ''), Number(d.year) || 0,
+    ))[0] ?? null;
+    const today = new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 10); // Luanda = UTC+1
+    const errs = checkReplicatedInvoice(d, last ? { sequence: Number(last.sequence), invoice_date: last.invoice_date } : null, today);
+    if (errs.length) throw new ForbiddenException(`fatura recusada: ${errs.join('; ')}`);
+  }
+
+  private async insertItemGuarded(schema: string, inserir: string, json: string, row: IncomingRow): Promise<number> {
+    const errs = checkReplicatedItem(row.data);
+    if (errs.length) throw new ForbiddenException(`linha recusada: ${errs.join('; ')}`);
+    return this.prisma.$transaction(async (tx) => {
+      const inv = (await tx.$queryRawUnsafe<{ series: string; net_total: string }[]>(
+        `SELECT series, net_total::text FROM "${schema}"."invoices" WHERE id = $1::uuid FOR UPDATE`, String(row.data.invoice_id),
+      ))[0];
+      if (!inv) throw new ForbiddenException('linha recusada: fatura inexistente');
+      if (!/^L[A-Z0-9]{3}$/.test(inv.series)) throw new ForbiddenException('linha recusada: a fatura não é de um posto local');
+      const ins = await tx.$executeRawUnsafe(inserir, json, row.id);
+      if (ins > 0) {
+        const sum = (await tx.$queryRawUnsafe<{ s: string }[]>(
+          `SELECT COALESCE(SUM(net_amount), 0)::text AS s FROM "${schema}"."invoice_items" WHERE invoice_id = $1::uuid`, String(row.data.invoice_id),
+        ))[0];
+        if (Number(sum?.s ?? 0) > Number(inv.net_total) + 0.011) {
+          throw new ForbiddenException('linha recusada: as linhas ultrapassam o total da fatura');
+        }
+      }
+      return ins;
+    });
+  }
+
   private async applyOne(schema: string, row: IncomingRow): Promise<ApplyOutcome> {
     const klass = classify(row.table);
     if (!canPushFromDevice(row.table)) {
@@ -173,7 +214,16 @@ export class ReplicationService {
       const inserir = `INSERT INTO ${t} (${lista}) SELECT ${lista} FROM json_populate_record(NULL::${t}, $1::json)
          WHERE NOT EXISTS (SELECT 1 FROM ${t} WHERE id::text = $2)`;
       let n: number;
-      if (row.table === 'stock_movements') {
+      if (row.table === 'invoices') {
+        // Fatura vinda do posto: só entra se for coerente (série do posto,
+        // número, totais, datas e sequência face à última da mesma série).
+        await this.guardInvoice(schema, row.data);
+        n = await this.prisma.$executeRawUnsafe(inserir, json, row.id);
+      } else if (row.table === 'invoice_items') {
+        // Linha: só para faturas de série de posto e sem ultrapassar o total
+        // líquido do cabeçalho (impede acrescentar linhas a faturas emitidas).
+        n = await this.insertItemGuarded(schema, inserir, json, row);
+      } else if (row.table === 'stock_movements') {
         // Movimento de stock NOVO vindo do posto: aplica-o ao saldo da loja e ao
         // total do produto, como o StockService faz numa venda na nuvem. Sem isto
         // o stock da nuvem só acertava quando um administrador subia a linha do

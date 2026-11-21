@@ -156,6 +156,7 @@ export class AgtConfigService {
       taxEntity: c.taxEntity,
       sourceId: c.sourceId,
       saftVersion: c.saftVersion,
+      producerTaxId: c.producerTaxId,
     };
   }
 

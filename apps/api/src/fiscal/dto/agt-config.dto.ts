@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 
@@ -47,6 +48,18 @@ export class UpdateAgtConfigDto {
   @IsOptional()
   @IsIn(AGT_ENVIRONMENTS as unknown as string[])
   environment?: AgtEnvironment;
+
+  /** NIF da entidade PRODUTORA do software (SAF-T ProductCompanyTaxID). Vazio = por configurar. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^(|\d{9}|\d{10}|\d{9}[A-Z]{2}\d{3})$/, { message: 'NIF do produtor inválido' })
+  producerTaxId?: string;
+
+  /** Designação legal do produtor do software. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 200)
+  producerName?: string;
 
   /** Nº de validação atribuído pela AGT na certificação do software. */
   @IsOptional()

@@ -30,6 +30,13 @@ function fake(existing: Record<string, unknown> | null = null) {
   return { svc: new ReplicationService(prisma as unknown as PrismaService), executed };
 }
 
+/** Fatura completa e coerente de um posto local (série L…). */
+const fatura = (over: Record<string, unknown> = {}) => ({
+  id: 'f1', number: 'FT L1A2026/0001', doc_type: 'FT', series: 'L1A2', year: 2026, sequence: 1,
+  invoice_date: '2026-01-15', net_total: 100, iva_total: 14, gross_total: 114,
+  status: 'N', doc_state: 'ISSUED', hash: 'h', signable_string: 's', ...over,
+});
+
 function row(over: Partial<IncomingRow> = {}): IncomingRow {
   return {
     table: 'products',
@@ -89,7 +96,7 @@ describe('ReplicationService — o que um posto PODE escrever na nuvem', () => {
 describe('ReplicationService — documentos fiscais são IMUTÁVEIS', () => {
   it('uma fatura NOVA entra', async () => {
     const { svc, executed } = fake(null);
-    const [r] = await svc.push(SCHEMA, [row({ table: 'invoices', data: { id: 'f1', number: 'FT A1/1' } })]);
+    const [r] = await svc.push(SCHEMA, [row({ table: 'invoices', data: fatura({ number: 'FT L1A22026/0001' }) })]);
     expect(r.applied).toBe(true);
     const ins = executed.find((e) => e.sql.includes('invoices'));
     expect(ins?.sql).toContain('WHERE NOT EXISTS');
@@ -99,7 +106,7 @@ describe('ReplicationService — documentos fiscais são IMUTÁVEIS', () => {
     // Esta é a barreira que impede um posto de adulterar o histórico fiscal.
     const { svc, executed } = fake({ id: 'f1', number: 'FT A1/1', gross_total: 1000 });
     const [r] = await svc.push(SCHEMA, [
-      row({ table: 'invoices', data: { id: 'f1', number: 'FT A1/1', gross_total: 999999 } }),
+      row({ table: 'invoices', data: fatura({ number: 'FT L1A22026/0001', gross_total: 999999 }) }),
     ]);
     expect(r.applied).toBe(false);
     expect(r.reason).toMatch(/não se reescrevem/);
@@ -268,7 +275,7 @@ describe('ReplicationService — descida da nuvem para o posto', () => {
 describe('ReplicationService — cada papel só replica o que já pode fazer', () => {
   it('o CAIXA sobe vendas (só entram, nunca reescrevem)', async () => {
     const { svc } = fake(null);
-    const [r] = await svc.push(SCHEMA, [row({ table: 'invoices', data: { id: 'f1', number: 'FT L1A2026/1' } })], 'sales');
+    const [r] = await svc.push(SCHEMA, [row({ table: 'invoices', data: fatura({ number: 'FT L1A22026/0001' }) })], 'sales');
     expect(r.applied).toBe(true);
   });
 

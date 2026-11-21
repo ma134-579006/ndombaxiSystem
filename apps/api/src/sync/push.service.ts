@@ -198,7 +198,7 @@ export class PushService {
       const deviceSeries = await this.devices.seriesFor(schema, typeof p.deviceKey === 'string' ? p.deviceKey : null);
       const invoice = await this.invoices.emit(schema, {
         docType: p.docType === DocumentType.FS ? DocumentType.FS : DocumentType.FT,
-        series: localSeries() ?? deviceSeries ?? (typeof p.series === 'string' && /^[A-Z0-9]{1,5}$/.test(p.series) ? p.series : 'A'),
+        series: localSeries() ?? deviceSeries ?? (typeof p.series === 'string' && /^[A-Z0-9]{1,5}$/.test(p.series) && !/^L[A-Z0-9]{3}$/.test(p.series) && p.series !== 'WEB' ? p.series : 'A'),
         customerId: (p.customerId as string) ?? null,
         cashierId: user.sub,
         cashierName: user.name ?? user.email,
@@ -210,7 +210,8 @@ export class PushService {
         // A data fiscal é a de HOJE (lei), mas registamos a data REAL em que o
         // cliente comprou. Uma venda feita na sexta e sincronizada na segunda
         // não passa a ser uma venda de segunda nos relatórios de operação.
-        operationDate: (p.operationDate as string) ?? op.createdAt.slice(0, 10),
+        // Validada: data real, não futura, do último ano (aceitava '1900-01-01').
+        operationDate: safeOperationDate((p.operationDate as string) ?? op.createdAt?.slice(0, 10)),
         clientOpId: op.opId, // ← 1.ª camada: unicidade imposta pelo Postgres
         // Venda que vem da fila do posto JÁ ACONTECEU sem rede: regista-se mesmo com stock
         // desatualizado (como no POST /pos/invoices com offline:true), em vez de ficar presa.
@@ -576,4 +577,13 @@ export class PushService {
       this.logger.warn(`livro de operações não gravado (${op.opId}): ${(e as Error).message}`);
     }
   }
+}
+
+/** Data da operação de uma venda offline: AAAA-MM-DD real, não futura, do último ano; senão null. */
+export function safeOperationDate(v: unknown, now = Date.now()): string | null {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const d = new Date(`${v}T00:00:00Z`);
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) return null;
+  if (d.getTime() > now + 86_400_000 || d.getTime() < now - 366 * 86_400_000) return null;
+  return v;
 }

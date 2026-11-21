@@ -1171,6 +1171,8 @@ export interface AgtConfig {
   subscribedAt: string | null;
   environment: string;
   softwareCertificateNumber: string;
+  producerTaxId: string;
+  producerName: string;
   productId: string;
   productVersion: string;
   sourceId: string;
@@ -1200,6 +1202,8 @@ export interface PlatformSigningStatus {
 export interface UpdateAgtInput {
   environment?: string;
   softwareCertificateNumber?: string;
+  producerTaxId?: string;
+  producerName?: string;
   productId?: string;
   productVersion?: string;
   sourceId?: string;

@@ -7,7 +7,7 @@
  * corrupção silenciosa de dados se esconde — e seria descoberta meses depois,
  * num relatório que não bate certo.
  */
-import { Client } from 'pg';
+import { Client, types as pgTypes } from 'pg';
 import type { SqlRunner } from './provision';
 
 export interface RunnerHandle {
@@ -32,6 +32,10 @@ export interface RunnerHandle {
  * abrir uma ligação por linha seria mais lento do que a própria cópia.
  */
 export async function openRunner(connectionUrl: string): Promise<RunnerHandle> {
+  // DATE (oid 1082) chega como TEXTO "AAAA-MM-DD". Por omissão o `pg` cria um
+  // Date à meia-noite LOCAL e o JSON sobe-o em UTC: em Luanda (UTC+1) a data de
+  // emissão das faturas chegava à nuvem com UM DIA A MENOS.
+  pgTypes.setTypeParser(1082, (v: string) => v);
   const client = new Client({ connectionString: connectionUrl });
   await client.connect();
   return {
