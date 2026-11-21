@@ -256,3 +256,12 @@ describe('forma real da resposta Vendus', () => {
     expect(subOk({ subscription_active: '2000-01-01' }).active).toBe(false);
   });
 });
+
+import { vendusErrorMessage as vem } from './vendus.client';
+describe('mensagens de erro do Vendus', () => {
+  it('message como objecto (errors_full) fica legível', () => {
+    expect(vem({ errors: [{ code: 'A001', message: { items: 'Product reference not found', register_id: 'invalid' } }] }, 'x')).toBe('A001 items: Product reference not found; register_id: invalid');
+    expect(vem({ errors: [{ code: 'A001', message: ['a', { b: 'c' }] }] }, 'x')).toBe('A001 a; b: c');
+    expect(vem({ errors: [{ code: 'A001', message: 'AUTH' }] }, 'x')).toBe('A001 AUTH');
+  });
+});
