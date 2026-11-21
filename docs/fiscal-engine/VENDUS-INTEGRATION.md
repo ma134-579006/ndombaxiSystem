@@ -67,6 +67,24 @@ e com a **mesma taxa** do código LPS (NOR 14 %, INT 7 %, RED 5 %, ISE/OUT 0 %).
   LPS tem outro NIF (por exemplo, um provisório). Se for diferente do NIF da empresa, é
   pedida uma confirmação explícita e a alteração fica auditada.
 
+## Caixa unificada (confirmado na conta real)
+
+`POST /documents/` responde **"Register's type must be [API] and it is not"** quando a
+caixa é do tipo `pos`. Por isso todas as caixas do LPS de uma empresa emitem por **uma
+única caixa do tipo API** da conta Vendus:
+
+- se a caixa escolhida não for API, o teste de ligação passa a usar a caixa API da conta;
+- se a conta não tiver nenhuma caixa API, aparece **"Caixa Vendus não é do tipo API"**.
+  Nesse caso é preciso criar uma caixa do tipo API no Backoffice Vendus.
+
+## Ligação partilhada (opcional, só para o mesmo contribuinte)
+
+Empresas do LPS com o **mesmo NIF do contribuinte** (lojas ou estabelecimentos da mesma
+entidade) podem usar uma só ligação Vendus. Para isso usa-se **"Usar a ligação Vendus
+de"**, que copia a chave cifrada no servidor, e depois **"Testar ligação"**. A operação é
+recusada quando os NIF são diferentes. **Não existe NIF único da plataforma:** cada
+factura identifica o contribuinte que vende (DP 71/25, art. 22.º).
+
 ## Limitações encontradas na especificação
 
 | Limitação | Efeito no LPS |

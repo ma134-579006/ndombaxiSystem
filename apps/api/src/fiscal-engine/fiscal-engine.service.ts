@@ -415,6 +415,35 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     return this.companyDetail(companyId);
   }
 
+  /**
+   * Reutiliza a ligação Vendus de outra empresa do MESMO contribuinte (mesmo NIF): copia a
+   * chave cifrada no servidor (ninguém a volta a escrever), a caixa e os mapas. Recusado se
+   * o NIF do contribuinte da empresa destino não for o NIF da conta Vendus de origem.
+   */
+  async copyLinkFrom(companyId: string, sourceCompanyId: string, actor: Actor) {
+    if (companyId === sourceCompanyId) throw new BadRequestException('Escolha outra empresa');
+    const [co, src] = await Promise.all([this.companyById(companyId), this.link(sourceCompanyId)]);
+    if (!src?.apiKeyEnc || !src.lastTestOk || !src.accountFiscalId) throw new ConflictException('A empresa de origem não tem uma ligação Vendus testada');
+    const target = await this.ensureLink(companyId);
+    if (target.engine === 'VENDUS' && target.activatedAt) throw new ConflictException('Suspenda o motor antes de trocar a ligação');
+    const nif = nifFor(target, co.nif);
+    if (!sameNif(src.accountFiscalId, nif)) {
+      throw new ConflictException(`A conta Vendus de origem é do NIF ${src.accountFiscalId}; o NIF do contribuinte desta empresa é ${nif}. Só empresas do mesmo contribuinte partilham a ligação`);
+    }
+    await this.prisma.fiscalEngineCompany.update({
+      where: { companyId },
+      data: {
+        apiKeyEnc: src.apiKeyEnc, apiKeyMask: src.apiKeyMask, apiKeySetAt: new Date(),
+        accountId: src.accountId, accountCompany: src.accountCompany, accountFiscalId: src.accountFiscalId, accountCountry: src.accountCountry, accountAddress: src.accountAddress,
+        storeId: src.storeId, registerId: src.registerId, registerTitle: src.registerTitle, registerType: src.registerType, registerSubscription: src.registerSubscription, registerExpires: src.registerExpires,
+        paymentMap: src.paymentMap as Prisma.InputJsonValue, taxMap: src.taxMap as Prisma.InputJsonValue,
+        lastTestOk: false, lastTestCode: '', lastTestMessage: '', testsPassedAt: null,
+      },
+    });
+    await this.audit.record({ actorType: 'PLATFORM', actorId: actor.id ?? null, action: 'FISCAL_ENGINE_LINK_COPIED', entity: 'fiscal_engine_company', entityId: companyId, after: { from: sourceCompanyId, accountFiscalId: src.accountFiscalId, apiKeyMask: src.apiKeyMask } });
+    return this.companyDetail(companyId);
+  }
+
   async removeApiKey(companyId: string, actor: Actor) {
     const l = await this.link(companyId);
     if (!l) return this.companyDetail(companyId);
@@ -491,8 +520,26 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
         exemptions: (Array.isArray(exemptions.data) ? exemptions.data : []).map((e: any) => ({ id: e.id, text: e.text })),
         paymentMethods: (Array.isArray(pays.data) ? pays.data : []).map((p: any) => ({ id: String(p.id), title: p.title, type: p.type })),
       };
-      if (code === 'OK' && l.registerId) {
-        const reg = await api.register(l.registerId);
+      // CAIXA UNIFICADA: a API do Vendus só emite numa caixa do tipo API ("Register's type
+      // must be [API]", confirmado na conta real). Todas as caixas do LPS emitem por essa
+      // única caixa API da conta. Se a escolhida não for API, usa-se a caixa API da conta.
+      const regList: any[] = Array.isArray(regs.data) ? regs.data : [];
+      const isApi = (r: any) => String(r?.type ?? '').toLowerCase() === 'api';
+      let registerId = l.registerId;
+      const chosen = regList.find((r) => String(r.id) === registerId);
+      if (!registerId || (chosen && !isApi(chosen))) {
+        const apiReg = regList.find((r) => isApi(r) && String(r.status ?? 'on').toLowerCase() !== 'off');
+        if (apiReg) {
+          registerId = String(apiReg.id);
+          data.registerId = registerId;
+          data.testsPassedAt = null;
+        } else if (code === 'OK') {
+          code = 'CAIXA_NAO_API';
+          message = 'A conta Vendus não tem nenhuma caixa do tipo API. No Backoffice Vendus crie uma caixa do tipo API: o LPS emite por ela em todas as suas caixas';
+        }
+      }
+      if (code === 'OK' && registerId) {
+        const reg = await api.register(registerId);
         if (!reg.ok) {
           code = reg.error!.code === 'NAO_ENCONTRADO' ? 'CAIXA_INEXISTENTE' : reg.error!.code;
           message = reg.error!.message;
@@ -506,7 +553,11 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
           data.storeId = String(r.store_id ?? l.storeId);
           if (!sub.active) {
             code = 'SUBSCRICAO_INACTIVA';
-            message = `A caixa ${r.title ?? l.registerId} não tem subscrição activa`;
+            message = `A caixa ${r.title ?? registerId} não tem subscrição activa`;
+          } else if (String(r.type ?? '').toLowerCase() !== 'api') {
+            // Confirmado na conta real: POST /documents/ responde "Register's type must be [API]".
+            code = 'CAIXA_NAO_API';
+            message = `A caixa ${r.title ?? registerId} é do tipo ${r.type || '—'}; a API do Vendus só emite numa caixa do tipo API (criar no Backoffice Vendus)`;
           }
         }
       }
@@ -579,7 +630,10 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
       VALUES (${id}::uuid, 'TEST', ${body.tx_id}, ${body.external_reference}, 'tests', 'A_PREPARAR', ${JSON.stringify(body)}::jsonb)`);
     const res = await this.dispatch(co.schemaName, id, co);
     const ok = res.state === 'CRIADO_NO_VENDUS' && !!res.pdf;
-    if (ok) await this.prisma.fiscalEngineCompany.update({ where: { companyId }, data: { testsPassedAt: new Date() } });
+    await this.prisma.fiscalEngineCompany.update({
+      where: { companyId },
+      data: ok ? { testsPassedAt: new Date(), lastTestMessage: '' } : { lastTestMessage: `Teste de emissão (modo Formação): ${res.error ?? res.state}`.slice(0, 500) },
+    });
     await this.audit.record({ actorType: 'PLATFORM', actorId: actor.id ?? null, action: 'FISCAL_ENGINE_TESTS_RUN', entity: 'fiscal_engine_company', entityId: companyId, after: { ok, state: res.state, number: res.number, error: res.error } });
     return { ok, document: res, detail: await this.companyDetail(companyId) };
   }

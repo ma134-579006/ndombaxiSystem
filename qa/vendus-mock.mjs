@@ -57,6 +57,7 @@ export function startVendusMock({ port = 3997, apiKey }) {
         if (c.apiKey) st.apiKey = c.apiKey;
         if (c.account) Object.assign(st.account, c.account);
         if (c.register) Object.assign(st.registers[0], c.register);
+        if (c.addRegister && !st.registers.some((r) => r.id === c.addRegister.id)) st.registers.push(c.addRegister);
         return send(200, { ok: true });
       }
       if (u.searchParams.has('api_key')) st.urlKeyLeak = true;
@@ -104,6 +105,8 @@ export function startVendusMock({ port = 3997, apiKey }) {
       }
       if (path === 'documents' && req.method === 'POST') {
         if (mode === 'reject') { entry.status = 422; return send(422, { errors: [{ code: 'D010', message: 'Dados do documento inválidos (simulado)' }] }); }
+        const regType = st.registers.find((r) => String(r.id) === String(body.register_id))?.type;
+        if (regType !== 'api') { entry.status = 422; return send(422, { errors: [{ code: 'A001', message: "Register's type must be [API] and it is not. Please edit this register using your backoffice." }] }); }
         if (!Array.isArray(body.items) || !body.items.length) return send(422, { errors: [{ message: 'items obrigatório' }] });
         for (const it of body.items) {
           if (!Number.isInteger(it.qty)) return send(422, { errors: [{ message: 'qty' }] });

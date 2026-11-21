@@ -912,6 +912,7 @@ export const api = {
     evidence: (id: string) => requestBlob(`/super-admin/fiscal-engine/evidence/${id}`),
     company: (id: string) => request<FiscalEngineCompanyDetail>('GET', `/super-admin/fiscal-engine/company/${id}`),
     saveKey: (id: string, apiKey: string) => request<FiscalEngineCompanyDetail>('PUT', `/super-admin/fiscal-engine/company/${id}/api-key`, { apiKey }),
+    copyFrom: (id: string, sourceCompanyId: string) => request<FiscalEngineCompanyDetail>('POST', `/super-admin/fiscal-engine/company/${id}/copy-from`, { sourceCompanyId }),
     removeKey: (id: string) => request<FiscalEngineCompanyDetail>('DELETE', `/super-admin/fiscal-engine/company/${id}/api-key`),
     test: (id: string) => request<FiscalEngineCompanyDetail & { test: { ok: boolean; code: string; message: string }; catalog: FiscalEngineCatalog }>('POST', `/super-admin/fiscal-engine/company/${id}/test`, {}),
     configure: (id: string, dto: Record<string, unknown>) => request<FiscalEngineCompanyDetail>('PATCH', `/super-admin/fiscal-engine/company/${id}`, dto),

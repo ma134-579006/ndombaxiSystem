@@ -12,6 +12,7 @@ export const INDICATOR: Record<string, { t: string; c: 'ok' | 'off' | 'bad' }> =
   CREDENCIAIS_INVALIDAS: { t: 'Credenciais inválidas', c: 'bad' },
   CONTA_DIFERENTE: { t: 'Conta Vendus de outro contribuinte', c: 'bad' },
   SUBSCRICAO_INACTIVA: { t: 'Subscrição inactiva', c: 'bad' },
+  CAIXA_NAO_API: { t: 'Caixa Vendus não é do tipo API', c: 'bad' },
   SERVICO_INDISPONIVEL: { t: 'Serviço indisponível', c: 'bad' },
   CONTA_IDENTIFICADA: { t: 'Conta identificada', c: 'off' },
   CONFIGURACAO_FISCAL_PENDENTE: { t: 'Configuração fiscal pendente', c: 'off' },
@@ -28,7 +29,7 @@ const CHECK_LABEL: Record<string, string> = {
   ligacao: 'Ligação testada',
   conta: 'Conta do mesmo NIF',
   pais: 'Conta de Angola (AO)',
-  caixa: 'Caixa com subscrição activa',
+  caixa: 'Caixa do tipo API com subscrição activa',
   fe_vendus: 'Factura Electrónica configurada no Vendus',
   validade: 'Validação AGT do fornecedor confirmada',
   testes: 'Testes em modo Formação concluídos',
@@ -68,6 +69,7 @@ export function FiscalEngineAdmin() {
   const [key, setKey] = useState('');
   const [reg, setReg] = useState('');
   const [tnif, setTnif] = useState('');
+  const [src, setSrc] = useState('');
   const [pay, setPay] = useState<Record<string, string>>({});
 
   const fill = (o: FiscalEngineOverview) => {
@@ -304,6 +306,20 @@ export function FiscalEngineAdmin() {
               <div><small>Impostos AO reconhecidos</small><b>{Object.entries(link?.taxMap ?? {}).map(([a, b]) => `${a}→${b}`).join(' · ') || 'nenhum'}</b></div>
               <div><small>Impostos da conta</small><b>{cat.taxes.map((t) => `${t.id} ${t.rate}% ${t.country}`).join(' · ') || '—'}</b></div>
               <div><small>Motivos de isenção</small><b>{cat.exemptions.map((x) => x.id).join(' · ') || '—'}</b></div>
+            </div>
+          ) : null}
+          {ov && ov.companies.some((c) => c.id !== cid && c.nif === co.company.nif) ? (
+            <div className="fx-grid" style={{ alignItems: 'end' }}>
+              <div className="field">
+                <label>Usar a ligação Vendus de</label>
+                <select value={src} onChange={(e) => setSrc(e.target.value)}>
+                  <option value="">Escolher…</option>
+                  {ov.companies.filter((c) => c.id !== cid && c.nif === co.company.nif).map((c) => <option key={c.id} value={c.id}>{c.name} · NIF {c.nif}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <button className="btn ghost" disabled={busy || !src} onClick={() => void guard(async () => { await applyCompany(await api.fiscalEngine.copyFrom(cid, src)); setSrc(''); }, 'Ligação copiada. Teste a ligação.')}>Usar esta ligação</button>
+              </div>
             </div>
           ) : null}
           <label className="fe-check">
