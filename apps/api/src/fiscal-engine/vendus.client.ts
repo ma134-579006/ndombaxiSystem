@@ -61,11 +61,28 @@ export function vendusErrorMessage(body: unknown, fallback: string): string {
   if (typeof body === 'string') return body.slice(0, 300) || fallback;
   const b = body as Record<string, any>;
   if (Array.isArray(b.errors) && b.errors.length) {
-    return b.errors.map((e: any) => (typeof e === 'string' ? e : [e.code, e.message ?? e.description].filter(Boolean).join(' '))).join('; ').slice(0, 500);
+    // Com errors_full=yes o Vendus devolve `message` como objecto (ex.: campo → texto).
+    return b.errors.map((e: any) => (typeof e === 'string' ? e : [e.code, flat(e.message ?? e.description ?? e.field ?? e)].filter(Boolean).join(' '))).join('; ').slice(0, 800);
   }
   if (typeof b.message === 'string') return b.message.slice(0, 300);
   if (typeof b.error === 'string') return b.error.slice(0, 300);
   return fallback;
+}
+
+/** Texto legível de um valor de erro (string, objecto ou lista), sem "[object Object]". */
+function flat(v: unknown): string {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (Array.isArray(v)) return v.map(flat).filter(Boolean).join('; ');
+  if (typeof v === 'object') {
+    return Object.entries(v as Record<string, unknown>)
+      .filter(([k]) => k !== 'code')
+      .map(([k, x]) => (/^\d+$/.test(k) ? flat(x) : `${k}: ${flat(x)}`))
+      .filter(Boolean)
+      .join('; ');
+  }
+  return String(v);
 }
 
 export function classifyStatus(status: number, body: unknown): VendusErrorCode {
