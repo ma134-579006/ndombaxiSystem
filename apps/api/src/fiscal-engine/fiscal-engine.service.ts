@@ -519,8 +519,12 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
       // MESMA taxa que o código do LPS (um "NOR" português a 23% nunca serve).
       const lpsRates: Record<string, number> = { NOR: 14, INT: 7, RED: 5, ISE: 0, OUT: 0 };
       const taxMap: Record<string, string> = {};
+      // Taxa 0% (ISE isento e OUT não sujeito): no Vendus/AGT ambos usam o imposto de 0%
+      // da conta (ISE) com o motivo de isenção da linha (M02, M10…).
+      const ao = taxList.filter((t: any) => String(t.country ?? '').toUpperCase() === 'AO');
       for (const [code0, rate] of Object.entries(lpsRates)) {
-        const hit = taxList.find((t: any) => String(t.country ?? '').toUpperCase() === 'AO' && Number(t.rate) === rate && (String(t.id) === code0 || rate > 0));
+        const same = ao.filter((t: any) => Number(t.rate) === rate);
+        const hit = rate > 0 ? same[0] : (same.find((t: any) => String(t.id) === code0) ?? same.find((t: any) => String(t.id) === 'ISE') ?? (same.length === 1 ? same[0] : undefined));
         if (hit) taxMap[code0] = String(hit.id);
       }
       data.taxMap = taxMap;
