@@ -7,6 +7,13 @@ import { createPublicKey, createSign, createVerify } from 'node:crypto';
  * canónico: sem quebras de linha, sem espaços, aspas duplas, números sem formatação.
  */
 
+/**
+ * Header do JWS. A documentação oficial (Portal do Parceiro, doc v2, "Estrutura")
+ * descreve {"alg":"RS256","typ":"JWT"}, mas os exemplos dessa mesma documentação
+ * descodificam para {"typ":"JOSE","alg":"RS256"} — contradição registada em
+ * docs/compliance/BLOQUEIOS-AGT.md. Por omissão "JWT"; configurável no painel.
+ */
+export type JwsTyp = 'JWT' | 'JOSE';
 export const JWS_HEADER = { alg: 'RS256', typ: 'JWT' } as const;
 export const MIN_FE_KEY_BITS = 2048;
 
@@ -19,8 +26,8 @@ export function canonicalJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export function signJws(payload: object, privateKeyPem: string): string {
-  const head = base64url(canonicalJson(JWS_HEADER));
+export function signJws(payload: object, privateKeyPem: string, typ: JwsTyp = 'JWT'): string {
+  const head = base64url(canonicalJson(typ === 'JOSE' ? { typ: 'JOSE', alg: 'RS256' } : JWS_HEADER));
   const body = base64url(canonicalJson(payload));
   const signer = createSign('RSA-SHA256');
   signer.update(`${head}.${body}`, 'utf8');

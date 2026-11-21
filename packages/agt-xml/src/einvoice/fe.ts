@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { signJws } from './jws';
+import { signJws, type JwsTyp } from './jws';
 import { round2 } from '../money';
 import type { InvoiceLineComputed, InvoiceTotals } from '../types';
 
@@ -46,6 +46,8 @@ export interface FeSigningContext {
   softwarePrivateKeyPem: string;
   /** Chave privada do CONTRIBUINTE (emitida pela AGT) — jwsDocumentSignature / jwsSignature. */
   taxpayerPrivateKeyPem: string;
+  /** "typ" do header JWS (ver jws.ts). Por omissão "JWT". */
+  jwsTyp?: JwsTyp;
 }
 
 export interface FeSourceLine
@@ -202,7 +204,7 @@ function envelope(ctx: FeSigningContext, extra: Record<string, unknown> = {}, wi
     softwareInfo: {
       softwareInfoDetail: { ...detail, signatureVersion: ctx.software.signatureVersion },
       // O payload assinado é o objecto softwareInfoDetail (productId, productVersion, softwareValidationNumber).
-      jwsSoftwareSignature: signJws(detail, ctx.softwarePrivateKeyPem),
+      jwsSoftwareSignature: signJws(detail, ctx.softwarePrivateKeyPem, ctx.jwsTyp),
     },
     ...extra,
   };
@@ -214,7 +216,7 @@ export function buildRegistarFactura(ctx: FeSigningContext, docs: FeSourceDocume
   if (docs.length > FE_MAX_DOCUMENTS) throw new Error(`Máximo de ${FE_MAX_DOCUMENTS} documentos por submissão.`);
   const documents = docs.map((d) => {
     const m = mapDocumentBody(d, ctx.taxRegistrationNumber);
-    return { ...m.body, jwsDocumentSignature: signJws(m.signedFields, ctx.taxpayerPrivateKeyPem) };
+    return { ...m.body, jwsDocumentSignature: signJws(m.signedFields, ctx.taxpayerPrivateKeyPem, ctx.jwsTyp) };
   });
   return envelope(ctx, { numberOfEntries: documents.length, documents });
 }
@@ -231,14 +233,16 @@ export function buildSolicitarSerie(
     establishmentNumber: p.establishmentNumber,
     seriesContingencyIndicator: indicator,
     jwsSignature: signJws(
+      // Ordem da tabela oficial (doc v2, solicitarSerie): NIF, ano, tipo, estabelecimento, contingência.
       {
         taxRegistrationNumber: ctx.taxRegistrationNumber,
-        establishmentNumber: p.establishmentNumber,
         seriesYear: p.seriesYear,
         documentType: p.documentType,
+        establishmentNumber: p.establishmentNumber,
         seriesContingencyIndicator: indicator,
       },
       ctx.taxpayerPrivateKeyPem,
+      ctx.jwsTyp,
     ),
   });
 }
@@ -254,7 +258,7 @@ export function buildListarSeries(
     {
       establishmentNumber,
       ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== undefined)),
-      jwsSignature: signJws({ taxRegistrationNumber: ctx.taxRegistrationNumber }, ctx.taxpayerPrivateKeyPem),
+      jwsSignature: signJws({ taxRegistrationNumber: ctx.taxRegistrationNumber }, ctx.taxpayerPrivateKeyPem, ctx.jwsTyp),
     },
     false,
   );
@@ -264,7 +268,7 @@ export function buildListarSeries(
 export function buildObterEstado(ctx: FeSigningContext, requestID: string) {
   return envelope(ctx, {
     requestID,
-    jwsSignature: signJws({ taxRegistrationNumber: ctx.taxRegistrationNumber, requestID }, ctx.taxpayerPrivateKeyPem),
+    jwsSignature: signJws({ taxRegistrationNumber: ctx.taxRegistrationNumber, requestID }, ctx.taxpayerPrivateKeyPem, ctx.jwsTyp),
   });
 }
 
@@ -272,7 +276,7 @@ export function buildObterEstado(ctx: FeSigningContext, requestID: string) {
 export function buildConsultarFactura(ctx: FeSigningContext, documentNo: string) {
   return envelope(ctx, {
     documentNo,
-    jwsSignature: signJws({ taxRegistrationNumber: ctx.taxRegistrationNumber, documentNo }, ctx.taxpayerPrivateKeyPem),
+    jwsSignature: signJws({ taxRegistrationNumber: ctx.taxRegistrationNumber, documentNo }, ctx.taxpayerPrivateKeyPem, ctx.jwsTyp),
   });
 }
 
