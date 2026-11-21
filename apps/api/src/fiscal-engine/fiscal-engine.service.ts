@@ -17,6 +17,10 @@ import {
   nextAttemptDelayMs,
   normNif,
   providerValidity,
+  readVendusAccount,
+  registerSubscriptionActive,
+  sameNif,
+  isAngola,
   type DocState,
   type EngineCode,
 } from './fiscal-engine.policy';
@@ -450,18 +454,21 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
       code = acc.error!.code;
       message = acc.error!.message;
     } else {
-      const a = (acc.data ?? {}) as Record<string, any>;
-      data.accountId = String(a.id ?? '');
-      data.accountCompany = String(a.company ?? '');
-      data.accountFiscalId = String(a.fiscal_id ?? '');
-      data.accountCountry = String(a.country ?? '').toUpperCase();
-      data.accountAddress = [a.address, a.postal_code, a.city].filter(Boolean).join(', ');
-      if (normNif(a.fiscal_id) !== normNif(co.nif)) {
+      const a = readVendusAccount(acc.data);
+      data.accountId = a.id;
+      data.accountCompany = a.company;
+      data.accountFiscalId = a.fiscalId;
+      data.accountCountry = a.country;
+      data.accountAddress = a.address;
+      if (!a.fiscalId) {
+        code = 'CONTA_SEM_NIF';
+        message = `O Vendus não devolveu o NIF da conta (campos recebidos: ${a.keys.join(', ') || 'nenhum'})`;
+      } else if (!sameNif(a.fiscalId, co.nif)) {
         code = 'NIF_DIFERENTE';
-        message = `A conta Vendus é do NIF ${a.fiscal_id ?? '—'}; a empresa no LPS tem o NIF ${co.nif}`;
-      } else if (String(a.country ?? '').toUpperCase() !== 'AO') {
+        message = `A conta Vendus é do NIF ${a.fiscalId}; a empresa no LPS tem o NIF ${co.nif}`;
+      } else if (!isAngola(a.country)) {
         code = 'PAIS_DIFERENTE';
-        message = `A conta Vendus é do país ${a.country ?? '—'}, não de Angola (AO)`;
+        message = `A conta Vendus é do país ${a.country || '—'}, não de Angola (AO)`;
       }
       const [regs, taxes, exemptions, pays, stores] = await Promise.all([api.registers(), api.taxes(), api.exemptions(), api.paymentMethods(), api.stores()]);
       const taxList = Array.isArray(taxes.data) ? taxes.data : [];
@@ -490,10 +497,11 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
           const r = reg.data as Record<string, any>;
           data.registerTitle = String(r.title ?? '');
           data.registerType = String(r.type ?? '');
-          data.registerSubscription = String(r.subscription_active ?? '');
+          const sub = registerSubscriptionActive(r);
+          data.registerSubscription = sub.active ? 'yes' : sub.raw || 'no';
           data.registerExpires = String(r.expires ?? '');
           data.storeId = String(r.store_id ?? l.storeId);
-          if (!isYes(r.subscription_active)) {
+          if (!sub.active) {
             code = 'SUBSCRICAO_INACTIVA';
             message = `A caixa ${r.title ?? l.registerId} não tem subscrição activa`;
           }
@@ -603,13 +611,17 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     let code = 'OK';
     let message = '';
     if (!acc.ok) { code = acc.error!.code; message = acc.error!.message; }
-    else if (normNif((acc.data as any)?.fiscal_id) !== normNif(co.nif)) { code = 'NIF_DIFERENTE'; message = 'A conta da API KEY já não corresponde ao NIF da empresa'; }
+    else if (!sameNif(readVendusAccount(acc.data).fiscalId, co.nif)) { code = 'NIF_DIFERENTE'; message = `A conta da API KEY (NIF ${readVendusAccount(acc.data).fiscalId || '—'}) não corresponde ao NIF da empresa (${co.nif})`; }
     else if (l.registerId) {
       const reg = await api.register(l.registerId);
       if (!reg.ok) { code = reg.error!.code; message = reg.error!.message; }
-      else if (!isYes((reg.data as any)?.subscription_active)) { code = 'SUBSCRICAO_INACTIVA'; message = 'Caixa Vendus sem subscrição activa'; }
+      else if (!registerSubscriptionActive((reg.data ?? {}) as Record<string, any>).active) { code = 'SUBSCRICAO_INACTIVA'; message = 'Caixa Vendus sem subscrição activa'; }
     }
     const data: Prisma.FiscalEngineCompanyUpdateInput = { health: { code, at: new Date().toISOString(), message } };
+    if (acc.ok) {
+      const a = readVendusAccount(acc.data);
+      Object.assign(data, { accountId: a.id, accountCompany: a.company, accountFiscalId: a.fiscalId, accountCountry: a.country, accountAddress: a.address });
+    }
     // Chave revogada, conta trocada ou subscrição caída: o teste deixa de valer → a
     // emissão fica suspensa (effectiveEngine) até novo teste com sucesso.
     if (['CHAVE_INVALIDA', 'NIF_DIFERENTE', 'SUBSCRICAO_INACTIVA', 'SEM_PERMISSAO'].includes(code)) {
