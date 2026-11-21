@@ -229,3 +229,30 @@ describe('cliente da API Vendus', () => {
     expect(() => new VendusClient({ baseUrl: 'https://x/ws', version: '2.0', apiKey: 'k' })).toThrow(/não suportada/);
   });
 });
+
+import { isAngola as isAO, readVendusAccount as readAcc, registerSubscriptionActive as subOk, sameNif as sameN } from './fiscal-engine.policy';
+describe('forma real da resposta Vendus', () => {
+  it('conta como objecto, lista ou envelope', () => {
+    expect(readAcc({ id: 1, company: 'X', fiscal_id: '5417000123', country: 'AO' }).fiscalId).toBe('5417000123');
+    expect(readAcc([{ id: 1, fiscal_id: '5417000123' }]).fiscalId).toBe('5417000123');
+    expect(readAcc({ account: { id: 1, nif: '5417000123' } }).fiscalId).toBe('5417000123');
+  });
+  it('tax_id da conta (taxa) nunca é lido como NIF; sem NIF devolve os nomes dos campos', () => {
+    const a = readAcc({ id: 1, company: 'X', tax_id: 'NOR' });
+    expect(a.fiscalId).toBe('');
+    expect(a.keys).toEqual(['id', 'company', 'tax_id']);
+  });
+  it('país e NIF tolerantes', () => {
+    expect(isAO('Angola')).toBe(true);
+    expect(isAO('AO')).toBe(true);
+    expect(isAO('PT')).toBe(false);
+    expect(sameN('AO 541-700-0123', '5417000123')).toBe(true);
+    expect(sameN('', '')).toBe(false);
+  });
+  it('subscrição da caixa por valor sim/não ou por data', () => {
+    expect(subOk({ subscription_active: 'yes' }).active).toBe(true);
+    expect(subOk({ subscription_active: 'no' }).active).toBe(false);
+    expect(subOk({ subscription_active: '2099-01-01' }).active).toBe(true);
+    expect(subOk({ subscription_active: '2000-01-01' }).active).toBe(false);
+  });
+});

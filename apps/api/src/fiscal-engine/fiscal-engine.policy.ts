@@ -36,6 +36,7 @@ export type CompanyIndicator =
   | 'CREDENCIAIS_POR_INSERIR'
   | 'LIGACAO_NAO_TESTADA'
   | 'CREDENCIAIS_INVALIDAS'
+  | 'CONTA_DIFERENTE'
   | 'SUBSCRICAO_INACTIVA'
   | 'SERVICO_INDISPONIVEL'
   | 'CONTA_IDENTIFICADA'
@@ -166,13 +167,13 @@ export interface Readiness {
  */
 export function companyReadiness(c: CompanyLike | null, s: SettingsLike, companyNif: string, now = new Date()): Readiness {
   const validity = providerValidity(s, now);
-  const nifOk = !!c && normNif(c.accountFiscalId) !== '' && normNif(c.accountFiscalId) === normNif(companyNif);
+  const nifOk = !!c && sameNif(c.accountFiscalId, companyNif);
   const testedAfterKey = !!c?.lastTestAt && (!c.apiKeySetAt || c.lastTestAt >= c.apiKeySetAt);
   const checks = [
     { key: 'chave', ok: !!c?.apiKeyEnc },
     { key: 'ligacao', ok: !!c && testedAfterKey && c.lastTestOk },
-    { key: 'conta', ok: !!c?.accountId && nifOk },
-    { key: 'pais', ok: (c?.accountCountry ?? '').toUpperCase() === 'AO' },
+    { key: 'conta', ok: !!c?.accountFiscalId && nifOk },
+    { key: 'pais', ok: isAngola(c?.accountCountry ?? '') },
     { key: 'caixa', ok: !!c?.registerId && isYes(c.registerSubscription) },
     { key: 'fe_vendus', ok: !!c?.feConfirmedAt },
     { key: 'validade', ok: validity.status === 'CONFIRMADO' },
@@ -187,6 +188,7 @@ export function companyReadiness(c: CompanyLike | null, s: SettingsLike, company
   else if (!c.apiKeyEnc) indicator = 'CREDENCIAIS_POR_INSERIR';
   else if (!testedAfterKey) indicator = 'LIGACAO_NAO_TESTADA';
   else if (c.lastTestCode === 'CHAVE_INVALIDA') indicator = 'CREDENCIAIS_INVALIDAS';
+  else if (['NIF_DIFERENTE', 'PAIS_DIFERENTE', 'CONTA_SEM_NIF'].includes(c.lastTestCode)) indicator = 'CONTA_DIFERENTE';
   else if (c.lastTestCode === 'SUBSCRICAO_INACTIVA' || (c.registerId && !isYes(c.registerSubscription))) indicator = 'SUBSCRICAO_INACTIVA';
   else if (['INDISPONIVEL', 'TIMEOUT', 'REDE', 'LIMITE'].includes(c.lastTestCode)) indicator = 'SERVICO_INDISPONIVEL';
   else if (!c.lastTestOk || !nifOk) indicator = 'LIGACAO_NAO_TESTADA';
@@ -249,4 +251,67 @@ export function agtStateFromDetails(details: Record<string, any> | null | undefi
 /** Próxima tentativa (backoff exponencial, máx. 30 min). */
 export function nextAttemptDelayMs(attempts: number): number {
   return Math.min(30 * 60_000, 30_000 * 2 ** Math.max(0, attempts - 1));
+}
+
+/** Conta lida de GET /account/ — tolerante à forma real (objecto, lista ou envelope). */
+export interface VendusAccountInfo {
+  id: string;
+  company: string;
+  fiscalId: string;
+  country: string;
+  address: string;
+  /** Nomes dos campos recebidos (diagnóstico; nunca os valores). */
+  keys: string[];
+}
+
+function unwrap(data: unknown): Record<string, any> {
+  let d: any = data;
+  for (let i = 0; i < 3; i++) {
+    if (Array.isArray(d)) d = d[0];
+    else if (d && typeof d === 'object' && !('id' in d) && (d.account || d.data || d.response)) d = d.account ?? d.data ?? d.response;
+    else break;
+  }
+  return d && typeof d === 'object' ? (d as Record<string, any>) : {};
+}
+
+const first = (o: Record<string, any>, keys: string[]): string => {
+  for (const k of keys) {
+    const v = o[k];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+  }
+  return '';
+};
+
+export function readVendusAccount(data: unknown): VendusAccountInfo {
+  const a = unwrap(data);
+  // Atenção: na especificação `tax_id` da conta é a TAXA de imposto por omissão, não o NIF.
+  return {
+    id: first(a, ['id', 'account_id']),
+    company: first(a, ['company', 'company_name', 'name', 'title']),
+    fiscalId: first(a, ['fiscal_id', 'fiscalId', 'nif', 'vat', 'vat_number', 'tax_number', 'tax_registration_number']),
+    country: first(a, ['country', 'country_code', 'country_id', 'country_iso']),
+    address: [first(a, ['address']), first(a, ['postal_code', 'postalcode']), first(a, ['city'])].filter(Boolean).join(', '),
+    keys: Object.keys(a).slice(0, 40),
+  };
+}
+
+/** País de Angola em qualquer das formas habituais ("AO", "AGO", "Angola", "AO - Angola"). */
+export function isAngola(country: string): boolean {
+  const c = String(country ?? '').trim().toUpperCase();
+  return c === 'AO' || c === 'AGO' || /\bANGOLA\b/.test(c) || /^AO\b/.test(c);
+}
+
+/** NIFs iguais (ignora espaços, pontuação e o prefixo de país "AO"). */
+export function sameNif(a: string, b: string): boolean {
+  const n = (v: string) => normNif(v).replace(/^AO(?=\d)/, '');
+  const x = n(a);
+  return x !== '' && x === n(b);
+}
+
+/** Subscrição de uma caixa (detalhe de GET /registers/{id}/). */
+export function registerSubscriptionActive(r: Record<string, any>): { active: boolean; raw: string } {
+  const raw = first(r, ['subscription_active', 'subscription', 'subscription_status', 'active']);
+  if (isYes(raw)) return { active: true, raw };
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return { active: Date.parse(raw.slice(0, 10)) >= Date.parse(new Date().toISOString().slice(0, 10)), raw };
+  return { active: false, raw };
 }

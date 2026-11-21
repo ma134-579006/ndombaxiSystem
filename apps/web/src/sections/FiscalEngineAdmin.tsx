@@ -10,6 +10,7 @@ export const INDICATOR: Record<string, { t: string; c: 'ok' | 'off' | 'bad' }> =
   CREDENCIAIS_POR_INSERIR: { t: 'Credenciais por inserir', c: 'off' },
   LIGACAO_NAO_TESTADA: { t: 'Ligação não testada', c: 'off' },
   CREDENCIAIS_INVALIDAS: { t: 'Credenciais inválidas', c: 'bad' },
+  CONTA_DIFERENTE: { t: 'Conta Vendus de outro contribuinte', c: 'bad' },
   SUBSCRICAO_INACTIVA: { t: 'Subscrição inactiva', c: 'bad' },
   SERVICO_INDISPONIVEL: { t: 'Serviço indisponível', c: 'bad' },
   CONTA_IDENTIFICADA: { t: 'Conta identificada', c: 'off' },
