@@ -957,7 +957,8 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     const api = await this.client(l);
     const fields: Record<string, unknown> = {};
     if (!d.details) {
-      const det = await api.document(d.vendus_id);
+      const det = await api.document(d.vendus_id, d.mode);
+      if (!det.ok) fields.last_error = `Detalhe: ${det.error?.message ?? `HTTP ${det.status}`}`.slice(0, 500);
       if (det.ok && det.data) {
         const x = det.data as any;
         fields.details = x;
@@ -971,10 +972,13 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
       }
     }
     if (!d.pdf_present) {
-      const pdf = await api.documentPdf(d.vendus_id);
+      const pdf = await api.documentPdf(d.vendus_id, d.mode);
       if (pdf.ok && pdf.bytes) {
         fields.pdf = pdf.bytes;
         fields.pdf_sha256 = createHash('sha256').update(pdf.bytes).digest('hex');
+        if (d.last_error?.startsWith('PDF:')) fields.last_error = null;
+      } else {
+        fields.last_error = `PDF: ${pdf.error?.message ?? `HTTP ${pdf.status}`}`.slice(0, 500);
       }
     }
     if (Object.keys(fields).length) await this.setDoc(schema, id, fields, fields.state ? (d.mode === 'tests' ? 'Documento de testes (sem validade fiscal)' : 'A aguardar confirmação AGT (consulta no Backoffice Vendus)') : undefined);
