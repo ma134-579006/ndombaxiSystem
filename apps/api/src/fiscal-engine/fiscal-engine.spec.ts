@@ -47,6 +47,7 @@ function company(over: Partial<CompanyLike> = {}): CompanyLike {
     lastTestCode: 'OK',
     testsPassedAt: NOW,
     activatedAt: NOW,
+    paymentMap: { CASH: '3' },
     ...over,
   };
 }
@@ -263,5 +264,16 @@ describe('mensagens de erro do Vendus', () => {
     expect(vem({ errors: [{ code: 'A001', message: { items: 'Product reference not found', register_id: 'invalid' } }] }, 'x')).toBe('A001 items: Product reference not found; register_id: invalid');
     expect(vem({ errors: [{ code: 'A001', message: ['a', { b: 'c' }] }] }, 'x')).toBe('A001 a; b: c');
     expect(vem({ errors: [{ code: 'A001', message: 'AUTH' }] }, 'x')).toBe('A001 AUTH');
+  });
+});
+
+describe('Factura-Recibo exige pagamento (FR_HAVE_TO_PAY)', () => {
+  it('forma sem correspondência → erro, nunca omitida', () => {
+    const r = buildSaleDocument(sale({ paymentType: 'CARD' }), maps, op);
+    expect(r.body).toBeUndefined();
+    expect(r.errors.join()).toMatch(/CARD/);
+  });
+  it('sem correspondência de Numerário não activa', () => {
+    expect(companyReadiness(company({ engine: 'LPS', activatedAt: null, paymentMap: {} }), settings(), '5417000123', NOW).canActivate).toBe(false);
   });
 });

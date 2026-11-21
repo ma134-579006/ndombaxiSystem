@@ -113,7 +113,8 @@ export function startVendusMock({ port = 3997, apiKey }) {
           if (body.type === 'NC' && !it.reference_document?.document_number) return send(422, { errors: [{ message: 'reference_document obrigatório na NC' }] });
           if (it.tax_id && !st.taxes.some((t) => t.id === it.tax_id && t.country === 'AO')) return send(422, { errors: [{ message: `tax_id ${it.tax_id}` }] });
         }
-        if (body.type === 'NC' && !body.notes) return send(422, { errors: [{ message: 'notes obrigatório na NC' }] });
+        if (body.type === 'FR' && !(Array.isArray(body.payments) && body.payments.length)) return send(422, { errors: [{ code: 'A001', message: { type: 'FR_HAVE_TO_PAY', message: 'Para este tipo de documento, o pagamento deve ser realizado no ato.' } }] });
+                if (body.type === 'NC' && !body.notes) return send(422, { errors: [{ message: 'notes obrigatório na NC' }] });
         // tx_id repetido: a especificação só diz "Transaction unique identifier". O simulador
         // devolve o documento já criado (comportamento conservador; ver docs/fiscal-engine).
         const prev = body.tx_id ? [...st.docs.values()].find((d) => d.tx_id === body.tx_id) : null;
