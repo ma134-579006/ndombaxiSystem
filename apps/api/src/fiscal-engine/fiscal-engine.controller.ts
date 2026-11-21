@@ -55,6 +55,10 @@ export class CompanyConfigDto {
   @IsOptional() @IsString() @Length(0, 20) taxpayerNif?: string;
 }
 
+export class CopyLinkDto {
+  @IsString() @Length(36, 36) sourceCompanyId!: string;
+}
+
 export class SuspendDto {
   @IsString() @Length(5, 300) reason!: string;
 }
@@ -124,6 +128,12 @@ export class FiscalEngineAdminController {
   @Delete('company/:id/api-key')
   removeKey(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() u: JwtPayload) {
     return this.svc.removeApiKey(id, actor(u));
+  }
+
+  @Post('company/:id/copy-from')
+  @ApiOperation({ summary: 'Reutiliza a ligação Vendus de outra empresa do mesmo contribuinte (mesmo NIF)' })
+  copyFrom(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CopyLinkDto, @CurrentUser() u: JwtPayload) {
+    return this.svc.copyLinkFrom(id, dto.sourceCompanyId, actor(u));
   }
 
   @Post('company/:id/test')

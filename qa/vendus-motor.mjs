@@ -114,6 +114,16 @@ try {
   det = await ok('POST', `/super-admin/fiscal-engine/company/${cid}/test`, { token: SA });
   R.check('V-08a', 'caixa sem subscrição activa → SUBSCRICAO_INACTIVA', det.test.code === 'SUBSCRICAO_INACTIVA' && det.indicator === 'SUBSCRICAO_INACTIVA', j(det.test));
   det = await ok('POST', `/super-admin/fiscal-engine/company/${cid}/test`, { token: SA });
+  // Caixa unificada: a escolhida é POS → o LPS usa a caixa API da conta para todas as caixas.
+  await ctl({ addRegister: { id: 11, store_id: 1, title: 'Caixa Loja', type: 'pos', status: 'on', mode: 'normal', subscription_active: 'yes' } });
+  await ok('PATCH', `/super-admin/fiscal-engine/company/${cid}`, { token: SA, body: { registerId: '11' } });
+  let dp = await ok('POST', `/super-admin/fiscal-engine/company/${cid}/test`, { token: SA });
+  R.check('V-08c', 'caixa POS escolhida → o LPS passa a usar a caixa API da conta (unificada)', dp.test.ok && dp.link.registerId === '9' && dp.link.registerType === 'api', j({ test: dp.test, reg: dp.link.registerId }));
+  await ctl({ register: { type: 'pos' } });
+  dp = await ok('POST', `/super-admin/fiscal-engine/company/${cid}/test`, { token: SA });
+  R.check('V-08d', 'conta sem nenhuma caixa API → CAIXA_NAO_API com a indicação do que criar', dp.test.code === 'CAIXA_NAO_API' && dp.indicator === 'CAIXA_NAO_API', j(dp.test));
+  await ctl({ register: { type: 'api' } });
+  det = await ok('POST', `/super-admin/fiscal-engine/company/${cid}/test`, { token: SA });
   R.check('V-08b', 'caixa do tipo API com subscrição activa', det.test.ok && det.link.registerType === 'api' && det.link.registerSubscription === 'yes', j(det.link));
 
   // ── Teste 9/10/11 — sincronização sem duplicados ───────────────────────────
@@ -129,6 +139,19 @@ try {
   sy2 = await ok('POST', '/fiscal-engine/sync/products', { token: A });
   ms = await mstate();
   R.check('V-11', 'sincroniza produtos (referência, preço com IVA, imposto AO) sem duplicar', sy.created >= 1 && sy2.created === 0 && ms.products === sy.created, `${j(sy)} ${j(sy2)}`);
+
+  // ── Ligação partilhada entre empresas do MESMO contribuinte ─────────────────
+  {
+    const email2 = `qa-vd2-${tag}@qa.test`;
+    await ok('POST', '/onboarding/register-simple', { body: { email: email2, password: 'QaTeste#2026x', planTier: plan, nif: `54${tag}08` } });
+    const cid2 = (await pub.query(`SELECT id FROM nexus_public.companies WHERE "responsibleEmail" = $1`, [email2])).rows[0].id;
+    let cp = await call('POST', `/super-admin/fiscal-engine/company/${cid2}/copy-from`, { token: SA, body: { sourceCompanyId: cid } });
+    R.check('V-SH1', 'copiar a ligação para uma empresa de OUTRO NIF → recusado', cp.status === 409 && /mesmo contribuinte/.test(j(cp.body)), `${cp.status}`);
+    await ok('PATCH', `/super-admin/fiscal-engine/company/${cid2}`, { token: SA, body: { taxpayerNif: nif } });
+    cp = await call('POST', `/super-admin/fiscal-engine/company/${cid2}/copy-from`, { token: SA, body: { sourceCompanyId: cid } });
+    const t2 = await ok('POST', `/super-admin/fiscal-engine/company/${cid2}/test`, { token: SA });
+    R.check('V-SH2', 'mesmo NIF do contribuinte → ligação copiada (chave cifrada, nunca reescrita) e testada', cp.status < 300 && t2.test.ok && t2.link.apiKeyMask === det.link.apiKeyMask, j(t2.test));
+  }
 
   // ── Teste 12/13/14 — documento em modo testes, consulta e PDF ──────────────
   let t = await ok('POST', `/super-admin/fiscal-engine/company/${cid}/tests`, { token: SA });

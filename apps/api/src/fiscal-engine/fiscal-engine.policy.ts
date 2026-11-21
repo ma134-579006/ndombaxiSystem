@@ -38,6 +38,7 @@ export type CompanyIndicator =
   | 'CREDENCIAIS_INVALIDAS'
   | 'CONTA_DIFERENTE'
   | 'SUBSCRICAO_INACTIVA'
+  | 'CAIXA_NAO_API'
   | 'SERVICO_INDISPONIVEL'
   | 'CONTA_IDENTIFICADA'
   | 'CONFIGURACAO_FISCAL_PENDENTE'
@@ -80,6 +81,7 @@ export interface CompanyLike {
   accountCountry: string;
   registerId: string;
   registerSubscription: string;
+  registerType?: string;
   feConfirmedAt: Date | null;
   lastTestAt: Date | null;
   lastTestOk: boolean;
@@ -174,7 +176,7 @@ export function companyReadiness(c: CompanyLike | null, s: SettingsLike, company
     { key: 'ligacao', ok: !!c && testedAfterKey && c.lastTestOk },
     { key: 'conta', ok: !!c?.accountFiscalId && nifOk },
     { key: 'pais', ok: isAngola(c?.accountCountry ?? '') },
-    { key: 'caixa', ok: !!c?.registerId && isYes(c.registerSubscription) },
+    { key: 'caixa', ok: !!c?.registerId && isYes(c.registerSubscription) && (c.registerType ?? 'api').toLowerCase() === 'api' },
     { key: 'fe_vendus', ok: !!c?.feConfirmedAt },
     { key: 'validade', ok: validity.status === 'CONFIRMADO' },
     { key: 'testes', ok: !!c?.testsPassedAt && (!c.apiKeySetAt || c.testsPassedAt >= c.apiKeySetAt) },
@@ -190,6 +192,7 @@ export function companyReadiness(c: CompanyLike | null, s: SettingsLike, company
   else if (c.lastTestCode === 'CHAVE_INVALIDA') indicator = 'CREDENCIAIS_INVALIDAS';
   else if (['NIF_DIFERENTE', 'PAIS_DIFERENTE', 'CONTA_SEM_NIF'].includes(c.lastTestCode)) indicator = 'CONTA_DIFERENTE';
   else if (c.lastTestCode === 'SUBSCRICAO_INACTIVA' || (c.registerId && !isYes(c.registerSubscription))) indicator = 'SUBSCRICAO_INACTIVA';
+  else if (c.lastTestCode === 'CAIXA_NAO_API') indicator = 'CAIXA_NAO_API';
   else if (['INDISPONIVEL', 'TIMEOUT', 'REDE', 'LIMITE'].includes(c.lastTestCode)) indicator = 'SERVICO_INDISPONIVEL';
   else if (!c.lastTestOk || !nifOk) indicator = 'LIGACAO_NAO_TESTADA';
   else if (!c.registerId || !c.feConfirmedAt) indicator = c.feConfirmedAt ? 'CONTA_IDENTIFICADA' : 'CONFIGURACAO_FISCAL_PENDENTE';
