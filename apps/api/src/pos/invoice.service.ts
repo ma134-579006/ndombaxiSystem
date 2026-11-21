@@ -235,6 +235,12 @@ export class InvoiceService {
     // A série AGT lê-se ANTES da transacção: `seriesFor` usa outra ligação ao
     // pool e, lá dentro, N vendas em simultâneo seguravam todas as ligações à espera
     // de uma (N+1.ª) — bloqueio até ao timeout (HTTP 500) com 5 ligações no pool.
+    // Emitente com NIF PROVISÓRIO (registo sem NIF, "TMP…"): nenhum documento
+    // fiscal pode sair com um NIF que não existe na AGT.
+    const issuer = await this.prisma.company.findUnique({ where: { schemaName: schema }, select: { nif: true } }).catch(() => null);
+    if (issuer && /^TMP/i.test(issuer.nif ?? '')) {
+      throw new BadRequestException('Indique o NIF da empresa (Configurações) antes de emitir documentos fiscais.');
+    }
     const year = luandaYear();
     const agtSeries = await this.einvoice.seriesFor(schema, input.docType, year, { strict: !input.offline });
     const platformKey = await this.requireSigningKey();
@@ -488,6 +494,14 @@ export class InvoiceService {
         if (!customerTaxId) customerTaxId = cust[0]?.tax_id ?? null;
         customerName = cust[0]?.name ?? null;
       }
+      // NIF do adquirente: só letras e algarismos (5–20). Aceitava espaços, símbolos
+      // ou "12" — a AGT recusa o documento e o SAF-T fica com um NIF inválido.
+      if (customerTaxId != null) {
+        customerTaxId = customerTaxId.trim().toUpperCase() || null;
+        if (customerTaxId && !/^[A-Z0-9]{5,20}$/.test(customerTaxId)) {
+          throw new BadRequestException(`NIF do cliente inválido: "${customerTaxId}".`);
+        }
+      }
 
       // 6. Persiste documento + linhas, avança a série e baixa stock.
       await tx.$executeRaw(
@@ -588,12 +602,12 @@ export class InvoiceService {
       const invRows = await tx.$queryRaw<{ id: string }[]>(
         Prisma.sql`INSERT INTO invoices
             (number, doc_type, series, year, sequence, invoice_date, operation_date, system_entry_date, store_id,
-             cashier_id, customer_id, customer_tax_id,
+             cashier_id, customer_id, customer_tax_id, customer_name,
              net_total, iva_total, gross_total, signable_string, previous_hash, hash,
             signature, signature_key_version, doc_state, client_op_id)
           VALUES (${number}, ${input.docType}, ${series}, ${year}, ${sequence},
                   ${invoiceDate}::date, ${input.operationDate ?? null}::date, ${systemEntryDate}::timestamptz, ${warehouseId ?? null}::uuid,
-                  ${input.cashierId ?? null}::uuid, ${input.customerId ?? null}::uuid, ${customerTaxId},
+                  ${input.cashierId ?? null}::uuid, ${input.customerId ?? null}::uuid, ${customerTaxId}, ${customerName},
                   ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal},
                   ${signable}, ${previousHash}, ${hash}, ${signature}, ${signatureKeyVersion}, ${docState},
                   ${input.clientOpId ?? null}::uuid)
@@ -838,7 +852,7 @@ export class InvoiceService {
       return tx.$queryRaw<Array<Record<string, unknown>>>(
         Prisma.sql`
           SELECT i.id, i.number, i.doc_type, i.system_entry_date, i.gross_total, i.status, i.doc_state,
-                 u.name AS cashier_name, c.name AS customer_name,
+                 u.name AS cashier_name, COALESCE(i.customer_name, c.name) AS customer_name,
                  COALESCE((SELECT string_agg(ii.description || ' x' || rtrim(rtrim(ii.quantity::text, '0'), '.'), ', ')
                            FROM invoice_items ii WHERE ii.invoice_id = i.id), '') AS items
           FROM invoices i
@@ -872,8 +886,10 @@ export class InvoiceService {
       }[]>(
         Prisma.sql`SELECT i.id, i.number, i.doc_type, i.series, i.status, i.hash, i.previous_hash,
                           i.net_total, i.iva_total, i.gross_total, i.system_entry_date, i.operation_date,
-                          CASE WHEN NULLIF(trim(c.tax_id), '') IS NOT NULL AND c.tax_id <> '999999999'
-                               THEN c.name || ' · NIF ' || trim(c.tax_id) ELSE c.name END AS customer_name,
+                          -- 2.ª via = dados DA EMISSÃO (nome e NIF gravados na factura), não da ficha atual.
+                          CASE WHEN NULLIF(trim(i.customer_tax_id), '') IS NOT NULL AND i.customer_tax_id <> '999999999'
+                               THEN COALESCE(i.customer_name, c.name) || ' · NIF ' || trim(i.customer_tax_id)
+                               ELSE COALESCE(i.customer_name, c.name) END AS customer_name,
                           u.name AS cashier_name
                    FROM invoices i
                    LEFT JOIN customers c ON c.id = i.customer_id
@@ -962,11 +978,12 @@ export class InvoiceService {
     const rows = await tx.$queryRaw<{ id: string }[]>(
       Prisma.sql`INSERT INTO invoices
           (number, doc_type, series, year, sequence, invoice_date, system_entry_date,
-           store_id, customer_id, customer_tax_id, net_total, iva_total, gross_total,
+           store_id, customer_id, customer_tax_id, customer_name, net_total, iva_total, gross_total,
            signable_string, previous_hash, hash, signature, signature_key_version, status, source_invoice_id, client_op_id)
         VALUES (${nc.number}, ${DocumentType.NC}, ${nc.series}, ${nc.year}, ${nc.sequence},
                 ${nc.invoiceDate}::date, ${nc.systemEntryDate}::timestamptz,
                 ${nc.storeId}::uuid, ${nc.customerId}::uuid, ${nc.customerTaxId},
+                (SELECT customer_name FROM invoices WHERE id = ${nc.sourceInvoiceId}::uuid),
                 ${nc.net}, ${nc.iva}, ${nc.gross}, ${nc.signable}, ${nc.previousHash}, ${nc.hash}, ${nc.signature ?? null}, ${nc.signatureKeyVersion ?? null},
                 'N', ${nc.sourceInvoiceId}::uuid, ${nc.clientOpId ?? null}::uuid)
         RETURNING id`,

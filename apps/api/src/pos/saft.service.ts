@@ -90,12 +90,13 @@ export class SaftService {
     // Clientes com NIF no período — nomes reais para o MasterFiles/Customer.
     const custRows = await this.prisma.runInTenant(schema, (tx) =>
       tx.$queryRaw<{ tax_id: string; name: string; address: string | null }[]>(
-        Prisma.sql`SELECT DISTINCT c.tax_id, c.name, c.address
-                   FROM customers c
-                   WHERE c.tax_id IS NOT NULL AND c.tax_id <> ''
-                     AND EXISTS (SELECT 1 FROM invoices i
-                                 WHERE i.customer_tax_id = c.tax_id
-                                   AND i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date)`,
+        // Nome DA EMISSÃO (gravado na factura; documentos antigos caem na ficha).
+        Prisma.sql`SELECT DISTINCT ON (i.customer_tax_id) i.customer_tax_id AS tax_id,
+                          COALESCE(i.customer_name, c.name, 'Desconhecido') AS name, c.address
+                   FROM invoices i LEFT JOIN customers c ON c.id = i.customer_id
+                   WHERE i.customer_tax_id IS NOT NULL AND i.customer_tax_id <> ''
+                     AND i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date
+                   ORDER BY i.customer_tax_id, i.system_entry_date DESC`,
       ),
     ).catch(() => [] as { tax_id: string; name: string; address: string | null }[]);
 

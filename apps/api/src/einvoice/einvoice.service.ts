@@ -564,7 +564,7 @@ export class EinvoiceService implements OnModuleInit, OnModuleDestroy {
         }[]
       >(
         Prisma.sql`SELECT i.id::text AS id, i.number, i.doc_type, i.invoice_date, i.system_entry_date, i.signable_string, i.customer_tax_id,
-                          c.name AS customer_name, i.net_total, i.iva_total, i.gross_total, s.number AS source_number,
+                          COALESCE(i.customer_name, c.name) AS customer_name, i.net_total, i.iva_total, i.gross_total, s.number AS source_number,
                           (SELECT COALESCE(NULLIF(a.details->>'reason', ''),
                                            CASE a.action WHEN 'SALE_RETURNED' THEN 'Devolução de mercadoria' ELSE 'Anulação do documento' END)
                              FROM tenant_audit_log a

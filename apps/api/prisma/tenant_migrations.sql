@@ -233,8 +233,13 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS back
 -- communicated_at) muda. Fica NO FIM do ficheiro: as colunas referenciadas
 -- (operation_date, signature, source_invoice_id, …) já foram adicionadas acima
 -- em tenants antigos. Idempotente (CREATE OR REPLACE RULE).
+-- Cliente tal como estava NA EMISSÃO (nome e NIF). A 2.ª via, a Facturação
+-- Electrónica e o SAF-T usavam o nome ATUAL da ficha do cliente — editar a ficha
+-- mudava documentos já emitidos. Antigos ficam NULL e caem no nome da ficha.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS customer_name TEXT;
 CREATE OR REPLACE RULE fiscal_no_update_invoices AS ON UPDATE TO "{{SCHEMA}}"."invoices"
   WHERE NEW.number            IS DISTINCT FROM OLD.number
+     OR NEW.customer_name     IS DISTINCT FROM OLD.customer_name
      OR NEW.doc_type          IS DISTINCT FROM OLD.doc_type
      OR NEW.series            IS DISTINCT FROM OLD.series
      OR NEW.year              IS DISTINCT FROM OLD.year
