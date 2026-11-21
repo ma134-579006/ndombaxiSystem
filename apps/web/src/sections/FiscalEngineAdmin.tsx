@@ -67,6 +67,7 @@ export function FiscalEngineAdmin() {
   const [cat, setCat] = useState<FiscalEngineCatalog | null>(null);
   const [key, setKey] = useState('');
   const [reg, setReg] = useState('');
+  const [tnif, setTnif] = useState('');
   const [pay, setPay] = useState<Record<string, string>>({});
 
   const fill = (o: FiscalEngineOverview) => {
@@ -106,6 +107,7 @@ export function FiscalEngineAdmin() {
       const d = await api.fiscalEngine.company(id);
       setCo(d);
       setReg(d.link?.registerId ?? '');
+      setTnif(d.link?.taxpayerNif ?? '');
       setPay((d.link?.paymentMap as Record<string, string>) ?? {});
     });
   };
@@ -252,6 +254,7 @@ export function FiscalEngineAdmin() {
 
           <div className="fx-meta">
             <div><small>Motor efectivo</small><b>{ENGINE[co.effective.engine]}</b></div>
+            <div><small>NIF do contribuinte</small><b>{co.company.nif}</b></div>
             <div><small>API KEY</small><b>{link?.apiKeyMask || '—'}</b></div>
             <div><small>Conta Vendus</small><b>{link?.accountCompany || '—'}</b></div>
             <div><small>NIF da conta</small><b>{link?.accountFiscalId || '—'}</b></div>
@@ -267,6 +270,10 @@ export function FiscalEngineAdmin() {
           {link?.lastTestMessage ? <div className="fx-note bad">{link.lastTestMessage}</div> : null}
 
           <div className="fx-grid">
+            <div className="field">
+              <label>NIF do contribuinte</label>
+              <input value={tnif} onChange={(e) => setTnif(e.target.value.toUpperCase().replace(/\s+/g, ''))} inputMode="numeric" placeholder={co.company.companyNif} maxLength={14} />
+            </div>
             <div className="field">
               <label>API KEY {link?.apiKeyMask ? <em className="muted">(definida)</em> : null}</label>
               <input type="password" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="new-password" spellCheck={false} placeholder={link?.apiKeyMask ? 'Deixe vazio para manter' : ''} />
@@ -307,7 +314,15 @@ export function FiscalEngineAdmin() {
           <div className="fx-actions">
             <button className="btn" disabled={busy || key.trim().length < 16} onClick={() => void guard(async () => { await applyCompany(await api.fiscalEngine.saveKey(cid, key.trim())); setKey(''); }, 'API KEY guardada.')}>Guardar API KEY</button>
             <button className="btn ghost" disabled={busy || !link?.apiKeyMask} onClick={() => void test()}>Testar ligação</button>
-            <button className="btn ghost" disabled={busy || !link} onClick={() => void guard(async () => applyCompany(await api.fiscalEngine.configure(cid, { registerId: reg, paymentMap: pay })), 'Guardado.')}>Guardar caixa e pagamentos</button>
+            <button className="btn ghost" disabled={busy || !link} onClick={() => void guard(async () => {
+              const changed = tnif !== (link?.taxpayerNif ?? '') && tnif !== '' && tnif !== co.company.companyNif;
+              if (changed) {
+                const ok = await confirmDialog({ message: `As facturas de ${co.company.name} (NIF ${co.company.companyNif} no LPS) passam a ser emitidas pelo contribuinte com o NIF ${tnif}${link?.accountCompany ? ` (conta Vendus «${link.accountCompany}»)` : ''}. Confirma que é o mesmo contribuinte?`, danger: true });
+                if (!ok) return;
+              }
+              await applyCompany(await api.fiscalEngine.configure(cid, { taxpayerNif: tnif, registerId: reg, paymentMap: pay }));
+              toast.success('Guardado.');
+            })}>Guardar NIF, caixa e pagamentos</button>
             <button className="btn ghost" disabled={busy || !link?.lastTestOk} onClick={() => void guard(async () => { const r = await api.fiscalEngine.runTests(cid); await applyCompany(r.detail); if (r.ok) toast.success(`Documento de testes ${r.document.number}`); else toast.error(r.document.error ?? r.document.state); })}>Testar emissão (modo Formação)</button>
             <button className="btn ghost" disabled={busy || !link?.apiKeyMask} onClick={() => void guard(async () => applyCompany(await api.fiscalEngine.health(cid)))}>Verificar agora</button>
             <button className="btn primary" disabled={busy || !co.canActivate || co.indicator === 'MOTOR_ACTIVO'} onClick={() => void guard(async () => {

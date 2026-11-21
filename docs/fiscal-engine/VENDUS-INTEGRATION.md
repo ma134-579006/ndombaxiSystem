@@ -50,6 +50,23 @@ e com a **mesma taxa** do código LPS (NOR 14 %, INT 7 %, RED 5 %, ISE/OUT 0 %).
 23 % PT" da mesma conta é ignorado. Isenções: só códigos que existam em
 `GET /taxes/exemptions/` da conta.
 
+## Dados reais confirmados em produção (21-11-2026, teste de ligação, só leitura)
+
+- `GET /account/` devolve o NIF e o país de Angola (`AO`); um NIF no formato do BI
+  (9 dígitos + 2 letras + 3 dígitos) é válido. A primeira versão não lia a conta na
+  forma real; corrigido no PR #227.
+- Impostos de uma conta de Angola: **ISE 0 % · RED 1 % · IVA-CAB 2 % · INT 5 % · OUT 7 % ·
+  NOR 14 %**. Os códigos do Vendus **não coincidem** com os do LPS para as taxas
+  reduzidas: a correspondência é feita **pela taxa** (LPS INT 7 % → Vendus OUT; LPS
+  RED 5 % → Vendus INT; NOR 14 % → NOR; ISE 0 % → ISE). O LPS OUT 0 % não tem
+  correspondência e fica em correcção.
+- Motivos de isenção de Angola: M00, M02, M04, M10–M24, M30–M38, M80–M86, M90–M94.
+- As caixas da conta são do tipo `pos`. Não havia nenhuma caixa do tipo API; serve
+  qualquer caixa com subscrição activa.
+- **NIF do contribuinte:** pode ser definido no Super Admin quando a ficha da empresa no
+  LPS tem outro NIF (por exemplo, um provisório). Se for diferente do NIF da empresa, é
+  pedida uma confirmação explícita e a alteração fica auditada.
+
 ## Limitações encontradas na especificação
 
 | Limitação | Efeito no LPS |

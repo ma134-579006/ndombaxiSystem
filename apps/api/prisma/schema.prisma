@@ -566,7 +566,9 @@ model FiscalEngineSettings {
 model FiscalEngineCompany {
   id                   String    @id @default(uuid()) @db.Uuid
   companyId            String    @unique @db.Uuid
-  engine               String    @default("LPS") // LPS | VENDUS | SUSPENSO
+  engine               String    @default("LPS") // LPS | VENDUS | SUSPENSO
+  // NIF do contribuinte desta ligação (Super Admin). Vazio = NIF da empresa no LPS.
+  taxpayerNif          String    @default("")
   suspendedReason      String    @default("")
   apiKeyEnc            String?
   apiKeyMask           String    @default("")
