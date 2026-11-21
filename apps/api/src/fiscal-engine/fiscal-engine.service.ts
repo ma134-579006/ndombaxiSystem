@@ -877,7 +877,7 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
       // Documentos fiscais reais só com o motor Vendus operacional (validade, switch, ligação).
       if (d.mode !== 'tests') {
         const s = await this.settings();
-        const eff = effectiveEngine(l, s, company.nif);
+        const eff = effectiveEngine(l, s, nifFor(l, company.nif));
         if (eff.engine !== 'VENDUS') {
           await this.setDoc(schema, id, { state: d.state === 'ESTADO_DESCONHECIDO' ? 'ESTADO_DESCONHECIDO' : 'A_PREPARAR', last_error: `Emissão bloqueada: ${eff.reason}`, last_error_code: 'MOTOR_INDISPONIVEL', next_attempt_at: new Date(Date.now() + 15 * 60_000) }, `Bloqueado: ${eff.reason}`);
           return this.docSummary(schema, id);
