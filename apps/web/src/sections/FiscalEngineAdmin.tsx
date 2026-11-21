@@ -30,6 +30,7 @@ const CHECK_LABEL: Record<string, string> = {
   conta: 'Conta do mesmo NIF',
   pais: 'Conta de Angola (AO)',
   caixa: 'Caixa do tipo API com subscrição activa',
+  pagamentos: 'Forma de pagamento Numerário associada',
   fe_vendus: 'Factura Electrónica configurada no Vendus',
   validade: 'Validação AGT do fornecedor confirmada',
   testes: 'Testes em modo Formação concluídos',
@@ -295,7 +296,7 @@ export function FiscalEngineAdmin() {
               <div className="field" key={k}>
                 <label>Pagamento: {label}</label>
                 <select value={pay[k] ?? ''} onChange={(e) => setPay({ ...pay, [k]: e.target.value })}>
-                  <option value="">Predefinido da caixa</option>
+                  <option value="">Sem correspondência</option>
                   {cat.paymentMethods.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
                 </select>
               </div>

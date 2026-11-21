@@ -623,8 +623,10 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     if (!l.registerId) throw new ConflictException('Escolha a caixa Vendus');
     const tax = (l.taxMap as Record<string, string>).NOR;
     if (!tax) throw new ConflictException('A conta Vendus não tem a taxa normal de Angola (14%)');
+    const cash = (l.paymentMap as Record<string, string>)?.CASH;
+    if (!cash) throw new ConflictException('Escolha a forma de pagamento Vendus para Numerário (a Factura-Recibo exige o pagamento)');
     const id = randomUUID();
-    const body = { register_id: Number(l.registerId) || l.registerId, type: 'FR', mode: 'tests', external_reference: `LPS-TESTE-${id}`, tx_id: `lps-teste-${id}`, errors_full: 'yes', items: [{ reference: 'LPS-TESTE', title: 'Teste de integração LPS', qty: 1, gross_price: '114.00', tax_id: tax }] };
+    const body = { register_id: Number(l.registerId) || l.registerId, type: 'FR', mode: 'tests', payments: [{ id: Number(cash) || cash, amount: '114.00' }], external_reference: `LPS-TESTE-${id}`, tx_id: `lps-teste-${id}`, errors_full: 'yes', items: [{ reference: 'LPS-TESTE', title: 'Teste de integração LPS', qty: 1, gross_price: '114.00', tax_id: tax }] };
     await this.prisma.runInTenant(co.schemaName, (tx) => tx.$executeRaw`
       INSERT INTO fiscal_engine_documents (id, kind, tx_id, external_reference, mode, state, request)
       VALUES (${id}::uuid, 'TEST', ${body.tx_id}, ${body.external_reference}, 'tests', 'A_PREPARAR', ${JSON.stringify(body)}::jsonb)`);

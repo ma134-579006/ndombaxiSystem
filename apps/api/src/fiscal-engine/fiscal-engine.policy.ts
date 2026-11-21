@@ -82,6 +82,7 @@ export interface CompanyLike {
   registerId: string;
   registerSubscription: string;
   registerType?: string;
+  paymentMap?: unknown;
   feConfirmedAt: Date | null;
   lastTestAt: Date | null;
   lastTestOk: boolean;
@@ -177,6 +178,7 @@ export function companyReadiness(c: CompanyLike | null, s: SettingsLike, company
     { key: 'conta', ok: !!c?.accountFiscalId && nifOk },
     { key: 'pais', ok: isAngola(c?.accountCountry ?? '') },
     { key: 'caixa', ok: !!c?.registerId && isYes(c.registerSubscription) && (c.registerType ?? 'api').toLowerCase() === 'api' },
+    { key: 'pagamentos', ok: !!(c?.paymentMap as Record<string, string> | undefined)?.CASH },
     { key: 'fe_vendus', ok: !!c?.feConfirmedAt },
     { key: 'validade', ok: validity.status === 'CONFIRMADO' },
     { key: 'testes', ok: !!c?.testsPassedAt && (!c.apiKeySetAt || c.testsPassedAt >= c.apiKeySetAt) },

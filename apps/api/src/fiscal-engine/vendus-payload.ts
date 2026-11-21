@@ -108,9 +108,11 @@ export function buildSaleDocument(sale: SaleSnapshot, maps: CompanyMaps, op: { t
   }
   if (vendusTypeFor(sale) === 'FR') {
     const pays = sale.payments?.length ? sale.payments : [{ method: sale.paymentType, amount: sale.grossTotal }];
-    const mapped = pays.map((p) => ({ id: maps.paymentMap[p.method], amount: r2(p.amount).toFixed(2) }));
-    // Sem correspondência configurada para TODAS as formas: não se envia (o Vendus usa a da caixa).
-    if (mapped.every((p) => p.id)) body.payments = mapped;
+    // A FR exige o pagamento no acto (conta real: "FR_HAVE_TO_PAY"). Cada forma usada tem de
+    // ter correspondência configurada; nunca se omite nem se troca por outra.
+    const missing = [...new Set(pays.filter((p) => !maps.paymentMap[p.method]).map((p) => p.method))];
+    if (missing.length) errors.push(`Forma de pagamento sem correspondência no Vendus: ${missing.join(', ')}`);
+    else body.payments = pays.map((p) => ({ id: maps.paymentMap[p.method], amount: r2(p.amount).toFixed(2) }));
   }
   return errors.length ? { errors } : { body, errors };
 }
