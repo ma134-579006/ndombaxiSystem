@@ -177,7 +177,7 @@ import type {
   SecurityView,
   PayoutsView,
   KwanzaRules,
-  FiscalEngineOverview, FiscalEngineCompanyDetail, FiscalEngineCatalog, FiscalEngineDocSummary, FiscalEngineDocRow, FiscalEngineDocDetail, FiscalEngineTenantStatus, FiscalEngineSyncResult, FiscalEngineSaft,
+  FiscalEngineOverview, FiscalEngineCompanyDetail, FiscalEngineCatalog, FiscalEngineDocSummary, FiscalEngineDocRow, FiscalEngineDocDetail, FiscalEngineTenantStatus, FiscalEngineBadge, FiscalEngineSyncResult, FiscalEngineSaft,
 } from './types';
 
 /** IVA dos produtos importados (migração). */
@@ -922,6 +922,7 @@ export const api = {
     useLps: (id: string, confirmation: string) => request<FiscalEngineCompanyDetail>('POST', `/super-admin/fiscal-engine/company/${id}/use-lps`, { confirmation }),
     health: (id: string) => request<FiscalEngineCompanyDetail>('POST', `/super-admin/fiscal-engine/company/${id}/health`, {}),
     status: () => request<FiscalEngineTenantStatus>('GET', '/fiscal-engine/status'),
+    badge: () => request<FiscalEngineBadge>('GET', '/fiscal-engine/badge'),
     documents: (state?: string) => request<FiscalEngineDocRow[]>('GET', state ? `/fiscal-engine/documents?state=${encodeURIComponent(state)}` : '/fiscal-engine/documents'),
     document: (id: string) => request<FiscalEngineDocDetail>('GET', `/fiscal-engine/documents/${id}`),
     forInvoice: (invoiceId: string) => request<{ id: string; state: string; number: string | null; has_pdf: boolean; last_error: string | null } | null>('GET', `/fiscal-engine/invoice/${invoiceId}`),

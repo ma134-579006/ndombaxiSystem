@@ -579,7 +579,7 @@ export function Shell({
           <span className="spacer" />
           <SubscriptionRing enabled={isTenant} onGo={has('subscription') ? () => setSection('subscription') : undefined} />
           <AgtStatus
-            mode={!isTenant ? (has('fiscal') ? 'platform' : 'none') : userLevel <= ROLE_LEVEL.STORE_MANAGER ? 'tenant' : 'none'}
+            mode={!isTenant ? (has('fiscal') ? 'platform' : 'none') : userLevel <= ROLE_LEVEL.STORE_MANAGER ? 'tenant' : 'badge'}
             onGo={() => setSection(isTenant ? (has('saft') ? 'saft' : section) : 'fiscal')}
           />
           <TopDivider />

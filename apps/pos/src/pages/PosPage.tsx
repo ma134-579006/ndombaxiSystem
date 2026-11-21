@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SubscriptionRing } from '../components/SubscriptionRing';
+import { VendusSeal } from '../components/VendusSeal';
 import { UserAvatar, displayName } from '../components/UserAvatar';
 import { api, ApiError } from '../api/client';
 import type { CashSession, Customer, DocumentIdentity, EmittedInvoice, PaymentType, Product, ReceiptFiscalInfo } from '../api/types';
@@ -1118,6 +1119,7 @@ export function PosPage() {
             <div className="name">{identity?.companyName || `${SYSTEM_SHORT} · Caixa`}</div>
           </div>
           <span className="spacer" />
+          <VendusSeal />
           <SubscriptionRing />
           <nav className="vtop-menus" ref={topMenuRef}>
             {/* Ecrãs pequenos: os três menus num só botão (☰), sempre visível. */}

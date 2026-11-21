@@ -419,6 +419,12 @@
 .vsub.warn { color: #f08c00; } .vsub.warn .val { stroke: #f08c00; }
 .vsub.bad { color: #e03131; } .vsub.bad .val { stroke: #e03131; }
 @media (max-width: 900px) { .vsub-tx { display: none; } }
+/* Selo «Vendus · Facturação certificada» (motor fiscal externo activo). */
+.vseal { color: #2b8a3e; }
+.vseal-tx { display: grid; line-height: 1.15; }
+.vseal-tx b { font-size: 13px; font-weight: 700; }
+.vseal-tx small { font-size: 11px; opacity: .85; }
+@media (max-width: 900px) { .vseal-tx { display: none; } }
 
 /* Barras de deslocamento VISÍVEIS (finas, na cor do tema); faixas de abas/categorias sem barra. */
 * { scrollbar-width: thin !important; scrollbar-color: color-mix(in srgb, var(--muted, #888) 55%, transparent) transparent; -ms-overflow-style: auto !important; }

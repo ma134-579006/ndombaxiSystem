@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
-import { IconAlertCircle, IconCheckCircle, IconHelp, IconPlus } from './Icons';
+import { IconAlertCircle, IconCheckCircle, IconHelp, IconPlus, IconShieldCheck } from './Icons';
 import { pollEvery, stopPoll } from '../poll';
 
 /* Barra de topo no padrão do backoffice de referência: estado da subscrição
@@ -96,23 +96,61 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
   );
 }
 
-/** Estado AGT. Empresa: comunicação eletrónica ligada e configurada.
- *  Super Admin: contrato AGT subscrito. */
-export function AgtStatus({ mode, onGo }: { mode: 'tenant' | 'platform' | 'none'; onGo(): void }) {
+/** Selo da facturação pelo Cegid Vendus (software validado pela AGT). Só aparece
+ *  quando o motor efectivo é o Vendus; o LPS Vendas nunca se apresenta como
+ *  certificado. */
+export interface VendusSeal { validationNo?: string; feCertNo?: string; validUntil?: string | null }
+
+function sealTitle(v: VendusSeal) {
+  const parts = ['Facturação emitida pelo Cegid Vendus, software validado pela AGT'];
+  if (v.validationNo) parts.push(v.validationNo);
+  if (v.feCertNo) parts.push(v.feCertNo);
+  if (v.validUntil) parts.push(`válido até ${new Date(`${v.validUntil}T00:00:00`).toLocaleDateString('pt-PT')}`);
+  return parts.join(' · ');
+}
+
+/** Estado AGT. Empresa: comunicação eletrónica ligada e configurada, ou o selo
+ *  Vendus quando a facturação é emitida pelo Cegid Vendus. Super Admin: contrato
+ *  AGT subscrito, ou o selo quando o motor externo está ligado e confirmado.
+ *  `badge`: papéis da caixa, que só vêem o selo. */
+export function AgtStatus({ mode, onGo }: { mode: 'tenant' | 'badge' | 'platform' | 'none'; onGo(): void }) {
   const [on, setOn] = useState<boolean | null>(null);
+  const [seal, setSeal] = useState<VendusSeal | null>(null);
   useEffect(() => {
-    if (mode === 'none') { setOn(null); return; }
+    if (mode === 'none') { setOn(null); setSeal(null); return; }
     let alive = true;
     const tick = () => {
-      const p = mode === 'tenant'
-        ? api.agtComm.status().then((s) => s.enabled && s.configured)
-        : api.fiscal.get().then((c) => c.subscribed);
-      p.then((v) => { if (alive) setOn(v); }).catch(() => { if (alive) setOn(null); });
+      const sealP: Promise<VendusSeal | null> = mode === 'platform'
+        ? api.fiscalEngine.overview().then((o) => (o.settings.vendusEnabled && o.validity.status === 'CONFIRMADO'
+          ? { validationNo: o.settings.providerValidationNo, feCertNo: o.settings.providerFeCertNo, validUntil: o.settings.providerValidUntil }
+          : null))
+        : api.fiscalEngine.badge().then((b) => (b.vendus ? { validationNo: b.validationNo, feCertNo: b.feCertNo, validUntil: b.validUntil } : null));
+      sealP.catch(() => null).then((v) => {
+        if (!alive) return;
+        setSeal(v);
+        if (v || mode === 'badge') { setOn(null); return; }
+        const p = mode === 'tenant'
+          ? api.agtComm.status().then((s) => s.enabled && s.configured)
+          : api.fiscal.get().then((c) => c.subscribed);
+        p.then((x) => { if (alive) setOn(x); }).catch(() => { if (alive) setOn(null); });
+      });
     };
     tick();
     const t = pollEvery(tick, 60000);
     return () => { alive = false; stopPoll(t); };
   }, [mode]);
+  if (seal) {
+    const title = sealTitle(seal);
+    const inner = (
+      <>
+        <IconShieldCheck size={30} />
+        <span className="tb-agt-tx"><b>Vendus</b><small>Facturação certificada</small></span>
+      </>
+    );
+    return mode === 'badge'
+      ? <span className="tb-agt on vendus" title={title} aria-label={title} tabIndex={0}>{inner}</span>
+      : <button className="tb-agt on vendus" onClick={onGo} title={title} aria-label={title}>{inner}</button>;
+  }
   if (on === null) return null;
   return (
     <button className={`tb-agt ${on ? 'on' : 'off'}`} onClick={onGo} title="Estado da comunicação com a AGT">
