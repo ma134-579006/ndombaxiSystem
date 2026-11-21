@@ -94,6 +94,17 @@ try {
   await ctl({ account: { fiscal_id: nif, country: 'AO', company: `QA Vendus ${tag} Lda` } });
   det = await ok('POST', `/super-admin/fiscal-engine/company/${cid}/test`, { token: SA });
   R.check('V-06b', 'conta identificada: mesmo NIF e Angola', det.test.ok && det.link.accountFiscalId === nif && det.link.accountCountry === 'AO', j(det.link));
+  // NIF do contribuinte definido no Super Admin (a ficha da empresa no LPS tem outro NIF).
+  await ctl({ account: { fiscal_id: '5417000555' } });
+  await ok('PATCH', `/super-admin/fiscal-engine/company/${cid}`, { token: SA, body: { taxpayerNif: '5417000555' } });
+  let dn = await ok('POST', `/super-admin/fiscal-engine/company/${cid}/test`, { token: SA });
+  R.check('V-06d', 'NIF do contribuinte no Super Admin → conta desse NIF aceite', dn.test.ok && dn.company.nif === '5417000555', j(dn.test));
+  let bad = await call('PATCH', `/super-admin/fiscal-engine/company/${cid}`, { token: SA, body: { taxpayerNif: '12AB' } });
+  R.check('V-06e', 'NIF do contribuinte inválido → recusado', bad.status === 400, `${bad.status}`);
+  await ok('PATCH', `/super-admin/fiscal-engine/company/${cid}`, { token: SA, body: { taxpayerNif: '' } });
+  await ctl({ account: { fiscal_id: nif } });
+  dn = await ok('POST', `/super-admin/fiscal-engine/company/${cid}/test`, { token: SA });
+  R.check('V-06f', 'NIF vazio → volta a usar o NIF da empresa', dn.test.ok && dn.company.nif === nif, j(dn.test));
   R.check('V-06c', 'impostos: só os de Angola com a mesma taxa (o NOR 23% PT é ignorado)', det.link.taxMap.NOR === 'NOR' && det.catalog.taxes.length === 3, j(det.link.taxMap));
 
   // ── Teste 7/8 — lojas e caixas; caixa API com subscrição ───────────────────

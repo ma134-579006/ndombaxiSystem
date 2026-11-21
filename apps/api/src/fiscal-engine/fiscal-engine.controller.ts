@@ -52,6 +52,7 @@ export class CompanyConfigDto {
   @IsOptional() @IsString() @Length(0, 40) storeId?: string;
   @IsOptional() @IsObject() paymentMap?: Record<string, string>;
   @IsOptional() @IsBoolean() feConfirmed?: boolean;
+  @IsOptional() @IsString() @Length(0, 20) taxpayerNif?: string;
 }
 
 export class SuspendDto {

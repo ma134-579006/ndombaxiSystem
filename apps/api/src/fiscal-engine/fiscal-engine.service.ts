@@ -162,9 +162,10 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
       alerts: this.activeAlerts(s),
       companies: companies.map((c) => {
         const l = byCompany.get(c.id) ?? null;
-        const r = companyReadiness(l, s, c.nif);
-        const eff = effectiveEngine(l, s, c.nif);
-        return { id: c.id, name: c.name, nif: c.nif, engine: l?.engine ?? 'LPS', effective: eff, indicator: r.indicator, canActivate: r.canActivate };
+        const nif = nifFor(l, c.nif);
+        const r = companyReadiness(l, s, nif);
+        const eff = effectiveEngine(l, s, nif);
+        return { id: c.id, name: c.name, nif, engine: l?.engine ?? 'LPS', effective: eff, indicator: r.indicator, canActivate: r.canActivate };
       }),
     };
   }
@@ -351,11 +352,12 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
 
   async companyDetail(companyId: string) {
     const [co, l, s] = await Promise.all([this.companyById(companyId), this.link(companyId), this.settings()]);
-    const r = companyReadiness(l, s, co.nif);
+    const nif = nifFor(l, co.nif);
+    const r = companyReadiness(l, s, nif);
     return {
-      company: { id: co.id, name: co.name, nif: co.nif },
+      company: { id: co.id, name: co.name, nif, companyNif: co.nif },
       engine: l?.engine ?? 'LPS',
-      effective: effectiveEngine(l, s, co.nif),
+      effective: effectiveEngine(l, s, nif),
       indicator: r.indicator,
       checks: r.checks,
       canActivate: r.canActivate,
@@ -367,6 +369,7 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
   private safeLink(l: FiscalEngineCompany) {
     return {
       engine: l.engine,
+      taxpayerNif: l.taxpayerNif,
       suspendedReason: l.suspendedReason,
       apiKeyMask: l.apiKeyMask,
       apiKeySetAt: l.apiKeySetAt?.toISOString() ?? null,
@@ -463,9 +466,9 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
       if (!a.fiscalId) {
         code = 'CONTA_SEM_NIF';
         message = `O Vendus não devolveu o NIF da conta (campos recebidos: ${a.keys.join(', ') || 'nenhum'})`;
-      } else if (!sameNif(a.fiscalId, co.nif)) {
+      } else if (!sameNif(a.fiscalId, nifFor(l, co.nif))) {
         code = 'NIF_DIFERENTE';
-        message = `A conta Vendus é do NIF ${a.fiscalId}; a empresa no LPS tem o NIF ${co.nif}`;
+        message = `A conta Vendus é do NIF ${a.fiscalId}; o NIF do contribuinte configurado é ${nifFor(l, co.nif)}`;
       } else if (!isAngola(a.country)) {
         code = 'PAIS_DIFERENTE';
         message = `A conta Vendus é do país ${a.country || '—'}, não de Angola (AO)`;
@@ -520,7 +523,7 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
   async configureCompany(companyId: string, dto: Record<string, any>, actor: Actor) {
     const l = await this.ensureLink(companyId);
     const data: Prisma.FiscalEngineCompanyUpdateInput = {};
-    if (dto.registerId !== undefined) {
+    if (dto.registerId !== undefined && String(dto.registerId).trim() !== l.registerId) {
       if (l.engine === 'VENDUS' && l.activatedAt) throw new ConflictException('Suspenda o motor antes de mudar de caixa');
       data.registerId = String(dto.registerId).trim().slice(0, 40);
       data.registerSubscription = '';
@@ -529,6 +532,17 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
       data.lastTestOk = false;
     }
     if (dto.storeId !== undefined) data.storeId = String(dto.storeId).trim().slice(0, 40);
+    if (dto.taxpayerNif !== undefined) {
+      const nif = String(dto.taxpayerNif ?? '').toUpperCase().replace(/\s+/g, '');
+      if (nif && !/^(\d{9,10}|\d{9}[A-Z]{2}\d{3})$/.test(nif)) throw new BadRequestException('NIF do contribuinte: 9 ou 10 dígitos (ou 14 do BI)');
+      if (nif !== l.taxpayerNif) {
+        if (l.engine === 'VENDUS' && l.activatedAt) throw new ConflictException('Suspenda o motor antes de mudar o NIF do contribuinte');
+        data.taxpayerNif = nif;
+        // Outro NIF: o teste de ligação e os testes de emissão deixam de valer.
+        data.lastTestOk = false;
+        data.testsPassedAt = null;
+      }
+    }
     if (dto.paymentMap !== undefined) {
       const pm: Record<string, string> = {};
       for (const [k, v] of Object.entries(dto.paymentMap ?? {})) if (/^[A-Z_]{2,20}$/.test(k) && String(v).trim()) pm[k] = String(v).trim().slice(0, 40);
@@ -542,7 +556,7 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
       data.feConfirmedBy = '';
     }
     await this.prisma.fiscalEngineCompany.update({ where: { companyId }, data });
-    await this.audit.record({ actorType: 'PLATFORM', actorId: actor.id ?? null, action: 'FISCAL_ENGINE_COMPANY_CONFIGURED', entity: 'fiscal_engine_company', entityId: companyId, after: { registerId: data.registerId, storeId: data.storeId, paymentMap: data.paymentMap, feConfirmed: dto.feConfirmed } });
+    await this.audit.record({ actorType: 'PLATFORM', actorId: actor.id ?? null, action: 'FISCAL_ENGINE_COMPANY_CONFIGURED', entity: 'fiscal_engine_company', entityId: companyId, after: { registerId: data.registerId, storeId: data.storeId, paymentMap: data.paymentMap, feConfirmed: dto.feConfirmed, taxpayerNif: data.taxpayerNif } });
     return this.companyDetail(companyId);
   }
 
@@ -574,7 +588,7 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
   async activate(companyId: string, actor: Actor) {
     const co = await this.companyById(companyId);
     const [l, s] = await Promise.all([this.ensureLink(companyId), this.settings()]);
-    const r = companyReadiness(l, s, co.nif);
+    const r = companyReadiness(l, s, nifFor(l, co.nif));
     if (!r.canActivate) throw new ConflictException(`Falta: ${r.checks.filter((c) => !c.ok).map((c) => c.key).join(', ')}`);
     await this.prisma.fiscalEngineCompany.update({ where: { companyId }, data: { engine: 'VENDUS', activatedAt: new Date(), activatedBy: actor.name ?? actor.id ?? '', suspendedReason: '' } });
     await this.audit.record({ actorType: 'PLATFORM', actorId: actor.id ?? null, action: 'FISCAL_ENGINE_ACTIVATED', entity: 'fiscal_engine_company', entityId: companyId, before: { engine: l.engine }, after: { engine: 'VENDUS' } });
@@ -611,7 +625,7 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     let code = 'OK';
     let message = '';
     if (!acc.ok) { code = acc.error!.code; message = acc.error!.message; }
-    else if (!sameNif(readVendusAccount(acc.data).fiscalId, co.nif)) { code = 'NIF_DIFERENTE'; message = `A conta da API KEY (NIF ${readVendusAccount(acc.data).fiscalId || '—'}) não corresponde ao NIF da empresa (${co.nif})`; }
+    else if (!sameNif(readVendusAccount(acc.data).fiscalId, nifFor(l, co.nif))) { code = 'NIF_DIFERENTE'; message = `A conta da API KEY (NIF ${readVendusAccount(acc.data).fiscalId || '—'}) não corresponde ao NIF do contribuinte (${nifFor(l, co.nif)})`; }
     else if (l.registerId) {
       const reg = await api.register(l.registerId);
       if (!reg.ok) { code = reg.error!.code; message = reg.error!.message; }
@@ -649,7 +663,7 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     const co = await this.companyBySchema(schema).catch(() => null);
     if (!co) return { engine: 'LPS', reason: '', legacy: true };
     const [l, s] = await Promise.all([this.link(co.id), this.settings()]);
-    return effectiveEngine(l, s, co.nif);
+    return effectiveEngine(l, s, nifFor(l, co.nif));
   }
 
   /** Recusa a emissão quando o motor da empresa não é o pedido (ex.: suspenso). */
@@ -1099,7 +1113,8 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
       productId: tag(xml, 'ProductID'),
       softwareValidationNumber: tag(xml, 'SoftwareValidationNumber'),
     };
-    if (header.taxRegistrationNumber && normNif(header.taxRegistrationNumber) !== normNif(co.nif)) issues.unshift(`NIF do ficheiro ${header.taxRegistrationNumber} ≠ NIF da empresa ${co.nif}`);
+    const tnif = nifFor(l, co.nif);
+    if (header.taxRegistrationNumber && !sameNif(header.taxRegistrationNumber, tnif)) issues.unshift(`NIF do ficheiro ${header.taxRegistrationNumber} ≠ NIF do contribuinte ${tnif}`);
     const valid = xsd.valid && issues.length === xsd.issues.length;
     const sha256 = createHash('sha256').update(xml).digest('hex');
     const rows = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<{ id: string; fetched_at: Date }[]>`
@@ -1137,7 +1152,7 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
       // Conta só empresas cujo motor EFECTIVO é o Vendus (activas, ligação válida).
       const links = await this.prisma.fiscalEngineCompany.findMany({ where: { engine: 'VENDUS', activatedAt: { not: null } } });
       const nifs = new Map((await this.prisma.company.findMany({ where: { id: { in: links.map((l) => l.companyId) } }, select: { id: true, nif: true } })).map((c) => [c.id, c.nif]));
-      const active = links.filter((l) => effectiveEngine(l, s, nifs.get(l.companyId) ?? '').engine === 'VENDUS').length;
+      const active = links.filter((l) => effectiveEngine(l, s, nifFor(l, nifs.get(l.companyId) ?? '')).engine === 'VENDUS').length;
       if (active > 0) vendus = { name: 'Cegid Vendus', producer: s.providerProducer, validationNo: s.providerValidationNo, feCertNo: s.providerFeCertNo, version: s.providerVersion, validUntil: ymd(s.providerValidUntil) ?? '', url: 'https://www.vendus.co.ao/' };
     }
     return { vendus, lps: lps.ok ? { validationNo: s.lpsValidationNo, version: s.lpsValidationVersion } : null };
@@ -1158,4 +1173,9 @@ function parseDate(v: unknown): Date | null {
 }
 function tag(xml: string, name: string): string {
   return new RegExp(`<${name}>([^<]*)</${name}>`).exec(xml)?.[1] ?? '';
+}
+
+/** NIF do contribuinte de uma ligação: o configurado no Super Admin ou, vazio, o da empresa no LPS. */
+function nifFor(l: { taxpayerNif?: string | null } | null | undefined, companyNif: string): string {
+  return (l?.taxpayerNif ?? '').trim() || companyNif;
 }

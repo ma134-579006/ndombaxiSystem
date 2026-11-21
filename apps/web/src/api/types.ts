@@ -1527,7 +1527,7 @@ export interface FiscalEngineOverview {
   companies: { id: string; name: string; nif: string; engine: FiscalEngineCode; effective: FiscalEngineEffective; indicator: string; canActivate: boolean }[];
 }
 export interface FiscalEngineLink {
-  engine: FiscalEngineCode; suspendedReason: string; apiKeyMask: string; apiKeySetAt: string | null;
+  engine: FiscalEngineCode; taxpayerNif: string; suspendedReason: string; apiKeyMask: string; apiKeySetAt: string | null;
   accountId: string; accountCompany: string; accountFiscalId: string; accountCountry: string; accountAddress: string;
   storeId: string; registerId: string; registerTitle: string; registerType: string; registerSubscription: string; registerExpires: string;
   paymentMap: Record<string, string>; taxMap: Record<string, string>;
@@ -1535,7 +1535,7 @@ export interface FiscalEngineLink {
   testsPassedAt: string | null; activatedAt: string | null; activatedBy: string; health: { code?: string; at?: string; message?: string };
 }
 export interface FiscalEngineCompanyDetail {
-  company: { id: string; name: string; nif: string };
+  company: { id: string; name: string; nif: string; companyNif: string };
   engine: FiscalEngineCode; effective: FiscalEngineEffective; indicator: string;
   checks: { key: string; ok: boolean }[]; canActivate: boolean; validity: FiscalEngineValidity; link: FiscalEngineLink | null;
 }
