@@ -837,3 +837,79 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."dismissed_alerts" (
   key          TEXT PRIMARY KEY,
   dismissed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- MOTOR FISCAL: cada documento sabe que software o emitiu (LPS ou VENDUS). Os
+-- documentos do motor externo ficam fora do SAF-T e da FE do LPS (é o Vendus que os
+-- comunica); no LPS são o registo comercial com a referência interna.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."invoices" ADD COLUMN IF NOT EXISTS fiscal_engine TEXT NOT NULL DEFAULT 'LPS';
+
+-- Documentos fiscais emitidos pelo motor externo (Cegid Vendus). tx_id é único e
+-- persistente por operação: nunca se cria um segundo documento para a mesma venda.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."fiscal_engine_documents" (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  engine             TEXT NOT NULL DEFAULT 'VENDUS',
+  invoice_id         UUID,
+  source_doc_id      UUID,
+  kind               TEXT NOT NULL,
+  tx_id              TEXT NOT NULL UNIQUE,
+  external_reference TEXT NOT NULL,
+  mode               TEXT NOT NULL DEFAULT 'normal',
+  state              TEXT NOT NULL DEFAULT 'A_PREPARAR',
+  attempts           INT NOT NULL DEFAULT 0,
+  next_attempt_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  request            JSONB,
+  vendus_id          TEXT,
+  doc_type           TEXT,
+  number             TEXT,
+  doc_date           TEXT,
+  amount_gross       NUMERIC(18,2),
+  amount_net         NUMERIC(18,2),
+  hash               TEXT,
+  qrcode_data        TEXT,
+  agt                JSONB,
+  details            JSONB,
+  pdf                BYTEA,
+  pdf_sha256         TEXT,
+  divergence         TEXT,
+  last_error         TEXT,
+  last_error_code    TEXT,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS fiscal_engine_documents_invoice_idx ON "{{SCHEMA}}"."fiscal_engine_documents"(invoice_id);
+CREATE INDEX IF NOT EXISTS fiscal_engine_documents_state_idx ON "{{SCHEMA}}"."fiscal_engine_documents"(state, next_attempt_at);
+CREATE UNIQUE INDEX IF NOT EXISTS fiscal_engine_documents_one_per_op ON "{{SCHEMA}}"."fiscal_engine_documents"(external_reference);
+
+-- Histórico de estados (trilho) de cada documento do motor externo.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."fiscal_engine_events" (
+  id          BIGSERIAL PRIMARY KEY,
+  document_id UUID NOT NULL,
+  state       TEXT NOT NULL,
+  detail      TEXT,
+  at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS fiscal_engine_events_doc_idx ON "{{SCHEMA}}"."fiscal_engine_events"(document_id, at);
+
+-- Correspondência de IDs LPS ↔ Vendus (clientes e produtos): sem duplicados.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."fiscal_engine_links" (
+  entity      TEXT NOT NULL,
+  lps_id      TEXT NOT NULL,
+  vendus_id   TEXT NOT NULL,
+  synced_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (entity, lps_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS fiscal_engine_links_vendus ON "{{SCHEMA}}"."fiscal_engine_links"(entity, vendus_id);
+
+-- SAF-T (AO) obtido do Vendus (GET /taxauthority/saft/), arquivado com a validação XSD.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."fiscal_engine_saft" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  year        INT NOT NULL,
+  month       INT NOT NULL,
+  xml         TEXT NOT NULL,
+  sha256      TEXT NOT NULL,
+  xsd_valid   BOOLEAN NOT NULL,
+  issues      JSONB NOT NULL DEFAULT '[]'::jsonb,
+  header      JSONB,
+  fetched_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS fiscal_engine_saft_period_idx ON "{{SCHEMA}}"."fiscal_engine_saft"(year, month, fetched_at DESC);

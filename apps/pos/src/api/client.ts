@@ -345,6 +345,20 @@ export const api = {
   approveDiscount: (pin: string) => request<{ approverName: string; self: boolean }>('POST', '/pos/discount/approve', { pin }),
   emitInvoice: (input: EmitInvoiceInput) =>
     request<EmittedInvoice>('POST', '/pos/invoices', input),
+  /** Documento fiscal do motor externo (Cegid Vendus) de uma venda. */
+  externalFiscal: (invoiceId: string) =>
+    request<{ id: string; state: string; number: string | null; has_pdf: boolean; last_error: string | null } | null>('GET', `/fiscal-engine/invoice/${invoiceId}`),
+  /** PDF ORIGINAL emitido pelo motor externo (sem alterações). */
+  externalFiscalPdf: async (docId: string): Promise<Blob> => {
+    const headers: Record<string, string> = {};
+    const token = hooks?.getAccessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const code = hooks?.getCompanyCode();
+    if (code) headers['X-Tenant-Code'] = code;
+    const res = await fetch(`${API_URL}/fiscal-engine/documents/${docId}/pdf`, { headers });
+    if (!res.ok) throw await parseError(res);
+    return res.blob();
+  },
   /** Apresenta este posto e recebe a sua série fiscal exclusiva (idempotente). */
   registerDevice: (input: { deviceKey: string; name: string; platform: string; storeId?: string }) =>
     request<{ deviceKey: string; name: string; series: string; storeId: string | null; settings?: { defaultDocType: 'FT' | 'FS'; pricesWithTax: boolean; showReference: boolean; paperWidth: '80' | '58' | null } }>(

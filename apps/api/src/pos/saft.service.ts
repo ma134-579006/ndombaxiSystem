@@ -95,7 +95,7 @@ export class SaftService {
                           COALESCE(i.customer_name, c.name, 'Desconhecido') AS name, c.address
                    FROM invoices i LEFT JOIN customers c ON c.id = i.customer_id
                    WHERE i.customer_tax_id IS NOT NULL AND i.customer_tax_id <> ''
-                     AND i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date
+                     AND i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date AND i.fiscal_engine <> 'VENDUS'
                    ORDER BY i.customer_tax_id, i.system_entry_date DESC`,
       ),
     ).catch(() => [] as { tax_id: string; name: string; address: string | null }[]);
@@ -109,19 +109,19 @@ export class SaftService {
         SELECT COUNT(*)::int AS n,
                SUM(net_total) FILTER (WHERE status <> 'A' AND doc_type = 'NC') AS debit,
                SUM(net_total) FILTER (WHERE status <> 'A' AND doc_type <> 'NC') AS credit
-        FROM invoices WHERE invoice_date >= ${start}::date AND invoice_date <= ${end}::date`);
+        FROM invoices WHERE invoice_date >= ${start}::date AND invoice_date <= ${end}::date AND fiscal_engine <> 'VENDUS'`);
       const taxIds = await tx.$queryRaw<{ t: string | null }[]>(Prisma.sql`
         SELECT DISTINCT customer_tax_id AS t FROM invoices
-        WHERE invoice_date >= ${start}::date AND invoice_date <= ${end}::date`);
+        WHERE invoice_date >= ${start}::date AND invoice_date <= ${end}::date AND fiscal_engine <> 'VENDUS'`);
       const prods = await tx.$queryRaw<{ code: string; description: string }[]>(Prisma.sql`
         SELECT DISTINCT ON (ii.product_code) ii.product_code AS code, ii.description
         FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
-        WHERE i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date
+        WHERE i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date AND i.fiscal_engine <> 'VENDUS'
         ORDER BY ii.product_code, i.doc_type, i.series, i.year, i.sequence, ii.line_number`);
       const taxes = await tx.$queryRaw<{ code: IvaCode; rate: string }[]>(Prisma.sql`
         SELECT DISTINCT ON (ii.iva_code) ii.iva_code AS code, ii.iva_rate AS rate
         FROM invoice_items ii JOIN invoices i ON i.id = ii.invoice_id
-        WHERE i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date
+        WHERE i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date AND i.fiscal_engine <> 'VENDUS'
         ORDER BY ii.iva_code, i.doc_type DESC, i.series DESC, i.year DESC, i.sequence DESC`);
       return { tot: tot[0], taxIds, prods, taxes };
     });
@@ -212,7 +212,7 @@ export class SaftService {
                             i.signature_key_version,
                             i.status, (SELECT s.number FROM invoices s WHERE s.id = i.source_invoice_id) AS reference
                      FROM invoices i
-                     WHERE i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date
+                     WHERE i.invoice_date >= ${start}::date AND i.invoice_date <= ${end}::date AND i.fiscal_engine <> 'VENDUS'
                        ${cursor ? Prisma.sql`AND (i.doc_type, i.series, i.year, i.sequence) > (${cursor.doc_type}, ${cursor.series}, ${cursor.year}, ${cursor.sequence})` : Prisma.empty}
                      ORDER BY i.doc_type, i.series, i.year, i.sequence
                      LIMIT ${LOTE}`,

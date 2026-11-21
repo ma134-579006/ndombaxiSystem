@@ -10,6 +10,7 @@ import { getPaper } from '../print';
 import { pairPrinter, pairedPrinterName, printRaw, rawPrintSupported } from '../escpos';
 import { isCapacitorApp as isNativeApp, saveNativePdf, shareNativePdf } from '../offline/nativeShare';
 import { UiIcon } from './UiIcon';
+import { ExternalFiscalReceipt, isExternalFiscal } from './ExternalFiscalReceipt';
 
 /** Linha de artigo da fatura (para a tabela no recibo/PDF). */
 export interface ReceiptItem {
@@ -76,7 +77,14 @@ const PAY_LABEL: Record<string, string> = {
   CASH: 'Numerário', CARD: 'Cartão (TPA)', TRANSFER: 'Transferência', REFERENCE: 'Referência', EXPRESS: 'Multicaixa Express', CREDIT: 'Crédito (a pagar)',
 };
 
-export function ReceiptModal({ invoice, info, identity, customerName, operatorName, items, provisional, reprint, dateLabel, pay, onClose }: Props) {
+export function ReceiptModal(props: Props) {
+  // Documento fiscal emitido pelo Cegid Vendus: mostra-se o ORIGINAL (PDF do Vendus);
+  // o LPS nunca desenha um talão próprio com aparência de factura para essa venda.
+  if (!props.provisional && isExternalFiscal(props.invoice)) return <ExternalFiscalReceipt invoice={props.invoice} identity={props.identity ?? null} onClose={props.onClose} />;
+  return <LpsReceiptModal {...props} />;
+}
+
+function LpsReceiptModal({ invoice, info, identity, customerName, operatorName, items, provisional, reprint, dateLabel, pay, onClose }: Props) {
   // AGT: 4 caracteres da assinatura nas posições 1.ª, 11.ª, 21.ª e 31.ª.
   const hashShort = invoice.hash ? [0, 10, 20, 30].map((i) => invoice.hash[i] ?? '').join('') : '----';
   const shownDate = dateLabel ?? formatDateTime();

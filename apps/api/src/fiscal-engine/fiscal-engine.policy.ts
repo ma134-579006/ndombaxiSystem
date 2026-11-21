@@ -1,0 +1,252 @@
+/**
+ * Regras do MOTOR FISCAL — funções puras (sem base de dados), testadas à parte.
+ *
+ * Três motores (missão, fase 7):
+ *   • VENDUS   — Modo A: o Cegid Vendus emite o documento fiscal; o LPS gere a venda.
+ *   • LPS      — Modo B: motor próprio. Só se ACTIVA com validação própria documentada
+ *                (nº, versão, evidência, testes, confirmação). As empresas que já o
+ *                usavam antes deste módulo ficam marcadas "legado" (decisão do Super Admin).
+ *   • SUSPENSO — Modo C: nenhum motor autorizado → não se emitem documentos fiscais.
+ *
+ * NUNCA há passagem automática de VENDUS para LPS quando o Vendus falha.
+ */
+
+export type EngineCode = 'LPS' | 'VENDUS' | 'SUSPENSO';
+
+export type ValidityStatus = 'CONFIRMADO' | 'PENDENTE' | 'EXPIRADO';
+
+/** Estados internos de um documento do motor externo (missão, fase 11). */
+export const DOC_STATES = [
+  'RASCUNHO',
+  'A_PREPARAR',
+  'A_ENVIAR',
+  'CRIADO_NO_VENDUS',
+  'COMUNICACAO_AGT_PENDENTE',
+  'AGT_ACEITE',
+  'AGT_REJEITADO',
+  'ESTADO_DESCONHECIDO',
+  'ERRO_DE_COMUNICACAO',
+  'CORRECCAO_NECESSARIA',
+] as const;
+export type DocState = (typeof DOC_STATES)[number];
+
+/** Indicadores de estado da ligação de uma empresa (missão, fase 4). */
+export type CompanyIndicator =
+  | 'NAO_CONFIGURADA'
+  | 'CREDENCIAIS_POR_INSERIR'
+  | 'LIGACAO_NAO_TESTADA'
+  | 'CREDENCIAIS_INVALIDAS'
+  | 'SUBSCRICAO_INACTIVA'
+  | 'SERVICO_INDISPONIVEL'
+  | 'CONTA_IDENTIFICADA'
+  | 'CONFIGURACAO_FISCAL_PENDENTE'
+  | 'CERTIFICACAO_POR_CONFIRMAR'
+  | 'VALIDADE_POR_CONFIRMAR'
+  | 'TESTES_PENDENTES'
+  | 'PRONTO_PARA_ACTIVACAO'
+  | 'MOTOR_ACTIVO'
+  | 'INTEGRACAO_SUSPENSA';
+
+export interface SettingsLike {
+  vendusEnabled: boolean;
+  providerProducer: string;
+  providerSoftware: string;
+  providerValidationNo: string;
+  providerVersion: string;
+  providerFeCertNo?: string;
+  providerValidUntil: Date | null;
+  providerEvidenceUrl: string;
+  providerEvidenceId: string | null;
+  providerVerifiedAt: Date | null;
+  providerVerifiedBy: string;
+  alertDays: number[];
+  alertsSent: unknown;
+  lpsValidationNo: string;
+  lpsValidationVersion: string;
+  lpsEvidenceId: string | null;
+  lpsTestsApprovedAt: Date | null;
+  lpsConfirmedAt: Date | null;
+  lpsConfirmedBy: string;
+}
+
+export interface CompanyLike {
+  engine: string;
+  suspendedReason: string;
+  apiKeyEnc: string | null;
+  apiKeySetAt: Date | null;
+  accountId: string;
+  accountFiscalId: string;
+  accountCountry: string;
+  registerId: string;
+  registerSubscription: string;
+  feConfirmedAt: Date | null;
+  lastTestAt: Date | null;
+  lastTestOk: boolean;
+  lastTestCode: string;
+  testsPassedAt: Date | null;
+  activatedAt: Date | null;
+}
+
+const DAY = 86_400_000;
+
+/** "Hoje" em Luanda (UTC+1) como data YYYY-MM-DD. */
+export function luandaToday(now = new Date()): string {
+  return new Date(now.getTime() + 3_600_000).toISOString().slice(0, 10);
+}
+
+function ymd(d: Date | null): string | null {
+  return d ? d.toISOString().slice(0, 10) : null;
+}
+
+/** Dias até à data de validade (0 = vence hoje; negativo = expirado). */
+export function daysUntil(until: Date | null, now = new Date()): number | null {
+  const u = ymd(until);
+  if (!u) return null;
+  return Math.round((Date.parse(`${u}T00:00:00Z`) - Date.parse(`${luandaToday(now)}T00:00:00Z`)) / DAY);
+}
+
+/**
+ * Validade da validação AGT do fornecedor. CONFIRMADO só com TODOS os dados
+ * oficiais (produtor, software, nº, versão, validade), uma evidência (documento
+ * carregado ou URL oficial), quem verificou e quando. A data nunca se assume.
+ * Depois do dia de vencimento → EXPIRADO, até chegar nova evidência com nova data.
+ */
+export function providerValidity(s: SettingsLike, now = new Date()): { status: ValidityStatus; daysLeft: number | null; missing: string[] } {
+  const missing: string[] = [];
+  if (!s.providerProducer.trim()) missing.push('produtor');
+  if (!s.providerSoftware.trim()) missing.push('software');
+  if (!s.providerValidationNo.trim()) missing.push('número de validação');
+  if (!s.providerVersion.trim()) missing.push('versão');
+  if (!s.providerValidUntil) missing.push('data de validade');
+  if (!s.providerEvidenceId && !/^https:\/\//.test(s.providerEvidenceUrl.trim())) missing.push('evidência');
+  if (!s.providerVerifiedAt) missing.push('data da verificação');
+  if (!s.providerVerifiedBy.trim()) missing.push('responsável pela verificação');
+  const daysLeft = daysUntil(s.providerValidUntil, now);
+  if (daysLeft !== null && daysLeft < 0) return { status: 'EXPIRADO', daysLeft, missing };
+  return { status: missing.length ? 'PENDENTE' : 'CONFIRMADO', daysLeft, missing };
+}
+
+/** Alertas de vencimento já devidos e ainda não registados (30/15/7/0 dias, configuráveis). */
+export function dueAlerts(s: SettingsLike, now = new Date()): { key: string; days: number }[] {
+  const left = daysUntil(s.providerValidUntil, now);
+  const until = ymd(s.providerValidUntil);
+  if (left === null || !until) return [];
+  const sent = (s.alertsSent ?? {}) as Record<string, string>;
+  const thresholds = [...new Set(s.alertDays)].filter((d) => Number.isInteger(d) && d >= 0).sort((a, b) => a - b);
+  // Só o limiar mais próximo já atingido (não dispara 30, 15 e 7 de uma vez).
+  const reached = thresholds.filter((d) => left <= d);
+  if (!reached.length) return [];
+  const d = reached[0];
+  const key = `${until}:${d}`;
+  return sent[key] ? [] : [{ key, days: d }];
+}
+
+/** Validação própria do LPS completa (Modo B). */
+export function lpsValidationComplete(s: SettingsLike): { ok: boolean; missing: string[] } {
+  const missing: string[] = [];
+  if (!s.lpsValidationNo.trim()) missing.push('número de validação próprio');
+  if (!s.lpsValidationVersion.trim()) missing.push('versão autorizada');
+  if (!s.lpsEvidenceId) missing.push('evidência documental');
+  if (!s.lpsTestsApprovedAt) missing.push('testes aprovados');
+  if (!s.lpsConfirmedAt || !s.lpsConfirmedBy.trim()) missing.push('confirmação do Super Admin');
+  return { ok: missing.length === 0, missing };
+}
+
+export interface Readiness {
+  indicator: CompanyIndicator;
+  checks: { key: string; ok: boolean }[];
+  canActivate: boolean;
+}
+
+/**
+ * Indicador da ligação Vendus de uma empresa + lista de verificações.
+ * A activação exige TODAS: chave, ligação testada, conta do mesmo NIF e de Angola,
+ * caixa identificada com subscrição activa, FE configurada no Vendus (confirmada),
+ * validade do fornecedor CONFIRMADA, testes concluídos e o switch global ligado.
+ */
+export function companyReadiness(c: CompanyLike | null, s: SettingsLike, companyNif: string, now = new Date()): Readiness {
+  const validity = providerValidity(s, now);
+  const nifOk = !!c && normNif(c.accountFiscalId) !== '' && normNif(c.accountFiscalId) === normNif(companyNif);
+  const testedAfterKey = !!c?.lastTestAt && (!c.apiKeySetAt || c.lastTestAt >= c.apiKeySetAt);
+  const checks = [
+    { key: 'chave', ok: !!c?.apiKeyEnc },
+    { key: 'ligacao', ok: !!c && testedAfterKey && c.lastTestOk },
+    { key: 'conta', ok: !!c?.accountId && nifOk },
+    { key: 'pais', ok: (c?.accountCountry ?? '').toUpperCase() === 'AO' },
+    { key: 'caixa', ok: !!c?.registerId && isYes(c.registerSubscription) },
+    { key: 'fe_vendus', ok: !!c?.feConfirmedAt },
+    { key: 'validade', ok: validity.status === 'CONFIRMADO' },
+    { key: 'testes', ok: !!c?.testsPassedAt && (!c.apiKeySetAt || c.testsPassedAt >= c.apiKeySetAt) },
+    { key: 'switch', ok: s.vendusEnabled },
+  ];
+  const canActivate = checks.every((x) => x.ok);
+  let indicator: CompanyIndicator;
+  if (!c) indicator = 'NAO_CONFIGURADA';
+  else if (c.engine === 'VENDUS' && c.activatedAt && canActivate) indicator = 'MOTOR_ACTIVO';
+  else if (c.engine === 'SUSPENSO' || (c.engine === 'VENDUS' && c.activatedAt && !canActivate)) indicator = 'INTEGRACAO_SUSPENSA';
+  else if (!c.apiKeyEnc) indicator = 'CREDENCIAIS_POR_INSERIR';
+  else if (!testedAfterKey) indicator = 'LIGACAO_NAO_TESTADA';
+  else if (c.lastTestCode === 'CHAVE_INVALIDA') indicator = 'CREDENCIAIS_INVALIDAS';
+  else if (c.lastTestCode === 'SUBSCRICAO_INACTIVA' || (c.registerId && !isYes(c.registerSubscription))) indicator = 'SUBSCRICAO_INACTIVA';
+  else if (['INDISPONIVEL', 'TIMEOUT', 'REDE', 'LIMITE'].includes(c.lastTestCode)) indicator = 'SERVICO_INDISPONIVEL';
+  else if (!c.lastTestOk || !nifOk) indicator = 'LIGACAO_NAO_TESTADA';
+  else if (!c.registerId || !c.feConfirmedAt) indicator = c.feConfirmedAt ? 'CONTA_IDENTIFICADA' : 'CONFIGURACAO_FISCAL_PENDENTE';
+  else if (validity.status === 'EXPIRADO') indicator = 'VALIDADE_POR_CONFIRMAR';
+  else if (validity.status !== 'CONFIRMADO') indicator = 'CERTIFICACAO_POR_CONFIRMAR';
+  else if (!checks.find((x) => x.key === 'testes')!.ok) indicator = 'TESTES_PENDENTES';
+  else indicator = 'PRONTO_PARA_ACTIVACAO';
+  return { indicator, checks, canActivate };
+}
+
+/**
+ * Motor EFECTIVO de uma empresa no momento da emissão. É calculado a partir dos
+ * dados (não de um booleano), por isso voltar a ligar o switch não contorna uma
+ * validade expirada: só nova evidência de renovação repõe o estado operacional.
+ */
+export function effectiveEngine(c: CompanyLike | null, s: SettingsLike, companyNif: string, now = new Date()): { engine: EngineCode; reason: string; legacy: boolean } {
+  if (!c || c.engine === 'LPS') {
+    const lps = lpsValidationComplete(s);
+    return { engine: 'LPS', reason: lps.ok ? '' : 'Motor próprio sem validação AGT documentada', legacy: !lps.ok };
+  }
+  if (c.engine === 'SUSPENSO') return { engine: 'SUSPENSO', reason: c.suspendedReason || 'Emissão fiscal suspensa pelo Super Admin', legacy: false };
+  // VENDUS
+  if (!c.activatedAt) return { engine: 'SUSPENSO', reason: 'Motor Vendus ainda não activado', legacy: false };
+  const v = providerValidity(s, now);
+  if (v.status === 'EXPIRADO') return { engine: 'SUSPENSO', reason: 'Validação AGT do Cegid Vendus expirada — falta evidência de renovação', legacy: false };
+  if (v.status !== 'CONFIRMADO') return { engine: 'SUSPENSO', reason: 'Validade da validação AGT do Cegid Vendus por confirmar', legacy: false };
+  if (!s.vendusEnabled) return { engine: 'SUSPENSO', reason: 'Motor fiscal externo desligado no Super Admin', legacy: false };
+  const r = companyReadiness(c, s, companyNif, now);
+  if (!r.canActivate) {
+    const failed = r.checks.filter((x) => !x.ok).map((x) => x.key).join(', ');
+    return { engine: 'SUSPENSO', reason: `Ligação Vendus incompleta (${failed})`, legacy: false };
+  }
+  return { engine: 'VENDUS', reason: '', legacy: false };
+}
+
+export function normNif(v: string | null | undefined): string {
+  return String(v ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+export function isYes(v: unknown): boolean {
+  return v === true || v === 1 || ['yes', 'y', 'sim', '1', 'true', 'active', 'on'].includes(String(v ?? '').trim().toLowerCase());
+}
+
+/**
+ * Estado AGT de um documento a partir do detalhe devolvido pelo Vendus.
+ *
+ * A API v1.1/v1.2 só devolve `agt: { document_number, qrcode_image }` — não há
+ * campo de aceitação/rejeição. Por isso NUNCA se conclui AGT_ACEITE nem
+ * AGT_REJEITADO a partir de HTTP 200/201, de PDF, hash ou QR Code: o documento
+ * fica em COMUNICACAO_AGT_PENDENTE (a consulta oficial é no Backoffice Vendus:
+ * Gestão → Factura Electrónica → documentos rejeitados).
+ */
+export function agtStateFromDetails(details: Record<string, any> | null | undefined, mode: string): DocState {
+  if (!details || !details.id) return 'ESTADO_DESCONHECIDO';
+  if (mode === 'tests') return 'CRIADO_NO_VENDUS'; // Formação/Testes: sem validade fiscal, não é comunicado
+  return 'COMUNICACAO_AGT_PENDENTE';
+}
+
+/** Próxima tentativa (backoff exponencial, máx. 30 min). */
+export function nextAttemptDelayMs(attempts: number): number {
+  return Math.min(30 * 60_000, 30_000 * 2 ** Math.max(0, attempts - 1));
+}

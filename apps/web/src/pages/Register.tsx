@@ -20,7 +20,7 @@ const BUSINESS_TYPES: { id: string; label: string }[] = [
 
 /** Coluna azul sem testemunhos configurados: os pontos fortes do sistema. */
 const DEFAULT_SLIDES: AuthTestimonial[] = [
-  { name: 'Faturação certificada AGT', text: 'Faturas, SAF-T e assinatura digital — conforme a lei angolana.' },
+  { name: 'Faturação e SAF-T (AO)', text: 'Faturas, SAF-T (AO) e Facturação Electrónica integrada.' },
   { name: 'POS / Caixa', text: 'Venda rápida, táctil e mesmo sem internet.' },
   { name: 'Stock & Loja online', text: 'Inventário por armazém e a sua montra na internet, em Kwanzas.' },
 ];

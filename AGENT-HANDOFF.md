@@ -136,3 +136,18 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - Corrigido: replicação de faturas validada; gatilhos de imutabilidade/TRUNCATE/auditoria (`apps/api/src/tenancy/fiscal-guards.ts`, aplicados no arranque); empresa com documentos não se elimina; cliente gravado na emissão (`invoices.customer_name`); NIF validado; TMP não emite; produção subscrita sem chave Modelo 8 não emite; art. 17.º (60 dias sem comunicar bloqueia a emissão); E09 reconciliado; recolha FE já não perde a 1.ª factura; SAF-T validado no XSD (`packages/agt-xml/xsd`) + `GET /pos/saft/validate`; NIF do produtor (Super Admin → Fiscal).
 - Testes: `qa/agt-fe-simulacao.mjs` (simulador AGT `qa/agt-fe-mock.mjs`; API com `AGT_FE_BASE_URL`, só fora de produção), `qa/fiscal-imutabilidade.mjs`, `qa/fiscal-emissao.mjs`.
 - Falta (nosso): recibos RC (FE + SAF-T Payments), contingência art. 18.º e séries C dos postos locais, SAF-T Contabilidade (não há contabilidade). Externo: credenciais Basic, registo produtor/software, nº de validação, chaves dos contribuintes.
+
+## Motor fiscal externo Cegid Vendus (2026-11-21, ramo fiscal/motor-vendus)
+
+- Módulo `apps/api/src/fiscal-engine/`: três motores por empresa (LPS / VENDUS / SUSPENSO),
+  sem fallback automático para o LPS. Validade do fornecedor com evidência e alertas 30/15/7/0.
+  Fila com `tx_id` + reconciliação por `external_reference`, PDF original, NC, sincronização,
+  SAF-T do Vendus. Super Admin → Fiscal (AGT) → **Software de terceiros**; empresa → Fiscal · SAF-T.
+- Vendas do motor Vendus ficam no LPS como registo comercial na série interna `VND`
+  (`invoices.fiscal_engine`), fora do SAF-T do LPS. A Caixa abre o PDF original do Vendus.
+- Landing: selo/FAQ "certificado AGT" retirados; bloco "LPS Vendas · ERP integrado | Facturação
+  Electrónica · Cegid Vendus" só com o motor activo.
+- Testes: `qa/vendus-mock.mjs` + `qa/vendus-motor.mjs` (56/56), jest 364/364. Nada real.
+- Docs: `docs/fiscal-engine/` (OVERVIEW primeiro). Falta: API KEY real, FE no Backoffice
+  Vendus, registo da validade com evidência, teste real autorizado, respostas da Cegid/AGT.
+- Decisão pendente: empresas existentes continuam em LPS "legado" (sem validação própria).

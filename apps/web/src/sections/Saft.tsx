@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { runDownload } from '../components/feedback';
 import { api, ApiError } from '../api/client';
 import type { AgtCommStatus } from '../api/types';
+import { useAuth } from '../auth/AuthContext';
+import { FiscalEngineCompanyCard } from './FiscalEngineCompanyCard';
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const DOC_TYPE: Record<string, string> = { FT: 'Factura', FR: 'Factura-Recibo', NC: 'Nota de Crédito', ND: 'Nota de Débito', RC: 'Recibo', GR: 'Guia de Remessa', GT: 'Guia de Transporte', PF: 'Factura Pró-forma', OR: 'Orçamento' };
@@ -17,6 +19,8 @@ type FeDoc = Awaited<ReturnType<typeof api.fe.documents>>[number];
  *    e Documentos rejeitados (com "Repor na fila").
  */
 export function Saft() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'COMPANY_ADMIN';
   const now = new Date();
   const [view, setView] = useState<'home' | 'config'>('home');
   const [year, setYear] = useState(now.getFullYear());
@@ -198,6 +202,7 @@ export function Saft() {
           </div>
         </div>
       ) : null}
+      {view === 'home' ? <FiscalEngineCompanyCard admin={isAdmin} /> : null}
     </div>
   );
 }

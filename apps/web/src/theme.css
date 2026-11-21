@@ -2495,7 +2495,7 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn
 .fx-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
 .fx-note { display: flex; gap: 10px; padding: 12px 14px; border-radius: 11px; background: var(--primary-soft); font-size: 13px; line-height: 1.55; margin-bottom: 14px; }
 .fx-note.bad { background: color-mix(in srgb, #dc2626 9%, transparent); border: 1px solid color-mix(in srgb, #dc2626 26%, transparent); }
-.fx-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 14px 0; }
+.fx-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: 10px; margin: 14px 0; }
 .fx-meta > div { padding: 10px 12px; border-radius: 10px; background: var(--surface-2); min-width: 0; }
 .fx-meta small { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 2px; }
 .fx-meta b { font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
@@ -2504,7 +2504,7 @@ html[data-theme]:not([data-theme="claro"]):not([data-theme="profissional"]) .btn
 .fx-badge .fx-dot { margin-right: 7px; }
 .fx-badge.ok { color: #15803d; border-color: color-mix(in srgb, #16a34a 35%, transparent); background: color-mix(in srgb, #16a34a 10%, transparent); }
 .fx-badge.bad { color: #dc2626; border-color: color-mix(in srgb, #dc2626 35%, transparent); background: color-mix(in srgb, #dc2626 9%, transparent); }
-.fx-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px 18px; }
+.fx-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 8px 18px; }
 .fx-steps li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted); }
 .fx-steps li.done { color: var(--text); }
 .fx-steps .n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--surface-2); border: 1px solid var(--border); flex: none; }
@@ -4301,3 +4301,24 @@ img, video, canvas { max-width: 100%; }
 .kp-rule input { width: 100px; }
 .kp-rule select { width: 100%; }
 .kp-rule em { font-style: normal; color: var(--muted, #64748b); font-size: 13px; }
+
+/* Super Admin → Fiscal → Software de terceiros (motor fiscal). */
+.fe-switch { padding: 12px 14px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2); font-weight: 600; flex-wrap: wrap; }
+.fe-switch > span { min-width: 0; overflow-wrap: anywhere; }
+.fe-list { display: grid; gap: 8px; }
+.fe-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); text-align: left; min-width: 0; }
+.fe-row:hover, .fe-row.on { border-color: var(--primary); background: var(--primary-soft); }
+.fe-row:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.fe-row-n { display: flex; flex-direction: column; min-width: 0; flex: 1 1 180px; }
+.fe-row-n b, .fe-row-n small { overflow-wrap: anywhere; }
+.fe-row-n small { color: var(--muted); }
+.fe-row-s { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.fe-row-s .fx-badge, .fx-card-h .fx-badge { white-space: normal; max-width: 100%; }
+.fe-check { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0 0; font-size: 13.5px; line-height: 1.45; cursor: pointer; overflow-wrap: anywhere; }
+.fe-check input { margin-top: 2px; flex: none; accent-color: var(--primary); }
+.fe-docs { display: grid; gap: 8px; }
+.fe-doc { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 6px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 11px; }
+.fe-doc b, .fe-doc small { overflow-wrap: anywhere; }
+.fe-doc small { display: block; color: var(--muted); }
+.fe-doc-a { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+@media (max-width: 640px) { .fe-doc { grid-template-columns: minmax(0, 1fr); } .fe-doc-a { justify-content: flex-start; } }

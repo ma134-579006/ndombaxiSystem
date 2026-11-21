@@ -136,7 +136,9 @@ export interface AuthLook {
   registerTitle?: string; registerSubtitle?: string; optInLabel?: string; showNif?: boolean;
   google?: AuthSocialBtn; facebook?: AuthSocialBtn; testimonials?: AuthTestimonial[];
 }
-export interface PublicLanding { config: LandingConfig; plans: PublicPlan[]; /** Nº de validação AGT do software (null = sem número). */ agtCertificate?: string | null; /** App ID público do Facebook Login (null = desligado). */ facebookAppId?: string | null }
+export interface PublicLanding { config: LandingConfig; plans: PublicPlan[]; /** Nº de validação AGT do software (null = sem número). */ agtCertificate?: string | null; /** App ID público do Facebook Login (null = desligado). */ facebookAppId?: string | null;
+  /** Software fiscal externo em utilização (só quando activo e com validade confirmada). */
+  fiscalEngine?: { name: string; producer: string; validationNo: string; feCertNo: string; version: string; validUntil: string; url: string } | null }
 
 export interface MailConfigView {
   host: string | null; port: number; secure: boolean;
@@ -1505,3 +1507,59 @@ export interface PayoutsView {
 
 /** Regras dos saques do LPS Kwanza (Super Admin). */
 export interface KwanzaRules { dueHours: number; weekendMode: 'MONDAY_END' | 'SAME'; extendHours: number; postponeMaxDays: number; postponeReasonMin: number; banDays: number }
+
+// ── Motor fiscal (LPS / Cegid Vendus / suspenso) ─────────────────────────────
+export type FiscalEngineCode = 'LPS' | 'VENDUS' | 'SUSPENSO';
+export interface FiscalEngineEffective { engine: FiscalEngineCode; reason: string; legacy: boolean }
+export interface FiscalEngineValidity { status: 'CONFIRMADO' | 'PENDENTE' | 'EXPIRADO'; daysLeft: number | null; missing: string[] }
+export interface FiscalEngineSettingsView {
+  vendusEnabled: boolean; vendusBaseUrl: string; vendusApiVersion: string;
+  providerProducer: string; providerSoftware: string; providerValidationNo: string; providerFeCertNo: string; providerVersion: string;
+  providerValidFrom: string | null; providerValidUntil: string | null; providerEvidenceUrl: string; providerEvidenceId: string | null;
+  providerVerifiedAt: string | null; providerVerifiedBy: string; alertDays: number[];
+  lpsValidationNo: string; lpsValidationVersion: string; lpsEvidenceId: string | null; lpsTestsApprovedAt: string | null; lpsConfirmedAt: string | null; lpsConfirmedBy: string;
+}
+export interface FiscalEngineOverview {
+  settings: FiscalEngineSettingsView;
+  validity: FiscalEngineValidity;
+  lpsValidation: { ok: boolean; missing: string[] };
+  alerts: { level: 'info' | 'warn' | 'bad'; text: string }[];
+  companies: { id: string; name: string; nif: string; engine: FiscalEngineCode; effective: FiscalEngineEffective; indicator: string; canActivate: boolean }[];
+}
+export interface FiscalEngineLink {
+  engine: FiscalEngineCode; suspendedReason: string; apiKeyMask: string; apiKeySetAt: string | null;
+  accountId: string; accountCompany: string; accountFiscalId: string; accountCountry: string; accountAddress: string;
+  storeId: string; registerId: string; registerTitle: string; registerType: string; registerSubscription: string; registerExpires: string;
+  paymentMap: Record<string, string>; taxMap: Record<string, string>;
+  feConfirmedAt: string | null; feConfirmedBy: string; lastTestAt: string | null; lastTestOk: boolean; lastTestCode: string; lastTestMessage: string;
+  testsPassedAt: string | null; activatedAt: string | null; activatedBy: string; health: { code?: string; at?: string; message?: string };
+}
+export interface FiscalEngineCompanyDetail {
+  company: { id: string; name: string; nif: string };
+  engine: FiscalEngineCode; effective: FiscalEngineEffective; indicator: string;
+  checks: { key: string; ok: boolean }[]; canActivate: boolean; validity: FiscalEngineValidity; link: FiscalEngineLink | null;
+}
+export interface FiscalEngineCatalog {
+  registers: { id: string; title: string; store_id: number; type: string; status: string; subscription_active: string }[];
+  stores: { id: string; title: string; status: string }[];
+  taxes: { id: string; rate: number; country: string; title: string }[];
+  exemptions: { id: string; text: string }[];
+  paymentMethods: { id: string; title: string; type: string }[];
+}
+export interface FiscalEngineDocSummary { id: string; state: string; number: string | null; pdf: boolean; error: string | null }
+export interface FiscalEngineDocRow {
+  id: string; kind: string; mode: string; state: string; attempts: number; vendus_id: string | null; doc_type: string | null; number: string | null;
+  doc_date: string | null; amount_gross: string | null; amount_net: string | null; hash: string | null; divergence: string | null;
+  last_error: string | null; last_error_code: string | null; created_at: string; updated_at: string; has_pdf: boolean; internal_number: string | null; invoice_id: string | null;
+}
+export interface FiscalEngineDocDetail extends FiscalEngineDocRow {
+  events: { state: string; detail: string; at: string }[]; tx_id: string; external_reference: string; qrcode_data: string | null; pdf_sha256: string | null;
+}
+export interface FiscalEngineTenantStatus {
+  engine: FiscalEngineCode; effective: FiscalEngineEffective; indicator: string; checks: { key: string; ok: boolean }[];
+  validity: { status: string; daysLeft: number | null };
+  account: { company: string; fiscalId: string; country: string; register: string } | null;
+  counts: Record<string, number>;
+}
+export interface FiscalEngineSyncResult { created: number; linked: number; updated: number; skipped: number; errors: string[] }
+export interface FiscalEngineSaft { id: string; year: number; month: number; sha256: string; valid: boolean; issues: string[]; header: Record<string, string>; fetched_at?: string; fetchedAt?: string; size?: number }

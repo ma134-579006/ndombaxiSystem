@@ -526,6 +526,100 @@ model AgtFiscalConfig {
   @@schema("nexus_public")
 }
 
+// ── MOTOR FISCAL (Super Admin → Fiscal → Software de terceiros) ────────────────
+// Política global: switch do motor externo Cegid Vendus, validade da validação AGT
+// do fornecedor (com evidência) e validação própria do LPS (Modo B). Uma linha só.
+model FiscalEngineSettings {
+  id                   String    @id @default("default")
+  vendusEnabled        Boolean   @default(false) // switch "Usar motor fiscal externo — Cegid Vendus"
+  vendusBaseUrl        String    @default("https://www.vendus.co.ao/ws")
+  vendusApiVersion     String    @default("1.1") // versão por omissão publicada pela Cegid (consultada a 21-11-2026)
+  // Validação AGT do FORNECEDOR (listagem oficial da AGT) — nunca preenchida por omissão.
+  providerProducer     String    @default("")
+  providerSoftware     String    @default("")
+  providerValidationNo String    @default("")
+  providerVersion      String    @default("")
+  providerFeCertNo     String    @default("") // nº de certificação para a Facturação Electrónica (ex.: FE/…/AGT/…)
+  providerValidFrom    DateTime? @db.Date
+  providerValidUntil   DateTime? @db.Date
+  providerEvidenceUrl  String    @default("")
+  providerEvidenceId   String?   @db.Uuid
+  providerVerifiedAt   DateTime?
+  providerVerifiedBy   String    @default("")
+  alertDays            Int[]     @default([30, 15, 7, 0])
+  alertsSent           Json      @default("{}") // { "<validade>:<dias>": iso }
+  // Validação PRÓPRIA do LPS (Modo B) — só com número, versão e evidência oficiais.
+  lpsValidationNo      String    @default("")
+  lpsValidationVersion String    @default("")
+  lpsEvidenceId        String?   @db.Uuid
+  lpsTestsApprovedAt   DateTime?
+  lpsConfirmedAt       DateTime?
+  lpsConfirmedBy       String    @default("")
+  updatedAt            DateTime  @updatedAt
+
+  @@map("fiscal_engine_settings")
+  @@schema("nexus_public")
+}
+
+// Ligação de UMA empresa contribuinte ao motor fiscal. A API KEY Vendus é da conta
+// do contribuinte (identifica o utilizador técnico) — cifrada, nunca devolvida.
+model FiscalEngineCompany {
+  id                   String    @id @default(uuid()) @db.Uuid
+  companyId            String    @unique @db.Uuid
+  engine               String    @default("LPS") // LPS | VENDUS | SUSPENSO
+  suspendedReason      String    @default("")
+  apiKeyEnc            String?
+  apiKeyMask           String    @default("")
+  apiKeySetAt          DateTime?
+  // Conta devolvida por GET /account/ (nunca escrita à mão).
+  accountId            String    @default("")
+  accountCompany       String    @default("")
+  accountFiscalId      String    @default("")
+  accountCountry       String    @default("")
+  accountAddress       String    @default("")
+  storeId              String    @default("")
+  registerId           String    @default("")
+  registerTitle        String    @default("")
+  registerType         String    @default("")
+  registerSubscription String    @default("") // subscription_active do registo
+  registerExpires      String    @default("")
+  paymentMap           Json      @default("{}") // { CASH: "<id Vendus>", CARD: ..., TRANSFER: ... }
+  taxMap               Json      @default("{}") // { NOR: "NOR" } confirmado contra GET /taxes/ da conta
+  // Factura Electrónica configurada no Backoffice Vendus (Gestão → Factura Electrónica):
+  // a API não a expõe; fica a confirmação do administrador com data e autor.
+  feConfirmedAt        DateTime?
+  feConfirmedBy        String    @default("")
+  lastTestAt           DateTime?
+  lastTestOk           Boolean   @default(false)
+  lastTestCode         String    @default("")
+  lastTestMessage      String    @default("")
+  testsPassedAt        DateTime? // documento de testes criado, lido e PDF obtido
+  activatedAt          DateTime?
+  activatedBy          String    @default("")
+  health               Json      @default("{}") // última monitorização: { code, at, message }
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@map("fiscal_engine_companies")
+  @@schema("nexus_public")
+}
+
+// Evidências documentais (listagem AGT, declaração da Cegid, validação do LPS).
+model FiscalEngineEvidence {
+  id          String   @id @default(uuid()) @db.Uuid
+  kind        String // PROVIDER_VALIDITY | LPS_VALIDATION
+  filename    String
+  contentType String
+  sha256      String
+  size        Int
+  data        Bytes
+  uploadedBy  String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@map("fiscal_engine_evidence")
+  @@schema("nexus_public")
+}
+
 // ─────────────────────────────────────────────────────────────
 // DOWNLOADS DAS APLICAÇÕES (Windows/Android/iOS) — geridos pelo Super Admin
 // ─────────────────────────────────────────────────────────────

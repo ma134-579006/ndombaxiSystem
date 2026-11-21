@@ -27,6 +27,7 @@ import { CamerasModule } from './cameras/cameras.module';
 import { SiteModule } from './site/site.module';
 import { PaymentsModule } from './payments/payments.module';
 import { FiscalModule } from './fiscal/fiscal.module';
+import { FiscalEngineModule } from './fiscal-engine/fiscal-engine.module';
 import { StaffModule } from './staff/staff.module';
 import { BackupModule } from './backup/backup.module';
 import { MigrationModule } from './migration/migration.module';
@@ -103,6 +104,7 @@ import { HealthController } from './health.controller';
     SiteModule,
     PaymentsModule,
     FiscalModule,
+    FiscalEngineModule,
     StaffModule,
     BackupModule,
     MigrationModule,

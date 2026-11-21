@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { LandingConfig, Plan, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { IntegrationsService } from '../integrations/integrations.service';
+import { FiscalEngineService } from '../fiscal-engine/fiscal-engine.service';
 import type { UpdateLandingDto, UpdatePlanDto } from './dto/landing.dto';
 
 /** Funcionalidades por defeito mostradas na landing (editáveis pelo Super Admin). */
@@ -32,6 +33,7 @@ export class LandingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly integrations: IntegrationsService,
+    @Optional() private readonly fiscalEngine?: FiscalEngineService,
   ) {}
 
   /** Lê a config (cria a default com features na primeira leitura). */
@@ -82,7 +84,7 @@ export class LandingService {
   }
 
   /** Pacote completo para a landing pública (config + planos visíveis). */
-  async getPublicLanding(): Promise<{ config: LandingConfig; plans: Plan[]; agtCertificate: string | null; facebookAppId: string | null }> {
+  async getPublicLanding(): Promise<{ config: LandingConfig; plans: Plan[]; agtCertificate: string | null; facebookAppId: string | null; fiscalEngine: Record<string, string> | null }> {
     const [config, plans, agt] = await Promise.all([
       this.get(),
       this.listPublicPlans(),
@@ -93,7 +95,17 @@ export class LandingService {
     // App ID PÚBLICO do Facebook Login (só quando a integração está ligada e tem segredo).
     const fb = await this.integrations.getActive('FACEBOOK_LOGIN').catch(() => null);
     const fbId = String(fb?.settings?.appId ?? '').trim();
-    return { config, plans, agtCertificate: n && n !== '0' ? n : null, facebookAppId: fb && fb.secret && fbId ? fbId : null };
+    // Identificação do software fiscal (missão Vendus): o nº de validação PRÓPRIO só aparece
+    // com a validação do LPS documentada (Modo B); o Cegid Vendus só aparece quando é
+    // efectivamente o motor em utilização e com a validade confirmada.
+    const disc = await this.fiscalEngine?.publicDisclosure().catch(() => null);
+    const own = disc?.lps?.validationNo ?? null;
+    return {
+      config, plans,
+      agtCertificate: own && n && n !== '0' && own === n ? n : own,
+      facebookAppId: fb && fb.secret && fbId ? fbId : null,
+      fiscalEngine: disc?.vendus ?? null,
+    };
   }
 }
 
