@@ -1555,6 +1555,7 @@ export interface FiscalEngineDocRow {
 export interface FiscalEngineDocDetail extends FiscalEngineDocRow {
   events: { state: string; detail: string; at: string }[]; tx_id: string; external_reference: string; qrcode_data: string | null; pdf_sha256: string | null;
 }
+export interface FiscalEngineBadge { vendus: boolean; provider?: string; software?: string; validationNo?: string; feCertNo?: string; validUntil?: string | null }
 export interface FiscalEngineTenantStatus {
   engine: FiscalEngineCode; effective: FiscalEngineEffective; indicator: string; checks: { key: string; ok: boolean }[];
   validity: { status: string; daysLeft: number | null };

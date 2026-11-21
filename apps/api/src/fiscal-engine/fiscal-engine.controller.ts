@@ -180,6 +180,13 @@ export class FiscalEngineAdminController {
 export class FiscalEngineTenantController {
   constructor(private readonly svc: FiscalEngineService, private readonly ctx: TenantContext) {}
 
+  /** Selo «Facturação · Cegid Vendus» na barra do painel e da caixa (todos os papéis). */
+  @Get('badge')
+  @Roles(Role.ATTENDANT)
+  badge() {
+    return this.svc.badgeForSchema(this.ctx.requireTenantSchema());
+  }
+
   @Get('status')
   @Roles(Role.STORE_MANAGER)
   async status() {

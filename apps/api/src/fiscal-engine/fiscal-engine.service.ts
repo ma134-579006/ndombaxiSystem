@@ -336,6 +336,17 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     return c;
   }
 
+  /** Selo da barra de topo: só diz que a facturação desta empresa é emitida pelo
+   *  Cegid Vendus quando o motor efectivo é mesmo o Vendus (nunca deduzido de
+   *  outra coisa). Sem chave nem configuração interna. */
+  async badgeForSchema(schema: string): Promise<{ vendus: boolean; provider?: string; software?: string; validationNo?: string; feCertNo?: string; validUntil?: string | null }> {
+    const co = await this.companyBySchema(schema);
+    const [l, s] = await Promise.all([this.link(co.id), this.settings()]);
+    const nif = nifFor(l, co.nif);
+    if (effectiveEngine(l, s, nif).engine !== 'VENDUS') return { vendus: false };
+    return { vendus: true, provider: 'Cegid Vendus', software: s.providerSoftware || 'Vendus', validationNo: s.providerValidationNo, feCertNo: s.providerFeCertNo, validUntil: ymd(s.providerValidUntil) };
+  }
+
   async companyBySchema(schema: string): Promise<CompanyRef> {
     const c = await this.prisma.company.findUnique({ where: { schemaName: schema }, select: { id: true, name: true, nif: true, schemaName: true } });
     if (!c) throw new NotFoundException('Empresa não encontrada');

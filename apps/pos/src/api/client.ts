@@ -345,6 +345,8 @@ export const api = {
   approveDiscount: (pin: string) => request<{ approverName: string; self: boolean }>('POST', '/pos/discount/approve', { pin }),
   emitInvoice: (input: EmitInvoiceInput) =>
     request<EmittedInvoice>('POST', '/pos/invoices', input),
+  /** Selo da barra: a facturação desta empresa é emitida pelo Cegid Vendus? */
+  fiscalBadge: () => request<{ vendus: boolean; validationNo?: string; feCertNo?: string; validUntil?: string | null }>('GET', '/fiscal-engine/badge'),
   /** Documento fiscal do motor externo (Cegid Vendus) de uma venda. */
   externalFiscal: (invoiceId: string) =>
     request<{ id: string; state: string; number: string | null; has_pdf: boolean; last_error: string | null } | null>('GET', `/fiscal-engine/invoice/${invoiceId}`),
