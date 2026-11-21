@@ -177,6 +177,7 @@ import type {
   SecurityView,
   PayoutsView,
   KwanzaRules,
+  FiscalEngineOverview, FiscalEngineCompanyDetail, FiscalEngineCatalog, FiscalEngineDocSummary, FiscalEngineDocRow, FiscalEngineDocDetail, FiscalEngineTenantStatus, FiscalEngineSyncResult, FiscalEngineSaft,
 } from './types';
 
 /** IVA dos produtos importados (migração). */
@@ -518,6 +519,21 @@ export function prefetchGet(path: string): Promise<unknown> {
 /** Reenvia as alterações feitas offline (chamado em segundo plano; devolve quantas subiram). */
 export function replayQueuedWrites(): Promise<number> {
   return replayOutbox((op) => sendQueuedWrite(op));
+}
+
+/** Ficheiro binário autenticado (PDF original do motor fiscal, evidências, XML). */
+async function requestBlob(path: string, retry = true): Promise<Blob> {
+  const headers: Record<string, string> = {};
+  const token = hooks?.getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const code = hooks?.getCompanyCode?.();
+  if (code) headers['X-Tenant-Code'] = code;
+  let res: Response;
+  try { res = await fetch(`${API_URL}${path}`, { headers }); }
+  catch { throw new ApiError(0, 'Sem ligação ao servidor.'); }
+  if (res.status === 401 && retry && hooks && (await hooks.refresh())) return requestBlob(path, false);
+  if (!res.ok) throw await parseError(res);
+  return res.blob();
 }
 
 /** Como request, mas devolve o corpo em texto cru (ex.: XML do SAF-T). */
@@ -887,6 +903,35 @@ export const api = {
       request<AssistantConfig>('PATCH', '/super-admin/ai/assistant', dto),
   },
 
+  /** Motor fiscal (LPS / Cegid Vendus / suspenso). */
+  fiscalEngine: {
+    overview: () => request<FiscalEngineOverview>('GET', '/super-admin/fiscal-engine'),
+    saveSettings: (dto: Record<string, unknown>) => request<FiscalEngineOverview>('PATCH', '/super-admin/fiscal-engine/settings', dto),
+    saveLps: (dto: Record<string, unknown>) => request<FiscalEngineOverview>('PATCH', '/super-admin/fiscal-engine/lps-validation', dto),
+    uploadEvidence: (dto: { kind: string; filename: string; contentType: string; base64: string }) => request<{ id: string; sha256: string; size: number; filename: string }>('POST', '/super-admin/fiscal-engine/evidence', dto),
+    evidence: (id: string) => requestBlob(`/super-admin/fiscal-engine/evidence/${id}`),
+    company: (id: string) => request<FiscalEngineCompanyDetail>('GET', `/super-admin/fiscal-engine/company/${id}`),
+    saveKey: (id: string, apiKey: string) => request<FiscalEngineCompanyDetail>('PUT', `/super-admin/fiscal-engine/company/${id}/api-key`, { apiKey }),
+    removeKey: (id: string) => request<FiscalEngineCompanyDetail>('DELETE', `/super-admin/fiscal-engine/company/${id}/api-key`),
+    test: (id: string) => request<FiscalEngineCompanyDetail & { test: { ok: boolean; code: string; message: string }; catalog: FiscalEngineCatalog }>('POST', `/super-admin/fiscal-engine/company/${id}/test`, {}),
+    configure: (id: string, dto: Record<string, unknown>) => request<FiscalEngineCompanyDetail>('PATCH', `/super-admin/fiscal-engine/company/${id}`, dto),
+    runTests: (id: string) => request<{ ok: boolean; document: FiscalEngineDocSummary; detail: FiscalEngineCompanyDetail }>('POST', `/super-admin/fiscal-engine/company/${id}/tests`, {}),
+    activate: (id: string) => request<FiscalEngineCompanyDetail>('POST', `/super-admin/fiscal-engine/company/${id}/activate`, {}),
+    suspend: (id: string, reason: string) => request<FiscalEngineCompanyDetail>('POST', `/super-admin/fiscal-engine/company/${id}/suspend`, { reason }),
+    useLps: (id: string, confirmation: string) => request<FiscalEngineCompanyDetail>('POST', `/super-admin/fiscal-engine/company/${id}/use-lps`, { confirmation }),
+    health: (id: string) => request<FiscalEngineCompanyDetail>('POST', `/super-admin/fiscal-engine/company/${id}/health`, {}),
+    status: () => request<FiscalEngineTenantStatus>('GET', '/fiscal-engine/status'),
+    documents: (state?: string) => request<FiscalEngineDocRow[]>('GET', state ? `/fiscal-engine/documents?state=${encodeURIComponent(state)}` : '/fiscal-engine/documents'),
+    document: (id: string) => request<FiscalEngineDocDetail>('GET', `/fiscal-engine/documents/${id}`),
+    forInvoice: (invoiceId: string) => request<{ id: string; state: string; number: string | null; has_pdf: boolean; last_error: string | null } | null>('GET', `/fiscal-engine/invoice/${invoiceId}`),
+    pdf: (id: string) => requestBlob(`/fiscal-engine/documents/${id}/pdf`),
+    retry: (id: string) => request<FiscalEngineDocSummary>('POST', `/fiscal-engine/documents/${id}/retry`, {}),
+    syncClients: () => request<FiscalEngineSyncResult>('POST', '/fiscal-engine/sync/clients', {}),
+    syncProducts: () => request<FiscalEngineSyncResult>('POST', '/fiscal-engine/sync/products', {}),
+    saftHistory: () => request<FiscalEngineSaft[]>('GET', '/fiscal-engine/saft'),
+    saftFetch: (year: number, month: number) => request<FiscalEngineSaft>('POST', '/fiscal-engine/saft', { year, month }),
+    saftXml: (id: string) => requestBlob(`/fiscal-engine/saft/${id}/xml`),
+  },
   fiscal: {
     get: () => request<AgtConfig>('GET', '/super-admin/fiscal/agt'),
     update: (dto: UpdateAgtInput) => request<AgtConfig>('PATCH', '/super-admin/fiscal/agt', dto),

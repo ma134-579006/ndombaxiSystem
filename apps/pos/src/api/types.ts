@@ -137,6 +137,19 @@ export interface EmittedInvoice {
   grossTotal: number;
   /** Documento numa série AGT da Facturação Electrónica → QR oficial da AGT. */
   feQr?: boolean;
+  /** Referência interna do LPS quando o documento fiscal é de um motor externo. */
+  internalNumber?: string;
+  /** Documento fiscal emitido pelo motor externo (Cegid Vendus). */
+  fiscal?: ExternalFiscalDoc;
+}
+
+export interface ExternalFiscalDoc {
+  engine: 'VENDUS';
+  id: string | null;
+  state: string;
+  number: string | null;
+  pdf: boolean;
+  error: string | null;
 }
 
 /** Turno de caixa aberto. */

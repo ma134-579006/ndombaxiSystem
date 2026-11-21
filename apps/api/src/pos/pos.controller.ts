@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Res,
+  Optional,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
@@ -21,6 +22,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { localSeries } from '../common/device-series';
 import { TenantContext } from '../tenancy/tenant-context';
+import { FiscalEngineService } from '../fiscal-engine/fiscal-engine.service';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { SaveCartDraftDto } from './dto/cart-draft.dto';
 import { CancelInvoiceDto, EmitInvoiceDto, ReturnItemsDto } from './dto/emit-invoice.dto';
@@ -91,6 +93,7 @@ export class PosController {
     private readonly devices: DevicesService,
     private readonly discounts: DiscountGuardService,
     private readonly cashbox: CashboxService,
+    @Optional() private readonly fiscalEngine?: FiscalEngineService,
   ) {}
 
   // ── Catálogo de produtos ───────────────────────────────────
@@ -315,8 +318,13 @@ export class PosController {
       throw new ConflictException('Caixa fechada: abra o turno antes de vender.');
     }
     const deviceSeries = await this.devices.seriesFor(schema, dto.deviceKey);
+    // MOTOR FISCAL da empresa. Suspenso → nenhuma emissão (sem números fictícios nem
+    // passagem automática para o motor próprio); o carrinho fica no POS.
+    const engine = this.fiscalEngine && !localSeries() ? await this.fiscalEngine.assertCanEmit(schema) : 'LPS';
+    const external = engine === 'VENDUS';
     try {
-      return await this.invoices.emit(schema, {
+      const emitted = await this.invoices.emit(schema, {
+        fiscalEngine: external ? 'VENDUS' : 'LPS',
         // Pelo caixa só se VENDE (FT/FS). Notas de crédito nascem da anulação/devolução;
         // um "NC" pedido aqui baixava stock e contava como venda no turno.
         docType: dto.docType === DocumentType.FS ? DocumentType.FS : DocumentType.FT,
@@ -324,7 +332,7 @@ export class PosController {
         // manda SEMPRE. Antes perdia para a série do registo local (`A1`, `A2`… de
         // um contador LOCAL), que colidia com as séries atribuídas pela nuvem: o
         // número já existia lá, a replicação recusava e a fatura ficava só no posto.
-        series: localSeries() ?? deviceSeries ?? dto.series ?? 'A',
+        series: external ? 'VND' : localSeries() ?? deviceSeries ?? dto.series ?? 'A',
         customerId: dto.customerId ?? null,
         cashierId: user.sub,
         cashierName: user.name ?? user.email,
@@ -340,6 +348,12 @@ export class PosController {
         payments: dto.payments ?? null,
         lines: dto.lines,
       });
+      if (!external || !this.fiscalEngine) return emitted;
+      // Documento fiscal no Cegid Vendus (fila com tx_id; nunca bloqueia a venda já registada).
+      const fiscal = await this.fiscalEngine
+        .enqueueSale(schema, emitted.id, { paymentType: dto.paymentType ?? 'CASH', payments: (dto.payments ?? null) as { method: string; amount: number }[] | null })
+        .catch((err: unknown) => ({ id: null, state: 'ERRO_DE_COMUNICACAO', number: null, pdf: false, error: err instanceof Error ? err.message : String(err) }));
+      return { ...emitted, internalNumber: emitted.number, fiscal: { engine: 'VENDUS', ...fiscal } };
     } catch (e) {
       // A venda JÁ tinha sido emitida com esta chave: a resposta anterior
       // perdeu-se no caminho e o posto reenviou. Não é erro — é a idempotência
@@ -371,13 +385,20 @@ export class PosController {
   @Post('invoices/:id/cancel')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Anula uma venda (só gerente/gestor; NC, devolve stock, audita)' })
-  cancelInvoice(@Param('id') id: string, @Body() dto: CancelInvoiceDto, @CurrentUser() user: JwtPayload) {
-    return this.invoices.cancelInvoice(this.ctx.requireTenantSchema(), id, dto.reason, {
+  async cancelInvoice(@Param('id') id: string, @Body() dto: CancelInvoiceDto, @CurrentUser() user: JwtPayload) {
+    const schema = this.ctx.requireTenantSchema();
+    const external = (await this.invoices.invoiceEngine(schema, id)) === 'VENDUS';
+    if (external && this.fiscalEngine) await this.fiscalEngine.assertCanCredit(schema, id);
+    const r = await this.invoices.cancelInvoice(schema, id, dto.reason, {
       id: user.sub,
       name: user.name ?? user.email,
       storeId: user.storeId ?? null,
       role: user.role,
     });
+    if (!external || !this.fiscalEngine || !r.creditNoteId) return r;
+    const fiscal = await this.fiscalEngine.enqueueCreditNote(schema, id, r.creditNoteId, dto.reason, 'ALL')
+      .catch((err: unknown) => ({ id: null, state: 'ERRO_DE_COMUNICACAO', number: null, pdf: false, error: err instanceof Error ? err.message : String(err) }));
+    return { ...r, fiscal: { engine: 'VENDUS', ...fiscal } };
   }
 
   @Post('invoices/:id/return')
@@ -385,12 +406,18 @@ export class PosController {
   @ApiOperation({ summary: 'Devolução parcial (NC só dos artigos devolvidos, repõe stock)' })
   async returnItems(@Param('id') id: string, @Body() dto: ReturnItemsDto, @CurrentUser() user: JwtPayload) {
     const schema = this.ctx.requireTenantSchema();
+    const external = (await this.invoices.invoiceEngine(schema, id)) === 'VENDUS';
+    if (external && this.fiscalEngine) await this.fiscalEngine.assertCanCredit(schema, id);
     try {
-      return await this.invoices.returnItems(
+      const r = await this.invoices.returnItems(
         schema, id, dto.items, dto.reason,
         { id: user.sub, name: user.name ?? user.email, storeId: user.storeId ?? null, role: user.role },
         dto.clientOpId ?? null,
       );
+      if (!external || !this.fiscalEngine || !r.creditNoteId) return r;
+      const fiscal = await this.fiscalEngine.enqueueCreditNote(schema, id, r.creditNoteId, dto.reason, dto.items.map((i) => ({ productCode: i.productCode, quantity: i.quantity })))
+        .catch((err: unknown) => ({ id: null, state: 'ERRO_DE_COMUNICACAO', number: null, pdf: false, error: err instanceof Error ? err.message : String(err) }));
+      return { ...r, fiscal: { engine: 'VENDUS', ...fiscal } };
     } catch (e) {
       // Esta devolução JÁ foi feita e só a resposta se perdeu. Devolvemos a nota
       // de crédito ORIGINAL em vez de criar uma segunda (que reporia stock e

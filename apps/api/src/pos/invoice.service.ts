@@ -35,6 +35,12 @@ import { luandaDate, luandaDateTime, luandaYear } from '../common/luanda-date';
 export interface EmitInvoiceInput {
   docType: DocumentType;
   series: string;
+  /**
+   * Motor fiscal da venda. 'VENDUS' = o documento fiscal é emitido pelo Cegid Vendus:
+   * aqui fica só o REGISTO COMERCIAL (série interna VND, sem série AGT nem assinatura
+   * do LPS), fora do SAF-T e da FE do LPS.
+   */
+  fiscalEngine?: 'LPS' | 'VENDUS';
   customerId?: string | null;
   /** NIF explícito (override); usado quando não há registo de cliente, ex. loja online. */
   customerTaxId?: string | null;
@@ -242,9 +248,10 @@ export class InvoiceService {
       throw new BadRequestException('Indique o NIF da empresa (Configurações) antes de emitir documentos fiscais.');
     }
     const year = luandaYear();
-    const agtSeries = await this.einvoice.seriesFor(schema, input.docType, year, { strict: !input.offline });
-    const platformKey = await this.requireSigningKey();
-    const platformSigner = await this.signing.getPlatformSigner();
+    const external = input.fiscalEngine === 'VENDUS';
+    const agtSeries = external ? null : await this.einvoice.seriesFor(schema, input.docType, year, { strict: !input.offline });
+    const platformKey = external ? null : await this.requireSigningKey();
+    const platformSigner = external ? null : await this.signing.getPlatformSigner();
     const result = await this.prisma.runInTenant(schema, async (tx) => {
       // Códigos só das linhas de PRODUTO (as linhas livres não têm produto).
       const codes = input.lines
@@ -604,13 +611,13 @@ export class InvoiceService {
             (number, doc_type, series, year, sequence, invoice_date, operation_date, system_entry_date, store_id,
              cashier_id, customer_id, customer_tax_id, customer_name,
              net_total, iva_total, gross_total, signable_string, previous_hash, hash,
-            signature, signature_key_version, doc_state, client_op_id)
+            signature, signature_key_version, doc_state, client_op_id, fiscal_engine)
           VALUES (${number}, ${input.docType}, ${series}, ${year}, ${sequence},
                   ${invoiceDate}::date, ${input.operationDate ?? null}::date, ${systemEntryDate}::timestamptz, ${warehouseId ?? null}::uuid,
                   ${input.cashierId ?? null}::uuid, ${input.customerId ?? null}::uuid, ${customerTaxId}, ${customerName},
                   ${totals.netTotal}, ${totals.ivaTotal}, ${totals.grossTotal},
                   ${signable}, ${previousHash}, ${hash}, ${signature}, ${signatureKeyVersion}, ${docState},
-                  ${input.clientOpId ?? null}::uuid)
+                  ${input.clientOpId ?? null}::uuid, ${external ? 'VENDUS' : 'LPS'})
           RETURNING id`,
       );
       const invoiceId = invRows[0].id;
@@ -967,6 +974,7 @@ export class InvoiceService {
       sourceInvoiceId: string; net: number; iva: number; gross: number;
       /** Chave de idempotência do posto (ver `invoices_client_op_uidx`). */
       clientOpId?: string | null;
+      fiscalEngine?: 'LPS' | 'VENDUS';
       lines: {
         product_id: string | null; product_code: string; description: string; quantity: number;
         unit_price: number; iva_code: string; iva_rate: number; discount_rate: number;
@@ -979,13 +987,13 @@ export class InvoiceService {
       Prisma.sql`INSERT INTO invoices
           (number, doc_type, series, year, sequence, invoice_date, system_entry_date,
            store_id, customer_id, customer_tax_id, customer_name, net_total, iva_total, gross_total,
-           signable_string, previous_hash, hash, signature, signature_key_version, status, source_invoice_id, client_op_id)
+           signable_string, previous_hash, hash, signature, signature_key_version, status, source_invoice_id, client_op_id, fiscal_engine)
         VALUES (${nc.number}, ${DocumentType.NC}, ${nc.series}, ${nc.year}, ${nc.sequence},
                 ${nc.invoiceDate}::date, ${nc.systemEntryDate}::timestamptz,
                 ${nc.storeId}::uuid, ${nc.customerId}::uuid, ${nc.customerTaxId},
                 (SELECT customer_name FROM invoices WHERE id = ${nc.sourceInvoiceId}::uuid),
                 ${nc.net}, ${nc.iva}, ${nc.gross}, ${nc.signable}, ${nc.previousHash}, ${nc.hash}, ${nc.signature ?? null}, ${nc.signatureKeyVersion ?? null},
-                'N', ${nc.sourceInvoiceId}::uuid, ${nc.clientOpId ?? null}::uuid)
+                'N', ${nc.sourceInvoiceId}::uuid, ${nc.clientOpId ?? null}::uuid, ${nc.fiscalEngine ?? 'LPS'})
         RETURNING id`,
     );
     const ncId = rows[0].id;
@@ -1196,17 +1204,27 @@ export class InvoiceService {
     }
   }
 
+  /** Software que emitiu o documento (LPS ou VENDUS). */
+  async invoiceEngine(schema: string, invoiceId: string): Promise<'LPS' | 'VENDUS'> {
+    const r = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<{ e: string | null }[]>(
+      Prisma.sql`SELECT COALESCE(to_jsonb(i) ->> 'fiscal_engine', 'LPS') AS e FROM invoices i WHERE id = ${invoiceId}::uuid`)).catch(() => []);
+    return r[0]?.e === 'VENDUS' ? 'VENDUS' : 'LPS';
+  }
+
   async cancelInvoice(
     schema: string,
     invoiceId: string,
     reason: string,
     actor: { id?: string | null; name?: string | null; storeId?: string | null; role?: string | null },
-  ): Promise<{ creditNoteNumber: string; grossTotal: number }> {
+  ): Promise<{ creditNoteNumber: string; grossTotal: number; creditNoteId?: string }> {
     // Série AGT lida ANTES da transacção (usa outra ligação ao pool; dentro dela bloqueia sob carga).
     const year = luandaYear();
-    const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
-    const platformKey = await this.requireSigningKey();
-    const platformSigner = await this.signing.getPlatformSigner();
+    // Venda emitida pelo Cegid Vendus: a NC fiscal também é do Vendus (aqui só o registo).
+    const external = (await this.invoiceEngine(schema, invoiceId)) === 'VENDUS';
+    const ncAgt = external ? null : await this.einvoice.seriesFor(schema, DocumentType.NC, year);
+    const platformKey = external ? null : await this.requireSigningKey();
+    const platformSigner = external ? null : await this.signing.getPlatformSigner();
+    let creditNoteId: string | undefined;
     const result = await this.prisma.runInTenant(schema, async (tx) => {
       // 1. Carrega a factura + linhas (bloqueia).
       const invRows = await tx.$queryRaw<
@@ -1290,7 +1308,7 @@ export class InvoiceService {
       const ncGross = hasPriorReturns ? round2(ncLines.reduce((s, l) => s + l.gross_amount, 0)) : Number(inv.gross_total);
 
       // 2. Aloca número de NC na série própria (NC, mesma série/ano).
-      const ncSeries = ncAgt ?? localSeries() ?? 'A';
+      const ncSeries = external ? 'VND' : ncAgt ?? localSeries() ?? 'A';
       await tx.$executeRaw(
         Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
                    VALUES (${DocumentType.NC}, ${ncSeries}, ${year}, 0, ${GENESIS_HASH})
@@ -1320,7 +1338,8 @@ export class InvoiceService {
 
       // 2b. Persiste a NC como DOCUMENTO (entra no SAF-T e nos relatórios), com
       //     todas as linhas da fatura original (anulação total).
-      await this.persistCreditNoteDoc(tx, {
+      creditNoteId = await this.persistCreditNoteDoc(tx, {
+        fiscalEngine: external ? 'VENDUS' : 'LPS',
         number: ncNumber, series: ncSeries, year, sequence,
         invoiceDate: docHeader.invoiceDate, systemEntryDate: docHeader.systemEntryDate,
         signable, previousHash, hash, signature: ncChain.signature, signatureKeyVersion: ncChain.signatureKeyVersion,
@@ -1378,7 +1397,7 @@ export class InvoiceService {
         details: { originalNumber: inv.number, creditNote: ncNumber, grossTotal: ncGross, reason },
       });
 
-      return { creditNoteNumber: ncNumber, grossTotal: ncGross };
+      return { creditNoteNumber: ncNumber, grossTotal: ncGross, creditNoteId };
     });
 
     this.realtime.publish(schema, 'sale.cancelled', {
@@ -1407,14 +1426,17 @@ export class InvoiceService {
      * único da tabela recusa a segunda gravação.
      */
     clientOpId: string | null = null,
-  ): Promise<{ creditNoteNumber: string; refundTotal: number }> {
+  ): Promise<{ creditNoteNumber: string; refundTotal: number; creditNoteId?: string }> {
     if (!returns?.length) throw new BadRequestException('Indique os artigos a devolver.');
 
     // Série AGT lida ANTES da transacção (usa outra ligação ao pool; dentro dela bloqueia sob carga).
     const year = luandaYear();
-    const ncAgt = await this.einvoice.seriesFor(schema, DocumentType.NC, year);
-    const platformKey = await this.requireSigningKey();
-    const platformSigner = await this.signing.getPlatformSigner();
+    // Venda emitida pelo Cegid Vendus: a NC fiscal também é do Vendus (aqui só o registo).
+    const external = (await this.invoiceEngine(schema, invoiceId)) === 'VENDUS';
+    const ncAgt = external ? null : await this.einvoice.seriesFor(schema, DocumentType.NC, year);
+    const platformKey = external ? null : await this.requireSigningKey();
+    const platformSigner = external ? null : await this.signing.getPlatformSigner();
+    let creditNoteId: string | undefined;
 
     const result = await this.prisma.runInTenant(schema, async (tx) => {
       const invRows = await tx.$queryRaw<{ id: string; number: string; status: string; store_id: string | null; customer_id: string | null; customer_tax_id: string | null; doc_type: string }[]>(
@@ -1481,7 +1503,7 @@ export class InvoiceService {
       const refundGross = round2(refundNet + refundIva);
 
       // Aloca NC.
-      const ncSeries = ncAgt ?? localSeries() ?? 'A';
+      const ncSeries = external ? 'VND' : ncAgt ?? localSeries() ?? 'A';
       await tx.$executeRaw(
         Prisma.sql`INSERT INTO fiscal_series (doc_type, series, year, last_sequence, last_hash)
                    VALUES (${DocumentType.NC}, ${ncSeries}, ${year}, 0, ${GENESIS_HASH})
@@ -1506,7 +1528,8 @@ export class InvoiceService {
 
       // Persiste a NC PARCIAL como documento (só as linhas devolvidas) — entra no
       // SAF-T e permite descontar a devolução nos lucros.
-      await this.persistCreditNoteDoc(tx, {
+      creditNoteId = await this.persistCreditNoteDoc(tx, {
+        fiscalEngine: external ? 'VENDUS' : 'LPS',
         number: ncNumber, series: ncSeries, year, sequence,
         invoiceDate: ncHeader.invoiceDate, systemEntryDate: ncHeader.systemEntryDate,
         signable, previousHash: ncChain.previousHash, hash, signature: ncChain.signature, signatureKeyVersion: ncChain.signatureKeyVersion,
@@ -1577,7 +1600,7 @@ export class InvoiceService {
                    items: toRevert.map((r) => ({ code: r.code, qty: r.qty })), reason },
       });
 
-      return { creditNoteNumber: ncNumber, refundTotal: refundGross };
+      return { creditNoteNumber: ncNumber, refundTotal: refundGross, creditNoteId };
     });
 
     this.realtime.publish(schema, 'sale.cancelled', {

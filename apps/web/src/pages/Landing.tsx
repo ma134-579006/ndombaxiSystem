@@ -7,6 +7,7 @@ import type {
   LandingConfig,
   PlanTier,
   PublicPlan,
+  PublicLanding,
   PublicRelease,
   RegisterCompanyResult,
 } from '../api/types';
@@ -118,7 +119,7 @@ const BADGE_ICONS: Record<'android' | 'windows' | 'store' | 'kwanza', React.Reac
 
 export function Landing({ onGoLogin, onGoRegister }: Props) {
   const { loginTenant } = useAuth();
-  const [data, setData] = useState<{ config: LandingConfig; plans: PublicPlan[] } | null>(null);
+  const [data, setData] = useState<PublicLanding | null>(null);
   const [showRegister, setShowRegister] = useState(false);
   const [presetTier, setPresetTier] = useState<PlanTier>('BUSINESS');
   const [releases, setReleases] = useState<Record<AppPlatform, PublicRelease | null> | null>(null);
@@ -284,10 +285,14 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           <div className="lv-cert lv-up d5">
             {/* Selo no formato do sistema de referência: quadrado translúcido de 48px
                 com o emblema da AGT (engrenagem e estrela, do portal oficial) + "Software Validado Nº …/AGT". */}
-            <span className="lv-cert-ic" aria-hidden="true">
-              <img src={`${import.meta.env.BASE_URL || '/'}agt-emblem.png`} alt="" width="14" height="28" />
-            </span>
-            <b translate="no">{data?.agtCertificate ? `Software Validado Nº ${data.agtCertificate}/AGT` : t.certified}</b>
+            {/* Emblema e nº de validação AGT só com validação PRÓPRIA do LPS documentada
+                (o nº do Cegid Vendus nunca aparece como sendo do LPS). */}
+            {data?.agtCertificate ? (
+              <span className="lv-cert-ic" aria-hidden="true">
+                <img src={`${import.meta.env.BASE_URL || '/'}agt-emblem.png`} alt="" width="14" height="28" />
+              </span>
+            ) : null}
+            <b translate="no">{data?.agtCertificate ? `Software Validado Nº ${data.agtCertificate}/AGT` : data?.fiscalEngine ? t.feExternal : t.certified}</b>
           </div>
         </div>
         <div className="lv-hero-art" aria-hidden="true">
@@ -419,6 +424,33 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           <FeedbackSection />
         </div>
       </section>
+
+      {/* ── Identificação do software fiscal (só com o motor externo activo) ── */}
+      {data?.fiscalEngine ? (
+        <section className="lv-fe" id="facturacao-electronica" aria-labelledby="lv-fe-t">
+          <div className="lv-wrap">
+            <div className="lv-fe-grid">
+              <div className="lv-fe-card">
+                <b translate="no" className="lv-fe-name">{t.erpName}</b>
+                <span>{t.erpSub}</span>
+              </div>
+              <div className="lv-fe-card main">
+                <h2 id="lv-fe-t" className="lv-fe-k">{t.feTitle}</h2>
+                <b translate="no" className="lv-fe-name">{data.fiscalEngine.name}</b>
+                <p>{t.feEngineDesc}</p>
+                <dl className="lv-fe-dl">
+                  {data.fiscalEngine.producer ? <><dt>{t.feProducer}</dt><dd translate="no">{data.fiscalEngine.producer}</dd></> : null}
+                  {data.fiscalEngine.validationNo ? <><dt>{t.feValidation}</dt><dd translate="no">{data.fiscalEngine.validationNo}</dd></> : null}
+                  {data.fiscalEngine.feCertNo ? <><dt>{t.feCert}</dt><dd translate="no">{data.fiscalEngine.feCertNo}</dd></> : null}
+                  {data.fiscalEngine.version ? <><dt>{t.feVersion}</dt><dd translate="no">{data.fiscalEngine.version}</dd></> : null}
+                </dl>
+                <a href={data.fiscalEngine.url} target="_blank" rel="noopener noreferrer">{t.feSite}</a>
+              </div>
+            </div>
+            <p className="lv-fe-note">{t.feDisclaimer}</p>
+          </div>
+        </section>
+      ) : null}
 
       {/* ── Perguntas frequentes ────────────────────────── */}
       <section className="lv-faq" id="faq">

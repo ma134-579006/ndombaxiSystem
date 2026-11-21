@@ -1773,3 +1773,14 @@ html.touch-ui .btn.sm { min-height: 40px; }
   .acct2-head .u-av, .acct2-head img { width: 34px !important; height: 34px !important; }
 }
 @media (max-width: 380px) { .acct2-pop { width: calc(100vw - 16px); position: fixed; top: 58px; right: 8px; } }
+
+/* Documento fiscal do motor externo (Cegid Vendus): só dados e acesso ao PDF original. */
+.efr { padding: 20px; }
+.efr-dl { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 8px 14px; margin: 12px 0; font-size: 14px; }
+.efr-dl dt { color: var(--muted); }
+.efr-dl dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; text-align: right; }
+.efr-no { font-size: 16px; }
+.efr-ref { font-weight: 500; color: var(--muted); }
+.efr-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.efr-actions .btn { flex: 1 1 140px; min-width: 0; white-space: normal; }
+@media (max-width: 300px) { .efr-dl { grid-template-columns: minmax(0, 1fr); } .efr-dl dd { text-align: left; } }

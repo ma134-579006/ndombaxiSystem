@@ -4,8 +4,9 @@ import { api, ApiError } from '../api/client';
 import type { AgtConfig, AgtExtraField, PlatformSigningStatus, UpdateAgtInput } from '../api/types';
 import { IconCard, IconCheck, IconCpu, IconPlus, IconReceipt, IconTrash } from '../components/Icons';
 import { EinvoiceCard } from './EinvoiceCard';
+import { FiscalEngineAdmin } from './FiscalEngineAdmin';
 
-type Tab = 'saft' | 'fe' | 'docs';
+type Tab = 'saft' | 'fe' | 'motor' | 'docs';
 
 function Dot({ tone }: { tone: 'ok' | 'off' | 'bad' }) {
   return <span className={`fx-dot ${tone}`} aria-hidden="true" />;
@@ -138,6 +139,7 @@ export function Fiscal() {
       <div className="fx-tabs inv-tabs" role="tablist" aria-label="Secções fiscais">
         <button role="tab" aria-selected={tab === 'saft'} className={tab === 'saft' ? 'on' : ''} onClick={() => setTab('saft')}>SAF-T e certificação</button>
         <button role="tab" aria-selected={tab === 'fe'} className={tab === 'fe' ? 'on' : ''} onClick={() => setTab('fe')}>Facturação electrónica</button>
+        <button role="tab" aria-selected={tab === 'motor'} className={tab === 'motor' ? 'on' : ''} onClick={() => setTab('motor')}>Software de terceiros</button>
         <button role="tab" aria-selected={tab === 'docs'} className={tab === 'docs' ? 'on' : ''} onClick={() => setTab('docs')}>Documentos e legendas</button>
       </div>
 
@@ -188,6 +190,8 @@ export function Fiscal() {
 
       {tab === 'fe' ? <EinvoiceCard onChanged={refreshStatus} /> : null}
 
+      {tab === 'motor' ? <FiscalEngineAdmin /> : null}
+
       {tab === 'docs' ? (
         <>
           <div className="fx-card">
@@ -232,7 +236,7 @@ export function Fiscal() {
         </>
       ) : null}
 
-      {tab !== 'fe' ? (
+      {tab !== 'fe' && tab !== 'motor' ? (
         <div className="fx-save">
           <span className="muted" style={{ fontSize: 13 }}>{dirty ? 'Tens alterações por guardar.' : 'Tudo guardado.'}</span>
           <button className="btn" onClick={save} disabled={saving || !dirty}>{saving ? 'A guardar…' : 'Guardar configuração'}</button>

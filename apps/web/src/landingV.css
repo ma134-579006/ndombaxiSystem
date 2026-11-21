@@ -353,3 +353,27 @@
 .lv-price { margin: 26px 0; flex-wrap: nowrap; white-space: nowrap; }
 .lv-price b { font-size: clamp(30px, 2.9vw, 44px); }
 .lv-price em { font-size: 16px; }
+
+/* Identificação do software fiscal: LPS Vendas (ERP) + motor externo de facturação electrónica. */
+.lv-fe { padding: 80px 0 0; }
+.lv-fe-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 18px; align-items: stretch; }
+.lv-fe-card { display: flex; flex-direction: column; gap: 6px; padding: 26px 28px; border: 1px solid var(--lv-line); border-radius: 16px; background: var(--lv-soft); min-width: 0; }
+.lv-fe-card.main { background: #fff; box-shadow: 0 18px 40px -28px rgba(20, 28, 77, .35); }
+.lv-fe-k { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--lv-brand); }
+.lv-fe-name { font-size: 24px; line-height: 1.25; font-weight: 750; color: var(--lv-ink); overflow-wrap: anywhere; }
+.lv-fe-card p { color: var(--lv-text); }
+.lv-fe-dl { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 6px 16px; margin: 10px 0 4px; font-size: 14px; }
+.lv-fe-dl dt { color: var(--lv-text); opacity: .8; }
+.lv-fe-dl dd { margin: 0; font-weight: 650; color: var(--lv-ink); overflow-wrap: anywhere; }
+.lv-fe-card a { align-self: flex-start; margin-top: 6px; font-weight: 650; color: var(--lv-brand); text-decoration: underline; text-underline-offset: 3px; }
+.lv-fe-card a:focus-visible { outline: 3px solid var(--lv-brand); outline-offset: 3px; border-radius: 4px; }
+.lv-fe-note { margin-top: 16px; font-size: 14px; color: var(--lv-text); max-width: 90ch; }
+@media (max-width: 760px) {
+  .lv-fe { padding-top: 56px; }
+  .lv-fe-grid { grid-template-columns: minmax(0, 1fr); }
+  .lv-fe-card { padding: 20px; }
+}
+@media (max-width: 300px) {
+  .lv-fe-dl { grid-template-columns: minmax(0, 1fr); }
+  .lv-fe-name { font-size: 20px; }
+}
