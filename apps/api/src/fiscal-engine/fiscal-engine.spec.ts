@@ -277,3 +277,15 @@ describe('Factura-Recibo exige pagamento (FR_HAVE_TO_PAY)', () => {
     expect(companyReadiness(company({ engine: 'LPS', activatedAt: null, paymentMap: {} }), settings(), '5417000123', NOW).canActivate).toBe(false);
   });
 });
+
+describe('documentos de Formação', () => {
+  it('detalhe e PDF levam mode=tests', async () => {
+    const urls: string[] = [];
+    const f: FetchLike = async (url) => { urls.push(url); return { status: 200, headers: { get: () => null }, text: async () => '{"id":1}', arrayBuffer: async () => new TextEncoder().encode('%PDF-1.4').buffer as ArrayBuffer }; };
+    const c = new VendusClient({ baseUrl: 'https://www.vendus.co.ao/ws', version: '1.1', apiKey: 'k'.repeat(20), fetchImpl: f });
+    await c.document('9', 'tests');
+    await c.documentPdf('9', 'tests');
+    await c.documentPdf('9', 'normal');
+    expect(urls).toEqual(['https://www.vendus.co.ao/ws/v1.1/documents/9/?mode=tests', 'https://www.vendus.co.ao/ws/v1.1/documents/9.pdf?mode=tests', 'https://www.vendus.co.ao/ws/v1.1/documents/9.pdf']);
+  });
+});

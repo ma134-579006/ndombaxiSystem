@@ -175,9 +175,10 @@ export class VendusClient {
   units() { return this.request<any[]>('GET', 'products/units/'); }
   createDocument(body: unknown) { return this.request('POST', 'documents/', { body }); }
   documents(q: Record<string, string | number | undefined>) { return this.request<any[]>('GET', 'documents/', { query: q }); }
-  document(id: string) { return this.request('GET', `documents/${encodeURIComponent(id)}/`); }
+  /** `mode=tests` para documentos de Formação/Testes (a listagem documenta o parâmetro `mode`). */
+  document(id: string, mode?: string) { return this.request('GET', `documents/${encodeURIComponent(id)}/`, { query: { mode: mode === 'tests' ? 'tests' : undefined } }); }
   /** "To obtain a pdf version, just add .pdf extension to the document's id." */
-  documentPdf(id: string) { return this.request('GET', `documents/${encodeURIComponent(id)}.pdf`, { binary: true }); }
+  documentPdf(id: string, mode?: string) { return this.request('GET', `documents/${encodeURIComponent(id)}.pdf`, { binary: true, query: { mode: mode === 'tests' ? 'tests' : undefined } }); }
   saft(year: number, month: number) { return this.request<{ year: number; month: number; xml: string }>('GET', 'taxauthority/saft/', { query: { year, month } }); }
 }
 
