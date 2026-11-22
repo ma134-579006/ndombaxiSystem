@@ -77,7 +77,8 @@
 .vtable-h span:nth-child(2) { text-align: center; } .vtable-h span:nth-child(3) { text-align: right; }
 .vtable-empty { flex: 1; padding: 30px 14px; text-align: center; color: var(--muted); font-size: 13.5px;
   background: repeating-linear-gradient(90deg, transparent 0 3px, color-mix(in srgb, var(--border) 45%, transparent) 3px 4px); }
-.vtable-b { flex: 1; overflow: auto; padding: 0; gap: 0; }
+/* Só desloca na vertical: a animação de entrada da linha (translateX) não cria scroll lateral. */
+.vtable-b { flex: 1; overflow-x: hidden; overflow-y: auto; padding: 0; gap: 0; }
 .vline { position: relative; border-bottom: 1px solid var(--border); animation: v-line var(--v-fast) var(--v-ease) both; }
 @keyframes v-line { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
 .vline-main { width: 100%; padding: 13px 34px 13px 8px; border: 0; background: none; color: var(--text); font-size: 14px; text-align: left; cursor: pointer; transition: background var(--v-fast); }

@@ -269,8 +269,10 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     if (dto.lpsValidationVersion !== undefined) data.lpsValidationVersion = String(dto.lpsValidationVersion).trim().slice(0, 40);
     if (dto.lpsEvidenceId !== undefined) data.lpsEvidenceId = await this.evidenceRef(dto.lpsEvidenceId, 'LPS_VALIDATION');
     if (dto.testsApproved === true) data.lpsTestsApprovedAt = new Date();
+    // Anular um registo de testes feito por engano (também apaga a confirmação).
+    if (dto.testsApproved === false) data.lpsTestsApprovedAt = null;
     // Qualquer alteração aos dados apaga a confirmação anterior.
-    if (data.lpsValidationNo !== undefined || data.lpsValidationVersion !== undefined || data.lpsEvidenceId !== undefined) {
+    if (data.lpsValidationNo !== undefined || data.lpsValidationVersion !== undefined || data.lpsEvidenceId !== undefined || dto.testsApproved === false) {
       data.lpsConfirmedAt = null;
       data.lpsConfirmedBy = '';
     }

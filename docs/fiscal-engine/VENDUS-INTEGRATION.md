@@ -95,6 +95,27 @@ factura identifica o contribuinte que vende (DP 71/25, art. 22.º).
 | Corpo de erro não documentado | Leitura tolerante (`errors[]`, `message`) com `errors_full: "yes"` |
 | Lista de isenções da especificação é portuguesa (M01…M99) | Só se usam os códigos devolvidos pela conta de Angola |
 
+## Primeira venda real e situação na AGT (22-11-2026)
+
+- Venda LPS FT VND2026/0001 → **FR 02P2026/1** no Vendus (1.000,00 Kz, IVA 0% «não sujeita»,
+  Dinheiro, Consumidor Final, referência externa `LPS-…`). PDF original guardado no LPS.
+- Precisou de duas correcções: o envio passou a usar o NIF do contribuinte configurado (#234) e
+  as linhas a 0% (ISE e OUT) passaram a usar o imposto ISE da conta com o motivo de isenção (#235).
+  Depois do #235 é preciso «Testar ligação» para refazer o mapa de impostos.
+- No backoffice Vendus, a factura (e também as FT feitas no próprio POS Vendus) aparece como
+  «Pendente comunicação — não foi possível criar a série de faturação; o certificado da Factura
+  Electrónica não foi carregado devidamente». Não há séries comunicadas em 2026. A correcção é
+  do contribuinte no Vendus: AG Tributária → Configuração → corrigir certificado. A API v1.1 não
+  expõe este estado, por isso o LPS mantém «Comunicação AGT pendente».
+
+## SAF-T do Vendus e o XSD
+
+O SAF-T obtido pela API (`/saft/`) falha a validação local em campos `SAFMonetaryType2DecimalPlaces`
+(`TaxPayable`, `GrossTotal`, `NetTotal`): o Vendus escreve `0` em vez de `0.00`. O XSD do LPS é a
+cópia assoft-portugal (o URL oficial da AGT não foi encontrado, ver `docs/compliance/SAF-T.md`). O LPS
+guarda e mostra o ficheiro **tal como o Vendus o devolve**, nunca o corrige. Se a AGT recusar o
+ficheiro, a correcção tem de ser pedida ao apoio do Vendus.
+
 ## O que falta do teu lado
 
 1. **Conta Vendus de cada empresa contribuinte** (o NIF da conta tem de ser o NIF da

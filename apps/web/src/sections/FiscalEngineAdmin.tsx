@@ -383,7 +383,17 @@ export function FiscalEngineAdmin() {
         <div className="fx-actions">
           <button className="btn" disabled={busy} onClick={() => void guard(async () => fill(await api.fiscalEngine.saveLps(lps)), 'Guardado.')}>Guardar</button>
           <button className="btn ghost" disabled={busy || !s?.lpsEvidenceId} onClick={() => void openEvidence(s?.lpsEvidenceId ?? null)}>Ver evidência</button>
-          <button className="btn ghost" disabled={busy} onClick={() => void guard(async () => fill(await api.fiscalEngine.saveLps({ testsApproved: true })), 'Testes registados.')}>Registar testes aprovados</button>
+          {s?.lpsTestsApprovedAt ? (
+            <button className="btn ghost" disabled={busy} onClick={() => void guard(async () => {
+              const ok = await confirmDialog({ message: 'Anular o registo de testes aprovados da validação própria do LPS Vendas?' });
+              if (ok) fill(await api.fiscalEngine.saveLps({ testsApproved: false }));
+            })}>Anular testes aprovados</button>
+          ) : (
+            <button className="btn ghost" disabled={busy} onClick={() => void guard(async () => {
+              const ok = await confirmDialog({ message: 'Registar que os testes da validação própria do LPS Vendas foram aprovados pela AGT?' });
+              if (ok) fill(await api.fiscalEngine.saveLps({ testsApproved: true }));
+            })}>Registar testes aprovados</button>
+          )}
           <button className="btn primary" disabled={busy || ov?.lpsValidation.ok} onClick={() => void guard(async () => {
             const ok = await confirmDialog({ message: 'Confirmar a validação AGT própria do LPS Vendas com os dados e a evidência indicados?' });
             if (ok) fill(await api.fiscalEngine.saveLps({ confirm: true }));
