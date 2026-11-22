@@ -59,11 +59,21 @@ consumidor final, imposto sem correspondência, isenção, quantidade fraccioná
 cliente HTTP (Bearer sem chave no URL, versão no caminho, classificação 401/403/422/429/5xx,
 timeout, PDF inválido, versão não publicada).
 
-## Teste real controlado — NÃO FEITO
+## Teste real controlado (produção, Loja da Mulher, 21–22/11/2026)
 
-Depende da API KEY real e da configuração da Factura Electrónica no Vendus. Precisa da
-tua autorização explícita para uma única venda real. Passos em
-[VENDUS-INTEGRATION.md](VENDUS-INTEGRATION.md#o-que-falta-do-teu-lado).
+Feito com autorização explícita do utilizador para cada documento.
+
+| Passo | LPS | Vendus | Resultado |
+|---|---|---|---|
+| Testes em modo Formação | 3 documentos de teste | FR T02P2026/1, /2, /3 (sem validade fiscal) | ✅ PDF devolvido (#232) |
+| Venda real (1 × 100% Algodão, 1.000 Kz, Numerário) | FT VND2026/0001 | **FR 02P2026/1** | ✅ depois de #234 (NIF do contribuinte no envio) e #235 (IVA 0% → ISE) |
+| Venda feita pelo operador | FT VND2026/0002 | FR 02P2026/2 (1.850 Kz) | ✅ |
+| Anulação total na caixa (gerente/admin) | NC VND2026/0001 | **NC 02P2026/1**, «Referente ao documento FR 02P2026/1» | ✅ mesmo valor, motivo e referência externa; venda «Anulada» no LPS |
+| PDF original | guardado sem alterações (≈96 KB) | — | ✅ |
+| Comunicação à AGT | «Comunicação AGT pendente» | «Pendente comunicação — certificado FE não carregado» | ⚠️ depende do contribuinte corrigir o certificado no Vendus |
+
+Também verificado: selo «Vendus · Facturação certificada» na barra do painel e da caixa (#233);
+uma única emissão por venda (reenvio com reconciliação por `external_reference`).
 
 ## Como repetir
 

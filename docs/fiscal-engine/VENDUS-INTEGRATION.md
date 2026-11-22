@@ -108,6 +108,10 @@ factura identifica o contribuinte que vende (DP 71/25, art. 22.º).
   do contribuinte no Vendus: AG Tributária → Configuração → corrigir certificado. A API v1.1 não
   expõe este estado, por isso o LPS mantém «Comunicação AGT pendente».
 
+- Anulação testada (22-11-2026): a caixa do LPS (só administrador ou gerente) emitiu a
+  NC 02P2026/1 no Vendus, ligada à FR 02P2026/1, com o motivo e a referência externa do LPS.
+  O Vendus juntou um recibo RG relacionado. Anular sempre no LPS, nunca no backoffice Vendus.
+
 ## SAF-T do Vendus e o XSD
 
 O SAF-T obtido pela API (`/saft/`) falha a validação local em campos `SAFMonetaryType2DecimalPlaces`

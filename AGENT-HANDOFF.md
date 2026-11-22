@@ -148,6 +148,13 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - Landing: selo/FAQ "certificado AGT" retirados; bloco "LPS Vendas · ERP integrado | Facturação
   Electrónica · Cegid Vendus" só com o motor activo.
 - Testes: `qa/vendus-mock.mjs` + `qa/vendus-motor.mjs` (56/56), jest 364/364. Nada real.
-- Docs: `docs/fiscal-engine/` (OVERVIEW primeiro). Falta: API KEY real, FE no Backoffice
-  Vendus, registo da validade com evidência, teste real autorizado, respostas da Cegid/AGT.
+- Docs: `docs/fiscal-engine/` (OVERVIEW primeiro).
+- **Produção (22-11-2026, PRs #226–#236):** Loja da Mulher com motor Vendus activo (caixa API
+  «caixa 2», NIF do contribuinte 007184986HA040). Venda real FR 02P2026/1 e anulação NC 02P2026/1
+  confirmadas nos dois lados (ver `docs/fiscal-engine/TEST-RESULTS.md`). Selo Vendus na barra.
+- **Onde continuar:** o certificado da Factura Electrónica no Vendus está por corrigir (o
+  contribuinte, em AG Tributária → Configuração → corrigir certificado); depois confirmar que
+  FR 02P2026/1, /2 e NC 02P2026/1 saem de «Pendente comunicação». Datas: validade Vendus na AGT
+  16/12/2026, subscrição da caixa API 21/12/2026. Mapear Cartão/Referência/Express em
+  «Guardar NIF, caixa e pagamentos» antes de vendas com esses meios.
 - Decisão pendente: empresas existentes continuam em LPS "legado" (sem validação própria).
