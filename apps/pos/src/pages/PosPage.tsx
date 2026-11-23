@@ -31,6 +31,7 @@ import { SalesHistoryModal } from '../components/SalesHistoryModal';
 import { KitchenOrdersModal } from '../components/KitchenOrdersModal';
 import { QueueModal } from '../components/QueueModal';
 import { ShiftModal } from '../components/ShiftModal';
+import { useFullscreen } from '../fullscreen';
 import { ChatModal } from '../components/ChatModal';
 import { CustomerChatModal } from '../components/CustomerChatModal';
 import { SelfConsumptionModal } from '../components/SelfConsumptionModal';
@@ -109,6 +110,7 @@ function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustCha
 }) {
   const totalBadge = unread + (canCustChat ? custUnread : 0);
   const [open, setOpen] = useState(false);
+  const fs = useFullscreen();
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!open) return;
@@ -177,6 +179,11 @@ function OperatorMenu({ photo, name, email, role, unread, custUnread, canCustCha
             <button role="menuitem" className="acct2-item" onClick={go(() => window.dispatchEvent(new Event('ndx-lock')))}>
               <MenuIcon d={OP_ICONS.lock} /> Bloquear ecrã
             </button>
+            {fs.supported ? (
+              <button role="menuitem" className="acct2-item" onClick={go(fs.toggle)}>
+                <MenuIcon d={fs.on ? OP_ICONS.shrink : OP_ICONS.expand} /> {fs.on ? 'Diminuir' : 'Expandir'}
+              </button>
+            ) : null}
             <button role="menuitem" className="acct2-item danger" onClick={go(onLogout)}>
               <MenuIcon d={OP_ICONS.logout} /> Terminar sessão
             </button>
@@ -197,6 +204,8 @@ const OP_ICONS = {
   calendar: 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 10h16M8 3v4M16 3v4',
   doc: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5zM14 3v5h5M9 13h6M9 17h6',
   lock: 'M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3',
+  expand: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+  shrink: 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
 } as const;
 
