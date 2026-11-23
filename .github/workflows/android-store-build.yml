@@ -44,20 +44,22 @@ jobs:
           node apps/store-shell/scripts/patch-android.mjs
           # Ícone próprio da LPS Loja (índigo + logótipo) e ecrã de arranque.
           node apps/store-shell/scripts/gen-icons.mjs
-      - name: Assinatura estável
-        run: |
-          mkdir -p ~/.android
-          cp apps/mobile-shell/keystore/debug.keystore ~/.android/debug.keystore
-      - name: Compilar APK debug
-        working-directory: apps/store-shell/android
-        run: ./gradlew assembleDebug --no-daemon
+      - name: Compilar e assinar APK
+        # Keystore de produção nos secrets → release assinado; sem secrets → debug
+        # com a chave fixa do repositório (ver scripts/android-apk.sh).
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bash scripts/android-apk.sh apps/store-shell/android apk-out
       - uses: actions/upload-artifact@v4
         with:
           name: lps-loja-android-debug
-          path: apps/store-shell/android/app/build/outputs/apk/debug/*.apk
+          path: apk-out/*.apk
       # Link direto: https://github.com/<dono>/<repo>/releases/download/android-loja-latest/LPSLoja-Android.apk
       - name: Publicar APK (Releases → android-loja-latest)
-        working-directory: apps/store-shell/android/app/build/outputs/apk/debug
+        working-directory: apk-out
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

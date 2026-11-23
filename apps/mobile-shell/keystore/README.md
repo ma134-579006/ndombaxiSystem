@@ -10,3 +10,15 @@ anterior ("App não instalada").
   (registar no cliente Android do Google Cloud para o login Google funcionar no APK).
 - **Não serve para a Play Store.** A publicação exige uma chave de produção própria,
   guardada fora do repositório (secrets do GitHub).
+
+## Chave de produção (opcional, via secrets do GitHub)
+
+Os três workflows Android usam `scripts/android-apk.sh`. Se existirem os secrets
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (e,
+opcionalmente, `ANDROID_KEY_PASSWORD`), o APK é compilado em release e assinado com
+essa chave; sem eles, continua a ser o APK de depuração com a chave acima.
+
+**Antes de definir os secrets:** um APK com outra assinatura não atualiza por cima
+do instalado → cada aparelho tem de desinstalar e reinstalar (vendas offline ainda
+não sincronizadas perdem-se) e o SHA-1 da nova chave tem de ser registado no Google
+Cloud para o login Google continuar a funcionar.
