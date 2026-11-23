@@ -616,7 +616,9 @@ export function PosPage() {
     // mensagem clara se faltar algum). Sem isto, a restauração não conseguia
     // vender nenhum prato no POS ("está esgotado").
     const madeToOrder = !!p.has_recipe;
-    if (!madeToOrder && stock <= 0) { flashError(`"${p.name}" está esgotado.`); return false; }
+    // "Controlar stock: Não" (serviço): vende sempre, sem olhar ao stock.
+    const untracked = p.track_stock === false;
+    if (!madeToOrder && !untracked && stock <= 0) { flashError(`"${p.name}" está esgotado.`); return false; }
     // Prato sem ingredientes para 1 dose E sem fornada na prateleira: avisa JÁ
     // no toque (em vez de deixar o erro para o pagamento). Com stock produzido
     // (padaria), vende da prateleira mesmo sem ingredientes. A emissão valida.
@@ -626,7 +628,7 @@ export function PosPage() {
       return false;
     }
     const current = cart.find((l) => l.product.id === p.id)?.quantity ?? 0;
-    if (!madeToOrder && current + 1 > stock) { flashError(`Stock insuficiente de "${p.name}": só há ${stock}.`); return false; }
+    if (!madeToOrder && !untracked && current + 1 > stock) { flashError(`Stock insuficiente de "${p.name}": só há ${stock}.`); return false; }
     // AVISO de reserva (não bloqueia): este stock está prometido a uma encomenda
     // online por confirmar. O cliente físico tem prioridade, mas o caixa é
     // avisado para o conflito não passar despercebido (a mesma água vendida 2×).
@@ -655,7 +657,7 @@ export function PosPage() {
           const stock = Number(l.product.stock_qty);
           const next = l.quantity + delta;
           // Pratos sob encomenda não têm stock próprio (ver addToCart).
-          if (!l.product.has_recipe && delta > 0 && next > stock) { flashError(`Stock insuficiente de "${l.product.name}": só há ${stock}.`); return l; }
+          if (!l.product.has_recipe && l.product.track_stock !== false && delta > 0 && next > stock) { flashError(`Stock insuficiente de "${l.product.name}": só há ${stock}.`); return l; }
           return { ...l, quantity: next };
         })
         .filter((l) => l.quantity > 0),
@@ -870,7 +872,7 @@ export function PosPage() {
             if (!p) continue;
             // Sob encomenda (ficha técnica): stock próprio 0 por natureza — hidrata
             // na mesma (não descartar por stock<=0). Ver reconciliação acima.
-            const madeToOrder = !!p.has_recipe;
+            const madeToOrder = !!p.has_recipe || p.track_stock === false;
             const stock = Number(p.stock_qty);
             if (!madeToOrder && stock <= 0) continue;
             lines.push({ product: p, quantity: madeToOrder ? d.quantity : Math.min(d.quantity, stock) });
@@ -1275,7 +1277,9 @@ export function PosPage() {
                 <div className="vgrid">
                   {shown.map((p) => {
                     const stock = Number(p.stock_qty);
-                    const madeToOrder = !!p.has_recipe;
+                    // Sem triângulo nem "em stock" nos pratos sob encomenda e nos
+                    // artigos com "Controlar stock: Não" (serviços).
+                    const madeToOrder = !!p.has_recipe || p.track_stock === false;
                     const out = !madeToOrder && stock <= 0;
                     // Como no POS de referência: triângulo no canto — verde com
                     // stock, laranja com pouco (≤5), vermelho esgotado; sem

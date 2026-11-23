@@ -87,6 +87,11 @@ export class CreateProductDto {
 
   /** TRUE = stock central partilhado (vendível por qualquer loja do mesmo pool).
    *  FALSE/omisso = stock por loja (cada loja gere o seu saldo). */
+  /** Controlar stock (Vendus): FALSE = a venda não valida nem abate stock (serviços). */
+  @IsOptional()
+  @IsBoolean()
+  trackStock?: boolean;
+
   @IsOptional()
   @IsBoolean()
   sharedStock?: boolean;
@@ -198,6 +203,11 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   showOnline?: boolean;
+
+  /** Controlar stock (Vendus): FALSE = a venda não valida nem abate stock (serviços). */
+  @IsOptional()
+  @IsBoolean()
+  trackStock?: boolean;
 
   @IsOptional()
   @IsBoolean()

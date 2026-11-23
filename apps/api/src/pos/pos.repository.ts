@@ -22,6 +22,8 @@ export interface ProductRow {
   gallery: unknown;
   show_online: boolean;
   shared_stock: boolean;
+  /** FALSE = sem controlo de stock (serviço): vende sem validar nem abater. */
+  track_stock?: boolean;
   is_ingredient: boolean;
   is_production?: boolean;
   unit: string | null;
@@ -82,6 +84,8 @@ export class PosRepository {
       storeIds?: string[];
       /** TRUE = stock central partilhado; FALSE = stock por loja. */
       sharedStock?: boolean;
+      /** FALSE = não controla stock (serviço). */
+      trackStock?: boolean;
       /** Loja onde entra o stock inicial (stock por loja). Default = loja principal. */
       initialStoreId?: string | null;
       /** Quem criou (fica no movimento de saldo inicial). */
@@ -122,6 +126,10 @@ export class PosRepository {
           RETURNING *`,
       );
       const product = rows[0];
+      if (input.trackStock === false) {
+        await tx.$executeRaw(Prisma.sql`UPDATE products SET track_stock = FALSE WHERE id = ${product.id}::uuid`);
+        Object.assign(product, { track_stock: false });
+      }
       if (input.requiresPrescription !== undefined || input.activeIngredient !== undefined) {
         await tx.$executeRaw(Prisma.sql`UPDATE products SET requires_prescription = ${!!input.requiresPrescription},
             active_ingredient = ${input.activeIngredient?.trim() || null} WHERE id = ${product.id}::uuid`);
@@ -255,6 +263,7 @@ export class PosRepository {
                       THEN p.stock_qty ELSE COALESCE(si.quantity, 0) END AS stock_qty,
                  p.image_url, p.gallery, p.show_online, p.shared_stock, p.is_ingredient, p.is_production, p.unit, p.is_active,
                  COALESCE((to_jsonb(p) ->> 'requires_prescription')::boolean, FALSE) AS requires_prescription,
+                 COALESCE((to_jsonb(p) ->> 'track_stock')::boolean, TRUE) AS track_stock,
                  ${hasRecipeExpr} AS has_recipe,
                  ${reservedExpr} AS reserved,
                  ${portionsExpr} AS portions_available
@@ -311,6 +320,7 @@ export class PosRepository {
       gallery?: string[];
       showOnline?: boolean;
       sharedStock?: boolean;
+      trackStock?: boolean;
       isActive?: boolean;
       isIngredient?: boolean;
       isProduction?: boolean;
@@ -338,6 +348,7 @@ export class PosRepository {
       sets.push(Prisma.sql`gallery = ${JSON.stringify(input.gallery)}::jsonb`);
     if (input.showOnline !== undefined) sets.push(Prisma.sql`show_online = ${input.showOnline}`);
     if (input.sharedStock !== undefined) sets.push(Prisma.sql`shared_stock = ${input.sharedStock}`);
+    if (input.trackStock !== undefined) sets.push(Prisma.sql`track_stock = ${input.trackStock}`);
     if (input.isActive !== undefined) sets.push(Prisma.sql`is_active = ${input.isActive}`);
     if (input.unit !== undefined) sets.push(Prisma.sql`unit = ${input.unit?.trim() || null}`);
     if (input.isIngredient !== undefined) {

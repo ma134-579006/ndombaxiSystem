@@ -36,6 +36,8 @@ export interface Product {
   exemption_code?: string | null;
   unit_price: string; // NUMERIC → string (preço líquido, antes de IVA)
   stock_qty: string;
+  /** FALSE = "Controlar stock: Não" (serviço): vende sempre, sem stock. */
+  track_stock?: boolean;
   image_url: string | null;
   gallery: unknown;
   show_online: boolean;
