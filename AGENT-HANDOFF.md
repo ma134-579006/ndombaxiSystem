@@ -157,4 +157,11 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
   FR 02P2026/1, /2 e NC 02P2026/1 saem de «Pendente comunicação». Datas: validade Vendus na AGT
   16/12/2026, subscrição da caixa API 21/12/2026. Mapear Cartão/Referência/Express em
   «Guardar NIF, caixa e pagamentos» antes de vendas com esses meios.
+- **Conferência visual 23-11-2026: NÃO VERIFICADO.** A sessão cloud não tinha as ferramentas
+  Claude in Chrome (`mcp__claude-in-chrome__*`) e, por regra, não se usou outro browser. Ficam por
+  confirmar no Chrome do utilizador: certificado FE corrigido; FR 02P2026/1, /2 e NC 02P2026/1
+  fora de «Pendente comunicação»; validade AGT 16/12/2026 e subscrição «caixa 2» 21/12/2026;
+  Cartão/Referência/Express mapeados e alertas de validade do motor Vendus no painel LPS.
+  Repetir numa sessão com a extensão ligada (app desktop/Chrome com Claude in Chrome).
+- Ainda por implementar (precisa de plano aprovado): recibos RC e contingência AGT.
 - Decisão pendente: empresas existentes continuam em LPS "legado" (sem validação própria).
