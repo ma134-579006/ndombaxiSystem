@@ -271,7 +271,7 @@ function LpsReceiptModal({ invoice, info, identity, customerName, operatorName, 
   };
 
   return (
-    <div className="modal-bg" onClick={onClose}>
+    <div className="modal-bg receipt-layer" onClick={onClose}>
       <div className="card receipt" onClick={(e) => e.stopPropagation()}>
         {/* Talão no formato de referência (80mm): o mesmo que sai na térmica. */}
         <div className="vrc">
