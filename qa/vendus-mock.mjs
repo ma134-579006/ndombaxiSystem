@@ -131,7 +131,8 @@ export function startVendusMock({ port = 3997, apiKey }) {
       if (one && req.method === 'GET') {
         const d = st.docs.get(Number(one[1]));
         if (!d) return send(404, { message: 'No data' });
-        // Talão imprimível (output=html|escpos), com a versão (ORIGINAL/DUPLICATE) e a caixa.
+        // Talão imprimível (output=html|escpos), com a versão (ORIGINAL/SECOND) e a caixa.
+        if (q.output_version && !['ORIGINAL', 'SECOND'].includes(q.output_version)) return send(400, { errors: [{ code: 'P005', message: 'Allowed values for param output_version are ORIGINAL, SECOND' }] });
         if (q.output === 'html') return send(200, { ...d, output: 'html', output_data: `<!doctype html><html><head><title>${d.number}</title></head><body><p>${d.number}</p><p>${q.output_version ?? ''}</p><p>caixa ${q.register_id ?? ''}</p><p>hash ${d.hash}</p></body></html>` });
         if (q.output === 'escpos') return send(200, { ...d, output: 'escpos', output_data: Buffer.from(`\x1b@${d.number}\n${q.output_version ?? ''}\n\x1dVB\x00`, 'binary').toString('base64') });
         return send(200, d);

@@ -179,13 +179,14 @@ export class VendusClient {
   document(id: string, mode?: string) { return this.request('GET', `documents/${encodeURIComponent(id)}/`, { query: { mode: mode === 'tests' ? 'tests' : undefined } }); }
   /**
    * Documento em formato IMPRIMÍVEL gerado pelo próprio Vendus (talão térmico):
-   * `output` = html | escpos, `output_version` = ORIGINAL | DUPLICATE (2.ª via) e
+   * `output` = html | escpos, `output_version` = ORIGINAL | SECOND (2.ª via; o LPS chama-lhe DUPLICATE) e
    * `register_id` = caixa cujas definições de impressão (largura do papel, modelo)
    * o Vendus aplica. A resposta traz `output` + `output_data`.
    */
   documentOutput(id: string, o: { output: 'html' | 'escpos'; version: 'ORIGINAL' | 'DUPLICATE'; registerId?: string | null; mode?: string }) {
     return this.request('GET', `documents/${encodeURIComponent(id)}/`, {
-      query: { output: o.output, output_version: o.version, register_id: o.registerId || undefined, mode: o.mode === 'tests' ? 'tests' : undefined },
+      // O Vendus real só aceita ORIGINAL | SECOND (P005); a 2.ª via chama-se SECOND.
+      query: { output: o.output, output_version: o.version === 'DUPLICATE' ? 'SECOND' : 'ORIGINAL', register_id: o.registerId || undefined, mode: o.mode === 'tests' ? 'tests' : undefined },
     });
   }
   /** "To obtain a pdf version, just add .pdf extension to the document's id." */

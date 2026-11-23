@@ -51,7 +51,7 @@ describe('pedido do talão ao Vendus', () => {
     const u = new URL(calls[0]);
     expect(u.pathname).toBe('/ws/v1.1/documents/7/');
     expect(u.searchParams.get('output')).toBe('html');
-    expect(u.searchParams.get('output_version')).toBe('DUPLICATE');
+    expect(u.searchParams.get('output_version')).toBe('SECOND');
     expect(u.searchParams.get('register_id')).toBe('9');
     expect(calls[0]).not.toContain('k-1234567890');
   });

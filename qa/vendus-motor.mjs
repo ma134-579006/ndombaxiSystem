@@ -190,7 +190,7 @@ try {
     const q1 = msx.log.filter((l) => l.method === 'GET' && /\/documents\/\d+\/?$/.test(l.path) && l.query?.output).pop()?.query ?? {};
     R.check('V-C1', 'talão térmico (HTML) vem do Vendus: número, versão ORIGINAL e a caixa API da empresa', ph.format === 'html' && ph.data.includes(inv1.fiscal.number) && ph.data.includes('ORIGINAL') && q1.register_id === '9', j(q1));
     const pd = await ok('GET', `/fiscal-engine/documents/${d1.id}/print?format=html&copy=DUPLICATE`, { token: A });
-    R.check('V-C2', 'reimpressão pede a 2.ª via (DUPLICATE) ao Vendus', pd.data.includes('DUPLICATE'), pd.data.slice(0, 120));
+    R.check('V-C2', 'reimpressão pede a 2.ª via (SECOND, valor aceite pelo Vendus real) ao Vendus', pd.data.includes('SECOND'), pd.data.slice(0, 120));
     const pe = await ok('GET', `/fiscal-engine/documents/${d1.id}/print?format=escpos&copy=ORIGINAL`, { token: A });
     const esc = Buffer.from(pe.data, 'base64');
     R.check('V-C3', 'talão ESC/POS (impressora USB) em base64 com o número do Vendus', pe.format === 'escpos' && esc[0] === 0x1b && esc[1] === 0x40 && esc.toString('latin1').includes(inv1.fiscal.number), `${esc.length}B`);
