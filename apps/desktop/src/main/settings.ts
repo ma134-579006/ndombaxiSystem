@@ -42,6 +42,16 @@ export interface Settings {
    * soubesse a senha do Wi-Fi.
    */
   shareOnLan?: boolean;
+  /**
+   * A empresa fatura por um MOTOR FISCAL EXTERNO (Cegid Vendus). Última resposta
+   * da nuvem (`GET /fiscal-engine/badge`), guardada para o arranque seguinte.
+   *
+   * Verdadeiro → o servidor local NÃO serve a aplicação nem a rede da loja: as
+   * faturas têm de ser emitidas pelo Vendus (na nuvem), e um posto local emitia-as
+   * com a série própria do LPS, que nunca chegava à AGT. Sem internet a caixa usa
+   * a fila offline (comprovativo provisório → fatura Vendus quando a rede volta).
+   */
+  fiscalEngineExternal?: boolean;
 }
 
 /** API de produção. O instalador não pergunta nada ao lojista. */

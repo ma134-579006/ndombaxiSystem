@@ -361,6 +361,9 @@ export const api = {
     if (!res.ok) throw await parseError(res);
     return res.blob();
   },
+  /** Talão térmico gerado pelo Cegid Vendus: `html` (diálogo de impressão) ou `escpos` (base64). */
+  externalFiscalPrint: (docId: string, format: 'html' | 'escpos', copy: 'ORIGINAL' | 'DUPLICATE') =>
+    request<{ format: 'html' | 'escpos'; data: string; number: string | null }>('GET', `/fiscal-engine/documents/${docId}/print?format=${format}&copy=${copy}`),
   /** Apresenta este posto e recebe a sua série fiscal exclusiva (idempotente). */
   registerDevice: (input: { deviceKey: string; name: string; platform: string; storeId?: string }) =>
     request<{ deviceKey: string; name: string; series: string; storeId: string | null; settings?: { defaultDocType: 'FT' | 'FS'; pricesWithTax: boolean; showReference: boolean; paperWidth: '80' | '58' | null } }>(

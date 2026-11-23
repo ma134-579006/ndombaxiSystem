@@ -177,6 +177,17 @@ export class VendusClient {
   documents(q: Record<string, string | number | undefined>) { return this.request<any[]>('GET', 'documents/', { query: q }); }
   /** `mode=tests` para documentos de Formação/Testes (a listagem documenta o parâmetro `mode`). */
   document(id: string, mode?: string) { return this.request('GET', `documents/${encodeURIComponent(id)}/`, { query: { mode: mode === 'tests' ? 'tests' : undefined } }); }
+  /**
+   * Documento em formato IMPRIMÍVEL gerado pelo próprio Vendus (talão térmico):
+   * `output` = html | escpos, `output_version` = ORIGINAL | DUPLICATE (2.ª via) e
+   * `register_id` = caixa cujas definições de impressão (largura do papel, modelo)
+   * o Vendus aplica. A resposta traz `output` + `output_data`.
+   */
+  documentOutput(id: string, o: { output: 'html' | 'escpos'; version: 'ORIGINAL' | 'DUPLICATE'; registerId?: string | null; mode?: string }) {
+    return this.request('GET', `documents/${encodeURIComponent(id)}/`, {
+      query: { output: o.output, output_version: o.version, register_id: o.registerId || undefined, mode: o.mode === 'tests' ? 'tests' : undefined },
+    });
+  }
   /** "To obtain a pdf version, just add .pdf extension to the document's id." */
   documentPdf(id: string, mode?: string) { return this.request('GET', `documents/${encodeURIComponent(id)}.pdf`, { binary: true, query: { mode: mode === 'tests' ? 'tests' : undefined } }); }
   saft(year: number, month: number) { return this.request<{ year: number; month: number; xml: string }>('GET', 'taxauthority/saft/', { query: { year, month } }); }

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { DocumentType } from '@nexus/agt-xml';
 import { PaymentGatewayService } from '../payments/payment-gateway.service';
@@ -6,6 +6,7 @@ import { PaymentsService } from '../payments/payments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InvoiceService } from '../pos/invoice.service';
 import { CompanyIdentityService } from '../fiscal/company-identity.service';
+import { FiscalEngineService } from '../fiscal-engine/fiscal-engine.service';
 
 interface OrderRow {
   id: string;
@@ -13,6 +14,24 @@ interface OrderRow {
   status: string;
   customer_tax_id: string | null;
   invoice_id: string | null;
+  payment_method?: string | null;
+}
+
+/**
+ * Meio de pagamento da encomenda online → chave do mapa de pagamentos do motor
+ * Vendus (CASH/CARD/TRANSFER/REFERENCE/EXPRESS, configurado no Super Admin).
+ * Sem meio conhecido → transferência (pagamento à loja, confirmado pelo gestor).
+ */
+export function webPaymentType(method: string | null | undefined): string {
+  switch (String(method ?? '').toUpperCase()) {
+    case 'CASH': return 'CASH';
+    case 'MULTICAIXA_EXPRESS':
+    case 'EXPRESS': return 'EXPRESS';
+    case 'REFERENCE': return 'REFERENCE';
+    case 'CARD':
+    case 'TPA': return 'CARD';
+    default: return 'TRANSFER';
+  }
 }
 
 @Injectable()
@@ -25,6 +44,7 @@ export class OrdersService {
     private readonly payments: PaymentsService,
     private readonly gateways: PaymentGatewayService,
     private readonly identity: CompanyIdentityService,
+    @Optional() private readonly fiscalEngine?: FiscalEngineService,
   ) {}
 
   /**
@@ -78,7 +98,14 @@ export class OrdersService {
     ]);
     if (!inv[0]) throw new NotFoundException('Fatura não encontrada');
     const h = inv[0];
+    // Fatura emitida pelo Cegid Vendus: o cliente recebe o documento ORIGINAL do
+    // Vendus (número, hash e QR certificados), nunca uma reconstrução do LPS.
+    const engine = await this.invoices.invoiceEngine(schema, invId);
+    const ext = engine === 'VENDUS' && this.fiscalEngine ? await this.fiscalEngine.documentForInvoice(schema, invId) : null;
     return {
+      external: engine === 'VENDUS'
+        ? { engine: 'VENDUS' as const, number: ext?.number ?? null, state: ext?.state ?? 'A_PREPARAR', pdf: !!ext?.has_pdf }
+        : null,
       orderNumber: order.order_number,
       customerName: order.customer_name,
       customerTaxId: order.customer_tax_id,
@@ -112,6 +139,23 @@ export class OrdersService {
         grossAmount: Number(it.gross_amount),
       })),
     };
+  }
+
+  /**
+   * PDF ORIGINAL do Cegid Vendus da fatura de uma encomenda (loja online / associados).
+   * Mesmas regras de acesso do `invoiceForCustomer`: só com a encomenda faturada.
+   */
+  async invoicePdfForCustomer(schema: string, orderId: string): Promise<{ pdf: Buffer; number: string | null }> {
+    const orders = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<{ invoice_id: string | null }[]>(
+        Prisma.sql`SELECT invoice_id FROM web_orders WHERE id = ${orderId}::uuid LIMIT 1`,
+      ),
+    );
+    const invId = orders[0]?.invoice_id;
+    if (!invId) throw new BadRequestException('A fatura ainda não está disponível. A loja precisa de confirmar a encomenda.');
+    const doc = this.fiscalEngine ? await this.fiscalEngine.documentForInvoice(schema, invId) : null;
+    if (!doc?.has_pdf || !this.fiscalEngine) throw new NotFoundException('O PDF da fatura ainda está a ser emitido. Tente dentro de momentos.');
+    return this.fiscalEngine.documentPdf(schema, doc.id);
   }
 
   /** Lista do painel: por omissão sem as eliminadas; `hidden` mostra só as eliminadas. */
@@ -187,7 +231,7 @@ export class OrdersService {
           Prisma.sql`UPDATE web_orders SET payment_claimed_at = now()
                      WHERE id = ${orderId}::uuid AND status = 'PENDING'
                        AND (payment_claimed_at IS NULL OR payment_claimed_at < now() - interval '2 minutes')
-                     RETURNING id, order_number, status, customer_tax_id, invoice_id`,
+                     RETURNING id, order_number, status, customer_tax_id, invoice_id, payment_method`,
         ),
       );
       if (claimed.length === 0) {
@@ -211,7 +255,7 @@ export class OrdersService {
       if (!(e instanceof Error) || !/payment_claimed_at/.test(e.message)) throw e;
       const rows = await this.prisma.runInTenant(schema, (tx) =>
         tx.$queryRaw<OrderRow[]>(
-          Prisma.sql`SELECT id, order_number, status, customer_tax_id, invoice_id
+          Prisma.sql`SELECT id, order_number, status, customer_tax_id, invoice_id, payment_method
                      FROM web_orders WHERE id = ${orderId}::uuid FOR UPDATE`,
         ),
       );
@@ -231,9 +275,16 @@ export class OrdersService {
       );
 
       // 2. Emite a factura (transacção própria do motor fiscal).
+      // MOTOR FISCAL da empresa (o mesmo do caixa): com o Cegid Vendus activo, a
+      // loja online e a loja dos associados também faturam pelo Vendus — antes
+      // saía sempre uma FT da série WEB do motor próprio, que nunca chegava à AGT.
+      // Suspenso → recusa (a reserva é libertada e o gestor tenta depois).
+      const engine = this.fiscalEngine ? await this.fiscalEngine.assertCanEmit(schema) : 'LPS';
+      const external = engine === 'VENDUS';
       const invoice = await this.invoices.emit(schema, {
+        fiscalEngine: external ? 'VENDUS' : 'LPS',
         docType: DocumentType.FT,
-        series: 'WEB',
+        series: external ? 'VND' : 'WEB',
         customerTaxId: order.customer_tax_id,
         // Preço CONGELADO do checkout: se o gestor mudar o preço entre o pedido e o pagamento,
         // a fatura continua igual ao que o cliente viu e pagou.
@@ -257,6 +308,18 @@ export class OrdersService {
         throw new BadRequestException('Encomenda já não estava PENDING ao confirmar');
       }
 
+      if (external && this.fiscalEngine) {
+        // Documento fiscal no Cegid Vendus (fila com tx_id; idempotente por venda).
+        // Uma falha de rede não desfaz o pagamento: o documento fica na fila e a
+        // próxima passagem reenvia-o (com reconciliação por external_reference).
+        const fiscal = await this.fiscalEngine
+          .enqueueSale(schema, invoice.id, { paymentType: webPaymentType(order.payment_method) })
+          .catch((err: unknown) => {
+            this.logger.warn(`Encomenda ${order!.order_number}: documento Vendus em fila (${err instanceof Error ? err.message : String(err)})`);
+            return null;
+          });
+        return { orderId, invoiceNumber: fiscal?.number ?? invoice.number };
+      }
       return { orderId, invoiceNumber: invoice.number };
     } catch (e) {
       // Liberta a reserva para permitir nova tentativa (best-effort; se o
