@@ -116,6 +116,8 @@ interface ProductForEmission {
   exemption_reason?: string | null;
   exemption_code?: string | null;
   shared_stock?: boolean;
+  /** FALSE = "Controlar stock: Não" (serviço) — sem validação nem baixa de stock. */
+  track_stock?: boolean;
   /** Stock global do produto — decide a REGRA DA PRATELEIRA nos pratos com
    *  receita (fornada produzida → vende do stock; 0 → sob encomenda). */
   stock_qty?: string | null;
@@ -262,7 +264,8 @@ export class InvoiceService {
       const productRows = codes.length
         ? await tx.$queryRaw<(ProductForEmission & { code: string; name: string })[]>(
             Prisma.sql`SELECT id, code, name, description, iva_code, unit_price, cost_price,
-                              exemption_reason, exemption_code, shared_stock, stock_qty
+                              exemption_reason, exemption_code, shared_stock, stock_qty,
+                              COALESCE((to_jsonb(products) ->> 'track_stock')::boolean, TRUE) AS track_stock
                        FROM products
                        WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE
                        ORDER BY id
@@ -541,6 +544,7 @@ export class InvoiceService {
       for (const line of input.offline ? [] : lines) {
         const product = byCode.get(line.productCode);
         if (!product) continue; // linha livre (serviço/estadia) — sem stock
+        if (product.track_stock === false) continue; // "Controlar stock: Não" — vende sempre
         // Prato com ficha técnica — REGRA DA PRATELEIRA ("vende-se primeiro o
         // que está feito"): se há stock PRODUZIDO suficiente (fornada da
         // padaria/pastelaria), vende do stock do produto e cai na validação
@@ -664,6 +668,8 @@ export class InvoiceService {
         // outra vez seria dupla contagem). Sem stock produzido → SOB ENCOMENDA:
         // baixa os INGREDIENTES (não o prato), como sempre. O custo (unit_cost
         // acima) já é o custo da receita (cost_price do prato).
+        // "Controlar stock: Não" (serviço): sem movimento de stock.
+        if (product.track_stock === false) continue;
         const shelfSale = !!(recipe && recipe.length) && Number(product.stock_qty) >= line.quantity;
         if (recipe && recipe.length && !shelfSale) {
           for (const ing of recipe) {
@@ -1113,6 +1119,11 @@ export class InvoiceService {
       reference: string; referenceId: string; actorId: string | null;
     },
   ): Promise<void> {
+    // "Controlar stock: Não": a venda não abateu stock, logo o estorno não o repõe.
+    const tr = await tx.$queryRaw<{ t: boolean }[]>(
+      Prisma.sql`SELECT COALESCE((to_jsonb(p) ->> 'track_stock')::boolean, TRUE) AS t FROM products p WHERE p.id = ${args.productId}::uuid`,
+    );
+    if (tr[0]?.t === false) return;
     const recipe = args.recipeMap.get(args.productId);
     // REGRA DA PRATELEIRA (espelho fiel): se a venda ORIGINAL baixou o PRÓPRIO
     // produto (fornada da padaria — há movimento OUT do produto nesta fatura),

@@ -193,6 +193,8 @@ export interface ManagerProduct {
   gallery: unknown;
   show_online: boolean;
   shared_stock: boolean;
+  /** FALSE = "Controlar stock: Não" (serviço). */
+  track_stock?: boolean;
   is_ingredient?: boolean;
   requires_prescription?: boolean;
   is_production?: boolean;
@@ -220,6 +222,7 @@ export interface CreateProductInput {
   stockQty?: number;
   storeIds?: string[];
   sharedStock?: boolean;
+  trackStock?: boolean;
   imageUrl?: string;
   showOnline?: boolean;
   isIngredient?: boolean;
@@ -241,6 +244,7 @@ export interface UpdateProductInput {
   imageUrl?: string;
   showOnline?: boolean;
   sharedStock?: boolean;
+  trackStock?: boolean;
   isActive?: boolean;
   isIngredient?: boolean;
   requiresPrescription?: boolean;

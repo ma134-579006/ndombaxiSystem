@@ -38,6 +38,7 @@ interface FormState {
   storeIds: string[];
   allStores: boolean;
   sharedStock: boolean;
+  trackStock: boolean;
   imageUrl: string;
   showOnline: boolean;
   isActive: boolean;
@@ -63,6 +64,7 @@ const EMPTY: FormState = {
   storeIds: [],
   allStores: true,
   sharedStock: false,
+  trackStock: true,
   imageUrl: '',
   showOnline: true,
   isActive: true,
@@ -310,6 +312,7 @@ export function Products() {
       storeIds: [],
       allStores: true,
       sharedStock: p.shared_stock,
+      trackStock: p.track_stock !== false,
       imageUrl: p.image_url ?? '',
       showOnline: p.show_online,
       isActive: p.is_active,
@@ -363,6 +366,7 @@ export function Products() {
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
           sharedStock: form.sharedStock,
+          trackStock: form.trackStock,
           isActive: form.isActive,
           isIngredient: form.isIngredient,
           isProduction: form.isProduction,
@@ -389,6 +393,7 @@ export function Products() {
           costPrice: unitCost,
           stockQty: qInit,
           sharedStock: form.sharedStock,
+          trackStock: form.trackStock,
           imageUrl: form.imageUrl || undefined,
           showOnline: form.showOnline,
           isIngredient: form.isIngredient,
@@ -690,6 +695,8 @@ export function Products() {
         <div className="vd-card">
           <div className="vd-form">
             <p className="vd-sect">Opções</p>
+            <div className="vd-row"><L hint={form.trackStock ? 'A venda valida e abate o stock.' : 'Serviço/artigo sem controlo: vende sempre, sem mexer no stock.'}>Controlar Stock</L>
+              <div className="vd-ctl"><div className="vd-check"><Switch checked={form.trackStock} onChange={(v) => setForm({ ...form, trackStock: v })} /> {form.trackStock ? 'Sim' : 'Não'}</div></div></div>
             {stores.length > 1 ? (
               <div className="vd-row"><L hint={form.sharedStock ? 'Stock único partilhado por todas as lojas.' : 'Cada loja gere o seu próprio stock.'}>Stock partilhado</L>
                 <div className="vd-ctl"><div className="vd-check"><Switch checked={form.sharedStock} onChange={(v) => setForm({ ...form, sharedStock: v })} /> {form.sharedStock ? 'Sim' : 'Não'}</div></div></div>

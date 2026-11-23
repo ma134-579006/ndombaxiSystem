@@ -913,3 +913,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."fiscal_engine_saft" (
   fetched_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS fiscal_engine_saft_period_idx ON "{{SCHEMA}}"."fiscal_engine_saft"(year, month, fetched_at DESC);
+
+-- Controlar stock (como no Vendus): FALSE = serviço/artigo sem controlo — a venda
+-- não valida nem abate stock, e a anulação não o repõe.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS track_stock BOOLEAN NOT NULL DEFAULT TRUE;

@@ -1481,3 +1481,7 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS is_produc
 
 -- 2026-07-13 · RESTAURANTE/PRODUCAO — prioridade dos pedidos (Central de Producao)
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."restaurant_orders" ADD COLUMN IF NOT EXISTS priority INT NOT NULL DEFAULT 0;
+
+-- Controlar stock (como no Vendus): FALSE = serviço/artigo sem controlo — a venda
+-- não valida nem abate stock, e a anulação não o repõe.
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS track_stock BOOLEAN NOT NULL DEFAULT TRUE;
