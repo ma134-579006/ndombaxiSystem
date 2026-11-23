@@ -75,6 +75,22 @@ Feito com autorização explícita do utilizador para cada documento.
 Também verificado: selo «Vendus · Facturação certificada» na barra do painel e da caixa (#233);
 uma única emissão por venda (reenvio com reconciliação por `external_reference`).
 
+## Todos os canais com o Vendus (23/11/2026, simulador)
+
+O motor Vendus passou a cobrir TODOS os canais de venda da empresa (antes só a caixa web):
+
+| Canal | Antes | Agora |
+|---|---|---|
+| Caixa (web, Android, Windows sem servidor local) | Vendus | Vendus + talão térmico do Vendus (`output=html`/`escpos`, ORIGINAL/2.ª via), WhatsApp com o PDF A4 original, Guardar PDF |
+| App Windows com servidor local | série local `L…` do LPS (nunca ia ao Vendus/AGT) | com o motor Vendus o posto deixa de servir a app pela base local; fala com a nuvem (offline → fila e comprovativo provisório) |
+| Loja online e loja dos associados (LPS Kwanza) | FT série `WEB` do LPS | FR do Vendus ao confirmar o pagamento; meio de pagamento mapeado; o cliente descarrega o PDF original (`/store/:code/orders/:id/invoice.pdf`) |
+
+Resultados: `qa/vendus-motor.mjs` **76/76** (V-C1…V-C13: talão, 2 lojas × 2 caixas, loja online,
+anulação da fatura online → NC, loja dos associados); `qa/vendus-carga.mjs` **11/11** com
+120 vendas (4 lojas × 3 caixas) e **800 vendas (8 lojas × 5 caixas × 20)** em simultâneo no MESMO NIF:
+800 números Vendus distintos, 1 documento por venda (reenvios incluídos), stock exacto por loja,
+p50 4 s / p95 7 s nesta máquina (o envio ao Vendus é síncrono). jest 385/385, caixa 15/15.
+
 ## Como repetir
 
 ```
@@ -82,4 +98,5 @@ uma única emissão por venda (reenvio com reconciliação por `external_referen
 VENDUS_BASE_URL=http://127.0.0.1:3997/ws VENDUS_TIMEOUT_MS=3000 FISCAL_ENGINE_SCHEDULER=off  (no env de QA)
 bash qa/restart-api.sh
 node qa/vendus-motor.mjs
+# carga (com qa/vendus-ui-setup.mjs a correr): LOJAS=8 CAIXAS=5 VENDAS=20 node qa/vendus-carga.mjs
 ```

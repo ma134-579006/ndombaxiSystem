@@ -50,7 +50,7 @@ export function startVendusMock({ port = 3997, apiKey }) {
       const send = (status, body, type = 'application/json') => { res.writeHead(status, { 'content-type': type, 'Rate-Limit-Remaining': '99', 'Rate-Limit-Reset': '20' }); res.end(Buffer.isBuffer(body) ? body : typeof body === 'string' ? body : JSON.stringify(body)); };
       const u = new URL(req.url ?? '/', 'http://x');
       if (u.pathname.startsWith('/__control')) {
-        if (req.method === 'GET') return send(200, { log: st.log, docs: [...st.docs.values()].map((d) => ({ id: d.id, number: d.number, type: d.type, mode: d.mode, tx_id: d.tx_id, external_reference: d.external_reference })), clients: st.clients.size, products: st.products.size, urlKeyLeak: st.urlKeyLeak });
+        if (req.method === 'GET') return send(200, { log: st.log, docs: [...st.docs.values()].map((d) => ({ id: d.id, number: d.number, type: d.type, mode: d.mode, tx_id: d.tx_id, external_reference: d.external_reference, register_id: d.register_id, payments: d.payments ?? null })), clients: st.clients.size, products: st.products.size, urlKeyLeak: st.urlKeyLeak });
         const c = JSON.parse(raw || '{}');
         if (c.mode) { st.mode = c.mode; st.times = c.times ?? 1; }
         if (c.delayMs) st.delayMs = c.delayMs;
@@ -62,7 +62,7 @@ export function startVendusMock({ port = 3997, apiKey }) {
       }
       if (u.searchParams.has('api_key')) st.urlKeyLeak = true;
       const m = /^\/ws\/v(1\.[012])\/(.+?)\/?$/.exec(u.pathname);
-      const entry = { at: new Date().toISOString(), method: req.method, path: u.pathname, status: 0 };
+      const entry = { at: new Date().toISOString(), method: req.method, path: u.pathname, query: Object.fromEntries(u.searchParams), status: 0 };
       st.log.push(entry);
       if (!m) { entry.status = 404; return send(404, { message: 'Not Found' }); }
       if (req.headers.authorization !== `Bearer ${st.apiKey}`) { entry.status = 401; return send(401, { errors: [{ code: 'A001', message: 'Unauthorized' }] }); }
@@ -128,7 +128,14 @@ export function startVendusMock({ port = 3997, apiKey }) {
       const pdf = /^documents\/(\d+)\.pdf$/.exec(path);
       if (pdf) { const d = st.docs.get(Number(pdf[1])); return d ? send(200, PDF(d.number), 'application/pdf') : send(404, { message: 'No data' }); }
       const one = /^documents\/(\d+)$/.exec(path);
-      if (one && req.method === 'GET') { const d = st.docs.get(Number(one[1])); return d ? send(200, d) : send(404, { message: 'No data' }); }
+      if (one && req.method === 'GET') {
+        const d = st.docs.get(Number(one[1]));
+        if (!d) return send(404, { message: 'No data' });
+        // Talão imprimível (output=html|escpos), com a versão (ORIGINAL/DUPLICATE) e a caixa.
+        if (q.output === 'html') return send(200, { ...d, output: 'html', output_data: `<!doctype html><html><head><title>${d.number}</title></head><body><p>${d.number}</p><p>${q.output_version ?? ''}</p><p>caixa ${q.register_id ?? ''}</p><p>hash ${d.hash}</p></body></html>` });
+        if (q.output === 'escpos') return send(200, { ...d, output: 'escpos', output_data: Buffer.from(`\x1b@${d.number}\n${q.output_version ?? ''}\n\x1dVB\x00`, 'binary').toString('base64') });
+        return send(200, d);
+      }
       if (path === 'taxauthority/saft') {
         const xml = `<?xml version="1.0" encoding="UTF-8"?><AuditFile xmlns="urn:OECD:StandardAuditFile-Tax:AO_1.01_01"><Header><TaxRegistrationNumber>${st.account.fiscal_id}</TaxRegistrationNumber><StartDate>${q.year}-${String(q.month).padStart(2, '0')}-01</StartDate><ProductID>Vendus/Cegid</ProductID><SoftwareValidationNumber>142/AGT/2019</SoftwareValidationNumber></Header></AuditFile>`;
         return send(200, { year: Number(q.year), month: Number(q.month), xml: Buffer.from(xml).toString('base64') });
@@ -153,7 +160,7 @@ export function startVendusMock({ port = 3997, apiKey }) {
     const doc = {
       id, type, subtype: '', number, date: new Date().toISOString().slice(0, 10), system_time: new Date().toISOString(),
       amount_gross: gross.toFixed(2), amount_net: (gross / 1.14).toFixed(2), external_reference: body.external_reference ?? '',
-      register_id: body.register_id, mode: body.mode ?? 'normal', tx_id: body.tx_id ?? null, items,
+      register_id: body.register_id, mode: body.mode ?? 'normal', tx_id: body.tx_id ?? null, items, payments: body.payments ?? null,
       client: body.client ?? null, hash: 'AbCd', atcud: '', qrcode: '<svg/>', qrcode_data: `A:${st.account.fiscal_id}*B:${body.client?.fiscal_id ?? ''}*N:${number}`,
       agt: { document_number: number, qrcode_image: 'data:image/png;base64,' },
       status: { id: 'N' },

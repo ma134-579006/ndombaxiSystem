@@ -182,6 +182,84 @@ try {
   const det1 = await ok('GET', `/fiscal-engine/documents/${d1.id}`, { token: A });
   R.check('V-E5', 'trilho do documento (A_PREPARAR → A_ENVIAR → CRIADO → pendente AGT)', det1.events.map((e) => e.state).join('>').includes('A_PREPARAR>A_ENVIAR>CRIADO_NO_VENDUS>COMUNICACAO_AGT_PENDENTE') && det1.tx_id === `lps-${inv1.id}-FT`, det1.events.map((e) => e.state).join('>'));
 
+  // ── CANAIS: talão térmico, várias lojas/caixas, loja online e loja dos associados ──
+  {
+    // Talão térmico gerado pelo Vendus (ORIGINAL, 2.ª via e ESC/POS) — o LPS não o redesenha.
+    const ph = await ok('GET', `/fiscal-engine/documents/${d1.id}/print?format=html&copy=ORIGINAL`, { token: A });
+    let msx = await mstate();
+    const q1 = msx.log.filter((l) => l.method === 'GET' && /\/documents\/\d+\/?$/.test(l.path) && l.query?.output).pop()?.query ?? {};
+    R.check('V-C1', 'talão térmico (HTML) vem do Vendus: número, versão ORIGINAL e a caixa API da empresa', ph.format === 'html' && ph.data.includes(inv1.fiscal.number) && ph.data.includes('ORIGINAL') && q1.register_id === '9', j(q1));
+    const pd = await ok('GET', `/fiscal-engine/documents/${d1.id}/print?format=html&copy=DUPLICATE`, { token: A });
+    R.check('V-C2', 'reimpressão pede a 2.ª via (DUPLICATE) ao Vendus', pd.data.includes('DUPLICATE'), pd.data.slice(0, 120));
+    const pe = await ok('GET', `/fiscal-engine/documents/${d1.id}/print?format=escpos&copy=ORIGINAL`, { token: A });
+    const esc = Buffer.from(pe.data, 'base64');
+    R.check('V-C3', 'talão ESC/POS (impressora USB) em base64 com o número do Vendus', pe.format === 'escpos' && esc[0] === 0x1b && esc[1] === 0x40 && esc.toString('latin1').includes(inv1.fiscal.number), `${esc.length}B`);
+    const notIssued = await call('GET', `/fiscal-engine/documents/${uuid()}/print`, { token: A });
+    R.check('V-C4', 'talão de documento inexistente → 404 (nada inventado)', notIssued.status === 404, `${notIssued.status}`);
+
+    // Várias lojas e várias caixas do LPS → todas emitem pela MESMA caixa API do Vendus.
+    await pub.query(`UPDATE nexus_public.plans SET "maxStores" = -1, "maxUsers" = -1 WHERE id = (SELECT "planId" FROM nexus_public.companies WHERE id = $1)`, [cid]);
+    const lojas = [];
+    for (const k of [2, 3]) lojas.push(await ok('POST', '/staff/stores', { token: A, body: { code: `L${k}${tag}`.slice(0, 10), name: `Loja ${k} QA` } }));
+    const prodId = (await pub.query(`SELECT id::text FROM "${company.schemaName}".products WHERE code = $1`, [code])).rows[0].id;
+    for (const lj of lojas) await ok('POST', '/erp/stock/entry', { token: A, body: { productId: prodId, warehouseId: lj.id, quantity: 20, unitCost: 100 } });
+    const caixas = [];
+    for (const [i, lj] of lojas.entries()) {
+      const em = `qa-vd-cx${i}-${tag}@qa.test`;
+      await ok('POST', '/staff/users', { token: A, body: { name: `Caixa ${i} QA`, email: em, role: 'CASHIER', storeId: lj.id, password: 'QaTeste#2026x', pin: `${5300 + i}${tag}`.slice(0, 6), mustResetPw: false } });
+      const T = tok(await ok('POST', '/auth/login', { body: { email: em, password: 'QaTeste#2026x' } }));
+      await call('POST', '/cashbox/session/open', { token: T, body: { openingFloat: 0 } });
+      caixas.push({ T, store: lj.id });
+    }
+    const vendas = await Promise.all(caixas.flatMap((c) => [1, 2].map(() => call('POST', '/pos/invoices', { token: c.T, body: { docType: 'FT', paymentType: 'CASH', clientOpId: uuid(), lines: [{ productCode: code, quantity: 1 }] } }))));
+    const nums = vendas.map((v) => v.body?.fiscal?.number);
+    const lojasLps = (await pub.query(`SELECT DISTINCT store_id::text AS s FROM "${company.schemaName}".invoices WHERE id = ANY($1::uuid[])`, [vendas.map((v) => v.body?.id).filter(Boolean)])).rows.map((x) => x.s);
+    msx = await mstate();
+    const regs = new Set(vendas.map((v) => msx.docs.find((d) => d.external_reference === `LPS-${v.body?.id}`)?.register_id).map(String));
+    R.check('V-C5', '2 lojas × 2 vendas em simultâneo: todas com número Vendus distinto, sem duplicados', vendas.every((v) => v.status < 300) && nums.every((n) => /^FR AO/.test(n ?? '')) && new Set(nums).size === nums.length, j(vendas.map((v) => v.status < 300 ? v.body.fiscal?.number : `${v.status} ${j(v.body)}`)));
+    R.check('V-C6', 'cada venda fica na sua loja no LPS e todas saem pela caixa API do Vendus', lojasLps.length === 2 && regs.size === 1 && regs.has('9'), j({ lojasLps, regs: [...regs] }));
+
+    // Pagamentos da loja online → formas de pagamento do Vendus.
+    await ok('PATCH', `/super-admin/fiscal-engine/company/${cid}`, { token: SA, body: { paymentMap: { CASH: '3', CARD: '4', TRANSFER: '4', REFERENCE: '4', EXPRESS: '4' } } });
+    const schema = company.schemaName;
+    const coCode = (await pub.query(`SELECT code FROM nexus_public.companies WHERE id = $1`, [cid])).rows[0].code;
+    await pub.query(`UPDATE "${schema}".products SET show_online = TRUE WHERE code = $1`, [code]);
+    const geo = { geoLat: -8.8383, geoLng: 13.2344, geoAccuracy: 8, geoConsent: true };
+
+    // LOJA ONLINE normal: encomenda → gestor confirma o pagamento → fatura pelo Vendus.
+    const co1 = await ok('POST', `/store/${coCode}/checkout`, { body: { lines: [{ productCode: code, quantity: 3 }], customerName: 'Cliente Online QA', customerPhone: `92${tag}1`.slice(0, 9), deliveryMethod: 'PICKUP', paymentMethod: 'BANK_TRANSFER', ...geo } });
+    const oid = co1.orderId ?? co1.id;
+    const paid = await call('POST', `/ecommerce/orders/${oid}/pay`, { token: A });
+    const wo = (await pub.query(`SELECT o.status, i.series, i.fiscal_engine, i.id::text AS iid FROM "${schema}".web_orders o JOIN "${schema}".invoices i ON i.id = o.invoice_id WHERE o.id = $1`, [oid])).rows[0];
+    msx = await mstate();
+    const vdOnline = msx.docs.find((d) => d.external_reference === `LPS-${wo?.iid}`);
+    R.check('V-C7', 'loja online: pagamento confirmado → fatura emitida pelo Vendus (não série WEB do LPS)', paid.status < 300 && /^FR AO/.test(paid.body.invoiceNumber ?? '') && wo?.series === 'VND' && wo?.fiscal_engine === 'VENDUS' && !!vdOnline, j({ st: paid.status, n: paid.body.invoiceNumber, wo, b: paid.status >= 300 ? paid.body : undefined }));
+    R.check('V-C8', 'transferência bancária da loja → forma de pagamento mapeada no Vendus (FR paga)', vdOnline?.type === 'FR' && String(vdOnline?.payments?.[0]?.id) === '4', j(vdOnline?.payments ?? null));
+    const ci = await ok('GET', `/store/${coCode}/orders/${oid}/invoice`);
+    R.check('V-C9', 'cliente vê a fatura como documento do Cegid Vendus (número fiscal do Vendus, PDF pronto)', ci.external?.engine === 'VENDUS' && ci.external.number === paid.body.invoiceNumber && ci.external.pdf === true, j(ci.external));
+    const cpdf = await fetch(`http://127.0.0.1:3901/store/${coCode}/orders/${oid}/invoice.pdf`);
+    const cbytes = Buffer.from(await cpdf.arrayBuffer());
+    R.check('V-C10', 'cliente descarrega o PDF ORIGINAL do Vendus da sua encomenda', cpdf.status === 200 && (cpdf.headers.get('content-type') ?? '').includes('pdf') && cbytes.toString('latin1').includes(`Documento ${paid.body.invoiceNumber}`), `${cpdf.status} ${cbytes.length}B`);
+    const nopdf = await call('GET', `/store/${coCode}/orders/${uuid()}/invoice.pdf`);
+    R.check('V-C11', 'PDF de encomenda sem fatura → recusado', nopdf.status === 400 || nopdf.status === 404, `${nopdf.status}`);
+
+    // Anulação da fatura de uma encomenda online já paga → NC emitida pelo Vendus.
+    const ncWeb = await call('POST', `/pos/invoices/${wo.iid}/cancel`, { token: A, body: { reason: 'Cliente devolveu a encomenda online' } });
+    msx = await mstate();
+    const ciAfter = await ok('GET', `/store/${coCode}/orders/${oid}/invoice`);
+    R.check('V-C13', 'anular a fatura da loja online → NC no Vendus e o cliente vê a fatura anulada', ncWeb.status < 300 && /^NC AO/.test(ncWeb.body.fiscal?.number ?? '') && ciAfter.annulled === true, j({ st: ncWeb.status, nc: ncWeb.body.fiscal, annulled: ciAfter.annulled, b: ncWeb.status >= 300 ? ncWeb.body : undefined }));
+
+    // LOJA DOS ASSOCIADOS (LPS Kwanza): compra pelo marketplace → mesma faturação pelo Vendus.
+    const pubK = await call('PATCH', `/ecommerce/kwanza/products/${code}`, { token: A, body: { published: true, percent: 10, mode: 'OPEN', allowMarkup: false, maxMarkupPct: null, materials: [] } });
+    const kb = await call('POST', '/kwanza/checkout', { body: { companyCode: coCode, lines: [{ productCode: code, quantity: 2 }], name: 'Cliente Associados QA', phone: `93${tag}2`.slice(0, 9), deliveryMethod: 'PICKUP', paymentMethod: 'MULTICAIXA_EXPRESS', device: uuid(), ...geo } });
+    const kid = kb.body?.orderId;
+    const kpaid = kid ? await call('POST', `/ecommerce/orders/${kid}/pay`, { token: A }) : { status: 0, body: {} };
+    const kwo = kid ? (await pub.query(`SELECT i.series, i.fiscal_engine, i.id::text AS iid FROM "${schema}".web_orders o JOIN "${schema}".invoices i ON i.id = o.invoice_id WHERE o.id = $1`, [kid])).rows[0] : null;
+    msx = await mstate();
+    const vdK = msx.docs.find((d) => d.external_reference === `LPS-${kwo?.iid}`);
+    R.check('V-C12', 'loja dos associados: encomenda paga → fatura do Vendus (Multicaixa Express mapeado)', pubK.status < 300 && kb.status < 300 && kpaid.status < 300 && /^FR AO/.test(kpaid.body.invoiceNumber ?? '') && kwo?.fiscal_engine === 'VENDUS' && String(vdK?.payments?.[0]?.id) === '4', j({ pub: pubK.status, ck: kb.status, pay: kpaid.status, n: kpaid.body?.invoiceNumber, b: kb.status >= 300 ? kb.body : pubK.status >= 300 ? pubK.body : undefined }));
+  }
+
   // ── Teste 15 — duplicação / tx_id ──────────────────────────────────────────
   const opId = uuid();
   const a1 = await sell({ clientOpId: opId });

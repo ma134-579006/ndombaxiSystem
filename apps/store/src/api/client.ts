@@ -122,6 +122,21 @@ export const api = {
     request<RepairStatus>('GET', `/store/${enc(code)}/service-order/${enc(token)}`),
   orderInvoice: (code: string, orderId: string) =>
     request<StoreInvoice>('GET', `/store/${enc(code)}/orders/${enc(orderId)}/invoice`),
+  /** PDF ORIGINAL do Cegid Vendus da fatura da encomenda. */
+  orderInvoicePdf: async (code: string, orderId: string): Promise<Blob> => {
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}/store/${enc(code)}/orders/${enc(orderId)}/invoice.pdf`);
+    } catch {
+      throw new ApiError(0, 'Sem ligação à loja. Verifique a sua internet.');
+    }
+    if (!res.ok) {
+      let message = `Erro ${res.status}`;
+      try { const j = (await res.json()) as { message?: string | string[] }; if (j.message) message = Array.isArray(j.message) ? j.message.join(', ') : j.message; } catch { /* corpo vazio */ }
+      throw new ApiError(res.status, message);
+    }
+    return res.blob();
+  },
   updateLocation: (code: string, orderId: string, token: string, body: { lat: number; lng: number; accuracy?: number }) =>
     request<{ ok: true }>('POST', `/store/${enc(code)}/orders/${enc(orderId)}/location`, body, token),
   generateReference: (code: string, orderId: string) =>

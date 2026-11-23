@@ -61,6 +61,12 @@ let localApiUrl: string | null = null;
 /** Endereço deste posto na rede da loja — é o que os telemóveis usam. */
 let localLanUrl: string | null = null;
 let localServer: import('@nexus/local-server').LocalServer | null = null;
+/**
+ * O servidor local pode estar a correr (para levar à nuvem o que ficou por
+ * replicar) SEM servir a aplicação: é o caso das empresas com o motor fiscal
+ * externo (Cegid Vendus) — ver `Settings.fiscalEngineExternal`.
+ */
+let serveLocalApp = true;
 
 /** Arranca o servidor local, se estiver disponível. Nunca impede a app de abrir. */
 async function startLocalServer(): Promise<void> {
@@ -94,8 +100,13 @@ async function startLocalServer(): Promise<void> {
       log: logLocal,
       // Partilhar com os outros aparelhos da loja, se o responsável o pediu.
       // Só a API sai para a rede; a base continua presa a 127.0.0.1.
-      lan: readSettings().shareOnLan === true,
+      // Com o motor Vendus, nunca: os telemóveis emitiriam faturas pelo posto.
+      lan: readSettings().shareOnLan === true && readSettings().fiscalEngineExternal !== true,
     });
+    if (readSettings().fiscalEngineExternal === true) {
+      serveLocalApp = false;
+      logLocal('motor fiscal externo (Cegid Vendus): a aplicação fala com a nuvem; o servidor local só termina a replicação pendente');
+    }
     const info = await localServer.start();
     localApiUrl = info.apiUrl;
     localLanUrl = info.lanUrl;
@@ -119,6 +130,28 @@ async function startLocalServer(): Promise<void> {
  * nunca antes. É o que substitui o botão sem perder a proteção: a base local
  * continua a nunca servir a aplicação enquanto não tiver os dados lá dentro.
  */
+/**
+ * Pergunta à nuvem se a empresa fatura pelo Cegid Vendus. `null` = não se sabe
+ * (sem rede, servidor antigo): quem chama mantém a decisão anterior.
+ */
+async function fiscalEngineIsExternal(session: { accessToken: string; companyCode: string; apiUrl: string }): Promise<boolean | null> {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch(`${session.apiUrl.replace(/\/+$/, '')}/fiscal-engine/badge`, {
+      headers: { Authorization: `Bearer ${session.accessToken}`, 'X-Tenant-Code': session.companyCode },
+      signal: ctl.signal,
+    });
+    if (!r.ok) return null;
+    const b = (await r.json()) as { vendus?: boolean };
+    return typeof b.vendus === 'boolean' ? b.vendus : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 /** Último motivo de adiamento escrito no registo, para não o repetir. */
 let ultimoAdiamento: string | null = null;
 
@@ -164,6 +197,23 @@ async function autoProvision(session: {
       if (localApiUrl) startReplicationClock();
     }
   }
+
+  // Motor fiscal da empresa (Cegid Vendus?). Com o Vendus as faturas só podem ser
+  // emitidas pela nuvem: o posto deixa de servir a aplicação a partir da base
+  // local e não se volta a copiar a empresa. Falha de rede → mantém o último valor.
+  const externo = await fiscalEngineIsExternal(session);
+  if (externo === true) {
+    if (readSettings().fiscalEngineExternal !== true) writeSettings({ fiscalEngineExternal: true });
+    if (localApiUrl && serveLocalApp) {
+      serveLocalApp = false;
+      logLocal('motor fiscal externo (Cegid Vendus) detetado: a aplicação passa a falar com a nuvem');
+      // As janelas leem o endereço no arranque (preload): recarregar aplica-o já.
+      // O carrinho do caixa é persistente, por isso nada se perde.
+      for (const w of BrowserWindow.getAllWindows()) w.webContents.reload();
+    }
+    return { done: false, reason: 'motor fiscal externo (Cegid Vendus): faturas emitidas pela nuvem' };
+  }
+  if (externo === false && readSettings().fiscalEngineExternal === true) writeSettings({ fiscalEngineExternal: false });
 
   const decisao = ls.shouldProvision(paths, {
     binariesPresent: ls.binariesPresent(paths),
@@ -547,7 +597,7 @@ function registerIpc(): void {
   // SÍNCRONO de propósito: o `preload` precisa do endereço ANTES de o bundle do
   // frontend arrancar, para o primeiro pedido já sair para o sítio certo. É uma
   // leitura de uma variável em memória — não há trabalho a bloquear.
-  ipcMain.on('ndombaxi:api-url', (e) => { e.returnValue = isTrustedSender(e) ? localApiUrl : null; });
+  ipcMain.on('ndombaxi:api-url', (e) => { e.returnValue = isTrustedSender(e) && serveLocalApp ? localApiUrl : null; });
 
   handleTrusted('ndombaxi:db-query', (_e, sql: string, params?: unknown[]) => query(sql, params ?? []));
   handleTrusted('ndombaxi:db-exec', (_e, sql: string, params?: unknown[]) => exec(sql, params ?? []));

@@ -80,7 +80,7 @@ const PAY_LABEL: Record<string, string> = {
 export function ReceiptModal(props: Props) {
   // Documento fiscal emitido pelo Cegid Vendus: mostra-se o ORIGINAL (PDF do Vendus);
   // o LPS nunca desenha um talão próprio com aparência de factura para essa venda.
-  if (!props.provisional && isExternalFiscal(props.invoice)) return <ExternalFiscalReceipt invoice={props.invoice} identity={props.identity ?? null} onClose={props.onClose} />;
+  if (!props.provisional && isExternalFiscal(props.invoice)) return <ExternalFiscalReceipt invoice={props.invoice} identity={props.identity ?? null} reprint={props.reprint === true} onClose={props.onClose} />;
   return <LpsReceiptModal {...props} />;
 }
 

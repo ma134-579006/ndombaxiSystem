@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, Param, Post, Put, Query, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, Param, ParseUUIDPipe, Post, Put, Query, Res, ServiceUnavailableException } from '@nestjs/common';
+import type { Response } from 'express';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
@@ -595,6 +596,17 @@ export class StorefrontController {
   async orderInvoice(@Param('code') code: string, @Param('orderId') orderId: string) {
     const tenant = await this.resolver.resolveByCode(code);
     return this.orders.invoiceForCustomer(tenant.schema, tenant.companyId, orderId);
+  }
+
+  @Get('orders/:orderId/invoice.pdf')
+  @ApiOperation({ summary: 'PDF original do Cegid Vendus da fatura da encomenda (empresas com o motor Vendus)' })
+  async orderInvoicePdf(@Param('code') code: string, @Param('orderId', ParseUUIDPipe) orderId: string, @Res() res: Response) {
+    const tenant = await this.resolver.resolveByCode(code);
+    const { pdf, number } = await this.orders.invoicePdfForCustomer(tenant.schema, orderId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${(number ?? orderId).replace(/[^\w.\-]/g, '_')}.pdf"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.send(pdf);
   }
 
   @Post('orders/:orderId/location')

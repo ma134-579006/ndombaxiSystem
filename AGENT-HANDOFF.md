@@ -152,6 +152,11 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
 - **Produção (22-11-2026, PRs #226–#236):** Loja da Mulher com motor Vendus activo (caixa API
   «caixa 2», NIF do contribuinte 007184986HA040). Venda real FR 02P2026/1 e anulação NC 02P2026/1
   confirmadas nos dois lados (ver `docs/fiscal-engine/TEST-RESULTS.md`). Selo Vendus na barra.
+- **23-11-2026 — Vendus em todos os canais (ramo `feat/vendus-todos-canais`):** loja online e loja dos
+  associados faturam pelo Vendus (`orders.pay`), talão térmico/WhatsApp/Guardar PDF na caixa, app Windows
+  sem servidor local quando o motor é Vendus. Backoffice Vendus a 23/11: certificado FE CORRIGIDO
+  (comunicação activa, séries 2026 comunicadas); documentos de 23/11 «Comunicado»; os anteriores
+  (FR 02P2026/1–2, NC /1–2, FT/RG 1684–1688) continuam «Pendente comunicação»; RG 02P2026/1689 rejeitado (E26).
 - **Onde continuar:** o certificado da Factura Electrónica no Vendus está por corrigir (o
   contribuinte, em AG Tributária → Configuração → corrigir certificado); depois confirmar que
   FR 02P2026/1, /2 e NC 02P2026/1 saem de «Pendente comunicação». Datas: validade Vendus na AGT

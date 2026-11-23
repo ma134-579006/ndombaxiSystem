@@ -281,9 +281,16 @@ function buildBytes(r: RawReceipt, paper: '58' | '80'): Uint8Array {
  * impressora utilizável (o chamador deve cair no window.print()).
  */
 export async function printRaw(r: RawReceipt, paper: '58' | '80'): Promise<boolean> {
+  return printBytes(buildBytes(r, paper));
+}
+
+/**
+ * Envia bytes ESC/POS JÁ PRONTOS à térmica emparelhada (ex.: o talão gerado pelo
+ * Cegid Vendus). true = saiu; false = sem impressora utilizável (usar o diálogo).
+ */
+export async function printBytes(bytes: Uint8Array): Promise<boolean> {
   const dev = await getPairedDevice();
   if (!dev) return false;
-  const bytes = buildBytes(r, paper);
   try {
     if (!dev.opened) await dev.open();
     if (!dev.configuration) await dev.selectConfiguration(1);

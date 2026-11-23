@@ -135,6 +135,21 @@ export function Track({ orderId, onBack }: { orderId: string; onBack(): void }) 
     setInvErr(null);
     try {
       const inv = await api.orderInvoice(code, orderId);
+      if (inv.external) {
+        // Fatura do Cegid Vendus: descarrega o PDF ORIGINAL (o LPS não o redesenha).
+        if (!inv.external.pdf) {
+          setInvErr('A fatura está a ser emitida pelo Cegid Vendus. Tente dentro de momentos.');
+          return;
+        }
+        const blob = await runTransfer({ title: 'A descarregar a fatura', kind: 'generate', task: () => api.orderInvoicePdf(code, orderId) });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(inv.external.number ?? inv.orderNumber).replace(/[^\w.-]+/g, '_')}.pdf`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        return;
+      }
       await runTransfer({ title: 'A gerar a fatura em PDF', kind: 'generate', task: () => downloadInvoicePdf(inv) });
     } catch (e) {
       setInvErr(e instanceof ApiError ? e.message : 'Não foi possível obter a fatura.');

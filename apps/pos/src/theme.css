@@ -1783,4 +1783,7 @@ html.touch-ui .btn.sm { min-height: 40px; }
 .efr-ref { font-weight: 500; color: var(--muted); }
 .efr-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .efr-actions .btn { flex: 1 1 140px; min-width: 0; white-space: normal; }
+.efr-actions .efr-new { flex-basis: 100%; }
+.efr-actions .btn svg { vertical-align: -3px; }
+.efr-printer { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: var(--muted); padding: 2px 0 6px; flex-wrap: wrap; }
 @media (max-width: 300px) { .efr-dl { grid-template-columns: minmax(0, 1fr); } .efr-dl dd { text-align: left; } }

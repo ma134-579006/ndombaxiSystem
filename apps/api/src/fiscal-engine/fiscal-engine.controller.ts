@@ -233,6 +233,16 @@ export class FiscalEngineTenantController {
     res.send(pdf);
   }
 
+  /** Talão térmico do documento, gerado pelo Vendus (html ou escpos em base64). */
+  @Get('documents/:id/print')
+  @Roles(Role.CASHIER)
+  print(@Param('id', ParseUUIDPipe) id: string, @Query('format') format?: string, @Query('copy') copy?: string) {
+    return this.svc.documentPrint(this.ctx.requireTenantSchema(), id, {
+      format: format === 'escpos' ? 'escpos' : 'html',
+      copy: copy === 'DUPLICATE' ? 'DUPLICATE' : 'ORIGINAL',
+    });
+  }
+
   @Post('documents/:id/retry')
   @Roles(Role.COMPANY_ADMIN)
   retry(@Param('id', ParseUUIDPipe) id: string) {

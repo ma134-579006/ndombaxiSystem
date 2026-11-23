@@ -1074,6 +1074,28 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     return { pdf: Buffer.from(r.pdf), number: r.number };
   }
 
+  /**
+   * TALÃO do documento para impressora térmica, gerado pelo Cegid Vendus (o LPS não
+   * reconstrói o documento fiscal). `html` para imprimir pelo navegador/app;
+   * `escpos` (base64) para impressoras emparelhadas por USB/Bluetooth.
+   */
+  async documentPrint(schema: string, id: string, o: { format: 'html' | 'escpos'; copy: 'ORIGINAL' | 'DUPLICATE' }): Promise<{ format: 'html' | 'escpos'; data: string; number: string | null }> {
+    const rows = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<{ vendus_id: string | null; mode: string; number: string | null }[]>`
+      SELECT vendus_id, mode, number FROM fiscal_engine_documents WHERE id = ${id}::uuid`);
+    const d = rows[0];
+    if (!d) throw new NotFoundException('Documento não encontrado');
+    if (!d.vendus_id) throw new ConflictException('O documento ainda não foi emitido no Cegid Vendus');
+    const co = await this.companyBySchema(schema);
+    const l = await this.link(co.id);
+    if (!l) throw new ConflictException('Ligação Vendus inexistente');
+    const api = await this.client(l);
+    const r = await api.documentOutput(d.vendus_id, { output: o.format, version: o.copy, registerId: l.registerId, mode: d.mode });
+    if (!r.ok) throw new ServiceUnavailableException(`Cegid Vendus: ${r.error?.message ?? 'talão indisponível'}`);
+    const data = printableOutput((r.data ?? {}) as Record<string, unknown>, o.format);
+    if (!data) throw new ServiceUnavailableException('O Cegid Vendus não devolveu o talão');
+    return { format: o.format, data, number: d.number };
+  }
+
   // ── Sincronização de clientes e produtos ─────────────────────────────────
   async syncClients(schema: string) {
     const co = await this.companyBySchema(schema);
@@ -1255,4 +1277,20 @@ function tag(xml: string, name: string): string {
 /** NIF do contribuinte de uma ligação: o configurado no Super Admin ou, vazio, o da empresa no LPS. */
 function nifFor(l: { taxpayerNif?: string | null } | null | undefined, companyNif: string): string {
   return (l?.taxpayerNif ?? '').trim() || companyNif;
+}
+
+/**
+ * Conteúdo imprimível devolvido pelo Vendus (`output_data`, ou `output` quando é o
+ * próprio conteúdo). HTML pode vir em base64; ESC/POS devolve-se SEMPRE em base64.
+ */
+export function printableOutput(body: Record<string, unknown>, format: 'html' | 'escpos'): string | null {
+  const cands = [body.output_data, body.output].filter((v): v is string => typeof v === 'string' && v.length > 0 && !/^(html|escpos|pdf)$/i.test(v));
+  const raw = cands[0];
+  if (!raw) return null;
+  const isB64 = /^[A-Za-z0-9+/=\s]+$/.test(raw) && raw.replace(/\s/g, '').length % 4 === 0;
+  if (format === 'html') {
+    if (/<[a-z!]/i.test(raw)) return raw;
+    return isB64 ? Buffer.from(raw, 'base64').toString('utf8') : raw;
+  }
+  return isB64 ? raw.replace(/\s/g, '') : Buffer.from(raw, 'binary').toString('base64');
 }
