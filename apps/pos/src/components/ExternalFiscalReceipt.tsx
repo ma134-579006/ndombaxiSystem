@@ -226,7 +226,7 @@ export function ExternalFiscalReceipt({ invoice, identity, reprint = false, onCl
   };
 
   return (
-    <div className="modal-bg" onClick={onClose}>
+    <div className="modal-bg receipt-layer" onClick={onClose}>
       <div className="card receipt efr" onClick={(e) => e.stopPropagation()}>
         {identity && (identity.companyName || identity.brandName) ? <div className="vrc-co">{identity.companyName || identity.brandName}</div> : null}
         <dl className="efr-dl">

@@ -17,6 +17,7 @@ import type { SalaryAdvanceReq } from '../api/types';
 import { openCaixaTerminal, STORE_URL } from '../config';
 import { pollEvery, stopPoll } from '../poll';
 import { NotificationCenter } from './NotificationCenter';
+import { useFullscreen } from '../fullscreen';
 import { AgtStatus, SubscriptionRing, TopActions, TopDivider, TopTitle, type QuickItem } from './TopStatus';
 
 /** Sino de notificações (Super Admin): conversas por responder + comentários
@@ -178,6 +179,8 @@ function IconGear({ size = 17 }: { size?: number }) {
 
 /** Ícones do menu da conta: traço único 1.75, 24×24 (mesma família da barra lateral). */
 const ICON_PATHS = {
+  expand: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+  shrink: 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5',
   chevron: 'M6 9l6 6 6-6',
   register: 'M4 10h16v10H4zM7 10V5h10v5M8 14h2M14 14h2M8 17h8M10 7.5h4',
   banknote: 'M3 6.5h18v11H3zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM6 9.5v.01M18 14.5v.01',
@@ -207,6 +210,7 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
   const totalBadge = unread + (canCustChat ? custUnread : 0) + (canAdvances ? advancesCount : 0);
   const [open, setOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
+  const fs = useFullscreen();
   const [theme, setThemeState] = useState(getTheme());
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -294,6 +298,11 @@ function ManagerMenu({ photo, name, email, role, unread, custUnread, canCustChat
             </div>
           ) : null}
           <div className="vd-prof-group">
+            {fs.supported ? (
+              <button role="menuitem" className="vd-prof-item" onClick={go(fs.toggle)}>
+                <MenuIcon d={fs.on ? ICON_PATHS.shrink : ICON_PATHS.expand} /> {fs.on ? 'Diminuir' : 'Expandir'}
+              </button>
+            ) : null}
             <button role="menuitem" className="vd-prof-item" onClick={go(onLogout)}>
               <MenuIcon d={ICON_PATHS.logout} /> Terminar Sessão
             </button>

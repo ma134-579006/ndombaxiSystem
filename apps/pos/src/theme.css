@@ -433,6 +433,9 @@ html.kbd-open .login-card .footer-credit { display: none; }
    MODAL / RECIBO
    ============================================================ */
 .modal-bg { position: fixed; inset: 0; background: rgba(4,8,16,.66); display: grid; place-items: center; z-index: 70; padding: 20px; }
+/* Talão / 2.ª via: abre muitas vezes a partir de uma janela do caixa (Documentos,
+   z-index 80) — tem de ficar SEMPRE por cima dela, senão abre escondido. */
+.modal-bg.receipt-layer { z-index: 95; }
 
 /* ============================================================
    CONSUMO PRÓPRIO — aba sólida, moderna, com pesquisa fixa
