@@ -433,7 +433,8 @@ export class InvoiceService {
       // Venda offline já aconteceu: grava-se como veio. Outros meios: sem troco.
       // PAGAMENTO MISTO: as parcelas têm de somar o total; o troco só sai da parte em numerário.
       let parcelas: { type: string; amount: number }[] | null = null;
-      if (input.payments && input.payments.length > 1) {
+      // Uma só parcela também é validada (pentest 2026-11: era ignorada em silêncio).
+      if (input.payments && input.payments.length >= 1) {
         const soma = round2(input.payments.reduce((a, p) => a + Number(p.amount), 0));
         if (input.payments.some((p) => !(Number(p.amount) > 0) || !['CASH', 'CARD', 'TRANSFER', 'REFERENCE', 'EXPRESS'].includes(p.type))) {
           throw new BadRequestException('Pagamento misto inválido (valores positivos; crédito não se divide).');

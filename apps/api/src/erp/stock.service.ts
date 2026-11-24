@@ -292,7 +292,18 @@ export class StockService {
       const where = conds.length ? Prisma.sql`WHERE ${Prisma.join(conds, ' AND ')}` : Prisma.empty;
 
       const rows = await tx.$queryRaw<Array<Record<string, unknown>>>(
+        // DESEMPENHO (pentest 2026-11): antes um LATERAL percorria stock_movements
+        // para CADA artigo×loja (16 s com 1 500 artigos × 8 lojas). Agora agrega-se
+        // o período UMA vez, por artigo e loja, e junta-se.
         Prisma.sql`
+          WITH mv AS (
+            SELECT m.product_id, m.warehouse_id,
+                   SUM(CASE WHEN m.type = 'OUT' THEN -m.quantity ELSE 0 END) AS units_sold,
+                   SUM(CASE WHEN m.type = 'IN'  THEN  m.quantity ELSE 0 END) AS units_in
+            FROM stock_movements m
+            WHERE m.created_at >= ${from}::date AND m.created_at < (${to}::date + 1)
+            GROUP BY m.product_id, m.warehouse_id
+          )
           SELECT p.id AS product_id, p.code AS product_code, p.name AS product_name,
                  c.name AS category_name,
                  w.id AS store_id, w.name AS store_name,
@@ -304,13 +315,7 @@ export class StockService {
           JOIN products p ON p.id = si.product_id
           JOIN stores w ON w.id = si.warehouse_id
           LEFT JOIN product_categories c ON c.id = p.category_id
-          LEFT JOIN LATERAL (
-            SELECT SUM(CASE WHEN m.type = 'OUT' THEN -m.quantity ELSE 0 END) AS units_sold,
-                   SUM(CASE WHEN m.type = 'IN'  THEN  m.quantity ELSE 0 END) AS units_in
-            FROM stock_movements m
-            WHERE m.product_id = si.product_id AND m.warehouse_id = si.warehouse_id
-              AND m.created_at >= ${from}::date AND m.created_at < (${to}::date + 1)
-          ) mv ON TRUE
+          LEFT JOIN mv ON mv.product_id = si.product_id AND mv.warehouse_id = si.warehouse_id
           ${where}
           ORDER BY p.name, w.name`,
       );

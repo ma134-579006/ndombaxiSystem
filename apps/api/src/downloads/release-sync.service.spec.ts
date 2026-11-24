@@ -106,12 +106,15 @@ describe('ReleaseSyncService.syncIfStale', () => {
     const f = jest.fn(async () => release('windows-latest', '1.5.900', 'LPSVendas-Setup-x64.exe'));
     global.fetch = f as never;
     const svc = new ReleaseSyncService(fakePrisma([]) as never);
+    // Espera DETERMINÍSTICA (até 2 s) pelos 5 pedidos paralelos — 10 ms fixos
+    // falhavam com a máquina carregada (teste instável na bateria completa).
+    const until = async (ok: () => boolean) => { for (let i = 0; i < 200 && !ok(); i++) await new Promise((r) => setTimeout(r, 10)); };
     svc.syncIfStale();
-    await new Promise((r) => setTimeout(r, 10));
+    await until(() => f.mock.calls.length >= 5);
     expect(f).toHaveBeenCalledTimes(5); // uma por app (RELEASE_SOURCES)
     svc.syncIfStale();
-    await new Promise((r) => setTimeout(r, 10));
-    expect(f).toHaveBeenCalledTimes(5); // uma por app (RELEASE_SOURCES)
+    await new Promise((r) => setTimeout(r, 50));
+    expect(f).toHaveBeenCalledTimes(5); // a 2.ª chamada não volta a sincronizar
   });
 });
 

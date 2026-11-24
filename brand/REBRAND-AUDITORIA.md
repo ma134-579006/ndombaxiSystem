@@ -1,5 +1,8 @@
 # Rebrand Ndombaxi System -> LPS Vendas (ramo `rebrand-lps-vendas`)
 
+> **ATUALIZAÇÃO 2026-11-24 — MIGRAÇÃO CONCLUÍDA:** o sistema usa só `lpsvendas.com.de` (landing, admin, caixa, loja, Kwanza, apps). O domínio antigo foi retirado dos projetos Cloudflare Pages e já não está no código. O texto abaixo é histórico.
+
+
 Estado: codigo e assets prontos NO RAMO; nada fundido em `main`, nada alterado em DNS, producao, OAuth, SAF-T ou base de dados.
 
 ## Mantido de proposito (tecnico / historico / compatibilidade)

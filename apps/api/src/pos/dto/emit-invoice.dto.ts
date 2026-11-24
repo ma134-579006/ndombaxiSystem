@@ -145,8 +145,10 @@ export class EmitInvoiceDto {
   @Min(0)
   changeGiven?: number;
 
+  // Limite (pentest 2026-11): 20 000 linhas prendiam a API ~5 s por pedido.
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(1000)
   @ValidateNested({ each: true })
   @Type(() => EmitInvoiceLineDto)
   lines!: EmitInvoiceLineDto[];
@@ -174,6 +176,7 @@ export class ReturnItemDto {
 export class ReturnItemsDto {
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(1000)
   @ValidateNested({ each: true })
   @Type(() => ReturnItemDto)
   items!: ReturnItemDto[];
