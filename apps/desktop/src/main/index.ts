@@ -739,7 +739,7 @@ void app.whenReady().then(async () => {
   electronSession.defaultSession.webRequest.onBeforeSendHeaders(
     { urls: ['https://tile.openstreetmap.org/*', 'https://server.arcgisonline.com/*'] },
     (details, callback) => {
-      callback({ requestHeaders: { ...details.requestHeaders, Referer: 'https://ndombaxisystem.com/' } });
+      callback({ requestHeaders: { ...details.requestHeaders, Referer: 'https://lpsvendas.com.de/' } });
     },
   );
   const root = modulesRoot();

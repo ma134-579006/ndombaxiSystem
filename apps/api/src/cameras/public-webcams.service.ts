@@ -19,7 +19,7 @@ const OVERPASS_URLS = process.env.OVERPASS_URL
  * (nome da aplicação + endereço). Com o antigo `lps-vendas-api` a pesquisa dava sempre
  * "indisponível" (406/429/tempo esgotado).
  */
-const OVERPASS_UA = 'LPS-Vendas/3.0 (+https://ndombaxisystem.com; camaras publicas)';
+const OVERPASS_UA = 'LPS-Vendas/3.0 (+https://lpsvendas.com.de; camaras publicas)';
 /** Acima disto a consulta "à volta de um ponto" esgota o tempo nos servidores públicos. */
 const OSM_MAX_KM = 50;
 /** A Windy aceita no máximo 250 km no filtro `nearby`. */

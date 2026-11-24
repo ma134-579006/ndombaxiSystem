@@ -118,7 +118,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   // App instalada: a Caixa é outra app, não há "voltar ao site" e "criar conta"
   // abre o site no NAVEGADOR do sistema. O Facebook só existe no site.
   const k = appKind();
-  const openSignupInBrowser = () => window.open('https://ndombaxisystem.com/', '_blank');
+  const openSignupInBrowser = () => window.open('https://lpsvendas.com.de/', '_blank');
   const g = look?.google; const f = look?.facebook;
   const showGoogle = g?.enabled !== false;
   const showFacebook = f?.enabled !== false && !k.native;

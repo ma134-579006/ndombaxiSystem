@@ -3,7 +3,7 @@
  *
  * - A ESCOLHA é uma só para todo o sistema: guarda-se em `localStorage`
  *   (`lps:lang`, a mesma chave da página inicial) e num cookie do domínio
- *   `.ndombaxisystem.com`, para a Caixa (`caixa.`) e a gestão abrirem no mesmo
+ *   `.lpsvendas.com.de`, para a Caixa (`caixa.`) e a gestão abrirem no mesmo
  *   idioma. Sem escolha guardada, o sistema abre em português.
  * - O português é a BASE: os textos estão escritos em PT no código e o
  *   dicionário (carregado só quando o idioma não é PT) traduz o ecrã.
@@ -34,7 +34,9 @@ function readCookie(): Lang | null {
 function writeCookie(lang: Lang): void {
   try {
     const host = location.hostname;
-    const domain = /(^|\.)ndombaxisystem\.com$/.test(host) ? '; domain=.ndombaxisystem.com' : '';
+    // Cookie partilhado pelo domínio principal e subdomínios (caixa., loja., admin.).
+    const base = /(^|\.)lpsvendas\.com\.de$/.test(host) ? 'lpsvendas.com.de' : /(^|\.)ndombaxisystem\.com$/.test(host) ? 'ndombaxisystem.com' : '';
+    const domain = base ? `; domain=.${base}` : '';
     const secure = location.protocol === 'https:' ? '; secure' : '';
     document.cookie = `${COOKIE}=${lang}; path=/; max-age=31536000; samesite=lax${domain}${secure}`;
   } catch { /* cookies indisponíveis (app instalada) */ }

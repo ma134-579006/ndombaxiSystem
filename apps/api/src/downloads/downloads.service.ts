@@ -3,7 +3,7 @@ import { AppRelease } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Página oficial de downloads (site) — destino do botão "Atualizar Agora". */
-export const OFFICIAL_DOWNLOAD_PAGE = 'https://ndombaxisystem.com/baixar';
+export const OFFICIAL_DOWNLOAD_PAGE = 'https://lpsvendas.com.de/baixar';
 
 /** `android-loja` = app LPS Loja (clientes da loja online). `*-kwanza` = app LPS Kwanza (associados). */
 export type Platform = 'windows' | 'android' | 'android-loja' | 'android-kwanza' | 'windows-kwanza' | 'ios';
