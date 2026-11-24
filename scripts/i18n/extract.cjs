@@ -4,8 +4,18 @@
 const ts = require(require.resolve('typescript', { paths: [process.cwd() + '/apps/web'] }));
 const fs = require('fs'); const path = require('path');
 const ATTRS = new Set(['placeholder', 'title', 'aria-label', 'alt', 'label', 'hint', 'tooltip', 'emptyText', 'confirmText', 'cancelText', 'subtitle', 'heading', 'text', 'description']);
-const CALLS = /^(setError|setErr|setWarn|setMsg|setInfo|setNotice|alert|confirm|toast|notify|showToast|swal|askConfirm|setToast|setBanner|prompt)$/;
+const CALLS = /^(success|error|warning|warn|info|confirmDialog|promptDialog|setStatus|setOk|setError|setErr|setWarn|setMsg|setInfo|setNotice|alert|confirm|toast|notify|showToast|swal|askConfirm|setToast|setBanner|prompt)$/;
 const out = new Map();
+// Literais de texto dentro de ternários, ||/?? e parênteses (ex.: ok ? 'Sim' : busy ? 'A guardar…' : 'Não').
+const leaves = (e) => {
+  if (!e) return [];
+  if (ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e)) return [e.text];
+  if (ts.isParenthesizedExpression(e)) return leaves(e.expression);
+  if (ts.isConditionalExpression(e)) return [...leaves(e.whenTrue), ...leaves(e.whenFalse)];
+  if (ts.isBinaryExpression(e) && /^(\|\||\?\?|&&)$/.test(e.operatorToken.getText())) return [...leaves(e.left), ...leaves(e.right)];
+  if (ts.isObjectLiteralExpression(e)) return e.properties.flatMap((p) => ts.isPropertyAssignment(p) && /^(title|message|confirmLabel|cancelLabel|label|text|placeholder|description)$/.test(p.name.getText()) ? leaves(p.initializer) : []);
+  return [];
+};
 const looksText = (s) => {
   s = s.replace(/\s+/g, ' ').trim();
   if (s.length < 2 || s.length > 220) return null;
@@ -24,10 +34,11 @@ for (const d of process.argv.slice(2)) for (const file of walk(d, [])) {
     else if (ts.isJsxAttribute(n) && n.initializer && ATTRS.has(n.name.getText())) {
       const i = n.initializer; if (ts.isStringLiteral(i)) add(i.text, file);
       else if (ts.isJsxExpression(i) && i.expression && (ts.isStringLiteral(i.expression) || ts.isNoSubstitutionTemplateLiteral(i.expression))) add(i.expression.text, file);
-    } else if (ts.isCallExpression(n) && CALLS.test(n.expression.getText().split('.').pop())) {
-      for (const a of n.arguments) if (ts.isStringLiteral(a) || ts.isNoSubstitutionTemplateLiteral(a)) add(a.text, file);
+    } else if (ts.isCallExpression(n) && n.expression.getText().split('.').some((x) => CALLS.test(x))) {
+      for (const a of n.arguments) for (const t of leaves(a)) add(t, file);
     } else if (ts.isJsxExpression(n) && n.expression && (ts.isStringLiteral(n.expression)) && n.parent && (ts.isJsxElement(n.parent) || ts.isJsxFragment(n.parent))) add(n.expression.text, file);
-    else if (ts.isConditionalExpression(n) && n.parent && ts.isJsxExpression(n.parent)) { for (const b of [n.whenTrue, n.whenFalse]) if (ts.isStringLiteral(b)) add(b.text, file); }
+    else if ((ts.isConditionalExpression(n) || ts.isBinaryExpression(n)) && n.parent && (ts.isJsxExpression(n.parent) || ts.isParenthesizedExpression(n.parent))) { for (const t of leaves(n)) add(t, file); }
+    else if (ts.isPropertyAssignment(n) && ts.isStringLiteral(n.initializer) && /^[A-ZÀ-Ý][^\s]*[a-zà-ÿ]/.test(n.initializer.text) && !/^[A-Z_0-9]+$/.test(n.initializer.text)) add(n.initializer.text, file);
     else if (ts.isPropertyAssignment(n) && /^(label|title|hint|placeholder|text|desc|description|name|help|caption|empty|subtitle)$/.test(n.name.getText()) && ts.isStringLiteral(n.initializer)) add(n.initializer.text, file);
     ts.forEachChild(n, visit);
   };

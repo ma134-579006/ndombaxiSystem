@@ -887,6 +887,9 @@
 .kw-row-wd { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr) 130px; }
 .kw-proof { display: block; font-size: 12px; margin-top: 4px; }
 .kw-btn-sm { min-height: 32px; padding: 6px 12px; font-size: 13px; }
+/* Fatura da encomenda (Minhas compras / Meus Pedidos). */
+.kw-orders li .inv-btn-wrap { margin: 6px 0 2px; }
+.kw-order-inv { padding: 8px 0 0; }
 
 .kw-form2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; padding: 18px; }
 .kw-form2 .kw-f-wide { grid-column: 1 / -1; }

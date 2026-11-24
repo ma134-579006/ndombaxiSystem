@@ -300,8 +300,9 @@ export function Orders() {
                 Marcar entregue
               </button>
             ) : null}
-            {detail.invoice_id ? <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>Factura emitida ✓</span> : null}
+            {detail.invoice_id && !detail.invoice ? <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>Factura emitida ✓</span> : null}
           </div>
+          {detail.invoice ? <OrderInvoice inv={detail.invoice} /> : null}
 
           <div style={{ marginTop: 12 }}>
             <button className="btn ghost" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setShowGeo((v) => !v)}>
@@ -540,6 +541,42 @@ function OrderChat({ orderId }: { orderId: string }) {
         />
         <button className="btn" onClick={send} disabled={busy || !text.trim()}>Enviar</button>
       </div>
+    </div>
+  );
+}
+
+
+/**
+ * Fatura da encomenda no detalhe: número certificado pelo Cegid Vendus (o que
+ * chega à AGT), estado da comunicação, anulação no caixa (NC) e PDF original.
+ */
+function OrderInvoice({ inv }: { inv: NonNullable<WebOrderDetail['invoice']> }) {
+  const [busy, setBusy] = useState(false);
+  const ext = inv.external;
+  const pending = !!ext && !ext.number;
+  const openPdf = async () => {
+    if (!ext) return;
+    setBusy(true);
+    try {
+      const url = URL.createObjectURL(await api.fiscalEngine.pdf(ext.id));
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 120_000);
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'PDF indisponível'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="card" style={{ marginTop: 12, padding: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div className="muted" style={{ fontSize: 12 }}>{ext ? 'Fatura (Cegid Vendus)' : 'Fatura'}</div>
+        <b translate="no">{ext ? (ext.number ?? inv.number) : inv.number}</b>
+        {ext && ext.number ? <span className="muted" style={{ fontSize: 12 }} translate="no"> · {inv.number}</span> : null}
+        <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+          {inv.annulled ? <span className="pill off">Anulada</span> : <span className="pill on">Emitida</span>}
+          {pending ? <span className="pill">A comunicar ao Vendus…</span> : null}
+          {inv.creditNotes ? <span className="muted" style={{ fontSize: 12 }}>NC: <span translate="no">{inv.creditNotes}</span></span> : null}
+        </div>
+      </div>
+      {ext?.hasPdf ? <button className="btn sm" disabled={busy} onClick={() => void openPdf()}>PDF da fatura</button> : null}
     </div>
   );
 }

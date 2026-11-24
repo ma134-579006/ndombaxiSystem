@@ -205,6 +205,9 @@ export interface MyOrderRow {
   payment_method: string | null;
   gross_total: string;
   created_at: string;
+  /** Fatura emitida (número do Cegid Vendus quando é o Vendus que emite). */
+  invoice_number?: string | null;
+  invoice_annulled?: boolean | null;
 }
 // Portal do Paciente — "A minha saúde"
 export interface MyClinicalAppt { id: string; when_label: string; professional: string | null; reason: string | null; status: string }

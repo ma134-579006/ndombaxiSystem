@@ -379,6 +379,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .mo { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); cursor: pointer; transition: border-color .12s, transform .06s; }
 .mo:hover { border-color: var(--accent); }
 .mo:active { transform: translateY(1px); }
+/* Encomenda + botão da fatura por baixo (As minhas encomendas). */
+.mo-row { display: flex; flex-direction: column; gap: 6px; }
+.mo-row > .mo { width: 100%; }
+.mo-row .inv-btn-wrap { padding-left: 4px; }
+.btn.sm { min-height: 32px; padding: 6px 12px; font-size: 13px; }
 .status-pill.st-PENDING { background: #fff4e5; color: #b45309; }
 .status-pill.st-PAID, .status-pill.st-DELIVERED { background: #e9f7ef; color: #15803d; }
 .status-pill.st-SHIPPED { background: color-mix(in srgb, var(--accent) 12%, white); color: var(--accent); }

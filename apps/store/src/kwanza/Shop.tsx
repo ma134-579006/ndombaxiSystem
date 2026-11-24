@@ -6,6 +6,7 @@ import { GeoError, getHighAccuracyPosition, type GeoFix } from '../store/geo';
 import { readFileProgress } from '../transfer';
 import { I, KLoader, P, kz } from '../members/parts';
 import { kw, type KOrder, type Listing } from './api';
+import { InvoiceButton } from '../components/InvoiceButton';
 
 /* ═══════════════ carrinho (no aparelho; sem conta) ═══════════════ */
 export interface CartItem { companyCode: string; companyName: string; productCode: string; name: string; imageUrl: string | null; price: number; associateCode: string | null; qty: number }
@@ -352,6 +353,7 @@ function OrderCard({ o, onChange }: { o: KOrder; onChange(): void }) {
       </div>
       {o.status === 'PENDING' && !o.paymentClaimed && o.paymentMethod && o.paymentMethod !== 'CASH' ? <PayBox o={o} onDone={onChange} /> : null}
       {o.status === 'PENDING' && (o.paymentMethod === 'CASH' || !o.paymentMethod) ? <div className="kw-order-note">Paga em numerário na entrega.</div> : null}
+      {o.invoiced ? <div className="kw-order-inv"><InvoiceButton code={o.companyCode} orderId={o.orderId} className="kw-btn kw-btn-outline kw-btn-sm" /></div> : null}
     </article>
   );
 }

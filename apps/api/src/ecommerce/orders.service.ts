@@ -209,7 +209,28 @@ export class OrdersService {
       const items = await tx.$queryRaw(
         Prisma.sql`SELECT * FROM web_order_items WHERE order_id = ${orderId}::uuid ORDER BY line_number`,
       );
-      return { ...order[0], items };
+      // Fatura ligada: número interno, se foi anulada (NC no caixa) e o número
+      // certificado pelo Cegid Vendus quando é o Vendus que emite.
+      const invId = (order[0] as { invoice_id?: string | null }).invoice_id;
+      const inv = invId
+        ? (await tx.$queryRaw<{ number: string; doc_type: string; status: string; credit_notes: string | null }[]>(
+            Prisma.sql`SELECT number, doc_type, status,
+                              (SELECT string_agg(nc.number, ', ') FROM invoices nc
+                                WHERE nc.source_invoice_id = invoices.id AND nc.doc_type = 'NC') AS credit_notes
+                       FROM invoices WHERE id = ${invId}::uuid LIMIT 1`,
+          ))[0] ?? null
+        : null;
+      return { ...order[0], items, invId, inv };
+    }).then(async ({ invId, inv, ...rest }) => {
+      if (!invId || !inv) return { ...rest, invoice: null };
+      const ext = this.fiscalEngine ? await this.fiscalEngine.documentForInvoice(schema, invId).catch(() => null) : null;
+      return {
+        ...rest,
+        invoice: {
+          number: inv.number, docType: inv.doc_type, annulled: inv.status === 'A', creditNotes: inv.credit_notes,
+          external: ext ? { id: String(ext.id), engine: 'VENDUS' as const, number: (ext.number as string | null) ?? null, state: String(ext.state), hasPdf: !!ext.has_pdf } : null,
+        },
+      };
     });
   }
 
