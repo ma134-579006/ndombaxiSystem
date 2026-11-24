@@ -19,7 +19,7 @@ export function SubscriptionRing() {
   if (!info) return null;
   const tone = info.pct <= 60 ? 'ok' : info.pct <= 80 ? 'warn' : 'bad';
   const r = 13, c = 2 * Math.PI * r;
-  const tip0 = info.left === 0 ? 'A subscrição termina hoje' : `Falta${info.left === 1 ? '' : 'm'} ${info.left} dia${info.left === 1 ? '' : 's'} para renovar`;
+  const tip0 = info.left === 0 ? 'A subscrição termina hoje' : info.left === 1 ? 'Falta 1 dia para renovar' : `Faltam ${info.left} dias para renovar`;
   // Motor Cegid Vendus: a subscrição mostrada é a do Vendus e o toque abre a renovação lá.
   const tip = info.renewUrl ? `Cegid Vendus${info.plan ? ` · Plano ${info.plan}` : ''} · ${tip0}` : tip0;
   return (

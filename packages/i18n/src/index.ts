@@ -8,7 +8,7 @@
  * - O português é a BASE: os textos estão escritos em PT no código e o
  *   dicionário (carregado só quando o idioma não é PT) traduz o ecrã.
  */
-import { applyDom, startDom, stopDom } from './dom';
+import { applyDom, startDom, stopDom, translateText } from './dom';
 
 export type Lang = 'pt' | 'en' | 'fr' | 'es';
 
@@ -66,7 +66,7 @@ async function loadDict(lang: Lang): Promise<DictMap | null> {
 export function t(pt: string): string {
   if (current === 'pt' || !dict) return pt;
   const k = pt.replace(/\s+/g, ' ').trim();
-  return dict.get(k) ?? pt;
+  return translateText(dict, k) ?? pt;
 }
 
 function apply(lang: Lang): Promise<void> {
