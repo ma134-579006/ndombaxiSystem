@@ -1206,3 +1206,21 @@
 
 /* Telemóvel estreito: a pesquisa precisa de espaço; as mensagens continuam no menu do associado. */
 @media (max-width: 420px) { .kw-head-in .kw-head-ic[aria-label="Mensagens"] { display: none; } }
+
+/* PREENCHIMENTO AUTOMÁTICO (sugestões do navegador: e-mail, senha, nome…):
+   o campo mantém as SUAS cores em vez do fundo azul/amarelo do navegador, em
+   todos os logins, registos e formulários. O navegador força o fundo com
+   !important; uma sombra interior opaca pinta por cima e -webkit-text-fill-color
+   mantém o texto. Cada tipo de campo diz as suas cores em --af-bg/--af-fg (e o
+   anel de foco em --af-ring, porque esta sombra substitui a do foco). */
+:is(input, textarea, select):is(:autofill, :-webkit-autofill),
+:is(input, textarea, select):is(:autofill, :-webkit-autofill):hover {
+  box-shadow: inset 0 0 0 100vmax var(--af-bg, #fff) !important;
+  -webkit-text-fill-color: var(--af-fg, var(--kw-ink, #333)) !important;
+  caret-color: var(--af-fg, var(--kw-ink, #333));
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+:is(input, textarea, select):is(:autofill, :-webkit-autofill):focus {
+  box-shadow: inset 0 0 0 100vmax var(--af-bg, #fff), var(--af-ring, 0 0 0 0 transparent) !important;
+}
+.kw-f input { --af-bg: #fff; --af-fg: var(--kw-ink, #333); --af-ring: 0 0 0 3px rgba(26, 36, 196, .15); }
