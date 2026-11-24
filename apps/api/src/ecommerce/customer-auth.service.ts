@@ -290,14 +290,29 @@ export class CustomerAuthService {
 
   /** Histórico de encomendas do cliente (por email). */
   listOrders(schema: string, email: string) {
-    return this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw(
-        Prisma.sql`SELECT id, order_number, status, payment_method, gross_total, created_at
-                   FROM web_orders
-                   WHERE lower(customer_email) = ${email}
-                   ORDER BY created_at DESC LIMIT 100`,
-      ),
-    );
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<Record<string, unknown>[]>(
+        Prisma.sql`SELECT o.id, o.order_number, o.status, o.payment_method, o.gross_total, o.created_at,
+                          i.number AS invoice_number, (i.status = 'A') AS invoice_annulled
+                   FROM web_orders o
+                   LEFT JOIN invoices i ON i.id = o.invoice_id
+                   WHERE lower(o.customer_email) = ${email}
+                   ORDER BY o.created_at DESC LIMIT 100`,
+      );
+      // A fatura que o cliente recebe é a do Cegid Vendus (número certificado) quando é o Vendus que emite.
+      const ids = rows.map((r) => r.id as string);
+      if (ids.length) {
+        const ext = await tx.$queryRaw<{ order_id: string; number: string | null }[]>(
+          Prisma.sql`SELECT DISTINCT ON (o.id) o.id::text AS order_id, d.number
+                     FROM web_orders o JOIN fiscal_engine_documents d ON d.invoice_id = o.invoice_id
+                     WHERE o.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
+                     ORDER BY o.id, d.created_at DESC`,
+        ).catch(() => [] as { order_id: string; number: string | null }[]);
+        const byId = new Map(ext.map((e) => [e.order_id, e.number]));
+        for (const r of rows) if (byId.has(String(r.id))) r.invoice_number = byId.get(String(r.id)) ?? r.invoice_number;
+      }
+      return rows;
+    });
   }
 }
 

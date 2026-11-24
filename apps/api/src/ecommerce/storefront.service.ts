@@ -204,6 +204,7 @@ export class StorefrontService {
                    FROM products p
                    LEFT JOIN product_categories pc ON pc.id = p.category_id
                    WHERE p.is_active = TRUE AND p.show_online = TRUE AND p.is_ingredient = FALSE
+                     AND p.unit_price > 0  -- sem preço (0 Kz) não se vende online
                    ORDER BY p.name`,
       );
       return { list, promos, soldBy, revBy };
@@ -276,7 +277,7 @@ export class StorefrontService {
       const products = await tx.$queryRaw<CatalogRow[]>(
         Prisma.sql`SELECT id, code, name, description, iva_code, exemption_reason, exemption_code, unit_price, stock_qty, is_production
                    FROM products WHERE code IN (${Prisma.join(codes)}) AND is_active = TRUE
-                     AND show_online = TRUE AND COALESCE(is_ingredient, FALSE) = FALSE
+                     AND show_online = TRUE AND COALESCE(is_ingredient, FALSE) = FALSE AND unit_price > 0
                    FOR UPDATE`,
       );
       const byCode = new Map(products.map((p) => [p.code, p]));

@@ -6,6 +6,33 @@ import { IconChevronLeft, IconSend, IconSpark } from '../components/Icons';
 import { formatKz, statusLabel } from '../format';
 import { useStore } from '../state/StoreContext';
 
+/**
+ * Descarrega a FATURA de uma encomenda (usada no acompanhamento e nas listas
+ * "As minhas encomendas" da loja, dos associados e do LPS Kwanza): o PDF
+ * ORIGINAL do Cegid Vendus quando é o Vendus que emite; senão o PDF A4 do LPS.
+ * Erros chegam como `Error` com a mensagem para o cliente.
+ */
+export async function downloadOrderInvoice(code: string, orderId: string): Promise<void> {
+  try {
+    const inv = await api.orderInvoice(code, orderId);
+    if (inv.external) {
+      if (!inv.external.pdf) throw new Error('A fatura está a ser emitida pelo Cegid Vendus. Tente dentro de momentos.');
+      const blob = await runTransfer({ title: 'A descarregar a fatura', kind: 'generate', task: () => api.orderInvoicePdf(code, orderId) });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(inv.external.number ?? inv.orderNumber).replace(/[^\w.-]+/g, '_')}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      return;
+    }
+    await runTransfer({ title: 'A gerar a fatura em PDF', kind: 'generate', task: () => downloadInvoicePdf(inv) });
+  } catch (e) {
+    if (e instanceof ApiError) throw new Error(e.message);
+    throw e instanceof Error ? e : new Error('Não foi possível obter a fatura.');
+  }
+}
+
 const CHATTABLE = ['PAID', 'SHIPPED', 'DELIVERED'];
 const INVOICEABLE = ['PAID', 'SHIPPED', 'DELIVERED'];
 
@@ -133,29 +160,9 @@ export function Track({ orderId, onBack }: { orderId: string; onBack(): void }) 
     if (invBusy) return;
     setInvBusy(true);
     setInvErr(null);
-    try {
-      const inv = await api.orderInvoice(code, orderId);
-      if (inv.external) {
-        // Fatura do Cegid Vendus: descarrega o PDF ORIGINAL (o LPS não o redesenha).
-        if (!inv.external.pdf) {
-          setInvErr('A fatura está a ser emitida pelo Cegid Vendus. Tente dentro de momentos.');
-          return;
-        }
-        const blob = await runTransfer({ title: 'A descarregar a fatura', kind: 'generate', task: () => api.orderInvoicePdf(code, orderId) });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${(inv.external.number ?? inv.orderNumber).replace(/[^\w.-]+/g, '_')}.pdf`;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 60_000);
-        return;
-      }
-      await runTransfer({ title: 'A gerar a fatura em PDF', kind: 'generate', task: () => downloadInvoicePdf(inv) });
-    } catch (e) {
-      setInvErr(e instanceof ApiError ? e.message : 'Não foi possível obter a fatura.');
-    } finally {
-      setInvBusy(false);
-    }
+    try { await downloadOrderInvoice(code, orderId); }
+    catch (e) { setInvErr(e instanceof Error ? e.message : 'Não foi possível obter a fatura.'); }
+    finally { setInvBusy(false); }
   };
 
   const loadOrder = useCallback(async () => {

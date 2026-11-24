@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserAvatar } from './UserAvatar';
+import { InvoiceButton } from './InvoiceButton';
 import { api, ApiError } from '../api/client';
 import { GOOGLE_CLIENT_ID } from '../config';
 import { setSession, clearSession, shownEmail } from '../store/customer';
@@ -444,14 +445,17 @@ function Account({
         : (
           <div className="my-orders">
             {orders.map((o) => (
-              <button key={o.id} className="mo" onClick={() => onOpenOrder(o.id)}>
-                <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
-                  <div style={{ fontWeight: 700 }}>{o.order_number}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>{new Date(o.created_at).toLocaleDateString('pt-PT')}</div>
-                </div>
-                <span className={`status-pill st-${o.status}`}>{STATUS_LABEL[o.status] ?? o.status}</span>
-                <strong>{formatKz(Number(o.gross_total))}</strong>
-              </button>
+              <div key={o.id} className="mo-row">
+                <button className="mo" onClick={() => onOpenOrder(o.id)}>
+                  <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                    <div style={{ fontWeight: 700 }}>{o.order_number}</div>
+                    <div className="muted" style={{ fontSize: 12 }}>{new Date(o.created_at).toLocaleDateString('pt-PT')}</div>
+                  </div>
+                  <span className={`status-pill st-${o.status}`}>{STATUS_LABEL[o.status] ?? o.status}</span>
+                  <strong>{formatKz(Number(o.gross_total))}</strong>
+                </button>
+                {o.invoice_number ? <InvoiceButton code={code} orderId={o.id} number={o.invoice_number} annulled={o.invoice_annulled} /> : null}
+              </div>
             ))}
           </div>
         )}

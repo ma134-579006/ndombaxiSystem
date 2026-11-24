@@ -7,6 +7,7 @@ import { cartTotal } from '../store/cart';
 import { clearSession, setSession, shownEmail } from '../store/customer';
 import { formatDateTime } from '../format';
 import { BRAND, I, P, Pic, kz } from './parts';
+import { InvoiceButton } from '../components/InvoiceButton';
 
 export type Membership = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -219,13 +220,13 @@ export function Account({ code, token, tab, onTab, onTrack, email, name, onAssoc
           <button onClick={() => onTab('orders')}><b>{c((o) => o.status === 'CANCELLED')}</b><span>Cancelados</span></button>
         </div>
         <nav className="kw-tabs" role="tablist">{tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => onTab(k)}>{l}</button>)}</nav>
-        {tab === 'orders' ? <Orders rows={orders} onTrack={onTrack} /> : tab === 'coupons' ? <Coupons code={code} /> : <Profile code={code} token={token} />}
+        {tab === 'orders' ? <Orders code={code} rows={orders} onTrack={onTrack} /> : tab === 'coupons' ? <Coupons code={code} /> : <Profile code={code} token={token} />}
       </section>
     </div>
   );
 }
 
-function Orders({ rows, onTrack }: { rows: MyOrderRow[] | null; onTrack(id: string): void }) {
+function Orders({ code, rows, onTrack }: { code: string; rows: MyOrderRow[] | null; onTrack(id: string): void }) {
   if (rows === null) return <div className="kw-loader" aria-busy="true"><i /><i /><i /></div>;
   if (!rows.length) return <div className="kw-empty">Sem encomendas</div>;
   return (
@@ -234,7 +235,9 @@ function Orders({ rows, onTrack }: { rows: MyOrderRow[] | null; onTrack(id: stri
         <li key={o.id} className="kw-pop"><button onClick={() => onTrack(o.id)}>
           <b>{o.order_number}</b><span>{formatDateTime(o.created_at)}</span>
           <span className={`kw-pill kw-st-${o.status}`}>{STATUS[o.status] ?? o.status}</span><strong>{kz(o.gross_total)}</strong>
-        </button></li>
+        </button>
+        {o.invoice_number ? <InvoiceButton code={code} orderId={o.id} number={o.invoice_number} annulled={o.invoice_annulled} className="kw-btn kw-btn-outline kw-btn-sm" /> : null}
+        </li>
       ))}
     </ul>
   );
