@@ -362,3 +362,17 @@ export function vendusSubscriptionPeriod(expires: string, now = new Date()): {
   const pct = Math.round((usedDays / totalDays) * 100);
   return { active: true, pct, leftPct: 100 - pct, totalDays, usedDays, daysLeft, expiresAt: new Date(end).toISOString() };
 }
+
+/**
+ * NÚMERO AGT do documento (o que a AGT atribui, ex.: "FR4026S94851N/4"), lido do
+ * bloco `agt` do detalhe Vendus. É ESTE o número que o cliente e o caixa vêem
+ * (o "02P2026/6" é só a numeração interna do Vendus). Vazio enquanto a AGT não
+ * o atribuir.
+ */
+export function agtDocumentNumber(agt: unknown): string | null {
+  if (!agt || typeof agt !== 'object') return null;
+  const a = agt as Record<string, unknown>;
+  const v = a.document_number ?? a.documentNumber ?? a.number;
+  const s = v === undefined || v === null ? '' : String(v).trim();
+  return s && /[A-Za-z]/.test(s) ? s : null;
+}

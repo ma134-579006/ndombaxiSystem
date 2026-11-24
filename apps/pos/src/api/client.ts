@@ -352,7 +352,7 @@ export const api = {
   fiscalBadge: () => request<{ vendus: boolean; validationNo?: string; feCertNo?: string; validUntil?: string | null }>('GET', '/fiscal-engine/badge'),
   /** Documento fiscal do motor externo (Cegid Vendus) de uma venda. */
   externalFiscal: (invoiceId: string) =>
-    request<{ id: string; state: string; number: string | null; has_pdf: boolean; last_error: string | null } | null>('GET', `/fiscal-engine/invoice/${invoiceId}`),
+    request<{ id: string; state: string; number: string | null; agt_number?: string | null; has_pdf: boolean; last_error: string | null } | null>('GET', `/fiscal-engine/invoice/${invoiceId}`),
   /** PDF ORIGINAL emitido pelo motor externo (sem alterações). */
   externalFiscalPdf: async (docId: string): Promise<Blob> => {
     const headers: Record<string, string> = {};

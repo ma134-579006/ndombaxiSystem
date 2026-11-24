@@ -25,6 +25,7 @@ import {
   type EngineCode,
   readVendusPlan,
   vendusSubscriptionPeriod,
+  agtDocumentNumber,
 } from './fiscal-engine.policy';
 import { buildCreditNote, buildSaleDocument, totalsDivergence, type CompanyMaps, type CreditNoteSnapshot, type SaleSnapshot } from './vendus-payload';
 import { VENDUS_VERSIONS, VendusClient, type VendusResult } from './vendus.client';
@@ -129,6 +130,7 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
         try {
           if (health && l.engine === 'VENDUS') await this.monitor(l, co);
           await this.processQueue(co.schemaName, co, 20);
+          if (l.engine === 'VENDUS') await this.refreshAgtNumbers(co.schemaName, co, 10);
         } catch (e) {
           this.log.warn(`motor fiscal ${co.name}: ${msg(e)}`);
         }
@@ -1007,6 +1009,36 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     await this.completeDetails(schema, d.id, co);
   }
 
+  /**
+   * NÚMERO AGT: a AGT pode atribuí-lo depois da emissão. Para os documentos dos
+   * últimos 7 dias ainda sem número AGT, volta a ler o detalhe ao Vendus (no
+   * máximo `limit` por ciclo e cada um de 10 em 10 min).
+   */
+  async refreshAgtNumbers(schema: string, co: CompanyRef, limit = 10): Promise<number> {
+    const rows = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<{ id: string; vendus_id: string; mode: string }[]>`
+      SELECT id, vendus_id, mode FROM fiscal_engine_documents
+      WHERE vendus_id IS NOT NULL AND COALESCE(mode, 'normal') <> 'tests'
+        AND COALESCE(agt ->> 'document_number', '') !~ '[A-Za-z]'
+        AND created_at > now() - interval '7 days' AND updated_at < now() - interval '10 minutes'
+      ORDER BY created_at DESC LIMIT ${limit}`).catch(() => []);
+    if (!rows.length) return 0;
+    const l = await this.link(co.id);
+    if (!l?.apiKeyEnc) return 0;
+    const api = await this.client(l, 15_000);
+    let n = 0;
+    for (const r of rows) {
+      const det = await api.document(r.vendus_id, r.mode).catch(() => null);
+      const x = det?.ok ? (det.data as Record<string, any>) : null;
+      await this.prisma.runInTenant(schema, (tx) => x
+        ? tx.$executeRaw`UPDATE fiscal_engine_documents SET agt = ${JSON.stringify(x.agt ?? null)}::jsonb,
+            details = ${JSON.stringify(x)}::jsonb, qrcode_data = COALESCE(${x.qrcode_data ?? null}, qrcode_data), updated_at = now()
+            WHERE id = ${r.id}::uuid`
+        : tx.$executeRaw`UPDATE fiscal_engine_documents SET updated_at = now() WHERE id = ${r.id}::uuid`).catch(() => undefined);
+      if (x && agtDocumentNumber(x.agt)) n++;
+    }
+    return n;
+  }
+
   /** Detalhe (GET /documents/{id}) + PDF original (GET /documents/{id}.pdf). */
   private async completeDetails(schema: string, id: string, co: CompanyRef): Promise<void> {
     const rows = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<(DocRow & { pdf_present: boolean; request: any })[]>`
@@ -1104,7 +1136,8 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     const rows = await this.prisma.runInTenant(schema, (tx) => tx.$queryRaw<any[]>`
       SELECT id, kind, state, number, doc_type, vendus_id, pdf IS NOT NULL AS has_pdf, last_error, agt FROM fiscal_engine_documents
       WHERE invoice_id = ${invoiceId}::uuid ORDER BY created_at DESC LIMIT 1`).catch(() => []);
-    return rows[0] ?? null;
+    const r = rows[0];
+    return r ? { ...r, agt_number: agtDocumentNumber(r.agt) } : null;
   }
 
   /** PDF ORIGINAL do Vendus, exactamente como foi devolvido (sem alterações). */
