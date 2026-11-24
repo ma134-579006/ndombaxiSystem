@@ -13,8 +13,9 @@ import p06 from './part06';
 import p07 from './part07';
 import p08 from './part08';
 import p09 from './part09';
+import p10 from './part10';
 
-const PARTS = [p01, p02, p03, p04, p05, p06, p07, p08, p09];
+const PARTS = [p01, p02, p03, p04, p05, p06, p07, p08, p09, p10];
 const COL = { en: 0, fr: 1, es: 2 } as const;
 
 export function buildDict(lang: 'en' | 'fr' | 'es' | 'pt'): Map<string, string> | null {
