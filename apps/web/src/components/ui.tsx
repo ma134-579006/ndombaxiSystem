@@ -94,11 +94,25 @@ export function Modal({
       if (!main) { setArea({ left: 0, top: 0, crumb: '' }); return; }
       const bar = main.querySelector<HTMLElement>('.topbar');
       const r = main.getBoundingClientRect();
-      setArea({ left: Math.max(0, Math.round(r.left)), top: bar ? Math.round(bar.getBoundingClientRect().bottom) : 0, crumb: main.dataset.crumb ?? '' });
+      const next = { left: Math.max(0, Math.round(r.left)), top: bar ? Math.round(bar.getBoundingClientRect().bottom) : 0, crumb: main.dataset.crumb ?? '' };
+      setArea((a) => (a.left === next.left && a.top === next.top && a.crumb === next.crumb ? a : next));
     };
     measure();
+    // O menu lateral recolhe/abre (com animação) depois de o painel abrir: sem
+    // voltar a medir, o painel ficava deslocado e a página de trás aparecia ao
+    // lado, sobreposta. Mede-se sempre que a área principal muda de sítio/tamanho.
+    const main = document.querySelector<HTMLElement>('.main');
+    const ro = typeof ResizeObserver !== 'undefined' && main ? new ResizeObserver(measure) : null;
+    if (ro && main) ro.observe(main);
+    const late = [60, 250, 500].map((ms) => window.setTimeout(measure, ms));
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    document.addEventListener('transitionend', measure, true);
+    return () => {
+      ro?.disconnect();
+      late.forEach((t) => window.clearTimeout(t));
+      window.removeEventListener('resize', measure);
+      document.removeEventListener('transitionend', measure, true);
+    };
   }, []);
   return createPortal(
     <div className="modal-bg vf-page" style={{ left: area.left, top: area.top }}>
