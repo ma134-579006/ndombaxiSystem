@@ -53,7 +53,7 @@ jobs:
           URL="${BASE_URL%/}/health"
           fim=$(( $(date +%s) + 345*60 ))
           while [ "$(date +%s)" -lt "$fim" ]; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 -H 'origin: https://ndombaxisystem.com' "$URL" || echo 000)
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 -H 'origin: https://lpsvendas.com.de' "$URL" || echo 000)
             echo "$(date -u +%H:%M:%S) HTTP $code"
             if [ "$code" != "200" ]; then sleep 20; continue; fi
             sleep 300
