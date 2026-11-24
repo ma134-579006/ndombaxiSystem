@@ -703,6 +703,9 @@
 .pos .vtop-m > button:hover, .pos .vtop-m > button.on { background: color-mix(in srgb, var(--vp-a) 12%, transparent); }
 .pos .vtop-drop button:hover:not(:disabled), .pos .vtop-drop button.on { background: color-mix(in srgb, var(--vp-a) 12%, transparent); color: var(--vp-a2); }
 .pos .vcart-box { background: #fff; }
+/* A caixa do carrinho é SEMPRE branca (como no Vendus): o texto das linhas não
+   pode herdar a cor clara dos temas escuros (grafite, …), ficava branco no branco. */
+.pos .vcart-box, .pos .vcart-box .vline-main { color: #333; }
 .pos .vtable-h { font-size: 13px; font-weight: 600; color: #333; background: #fff; }
 .pos .vtable-empty { background: repeating-linear-gradient(90deg, var(--vp-list) 0 6px, #f0f0f0 6px 7px); color: #888; font-size: 13px; }
 .pos .vline-main:hover, .pos .vline.open .vline-main { background: color-mix(in srgb, var(--vp-a) 10%, #fff); }
