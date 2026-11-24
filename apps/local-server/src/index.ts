@@ -11,7 +11,7 @@
  * `DATABASE_URL` — e é essa a razão de isto ser viável sem reescrever o sistema.
  */
 export { LocalServer, applyPlatformSchema, type LocalServerInfo, type SupervisorOptions } from './supervisor';
-export { layout, type LayoutOptions } from './paths';
+export { layout, ensureApiExtracted, type LayoutOptions } from './paths';
 export {
   binariesPresent, ensureLocalDatabase, backup, connectionUrl, readConfig,
   type PostgresPaths, type LocalDbConfig,

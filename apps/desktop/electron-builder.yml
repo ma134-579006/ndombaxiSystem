@@ -38,8 +38,11 @@ extraResources:
   # encontrava a empresa, nem os produtos, nem as vendas.
   - from: resources/pgsql
     to: pgsql
-  - from: resources/api
-    to: api
+  # A API vai num ÚNICO arquivo (api.zip, criado na build): o instalador deixa
+  # de criar ~15 000 ficheiros pequenos — é isso que o torna rápido. Extrai-se
+  # só quando o servidor local é usado (ver apps/local-server/src/paths.ts).
+  - from: resources/api.zip
+    to: api.zip
 
 # O better-sqlite3 já vem compilado para o ABI do Electron 33 (ver 13-Scripts,
 # `prebuild-install --runtime=electron`). Deixamos o electron-builder tentar

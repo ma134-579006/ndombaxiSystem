@@ -20,6 +20,7 @@
  * diferença está só no `DATABASE_URL`.
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import { ensureApiExtracted } from './paths';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
@@ -143,6 +144,7 @@ export class LocalServer {
   private spawnApi(): void {
     const info = this.info;
     if (!info) throw new Error('start() ainda não correu');
+    ensureApiExtracted(this.o.apiDir);
     const entry = path.join(this.o.apiDir, 'dist', 'main.js');
     if (!existsSync(entry)) {
       throw new Error(`API local não encontrada em ${entry}. Reinstale o LPS Vendas.`);
@@ -293,6 +295,7 @@ function localSecrets(baseDir: string): Record<string, string> {
 
 /** Cria/alinha as tabelas de plataforma (`prisma db push`) na base local. */
 export function applyPlatformSchema(apiDir: string, databaseUrl: string, nodePath?: string): void {
+  ensureApiExtracted(apiDir);
   // A CLI do Prisma é chamada DIRETAMENTE, pelo ficheiro que veio no
   // instalador — não por `npx`.
   //

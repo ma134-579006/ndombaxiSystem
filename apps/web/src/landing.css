@@ -859,6 +859,8 @@ a.fc-line:hover { color: #fff; }
   filter: none;
   transition-delay: var(--fxd, 0ms);
 }
+/* Uma pergunta aberta do FAQ fica SEMPRE visível (nunca volta ao estado escondido). */
+.fxr-on .lv-qa[open] { opacity: 1; transform: none; }
 /* Parallax do mockup: o transform é gerido por JS — sem transição própria
    (o rAF já suaviza) para não "boiar" atrás do dedo. */
 .fxr-on .lp-mockup { transition: none; }

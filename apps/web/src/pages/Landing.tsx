@@ -130,7 +130,6 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [sol, setSol] = useState<SolTab>('fat');
   const [why, setWhy] = useState(0);
-  const [faqOpen, setFaqOpen] = useState<number | null>(null);
   const [peek, setPeek] = useState<Peek>('desktop');
   const t = dict(lang);
 
@@ -458,12 +457,14 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           <div className="lv-faq-list">
             <h2 className="lv-h3">{t.faqTitle}</h2>
             {t.faq.map(([q, a], i) => (
-              <div className={`lv-qa${faqOpen === i ? ' open' : ''}`} key={q}>
-                <button type="button" aria-expanded={faqOpen === i} onClick={() => setFaqOpen(faqOpen === i ? null : i)}>
+              // <details> nativo: o estado aberto/fechado é do navegador (nenhuma
+              // re-renderização o fecha) e a resposta fica pesquisável com Ctrl+F.
+              <details className="lv-qa" key={q}>
+                <summary>
                   <span>{q.replace('{n}', String(trialDays))}</span><i aria-hidden="true">+</i>
-                </button>
-                <div className="lv-qa-a"><p>{a}</p></div>
-              </div>
+                </summary>
+                <p className="lv-qa-a">{a}</p>
+              </details>
             ))}
           </div>
           <aside className="lv-faq-aside">
@@ -548,8 +549,9 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             </div>
           </div>
           <div className="lv-copy">
-            {/* Direitos autorais: sempre da LPS Vendas (o texto livre do Super Admin vem a seguir). */}
-            <span>{`© ${new Date().getFullYear()} LPS Vendas. ${t.rights}`}{cfg?.footerText ? ` ${cfg.footerText}` : ''}</span>
+            {/* Direitos e créditos são fixos: o texto livre antigo do Super Admin
+                (ex.: "© … — Desenvolvido por …") duplicava-os, por isso já não entra aqui. */}
+            <span>{`© ${new Date().getFullYear()} LPS Vendas. ${t.rights}`}</span>
             <span><span>Desenvolvido por</span> <strong translate="no">Lionel Paulino Silva</strong> <span>e</span> <strong translate="no">Manuel Mbala Ndombaxi</strong> · <span>Patrocinado pela</span> <strong translate="no">Loja das Mulheres</strong></span>
           </div>
         </div>

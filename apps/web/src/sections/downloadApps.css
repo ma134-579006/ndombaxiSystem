@@ -48,39 +48,38 @@
 .dl-changelog li { font-size: 13px; color: #4a5568; line-height: 1.55; }
 .dl-changelog li.fix { color: #6b7280; }
 
-/* ── O botão é o elemento interativo ── */
+/* ── Botão de download: sólido, cor da marca, animação discreta ──
+   A cor vem da landing (--lv-brand); fora dela usa --lp-primary. */
+.dl-section, .dl-card { --dl-accent: var(--lv-brand, var(--lp-primary, #2430e8)); }
+.dl-g-kwanza { --dl-accent: #2f3dff; }
 .dl-btn {
-  position: relative; overflow: hidden; isolation: isolate;
-  margin-top: auto; display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  padding: 13px 18px; border-radius: 12px; border: 0;
-  background: linear-gradient(135deg, var(--lp-primary), color-mix(in srgb, var(--lp-primary) 62%, #7c3aed));
-  color: #fff; font-weight: 800; font-size: 15px; text-decoration: none; cursor: pointer;
-  box-shadow: 0 10px 22px -14px var(--lp-primary);
-  transition: transform .22s cubic-bezier(.2, .8, .2, 1), box-shadow .22s ease, filter .2s ease;
+  margin-top: auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 46px; padding: 0 18px; border-radius: 10px; border: 1px solid transparent;
+  background-color: var(--dl-accent); color: #fff;
+  font-weight: 700; font-size: 14.5px; letter-spacing: .005em; text-decoration: none; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .08);
+  transition: background-color .18s ease, box-shadow .18s ease, translate .18s ease;
 }
-.dl-btn::before {
-  content: ''; position: absolute; inset: 0; z-index: -1;
-  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .38) 50%, transparent 70%);
-  transform: translateX(-120%); transition: transform .6s ease;
+.dl-btn svg { flex: none; }
+.dl-btn:hover {
+  background-color: color-mix(in srgb, var(--dl-accent) 86%, #000);
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--dl-accent) 70%, transparent);
 }
-.dl-btn .dl-arrow { transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
-.dl-btn:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -14px var(--lp-primary); filter: brightness(1.06); }
-.dl-btn:hover::before { transform: translateX(120%); }
-.dl-btn:hover .dl-arrow { transform: translateX(4px); }
-.dl-btn:active { transform: translateY(0) scale(.98); box-shadow: 0 6px 14px -10px var(--lp-primary); }
-.dl-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--lp-primary) 45%, #fff); outline-offset: 3px; }
-.dl-g-kwanza .dl-btn { background: linear-gradient(135deg, #2f3dff, #121a8f); box-shadow: 0 10px 22px -14px #2f3dff; }
-.dl-g-kwanza .dl-btn:hover { box-shadow: 0 16px 30px -14px #2f3dff; }
-.dl-btn.disabled { background: #eef1f6; color: #98a2b3; box-shadow: none; cursor: default; pointer-events: none; }
-.dl-btn.disabled::before { display: none; }
+.dl-btn:active { background-color: color-mix(in srgb, var(--dl-accent) 78%, #000); box-shadow: none; }
+.dl-btn:focus-visible { outline: 2px solid var(--dl-accent); outline-offset: 3px; }
+.dl-btn .dl-arrow { transition: translate .18s ease; }
+@media (prefers-reduced-motion: no-preference) {
+  .dl-btn:hover { translate: 0 -1px; }
+  .dl-btn:active { translate: 0; }
+  .dl-btn:hover .dl-arrow { translate: 3px 0; }
+}
+.dl-btn.disabled { background-color: #eef1f6; border-color: #e4e9f2; color: #98a2b3; box-shadow: none; cursor: default; pointer-events: none; }
+.dl-changelog summary { color: var(--dl-accent); }
+.dl-changelog summary:focus-visible { outline-color: var(--dl-accent); }
 
 .dl-hash { margin: 10px 0 0; font-size: 11px; color: #98a2b3; text-align: center; }
 .dl-hash code { font-family: ui-monospace, "SF Mono", Menlo, monospace; color: #667085; }
 
-@media (prefers-reduced-motion: reduce) {
-  .dl-btn, .dl-btn::before, .dl-btn .dl-arrow { transition: none; }
-  .dl-btn:hover { transform: none; }
-}
 
 /* Botão "Baixar app" na barra de topo — distinto sem gritar. */
 .lp-nav .dl-nav-btn {
