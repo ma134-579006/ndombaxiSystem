@@ -59,7 +59,6 @@ const deepLinks = `
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="loja.lpsvendas.com.de" />
-                <data android:scheme="https" android:host="loja.ndombaxisystem.com" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -77,7 +76,6 @@ if (KWANZA && !manifest.includes('lpskwanza')) {
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="loja.lpsvendas.com.de" android:pathPrefix="/kwanza" />
-                <data android:scheme="https" android:host="loja.ndombaxisystem.com" android:pathPrefix="/kwanza" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
