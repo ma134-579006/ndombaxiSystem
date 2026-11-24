@@ -8,6 +8,7 @@ import { Modal } from '../components/ui';
 import { UserAvatar } from '../components/UserAvatar';
 import { IconBuilding, IconImage, IconReceipt } from '../components/Icons';
 import { ShopServerCard } from './ShopServerCard';
+import { PriceGroupsCard } from './PriceGroups';
 import { TwoFactorCard } from '../components/TwoFactorCard';
 import { useAuth } from '../auth/AuthContext';
 
@@ -17,7 +18,7 @@ import { useAuth } from '../auth/AuthContext';
  */
 export function Settings() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<'brand' | 'modules' | 'passwords' | 'security' | 'printer' | 'loja' | 'lang'>('brand');
+  const [tab, setTab] = useState<'brand' | 'modules' | 'prices' | 'passwords' | 'security' | 'printer' | 'loja' | 'lang'>('brand');
   return (
     <>
       <div className="content-head">
@@ -26,6 +27,7 @@ export function Settings() {
       <div className="fx-tabs inv-tabs">
         <button className={tab === 'brand' ? 'on' : ''} onClick={() => setTab('brand')}>Empresa & Recibos</button>
         <button className={tab === 'modules' ? 'on' : ''} onClick={() => setTab('modules')}>Módulos</button>
+        <button className={tab === 'prices' ? 'on' : ''} onClick={() => setTab('prices')}>Grupos de Preço</button>
         <button className={tab === 'passwords' ? 'on' : ''} onClick={() => setTab('passwords')}>Senhas dos funcionários</button>
         <button className={tab === 'security' ? 'on' : ''} onClick={() => setTab('security')}>Verificação em 2 passos</button>
         <button className={tab === 'printer' ? 'on' : ''} onClick={() => setTab('printer')}>Impressora & Plano</button>
@@ -34,6 +36,7 @@ export function Settings() {
       </div>
       {tab === 'brand' ? <BrandingCard /> : null}
       {tab === 'modules' ? <ModulesCard /> : null}
+      {tab === 'prices' ? <PriceGroupsCard /> : null}
       {tab === 'passwords' ? <PasswordsCard /> : null}
       {tab === 'security' ? <TwoFactorCard email={user?.email} /> : null}
       {tab === 'printer' ? <PrinterCard /> : null}

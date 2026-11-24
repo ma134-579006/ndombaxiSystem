@@ -1382,11 +1382,22 @@ export const api = {
     /** Página + pesquisa no servidor (nome, NIF, telefone, e-mail). */
     list: (o: { q?: string; limit?: number } = {}) =>
       request<CustomerRow[]>('GET', `/pos/customers?limit=${o.limit ?? 500}${o.q ? `&q=${encodeURIComponent(o.q)}` : ''}`),
-    create: (input: { name: string; taxId?: string; email?: string; phone?: string; address?: string }) =>
+    create: (input: { name: string; taxId?: string; email?: string; phone?: string; address?: string; priceGroupId?: string | null }) =>
       request<CustomerRow>('POST', '/pos/customers', input),
-    update: (id: string, input: { name?: string; taxId?: string; email?: string; phone?: string; address?: string; province?: string; municipality?: string }) =>
+    update: (id: string, input: { name?: string; taxId?: string; email?: string; phone?: string; address?: string; province?: string; municipality?: string; priceGroupId?: string | null }) =>
       request<CustomerRow>('PATCH', `/pos/customers/${id}`, input),
     remove: (id: string) => request<{ deleted: boolean; deactivated: boolean }>('DELETE', `/pos/customers/${id}`),
+  },
+
+  // ── Grupos de Preço (Vendus) ─────────────────────────────────
+  priceGroups: {
+    list: () => request<{ id: string; name: string; customers: number; prices: number }[]>('GET', '/pos/price-groups'),
+    create: (name: string) => request<{ id: string; name: string }>('POST', '/pos/price-groups', { name }),
+    rename: (id: string, name: string) => request<{ id: string; name: string }>('PATCH', `/pos/price-groups/${id}`, { name }),
+    remove: (id: string) => request<{ deleted: boolean }>('DELETE', `/pos/price-groups/${id}`),
+    prices: (id: string) => request<{ product_id: string; code: string; name: string; base_price: string; unit_price: string }[]>('GET', `/pos/price-groups/${id}/prices`),
+    setPrices: (id: string, prices: { productId: string; unitPrice: number | null }[]) =>
+      request<{ set: number; removed: number }>('PUT', `/pos/price-groups/${id}/prices`, { prices }),
   },
 
   // ── Câmaras de vigilância ───────────────────────────────────

@@ -300,6 +300,37 @@ export function PosPage() {
   const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
   const [cartSel, setCartSel] = useState<Set<string>>(new Set());
   const [customer, setCustomer] = useState<Customer | null>(null);
+  // GRUPO DE PREÇO do cliente (Vendus): o carrinho mostra os preços do grupo —
+  // os mesmos que o SERVIDOR aplica na emissão (o caixa não envia preços).
+  const [groupPrices, setGroupPrices] = useState<Map<string, number> | null>(null);
+  useEffect(() => {
+    const gid = customer?.price_group_id;
+    if (!gid) { setGroupPrices(null); return; }
+    let alive = true;
+    api.priceGroupPrices(gid)
+      .then((rows) => { if (alive) setGroupPrices(new Map(rows.map((r) => [r.product_id, Number(r.unit_price)]))); })
+      .catch(() => { if (alive) setGroupPrices(null); });
+    return () => { alive = false; };
+  }, [customer?.price_group_id]);
+  // Aplica (ou retira) o preço do grupo às linhas do carrinho, venham de onde
+  // vierem (toque, leitor, rascunho, venda estacionada). Só reescreve as linhas
+  // cujo preço muda — sem ciclos.
+  useEffect(() => {
+    setCart((prev) => {
+      let changed = false;
+      const next = prev.map((l) => {
+        const base = l.product.base_unit_price ?? l.product.unit_price;
+        const gp = groupPrices?.get(l.product.id);
+        const want = gp != null ? String(gp) : base;
+        if (l.product.unit_price === want && (gp != null) === (l.product.base_unit_price != null)) return l;
+        changed = true;
+        const product = { ...l.product, unit_price: want };
+        if (gp != null) product.base_unit_price = base; else delete product.base_unit_price;
+        return { ...l, product };
+      });
+      return changed ? next : prev;
+    });
+  }, [groupPrices, cart]);
   const [showCustomer, setShowCustomer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [showSales, setShowSales] = useState(false);

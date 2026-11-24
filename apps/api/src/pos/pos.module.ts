@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { FiscalModule } from '../fiscal/fiscal.module';
 import { CashboxModule } from '../cashbox/cashbox.module';
 import { PosController } from './pos.controller';
+import { PriceGroupsController } from './price-groups.controller';
 import { PosRepository } from './pos.repository';
 import { InvoiceService } from './invoice.service';
 import { FiscalSigningService } from './fiscal-signing.service';
@@ -14,7 +15,7 @@ import { DiscountGuardService } from './discount-guard.service';
 
 @Module({
   imports: [FiscalModule, CashboxModule, DevicesModule, PromotionsModule],
-  controllers: [PosController],
+  controllers: [PosController, PriceGroupsController],
   providers: [PosRepository, InvoiceService, FiscalSigningService, SaftService, PlanLimitsService, PasswordService, DiscountGuardService],
   exports: [PosRepository, InvoiceService, FiscalSigningService, SaftService, DiscountGuardService],
 })
