@@ -59,6 +59,13 @@ const CHOREOGRAPHY: [selector: string, fx: FxKind, staggerMs: number][] = [
   ['.lv-fbar', 'up', 0],
 ];
 
+/**
+ * Blocos que entram UMA vez e nunca recuam: conteúdo que o utilizador abre e
+ * lê (FAQ). Antes recuavam ao sair do ecrã e a resposta aberta "desaparecia"
+ * enquanto se lia ou se deslocava a página.
+ */
+const ONCE = '.lv-qa, .lv-faq-list .lv-h3, .lv-faq-aside';
+
 let io: IntersectionObserver | null = null;
 let mo: MutationObserver | null = null;
 let parallaxRaf = 0;
@@ -69,7 +76,7 @@ function applyChoreography(): void {
   for (const [sel, fx, stagger] of CHOREOGRAPHY) {
     document.querySelectorAll<HTMLElement>(sel).forEach((el, i) => {
       // Já marcado (ex.: o efeito voltou a montar): basta voltar a observar.
-      if (el.dataset.fx) { io?.observe(el); return; }
+      if (el.dataset.fx) { if (!el.classList.contains('fx-in') || !el.matches(ONCE)) io?.observe(el); return; }
       el.dataset.fx = fx;
       if (stagger) el.style.setProperty('--fxd', `${Math.min(i, 6) * stagger}ms`);
       io?.observe(el);
@@ -91,7 +98,13 @@ export function initLandingReveal(): () => void {
   io = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {
-        (e.target as HTMLElement).classList.toggle('fx-in', e.isIntersecting);
+        const el = e.target as HTMLElement;
+        if (e.isIntersecting) {
+          el.classList.add('fx-in');
+          if (el.matches(ONCE)) io?.unobserve(el);
+        } else if (!el.matches(ONCE)) {
+          el.classList.remove('fx-in');
+        }
       }
     },
     { threshold: 0.06, rootMargin: '-4% 0px -6% 0px' },
