@@ -38,6 +38,8 @@ export interface Product {
   stock_qty: string;
   /** FALSE = "Controlar stock: Não" (serviço): vende sempre, sem stock. */
   track_stock?: boolean;
+  /** Preço normal guardado quando o carrinho aplica o preço de um grupo. */
+  base_unit_price?: string;
   image_url: string | null;
   gallery: unknown;
   show_online: boolean;
@@ -65,6 +67,8 @@ export interface Customer {
   phone: string | null;
   address: string | null;
   is_active: boolean;
+  /** Grupo de preço (Vendus): o carrinho mostra os preços do grupo. */
+  price_group_id?: string | null;
 }
 
 export interface EmitInvoiceLine {

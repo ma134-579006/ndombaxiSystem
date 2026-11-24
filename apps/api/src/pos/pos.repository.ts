@@ -445,6 +445,7 @@ export class PosRepository {
       email?: string | null;
       phone?: string | null;
       address?: string | null;
+      priceGroupId?: string | null;
     },
   ): Promise<CustomerRow> {
     return this.prisma.runInTenant(schema, async (tx) => {
@@ -455,6 +456,12 @@ export class PosRepository {
                   ${input.phone ?? null}, ${input.address ?? null})
           RETURNING *`,
       );
+      if (input.priceGroupId) {
+        const g = await tx.$queryRaw<CustomerRow[]>(
+          Prisma.sql`UPDATE customers SET price_group_id = ${input.priceGroupId}::uuid WHERE id = ${rows[0].id}::uuid RETURNING *`,
+        );
+        return g[0];
+      }
       return rows[0];
     });
   }
@@ -575,7 +582,7 @@ export class PosRepository {
     schema: string,
     id: string,
     input: { name?: string; taxId?: string | null; email?: string | null; phone?: string | null;
-             address?: string | null; province?: string | null; municipality?: string | null },
+             address?: string | null; province?: string | null; municipality?: string | null; priceGroupId?: string | null },
   ): Promise<CustomerRow> {
     const sets: Prisma.Sql[] = [];
     if (input.name !== undefined) sets.push(Prisma.sql`name = ${input.name}`);
@@ -585,6 +592,7 @@ export class PosRepository {
     if (input.address !== undefined) sets.push(Prisma.sql`address = ${input.address || null}`);
     if (input.province !== undefined) sets.push(Prisma.sql`province = ${input.province || null}`);
     if (input.municipality !== undefined) sets.push(Prisma.sql`municipality = ${input.municipality || null}`);
+    if (input.priceGroupId !== undefined) sets.push(Prisma.sql`price_group_id = ${input.priceGroupId || null}::uuid`);
     if (sets.length === 0) {
       const cur = await this.prisma.runInTenant(schema, (tx) =>
         tx.$queryRaw<CustomerRow[]>(Prisma.sql`SELECT * FROM customers WHERE id = ${id}::uuid`));

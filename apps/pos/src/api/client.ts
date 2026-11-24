@@ -345,6 +345,9 @@ export const api = {
   approveDiscount: (pin: string) => request<{ approverName: string; self: boolean }>('POST', '/pos/discount/approve', { pin }),
   emitInvoice: (input: EmitInvoiceInput) =>
     request<EmittedInvoice>('POST', '/pos/invoices', input),
+  /** Preços de um GRUPO DE PREÇO (só os produtos com preço próprio). */
+  priceGroupPrices: (groupId: string) =>
+    request<{ product_id: string; unit_price: string }[]>('GET', `/pos/price-groups/${groupId}/prices`),
   /** Selo da barra: a facturação desta empresa é emitida pelo Cegid Vendus? */
   fiscalBadge: () => request<{ vendus: boolean; validationNo?: string; feCertNo?: string; validUntil?: string | null }>('GET', '/fiscal-engine/badge'),
   /** Documento fiscal do motor externo (Cegid Vendus) de uma venda. */

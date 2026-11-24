@@ -1314,6 +1314,8 @@ export interface AgentEvent {
 export interface CustomerRow {
   id: string;
   name: string;
+  /** Grupo de preço (Vendus). */
+  price_group_id?: string | null;
   tax_id?: string | null;
   email: string | null;
   phone: string | null;

@@ -275,6 +275,18 @@ export class InvoiceService {
       const byCode = new Map<string, ProductForEmission & { code: string; name: string }>();
       for (const p of productRows) byCode.set(p.code, p);
 
+      // GRUPO DE PREÇO do cliente (Vendus): preço próprio por produto. Decide o
+      // SERVIDOR (o caixa não envia preços). Tenant sem as tabelas → preço normal.
+      const groupPrice = new Map<string, number>();
+      if (input.customerId && productRows.length) {
+        const gp = await tx.$queryRaw<{ product_id: string; unit_price: string }[]>(
+          Prisma.sql`SELECT g.product_id, g.unit_price FROM customers c
+                     JOIN price_group_prices g ON g.price_group_id = c.price_group_id
+                     WHERE c.id = ${input.customerId}::uuid AND g.product_id IN (${Prisma.join(productRows.map((r) => Prisma.sql`${r.id}::uuid`))})`,
+        ).catch(() => [] as { product_id: string; unit_price: string }[]);
+        for (const r of gp) groupPrice.set(r.product_id, Number(r.unit_price));
+      }
+
       // MEDICAMENTOS SUJEITOS A RECEITA: ao balcão só com o nº da receita (fica na
       // auditoria) ou pela dispensa de uma receita do sistema. Venda offline já aconteceu.
       let rxNames: string[] = [];
@@ -405,7 +417,7 @@ export class InvoiceService {
           productCode: l.productCode,
           description: p.name ?? p.description ?? l.productCode,
           quantity: l.quantity,
-          unitPrice: l.unitPrice ?? Number(p.unit_price),
+          unitPrice: l.unitPrice ?? groupPrice.get(p.id) ?? Number(p.unit_price),
           ivaCode: p.iva_code,
           discountRate: l.discountRate,
           exemptionReason,

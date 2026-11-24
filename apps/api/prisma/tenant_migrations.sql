@@ -917,3 +917,18 @@ CREATE INDEX IF NOT EXISTS fiscal_engine_saft_period_idx ON "{{SCHEMA}}"."fiscal
 -- Controlar stock (como no Vendus): FALSE = serviço/artigo sem controlo — a venda
 -- não valida nem abate stock, e a anulação não o repõe.
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."products" ADD COLUMN IF NOT EXISTS track_stock BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- GRUPOS DE PREÇO (paridade Vendus): preço próprio por produto para os clientes do grupo.
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."price_groups" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL UNIQUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."price_group_prices" (
+  price_group_id  UUID NOT NULL REFERENCES "{{SCHEMA}}"."price_groups"(id) ON DELETE CASCADE,
+  product_id      UUID NOT NULL REFERENCES "{{SCHEMA}}"."products"(id) ON DELETE CASCADE,
+  unit_price      NUMERIC(14,2) NOT NULL,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (price_group_id, product_id)
+);
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS price_group_id UUID REFERENCES "{{SCHEMA}}"."price_groups"(id) ON DELETE SET NULL;

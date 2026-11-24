@@ -12,7 +12,7 @@ import { isNetworkError, queueCustomer } from '../offline/writes';
 /** Contas rápidas da loja online sem email usam um endereço interno — não se mostra. */
 const shownEmail = (e?: string | null): string => (e && !e.toLowerCase().endsWith('@sem-email.lps') ? e : '');
 
-const EMPTY = { name: '', phone: '', email: '', taxId: '', address: '', province: '', municipality: '' };
+const EMPTY = { name: '', phone: '', email: '', taxId: '', address: '', province: '', municipality: '', priceGroupId: '' };
 
 /**
  * CLIENTES (SaaS ERP/POS): base ÚNICA partilhada com o caixa e a loja online.
@@ -27,6 +27,9 @@ export function Customers() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CustomerRow | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
+  // Grupos de preço (Vendus) para a ficha do cliente.
+  const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => { api.priceGroups.list().then(setGroups).catch(() => setGroups([])); }, []);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -73,7 +76,7 @@ export function Customers() {
   useEffect(() => { if (takeQuickCreate('customers')) openCreate(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const openEdit = (c: CustomerRow) => {
     setEditing(c);
-    setForm({ name: c.name, phone: c.phone ?? '', email: shownEmail(c.email), taxId: c.tax_id ?? '', address: c.address ?? '', province: c.province ?? '', municipality: c.municipality ?? '' });
+    setForm({ name: c.name, phone: c.phone ?? '', email: shownEmail(c.email), taxId: c.tax_id ?? '', address: c.address ?? '', province: c.province ?? '', municipality: c.municipality ?? '', priceGroupId: c.price_group_id ?? '' });
     setOpen(true);
   };
 
@@ -84,6 +87,8 @@ export function Customers() {
       name: form.name.trim(), phone: form.phone.trim() || undefined, email: form.email.trim() || undefined,
       taxId: form.taxId.trim() || undefined, address: form.address.trim() || undefined,
       province: form.province.trim() || undefined, municipality: form.municipality.trim() || undefined,
+      // '' = sem grupo (só se envia se houver grupos ou se o cliente já tinha um).
+      ...(groups.length || editing?.price_group_id ? { priceGroupId: form.priceGroupId || '' } : {}),
     };
     try {
       if (editing) { await api.customers.update(editing.id, body); toast.success('Cliente atualizado.'); }
@@ -293,6 +298,13 @@ export function Customers() {
             <div className="field"><label>Município (opcional)</label>
               <input value={form.municipality} onChange={(e) => setForm({ ...form, municipality: e.target.value })} placeholder="ex.: Belas" /></div>
           </div>
+          {groups.length ? (
+            <div className="field"><label>Grupo de Preço</label>
+              <select value={form.priceGroupId} onChange={(e) => setForm({ ...form, priceGroupId: e.target.value })}>
+                <option value="">Sem grupo (preço normal)</option>
+                {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select></div>
+          ) : null}
           <button className="btn lg block" onClick={() => void save()} disabled={saving}>{saving ? 'A guardar…' : editing ? 'Guardar alterações' : 'Criar cliente'}</button>
         </Modal>
       ) : null}

@@ -39,6 +39,12 @@ export class CreateCustomerDto {
   @IsString()
   @Length(0, 500)
   address?: string;
+
+  /** Grupo de preço (Vendus). Vazio/null = sem grupo. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 40)
+  priceGroupId?: string | null;
 }
 
 export class UpdateCustomerDto {
@@ -49,4 +55,6 @@ export class UpdateCustomerDto {
   @IsOptional() @IsString() @Length(0, 500) address?: string;
   @IsOptional() @IsString() @Length(0, 80) province?: string;
   @IsOptional() @IsString() @Length(0, 80) municipality?: string;
+  /** Grupo de preço (Vendus). '' = sem grupo. */
+  @IsOptional() @IsString() @Length(0, 40) priceGroupId?: string | null;
 }
