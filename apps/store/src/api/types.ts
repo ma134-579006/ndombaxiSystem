@@ -236,7 +236,7 @@ export interface StoreInvoiceItem {
 }
 export interface StoreInvoice {
   /** Fatura emitida pelo Cegid Vendus: o cliente descarrega o PDF ORIGINAL do Vendus. */
-  external?: { engine: 'VENDUS'; number: string | null; state: string; pdf: boolean } | null;
+  external?: { engine: 'VENDUS'; number: string | null; agtNumber?: string | null; state: string; pdf: boolean } | null;
   orderNumber: string;
   customerName: string | null;
   customerTaxId: string | null;

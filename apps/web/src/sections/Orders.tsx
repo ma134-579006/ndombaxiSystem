@@ -567,12 +567,12 @@ function OrderInvoice({ inv }: { inv: NonNullable<WebOrderDetail['invoice']> }) 
   return (
     <div className="card" style={{ marginTop: 12, padding: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
       <div style={{ flex: 1, minWidth: 200 }}>
-        <div className="muted" style={{ fontSize: 12 }}>{ext ? 'Fatura (Cegid Vendus)' : 'Fatura'}</div>
-        <b translate="no">{ext ? (ext.number ?? inv.number) : inv.number}</b>
-        {ext && ext.number ? <span className="muted" style={{ fontSize: 12 }} translate="no"> · {inv.number}</span> : null}
+        <div className="muted" style={{ fontSize: 12 }}>{ext ? (ext.agtNumber ? 'Fatura · Nº AGT' : 'Fatura (Cegid Vendus)') : 'Fatura'}</div>
+        <b translate="no">{ext ? (ext.agtNumber ?? ext.number ?? inv.number) : inv.number}</b>
+        {ext && (ext.agtNumber || ext.number) ? <span className="muted" style={{ fontSize: 12 }} translate="no"> · {[ext.agtNumber ? ext.number : null, inv.number].filter(Boolean).join(' · ')}</span> : null}
         <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
           {inv.annulled ? <span className="pill off">Anulada</span> : <span className="pill on">Emitida</span>}
-          {pending ? <span className="pill">A comunicar ao Vendus…</span> : null}
+          {pending ? <span className="pill">A comunicar ao Vendus…</span> : ext && !ext.agtNumber ? <span className="pill">Nº AGT pendente</span> : null}
           {inv.creditNotes ? <span className="muted" style={{ fontSize: 12 }}>NC: <span translate="no">{inv.creditNotes}</span></span> : null}
         </div>
       </div>

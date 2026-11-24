@@ -21,7 +21,7 @@ export async function downloadOrderInvoice(code: string, orderId: string): Promi
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${(inv.external.number ?? inv.orderNumber).replace(/[^\w.-]+/g, '_')}.pdf`;
+      a.download = `${(inv.external.agtNumber ?? inv.external.number ?? inv.orderNumber).replace(/[^\w.-]+/g, '_')}.pdf`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
       return;

@@ -25,11 +25,11 @@ const STATE_LABEL: Record<string, string> = {
   CORRECCAO_NECESSARIA: 'Correcção necessária',
 };
 
-type Doc = { id: string | null; state: string; number: string | null; pdf: boolean; error: string | null };
+type Doc = { id: string | null; state: string; number: string | null; agt?: string | null; pdf: boolean; error: string | null };
 
 /** Nome do ficheiro: o número fiscal do Vendus (ex.: "FR_02P2026_5.pdf"). */
 function pdfName(doc: Doc | null, invoice: EmittedInvoice): string {
-  return `${(doc?.number ?? invoice.internalNumber ?? invoice.number ?? 'fatura').replace(/[^\w.-]+/g, '_')}.pdf`;
+  return `${(doc?.agt ?? doc?.number ?? invoice.internalNumber ?? invoice.number ?? 'fatura').replace(/[^\w.-]+/g, '_')}.pdf`;
 }
 
 /** Base64 → bytes (talão ESC/POS do Vendus). */
@@ -83,7 +83,7 @@ export function ExternalFiscalReceipt({ invoice, identity, reprint = false, onCl
     setErr(null);
     try {
       const r = await api.externalFiscal(invoice.id);
-      setDoc(r ? { id: r.id, state: r.state, number: r.number, pdf: r.has_pdf, error: r.last_error } : null);
+      setDoc(r ? { id: r.id, state: r.state, number: r.number, agt: r.agt_number ?? null, pdf: r.has_pdf, error: r.last_error } : null);
     } catch (e) {
       if (!quiet) setErr(e instanceof Error ? e.message : 'Falha ao consultar');
     } finally {
@@ -181,7 +181,7 @@ export function ExternalFiscalReceipt({ invoice, identity, reprint = false, onCl
   const shareWhatsApp = async () => {
     setBusy('share'); setErr(null); setMsg(null);
     const empresa = identity?.companyName || identity?.brandName || 'Fatura';
-    const title = doc?.number ?? invoice.number;
+    const title = doc?.agt ?? doc?.number ?? invoice.number;
     const text = `${empresa} · ${title} · ${formatKz(invoice.grossTotal)}`;
     const openWa = () => window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
     try {
@@ -231,7 +231,9 @@ export function ExternalFiscalReceipt({ invoice, identity, reprint = false, onCl
         {identity && (identity.companyName || identity.brandName) ? <div className="vrc-co">{identity.companyName || identity.brandName}</div> : null}
         <dl className="efr-dl">
           <dt>{reprint ? 'Documento fiscal (2.ª via)' : 'Documento fiscal'}</dt>
-          <dd className="efr-no">{issued ? doc!.number : 'Pendente'}</dd>
+          <dd className="efr-no">{issued ? (doc!.agt ?? doc!.number) : 'Pendente'}</dd>
+          {issued ? <><dt>Nº AGT</dt><dd>{doc!.agt ?? 'Pendente (a AGT ainda não atribuiu)'}</dd></> : null}
+          {issued && doc!.agt ? <><dt>Nº Vendus</dt><dd>{doc!.number}</dd></> : null}
           <dt>Software de facturação</dt>
           <dd>Cegid Vendus</dd>
           <dt>Estado</dt>

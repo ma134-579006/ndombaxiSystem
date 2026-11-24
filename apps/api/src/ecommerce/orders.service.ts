@@ -104,7 +104,7 @@ export class OrdersService {
     const ext = engine === 'VENDUS' && this.fiscalEngine ? await this.fiscalEngine.documentForInvoice(schema, invId) : null;
     return {
       external: engine === 'VENDUS'
-        ? { engine: 'VENDUS' as const, number: ext?.number ?? null, state: ext?.state ?? 'A_PREPARAR', pdf: !!ext?.has_pdf }
+        ? { engine: 'VENDUS' as const, number: ext?.number ?? null, agtNumber: (ext?.agt_number as string | null) ?? null, state: ext?.state ?? 'A_PREPARAR', pdf: !!ext?.has_pdf }
         : null,
       orderNumber: order.order_number,
       customerName: order.customer_name,
@@ -228,7 +228,7 @@ export class OrdersService {
         ...rest,
         invoice: {
           number: inv.number, docType: inv.doc_type, annulled: inv.status === 'A', creditNotes: inv.credit_notes,
-          external: ext ? { id: String(ext.id), engine: 'VENDUS' as const, number: (ext.number as string | null) ?? null, state: String(ext.state), hasPdf: !!ext.has_pdf } : null,
+          external: ext ? { id: String(ext.id), engine: 'VENDUS' as const, number: (ext.number as string | null) ?? null, agtNumber: (ext.agt_number as string | null) ?? null, state: String(ext.state), hasPdf: !!ext.has_pdf } : null,
         },
       };
     });

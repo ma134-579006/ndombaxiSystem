@@ -303,7 +303,9 @@ export class CustomerAuthService {
       const ids = rows.map((r) => r.id as string);
       if (ids.length) {
         const ext = await tx.$queryRaw<{ order_id: string; number: string | null }[]>(
-          Prisma.sql`SELECT DISTINCT ON (o.id) o.id::text AS order_id, d.number
+          // Número AGT (ex.: FR4026S94851N/4) quando já existe; senão o do Vendus.
+          Prisma.sql`SELECT DISTINCT ON (o.id) o.id::text AS order_id,
+                            CASE WHEN COALESCE(d.agt ->> 'document_number', '') ~ '[A-Za-z]' THEN d.agt ->> 'document_number' ELSE d.number END AS number
                      FROM web_orders o JOIN fiscal_engine_documents d ON d.invoice_id = o.invoice_id
                      WHERE o.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
                      ORDER BY o.id, d.created_at DESC`,

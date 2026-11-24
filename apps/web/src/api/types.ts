@@ -277,7 +277,7 @@ export interface WebOrder {
   /** Fatura ligada (só no detalhe): número, anulação e documento do Cegid Vendus. */
   invoice?: {
     number: string; docType: string; annulled: boolean; creditNotes: string | null;
-    external: { id: string; engine: 'VENDUS'; number: string | null; state: string; hasPdf: boolean } | null;
+    external: { id: string; engine: 'VENDUS'; number: string | null; agtNumber?: string | null; state: string; hasPdf: boolean } | null;
   } | null;
   /** Cozinha (restauração): tempo estimado dado pelo cozinheiro e estado de produção. */
   prep_eta_min?: number | null;
