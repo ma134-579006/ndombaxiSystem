@@ -293,6 +293,25 @@ try {
   const rej = await sell();
   R.check('V-17', 'recusa do Vendus (422) → CORRECCAO_NECESSARIA com motivo; venda não apagada', rej.body.fiscal?.state === 'CORRECCAO_NECESSARIA' && /inválidos/.test(rej.body.fiscal?.error ?? ''), j(rej.body.fiscal));
 
+  // ── Teste OFFLINE — venda feita SEM REDE na app (fila do aparelho) ─────────
+  // A app guarda a venda e reenvia-a (offline:true, mesma chave) quando a rede
+  // volta. Se nesse momento o Vendus/rede ainda falhar, a venda fica registada no
+  // LPS e na fila do motor fiscal; quando o Vendus responde, é comunicada.
+  await ctl({ mode: 'http500', times: 999 });
+  const before = await countInvoices();
+  const offOp = uuid();
+  const off1 = await sell({ clientOpId: offOp, offline: true });
+  R.check('V-OFF1', 'venda offline sobe com o Vendus em baixo → registada no LPS e na fila (não se perde)', off1.status < 300 && !!off1.body.id && off1.body.fiscal?.state !== 'COMUNICACAO_AGT_PENDENTE', `${off1.status} ${j(off1.body.fiscal)}`);
+  const off2 = await sell({ clientOpId: offOp, offline: true });
+  R.check('V-OFF2', 'a app reenvia a mesma venda (mesma chave) → a mesma fatura, sem duplicar', off2.body.id === off1.body.id && (await countInvoices()) === before + 1, `${off2.body.id === off1.body.id} ${(await countInvoices()) - before}`);
+  await ctl({ mode: 'ok' });
+  const offDoc = (await ok('GET', '/fiscal-engine/documents', { token: A })).find((d) => d.invoice_id === off1.body.id);
+  const rec3 = await ok('POST', `/fiscal-engine/documents/${offDoc.id}/retry`, { token: A }); // = o que o ciclo automático faz
+  ms = await mstate();
+  R.check('V-OFF3', 'rede/Vendus de volta → a venda offline é comunicada (1 só documento no Vendus, com número)', rec3.state === 'COMUNICACAO_AGT_PENDENTE' && !!rec3.number && ms.docs.filter((d) => d.external_reference === `LPS-${off1.body.id}`).length === 1, `${rec3.state} ${rec3.number}`);
+  const fi = await ok('GET', `/fiscal-engine/invoice/${off1.body.id}`, { token: A });
+  R.check('V-OFF4', 'Nº AGT disponível para o recibo e a 2.ª via da venda offline', !!fi?.agt_number, j(fi));
+
   // ── NC: anulação e devolução emitidas pelo Vendus ──────────────────────────
   const ncAll = await call('POST', `/pos/invoices/${inv1.id}/cancel`, { token: A, body: { reason: 'Cliente desistiu da compra' } });
   ms = await mstate();
