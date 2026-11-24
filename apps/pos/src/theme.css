@@ -1740,14 +1740,6 @@ html.touch-ui .btn.sm { min-height: 40px; }
 }
 .lang-choice button.on { border-color: var(--primary); background: var(--primary); color: #fff; }
 
-/* Login da caixa: o preenchimento automático do navegador não muda a cor dos campos. */
-.auth-input:-webkit-autofill, .auth-input:-webkit-autofill:hover, .auth-input:-webkit-autofill:focus, .auth-input:-webkit-autofill:active,
-.auth-form input:-webkit-autofill, .auth-form input:-webkit-autofill:hover, .auth-form input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px #121a2e inset !important; box-shadow: 0 0 0 1000px #121a2e inset !important;
-  -webkit-text-fill-color: #fff !important; caret-color: #fff;
-  -webkit-transition: background-color 600000s 0s, color 600000s 0s; transition: background-color 600000s 0s, color 600000s 0s;
-}
-.auth-input:autofill, .auth-form input:autofill { filter: none; background-color: #121a2e !important; color: #fff !important; }
 
 /* Botão de fechar injetado nas janelas que não trazem o seu (modalClose.ts). */
 .modal-x-auto { position: absolute; top: 10px; right: 10px; z-index: 5; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgba(120,130,150,.18); color: var(--text, #141c4d); cursor: pointer; padding: 0; }
@@ -1790,3 +1782,22 @@ html.touch-ui .btn.sm { min-height: 40px; }
 .efr-actions .btn svg { vertical-align: -3px; }
 .efr-printer { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: var(--muted); padding: 2px 0 6px; flex-wrap: wrap; }
 @media (max-width: 300px) { .efr-dl { grid-template-columns: minmax(0, 1fr); } .efr-dl dd { text-align: left; } }
+
+/* PREENCHIMENTO AUTOMÁTICO (sugestões do navegador: e-mail, senha, nome…):
+   o campo mantém as SUAS cores em vez do fundo azul/amarelo do navegador, em
+   todos os logins, registos e formulários. O navegador força o fundo com
+   !important; uma sombra interior opaca pinta por cima e -webkit-text-fill-color
+   mantém o texto. Cada tipo de campo diz as suas cores em --af-bg/--af-fg (e o
+   anel de foco em --af-ring, porque esta sombra substitui a do foco). */
+:is(input, textarea, select):is(:autofill, :-webkit-autofill),
+:is(input, textarea, select):is(:autofill, :-webkit-autofill):hover {
+  box-shadow: inset 0 0 0 100vmax var(--af-bg, var(--surface-2)) !important;
+  -webkit-text-fill-color: var(--af-fg, var(--text)) !important;
+  caret-color: var(--af-fg, var(--text));
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+:is(input, textarea, select):is(:autofill, :-webkit-autofill):focus {
+  box-shadow: inset 0 0 0 100vmax var(--af-bg, var(--surface-2)), var(--af-ring, 0 0 0 0 transparent) !important;
+}
+.auth-input, .auth-form input { --af-bg: #121a2e; --af-fg: #fff; --af-ring: 0 0 0 3px rgba(123, 92, 255, .22); }
+.va-input { --af-bg: #fff; --af-fg: #212529; }
