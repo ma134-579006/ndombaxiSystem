@@ -35,7 +35,7 @@ function writeCookie(lang: Lang): void {
   try {
     const host = location.hostname;
     // Cookie partilhado pelo domínio principal e subdomínios (caixa., loja., admin.).
-    const base = /(^|\.)lpsvendas\.com\.de$/.test(host) ? 'lpsvendas.com.de' : /(^|\.)ndombaxisystem\.com$/.test(host) ? 'ndombaxisystem.com' : '';
+    const base = /(^|\.)lpsvendas\.com\.de$/.test(host) ? 'lpsvendas.com.de' : '';
     const domain = base ? `; domain=.${base}` : '';
     const secure = location.protocol === 'https:' ? '; secure' : '';
     document.cookie = `${COOKIE}=${lang}; path=/; max-age=31536000; samesite=lax${domain}${secure}`;

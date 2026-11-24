@@ -39,13 +39,12 @@ async function bootstrap(): Promise<void> {
   const allowList = config.get('CORS_ORIGINS', { infer: true }) as string[];
   // Domínio(s) próprio(s) da plataforma: apex exacto + qualquer subdomínio
   // (www., loja., caixa., …) — assim não é preciso reconfigurar a cada subdomínio.
-  // PRODUÇÃO: lpsvendas.com.de (domínio actual, registado por nós no Cloudflare) e
-  // ndombaxisystem.com (domínio anterior — mantém-se aceite enquanto houver apps
-  // instaladas e ligações antigas). Outros domínios só via CORS_EXTRA_HOSTS (env):
+  // PRODUÇÃO: lpsvendas.com.de (registado por nós no Cloudflare). O domínio
+  // anterior foi descartado. Outros domínios só via CORS_EXTRA_HOSTS (env):
   // nunca fixar no código um domínio que não esteja registado por nós.
   const extraHosts = config.get('CORS_EXTRA_HOSTS', { infer: true }) as string[];
-  const allowHosts = ['lpsvendas.com.de', 'ndombaxisystem.com', ...extraHosts];
-  const allowHostSuffixes = ['.pages.dev', '.vercel.app', '.netlify.app', '.lpsvendas.com.de', '.ndombaxisystem.com', ...extraHosts.map((h) => `.${h}`)];
+  const allowHosts = ['lpsvendas.com.de', ...extraHosts];
+  const allowHostSuffixes = ['.pages.dev', '.vercel.app', '.netlify.app', '.lpsvendas.com.de', ...extraHosts.map((h) => `.${h}`)];
   // Aplicações instaladas (Windows/Android/iOS): a interface é servida do DISCO
   // do posto. No DESKTOP (Electron) pelo protocolo próprio `ndombaxi://`; no
   // MÓVEL (Capacitor) a WebView serve de `https://localhost` (Android) e
