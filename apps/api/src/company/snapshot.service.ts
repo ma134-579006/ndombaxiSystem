@@ -140,8 +140,14 @@ export class SnapshotService {
     // O nome da tabela vai para dentro de SQL, por isso NÃO basta validá-lo com
     // uma expressão: só é aceite se estiver mesmo na lista de tabelas desta
     // empresa. Assim não há nome que se possa inventar.
-    const known = await this.tables(schema);
-    if (!known.some((t) => t.table === table)) {
+    // DESEMPENHO (pentest 2026-11): validava com `tables()`, que faz COUNT(*) a
+    // TODAS as tabelas — em CADA página da sincronização inicial (segundos por
+    // pedido). Basta confirmar que a tabela existe no schema da empresa.
+    const known = await this.prisma.$queryRaw<{ n: number }[]>(
+      Prisma.sql`SELECT 1 AS n FROM information_schema.tables
+                 WHERE table_schema = ${schema} AND table_type = 'BASE TABLE' AND table_name = ${table} LIMIT 1`,
+    );
+    if (known.length === 0) {
       throw new BadRequestException(`Tabela desconhecida: ${table}`);
     }
     const take = Math.min(Math.max(1, limit || 200), SnapshotService.MAX_LIMIT);

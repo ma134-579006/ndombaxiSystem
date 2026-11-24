@@ -44,7 +44,12 @@ async function bootstrap(): Promise<void> {
   // nunca fixar no código um domínio que não esteja registado por nós.
   const extraHosts = config.get('CORS_EXTRA_HOSTS', { infer: true }) as string[];
   const allowHosts = ['lpsvendas.com.de', ...extraHosts];
-  const allowHostSuffixes = ['.pages.dev', '.vercel.app', '.netlify.app', '.lpsvendas.com.de', ...extraHosts.map((h) => `.${h}`)];
+  // SEGURANÇA (pentest 2026-11): antes aceitava QUALQUER *.pages.dev / *.vercel.app /
+  // *.netlify.app — qualquer pessoa publica lá um site. Agora só os NOSSOS projetos
+  // Cloudflare Pages (e as pré-visualizações deles, <hash>.<projeto>.pages.dev).
+  const ourPagesProjects = ['ndombaxisystem-admin', 'ndombaxisystem-caixa', 'ndombaxisystem-loja'];
+  const allowHostSuffixes = ['.lpsvendas.com.de', ...ourPagesProjects.map((p) => `.${p}.pages.dev`), ...extraHosts.map((h) => `.${h}`)];
+  allowHosts.push(...ourPagesProjects.map((p) => `${p}.pages.dev`));
   // Aplicações instaladas (Windows/Android/iOS): a interface é servida do DISCO
   // do posto. No DESKTOP (Electron) pelo protocolo próprio `ndombaxi://`; no
   // MÓVEL (Capacitor) a WebView serve de `https://localhost` (Android) e

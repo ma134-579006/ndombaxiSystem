@@ -80,6 +80,11 @@ describe('SnapshotService — âmbito e paginação', () => {
       $queryRaw: jest.fn(async (q: unknown) => {
         const sql = (((q as { strings?: string[] }).strings) ?? []).join('?').replace(/\s+/g, ' ');
         queries.push(sql);
+        // Validação leve do nome (rows): só devolve a tabela se existir mesmo.
+        if (sql.includes('information_schema.tables') && sql.includes('table_name =')) {
+          const nome = ((q as { values?: unknown[] }).values ?? [])[1];
+          return tabelas.includes(String(nome)) ? [{ n: 1 }] : [];
+        }
         if (sql.includes('information_schema.tables')) {
           return tabelas.map((t) => ({ table_name: t }));
         }
@@ -102,6 +107,12 @@ describe('SnapshotService — âmbito e paginação', () => {
     await expect(svc.rows(SCHEMA, 'products"; DROP TABLE users; --', 0, 10))
       .rejects.toBeInstanceOf(BadRequestException);
     expect(queries.join(' ')).not.toContain('DROP TABLE');
+  });
+
+  it('rows() não faz COUNT(*) às tabelas todas em cada página (desempenho)', async () => {
+    const { svc, queries } = fake(['products', 'customers', 'invoices'], []);
+    await svc.rows(SCHEMA, 'products', 0, 10);
+    expect(queries.join(' ').toLowerCase()).not.toContain('count(*)');
   });
 
   it('recusa um schema que não tem forma de schema de empresa', async () => {
