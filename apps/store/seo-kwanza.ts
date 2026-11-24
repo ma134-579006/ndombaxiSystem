@@ -12,7 +12,7 @@ import type { Plugin } from 'vite';
  * SoftwareApplication) e um bloco de texto legível sem JavaScript. Também
  * `robots.txt` e `sitemap.xml` com as páginas públicas.
  */
-const ORIGIN = 'https://loja.ndombaxisystem.com';
+const ORIGIN = 'https://loja.lpsvendas.com.de';
 const URL = `${ORIGIN}/kwanza`;
 const TITLE = 'LPS Kwanza — Marketplace de associados | Venda e ganhe comissões em Angola';
 const DESC = 'LPS Kwanza é o marketplace de associados da LPS Vendas: escolha produtos de várias empresas angolanas, partilhe a sua ligação e ganhe comissões em Kwanzas por cada venda. Registo grátis.';
@@ -24,7 +24,7 @@ function head(): string {
   const ld = [
     { '@context': 'https://schema.org', '@type': 'WebSite', name: 'LPS Kwanza', alternateName: ['LPS Kwanza Marketplace', 'Kwanza LPS'], url: URL, inLanguage: 'pt-AO',
       potentialAction: { '@type': 'SearchAction', target: `${URL}#/busca?q={search_term_string}`, 'query-input': 'required name=search_term_string' } },
-    { '@context': 'https://schema.org', '@type': 'Organization', name: 'LPS Kwanza', url: URL, logo: `${ORIGIN}/kwanza-icon-512.png`, parentOrganization: { '@type': 'Organization', name: 'LPS Vendas', url: 'https://ndombaxisystem.com' } },
+    { '@context': 'https://schema.org', '@type': 'Organization', name: 'LPS Kwanza', url: URL, logo: `${ORIGIN}/kwanza-icon-512.png`, parentOrganization: { '@type': 'Organization', name: 'LPS Vendas', url: 'https://lpsvendas.com.de' } },
     { '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: 'LPS Kwanza', operatingSystem: 'Android, Windows', applicationCategory: 'ShoppingApplication', url: URL, offers: { '@type': 'Offer', price: '0', priceCurrency: 'AOA' } },
   ];
   return [
@@ -58,7 +58,7 @@ const NOSCRIPT = `<noscript><main style="font-family:sans-serif;max-width:720px;
       <p>${esc(DESC)}</p>
       <h2>Como funciona</h2>
       <ol><li>Crie a sua conta de associado grátis.</li><li>Escolha produtos das empresas no marketplace.</li><li>Partilhe a sua ligação no WhatsApp e redes sociais.</li><li>Receba a comissão quando a empresa marcar a venda como concluída e peça o saque.</li></ol>
-      <p>Aplicações LPS Kwanza para Android e Windows disponíveis em <a href="https://ndombaxisystem.com">ndombaxisystem.com</a>.</p>
+      <p>Aplicações LPS Kwanza para Android e Windows disponíveis em <a href="https://lpsvendas.com.de">lpsvendas.com.de</a>.</p>
     </main></noscript>`;
 
 export function kwanzaSeo(): Plugin {

@@ -6,7 +6,7 @@
  *  - permissões: câmara (ler QR da loja) e localização (entrega ao domicílio
  *    em tempo real) — a WebView do Capacitor pede-as ao utilizador quando a
  *    página as usa;
- *  - ligações diretas: https://loja.ndombaxisystem.com/<loja> e lpsloja://<loja>
+ *  - ligações diretas: https://loja.lpsvendas.com.de/<loja> e lpsloja://<loja>
  *    abrem a loja na app;
  *  - barra de estado e de navegação brancas com ícones escuros (aspeto de app
  *    de compras, não de site);
@@ -58,6 +58,7 @@ const deepLinks = `
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="loja.lpsvendas.com.de" />
                 <data android:scheme="https" android:host="loja.ndombaxisystem.com" />
             </intent-filter>
             <intent-filter>
@@ -75,6 +76,7 @@ if (KWANZA && !manifest.includes('lpskwanza')) {
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="loja.lpsvendas.com.de" android:pathPrefix="/kwanza" />
                 <data android:scheme="https" android:host="loja.ndombaxisystem.com" android:pathPrefix="/kwanza" />
             </intent-filter>
             <intent-filter>
@@ -84,7 +86,7 @@ if (KWANZA && !manifest.includes('lpskwanza')) {
                 <data android:scheme="lpskwanza" />
             </intent-filter>
 `);
-} else if (!KWANZA && !manifest.includes('loja.ndombaxisystem.com')) {
+} else if (!KWANZA && !manifest.includes('loja.lpsvendas.com.de')) {
   // Dentro da MainActivity, logo a seguir ao intent-filter do LAUNCHER.
   manifest = manifest.replace(/(<category android:name="android\.intent\.category\.LAUNCHER" \/>\s*<\/intent-filter>)/, `$1\n${deepLinks}`);
 }

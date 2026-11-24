@@ -19,7 +19,7 @@ const INSTALLED = KWANZA_APP?.version || ((import.meta.env.VITE_APP_VERSION as s
 /** Que app é: LPS Kwanza (Android/Windows) ou LPS Loja (Android). */
 const PLATFORM = KWANZA_APP ? `${KWANZA_APP.os}-kwanza` : 'android-loja';
 const BRAND = KWANZA_APP ? 'LPS Kwanza' : 'LPS Loja';
-const OFFICIAL_PAGE = 'https://ndombaxisystem.com/baixar';
+const OFFICIAL_PAGE = 'https://lpsvendas.com.de/baixar';
 const EVERY_MS = 15 * 60 * 1000;
 
 export function compareVersions(a: string, b: string): number {

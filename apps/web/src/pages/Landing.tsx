@@ -548,8 +548,9 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             </div>
           </div>
           <div className="lv-copy">
-            <span>{cfg?.footerText || `© ${new Date().getFullYear()} ${brand}. ${t.rights}`}</span>
-            <span>Direitos reservados a <strong>Manuel Mbala Ndombaxi</strong> · Patrocinado pela <strong>Loja das Mulheres</strong></span>
+            {/* Direitos autorais: sempre da LPS Vendas (o texto livre do Super Admin vem a seguir). */}
+            <span>{`© ${new Date().getFullYear()} LPS Vendas. ${t.rights}`}{cfg?.footerText ? ` ${cfg.footerText}` : ''}</span>
+            <span><span>Desenvolvido por</span> <strong translate="no">Lionel Paulino Silva</strong> <span>e</span> <strong translate="no">Manuel Mbala Ndombaxi</strong> · <span>Patrocinado pela</span> <strong translate="no">Loja das Mulheres</strong></span>
           </div>
         </div>
       </footer>

@@ -26,7 +26,7 @@ execSync(`pnpm --filter @nexus/store exec vite build --base=./ --outDir "${www}"
   cwd: repo,
   stdio: 'inherit',
   env: { ...process.env, VITE_API_URL: API_URL, VITE_NATIVE_APP: '1', VITE_APP_VERSION: VERSION,
-    VITE_PUBLIC_ORIGIN: 'https://loja.ndombaxisystem.com', ...(KWANZA ? { VITE_KWANZA_APP: '1' } : {}) },
+    VITE_PUBLIC_ORIGIN: 'https://loja.lpsvendas.com.de', ...(KWANZA ? { VITE_KWANZA_APP: '1' } : {}) },
 });
 
 if (!/localhost/.test(API_URL)) {

@@ -1,7 +1,7 @@
 /**
  * LPS Kwanza para Windows — janela própria do marketplace de associados.
  *
- * Abre https://loja.ndombaxisystem.com/kwanza com o contrato das apps instaladas
+ * Abre https://loja.lpsvendas.com.de/kwanza com o contrato das apps instaladas
  * (?app=kwanza&appOs=windows&appVersion=x.y.z): a página verifica a versão oficial
  * publicada e, se esta app for mais antiga, bloqueia com "Atualização obrigatória"
  * (a mesma regra do LPS Vendas). Sem rede mostra um ecrã para tentar de novo.
@@ -10,7 +10,7 @@
 const { app, BrowserWindow, Menu, shell, nativeTheme } = require('electron');
 const path = require('node:path');
 
-const ORIGIN = 'https://loja.ndombaxisystem.com';
+const ORIGIN = 'https://loja.lpsvendas.com.de';
 const START = `${ORIGIN}/kwanza?app=kwanza&appOs=windows&appVersion=${app.getVersion()}`;
 
 if (!app.requestSingleInstanceLock()) { app.quit(); }

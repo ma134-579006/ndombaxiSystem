@@ -2,7 +2,7 @@
  * Integração com a app Android "LPS Loja" (Capacitor). No site, tudo isto é
  * inerte: `isNativeApp` é falso e nenhum listener é registado.
  *
- *  - Ligações diretas: https://loja.ndombaxisystem.com/<loja>, lpsloja://<loja>
+ *  - Ligações diretas: https://loja.lpsvendas.com.de/<loja>, lpsloja://<loja>
  *    ou ?loja=<loja> abrem essa loja na app (também no arranque a frio).
  *  - Botão VOLTAR do Android: fecha o que estiver aberto (carrinho, conta,
  *    produto…) em vez de sair da app; na página inicial, minimiza-a.
@@ -36,7 +36,7 @@ export function takePendingStoreCode(): string {
 
 /**
  * Extrai o código da loja de um link partilhado, de um QR ou de texto escrito:
- * "https://loja.ndombaxisystem.com/kero", "lpsloja://kero", "…?loja=kero", "kero".
+ * "https://loja.lpsvendas.com.de/kero", "lpsloja://kero", "…?loja=kero", "kero".
  */
 export function storeCodeFrom(raw: string): string {
   const text = raw.trim();

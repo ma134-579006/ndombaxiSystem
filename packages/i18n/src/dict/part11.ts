@@ -1,5 +1,8 @@
 // Dicionário PT → [EN, FR, ES] — lote 11 (MODELOS com {x}: frases com números/nomes, alertas da API).
 const D: Record<string, [string, string, string]> = {
+  "Desenvolvido por": ["Developed by","Développé par","Desarrollado por"],
+  "Patrocinado pela": ["Sponsored by","Parrainé par","Patrocinado por"],
+  "e": ["and","et","y"],
   "Faltam {x} dias para renovar": ["{x} days left to renew","Plus que {x} jours avant le renouvellement","Faltan {x} días para renovar"],
   "Falta 1 dia para renovar": ["1 day left to renew","Plus qu’1 jour avant le renouvellement","Falta 1 día para renovar"],
   "A subscrição termina hoje": ["The subscription ends today","L’abonnement se termine aujourd’hui","La suscripción termina hoy"],

@@ -22,7 +22,7 @@
  */
 
 /** Página oficial de downloads — saída garantida do ecrã de bloqueio. */
-export const OFFICIAL_DOWNLOAD_PAGE = 'https://ndombaxisystem.com/baixar';
+export const OFFICIAL_DOWNLOAD_PAGE = 'https://lpsvendas.com.de/baixar';
 
 /** O que o servidor oficial publica sobre uma versão. */
 export interface OfficialRelease {
