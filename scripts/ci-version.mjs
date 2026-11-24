@@ -5,7 +5,7 @@
  * isso, cada build tem de ter uma versão MAIOR do que a anterior — mesmo sem
  * ninguém mexer no package.json. A versão passa a ser:
  *
- *     <maior>.<menor>.<nº de commits em main>     ex.: 2.0.612
+ *     <maior>.<menor>.<nº de commits desde a subida de maior.menor>     ex.: 3.0.0, 3.0.2…
  *
  * `maior.menor` vêm de apps/desktop/package.json (decisão humana); o terceiro
  * número cresce sozinho a cada commit e é igual nas três apps para o mesmo
@@ -26,11 +26,16 @@ if (sh('git rev-parse --is-shallow-repository') === 'true') {
   console.error('ci-version: clone raso — use actions/checkout com fetch-depth: 0.');
   process.exit(1);
 }
-const count = Number(sh('git rev-list --count HEAD'));
 const files = ['apps/desktop/package.json', 'apps/store-shell/package.json'];
 const base = JSON.parse(fs.readFileSync(path.join(repo, files[0]), 'utf-8')).version;
 const m = /^(\d+)\.(\d+)\./.exec(base);
-if (!m || !Number.isFinite(count) || count < 1) { console.error(`ci-version: versão base inválida (${base}) ou contagem (${count}).`); process.exit(1); }
+// Terceiro número = commits DESDE que a versão base (maior.menor) mudou no
+// package.json — a 1.ª build depois de subir para 3.0 sai 3.0.0 e as seguintes
+// sobem sozinhas (3.0.2, 3.0.4…). Continua sempre a crescer a cada commit, e a
+// mudança de maior/menor garante que é maior do que qualquer versão anterior.
+const desde = sh(`git log -1 --format=%H -S"\\"version\\": \\"${base}\\"" -- apps/desktop/package.json`);
+const count = desde ? Math.max(0, Number(sh(`git rev-list --count ${desde}..HEAD`)) - 1) : Number(sh('git rev-list --count HEAD'));
+if (!m || !Number.isFinite(count) || count < 0) { console.error(`ci-version: versão base inválida (${base}) ou contagem (${count}).`); process.exit(1); }
 const version = `${m[1]}.${m[2]}.${count}`;
 for (const f of files) {
   const p = path.join(repo, f);

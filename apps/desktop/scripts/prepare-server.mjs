@@ -256,6 +256,47 @@ async function prepararApi() {
   // o nativo/Prisma (de ~14 500 para ~1 700 ficheiros).
   await empacotarApi(destino, log);
   log(`API pronta: resources/api (${tamanho(destino)} MB)`);
+  arquivarApi(destino);
+}
+
+/** Conta ficheiros seguindo atalhos/junções (é assim que ficam depois de copiados). */
+function contarReais(dir) {
+  let n = 0;
+  const walk = (d) => {
+    for (const e of fs.readdirSync(d)) {
+      const p = path.join(d, e);
+      let st; try { st = fs.statSync(p); } catch { continue; }
+      if (st.isDirectory()) walk(p); else n++;
+    }
+  };
+  walk(dir);
+  return n;
+}
+
+/**
+ * INSTALAÇÃO RÁPIDA: a API (~15 000 ficheiros pequenos depois de copiada) vai no
+ * instalador como UM só `resources/api.zip`; a app extrai-o só quando o
+ * servidor local é usado (apps/local-server/src/paths.ts). Usa o tar.exe do
+ * Windows (o mesmo que extrai no posto), seguindo atalhos (-L), e PROVA o
+ * arquivo: extrai-o para uma pasta temporária e compara o nº de ficheiros.
+ */
+function arquivarApi(destino) {
+  if (process.platform !== 'win32') { log('api.zip: só na build de Windows — mantém-se a pasta resources/api'); return; }
+  const tar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
+  const zip = path.join(resources, 'api.zip');
+  fs.rmSync(zip, { force: true });
+  execSync(`"${tar}" -a -c -L -f "${zip}" -C "${resources}" api`, { stdio: 'inherit' });
+  const prova = path.join(resources, '.prova-api-zip');
+  fs.rmSync(prova, { recursive: true, force: true });
+  fs.mkdirSync(prova, { recursive: true });
+  execSync(`"${tar}" -x -f "${zip}" -C "${prova}"`, { stdio: 'inherit' });
+  const esperado = contarReais(destino);
+  const obtido = contarReais(path.join(prova, 'api'));
+  fs.rmSync(prova, { recursive: true, force: true });
+  if (obtido !== esperado || !fs.existsSync(zip)) {
+    throw new Error(`api.zip incompleto: ${obtido} de ${esperado} ficheiros.`);
+  }
+  log(`api.zip pronto: ${esperado} ficheiros num só arquivo (${Math.round(fs.statSync(zip).size / 1048576)} MB)`);
 }
 
 // Corre só quando chamado diretamente (comparação sem maiúsculas: letra da unidade no Windows).
