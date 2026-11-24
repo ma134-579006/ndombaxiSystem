@@ -320,3 +320,45 @@ export function registerSubscriptionActive(r: Record<string, any>): { active: bo
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return { active: Date.parse(raw.slice(0, 10)) >= Date.parse(new Date().toISOString().slice(0, 10)), raw };
   return { active: false, raw };
 }
+
+/** Plano, fim da subscrição e subdomínio da conta Vendus (campos opcionais: a
+ *  especificação não os documenta, lêem-se quando a conta os devolve). */
+export function readVendusPlan(data: unknown): { plan: string; expires: string; subdomain: string } {
+  const a = unwrap(data);
+  const sub = (a.subscription && typeof a.subscription === 'object' ? a.subscription : {}) as Record<string, any>;
+  const url = first(a, ['url', 'account_url', 'backoffice_url', 'domain', 'subdomain', 'slug']);
+  const m = url.match(/^(?:https?:\/\/)?([a-z0-9-]+)(?:\.vendus\.[a-z.]+)?/i);
+  return {
+    plan: first(a, ['plan', 'plan_name', 'subscription_plan']) || first(sub, ['plan', 'name', 'title']),
+    expires: first(a, ['subscription_expires', 'subscription_end', 'plan_expires', 'expiration_date', 'valid_until'])
+      || first(sub, ['expires', 'end', 'date_end', 'valid_until']),
+    subdomain: m && m[1] && !/^www$/i.test(m[1]) ? m[1].toLowerCase() : '',
+  };
+}
+
+/**
+ * Período da subscrição Vendus a partir da data de fim, contado COMO NO
+ * BACKOFFICE VENDUS (ex.: fim 21/12, hoje 24/11 → "Faltam 27 dias", 13%):
+ * período mensal (ou anual se o fim estiver a mais de 40 dias), dias que
+ * faltam arredondados para cima e o dia de hoje já conta como gasto.
+ */
+export function vendusSubscriptionPeriod(expires: string, now = new Date()): {
+  active: boolean; pct: number; leftPct: number; totalDays: number; usedDays: number; daysLeft: number; expiresAt: string | null;
+} | null {
+  const t = String(expires ?? '').trim();
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const pt = t.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!iso && !pt) return null;
+  const [y, mo, d] = iso ? [+iso[1], +iso[2], +iso[3]] : [+pt![3], +pt![2], +pt![1]];
+  // Fim à meia-noite de Luanda (UTC+1).
+  const end = Date.UTC(y, mo - 1, d) - 3600_000;
+  if (!Number.isFinite(end)) return null;
+  const annual = end - now.getTime() > 40 * 864e5;
+  const start = Date.UTC(annual ? y - 1 : y, annual ? mo - 1 : mo - 2, d) - 3600_000;
+  const totalDays = Math.max(1, Math.round((end - start) / 864e5));
+  if (end <= now.getTime()) return { active: false, pct: 100, leftPct: 0, totalDays, usedDays: totalDays, daysLeft: 0, expiresAt: new Date(end).toISOString() };
+  const daysLeft = Math.min(totalDays, Math.max(0, Math.ceil((end - now.getTime()) / 864e5)));
+  const usedDays = Math.min(totalDays, totalDays - daysLeft + 1);
+  const pct = Math.round((usedDays / totalDays) * 100);
+  return { active: true, pct, leftPct: 100 - pct, totalDays, usedDays, daysLeft, expiresAt: new Date(end).toISOString() };
+}

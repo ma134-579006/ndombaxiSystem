@@ -23,6 +23,8 @@ import {
   isAngola,
   type DocState,
   type EngineCode,
+  readVendusPlan,
+  vendusSubscriptionPeriod,
 } from './fiscal-engine.policy';
 import { buildCreditNote, buildSaleDocument, totalsDivergence, type CompanyMaps, type CreditNoteSnapshot, type SaleSnapshot } from './vendus-payload';
 import { VENDUS_VERSIONS, VendusClient, type VendusResult } from './vendus.client';
@@ -347,6 +349,44 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     const nif = nifFor(l, co.nif);
     if (effectiveEngine(l, s, nif).engine !== 'VENDUS') return { vendus: false };
     return { vendus: true, provider: 'Cegid Vendus', software: s.providerSoftware || 'Vendus', validationNo: s.providerValidationNo, feCertNo: s.providerFeCertNo, validUntil: ymd(s.providerValidUntil) };
+  }
+
+  /** Cache (1 h por empresa) da subscrição lida ao Vendus. */
+  private readonly vendusSubCache = new Map<string, { at: number; v: { plan: string; expires: string; subdomain: string } }>();
+
+  /**
+   * SUBSCRIÇÃO DO VENDUS (empresas cujo motor efectivo é o Cegid Vendus): a
+   * renovação que conta é a do Vendus, por isso a gestão e o caixa mostram o
+   * plano, a data de fim e a percentagem do Vendus, e o botão leva à página de
+   * renovação do Vendus. Fora do Vendus devolve null (fica a subscrição LPS).
+   */
+  async vendusSubscription(companyId: string) {
+    const [co, l, s] = await Promise.all([this.companyById(companyId), this.link(companyId), this.settings()]);
+    if (!l || effectiveEngine(l, s, nifFor(l, co.nif)).engine !== 'VENDUS') return null;
+    let info = this.vendusSubCache.get(companyId);
+    if (!info || Date.now() - info.at > 3600_000) {
+      const v = { plan: '', expires: l.registerExpires || '', subdomain: '' };
+      try {
+        const api = await this.client(l, 10_000);
+        const [acc, reg] = await Promise.all([api.account(), l.registerId ? api.register(l.registerId) : Promise.resolve(null)]);
+        const p = acc.ok ? readVendusPlan(acc.data) : null;
+        if (p) { v.plan = p.plan; v.subdomain = p.subdomain; }
+        const regExp = reg?.ok ? String(((reg.data ?? {}) as Record<string, any>).expires ?? '') : '';
+        // Fim da subscrição: o da conta quando o Vendus o devolve; senão o da caixa API.
+        v.expires = p?.expires || regExp || v.expires;
+        if (regExp && regExp !== l.registerExpires) {
+          await this.prisma.fiscalEngineCompany.update({ where: { id: l.id }, data: { registerExpires: regExp } }).catch(() => undefined);
+        }
+      } catch { /* sem ligação ao Vendus: usa a última data guardada */ }
+      info = { at: Date.now(), v };
+      this.vendusSubCache.set(companyId, info);
+    }
+    const period = vendusSubscriptionPeriod(info.v.expires);
+    const renewUrl = info.v.subdomain ? `https://${info.v.subdomain}.vendus.co.ao/app/subscription/plan/` : 'https://www.vendus.co.ao/login/';
+    return {
+      provider: 'VENDUS' as const, plan: info.v.plan || null, renewUrl, known: !!period,
+      ...(period ?? { active: false, pct: 0, leftPct: 100, totalDays: 0, usedDays: 0, daysLeft: 0, expiresAt: null }),
+    };
   }
 
   async companyBySchema(schema: string): Promise<CompanyRef> {
@@ -697,14 +737,18 @@ export class FiscalEngineService implements OnModuleInit, OnModuleDestroy {
     const acc = await api.account();
     let code = 'OK';
     let message = '';
+    let regExpires = '';
     if (!acc.ok) { code = acc.error!.code; message = acc.error!.message; }
     else if (!sameNif(readVendusAccount(acc.data).fiscalId, nifFor(l, co.nif))) { code = 'NIF_DIFERENTE'; message = `A conta da API KEY (NIF ${readVendusAccount(acc.data).fiscalId || '—'}) não corresponde ao NIF do contribuinte (${nifFor(l, co.nif)})`; }
     else if (l.registerId) {
       const reg = await api.register(l.registerId);
       if (!reg.ok) { code = reg.error!.code; message = reg.error!.message; }
       else if (!registerSubscriptionActive((reg.data ?? {}) as Record<string, any>).active) { code = 'SUBSCRICAO_INACTIVA'; message = 'Caixa Vendus sem subscrição activa'; }
+      if (reg.ok && (reg.data as Record<string, any>)?.expires) regExpires = String((reg.data as Record<string, any>).expires);
     }
     const data: Prisma.FiscalEngineCompanyUpdateInput = { health: { code, at: new Date().toISOString(), message } };
+    if (regExpires) data.registerExpires = regExpires;
+    this.vendusSubCache.delete(l.companyId);
     if (acc.ok) {
       const a = readVendusAccount(acc.data);
       Object.assign(data, { accountId: a.id, accountCompany: a.company, accountFiscalId: a.fiscalId, accountCountry: a.country, accountAddress: a.address });

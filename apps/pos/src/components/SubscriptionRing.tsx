@@ -6,11 +6,11 @@ import { api } from '../api/client';
  *  animada ao passar o rato (ou ao focar). Até 60% verde, 61–80% laranja,
  *  acima de 80% vermelho. */
 export function SubscriptionRing() {
-  const [info, setInfo] = useState<{ total: number; used: number; left: number; pct: number } | null>(null);
+  const [info, setInfo] = useState<{ total: number; used: number; left: number; pct: number; renewUrl?: string; plan?: string | null } | null>(null);
   useEffect(() => {
     let alive = true;
     const load = () => api.subscriptionStatus()
-      .then((st) => { if (!alive) return; if (!st.active) { setInfo(null); return; } const total = st.totalDays ?? Math.max(1, st.daysLeft); setInfo({ total, used: st.usedDays ?? total - st.daysLeft, left: st.daysLeft, pct: st.pct }); })
+      .then((st) => { if (!alive) return; if (!st.active) { setInfo(null); return; } const total = st.totalDays ?? Math.max(1, st.daysLeft); setInfo({ total, used: st.usedDays ?? total - st.daysLeft, left: st.daysLeft, pct: st.pct, ...(st.provider === 'VENDUS' ? { renewUrl: st.renewUrl, plan: st.plan } : {}) }); })
       .catch(() => undefined);
     void load();
     const t = window.setInterval(load, 30 * 60 * 1000);
@@ -19,9 +19,14 @@ export function SubscriptionRing() {
   if (!info) return null;
   const tone = info.pct <= 60 ? 'ok' : info.pct <= 80 ? 'warn' : 'bad';
   const r = 13, c = 2 * Math.PI * r;
-  const tip = info.left === 0 ? 'A subscrição termina hoje' : `Falta${info.left === 1 ? '' : 'm'} ${info.left} dia${info.left === 1 ? '' : 's'} para renovar`;
+  const tip0 = info.left === 0 ? 'A subscrição termina hoje' : `Falta${info.left === 1 ? '' : 'm'} ${info.left} dia${info.left === 1 ? '' : 's'} para renovar`;
+  // Motor Cegid Vendus: a subscrição mostrada é a do Vendus e o toque abre a renovação lá.
+  const tip = info.renewUrl ? `Cegid Vendus${info.plan ? ` · Plano ${info.plan}` : ''} · ${tip0}` : tip0;
   return (
-    <span className={`vsub ${tone}`} tabIndex={0} aria-label={tip}>
+    <span className={`vsub ${tone}`} tabIndex={0} aria-label={tip} role={info.renewUrl ? 'link' : undefined}
+      style={info.renewUrl ? { cursor: 'pointer' } : undefined}
+      onClick={info.renewUrl ? () => window.open(info.renewUrl, '_blank', 'noopener') : undefined}
+      onKeyDown={info.renewUrl ? (e) => { if (e.key === 'Enter') window.open(info.renewUrl, '_blank', 'noopener'); } : undefined}>
       <span className="vsub-tip" role="tooltip">{tip}</span>
       <span className="vsub-tx">Renovar subscrição</span>
       <span className="vsub-ring" aria-hidden="true">

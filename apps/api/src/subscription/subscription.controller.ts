@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Optional, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@nexus/types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -6,6 +6,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../rbac/roles.enum';
 import { SubscriptionService } from './subscription.service';
+import { FiscalEngineService } from '../fiscal-engine/fiscal-engine.service';
 import {
   CreateSubscriptionDto,
   PostSubMessageDto,
@@ -18,7 +19,7 @@ import {
 @ApiTags('subscription')
 @Controller('subscription')
 export class SubscriptionController {
-  constructor(private readonly subs: SubscriptionService) {}
+  constructor(private readonly subs: SubscriptionService, @Optional() private readonly fiscal?: FiscalEngineService) {}
 
   private companyId(user: JwtPayload): string {
     if (!user.tenantId) throw new BadRequestException('Apenas empresas podem subscrever.');
@@ -39,6 +40,9 @@ export class SubscriptionController {
   @Roles(Role.CASHIER)
   @ApiOperation({ summary: 'Estado resumido da subscrição activa (só leitura)' })
   async status(@CurrentUser() user: JwtPayload) {
+    // Motor Cegid Vendus: a renovação que conta é a do Vendus (plano, fim e % do Vendus).
+    const vendus = this.fiscal ? await this.fiscal.vendusSubscription(this.companyId(user)).catch(() => null) : null;
+    if (vendus) return vendus;
     const subs = (await this.subs.list({ companyId: this.companyId(user) })) as Array<{
       status: string; expiresAt?: string | Date | null; startsAt?: string | Date | null; durationDays?: number | null; durationMonths?: number | null;
     }>;

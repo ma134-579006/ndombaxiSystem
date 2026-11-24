@@ -22,10 +22,12 @@ export function TopTitle({ title }: { title: string }) {
   return <h1 className="tb-title" key={title}>{title}</h1>;
 }
 
+type RingInfo = { total: number; used: number; left: number; pct: number; end?: string | null; vendus?: { plan: string | null; renewUrl: string } };
+
 /** Anel da subscrição: aparece só a COMPANY_ADMIN e quando faltam ≤30 dias. */
 export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: () => void }) {
   // Período em dias: consumidos (X de N = Y%) e restantes (Z dias = 100 − Y %).
-  const [info, setInfo] = useState<{ total: number; used: number; left: number; pct: number; end?: string | null } | null>(null);
+  const [info, setInfo] = useState<RingInfo | null>(null);
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -45,7 +47,7 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
       return { total, used, left, pct: Math.round((used / total) * 100) };
     };
     // Endpoint resumido (todas as funções); se ainda não existir na API, calcula a partir das subscrições.
-    const fromMine = () => api.subscription.mine().then((subs) => {
+    const fromMine = (): Promise<RingInfo | null> => api.subscription.mine().then((subs) => {
       const act = subs.filter((x) => x.status === 'ACTIVE' && x.expiresAt)
         .sort((a, b) => Date.parse(b.expiresAt!) - Date.parse(a.expiresAt!))[0];
       if (!act?.expiresAt) return null;
@@ -54,7 +56,9 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
       return { ...calc(end, start), end: act.expiresAt };
     });
     api.subscription.status()
-      .then((st) => {
+      .then((st): RingInfo | null | Promise<RingInfo | null> => {
+        // Motor Cegid Vendus: plano, fim e percentagem do VENDUS (a renovação é lá).
+        if (st.provider === 'VENDUS') return st.active ? { total: st.totalDays ?? 30, used: st.usedDays ?? 0, left: st.daysLeft, pct: st.pct, end: st.expiresAt, vendus: { plan: st.plan ?? null, renewUrl: st.renewUrl ?? 'https://www.vendus.co.ao/login/' } } : null;
         if (!st.active) return null;
         if (st.totalDays) return { total: st.totalDays, used: st.usedDays ?? st.totalDays - st.daysLeft, left: st.daysLeft, pct: st.pct, end: st.expiresAt };
         return fromMine();
@@ -76,9 +80,12 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
     <div className="tb-sub-wrap" ref={boxRef}>
     {open ? (
       <div className="tb-menu tb-sub-menu" role="dialog" aria-label="Subscrição">
+        {info.vendus ? <span className="muted">Cegid Vendus{info.vendus.plan ? ` · Plano ${info.vendus.plan}` : ''}</span> : null}
         <b>{tip}</b>
         {endTx ? <span>Termina a {endTx}</span> : null}
-        {onGo ? <button className="vd-btn" onClick={() => { setOpen(false); onGo(); }}>Renovar subscrição</button> : null}
+        {info.vendus
+          ? <a className="vd-btn" href={info.vendus.renewUrl} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>Renovar no Vendus</a>
+          : onGo ? <button className="vd-btn" onClick={() => { setOpen(false); onGo(); }}>Renovar subscrição</button> : null}
       </div>
     ) : null}
     <button className={`tb-sub ${tone}`} onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={tip}>
