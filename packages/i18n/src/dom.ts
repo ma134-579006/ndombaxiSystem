@@ -33,12 +33,62 @@ function remember(n: Text | Element): void {
 
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
 
+/**
+ * MODELOS com partes variáveis: uma entrada do dicionário pode ter `{n}`
+ * (número: 27, 1.254,50) e `{x}` (qualquer texto: um nome) — ex.:
+ * "Faltam {n} dias para renovar" → "{n} days left to renew". Serve para as
+ * frases montadas com números/nomes (incluindo as que vêm da API).
+ */
+type Pattern = { re: RegExp; names: string[]; out: string; key: string };
+const patternCache = new WeakMap<Map<string, string>, Pattern[]>();
+function patternsOf(d: Map<string, string>): Pattern[] {
+  let ps = patternCache.get(d);
+  if (ps) return ps;
+  ps = [];
+  d.forEach((out, k) => {
+    if (!k.includes('{')) return;
+    const names: string[] = [];
+    const src = k.split(/(\{[nx]\d?\})/).map((part) => {
+      const m = part.match(/^\{([nx]\d?)\}$/);
+      if (!m) return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      names.push(m[1]);
+      return m[1].startsWith('n') ? '(-?\\d[\\d.,\\s]*?)' : '(.+?)';
+    }).join('');
+    // Maior pedaço fixo: filtro barato antes da expressão regular.
+    const key = k.split(/\{[nx]\d?\}/).reduce((a, b) => (b.length > a.length ? b : a), '');
+    if (names.length) ps!.push({ re: new RegExp(`^${src}$`), names, out, key });
+  });
+  // Os mais específicos (mais texto fixo) primeiro.
+  ps.sort((a, b) => b.re.source.length - a.re.source.length);
+  patternCache.set(d, ps);
+  return ps;
+}
+
+/** Traduz um texto com o dicionário: entrada exata ou modelo com `{n}`/`{x}`. */
+export function translateText(d: Map<string, string>, k: string): string | null {
+  const v = d.get(k);
+  if (v !== undefined) return v;
+  if (!/\d|:/.test(k) && k.length < 3) return null;
+  for (const p of patternsOf(d)) {
+    if (p.key && !k.includes(p.key)) continue;
+    const m = k.match(p.re);
+    if (!m) continue;
+    // {x} só apanha DADOS (número, nome próprio, código…): "Fatura {x}" nunca
+    // traduz "Fatura simplificada" como se "simplificada" fosse um valor.
+    if (p.names.some((n, i) => n.startsWith('x') && !/[\dA-ZÀ-Ý@#\/%€$+]/.test(m[i + 1] ?? ''))) continue;
+    let out = p.out;
+    p.names.forEach((n, i) => { out = out.split(`{${n}}`).join(m[i + 1]); });
+    return out;
+  }
+  return null;
+}
+
 function lookup(raw: string): string | null {
   if (!dict) return null;
   const k = norm(raw);
   if (!k || k.length > 400) return null;
-  const v = dict.get(k);
-  if (v !== undefined) return v;
+  const v = translateText(dict, k);
+  if (v !== null) return v;
   // Variantes comuns: "Nome:" / "Nome *" / "A carregar..." → mesma entrada.
   const m = k.match(/^(.*?)(\s*[:*]|…|\.\.\.)$/);
   if (m && m[1]) {

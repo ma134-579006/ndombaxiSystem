@@ -74,7 +74,7 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
   const r = 15, c = 2 * Math.PI * r;
   // Como no backoffice de referência: só o texto e o anel; os dias que faltam
   // aparecem numa dica ANIMADA ao passar o rato (ou ao focar com o teclado).
-  const tip = info.left === 0 ? 'A subscrição termina hoje' : `Falta${info.left === 1 ? '' : 'm'} ${info.left} dia${info.left === 1 ? '' : 's'} para renovar`;
+  const tip = info.left === 0 ? 'A subscrição termina hoje' : info.left === 1 ? 'Falta 1 dia para renovar' : `Faltam ${info.left} dias para renovar`;
   const endTx = info.end ? new Date(info.end).toLocaleDateString('pt-PT') : null;
   return (
     <div className="tb-sub-wrap" ref={boxRef}>
