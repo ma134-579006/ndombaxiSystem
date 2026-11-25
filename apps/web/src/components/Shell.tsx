@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { LOGO_SRC, SYSTEM_NAME, copyrightLine } from '../brand';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
-import { IconLogout } from './Icons';
+import { IconLogout, IconCashRegister, IconHistory, IconCard, IconDownload, IconStore, IconBuilding, IconGear as EvaGear, IconBoxes, IconUser as EvaUser } from './Icons';
 import { THEMES, getTheme, setTheme } from '../theme';
 import { PrintBrandHead, PrintBrandFoot } from './PrintBrand';
 import { ChatModal } from './ChatModal';
@@ -412,6 +412,14 @@ export function Shell({
   const current = flat.find((n) => n.key === section);
   const has = (k: string) => flat.some((n) => n.key === k);
   const currentGroup = nav.find((n) => n.children?.some((c) => c.key === section)) ?? null;
+  // Como no Vendus: o separador GESTÃO mostra SÓ a gestão. O que é do POS (caixas,
+  // movimentos de caixa, tipos de pagamento), da LOJA (loja online, encomendas, LPS
+  // Kwanza, comissões), das APPS (assistente, câmaras) ou da CONFIGURAÇÃO (subscrição,
+  // equipa, backup, definições) fica apenas no respetivo separador — nenhum botão repetido.
+  const FORA_DA_GESTAO = new Set(['assistant', 'subscription', 'stores-group', 'operations', 'payments', 'cameras-group', 'backup-group', 'settings', 'users-group']);
+  const navGestao = isTenant
+    ? nav.filter((n) => !FORA_DA_GESTAO.has(n.key)).map((n) => (n.children ? { ...n, children: n.children.filter((c) => !FORA_DA_GESTAO.has(c.key)) } : n)).filter((n) => !n.children || n.children.length > 0)
+    : nav;
   const userLevel = ROLE_LEVEL[user?.role ?? ''] ?? 9;
   // Criações rápidas do "+": só as secções que este papel vê na navegação.
   // Ordem e nomes como no "+" do backoffice de referência.
@@ -441,6 +449,11 @@ export function Shell({
   const alternarMenuFixo = () => setMenuFixo((v) => { const n = !v; try { localStorage.setItem('lps.menu.fixo', n ? '1' : '0'); } catch { /* sem armazenamento */ } return n; });
   // Grupos abertos (abre automaticamente o que contém a secção activa).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // Como no Vendus: o grupo da página ATIVA fica aberto (vê-se onde se está). Fechar
+  // por fora / sair com o rato volta a esse estado em vez de fechar tudo.
+  const grupoAtualKey = nav.find((n) => n.children?.some((c) => c.key === section))?.key;
+  const reporGrupos = () => setOpenGroups(grupoAtualKey ? { [grupoAtualKey]: true } : {});
+  useEffect(() => { reporGrupos(); }, [grupoAtualKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Chat de equipa (gestor ↔ caixa): badge de não-lidas + janela.
   const [chatOpen, setChatOpen] = useState(false);
@@ -465,7 +478,8 @@ export function Shell({
     return () => { alive = false; stopPoll(t); };
   }, [isTenant, custChatAllowed]);
 
-  type PanelItem = { key: string; label: string; act?: () => void; on?: boolean };
+  // Cada botão dos painéis tem ícone, como no Vendus (Eva Icons).
+  type PanelItem = { key: string; label: string; act?: () => void; on?: boolean; icon?: React.ComponentType<{ size?: number }>; cta?: boolean; head?: string };
   // Abre as Configurações num separador concreto (como os itens do painel CONFIG do Vendus).
   const abrirDefinicoes = (tab: 'brand' | 'modules' | 'stock') => {
     try { sessionStorage.setItem('lps.settings.tab', tab); } catch { /* sem armazenamento */ }
@@ -477,42 +491,58 @@ export function Shell({
     window.dispatchEvent(new Event('lps:sub-history'));
     setSection('subscription');
   };
-  const pi = (key: string, label?: string): PanelItem | null => (has(key) ? { key, label: label ?? flat.find((n) => n.key === key)?.label ?? key } : null);
+  const pi = (key: string, label?: string, icon?: PanelItem['icon']): PanelItem | null => {
+    const it = flat.find((n) => n.key === key);
+    return it ? { key, label: label ?? it.label ?? key, icon: icon ?? it.icon } : null;
+  };
   const abrirApps = () => { if (has('downloads')) setSection('downloads'); else window.open('/baixar', '_blank'); };
-  const equipa = (nav.find((n) => n.key === 'users-group')?.children ?? []).map((c) => ({ key: c.key, label: c.label }));
+  const equipa = (nav.find((n) => n.key === 'users-group')?.children ?? []).map((c) => ({ key: c.key, label: c.label, icon: c.icon }));
   const paineis: Record<Exclude<RailTab, 'gestao'>, PanelItem[]> = {
     pos: [
-      canPos ? { key: '__pos', label: 'Iniciar Ponto de Venda', act: () => onQuick('__pos') } : null,
-      pi('registers', 'Caixas'), pi('operations', 'Movimentos de Caixa'), pi('stores', 'Lojas'), pi('payments', 'Tipos de Pagamento'),
-      { key: '__apps-pos', label: 'Apps da Caixa (Windows e Android)', act: abrirApps },
+      // Como no Vendus: «Iniciar Ponto de Venda» é um botão azul destacado e as apps
+      // ficam numa secção «DOWNLOADS» no fim do painel.
+      canPos ? { key: '__pos', label: 'Iniciar Ponto de Venda', act: () => onQuick('__pos'), icon: IconCashRegister, cta: true } : null,
+      pi('operations', 'Movimentos de Caixa', IconHistory), pi('registers', 'Caixas', IconStore), pi('payments', 'Tipos de Pagamento', IconCard),
+      { key: '__apps-win', label: 'LPS Vendas Windows', act: abrirApps, icon: IconDownload, head: 'Downloads' },
+      { key: '__apps-android', label: 'App Caixa Android', act: abrirApps, icon: IconDownload },
     ].filter(Boolean) as PanelItem[],
     loja: [
       pi('orders', 'Encomendas'),
       pi('store', 'Loja online'),
-      isTenant && !has('store') ? { key: '__loja', label: 'Abrir a loja online', act: () => { window.open(`${STORE_URL}/${companyCode ?? ''}`, '_blank'); } } : null,
-      pi('kwanza'), pi('commissions'), pi('products', 'Produtos'), pi('promotions'), pi('kwanza-payouts'),
+      isTenant && !has('store') ? { key: '__loja', label: 'Abrir a loja online', act: () => { window.open(`${STORE_URL}/${companyCode ?? ''}`, '_blank'); }, icon: IconStore } : null,
+      pi('kwanza'), pi('commissions'), pi('kwanza-payouts'),
     ].filter(Boolean) as PanelItem[],
     apps: [
-      { key: '__baixar', label: 'Aplicações (Windows e Android)', act: abrirApps },
-      pi('assistant'), pi('cameras-live', 'Câmaras'), pi('migration', 'Migração de dados'),
-      pi('integrations'), pi('gateways'), pi('ai'),
+      { key: '__baixar', label: 'Aplicações', act: abrirApps, icon: IconDownload },
+      pi('assistant'), pi('cameras-live', 'Câmaras'), pi('cameras-config', 'Configurar câmaras'), pi('cameras-map', 'Olho de Deus'),
+      pi('gateways'), pi('ai'),
     ].filter(Boolean) as PanelItem[],
     // Mesma ordem do painel CONFIG do Vendus; depois o que é só do LPS.
     config: [
-      has('settings') ? { key: '__dados', label: 'Dados da Empresa', act: () => abrirDefinicoes('brand') } : null,
-      has('settings') ? { key: '__definicoes', label: 'Definições', act: () => abrirDefinicoes('modules') } : null,
-      has('settings') ? { key: '__stock', label: 'Stock', act: () => abrirDefinicoes('stock') } : null,
+      has('settings') ? { key: '__dados', label: 'Dados da Empresa', act: () => abrirDefinicoes('brand'), icon: IconBuilding } : null,
+      has('settings') ? { key: '__definicoes', label: 'Definições', act: () => abrirDefinicoes('modules'), icon: EvaGear } : null,
+      has('settings') ? { key: '__stock', label: 'Stock', act: () => abrirDefinicoes('stock'), icon: IconBoxes } : null,
       pi('subscription', 'Subscrição'),
-      has('subscription') ? { key: '__historico', label: 'Histórico de Pagamentos', act: abrirHistorico } : null,
+      has('subscription') ? { key: '__historico', label: 'Histórico de Pagamentos', act: abrirHistorico, icon: IconHistory } : null,
       pi('migration', 'Migração de Dados'),
       pi('integrations', 'Integrações'),
-      pi('stores', 'Lojas e Caixas'),
+      pi('stores', 'Lojas e Caixas', IconStore),
       ...equipa,
-      pi('security'), pi('mail'), pi('backup'),
-      { key: 'profile', label: 'O meu perfil' },
+      pi('security'), pi('mail'), pi('backup'), pi('backup-restore', 'Restauro de backup'),
+      { key: 'profile', label: 'O meu perfil', icon: EvaUser },
     ].filter(Boolean) as PanelItem[],
   };
   const painel = railTab === 'gestao' ? null : paineis[railTab];
+  // Ao entrar (ou ao abrir uma secção por um atalho), o separador certo fica ativo:
+  // ex.: estando em «Caixas», o menu mostra o painel POS e não a Gestão.
+  const gestaoKeys = navGestao.flatMap((n) => (n.children ? n.children.map((c) => c.key) : [n.key]));
+  useEffect(() => {
+    if (!isTenant) return;
+    if (railTab !== 'gestao' && paineis[railTab].some((p) => p.key === section)) return; // já está no separador certo
+    if (gestaoKeys.includes(section)) { setRailTab('gestao'); return; }
+    const alvo = (['pos', 'loja', 'apps', 'config'] as const).find((t) => paineis[t].some((p) => p.key === section));
+    if (alvo) setRailTab(alvo);
+  }, [section, isTenant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fecha a gaveta ao mudar de secção (importante no telemóvel).
   useEffect(() => { setMenuOpen(false); }, [section]);
@@ -544,7 +574,7 @@ export function Shell({
   useEffect(() => {
     if (!Object.values(openGroups).some(Boolean)) return;
     const onDoc = (e: MouseEvent) => {
-      if (asideRef.current && !asideRef.current.contains(e.target as Node)) setOpenGroups({});
+      if (asideRef.current && !asideRef.current.contains(e.target as Node) && Object.keys(openGroups).some((k) => openGroups[k] && k !== grupoAtualKey)) reporGrupos();
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
@@ -556,16 +586,16 @@ export function Shell({
       {/* Barra lateral estilo Vendus: coluna de ícones (GESTÃO, POS, LOJA, APPS,
           Configurações) + menu da gestão, que mostra só os ícones e abre ao passar
           o rato (animação do LPS). Sem scroll: as linhas encolhem para caber. */}
-      <aside ref={asideRef} className={`sidebar vds${menuOpen ? ' open' : ''}`} onMouseLeave={() => setOpenGroups({})}
+      <aside ref={asideRef} className={`sidebar vds${menuOpen ? ' open' : ''}`} onMouseLeave={reporGrupos}
         style={{
-          ['--nav-n' as string]: painel ? Math.max(painel.length, 6) : nav.length + nav.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0),
+          ['--nav-n' as string]: painel ? Math.max(painel.length + painel.filter((p) => p.head).length, 6) : navGestao.length + navGestao.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0),
           // Telemóvel: com um grupo aberto o menu mostra SÓ esse grupo (cabeçalho
           // + itens), como o menu do Vendus — as linhas cabem sempre, sem scroll.
-          ['--nav-m' as string]: painel ? Math.max(painel.length, 6) : (() => { const g = nav.find((n) => openGroups[n.key] && n.children?.length); return g ? (g.children!.length + 1) : nav.length; })(),
+          ['--nav-m' as string]: painel ? Math.max(painel.length + painel.filter((p) => p.head).length, 6) : (() => { const g = navGestao.find((n) => openGroups[n.key] && n.children?.length); return g ? (g.children!.length + 1) : navGestao.length; })(),
         }}>
         <div className="vds-rail" aria-label="Aplicações">
           <span className="vds-logo"><img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} /></span>
-          <button type="button" className={`vds-tab${railTab === 'gestao' ? ' on' : ''}`} title="Gestão" onClick={() => { setRailTab('gestao'); setOpenGroups({}); }}>
+          <button type="button" className={`vds-tab${railTab === 'gestao' ? ' on' : ''}`} title="Gestão" onClick={() => { setRailTab('gestao'); reporGrupos(); }}>
             <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" /><rect x="13" y="3" width="8" height="5" rx="2" fill="currentColor" opacity=".55" /><rect x="13" y="10" width="8" height="11" rx="2" fill="currentColor" /><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity=".55" /></svg>
             <span>GESTÃO</span>
           </button>
@@ -604,13 +634,16 @@ export function Shell({
               </svg>
             </button>
           </div>
-          <nav className={`nav${!painel && nav.some((n) => openGroups[n.key] && n.children?.length) ? ' has-open' : ''}${painel ? ' nav-painel' : ''}`} key={railTab}>
+          <nav className={`nav${!painel && navGestao.some((n) => openGroups[n.key] && n.children?.length) ? ' has-open' : ''}${painel ? ' nav-painel' : ''}`} key={railTab}>
             {painel ? painel.map((p) => (
-              <button key={p.key} className={section === p.key ? 'active' : ''} title={p.label}
-                onClick={() => { if (p.act) p.act(); else setSection(p.key); setMenuOpen(false); }}>
-                <span className="nav-label">{p.label}</span>
-              </button>
-            )) : nav.map((n) => {
+              <React.Fragment key={p.key}>
+                {p.head ? <div className="vds-sec" role="presentation">{p.head}</div> : null}
+                <button className={`${section === p.key ? 'active' : ''}${p.cta ? ' vds-cta' : ''}`} title={p.label}
+                  onClick={() => { if (p.act) p.act(); else setSection(p.key); setMenuOpen(false); }}>
+                  {p.icon ? <p.icon size={18} /> : null}<span className="nav-label">{p.label}</span>
+                </button>
+              </React.Fragment>
+            )) : navGestao.map((n) => {
               const Icon = n.icon;
               if (n.children && n.children.length) {
                 const open = !!openGroups[n.key];
@@ -635,7 +668,7 @@ export function Shell({
                             <button
                               key={c.key}
                               className={section === c.key ? 'active' : ''}
-                              onClick={() => { setSection(c.key); setOpenGroups({}); setMenuOpen(false); }}
+                              onClick={() => { setSection(c.key); setOpenGroups({ [n.key]: true }); setMenuOpen(false); }}
                             >
                               <CIcon size={16} /> {c.label}
                             </button>

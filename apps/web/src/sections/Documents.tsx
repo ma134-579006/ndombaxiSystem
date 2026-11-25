@@ -4,6 +4,7 @@ import type { ManagerStore, ReportDocRow, SaleDetail } from '../api/types';
 import { formatKz } from '../format';
 import { invoicePdf } from '../components/InvoiceShare';
 import { Modal } from '../components/ui';
+import { IconPlus, IconSearch } from '../components/Icons';
 
 /**
  * Documentos (faturação) no modelo do backoffice de referência:
@@ -21,7 +22,7 @@ const monthStart = () => { const d = new Date(); return ymd(new Date(d.getFullYe
 const fmtDT = (s: string) => { const d = new Date(s); return Number.isNaN(d.getTime()) ? s : d.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
 const num = (s: string | number | null | undefined) => Number(s) || 0;
 
-export function Documents() {
+export function Documents({ onGo }: { onGo?: (section: string) => void } = {}) {
   const [rows, setRows] = useState<ReportDocRow[]>([]);
   const [stores, setStores] = useState<ManagerStore[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,13 +79,22 @@ export function Documents() {
         <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Documentos</span><span className="sep">/</span><span>Faturação</span></p>
         <span className="spacer" />
         <button className="vd-btn outline" onClick={exportCsv} disabled={list.length === 0}>Exportar CSV</button>
+        {onGo ? <button className="vd-btn" onClick={() => onGo('documents-new')}><IconPlus size={16} /> Criar documento</button> : null}
       </div>
       {error ? <div className="vd-err" role="alert">{error}</div> : null}
 
       <div className="doc-layout">
         <div className="doc-main">
           <div className="vd-card doc-search">
-            <input className="vd-in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar por número, cliente ou NIF" aria-label="Pesquisar documentos" />
+            {/* Como no Vendus: lupa dentro do campo + botão «Pesquisar» (filtra ao escrever;
+                o botão volta a pedir a lista ao servidor). */}
+            <form className="doc-q" role="search" onSubmit={(e) => { e.preventDefault(); void load(); }}>
+              <span className="doc-q-in">
+                <IconSearch size={18} />
+                <input className="vd-in" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar por número, cliente ou NIF" aria-label="Pesquisar documentos" />
+              </span>
+              <button type="submit" className="vd-btn doc-q-btn">Pesquisar</button>
+            </form>
             <div className="vd-sum">
               <span>Documentos <b>{list.length}</b></span>
               <span>Total <b>{formatKz(total)}</b></span>
@@ -116,7 +126,7 @@ export function Documents() {
         </div>
 
         <aside className="vd-card doc-filters" aria-label="Filtros">
-          <p className="vd-sect">Filtros</p>
+          <p className="vd-sect">Filtro de Documentos</p>
           <label className="vd-f"><span>Lojas</span><select value={draft.storeId} onChange={(e) => setDraft({ ...draft, storeId: e.target.value })}>
             <option value="">Todas as lojas</option>
             {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -140,7 +150,7 @@ export function Documents() {
               <span className="mid">até</span>
               <input inputMode="decimal" value={draft.max} onChange={(e) => setDraft({ ...draft, max: e.target.value })} placeholder="Max" aria-label="Valor máximo" />
             </div></div>
-          <button className="vd-btn block" onClick={() => setApplied({ ...draft })}>Aplicar filtro</button>
+          <button className="vd-btn block doc-apply" onClick={() => setApplied({ ...draft })}>Aplicar filtro</button>
           <button className="vd-clear block" onClick={() => { const d = { storeId: '', from: monthStart(), to: today(), docType: '', status: '', min: '', max: '' }; setDraft(d); setApplied(d); }}>✕ Limpar filtro</button>
         </aside>
       </div>

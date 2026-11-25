@@ -7,34 +7,23 @@ import type {
   ReportDocRow, ReportPaymentRow, ReportTaxRow, ReportUserRow,
 } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
-import { IconChart } from '../components/Icons';
+import { IconCalendar, IconChart, IconSearch } from '../components/Icons';
+import { REPORT_TABS, type ReportTab } from './reportMenu';
 import { AreaChart } from '../components/AreaChart';
 import { ColumnChart } from '../components/ColumnChart';
 import { DonutChart } from '../components/DonutChart';
 import { formatKz, localIso } from '../format';
 
-type Tab = 'all' | 'product' | 'user' | 'store' | 'category' | 'brand' | 'evolution' | 'tax' | 'payments' | 'documents' | 'cashbox' | 'customer' | 'hour' | 'weekday' | 'daily' | 'month';
+type Tab = ReportTab;
 type TimeTab = 'hour' | 'weekday' | 'daily' | 'month';
 const TIME_BY: Record<TimeTab, 'hour' | 'weekday' | 'day' | 'month'> = { hour: 'hour', weekday: 'weekday', daily: 'day', month: 'month' };
 const WEEKDAY = ['', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 const isTime = (t: Tab): t is TimeTab => t === 'hour' || t === 'weekday' || t === 'daily' || t === 'month';
-const TABS: { key: Tab; label: string; group: string }[] = [
-  { key: 'all', label: 'Tudo (resumo)', group: 'Vendas' },
-  { key: 'product', label: 'Por produto', group: 'Vendas' },
-  { key: 'user', label: 'Por utilizador', group: 'Vendas' },
-  { key: 'store', label: 'Por loja', group: 'Vendas' },
-  { key: 'category', label: 'Por categoria', group: 'Vendas' },
-  { key: 'brand', label: 'Por marca', group: 'Vendas' },
-  { key: 'customer', label: 'Por cliente', group: 'Vendas' },
-  { key: 'daily', label: 'Vendas diárias', group: 'Vendas no tempo' },
-  { key: 'hour', label: 'Por hora', group: 'Vendas no tempo' },
-  { key: 'weekday', label: 'Dias da semana', group: 'Vendas no tempo' },
-  { key: 'month', label: 'Mensal', group: 'Vendas no tempo' },
-  { key: 'evolution', label: 'Evolução temporal', group: 'Vendas' },
-  { key: 'documents', label: 'Documentos', group: 'Contabilidade' },
-  { key: 'tax', label: 'Mapa de IVA', group: 'Contabilidade' },
-  { key: 'cashbox', label: 'Fecho de caixa', group: 'Caixa' },
-  { key: 'payments', label: 'Métodos de pagamento', group: 'Caixa' },
+const TABS = REPORT_TABS;
+type Preset = 'today' | 'yesterday' | 'week' | 'month' | 'lastmonth' | 'year' | 'custom';
+const PRESETS: { k: Preset; l: string }[] = [
+  { k: 'today', l: 'Hoje' }, { k: 'yesterday', l: 'Ontem' }, { k: 'week', l: 'Últimos 7 dias' },
+  { k: 'month', l: 'Mês' }, { k: 'lastmonth', l: 'Mês anterior' }, { k: 'year', l: 'Ano' }, { k: 'custom', l: 'Personalizado' },
 ];
 const todayISO = (d = new Date()) => localIso(d);
 const fmtDT = (s: string) => { try { return new Date(s).toLocaleString('pt-PT'); } catch { return s; } };
@@ -45,9 +34,13 @@ const PAY_LABEL: Record<string, string> = {
 const DOC_LABEL: Record<string, string> = { FT: 'Fatura', FS: 'Fatura simplificada', NC: 'Nota de crédito', FR: 'Fatura-recibo' };
 
 /** Centro de Relatórios (estilo Vendus): performance, contabilidade e caixa. */
-export function Reports() {
-  const [tab, setTab] = useState<Tab>('product');
-  const [from, setFrom] = useState(todayISO(new Date(Date.now() - 29 * 86400000)));
+/** Relatórios no formato do Vendus: o tipo escolhe-se no menu lateral (Gestão › Relatórios);
+ *  a página tem a barra de filtros (Período, Lojas, Aplicar filtro), o gráfico com
+ *  «Evolução / Top» e a tabela com totais e Imprimir / Exportar. */
+export function Reports({ tab = 'product' }: { tab?: Tab } = {}) {
+  const [preset, setPreset] = useState<Preset>('month');
+  const [chartView, setChartView] = useState<'evo' | 'top'>('evo');
+  const [from, setFrom] = useState(() => { const d = new Date(); return todayISO(new Date(d.getFullYear(), d.getMonth(), 1)); });
   const [to, setTo] = useState(todayISO());
   const [docType, setDocType] = useState('');
   const [storeId, setStoreId] = useState('');
@@ -56,7 +49,7 @@ export function Reports() {
   const [error, setError] = useState<string | null>(null);
 
   // Tabs que suportam filtro por loja (multi-loja).
-  const STORE_FILTERABLE: Tab[] = ['all', 'user', 'category', 'brand', 'tax', 'documents', 'customer', 'hour', 'weekday', 'daily', 'month'];
+  const STORE_FILTERABLE: Tab[] = ['all', 'product', 'evolution', 'user', 'category', 'brand', 'tax', 'documents', 'customer', 'hour', 'weekday', 'daily', 'month'];
 
   const [byProduct, setByProduct] = useState<ProfitProduct[]>([]);
   const [byUser, setByUser] = useState<ReportUserRow[]>([]);
@@ -92,14 +85,14 @@ export function Reports() {
         ]);
         setByProduct(p); setByUser(u); setByStore(s); setByCategory(c); setByBrand(b); setSeries(ev); setPayments(pay);
       }
-      else if (tab === 'product') setByProduct(await api.profit.byProduct(from, to));
+      else if (tab === 'product') setByProduct(await api.profit.byProduct(from, to, sid));
       else if (tab === 'user') setByUser(await api.reports.salesByUser(from, to, sid));
       else if (tab === 'customer') setByCustomer(await api.reports.salesByCustomer(from, to, sid));
       else if (isTime(tab)) setByTime(await api.reports.salesByTime(TIME_BY[tab], from, to, sid));
       else if (tab === 'store') setByStore(await api.reports.salesByStore(from, to));
       else if (tab === 'category') setByCategory(await api.reports.salesByCategory(from, to, sid));
       else if (tab === 'brand') setByBrand(await api.reports.salesByBrand(from, to, sid));
-      else if (tab === 'evolution') setSeries(await api.profit.series(from, to));
+      else if (tab === 'evolution') setSeries(await api.profit.series(from, to, sid));
       else if (tab === 'tax') setTax(await api.reports.taxMap(from, to, sid));
       else if (tab === 'payments') setPayments(await api.reports.paymentMethods(from, to));
       else if (tab === 'documents') setDocs(await api.reports.documents({ from, to, storeId: sid, docType: docType || undefined }));
@@ -158,7 +151,6 @@ export function Reports() {
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent('Segue em anexo o relatório (ficheiro descarregado: ' + name + ').')}`;
   };
 
-  const groups = ['Vendas', 'Contabilidade', 'Caixa'];
 
   // Mini-dashboard por relatório (tempo real): o tipo de gráfico varia conforme
   // os dados — COLUNAS (rankings), ROSCA (composição/quota) e ÁREA (evolução).
@@ -189,213 +181,144 @@ export function Reports() {
   })();
 
   const num = (v: unknown) => Number(v) || 0;
-  const kp: { l: string; v: string; h?: string; hi?: boolean }[] = (() => {
-    if (tab === 'product' || (tab === 'all' && byProduct.length)) {
-      const sales = byProduct.reduce((t, p) => t + num(p.salesNet), 0), profit = byProduct.reduce((t, p) => t + num(p.profit), 0), qty = byProduct.reduce((t, p) => t + num(p.qty), 0);
-      return [{ l: 'Vendas líquidas', v: formatKz(sales), hi: true }, { l: 'Lucro', v: formatKz(profit) }, { l: 'Margem', v: sales ? `${Math.round((profit / sales) * 1000) / 10}%` : '—' }, { l: 'Unidades', v: String(qty), h: `${byProduct.length} produto(s)` }];
-    }
-    const grp = (rows: { sales?: number; qty?: number; net: number; gross: number }[], k: 'sales' | 'qty', lab: string) => [
-      { l: 'Líquido', v: formatKz(rows.reduce((t, r) => t + num(r.net), 0)) },
-      { l: 'Total faturado', v: formatKz(rows.reduce((t, r) => t + num(r.gross), 0)), hi: true },
-      { l: lab, v: String(rows.reduce((t, r) => t + num(r[k]), 0)), h: `${rows.length} linha(s)` },
-    ];
-    if (tab === 'user') return grp(byUser, 'sales', 'Nº de vendas');
-    if (tab === 'customer') return grp(byCustomer, 'sales', 'Nº de vendas');
-    if (isTime(tab)) return grp(timeRows, 'sales', 'Nº de vendas');
-    if (tab === 'store') return grp(byStore, 'sales', 'Nº de vendas');
-    if (tab === 'category') return grp(byCategory, 'qty', 'Quantidade');
-    if (tab === 'brand') return grp(byBrand, 'qty', 'Quantidade');
-    if (tab === 'evolution') {
-      const sales = series.reduce((t, p) => t + num(p.salesNet), 0), profit = series.reduce((t, p) => t + num(p.profit), 0);
-      return [{ l: 'Vendas líquidas', v: formatKz(sales), hi: true }, { l: 'Custo', v: formatKz(series.reduce((t, p) => t + num(p.cost), 0)) }, { l: 'Lucro', v: formatKz(profit) }, { l: 'Dias', v: String(series.length) }];
-    }
-    if (tab === 'tax') return [{ l: 'Base tributável', v: formatKz(sumTax(tax, 'net')) }, { l: 'IVA', v: formatKz(sumTax(tax, 'iva')), hi: true }, { l: 'Total', v: formatKz(sumTax(tax, 'gross')) }];
-    if (tab === 'payments') return [{ l: 'Total recebido', v: formatKz(payments.reduce((t, r) => t + num(r.total), 0)), hi: true }, { l: 'Nº de pagamentos', v: String(payments.reduce((t, r) => t + num(r.count), 0)) }, { l: 'Métodos', v: String(payments.length) }];
-    if (tab === 'documents') return [{ l: 'Documentos', v: String(docs.length) }, { l: 'Total', v: formatKz(docs.filter((d) => d.status !== 'A').reduce((t, d) => t + num(d.gross_total), 0)), hi: true }, { l: 'Anulados', v: String(docs.filter((d) => d.status === 'A').length) }];
-    if (tab === 'cashbox') return [{ l: 'Fechos', v: String(sessions.length) }, { l: 'Vendas', v: formatKz(sessions.reduce((t, x) => t + num(x.total_sales), 0)), hi: true }, { l: 'Diferença total', v: formatKz(sessions.reduce((t, x) => t + num(x.difference), 0)) }];
-    return [];
-  })();
-  const setRange = (days: number | 'month' | 'year') => {
-    const end = new Date();
-    const start = days === 'month' ? new Date(end.getFullYear(), end.getMonth(), 1) : days === 'year' ? new Date(end.getFullYear(), 0, 1) : new Date(Date.now() - (days - 1) * 86400000);
-    setFrom(todayISO(start)); setTo(todayISO(end));
+  const sum = <T,>(rows: T[], f: (r: T) => unknown) => rows.reduce((t, r) => t + num(f(r)), 0);
+  const label = TABS.find((t) => t.key === tab)?.label ?? 'Relatório';
+  const presetLabel = PRESETS.find((p) => p.k === preset)?.l ?? 'Período';
+
+  // Período (como o seletor «Período» do Vendus): muda as datas e recarrega.
+  const applyPreset = (p: Preset) => {
+    setPreset(p);
+    if (p === 'custom') return;
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+    const range: Record<Exclude<Preset, 'custom'>, [Date, Date]> = {
+      today: [now, now],
+      yesterday: [new Date(y, m, d - 1), new Date(y, m, d - 1)],
+      week: [new Date(y, m, d - 6), now],
+      month: [new Date(y, m, 1), now],
+      lastmonth: [new Date(y, m - 1, 1), new Date(y, m, 0)],
+      year: [new Date(y, 0, 1), now],
+    };
+    const [a, b] = range[p];
+    setFrom(todayISO(a)); setTo(todayISO(b));
   };
 
+  // Gráfico «Evolução» (vendas por dia no período) — carregado à parte, só quando é visto.
+  const timeTab = isTime(tab);
+  const hasToggle = !timeTab && tab !== 'evolution' && tab !== 'all';
+  useEffect(() => {
+    if (!hasToggle || chartView !== 'evo') return;
+    let alive = true;
+    api.profit.series(from, to, STORE_FILTERABLE.includes(tab) ? sid : undefined)
+      .then((v) => { if (alive) setSeries(v); }).catch(() => { if (alive) setSeries([]); });
+    return () => { alive = false; };
+  }, [hasToggle, chartView, tab, from, to, sid]); // eslint-disable-line react-hooks/exhaustive-deps
+  const evoChart = series.length ? <AreaChart points={series.map((p) => ({ label: p.bucket, value: p.salesNet }))} format={formatKz} /> : null;
+  const chart = hasToggle ? (chartView === 'evo' ? evoChart : reportChart) : reportChart;
+
+  const salesFoot = (rows: { sales?: number; qty?: number; net: number; gross: number }[], first: string, k: 'sales' | 'qty') =>
+    [first, String(sum(rows, (r) => r[k])), formatKz(sum(rows, (r) => r.net)), formatKz(sum(rows, (r) => r.gross))];
+  const tableTitle = tab === 'documents' ? 'Documentos' : tab === 'tax' ? 'Impostos' : tab === 'payments' ? 'Pagamentos' : tab === 'cashbox' ? 'Movimentos de Caixa' : 'Vendas';
+
+  const table: React.ReactNode = (() => {
+    if (tab === 'product') {
+      return <Table head={['Produtos', 'Vendas c/IVA', 'Vendas', 'Custos', 'Resultado', 'Quantidade', 'Nº Vendas', 'Nº Rectificações']}
+        rows={byProduct.map((p) => [p.description, formatKz(num(p.salesGross)), formatKz(p.salesNet), formatKz(p.cost), formatKz(p.profit), String(p.qty), String(p.sales ?? '—'), String(p.rectifications ?? 0)])}
+        foot={['Total', formatKz(sum(byProduct, (p) => p.salesGross)), formatKz(sum(byProduct, (p) => p.salesNet)), formatKz(sum(byProduct, (p) => p.cost)), formatKz(sum(byProduct, (p) => p.profit)), String(Math.round(sum(byProduct, (p) => p.qty) * 1000) / 1000), String(sum(byProduct, (p) => p.sales)), String(sum(byProduct, (p) => p.rectifications))]} />;
+    }
+    if (tab === 'customer') return <Table head={['Clientes', 'Nº Vendas', 'Vendas', 'Vendas c/IVA']} rows={byCustomer.map((r) => [r.name, String(r.sales), formatKz(r.net), formatKz(r.gross)])} foot={salesFoot(byCustomer, 'Total', 'sales')} />;
+    if (timeTab) return <Table head={[tab === 'hour' ? 'Hora' : tab === 'weekday' ? 'Dia da semana' : tab === 'month' ? 'Mês' : 'Dia', 'Nº Vendas', 'Vendas', 'Vendas c/IVA']} rows={timeRows.map((r) => [timeLabel(r.bucket), String(r.sales), formatKz(r.net), formatKz(r.gross)])} foot={salesFoot(timeRows, 'Total', 'sales')} />;
+    if (tab === 'user') return <Table head={['Utilizadores', 'Nº Vendas', 'Vendas', 'Vendas c/IVA']} rows={byUser.map((r) => [r.name, String(r.sales), formatKz(r.net), formatKz(r.gross)])} foot={salesFoot(byUser, 'Total', 'sales')} />;
+    if (tab === 'store') return <Table head={['Lojas', 'Nº Vendas', 'Vendas', 'Vendas c/IVA']} rows={byStore.map((r) => [r.name, String(r.sales), formatKz(r.net), formatKz(r.gross)])} foot={salesFoot(byStore, 'Total', 'sales')} />;
+    if (tab === 'category') return <Table head={['Categorias', 'Quantidade', 'Vendas', 'Vendas c/IVA']} rows={byCategory.map((r) => [r.name, String(r.qty), formatKz(r.net), formatKz(r.gross)])} foot={salesFoot(byCategory, 'Total', 'qty')} />;
+    if (tab === 'brand') return <Table head={['Marcas', 'Quantidade', 'Vendas', 'Vendas c/IVA']} rows={byBrand.map((r) => [r.name, String(r.qty), formatKz(r.net), formatKz(r.gross)])} foot={salesFoot(byBrand, 'Total', 'qty')} />;
+    if (tab === 'evolution') return <Table head={['Data', 'Vendas', 'Custos', 'Resultado']} rows={series.map((p) => [p.bucket, formatKz(p.salesNet), formatKz(p.cost), formatKz(p.profit)])} foot={['Total', formatKz(sum(series, (p) => p.salesNet)), formatKz(sum(series, (p) => p.cost)), formatKz(sum(series, (p) => p.profit))]} />;
+    if (tab === 'tax') return <Table head={['Taxa IVA', 'Base tributável', 'IVA', 'Total']} rows={tax.map((r) => [`${r.rate}%`, formatKz(r.net), formatKz(r.iva), formatKz(r.gross)])} foot={['Total', formatKz(sumTax(tax, 'net')), formatKz(sumTax(tax, 'iva')), formatKz(sumTax(tax, 'gross'))]} />;
+    if (tab === 'payments') return <Table head={['Método de pagamento', 'Nº', 'Total']} rows={payments.map((r) => [PAY_LABEL[r.method] ?? r.method, String(r.count), formatKz(r.total)])} foot={['Total', String(sum(payments, (r) => r.count)), formatKz(sum(payments, (r) => r.total))]} />;
+    if (tab === 'documents') return <Table head={['Documento', 'Tipo', 'Data', 'Loja', 'Operador', 'Total', 'Estado']} rows={docs.map((d) => [d.number, DOC_LABEL[d.doc_type] ?? d.doc_type, fmtDT(d.system_entry_date), d.store_name ?? '—', d.cashier_name ?? '—', formatKz(num(d.gross_total)), d.status === 'A' ? 'Anulada' : 'Válida'])} foot={[`${docs.length} documento(s)`, '', '', '', '', formatKz(sum(docs.filter((d) => d.status !== 'A'), (d) => d.gross_total)), '']} />;
+    if (tab === 'cashbox') return <Table head={['Fecho', 'Loja', 'Operador', 'Fundo', 'Vendas', 'Suprim.', 'Sangrias', 'Contado', 'Diferença']} rows={sessions.map((x) => [fmtDT(x.closed_at), x.store_name ?? '—', x.opened_by_name ?? '—', formatKz(num(x.opening_float)), formatKz(num(x.total_sales)), formatKz(num(x.total_cash_in)), formatKz(num(x.total_cash_out)), formatKz(num(x.counted_cash)), formatKz(num(x.difference))])} foot={['Total', '', '', '', formatKz(sum(sessions, (x) => x.total_sales)), formatKz(sum(sessions, (x) => x.total_cash_in)), formatKz(sum(sessions, (x) => x.total_cash_out)), formatKz(sum(sessions, (x) => x.counted_cash)), formatKz(sum(sessions, (x) => x.difference))]} />;
+    return null;
+  })();
+
+  const period = `${from.split('-').reverse().join('/')} a ${to.split('-').reverse().join('/')}`;
+  const actions = (
+    <span className="rp-bar-act no-print">
+      <button type="button" className="vd-btn outline sm" onClick={() => void printSectionReport({ subtitle: period })}>Imprimir</button>
+      <button type="button" className="vd-btn outline sm" onClick={() => void printSectionReport({ subtitle: period })}>Exportar PDF</button>
+      <button type="button" className="vd-btn outline sm" onClick={csvExport}>Exportar CSV</button>
+      <button type="button" className="vd-btn outline sm" onClick={() => void emailExport()}>Enviar por e-mail</button>
+    </span>
+  );
+
   return (
-    <div className="reports-page">
-      <div className="content-head no-print">
-        <h2>Relatórios</h2>
-        <span className="spacer" />
-        <button className="btn sm ghost" onClick={csvExport}>CSV/Excel</button>
-        <button className="btn sm ghost" onClick={() => void emailExport()}>E-mail</button>
-        <button className="btn sm ghost" onClick={() => void printSectionReport({ subtitle: `${from.split('-').reverse().join('/')} a ${to.split('-').reverse().join('/')}` })}>Imprimir/PDF</button>
+    <div className="vd-page reports-page">
+      <div className="vd-head no-print">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Relatórios</span><span className="sep">/</span><span>{label}</span></p>
       </div>
 
-      <div className="rp-layout">
-        <nav className="rp-nav no-print" aria-label="Relatórios">
-          {groups.map((g) => (
-            <div key={g} className="rp-grp">
-              <div className="rp-gl">{g}</div>
-              {TABS.filter((t) => t.group === g).map((t) => (
-                <button key={t.key} className={tab === t.key ? 'on' : ''} onClick={() => setTab(t.key)}>{t.label}</button>
-              ))}
-            </div>
-          ))}
-        </nav>
+      <form className="vd-card rp-search no-print" onSubmit={(e) => { e.preventDefault(); void load(); }}>
+        <label className="rp-f"><span>Período</span>
+          <select value={preset} onChange={(e) => applyPreset(e.target.value as Preset)}>
+            {PRESETS.map((p) => <option key={p.k} value={p.k}>{p.l}</option>)}
+          </select></label>
+        {preset === 'custom' ? (
+          <>
+            <label className="rp-f"><span>De</span><input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></label>
+            <label className="rp-f"><span>Até</span><input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></label>
+          </>
+        ) : null}
+        {isAdmin && stores.length > 1 && STORE_FILTERABLE.includes(tab) ? (
+          <label className="rp-f"><span>Lojas</span>
+            <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+              <option value="">Todas as lojas</option>
+              {stores.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
+            </select></label>
+        ) : null}
+        {tab === 'documents' ? (
+          <label className="rp-f"><span>Tipo de documento</span>
+            <select value={docType} onChange={(e) => setDocType(e.target.value)}>
+              <option value="">Todos</option>
+              <option value="FT">Fatura (FT)</option>
+              <option value="FS">Fatura simplificada (FS)</option>
+              <option value="NC">Nota de crédito (NC)</option>
+            </select></label>
+        ) : null}
+        <button type="submit" className="vd-btn rp-apply" disabled={loading}><IconSearch size={16} /> {loading ? 'A carregar…' : 'Aplicar filtro'}</button>
+      </form>
 
-        <div className="rp-main">
-          <div className="card rp-filters no-print">
-            <div className="rp-presets">
-              <button className="chip" onClick={() => setRange(1)}>Hoje</button>
-              <button className="chip" onClick={() => setRange(7)}>7 dias</button>
-              <button className="chip" onClick={() => setRange(30)}>30 dias</button>
-              <button className="chip" onClick={() => setRange('month')}>Este mês</button>
-              <button className="chip" onClick={() => setRange('year')}>Este ano</button>
-            </div>
-            <div className="rp-fields">
-              <div className="field"><label>De</label>
-                <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></div>
-              <div className="field"><label>Até</label>
-                <input type="date" value={to} min={from} max={todayISO()} onChange={(e) => setTo(e.target.value)} /></div>
-              {isAdmin && stores.length > 1 && STORE_FILTERABLE.includes(tab) ? (
-                <div className="field"><label>Loja</label>
-                  <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-                    <option value="">Todas as lojas</option>
-                    {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select></div>
-              ) : null}
-              {tab === 'documents' ? (
-                <div className="field"><label>Tipo de documento</label>
-                  <select value={docType} onChange={(e) => setDocType(e.target.value)}>
-                    <option value="">Todos</option>
-                    <option value="FT">Fatura (FT)</option>
-                    <option value="FS">Fatura simplificada (FS)</option>
-                    <option value="NC">Nota de crédito (NC)</option>
-                  </select></div>
-              ) : null}
-              <button className="btn" onClick={() => void load()} disabled={loading}>{loading ? 'A carregar…' : 'Atualizar'}</button>
-            </div>
-          </div>
-
-      {error ? <div className="banner danger no-print">{error}</div> : null}
+      {error ? <div className="vd-err no-print" role="alert">{error}</div> : null}
 
       {/* Título + período (só na impressão — o cabeçalho da empresa vem do Shell) */}
       <div className="print-only doc-print-sub">
-        <span className="dph-title">{TABS.find((t) => t.key === tab)?.label}</span>
-        <span className="dph-period"> · Período: {new Date(from).toLocaleDateString('pt-PT')} a {new Date(to).toLocaleDateString('pt-PT')}</span>
+        <span className="dph-title">{label}</span>
+        <span className="dph-period"> · Período: {period}</span>
       </div>
 
-      {!loading && kp.length ? (
-        <div className="rp-kpis no-print">
-          {kp.map((k) => (
-            <div key={k.l} className={`ui-tile${k.hi ? ' info' : ''}`}><div className="ui-tile-l">{k.l}</div><div className="ui-tile-v">{k.v}</div>{k.h ? <div className="ui-tile-h">{k.h}</div> : null}</div>
-          ))}
+      <section className="vd-card rp-box no-print" aria-label="Gráfico">
+        <div className="rp-bar">
+          <span className="rp-bar-t"><IconCalendar size={18} /> {presetLabel}: {from} a {to}</span>
+          {hasToggle ? (
+            <span className="rp-seg" role="group" aria-label="Tipo de gráfico">
+              <button type="button" className={chartView === 'evo' ? 'on' : ''} aria-pressed={chartView === 'evo'} onClick={() => setChartView('evo')}><IconTrend /> Evolução</button>
+              <button type="button" className={chartView === 'top' ? 'on' : ''} aria-pressed={chartView === 'top'} onClick={() => setChartView('top')}><IconChart size={16} /> Top</button>
+            </span>
+          ) : null}
         </div>
-      ) : null}
-
-      {!loading && reportChart ? (
-        <div className="card no-print" style={{ marginBottom: 12 }}>
-          <h3 style={{ marginTop: 0 }}>
-            {TABS.find((t) => t.key === tab)?.label}
-            <span className="muted" style={{ fontWeight: 500, fontSize: 13 }}> · vista gráfica</span>
-          </h3>
-          {reportChart}
+        <div className="rp-body">
+          {loading ? <div className="loading">A carregar…</div> : chart ?? <div className="empty"><IconChart size={36} /><p>Sem dados no período.</p></div>}
         </div>
-      ) : null}
+      </section>
 
-      {tab === 'all' ? (
-        loading ? <div className="card"><div className="loading">A carregar…</div></div> : (
-          <>
-            <ReportCard title="Por produto"><Table head={['Produto', 'Qt', 'Vendas', 'Custo', 'Lucro', 'Margem']}
-              rows={byProduct.map((p) => [p.description, String(p.qty), formatKz(p.salesNet), formatKz(p.cost), formatKz(p.profit), `${p.marginPct}%`])} /></ReportCard>
-            <ReportCard title="Por utilizador"><Table head={['Utilizador', 'Nº vendas', 'Líquido', 'Total faturado']}
-              rows={byUser.map((r) => [r.name, String(r.sales), formatKz(r.net), formatKz(r.gross)])} /></ReportCard>
-            <ReportCard title="Por loja"><Table head={['Loja', 'Nº vendas', 'Líquido', 'Total faturado']}
-              rows={byStore.map((r) => [r.name, String(r.sales), formatKz(r.net), formatKz(r.gross)])} /></ReportCard>
-            <ReportCard title="Por categoria"><Table head={['Categoria', 'Quantidade', 'Líquido', 'Total']}
-              rows={byCategory.map((r) => [r.name, String(r.qty), formatKz(r.net), formatKz(r.gross)])} /></ReportCard>
-            <ReportCard title="Por marca"><Table head={['Marca', 'Quantidade', 'Líquido', 'Total']}
-              rows={byBrand.map((r) => [r.name, String(r.qty), formatKz(r.net), formatKz(r.gross)])} /></ReportCard>
-            <ReportCard title="Evolução temporal"><Table head={['Data', 'Vendas', 'Custo', 'Lucro']}
-              rows={series.map((p) => [p.bucket, formatKz(p.salesNet), formatKz(p.cost), formatKz(p.profit)])} /></ReportCard>
-            <ReportCard title="Métodos de pagamento"><Table head={['Método de pagamento', 'Nº', 'Total']}
-              rows={payments.map((r) => [PAY_LABEL[r.method] ?? r.method, String(r.count), formatKz(r.total)])} /></ReportCard>
-          </>
-        )
-      ) : (
-      <div className="card">
-        {loading ? <div className="loading">A carregar…</div> : (
-          <>
-            {tab === 'product' ? (
-              <Table head={['Produto', 'Qt', 'Vendas', 'Custo', 'Lucro', 'Margem']}
-                rows={byProduct.map((p) => [p.description, String(p.qty), formatKz(p.salesNet), formatKz(p.cost), formatKz(p.profit), `${p.marginPct}%`])} />
-            ) : null}
-            {tab === 'customer' ? (
-              <Table head={['Cliente', 'Nº vendas', 'Líquido', 'Total faturado']}
-                rows={byCustomer.map((r) => [r.name, String(r.sales), formatKz(r.net), formatKz(r.gross)])} />
-            ) : null}
-            {isTime(tab) ? (
-              <Table head={[tab === 'hour' ? 'Hora' : tab === 'weekday' ? 'Dia da semana' : tab === 'month' ? 'Mês' : 'Dia', 'Nº vendas', 'Líquido', 'Total faturado']}
-                rows={timeRows.map((r) => [timeLabel(r.bucket), String(r.sales), formatKz(r.net), formatKz(r.gross)])} />
-            ) : null}
-            {tab === 'user' ? (
-              <Table head={['Utilizador', 'Nº vendas', 'Líquido', 'Total faturado']}
-                rows={byUser.map((r) => [r.name, String(r.sales), formatKz(r.net), formatKz(r.gross)])} />
-            ) : null}
-            {tab === 'store' ? (
-              <Table head={['Loja', 'Nº vendas', 'Líquido', 'Total faturado']}
-                rows={byStore.map((r) => [r.name, String(r.sales), formatKz(r.net), formatKz(r.gross)])} />
-            ) : null}
-            {tab === 'category' ? (
-              <Table head={['Categoria', 'Quantidade', 'Líquido', 'Total']}
-                rows={byCategory.map((r) => [r.name, String(r.qty), formatKz(r.net), formatKz(r.gross)])} />
-            ) : null}
-            {tab === 'brand' ? (
-              <Table head={['Marca', 'Quantidade', 'Líquido', 'Total']}
-                rows={byBrand.map((r) => [r.name, String(r.qty), formatKz(r.net), formatKz(r.gross)])} />
-            ) : null}
-            {tab === 'evolution' ? (
-              <Table head={['Data', 'Vendas', 'Custo', 'Lucro']}
-                rows={series.map((p) => [p.bucket, formatKz(p.salesNet), formatKz(p.cost), formatKz(p.profit)])} />
-            ) : null}
-            {tab === 'tax' ? (
-              <Table head={['Taxa IVA', 'Base tributável', 'IVA', 'Total']}
-                rows={tax.map((r) => [`${r.rate}%`, formatKz(r.net), formatKz(r.iva), formatKz(r.gross)])}
-                foot={['Total', formatKz(sumTax(tax, 'net')), formatKz(sumTax(tax, 'iva')), formatKz(sumTax(tax, 'gross'))]} />
-            ) : null}
-            {tab === 'payments' ? (
-              <Table head={['Método de pagamento', 'Nº', 'Total']}
-                rows={payments.map((r) => [PAY_LABEL[r.method] ?? r.method, String(r.count), formatKz(r.total)])}
-                foot={['Total', String(payments.reduce((s, r) => s + r.count, 0)), formatKz(payments.reduce((s, r) => s + r.total, 0))]} />
-            ) : null}
-            {tab === 'documents' ? (
-              <Table head={['Documento', 'Tipo', 'Data', 'Loja', 'Operador', 'Total', 'Estado']}
-                rows={docs.map((d) => [d.number, DOC_LABEL[d.doc_type] ?? d.doc_type, fmtDT(d.system_entry_date), d.store_name ?? '—', d.cashier_name ?? '—', formatKz(Number(d.gross_total)), d.status === 'A' ? 'Anulada' : 'Válida'])} />
-            ) : null}
-            {tab === 'cashbox' ? (
-              <Table head={['Fecho', 'Loja', 'Operador', 'Fundo', 'Vendas', 'Suprim.', 'Sangrias', 'Contado', 'Diferença']}
-                rows={sessions.map((s) => [fmtDT(s.closed_at), s.store_name ?? '—', s.opened_by_name ?? '—', formatKz(Number(s.opening_float)), formatKz(Number(s.total_sales)), formatKz(Number(s.total_cash_in)), formatKz(Number(s.total_cash_out)), formatKz(Number(s.counted_cash)), formatKz(Number(s.difference))])} />
-            ) : null}
-          </>
-        )}
-      </div>
-      )}
-
-        </div>
-      </div>
-
-      {/* Rodapé da empresa na impressão: vem do Shell (PrintBrandFoot). */}
+      <section className="vd-card rp-box" aria-label={tableTitle}>
+        <div className="rp-bar"><span className="rp-bar-t">{tableTitle}</span>{actions}</div>
+        <div className="rp-body">{loading ? <div className="loading">A carregar…</div> : table}</div>
+      </section>
     </div>
   );
 }
 
-function ReportCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="card">
-      <h3 style={{ marginTop: 0 }}>{title}</h3>
-      {children}
-    </div>
-  );
+function IconTrend() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 4H3a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1zm-1 14H4v-2.6l4.2-3.8 3.6 2.9a1 1 0 0 0 1.3 0L20 8.4z" /></svg>;
 }
 
 function sumTax(rows: ReportTaxRow[], k: 'net' | 'iva' | 'gross'): number {

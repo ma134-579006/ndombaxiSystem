@@ -1407,7 +1407,7 @@ tr.kz-late td:first-child { box-shadow: inset 4px 0 0 #dc2626; }
   .admin.nav-rail .main { margin-left: 116px !important; }
   .admin.nav-rail .sidebar.vds { width: 116px !important; }
   .admin.nav-rail .sidebar.vds:hover, .admin.nav-rail .sidebar.vds:has(:focus-visible) { width: 277px !important; }
-  .admin.nav-rail .sidebar.vds:not(:hover):not(:has(:focus-visible)) .vds-company { padding-left: 14px !important; }
+  .admin.nav-rail:not(.menu-fixo) .sidebar.vds:not(:hover):not(:has(:focus-visible)) .vds-company { padding-left: 14px !important; }
 }
 @media (min-width: 901px) and (hover: hover) and (pointer: fine) {
   .admin.nav-rail:has(.sidebar.vds:hover) .main, .admin.nav-rail:has(.sidebar.vds :focus-visible) .main { margin-left: 277px !important; }
@@ -1755,3 +1755,222 @@ html.touch-ui .sidebar.vds .vds-rail .vds-tab, html.touch-ui .sidebar.vds .vds-r
 .cd-done { text-align: center; padding: 28px 16px; }
 .cd-big { font-size: clamp(22px, 5vw, 32px); font-weight: 800; color: #002c52; margin: 6px 0; overflow-wrap: anywhere; }
 .cd-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 16px; }
+
+/* ── Barra de topo: as reduções dependem da LARGURA REAL da barra, não do ecrã. ──
+   Com o menu FIXO (277px) a barra é ~217px mais estreita; antes, a 1280px, o título
+   da página ficava cortado («Prod…»). Primeiro saem os textos secundários. */
+.admin .topbar { container: tb / inline-size; }
+.admin .topbar > .tb-title { flex: 0 1 auto; }
+@container tb (max-width: 1040px) {
+  .tb-sub-tx, .admin .topbar .acct2-id { display: none; }
+  .tb-agt { padding: 0 14px; }
+}
+
+/* ── DOCUMENTOS — paridade Vendus (medido em 2026-11-25) ──
+   Lista contínua numa só caixa (linhas separadas por 1px), número 18px/600, cliente
+   14px/300, círculo 40px (FT/FR/FS azul #2b32ae, NC laranja #e87d00, RC cinza),
+   pesquisa com lupa + botão laranja, painel «Filtro de Documentos» cinza claro. */
+.doc-filters { top: 12px; background: var(--surface-2); }
+.doc-filters .vd-sect { font-size: 18px; font-weight: 400; margin-bottom: 4px; }
+.doc-filters .doc-apply { min-height: 44px; border-radius: 0; font-size: 17px; font-weight: 400; background: #1875d1; border-color: #1875d1; }
+.doc-filters .doc-apply:hover { background: #1565b5; border-color: #1565b5; }
+.doc-filters .vd-clear { color: color-mix(in srgb, var(--danger) 70%, #000); justify-content: center; }
+.doc-q { display: flex; flex: 1 1 320px; min-width: 0; }
+.doc-q-in { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }
+.doc-q-in svg { position: absolute; left: 12px; color: var(--muted); pointer-events: none; }
+.doc-q-in .vd-in { width: 100%; min-width: 0; padding-left: 40px; border-radius: 4px 0 0 4px; }
+.doc-q .doc-q-btn { flex: none; border-radius: 0 4px 4px 0; background: #ff3f00; border-color: #ff3f00; color: #fff; }
+.doc-q .doc-q-btn:hover { background: #e63900; border-color: #e63900; }
+.doc-list { gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.doc-list li + li .doc-item { border-top: 1px solid var(--border); }
+.doc-list .doc-item { border: 0; border-radius: 0; padding: 14px 16px; background: transparent; }
+.doc-list .doc-item:hover { box-shadow: none; transform: none; border-color: transparent; background: color-mix(in srgb, var(--primary) 5%, var(--surface)); }
+.doc-list .doc-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.doc-list .doc-badge { width: 40px; height: 40px; font-size: 15px; font-weight: 400; background: #2b32ae; }
+.doc-list .doc-badge.t-NC, .doc-list .doc-badge.t-ND { background: #e87d00; }
+.doc-list .doc-badge.t-RC, .doc-list .doc-badge.t-RG { background: #bfbfbf; }
+.doc-list .doc-badge.t-FR, .doc-list .doc-badge.t-FS { background: #2b32ae; }
+.doc-list .doc-id b { font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
+.doc-list .doc-id small { font-size: 14px; font-weight: 300; white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.doc-list .doc-val b { font-size: 14px; font-weight: 500; }
+.doc-list .doc-val small { font-size: 14px; font-weight: 300; overflow: visible; }
+@media (max-width: 520px) {
+  .doc-list .doc-item { flex-wrap: wrap; gap: 10px 12px; }
+  .doc-list .doc-id { flex: 1 1 calc(100% - 52px); }
+  .doc-list .doc-val { flex: 1 1 100%; flex-direction: row; justify-content: space-between; padding-left: 52px; }
+  .doc-list .doc-id b { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .doc-list .doc-item { transition: none; } }
+/* 1000 documentos: só se desenham as linhas visíveis (o separador ficava ocupado ao abrir). */
+.doc-list li { content-visibility: auto; contain-intrinsic-size: auto 71px; }
+
+/* ── RELATÓRIOS — paridade Vendus (medido em 2026-11-25) ──
+   Barra de filtros cinza-clara; cada secção (gráfico, tabela) tem uma barra cinza de
+   título (16px) com Imprimir / Exportar à direita; cantos de 4px; valores sem quebrar. */
+.rp-main > .card.rp-filters { background: var(--surface-2); border-radius: 4px; box-shadow: none; }
+.rp-presets { gap: 0; }
+.rp-presets .chip { border-radius: 0; margin: 0 0 0 -1px; }
+.rp-presets .chip:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
+.rp-presets .chip:last-child { border-radius: 0 4px 4px 0; }
+.rp-fields .btn { height: 40px; border-radius: 4px; }
+.rp-main > .card.rp-box, .card.rp-box { padding: 0; overflow: hidden; border-radius: 4px; margin-bottom: 16px; }
+.rp-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 14px; background: color-mix(in srgb, var(--text) 12%, var(--surface)); }
+.rp-bar-t { flex: 1 1 auto; min-width: 0; font-size: 16px; font-weight: 400; color: var(--text); overflow-wrap: anywhere; }
+.rp-bar-act { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-bar-act .vd-btn { background: var(--surface); }
+.rp-body { padding: 16px 20px; min-width: 0; }
+.rp-kpis .ui-tile { container-type: inline-size; min-width: 0; }
+.rp-kpis .ui-tile-v { font-size: clamp(14px, 9cqi, 26px); white-space: nowrap; }
+@media (max-width: 520px) { .rp-body { padding: 12px; } .rp-bar-act { width: 100%; } .rp-bar-act .vd-btn { flex: 1 1 auto; } }
+
+/* Painéis POS / LOJA / APPS / CONFIG: um texto longo nunca sai do menu (antes passava
+   por baixo do conteúdo); quebra de linha dentro da largura do menu. */
+.admin .sidebar.vds .nav.nav-painel > button { height: auto; min-height: var(--row, 40px); padding-top: 4px; padding-bottom: 4px; }
+.admin .sidebar.vds .nav.nav-painel .nav-label { white-space: normal; overflow-wrap: anywhere; min-width: 0; text-align: left; }
+
+/* Relatórios (Vendus): barra de filtros numa linha (Período, Lojas, Aplicar filtro),
+   gráfico «Evolução / Top» e tabela com cabeçalho a negrito e linha de totais. */
+.rp-search { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; padding: 15px; margin-bottom: 16px; background: var(--surface-2); border-radius: 0; box-shadow: none; }
+.rp-search .rp-f { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 0 1 200px; font-size: 14px; }
+.rp-search .rp-f > span { font-weight: 700; }
+.rp-search .rp-f select, .rp-search .rp-f input { width: 100%; min-width: 0; height: 34px; border-radius: 4px; }
+.rp-search .rp-apply { height: 34px; }
+.rp-bar-t { display: inline-flex; align-items: center; gap: 8px; }
+.rp-bar-t svg { flex: none; }
+.rp-seg { display: inline-flex; }
+.rp-seg button { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; font-size: 14px; border: 1px solid #1098f7; background: var(--surface); color: var(--muted); cursor: pointer; }
+.rp-seg button:first-child { border-radius: 4px 0 0 4px; }
+.rp-seg button:last-child { border-radius: 0 4px 4px 0; margin-left: -1px; }
+.rp-seg button.on { background: #088ae6; color: #fff; }
+.rp-seg button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.reports-page .rp-body .ptable { width: 100%; border-collapse: collapse; font-size: 14px; }
+.reports-page .rp-body .ptable th { position: static; background: transparent; font-size: 14px; font-weight: 700; text-transform: none; letter-spacing: 0; color: var(--text); padding: 8px; border-bottom: 2px solid var(--border); }
+.reports-page .rp-body .ptable td { padding: 8px; border-top: 1px solid var(--border); border-bottom: 0; }
+.reports-page .rp-body .ptable td:first-child { font-weight: 400; }
+.reports-page .rp-body .ptable tbody tr:nth-child(odd) td { background: color-mix(in srgb, var(--surface-2) 70%, transparent); }
+.reports-page .rp-body .ptable tbody tr:nth-child(even) td { background: transparent; }
+.reports-page .rp-body .ptable tfoot th { font-weight: 700; border-top: 2px solid var(--border); background: transparent; padding: 8px; }
+.reports-page .rp-body { overflow-x: auto; }
+@media (max-width: 520px) { .rp-search .rp-f { flex: 1 1 100%; } .rp-search .rp-apply { width: 100%; justify-content: center; } }
+
+/* Ícones no menu lateral como no Vendus: os itens principais da Gestão e todos os
+   botões dos painéis (POS, LOJA, APPS, CONFIGURAÇÃO) têm ícone; os subitens não.
+   (Substitui o pedido antigo «só o nome».) Os nomes nunca são cortados. */
+.admin .sidebar.vds .nav > button > svg:first-child,
+.admin .sidebar.vds .nav > .nav-group > .nav-group-head > svg:first-child { display: inline-block !important; flex: none; }
+.admin .sidebar.vds .nav > button, .admin .sidebar.vds .nav > .nav-group > .nav-group-head { gap: 12px !important; }
+.admin .sidebar.vds .nav-group-head .nav-label { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+.admin .sidebar.vds .nav-sub button { padding-left: 50px !important; }
+
+/* Menu recolhido: indicador IGUAL ao do Vendus — um pequeno triângulo da cor da
+   coluna de ícones (quadrado de 13px rodado 45°) a sair da coluna, à altura do
+   logótipo. Substitui a pílula azul a pulsar. Some com o menu aberto/fixo. */
+@media (min-width: 901px) {
+  .admin.nav-rail .sidebar.vds .vds-rail::after { display: none !important; }
+  .admin.nav-rail:not(.menu-fixo) .topbar::before {
+    content: ''; position: absolute; left: -7px; top: 26px; width: 13px; height: 13px; z-index: 2;
+    background: #131924; transform: rotate(45deg); border-radius: 1px; pointer-events: none;
+    transition: opacity .2s ease;
+  }
+  .admin.nav-rail:not(.menu-fixo):has(.sidebar.vds:hover) .topbar::before,
+  .admin.nav-rail:not(.menu-fixo):has(.sidebar.vds :focus-visible) .topbar::before { opacity: 0; }
+}
+html.touch-ui .admin.nav-rail .topbar::before { display: none !important; }
+
+/* Painel POS como no Vendus: «Iniciar Ponto de Venda» em botão azul e secção DOWNLOADS. */
+.admin .sidebar.vds .nav.nav-painel > button.vds-cta { margin: 6px 12px; width: calc(100% - 24px); border-radius: 3px; background: #1098f7 !important; color: #fff !important; padding-left: 12px !important; min-height: min(var(--row, 40px), 38px); }
+.admin .sidebar.vds .nav.nav-painel > button.vds-cta svg { color: #fff !important; }
+.admin .sidebar.vds .nav.nav-painel > button.vds-cta:hover, .admin .sidebar.vds .nav.nav-painel > button.vds-cta:focus-visible { background: #0b86dc !important; }
+.admin .sidebar.vds .nav.nav-painel > .vds-sec { display: flex; align-items: flex-end; min-height: var(--row, 40px); padding: 0 20px 6px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #6c7a89; border-top: 1px solid #323742; margin-top: 6px; }
+
+/* ── Varredura 2026-11-25: nada cortado nem a sair dos cartões/listas ──
+   Cartões de resumo (.fx-stat): o valor encolhe com a largura REAL do cartão e, se o
+   cartão for estreito, o ícone redondo sai para dar espaço ao número (antes
+   «-332 557,86 Kz» saía do cartão). Listas (.rc-list): o texto secundário quebra
+   linha em vez de «25/11/202…» e, em listas estreitas, o estado e os totais passam
+   para a linha de baixo em vez de saírem pela direita. */
+.admin .content .fx-stat { container-type: inline-size; min-width: 0; }
+.admin .content .fx-stat > div { min-width: 0; }
+.admin .content .fx-stat .vl { font-size: clamp(15px, 8cqi, 24px) !important; flex-wrap: wrap; }
+@container (max-width: 260px) { .admin .content .fx-stat .ic { display: none !important; } }
+.rc-list { container-type: inline-size; }
+.rc-main .muted { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.sh-cash { min-width: 0; }
+@container (max-width: 820px) {
+  .sh-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .sh-row .rc-state { grid-column: 2; justify-self: start; }
+  .sh-row .sh-cash { grid-column: 3; justify-self: end; text-align: right; }
+}
+
+/* Botão «Iniciar Ponto de Venda» numa só linha, como no Vendus. */
+.admin .sidebar.vds .nav.nav-painel > button.vds-cta { gap: 8px !important; padding-left: 10px !important; padding-right: 8px !important; font-size: 13px !important; }
+
+/* Mosaicos de valores (.kpi-card, .ui-tile): o número encolhe com a largura REAL do
+   mosaico — nunca fica cortado pela borda (antes «166.920.923,25 Kz» perdia o fim). */
+.admin .content .kpi-card, .admin .content .ui-tile { container-type: inline-size; min-width: 0; }
+.admin .content .kpi-card .kpi-value { font-size: clamp(14px, 9cqi, 24px) !important; }
+.admin .content .ui-tile .ui-tile-v { font-size: clamp(14px, 9cqi, 26px) !important; overflow-wrap: anywhere; }
+
+/* Telemóvel: a barra de topo não tem espaço para o título sem o cortar/sobrepor ao
+   anel da subscrição — o nome da página continua no caminho (Secção / Página) logo
+   por baixo, por isso o título da barra sai em ecrãs estreitos. */
+@media (max-width: 600px) { .admin .topbar > .tb-title { display: none !important; } }
+
+/* Telemóvel: TODAS as tabelas do painel viram cartões «Coluna: valor» (tableStack.ts
+   dá o nome da coluna a cada célula). Antes, as colunas da direita ficavam cortadas
+   ou obrigavam a rolar na horizontal. */
+  .admin .content table.auto-stack.is-stacked { display: block; width: 100%; min-width: 0 !important; max-width: 100%; white-space: normal; overflow: visible; border: 0; }
+  .admin .content table.auto-stack.is-stacked thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .admin .content table.auto-stack.is-stacked tbody, .admin .content table.auto-stack.is-stacked tfoot { display: block; }
+  .admin .content table.auto-stack.is-stacked tr { display: block; border: 1px solid var(--border); border-radius: 4px; padding: 4px 12px; margin-bottom: 10px; background: var(--surface); }
+  .admin .content table.auto-stack.is-stacked tbody tr:nth-child(n) > td { background: transparent; }
+  .admin .content table.auto-stack.is-stacked td, .admin .content table.auto-stack.is-stacked tfoot th { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding: 8px 0; text-align: right; border: 0; min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; position: static; }
+  .admin .content table.auto-stack.is-stacked td + td, .admin .content table.auto-stack.is-stacked tfoot th + th { border-top: 1px solid var(--border); }
+  .admin .content table.auto-stack.is-stacked td::before, .admin .content table.auto-stack.is-stacked tfoot th::before { content: attr(data-label); color: var(--muted); font-weight: 600; font-size: 12px; text-align: left; }
+  .admin .content table.auto-stack.is-stacked td:not([data-label])::before, .admin .content table.auto-stack.is-stacked tfoot th:not([data-label])::before { content: none; }
+  .admin .content table.auto-stack.is-stacked td:empty, .admin .content table.auto-stack.is-stacked tfoot th:empty { display: none; }
+
+/* Correção: no telemóvel o 1.º cabeçalho de ações NÃO sobe para a linha do caminho
+   (a regra do computador era mais específica e ganhava — os botões ficavam por cima
+   das abas, ex.: «Verificar stock» sobre «Auditoria» no Inventário). */
+@media (max-width: 760px) {
+  .admin .content > .page-anim > :not(.vd-crumbbar):not(.print-only):not(style) .content-head:first-child,
+  .admin .content > .page-anim > .content-head:first-of-type { margin-top: 0 !important; padding-left: 0 !important; }
+}
+
+/* Telemóvel: os seletores de estado (.vd-seg — Encomendas, Férias…) quebram linha em
+   vez de rolarem na horizontal com botões escondidos fora do ecrã. */
+@media (max-width: 600px) {
+  .admin .content .vd-seg { display: flex; flex-wrap: wrap; overflow-x: visible; max-width: 100%; }
+  .admin .content .vd-seg > button { flex: 1 1 auto; }
+}
+
+/* Relatórios: a tabela cabe na caixa — os cabeçalhos quebram linha (como no Vendus:
+   «Nº Rectificações», «Vendas c/IVA») e só os valores ficam numa linha. */
+.reports-page .rp-body .ptable th { white-space: normal; vertical-align: bottom; }
+.reports-page .rp-body .ptable td.num, .reports-page .rp-body .ptable th.num { white-space: normal; }
+.reports-page .rp-body .ptable td, .reports-page .rp-body .ptable th { padding-left: 6px; padding-right: 6px; }
+.reports-page .rp-body .ptable td:first-child { min-width: 120px; }
+
+/* Menu: um grupo grande aberto (ex.: Relatórios, 15 itens) já não encolhe a letra até
+   ficar ilegível — linhas de pelo menos 30px e letra de 12px; se não couber tudo, o
+   menu rola na VERTICAL (nunca na horizontal). */
+.admin .sidebar.vds .nav > * { --row: clamp(30px, calc((100cqh - 8px) / var(--nav-n, 12)), 42px) !important; }
+.admin .sidebar.vds .nav button, .admin .sidebar.vds .nav-group-head { font-size: clamp(12px, calc(var(--row) * .36), 14px) !important; }
+.admin .sidebar.vds .nav { overflow-y: auto !important; overflow-x: hidden !important; scrollbar-width: thin; scrollbar-color: #323742 transparent; }
+
+/* Barra de topo: quando não há espaço para o título inteiro (telemóvel, tablet ou menu
+   fixo num ecrã pequeno), ele sai — o caminho por baixo mostra o nome da página. */
+@container tb (max-width: 860px) { .admin .topbar > .tb-title { display: none !important; } }
+/* Abas das páginas quebram linha em vez de rolarem com botões escondidos fora do ecrã. */
+.admin .content .fx-tabs:not(.inv-tabs), .admin .content .seg { flex-wrap: wrap; overflow-x: visible; }
+/* Entre 761 e 860px as abas ficam em linha por cima: o cabeçalho de ações não sobe. */
+@media (max-width: 860px) {
+  .admin .content > .page-anim > :not(.vd-crumbbar):not(.print-only):not(style) .content-head:first-child,
+  .admin .content > .page-anim > .content-head:first-of-type { margin-top: 0 !important; padding-left: 0 !important; }
+}
+
+/* Seletores de estado (.vd-seg) quebram linha em QUALQUER largura quando não cabem
+   (LPS Kwanza tem 9 estados: no tablet/menu fixo rolavam com botões escondidos). */
+.admin .content .vd-seg { flex-wrap: wrap; overflow-x: visible; max-width: 100%; }
+.admin .content .vd-seg > button { border-bottom: 1px solid var(--border); margin-bottom: -1px; }
