@@ -8,7 +8,7 @@ import type {
   ReceivableSummary,
   RecordPaymentInput,
 } from '../api/types';
-import { IconCard, IconPlus } from '../components/Icons';
+import { IconPlus, IconSearch } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz, localIso } from '../format';
 
@@ -31,7 +31,7 @@ function statusInfo(r: Receivable): { label: string; cls: string } {
 }
 function todayISO(d = new Date()): string { return localIso(d); }
 
-/** Contas a receber (venda a crédito): saldo em dívida, antiguidade, recibos. */
+/** Conta Corrente de clientes (vendas a crédito) no formato do Vendus: Clientes › Conta Corrente. */
 export function Receivables() {
   const [filter, setFilter] = useState('open');
   const [rows, setRows] = useState<Receivable[]>([]);
@@ -55,78 +55,114 @@ export function Receivables() {
 
   useEffect(() => { void load(); }, [load]);
 
+  // Conta Corrente como no Vendus: pesquisa por nome/NIF, quadro Saldo Total / Dívida
+  // Corrente / Dívida Vencida e tabela POR CLIENTE; por baixo, as faturas por liquidar
+  // (com «Receber», para registar pagamentos).
+  const [q, setQ] = useState('');
+  const term = q.trim().toLowerCase();
+  const list = rows.filter((r) => !term || `${r.customer_name ?? ''} ${r.invoice_number ?? ''}`.toLowerCase().includes(term));
+  const byClient = (() => {
+    const m = new Map<string, { name: string; saldo: number; corrente: number; vencida: number }>();
+    for (const r of list) {
+      if (r.status === 'PAID') continue;
+      const name = r.customer_name || 'Consumidor Final';
+      const c = m.get(name) ?? { name, saldo: 0, corrente: 0, vencida: 0 };
+      const o = Number(r.outstanding) || 0;
+      c.saldo += o;
+      if (r.days_overdue > 0) c.vencida += o; else c.corrente += o;
+      m.set(name, c);
+    }
+    return [...m.values()].sort((a, b) => b.saldo - a.saldo);
+  })();
+  const total = sum?.outstanding ?? 0, overdue = sum?.overdue ?? 0, current = Math.max(0, total - overdue);
+  const exportCsv = () => {
+    const esc = (v: unknown) => { const t = String(v ?? ''); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const lines = byClient.map((c) => [c.name, c.saldo.toFixed(2), c.corrente.toFixed(2), c.vencida.toFixed(2)].map(esc).join(';'));
+    const blob = new Blob(['﻿' + ['Nome;Saldo;Dívida Corrente;Dívida Vencida', ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'conta-corrente.csv'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+
   return (
-    <div className="profit-page">
-      <div className="content-head no-print">
-        <h2>Contas a receber</h2>
+    <div className="vd-page">
+      <div className="vd-head no-print">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Conta Corrente</span><span className="sep">/</span><span>Listagem</span></p>
         <span className="spacer" />
-        <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
-        <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Nova conta</button>
+        <button className="vd-btn" onClick={exportCsv} disabled={byClient.length === 0}>Exportar</button>
+        <button className="vd-btn outline" onClick={() => void printSectionReport()}>Imprimir</button>
+        <button className="vd-btn outline" onClick={() => setCreating(true)}><IconPlus size={16} /> Nova conta</button>
       </div>
 
-      {lastReceipt ? (
-        <div className="banner success no-print">Recibo emitido: <strong>{lastReceipt}</strong></div>
-      ) : null}
-      {error ? <div className="banner danger no-print">{error}</div> : null}
+      {lastReceipt ? <div className="banner success no-print">Recibo emitido: <strong>{lastReceipt}</strong></div> : null}
+      {error ? <div className="vd-err no-print" role="alert">{error}</div> : null}
 
-      <div className="print-only print-header"><h2>Contas a Receber</h2><p>{new Date().toLocaleDateString('pt-PT')}</p></div>
+      <div className="print-only print-header"><h2>Conta Corrente</h2><p>{new Date().toLocaleDateString('pt-PT')}</p></div>
 
-      {/* KPIs */}
-      <div className="kpi-grid">
-        <div className="kpi-card warning"><div className="kpi-ic"><IconCard size={20} /></div>
-          <div className="kpi-label">Em dívida (total)</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>{formatKz(sum?.outstanding ?? 0)}</div>
-          <div className="kpi-sub">{sum?.openCount ?? 0} conta(s) em aberto</div>
+      <form className="vd-card vd-filters no-print" onSubmit={(e) => { e.preventDefault(); void load(); }}>
+        <div className="vd-frow" style={{ alignItems: 'center' }}>
+          <label className="vd-f grow"><input className="vd-in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisa por Nome ou NIF" aria-label="Pesquisar clientes" /></label>
+          <label className="vd-f"><select className="vd-in" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Estado">
+            {FILTERS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+          </select></label>
+          <button type="submit" className="vd-btn"><IconSearch size={15} /> Pesquisar</button>
         </div>
-        <div className="kpi-card danger"><div className="kpi-ic"><IconCard size={20} /></div>
-          <div className="kpi-label">Vencido</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>{formatKz(sum?.overdue ?? 0)}</div>
-          <div className="kpi-sub">{sum?.overdueCount ?? 0} conta(s) em atraso</div>
-        </div>
-      </div>
+      </form>
 
-      {/* Filtros */}
-      <div className="card no-print" style={{ padding: '10px 14px' }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {FILTERS.map((f) => (
-            <button key={f.key} className={`chip ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>{f.label}</button>
-          ))}
+      <section className="vd-card pu-debts" aria-label="Resumo da conta corrente">
+        <div className="pu-debts-b">
+          <div><small>Saldo Total</small><b className={total > 0 ? 'neg' : 'ok'}>{formatKz(total)}</b><span>{total > 0 ? `${sum?.openCount ?? 0} fatura(s) em dívida` : 'Não existem dívidas'}</span></div>
+          <div><small>Dívida Corrente</small><b className={current > 0 ? 'neg' : 'ok'}>{formatKz(current)}</b><span>{current > 0 ? 'Pagamentos dentro do prazo' : 'Não existem pagamentos pendentes'}</span></div>
+          <div><small>Dívida Vencida</small><b className={overdue > 0 ? 'neg' : 'ok'}>{formatKz(overdue)}</b><span>{overdue > 0 ? `${sum?.overdueCount ?? 0} fatura(s) fora do prazo` : 'Não existem pagamentos fora do prazo'}</span></div>
         </div>
-      </div>
+      </section>
 
-      {/* Lista */}
-      <div className="card">
-        {loading ? <div className="loading">A carregar…</div>
-          : rows.length === 0 ? <div className="empty"><IconCard size={40} /><p>Sem contas a receber neste filtro.</p></div>
-          : (
-            <table className="ptable stack">
-              <thead>
-                <tr><th>Cliente</th><th>Factura</th><th>Original</th><th>Pago</th><th>Saldo</th><th>Vencimento</th><th>Estado</th><th className="no-print" /></tr>
-              </thead>
+      <div className="vd-card vd-tablecard">
+        {loading ? <div className="vd-empty">A carregar…</div> : byClient.length === 0 ? <div className="vd-empty">Não foram encontrados resultados</div> : (
+          <div className="vd-tablewrap">
+            <table className="vd-table">
+              <thead><tr><th>Nome</th><th className="num">Saldo</th><th className="num">Dívida Corrente</th><th className="num">Dívida Vencida</th></tr></thead>
               <tbody>
-                {rows.map((r) => {
+                {byClient.map((c) => (
+                  <tr key={c.name}>
+                    <td><button type="button" className="vd-link" onClick={() => setQ(c.name)}>{c.name}</button></td>
+                    <td className="num" style={{ fontWeight: 700 }}>{formatKz(c.saldo)}</td>
+                    <td className="num">{formatKz(c.corrente)}</td>
+                    <td className="num" style={{ color: c.vencida > 0 ? '#e0384b' : undefined }}>{formatKz(c.vencida)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {!loading && list.length > 0 ? (
+        <div className="vd-card vd-tablecard">
+          <div className="vd-tbar"><span>Faturas por liquidar</span></div>
+          <div className="vd-tablewrap">
+            <table className="vd-table">
+              <thead><tr><th>Cliente</th><th>Fatura</th><th className="num">Original</th><th className="num">Pago</th><th className="num">Saldo</th><th>Vencimento</th><th>Estado</th><th className="no-print" aria-label="Ações" /></tr></thead>
+              <tbody>
+                {list.map((r) => {
                   const st = statusInfo(r);
                   return (
                     <tr key={r.id}>
-                      <td data-label="Cliente">{r.customer_name || '—'}</td>
-                      <td data-label="Factura">{r.invoice_number || '—'}</td>
-                      <td data-label="Original">{formatKz(Number(r.original_amount))}</td>
-                      <td data-label="Pago">{formatKz(Number(r.paid_amount))}</td>
-                      <td data-label="Saldo" style={{ fontWeight: 700 }}>{formatKz(Number(r.outstanding))}</td>
-                      <td data-label="Vencimento">{r.due_date ? new Date(r.due_date).toLocaleDateString('pt-PT') : '—'}</td>
-                      <td data-label="Estado"><span className={`pill ${st.cls}`}>{st.label}</span></td>
-                      <td className="actions no-print">
-                        {r.status !== 'PAID' ? (
-                          <button className="btn sm" onClick={() => setPaying(r)}>Receber</button>
-                        ) : null}
-                      </td>
+                      <td>{r.customer_name || '—'}</td>
+                      <td>{r.invoice_number || '—'}</td>
+                      <td className="num">{formatKz(Number(r.original_amount))}</td>
+                      <td className="num">{formatKz(Number(r.paid_amount))}</td>
+                      <td className="num" style={{ fontWeight: 700 }}>{formatKz(Number(r.outstanding))}</td>
+                      <td>{r.due_date ? new Date(r.due_date).toLocaleDateString('pt-PT') : '—'}</td>
+                      <td><span className={`pill ${st.cls}`}>{st.label}</span></td>
+                      <td className="num no-print">{r.status !== 'PAID' ? <button className="vd-btn sm" onClick={() => setPaying(r)}>Receber</button> : null}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          )}
-      </div>
+          </div>
+        </div>
+      ) : null}
 
       {paying ? (
         <PayModal
