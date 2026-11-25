@@ -1882,3 +1882,67 @@ html.touch-ui .admin.nav-rail .topbar::before { display: none !important; }
 .admin .sidebar.vds .nav.nav-painel > button.vds-cta svg { color: #fff !important; }
 .admin .sidebar.vds .nav.nav-painel > button.vds-cta:hover, .admin .sidebar.vds .nav.nav-painel > button.vds-cta:focus-visible { background: #0b86dc !important; }
 .admin .sidebar.vds .nav.nav-painel > .vds-sec { display: flex; align-items: flex-end; min-height: var(--row, 40px); padding: 0 20px 6px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #6c7a89; border-top: 1px solid #323742; margin-top: 6px; }
+
+/* ── Varredura 2026-11-25: nada cortado nem a sair dos cartões/listas ──
+   Cartões de resumo (.fx-stat): o valor encolhe com a largura REAL do cartão e, se o
+   cartão for estreito, o ícone redondo sai para dar espaço ao número (antes
+   «-332 557,86 Kz» saía do cartão). Listas (.rc-list): o texto secundário quebra
+   linha em vez de «25/11/202…» e, em listas estreitas, o estado e os totais passam
+   para a linha de baixo em vez de saírem pela direita. */
+.admin .content .fx-stat { container-type: inline-size; min-width: 0; }
+.admin .content .fx-stat > div { min-width: 0; }
+.admin .content .fx-stat .vl { font-size: clamp(15px, 8cqi, 24px) !important; flex-wrap: wrap; }
+@container (max-width: 260px) { .admin .content .fx-stat .ic { display: none !important; } }
+.rc-list { container-type: inline-size; }
+.rc-main .muted { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.sh-cash { min-width: 0; }
+@container (max-width: 820px) {
+  .sh-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .sh-row .rc-state { grid-column: 2; justify-self: start; }
+  .sh-row .sh-cash { grid-column: 3; justify-self: end; text-align: right; }
+}
+
+/* Botão «Iniciar Ponto de Venda» numa só linha, como no Vendus. */
+.admin .sidebar.vds .nav.nav-painel > button.vds-cta { gap: 8px !important; padding-left: 10px !important; padding-right: 8px !important; font-size: 13px !important; }
+
+/* Mosaicos de valores (.kpi-card, .ui-tile): o número encolhe com a largura REAL do
+   mosaico — nunca fica cortado pela borda (antes «166.920.923,25 Kz» perdia o fim). */
+.admin .content .kpi-card, .admin .content .ui-tile { container-type: inline-size; min-width: 0; }
+.admin .content .kpi-card .kpi-value { font-size: clamp(14px, 9cqi, 24px) !important; }
+.admin .content .ui-tile .ui-tile-v { font-size: clamp(14px, 9cqi, 26px) !important; overflow-wrap: anywhere; }
+
+/* Telemóvel: a barra de topo não tem espaço para o título sem o cortar/sobrepor ao
+   anel da subscrição — o nome da página continua no caminho (Secção / Página) logo
+   por baixo, por isso o título da barra sai em ecrãs estreitos. */
+@media (max-width: 600px) { .admin .topbar > .tb-title { display: none !important; } }
+
+/* Telemóvel: TODAS as tabelas do painel viram cartões «Coluna: valor» (tableStack.ts
+   dá o nome da coluna a cada célula). Antes, as colunas da direita ficavam cortadas
+   ou obrigavam a rolar na horizontal. */
+@media (max-width: 600px) {
+  .admin .content table.auto-stack { display: block; width: 100%; min-width: 0 !important; max-width: 100%; white-space: normal; overflow: visible; border: 0; }
+  .admin .content table.auto-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .admin .content table.auto-stack tbody, .admin .content table.auto-stack tfoot { display: block; }
+  .admin .content table.auto-stack tr { display: block; border: 1px solid var(--border); border-radius: 4px; padding: 4px 12px; margin-bottom: 10px; background: var(--surface); }
+  .admin .content table.auto-stack tbody tr:nth-child(n) > td { background: transparent; }
+  .admin .content table.auto-stack td, .admin .content table.auto-stack tfoot th { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding: 8px 0; text-align: right; border: 0; min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; position: static; }
+  .admin .content table.auto-stack td + td, .admin .content table.auto-stack tfoot th + th { border-top: 1px solid var(--border); }
+  .admin .content table.auto-stack td::before, .admin .content table.auto-stack tfoot th::before { content: attr(data-label); color: var(--muted); font-weight: 600; font-size: 12px; text-align: left; }
+  .admin .content table.auto-stack td:not([data-label])::before, .admin .content table.auto-stack tfoot th:not([data-label])::before { content: none; }
+  .admin .content table.auto-stack td:empty, .admin .content table.auto-stack tfoot th:empty { display: none; }
+}
+
+/* Correção: no telemóvel o 1.º cabeçalho de ações NÃO sobe para a linha do caminho
+   (a regra do computador era mais específica e ganhava — os botões ficavam por cima
+   das abas, ex.: «Verificar stock» sobre «Auditoria» no Inventário). */
+@media (max-width: 760px) {
+  .admin .content > .page-anim > :not(.vd-crumbbar):not(.print-only):not(style) .content-head:first-child,
+  .admin .content > .page-anim > .content-head:first-of-type { margin-top: 0 !important; padding-left: 0 !important; }
+}
+
+/* Telemóvel: os seletores de estado (.vd-seg — Encomendas, Férias…) quebram linha em
+   vez de rolarem na horizontal com botões escondidos fora do ecrã. */
+@media (max-width: 600px) {
+  .admin .content .vd-seg { display: flex; flex-wrap: wrap; overflow-x: visible; max-width: 100%; }
+  .admin .content .vd-seg > button { flex: 1 1 auto; }
+}

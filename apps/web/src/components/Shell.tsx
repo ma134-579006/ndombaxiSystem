@@ -449,6 +449,11 @@ export function Shell({
   const alternarMenuFixo = () => setMenuFixo((v) => { const n = !v; try { localStorage.setItem('lps.menu.fixo', n ? '1' : '0'); } catch { /* sem armazenamento */ } return n; });
   // Grupos abertos (abre automaticamente o que contém a secção activa).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // Como no Vendus: o grupo da página ATIVA fica aberto (vê-se onde se está). Fechar
+  // por fora / sair com o rato volta a esse estado em vez de fechar tudo.
+  const grupoAtualKey = nav.find((n) => n.children?.some((c) => c.key === section))?.key;
+  const reporGrupos = () => setOpenGroups(grupoAtualKey ? { [grupoAtualKey]: true } : {});
+  useEffect(() => { reporGrupos(); }, [grupoAtualKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Chat de equipa (gestor ↔ caixa): badge de não-lidas + janela.
   const [chatOpen, setChatOpen] = useState(false);
@@ -569,7 +574,7 @@ export function Shell({
   useEffect(() => {
     if (!Object.values(openGroups).some(Boolean)) return;
     const onDoc = (e: MouseEvent) => {
-      if (asideRef.current && !asideRef.current.contains(e.target as Node)) setOpenGroups({});
+      if (asideRef.current && !asideRef.current.contains(e.target as Node) && Object.keys(openGroups).some((k) => openGroups[k] && k !== grupoAtualKey)) reporGrupos();
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
@@ -581,7 +586,7 @@ export function Shell({
       {/* Barra lateral estilo Vendus: coluna de ícones (GESTÃO, POS, LOJA, APPS,
           Configurações) + menu da gestão, que mostra só os ícones e abre ao passar
           o rato (animação do LPS). Sem scroll: as linhas encolhem para caber. */}
-      <aside ref={asideRef} className={`sidebar vds${menuOpen ? ' open' : ''}`} onMouseLeave={() => setOpenGroups({})}
+      <aside ref={asideRef} className={`sidebar vds${menuOpen ? ' open' : ''}`} onMouseLeave={reporGrupos}
         style={{
           ['--nav-n' as string]: painel ? Math.max(painel.length + painel.filter((p) => p.head).length, 6) : navGestao.length + navGestao.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0),
           // Telemóvel: com um grupo aberto o menu mostra SÓ esse grupo (cabeçalho
@@ -590,7 +595,7 @@ export function Shell({
         }}>
         <div className="vds-rail" aria-label="Aplicações">
           <span className="vds-logo"><img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} /></span>
-          <button type="button" className={`vds-tab${railTab === 'gestao' ? ' on' : ''}`} title="Gestão" onClick={() => { setRailTab('gestao'); setOpenGroups({}); }}>
+          <button type="button" className={`vds-tab${railTab === 'gestao' ? ' on' : ''}`} title="Gestão" onClick={() => { setRailTab('gestao'); reporGrupos(); }}>
             <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" /><rect x="13" y="3" width="8" height="5" rx="2" fill="currentColor" opacity=".55" /><rect x="13" y="10" width="8" height="11" rx="2" fill="currentColor" /><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity=".55" /></svg>
             <span>GESTÃO</span>
           </button>
@@ -663,7 +668,7 @@ export function Shell({
                             <button
                               key={c.key}
                               className={section === c.key ? 'active' : ''}
-                              onClick={() => { setSection(c.key); setOpenGroups({}); setMenuOpen(false); }}
+                              onClick={() => { setSection(c.key); setOpenGroups({ [n.key]: true }); setMenuOpen(false); }}
                             >
                               <CIcon size={16} /> {c.label}
                             </button>

@@ -12,6 +12,7 @@ import { initAutoUpdate } from './autoUpdate';
 import { initScrollReveal } from './scrollReveal';
 import { initStickyStack } from './stickyStack';
 import { initFloatingMenus } from './floatingMenus';
+import { initTableStack } from './tableStack';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { mandatoryUpdate } from './update/mandatoryUpdate';
 import { isNativeApp } from './config';
@@ -36,6 +37,7 @@ mandatoryUpdate.start();
 initScrollReveal();
 initStickyStack(); // conteúdo materializa-se ao rolar (animação em todo o sistema)
 initFloatingMenus(); // menus "Opções" das tabelas por cima de tudo (não ficam cortados)
+initTableStack(); // telemóvel: tabelas viram cartões «Coluna: valor» (0 scroll horizontal)
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Elemento #root não encontrado');
