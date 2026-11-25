@@ -23,6 +23,8 @@ export interface DocumentIdentity {
   businessType: string;
   /** Módulo Loja Online ligado (portal público). Esconde os menus da loja quando falso. */
   onlineStoreEnabled: boolean;
+  /** "Permitir vender produtos sem stock" (a Caixa deixa vender com stock nulo/negativo). */
+  sellWithoutStock: boolean;
   /** Assinatura permanente do sistema (autoria). */
   copyright: string;
 }
@@ -35,6 +37,7 @@ interface SiteIdentityRow {
   contact_email: string | null;
   receipt_message: string | null;
   online_store_enabled: boolean | null;
+  allow_sell_without_stock?: boolean | null;
   tagline?: string | null;
   company_profile?: Record<string, string> | null;
 }
@@ -79,6 +82,7 @@ export class CompanyIdentityService {
       receiptMessage: s?.receipt_message ?? null,
       businessType: company?.sector ?? 'RETAIL',
       onlineStoreEnabled: s?.online_store_enabled ?? true,
+      sellWithoutStock: s?.allow_sell_without_stock === true,
       copyright: copyrightLine(),
     };
   }

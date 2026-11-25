@@ -107,6 +107,11 @@ export class UpdateSiteSettingsDto {
   @IsOptional()
   @IsBoolean()
   onlineStoreEnabled?: boolean;
+
+  /** "Permitir vender produtos sem stock" (Configurações → Stock, como no Vendus). */
+  @IsOptional()
+  @IsBoolean()
+  allowSellWithoutStock?: boolean;
 }
 
 /** Página construída no editor de blocos. */

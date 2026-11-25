@@ -1714,3 +1714,9 @@ html.touch-ui .admin .sidebar.vds .vds-cfg { display: none; }
 @media (prefers-reduced-motion: reduce) { .sidebar.vds .vds-rail .vds-gear svg, .admin .sidebar.vds .vds-cfg { transition: none !important; } }
 @media (max-width: 900px) { .sidebar.vds .vds-rail .vds-tab, .sidebar.vds .vds-rail .vds-gear { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; padding-left: 0 !important; padding-right: 0 !important; } }
 html.touch-ui .sidebar.vds .vds-rail .vds-tab, html.touch-ui .sidebar.vds .vds-rail .vds-gear { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; padding-left: 0 !important; padding-right: 0 !important; }
+/* Configurações → Stock (como no Vendus): caixa de marcar + título + explicação. */
+.set-check { display: flex; align-items: flex-start; gap: 12px; padding: 16px 4px; border-top: 1px solid var(--border); cursor: pointer; }
+.set-check input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: #1577eb; cursor: pointer; }
+.set-check span { display: grid; gap: 4px; min-width: 0; }
+.set-check b { font-weight: 500; color: var(--text); }
+.set-check small { font-size: 13px; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }

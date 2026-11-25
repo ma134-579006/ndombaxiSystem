@@ -18,14 +18,16 @@ import { useAuth } from '../auth/AuthContext';
  */
 export function Settings() {
   const { user } = useAuth();
-  type Tab = 'brand' | 'modules' | 'prices' | 'passwords' | 'security' | 'printer' | 'loja' | 'lang';
+  type Tab = 'brand' | 'modules' | 'stock' | 'prices' | 'passwords' | 'security' | 'printer' | 'loja' | 'lang';
   // O painel CONFIG (menu lateral) escolhe o separador: "Dados da Empresa" ou "Definições".
   const [tab, setTab] = useState<Tab>(() => {
-    try { const t = sessionStorage.getItem('lps.settings.tab'); sessionStorage.removeItem('lps.settings.tab'); if (t === 'brand' || t === 'modules') return t; } catch { /* */ }
+    try { const t = sessionStorage.getItem('lps.settings.tab'); if (t === 'brand' || t === 'modules' || t === 'stock') return t; } catch { /* */ }
     return 'brand';
   });
   useEffect(() => {
-    const on = (e: Event) => { const t = (e as CustomEvent<string>).detail; if (t === 'brand' || t === 'modules') setTab(t); };
+    const on = (e: Event) => { const t = (e as CustomEvent<string>).detail; if (t === 'brand' || t === 'modules' || t === 'stock') setTab(t); };
+    // Consumido DEPOIS de montar (a inicialização pode correr 2× em desenvolvimento).
+    try { sessionStorage.removeItem('lps.settings.tab'); } catch { /* */ }
     window.addEventListener('lps:settings-tab', on);
     return () => window.removeEventListener('lps:settings-tab', on);
   }, []);
@@ -37,6 +39,7 @@ export function Settings() {
       <div className="fx-tabs inv-tabs">
         <button className={tab === 'brand' ? 'on' : ''} onClick={() => setTab('brand')}>Empresa & Recibos</button>
         <button className={tab === 'modules' ? 'on' : ''} onClick={() => setTab('modules')}>Módulos</button>
+        <button className={tab === 'stock' ? 'on' : ''} onClick={() => setTab('stock')}>Stock</button>
         <button className={tab === 'prices' ? 'on' : ''} onClick={() => setTab('prices')}>Grupos de Preço</button>
         <button className={tab === 'passwords' ? 'on' : ''} onClick={() => setTab('passwords')}>Senhas dos funcionários</button>
         <button className={tab === 'security' ? 'on' : ''} onClick={() => setTab('security')}>Verificação em 2 passos</button>
@@ -46,6 +49,7 @@ export function Settings() {
       </div>
       {tab === 'brand' ? <BrandingCard /> : null}
       {tab === 'modules' ? <ModulesCard /> : null}
+      {tab === 'stock' ? <StockCard /> : null}
       {tab === 'prices' ? <PriceGroupsCard /> : null}
       {tab === 'passwords' ? <PasswordsCard /> : null}
       {tab === 'security' ? <TwoFactorCard email={user?.email} /> : null}
@@ -53,6 +57,46 @@ export function Settings() {
       {tab === 'loja' ? <ShopServerCard /> : null}
       {tab === 'lang' ? <div className="card acc-lang"><h3 className="acc-h"><IconGlobe size={18} /> Idioma</h3><LangChoice /></div> : null}
     </>
+  );
+}
+
+/**
+ * Stock (como no Vendus: Configuração → Definições → Stock). "Permitir vender
+ * produtos sem stock" é OPCIONAL e fica desligado por omissão: quando ligado,
+ * a Caixa, o painel, a loja online e o LPS Kwanza vendem produtos com stock
+ * nulo ou negativo (o saldo fica negativo até dar entrada de stock).
+ */
+function StockCard() {
+  const [on, setOn] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    api.site.get().then((x) => setOn(x.allow_sell_without_stock === true))
+      .catch((e) => setErr(e instanceof ApiError ? e.message : 'Falha ao carregar.'));
+  }, []);
+  const save = async (next: boolean) => {
+    if (next && !(await confirmDialog({ title: 'Permitir vender sem stock?', message: 'A Caixa, o painel e as lojas online passam a vender produtos com stock nulo ou negativo. O stock fica negativo até dar entrada de mercadoria.', confirmLabel: 'Ativar' }))) return;
+    setBusy(true); setErr(null);
+    const prev = on; setOn(next);
+    try {
+      await api.site.update({ allowSellWithoutStock: next });
+      toast.success(next ? 'Venda sem stock ativada em todo o sistema.' : 'Venda sem stock desativada — produtos sem stock voltam a ficar bloqueados.');
+    } catch (e) { setOn(prev); setErr(e instanceof ApiError ? e.message : 'Falha ao guardar.'); }
+    finally { setBusy(false); }
+  };
+  if (on === null && !err) return <div className="card"><div className="loading">A carregar…</div></div>;
+  return (
+    <div className="card set-stock">
+      <h3><IconBuilding size={18} /> Stock</h3>
+      {err ? <div className="banner danger">{err}</div> : null}
+      <label className="set-check">
+        <input type="checkbox" checked={!!on} disabled={busy || on === null} onChange={(e) => void save(e.target.checked)} />
+        <span>
+          <b>Permitir vender produtos sem stock</b>
+          <small>Se pretende que seja possível vender produtos cujo stock seja nulo ou negativo. Aplica-se à Caixa, ao painel e às duas lojas online.</small>
+        </span>
+      </label>
+    </div>
   );
 }
 

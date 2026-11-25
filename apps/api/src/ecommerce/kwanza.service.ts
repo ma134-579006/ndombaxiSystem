@@ -1,3 +1,4 @@
+import { sellWithoutStock } from '../common/stock-policy';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -580,7 +581,7 @@ export class KwanzaService implements OnModuleInit {
     const term = `%${(q ?? '').trim().toLowerCase()}%`;
     const rows = await this.prisma.runInTenant(schema, async (tx) => tx.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
       SELECT p.id::text AS id, code, name, image_url, kwanza_published AS pub, affiliate_percent AS pct, affiliate_mode AS mode, allow_markup AS mk, max_markup_pct AS maxmk, affiliate_materials AS mats,
-             ${STOCK}::float8 AS stock, ${await this.madeToOrder(tx)} AS mto
+             ${STOCK}::float8 AS stock, (${await this.madeToOrder(tx)} OR ${await sellWithoutStock(tx)}) AS mto
       FROM products p WHERE is_active = TRUE AND (lower(name) LIKE ${term} OR lower(code) LIKE ${term})
       ORDER BY kwanza_published DESC, name LIMIT 500`));
     return rows.map((r) => ({ id: r.id, stock: num(r.stock), canPublish: num(r.stock) > 0 || !!r.mto, code: r.code, name: r.name, imageUrl: r.image_url, published: !!r.pub, percent: r.pct == null ? null : num(r.pct), mode: r.mode ?? 'OPEN', allowMarkup: !!r.mk, maxMarkupPct: r.maxmk == null ? null : num(r.maxmk), materials: Array.isArray(r.mats) ? r.mats : [] }));
@@ -598,8 +599,9 @@ export class KwanzaService implements OnModuleInit {
     if (p.published && !pct) throw new BadRequestException('Defina a % de comissão para publicar no LPS Kwanza.');
     if (p.published) {
       // Sem stock não se publica (o associado ia divulgar um produto que a empresa não tem).
+      // …a não ser que a empresa venda sem stock (Configurações → Stock).
       const st = await this.prisma.runInTenant(tenant.schema, async (tx) => tx.$queryRaw<{ ok: boolean }[]>(Prisma.sql`
-        SELECT (${STOCK} > 0 OR ${await this.madeToOrder(tx)}) AS ok FROM products p WHERE code = ${productCode}`));
+        SELECT (${STOCK} > 0 OR ${await this.madeToOrder(tx)} OR ${await sellWithoutStock(tx)}) AS ok FROM products p WHERE code = ${productCode}`));
       if (st[0] && !st[0].ok) throw new BadRequestException('Produto sem stock: adicione stock antes de publicar no LPS Kwanza.');
     }
     const mats = (p.materials ?? []).map((m) => String(m).trim()).filter((m) => /^https?:\/\//i.test(m)).slice(0, 10);

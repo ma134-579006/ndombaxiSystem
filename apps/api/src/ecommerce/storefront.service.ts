@@ -1,3 +1,4 @@
+import { onStockPolicyChange, sellWithoutStock } from '../common/stock-policy';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { computeInvoice, InvoiceLineInput, IvaCode, requiresExemptionReason, resolveRate, round2 } from '@nexus/agt-xml';
@@ -87,7 +88,7 @@ export interface CatalogProduct {
   netPrice: number;
   grossPrice: number;
   inStock: boolean;
-  stockQty: number;
+  stockQty?: number;
   /** Prato com ficha técnica: produzido SOB ENCOMENDA (stock próprio 0 por
    *  natureza). Vendável online — a emissão valida/baixa os ingredientes. */
   madeToOrder: boolean;
@@ -115,7 +116,10 @@ export interface CatalogProduct {
 
 @Injectable()
 export class StorefrontService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {
+    // "Vender sem stock" mudou: o catálogo em cache deixa de valer (a loja reflete-o já).
+    onStockPolicyChange((schema) => this.forgetCatalog(schema));
+  }
 
   /**
    * CACHE do catálogo por loja. Cada visitante pedia o catálogo inteiro a cada
@@ -207,9 +211,9 @@ export class StorefrontService {
                      AND p.unit_price > 0  -- sem preço (0 Kz) não se vende online
                    ORDER BY p.name`,
       );
-      return { list, promos, soldBy, revBy };
+      return { list, promos, soldBy, revBy, noStockOk: await sellWithoutStock(tx) };
     });
-    const { promos, soldBy, revBy } = rows;
+    const { promos, soldBy, revBy, noStockOk } = rows;
     return rows.list.map((r) => {
       const netPrice = Number(r.unit_price);
       const rate = resolveRate(r.iva_code);
@@ -246,8 +250,10 @@ export class StorefrontService {
         ...(revBy.get(r.id) ? { rating: Math.round(revBy.get(r.id)!.avg * 10) / 10, reviews: revBy.get(r.id)!.n } : {}),
         // Produção: "em stock" = há fornada pronta (🟢). Sob encomenda legado
         // (has_recipe sem is_production): sempre disponível. Comercial: stock>0.
-        inStock: isProduction ? availability === 'FREE' : madeToOrder ? true : stock > 0,
-        stockQty: stock,
+        // "Permitir vender produtos sem stock": o comercial vende-se sempre e sem
+        // limite de quantidade (o stock pode ficar negativo), por isso não se expõe.
+        inStock: isProduction ? availability === 'FREE' : madeToOrder || noStockOk ? true : stock > 0,
+        stockQty: !isProduction && noStockOk ? undefined : stock,
         madeToOrder,
         isProduction,
         availability,
@@ -302,7 +308,8 @@ export class StorefrontService {
           ).catch(() => [] as { product_id: string }[])
         : [];
       const recipeSet = new Set(hasRecipeRows.map((x) => x.product_id));
-      for (const line of dto.lines) {
+      const noStockOk = await sellWithoutStock(tx);
+      for (const line of noStockOk ? [] : dto.lines) {
         const p = byCode.get(line.productCode);
         if (!p) continue; // validado a seguir com mensagem própria
         if (p.is_production || recipeSet.has(p.id)) continue; // sem limite de stock

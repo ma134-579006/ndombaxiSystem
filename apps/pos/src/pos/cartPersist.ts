@@ -99,6 +99,7 @@ export interface ReconcileResult<P> {
 export function reconcileWithCatalog<P extends CatalogProduct>(
   lines: StoredLine<P>[],
   products: P[],
+  opts: { sellWithoutStock?: boolean } = {},
 ): ReconcileResult<P> {
   const byId = new Map(products.map((p) => [p.id, p]));
   const out: StoredLine<P>[] = [];
@@ -108,7 +109,8 @@ export function reconcileWithCatalog<P extends CatalogProduct>(
   for (const l of lines) {
     const fresh = byId.get(l.product.id);
     if (!fresh) { removed.push({ name: l.product.name, reason: 'missing' }); changed = true; continue; }
-    const madeToOrder = !!fresh.has_recipe;
+    // "Permitir vender produtos sem stock": nada sai do carrinho nem é limitado.
+    const madeToOrder = !!fresh.has_recipe || opts.sellWithoutStock === true;
     const stock = Number(fresh.stock_qty);
     if (!madeToOrder && !(stock > 0)) { removed.push({ name: fresh.name, reason: 'out_of_stock' }); changed = true; continue; }
     const qty = madeToOrder ? l.quantity : Math.min(l.quantity, stock);

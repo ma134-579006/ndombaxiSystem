@@ -1,3 +1,4 @@
+import { useSellWithoutStock } from '../stockPolicy';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SubscriptionRing } from '../components/SubscriptionRing';
 import { VendusSeal } from '../components/VendusSeal';
@@ -229,6 +230,8 @@ function monoColor(name: string): string {
 }
 
 export function PosPage() {
+  // "Permitir vender produtos sem stock" (escolha do gestor no painel).
+  const sellNoStock = useSellWithoutStock();
   const { user, logout, companyCode } = useAuth();
   const kbd = useKeyboard();
   const sync = useSync();
@@ -649,7 +652,7 @@ export function PosPage() {
     const madeToOrder = !!p.has_recipe;
     // "Controlar stock: Não" (serviço): vende sempre, sem olhar ao stock.
     const untracked = p.track_stock === false;
-    if (!madeToOrder && !untracked && stock <= 0) { flashError(`"${p.name}" está esgotado.`); return false; }
+    if (!madeToOrder && !untracked && !sellNoStock && stock <= 0) { flashError(`"${p.name}" está esgotado.`); return false; }
     // Prato sem ingredientes para 1 dose E sem fornada na prateleira: avisa JÁ
     // no toque (em vez de deixar o erro para o pagamento). Com stock produzido
     // (padaria), vende da prateleira mesmo sem ingredientes. A emissão valida.
@@ -659,7 +662,7 @@ export function PosPage() {
       return false;
     }
     const current = cart.find((l) => l.product.id === p.id)?.quantity ?? 0;
-    if (!madeToOrder && !untracked && current + 1 > stock) { flashError(`Stock insuficiente de "${p.name}": só há ${stock}.`); return false; }
+    if (!madeToOrder && !untracked && !sellNoStock && current + 1 > stock) { flashError(`Stock insuficiente de "${p.name}": só há ${stock}.`); return false; }
     // AVISO de reserva (não bloqueia): este stock está prometido a uma encomenda
     // online por confirmar. O cliente físico tem prioridade, mas o caixa é
     // avisado para o conflito não passar despercebido (a mesma água vendida 2×).
@@ -688,7 +691,7 @@ export function PosPage() {
           const stock = Number(l.product.stock_qty);
           const next = l.quantity + delta;
           // Pratos sob encomenda não têm stock próprio (ver addToCart).
-          if (!l.product.has_recipe && l.product.track_stock !== false && delta > 0 && next > stock) { flashError(`Stock insuficiente de "${l.product.name}": só há ${stock}.`); return l; }
+          if (!l.product.has_recipe && l.product.track_stock !== false && !sellNoStock && delta > 0 && next > stock) { flashError(`Stock insuficiente de "${l.product.name}": só há ${stock}.`); return l; }
           return { ...l, quantity: next };
         })
         .filter((l) => l.quantity > 0),
@@ -802,7 +805,7 @@ export function PosPage() {
     const r = resume(parked, id, { lines: cart, customerId: customer?.id ?? null }, newUuid(), Date.now());
     if (!r.sale) return;
     // Preços e stock reconfirmados com o catálogo atual — com aviso do que mudou.
-    const rec = products.length ? reconcileWithCatalog(r.sale.lines, products) : null;
+    const rec = products.length ? reconcileWithCatalog(r.sale.lines, products, { sellWithoutStock: sellNoStock }) : null;
     setParked(r.list);
     setCart(rec ? rec.lines : r.sale.lines);
     setCartSel(new Set());
@@ -859,7 +862,7 @@ export function PosPage() {
   // ou ajustado é AVISADO ao funcionário — nunca desaparece em silêncio (B-02).
   useEffect(() => {
     if (products.length === 0 || cartRef.current.length === 0) return;
-    const r = reconcileWithCatalog(cartRef.current, products);
+    const r = reconcileWithCatalog(cartRef.current, products, { sellWithoutStock: sellNoStock });
     if (!r.changed) return;
     setCart(r.lines);
     const msg = describeReconcile(r);
@@ -1316,14 +1319,16 @@ export function PosPage() {
                     // stock, laranja com pouco (≤5), vermelho esgotado; sem
                     // triângulo nos pratos sob encomenda. Sem dica ao passar o rato.
                     const stockCls = madeToOrder ? '' : out ? ' no' : stock <= 5 ? ' alert' : '';
-                    const label = `${p.name}${madeToOrder ? '' : ` · ${out ? 'Esgotado' : `${formatNumber(stock)} em stock`}`}`;
+                    // Com "vender sem stock" ligado mostra o saldo real (pode ser 0 ou negativo).
+                    const qtyTx = out && !sellNoStock ? 'Esgotado' : formatNumber(stock);
+                    const label = `${p.name}${madeToOrder ? '' : ` · ${out && !sellNoStock ? 'Esgotado' : `${formatNumber(stock)} em stock`}`}`;
                     return (
                       <button key={p.id} className={`vtile${p.image_url ? ' img' : ''}${regCfg.showReference ? ' ref' : ''}`} onClick={() => addToCart(p)} aria-label={label}>
                         {p.image_url ? <img src={p.image_url} alt="" loading="lazy" /> : null}
                         {madeToOrder ? null : <>
                           <span className={`vt-stock${stockCls}`} aria-hidden="true" /><span className="vt-stock line" aria-hidden="true" />
                           {/* Quantidade disponível — mesma cor do triângulo (verde / laranja / vermelho). */}
-                          <span className={`vt-qty${stockCls}`} aria-hidden="true">{out ? 'Esgotado' : formatNumber(stock)}</span>
+                          <span className={`vt-qty${stockCls}`} aria-hidden="true">{qtyTx}</span>
                         </>}
                         <span className="vt-name">{p.name}</span>
                         {regCfg.showReference ? <span className="vt-ref">{p.code}</span> : null}

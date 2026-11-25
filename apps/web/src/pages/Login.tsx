@@ -1,3 +1,4 @@
+import { isRememberSession, setRememberSession } from '../auth/sessionStore';
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { LOGO_WIDE } from '../brand';
@@ -38,6 +39,8 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   const [forgot, setForgot] = useState(false);
   const [email, setEmail] = useState(() => { try { return localStorage.getItem('ndx:remember_email') ?? ''; } catch { return ''; } });
   const [emailRO, setEmailRO] = useState(true); // anti-autofill (editável após focar)
+  // "Lembrar-me": guarda o e-mail e mantém a sessão ao fechar e reabrir.
+  const [remember, setRemember] = useState(() => { try { return !!localStorage.getItem('ndx:remember_email') || isRememberSession(); } catch { return false; } });
   const [password, setPassword] = useState('');
   const [twoFa, setTwoFa] = useState('');
   const [show2fa, setShow2fa] = useState(false);
@@ -53,6 +56,7 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
 
   const social = async (kind: 'google' | 'facebook', token: string, companyCode?: string) => {
     setError(null); setLoading(true);
+    setRememberSession(remember);
     try {
       if (kind === 'google') await loginGoogle(token, companyCode);
       else await loginFacebook(token, companyCode);
@@ -81,7 +85,8 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
     const mail = email.trim().toLowerCase();
     if (!mail || !password) { setError('Indica o e-mail e a password.'); return; }
     if (!/^\S+@\S+\.\S+$/.test(mail)) { setError('E-mail inválido.'); return; }
-    try { if (localStorage.getItem('ndx:remember_email')) localStorage.setItem('ndx:remember_email', mail); } catch { /* storage indisponível */ }
+    try { if (remember) localStorage.setItem('ndx:remember_email', mail); else localStorage.removeItem('ndx:remember_email'); } catch { /* storage indisponível */ }
+    setRememberSession(remember);
     setLoading(true);
     const twoFaToken = resend ? undefined : (twoFa.trim() || undefined);
     // O servidor pediu o código da verificação em 2 passos (enviado por e-mail ou WhatsApp).
@@ -185,6 +190,8 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
                         ) : null}
                       </div>
                     ) : null}
+
+                    <label className="va-remember"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Lembrar-me</label>
 
                     <button className="va-btn" onClick={() => void submit()} disabled={loading}>
                       {loading ? 'A entrar…' : 'Iniciar Sessão'}

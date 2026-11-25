@@ -47,9 +47,16 @@ type Session = { token: string; associate: Associate };
 
 const KEY = 'ndombaxi.kwanza.session';
 export const session = {
-  get(): Session | null { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; } },
-  set(s: Session) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* */ } window.dispatchEvent(new Event('kwanza:session')); },
-  clear() { try { localStorage.removeItem(KEY); } catch { /* */ } window.dispatchEvent(new Event('kwanza:session')); },
+  get(): Session | null { try { return JSON.parse(localStorage.getItem(KEY) || sessionStorage.getItem(KEY) || 'null'); } catch { return null; } },
+  /** `remember` ("Lembrar-me"): fica no aparelho; desmarcado, a sessão acaba ao fechar. */
+  set(s: Session, remember = true) {
+    try {
+      if (remember) { localStorage.setItem(KEY, JSON.stringify(s)); sessionStorage.removeItem(KEY); }
+      else { sessionStorage.setItem(KEY, JSON.stringify(s)); localStorage.removeItem(KEY); }
+    } catch { /* */ }
+    window.dispatchEvent(new Event('kwanza:session'));
+  },
+  clear() { try { localStorage.removeItem(KEY); sessionStorage.removeItem(KEY); } catch { /* */ } window.dispatchEvent(new Event('kwanza:session')); },
 };
 
 const e = encodeURIComponent;

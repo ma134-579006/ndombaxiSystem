@@ -1,3 +1,4 @@
+import { sess } from './sessionStore';
 import React, {
   createContext,
   useCallback,
@@ -79,8 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshRef.current = tokens.refreshToken;
     // Tokens em sessionStorage (por-aba): nova aba/ligação copiada NÃO herda a
     // sessão → exige novo login do operador (PIN). Mais seguro.
-    sessionStorage.setItem(LS_ACCESS, tokens.accessToken);
-    sessionStorage.setItem(LS_REFRESH, tokens.refreshToken);
+    sess.setItem(LS_ACCESS, tokens.accessToken);
+    sess.setItem(LS_REFRESH, tokens.refreshToken);
     setUser(decodeJwt(tokens.accessToken));
     // Sessão válida (login, renovação ou promoção da sessão offline): o que
     // ficou por subir com a sessão antiga sobe AGORA, sem esperar pelo relógio.
@@ -90,8 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearSession = useCallback(() => {
     accessRef.current = null;
     refreshRef.current = null;
-    sessionStorage.removeItem(LS_ACCESS);
-    sessionStorage.removeItem(LS_REFRESH);
+    sess.removeItem(LS_ACCESS);
+    sess.removeItem(LS_REFRESH);
     setUser(null);
     setStatus('guest');
   }, []);
@@ -200,8 +201,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const access = sessionStorage.getItem(LS_ACCESS);
-      const refresh = sessionStorage.getItem(LS_REFRESH);
+      const access = sess.getItem(LS_ACCESS);
+      const refresh = sess.getItem(LS_REFRESH);
       if (!access || !refresh) {
         if (alive) setStatus('guest');
         return;

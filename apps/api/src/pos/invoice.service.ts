@@ -1,3 +1,4 @@
+import { sellWithoutStock } from '../common/stock-policy';
 import { BadRequestException, ForbiddenException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
@@ -553,6 +554,9 @@ export class InvoiceService {
       // A venda é bloqueada se não houver stock suficiente ou se o produto só
       // tiver lotes expirados. Toda a transacção é revertida (nada é gravado).
       const today = luandaDate();
+      // "Permitir vender produtos sem stock" (Configurações → Stock): a falta de
+      // stock deixa de bloquear e o saldo pode ficar negativo. A validade continua.
+      const noStockOk = await sellWithoutStock(tx);
       // Venda feita SEM REDE: já aconteceu — não se valida stock nem validade aqui.
       for (const line of input.offline ? [] : lines) {
         const product = byCode.get(line.productCode);
@@ -570,7 +574,7 @@ export class InvoiceService {
             const need = ing.quantity * line.quantity;
             const ir = await tx.$queryRaw<{ stock_qty: string }[]>(Prisma.sql`SELECT stock_qty FROM products WHERE id = ${ing.ingredientId}::uuid`);
             const have = ir[0] ? Number(ir[0].stock_qty) : 0;
-            if (have < need) {
+            if (have < need && !noStockOk) {
               throw new BadRequestException(`Ingrediente insuficiente para "${line.description}": ${ing.name} (disponível ${have}, necessário ${need}).`);
             }
           }
@@ -591,7 +595,7 @@ export class InvoiceService {
           );
           available = si[0] ? Number(si[0].quantity) : 0;
         }
-        if (available < line.quantity) {
+        if (available < line.quantity && !noStockOk) {
           throw new BadRequestException(
             `Stock insuficiente para "${line.description}": disponível ${available}, pedido ${line.quantity}.`,
           );
@@ -613,7 +617,7 @@ export class InvoiceService {
         // As unidades de lotes CADUCADOS continuam no saldo até serem abatidas (baixa):
         // não podem ser vendidas. Antes só se bloqueava quando NÃO havia nenhuma válida
         // (10 válidas + 100 caducadas → vendia 50).
-        if (batch[0] && available - Number(batch[0].expired) < line.quantity) {
+        if (batch[0] && !noStockOk && available - Number(batch[0].expired) < line.quantity) {
           throw new BadRequestException(
             `"${line.description}": só ${Math.max(0, available - Number(batch[0].expired))} unidade(s) dentro da validade (pedido ${line.quantity}). Abata os lotes caducados.`,
           );
@@ -712,7 +716,7 @@ export class InvoiceService {
             reference: number,
             referenceId: invoiceId,
             createdBy: input.cashierId ?? null,
-            allowNegative: shared || input.offline === true,
+            allowNegative: shared || input.offline === true || noStockOk,
           });
           // FEFO: a venda consome os lotes VÁLIDOS da loja por validade mais próxima,
           // para os lotes refletirem o que está na prateleira (antes nunca baixavam).

@@ -477,7 +477,7 @@ export function Shell({
 
   type PanelItem = { key: string; label: string; act?: () => void; on?: boolean };
   // Abre as Configurações num separador concreto (como os itens do painel CONFIG do Vendus).
-  const abrirDefinicoes = (tab: 'brand' | 'modules') => {
+  const abrirDefinicoes = (tab: 'brand' | 'modules' | 'stock') => {
     try { sessionStorage.setItem('lps.settings.tab', tab); } catch { /* sem armazenamento */ }
     window.dispatchEvent(new CustomEvent('lps:settings-tab', { detail: tab }));
     setSection('settings');
@@ -511,6 +511,7 @@ export function Shell({
     config: [
       has('settings') ? { key: '__dados', label: 'Dados da Empresa', act: () => abrirDefinicoes('brand') } : null,
       has('settings') ? { key: '__definicoes', label: 'Definições', act: () => abrirDefinicoes('modules') } : null,
+      has('settings') ? { key: '__stock', label: 'Stock', act: () => abrirDefinicoes('stock') } : null,
       pi('subscription', 'Subscrição'),
       has('subscription') ? { key: '__historico', label: 'Histórico de Pagamentos', act: abrirHistorico } : null,
       pi('migration', 'Migração de Dados'),
