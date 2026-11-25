@@ -9,7 +9,7 @@ import {
   IconArrowLeftRight, IconBadge, IconBank, IconBoxes, IconBuilding, IconCalendar,
   IconCamera, IconCard, IconCartIn, IconCashRegister, IconChart, IconCoins, IconCube,
   IconDatabase, IconDownload, IconGauge, IconGear, IconHeadset, IconHistory, IconLedger, IconMail,
-  IconMessage, IconPercent, IconPlug, IconReceipt, IconReport, IconSparkles,
+  IconMessage, IconPercent, IconPlug, IconPlus, IconReceipt, IconReport, IconSparkles,
   IconStore, IconTag, IconTrendUp, IconTruck, IconUpload, IconUsers, IconWallet, IconLock,
   IconActivity, IconBag, IconBars, IconFolder, IconShieldCheck, IconUserGroup, IconUser,
 } from './components/Icons';
@@ -57,6 +57,7 @@ const StockAnalysis = lazyRetry(() => import('./sections/StockAnalysis').then((m
 const InventoryIntel = lazyRetry(() => import('./sections/InventoryIntel').then((m) => ({ default: m.InventoryIntel })));
 const Reports = lazyRetry(() => import('./sections/Reports').then((m) => ({ default: m.Reports })));
 const Documents = lazyRetry(() => import('./sections/Documents').then((m) => ({ default: m.Documents })));
+const CreateDocument = lazyRetry(() => import('./sections/CreateDocument').then((m) => ({ default: m.CreateDocument })));
 const Settings = lazyRetry(() => import('./sections/Settings').then((m) => ({ default: m.Settings })));
 const Profile = lazyRetry(() => import('./sections/Profile').then((m) => ({ default: m.Profile })));
 const Promotions = lazyRetry(() => import('./sections/Promotions').then((m) => ({ default: m.Promotions })));
@@ -153,6 +154,7 @@ export const TENANT_NAV: NavItem[] = [
     // ao gerente de loja, como antes).
     key: 'movements-group', label: 'Movimentações', icon: IconCoins, children: [
       { key: 'documents', label: 'Documentos', icon: IconReceipt },
+      { key: 'documents-new', label: 'Criar documento', icon: IconPlus, min: 3 },
       { key: 'payments', label: 'Pagamentos', icon: IconCard, min: 2 },
       { key: 'profit', label: 'Lucros', icon: IconTrendUp, min: 2 },
       { key: 'expenses', label: 'Gastos', icon: IconReceipt, min: 2 },
@@ -448,6 +450,7 @@ function TenantPanel() {
       {section === 'operations' ? <Operations /> : null}
       {section === 'reports' ? <Reports /> : null}
       {section === 'documents' ? <Documents /> : null}
+      {section === 'documents-new' ? <CreateDocument onDone={() => setSection('documents')} /> : null}
       {section === 'saft' ? <Saft /> : null}
       {section === 'backup' ? <Backup /> : null}
       {section === 'backup-restore' ? <BackupRestore /> : null}

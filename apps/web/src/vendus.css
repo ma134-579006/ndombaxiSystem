@@ -1720,3 +1720,38 @@ html.touch-ui .sidebar.vds .vds-rail .vds-tab, html.touch-ui .sidebar.vds .vds-r
 .set-check span { display: grid; gap: 4px; min-width: 0; }
 .set-check b { font-weight: 500; color: var(--text); }
 .set-check small { font-size: 13px; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
+/* Telemóvel: o selo de notificações do avatar fica DENTRO do ecrã (antes saía 7px e era cortado). */
+@media (max-width: 900px) { .admin .topbar .acct2 .acct-badge { left: auto; right: -4px; } }
+/* ===== CRIAR DOCUMENTO (Documentos → Criar Documento, como no Vendus) ===== */
+.cd-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .cd-grid { grid-template-columns: minmax(0, 1fr); } }
+.cd-main, .cd-side { min-width: 0; }
+.cd-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.cd-kinds button { display: grid; gap: 2px; padding: 12px; border: 1px solid #dfe5f9; border-radius: 4px; background: #fff; color: #333; text-align: left; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease; }
+.cd-kinds button.on { border-color: #1577eb; box-shadow: 0 0 0 1px #1577eb inset; }
+.cd-kinds button small { color: #6c757d; font-size: 12px; }
+.cd-search { position: relative; margin-bottom: 14px; }
+.cd-search input, .cd-lines input { width: 100%; box-sizing: border-box; min-height: 40px; padding: 8px 10px; border: 1px solid #ced4da; border-radius: 4px; font: inherit; }
+.cd-drop { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 2px); max-height: 260px; overflow: auto; margin: 0; padding: 4px 0; list-style: none; background: #fff; border: 1px solid #dfe5f9; border-radius: 4px; box-shadow: 0 6px 20px rgba(0, 0, 0, .12); }
+.cd-drop button { display: grid; width: 100%; padding: 8px 12px; border: 0; background: none; text-align: left; cursor: pointer; color: #333; }
+.cd-drop button:hover, .cd-drop button:focus-visible { background: #f1f6fe; }
+.cd-drop small, .cd-chip small, .cd-lines small { color: #6c757d; font-size: 12px; overflow-wrap: anywhere; }
+.cd-chip { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; margin-bottom: 14px; border: 1px solid #dfe5f9; border-radius: 4px; background: #f8fafd; }
+.cd-chip span { display: grid; min-width: 0; }
+.cd-chip button, .cd-lines .rm { flex: none; width: 32px; height: 32px; border: 0; border-radius: 4px; background: none; color: #f20740; font-size: 20px; line-height: 1; cursor: pointer; }
+.cd-lines { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.cd-lines li { display: grid; grid-template-columns: minmax(0, 1fr) 90px 90px 32px; gap: 8px; align-items: end; padding: 8px 0; border-bottom: 1px solid #eee; }
+.cd-lines .nm { display: grid; min-width: 0; }
+.cd-lines .nm b { overflow-wrap: anywhere; }
+.cd-lines label { display: grid; gap: 2px; font-size: 12px; color: #6c757d; }
+@media (max-width: 520px) { .cd-lines li { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px; } .cd-lines .nm { grid-column: 1 / -1; } }
+.cd-empty { margin: 8px 0 0; }
+.cd-tot { margin: 0 0 14px; display: grid; gap: 6px; }
+.cd-tot div { display: flex; justify-content: space-between; gap: 10px; }
+.cd-tot dt { color: #6c757d; } .cd-tot dd { margin: 0; font-variant-numeric: tabular-nums; }
+.cd-tot .g { padding-top: 8px; border-top: 1px solid #eee; font-size: 18px; font-weight: 700; color: #002c52; }
+.cd-side .vd-btn.block { width: 100%; margin-top: 10px; }
+.cd-note { font-size: 12px; margin: 10px 0 0; }
+.cd-done { text-align: center; padding: 28px 16px; }
+.cd-big { font-size: clamp(22px, 5vw, 32px); font-weight: 800; color: #002c52; margin: 6px 0; overflow-wrap: anywhere; }
+.cd-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 16px; }
