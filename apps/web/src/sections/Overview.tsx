@@ -105,7 +105,7 @@ export function Overview() {
         loadSums(),
         api.dashboard.series('1m').catch(() => null),
         api.dashboard.series('6m').catch(() => null),
-        api.dashboard.topProducts(5).catch(() => [] as DashTopProduct[]),
+        api.dashboard.topProducts(5, undefined, 'today').catch(() => [] as DashTopProduct[]),
         api.profit.byProduct(p.day[0], p.day[1]).catch(() => [] as ProfitProduct[]),
         api.dashboard.lowStock().catch(() => [] as DashLowStock[]),
         api.alerts().catch(() => [] as OpsAlert[]),
@@ -209,7 +209,7 @@ export function Overview() {
 
       <div className="vd-dash-row">
         <div className="vd-card vd-panel">
-          <h3 className="vd-panel-h"><IconTrendUp size={20} /> Mais <b>Vendidos</b></h3>
+          <h3 className="vd-panel-h"><IconTrendUp size={20} /> Mais <b>Vendidos</b> <small>| Hoje</small></h3>
           {top.length === 0 ? <VdEmpty /> : (
             <ol className="vd-rank">
               {top.map((p, i) => (

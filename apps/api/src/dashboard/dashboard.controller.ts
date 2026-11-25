@@ -65,8 +65,8 @@ export class DashboardController {
   @Get('top-products')
   @ApiOperation({ summary: 'Produtos mais vendidos' })
   @ApiQuery({ name: 'limit', required: false, example: 10 })
-  topProducts(@CurrentUser() user: JwtPayload, @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number, @Query('storeId') storeId?: string) {
-    return this.dashboard.topProducts(this.ctx.requireTenantSchema(), limit, effectiveStoreId(user, storeId));
+  topProducts(@CurrentUser() user: JwtPayload, @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number, @Query('storeId') storeId?: string, @Query('period') period?: string) {
+    return this.dashboard.topProducts(this.ctx.requireTenantSchema(), limit, effectiveStoreId(user, storeId), period === 'today' ? 'today' : undefined);
   }
 
   @Get('low-stock')
