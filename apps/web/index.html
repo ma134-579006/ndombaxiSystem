@@ -27,9 +27,17 @@
     <meta property="og:site_name" content="LPS Vendas" />
     <meta property="og:title" content="LPS Vendas — gestão e vendas para Angola" />
     <meta property="og:description" content="POS, stock, facturação certificada AGT, financeiro e loja online numa única plataforma." />
+    <meta property="og:url" content="https://lpsvendas.com.de/" />
+    <meta property="og:image" content="https://lpsvendas.com.de/app-icon.png" />
+    <meta property="og:locale" content="pt_AO" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="LPS Vendas" />
-    <title>LPS Vendas — Administração</title>
+    <!-- SEO: o único endereço oficial é https://lpsvendas.com.de (o domínio antigo
+         redireciona 301 para aqui). O main.tsx ajusta o canonical à página e marca
+         noindex nos subdomínios de aplicação (admin, caixa, www). -->
+    <link rel="canonical" href="https://lpsvendas.com.de/" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"LPS Vendas","url":"https://lpsvendas.com.de/","logo":"https://lpsvendas.com.de/logo.png"},{"@type":"WebSite","name":"LPS Vendas","url":"https://lpsvendas.com.de/"},{"@type":"SoftwareApplication","name":"LPS Vendas","applicationCategory":"BusinessApplication","operatingSystem":"Windows, Android, Web","url":"https://lpsvendas.com.de/","downloadUrl":"https://lpsvendas.com.de/baixar"}]}</script>
+    <title>LPS Vendas — Sistema de gestão, POS e faturação AGT em Angola</title>
   </head>
   <body>
     <div id="root"><div style="position:fixed;inset:0;display:grid;place-items:center;background:#0b1020"><div style="display:grid;justify-items:center;gap:14px;color:#fff;font:14px system-ui,sans-serif"><div style="position:relative;width:150px;height:150px"><div style="position:absolute;inset:7px;border-radius:999px;background:#fff"></div><img src="/logo.png" alt="" style="position:absolute;left:9%;top:50%;width:82%;transform:translateY(-50%)"><div style="position:absolute;inset:0;border-radius:999px;border:4px solid transparent;border-top-color:#fff;border-right-color:#fff;animation:bootspin 1.2s cubic-bezier(.5,.1,.5,.9) infinite"></div><div style="position:absolute;inset:2px;border-radius:999px;border:4px solid transparent;border-bottom-color:#3b5bff;border-left-color:#3b5bff;animation:bootspin 1.8s linear infinite reverse"></div></div><span>A carregar…</span></div></div><style>@keyframes bootspin{to{transform:rotate(360deg)}}</style></div>

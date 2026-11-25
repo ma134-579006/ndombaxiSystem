@@ -16,6 +16,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { mandatoryUpdate } from './update/mandatoryUpdate';
 import { isNativeApp } from './config';
 import { startI18n } from '@nexus/i18n';
+import { initSeo } from './seo';
 
 // APLICAÇÃO INSTALADA: marca-se o documento para o CSS poder distinguir a app
 // do site. Serve para o conteúdo OCUPAR O ECRÃ TODO quando a janela está
@@ -24,6 +25,7 @@ import { startI18n } from '@nexus/i18n';
 // instante com o layout do site dentro da app.
 if (isNativeApp()) document.documentElement.classList.add('app-instalada');
 
+initSeo(); // canonical e noindex: só o domínio novo aparece no Google
 initTheme();
 void startI18n(); // idioma do sistema (PT/EN/FR/ES), partilhado com a Caixa
 initTouchUi(); // ecrãs táteis: comportamento de telemóvel + campos acima do teclado

@@ -61,7 +61,7 @@
 .lv-links > a:hover, .lv-links > button:hover, .lv-links .lv-dd > button:hover { color: var(--lv-brand); }
 .lv-nav-in > .lv-btn-o { margin-left: 8px; }
 .lv-lang { padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--lv-line); }
-.lv-lang-btn { display: inline-flex; align-items: center; gap: 3px; border: 0; background: none; cursor: pointer; color: #b5bccd; font-size: 14px; font-weight: 600; padding: 6px 4px; }
+.lv-lang-btn { display: inline-flex; align-items: center; gap: 3px; border: 0; background: none; cursor: pointer; color: #5b6478; font-size: 14px; font-weight: 600; padding: 6px 4px; }
 .lv-lang-btn:hover { color: var(--lv-ink); }
 .lv-dd { position: relative; }
 .lv-menu {

@@ -73,7 +73,14 @@
   .dl-btn:active { translate: 0; }
   .dl-btn:hover .dl-arrow { translate: 3px 0; }
 }
-.dl-btn.disabled { background-color: #eef1f6; border-color: #e4e9f2; color: #98a2b3; box-shadow: none; cursor: default; pointer-events: none; }
+.dl-btn.disabled { background-color: #eef1f6; border-color: #d7deea; color: #344054; box-shadow: none; cursor: default; pointer-events: none; }
+/* A cor do texto acompanha o fundo do botão: branco sobre azul, escuro sobre claro.
+   Seletor com 2 classes para vencer o reset `.lv a { color: inherit }` da landing. */
+.dl-section .dl-btn, .dl-card .dl-btn { --dl-btn-bg: var(--dl-accent); color: #fff; }
+.dl-section .dl-btn.disabled, .dl-card .dl-btn.disabled { --dl-btn-bg: #eef1f6; color: #344054; }
+@supports (color: contrast-color(red)) {
+  .dl-section .dl-btn, .dl-card .dl-btn { color: contrast-color(var(--dl-btn-bg)); }
+}
 .dl-changelog summary { color: var(--dl-accent); }
 .dl-changelog summary:focus-visible { outline-color: var(--dl-accent); }
 
