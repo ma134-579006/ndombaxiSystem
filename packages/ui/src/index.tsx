@@ -78,7 +78,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
   );
   if (!leading && !trailing) return el;
   return (
-    <div className={cx('nx-input-wrap', leading && 'has-lead', trailing && 'has-trail')}>
+    <div className={cx('nx-input-wrap', !!leading && 'has-lead', !!trailing && 'has-trail')}>
       {leading && <span className="lead">{leading}</span>}
       {el}
       {trailing && <span className="trail">{trailing}</span>}

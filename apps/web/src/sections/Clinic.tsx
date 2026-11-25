@@ -248,7 +248,7 @@ function ConsultModal({ appointment, onClose, onDone }: { appointment: ClinicApp
         const inv = await api.clinic.invoiceConsultation(r.id).catch(() => null);
         if (inv && inv.insurer && Number(inv.covered) > 0) {
           const pac = inv.invoiceNumber ? `paciente ${KZ(inv.copay ?? 0)} (FT ${inv.invoiceNumber})` : 'paciente 0 (100% coberto)';
-          toast.success(`Consulta registada. Convénio ${inv.insurer}: cobre ${KZ(inv.covered)}, ${pac}.`);
+          toast.success(`Consulta registada. Convénio ${inv.insurer}: cobre ${KZ(inv.covered ?? 0)}, ${pac}.`);
         } else if (inv) toast.success(`Consulta registada e faturada (${inv.invoiceNumber}).`);
         else toast.success('Consulta registada.');
         if (inv?.invoiceId && inv.invoiceNumber) { onDone({ id: inv.invoiceId, number: inv.invoiceNumber, total: Number(inv.copay ?? f.fee) || 0 }); return; }
