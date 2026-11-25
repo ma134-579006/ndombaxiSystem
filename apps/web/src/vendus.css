@@ -2005,3 +2005,11 @@ html.touch-ui .admin.nav-rail .topbar::before { display: none !important; }
 .pu-sum { margin: 10px 2px 0; color: var(--muted); font-size: 13.5px; }
 .pu-sum b { color: var(--text); }
 .pu-sum b.neg { color: #e0384b; }
+
+/* Movimentos de Stock (Vendus): seta vermelha (saída) / verde (entrada) e botões
+   «Limpar» + «Pesquisar» à direita, por baixo dos filtros. */
+.mv-actions { justify-content: flex-end; }
+.vd-table td.mv-dir { width: 24px; padding-right: 0; }
+.mv-dir span { font-size: 20px; font-weight: 700; line-height: 1; }
+.mv-dir .out { color: #e0384b; }
+.mv-dir .in { color: #16a34a; }
