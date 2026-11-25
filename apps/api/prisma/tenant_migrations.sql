@@ -932,3 +932,7 @@ CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."price_group_prices" (
   PRIMARY KEY (price_group_id, product_id)
 );
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS price_group_id UUID REFERENCES "{{SCHEMA}}"."price_groups"(id) ON DELETE SET NULL;
+-- "Permitir vender produtos sem stock" (como no Vendus: Configurações → Stock).
+-- Desligado por omissão; quando ligado, Caixa, painel e lojas vendem com stock
+-- nulo ou negativo (ver src/common/stock-policy.ts).
+ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS allow_sell_without_stock BOOLEAN NOT NULL DEFAULT FALSE;

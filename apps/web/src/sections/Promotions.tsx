@@ -102,7 +102,7 @@ export function Promotions() {
                   <span className={`vd-badge al-${a.level}`}>{a.category === 'STOCK' ? 'Stock' : a.category === 'CASH' ? 'Caixa' : 'Vendas'}</span>
                   <div className="al-txt"><b>{a.title}</b><span>{a.detail}</span></div>
                   <button className="al-x" title="Eliminar" aria-label={`Eliminar: ${a.title}`} onClick={() => void dismissAlerts([k])}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M21 6h-5V4.33A2.42 2.42 0 0 0 13.5 2h-3A2.42 2.42 0 0 0 8 4.33V6H3a1 1 0 0 0 0 2h1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8h1a1 1 0 0 0 0-2zM10 4.33c0-.16.21-.33.5-.33h3c.29 0 .5.17.5.33V6h-4zM18 19a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V8h12z" /><path d="M9 17a1 1 0 0 0 1-1v-4a1 1 0 0 0-2 0v4a1 1 0 0 0 1 1z" /><path d="M15 17a1 1 0 0 0 1-1v-4a1 1 0 0 0-2 0v4a1 1 0 0 0 1 1z" /></svg>
                   </button>
                 </div>
               );

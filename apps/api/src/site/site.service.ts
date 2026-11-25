@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { stockPolicyChanged } from '../common/stock-policy';
 import type { CreatePageDto, UpdatePageDto, UpdateSiteSettingsDto } from './dto/site.dto';
 
 /**
@@ -27,6 +28,7 @@ export interface SiteSettingsRow {
   custom_css: string | null;
   is_published: boolean;
   online_store_enabled: boolean;
+  allow_sell_without_stock?: boolean;
   company_profile?: Record<string, string> | null;
   updated_at: Date;
 }
@@ -84,6 +86,7 @@ export class SiteService {
     if (dto.customCss !== undefined) sets.push(Prisma.sql`custom_css = ${dto.customCss}`);
     if (dto.isPublished !== undefined) sets.push(Prisma.sql`is_published = ${dto.isPublished}`);
     if (dto.onlineStoreEnabled !== undefined) sets.push(Prisma.sql`online_store_enabled = ${dto.onlineStoreEnabled}`);
+    if (dto.allowSellWithoutStock !== undefined) sets.push(Prisma.sql`allow_sell_without_stock = ${dto.allowSellWithoutStock}`);
     // Junta (não substitui) os dados da empresa: só os campos enviados mudam.
     if (dto.companyProfile !== undefined) sets.push(Prisma.sql`company_profile = COALESCE(company_profile, '{}'::jsonb) || ${JSON.stringify(dto.companyProfile)}::jsonb`);
 
@@ -96,7 +99,7 @@ export class SiteService {
                    WHERE id = ${current.id}::uuid RETURNING *`,
       );
       return rows[0];
-    });
+    }).then((row) => { if (dto.allowSellWithoutStock !== undefined) stockPolicyChanged(schema); return row; });
   }
 
   // ── Páginas (editor de blocos) ──────────────────────────────

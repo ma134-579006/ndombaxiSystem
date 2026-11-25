@@ -62,7 +62,7 @@ export function TransferHost() {
       <div className="xf-box">
         <div className={`xf-ring${s.finished ? ' ok' : ''}`} style={{ ['--p' as string]: pct }}>
           <span>{s.finished
-            ? <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+            ? <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M9.86 18a1 1 0 0 1-.73-.32l-4.86-5.17a1 1 0 1 1 1.46-1.37l4.12 4.39 8.41-9.2a1 1 0 1 1 1.48 1.34l-9.14 10a1 1 0 0 1-.73.33z" /></svg>
             : `${pct}%`}</span>
         </div>
         <h4>{s.finished ? 'Concluído' : s.title}</h4>

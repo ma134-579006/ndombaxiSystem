@@ -54,7 +54,7 @@ const KwanzaAppIcon = () => (
   <img src={`${import.meta.env.BASE_URL}app-icon-kwanza.png`} alt="" width={64} height={64} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
 );
 const Arrow = () => (
-  <svg className="dl-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+  <svg className="dl-arrow" width="16" height="16" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M5 13h11.86l-3.63 4.36a1 1 0 0 0 1.54 1.28l5-6a1.19 1.19 0 0 0 .09-.15c0-.05.05-.08.07-.13A1 1 0 0 0 20 12a1 1 0 0 0-.07-.36c0-.05-.05-.08-.07-.13a1.19 1.19 0 0 0-.09-.15l-5-6A1 1 0 0 0 14 5a1 1 0 0 0-.64.23 1 1 0 0 0-.13 1.41L16.86 11H5a1 1 0 0 0 0 2z" /></svg>
 );
 
 interface Group { id: string; title: string; brand: React.ReactNode; apps: PlatformMeta[] }

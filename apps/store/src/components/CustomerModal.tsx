@@ -132,6 +132,8 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
     } finally { setBusy(false); setStep(null); }
   };
 
+  const [remember, setRemember] = useState(true);
+  useEffect(() => { try { const m = localStorage.getItem('ndx:store_remember_email'); if (m && !email) setEmail(m); } catch { /* */ } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const login = async () => {
     setErr(null);
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr('Indique o email da sua conta.'); return; }
@@ -143,7 +145,8 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
         return;
       }
       if (!/^\d{6}$/.test(otp.trim())) { setErr('Indique o código de 6 dígitos que recebeu por email.'); return; }
-      setSession(code, await api.authEmail(code, email.trim(), undefined, true, otp.trim()));
+      try { if (remember) localStorage.setItem('ndx:store_remember_email', email.trim()); else localStorage.removeItem('ndx:store_remember_email'); } catch { /* */ }
+      setSession(code, await api.authEmail(code, email.trim(), undefined, true, otp.trim()), remember);
       onClose();
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Não foi possível entrar.'); }
     finally { setBusy(false); }
@@ -209,6 +212,7 @@ function Login({ code, onClose }: { code: string; onClose(): void }) {
               <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="6 dígitos" inputMode="numeric" autoComplete="one-time-code" autoFocus /></div>
           ) : null}
+          <label className="remember-me"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Lembrar-me</label>
           <button className="btn lg block" onClick={() => void login()} disabled={busy}>
             {busy ? 'Um momento…' : !codeSent ? 'Continuar' : 'Entrar'}
           </button>

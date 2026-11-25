@@ -1224,3 +1224,7 @@
   box-shadow: inset 0 0 0 100vmax var(--af-bg, #fff), var(--af-ring, 0 0 0 0 transparent) !important;
 }
 .kw-f input { --af-bg: #fff; --af-fg: var(--kw-ink, #333); --af-ring: 0 0 0 3px rgba(26, 36, 196, .15); }
+
+/* "Lembrar-me" no login do LPS Kwanza. */
+.kw-remember { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; font-size: 14px; cursor: pointer; user-select: none; }
+.kw-remember input { width: 18px; height: 18px; margin: 0; accent-color: currentColor; }

@@ -43,9 +43,7 @@ function NotifyBell({ onGo }: { onGo(section: string): void }) {
   return (
     <div className="noti-wrap" ref={ref}>
       <button className="icon-btn noti-btn" onClick={() => setOpen((v) => !v)} title="Notificações" aria-label="Notificações">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-        </svg>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M20.52 15.21l-1.8-1.81V8.94a6.86 6.86 0 0 0-5.82-6.88 6.74 6.74 0 0 0-7.62 6.67v4.67l-1.8 1.81A1.64 1.64 0 0 0 4.64 18H8v.34A3.84 3.84 0 0 0 12 22a3.84 3.84 0 0 0 4-3.66V18h3.36a1.64 1.64 0 0 0 1.16-2.79zM14 18.34A1.88 1.88 0 0 1 12 20a1.88 1.88 0 0 1-2-1.66V18h4zM5.51 16l1.18-1.18a2 2 0 0 0 .59-1.42V8.73A4.73 4.73 0 0 1 8.9 5.17 4.67 4.67 0 0 1 12.64 4a4.86 4.86 0 0 1 4.08 4.9v4.5a2 2 0 0 0 .58 1.42L18.49 16z" /></svg>
         {total > 0 ? <span className="noti-badge">{total > 99 ? '99+' : total}</span> : null}
       </button>
       {open ? (
@@ -154,26 +152,20 @@ function AdvancesModal({ items, onReview, onClose }: {
 /** Hambúrguer (só visível no telemóvel via CSS). */
 function IconMenu({ size = 22 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-    </svg>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="11" width="18" height="2" rx=".95" ry=".95" /><rect x="3" y="16" width="18" height="2" rx=".95" ry=".95" /><rect x="3" y="6" width="18" height="2" rx=".95" ry=".95" /></svg>
   );
 }
 
 /** Ícone de utilizador (placeholder do avatar quando não há foto). */
 function IconUser({ size = 18 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
-    </svg>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M12 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0-6a2 2 0 1 1-2 2 2 2 0 0 1 2-2z" /><path d="M12 13a7 7 0 0 0-7 7 1 1 0 0 0 2 0 5 5 0 0 1 10 0 1 1 0 0 0 2 0 7 7 0 0 0-7-7z" /></svg>
   );
 }
 
 function IconGear({ size = 17 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M12.94 22h-1.89a1.68 1.68 0 0 1-1.68-1.68v-1.09a.34.34 0 0 0-.22-.29.38.38 0 0 0-.41 0l-.74.8a1.67 1.67 0 0 1-2.37 0L4.26 18.4a1.66 1.66 0 0 1-.5-1.19 1.72 1.72 0 0 1 .5-1.21l.74-.74a.34.34 0 0 0 0-.37c-.06-.15-.16-.26-.3-.26H3.68A1.69 1.69 0 0 1 2 12.94v-1.89a1.68 1.68 0 0 1 1.68-1.68h1.09a.34.34 0 0 0 .29-.22.38.38 0 0 0 0-.41L4.26 8a1.67 1.67 0 0 1 0-2.37L5.6 4.26a1.65 1.65 0 0 1 1.18-.5 1.72 1.72 0 0 1 1.22.5l.74.74a.34.34 0 0 0 .37 0c.15-.06.26-.16.26-.3V3.68A1.69 1.69 0 0 1 11.06 2H13a1.68 1.68 0 0 1 1.68 1.68v1.09a.34.34 0 0 0 .22.29.38.38 0 0 0 .41 0l.69-.8a1.67 1.67 0 0 1 2.37 0l1.37 1.34a1.67 1.67 0 0 1 .5 1.19 1.63 1.63 0 0 1-.5 1.21l-.74.74a.34.34 0 0 0 0 .37c.06.15.16.26.3.26h1.09A1.69 1.69 0 0 1 22 11.06V13a1.68 1.68 0 0 1-1.68 1.68h-1.09a.34.34 0 0 0-.29.22.34.34 0 0 0 0 .37l.77.77a1.67 1.67 0 0 1 0 2.37l-1.31 1.33a1.65 1.65 0 0 1-1.18.5 1.72 1.72 0 0 1-1.19-.5l-.77-.74a.34.34 0 0 0-.37 0c-.15.06-.26.16-.26.3v1.09A1.69 1.69 0 0 1 12.94 22zm-1.57-2h1.26v-.77a2.33 2.33 0 0 1 1.46-2.14 2.36 2.36 0 0 1 2.59.47l.54.54.88-.88-.54-.55a2.34 2.34 0 0 1-.48-2.56 2.33 2.33 0 0 1 2.14-1.45H20v-1.29h-.77a2.33 2.33 0 0 1-2.14-1.46 2.36 2.36 0 0 1 .47-2.59l.54-.54-.88-.88-.55.54a2.39 2.39 0 0 1-4-1.67V4h-1.3v.77a2.33 2.33 0 0 1-1.46 2.14 2.36 2.36 0 0 1-2.59-.47l-.54-.54-.88.88.54.55a2.39 2.39 0 0 1-1.67 4H4v1.26h.77a2.33 2.33 0 0 1 2.14 1.46 2.36 2.36 0 0 1-.47 2.59l-.54.54.88.88.55-.54a2.39 2.39 0 0 1 4 1.67z" /><path d="M12 15.5a3.5 3.5 0 1 1 3.5-3.5 3.5 3.5 0 0 1-3.5 3.5zm0-5a1.5 1.5 0 1 0 1.5 1.5 1.5 1.5 0 0 0-1.5-1.5z" /></svg>
   );
 }
 
@@ -363,11 +355,9 @@ export interface NavItem {
 /** Seta de expansão dos grupos do menu. */
 function IconChevron({ open }: { open: boolean }) {
   return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
-      strokeLinecap="round" strokeLinejoin="round"
-      style={{ marginLeft: 'auto', transition: 'transform .18s', transform: open ? 'rotate(90deg)' : 'none' }}>
-      <polyline points="9 6 15 12 9 18" />
-    </svg>
+    <svg width={14} height={14}
+     
+      style={{ marginLeft: 'auto', transition: 'transform .18s', transform: open ? 'rotate(90deg)' : 'none' }} viewBox="0 0 24 24" fill="currentColor"><path d="M10 19a1 1 0 0 1-.64-.23 1 1 0 0 1-.13-1.41L13.71 12 9.39 6.63a1 1 0 0 1 .15-1.41 1 1 0 0 1 1.46.15l4.83 6a1 1 0 0 1 0 1.27l-5 6A1 1 0 0 1 10 19z" /></svg>
   );
 }
 
@@ -442,6 +432,13 @@ export function Shell({
     setSection(key);
   };
   const [menuOpen, setMenuOpen] = useState(false);
+  // Como no Vendus: cada separador da coluna de ícones TROCA o menu ao lado
+  // (Gestão, POS, Loja, Apps, Configuração) em vez de saltar para outra página.
+  type RailTab = 'gestao' | 'pos' | 'loja' | 'apps' | 'config';
+  const [railTab, setRailTab] = useState<RailTab>('gestao');
+  // Menu fixo aberto (computador) — memorizado neste aparelho, como no Vendus.
+  const [menuFixo, setMenuFixo] = useState<boolean>(() => { try { return localStorage.getItem('lps.menu.fixo') === '1'; } catch { return false; } });
+  const alternarMenuFixo = () => setMenuFixo((v) => { const n = !v; try { localStorage.setItem('lps.menu.fixo', n ? '1' : '0'); } catch { /* sem armazenamento */ } return n; });
   // Grupos abertos (abre automaticamente o que contém a secção activa).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -468,8 +465,80 @@ export function Shell({
     return () => { alive = false; stopPoll(t); };
   }, [isTenant, custChatAllowed]);
 
+  type PanelItem = { key: string; label: string; act?: () => void; on?: boolean };
+  // Abre as Configurações num separador concreto (como os itens do painel CONFIG do Vendus).
+  const abrirDefinicoes = (tab: 'brand' | 'modules' | 'stock') => {
+    try { sessionStorage.setItem('lps.settings.tab', tab); } catch { /* sem armazenamento */ }
+    window.dispatchEvent(new CustomEvent('lps:settings-tab', { detail: tab }));
+    setSection('settings');
+  };
+  const abrirHistorico = () => {
+    try { sessionStorage.setItem('lps.sub.focus', 'history'); } catch { /* sem armazenamento */ }
+    window.dispatchEvent(new Event('lps:sub-history'));
+    setSection('subscription');
+  };
+  const pi = (key: string, label?: string): PanelItem | null => (has(key) ? { key, label: label ?? flat.find((n) => n.key === key)?.label ?? key } : null);
+  const abrirApps = () => { if (has('downloads')) setSection('downloads'); else window.open('/baixar', '_blank'); };
+  const equipa = (nav.find((n) => n.key === 'users-group')?.children ?? []).map((c) => ({ key: c.key, label: c.label }));
+  const paineis: Record<Exclude<RailTab, 'gestao'>, PanelItem[]> = {
+    pos: [
+      canPos ? { key: '__pos', label: 'Iniciar Ponto de Venda', act: () => onQuick('__pos') } : null,
+      pi('registers', 'Caixas'), pi('operations', 'Movimentos de Caixa'), pi('stores', 'Lojas'), pi('payments', 'Tipos de Pagamento'),
+      { key: '__apps-pos', label: 'Apps da Caixa (Windows e Android)', act: abrirApps },
+    ].filter(Boolean) as PanelItem[],
+    loja: [
+      pi('orders', 'Encomendas'),
+      pi('store', 'Loja online'),
+      isTenant && !has('store') ? { key: '__loja', label: 'Abrir a loja online', act: () => { window.open(`${STORE_URL}/${companyCode ?? ''}`, '_blank'); } } : null,
+      pi('kwanza'), pi('commissions'), pi('products', 'Produtos'), pi('promotions'), pi('kwanza-payouts'),
+    ].filter(Boolean) as PanelItem[],
+    apps: [
+      { key: '__baixar', label: 'Aplicações (Windows e Android)', act: abrirApps },
+      pi('assistant'), pi('cameras-live', 'Câmaras'), pi('migration', 'Migração de dados'),
+      pi('integrations'), pi('gateways'), pi('ai'),
+    ].filter(Boolean) as PanelItem[],
+    // Mesma ordem do painel CONFIG do Vendus; depois o que é só do LPS.
+    config: [
+      has('settings') ? { key: '__dados', label: 'Dados da Empresa', act: () => abrirDefinicoes('brand') } : null,
+      has('settings') ? { key: '__definicoes', label: 'Definições', act: () => abrirDefinicoes('modules') } : null,
+      has('settings') ? { key: '__stock', label: 'Stock', act: () => abrirDefinicoes('stock') } : null,
+      pi('subscription', 'Subscrição'),
+      has('subscription') ? { key: '__historico', label: 'Histórico de Pagamentos', act: abrirHistorico } : null,
+      pi('migration', 'Migração de Dados'),
+      pi('integrations', 'Integrações'),
+      pi('stores', 'Lojas e Caixas'),
+      ...equipa,
+      pi('security'), pi('mail'), pi('backup'),
+      { key: 'profile', label: 'O meu perfil' },
+    ].filter(Boolean) as PanelItem[],
+  };
+  const painel = railTab === 'gestao' ? null : paineis[railTab];
+
   // Fecha a gaveta ao mudar de secção (importante no telemóvel).
   useEffect(() => { setMenuOpen(false); }, [section]);
+  // Nome da empresa SEMPRE inteiro (pode ocupar várias linhas): a altura real do
+  // cabeçalho do menu entra nas contas das linhas, para o menu continuar a caber sem scroll.
+  const brandRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = brandRef.current; const aside = asideRef.current;
+    if (!el || !aside || typeof ResizeObserver === 'undefined') return;
+    // Nome numa só linha, inteiro: se não couber, a letra encolhe até caber (sem cortar nem quebrar).
+    const fit = (t: HTMLElement | null, max: number) => {
+      if (!t) return;
+      t.style.fontSize = '';
+      const w = t.clientWidth;
+      if (w > 0 && t.scrollWidth > w) t.style.fontSize = `${Math.max(7, Math.floor((max * w / t.scrollWidth) * 10) / 10)}px`;
+    };
+    const set = () => {
+      fit(el.querySelector<HTMLElement>('.nm'), 14);
+      fit(el.querySelector<HTMLElement>('.tg'), 11);
+      aside.style.setProperty('--brand-h', `${Math.ceil(el.getBoundingClientRect().height)}px`);
+    };
+    set();
+    const ro = new ResizeObserver(set); ro.observe(el);
+    const tx = el.querySelector('.brand-tx'); if (tx) ro.observe(tx);
+    return () => ro.disconnect();
+  }, [brandName, brand?.nif]);
   // Fecha os grupos abertos ao clicar FORA da barra lateral.
   const asideRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -482,55 +551,66 @@ export function Shell({
   }, [openGroups]);
 
   return (
-    <div className="admin nav-rail">
+    <div className={`admin nav-rail${menuFixo ? ' menu-fixo' : ''}`}>
       {menuOpen ? <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} /> : null}
       {/* Barra lateral estilo Vendus: coluna de ícones (GESTÃO, POS, LOJA, APPS,
           Configurações) + menu da gestão, que mostra só os ícones e abre ao passar
           o rato (animação do LPS). Sem scroll: as linhas encolhem para caber. */}
       <aside ref={asideRef} className={`sidebar vds${menuOpen ? ' open' : ''}`} onMouseLeave={() => setOpenGroups({})}
         style={{
-          ['--nav-n' as string]: nav.length + nav.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0),
+          ['--nav-n' as string]: painel ? Math.max(painel.length, 6) : nav.length + nav.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0),
           // Telemóvel: com um grupo aberto o menu mostra SÓ esse grupo (cabeçalho
           // + itens), como o menu do Vendus — as linhas cabem sempre, sem scroll.
-          ['--nav-m' as string]: (() => { const g = nav.find((n) => openGroups[n.key] && n.children?.length); return g ? (g.children!.length + 1) : nav.length; })(),
+          ['--nav-m' as string]: painel ? Math.max(painel.length, 6) : (() => { const g = nav.find((n) => openGroups[n.key] && n.children?.length); return g ? (g.children!.length + 1) : nav.length; })(),
         }}>
         <div className="vds-rail" aria-label="Aplicações">
           <span className="vds-logo"><img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} /></span>
-          <button type="button" className="vds-tab on" title="Gestão" onClick={() => setSection(nav[0]?.key ?? section)}>
+          <button type="button" className={`vds-tab${railTab === 'gestao' ? ' on' : ''}`} title="Gestão" onClick={() => { setRailTab('gestao'); setOpenGroups({}); }}>
             <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" /><rect x="13" y="3" width="8" height="5" rx="2" fill="currentColor" opacity=".55" /><rect x="13" y="10" width="8" height="11" rx="2" fill="currentColor" /><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity=".55" /></svg>
             <span>GESTÃO</span>
           </button>
           {canPos ? (
-            <button type="button" className="vds-tab" title="Abrir a Caixa (POS)" onClick={() => onQuick('__pos')}>
+            <button type="button" className={`vds-tab${railTab === 'pos' ? ' on' : ''}`} title="Ponto de Venda" onClick={() => setRailTab('pos')}>
               <svg viewBox="0 0 24 24" aria-hidden><rect x="2.5" y="3.5" width="19" height="13" rx="2" fill="currentColor" /><rect x="9" y="18" width="6" height="2.5" rx="1" fill="currentColor" opacity=".6" /></svg>
               <span>POS</span>
             </button>
           ) : null}
           {isTenant ? (
-            <button type="button" className="vds-tab" title="Loja online" onClick={() => (has('store') ? setSection('store') : window.open(`${STORE_URL}/${companyCode ?? ''}`, '_blank'))}>
+            <button type="button" className={`vds-tab${railTab === 'loja' ? ' on' : ''}`} title="Loja online" onClick={() => setRailTab('loja')}>
               <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M5 7h14l-1 13a1.5 1.5 0 0 1-1.5 1.4h-9A1.5 1.5 0 0 1 6 20L5 7Z" /><path fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" d="M9 10.5a3 3 0 0 0 6 0" /></svg>
               <span>LOJA</span>
             </button>
           ) : null}
-          <button type="button" className="vds-tab" title="Aplicações" onClick={() => (has('downloads') ? setSection('downloads') : window.open('/baixar', '_blank'))}>
+          <button type="button" className={`vds-tab${railTab === 'apps' ? ' on' : ''}`} title="Aplicações" onClick={() => setRailTab('apps')}>
             <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="m12 2.5 9 4.6-9 4.6-9-4.6 9-4.6Z" /><path fill="currentColor" opacity=".7" d="m3 11.2 9 4.6 9-4.6v2.4l-9 4.6-9-4.6v-2.4Z" /><path fill="currentColor" opacity=".45" d="m3 15.6 9 4.6 9-4.6V18l-9 4.6L3 18v-2.4Z" /></svg>
             <span>APPS</span>
           </button>
           <span className="vds-spacer" />
-          <button type="button" className={`vds-gear${section === 'settings' || section === 'profile' ? ' on' : ''}`} title="Configuração"
-            onClick={() => setSection(has('settings') ? 'settings' : 'profile')}>
+          <button type="button" className={`vds-gear${railTab === 'config' ? ' on' : ''}`} title="Configuração"
+            onClick={() => setRailTab('config')}>
             <IconGear size={19} />
           </button>
         </div>
         <div className="vds-menu">
-          <div className="brand vds-company">
+          <div className="brand vds-company" ref={brandRef}>
             <div className="brand-tx">
               <div className="nm">{brandName}</div>
               <div className="tg">{brand?.nif ? `NIF: ${brand.nif}` : subtitle}</div>
             </div>
+            <button type="button" className={`vds-pin${menuFixo ? ' on' : ''}`} onClick={alternarMenuFixo}
+              title={menuFixo ? 'Recolher o menu' : 'Fixar o menu aberto'} aria-pressed={menuFixo}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d={menuFixo ? 'M9 7l-5 5 5 5' : 'M4 7l5 5-5 5'} /><path d="M13 6h7M13 12h7M13 18h7" />
+              </svg>
+            </button>
           </div>
-          <nav className={`nav${nav.some((n) => openGroups[n.key] && n.children?.length) ? ' has-open' : ''}`}>
-            {nav.map((n) => {
+          <nav className={`nav${!painel && nav.some((n) => openGroups[n.key] && n.children?.length) ? ' has-open' : ''}${painel ? ' nav-painel' : ''}`} key={railTab}>
+            {painel ? painel.map((p) => (
+              <button key={p.key} className={section === p.key ? 'active' : ''} title={p.label}
+                onClick={() => { if (p.act) p.act(); else setSection(p.key); setMenuOpen(false); }}>
+                <span className="nav-label">{p.label}</span>
+              </button>
+            )) : nav.map((n) => {
               const Icon = n.icon;
               if (n.children && n.children.length) {
                 const open = !!openGroups[n.key];
@@ -578,7 +658,10 @@ export function Shell({
               );
             })}
           </nav>
-          <div className="sig">{copyrightLine()}</div>
+          {/* Como no Vendus: linha "Configuração" no fundo, alinhada com a roda dentada. */}
+          <button type="button" className={`vds-cfg${railTab === 'config' ? ' on' : ''}`} title={copyrightLine()} onClick={() => setRailTab('config')}>
+            Configuração
+          </button>
         </div>
       </aside>
 
@@ -614,9 +697,7 @@ export function Shell({
           ) : null}
           {isTenant && custChatAllowed ? (
             <button className="icon-btn tb-chat" style={{ position: 'relative' }} onClick={() => setCustChatOpen(true)} title="Chat com clientes" aria-label="Chat com clientes">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2 4 6v13a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6l-2-4H6z" /><path d="M4 6h16" /><path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M20.12 6.71l-2.83-2.83A3 3 0 0 0 15.17 3H8.83a3 3 0 0 0-2.12.88L3.88 6.71A3 3 0 0 0 3 8.83V18a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V8.83a3 3 0 0 0-.88-2.12zm-12-1.42A1.05 1.05 0 0 1 8.83 5h6.34a1.05 1.05 0 0 1 .71.29L17.59 7H6.41zM18 19H6a1 1 0 0 1-1-1V9h14v9a1 1 0 0 1-1 1z" /><path d="M15 11a1 1 0 0 0-1 1 2 2 0 0 1-4 0 1 1 0 0 0-2 0 4 4 0 0 0 8 0 1 1 0 0 0-1-1z" /></svg>
               {custUnread > 0 ? <span className="noti-badge">{custUnread > 99 ? '99+' : custUnread}</span> : null}
             </button>
           ) : null}

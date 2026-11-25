@@ -267,6 +267,8 @@ export interface ReportX {
 
 /** Identidade da empresa (logo + dados) para os documentos. */
 export interface DocumentIdentity {
+  /** "Permitir vender produtos sem stock" (Configurações → Stock). */
+  sellWithoutStock?: boolean;
   companyName: string;
   nif: string;
   brandName: string | null;

@@ -69,9 +69,8 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
     return () => { alive = false; };
   }, [enabled]);
   if (!info) return null;
-  // Cor pelo consumido: até 60% verde, 61–80% laranja, acima de 80% vermelho.
-  const tone = info.pct <= 60 ? 'ok' : info.pct <= 80 ? 'warn' : 'bad';
-  const r = 15, c = 2 * Math.PI * r;
+  // Cor como no Vendus: azul até 74%, laranja 75–89%, vermelho a partir de 90%.
+  const tone = info.pct < 75 ? 'ok' : info.pct < 90 ? 'warn' : 'bad';
   // Como no backoffice de referência: só o texto e o anel; os dias que faltam
   // aparecem numa dica ANIMADA ao passar o rato (ou ao focar com o teclado).
   const tip = info.left === 0 ? 'A subscrição termina hoje' : info.left === 1 ? 'Falta 1 dia para renovar' : `Faltam ${info.left} dias para renovar`;
@@ -91,12 +90,9 @@ export function SubscriptionRing({ enabled, onGo }: { enabled: boolean; onGo?: (
     <button className={`tb-sub ${tone}`} onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={tip}>
       {open ? null : <span className="tb-sub-tip" role="tooltip">{tip}</span>}
       <span className="tb-sub-tx">Renovar subscrição</span>
-      <span className="tb-ring" aria-hidden="true">
-        <svg width="38" height="38" viewBox="0 0 38 38">
-          <circle cx="19" cy="19" r={r} className="trk" />
-          <circle cx="19" cy="19" r={r} className="val" strokeDasharray={c} strokeDashoffset={c * (1 - info.pct / 100)} />
-        </svg>
-        <b>{info.pct}%</b>
+      {/* Anel do Vendus: círculo perfeito (conic-gradient recortado) e o número centrado. */}
+      <span className="tb-ring" aria-hidden="true" style={{ ['--tb-p' as string]: Math.min(100, Math.max(0, info.pct)) } as import('react').CSSProperties}>
+        <b>{info.pct}<small>%</small></b>
       </span>
     </button>
     </div>

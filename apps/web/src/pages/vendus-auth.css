@@ -331,3 +331,6 @@
     .va-choices > * { opacity: 0; translate: 0 10px; }
   }
 }
+/* "Lembrar-me" (igual à Caixa). */
+.va-remember { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; font-size: 13px; color: #333; cursor: pointer; user-select: none; }
+.va-remember input { width: 16px; height: 16px; margin: 0; accent-color: var(--va-primary, #1577eb); }

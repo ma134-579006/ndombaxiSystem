@@ -31,6 +31,17 @@ async function bootstrap(): Promise<void> {
   // de corpo. Sem esta folga, ficheiros grandes davam 413 ("erro de servidor").
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));
+  // Anti-DoS: um documento com milhares de linhas é recusado JÁ, antes da validação
+  // linha a linha (20 000 linhas prendiam a API vários segundos). O limite (1000)
+  // é o mesmo do EmitInvoiceDto; aqui só se corta cedo o que nunca passaria.
+  app.use((req: { method?: string; path?: string; body?: { lines?: unknown } }, res: { status(c: number): { json(b: unknown): void } }, next: () => void) => {
+    const lines = req.method === 'POST' && /^\/pos\/invoices\/?$/.test(req.path ?? '') ? req.body?.lines : undefined;
+    if (Array.isArray(lines) && lines.length > 1000) {
+      res.status(400).json({ statusCode: 400, message: 'Documento com demasiadas linhas (máximo 1000).', error: 'Bad Request' });
+      return;
+    }
+    next();
+  });
 
   // CORS: aceita a lista explícita do env (CORS_ORIGINS) E, por conveniência,
   // qualquer subdomínio de plataformas de deploy grátis (Cloudflare Pages /

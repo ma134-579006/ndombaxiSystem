@@ -606,11 +606,13 @@ function AuthCard({ title, children }: { title: string; children: React.ReactNod
   return <div className="kw-auth-card kw-pop"><div className="kw-auth-brand"><img src="/logo-mark.png" alt="LPS Vendas" width={120} height={120} /><strong>{BRAND}</strong></div><h2 className="kw-auth-t">{title}</h2>{children}</div>;
 }
 function Login({ onDone, go }: { onDone(): void; go(r: Route): void }) {
-  const [login, setLogin] = useState(''); const [pw, setPw] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
+  const [login, setLogin] = useState(() => { try { return localStorage.getItem('kw.remember_login') ?? ''; } catch { return ''; } }); const [pw, setPw] = useState(''); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
+  const [remember, setRemember] = useState(true);
   const [ask, setAsk] = useState<CodeAsk | null>(null); const [code, setCode] = useState('');
   const send = async (resend = false) => {
     setErr(null); setBusy(true);
-    try { session.set(await kw.login({ login, password: pw, twoFaCode: !resend && ask ? code : undefined, twoFaResend: resend || undefined })); onDone(); }
+    try { if (remember) localStorage.setItem('kw.remember_login', login.trim()); else localStorage.removeItem('kw.remember_login'); } catch { /* */ }
+    try { session.set(await kw.login({ login, password: pw, twoFaCode: !resend && ask ? code : undefined, twoFaResend: resend || undefined }), remember); onDone(); }
     catch (er) { const a = codeAsk(er); if (a) { setAsk(a); setCode(''); } else setErr(er instanceof ApiError ? er.message : 'Não foi possível entrar.'); }
     finally { setBusy(false); }
   };
@@ -621,6 +623,7 @@ function Login({ onDone, go }: { onDone(): void; go(r: Route): void }) {
         <label className="kw-f"><span>Telefone ou email</span><input value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" /></label>
         <label className="kw-f"><span>Senha</span><input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="current-password" /></label>
         {ask ? <CodeBox ask={ask} code={code} setCode={setCode} busy={busy} onResend={() => void send(true)} onEnter={() => void send()} /> : null}
+        <label className="kw-remember"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Lembrar-me</label>
         {err ? <div className="kw-err" role="alert">{err}</div> : null}
         <button className="kw-btn kw-btn-primary kw-block" disabled={busy || (!!ask && code.length !== 6)}>{busy ? 'Um momento…' : ask ? 'Confirmar código' : 'Entrar'}</button>
         <div className="kw-auth-links"><span>Esqueceu a senha? <button type="button" className="kw-link" onClick={() => go({ n: 'recover' })}>Recuperar</button></span><span>Não tem conta? <button type="button" className="kw-link" onClick={() => go({ n: 'register' })}>Criar conta</button></span></div>

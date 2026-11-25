@@ -340,7 +340,8 @@ export function readVendusPlan(data: unknown): { plan: string; expires: string; 
  * Período da subscrição Vendus a partir da data de fim, contado COMO NO
  * BACKOFFICE VENDUS (ex.: fim 21/12, hoje 24/11 → "Faltam 27 dias", 13%):
  * período mensal (ou anual se o fim estiver a mais de 40 dias), dias que
- * faltam arredondados para cima e o dia de hoje já conta como gasto.
+ * faltam arredondados para cima, o dia de hoje já conta como gasto e a
+ * percentagem é arredondada PARA BAIXO (fim 21/12, hoje 25/11 → 5/30 = 16%).
  */
 export function vendusSubscriptionPeriod(expires: string, now = new Date()): {
   active: boolean; pct: number; leftPct: number; totalDays: number; usedDays: number; daysLeft: number; expiresAt: string | null;
@@ -359,7 +360,7 @@ export function vendusSubscriptionPeriod(expires: string, now = new Date()): {
   if (end <= now.getTime()) return { active: false, pct: 100, leftPct: 0, totalDays, usedDays: totalDays, daysLeft: 0, expiresAt: new Date(end).toISOString() };
   const daysLeft = Math.min(totalDays, Math.max(0, Math.ceil((end - now.getTime()) / 864e5)));
   const usedDays = Math.min(totalDays, totalDays - daysLeft + 1);
-  const pct = Math.round((usedDays / totalDays) * 100);
+  const pct = Math.floor((usedDays / totalDays) * 100);
   return { active: true, pct, leftPct: 100 - pct, totalDays, usedDays, daysLeft, expiresAt: new Date(end).toISOString() };
 }
 

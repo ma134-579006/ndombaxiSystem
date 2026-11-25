@@ -1410,6 +1410,11 @@ export const api = {
     callSession: () => request<AssistantCallSession>('GET', '/ai/call/session'),
   },
   // ── Clientes da empresa (mesma tabela que o caixa usa) ─────
+  /** Emissão de documentos no painel (Documentos → Criar Documento), a mesma da Caixa. */
+  invoices: {
+    emit: (dto: { docType: 'FT' | 'FS'; customerId?: string; paymentType: 'CASH' | 'CARD' | 'TRANSFER' | 'REFERENCE' | 'EXPRESS' | 'CREDIT'; dueDate?: string; clientOpId: string; lines: { productCode: string; quantity: number; discountRate?: number }[] }) =>
+      request<{ id: string; number: string; grossTotal?: number | string }>('POST', '/pos/invoices', dto),
+  },
   customers: {
     /** Totais de todos os clientes (cartões da Gestão). */
     stats: () => request<{ total: number; withPurchases: number; totalSpent: number; purchases: number }>('GET', '/pos/customers/stats'),

@@ -1,3 +1,4 @@
+import { setRememberSession } from '../auth/sessionStore';
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { LOGO_WIDE } from '../brand';
@@ -39,6 +40,8 @@ export function LoginPage() {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setError('Indica o teu e-mail de funcionário.'); return; }
     if (!/^\d{4,8}$/.test(pin)) { setError('Digite o seu PIN de 6 dígitos.'); return; }
     try { if (remember) localStorage.setItem('ndx:caixa_remember_email', email.trim()); else localStorage.removeItem('ndx:caixa_remember_email'); } catch { /* */ }
+    // "Lembrar-me" também mantém a sessão ao fechar e reabrir a Caixa.
+    setRememberSession(remember);
     setLoading(true);
     try {
       await loginStaff(email, pin);

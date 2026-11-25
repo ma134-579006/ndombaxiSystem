@@ -7,20 +7,24 @@ const EVT = 'ndombaxi:customer';
 
 export function getSession(code: string): CustomerSession | null {
   try {
-    const raw = localStorage.getItem(key(code));
+    const raw = localStorage.getItem(key(code)) ?? sessionStorage.getItem(key(code));
     return raw ? (JSON.parse(raw) as CustomerSession) : null;
   } catch {
     return null;
   }
 }
 
-export function setSession(code: string, session: CustomerSession): void {
-  localStorage.setItem(key(code), JSON.stringify(session));
+/** `remember` ("Lembrar-me"): guarda a sessão no aparelho; desmarcado, acaba ao fechar. */
+export function setSession(code: string, session: CustomerSession, remember = true): void {
+  try {
+    if (remember) { localStorage.setItem(key(code), JSON.stringify(session)); sessionStorage.removeItem(key(code)); }
+    else { sessionStorage.setItem(key(code), JSON.stringify(session)); localStorage.removeItem(key(code)); }
+  } catch { /* sem armazenamento */ }
   window.dispatchEvent(new Event(EVT));
 }
 
 export function clearSession(code: string): void {
-  localStorage.removeItem(key(code));
+  try { localStorage.removeItem(key(code)); sessionStorage.removeItem(key(code)); } catch { /* sem armazenamento */ }
   window.dispatchEvent(new Event(EVT));
 }
 

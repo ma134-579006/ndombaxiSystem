@@ -8,6 +8,11 @@ describe('Subscrição Vendus (anel "Renovar subscrição")', () => {
     expect(p.totalDays).toBe(30);
     expect(p.pct).toBe(13);
   });
+  it('arredonda a % para baixo como o Vendus: fim 21/12, hoje 25/11 → faltam 26 dias, 16%', () => {
+    const p = vendusSubscriptionPeriod('2026-12-21', new Date('2026-11-25T10:00:00+01:00'))!;
+    expect(p.daysLeft).toBe(26);
+    expect(p.pct).toBe(16);
+  });
   it('aceita a data com hora e no formato dd/mm/aaaa', () => {
     expect(vendusSubscriptionPeriod('2026-12-21 23:59:59', new Date('2026-11-24T12:00:00+01:00'))!.daysLeft).toBe(27);
     expect(vendusSubscriptionPeriod('21/12/2026', new Date('2026-11-24T12:00:00+01:00'))!.daysLeft).toBe(27);

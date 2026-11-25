@@ -344,8 +344,11 @@ export interface SiteSettings {
   clinical_iva_code?: string;
   is_published: boolean;
   online_store_enabled: boolean;
+  /** "Permitir vender produtos sem stock" (Configurações → Stock). */
+  allow_sell_without_stock?: boolean;
 }
 export interface UpdateSiteSettingsInput { companyProfile?: CompanyProfile;
+  allowSellWithoutStock?: boolean;
   brandName?: string;
   tagline?: string;
   logoUrl?: string;

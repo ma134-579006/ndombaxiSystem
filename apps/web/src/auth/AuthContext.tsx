@@ -1,3 +1,4 @@
+import { sess } from './sessionStore';
 import React, {
   createContext,
   useCallback,
@@ -93,13 +94,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<DecodedJwt | null>(null);
   const [companyCode, setCompanyCode] = useState<string | null>(
-    () => sessionStorage.getItem(LS_COMPANY),
+    () => sess.getItem(LS_COMPANY),
   );
-  const [shadow, setShadow] = useState<string | null>(() => sessionStorage.getItem(LS_SHADOW));
+  const [shadow, setShadow] = useState<string | null>(() => sess.getItem(LS_SHADOW));
 
   const accessRef = useRef<string | null>(null);
   const refreshRef = useRef<string | null>(null);
-  const companyRef = useRef<string | undefined>(sessionStorage.getItem(LS_COMPANY) ?? undefined);
+  const companyRef = useRef<string | undefined>(sess.getItem(LS_COMPANY) ?? undefined);
   // Refresh ÚNICO em voo (single-flight): dedupe chamadas concorrentes para o mesmo
   // refresh token (a API revoga-o na rotação). Evita a corrida proativo×on-demand
   // que reutilizava o token → 401 → logout (ex.: desbloquear o ecrã passados >15 min).
@@ -108,8 +109,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const applyTokens = useCallback((tokens: TokenPair) => {
     accessRef.current = tokens.accessToken;
     refreshRef.current = tokens.refreshToken;
-    sessionStorage.setItem(LS_ACCESS, tokens.accessToken);
-    sessionStorage.setItem(LS_REFRESH, tokens.refreshToken);
+    sess.setItem(LS_ACCESS, tokens.accessToken);
+    sess.setItem(LS_REFRESH, tokens.refreshToken);
     setUser(decodeJwt(tokens.accessToken));
     // Sessão válida (login, renovação ou promoção da sessão offline): o que ficou
     // por subir sobe AGORA, sem esperar pelo relógio (ver offline/prefetch.ts).
@@ -119,12 +120,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearSession = useCallback(() => {
     accessRef.current = null;
     refreshRef.current = null;
-    sessionStorage.removeItem(LS_ACCESS);
-    sessionStorage.removeItem(LS_REFRESH);
-    sessionStorage.removeItem(LS_SESSION_START);
-    sessionStorage.removeItem(LS_SHADOW);
-    sessionStorage.removeItem(LS_PREV_ACCESS);
-    sessionStorage.removeItem(LS_PREV_REFRESH);
+    sess.removeItem(LS_ACCESS);
+    sess.removeItem(LS_REFRESH);
+    sess.removeItem(LS_SESSION_START);
+    sess.removeItem(LS_SHADOW);
+    sess.removeItem(LS_PREV_ACCESS);
+    sess.removeItem(LS_PREV_REFRESH);
     setShadow(null);
     setUser(null);
     setStatus('guest');
@@ -148,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const code = up.companyCode ?? r.companyCode;
             companyRef.current = code;
             setCompanyCode(code);
-            sessionStorage.setItem(LS_COMPANY, code);
+            sess.setItem(LS_COMPANY, code);
             applyTokens(r);
             clearPendingUpgrade();
             void rememberOffline({
@@ -264,8 +265,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const access = sessionStorage.getItem(LS_ACCESS);
-      const refresh = sessionStorage.getItem(LS_REFRESH);
+      const access = sess.getItem(LS_ACCESS);
+      const refresh = sess.getItem(LS_REFRESH);
       if (!access || !refresh) {
         if (alive) setStatus('guest');
         return;
@@ -329,8 +330,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Super Admin não usa código de empresa.
       companyRef.current = undefined;
       setCompanyCode(null);
-      sessionStorage.removeItem(LS_COMPANY);
-      sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
+      sess.removeItem(LS_COMPANY);
+      sess.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(await api.login(input));
       setStatus('authed');
     },
@@ -356,8 +357,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (v.ok && v.identity) {
             companyRef.current = v.identity.companyCode;
             setCompanyCode(v.identity.companyCode);
-            sessionStorage.setItem(LS_COMPANY, v.identity.companyCode);
-            sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
+            sess.setItem(LS_COMPANY, v.identity.companyCode);
+            sess.setItem(LS_SESSION_START, String(Date.now()));
             // Sessão provisória (credenciais provisionadas, sem tokens do
             // servidor): guarda em memória o que foi escrito, para a promover a
             // sessão real mal a rede volte — sem voltar a pedir a senha.
@@ -391,8 +392,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const code = input.companyCode ?? r.companyCode;
       companyRef.current = code;
       setCompanyCode(code);
-      sessionStorage.setItem(LS_COMPANY, code);
-      sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
+      sess.setItem(LS_COMPANY, code);
+      sess.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(r);
       setStatus('authed');
       clearPendingUpgrade();
@@ -420,8 +421,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (tokens: TokenPair, code: string) => {
       companyRef.current = code;
       setCompanyCode(code);
-      sessionStorage.setItem(LS_COMPANY, code);
-      sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
+      sess.setItem(LS_COMPANY, code);
+      sess.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(tokens);
       setStatus('authed');
     },
@@ -434,8 +435,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const code = companyCode ?? r.companyCode;
       companyRef.current = code;
       setCompanyCode(code);
-      sessionStorage.setItem(LS_COMPANY, code);
-      sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
+      sess.setItem(LS_COMPANY, code);
+      sess.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(r);
       setStatus('authed');
     },
@@ -450,14 +451,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const enterShadow = useCallback(
     (tokens: TokenPair, code: string, companyName: string) => {
       // Preserva a sessão de plataforma actual para restaurar ao sair.
-      if (accessRef.current) sessionStorage.setItem(LS_PREV_ACCESS, accessRef.current);
-      if (refreshRef.current) sessionStorage.setItem(LS_PREV_REFRESH, refreshRef.current);
+      if (accessRef.current) sess.setItem(LS_PREV_ACCESS, accessRef.current);
+      if (refreshRef.current) sess.setItem(LS_PREV_REFRESH, refreshRef.current);
       companyRef.current = code;
       setCompanyCode(code);
-      sessionStorage.setItem(LS_COMPANY, code);
-      sessionStorage.setItem(LS_SESSION_START, String(Date.now()));
+      sess.setItem(LS_COMPANY, code);
+      sess.setItem(LS_SESSION_START, String(Date.now()));
       applyTokens(tokens);
-      sessionStorage.setItem(LS_SHADOW, companyName);
+      sess.setItem(LS_SHADOW, companyName);
       setShadow(companyName);
       setStatus('authed');
     },
@@ -465,12 +466,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const exitShadow = useCallback(() => {
-    const pa = sessionStorage.getItem(LS_PREV_ACCESS);
-    const pr = sessionStorage.getItem(LS_PREV_REFRESH);
-    sessionStorage.removeItem(LS_PREV_ACCESS);
-    sessionStorage.removeItem(LS_PREV_REFRESH);
-    sessionStorage.removeItem(LS_SHADOW);
-    sessionStorage.removeItem(LS_COMPANY);
+    const pa = sess.getItem(LS_PREV_ACCESS);
+    const pr = sess.getItem(LS_PREV_REFRESH);
+    sess.removeItem(LS_PREV_ACCESS);
+    sess.removeItem(LS_PREV_REFRESH);
+    sess.removeItem(LS_SHADOW);
+    sess.removeItem(LS_COMPANY);
     companyRef.current = undefined;
     setCompanyCode(null);
     setShadow(null);

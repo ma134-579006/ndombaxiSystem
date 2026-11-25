@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { readFileProgress } from '../components/feedback';
 import { api, ApiError } from '../api/client';
-import type { BankAccount, PublicPlan, SubMessage, Subscription as Sub, SubStatus } from '../api/types';
-import { IconCalendar, IconCard, IconCheck, IconReceipt, IconShield, IconStore } from '../components/Icons';
+import type { BankAccount, DeviceRow, ManagerStore, PublicPlan, SubMessage, Subscription as Sub, SubStatus } from '../api/types';
+import { IconCard, IconCheck, IconReceipt } from '../components/Icons';
 
 function kz(n: number): string { return n.toLocaleString('pt-PT') + ' Kz'; }
 
@@ -20,6 +20,8 @@ async function fileToBase64(file: File): Promise<{ data: string; type: string; n
   return { data: res.includes(',') ? res.slice(res.indexOf(',') + 1) : res, type: file.type || 'image/jpeg', name: file.name };
 }
 
+type SubSummary = Awaited<ReturnType<typeof api.subscription.status>>;
+
 /** Período legível de um plano/subscrição: "1 mês", "3 meses", "30 dias", "sem prazo". */
 function periodLabel(months: number, days = 0): string {
   const parts: string[] = [];
@@ -33,7 +35,7 @@ const daysLeft = (iso: string | null) => (iso ? Math.max(0, Math.ceil((new Date(
 
 /** Subscrição & Plano (lado da empresa): plano actual, escolher plano, pagar por IBAN,
  *  enviar comprovativo (imagem) e conversar com o Super Admin. */
-export function Subscription() {
+export function Subscription({ onGo }: { onGo?: (section: string) => void } = {}) {
   const [subs, setSubs] = useState<Sub[]>([]);
   const [banks, setBanks] = useState<BankAccount[]>([]);
   const [plans, setPlans] = useState<PublicPlan[]>([]);
@@ -56,31 +58,93 @@ export function Subscription() {
     .sort((x, y) => (y.expiresAt ? new Date(y.expiresAt).getTime() : Infinity) - (x.expiresAt ? new Date(x.expiresAt).getTime() : Infinity))[0];
   const pending = subs.find((s) => s.status === 'PENDING_PAYMENT' || s.status === 'IN_REVIEW');
   const [changing, setChanging] = useState(false);
-  const currentPlan = plans.find((pl) => pl.id === active?.planId);
+  const histRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const go = () => { try { sessionStorage.removeItem('lps.sub.focus'); } catch { /* */ } histRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    let want = false; try { want = sessionStorage.getItem('lps.sub.focus') === 'history'; } catch { /* */ }
+    if (want && !loading) go();
+    window.addEventListener('lps:sub-history', go);
+    return () => window.removeEventListener('lps:sub-history', go);
+  }, [loading]);
   const left = daysLeft(active?.expiresAt ?? null);
+  // Estado resumido (o MESMO do anel "Renovar subscrição"): com o motor Cegid
+  // Vendus, o plano, o fim e a % são os do Vendus.
+  const [st, setSt] = useState<SubSummary | null>(null);
+  const [units, setUnits] = useState<{ store: ManagerStore; devices: DeviceRow[] }[] | null>(null);
+  useEffect(() => {
+    api.subscription.status().then(setSt).catch(() => setSt(null));
+    Promise.all([api.staff.listStores(), api.devices.list().catch(() => [] as DeviceRow[])])
+      .then(([stores, devs]) => setUnits(stores.filter((x) => x.is_active).map((store) => ({ store, devices: devs.filter((d) => d.is_active && d.store_id === store.id) }))))
+      .catch(() => setUnits([]));
+  }, [subs]);
+  const vendus = st?.provider === 'VENDUS';
+  const endIso = st?.expiresAt ?? active?.expiresAt ?? null;
+  const pctUsed = st?.active ? st.pct : active?.startsAt && active?.expiresAt && left != null
+    ? Math.floor(Math.min(100, Math.max(0, ((Math.max(1, (Date.parse(active.expiresAt) - Date.parse(active.startsAt)) / 864e5) - left + 1) / Math.max(1, (Date.parse(active.expiresAt) - Date.parse(active.startsAt)) / 864e5)) * 100)))
+    : null;
+  const planName = vendus ? (st?.plan ?? null) : (active?.isTrial ? 'de teste' : active?.plan?.name ?? null);
+  const isActive = vendus ? !!st?.active : !!active;
+  const renew = () => { if (vendus && st?.renewUrl) window.open(st.renewUrl, '_blank', 'noopener'); else setChanging(true); };
 
   return (
-    <div className="fx-wide">
-      <div className="content-head"><h2>Subscrição &amp; Plano</h2></div>
+    <div className="fx-wide sub-vd">
+      <div className="content-head"><h2>Subscrição</h2></div>
       {error ? <div className="banner danger">{error}</div> : null}
 
       {!loading ? (
-        <div className="fx-stats">
-          <div className="fx-stat"><span className="ic"><IconCard size={20} /></span><div><div className="lb">Plano actual</div><div className="vl">{active?.plan?.name ?? 'Sem plano activo'}</div><div className="sb">{active ? (active.isTrial ? 'período de teste' : priceLabel({ priceKz: active.amountKz, durationMonths: active.durationMonths, durationDays: active.durationDays })) : 'escolhe um plano abaixo'}</div></div></div>
-          <div className="fx-stat"><span className="ic"><IconCalendar size={20} /></span><div><div className="lb">Válido até</div><div className="vl">{active?.expiresAt ? new Date(active.expiresAt).toLocaleDateString('pt-PT') : '—'}</div><div className="sb">{left != null ? `${left} dia(s) restante(s)` : 'sem data de fim'}</div></div></div>
-          <div className="fx-stat"><span className="ic"><IconStore size={20} /></span><div><div className="lb">Lojas incluídas</div><div className="vl">{currentPlan ? (currentPlan.maxStores === -1 ? 'Ilimitadas' : currentPlan.maxStores) : '—'}</div><div className="sb">{currentPlan ? `${currentPlan.maxUsers === -1 ? 'utilizadores ilimitados' : `${currentPlan.maxUsers} utilizadores`}` : ''}</div></div></div>
-          <div className="fx-stat"><span className="ic"><IconShield size={20} /></span><div><div className="lb">Estado</div><div className="vl"><span className={`fx-dot${pending ? '' : active ? ' ok' : ' bad'}`} />{pending ? STATUS_LABEL[pending.status] : active ? 'Em dia' : 'Sem acesso'}</div><div className="sb">{pending ? 'pagamento em curso' : active ? 'a usar o sistema' : 'renova para continuar'}</div></div></div>
+        <div className="sub-vd-hero">
+          <div className="sub-vd-bg" aria-hidden="true" />
+          <div className="sub-vd-grid">
+            <section className="sub-vd-card sub-vd-main">
+              <header className="sub-vd-h">
+                <span className="t">Subscrição</span>
+                <span className="s">{endIso ? `A sua subscrição termina em ${new Date(endIso).toLocaleDateString('pt-PT')}` : 'Ainda não tem uma subscrição ativa'}</span>
+              </header>
+              <div className="sub-vd-body">
+                <div className="sub-vd-plan">
+                  <b>{planName ? `Plano ${planName}` : 'Sem plano ativo'}</b>
+                  <span>{pending ? STATUS_LABEL[pending.status] + '.' : isActive ? 'A sua subscrição encontra-se ativa.' : 'A sua subscrição não está ativa.'}</span>
+                  {pctUsed != null ? (
+                    <div className="sub-vd-track" role="progressbar" aria-valuenow={pctUsed} aria-valuemin={0} aria-valuemax={100} aria-label="Tempo da subscrição já utilizado">
+                      <span className={pctUsed >= 90 ? 'bad' : pctUsed >= 75 ? 'warn' : ''} style={{ width: `${Math.max(pctUsed, 3)}%` }} />
+                    </div>
+                  ) : null}
+                </div>
+                <div className="sub-vd-act">
+                  <button type="button" className="sub-vd-btn" onClick={renew}>Renovar</button>
+                  {!vendus ? <button type="button" className="sub-vd-link" onClick={() => setChanging(true)}>Alterar Plano</button>
+                    : st?.renewUrl ? <a className="sub-vd-link" href={st.renewUrl} target="_blank" rel="noopener noreferrer">Alterar Plano</a> : null}
+                </div>
+              </div>
+            </section>
+            <section className="sub-vd-card sub-vd-side">
+              <header className="sub-vd-h left">
+                <span className="t">Detalhes</span>
+                <span className="s">As unidades configuradas na sua conta</span>
+              </header>
+              <div className="sub-vd-body">
+                {units == null ? <span className="muted">A carregar…</span> : units.length === 0 ? <span className="muted">Sem lojas configuradas.</span> : units.map((u) => (
+                  <div className="sub-vd-unit" key={u.store.id}>
+                    <b>{u.store.name}</b>
+                    <ul>{u.devices.length ? u.devices.map((d) => <li key={d.id}>{d.name}</li>) : <li className="muted">Sem caixas registadas</li>}</ul>
+                  </div>
+                ))}
+              </div>
+              {onGo ? <footer className="sub-vd-f"><button type="button" className="sub-vd-link blue" onClick={() => onGo('registers')}>Configurar</button></footer> : null}
+            </section>
+          </div>
         </div>
       ) : null}
 
+
       {loading ? <div className="fx-card"><div className="loading">A carregar…</div></div>
         : pending ? <PayAndChat sub={pending} banks={banks} onChanged={load} />
-        : active && !changing ? <ActiveCard sub={active} left={left} onChange={() => setChanging(true)} />
+        : (active || vendus) && !changing ? null
         : <CreateForm plans={plans} banks={banks} currentPlanId={active?.planId} onCreated={() => { setChanging(false); void load(); }} onCancel={active ? () => setChanging(false) : undefined} />}
 
-      {/* Histórico */}
+      {/* Histórico de Pagamentos (o item do painel CONFIG traz aqui) */}
       {subs.length > 0 ? (
-        <div className="fx-card" style={{ padding: 8 }}>
+        <div className="fx-card" style={{ padding: 8 }} ref={histRef} id="sub-historico">
           <div className="fx-card-h" style={{ padding: '12px 14px 0', marginBottom: 6 }}><div><h3>Histórico de subscrições</h3></div></div>
           {subs.map((s) => {
             const expired = s.status === 'ACTIVE' && s.expiresAt && new Date(s.expiresAt).getTime() < Date.now();
@@ -102,34 +166,6 @@ export function Subscription() {
           })}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function ActiveCard({ sub, left, onChange }: { sub: Sub; left: number | null; onChange(): void }) {
-  const isTrial = !!sub.isTrial || (sub.amountKz === 0 && (sub.durationMonths ?? 0) === 0);
-  const total = sub.startsAt && sub.expiresAt ? Math.max(1, (new Date(sub.expiresAt).getTime() - new Date(sub.startsAt).getTime()) / 86_400_000) : null;
-  const pct = total != null && left != null ? Math.min(100, Math.max(0, Math.round(((total - left) / total) * 100))) : null;
-  return (
-    <div className="fx-card">
-      <div className="fx-card-h">
-        <div>
-          <h3>{isTrial ? 'Período de teste gratuito' : `Plano ${sub.plan?.name ?? ''}`}</h3>
-          <p>
-            {isTrial ? 'Estás a testar o sistema sem custo.' : `${kz(sub.amountKz)} por ${periodLabel(sub.durationMonths, sub.durationDays)}.`}
-            {sub.expiresAt ? ` Válido até ${new Date(sub.expiresAt).toLocaleDateString('pt-PT')}.` : ''}
-          </p>
-        </div>
-        <span className="fx-badge ok"><span className="fx-dot ok" />Activa</span>
-      </div>
-      {pct != null ? (
-        <div className="fx-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Tempo do plano já utilizado">
-          <span style={{ width: `${pct}%` }} />
-        </div>
-      ) : null}
-      <div className="fx-actions">
-        <button className="btn" onClick={onChange}><IconCard size={16} /> {isTrial ? 'Escolher um plano' : 'Trocar ou renovar plano'}</button>
-      </div>
     </div>
   );
 }
