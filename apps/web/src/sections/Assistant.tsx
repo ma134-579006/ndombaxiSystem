@@ -78,6 +78,14 @@ export function Assistant() {
   const recRef = useRef<Recorder | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
 
+  // Marca a página: o assistente ocupa o ecrã inteiro (sem a margem de 96 px dos
+  // botões flutuantes nem o chat de suporte por cima da caixa de pergunta).
+  // Classe e não `:has()` — o Safari anterior ao iOS 15.4 não o conhece.
+  useEffect(() => {
+    document.documentElement.classList.add('page-agent');
+    return () => document.documentElement.classList.remove('page-agent');
+  }, []);
+
   useEffect(() => {
     void (async () => {
       try { const g = await api.assistant.greeting(); setName(g.displayName); } catch { /* default */ }
