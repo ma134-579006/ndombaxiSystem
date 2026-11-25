@@ -488,7 +488,12 @@ export function Shell({
           Configurações) + menu da gestão, que mostra só os ícones e abre ao passar
           o rato (animação do LPS). Sem scroll: as linhas encolhem para caber. */}
       <aside ref={asideRef} className={`sidebar vds${menuOpen ? ' open' : ''}`} onMouseLeave={() => setOpenGroups({})}
-        style={{ ['--nav-n' as string]: nav.length + nav.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0) }}>
+        style={{
+          ['--nav-n' as string]: nav.length + nav.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0),
+          // Telemóvel: com um grupo aberto o menu mostra SÓ esse grupo (cabeçalho
+          // + itens), como o menu do Vendus — as linhas cabem sempre, sem scroll.
+          ['--nav-m' as string]: (() => { const g = nav.find((n) => openGroups[n.key] && n.children?.length); return g ? (g.children!.length + 1) : nav.length; })(),
+        }}>
         <div className="vds-rail" aria-label="Aplicações">
           <span className="vds-logo"><img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} /></span>
           <button type="button" className="vds-tab on" title="Gestão" onClick={() => setSection(nav[0]?.key ?? section)}>
@@ -524,14 +529,14 @@ export function Shell({
               <div className="tg">{brand?.nif ? `NIF: ${brand.nif}` : subtitle}</div>
             </div>
           </div>
-          <nav className="nav">
+          <nav className={`nav${nav.some((n) => openGroups[n.key] && n.children?.length) ? ' has-open' : ''}`}>
             {nav.map((n) => {
               const Icon = n.icon;
               if (n.children && n.children.length) {
                 const open = !!openGroups[n.key];
                 const hasActive = n.children.some((c) => c.key === section);
                 return (
-                  <div key={n.key} className="nav-group">
+                  <div key={n.key} className={`nav-group${open ? ' is-open' : ''}`}>
                     <button
                       className={`nav-group-head${hasActive ? ' has-active' : ''}`}
                       title={n.label}
@@ -550,7 +555,7 @@ export function Shell({
                             <button
                               key={c.key}
                               className={section === c.key ? 'active' : ''}
-                              onClick={() => { setSection(c.key); setOpenGroups({}); }}
+                              onClick={() => { setSection(c.key); setOpenGroups({}); setMenuOpen(false); }}
                             >
                               <CIcon size={16} /> {c.label}
                             </button>
@@ -566,7 +571,7 @@ export function Shell({
                   key={n.key}
                   className={section === n.key ? 'active' : ''}
                   title={n.label}
-                  onClick={() => setSection(n.key)}
+                  onClick={() => { setSection(n.key); setMenuOpen(false); }}
                 >
                   <Icon size={18} /> <span className="nav-label">{n.label}</span>
                 </button>

@@ -1461,3 +1461,98 @@ html.touch-ui .admin.nav-rail .sidebar.vds { width: min(92vw, 300px) !important;
 }
 @keyframes vds-hint { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); opacity: .8; } }
 @media (prefers-reduced-motion: reduce) { .admin.nav-rail .sidebar.vds .vds-rail::after { animation: none; } }
+/* ════════════════════════════════════════════════════════════════════
+   MENU LATERAL NO TELEMÓVEL / ECRÃ TÁTIL (iPhone 5 ao 18 Pro Max, Android).
+   O cálculo do computador (container queries, `100cqh`) esmagava as linhas nos
+   ecrãs pequenos — até 12 px com um grupo aberto — e, no Safari anterior ao
+   iOS 16 e em WebViews antigas, que não o conhecem, deixava os botões sem
+   altura nem forma. Aqui, SEM scroll e sempre ajustado ao ecrã:
+     • a altura de cada linha sai da altura REAL do ecrã a dividir pelo número
+       de linhas visíveis (100dvh, com 100vh nos browsers antigos);
+     • com um grupo aberto o menu mostra SÓ esse grupo (cabeçalho com seta de
+       voltar + os seus itens), como o menu do Vendus no telemóvel — o número
+       de linhas nunca passa do total do menu principal, por isso cabe sempre.
+   ════════════════════════════════════════════════════════════════════ */
+/* Sem container queries (browsers antigos, mesmo no computador): linhas pela altura do ecrã. */
+@supports not (height: 1cqh) {
+  .admin .sidebar.vds .nav > * { --row: clamp(14px, calc((100vh - 140px) / var(--nav-n, 12)), 42px); }
+}
+@media (max-width: 900px) {
+  .admin .sidebar.vds { height: 100vh; padding-top: env(safe-area-inset-top, 0px) !important; padding-bottom: env(safe-area-inset-bottom, 0px) !important; box-sizing: border-box; }
+  .admin .sidebar.vds .vds-menu { min-height: 0; }
+  .admin .sidebar.vds .brand.vds-company { height: 56px; }
+  .admin .sidebar.vds .sig { flex: none; box-sizing: border-box; height: 30px; line-height: 30px; padding-top: 0 !important; padding-bottom: 0 !important; margin: 0 !important; font-size: 11px; }
+  .admin .sidebar.vds .nav {
+    container-type: normal; flex: 1 1 auto; min-height: 0; overflow: hidden;
+    display: flex; flex-direction: column; padding-top: 4px !important; padding-bottom: 4px !important;
+    --chrome: calc(56px + 30px + 8px + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+  }
+  .admin .sidebar.vds .nav > * { --row: clamp(14px, calc((100vh - var(--chrome)) / var(--nav-m, 13)), 52px); }
+  .admin .sidebar.vds .nav button, .admin .sidebar.vds .nav-group-head {
+    display: flex; align-items: center; box-sizing: border-box; flex: none;
+    height: var(--row) !important; min-height: 0 !important;
+    font-size: clamp(11px, calc(var(--row) * .34), 16px) !important; line-height: 1.15;
+    border-bottom: 1px solid rgba(255, 255, 255, .045) !important;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .admin .sidebar.vds .nav button:active, .admin .sidebar.vds .nav-group-head:active { background: #1d2431 !important; }
+  .admin .sidebar.vds .nav-group-head > svg:last-child { width: 16px !important; height: 16px !important; flex: none; }
+  /* Um grupo aberto ocupa o menu inteiro; o resto volta ao tocar no cabeçalho. */
+  .admin .sidebar.vds .nav.has-open > :not(.is-open) { display: none !important; }
+  .admin .sidebar.vds .nav-group.is-open .nav-group-head { color: #fff !important; background: #191f29 !important; font-weight: 400 !important; }
+  .admin .sidebar.vds .nav-group.is-open .nav-group-head > svg:last-child { order: -1; margin-left: 0 !important; margin-right: 4px; transform: rotate(180deg) !important; color: #1098f7; }
+  .admin .sidebar.vds .nav-sub { display: flex; flex-direction: column; border-left: 2px solid #1d2a3d !important; margin-left: 20px !important; }
+  .admin .sidebar.vds .nav-sub button { padding-left: 16px !important; color: #aeb6c2 !important; border-bottom-color: rgba(255, 255, 255, .03) !important; }
+  .admin .sidebar.vds .nav-sub button.active { color: #fff !important; }
+  /* Coluna de ícones: encolhe com o ecrã em vez de partir. */
+  .sidebar.vds .vds-rail { gap: clamp(6px, 2.4vh, 22px); }
+}
+@supports (height: 100dvh) {
+  @media (max-width: 900px) {
+    .admin .sidebar.vds { height: 100dvh; }
+    .admin .sidebar.vds .nav > * { --row: clamp(14px, calc((100dvh - var(--chrome)) / var(--nav-m, 13)), 52px); }
+  }
+}
+/* ════════════════════════════════════════════════════════════════════
+   ASSISTENTE IA em todos os ecrãs (telemóvel → computador).
+   Estava partido: a margem de 96 px dos botões flutuantes (`.admin .content`
+   com !important) encolhia o chat e deixava um vazio por baixo; o título
+   exigia 62 % da altura; a grelha de sugestões ficava com a largura do seu
+   conteúdo (706 px num ecrã de 320) e criava scroll horizontal; o texto de
+   ajuda partia em 2 linhas numa caixa de 1; os botões flutuantes tapavam
+   a caixa de pergunta.
+   ════════════════════════════════════════════════════════════════════ */
+html.page-agent .admin .content { padding-bottom: 0 !important; overflow: hidden; }
+html.page-agent .content > .page-anim { display: flex; flex-direction: column; height: 100%; min-height: 0; box-sizing: border-box; }
+html.page-agent .agent.gpt { flex: 1 1 auto; height: auto; min-height: 0; width: 100%; max-width: 100%; overflow: hidden; }
+html.page-agent .agent-main, html.page-agent .agent-scroll { min-width: 0; max-width: 100%; }
+html.page-agent .agent-scroll { overflow-x: hidden; }
+html.page-agent .agent.gpt .agent-col { box-sizing: border-box; width: 100%; max-width: 768px; padding-left: 12px; padding-right: 12px; }
+html.page-agent .agent-hero.gpt { min-height: 0; flex: 1 1 auto; justify-content: center; align-items: stretch; gap: clamp(12px, 3vh, 24px); padding: clamp(8px, 3vh, 28px) 0; }
+html.page-agent .agent-hero.gpt h2 { text-align: center; font-size: clamp(20px, 5.4vw, 28px); line-height: 1.2; }
+/* Sugestões: esticam até à largura do ecrã e partem em colunas que cabem. */
+html.page-agent .agent-hero.gpt .agent-sugs { box-sizing: border-box; width: 100%; max-width: 720px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 8px; }
+html.page-agent .agent.gpt .agent-sug { min-width: 0; white-space: normal; text-align: left; border-radius: 14px; padding: 10px 14px; line-height: 1.35; overflow-wrap: anywhere; }
+/* Caixa de pergunta: o texto de ajuda numa só linha, sem cortar a meio. */
+html.page-agent .agent.gpt .agent-composer { box-sizing: border-box; width: 100%; }
+html.page-agent .agent.gpt .agent-composer textarea { min-height: 26px; line-height: 1.4; }
+html.page-agent .agent.gpt .agent-composer textarea::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.page-agent .agent.gpt .agent-composer-wrap { box-sizing: border-box; width: 100%; }
+/* Chat de suporte escondido aqui (o próprio assistente é a ajuda) e a gaveta de
+   atividade do agente sobe para o topo — nada tapa a caixa de pergunta. */
+html.page-agent .sc-fab { display: none !important; }
+@media (max-width: 900px) {
+  html.page-agent .content > .page-anim { padding-top: 34px !important; }
+  html.page-agent .agent-activity-fab { top: calc(66px + env(safe-area-inset-top, 0px)); bottom: auto; right: 10px; width: 38px; height: 38px; }
+  html.page-agent .agent.gpt .agent-sug { padding: 9px 12px; font-size: 13.5px; }
+  html.page-agent .agent.gpt .agent-composer { padding-left: 14px; border-radius: 22px; }
+  html.page-agent .agent.gpt .agent-composer textarea { font-size: 16px; }
+}
+@media (max-width: 599px) {
+  html.page-agent .agent-hero.gpt .agent-sugs { grid-template-columns: 1fr; }
+}
+@media (max-height: 640px) and (max-width: 900px) {
+  html.page-agent .agent-hero.gpt .agent-sugs > :nth-child(n+4) { display: none; }
+}
