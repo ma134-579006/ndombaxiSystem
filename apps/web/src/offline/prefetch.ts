@@ -183,12 +183,16 @@ export function startPrefetchSchedule(company?: string | null): () => void {
   if (!isNativeApp() || typeof window === 'undefined') return () => undefined;
   window.clearInterval(timer);
   void flushOutbox(company);
-  const flushTimer = window.setInterval(() => { void flushOutbox(company); }, 20_000);
+  // Fila de alterações feitas sem rede: tenta a cada poucos segundos (barato quando
+  // está vazia) — o que se fez offline sobe logo que a rede volta, sem botão.
+  const flushTimer = window.setInterval(() => { void flushOutbox(company); }, 3_000);
+  const renewed = () => { void flushOutbox(company); };
+  window.addEventListener('ndombaxi:session-renewed', renewed);
   timer = window.setInterval(() => {
     if (document.visibilityState === 'visible') void prefetchTenantData(company);
   }, 10 * 60_000);
   const wake = () => { if (document.visibilityState === 'visible') { void flushOutbox(company); void prefetchTenantData(company); } };
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('online', wake);
-  return () => { window.clearInterval(timer); window.clearInterval(flushTimer); document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); };
+  return () => { window.clearInterval(timer); window.clearInterval(flushTimer); document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); window.removeEventListener('ndombaxi:session-renewed', renewed); };
 }

@@ -211,6 +211,38 @@ test('reenvio após falha de rede não duplica a venda (idempotência)', async (
   await engine.stop();
 });
 
+test('a rede volta: a venda adiada pelo recuo sobe LOGO, sem esperar minutos', async () => {
+  const server = new FakeServer();
+  const net = fakeNet('ONLINE');
+  const storage = new MemoryAdapter();
+  const engine = new SyncEngine({
+    storage, transport: server.transport(), net, entities: [], idleIntervalMs: 3_600_000,
+  });
+  await engine.start();
+
+  await engine.enqueue({ entity: 'sale', op: 'create', localId: 'v7', payload: { total: 4200 } });
+  // A rede cai a meio do envio: a operação fica adiada pelo recuo exponencial.
+  server.failNext = 1;
+  await engine.sync();
+  assert.equal(server.appliedOpIds.size, 0, 'com a rede em baixo nada podia ter entrado');
+
+  // A ligação vai e volta (o monitor de rede deteta o regresso).
+  const monitor = net as unknown as { set(s: string): void };
+  monitor.set('OFFLINE');
+  monitor.set('ONLINE');
+  await new Promise((r) => setTimeout(r, 50));
+
+  assert.equal(server.appliedOpIds.size, 1, 'a venda tem de subir assim que a rede volta, não minutos depois');
+  assert.equal((await engine.outbox()).length, 0, 'a fila tem de ficar vazia');
+  await engine.stop();
+});
+
+test('sem rede, a sonda nunca espera mais de 5 s para notar o regresso', () => {
+  const net = new NetMonitor({ healthUrl: 'http://localhost/health' });
+  const backoff = (net as unknown as { backoff: { maxMs: number } }).backoff;
+  assert.ok(backoff.maxMs <= 5_000, `teto do recuo da sonda: ${backoff.maxMs} ms`);
+});
+
 test('recusa de negócio pára a operação em vez de a repetir em ciclo', async () => {
   const server = new FakeServer();
   server.rejectOn.add('v3');

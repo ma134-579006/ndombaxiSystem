@@ -16,7 +16,7 @@ const KZ = (n: number) => formatKz(Number(n) || 0);
  */
 export function RestaurantHome({ onGo }: { onGo(section: string): void }) {
   // Deep-link para o separador certo de "Sala & Comandas" (mesas/cozinha/receitas).
-  const goRest = (tab: 'mesas' | 'cozinha' | 'receitas') => {
+  const goRest = (tab: 'mesas' | 'cozinha' | 'receitas' | 'producao') => {
     try { sessionStorage.setItem('ndx_rest_tab', tab); } catch { /* indisponível */ }
     onGo('restaurant');
   };

@@ -30,6 +30,15 @@ function isNetworkFailure(e: unknown): boolean {
   return e instanceof ApiError && (e.status === 0 || e.status === 408 || (e.status >= 502 && e.status <= 504));
 }
 
+/**
+ * Na PROMOÇÃO da sessão offline (não no login): 429 (limite de tentativas) e
+ * 5xx (API a acordar) são passageiros — a sessão fica de pé e tenta-se outra vez.
+ * No login NÃO: aí um 429 nunca pode cair no login offline (contornava o bloqueio).
+ */
+function isTransientFailure(e: unknown): boolean {
+  return isNetworkFailure(e) || (e instanceof ApiError && (e.status === 429 || e.status >= 500));
+}
+
 const LS_ACCESS = 'nexus.pos.access';
 const LS_REFRESH = 'nexus.pos.refresh';
 const LS_COMPANY = 'nexus.pos.company';
@@ -73,6 +82,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.setItem(LS_ACCESS, tokens.accessToken);
     sessionStorage.setItem(LS_REFRESH, tokens.refreshToken);
     setUser(decodeJwt(tokens.accessToken));
+    // Sessão válida (login, renovação ou promoção da sessão offline): o que
+    // ficou por subir com a sessão antiga sobe AGORA, sem esperar pelo relógio.
+    if (!isOfflineToken(tokens.accessToken)) window.dispatchEvent(new Event('ndombaxi:session-renewed'));
   }, []);
 
   const clearSession = useCallback(() => {
@@ -111,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             void syncCredentials(r.companyCode, true);
             return true;
           } catch (e) {
-            if (isNetworkFailure(e)) return false; // ainda sem rede — sessão de pé
+            if (isTransientFailure(e)) return false; // ainda sem rede / servidor a acordar — sessão de pé
           }
         }
         // Houve resposta do servidor (logo há rede) e não há como promover:
@@ -162,9 +174,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     const t = window.setInterval(tick, 60_000);
+    // Sessão PROVISÓRIA (entrou sem rede): tenta promovê-la a cada poucos
+    // segundos — sem isto as vendas offline esperavam até 1 min depois de a
+    // rede voltar. Sem rede o pedido falha logo e não custa nada.
+    const fast = window.setInterval(() => {
+      if (isOfflineToken(accessRef.current)) void doRefresh();
+    }, 3_000);
     // Uma primeira tentativa logo à entrada, sem esperar o minuto.
     tick();
-    return () => window.clearInterval(t);
+    return () => { window.clearInterval(t); window.clearInterval(fast); };
   }, [status, doRefresh, user]);
 
   // Renovação PROATIVA do token de acesso: renova ~1 min ANTES de expirar para a

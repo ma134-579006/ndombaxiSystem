@@ -501,14 +501,15 @@ function CamerasLive({ rows, loading, error }: { rows: CameraRow[]; loading: boo
  *     "sem sinal" genérico.
  */
 export function LivePlayer({ cam, thumb = false }: { cam: CameraRow; thumb?: boolean }) {
+  const streamUrl = cam.stream_url ?? '';
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [snap, setSnap] = useState<string | null>(null);
   const kind = cam.kind !== 'AUTO' ? cam.kind
-    : cam.stream_url.toLowerCase().includes('.m3u8') ? 'HLS'
-    : /\.(mp4|webm)/i.test(cam.stream_url) ? 'MP4' : 'MJPEG';
+    : streamUrl.toLowerCase().includes('.m3u8') ? 'HLS'
+    : /\.(mp4|webm)/i.test(streamUrl) ? 'MP4' : 'MJPEG';
   const pageSecure = typeof location !== 'undefined' && location.protocol === 'https:';
-  const streamHttp = /^http:\/\//i.test(cam.stream_url);
+  const streamHttp = /^http:\/\//i.test(streamUrl);
   const mixed = pageSecure && streamHttp; // o navegador bloqueia HTTP numa página HTTPS
   // Vê pelo servidor (fotograma ao vivo) quando ligar direto não dá — desde que
   // haja uma URL de fotograma para o servidor ir buscar.
@@ -526,12 +527,12 @@ export function LivePlayer({ cam, thumb = false }: { cam: CameraRow; thumb?: boo
     let alive = true;
     void (async () => {
       const v = videoRef.current!;
-      if (v.canPlayType('application/vnd.apple.mpegurl')) { v.src = cam.stream_url; void v.play().catch(() => undefined); return; }
+      if (v.canPlayType('application/vnd.apple.mpegurl')) { v.src = streamUrl; void v.play().catch(() => undefined); return; }
       const { default: Hls } = await import('hls.js');
       if (!alive) return;
       if (Hls.isSupported()) {
         const hh = new Hls({ maxBufferLength: 10 });
-        hh.loadSource(cam.stream_url);
+        hh.loadSource(streamUrl);
         hh.attachMedia(v);
         hh.on(Hls.Events.ERROR, (_e: unknown, d: { fatal?: boolean }) => {
           if (d?.fatal) setFailed('Sem sinal — a câmara não respondeu ou o stream está protegido por CORS. Define uma «URL de fotograma» para ver via servidor.');
@@ -573,13 +574,13 @@ export function LivePlayer({ cam, thumb = false }: { cam: CameraRow; thumb?: boo
       : <div className="empty" style={{ height: h, display: 'grid', placeItems: 'center' }}><p>a ligar à câmara…</p></div>;
   }
   if (kind === 'MJPEG') {
-    return <img src={cam.stream_url} alt={cam.name} style={{ width: '100%', height: h, objectFit: 'cover', borderRadius: 12, background: '#000' }}
+    return <img src={streamUrl} alt={cam.name} style={{ width: '100%', height: h, objectFit: 'cover', borderRadius: 12, background: '#000' }}
       onError={() => setFailed('Sem sinal — não foi possível carregar o stream MJPEG. Se a câmara é HTTP, define uma «URL de fotograma» para ver via servidor.')} />;
   }
   return (
     <video
       ref={videoRef}
-      src={kind === 'MP4' ? cam.stream_url : undefined}
+      src={kind === 'MP4' ? streamUrl : undefined}
       muted autoPlay playsInline controls={!thumb}
       style={{ width: '100%', height: h, objectFit: 'cover', borderRadius: 12, background: '#000' }}
       onError={() => setFailed('Sem sinal — verifica a câmara/rede.')}

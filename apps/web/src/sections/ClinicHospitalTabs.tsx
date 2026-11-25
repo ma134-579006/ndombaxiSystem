@@ -151,7 +151,7 @@ export function BedsTab({ patients }: { patients: ClinicPatient[] }) {
       const r = await api.clinic.invoiceAdmission(a.id);
       if (r.insurer && Number(r.covered) > 0) {
         const pac = r.invoiceNumber ? `paciente ${KZ(r.copay ?? 0)} (FT ${r.invoiceNumber})` : 'paciente 0 (100% coberto)';
-        toast.success(`Convénio ${r.insurer}: cobre ${KZ(r.covered)}, ${pac}.`);
+        toast.success(`Convénio ${r.insurer}: cobre ${KZ(r.covered ?? 0)}, ${pac}.`);
       } else toast.success(`Fatura ${r.invoiceNumber} emitida.`);
       await loadHistory();
     } catch (e) { toast.error(errMsg(e, 'Falha ao faturar.')); }
@@ -581,7 +581,7 @@ export function ExamsTab({ patients }: { patients: ClinicPatient[] }) {
       const inv = await api.clinic.invoiceExam(r.id);
       if (inv.insurer && Number(inv.covered) > 0) {
         const paciente = inv.invoiceNumber ? `paciente ${KZ(inv.copay ?? 0)} (FT ${inv.invoiceNumber})` : 'paciente 0 (100% coberto)';
-        toast.success(`Convénio ${inv.insurer}: cobre ${KZ(inv.covered)}, ${paciente}.`);
+        toast.success(`Convénio ${inv.insurer}: cobre ${KZ(inv.covered ?? 0)}, ${paciente}.`);
       } else {
         toast.success(`Fatura ${inv.invoiceNumber} emitida.`);
       }

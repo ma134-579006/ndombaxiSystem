@@ -14,6 +14,7 @@ import { initAutoUpdate } from './autoUpdate';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { TransferHost } from './transfer';
 import { mandatoryUpdate } from './update/mandatoryUpdate';
+import { syncController } from './offline/sync';
 import { isSaleInProgress } from './pos/saleActivity';
 import { startI18n } from '@nexus/i18n';
 
@@ -31,6 +32,10 @@ initAutoUpdate({ canReload: () => !isSaleInProgress() });
 // oficial. Corre em segundo plano e, sem internet, não faz nada — a Caixa abre
 // e vende na mesma.
 mandatoryUpdate.start();
+// Sincronização das vendas/turnos/alterações feitas sem rede: arranca JÁ, com a
+// app, e não só quando o ecrã da caixa abre — o que ficou por subir sobe sozinho
+// assim que a rede volta (só nas apps instaladas; no navegador não há fila).
+syncController.start();
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Elemento #root não encontrado');

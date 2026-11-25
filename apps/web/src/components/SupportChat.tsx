@@ -181,7 +181,7 @@ export function SupportChat() {
     if (!open) return;
     let alive = true;
     api.publicLanding()
-      .then((l) => { if (alive) setContacts({ email: l.contactEmail || null, phone: l.contactPhone || null }); })
+      .then((l) => { if (alive) setContacts({ email: l.config?.contactEmail || null, phone: l.config?.contactPhone || null }); })
       .catch(() => undefined);
     return () => { alive = false; };
   }, [open]);

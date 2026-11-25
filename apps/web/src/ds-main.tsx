@@ -118,7 +118,7 @@ function Components() {
           columns={[
             { key: 'id', header: 'Documento', sortable: true },
             { key: 'cliente', header: 'Cliente', sortable: true },
-            { key: 'total', header: 'Total', numeric: true, sortable: true, render: (r) => `${r.total.toLocaleString('pt-PT', { useGrouping: 'always' })} Kz` },
+            { key: 'total', header: 'Total', numeric: true, sortable: true, render: (r) => `${r.total.toLocaleString('pt-PT', { useGrouping: 'always' as unknown as boolean })} Kz` },
             { key: 'estado', header: 'Estado', render: (r) => <Badge tone={tone(r.estado)} dot>{r.estado}</Badge> },
           ]} />
         <div style={{ ...grid(300), marginTop: 20 }}>

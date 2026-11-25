@@ -83,6 +83,8 @@ export async function offerSessionToHost(input: {
 }
 
 let cloudTimer: number | null = null;
+let cloudRetryTimer: number | null = null;
+let cloudWake: (() => void) | null = null;
 
 /** Papel dentro de um token (só para o posto escolher a sessão; a nuvem verifica tudo). */
 function roleOf(token: string): string {
@@ -118,7 +120,14 @@ export function startCloudSession(cred: { email: string; pin?: string; password?
     } finally { window.clearTimeout(t); }
   };
   type Pair = { accessToken: string; refreshToken: string; companyCode?: string };
+  // Enquanto a nuvem falha (sem rede / a acordar), tenta a cada poucos segundos:
+  // é esta sessão que leva à nuvem o que o posto fez offline — esperar pela volta
+  // dos 10 min deixava as vendas paradas muito depois de a internet voltar.
+  let failing = false;
+  let inFlight = false;
   const tick = async () => {
+    if (inFlight) return;
+    inFlight = true;
     try {
       let pair: Pair | null = null;
       if (refreshToken) { try { pair = await post<Pair>('/auth/refresh', { refreshToken }); } catch { refreshToken = null; } }
@@ -135,16 +144,26 @@ export function startCloudSession(cred: { email: string; pin?: string; password?
           accessToken: pair.accessToken, companyCode: code, apiUrl: CLOUD_API_URL, role: roleOf(pair.accessToken), busy,
         }).catch(() => undefined);
       }
+      failing = false;
     } catch (e) {
       const st = (e as { status?: number }).status;
       if (st === 401 || st === 403) { stopCloudSession(); return; } // credenciais recusadas pela nuvem
+      // Só rede ou nuvem a acordar repetem depressa; um 429 (limite de logins) espera a volta normal.
+      failing = !st || st >= 500;
       /* sem rede → próximo ciclo */
+    } finally {
+      inFlight = false;
     }
   };
   void tick();
   cloudTimer = window.setInterval(() => { void tick(); }, 10 * 60_000);
+  cloudRetryTimer = window.setInterval(() => { if (failing) void tick(); }, 5_000);
+  cloudWake = () => { if (failing) void tick(); };
+  window.addEventListener('online', cloudWake);
 }
 
 export function stopCloudSession(): void {
   if (cloudTimer) { window.clearInterval(cloudTimer); cloudTimer = null; }
+  if (cloudRetryTimer) { window.clearInterval(cloudRetryTimer); cloudRetryTimer = null; }
+  if (cloudWake) { window.removeEventListener('online', cloudWake); cloudWake = null; }
 }

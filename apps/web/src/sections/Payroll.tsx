@@ -102,7 +102,7 @@ function ProcessModal({ onClose, onDone }: { onClose(): void; onDone(run: Payrol
   useEffect(() => { api.hr.employees().then(setEmps).catch(() => setEmps([])); }, []);
 
   const setField = (id: string, k: 'bonus' | 'absenceDays', v: string) =>
-    setAdj((p) => ({ ...p, [id]: { bonus: '', absenceDays: '', ...p[id], [k]: v.replace(/[^\d.]/g, '') } }));
+    setAdj((p) => ({ ...p, [id]: { ...(p[id] ?? { bonus: '', absenceDays: '' }), [k]: v.replace(/[^\d.]/g, '') } }));
 
   const submit = async () => {
     setBusy(true); setErr(null);
