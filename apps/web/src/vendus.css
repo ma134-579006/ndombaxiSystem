@@ -1974,3 +1974,34 @@ html.touch-ui .admin.nav-rail .topbar::before { display: none !important; }
    (LPS Kwanza tem 9 estados: no tablet/menu fixo rolavam com botões escondidos). */
 .admin .content .vd-seg { flex-wrap: wrap; overflow-x: visible; max-width: 100%; }
 .admin .content .vd-seg > button { border-bottom: 1px solid var(--border); margin-bottom: -1px; }
+
+/* Compras › Fornecedores: quadro «Dívidas a Fornecedores» como no Vendus — barra cinza
+   com o título e «Consultar» azul à direita; três colunas centradas (Saldo, Dívida
+   Corrente, Dívida Vencida) com o valor grande (vermelho quando há dívida). */
+.pu-debts { padding: 0 !important; overflow: hidden; margin-bottom: 16px; }
+.pu-debts-h { display: flex; align-items: stretch; justify-content: space-between; flex-wrap: wrap; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.pu-debts-h > span { display: flex; align-items: center; padding: 12px 16px; font-size: 15px; }
+.pu-debts-h .pu-consult { border-radius: 0; min-height: 44px; padding: 0 28px; background: #1875d1; border-color: #1875d1; }
+.pu-debts-b { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; padding: 18px 16px; text-align: center; }
+.pu-debts-b > div { display: grid; gap: 4px; min-width: 0; container-type: inline-size; }
+.pu-debts-b small { color: var(--muted); font-size: 13px; }
+.pu-debts-b b { font-size: clamp(18px, 11cqi, 26px); font-weight: 700; overflow-wrap: anywhere; }
+.pu-debts-b b.neg { color: #e0384b; }
+.pu-debts-b b.ok { color: #16a34a; }
+.pu-debts-b span { color: var(--muted); font-size: 12.5px; }
+
+/* Compras: datas «Data [de] até [até]» e página vazia ilustrada, como no Vendus. */
+.pu-dates { flex: 1 1 360px; min-width: 0; }
+.pu-dates .vd-range { width: 100%; }
+.pu-dates .vd-range input { flex: 1 1 0; min-width: 0; }
+.pu-noreg { display: grid; justify-items: center; gap: 10px; padding: 48px 16px; text-align: center; color: var(--muted); }
+.pu-noreg svg { color: #1098f7; }
+.pu-noreg strong { color: var(--text); font-size: 18px; }
+.pu-noreg .vd-btn { margin-top: 6px; min-height: 48px; padding: 0 18px; font-size: 18px; }
+
+/* Compras › Faturas: rótulo das datas e resumo por baixo da tabela. */
+.pu-dates { display: flex; flex-direction: column; gap: 4px; }
+.pu-dl { font-size: 14px; color: var(--text); }
+.pu-sum { margin: 10px 2px 0; color: var(--muted); font-size: 13.5px; }
+.pu-sum b { color: var(--text); }
+.pu-sum b.neg { color: #e0384b; }

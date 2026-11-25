@@ -35,6 +35,33 @@ function periods(now = new Date()) {
   } as const;
 }
 
+/** Comparação com o período anterior (fora da página: componente estável — não remonta nem
+ *  repete a animação a cada atualização automática). */
+function Var({ cur, prev, label }: { cur: number; prev: number; label: string }) {
+  const v = variation(cur, prev);
+  return (
+    <div className="vd-kpi-cmp">
+      {v === null ? <span className="vd-var up">novo</span>
+        : <span className={`vd-var ${v > 0 ? 'up' : v < 0 ? 'down' : ''}`}>{v > 0 ? '+' : ''}{v.toFixed(2).replace('.', ',')} %</span>}
+      <span><b>{label}:</b> {formatKz(prev)}</span>
+    </div>
+  );
+}
+
+/** Mosaico «Faturação Hoje/Mensal/Anual» — componente estável (ver Var). */
+function Kpi({ icon, period, cur, prev, prevLabel }: { icon: React.ReactNode; period: string; cur: number; prev: number; prevLabel: string }) {
+  return (
+    <div className="vd-kpi">
+      <span className="vd-kpi-ic">{icon}</span>
+      <div className="vd-kpi-tx">
+        <div className="vd-kpi-lb">Faturação <b>{period}</b></div>
+        <div className="vd-kpi-vl">{formatKz(cur)}</div>
+        <Var cur={cur} prev={prev} label={prevLabel} />
+      </div>
+    </div>
+  );
+}
+
 function variation(cur: number, prev: number): number | null {
   if (!prev) return cur ? null : 0;
   return ((cur - prev) / Math.abs(prev)) * 100;
@@ -96,27 +123,38 @@ export function Overview() {
 
   useEffect(() => { if (isAdmin) api.staff.listStores().then((s) => setStores(s.filter((x) => x.is_active))).catch(() => undefined); }, [isAdmin]);
 
+  // Atualização de 10 em 10 s: os valores do dia vêm sempre; as análises pesadas dos
+  // últimos 30 dias / 6 meses (que mal mudam minuto a minuto) só de 60 em 60 s — poupa
+  // a API sem tirar nada ao ecrã.
+  const lastHeavy = React.useRef(0);
   const load = useCallback(async () => {
     setError(null);
     const p = periods();
     const d30 = iso(addDays(new Date(), -29));
+    const heavy = Date.now() - lastHeavy.current >= 60_000;
     try {
-      const [s, s30, s6, t, r, l, a, cat, brand, cust] = await Promise.all([
+      const [s, s30, t, r, l, a] = await Promise.all([
         loadSums(),
         api.dashboard.series('1m').catch(() => null),
-        api.dashboard.series('6m').catch(() => null),
         api.dashboard.topProducts(5, undefined, 'today').catch(() => [] as DashTopProduct[]),
         api.profit.byProduct(p.day[0], p.day[1]).catch(() => [] as ProfitProduct[]),
         api.dashboard.lowStock().catch(() => [] as DashLowStock[]),
         api.alerts().catch(() => [] as OpsAlert[]),
-        api.reports.salesByCategory(d30, p.day[1]).catch(() => [] as ReportCategoryRow[]),
-        api.reports.salesByBrand(d30, p.day[1]).catch(() => [] as ReportCategoryRow[]),
-        api.reports.salesByCustomer(d30, p.day[1]).catch(() => [] as ReportUserRow[]),
       ]);
-      setSums(s); setSeries30(s30); setSeries6(s6); setTop(t);
+      setSums(s); setSeries30(s30); setTop(t);
       setRent([...r].filter((x) => x.profit > 0).sort((x, y) => y.profit - x.profit).slice(0, 5));
-      setLow(l); setAlerts(a); setByCat(cat); setByBrand(brand);
-      setTopCust([...cust].sort((x, y) => y.gross - x.gross).slice(0, 10));
+      setLow(l); setAlerts(a);
+      if (heavy) {
+        lastHeavy.current = Date.now();
+        const [s6, cat, brand, cust] = await Promise.all([
+          api.dashboard.series('6m').catch(() => null),
+          api.reports.salesByCategory(d30, p.day[1]).catch(() => [] as ReportCategoryRow[]),
+          api.reports.salesByBrand(d30, p.day[1]).catch(() => [] as ReportCategoryRow[]),
+          api.reports.salesByCustomer(d30, p.day[1]).catch(() => [] as ReportUserRow[]),
+        ]);
+        setSeries6(s6); setByCat(cat); setByBrand(brand);
+        setTopCust([...cust].sort((x, y) => y.gross - x.gross).slice(0, 10));
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar o dashboard.');
     } finally { setLoading(false); }
@@ -141,8 +179,11 @@ export function Overview() {
 
   useEffect(() => {
     void load(); void loadStores();
-    const t = pollEvery(() => { void load(); void loadStores(); }, 30_000);
-    return () => stopPoll(t);
+    // Atualiza de 10 em 10 s SEM piscar: só os números mudam (nada volta a montar).
+    const t = pollEvery(() => { void load(); }, 10_000);
+    // Linhas por loja (3 pedidos por loja): de 30 em 30 s.
+    const t2 = pollEvery(() => { void loadStores(); }, 30_000);
+    return () => { stopPoll(t); stopPoll(t2); };
   }, [load, loadStores]);
 
   const val = (s: ProfitSummary | null | undefined) => (s ? (withVat ? s.salesGross : s.salesNet) : 0);
@@ -163,27 +204,6 @@ export function Overview() {
   }
   const whName = (code: string) => stores.find((s) => s.code === code)?.name ?? code;
 
-  const Var = ({ cur, prev, label }: { cur: number; prev: number; label: string }) => {
-    const v = variation(cur, prev);
-    return (
-      <div className="vd-kpi-cmp">
-        {v === null ? <span className="vd-var up">novo</span>
-          : <span className={`vd-var ${v > 0 ? 'up' : v < 0 ? 'down' : ''}`}>{v > 0 ? '+' : ''}{v.toFixed(2).replace('.', ',')} %</span>}
-        <span><b>{label}:</b> {formatKz(prev)}</span>
-      </div>
-    );
-  };
-  const Kpi = ({ icon, period, cur, prev, prevLabel }: { icon: React.ReactNode; period: string; cur: ProfitSummary | null | undefined; prev: ProfitSummary | null | undefined; prevLabel: string }) => (
-    <div className="vd-kpi">
-      <span className="vd-kpi-ic">{icon}</span>
-      <div className="vd-kpi-tx">
-        <div className="vd-kpi-lb">Faturação <b>{period}</b></div>
-        <div className="vd-kpi-vl">{formatKz(val(cur))}</div>
-        <Var cur={val(cur)} prev={val(prev)} label={prevLabel} />
-      </div>
-    </div>
-  );
-
   return (
     <div className="vd-page vd-dash">
       <PendingPosSales />
@@ -198,9 +218,9 @@ export function Overview() {
 
       <div className="vd-card vd-dash-main">
         <div className="vd-kpis">
-          <Kpi icon={<IconCart size={30} />} period="Hoje" cur={sums?.day} prev={sums?.dayPrev} prevLabel="Ontem" />
-          <Kpi icon={<IconCalendar size={30} />} period="Mensal" cur={sums?.month} prev={sums?.monthPrev} prevLabel="Anterior" />
-          <Kpi icon={<IconBars size={30} />} period="Anual" cur={sums?.year} prev={sums?.yearPrev} prevLabel="Anterior" />
+          <Kpi icon={<IconCart size={30} />} period="Hoje" cur={val(sums?.day)} prev={val(sums?.dayPrev)} prevLabel="Ontem" />
+          <Kpi icon={<IconCalendar size={30} />} period="Mensal" cur={val(sums?.month)} prev={val(sums?.monthPrev)} prevLabel="Anterior" />
+          <Kpi icon={<IconBars size={30} />} period="Anual" cur={val(sums?.year)} prev={val(sums?.yearPrev)} prevLabel="Anterior" />
         </div>
         <div className="vd-dash-chart">
           {loading && !series30 ? <div className="vd-empty">A carregar…</div> : <VdArea points={chart30} format={formatKz} />}
