@@ -264,9 +264,11 @@ export class DashboardService {
   }
 
   /** Produtos mais vendidos por valor bruto. */
-  async topProducts(schema: string, limit = 10, storeId?: string): Promise<TopProduct[]> {
+  /** `period=today`: só as vendas de hoje ("Mais Vendidos | Hoje", como no Vendus). Sem período: de sempre. */
+  async topProducts(schema: string, limit = 10, storeId?: string, period?: string): Promise<TopProduct[]> {
     const n = Math.min(Math.max(limit, 1), 100);
     const store = storeId ? Prisma.sql` AND i.store_id = ${storeId}::uuid` : Prisma.empty;
+    const when = period === 'today' ? Prisma.sql` AND i.invoice_date = CURRENT_DATE AND i.doc_type IN ('FT','FS')` : Prisma.empty;
     return this.prisma.runInTenant(schema, async (tx) => {
       const rows = await tx.$queryRaw<
         { product_code: string; description: string; qty: string; gross: string }[]
@@ -274,7 +276,7 @@ export class DashboardService {
         Prisma.sql`SELECT ii.product_code, MAX(ii.description) AS description,
                           SUM(ii.quantity) AS qty, SUM(ii.gross_amount) AS gross
                    FROM invoice_items ii
-                   JOIN invoices i ON i.id = ii.invoice_id AND i.status = 'N'${store}
+                   JOIN invoices i ON i.id = ii.invoice_id AND i.status = 'N'${store}${when}
                    GROUP BY ii.product_code
                    ORDER BY gross DESC
                    LIMIT ${n}`,
