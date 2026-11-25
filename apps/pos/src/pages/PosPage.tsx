@@ -1320,7 +1320,11 @@ export function PosPage() {
                     return (
                       <button key={p.id} className={`vtile${p.image_url ? ' img' : ''}${regCfg.showReference ? ' ref' : ''}`} onClick={() => addToCart(p)} aria-label={label}>
                         {p.image_url ? <img src={p.image_url} alt="" loading="lazy" /> : null}
-                        {madeToOrder ? null : <><span className={`vt-stock${stockCls}`} aria-hidden="true" /><span className="vt-stock line" aria-hidden="true" /></>}
+                        {madeToOrder ? null : <>
+                          <span className={`vt-stock${stockCls}`} aria-hidden="true" /><span className="vt-stock line" aria-hidden="true" />
+                          {/* Quantidade disponível — mesma cor do triângulo (verde / laranja / vermelho). */}
+                          <span className={`vt-qty${stockCls}`} aria-hidden="true">{out ? 'Esgotado' : formatNumber(stock)}</span>
+                        </>}
                         <span className="vt-name">{p.name}</span>
                         {regCfg.showReference ? <span className="vt-ref">{p.code}</span> : null}
                         <span className="vt-price">{formatKz(regCfg.pricesWithTax ? grossUnit(p) : Number(p.unit_price))}</span>
