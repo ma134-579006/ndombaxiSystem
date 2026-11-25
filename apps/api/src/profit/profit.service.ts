@@ -34,6 +34,12 @@ export interface ProfitProduct {
   cost: number;
   profit: number;
   marginPct: number;
+  /** Vendas com IVA (coluna «Vendas c/IVA» do relatório, como no Vendus). */
+  salesGross?: number;
+  /** Nº de documentos de venda com este produto. */
+  sales?: number;
+  /** Nº de notas de crédito (retificações) com este produto no período. */
+  rectifications?: number;
 }
 
 export interface ProfitAbcRow {
@@ -172,10 +178,12 @@ export class ProfitService {
   /** Lucro por produto (top, ordenado por lucro). */
   async byProduct(schema: string, from?: string, to?: string, storeId?: string): Promise<ProfitProduct[]> {
     const { from: f, to: t } = this.range(from, to);
-    return this.prisma.runInTenant(schema, (tx) =>
-      tx.$queryRaw<ProfitProduct[]>(
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<ProfitProduct[]>(
         Prisma.sql`
           SELECT ii.product_code AS "productCode", MAX(ii.description) AS description,
+                 ROUND(SUM(ii.gross_amount), 2)::float AS "salesGross",
+                 COUNT(DISTINCT i.id)::int AS sales,
                  ROUND(SUM(ii.quantity), 3)::float AS qty,
                  ROUND(SUM(ii.net_amount), 2)::float AS "salesNet",
                  ROUND(SUM(ii.unit_cost * ii.quantity), 2)::float AS cost,
@@ -188,8 +196,21 @@ export class ProfitService {
             AND i.system_entry_date BETWEEN ${f} AND ${t}
             ${this.storeCond(storeId)}
           GROUP BY ii.product_code ORDER BY profit DESC LIMIT 100`,
-      ),
-    );
+      );
+      if (!rows.length) return rows;
+      // Retificações (notas de crédito) do período, por produto — coluna do Vendus.
+      const nc = await tx.$queryRaw<{ code: string; n: number }[]>(
+        Prisma.sql`
+          SELECT ii.product_code AS code, COUNT(DISTINCT i.id)::int AS n
+          FROM invoices i JOIN invoice_items ii ON ii.invoice_id = i.id
+          WHERE i.status <> 'A' AND i.doc_type = 'NC'
+            AND i.system_entry_date BETWEEN ${f} AND ${t}
+            ${this.storeCond(storeId)}
+          GROUP BY ii.product_code`,
+      );
+      const byCode = new Map(nc.map((r) => [r.code, Number(r.n)]));
+      return rows.map((r) => ({ ...r, rectifications: byCode.get(r.productCode) ?? 0 }));
+    });
   }
 
   /**

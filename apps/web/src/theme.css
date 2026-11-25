@@ -3154,10 +3154,11 @@ img.u-av { background: var(--surface-2); }
   /* Marca: só o logótipo centrado; o nome surge ao abrir */
   .admin.nav-rail .sidebar .brand { padding: 16px 16px 14px; gap: 12px; flex-wrap: nowrap; }
   .admin.nav-rail .sidebar .brand img { width: 44px; height: 44px; flex: none; }
-  .admin.nav-rail .sidebar .brand-tx,
-  .admin.nav-rail .sidebar .nav-label,
-  .admin.nav-rail .sidebar .nav-group-head > svg:last-child,
-  .admin.nav-rail .sidebar .sig { opacity: 0; transform: translateX(-6px); transition: opacity .18s ease, transform .22s ease; white-space: nowrap; pointer-events: none; }
+  /* Menu FIXO (botão de fixar): os textos ficam sempre visíveis, sem depender do rato. */
+  .admin.nav-rail:not(.menu-fixo) .sidebar .brand-tx,
+  .admin.nav-rail:not(.menu-fixo) .sidebar .nav-label,
+  .admin.nav-rail:not(.menu-fixo) .sidebar .nav-group-head > svg:last-child,
+  .admin.nav-rail:not(.menu-fixo) .sidebar .sig { opacity: 0; transform: translateX(-6px); transition: opacity .18s ease, transform .22s ease; white-space: nowrap; pointer-events: none; }
   .admin.nav-rail .sidebar:hover .brand-tx, .admin.nav-rail .sidebar:has(:focus-visible) .brand-tx,
   .admin.nav-rail .sidebar:hover .nav-label, .admin.nav-rail .sidebar:has(:focus-visible) .nav-label,
   .admin.nav-rail .sidebar:hover .nav-group-head > svg:last-child, .admin.nav-rail .sidebar:has(:focus-visible) .nav-group-head > svg:last-child,
@@ -3167,8 +3168,8 @@ img.u-av { background: var(--surface-2); }
   .admin.nav-rail .sidebar .nav button, .admin.nav-rail .sidebar .nav-group-head { padding-left: 15px; padding-right: 12px; gap: 14px; }
   .admin.nav-rail .sidebar .nav button svg, .admin.nav-rail .sidebar .nav-group-head svg { flex: none; }
   /* Sub-opções só com a barra aberta */
-  .admin.nav-rail .sidebar:not(:hover):not(:has(:focus-visible)) .nav-sub { display: none; }
-  .admin.nav-rail .sidebar:not(:hover):not(:has(:focus-visible)) .nav-group-head.has-active { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); }
+  .admin.nav-rail:not(.menu-fixo) .sidebar:not(:hover):not(:has(:focus-visible)) .nav-sub { display: none; }
+  .admin.nav-rail:not(.menu-fixo) .sidebar:not(:hover):not(:has(:focus-visible)) .nav-group-head.has-active { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); }
 }
 @media (min-width: 901px) and (prefers-reduced-motion: reduce) {
   .admin.nav-rail .sidebar, .admin.nav-rail .sidebar * { transition: none !important; }

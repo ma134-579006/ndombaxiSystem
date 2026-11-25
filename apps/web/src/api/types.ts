@@ -723,6 +723,8 @@ export interface ProfitPoint { bucket: string; salesNet: number; cost: number; p
 export interface ProfitProduct {
   productCode: string; description: string; qty: number;
   salesNet: number; cost: number; profit: number; marginPct: number;
+  /** Vendas c/IVA, nº de documentos e nº de notas de crédito (colunas do Vendus). */
+  salesGross?: number; sales?: number; rectifications?: number;
 }
 export interface ProfitAbcRow {
   productCode: string; description: string; sales: number;

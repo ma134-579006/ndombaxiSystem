@@ -86,18 +86,30 @@ export function initAutoUpdate(opts?: { canReload?: () => boolean }) {
       const latest = m ? m[1] : null;
       if (latest && latest !== current) {
         pending = true;
-        if (canReload()) doReload();
+        // Sem piscar: só recarrega se o utilizador não estiver a ver (separador em
+        // segundo plano) — senão espera por esse momento ou por um período sem uso.
+        if (document.visibilityState === 'hidden' && canReload()) doReload();
       }
     } catch { /* offline / sem rede / timeout — tenta depois */ }
   };
 
   setTimeout(check, 5000);             // logo após arrancar
   setInterval(check, 60000);           // de minuto a minuto
+  // ATUALIZAÇÃO SEM PISCAR: a nova versão é aplicada quando o utilizador NÃO está a
+  // olhar — ao passar o separador/app para segundo plano, ou depois de 10 min sem
+  // tocar no ecrã. Nunca a meio do uso (antes recarregava ao focar e a página piscava).
+  const IDLE_MS = 10 * 60_000;
+  let lastUse = Date.now();
+  for (const ev of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
+    window.addEventListener(ev, () => { lastUse = Date.now(); }, { passive: true, capture: true });
+  }
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return;
-    if (pending && canReload()) doReload(); else void check();
+    if (document.visibilityState === 'hidden') { if (pending && canReload()) doReload(); return; }
+    void check();
   });
-  window.addEventListener('focus', () => { if (pending && canReload()) doReload(); });
-  // Chunk antigo já não existe no servidor após deploy → recarrega.
+  setInterval(() => {
+    if (pending && Date.now() - lastUse >= IDLE_MS && canReload()) doReload();
+  }, 30_000);
+  // Chunk antigo já não existe no servidor após deploy → recarrega (sem isto a página partia).
   window.addEventListener('vite:preloadError', () => doReload());
 }

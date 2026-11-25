@@ -26,6 +26,7 @@ import { SupportChat, SupportFab } from './components/SupportChat';
 import { GlobalProcessing } from './components/GlobalProcessing';
 import { FeedbackHost } from './components/feedback';
 import { UpdateGate } from './update/UpdateGate';
+import { REPORT_TABS, isReportSection, reportSectionKey, reportTabFor } from './sections/reportMenu';
 
 /* CODE-SPLIT (Fase 3 da auditoria): cada secção só descarrega quando é
  * aberta — o bundle inicial fica leve para Android de entrada. React.lazy +
@@ -164,7 +165,6 @@ export const TENANT_NAV: NavItem[] = [
       { key: 'receivables', label: 'Contas a Receber', icon: IconCoins, min: 2 },
       { key: 'accounting', label: 'Contabilidade', icon: IconLedger, min: 2 },
       { key: 'operations', label: 'Caixa & Auditoria', icon: IconCashRegister, min: 4 },
-      { key: 'reports', label: 'Relatórios', icon: IconBars },
     ],
   },
   {
@@ -175,6 +175,8 @@ export const TENANT_NAV: NavItem[] = [
     ],
   },
   { key: 'customers', label: 'Clientes', icon: IconUserGroup },
+  // Como no Vendus: Gestão › Relatórios › Movimentos de Caixa, Produtos, Clientes, Marcas…
+  { key: 'reports-group', label: 'Relatórios', icon: IconChart, children: REPORT_TABS.map((t) => ({ key: reportSectionKey(t.key), label: t.label, icon: IconBars })) },
   {
     key: 'cameras-group', label: 'Câmaras', icon: IconCamera, children: [
       { key: 'cameras-config', label: 'Configurar', icon: IconGear, min: 1 },
@@ -448,8 +450,8 @@ function TenantPanel() {
       {section === 'cameras-live' ? <Cameras mode="live" /> : null}
       {section === 'cameras-map' ? <GodsEye /> : null}
       {section === 'operations' ? <Operations /> : null}
-      {section === 'reports' ? <Reports /> : null}
-      {section === 'documents' ? <Documents /> : null}
+      {isReportSection(section) ? <Reports tab={reportTabFor(section)} /> : null}
+      {section === 'documents' ? <Documents onGo={setSection} /> : null}
       {section === 'documents-new' ? <CreateDocument onDone={() => setSection('documents')} /> : null}
       {section === 'saft' ? <Saft /> : null}
       {section === 'backup' ? <Backup /> : null}
