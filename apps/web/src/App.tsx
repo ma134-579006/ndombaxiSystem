@@ -125,7 +125,52 @@ const PLATFORM_NAV: NavItem[] = [
 // O supervisor (4) entra no painel mas só vê monitorização/aprovação (min:4); o
 // CRUD do sistema continua reservado a gerente de loja e acima (backend e nav).
 export const TENANT_NAV: NavItem[] = [
-  { key: 'overview', label: 'Visão geral', icon: IconActivity, min: 4 },
+  // ── GESTÃO, pela ordem do Vendus: Dashboard, Produtos, Documentos, Talões/Promoções,
+  //    Clientes, Relatórios, Contabilidade, Compras, AG Tributária. ──
+  { key: 'overview', label: 'Dashboard', icon: IconActivity, min: 4 },
+  {
+    key: 'products-group', label: 'Produtos', icon: IconBag, children: [
+      { key: 'products', label: 'Produtos', icon: IconBag },
+      // Inventário ÚNICO (o antigo 'Inventário' + 'Inventário PRO' + 'Análise de
+      // stock' são agora ABAS dentro desta secção — ver InventoryIntel).
+      { key: 'inventory', label: 'Inventário', icon: IconBoxes },
+      { key: 'stock-movements', label: 'Movimentos de stock', icon: IconHistory },
+    ],
+  },
+  {
+    key: 'documents-group', label: 'Documentos', icon: IconFolder, children: [
+      { key: 'documents-new', label: 'Criar Documento', icon: IconPlus, min: 3 },
+      { key: 'documents', label: 'Todos', icon: IconReceipt },
+    ],
+  },
+  { key: 'promotions', label: 'Promoções', icon: IconPercent },
+  {
+    key: 'customers-group', label: 'Clientes', icon: IconUserGroup, children: [
+      { key: 'customers', label: 'Clientes', icon: IconUserGroup },
+      { key: 'receivables', label: 'Conta Corrente', icon: IconCoins, min: 2 },
+    ],
+  },
+  // Como no Vendus: Gestão › Relatórios › Movimentos de Caixa, Produtos, Clientes, Marcas…
+  { key: 'reports-group', label: 'Relatórios', icon: IconChart, children: REPORT_TABS.map((t) => ({ key: reportSectionKey(t.key), label: t.label, icon: IconBars })) },
+  {
+    key: 'accounting-group', label: 'Contabilidade', icon: IconLedger, children: [
+      { key: 'accounting', label: 'Contabilidade', icon: IconLedger, min: 2 },
+      { key: 'profit', label: 'Lucros', icon: IconTrendUp, min: 2 },
+      { key: 'expenses', label: 'Gastos', icon: IconReceipt, min: 2 },
+      { key: 'cashflow', label: 'Fluxo de Caixa', icon: IconCoins, min: 2 },
+      { key: 'reconciliation', label: 'Conciliação', icon: IconArrowLeftRight, min: 2 },
+    ],
+  },
+  {
+    // Como no Vendus: Compras › Fornecedores, Encomendas, Faturas (contas a pagar).
+    key: 'purchasing-group', label: 'Compras', icon: IconTruck, children: [
+      { key: 'purchasing-suppliers', label: 'Fornecedores', icon: IconBuilding, min: 2 },
+      { key: 'purchasing', label: 'Encomendas', icon: IconTruck, min: 2 },
+      { key: 'payables', label: 'Faturas', icon: IconWallet, min: 2 },
+    ],
+  },
+  { key: 'saft', label: 'AG Tributária', icon: IconShieldCheck, min: 1 },
+  // ── Fora da GESTÃO (cada um aparece só no seu separador: POS, LOJA, APPS, Configuração). ──
   { key: 'assistant', label: 'Assistente IA', icon: IconSparkles, min: 2 },
   { key: 'subscription', label: 'Subscrição', icon: IconCard, min: 1 },
   {
@@ -139,32 +184,10 @@ export const TENANT_NAV: NavItem[] = [
     ],
   },
   {
-    key: 'products-group', label: 'Produtos', icon: IconBag, children: [
-      { key: 'products', label: 'Produtos', icon: IconBag },
-      // Inventário ÚNICO (o antigo 'Inventário' + 'Inventário PRO' + 'Análise de
-      // stock' são agora ABAS dentro desta secção — ver InventoryIntel).
-      { key: 'inventory', label: 'Inventário', icon: IconBoxes },
-      { key: 'stock-movements', label: 'Movimentos de stock', icon: IconHistory },
-      { key: 'purchasing', label: 'Compras', icon: IconTruck, min: 2 },
-      { key: 'promotions', label: 'Promoções', icon: IconTag },
-    ],
-  },
-  {
-    // Grupo sem `min` próprio (default 3) para o gerente de loja continuar a ver
-    // Caixa & Auditoria e Relatórios; os itens financeiros mantêm min:2 (ocultos
-    // ao gerente de loja, como antes).
-    key: 'movements-group', label: 'Movimentações', icon: IconCoins, children: [
-      { key: 'documents', label: 'Documentos', icon: IconReceipt },
-      { key: 'documents-new', label: 'Criar documento', icon: IconPlus, min: 3 },
-      { key: 'payments', label: 'Pagamentos', icon: IconCard, min: 2 },
-      { key: 'profit', label: 'Lucros', icon: IconTrendUp, min: 2 },
-      { key: 'expenses', label: 'Gastos', icon: IconReceipt, min: 2 },
-      { key: 'cashflow', label: 'Fluxo de Caixa', icon: IconCoins, min: 2 },
-      { key: 'reconciliation', label: 'Conciliação', icon: IconArrowLeftRight, min: 2 },
-      { key: 'payables', label: 'Contas a Pagar', icon: IconWallet, min: 2 },
-      { key: 'receivables', label: 'Contas a Receber', icon: IconCoins, min: 2 },
-      { key: 'accounting', label: 'Contabilidade', icon: IconLedger, min: 2 },
+    // Painel POS: movimentos de caixa e tipos de pagamento.
+    key: 'pos-group', label: 'Caixa', icon: IconCashRegister, children: [
       { key: 'operations', label: 'Caixa & Auditoria', icon: IconCashRegister, min: 4 },
+      { key: 'payments', label: 'Pagamentos', icon: IconCard, min: 2 },
     ],
   },
   {
@@ -174,9 +197,6 @@ export const TENANT_NAV: NavItem[] = [
       { key: 'leave', label: 'Férias', icon: IconCalendar },
     ],
   },
-  { key: 'customers', label: 'Clientes', icon: IconUserGroup },
-  // Como no Vendus: Gestão › Relatórios › Movimentos de Caixa, Produtos, Clientes, Marcas…
-  { key: 'reports-group', label: 'Relatórios', icon: IconChart, children: REPORT_TABS.map((t) => ({ key: reportSectionKey(t.key), label: t.label, icon: IconBars })) },
   {
     key: 'cameras-group', label: 'Câmaras', icon: IconCamera, children: [
       { key: 'cameras-config', label: 'Configurar', icon: IconGear, min: 1 },
@@ -185,7 +205,6 @@ export const TENANT_NAV: NavItem[] = [
       { key: 'cameras-map', label: 'Olho de Deus', icon: IconCamera, min: 4 },
     ],
   },
-  { key: 'saft', label: 'Fiscal · SAF-T', icon: IconShieldCheck, min: 1 },
   {
     key: 'backup-group', label: 'Backup & Restauro', icon: IconDatabase, min: 1, children: [
       { key: 'backup', label: 'Backup', icon: IconDatabase, min: 1 },
@@ -440,7 +459,7 @@ function TenantPanel() {
           Antifraude, Transferências, Localização, Auditoria). */}
       {section === 'inventory' || section === 'inventory-intel' || section === 'stock-analysis' ? <InventoryIntel role={user?.role} /> : null}
       {section === 'stock-movements' ? <StockMovements /> : null}
-      {section === 'purchasing' ? <Purchasing /> : null}
+      {section === 'purchasing' || section === 'purchasing-suppliers' ? <Purchasing key={section} view={section === 'purchasing-suppliers' ? 'suppliers' : 'orders'} onGo={setSection} /> : null}
       {section === 'orders' ? <Orders /> : null}
       {section === 'promotions' ? <Promotions /> : null}
       {section === 'payments' ? <Payments /> : null}

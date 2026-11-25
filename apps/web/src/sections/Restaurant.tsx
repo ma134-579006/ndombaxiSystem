@@ -731,7 +731,8 @@ function ReportsTab() {
     return () => { alive = false; };
   }, [days]);
 
-  const Group = ({ title, icon, g, accent }: { title: string; icon: string; g: RestaurantSalesReport['commercial']; accent: string }) => (
+  // Função (não componente): estável entre renders.
+  const group = ({ title, icon, g, accent }: { title: string; icon: string; g: RestaurantSalesReport['commercial']; accent: string }) => (
     <div className="card" style={{ flex: '1 1 260px', borderTop: `3px solid ${accent}` }}>
       <h3 className="ui-h3" style={{ margin: '0 0 10px' }}><UiIcon e={icon} size={18} /> {title}</h3>
       <div className="kpi-grid" style={{ gridTemplateColumns: '1fr 1fr', margin: 0 }}>
@@ -769,8 +770,8 @@ function ReportsTab() {
         <div className="card"><p className="muted" style={{ margin: 0 }}>A carregar o relatório…</p></div>
       ) : (
         <div className="row" style={{ gap: 12, alignItems: 'stretch', flexWrap: 'wrap' }}>
-          <Group title="Comercial (revenda)" icon="🛒" g={rep.commercial} accent="var(--primary)" />
-          <Group title="Produção (fabricado)" icon="🏭" g={rep.production} accent="var(--warning)" />
+          {group({ title: 'Comercial (revenda)', icon: '🛒', g: rep.commercial, accent: 'var(--primary)' })}
+          {group({ title: 'Produção (fabricado)', icon: '🏭', g: rep.production, accent: 'var(--warning)' })}
         </div>
       )}
     </>

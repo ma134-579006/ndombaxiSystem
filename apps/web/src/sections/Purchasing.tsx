@@ -3,10 +3,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type {
   SupplierRow, CreateSupplierInput, PurchaseOrderRow, PurchaseOrderLineInput,
-  WarehouseRow, ManagerProduct,
+  WarehouseRow, ManagerProduct, PayableSummary,
 } from '../api/types';
 import { Modal } from '../components/ui';
-import { IconBuilding, IconCheck, IconPlus, IconReport, IconTrash, IconTruck } from '../components/Icons';
+import { IconBuilding, IconCheck, IconPlus, IconReport, IconSearch, IconTrash, IconTruck } from '../components/Icons';
 import { formatKz, formatDate } from '../format';
 
 const PO_TONE: Record<string, string> = {
@@ -16,20 +16,30 @@ const PO_LABEL: Record<string, string> = {
   DRAFT: 'Rascunho', CONFIRMED: 'Confirmada', RECEIVED: 'Recebida', CANCELLED: 'Cancelada',
 };
 
-/** Compras: fornecedores + encomendas de compra (rascunho → confirmar → rececionar → entra em stock). */
-export function Purchasing() {
-  const [tab, setTab] = useState<'orders' | 'suppliers'>('orders');
+/**
+ * Compras no formato do Vendus (Gestão › Compras):
+ *   • Fornecedores — caminho «Fornecedores / Listagem», Adicionar / Exportar, pesquisa,
+ *     quadro «Dívidas a Fornecedores» (saldo, dívida corrente, dívida vencida) e tabela;
+ *   • Encomendas — caminho «Encomendas / Listagem», Adicionar Encomenda, filtro por
+ *     estado e tabela com Confirmar / Rececionar (rascunho → confirmada → entra em stock).
+ *   As Faturas de fornecedores são a página «Contas a pagar» (secção payables).
+ */
+export function Purchasing({ view = 'orders', onGo }: { view?: 'orders' | 'suppliers'; onGo?: (s: string) => void } = {}) {
   const [suppliers, setSuppliers] = useState<SupplierRow[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
   const [products, setProducts] = useState<ManagerProduct[]>([]);
   const [orders, setOrders] = useState<PurchaseOrderRow[]>([]);
+  const [debts, setDebts] = useState<PayableSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newSupplier, setNewSupplier] = useState(false);
   const [newOrder, setNewOrder] = useState(false);
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const [s, w, p, o] = await Promise.all([
         api.purchasing.listSuppliers(),
@@ -41,109 +51,143 @@ export function Purchasing() {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar.');
     } finally { setLoading(false); }
+    api.payables.summary().then(setDebts).catch(() => setDebts(null));
   }, []);
 
   useEffect(() => { void load(); }, [load]);
 
   const act = async (fn: () => Promise<unknown>, ok?: string) => {
-    try { await fn(); if (ok) toast.error(ok); await load(); }
+    try { await fn(); if (ok) toast.success(ok); await load(); }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Operação falhou.'); }
   };
 
-  const openOrders = orders.filter((o) => o.status === 'DRAFT' || o.status === 'CONFIRMED');
-  const toReceive = orders.filter((o) => o.status === 'CONFIRMED').reduce((s, o) => s + Number(o.gross_total), 0);
+  const term = q.trim().toLowerCase();
+  const supList = suppliers.filter((x) => !term || `${x.name} ${x.nif ?? ''} ${x.code}`.toLowerCase().includes(term));
+  const ordList = orders.filter((o) => {
+    const d = String(o.order_date).slice(0, 10);
+    return (!status || o.status === status) && (!from || d >= from) && (!to || d <= to)
+      && (!term || `${o.number} ${o.supplier_name}`.toLowerCase().includes(term));
+  });
+  const clearFilters = () => { setQ(''); setStatus(''); setFrom(''); setTo(''); };
+  const exportSuppliers = () => {
+    const esc = (v: unknown) => { const t = String(v ?? ''); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const lines = suppliers.map((x) => [x.name, x.nif ?? '', x.phone ?? '', x.email ?? ''].map(esc).join(';'));
+    const blob = new Blob(['﻿' + ['Nome;NIF;Telemóvel;E-mail', ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const el = document.createElement('a'); el.href = URL.createObjectURL(blob); el.download = 'fornecedores.csv'; el.click();
+    setTimeout(() => URL.revokeObjectURL(el.href), 2000);
+  };
+  const isSup = view === 'suppliers';
+  const current = Math.max(0, (debts?.outstanding ?? 0) - (debts?.overdue ?? 0));
 
   return (
-    <div className="fx-wide">
-      <div className="content-head">
-        <h2>Compras</h2>
+    <div className="vd-page">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>{isSup ? 'Fornecedores' : 'Encomendas'}</span><span className="sep">/</span><span>Listagem</span></p>
         <span className="spacer" />
-        {tab === 'suppliers' ? (
+        {isSup ? (
           <>
-          <button className="btn ghost" onClick={() => {
-            // Exportar fornecedores (CSV), como no backoffice de referência.
-            const esc = (v: unknown) => { const t = String(v ?? ''); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
-            const lines = suppliers.map((x) => [x.name, x.nif ?? '', x.phone ?? '', x.email ?? ''].map(esc).join(';'));
-            const blob = new Blob(['\ufeff' + ['Nome;NIF;Telemóvel;E-mail', ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'fornecedores.csv'; a.click();
-            setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-          }} disabled={suppliers.length === 0}>Exportar Fornecedores</button>
-          <button className="btn" onClick={() => setNewSupplier(true)}><IconPlus size={16} /> Novo fornecedor</button>
+            <button className="vd-btn" onClick={() => setNewSupplier(true)}><IconPlus size={16} /> Adicionar Fornecedor</button>
+            <button className="vd-btn outline" onClick={exportSuppliers} disabled={suppliers.length === 0}>Exportar Fornecedores</button>
           </>
         ) : (
-          <button className="btn" onClick={() => setNewOrder(true)} disabled={suppliers.length === 0 || warehouses.length === 0}>
-            <IconPlus size={16} /> Nova encomenda
+          <button className="vd-btn" onClick={() => setNewOrder(true)} disabled={suppliers.length === 0 || warehouses.length === 0}>
+            <IconPlus size={16} /> Adicionar encomenda
           </button>
         )}
       </div>
 
-      <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconReport size={20} /></span><div><div className="lb">Em aberto</div><div className="vl">{openOrders.length}</div><div className="sb">rascunho ou confirmadas</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconTruck size={20} /></span><div><div className="lb">A receber</div><div className="vl">{formatKz(toReceive)}</div><div className="sb">encomendas confirmadas</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Rececionadas</div><div className="vl"><span className="fx-dot ok" />{orders.filter((o) => o.status === 'RECEIVED').length}</div><div className="sb">stock actualizado</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconBuilding size={20} /></span><div><div className="lb">Fornecedores</div><div className="vl">{suppliers.length}</div><div className="sb">registados</div></div></div>
-      </div>
-
-      <div className="fx-tabs inv-tabs" role="tablist" aria-label="Compras">
-        <button role="tab" aria-selected={tab === 'orders'} className={tab === 'orders' ? 'on' : ''} onClick={() => setTab('orders')}>Encomendas de compra</button>
-        <button role="tab" aria-selected={tab === 'suppliers'} className={tab === 'suppliers' ? 'on' : ''} onClick={() => setTab('suppliers')}>Fornecedores</button>
-      </div>
-
-      {error ? <div className="banner danger">{error}</div> : null}
-      {(suppliers.length === 0 || warehouses.length === 0) && !loading ? (
-        <div className="banner" style={{ marginBottom: 12 }}>
-          Para criar encomendas precisa de pelo menos um <strong>fornecedor</strong> e um <strong>armazém</strong>.
+      <form className="vd-card vd-filters" onSubmit={(e) => e.preventDefault()}>
+        <div className="vd-frow" style={{ alignItems: 'center' }}>
+          <label className="vd-f grow"><input className="vd-in" value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder={isSup ? 'Pesquisa por Nome ou NIF' : 'Pesquisa por Número ou Fornecedor'} aria-label="Pesquisar" /></label>
+          {!isSup ? (
+            <label className="vd-f"><select className="vd-in" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Estado">
+              <option value="">Todas</option>
+              {Object.entries(PO_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select></label>
+          ) : null}
+          {!isSup ? (
+            <div className="vd-f pu-dates"><div className="vd-range">
+              <span className="mid">Data</span>
+              <input type="date" className="vd-in" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} aria-label="De" />
+              <span className="mid">até</span>
+              <input type="date" className="vd-in" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} aria-label="Até" />
+            </div></div>
+          ) : null}
         </div>
+        <div className="vd-frow">
+          <button type="submit" className="vd-btn"><IconSearch size={15} /> Pesquisar</button>
+          <button type="button" className="vd-btn outline" onClick={clearFilters}>✕ Limpar Filtro</button>
+        </div>
+      </form>
+
+      {error ? <div className="vd-err" role="alert">{error}</div> : null}
+      {!isSup && (suppliers.length === 0 || warehouses.length === 0) && !loading ? (
+        <div className="vd-err" role="status">Para criar encomendas precisa de pelo menos um <strong>fornecedor</strong> e um <strong>armazém</strong>.</div>
       ) : null}
 
-      {tab === 'orders' ? (
-        <div className="fx-card" style={{ padding: 8 }}>
-          {loading ? <div className="loading">A carregar…</div> : orders.length === 0 ? (
-            <div className="empty"><IconTruck size={40} /><p>Sem encomendas. Crie uma para repor stock junto de um fornecedor.</p></div>
-          ) : orders.map((o) => (
-            <div className="co-row" key={o.id}>
-              <span className="co-av" aria-hidden="true"><IconTruck size={18} /></span>
-              <div className="co-main">
-                <div className="co-name">{o.number} <span className="co-code">{o.supplier_name}</span></div>
-                <div className="co-meta">
-                  <span className="co-plan">{formatKz(o.gross_total)}</span>
-                  <span>{formatDate(o.order_date)}</span>
-                  {o.expected_date ? <span>prevista {formatDate(o.expected_date)}</span> : null}
-                </div>
-              </div>
-              <span className="badge" style={{ color: PO_TONE[o.status] ?? 'var(--muted)', borderColor: 'currentColor' }}>
-                {PO_LABEL[o.status] ?? o.status}
-              </span>
-              {o.status === 'DRAFT' ? (
-                <button className="btn sm ghost" onClick={() => act(() => api.purchasing.confirmOrder(o.id))}>Confirmar</button>
-              ) : null}
-              {o.status === 'CONFIRMED' ? (
-                <button className="btn sm" onClick={() => act(
-                  () => api.purchasing.receiveOrder(o.id),
-                  'Encomenda rececionada — stock actualizado.',
-                )}><IconCheck size={14} /> Rececionar</button>
-              ) : null}
+      {isSup ? (
+        <section className="vd-card pu-debts" aria-label="Dívidas a Fornecedores">
+          <div className="pu-debts-h"><span>Dívidas a Fornecedores</span>
+            {onGo ? <button className="vd-btn pu-consult" onClick={() => onGo('payables')}><IconReport size={16} /> Consultar</button> : null}</div>
+          <div className="pu-debts-b">
+            <div><small>Saldo</small><b className={(debts?.outstanding ?? 0) > 0 ? 'neg' : 'ok'}>{formatKz(debts?.outstanding ?? 0)}</b><span>Valor que deve aos Fornecedores</span></div>
+            <div><small>Dívida Corrente</small><b className={current > 0 ? 'neg' : 'ok'}>{formatKz(current)}</b><span>{current > 0 ? 'Pagamentos dentro do prazo' : 'Não existem pagamentos pendentes'}</span></div>
+            <div><small>Dívida Vencida</small><b className={(debts?.overdue ?? 0) > 0 ? 'neg' : 'ok'}>{formatKz(debts?.overdue ?? 0)}</b><span>Valor que já deveria ter sido pago</span></div>
+          </div>
+        </section>
+      ) : null}
+
+      <div className="vd-card vd-tablecard">
+        {loading ? <div className="vd-empty">A carregar…</div> : isSup ? (
+          supList.length === 0 ? (term ? <div className="vd-empty">Sem resultados.</div> : (
+            <div className="pu-noreg"><IconBuilding size={56} /><strong>Não existem registos</strong><span>Ainda não adicionou nenhum registo em Fornecedores?</span>
+              <button className="vd-btn outline" onClick={() => setNewSupplier(true)}>Adicionar fornecedor</button></div>
+          )) : (
+            <div className="vd-tablewrap">
+              <table className="vd-table">
+                <thead><tr><th>Fornecedores</th><th>NIF</th><th>Telemóvel</th><th>E-mail</th><th>Código</th><th aria-label="Ações" /></tr></thead>
+                <tbody>
+                  {supList.map((x) => (
+                    <tr key={x.id}>
+                      <td><strong>{x.name}</strong>{x.address ? <span className="sub">{x.address}</span> : null}</td>
+                      <td>{x.nif ?? '—'}</td><td>{x.phone ?? '—'}</td><td>{x.email ?? '—'}</td><td>{x.code}</td>
+                      <td className="num">{warehouses.length > 0 ? <button className="vd-btn plain sm" onClick={() => setNewOrder(true)}>Encomendar</button> : null}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="fx-card" style={{ padding: 8 }}>
-          {loading ? <div className="loading">A carregar…</div> : suppliers.length === 0 ? (
-            <div className="empty"><IconBuilding size={40} /><p>Sem fornecedores registados.</p></div>
-          ) : suppliers.map((s) => (
-            <div className="co-row" key={s.id}>
-              <span className="co-av" aria-hidden="true">{s.name.slice(0, 2).toUpperCase()}</span>
-              <div className="co-main">
-                <div className="co-name">{s.name} <span className="co-code">{s.code}</span></div>
-                <div className="co-meta">
-                  {[s.nif ? `NIF ${s.nif}` : null, s.phone, s.email].filter(Boolean).map((x) => <span key={String(x)}>{x}</span>)}
-                  {!s.nif && !s.phone && !s.email ? <span>Sem contactos</span> : null}
-                </div>
-              </div>
+          )
+        ) : (
+          ordList.length === 0 ? (term || status || from || to ? <div className="vd-empty">Sem resultados.</div> : (
+            <div className="pu-noreg"><IconTruck size={56} /><strong>Não existem registos</strong><span>Ainda não adicionou nenhum registo em Encomendas?</span>
+              <button className="vd-btn outline" onClick={() => setNewOrder(true)} disabled={suppliers.length === 0 || warehouses.length === 0}>Adicionar encomenda</button></div>
+          )) : (
+            <div className="vd-tablewrap">
+              <table className="vd-table">
+                <thead><tr><th>Número</th><th>Fornecedor</th><th>Data</th><th>Data prevista</th><th className="num">Total</th><th>Estado</th><th aria-label="Ações" /></tr></thead>
+                <tbody>
+                  {ordList.map((o) => (
+                    <tr key={o.id}>
+                      <td><strong>{o.number}</strong></td>
+                      <td>{o.supplier_name}</td>
+                      <td>{formatDate(o.order_date)}</td>
+                      <td>{o.expected_date ? formatDate(o.expected_date) : '—'}</td>
+                      <td className="num">{formatKz(o.gross_total)}</td>
+                      <td><span className="vd-tag" style={{ color: PO_TONE[o.status] ?? 'var(--muted)', borderColor: 'currentColor' }}>{PO_LABEL[o.status] ?? o.status}</span></td>
+                      <td className="num">
+                        {o.status === 'DRAFT' ? <button className="vd-btn outline sm" onClick={() => act(() => api.purchasing.confirmOrder(o.id), 'Encomenda confirmada.')}>Confirmar</button> : null}
+                        {o.status === 'CONFIRMED' ? <button className="vd-btn sm" onClick={() => act(() => api.purchasing.receiveOrder(o.id), 'Encomenda rececionada — stock actualizado.')}><IconCheck size={14} /> Rececionar</button> : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-        </div>
-      )}
+          )
+        )}
+      </div>
 
       {newSupplier ? <SupplierModal onClose={() => setNewSupplier(false)} onSaved={load} /> : null}
       {newOrder ? (

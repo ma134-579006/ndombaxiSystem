@@ -416,7 +416,7 @@ export function Shell({
   // movimentos de caixa, tipos de pagamento), da LOJA (loja online, encomendas, LPS
   // Kwanza, comissões), das APPS (assistente, câmaras) ou da CONFIGURAÇÃO (subscrição,
   // equipa, backup, definições) fica apenas no respetivo separador — nenhum botão repetido.
-  const FORA_DA_GESTAO = new Set(['assistant', 'subscription', 'stores-group', 'operations', 'payments', 'cameras-group', 'backup-group', 'settings', 'users-group']);
+  const FORA_DA_GESTAO = new Set(['assistant', 'subscription', 'stores-group', 'pos-group', 'operations', 'payments', 'cameras-group', 'backup-group', 'settings', 'users-group']);
   const navGestao = isTenant
     ? nav.filter((n) => !FORA_DA_GESTAO.has(n.key)).map((n) => (n.children ? { ...n, children: n.children.filter((c) => !FORA_DA_GESTAO.has(c.key)) } : n)).filter((n) => !n.children || n.children.length > 0)
     : nav;

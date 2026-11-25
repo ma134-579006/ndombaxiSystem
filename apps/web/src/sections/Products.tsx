@@ -89,6 +89,11 @@ function monoColor(name: string): string {
   return MONO[h % MONO.length];
 }
 
+/** Rótulo do formulário de produto (fora do componente: estável entre renders). */
+function L({ children, hint }: { children: React.ReactNode; hint?: string }) {
+  return <div className="vd-lbl">{children}{hint ? <span className="q" title={hint} aria-label={hint}>?</span> : null} :</div>;
+}
+
 export function Products() {
   const [products, setProducts] = useState<ManagerProduct[]>([]);
   const [stores, setStores] = useState<WarehouseRow[]>([]);
@@ -518,8 +523,9 @@ export function Products() {
   };
   const searchNow = () => { setPages(1); queryRef.current = { q: search.trim(), pages: 1 }; void load(); };
   const sortBy = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
-  const Th = ({ k, children, className }: { k: SortKey; children: React.ReactNode; className?: string }) => (
-    <th className={`sort${sort.key === k ? ` ${sort.dir}` : ''}${className ? ` ${className}` : ''}`} onClick={() => sortBy(k)}
+  // Função (não componente): não remonta os cabeçalhos a cada atualização (10 s).
+  const th = ({ k, children, className }: { k: SortKey; children: React.ReactNode; className?: string }) => (
+    <th key={k} className={`sort${sort.key === k ? ` ${sort.dir}` : ''}${className ? ` ${className}` : ''}`} onClick={() => sortBy(k)}
       aria-sort={sort.key === k ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
       <span className="ar" aria-hidden="true"><span className="u">▲</span><span className="d">▼</span></span>{children}
     </th>
@@ -536,9 +542,6 @@ export function Products() {
 
   // ── FORMULÁRIO (página própria, como na referência) ──
   if (creating || editing) {
-    const L = ({ children, hint }: { children: React.ReactNode; hint?: string }) => (
-      <div className="vd-lbl">{children}{hint ? <span className="q" title={hint} aria-label={hint}>?</span> : null} :</div>
-    );
     const pvpPreview = (Number(form.unitPrice) || 0) * (1 + (form.ivaCode === 'AUTO' ? (companyIva ? IVA_RATE[companyIva as IvaCode] ?? 0 : 0) : IVA_RATE[form.ivaCode]) / 100);
     return (
       <div className="vd-page">
@@ -883,13 +886,13 @@ export function Products() {
               <thead>
                 <tr>
                   <th className="chk"><input type="checkbox" checked={pageSel} onChange={togglePage} aria-label="Selecionar a página" /></th>
-                  {cols.code ? <Th k="code">Ref</Th> : null}
-                  <Th k="name">Nome</Th>
+                  {cols.code ? th({ k: 'code', children: 'Ref' }) : null}
+                  {th({ k: 'name', children: 'Nome' })}
                   {cols.cat ? <th>Categoria</th> : null}
-                  {cols.price ? <Th k="price" className="num">Preço</Th> : null}
-                  {cols.cost ? <Th k="cost" className="num">Preço de custo</Th> : null}
-                  {cols.iva ? <Th k="iva" className="ctr">IVA</Th> : null}
-                  {cols.stock ? <Th k="stock" className="ctr">Stock</Th> : null}
+                  {cols.price ? th({ k: 'price', className: 'num', children: 'Preço' }) : null}
+                  {cols.cost ? th({ k: 'cost', className: 'num', children: 'Preço de custo' }) : null}
+                  {cols.iva ? th({ k: 'iva', className: 'ctr', children: 'IVA' }) : null}
+                  {cols.stock ? th({ k: 'stock', className: 'ctr', children: 'Stock' }) : null}
                   <th aria-label="Opções" />
                 </tr>
               </thead>

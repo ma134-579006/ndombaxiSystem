@@ -7,12 +7,12 @@ import type {
   PayableSummary,
   RecordPayablePaymentInput,
 } from '../api/types';
-import { IconPlus, IconTruck } from '../components/Icons';
+import { IconPlus, IconSearch, IconTruck } from '../components/Icons';
 import { Modal } from '../components/ui';
 import { formatKz, localIso } from '../format';
 
 const FILTERS: { key: string; label: string }[] = [
-  { key: 'open', label: 'Em aberto' },
+  { key: 'open', label: 'Por Pagar' },
   { key: 'overdue', label: 'Vencidas' },
   { key: 'paid', label: 'Pagas' },
   { key: 'all', label: 'Todas' },
@@ -31,7 +31,7 @@ function statusInfo(p: Payable): { label: string; cls: string } {
 }
 function todayISO(d = new Date()): string { return localIso(d); }
 
-/** Contas a pagar (fornecedores): saldo em dívida, antiguidade, comprovativos. */
+/** Faturas de fornecedores (contas a pagar) no formato do Vendus: Compras › Faturas. */
 export function Payables() {
   const [filter, setFilter] = useState('open');
   const [rows, setRows] = useState<Payable[]>([]);
@@ -55,73 +55,106 @@ export function Payables() {
 
   useEffect(() => { void load(); }, [load]);
 
+  // Filtros como nas Faturas do Vendus: texto, estado, data da fatura e data de vencimento.
+  const [q, setQ] = useState('');
+  const [d1, setD1] = useState(''); const [d2, setD2] = useState('');
+  const [v1, setV1] = useState(''); const [v2, setV2] = useState('');
+  const clearFilters = () => { setQ(''); setD1(''); setD2(''); setV1(''); setV2(''); setFilter('open'); };
+  const day = (s: string | null) => (s ? String(s).slice(0, 10) : '');
+  const term = q.trim().toLowerCase();
+  const list = rows.filter((p) => {
+    const em = day(p.created_at), ve = day(p.due_date);
+    return (!term || `${p.reference ?? ''} ${p.supplier_name ?? ''}`.toLowerCase().includes(term))
+      && (!d1 || em >= d1) && (!d2 || em <= d2) && (!v1 || (ve && ve >= v1)) && (!v2 || (ve && ve <= v2));
+  });
+  const exportCsv = () => {
+    const esc = (v: unknown) => { const t = String(v ?? ''); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const head = ['Fornecedor', 'Nº Fatura', 'Data Fatura', 'Data Vencimento', 'Valor da Fatura', 'Valor Pago', 'Em Dívida', 'Estado'];
+    const lines = list.map((p) => [p.supplier_name ?? '', p.reference ?? '', day(p.created_at), day(p.due_date), Number(p.original_amount).toFixed(2), Number(p.paid_amount).toFixed(2), Number(p.outstanding).toFixed(2), statusInfo(p).label].map(esc).join(';'));
+    const blob = new Blob(['﻿' + [head.join(';'), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'faturas-fornecedores.csv'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  const fmtD = (s: string | null) => (s ? new Date(s).toLocaleDateString('pt-PT') : '—');
+
   return (
-    <div className="profit-page">
-      <div className="content-head no-print">
-        <h2>Contas a pagar</h2>
+    <div className="vd-page">
+      <div className="vd-head no-print">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Faturas</span><span className="sep">/</span><span>Listagem</span></p>
         <span className="spacer" />
-        <button className="btn sm" onClick={() => void printSectionReport()}>Imprimir</button>
-        <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Nova conta</button>
+        <button className="vd-btn" onClick={() => setCreating(true)}><IconPlus size={16} /> Adicionar Fatura</button>
+        <button className="vd-btn outline" onClick={exportCsv} disabled={list.length === 0}>Exportar</button>
+        <button className="vd-btn outline" onClick={() => void printSectionReport()}>Imprimir</button>
       </div>
 
       {lastVoucher ? <div className="banner success no-print">Comprovativo emitido: <strong>{lastVoucher}</strong></div> : null}
-      {error ? <div className="banner danger no-print">{error}</div> : null}
+      {error ? <div className="vd-err no-print" role="alert">{error}</div> : null}
 
-      <div className="print-only print-header"><h2>Contas a Pagar</h2><p>{new Date().toLocaleDateString('pt-PT')}</p></div>
+      <div className="print-only print-header"><h2>Faturas de fornecedores</h2><p>{new Date().toLocaleDateString('pt-PT')}</p></div>
 
-      <div className="kpi-grid">
-        <div className="kpi-card warning"><div className="kpi-ic"><IconTruck size={20} /></div>
-          <div className="kpi-label">A pagar (total)</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>{formatKz(sum?.outstanding ?? 0)}</div>
-          <div className="kpi-sub">{sum?.openCount ?? 0} conta(s) em aberto</div>
+      <form className="vd-card vd-filters no-print" onSubmit={(e) => { e.preventDefault(); void load(); }}>
+        <div className="vd-frow" style={{ alignItems: 'center' }}>
+          <label className="vd-f grow"><input className="vd-in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisa por Número da Fatura ou Fornecedor" aria-label="Pesquisar faturas" /></label>
+          <label className="vd-f"><select className="vd-in" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Estado">
+            {FILTERS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+          </select></label>
         </div>
-        <div className="kpi-card danger"><div className="kpi-ic"><IconTruck size={20} /></div>
-          <div className="kpi-label">Vencido</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>{formatKz(sum?.overdue ?? 0)}</div>
-          <div className="kpi-sub">{sum?.overdueCount ?? 0} conta(s) em atraso</div>
+        <div className="vd-frow">
+          <div className="vd-f pu-dates"><span className="pu-dl">Data de emissão da fatura</span><div className="vd-range">
+            <input type="date" className="vd-in" value={d1} max={d2 || undefined} onChange={(e) => setD1(e.target.value)} aria-label="Emissão de" />
+            <span className="mid">até</span>
+            <input type="date" className="vd-in" value={d2} min={d1 || undefined} onChange={(e) => setD2(e.target.value)} aria-label="Emissão até" />
+          </div></div>
+          <div className="vd-f pu-dates"><span className="pu-dl">Data Vencimento</span><div className="vd-range">
+            <input type="date" className="vd-in" value={v1} max={v2 || undefined} onChange={(e) => setV1(e.target.value)} aria-label="Vencimento de" />
+            <span className="mid">até</span>
+            <input type="date" className="vd-in" value={v2} min={v1 || undefined} onChange={(e) => setV2(e.target.value)} aria-label="Vencimento até" />
+          </div></div>
         </div>
-      </div>
-
-      <div className="card no-print" style={{ padding: '10px 14px' }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {FILTERS.map((f) => (
-            <button key={f.key} className={`chip ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>{f.label}</button>
-          ))}
+        <div className="vd-frow">
+          <button type="submit" className="vd-btn"><IconSearch size={15} /> Pesquisar</button>
+          <button type="button" className="vd-btn outline" onClick={clearFilters}>✕ Limpar Filtro</button>
         </div>
-      </div>
+      </form>
 
-      <div className="card">
-        {loading ? <div className="loading">A carregar…</div>
-          : rows.length === 0 ? <div className="empty"><IconTruck size={40} /><p>Sem contas a pagar neste filtro.</p></div>
-          : (
-            <table className="ptable stack">
-              <thead>
-                <tr><th>Fornecedor</th><th>Referência</th><th>Original</th><th>Pago</th><th>Saldo</th><th>Vencimento</th><th>Estado</th><th className="no-print" /></tr>
-              </thead>
-              <tbody>
-                {rows.map((p) => {
-                  const st = statusInfo(p);
-                  return (
-                    <tr key={p.id}>
-                      <td data-label="Fornecedor">{p.supplier_name || '—'}</td>
-                      <td data-label="Referência">{p.reference || '—'}</td>
-                      <td data-label="Original">{formatKz(Number(p.original_amount))}</td>
-                      <td data-label="Pago">{formatKz(Number(p.paid_amount))}</td>
-                      <td data-label="Saldo" style={{ fontWeight: 700 }}>{formatKz(Number(p.outstanding))}</td>
-                      <td data-label="Vencimento">{p.due_date ? new Date(p.due_date).toLocaleDateString('pt-PT') : '—'}</td>
-                      <td data-label="Estado"><span className={`pill ${st.cls}`}>{st.label}</span></td>
-                      <td className="actions no-print">
-                        {p.status !== 'PAID' && p.status !== 'CANCELLED' ? (
-                          <button className="btn sm" onClick={() => setPaying(p)}>Pagar</button>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      <div className="vd-card vd-tablecard">
+        {loading ? <div className="vd-empty">A carregar…</div>
+          : list.length === 0 ? (
+            <div className="pu-noreg"><IconTruck size={56} /><strong>Não existem registos</strong><span>{rows.length === 0 && filter === 'open' ? 'Ainda não adicionou nenhuma fatura de fornecedor?' : 'Sem faturas com estes filtros.'}</span>
+              <button className="vd-btn outline" onClick={() => setCreating(true)}>Adicionar fatura</button></div>
+          ) : (
+            <div className="vd-tablewrap">
+              <table className="vd-table">
+                <thead>
+                  <tr><th>Fornecedor</th><th>Nº Fatura</th><th>Data Fatura</th><th>Data Vencimento</th><th className="num">Valor da Fatura</th><th className="num">Valor Pago</th><th className="num">Em Dívida</th><th>Estado</th><th className="no-print" aria-label="Ações" /></tr>
+                </thead>
+                <tbody>
+                  {list.map((p) => {
+                    const st = statusInfo(p);
+                    return (
+                      <tr key={p.id}>
+                        <td>{p.supplier_name || '—'}</td>
+                        <td>{p.reference || '—'}</td>
+                        <td>{fmtD(p.created_at)}</td>
+                        <td>{fmtD(p.due_date)}</td>
+                        <td className="num">{formatKz(Number(p.original_amount))}</td>
+                        <td className="num">{formatKz(Number(p.paid_amount))}</td>
+                        <td className="num" style={{ fontWeight: 700 }}>{formatKz(Number(p.outstanding))}</td>
+                        <td><span className={`pill ${st.cls}`}>{st.label}</span></td>
+                        <td className="num no-print">
+                          {p.status !== 'PAID' && p.status !== 'CANCELLED' ? (
+                            <button className="vd-btn sm" onClick={() => setPaying(p)}>Pagar</button>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
       </div>
+      {sum ? <p className="pu-sum no-print">Por pagar <b>{formatKz(sum.outstanding)}</b> em {sum.openCount} fatura(s) · vencido <b className={sum.overdue > 0 ? 'neg' : ''}>{formatKz(sum.overdue)}</b></p> : null}
 
       {paying ? (
         <PayModal payable={paying} onClose={() => setPaying(null)} onPaid={(v) => { setPaying(null); setLastVoucher(v); void load(); }} />
