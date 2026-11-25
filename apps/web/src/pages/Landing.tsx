@@ -218,7 +218,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
           <a className="lv-logo" href="#top" aria-label={brand}><img src={LOGO_WIDE} alt="" /></a>
           <div className="lv-dd lv-lang">
             <button type="button" className="lv-lang-btn" aria-haspopup="menu" aria-expanded={langOpen} onClick={() => { setLangOpen((v) => !v); setHelpOpen(false); }}>
-              {curLang.short}<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+              {curLang.short}<svg width="12" height="12" aria-hidden viewBox="0 0 24 24" fill="currentColor"><path d="M12 16a1 1 0 0 1-.64-.23l-6-5a1 1 0 1 1 1.28-1.54L12 13.71l5.36-4.32a1 1 0 0 1 1.41.15 1 1 0 0 1-.14 1.46l-6 4.83A1 1 0 0 1 12 16z" /></svg>
             </button>
             {langOpen ? (
               <div className="lv-menu" role="menu">
@@ -241,7 +241,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             <a href="#baixar">{t.navApps}</a>
             <div className="lv-dd">
               <button type="button" aria-haspopup="menu" aria-expanded={helpOpen} onClick={() => { setHelpOpen((v) => !v); setLangOpen(false); }}>
-                {t.navHelp}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+                {t.navHelp}<svg width="14" height="14" aria-hidden viewBox="0 0 24 24" fill="currentColor"><path d="M12 16a1 1 0 0 1-.64-.23l-6-5a1 1 0 1 1 1.28-1.54L12 13.71l5.36-4.32a1 1 0 0 1 1.41.15 1 1 0 0 1-.14 1.46l-6 4.83A1 1 0 0 1 12 16z" /></svg>
               </button>
               {helpOpen ? (
                 <div className="lv-menu right" role="menu">
@@ -417,7 +417,7 @@ export function Landing({ onGoLogin, onGoRegister }: Props) {
             <div><h2 className="lv-h2">{t.testiTitle}</h2><p>{t.testiSub}</p></div>
             <div className="lv-arrows">
               <button type="button" aria-label="‹" onClick={() => document.querySelector('.lv-testi .fb-list')?.scrollBy({ left: -360, behavior: 'smooth' })}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden><path d="M19 12H5M11 6l-6 6 6 6" /></svg></button>
-              <button type="button" className="on" aria-label="›" onClick={() => document.querySelector('.lv-testi .fb-list')?.scrollBy({ left: 360, behavior: 'smooth' })}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg></button>
+              <button type="button" className="on" aria-label="›" onClick={() => document.querySelector('.lv-testi .fb-list')?.scrollBy({ left: 360, behavior: 'smooth' })}><svg width="20" height="20" aria-hidden viewBox="0 0 24 24" fill="currentColor"><path d="M5 13h11.86l-3.63 4.36a1 1 0 0 0 1.54 1.28l5-6a1.19 1.19 0 0 0 .09-.15c0-.05.05-.08.07-.13A1 1 0 0 0 20 12a1 1 0 0 0-.07-.36c0-.05-.05-.08-.07-.13a1.19 1.19 0 0 0-.09-.15l-5-6A1 1 0 0 0 14 5a1 1 0 0 0-.64.23 1 1 0 0 0-.13 1.41L16.86 11H5a1 1 0 0 0 0 2z" /></svg></button>
             </div>
           </div>
           <FeedbackSection />

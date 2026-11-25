@@ -1354,7 +1354,7 @@ export function PosPage() {
                 <div className="vopts" role="menu">
                   <button role="menuitem" onClick={() => { setOptsOpen(false); setShowCustomer(true); }}><IconUser size={18} /> {customer ? `Cliente: ${customer.name}` : 'Cliente'}</button>
                   <button role="menuitem" onClick={() => { setOptsOpen(false); parkCurrent(); }} disabled={cart.length === 0}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><path d="M17 21v-8H7v8M7 3v5h8" /></svg> Nova Venda
+                    <svg width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M20.12 8.71l-4.83-4.83A3 3 0 0 0 13.17 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-7.17a3 3 0 0 0-.88-2.12zM10 19v-2h4v2zm9-1a1 1 0 0 1-1 1h-2v-3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2v5a1 1 0 0 0 1 1h4a1 1 0 0 0 0-2h-3V5h3.17a1.05 1.05 0 0 1 .71.29l4.83 4.83a1 1 0 0 1 .29.71z" /></svg> Nova Venda
                   </button>
                   {parked.length > 0 ? (
                     <button role="menuitem" onClick={() => { setOptsOpen(false); setShowParked(true); }}><IconReceipt size={18} /> Vendas suspensas ({parked.length})</button>
@@ -1366,7 +1366,7 @@ export function PosPage() {
                     <button role="menuitem" onClick={() => { setOptsOpen(false); setShowShift(true); }}><IconReceipt size={18} /> Abrir Caixa</button>
                   ) : null}
                   <button role="menuitem" onClick={() => { if (confirmCancel) { setCart([]); setCartSel(new Set()); setCustomer(null); setConfirmCancel(false); setOptsOpen(false); } else setConfirmCancel(true); }} disabled={cart.length === 0}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg> {confirmCancel ? 'Confirmar: cancelar venda' : 'Cancelar Venda'}
+                    <svg width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 13.43a1 1 0 0 0-1.25.65A7.14 7.14 0 0 1 12.18 19 7.1 7.1 0 0 1 5 12a7.1 7.1 0 0 1 7.18-7 7.26 7.26 0 0 1 4.65 1.67l-2.17-.36a1 1 0 0 0-1.15.83 1 1 0 0 0 .83 1.15l4.24.7h.17a1 1 0 0 0 .34-.06.33.33 0 0 0 .1-.06.78.78 0 0 0 .2-.11l.09-.11c0-.05.09-.09.13-.15s0-.1.05-.14a1.34 1.34 0 0 0 .07-.18l.75-4a1 1 0 0 0-2-.38l-.27 1.45A9.21 9.21 0 0 0 12.18 3 9.1 9.1 0 0 0 3 12a9.1 9.1 0 0 0 9.18 9A9.12 9.12 0 0 0 21 14.68a1 1 0 0 0-.7-1.25z" /></svg> {confirmCancel ? 'Confirmar: cancelar venda' : 'Cancelar Venda'}
                   </button>
                 </div>
               ) : !session && sync.online ? (
@@ -1459,7 +1459,7 @@ export function PosPage() {
                   <button className="vfinal" onClick={() => setShowShift(true)}>ABRIR CAIXA</button>
                 ) : (
                   <button className="vfinal" onClick={finalize} disabled={cart.length === 0 || emitting}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                    <svg width="22" height="22" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M9.86 18a1 1 0 0 1-.73-.32l-4.86-5.17a1 1 0 1 1 1.46-1.37l4.12 4.39 8.41-9.2a1 1 0 1 1 1.48 1.34l-9.14 10a1 1 0 0 1-.73.33z" /></svg>
                     {emitting ? 'A EMITIR…' : sync.online ? 'FINALIZAR' : 'GUARDAR'}
                   </button>
                 )
@@ -1640,7 +1640,7 @@ function ProductionPrompt({
   );
 }
 
-const Chev = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>;
+const Chev = () => <svg width="12" height="12" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16a1 1 0 0 1-.64-.23l-6-5a1 1 0 1 1 1.28-1.54L12 13.71l5.36-4.32a1 1 0 0 1 1.41.15 1 1 0 0 1-.14 1.46l-6 4.83A1 1 0 0 1 12 16z" /></svg>;
 
 /**
  * "Caixa Fechada" dentro da área da venda — igual ao POS do Vendus: aviso,

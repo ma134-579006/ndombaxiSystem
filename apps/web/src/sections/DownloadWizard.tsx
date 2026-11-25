@@ -141,7 +141,7 @@ export function DownloadWizard({ onDone, onCancel }: Props) {
       <div className="dw-actions">
         <button type="button" className="btn primary dw-cta" onClick={fill}>
           Preencher no Super Admin
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 13h11.86l-3.63 4.36a1 1 0 0 0 1.54 1.28l5-6a1.19 1.19 0 0 0 .09-.15c0-.05.05-.08.07-.13A1 1 0 0 0 20 12a1 1 0 0 0-.07-.36c0-.05-.05-.08-.07-.13a1.19 1.19 0 0 0-.09-.15l-5-6A1 1 0 0 0 14 5a1 1 0 0 0-.64.23 1 1 0 0 0-.13 1.41L16.86 11H5a1 1 0 0 0 0 2z" /></svg>
         </button>
         {onCancel && <button type="button" className="btn ghost" onClick={onCancel}>Cancelar</button>}
       </div>
