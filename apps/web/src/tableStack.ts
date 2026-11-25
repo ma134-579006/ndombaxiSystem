@@ -1,10 +1,11 @@
 /**
- * Tabelas no telemóvel SEM scroll horizontal (regra: 0 scroll horizontal, nada
- * cortado). Cada célula recebe o nome da sua coluna (`data-label`, a partir do
- * <th> do cabeçalho) e a tabela ganha a classe `auto-stack`; o CSS (vendus.css)
- * mostra então cada linha como um cartão «Coluna: valor» em ecrãs estreitos.
- * Vale para TODAS as tabelas do painel, mesmo as que já existiam, sem mexer em
- * cada página. As tabelas que já empilham por si (.ptable.stack) ficam como estão.
+ * Tabelas SEM scroll horizontal e sem colunas cortadas, em QUALQUER largura (regra:
+ * 0 scroll horizontal, nada cortado). Cada célula recebe o nome da sua coluna
+ * (`data-label`, a partir do <th>) e, quando a tabela NÃO CABE no espaço real que
+ * tem (telemóvel, tablet, ou computador com o menu fixo aberto), ganha a classe
+ * `is-stacked`: o CSS (vendus.css) mostra então cada linha como um cartão
+ * «Coluna: valor». Quando volta a caber, volta a ser tabela. Vale para TODAS as
+ * tabelas do painel sem mexer em cada página (as .ptable.stack já tratam de si).
  */
 function label(table: HTMLTableElement): void {
   const head = table.tHead?.rows[0];
@@ -28,14 +29,46 @@ function label(table: HTMLTableElement): void {
   if (!table.classList.contains('auto-stack')) table.classList.add('auto-stack');
 }
 
+/** Empilha quando a largura natural da tabela passa o espaço disponível. */
+function fit(table: HTMLTableElement): void {
+  const box = table.parentElement;
+  if (!box || !table.tHead) return;
+  const avail = box.clientWidth;
+  if (avail <= 0) return;
+  if (!table.classList.contains('is-stacked')) {
+    const natural = table.scrollWidth;
+    table.dataset.nw = String(natural);
+    if (natural > avail + 1) table.classList.add('is-stacked');
+  } else {
+    const nw = Number(table.dataset.nw || 0);
+    // Só volta a tabela quando a largura natural (medida antes de empilhar) cabe.
+    if (nw > 0 && nw <= avail) table.classList.remove('is-stacked');
+  }
+}
+
 export function initTableStack(): void {
   if (typeof window === 'undefined' || typeof MutationObserver === 'undefined') return;
   let queued = false;
   const run = () => {
     queued = false;
-    document.querySelectorAll<HTMLTableElement>('.admin .content table:not(.stack)').forEach(label);
+    document.querySelectorAll<HTMLTableElement>('.admin .content table:not(.stack)').forEach((t) => { label(t); fit(t); });
   };
   const schedule = () => { if (!queued) { queued = true; requestAnimationFrame(run); } };
   new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+  window.addEventListener('resize', schedule);
+  // O menu fixo abre/fecha e muda a largura do conteúdo sem «resize» da janela:
+  // observa-se a área de conteúdo (e volta-se a ligar se ela for recriada).
+  let ro: ResizeObserver | null = null;
+  let watched: Element | null = null;
+  const watch = () => {
+    if (typeof ResizeObserver === 'undefined') return;
+    const c = document.querySelector('.admin .content');
+    if (c === watched) return;
+    ro?.disconnect();
+    watched = c;
+    if (c) { ro = new ResizeObserver(schedule); ro.observe(c); }
+  };
+  new MutationObserver(watch).observe(document.body, { childList: true, subtree: true });
+  watch();
   schedule();
 }

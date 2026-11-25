@@ -1919,18 +1919,16 @@ html.touch-ui .admin.nav-rail .topbar::before { display: none !important; }
 /* Telemóvel: TODAS as tabelas do painel viram cartões «Coluna: valor» (tableStack.ts
    dá o nome da coluna a cada célula). Antes, as colunas da direita ficavam cortadas
    ou obrigavam a rolar na horizontal. */
-@media (max-width: 600px) {
-  .admin .content table.auto-stack { display: block; width: 100%; min-width: 0 !important; max-width: 100%; white-space: normal; overflow: visible; border: 0; }
-  .admin .content table.auto-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .admin .content table.auto-stack tbody, .admin .content table.auto-stack tfoot { display: block; }
-  .admin .content table.auto-stack tr { display: block; border: 1px solid var(--border); border-radius: 4px; padding: 4px 12px; margin-bottom: 10px; background: var(--surface); }
-  .admin .content table.auto-stack tbody tr:nth-child(n) > td { background: transparent; }
-  .admin .content table.auto-stack td, .admin .content table.auto-stack tfoot th { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding: 8px 0; text-align: right; border: 0; min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; position: static; }
-  .admin .content table.auto-stack td + td, .admin .content table.auto-stack tfoot th + th { border-top: 1px solid var(--border); }
-  .admin .content table.auto-stack td::before, .admin .content table.auto-stack tfoot th::before { content: attr(data-label); color: var(--muted); font-weight: 600; font-size: 12px; text-align: left; }
-  .admin .content table.auto-stack td:not([data-label])::before, .admin .content table.auto-stack tfoot th:not([data-label])::before { content: none; }
-  .admin .content table.auto-stack td:empty, .admin .content table.auto-stack tfoot th:empty { display: none; }
-}
+  .admin .content table.auto-stack.is-stacked { display: block; width: 100%; min-width: 0 !important; max-width: 100%; white-space: normal; overflow: visible; border: 0; }
+  .admin .content table.auto-stack.is-stacked thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .admin .content table.auto-stack.is-stacked tbody, .admin .content table.auto-stack.is-stacked tfoot { display: block; }
+  .admin .content table.auto-stack.is-stacked tr { display: block; border: 1px solid var(--border); border-radius: 4px; padding: 4px 12px; margin-bottom: 10px; background: var(--surface); }
+  .admin .content table.auto-stack.is-stacked tbody tr:nth-child(n) > td { background: transparent; }
+  .admin .content table.auto-stack.is-stacked td, .admin .content table.auto-stack.is-stacked tfoot th { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding: 8px 0; text-align: right; border: 0; min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; position: static; }
+  .admin .content table.auto-stack.is-stacked td + td, .admin .content table.auto-stack.is-stacked tfoot th + th { border-top: 1px solid var(--border); }
+  .admin .content table.auto-stack.is-stacked td::before, .admin .content table.auto-stack.is-stacked tfoot th::before { content: attr(data-label); color: var(--muted); font-weight: 600; font-size: 12px; text-align: left; }
+  .admin .content table.auto-stack.is-stacked td:not([data-label])::before, .admin .content table.auto-stack.is-stacked tfoot th:not([data-label])::before { content: none; }
+  .admin .content table.auto-stack.is-stacked td:empty, .admin .content table.auto-stack.is-stacked tfoot th:empty { display: none; }
 
 /* Correção: no telemóvel o 1.º cabeçalho de ações NÃO sobe para a linha do caminho
    (a regra do computador era mais específica e ganhava — os botões ficavam por cima
@@ -1946,3 +1944,33 @@ html.touch-ui .admin.nav-rail .topbar::before { display: none !important; }
   .admin .content .vd-seg { display: flex; flex-wrap: wrap; overflow-x: visible; max-width: 100%; }
   .admin .content .vd-seg > button { flex: 1 1 auto; }
 }
+
+/* Relatórios: a tabela cabe na caixa — os cabeçalhos quebram linha (como no Vendus:
+   «Nº Rectificações», «Vendas c/IVA») e só os valores ficam numa linha. */
+.reports-page .rp-body .ptable th { white-space: normal; vertical-align: bottom; }
+.reports-page .rp-body .ptable td.num, .reports-page .rp-body .ptable th.num { white-space: normal; }
+.reports-page .rp-body .ptable td, .reports-page .rp-body .ptable th { padding-left: 6px; padding-right: 6px; }
+.reports-page .rp-body .ptable td:first-child { min-width: 120px; }
+
+/* Menu: um grupo grande aberto (ex.: Relatórios, 15 itens) já não encolhe a letra até
+   ficar ilegível — linhas de pelo menos 30px e letra de 12px; se não couber tudo, o
+   menu rola na VERTICAL (nunca na horizontal). */
+.admin .sidebar.vds .nav > * { --row: clamp(30px, calc((100cqh - 8px) / var(--nav-n, 12)), 42px) !important; }
+.admin .sidebar.vds .nav button, .admin .sidebar.vds .nav-group-head { font-size: clamp(12px, calc(var(--row) * .36), 14px) !important; }
+.admin .sidebar.vds .nav { overflow-y: auto !important; overflow-x: hidden !important; scrollbar-width: thin; scrollbar-color: #323742 transparent; }
+
+/* Barra de topo: quando não há espaço para o título inteiro (telemóvel, tablet ou menu
+   fixo num ecrã pequeno), ele sai — o caminho por baixo mostra o nome da página. */
+@container tb (max-width: 860px) { .admin .topbar > .tb-title { display: none !important; } }
+/* Abas das páginas quebram linha em vez de rolarem com botões escondidos fora do ecrã. */
+.admin .content .fx-tabs:not(.inv-tabs), .admin .content .seg { flex-wrap: wrap; overflow-x: visible; }
+/* Entre 761 e 860px as abas ficam em linha por cima: o cabeçalho de ações não sobe. */
+@media (max-width: 860px) {
+  .admin .content > .page-anim > :not(.vd-crumbbar):not(.print-only):not(style) .content-head:first-child,
+  .admin .content > .page-anim > .content-head:first-of-type { margin-top: 0 !important; padding-left: 0 !important; }
+}
+
+/* Seletores de estado (.vd-seg) quebram linha em QUALQUER largura quando não cabem
+   (LPS Kwanza tem 9 estados: no tablet/menu fixo rolavam com botões escondidos). */
+.admin .content .vd-seg { flex-wrap: wrap; overflow-x: visible; max-width: 100%; }
+.admin .content .vd-seg > button { border-bottom: 1px solid var(--border); margin-bottom: -1px; }

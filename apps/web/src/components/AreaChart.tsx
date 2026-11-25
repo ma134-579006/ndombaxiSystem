@@ -104,7 +104,8 @@ export function AreaChart({ points, height = 220, color = 'var(--primary)', subC
 
         {/* rótulos X */}
         {points.map((p, i) => (i % step === 0 || i === n - 1) ? (
-          <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--muted)">{p.label}</text>
+          // 1.º e último rótulo encostados para dentro: centrados ficavam meio fora do gráfico (cortados).
+          <text key={i} x={x(i)} y={H - 8} textAnchor={n > 1 && i === 0 ? 'start' : n > 1 && i === n - 1 ? 'end' : 'middle'} fontSize="11" fill="var(--muted)">{p.label}</text>
         ) : null)}
       </svg>
 
