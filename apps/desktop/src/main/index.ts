@@ -194,7 +194,12 @@ async function autoProvision(session: {
       replicationSession = {
         accessToken: session.accessToken, companyCode: session.companyCode, apiUrl: session.apiUrl, tier, at: Date.now(),
       };
-      if (localApiUrl) startReplicationClock();
+      if (localApiUrl) {
+        startReplicationClock();
+        // Sessão nova depois de uma falha (sem rede / token caducado): a nuvem
+        // está ao alcance AGORA — sobe já o que o posto fez offline.
+        if (caducou || cloudOnline === false) { cloudOnline = true; void replicateOnce(); }
+      }
     }
   }
 
@@ -292,13 +297,18 @@ let replicationSession: {
   tier: import('@nexus/local-server').ReplicationTier; at: number;
 } | null = null;
 
-const REPLICATION_EVERY_MS = 2 * 60_000;
+/**
+ * Volta normal da replicação. Curta de propósito: com rede, o que se grava no
+ * posto chega à nuvem em segundos (cada volta sem nada pendente é barata).
+ */
+const REPLICATION_EVERY_MS = 20_000;
 /** De quanto em quanto tempo se verifica se a internet (a nuvem) voltou. */
-const NET_PROBE_MS = 15_000;
+const NET_PROBE_MS = 3_000;
 let netTimer: NodeJS.Timeout | null = null;
 /** Último estado conhecido da ligação à nuvem (null = ainda não verificado). */
 let cloudOnline: boolean | null = null;
 let replicating = false;
+let ultimaFalhaReplicacao: string | null = null;
 
 function startReplicationClock(): void {
   if (replicationTimer || netTimer) return;
@@ -389,13 +399,17 @@ async function replicateOnce(): Promise<void> {
       }
 
       await ls.pruneJournal({ schema, run: runner.run });
+      ultimaFalhaReplicacao = null;
     } finally {
       await runner.close();
     }
   } catch (e) {
     // Sem rede, sem base, sem sessão — nada disto é excecional num posto.
     cloudOnline = false;
-    logLocal(`replicação adiada: ${(e as Error).message}`);
+    // Com a sonda a cada 3 s, a mesma falha repetia-se no ficheiro sem parar: só
+    // se regista quando a razão muda.
+    const msg = `replicação adiada: ${(e as Error).message}`;
+    if (msg !== ultimaFalhaReplicacao) { ultimaFalhaReplicacao = msg; logLocal(msg); }
   } finally {
     replicating = false;
   }

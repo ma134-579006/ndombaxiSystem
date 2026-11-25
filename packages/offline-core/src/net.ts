@@ -27,8 +27,10 @@ export interface NetMonitorOptions {
 }
 
 const RECOVERY_BACKOFF: BackoffPolicy = {
-  baseMs: 3_000,
-  maxMs: 60_000, // nunca esperar mais de 1 min para reparar que a net voltou
+  baseMs: 2_000,
+  // Sincronização instantânea: sem rede, a sonda (GET /health, leve) repete a
+  // cada poucos segundos — nunca se espera mais de 5 s para notar que a net voltou.
+  maxMs: 5_000,
   factor: 1.8,
   jitter: 0.4,
 };

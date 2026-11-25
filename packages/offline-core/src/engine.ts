@@ -116,8 +116,21 @@ export class SyncEngine {
 
   private onLinkChange(link: LinkState): void {
     this.emit({ link, clockSkewMs: this.o.net.getClockSkewMs() });
-    // A internet voltou: ataca já, sem esperar pelo ciclo de fundo.
-    if (link === 'ONLINE' && this.running) this.schedule(0);
+    // A internet voltou: ataca já, sem esperar pelo ciclo de fundo — incluindo
+    // as operações que as falhas de rede tinham adiado (recuo de até minutos).
+    if (link === 'ONLINE' && this.running) void this.releaseDeferred().finally(() => this.schedule(0));
+  }
+
+  /** Repõe para AGORA as operações pendentes adiadas pelo recuo (a rede voltou). */
+  private async releaseDeferred(): Promise<void> {
+    const now = Date.now();
+    try {
+      for (const op of await this.o.storage.outboxAll()) {
+        if (op.status === 'PENDING' && op.nextAttemptAt > now) {
+          await this.o.storage.outboxUpdate({ ...op, nextAttemptAt: 0 });
+        }
+      }
+    } catch { /* o ciclo seguinte trata do resto */ }
   }
 
   // ── Escrita local (o que a aplicação chama) ────────────────

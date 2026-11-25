@@ -24,7 +24,7 @@ async function publicarVendasPendentes(): Promise<void> {
     })));
   } catch { /* melhor esforço */ }
 }
-import { isNativeApp } from '../config';
+import { API_URL, isNativeApp } from '../config';
 import { deviceKey } from './device';
 import {
   limparTurnoLocalSeVazio, opDeTurnoEnviada, opsDeTurnoPendentes, contarOpsDeTurno,
@@ -36,6 +36,25 @@ import {
   updateSale,
   type PendingSale,
 } from './db';
+
+/** De quanto em quanto tempo se verifica se a rede voltou (só com algo por subir). */
+export const SYNC_PROBE_MS = 3_000;
+/** Com rede estável e pendências que não sobem (recusadas), nova tentativa a cada… */
+export const SYNC_RETRY_MS = 30_000;
+
+/** Há ligação REAL ao servidor? GET /health curto — nunca `navigator.onLine`. */
+async function probeServer(): Promise<boolean> {
+  const ctl = new AbortController();
+  const t = window.setTimeout(() => ctl.abort(), 4_000);
+  try {
+    const r = await fetch(`${API_URL.replace(/\/$/, '')}/health`, { signal: ctl.signal, cache: 'no-store' });
+    return r.ok;
+  } catch {
+    return false;
+  } finally {
+    window.clearTimeout(t);
+  }
+}
 
 export interface SyncState {
   online: boolean;
@@ -86,14 +105,28 @@ class SyncController {
     window.addEventListener('online', this.handleOnline);
     window.addEventListener('offline', this.handleOffline);
     window.addEventListener('ndombaxi:outbox-changed', this.handleQueued);
-    void this.refreshCount();
-    // Rede de segurança: tenta sincronizar a cada 30s se houver pendências.
-    // NÃO exige `state.online`: a tentativa É a deteção. Com o antigo requisito,
-    // uma app nativa cujo `navigator.onLine` mentia ficava com `online:false` e
-    // NUNCA voltava a tentar — as vendas offline ficavam encalhadas para sempre.
-    this.timer = window.setInterval(() => {
-      if (this.state.pending > 0) void this.flush();
-    }, 30_000);
+    window.addEventListener('ndombaxi:session-renewed', this.handleOnline);
+    window.addEventListener('focus', this.handleWake);
+    document.addEventListener('visibilitychange', this.handleWake);
+    // Arranque: o que ficou por subir de uma sessão anterior sobe logo.
+    void this.refreshCount().then(() => { if (this.state.pending > 0) void this.flush(); });
+    // SINCRONIZAÇÃO INSTANTÂNEA: com trabalho por subir, sonda a ligação a cada
+    // poucos segundos (um GET /health, leve) e sobe tudo NO MOMENTO em que a rede
+    // volta — sem botão e sem ter de abrir a caixa. Não usa `navigator.onLine`
+    // (mente nas apps nativas): a sonda É a deteção.
+    this.timer = window.setInterval(() => { void this.tick(); }, SYNC_PROBE_MS);
+  }
+
+  /** Volta do relógio: só trabalha quando há algo por subir. */
+  private async tick(): Promise<void> {
+    if (this.state.pending <= 0 || this.state.syncing) return;
+    const ok = await probeServer();
+    if (!ok) { if (this.state.online) this.emit({ online: false }); return; }
+    const voltou = !this.state.online;
+    if (voltou) this.emit({ online: true });
+    // Rede de volta → sobe já. Com rede estável, repete a cada RETRY_MS: o que
+    // fica é o que o servidor recusou (ERRO) e não vale a pena martelar.
+    if (voltou || Date.now() - this.lastFlushAt >= SYNC_RETRY_MS) void this.flush();
   }
 
   stop(): void {
@@ -101,6 +134,9 @@ class SyncController {
     window.removeEventListener('online', this.handleOnline);
     window.removeEventListener('offline', this.handleOffline);
     window.removeEventListener('ndombaxi:outbox-changed', this.handleQueued);
+    window.removeEventListener('ndombaxi:session-renewed', this.handleOnline);
+    window.removeEventListener('focus', this.handleWake);
+    document.removeEventListener('visibilitychange', this.handleWake);
     if (this.timer !== null) window.clearInterval(this.timer);
     this.started = false;
   }
@@ -110,7 +146,16 @@ class SyncController {
     void this.flush();
   };
   private handleOffline = () => this.emit({ online: false });
-  private handleQueued = () => { void this.refreshCount(); };
+  /** Algo entrou na fila: conta e, com rede, sobe logo (não espera pelo relógio). */
+  private handleQueued = () => {
+    void this.refreshCount().then(() => { if (this.state.pending > 0 && this.state.online) void this.flush(); });
+  };
+  /** A app voltou ao primeiro plano (telemóvel acordou, janela focada): tenta já. */
+  private handleWake = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    if (this.state.pending > 0) void this.flush();
+  };
+  private lastFlushAt = 0;
 
   /**
    * O que falta enviar = vendas + operações de turno.
@@ -186,6 +231,7 @@ class SyncController {
   /** Esvazia a fila: emite cada venda pendente no servidor, por ordem. */
   async flush(): Promise<{ synced: number; failed: number }> {
     if (this.state.syncing) return { synced: 0, failed: 0 };
+    this.lastFlushAt = Date.now();
     this.emit({ syncing: true, lastError: null });
     let synced = 0;
     let failed = 0;

@@ -111,6 +111,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.setItem(LS_ACCESS, tokens.accessToken);
     sessionStorage.setItem(LS_REFRESH, tokens.refreshToken);
     setUser(decodeJwt(tokens.accessToken));
+    // Sessão válida (login, renovação ou promoção da sessão offline): o que ficou
+    // por subir sobe AGORA, sem esperar pelo relógio (ver offline/prefetch.ts).
+    if (!isOfflineToken(tokens.accessToken)) window.dispatchEvent(new Event('ndombaxi:session-renewed'));
   }, []);
 
   const clearSession = useCallback(() => {
@@ -155,8 +158,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             void syncCredentials(code, true);
             return true;
           } catch (e) {
-            // Ainda sem rede → a sessão offline continua de pé (não deslogar).
-            if (e instanceof ApiError && e.status === 0) return false;
+            // Ainda sem rede, limite de tentativas (429) ou API a acordar (5xx) →
+            // a sessão offline continua de pé (não deslogar) e tenta-se outra vez.
+            if (e instanceof ApiError && (e.status === 0 || e.status === 408 || e.status === 429 || e.status >= 500)) return false;
           }
         }
         // Chegámos aqui com resposta do servidor (logo, há rede) e sem forma de
@@ -236,9 +240,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     const t = window.setInterval(tick, 60_000);
+    // Sessão PROVISÓRIA (entrou sem rede): tenta promovê-la a cada poucos segundos,
+    // para o que se fez offline subir logo que a rede volta (antes: até 1 min).
+    const fast = window.setInterval(() => {
+      if (isOfflineToken(accessRef.current)) void doRefresh();
+    }, 3_000);
     // Uma primeira tentativa logo à entrada, sem esperar o minuto.
     tick();
-    return () => window.clearInterval(t);
+    return () => { window.clearInterval(t); window.clearInterval(fast); };
   }, [status, doRefresh, user]);
 
   // Renovação PROATIVA do token: renova ~1 min antes de expirar para a sessão do
