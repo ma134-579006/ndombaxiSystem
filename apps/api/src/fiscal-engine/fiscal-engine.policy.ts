@@ -360,7 +360,7 @@ export function vendusSubscriptionPeriod(expires: string, now = new Date()): {
   if (end <= now.getTime()) return { active: false, pct: 100, leftPct: 0, totalDays, usedDays: totalDays, daysLeft: 0, expiresAt: new Date(end).toISOString() };
   const daysLeft = Math.min(totalDays, Math.max(0, Math.ceil((end - now.getTime()) / 864e5)));
   const usedDays = Math.min(totalDays, totalDays - daysLeft + 1);
-  const pct = Math.round((usedDays / totalDays) * 100);
+  const pct = Math.floor((usedDays / totalDays) * 100);
   return { active: true, pct, leftPct: 100 - pct, totalDays, usedDays, daysLeft, expiresAt: new Date(end).toISOString() };
 }
 
