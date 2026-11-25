@@ -442,6 +442,13 @@ export function Shell({
     setSection(key);
   };
   const [menuOpen, setMenuOpen] = useState(false);
+  // Como no Vendus: cada separador da coluna de ícones TROCA o menu ao lado
+  // (Gestão, POS, Loja, Apps, Configuração) em vez de saltar para outra página.
+  type RailTab = 'gestao' | 'pos' | 'loja' | 'apps' | 'config';
+  const [railTab, setRailTab] = useState<RailTab>('gestao');
+  // Menu fixo aberto (computador) — memorizado neste aparelho, como no Vendus.
+  const [menuFixo, setMenuFixo] = useState<boolean>(() => { try { return localStorage.getItem('lps.menu.fixo') === '1'; } catch { return false; } });
+  const alternarMenuFixo = () => setMenuFixo((v) => { const n = !v; try { localStorage.setItem('lps.menu.fixo', n ? '1' : '0'); } catch { /* sem armazenamento */ } return n; });
   // Grupos abertos (abre automaticamente o que contém a secção activa).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -468,8 +475,79 @@ export function Shell({
     return () => { alive = false; stopPoll(t); };
   }, [isTenant, custChatAllowed]);
 
+  type PanelItem = { key: string; label: string; act?: () => void; on?: boolean };
+  // Abre as Configurações num separador concreto (como os itens do painel CONFIG do Vendus).
+  const abrirDefinicoes = (tab: 'brand' | 'modules') => {
+    try { sessionStorage.setItem('lps.settings.tab', tab); } catch { /* sem armazenamento */ }
+    window.dispatchEvent(new CustomEvent('lps:settings-tab', { detail: tab }));
+    setSection('settings');
+  };
+  const abrirHistorico = () => {
+    try { sessionStorage.setItem('lps.sub.focus', 'history'); } catch { /* sem armazenamento */ }
+    window.dispatchEvent(new Event('lps:sub-history'));
+    setSection('subscription');
+  };
+  const pi = (key: string, label?: string): PanelItem | null => (has(key) ? { key, label: label ?? flat.find((n) => n.key === key)?.label ?? key } : null);
+  const abrirApps = () => { if (has('downloads')) setSection('downloads'); else window.open('/baixar', '_blank'); };
+  const equipa = (nav.find((n) => n.key === 'users-group')?.children ?? []).map((c) => ({ key: c.key, label: c.label }));
+  const paineis: Record<Exclude<RailTab, 'gestao'>, PanelItem[]> = {
+    pos: [
+      canPos ? { key: '__pos', label: 'Iniciar Ponto de Venda', act: () => onQuick('__pos') } : null,
+      pi('registers', 'Caixas'), pi('operations', 'Movimentos de Caixa'), pi('stores', 'Lojas'), pi('payments', 'Tipos de Pagamento'),
+      { key: '__apps-pos', label: 'Apps da Caixa (Windows e Android)', act: abrirApps },
+    ].filter(Boolean) as PanelItem[],
+    loja: [
+      pi('orders', 'Encomendas'),
+      pi('store', 'Loja online'),
+      isTenant && !has('store') ? { key: '__loja', label: 'Abrir a loja online', act: () => { window.open(`${STORE_URL}/${companyCode ?? ''}`, '_blank'); } } : null,
+      pi('kwanza'), pi('commissions'), pi('products', 'Produtos'), pi('promotions'), pi('kwanza-payouts'),
+    ].filter(Boolean) as PanelItem[],
+    apps: [
+      { key: '__baixar', label: 'Aplicações (Windows e Android)', act: abrirApps },
+      pi('assistant'), pi('cameras-live', 'Câmaras'), pi('migration', 'Migração de dados'),
+      pi('integrations'), pi('gateways'), pi('ai'),
+    ].filter(Boolean) as PanelItem[],
+    // Mesma ordem do painel CONFIG do Vendus; depois o que é só do LPS.
+    config: [
+      has('settings') ? { key: '__dados', label: 'Dados da Empresa', act: () => abrirDefinicoes('brand') } : null,
+      has('settings') ? { key: '__definicoes', label: 'Definições', act: () => abrirDefinicoes('modules') } : null,
+      pi('subscription', 'Subscrição'),
+      has('subscription') ? { key: '__historico', label: 'Histórico de Pagamentos', act: abrirHistorico } : null,
+      pi('migration', 'Migração de Dados'),
+      pi('integrations', 'Integrações'),
+      pi('stores', 'Lojas e Caixas'),
+      ...equipa,
+      pi('security'), pi('mail'), pi('backup'),
+      { key: 'profile', label: 'O meu perfil' },
+    ].filter(Boolean) as PanelItem[],
+  };
+  const painel = railTab === 'gestao' ? null : paineis[railTab];
+
   // Fecha a gaveta ao mudar de secção (importante no telemóvel).
   useEffect(() => { setMenuOpen(false); }, [section]);
+  // Nome da empresa SEMPRE inteiro (pode ocupar várias linhas): a altura real do
+  // cabeçalho do menu entra nas contas das linhas, para o menu continuar a caber sem scroll.
+  const brandRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = brandRef.current; const aside = asideRef.current;
+    if (!el || !aside || typeof ResizeObserver === 'undefined') return;
+    // Nome numa só linha, inteiro: se não couber, a letra encolhe até caber (sem cortar nem quebrar).
+    const fit = (t: HTMLElement | null, max: number) => {
+      if (!t) return;
+      t.style.fontSize = '';
+      const w = t.clientWidth;
+      if (w > 0 && t.scrollWidth > w) t.style.fontSize = `${Math.max(7, Math.floor((max * w / t.scrollWidth) * 10) / 10)}px`;
+    };
+    const set = () => {
+      fit(el.querySelector<HTMLElement>('.nm'), 14);
+      fit(el.querySelector<HTMLElement>('.tg'), 11);
+      aside.style.setProperty('--brand-h', `${Math.ceil(el.getBoundingClientRect().height)}px`);
+    };
+    set();
+    const ro = new ResizeObserver(set); ro.observe(el);
+    const tx = el.querySelector('.brand-tx'); if (tx) ro.observe(tx);
+    return () => ro.disconnect();
+  }, [brandName, brand?.nif]);
   // Fecha os grupos abertos ao clicar FORA da barra lateral.
   const asideRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -482,55 +560,66 @@ export function Shell({
   }, [openGroups]);
 
   return (
-    <div className="admin nav-rail">
+    <div className={`admin nav-rail${menuFixo ? ' menu-fixo' : ''}`}>
       {menuOpen ? <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} /> : null}
       {/* Barra lateral estilo Vendus: coluna de ícones (GESTÃO, POS, LOJA, APPS,
           Configurações) + menu da gestão, que mostra só os ícones e abre ao passar
           o rato (animação do LPS). Sem scroll: as linhas encolhem para caber. */}
       <aside ref={asideRef} className={`sidebar vds${menuOpen ? ' open' : ''}`} onMouseLeave={() => setOpenGroups({})}
         style={{
-          ['--nav-n' as string]: nav.length + nav.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0),
+          ['--nav-n' as string]: painel ? Math.max(painel.length, 6) : nav.length + nav.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0),
           // Telemóvel: com um grupo aberto o menu mostra SÓ esse grupo (cabeçalho
           // + itens), como o menu do Vendus — as linhas cabem sempre, sem scroll.
-          ['--nav-m' as string]: (() => { const g = nav.find((n) => openGroups[n.key] && n.children?.length); return g ? (g.children!.length + 1) : nav.length; })(),
+          ['--nav-m' as string]: painel ? Math.max(painel.length, 6) : (() => { const g = nav.find((n) => openGroups[n.key] && n.children?.length); return g ? (g.children!.length + 1) : nav.length; })(),
         }}>
         <div className="vds-rail" aria-label="Aplicações">
           <span className="vds-logo"><img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} /></span>
-          <button type="button" className="vds-tab on" title="Gestão" onClick={() => setSection(nav[0]?.key ?? section)}>
+          <button type="button" className={`vds-tab${railTab === 'gestao' ? ' on' : ''}`} title="Gestão" onClick={() => { setRailTab('gestao'); setOpenGroups({}); }}>
             <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" /><rect x="13" y="3" width="8" height="5" rx="2" fill="currentColor" opacity=".55" /><rect x="13" y="10" width="8" height="11" rx="2" fill="currentColor" /><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity=".55" /></svg>
             <span>GESTÃO</span>
           </button>
           {canPos ? (
-            <button type="button" className="vds-tab" title="Abrir a Caixa (POS)" onClick={() => onQuick('__pos')}>
+            <button type="button" className={`vds-tab${railTab === 'pos' ? ' on' : ''}`} title="Ponto de Venda" onClick={() => setRailTab('pos')}>
               <svg viewBox="0 0 24 24" aria-hidden><rect x="2.5" y="3.5" width="19" height="13" rx="2" fill="currentColor" /><rect x="9" y="18" width="6" height="2.5" rx="1" fill="currentColor" opacity=".6" /></svg>
               <span>POS</span>
             </button>
           ) : null}
           {isTenant ? (
-            <button type="button" className="vds-tab" title="Loja online" onClick={() => (has('store') ? setSection('store') : window.open(`${STORE_URL}/${companyCode ?? ''}`, '_blank'))}>
+            <button type="button" className={`vds-tab${railTab === 'loja' ? ' on' : ''}`} title="Loja online" onClick={() => setRailTab('loja')}>
               <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M5 7h14l-1 13a1.5 1.5 0 0 1-1.5 1.4h-9A1.5 1.5 0 0 1 6 20L5 7Z" /><path fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" d="M9 10.5a3 3 0 0 0 6 0" /></svg>
               <span>LOJA</span>
             </button>
           ) : null}
-          <button type="button" className="vds-tab" title="Aplicações" onClick={() => (has('downloads') ? setSection('downloads') : window.open('/baixar', '_blank'))}>
+          <button type="button" className={`vds-tab${railTab === 'apps' ? ' on' : ''}`} title="Aplicações" onClick={() => setRailTab('apps')}>
             <svg viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="m12 2.5 9 4.6-9 4.6-9-4.6 9-4.6Z" /><path fill="currentColor" opacity=".7" d="m3 11.2 9 4.6 9-4.6v2.4l-9 4.6-9-4.6v-2.4Z" /><path fill="currentColor" opacity=".45" d="m3 15.6 9 4.6 9-4.6V18l-9 4.6L3 18v-2.4Z" /></svg>
             <span>APPS</span>
           </button>
           <span className="vds-spacer" />
-          <button type="button" className={`vds-gear${section === 'settings' || section === 'profile' ? ' on' : ''}`} title="Configuração"
-            onClick={() => setSection(has('settings') ? 'settings' : 'profile')}>
+          <button type="button" className={`vds-gear${railTab === 'config' ? ' on' : ''}`} title="Configuração"
+            onClick={() => setRailTab('config')}>
             <IconGear size={19} />
           </button>
         </div>
         <div className="vds-menu">
-          <div className="brand vds-company">
+          <div className="brand vds-company" ref={brandRef}>
             <div className="brand-tx">
               <div className="nm">{brandName}</div>
               <div className="tg">{brand?.nif ? `NIF: ${brand.nif}` : subtitle}</div>
             </div>
+            <button type="button" className={`vds-pin${menuFixo ? ' on' : ''}`} onClick={alternarMenuFixo}
+              title={menuFixo ? 'Recolher o menu' : 'Fixar o menu aberto'} aria-pressed={menuFixo}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d={menuFixo ? 'M9 7l-5 5 5 5' : 'M4 7l5 5-5 5'} /><path d="M13 6h7M13 12h7M13 18h7" />
+              </svg>
+            </button>
           </div>
-          <nav className={`nav${nav.some((n) => openGroups[n.key] && n.children?.length) ? ' has-open' : ''}`}>
-            {nav.map((n) => {
+          <nav className={`nav${!painel && nav.some((n) => openGroups[n.key] && n.children?.length) ? ' has-open' : ''}${painel ? ' nav-painel' : ''}`} key={railTab}>
+            {painel ? painel.map((p) => (
+              <button key={p.key} className={section === p.key ? 'active' : ''} title={p.label}
+                onClick={() => { if (p.act) p.act(); else setSection(p.key); setMenuOpen(false); }}>
+                <span className="nav-label">{p.label}</span>
+              </button>
+            )) : nav.map((n) => {
               const Icon = n.icon;
               if (n.children && n.children.length) {
                 const open = !!openGroups[n.key];
@@ -578,7 +667,10 @@ export function Shell({
               );
             })}
           </nav>
-          <div className="sig">{copyrightLine()}</div>
+          {/* Como no Vendus: linha "Configuração" no fundo, alinhada com a roda dentada. */}
+          <button type="button" className={`vds-cfg${railTab === 'config' ? ' on' : ''}`} title={copyrightLine()} onClick={() => setRailTab('config')}>
+            Configuração
+          </button>
         </div>
       </aside>
 

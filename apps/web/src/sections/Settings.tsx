@@ -18,7 +18,17 @@ import { useAuth } from '../auth/AuthContext';
  */
 export function Settings() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<'brand' | 'modules' | 'prices' | 'passwords' | 'security' | 'printer' | 'loja' | 'lang'>('brand');
+  type Tab = 'brand' | 'modules' | 'prices' | 'passwords' | 'security' | 'printer' | 'loja' | 'lang';
+  // O painel CONFIG (menu lateral) escolhe o separador: "Dados da Empresa" ou "Definições".
+  const [tab, setTab] = useState<Tab>(() => {
+    try { const t = sessionStorage.getItem('lps.settings.tab'); sessionStorage.removeItem('lps.settings.tab'); if (t === 'brand' || t === 'modules') return t; } catch { /* */ }
+    return 'brand';
+  });
+  useEffect(() => {
+    const on = (e: Event) => { const t = (e as CustomEvent<string>).detail; if (t === 'brand' || t === 'modules') setTab(t); };
+    window.addEventListener('lps:settings-tab', on);
+    return () => window.removeEventListener('lps:settings-tab', on);
+  }, []);
   return (
     <>
       <div className="content-head">

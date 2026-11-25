@@ -54,8 +54,9 @@ export class SubscriptionController {
     // Período em DIAS: ex. 14 dias → já consumiu X dias = Y%; faltam Z dias = (100 − Y)%.
     const totalDays = Math.max(1, Math.round((end - start) / 864e5));
     const daysLeft = Math.min(totalDays, Math.max(0, Math.ceil((end - Date.now()) / 864e5)));
-    const usedDays = totalDays - daysLeft;
-    const pct = Math.round((usedDays / totalDays) * 100);
+    // Como no Vendus: o dia de hoje já conta como gasto e a % arredonda para baixo.
+    const usedDays = Math.min(totalDays, totalDays - daysLeft + 1);
+    const pct = Math.floor((usedDays / totalDays) * 100);
     return { active: true, pct, leftPct: 100 - pct, totalDays, usedDays, daysLeft, expiresAt: new Date(end).toISOString() };
   }
 

@@ -125,7 +125,7 @@ const PLATFORM_NAV: NavItem[] = [
 export const TENANT_NAV: NavItem[] = [
   { key: 'overview', label: 'Visão geral', icon: IconActivity, min: 4 },
   { key: 'assistant', label: 'Assistente IA', icon: IconSparkles, min: 2 },
-  { key: 'subscription', label: 'Subscrição & Plano', icon: IconCard, min: 1 },
+  { key: 'subscription', label: 'Subscrição', icon: IconCard, min: 1 },
   {
     key: 'stores-group', label: 'Lojas', icon: IconStore, children: [
       { key: 'stores', label: 'Criar lojas', icon: IconStore, min: 2 },
@@ -428,7 +428,7 @@ function TenantPanel() {
       {section === 'clinic' ? <Clinic /> : null}
       {section === 'pharmacy' ? <Pharmacy /> : null}
       {section === 'assistant' ? <Assistant /> : null}
-      {section === 'subscription' ? <Subscription /> : null}
+      {section === 'subscription' ? <Subscription onGo={setSection} /> : null}
       {section === 'stores' ? <Stores /> : null}
       {section === 'registers' ? <Registers /> : null}
       {section === 'products' ? <Products /> : null}

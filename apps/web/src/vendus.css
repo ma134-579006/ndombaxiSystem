@@ -1485,7 +1485,7 @@ html.touch-ui .admin.nav-rail .sidebar.vds { width: min(92vw, 300px) !important;
   .admin .sidebar.vds .nav {
     container-type: normal; flex: 1 1 auto; min-height: 0; overflow: hidden;
     display: flex; flex-direction: column; padding-top: 4px !important; padding-bottom: 4px !important;
-    --chrome: calc(56px + 30px + 8px + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+    --chrome: calc(var(--brand-h, 56px) + 8px + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
   }
   .admin .sidebar.vds .nav > * { --row: clamp(14px, calc((100vh - var(--chrome)) / var(--nav-m, 13)), 52px); }
   .admin .sidebar.vds .nav button, .admin .sidebar.vds .nav-group-head {
@@ -1556,3 +1556,161 @@ html.page-agent .sc-fab { display: none !important; }
 @media (max-height: 640px) and (max-width: 900px) {
   html.page-agent .agent-hero.gpt .agent-sugs > :nth-child(n+4) { display: none; }
 }
+/* ════════════════════════════════════════════════════════════════════
+   NAVEGAÇÃO ESTILO VENDUS — comportamento e animações medidos no Vendus.
+   Telemóvel (≤ 900 px):
+     • o menu ocupa o ecrã inteiro e desliza da esquerda (0,5 s, easeOutCirc);
+     • a coluna de ícones (GESTÃO, POS, LOJA, APPS, CONFIG.) vira a barra de
+       separadores em baixo, que sobe quando o menu abre (0,25 s);
+     • abrir um grupo desliza o painel do grupo por cima, com "‹" para voltar
+       (0,2 s) — sem scroll (pedido do utilizador): as linhas ajustam-se ao ecrã.
+   Computador: os grupos abrem em acordeão com o ressalto do Vendus (0,3 s) e
+   o cabeçalho do grupo aberto fica destacado (#191f29, texto branco).
+   ════════════════════════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+  .admin .sidebar.vds .nav-group.is-open > .nav-group-head { background: #191f29 !important; color: #fff !important; }
+  .admin .sidebar.vds .nav-group.is-open > .nav-sub { background: #191f29 !important; overflow: hidden; animation: vds-acordeao .3s cubic-bezier(.68, -.55, .265, 1.55) both; }
+}
+@keyframes vds-acordeao { from { max-height: 0; opacity: .2; } to { max-height: 700px; opacity: 1; } }
+@media (max-width: 900px) {
+  html .admin.nav-rail .sidebar.vds, html.touch-ui .admin.nav-rail .sidebar.vds { width: 100vw !important; max-width: 100vw !important; }
+  .admin .sidebar.vds { width: 100vw !important; max-width: 100vw !important; flex-direction: column; padding-bottom: 0 !important;
+    transition: transform .5s cubic-bezier(.075, .82, .165, 1) !important; }
+  .admin .sidebar.vds .vds-menu { order: 1; flex: 1 1 auto; width: 100%; }
+  .admin .sidebar.vds .nav { --chrome: calc(var(--brand-h, 56px) + 8px + 64px + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)); }
+  .admin .sidebar.vds .nav button, .admin .sidebar.vds .nav-group-head { font-size: clamp(13px, calc(var(--row) * .36), 16px) !important; padding-left: 20px !important; }
+  /* Barra de separadores em baixo (era a coluna de ícones). */
+  .sidebar.vds .vds-rail { order: 2; flex: none; width: 100%; height: calc(64px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box;
+    flex-direction: row; align-items: stretch; justify-content: space-around; gap: 0 !important; padding: 0 0 env(safe-area-inset-bottom, 0px) !important;
+    border-top: 1px solid rgba(255, 255, 255, .06); overflow: hidden; }
+  .admin .sidebar.vds.open .vds-rail { animation: vds-barra-sobe .25s cubic-bezier(.42, 0, 1, 1) .12s both; }
+  .sidebar.vds .vds-rail .vds-logo, .sidebar.vds .vds-rail .vds-spacer { display: none !important; }
+  .sidebar.vds .vds-rail::after { display: none !important; }
+  .sidebar.vds .vds-rail .vds-tab, .sidebar.vds .vds-rail .vds-gear {
+    flex: 1 1 0; width: auto !important; height: 64px !important; min-width: 0; display: flex !important; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px; border-radius: 0; border-right: 1px solid rgba(255, 255, 255, .04);
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  .sidebar.vds .vds-rail .vds-tab:active, .sidebar.vds .vds-rail .vds-gear:active { background: #191f29; }
+  .sidebar.vds .vds-rail .vds-tab svg { width: 30px !important; height: 30px !important; padding: 3px; }
+  .sidebar.vds .vds-rail .vds-tab span { font-size: 10px; letter-spacing: .04em; }
+  .sidebar.vds .vds-rail .vds-gear::after { content: 'CONFIG.'; font: 300 10px/1.1 Roboto, 'DM Sans', Arial, sans-serif; letter-spacing: .04em; color: #c3cdd8; }
+  .sidebar.vds .vds-rail .vds-gear.on::after { color: #fff; }
+  /* Painel do grupo desliza por cima (como o "‹ Voltar" do Vendus). */
+  .admin .sidebar.vds .nav.has-open > .nav-group.is-open { animation: vds-painel-entra .2s cubic-bezier(.42, 0, 1, 1) both; }
+}
+@keyframes vds-barra-sobe { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes vds-painel-entra { from { transform: translateX(-100%); opacity: .6; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .admin .sidebar.vds, .admin .sidebar.vds .vds-rail, .admin .sidebar.vds .nav-group.is-open, .admin .sidebar.vds .nav-group.is-open > .nav-sub { animation: none !important; transition: none !important; }
+}
+
+/* ===== MENU FIXO (como no Vendus) =====
+   Recolhido: passar o rato abre o menu e EMPURRA o conteúdo (regra do
+   utilizador: zero sobreposições — o menu nunca tapa a página).
+   Fixo (botão no topo do menu, memorizado): coluna + menu sempre abertos. */
+.admin .sidebar.vds .vds-pin { flex: none; margin-left: auto; width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: #cbccce; cursor: pointer; transition: background-color .2s ease, color .2s ease; }
+.admin .sidebar.vds .vds-pin:hover, .admin .sidebar.vds .vds-pin:focus-visible { background: #191f29; color: #fff; }
+.admin .sidebar.vds .vds-pin.on { color: #1098f7; }
+.admin .sidebar.vds .nav.nav-painel { animation: vds-painel-entra .25s cubic-bezier(.42,0,1,1); }
+@media (min-width: 901px) {
+  .admin.nav-rail .sidebar.vds { transition: width .25s cubic-bezier(.42,0,1,1), box-shadow .25s ease !important; }
+  .admin.nav-rail .main { transition: margin-left .25s cubic-bezier(.42,0,1,1); }
+  .admin.nav-rail.menu-fixo .sidebar.vds { width: 277px !important; box-shadow: none; }
+  .admin.nav-rail.menu-fixo .sidebar.vds .vds-menu { opacity: 1 !important; }
+  .admin.nav-rail.menu-fixo .main, .admin.nav-rail.menu-fixo:has(.sidebar.vds:hover) .main { margin-left: 277px !important; }
+  .admin.nav-rail.menu-fixo .sidebar.vds .vds-rail::after { opacity: 0; animation: none; }
+}
+@media (max-width: 900px) { .admin .sidebar.vds .vds-pin { display: none; } }
+html.touch-ui .admin .sidebar.vds .vds-pin { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .admin.nav-rail .sidebar.vds, .admin.nav-rail .main { transition: none !important; }
+  .admin .sidebar.vds .nav.nav-painel { animation: none; }
+}
+
+/* ===== ANEL "RENOVAR SUBSCRIÇÃO" — igual ao Vendus =====
+   36×36, anel de 3px (cinza #ddd + cor do gasto), número 11px centrado e o
+   "%" a 9px. Desenhado com conic-gradient recortado por máscara: é sempre um
+   círculo perfeito, seja qual for o fundo da barra. */
+@property --tb-p { syntax: '<number>'; inherits: true; initial-value: 0; }
+.tb-sub { --tb-ring-c: #1577eb; }
+.tb-sub.warn { --tb-ring-c: #f56e34; }
+.tb-sub.bad { --tb-ring-c: #f20740; }
+.tb-ring { position: relative; flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; transition: --tb-p .8s cubic-bezier(.075, .82, .165, 1); }
+.tb-ring svg { display: none; }
+.tb-ring::before { content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(var(--tb-ring-c) calc(var(--tb-p, 0) * 1%), #ddd 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); }
+.tb-sub .tb-ring b, .tb-sub.ok .tb-ring b { position: relative; display: block; font: 400 11px/1 Roboto, 'DM Sans', Arial, sans-serif; letter-spacing: -.6px; color: #999; font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+.tb-ring b small { font-size: 9px; }
+.tb-sub.warn .tb-ring b { color: #f56e34; }
+.tb-sub.bad .tb-ring b { color: #f20740; }
+.tb-sub.ok .tb-sub-tx { color: #777; }
+.tb-sub.warn .tb-sub-tx { color: #f56e34; }
+.tb-sub.bad .tb-sub-tx { color: #f20740; }
+@media (prefers-reduced-motion: reduce) { .tb-ring { transition: none; } }
+
+/* ===== SUBSCRIÇÃO — layout do Vendus (/app/subscription/plan/) =====
+   Faixa azul por trás, cartão "Subscrição" (2/3) e "Detalhes" (1/3) com as
+   medidas do Vendus. Responsivo: uma coluna abaixo de 900px, sem scroll
+   horizontal nem sobreposições. */
+.sub-vd-hero { position: relative; isolation: isolate; margin: 0 0 24px; padding: clamp(16px, 3vw, 30px) clamp(10px, 3vw, 30px) 0; }
+.sub-vd-bg { position: absolute; z-index: -1; left: 0; right: 0; top: 0; height: min(256px, 60%); background: #1b45f4; border-radius: 6px; }
+.sub-vd-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: clamp(14px, 2.6vw, 30px); align-items: start; max-width: 1140px; margin: 0 auto; }
+@media (max-width: 900px) { .sub-vd-grid { grid-template-columns: minmax(0, 1fr); } }
+.sub-vd-card { min-width: 0; background: #fff; color: #333; border: 1px solid #dfe5f9; border-radius: 3px; box-shadow: 0 0 15px rgba(21, 119, 235, .15); font: 400 14px/1.43 Roboto, 'DM Sans', Arial, sans-serif; }
+.sub-vd-h { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px; border-bottom: 1px solid #eee; text-align: center; }
+.sub-vd-h .t { color: #002c52; font-size: clamp(24px, 4.2vw, 32px); font-weight: 800; line-height: 1.34; overflow-wrap: anywhere; }
+.sub-vd-h .s { color: #002c52; font-size: 14px; font-weight: 500; line-height: 1.2; overflow-wrap: anywhere; }
+.sub-vd-body { padding: 20px; min-width: 0; }
+.sub-vd-plan { display: grid; gap: 2px; padding: 15px 10px 10px; border-radius: 3px; background: #e5ecf4; text-align: center; }
+.sub-vd-plan b { font-size: 16px; font-weight: 700; color: #333; }
+.sub-vd-track { margin-top: 16px; height: 24px; padding: 3px 10px 3px 5px; border-radius: 6px; background: #f8fafd; box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075); }
+.sub-vd-track > span { display: block; height: 18px; max-width: 100%; border-radius: 6px; background: #1577eb; transition: width .6s cubic-bezier(.075, .82, .165, 1); }
+.sub-vd-track > span.warn { background: #f56e34; }
+.sub-vd-track > span.bad { background: #f20740; }
+.sub-vd-act { display: grid; justify-items: center; margin-top: 30px; }
+.sub-vd .sub-vd-btn { width: 250px; max-width: 100%; min-height: 55px; padding: 15px 35px; border: 1px solid transparent; border-radius: 4px; background: #2196f3; color: #fff; font: 600 16px/1.4 Roboto, 'DM Sans', Arial, sans-serif; cursor: pointer; transition: background-color .2s ease, box-shadow .2s ease; }
+.sub-vd .sub-vd-btn:hover, .sub-vd .sub-vd-btn:focus-visible { background: #1577eb; box-shadow: 0 4px 14px rgba(21, 119, 235, .35); }
+.sub-vd .sub-vd-link { display: inline-block; margin-top: 16px; padding: 0; border: 0; background: none; color: #6c757d; font: 400 14px/1.43 Roboto, 'DM Sans', Arial, sans-serif; cursor: pointer; text-decoration: none; }
+.sub-vd .sub-vd-link:hover { text-decoration: underline; }
+.sub-vd .sub-vd-link.blue { margin: 0; color: #1098f7; }
+.sub-vd-unit + .sub-vd-unit { margin-top: 10px; }
+.sub-vd-unit b { display: block; font-weight: 700; overflow-wrap: anywhere; }
+.sub-vd-unit ul { margin: 0; padding: 0; list-style: none; }
+.sub-vd-unit li { overflow-wrap: anywhere; }
+.sub-vd-f { padding: 20px; border-top: 1px solid #eee; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .sub-vd-track > span, .sub-vd .sub-vd-btn { transition: none; } }
+/* O menu fica sempre acima da barra do topo (z 85): nada o tapa. */
+@media (min-width: 901px) { .admin.nav-rail .sidebar.vds { z-index: 95 !important; } }
+/* Nome da empresa SEMPRE inteiro, numa linha, sem quebrar nem cortar: o Shell
+   encolhe a letra até caber; a altura real (--brand-h) entra nas contas do menu. */
+.admin .sidebar.vds .brand.vds-company, .admin .sidebar.vds .brand.vds-company[class] { height: auto !important; min-height: clamp(48px, 9.5vh, 70px); padding-top: 8px !important; padding-bottom: 8px !important; box-sizing: border-box; }
+@media (max-width: 900px) { .admin .sidebar.vds .brand.vds-company[class] { min-height: 56px; } }
+.admin .sidebar.vds .vds-company .brand-tx { flex: 1 1 auto; min-width: 0; }
+.admin .sidebar.vds .vds-company .nm, .admin .sidebar.vds .vds-company .tg { display: block; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+/* Computador: o menu tem sempre a largura de aberto (217px) e a barra recolhida só o
+   recorta — o nome não muda de tamanho durante a animação de abrir/fechar. */
+@media (min-width: 901px) { .admin.nav-rail .sidebar.vds { overflow: hidden; } .admin.nav-rail .sidebar.vds .vds-menu { flex: none; width: 217px; min-width: 217px; } }
+/* ===== "CONFIGURAÇÃO" NO FUNDO DO MENU — igual ao Vendus =====
+   Uma faixa de 51px com linha #323742 por cima: a roda dentada na coluna (60px)
+   e o texto "Configuração" no menu (217px, 14px #cbccce, padding 15px). Ativa:
+   ícone num quadrado branco com a roda azul e o texto branco. */
+.admin .sidebar.vds .vds-cfg { flex: none; display: flex; align-items: center; width: 100%; height: 51px; box-sizing: border-box; margin: 0; padding: 0 15px;
+  border: 0; border-top: 1px solid #323742; background: #131924; color: #cbccce; font: 400 14px/20px Roboto, 'DM Sans', Arial, sans-serif; text-align: left;
+  white-space: nowrap; cursor: pointer; transition: color .18s ease, background-color .18s ease; }
+.admin .sidebar.vds .vds-cfg:hover, .admin .sidebar.vds .vds-cfg:focus-visible, .admin .sidebar.vds .vds-cfg.on { color: #fff; background: #191f29; }
+@media (min-width: 901px) {
+  .sidebar.vds .vds-rail { padding-bottom: 0 !important; }
+  .sidebar.vds .vds-rail .vds-gear { width: 60px; height: 51px; border-radius: 0; border-top: 1px solid #323742; background: none; }
+  .sidebar.vds .vds-rail .vds-gear svg { box-sizing: border-box; width: 30px; height: 30px; padding: 5px; border-radius: 4px; transition: transform .35s ease, background-color .18s ease, color .18s ease; }
+  .sidebar.vds .vds-rail .vds-gear.on svg { background: #fff; color: #1b45f4; }
+  .sidebar.vds .vds-rail .vds-gear:hover svg, .sidebar.vds:has(.vds-cfg:hover) .vds-rail .vds-gear svg { transform: rotate(40deg); }
+  .sidebar.vds:has(.vds-cfg:hover) .vds-rail .vds-gear { color: #fff; }
+}
+@media (max-width: 900px) { .admin .sidebar.vds .vds-cfg { display: none; } }
+html.touch-ui .admin .sidebar.vds .vds-cfg { display: none; }
+@media (prefers-reduced-motion: reduce) { .sidebar.vds .vds-rail .vds-gear svg, .admin .sidebar.vds .vds-cfg { transition: none !important; } }
+@media (max-width: 900px) { .sidebar.vds .vds-rail .vds-tab, .sidebar.vds .vds-rail .vds-gear { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; padding-left: 0 !important; padding-right: 0 !important; } }
+html.touch-ui .sidebar.vds .vds-rail .vds-tab, html.touch-ui .sidebar.vds .vds-rail .vds-gear { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; padding-left: 0 !important; padding-right: 0 !important; }
