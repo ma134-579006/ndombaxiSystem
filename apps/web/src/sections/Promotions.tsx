@@ -1,9 +1,9 @@
 import { confirmDialog, runBulk } from '../components/feedback';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import type { OpsAlert, Promotion, PromotionInput, PromoType } from '../api/types';
+import type { Promotion, PromotionInput, PromoType } from '../api/types';
 import { Modal, Switch } from '../components/ui';
-import { IconPlus, IconStar, IconTrash } from '../components/Icons';
+import { IconPlus, IconSearch, IconStar, IconTrash } from '../components/Icons';
 import { AffiliatesCard, BannersCard, CouponsCard, MembersCard } from './StoreMarketing';
 
 const TYPE_LABEL: Record<PromoType, string> = {
@@ -25,33 +25,24 @@ function describe(p: Promotion): string {
 
 export function Promotions() {
   const [promos, setPromos] = useState<Promotion[]>([]);
-  const [alerts, setAlerts] = useState<OpsAlert[]>([]);
-  const [alertSel, setAlertSel] = useState<Set<string>>(new Set());
-  const [alertsOpen, setAlertsOpen] = useState(false);
-  const dismissAlerts = async (keys: string[]) => {
-    if (!keys.length) return;
-    try { await api.alertsDismiss(keys); setAlerts((x) => x.filter((a) => !keys.includes(a.key ?? `${a.category}|${a.title}|${a.detail}`))); setAlertSel(new Set()); }
-    catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível eliminar.'); }
-  };
-  const dismissAllAlerts = async () => {
-    if (!(await confirmDialog({ message: `Eliminar os ${alerts.length} alertas?`, confirmLabel: 'Eliminar', danger: true }))) return;
-    try { await api.alertsDismissAll(); setAlerts([]); setAlertSel(new Set()); }
-    catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível eliminar.'); }
-  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [q, setQ] = useState('');
+  const [state, setState] = useState<'' | 'on' | 'off'>('');
+  const term = q.trim().toLowerCase();
+  const list = promos.filter((p) => (!term || `${p.name} ${TYPE_LABEL[p.type]}`.toLowerCase().includes(term))
+    && (!state || (state === 'on' ? p.is_active : !p.is_active)));
   const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const allSel = promos.length > 0 && promos.every((p) => selected.has(p.id));
-  const toggleAll = () => setSelected(allSel ? new Set() : new Set(promos.map((p) => p.id)));
+  const allSel = list.length > 0 && list.every((p) => selected.has(p.id));
+  const toggleAll = () => setSelected(allSel ? new Set() : new Set(list.map((p) => p.id)));
 
+  // Os alertas operacionais (quebras de caixa, stock) já estão no Dashboard — saíram daqui.
   const load = useCallback(async () => {
-    setLoading(true);
     try {
-      const [p, a] = await Promise.all([api.promotions.list(), api.alerts().catch(() => [])]);
-      setPromos(p); setAlerts(a); setError(null);
+      setPromos(await api.promotions.list()); setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao carregar.');
     } finally { setLoading(false); }
@@ -76,81 +67,69 @@ export function Promotions() {
   };
 
   return (
-    <>
-      <div className="content-head">
-        <h2>Promoções & Campanhas</h2>
+    <div className="vd-page">
+      {/* Como os Talões de Desconto do Vendus: caminho, Adicionar + Campanhas, pesquisa e lista. */}
+      <div className="vd-head">
+        <p className="vd-crumb"><span>Promoções</span></p>
         <span className="spacer" />
-        <button className="btn" onClick={() => setCreating(true)}><IconPlus size={16} /> Nova promoção</button>
+        <button className="vd-btn" onClick={() => setCreating(true)}><IconPlus size={16} /> Adicionar Promoção</button>
+        <button className="vd-btn outline" onClick={() => document.getElementById('promo-campanhas')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Cupões e Campanhas</button>
       </div>
-      {error ? <div className="banner danger">{error}</div> : null}
+      {error ? <div className="vd-err" role="alert">{error}</div> : null}
 
-      {/* Alertas operacionais */}
-      {alerts.length > 0 ? (
-        <div className="vd-card vd-tablecard al-card">
-          <div className="al-head">
-            <strong>Alertas</strong><span className="vd-badge mute">{alerts.length}</span>
-            <span className="spacer" />
-            {alertSel.size ? <button className="vd-btn danger sm" onClick={() => void dismissAlerts([...alertSel])}>Eliminar {alertSel.size}</button> : null}
-            <button className="vd-btn plain sm" onClick={() => void dismissAllAlerts()}>Eliminar todos</button>
-          </div>
-          <div className="al-list">
-            {(alertsOpen ? alerts : alerts.slice(0, 8)).map((a) => {
-              const k = a.key ?? `${a.category}|${a.title}|${a.detail}`;
-              return (
-                <div className={`al-row${alertSel.has(k) ? ' on' : ''}`} key={k}>
-                  <input type="checkbox" checked={alertSel.has(k)} onChange={() => setAlertSel((x) => { const n = new Set(x); if (n.has(k)) n.delete(k); else n.add(k); return n; })} aria-label={`Selecionar: ${a.title}`} />
-                  <span className={`vd-badge al-${a.level}`}>{a.category === 'STOCK' ? 'Stock' : a.category === 'CASH' ? 'Caixa' : 'Vendas'}</span>
-                  <div className="al-txt"><b>{a.title}</b><span>{a.detail}</span></div>
-                  <button className="al-x" title="Eliminar" aria-label={`Eliminar: ${a.title}`} onClick={() => void dismissAlerts([k])}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M21 6h-5V4.33A2.42 2.42 0 0 0 13.5 2h-3A2.42 2.42 0 0 0 8 4.33V6H3a1 1 0 0 0 0 2h1v11a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8h1a1 1 0 0 0 0-2zM10 4.33c0-.16.21-.33.5-.33h3c.29 0 .5.17.5.33V6h-4zM18 19a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V8h12z" /><path d="M9 17a1 1 0 0 0 1-1v-4a1 1 0 0 0-2 0v4a1 1 0 0 0 1 1z" /><path d="M15 17a1 1 0 0 0 1-1v-4a1 1 0 0 0-2 0v4a1 1 0 0 0 1 1z" /></svg>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          {alerts.length > 8 ? <button className="al-more" onClick={() => setAlertsOpen((v) => !v)}>{alertsOpen ? 'Mostrar menos' : `Mostrar todos (${alerts.length})`}</button> : null}
+      <form className="vd-card vd-filters" onSubmit={(e) => { e.preventDefault(); void load(); }}>
+        <div className="vd-frow" style={{ alignItems: 'center' }}>
+          <label className="vd-f grow"><input className="vd-in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisa por nome" aria-label="Pesquisar promoções" /></label>
+          <label className="vd-f"><select className="vd-in" value={state} onChange={(e) => setState(e.target.value as '' | 'on' | 'off')} aria-label="Estado">
+            <option value="">Todos</option><option value="on">Ativas</option><option value="off">Inativas</option>
+          </select></label>
+          <button type="submit" className="vd-btn"><IconSearch size={15} /> Pesquisar</button>
         </div>
-      ) : null}
+      </form>
 
-      {selected.size > 0 ? (
-        <div className="card" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px' }}>
-          <strong>{selected.size} selecionada(s)</strong>
-          <span className="spacer" style={{ flex: 1 }} />
-          <button className="btn sm danger" onClick={() => void bulkDelete()} disabled={bulkBusy}>Eliminar selecionadas</button>
-        </div>
-      ) : null}
-
-      <div className="card">
-        <div className="row" style={{ alignItems: 'center' }}>
-          <h3 style={{ margin: 0, flex: 1 }}>Promoções</h3>
-          {promos.length > 0 ? (
-            <label className="row" style={{ gap: 6, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}>
-              <input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todas" /> Todas
-            </label>
-          ) : null}
-        </div>
-        {loading ? <div className="loading">A carregar…</div> : promos.length === 0 ? (
-          <div className="empty"><IconStar size={40} /><p>Sem promoções. Crie campanhas como “3x2” ou “10% às quartas”.</p></div>
-        ) : promos.map((p) => (
-          <div className="list-row" key={p.id}>
-            <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSel(p.id)} aria-label={`Selecionar ${p.name}`} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700 }}>{p.name} <span className="muted" style={{ fontWeight: 500 }}>· {TYPE_LABEL[p.type]}</span></div>
-              <div className="muted" style={{ fontSize: 13 }}>{describe(p)}</div>
-            </div>
-            <Switch checked={p.is_active} onChange={() => toggle(p)} />
-            <button className="icon-btn" style={{ width: 36, height: 36 }} onClick={() => remove(p)}><IconTrash size={16} /></button>
+      <div className="vd-card vd-tablecard">
+        {selected.size > 0 ? (
+          <div className="vd-bulk"><strong>{selected.size} selecionada(s)</strong><span className="spacer" />
+            <button className="vd-btn plain sm" onClick={() => setSelected(new Set())} disabled={bulkBusy}>Limpar</button>
+            <button className="vd-btn danger sm" onClick={() => void bulkDelete()} disabled={bulkBusy}>Eliminar</button></div>
+        ) : null}
+        {loading ? <div className="vd-empty">A carregar…</div> : list.length === 0 ? (
+          term || state ? <div className="vd-empty">Sem resultados.</div> : (
+            <div className="pu-noreg"><IconStar size={56} /><strong>Não existem registos</strong><span>Ainda não adicionou nenhum registo em Promoções? (ex.: «3x2» ou «10% às quartas»)</span>
+              <button className="vd-btn outline" onClick={() => setCreating(true)}><IconPlus size={16} /> Adicionar Promoção</button></div>
+          )
+        ) : (
+          <div className="vd-tablewrap">
+            <table className="vd-table">
+              <thead><tr>
+                <th className="chk"><input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Selecionar todas" /></th>
+                <th>Nome</th><th>Tipo</th><th>Desconto</th><th>Ativa</th><th aria-label="Ações" />
+              </tr></thead>
+              <tbody>
+                {list.map((p) => (
+                  <tr key={p.id}>
+                    <td className="chk"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSel(p.id)} aria-label={`Selecionar ${p.name}`} /></td>
+                    <td><strong>{p.name}</strong></td>
+                    <td>{TYPE_LABEL[p.type]}</td>
+                    <td>{describe(p)}</td>
+                    <td><Switch checked={p.is_active} onChange={() => toggle(p)} /></td>
+                    <td className="num"><button className="vd-btn plain sm" onClick={() => remove(p)} aria-label={`Remover ${p.name}`}><IconTrash size={15} /> Remover</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
+        )}
       </div>
 
+      <div id="promo-campanhas" />
       <CouponsCard />
       <MembersCard />
       <BannersCard />
       <AffiliatesCard />
 
       {creating ? <PromoEditor onClose={() => setCreating(false)} onSaved={() => { setCreating(false); void load(); }} /> : null}
-    </>
+    </div>
   );
 }
 

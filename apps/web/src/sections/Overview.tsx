@@ -118,8 +118,9 @@ export function Overview() {
     try { return new Set(JSON.parse(localStorage.getItem(ALERTS_LS) || '[]') as string[]); } catch { return new Set(); }
   });
   const persistDismissed = (s: Set<string>) => { try { localStorage.setItem(ALERTS_LS, JSON.stringify([...s])); } catch { /* */ } };
-  const dismissAlert = (a: OpsAlert) => setDismissed((p) => { const n = new Set(p); n.add(alertKey(a)); persistDismissed(n); return n; });
-  const clearAllAlerts = () => setDismissed((p) => { const n = new Set(p); for (const a of alerts) n.add(alertKey(a)); persistDismissed(n); return n; });
+  // Limpar elimina também no servidor (como fazia a antiga lista de alertas das Promoções).
+  const dismissAlert = (a: OpsAlert) => { setDismissed((p) => { const n = new Set(p); n.add(alertKey(a)); persistDismissed(n); return n; }); void api.alertsDismiss([a.key ?? alertKey(a)]).catch(() => undefined); };
+  const clearAllAlerts = () => { setDismissed((p) => { const n = new Set(p); for (const a of alerts) n.add(alertKey(a)); persistDismissed(n); return n; }); void api.alertsDismissAll().catch(() => undefined); };
 
   useEffect(() => { if (isAdmin) api.staff.listStores().then((s) => setStores(s.filter((x) => x.is_active))).catch(() => undefined); }, [isAdmin]);
 
