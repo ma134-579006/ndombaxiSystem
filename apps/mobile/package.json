@@ -1,6 +1,6 @@
 {
   "name": "@nexus/mobile",
-  "version": "3.0.0",
+  "version": "3.5.0",
   "private": true,
   "description": "NEXUS Mobile — app de gestão (back-office) para a equipa da loja: dashboards, encomendas e conversa com clientes em tempo real.",
   "main": "index.ts",

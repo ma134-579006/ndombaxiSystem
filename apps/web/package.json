@@ -1,6 +1,6 @@
 {
   "name": "@nexus/web",
-  "version": "3.0.0",
+  "version": "3.5.0",
   "private": true,
   "type": "module",
   "description": "LPS Vendas — Painel de administração (Super Admin): empresas, IA, fiscal AGT e gateways.",

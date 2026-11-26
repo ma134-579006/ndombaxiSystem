@@ -36,6 +36,9 @@ export interface AssociateRow {
   province: string | null; municipality: string | null; address: string | null; bio: string | null; status: string; createdAt: Date;
 }
 /** Stock total do produto (todas as lojas); sem saldos por loja, o stock da ficha. */
+/** Quantidade a mostrar no marketplace: -1 no retrato = a empresa vende sem stock (o número não aparece). */
+const shownQty = (v: unknown): number | undefined => (num(v) < 0 ? undefined : num(v));
+
 const STOCK = Prisma.sql`COALESCE((SELECT SUM(si.quantity) FROM stock_items si WHERE si.product_id = p.id), p.stock_qty, 0)`;
 
 export interface ListingInput { published: boolean; percent?: number | null; mode?: 'OPEN' | 'RESTRICTED'; allowMarkup?: boolean; maxMarkupPct?: number | null; materials?: string[] }
@@ -258,7 +261,7 @@ export class KwanzaService implements OnModuleInit {
     return rows.map((r) => ({
       companyCode: r.companyCode, companyName: r.companyName, productCode: r.productCode, name: r.name, description: r.description,
       imageUrl: r.imageUrl, gallery: Array.isArray(r.gallery) ? r.gallery : [], category: r.category, grossPrice: num(r.grossPrice),
-      listPrice: r.listPrice == null ? null : num(r.listPrice), inStock: !!r.inStock, stockQty: num(r.stockQty), commissionPct: num(r.commissionPct),
+      listPrice: r.listPrice == null ? null : num(r.listPrice), inStock: !!r.inStock, stockQty: shownQty(r.stockQty), commissionPct: num(r.commissionPct),
       affiliation: r.affiliation, allowMarkup: !!r.allowMarkup, maxMarkupPct: r.maxMarkupPct == null ? null : num(r.maxMarkupPct),
       materials: Array.isArray(r.materials) ? r.materials : [], views: num(r.views), sold: num(r.sold), associates: num(r.associates),
     }));
@@ -296,7 +299,7 @@ export class KwanzaService implements OnModuleInit {
         // Publicação do associado: as imagens dele são as fotos do produto (a primeira é a principal).
         // As fotos da empresa só aparecem quando o associado publicou sem nenhuma imagem.
         imageUrl: imgs.length ? imgs[0] : (r.imageUrl as string | null) ?? null, gallery: imgs.length ? imgs.slice(1) : gallery, postImages: imgs,
-        category: r.category, grossPrice: r2(base * (1 + mk / 100)), basePrice: base, listPrice: null, inStock: !!r.inStock, stockQty: num(r.stockQty),
+        category: r.category, grossPrice: r2(base * (1 + mk / 100)), basePrice: base, listPrice: null, inStock: !!r.inStock, stockQty: shownQty(r.stockQty),
         commissionPct: num(r.commissionPct), affiliation: r.affiliation, allowMarkup: !!r.allowMarkup, maxMarkupPct: r.maxMarkupPct == null ? null : num(r.maxMarkupPct),
         materials: [], views: num(r.views), sold: num(r.sold), associates: 1,
         associate: { code: r.aCode, name: r.aName, photoUrl: r.aPhoto ?? null },
@@ -581,10 +584,10 @@ export class KwanzaService implements OnModuleInit {
     const term = `%${(q ?? '').trim().toLowerCase()}%`;
     const rows = await this.prisma.runInTenant(schema, async (tx) => tx.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
       SELECT p.id::text AS id, code, name, image_url, kwanza_published AS pub, affiliate_percent AS pct, affiliate_mode AS mode, allow_markup AS mk, max_markup_pct AS maxmk, affiliate_materials AS mats,
-             ${STOCK}::float8 AS stock, (${await this.madeToOrder(tx)} OR ${await sellWithoutStock(tx)}) AS mto
+             ${STOCK}::float8 AS stock, (${await this.madeToOrder(tx)} OR ${await sellWithoutStock(tx)}) AS mto, ${await sellWithoutStock(tx)} AS nos
       FROM products p WHERE is_active = TRUE AND (lower(name) LIKE ${term} OR lower(code) LIKE ${term})
       ORDER BY kwanza_published DESC, name LIMIT 500`));
-    return rows.map((r) => ({ id: r.id, stock: num(r.stock), canPublish: num(r.stock) > 0 || !!r.mto, code: r.code, name: r.name, imageUrl: r.image_url, published: !!r.pub, percent: r.pct == null ? null : num(r.pct), mode: r.mode ?? 'OPEN', allowMarkup: !!r.mk, maxMarkupPct: r.maxmk == null ? null : num(r.maxmk), materials: Array.isArray(r.mats) ? r.mats : [] }));
+    return rows.map((r) => ({ id: r.id, stock: num(r.stock), canPublish: num(r.stock) > 0 || !!r.mto, sellNoStock: !!r.nos, code: r.code, name: r.name, imageUrl: r.image_url, published: !!r.pub, percent: r.pct == null ? null : num(r.pct), mode: r.mode ?? 'OPEN', allowMarkup: !!r.mk, maxMarkupPct: r.maxmk == null ? null : num(r.maxmk), materials: Array.isArray(r.mats) ? r.mats : [] }));
   }
 
   /** Produto feito por encomenda (ficha técnica): vende-se sem stock próprio. */
@@ -626,7 +629,7 @@ export class KwanzaService implements OnModuleInit {
     const codes = [...new Set((p.codes ?? []).map((c) => String(c)))];
     if (!p.all && !codes.length) throw new BadRequestException('Escolha pelo menos um produto.');
     const sets: Prisma.Sql[] = [];
-    const mto = await this.prisma.runInTenant(tenant.schema, (tx) => this.madeToOrder(tx));
+    const mto = await this.prisma.runInTenant(tenant.schema, async (tx) => Prisma.sql`(${await this.madeToOrder(tx)} OR ${await sellWithoutStock(tx)})`);
     const pct = p.percent === undefined ? undefined : p.percent == null || p.percent <= 0 ? null : Math.min(90, r2(p.percent));
     if (pct !== undefined) sets.push(Prisma.sql`affiliate_percent = ${pct}`);
     if (p.mode !== undefined) sets.push(Prisma.sql`affiliate_mode = ${p.mode === 'RESTRICTED' ? 'RESTRICTED' : 'OPEN'}`);
@@ -682,7 +685,7 @@ export class KwanzaService implements OnModuleInit {
         INSERT INTO ${T('kwanza_listings')} (id, "companyId", "companyCode", "companyName", "productCode", name, description, "imageUrl", gallery, category, "grossPrice", "listPrice", "inStock", "stockQty",
           "commissionPct", affiliation, "allowMarkup", "maxMarkupPct", materials, views, sold, active, "updatedAt")
         VALUES (gen_random_uuid(), ${c.id}::uuid, ${c.code}, ${c.name}, ${cp.code}, ${cp.name}, ${cp.description}, ${cp.imageUrl}, ${JSON.stringify(cp.gallery ?? [])}::jsonb, ${cp.category ?? null},
-          ${cp.grossPrice}, ${cp.listPrice ?? null}, ${cp.inStock || !!cp.madeToOrder}, ${Math.max(0, Math.floor(Number(cp.stockQty) || 0))}, ${num(p.pct)}, ${p.mode === 'RESTRICTED' ? 'RESTRICTED' : 'OPEN'}, ${!!p.mk},
+          ${cp.grossPrice}, ${cp.listPrice ?? null}, ${cp.inStock || !!cp.madeToOrder}, ${cp.stockQty === undefined && !cp.madeToOrder ? -1 : Math.max(0, Math.floor(Number(cp.stockQty) || 0))}, ${num(p.pct)}, ${p.mode === 'RESTRICTED' ? 'RESTRICTED' : 'OPEN'}, ${!!p.mk},
           ${p.maxmk == null ? null : num(p.maxmk)}, ${JSON.stringify(Array.isArray(p.mats) ? p.mats : [])}::jsonb, ${cp.views ?? 0}, ${cp.sold ?? 0}, TRUE, now())
         ON CONFLICT ("companyId", "productCode") DO UPDATE SET "companyName" = EXCLUDED."companyName", name = EXCLUDED.name, description = EXCLUDED.description,
           "imageUrl" = EXCLUDED."imageUrl", gallery = EXCLUDED.gallery, category = EXCLUDED.category, "grossPrice" = EXCLUDED."grossPrice", "listPrice" = EXCLUDED."listPrice",

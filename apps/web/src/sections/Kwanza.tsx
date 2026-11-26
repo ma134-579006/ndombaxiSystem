@@ -10,7 +10,7 @@ import { Complaints, FreezeDialog, ReturnPolicy, Reviews, type KFreeze } from '.
 const kz = (n: number | string) => `${Number(n).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz`;
 const dt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
 
-interface KProduct { id: string; stock: number; canPublish: boolean; code: string; name: string; imageUrl: string | null; published: boolean; percent: number | null; mode: 'OPEN' | 'RESTRICTED'; allowMarkup: boolean; maxMarkupPct: number | null; materials: string[] }
+interface KProduct { id: string; stock: number; canPublish: boolean; sellNoStock?: boolean; code: string; name: string; imageUrl: string | null; published: boolean; percent: number | null; mode: 'OPEN' | 'RESTRICTED'; allowMarkup: boolean; maxMarkupPct: number | null; materials: string[] }
 interface KRequest { id: string; status: string; productCode: string; product: string | null; associate: string; phone: string; photoUrl: string | null; note: string | null; commissionPct: number | null; basePct: number; markupPct: number | null; date: string }
 interface KAssociate { id: string; name: string; phone: string; code: string; photoUrl: string | null; sales: number; pending: number; available: number; paid: number; requested: number; balance: number }
 interface KSale { orderNumber: string; product: string; quantity: number; amount: number; associate: string; code: string; date: string }
@@ -149,7 +149,7 @@ function Products({ onChange, onGo }: { onChange(): void; onGo?(section: string)
               <tr key={p.code}>
                 <td className="ctr"><input type="checkbox" checked={sel.has(p.code)} onChange={() => toggle(p.code)} aria-label={`Selecionar ${p.name}`} /></td>
                 <td><div className="kz-prod">{p.imageUrl ? <img src={p.imageUrl} alt="" /> : <span className="kz-noimg" />}<div><button className="vd-link" onClick={() => setEdit(p)}>{p.name}</button><span className="sub">{p.code}</span></div></div></td>
-                <td className="ctr">{p.canPublish ? (p.stock > 0 ? p.stock.toLocaleString('pt-PT') : 'Por encomenda') : <span className="vd-badge warn" style={{ whiteSpace: 'nowrap' }}>Sem stock</span>}</td>
+                <td className="ctr">{p.canPublish ? (p.stock > 0 ? p.stock.toLocaleString('pt-PT') : p.sellNoStock ? 'Venda sem stock' : 'Por encomenda') : <span className="vd-badge warn" style={{ whiteSpace: 'nowrap' }}>Sem stock</span>}</td>
                 <td className="ctr"><span className={`vd-badge${p.published ? '' : ' mute'}`}>{p.published ? 'Publicado' : 'Não publicado'}</span></td>
                 <td className="ctr">{p.percent ? `${p.percent}%` : '—'}</td>
                 <td className="ctr">{p.mode === 'RESTRICTED' ? <span className="vd-badge warn">Restrita</span> : 'Aberta'}</td>

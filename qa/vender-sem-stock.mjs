@@ -62,11 +62,27 @@ try {
   R.check('VSS-9', 'ligada: a encomenda online é aceite', o2.status < 300 && !!o2.body?.id, `${o2.status} ${JSON.stringify(o2.body).slice(0, 160)}`);
   const k2 = await publish();
   R.check('VSS-10', 'ligada: publica no LPS Kwanza (loja dos associados) sem stock', k2.status < 300, `${k2.status} ${JSON.stringify(k2.body).slice(0, 120)}`);
+  // Publicação EM MASSA também aceita os produtos sem stock.
+  const pc2 = `VSB${tag}`;
+  await ok('POST', '/pos/products', { token: A, body: { code: pc2, name: 'Sumo de laranja', ivaCode: 'NOR', unitPrice: 700, costPrice: 300, stockQty: 0, showOnline: true } });
+  const bk = await call('POST', '/ecommerce/kwanza/products/bulk', { token: A, body: { codes: [pc2], published: true, percent: 10 } });
+  const pub2 = (await sch.query(`SELECT kwanza_published AS p FROM products WHERE code = $1`, [pc2])).rows[0];
+  R.check('VSS-12', 'ligada: publicação em massa no LPS Kwanza inclui os produtos sem stock', bk.status < 300 && bk.body?.skipped === 0 && pub2?.p === true, `${bk.status} ${JSON.stringify(bk.body)} p=${pub2?.p}`);
+  // O número de stock não chega ao marketplace (retrato com -1 = escondido) e a API não o devolve.
+  await call('POST', '/ecommerce/kwanza/sync', { token: A });
+  const lst = (await pub.query(`SELECT "stockQty" AS q, "inStock" AS s FROM nexus_public.kwanza_listings WHERE "companyCode" = $1 AND "productCode" = ANY($2)`, [code, [pc, pc2]])).rows;
+  R.check('VSS-13', 'ligada: o LPS Kwanza não recebe o número de stock (disponível, sem quantidade)', lst.length === 2 && lst.every((r) => Number(r.q) === -1 && r.s === true), JSON.stringify(lst));
+  const panel = await ok('GET', `/ecommerce/kwanza/products?q=${pc2}`, { token: A });
+  const row = (Array.isArray(panel) ? panel : []).find((r) => r.code === pc2);
+  R.check('VSS-14', 'ligada: o painel indica «venda sem stock» e deixa publicar', row?.canPublish === true && row?.sellNoStock === true, JSON.stringify(row ?? null).slice(0, 160));
 
   await ok('PATCH', '/site/settings', { token: A, body: { allowSellWithoutStock: false } });
   const v3 = await sell(1);
   const c3 = await catItem();
   R.check('VSS-11', 'desligar volta a bloquear a Caixa e a loja online', v3.status === 400 && c3 && c3.inStock === false, `${v3.status} inStock=${c3?.inStock}`);
+  await call('POST', '/ecommerce/kwanza/sync', { token: A });
+  const lst3 = (await pub.query(`SELECT "stockQty" AS q, "inStock" AS s FROM nexus_public.kwanza_listings WHERE "companyCode" = $1 AND "productCode" = $2`, [code, pc2])).rows[0];
+  R.check('VSS-15', 'desligada: o LPS Kwanza volta a ter o stock real (0, esgotado)', lst3 && Number(lst3.q) === 0 && lst3.s === false, JSON.stringify(lst3 ?? null));
   await sch.end();
 } catch (e) {
   R.check('VSS-ERRO', 'cenário terminou sem exceção', false, e instanceof Error ? e.stack?.slice(0, 400) : String(e));
