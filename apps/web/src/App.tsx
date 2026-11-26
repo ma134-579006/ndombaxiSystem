@@ -56,6 +56,7 @@ const Operations = lazyRetry(() => import('./sections/Operations').then((m) => (
 const Inventory = lazyRetry(() => import('./sections/Inventory').then((m) => ({ default: m.Inventory })));
 const StockMovements = lazyRetry(() => import('./sections/StockMovements').then((m) => ({ default: m.StockMovements })));
 const StockAnalysis = lazyRetry(() => import('./sections/StockAnalysis').then((m) => ({ default: m.StockAnalysis })));
+const Team = lazyRetry(() => import('./sections/Team').then((m) => ({ default: m.Team })));
 const InventoryIntel = lazyRetry(() => import('./sections/InventoryIntel').then((m) => ({ default: m.InventoryIntel })));
 const Reports = lazyRetry(() => import('./sections/Reports').then((m) => ({ default: m.Reports })));
 const Documents = lazyRetry(() => import('./sections/Documents').then((m) => ({ default: m.Documents })));
@@ -196,6 +197,7 @@ export const TENANT_NAV: NavItem[] = [
   },
   {
     key: 'users-group', label: 'Equipa', icon: IconBadge, children: [
+      { key: 'users', label: 'Utilizadores', icon: IconBadge },
       { key: 'employees', label: 'Funcionários', icon: IconBadge },
       { key: 'payroll', label: 'Folha Salarial', icon: IconWallet, min: 2 },
       { key: 'leave', label: 'Férias', icon: IconCalendar },
@@ -463,6 +465,7 @@ function TenantPanel() {
           Antifraude, Transferências, Localização, Auditoria). */}
       {section === 'inventory' || section === 'inventory-intel' ? <InventoryIntel role={user?.role} /> : null}
       {section === 'stock-analysis' ? <StockAnalysis onGo={setSection} /> : null}
+      {section === 'users' ? <Team /> : null}
       {section === 'stock-movements' ? <StockMovements /> : null}
       {section === 'purchasing' || section === 'purchasing-suppliers' ? <Purchasing key={section} view={section === 'purchasing-suppliers' ? 'suppliers' : 'orders'} onGo={setSection} /> : null}
       {section === 'orders' ? <Orders /> : null}

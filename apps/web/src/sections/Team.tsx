@@ -1,15 +1,17 @@
 import { confirmDialog } from '../components/feedback';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import {
   STAFF_ROLES, STAFF_ROLE_LABELS,
   type CreateStaffInput, type ManagerStaff, type ManagerStore, type StaffRoleName,
 } from '../api/types';
-import { IconBuilding, IconCheck, IconEdit, IconKey, IconLock, IconPlus, IconShield, IconUsers } from '../components/Icons';
+import { IconPlus } from '../components/Icons';
+import { PermissionsTable, type PermArea } from '../components/PermissionsTable';
 import { Modal } from '../components/ui';
 
-/** Equipa: utilizadores, papéis (permissões), senha, PIN do POS e loja.
- *  Aqui criam-se os acessos — incluindo os Operadores de caixa (POS). */
+/** Configuração › Utilizadores (como no Vendus): contas de acesso com Nome, Email,
+ *  Perfil, Estado e «Opções» (editar, PIN da caixa, repor senha, desbloquear,
+ *  ativar/desativar); «Adicionar Utilizador» e «Perfis de Utilizadores». */
 export function Team() {
   const [users, setUsers] = useState<ManagerStaff[]>([]);
   const [stores, setStores] = useState<ManagerStore[]>([]);
@@ -20,19 +22,34 @@ export function Team() {
   const [editing, setEditing] = useState<ManagerStaff | null>(null);
   const [pinFor, setPinFor] = useState<ManagerStaff | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  const storeName = (id: string | null) => stores.find((s) => s.id === id)?.name ?? '—';
+  const [q, setQ] = useState('');
+  const [perms, setPerms] = useState<PermArea[] | null>(null);
+  const openPerms = async () => {
+    const { TENANT_NAV } = await import('../App');
+    const out: PermArea[] = [];
+    for (const n of TENANT_NAV) {
+      if (n.children?.length) for (const c of n.children) out.push({ label: c.label, group: n.label, min: c.min ?? n.min });
+      else out.push({ label: n.label, min: n.min });
+    }
+    setPerms(out);
+  };
 
   const load = useCallback(async () => {
-    setLoading(true); setError(null);
+    setError(null);
     try {
       const [u, s] = await Promise.all([api.staff.listUsers(), api.staff.listStores().catch(() => [])]);
       setUsers(u); setStores(s);
-    } catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao carregar a equipa.'); }
+    } catch (e) { setError(e instanceof ApiError ? e.message : 'Falha ao carregar os utilizadores.'); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
 
+  const run = async (u: ManagerStaff, fn: () => Promise<unknown>, ok?: string) => {
+    setBusyId(u.id); setError(null);
+    try { await fn(); if (ok) setInfo(ok); await load(); }
+    catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível concluir a operação.'); }
+    finally { setBusyId(null); }
+  };
   const resetPwd = async (u: ManagerStaff) => {
     if (!(await confirmDialog({ message: `Repor a senha de ${u.name}?` }))) return;
     setBusyId(u.id);
@@ -42,57 +59,55 @@ export function Team() {
     } catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível repor a senha.'); }
     finally { setBusyId(null); }
   };
-
   const deactivate = async (u: ManagerStaff) => {
     if (!(await confirmDialog({ message: `Desativar ${u.name}? Deixa de poder entrar.`, danger: true }))) return;
-    setBusyId(u.id);
-    try { await api.staff.deactivate(u.id); await load(); }
-    catch (e) { setError(e instanceof ApiError ? e.message : 'Não foi possível desativar.'); }
-    finally { setBusyId(null); }
+    await run(u, () => api.staff.deactivate(u.id), `${u.name} desativado.`);
   };
 
-  const activeUsers = users.filter((u) => u.is_active).length;
-  const withPin = users.filter((u) => u.has_pin).length;
+  const term = q.trim().toLowerCase();
+  const list = users.filter((u) => !term || `${u.name} ${u.email} ${STAFF_ROLE_LABELS[u.role] ?? u.role}`.toLowerCase().includes(term))
+    .sort((a, b) => Number(b.is_active) - Number(a.is_active) || a.name.localeCompare(b.name));
+  const locked = (u: ManagerStaff) => !!u.locked_until && Date.parse(u.locked_until) > Date.now();
 
   return (
-    <div className="fx-wide">
-      <div className="content-head">
-        <h2>Equipa & acessos</h2>
+    <div className="vd-page us-page">
+      <div className="vd-head">
+        <p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Configuração</span><span className="sep">/</span><span>Utilizadores</span></p>
         <span className="spacer" />
-        <button className="btn" onClick={() => setCreating(true)}><IconPlus size={18} /> Novo utilizador</button>
+        <button className="vd-btn ok" onClick={() => setCreating(true)}><IconPlus size={16} /> Adicionar Utilizador</button>
+        <button className="vd-btn outline" onClick={() => void openPerms()}>Perfis de Utilizadores</button>
+      </div>
+      {info ? <div className="vd-ok" role="status">{info}</div> : null}
+      {error ? <div className="vd-err" role="alert">{error}</div> : null}
+
+      <div className="vd-card vd-filters">
+        <label className="vd-f grow"><input className="vd-in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisa por nome, email ou perfil" aria-label="Pesquisar utilizadores" /></label>
       </div>
 
-      <div className="fx-stats">
-        <div className="fx-stat"><span className="ic"><IconUsers size={20} /></span><div><div className="lb">Utilizadores</div><div className="vl">{users.length}</div><div className="sb">com acesso registado</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconCheck size={20} /></span><div><div className="lb">Activos</div><div className="vl"><span className="fx-dot ok" />{activeUsers}</div><div className="sb">{users.length - activeUsers} inactivo(s)</div></div></div>
-        <div className="fx-stat"><span className="ic"><IconKey size={20} /></span><div><div className="lb">Com PIN da Caixa</div><div className="vl">{withPin}</div><div className="sb">{users.length - withPin} sem PIN</div></div></div>
-      </div>
-
-      {info ? <div className="banner success">{info}</div> : null}
-      {error ? <div className="banner danger">{error}</div> : null}
-
-      <div className="fx-card" style={{ padding: 8 }}>
-        {loading ? <div className="loading">A carregar…</div>
-          : users.length === 0 ? <div className="empty"><IconBuilding size={40} /><p>Sem utilizadores. Cria o primeiro acesso.</p></div>
+      <div className="vd-card us-card">
+        {loading ? <div className="vd-empty">A carregar…</div>
+          : list.length === 0 ? <div className="vd-empty">{term ? 'Sem resultados.' : 'Ainda não há utilizadores.'}</div>
           : (
-            <table className="ptable stack">
-              <thead><tr><th>Nome</th><th>Email</th><th>Papel</th><th>Loja</th><th>PIN</th><th>Estado</th><th className="no-print" /></tr></thead>
+            <table className="ptable acc-table us-table">
+              <thead><tr><th>Nome</th><th>Email</th><th>Perfil</th><th>Estado</th><th aria-label="Opções" /></tr></thead>
               <tbody>
-                {users.map((u) => (
+                {list.map((u) => (
                   <tr key={u.id}>
-                    <td data-label="Nome">{u.name}</td>
-                    <td data-label="Email">{u.email}</td>
-                    <td data-label="Papel"><span className="pill"><IconShield size={12} /> {STAFF_ROLE_LABELS[u.role] ?? u.role}</span></td>
-                    <td data-label="Loja">{storeName(u.store_id)}</td>
-                    <td data-label="PIN">{u.has_pin ? <span className="pill on">Sim</span> : <span className="pill">—</span>}</td>
-                    <td data-label="Estado"><span className={`pill ${u.is_active ? 'on' : 'off'}`}>{u.is_active ? 'Activo' : 'Inactivo'}</span></td>
-                    <td className="actions no-print">
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                        <button className="btn sm ghost" disabled={busyId === u.id} onClick={() => setEditing(u)} title="Editar papel/loja" aria-label={`Editar ${u.name}`}><IconEdit size={14} /></button>
-                        <button className="btn sm ghost" disabled={busyId === u.id} onClick={() => setPinFor(u)} title="Definir PIN do POS" aria-label={`Definir PIN de ${u.name}`}><IconLock size={14} /></button>
-                        <button className="btn sm ghost" disabled={busyId === u.id} onClick={() => resetPwd(u)}>Repor senha</button>
-                        {u.is_active ? <button className="btn sm danger" disabled={busyId === u.id} onClick={() => deactivate(u)}>Desativar</button> : null}
-                      </div>
+                    <td className="wrap"><button type="button" className="us-name" onClick={() => setEditing(u)}>{u.name}</button>
+                      {u.store_id ? <span className="acc-sub">{stores.find((s) => s.id === u.store_id)?.name ?? ''}</span> : null}</td>
+                    <td className="wrap">{u.email}</td>
+                    <td>{STAFF_ROLE_LABELS[u.role] ?? u.role}{u.has_pin ? <span className="acc-sub">PIN da caixa definido</span> : null}</td>
+                    <td className="nw"><span className={u.is_active ? 'us-on' : 'us-off'}>{u.is_active ? 'Ativo' : 'Inativo'}</span>{locked(u) ? <span className="acc-sub us-lock">Bloqueado</span> : null}</td>
+                    <td className="num">
+                      <Options disabled={busyId === u.id} items={[
+                        { label: 'Editar', act: () => setEditing(u) },
+                        { label: 'PIN da caixa', act: () => setPinFor(u) },
+                        { label: 'Repor senha', act: () => void resetPwd(u) },
+                        ...(locked(u) ? [{ label: 'Desbloquear', act: () => void run(u, () => api.staff.unlock(u.id), `Acesso de ${u.name} desbloqueado.`) }] : []),
+                        u.is_active
+                          ? { label: 'Desativar', danger: true, act: () => void deactivate(u) }
+                          : { label: 'Ativar', act: () => void run(u, () => api.staff.updateUser(u.id, { isActive: true }), `${u.name} ativado.`) },
+                      ]} />
                     </td>
                   </tr>
                 ))}
@@ -101,10 +116,33 @@ export function Team() {
           )}
       </div>
 
-      {creating ? <CreateModal stores={stores} onClose={() => setCreating(false)} onCreated={(temp) => { setCreating(false); if (temp) setInfo(`Senha temporária: ${temp} — entregue ao funcionário (só aparece agora).`); void load(); }} /> : null}
+      {perms ? <PermissionsTable areas={perms} onClose={() => setPerms(null)} /> : null}
+      {creating ? <CreateModal stores={stores} onClose={() => setCreating(false)} onCreated={(temp) => { setCreating(false); if (temp) setInfo(`Senha temporária: ${temp} — entregue ao utilizador (só aparece agora).`); void load(); }} /> : null}
       {editing ? <EditModal user={editing} stores={stores} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void load(); }} /> : null}
       {pinFor ? <PinModal user={pinFor} onClose={() => setPinFor(null)} onSaved={() => { setPinFor(null); setInfo('PIN definido.'); void load(); }} /> : null}
     </div>
+  );
+}
+
+/** Botão «Opções» com menu (como no Vendus). */
+function Options({ items, disabled }: { items: { label: string; act: () => void; danger?: boolean }[]; disabled?: boolean }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const close = (e: MouseEvent) => { if (ref.current?.open && !ref.current.contains(e.target as Node)) ref.current.open = false; };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && ref.current?.open) ref.current.open = false; };
+    document.addEventListener('pointerdown', close); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', esc); };
+  }, []);
+  return (
+    <details ref={ref} className="us-opt">
+      <summary className="vd-btn plain sm" aria-disabled={disabled}>Opções</summary>
+      <div className="us-opt-list" role="menu">
+        {items.map((it) => (
+          <button key={it.label} type="button" role="menuitem" className={it.danger ? 'danger' : undefined} disabled={disabled}
+            onClick={() => { if (ref.current) ref.current.open = false; it.act(); }}>{it.label}</button>
+        ))}
+      </div>
+    </details>
   );
 }
 
