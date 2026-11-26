@@ -75,7 +75,14 @@ const EMPTY: FormState = {
 };
 
 /** Unidades de medida comuns (informativas — sem conversão automática). */
-const UNIT_OPTIONS = ['un', 'kg', 'g', 'L', 'ml', 'fatia', 'folha', 'dose', 'porção', 'caixa', 'pacote', 'garrafa', 'lata'];
+const UNIT_DEFAULTS = ['un', 'kg', 'g', 'L', 'ml', 'fatia', 'folha', 'dose', 'porção', 'caixa', 'pacote', 'garrafa', 'lata'];
+let unitCache: string[] | null = null;
+/** Unidades de Configuração › Definições › Unidades (como no Vendus). */
+function useUnits(): string[] {
+  const [u, setU] = useState<string[]>(unitCache ?? UNIT_DEFAULTS);
+  useEffect(() => { api.configLists.list('units').then((r) => { unitCache = r.map((x) => x.label); setU(unitCache); }).catch(() => undefined); }, []);
+  return u;
+}
 
 /** Iniciais do produto (sem foto): 2 letras das primeiras palavras com letras. */
 function monoOf(name: string): string {
@@ -95,6 +102,7 @@ function L({ children, hint }: { children: React.ReactNode; hint?: string }) {
 }
 
 export function Products() {
+  const UNIT_OPTIONS = useUnits();
   const [products, setProducts] = useState<ManagerProduct[]>([]);
   const [stores, setStores] = useState<WarehouseRow[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);

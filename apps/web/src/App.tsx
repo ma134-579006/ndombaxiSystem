@@ -56,6 +56,7 @@ const Operations = lazyRetry(() => import('./sections/Operations').then((m) => (
 const Inventory = lazyRetry(() => import('./sections/Inventory').then((m) => ({ default: m.Inventory })));
 const StockMovements = lazyRetry(() => import('./sections/StockMovements').then((m) => ({ default: m.StockMovements })));
 const StockAnalysis = lazyRetry(() => import('./sections/StockAnalysis').then((m) => ({ default: m.StockAnalysis })));
+const ConfigList = lazyRetry(() => import('./sections/ConfigLists').then((m) => ({ default: m.ConfigList })));
 const SelfConsumption = lazyRetry(() => import('./sections/Employees').then((m) => ({ default: m.SelfConsumption })));
 const Team = lazyRetry(() => import('./sections/Team').then((m) => ({ default: m.Team })));
 const InventoryIntel = lazyRetry(() => import('./sections/InventoryIntel').then((m) => ({ default: m.InventoryIntel })));
@@ -421,6 +422,8 @@ function TenantPanel() {
   const allowed = React.useMemo(() => {
     const s = new Set(nav.flatMap((n) => (n.children ? n.children.map((c) => c.key) : [n.key])));
     s.add('profile');
+    // Unidades e Motivos de NC só aparecem no painel CONFIG (sem entrada na Gestão): mesma permissão das Definições.
+    if (s.has('settings')) { s.add('units'); s.add('nc-reasons'); }
     return s;
   }, [nav]);
   const safeSection = allowed.has(section) ? section : 'overview';
@@ -469,6 +472,8 @@ function TenantPanel() {
       {section === 'stock-analysis' ? <StockAnalysis onGo={setSection} /> : null}
       {section === 'users' ? <Team /> : null}
       {section === 'self-consumption' ? <SelfConsumption /> : null}
+      {section === 'units' ? <ConfigList kind="units" /> : null}
+      {section === 'nc-reasons' ? <ConfigList kind="nc-reasons" /> : null}
       {section === 'stock-movements' ? <StockMovements /> : null}
       {section === 'purchasing' || section === 'purchasing-suppliers' ? <Purchasing key={section} view={section === 'purchasing-suppliers' ? 'suppliers' : 'orders'} onGo={setSection} /> : null}
       {section === 'orders' ? <Orders /> : null}

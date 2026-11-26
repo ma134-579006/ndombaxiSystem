@@ -936,3 +936,14 @@ ALTER TABLE IF EXISTS "{{SCHEMA}}"."customers" ADD COLUMN IF NOT EXISTS price_gr
 -- Desligado por omissão; quando ligado, Caixa, painel e lojas vendem com stock
 -- nulo ou negativo (ver src/common/stock-policy.ts).
 ALTER TABLE IF EXISTS "{{SCHEMA}}"."site_settings" ADD COLUMN IF NOT EXISTS allow_sell_without_stock BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- LISTAS DE CONFIGURAÇÃO (paridade Vendus: Configuração › Definições): Unidades e
+-- Motivos das Notas de Crédito. Vazia = valem as sugestões de origem (src/site/config-lists.service.ts).
+CREATE TABLE IF NOT EXISTS "{{SCHEMA}}"."config_lists" (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind        TEXT NOT NULL,
+  label       TEXT NOT NULL,
+  sort        INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS config_lists_kind_label ON "{{SCHEMA}}"."config_lists" (kind, lower(label));

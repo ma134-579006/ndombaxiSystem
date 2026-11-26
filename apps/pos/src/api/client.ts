@@ -372,6 +372,8 @@ export const api = {
     request<{ deviceKey: string; name: string; series: string; storeId: string | null; settings?: { defaultDocType: 'FT' | 'FS'; pricesWithTax: boolean; showReference: boolean; paperWidth: '80' | '58' | null } }>(
       'POST', '/devices/register', input,
     ),
+  /** Motivos das Notas de Crédito definidos no painel (Configuração › Motivos - Notas Crédito). */
+  ncReasons: () => request<{ id: string; label: string }[]>('GET', '/config-lists/nc-reasons'),
   cancelInvoice: (id: string, reason: string) =>
     request<{ creditNoteNumber: string; grossTotal: number }>('POST', `/pos/invoices/${id}/cancel`, { reason }),
   /** `clientOpId`: chave estável entre tentativas — impede uma 2.ª nota de crédito

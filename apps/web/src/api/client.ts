@@ -1070,6 +1070,13 @@ export const api = {
     review: (id: string, decision: 'APPROVED' | 'REJECTED', note?: string) =>
       request<{ id: string; status: string }>('POST', `/hr/salary-advance/${id}/review`, { decision, note }),
   },
+  /** Unidades e Motivos das Notas de Crédito (Configuração › Definições). */
+  configLists: {
+    list: (kind: 'units' | 'nc-reasons') => request<{ id: string; label: string }[]>('GET', `/config-lists/${kind}`),
+    add: (kind: 'units' | 'nc-reasons', label: string) => request<{ ok: true }>('POST', `/config-lists/${kind}`, { label }),
+    rename: (kind: 'units' | 'nc-reasons', id: string, label: string) => request<{ ok: true }>('PATCH', `/config-lists/${kind}/${id}`, { label }),
+    remove: (kind: 'units' | 'nc-reasons', id: string) => request<{ ok: true }>('DELETE', `/config-lists/${kind}/${id}`),
+  },
   site: {
     get: () => request<SiteSettings>('GET', '/site/settings'),
     update: (dto: UpdateSiteSettingsInput) =>
