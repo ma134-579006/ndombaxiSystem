@@ -43,6 +43,13 @@ export function Team() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  // Painel CONFIG › «Perfis de Utilizadores» abre esta página já com a tabela de permissões.
+  useEffect(() => {
+    const go = () => { try { sessionStorage.removeItem('lps.users.perms'); } catch { /* */ } void openPerms(); };
+    try { if (sessionStorage.getItem('lps.users.perms')) go(); } catch { /* */ }
+    window.addEventListener('lps:users-perms', go);
+    return () => window.removeEventListener('lps:users-perms', go);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = async (u: ManagerStaff, fn: () => Promise<unknown>, ok?: string) => {
     setBusyId(u.id); setError(null);

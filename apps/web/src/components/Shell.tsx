@@ -452,8 +452,12 @@ export function Shell({
   // Como no Vendus: o grupo da página ATIVA fica aberto (vê-se onde se está). Fechar
   // por fora / sair com o rato volta a esse estado em vez de fechar tudo.
   const grupoAtualKey = nav.find((n) => n.children?.some((c) => c.key === section))?.key;
-  const reporGrupos = () => setOpenGroups(grupoAtualKey ? { [grupoAtualKey]: true } : {});
-  useEffect(() => { reporGrupos(); }, [grupoAtualKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const painelAte = useRef(0); // até quando um clique no painel manda (não volta à Gestão)
+  // Subitem do painel escolhido (vários abrem a mesma página com separadores diferentes).
+  const [painelSel, setPainelSel] = useState<string | null>(null);
+  useEffect(() => { if (Date.now() >= painelAte.current) setPainelSel(null); }, [section]);
+  const reporGrupos = () => { if (railTab !== 'gestao') return; setOpenGroups(grupoAtualKey ? { [grupoAtualKey]: true } : {}); };
+  useEffect(() => { if (Date.now() < painelAte.current) return; reporGrupos(); }, [grupoAtualKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Chat de equipa (gestor ↔ caixa): badge de não-lidas + janela.
   const [chatOpen, setChatOpen] = useState(false);
@@ -479,12 +483,18 @@ export function Shell({
   }, [isTenant, custChatAllowed]);
 
   // Cada botão dos painéis tem ícone, como no Vendus (Eva Icons).
-  type PanelItem = { key: string; label: string; act?: () => void; on?: boolean; icon?: React.ComponentType<{ size?: number }>; cta?: boolean; head?: string };
+  type PanelItem = { key: string; label: string; act?: () => void; on?: boolean; icon?: React.ComponentType<{ size?: number }>; cta?: boolean; head?: string; children?: PanelItem[] };
   // Abre as Configurações num separador concreto (como os itens do painel CONFIG do Vendus).
-  const abrirDefinicoes = (tab: 'brand' | 'modules' | 'stock') => {
+  const abrirDefinicoes = (tab: 'brand' | 'modules' | 'stock' | 'prices' | 'receipts') => {
     try { sessionStorage.setItem('lps.settings.tab', tab); } catch { /* sem armazenamento */ }
     window.dispatchEvent(new CustomEvent('lps:settings-tab', { detail: tab }));
     setSection('settings');
+  };
+  // Perfis de Utilizadores e Autoconsumo abrem páginas próprias (como no Vendus).
+  const abrirPerfis = () => {
+    try { sessionStorage.setItem('lps.users.perms', '1'); } catch { /* sem armazenamento */ }
+    window.dispatchEvent(new Event('lps:users-perms'));
+    setSection('users');
   };
   const abrirHistorico = () => {
     try { sessionStorage.setItem('lps.sub.focus', 'history'); } catch { /* sem armazenamento */ }
@@ -502,7 +512,8 @@ export function Shell({
       // Como no Vendus: «Iniciar Ponto de Venda» é um botão azul destacado e as apps
       // ficam numa secção «DOWNLOADS» no fim do painel.
       canPos ? { key: '__pos', label: 'Iniciar Ponto de Venda', act: () => onQuick('__pos'), icon: IconCashRegister, cta: true } : null,
-      pi('operations', 'Movimentos de Caixa', IconHistory), pi('registers', 'Caixas', IconStore), pi('payments', 'Tipos de Pagamento', IconCard),
+      // «Tipos de Pagamento» está em Configuração › Definições (como no Vendus) — sem repetir aqui.
+      pi('operations', 'Movimentos de Caixa', IconHistory), pi('registers', 'Caixas', IconStore),
       { key: '__apps-win', label: 'LPS Vendas Windows', act: abrirApps, icon: IconDownload, head: 'Downloads' },
       { key: '__apps-android', label: 'App Caixa Android', act: abrirApps, icon: IconDownload },
     ].filter(Boolean) as PanelItem[],
@@ -517,30 +528,44 @@ export function Shell({
       pi('assistant'), pi('cameras-live', 'Câmaras'), pi('cameras-config', 'Configurar câmaras'), pi('cameras-map', 'Olho de Deus'),
       pi('gateways'), pi('ai'),
     ].filter(Boolean) as PanelItem[],
-    // Mesma ordem do painel CONFIG do Vendus; depois o que é só do LPS.
+    // Painel CONFIG como o do Vendus: Dados da Empresa, grupo «Definições», Subscrição,
+    // Histórico de Pagamentos, Migração de Dados, Integrações; depois o que é só do LPS.
     config: [
       has('settings') ? { key: '__dados', label: 'Dados da Empresa', act: () => abrirDefinicoes('brand'), icon: IconBuilding } : null,
-      has('settings') ? { key: '__definicoes', label: 'Definições', act: () => abrirDefinicoes('modules'), icon: EvaGear } : null,
-      has('settings') ? { key: '__stock', label: 'Stock', act: () => abrirDefinicoes('stock'), icon: IconBoxes } : null,
+      {
+        key: '__grp-definicoes', label: 'Definições', icon: EvaGear,
+        children: [
+          has('settings') ? { key: '__definicoes', label: 'Definições Gerais', act: () => abrirDefinicoes('modules') } : null,
+          pi('stores', 'Lojas e Caixas'),
+          has('settings') ? { key: '__modelos', label: 'Modelos', act: () => abrirDefinicoes('receipts') } : null,
+          pi('payments', 'Tipos de Pagamento'),
+          has('settings') ? { key: '__precos', label: 'Grupos de Preços', act: () => abrirDefinicoes('prices') } : null,
+          pi('users', 'Utilizadores'),
+          has('users') ? { key: '__perfis', label: 'Perfis de Utilizadores', act: abrirPerfis } : null,
+          has('settings') ? { key: '__stock', label: 'Stock', act: () => abrirDefinicoes('stock') } : null,
+          pi('self-consumption', 'Autoconsumo'),
+        ].filter(Boolean) as PanelItem[],
+      },
       pi('subscription', 'Subscrição'),
       has('subscription') ? { key: '__historico', label: 'Histórico de Pagamentos', act: abrirHistorico, icon: IconHistory } : null,
       pi('migration', 'Migração de Dados'),
       pi('integrations', 'Integrações'),
-      pi('stores', 'Lojas e Caixas', IconStore),
-      ...equipa,
+      ...equipa.filter((e) => e.key !== 'users' && e.key !== 'self-consumption').map((e, i) => (i === 0 ? { ...e, head: 'Equipa e sistema' } : e)),
       pi('security'), pi('mail'), pi('backup'), pi('backup-restore', 'Restauro de backup'),
       { key: 'profile', label: 'O meu perfil', icon: EvaUser },
     ].filter(Boolean) as PanelItem[],
   };
-  const painel = railTab === 'gestao' ? null : paineis[railTab];
+  const painel = railTab === 'gestao' ? null : paineis[railTab].filter((p) => !p.children || p.children.length > 0);
   // Ao entrar (ou ao abrir uma secção por um atalho), o separador certo fica ativo:
   // ex.: estando em «Caixas», o menu mostra o painel POS e não a Gestão.
   const gestaoKeys = navGestao.flatMap((n) => (n.children ? n.children.map((c) => c.key) : [n.key]));
   useEffect(() => {
     if (!isTenant) return;
-    if (railTab !== 'gestao' && paineis[railTab].some((p) => p.key === section)) return; // já está no separador certo
+    if (Date.now() < painelAte.current) return; // aberto a partir do painel atual
+    const noPainel = (t: Exclude<RailTab, 'gestao'>) => paineis[t].some((p) => p.key === section || p.children?.some((c) => c.key === section));
+    if (railTab !== 'gestao' && noPainel(railTab)) return; // já está no separador certo
     if (gestaoKeys.includes(section)) { setRailTab('gestao'); return; }
-    const alvo = (['pos', 'loja', 'apps', 'config'] as const).find((t) => paineis[t].some((p) => p.key === section));
+    const alvo = (['pos', 'loja', 'apps', 'config'] as const).find((t) => noPainel(t));
     if (alvo) setRailTab(alvo);
   }, [section, isTenant]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -588,10 +613,10 @@ export function Shell({
           o rato (animação do LPS). Sem scroll: as linhas encolhem para caber. */}
       <aside ref={asideRef} className={`sidebar vds${menuOpen ? ' open' : ''}`} onMouseLeave={reporGrupos}
         style={{
-          ['--nav-n' as string]: painel ? Math.max(painel.length + painel.filter((p) => p.head).length, 6) : navGestao.length + navGestao.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0),
+          ['--nav-n' as string]: painel ? (() => { const g = painel.find((p) => p.children && openGroups[p.key]); return g ? g.children!.length + 1 : null; })() ?? Math.max(painel.length + painel.filter((p) => p.head).length, 6) : navGestao.length + navGestao.reduce((s, n) => s + (openGroups[n.key] ? (n.children?.length ?? 0) : 0), 0),
           // Telemóvel: com um grupo aberto o menu mostra SÓ esse grupo (cabeçalho
           // + itens), como o menu do Vendus — as linhas cabem sempre, sem scroll.
-          ['--nav-m' as string]: painel ? Math.max(painel.length + painel.filter((p) => p.head).length, 6) : (() => { const g = navGestao.find((n) => openGroups[n.key] && n.children?.length); return g ? (g.children!.length + 1) : navGestao.length; })(),
+          ['--nav-m' as string]: painel ? (() => { const g = painel.find((p) => p.children && openGroups[p.key]); return g ? g.children!.length + 1 : null; })() ?? Math.max(painel.length + painel.filter((p) => p.head).length, 6) : (() => { const g = navGestao.find((n) => openGroups[n.key] && n.children?.length); return g ? (g.children!.length + 1) : navGestao.length; })(),
         }}>
         <div className="vds-rail" aria-label="Aplicações">
           <span className="vds-logo"><img src={brandLogo} alt={brandName} onError={(e) => { (e.target as HTMLImageElement).src = LOGO_SRC; }} /></span>
@@ -634,14 +659,39 @@ export function Shell({
               </svg>
             </button>
           </div>
-          <nav className={`nav${!painel && navGestao.some((n) => openGroups[n.key] && n.children?.length) ? ' has-open' : ''}${painel ? ' nav-painel' : ''}`} key={railTab}>
+          <nav className={`nav${(painel ? painel.some((p) => p.children && openGroups[p.key]) : navGestao.some((n) => openGroups[n.key] && n.children?.length)) ? ' has-open' : ''}${painel ? ' nav-painel' : ''}`} key={railTab}>
             {painel ? painel.map((p) => (
               <React.Fragment key={p.key}>
                 {p.head ? <div className="vds-sec" role="presentation">{p.head}</div> : null}
-                <button className={`${section === p.key ? 'active' : ''}${p.cta ? ' vds-cta' : ''}`} title={p.label}
-                  onClick={() => { if (p.act) p.act(); else setSection(p.key); setMenuOpen(false); }}>
-                  {p.icon ? <p.icon size={18} /> : null}<span className="nav-label">{p.label}</span>
-                </button>
+                {p.children ? (() => {
+                  const open = !!openGroups[p.key];
+                  const ativo = (c: PanelItem) => (painelSel ? painelSel === c.key : c.key === section);
+                  const hasActive = p.children.some(ativo);
+                  return (
+                    <div className={`nav-group${open ? ' is-open' : ''}`}>
+                      <button className={`nav-group-head${hasActive ? ' has-active' : ''}`} title={p.label}
+                        onClick={() => setOpenGroups((g) => (g[p.key] ? {} : { [p.key]: true }))}>
+                        {p.icon ? <p.icon size={18} /> : null}<span className="nav-label">{p.label}</span>
+                        <IconChevron open={open} />
+                      </button>
+                      {open ? (
+                        <div className="nav-sub">
+                          {p.children.map((c) => (
+                            <button key={c.key} className={ativo(c) ? 'active' : ''} aria-current={ativo(c) ? 'page' : undefined}
+                              onClick={() => { painelAte.current = Date.now() + 800; setPainelSel(c.key); if (c.act) c.act(); else setSection(c.key); setOpenGroups({ [p.key]: true }); setMenuOpen(false); }}>
+                              {c.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })() : (
+                  <button className={`${section === p.key ? 'active' : ''}${p.cta ? ' vds-cta' : ''}`} title={p.label}
+                    onClick={() => { painelAte.current = Date.now() + 800; setPainelSel(null); if (p.act) p.act(); else setSection(p.key); setMenuOpen(false); }}>
+                    {p.icon ? <p.icon size={18} /> : null}<span className="nav-label">{p.label}</span>
+                  </button>
+                )}
               </React.Fragment>
             )) : navGestao.map((n) => {
               const Icon = n.icon;

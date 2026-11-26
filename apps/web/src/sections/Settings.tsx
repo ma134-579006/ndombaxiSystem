@@ -16,16 +16,23 @@ import { useAuth } from '../auth/AuthContext';
  * Configurações da empresa (admin): branding (logo/nome), dados e dizeres dos
  * recibos, reposição de senhas/PIN dos funcionários, plano e impressora.
  */
+type SettingsTab = 'brand' | 'modules' | 'stock' | 'prices' | 'passwords' | 'security' | 'printer' | 'loja' | 'lang';
+/** Separador pedido pelo painel CONFIG («Modelos» = impressão dos recibos). */
+function pickTab(t: string | null | undefined): SettingsTab | null {
+  if (t === 'receipts') return 'printer';
+  return t === 'brand' || t === 'modules' || t === 'stock' || t === 'prices' ? t : null;
+}
+
 export function Settings() {
   const { user } = useAuth();
-  type Tab = 'brand' | 'modules' | 'stock' | 'prices' | 'passwords' | 'security' | 'printer' | 'loja' | 'lang';
+  type Tab = SettingsTab;
   // O painel CONFIG (menu lateral) escolhe o separador: "Dados da Empresa" ou "Definições".
   const [tab, setTab] = useState<Tab>(() => {
-    try { const t = sessionStorage.getItem('lps.settings.tab'); if (t === 'brand' || t === 'modules' || t === 'stock') return t; } catch { /* */ }
+    try { const t = pickTab(sessionStorage.getItem('lps.settings.tab')); if (t) return t; } catch { /* */ }
     return 'brand';
   });
   useEffect(() => {
-    const on = (e: Event) => { const t = (e as CustomEvent<string>).detail; if (t === 'brand' || t === 'modules' || t === 'stock') setTab(t); };
+    const on = (e: Event) => { const t = pickTab((e as CustomEvent<string>).detail); if (t) setTab(t); };
     // Consumido DEPOIS de montar (a inicialização pode correr 2× em desenvolvimento).
     try { sessionStorage.removeItem('lps.settings.tab'); } catch { /* */ }
     window.addEventListener('lps:settings-tab', on);
