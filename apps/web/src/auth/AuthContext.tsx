@@ -21,6 +21,9 @@ import {
   clearPendingUpgrade, getPendingUpgrade, rememberOffline, setPendingUpgrade, verifyOffline,
 } from '../offline/session';
 import { isOfflineToken, syncCredentials } from '../offline/credentials';
+import { syncAuth } from '../offline/syncIdentity';
+import { isNativeApp } from '../config';
+import { vaultTokensRotated } from '../offline/session';
 import { offerSessionToHost, startCloudSession, stopCloudSession } from '../offline/localServer';
 
 type AuthStatus = 'loading' | 'authed' | 'guest';
@@ -106,7 +109,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // que reutilizava o token → 401 → logout (ex.: desbloquear o ecrã passados >15 min).
   const refreshInFlight = useRef<Promise<boolean> | null>(null);
 
-  const applyTokens = useCallback((tokens: TokenPair) => {
+  // `fromServer = false` só no login SEM REDE (tokens tirados do cofre).
+  const applyTokens = useCallback((tokens: TokenPair, fromServer = true) => {
+    const anterior = refreshRef.current;
+    if (fromServer && !isOfflineToken(tokens.accessToken)) {
+      void vaultTokensRotated(anterior, tokens);
+      // Identidade de sincronização: só sessões de EMPRESA próprias — nunca o
+      // Super Admin (plataforma) nem o acesso shadow dele dentro de uma empresa.
+      const d = decodeJwt(tokens.accessToken);
+      const shadowAtivo = !!sess.getItem(LS_PREV_ACCESS);
+      if (d?.subjectType === 'TENANT' && !shadowAtivo) void syncAuth.remember(companyRef.current, tokens);
+    }
     accessRef.current = tokens.accessToken;
     refreshRef.current = tokens.refreshToken;
     sess.setItem(LS_ACCESS, tokens.accessToken);
@@ -189,6 +202,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refresh: () => doRefresh(),
     });
   }, [clearSession, doRefresh]);
+
+  // A fila de fundo só usa a identidade do aparelho depois de a sessão viva decidir.
+  useEffect(() => { syncAuth.setLive(status); }, [status]);
 
   // OFFLINE-FIRST (Fatia 1): o motor de sincronização vive enquanto houver sessão
   // de gestor de uma empresa. Aditivo — mantém o cache local das entidades de
@@ -287,8 +303,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         applyTokens(await api.refresh(refresh));
         if (alive) setStatus('authed');
-      } catch {
-        if (alive) clearSession();
+      } catch (e) {
+        if (!alive) return;
+        // App aberta SEM REDE com a sessão lembrada: fica de pé (a Gestão trabalha
+        // da memória) e renova-se quando a rede voltar. Antes pedia novo login.
+        if (isNativeApp() && (isNetworkFailure(e) || (e instanceof ApiError && (e.status === 429 || e.status >= 500)))) {
+          setUser(decodeJwt(access)); setStatus('authed'); return;
+        }
+        clearSession();
       }
     })();
     return () => {
@@ -376,7 +398,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               // é o que permite à sessão offline sobreviver a um recarregamento
               // da janela (o arranque exige os dois valores).
               refreshToken: v.identity.refreshToken || v.identity.accessToken,
-            });
+            }, false);
             setStatus('authed');
             return;
           }
