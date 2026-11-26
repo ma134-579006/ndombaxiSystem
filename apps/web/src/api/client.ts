@@ -7,6 +7,7 @@ import { sharedGet, sharedSet } from '../sharedCache';
 import { applyToCatalog, queryCatalog } from '../offline/catalog';
 import { customersStore } from '../offline/indexedList';
 import type {
+  AccDocuments, AccTaxMap, AccProductLines, AccDailySales, AccPaymentTypes, AccSupplierTaxMap,
   DeviceRow,
   DeviceSettings,
   AgtCommResult,
@@ -659,6 +660,8 @@ export const api = {
   // ── SAF-T (AGT): exporta o XML fiscal mensal ───────────────
   saft: {
     export: (year: number, month: number) => requestText(`/pos/saft?year=${year}&month=${month}`),
+    /** Inventário de existências (CSV com «;» ou XML <StockFile>). */
+    inventory: (format: 'csv' | 'xml') => requestText(`/pos/inventory-export?format=${format}`),
   },
 
   // ── Comunicação eletrónica à AGT (DP 71/25) — por empresa (gestor) ─────
@@ -1172,6 +1175,16 @@ export const api = {
       request<ProfitAbcRow[]>('GET', `/profit/abc${qs({ from, to })}`),
   },
   reports: {
+    /** Contabilidade (Vendus): os 6 relatórios do grupo «Contabilidade». */
+    accounting: {
+      documents: (f: { from: string; to: string; storeId?: string; types?: string[] }) =>
+        request<AccDocuments>('GET', `/reports/accounting/documents${qs({ from: f.from, to: f.to, storeId: f.storeId, types: f.types?.join(',') })}`),
+      taxMap: (from: string, to: string, storeId?: string) => request<AccTaxMap>('GET', `/reports/accounting/tax-map${qs({ from, to, storeId })}`),
+      products: (from: string, to: string, storeId?: string) => request<AccProductLines>('GET', `/reports/accounting/products${qs({ from, to, storeId })}`),
+      dailySales: (from: string, to: string, storeId?: string) => request<AccDailySales>('GET', `/reports/accounting/daily-sales${qs({ from, to, storeId })}`),
+      paymentTypes: (from: string, to: string, storeId?: string) => request<AccPaymentTypes>('GET', `/reports/accounting/payment-types${qs({ from, to, storeId })}`),
+      supplierTaxMap: (from: string, to: string) => request<AccSupplierTaxMap>('GET', `/reports/accounting/supplier-tax-map${qs({ from, to })}`),
+    },
     salesByUser: (from?: string, to?: string, storeId?: string) =>
       request<ReportUserRow[]>('GET', `/reports/sales-by-user${qs({ from, to, storeId })}`),
     salesByCategory: (from?: string, to?: string, storeId?: string) =>
