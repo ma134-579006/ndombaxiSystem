@@ -163,3 +163,10 @@ Sem overflow horizontal, tema escuro correto, Modal (foco preso, Escape, regress
   16/12/2026, subscrição da caixa API 21/12/2026. Mapear Cartão/Referência/Express em
   «Guardar NIF, caixa e pagamentos» antes de vendas com esses meios.
 - Decisão pendente: empresas existentes continuam em LPS "legado" (sem validação própria).
+
+## Missão Master QA (2026-11-26) — fase 1: sincronização offline sem login
+- Documentação em `docs/quality-assurance/` (plano, ambientes, `BUG-REGISTER.md` com P0–P3 e VERIFIED/UNVERIFIED, relatórios por fase).
+- **Caixa (PR #273, na main) e Gestão (F1b):** identidade de sincronização do aparelho (`syncAuth.ts` + `offline/syncIdentity.ts`). É o último par de tokens real, renovado em conjunto com a sessão viva; a fila sobe quando a rede volta, mesmo com a app reaberta e ninguém ligado. Nunca guarda PIN nem senha; se o servidor a recusar (401/403), é apagada e aí é preciso entrar. Chaves: Caixa `offline:syncIdentity`, Gestão `offline:syncIdentity:gestao`.
+- Testes: `qa/sync-sem-login.mjs` (Caixa 9/9) e `qa/sync-gestao-sem-login.mjs` (Gestão 7/7), contra o vite em dev com `VITE_API_URL=<dev>/papi` e `PAPI_TARGET=http://127.0.0.1:3901`, com `QA_PLAYWRIGHT` a apontar para uma pasta com `playwright-core`.
+- **Depende do utilizador:** as apps instaladas (Windows/Android) só recebem a correção numa versão nova (workflows manuais + publicação em Gestão de Downloads).
+- Próximo: F2 (login Google/Facebook e teclado virtual no telemóvel), F3 (modais sem X — QA-008).

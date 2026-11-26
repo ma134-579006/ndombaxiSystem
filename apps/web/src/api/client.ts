@@ -1,6 +1,8 @@
 import { API_URL, isNativeApp } from '../config';
 import { mirrorStaffWrite, mirrorsToCloud } from '../offline/cloudMirror';
 import { usingLocalServer } from '../offline/localServer';
+import { syncAuth, setSyncRefresh } from '../offline/syncIdentity';
+import { isOfflineToken } from '../offline/credentials';
 import { canQueue, enqueueWrite, newOpId, replayOutbox, withSnake, type OutboxOp, type SendResult } from '../offline/outbox';
 import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offline/shopLink';
 import { sharedGet, sharedSet } from '../sharedCache';
@@ -284,6 +286,8 @@ function marcarComRede(): void {
   if (semRede && typeof window !== 'undefined') window.dispatchEvent(new Event('online'));
   semRede = false;
 }
+/** O motor confirmou que o servidor responde: os pedidos voltam a sair já (sem esperar pela sonda de 15 s). */
+export function confirmarRede(): void { marcarComRede(); }
 function sondarServidor(): void {
   if (Date.now() - ultimaSonda < 15_000) return;
   ultimaSonda = Date.now();
@@ -509,9 +513,21 @@ async function requestInner<T>(
 /** Envia UMA operação da fila offline (com o seu UUID de idempotência). */
 async function sendQueuedWrite(op: OutboxOp, refreshed = false): Promise<SendResult> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Client-Op-Id': op.id };
-  const token = hooks?.getAccessToken();
+  // Sessão viva; sem ela (app reaberta, ninguém entrou) a identidade de
+  // sincronização do aparelho — a fila sobe sem obrigar a entrar (missão QA F1b).
+  let token = hooks?.getAccessToken() ?? null;
+  let code = hooks?.getCompanyCode?.();
+  let doAparelho = false;
+  if (isNativeApp() && (!token || isOfflineToken(token))) {
+    await syncAuth.waitSettled();
+    token = hooks?.getAccessToken() ?? null;
+    code = hooks?.getCompanyCode?.();
+    if (!token || isOfflineToken(token)) {
+      const b = await syncAuth.credential();
+      if (b) { token = b.accessToken; code = b.companyCode; doAparelho = true; }
+    }
+  }
   if (token) headers.Authorization = `Bearer ${token}`;
-  const code = hooks?.getCompanyCode?.();
   if (code) headers['X-Tenant-Code'] = code;
   let res: Response;
   try {
@@ -520,6 +536,10 @@ async function sendQueuedWrite(op: OutboxOp, refreshed = false): Promise<SendRes
     res = await fetch(`${baseParaPedido(API_URL)}${op.path}`, { method: op.method, headers, body: op.body === undefined ? undefined : JSON.stringify(op.body), signal: ctrl.signal });
     clearTimeout(t);
   } catch { return { ok: false, status: 0, message: 'Sem ligação ao servidor.', retry: true }; }
+  if (res.status === 401 && doAparelho && !refreshed) {
+    if (await syncAuth.renew() === 'ok') return sendQueuedWrite(op, true);
+    return { ok: false, status: 401, message: 'Sessão expirada.', retry: true };
+  }
   if (res.status === 401 && hooks && !refreshed) {
     if (await hooks.refresh()) return sendQueuedWrite(op, true);
     return { ok: false, status: 401, message: 'Sessão expirada.', retry: true };
@@ -528,7 +548,7 @@ async function sendQueuedWrite(op: OutboxOp, refreshed = false): Promise<SendRes
     const text = res.status === 204 ? '' : await res.text().catch(() => '');
     let data: unknown; try { data = text ? JSON.parse(text) : undefined; } catch { data = undefined; }
     // Produto criado sem rede já subiu: troca o registo provisório pelo do servidor.
-    const company = hooks?.getCompanyCode?.();
+    const company = code;
     if (company && op.localId && /^\/pos\/products(\?|$)/.test(op.path)) {
       await applyToCatalog(company, 'delete', op.localId).catch(() => undefined);
       if (data && typeof data === 'object' && (data as { id?: string }).id) {
@@ -1681,3 +1701,6 @@ export const api = {
       request<PaymentProof>('POST', `/payments/proofs/${id}/review`, { status, note }),
   },
 };
+
+// Renovação da identidade de sincronização com o mesmo cliente (mesma base).
+setSyncRefresh((rt) => request<TokenPair>('POST', '/auth/refresh', { refreshToken: rt }, { auth: false, silent: true }));

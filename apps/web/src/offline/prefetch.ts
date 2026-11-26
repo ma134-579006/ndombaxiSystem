@@ -19,7 +19,9 @@
  * em massa para além do que a própria página já mostra. Best-effort: cada falha é
  * ignorada e nunca quebra a app. NAVEGADOR: não faz nada (100% online).
  */
-import { api, prefetchGet, replayQueuedWrites } from '../api/client';
+import { api, confirmarRede, prefetchGet, replayQueuedWrites } from '../api/client';
+import { syncAuth } from './syncIdentity';
+import { outboxCount } from './outbox';
 import { isNativeApp } from '../config';
 import { runTransfer } from '../components/feedback';
 import { syncCatalog } from './catalog';
@@ -195,4 +197,25 @@ export function startPrefetchSchedule(company?: string | null): () => void {
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('online', wake);
   return () => { window.clearInterval(timer); window.clearInterval(flushTimer); document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); window.removeEventListener('ndombaxi:session-renewed', renewed); };
+}
+
+/**
+ * FILA DE FUNDO desde o arranque da app (missão QA F1b): o que se alterou sem
+ * rede sobe quando a rede volta MESMO SEM NINGUÉM TER ENTRADO na Gestão (app
+ * reaberta). Com sessão aberta quem trata é `startPrefetchSchedule`; aqui só se
+ * esvazia a fila (sem pré-carregamento, que precisa de sessão). `replayOutbox`
+ * é exclusivo (lock), por isso os dois relógios nunca enviam a mesma operação.
+ */
+let fundo = false;
+export function startBackgroundOutbox(): void {
+  if (!isNativeApp() || typeof window === 'undefined' || fundo) return;
+  fundo = true;
+  const tick = async () => {
+    if (syncAuth.getLive() === 'authed') return;
+    if ((await outboxCount().catch(() => 0)) === 0) return;
+    try { if ((await replayQueuedWrites()) > 0) confirmarRede(); } catch { /* próxima volta */ }
+  };
+  window.setInterval(() => { void tick(); }, 3_000);
+  window.addEventListener('online', () => { void tick(); });
+  void tick();
 }

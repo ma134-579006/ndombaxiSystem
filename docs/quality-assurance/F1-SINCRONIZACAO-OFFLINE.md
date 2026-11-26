@@ -31,3 +31,27 @@ Cenário S1: operador entra com rede → API cai → venda na fila (mesma funç�
 ## Não verificado
 - Dispositivo real (Windows instalado, Android, iPhone). Os testes emulam a app instalada no Chromium.
 - Gestão (QA-006) e Android com só a Gestão aberta (QA-007): ficam para a F1b.
+
+---
+
+# F1b — Gestão (2026-11-26)
+
+## Como estava
+- `AuthContext` só arrancava `startPrefetchSchedule` (que esvazia a fila de escritas) com `status === 'authed'`. A sessão vive em `sessionStorage`; com a app reaberta e ninguém a entrar, **nada subia** (QA-006).
+- O restauro da sessão lembrada sem rede também terminava a sessão (QA-010).
+
+## Correção
+- `apps/web/src/offline/syncAuth.ts` (cópia da Caixa) + `offline/syncIdentity.ts` com chave própria `offline:syncIdentity:gestao`. No Android a Gestão e a Caixa partilham a memória, e uma nunca roda os tokens da outra.
+- Só se guardam sessões de **empresa** próprias: nunca o Super Admin (PLATFORM) nem o acesso shadow.
+- `sendQueuedWrite` usa a identidade do aparelho quando não há sessão viva utilizável.
+- `startBackgroundOutbox()` em `main.tsx`: de 3 em 3 s, se não há sessão e há algo na fila, envia-o (sem pré-carregamento). `replayOutbox` é exclusivo, por isso nunca envia a mesma operação duas vezes.
+
+## Testes executados
+| Teste | Resultado |
+|---|---|
+| `qa/sync-gestao-sem-login.mjs` contra a main (5184) | **5/7** — G1, G1c FAIL (bug reproduzido) |
+| `qa/sync-gestao-sem-login.mjs` contra a correção (5183) | **7/7 PASS** — cliente criado sem rede sobe em 2,1 s sem login, uma só linha, fila vazia |
+| `qa/sync-sem-login.mjs` (Caixa) depois da F1b | 9/9 PASS (sem regressão) |
+| `tsc --noEmit` + `vite build` da Gestão | OK |
+
+Não verificado com teste dedicado: exclusão do shadow e do Super Admin (garantida no código por `subjectType === 'TENANT'` e `LS_PREV_ACCESS`). Dispositivo real por testar.

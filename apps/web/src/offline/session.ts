@@ -214,3 +214,28 @@ export async function forgetOffline(email?: string): Promise<void> {
   for (const k of Object.keys(vault)) if (vault[k].email === em) delete vault[k];
   await writeVault(vault);
 }
+
+// ─── Cofre em dia com a rotação dos tokens (igual à Caixa) ───────────────────
+// A API revoga o refresh token antigo a cada renovação; sem isto o cofre ficava
+// com tokens revogados e o login sem rede caía quando a rede voltava.
+export async function vaultTokensRotated(oldRefresh: string | null | undefined, pair: { accessToken: string; refreshToken: string }): Promise<void> {
+  if (!oldRefresh || !pair.refreshToken) return;
+  try {
+    const vault = await readVault();
+    let mudou = false;
+    for (const c of Object.values(vault)) {
+      if (c.refreshToken === oldRefresh) { c.accessToken = pair.accessToken; c.refreshToken = pair.refreshToken; mudou = true; }
+    }
+    if (mudou) await writeVault(vault);
+  } catch { /* melhor esforço */ }
+}
+
+/** Identidade de sincronização inicial (instalações antigas): a credencial mais recente do cofre. */
+export async function bootstrapFromVault(): Promise<{ companyCode: string; accessToken: string; refreshToken: string; savedAt: string } | null> {
+  try {
+    const c = Object.values(await readVault())
+      .filter((x) => x.refreshToken && x.accessToken && Date.parse(x.validUntil) > Date.now())
+      .sort((a, b) => b.validUntil.localeCompare(a.validUntil))[0];
+    return c ? { companyCode: c.companyCode, accessToken: c.accessToken, refreshToken: c.refreshToken, savedAt: new Date().toISOString() } : null;
+  } catch { return null; }
+}

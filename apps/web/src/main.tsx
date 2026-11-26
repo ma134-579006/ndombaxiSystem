@@ -17,6 +17,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { mandatoryUpdate } from './update/mandatoryUpdate';
 import { isNativeApp } from './config';
 import { startI18n } from '@nexus/i18n';
+import { startBackgroundOutbox } from './offline/prefetch';
 import { initSeo } from './seo';
 
 // APLICAÇÃO INSTALADA: marca-se o documento para o CSS poder distinguir a app
@@ -34,6 +35,9 @@ initAutoUpdate(); // recarrega sozinho quando há nova versão publicada
 // Verificação da versão INSTALADA (app Windows/Android) contra o servidor
 // oficial. Em segundo plano; sem internet não faz nada e o Gestor abre na mesma.
 mandatoryUpdate.start();
+// Fila das alterações feitas sem rede: sobe sozinha quando a rede volta, mesmo
+// sem ninguém ter entrado (só nas apps instaladas).
+startBackgroundOutbox();
 initScrollReveal();
 initStickyStack(); // conteúdo materializa-se ao rolar (animação em todo o sistema)
 initFloatingMenus(); // menus "Opções" das tabelas por cima de tudo (não ficam cortados)
