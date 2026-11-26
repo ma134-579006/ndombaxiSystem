@@ -1,6 +1,6 @@
 {
   "name": "@nexus/api",
-  "version": "3.0.0",
+  "version": "3.5.0",
   "private": true,
   "description": "NEXUS ERP — Core API (NestJS). Phase 1: Foundation (multi-tenant, auth, RBAC, onboarding).",
   "main": "dist/main.js",
