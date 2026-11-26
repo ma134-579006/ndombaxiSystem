@@ -4,6 +4,8 @@ import { anotarFalhaDaLoja, anotarSucessoDaLoja, baseParaPedido } from '../offli
 import { sharedGet, sharedSet } from '../sharedCache';
 import { queryCatalog } from '../offline/catalog';
 import { customersStore } from '../offline/indexedList';
+import { syncAuth, setSyncRefresh } from '../offline/syncIdentity';
+import { isOfflineToken } from '../offline/credentials';
 import { canQueue, enqueueWrite, newOpId, replayOutbox, withSnake, type OutboxOp, type SendResult } from '../offline/outbox';
 import type { PromoRow } from '../pos/promo';
 import type {
@@ -60,6 +62,26 @@ interface RequestOptions {
   retry?: boolean;
   /** `false` = esta escrita nunca vai para a fila offline. */
   queue?: boolean;
+  /**
+   * Pedido do MOTOR DA FILA (vendas/turnos/alterações feitas sem rede). Sem
+   * sessão viva utilizável, usa a identidade de sincronização do aparelho —
+   * a fila sobe sem ninguém ter de entrar na Caixa (ver pos/syncAuth.ts).
+   */
+  background?: boolean;
+}
+
+/** Credencial do pedido: sessão viva; no motor da fila, a do aparelho se não houver sessão viva. */
+async function credencial(background: boolean): Promise<{ token: string | null; code: string | undefined; doAparelho: boolean }> {
+  const token = hooks?.getAccessToken() ?? null;
+  const code = hooks?.getCompanyCode();
+  if (background && isNativeApp() && (!token || isOfflineToken(token))) {
+    await syncAuth.waitSettled();
+    const vivo = hooks?.getAccessToken() ?? null;
+    if (vivo && !isOfflineToken(vivo)) return { token: vivo, code: hooks?.getCompanyCode(), doAparelho: false };
+    const b = await syncAuth.credential();
+    if (b) return { token: b.accessToken, code: b.companyCode, doAparelho: true };
+  }
+  return { token, code, doAparelho: false };
 }
 
 async function parseError(res: Response): Promise<ApiError> {
@@ -82,7 +104,7 @@ async function request<T>(
   body?: unknown,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { auth = true, retry = true } = options;
+  const { auth = true, retry = true, background = false } = options;
   // OFFLINE-FIRST (read-through cache): LEITURAS (GET) guardadas na cache
   // partilhada e servidas de lá quando não há rede. ADITIVO: online devolve
   // sempre fresco; escrita/POST não têm cache. Mesma cache que a Gestão usa
@@ -113,11 +135,12 @@ async function request<T>(
     return rows as unknown as T;
   };
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  let doAparelho = false;
   if (auth) {
-    const token = hooks?.getAccessToken();
-    if (token) headers.Authorization = `Bearer ${token}`;
-    const code = hooks?.getCompanyCode();
-    if (code) headers['X-Tenant-Code'] = code;
+    const cred = await credencial(background);
+    doAparelho = cred.doAparelho;
+    if (cred.token) headers.Authorization = `Bearer ${cred.token}`;
+    if (cred.code) headers['X-Tenant-Code'] = cred.code;
   }
 
   // ESCRITA na app instalada (cliente novo, tema, autoconsumo, férias, pedidos…):
@@ -187,9 +210,14 @@ async function request<T>(
       : 'Sem ligação ao servidor. Verifique a rede e o endereço da API.');
   } finally { clearTimeout(timer); }
 
+  if (res.status === 401 && auth && retry && doAparelho) {
+    // Identidade do aparelho: renova-a (nunca toca na sessão viva) e repete uma vez.
+    if (await syncAuth.renew() === 'ok') return request<T>(method, path, body, { ...options, retry: false });
+    throw await parseError(res);
+  }
   if (res.status === 401 && auth && retry && hooks) {
     const ok = await hooks.refresh();
-    if (ok) return request<T>(method, path, body, { auth, retry: false });
+    if (ok) return request<T>(method, path, body, { ...options, auth, retry: false });
     // O refresh decide se termina a sessão: só o faz quando o refresh token é
     // REJEITADO (401/403). Falhas de rede/servidor (API a acordar) preservam a
     // sessão — devolvemos o erro para a UI tratar (ex.: modo offline) sem logout.
@@ -225,9 +253,9 @@ async function guardarNaFila(method: string, path: string, body: unknown, opId: 
 /** Envia UMA operação da fila offline (com o seu UUID de idempotência). */
 async function sendQueuedWrite(op: OutboxOp, refreshed = false): Promise<SendResult> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Client-Op-Id': op.id };
-  const token = hooks?.getAccessToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const code = hooks?.getCompanyCode();
+  const cred = await credencial(true);
+  if (cred.token) headers.Authorization = `Bearer ${cred.token}`;
+  const code = cred.code;
   if (code) headers['X-Tenant-Code'] = code;
   let res: Response;
   try {
@@ -236,6 +264,10 @@ async function sendQueuedWrite(op: OutboxOp, refreshed = false): Promise<SendRes
     res = await fetch(`${baseParaPedido(API_URL)}${op.path}`, { method: op.method, headers, body: op.body === undefined ? undefined : JSON.stringify(op.body), signal: ctrl.signal });
     clearTimeout(t);
   } catch { return { ok: false, status: 0, message: 'Sem ligação ao servidor.', retry: true }; }
+  if (res.status === 401 && cred.doAparelho && !refreshed) {
+    if (await syncAuth.renew() === 'ok') return sendQueuedWrite(op, true);
+    return { ok: false, status: 401, message: 'Sessão expirada.', retry: true };
+  }
   if (res.status === 401 && hooks && !refreshed) {
     if (await hooks.refresh()) return sendQueuedWrite(op, true);
     return { ok: false, status: 401, message: 'Sessão expirada.', retry: true };
@@ -244,7 +276,7 @@ async function sendQueuedWrite(op: OutboxOp, refreshed = false): Promise<SendRes
     const text = res.status === 204 ? '' : await res.text().catch(() => '');
     let data: unknown; try { data = text ? JSON.parse(text) : undefined; } catch { data = undefined; }
     // Cliente criado sem rede já subiu: troca o registo provisório pelo do servidor.
-    const company = hooks?.getCompanyCode();
+    const company = code;
     if (company && op.localId && /^\/pos\/customers(\?|$)/.test(op.path)) {
       await customersStore.apply(company, 'delete', op.localId).catch(() => undefined);
       const id = data && typeof data === 'object' ? (data as { id?: string }).id : undefined;
@@ -269,6 +301,8 @@ function marcarComRede(): void {
   if (semRede && typeof window !== 'undefined') window.dispatchEvent(new Event('online')); // a fila sobe sozinha
   semRede = false;
 }
+/** O motor da fila confirmou que o servidor responde: os pedidos voltam a sair já (sem esperar pela sonda de 15 s). */
+export function confirmarRede(): void { marcarComRede(); }
 function sondarServidor(): void {
   if (Date.now() - ultimaSonda < 15_000) return;
   ultimaSonda = Date.now();
@@ -343,8 +377,8 @@ export const api = {
     request<Customer>('POST', '/pos/customers', input),
   /** Confirma o PIN do supervisor/gerente que aprova um desconto manual. */
   approveDiscount: (pin: string) => request<{ approverName: string; self: boolean }>('POST', '/pos/discount/approve', { pin }),
-  emitInvoice: (input: EmitInvoiceInput) =>
-    request<EmittedInvoice>('POST', '/pos/invoices', input),
+  emitInvoice: (input: EmitInvoiceInput, opts: { background?: boolean } = {}) =>
+    request<EmittedInvoice>('POST', '/pos/invoices', input, { background: opts.background }),
   /** Preços de um GRUPO DE PREÇO (só os produtos com preço próprio). */
   priceGroupPrices: (groupId: string) =>
     request<{ product_id: string; unit_price: string }[]>('GET', `/pos/price-groups/${groupId}/prices`),
@@ -419,7 +453,7 @@ export const api = {
     opId: string; seq: number; entity: string; op: 'create' | 'update' | 'delete';
     localId: string; payload: Record<string, unknown>; createdAt: string;
   }[]) => request<{ results: { opId: string; status: string; message?: string }[] }>(
-    'POST', '/sync/push', { ops },
+    'POST', '/sync/push', { ops }, { background: true },
   ),
 
   // ── Chat de equipa 1:1 (caixa ↔ gerente) ───────────────────
@@ -477,3 +511,9 @@ export const api = {
   productionAvailability: () =>
     request<{ id: string; name: string; stock: number; inProduction: number; status: 'FREE' | 'BUSY' | 'OUT' }[]>('GET', '/restaurant/availability'),
 };
+
+// Renovação da identidade de sincronização com o mesmo cliente (mesma base: nuvem ou servidor da loja).
+setSyncRefresh((rt, company) => {
+  void company;
+  return request<TokenPair>('POST', '/auth/refresh', { refreshToken: rt }, { auth: false });
+});

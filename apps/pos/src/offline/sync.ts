@@ -3,7 +3,7 @@
  * esvazia a fila de vendas offline — cada venda é emitida no servidor e recebe
  * aí o seu número fiscal real (sequência AGT sem saltos).
  */
-import { api, ApiError, replayQueuedWrites } from '../api/client';
+import { api, ApiError, confirmarRede, replayQueuedWrites } from '../api/client';
 import type { PaymentType } from '../api/types';
 import { outboxCount, resolveLocalId } from './outbox';
 import { sharedSet } from '../sharedCache';
@@ -122,6 +122,7 @@ class SyncController {
     if (this.state.pending <= 0 || this.state.syncing) return;
     const ok = await probeServer();
     if (!ok) { if (this.state.online) this.emit({ online: false }); return; }
+    confirmarRede(); // o cliente HTTP deixa de responder "sem rede" da memória
     const voltou = !this.state.online;
     if (voltou) this.emit({ online: true });
     // Rede de volta → sobe já. Com rede estável, repete a cada RETRY_MS: o que
@@ -255,6 +256,10 @@ class SyncController {
         const outcome = await this.emitOne(sale);
         if (outcome === 'ok') { synced++; this.emit({ online: true }); }
         else if (outcome === 'offline') { this.emit({ online: false }); break; }
+        // Sem credencial válida no aparelho (nunca houve login com rede, ou o
+        // servidor terminou a sessão): há rede, mas nada sobe até alguém entrar.
+        // Não marca "sem rede" — senão o relógio repetia a cada 3 s.
+        else if (outcome === 'auth') break;
         else if (outcome === 'skip') continue; // à espera de um cliente criado offline
         else if (!eraErro) failed++;
       }
@@ -278,7 +283,7 @@ class SyncController {
    *   • `failed`  — o servidor recusou/erro dele; as outras vendas continuam;
    *   • `offline` — não há ligação utilizável AGORA; o ciclo pára e repete depois.
    */
-  private async emitOne(sale: PendingSale): Promise<'ok' | 'failed' | 'offline' | 'skip'> {
+  private async emitOne(sale: PendingSale): Promise<'ok' | 'failed' | 'offline' | 'skip' | 'auth'> {
     // Cliente criado SEM REDE: a venda leva o id definitivo (o provisório não
     // existe na nuvem). Ainda por subir → espera pela próxima volta.
     let customerId = sale.customerId ?? undefined;
@@ -311,7 +316,7 @@ class SyncController {
           productCode: l.productCode, quantity: l.quantity,
           ...(l.discountRate && l.discountRate > 0 ? { discountRate: l.discountRate } : {}),
         })),
-      });
+      }, { background: true });
       if (sale.id != null) await deleteSale(sale.id);
       return 'ok';
     } catch (e) {
@@ -336,7 +341,8 @@ class SyncController {
       else this.emit({ lastError: updated.lastError ?? null });
       // `status === 0` é a falha de REDE do api client (sem ligação ou timeout):
       // a venda continua PENDING e o ciclo pára até haver ligação outra vez.
-      return e instanceof ApiError && (e.status === 0 || sessao) ? 'offline' : 'failed';
+      if (sessao) return 'auth';
+      return e instanceof ApiError && e.status === 0 ? 'offline' : 'failed';
     }
   }
 }

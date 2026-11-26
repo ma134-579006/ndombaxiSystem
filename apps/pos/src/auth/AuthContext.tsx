@@ -13,8 +13,9 @@ import type { TenantLoginInput, TokenPair } from '../api/types';
 import { decodeJwt, isExpired, type DecodedJwt } from './jwt';
 import { setTheme } from '../theme';
 import {
-  clearPendingUpgrade, getPendingUpgrade, rememberOffline, setPendingUpgrade, verifyOffline,
+  clearPendingUpgrade, getPendingUpgrade, rememberOffline, setPendingUpgrade, vaultTokensRotated, verifyOffline,
 } from '../offline/session';
+import { syncAuth } from '../offline/syncIdentity';
 import { isOfflineToken, syncCredentials } from '../offline/credentials';
 import { registerDevice } from '../offline/device';
 import { offerSessionToHost, startCloudSession, stopCloudSession } from '../offline/localServer';
@@ -75,7 +76,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 401 → logout — exatamente o que acontecia ao desbloquear o ecrã passados >15 min.
   const refreshInFlight = useRef<Promise<boolean> | null>(null);
 
-  const applyTokens = useCallback((tokens: TokenPair) => {
+  // `fromServer = false` só no login SEM REDE (tokens tirados do cofre): esses
+  // não podem sobrepor a identidade de sincronização, que pode ser mais recente.
+  const applyTokens = useCallback((tokens: TokenPair, fromServer = true) => {
+    const anterior = refreshRef.current;
+    if (fromServer && !isOfflineToken(tokens.accessToken)) {
+      // Identidade de sincronização do aparelho + cofre offline em dia com a
+      // rotação: a fila sobe mesmo depois de a app fechar sem ninguém entrar.
+      void syncAuth.remember(companyRef.current, tokens);
+      void vaultTokensRotated(anterior, tokens);
+    }
     accessRef.current = tokens.accessToken;
     refreshRef.current = tokens.refreshToken;
     // Tokens em sessionStorage (por-aba): nova aba/ligação copiada NÃO herda a
@@ -142,6 +152,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshInFlight.current = p;
     return p;
   }, [applyTokens, clearSession]);
+
+  // O motor da fila só usa a identidade do aparelho depois de a sessão viva decidir.
+  useEffect(() => { syncAuth.setLive(status); }, [status]);
 
   // Liga os ganchos ao cliente HTTP.
   useEffect(() => {
@@ -220,8 +233,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!alive) return;
         applyTokens(pair);
         setStatus('authed');
-      } catch {
-        if (alive) clearSession();
+      } catch (e) {
+        if (!alive) return;
+        // App aberta SEM REDE com "Lembrar-me": a sessão fica de pé (a Caixa
+        // trabalha da memória) e renova-se sozinha quando a rede voltar. Antes
+        // terminava aqui e obrigava a entrar outra vez.
+        if (isTransientFailure(e)) { setUser(decodeJwt(access)); setStatus('authed'); return; }
+        clearSession();
       }
     })();
     return () => {
@@ -329,7 +347,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               // Sem refresh do servidor guardamos o próprio token local, para a
               // sessão offline sobreviver a um recarregamento da janela.
               refreshToken: off.identity.refreshToken || off.identity.accessToken,
-            });
+            }, false);
             setStatus('authed');
             return;
           }
