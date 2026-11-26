@@ -102,7 +102,8 @@ export function Register({ onBack }: { onBack?: () => void }) {
 
   const g = look?.google; const f = look?.facebook;
   const showGoogle = g?.enabled !== false;
-  const showFacebook = f?.enabled !== false && !k.native;
+  // Sem App ID publicado (Facebook Login por configurar) o botão não aparece.
+  const showFacebook = f?.enabled !== false && !k.native && !!pub?.facebookAppId;
   const days = String(pub?.trialDays ?? 14);
   const title = look?.registerTitle?.replace('{dias}', days) || `Experimente ${days} Dias Grátis`;
 
