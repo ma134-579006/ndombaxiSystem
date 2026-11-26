@@ -269,6 +269,9 @@ export class StockService {
       from?: string; to?: string;
       warehouseId?: string; categoryId?: string;
       state?: 'all' | 'positive' | 'zero' | 'negative' | 'low';
+      /** Como o Vendus: várias lojas/categorias/marcas/estados de uma vez. */
+      warehouseIds?: string[]; categoryIds?: string[]; brands?: string[];
+      states?: Array<'positive' | 'nonpositive' | 'low'>;
     } = {},
   ): Promise<{
     rows: Array<Record<string, unknown>>;
@@ -283,8 +286,16 @@ export class StockService {
 
     return this.prisma.runInTenant(schema, async (tx) => {
       const conds: Prisma.Sql[] = [];
-      if (filters.warehouseId) conds.push(Prisma.sql`si.warehouse_id = ${filters.warehouseId}::uuid`);
-      if (filters.categoryId) conds.push(Prisma.sql`p.category_id = ${filters.categoryId}::uuid`);
+      const UUID = /^[0-9a-f-]{36}$/i;
+      const whs = [...(filters.warehouseIds ?? []), ...(filters.warehouseId ? [filters.warehouseId] : [])].filter((x) => UUID.test(x));
+      const cats = [...(filters.categoryIds ?? []), ...(filters.categoryId ? [filters.categoryId] : [])].filter((x) => UUID.test(x));
+      const brands = (filters.brands ?? []).map((b) => b.trim()).filter(Boolean).slice(0, 200);
+      if (whs.length) conds.push(Prisma.sql`si.warehouse_id IN (${Prisma.join(whs.map((x) => Prisma.sql`${x}::uuid`))})`);
+      if (cats.length) conds.push(Prisma.sql`p.category_id IN (${Prisma.join(cats.map((x) => Prisma.sql`${x}::uuid`))})`);
+      if (brands.length) conds.push(Prisma.sql`p.brand IN (${Prisma.join(brands)})`);
+      // Estado do Stock (Vendus): Positivo, Negativo ou Nulo, Menor que Alerta — vários = OU.
+      const st = (filters.states ?? []).map((x) => x === 'positive' ? Prisma.sql`si.quantity > 0` : x === 'nonpositive' ? Prisma.sql`si.quantity <= 0` : x === 'low' ? Prisma.sql`si.quantity <= si.min_qty` : null).filter((x): x is Prisma.Sql => !!x);
+      if (st.length) conds.push(Prisma.sql`(${Prisma.join(st, ' OR ')})`);
       if (filters.state === 'positive') conds.push(Prisma.sql`si.quantity > 0`);
       else if (filters.state === 'zero') conds.push(Prisma.sql`si.quantity = 0`);
       else if (filters.state === 'negative') conds.push(Prisma.sql`si.quantity < 0`);
@@ -303,6 +314,20 @@ export class StockService {
             FROM stock_movements m
             WHERE m.created_at >= ${from}::date AND m.created_at < (${to}::date + 1)
             GROUP BY m.product_id, m.warehouse_id
+          ),
+          -- Última entrada em stock (por artigo e loja) e última compra ao fornecedor.
+          ent AS (
+            SELECT DISTINCT ON (m.product_id, m.warehouse_id) m.product_id, m.warehouse_id,
+                   m.created_at AS last_in_at, m.quantity AS last_in_qty
+            FROM stock_movements m WHERE m.type = 'IN' AND m.quantity > 0
+            ORDER BY m.product_id, m.warehouse_id, m.created_at DESC
+          ),
+          po AS (
+            SELECT DISTINCT ON (pi.product_id) pi.product_id, pi.unit_cost AS last_buy_price,
+                   o.order_date AS last_order_at, pi.quantity AS last_order_qty
+            FROM purchase_order_items pi JOIN purchase_orders o ON o.id = pi.po_id
+            WHERE pi.product_id IS NOT NULL AND o.status <> 'CANCELLED'
+            ORDER BY pi.product_id, o.order_date DESC, o.created_at DESC
           )
           SELECT p.id AS product_id, p.code AS product_code, p.name AS product_name,
                  c.name AS category_name,
@@ -310,12 +335,17 @@ export class StockService {
                  p.cost_price, p.unit_price, si.quantity,
                  (si.quantity * p.cost_price) AS stock_value,
                  COALESCE(mv.units_sold, 0) AS units_sold,
-                 COALESCE(mv.units_in, 0) AS units_in
+                 COALESCE(mv.units_in, 0) AS units_in,
+                 p.brand, si.min_qty,
+                 ent.last_in_at, ent.last_in_qty,
+                 po.last_buy_price, po.last_order_at, po.last_order_qty
           FROM stock_items si
           JOIN products p ON p.id = si.product_id
           JOIN stores w ON w.id = si.warehouse_id
           LEFT JOIN product_categories c ON c.id = p.category_id
           LEFT JOIN mv ON mv.product_id = si.product_id AND mv.warehouse_id = si.warehouse_id
+          LEFT JOIN ent ON ent.product_id = si.product_id AND ent.warehouse_id = si.warehouse_id
+          LEFT JOIN po ON po.product_id = si.product_id
           ${where}
           ORDER BY p.name, w.name`,
       );

@@ -509,6 +509,9 @@ export interface StockAnalysisRow {
   category_name: string | null; store_id: string; store_name: string;
   cost_price: string; unit_price: string; quantity: string; stock_value: string;
   units_sold: number; units_in: number; sales_per_day: number; days_left: number | null;
+  brand?: string | null; min_qty?: string | number | null;
+  last_in_at?: string | null; last_in_qty?: string | number | null;
+  last_buy_price?: string | number | null; last_order_at?: string | null; last_order_qty?: string | number | null;
 }
 export interface StockAnalysis {
   rows: StockAnalysisRow[];
