@@ -31,6 +31,9 @@ import { FiscalSigningService } from './fiscal-signing.service';
 import { InvoiceService } from './invoice.service';
 import { PosRepository } from './pos.repository';
 import { SaftService } from './saft.service';
+import { buildInventoryFile } from './inventory-file';
+import { luandaDate } from '../common/luanda-date';
+import { TenantAuditService } from '../cashbox/tenant-audit.service';
 import { DiscountGuardService } from './discount-guard.service';
 import { ApproveDiscountDto } from './dto/emit-invoice.dto';
 import { PlanLimitsService } from '../plans/plan-limits.service';
@@ -94,6 +97,7 @@ export class PosController {
     private readonly discounts: DiscountGuardService,
     private readonly cashbox: CashboxService,
     @Optional() private readonly fiscalEngine?: FiscalEngineService,
+    @Optional() private readonly tenantAudit?: TenantAuditService,
   ) {}
 
   // ── Catálogo de produtos ───────────────────────────────────
@@ -472,12 +476,30 @@ export class PosController {
       await this.saft.writeMonth(user.tenantId, schema, y, m, (chunk) =>
         res.write(chunk) ? undefined : new Promise<void>((resolve) => res.once('drain', () => resolve())));
       res.end();
+      // Histórico da página AG Tributária (como o do Vendus): quem exportou e quando.
+      void this.tenantAudit?.record(schema, { actorId: user.sub, actorName: user.name ?? user.email ?? null, action: 'SAFT_EXPORT', entity: 'saft', entityId: `${y}-${String(m).padStart(2, '0')}`, details: { year: y, month: m } });
     } catch (e) {
       // Erro antes do 1.º byte: resposta de erro normal. Depois: corta a ligação
       // (um XML truncado nunca pode parecer um ficheiro válido).
       if (!res.headersSent) throw e;
       res.destroy(e instanceof Error ? e : new Error(String(e)));
     }
+  }
+
+  // ── Inventário de existências (AG Tributária › Inventário) ─
+  @Get('inventory-export')
+  @Roles(Role.COMPANY_ADMIN)
+  @ApiOperation({ summary: 'Exporta o inventário de existências (CSV ou XML) para a administração fiscal' })
+  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'xml'] })
+  async inventoryExport(@Query('format') format: string | undefined, @CurrentUser() user: JwtPayload, @Res() res: Response) {
+    const fmt = format === 'xml' ? 'xml' : 'csv';
+    const schema = this.ctx.requireTenantSchema();
+    const rows = await this.saft.inventoryRows(schema);
+    const day = luandaDate();
+    res.setHeader('Content-Type', fmt === 'xml' ? 'application/xml; charset=utf-8' : 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="Inventario-${day}.${fmt}"`);
+    res.send(buildInventoryFile(rows, fmt));
+    void this.tenantAudit?.record(schema, { actorId: user.sub, actorName: user.name ?? user.email ?? null, action: 'INVENTORY_EXPORT', entity: 'inventory', entityId: day, details: { format: fmt.toUpperCase(), products: rows.length } });
   }
 
   // ── Chave de assinatura digital RSA-2048 (AGT) ─────────────

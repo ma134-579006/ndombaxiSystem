@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { runDownload } from '../components/feedback';
 import { api, ApiError } from '../api/client';
-import type { AgtCommStatus } from '../api/types';
+import type { AgtCommStatus, AuditEvent } from '../api/types';
+import { IconDownload } from '../components/Icons';
 import { useAuth } from '../auth/AuthContext';
 import { FiscalEngineCompanyCard } from './FiscalEngineCompanyCard';
 
@@ -23,8 +24,8 @@ export function Saft() {
   const isAdmin = user?.role === 'COMPANY_ADMIN';
   const now = new Date();
   const [view, setView] = useState<'home' | 'config'>('home');
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() === 0 ? 12 : now.getMonth());
+  const [yearSel, setYear] = useState(now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear());
+  const [monthSel, setMonth] = useState(now.getMonth() === 0 ? 12 : now.getMonth());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [comm, setComm] = useState<AgtCommStatus | null>(null);
@@ -35,6 +36,10 @@ export function Saft() {
   const [rejected, setRejected] = useState<FeDoc[] | null>(null);
   const [remote, setRemote] = useState<unknown>(null);
   const [remoteBusy, setRemoteBusy] = useState(false);
+  const [invFmt, setInvFmt] = useState<'csv' | 'xml'>('csv');
+  const [invBusy, setInvBusy] = useState(false);
+  const [hist, setHist] = useState<AuditEvent[] | null>(null);
+  const [histPage, setHistPage] = useState(0);
 
   const load = useCallback(() => {
     api.agtComm.status().then(setComm).catch(() => setComm(null));
@@ -42,10 +47,19 @@ export function Saft() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  // Histórico (como no Vendus): exportações de SAF-T e de inventário, mais recentes primeiro.
+  const loadHist = useCallback(() => {
+    Promise.all([api.audit.list('SAFT_EXPORT', 200), api.audit.list('INVENTORY_EXPORT', 200)])
+      .then(([a, b]) => setHist([...a, ...b].sort((x, y) => Date.parse(y.timestamp) - Date.parse(x.timestamp))))
+      .catch(() => setHist([]));
+  }, []);
+  useEffect(() => { loadHist(); }, [loadHist]);
+  const reloadHistSoon = () => window.setTimeout(loadHist, 800);
+
   const years: number[] = [];
   for (let y = now.getFullYear(); y >= now.getFullYear() - 4; y--) years.push(y);
 
-  const exportSaft = async () => {
+  const exportSaft = async (year = yearSel, month = monthSel) => {
     setMsg(null); setBusy(true);
     try {
       await runDownload({
@@ -58,9 +72,26 @@ export function Saft() {
         },
       });
       setMsg({ ok: true, text: `SAF-T de ${MONTHS[month - 1]} de ${year} exportado.` });
+      reloadHistSoon();
     } catch (e) {
       setMsg({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível exportar o SAF-T.' });
     } finally { setBusy(false); }
+  };
+
+  const exportInventory = async () => {
+    setMsg(null); setInvBusy(true);
+    const day = new Date().toLocaleDateString('sv-SE'); // AAAA-MM-DD na hora local
+    try {
+      await runDownload({
+        title: `A exportar o inventário (${invFmt.toUpperCase()})`,
+        fileName: `Inventario-${day}.${invFmt}`,
+        make: async () => new Blob([await api.saft.inventory(invFmt)], { type: invFmt === 'xml' ? 'application/xml;charset=utf-8' : 'text/csv;charset=utf-8' }),
+      });
+      setMsg({ ok: true, text: `Inventário exportado em ${invFmt.toUpperCase()}.` });
+      reloadHistSoon();
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível exportar o inventário.' });
+    } finally { setInvBusy(false); }
   };
 
   const communicate = async () => {
@@ -117,22 +148,31 @@ export function Saft() {
             <h3>SAF-T</h3>
             <p>Ficheiro SAF-T (AO) com os documentos emitidos no mês, para entregar à AGT.</p>
             <div className="sel">
-              <select value={month} onChange={(e) => setMonth(Number(e.target.value))} aria-label="Mês">{MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}</select>
-              <select value={year} onChange={(e) => setYear(Number(e.target.value))} aria-label="Ano">{years.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+              <select value={monthSel} onChange={(e) => setMonth(Number(e.target.value))} aria-label="Mês">{MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}</select>
+              <select value={yearSel} onChange={(e) => setYear(Number(e.target.value))} aria-label="Ano">{years.map((y) => <option key={y} value={y}>{y}</option>)}</select>
             </div>
-            <div className="act"><button className="vd-btn big" onClick={exportSaft} disabled={busy}>{busy ? 'A exportar…' : 'Exportar'}</button><small>Envie até ao dia 15 de cada mês</small></div>
+            <div className="act"><button className="vd-btn big" onClick={() => void exportSaft()} disabled={busy}>{busy ? 'A exportar…' : 'Exportar'}</button><small>Envie até ao dia 15 de cada mês</small></div>
           </div>
           <div className="vd-agt-card">
-            <div className="ic"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z" /></svg></div>
-            <h3>Comunicação AGT</h3>
-            <p>{!comm ? '—' : !comm.enabled ? 'Comunicação eletrónica por ativar na plataforma.' : !comm.configured ? 'Endpoint da AGT por configurar.' : `${comm.pending} por comunicar · ${comm.communicated} comunicados.`}</p>
-            <div className="act"><button className="vd-btn big" onClick={communicate} disabled={commBusy || !comm?.enabled || !comm?.configured || comm.pending === 0}>{commBusy ? 'A comunicar…' : 'Comunicar'}</button><small>Documentos emitidos ainda não comunicados</small></div>
+            <div className="ic"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"><path d="M2.5 10 12 3.5 21.5 10" /><path d="M4.5 9v11.5h15V9" /><path d="M7.5 20.5v-8h9v8M7.5 15h9M7.5 17.8h9" /></svg></div>
+            <h3>Inventário</h3>
+            <p>Exportação do inventário de existências para análise em formato CSV ou XML.</p>
+            <div className="sel">
+              <select value={invFmt} onChange={(e) => setInvFmt(e.target.value as 'csv' | 'xml')} aria-label="Formato do inventário"><option value="csv">CSV</option><option value="xml">XML</option></select>
+            </div>
+            <div className="act"><button className="vd-btn big" onClick={() => void exportInventory()} disabled={invBusy}>{invBusy ? 'A exportar…' : 'Exportar'}</button><small>Exportação do inventário para análise</small></div>
           </div>
           <div className="vd-agt-card">
             <div className="ic"><svg width="46" height="46" viewBox="0 0 24 24" fill="currentColor"><path d="M12.94 22h-1.89a1.68 1.68 0 0 1-1.68-1.68v-1.09a.34.34 0 0 0-.22-.29.38.38 0 0 0-.41 0l-.74.8a1.67 1.67 0 0 1-2.37 0L4.26 18.4a1.66 1.66 0 0 1-.5-1.19 1.72 1.72 0 0 1 .5-1.21l.74-.74a.34.34 0 0 0 0-.37c-.06-.15-.16-.26-.3-.26H3.68A1.69 1.69 0 0 1 2 12.94v-1.89a1.68 1.68 0 0 1 1.68-1.68h1.09a.34.34 0 0 0 .29-.22.38.38 0 0 0 0-.41L4.26 8a1.67 1.67 0 0 1 0-2.37L5.6 4.26a1.65 1.65 0 0 1 1.18-.5 1.72 1.72 0 0 1 1.22.5l.74.74a.34.34 0 0 0 .37 0c.15-.06.26-.16.26-.3V3.68A1.69 1.69 0 0 1 11.06 2H13a1.68 1.68 0 0 1 1.68 1.68v1.09a.34.34 0 0 0 .22.29.38.38 0 0 0 .41 0l.69-.8a1.67 1.67 0 0 1 2.37 0l1.37 1.34a1.67 1.67 0 0 1 .5 1.19 1.63 1.63 0 0 1-.5 1.21l-.74.74a.34.34 0 0 0 0 .37c.06.15.16.26.3.26h1.09A1.69 1.69 0 0 1 22 11.06V13a1.68 1.68 0 0 1-1.68 1.68h-1.09a.34.34 0 0 0-.29.22.34.34 0 0 0 0 .37l.77.77a1.67 1.67 0 0 1 0 2.37l-1.31 1.33a1.65 1.65 0 0 1-1.18.5 1.72 1.72 0 0 1-1.19-.5l-.77-.74a.34.34 0 0 0-.37 0c-.15.06-.26.16-.26.3v1.09A1.69 1.69 0 0 1 12.94 22zm-1.57-2h1.26v-.77a2.33 2.33 0 0 1 1.46-2.14 2.36 2.36 0 0 1 2.59.47l.54.54.88-.88-.54-.55a2.34 2.34 0 0 1-.48-2.56 2.33 2.33 0 0 1 2.14-1.45H20v-1.29h-.77a2.33 2.33 0 0 1-2.14-1.46 2.36 2.36 0 0 1 .47-2.59l.54-.54-.88-.88-.55.54a2.39 2.39 0 0 1-4-1.67V4h-1.3v.77a2.33 2.33 0 0 1-1.46 2.14 2.36 2.36 0 0 1-2.59-.47l-.54-.54-.88.88.54.55a2.39 2.39 0 0 1-1.67 4H4v1.26h.77a2.33 2.33 0 0 1 2.14 1.46 2.36 2.36 0 0 1-.47 2.59l-.54.54.88.88.55-.54a2.39 2.39 0 0 1 4 1.67z" /><path d="M12 15.5a3.5 3.5 0 1 1 3.5-3.5 3.5 3.5 0 0 1-3.5 3.5zm0-5a1.5 1.5 0 1 0 1.5 1.5 1.5 1.5 0 0 0-1.5-1.5z" /></svg></div>
             <h3>Configuração</h3>
             <p>Estado da Facturação Electrónica, séries comunicadas à AGT e documentos rejeitados.</p>
             <div className="act"><button className="vd-btn big ok" onClick={() => setView('config')}>Configurar</button>{rejectedCount ? <small className="bad">{rejectedCount} documento(s) rejeitado(s)</small> : <small>&nbsp;</small>}</div>
+          </div>
+          <div className="vd-agt-card">
+            <div className="ic"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z" /></svg></div>
+            <h3>Comunicação AGT</h3>
+            <p>{!comm ? '—' : !comm.enabled ? 'Comunicação eletrónica por ativar na plataforma.' : !comm.configured ? 'Endpoint da AGT por configurar.' : `${comm.pending} por comunicar · ${comm.communicated} comunicados.`}</p>
+            <div className="act"><button className="vd-btn big" onClick={communicate} disabled={commBusy || !comm?.enabled || !comm?.configured || comm.pending === 0}>{commBusy ? 'A comunicar…' : 'Comunicar'}</button><small>Documentos emitidos ainda não comunicados</small></div>
           </div>
         </div>
       ) : (
@@ -160,6 +200,49 @@ export function Saft() {
           </div>
         </div>
       )}
+
+      {view === 'home' ? (
+        <section className="vd-agt-hist">
+          <h3>Histórico</h3>
+          <div className="vd-card vd-tablecard">
+            {hist === null ? <div className="vd-empty">A carregar…</div> : hist.length === 0 ? (
+              <div className="vd-empty">Ainda não há exportações.</div>
+            ) : (
+              <>
+                <div className="vd-tablewrap">
+                  <table className="vd-table">
+                    <thead><tr><th>Data</th><th>Hora</th><th>Utilizador</th><th>Ação</th><th>Estado</th></tr></thead>
+                    <tbody>{hist.slice(histPage * 20, histPage * 20 + 20).map((h) => {
+                      const d = new Date(h.timestamp);
+                      const det = (h.details ?? {}) as { year?: number; month?: number; format?: string };
+                      const isSaft = h.action === 'SAFT_EXPORT';
+                      const label = isSaft ? `Exportação de SAF-T - ${det.year}/${String(det.month).padStart(2, '0')}` : `Exportação de inventário (${det.format ?? 'CSV'})`;
+                      return (
+                        <tr key={h.seq}>
+                          <td>{d.toLocaleDateString('pt-PT')}</td>
+                          <td>{d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</td>
+                          <td>{h.actor_name ?? '—'}</td>
+                          <td>{label}</td>
+                          <td><span className="vd-agt-ok">Sucesso{isSaft && det.year && det.month ? (
+                            <button className="vd-agt-dl" onClick={() => void exportSaft(det.year, det.month)} disabled={busy} aria-label={`Descarregar o ${label}`} title="Descarregar"><IconDownload size={16} /></button>
+                          ) : null}</span></td>
+                        </tr>
+                      );
+                    })}</tbody>
+                  </table>
+                </div>
+                {hist.length > 20 ? (
+                  <div className="vd-agt-pag">
+                    <button className="vd-btn plain sm" onClick={() => setHistPage((p) => Math.max(0, p - 1))} disabled={histPage === 0}>Anterior</button>
+                    <span>Página {histPage + 1} de {Math.ceil(hist.length / 20)}</span>
+                    <button className="vd-btn plain sm" onClick={() => setHistPage((p) => Math.min(Math.ceil(hist.length / 20) - 1, p + 1))} disabled={histPage >= Math.ceil(hist.length / 20) - 1}>Seguinte</button>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        </section>
+      ) : null}
 
       {modal ? (
         <div className="vd-modal-bg" onClick={() => setModal(null)}>

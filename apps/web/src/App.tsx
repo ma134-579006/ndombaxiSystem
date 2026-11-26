@@ -27,6 +27,7 @@ import { GlobalProcessing } from './components/GlobalProcessing';
 import { FeedbackHost } from './components/feedback';
 import { UpdateGate } from './update/UpdateGate';
 import { REPORT_TABS, isReportSection, reportSectionKey, reportTabFor } from './sections/reportMenu';
+import { ACC_TABS, isAccTab } from './sections/accMenu';
 
 /* CODE-SPLIT (Fase 3 da auditoria): cada secção só descarrega quando é
  * aberta — o bundle inicial fica leve para Android de entrada. React.lazy +
@@ -75,6 +76,7 @@ const Employees = lazyRetry(() => import('./sections/Employees').then((m) => ({ 
 const Payroll = lazyRetry(() => import('./sections/Payroll').then((m) => ({ default: m.Payroll })));
 const Purchasing = lazyRetry(() => import('./sections/Purchasing').then((m) => ({ default: m.Purchasing })));
 const Accounting = lazyRetry(() => import('./sections/Accounting').then((m) => ({ default: m.Accounting })));
+const AccountingReports = lazyRetry(() => import('./sections/AccountingReports').then((m) => ({ default: m.AccountingReports })));
 const Assistant = lazyRetry(() => import('./sections/Assistant').then((m) => ({ default: m.Assistant })));
 const Cameras = lazyRetry(() => import('./sections/Cameras').then((m) => ({ default: m.Cameras })));
 const GodsEye = lazyRetry(() => import('./sections/GodsEye').then((m) => ({ default: m.GodsEye })));
@@ -154,7 +156,9 @@ export const TENANT_NAV: NavItem[] = [
   { key: 'reports-group', label: 'Relatórios', icon: IconChart, children: REPORT_TABS.map((t) => ({ key: reportSectionKey(t.key), label: t.label, icon: IconBars })) },
   {
     key: 'accounting-group', label: 'Contabilidade', icon: IconLedger, children: [
-      { key: 'accounting', label: 'Contabilidade', icon: IconLedger, min: 2 },
+      // Como no Vendus: os 6 relatórios de Contabilidade primeiro; depois as ferramentas do LPS.
+      ...ACC_TABS.map((t) => ({ key: t.key, label: t.label, icon: IconLedger, min: 2 })),
+      { key: 'accounting', label: 'Plano de Contas', icon: IconLedger, min: 2 },
       { key: 'profit', label: 'Lucros', icon: IconTrendUp, min: 2 },
       { key: 'expenses', label: 'Gastos', icon: IconReceipt, min: 2 },
       { key: 'cashflow', label: 'Fluxo de Caixa', icon: IconCoins, min: 2 },
@@ -465,6 +469,7 @@ function TenantPanel() {
       {section === 'payments' ? <Payments /> : null}
       {section === 'customers' ? <Customers /> : null}
       {section === 'accounting' ? <Accounting /> : null}
+      {isAccTab(section) ? <AccountingReports key={section} tab={section} /> : null}
       {section === 'cameras-config' ? <Cameras mode="config" /> : null}
       {section === 'cameras-live' ? <Cameras mode="live" /> : null}
       {section === 'cameras-map' ? <GodsEye /> : null}

@@ -2013,3 +2013,80 @@ html.touch-ui .admin.nav-rail .topbar::before { display: none !important; }
 .mv-dir span { font-size: 20px; font-weight: 700; line-height: 1; }
 .mv-dir .out { color: #e0384b; }
 .mv-dir .in { color: #16a34a; }
+
+/* AG Tributária: Histórico de exportações (como o do Vendus) */
+.vd-agt-hist { margin-top: 34px; }
+.vd-agt-hist h3 { margin: 0 0 10px; font-size: 24px; font-weight: 400; color: var(--text); }
+.vd-agt-ok { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.vd-agt-dl { display: inline-grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 4px; background: none; color: #1098f7; cursor: pointer; }
+.vd-agt-dl:hover { background: color-mix(in srgb, #1098f7 12%, transparent); }
+.vd-agt-dl:disabled { opacity: .5; cursor: default; }
+.vd-agt-pag { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; padding: 10px 12px; font-size: 13px; color: var(--muted); }
+.vd-agt-card:nth-child(4) { animation-delay: .15s; }
+
+/* AG Tributária: os 4 cartões cabem numa linha no desktop e quebram em ecrãs estreitos */
+.vd-agt-cards:not(.cfg) { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); max-width: 1060px; }
+.vd-agt-dl { width: 24px; height: 24px; margin: -4px 0; }
+
+/* Contabilidade (Vendus): filtros à esquerda (Ano, Mês, Tipos, Loja, Aplicar) e
+   Imprimir / Download PDF / Exportar CSV à direita; quadros «Total IVA» e «Total». */
+.acc-search { justify-content: space-between; align-items: flex-start; }
+.acc-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 8px; flex: 1 1 420px; min-width: 0; }
+.acc-fields .acc-year { flex: 0 1 90px; }
+.acc-fields .acc-month { flex: 0 1 130px; }
+.acc-fields .acc-range { flex: 1 1 360px; }
+.acc-dates { display: flex; align-items: stretch; min-width: 0; }
+.acc-dates input { flex: 1 1 0; min-width: 0; text-align: center; }
+.acc-ate { display: grid; place-items: center; padding: 0 12px; border: 1px solid var(--border); border-left: 0; border-right: 0; background: var(--surface); font-size: 14px; color: var(--muted); }
+.acc-apply { background: #1098f7; border-color: #1098f7; }
+.acc-custom { flex-basis: 100%; padding: 0; border: 0; background: none; color: #1098f7; font-size: 12px; text-align: left; cursor: pointer; }
+.acc-custom:hover { text-decoration: underline; }
+.acc-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; flex: 0 1 240px; }
+.acc-actions .vd-btn { background: var(--surface); }
+.acc-types { position: relative; flex: 0 1 200px; }
+.acc-types summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); cursor: pointer; list-style: none; font-size: 14px; white-space: nowrap; }
+.acc-types summary::-webkit-details-marker { display: none; }
+.acc-types summary::after { content: ""; border: 5px solid transparent; border-top-color: currentColor; margin-top: 5px; }
+.acc-types-list { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; min-width: 100%; width: max-content; max-width: min(280px, 90vw); display: grid; gap: 2px; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 8px 24px rgb(0 0 0 / .15); }
+.acc-types-list label { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-weight: 400; cursor: pointer; border-radius: 4px; }
+.acc-types-list label:hover { background: var(--surface-2); }
+.acc-types-list button { justify-self: start; margin-bottom: 4px; padding: 2px 6px; border: 0; background: none; color: #1098f7; font-size: 12px; cursor: pointer; }
+.acc-body { display: grid; gap: 16px; transition: opacity .15s; }
+.acc-body.is-loading { opacity: .55; }
+.acc-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 470px), 1fr)); gap: 16px 30px; }
+.vd-card.acc-box { padding: 0 20px 16px; border-radius: 0; min-width: 0; overflow: hidden; }
+.acc-hd { margin: 0 -20px 16px; padding: 14px 12px; font-size: 18px; font-weight: 400; background: var(--surface-2); color: var(--text); overflow-wrap: anywhere; }
+.acc-box > .ptable:first-child, .acc-box > .acc-note:first-child { margin-top: 16px; }
+.acc-mini th, .acc-mini td { white-space: nowrap; }
+.acc-table { width: 100%; }
+.acc-table td { vertical-align: top; }
+.acc-doc { display: block; color: #1098f7; font-weight: 400; }
+.acc-sub { display: block; font-size: 12.5px; color: var(--muted); }
+.acc-void td { color: var(--muted); text-decoration: line-through; }
+.acc-void td .acc-sub { text-decoration: none; }
+.acc-taxes { display: grid; gap: 2px; padding: 6px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; font-size: 13px; }
+.acc-taxes > span { display: grid; grid-template-columns: auto auto auto 1fr; gap: 10px; white-space: nowrap; }
+.acc-taxes .num { text-align: right; }
+.acc-note { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.acc-group + .acc-group { margin-top: 18px; }
+.acc-group h4 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
+@media (max-width: 600px) { .acc-actions { flex-basis: 100%; justify-content: stretch; } .acc-actions .vd-btn { flex: 1 1 auto; } .vd-card.acc-box { padding: 0 12px 12px; } .acc-hd { margin: 0 -12px 12px; } }
+/* Contabilidade: como no Vendus, o texto quebra linha (cabeçalhos «Tipos de / Pagamento», nomes);
+   só os valores ficam numa linha. Assim a tabela cabe sem passar a cartões. */
+.ptable.acc-table th, .ptable.acc-table td { white-space: normal !important; padding: 10px 6px !important; overflow-wrap: break-word; }
+.ptable.acc-table th.num, .ptable.acc-table td.num { white-space: nowrap !important; overflow-wrap: normal; }
+.ptable.acc-table .acc-taxes > span { gap: 8px; }
+.acc-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 12px; font-size: 13px; color: var(--muted); }
+/* Sub-itens do menu com nomes longos (ex.: «Mapa de Impostos Fornecedores») quebram linha
+   em vez de ficarem cortados; a linha cresce o que for preciso. */
+.admin .sidebar.vds .nav-sub button { white-space: normal !important; height: auto !important; min-height: var(--row) !important; padding-top: 4px !important; padding-bottom: 4px !important; overflow-wrap: anywhere; text-align: left; line-height: 1.2; }
+.ptable.acc-mini th, .ptable.acc-mini td { padding: 10px 8px !important; }
+.ptable.acc-mini td:first-child { white-space: normal; }
+.ptable.acc-table th:not(.num), .ptable.acc-table td:not(.num) { text-align: left !important; }
+.ptable.acc-table .nw { white-space: nowrap; }
+.ptable.acc-table .acc-taxes { font-size: 12.5px; padding: 4px 6px; }
+.ptable.acc-table .acc-taxes > span { gap: 6px; }
+.ptable.acc-mini th.num, .ptable.acc-mini td.num, .ptable.acc-table th.num, .ptable.acc-table td.num { text-align: right !important; }
+.ptable.acc-table, .ptable.acc-table th, .ptable.acc-table td { font-size: 13px !important; }
+.ptable.acc-table td.wrap { overflow-wrap: anywhere; }
+.ptable.acc-table tfoot th.num { white-space: normal !important; }

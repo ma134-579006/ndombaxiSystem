@@ -33,7 +33,9 @@ function label(table: HTMLTableElement): void {
 function fit(table: HTMLTableElement): void {
   const box = table.parentElement;
   if (!box || !table.tHead) return;
-  const avail = box.clientWidth;
+  // Espaço ÚTIL: sem o padding do contentor (antes a tabela podia invadir a margem do quadro).
+  const cs = getComputedStyle(box);
+  const avail = box.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
   if (avail <= 0) return;
   if (!table.classList.contains('is-stacked')) {
     const natural = table.scrollWidth;
@@ -66,7 +68,10 @@ export function initTableStack(): void {
     if (c === watched) return;
     ro?.disconnect();
     watched = c;
-    if (c) { ro = new ResizeObserver(schedule); ro.observe(c); }
+    // Só a LARGURA interessa: a altura muda a cada linha desenhada (tabelas longas) e
+    // reagir a isso refazia a medição de todas as tabelas sem necessidade.
+    let lastW = -1;
+    if (c) { ro = new ResizeObserver((es) => { const w = Math.round(es[0]?.contentRect.width ?? 0); if (w !== lastW) { lastW = w; schedule(); } }); ro.observe(c); }
   };
   new MutationObserver(watch).observe(document.body, { childList: true, subtree: true });
   watch();

@@ -338,10 +338,13 @@ export function readVendusPlan(data: unknown): { plan: string; expires: string; 
 
 /**
  * Período da subscrição Vendus a partir da data de fim, contado COMO NO
- * BACKOFFICE VENDUS (ex.: fim 21/12, hoje 24/11 → "Faltam 27 dias", 13%):
- * período mensal (ou anual se o fim estiver a mais de 40 dias), dias que
- * faltam arredondados para cima, o dia de hoje já conta como gasto e a
- * percentagem é arredondada PARA BAIXO (fim 21/12, hoje 25/11 → 5/30 = 16%).
+ * BACKOFFICE VENDUS (observado na conta real, fim 21/12/2026):
+ *   24/11 → "Faltam 27 dias", 13% · 25/11 → 26 dias, 16% · 26/11 → 25 dias, 19%.
+ * Ou seja: por DATAS de calendário (hora de Luanda); o período vai do mesmo dia
+ * do mês anterior (ou do ano anterior, se o fim estiver a mais de 40 dias) até ao
+ * fim, contando OS DOIS EXTREMOS (21/11 → 21/12 = 31 dias); dias gastos = de início
+ * até hoje inclusive; % = gastos ÷ total, arredondada ao inteiro mais próximo.
+ * (Antes dividia por 30 e arredondava para baixo: no 26/11 dava 20% em vez de 19%.)
  */
 export function vendusSubscriptionPeriod(expires: string, now = new Date()): {
   active: boolean; pct: number; leftPct: number; totalDays: number; usedDays: number; daysLeft: number; expiresAt: string | null;
@@ -351,17 +354,20 @@ export function vendusSubscriptionPeriod(expires: string, now = new Date()): {
   const pt = t.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (!iso && !pt) return null;
   const [y, mo, d] = iso ? [+iso[1], +iso[2], +iso[3]] : [+pt![3], +pt![2], +pt![1]];
-  // Fim à meia-noite de Luanda (UTC+1).
-  const end = Date.UTC(y, mo - 1, d) - 3600_000;
-  if (!Number.isFinite(end)) return null;
-  const annual = end - now.getTime() > 40 * 864e5;
-  const start = Date.UTC(annual ? y - 1 : y, annual ? mo - 1 : mo - 2, d) - 3600_000;
-  const totalDays = Math.max(1, Math.round((end - start) / 864e5));
-  if (end <= now.getTime()) return { active: false, pct: 100, leftPct: 0, totalDays, usedDays: totalDays, daysLeft: 0, expiresAt: new Date(end).toISOString() };
-  const daysLeft = Math.min(totalDays, Math.max(0, Math.ceil((end - now.getTime()) / 864e5)));
-  const usedDays = Math.min(totalDays, totalDays - daysLeft + 1);
-  const pct = Math.floor((usedDays / totalDays) * 100);
-  return { active: true, pct, leftPct: 100 - pct, totalDays, usedDays, daysLeft, expiresAt: new Date(end).toISOString() };
+  const endDay = Date.UTC(y, mo - 1, d);
+  if (!Number.isFinite(endDay)) return null;
+  const today = Date.parse(`${luandaToday(now)}T00:00:00Z`);
+  const annual = endDay - today > 40 * DAY;
+  const startDay = Date.UTC(annual ? y - 1 : y, annual ? mo - 1 : mo - 2, d);
+  const totalDays = Math.max(1, Math.round((endDay - startDay) / DAY) + 1);
+  // Fim à meia-noite de Luanda do dia seguinte ao último dia (o dia do fim ainda conta).
+  const expiresAt = new Date(endDay + DAY - 3_600_000).toISOString();
+  const daysLeft = Math.round((endDay - today) / DAY);
+  if (daysLeft < 0) return { active: false, pct: 100, leftPct: 0, totalDays, usedDays: totalDays, daysLeft: 0, expiresAt };
+  const left = Math.min(totalDays - 1, daysLeft);
+  const usedDays = totalDays - left;
+  const pct = Math.min(100, Math.round((usedDays / totalDays) * 100));
+  return { active: true, pct, leftPct: 100 - pct, totalDays, usedDays, daysLeft: left, expiresAt };
 }
 
 /**

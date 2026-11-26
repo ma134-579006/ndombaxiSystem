@@ -14,6 +14,7 @@ import {
 import { signedEntryDate } from '../common/luanda-date';
 import { AgtConfigService } from '../fiscal/agt-config.service';
 import { PrismaService } from '../prisma/prisma.service';
+import type { InventoryRow } from './inventory-file';
 
 interface InvoiceHeaderRow {
   id: string;
@@ -240,6 +241,17 @@ export class SaftService {
       after = { doc_type: last.doc_type, series: last.series, year: Number(last.year), sequence: Number(last.sequence) };
       if (page.headers.length < LOTE) return;
     }
+  }
+
+  /** Existências atuais (produtos ativos com stock controlado e quantidade ≠ 0) para o ficheiro de inventário. */
+  async inventoryRows(schema: string): Promise<InventoryRow[]> {
+    const rows = await this.prisma.runInTenant(schema, (tx) =>
+      tx.$queryRaw<Array<{ code: string; name: string; barcode: string | null; unit: string | null; qty: string; is_ingredient: boolean; is_production: boolean }>>(
+        Prisma.sql`SELECT code, name, barcode, unit, stock_qty AS qty, is_ingredient, is_production
+                   FROM products WHERE is_active = TRUE AND track_stock = TRUE AND stock_qty <> 0
+                   ORDER BY code`,
+      ));
+    return rows.map((r) => ({ code: r.code, name: r.name, barcode: r.barcode, unit: r.unit, qty: Number(r.qty), isIngredient: r.is_ingredient, isProduction: r.is_production }));
   }
 }
 

@@ -35,6 +35,13 @@ export function ColumnChart({
   const colX = (i: number) => padL + slot * i + (slot - bw) / 2;
   const barH = (v: number) => (v / max) * innerH;
   const trim = (s: string, k = 14) => (s.length > k ? s.slice(0, k - 1) + '…' : s);
+  // Muitas colunas (ex.: 24 horas): os rótulos não cabem e ficavam uns por cima dos outros.
+  // O valor só aparece se couber na coluna (senão vê-se no tooltip) e as etiquetas do
+  // eixo saltam de k em k. Larguras estimadas em unidades do viewBox (~0,6 em por carácter).
+  const valW = Math.max(...data.map((d) => format(d.value).length)) * 10 * 0.6;
+  const showVals = valW <= slot - 4;
+  const labW = Math.max(...data.map((d) => trim(d.label).length)) * 11 * 0.6;
+  const step = Math.max(1, Math.ceil(labW / Math.max(1, slot - 4)));
 
   return (
     <div style={{ width: '100%' }}>
@@ -62,8 +69,8 @@ export function ColumnChart({
               <rect x={x} y={yTop} width={bw} height={h} rx={6} fill={`url(#c-${uid})`}
                 opacity={hover === null || hover === i ? 1 : 0.55}
                 style={{ transformBox: 'fill-box', transformOrigin: 'bottom', animation: 'col-grow .55s cubic-bezier(.2,.7,.3,1) both', animationDelay: `${i * 60}ms` }} />
-              <text x={x + bw / 2} y={H - 26} textAnchor="middle" fontSize="11" fill="var(--muted)">{trim(d.label)}</text>
-              <text x={x + bw / 2} y={H - 12} textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--text)">{format(d.value)}</text>
+              {i % step === 0 ? <text x={x + bw / 2} y={H - 26} textAnchor="middle" fontSize="11" fill="var(--muted)">{trim(d.label)}</text> : null}
+              {showVals ? <text x={x + bw / 2} y={H - 12} textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--text)">{format(d.value)}</text> : null}
             </g>
           );
         })}

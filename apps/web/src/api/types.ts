@@ -1580,3 +1580,14 @@ export interface FiscalEngineTenantStatus {
 }
 export interface FiscalEngineSyncResult { created: number; linked: number; updated: number; skipped: number; errors: string[] }
 export interface FiscalEngineSaft { id: string; year: number; month: number; sha256: string; valid: boolean; issues: string[]; header: Record<string, string>; fetched_at?: string; fetchedAt?: string; size?: number }
+
+/** Contabilidade (como o Vendus): Listagem de Documentos, Mapa de Impostos, etc. */
+export interface AccDocRow { id: string; number: string; doc_type: string; date: string; status: string; customer_name: string | null; customer_tax_id: string | null; method: string; net: number; iva: number; gross: number; taxes: { code: string; rate: number; iva: number }[] }
+export interface AccDocuments { from: string; to: string; types: string[]; rows: AccDocRow[]; total: number; limit: number; ivaByType: { doc_type: string; rate: number; iva: number }[]; totalsByType: { doc_type: string; docs: number; net: number; iva: number; gross: number }[] }
+export interface AccTaxRow { doc_type?: string; code: string; rate: number; docs: number; iva: number; base: number; total: number }
+export interface AccTaxMap { from: string; to: string; rows: AccTaxRow[]; byType: AccTaxRow[] }
+export interface AccProductLine { id: string; line: number; number: string; doc_type: string; at: string; customer_name: string | null; customer_tax_id: string | null; code: string; description: string; qty: number; iva_code: string; rate: number; iva: number; base: number; unit: number; total: number }
+export interface AccProductLines { from: string; to: string; rows: AccProductLine[]; total: number; limit: number; totals: { qty: number; iva: number; base: number; total: number } }
+export interface AccDailySales { from: string; to: string; rows: { store_name: string; code: string; description: string; qty: number; net: number; gross: number }[] }
+export interface AccPaymentTypes { from: string; to: string; rows: { store_name: string; register: string; method: string; count: number; total: number }[] }
+export interface AccSupplierTaxMap { from: string; to: string; rows: { rate: number; label: string; products: number; iva: number; base: number; total: number }[] }
