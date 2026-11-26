@@ -111,7 +111,9 @@ export async function rememberOffline(input: {
 }): Promise<void> {
   if (!isNativeApp() || !cryptoOk()) return;
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const verifier = await deriveVerifier(input.password, salt, ITERATIONS);
+  // Melhor esforço (chamado com `void`): motor sem PBKDF2 não deixa erro por tratar.
+  let verifier: string;
+  try { verifier = await deriveVerifier(input.password, salt, ITERATIONS); } catch { return; }
   const vault = await readVault();
   vault[slot(input.companyCode, input.email)] = {
     companyCode: input.companyCode,
