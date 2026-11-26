@@ -779,3 +779,11 @@
 .vsub.warn { color: #f56e34; }
 .vsub.bad { color: #f20740; }
 @media (prefers-reduced-motion: reduce) { .vsub-ring { transition: none; } }
+
+/* Opções da venda (missão QA F3): título + ⊗ no painel do carrinho; em ecrã pequeno abrem na janela da Caixa. */
+.vopts-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 6px 4px 16px; color: #fff; font-size: 15px; font-weight: 600;
+  border-bottom: 1px solid rgba(255,255,255,.18); position: sticky; top: 0; z-index: 1; background: inherit; }
+.vopts .vopts-x { flex: none; width: 44px; height: 44px; padding: 0; justify-content: center; border: 0; border-radius: 50%; color: #fff; }
+.vopts .vopts-x:hover { background: rgba(255,255,255,.14); }
+.vopts.in-vw { position: static; inset: auto; overflow: visible; animation: none; border-radius: 4px; z-index: auto; }
+.vopts.in-vw button { min-height: 52px; }

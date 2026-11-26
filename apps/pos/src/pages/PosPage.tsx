@@ -25,7 +25,7 @@ import {
   IconUser,
 } from '../components/Icons';
 import { ReceiptModal } from '../components/ReceiptModal';
-import { VSearch } from '../components/VWindow';
+import { VSearch, VWindow } from '../components/VWindow';
 import { DiscountModal } from '../components/DiscountModal';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { SalesHistoryModal } from '../components/SalesHistoryModal';
@@ -229,6 +229,9 @@ function monoColor(name: string): string {
   return MONO[h % MONO.length];
 }
 
+/** Ecrãs onde as Opções da venda não cabem dentro do carrinho (abrem na janela da Caixa). */
+const OPTS_COMPACT = '(max-width: 900px), (max-height: 600px)';
+
 export function PosPage() {
   // "Permitir vender produtos sem stock" (escolha do gestor no painel).
   const sellNoStock = useSellWithoutStock();
@@ -359,6 +362,19 @@ export function PosPage() {
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [optsOpen, setOptsOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  // Telemóvel, tablet em pé ou janela baixa: as Opções abrem na janela da Caixa
+  // (com ⊗ e Esc). Dentro do carrinho ficavam cortadas — o «Cancelar Venda» não
+  // se via — e não havia forma clara de fechar (missão QA F3).
+  const [optsCompact, setOptsCompact] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(OPTS_COMPACT).matches);
+  useEffect(() => {
+    const m = window.matchMedia?.(OPTS_COMPACT);
+    if (!m) return;
+    const on = () => setOptsCompact(m.matches);
+    // Safari < 14 só tem addListener/removeListener.
+    if (m.addEventListener) m.addEventListener('change', on); else m.addListener(on);
+    return () => { if (m.removeEventListener) m.removeEventListener('change', on); else m.removeListener(on); };
+  }, []);
+  const fecharOpcoes = () => { setOptsOpen(false); setConfirmCancel(false); };
   const [openLine, setOpenLine] = useState<string | null>(null);
   useEffect(() => { api.categories().then(setCategories).catch(() => undefined); }, []);
   // Fecha os menus do topo e o de categorias ao clicar fora / Esc.
@@ -1152,6 +1168,28 @@ export function PosPage() {
     flashOk(`Pedido de ${order.label} no caixa — finalize a venda.`);
   };
 
+  // Itens das Opções da venda (carrinho em ecrã largo; janela da Caixa em ecrã pequeno).
+  const opcoesVenda = (
+    <>
+                  <button role="menuitem" onClick={() => { setOptsOpen(false); setShowCustomer(true); }}><IconUser size={18} /> {customer ? `Cliente: ${customer.name}` : 'Cliente'}</button>
+                  <button role="menuitem" onClick={() => { setOptsOpen(false); parkCurrent(); }} disabled={cart.length === 0}>
+                    <svg width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M20.12 8.71l-4.83-4.83A3 3 0 0 0 13.17 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-7.17a3 3 0 0 0-.88-2.12zM10 19v-2h4v2zm9-1a1 1 0 0 1-1 1h-2v-3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2v5a1 1 0 0 0 1 1h4a1 1 0 0 0 0-2h-3V5h3.17a1.05 1.05 0 0 1 .71.29l4.83 4.83a1 1 0 0 1 .29.71z" /></svg> Nova Venda
+                  </button>
+                  {parked.length > 0 ? (
+                    <button role="menuitem" onClick={() => { setOptsOpen(false); setShowParked(true); }}><IconReceipt size={18} /> Vendas suspensas ({parked.length})</button>
+                  ) : null}
+                  {identity?.businessType === 'RESTAURANT' && session && sync.online ? (
+                    <button role="menuitem" onClick={() => { setOptsOpen(false); void fireToKitchen(); }} disabled={cart.length === 0 || firing || emitting}><IconReceipt size={18} /> {firing ? 'A enviar…' : 'Enviar para cozinha'}</button>
+                  ) : null}
+                  {!session && sync.online ? (
+                    <button role="menuitem" onClick={() => { setOptsOpen(false); setShowShift(true); }}><IconReceipt size={18} /> Abrir Caixa</button>
+                  ) : null}
+                  <button role="menuitem" onClick={() => { if (confirmCancel) { setCart([]); setCartSel(new Set()); setCustomer(null); setConfirmCancel(false); setOptsOpen(false); } else setConfirmCancel(true); }} disabled={cart.length === 0}>
+                    <svg width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 13.43a1 1 0 0 0-1.25.65A7.14 7.14 0 0 1 12.18 19 7.1 7.1 0 0 1 5 12a7.1 7.1 0 0 1 7.18-7 7.26 7.26 0 0 1 4.65 1.67l-2.17-.36a1 1 0 0 0-1.15.83 1 1 0 0 0 .83 1.15l4.24.7h.17a1 1 0 0 0 .34-.06.33.33 0 0 0 .1-.06.78.78 0 0 0 .2-.11l.09-.11c0-.05.09-.09.13-.15s0-.1.05-.14a1.34 1.34 0 0 0 .07-.18l.75-4a1 1 0 0 0-2-.38l-.27 1.45A9.21 9.21 0 0 0 12.18 3 9.1 9.1 0 0 0 3 12a9.1 9.1 0 0 0 9.18 9A9.12 9.12 0 0 0 21 14.68a1 1 0 0 0-.7-1.25z" /></svg> {confirmCancel ? 'Confirmar: cancelar venda' : 'Cancelar Venda'}
+                  </button>
+    </>
+  );
+
   return (
     <div className="app-bg">
       <div className="pos">
@@ -1350,25 +1388,21 @@ export function PosPage() {
               <button onClick={() => parked.length && resumeParked(parked[0].id)} disabled={parked.length === 0} aria-label="Venda seguinte">›</button>
             </div>
 
+            {optsOpen && optsCompact ? (
+              <VWindow title="Opções" narrow onClose={fecharOpcoes}>
+                <div className="vopts in-vw" role="menu" aria-label="Opções">{opcoesVenda}</div>
+              </VWindow>
+            ) : null}
             <div className="vcart-box">
-              {optsOpen ? (
-                <div className="vopts" role="menu">
-                  <button role="menuitem" onClick={() => { setOptsOpen(false); setShowCustomer(true); }}><IconUser size={18} /> {customer ? `Cliente: ${customer.name}` : 'Cliente'}</button>
-                  <button role="menuitem" onClick={() => { setOptsOpen(false); parkCurrent(); }} disabled={cart.length === 0}>
-                    <svg width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M20.12 8.71l-4.83-4.83A3 3 0 0 0 13.17 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-7.17a3 3 0 0 0-.88-2.12zM10 19v-2h4v2zm9-1a1 1 0 0 1-1 1h-2v-3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2v5a1 1 0 0 0 1 1h4a1 1 0 0 0 0-2h-3V5h3.17a1.05 1.05 0 0 1 .71.29l4.83 4.83a1 1 0 0 1 .29.71z" /></svg> Nova Venda
-                  </button>
-                  {parked.length > 0 ? (
-                    <button role="menuitem" onClick={() => { setOptsOpen(false); setShowParked(true); }}><IconReceipt size={18} /> Vendas suspensas ({parked.length})</button>
-                  ) : null}
-                  {identity?.businessType === 'RESTAURANT' && session && sync.online ? (
-                    <button role="menuitem" onClick={() => { setOptsOpen(false); void fireToKitchen(); }} disabled={cart.length === 0 || firing || emitting}><IconReceipt size={18} /> {firing ? 'A enviar…' : 'Enviar para cozinha'}</button>
-                  ) : null}
-                  {!session && sync.online ? (
-                    <button role="menuitem" onClick={() => { setOptsOpen(false); setShowShift(true); }}><IconReceipt size={18} /> Abrir Caixa</button>
-                  ) : null}
-                  <button role="menuitem" onClick={() => { if (confirmCancel) { setCart([]); setCartSel(new Set()); setCustomer(null); setConfirmCancel(false); setOptsOpen(false); } else setConfirmCancel(true); }} disabled={cart.length === 0}>
-                    <svg width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 13.43a1 1 0 0 0-1.25.65A7.14 7.14 0 0 1 12.18 19 7.1 7.1 0 0 1 5 12a7.1 7.1 0 0 1 7.18-7 7.26 7.26 0 0 1 4.65 1.67l-2.17-.36a1 1 0 0 0-1.15.83 1 1 0 0 0 .83 1.15l4.24.7h.17a1 1 0 0 0 .34-.06.33.33 0 0 0 .1-.06.78.78 0 0 0 .2-.11l.09-.11c0-.05.09-.09.13-.15s0-.1.05-.14a1.34 1.34 0 0 0 .07-.18l.75-4a1 1 0 0 0-2-.38l-.27 1.45A9.21 9.21 0 0 0 12.18 3 9.1 9.1 0 0 0 3 12a9.1 9.1 0 0 0 9.18 9A9.12 9.12 0 0 0 21 14.68a1 1 0 0 0-.7-1.25z" /></svg> {confirmCancel ? 'Confirmar: cancelar venda' : 'Cancelar Venda'}
-                  </button>
+              {optsOpen && !optsCompact ? (
+                <div className="vopts" role="menu" aria-label="Opções">
+                  <div className="vopts-h">
+                    <span>Opções</span>
+                    <button type="button" className="vopts-x" onClick={fecharOpcoes} aria-label="Fechar">
+                      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
+                    </button>
+                  </div>
+                  {opcoesVenda}
                 </div>
               ) : !session && sync.online ? (
                 <ClosedCash onOpened={async () => {
