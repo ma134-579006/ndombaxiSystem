@@ -284,15 +284,22 @@ function arquivarApi(destino) {
   if (process.platform !== 'win32') { log('api.zip: só na build de Windows — mantém-se a pasta resources/api'); return; }
   const tar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
   const zip = path.join(resources, 'api.zip');
-  fs.rmSync(zip, { force: true });
-  execSync(`"${tar}" -a -c -L -f "${zip}" -C "${resources}" api`, { stdio: 'inherit' });
   const prova = path.join(resources, '.prova-api-zip');
-  fs.rmSync(prova, { recursive: true, force: true });
-  fs.mkdirSync(prova, { recursive: true });
-  execSync(`"${tar}" -x -f "${zip}" -C "${prova}"`, { stdio: 'inherit' });
   const esperado = contarReais(destino);
-  const obtido = contarReais(path.join(prova, 'api'));
-  fs.rmSync(prova, { recursive: true, force: true });
+  // O tar.exe do runner falha raramente um ficheiro (1 em ~15 700, sem dar erro): arquiva
+  // de novo até 3 vezes antes de desistir — o instalador nunca sai com a API incompleta.
+  let obtido = -1;
+  for (let tentativa = 1; tentativa <= 3; tentativa++) {
+    fs.rmSync(zip, { force: true });
+    execSync(`"${tar}" -a -c -L -f "${zip}" -C "${resources}" api`, { stdio: 'inherit' });
+    fs.rmSync(prova, { recursive: true, force: true });
+    fs.mkdirSync(prova, { recursive: true });
+    execSync(`"${tar}" -x -f "${zip}" -C "${prova}"`, { stdio: 'inherit' });
+    obtido = contarReais(path.join(prova, 'api'));
+    fs.rmSync(prova, { recursive: true, force: true });
+    if (obtido === esperado && fs.existsSync(zip)) break;
+    log(`api.zip: tentativa ${tentativa} com ${obtido} de ${esperado} ficheiros — a repetir`);
+  }
   if (obtido !== esperado || !fs.existsSync(zip)) {
     throw new Error(`api.zip incompleto: ${obtido} de ${esperado} ficheiros.`);
   }
