@@ -25,3 +25,15 @@
 ## Não verificado
 - Navegadores antigos REAIS (Safari 12–15 em iPad, WebView Android antiga). A simulação cobre só as regras CSS; o JS sai em ES2019 no build (`vite.config.ts`).
 - Fundos `color-mix()` em `theme.css` fora da Caixa (cartões, chat): sem impacto de leitura, exceto a bolha do chat, já corrigida.
+
+## Teste em motores antigos REAIS (pedido do utilizador)
+Motores oficiais do CDN do Playwright (Microsoft): **Chromium 93.0.4530** (rev. 888113, Blink, como as WebViews Android antigas) e **WebKit 14.2** (rev. 1492, o motor do Safari 14, em Windows/WinCairo), conduzidos pelo `playwright-core@1.12.3`. Confirmado em execução: nenhum dos dois suporta `dvh`, `:has()` ou `color-mix()`. Os testes correm contra o **build de produção** da Caixa (JS em ES2019), servido localmente com proxy para a API de QA. Script: `qa/navegadores-antigos.mjs`.
+
+| Alvo | Resultado |
+|---|---|
+| main (build de fce1981) | **1/13** — TOTAL/Opções/FINALIZAR fora do ecrã nos 4 tablets nos dois motores (no WebKit a página crescia +8000 px), janelas com fundo transparente (`rgba(0,0,0,0)`), erro de JS por tratar no WebKit |
+| correção (build final) | **14/14 PASS** — carrinho cabe, TOTAL com fundo, lista rola, ✕ 40 px, Opções com ⊗ e «Cancelar Venda» visível no telemóvel, Finalizar fecha, sem erros de JS |
+
+Achado extra (QA-016): `rememberOffline` (credencial para entrar sem rede) é chamado com `void` no login, mas a falha do PBKDF2 não era apanhada. O WebKit 14.2 para Windows não suporta PBKDF2 e isso dava `NotSupportedError` por tratar. Corrigido na Caixa e na Gestão (melhor esforço de verdade; `verifyOffline` devolve «indisponível»). O Safari 14 verdadeiro suporta PBKDF2, por isso no iPad real este erro não deve acontecer.
+
+Limites: o WebKit 14.2 corre em Windows (não é um iPad físico) e a renderização de fontes do WinCairo difere da do Safari. Dispositivos físicos continuam por testar pelo utilizador.

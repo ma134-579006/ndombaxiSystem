@@ -108,7 +108,10 @@ export async function rememberOffline(input: {
 }): Promise<void> {
   if (!cryptoOk()) return;
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const verifier = await deriveVerifier(input.pin, salt, ITERATIONS);
+  // Melhor esforço DE VERDADE: é chamado com `void` no login. Um motor sem PBKDF2
+  // (visto no WebKit 14 para Windows) rejeitava aqui e ficava um erro por tratar.
+  let verifier: string;
+  try { verifier = await deriveVerifier(input.pin, salt, ITERATIONS); } catch { return; }
   const vault = await readVault();
   vault[slot(input.companyCode, input.email)] = {
     companyCode: input.companyCode,
@@ -125,6 +128,10 @@ export async function rememberOffline(input: {
 
 /** Verifica o PIN sem rede. Tenta a empresa dada; senão procura pelo e-mail. */
 export async function verifyOffline(email: string, pin: string, companyCode?: string | null): Promise<VerifyOffline> {
+  try { return await verifyOfflineInner(email, pin, companyCode); }
+  catch { return { ok: false, reason: 'unavailable' }; } // motor sem PBKDF2: sem login offline, sem rebentar
+}
+async function verifyOfflineInner(email: string, pin: string, companyCode?: string | null): Promise<VerifyOffline> {
   if (!cryptoOk()) return { ok: false, reason: 'unavailable' };
   const vault = await readVault();
   const em = email.trim().toLowerCase();
