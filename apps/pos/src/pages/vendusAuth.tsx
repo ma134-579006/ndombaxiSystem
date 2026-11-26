@@ -165,8 +165,22 @@ export function useFitHeight<T extends HTMLElement>(pad = 24): React.RefObject<T
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // TECLADO NO ECRÃ (telemóvel/tablet): com `interactive-widget=resizes-content`
+    // a janela encolhe quando o teclado abre. Encolher o cartão para caber acima
+    // dele deformava o login (zoom ~0,6, letras minúsculas). Com um campo em edição
+    // e só a ALTURA a diminuir, mantém-se o tamanho: o contentor (.va) rola e o
+    // campo sobe para a zona visível (touchUi.ts). Ao fechar o teclado ou rodar o
+    // ecrã volta a ajustar.
+    let base = { w: window.innerWidth, h: window.innerHeight };
+    const tecladoAberto = () => {
+      const a = document.activeElement as HTMLElement | null;
+      return !!a && !!a.matches?.('input, textarea, select, [contenteditable="true"]')
+        && window.innerWidth === base.w && window.innerHeight < base.h - 80;
+    };
     // Síncrono (sem requestAnimationFrame, que pára com a janela em segundo plano).
     const fit = () => {
+      if (tecladoAberto()) return;
+      base = { w: window.innerWidth, h: window.innerHeight };
       el.style.zoom = '';
       const h = el.scrollHeight;
       const avail = window.innerHeight - pad * 2;

@@ -68,7 +68,9 @@ export function LoginPage() {
   const fitRef = useFitHeight<HTMLDivElement>();
   const g = look?.google; const f = look?.facebook;
   const showGoogle = g?.enabled !== false;
-  const showFacebook = f?.enabled !== false && !isNativeApp;
+  // Sem App ID publicado (Facebook Login por configurar no Super Admin) o botão não aparece:
+  // antes aparecia e só dava erro ao carregar.
+  const showFacebook = f?.enabled !== false && !isNativeApp && !!pub?.facebookAppId;
 
   const startSocial = async (kind: 'google' | 'facebook') => {
     setError(null);

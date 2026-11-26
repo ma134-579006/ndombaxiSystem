@@ -126,7 +126,8 @@ export function Login({ onBack, onRegister }: { onBack?: () => void; onRegister?
   const openSignupInBrowser = () => window.open('https://lpsvendas.com.de/', '_blank');
   const g = look?.google; const f = look?.facebook;
   const showGoogle = g?.enabled !== false;
-  const showFacebook = f?.enabled !== false && !k.native;
+  // Sem App ID publicado (Facebook Login por configurar) o botão não aparece.
+  const showFacebook = f?.enabled !== false && !k.native && !!pub?.facebookAppId;
 
   return (
     <div className="va" style={lookVars(look)}>
