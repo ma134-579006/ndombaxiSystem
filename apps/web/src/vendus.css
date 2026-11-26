@@ -2129,3 +2129,6 @@ html.touch-ui .admin.nav-rail .topbar::before { display: none !important; }
 .us-opt-list button.danger { color: var(--danger, #d92d20); }
 .us-table tbody tr:has(.us-opt[open]) { position: relative; z-index: 30; }
 .us-table tbody tr { animation: none; }
+
+/* Painéis (CONFIG…): um grupo aberto ocupa o painel inteiro em qualquer largura — as linhas cabem sem scroll; tocar no cabeçalho volta à lista. */
+.admin .sidebar.vds .nav.nav-painel.has-open > :not(.is-open) { display: none !important; }

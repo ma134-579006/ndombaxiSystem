@@ -631,16 +631,26 @@ function AccessModal({
  * registados no terminal que são descontados no salário (motivo: consumo
  * próprio). Mostra o que está por descontar e o histórico já processado.
  */
-function ConsumptionsPanel() {
+export function SelfConsumption() {
+  return (
+    <div className="vd-page">
+      <div className="vd-head"><p className="vd-crumb"><span style={{ color: 'var(--primary)' }}>Configuração</span><span className="sep">/</span><span>Autoconsumo</span></p></div>
+      <p className="muted" style={{ margin: '0 0 12px' }}>Produtos consumidos pelos funcionários (registados no terminal como consumo próprio) e descontados no salário.</p>
+      <ConsumptionsPanel page />
+    </div>
+  );
+}
+
+function ConsumptionsPanel({ page = false }: { page?: boolean } = {}) {
   const [rows, setRows] = useState<EmployeeConsumption[] | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(page);
   useEffect(() => { api.hr.consumptions().then(setRows).catch(() => setRows([])); }, []);
   if (rows == null) return null;
   const pending = rows.filter((r) => r.status === 'PENDING');
   const pendingTotal = pending.reduce((s, r) => s + Number(r.total), 0);
-  if (rows.length === 0) return null;
+  if (rows.length === 0) return page ? <div className="vd-card"><div className="vd-empty">Ainda não há consumos próprios registados.</div></div> : null;
   return (
-    <div className="card" style={{ marginTop: 16 }}>
+    <div className="card" style={{ marginTop: page ? 0 : 16 }}>
       <div className="row" style={{ alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen((v) => !v)}>
         <h3 style={{ margin: 0 }}>Consumo próprio</h3>
         <span className="spacer" />
