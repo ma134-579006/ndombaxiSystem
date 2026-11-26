@@ -5,6 +5,7 @@ import { formatKz } from '../format';
 import { BarcodeScanner } from './BarcodeScanner';
 import { VWindow } from './VWindow';
 import { useAuth } from '../auth/AuthContext';
+import { sellWithoutStockNow } from '../stockPolicy';
 
 function grossUnit(p: Product): number {
   return Number(p.unit_price) * (1 + IVA_RATE[p.iva_code] / 100);
@@ -129,7 +130,7 @@ export function SelfConsumptionModal({ products, onClose }: { products: Product[
         <div className="vw-results">
           {filtered.length === 0 ? <div className="vw-empty">Sem resultados</div> : filtered.map((p) => (
             <button key={p.id} type="button" className={`vw-res${inCart(p.id) ? ' sel' : ''}`} onClick={() => { addToCart(p); setSearch(''); }}>
-              <span className="nm">{p.name}<small>{p.code} · stock {Number(p.stock_qty)}</small></span>
+              <span className="nm">{p.name}<small>{p.code}{sellWithoutStockNow() ? '' : ` · stock ${Number(p.stock_qty)}`}</small></span>
               <b>{formatKz(grossUnit(p))}</b>
             </button>
           ))}
