@@ -1191,7 +1191,7 @@ export function PosPage() {
   );
 
   return (
-    <div className="app-bg">
+    <div className="app-bg app-bg-pos">
       <div className="pos">
         {/* Barra de topo no padrão do POS de referência: ☰ + marca à esquerda;
             menus Autoconsumo / Caixa / Documentos e o operador à direita.
