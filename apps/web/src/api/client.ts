@@ -1584,8 +1584,13 @@ export const api = {
     },
     categories: () => request<{ id: string; name: string }[]>('GET', '/erp/stock/categories'),
     createCategory: (name: string) => request<{ id: string; name: string }>('POST', '/erp/stock/categories', { name }),
-    analysis: (f: { from?: string; to?: string; warehouseId?: string; categoryId?: string; state?: string } = {}) => {
+    brands: () => request<string[]>('GET', '/erp/stock/brands'),
+    analysis: (f: { from?: string; to?: string; warehouseId?: string; categoryId?: string; state?: string; warehouseIds?: string[]; categoryIds?: string[]; brands?: string[]; states?: string[] } = {}) => {
       const p = new URLSearchParams();
+      if (f.warehouseIds?.length) p.set('warehouseIds', f.warehouseIds.join(','));
+      if (f.categoryIds?.length) p.set('categoryIds', f.categoryIds.join(','));
+      if (f.brands?.length) p.set('brands', f.brands.join('|')); // «|»: há marcas com vírgula no nome
+      if (f.states?.length) p.set('states', f.states.join(','));
       if (f.from) p.set('from', f.from);
       if (f.to) p.set('to', f.to);
       if (f.warehouseId) p.set('warehouseId', f.warehouseId);

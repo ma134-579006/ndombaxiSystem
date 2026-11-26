@@ -117,6 +117,16 @@ export class ErpRepository {
     );
   }
 
+  /** Marcas usadas nos produtos ativos (filtro «Marcas» da Análise de Stock). */
+  listBrands(schema: string): Promise<string[]> {
+    return this.prisma.runInTenant(schema, async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ brand: string }>>(
+        Prisma.sql`SELECT DISTINCT brand FROM products WHERE is_active = TRUE AND COALESCE(brand, '') <> '' ORDER BY brand LIMIT 1000`,
+      );
+      return rows.map((x) => x.brand);
+    });
+  }
+
   /** Cria (ou reutiliza, sem duplicar) uma categoria de produto pelo nome. */
   createCategory(schema: string, name: string): Promise<{ id: string; name: string }> {
     const clean = name.trim();

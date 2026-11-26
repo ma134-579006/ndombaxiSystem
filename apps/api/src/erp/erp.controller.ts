@@ -94,6 +94,12 @@ export class ErpController {
     return this.repo.listCategories(this.ctx.requireTenantSchema());
   }
 
+  @Get('stock/brands')
+  @ApiOperation({ summary: 'Marcas dos produtos (para filtros)' })
+  listBrands() {
+    return this.repo.listBrands(this.ctx.requireTenantSchema());
+  }
+
   @Post('stock/categories')
   @Roles(Role.STORE_MANAGER)
   @ApiOperation({ summary: 'Cria uma categoria de produto' })
@@ -112,8 +118,17 @@ export class ErpController {
     @Query('warehouseId') warehouseId?: string,
     @Query('categoryId') categoryId?: string,
     @Query('state') state?: 'all' | 'positive' | 'zero' | 'negative' | 'low',
+    @Query('warehouseIds') warehouseIds?: string,
+    @Query('categoryIds') categoryIds?: string,
+    @Query('brands') brands?: string,
+    @Query('states') states?: string,
   ) {
-    return this.stock.stockAnalysis(this.ctx.requireTenantSchema(), { from, to, warehouseId, categoryId, state });
+    const list = (v?: string, sep = ',') => (v ? v.split(sep).map((x) => x.trim()).filter(Boolean) : undefined);
+    const sts = list(states)?.filter((x): x is 'positive' | 'nonpositive' | 'low' => x === 'positive' || x === 'nonpositive' || x === 'low');
+    return this.stock.stockAnalysis(this.ctx.requireTenantSchema(), {
+      from, to, warehouseId, categoryId, state,
+      warehouseIds: list(warehouseIds), categoryIds: list(categoryIds), brands: list(brands, '|'), states: sts,
+    });
   }
 
   @Post('stock/adjust')

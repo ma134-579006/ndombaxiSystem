@@ -2090,3 +2090,24 @@ html.touch-ui .admin.nav-rail .topbar::before { display: none !important; }
 .ptable.acc-table, .ptable.acc-table th, .ptable.acc-table td { font-size: 13px !important; }
 .ptable.acc-table td.wrap { overflow-wrap: anywhere; }
 .ptable.acc-table tfoot th.num { white-space: normal !important; }
+
+/* Produtos › Análise de Stock (Vendus): formulário «Criar Relatório» em linhas rótulo | campo. */
+.sa-form { display: grid; gap: 18px; padding: 4px 0 8px; }
+.sa-row { display: grid; grid-template-columns: minmax(0, 230px) minmax(0, 430px); gap: 6px 15px; align-items: start; }
+.sa-row > label, .sa-row > .sa-lbl { padding-top: 7px; font-size: 14px; font-weight: 700; text-align: right; color: var(--text); }
+.sa-row select.vd-in { width: 100%; height: 34px; }
+.sa-help { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.sa-pick { flex: none; width: 100%; }
+.sa-pick .acc-types-list { max-height: 260px; overflow-y: auto; }
+.sa-go { background: #1098f7; border-color: #1098f7; }
+.sa-res-hd { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.sa-res-hd > span:first-child { flex: 1 1 auto; min-width: 0; }
+.sa-res-act { display: flex; flex-wrap: wrap; gap: 6px; }
+.sa-res-act .vd-btn { background: var(--surface); }
+.sa-sum { margin: 0 0 12px; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.sa-neg { color: var(--danger, #d92d20) !important; }
+.sa-alert { display: inline-flex; align-items: center; gap: 4px; color: #e87d00; font-weight: 700; white-space: nowrap; }
+.sa-about-p { margin: 0 0 10px; }
+@media (max-width: 640px) { .sa-row { grid-template-columns: minmax(0, 1fr); } .sa-row > label, .sa-row > .sa-lbl { text-align: left; padding-top: 0; } .sa-row > span:empty { display: none; } }
+.ptable.acc-table.sa-table th.num { white-space: normal !important; }
+.ptable.acc-table.sa-table td.wrap { min-width: 150px; }

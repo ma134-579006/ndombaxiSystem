@@ -7,16 +7,14 @@ import type {
 import { IconChart, IconCube, IconSearch, IconShield, IconTruck } from '../components/Icons';
 import { formatKz, localIso } from '../format';
 import { Inventory } from './Inventory';
-import { StockAnalysis } from './StockAnalysis';
 
 const isoMinusDays = (d: number) => localIso(new Date(Date.now() - d * 86400000));
 const todayISO = () => localIso();
 const fmtDT = (s: string) => { try { return new Date(s).toLocaleString('pt-PT'); } catch { return s; } };
 
-type Tab = 'stock' | 'analysis' | 'abc' | 'replenish' | 'valuation' | 'fraud' | 'transfers' | 'locations' | 'audit';
+type Tab = 'stock' | 'abc' | 'replenish' | 'valuation' | 'fraud' | 'transfers' | 'locations' | 'audit';
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'stock', label: 'Stock' },
-  { id: 'analysis', label: 'Análise' },
   { id: 'abc', label: 'Curva ABC' },
   { id: 'replenish', label: 'Reposição' },
   { id: 'valuation', label: 'Valorização' },
@@ -47,7 +45,6 @@ export function InventoryIntel({ role }: { role?: string }) {
       {/* Stock e Análise: o inventário básico + a análise, agora ABAS do mesmo
           Inventário (deixou de haver 'Inventário' e 'Inventário PRO' separados). */}
       {tab === 'stock' ? <Inventory /> : null}
-      {tab === 'analysis' ? <StockAnalysis /> : null}
       {tab === 'abc' ? <AbcTab stores={stores} /> : null}
       {tab === 'replenish' ? <ReplenishTab stores={stores} /> : null}
       {tab === 'valuation' ? <ValuationTab stores={stores} /> : null}

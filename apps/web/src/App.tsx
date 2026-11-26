@@ -133,10 +133,10 @@ export const TENANT_NAV: NavItem[] = [
   {
     key: 'products-group', label: 'Produtos', icon: IconBag, children: [
       { key: 'products', label: 'Produtos', icon: IconBag },
-      // Inventário ÚNICO (o antigo 'Inventário' + 'Inventário PRO' + 'Análise de
-      // stock' são agora ABAS dentro desta secção — ver InventoryIntel).
+      // Como no Vendus: Produtos, Análise de Stock, (Inventário com as abas PRO), Movimentos de Stock.
+      { key: 'stock-analysis', label: 'Análise de Stock', icon: IconBoxes },
       { key: 'inventory', label: 'Inventário', icon: IconBoxes },
-      { key: 'stock-movements', label: 'Movimentos de stock', icon: IconHistory },
+      { key: 'stock-movements', label: 'Movimentos de Stock', icon: IconHistory },
     ],
   },
   {
@@ -461,7 +461,8 @@ function TenantPanel() {
       {section === 'products' ? <Products /> : null}
       {/* Inventário ÚNICO com abas (Stock, Análise, ABC, Reposição, Valorização,
           Antifraude, Transferências, Localização, Auditoria). */}
-      {section === 'inventory' || section === 'inventory-intel' || section === 'stock-analysis' ? <InventoryIntel role={user?.role} /> : null}
+      {section === 'inventory' || section === 'inventory-intel' ? <InventoryIntel role={user?.role} /> : null}
+      {section === 'stock-analysis' ? <StockAnalysis onGo={setSection} /> : null}
       {section === 'stock-movements' ? <StockMovements /> : null}
       {section === 'purchasing' || section === 'purchasing-suppliers' ? <Purchasing key={section} view={section === 'purchasing-suppliers' ? 'suppliers' : 'orders'} onGo={setSection} /> : null}
       {section === 'orders' ? <Orders /> : null}
