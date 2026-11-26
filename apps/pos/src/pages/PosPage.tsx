@@ -1,4 +1,4 @@
-import { useSellWithoutStock } from '../stockPolicy';
+import { sellWithoutStockNow, useSellWithoutStock } from '../stockPolicy';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SubscriptionRing } from '../components/SubscriptionRing';
 import { VendusSeal } from '../components/VendusSeal';
@@ -667,7 +667,7 @@ export function PosPage() {
     // online por confirmar. O cliente físico tem prioridade, mas o caixa é
     // avisado para o conflito não passar despercebido (a mesma água vendida 2×).
     const reserved = Math.max(0, Math.floor(Number(p.reserved ?? 0)));
-    if (!madeToOrder && !p.is_production && reserved > 0 && current + 1 > stock - reserved) {
+    if (!madeToOrder && !p.is_production && !sellNoStock && reserved > 0 && current + 1 > stock - reserved) {
       flashError(`"${p.name}": ${reserved} reservado(s) para encomenda online. Confirme antes de vender.`);
       // não faz return — a venda continua (prioridade ao cliente presente).
     }
@@ -908,8 +908,8 @@ export function PosPage() {
             // na mesma (não descartar por stock<=0). Ver reconciliação acima.
             const madeToOrder = !!p.has_recipe || p.track_stock === false;
             const stock = Number(p.stock_qty);
-            if (!madeToOrder && stock <= 0) continue;
-            lines.push({ product: p, quantity: madeToOrder ? d.quantity : Math.min(d.quantity, stock) });
+            if (!madeToOrder && !sellWithoutStockNow() && stock <= 0) continue;
+            lines.push({ product: p, quantity: madeToOrder || sellWithoutStockNow() ? d.quantity : Math.min(d.quantity, stock) });
           }
           if (lines.length) { fromServerRef.current = true; setCart(lines); }
           if (draft.customerId) {
@@ -1314,18 +1314,19 @@ export function PosPage() {
                     // Sem triângulo nem "em stock" nos pratos sob encomenda e nos
                     // artigos com "Controlar stock: Não" (serviços).
                     const madeToOrder = !!p.has_recipe || p.track_stock === false;
+                    // «Vender sem stock» ligado: o stock deixa de interessar à venda — sem número nem triângulo.
+                    const hideStock = madeToOrder || sellNoStock;
                     const out = !madeToOrder && stock <= 0;
                     // Como no POS de referência: triângulo no canto — verde com
                     // stock, laranja com pouco (≤5), vermelho esgotado; sem
                     // triângulo nos pratos sob encomenda. Sem dica ao passar o rato.
                     const stockCls = madeToOrder ? '' : out ? ' no' : stock <= 5 ? ' alert' : '';
-                    // Com "vender sem stock" ligado mostra o saldo real (pode ser 0 ou negativo).
-                    const qtyTx = out && !sellNoStock ? 'Esgotado' : formatNumber(stock);
-                    const label = `${p.name}${madeToOrder ? '' : ` · ${out && !sellNoStock ? 'Esgotado' : `${formatNumber(stock)} em stock`}`}`;
+                    const qtyTx = out ? 'Esgotado' : formatNumber(stock);
+                    const label = `${p.name}${hideStock ? '' : ` · ${out ? 'Esgotado' : `${formatNumber(stock)} em stock`}`}`;
                     return (
                       <button key={p.id} className={`vtile${p.image_url ? ' img' : ''}${regCfg.showReference ? ' ref' : ''}`} onClick={() => addToCart(p)} aria-label={label}>
                         {p.image_url ? <img src={p.image_url} alt="" loading="lazy" /> : null}
-                        {madeToOrder ? null : <>
+                        {hideStock ? null : <>
                           <span className={`vt-stock${stockCls}`} aria-hidden="true" /><span className="vt-stock line" aria-hidden="true" />
                           {/* Quantidade disponível — mesma cor do triângulo (verde / laranja / vermelho). */}
                           <span className={`vt-qty${stockCls}`} aria-hidden="true">{qtyTx}</span>
