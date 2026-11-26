@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { installModalClose } from './modalClose';
+import { installFieldLabels } from './fieldLabels';
 import { installBigScreen } from './bigScreen';
 import { App } from './App';
 import '@nexus/tokens/tokens.css';
@@ -47,6 +48,7 @@ const container = document.getElementById('root');
 if (!container) throw new Error('Elemento #root não encontrado');
 
 installModalClose();
+installFieldLabels(); // rótulos dos formulários ligados aos campos (leitor de ecrã, toque no rótulo)
 installBigScreen();
 createRoot(container).render(
   <React.StrictMode>

@@ -37,7 +37,7 @@ iPhone/Android/tablet físico fica marcado como `UNVERIFIED (dispositivo real)` 
 2. Login e registo (Google, Facebook, teclado virtual no telemóvel) — [F2](F2-LOGIN-REGISTO.md)
 3. Modais sem botão X (cancelar venda na Caixa em iPhone/Android) — [F3](F3-MODAIS-X.md)
 4. Carrinho da Caixa em tablets e navegadores antigos — [F4](F4-CARRINHO-TABLETS.md)
-5. Formulários
+5. Formulários — [F5](F5-FORMULARIOS.md)
 6. Responsividade e compatibilidade
 7. Loja dos associados
 8. Carga e concorrência (ambiente isolado)

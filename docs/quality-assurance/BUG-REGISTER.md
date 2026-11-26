@@ -22,6 +22,7 @@ Estado: **VERIFIED** (reproduzido e confirmado por teste executado) · **UNVERIF
 | QA-014 | P2 | F4 | Caixa (navegadores antigos) | Fundos em `color-mix()` sem reserva (janelas, Opções, Finalizar, TOTAL): transparentes com texto branco. | VERIFIED (Chromium 93 / WebKit 14.2 reais: fundo das janelas rgba(0,0,0,0) → sólido) — corrigido | A2 em `qa/navegadores-antigos.mjs` |
 | QA-015 | P2 | F4 | Caixa (tablets) | ✕ de remover linha com 22 px de alvo de toque. | VERIFIED (emulado) — corrigido | C4: 22 → 40 px |
 | QA-016 | P3 | F4 | Caixa/Gestão | `rememberOffline` (chamado com `void`) não apanhava a falha do PBKDF2: erro de JS por tratar em motores sem PBKDF2 (WebKit 14.2 Windows). | VERIFIED (WebKit 14.2 real) — corrigido | A0: erro → sem erros |
+| QA-017 | P2 | F5 | Gestão/Caixa (formulários) | Rótulos visíveis não ligados aos campos (595 de 614 `<label>` sem `for`): o leitor de ecrã anuncia só «campo de texto» e o toque no rótulo não foca o campo. | VERIFIED (emulado) — corrigido | `qa/formularios.mjs` F1 |
 
 ## Limitações conhecidas (não são bugs)
 - A venda offline sobe com a identidade do **último login real do aparelho** (como antes subia com quem estivesse ligado). O operador que fez a venda não é transmitido separadamente.
