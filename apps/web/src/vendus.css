@@ -2111,3 +2111,21 @@ html.touch-ui .admin.nav-rail .topbar::before { display: none !important; }
 @media (max-width: 640px) { .sa-row { grid-template-columns: minmax(0, 1fr); } .sa-row > label, .sa-row > .sa-lbl { text-align: left; padding-top: 0; } .sa-row > span:empty { display: none; } }
 .ptable.acc-table.sa-table th.num { white-space: normal !important; }
 .ptable.acc-table.sa-table td.wrap { min-width: 150px; }
+
+/* Configuração › Utilizadores (Vendus): nome a azul, estado, botão «Opções» com menu. */
+.us-card { padding: 0 20px 12px; overflow: visible; }
+.us-name { padding: 0; border: 0; background: none; color: #1098f7; font: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.us-name:hover { text-decoration: underline; }
+.us-on { color: var(--text); }
+.us-off { color: var(--muted); }
+.us-lock { color: #e87d00 !important; }
+.us-opt { position: relative; display: inline-block; }
+.us-opt > summary { list-style: none; cursor: pointer; }
+.us-opt > summary::-webkit-details-marker { display: none; }
+.us-opt > summary[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+.us-opt-list { position: absolute; z-index: 40; right: 0; top: calc(100% + 4px); min-width: 170px; display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 8px 24px rgb(0 0 0 / .15); text-align: left; }
+.us-opt-list button { padding: 8px 10px; border: 0; border-radius: 4px; background: none; color: var(--text); font-size: 14px; text-align: left; cursor: pointer; white-space: nowrap; }
+.us-opt-list button:hover { background: var(--surface-2); }
+.us-opt-list button.danger { color: var(--danger, #d92d20); }
+.us-table tbody tr:has(.us-opt[open]) { position: relative; z-index: 30; }
+.us-table tbody tr { animation: none; }
