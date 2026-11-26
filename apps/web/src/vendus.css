@@ -2132,3 +2132,10 @@ html.touch-ui .admin.nav-rail .topbar::before { display: none !important; }
 
 /* Painéis (CONFIG…): um grupo aberto ocupa o painel inteiro em qualquer largura — as linhas cabem sem scroll; tocar no cabeçalho volta à lista. */
 .admin .sidebar.vds .nav.nav-painel.has-open > :not(.is-open) { display: none !important; }
+
+/* Configuração › Unidades / Motivos - Notas Crédito */
+.cl-add { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.cl-add .vd-f { flex: 1 1 220px; min-width: 0; }
+.cl-table td.num { width: 1%; }
+.cl-edit .vd-in { width: 100%; min-width: 0; }
+.cl-del { color: var(--danger, #d92d20) !important; }

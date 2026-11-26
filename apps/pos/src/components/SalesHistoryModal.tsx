@@ -237,6 +237,9 @@ function CancelItemsModal({ sale, onClose, onDone }: { sale: SaleRow; onClose():
   const returnOpIdRef = useRef<string | null>(null);
   useEffect(() => { returnOpIdRef.current = null; }, [qty]);
   const [reason, setReason] = useState('Cancelamento na caixa');
+  // Motivos propostos (definidos no painel); continua a poder escrever outro.
+  const [reasons, setReasons] = useState<string[]>([]);
+  useEffect(() => { api.ncReasons().then((r) => setReasons(r.map((x) => x.label))).catch(() => undefined); }, []);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
@@ -321,7 +324,8 @@ function CancelItemsModal({ sale, onClose, onDone }: { sale: SaleRow; onClose():
               </table>
             </div>
             <div className="sm-filters" style={{ alignItems: 'center' }}>
-              <label style={{ flex: 1 }}>Motivo <input value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: '100%' }} /></label>
+              <label style={{ flex: 1 }}>Motivo <input value={reason} onChange={(e) => setReason(e.target.value)} onFocus={(e) => e.currentTarget.select()} list="nc-reasons" maxLength={200} style={{ width: '100%' }} /></label>
+              <datalist id="nc-reasons">{reasons.map((r) => <option key={r} value={r} />)}</datalist>
             </div>
             <div className="sm-filters" style={{ alignItems: 'center' }}>
               <span className="muted">{isFull ? 'Anula a venda inteira' : `${selected.length} artigo(s) selecionado(s)`}</span>
