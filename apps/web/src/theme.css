@@ -768,6 +768,11 @@ html.kbd-open .login .box > p { display: none; }
   .ptable { min-width: 560px; }
   /* Tabelas chave/valor (2 colunas): cabem em qualquer ecrã, sem scroll forçado. */
   .ptable.kv { min-width: 0; }
+  /* Linha chave/valor que não cabe: o valor desce para baixo do rótulo (números nunca
+     partidos a meio) — antes criava scroll lateral no cartão (missão QA F6). */
+  .ptable.kv tr { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 12px; border-bottom: 1px solid var(--border); }
+  .ptable.kv td { display: block; border-bottom: 0; padding-left: 0; padding-right: 0; }
+  .ptable.kv td:not(:first-child) { margin-left: auto; }
 }
 
 /* ── Acabamento / polish ────────────────────────────────────── */

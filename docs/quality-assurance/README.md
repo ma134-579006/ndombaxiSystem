@@ -38,7 +38,7 @@ iPhone/Android/tablet físico fica marcado como `UNVERIFIED (dispositivo real)` 
 3. Modais sem botão X (cancelar venda na Caixa em iPhone/Android) — [F3](F3-MODAIS-X.md)
 4. Carrinho da Caixa em tablets e navegadores antigos — [F4](F4-CARRINHO-TABLETS.md)
 5. Formulários — [F5](F5-FORMULARIOS.md)
-6. Responsividade e compatibilidade
+6. Responsividade e compatibilidade — [F6](F6-RESPONSIVIDADE.md)
 7. Loja dos associados
 8. Carga e concorrência (ambiente isolado)
 9. Ícones e publicidades

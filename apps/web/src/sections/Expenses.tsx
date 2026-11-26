@@ -158,7 +158,7 @@ export function Expenses() {
               {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{EXPENSE_CATEGORY_LABELS[c]}</option>)}
             </select>
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button className="chip" onClick={() => setPreset(1)}>Hoje</button>
             <button className="chip" onClick={() => setPreset(7)}>7 dias</button>
             <button className="chip" onClick={() => setPreset(30)}>30 dias</button>

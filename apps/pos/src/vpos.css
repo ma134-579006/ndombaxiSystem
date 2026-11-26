@@ -189,10 +189,12 @@
 /* ── SEM SCROLL: a caixa cabe sempre na janela e escala proporcionalmente ──
    Só a grelha de produtos e as linhas da venda deslizam por dentro.
    Tamanhos com clamp(vw/vh) para ficar "justo" de telemóvel a ecrã grande. */
-.app-bg:has(.pos) { height: 100dvh; overflow: hidden; }
+.app-bg:has(.pos) { height: calc(100dvh / var(--uz, 1)); overflow: hidden; }
 /* Sem :has() (Chrome < 105, Safari < 15.4): a mesma altura pela classe do ecrã da Caixa. */
-.app-bg.app-bg-pos { height: 100vh; height: 100dvh; overflow: hidden; }
-.pos { height: 100vh !important; height: 100dvh !important; max-height: 100vh; max-height: 100dvh; overflow: hidden; }
+.app-bg.app-bg-pos { height: calc(100vh / var(--uz, 1)); height: calc(100dvh / var(--uz, 1)); overflow: hidden; }
+/* ÷ --uz: em 4K/8K o bigScreen.ts amplia com zoom; sem a divisão a Caixa ficava
+   cortada (TOTAL e FINALIZAR fora do ecrã) — missão QA F6. */
+.pos { height: calc(100vh / var(--uz, 1)) !important; height: calc(100dvh / var(--uz, 1)) !important; max-height: calc(100vh / var(--uz, 1)); max-height: calc(100dvh / var(--uz, 1)); overflow: hidden; }
 .pos > .topbar.vtop { flex: none; min-height: 0; padding-top: clamp(4px, 1vh, 10px) !important; padding-bottom: clamp(4px, 1vh, 10px) !important; }
 .vtop .topbar-logo { width: 26px; width: clamp(26px, 4.4vh, 40px); height: 26px; height: clamp(26px, 4.4vh, 40px); }
 .vtop .who .name { font-size: 14px; font-size: clamp(14px, 2.4vh, 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30vw; }
@@ -812,3 +814,11 @@
 /* Remover linha do carrinho: alvo de toque de 40 px (tablets) sem mudar o aspeto do ✕. */
 .vl-del { top: 2px; right: 0; width: 40px; height: 40px; display: grid; place-items: center; }
 .vline-main, .vtable-h { padding-right: 42px; }
+
+/* Ecrãs muito baixos (ex.: 240×320, telemóvel deitado): o carrinho cede a altura
+   mínima e o navegador de vendas sai, para o TOTAL e o FINALIZAR caberem (missão QA F6). */
+@media (max-height: 420px) {
+  .vcart-box { min-height: 0 !important; }
+  .vsale-nav { display: none !important; }
+  .vtable-h { height: 26px !important; }
+}
