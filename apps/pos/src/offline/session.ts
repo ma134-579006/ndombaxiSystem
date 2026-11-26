@@ -172,3 +172,31 @@ let pending: { email: string; pin: string } | null = null;
 export function setPendingUpgrade(v: { email: string; pin: string }): void { pending = v; }
 export function getPendingUpgrade(): { email: string; pin: string } | null { return pending; }
 export function clearPendingUpgrade(): void { pending = null; }
+
+// ─── Cofre em dia com a rotação dos tokens ───────────────────────────────────
+// A API revoga o refresh token antigo a cada renovação. O cofre guardava só os
+// tokens do LOGIN: depois da 1.ª renovação ficavam revogados e, ao entrar sem
+// rede e a rede voltar, a sessão caía (401) e pedia o login outra vez.
+export async function vaultTokensRotated(oldRefresh: string | null | undefined, pair: { accessToken: string; refreshToken: string }): Promise<void> {
+  if (!oldRefresh || !pair.refreshToken) return;
+  try {
+    const vault = await readVault();
+    let mudou = false;
+    for (const c of Object.values(vault)) {
+      if (c.refreshToken === oldRefresh) { c.accessToken = pair.accessToken; c.refreshToken = pair.refreshToken; mudou = true; }
+    }
+    if (mudou) await writeVault(vault);
+  } catch { /* melhor esforço */ }
+}
+
+/** Identidade de sincronização inicial (instalações antigas): a credencial mais recente do cofre. */
+export async function bootstrapFromVault(company: string | null): Promise<{ companyCode: string; accessToken: string; refreshToken: string; savedAt: string } | null> {
+  try {
+    const all = Object.values(await readVault())
+      .filter((c) => c.refreshToken && c.accessToken && Date.parse(c.validUntil) > Date.now())
+      .filter((c) => !company || c.companyCode.toUpperCase() === company.toUpperCase())
+      .sort((a, b) => b.validUntil.localeCompare(a.validUntil));
+    const c = all[0];
+    return c ? { companyCode: c.companyCode, accessToken: c.accessToken, refreshToken: c.refreshToken, savedAt: new Date().toISOString() } : null;
+  } catch { return null; }
+}
