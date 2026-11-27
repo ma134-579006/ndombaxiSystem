@@ -12,6 +12,8 @@
 | QA-019 | Gestão › Gastos | Atalhos «Hoje/7/30/90 dias» sem quebra: scroll lateral a 240 e 320 px | `flex-wrap` |
 | QA-020 | Caixa (4K/8K) | Com o zoom de ecrã grande (`bigScreen.ts`), a altura da Caixa não estava dividida por `--uz`: a interface ficava cortada a ~57% e o TOTAL/FINALIZAR fora do ecrã | `calc(100dvh / var(--uz, 1))` (com reserva em `vh`), como no resto do projeto |
 | QA-021 | Caixa (240×320 e ecrãs baixos) | FINALIZAR fora do ecrã | `@media (max-height: 420px)`: o carrinho cede a altura mínima e o navegador de vendas sai |
+| QA-023 | Caixa/Gestão/Loja, motores sem `dvh` | `calc(100dvh / var(--uz, 1))` tem `var()`, por isso o motor antigo não a descarta: fica `unset` e apaga o fallback em `vh`. Regressão do QA-020 na Caixa: FINALIZAR fora do ecrã em todos os tamanhos no WebKit 14.2 | Plugin PostCSS `scripts/vite-dvh-fallback.ts` nos 3 `vite.config.ts`: estas declarações passam para `@supports (height: 1dvh)`, sem mexer nos ficheiros CSS. Guarda estática `qa/dvh-var.mjs` |
+| QA-025 | Loja, WebKit < 15 | O input da pesquisa não encolhia abaixo da largura intrínseca: scroll lateral a 240 px (41 px) e carrinho fora do ecrã a 768 px (60 px) | `min-width: 0` no formulário e `width: 0` no input; a marca encolhe e quebra (≤ 760 px) |
 
 ## Resultados
 | Teste | Antes | Depois |
@@ -20,8 +22,12 @@
 | Gestão, WebKit atual, 30 × 3 | — | 89/90 → a falha (Encomendas 768) era transitória (troca tabela→cartões em JS); 9/9 em 3 repetições |
 | Caixa + Loja, Chromium atual | 30/33 (FINALIZAR fora do ecrã a 240×320 e 4K) | **40/40** |
 | Caixa + Loja, WebKit atual | — | **40/40** |
-| Caixa + Loja, motores antigos reais (Chromium 93, WebKit 14.2) | — | **por repetir**: os motores foram apagados pela limpeza de temporários do Windows antes desta volta |
+| Caixa + Loja, Chromium 93 real | não completava (TimeoutError no fluxo da Caixa) | **40/40** |
+| Caixa + Loja, WebKit 14.2 real | 31/40 (Caixa · venda: FINALIZAR fora do ecrã em todos os tamanhos; Loja 240) | **40/40** (2 voltas seguidas) |
+| CSS de produção (Caixa, Loja, Gestão): declarações dvh+var fora de `@supports` (`qa/dvh-var.mjs`) | 10 desprotegidas (só Caixa main) | **0** (52 protegidas) |
 
 ## Não verificado / limites
 - **Firefox**: o Windows desta máquina recusa executar o `firefox.exe` do Playwright (não assinado → «Permission denied», provável política de segurança do sistema). Não foi contornado. Alternativa: Firefox oficial assinado + condução por WebDriver BiDi (exige download e autorização).
 - Dispositivos físicos.
+- Gestão em motores antigos: só a guarda estática (`qa/dvh-var.mjs`), porque `qa/responsivo.mjs` usa API moderna do Playwright. O PBKDF2 e o login antigo já foram verificados na F4.
+- Os motores antigos ficam em `C:\Users\Pc\Documents\tools\old-browsers` (fora do Git) e são apagados no fim da missão.
