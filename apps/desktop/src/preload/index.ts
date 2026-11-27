@@ -11,7 +11,9 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 const api = {
   /** Identifica o hospedeiro — o frontend adapta-se sem `if (Electron)` espalhados. */
-  platform: 'windows' as const,
+  // Edição legado (Electron 22 → Windows 7/8/8.1) tem plataforma própria nas atualizações.
+  platform: (Number(String(process.versions.electron ?? '0').split('.')[0]) < 23 || process.env?.NDOMBAXI_LEGACY === '1'
+    ? (process.arch === 'ia32' ? 'windows7-32' : 'windows7') : 'windows') as 'windows' | 'windows7' | 'windows7-32',
   version: (): Promise<string> => ipcRenderer.invoke('ndombaxi:version'),
 
   /**

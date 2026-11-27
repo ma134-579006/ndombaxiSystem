@@ -1,0 +1,57 @@
+# Instalador Windows do LPS Vendas — EDIÇÃO LEGADO (Windows 7, 8 e 8.1; 64 e 32 bits).
+#
+# O Electron 23+ deixou de correr no Windows 7/8/8.1. Esta edição usa o Electron
+# 22.3.27 (o último que lá corre) com o MESMO código (ver src/main/compat.ts):
+#   • o protocolo ndombaxi:// recua para registerBufferProtocol (sem protocol.handle);
+#   • o processo principal usa `mainFetch` (o Node 16 do Electron 22 não tem fetch);
+#   • procura atualizações nas plataformas `windows7` / `windows7-32` (Admin → Aplicações),
+#     para o botão «Atualizar» levar a ESTE instalador (o moderno nem abre no Windows 7);
+#   • SEM servidor local: o PostgreSQL 16 não corre no Windows 7. A app trabalha contra
+#     a nuvem, com a fila offline dos frontends (vendas sem rede sobem quando a rede volta).
+# Mesmo appId do moderno: quem atualizar o Windows para o 10/11 instala o moderno por cima.
+appId: com.ndombaxi.system
+productName: LPS Vendas
+copyright: © LPS Vendas
+electronVersion: 22.3.27
+
+directories:
+  output: release-legacy
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+  - build/icon.png
+  - "!**/*.map"
+
+extraResources:
+  # Só os frontends (Gestão e Caixa). Sem pgsql/ nem api.zip (sem servidor local).
+  - from: resources/modules
+    to: modules
+
+# O better-sqlite3 vem compilado para o ABI do Electron 22 e para a arquitetura certa
+# pelo workflow (prebuild-install --target=22.3.27 --arch=x64|ia32), uma arquitetura de cada vez.
+npmRebuild: false
+nodeGypRebuild: false
+
+afterPack: scripts/after-pack-fuses.cjs
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+  signAndEditExecutable: true
+
+nsis:
+  oneClick: false
+  include: installer/installer.nsh
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: LPS Vendas
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  artifactName: LPSVendas-Setup-${version}-win7-${arch}.${ext}
+  uninstallDisplayName: LPS Vendas
