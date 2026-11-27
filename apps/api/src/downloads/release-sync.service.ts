@@ -14,6 +14,9 @@ const STALE_MS = 5 * 60 * 1000;
 /** Cada app: a release `*-latest` que o CI substitui e o ficheiro de nome fixo. */
 export const RELEASE_SOURCES: { platform: Platform; tag: string; asset: string }[] = [
   { platform: 'windows', tag: 'windows-latest', asset: 'LPSVendas-Setup-x64.exe' },
+  // Edição legado (Windows 7/8/8.1 — Electron 22): workflow windows7-build.yml.
+  { platform: 'windows7', tag: 'windows7-latest', asset: 'LPSVendas-Setup-win7-x64.exe' },
+  { platform: 'windows7-32', tag: 'windows7-latest', asset: 'LPSVendas-Setup-win7-ia32.exe' },
   { platform: 'android', tag: 'android-latest', asset: 'LPSVendas-Android.apk' },
   { platform: 'android-loja', tag: 'android-loja-latest', asset: 'LPSLoja-Android.apk' },
   { platform: 'android-kwanza', tag: 'android-kwanza-latest', asset: 'LPSKwanza-Android.apk' },

@@ -50,9 +50,11 @@ function bakedVersion(): string | null {
   return typeof w.__NDOMBAXI_APP_VERSION__ === 'string' ? w.__NDOMBAXI_APP_VERSION__ : null;
 }
 
-export function platformOfThisApp(): 'windows' | 'android' | null {
+export function platformOfThisApp(): 'windows' | 'windows7' | 'windows7-32' | 'android' | null {
   if (typeof window === 'undefined') return null;
-  if (desktop()?.version) return 'windows';
+  // Edição legado (Windows 7/8/8.1, Electron 22) tem plataforma própria: o instalador moderno nem abre lá.
+  const dp = desktop()?.platform;
+  if (desktop()?.version) return dp === 'windows7' || dp === 'windows7-32' ? dp : 'windows';
   if (bakedVersion() || capacitorApp()?.getInfo) return 'android';
   return null;
 }

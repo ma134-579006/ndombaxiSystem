@@ -3,6 +3,7 @@ dist/
 
 # Saídas do electron-builder (instaladores e app desempacotada)
 release/
+release-legacy/
 release-locked-*/
 dist-installer/
 build-out/
@@ -30,3 +31,4 @@ build/icon.png
 # Instalador gerado — NUNCA versionar (binário grande; sai do electron-builder).
 setup/
 release-kwanza/
+smoke-legado.txt

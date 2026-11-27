@@ -16,6 +16,7 @@
  *     utilizador à página oficial de downloads: é lá que estão o hash e a
  *     assinatura para ele confirmar que o ficheiro não foi trocado no caminho.
  */
+import { mainFetch, PLATFORM } from './compat';
 import { app, BrowserWindow, shell } from 'electron';
 import { decideUpdate, isSafeDownloadPage, type UpdateDecision } from '@nexus/update-core';
 import { readSettings } from './settings';
@@ -50,7 +51,7 @@ export async function checkForUpdates(): Promise<UpdateDecision> {
       // ninguém esperar 30 s por uma verificação.
       const timer = setTimeout(() => ctrl.abort(), 10_000);
       try {
-        const res = await fetch(`${apiUrl}/downloads/latest?platform=windows`, {
+        const res = await mainFetch(`${apiUrl}/downloads/latest?platform=${PLATFORM}`, {
           signal: ctrl.signal,
           headers: { Accept: 'application/json' },
         });
@@ -64,7 +65,7 @@ export async function checkForUpdates(): Promise<UpdateDecision> {
     }
   }
 
-  const decision = decideUpdate(current, raw, { platform: 'windows' });
+  const decision = decideUpdate(current, raw, { platform: PLATFORM });
   // Só se guarda uma decisão COM conteúdo: uma verificação falhada (offline) não
   // pode apagar o que já se sabia — senão o botão ficava sem destino.
   if (decision.release) ultimaDecisao = decision;

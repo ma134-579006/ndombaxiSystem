@@ -61,6 +61,20 @@ export const RELEASE_MANIFEST: Record<AppPlatform, ReleaseManifestEntry> = {
       'Corrigido o recibo cujos dados saíam para fora da estrutura',
     ],
   },
+  windows7: {
+    version: '1.0.0',
+    minSupported: '1.0.0',
+    requirements: 'Windows 7, 8 ou 8.1 · 64-bit',
+    notes: ['Edição para Windows 7, 8 e 8.1 (publicada automaticamente pelo CI)'],
+    fixes: [],
+  },
+  'windows7-32': {
+    version: '1.0.0',
+    minSupported: '1.0.0',
+    requirements: 'Windows 7, 8 ou 8.1 · 32-bit',
+    notes: ['Edição para Windows 7, 8 e 8.1, 32 bits (publicada automaticamente pelo CI)'],
+    fixes: [],
+  },
   'android-loja': {
     version: '1.0.0',
     minSupported: '1.0.0',

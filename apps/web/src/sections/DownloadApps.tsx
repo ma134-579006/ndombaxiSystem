@@ -64,6 +64,8 @@ const GROUPS: Group[] = [
     id: 'vendas', title: 'LPS Vendas', brand: <img src={`${import.meta.env.BASE_URL}app-icon-foreground.png`} alt="" />,
     apps: [
       { id: 'windows', label: 'Windows', tagline: 'Gestão e caixa no computador', defaultReq: 'Windows 10 ou 11 · 64-bit', icon: <WinIcon /> },
+      { id: 'windows7', label: 'Windows 7/8', tagline: 'Gestão e caixa no computador', defaultReq: 'Windows 7, 8 ou 8.1 · 64-bit', icon: <WinIcon /> },
+      { id: 'windows7-32', label: 'Windows 7/8 · 32 bits', tagline: 'Gestão e caixa no computador', defaultReq: 'Windows 7, 8 ou 8.1 · 32-bit', icon: <WinIcon /> },
       { id: 'android', label: 'Android', tagline: 'Gestão e caixa no telemóvel', defaultReq: 'Android 6 ou superior', icon: <AndroidIcon /> },
       { id: 'ios', label: 'iPhone', tagline: 'Gestão e caixa no iPhone', defaultReq: 'iOS 13 ou superior', icon: <AppleIcon /> },
       { id: 'android-loja', label: 'LPS Loja', tagline: 'Loja online para os clientes', defaultReq: 'Android 6 ou superior', icon: <StoreAppIcon /> },
