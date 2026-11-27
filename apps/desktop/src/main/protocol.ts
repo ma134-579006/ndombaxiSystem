@@ -14,6 +14,7 @@
  * do disco. Aqui, a raiz é a pasta do módulo — e cada módulo tem a sua.
  */
 import { protocol, net } from 'electron';
+import { LEGACY } from './compat';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -80,7 +81,41 @@ const CSP = [
  * Liga o protocolo às pastas dos módulos.
  * @param roots mapa `nome do módulo` → `pasta com o build do frontend`
  */
+const MIME: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
+  '.gif': 'image/gif', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf',
+  '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.mp4': 'video/mp4', '.wasm': 'application/wasm', '.txt': 'text/plain; charset=utf-8',
+};
+
+/** Resolve o ficheiro do módulo (com a barreira anti travessia e o recuo SPA). */
+function resolveFile(roots: Record<string, string>, rawUrl: string): { file: string } | { status: number; body: string } {
+  const url = new URL(rawUrl);
+  const root = roots[url.host];
+  if (!root) return { status: 404, body: 'Módulo desconhecido' };
+  const target = path.join(root, decodeURIComponent(url.pathname));
+  const normalizedRoot = path.resolve(root) + path.sep;
+  if (!path.resolve(target).startsWith(normalizedRoot)) return { status: 403, body: 'Acesso negado' };
+  return { file: fs.existsSync(target) && fs.statSync(target).isFile() ? target : path.join(root, 'index.html') };
+}
+
 export function serveModules(roots: Record<string, string>): void {
+  // Edição legado (Electron 22, Windows 7/8): sem `protocol.handle` nem `net.fetch`.
+  // Mesma resolução de ficheiros e os mesmos cabeçalhos de segurança, via buffer.
+  if (LEGACY || typeof (protocol as { handle?: unknown }).handle !== 'function') {
+    protocol.registerBufferProtocol(SCHEME, (request, callback) => {
+      const r = resolveFile(roots, request.url);
+      const headers = { 'Content-Security-Policy': CSP, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
+      if ('status' in r) { callback({ statusCode: r.status, mimeType: 'text/plain', data: Buffer.from(r.body), headers }); return; }
+      fs.readFile(r.file, (err, data) => {
+        if (err) { callback({ statusCode: 404, mimeType: 'text/plain', data: Buffer.from('Não encontrado'), headers }); return; }
+        const mimeType = (MIME[path.extname(r.file).toLowerCase()] ?? 'application/octet-stream').split(';')[0];
+        callback({ statusCode: 200, mimeType, charset: 'utf-8', data, headers });
+      });
+    });
+    return;
+  }
   protocol.handle(SCHEME, async (request) => {
     const url = new URL(request.url);
     // ndombaxi://caixa/assets/index.js  →  host = "caixa", pathname = "/assets/index.js"

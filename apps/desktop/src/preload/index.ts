@@ -11,7 +11,9 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 const api = {
   /** Identifica o hospedeiro — o frontend adapta-se sem `if (Electron)` espalhados. */
-  platform: 'windows' as const,
+  // Edição legado (Electron 22 → Windows 7/8/8.1) tem plataforma própria nas atualizações.
+  platform: (Number(String(process.versions.electron ?? '0').split('.')[0]) < 23 || process.env?.NDOMBAXI_LEGACY === '1'
+    ? (process.arch === 'ia32' ? 'windows7-32' : 'windows7') : 'windows') as 'windows' | 'windows7' | 'windows7-32',
   version: (): Promise<string> => ipcRenderer.invoke('ndombaxi:version'),
 
   /**
@@ -112,11 +114,14 @@ contextBridge.exposeInMainWorld('ndombaxi', api);
  * back-launcher do móvel, para o comportamento ser idêntico nas duas apps.
  * Vive no shell (desktop), por isso não obriga a mexer nos frontends.
  */
-// Sessão ativa → esconder a seta. Gestor: ndombaxi.web.access · Caixa: nexus.pos.access.
-const AUTH_KEYS = ['ndombaxi.web.access', 'nexus.pos.access'];
+// Sessão ativa DESTE módulo → esconder a seta. Gestor: ndombaxi.web.access · Caixa: nexus.pos.access.
+// Cada módulo olha só para a sua própria sessão (QA-040): depois de terminar a sessão da Caixa
+// aberta a partir do Admin, a seta volta mesmo que a Gestão continue com sessão.
+const AUTH_KEYS_BY_HOST: Record<string, string[]> = { caixa: ['nexus.pos.access'], gestao: ['ndombaxi.web.access'] };
 function isLoggedIn(): boolean {
+  const keys = AUTH_KEYS_BY_HOST[window.location.host] ?? ['ndombaxi.web.access', 'nexus.pos.access'];
   try {
-    for (const k of AUTH_KEYS) {
+    for (const k of keys) {
       if (sessionStorage.getItem(k) || localStorage.getItem(k)) return true;
     }
   } catch { /* storage indisponível */ }
@@ -136,18 +141,18 @@ function injectBackButton(): void {
   btn.innerHTML =
     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
     + 'stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">'
-    + '<path d="M19 12H5M11 18l-6-6 6-6"/></svg>';
+    + '<path d="M19 12H5M11 18l-6-6 6-6"/></svg><span style="font:600 14px system-ui,sans-serif">Início</span>';
 
   const s = btn.style;
   s.position = 'fixed';
   s.top = '8px';
   s.left = '8px';
   s.zIndex = '2147483647';
-  s.width = '34px';
+  s.minWidth = '34px';
   s.height = '34px';
-  s.display = 'grid';
-  s.placeItems = 'center';
-  s.padding = '0';
+  s.display = 'flex';
+  s.alignItems = 'center'; s.gap = '6px';
+  s.padding = '0 12px 0 10px';
   s.borderRadius = '10px';
   s.border = '1px solid rgba(148,163,184,.32)';
   s.background = 'rgba(15,23,42,.78)';
@@ -166,7 +171,7 @@ function injectBackButton(): void {
   // criada e reaparece no logout.
   // Com a atualização obrigatória no ecrã, a seta também some (nada por cima do bloqueio).
   const blocked = () => !!document.querySelector('[role="alertdialog"][aria-label="Atualização obrigatória"]');
-  const sync = () => { btn.style.display = isLoggedIn() || blocked() ? 'none' : 'grid'; };
+  const sync = () => { btn.style.display = isLoggedIn() || blocked() ? 'none' : 'flex'; };
   sync();
   setInterval(sync, 300);
   window.addEventListener('focus', sync);

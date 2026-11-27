@@ -13,8 +13,14 @@
  * guarda no sessionStorage.
  */
 (function () {
-  // Sessão ativa → esconder a seta. Gestor: ndombaxi.web.access · Caixa: nexus.pos.access.
-  var AUTH_KEYS = ['ndombaxi.web.access', 'nexus.pos.access'];
+  // Sessão ativa DESTE módulo → esconder a seta. Gestor: ndombaxi.web.access · Caixa: nexus.pos.access.
+  // Os dois módulos partilham a origem (www/gestao e www/caixa): quem abria a Caixa a partir do
+  // Admin continuava com o token da Gestão guardado e a seta nunca voltava no login da Caixa,
+  // nem depois de terminar a sessão (QA-040). Cada módulo olha só para a sua própria sessão.
+  var path = String(location.pathname || '');
+  var AUTH_KEYS = path.indexOf('/caixa/') !== -1 ? ['nexus.pos.access']
+    : path.indexOf('/gestao/') !== -1 ? ['ndombaxi.web.access']
+    : ['ndombaxi.web.access', 'nexus.pos.access'];
   function loggedIn() {
     try {
       for (var i = 0; i < AUTH_KEYS.length; i++) {
@@ -36,17 +42,17 @@
     btn.innerHTML =
       '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
       + 'stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">'
-      + '<path d="M19 12H5M11 18l-6-6 6-6"/></svg>';
+      + '<path d="M19 12H5M11 18l-6-6 6-6"/></svg><span style="font:600 14px system-ui,sans-serif">Início</span>';
     var s = btn.style;
     s.position = 'fixed';
     s.top = 'calc(env(safe-area-inset-top, 0px) + 8px)';
     s.left = '8px';
     s.zIndex = '2147483647';
-    s.width = '38px';
+    s.minWidth = '38px';
     s.height = '38px';
-    s.display = 'grid';
-    s.placeItems = 'center';
-    s.padding = '0';
+    s.display = 'flex';
+    s.alignItems = 'center'; s.gap = '6px';
+    s.padding = '0 12px 0 10px';
     s.borderRadius = '11px';
     s.border = '1px solid rgba(148,163,184,.32)';
     s.background = 'rgba(15,23,42,.82)';
@@ -65,7 +71,7 @@
 
   function update() {
     var b = ensure();
-    b.style.display = loggedIn() ? 'none' : 'grid';
+    b.style.display = loggedIn() ? 'none' : 'flex';
   }
 
   function start() {

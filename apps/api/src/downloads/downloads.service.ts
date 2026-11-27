@@ -6,8 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 export const OFFICIAL_DOWNLOAD_PAGE = 'https://lpsvendas.com.de/baixar';
 
 /** `android-loja` = app LPS Loja (clientes da loja online). `*-kwanza` = app LPS Kwanza (associados). */
-export type Platform = 'windows' | 'android' | 'android-loja' | 'android-kwanza' | 'windows-kwanza' | 'ios';
-export const PLATFORMS: Platform[] = ['windows', 'android', 'android-loja', 'android-kwanza', 'windows-kwanza', 'ios'];
+export type Platform = 'windows' | 'windows7' | 'windows7-32' | 'android' | 'android-loja' | 'android-kwanza' | 'windows-kwanza' | 'ios';
+export const PLATFORMS: Platform[] = ['windows', 'windows7', 'windows7-32', 'android', 'android-loja', 'android-kwanza', 'windows-kwanza', 'ios'];
 
 /** Forma pública de uma versão — o que o site e as apps podem ver. */
 export interface PublicRelease {
@@ -32,7 +32,7 @@ export class DownloadsService {
 
   private static assertPlatform(p: string): Platform {
     if (!PLATFORMS.includes(p as Platform)) {
-      throw new BadRequestException(`Plataforma inválida: ${p}. Use windows, android, android-loja, android-kwanza, windows-kwanza ou ios.`);
+      throw new BadRequestException(`Plataforma inválida: ${p}. Use windows, windows7, windows7-32, android, android-loja, android-kwanza, windows-kwanza ou ios.`);
     }
     return p as Platform;
   }
@@ -79,7 +79,7 @@ export class DownloadsService {
 
   /** A mais recente de cada plataforma — alimenta a página oficial de downloads. */
   async publicLatestAll(): Promise<Record<Platform, PublicRelease | null>> {
-    const out = { windows: null, android: null, 'android-loja': null, 'android-kwanza': null, 'windows-kwanza': null, ios: null } as Record<Platform, PublicRelease | null>;
+    const out = { windows: null, windows7: null, 'windows7-32': null, android: null, 'android-loja': null, 'android-kwanza': null, 'windows-kwanza': null, ios: null } as Record<Platform, PublicRelease | null>;
     await Promise.all(PLATFORMS.map(async (p) => { out[p] = await this.latest(p); }));
     return out;
   }
