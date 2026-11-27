@@ -70,6 +70,7 @@ export function MembersApp() {
   const token = session?.token ?? '';
   const [member, setMember] = useState<Membership | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reqErr, setReqErr] = useState('');
   const [products, setProducts] = useState<CatalogProduct[] | null>(null);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [route, setRoute] = useState<Route>(() => parse(location.hash));
@@ -155,8 +156,8 @@ export function MembersApp() {
   if (member === null) return <div className="kw-root kw-boot" aria-busy="true"><span className="kw-boot-mark"><Mark size={56} /></span></div>;
   if (member !== 'APPROVED') {
     return (
-      <MembershipScreen status={member} busy={busy}
-        onRequest={(note) => { setBusy(true); api.requestMembership(code, token, note).then((r) => setMember(r.status)).catch(() => undefined).finally(() => setBusy(false)); }}
+      <MembershipScreen status={member} busy={busy} error={reqErr}
+        onRequest={(note) => { setBusy(true); setReqErr(''); api.requestMembership(code, token, note).then((r) => setMember(r.status)).catch((e) => setReqErr(e instanceof ApiError ? e.message : 'Sem ligação. Tente de novo.')).finally(() => setBusy(false)); }}
         onLogout={() => clearSession(code)} />
     );
   }

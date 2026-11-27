@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -34,7 +34,7 @@ export class MembersService {
   /** Falha (403 lógico) se o cliente não é associado aprovado. */
   async assertApproved(schema: string, email: string): Promise<void> {
     const { status } = await this.statusOf(schema, email);
-    if (status !== 'APPROVED') throw new BadRequestException('Acesso reservado a associados aprovados.');
+    if (status !== 'APPROVED') throw new ForbiddenException('Acesso reservado a associados aprovados.');
   }
 
   async request(schema: string, email: string, note?: string): Promise<{ status: MemberStatus }> {

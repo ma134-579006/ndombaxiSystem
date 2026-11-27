@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import { MembersService } from './members.service';
 
 /** PrismaService falso: runInTenant executa o callback com um tx cujo $queryRaw devolve o estado. */
@@ -15,7 +15,7 @@ describe('associados da loja online', () => {
   it('só APPROVED passa a porta do catálogo reservado', async () => {
     await expect(svc('APPROVED').service.assertApproved('t', 'a@b.c')).resolves.toBeUndefined();
     for (const s of ['NONE', 'PENDING', 'REJECTED']) {
-      await expect(svc(s).service.assertApproved('t', 'a@b.c')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(svc(s).service.assertApproved('t', 'a@b.c')).rejects.toBeInstanceOf(ForbiddenException);
     }
   });
   it('decidir sem pedido existente falha', async () => {

@@ -39,7 +39,7 @@ iPhone/Android/tablet físico fica marcado como `UNVERIFIED (dispositivo real)` 
 4. Carrinho da Caixa em tablets e navegadores antigos — [F4](F4-CARRINHO-TABLETS.md)
 5. Formulários — [F5](F5-FORMULARIOS.md)
 6. Responsividade e compatibilidade — [F6](F6-RESPONSIVIDADE.md)
-7. Loja dos associados
+7. Loja dos associados — [F7](F7-LOJA-ASSOCIADOS.md)
 8. Carga e concorrência (ambiente isolado)
 9. Ícones e publicidades
 10. Segurança
