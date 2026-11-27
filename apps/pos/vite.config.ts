@@ -1,9 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { dvhFallback } from '../../scripts/vite-dvh-fallback';
 
 // Terminal de caixa NEXUS (web). VITE_API_URL define a API (default localhost:3000).
 export default defineConfig({
   plugins: [react()],
+  // Fallback em vh para motores sem dvh (QA-023).
+  css: { postcss: { plugins: [dvhFallback()] } },
   server: {
     port: 5173,
     host: true,

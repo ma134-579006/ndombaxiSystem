@@ -1,11 +1,14 @@
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { dvhFallback } from '../../scripts/vite-dvh-fallback';
 
 // Painel de administração LPS Vendas. VITE_API_URL define a API.
 // `design.html` = style guide vivo do Design System (estático, sem dados).
 export default defineConfig({
   plugins: [react()],
+  // Fallback em vh para motores sem dvh (QA-023).
+  css: { postcss: { plugins: [dvhFallback()] } },
   resolve: {
     alias: { '@nexus/ui/ui.css': resolve(__dirname, '../../packages/ui/src/ui.css'), '@nexus/ui': resolve(__dirname, '../../packages/ui/src/index.tsx') },
   },

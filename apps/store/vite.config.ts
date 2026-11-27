@@ -1,10 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { dvhFallback } from '../../scripts/vite-dvh-fallback';
 import { kwanzaSeo } from './seo-kwanza';
 
 // Montra pública LPS Vendas. VITE_API_URL define a API; VITE_STORE_CODE o código da loja.
 export default defineConfig({
   plugins: [react(), kwanzaSeo()],
+  // Fallback em vh para motores sem dvh (QA-023).
+  css: { postcss: { plugins: [dvhFallback()] } },
   server: {
     port: 5174,
     host: true,
