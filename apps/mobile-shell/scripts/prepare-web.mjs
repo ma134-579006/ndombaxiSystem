@@ -139,6 +139,16 @@ fs.copyFileSync(
   path.join(repo, 'apps', 'web', 'public', 'logo.png'),
   path.join(www, 'logo.png'),
 );
+// O lançador também verifica a atualização obrigatória (update-check.js): precisa
+// da versão instalada e da API oficial, gravadas aqui como nos módulos.
+fs.writeFileSync(
+  path.join(www, 'native-flag.js'),
+  `window.__NDOMBAXI_NATIVE__ = true;
+window.__NDOMBAXI_APP_VERSION__ = ${JSON.stringify(APP_VERSION)};
+window.__NDOMBAXI_API_URL__ = ${JSON.stringify(API_URL)};
+window.__NDOMBAXI_APP_PLATFORM__ = 'android';
+`,
+);
 log('Lançador e logótipo copiados para www/');
 
 syncAndroidVersion();

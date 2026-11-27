@@ -16,7 +16,7 @@
        lançador ("não acontecia nada"). Com `/gestao/index.html` o segmento tem
        ponto e a WebView serve mesmo o módulo. -->
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'self';" />
+        content="default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self' https:;" />
   <title>LPS Vendas</title>
   <style>
     :root { --brand-500:#4353ff; --brand-600:#2430e8; --shop-600:#2430e8; --gray-950:#060a15; --gray-400:#94a3b8; --gray-200:#e2e8f0; }
@@ -110,5 +110,8 @@
   </div>
 
   <script src="./launcher.js"></script>
+  <!-- Versão instalada + API (gravadas pelo prepare-web) e a atualização obrigatória no lançador. -->
+  <script src="./native-flag.js"></script>
+  <script src="./update-check.js"></script>
 </body>
 </html>

@@ -107,6 +107,8 @@ for (const mod of MODULES) {
 // Logótipo oficial para o ecrã de arranque.
 const logo = path.join(repo, 'apps', 'web', 'public', 'logo.png');
 fs.copyFileSync(logo, path.join(modulesDir, 'launcher', 'logo.png'));
+// Atualização obrigatória no lançador: o mesmo ficheiro da app Android.
+fs.copyFileSync(path.join(repo, 'apps', 'mobile-shell', 'launcher', 'update-check.js'), path.join(modulesDir, 'launcher', 'update-check.js'));
 
 const buildDir = path.join(desktop, 'build');
 fs.mkdirSync(buildDir, { recursive: true });
