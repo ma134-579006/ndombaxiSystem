@@ -34,6 +34,7 @@ Estado: **VERIFIED** (reproduzido e confirmado por teste executado) · **UNVERIF
 | QA-026 | P2 | F7 | Loja dos associados + LPS Kwanza | O limite de 3 contas de saque contava e só depois gravava: 5 pedidos em simultâneo gravavam 5 contas (Loja e Kwanza). | VERIFIED (QA local) — corrigido | `pg_advisory_xact_lock` por associado. `qa/associados-loja-extra.mjs` X3/X3b: 5 → 3 |
 | QA-027 | P3 | F7 | Loja dos associados | Quem não é associado aprovado recebia 400 («pedido inválido») em vez de 403 nas rotas `/members/*`. | VERIFIED (QA local) — corrigido | `ForbiddenException`; a Loja já tratava 400 e 403. X1c |
 | QA-028 | P3 | F7 | Loja dos associados (interface) | Falha ao pedir adesão (rede ou servidor) era engolida: o botão voltava ao normal sem aviso. | Corrigido (no código) | erro mostrado no ecrã de adesão |
+| QA-040 | P1 | Apps | Apps móveis (e desktop) | Ao abrir a Caixa a partir do Admin, a sessão da Gestão ficava guardada na mesma origem: a seta de voltar ao lançador (Admin/Caixa) nunca aparecia na Caixa, nem depois de «Terminar sessão». O utilizador ficava preso no login da Caixa. | VERIFIED (app móvel simulada, Caixa real de QA) — corrigido | cada módulo olha só para a sua sessão; botão «Início». `qa/lancador-voltar.mjs`: main 1/4 → 4/4 |
 
 ## Limitações conhecidas (não são bugs)
 - A venda offline sobe com a identidade do **último login real do aparelho** (como antes subia com quem estivesse ligado). O operador que fez a venda não é transmitido separadamente.
