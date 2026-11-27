@@ -208,6 +208,8 @@ export class AffiliatesService {
     if (!method || holder.length < 3 || details.length < 6) throw new BadRequestException('Preencha o titular e o número da conta.');
     return this.prisma.runInTenant(schema, async (tx) => {
       const id = await this.customerId(tx, email);
+      // Pedidos em simultâneo liam a mesma contagem e passavam do máximo (QA-026): um de cada vez por associado.
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`aff_acc:${schema}:${id}`}))`);
       const n = await tx.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS n FROM affiliate_payout_accounts WHERE customer_id = ${id}::uuid`);
       if (Number(n[0]?.n ?? 0) >= 3) throw new BadRequestException('Pode ter no máximo 3 contas.');
       await tx.$executeRaw(Prisma.sql`

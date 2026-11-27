@@ -538,9 +538,13 @@ export class KwanzaService implements OnModuleInit {
   async addAccount(a: AssociateRow, p: { method: string; bank?: string; holder: string; details: string }) {
     const method = (p.method ?? '').trim().slice(0, 40); const holder = (p.holder ?? '').trim().slice(0, 120); const details = (p.details ?? '').trim().slice(0, 60);
     if (!method || holder.length < 3 || details.length < 6) throw new BadRequestException('Preencha o titular e o número da conta.');
-    const n = await this.prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS n FROM ${T('kwanza_payout_accounts')} WHERE "associateId" = ${a.id}::uuid`);
-    if (Number(n[0]?.n ?? 0) >= 3) throw new BadRequestException('Pode ter no máximo 3 contas.');
-    await this.prisma.$executeRaw(Prisma.sql`INSERT INTO ${T('kwanza_payout_accounts')} (id, "associateId", method, bank, holder, details, "createdAt") VALUES (gen_random_uuid(), ${a.id}::uuid, ${method}, ${(p.bank ?? '').trim().slice(0, 60) || null}, ${holder}, ${details}, now())`);
+    // Um pedido de cada vez por associado: em simultâneo liam a mesma contagem e passavam das 3 (QA-026).
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`kw_acc:${a.id}`}))`);
+      const n = await tx.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS n FROM ${T('kwanza_payout_accounts')} WHERE "associateId" = ${a.id}::uuid`);
+      if (Number(n[0]?.n ?? 0) >= 3) throw new BadRequestException('Pode ter no máximo 3 contas.');
+      await tx.$executeRaw(Prisma.sql`INSERT INTO ${T('kwanza_payout_accounts')} (id, "associateId", method, bank, holder, details, "createdAt") VALUES (gen_random_uuid(), ${a.id}::uuid, ${method}, ${(p.bank ?? '').trim().slice(0, 60) || null}, ${holder}, ${details}, now())`);
+    });
     return { ok: true as const };
   }
   async removeAccount(a: AssociateRow, id: string) {

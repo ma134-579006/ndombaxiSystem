@@ -124,7 +124,7 @@ export function LoginScreen({ code }: { code: string }) {
   );
 }
 
-export function MembershipScreen({ status, busy, onRequest, onLogout }: { status: Membership; busy: boolean; onRequest(note: string): void; onLogout(): void }) {
+export function MembershipScreen({ status, busy, error, onRequest, onLogout }: { status: Membership; busy: boolean; error?: string; onRequest(note: string): void; onLogout(): void }) {
   const [note, setNote] = useState('');
   return (
     <AuthShell>
@@ -134,6 +134,7 @@ export function MembershipScreen({ status, busy, onRequest, onLogout }: { status
         <div className="kw-auth-form">
           <h2>Pedir adesão</h2>
           {status === 'REJECTED' ? <div className="kw-err" role="alert">Adesão recusada</div> : null}
+          {error ? <div className="kw-err" role="alert">{error}</div> : null}
           <label className="kw-f"><span>Mensagem (opcional)</span><input value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} /></label>
           <button className="kw-btn kw-btn-primary kw-block" disabled={busy} onClick={() => onRequest(note)}>{busy ? 'Um momento…' : 'Pedir adesão'}</button>
         </div>
