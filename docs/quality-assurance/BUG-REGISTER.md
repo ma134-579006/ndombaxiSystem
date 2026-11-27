@@ -23,6 +23,11 @@ Estado: **VERIFIED** (reproduzido e confirmado por teste executado) · **UNVERIF
 | QA-015 | P2 | F4 | Caixa (tablets) | ✕ de remover linha com 22 px de alvo de toque. | VERIFIED (emulado) — corrigido | C4: 22 → 40 px |
 | QA-016 | P3 | F4 | Caixa/Gestão | `rememberOffline` (chamado com `void`) não apanhava a falha do PBKDF2: erro de JS por tratar em motores sem PBKDF2 (WebKit 14.2 Windows). | VERIFIED (WebKit 14.2 real) — corrigido | A0: erro → sem erros |
 | QA-017 | P2 | F5 | Gestão/Caixa (formulários) | Rótulos visíveis não ligados aos campos (595 de 614 `<label>` sem `for`): o leitor de ecrã anuncia só «campo de texto» e o toque no rótulo não foca o campo. | VERIFIED (emulado) — corrigido | `qa/formularios.mjs` F1 |
+| QA-018 | P2 | F6 | Gestão › Fluxo de Caixa | Tabelas chave/valor com scroll lateral até 390 px. | VERIFIED (emulado) — corrigido | `qa/responsivo.mjs` |
+| QA-019 | P3 | F6 | Gestão › Gastos | Atalhos de período sem quebra: scroll lateral a 240/320 px. | VERIFIED (emulado) — corrigido | `qa/responsivo.mjs` |
+| QA-020 | P1 | F6 | Caixa (4K/8K) | Com o zoom de ecrã grande a Caixa ficava cortada (~57% da altura): TOTAL/FINALIZAR fora do ecrã. | VERIFIED (emulado) — corrigido | `qa/responsivo-caixa-loja.mjs`: 3840×2160 FAIL → PASS |
+| QA-021 | P2 | F6 | Caixa (240×320, ecrãs baixos) | FINALIZAR fora do ecrã. | VERIFIED (emulado) — corrigido | idem |
+| QA-022 | — | F6 | Firefox | O Windows desta máquina não executa o Firefox do Playwright (não assinado): testes Firefox por fazer. | UNVERIFIED — limitação do ambiente | precisa de Firefox oficial assinado |
 
 ## Limitações conhecidas (não são bugs)
 - A venda offline sobe com a identidade do **último login real do aparelho** (como antes subia com quem estivesse ligado). O operador que fez a venda não é transmitido separadamente.
