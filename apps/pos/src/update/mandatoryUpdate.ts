@@ -14,7 +14,9 @@
  *     (`autoUpdate.ts`), e trancar um separador do browser não faria sentido.
  */
 import { decideUpdate, readyToBlock, type UpdateDecision } from '@nexus/update-core';
-import { API_URL } from '../config';
+// NUVEM, nunca o servidor local: o LPS Vendas Local Server não tem /downloads e
+// devolvia 404 — a app Windows com servidor local nunca via a atualização obrigatória.
+import { CLOUD_API_URL as API_URL } from '../config';
 import { syncController } from '../offline/sync';
 import { listPendingSales } from '../offline/db';
 

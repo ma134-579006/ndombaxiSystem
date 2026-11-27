@@ -53,7 +53,12 @@ export function MandatoryUpdate() {
     let alive = true;
     const check = async () => {
       try {
-        const res = await fetch(`${API_URL}/downloads/latest?platform=${PLATFORM}`, { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
+        // AbortController (e não AbortSignal.timeout, Chrome 103+): numa WebView
+        // Android antiga o AbortSignal.timeout lançava, o erro era engolido e a
+        // app NUNCA pedia a atualização.
+        const ctrl = new AbortController();
+        const to = window.setTimeout(() => ctrl.abort(), 10_000);
+        const res = await fetch(`${API_URL}/downloads/latest?platform=${PLATFORM}`, { cache: 'no-store', signal: ctrl.signal }).finally(() => window.clearTimeout(to));
         if (!res.ok) return; // servidor sem resposta útil → não bloqueia
         const raw = await res.json().catch(() => null);
         const b = mustBlock(INSTALLED, raw);
