@@ -34,6 +34,13 @@ Estado: **VERIFIED** (reproduzido e confirmado por teste executado) · **UNVERIF
 | QA-026 | P2 | F7 | Loja dos associados + LPS Kwanza | O limite de 3 contas de saque contava e só depois gravava: 5 pedidos em simultâneo gravavam 5 contas (Loja e Kwanza). | VERIFIED (QA local) — corrigido | `pg_advisory_xact_lock` por associado. `qa/associados-loja-extra.mjs` X3/X3b: 5 → 3 |
 | QA-027 | P3 | F7 | Loja dos associados | Quem não é associado aprovado recebia 400 («pedido inválido») em vez de 403 nas rotas `/members/*`. | VERIFIED (QA local) — corrigido | `ForbiddenException`; a Loja já tratava 400 e 403. X1c |
 | QA-028 | P3 | F7 | Loja dos associados (interface) | Falha ao pedir adesão (rede ou servidor) era engolida: o botão voltava ao normal sem aviso. | Corrigido (no código) | erro mostrado no ecrã de adesão |
+| QA-030 | P1 | F6 | Caixa (telemóvel/tablet deitado) | Janela Finalizar com ~890 px de altura em ecrãs de 412–600 px: EMITIR DOCUMENTO fora de alcance. | Corrigido (no código) | qa/caixa-telemoveis.mjs paisagem 378/378 |
+| QA-031 | P2 | F6 | Caixa (telemóvel) | Grelha de artigos com mosaicos de largura fixa. | Corrigido (no código) | matriz CAIXA-TELEMOVEIS-PCS |
+| QA-032 | P3 | F6 | Caixa | Nomes de artigos compridos saíam do mosaico. | Corrigido (no código) | matriz CAIXA-TELEMOVEIS-PCS |
+| QA-033 | P2 | F6 | Caixa (navegadores antigos) | X das janelas invisível sem color-mix; regra de ecrãs baixos só até 420 px. | Corrigido (no código) | matriz CAIXA-TELEMOVEIS-PCS (Chromium 93 / WebKit 14) |
+| QA-034 | P2 | F6 | Caixa (iPhone) | Campos com letra < 16 px (incluindo o PIN do login) faziam zoom ao tocar. | Corrigido (no código) | T5 da matriz CAIXA-TELEMOVEIS-PCS |
+| QA-035 | P2 | F6 | Caixa (tablet) | Tabela de vendas com scroll lateral entre 640 e 900 px. | Corrigido (no código) | T1 da matriz CAIXA-TELEMOVEIS-PCS |
+| QA-036 | P2 | F6 | Caixa (iOS 9–11, Android 4) | Ecrã em branco em navegadores sem ES2019. | Corrigido (no código) | navegador-antigo.js; doc CAIXA-TELEMOVEIS-PCS |
 
 ## Limitações conhecidas (não são bugs)
 - A venda offline sobe com a identidade do **último login real do aparelho** (como antes subia com quem estivesse ligado). O operador que fez a venda não é transmitido separadamente.

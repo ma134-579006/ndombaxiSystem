@@ -100,12 +100,12 @@ const MENU = "button[aria-label='Menu da caixa']";
 const janelas = [
   { nome: 'Opções da venda', passos: ['.vopt-btn'] },
   { nome: 'Finalizar venda', passos: ['.vfinal'] },
-  { nome: 'Entrada / Saída', passos: [MENU, 'text=Entrada / Saída de dinheiro'], largo: ['button:has-text("Caixa")', '.vtop-drop >> text=Entrada / Saída de dinheiro'] },
-  { nome: 'Ponto de Caixa', passos: [MENU, 'text=Ponto de Caixa'], largo: ['button:has-text("Caixa")', '.vtop-drop >> text=Ponto de Caixa'] },
-  { nome: 'Faturação', passos: [MENU, 'text=Faturação'], largo: ['button:has-text("Documentos")', '.vtop-drop >> text=Faturação'] },
+  { nome: 'Entrada / Saída', passos: [MENU, 'text=Entrada / Saída de dinheiro'], largo: ['.vtop-m:not(.vtop-m-mob) > button:has-text("Caixa")', '.vtop-drop >> text=Entrada / Saída de dinheiro'] },
+  { nome: 'Ponto de Caixa', passos: [MENU, 'text=Ponto de Caixa'], largo: ['.vtop-m:not(.vtop-m-mob) > button:has-text("Caixa")', '.vtop-drop >> text=Ponto de Caixa'] },
+  { nome: 'Faturação', passos: [MENU, 'text=Faturação'], largo: ['.vtop-m:not(.vtop-m-mob) > button:has-text("Documentos")', '.vtop-drop >> text=Faturação'] },
 ];
 const RAIZ = '.vw-bg, .vfin-bg, .modal-bg, .scan-overlay, .vopts';
-const FECHAR = '[aria-label="Fechar"], .vfin-x, .vw-x, .modal-x-auto, .vopts-x';
+const FECHAR = '[aria-label="Fechar"], .vfin-x, .vfin-close, .vw-x, .modal-x-auto, .vopts-x';
 const DESLIZA = 'tabs|tab-bar|chips|vtabs|vcat|carousel|scroller|cat-bar|ptabs|seg|strip|rail';
 
 const visivelEm = (pg, sel) => pg.evaluate((s) => [...document.querySelectorAll(s)].some((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden'; }), sel);
@@ -127,9 +127,14 @@ const medir = (pg, janela) => pg.evaluate(({ DESLIZA, RAIZ, janela }) => {
     if (d > 2 && !re.test(String(e.className))) contentores.push(`${nome(e)}+${d}px`);
   }
   const antepassadoDeslizante = (e) => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) { if (re.test(String(p.className)) || /(auto|scroll)/.test(getComputedStyle(p).overflowX)) return true; } return false; };
+  // CSS zoom (useFitHeight no login): o WebKit e o Chromium antigo medem os filhos sem o zoom aplicado;
+  // mede-se o bloco ampliado/reduzido em vez dos filhos.
+  const zoomAnc = (e) => { let z = null; for (let p = e; p && p !== document.documentElement; p = p.parentElement) { const v = parseFloat(getComputedStyle(p).zoom); if (v && Math.abs(v - 1) > 0.001) z = p; } return z; };
   const fora = []; const cortados = [];
   for (const e of document.querySelectorAll('button, a[href], input:not([type=hidden]), select, textarea, [role=button], .vtotal, .vfinal')) {
     if (!visivel(e)) continue;
+    // Dentro de um bloco com zoom as coordenadas vêm infladas: aí vale o T1 (scroll lateral da página).
+    if (zoomAnc(e)) continue;
     const r = e.getBoundingClientRect();
     if ((r.right > vw + 1 || r.left < -1) && !antepassadoDeslizante(e)) fora.push(`${nome(e)}[${Math.round(r.left)}..${Math.round(r.right)}]`);
     const cs = getComputedStyle(e);
@@ -157,16 +162,20 @@ const medir = (pg, janela) => pg.evaluate(({ DESLIZA, RAIZ, janela }) => {
   return { pagina, contentores: contentores.slice(0, 3), fora: fora.slice(0, 4), nFora: fora.length, cortados: [...new Set(cortados)].slice(0, 3), nCort: cortados.length, total: caixa('.vtotal'), fin: caixa('.vfinal'), campos: [...new Set(campos)].slice(0, 4), painel };
 }, { DESLIZA, RAIZ, janela });
 
+let TOQUE = true;
 function registar(id, m, extra = {}) {
   rep.check(`T1 ${id}`, 'Sem scroll lateral (página e contentores)', m.pagina <= 1 && !m.contentores.length, `página+${m.pagina}px ${m.contentores.join(' ')}`);
   rep.check(`T2 ${id}`, 'Nada sai do ecrã nem fica cortado', !m.nFora && !m.nCort, `${m.fora.join(' ')} ${m.cortados.join(' ')}`.trim());
   if (extra.venda) rep.check(`T3 ${id}`, 'TOTAL e FINALIZAR inteiros no ecrã', m.total === true && m.fin === true, `total=${m.total} finalizar=${m.fin}`);
   if (m.painel) rep.check(`T4 ${id}`, 'Painel da janela cabe no ecrã', m.painel.ok, m.painel.motivo);
-  rep.check(`T5 ${id}`, 'Campos de texto com letra ≥ 16 px (sem zoom no iOS)', !m.campos.length, m.campos.join(' '));
+  // T5 só em ecrãs táteis: o zoom ao focar um campo < 16 px é do iOS (PCs não fazem zoom).
+  if (TOQUE) rep.check(`T5 ${id}`, 'Campos de texto com letra ≥ 16 px (sem zoom no iOS)', !m.campos.length, m.campos.join(' '));
 }
 const foto = async (pg, p, ecra) => { if (SHOTS) await pg.screenshot({ path: path.join(SHOTS, `tel-${LABEL}${EXE ? '-antigo' : ''}-${p.nome.replace(/\W+/g, '')}-${ecra.replace(/\W+/g, '')}.png`) }).catch(() => undefined); };
 
 for (const p of perfis) {
+  // PCs: o clique do Playwright desloca a página por causa do zoom CSS (useFitHeight) — clica-se sem deslocar, como o rato.
+  TOQUE = p.grupo !== 'pc';
   const b = await pw[p.motor].launch(EXE ? { executablePath: EXE } : {});
   // isMobile não existe no WebKit para Windows; o Chromium antigo aceita.
   const ctx = await b.newContext(p.opts);
@@ -177,10 +186,13 @@ for (const p of perfis) {
     await pg.waitForSelector('#ndx_field_acct', { timeout: 30_000 });
     await sleep(1500);
     registar(`${p.nome} · login`, await medir(pg, false)); await foto(pg, p, 'login');
-    await pg.click('#ndx_field_acct'); await pg.fill('#ndx_field_acct', op.email);
-    await pg.click('input[placeholder="PIN"]'); await pg.fill('input[placeholder="PIN"]', op.pin);
-    await pg.click('button.va-btn');
-    await sleep(7000);
+    const jsClick = (sel) => pg.$eval(sel, (e) => { e.focus(); e.click(); });
+    await jsClick('#ndx_field_acct'); await pg.fill('#ndx_field_acct', op.email);
+    await jsClick('input[placeholder="PIN"]'); await pg.fill('input[placeholder="PIN"]', op.pin);
+    await jsClick('button.va-btn');
+    // A API de QA pode demorar («A entrar…»): espera o fim do login até 60 s.
+    await pg.waitForFunction(() => !document.querySelector('#ndx_field_acct'), null, { timeout: 60_000 }).catch(() => undefined);
+    await sleep(3000);
     for (let k = 0; k < 3 && await pg.$('.vclosed-open'); k++) { await sleep(1500); await pg.click('.vclosed-open', { timeout: 8000 }).catch(() => undefined); await sleep(4000); }
     await pg.waitForSelector('button[aria-label*="em stock"]', { timeout: 20_000 }).catch(() => undefined);
     const tiles = await pg.$$('button[aria-label*="em stock"]');
@@ -192,14 +204,17 @@ for (const p of perfis) {
       const largo = !(await visivelEm(pg, MENU));
       for (const j of janelas) {
         const passos = largo && j.largo ? j.largo : j.passos;
-        let abriu = true;
-        try { for (const s of passos) { if (s === MENU && largo) continue; await pg.click(s, { timeout: 8000 }); await sleep(900); } } catch { abriu = false; }
-        if (!abriu) rep.check(`T4 ${p.nome} · ${j.nome}`, 'Janela abre', false, 'não foi possível abrir');
+        let abriu = true; let porque = '';
+        try { for (const s of passos) { if (s === MENU && largo) continue; if (p.grupo === 'pc') await pg.locator(s).first().dispatchEvent('click', undefined, { timeout: 8000 }); else await pg.click(s, { timeout: 8000 }); await sleep(1800); } await pg.waitForSelector(RAIZ, { timeout: 6000 }).catch(() => undefined);
+          // Ecrãs enormes sem GPU (8K): espera o fim da animação de abertura antes de medir.
+          await pg.waitForFunction(() => document.getAnimations().every((x) => x.playState !== 'running'), null, { timeout: 6000 }).catch(() => undefined); } catch (e) { abriu = false; porque = String(e.message ?? e).split(/\r?\n/).slice(0, 12).join(' ').replace(/[[0-9;]*m/g, '').slice(0, 900); }
+        if (!abriu && process.env.QA_DEBUG) console.error('DEBUG', porque);
+        if (!abriu) rep.check(`T4 ${p.nome} · ${j.nome}`, 'Janela abre', false, 'não foi possível abrir: ' + porque);
         else { registar(`${p.nome} · ${j.nome}`, await medir(pg, true)); await foto(pg, p, j.nome); }
         for (let k = 0; k < 3 && await visivelEm(pg, RAIZ); k++) {
           const fechou = await pg.evaluate((F) => { const xs = [...document.querySelectorAll(F)].filter((e) => e.getBoundingClientRect().width > 0); const x = xs[xs.length - 1]; if (x) { x.click(); return true; } return false; }, FECHAR);
           if (!fechou) await pg.keyboard.press('Escape');
-          await sleep(600);
+          await sleep(1000);
         }
       }
     }

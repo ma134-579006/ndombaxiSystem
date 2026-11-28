@@ -469,7 +469,7 @@
 .vw-head { position: relative; flex: none; height: 50px; display: grid; place-items: center; border-bottom: 1px solid rgba(255,255,255,.35); padding: 0 60px; }
 .vw-head h2 { margin: 0; font-size: 24px; font-weight: 300; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .vw-x { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); border: 0; background: none; padding: 0; cursor: pointer;
-  color: color-mix(in srgb, var(--primary) 70%, #000); line-height: 0; }
+  color: var(--primary-700, #1338d1); color: color-mix(in srgb, var(--primary) 70%, #000); line-height: 0; }
 .vw-x:hover { opacity: .85; }
 .vw-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 25px 70px 30px; }
 .vw-card { max-width: 1140px; margin: 0 auto; background: var(--surface); color: var(--text); padding: 30px 40px 40px; animation: vw-card .15s ease both; }
@@ -581,8 +581,9 @@
 .vt-qty.no { color: #b11a12; background: rgba(255, 0, 0, .11); box-shadow: inset 0 0 0 1px rgba(210, 0, 0, .3); }
 @media (max-width: 760px) {
   .vt-qty { top: 3px; left: 3px; padding: 0 5px; font-size: 10px; line-height: 15px; }
-  .vgrid { grid-template-columns: repeat(auto-fill, 104px); grid-auto-rows: 104px; }
-  .vtile, .vtile.out { width: 104px; height: 104px; padding: 6px; }
+  /* As colunas esticam para encher a largura (antes 104px fixos deixavam uma faixa vazia à direita — QA-031). */
+  .vgrid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); grid-auto-rows: 104px; }
+  .vtile, .vtile.out { width: auto; height: 104px; padding: 6px; }
   .vtile.img img { height: 40px; }
   .vt-name { font-size: 13px; }
   .vt-price, .vt-ref { font-size: 12px; }
@@ -817,8 +818,27 @@
 
 /* Ecrãs muito baixos (ex.: 240×320, telemóvel deitado): o carrinho cede a altura
    mínima e o navegador de vendas sai, para o TOTAL e o FINALIZAR caberem (missão QA F6). */
-@media (max-height: 420px) {
+@media (max-height: 500px) {
   .vcart-box { min-height: 0 !important; }
   .vsale-nav { display: none !important; }
   .vtable-h { height: 26px !important; }
+}
+
+/* Telemóveis e tablets (missão QA, matriz de aparelhos):
+   — nomes de produto com palavras compridas (códigos, URLs) quebram dentro do botão (QA-032);
+   — campos com letra ≥ 16 px em ecrã tátil: o iOS faz zoom à página ao focar um campo menor (QA-034). */
+.vt-name { word-break: break-word; overflow-wrap: anywhere; }
+@media (pointer: coarse) {
+  .pos input:not([type=checkbox]):not([type=radio]):not([type=range]), .pos select, .pos textarea,
+  .vw-bg input:not([type=checkbox]):not([type=radio]):not([type=range]), .vw-bg select, .vw-bg textarea,
+  .vfin-bg input:not([type=checkbox]):not([type=radio]), .modal-bg input:not([type=checkbox]):not([type=radio]), .modal-bg select, .modal-bg textarea,
+  .auth-input, .va-input { font-size: 16px !important; }
+}
+
+/* Ecrãs baixos e largos (telemóvel/tablet deitado, ≤ 640 px de altura): a janela Finalizar descia e ficava
+   cortada (pagamento e EMITIR DOCUMENTO fora do ecrã — QA-030). Passa a ocupar o ecrã e rola por dentro. */
+@media (max-height: 640px) {
+  .vfin-bg { padding: 0; display: block; }
+  .vfin { width: 100%; height: 100%; max-height: 100%; grid-template-rows: minmax(0, 1fr); }
+  .vfin-main, .vfin-side { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
