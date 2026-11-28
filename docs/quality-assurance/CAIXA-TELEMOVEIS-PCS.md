@@ -45,7 +45,7 @@ Verificações em cada perfil:
 | Telemóveis e tablets | WebKit 14.2 (Safari antigo) | 594/594 |
 
 Falsos alarmes adicionais encontrados nesta ronda (corrigidos no teste, não na Caixa):
-- **Opções em monitores 2560/4K/8K «fora do ecrã»:** o clique do Playwright deslocava a página por causa do zoom CSS. Para um utilizador a página não rola (altura = ecrã, ); clicado sem deslocar, o painel cabe nos três tamanhos.
+- **Opções em monitores 2560/4K/8K «fora do ecrã»:** o clique do Playwright deslocava a página por causa do zoom CSS. Para um utilizador a página não rola (altura = ecrã, `overflow: hidden`); clicado sem deslocar, o painel cabe nos três tamanhos.
 - **T5 (16 px) em PCs:** o zoom ao focar um campo pequeno é só do iOS; o T5 passou a valer só para ecrãs táteis.
 - **8K «janela não abriu»:** sem GPU a janela demorava até 3,5 s a abrir; o teste passou a esperar o fim da animação.
 
