@@ -35,5 +35,18 @@ Verificações em cada perfil:
 - **Coordenadas do login:** o zoom CSS (`useFitHeight`) aumenta o `getBoundingClientRect` no WebKit e no Chromium antigo; a página não sai do ecrã.
 - **«Janela abre» falhava em paisagem:** o teste não conhecia o botão «✕ Fechar» da janela Finalizar (`.vfin-close`), por isso a janela ficava aberta por cima do menu. O botão existe e está visível; corrigido no teste.
 
-## Resultados
-Ver a secção «Resultado final» no fim deste ficheiro.
+## Resultado final (build com as correções)
+| Grupo | Motor | Resultado |
+|---|---|---|
+| 38 telemóveis e tablets | Chromium atual | 996/999 → as 3 falhas repetidas isoladas: 81/81 (espera curta do teste, não da Caixa) |
+| Telemóveis e tablets deitados | Chromium atual | 378/378 |
+| 19 PCs (1024×768 a 8K) | Chromium/WebKit atuais | 378/380 → 8K repetido com espera pela animação: 20/20 |
+| Telemóveis e tablets | Chromium 93 (Android antigo) | 405/405 |
+| Telemóveis e tablets | WebKit 14.2 (Safari antigo) | 594/594 |
+
+Falsos alarmes adicionais encontrados nesta ronda (corrigidos no teste, não na Caixa):
+- **Opções em monitores 2560/4K/8K «fora do ecrã»:** o clique do Playwright deslocava a página por causa do zoom CSS. Para um utilizador a página não rola (altura = ecrã, ); clicado sem deslocar, o painel cabe nos três tamanhos.
+- **T5 (16 px) em PCs:** o zoom ao focar um campo pequeno é só do iOS; o T5 passou a valer só para ecrãs táteis.
+- **8K «janela não abriu»:** sem GPU a janela demorava até 3,5 s a abrir; o teste passou a esperar o fim da animação.
+
+UNVERIFIED: aparelhos físicos (iPhone/Android reais). Os motores emulam o ecrã, o toque e o agente de cada aparelho, mas não o navegador exato de cada versão.
